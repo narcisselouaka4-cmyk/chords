@@ -4,8 +4,7 @@
 export function createPlayer({ onNoteOn, onNoteOff, onSustain, onPitchWheel, onModWheel, onProgramChange } = {}) {
   let events = [];
   let startTime = 0;
-  let isPlaying = false;
-  let isPaused = false;
+  let state = 'stopped'; // 'stopped' | 'playing' | 'paused'
   let speed = 1;
   let currentTime = 0;
   let rafId = null;
@@ -13,6 +12,7 @@ export function createPlayer({ onNoteOn, onNoteOff, onSustain, onPitchWheel, onM
   let activeNotes = new Set();
 
   function allNotesOff() {
+    if (activeNotes.size === 0) return;
     for (const note of activeNotes) {
       onNoteOff?.(note);
     }
@@ -27,23 +27,23 @@ export function createPlayer({ onNoteOn, onNoteOff, onSustain, onPitchWheel, onM
   }
 
   function play() {
-    if (isPlaying && !isPaused) return;
+    if (state === 'playing') return;
 
-    if (isPaused) {
-      isPaused = false;
+    if (state === 'paused') {
+      // Reprendre exactement à currentTime, pas à zéro.
       startTime = performance.now() - (currentTime * 1000) / speed;
     } else {
       startTime = performance.now() - (currentTime * 1000) / speed;
     }
 
-    isPlaying = true;
+    state = 'playing';
     scheduledUntil = currentTime;
     scheduleLoop();
   }
 
   function pause() {
-    if (!isPlaying || isPaused) return;
-    isPaused = true;
+    if (state !== 'playing') return;
+    state = 'paused';
     currentTime = getCurrentTime();
     cancelFrame(rafId);
     rafId = null;
@@ -51,8 +51,7 @@ export function createPlayer({ onNoteOn, onNoteOff, onSustain, onPitchWheel, onM
   }
 
   function stop() {
-    isPlaying = false;
-    isPaused = false;
+    state = 'stopped';
     currentTime = 0;
     speed = 1;
     cancelFrame(rafId);
@@ -62,7 +61,11 @@ export function createPlayer({ onNoteOn, onNoteOff, onSustain, onPitchWheel, onM
   }
 
   function seek(time) {
-    const wasPlaying = isPlaying && !isPaused;
+    // 1. Couper toutes les notes actives AVANT de déplacer la tête de lecture.
+    allNotesOff();
+
+    // 2. Seulement après, mettre à jour la position.
+    const wasPlaying = state === 'playing';
     currentTime = Math.max(0, Math.min(time, getDuration()));
     scheduledUntil = currentTime;
     if (wasPlaying) {
@@ -72,7 +75,7 @@ export function createPlayer({ onNoteOn, onNoteOff, onSustain, onPitchWheel, onM
 
   function setSpeed(newSpeed) {
     if (newSpeed <= 0) return;
-    const wasPlaying = isPlaying && !isPaused;
+    const wasPlaying = state === 'playing';
     currentTime = getCurrentTime();
     speed = newSpeed;
     if (wasPlaying) {
@@ -82,8 +85,7 @@ export function createPlayer({ onNoteOn, onNoteOff, onSustain, onPitchWheel, onM
   }
 
   function getCurrentTime() {
-    if (!isPlaying) return currentTime;
-    if (isPaused) return currentTime;
+    if (state !== 'playing') return currentTime;
     return ((performance.now() - startTime) / 1000) * speed;
   }
 
@@ -93,7 +95,7 @@ export function createPlayer({ onNoteOn, onNoteOff, onSustain, onPitchWheel, onM
   }
 
   function scheduleLoop() {
-    if (!isPlaying || isPaused) return;
+    if (state !== 'playing') return;
 
     const now = getCurrentTime();
     const lookahead = 0.1; // schedule events 100ms ahead
@@ -109,8 +111,11 @@ export function createPlayer({ onNoteOn, onNoteOff, onSustain, onPitchWheel, onM
     }
 
     if (now >= getDuration()) {
-      stop();
+      state = 'stopped';
       currentTime = getDuration();
+      cancelFrame(rafId);
+      rafId = null;
+      allNotesOff();
       return;
     }
 
@@ -163,8 +168,9 @@ export function createPlayer({ onNoteOn, onNoteOff, onSustain, onPitchWheel, onM
     setSpeed,
     getDuration,
     getCurrentTime,
-    get isPlaying() { return isPlaying && !isPaused; },
-    get isPaused() { return isPaused; },
+    get state() { return state; },
+    get isPlaying() { return state === 'playing'; },
+    get isPaused() { return state === 'paused'; },
     get speed() { return speed; },
   };
 }
