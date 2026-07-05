@@ -166,6 +166,24 @@ function keyName(pc, mode, useSharps = true, latin = false) {
   return formatNote(pc, useSharps, latin) + (mode === 'minor' ? 'm' : '');
 }
 
+export function computeKeyFromRawNotes(events, options = {}) {
+  const hist = buildPcHistogram(events);
+  const histTotal = hist.reduce((a, b) => a + b, 0);
+
+  if (histTotal <= 0) return null;
+
+  const krumhanslResult = detectByKrumhansl(hist);
+  if (!krumhanslResult) return null;
+
+  return {
+    pc: krumhanslResult.pc,
+    mode: krumhanslResult.mode,
+    name: keyName(krumhanslResult.pc, krumhanslResult.mode, options.useSharps !== false, options.latin),
+    confidence: Math.min(1, Math.max(0, krumhanslResult.score)),
+    source: 'krumhansl-raw',
+  };
+}
+
 export function detectKey(events, chords, options = {}) {
   const hist = buildPcHistogram(events);
   const histTotal = hist.reduce((a, b) => a + b, 0);

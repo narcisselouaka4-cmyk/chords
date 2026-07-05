@@ -1,9 +1,9 @@
 import { buildChordTimeline } from './chord-timeline.js';
 import { segment } from './segmenter.js';
-import { detectKey } from './key-detector.js';
+import { detectKey, computeKeyFromRawNotes } from './key-detector.js';
 import { readSessionFile, writeSessionFile } from '../recorder/storage.js';
 
-// [OpenCode] — 2026-07-04 — Orchestrateur d'analyse des sessions MIDI.
+// [OpenCode] — 2026-07-06 — Orchestrateur d'analyse des sessions MIDI.
 
 const APP_VERSION = '0.1.0';
 
@@ -11,8 +11,39 @@ export async function analyzeSession(sessionId, events, session) {
   const cached = await loadAnalysis(sessionId);
   if (cached) return cached;
 
-  const chords = buildChordTimeline(events);
   const totalDuration = session.duration || estimateDuration(events);
+
+  // Pipeline de détection d'accords
+  const timeline = buildChordTimeline(events);
+  const chords = timeline.chords || [];
+  const isMelodic = timeline.isMelodic || false;
+
+  // Détection de tonalité : si mélodique, utiliser les notes brutes ; sinon, pipeline accords + KS
+  let key = null;
+  if (isMelodic) {
+    key = computeKeyFromRawNotes(events, { useSharps: true, latin: false });
+  } else {
+    key = detectKey(events, chords, { useSharps: true, latin: false });
+  }
+
+  if (isMelodic) {
+    // Mode mélodique : pas de segmentation en accords
+    const result = {
+      sessionId,
+      generatedAt: new Date().toISOString(),
+      appVersion: APP_VERSION,
+      duration: totalDuration,
+      sourceType: session.sourceType || 'midi',
+      key,
+      isMelodic: true,
+      chords: [],
+      sections: [],
+      melodyLine: timeline.melodyLine || [],
+    };
+    await saveAnalysis(sessionId, result);
+    return result;
+  }
+
   const sections = segment(chords, totalDuration);
 
   // Convert sections chordIndices to reference chord objects for convenience
@@ -21,16 +52,17 @@ export async function analyzeSession(sessionId, events, session) {
     chords: s.chordIndices.map((idx) => chords[idx]).filter(Boolean),
   }));
 
-  const key = detectKey(events, chords, { useSharps: true, latin: false });
-
   const result = {
     sessionId,
     generatedAt: new Date().toISOString(),
     appVersion: APP_VERSION,
     duration: totalDuration,
+    sourceType: session.sourceType || 'midi',
     key,
+    isMelodic: false,
     chords,
     sections: enrichedSections,
+    melodyLine: [],
   };
 
   await saveAnalysis(sessionId, result);
@@ -57,4 +89,4 @@ function estimateDuration(events) {
   return last.time || 0;
 }
 
-export { detectKey, parseKeyInput } from './key-detector.js';
+export { detectKey, computeKeyFromRawNotes };

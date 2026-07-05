@@ -436,7 +436,7 @@ function renderSessionList(sessions) {
     if (isSelected) item.classList.add('active');
 
     item.innerHTML = `
-      <div class="session-name" contenteditable="false" title="Double-cliquez pour renommer">${escapeHtml(session.name)}</div>
+      <div class="session-name" contenteditable="false" title="${escapeHtml(session.name)}">${escapeHtml(session.name)}</div>
       <div class="session-meta">${date} · ${duration} · ${session.noteCount || 0} notes · ${session.chordCount || 0} accords${session.key ? ` · ${session.key}` : ''}${session.tempo ? ` · ${session.tempo} BPM` : ''}</div>
       <div class="session-actions">
         <button class="session-action delete" data-id="${session.id}" title="Supprimer">🗑</button>
@@ -576,7 +576,7 @@ function bindTransportBar() {
   els.transportPlay?.addEventListener('click', () => {
     if (!player) return;
     if (player.isPlaying) {
-      player.stop();
+      player.pause();
     } else {
       if (player.getCurrentTime() >= player.getDuration()) {
         player.stop();
@@ -588,6 +588,13 @@ function bindTransportBar() {
   });
 
   els.transportSlider?.addEventListener('input', () => {
+    const duration = player?.getDuration() || 0;
+    const val = Number(els.transportSlider.value);
+    // Mise à jour visuelle uniquement pendant le drag ; le son se déclenche au mouseup.
+    updateTransportSliderOnly((val / 100) * duration, duration);
+  });
+
+  els.transportSlider?.addEventListener('change', () => {
     const duration = player?.getDuration() || 0;
     const val = Number(els.transportSlider.value);
     player?.seek((val / 100) * duration);
@@ -608,13 +615,16 @@ function startTransportLoop() {
   transportRafId = requestAnimationFrame(loop);
 }
 
+function updateTransportSliderOnly(cur, dur) {
+  if (!els.transportBar || !els.transportSlider) return;
+  els.transportSlider.value = dur > 0 ? String((cur / dur) * 100) : '0';
+}
+
 function updateTransportUI() {
   if (!els.transportBar) return;
   const dur = player?.getDuration() || 0;
   const cur = player?.getCurrentTime() || 0;
-  if (els.transportSlider) {
-    els.transportSlider.value = dur > 0 ? String((cur / dur) * 100) : '0';
-  }
+  updateTransportSliderOnly(cur, dur);
   if (els.transportPlay) {
     els.transportPlay.textContent = player?.isPlaying ? '⏸' : '▶';
   }

@@ -1483,6 +1483,9 @@ input[type='color'] {
 .session-item .session-name {
   font-weight: 600;
   margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .session-item .session-meta {
