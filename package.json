@@ -1,0 +1,28 @@
+{
+  "name": "piano-jazz-chords",
+  "version": "0.1.0",
+  "description": "Application desktop d'affichage et d'apprentissage des accords jazz en temps réel",
+  "author": "Claude Code",
+  "license": "MIT",
+  "type": "module",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "NODE_ENV=development concurrently \"vite\" \"electron .\" -k",
+    "build": "vite build",
+    "test:chords": "node src/chord-engine/test-chords.js",
+    "dist:linux": "npm run build && electron-builder --linux",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:mac": "npm run build && electron-builder --mac"
+  },
+  "dependencies": {
+    "@julusian/midi": "^3.6.1",
+    "@soundtouchjs/audio-worklet": "^2.0.4",
+    "soundtouchjs": "^0.3.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.3",
+    "electron": "^32.0.0",
+    "electron-builder": "^25.0.5",
+    "vite": "^5.4.0"
+  }
+}
