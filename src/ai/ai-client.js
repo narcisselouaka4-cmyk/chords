@@ -17,6 +17,29 @@ const NOTE_PC_MAP = {
   E: 4, Fb: 4, F: 5, 'F#': 6, Gb: 6, G: 7, 'G#': 8,
   Ab: 8, A: 9, 'A#': 10, Bb: 10, B: 11, Cb: 11,
 };
+const OCTAVE_BASE = 12; // C4 = 60
+
+function noteNameToMidi(name) {
+  if (typeof name === 'number') return Math.round(name);
+  if (!name || typeof name !== 'string') return null;
+  const match = name.trim().match(/^([A-G][#b]?)(-?\d+)$/i);
+  if (!match) return null;
+  const pc = NOTE_PC_MAP[match[1]];
+  if (pc == null) return null;
+  const octave = parseInt(match[2], 10);
+  return octave * 12 + pc + 12; // C4 = 60
+}
+
+export function midiToNoteName(midi) {
+  const pc = ((midi % 12) + 12) % 12;
+  const octave = Math.floor(midi / 12) - 1;
+  return `${NOTE_NAMES[pc]}${octave}`;
+}
+
+function parseVoicing(voicing) {
+  if (!Array.isArray(voicing)) return [];
+  return voicing.map(noteNameToMidi).filter((n) => n != null && n >= 24 && n <= 108);
+}
 
 function getApiConfig() {
   const local = getAIConfig();
@@ -79,15 +102,15 @@ function validateAINotes(name, notes) {
   return pcs.has(claimedRootPc);
 }
 
-export async function generateReharmonization(chord, style) {
+export async function generateReharmonization(chord, style, topNoteName = '—') {
   const config = getApiConfig();
   if (!config) return null;
 
   const rootPc = typeof chord.rootPc === 'number' ? chord.rootPc : 0;
   const symbol = chord.symbol || '';
   const notes = chord.notes || [];
-  const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
   const rootName = NOTE_NAMES[rootPc % 12] || '?';
+  const originalName = `${rootName}${symbol}`;
 
   const styleDesc = {
     worship: 'ouverts, aérés, suspendus (sus4, add9, maj7), voix amples',
@@ -100,27 +123,34 @@ export async function generateReharmonization(chord, style) {
     .map((m) => `- ${m.artist} (${m.style}) : ${m.name} — ${m.pattern} — ${m.description}`)
     .join('\n');
 
-  const systemPrompt = `Tu es un pianiste expert en harmonie jazz et gospel. Tu proposes des voicings piano réalistes.
+  const systemPrompt = `Tu es l'algorithme central de réharmonisation de l'application. Tu analyses la suite de mouvements jouée par l'utilisateur (Basse + Top Note). Au lieu de suggérer des accords théoriques isolés, tu fouilles dans la bibliothèque de mouvements locale extraite des vidéos précédemment analysées pour proposer 3 alternatives basées sur des signatures réelles.
 
-MOUVEMENTS DE RÉFÉRENCE (utilise-les comme inspiration quand c'est pertinent) :
+BIBLIOTHÈQUE DE MOUVEMENTS LOCALE :
 ${libraryText}
 
 RÈGLES STRICTES :
-1. L'accord proposé DOIT garder la MÊME fondamentale que l'accord original. La fondamentale est la note MIDI la plus basse des notes reçues.
-2. Tu ne dois JAMAIS halluciner une structure différente. Par exemple, C3-E3-G3-B3-D4 est un Cmaj9, PAS un Em9(#11) ou Em7(sus4).
-3. Les notes MIDI DOIVENT contenir la fondamentale de l'accord (le nom de l'accord détermine la fondamentale)
-4. Les notes doivent être jouables à la main gauche : 2 à 5 notes, tessiture C3-C6 (MIDI 48-84)
-5. VÉRIFIE que les notes que tu génères correspondent bien au nom de l'accord que tu annonces
-   Exemple : si tu dis "Dm7", les notes doivent contenir D (MIDI 50, 62, 74 ou 86)
-6. Réponds UNIQUEMENT en JSON valide, sans aucun texte avant/après
+1. L'accord original DOIT garder sa fondamentale. Les suggestions sont des REHARMONISATIONS, pas des accords complètement différents.
+2. Les voicings DOIVENT être jouables à la main gauche : 2 à 6 notes, tessiture C2-C6 (MIDI 36-84).
+3. Chaque suggestion doit citer explicitement son inspiration artistique (Jeremy Haynes, Jonathan Nelson, Moses Tyson, ou générique).
+4. Le champ "voicing" est un tableau de notes au format "NoteOctave" (ex: "C#2", "B2", "E3").
+5. La "technique" doit décrire le mouvement (Drop 2, Quartal, Rootless, Substitution tritonique, etc.).
+6. Réponds UNIQUEMENT en JSON valide, sans aucun texte avant/après.
 
 Format attendu :
-{ "name": "...", "notes": [60, 64, 67, 71, 74], "substitution": "enrichissement | tritonique | relatif | passage" }`;
+{
+  "accord_original": "Em7",
+  "top_note": "G#",
+  "suggestions": [
+    { "inspiration": "Jeremy Haynes", "voicing": ["C#2", "B2", "E3", "G#3", "B3"], "technique": "Drop 2 / Substitution Diatonique" },
+    { "inspiration": "Jonathan Nelson", "voicing": ["A2", "E3", "G3", "B3", "D4", "G#4"], "technique": "La6/9 basse de Mi / Quartal" },
+    { "inspiration": "Moses Tyson", "voicing": ["D#2", "A#2", "C#3", "F#3", "A#3"], "technique": "2-5-1 Mineur Altéré / Rootless" }
+  ]
+}`;
 
-  const userPrompt = `Accord original : ${rootName}${symbol} (fondamentale ${rootPc}, notes ${JSON.stringify(notes)})
-Style : ${style} — ${styleDesc[style] || ''}
+  const userPrompt = `Accord original : ${originalName} (fondamentale ${rootPc}, top note ${topNoteName}, notes ${JSON.stringify(notes)})
+Style cible : ${style} — ${styleDesc[style] || ''}
 
-Propose un voicing piano ${style} pour ${rootName}${symbol}.`;
+Propose 3 réharmonisations inspirées de la bibliothèque de mouvements locales pour ${originalName}.`;
 
   try {
     const response = await fetch(`${config.baseUrl.replace(/\/$/, '')}/chat/completions`, {
@@ -135,8 +165,8 @@ Propose un voicing piano ${style} pour ${rootName}${symbol}.`;
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
-        max_tokens: 300,
-        temperature: 0.3,
+        max_tokens: 500,
+        temperature: 0.35,
       }),
     });
 
@@ -153,22 +183,30 @@ Propose un voicing piano ${style} pour ${rootName}${symbol}.`;
     if (!content) return null;
 
     const result = safeJsonParse(content);
-    if (!result || !Array.isArray(result.notes) || result.notes.length === 0) return null;
+    if (!result || !Array.isArray(result.suggestions) || result.suggestions.length === 0) return null;
 
-    const notes = result.notes.map((n) => Math.round(n));
-    const name = result.name || `${rootName} ${style}`;
+    // Normaliser et valider chaque suggestion
+    const normalizedSuggestions = result.suggestions.map((s) => {
+      const parsed = parseVoicing(s.voicing);
+      return {
+        inspiration: s.inspiration || 'Générique',
+        voicingNotes: parsed,
+        voicingNames: s.voicing || [],
+        technique: s.technique || '',
+        valid: parsed.length >= 2 && parsed.every((n) => n >= 36 && n <= 84),
+      };
+    }).filter((s) => s.valid);
 
-    // Valider que les notes correspondent au nom (sinon fallback algorithmique)
-    if (!validateAINotes(name, notes)) {
-      console.warn('[AI] Notes invalides pour le nom declare:', name, notes.map((n) => `${NOTE_NAMES[n % 12]}${Math.floor(n / 12) - 1}`).join(', '));
+    if (normalizedSuggestions.length === 0) {
+      console.warn('[AI] Aucune suggestion valide reçue pour', originalName);
       return null;
     }
 
     return {
-      name,
-      notes,
+      accord_original: result.accord_original || originalName,
+      top_note: result.top_note || topNoteName,
+      suggestions: normalizedSuggestions,
       style,
-      substitution: result.substitution || '',
     };
   } catch (err) {
     if (err.message === 'AI_API_KEY_INVALID') {
@@ -203,13 +241,13 @@ export async function generateMasterclass(analysis) {
     return `${labels[s.label] || s.label} (${formatTime(s.start)} — ${formatTime(s.end)})`;
   }).join('\n');
 
-  const libraryText = movementsLibrary.movements
+    const libraryText = movementsLibrary.movements
     .map((m) => `- ${m.artist} (${m.style}) : ${m.name} — ${m.pattern} — ${m.description}`)
     .join('\n');
 
   const systemPrompt = `Tu es un professeur de piano jazz et gospel de renom. Tu analyses des progressions harmoniques completes et tu donnes des conseils personnalises.
 
-MOUVEMENTS DE RÉFÉRENCE (cite-les quand c'est pertinent et utilise leurs patterns comme base) :
+BIBLIOTHÈQUE DE MOUVEMENTS LOCALE (cite explicitement ces mouvements quand ils s'appliquent) :
 ${libraryText}
 
 Pour chaque accord de la session, fournis :

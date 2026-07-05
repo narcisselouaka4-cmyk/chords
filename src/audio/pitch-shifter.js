@@ -31,17 +31,22 @@ async function ensureWorkletRegistered(audioCtx) {
  * @param {number} semitones
  * @returns {Promise<{ node: AudioNode, setPitch(semitones: number): void, disconnect(): void }>}
  */
+function semitonesToPitchRatio(semitones) {
+  return Math.pow(2, semitones / 12);
+}
+
 export async function createPitchShifter(audioCtx, destinationNode, semitones = 0) {
   await ensureWorkletRegistered(audioCtx);
   const stNode = new SoundTouchNode({ context: audioCtx });
-  stNode.pitchSemitones.value = semitones;
+  // Utiliser pitch (ratio) plutôt que pitchSemitones pour une meilleure qualité audio.
+  stNode.pitch.value = semitonesToPitchRatio(semitones);
   stNode.playbackRate.value = 1;
   stNode.connect(destinationNode);
 
   return {
     node: stNode,
     setPitch: (st) => {
-      stNode.pitchSemitones.value = st;
+      stNode.pitch.value = semitonesToPitchRatio(st);
     },
     disconnect: () => {
       try {

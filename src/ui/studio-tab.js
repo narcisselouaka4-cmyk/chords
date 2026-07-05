@@ -34,11 +34,13 @@ let isDraggingHandle = null;
 let isAudioOnly = false;
 let mediaDuration = 0;
 
-// AudioContext temps réel pour transposition instantanée
-let pitchCtx = null;
+// AudioContext partagé pour le Studio (évite les doubles contextes et preserve la qualité)
+let studioAudioCtx = null;
+let studioDestination = null;
 let pitchSourceNode = null;
 let pitchGainNode = null;
 let pitchShifter = null;
+let playerSourceCreated = false;
 
 const els = {
   importBtn: document.getElementById('studio-import-btn'),
@@ -138,7 +140,10 @@ function bindPlayer() {
     const masterLabel = document.getElementById('studio-volume-label');
     if (masterLabel) masterLabel.textContent = formatDb(db);
     setPlayerMuted();
-    if (pitchGainNode) pitchGainNode.gain.value = dbToGain(db);
+    if (pitchGainNode) {
+      const now = studioAudioCtx?.currentTime || 0;
+      pitchGainNode.gain.setTargetAtTime(dbToGain(db), now, 0.05);
+    }
     mixer?.setMasterVolume(db);
   });
 
@@ -503,11 +508,19 @@ function inspectMedia(blobUrl) {
   });
 }
 
+function ensureStudioAudioContext() {
+  if (studioAudioCtx) return studioAudioCtx;
+  studioAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  studioDestination = studioAudioCtx.createGain();
+  studioDestination.connect(studioAudioCtx.destination);
+  return studioAudioCtx;
+}
+
 function resetTransposeState() {
   transpose = 0;
   if (els.transposeInput) els.transposeInput.value = '0';
   if (mixer?.hasStems()) mixer.setDetune(0);
-  if (pitchSourceNode) pitchSourceNode.detune.value = 0;
+  disconnectPitchShifter();
   regionStart = 0;
   regionEnd = null;
   regionConfirmed = false;
@@ -518,12 +531,31 @@ function resetTransposeState() {
   setCropControlsEnabled(false);
 }
 
+function disconnectPitchShifter() {
+  if (pitchShifter) {
+    try { pitchShifter.disconnect(); } catch (_) {}
+    pitchShifter = null;
+  }
+  if (pitchSourceNode) {
+    try { pitchSourceNode.disconnect(); } catch (_) {}
+    pitchSourceNode = null;
+  }
+  playerSourceCreated = false;
+}
+
 function setPlayerMuted() {
   if (!els.player) return;
-  // The visible player is always the timing/video reference.
+  // The visible player is always the timing reference.
   // Audio output goes through stem mixer or pitchCtx only.
   els.player.muted = true;
   els.player.volume = 0;
+}
+
+function setPlayerAudible() {
+  if (!els.player) return;
+  const db = Number(els.volume?.value) || 0;
+  els.player.muted = false;
+  els.player.volume = dbToGain(db);
 }
 
 function storeOriginalStems(blobUrls, paths) {
@@ -627,17 +659,34 @@ function renderWaveform() {
   }
 }
 
-function initPitchCtx() {
-  if (pitchCtx) return;
-  try {
-    pitchCtx = new (window.AudioContext || window.webkitAudioContext)();
-    pitchGainNode = pitchCtx.createGain();
-    pitchGainNode.gain.value = dbToGain(Number(els.volume?.value) || 0);
-    pitchGainNode.connect(pitchCtx.destination);
-    setPlayerMuted();
-  } catch (e) {
-    console.warn('AudioContext not available');
-    pitchCtx = null;
+async function ensurePlayerRouted() {
+  if (!els.player || !studioAudioCtx) return;
+  if (!pitchGainNode) {
+    pitchGainNode = studioAudioCtx.createGain();
+    const db = Number(els.volume?.value) || 0;
+    pitchGainNode.gain.setValueAtTime(dbToGain(db), studioAudioCtx.currentTime);
+    pitchGainNode.connect(studioDestination);
+  }
+  if (!playerSourceCreated) {
+    try {
+      pitchSourceNode = studioAudioCtx.createMediaElementSource(els.player);
+      playerSourceCreated = true;
+    } catch (e) {
+      // Élément déjà routé (ne devrait pas arriver car on garde un seul audio element)
+      console.warn('[Studio] MediaElementSource déjà créé:', e);
+    }
+  }
+  if (pitchSourceNode) {
+    pitchSourceNode.disconnect();
+    if (pitchShifter) pitchShifter.disconnect();
+    if (transpose !== 0) {
+      if (!pitchShifter) {
+        pitchShifter = await createPitchShifter(studioAudioCtx, pitchGainNode, transpose);
+      }
+      pitchSourceNode.connect(pitchShifter.node);
+    } else {
+      pitchSourceNode.connect(pitchGainNode);
+    }
   }
 }
 
@@ -660,43 +709,26 @@ async function runPitchShift() {
     return;
   }
 
-  // Pas de stems → pitch-shifter SoundTouch sur le player principal
+  ensureStudioAudioContext();
+  if (!studioAudioCtx) return;
+
   if (transpose === 0) {
-    // Remettre le son original : bypass pitch-shifter
     if (pitchShifter) {
       try { pitchShifter.disconnect(); } catch (_) {}
       pitchShifter = null;
     }
-    if (pitchSourceNode) {
-      try { pitchSourceNode.disconnect(); } catch (_) {}
-      pitchSourceNode = null;
-    }
-    setPlayerMuted();
-    if (els.transposeStatus) els.transposeStatus.textContent = '';
-    return;
   }
 
-  initPitchCtx();
-  if (!pitchCtx) return;
+  await ensurePlayerRouted();
 
-  if (!pitchShifter && els.player) {
-    try {
-      pitchSourceNode = pitchCtx.createMediaElementSource(els.player);
-      pitchShifter = await createPitchShifter(pitchCtx, pitchGainNode, transpose);
-      pitchSourceNode.connect(pitchShifter.node);
-    } catch (e) {
-      console.error('Erreur Transposition Audio:', e);
-      if (els.transposeStatus) {
-        els.transposeStatus.textContent = 'Transposition indisponible';
-      }
-      return;
-    }
-  }
   if (pitchShifter) {
     pitchShifter.setPitch(transpose);
   }
+
   if (els.transposeStatus) {
-    els.transposeStatus.textContent = `Transposé : ${transpose > 0 ? '+' : ''}${transpose} demi-tons`;
+    els.transposeStatus.textContent = transpose !== 0
+      ? `Transposé : ${transpose > 0 ? '+' : ''}${transpose} demi-tons`
+      : '';
   }
 }
 
@@ -708,18 +740,21 @@ function clampToRegion(time) {
 export function play() {
   if (!els.player?.src) return;
 
-  setPlayerMuted();
-  els.player.play().catch((err) => console.error('Play failed:', err));
-
   const useStems = mixer?.hasStems();
   if (useStems) {
+    setPlayerMuted();
     mixer?.seek(els.player.currentTime);
     mixer?.play();
+  } else if (transpose !== 0) {
+    setPlayerMuted();
+    // Le son transposé sort via pitchGainNode / pitchShifter
+    if (!pitchShifter) runPitchShift();
   } else {
-    // Fallback : jouer l'audio original via le player
-    els.player.volume = dbToGain(Number(els.volume?.value) || 0);
-    els.player.muted = false;
+    // Pas de stems, pas de transposition : sortie native de meilleure qualité
+    setPlayerAudible();
   }
+
+  els.player.play().catch((err) => console.error('Play failed:', err));
 
   isPlaying = true;
   els.playBtn.textContent = '⏸';
