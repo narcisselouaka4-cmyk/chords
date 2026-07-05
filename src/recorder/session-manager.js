@@ -31,6 +31,7 @@ export async function createSession(metadata) {
     tempo: metadata.tempo || 120,
     comments: metadata.comments || '',
     tags: Array.isArray(metadata.tags) ? metadata.tags : [],
+    sourceType: metadata.sourceType || 'midi',
     noteCount: 0,
     chordCount: 0,
     appVersion: APP_VERSION,

@@ -10,6 +10,7 @@
 
 import { getAIConfig } from './openai-config.js';
 import movementsLibrary from '../data/movements-library.json' with { type: 'json' };
+import { classifyVoicing } from '../chord-engine/index.js';
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const NOTE_PC_MAP = {
@@ -39,6 +40,24 @@ export function midiToNoteName(midi) {
 function parseVoicing(voicing) {
   if (!Array.isArray(voicing)) return [];
   return voicing.map(noteNameToMidi).filter((n) => n != null && n >= 24 && n <= 108);
+}
+
+// Normalise une suggestion en recalculant Top Note et type de voicing via le moteur harmonique.
+// Le texte original (bibliothèque/IA) devient un label de style informatif, jamais la vérité technique.
+function normalizeSuggestion(suggestion) {
+  if (!suggestion || !Array.isArray(suggestion.voicingNotes) || suggestion.voicingNotes.length === 0) {
+    return null;
+  }
+  const classification = classifyVoicing(suggestion.voicingNotes);
+  return {
+    ...suggestion,
+    topNoteMidi: classification.topNote,
+    topNoteName: midiToNoteName(classification.topNote),
+    voicingType: classification.voicingType,
+    // styleLabel conserve l'intention textuelle originale (ex. "Drop 2 / Substitution Diatonique")
+    styleLabel: suggestion.technique || '',
+    technique: classification.voicingType,
+  };
 }
 
 function getApiConfig() {
@@ -185,17 +204,17 @@ Propose 3 réharmonisations inspirées de la bibliothèque de mouvements locales
     const result = safeJsonParse(content);
     if (!result || !Array.isArray(result.suggestions) || result.suggestions.length === 0) return null;
 
-    // Normaliser et valider chaque suggestion
+    // Normaliser, classifier et valider chaque suggestion
     const normalizedSuggestions = result.suggestions.map((s) => {
       const parsed = parseVoicing(s.voicing);
-      return {
+      const base = {
         inspiration: s.inspiration || 'Générique',
         voicingNotes: parsed,
         voicingNames: s.voicing || [],
         technique: s.technique || '',
-        valid: parsed.length >= 2 && parsed.every((n) => n >= 36 && n <= 84),
       };
-    }).filter((s) => s.valid);
+      return normalizeSuggestion(base);
+    }).filter((s) => s != null && s.voicingNotes.length >= 2 && s.voicingNotes.every((n) => n >= 36 && n <= 84));
 
     if (normalizedSuggestions.length === 0) {
       console.warn('[AI] Aucune suggestion valide reçue pour', originalName);
@@ -204,7 +223,7 @@ Propose 3 réharmonisations inspirées de la bibliothèque de mouvements locales
 
     return {
       accord_original: result.accord_original || originalName,
-      top_note: result.top_note || topNoteName,
+      top_note: normalizedSuggestions[0]?.topNoteName || topNoteName,
       suggestions: normalizedSuggestions,
       style,
     };
@@ -421,6 +440,14 @@ Analyse chaque accord et donne des conseils de maître.`;
   const fallback = buildFallbackMasterclass(analysis);
   masterclassCache.set(cacheKey, fallback);
   return fallback;
+}
+
+// ── Utilitaires publics ──
+
+export function classifyAndLabel(notes, styleLabel = '') {
+  if (!Array.isArray(notes) || notes.length === 0) return null;
+  const base = { voicingNotes: notes, technique: styleLabel };
+  return normalizeSuggestion(base);
 }
 
 function formatTime(seconds) {

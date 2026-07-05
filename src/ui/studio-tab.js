@@ -425,6 +425,10 @@ async function importFile() {
     const filePath = await window.electronAPI.studio.selectFile();
     if (!filePath) return;
 
+    // Choix manuel du type de source : tutoriel pédagogique ou morceau/performance.
+    const sourceType = await askSourceType();
+    if (!sourceType) return;
+
     setStatus(`Import de ${filePath}...`);
     const trackId = await getNextTrackId();
     await createTrackDir(trackId);
@@ -436,6 +440,7 @@ async function importFile() {
       name,
       sourcePath: filePath,
       originalPath,
+      sourceType,
       duration: 0,
       importedAt: new Date().toISOString(),
     });
@@ -447,6 +452,45 @@ async function importFile() {
     console.error('Import failed:', err);
     setStatus(`Erreur d'import : ${err.message}`);
   }
+}
+
+function askSourceType() {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.zIndex = '3000';
+    overlay.innerHTML = `
+      <div class="modal-box" style="max-width: 420px; text-align: center;">
+        <h3>Type d'import</h3>
+        <p class="modal-hint">Comment classer ce fichier pour l'analyse ?</p>
+        <div class="modal-actions" style="flex-direction: column; gap: 10px; margin-top: 16px;">
+          <button type="button" class="primary" id="import-type-tutorial">Tutoriel pédagogique</button>
+          <button type="button" class="secondary" id="import-type-cover">Morceau à étudier</button>
+          <button type="button" class="secondary" id="import-type-cancel">Annuler</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    overlay.querySelector('#import-type-tutorial').addEventListener('click', () => {
+      document.body.removeChild(overlay);
+      resolve('tutorial');
+    });
+    overlay.querySelector('#import-type-cover').addEventListener('click', () => {
+      document.body.removeChild(overlay);
+      resolve('cover');
+    });
+    overlay.querySelector('#import-type-cancel').addEventListener('click', () => {
+      document.body.removeChild(overlay);
+      resolve(null);
+    });
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        document.body.removeChild(overlay);
+        resolve(null);
+      }
+    });
+  });
 }
 
 async function refreshTrackList() {
