@@ -1650,6 +1650,18 @@ input[type='color'] {
   flex: 1;
 }
 
+.analysis-layout-tutorial,
+.analysis-layout-cover {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 1100px) {
+  .analysis-layout-tutorial,
+  .analysis-layout-cover {
+    grid-template-columns: 260px 1fr;
+  }
+}
+
 .analysis-timeline {
   display: flex;
   flex-direction: column;
@@ -2711,6 +2723,31 @@ input[type='color'] {
   font-style: italic;
 }
 
+.suggestion-inspiration-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.suggestion-inspiration-voicing {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.suggestion-inspiration-style {
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.suggestion-topnote {
+  font-size: 0.75rem;
+  color: var(--accent);
+  text-align: center;
+}
+
 .detail-top-note {
   font-size: 0.78rem;
   color: var(--accent);
@@ -2768,6 +2805,44 @@ input[type='color'] {
   border: 1px solid var(--panel-border);
   border-radius: var(--radius-sm);
   font-size: 0.75rem;
+}
+
+/* ── Vue MIDI chronologique ── */
+.melody-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 360px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.melody-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 6px 10px;
+  background: var(--bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+}
+
+.melody-time {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  min-width: 48px;
+}
+
+.melody-note {
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
+}
+
+.detail-top-midi {
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 0.78rem;
 }
 
 @media (max-width: 900px) {

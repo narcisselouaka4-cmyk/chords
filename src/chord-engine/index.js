@@ -126,6 +126,50 @@ function findRootlessMatches(pcSet, uniquePcs) {
   return matches;
 }
 
+// [OpenCode] — 2026-07-06 — Classifieur pur de voicing, réutilisable pour le jeu live et les suggestions.
+// Même tableau de notes MIDI en entrée → même résultat en sortie.
+export function classifyVoicing(midiNotes) {
+  if (!Array.isArray(midiNotes) || midiNotes.length === 0) {
+    return { topNote: null, voicingType: '—', inversion: 0, bassPc: null };
+  }
+
+  const sortedNotes = [...midiNotes].sort((a, b) => a - b);
+  const topNote = sortedNotes[sortedNotes.length - 1];
+  const bassMidi = sortedNotes[0];
+  const bassPc = bassMidi % 12;
+
+  const uniquePcs = Array.from(new Set(sortedNotes.map((n) => n % 12))).sort((a, b) => a - b);
+
+  if (uniquePcs.length < 2) {
+    return { topNote, voicingType: 'single', inversion: 0, bassPc };
+  }
+
+  const spans = [];
+  for (let i = 1; i < uniquePcs.length; i++) {
+    spans.push((uniquePcs[i] - uniquePcs[i - 1] + 12) % 12);
+  }
+  const hasMinorSecond = spans.includes(1);
+  const hasMajorSecond = spans.includes(2);
+  const hasOctave = spans.includes(0);
+  const totalRange = (uniquePcs[uniquePcs.length - 1] - uniquePcs[0] + 12) % 12;
+
+  let voicingType = 'close';
+
+  if (midiNotes.length === 2 && (spans.includes(3) || spans.includes(4) || spans.includes(10) || spans.includes(11))) {
+    voicingType = 'shell';
+  } else if (hasMinorSecond) {
+    voicingType = 'cluster';
+  } else if (totalRange <= 7 && !hasOctave) {
+    voicingType = 'close';
+  } else if (hasOctave || totalRange > 19) {
+    voicingType = 'spread';
+  } else if (totalRange > 7) {
+    voicingType = 'open';
+  }
+
+  return { topNote, voicingType, inversion: 0, bassPc };
+}
+
 export function detectChord(activeNotes) {
   if (!activeNotes || activeNotes.length === 0) return null;
 
@@ -135,32 +179,8 @@ export function detectChord(activeNotes) {
   const uniquePcs = Array.from(new Set(sortedNotes.map((n) => n % 12))).sort((a, b) => a - b);
   const pcSet = new Set(uniquePcs);
 
-  // [OpenCode] — 2026-07-04 — Voicing classification based on note spacing
-  function detectVoicing(notes) {
-    if (notes.length < 2) return 'single';
-    const sorted = [...notes].sort((a, b) => a - b);
-    const spans = [];
-    for (let i = 1; i < sorted.length; i++) {
-      spans.push((sorted[i] - sorted[i - 1] + 12) % 12);
-    }
-    const hasMinorSecond = spans.includes(1);
-    const hasMajorSecond = spans.includes(2);
-    const hasOctave = spans.includes(0);
-    const totalRange = (sorted[sorted.length - 1] - sorted[0] + 12) % 12;
-
-    // Shell voicing: only 3rd and 7th (no 5th, no extensions)
-    if (notes.length === 2 && (spans.includes(3) || spans.includes(4) || spans.includes(10) || spans.includes(11))) {
-      return 'shell';
-    }
-
-    if (hasMinorSecond || (hasMinorSecond && hasMajorSecond)) return 'cluster';
-    if (totalRange <= 7 && !hasOctave) return 'close';
-    if (hasOctave || totalRange > 19) return 'spread';
-    if (totalRange > 7) return 'open';
-    return 'close';
-  }
-
-  const voicing = detectVoicing(uniquePcs);
+  const classification = classifyVoicing(sortedNotes);
+  const voicing = classification.voicingType;
 
   let bestMatch = null;
   let bestScore = -1;
