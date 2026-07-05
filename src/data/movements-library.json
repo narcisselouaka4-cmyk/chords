@@ -1,0 +1,64 @@
+{
+  "movements": [
+    {
+      "id": "jeremy-haynes-1",
+      "artist": "Jeremy Haynes",
+      "style": "worship",
+      "name": "Passing 2-5-1 ouvert",
+      "context": "Transition douce entre deux accords de tonalité majeure.",
+      "pattern": "7-3-6-2-5",
+      "exampleChords": ["Dm7", "G7", "Cmaj9"],
+      "description": "Voicings aérés en drop 2 avec suspension sus4 sur le V."
+    },
+    {
+      "id": "jeremy-haynes-2",
+      "artist": "Jeremy Haynes",
+      "style": "worship",
+      "name": "Montée diatonique en quartes",
+      "context": "Montée émotionnelle avant un refrain.",
+      "pattern": "1-4-6-5",
+      "exampleChords": ["C", "F/A", "Am7", "G/B"],
+      "description": "Basse montante par degrés conjoints, voicings amples en position close."
+    },
+    {
+      "id": "jonathan-nelson-1",
+      "artist": "Jonathan Nelson",
+      "style": "gospel",
+      "name": "Turnaround chromatique 3-6-2-5",
+      "context": "Fin de couplet ou pont gospel.",
+      "pattern": "3-6-2-5-1",
+      "exampleChords": ["Em7", "A7(b9)", "Dm7", "G7(#5)", "Cmaj7"],
+      "description": "Tensions altérées sur le V, block chords richement harmonisés."
+    },
+    {
+      "id": "jonathan-nelson-2",
+      "artist": "Jonathan Nelson",
+      "style": "gospel",
+      "name": "Subdominant mineur surprise",
+      "context": "Couleur gospel moderne sur un accord majeur.",
+      "pattern": "1-b3maj7-6-2-5",
+      "exampleChords": ["C", "Ebmaj7", "Am7", "Dm7", "G13"],
+      "description": "Utilisation du bIII maj7 comme couleur chromatique typique du gospel."
+    },
+    {
+      "id": "moses-tyson-1",
+      "artist": "Moses Tyson",
+      "style": "jazz",
+      "name": "Tritone substitution V7",
+      "context": "Substitution de dominante pour créer une ligne de basse chromatique.",
+      "pattern": "2-b2-1",
+      "exampleChords": ["Dm7", "Db7(#11)", "Cmaj7"],
+      "description": "Db7 remplace G7, voicings rootless avec 3e et 7e inversées."
+    },
+    {
+      "id": "moses-tyson-2",
+      "artist": "Moses Tyson",
+      "style": "jazz",
+      "name": "II-V-I altéré en mineur",
+      "context": "Modulation ou cadence en mineur.",
+      "pattern": "2m7b5-b5alt-1m",
+      "exampleChords": ["Dm7(b5)", "G7(#9#5)", "Cm(maj7)"],
+      "description": "Voicings de type diminished scale sur le V altéré."
+    }
+  ]
+}

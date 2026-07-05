@@ -1,0 +1,118 @@
+// [OpenCode] — 2026-07-04 — Mini-clavier SVG pédagogique pour un accord.
+// Affiche environ 2 octaves (C4–B5 par défaut), touches blanches alignées,
+// touches noires positionnées réalistes entre les blanches, notes actives en rouge.
+// Retourne aussi la liste textuelle des notes pour affichage en dessous.
+
+const WHITE_WIDTH = 20;
+const WHITE_HEIGHT = 80;
+const BLACK_WIDTH = 12;
+const BLACK_HEIGHT = 50;
+const START_MIDI = 60;    // C4
+const END_MIDI = 83;      // B5
+const WHITE_RADIUS = 3;
+const BLACK_RADIUS = 2;
+
+const NOTE_NAMES_SHARP = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const NOTE_NAMES_FLAT = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+const LATIN_SHARP = ['Do', 'Do#', 'Ré', 'Ré#', 'Mi', 'Fa', 'Fa#', 'Sol', 'Sol#', 'La', 'La#', 'Si'];
+const LATIN_FLAT = ['Do', 'Réb', 'Ré', 'Mib', 'Mi', 'Fa', 'Solb', 'Sol', 'Lab', 'La', 'Sib', 'Si'];
+
+function midiToNoteName(midi, useSharps = true, latin = false) {
+  const pc = midi % 12;
+  const octave = Math.floor(midi / 12) - 1;
+  const names = latin
+    ? (useSharps ? LATIN_SHARP : LATIN_FLAT)
+    : (useSharps ? NOTE_NAMES_SHARP : NOTE_NAMES_FLAT);
+  return `${names[pc]}${octave}`;
+}
+
+function isBlackKey(midi) {
+  return [1, 3, 6, 8, 10].includes(midi % 12);
+}
+
+function whiteKeyIndex(midi, startMidi) {
+  let count = 0;
+  for (let i = startMidi; i < midi; i++) {
+    if (!isBlackKey(i)) count++;
+  }
+  return count;
+}
+
+function blackKeyX(midi, startMidi) {
+  const pc = midi % 12;
+  const prevWhiteIndex = whiteKeyIndex(midi, startMidi) - 1; // index de la blanche précédente
+  const baseX = (prevWhiteIndex + 1) * WHITE_WIDTH; // bord droit de la blanche précédente
+  const offsets = {
+    1: -BLACK_WIDTH * 0.35, // C# proche de D
+    3: -BLACK_WIDTH * 0.65, // D# proche de E
+    6: -BLACK_WIDTH * 0.30, // F# proche de G
+    8: -BLACK_WIDTH * 0.50, // G# centré
+    10: -BLACK_WIDTH * 0.70, // A# proche de B
+  };
+  return baseX + offsets[pc];
+}
+
+export function generateMiniKeyboard(activeNotes = [], options = {}) {
+  const start = options.startMidi ?? START_MIDI;
+  const end = options.endMidi ?? END_MIDI;
+  const activeSet = new Set(activeNotes.map((n) => (typeof n === 'number' ? n : null)).filter(Boolean));
+
+  // S'assurer que start est une note blanche pour l'alignement
+  let firstWhite = start;
+  while (isBlackKey(firstWhite) && firstWhite <= end) firstWhite++;
+  let lastWhite = end;
+  while (isBlackKey(lastWhite) && lastWhite >= start) lastWhite--;
+
+  const whites = [];
+  for (let midi = firstWhite; midi <= lastWhite; midi++) {
+    if (!isBlackKey(midi)) whites.push(midi);
+  }
+  const whiteCount = whites.length || 1;
+
+  const width = whiteCount * WHITE_WIDTH;
+  const height = WHITE_HEIGHT;
+
+  let markup = '';
+
+  // Touches blanches
+  whites.forEach((midi, index) => {
+    const x = index * WHITE_WIDTH;
+    const active = activeSet.has(midi);
+    const fill = active ? 'var(--mini-key-active, #ef4444)' : '#ffffff';
+    const stroke = active ? '#991b1b' : '#9ca3af';
+    const title = active ? ` title="${midiToNoteName(midi, true, false)}"` : '';
+    markup += `<rect data-midi="${midi}" x="${x}" y="0" width="${WHITE_WIDTH}" height="${WHITE_HEIGHT}" rx="${WHITE_RADIUS}" fill="${fill}" stroke="${stroke}" stroke-width="${active ? 1.5 : 0.5}"${title}/>`;
+  });
+
+  // Touches noires
+  for (let midi = firstWhite; midi <= lastWhite; midi++) {
+    if (!isBlackKey(midi)) continue;
+    const x = blackKeyX(midi, firstWhite);
+    if (x < 0 || x + BLACK_WIDTH > width) continue;
+    const active = activeSet.has(midi);
+    const fill = active ? 'var(--mini-key-active, #ef4444)' : '#1f2937';
+    const stroke = active ? '#991b1b' : '#000000';
+    const title = active ? ` title="${midiToNoteName(midi, true, false)}"` : '';
+    markup += `<rect data-midi="${midi}" x="${x}" y="0" width="${BLACK_WIDTH}" height="${BLACK_HEIGHT}" rx="${BLACK_RADIUS}" fill="${fill}" stroke="${stroke}" stroke-width="${active ? 1.5 : 0.5}"${title}/>`;
+  }
+
+  const svg = `\n<svg class="mini-keyboard" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">${markup}</svg>\n`;
+  const noteNames = activeNotes
+    .filter((n) => typeof n === 'number')
+    .sort((a, b) => a - b)
+    .map((n) => midiToNoteName(n, true, false));
+  return { svg, noteNames };
+}
+
+export function miniKeyboardForNotes(activeNotes, centerMidi = 60) {
+  // Choisit une fenêtre de 2 octaves parmi C3–B4 (48–71) ou C4–B5 (60–83)
+  // selon la tessiture des notes, comme demandé par l'interface.
+  if (!Array.isArray(activeNotes) || activeNotes.length === 0) {
+    return { svg: generateMiniKeyboard([], { startMidi: 60, endMidi: 83 }).svg, noteNames: [] };
+  }
+  const min = Math.min(...activeNotes);
+  const max = Math.max(...activeNotes);
+  // Si au moins une note est en dessous de C4, on descend à C3–B4
+  const startMidi = min < 60 ? 48 : 60;
+  return generateMiniKeyboard(activeNotes, { startMidi, endMidi: startMidi + 23 });
+}

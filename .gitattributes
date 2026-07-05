@@ -1,0 +1,2 @@
+tuto/*.mp4 filter=lfs diff=lfs merge=lfs -text
+electron/v2n-deps/*.safetensors filter=lfs diff=lfs merge=lfs -text
