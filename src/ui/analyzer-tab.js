@@ -3,7 +3,7 @@ import { suggestForChord, getStyleLabels } from '../analyzer/reharmonizer.js';
 import { formatPc } from '../chord-engine/naming.js';
 import { getVoicingLabel } from '../chord-engine/voicing.js';
 import { miniKeyboardForNotes } from './mini-keyboard.js';
-import { generateReharmonization, generateMasterclass } from '../ai/ai-client.js';
+import { generateReharmonization, generateMasterclass, midiToNoteName } from '../ai/ai-client.js';
 import { getAIConfig } from '../ai/openai-config.js';
 import { parseChordGrid, compareGridToPlayed } from '../analyzer/chord-comparator.js';
 
@@ -73,7 +73,33 @@ function refreshAnalysisView() {
     currentAnalysisContainer.innerHTML = currentAnalysisMode === 'tutorial'
       ? buildTutorialHtml()
       : buildCoverHtml();
+    if (currentAnalysisMode === 'cover') {
+      bindCoverTimelineControls();
+    }
   }
+}
+
+function bindCoverTimelineControls() {
+  const duration = computeAnalysisDuration(currentAnalysis?.chords || []);
+  bindCoverTimelineSeek(
+    (time) => {
+      // Synchroniser avec le lecteur studio s'il est actif
+      const studioPlayer = document.getElementById('studio-player');
+      if (studioPlayer) studioPlayer.currentTime = time;
+    },
+    () => {
+      const studioPlayer = document.getElementById('studio-player');
+      return studioPlayer ? studioPlayer.currentTime : 0;
+    }
+  );
+  // Mise à jour régulière de la tête de lecture de la timeline
+  if (window._coverTimelineInterval) clearInterval(window._coverTimelineInterval);
+  window._coverTimelineInterval = setInterval(() => {
+    const studioPlayer = document.getElementById('studio-player');
+    if (studioPlayer) {
+      updateCoverTimelineProgress(studioPlayer.currentTime, duration);
+    }
+  }, 250);
 }
 
 function clearSuggestionNotes() {
@@ -210,21 +236,41 @@ function getTopNoteName(chord) {
   return top != null ? formatNoteName(top) : '—';
 }
 
+const BASS_OPTIONS = [
+  { value: '', label: 'Auto' },
+  { value: '1', label: 'Fondamentale (1)' },
+  { value: '3', label: 'Tierce (3)' },
+  { value: '5', label: 'Quinte (5)' },
+  { value: '7', label: 'Septième (7)' },
+  { value: '7-3-6', label: '7-3-6' },
+  { value: '7-3-6-2-5', label: '7-3-6-2-5' },
+  { value: '5-1', label: '5-1' },
+  { value: '2-5-1', label: '2-5-1' },
+];
+
 function buildArrangementPanel(analysis) {
   const chords = analysis.chords || [];
   if (chords.length === 0) return '<p class="detail-hint">Aucun accord à arranger.</p>';
 
+  const bassOptionsHtml = BASS_OPTIONS.map((o) =>
+    `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`
+  ).join('');
+
   const rows = chords.map((chord, i) => {
     const formatted = formatChord(chord);
     const topNoteName = getTopNoteName(chord);
+    const active = chord._arrangementActive !== false;
+    const bassValue = chord._arrangementBass || '';
     return `
       <div class="arrangement-row" data-chord-index="${i}">
         <span class="arrangement-name">${escapeHtml(formatted.name)}</span>
         <span class="arrangement-topnote">${escapeHtml(topNoteName)}</span>
         <label class="arrangement-toggle">
-          <input type="checkbox" checked data-chord-index="${i}" />
+          <input type="checkbox" ${active ? 'checked' : ''} data-chord-index="${i}" />
         </label>
-        <input type="text" class="arrangement-bass" placeholder="auto" data-chord-index="${i}" />
+        <select class="arrangement-bass" data-chord-index="${i}">
+          ${bassOptionsHtml.replace(`value="${bassValue}"`, `value="${bassValue}" selected`)}
+        </select>
       </div>
     `;
   }).join('');
@@ -239,7 +285,7 @@ function buildArrangementPanel(analysis) {
       </div>
       ${rows}
       <div class="arrangement-footer">
-        <span class="detail-hint">Basse : laissez vide pour auto, ou entrez une note (C3, Eb2...) ou un pattern (7-3-6-2-5)</span>
+        <span class="detail-hint">Désactivez un accord pour qu'il respire. Forcez la basse via le menu déroulant.</span>
       </div>
     </div>
   `;
@@ -290,29 +336,28 @@ function bindAnalysisActions(container, analysis) {
     });
   });
 
-  // Arrangement bass input handler
-  arrangementSection.querySelectorAll('.arrangement-bass').forEach((input) => {
-    input.addEventListener('change', () => {
-      const idx = Number(input.dataset.chordIndex);
+  // Arrangement bass dropdown handler
+  arrangementSection.querySelectorAll('.arrangement-bass').forEach((select) => {
+    select.addEventListener('change', () => {
+      const idx = Number(select.dataset.chordIndex);
       const chord = analysis.chords[idx];
-      if (chord) chord._arrangementBass = input.value.trim() || null;
+      if (chord) chord._arrangementBass = select.value || null;
     });
   });
 
-  // Bouton Masterclass IA
+  // Bouton Masterclass IA — inséré dans le panneau de détail pour éviter tout saut graphique
   const masterclassBtn = document.createElement('button');
   masterclassBtn.className = 'panel-action masterclass-btn';
   masterclassBtn.textContent = '🎓 Masterclass IA';
   masterclassBtn.type = 'button';
   masterclassBtn.style.marginTop = '8px';
   masterclassBtn.style.width = '100%';
-  const detailParent = detail.parentNode;
-  detailParent.insertBefore(masterclassBtn, detail);
+  detail.appendChild(masterclassBtn);
 
   const masterclassResult = document.createElement('div');
   masterclassResult.className = 'masterclass-result';
   masterclassResult.style.display = 'none';
-  detailParent.insertBefore(masterclassResult, detail);
+  detail.appendChild(masterclassResult);
 
   masterclassBtn.addEventListener('click', async () => {
     masterclassBtn.disabled = true;
@@ -382,13 +427,26 @@ function renderChordDetail(container, chord, index) {
   const labels = getStyleLabels();
   const originalNotes = normalizeNotes(chord.notes || []);
   const cacheKey = `${chord.rootPc}-${chord.symbol}`;
+  const topNoteName = getTopNoteName(chord);
 
+  // Suggestions algorithmiques par style (fallback avant IA).
   const suggestions = Object.entries(labels).map(([style, label]) => {
     let suggestion = null;
     if (suggestionCache.has(cacheKey) && suggestionCache.get(cacheKey).has(style)) {
       suggestion = suggestionCache.get(cacheKey).get(style);
     } else {
-      suggestion = suggestForChord(chord, style);
+      const algo = suggestForChord(chord, style);
+      suggestion = {
+        accord_original: formatChord(chord).name,
+        top_note: topNoteName,
+        suggestions: [{
+          inspiration: 'Générique',
+          voicingNotes: algo.notes,
+          voicingNames: algo.notes.map((n) => midiToNoteName(n)),
+          technique: algo.substitution || getVoicingLabel(chord.voicing) || `${label} voicing`,
+        }],
+        style,
+      };
     }
     return { style, label, suggestion };
   });
@@ -401,21 +459,30 @@ function renderChordDetail(container, chord, index) {
     : null;
 
   const stylesHtml = suggestions.map(({ style, label, suggestion }) => {
-    const keyboard = miniKeyboardForNotes(suggestion.notes);
-    const noteNames = keyboard.noteNames.join(' — ');
-    const sub = suggestion.substitution
-      ? `<span class="suggestion-sub">${escapeHtml(suggestion.substitution)}</span>`
-      : '';
+    const cards = (suggestion.suggestions || []).slice(0, 3).map((sug, i) => {
+      const keyboard = miniKeyboardForNotes(sug.voicingNotes || []);
+      const noteNames = keyboard.noteNames.join(' — ');
+      return `
+        <div class="suggestion-inspiration-card" data-suggestion-index="${i}" data-style="${style}">
+          <div class="suggestion-inspiration-header">
+            <span class="suggestion-inspiration-name">${escapeHtml(sug.inspiration || 'Générique')}</span>
+            <span class="suggestion-inspiration-badge">${i + 1}</span>
+          </div>
+          <div class="suggestion-inspiration-technique">${escapeHtml(sug.technique || '')}</div>
+          <div class="suggestion-keyboard">${keyboard.svg}</div>
+          <div class="suggestion-notes">${noteNames}</div>
+        </div>
+      `;
+    }).join('');
+
     return `
-      <div class="suggestion-card" data-style="${style}">
+      <div class="suggestion-card blueprint-suggestion-card" data-style="${style}">
         <div class="suggestion-card-header">
           <span class="suggestion-style">${label}</span>
-          <span class="suggestion-name">${escapeHtml(suggestion.name)}</span>
+          <span class="suggestion-name">${escapeHtml(suggestion.accord_original || formatChord(chord).name)}</span>
         </div>
-        ${sub}
-        <div class="suggestion-keyboard">${keyboard.svg}</div>
-        <div class="suggestion-notes">${noteNames}</div>
-        <button class="suggestion-play" type="button" data-style="${style}">▶ Écouter</button>
+        <div class="suggestion-inspirations">${cards}</div>
+        <button class="suggestion-play" type="button" data-style="${style}">▶ Écouter ${label}</button>
       </div>
     `;
   }).join('');
@@ -432,9 +499,10 @@ function renderChordDetail(container, chord, index) {
       ${graceNoteNames ? `<div class="detail-grace-notes">✨ Grace notes : ${escapeHtml(graceNoteNames)}</div>` : ''}
       <div class="detail-keyboard">${originalKeyboard.svg}</div>
       <div class="detail-notes">${originalNoteNames}</div>
+      <div class="detail-top-note">Top Note : ${escapeHtml(topNoteName)}</div>
     </div>
     <div class="detail-suggestions">
-      <div class="detail-title">Suggestions</div>
+      <div class="detail-title">Suggestions par influence locale</div>
       <div class="suggestions-grid">${stylesHtml}</div>
     </div>
   `;
@@ -443,44 +511,44 @@ function renderChordDetail(container, chord, index) {
     btn.addEventListener('click', () => {
       const style = btn.dataset.style;
       const suggestion = suggestions.find((s) => s.style === style)?.suggestion;
-      playSuggestion(suggestion);
+      if (suggestion?.suggestions?.[0]?.voicingNotes) {
+        playSuggestion({ notes: suggestion.suggestions[0].voicingNotes, name: suggestion.accord_original });
+      }
     });
   });
 
-  // Tentative IA en arrière-plan avec un délai entre chaque style pour éviter le rate limiting.
+  // Tentative IA en arrière-plan pour chaque style.
   (async () => {
     for (const { style, label } of suggestions) {
       if (suggestionCache.has(cacheKey) && suggestionCache.get(cacheKey).has(style)) continue;
       try {
-        const aiResult = await generateReharmonization(chord, style);
-        if (!aiResult || !aiResult.notes || aiResult.notes.length === 0) {
+        const aiResult = await generateReharmonization(chord, style, topNoteName);
+        if (!aiResult || !Array.isArray(aiResult.suggestions) || aiResult.suggestions.length === 0) {
           await new Promise((r) => setTimeout(r, 300));
           continue;
         }
         await new Promise((r) => setTimeout(r, 300));
         if (!suggestionCache.has(cacheKey)) suggestionCache.set(cacheKey, new Map());
         suggestionCache.get(cacheKey).set(style, aiResult);
-        const card = container.querySelector(`.suggestion-card[data-style="${style}"]`);
-        if (!card) continue;
-        const keyboard = miniKeyboardForNotes(aiResult.notes);
-        const noteNames = keyboard.noteNames.join(' — ');
-        card.querySelector('.suggestion-name').textContent = aiResult.name || '';
-        card.querySelector('.suggestion-keyboard').innerHTML = keyboard.svg;
-        card.querySelector('.suggestion-notes').textContent = noteNames;
-        if (aiResult.substitution) {
-          let subEl = card.querySelector('.suggestion-sub');
-          if (!subEl) {
-            subEl = document.createElement('span');
-            subEl.className = 'suggestion-sub';
-            card.querySelector('.suggestion-card-header')?.after(subEl);
-          }
-          subEl.textContent = aiResult.substitution;
-        }
         const entry = suggestions.find((s) => s.style === style);
         if (entry) entry.suggestion = aiResult;
+        renderChordDetail(container, chord, index); // Re-render avec les résultats IA
+        bindChordDetailAfterRender?.(container, chord, index, suggestions);
       } catch (_) { /* IA non disponible → on garde la suggestion algorithmique */ }
     }
   })();
+}
+
+function bindChordDetailAfterRender(container, chord, index, suggestions) {
+  container.querySelectorAll('.suggestion-play').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const style = btn.dataset.style;
+      const suggestion = suggestions.find((s) => s.style === style)?.suggestion;
+      if (suggestion?.suggestions?.[0]?.voicingNotes) {
+        playSuggestion({ notes: suggestion.suggestions[0].voicingNotes, name: suggestion.accord_original });
+      }
+    });
+  });
 }
 
 export function playSuggestion(suggestion) {
@@ -505,7 +573,69 @@ function formatDuration(seconds) {
   return `${mins}:${secs}`;
 }
 
+function splitHands(notes) {
+  if (!Array.isArray(notes) || notes.length === 0) return { lh: [], rh: [] };
+  const sorted = [...notes].sort((a, b) => a - b);
+  // Basse : note la plus basse (typiquement LH). Le reste constitue le voicing RH.
+  const bass = sorted[0];
+  const lh = [bass];
+  const rh = sorted.slice(1);
+  return { lh, rh };
+}
+
+function detectTechnique(chord) {
+  const techniques = chord.techniques || [];
+  if (techniques.includes('quartal')) return 'Quartal';
+  if (techniques.includes('upper_structure')) return 'Upper Structure';
+  if (techniques.includes('rootless')) return 'Rootless';
+  if (techniques.includes('cluster')) return 'Cluster';
+  if (chord.voicing) return getVoicingLabel(chord.voicing);
+  return 'Position close / Drop 2';
+}
+
+function detectFunction(chord, index, chords) {
+  const root = formatPc(chord.rootPc, notation === 'latin');
+  const symbol = chord.symbol || '';
+  const prev = chords[index - 1];
+  const next = chords[index + 1];
+  if (!prev && index === 0) return 'Tonalité / Départ';
+  if (!next) return 'Cadence / Fin';
+  // Détection simple de II-V-I
+  if (prev && next) {
+    const prevRoot = prev.rootPc;
+    const nextRoot = next.rootPc;
+    const curRoot = chord.rootPc;
+    const prevIsM7 = /m7|m9|-7/.test(prev.symbol || '');
+    const curIsDom = /7|9|13|alt/.test(symbol) && !/maj/.test(symbol);
+    const nextIsMaj = /maj|Δ|6/.test(next.symbol || '');
+    if (prevIsM7 && curIsDom && nextIsMaj &&
+        (curRoot - prevRoot + 12) % 12 === 7 &&
+        (nextRoot - curRoot + 12) % 12 === 5) {
+      return 'II-V-I';
+    }
+  }
+  if (/m7|m9|-7/.test(symbol)) return 'II / VI / III / VII mineur';
+  if (/7|9|13|alt/.test(symbol) && !/maj/.test(symbol)) return 'V Dominante';
+  if (/maj|Δ|6/.test(symbol)) return 'I / IV Majeur';
+  return 'Couleur / Passage';
+}
+
 function buildTutorialHtml() {
+  const chords = currentAnalysis?.chords || [];
+  const blocks = chords.length > 0
+    ? chords.slice(0, 8).map((chord, i) => buildVideoChordBlock(chord, i, chords)).join('')
+    : `
+        <div class="video-chord-block">
+          <div class="vcb-title">Titre Global : II-V-I en C majeur</div>
+          <div class="vcb-grid">
+            <div class="vcb-cell"><span>LH</span><span>C2 - G2</span></div>
+            <div class="vcb-cell"><span>RH</span><span>D3 - F3 - A3 - C4</span></div>
+            <div class="vcb-cell"><span>Technique</span><span>Drop 2</span></div>
+            <div class="vcb-cell"><span>Fonction</span><span>II-V-I</span></div>
+          </div>
+        </div>
+      `;
+
   return `
     <div class="analysis-mode-view tutorial-view">
       <div class="analysis-mode-sidebar">
@@ -520,44 +650,117 @@ function buildTutorialHtml() {
           </ul>
         </div>
       </div>
-      <div class="analysis-mode-content">
-        <div class="video-chord-block">
-          <div class="vcb-title">Titre Global : II-V-I en C majeur</div>
-          <div class="vcb-grid">
-            <div class="vcb-cell"><span>LH</span><span>C2 - G2</span></div>
-            <div class="vcb-cell"><span>RH</span><span>D3 - F3 - A3 - C4</span></div>
-            <div class="vcb-cell"><span>Technique</span><span>Drop 2</span></div>
-            <div class="vcb-cell"><span>Fonction</span><span>Dm7 / G7 / Cmaj7</span></div>
-          </div>
-        </div>
-        <p class="detail-hint">Cette vue est une maquette. L'extraction automatique des accords depuis une vidéo sera intégrée plus tard.</p>
+      <div class="analysis-mode-content tutorial-blocks">
+        ${blocks}
+        <p class="detail-hint">${chords.length > 0 ? 'Blocs extraits de la session MIDI sélectionnée.' : 'Cette vue est une maquette. L\'extraction automatique depuis une vidéo sera intégrée plus tard.'}</p>
+      </div>
+    </div>
+  `;
+}
+
+function buildVideoChordBlock(chord, index, chords) {
+  const formatted = formatChord(chord);
+  const hands = splitHands(normalizeNotes(chord.notes || []));
+  const technique = detectTechnique(chord);
+  const func = detectFunction(chord, index, chords);
+  const topNoteName = getTopNoteName(chord);
+  const lhNames = hands.lh.map((n) => formatNoteName(n)).join(' — ') || '—';
+  const rhNames = hands.rh.map((n) => formatNoteName(n)).join(' — ') || '—';
+
+  return `
+    <div class="video-chord-block" data-chord-index="${index}">
+      <div class="vcb-title">${escapeHtml(formatted.name)} — Top Note ${escapeHtml(topNoteName)}</div>
+      <div class="vcb-grid">
+        <div class="vcb-cell"><span>LH</span><span>${escapeHtml(lhNames)}</span></div>
+        <div class="vcb-cell"><span>RH</span><span>${escapeHtml(rhNames)}</span></div>
+        <div class="vcb-cell"><span>Technique</span><span>${escapeHtml(technique)}</span></div>
+        <div class="vcb-cell"><span>Fonction</span><span>${escapeHtml(func)}</span></div>
       </div>
     </div>
   `;
 }
 
 function buildCoverHtml() {
+  const chords = currentAnalysis?.chords || [];
+  const duration = computeAnalysisDuration(chords);
+  const timelineItems = buildCoverTimelineItems(chords, duration);
+
   return `
     <div class="analysis-mode-view cover-view">
       <div class="cover-timeline">
-        <div class="panel-title">Timeline interactive</div>
-        <div class="timeline-track">
-          <div class="timeline-marker" data-time="0" style="left: 0%;">00:00</div>
-          <div class="timeline-marker" data-time="15" style="left: 25%;">00:15</div>
-          <div class="timeline-marker" data-time="30" style="left: 50%;">00:30</div>
-          <div class="timeline-marker" data-time="45" style="left: 75%;">00:45</div>
-          <div class="timeline-marker" data-time="60" style="left: 100%;">01:00</div>
+        <div class="panel-title">Timeline interactive — ${formatDuration(duration)}</div>
+        <div class="timeline-track" id="cover-timeline-track">
+          <div class="timeline-progress" id="cover-timeline-progress" style="left: 0%;"></div>
+          ${timelineItems.markers}
         </div>
         <div class="timeline-chords">
-          <button class="timeline-chord" data-time="0">Cmaj7</button>
-          <button class="timeline-chord" data-time="15">Dm7</button>
-          <button class="timeline-chord" data-time="30">G7</button>
-          <button class="timeline-chord" data-time="45">Cmaj7</button>
+          ${timelineItems.chords || '<span class="detail-hint">Aucun accord détecté</span>'}
         </div>
       </div>
-      <p class="detail-hint">Cliquez sur un marqueur ou un accord pour déplacer la tête de lecture. (Maquette — moteur d'extraction audio non intégré cette nuit.)</p>
+      <p class="detail-hint">Cliquez sur un marqueur ou un accord pour déplacer la tête de lecture. Si un lecteur Studio est actif, le timestamp est synchronisé automatiquement.</p>
     </div>
   `;
+}
+
+function computeAnalysisDuration(chords) {
+  if (!chords?.length) return 60;
+  const last = chords[chords.length - 1];
+  return Math.max(1, last.time + (last.duration || 1));
+}
+
+function buildCoverTimelineItems(chords, duration) {
+  if (!chords?.length) {
+    return {
+      markers: `
+        <div class="timeline-marker" data-time="0" style="left: 0%;">00:00</div>
+        <div class="timeline-marker" data-time="15" style="left: 25%;">00:15</div>
+        <div class="timeline-marker" data-time="30" style="left: 50%;">00:30</div>
+        <div class="timeline-marker" data-time="45" style="left: 75%;">00:45</div>
+        <div class="timeline-marker" data-time="60" style="left: 100%;">01:00</div>
+      `,
+      chords: `
+        <button class="timeline-chord" data-time="0">Cmaj7</button>
+        <button class="timeline-chord" data-time="15">Dm7</button>
+        <button class="timeline-chord" data-time="30">G7</button>
+        <button class="timeline-chord" data-time="45">Cmaj7</button>
+      `,
+    };
+  }
+
+  const markers = chords.map((chord, i) => {
+    const time = chord.time || 0;
+    const pct = duration ? (time / duration) * 100 : 0;
+    return `<div class="timeline-marker" data-time="${time.toFixed(2)}" style="left: ${pct}%;" title="${formatDuration(time)}">${formatDuration(time)}</div>`;
+  }).join('');
+
+  const chordButtons = chords.map((chord, i) => {
+    const time = chord.time || 0;
+    const formatted = formatChord(chord);
+    const technique = detectTechnique(chord);
+    return `<button class="timeline-chord" data-time="${time.toFixed(2)}" title="${escapeHtml(technique)}">${escapeHtml(formatted.name)}<span class="timeline-chord-time">${formatDuration(time)} — ${escapeHtml(technique)}</span></button>`;
+  }).join('');
+
+  return { markers, chords: chordButtons };
+}
+
+export function bindCoverTimelineSeek(seekCallback, currentTimeCallback) {
+  const duration = computeAnalysisDuration(currentAnalysis?.chords || []);
+  document.querySelectorAll('#cover-timeline-track .timeline-marker, .timeline-chord').forEach((el) => {
+    el.addEventListener('click', () => {
+      const time = Number(el.dataset.time) || 0;
+      seekCallback?.(time);
+      updateCoverTimelineProgress(currentTimeCallback?.() || time, duration);
+    });
+  });
+}
+
+export function updateCoverTimelineProgress(currentTime, duration) {
+  const progress = document.getElementById('cover-timeline-progress');
+  if (!progress) return;
+  const dur = duration || computeAnalysisDuration(currentAnalysis?.chords || []);
+  if (!dur) return;
+  const pct = Math.max(0, Math.min(100, (currentTime / dur) * 100));
+  progress.style.left = `${pct}%`;
 }
 
 function buildMasterclassHtml(data, analysis) {

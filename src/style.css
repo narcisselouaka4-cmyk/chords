@@ -2660,6 +2660,94 @@ input[type='color'] {
   .studio-sidebar.right { grid-column: 3; grid-row: 1; }
 }
 
+/* ── Blueprint suggestion cards ── */
+.blueprint-suggestion-card {
+  gap: 14px;
+}
+
+.suggestion-inspirations {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.suggestion-inspiration-card {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.suggestion-inspiration-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.suggestion-inspiration-name {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--accent);
+}
+
+.suggestion-inspiration-badge {
+  font-size: 0.7rem;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-weight: 700;
+}
+
+.suggestion-inspiration-technique {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.detail-top-note {
+  font-size: 0.78rem;
+  color: var(--accent);
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+/* ── Cover timeline progress head ── */
+.timeline-progress {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.timeline-chord-time {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.tutorial-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.arrangement-bass {
+  padding: 2px 4px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+}
+
 @media (max-width: 900px) {
   .app-main {
     grid-template-columns: 1fr 1fr;
