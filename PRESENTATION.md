@@ -1,7 +1,7 @@
 # Piano Jazz Chords — Présentation projet
 
 > Document de synthèse à destination du chef de projet.
-> Dernière mise à jour : 4 juillet 2026.
+> Dernière mise à jour : 5 juillet 2026.
 
 ---
 
@@ -54,14 +54,18 @@ Elle détecte en temps réel les accords joués sur un clavier MIDI, les affiche
 
 ### Module 3 — Analyse IA
 
-**Ce que le module doit faire :**
+**Ce que le module fait aujourd'hui :**
 
-- Segmentation d'une session en sections (Intro, Couplet, Pré-refrain, Refrain, Bridge, Outro).
-- Identification des progressions harmoniques.
-- Scoring du jeu (voice leading, transitions, tensions).
-- Suggestions de réharmonisation par style (Worship, Gospel, Jazz, Neo Soul).
+- Pipeline d'analyse à trois entrées : MIDI, Tutoriel vidéo, Cover / Performance.
+- Détection de tonalité par profils Krumhansl-Schmuckler + heuristique sur les accords.
+- Segmentation d'une session en sections (Intro, Couplet, Pré-refrain, Refrain, Bridge, Outro, Interlude).
+- Timeline d'accords avec Top Note détectée, grace notes, voicing et technique.
+- Grille d'arrangement harmonique : toggle Actif/Inactif par accord, dropdown de ligne de basse (Auto, 1/3/5/7, patterns 7-3-6, 2-5-1, etc.).
+- Suggestions de réharmonisation par style (Worship, Gospel, Jazz, Neo Soul) avec mini-claviers.
+- Intégration IA (Groq/OpenRouter/Gemini) avec format JSON blueprint : accord original, top note, 3 suggestions par influence locale, technique et voicing.
+- Masterclass IA : analyse pédagogique par accord, avec cache, retry exponentiel et fallback sur la bibliothèque locale de mouvements.
 
-**État :** ⏳ Non développé.
+**État :** ✅ Fonctionnel et testé.
 
 ---
 
@@ -147,18 +151,19 @@ npm run build
 | Entraînement temps réel | ✅ Terminé |
 | Clavier MIDI virtuel | ✅ Terminé |
 | Moteur d'accords | ✅ Terminé |
-| Sessions MIDI | 🔄 En consolidation |
-| Analyse IA | ⏳ Non commencé |
+| Sessions MIDI | ✅ Terminé |
+| Analyse IA | ✅ Terminé |
 | Studio audio/vidéo | ✅ Terminé |
 
 ---
 
 ## 9. Points de vigilance / prochaines étapes
 
-- Consolidation du module Sessions (relecture complète, vitesse variable, export).
-- Module Analyse IA : segmentation, scoring, suggestions de réharmonisation.
-- Packaging multi-plateforme (Linux, Windows, macOS).
-- Gestion des erreurs utilisateur et tests utilisateurs réels.
+- Tests utilisateurs réels sur le module Analyse (détection de tonalité sur des sessions variées).
+- Spike time-boxé sur le packaging de Demucs en bundle Electron multi-plateforme (1-2 jours max).
+- Pour la v1 : installation Python + ffmpeg documentée comme prérequis acceptable ; packaging propre reporté en v1.1.
+- Gestion des erreurs utilisateur et journal d'application.
+- Anonymisation complète des références artistes : les suggestions affichent désormais des catégories de style (ex. « Walk-up Gospel ») plutôt que des noms propres.
 
 ---
 

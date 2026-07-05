@@ -475,9 +475,11 @@ function renderTrackList(tracks) {
     if (currentTrack && currentTrack.id === track.id) item.classList.add('active');
 
     const metadata = track.metadata || {};
+    const displayName = metadata.name || track.id;
+    const source = metadata.sourcePath ? metadata.sourcePath.split('/').pop() || metadata.sourcePath.split('\\').pop() : track.id;
     item.innerHTML = `
-      <div class="studio-track-name">${escapeHtml(metadata.name || track.id)}</div>
-      <div class="studio-track-meta">${track.id} · ${formatDuration(metadata.duration || 0)}</div>
+      <div class="studio-track-name">${escapeHtml(displayName)}</div>
+      <div class="studio-track-meta">${escapeHtml(source)} · ${formatDuration(metadata.duration || 0)}</div>
     `;
     item.addEventListener('click', () => loadTrack(track.id));
     els.trackList.appendChild(item);

@@ -1,6 +1,6 @@
 import { buildChordTimeline } from './chord-timeline.js';
 import { segment } from './segmenter.js';
-import { noteNameToPc } from '../chord-engine/intervals.js';
+import { detectKey } from './key-detector.js';
 import { readSessionFile, writeSessionFile } from '../recorder/storage.js';
 
 // [OpenCode] — 2026-07-04 — Orchestrateur d'analyse des sessions MIDI.
@@ -21,11 +21,14 @@ export async function analyzeSession(sessionId, events, session) {
     chords: s.chordIndices.map((idx) => chords[idx]).filter(Boolean),
   }));
 
+  const key = detectKey(events, chords, { useSharps: true, latin: false });
+
   const result = {
     sessionId,
     generatedAt: new Date().toISOString(),
     appVersion: APP_VERSION,
     duration: totalDuration,
+    key,
     chords,
     sections: enrichedSections,
   };
@@ -54,10 +57,4 @@ function estimateDuration(events) {
   return last.time || 0;
 }
 
-function parseKey(key) {
-  if (!key) return null;
-  const match = key.match(/^[A-Ga-g][#b]?/);
-  if (!match) return null;
-  const name = match[0].toUpperCase();
-  return noteNameToPc(name);
-}
+export { detectKey, parseKeyInput } from './key-detector.js';

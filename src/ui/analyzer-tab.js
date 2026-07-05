@@ -146,10 +146,17 @@ export async function renderAnalysis(sessionId, events, session, container) {
 }
 
 function buildAnalysisHtml(analysis) {
+  const keyInfo = analysis.key
+    ? `<span class="analysis-key">Tonalité : ${escapeHtml(analysis.key.name)} <span class="analysis-key-source">(${analysis.key.source}, confiance ${Math.round(analysis.key.confidence * 100)}%)</span></span>`
+    : '<span class="analysis-key analysis-key-missing">Tonalité non définie</span>';
+
   return `
     <div class="analysis-layout">
       <div class="analysis-timeline">
-        <div class="panel-title">Accords originaux par section</div>
+        <div class="panel-title">
+          Accords originaux par section
+          ${keyInfo}
+        </div>
         ${buildSectionsHtml(analysis.sections, analysis.chords)}
         <div class="panel chord-grid-panel" style="margin-top: 1rem;">
           <div class="panel-title" style="cursor:pointer;" id="chord-grid-toggle">Grille de référence <span id="chord-grid-toggle-icon">+</span></div>
@@ -727,13 +734,18 @@ function buildCoverTimelineItems(chords, duration) {
     };
   }
 
-  const markers = chords.map((chord, i) => {
-    const time = chord.time || 0;
+  const maxMarkers = 8;
+  const markerTimes = sampleTimelineTimes(chords.map((c) => c.time || 0), duration, maxMarkers);
+  const markers = markerTimes.map((time) => {
     const pct = duration ? (time / duration) * 100 : 0;
     return `<div class="timeline-marker" data-time="${time.toFixed(2)}" style="left: ${pct}%;" title="${formatDuration(time)}">${formatDuration(time)}</div>`;
   }).join('');
 
-  const chordButtons = chords.map((chord, i) => {
+  // Limite le nombre d'accords affichés pour éviter la saturation.
+  const maxChords = 24;
+  const step = Math.max(1, Math.ceil(chords.length / maxChords));
+  const visibleChords = chords.filter((_, i) => i % step === 0);
+  const chordButtons = visibleChords.map((chord) => {
     const time = chord.time || 0;
     const formatted = formatChord(chord);
     const technique = detectTechnique(chord);
@@ -741,6 +753,23 @@ function buildCoverTimelineItems(chords, duration) {
   }).join('');
 
   return { markers, chords: chordButtons };
+}
+
+function sampleTimelineTimes(times, duration, maxCount) {
+  const unique = Array.from(new Set(times.filter((t) => t >= 0).sort((a, b) => a - b)));
+  if (unique.length <= maxCount) return unique;
+  const result = [0];
+  for (let i = 1; i < maxCount - 1; i++) {
+    const target = (duration * i) / (maxCount - 1);
+    const closest = unique.reduce((best, t) => (Math.abs(t - target) < Math.abs(best - target) ? t : best), unique[0]);
+    if (!result.includes(closest)) result.push(closest);
+  }
+  const last = unique[unique.length - 1];
+  if (!result.includes(last)) result.push(last);
+  if (result.length > maxCount) {
+    return result.filter((_, i) => i === 0 || i === result.length - 1 || i % 2 === 0).slice(0, maxCount);
+  }
+  return result.sort((a, b) => a - b);
 }
 
 export function bindCoverTimelineSeek(seekCallback, currentTimeCallback) {

@@ -1,9 +1,9 @@
 {
   "movements": [
     {
-      "id": "jeremy-haynes-1",
-      "artist": "Jeremy Haynes",
+      "id": "walk-up-gospel-1",
       "style": "worship",
+      "category": "Walk-up Gospel",
       "name": "Passing 2-5-1 ouvert",
       "context": "Transition douce entre deux accords de tonalité majeure.",
       "pattern": "7-3-6-2-5",
@@ -11,9 +11,9 @@
       "description": "Voicings aérés en drop 2 avec suspension sus4 sur le V."
     },
     {
-      "id": "jeremy-haynes-2",
-      "artist": "Jeremy Haynes",
+      "id": "diatonic-rise-worship-1",
       "style": "worship",
+      "category": "Montée diatonique Worship",
       "name": "Montée diatonique en quartes",
       "context": "Montée émotionnelle avant un refrain.",
       "pattern": "1-4-6-5",
@@ -21,9 +21,9 @@
       "description": "Basse montante par degrés conjoints, voicings amples en position close."
     },
     {
-      "id": "jonathan-nelson-1",
-      "artist": "Jonathan Nelson",
+      "id": "turnaround-gospel-1",
       "style": "gospel",
+      "category": "Turnaround Gospel",
       "name": "Turnaround chromatique 3-6-2-5",
       "context": "Fin de couplet ou pont gospel.",
       "pattern": "3-6-2-5-1",
@@ -31,9 +31,9 @@
       "description": "Tensions altérées sur le V, block chords richement harmonisés."
     },
     {
-      "id": "jonathan-nelson-2",
-      "artist": "Jonathan Nelson",
+      "id": "subdominant-minor-gospel-1",
       "style": "gospel",
+      "category": "Couleur Gospel moderne",
       "name": "Subdominant mineur surprise",
       "context": "Couleur gospel moderne sur un accord majeur.",
       "pattern": "1-b3maj7-6-2-5",
@@ -41,9 +41,9 @@
       "description": "Utilisation du bIII maj7 comme couleur chromatique typique du gospel."
     },
     {
-      "id": "moses-tyson-1",
-      "artist": "Moses Tyson",
+      "id": "tritone-jazz-1",
       "style": "jazz",
+      "category": "Substitution Jazz",
       "name": "Tritone substitution V7",
       "context": "Substitution de dominante pour créer une ligne de basse chromatique.",
       "pattern": "2-b2-1",
@@ -51,9 +51,9 @@
       "description": "Db7 remplace G7, voicings rootless avec 3e et 7e inversées."
     },
     {
-      "id": "moses-tyson-2",
-      "artist": "Moses Tyson",
+      "id": "minor-ii-v-i-jazz-1",
       "style": "jazz",
+      "category": "II-V-I Jazz mineur",
       "name": "II-V-I altéré en mineur",
       "context": "Modulation ou cadence en mineur.",
       "pattern": "2m7b5-b5alt-1m",

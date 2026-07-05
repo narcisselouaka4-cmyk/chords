@@ -218,6 +218,118 @@ Propose 3 réharmonisations inspirées de la bibliothèque de mouvements locales
   }
 }
 
+const masterclassCache = new Map();
+const RETRY_DELAYS = [1000, 3000, 9000];
+
+function hashAnalysis(analysis) {
+  const chords = analysis.chords || [];
+  const key = `${analysis.sessionId || 'unknown'}-${chords.length}-${chords.map((c) => `${c.rootPc}${c.symbol || ''}`).join(',')}`;
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) & 0x7fffffff;
+  return String(h);
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function buildFallbackMasterclass(analysis) {
+  const chords = analysis.chords || [];
+  const movements = movementsLibrary.movements || [];
+  return chords.map((chord, i) => {
+    const rootName = NOTE_NAMES[chord.rootPc % 12] || '?';
+    const next = chords[i + 1];
+    const movement = pickMovementForChord(chord, next, movements);
+    const isActive = chord._arrangementActive !== false;
+    return {
+      index: i,
+      top_note: `Top note ${midiToNoteName(getTopNoteMidi(chord))}. ${movement ? `Mouvement suggéré : ${movement.category}.` : 'Conservez la mélodie actuelle.'}`,
+      worship: isActive ? [48, 52, 55, 59] : [],
+      jazz: isActive ? [55, 59, 62, 65] : [],
+      passing: movement ? `${movement.pattern} — ${movement.description}` : 'Aucun mouvement de référence trouvé.',
+      commentaire: isActive
+        ? (movement
+          ? `Inspirez-vous du mouvement « ${movement.name} » pour enrichir ce passage.`
+          : 'Aucune suggestion automatique disponible pour cet accord.')
+        : 'Accord désactivé dans l\'arrangement.',
+      skip: !isActive,
+    };
+  });
+}
+
+function getTopNoteMidi(chord) {
+  if (!chord || !chord.notes || chord.notes.length === 0) return null;
+  return Math.max(...chord.notes);
+}
+
+function pickMovementForChord(chord, nextChord, movements) {
+  if (!movements || movements.length === 0) return null;
+  const symbol = chord.symbol || '';
+  const isDom = /^(7|9|13|dim|°)/i.test(symbol) || (/7/.test(symbol) && !/maj/i.test(symbol));
+  const isMinor = /^(m(?=\d|\/|add|sus|$)|min|mi(?=\d|\/|add|sus|$)|-)/i.test(symbol);
+  const hasNext = !!nextChord;
+
+  // Score simple : préférer les mouvements dont le style correspond et qui traitent les dominantes / mineurs.
+  const scored = movements.map((m) => {
+    let score = 0;
+    if (m.style === 'jazz' && isDom) score += 2;
+    if (m.style === 'gospel' && isDom) score += 2;
+    if (m.style === 'worship' && !isDom && !isMinor) score += 2;
+    if (m.style === 'jazz' && isMinor && /m7b5|m9/.test(symbol)) score += 1;
+    if (hasNext && m.pattern.includes('-')) score += 1; // mouvement de passage
+    return { m, score };
+  });
+  scored.sort((a, b) => b.score - a.score);
+  return scored[0]?.m || null;
+}
+
+async function fetchMasterclass(config, systemPrompt, userPrompt) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+  try {
+    const response = await fetch(`${config.baseUrl.replace(/\/$/, '')}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${config.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        max_tokens: 2000,
+        temperature: 0.3,
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('AI_API_KEY_INVALID');
+      } else if (response.status === 429) {
+        throw new Error('AI_RATE_LIMIT');
+      }
+      throw new Error(`AI_API_ERROR_${response.status}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+    if (!content) return null;
+
+    const result = safeJsonParse(content);
+    if (!result || !result.masterclass || !Array.isArray(result.masterclass)) return null;
+    return result.masterclass;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    throw err;
+  }
+}
+
 export async function generateMasterclass(analysis) {
   const config = getApiConfig();
   if (!config) return null;
@@ -225,6 +337,12 @@ export async function generateMasterclass(analysis) {
   const chords = analysis.chords || [];
   const sections = analysis.sections || [];
   if (chords.length === 0) return null;
+
+  const cacheKey = hashAnalysis(analysis);
+  if (masterclassCache.has(cacheKey)) {
+    console.log('[AI] Masterclass servie depuis le cache.');
+    return masterclassCache.get(cacheKey);
+  }
 
   const chordList = chords.map((c, i) => {
     const rootName = NOTE_NAMES[c.rootPc % 12] || '?';
@@ -241,8 +359,8 @@ export async function generateMasterclass(analysis) {
     return `${labels[s.label] || s.label} (${formatTime(s.start)} — ${formatTime(s.end)})`;
   }).join('\n');
 
-    const libraryText = movementsLibrary.movements
-    .map((m) => `- ${m.artist} (${m.style}) : ${m.name} — ${m.pattern} — ${m.description}`)
+  const libraryText = movementsLibrary.movements
+    .map((m) => `- ${m.category || 'Générique'} (${m.style}) : ${m.name} — ${m.pattern} — ${m.description}`)
     .join('\n');
 
   const systemPrompt = `Tu es un professeur de piano jazz et gospel de renom. Tu analyses des progressions harmoniques completes et tu donnes des conseils personnalises.
@@ -278,62 +396,31 @@ ${chordList}
 
 Analyse chaque accord et donne des conseils de maître.`;
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000);
-
-  try {
-    const response = await fetch(`${config.baseUrl.replace(/\/$/, '')}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${config.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: config.model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        max_tokens: 2000,
-        temperature: 0.3,
-      }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      if (response.status === 401 || response.status === 403) {
-        throw new Error('AI_API_KEY_INVALID');
-      } else if (response.status === 429) {
-        console.warn('[AI] Trop de requêtes (rate limit).');
-      } else {
-        console.warn('[AI] Erreur API Masterclass:', response.status);
+  let lastErr = null;
+  for (let attempt = 0; attempt <= RETRY_DELAYS.length; attempt++) {
+    try {
+      const result = await fetchMasterclass(config, systemPrompt, userPrompt);
+      if (result) {
+        masterclassCache.set(cacheKey, result);
+        return result;
       }
-      return null;
+    } catch (err) {
+      lastErr = err;
+      if (err.message === 'AI_API_KEY_INVALID') {
+        console.error('[AI] Clé API invalide ou refusée.');
+        throw err;
+      }
+      if (attempt < RETRY_DELAYS.length) {
+        console.warn(`[AI] Masterclass tentative ${attempt + 1} échouée (${err.message}). Retry dans ${RETRY_DELAYS[attempt]}ms...`);
+        await sleep(RETRY_DELAYS[attempt]);
+      }
     }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-    if (!content) return null;
-
-    const result = safeJsonParse(content);
-    if (!result) {
-      console.warn('[AI] Réponse Masterclass malformée (JSON invalide).');
-      return null;
-    }
-    if (!result.masterclass || !Array.isArray(result.masterclass)) return null;
-
-    return result.masterclass;
-  } catch (err) {
-    clearTimeout(timeoutId);
-    if (err.message === 'AI_API_KEY_INVALID') {
-      console.error('[AI] Clé API invalide ou refusée.');
-      throw err;
-    }
-    console.warn('[AI] Erreur réseau Masterclass:', err);
-    return null;
   }
+
+  console.warn('[AI] Masterclass IA indisponible après retry. Fallback sur bibliothèque locale :', lastErr?.message);
+  const fallback = buildFallbackMasterclass(analysis);
+  masterclassCache.set(cacheKey, fallback);
+  return fallback;
 }
 
 function formatTime(seconds) {
