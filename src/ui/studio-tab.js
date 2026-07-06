@@ -35,6 +35,15 @@ let mediaDuration = 0;
 let isAudioReady = false;
 let pendingTranspose = 0;
 
+// Réarchitecture audio : deux players (vidéo visible + audio caché)
+let playerVideo = null;
+let playerAudio = null;
+let audioBlobUrl = null;
+let videoBlobUrl = null;
+let useStemsMode = false; // false = mix original, true = pistes séparées
+let syncRafId = null;
+let lastSyncTime = 0;
+
 // AudioContext partagé pour le Studio (évite les doubles contextes et preserve la qualité)
 let studioAudioCtx = null;
 let studioDestination = null;
@@ -47,9 +56,14 @@ const els = {
   importBtn: document.getElementById('studio-import-btn'),
   trackList: document.getElementById('studio-track-list'),
   playerWrap: document.getElementById('studio-player-wrap'),
-  playerContainer: document.getElementById('studio-player-container'),
+  playerVideoContainer: document.getElementById('studio-video-container'),
+  playerAudioContainer: document.getElementById('studio-audio-container'),
+  player: null,        // référence au <video> visible (UI/timing)
+  playerAudio: null,   // référence au <audio> caché (son)
   audioBackdrop: document.getElementById('studio-audio-backdrop'),
   backdropTitle: document.getElementById('studio-backdrop-title'),
+  stemsMode: document.getElementById('studio-stems-mode'),
+  stemsModeToggle: document.getElementById('studio-stems-mode-toggle'),
   playBtn: document.getElementById('studio-play-btn'),
   stopBtn: document.getElementById('studio-stop-btn'),
   prevBtn: document.getElementById('studio-prev-btn'),
@@ -103,6 +117,7 @@ export function initStudioTab() {
 
   bindPlayer();
   bindStems();
+  bindStemsModeToggle();
   bindWaveform();
   bindCropButtons();
   refreshTrackList();
@@ -156,7 +171,7 @@ function bindPlayer() {
     const db = Number(els.volume.value);
     const masterLabel = document.getElementById('studio-volume-label');
     if (masterLabel) masterLabel.textContent = formatDb(db);
-    setPlayerMuted();
+    setAudioVolume();
     if (pitchGainNode) {
       const now = studioAudioCtx?.currentTime || 0;
       pitchGainNode.gain.setTargetAtTime(dbToGain(db), now, 0.05);
@@ -206,30 +221,58 @@ function bindPlayer() {
   // Voir createMediaPlayer().
 }
 
-function bindMediaEvents(media) {
-  if (!media) return;
+function bindMediaEvents(video, audio) {
+  if (!video || !audio) return;
 
-  media.addEventListener('play', () => {
-    isPlaying = true;
-    if (els.playBtn) els.playBtn.textContent = '⏸';
+  // Audio mène le timing
+  audio.addEventListener('play', () => {
+    video.play().catch(() => {});
+    startSyncLoop(video, audio);
   });
 
-  media.addEventListener('pause', () => {
-    isPlaying = false;
-    if (els.playBtn) els.playBtn.textContent = '▶';
+  audio.addEventListener('pause', () => {
+    video.pause();
+    stopSyncLoop();
   });
 
-  media.addEventListener('ended', () => {
-    isPlaying = false;
-    if (els.playBtn) els.playBtn.textContent = '▶';
+  audio.addEventListener('seeked', () => {
+    if (Math.abs(video.currentTime - audio.currentTime) > 0.05) {
+      video.currentTime = audio.currentTime;
+    }
   });
 
-  media.addEventListener('timeupdate', () => {
-    if (!els.player) return;
+  audio.addEventListener('ended', () => {
+    video.pause();
+    stopSyncLoop();
+  });
+
+  // Vidéo répercute les interactions utilisateur sur l'audio
+  video.addEventListener('play', () => {
+    audio.play().catch(() => {});
+    startSyncLoop(video, audio);
+  });
+
+  video.addEventListener('pause', () => {
+    audio.pause();
+    stopSyncLoop();
+  });
+
+  video.addEventListener('seeking', () => {
+    audio.currentTime = video.currentTime;
+  });
+
+  video.addEventListener('seeked', () => {
+    audio.currentTime = video.currentTime;
+  });
+
+  // UI timeupdate : on l'attache à l'audio
+  audio.addEventListener('timeupdate', () => {
+    if (!els.playerAudio) return;
 
     // Boucle région stricte : on repositionne l'audio sans forcer de re-render.
-    if (regionEnd !== null && els.player.currentTime >= regionEnd) {
-      els.player.currentTime = regionStart;
+    if (regionEnd !== null && els.playerAudio.currentTime >= regionEnd) {
+      els.playerAudio.currentTime = regionStart;
+      video.currentTime = regionStart;
       mixer?.seek(regionStart);
     }
 
@@ -240,8 +283,65 @@ function bindMediaEvents(media) {
   });
 }
 
+function startSyncLoop(video, audio) {
+  stopSyncLoop();
+  const loop = () => {
+    syncRafId = requestAnimationFrame(loop);
+    const now = performance.now();
+    if (now - lastSyncTime < 100) return;
+    lastSyncTime = now;
+
+    if (!audio.paused && !video.paused) {
+      const drift = video.currentTime - audio.currentTime;
+      if (Math.abs(drift) > 0.04) {
+        // Resync brut si dérive importante
+        video.currentTime = audio.currentTime;
+        video.playbackRate = 1.0;
+      } else if (Math.abs(drift) > 0.01) {
+        // Rattrapage progressif
+        video.playbackRate = drift > 0 ? 0.98 : 1.02;
+      } else {
+        video.playbackRate = 1.0;
+      }
+    }
+  };
+  loop();
+}
+
+function stopSyncLoop() {
+  if (syncRafId) {
+    cancelAnimationFrame(syncRafId);
+    syncRafId = null;
+  }
+  if (playerVideo) playerVideo.playbackRate = 1.0;
+}
+
 function bindStems() {
   els.separateBtn?.addEventListener('click', () => runSeparation());
+}
+
+function bindStemsModeToggle() {
+  if (!els.stemsModeToggle) return;
+  els.stemsModeToggle.addEventListener('click', () => {
+    useStemsMode = !useStemsMode;
+    updateStemsModeUI();
+    // Si en lecture, basculer immédiatement
+    if (isPlaying) {
+      play();
+    }
+  });
+}
+
+function updateStemsModeUI() {
+  if (!els.stemsModeToggle) return;
+  els.stemsModeToggle.textContent = useStemsMode
+    ? 'Écouter le mix original'
+    : 'Écouter les pistes séparées';
+  els.stemsModeToggle.disabled = !mixer?.hasStems();
+  els.stemsModeToggle.classList.toggle('active', useStemsMode);
+  if (els.stemsMode) {
+    els.stemsMode.style.display = mixer?.hasStems() ? '' : 'none';
+  }
 }
 
 const MAX_REGION_DURATION = 210; // 3min30 en secondes
@@ -321,7 +421,7 @@ function bindWaveform() {
     if (e.ctrlKey || e.metaKey) {
       const rect = wrap.getBoundingClientRect();
       const x = e.clientX - rect.left;
-      const duration = waveformData?.duration || els.player?.duration || 0;
+      const duration = waveformData?.duration || els.playerAudio?.duration || els.player?.duration || 0;
       if (!duration) return;
       const time = (x / rect.width) * duration;
       if (regionEnd === null) return;
@@ -344,7 +444,7 @@ function bindWaveform() {
       isDraggingHandle = 'end';
     } else {
       isDraggingHandle = null;
-      const duration = waveformData?.duration || els.player?.duration || 0;
+      const duration = waveformData?.duration || els.playerAudio?.duration || els.player?.duration || 0;
       if (duration) {
         let time;
         if (regionConfirmed) {
@@ -656,65 +756,102 @@ function disconnectPitchShifter() {
 }
 
 function destroyMediaPlayer() {
-  if (!els.player) return;
-  try { els.player.pause(); } catch (_) {}
-  try { els.player.src = ''; } catch (_) {}
-  try { els.player.load(); } catch (_) {}
-  if (els.player.parentNode) {
-    els.player.parentNode.removeChild(els.player);
+  if (playerVideo) {
+    try { playerVideo.pause(); } catch (_) {}
+    try { playerVideo.src = ''; } catch (_) {}
+    try { playerVideo.load(); } catch (_) {}
+    if (playerVideo.parentNode) playerVideo.parentNode.removeChild(playerVideo);
+    playerVideo = null;
   }
+  if (playerAudio) {
+    try { playerAudio.pause(); } catch (_) {}
+    try { playerAudio.src = ''; } catch (_) {}
+    try { playerAudio.load(); } catch (_) {}
+    if (playerAudio.parentNode) playerAudio.parentNode.removeChild(playerAudio);
+    playerAudio = null;
+  }
+  if (audioBlobUrl) {
+    URL.revokeObjectURL(audioBlobUrl);
+    audioBlobUrl = null;
+  }
+  // videoBlobUrl est géré par le storage existant
   disconnectPitchShifter();
   pitchSourceNode = null;
   playerSourceCreated = false;
   els.player = null;
+  els.playerAudio = null;
 }
 
-function createMediaPlayer(blobUrl, isVideo) {
+async function createMediaPlayer(videoBlobUrl, wavBytes, isVideo) {
   destroyMediaPlayer();
-  const media = document.createElement(isVideo ? 'video' : 'audio');
-  media.id = 'studio-player';
-  media.className = 'studio-player';
-  media.preload = 'auto';
-  media.src = blobUrl;
-  media.crossOrigin = 'anonymous';
-  // Par défaut le son sort nativement. Web Audio n'est branché que si on transpose.
-  media.muted = false;
-  media.volume = dbToGain(Number(els.volume?.value) || 0);
-  media.controls = false;
-  if (isVideo) {
-    media.playsInline = true;
-  }
-  els.playerContainer.appendChild(media);
-  els.player = media;
-  return media;
+
+  // --- Vidéo visible (image seule) ---
+  const video = document.createElement(isVideo ? 'video' : 'audio');
+  video.id = 'studio-player-video';
+  video.className = 'studio-player';
+  video.preload = 'auto';
+  video.src = videoBlobUrl;
+  video.muted = true;     // JAMAIS de son ici
+  video.volume = 0;
+  video.controls = false;
+  if (isVideo) video.playsInline = true;
+  els.playerVideoContainer.appendChild(video);
+  playerVideo = video;
+  els.player = video;
+
+  // --- Audio caché (son natif + WebAudio) ---
+  const audio = document.createElement('audio');
+  audio.id = 'studio-player-audio';
+  audio.className = 'studio-player';
+  audio.preload = 'auto';
+  audioBlobUrl = wavBytes
+    ? URL.createObjectURL(new Blob([wavBytes], { type: 'audio/wav' }))
+    : videoBlobUrl;
+  audio.src = audioBlobUrl;
+  audio.crossOrigin = 'anonymous';
+  audio.controls = false;
+  els.playerAudioContainer.appendChild(audio);
+  playerAudio = audio;
+  els.playerAudio = audio;
+
+  bindMediaEvents(video, audio);
+  setAudioVolume();
+
+  return { video, audio };
 }
 
-function setPlayerAudible() {
-  if (!els.player) return;
+function setAudioVolume() {
+  if (!playerAudio) return;
   const db = Number(els.volume?.value) || 0;
-  els.player.muted = false;
-  els.player.volume = dbToGain(db);
+  playerAudio.volume = dbToGain(db);
 }
 
 function setPlayerMuted() {
-  if (!els.player) return;
+  if (!playerAudio) return;
   // Quand on passe par Web Audio (pitch-shift ou stems), on coupe la sortie native.
-  els.player.muted = true;
-  els.player.volume = 0;
+  playerAudio.muted = true;
+  playerAudio.volume = 0;
+}
+
+function setPlayerAudible() {
+  if (!playerAudio) return;
+  const db = Number(els.volume?.value) || 0;
+  playerAudio.muted = false;
+  playerAudio.volume = dbToGain(db);
 }
 
 function getEffectiveDuration() {
   if (regionConfirmed && regionEnd !== null) {
     return Math.max(0.01, regionEnd - regionStart);
   }
-  return els.player?.duration || waveformData?.duration || mediaDuration || 0;
+  return els.playerAudio?.duration || els.player?.duration || waveformData?.duration || mediaDuration || 0;
 }
 
 function getEffectiveCurrentTime() {
   if (regionConfirmed && regionEnd !== null) {
-    return Math.max(0, els.player.currentTime - regionStart);
+    return Math.max(0, els.playerAudio.currentTime - regionStart);
   }
-  return els.player?.currentTime || 0;
+  return els.playerAudio?.currentTime || els.player?.currentTime || 0;
 }
 
 function storeOriginalStems(blobUrls, paths) {
@@ -729,19 +866,43 @@ export async function loadTrack(trackId) {
     const metadata = await loadMetadata(trackId);
     currentTrack = { id: trackId, metadata };
 
-    const blobUrl = await readOriginalAsBlobUrl(trackId);
-    if (!blobUrl) {
+    const originalBlobUrl = await readOriginalAsBlobUrl(trackId);
+    if (!originalBlobUrl) {
       setStatus('Fichier original introuvable');
       return;
     }
 
-    const info = await inspectMedia(blobUrl);
+    const info = await inspectMedia(originalBlobUrl);
     isAudioOnly = info.isAudioOnly;
     mediaDuration = info.duration || 0;
 
-    // On recrée un élément media propre (audio ou video) à chaque chargement.
-    createMediaPlayer(blobUrl, !isAudioOnly);
-    setPlayerMuted();
+    // Extraction WAV
+    let wavBytes = null;
+    let wavPath = null;
+    if (window.electronAPI?.studio?.extractAudio) {
+      try {
+        setStatus('Extraction audio en cours...');
+        wavPath = await window.electronAPI.studio.extractAudio(trackId, metadata?.originalPath);
+      } catch (err) {
+        console.warn('[Studio] extractAudio failed:', err);
+      }
+    }
+
+    if (wavPath && window.electronAPI?.files?.readBinary) {
+      try {
+        wavBytes = await window.electronAPI.files.readBinary(wavPath);
+      } catch (err) {
+        console.warn('[Studio] readBinary wav failed:', err);
+      }
+    }
+
+    // Fallback : si pas de WAV, createMediaPlayer utilisera le blob original comme audio.
+    if (!wavBytes) {
+      wavBytes = null;
+    }
+
+    // Créer les players (vidéo visible + audio caché)
+    await createMediaPlayer(originalBlobUrl, wavBytes, !isAudioOnly);
     updateAudioBackdrop(metadata?.name || trackId);
 
     if (currentBlobUrl) {
@@ -749,13 +910,11 @@ export async function loadTrack(trackId) {
       const revoked = currentBlobUrl;
       setTimeout(() => URL.revokeObjectURL(revoked), 5000);
     }
-    currentBlobUrl = blobUrl;
+    currentBlobUrl = originalBlobUrl;
 
     resetTransposeState();
     isAudioReady = false;
     pendingTranspose = 0;
-
-    bindMediaEvents(els.player);
 
     const onAudioReady = async () => {
       if (isAudioReady) return;
@@ -767,32 +926,38 @@ export async function loadTrack(trackId) {
         await runPitchShift();
       }
     };
-    els.player?.addEventListener('canplaythrough', onAudioReady, { once: true });
-    els.player?.addEventListener('loadedmetadata', onAudioReady, { once: true });
-    els.player?.addEventListener('loadeddata', onAudioReady, { once: true });
+    playerAudio?.addEventListener('canplaythrough', onAudioReady, { once: true });
+    playerAudio?.addEventListener('loadedmetadata', onAudioReady, { once: true });
+    playerAudio?.addEventListener('loadeddata', onAudioReady, { once: true });
 
-    // Extract audio and generate waveform
-    if (window.electronAPI?.studio?.extractAudio && window.electronAPI?.studio?.generateWaveform) {
-      setStatus('Analyse audio en cours...');
+    // Génération waveform
+    if (wavPath && window.electronAPI?.studio?.generateWaveform) {
       try {
-        const wavPath = await window.electronAPI.studio.extractAudio(trackId, metadata?.originalPath);
+        setStatus('Analyse waveform en cours...');
         audioWavPath = wavPath;
         waveformData = await window.electronAPI.studio.generateWaveform(wavPath);
-        renderWaveform();
-        updateRegionUI();
-        updateCropButtons();
-        setCropControlsEnabled(false);
-        setStatus(`Morceau chargé : ${metadata?.name || trackId}`);
       } catch (err) {
-        console.warn('[Studio] waveform extraction failed:', err);
+        console.warn('[Studio] generateWaveform failed:', err);
         audioWavPath = null;
         waveformData = null;
-        setStatus(`Morceau chargé (waveform indisponible) : ${metadata?.name || trackId}`);
       }
     }
 
+    // Si aucune waveform, fallback sur le blob original pour waveform
+    if (!waveformData && window.electronAPI?.studio?.generateWaveform) {
+      try {
+        waveformData = await window.electronAPI.studio.generateWaveform(metadata?.originalPath);
+      } catch (_) {}
+    }
+
+    renderWaveform();
+    updateRegionUI();
+    updateCropButtons();
+    setCropControlsEnabled(false);
+
     await refreshTrackList();
     await refreshStems();
+    setStatus(`Morceau chargé : ${metadata?.name || trackId}`);
   } catch (err) {
     console.error('Failed to load track:', err);
     setStatus(`Erreur de chargement : ${err.message}`);
@@ -839,7 +1004,7 @@ function renderWaveform() {
 }
 
 async function ensurePlayerRouted() {
-  if (!els.player || !studioAudioCtx) return;
+  if (!playerAudio || !studioAudioCtx) return;
 
   if (!pitchGainNode) {
     pitchGainNode = studioAudioCtx.createGain();
@@ -850,7 +1015,7 @@ async function ensurePlayerRouted() {
 
   if (!playerSourceCreated) {
     try {
-      pitchSourceNode = studioAudioCtx.createMediaElementSource(els.player);
+      pitchSourceNode = studioAudioCtx.createMediaElementSource(playerAudio);
       playerSourceCreated = true;
     } catch (e) {
       console.warn('[Studio] Impossible de créer MediaElementSource:', e);
@@ -887,7 +1052,8 @@ async function runPitchShift() {
     return;
   }
 
-  if (mixer?.hasStems()) {
+  const useStems = mixer?.hasStems() && useStemsMode;
+  if (useStems) {
     // Transposition temps réel sur chaque stem individuellement
     try {
       mixer.setDetune(transpose);
@@ -916,13 +1082,13 @@ async function runPitchShift() {
 
   await ensurePlayerRouted();
 
-    if (pitchShifter) {
-      pitchShifter.setPitch(transpose);
-    }
+  if (pitchShifter) {
+    pitchShifter.setPitch(transpose);
+  }
 
-    pendingTranspose = 0;
+  pendingTranspose = 0;
 
-    if (els.transposeStatus) {
+  if (els.transposeStatus) {
     els.transposeStatus.textContent = transpose !== 0
       ? `Transposé : ${transpose > 0 ? '+' : ''}${transpose} demi-tons`
       : '';
@@ -935,21 +1101,21 @@ function clampToRegion(time) {
 }
 
 export async function play() {
-  if (!els.player?.src) return;
+  if (!playerAudio?.src) return;
 
   // Si le fichier n'est pas encore prêt, on attend canplay puis on rejoue.
-  if (els.player.readyState < 2) {
-    els.player.addEventListener('canplay', () => play(), { once: true });
-    els.player.load();
+  if (playerAudio.readyState < 2) {
+    playerAudio.addEventListener('canplay', () => play(), { once: true });
+    playerAudio.load();
     return;
   }
 
-  const useStems = mixer?.hasStems();
+  const useStems = mixer?.hasStems() && useStemsMode;
   const needsPitchShift = regionConfirmed && transpose !== 0;
 
   if (useStems) {
     setPlayerMuted();
-    mixer?.seek(regionConfirmed ? regionStart : els.player.currentTime);
+    mixer?.seek(regionConfirmed ? regionStart : playerAudio.currentTime);
     mixer?.play();
   } else if (needsPitchShift) {
     // Web Audio : transposition active sur la région confirmée.
@@ -967,39 +1133,47 @@ export async function play() {
     setPlayerAudible();
   }
 
-  const startTime = regionConfirmed ? regionStart : els.player.currentTime;
-  if (regionConfirmed && els.player.currentTime < regionStart) {
-    els.player.currentTime = startTime;
+  const startTime = regionConfirmed ? regionStart : playerAudio.currentTime;
+  if (regionConfirmed && playerAudio.currentTime < regionStart) {
+    playerAudio.currentTime = startTime;
+    playerVideo.currentTime = startTime;
   }
 
-  els.player.play().catch((err) => console.error('Play failed:', err));
+  playerAudio.play().catch((err) => console.error('Play failed:', err));
+  playerVideo.play().catch(() => {});
 
   isPlaying = true;
   els.playBtn.textContent = '⏸';
 }
 
 export function pause() {
-  if (els.player?.paused) return; // déjà en pause, ne pas reseeker
-  els.player?.pause();
+  if (playerAudio?.paused) return; // déjà en pause, ne pas reseeker
+  playerAudio?.pause();
+  playerVideo?.pause();
   mixer?.pause();
   isPlaying = false;
   els.playBtn.textContent = '▶';
   stopUpdateLoop();
+  stopSyncLoop();
 }
 
 export function stop() {
-  els.player?.pause();
-  if (els.player) els.player.currentTime = regionConfirmed ? regionStart : 0;
+  playerAudio?.pause();
+  playerVideo?.pause();
+  if (playerAudio) playerAudio.currentTime = regionConfirmed ? regionStart : 0;
+  if (playerVideo) playerVideo.currentTime = regionConfirmed ? regionStart : 0;
   mixer?.stop();
   isPlaying = false;
   els.playBtn.textContent = '▶';
   updateProgressUI(0, getEffectiveDuration());
   stopUpdateLoop();
+  stopSyncLoop();
 }
 
 function seek(time) {
   const clamped = clampToRegion(time);
-  if (els.player) els.player.currentTime = clamped;
+  if (playerAudio) playerAudio.currentTime = clamped;
+  if (playerVideo) playerVideo.currentTime = clamped;
   mixer?.seek(clamped);
   if (pitchShifter) {
     try { pitchShifter.clear(); } catch (_) {}
@@ -1029,6 +1203,7 @@ function stopUpdateLoop() {
 async function refreshStems() {
   if (!currentTrack) {
     renderStems({});
+    updateStemsModeUI();
     return;
   }
   const stemPaths = await getStems(currentTrack.id);
@@ -1040,13 +1215,19 @@ async function refreshStems() {
   if (hasStems) {
     storeOriginalStems(blobUrls, stemPaths);
     await mixer.loadStems(blobUrls);
-    setPlayerMuted();
-    if (transpose !== 0) mixer.setDetune(transpose);
+    if (useStemsMode) {
+      setPlayerMuted();
+      if (transpose !== 0) mixer.setDetune(transpose);
+    } else {
+      setPlayerAudible();
+    }
   } else {
     mixer.reset();
-    setPlayerMuted();
+    setPlayerAudible();
     storeOriginalStems(null, null);
+    useStemsMode = false;
   }
+  updateStemsModeUI();
 }
 
 function updateSeparateButton(hasStems) {
