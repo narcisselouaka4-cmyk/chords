@@ -628,6 +628,8 @@ function resetTransposeState() {
   transpose = 0;
   if (els.transposeInput) els.transposeInput.value = '0';
   if (mixer?.hasStems()) mixer.setDetune(0);
+  // On garde le mixer actif (les stems peuvent être réutilisés), mais on
+  // s'assure qu'aucun pitch-shift n'est appliqué à transposition 0.
   disconnectPitchShifter();
   regionStart = 0;
   regionEnd = null;
@@ -675,8 +677,9 @@ function createMediaPlayer(blobUrl, isVideo) {
   media.preload = 'auto';
   media.src = blobUrl;
   media.crossOrigin = 'anonymous';
-  media.muted = false; // Pipeline audio actif
-  media.volume = 0.0001; // Sortie native inaudible, Web Audio prend le relais
+  // Par défaut le son sort nativement. Web Audio n'est branché que si on transpose.
+  media.muted = false;
+  media.volume = dbToGain(Number(els.volume?.value) || 0);
   media.controls = false;
   if (isVideo) {
     media.playsInline = true;
@@ -686,13 +689,18 @@ function createMediaPlayer(blobUrl, isVideo) {
   return media;
 }
 
+function setPlayerAudible() {
+  if (!els.player) return;
+  const db = Number(els.volume?.value) || 0;
+  els.player.muted = false;
+  els.player.volume = dbToGain(db);
+}
+
 function setPlayerMuted() {
   if (!els.player) return;
-  // Le vrai son sort via le graph Web Audio. On garde muted=false pour que
-  // le pipeline audio du media reste actif, mais volume quasi nul pour eviter
-  // une double sortie native. Web Audio gere ensuite le volume via pitchGainNode.
-  els.player.muted = false;
-  els.player.volume = 0.0001;
+  // Quand on passe par Web Audio (pitch-shift ou stems), on coupe la sortie native.
+  els.player.muted = true;
+  els.player.volume = 0;
 }
 
 function getEffectiveDuration() {
@@ -833,11 +841,6 @@ function renderWaveform() {
 async function ensurePlayerRouted() {
   if (!els.player || !studioAudioCtx) return;
 
-  // Le contexte audio doit être dans un état running pour que le graph fonctionne.
-  if (studioAudioCtx.state === 'suspended') {
-    try { await studioAudioCtx.resume(); } catch (_) {}
-  }
-
   if (!pitchGainNode) {
     pitchGainNode = studioAudioCtx.createGain();
     const db = Number(els.volume?.value) || 0;
@@ -850,8 +853,6 @@ async function ensurePlayerRouted() {
       pitchSourceNode = studioAudioCtx.createMediaElementSource(els.player);
       playerSourceCreated = true;
     } catch (e) {
-      // L'élément a déjà une source dans un autre contexte : on ne peut pas la récupérer.
-      // Cela ne devrait plus arriver maintenant qu'on recrée l'élément à chaque chargement.
       console.warn('[Studio] Impossible de créer MediaElementSource:', e);
       playerSourceCreated = false;
       return;
@@ -943,26 +944,27 @@ export async function play() {
     return;
   }
 
-  // Le clic utilisateur est le seul moment où l'on peut legally resume l'AudioContext.
-  ensureStudioAudioContext();
-  if (studioAudioCtx?.state === 'suspended') {
-    try { await studioAudioCtx.resume(); } catch (_) {}
-  }
-
   const useStems = mixer?.hasStems();
+  const needsPitchShift = regionConfirmed && transpose !== 0;
+
   if (useStems) {
     setPlayerMuted();
     mixer?.seek(regionConfirmed ? regionStart : els.player.currentTime);
     mixer?.play();
-  } else {
-    // Tous les cas non-stem passent par le routage Web Audio partagé.
-    // On s'assure que la source MediaElement est connectée au graph AVANT play().
+  } else if (needsPitchShift) {
+    // Web Audio : transposition active sur la région confirmée.
+    ensureStudioAudioContext();
+    if (studioAudioCtx?.state === 'suspended') {
+      try { await studioAudioCtx.resume(); } catch (_) {}
+    }
     setPlayerMuted();
     await ensurePlayerRouted();
-    if (transpose !== 0) {
-      if (!pitchShifter) await runPitchShift();
-      if (pitchShifter) pitchShifter.setPitch(transpose);
-    }
+    if (!pitchShifter) await runPitchShift();
+    if (pitchShifter) pitchShifter.setPitch(transpose);
+  } else {
+    // Sortie native de meilleure qualité, sans passer par Web Audio.
+    disconnectPitchShifter();
+    setPlayerAudible();
   }
 
   const startTime = regionConfirmed ? regionStart : els.player.currentTime;

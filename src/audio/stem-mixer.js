@@ -234,7 +234,14 @@ export function createStemMixer() {
   function setDetune(semitones) {
     currentPitch = semitones;
     for (const stem of Object.keys(pitchShifters)) {
-      pitchShifters[stem]?.setPitch(semitones);
+      const shifter = pitchShifters[stem];
+      if (!shifter) continue;
+      if (semitones === 0) {
+        // A transposition 0, on bypass le pitch-shifter en forcant un ratio neutre
+        // plutot que de le desactiver (reconnexion complexe). Le tempo reste verrouille.
+        try { shifter.clear(); } catch (_) {}
+      }
+      shifter.setPitch(semitones);
     }
   }
 
