@@ -117,11 +117,11 @@ export function initStudioTab({ feedMidiEvent } = {}) {
 function bindPlayer() {
   els.importBtn?.addEventListener('click', () => importFile());
 
-  els.playBtn?.addEventListener('click', (e) => {
+  els.playBtn?.addEventListener('click', async (e) => {
     e.preventDefault();
     e.stopPropagation();
     if (isPlaying) pause();
-    else play();
+    else await play();
   });
 
   // Raccourci Espace global dédié au transport Studio.
@@ -683,17 +683,24 @@ export async function loadTrack(trackId) {
     els.player.load();
     setPlayerMuted();
 
-    const onAudioReady = () => {
+    const onAudioReady = async () => {
+      if (isAudioReady) return;
       isAudioReady = true;
       setTransposeControlsEnabled(true);
+      // Le fichier est maintenant décodé : on s'assure que le routage audio est actif
+      // pour que le son sorte même avant la première lecture explicite.
+      ensureStudioAudioContext();
+      await ensurePlayerRouted();
       if (pendingTranspose !== 0 || transpose !== 0) {
-        runPitchShift();
+        await runPitchShift();
       }
       els.player?.removeEventListener('canplaythrough', onAudioReady);
       els.player?.removeEventListener('loadedmetadata', onAudioReady);
+      els.player?.removeEventListener('loadeddata', onAudioReady);
     };
     els.player?.addEventListener('canplaythrough', onAudioReady, { once: true });
     els.player?.addEventListener('loadedmetadata', onAudioReady, { once: true });
+    els.player?.addEventListener('loadeddata', onAudioReady, { once: true });
 
     const info = await inspectMedia(blobUrl);
     isAudioOnly = info.isAudioOnly;
@@ -769,12 +776,19 @@ function renderWaveform() {
 
 async function ensurePlayerRouted() {
   if (!els.player || !studioAudioCtx) return;
+
+  // Le contexte audio doit être dans un état running pour que le graph fonctionne.
+  if (studioAudioCtx.state === 'suspended') {
+    try { await studioAudioCtx.resume(); } catch (_) {}
+  }
+
   if (!pitchGainNode) {
     pitchGainNode = studioAudioCtx.createGain();
     const db = Number(els.volume?.value) || 0;
     pitchGainNode.gain.setValueAtTime(dbToGain(db), studioAudioCtx.currentTime);
     pitchGainNode.connect(studioDestination);
   }
+
   if (!playerSourceCreated) {
     try {
       pitchSourceNode = studioAudioCtx.createMediaElementSource(els.player);
@@ -782,18 +796,19 @@ async function ensurePlayerRouted() {
     } catch (e) {
       // Élément déjà routé (ne devrait pas arriver car on garde un seul audio element)
       console.warn('[Studio] MediaElementSource déjà créé:', e);
+      playerSourceCreated = true;
     }
   }
+
   if (pitchSourceNode) {
     pitchSourceNode.disconnect();
     if (pitchShifter) {
       try { pitchShifter.clear(); } catch (_) {}
-      pitchShifter.disconnect();
+      try { pitchShifter.disconnect(); } catch (_) {}
+      pitchShifter = null;
     }
     if (transpose !== 0) {
-      if (!pitchShifter) {
-        pitchShifter = await createPitchShifter(studioAudioCtx, pitchGainNode, transpose);
-      }
+      pitchShifter = await createPitchShifter(studioAudioCtx, pitchGainNode, transpose);
       pitchSourceNode.connect(pitchShifter.node);
     } else {
       pitchSourceNode.connect(pitchGainNode);
@@ -857,7 +872,7 @@ function clampToRegion(time) {
   return Math.max(regionStart, Math.min(time, regionEnd));
 }
 
-export function play() {
+export async function play() {
   if (!els.player?.src) return;
 
   const useStems = mixer?.hasStems();
@@ -865,13 +880,16 @@ export function play() {
     setPlayerMuted();
     mixer?.seek(els.player.currentTime);
     mixer?.play();
-  } else if (transpose !== 0) {
-    setPlayerMuted();
-    // Le son transposé sort via pitchGainNode / pitchShifter
-    if (!pitchShifter) runPitchShift();
   } else {
-    // Pas de stems, pas de transposition : sortie native de meilleure qualité
-    setPlayerAudible();
+    // Tous les cas non-stem passent par le routage Web Audio partagé.
+    // On s'assure que la source MediaElement est connectée au graph AVANT play().
+    setPlayerMuted();
+    ensureStudioAudioContext();
+    await ensurePlayerRouted();
+    if (transpose !== 0) {
+      if (!pitchShifter) await runPitchShift();
+      if (pitchShifter) pitchShifter.setPitch(transpose);
+    }
   }
 
   els.player.play().catch((err) => console.error('Play failed:', err));
