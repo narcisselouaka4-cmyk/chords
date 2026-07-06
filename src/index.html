@@ -144,6 +144,33 @@
 
       <!-- [OpenCode] — 2026-07-04 — Onglet Studio : import, lecture et séparation de pistes -->
       <main class="studio-tab" id="studio-tab" style="display: none;">
+        <!-- Overlay de l'Étape 1 : Ciblage -->
+        <div id="studio-stage-overlay" class="studio-stage-overlay" style="display: none;">
+          <div class="studio-stage-overlay-inner">
+            <h3>🎯 Sélectionnez une zone à travailler</h3>
+            <p class="studio-overlay-hint">Tracez une région de maximum 5 minutes sur la waveform, puis cliquez sur <strong>Confirmer</strong>.</p>
+            <p class="studio-overlay-hint">Vous pourrez ensuite lancer la séparation des pistes et la transposition.</p>
+          </div>
+        </div>
+
+        <!-- Loader de l'Étape 2 : Traitement en arrière-plan -->
+        <div id="studio-processing-overlay" class="studio-processing-overlay" style="display: none;">
+          <div class="studio-processing-box">
+            <div class="studio-processing-spinner"></div>
+            <h3>Préparation du morceau</h3>
+            <p id="studio-processing-label">Extraction audio en cours...</p>
+            <div class="studio-processing-bar-wrap">
+              <div id="studio-processing-bar" class="studio-processing-bar" style="width: 0%"></div>
+            </div>
+            <p class="studio-processing-hint">Vous pouvez utiliser les autres onglets en attendant.</p>
+          </div>
+        </div>
+
+        <!-- Notification Étape 3 prête -->
+        <div id="studio-ready-toast" class="studio-ready-toast" style="display: none;">
+          <span>✅ Le morceau est prêt dans le Studio !</span>
+        </div>
+
         <aside class="studio-sidebar left">
           <div class="panel">
             <div class="panel-title">Morceaux importés</div>
@@ -176,8 +203,8 @@
           </div>
 
           <div class="studio-region-bar">
-            <div class="studio-region-info" id="studio-region-info">Région : tout le morceau</div>
-            <button id="studio-confirm-region" class="studio-action-btn" title="Confirmer la région" style="display:none;">✓</button>
+            <div class="studio-region-info" id="studio-region-info">Sélectionnez une région pour activer transpo / séparation</div>
+            <button id="studio-confirm-region" class="studio-action-btn studio-confirm-btn" title="Confirmer la région" style="display:none;">Confirmer la région</button>
             <button id="studio-back-region" class="studio-action-btn" title="Revenir à la timeline entière" style="display:none;">↩</button>
             <button id="studio-reset-region" class="studio-action-btn" title="Réinitialiser la région">↺</button>
           </div>
