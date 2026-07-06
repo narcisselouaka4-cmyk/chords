@@ -871,32 +871,8 @@ async function init() {
   });
 
   // [OpenCode] — 2026-07-04 — Initialisation de l'onglet Studio (Module 4)
-  initStudioTab({
-    feedMidiEvent: (type, ...args) => {
-      state.isPlayback = true;
-      try {
-        switch (type) {
-          case 'noteOn':
-            handleNoteOn(args[0], args[1], false, true);
-            break;
-          case 'noteOff':
-            handleNoteOff(args[0], false, true);
-            break;
-          case 'sustain':
-            handleSustain(args[0]);
-            break;
-          case 'pitchWheel':
-            handlePitchWheel(args[0]);
-            break;
-          case 'modWheel':
-            handleModWheel(args[0]);
-            break;
-        }
-      } finally {
-        state.isPlayback = false;
-      }
-    },
-  });
+  // Le Studio est isolé du synthétiseur/clavier principal : aucun feedMidiEvent.
+  initStudioTab();
   initTabNavigation();
   await initMidi();
 }

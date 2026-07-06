@@ -856,11 +856,14 @@ input[type='color'] {
   min-height: 0;
 }
 
-.studio-player {
+.studio-player-container,
+.studio-player-container audio,
+.studio-player-container video {
   max-width: 100%;
   max-height: 100%;
   width: 100%;
-  height: auto;
+  height: 100%;
+  display: block;
 }
 
 /* [Claude] — 2026-07-04 — Fond musical stylisé pour les fichiers audio sans image */
@@ -877,6 +880,7 @@ input[type='color'] {
   text-align: center;
   padding: 24px;
   z-index: 2;
+  pointer-events: none;
 }
 
 [data-theme='dark'] .studio-audio-backdrop {
