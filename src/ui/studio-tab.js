@@ -675,8 +675,8 @@ function createMediaPlayer(blobUrl, isVideo) {
   media.preload = 'auto';
   media.src = blobUrl;
   media.crossOrigin = 'anonymous';
-  media.muted = true; // Le son passe par Web Audio
-  media.volume = 0;
+  media.muted = false; // Pipeline audio actif
+  media.volume = 0.0001; // Sortie native inaudible, Web Audio prend le relais
   media.controls = false;
   if (isVideo) {
     media.playsInline = true;
@@ -688,9 +688,11 @@ function createMediaPlayer(blobUrl, isVideo) {
 
 function setPlayerMuted() {
   if (!els.player) return;
-  // Le signal visible est muet : le vrai son sort via le graph Web Audio.
-  els.player.muted = true;
-  els.player.volume = 0;
+  // Le vrai son sort via le graph Web Audio. On garde muted=false pour que
+  // le pipeline audio du media reste actif, mais volume quasi nul pour eviter
+  // une double sortie native. Web Audio gere ensuite le volume via pitchGainNode.
+  els.player.muted = false;
+  els.player.volume = 0.0001;
 }
 
 function getEffectiveDuration() {
@@ -941,6 +943,12 @@ export async function play() {
     return;
   }
 
+  // Le clic utilisateur est le seul moment où l'on peut legally resume l'AudioContext.
+  ensureStudioAudioContext();
+  if (studioAudioCtx?.state === 'suspended') {
+    try { await studioAudioCtx.resume(); } catch (_) {}
+  }
+
   const useStems = mixer?.hasStems();
   if (useStems) {
     setPlayerMuted();
@@ -950,7 +958,6 @@ export async function play() {
     // Tous les cas non-stem passent par le routage Web Audio partagé.
     // On s'assure que la source MediaElement est connectée au graph AVANT play().
     setPlayerMuted();
-    ensureStudioAudioContext();
     await ensurePlayerRouted();
     if (transpose !== 0) {
       if (!pitchShifter) await runPitchShift();
