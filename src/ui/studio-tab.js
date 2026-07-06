@@ -13,7 +13,6 @@ import { createStemMixer, dbToGain } from '../audio/stem-mixer.js';
 import { separateStems, getStems, STEMS } from '../audio/stem-separator.js';
 import { createPitchShifter } from '../audio/pitch-shifter.js';
 
-let onMidiEvent = null;
 let mixer = null;
 let currentTrack = null;
 let currentBlobUrl = null;
@@ -48,7 +47,7 @@ const els = {
   importBtn: document.getElementById('studio-import-btn'),
   trackList: document.getElementById('studio-track-list'),
   playerWrap: document.getElementById('studio-player-wrap'),
-  player: document.getElementById('studio-player'),
+  playerContainer: document.getElementById('studio-player-container'),
   audioBackdrop: document.getElementById('studio-audio-backdrop'),
   backdropTitle: document.getElementById('studio-backdrop-title'),
   playBtn: document.getElementById('studio-play-btn'),
@@ -96,8 +95,7 @@ function setTransposeControlsEnabled(enabled) {
   if (els.transposePlus) els.transposePlus.disabled = !enabled;
 }
 
-export function initStudioTab({ feedMidiEvent } = {}) {
-  onMidiEvent = feedMidiEvent;
+export function initStudioTab() {
   mixer = createStemMixer();
   mixer.setOnProgress((current, duration) => {
     updateProgressUI(current, duration);
@@ -171,6 +169,11 @@ function bindPlayer() {
   }
 
   function onTransposeChanged() {
+    if (!regionConfirmed) {
+      // Ignorer les changements de transposition tant que la région n'est pas confirmée.
+      updateTransposeUI();
+      return;
+    }
     transpose = Number(els.transposeInput?.value) || 0;
     updateTransposeUI();
     runPitchShift();
@@ -184,36 +187,44 @@ function bindPlayer() {
     });
   }
 
-  els.transposeInput?.addEventListener('input', onTransposeChanged);
   els.transposeInput?.addEventListener('change', onTransposeChanged);
 
   els.transposeMinus?.addEventListener('click', () => {
+    if (!regionConfirmed) return;
     transpose = Math.max(-12, transpose - 1);
     updateTransposeUI();
     runPitchShift();
   });
   els.transposePlus?.addEventListener('click', () => {
+    if (!regionConfirmed) return;
     transpose = Math.min(12, transpose + 1);
     updateTransposeUI();
     runPitchShift();
   });
 
-  els.player?.addEventListener('play', () => {
+  // Les événements media sont attachés dynamiquement à chaque nouvel élément.
+  // Voir createMediaPlayer().
+}
+
+function bindMediaEvents(media) {
+  if (!media) return;
+
+  media.addEventListener('play', () => {
     isPlaying = true;
-    els.playBtn.textContent = '⏸';
+    if (els.playBtn) els.playBtn.textContent = '⏸';
   });
 
-  els.player?.addEventListener('pause', () => {
+  media.addEventListener('pause', () => {
     isPlaying = false;
-    els.playBtn.textContent = '▶';
+    if (els.playBtn) els.playBtn.textContent = '▶';
   });
 
-  els.player?.addEventListener('ended', () => {
+  media.addEventListener('ended', () => {
     isPlaying = false;
-    els.playBtn.textContent = '▶';
+    if (els.playBtn) els.playBtn.textContent = '▶';
   });
 
-  els.player?.addEventListener('timeupdate', () => {
+  media.addEventListener('timeupdate', () => {
     if (!els.player) return;
 
     // Boucle région stricte : on repositionne l'audio sans forcer de re-render.
@@ -260,7 +271,10 @@ function confirmRegion() {
   renderWaveform();
   updateCropButtons();
   setCropControlsEnabled(true);
+  setTransposeControlsEnabled(true);
   updateRegionUI();
+  // Applique la transposition si elle a été modifiée pendant que les contrôles étaient verrouillés.
+  if (transpose !== 0) runPitchShift();
 }
 
 function backRegion() {
@@ -268,7 +282,14 @@ function backRegion() {
   renderWaveform();
   updateCropButtons();
   setCropControlsEnabled(false);
+  setTransposeControlsEnabled(false);
   updateRegionUI();
+  // On remet la transposition à 0 quand on sort du mode région confirmée.
+  if (transpose !== 0) {
+    transpose = 0;
+    updateTransposeUI();
+    runPitchShift();
+  }
 }
 
 function resetRegion() {
@@ -279,7 +300,12 @@ function resetRegion() {
   updateRegionUI();
   updateCropButtons();
   setCropControlsEnabled(false);
-  if (transpose !== 0) runPitchShift();
+  setTransposeControlsEnabled(false);
+  if (transpose !== 0) {
+    transpose = 0;
+    updateTransposeUI();
+    runPitchShift();
+  }
 }
 
 function bindWaveform() {
@@ -384,11 +410,11 @@ function bindWaveform() {
     if (regionConfirmed) return;
     if (isDraggingHandle) {
       isDraggingHandle = null;
-      if (transpose !== 0) runPitchShift();
+      if (regionConfirmed && transpose !== 0) runPitchShift();
     }
     if (isDraggingRegion) {
       isDraggingRegion = false;
-      if (transpose !== 0) runPitchShift();
+      if (regionConfirmed && transpose !== 0) runPitchShift();
     }
   });
 
@@ -433,7 +459,10 @@ function updateRegionUI() {
 
   if (els.regionInfo) {
     const endText = regionEnd !== null ? formatDuration(regionEnd) : formatDuration(duration);
-    els.regionInfo.textContent = `Région : ${formatDuration(regionStart)} – ${endText}${isMaxed ? ' (max 3:30)' : ''}`;
+      const infoText = regionEnd !== null
+      ? `Région : ${formatDuration(regionStart)} – ${endText}${isMaxed ? ' (max 3:30)' : ''}`
+      : 'Sélectionnez une région pour activer transpo / séparation';
+    els.regionInfo.textContent = infoText;
   }
 }
 
@@ -606,36 +635,63 @@ function resetTransposeState() {
   updateCropButtons();
   updateRegionUI();
   if (els.transposeStatus) els.transposeStatus.textContent = '';
-  setTransposeControlsEnabled(true);
+  // Transposition et séparation verrouillées jusqu'à confirmation région.
+  setTransposeControlsEnabled(false);
   setCropControlsEnabled(false);
 }
 
 function disconnectPitchShifter() {
   if (pitchShifter) {
+    try { pitchShifter.clear(); } catch (_) {}
     try { pitchShifter.disconnect(); } catch (_) {}
     pitchShifter = null;
   }
   if (pitchSourceNode) {
     try { pitchSourceNode.disconnect(); } catch (_) {}
-    pitchSourceNode = null;
+    // NE PAS mettre pitchSourceNode = null : un seul MediaElementSourceNode possible
+    // par élément media. La source reste attachée à l'ancien élément.
   }
+}
+
+function destroyMediaPlayer() {
+  if (!els.player) return;
+  try { els.player.pause(); } catch (_) {}
+  try { els.player.src = ''; } catch (_) {}
+  try { els.player.load(); } catch (_) {}
+  if (els.player.parentNode) {
+    els.player.parentNode.removeChild(els.player);
+  }
+  disconnectPitchShifter();
+  pitchSourceNode = null;
   playerSourceCreated = false;
+  els.player = null;
+}
+
+function createMediaPlayer(blobUrl, isVideo) {
+  destroyMediaPlayer();
+  const media = document.createElement(isVideo ? 'video' : 'audio');
+  media.id = 'studio-player';
+  media.className = 'studio-player';
+  media.preload = 'auto';
+  media.src = blobUrl;
+  media.crossOrigin = 'anonymous';
+  media.muted = true; // Le son passe par Web Audio
+  media.volume = 0;
+  media.controls = false;
+  if (isVideo) {
+    media.playsInline = true;
+  }
+  els.playerContainer.appendChild(media);
+  els.player = media;
+  return media;
 }
 
 function setPlayerMuted() {
   if (!els.player) return;
-  // The visible player is always the timing reference.
-  // Audio output goes through stem mixer or pitchCtx only.
+  // Le signal visible est muet : le vrai son sort via le graph Web Audio.
   els.player.muted = true;
   els.player.volume = 0;
 }
-
-function setPlayerAudible() {
-  if (!els.player) return;
-    const db = Number(els.volume?.value) || 0;
-    els.player.muted = false;
-    els.player.volume = dbToGain(db);
-  }
 
 function getEffectiveDuration() {
   if (regionConfirmed && regionEnd !== null) {
@@ -669,43 +725,41 @@ export async function loadTrack(trackId) {
       return;
     }
 
-    if (currentBlobUrl) URL.revokeObjectURL(currentBlobUrl);
+    const info = await inspectMedia(blobUrl);
+    isAudioOnly = info.isAudioOnly;
+    mediaDuration = info.duration || 0;
+
+    // On recrée un élément media propre (audio ou video) à chaque chargement.
+    createMediaPlayer(blobUrl, !isAudioOnly);
+    setPlayerMuted();
+    updateAudioBackdrop(metadata?.name || trackId);
+
+    if (currentBlobUrl) {
+      // Différer la révocation pour éviter les races avec le player précédent.
+      const revoked = currentBlobUrl;
+      setTimeout(() => URL.revokeObjectURL(revoked), 5000);
+    }
     currentBlobUrl = blobUrl;
 
     resetTransposeState();
-    regionConfirmed = false;
-    updateCropButtons();
     isAudioReady = false;
     pendingTranspose = 0;
-    setTransposeControlsEnabled(false);
 
-    els.player.src = blobUrl;
-    els.player.load();
-    setPlayerMuted();
+    bindMediaEvents(els.player);
 
     const onAudioReady = async () => {
       if (isAudioReady) return;
       isAudioReady = true;
-      setTransposeControlsEnabled(true);
-      // Le fichier est maintenant décodé : on s'assure que le routage audio est actif
-      // pour que le son sorte même avant la première lecture explicite.
+      // Le fichier est décodé : on établit le routage audio pour qu'il soit prêt au Play.
       ensureStudioAudioContext();
       await ensurePlayerRouted();
       if (pendingTranspose !== 0 || transpose !== 0) {
         await runPitchShift();
       }
-      els.player?.removeEventListener('canplaythrough', onAudioReady);
-      els.player?.removeEventListener('loadedmetadata', onAudioReady);
-      els.player?.removeEventListener('loadeddata', onAudioReady);
     };
     els.player?.addEventListener('canplaythrough', onAudioReady, { once: true });
     els.player?.addEventListener('loadedmetadata', onAudioReady, { once: true });
     els.player?.addEventListener('loadeddata', onAudioReady, { once: true });
-
-    const info = await inspectMedia(blobUrl);
-    isAudioOnly = info.isAudioOnly;
-    mediaDuration = info.duration || 0;
-    updateAudioBackdrop(metadata?.name || trackId);
 
     // Extract audio and generate waveform
     if (window.electronAPI?.studio?.extractAudio && window.electronAPI?.studio?.generateWaveform) {
@@ -794,9 +848,11 @@ async function ensurePlayerRouted() {
       pitchSourceNode = studioAudioCtx.createMediaElementSource(els.player);
       playerSourceCreated = true;
     } catch (e) {
-      // Élément déjà routé (ne devrait pas arriver car on garde un seul audio element)
-      console.warn('[Studio] MediaElementSource déjà créé:', e);
-      playerSourceCreated = true;
+      // L'élément a déjà une source dans un autre contexte : on ne peut pas la récupérer.
+      // Cela ne devrait plus arriver maintenant qu'on recrée l'élément à chaque chargement.
+      console.warn('[Studio] Impossible de créer MediaElementSource:', e);
+      playerSourceCreated = false;
+      return;
     }
   }
 
@@ -818,6 +874,9 @@ async function ensurePlayerRouted() {
 
 async function runPitchShift() {
   if (!currentTrack) return;
+
+  // Transposition interdite tant que la région n'est pas confirmée.
+  if (!regionConfirmed) return;
 
   // Attendre que le fichier audio soit prêt avant d'appliquer du pitch-shifting.
   if (!isAudioReady) {
@@ -875,10 +934,17 @@ function clampToRegion(time) {
 export async function play() {
   if (!els.player?.src) return;
 
+  // Si le fichier n'est pas encore prêt, on attend canplay puis on rejoue.
+  if (els.player.readyState < 2) {
+    els.player.addEventListener('canplay', () => play(), { once: true });
+    els.player.load();
+    return;
+  }
+
   const useStems = mixer?.hasStems();
   if (useStems) {
     setPlayerMuted();
-    mixer?.seek(els.player.currentTime);
+    mixer?.seek(regionConfirmed ? regionStart : els.player.currentTime);
     mixer?.play();
   } else {
     // Tous les cas non-stem passent par le routage Web Audio partagé.
@@ -890,6 +956,11 @@ export async function play() {
       if (!pitchShifter) await runPitchShift();
       if (pitchShifter) pitchShifter.setPitch(transpose);
     }
+  }
+
+  const startTime = regionConfirmed ? regionStart : els.player.currentTime;
+  if (regionConfirmed && els.player.currentTime < regionStart) {
+    els.player.currentTime = startTime;
   }
 
   els.player.play().catch((err) => console.error('Play failed:', err));
@@ -909,7 +980,7 @@ export function pause() {
 
 export function stop() {
   els.player?.pause();
-  if (els.player) els.player.currentTime = 0;
+  if (els.player) els.player.currentTime = regionConfirmed ? regionStart : 0;
   mixer?.stop();
   isPlaying = false;
   els.playBtn.textContent = '▶';
@@ -919,12 +990,12 @@ export function stop() {
 
 function seek(time) {
   const clamped = clampToRegion(time);
-    if (els.player) els.player.currentTime = clamped;
-    mixer?.seek(clamped);
-    if (pitchShifter) {
-      try { pitchShifter.clear(); } catch (_) {}
-    }
+  if (els.player) els.player.currentTime = clamped;
+  mixer?.seek(clamped);
+  if (pitchShifter) {
+    try { pitchShifter.clear(); } catch (_) {}
   }
+}
 
 function updateProgressUI(current, duration) {
   if (!els.progress || !els.time) return;
