@@ -93,6 +93,8 @@ export function createStemMixer() {
         });
       } catch (err) {
         console.warn(`[StemMixer] failed to create source for ${stem}:`, err);
+        // On continue sans déconnecter la destination ; un stem manquant ne doit pas
+        // muter l'audio global du studio.
       }
     }
 
