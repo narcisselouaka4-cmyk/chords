@@ -65,6 +65,7 @@ export function initVirtualKeyboard({ onNoteOn, onNoteOff }) {
   const pressed = new Set();
 
   keyboardKeydownHandler = (e) => {
+    if (e.code === 'Space') return; // Espace réservé au Play/Pause du lecteur.
     if (!shouldHandleKeyboardShortcuts()) return;
     if (e.ctrlKey || e.altKey || e.metaKey) return;
     if (e.repeat) return;

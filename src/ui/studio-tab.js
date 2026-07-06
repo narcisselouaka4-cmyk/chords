@@ -33,6 +33,8 @@ let regionConfirmed = false;
 let isDraggingHandle = null;
 let isAudioOnly = false;
 let mediaDuration = 0;
+let isAudioReady = false;
+let pendingTranspose = 0;
 
 // AudioContext partagé pour le Studio (évite les doubles contextes et preserve la qualité)
 let studioAudioCtx = null;
@@ -115,7 +117,21 @@ export function initStudioTab({ feedMidiEvent } = {}) {
 function bindPlayer() {
   els.importBtn?.addEventListener('click', () => importFile());
 
-  els.playBtn?.addEventListener('click', () => {
+  els.playBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isPlaying) pause();
+    else play();
+  });
+
+  // Raccourci Espace global dédié au transport Studio.
+  // Le clavier virtuel est filtré dans virtual-keyboard.js pour ignorer Space.
+  document.addEventListener('keydown', (e) => {
+    if (e.code !== 'Space') return;
+    if (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(e.target?.tagName)) return;
+    if (!currentTrack) return;
+    e.preventDefault();
+    e.stopPropagation();
     if (isPlaying) pause();
     else play();
   });
@@ -123,15 +139,18 @@ function bindPlayer() {
   els.stopBtn?.addEventListener('click', () => stop());
 
   els.prevBtn?.addEventListener('click', () => {
-    seek(0);
-    updateProgressUI(0, els.player?.duration || 0);
+    const target = regionConfirmed ? regionStart : 0;
+    seek(target);
+    updateProgressUI(0, getEffectiveDuration());
   });
 
   els.resetRegionBtn?.addEventListener('click', () => resetRegion());
 
   els.progress?.addEventListener('input', () => {
-    const duration = els.player?.duration || waveformData?.duration || 0;
-    const time = (Number(els.progress.value) / 100) * duration;
+    const duration = getEffectiveDuration();
+    const time = regionConfirmed
+      ? regionStart + (Number(els.progress.value) / 100) * (regionEnd - regionStart)
+      : (Number(els.progress.value) / 100) * duration;
     seek(time);
   });
 
@@ -195,10 +214,18 @@ function bindPlayer() {
   });
 
   els.player?.addEventListener('timeupdate', () => {
-    if (els.player) {
-      updateProgressUI(els.player.currentTime, els.player.duration);
-      updatePlayhead(els.player.currentTime, els.player.duration);
+    if (!els.player) return;
+
+    // Boucle région stricte : on repositionne l'audio sans forcer de re-render.
+    if (regionEnd !== null && els.player.currentTime >= regionEnd) {
+      els.player.currentTime = regionStart;
+      mixer?.seek(regionStart);
     }
+
+    const duration = getEffectiveDuration();
+    const current = getEffectiveCurrentTime();
+    updateProgressUI(current, duration);
+    updatePlayhead(current, duration);
   });
 }
 
@@ -265,8 +292,6 @@ function bindWaveform() {
   let isDraggingRegion = false;
 
   wrap.addEventListener('mousedown', (e) => {
-    if (regionConfirmed) return;
-
     if (e.ctrlKey || e.metaKey) {
       const rect = wrap.getBoundingClientRect();
       const x = e.clientX - rect.left;
@@ -295,9 +320,17 @@ function bindWaveform() {
       isDraggingHandle = null;
       const duration = waveformData?.duration || els.player?.duration || 0;
       if (duration) {
-        let time = (x / rect.width) * duration;
-        if (regionEnd !== null) {
+        let time;
+        if (regionConfirmed) {
+          // Clic dans la région zoomée : la largeur du canvas représente la région.
+          const regionWidth = rect.width;
+          time = regionStart + (x / regionWidth) * (regionEnd - regionStart);
           time = Math.max(regionStart, Math.min(time, regionEnd));
+        } else {
+          time = (x / rect.width) * duration;
+          if (regionEnd !== null) {
+            time = Math.max(regionStart, Math.min(time, regionEnd));
+          }
         }
         seek(time);
       }
@@ -599,9 +632,23 @@ function setPlayerMuted() {
 
 function setPlayerAudible() {
   if (!els.player) return;
-  const db = Number(els.volume?.value) || 0;
-  els.player.muted = false;
-  els.player.volume = dbToGain(db);
+    const db = Number(els.volume?.value) || 0;
+    els.player.muted = false;
+    els.player.volume = dbToGain(db);
+  }
+
+function getEffectiveDuration() {
+  if (regionConfirmed && regionEnd !== null) {
+    return Math.max(0.01, regionEnd - regionStart);
+  }
+  return els.player?.duration || waveformData?.duration || mediaDuration || 0;
+}
+
+function getEffectiveCurrentTime() {
+  if (regionConfirmed && regionEnd !== null) {
+    return Math.max(0, els.player.currentTime - regionStart);
+  }
+  return els.player?.currentTime || 0;
 }
 
 function storeOriginalStems(blobUrls, paths) {
@@ -628,10 +675,25 @@ export async function loadTrack(trackId) {
     resetTransposeState();
     regionConfirmed = false;
     updateCropButtons();
+    isAudioReady = false;
+    pendingTranspose = 0;
+    setTransposeControlsEnabled(false);
 
     els.player.src = blobUrl;
     els.player.load();
     setPlayerMuted();
+
+    const onAudioReady = () => {
+      isAudioReady = true;
+      setTransposeControlsEnabled(true);
+      if (pendingTranspose !== 0 || transpose !== 0) {
+        runPitchShift();
+      }
+      els.player?.removeEventListener('canplaythrough', onAudioReady);
+      els.player?.removeEventListener('loadedmetadata', onAudioReady);
+    };
+    els.player?.addEventListener('canplaythrough', onAudioReady, { once: true });
+    els.player?.addEventListener('loadedmetadata', onAudioReady, { once: true });
 
     const info = await inspectMedia(blobUrl);
     isAudioOnly = info.isAudioOnly;
@@ -724,7 +786,10 @@ async function ensurePlayerRouted() {
   }
   if (pitchSourceNode) {
     pitchSourceNode.disconnect();
-    if (pitchShifter) pitchShifter.disconnect();
+    if (pitchShifter) {
+      try { pitchShifter.clear(); } catch (_) {}
+      pitchShifter.disconnect();
+    }
     if (transpose !== 0) {
       if (!pitchShifter) {
         pitchShifter = await createPitchShifter(studioAudioCtx, pitchGainNode, transpose);
@@ -738,6 +803,12 @@ async function ensurePlayerRouted() {
 
 async function runPitchShift() {
   if (!currentTrack) return;
+
+  // Attendre que le fichier audio soit prêt avant d'appliquer du pitch-shifting.
+  if (!isAudioReady) {
+    pendingTranspose = transpose;
+    return;
+  }
 
   if (mixer?.hasStems()) {
     // Transposition temps réel sur chaque stem individuellement
@@ -760,6 +831,7 @@ async function runPitchShift() {
 
   if (transpose === 0) {
     if (pitchShifter) {
+      try { pitchShifter.clear(); } catch (_) {}
       try { pitchShifter.disconnect(); } catch (_) {}
       pitchShifter = null;
     }
@@ -767,11 +839,13 @@ async function runPitchShift() {
 
   await ensurePlayerRouted();
 
-  if (pitchShifter) {
-    pitchShifter.setPitch(transpose);
-  }
+    if (pitchShifter) {
+      pitchShifter.setPitch(transpose);
+    }
 
-  if (els.transposeStatus) {
+    pendingTranspose = 0;
+
+    if (els.transposeStatus) {
     els.transposeStatus.textContent = transpose !== 0
       ? `Transposé : ${transpose > 0 ? '+' : ''}${transpose} demi-tons`
       : '';
@@ -804,7 +878,6 @@ export function play() {
 
   isPlaying = true;
   els.playBtn.textContent = '⏸';
-  startUpdateLoop();
 }
 
 export function pause() {
@@ -822,15 +895,18 @@ export function stop() {
   mixer?.stop();
   isPlaying = false;
   els.playBtn.textContent = '▶';
-  updateProgressUI(0, els.player?.duration || waveformData?.duration || 0);
+  updateProgressUI(0, getEffectiveDuration());
   stopUpdateLoop();
 }
 
 function seek(time) {
   const clamped = clampToRegion(time);
-  if (els.player) els.player.currentTime = clamped;
-  mixer?.seek(clamped);
-}
+    if (els.player) els.player.currentTime = clamped;
+    mixer?.seek(clamped);
+    if (pitchShifter) {
+      try { pitchShifter.clear(); } catch (_) {}
+    }
+  }
 
 function updateProgressUI(current, duration) {
   if (!els.progress || !els.time) return;
@@ -840,22 +916,9 @@ function updateProgressUI(current, duration) {
 }
 
 function startUpdateLoop() {
+  // Déprécié : la mise à jour est maintenant pilotée par l'événement natif
+  // 'timeupdate' de l'élément audio pour éviter les conflits d'état UI.
   stopUpdateLoop();
-  updateInterval = setInterval(() => {
-    if (els.player) {
-      let current = els.player.currentTime;
-      const duration = els.player.duration;
-
-      // Loop within the selected region.
-      if (regionEnd !== null && current >= regionEnd) {
-        seek(regionStart);
-        current = regionStart;
-      }
-
-      updateProgressUI(current, duration);
-      updatePlayhead(current, duration);
-    }
-  }, 200);
 }
 
 function stopUpdateLoop() {
@@ -1084,6 +1147,13 @@ async function runSeparation() {
         els.separateStatus.textContent = `Séparation en cours : ${Math.round(percent)}%`;
       },
     );
+
+    // Ne re-router l'audio que si la séparation a réussi (succès explicite ou simulation).
+    const succeeded = result && (result.success === true || result.simulated === true || Object.values(result).some(Boolean));
+    if (!succeeded) {
+      throw new Error('La séparation n\'a retourné aucune piste');
+    }
+
     els.separateStatus.textContent = result.simulated ? 'Pistes simulées (Demucs non installé)' : 'Séparation terminée';
     await refreshStems();
     setStatus(result.simulated ? 'Pistes simulées créées' : 'Pistes séparées');
@@ -1091,6 +1161,7 @@ async function runSeparation() {
     console.error('Separation failed:', err);
     els.separateStatus.textContent = `Erreur : ${err.message}`;
     setStatus(`Erreur de séparation : ${err.message}`);
+    // Protection AudioContext : on ne touche PAS au routage principal en cas d'erreur.
   } finally {
     els.separateBtn.disabled = false;
     if (tempPath) window.electronAPI.files.deleteFile(tempPath).catch(() => {});

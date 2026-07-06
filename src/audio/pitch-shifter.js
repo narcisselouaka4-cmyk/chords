@@ -29,7 +29,7 @@ async function ensureWorkletRegistered(audioCtx) {
  * @param {AudioContext} audioCtx
  * @param {AudioNode} destinationNode
  * @param {number} semitones
- * @returns {Promise<{ node: AudioNode, setPitch(semitones: number): void, disconnect(): void }>}
+ * @returns {Promise<{ node: AudioNode, setPitch(semitones: number): void, disconnect(): void, clear(): void }>}
  */
 function semitonesToPitchRatio(semitones) {
   return Math.pow(2, semitones / 12);
@@ -38,19 +38,41 @@ function semitonesToPitchRatio(semitones) {
 export async function createPitchShifter(audioCtx, destinationNode, semitones = 0) {
   await ensureWorkletRegistered(audioCtx);
   const stNode = new SoundTouchNode({ context: audioCtx });
-  // Utiliser pitch (ratio) plutôt que pitchSemitones pour une meilleure qualité audio.
-  stNode.pitch.value = semitonesToPitchRatio(semitones);
-  stNode.playbackRate.value = 1;
+
+  // Verrouillage STRICT du tempo et du rate sur 1.0.
+  // Seul le pitch change. On modifie explicitement les trois paramètres
+  // pour éviter que SoundTouch ne reçoive un time-stretching non désiré.
+  stNode.tempo = 1.0;
+  stNode.rate = 1.0;
+  stNode.pitchSemitones = semitones;
+
+  // Paramètre AudioParam de secours si l'objet expose des paramètres wrappés.
+  if (stNode.tempo && typeof stNode.tempo.value === 'number') stNode.tempo.value = 1.0;
+  if (stNode.rate && typeof stNode.rate.value === 'number') stNode.rate.value = 1.0;
+  if (stNode.playbackRate && typeof stNode.playbackRate.value === 'number') stNode.playbackRate.value = 1.0;
+
   stNode.connect(destinationNode);
 
   return {
     node: stNode,
     setPitch: (st) => {
-      stNode.pitch.value = semitonesToPitchRatio(st);
+      // On garde le verrou tempo/rate actif, on ne touche qu'au pitch.
+      if (stNode.tempo && typeof stNode.tempo.value === 'number') stNode.tempo.value = 1.0;
+      if (stNode.rate && typeof stNode.rate.value === 'number') stNode.rate.value = 1.0;
+      if (stNode.playbackRate && typeof stNode.playbackRate.value === 'number') stNode.playbackRate.value = 1.0;
+      stNode.pitchSemitones = st;
     },
     disconnect: () => {
       try {
         stNode.disconnect();
+      } catch (_) { /* ignore */ }
+    },
+    clear: () => {
+      // Purge les buffers internes SoundTouch si la méthode existe.
+      try {
+        if (typeof stNode.clear === 'function') stNode.clear();
+        if (typeof stNode.flush === 'function') stNode.flush();
+        if (stNode.soundTouch && typeof stNode.soundTouch.clear === 'function') stNode.soundTouch.clear();
       } catch (_) { /* ignore */ }
     },
   };
