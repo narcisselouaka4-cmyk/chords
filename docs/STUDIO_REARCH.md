@@ -1,758 +1,232 @@
-# Plan de réarchitecture audio du module Studio — Piano Jazz Chords
+# Brief de reprise pour Claude — Module Studio Piano Jazz Chords
 
-> **STATUT : PLAN EXÉCUTÉ PAR CLAUDE**  
-> Ce document décrit l'état cible déjà atteint. Il peut servir de référence pour les prochaines itérations ou debug.
-
----
-
-## 1. Contexte du projet
-
-**Application** : Piano Jazz Chords (Electron + Vite + vanilla JS).  
-**Module concerné** : Studio (import, lecture, transposition, séparation de pistes Demucs, analyse de performances/covers).
-
-### Architecture actuelle du Studio (après réarchitecture)
-
-- Un onglet `Studio` avec :
-  - Liste de morceaux importés (MP3, WAV, MP4, etc.).
-  - **Vidéo visible** (`<video>`) pour l'image uniquement.
-  - **Audio caché** (`<audio>`) pour le son natif + traitement WebAudio.
-  - Waveform + sélection de région.
-  - Contrôles de transposition en demi-tons (verrouillés tant que la région n'est pas confirmée).
-  - Bouton de séparation de pistes (Demucs).
-  - Toggle "Pistes séparées / Mix original".
-  - Mixer de stems (bass, drums, vocals, other, piano).
-
-- Fichiers clés :
-  - `src/ui/studio-tab.js` : logique UI + audio du Studio.
-  - `src/audio/pitch-shifter.js` : SoundTouch AudioWorklet pour la transposition.
-  - `src/audio/stem-mixer.js` : mixer multi-pistes.
-  - `src/audio/stem-separator.js` : interface avec Demucs via IPC Electron.
-  - `src/audio/simple-synth.js` : synthétiseur virtuel (avec clamp fréquences + garde MIDI).
-  - `src/virtual-keyboard.js` : clavier virtuel + raccourcis.
-  - `src/index.html` : DOM.
-  - `src/style.css` : styles.
+> Ce fichier est destiné à Claude pour qu'il prenne le relais.  
+> Contexte complet + état actuel du code + bugs restants + mission précise.  
+> Mode d'exécution souhaité par l'utilisateur : **auto / don't ask**.
 
 ---
 
-## 2. Historique des bugs corrigés
+## 1. Contexte
 
-Les commits récents ont corrigé les problèmes suivants :
+**Application** : Piano Jazz Chords (Electron + Vite + vanilla JS).
+**Objectif du module Studio** : importer des fichiers audio/vidéo (MP3, WAV, MP4, etc.), écouter, sélectionner une région de travail, séparer les pistes avec Demucs, transposer et mixer les stems.
 
-1. **Corruption pitch-shifting SoundTouch** : verrouillage tempo/rate, purge buffers au retour à 0.
-2. **Désynchronisation région / lecteur global** : duration relative, boucle via `timeupdate`, seek waveform relatif.
-3. **Régression MIDI (buzz)** : isolation du bouton Play, filtre `Space` dans le clavier virtuel.
-4. **Crash AudioContext sur erreur Demucs** : try/catch strict, protection du routage principal.
-5. **Isolation Studio / clavier principal** : suppression du callback `feedMidiEvent` du Studio.
-6. **Verrou région transpo/séparation** : transposition et séparation désactivées tant que la région n'est pas confirmée manuellement.
-7. **`<video>` pour MP4** : le lecteur affiche maintenant les vidéos.
-8. **Garde anti-notes MIDI invalides** : rejet si `midi < 0 || midi > 127` dans `simple-synth.js`.
-9. **Réarchitecture audio hybride** : vidéo visible + audio caché synchronisés.
-10. **Clamp fréquences oscillateurs** : évite le warning WebAudio `frequency outside nominal range`.
+Le projet est un **apprentissage de jazz interactif** où l'onglet Studio permet d'étudier des performances/covers importées.
 
 ---
 
-## 3. État actuel
+## 2. Historique des itérations récentes
 
-### ✅ Ce qui est implémenté
-- **Vidéo visible + audio caché** : le son sort via un `<audio>` caché alimenté par le WAV extrait, tandis que l'image reste visible.
-- **Synchronisation robuste** : l'audio mène le timing, la vidéo suit via événements critiques + `requestAnimationFrame` + resync si dérive.
-- **Toggle stems/mix** : bouton dans la sidebar droite pour basculer instantanément entre pistes séparées et mix original.
-- **Transposition** : appliquée uniquement quand la région est confirmée, via WebAudio/SoundTouch sur l'audio caché.
-- **Fallback** : si l'extraction WAV échoue, l'audio caché utilise le blob original.
+### Commits existants (ordre chronologique inverse)
 
-### ⚠️ À vérifier / potentiellement à corriger
-1. **Son sur les tracks non séparés** : à tester sous Electron.
-2. **Craquements Track_003** : vérifier si le clamp/purge suffit.
-3. **Dérive audio/vidéo** : vérifier sur des MP4 longs.
+1. **`f54e733`** — `feat(studio): workflow UX en 3 etapes`
+   - Limite région passée à 5 minutes (300s).
+   - Overlay flouté Étape 1 (ciblage).
+   - Loader Étape 2 (traitement async extraction + Demucs).
+   - Déblocage Étape 3 (Studio Pro : transpo, stems, toggle mix original).
+   - Persistance de la région dans `metadata.json`.
+
+2. **`f81a8f9`** — `docs: mets a jour STUDIO_REARCH.md`
+   - Mise à jour de ce fichier.
+
+3. **`acc82fa`** — `Synth: clamper les fréquences des oscillateurs`
+   - `clampOscFrequency()` dans `simple-synth.js` pour éviter le warning WebAudio.
+
+4. **`7a27af8`** — `Studio: réarchitecture du pipeline audio`
+   - Vidéo visible (`<video>`) + audio caché (`<audio>`) synchronisés.
+   - Audio caché alimenté par le WAV extrait via `extractAudio()`.
+   - Toggle "Pistes séparées / Mix original".
+
+5. **`7e70929`** — `fix(audio): sortie native lecteur, stems propres a transpo 0, garde MIDI`
+   - Sortie native quand pas de transposition.
+   - Stems : bypass pitch-shift à transposition 0.
+   - Garde notes MIDI 0–127.
+
+6. `c723e21`, `c0c36ca`, `8f4ffed` — tentatives précédentes de correction du son.
 
 ---
 
-## 4. Décisions utilisateur validées (et appliquées)
+## 3. Architecture actuelle du Studio (résumé technique)
 
-| Question | Réponse appliquée | Résultat |
-|----------|-------------------|----------|
-| Q1 : synchronisation video/audio | **A** — Synchronisation sur événements critiques + `requestAnimationFrame` + resync. | L'audio est la source de vérité du timing. |
-| Q2 : source audio cachée | **A** — Fichier WAV extrait via `extractAudio()`. | Moins de RAM, WebAudio plus stable. |
-| Q3 : mix original avec stems | **A** — Garde l'audio caché, toggle "Pistes séparées / Mix original". | Bascule instantanée. |
-| Q4 : lecture du fichier WAV | **A** — `readBinary()` + blob URL. | Plus sûr que `file://`. |
+### Pipeline audio
+
+```
+Import fichier
+    │
+    ▼
+┌─────────────────┐
+│ extractAudio()  │  → fichier audio.wav dans ~/PianoJazzChords/Studio/<track>/
+└─────────────────┘
+    │
+    ▼
+┌─────────────────────┐
+│ generateWaveform()  │  → données waveform pour l'UI
+└─────────────────────┘
+    │
+    ▼
+Lecteur double :
+    - <video> visible (image seule, muted)
+    - <audio> caché (son natif + WebAudio quand transposition active)
+    │
+    ▼
+Étape 1 : Ciblage
+    - overlay flouté
+    - message "Sélectionnez une région de maximum 5 minutes"
+    - bouton Play/Pause natif
+    │
+    ▼
+Confirmer la région
+    │
+    ▼
+Étape 2 : Traitement asynchrone
+    - Découpage région WAV (getRegionTrimmedPath)
+    - Séparation Demucs (runDemucs) ou stems simulés
+    - Loader avec pourcentage
+    │
+    ▼
+Étape 3 : Studio Pro
+    - transposition +/- 12 demi-tons
+    - toggle pistes séparées / mix original
+    - mute/solo/volume par stem
+```
+
+### Fichiers importants
+
+| Fichier | Rôle |
+|---------|------|
+| `src/ui/studio-tab.js` | Logique UI + audio du Studio (≈1600 lignes) |
+| `src/audio/pitch-shifter.js` | SoundTouch AudioWorklet pour la transposition |
+| `src/audio/stem-mixer.js` | Mixer multi-pistes (bass, drums, vocals, other, piano) |
+| `src/audio/stem-separator.js` | Interface avec Demucs via IPC Electron |
+| `src/audio/simple-synth.js` | Synthétiseur virtuel + garde MIDI |
+| `src/recorder/studio-storage.js` | Lecture/écriture metadata + fichiers |
+| `electron/main.js` | IPC main process (extraction, Demucs, waveform, fichiers) |
+| `electron/preload.js` | Exposition `window.electronAPI` |
+| `src/index.html` | DOM de l'onglet Studio |
+| `src/style.css` | Styles overlays, lecteur, stems |
 
 ---
 
-## 5. Détails de l'implémentation
+## 4. État fonctionnel
 
-### 6.1 DOM Studio
+### ✅ Ce qui fonctionne
 
-Remplacer dans `src/index.html` :
+1. **Import de fichiers** : MP3, MP4, WAV, etc.
+2. **Lecteur vidéo** : l'image MP4 s'affiche.
+3. **Waveform** : se génère et s'affiche.
+4. **Sélection de région** : clic + drag sur la waveform.
+5. **Workflow 3 étapes** : overlays, loader, toast "prêt".
+6. **Persistance région** : sauvegardée dans `metadata.json`.
+7. **Séparation Demucs / stems simulés** : fonctionne, loader avec pourcentage.
+8. **Toggle stems / mix original** : bouton présent dans la sidebar droite.
+9. **Synthétiseur** : garde anti-notes invalides, clamp fréquences.
+10. **Build Vite** : OK (0 erreur).
+11. **Tests de régression** : Partie 1 et Partie 3 passent.
 
-```html
-<div class="studio-player-wrap" id="studio-player-wrap">
-  <!-- Vidéo visible : image uniquement -->
-  <div id="studio-video-container" class="studio-video-container"></div>
-  <!-- Audio caché : son natif + WebAudio -->
-  <div id="studio-studio-audio-container" class="studio-audio-container" style="display:none;"></div>
-  <!-- Backdrop pour fichiers audio sans image -->
-  <div id="studio-audio-backdrop" class="studio-audio-backdrop" style="display: none;">
-    <div class="studio-backdrop-icon">🎵</div>
-    <div class="studio-backdrop-title" id="studio-backdrop-title"></div>
-    <div class="studio-backdrop-hint">Fichier audio</div>
-  </div>
-</div>
-```
+### ❌ Bug principal encore non résolu
 
-### 6.2 Références DOM dans `studio-tab.js`
+**Aucun son ne sort du lecteur Studio pour les fichiers non séparés.**
 
-```js
-const els = {
-  // ... existants ...
-  playerVideoContainer: document.getElementById('studio-video-container'),
-  playerAudioContainer: document.getElementById('studio-audio-container'),
-  player: null,        // référence au <video> visible (UI/timing)
-  playerAudio: null,   // référence au <audio> caché (son)
-  stemsModeToggle: document.getElementById('studio-stems-mode-toggle'), // à créer
-  // ...
-};
-```
+Track_003 (séparé par Demucs) sortait du son dans une version précédente, mais la qualité était mauvaise (craquements). Avec la nouvelle architecture double lecteur, le son est muet sur les tests actuels.
 
-### 6.3 Création des deux players
+### Symptômes
 
-```js
-let playerVideo = null;
-let playerAudio = null;
-let audioBlobUrl = null;
-let videoBlobUrl = null;
-
-function destroyMediaPlayer() {
-  if (playerVideo) {
-    try { playerVideo.pause(); } catch (_) {}
-    try { playerVideo.src = ''; } catch (_) {}
-    try { playerVideo.load(); } catch (_) {}
-    if (playerVideo.parentNode) playerVideo.parentNode.removeChild(playerVideo);
-    playerVideo = null;
-  }
-  if (playerAudio) {
-    try { playerAudio.pause(); } catch (_) {}
-    try { playerAudio.src = ''; } catch (_) {}
-    try { playerAudio.load(); } catch (_) {}
-    if (playerAudio.parentNode) playerAudio.parentNode.removeChild(playerAudio);
-    playerAudio = null;
-  }
-  if (audioBlobUrl) {
-    URL.revokeObjectURL(audioBlobUrl);
-    audioBlobUrl = null;
-  }
-  // videoBlobUrl est géré par le storage existant
-  disconnectPitchShifter();
-  pitchSourceNode = null;
-  playerSourceCreated = false;
-  els.player = null;
-  els.playerAudio = null;
-}
-
-async function createMediaPlayer(videoBlobUrl, wavBytes, isVideo) {
-  destroyMediaPlayer();
-
-  // --- Vidéo visible (image seule) ---
-  const video = document.createElement(isVideo ? 'video' : 'audio');
-  video.id = 'studio-player-video';
-  video.className = 'studio-player';
-  video.preload = 'auto';
-  video.src = videoBlobUrl;
-  video.muted = true;     // JAMAIS de son ici
-  video.volume = 0;
-  video.controls = false;
-  if (isVideo) video.playsInline = true;
-  els.playerVideoContainer.appendChild(video);
-  playerVideo = video;
-  els.player = video;
-
-  // --- Audio caché (son natif + WebAudio) ---
-  const audio = document.createElement('audio');
-  audio.id = 'studio-player-audio';
-  audio.className = 'studio-player';
-  audio.preload = 'auto';
-  audioBlobUrl = URL.createObjectURL(new Blob([wavBytes], { type: 'audio/wav' }));
-  audio.src = audioBlobUrl;
-  audio.crossOrigin = 'anonymous';
-  audio.controls = false;
-  els.playerAudioContainer.appendChild(audio);
-  playerAudio = audio;
-  els.playerAudio = audio;
-
-  bindMediaEvents(video, audio);
-  setAudioVolume();
-
-  return { video, audio };
-}
-```
-
-### 6.4 Synchronisation robuste
-
-Principe : **l'audio est la source de vérité du timing**. La vidéo suit l'audio.
-
-```js
-let syncRafId = null;
-let lastSyncTime = 0;
-
-function bindMediaEvents(video, audio) {
-  if (!video || !audio) return;
-
-  // Audio mène le timing
-  audio.addEventListener('play', () => {
-    video.play().catch(() => {});
-    startSyncLoop(video, audio);
-  });
-
-  audio.addEventListener('pause', () => {
-    video.pause();
-    stopSyncLoop();
-  });
-
-  audio.addEventListener('seeked', () => {
-    if (Math.abs(video.currentTime - audio.currentTime) > 0.05) {
-      video.currentTime = audio.currentTime;
-    }
-  });
-
-  audio.addEventListener('ended', () => {
-    video.pause();
-    stopSyncLoop();
-  });
-
-  // Vidéo répercute les interactions utilisateur sur l'audio
-  video.addEventListener('play', () => {
-    audio.play().catch(() => {});
-    startSyncLoop(video, audio);
-  });
-
-  video.addEventListener('pause', () => {
-    audio.pause();
-    stopSyncLoop();
-  });
-
-  video.addEventListener('seeking', () => {
-    audio.currentTime = video.currentTime;
-  });
-
-  video.addEventListener('seeked', () => {
-    audio.currentTime = video.currentTime;
-  });
-
-  // UI timeupdate : on l'attache à l'audio
-  audio.addEventListener('timeupdate', () => {
-    if (!els.playerAudio) return;
-
-    // Boucle région
-    if (regionEnd !== null && els.playerAudio.currentTime >= regionEnd) {
-      els.playerAudio.currentTime = regionStart;
-      video.currentTime = regionStart;
-      mixer?.seek(regionStart);
-    }
-
-    const duration = getEffectiveDuration();
-    const current = getEffectiveCurrentTime();
-    updateProgressUI(current, duration);
-    updatePlayhead(current, duration);
-  });
-}
-
-function startSyncLoop(video, audio) {
-  stopSyncLoop();
-  const loop = () => {
-    syncRafId = requestAnimationFrame(loop);
-    const now = performance.now();
-    if (now - lastSyncTime < 100) return; // vérifier tous les 100 ms max
-    lastSyncTime = now;
-
-    if (!audio.paused && !video.paused) {
-      const drift = video.currentTime - audio.currentTime;
-      if (Math.abs(drift) > 0.04) {
-        // Resync brut si dérive importante
-        video.currentTime = audio.currentTime;
-        video.playbackRate = 1.0;
-      } else if (Math.abs(drift) > 0.01) {
-        // Rattrapage progressif
-        video.playbackRate = drift > 0 ? 0.98 : 1.02;
-      } else {
-        video.playbackRate = 1.0;
-      }
-    }
-  };
-  loop();
-}
-
-function stopSyncLoop() {
-  if (syncRafId) {
-    cancelAnimationFrame(syncRafId);
-    syncRafId = null;
-  }
-  if (playerVideo) playerVideo.playbackRate = 1.0;
-}
-```
-
-### 6.5 Routage audio conditionnel
-
-```js
-let useStemsMode = false; // false = mix original, true = stems
-
-function setAudioVolume() {
-  if (!playerAudio) return;
-  const db = Number(els.volume?.value) || 0;
-  playerAudio.volume = dbToGain(db);
-}
-
-function setPlayerMuted() {
-  if (!playerAudio) return;
-  playerAudio.muted = true;
-  playerAudio.volume = 0;
-}
-
-function setPlayerAudible() {
-  if (!playerAudio) return;
-  playerAudio.muted = false;
-  setAudioVolume();
-}
-
-async function play() {
-  if (!playerAudio?.src) return;
-
-  if (playerAudio.readyState < 2) {
-    playerAudio.addEventListener('canplay', () => play(), { once: true });
-    playerAudio.load();
-    return;
-  }
-
-  const useStems = mixer?.hasStems() && useStemsMode;
-  const needsPitchShift = regionConfirmed && transpose !== 0;
-
-  if (useStems) {
-    setPlayerMuted();
-    mixer?.seek(regionConfirmed ? regionStart : playerAudio.currentTime);
-    mixer?.play();
-  } else if (needsPitchShift) {
-    ensureStudioAudioContext();
-    if (studioAudioCtx?.state === 'suspended') {
-      try { await studioAudioCtx.resume(); } catch (_) {}
-    }
-    setPlayerMuted();
-    await ensurePlayerRouted();
-    if (!pitchShifter) await runPitchShift();
-    if (pitchShifter) pitchShifter.setPitch(transpose);
-  } else {
-    disconnectPitchShifter();
-    setPlayerAudible();
-  }
-
-  const startTime = regionConfirmed ? regionStart : playerAudio.currentTime;
-  if (regionConfirmed && playerAudio.currentTime < regionStart) {
-    playerAudio.currentTime = startTime;
-    playerVideo.currentTime = startTime;
-  }
-
-  playerAudio.play().catch((err) => console.error('Play failed:', err));
-  playerVideo.play().catch(() => {});
-
-  isPlaying = true;
-  els.playBtn.textContent = '⏸';
-}
-
-export function pause() {
-  if (playerAudio?.paused) return;
-  playerAudio?.pause();
-  playerVideo?.pause();
-  mixer?.pause();
-  isPlaying = false;
-  els.playBtn.textContent = '▶';
-  stopUpdateLoop();
-  stopSyncLoop();
-}
-
-export function stop() {
-  playerAudio?.pause();
-  playerVideo?.pause();
-  if (playerAudio) playerAudio.currentTime = regionConfirmed ? regionStart : 0;
-  if (playerVideo) playerVideo.currentTime = regionConfirmed ? regionStart : 0;
-  mixer?.stop();
-  isPlaying = false;
-  els.playBtn.textContent = '▶';
-  updateProgressUI(0, getEffectiveDuration());
-  stopUpdateLoop();
-  stopSyncLoop();
-}
-
-function seek(time) {
-  const clamped = clampToRegion(time);
-  if (playerAudio) playerAudio.currentTime = clamped;
-  if (playerVideo) playerVideo.currentTime = clamped;
-  mixer?.seek(clamped);
-  if (pitchShifter) {
-    try { pitchShifter.clear(); } catch (_) {}
-  }
-}
-
-async function ensurePlayerRouted() {
-  if (!playerAudio || !studioAudioCtx) return;
-
-  if (!pitchGainNode) {
-    pitchGainNode = studioAudioCtx.createGain();
-    pitchGainNode.connect(studioDestination);
-  }
-
-  if (!playerSourceCreated) {
-    try {
-      pitchSourceNode = studioAudioCtx.createMediaElementSource(playerAudio);
-      playerSourceCreated = true;
-    } catch (e) {
-      console.warn('[Studio] Impossible de créer MediaElementSource:', e);
-      playerSourceCreated = false;
-      return;
-    }
-  }
-
-  if (pitchSourceNode) {
-    pitchSourceNode.disconnect();
-    if (pitchShifter) {
-      try { pitchShifter.clear(); } catch (_) {}
-      try { pitchShifter.disconnect(); } catch (_) {}
-      pitchShifter = null;
-    }
-    if (transpose !== 0) {
-      pitchShifter = await createPitchShifter(studioAudioCtx, pitchGainNode, transpose);
-      pitchSourceNode.connect(pitchShifter.node);
-    } else {
-      pitchSourceNode.connect(pitchGainNode);
-    }
-  }
-}
-```
-
-### 6.6 Chargement de piste (`loadTrack`)
-
-```js
-export async function loadTrack(trackId) {
-  try {
-    stop();
-    mixer?.reset();
-    const metadata = await loadMetadata(trackId);
-    currentTrack = { id: trackId, metadata };
-
-    const originalBlobUrl = await readOriginalAsBlobUrl(trackId);
-    if (!originalBlobUrl) {
-      setStatus('Fichier original introuvable');
-      return;
-    }
-
-    const info = await inspectMedia(originalBlobUrl);
-    isAudioOnly = info.isAudioOnly;
-    mediaDuration = info.duration || 0;
-
-    // Extraction WAV
-    let wavBytes = null;
-    let wavPath = null;
-    if (window.electronAPI?.studio?.extractAudio) {
-      try {
-        setStatus('Extraction audio en cours...');
-        wavPath = await window.electronAPI.studio.extractAudio(trackId, metadata?.originalPath);
-      } catch (err) {
-        console.warn('[Studio] extractAudio failed:', err);
-      }
-    }
-
-    if (wavPath && window.electronAPI?.files?.readBinary) {
-      try {
-        wavBytes = await window.electronAPI.files.readBinary(wavPath);
-      } catch (err) {
-        console.warn('[Studio] readBinary wav failed:', err);
-      }
-    }
-
-    // Fallback : si pas de WAV, on utilisera le blob original comme audio
-    if (!wavBytes) {
-      wavBytes = null; // createMediaPlayer gérera le fallback
-    }
-
-    // Créer les players
-    await createMediaPlayer(originalBlobUrl, wavBytes, !isAudioOnly);
-
-    // Génération waveform
-    if (wavPath && window.electronAPI?.studio?.generateWaveform) {
-      try {
-        setStatus('Analyse waveform en cours...');
-        audioWavPath = wavPath;
-        waveformData = await window.electronAPI.studio.generateWaveform(wavPath);
-      } catch (err) {
-        console.warn('[Studio] generateWaveform failed:', err);
-        audioWavPath = null;
-        waveformData = null;
-      }
-    }
-
-    // Si aucune waveform, fallback sur le blob original pour waveform
-    if (!waveformData && window.electronAPI?.studio?.generateWaveform) {
-      try {
-        waveformData = await window.electronAPI.studio.generateWaveform(metadata?.originalPath);
-      } catch (_) {}
-    }
-
-    renderWaveform();
-    updateAudioBackdrop(metadata?.name || trackId);
-    resetTransposeState();
-    isAudioReady = false;
-    pendingTranspose = 0;
-
-    const onAudioReady = async () => {
-      if (isAudioReady) return;
-      isAudioReady = true;
-      ensureStudioAudioContext();
-      await ensurePlayerRouted();
-      if (pendingTranspose !== 0 || transpose !== 0) {
-        await runPitchShift();
-      }
-    };
-    playerAudio?.addEventListener('canplaythrough', onAudioReady, { once: true });
-    playerAudio?.addEventListener('loadedmetadata', onAudioReady, { once: true });
-    playerAudio?.addEventListener('loadeddata', onAudioReady, { once: true });
-
-    await refreshTrackList();
-    await refreshStems();
-    setStatus(`Morceau chargé : ${metadata?.name || trackId}`);
-  } catch (err) {
-    console.error('Failed to load track:', err);
-    setStatus(`Erreur de chargement : ${err.message}`);
-  }
-}
-```
-
-### 6.7 Fallback audio sans WAV
-
-Si `wavBytes` est `null`, `createMediaPlayer` doit utiliser le blob original comme source audio aussi :
-
-```js
-async function createMediaPlayer(videoBlobUrl, wavBytes, isVideo) {
-  destroyMediaPlayer();
-
-  // Vidéo visible
-  const video = document.createElement(isVideo ? 'video' : 'audio');
-  video.id = 'studio-player-video';
-  video.className = 'studio-player';
-  video.preload = 'auto';
-  video.src = videoBlobUrl;
-  video.muted = true;
-  video.volume = 0;
-  video.controls = false;
-  if (isVideo) video.playsInline = true;
-  els.playerVideoContainer.appendChild(video);
-  playerVideo = video;
-  els.player = video;
-
-  // Audio caché
-  const audio = document.createElement('audio');
-  audio.id = 'studio-player-audio';
-  audio.className = 'studio-player';
-  audio.preload = 'auto';
-  audioBlobUrl = wavBytes
-    ? URL.createObjectURL(new Blob([wavBytes], { type: 'audio/wav' }))
-    : videoBlobUrl;
-  audio.src = audioBlobUrl;
-  audio.crossOrigin = 'anonymous';
-  audio.controls = false;
-  els.playerAudioContainer.appendChild(audio);
-  playerAudio = audio;
-  els.playerAudio = audio;
-
-  bindMediaEvents(video, audio);
-  setAudioVolume();
-
-  return { video, audio };
-}
-```
-
-### 6.8 Toggle pistes séparées / mix original
-
-Ajouter dans la sidebar droite, au-dessus de la liste des stems :
-
-```html
-<div class="studio-stems-mode">
-  <button id="studio-stems-mode-toggle" type="button">Écouter le mix original</button>
-</div>
-```
-
-```js
-function bindStemsModeToggle() {
-  if (!els.stemsModeToggle) return;
-  els.stemsModeToggle.addEventListener('click', () => {
-    useStemsMode = !useStemsMode;
-    updateStemsModeUI();
-    // Si en lecture, basculer immédiatement
-    if (isPlaying) {
-      play();
-    }
-  });
-}
-
-function updateStemsModeUI() {
-  if (!els.stemsModeToggle) return;
-  els.stemsModeToggle.textContent = useStemsMode
-    ? 'Écouter le mix original'
-    : 'Écouter les pistes séparées';
-  els.stemsModeToggle.disabled = !mixer?.hasStems();
-}
-```
-
-Appeler `updateStemsModeUI()` dans `refreshStems()`.
-
-### 6.9 Volume et mute
-
-Dans `bindPlayer` :
-
-```js
-els.volume?.addEventListener('input', () => {
-  const db = Number(els.volume.value);
-  const masterLabel = document.getElementById('studio-volume-label');
-  if (masterLabel) masterLabel.textContent = formatDb(db);
-  setAudioVolume();
-  if (pitchGainNode) {
-    const now = studioAudioCtx?.currentTime || 0;
-    pitchGainNode.gain.setTargetAtTime(dbToGain(db), now, 0.05);
-  }
-  mixer?.setMasterVolume(db);
-});
-```
-
-### 6.10 Transposition
-
-```js
-async function runPitchShift() {
-  if (!currentTrack) return;
-  if (!regionConfirmed) return; // verrou région
-  if (!isAudioReady) {
-    pendingTranspose = transpose;
-    return;
-  }
-
-  const useStems = mixer?.hasStems() && useStemsMode;
-  if (useStems) {
-    mixer.setDetune(transpose);
-    if (els.transposeStatus) {
-      els.transposeStatus.textContent = transpose !== 0
-        ? `Transposé : ${transpose > 0 ? '+' : ''}${transpose} demi-tons`
-        : '';
-    }
-    return;
-  }
-
-  ensureStudioAudioContext();
-  if (!studioAudioCtx) return;
-
-  if (transpose === 0) {
-    if (pitchShifter) {
-      try { pitchShifter.clear(); } catch (_) {}
-      try { pitchShifter.disconnect(); } catch (_) {}
-      pitchShifter = null;
-    }
-  }
-
-  await ensurePlayerRouted();
-
-  if (pitchShifter) {
-    pitchShifter.setPitch(transpose);
-  }
-
-  pendingTranspose = 0;
-
-  if (els.transposeStatus) {
-    els.transposeStatus.textContent = transpose !== 0
-      ? `Transposé : ${transpose > 0 ? '+' : ''}${transpose} demi-tons`
-      : '';
-  }
-}
-```
-
-### 6.11 Gestion du stem-mixer
-
-Dans `stem-mixer.js`, conserver l'approche actuelle mais s'assurer que `setDetune(0)` appelle `clear()` avant d'appliquer le pitch neutre (déjà fait partiellement).
-
-### 6.12 CSS
-
-Ajouter dans `src/style.css` :
-
-```css
-.studio-player-wrap {
-  position: relative;
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #000;
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  min-height: 0;
-}
-
-.studio-video-container,
-.studio-audio-container,
-.studio-video-container video,
-.studio-audio-container audio {
-  max-width: 100%;
-  max-height: 100%;
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-.studio-audio-container {
-  position: absolute;
-  width: 0;
-  height: 0;
-  overflow: hidden;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.studio-audio-backdrop {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  background: radial-gradient(circle at 30% 30%, var(--accent-soft) 0%, var(--bg) 60%);
-  color: var(--text);
-  text-align: center;
-  padding: 24px;
-  z-index: 2;
-  pointer-events: none;
-}
-```
+- La vidéo avance, la barre de progression bouge.
+- Le Play/Pause fonctionne.
+- Aucune sortie audio audible.
+- Console : parfois warning `Oscillator.frequency.value ... outside nominal range` (résidu du synthétiseur, pas directement lié au lecteur Studio).
 
 ---
 
-## 6.13 Commit associé
+## 5. Hypothèses sur le silence
 
-```
-7a27af8 Studio: réarchitecture du pipeline audio (vidéo visible + audio caché)
-acc82fa Synth: clamper les fréquences des oscillateurs pour éviter le warning Web Audio
-```
-
----
-
-## 7. Fichiers modifiés (réellement)
-
-1. `src/index.html` — séparation en `#studio-video-container` + `#studio-audio-container` + toggle stems.
-2. `src/style.css` — styles des deux conteneurs + bouton toggle stems.
-3. `src/ui/studio-tab.js` — réarchitecture complète (deux players, synchro, toggle stems, loadTrack).
-4. `src/audio/simple-synth.js` — `clampOscFrequency()` + garde MIDI 0–127.
+1. **Autoplay policy d'Electron** : l'`<audio>` caché nécessite une interaction utilisateur explicite pour démarrer le son. Le clic Play est censé suffire, mais peut-être pas si l'élément est `display:none` ou `muted`.
+2. **`display:none` sur le conteneur audio** : un élément media dans un conteneur `display:none` peut ne pas jouer correctement dans Electron.
+3. **Mauvais blob MIME** : le blob URL créé à partir du WAV extrait peut avoir un type incorrect ou être invalide.
+4. **`crossOrigin='anonymous'` sur fichier local** : peut bloquer le chargement.
+5. **Synchronisation vidéo/audio** : l'audio est censé mener, mais si l'audio ne démarre jamais, la vidéo continue seule.
+6. **Volume initial** : `playerAudio.volume` pourrait être à 0 ou `muted` à cause d'un appel mal placé.
+7. **AudioContext suspendu** : quand transposition active, le `studioAudioCtx` n'est pas résumé au moment du clic.
 
 ---
 
-## 8. Tests à valider
+## 6. Mission pour Claude
 
-1. **MP3** : import → waveform → Play → son sort.
-2. **MP4** : import → image + son synchronisés → Play → son sort, image suit.
-3. **Seek** : clic waveform → audio et vidéo se repositionnent ensemble.
-4. **Région** : sélection + confirmation → transposition active.
-5. **Transposition +2** : son transposé, tempo inchangé.
-6. **Transposition retour 0** : son normal, pas de craquement.
-7. **Track séparé** : toggle "Pistes séparées / Mix original" fonctionne instantanément.
-8. **Séparation Demucs manquante** : pas de crash audio.
-9. **Aucun buzz MIDI** au Play.
+### Objectif principal
+**Faire sortir le son du lecteur Studio dans tous les cas :**
+- MP3 / WAV seul.
+- MP4 (vidéo + son synchronisés).
+- Après séparation de pistes (stems + mix original).
+- Avec transposition active (region confirmée).
+
+### Contraintes
+1. **Garder le workflow 3 étapes** déjà implémenté.
+2. **Garder la double architecture video/audio** (pas retour à un seul `<audio>`/`<video>`).
+3. **Garder la sélection de région et sa persistance**.
+4. **Garder le toggle stems / mix original**.
+5. **Ne pas casser les tests de régression existants** (`src/analyzer/test-regression-part1.js`, `src/chord-engine/test-regression-part3.js`).
+6. **Build Vite doit rester OK**.
+
+### Suggestions d'approche
+
+1. **Commencer par simplifier et auditer le lecteur audio caché** :
+   - Ne plus utiliser `display:none` pour le conteneur audio ; utiliser `position:absolute; width:0; height:0; opacity:0; pointer-events:none;` (déjà partiellement fait).
+   - Vérifier que `playerAudio.muted = false` et `playerAudio.volume > 0` au moment du Play.
+   - Logger dans la console : `playerAudio.readyState`, `playerAudio.error`, `playerAudio.muted`, `playerAudio.volume`, `playerAudio.paused`.
+
+2. **Tester la sortie native sans WebAudio d'abord** :
+   - Quand pas de transposition (Étape 1 et Étape 3 avec transpose=0), désactiver totalement WebAudio pour le player audio caché.
+   - Utiliser `playerAudio.play()` directement avec `muted=false` et `volume=1` (test).
+
+3. **Réparer la synchronisation** :
+   - L'audio doit démarrer **avant** ou **en même temps** que la vidéo.
+   - Éviter que `video.play()` ne soit appelé si `audio.play()` a échoué.
+   - Ajouter un catch sur `audio.play()` et afficher l'erreur.
+
+4. **Gérer l'AudioContext** :
+   - Dans `play()`, si transposition active, réveiller `studioAudioCtx` explicitement après interaction utilisateur.
+   - Si `studioAudioCtx.state === 'suspended'`, appeler `resume()`.
+
+5. **Vérifier le blob WAV** :
+   - S'assurer que `audioBlobUrl` est bien créé avec `type: 'audio/wav'`.
+   - Vérifier que `wavBytes` n'est pas vide.
+   - Ajouter un fallback : si le WAV extrait ne fonctionne pas, utiliser le blob original comme source audio.
+
+6. **Stabiliser le stem-mixer** :
+   - Quand `useStemsMode = true`, s'assurer que le mixer est correctement connecté à `audioContext.destination`.
+   - Quand `useStemsMode = false`, le son doit revenir au mix original (`playerAudio`).
+
+### Tests à valider
+
+1. Importer un MP3 → Play à l'Étape 1 → son sort.
+2. Importer un MP4 → Play à l'Étape 1 → image + son synchronisés.
+3. Sélectionner une région → Confirmer → loader → Étape 3 → Play → son sort.
+4. Étape 3 → transposer +2 → son transposé, tempo stable.
+5. Track séparé (Track_003) → toggle "Écouter les pistes séparées" puis "Écouter le mix original" → les deux sortent.
+6. Changer de track puis revenir → région et stems persistants.
+7. Aucun buzz MIDI parasite au Play.
+
+---
+
+## 7. Notes diverses
+
+- L'utilisateur souhaite ajouter plus tard un bouton **"Enregistrer la Session"** via `MediaRecorder`. C'est hors scope de cette mission.
+- Le code est commenté en français ; maintenir cette convention.
+- L'utilisateur a explicitement demandé le mode automatique : ne pas re-demander de validation pour chaque modification, sauf blocage majeur.
+
+---
+
+## 8. Ressources utiles
+
+- `src/ui/studio-tab.js` — fonction critique : `createMediaPlayer`, `bindMediaEvents`, `play`, `ensurePlayerRouted`, `startRegionProcessing`, `loadTrack`, `refreshStems`.
+- `electron/main.js` — IPCs : `studio:extract-audio`, `studio:separate`, `studio:get-stems`.
+- `src/audio/stem-mixer.js` — `loadStems`, `play`, `setDetune`.
+- `src/audio/pitch-shifter.js` — factory SoundTouch.
+
+---
+
+## 9. Message final de l'utilisateur
+
+> "Voici les réponses aux 7 questions de précision. Applique ce plan immédiatement en mode automatique sans me redemander de validation."
+
+L'utilisateur veut que Claude prenne le relais et corrige le bug du son sans re-planifier.
