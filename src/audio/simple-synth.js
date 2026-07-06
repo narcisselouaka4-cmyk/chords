@@ -6,6 +6,12 @@ export function midiToFrequency(midi) {
   return 440 * Math.pow(2, (midi - 69) / 12);
 }
 
+const MAX_OSC_FREQUENCY = 20000; // Marge sous la limite Web Audio nominale (24000 Hz)
+
+function clampOscFrequency(freq) {
+  return Math.min(Math.max(freq, 20), MAX_OSC_FREQUENCY);
+}
+
 export async function resumeAudio() {
   if (audioCtx.state === 'suspended') {
     await audioCtx.resume();
@@ -56,7 +62,7 @@ function playPianoNote(midi, velocity) {
     const osc = audioCtx.createOscillator();
     const partialGain = audioCtx.createGain();
     osc.type = 'sine';
-    osc.frequency.value = freq * partial.ratio;
+    osc.frequency.value = clampOscFrequency(freq * partial.ratio);
     osc.detune.value = (Math.random() - 0.5) * 6;
 
     partialGain.connect(masterGain);
@@ -100,7 +106,7 @@ function playRhodesNote(midi, velocity) {
   const modulator = audioCtx.createOscillator();
   const modGain = audioCtx.createGain();
   modulator.type = 'sine';
-  modulator.frequency.value = freq * modRatio;
+  modulator.frequency.value = clampOscFrequency(freq * modRatio);
   modGain.gain.value = modIndex;
   modulator.connect(modGain);
   modGain.connect(modulator.frequency);
@@ -108,7 +114,7 @@ function playRhodesNote(midi, velocity) {
   const carrier = audioCtx.createOscillator();
   const carrierGain = audioCtx.createGain();
   carrier.type = 'sine';
-  carrier.frequency.value = freq;
+  carrier.frequency.value = clampOscFrequency(freq);
   carrierGain.connect(masterGain);
   carrier.connect(carrierGain);
 
@@ -116,7 +122,7 @@ function playRhodesNote(midi, velocity) {
   const carrier2 = audioCtx.createOscillator();
   const carrier2Gain = audioCtx.createGain();
   carrier2.type = 'sine';
-  carrier2.frequency.value = freq;
+  carrier2.frequency.value = clampOscFrequency(freq);
   carrier2.detune.value = 8;
   carrier2Gain.gain.value = velocity * 0.3;
   carrier2Gain.connect(masterGain);
@@ -129,7 +135,7 @@ function playRhodesNote(midi, velocity) {
     const osc = audioCtx.createOscillator();
     const g = audioCtx.createGain();
     osc.type = 'sine';
-    osc.frequency.value = freq * ratio;
+    osc.frequency.value = clampOscFrequency(freq * ratio);
     g.gain.value = velocity * 0.03;
     g.connect(masterGain);
     osc.connect(g);
