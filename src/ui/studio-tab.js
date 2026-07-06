@@ -13,12 +13,24 @@ import { createStemMixer, dbToGain } from '../audio/stem-mixer.js';
 import { separateStems, getStems, STEMS } from '../audio/stem-separator.js';
 import { createPitchShifter } from '../audio/pitch-shifter.js';
 
+/**
+ * Lit un fichier audio via IPC et retourne un ArrayBuffer brut.
+ * Évite fetch(blob:) qui est bloqué par la Content Security Policy d'Electron.
+ */
+async function readAudioFile(path) {
+  if (!window.electronAPI?.files?.readBinary) {
+    throw new Error('readBinary IPC non disponible');
+  }
+  const bytes = await window.electronAPI.files.readBinary(path);
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+}
+
 let mixer = null;
-let currentTrack = null;
 let currentBlobUrl = null;
 let isPlaying = false;
 let updateInterval = null;
 let tracks = [];
+let currentTrack = null;
 
 // [OpenCode] — 2026-07-04 — État transposition / waveform de l’onglet Studio
 let transpose = 0;
@@ -34,6 +46,7 @@ let isAudioOnly = false;
 let mediaDuration = 0;
 let isAudioReady = false;
 let pendingTranspose = 0;
+let isLoadingTrack = false;
 
 // UX Studio en 3 étapes : 1=ciblage, 2=traitement, 3=lecture pro
 let studioStage = 1;
@@ -46,21 +59,22 @@ let playerVideo = null;
 let playerAudio = null;
 let audioBlobUrl = null;
 let videoBlobUrl = null;
-let useStemsMode = false; // false = mix original, true = pistes séparées
 let syncRafId = null;
-let lastSyncTime = 0;
 
-// AudioContext partagé pour le Studio (évite les doubles contextes et preserve la qualité)
+// Lecteur master : buffer audio natif du fichier original (MP3/MP4/M4A…)
+// utilisé à l'Étape 1 avant que les stems soient séparés.
+let masterPlayer = null;
+let masterAudioBuffer = null;
+let masterAudioUrl = null;
+
+// AudioContext partagé pour le Studio
 let studioAudioCtx = null;
 let studioDestination = null;
-let pitchSourceNode = null;
-let pitchGainNode = null;
-let pitchShifter = null;
-let playerSourceCreated = false;
 
 const els = {
   importBtn: document.getElementById('studio-import-btn'),
   trackList: document.getElementById('studio-track-list'),
+  studioCenter: document.querySelector('.studio-center'),
   playerWrap: document.getElementById('studio-player-wrap'),
   playerVideoContainer: document.getElementById('studio-video-container'),
   playerAudioContainer: document.getElementById('studio-audio-container'),
@@ -68,8 +82,6 @@ const els = {
   playerAudio: null,   // référence au <audio> caché (son)
   audioBackdrop: document.getElementById('studio-audio-backdrop'),
   backdropTitle: document.getElementById('studio-backdrop-title'),
-  stemsMode: document.getElementById('studio-stems-mode'),
-  stemsModeToggle: document.getElementById('studio-stems-mode-toggle'),
   playBtn: document.getElementById('studio-play-btn'),
   stopBtn: document.getElementById('studio-stop-btn'),
   prevBtn: document.getElementById('studio-prev-btn'),
@@ -109,6 +121,10 @@ function formatDuration(seconds) {
   return `${mins}:${secs}`;
 }
 
+function updateTransposeUI() {
+  if (els.transposeInput) els.transposeInput.value = String(transpose);
+}
+
 function setStatus(message) {
   const statusBar = document.getElementById('status-bar');
   if (statusBar) statusBar.textContent = message;
@@ -121,17 +137,18 @@ function setTransposeControlsEnabled(enabled) {
 }
 
 export function initStudioTab() {
-  mixer = createStemMixer();
+  ensureStudioAudioContext();
+  mixer = createStemMixer(studioAudioCtx, readAudioFile);
   mixer.setOnProgress((current, duration) => {
     updateProgressUI(current, duration);
   });
 
   bindPlayer();
   bindStems();
-  bindStemsModeToggle();
   bindWaveform();
   bindCropButtons();
   refreshTrackList();
+  updateStudioStage(0);
 
   document.addEventListener('app-switch-tab', (e) => {
     if (e.detail?.tab === 'studio') refreshTrackList();
@@ -179,10 +196,10 @@ function bindPlayer() {
   });
 
   els.volume?.addEventListener('input', () => {
+    if (isLoadingTrack) return;
     const db = Number(els.volume.value);
     const masterLabel = document.getElementById('studio-volume-label');
     if (masterLabel) masterLabel.textContent = formatDb(db);
-    setAudioVolume();
     if (pitchGainNode) {
       const now = studioAudioCtx?.currentTime || 0;
       pitchGainNode.gain.setTargetAtTime(dbToGain(db), now, 0.05);
@@ -190,13 +207,8 @@ function bindPlayer() {
     mixer?.setMasterVolume(db);
   });
 
-  function updateTransposeUI() {
-    if (els.transposeInput) els.transposeInput.value = String(transpose);
-  }
-
   function onTransposeChanged() {
-    if (!regionConfirmed) {
-      // Ignorer les changements de transposition tant que la région n'est pas confirmée.
+    if (isLoadingTrack || !regionConfirmed) {
       updateTransposeUI();
       return;
     }
@@ -216,13 +228,13 @@ function bindPlayer() {
   els.transposeInput?.addEventListener('change', onTransposeChanged);
 
   els.transposeMinus?.addEventListener('click', () => {
-    if (!regionConfirmed) return;
+    if (isLoadingTrack || !regionConfirmed) return;
     transpose = Math.max(-12, transpose - 1);
     updateTransposeUI();
     runPitchShift();
   });
   els.transposePlus?.addEventListener('click', () => {
-    if (!regionConfirmed) return;
+    if (isLoadingTrack || !regionConfirmed) return;
     transpose = Math.min(12, transpose + 1);
     updateTransposeUI();
     runPitchShift();
@@ -232,89 +244,104 @@ function bindPlayer() {
   // Voir createMediaPlayer().
 }
 
+let mediaEventCleanup = null;
+
+// [Claude] — 2026-07-06 — La synchronisation est maintenant pilotée par le temps
+// de l'AudioContext. Le HTMLVideoElement est muet et calé explicitement, sans
+// modification de playbackRate.
+let lastReportedAudioTime = 0;
+
 function bindMediaEvents(video, audio) {
-  if (!video || !audio) return;
+  if (mediaEventCleanup) {
+    try { mediaEventCleanup(); } catch (_) {}
+  }
+  if (!video || !audio) {
+    mediaEventCleanup = null;
+    return;
+  }
 
-  // Audio mène le timing
-  audio.addEventListener('play', () => {
-    video.play().catch(() => {});
-    startSyncLoop(video, audio);
-  });
-
-  audio.addEventListener('pause', () => {
-    video.pause();
-    stopSyncLoop();
-  });
-
-  audio.addEventListener('seeked', () => {
+  const onAudioSeeked = () => {
     if (Math.abs(video.currentTime - audio.currentTime) > 0.05) {
       video.currentTime = audio.currentTime;
     }
-  });
-
-  audio.addEventListener('ended', () => {
+  };
+  const onAudioEnded = () => {
     video.pause();
     stopSyncLoop();
-  });
-
-  // Vidéo répercute les interactions utilisateur sur l'audio
-  video.addEventListener('play', () => {
-    audio.play().catch(() => {});
-    startSyncLoop(video, audio);
-  });
-
-  video.addEventListener('pause', () => {
-    audio.pause();
-    stopSyncLoop();
-  });
-
-  video.addEventListener('seeking', () => {
+  };
+  const onVideoSeeked = () => {
     audio.currentTime = video.currentTime;
-  });
+  };
 
-  video.addEventListener('seeked', () => {
-    audio.currentTime = video.currentTime;
-  });
+  audio.addEventListener('seeked', onAudioSeeked);
+  audio.addEventListener('ended', onAudioEnded);
+  video.addEventListener('seeked', onVideoSeeked);
 
-  // UI timeupdate : on l'attache à l'audio
-  audio.addEventListener('timeupdate', () => {
-    if (!els.playerAudio) return;
-
-    // Boucle région stricte : on repositionne l'audio sans forcer de re-render.
-    if (regionEnd !== null && els.playerAudio.currentTime >= regionEnd) {
-      els.playerAudio.currentTime = regionStart;
-      video.currentTime = regionStart;
-      mixer?.seek(regionStart);
-    }
-
-    const duration = getEffectiveDuration();
-    const current = getEffectiveCurrentTime();
-    updateProgressUI(current, duration);
-    updatePlayhead(current, duration);
-  });
+  mediaEventCleanup = () => {
+    audio.removeEventListener('seeked', onAudioSeeked);
+    audio.removeEventListener('ended', onAudioEnded);
+    video.removeEventListener('seeked', onVideoSeeked);
+  };
 }
 
-function startSyncLoop(video, audio) {
+function getStudioCurrentTime() {
+  if (mixer?.hasStems()) {
+    return mixer.getCurrentTime();
+  }
+  return masterPlayer?.getCurrentTime?.()
+    || playerAudio?.currentTime
+    || playerVideo?.currentTime
+    || 0;
+}
+
+function getStudioDuration() {
+  if (mixer?.hasStems()) {
+    return mixer.getDuration();
+  }
+  return getEffectiveDuration();
+}
+
+function syncVideoAndCursor() {
+  if (!playerVideo) return;
+  const current = getStudioCurrentTime();
+
+  // Boucle région stricte
+  if (regionEnd !== null && current >= regionEnd) {
+    const target = regionStart;
+    if (mixer?.hasStems()) {
+      mixer.seek(target);
+    } else {
+      masterPlayer?.seek(target);
+    }
+    playerVideo.currentTime = target;
+    return;
+  }
+
+  const drift = current - playerVideo.currentTime;
+  const absDrift = Math.abs(drift);
+
+  // Saut brutal uniquement si la vidéo est très décalée ou si elle est en pause.
+  if (absDrift > 0.25 || playerVideo.paused) {
+    playerVideo.currentTime = current;
+    if (!playerVideo.paused) playerVideo.playbackRate = 1.0;
+  } else if (absDrift > 0.05) {
+    // Rattrapage progressif par playbackRate (max ±4 %) pour rester fluide.
+    const rate = Math.max(0.96, Math.min(1.04, 1.0 + drift * 0.5));
+    playerVideo.playbackRate = Number.isFinite(rate) ? rate : 1.0;
+  } else {
+    playerVideo.playbackRate = 1.0;
+  }
+
+  const duration = getStudioDuration();
+  updateProgressUI(current, duration);
+  updatePlayhead(current, duration);
+}
+
+function startSyncLoop() {
   stopSyncLoop();
   const loop = () => {
     syncRafId = requestAnimationFrame(loop);
-    const now = performance.now();
-    if (now - lastSyncTime < 100) return;
-    lastSyncTime = now;
-
-    if (!audio.paused && !video.paused) {
-      const drift = video.currentTime - audio.currentTime;
-      if (Math.abs(drift) > 0.04) {
-        // Resync brut si dérive importante
-        video.currentTime = audio.currentTime;
-        video.playbackRate = 1.0;
-      } else if (Math.abs(drift) > 0.01) {
-        // Rattrapage progressif
-        video.playbackRate = drift > 0 ? 0.98 : 1.02;
-      } else {
-        video.playbackRate = 1.0;
-      }
-    }
+    syncVideoAndCursor();
   };
   loop();
 }
@@ -324,36 +351,14 @@ function stopSyncLoop() {
     cancelAnimationFrame(syncRafId);
     syncRafId = null;
   }
-  if (playerVideo) playerVideo.playbackRate = 1.0;
 }
 
 function bindStems() {
   els.separateBtn?.addEventListener('click', () => runSeparation());
 }
 
-function bindStemsModeToggle() {
-  if (!els.stemsModeToggle) return;
-  els.stemsModeToggle.addEventListener('click', () => {
-    useStemsMode = !useStemsMode;
-    updateStemsModeUI();
-    // Si en lecture, basculer immédiatement
-    if (isPlaying) {
-      play();
-    }
-  });
-}
-
-function updateStemsModeUI() {
-  if (!els.stemsModeToggle) return;
-  els.stemsModeToggle.textContent = useStemsMode
-    ? 'Écouter le mix original'
-    : 'Écouter les pistes séparées';
-  els.stemsModeToggle.disabled = !mixer?.hasStems();
-  els.stemsModeToggle.classList.toggle('active', useStemsMode);
-  if (els.stemsMode) {
-    els.stemsMode.style.display = mixer?.hasStems() ? '' : 'none';
-  }
-}
+// [Claude] — 2026-07-06 — Le mode hybride et son toggle ont été supprimés.
+// Les stems sont toujours chargés dans l'AudioContext partagé quand disponibles.
 
 const MAX_REGION_DURATION = 300; // 5 minutes maximum
 
@@ -366,12 +371,15 @@ function updateCropButtons() {
   if (!els.confirmRegionBtn || !els.backRegionBtn) return;
   if (regionConfirmed) {
     els.confirmRegionBtn.style.display = 'none';
+    els.confirmRegionBtn.disabled = true;
     els.backRegionBtn.style.display = 'inline-flex';
   } else if (regionEnd !== null) {
     els.confirmRegionBtn.style.display = 'inline-flex';
+    els.confirmRegionBtn.disabled = false;
     els.backRegionBtn.style.display = 'none';
   } else {
-    els.confirmRegionBtn.style.display = 'none';
+    els.confirmRegionBtn.style.display = 'inline-flex';
+    els.confirmRegionBtn.disabled = true;
     els.backRegionBtn.style.display = 'none';
   }
 }
@@ -413,6 +421,12 @@ function resetRegion() {
     updateTransposeUI();
     runPitchShift();
   }
+}
+
+export async function resetStudioState() {
+  stop();
+  mixer?.reset();
+  resetRegion();
 }
 
 function bindWaveform() {
@@ -499,14 +513,28 @@ function bindWaveform() {
 
     if (!isDraggingHandle) return;
     if (isDraggingHandle === 'start') {
-      regionStart = Math.max(0, Math.min(time, regionEnd !== null ? regionEnd : duration));
-      if (regionEnd !== null && (regionEnd - regionStart) > MAX_REGION_DURATION) {
-        regionStart = regionEnd - MAX_REGION_DURATION;
+      if (regionEnd !== null && time > regionEnd) {
+        // Inversion de poignée : l'utilisateur a traîné le début au-delà de la fin.
+        regionStart = regionEnd;
+        regionEnd = Math.min(duration, time);
+        isDraggingHandle = 'end';
+      } else {
+        regionStart = Math.max(0, Math.min(time, regionEnd !== null ? regionEnd : duration));
+        if (regionEnd !== null && (regionEnd - regionStart) > MAX_REGION_DURATION) {
+          regionStart = regionEnd - MAX_REGION_DURATION;
+        }
       }
     } else if (isDraggingHandle === 'end') {
-      regionEnd = Math.min(duration, Math.max(time, regionStart));
-      if ((regionEnd - regionStart) > MAX_REGION_DURATION) {
-        regionEnd = regionStart + MAX_REGION_DURATION;
+      if (time < regionStart) {
+        // Inversion de poignée : l'utilisateur a traîné la fin avant le début.
+        regionEnd = regionStart;
+        regionStart = Math.max(0, time);
+        isDraggingHandle = 'start';
+      } else {
+        regionEnd = Math.min(duration, Math.max(time, regionStart));
+        if ((regionEnd - regionStart) > MAX_REGION_DURATION) {
+          regionEnd = regionStart + MAX_REGION_DURATION;
+        }
       }
     }
     updateRegionUI();
@@ -567,7 +595,7 @@ function updateRegionUI() {
   if (els.regionInfo) {
     const endText = regionEnd !== null ? formatDuration(regionEnd) : formatDuration(duration);
       const infoText = regionEnd !== null
-      ? `Région : ${formatDuration(regionStart)} – ${endText}${isMaxed ? ' (max 3:30)' : ''}`
+      ? `Région : ${formatDuration(regionStart)} – ${endText}${isMaxed ? ' (max 5:00)' : ''}`
       : 'Sélectionnez une région pour activer transpo / séparation';
     els.regionInfo.textContent = infoText;
   }
@@ -584,6 +612,17 @@ function bindCropButtons() {
   els.backRegionBtn?.addEventListener('click', () => backRegion());
 }
 
+const SUPPORTED_FORMATS = ['mp3', 'wav', 'm4a', 'mp4'];
+
+function getFileExtension(filePath) {
+  const match = filePath.match(/\.([a-zA-Z0-9]+)$/);
+  return match ? match[1].toLowerCase() : '';
+}
+
+function isSupportedFormat(filePath) {
+  return SUPPORTED_FORMATS.includes(getFileExtension(filePath));
+}
+
 async function importFile() {
   if (!window.electronAPI?.files) {
     setStatus('Import disponible uniquement sous Electron');
@@ -593,6 +632,12 @@ async function importFile() {
   try {
     const filePath = await window.electronAPI.studio.selectFile();
     if (!filePath) return;
+
+    if (!isSupportedFormat(filePath)) {
+      setStatus('Format non supporté');
+      alert(`Format non supporté\n\nFormats acceptés : ${SUPPORTED_FORMATS.join(', ').toUpperCase()}`);
+      return;
+    }
 
     // Choix manuel du type de source : tutoriel pédagogique ou morceau/performance.
     const sourceType = await askSourceType();
@@ -666,7 +711,16 @@ async function refreshTrackList() {
   if (!els.trackList) return;
   try {
     tracks = await listTracks();
-    renderTrackList(tracks);
+    // Charger les métadonnées pour chaque piste afin d'afficher le vrai nom de fichier.
+    const enriched = await Promise.all(tracks.map(async (track) => {
+      try {
+        const metadata = await loadMetadata(track.id);
+        return { ...track, metadata };
+      } catch (e) {
+        return track;
+      }
+    }));
+    renderTrackList(enriched);
   } catch (err) {
     console.error('Failed to list tracks:', err);
     els.trackList.innerHTML = `<p class="detail-hint">Impossible de charger les morceaux.</p>`;
@@ -725,7 +779,7 @@ function inspectMedia(blobUrl) {
 
 function ensureStudioAudioContext() {
   if (studioAudioCtx) return studioAudioCtx;
-  studioAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  studioAudioCtx = mixer?.getAudioContext?.() || new (window.AudioContext || window.webkitAudioContext)();
   studioDestination = studioAudioCtx.createGain();
   studioDestination.connect(studioAudioCtx.destination);
   return studioAudioCtx;
@@ -735,34 +789,159 @@ function resetTransposeState() {
   transpose = 0;
   if (els.transposeInput) els.transposeInput.value = '0';
   if (mixer?.hasStems()) mixer.setDetune(0);
-  // On garde le mixer actif (les stems peuvent être réutilisés), mais on
-  // s'assure qu'aucun pitch-shift n'est appliqué à transposition 0.
-  disconnectPitchShifter();
   regionStart = 0;
   regionEnd = null;
   regionConfirmed = false;
   updateCropButtons();
   updateRegionUI();
   if (els.transposeStatus) els.transposeStatus.textContent = '';
-  // Transposition et séparation verrouillées jusqu'à confirmation région.
   setTransposeControlsEnabled(false);
   setCropControlsEnabled(false);
 }
 
-function disconnectPitchShifter() {
-  if (pitchShifter) {
-    try { pitchShifter.clear(); } catch (_) {}
-    try { pitchShifter.disconnect(); } catch (_) {}
-    pitchShifter = null;
+/**
+ * Lecteur mono-buffer utilisé à l'Étape 1 (fichier original non séparé).
+ * Joue un AudioBuffer décodé nativement dans l'AudioContext partagé.
+ */
+function createMasterPlayer(audioCtx, destination, buffer) {
+  let sourceNode = null;
+  let pitchShifter = null;
+  let gainNode = null;
+  let currentTime = 0;
+  let playStartCtxTime = 0;
+  let isPlaying = false;
+  let currentPitch = 0;
+  let duration = buffer?.duration || 0;
+
+  async function ensurePitch() {
+    if (pitchShifter) return;
+    if (!gainNode) {
+      gainNode = audioCtx.createGain();
+      gainNode.connect(destination);
+    }
+    pitchShifter = await createPitchShifter(audioCtx, gainNode, currentPitch);
   }
-  if (pitchSourceNode) {
-    try { pitchSourceNode.disconnect(); } catch (_) {}
-    // NE PAS mettre pitchSourceNode = null : un seul MediaElementSourceNode possible
-    // par élément media. La source reste attachée à l'ancien élément.
+
+  function disconnectSource() {
+    if (sourceNode) {
+      try { sourceNode.stop?.(); } catch (_) {}
+      try { sourceNode.disconnect(); } catch (_) {}
+      sourceNode = null;
+    }
+  }
+
+  function play(offset = null) {
+    if (!buffer || !audioCtx) return;
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(() => {});
+    }
+    disconnectSource();
+
+    const startOffset = offset !== null ? offset : currentTime;
+    currentTime = startOffset;
+    playStartCtxTime = audioCtx.currentTime;
+    isPlaying = true;
+
+    const src = audioCtx.createBufferSource();
+    src.buffer = buffer;
+    src.playbackRate.value = 1.0;
+
+    if (!gainNode) {
+      gainNode = audioCtx.createGain();
+      gainNode.connect(destination);
+    }
+
+    if (currentPitch !== 0) {
+      ensurePitch().then(() => {
+        if (!isPlaying || sourceNode !== src) return;
+        src.connect(pitchShifter.node);
+        src.start(0, startOffset);
+      }).catch((err) => console.warn('[MasterPlayer] pitch setup failed:', err));
+    } else {
+      src.connect(gainNode);
+      src.start(0, startOffset);
+    }
+
+    sourceNode = src;
+  }
+
+  function pause() {
+    if (!isPlaying) return;
+    currentTime = getCurrentTime();
+    isPlaying = false;
+    disconnectSource();
+  }
+
+  function stop() {
+    disconnectSource();
+    isPlaying = false;
+    currentTime = 0;
+  }
+
+  function seek(time) {
+    currentTime = Math.max(0, time);
+    if (isPlaying) play(currentTime);
+  }
+
+  function getCurrentTime() {
+    if (!audioCtx) return 0;
+    if (isPlaying) {
+      const elapsed = audioCtx.currentTime - playStartCtxTime;
+      return Math.min(duration, currentTime + elapsed);
+    }
+    return currentTime;
+  }
+
+  async function setPitch(semitones) {
+    currentPitch = semitones;
+    if (isPlaying) {
+      currentTime = getCurrentTime();
+      if (semitones !== 0) {
+        await ensurePitch();
+      }
+      play(currentTime);
+    } else if (semitones !== 0) {
+      await ensurePitch();
+    }
+  }
+
+  function setVolume(db) {
+    if (gainNode) {
+      gainNode.gain.setTargetAtTime(dbToGain(db), audioCtx.currentTime, 0.05);
+    }
+  }
+
+  return {
+    play,
+    pause,
+    stop,
+    seek,
+    getCurrentTime,
+    getDuration: () => duration,
+    setPitch,
+    setVolume,
+  };
+}
+
+async function decodeMasterAudio(path) {
+  try {
+    const arrayBuffer = await readAudioFile(path);
+    ensureStudioAudioContext();
+    return await studioAudioCtx.decodeAudioData(arrayBuffer);
+  } catch (err) {
+    console.warn('[Studio] decodeMasterAudio failed:', err);
+    return null;
   }
 }
 
 function destroyMediaPlayer() {
+  masterPlayer?.stop();
+  masterPlayer = null;
+  masterAudioBuffer = null;
+  if (masterAudioUrl) {
+    URL.revokeObjectURL(masterAudioUrl);
+    masterAudioUrl = null;
+  }
   if (playerVideo) {
     try { playerVideo.pause(); } catch (_) {}
     try { playerVideo.src = ''; } catch (_) {}
@@ -781,24 +960,20 @@ function destroyMediaPlayer() {
     URL.revokeObjectURL(audioBlobUrl);
     audioBlobUrl = null;
   }
-  // videoBlobUrl est géré par le storage existant
-  disconnectPitchShifter();
-  pitchSourceNode = null;
-  playerSourceCreated = false;
   els.player = null;
   els.playerAudio = null;
 }
 
-async function createMediaPlayer(videoBlobUrl, wavBytes, isVideo) {
+async function createMediaPlayer(videoBlobUrl, wavPath, wavBytes, isVideo) {
   destroyMediaPlayer();
 
-  // --- Vidéo visible (image seule) ---
+  // --- Vidéo visible (image seule, muette) ---
   const video = document.createElement(isVideo ? 'video' : 'audio');
   video.id = 'studio-player-video';
   video.className = 'studio-player';
   video.preload = 'auto';
   video.src = videoBlobUrl;
-  video.muted = true;     // JAMAIS de son ici
+  video.muted = true;
   video.volume = 0;
   video.controls = false;
   if (isVideo) video.playsInline = true;
@@ -806,59 +981,63 @@ async function createMediaPlayer(videoBlobUrl, wavBytes, isVideo) {
   playerVideo = video;
   els.player = video;
 
-  // --- Audio caché (son natif + WebAudio) ---
+  // --- Audio caché : timing / metadata de secours ---
   const audio = document.createElement('audio');
   audio.id = 'studio-player-audio';
   audio.className = 'studio-player';
-  audio.preload = 'auto';
+  audio.preload = 'metadata';
   audioBlobUrl = wavBytes
     ? URL.createObjectURL(new Blob([wavBytes], { type: 'audio/wav' }))
     : videoBlobUrl;
   audio.src = audioBlobUrl;
-  audio.crossOrigin = 'anonymous';
   audio.controls = false;
+  audio.muted = true;
+  audio.volume = 0;
+  if (!audioBlobUrl.startsWith('blob:')) {
+    audio.crossOrigin = 'anonymous';
+  }
   els.playerAudioContainer.appendChild(audio);
   playerAudio = audio;
   els.playerAudio = audio;
 
   bindMediaEvents(video, audio);
-  setAudioVolume();
+
+  // Décoder le WAV extrait en AudioBuffer natif pour un playback fiable
+  // quel que soit le conteneur d'origine (MP3, MP4, M4A…).
+  masterAudioUrl = audioBlobUrl;
+  const decodePath = wavPath || (audioBlobUrl.startsWith('blob:') ? null : audioBlobUrl);
+  if (decodePath) {
+    masterAudioBuffer = await decodeMasterAudio(decodePath);
+    if (masterAudioBuffer) {
+      masterPlayer = createMasterPlayer(studioAudioCtx, studioDestination, masterAudioBuffer);
+      const db = Number(els.volume?.value) || 0;
+      masterPlayer.setVolume(db);
+    }
+  }
 
   return { video, audio };
 }
 
-function setAudioVolume() {
-  if (!playerAudio) return;
-  const db = Number(els.volume?.value) || 0;
-  playerAudio.volume = dbToGain(db);
-}
-
-function setPlayerMuted() {
-  if (!playerAudio) return;
-  // Quand on passe par Web Audio (pitch-shift ou stems), on coupe la sortie native.
-  playerAudio.muted = true;
-  playerAudio.volume = 0;
-}
-
-function setPlayerAudible() {
-  if (!playerAudio) return;
-  const db = Number(els.volume?.value) || 0;
-  playerAudio.muted = false;
-  playerAudio.volume = dbToGain(db);
-}
-
 function getEffectiveDuration() {
-  if (regionConfirmed && regionEnd !== null) {
+  // Dès qu'une région est tracée (même non confirmée), la timeline se cale sur elle.
+  if (regionEnd !== null) {
     return Math.max(0.01, regionEnd - regionStart);
   }
-  return els.playerAudio?.duration || els.player?.duration || waveformData?.duration || mediaDuration || 0;
+  return mixer?.getDuration?.()
+    || masterPlayer?.getDuration?.()
+    || els.playerAudio?.duration
+    || els.player?.duration
+    || waveformData?.duration
+    || mediaDuration
+    || 0;
 }
 
 function getEffectiveCurrentTime() {
-  if (regionConfirmed && regionEnd !== null) {
-    return Math.max(0, els.playerAudio.currentTime - regionStart);
+  const current = getStudioCurrentTime();
+  if (regionEnd !== null) {
+    return Math.max(0, Math.min(regionEnd - regionStart, current - regionStart));
   }
-  return els.playerAudio?.currentTime || els.player?.currentTime || 0;
+  return current;
 }
 
 function storeOriginalStems(blobUrls, paths) {
@@ -870,7 +1049,7 @@ function updateStudioStage(stage) {
   studioStage = stage;
   const tab = document.getElementById('studio-tab');
   if (tab) {
-    tab.classList.remove('stage-1', 'stage-2', 'stage-3');
+    tab.classList.remove('stage-0', 'stage-1', 'stage-2', 'stage-3');
     tab.classList.add(`stage-${stage}`);
   }
 
@@ -884,14 +1063,35 @@ function updateStudioStage(stage) {
     els.readyToast.style.display = 'none';
   }
 
+  // Stage 0 : aucun morceau sélectionné. Seule la liste de tracks est visible.
+  const stage0 = stage === 0;
+  if (els.playerWrap) els.playerWrap.style.display = stage0 ? 'none' : '';
+  if (els.waveformWrap) els.waveformWrap.style.display = stage0 ? 'none' : '';
+  if (els.regionInfo) els.regionInfo.style.display = stage0 ? 'none' : '';
+  if (els.studioCenter) els.studioCenter.style.display = stage0 ? 'none' : '';
+
   // Stage 1 : seuls la waveform, le play et la sélection de région sont actifs.
   const stage1Locked = stage === 1;
-  setTransposeControlsEnabled(!stage1Locked && regionConfirmed);
-  if (els.separateBtn) els.separateBtn.disabled = stage1Locked || !regionConfirmed;
-  if (els.stemsMode) els.stemsMode.style.display = (stage === 3 && mixer?.hasStems()) ? '' : 'none';
+  setTransposeControlsEnabled(!stage1Locked && regionConfirmed && !stage0 && !isLoadingTrack);
+  if (els.playBtn) els.playBtn.disabled = isLoadingTrack;
+  if (els.stopBtn) els.stopBtn.disabled = isLoadingTrack;
+  if (els.prevBtn) els.prevBtn.disabled = isLoadingTrack;
+  if (els.separateBtn) els.separateBtn.disabled = stage1Locked || !regionConfirmed || stage0 || isLoadingTrack;
+  if (els.stemsList) els.stemsList.style.display = (stage1Locked || stage0) ? 'none' : '';
+  if (els.separateStatus) els.separateStatus.style.display = (stage1Locked || stage0) ? 'none' : '';
 
   if (stage === 3) {
     showReadyToast();
+  }
+}
+
+function setLoadingState(loading) {
+  isLoadingTrack = loading;
+  updateStudioStage(studioStage);
+  if (els.processingLabel) els.processingLabel.textContent = loading ? 'Chargement du morceau...' : '';
+  if (els.processingBar) els.processingBar.style.width = loading ? '30%' : '0%';
+  if (els.processingOverlay) {
+    els.processingOverlay.style.display = loading ? 'flex' : (studioStage === 2 ? 'flex' : 'none');
   }
 }
 
@@ -913,6 +1113,9 @@ function setProcessingProgress(label, percent) {
 async function startRegionProcessing() {
   if (!currentTrack || regionEnd === null) return;
 
+  // Isolation du blocage : pause audio automatique pendant le traitement.
+  pause();
+
   regionConfirmed = true;
   pendingRegion = { start: regionStart, end: regionEnd };
   updateStudioStage(2);
@@ -925,7 +1128,7 @@ async function startRegionProcessing() {
   isProcessing = true;
 
   try {
-    // 1. Extraire la région audio (WAV)
+    // 1. Extraire la région audio (WAV) pour Demucs
     setProcessingProgress('Découpage de la région audio...', 10);
     const regionPath = await getRegionTrimmedPath();
 
@@ -935,26 +1138,9 @@ async function startRegionProcessing() {
       region: { start: regionStart, end: regionEnd, confirmed: true, trimmedPath: regionPath },
     });
 
-    // 3. Mettre à jour le player audio avec le fichier de région découpée
-    if (regionPath && window.electronAPI?.files?.readBinary) {
-      try {
-        const regionBytes = await window.electronAPI.files.readBinary(regionPath);
-        if (regionBytes?.length > 0) {
-          if (audioBlobUrl) URL.revokeObjectURL(audioBlobUrl);
-          audioBlobUrl = URL.createObjectURL(new Blob([regionBytes], { type: 'audio/wav' }));
-          if (playerAudio) {
-            playerAudio.src = audioBlobUrl;
-            playerAudio.load();
-          }
-        }
-      } catch (err) {
-        console.warn('[Studio] Failed to load trimmed region audio:', err);
-      }
-    }
-
     setProcessingProgress('Extraction audio terminée', 30);
 
-    // 4. Séparation des pistes en arrière-plan (non bloquant pour l'UI)
+    // 3. Séparation des pistes en arrière-plan (non bloquant pour l'UI)
     setProcessingProgress('Séparation des pistes en cours...', 35);
     const originalPath = currentTrack.metadata?.originalPath;
     const separationResult = await separateStems(
@@ -1012,7 +1198,9 @@ function cancelRegionProcessing() {
 }
 
 export async function loadTrack(trackId) {
+  if (isLoadingTrack) return;
   try {
+    setLoadingState(true);
     stop();
     mixer?.reset();
     const metadata = await loadMetadata(trackId);
@@ -1054,7 +1242,7 @@ export async function loadTrack(trackId) {
     }
 
     // Créer les players (vidéo visible + audio caché)
-    await createMediaPlayer(originalBlobUrl, wavBytes, !isAudioOnly);
+    await createMediaPlayer(originalBlobUrl, wavPath, wavBytes, !isAudioOnly);
     updateAudioBackdrop(metadata?.name || trackId);
 
     if (currentBlobUrl) {
@@ -1071,9 +1259,9 @@ export async function loadTrack(trackId) {
     const onAudioReady = async () => {
       if (isAudioReady) return;
       isAudioReady = true;
-      // Le fichier est décodé : on établit le routage audio pour qu'il soit prêt au Play.
-      ensureStudioAudioContext();
-      await ensurePlayerRouted();
+      // On ne crée PAS de MediaElementSourceNode au chargement : cela couperait
+      // définitivement la sortie native. On route vers WebAudio seulement au moment
+      // où une transposition est réellement demandée.
       if (pendingTranspose !== 0 || transpose !== 0) {
         await runPitchShift();
       }
@@ -1135,6 +1323,8 @@ export async function loadTrack(trackId) {
   } catch (err) {
     console.error('Failed to load track:', err);
     setStatus(`Erreur de chargement : ${err.message}`);
+  } finally {
+    setLoadingState(false);
   }
 }
 
@@ -1177,42 +1367,14 @@ function renderWaveform() {
   }
 }
 
-async function ensurePlayerRouted() {
-  if (!playerAudio || !studioAudioCtx) return;
 
-  if (!pitchGainNode) {
-    pitchGainNode = studioAudioCtx.createGain();
-    const db = Number(els.volume?.value) || 0;
-    pitchGainNode.gain.setValueAtTime(dbToGain(db), studioAudioCtx.currentTime);
-    pitchGainNode.connect(studioDestination);
-  }
-
-  if (!playerSourceCreated) {
-    try {
-      pitchSourceNode = studioAudioCtx.createMediaElementSource(playerAudio);
-      playerSourceCreated = true;
-    } catch (e) {
-      console.warn('[Studio] Impossible de créer MediaElementSource:', e);
-      playerSourceCreated = false;
-      return;
-    }
-  }
-
-  if (pitchSourceNode) {
-    pitchSourceNode.disconnect();
-    if (pitchShifter) {
-      try { pitchShifter.clear(); } catch (_) {}
-      try { pitchShifter.disconnect(); } catch (_) {}
-      pitchShifter = null;
-    }
-    if (transpose !== 0) {
-      pitchShifter = await createPitchShifter(studioAudioCtx, pitchGainNode, transpose);
-      pitchSourceNode.connect(pitchShifter.node);
-    } else {
-      pitchSourceNode.connect(pitchGainNode);
-    }
-  }
+function updateProgressUI(current, duration) {
+  if (!els.progress || !els.time) return;
+  const pct = duration ? (current / duration) * 100 : 0;
+  els.progress.value = Math.max(0, Math.min(100, pct));
+  els.time.textContent = `${formatDuration(current)} / ${formatDuration(duration)}`;
 }
+
 
 async function runPitchShift() {
   if (!currentTrack) return;
@@ -1220,15 +1382,8 @@ async function runPitchShift() {
   // Transposition interdite tant que la région n'est pas confirmée.
   if (!regionConfirmed) return;
 
-  // Attendre que le fichier audio soit prêt avant d'appliquer du pitch-shifting.
-  if (!isAudioReady) {
-    pendingTranspose = transpose;
-    return;
-  }
-
-  const useStems = mixer?.hasStems() && useStemsMode;
-  if (useStems) {
-    // Transposition temps réel sur chaque stem individuellement
+  const hasStems = mixer?.hasStems();
+  if (hasStems) {
     try {
       mixer.setDetune(transpose);
       if (els.transposeStatus) {
@@ -1243,30 +1398,74 @@ async function runPitchShift() {
     return;
   }
 
-  ensureStudioAudioContext();
-  if (!studioAudioCtx) return;
-
-  if (transpose === 0) {
-    if (pitchShifter) {
-      try { pitchShifter.clear(); } catch (_) {}
-      try { pitchShifter.disconnect(); } catch (_) {}
-      pitchShifter = null;
+  // Sans stems (fallback Étape 1) : pitch-shift sur le lecteur master buffer.
+  if (masterPlayer) {
+    await masterPlayer.setPitch(transpose);
+    if (els.transposeStatus) {
+      els.transposeStatus.textContent = transpose !== 0
+        ? `Transposé : ${transpose > 0 ? '+' : ''}${transpose} demi-tons`
+        : '';
     }
   }
+}
 
-  await ensurePlayerRouted();
+export async function play() {
+  if (isLoadingTrack) return;
+  if (!mixer?.hasStems() && !masterPlayer) return;
 
-  if (pitchShifter) {
-    pitchShifter.setPitch(transpose);
+  ensureStudioAudioContext();
+  if (studioAudioCtx?.state === 'suspended') {
+    try { await studioAudioCtx.resume(); } catch (_) {}
   }
 
-  pendingTranspose = 0;
+  const rawTime = getStudioCurrentTime() || 0;
+  const resumeTime = regionConfirmed ? Math.max(regionStart, Math.min(rawTime, regionEnd)) : rawTime;
 
-  if (els.transposeStatus) {
-    els.transposeStatus.textContent = transpose !== 0
-      ? `Transposé : ${transpose > 0 ? '+' : ''}${transpose} demi-tons`
-      : '';
+  if (mixer?.hasStems()) {
+    mixer.seek(resumeTime);
+    mixer.play();
+    if (transpose !== 0) mixer.setDetune(transpose);
+  } else if (masterPlayer) {
+    masterPlayer.seek(resumeTime);
+    masterPlayer.play();
+    if (transpose !== 0) await masterPlayer.setPitch(transpose);
   }
+
+  if (playerVideo) {
+    playerVideo.currentTime = resumeTime;
+    playerVideo.play().catch(() => {});
+  }
+
+  isPlaying = true;
+  if (els.playBtn) els.playBtn.textContent = '⏸';
+  startSyncLoop();
+}
+
+export function pause() {
+  if (isLoadingTrack) return;
+  if (mixer?.hasStems()) {
+    mixer.pause();
+  } else {
+    masterPlayer?.pause();
+  }
+  if (playerVideo) {
+    playerVideo.pause();
+    playerVideo.playbackRate = 1.0;
+  }
+  isPlaying = false;
+  if (els.playBtn) els.playBtn.textContent = '▶';
+  stopSyncLoop();
+}
+
+export function stop() {
+  if (isLoadingTrack) return;
+  mixer?.stop();
+  masterPlayer?.stop();
+  if (playerVideo) playerVideo.currentTime = regionConfirmed ? regionStart : 0;
+  isPlaying = false;
+  if (els.playBtn) els.playBtn.textContent = '▶';
+  updateProgressUI(0, getEffectiveDuration());
+  stopSyncLoop();
 }
 
 function clampToRegion(time) {
@@ -1274,116 +1473,20 @@ function clampToRegion(time) {
   return Math.max(regionStart, Math.min(time, regionEnd));
 }
 
-export async function play() {
-  if (!playerAudio?.src) return;
-
-  // Si le fichier n'est pas encore prêt, on attend canplay puis on rejoue.
-  if (playerAudio.readyState < 2) {
-    playerAudio.addEventListener('canplay', () => play(), { once: true });
-    playerAudio.load();
-    return;
-  }
-
-  // Bloquer la lecture si on est encore en phase de ciblage sans région confirmée.
-  if (studioStage === 1 && !regionConfirmed) {
-    setStatus('Sélectionnez et confirmez une région avant de lire.');
-    return;
-  }
-
-  const useStems = mixer?.hasStems() && useStemsMode;
-  const needsPitchShift = regionConfirmed && transpose !== 0;
-
-  if (useStems) {
-    setPlayerMuted();
-    mixer?.seek(regionConfirmed ? regionStart : playerAudio.currentTime);
-    mixer?.play();
-  } else if (needsPitchShift) {
-    // Web Audio : transposition active sur la région confirmée.
-    ensureStudioAudioContext();
-    if (studioAudioCtx?.state === 'suspended') {
-      try { await studioAudioCtx.resume(); } catch (_) {}
-    }
-    setPlayerMuted();
-    await ensurePlayerRouted();
-    if (!pitchShifter) await runPitchShift();
-    if (pitchShifter) pitchShifter.setPitch(transpose);
-  } else {
-    // Sortie native de meilleure qualité, sans passer par Web Audio.
-    disconnectPitchShifter();
-    setPlayerAudible();
-  }
-
-  const startTime = regionConfirmed ? regionStart : playerAudio.currentTime;
-  if (regionConfirmed && playerAudio.currentTime < regionStart) {
-    playerAudio.currentTime = startTime;
-    playerVideo.currentTime = startTime;
-  }
-
-  playerAudio.play().catch((err) => console.error('Play failed:', err));
-  playerVideo.play().catch(() => {});
-
-  isPlaying = true;
-  els.playBtn.textContent = '⏸';
-}
-
-export function pause() {
-  if (playerAudio?.paused) return; // déjà en pause, ne pas reseeker
-  playerAudio?.pause();
-  playerVideo?.pause();
-  mixer?.pause();
-  isPlaying = false;
-  els.playBtn.textContent = '▶';
-  stopUpdateLoop();
-  stopSyncLoop();
-}
-
-export function stop() {
-  playerAudio?.pause();
-  playerVideo?.pause();
-  if (playerAudio) playerAudio.currentTime = regionConfirmed ? regionStart : 0;
-  if (playerVideo) playerVideo.currentTime = regionConfirmed ? regionStart : 0;
-  mixer?.stop();
-  isPlaying = false;
-  els.playBtn.textContent = '▶';
-  updateProgressUI(0, getEffectiveDuration());
-  stopUpdateLoop();
-  stopSyncLoop();
-}
-
 function seek(time) {
+  if (isLoadingTrack) return;
   const clamped = clampToRegion(time);
-  if (playerAudio) playerAudio.currentTime = clamped;
   if (playerVideo) playerVideo.currentTime = clamped;
-  mixer?.seek(clamped);
-  if (pitchShifter) {
-    try { pitchShifter.clear(); } catch (_) {}
-  }
-}
-
-function updateProgressUI(current, duration) {
-  if (!els.progress || !els.time) return;
-  const pct = duration ? (current / duration) * 100 : 0;
-  els.progress.value = Math.max(0, Math.min(100, pct));
-  els.time.textContent = `${formatDuration(current)} / ${formatDuration(duration)}`;
-}
-
-function startUpdateLoop() {
-  // Déprécié : la mise à jour est maintenant pilotée par l'événement natif
-  // 'timeupdate' de l'élément audio pour éviter les conflits d'état UI.
-  stopUpdateLoop();
-}
-
-function stopUpdateLoop() {
-  if (updateInterval) {
-    clearInterval(updateInterval);
-    updateInterval = null;
+  if (mixer?.hasStems()) {
+    mixer.seek(clamped);
+  } else {
+    masterPlayer?.seek(clamped);
   }
 }
 
 async function refreshStems() {
   if (!currentTrack) {
     renderStems({});
-    updateStemsModeUI();
     return;
   }
   const stemPaths = await getStems(currentTrack.id);
@@ -1394,13 +1497,8 @@ async function refreshStems() {
   updateSeparateButton(hasStems);
   if (hasStems) {
     storeOriginalStems(blobUrls, stemPaths);
-    await mixer.loadStems(blobUrls);
-    if (useStemsMode) {
-      setPlayerMuted();
-      if (transpose !== 0) mixer.setDetune(transpose);
-    } else {
-      setPlayerAudible();
-    }
+    await mixer.loadStems(stemPaths);
+    if (transpose !== 0) mixer.setDetune(transpose);
     // Si la région était déjà confirmée, on passe automatiquement à l'étape 3
     if (regionConfirmed && studioStage !== 3) {
       updateStudioStage(3);
@@ -1409,11 +1507,8 @@ async function refreshStems() {
     }
   } else {
     mixer.reset();
-    setPlayerAudible();
     storeOriginalStems(null, null);
-    useStemsMode = false;
   }
-  updateStemsModeUI();
 }
 
 function updateSeparateButton(hasStems) {
@@ -1459,6 +1554,7 @@ function renderStems(stemPaths) {
     muteBtn.className = 'studio-stem-btn';
     if (s.muted) muteBtn.classList.add('active');
     muteBtn.addEventListener('click', () => {
+      if (isLoadingTrack) return;
       const muted = !muteBtn.classList.contains('active');
       muteBtn.classList.toggle('active', muted);
       mixer?.setMute(stem, muted);
@@ -1470,6 +1566,7 @@ function renderStems(stemPaths) {
     soloBtn.className = 'studio-stem-btn';
     if (s.solo) soloBtn.classList.add('active');
     soloBtn.addEventListener('click', () => {
+      if (isLoadingTrack) return;
       const soloed = !soloBtn.classList.contains('active');
       soloBtn.classList.toggle('active', soloed);
       mixer?.setSolo(stem, soloed);
@@ -1486,6 +1583,7 @@ function renderStems(stemPaths) {
     volume.value = String(s.volumeDb);
     volume.className = 'studio-stem-volume';
     volume.addEventListener('input', () => {
+      if (isLoadingTrack) return;
       const db = Number(volume.value);
       label.textContent = formatDb(db);
       mixer?.setVolume(stem, db);
@@ -1518,75 +1616,29 @@ function formatDb(db) {
   return `${db > 0 ? '+' : ''}${db} dB`;
 }
 
+
 async function getRegionTrimmedPath() {
-  if (regionEnd === null || !currentBlobUrl || !currentTrack) return currentTrack.metadata?.originalPath;
+  if (regionEnd === null || !currentTrack) return currentTrack.metadata?.originalPath;
   try {
     setStatus('Découpage de la région audio...');
-    const response = await fetch(currentBlobUrl);
-    const arrayBuffer = await response.arrayBuffer();
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-    const sampleRate = audioBuffer.sampleRate;
-    const startSample = Math.floor(regionStart * sampleRate);
-    const endSample = Math.floor(regionEnd * sampleRate);
-    const length = endSample - startSample;
-    if (length <= 0) return currentTrack.metadata?.originalPath;
+    const sourcePath = audioWavPath || currentTrack.metadata?.originalPath;
+    if (!sourcePath) return currentTrack.metadata?.originalPath;
 
-    const offlineCtx = new OfflineAudioContext(audioBuffer.numberOfChannels, length, sampleRate);
-    const buffer = offlineCtx.createBuffer(audioBuffer.numberOfChannels, length, sampleRate);
-    for (let ch = 0; ch < audioBuffer.numberOfChannels; ch++) {
-      const chanData = audioBuffer.getChannelData(ch);
-      buffer.copyToChannel(chanData.slice(startSample, endSample), ch);
+    if (window.electronAPI?.studio?.trimRegion) {
+      const tempPath = await window.electronAPI.studio.trimRegion(
+        currentTrack.id,
+        sourcePath,
+        regionStart,
+        regionEnd,
+      );
+      return tempPath;
     }
-    const src = offlineCtx.createBufferSource();
-    src.buffer = buffer;
-    src.connect(offlineCtx.destination);
-    src.start(0);
-    const rendered = await offlineCtx.startRendering();
-
-    const wavBytes = encodeWav(rendered);
-    const homeDir = await window.electronAPI.files.homeDir();
-    const tempDir = `${homeDir}/PianoJazzChords/Studio/temp`;
-    await window.electronAPI.files.ensureDir(tempDir);
-    const tempPath = `${tempDir}/${currentTrack.id}_region_${Date.now()}.wav`;
-    await window.electronAPI.files.writeBinary(tempPath, wavBytes);
-    return tempPath;
+    return currentTrack.metadata?.originalPath;
   } catch (err) {
     console.warn('[Studio] Region trim failed, using original:', err);
     setStatus('Découpage impossible, utilisation du fichier entier');
     return currentTrack.metadata?.originalPath;
   }
-}
-
-function encodeWav(audioBuffer) {
-  const numChannels = audioBuffer.numberOfChannels;
-  const sampleRate = audioBuffer.sampleRate;
-  const bitDepth = 16;
-  const bytesPerSample = bitDepth / 8;
-  const blockAlign = numChannels * bytesPerSample;
-  const data = [];
-  for (let i = 0; i < audioBuffer.length; i++) {
-    for (let ch = 0; ch < numChannels; ch++) {
-      const s = Math.max(-1, Math.min(1, audioBuffer.getChannelData(ch)[i]));
-      const v = s < 0 ? s * 0x8000 : s * 0x7FFF;
-      data.push(v & 0xFF);
-      data.push((v >> 8) & 0xFF);
-    }
-  }
-  const dataSize = data.length;
-  const buf = new ArrayBuffer(44 + dataSize);
-  const v = new DataView(buf);
-  function ws(offset, str) { for (let i = 0; i < str.length; i++) v.setUint8(offset + i, str.charCodeAt(i)); }
-  ws(0, 'RIFF'); v.setUint32(4, 36 + dataSize, true);
-  ws(8, 'WAVE'); ws(12, 'fmt ');
-  v.setUint32(16, 16, true); v.setUint16(20, 1, true);
-  v.setUint16(22, numChannels, true); v.setUint32(24, sampleRate, true);
-  v.setUint32(28, sampleRate * blockAlign, true); v.setUint16(32, blockAlign, true);
-  v.setUint16(34, bitDepth, true); ws(36, 'data');
-  v.setUint32(40, dataSize, true);
-  const u8 = new Uint8Array(buf);
-  for (let i = 0; i < dataSize; i++) u8[44 + i] = data[i];
-  return Array.from(u8);
 }
 
 async function runSeparation() {

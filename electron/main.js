@@ -319,6 +319,19 @@ function setupFileSystemIPC() {
     return new Uint8Array(buffer);
   });
 
+  ipcMain.handle('files:write-binary', async (event, filePath, data) => {
+    let buffer = data;
+    if (data instanceof ArrayBuffer) {
+      buffer = Buffer.from(data);
+    } else if (Array.isArray(data)) {
+      buffer = Buffer.from(data);
+    } else if (data instanceof Uint8Array) {
+      buffer = Buffer.from(data.buffer, data.byteOffset, data.byteLength);
+    }
+    await fs.writeFile(filePath, buffer);
+    return true;
+  });
+
   ipcMain.handle('files:exists', async (event, filePath) => {
     try {
       await fs.access(filePath);
@@ -606,14 +619,14 @@ async function createSimulatedStems(trackId) {
 }
 
 function setupStudioIPC() {
+  console.log('[StudioIPC] registering studio handlers...');
   ipcMain.handle('studio:select-file', async () => {
     if (!mainWindow) return null;
     const result = await dialog.showOpenDialog(mainWindow, {
       title: 'Importer un morceau',
       properties: ['openFile'],
       filters: [
-        { name: 'Audio/Vidéo', extensions: ['mp3', 'mp4', 'wav', 'flac', 'ogg'] },
-        { name: 'Tous les fichiers', extensions: ['*'] },
+        { name: 'Formats supportés (MP3, WAV, M4A, MP4)', extensions: ['mp3', 'wav', 'm4a', 'mp4'] },
       ],
     });
     return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
@@ -673,6 +686,17 @@ function setupStudioIPC() {
     await fs.mkdir(trackDir, { recursive: true });
     const outputWav = path.join(trackDir, 'audio.wav');
     await extractTrackAudio(inputPath, outputWav);
+    return outputWav;
+  });
+
+  console.log('[StudioIPC] registering studio:trim-region handler');
+  ipcMain.handle('studio:trim-region', async (event, trackId, inputPath, startSec, endSec) => {
+    console.log('[StudioIPC] trim-region called for', trackId, inputPath, startSec, endSec);
+    const studioDir = await ensureStudioDir();
+    const tempDir = path.join(studioDir, 'temp');
+    await fs.mkdir(tempDir, { recursive: true });
+    const outputWav = path.join(tempDir, `${trackId}_region_${Date.now()}.wav`);
+    await runAudioProcessor(['trim', inputPath, outputWav, String(startSec), String(endSec)]);
     return outputWav;
   });
 

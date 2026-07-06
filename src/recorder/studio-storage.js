@@ -150,7 +150,17 @@ export async function readOriginalAsBlobUrl(trackId) {
   }
   if (!originalPath) return null;
   const bytes = await files.readBinary(originalPath);
-  const mime = ext === 'mp4' ? 'video/mp4' : ext === 'wav' ? 'audio/wav' : ext === 'flac' ? 'audio/flac' : ext === 'ogg' ? 'audio/ogg' : 'audio/mpeg';
+  const mime = ext === 'mp4'
+    ? 'video/mp4'
+    : ext === 'm4a'
+      ? 'audio/mp4'
+      : ext === 'wav'
+        ? 'audio/wav'
+        : ext === 'flac'
+          ? 'audio/flac'
+          : ext === 'ogg'
+            ? 'audio/ogg'
+            : 'audio/mpeg';
   const blob = new Blob([bytes], { type: mime });
   return URL.createObjectURL(blob);
 }
