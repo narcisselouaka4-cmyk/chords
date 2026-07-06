@@ -158,6 +158,11 @@ function playRhodesNote(midi, velocity) {
 }
 
 export function playNote(midi, velocity = 0.8) {
+  if (!Number.isFinite(midi) || midi < 0 || midi > 127) {
+    console.warn('[simple-synth] Note MIDI invalide ignorée:', midi);
+    return;
+  }
+
   resumeAudio();
 
   if (activeOscillators.has(midi)) {
@@ -203,6 +208,7 @@ function stopOscillators({ oscillators, gains, masterGain, filter }) {
 }
 
 export function releaseNote(midi) {
+  if (!Number.isFinite(midi) || midi < 0 || midi > 127) return;
   if (!activeOscillators.has(midi)) return;
   stopOscillators(activeOscillators.get(midi));
   activeOscillators.delete(midi);
