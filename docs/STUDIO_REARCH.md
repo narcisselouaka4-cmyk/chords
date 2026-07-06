@@ -1,8 +1,7 @@
 # Plan de réarchitecture audio du module Studio — Piano Jazz Chords
 
-> Fichier destiné à Claude (prochain agent de correction).  
-> Contexte complet + plan technique détaillé + décisions utilisateur validées.  
-> Mode d'exécution : "don't ask" — exécuter intégralement après lecture.
+> **STATUT : PLAN EXÉCUTÉ PAR CLAUDE**  
+> Ce document décrit l'état cible déjà atteint. Il peut servir de référence pour les prochaines itérations ou debug.
 
 ---
 
@@ -11,14 +10,16 @@
 **Application** : Piano Jazz Chords (Electron + Vite + vanilla JS).  
 **Module concerné** : Studio (import, lecture, transposition, séparation de pistes Demucs, analyse de performances/covers).
 
-### Architecture existante du Studio
+### Architecture actuelle du Studio (après réarchitecture)
 
 - Un onglet `Studio` avec :
   - Liste de morceaux importés (MP3, WAV, MP4, etc.).
-  - Lecteur `<video>` / `<audio>` pour la lecture.
+  - **Vidéo visible** (`<video>`) pour l'image uniquement.
+  - **Audio caché** (`<audio>`) pour le son natif + traitement WebAudio.
   - Waveform + sélection de région.
-  - Contrôles de transposition en demi-tons.
+  - Contrôles de transposition en demi-tons (verrouillés tant que la région n'est pas confirmée).
   - Bouton de séparation de pistes (Demucs).
+  - Toggle "Pistes séparées / Mix original".
   - Mixer de stems (bass, drums, vocals, other, piano).
 
 - Fichiers clés :
@@ -26,14 +27,14 @@
   - `src/audio/pitch-shifter.js` : SoundTouch AudioWorklet pour la transposition.
   - `src/audio/stem-mixer.js` : mixer multi-pistes.
   - `src/audio/stem-separator.js` : interface avec Demucs via IPC Electron.
-  - `src/audio/simple-synth.js` : synthétiseur virtuel.
+  - `src/audio/simple-synth.js` : synthétiseur virtuel (avec clamp fréquences + garde MIDI).
   - `src/virtual-keyboard.js` : clavier virtuel + raccourcis.
   - `src/index.html` : DOM.
   - `src/style.css` : styles.
 
 ---
 
-## 2. Historique des bugs corrigés par l'agent précédent
+## 2. Historique des bugs corrigés
 
 Les commits récents ont corrigé les problèmes suivants :
 
@@ -45,48 +46,39 @@ Les commits récents ont corrigé les problèmes suivants :
 6. **Verrou région transpo/séparation** : transposition et séparation désactivées tant que la région n'est pas confirmée manuellement.
 7. **`<video>` pour MP4** : le lecteur affiche maintenant les vidéos.
 8. **Garde anti-notes MIDI invalides** : rejet si `midi < 0 || midi > 127` dans `simple-synth.js`.
+9. **Réarchitecture audio hybride** : vidéo visible + audio caché synchronisés.
+10. **Clamp fréquences oscillateurs** : évite le warning WebAudio `frequency outside nominal range`.
 
 ---
 
-## 3. État actuel (à la date de ce plan)
+## 3. État actuel
 
-### ✅ Ce qui marche
-- L'image/lecture vidéo fonctionne (MP4).
-- Track_003 (pistes séparées par Demucs) sort du son.
-- La UI avance correctement (barre de progression, waveform).
-- Aucun buzz MIDI parasite dans la plupart des cas.
+### ✅ Ce qui est implémenté
+- **Vidéo visible + audio caché** : le son sort via un `<audio>` caché alimenté par le WAV extrait, tandis que l'image reste visible.
+- **Synchronisation robuste** : l'audio mène le timing, la vidéo suit via événements critiques + `requestAnimationFrame` + resync si dérive.
+- **Toggle stems/mix** : bouton dans la sidebar droite pour basculer instantanément entre pistes séparées et mix original.
+- **Transposition** : appliquée uniquement quand la région est confirmée, via WebAudio/SoundTouch sur l'audio caché.
+- **Fallback** : si l'extraction WAV échoue, l'audio caché utilise le blob original.
 
-### ❌ Ce qui ne marche pas
-1. **Silence total sur les tracks non séparés** : quand on charge un MP3/MP4 sans stems, la vidéo avance mais aucun son ne sort.
-2. **Craquements sur Track_003** : mauvaise qualité audio sur le track séparé.
-3. **Manque de flexibilité stems vs mix** : impossible de basculer entre pistes séparées et mix original instantanément.
-
----
-
-## 4. Objectif final
-
-Réarchitecturer le pipeline audio du Studio pour obtenir :
-
-1. **Son sur tous les tracks**, séparés ou non.
-2. **Image vidéo synchronisée** avec le son (pour les MP4), à la milliseconde près.
-3. **Transposition stable** (tempo constant, pas de craquements) quand région confirmée.
-4. **Bascule instantanée** entre pistes séparées et mix original.
-5. **Aucun buzz MIDI parasite**.
+### ⚠️ À vérifier / potentiellement à corriger
+1. **Son sur les tracks non séparés** : à tester sous Electron.
+2. **Craquements Track_003** : vérifier si le clamp/purge suffit.
+3. **Dérive audio/vidéo** : vérifier sur des MP4 longs.
 
 ---
 
-## 5. Décisions utilisateur validées
+## 4. Décisions utilisateur validées (et appliquées)
 
-| Question | Réponse utilisateur | Implication |
-|----------|---------------------|-------------|
-| Q1 : synchronisation video/audio | **A** — Ne pas utiliser `timeupdate` manuel. Synchroniser sur événements critiques (play, pause, seeking, seeked) + `requestAnimationFrame` + resync si dérive. | L'audio est la source de vérité du timing. La vidéo suit l'audio. |
-| Q2 : source audio cachée | **A** — Utiliser le fichier WAV extrait via `extractAudio()` pour le son natif. | Meilleure performance, moins de RAM, WebAudio plus stable. |
-| Q3 : mix original avec stems | **A** — Garder le `<audio>` caché (mix original) même quand les stems existent. | Bouton/toggle "Pistes séparées / Mix original" dans l'interface. |
-| Q4 : lecture du fichier WAV | **A** — Lire le fichier WAV local en binaire via `window.electronAPI.files.readBinary()` puis créer un blob URL. | Plus sûr que `file://` direct. |
+| Question | Réponse appliquée | Résultat |
+|----------|-------------------|----------|
+| Q1 : synchronisation video/audio | **A** — Synchronisation sur événements critiques + `requestAnimationFrame` + resync. | L'audio est la source de vérité du timing. |
+| Q2 : source audio cachée | **A** — Fichier WAV extrait via `extractAudio()`. | Moins de RAM, WebAudio plus stable. |
+| Q3 : mix original avec stems | **A** — Garde l'audio caché, toggle "Pistes séparées / Mix original". | Bascule instantanée. |
+| Q4 : lecture du fichier WAV | **A** — `readBinary()` + blob URL. | Plus sûr que `file://`. |
 
 ---
 
-## 6. Plan technique d'implémentation
+## 5. Détails de l'implémentation
 
 ### 6.1 DOM Studio
 
@@ -735,17 +727,25 @@ Ajouter dans `src/style.css` :
 
 ---
 
-## 7. Fichiers à modifier
+## 6.13 Commit associé
 
-1. `src/index.html` — DOM lecteur.
-2. `src/style.css` — styles lecteur.
-3. `src/ui/studio-tab.js` — logique principale (réécriture massive).
-4. `src/audio/stem-mixer.js` — optimiser `setDetune(0)`.
-5. `src/audio/simple-synth.js` — garder la garde anti-notes invalides (déjà faite).
+```
+7a27af8 Studio: réarchitecture du pipeline audio (vidéo visible + audio caché)
+acc82fa Synth: clamper les fréquences des oscillateurs pour éviter le warning Web Audio
+```
 
 ---
 
-## 8. Tests attendus après implémentation
+## 7. Fichiers modifiés (réellement)
+
+1. `src/index.html` — séparation en `#studio-video-container` + `#studio-audio-container` + toggle stems.
+2. `src/style.css` — styles des deux conteneurs + bouton toggle stems.
+3. `src/ui/studio-tab.js` — réarchitecture complète (deux players, synchro, toggle stems, loadTrack).
+4. `src/audio/simple-synth.js` — `clampOscFrequency()` + garde MIDI 0–127.
+
+---
+
+## 8. Tests à valider
 
 1. **MP3** : import → waveform → Play → son sort.
 2. **MP4** : import → image + son synchronisés → Play → son sort, image suit.
@@ -756,14 +756,3 @@ Ajouter dans `src/style.css` :
 7. **Track séparé** : toggle "Pistes séparées / Mix original" fonctionne instantanément.
 8. **Séparation Demucs manquante** : pas de crash audio.
 9. **Aucun buzz MIDI** au Play.
-
----
-
-## 9. Notes importantes pour Claude
-
-- **Ne pas demander de validation** à l'utilisateur. Exécuter directement.
-- Faire un **commit unique** à la fin avec message explicite.
-- Vérifier `npm run build` et les tests de régression existants.
-- Si `extractAudio` n'est pas disponible ou échoue, implémenter le fallback sur le blob original.
-- Préserver la fonctionnalité existante de sélection de région et de waveform.
-- Le code actuel est en français ; maintenir les commentaires en français.
