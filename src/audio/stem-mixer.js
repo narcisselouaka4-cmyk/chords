@@ -14,12 +14,22 @@ export function gainToDb(gain) {
   return 20 * Math.log10(gain);
 }
 
-export function createStemMixer() {
-  let audioCtx = null;
-  let sources = {};
-  let sourceNodes = {};
-  let pitchShifters = {};
-  let gains = {};
+/**
+ * Crée le mixer de stems autour d'un AudioContext partagé.
+ *
+ * @param {AudioContext|null} sharedAudioCtx - Contexte audio à partager.
+ * @param {(path: string) => Promise<ArrayBuffer>} readAudioFn - Fonction de lecture
+ *   du fichier (obligatoire). Doit retourner un ArrayBuffer valide pour
+ *   AudioContext.decodeAudioData(). Cela permet d'éviter fetch(blob:) bloqué par CSP.
+ */
+export function createStemMixer(sharedAudioCtx = null, readAudioFn = null) {
+  let audioCtx = sharedAudioCtx;
+  let readAudio = readAudioFn;
+
+  let buffers = {};           // stem -> AudioBuffer
+  let sourceNodes = {};       // stem -> AudioBufferSourceNode actif
+  let pitchShifters = {};      // stem -> pitch-shifter (persistant)
+  let gains = {};             // stem -> GainNode (persistant)
   let state = {};
   let destination = null;
   let currentDuration = 0;
@@ -29,6 +39,10 @@ export function createStemMixer() {
   let isLoaded = false;
   let currentPitch = 0;
 
+  let currentTime = 0;          // position dans le fichier (secondes)
+  let playStartCtxTime = 0;     // audioCtx.currentTime au moment du play
+  let isPlaying = false;
+
   for (const stem of STEMS) {
     state[stem] = { muted: false, solo: false, volumeDb: 0 };
   }
@@ -36,6 +50,8 @@ export function createStemMixer() {
   function ensureContext() {
     if (!audioCtx) {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (!destination) {
       destination = audioCtx.createGain();
       destination.connect(audioCtx.destination);
       masterGain = destination;
@@ -48,9 +64,10 @@ export function createStemMixer() {
     if (!hasAny) {
       isLoaded = false;
       stop();
-      disconnectAll();
-      sources = {};
+      disconnectSources();
+      buffers = {};
       gains = {};
+      pitchShifters = {};
       currentDuration = 0;
       return [];
     }
@@ -60,64 +77,61 @@ export function createStemMixer() {
     await audioCtx.resume();
 
     stop();
-    disconnectAll();
-    sources = {};
+    disconnectSources();
+    buffers = {};
     sourceNodes = {};
     pitchShifters = {};
     gains = {};
     currentDuration = 0;
 
+    if (!readAudio) {
+      console.error('[StemMixer] readAudioFn manquant : impossible de charger les stems.');
+      return [];
+    }
+
     for (const stem of STEMS) {
       const path = stemPaths[stem];
       if (!path) continue;
 
-      const audio = new Audio(path);
-      audio.crossOrigin = 'anonymous';
-      audio.preload = 'auto';
       try {
-        const mediaSource = audioCtx.createMediaElementSource(audio);
-        sourceNodes[stem] = mediaSource;
+        const arrayBuffer = await readAudio(path);
+        const buffer = await audioCtx.decodeAudioData(arrayBuffer);
+        buffers[stem] = buffer;
+
         const gain = audioCtx.createGain();
-        // Start completely silent to avoid any noise when playback begins.
         gain.gain.setValueAtTime(0, audioCtx.currentTime);
+        gain.connect(destination);
+        gains[stem] = gain;
+
+        // Créer le pitch-shifter immédiatement même à 0 ; on le bypassera
+        // en connectant directement si besoin, mais le garder simplifie les
+        // changements de transposition en cours de lecture.
         const shifter = await createPitchShifter(audioCtx, gain, currentPitch);
         pitchShifters[stem] = shifter;
-        mediaSource.connect(shifter.node);
-        gain.connect(destination);
-        sources[stem] = audio;
-        gains[stem] = gain;
-        audio.addEventListener('loadedmetadata', () => {
-          if (audio.duration && audio.duration > currentDuration) {
-            currentDuration = audio.duration;
-          }
-        });
+
+        if (buffer.duration && buffer.duration > currentDuration) {
+          currentDuration = buffer.duration;
+        }
       } catch (err) {
-        console.warn(`[StemMixer] failed to create source for ${stem}:`, err);
-        // On continue sans déconnecter la destination ; un stem manquant ne doit pas
-        // muter l'audio global du studio.
+        console.warn(`[StemMixer] failed to load stem ${stem}:`, err);
       }
     }
 
-    isLoaded = true;
-    // Keep gains at 0 until play() ramps them up.
-    return Object.keys(sources);
+    isLoaded = Object.keys(buffers).length > 0;
+    currentTime = 0;
+    return Object.keys(buffers);
   }
 
-  function disconnectAll() {
-    for (const stem of Object.keys(pitchShifters)) {
+  function disconnectSources() {
+    for (const stem of Object.keys(sourceNodes)) {
       try {
-        pitchShifters[stem].disconnect();
-      } catch (e) {
-        // ignore
-      }
-    }
-    for (const stem of Object.keys(gains)) {
+        sourceNodes[stem].stop?.();
+      } catch (_) {}
       try {
-        gains[stem].disconnect();
-      } catch (e) {
-        // ignore
-      }
+        sourceNodes[stem].disconnect();
+      } catch (_) {}
     }
+    sourceNodes = {};
   }
 
   function computeGain(stem) {
@@ -162,65 +176,100 @@ export function createStemMixer() {
     }
   }
 
-  function play() {
+  function createSourceForStem(stem, offset) {
+    const buffer = buffers[stem];
+    const gain = gains[stem];
+    const shifter = pitchShifters[stem];
+    if (!buffer || !gain) return null;
+
+    const src = audioCtx.createBufferSource();
+    src.buffer = buffer;
+    src.playbackRate.value = 1.0;
+
+    if (shifter) {
+      src.connect(shifter.node);
+    } else {
+      src.connect(gain);
+    }
+
+    src.start(0, offset);
+    return src;
+  }
+
+  function play(offset = null) {
     if (!audioCtx || !isLoaded) return;
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(() => {});
+    }
+
+    const startOffset = offset !== null ? offset : currentTime;
+    currentTime = startOffset;
+    playStartCtxTime = audioCtx.currentTime;
+    isPlaying = true;
+
+    disconnectSources();
+
     const now = audioCtx.currentTime;
-    // Reset all gains to 0 immediately, then ramp up smoothly.
     for (const stem of Object.keys(gains)) {
       gains[stem].gain.cancelScheduledValues(now);
       gains[stem].gain.setValueAtTime(0, now);
     }
-    for (const audio of Object.values(sources)) {
-      audio.currentTime = getCurrentTime();
-      audio.play().catch(() => {});
+
+    for (const stem of Object.keys(buffers)) {
+      sourceNodes[stem] = createSourceForStem(stem, startOffset);
     }
-    // Ramp up after a tiny delay so all sources are roughly in sync.
+
+    // Ramp up après un court délai pour synchroniser les stems.
     setTimeout(() => applyState(0.05), 30);
     startProgress();
   }
 
   function pause() {
-    for (const audio of Object.values(sources)) {
-      audio.pause();
-    }
+    if (!isPlaying) return;
+    currentTime = getCurrentTime();
+    isPlaying = false;
+    disconnectSources();
     stopProgress();
   }
 
   function stop() {
-    for (const audio of Object.values(sources)) {
-      audio.pause();
-      audio.currentTime = 0;
-    }
+    disconnectSources();
+    isPlaying = false;
+    currentTime = 0;
     stopProgress();
   }
 
   function reset() {
     stop();
-    disconnectAll();
-    for (const stem of Object.keys(sourceNodes)) {
-      try {
-        sourceNodes[stem].mediaElement?.pause?.();
-      } catch (_) {
-        // ignore
-      }
+    for (const stem of Object.keys(pitchShifters)) {
+      try { pitchShifters[stem].disconnect(); } catch (_) {}
     }
-    sources = {};
+    for (const stem of Object.keys(gains)) {
+      try { gains[stem].disconnect(); } catch (_) {}
+    }
+    buffers = {};
     sourceNodes = {};
     pitchShifters = {};
     gains = {};
     currentDuration = 0;
     isLoaded = false;
+    currentPitch = 0;
   }
 
   function seek(time) {
-    for (const audio of Object.values(sources)) {
-      audio.currentTime = time;
+    currentTime = Math.max(0, time);
+    if (isPlaying) {
+      play(currentTime);
     }
   }
 
   function getCurrentTime() {
-    const src = Object.values(sources)[0];
-    return src ? src.currentTime : 0;
+    if (!audioCtx || !isLoaded) return 0;
+    if (isPlaying) {
+      const elapsed = audioCtx.currentTime - playStartCtxTime;
+      return Math.min(currentDuration, currentTime + elapsed);
+    }
+    return currentTime;
   }
 
   function getDuration() {
@@ -232,16 +281,22 @@ export function createStemMixer() {
   }
 
   function setDetune(semitones) {
+    // Mémoriser la position exacte avant de changer le pitch pour rester synchrone.
+    if (isPlaying) {
+      currentTime = getCurrentTime();
+    }
     currentPitch = semitones;
-    for (const stem of Object.keys(pitchShifters)) {
+
+    for (const stem of Object.keys(buffers)) {
       const shifter = pitchShifters[stem];
       if (!shifter) continue;
-      if (semitones === 0) {
-        // A transposition 0, on bypass le pitch-shifter en forcant un ratio neutre
-        // plutot que de le desactiver (reconnexion complexe). Le tempo reste verrouille.
-        try { shifter.clear(); } catch (_) {}
-      }
       shifter.setPitch(semitones);
+    }
+
+    // Si on est en lecture, recréer les sources pour qu'elles démarrent à la
+    // position actuelle avec le nouveau pitch (évite la dérive temporelle).
+    if (isPlaying) {
+      play(currentTime);
     }
   }
 
@@ -251,7 +306,7 @@ export function createStemMixer() {
       const t = getCurrentTime();
       const d = getDuration();
       onProgress?.(t, d);
-    }, 200);
+    }, 80);
   }
 
   function stopProgress() {
@@ -277,10 +332,10 @@ export function createStemMixer() {
     hasStems,
     setDetune,
     setOnProgress: (cb) => { onProgress = cb; },
-    get loadedStems() { return Object.keys(sources); },
+    get loadedStems() { return Object.keys(buffers); },
     getState: () => state,
     getAudioContext: ensureContext,
     getDestination: () => destination,
-    getSources: () => sources,
+    getSources: () => buffers,
   };
 }

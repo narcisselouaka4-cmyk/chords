@@ -36,6 +36,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ensureDir: (dirPath) => ipcRenderer.invoke('files:ensure-dir', dirPath),
     readDir: (dirPath) => ipcRenderer.invoke('files:read-dir', dirPath),
     writeFile: (filePath, content) => ipcRenderer.invoke('files:write-file', filePath, content),
+    writeBinary: (filePath, data) => ipcRenderer.invoke('files:write-binary', filePath, data),
     readFile: (filePath) => ipcRenderer.invoke('files:read-file', filePath),
     readBinary: (filePath) => ipcRenderer.invoke('files:read-binary', filePath),
     exists: (filePath) => ipcRenderer.invoke('files:exists', filePath),
@@ -53,6 +54,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       return () => ipcRenderer.removeListener('studio:separation-progress', handler);
     },
     extractAudio: (trackId, inputPath) => ipcRenderer.invoke('studio:extract-audio', trackId, inputPath),
+    trimRegion: (trackId, inputPath, startSec, endSec) => ipcRenderer.invoke('studio:trim-region', trackId, inputPath, startSec, endSec),
     generateWaveform: (wavPath) => ipcRenderer.invoke('studio:generate-waveform', wavPath),
     pitchShift: (trackId, semitones, startSec, endSec, useStems) => ipcRenderer.invoke('studio:pitch-shift', trackId, semitones, startSec, endSec, useStems),
     pitchShiftStems: (trackId, semitones, startSec, endSec, stemPaths) => ipcRenderer.invoke('studio:pitch-shift-stems', trackId, semitones, startSec, endSec, stemPaths),

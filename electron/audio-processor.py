@@ -19,23 +19,69 @@ def log(msg):
     print(f'[AudioProcessor] {msg}', flush=True)
 
 
+def trim_audio(input_path, output_wav, start_sec, end_sec, sample_rate=44100):
+    """Extract a precise region from any media file to WAV using ffmpeg."""
+    duration = end_sec - start_sec
+    log(f'trimming {input_path} region {start_sec}-{end_sec} to {output_wav}')
+    cmd = [
+        FFMPEG,
+        '-y',
+        '-fflags', '+genpts',
+        '-err_detect', 'ignore_err',
+        '-ss', str(start_sec),
+        '-t', str(duration),
+        '-i', input_path,
+        '-vn',
+        '-af', 'aformat=sample_fmts=s16:channel_layouts=stereo,aresample=44100:resampler=soxr:precision=28,volume=1.0',
+        '-ar', str(sample_rate),
+        '-ac', '2',
+        '-sample_fmt', 's16',
+        '-c:a', 'pcm_s16le',
+        output_wav,
+    ]
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    if proc.returncode != 0:
+        raise RuntimeError(f'ffmpeg trim failed: {proc.stderr}')
+    try:
+        with wave.open(output_wav, 'rb') as w:
+            frames = w.getnframes()
+            log(f'trim done: {frames} frames, {w.getnchannels()} ch, {w.getframerate()} Hz')
+            if frames == 0:
+                raise RuntimeError('ffmpeg produced an empty WAV file')
+    except Exception as e:
+        raise RuntimeError(f'trimmed WAV is invalid: {e}')
+
+
 def extract_audio(input_path, output_wav, sample_rate=44100):
     """Extract audio track from any media file to WAV using ffmpeg."""
     log(f'extracting audio from {input_path} to {output_wav}')
     cmd = [
         FFMPEG,
         '-y',
+        '-fflags', '+genpts',
+        '-err_detect', 'ignore_err',
         '-i', input_path,
         '-vn',  # no video
+        '-af', 'aformat=sample_fmts=s16:channel_layouts=stereo,aresample=44100:resampler=soxr:precision=28,volume=1.0',
         '-ar', str(sample_rate),
         '-ac', '2',
         '-sample_fmt', 's16',
+        '-c:a', 'pcm_s16le',
         output_wav,
     ]
     proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     if proc.returncode != 0:
         raise RuntimeError(f'ffmpeg extraction failed: {proc.stderr}')
-    log('audio extraction done')
+    # Vérifier que le fichier de sortie est un WAV PCM valide et non vide.
+    try:
+        with wave.open(output_wav, 'rb') as w:
+            frames = w.getnframes()
+            log(f'audio extraction done: {frames} frames, {w.getnchannels()} ch, {w.getframerate()} Hz')
+            if frames == 0:
+                raise RuntimeError('ffmpeg produced an empty WAV file')
+    except Exception as e:
+        raise RuntimeError(f'extracted WAV is invalid: {e}')
+
 
 
 def generate_waveform(wav_path, num_peaks=400):
@@ -190,6 +236,13 @@ def main():
         input_path = sys.argv[2]
         output_wav = sys.argv[3]
         extract_audio(input_path, output_wav)
+
+    elif command == 'trim':
+        input_path = sys.argv[2]
+        output_wav = sys.argv[3]
+        start_sec = float(sys.argv[4])
+        end_sec = float(sys.argv[5])
+        trim_audio(input_path, output_wav, start_sec, end_sec)
 
     elif command == 'waveform':
         wav_path = sys.argv[2]

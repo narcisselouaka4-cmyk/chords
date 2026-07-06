@@ -59,7 +59,10 @@ export async function createPitchShifter(audioCtx, destinationNode, semitones = 
       if (stNode.tempo && typeof stNode.tempo.value === 'number') stNode.tempo.value = 1.0;
       if (stNode.rate && typeof stNode.rate.value === 'number') stNode.rate.value = 1.0;
       if (stNode.playbackRate && typeof stNode.playbackRate.value === 'number') stNode.playbackRate.value = 1.0;
-      stNode.pitch.value = semitonesToPitchRatio(st);
+      // Modification douce du pitch en temps réel pour éviter les coupures / clics.
+      const now = audioCtx.currentTime;
+      stNode.pitch.setTargetAtTime?.(semitonesToPitchRatio(st), now, 0.02)
+        ?? (stNode.pitch.value = semitonesToPitchRatio(st));
     },
     disconnect: () => {
       try {

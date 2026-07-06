@@ -144,12 +144,13 @@
 
       <!-- [OpenCode] — 2026-07-04 — Onglet Studio : import, lecture et séparation de pistes -->
       <main class="studio-tab" id="studio-tab" style="display: none;">
-        <!-- Overlay de l'Étape 1 : Ciblage -->
+        <!-- Overlay de l'Étape 1 : message flottant uniquement, ne bloque pas la waveform -->
         <div id="studio-stage-overlay" class="studio-stage-overlay" style="display: none;">
           <div class="studio-stage-overlay-inner">
             <h3>🎯 Sélectionnez une zone à travailler</h3>
-            <p class="studio-overlay-hint">Tracez une région de maximum 5 minutes sur la waveform, puis cliquez sur <strong>Confirmer</strong>.</p>
-            <p class="studio-overlay-hint">Vous pourrez ensuite lancer la séparation des pistes et la transposition.</p>
+            <p class="studio-overlay-hint">1. Écoutez le morceau avec le bouton <strong>▶</strong>.</p>
+            <p class="studio-overlay-hint">2. Tracez une région de maximum 5 minutes sur la waveform.</p>
+            <p class="studio-overlay-hint">3. Cliquez sur <strong>Confirmer la région</strong>.</p>
           </div>
         </div>
 
@@ -173,7 +174,8 @@
 
         <aside class="studio-sidebar left">
           <div class="panel">
-            <div class="panel-title">Morceaux importés</div>
+            <div class="panel-title">🎵 Morceaux importés</div>
+            <p class="studio-empty-hint">Sélectionnez un morceau pour commencer à travailler.</p>
             <button id="studio-import-btn" class="record-action">Importer un fichier</button>
             <div class="studio-track-list" id="studio-track-list"></div>
           </div>
@@ -183,8 +185,8 @@
           <div class="studio-player-wrap" id="studio-player-wrap">
             <!-- Vidéo visible : image uniquement -->
             <div id="studio-video-container" class="studio-video-container"></div>
-            <!-- Audio caché : son natif + WebAudio -->
-            <div id="studio-audio-container" class="studio-audio-container" style="display:none;"></div>
+            <!-- Audio caché : son natif + WebAudio (positionné hors écran, jamais display:none) -->
+            <div id="studio-audio-container" class="studio-audio-container"></div>
             <!-- [Claude] — 2026-07-04 — Fond musical stylisé pour les fichiers audio sans image (MP3, WAV…) -->
             <div id="studio-audio-backdrop" class="studio-audio-backdrop" style="display: none;">
               <div class="studio-backdrop-icon">🎵</div>
@@ -238,10 +240,7 @@
             <div class="panel-title">Pistes séparées</div>
             <button id="studio-separate-btn" class="record-action">Séparer les pistes</button>
             <div class="studio-separate-status" id="studio-separate-status"></div>
-            <div class="studio-stems-mode" id="studio-stems-mode" style="display:none;">
-              <button id="studio-stems-mode-toggle" type="button">Écouter les pistes séparées</button>
-            </div>
-            <div class="studio-stems-list" id="studio-stems-list"></div>
+              <div class="studio-stems-list" id="studio-stems-list"></div>
           </div>
         </aside>
       </main>
