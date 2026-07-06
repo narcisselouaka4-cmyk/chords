@@ -35,6 +35,12 @@ let mediaDuration = 0;
 let isAudioReady = false;
 let pendingTranspose = 0;
 
+// UX Studio en 3 étapes : 1=ciblage, 2=traitement, 3=lecture pro
+let studioStage = 1;
+let isProcessing = false;
+let processingJobId = null;
+let pendingRegion = null;
+
 // Réarchitecture audio : deux players (vidéo visible + audio caché)
 let playerVideo = null;
 let playerAudio = null;
@@ -76,6 +82,11 @@ const els = {
   transposePlus: document.getElementById('studio-transpose-plus'),
   separateBtn: document.getElementById('studio-separate-btn'),
   separateStatus: document.getElementById('studio-separate-status'),
+  stageOverlay: document.getElementById('studio-stage-overlay'),
+  processingOverlay: document.getElementById('studio-processing-overlay'),
+  processingLabel: document.getElementById('studio-processing-label'),
+  processingBar: document.getElementById('studio-processing-bar'),
+  readyToast: document.getElementById('studio-ready-toast'),
   stemsList: document.getElementById('studio-stems-list'),
   waveformWrap: document.getElementById('studio-waveform-wrap'),
   waveform: document.getElementById('studio-waveform'),
@@ -344,7 +355,7 @@ function updateStemsModeUI() {
   }
 }
 
-const MAX_REGION_DURATION = 210; // 3min30 en secondes
+const MAX_REGION_DURATION = 300; // 5 minutes maximum
 
 function setCropControlsEnabled(enabled) {
   if (els.separateBtn) els.separateBtn.disabled = !enabled;
@@ -367,14 +378,8 @@ function updateCropButtons() {
 
 function confirmRegion() {
   if (regionEnd === null) return;
-  regionConfirmed = true;
-  renderWaveform();
-  updateCropButtons();
-  setCropControlsEnabled(true);
-  setTransposeControlsEnabled(true);
-  updateRegionUI();
-  // Applique la transposition si elle a été modifiée pendant que les contrôles étaient verrouillés.
-  if (transpose !== 0) runPitchShift();
+  // Lancer le traitement asynchrone de la région (extraction + séparation en tâche de fond)
+  startRegionProcessing();
 }
 
 function backRegion() {
@@ -384,6 +389,7 @@ function backRegion() {
   setCropControlsEnabled(false);
   setTransposeControlsEnabled(false);
   updateRegionUI();
+  updateStudioStage(1);
   // On remet la transposition à 0 quand on sort du mode région confirmée.
   if (transpose !== 0) {
     transpose = 0;
@@ -401,6 +407,7 @@ function resetRegion() {
   updateCropButtons();
   setCropControlsEnabled(false);
   setTransposeControlsEnabled(false);
+  updateStudioStage(1);
   if (transpose !== 0) {
     transpose = 0;
     updateTransposeUI();
@@ -859,6 +866,151 @@ function storeOriginalStems(blobUrls, paths) {
   originalStemsPaths = paths;
 }
 
+function updateStudioStage(stage) {
+  studioStage = stage;
+  const tab = document.getElementById('studio-tab');
+  if (tab) {
+    tab.classList.remove('stage-1', 'stage-2', 'stage-3');
+    tab.classList.add(`stage-${stage}`);
+  }
+
+  if (els.stageOverlay) {
+    els.stageOverlay.style.display = stage === 1 ? 'flex' : 'none';
+  }
+  if (els.processingOverlay) {
+    els.processingOverlay.style.display = stage === 2 ? 'flex' : 'none';
+  }
+  if (els.readyToast) {
+    els.readyToast.style.display = 'none';
+  }
+
+  // Stage 1 : seuls la waveform, le play et la sélection de région sont actifs.
+  const stage1Locked = stage === 1;
+  setTransposeControlsEnabled(!stage1Locked && regionConfirmed);
+  if (els.separateBtn) els.separateBtn.disabled = stage1Locked || !regionConfirmed;
+  if (els.stemsMode) els.stemsMode.style.display = (stage === 3 && mixer?.hasStems()) ? '' : 'none';
+
+  if (stage === 3) {
+    showReadyToast();
+  }
+}
+
+function showReadyToast() {
+  if (!els.readyToast) return;
+  els.readyToast.style.display = 'block';
+  setTimeout(() => {
+    if (els.readyToast) els.readyToast.style.display = 'none';
+  }, 4000);
+}
+
+function setProcessingProgress(label, percent) {
+  if (els.processingLabel) els.processingLabel.textContent = label;
+  if (els.processingBar) {
+    els.processingBar.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+  }
+}
+
+async function startRegionProcessing() {
+  if (!currentTrack || regionEnd === null) return;
+
+  regionConfirmed = true;
+  pendingRegion = { start: regionStart, end: regionEnd };
+  updateStudioStage(2);
+  renderWaveform();
+  updateCropButtons();
+  updateRegionUI();
+
+  const jobId = `job_${Date.now()}`;
+  processingJobId = jobId;
+  isProcessing = true;
+
+  try {
+    // 1. Extraire la région audio (WAV)
+    setProcessingProgress('Découpage de la région audio...', 10);
+    const regionPath = await getRegionTrimmedPath();
+
+    // 2. Sauvegarder la région dans les métadonnées
+    await saveMetadata(currentTrack.id, {
+      ...currentTrack.metadata,
+      region: { start: regionStart, end: regionEnd, confirmed: true, trimmedPath: regionPath },
+    });
+
+    // 3. Mettre à jour le player audio avec le fichier de région découpée
+    if (regionPath && window.electronAPI?.files?.readBinary) {
+      try {
+        const regionBytes = await window.electronAPI.files.readBinary(regionPath);
+        if (regionBytes?.length > 0) {
+          if (audioBlobUrl) URL.revokeObjectURL(audioBlobUrl);
+          audioBlobUrl = URL.createObjectURL(new Blob([regionBytes], { type: 'audio/wav' }));
+          if (playerAudio) {
+            playerAudio.src = audioBlobUrl;
+            playerAudio.load();
+          }
+        }
+      } catch (err) {
+        console.warn('[Studio] Failed to load trimmed region audio:', err);
+      }
+    }
+
+    setProcessingProgress('Extraction audio terminée', 30);
+
+    // 4. Séparation des pistes en arrière-plan (non bloquant pour l'UI)
+    setProcessingProgress('Séparation des pistes en cours...', 35);
+    const originalPath = currentTrack.metadata?.originalPath;
+    const separationResult = await separateStems(
+      currentTrack.id,
+      regionPath || originalPath,
+      (percent, fallback) => {
+        if (processingJobId !== jobId) return;
+        const normalized = fallback ? Math.min(95, 35 + percent * 0.6) : 35 + percent * 0.6;
+        setProcessingProgress('Séparation des pistes en cours...', normalized);
+      },
+    );
+
+    await refreshStems();
+
+    if (processingJobId !== jobId) return;
+
+    setProcessingProgress(separationResult.simulated ? 'Pistes simulées prêtes' : 'Pistes séparées', 100);
+    setStatus(separationResult.simulated
+      ? `Pistes simulées créées pour ${currentTrack.metadata?.name || currentTrack.id}`
+      : `Pistes séparées pour ${currentTrack.metadata?.name || currentTrack.id}`);
+
+    finishRegionProcessing(true);
+  } catch (err) {
+    console.error('[Studio] Region processing failed:', err);
+    if (processingJobId !== jobId) return;
+    setProcessingProgress(`Erreur : ${err.message}`, 0);
+    setStatus(`Erreur de préparation : ${err.message}`);
+    finishRegionProcessing(false);
+  }
+}
+
+function finishRegionProcessing(success) {
+  isProcessing = false;
+  processingJobId = null;
+  if (success) {
+    updateStudioStage(3);
+    setTransposeControlsEnabled(true);
+    setCropControlsEnabled(true);
+    if (transpose !== 0) runPitchShift();
+  } else {
+    updateStudioStage(1);
+    regionConfirmed = false;
+    updateCropButtons();
+  }
+}
+
+function cancelRegionProcessing() {
+  if (!isProcessing) return;
+  processingJobId = null;
+  isProcessing = false;
+  updateStudioStage(1);
+  regionConfirmed = false;
+  updateCropButtons();
+  setStatus('Préparation annulée');
+}
+
 export async function loadTrack(trackId) {
   try {
     stop();
@@ -954,6 +1106,28 @@ export async function loadTrack(trackId) {
     updateRegionUI();
     updateCropButtons();
     setCropControlsEnabled(false);
+
+    // Restaurer la région persistée si elle existe et est confirmée
+    if (metadata?.region?.confirmed) {
+      regionStart = metadata.region.start;
+      regionEnd = metadata.region.end;
+      regionConfirmed = true;
+      renderWaveform();
+      updateRegionUI();
+      updateCropButtons();
+      // Si les stems existent déjà, on passe directement à l'étape 3
+      const stemPaths = await getStems(trackId);
+      const hasStems = Object.values(stemPaths).some(Boolean);
+      if (hasStems) {
+        updateStudioStage(3);
+        setTransposeControlsEnabled(true);
+        setCropControlsEnabled(true);
+      } else {
+        updateStudioStage(1);
+      }
+    } else {
+      updateStudioStage(1);
+    }
 
     await refreshTrackList();
     await refreshStems();
@@ -1110,6 +1284,12 @@ export async function play() {
     return;
   }
 
+  // Bloquer la lecture si on est encore en phase de ciblage sans région confirmée.
+  if (studioStage === 1 && !regionConfirmed) {
+    setStatus('Sélectionnez et confirmez une région avant de lire.');
+    return;
+  }
+
   const useStems = mixer?.hasStems() && useStemsMode;
   const needsPitchShift = regionConfirmed && transpose !== 0;
 
@@ -1220,6 +1400,12 @@ async function refreshStems() {
       if (transpose !== 0) mixer.setDetune(transpose);
     } else {
       setPlayerAudible();
+    }
+    // Si la région était déjà confirmée, on passe automatiquement à l'étape 3
+    if (regionConfirmed && studioStage !== 3) {
+      updateStudioStage(3);
+      setTransposeControlsEnabled(true);
+      setCropControlsEnabled(true);
     }
   } else {
     mixer.reset();
