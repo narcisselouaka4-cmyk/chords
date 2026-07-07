@@ -1318,6 +1318,36 @@ async function waitHtml5AudioReady(timeoutMs = 10000) {
   return Promise.race([html5AudioReadyPromise, timeout]);
 }
 
+// [Claude] — 2026-07-07 — Attendre que l'élément audio de timing soit prêt
+// (canplaythrough ou loadeddata), sinon le curseur et la durée peuvent être instables
+// alors que le spinner a déjà disparu.
+function waitAudioElementReady(audio, timeoutMs = 10000) {
+  return new Promise((resolve) => {
+    if (!audio) { resolve(); return; }
+    if (audio.readyState >= 3 || audio.duration > 0) { resolve(); return; }
+
+    let resolved = false;
+    const done = () => {
+      if (resolved) return;
+      resolved = true;
+      audio.removeEventListener('canplaythrough', onReady);
+      audio.removeEventListener('loadeddata', onReady);
+      audio.removeEventListener('error', onError);
+      resolve();
+    };
+    const onReady = () => done();
+    const onError = () => {
+      console.warn('[Studio] waitAudioElementReady error');
+      done();
+    };
+
+    audio.addEventListener('canplaythrough', onReady, { once: true });
+    audio.addEventListener('loadeddata', onReady, { once: true });
+    audio.addEventListener('error', onError, { once: true });
+    setTimeout(done, timeoutMs);
+  });
+}
+
 function getRegionDuration() {
   if (regionEnd === null || regionStart === null) return 0;
   return Math.max(0.01, regionEnd - regionStart);
@@ -1390,6 +1420,8 @@ function updateStudioStage(stage) {
   }
 }
 
+let waveformProgressCleanup = null;
+
 function setLoadingState(loading) {
   isLoadingTrack = loading;
   updateStudioStage(studioStage);
@@ -1403,11 +1435,19 @@ function setLoadingState(loading) {
 // [Claude] — 2026-07-07 — Le spinner de chargement d'un morceau ne se ferme qu'après le message
 // de succès explicite, ou en cas d'erreur. On ne ferme plus le spinner dans un finally aveugle.
 function finishTrackLoading(name) {
+  if (waveformProgressCleanup) {
+    try { waveformProgressCleanup(); } catch (_) {}
+    waveformProgressCleanup = null;
+  }
   setStatus(`Morceau chargé : ${name}`);
   setLoadingState(false);
 }
 
 function failTrackLoading(message) {
+  if (waveformProgressCleanup) {
+    try { waveformProgressCleanup(); } catch (_) {}
+    waveformProgressCleanup = null;
+  }
   setStatus(message);
   setLoadingState(false);
 }
@@ -1606,10 +1646,22 @@ export async function loadTrack(trackId) {
     playerAudio?.addEventListener('loadedmetadata', onAudioReady, { once: true });
     playerAudio?.addEventListener('loadeddata', onAudioReady, { once: true });
 
-    // Génération waveform
+    // Génération waveform avec mise à jour du spinner en temps réel.
     if (wavPath && window.electronAPI?.studio?.generateWaveform) {
       try {
         setStatus('Analyse waveform en cours...');
+        if (els.processingLabel) els.processingLabel.textContent = 'Analyse waveform en cours...';
+        if (els.processingBar) els.processingBar.style.width = '40%';
+
+        if (waveformProgressCleanup) {
+          try { waveformProgressCleanup(); } catch (_) {}
+        }
+        waveformProgressCleanup = window.electronAPI.studio.onWaveformProgress?.((event) => {
+          const percent = event?.percent ?? 0;
+          if (els.processingLabel) els.processingLabel.textContent = `Analyse waveform en cours... ${percent}%`;
+          if (els.processingBar) els.processingBar.style.width = `${40 + Math.min(50, percent * 0.5)}%`;
+        });
+
         audioWavPath = wavPath;
         waveformData = await window.electronAPI.studio.generateWaveform(wavPath);
       } catch (err) {
@@ -1626,10 +1678,20 @@ export async function loadTrack(trackId) {
       } catch (_) {}
     }
 
+    if (waveformProgressCleanup) {
+      try { waveformProgressCleanup(); } catch (_) {}
+      waveformProgressCleanup = null;
+    }
+
+    // Afficher la waveform dès qu'elle est disponible, mais NE PAS fermer le spinner.
     renderWaveform();
     updateRegionUI();
     updateCropButtons();
     setCropControlsEnabled(false);
+
+    // Attendre explicitement que l'élément audio de timing soit prêt avant de débloquer l'UI.
+    await waitAudioElementReady(playerAudio);
+    if (html5Audio) await waitHtml5AudioReady(10000);
 
     // Restaurer la région persistée si elle existe et est confirmée
     if (metadata?.region?.confirmed) {

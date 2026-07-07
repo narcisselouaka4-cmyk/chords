@@ -1,5 +1,6 @@
 import sys
 import os
+import re
 import json
 import subprocess
 import tempfile
@@ -26,12 +27,14 @@ def trim_audio(input_path, output_wav, start_sec, end_sec, sample_rate=44100):
     cmd = [
         FFMPEG,
         '-y',
-        '-fflags', '+genpts',
-        '-err_detect', 'ignore_err',
+        *_ffmpeg_input_options(),
         '-ss', str(start_sec),
         '-t', str(duration),
         '-i', input_path,
         '-vn',
+        '-dn',
+        '-sn',
+        '-map', '0:a:0',
         '-af', 'aformat=sample_fmts=s16:channel_layouts=stereo,aresample=44100:resampler=soxr:precision=28,volume=1.0',
         '-ar', str(sample_rate),
         '-ac', '2',
@@ -52,16 +55,50 @@ def trim_audio(input_path, output_wav, start_sec, end_sec, sample_rate=44100):
         raise RuntimeError(f'trimmed WAV is invalid: {e}')
 
 
+def _ffmpeg_input_options():
+    """Options de lecture robustes pour les conteneurs endommagés (M4A/AAC inclus)."""
+    return [
+        '-fflags', '+genpts+discardcorrupt+fastseek',
+        '-err_detect', 'ignore_err',
+    ]
+
+
+def probe_duration(input_path):
+    """Retourne la durée audio exacte en secondes (ffprobe via ffmpeg)."""
+    cmd = [
+        FFMPEG,
+        *_ffmpeg_input_options(),
+        '-i', input_path,
+        '-vn', '-an',
+        '-f', 'null',
+        '-',
+    ]
+    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    # La durée apparaît dans stderr sous la forme "Duration: 00:00:10.01"
+    match = re.search(r'Duration:\s+(\d+):(\d+):([\d.]+)', proc.stderr)
+    if match:
+        h, m, s = match.groups()
+        return int(h) * 3600 + int(m) * 60 + float(s)
+    return None
+
+
 def extract_audio(input_path, output_wav, sample_rate=44100):
-    """Extract audio track from any media file to WAV using ffmpeg."""
+    """Extract audio track from any media file to WAV using ffmpeg.
+
+    Pour les conteneurs M4A/AAC problématiques, on force la lecture complète
+    du flux audio en ignorant les erreurs de conteneur et en convertissant
+    explicitement en stéréo PCM 16 bits 44.1 kHz.
+    """
     log(f'extracting audio from {input_path} to {output_wav}')
     cmd = [
         FFMPEG,
         '-y',
-        '-fflags', '+genpts',
-        '-err_detect', 'ignore_err',
+        *_ffmpeg_input_options(),
         '-i', input_path,
         '-vn',  # no video
+        '-dn',  # no data streams
+        '-sn',  # no subtitle streams
+        '-map', '0:a:0',  # sélectionne explicitement la première piste audio
         '-af', 'aformat=sample_fmts=s16:channel_layouts=stereo,aresample=44100:resampler=soxr:precision=28,volume=1.0',
         '-ar', str(sample_rate),
         '-ac', '2',
@@ -76,31 +113,52 @@ def extract_audio(input_path, output_wav, sample_rate=44100):
     try:
         with wave.open(output_wav, 'rb') as w:
             frames = w.getnframes()
-            log(f'audio extraction done: {frames} frames, {w.getnchannels()} ch, {w.getframerate()} Hz')
+            rate = w.getframerate()
+            duration = frames / rate if rate else 0
+            log(f'audio extraction done: {frames} frames, {w.getnchannels()} ch, {rate} Hz, duration {duration:.3f}s')
             if frames == 0:
                 raise RuntimeError('ffmpeg produced an empty WAV file')
     except Exception as e:
         raise RuntimeError(f'extracted WAV is invalid: {e}')
+    return output_wav
 
 
 
 def generate_waveform(wav_path, num_peaks=400):
-    """Generate a compact array of peak amplitudes for waveform display."""
-    log(f'generating waveform from {wav_path}')
-    y, sr = librosa.load(wav_path, sr=None, mono=True)
-    duration = len(y) / sr
+    """Generate a compact array of peak amplitudes for waveform display.
 
-    if len(y) == 0:
+    Stream la lecture du WAV par bloc pour rester fluide sur les fichiers longs
+    et émettre des lignes de log intermédiaires."""
+    log(f'generating waveform from {wav_path}')
+    sr = librosa.get_samplerate(wav_path)
+    duration = sf.info(wav_path).duration
+    total_frames = int(duration * sr)
+
+    if total_frames == 0:
         return {'duration': 0, 'peaks': [0] * num_peaks}
 
-    block = max(1, len(y) // num_peaks)
+    block = max(1, total_frames // num_peaks)
     peaks = []
-    for i in range(num_peaks):
-        start = i * block
-        end = min(start + block, len(y))
-        chunk = y[start:end]
-        peak = float(np.max(np.abs(chunk))) if len(chunk) > 0 else 0.0
-        peaks.append(round(peak, 4))
+    reported_steps = set()
+
+    with sf.SoundFile(wav_path, 'r') as f:
+        for i in range(num_peaks):
+            start = i * block
+            end = min(start + block, total_frames)
+            frames_to_read = end - start
+            if frames_to_read <= 0:
+                peaks.append(0.0)
+                continue
+            chunk = f.read(frames_to_read, dtype='float32')
+            if chunk.ndim > 1:
+                chunk = librosa.to_mono(chunk.T)
+            peak = float(np.max(np.abs(chunk))) if len(chunk) > 0 else 0.0
+            peaks.append(round(peak, 4))
+
+            pct = int((i / num_peaks) * 100)
+            if pct % 25 == 0 and pct not in reported_steps:
+                reported_steps.add(pct)
+                log(f'waveform progress: {pct}%')
 
     log(f'waveform done: {len(peaks)} peaks, duration {duration:.2f}s')
     return {'duration': round(duration, 3), 'peaks': peaks}
@@ -236,6 +294,11 @@ def main():
         input_path = sys.argv[2]
         output_wav = sys.argv[3]
         extract_audio(input_path, output_wav)
+
+    elif command == 'probe':
+        input_path = sys.argv[2]
+        duration = probe_duration(input_path)
+        print(json.dumps({'duration': duration}))
 
     elif command == 'trim':
         input_path = sys.argv[2]
