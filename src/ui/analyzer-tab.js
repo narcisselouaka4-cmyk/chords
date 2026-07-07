@@ -52,11 +52,12 @@ let currentAnalysisEvents = null;
 let currentAnalysisSession = null;
 let selectedChordId = null;
 let arrangementExpanded = false;
+let currentSubTab = 'chords';
 
-const VIEW_RENDERERS = {
-  midi: buildMidiViewHtml,
-  tutorial: buildTutorialHtml,
-  cover: buildCoverHtml,
+const SUBTAB_LABELS = {
+  chords: { icon: '🎹', label: 'Accords' },
+  analysis: { icon: '📊', label: 'Analyse' },
+  masterclass: { icon: '🎓', label: 'Masterclass' },
 };
 
 export function initAnalyzerTab({ containerId, onPlay, onSuggestionPlay: sugPlay } = {}) {
@@ -89,9 +90,9 @@ export async function renderAnalysis(sessionId, events, session, container) {
   currentAnalysisSession = session;
   selectedChordId = null;
   arrangementExpanded = false;
+  currentSubTab = 'chords';
 
   const sourceType = session?.sourceType || 'midi';
-  const renderer = VIEW_RENDERERS[sourceType] || VIEW_RENDERERS.midi;
 
   // Met à jour le titre du panneau selon le type de source.
   const panelTitle = document.getElementById('analysis-panel-title');
@@ -106,12 +107,98 @@ export async function renderAnalysis(sessionId, events, session, container) {
     const analysis = await analyzeSession(sessionId, events, session);
     currentAnalysis = analysis;
     suggestionCache.clear();
-    container.innerHTML = renderer(analysis);
+    container.innerHTML = buildAnalysisView(analysis, sourceType);
     bindAnalysisActions(container, analysis, sourceType);
   } catch (err) {
     console.error('Analysis failed:', err);
     container.innerHTML = `<p class="detail-hint">Erreur d'analyse : ${escapeHtml(err.message)}</p>`;
   }
+}
+
+function buildAnalysisView(analysis, sourceType) {
+  const chordCount = analysis.isMelodic
+    ? (analysis.melodyLine?.length || 0)
+    : (analysis.chords?.length || 0);
+  const patternCount = analysis.patterns
+    ? (analysis.patterns.iiVIs?.length || 0)
+      + (analysis.patterns.cadences?.length || 0)
+      + (analysis.patterns.turnarounds?.length || 0)
+      + (analysis.patterns.substitutions?.length || 0)
+    : 0;
+  const hasAIConfig = !!getAIConfig()?.apiKey;
+
+  const subTabsHtml = Object.entries(SUBTAB_LABELS).map(([key, { icon, label }]) => {
+    let badge = '';
+    if (key === 'chords' && chordCount > 0) {
+      badge = `<span class="subtab-badge">${chordCount}</span>`;
+    } else if (key === 'analysis' && patternCount > 0) {
+      badge = `<span class="subtab-badge">${patternCount}</span>`;
+    } else if (key === 'masterclass' && !hasAIConfig) {
+      badge = `<span class="subtab-badge subtab-badge-muted">🔒</span>`;
+    }
+    return `
+      <button class="analysis-subtab ${key === currentSubTab ? 'active' : ''}" data-subtab="${escapeHtml(key)}" type="button">
+        <span class="subtab-icon">${icon}</span>
+        <span class="subtab-label">${escapeHtml(label)}</span>
+        ${badge}
+      </button>
+    `;
+  }).join('');
+
+  const contentHtml = buildSubTabContent(analysis, sourceType);
+
+  return `
+    <div class="analysis-view">
+      <nav class="analysis-subtabs">${subTabsHtml}</nav>
+      <div class="analysis-subview">
+        ${contentHtml}
+      </div>
+    </div>
+  `;
+}
+
+function buildSubTabContent(analysis, sourceType) {
+  switch (currentSubTab) {
+    case 'analysis':
+      return buildAnalysisSubtab(analysis, sourceType);
+    case 'masterclass':
+      return buildMasterclassSubtab(analysis, sourceType);
+    case 'chords':
+    default:
+      return buildChordsSubtab(analysis, sourceType);
+  }
+}
+
+function buildChordsSubtab(analysis, sourceType) {
+  if (analysis.isMelodic) {
+    return buildAnalysisShell(analysis, buildMelodyHtml(analysis.melodyLine), sourceType);
+  }
+
+  let mainContent = '';
+  if (sourceType === 'midi') {
+    const arrangementPanel = !analysis.isMelodic
+      ? buildCollapsiblePanel('arrangement', 'Arrangement harmonique', buildArrangementPanel(analysis), false)
+      : '';
+    const gridPanel = !analysis.isMelodic
+      ? buildCollapsiblePanel('reference-grid', 'Grille de référence', buildReferenceGridPanel(), false)
+      : '';
+    mainContent = buildSectionsHtml(analysis.sections, analysis.chords) + arrangementPanel + gridPanel;
+  } else if (sourceType === 'cover') {
+    mainContent = buildCoverTimelineHtml(analysis);
+  } else if (sourceType === 'tutorial') {
+    mainContent = buildTutorialBlocksHtml(analysis);
+  }
+
+  return buildAnalysisShell(analysis, mainContent, sourceType);
+}
+
+function buildReferenceGridPanel() {
+  return `
+    <p class="detail-hint">Entrez la grille attendue (un accord par ligne ou séparé par des espaces) :</p>
+    <textarea id="chord-grid-input" class="chord-grid-input" rows="4" placeholder="C  Am7  Dm7  G7&#10;C  Am7  Dm7  G7"></textarea>
+    <button id="chord-grid-compare-btn" class="panel-action" type="button">Comparer</button>
+    <div id="chord-grid-result"></div>
+  `;
 }
 
 function buildKeyInfo(analysis) {
@@ -125,7 +212,7 @@ function buildKeyInfo(analysis) {
     : '<span class="analysis-key analysis-key-missing">Tonalité non définie</span>';
 }
 
-function buildAnalysisShell(analysis, contentHtml, sourceType) {
+function buildAnalysisShell(analysis, contentHtml, sourceType, { withDetail = true, wide = false } = {}) {
   const keyInfo = buildKeyInfo(analysis);
   const title = analysis.isMelodic
     ? 'Ligne mélodique'
@@ -135,8 +222,20 @@ function buildAnalysisShell(analysis, contentHtml, sourceType) {
         ? 'Timeline interactive'
         : 'Accords du tutoriel';
 
+  const layoutClass = wide
+    ? 'analysis-layout analysis-layout-wide'
+    : `analysis-layout analysis-layout-${sourceType}`;
+
+  const detailHtml = withDetail
+    ? `
+      <div class="analysis-detail" id="analysis-detail">
+        <p class="detail-hint">Cliquez sur un accord pour explorer les suggestions.</p>
+      </div>
+    `
+    : '';
+
   return `
-    <div class="analysis-layout analysis-layout-${sourceType}">
+    <div class="${layoutClass}">
       <div class="analysis-timeline">
         <div class="panel-title">
           ${title}
@@ -144,9 +243,7 @@ function buildAnalysisShell(analysis, contentHtml, sourceType) {
         </div>
         ${contentHtml}
       </div>
-      <div class="analysis-detail" id="analysis-detail">
-        <p class="detail-hint">Cliquez sur un accord pour explorer les suggestions.</p>
-      </div>
+      ${detailHtml}
     </div>
   `;
 }
@@ -162,7 +259,7 @@ function buildCollapsiblePanel(id, title, contentHtml, expanded = false) {
   `;
 }
 
-function buildMidiViewHtml(analysis) {
+function buildAnalysisSubtab(analysis, sourceType) {
   // Affichage progressif : scores, patterns et réharmonisation repliés par défaut.
   const scoresPanel = analysis.scores
     ? buildCollapsiblePanel('analysis-scores', 'Scores de session', buildScoresHtml(analysis.scores), false)
@@ -173,12 +270,44 @@ function buildMidiViewHtml(analysis) {
   const reharmPanel = !analysis.isMelodic && analysis.chords?.length > 0
     ? buildCollapsiblePanel('session-reharm', 'Réharmonisation de session', buildSessionReharmPanel(analysis), false)
     : '';
-  const header = scoresPanel + patternsPanel + reharmPanel;
 
-  if (analysis.isMelodic) {
-    return buildAnalysisShell(analysis, header + buildMelodyHtml(analysis.melodyLine), 'midi');
+  const content = scoresPanel + patternsPanel + reharmPanel;
+  if (!content.trim()) {
+    return `
+      <div class="analysis-empty-state">
+        <p class="detail-hint">Aucune donnée d'analyse disponible pour cette session.</p>
+      </div>
+    `;
   }
-  return buildAnalysisShell(analysis, header + buildSectionsHtml(analysis.sections, analysis.chords), 'midi');
+
+  return buildAnalysisShell(analysis, content, sourceType, { withDetail: false, wide: true });
+}
+
+function buildMasterclassSubtab(analysis, sourceType) {
+  const hasChords = !analysis.isMelodic && analysis.chords?.length > 0;
+  const hasConfig = !!getAIConfig()?.apiKey;
+
+  if (!hasChords) {
+    return buildAnalysisShell(analysis, `
+      <div class="analysis-empty-state">
+        <p class="detail-hint">Aucun accord à analyser pour la Masterclass.</p>
+      </div>
+    `, sourceType, { withDetail: false, wide: true });
+  }
+
+  const intro = hasConfig
+    ? 'Générez une analyse pédagogique complète de la session, accord par accord.'
+    : 'Configurez une clé API dans ⚙️ Paramètres IA pour utiliser la Masterclass.';
+
+  return buildAnalysisShell(analysis, `
+    <div class="masterclass-launcher">
+      <p class="detail-hint">${escapeHtml(intro)}</p>
+      <button class="panel-action masterclass-session-btn" id="masterclass-session-btn" type="button" ${!hasConfig ? 'disabled' : ''}>
+        🎓 Générer la Masterclass de la session
+      </button>
+      <div class="masterclass-session-result" id="masterclass-session-result"></div>
+    </div>
+  `, sourceType, { withDetail: false, wide: true });
 }
 
 function buildSessionReharmPanel(analysis) {
@@ -418,6 +547,17 @@ function buildArrangementPanel(analysis) {
 function bindAnalysisActions(container, analysis, sourceType) {
   const detail = container.querySelector('#analysis-detail');
 
+  // Sous-onglets de l'analyse : re-render uniquement le contenu actif
+  container.querySelectorAll('.analysis-subtab').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const newTab = btn.dataset.subtab;
+      if (!newTab || newTab === currentSubTab) return;
+      currentSubTab = newTab;
+      container.innerHTML = buildAnalysisView(analysis, sourceType);
+      bindAnalysisActions(container, analysis, sourceType);
+    });
+  });
+
   // Accordéons d'affichage progressif (scores / patterns / réharmonisation)
   container.querySelectorAll('.collapsible-panel').forEach((panel) => {
     const toggle = panel.querySelector('.collapsible-toggle');
@@ -429,6 +569,32 @@ function bindAnalysisActions(container, analysis, sourceType) {
       icon.textContent = isHidden ? '−' : '+';
     });
   });
+
+  // Masterclass de session complète
+  const masterclassBtn = container.querySelector('#masterclass-session-btn');
+  if (masterclassBtn) {
+    masterclassBtn.addEventListener('click', async () => {
+      const resultDiv = container.querySelector('#masterclass-session-result');
+      if (!resultDiv) return;
+      masterclassBtn.disabled = true;
+      masterclassBtn.textContent = 'Analyse en cours...';
+      resultDiv.innerHTML = '<p class="detail-hint">Consultation du professeur...</p>';
+      try {
+        const data = await generateMasterclass(analysis);
+        if (!data) {
+          resultDiv.innerHTML = '<p class="detail-hint">Masterclass temporairement indisponible. Réessayez plus tard.</p>';
+        } else {
+          resultDiv.innerHTML = buildMasterclassHtml(data, analysis);
+        }
+      } catch (err) {
+        console.error('Masterclass failed:', err);
+        resultDiv.innerHTML = `<p class="detail-hint">Erreur : ${escapeHtml(err.message)}</p>`;
+      } finally {
+        masterclassBtn.disabled = false;
+        masterclassBtn.textContent = '🎓 Générer la Masterclass de la session';
+      }
+    });
+  }
 
   // Clic sur un accord (MIDI / Tutoriel / Cover)
   container.querySelectorAll('.chord-tile, .timeline-chord, .video-chord-block').forEach((el) => {
@@ -479,76 +645,28 @@ function bindAnalysisActions(container, analysis, sourceType) {
     });
   });
 
-  // Arrangement harmonique (replié par défaut) — uniquement pour sourceType 'midi'
-  if (sourceType === 'midi' && !analysis.isMelodic) {
-    const arrangementHtml = buildArrangementPanel(analysis);
-    const arrangementSection = document.createElement('div');
-    arrangementSection.className = 'panel arrangement-section';
-    arrangementSection.innerHTML = `
-      <div class="panel-title" style="cursor:pointer;" id="arrangement-toggle">
-        Arrangement harmonique <span id="arrangement-toggle-icon">+</span>
-      </div>
-      <div id="arrangement-content" style="display:none;">${arrangementHtml}</div>
-    `;
-    detail.parentNode.insertBefore(arrangementSection, detail);
-
-    const arrToggle = arrangementSection.querySelector('#arrangement-toggle');
-    const arrContent = arrangementSection.querySelector('#arrangement-content');
-    const arrIcon = arrangementSection.querySelector('#arrangement-toggle-icon');
-    arrToggle?.addEventListener('click', () => {
-      const isHidden = arrContent.style.display === 'none';
-      arrContent.style.display = isHidden ? '' : 'none';
-      arrIcon.textContent = isHidden ? '−' : '+';
-      arrangementExpanded = !isHidden;
+  // Arrangement harmonique — bindings uniquement (HTML généré dans buildChordsSubtab)
+  container.querySelectorAll('.arrangement-toggle input').forEach((cb) => {
+    cb.addEventListener('change', () => {
+      const idx = Number(cb.dataset.chordIndex);
+      const chord = analysis.chords[idx];
+      if (chord) chord._arrangementActive = cb.checked;
     });
+  });
 
-    arrangementSection.querySelectorAll('.arrangement-toggle input').forEach((cb) => {
-      cb.addEventListener('change', () => {
-        const idx = Number(cb.dataset.chordIndex);
-        const chord = analysis.chords[idx];
-        if (chord) chord._arrangementActive = cb.checked;
-      });
+  container.querySelectorAll('.arrangement-bass').forEach((select) => {
+    select.addEventListener('change', () => {
+      const idx = Number(select.dataset.chordIndex);
+      const chord = analysis.chords[idx];
+      if (chord) chord._arrangementBass = select.value || null;
     });
+  });
 
-    arrangementSection.querySelectorAll('.arrangement-bass').forEach((select) => {
-      select.addEventListener('change', () => {
-        const idx = Number(select.dataset.chordIndex);
-        const chord = analysis.chords[idx];
-        if (chord) chord._arrangementBass = select.value || null;
-      });
-    });
-  }
-
-  // Grille de référence : toggle + comparaison (uniquement MIDI non mélodique)
-  if (sourceType === 'midi' && !analysis.isMelodic) {
-    const gridSection = document.createElement('div');
-    gridSection.className = 'panel chord-grid-panel';
-    gridSection.style.marginTop = '1rem';
-    gridSection.innerHTML = `
-      <div class="panel-title" style="cursor:pointer;" id="chord-grid-toggle">Grille de référence <span id="chord-grid-toggle-icon">+</span></div>
-      <div id="chord-grid-content" style="display:none;">
-        <p class="detail-hint">Entrez la grille attendue (un accord par ligne ou séparé par des espaces) :</p>
-        <textarea id="chord-grid-input" class="chord-grid-input" rows="4" placeholder="C  Am7  Dm7  G7&#10;C  Am7  Dm7  G7"></textarea>
-        <button id="chord-grid-compare-btn" class="panel-action" type="button">Comparer</button>
-        <div id="chord-grid-result"></div>
-      </div>
-    `;
-    const timeline = container.querySelector('.analysis-timeline');
-    if (timeline) timeline.appendChild(gridSection);
-
-    const toggle = container.querySelector('#chord-grid-toggle');
-    const content = container.querySelector('#chord-grid-content');
-    const toggleIcon = container.querySelector('#chord-grid-toggle-icon');
-    toggle?.addEventListener('click', () => {
-      const isHidden = content.style.display === 'none';
-      content.style.display = isHidden ? '' : 'none';
-      toggleIcon.textContent = isHidden ? '−' : '+';
-    });
-
-    const compareBtn = container.querySelector('#chord-grid-compare-btn');
-    const input = container.querySelector('#chord-grid-input');
-    const resultDiv = container.querySelector('#chord-grid-result');
-    compareBtn?.addEventListener('click', () => {
+  // Grille de référence — bindings uniquement (HTML généré dans buildChordsSubtab)
+  const compareBtn = container.querySelector('#chord-grid-compare-btn');
+  const input = container.querySelector('#chord-grid-input');
+  const resultDiv = container.querySelector('#chord-grid-result');
+  compareBtn?.addEventListener('click', () => {
       if (!input || !resultDiv || !analysis) return;
       const text = input.value.trim();
       if (!text) {
@@ -578,7 +696,6 @@ function bindAnalysisActions(container, analysis, sourceType) {
         </div>
       `;
     });
-  }
 
   // Cover : timeline cliquable
   if (sourceType === 'cover') {
@@ -946,7 +1063,7 @@ function detectFunction(chord, index, chords) {
   return 'Couleur / Passage';
 }
 
-function buildTutorialHtml(analysis) {
+function buildTutorialBlocksHtml(analysis) {
   const chords = analysis?.chords || [];
   const blocks = chords.length > 0
     ? chords.slice(0, 8).map((chord, i) => buildVideoChordBlock(chord, i, chords)).join('')
@@ -964,7 +1081,7 @@ function buildTutorialHtml(analysis) {
 
   const sidebar = `
     <div class="analysis-mode-sidebar">
-      <div class="panel-title">Résumé Masterclass</div>
+      <div class="panel-title">Résumé pédagogique</div>
       <div class="masterclass-summary">
         <p class="detail-hint">Notions clés du tutoriel :</p>
         <ul class="summary-list">
@@ -977,7 +1094,7 @@ function buildTutorialHtml(analysis) {
     </div>
   `;
 
-  const content = `
+  return `
     <div class="analysis-mode-view tutorial-view">
       ${sidebar}
       <div class="analysis-mode-content tutorial-blocks">
@@ -986,8 +1103,6 @@ function buildTutorialHtml(analysis) {
       </div>
     </div>
   `;
-
-  return buildAnalysisShell(analysis, content, 'tutorial');
 }
 
 function buildVideoChordBlock(chord, index, chords) {
@@ -1012,12 +1127,12 @@ function buildVideoChordBlock(chord, index, chords) {
   `;
 }
 
-function buildCoverHtml(analysis) {
+function buildCoverTimelineHtml(analysis) {
   const chords = analysis?.chords || [];
   const duration = computeAnalysisDuration(chords);
   const timelineItems = buildCoverTimelineItems(chords, duration);
 
-  const content = `
+  return `
     <div class="analysis-mode-view cover-view">
       <div class="cover-timeline">
         <div class="panel-title">Timeline interactive — ${formatDuration(duration)}</div>
@@ -1032,8 +1147,6 @@ function buildCoverHtml(analysis) {
       <p class="detail-hint">Cliquez sur un marqueur ou un accord pour déplacer la tête de lecture. Si un lecteur Studio est actif, le timestamp est synchronisé automatiquement.</p>
     </div>
   `;
-
-  return buildAnalysisShell(analysis, content, 'cover');
 }
 
 function computeAnalysisDuration(chords) {

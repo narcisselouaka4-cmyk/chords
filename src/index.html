@@ -29,7 +29,21 @@
       </header>
 
       <main class="app-main" id="practice-tab">
-        <aside class="left-panel tools-panel"></aside>
+        <aside class="left-panel tools-panel" id="practice-tools-panel">
+          <div class="panel practice-exercise-panel" id="practice-exercise-panel">
+            <div class="panel-title">Exercice rapide</div>
+            <div class="exercise-mode-selector">
+              <button class="exercise-mode-btn active" data-mode="chord" type="button">Accord cible</button>
+              <button class="exercise-mode-btn" data-mode="progression" type="button">Progression</button>
+            </div>
+            <div class="exercise-content" id="exercise-content">
+              <p class="detail-hint">Lancez un exercice pour vous entraîner sur un accord ou une progression.</p>
+              <button class="panel-action" id="new-exercise-btn" type="button">Nouvel exercice</button>
+              <div class="exercise-target" id="exercise-target" style="display:none;"></div>
+              <div class="exercise-feedback" id="exercise-feedback"></div>
+            </div>
+          </div>
+        </aside>
 
         <section class="center-stage">
           <div class="chord-display" id="chord-display">
@@ -129,6 +143,7 @@
               <span id="analysis-panel-title">Analyse</span>
               <button id="analyze-session-btn" class="panel-action" title="Analyser la session" disabled>Analyser</button>
             </div>
+
             <div class="analysis-content" id="analysis-content">
               <p class="detail-hint">Sélectionnez une session pour voir son analyse.</p>
             </div>
@@ -240,7 +255,9 @@
             <div class="panel-title">Pistes séparées</div>
             <button id="studio-separate-btn" class="record-action">Séparer les pistes</button>
             <div class="studio-separate-status" id="studio-separate-status"></div>
-              <div class="studio-stems-list" id="studio-stems-list"></div>
+            <div class="studio-stems-list" id="studio-stems-list"></div>
+            <!-- Zone d'état Studio visible -->
+            <div class="studio-status-box" id="studio-status-text">Aucun morceau sélectionné</div>
           </div>
         </aside>
       </main>

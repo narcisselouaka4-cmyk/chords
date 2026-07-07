@@ -61,11 +61,12 @@ Elle détecte en temps réel les accords joués sur un clavier MIDI, les affiche
 - Détection de tonalité par profils Krumhansl-Schmuckler + heuristique sur les accords ; détection robuste sur contenu mélodique pur.
 - Segmentation d'une session en sections (Intro, Couplet, Pré-refrain, Refrain, Bridge, Outro, Interlude).
 - Timeline d'accords avec Top Note détectée, grace notes, voicing et technique.
+- **Sous-onglets de l'analyse** : Accords (grille + détail), Analyse (scores + patterns + réharmonisation), Masterclass (analyse IA de session).
 - Scores de session (Voice Leading, Transitions, Tensions, Inner Voices) et patterns harmoniques (II-V-I, cadences, turnarounds, substitutions).
 - Grille d'arrangement harmonique : toggle Actif/Inactif par accord, dropdown de ligne de basse (Auto, 1/3/5/7, patterns 7-3-6, 2-5-1, etc.).
 - Suggestions de réharmonisation par style (Worship, Gospel, Jazz, Neo Soul) avec mini-claviers, et réharmonisation complète de session.
 - Intégration IA (Groq/OpenRouter/Gemini) avec format JSON blueprint : accord original, top note, 3 suggestions par influence locale, technique et voicing.
-- Masterclass IA : analyse pédagogique par accord, avec cache, retry exponentiel et fallback sur la bibliothèque locale de mouvements.
+- Masterclass IA : analyse pédagogique par accord et de session complète, avec cache, retry exponentiel et fallback sur la bibliothèque locale de mouvements.
 - Affichage progressif : scores, patterns et réharmonisation repliables par défaut pour éviter la surcharge d'information.
 
 **État :** ✅ Fonctionnel et testé.
