@@ -8,6 +8,8 @@ import {
   listTracks,
   readOriginalAsBlobUrl,
   readAllStemsAsBlobUrls,
+  deleteTrack,
+  renameTrack,
 } from '../recorder/studio-storage.js';
 import { createStemMixer, dbToGain } from '../audio/stem-mixer.js';
 import { separateStems, getStems, STEMS } from '../audio/stem-separator.js';
@@ -67,6 +69,12 @@ let masterPlayer = null;
 let masterAudioBuffer = null;
 let masterAudioUrl = null;
 
+// Lecteur HTML5 fallback pour les formats dont decodeAudioData échoue (M4A/AAC).
+let html5Audio = null;
+let html5AudioCanPlay = false;
+let html5AudioReadyPromise = null;
+let html5AudioResolve = null;
+
 // AudioContext partagé pour le Studio
 let studioAudioCtx = null;
 let studioDestination = null;
@@ -100,6 +108,7 @@ const els = {
   processingBar: document.getElementById('studio-processing-bar'),
   readyToast: document.getElementById('studio-ready-toast'),
   stemsList: document.getElementById('studio-stems-list'),
+  studioStatus: document.getElementById('studio-status-text'),
   waveformWrap: document.getElementById('studio-waveform-wrap'),
   waveform: document.getElementById('studio-waveform'),
   region: document.getElementById('studio-region'),
@@ -126,6 +135,12 @@ function updateTransposeUI() {
 }
 
 function setStatus(message) {
+  // Affichage prioritaire dans la zone d'état dédiée du Studio (sidebar droite).
+  if (els.studioStatus) {
+    els.studioStatus.textContent = message;
+    els.studioStatus.style.display = message ? '' : 'none';
+  }
+  // Fallback sur la barre de status globale.
   const statusBar = document.getElementById('status-bar');
   if (statusBar) statusBar.textContent = message;
 }
@@ -182,16 +197,16 @@ function bindPlayer() {
   els.prevBtn?.addEventListener('click', () => {
     const target = regionConfirmed ? regionStart : 0;
     seek(target);
-    updateProgressUI(0, getEffectiveDuration());
+    updateProgressUI(target, getEffectiveDuration());
+    updatePlayhead(target, getEffectiveDuration());
   });
 
   els.resetRegionBtn?.addEventListener('click', () => resetRegion());
 
   els.progress?.addEventListener('input', () => {
-    const duration = getEffectiveDuration();
-    const time = regionConfirmed
-      ? regionStart + (Number(els.progress.value) / 100) * (regionEnd - regionStart)
-      : (Number(els.progress.value) / 100) * duration;
+    // La barre de progression reste toujours calée sur la durée TOTALE du fichier.
+    const duration = getTotalDuration() || 1;
+    const time = (Number(els.progress.value) / 100) * duration;
     seek(time);
   });
 
@@ -251,90 +266,97 @@ let mediaEventCleanup = null;
 // modification de playbackRate.
 let lastReportedAudioTime = 0;
 
-function bindMediaEvents(video, audio) {
+function bindMediaEvents(audio) {
   if (mediaEventCleanup) {
     try { mediaEventCleanup(); } catch (_) {}
   }
-  if (!video || !audio) {
+  if (!audio) {
     mediaEventCleanup = null;
     return;
   }
 
-  const onAudioSeeked = () => {
-    if (Math.abs(video.currentTime - audio.currentTime) > 0.05) {
-      video.currentTime = audio.currentTime;
-    }
-  };
   const onAudioEnded = () => {
-    video.pause();
     stopSyncLoop();
   };
-  const onVideoSeeked = () => {
-    audio.currentTime = video.currentTime;
+  const onAudioTimeUpdate = () => {
+    // ABSOLUTE TIMELINE : pause automatique à la fin de la région confirmée.
+    if (regionConfirmed && regionEnd !== null && audio.currentTime >= regionEnd - 0.02) {
+      pause();
+      seek(regionEnd - 0.001);
+    }
   };
 
-  audio.addEventListener('seeked', onAudioSeeked);
   audio.addEventListener('ended', onAudioEnded);
-  video.addEventListener('seeked', onVideoSeeked);
+  audio.addEventListener('timeupdate', onAudioTimeUpdate);
 
   mediaEventCleanup = () => {
-    audio.removeEventListener('seeked', onAudioSeeked);
     audio.removeEventListener('ended', onAudioEnded);
-    video.removeEventListener('seeked', onVideoSeeked);
+    audio.removeEventListener('timeupdate', onAudioTimeUpdate);
   };
 }
 
 function getStudioCurrentTime() {
-  if (mixer?.hasStems()) {
-    return mixer.getCurrentTime();
+  try {
+    if (mixer?.hasStems()) {
+      // Les stems sont extraits de la région : leur temps local doit être
+      // converti en temps absolu sur la timeline globale.
+      return regionStart + (mixer.getCurrentTime() || 0);
+    }
+    if (html5Audio && html5AudioCanPlay && html5Audio.currentTime != null) {
+      return html5Audio.currentTime || 0;
+    }
+    if (masterPlayer && typeof masterPlayer.getCurrentTime === 'function') {
+      return masterPlayer.getCurrentTime() || 0;
+    }
+    if (playerAudio && playerAudio.currentTime != null) {
+      return playerAudio.currentTime || 0;
+    }
+    if (playerVideo && playerVideo.currentTime != null) {
+      return playerVideo.currentTime || 0;
+    }
+    return 0;
+  } catch (e) {
+    return 0;
   }
-  return masterPlayer?.getCurrentTime?.()
-    || playerAudio?.currentTime
-    || playerVideo?.currentTime
-    || 0;
 }
 
 function getStudioDuration() {
-  if (mixer?.hasStems()) {
-    return mixer.getDuration();
-  }
+  // ABSOLUTE TIMELINE : la durée affichée est toujours la durée totale du fichier.
   return getEffectiveDuration();
 }
 
 function syncVideoAndCursor() {
-  if (!playerVideo) return;
-  const current = getStudioCurrentTime();
+  try {
+    const realTime = getStudioCurrentTime();
+    const duration = getStudioDuration();
 
-  // Boucle région stricte
-  if (regionEnd !== null && current >= regionEnd) {
-    const target = regionStart;
-    if (mixer?.hasStems()) {
-      mixer.seek(target);
-    } else {
-      masterPlayer?.seek(target);
+    // Gestion de la région comme zone restreinte : pause automatique à la fin.
+    if (regionConfirmed && regionEnd !== null && realTime >= regionEnd - 0.02) {
+      pause();
+      seek(regionEnd - 0.001);
     }
-    playerVideo.currentTime = target;
-    return;
+
+    if (playerVideo && playerVideo.currentTime != null) {
+      const drift = realTime - playerVideo.currentTime;
+      const absDrift = Math.abs(drift);
+
+      if (absDrift > 0.25 || playerVideo.paused) {
+        playerVideo.currentTime = realTime;
+        if (!playerVideo.paused) playerVideo.playbackRate = 1.0;
+      } else if (absDrift > 0.05) {
+        const rate = Math.max(0.96, Math.min(1.04, 1.0 + drift * 0.5));
+        playerVideo.playbackRate = Number.isFinite(rate) ? rate : 1.0;
+      } else {
+        playerVideo.playbackRate = 1.0;
+      }
+    }
+
+    // Affichage UI en temps absolu sur la timeline globale.
+    updateProgressUI(realTime, duration);
+    updatePlayhead(realTime, duration);
+  } catch (e) {
+    console.warn('[Studio] syncVideoAndCursor error:', e);
   }
-
-  const drift = current - playerVideo.currentTime;
-  const absDrift = Math.abs(drift);
-
-  // Saut brutal uniquement si la vidéo est très décalée ou si elle est en pause.
-  if (absDrift > 0.25 || playerVideo.paused) {
-    playerVideo.currentTime = current;
-    if (!playerVideo.paused) playerVideo.playbackRate = 1.0;
-  } else if (absDrift > 0.05) {
-    // Rattrapage progressif par playbackRate (max ±4 %) pour rester fluide.
-    const rate = Math.max(0.96, Math.min(1.04, 1.0 + drift * 0.5));
-    playerVideo.playbackRate = Number.isFinite(rate) ? rate : 1.0;
-  } else {
-    playerVideo.playbackRate = 1.0;
-  }
-
-  const duration = getStudioDuration();
-  updateProgressUI(current, duration);
-  updatePlayhead(current, duration);
 }
 
 function startSyncLoop() {
@@ -407,9 +429,16 @@ function backRegion() {
 }
 
 function resetRegion() {
+  const totalDuration = getTotalDuration();
   regionStart = 0;
-  regionEnd = null;
+  // Réinitialiser la région à la plage maximale autorisée (5 min) par défaut,
+  // jamais zoomée. Si le fichier est plus court, on prend toute la durée.
+  regionEnd = totalDuration > 0
+    ? Math.min(totalDuration, MAX_REGION_DURATION)
+    : null;
   regionConfirmed = false;
+  // Remettre le lecteur au début du fichier original.
+  seek(0);
   renderWaveform();
   updateRegionUI();
   updateCropButtons();
@@ -438,13 +467,25 @@ function bindWaveform() {
   let dragStartRegionEnd = null;
   let isDraggingRegion = false;
 
+  function timeAtX(x) {
+    const rect = wrap.getBoundingClientRect();
+    if (!rect.width) return 0;
+    const duration = getTotalDuration() || 1;
+    const clampedX = Math.max(0, Math.min(x - rect.left, rect.width));
+    return (clampedX / rect.width) * duration;
+  }
+
   wrap.addEventListener('mousedown', (e) => {
+    // ABSOLUTE TIMELINE : le clic sur la waveform modifie audio.currentTime de
+    // manière absolue sur le fichier entier, sans jamais toucher aux limiteurs.
+    const time = timeAtX(e.clientX);
+
+    if (regionConfirmed) {
+      seek(time);
+      return;
+    }
+
     if (e.ctrlKey || e.metaKey) {
-      const rect = wrap.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const duration = waveformData?.duration || els.playerAudio?.duration || els.player?.duration || 0;
-      if (!duration) return;
-      const time = (x / rect.width) * duration;
       if (regionEnd === null) return;
       if (time < regionStart || time > regionEnd) return;
       isDraggingRegion = true;
@@ -465,22 +506,7 @@ function bindWaveform() {
       isDraggingHandle = 'end';
     } else {
       isDraggingHandle = null;
-      const duration = waveformData?.duration || els.playerAudio?.duration || els.player?.duration || 0;
-      if (duration) {
-        let time;
-        if (regionConfirmed) {
-          // Clic dans la région zoomée : la largeur du canvas représente la région.
-          const regionWidth = rect.width;
-          time = regionStart + (x / regionWidth) * (regionEnd - regionStart);
-          time = Math.max(regionStart, Math.min(time, regionEnd));
-        } else {
-          time = (x / rect.width) * duration;
-          if (regionEnd !== null) {
-            time = Math.max(regionStart, Math.min(time, regionEnd));
-          }
-        }
-        seek(time);
-      }
+      seek(time);
     }
   });
 
@@ -488,9 +514,8 @@ function bindWaveform() {
     if (regionConfirmed) return;
     if (!waveformData) return;
     const rect = els.waveformWrap.getBoundingClientRect();
-    const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
-    const duration = waveformData.duration;
-    const time = (x / rect.width) * duration;
+    const duration = getTotalDuration();
+    const time = timeAtX(e.clientX);
 
     if (isDraggingRegion) {
       const dx = e.clientX - dragStartX;
@@ -512,30 +537,25 @@ function bindWaveform() {
     }
 
     if (!isDraggingHandle) return;
+
     if (isDraggingHandle === 'start') {
-      if (regionEnd !== null && time > regionEnd) {
-        // Inversion de poignée : l'utilisateur a traîné le début au-delà de la fin.
-        regionStart = regionEnd;
-        regionEnd = Math.min(duration, time);
-        isDraggingHandle = 'end';
-      } else {
-        regionStart = Math.max(0, Math.min(time, regionEnd !== null ? regionEnd : duration));
-        if (regionEnd !== null && (regionEnd - regionStart) > MAX_REGION_DURATION) {
-          regionStart = regionEnd - MAX_REGION_DURATION;
+      let newStart = Math.max(0, Math.min(time, regionEnd !== null ? regionEnd : duration));
+      if (regionEnd !== null) {
+        // Bloquer la région à MAX_REGION_DURATION max en déplaçant le début.
+        if (regionEnd - newStart > MAX_REGION_DURATION) {
+          newStart = regionEnd - MAX_REGION_DURATION;
         }
+        // Bloquer également le début à ne pas dépasser la fin.
+        if (newStart > regionEnd) newStart = regionEnd;
       }
+      regionStart = newStart;
     } else if (isDraggingHandle === 'end') {
-      if (time < regionStart) {
-        // Inversion de poignée : l'utilisateur a traîné la fin avant le début.
-        regionEnd = regionStart;
-        regionStart = Math.max(0, time);
-        isDraggingHandle = 'start';
-      } else {
-        regionEnd = Math.min(duration, Math.max(time, regionStart));
-        if ((regionEnd - regionStart) > MAX_REGION_DURATION) {
-          regionEnd = regionStart + MAX_REGION_DURATION;
-        }
+      let newEnd = Math.min(duration, Math.max(time, regionStart));
+      // Bloquer la région à MAX_REGION_DURATION max en déplaçant la fin.
+      if (newEnd - regionStart > MAX_REGION_DURATION) {
+        newEnd = regionStart + MAX_REGION_DURATION;
       }
+      regionEnd = newEnd;
     }
     updateRegionUI();
     updateCropButtons();
@@ -558,17 +578,26 @@ function bindWaveform() {
   });
 }
 
+function getTotalDuration() {
+  return html5Audio?.duration
+    || waveformData?.duration
+    || els.playerAudio?.duration
+    || els.player?.duration
+    || mediaDuration
+    || 0;
+}
+
 function getHandleX(time) {
   if (!els.waveformWrap || !waveformData) return 0;
   const rect = els.waveformWrap.getBoundingClientRect();
-  const duration = waveformData.duration || 1;
+  const duration = getTotalDuration() || 1;
   return (time / duration) * rect.width;
 }
 
 function updateRegionUI() {
   if (!els.region || !els.handleStart || !els.handleEnd || !waveformData) return;
   const rect = els.waveformWrap.getBoundingClientRect();
-  const duration = waveformData.duration;
+  const duration = getTotalDuration();
   const startX = getHandleX(regionStart);
   const endX = regionEnd !== null ? getHandleX(regionEnd) : rect.width;
   els.region.style.left = `${startX}px`;
@@ -594,7 +623,7 @@ function updateRegionUI() {
 
   if (els.regionInfo) {
     const endText = regionEnd !== null ? formatDuration(regionEnd) : formatDuration(duration);
-      const infoText = regionEnd !== null
+    const infoText = regionEnd !== null
       ? `Région : ${formatDuration(regionStart)} – ${endText}${isMaxed ? ' (max 5:00)' : ''}`
       : 'Sélectionnez une région pour activer transpo / séparation';
     els.regionInfo.textContent = infoText;
@@ -603,8 +632,11 @@ function updateRegionUI() {
 
 function updatePlayhead(current, duration) {
   if (!els.playhead || !duration) return;
-  const x = (current / duration) * els.waveformWrap.getBoundingClientRect().width;
-  els.playhead.style.left = `${x}px`;
+  const rect = els.waveformWrap?.getBoundingClientRect();
+  if (!rect || rect.width <= 0) return;
+  // ABSOLUTE TIMELINE : le curseur se déplace sur TOUTE la waveform globale.
+  const pct = Math.max(0, Math.min(1, current / duration));
+  els.playhead.style.left = `${pct * rect.width}px`;
 }
 
 function bindCropButtons() {
@@ -613,6 +645,7 @@ function bindCropButtons() {
 }
 
 const SUPPORTED_FORMATS = ['mp3', 'wav', 'm4a', 'mp4'];
+const AUDIO_ONLY_FORMATS = ['mp3', 'wav', 'm4a', 'aac', 'ogg', 'flac'];
 
 function getFileExtension(filePath) {
   const match = filePath.match(/\.([a-zA-Z0-9]+)$/);
@@ -621,6 +654,10 @@ function getFileExtension(filePath) {
 
 function isSupportedFormat(filePath) {
   return SUPPORTED_FORMATS.includes(getFileExtension(filePath));
+}
+
+function isAudioOnlyByExtension(filePath) {
+  return AUDIO_ONLY_FORMATS.includes(getFileExtension(filePath));
 }
 
 async function importFile() {
@@ -744,12 +781,153 @@ function renderTrackList(tracks) {
     const metadata = track.metadata || {};
     const displayName = metadata.name || track.id;
     const source = metadata.sourcePath ? metadata.sourcePath.split('/').pop() || metadata.sourcePath.split('\\').pop() : track.id;
-    item.innerHTML = `
+    const ext = metadata.sourcePath ? getFileExtension(metadata.sourcePath).toUpperCase() : '';
+
+    // Si le morceau a été renommé, on n'affiche pas l'ancien nom source en doublon.
+    const wasRenamed = metadata.name && metadata.name !== source && metadata.name !== track.id;
+    const metaLine = wasRenamed
+      ? `${ext ? `.${ext} · ` : ''}${formatDuration(metadata.duration || 0)}`
+      : `${escapeHtml(source)} · ${formatDuration(metadata.duration || 0)}`;
+
+    const info = document.createElement('div');
+    info.className = 'studio-track-info';
+    info.innerHTML = `
       <div class="studio-track-name">${escapeHtml(displayName)}</div>
-      <div class="studio-track-meta">${escapeHtml(source)} · ${formatDuration(metadata.duration || 0)}</div>
+      <div class="studio-track-meta">${metaLine}</div>
     `;
-    item.addEventListener('click', () => loadTrack(track.id));
+    info.addEventListener('click', () => loadTrack(track.id));
+
+    const actions = document.createElement('div');
+    actions.className = 'studio-track-actions';
+    actions.innerHTML = `
+      <button class="studio-track-rename" title="Renommer">✏️</button>
+      <button class="studio-track-delete" title="Supprimer">🗑️</button>
+    `;
+
+    actions.querySelector('.studio-track-rename').addEventListener('click', (e) => {
+      e.stopPropagation();
+      handleRenameTrack(track.id, metadata.name || track.id);
+    });
+    actions.querySelector('.studio-track-delete').addEventListener('click', (e) => {
+      e.stopPropagation();
+      handleDeleteTrack(track.id, metadata.name || track.id);
+    });
+
+    item.appendChild(info);
+    item.appendChild(actions);
     els.trackList.appendChild(item);
+  }
+}
+
+async function handleRenameTrack(trackId, currentName) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.style.zIndex = '4000';
+  overlay.innerHTML = `
+    <div class="modal-box" style="max-width: 420px; text-align: center;">
+      <h3>Renommer le morceau</h3>
+      <input type="text" id="rename-input" class="session-title-input" value="${escapeHtml(currentName)}" style="width: 100%; margin-top: 12px;" />
+      <div class="modal-actions" style="margin-top: 16px;">
+        <button type="button" class="primary" id="rename-confirm">Renommer</button>
+        <button type="button" class="secondary" id="rename-cancel">Annuler</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  const input = overlay.querySelector('#rename-input');
+  input.focus();
+  input.select();
+
+  return new Promise((resolve) => {
+    const cleanup = () => {
+      if (overlay.parentNode) document.body.removeChild(overlay);
+    };
+
+    const doRename = async () => {
+      const newName = input.value.trim();
+      cleanup();
+      if (!newName || newName === currentName) {
+        resolve(false);
+        return;
+      }
+      try {
+        await renameTrack(trackId, newName);
+        if (currentTrack?.id === trackId) {
+          currentTrack.metadata.name = newName;
+          updateAudioBackdrop(newName);
+        }
+        await refreshTrackList();
+        setStatus(`Morceau renommé : ${newName}`);
+        resolve(true);
+      } catch (err) {
+        console.error('Rename failed:', err);
+        setStatus(`Erreur de renommage : ${err.message}`);
+        resolve(false);
+      }
+    };
+
+    overlay.querySelector('#rename-confirm').addEventListener('click', doRename);
+    overlay.querySelector('#rename-cancel').addEventListener('click', () => {
+      cleanup();
+      resolve(false);
+    });
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        cleanup();
+        resolve(false);
+      }
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') doRename();
+      if (e.key === 'Escape') {
+        cleanup();
+        resolve(false);
+      }
+    });
+  });
+}
+
+async function handleDeleteTrack(trackId, displayName) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.style.zIndex = '4000';
+  overlay.innerHTML = `
+    <div class="modal-box" style="max-width: 420px; text-align: center;">
+      <h3>Supprimer le morceau ?</h3>
+      <p class="modal-hint">"${escapeHtml(displayName)}" sera supprimé définitivement.<br/>Cette action est irréversible.</p>
+      <div class="modal-actions" style="margin-top: 16px;">
+        <button type="button" class="danger" id="delete-confirm" style="background:#bf3a2b;color:#fff;border-color:#bf3a2b;">Supprimer</button>
+        <button type="button" class="secondary" id="delete-cancel">Annuler</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  const confirmed = await new Promise((resolve) => {
+    const cleanup = () => {
+      if (overlay.parentNode) document.body.removeChild(overlay);
+    };
+    overlay.querySelector('#delete-confirm').addEventListener('click', () => { cleanup(); resolve(true); });
+    overlay.querySelector('#delete-cancel').addEventListener('click', () => { cleanup(); resolve(false); });
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) { cleanup(); resolve(false); }
+    });
+  });
+
+  if (!confirmed) return;
+  try {
+    if (currentTrack?.id === trackId) {
+      resetStudioState();
+      currentTrack = null;
+      updateStudioStage(0);
+    }
+    await deleteTrack(trackId);
+    await refreshTrackList();
+    setStatus(`Morceau supprimé : ${displayName}`);
+  } catch (err) {
+    console.error('Delete failed:', err);
+    setStatus(`Erreur de suppression : ${err.message}`);
   }
 }
 
@@ -766,14 +944,26 @@ function updateAudioBackdrop(title) {
 
 function inspectMedia(blobUrl) {
   return new Promise((resolve) => {
-    const video = document.createElement('video');
-    video.preload = 'metadata';
-    video.src = blobUrl;
-    video.onloadedmetadata = () => {
-      const hasVideo = video.videoWidth > 0 && video.videoHeight > 0;
-      resolve({ isAudioOnly: !hasVideo, duration: video.duration || 0 });
+    const media = document.createElement('audio');
+    media.preload = 'metadata';
+    media.src = blobUrl;
+    const timer = setTimeout(() => {
+      resolve({ isAudioOnly: true, duration: media.duration || 0 });
+    }, 3000);
+
+    media.onloadedmetadata = () => {
+      clearTimeout(timer);
+      // <audio> n'a pas de pistes vidéo.
+      resolve({ isAudioOnly: true, duration: media.duration || 0 });
     };
-    video.onerror = () => resolve({ isAudioOnly: false, duration: 0 });
+    media.onloadeddata = () => {
+      clearTimeout(timer);
+      resolve({ isAudioOnly: true, duration: media.duration || 0 });
+    };
+    media.onerror = () => {
+      clearTimeout(timer);
+      resolve({ isAudioOnly: true, duration: 0 });
+    };
   });
 }
 
@@ -927,7 +1117,11 @@ async function decodeMasterAudio(path) {
   try {
     const arrayBuffer = await readAudioFile(path);
     ensureStudioAudioContext();
-    return await studioAudioCtx.decodeAudioData(arrayBuffer);
+    const buffer = await studioAudioCtx.decodeAudioData(arrayBuffer);
+    if (!isValidAudioBuffer(buffer)) {
+      throw new Error('decoded buffer is empty or invalid');
+    }
+    return buffer;
   } catch (err) {
     console.warn('[Studio] decodeMasterAudio failed:', err);
     return null;
@@ -956,6 +1150,22 @@ function destroyMediaPlayer() {
     if (playerAudio.parentNode) playerAudio.parentNode.removeChild(playerAudio);
     playerAudio = null;
   }
+  if (html5Audio) {
+    try {
+      html5Audio.onerror = null;
+      html5Audio.ontimeupdate = null;
+      html5Audio.oncanplaythrough = null;
+      html5Audio.onloadedmetadata = null;
+      html5Audio.pause();
+      html5Audio.removeAttribute('src');
+      html5Audio.load();
+    } catch (_) {}
+    if (html5Audio.parentNode) html5Audio.parentNode.removeChild(html5Audio);
+    html5Audio = null;
+  }
+  html5AudioCanPlay = false;
+  html5AudioReadyPromise = null;
+  html5AudioResolve = null;
   if (audioBlobUrl) {
     URL.revokeObjectURL(audioBlobUrl);
     audioBlobUrl = null;
@@ -964,31 +1174,43 @@ function destroyMediaPlayer() {
   els.playerAudio = null;
 }
 
-async function createMediaPlayer(videoBlobUrl, wavPath, wavBytes, isVideo) {
+function isM4aFile(filePath) {
+  const ext = getFileExtension(filePath);
+  return ext === 'm4a' || ext === 'aac';
+}
+
+async function createMediaPlayer(originalBlobUrl, wavPath, wavBytes, isVideo, options = {}) {
   destroyMediaPlayer();
 
-  // --- Vidéo visible (image seule, muette) ---
-  const video = document.createElement(isVideo ? 'video' : 'audio');
-  video.id = 'studio-player-video';
-  video.className = 'studio-player';
-  video.preload = 'auto';
-  video.src = videoBlobUrl;
-  video.muted = true;
-  video.volume = 0;
-  video.controls = false;
-  if (isVideo) video.playsInline = true;
-  els.playerVideoContainer.appendChild(video);
-  playerVideo = video;
-  els.player = video;
+  // Source audio fiable : le WAV extrait s'il existe, sinon le conteneur original.
+  audioBlobUrl = wavBytes
+    ? URL.createObjectURL(new Blob([wavBytes], { type: 'audio/wav' }))
+    : originalBlobUrl;
+
+  // Source vidéo visible : le conteneur original (MP4) pour conserver l'image.
+  const visualBlobUrl = isVideo ? originalBlobUrl : audioBlobUrl;
+
+  // --- Lecteur visuel (vidéo ou audio muet de référence) ---
+  if (isVideo) {
+    const video = document.createElement('video');
+    video.id = 'studio-player-video';
+    video.className = 'studio-player';
+    video.preload = 'auto';
+    video.src = visualBlobUrl;
+    video.muted = true;
+    video.volume = 0;
+    video.controls = false;
+    video.playsInline = true;
+    els.playerVideoContainer.appendChild(video);
+    playerVideo = video;
+    els.player = video;
+  }
 
   // --- Audio caché : timing / metadata de secours ---
   const audio = document.createElement('audio');
   audio.id = 'studio-player-audio';
   audio.className = 'studio-player';
-  audio.preload = 'metadata';
-  audioBlobUrl = wavBytes
-    ? URL.createObjectURL(new Blob([wavBytes], { type: 'audio/wav' }))
-    : videoBlobUrl;
+  audio.preload = 'auto';
   audio.src = audioBlobUrl;
   audio.controls = false;
   audio.muted = true;
@@ -1000,44 +1222,124 @@ async function createMediaPlayer(videoBlobUrl, wavPath, wavBytes, isVideo) {
   playerAudio = audio;
   els.playerAudio = audio;
 
-  bindMediaEvents(video, audio);
+  bindMediaEvents(audio);
 
-  // Décoder le WAV extrait en AudioBuffer natif pour un playback fiable
-  // quel que soit le conteneur d'origine (MP3, MP4, M4A…).
+  // --- Fallback M4A : lecteur HTML5 natif qui décode le flux AAC en temps réel ---
+  const originalIsM4a = isM4aFile(currentTrack?.metadata?.originalPath || '');
+  if (originalIsM4a) {
+    html5AudioReadyPromise = new Promise((resolve) => {
+      html5AudioResolve = resolve;
+    });
+    html5Audio = document.createElement('audio');
+    html5Audio.id = 'studio-html5-audio';
+    html5Audio.preload = 'auto';
+    html5Audio.src = originalBlobUrl;
+    html5Audio.crossOrigin = 'anonymous';
+    html5Audio.style.display = 'none';
+    document.body.appendChild(html5Audio);
+
+    html5Audio.onloadedmetadata = () => {
+      const realDuration = html5Audio.duration;
+      if (Number.isFinite(realDuration) && realDuration > 0) {
+        mediaDuration = realDuration;
+        if (waveformData && (!waveformData.duration || waveformData.duration <= 2)) {
+          waveformData.duration = realDuration;
+          renderWaveform();
+          updateRegionUI();
+        }
+      }
+      console.log('[Studio] HTML5 audio metadata:', { duration: html5Audio.duration });
+    };
+
+    html5Audio.oncanplaythrough = () => {
+      if (!html5AudioCanPlay) {
+        html5AudioCanPlay = true;
+        console.log('[Studio] HTML5 audio can play through');
+        html5AudioResolve?.(true);
+      }
+    };
+
+    html5Audio.onerror = (e) => {
+      const err = html5Audio?.error;
+      console.error('[Studio] HTML5 audio error code:', err?.code, 'message:', err?.message, 'event:', e);
+      html5AudioCanPlay = false;
+      html5AudioResolve?.(false);
+    };
+
+    html5Audio.ontimeupdate = () => {
+      // Gestion de la région : pause automatique à la fin de la zone confirmée.
+      if (regionConfirmed && regionEnd !== null && html5Audio.currentTime >= regionEnd - 0.02) {
+        pause();
+        seek(regionEnd - 0.001);
+      }
+    };
+
+    html5Audio.load();
+  }
+
+  // Décoder le WAV extrait en AudioBuffer natif pour un playback fiable.
   masterAudioUrl = audioBlobUrl;
   const decodePath = wavPath || (audioBlobUrl.startsWith('blob:') ? null : audioBlobUrl);
-  if (decodePath) {
+  if (decodePath && !originalIsM4a) {
     masterAudioBuffer = await decodeMasterAudio(decodePath);
-    if (masterAudioBuffer) {
+    if (isValidAudioBuffer(masterAudioBuffer)) {
       masterPlayer = createMasterPlayer(studioAudioCtx, studioDestination, masterAudioBuffer);
       const db = Number(els.volume?.value) || 0;
       masterPlayer.setVolume(db);
+    } else {
+      console.error('[Studio] decoded audio buffer is invalid:', masterAudioBuffer);
+      masterAudioBuffer = null;
     }
   }
 
-  return { video, audio };
+  return { audio };
+}
+
+function isValidAudioBuffer(buffer) {
+  return !!buffer
+    && Number.isFinite(buffer.duration)
+    && buffer.duration > 0.001
+    && buffer.numberOfChannels > 0
+    && buffer.sampleRate > 0;
+}
+
+function isHtml5AudioReady() {
+  return !isM4aFile(currentTrack?.metadata?.originalPath || '') || html5AudioCanPlay;
+}
+
+async function waitHtml5AudioReady(timeoutMs = 10000) {
+  if (!isM4aFile(currentTrack?.metadata?.originalPath || '')) return true;
+  if (html5AudioCanPlay) return true;
+  if (!html5AudioReadyPromise) return false;
+  const timeout = new Promise((resolve) => setTimeout(() => resolve(false), timeoutMs));
+  return Promise.race([html5AudioReadyPromise, timeout]);
+}
+
+function getRegionDuration() {
+  if (regionEnd === null || regionStart === null) return 0;
+  return Math.max(0.01, regionEnd - regionStart);
 }
 
 function getEffectiveDuration() {
-  // Dès qu'une région est tracée (même non confirmée), la timeline se cale sur elle.
-  if (regionEnd !== null) {
-    return Math.max(0.01, regionEnd - regionStart);
-  }
+  // ABSOLUTE TIMELINE : le lecteur et la barre de progression utilisent TOUJOURS
+  // la durée totale du fichier original, qu'une région soit active ou non.
+  const total = getTotalDuration();
+  if (total > 0) return total;
   return mixer?.getDuration?.()
     || masterPlayer?.getDuration?.()
     || els.playerAudio?.duration
     || els.player?.duration
-    || waveformData?.duration
-    || mediaDuration
     || 0;
 }
 
 function getEffectiveCurrentTime() {
-  const current = getStudioCurrentTime();
-  if (regionEnd !== null) {
-    return Math.max(0, Math.min(regionEnd - regionStart, current - regionStart));
-  }
-  return current;
+  // ABSOLUTE TIMELINE : le temps affiché est toujours le temps absolu du fichier.
+  return getStudioCurrentTime();
+}
+
+function isInsideRegion(time) {
+  if (regionEnd === null) return true;
+  return time >= regionStart && time < regionEnd - 0.001;
 }
 
 function storeOriginalStems(blobUrls, paths) {
@@ -1093,6 +1395,18 @@ function setLoadingState(loading) {
   if (els.processingOverlay) {
     els.processingOverlay.style.display = loading ? 'flex' : (studioStage === 2 ? 'flex' : 'none');
   }
+}
+
+// [Claude] — 2026-07-07 — Le spinner de chargement d'un morceau ne se ferme qu'après le message
+// de succès explicite, ou en cas d'erreur. On ne ferme plus le spinner dans un finally aveugle.
+function finishTrackLoading(name) {
+  setStatus(`Morceau chargé : ${name}`);
+  setLoadingState(false);
+}
+
+function failTrackLoading(message) {
+  setStatus(message);
+  setLoadingState(false);
 }
 
 function showReadyToast() {
@@ -1179,6 +1493,11 @@ function finishRegionProcessing(success) {
     updateStudioStage(3);
     setTransposeControlsEnabled(true);
     setCropControlsEnabled(true);
+    // Reset complet du player : forcer le retour au début de la nouvelle région.
+    stop();
+    seek(regionStart);
+    updateProgressUI(regionStart, getEffectiveDuration());
+    updatePlayhead(regionStart, getEffectiveDuration());
     if (transpose !== 0) runPitchShift();
   } else {
     updateStudioStage(1);
@@ -1199,24 +1518,28 @@ function cancelRegionProcessing() {
 
 export async function loadTrack(trackId) {
   if (isLoadingTrack) return;
+  let trackName = trackId;
   try {
     setLoadingState(true);
     stop();
     mixer?.reset();
     const metadata = await loadMetadata(trackId);
     currentTrack = { id: trackId, metadata };
+    trackName = metadata?.name || trackId;
 
     const originalBlobUrl = await readOriginalAsBlobUrl(trackId);
     if (!originalBlobUrl) {
-      setStatus('Fichier original introuvable');
+      failTrackLoading('Fichier original introuvable');
       return;
     }
 
-    const info = await inspectMedia(originalBlobUrl);
-    isAudioOnly = info.isAudioOnly;
-    mediaDuration = info.duration || 0;
+    // Détection audio-only par extension dès le départ (le probe navigateur est
+    // peu fiable sur certains conteneurs M4A/AAC).
+    isAudioOnly = isAudioOnlyByExtension(metadata?.originalPath || '');
+    const originalIsM4a = isM4aFile(metadata?.originalPath || '');
 
-    // Extraction WAV
+    // Extraction WAV : utilisé pour la waveform et les stems.
+    // Pour M4A, la lecture elle-même passera par un élément <audio> HTML5.
     let wavBytes = null;
     let wavPath = null;
     if (window.electronAPI?.studio?.extractAudio) {
@@ -1236,12 +1559,22 @@ export async function loadTrack(trackId) {
       }
     }
 
-    // Fallback : si pas de WAV, createMediaPlayer utilisera le blob original comme audio.
-    if (!wavBytes) {
-      wavBytes = null;
+    // Pour M4A, on laisse l'élément HTML5 audio récupérer la vraie durée via
+    // loadedmetadata. Pour les autres formats, on probe le WAV.
+    if (!originalIsM4a) {
+      const durationSourceBlob = wavBytes
+        ? URL.createObjectURL(new Blob([wavBytes], { type: 'audio/wav' }))
+        : originalBlobUrl;
+      const info = await inspectMedia(durationSourceBlob);
+      mediaDuration = info.duration || 0;
+      if (wavBytes && durationSourceBlob !== originalBlobUrl) {
+        URL.revokeObjectURL(durationSourceBlob);
+      }
     }
 
-    // Créer les players (vidéo visible + audio caché)
+    // Créer les players.
+    // Pour M4A, l'audio HTML5 caché sera la source principale ; le WAV est
+    // toujours disponible pour la waveform et la séparation de stems.
     await createMediaPlayer(originalBlobUrl, wavPath, wavBytes, !isAudioOnly);
     updateAudioBackdrop(metadata?.name || trackId);
 
@@ -1303,6 +1636,9 @@ export async function loadTrack(trackId) {
       renderWaveform();
       updateRegionUI();
       updateCropButtons();
+      // Reset player : revenir au début de la région confirmée sur la timeline globale.
+      stop();
+      seek(regionStart);
       // Si les stems existent déjà, on passe directement à l'étape 3
       const stemPaths = await getStems(trackId);
       const hasStems = Object.values(stemPaths).some(Boolean);
@@ -1314,17 +1650,25 @@ export async function loadTrack(trackId) {
         updateStudioStage(1);
       }
     } else {
+      // Pas de région confirmée : initialiser une région par défaut de 5 min max.
+      const totalDuration = getTotalDuration();
+      regionStart = 0;
+      regionEnd = totalDuration > 0
+        ? Math.min(totalDuration, MAX_REGION_DURATION)
+        : null;
+      regionConfirmed = false;
+      renderWaveform();
+      updateRegionUI();
+      updateCropButtons();
       updateStudioStage(1);
     }
 
     await refreshTrackList();
     await refreshStems();
-    setStatus(`Morceau chargé : ${metadata?.name || trackId}`);
+    finishTrackLoading(trackName);
   } catch (err) {
     console.error('Failed to load track:', err);
-    setStatus(`Erreur de chargement : ${err.message}`);
-  } finally {
-    setLoadingState(false);
+    failTrackLoading(`Erreur de chargement : ${err.message}`);
   }
 }
 
@@ -1346,18 +1690,9 @@ function renderWaveform() {
   let peaks = waveformData.peaks || [];
   if (peaks.length === 0) return;
 
-  // Crop visuel : si région confirmée, on ne dessine que la zone sélectionnée
-  if (regionConfirmed && regionEnd !== null && waveformData.duration) {
-    const totalDuration = waveformData.duration;
-    const startIdx = Math.floor((regionStart / totalDuration) * peaks.length);
-    const endIdx = Math.floor((regionEnd / totalDuration) * peaks.length);
-    peaks = peaks.slice(startIdx, endIdx);
-    canvas.dataset.regionStart = String(regionStart);
-    canvas.dataset.regionEnd = String(regionEnd);
-  } else {
-    delete canvas.dataset.regionStart;
-    delete canvas.dataset.regionEnd;
-  }
+  // La waveform affiche toujours le fichier ENTIER, jamais zoomée sur la région.
+  const totalDuration = getTotalDuration() || 1;
+  canvas.dataset.totalDuration = String(totalDuration);
 
   const step = Math.max(1, w / peaks.length);
   for (let i = 0; i < peaks.length; i++) {
@@ -1372,6 +1707,7 @@ function updateProgressUI(current, duration) {
   if (!els.progress || !els.time) return;
   const pct = duration ? (current / duration) * 100 : 0;
   els.progress.value = Math.max(0, Math.min(100, pct));
+  // ABSOLUTE TIMELINE : le timer affiche toujours le temps absolu du fichier.
   els.time.textContent = `${formatDuration(current)} / ${formatDuration(duration)}`;
 }
 
@@ -1409,31 +1745,71 @@ async function runPitchShift() {
   }
 }
 
+// [Claude] — 2026-07-07 — Pendant la prévisualisation (région non confirmée), la source de vérité
+// de la position de lecture est le curseur VISUEL (slider/waveform), pas le lecteur audio,
+// afin d'éviter que l'audio ne reparte d'une ancienne position si currentTime n'a pas encore
+// convergé après un seek.
+function getVisualCursorTime() {
+  const duration = getTotalDuration() || 1;
+  const sliderValue = Number(els.progress?.value) || 0;
+  return Math.max(0, Math.min((sliderValue / 100) * duration, duration));
+}
+
 export async function play() {
-  if (isLoadingTrack) return;
-  if (!mixer?.hasStems() && !masterPlayer) return;
+  if (isLoadingTrack || isPlaying) return;
+
+  const canPlay = await waitHtml5AudioReady();
+  if (!canPlay) {
+    setStatus('Audio non prêt — réessayez dans un instant');
+    return;
+  }
+
+  if (!mixer?.hasStems() && !masterPlayer && !html5Audio) return;
 
   ensureStudioAudioContext();
   if (studioAudioCtx?.state === 'suspended') {
     try { await studioAudioCtx.resume(); } catch (_) {}
   }
 
-  const rawTime = getStudioCurrentTime() || 0;
-  const resumeTime = regionConfirmed ? Math.max(regionStart, Math.min(rawTime, regionEnd)) : rawTime;
+  // ABSOLUTE TIMELINE : la position de départ est explicitement synchronisée sur le curseur visuel.
+  let resumeTime = getVisualCursorTime();
+
+  // Si une région est confirmée, on restreint la lecture à la région.
+  if (regionConfirmed) {
+    if (regionEnd !== null && !isInsideRegion(resumeTime)) {
+      resumeTime = regionStart;
+    }
+  }
+
+  // Synchronisation EXPLICITE de tous les lecteurs sur la position visuelle AVANT play.
+  if (playerAudio && playerAudio.currentTime != null) playerAudio.currentTime = resumeTime;
+  if (html5Audio) html5Audio.currentTime = resumeTime;
+  if (playerVideo && playerVideo.currentTime != null) playerVideo.currentTime = resumeTime;
+  if (masterPlayer) masterPlayer.seek(resumeTime);
 
   if (mixer?.hasStems()) {
-    mixer.seek(resumeTime);
+    // Convertir le temps absolu en temps local dans la région extraite.
+    const localTime = Math.max(0, Math.min(getRegionDuration(), resumeTime - regionStart));
+    mixer.seek(localTime);
     mixer.play();
     if (transpose !== 0) mixer.setDetune(transpose);
+  } else if (html5Audio) {
+    html5Audio.currentTime = resumeTime;
+    html5Audio.volume = dbToGain(Number(els.volume?.value) || 0);
+    html5Audio.play().catch((err) => console.error('[Studio] HTML5 play failed:', err));
   } else if (masterPlayer) {
     masterPlayer.seek(resumeTime);
     masterPlayer.play();
     if (transpose !== 0) await masterPlayer.setPitch(transpose);
   }
 
-  if (playerVideo) {
+  // Synchroniser tous les éléments média sur la position absolue.
+  if (playerVideo && playerVideo.currentTime != null) {
     playerVideo.currentTime = resumeTime;
     playerVideo.play().catch(() => {});
+  }
+  if (playerAudio && playerAudio.currentTime != null) {
+    playerAudio.currentTime = resumeTime;
   }
 
   isPlaying = true;
@@ -1445,6 +1821,8 @@ export function pause() {
   if (isLoadingTrack) return;
   if (mixer?.hasStems()) {
     mixer.pause();
+  } else if (html5Audio) {
+    html5Audio.pause();
   } else {
     masterPlayer?.pause();
   }
@@ -1461,27 +1839,43 @@ export function stop() {
   if (isLoadingTrack) return;
   mixer?.stop();
   masterPlayer?.stop();
-  if (playerVideo) playerVideo.currentTime = regionConfirmed ? regionStart : 0;
+  const target = regionConfirmed ? regionStart : 0;
+  if (html5Audio) {
+    html5Audio.pause();
+    html5Audio.currentTime = target;
+  }
+  if (playerVideo && playerVideo.currentTime != null) playerVideo.currentTime = target;
+  if (playerAudio && playerAudio.currentTime != null) playerAudio.currentTime = target;
   isPlaying = false;
   if (els.playBtn) els.playBtn.textContent = '▶';
-  updateProgressUI(0, getEffectiveDuration());
+  updateProgressUI(target, getEffectiveDuration());
+  updatePlayhead(target, getEffectiveDuration());
   stopSyncLoop();
 }
 
 function clampToRegion(time) {
-  if (regionEnd === null) return time;
-  return Math.max(regionStart, Math.min(time, regionEnd));
+  // ABSOLUTE TIMELINE : le seek reste libre sur le fichier entier, sauf si on
+  // est en mode lecture région confirmée où on reboucle au début de la région.
+  if (regionConfirmed && regionEnd !== null) {
+    return Math.max(regionStart, Math.min(time, regionEnd - 0.001));
+  }
+  return Math.max(0, Math.min(time, getTotalDuration()));
 }
 
 function seek(time) {
   if (isLoadingTrack) return;
   const clamped = clampToRegion(time);
-  if (playerVideo) playerVideo.currentTime = clamped;
+  if (playerVideo && playerVideo.currentTime != null) playerVideo.currentTime = clamped;
+  if (playerAudio && playerAudio.currentTime != null) playerAudio.currentTime = clamped;
+  if (html5Audio) html5Audio.currentTime = clamped;
   if (mixer?.hasStems()) {
-    mixer.seek(clamped);
+    const localTime = Math.max(0, Math.min(getRegionDuration(), clamped - regionStart));
+    mixer.seek(localTime);
   } else {
     masterPlayer?.seek(clamped);
   }
+  updateProgressUI(clamped, getEffectiveDuration());
+  updatePlayhead(clamped, getEffectiveDuration());
 }
 
 async function refreshStems() {
