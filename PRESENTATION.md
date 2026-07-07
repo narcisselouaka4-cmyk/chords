@@ -1,7 +1,7 @@
 # Piano Jazz Chords — Présentation projet
 
 > Document de synthèse à destination du chef de projet.
-> Dernière mise à jour : 5 juillet 2026.
+> Dernière mise à jour : 7 juillet 2026.
 
 ---
 
@@ -33,6 +33,7 @@ Elle détecte en temps réel les accords joués sur un clavier MIDI, les affiche
 - Clavier virtuel SVG qui reflète les touches actives.
 - Historique des accords détectés avec sauvegarde de session.
 - Pédagogie jazz : inversions, close position, rootless, upper structures, polychords, quartal.
+- Exercices rapides : mode "Accord cible" et mode "Progression" avec feedback visuel immédiat.
 - Paramètres : transposition, tolérance de groupement, notation latine/anglaise, couleurs.
 
 **État :** ✅ Fonctionnel et testé.
@@ -57,13 +58,15 @@ Elle détecte en temps réel les accords joués sur un clavier MIDI, les affiche
 **Ce que le module fait aujourd'hui :**
 
 - Pipeline d'analyse à trois entrées : MIDI, Tutoriel vidéo, Cover / Performance.
-- Détection de tonalité par profils Krumhansl-Schmuckler + heuristique sur les accords.
+- Détection de tonalité par profils Krumhansl-Schmuckler + heuristique sur les accords ; détection robuste sur contenu mélodique pur.
 - Segmentation d'une session en sections (Intro, Couplet, Pré-refrain, Refrain, Bridge, Outro, Interlude).
 - Timeline d'accords avec Top Note détectée, grace notes, voicing et technique.
+- Scores de session (Voice Leading, Transitions, Tensions, Inner Voices) et patterns harmoniques (II-V-I, cadences, turnarounds, substitutions).
 - Grille d'arrangement harmonique : toggle Actif/Inactif par accord, dropdown de ligne de basse (Auto, 1/3/5/7, patterns 7-3-6, 2-5-1, etc.).
-- Suggestions de réharmonisation par style (Worship, Gospel, Jazz, Neo Soul) avec mini-claviers.
+- Suggestions de réharmonisation par style (Worship, Gospel, Jazz, Neo Soul) avec mini-claviers, et réharmonisation complète de session.
 - Intégration IA (Groq/OpenRouter/Gemini) avec format JSON blueprint : accord original, top note, 3 suggestions par influence locale, technique et voicing.
 - Masterclass IA : analyse pédagogique par accord, avec cache, retry exponentiel et fallback sur la bibliothèque locale de mouvements.
+- Affichage progressif : scores, patterns et réharmonisation repliables par défaut pour éviter la surcharge d'information.
 
 **État :** ✅ Fonctionnel et testé.
 
@@ -73,11 +76,12 @@ Elle détecte en temps réel les accords joués sur un clavier MIDI, les affiche
 
 **Ce que fait le module aujourd'hui :**
 
-- Import de fichiers MP3, MP4, WAV, FLAC, OGG.
-- Lecture audio/vidéo avec waveform et sélection de région bouclée.
+- Import de fichiers MP3, MP4, WAV, FLAC, OGG, M4A, AAC.
+- Choix du type d'import : "Tutoriel pédagogique" ou "Morceau à étudier" pour l'analyse.
+- Lecture audio/vidéo avec waveform, sélection de région et limite automatique à 5 minutes.
 - Séparation en 5 stems via Demucs : Basse, Batterie, Voix, Autres, Piano.
 - Mixer avec mute, solo et volumes en dB par piste.
-- Transposition pitch-seul de ±12 demi-tons avec RubberBand (qualité pro, conservation du tempo).
+- Transposition pitch-seul de ±12 demi-tons avec conservation du tempo ; toujours recalculée depuis le buffer original pour éviter la dégradation en cascade.
 - La transposition s'applique à chaque stem individuellement : on peut donc couper la basse transposée, mettre la voix en solo, etc.
 
 **État :** ✅ Fonctionnel et testé.
@@ -138,6 +142,12 @@ npm run build
 # Tests du moteur d'accords
 node src/chord-engine/test-chords.js
 
+# Tests de non-régression Partie 1 (bugs moteur Analyse)
+node src/analyzer/test-regression-part1.js
+
+# Tests de non-régression Partie 3 (classifieur unique)
+node src/chord-engine/test-regression-part3.js
+
 # Build de production
 npm run build
 ```
@@ -164,6 +174,8 @@ npm run build
 - Pour la v1 : installation Python + ffmpeg documentée comme prérequis acceptable ; packaging propre reporté en v1.1.
 - Gestion des erreurs utilisateur et journal d'application.
 - Anonymisation complète des références artistes : les suggestions affichent désormais des catégories de style (ex. « Walk-up Gospel ») plutôt que des noms propres.
+- Décision React vs vanilla JS avant tout nouvel élargissement du blueprint (Blueprint V3).
+- Ne pas intégrer de flux NoTube (recherche/téléchargement YouTube) dans l'application ; conserver l'import manuel de fichiers locaux.
 
 ---
 

@@ -150,7 +150,7 @@ ${libraryText}
 RÈGLES STRICTES :
 1. L'accord original DOIT garder sa fondamentale. Les suggestions sont des REHARMONISATIONS, pas des accords complètement différents.
 2. Les voicings DOIVENT être jouables à la main gauche : 2 à 6 notes, tessiture C2-C6 (MIDI 36-84).
-3. Chaque suggestion doit citer explicitement son inspiration artistique (Jeremy Haynes, Jonathan Nelson, Moses Tyson, ou générique).
+3. Chaque suggestion doit citer explicitement une catégorie stylistique (Walk-up Gospel, Montée diatonique Worship, Turnaround Gospel, Couleur Gospel moderne, Substitution Jazz, II-V-I Jazz mineur, ou Générique) plutôt qu'un nom d'artiste.
 4. Le champ "voicing" est un tableau de notes au format "NoteOctave" (ex: "C#2", "B2", "E3").
 5. La "technique" doit décrire le mouvement (Drop 2, Quartal, Rootless, Substitution tritonique, etc.).
 6. Réponds UNIQUEMENT en JSON valide, sans aucun texte avant/après.
@@ -160,9 +160,9 @@ Format attendu :
   "accord_original": "Em7",
   "top_note": "G#",
   "suggestions": [
-    { "inspiration": "Jeremy Haynes", "voicing": ["C#2", "B2", "E3", "G#3", "B3"], "technique": "Drop 2 / Substitution Diatonique" },
-    { "inspiration": "Jonathan Nelson", "voicing": ["A2", "E3", "G3", "B3", "D4", "G#4"], "technique": "La6/9 basse de Mi / Quartal" },
-    { "inspiration": "Moses Tyson", "voicing": ["D#2", "A#2", "C#3", "F#3", "A#3"], "technique": "2-5-1 Mineur Altéré / Rootless" }
+    { "inspiration": "Substitution Jazz", "voicing": ["C#2", "B2", "E3", "G#3", "B3"], "technique": "Drop 2 / Substitution Diatonique" },
+    { "inspiration": "Couleur Gospel moderne", "voicing": ["A2", "E3", "G3", "B3", "D4", "G#4"], "technique": "La6/9 basse de Mi / Quartal" },
+    { "inspiration": "II-V-I Jazz mineur", "voicing": ["D#2", "A#2", "C#3", "F#3", "A#3"], "technique": "2-5-1 Mineur Altéré / Rootless" }
   ]
 }`;
 

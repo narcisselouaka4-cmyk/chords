@@ -22,6 +22,141 @@ function latinNoteNameToPc(name) {
 
 ## Historique
 
+### 2026-07-07 — Claude (Pipeline Analyse enrichi + Exercices rapides Entraînement)
+
+- `src/analyzer/harmonic-utils.js` (création)
+  - Utilitaires harmoniques partagés : classification dominante/mineur/majeur, degrés dans la tonalité, formatage compact des accords.
+
+- `src/analyzer/harmonic-patterns.js` (création)
+  - Détection de patterns harmoniques : II-V-I, cadences (parfaite, plagale, demi, rompue), turnarounds, substitutions (tritonique, backdoor).
+  - Enrichissement des accords avec leur degré dans la tonalité détectée.
+  - Refactor pour utiliser `src/analyzer/harmonic-utils.js` et éviter la duplication avec `src/analyzer/substitutions.js`.
+
+- `src/analyzer/substitutions.js`
+  - Refactor pour utiliser les helpers de `src/analyzer/harmonic-utils.js`.
+
+- `src/analyzer/analyzer.js`
+  - Intégration des scores de session (`scoreSession`) : Voice Leading, Transitions, Tensions, Inner Voices.
+  - Intégration du voice leading entre accords consécutifs (`buildVoiceLeading`).
+  - Intégration des patterns harmoniques dans le résultat d'analyse.
+  - Persistance inchangée via `analysis/analysis.json`.
+
+- `src/analyzer/reharmonizer.js`
+  - `suggestProgression(chords, style)` : génère une réharmonisation complète de la session selon Worship, Gospel, Jazz ou Neo Soul.
+  - `renderProgressionToEvents` et `playProgression` pour écouter la progression stylisée.
+
+- `src/ui/analyzer-tab.js`
+  - Affichage des scores de session en haut de l'analyse.
+  - Affichage des patterns harmoniques détectés avec badges et descriptions.
+  - Affichage du degré de chaque accord sur sa tuile.
+  - Détail d'accord enrichi : degré, voice leading avec l'accord précédent/suivant, voicings alternatifs (close, drop 2, spread), substitutions détectées.
+  - Panneau "Réharmonisation de session" : génère et écoute une version stylisée de toute la progression.
+  - Correction du rendu du détail d'accord pour éviter les sauts de layout.
+  - Affichage progressif : scores de session, patterns harmoniques et réharmonisation de session sont désormais regroupés dans des panneaux repliés par défaut.
+
+- `src/practice-exercise.js` (création)
+  - Moteur d'exercices rapides pour l'onglet Entraînement.
+  - Mode "Accord cible" : l'utilisateur doit jouer l'accord affiché.
+  - Mode "Progression" : l'utilisateur doit jouer une progression générée (II-V-I, I-V-vi-IV, etc.) étape par étape.
+  - Feedback visuel immédiat et score interne.
+
+- `src/main.js`
+  - Initialisation du panneau d'exercice rapide (`initPracticeExercise`).
+  - Vérification automatique de l'exercice à chaque accord détecté (`checkPracticeExercise`).
+
+- `src/index.html`
+  - Ajout du panneau "Exercice rapide" dans la colonne de gauche de l'onglet Entraînement.
+
+- `src/style.css`
+  - Styles pour les scores de session, les patterns harmoniques, les degrés d'accord.
+  - Styles pour les voicings alternatifs et les substitutions dans le détail d'accord.
+  - Styles pour le panneau de réharmonisation de session.
+  - Styles pour le panneau d'exercice rapide et le feedback visuel.
+  - Styles pour les panneaux repliables de l'onglet Analyse (affichage progressif).
+
+- Vérifications
+  - `npm run build` OK.
+  - `node src/analyzer/test-regression-part1.js` OK.
+  - `node src/chord-engine/test-regression-part3.js` OK.
+
+---
+
+### 2026-07-05 — OpenCode (Passe corrective Partie 1 — bugs moteur du module Analyse)
+
+- `src/recorder/player.js`
+  - Machine à états explicite (`stopped | playing | paused`) avec conservation de la position courante à la pause.
+  - Correction du seek : coupure de toutes les notes actives avant le repositionnement.
+
+- `src/ui/recording-tab.js`
+  - Transport : mise à jour visuelle pendant le drag du slider, déclenchement audio réel au relâchement (`change`).
+  - Liste des sessions : ellipsis sur les noms longs et tooltip natif `title`.
+
+- `src/analyzer/chord-timeline.js`
+  - Pattern **collect-puis-analyse** : fenêtre de collecte de 180 ms, calcul du nom d'accord et de la top note une fois le groupe stabilisé.
+  - Détection du mode mélodique : ratio de groupes simultanés < 15 %.
+
+- `src/analyzer/key-detector.js`
+  - Ajout de `computeKeyFromRawNotes()` indépendante de la segmentation en accords, basée sur un histogramme pondéré Krumhansl-Schmuckler.
+
+- `src/analyzer/test-regression-part1.js` (création)
+  - Tests de non-régression : Fmaj9 à 6 notes, mélodie isolée C-D-E-F-G → Do majeur, progression II-V-I non mélodique.
+
+- Vérifications
+  - `node src/analyzer/test-regression-part1.js` OK.
+
+---
+
+### 2026-07-06 — OpenCode (Passe corrective Partie 2-3 — architecture Analyse et classifieur unique)
+
+- `src/recorder/session-manager.js`
+  - Ajout du champ `sourceType` au schéma de session (`midi`, `tutorial`, `cover`), défaut sûr `midi` pour les sessions existantes.
+
+- `src/analyzer/analyzer.js`
+  - Routage de l'analyse selon `sourceType` : mélodique vs accords, persistance via `analysis/analysis.json`.
+
+- `src/ui/analyzer-tab.js`
+  - Vue unique selon `sourceType` : `Jeu enregistré` / `Tutoriel` / `Cover / Performance`.
+  - Affichage progressif : liste d'abord, détail d'accord au clic, suggestions au clic.
+  - Masterclass IA par accord sélectionné, avec fallback algorithmique.
+
+- `src/ui/studio-tab.js`
+  - Choix manuel du type de source à l'import (`Tutoriel pédagogique` / `Morceau à étudier`).
+
+- `src/chord-engine/index.js`
+  - Exposition de `classifyVoicing(midiNotes)` : fonction pure, même entrée → même sortie, réutilisable pour le jeu live et les suggestions.
+
+- `src/ai/ai-client.js`
+  - Post-traitement systématique des suggestions IA via `classifyVoicing`.
+  - Cache + retry sur les appels Masterclass IA, fallback sur la bibliothèque locale de mouvements.
+  - Anonymisation des noms d'artistes : remplacement par des catégories stylistiques (`Walk-up Gospel`, `Montée diatonique Worship`, `Turnaround Gospel`, `Couleur Gospel moderne`, `Substitution Jazz`, `II-V-I Jazz mineur`).
+
+- `src/data/movements-library.json`
+  - Remplacement des noms de musiciens par des catégories stylistiques.
+
+- `src/chord-engine/test-regression-part3.js` (création)
+  - Tests de non-régression : cluster détecté comme cluster, triade sur basse différente classifiée, pureté du classifieur.
+
+- Vérifications
+  - `npm run build` OK.
+  - `node src/analyzer/test-regression-part1.js` OK.
+  - `node src/chord-engine/test-regression-part3.js` OK.
+
+---
+
+### 2026-07-06 — OpenCode (Validation et consolidation du workflow Studio)
+
+- `src/ui/studio-tab.js` / `src/audio/stem-mixer.js` / `src/audio/pitch-shifter.js`
+  - Réarchitecture audio validée : lecteur vidéo visible muet + audio caché, AudioContext partagé, fallback HTML5 natif pour les fichiers M4A/AAC.
+  - Workflow région assouplie : la région couvre le fichier entier par défaut (jusqu'à 5 min max) ; lecture et transposition disponibles immédiatement ; séparation/export exigent une région confirmée.
+  - Limitation automatique de la région : `MAX_REGION_DURATION = 300` s (5 minutes) avec retour visuel quand la limite est atteinte.
+  - Principe anti-dégradation : la transposition s'applique toujours depuis le buffer original via `setDetune` / `setPitch` avec un ratio absolu, jamais par cumul de transpositions successives.
+  - Noms de fichiers affichés dans la liste Studio (`metadata.name`) au lieu des identifiants techniques.
+
+- Vérifications
+  - `npm run build` OK.
+
+---
+
 ### 2026-07-03 — OpenCode
 
 - `src/index.html`
