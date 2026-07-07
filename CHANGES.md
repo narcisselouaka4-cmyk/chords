@@ -47,6 +47,25 @@ function latinNoteNameToPc(name) {
 
 ---
 
+### 2026-07-07 — Claude (Corrections bugs Studio : synchro audio/visuel + spinner de chargement)
+
+- `src/ui/studio-tab.js`
+  - Correction de la désynchronisation audio/visuelle en prévisualisation de région :
+    - Ajout de `getVisualCursorTime()` : la position de départ de la lecture est désormais lue depuis le curseur visuel (slider/waveform) plutôt que depuis le lecteur audio.
+    - Synchronisation explicite de tous les lecteurs (`html5Audio`, `masterPlayer`, `playerAudio`, `playerVideo`) sur la position visuelle AVANT le `play()`, même si la région n'est pas encore confirmée.
+    - Ajout d'un guard `isPlaying` au début de `play()` pour éviter les redémarrages parasites.
+  - Correction de la fermeture prématurée de l'écran de chargement :
+    - Suppression du `finally { setLoadingState(false); }` dans `loadTrack()`.
+    - Ajout de `finishTrackLoading(name)` : le spinner ne se ferme que lorsque le message `Morceau chargé : [titre]` est émis.
+    - Ajout de `failTrackLoading(message)` pour fermer le spinner en cas d'erreur ou de fichier introuvable.
+
+- Vérifications
+  - `npm run build` OK.
+  - `node src/analyzer/test-regression-part1.js` OK.
+  - `node src/chord-engine/test-regression-part3.js` OK.
+
+---
+
 ### 2026-07-07 — Claude (Pipeline Analyse enrichi + Exercices rapides Entraînement)
 
 - `src/analyzer/harmonic-utils.js` (création)
