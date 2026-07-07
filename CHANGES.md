@@ -22,6 +22,31 @@ function latinNoteNameToPc(name) {
 
 ## Historique
 
+### 2026-07-07 — Claude (Refonte UX de l'onglet Analyse avec sous-onglets)
+
+- `src/index.html`
+  - Restructuration de la zone d'analyse pour accueillir une barre de sous-onglets.
+
+- `src/ui/analyzer-tab.js`
+  - Ajout de 3 sous-onglets dans l'onglet Analyse : **Accords**, **Analyse**, **Masterclass**.
+  - Sous-onglet **Accords** : grille/timeline des accords + détail de l'accord sélectionné + suggestions par style + arrangement harmonique + grille de référence.
+  - Sous-onglet **Analyse** : scores de session, patterns harmoniques et réharmonisation complète, regroupés dans des panneaux repliables.
+  - Sous-onglet **Masterclass** : analyse IA de la session entière, avec indicateur visuel si aucune clé API n'est configurée.
+  - Badges sur les sous-onglets (nombre d'accords, nombre de patterns, indicateur clé API manquante).
+  - Refactor : l'arrangement harmonique et la grille de référence sont désormais intégrés au HTML statique du sous-onglet Accords plutôt qu'ajoutés dynamiquement.
+
+- `src/style.css`
+  - Styles de la barre de sous-onglets (`analysis-subtabs`), des badges, du conteneur de sous-vue.
+  - Amélioration des tuiles d'accords (meilleur contraste, hover, état actif, degré et voicing).
+  - Amélioration du détail d'accord (sections encadrées, voice leading coloré).
+
+- Vérifications
+  - `npm run build` OK.
+  - `node src/analyzer/test-regression-part1.js` OK.
+  - `node src/chord-engine/test-regression-part3.js` OK.
+
+---
+
 ### 2026-07-07 — Claude (Pipeline Analyse enrichi + Exercices rapides Entraînement)
 
 - `src/analyzer/harmonic-utils.js` (création)
