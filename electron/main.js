@@ -387,9 +387,7 @@ function runAudioProcessor(args, onProgress = null) {
       const text = data.toString();
       stdout += text;
       if (onProgress && mainWindow && !mainWindow.isDestroyed()) {
-        // Audio processing currently does not emit progress lines.
-        // This hook is kept for future streaming progress.
-        const match = text.match(/(\d{1,3})%/);
+        const match = text.match(/waveform progress:\s*(\d{1,3})%/);
         if (match) onProgress(Number(match[1]));
       }
     });
@@ -413,8 +411,8 @@ async function extractTrackAudio(inputPath, outputWav) {
   return outputWav;
 }
 
-async function generateWaveform(wavPath) {
-  const json = await runAudioProcessor(['waveform', wavPath]);
+async function generateWaveform(wavPath, onProgress = null) {
+  const json = await runAudioProcessor(['waveform', wavPath], onProgress);
   return JSON.parse(json.split('\n').filter(Boolean).pop());
 }
 
@@ -701,7 +699,12 @@ function setupStudioIPC() {
   });
 
   ipcMain.handle('studio:generate-waveform', async (event, wavPath) => {
-    return await generateWaveform(wavPath);
+    const trackId = path.basename(path.dirname(wavPath));
+    return await generateWaveform(wavPath, (percent) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('studio:waveform-progress', { trackId, percent });
+      }
+    });
   });
 
   ipcMain.handle('studio:pitch-shift', async (event, trackId, semitones, startSec, endSec, useStems) => {

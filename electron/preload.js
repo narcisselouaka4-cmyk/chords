@@ -56,6 +56,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     extractAudio: (trackId, inputPath) => ipcRenderer.invoke('studio:extract-audio', trackId, inputPath),
     trimRegion: (trackId, inputPath, startSec, endSec) => ipcRenderer.invoke('studio:trim-region', trackId, inputPath, startSec, endSec),
     generateWaveform: (wavPath) => ipcRenderer.invoke('studio:generate-waveform', wavPath),
+    onWaveformProgress: (callback) => {
+      const handler = (event, data) => callback(data);
+      ipcRenderer.on('studio:waveform-progress', handler);
+      return () => ipcRenderer.removeListener('studio:waveform-progress', handler);
+    },
     pitchShift: (trackId, semitones, startSec, endSec, useStems) => ipcRenderer.invoke('studio:pitch-shift', trackId, semitones, startSec, endSec, useStems),
     pitchShiftStems: (trackId, semitones, startSec, endSec, stemPaths) => ipcRenderer.invoke('studio:pitch-shift-stems', trackId, semitones, startSec, endSec, stemPaths),
     cleanupShifted: (trackId) => ipcRenderer.invoke('studio:cleanup-shifted', trackId),
