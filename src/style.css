@@ -518,6 +518,39 @@ body {
   background: var(--accent-soft);
 }
 
+.collapsible-panel {
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+  background: var(--panel-bg);
+}
+
+.collapsible-toggle {
+  user-select: none;
+  margin-bottom: 0;
+}
+
+.collapsible-toggle:hover {
+  color: var(--accent);
+}
+
+.collapsible-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.collapsible-content {
+  margin-top: 0.75rem;
+}
+
 .pedagogy-content {
   flex: 1;
   overflow-y: auto;
@@ -856,13 +889,60 @@ input[type='color'] {
 }
 
 .studio-tab.stage-0 .studio-track-item {
-  padding: 18px 22px;
+  padding: 12px 16px;
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background 0.15s ease, transform 0.1s ease;
   text-align: left;
   border: 1px solid var(--panel-border);
   background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.studio-track-item:hover {
+  background: var(--accent-soft);
+  transform: translateY(-1px);
+}
+
+.studio-track-item.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.studio-track-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.studio-track-actions {
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.studio-track-item:hover .studio-track-actions,
+.studio-track-item.active .studio-track-actions {
+  opacity: 1;
+}
+
+.studio-track-actions button {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  padding: 4px 6px;
+  font-size: 0.9rem;
+  line-height: 1;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.studio-track-actions button:hover {
+  background: var(--accent-soft);
+  transform: scale(1.05);
 }
 
 .studio-tab.stage-0 .studio-track-item:hover {
@@ -1484,6 +1564,21 @@ input[type='color'] {
   margin-top: 12px;
   max-height: 320px;
   overflow-y: auto;
+}
+
+/* Zone d'état Studio visible sous les pistes séparées */
+.studio-status-box {
+  margin-top: 16px;
+  padding: 12px 14px;
+  background: var(--accent-soft);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.92rem;
+  color: var(--text);
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  line-height: 1.4;
 }
 
 .studio-track-item {
@@ -3134,6 +3229,322 @@ input[type='color'] {
   font-weight: 400;
   color: var(--muted);
   font-size: 0.78rem;
+}
+
+/* ── Scores de session ── */
+.analysis-scores {
+  margin-bottom: 1.25rem;
+}
+
+.score-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.score-card {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.75rem;
+  text-align: center;
+  cursor: help;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.score-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.score-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 0.35rem;
+}
+
+.score-card.score-good .score-value { color: #22c55e; }
+.score-card.score-medium .score-value { color: #f59e0b; }
+.score-card.score-low .score-value { color: #ef4444; }
+
+.score-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.score-comment {
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-top: 0.25rem;
+  line-height: 1.2;
+}
+
+/* ── Patterns harmoniques ── */
+.analysis-patterns {
+  margin-bottom: 1.25rem;
+}
+
+.pattern-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.pattern-item:last-child {
+  border-bottom: none;
+}
+
+.pattern-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  white-space: nowrap;
+  color: white;
+}
+
+.pattern-badge.perfect { background: #22c55e; }
+.pattern-badge.plagal { background: #10b981; }
+.pattern-badge.half { background: #f59e0b; }
+.pattern-badge.deceptive { background: #8b5cf6; }
+.pattern-badge.ii-v-i { background: #3b82f6; }
+
+.pattern-desc {
+  font-size: 0.82rem;
+  color: var(--text);
+}
+
+/* ── Degré dans les tuiles d'accord ── */
+.chord-tile-degree {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--muted);
+  background: rgba(128, 128, 128, 0.12);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+}
+
+.chord-tile {
+  position: relative;
+}
+
+/* ── Détail enrichi d'accord ── */
+.detail-degree {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 600;
+  margin-left: 0.4rem;
+}
+
+.detail-voice-leading,
+.detail-alternatives,
+.detail-substitutions {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.vl-block {
+  font-size: 0.82rem;
+  color: var(--text);
+  margin: 0.3rem 0;
+}
+
+.vl-common {
+  color: #22c55e;
+  font-weight: 600;
+}
+
+.vl-move {
+  color: var(--text);
+}
+
+.alternatives-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.alternative-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.alternative-card:hover {
+  border-color: var(--primary);
+}
+
+.alternative-name {
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+}
+
+.alternative-notes {
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-top: 0.25rem;
+}
+
+.substitution-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.substitution-item:last-child {
+  border-bottom: none;
+}
+
+.substitution-type {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.substitution-desc {
+  font-size: 0.78rem;
+  color: var(--text);
+}
+
+/* ── Réharmonisation de session ── */
+.analysis-reharm-panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.session-reharm-styles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.session-reharm-btn {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.session-reharm-btn:hover {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.session-reharm-result {
+  margin-top: 0.75rem;
+}
+
+.reharm-summary {
+  font-size: 0.85rem;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+}
+
+/* ── Panneau d'exercice rapide ── */
+.practice-exercise-panel {
+  margin-bottom: 1rem;
+}
+
+.exercise-mode-selector {
+  display: flex;
+  gap: 0.4rem;
+  margin: 0.5rem 0;
+}
+
+.exercise-mode-btn {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.exercise-mode-btn:hover,
+.exercise-mode-btn.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.exercise-target {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 0.75rem;
+  padding: 0.5rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.exercise-target-name {
+  font-size: 1.2rem;
+  font-weight: 800;
+  margin-bottom: 0.35rem;
+}
+
+.exercise-target-keyboard {
+  max-width: 180px;
+}
+
+.exercise-target-notes {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 0.25rem;
+}
+
+.exercise-feedback {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  min-height: 1.2em;
+}
+
+.exercise-feedback.success {
+  color: #22c55e;
+  font-weight: 600;
+}
+
+.exercise-feedback.error {
+  color: #ef4444;
 }
 
 @media (max-width: 900px) {

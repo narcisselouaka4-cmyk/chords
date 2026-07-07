@@ -1,11 +1,14 @@
 import { analyzeSession, loadAnalysis } from '../analyzer/analyzer.js';
-import { suggestForChord, getStyleLabels } from '../analyzer/reharmonizer.js';
+import { suggestForChord, getStyleLabels, suggestProgression, playProgression } from '../analyzer/reharmonizer.js';
 import { formatPc } from '../chord-engine/naming.js';
 import { getVoicingLabel } from '../chord-engine/voicing.js';
 import { miniKeyboardForNotes } from './mini-keyboard.js';
 import { generateReharmonization, generateMasterclass, midiToNoteName, classifyAndLabel } from '../ai/ai-client.js';
 import { getAIConfig } from '../ai/openai-config.js';
 import { parseChordGrid, compareGridToPlayed } from '../analyzer/chord-comparator.js';
+import { generateAlternatives } from '../analyzer/alternatives.js';
+import { findSubstitutions } from '../analyzer/substitutions.js';
+import { buildVoiceLeading } from '../analyzer/voice-leading.js';
 
 // [OpenCode] — 2026-07-06 — Interface d'analyse unifiée.
 // Le type de vue est déterminé par session.sourceType : 'midi' | 'tutorial' | 'cover'.
@@ -148,11 +151,127 @@ function buildAnalysisShell(analysis, contentHtml, sourceType) {
   `;
 }
 
+function buildCollapsiblePanel(id, title, contentHtml, expanded = false) {
+  return `
+    <div class="panel collapsible-panel" data-collapsible-id="${escapeHtml(id)}">
+      <div class="panel-title collapsible-toggle" style="cursor:pointer;">
+        ${escapeHtml(title)} <span class="collapsible-icon">${expanded ? '−' : '+'}</span>
+      </div>
+      <div class="collapsible-content" style="display:${expanded ? '' : 'none'};">${contentHtml}</div>
+    </div>
+  `;
+}
+
 function buildMidiViewHtml(analysis) {
+  // Affichage progressif : scores, patterns et réharmonisation repliés par défaut.
+  const scoresPanel = analysis.scores
+    ? buildCollapsiblePanel('analysis-scores', 'Scores de session', buildScoresHtml(analysis.scores), false)
+    : '';
+  const patternsPanel = analysis.patterns
+    ? buildCollapsiblePanel('analysis-patterns', 'Patterns harmoniques', buildPatternsHtml(analysis.patterns), false)
+    : '';
+  const reharmPanel = !analysis.isMelodic && analysis.chords?.length > 0
+    ? buildCollapsiblePanel('session-reharm', 'Réharmonisation de session', buildSessionReharmPanel(analysis), false)
+    : '';
+  const header = scoresPanel + patternsPanel + reharmPanel;
+
   if (analysis.isMelodic) {
-    return buildAnalysisShell(analysis, buildMelodyHtml(analysis.melodyLine), 'midi');
+    return buildAnalysisShell(analysis, header + buildMelodyHtml(analysis.melodyLine), 'midi');
   }
-  return buildAnalysisShell(analysis, buildSectionsHtml(analysis.sections, analysis.chords), 'midi');
+  return buildAnalysisShell(analysis, header + buildSectionsHtml(analysis.sections, analysis.chords), 'midi');
+}
+
+function buildSessionReharmPanel(analysis) {
+  if (analysis.isMelodic || !analysis.chords || analysis.chords.length === 0) return '';
+
+  const labels = getStyleLabels();
+  const buttons = Object.entries(labels).map(([style, label]) => `
+    <button class="session-reharm-btn" data-style="${escapeHtml(style)}" type="button">
+      ${escapeHtml(label)}
+    </button>
+  `).join('');
+
+  return `
+    <div class="analysis-reharm-panel">
+      <div class="panel-title">Réharmonisation de session</div>
+      <div class="detail-hint">Générer une version stylisée de toute la progression et l'écouter.</div>
+      <div class="session-reharm-styles">${buttons}</div>
+      <div class="session-reharm-result" id="session-reharm-result"></div>
+    </div>
+  `;
+}
+
+function buildScoresHtml(scores) {
+  if (!scores) return '';
+  const entries = Object.entries(scores).filter(([_, s]) => s && typeof s.value === 'number');
+  if (entries.length === 0) return '';
+
+  const cards = entries.map(([key, score]) => {
+    const label = SCORE_LABELS[key] || key;
+    const value = Math.round(score.value);
+    const colorClass = value >= 8 ? 'score-good' : value >= 5 ? 'score-medium' : 'score-low';
+    return `
+      <div class="score-card ${colorClass}" data-score-key="${escapeHtml(key)}" title="${escapeHtml(score.comment || '')}">
+        <div class="score-value" style="--score:${value}">${value}/10</div>
+        <div class="score-label">${escapeHtml(label)}</div>
+        <div class="score-comment">${escapeHtml(score.comment || '')}</div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="analysis-scores">
+      <div class="panel-title">Scores de session</div>
+      <div class="score-grid">${cards}</div>
+    </div>
+  `;
+}
+
+const SCORE_LABELS = {
+  voiceLeading: 'Voice Leading',
+  transitions: 'Transitions',
+  tensions: 'Tensions',
+  innerVoices: 'Inner Voices',
+};
+
+function buildPatternsHtml(patterns) {
+  if (!patterns) return '';
+  const badges = [];
+  if (patterns.iiVIs?.length) badges.push(`${patterns.iiVIs.length} II-V-I`);
+  if (patterns.cadences?.length) badges.push(`${patterns.cadences.length} cadence${patterns.cadences.length > 1 ? 's' : ''}`);
+  if (patterns.turnarounds?.length) badges.push(`${patterns.turnarounds.length} turnaround${patterns.turnarounds.length > 1 ? 's' : ''}`);
+  if (patterns.substitutions?.length) badges.push(`${patterns.substitutions.length} substitution${patterns.substitutions.length > 1 ? 's' : ''}`);
+
+  if (badges.length === 0) {
+    return `
+      <div class="analysis-patterns">
+        <div class="panel-title">Patterns harmoniques</div>
+        <p class="detail-hint">Aucun pattern caractéristique détecté dans cette session.</p>
+      </div>
+    `;
+  }
+
+  const cadencesHtml = (patterns.cadences || []).map((c) => `
+    <div class="pattern-item">
+      <span class="pattern-badge ${c.type}">${escapeHtml(c.label)}</span>
+      <span class="pattern-desc">${escapeHtml(c.description)}</span>
+    </div>
+  `).join('');
+
+  const iiViHtml = (patterns.iiVIs || []).map((p, i) => `
+    <div class="pattern-item">
+      <span class="pattern-badge ii-v-i">II-V-I #${i + 1}</span>
+      <span class="pattern-desc">${escapeHtml(p.description)}</span>
+    </div>
+  `).join('');
+
+  return `
+    <div class="analysis-patterns">
+      <div class="panel-title">Patterns harmoniques — ${escapeHtml(badges.join(' · '))}</div>
+      ${iiViHtml}
+      ${cadencesHtml}
+    </div>
+  `;
 }
 
 function buildMelodyHtml(melodyLine) {
@@ -189,8 +308,12 @@ function buildSectionsHtml(sections, chords) {
       const graceHtml = (chord.graceNotes?.length)
         ? `<span class="chord-tile-grace" title="Grace notes: ${escapeHtml(chord.graceNotes.map((n) => formatNoteName(n)).join(' '))}">✨</span>`
         : '';
+      const degreeHtml = chord.degree
+        ? `<span class="chord-tile-degree" title="Degré dans la tonalité">${escapeHtml(chord.degree)}</span>`
+        : '';
       return `
-        <button class="chord-tile" data-chord-index="${globalIndex}" title="${escapeHtml(formatted.name)}">
+        <button class="chord-tile" data-chord-index="${globalIndex}" title="${escapeHtml(formatted.name)} ${chord.degree ? `(${chord.degree})` : ''}">
+          ${degreeHtml}
           <span class="chord-tile-name">${escapeHtml(formatted.name)}</span>
           ${voicingHtml}
           ${graceHtml}
@@ -295,6 +418,18 @@ function buildArrangementPanel(analysis) {
 function bindAnalysisActions(container, analysis, sourceType) {
   const detail = container.querySelector('#analysis-detail');
 
+  // Accordéons d'affichage progressif (scores / patterns / réharmonisation)
+  container.querySelectorAll('.collapsible-panel').forEach((panel) => {
+    const toggle = panel.querySelector('.collapsible-toggle');
+    const content = panel.querySelector('.collapsible-content');
+    const icon = panel.querySelector('.collapsible-icon');
+    toggle?.addEventListener('click', () => {
+      const isHidden = content.style.display === 'none';
+      content.style.display = isHidden ? '' : 'none';
+      icon.textContent = isHidden ? '−' : '+';
+    });
+  });
+
   // Clic sur un accord (MIDI / Tutoriel / Cover)
   container.querySelectorAll('.chord-tile, .timeline-chord, .video-chord-block').forEach((el) => {
     el.addEventListener('click', () => {
@@ -306,6 +441,41 @@ function bindAnalysisActions(container, analysis, sourceType) {
       renderChordDetail(detail, chord, index, sourceType);
       container.querySelectorAll('.chord-tile, .timeline-chord, .video-chord-block').forEach((b) => b.classList.remove('active'));
       el.classList.add('active');
+    });
+  });
+
+  // Réharmonisation de session
+  container.querySelectorAll('.session-reharm-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const style = btn.dataset.style;
+      const resultDiv = container.querySelector('#session-reharm-result');
+      if (!resultDiv) return;
+
+      resultDiv.innerHTML = '<p class="detail-hint">Génération en cours...</p>';
+      const progression = suggestProgression(analysis.chords, style);
+      if (!progression || progression.length === 0) {
+        resultDiv.innerHTML = '<p class="detail-hint">Impossible de générer une réharmonisation pour cette session.</p>';
+        return;
+      }
+
+      const labels = getStyleLabels();
+      const summary = progression.map((p) => formatChord(p.replacement)).join(' → ');
+      resultDiv.innerHTML = `
+        <div class="reharm-summary">
+          <strong>${escapeHtml(labels[style] || style)} :</strong> ${escapeHtml(summary)}
+        </div>
+        <button class="panel-action" id="session-reharm-play" type="button">▶ Écouter la réharmonisation</button>
+      `;
+
+      resultDiv.querySelector('#session-reharm-play')?.addEventListener('click', () => {
+        const bpm = currentAnalysisSession?.tempo || 90;
+        playProgression(progression, onSuggestionPlay ? (type, notes, velocity) => {
+          if (type === 'noteOn') {
+            onSuggestionPlay('clear');
+            onSuggestionPlay('play', notes);
+          }
+        } : feedMidiEvent, bpm);
+      });
     });
   });
 
@@ -416,6 +586,98 @@ function bindAnalysisActions(container, analysis, sourceType) {
   }
 }
 
+function buildDegreeHtml(chord) {
+  if (!chord.degree) return '';
+  return `<span class="detail-degree" title="Degré dans la tonalité détectée">(${escapeHtml(chord.degree)})</span>`;
+}
+
+function buildVoiceLeadingHtml(chord, index) {
+  if (!currentAnalysis || !currentAnalysis.chords) return '';
+  const chords = currentAnalysis.chords;
+  const prev = index > 0 ? chords[index - 1] : null;
+  const next = index < chords.length - 1 ? chords[index + 1] : null;
+
+  const parts = [];
+  if (prev) {
+    const vl = buildVoiceLeading(prev.notes || [], chord.notes || []);
+    if (vl) {
+      const common = vl.movements.filter((m) => m.semitones === 0).length;
+      const moveText = vl.movements.map((m) => {
+        if (m.semitones === 0) return `<span class="vl-common">${formatNoteName(m.from)}</span>`;
+        const arrow = m.semitones > 0 ? '↑' : '↓';
+        return `<span class="vl-move" title="${Math.abs(m.semitones)} demi-tons">${formatNoteName(m.from)} ${arrow}${Math.abs(m.semitones)}</span>`;
+      }).join(' ');
+      parts.push(`<div class="vl-block"><strong>Depuis ${formatChord(prev).name} :</strong> ${moveText} · ${common} note${common > 1 ? 's' : ''} commune${common > 1 ? 's' : ''}</div>`);
+    }
+  }
+  if (next) {
+    const vl = buildVoiceLeading(chord.notes || [], next.notes || []);
+    if (vl) {
+      const common = vl.movements.filter((m) => m.semitones === 0).length;
+      parts.push(`<div class="vl-block"><strong>Vers ${formatChord(next).name} :</strong> ${vl.totalMovement} demi-tons totaux · ${common} note${common > 1 ? 's' : ''} commune${common > 1 ? 's' : ''}</div>`);
+    }
+  }
+
+  if (parts.length === 0) return '';
+  return `
+    <div class="detail-voice-leading">
+      <div class="detail-title">Voice leading</div>
+      ${parts.join('')}
+    </div>
+  `;
+}
+
+function buildAlternativesHtml(chord) {
+  const alternatives = generateAlternatives({
+    rootPc: chord.rootPc,
+    symbol: chord.symbol,
+    intervals: chord.notes?.map((n) => (n - chord.rootPc + 12) % 12).filter((v, i, a) => a.indexOf(v) === i).sort((a, b) => a - b),
+    bassPc: chord.bassPc,
+  }, notation === 'latin');
+
+  if (!alternatives || alternatives.length === 0) return '';
+
+  const cards = alternatives.map((alt) => {
+    const kb = miniKeyboardForNotes(alt.midiNotes || []);
+    return `
+      <div class="alternative-card" data-notes="${escapeHtml(JSON.stringify(alt.midiNotes || []))}">
+        <div class="alternative-name">${escapeHtml(alt.name)}</div>
+        <div class="alternative-keyboard">${kb.svg}</div>
+        <div class="alternative-notes">${escapeHtml(alt.notes?.join(' — ') || '')}</div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="detail-alternatives">
+      <div class="detail-title">Voicings alternatifs</div>
+      <div class="alternatives-grid">${cards}</div>
+    </div>
+  `;
+}
+
+function buildSubstitutionsHtml(chord, index) {
+  if (!currentAnalysis || !currentAnalysis.chords) return '';
+  const chords = currentAnalysis.chords;
+  const prev = index > 0 ? chords[index - 1] : null;
+  const subs = findSubstitutions(prev, chord);
+  if (!subs || subs.length === 0) return '';
+
+  const items = subs.map((s) => `
+    <div class="substitution-item">
+      <span class="substitution-type">${escapeHtml(s.label)}</span>
+      <span class="substitution-desc">${escapeHtml(s.description)}</span>
+    </div>
+  `).join('');
+
+  return `
+    <div class="detail-substitutions">
+      <div class="detail-title">Substitutions & fonction</div>
+      ${items}
+    </div>
+  `;
+}
+
 function renderChordDetail(container, chord, index, sourceType = 'midi') {
   if (!container) return;
   const labels = getStyleLabels();
@@ -499,15 +761,23 @@ function renderChordDetail(container, chord, index, sourceType = 'midi') {
     ? `<button class="panel-action masterclass-btn" id="masterclass-btn" type="button" style="margin-top: 8px; width: 100%;">🎓 Analyse IA de cet accord</button>`
     : '';
 
+  const degreeHtml = buildDegreeHtml(chord);
+  const voiceLeadingHtml = buildVoiceLeadingHtml(chord, index);
+  const alternativesHtml = buildAlternativesHtml(chord);
+  const substitutionsHtml = buildSubstitutionsHtml(chord, index);
+
   container.innerHTML = `
     <div class="detail-original">
-      <div class="detail-title">Accord original : ${escapeHtml(originalFormatted.name)}</div>
+      <div class="detail-title">Accord original : ${escapeHtml(originalFormatted.name)} ${degreeHtml}</div>
       ${originalVoicingHtml}
       ${graceNoteNames ? `<div class="detail-grace-notes">✨ Grace notes : ${escapeHtml(graceNoteNames)}</div>` : ''}
       <div class="detail-keyboard">${originalKeyboard.svg}</div>
       <div class="detail-notes">${originalNoteNames}</div>
       <div class="detail-top-note">Top Note : ${escapeHtml(topNoteName)} <span class="detail-top-midi">(MIDI ${originalTopNoteMidi})</span></div>
     </div>
+    ${voiceLeadingHtml}
+    ${alternativesHtml}
+    ${substitutionsHtml}
     <div class="detail-suggestions">
       <div class="detail-title">Suggestions par influence locale</div>
       <div class="suggestions-grid">${stylesHtml}</div>
