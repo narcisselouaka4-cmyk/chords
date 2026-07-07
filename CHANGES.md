@@ -54,6 +54,8 @@ function latinNoteNameToPc(name) {
     - Ajout de `getVisualCursorTime()` : la position de départ de la lecture est désormais lue depuis le curseur visuel (slider/waveform) plutôt que depuis le lecteur audio.
     - Synchronisation explicite de tous les lecteurs (`html5Audio`, `masterPlayer`, `playerAudio`, `playerVideo`) sur la position visuelle AVANT le `play()`, même si la région n'est pas encore confirmée.
     - Ajout d'un guard `isPlaying` au début de `play()` pour éviter les redémarrages parasites.
+    - Ajout de `seekHtml5Audio(audio, time)` : attend l'événement `seeked` (ou un timeout de sécurité) avant de lancer `html5Audio.play()`, car le seek sur un élément HTML5 audio est asynchrone.
+    - Pour les fichiers M4A/AAC, le lecteur audio réel (`html5Audio`) utilise désormais le WAV extrait (blob local) quand il est disponible, au lieu du M4A original, garantissant un seek instantané et une synchronisation parfaite avec `playerAudio`.
   - Correction de la fermeture prématurée de l'écran de chargement :
     - Suppression du `finally { setLoadingState(false); }` dans `loadTrack()`.
     - Ajout de `finishTrackLoading(name)` : le spinner ne se ferme que lorsque le message `Morceau chargé : [titre]` est émis.

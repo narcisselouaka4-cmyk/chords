@@ -1224,7 +1224,10 @@ async function createMediaPlayer(originalBlobUrl, wavPath, wavBytes, isVideo, op
 
   bindMediaEvents(audio);
 
-  // --- Fallback M4A : lecteur HTML5 natif qui décode le flux AAC en temps réel ---
+  // --- Fallback M4A : lecteur HTML5 natif ---
+  // [Claude] — 2026-07-07 — Le lecteur audio réel (html5Audio) utilise le WAV extrait
+  // (blob local) quand il est disponible, plutôt que le M4A original. Cela garantit un
+  // seek instantané et fiable, et synchronise parfaitement le son avec le timing de playerAudio.
   const originalIsM4a = isM4aFile(currentTrack?.metadata?.originalPath || '');
   if (originalIsM4a) {
     html5AudioReadyPromise = new Promise((resolve) => {
@@ -1233,7 +1236,7 @@ async function createMediaPlayer(originalBlobUrl, wavPath, wavBytes, isVideo, op
     html5Audio = document.createElement('audio');
     html5Audio.id = 'studio-html5-audio';
     html5Audio.preload = 'auto';
-    html5Audio.src = originalBlobUrl;
+    html5Audio.src = audioBlobUrl;
     html5Audio.crossOrigin = 'anonymous';
     html5Audio.style.display = 'none';
     document.body.appendChild(html5Audio);
@@ -1755,6 +1758,49 @@ function getVisualCursorTime() {
   return Math.max(0, Math.min((sliderValue / 100) * duration, duration));
 }
 
+// [Claude] — 2026-07-07 — Le seek sur un élément HTML5 audio est asynchrone (notamment M4A/AAC).
+// Attendre explicitement l'événement 'seeked' avant de lancer play() évite que le son ne parte
+// de l'ancienne position.
+function seekHtml5Audio(audio, time) {
+  return new Promise((resolve) => {
+    if (!audio) { resolve(); return; }
+
+    // Déjà à la bonne position : résoudre immédiatement.
+    if (audio.readyState >= 1 && Math.abs(audio.currentTime - time) < 0.001) {
+      resolve();
+      return;
+    }
+
+    let resolved = false;
+    const done = () => {
+      if (resolved) return;
+      resolved = true;
+      audio.removeEventListener('seeked', onSeeked);
+      audio.removeEventListener('error', onError);
+      resolve();
+    };
+    const onSeeked = () => done();
+    const onError = () => {
+      console.warn('[Studio] seekHtml5Audio error, currentTime may be out of sync');
+      done();
+    };
+
+    audio.addEventListener('seeked', onSeeked, { once: true });
+    audio.addEventListener('error', onError, { once: true });
+
+    try {
+      audio.currentTime = time;
+    } catch (err) {
+      console.warn('[Studio] Failed to set html5Audio.currentTime:', err);
+      done();
+      return;
+    }
+
+    // Timeout de sécurité : certains navigateurs ne déclenchent pas 'seeked' si l'audio n'est pas prêt.
+    setTimeout(done, 400);
+  });
+}
+
 export async function play() {
   if (isLoadingTrack || isPlaying) return;
 
@@ -1781,9 +1827,8 @@ export async function play() {
     }
   }
 
-  // Synchronisation EXPLICITE de tous les lecteurs sur la position visuelle AVANT play.
+  // Synchronisation EXPLICITE de tous les lecteurs "silencieux" / de timing sur la position visuelle.
   if (playerAudio && playerAudio.currentTime != null) playerAudio.currentTime = resumeTime;
-  if (html5Audio) html5Audio.currentTime = resumeTime;
   if (playerVideo && playerVideo.currentTime != null) playerVideo.currentTime = resumeTime;
   if (masterPlayer) masterPlayer.seek(resumeTime);
 
@@ -1794,8 +1839,9 @@ export async function play() {
     mixer.play();
     if (transpose !== 0) mixer.setDetune(transpose);
   } else if (html5Audio) {
-    html5Audio.currentTime = resumeTime;
+    // Le seek HTML5 audio est asynchrone : on attend explicitement avant de lancer play().
     html5Audio.volume = dbToGain(Number(els.volume?.value) || 0);
+    await seekHtml5Audio(html5Audio, resumeTime);
     html5Audio.play().catch((err) => console.error('[Studio] HTML5 play failed:', err));
   } else if (masterPlayer) {
     masterPlayer.seek(resumeTime);
@@ -1803,13 +1849,10 @@ export async function play() {
     if (transpose !== 0) await masterPlayer.setPitch(transpose);
   }
 
-  // Synchroniser tous les éléments média sur la position absolue.
+  // Synchroniser les éléments média visuels sur la position absolue.
   if (playerVideo && playerVideo.currentTime != null) {
     playerVideo.currentTime = resumeTime;
     playerVideo.play().catch(() => {});
-  }
-  if (playerAudio && playerAudio.currentTime != null) {
-    playerAudio.currentTime = resumeTime;
   }
 
   isPlaying = true;
