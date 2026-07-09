@@ -1,0 +1,80 @@
+=========================================================
+🚀 DIAGNOSTIC COMPARATIF DE PIPELINE D'ANALYSE HARMONIQUE
+=========================================================
+Fichier de référence : tests/references/track_002_pere_nous_tadorons.json
+Fichier audio associé : /home/visiteur/PianoJazzChords/Studio/Track_002/audio.wav
+Démarrage de l'analyse multi-pipelines en cours...
+
+⏳ [1/3] Exécution du pipeline LEGACY (HMM + lissages actuels)...
+⏳ [2/3] Exécution du pipeline RAW (HMM Brut, aucun lissage)...
+⏳ [3/3] Exécution du pipeline GRID (Notre nouveau lissage macroscopique)...
+
+Analyse terminée avec succès !
+
+===================================================================
+COMPARAISON DE GRILLES D'ACCORDS (60 premières secondes)
+===================================================================
+Temps (s)   | Référence (Attendu) | LEGACY (Actuel)     | GRID (Nouveau)
+-------------------------------------------------------------------
+0.0         | B                   | G#sus4              | G#sus4
+2.0         | B                   | Esus2               | E
+4.0         | E                   | Esus2               | C#m
+6.0         | E                   | Esus4               | Esus4
+8.0         | B                   | B                   | B
+10.0        | B                   | Bsus2               | Bsus2
+12.0        | F#                  | C#m                 | C#m
+14.0        | F#                  | N                   | N
+16.0        | B                   | N                   | N
+18.0        | B                   | N                   | N
+20.0        | E                   | F#7                 | F#7
+22.0        | E                   | F#7                 | F#7
+24.0        | F#                  | B                   | B
+26.0        | F#                  | B                   | B
+28.0        | B                   | E                   | E
+30.0        | B                   | Esus4               | Esus4
+32.0        | B                   | B                   | B
+34.0        | B                   | B                   | B
+36.0        | E                   | E                   | E
+38.0        | E                   | E                   | E
+40.0        | B                   | B                   | B
+42.0        | B                   | B                   | E
+44.0        | F#                  | B                   | E
+46.0        | F#                  | C#m                 | Asus2
+48.0        | B                   | N                   | Asus2
+50.0        | B                   | N                   | N
+52.0        | E                   | B                   | B
+54.0        | E                   | E                   | E
+56.0        | F#                  | Asus2               | Asus2
+58.0        | F#                  | B                   | B
+===================================================================
+
+===================================================================
+TABLEAU COMPARATIF DES PIPELINES HARMONIQUES
+===================================================================
+Indicateur               | LEGACY (Actuel)     | RAW (HMM brut)      | GRID (Nouveau)
+-------------------------------------------------------------------
+Nb segments détectés     | 231                 | 482                 | 332                
+Score Reconnaissance     | 35.8              % | 32.5              % | 27.1              %
+ - Matchs Parfaits       | 27.9              % | 24.2              % | 20.0              %
+ - Matchs Simplifiés     | 0.0               % | 0.0               % | 0.0               %
+ - Matchs p. Extension   | 7.9               % | 8.3               % | 7.1               %
+Stabilité (Timing)       | 13.3              % | 0.0               % | 0.0               %
+ - Blocs stables (sur 15) | 2                   | 0                   | 0                  
+ - Blocs fragmentés      | 13                  | 15                  | 15                 
+ - Faux changements      | 17                  | 36                  | 26                 
+-------------------------------------------------------------------
+Mauvaises fondamentales  | 48.8              % | 54.2              % | 58.8              %
+Mauvaises qualités (M/m) | 0.0               % | 0.0               % | 0.0               %
+Mismatchs Silence (N)    | 15.4              % | 13.3              % | 14.2              %
+-------------------------------------------------------------------
+Détails d'agrégation GRID :
+ - Subdivision : half_bar
+ - Fenêtre d'intégration : 1.07s
+ - Réduction de complexité : 482 segments source ➔ 332 segments final
+===================================================================
+
+🔬 BILAN ET VALIDATION DE L'HYPOTHÈSE :
+📉 ÉCHEC ! Le lissage GRID ne produit pas l'effet escompté. La fragmentation ou le score
+   harmonique brute n'a pas progressé. Les anciens lissages s'avèrent plus efficaces ou la
+   fenêtre de demi-mesure est inadaptée.
+===================================================================

@@ -1,7 +1,7 @@
 import { buildChordTimeline } from './chord-timeline.js';
 import { segment } from './segmenter.js';
 import { scoreSession } from './scorer.js';
-import { suggestReharmonization, renderSuggestionToEvents } from './reharmonizer.js';
+import { suggestProgression, renderProgressionToEvents } from './reharmonizer.js';
 import { formatPc } from '../chord-engine/naming.js';
 
 function makeEventsFromProgression(progression, startTime = 0, chordDuration = 2) {
@@ -66,7 +66,8 @@ const progression = [
 const events = makeEventsFromProgression(progression, 0, 2);
 const totalDuration = events[events.length - 1].time + 0.5;
 
-const chords = buildChordTimeline(events);
+const timeline = buildChordTimeline(events);
+const chords = timeline.chords;
 console.log('Chords detected:', chords.length);
 for (const c of chords) console.log(formatChord(c), c.time.toFixed(2), c.duration.toFixed(2));
 
@@ -81,11 +82,11 @@ const scores = scoreSession(chords, 0);
 console.log('\nScores:');
 for (const [k, v] of Object.entries(scores)) console.log(k, v.value, '-', v.comment);
 
-const jazz = suggestReharmonization(chords, 'jazz');
+const jazz = suggestProgression(chords, 'jazz');
 console.log('\nJazz suggestion:');
-for (const c of jazz.slice(0, 6)) console.log(formatChord(c));
+for (const c of jazz.slice(0, 6)) console.log(formatChord(c.replacement));
 
-const suggestionEvents = renderSuggestionToEvents(jazz.slice(0, 4));
+const suggestionEvents = renderProgressionToEvents(jazz.slice(0, 4));
 console.log('\nSuggestion events:', suggestionEvents.length);
 
 console.log('\n=== Analysis test passed ===');

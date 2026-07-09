@@ -1,0 +1,223 @@
+{
+  "_description": "Phase 6 benchmark corpus — dev/test split, 4 pipelines comparison",
+  "dev_pieces": [
+    "amazing_grace",
+    "autumn_leaves_mix",
+    "note_C2",
+    "note_E2",
+    "note_G2",
+    "chord_C",
+    "chord_Dm",
+    "slash_C_E",
+    "slash_D_Fs",
+    "jazz_Cmaj9",
+    "jazz_Dm7_G"
+  ],
+  "test_pieces": [
+    "ton_nom_est_jehovah",
+    "note_Fs2",
+    "note_A2",
+    "note_B2",
+    "note_harm_C2",
+    "note_harm_E2",
+    "note_harm_G2",
+    "note_harm_B2",
+    "chord_G",
+    "slash_G_B",
+    "slash_Am7_G",
+    "walking_bass",
+    "jazz_G13"
+  ],
+  "pieces": [
+    {
+      "id": "amazing_grace",
+      "audio": "data/amazing_grace.wav",
+      "style": "gospel",
+      "ground_truth": "data/benchmark/amazing_grace_ground_truth_proposal.csv",
+      "set": "dev"
+    },
+    {
+      "id": "autumn_leaves_mix",
+      "audio": "data/autumn_leaves/autumn_leaves_mix.wav",
+      "style": "jazz",
+      "ground_truth": "data/autumn_leaves/autumn_leaves_ground_truth.csv",
+      "set": "dev"
+    },
+    {
+      "id": "ton_nom_est_jehovah",
+      "audio": "data/real/ton_nom_est_jehovah_extrait.wav",
+      "style": "gospel",
+      "ground_truth": "data/real/ton_nom_est_jehovah_ground_truth.csv",
+      "chords": "benchmark_outputs/chords_ton_nom_est_jehovah.json",
+      "set": "test"
+    },
+    {
+      "id": "note_C2",
+      "audio": "tests/audio/bass_C2.wav",
+      "style": "synthetic_note",
+      "ground_truth": "data/benchmark/note_C2_ground_truth.csv",
+      "chords": "benchmark_outputs/chords_note_C2.json",
+      "set": "dev"
+    },
+    {
+      "id": "note_E2",
+      "audio": "tests/audio/bass_E2.wav",
+      "style": "synthetic_note",
+      "ground_truth": "data/benchmark/note_E2_ground_truth.csv",
+      "chords": "benchmark_outputs/chords_note_E2.json",
+      "set": "dev"
+    },
+    {
+      "id": "note_Fs2",
+      "audio": "tests/audio/bass_Fs2.wav",
+      "style": "synthetic_note",
+      "ground_truth": "data/benchmark/note_Fs2_ground_truth.csv",
+      "chords": "benchmark_outputs/chords_note_Fs2.json",
+      "set": "test"
+    },
+    {
+      "id": "note_G2",
+      "audio": "tests/audio/bass_G2.wav",
+      "style": "synthetic_note",
+      "ground_truth": "data/benchmark/note_G2_ground_truth.csv",
+      "chords": "benchmark_outputs/chords_note_G2.json",
+      "set": "dev"
+    },
+    {
+      "id": "note_A2",
+      "audio": "tests/audio/bass_A2.wav",
+      "style": "synthetic_note",
+      "ground_truth": "data/benchmark/note_A2_ground_truth.csv",
+      "chords": "benchmark_outputs/chords_note_A2.json",
+      "set": "test"
+    },
+    {
+      "id": "note_B2",
+      "audio": "tests/audio/bass_B2.wav",
+      "style": "synthetic_note",
+      "ground_truth": "data/benchmark/note_B2_ground_truth.csv",
+      "chords": "benchmark_outputs/chords_note_B2.json",
+      "set": "test"
+    },
+    {
+      "id": "note_harm_C2",
+      "audio": "tests/audio/bass_harm_C2.wav",
+      "style": "synthetic_harmonic",
+      "ground_truth": "data/benchmark/note_harm_C2_ground_truth.csv",
+      "chords": "benchmark_outputs/chords_note_harm_C2.json",
+      "set": "test"
+    },
+    {
+      "id": "note_harm_E2",
+      "audio": "tests/audio/bass_harm_E2.wav",
+      "style": "synthetic_harmonic",
+      "ground_truth": "data/benchmark/note_harm_E2_ground_truth.csv",
+      "chords": "benchmark_outputs/chords_note_harm_E2.json",
+      "set": "test"
+    },
+    {
+      "id": "note_harm_G2",
+      "audio": "tests/audio/bass_harm_G2.wav",
+      "style": "synthetic_harmonic",
+      "ground_truth": "data/benchmark/note_harm_G2_ground_truth.csv",
+      "chords": "benchmark_outputs/chords_note_harm_G2.json",
+      "set": "test"
+    },
+    {
+      "id": "note_harm_B2",
+      "audio": "tests/audio/bass_harm_B2.wav",
+      "style": "synthetic_harmonic",
+      "ground_truth": "data/benchmark/note_harm_B2_ground_truth.csv",
+      "chords": "benchmark_outputs/chords_note_harm_B2.json",
+      "set": "test"
+    },
+    {
+      "id": "chord_C",
+      "audio": "tests/audio/chord_C.wav",
+      "style": "synthetic_chord",
+      "ground_truth": "data/benchmark/chord_C_ground_truth.csv",
+      "chords": "benchmark_outputs/chords_chord_C.json",
+      "set": "dev"
+    },
+    {
+      "id": "chord_G",
+      "audio": "tests/audio/chord_G.wav",
+      "style": "synthetic_chord",
+      "ground_truth": "data/benchmark/chord_G_ground_truth.csv",
+      "chords": "benchmark_outputs/chords_chord_G.json",
+      "set": "test"
+    },
+    {
+      "id": "chord_Dm",
+      "audio": "tests/audio/chord_Dm.wav",
+      "style": "synthetic_chord",
+      "ground_truth": "data/benchmark/chord_Dm_ground_truth.csv",
+      "chords": "benchmark_outputs/chords_chord_Dm.json",
+      "set": "dev"
+    },
+    {
+      "id": "slash_C_E",
+      "audio": "tests/audio/slash_C_E.wav",
+      "style": "synthetic_slash",
+      "ground_truth": "data/benchmark/slash_C_E_ground_truth.csv",
+      "chords": "benchmark_outputs/chords_slash_C_E.json",
+      "set": "dev"
+    },
+    {
+      "id": "slash_G_B",
+      "audio": "tests/audio/slash_G_B.wav",
+      "style": "synthetic_slash",
+      "ground_truth": "data/benchmark/slash_G_B_ground_truth.csv",
+      "chords": "benchmark_outputs/chords_slash_G_B.json",
+      "set": "test"
+    },
+    {
+      "id": "slash_D_Fs",
+      "audio": "tests/audio/slash_D_Fs.wav",
+      "style": "synthetic_slash",
+      "ground_truth": "data/benchmark/slash_D_Fs_ground_truth.csv",
+      "chords": "benchmark_outputs/chords_slash_D_Fs.json",
+      "set": "dev"
+    },
+    {
+      "id": "slash_Am7_G",
+      "audio": "tests/audio/slash_Am7_G.wav",
+      "style": "synthetic_slash",
+      "ground_truth": "data/benchmark/slash_Am7_G_ground_truth.csv",
+      "chords": "benchmark_outputs/chords_slash_Am7_G.json",
+      "set": "test"
+    },
+    {
+      "id": "walking_bass",
+      "audio": "tests/audio/walking_bass.wav",
+      "style": "synthetic_walking",
+      "ground_truth": "data/benchmark/walking_bass_ground_truth.csv",
+      "chords": "benchmark_outputs/chords_walking_bass.json",
+      "set": "test"
+    },
+    {
+      "id": "jazz_Cmaj9",
+      "audio": "tests/audio/jazz_Cmaj9.wav",
+      "style": "synthetic_jazz",
+      "ground_truth": "data/benchmark/jazz_Cmaj9_ground_truth.csv",
+      "chords": "benchmark_outputs/chords_jazz_Cmaj9.json",
+      "set": "dev"
+    },
+    {
+      "id": "jazz_Dm7_G",
+      "audio": "tests/audio/jazz_Dm7_G.wav",
+      "style": "synthetic_jazz",
+      "ground_truth": "data/benchmark/jazz_Dm7_G_ground_truth.csv",
+      "chords": "benchmark_outputs/chords_jazz_Dm7_G.json",
+      "set": "dev"
+    },
+    {
+      "id": "jazz_G13",
+      "audio": "tests/audio/jazz_G13.wav",
+      "style": "synthetic_jazz",
+      "ground_truth": "data/benchmark/jazz_G13_ground_truth.csv",
+      "chords": "benchmark_outputs/chords_jazz_G13.json",
+      "set": "test"
+    }
+  ]
+}

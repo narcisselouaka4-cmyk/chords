@@ -1,0 +1,82 @@
+{
+  "params": {
+    "candidates": "benchmark_outputs/phase6/walking_bass_candidates.json",
+    "chords": "/home/visiteur/piano-jazz-chords/benchmark_outputs/chords_walking_bass.json",
+    "fusion_params": [
+      {
+        "name": "bass_engine",
+        "weight": 1.0,
+        "class": "BassScore"
+      },
+      {
+        "name": "harmonic",
+        "weight": 0.6,
+        "class": "HarmonicScore"
+      },
+      {
+        "name": "octave",
+        "weight": 0.3,
+        "class": "OctaveScore"
+      },
+      {
+        "name": "continuity",
+        "weight": 0.4,
+        "class": "ContinuityScore"
+      },
+      {
+        "name": "chord_confidence",
+        "target": "harmonic",
+        "weight": 1.0,
+        "class": "ChordConfidenceMultiplier"
+      }
+    ]
+  },
+  "n_segments": 5,
+  "segments": [
+    {
+      "startTime": 0.232,
+      "endTime": 1.022,
+      "midi": 38,
+      "bass": "D",
+      "octave": 2,
+      "note": "D2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 1.022,
+      "endTime": 2.02,
+      "midi": 43,
+      "bass": "G",
+      "octave": 2,
+      "note": "G2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 2.02,
+      "endTime": 2.229,
+      "midi": 24,
+      "bass": "C",
+      "octave": 1,
+      "note": "C1",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 2.299,
+      "endTime": 3.019,
+      "midi": 36,
+      "bass": "C",
+      "octave": 2,
+      "note": "C2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 3.088,
+      "endTime": 4.0172,
+      "midi": 45,
+      "bass": "A",
+      "octave": 2,
+      "note": "A2",
+      "confidence": 1.0
+    }
+  ]
+}

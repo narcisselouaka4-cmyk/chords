@@ -1,7 +1,7 @@
 # Session Piano Jazz Chords
 
 > Dis "jazz" à OpenCode pour reprendre exactement là où on s'est arrêté.
-> Dernière mise à jour : 2026-07-04.
+> Dernière mise à jour : 2026-07-09.
 
 ---
 
@@ -26,10 +26,25 @@ enregistrement/analyse de sessions MIDI, import audio/vidéo avec séparation/st
 | 2 — Sessions MIDI | 🔄 Partiellement consolidé |
 | 3 — Analyse IA | 🟡 Fonctionnel (UI + réharmonisation + segmentation), IA réelle à brancher |
 | 4 — Studio audio/vidéo | ✅ Terminé |
+| **Moteur harmonique HMM** | **✅ Baseline officielle figée** (10 qualités, 109 états, régularisation) |
 
 ---
 
-## Ce qu'on a fait cette session (2026-07-04)
+## Baseline officielle — 2026-07-09
+
+Le moteur harmonique enrichi (10 qualités, 109 états, régularisation post-Viterbi)
+est figé comme référence pour toutes les futures évolutions.
+
+Benchmark Amazing Grace : RAW 27.7% / GRID_HALF 47.9% — cf. `docs/ARCHITECTURE.md`.
+
+Commande de reproductibilité :
+```bash
+node scripts/test-analysis-diagnostic.js tests/references/amazing_grace_gospel_piano.json --benchmark-pre=/tmp/pre_regul.json
+```
+
+---
+
+## Ce qu'on a fait cette session (2026-07-09)
 
 ### Phase 1 — Timer 2s + persistance des suggestions
 

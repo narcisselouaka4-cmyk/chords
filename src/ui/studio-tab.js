@@ -14,6 +14,7 @@ import {
 import { createStemMixer, dbToGain } from '../audio/stem-mixer.js';
 import { separateStems, getStems, STEMS } from '../audio/stem-separator.js';
 import { createPitchShifter } from '../audio/pitch-shifter.js';
+import { getAudioContext, connectOutput as connectSynthOutput } from '../audio/simple-synth.js';
 
 /**
  * Lit un fichier audio via IPC et retourne un ArrayBuffer brut.
@@ -49,6 +50,7 @@ let mediaDuration = 0;
 let isAudioReady = false;
 let pendingTranspose = 0;
 let isLoadingTrack = false;
+let currentWaveformTrackId = null;
 
 // UX Studio en 3 étapes : 1=ciblage, 2=traitement, 3=lecture pro
 let studioStage = 1;
@@ -56,28 +58,35 @@ let isProcessing = false;
 let processingJobId = null;
 let pendingRegion = null;
 
-// Réarchitecture audio : deux players (vidéo visible + audio caché)
+// Réarchitecture audio : lecteur vidéo visible + lecteur audio unique (timing + son).
+// [Claude] — 2026-07-07 — Unification du timing et du son sur un seul élément audio
+// pour éliminer les décalages entre curseur visuel et audio réel.
 let playerVideo = null;
 let playerAudio = null;
 let audioBlobUrl = null;
 let videoBlobUrl = null;
 let syncRafId = null;
 
-// Lecteur master : buffer audio natif du fichier original (MP3/MP4/M4A…)
-// utilisé à l'Étape 1 avant que les stems soient séparés.
-let masterPlayer = null;
-let masterAudioBuffer = null;
-let masterAudioUrl = null;
+// AudioContext partagé pour le Studio (pitch-shift via MediaElementSourceNode)
+let studioAudioCtx = null;
+let studioDestination = null;
+let mediaElementSource = null;
+let pitchShifterNode = null;
+let pitchGainNode = null;       // relicat de l'ancien graphe MediaElementSource (conservé pour compatibilité volume)
 
-// Lecteur HTML5 fallback pour les formats dont decodeAudioData échoue (M4A/AAC).
-let html5Audio = null;
-let html5AudioCanPlay = false;
+// Lecteurs audio/vidéo de l'Étape 1 (avant séparation en stems).
+let masterPlayer = null;        // lecteur AudioBuffer natif (fichier WAV décodé)
+let masterAudioBuffer = null;   // AudioBuffer décodé pour le masterPlayer
+let masterAudioUrl = null;      // blob URL du fichier audio source
+let html5Audio = null;          // lecteur HTML5 audio natif (fallback M4A/AAC)
+let html5AudioCanPlay = false;  // flag prêt du lecteur HTML5 audio
 let html5AudioReadyPromise = null;
 let html5AudioResolve = null;
 
-// AudioContext partagé pour le Studio
-let studioAudioCtx = null;
-let studioDestination = null;
+// [Claude] — 2026-07-07 — État du Screen Recorder intégré au Studio.
+let isLeftPanelCollapsed = false;
+let isRecording = false;
+let countdownTimeout = null;
 
 const els = {
   importBtn: document.getElementById('studio-import-btn'),
@@ -120,6 +129,14 @@ const els = {
   confirmRegionBtn: document.getElementById('studio-confirm-region'),
   backRegionBtn: document.getElementById('studio-back-region'),
   transposeStatus: document.getElementById('studio-transpose-status'),
+  sidebarLeft: document.getElementById('studio-sidebar-left'),
+  tracksHeader: document.getElementById('studio-tracks-header'),
+  collapseLeftBtn: document.getElementById('studio-collapse-left'),
+  collapseTabBtn: document.getElementById('studio-collapse-tab'),
+  recordBtn: document.getElementById('studio-record-btn'),
+  recordCountdown: document.getElementById('studio-record-countdown'),
+  recordCountdownNumber: document.getElementById('studio-record-countdown-number'),
+  recordingIndicator: document.getElementById('studio-recording-indicator'),
 };
 
 function formatDuration(seconds) {
@@ -162,6 +179,7 @@ export function initStudioTab() {
   bindStems();
   bindWaveform();
   bindCropButtons();
+  bindScreenRecorder();
   refreshTrackList();
   updateStudioStage(0);
 
@@ -190,6 +208,15 @@ function bindPlayer() {
     e.stopPropagation();
     if (isPlaying) pause();
     else play();
+  });
+
+  // Raccourci R global dédié au Screen Recorder du Studio.
+  document.addEventListener('keydown', (e) => {
+    if (e.code !== 'KeyR') return;
+    if (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(e.target?.tagName)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    toggleRecording();
   });
 
   els.stopBtn?.addEventListener('click', () => stop());
@@ -259,6 +286,211 @@ function bindPlayer() {
   // Voir createMediaPlayer().
 }
 
+// [Claude] — 2026-07-07 — Screen Recorder : panneau rétractable + record + raccourcis.
+function bindScreenRecorder() {
+  els.collapseLeftBtn?.addEventListener('click', () => toggleLeftPanel());
+  els.collapseTabBtn?.addEventListener('click', () => toggleLeftPanel());
+  els.recordBtn?.addEventListener('click', () => toggleRecording());
+}
+
+function toggleLeftPanel() {
+  isLeftPanelCollapsed = !isLeftPanelCollapsed;
+  els.sidebarLeft?.classList.toggle('collapsed', isLeftPanelCollapsed);
+}
+
+function toggleRecording() {
+  if (isRecording) {
+    stopRecording();
+  } else {
+    startRecordingSequence();
+  }
+}
+
+function startRecordingSequence() {
+  if (isRecording || !window.electronAPI?.studio?.getWindowSource) return;
+
+  // Libérer l'espace visuel avant le record.
+  if (!isLeftPanelCollapsed) toggleLeftPanel();
+
+  runCountdown(3, () => {
+    startCapture();
+  });
+}
+
+function runCountdown(startFrom, onComplete) {
+  if (!els.recordCountdown || !els.recordCountdownNumber) {
+    onComplete();
+    return;
+  }
+
+  let count = startFrom;
+  els.recordCountdown.style.display = 'flex';
+
+  const tick = () => {
+    if (count <= 0) {
+      els.recordCountdown.style.display = 'none';
+      onComplete();
+      return;
+    }
+    els.recordCountdownNumber.textContent = String(count);
+    // Forcer le restart de l'animation.
+    els.recordCountdownNumber.style.animation = 'none';
+    void els.recordCountdownNumber.offsetWidth;
+    els.recordCountdownNumber.style.animation = '';
+    count -= 1;
+    countdownTimeout = setTimeout(tick, 1000);
+  };
+
+  tick();
+}
+
+// [Claude] — 2026-07-07 — Enregistrement vidéo+audio natif via desktopCapturer +
+// MediaRecorder + graphe Web Audio existant.
+let screenRecordStream = null;
+let screenRecordRecorder = null;
+let screenRecordChunks = [];
+let audioDestinationNode = null;
+
+async function startCapture() {
+  try {
+    if (!window.electronAPI?.studio?.getScreenSourceId) {
+      setStatus('Enregistrement vidéo indisponible — redémarrez l\'application');
+      return;
+    }
+
+    const source = await window.electronAPI.studio.getScreenSourceId();
+    if (source?.error || !source?.id) {
+      throw new Error(source?.error || 'Source d\'écran introuvable');
+    }
+
+    // Obtenir le flux vidéo de la fenêtre de l'application.
+    const screenStream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        mandatory: {
+          chromeMediaSource: 'desktop',
+          chromeMediaSourceId: source.id,
+        },
+      },
+    });
+
+    // Capturer l'audio depuis le graphe Web Audio existant (Studio + synthé).
+    ensureStudioAudioContext();
+    // Le contexte doit être actif pour que les MediaStreamDestination alimentent leurs pistes.
+    if (studioAudioCtx.state === 'suspended') {
+      await studioAudioCtx.resume();
+    }
+
+    audioDestinationNode = studioAudioCtx.createMediaStreamDestination();
+
+    // Route toutes les sources audio vers cette seule destination d'enregistrement :
+    // - sortie du lecteur principal (étape 1)
+    if (studioDestination) {
+      studioDestination.connect(audioDestinationNode);
+    }
+    // - sortie du mixer de stems (après séparation)
+    if (mixer?.getDestination?.() && mixer.getDestination() !== studioDestination) {
+      mixer.getDestination().connect(audioDestinationNode);
+    }
+    // - sortie du synthétiseur global (clavier MIDI / virtuel)
+    connectSynthOutput(audioDestinationNode);
+
+    const audioTracks = [...audioDestinationNode.stream.getAudioTracks()];
+
+    const combinedStream = new MediaStream([
+      ...screenStream.getVideoTracks(),
+      ...audioTracks,
+    ]);
+
+    console.log('[Studio] startCapture audio tracks:', audioTracks.length, 'ctx state:', studioAudioCtx.state, 'mixer dest:', !!mixer?.getDestination?.());
+
+    screenRecordStream = combinedStream;
+
+    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')
+      ? 'video/webm;codecs=vp9,opus'
+      : 'video/webm';
+
+    screenRecordRecorder = new MediaRecorder(combinedStream, { mimeType });
+    screenRecordChunks = [];
+    screenRecordRecorder.ondataavailable = (event) => {
+      if (event.data?.size > 0) screenRecordChunks.push(event.data);
+    };
+    screenRecordRecorder.onerror = (err) => {
+      console.error('[Studio] MediaRecorder error:', err);
+      setStatus('Erreur MediaRecorder — enregistrement interrompu');
+      cleanupRecording();
+    };
+    screenRecordRecorder.onstop = () => finalizeRecording();
+    screenRecordRecorder.start(1000);
+
+    isRecording = true;
+    els.recordBtn?.classList.add('recording');
+    if (els.recordingIndicator) els.recordingIndicator.style.display = 'flex';
+    setStatus('Enregistrement vidéo en cours... (R pour arrêter)');
+  } catch (err) {
+    console.error('[Studio] startCapture failed:', err);
+    setStatus(`Erreur de capture : ${err.message}`);
+    cleanupRecording();
+  }
+}
+
+async function stopRecording() {
+  if (!isRecording || !screenRecordRecorder) return;
+  screenRecordRecorder.stop();
+}
+
+async function finalizeRecording() {
+  try {
+    setStatus('Finalisation de l\'enregistrement...');
+    const blob = new Blob(screenRecordChunks, { type: screenRecordRecorder?.mimeType || 'video/webm' });
+    const arrayBuffer = await blob.arrayBuffer();
+
+    const saveResult = await window.electronAPI.studio.saveRecording(arrayBuffer);
+    if (saveResult?.canceled) {
+      setStatus('Enregistrement annulé');
+    } else if (saveResult?.path) {
+      setStatus(`Vidéo enregistrée : ${saveResult.path}`);
+    } else {
+      setStatus('Erreur de sauvegarde');
+    }
+  } catch (err) {
+    console.error('[Studio] finalizeRecording failed:', err);
+    setStatus(`Erreur de sauvegarde : ${err.message}`);
+  } finally {
+    cleanupRecording();
+  }
+}
+
+function cleanupRecording() {
+  isRecording = false;
+  if (screenRecordRecorder?.state !== 'inactive') {
+    try { screenRecordRecorder?.stop(); } catch (_) {}
+  }
+  screenRecordRecorder = null;
+
+  if (screenRecordStream) {
+    screenRecordStream.getTracks().forEach((track) => {
+      try { track.stop(); } catch (_) {}
+    });
+    screenRecordStream = null;
+  }
+
+  if (audioDestinationNode) {
+    try { audioDestinationNode.disconnect(); } catch (_) {}
+    audioDestinationNode = null;
+  }
+
+  screenRecordChunks = [];
+  els.recordBtn?.classList.remove('recording');
+  if (els.recordingIndicator) els.recordingIndicator.style.display = 'none';
+
+  if (countdownTimeout) {
+    clearTimeout(countdownTimeout);
+    countdownTimeout = null;
+  }
+  if (els.recordCountdown) els.recordCountdown.style.display = 'none';
+}
+
 let mediaEventCleanup = null;
 
 // [Claude] — 2026-07-06 — La synchronisation est maintenant pilotée par le temps
@@ -302,10 +534,15 @@ function getStudioCurrentTime() {
       // converti en temps absolu sur la timeline globale.
       return regionStart + (mixer.getCurrentTime() || 0);
     }
-    if (html5Audio && html5AudioCanPlay && html5Audio.currentTime != null) {
+
+    // Source de vérité du son réel (avant confirmation de région) :
+    // 1. lecteur HTML5 natif pour M4A/AAC (c'est lui qui sort du son),
+    // 2. lecteur AudioBuffer décodé pour les autres formats,
+    // 3. éléments média muets de secours uniquement en fallback.
+    if (html5Audio && html5Audio.currentTime != null) {
       return html5Audio.currentTime || 0;
     }
-    if (masterPlayer && typeof masterPlayer.getCurrentTime === 'function') {
+    if (masterPlayer) {
       return masterPlayer.getCurrentTime() || 0;
     }
     if (playerAudio && playerAudio.currentTime != null) {
@@ -336,18 +573,30 @@ function syncVideoAndCursor() {
       seek(regionEnd - 0.001);
     }
 
+    // Synchronisation de l'élément vidéo visible (muet) sur le temps audio réel.
+    // On ne modifie JAMAIS playbackRate pour rattraper la dérive : cela causait
+    // un bégaiement et un décalage perceptible (voir CLAUDE.md §4).
     if (playerVideo && playerVideo.currentTime != null) {
       const drift = realTime - playerVideo.currentTime;
       const absDrift = Math.abs(drift);
 
-      if (absDrift > 0.25 || playerVideo.paused) {
+      // On force un resync par currentTime si la dérive dépasse le seuil,
+      // sinon on laisse la vidéo avancer à son propre rythme naturel.
+      if (absDrift > 0.15 || playerVideo.paused) {
         playerVideo.currentTime = realTime;
-        if (!playerVideo.paused) playerVideo.playbackRate = 1.0;
-      } else if (absDrift > 0.05) {
-        const rate = Math.max(0.96, Math.min(1.04, 1.0 + drift * 0.5));
-        playerVideo.playbackRate = Number.isFinite(rate) ? rate : 1.0;
-      } else {
+      }
+      // Garder playbackRate à 1.0 en permanence pour éviter toute dérive induite.
+      if (playerVideo.playbackRate !== 1.0) {
         playerVideo.playbackRate = 1.0;
+      }
+    }
+
+    // Synchroniser l'élément audio muet de timing sur le son réel pour que
+    // metadata/currentTime restent cohérents avec ce qui est entendu.
+    if (html5Audio && playerAudio && playerAudio.currentTime != null && !html5Audio.paused) {
+      const audioDrift = html5Audio.currentTime - playerAudio.currentTime;
+      if (Math.abs(audioDrift) > 0.05) {
+        playerAudio.currentTime = html5Audio.currentTime;
       }
     }
 
@@ -412,8 +661,16 @@ function confirmRegion() {
   startRegionProcessing();
 }
 
-function backRegion() {
+async function backRegion() {
   regionConfirmed = false;
+  // Revenir au mode fichier entier : les stems séparés ne sont plus la source active.
+  // On arrête tout et on recharge le fichier original pour que le son suive la nouvelle région.
+  mixer?.reset();
+  stop();
+  setLoadingState(true);
+  await rebuildMediaPlayerForFullTrack();
+  setLoadingState(false);
+  seek(0);
   renderWaveform();
   updateCropButtons();
   setCropControlsEnabled(false);
@@ -428,7 +685,7 @@ function backRegion() {
   }
 }
 
-function resetRegion() {
+async function resetRegion() {
   const totalDuration = getTotalDuration();
   regionStart = 0;
   // Réinitialiser la région à la plage maximale autorisée (5 min) par défaut,
@@ -437,6 +694,12 @@ function resetRegion() {
     ? Math.min(totalDuration, MAX_REGION_DURATION)
     : null;
   regionConfirmed = false;
+  // Revenir au mode fichier entier : les stems séparés ne sont plus actifs.
+  mixer?.reset();
+  stop();
+  setLoadingState(true);
+  await rebuildMediaPlayerForFullTrack();
+  setLoadingState(false);
   // Remettre le lecteur au début du fichier original.
   seek(0);
   renderWaveform();
@@ -969,7 +1232,9 @@ function inspectMedia(blobUrl) {
 
 function ensureStudioAudioContext() {
   if (studioAudioCtx) return studioAudioCtx;
-  studioAudioCtx = mixer?.getAudioContext?.() || new (window.AudioContext || window.webkitAudioContext)();
+  // Partage le même AudioContext que le synthé : le mixage dans MediaRecorder
+  // nécessite que toutes les MediaStreamTracks proveniennent du même contexte.
+  studioAudioCtx = mixer?.getAudioContext?.() || getAudioContext() || new (window.AudioContext || window.webkitAudioContext)();
   studioDestination = studioAudioCtx.createGain();
   studioDestination.connect(studioAudioCtx.destination);
   return studioAudioCtx;
@@ -1177,6 +1442,44 @@ function destroyMediaPlayer() {
 function isM4aFile(filePath) {
   const ext = getFileExtension(filePath);
   return ext === 'm4a' || ext === 'aac';
+}
+
+// [Claude] — 2026-07-07 — Quand on sort d'une région confirmée (backRegion / resetRegion),
+// il faut recharger le fichier original entier. Les stems séparés ne doivent plus être joués.
+async function rebuildMediaPlayerForFullTrack() {
+  if (!currentTrack || !currentTrack.metadata) return;
+  try {
+    const originalBlobUrl = await readOriginalAsBlobUrl(currentTrack.id);
+    if (!originalBlobUrl) return;
+
+    // Extraction WAV fraîche du fichier original.
+    let wavBytes = null;
+    let wavPath = null;
+    if (window.electronAPI?.studio?.extractAudio) {
+      try {
+        wavPath = await window.electronAPI.studio.extractAudio(currentTrack.id, currentTrack.metadata.originalPath);
+      } catch (err) {
+        console.warn('[Studio] extractAudio failed during rebuild:', err);
+      }
+    }
+    if (wavPath && window.electronAPI?.files?.readBinary) {
+      try {
+        wavBytes = await window.electronAPI.files.readBinary(wavPath);
+      } catch (err) {
+        console.warn('[Studio] readBinary wav failed during rebuild:', err);
+      }
+    }
+
+    audioWavPath = wavPath || audioWavPath;
+    await createMediaPlayer(originalBlobUrl, wavPath, wavBytes, !isAudioOnly);
+
+    if (wavPath) {
+      await waitAudioElementReady(playerAudio);
+      if (html5Audio) await waitHtml5AudioReady(10000);
+    }
+  } catch (err) {
+    console.warn('[Studio] rebuildMediaPlayerForFullTrack failed:', err);
+  }
 }
 
 async function createMediaPlayer(originalBlobUrl, wavPath, wavBytes, isVideo, options = {}) {
@@ -1439,8 +1742,14 @@ function finishTrackLoading(name) {
     try { waveformProgressCleanup(); } catch (_) {}
     waveformProgressCleanup = null;
   }
+  // Nettoyer les messages d'extraction/waveform pour ne pas laisser de texte fantôme.
   setStatus(`Morceau chargé : ${name}`);
   setLoadingState(false);
+  // S'assurer que l'overlay initial est bien caché même si updateStudioStage a été
+  // appelé entre-temps (cas région confirmée + stems déjà séparés).
+  if (els.processingOverlay && studioStage !== 2) {
+    els.processingOverlay.style.display = 'none';
+  }
 }
 
 function failTrackLoading(message) {
@@ -1450,6 +1759,9 @@ function failTrackLoading(message) {
   }
   setStatus(message);
   setLoadingState(false);
+  if (els.processingOverlay) {
+    els.processingOverlay.style.display = 'none';
+  }
 }
 
 function showReadyToast() {
@@ -1566,6 +1878,7 @@ export async function loadTrack(trackId) {
     setLoadingState(true);
     stop();
     mixer?.reset();
+    currentWaveformTrackId = null;
     const metadata = await loadMetadata(trackId);
     currentTrack = { id: trackId, metadata };
     trackName = metadata?.name || trackId;
@@ -1646,48 +1959,7 @@ export async function loadTrack(trackId) {
     playerAudio?.addEventListener('loadedmetadata', onAudioReady, { once: true });
     playerAudio?.addEventListener('loadeddata', onAudioReady, { once: true });
 
-    // Génération waveform avec mise à jour du spinner en temps réel.
-    if (wavPath && window.electronAPI?.studio?.generateWaveform) {
-      try {
-        setStatus('Analyse waveform en cours...');
-        if (els.processingLabel) els.processingLabel.textContent = 'Analyse waveform en cours...';
-        if (els.processingBar) els.processingBar.style.width = '40%';
-
-        if (waveformProgressCleanup) {
-          try { waveformProgressCleanup(); } catch (_) {}
-        }
-        waveformProgressCleanup = window.electronAPI.studio.onWaveformProgress?.((event) => {
-          const percent = event?.percent ?? 0;
-          if (els.processingLabel) els.processingLabel.textContent = `Analyse waveform en cours... ${percent}%`;
-          if (els.processingBar) els.processingBar.style.width = `${40 + Math.min(50, percent * 0.5)}%`;
-        });
-
-        audioWavPath = wavPath;
-        waveformData = await window.electronAPI.studio.generateWaveform(wavPath);
-      } catch (err) {
-        console.warn('[Studio] generateWaveform failed:', err);
-        audioWavPath = null;
-        waveformData = null;
-      }
-    }
-
-    // Si aucune waveform, fallback sur le blob original pour waveform
-    if (!waveformData && window.electronAPI?.studio?.generateWaveform) {
-      try {
-        waveformData = await window.electronAPI.studio.generateWaveform(metadata?.originalPath);
-      } catch (_) {}
-    }
-
-    if (waveformProgressCleanup) {
-      try { waveformProgressCleanup(); } catch (_) {}
-      waveformProgressCleanup = null;
-    }
-
-    // Afficher la waveform dès qu'elle est disponible, mais NE PAS fermer le spinner.
-    renderWaveform();
-    updateRegionUI();
-    updateCropButtons();
-    setCropControlsEnabled(false);
+    audioWavPath = wavPath || null;
 
     // Attendre explicitement que l'élément audio de timing soit prêt avant de débloquer l'UI.
     await waitAudioElementReady(playerAudio);
@@ -1730,10 +2002,78 @@ export async function loadTrack(trackId) {
 
     await refreshTrackList();
     await refreshStems();
+
+    // Génération waveform : le chargement n'est terminé que lorsque l'audio ET
+    // la waveform sont prêts. Le spinner reste actif pendant l'analyse.
+    await generateWaveformBlocking(wavPath, metadata?.originalPath);
+
     finishTrackLoading(trackName);
   } catch (err) {
     console.error('Failed to load track:', err);
     failTrackLoading(`Erreur de chargement : ${err.message}`);
+  } finally {
+    // Sécurité : si loadTrack quitte avec le spinner encore actif (timeout,
+    // exception silencieuse, etc.), on force la fermeture du chargement initial.
+    if (isLoadingTrack) {
+      setLoadingState(false);
+      setStatus('Chargement terminé');
+    }
+  }
+}
+
+// [Claude] — 2026-07-07 — Génération waveform : attendue avant la fin du chargement
+// du morceau. Le spinner reste affiché pendant toute la durée de l'analyse ; le
+// transport n'est débloqué que lorsque l'audio ET la waveform sont prêts.
+// Un timeout de 15s évite un blocage infini si le worker Python est coincé.
+async function generateWaveformBlocking(preferredWavPath, fallbackOriginalPath) {
+  if (!window.electronAPI?.studio?.generateWaveform) return;
+
+  const trackId = currentTrack?.id;
+  currentWaveformTrackId = trackId;
+
+  const cleanupProgress = () => {
+    if (waveformProgressCleanup) {
+      try { waveformProgressCleanup(); } catch (_) {}
+      waveformProgressCleanup = null;
+    }
+  };
+  cleanupProgress();
+
+  waveformProgressCleanup = window.electronAPI.studio.onWaveformProgress?.((event) => {
+    const percent = event?.percent ?? 0;
+    setStatus(`Analyse waveform en cours... ${percent}%`);
+    if (els.processingLabel) els.processingLabel.textContent = `Analyse waveform en cours... ${percent}%`;
+    if (els.processingBar) els.processingBar.style.width = `${40 + Math.min(50, percent * 0.5)}%`;
+  });
+
+  const tryGenerate = async (path) => {
+    if (!path) return null;
+    try {
+      setStatus('Analyse waveform en cours...');
+      return await window.electronAPI.studio.generateWaveform(path);
+    } catch (err) {
+      console.warn('[Studio] generateWaveform failed:', err);
+      return null;
+    }
+  };
+
+  const timeout = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const data = await Promise.race([
+    (async () => tryGenerate(preferredWavPath) || await tryGenerate(fallbackOriginalPath))(),
+    timeout(15000),
+  ]);
+  cleanupProgress();
+
+  // Si l'utilisateur a changé de morceau entre-temps, ignorer ce résultat.
+  if (currentTrack?.id !== trackId || currentWaveformTrackId !== trackId) return;
+
+  if (data) {
+    waveformData = data;
+    renderWaveform();
+    updateRegionUI();
+    updatePlayhead(getStudioCurrentTime(), getEffectiveDuration());
+  } else {
+    console.warn('[Studio] waveform generation timed out or failed');
   }
 }
 

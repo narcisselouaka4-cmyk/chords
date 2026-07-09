@@ -1,0 +1,25 @@
+{
+  "song": "Père nous t'adorons (Tonalité Réelle : B)",
+  "file": "/home/visiteur/PianoJazzChords/Studio/Track_002/audio.wav",
+  "key": "B",
+  "bpm": 112,
+  "time_signature": "4/4",
+  "duration": 60.0,
+  "chords": [
+    { "start": 0.0, "end": 4.0, "chord": "B" },
+    { "start": 4.0, "end": 8.0, "chord": "E" },
+    { "start": 8.0, "end": 12.0, "chord": "B" },
+    { "start": 12.0, "end": 16.0, "chord": "F#" },
+    { "start": 16.0, "end": 20.0, "chord": "B" },
+    { "start": 20.0, "end": 24.0, "chord": "E" },
+    { "start": 24.0, "end": 28.0, "chord": "F#" },
+    { "start": 28.0, "end": 32.0, "chord": "B" },
+    { "start": 32.0, "end": 36.0, "chord": "B" },
+    { "start": 36.0, "end": 40.0, "chord": "E" },
+    { "start": 40.0, "end": 44.0, "chord": "B" },
+    { "start": 44.0, "end": 48.0, "chord": "F#" },
+    { "start": 48.0, "end": 52.0, "chord": "B" },
+    { "start": 52.0, "end": 56.0, "chord": "E" },
+    { "start": 56.0, "end": 60.0, "chord": "F#" }
+  ]
+}

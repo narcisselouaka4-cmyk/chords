@@ -1,0 +1,147 @@
+{
+  "timestamp": "2026-07-09T16:39:33",
+  "commit": "e3fbd73c32a5ceef2983e7150dfd47efec8b808f",
+  "params": {
+    "smoothing_window": 2,
+    "min_segment_duration": 0.15,
+    "tracking": "mode"
+  },
+  "pieces_processed": 8,
+  "pieces_with_gt": 4,
+  "aggregate_metrics": {
+    "bass_accuracy": {
+      "mean": 91.93,
+      "std": 3.61,
+      "min": 87.5,
+      "max": 95.3
+    },
+    "slash_accuracy": {
+      "mean": 21.3,
+      "std": 42.6,
+      "min": 0.0,
+      "max": 85.2
+    },
+    "fragmentation": {
+      "mean": 3.04,
+      "std": 2.56,
+      "min": 0.97,
+      "max": 6.44
+    }
+  },
+  "timing": {
+    "mean_process_time": 2.18,
+    "mean_rtf": 0.0596,
+    "total_audio_duration": 262.0,
+    "total_process_time": 17.4
+  },
+  "results": [
+    {
+      "id": "amazing_grace",
+      "style": "slow gospel",
+      "duration": 123.246,
+      "process_time": 12.824,
+      "rtf": 0.1041,
+      "has_ground_truth": true,
+      "metrics": {
+        "bass_accuracy": 90.5,
+        "slash_accuracy": 85.2,
+        "fragmentation": 3.6,
+        "det_segments": 227,
+        "ref_notes": 63,
+        "alignment_score": -56
+      },
+      "segment_count": 227
+    },
+    {
+      "id": "walking_bass",
+      "style": "jazz walking bass (synthétique)",
+      "duration": 4.0,
+      "process_time": 0.192,
+      "rtf": 0.048,
+      "has_ground_truth": false,
+      "metrics": null,
+      "segment_count": 16
+    },
+    {
+      "id": "slash_Am7_G",
+      "style": "slash chord (synthétique)",
+      "duration": 2.0,
+      "process_time": 0.177,
+      "rtf": 0.0883,
+      "has_ground_truth": false,
+      "metrics": null,
+      "segment_count": 1
+    },
+    {
+      "id": "chord_C",
+      "style": "accord simple (synthétique)",
+      "duration": 2.0,
+      "process_time": 0.138,
+      "rtf": 0.0689,
+      "has_ground_truth": false,
+      "metrics": null,
+      "segment_count": 1
+    },
+    {
+      "id": "note_E2",
+      "style": "note de basse tenue (synthétique)",
+      "duration": 2.0,
+      "process_time": 0.163,
+      "rtf": 0.0815,
+      "has_ground_truth": false,
+      "metrics": null,
+      "segment_count": 1
+    },
+    {
+      "id": "autumn_leaves_bass_only",
+      "style": "jazz walking bass (synthétique, basse seule)",
+      "duration": 34.315,
+      "process_time": 0.747,
+      "rtf": 0.0218,
+      "has_ground_truth": true,
+      "metrics": {
+        "bass_accuracy": 95.3,
+        "slash_accuracy": 0.0,
+        "fragmentation": 0.97,
+        "det_segments": 62,
+        "ref_notes": 64,
+        "alignment_score": 119
+      },
+      "segment_count": 62
+    },
+    {
+      "id": "autumn_leaves_mix",
+      "style": "jazz walking bass (synthétique, piano+basse)",
+      "duration": 34.469,
+      "process_time": 0.901,
+      "rtf": 0.0261,
+      "has_ground_truth": true,
+      "metrics": {
+        "bass_accuracy": 87.5,
+        "slash_accuracy": 0.0,
+        "fragmentation": 1.16,
+        "det_segments": 74,
+        "ref_notes": 64,
+        "alignment_score": 93
+      },
+      "segment_count": 74
+    },
+    {
+      "id": "ton_nom_est_jehovah",
+      "style": "gospel_reel_basse_implicite",
+      "duration": 60.0,
+      "process_time": 2.297,
+      "rtf": 0.0383,
+      "has_ground_truth": true,
+      "metrics": {
+        "bass_accuracy": 94.4,
+        "slash_accuracy": 0.0,
+        "fragmentation": 6.44,
+        "det_segments": 116,
+        "ref_notes": 18,
+        "alignment_score": -65
+      },
+      "segment_count": 116
+    }
+  ]
+}

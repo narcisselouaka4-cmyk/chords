@@ -1,9 +1,16 @@
 import { buildChordTimeline } from './chord-timeline.js';
 import { segment } from './segmenter.js';
 import { detectKey, computeKeyFromRawNotes } from './key-detector.js';
+import { scoreSession } from './scorer.js';
+import { buildVoiceLeading } from './voice-leading.js';
+import {
+  enrichChordsWithDegrees,
+  summarizeHarmonicPatterns,
+} from './harmonic-patterns.js';
 import { readSessionFile, writeSessionFile } from '../recorder/storage.js';
 
 // [OpenCode] — 2026-07-06 — Orchestrateur d'analyse des sessions MIDI.
+// [Claude] — 2026-07-07 — Intégration des scores, des degrés et des patterns harmoniques.
 
 const APP_VERSION = '0.1.0';
 
@@ -52,6 +59,30 @@ export async function analyzeSession(sessionId, events, session) {
     chords: s.chordIndices.map((idx) => chords[idx]).filter(Boolean),
   }));
 
+  // Scores globaux
+  const scores = scoreSession(chords, key?.pc ?? null);
+
+  // Degrés dans la tonalité détectée
+  const chordsWithDegrees = key ? enrichChordsWithDegrees(chords, key) : chords;
+
+  // Voice leading entre accords consécutifs
+  const voiceLeadings = [];
+  for (let i = 1; i < chordsWithDegrees.length; i++) {
+    const prev = chordsWithDegrees[i - 1];
+    const curr = chordsWithDegrees[i];
+    const vl = buildVoiceLeading(prev.notes || [], curr.notes || []);
+    if (vl) {
+      voiceLeadings.push({
+        fromIndex: i - 1,
+        toIndex: i,
+        ...vl,
+      });
+    }
+  }
+
+  // Patterns harmoniques (II-V-I, cadences, turnarounds, substitutions)
+  const patterns = key ? summarizeHarmonicPatterns(chordsWithDegrees, key) : null;
+
   const result = {
     sessionId,
     generatedAt: new Date().toISOString(),
@@ -60,8 +91,11 @@ export async function analyzeSession(sessionId, events, session) {
     sourceType: session.sourceType || 'midi',
     key,
     isMelodic: false,
-    chords,
+    chords: chordsWithDegrees,
     sections: enrichedSections,
+    scores,
+    voiceLeadings,
+    patterns,
     melodyLine: [],
   };
 

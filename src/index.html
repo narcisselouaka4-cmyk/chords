@@ -3,7 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://localhost:* http://localhost:* https://api.groq.com https://openrouter.ai https://generativelanguage.googleapis.com; img-src 'self' data: blob:; media-src 'self' blob:;" />
+    <!-- [Claude] — 2026-07-07 — CSP stricte en production, 'unsafe-eval' seulement en dev pour Vite HMR. -->
+    <meta id="csp-meta" http-equiv="Content-Security-Policy" content="" />
+    <script>
+      (function () {
+        const isDev = location.protocol === 'http:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+        const csp = isDev
+          ? "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://localhost:* http://localhost:* https://api.groq.com https://openrouter.ai https://generativelanguage.googleapis.com; img-src 'self' data: blob:; media-src 'self' blob:;"
+          : "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.groq.com https://openrouter.ai https://generativelanguage.googleapis.com; img-src 'self' data: blob:; media-src 'self' blob:;";
+        document.getElementById('csp-meta').setAttribute('content', csp);
+      })();
+    </script>
     <title>Piano Jazz Chords</title>
     <link rel="stylesheet" href="./style.css" />
   </head>
@@ -84,77 +94,149 @@
         </aside>
       </main>
 
-      <!-- [OpenCode] — 2026-07-04 — Onglet Analyse : sessions MIDI, REC, liste, lecture -->
-      <main class="recording-tab" id="analysis-tab" style="display: none;">
-        <section class="recording-sidebar left">
-          <div class="panel">
-            <div class="panel-title">Nouvelle session</div>
-            <button id="new-session-btn" class="record-action">🎙 Nouvelle session</button>
-
-            <!-- Mini modal pour nouvelle session -->
-            <div class="recording-init-modal" id="recording-init-modal" style="display: none;">
-              <input type="text" id="session-title-input" class="session-title-input" placeholder="Titre de la session" />
-              <label class="switch-label">
-                <input type="checkbox" id="metronome-toggle" checked />
-                Métronome
-              </label>
-              <div id="bpm-row" style="display:flex;align-items:center;gap:6px;margin-top:4px;">
-                <label for="session-bpm-input" style="font-size:0.85rem;color:var(--muted);">BPM</label>
-                <input type="number" id="session-bpm-input" class="session-bpm-input" value="90" min="30" max="280" />
-              </div>
-              <button type="button" id="start-recording-btn" class="record">● REC</button>
-            </div>
-
-            <div class="recording-controls" id="recording-controls" style="display: none;">
-              <div class="recording-status" id="recording-status">Enregistrement en cours...</div>
-              <div class="recording-countdown" id="recording-countdown" style="display: none;"></div>
-              <div class="recording-timer" id="recording-timer">00:00</div>
-              <div class="recording-stats" id="recording-stats">0 notes · 0 accords · Cours : —</div>
-              <div class="recording-actions">
-                <button type="button" id="stop-recording-btn" class="stop">■ Stop</button>
-              </div>
+      <!-- [Claude] — 2026-07-08 — Onglet Analyse : modèle Chordify. -->
+      <main class="analyzer-tab" id="analysis-tab" style="display: none;">
+        <section class="analyzer-workspace" id="analyzer-workspace">
+          <!-- Écran d'accueil : import de fichier -->
+          <div class="analyzer-import-screen" id="analyzer-import-screen">
+            <div class="analyzer-import-card">
+              <div class="analyzer-import-icon">🎵</div>
+              <h2>Importer un fichier</h2>
+              <p class="analyzer-formats">
+                Formats acceptés :<br />
+                MP3 · WAV · MP4 · M4A
+              </p>
+              <button type="button" id="analyzer-import-btn" class="analyzer-import-btn">
+                Choisir un fichier
+              </button>
+              <p class="analyzer-import-hint">
+                Importez un morceau ou une vidéo afin de lancer son analyse.
+              </p>
             </div>
           </div>
 
-          <div class="panel">
-            <div class="panel-title">
-              Sessions enregistrées
-              <input type="text" id="session-search" class="session-search" placeholder="Rechercher..." />
+          <!-- Conteneur des résultats (caché initialement) -->
+          <div class="analyzer-results" id="analyzer-results" style="display: none;">
+            <!-- En-tête morceau -->
+            <header class="analyzer-song-header">
+              <div class="analyzer-song-meta">
+                <h2 class="analyzer-song-title" id="analyzer-song-title">Titre du morceau</h2>
+                <div class="analyzer-song-subtitle">
+                  <span class="analyzer-song-artist" id="analyzer-song-artist">Inconnu</span>
+                  <span class="analyzer-stem-badge" id="analyzer-stem-badge"></span>
+                </div>
+              </div>
+              <div class="analyzer-song-actions">
+                <button type="button" id="analyzer-back-btn" class="analyzer-back-btn">Importer un autre fichier</button>
+              </div>
+            </header>
+
+            <!-- Lecteur + outils -->
+            <div class="analyzer-player-bar">
+              <div class="analyzer-transport">
+                <button type="button" id="analyzer-prev-btn" class="analyzer-transport-btn" title="Revenir au début">⏮</button>
+                <button type="button" id="analyzer-play-btn" class="analyzer-play-btn" title="Lecture / Pause">▶</button>
+              </div>
+              <div class="analyzer-progress-wrap">
+                <span class="analyzer-current-time" id="analyzer-current-time">00:00</span>
+                <div class="analyzer-progress-track" id="analyzer-progress-track">
+                  <div class="analyzer-progress-fill" id="analyzer-progress-fill"></div>
+                  <div class="analyzer-progress-thumb" id="analyzer-progress-thumb"></div>
+                </div>
+                <span class="analyzer-duration" id="analyzer-duration">00:00</span>
+              </div>
             </div>
-            <div class="session-list" id="session-list"></div>
+
+            <div class="analyzer-toolbar">
+              <button type="button" id="analyzer-countdown-btn" class="analyzer-tool-btn" title="Compte à rebours">3, 2, 1…</button>
+              <button type="button" id="analyzer-loop-btn" class="analyzer-tool-btn" title="Boucle">🔁 Boucle</button>
+              <div class="analyzer-tool-group">
+                <label for="analyzer-tempo">Tempo</label>
+                <input type="range" id="analyzer-tempo" min="0.5" max="1.5" step="0.05" value="1" />
+                <span id="analyzer-tempo-value">100%</span>
+              </div>
+              <button type="button" id="analyzer-transpose-btn" class="analyzer-tool-btn" title="Transposer">Transposer</button>
+              <button type="button" id="analyzer-simplify-btn" class="analyzer-tool-btn" title="Simplifier">Simplifier</button>
+              <button type="button" id="analyzer-tuner-btn" class="analyzer-tool-btn" title="Accordeur">Accordeur</button>
+            </div>
+
+            <!-- Lecteur audio natif caché -->
+            <div id="analyzer-audio-container" style="display: none;"></div>
+
+            <!-- Timeline horizontale des accords -->
+            <div class="analyzer-chord-timeline" id="analyzer-chord-timeline">
+              <div class="analyzer-chord-timeline-inner" id="analyzer-chord-timeline-inner"></div>
+              <button type="button" class="analyzer-timeline-scroll analyzer-timeline-scroll-left" id="analyzer-timeline-scroll-left">‹</button>
+              <button type="button" class="analyzer-timeline-scroll analyzer-timeline-scroll-right" id="analyzer-timeline-scroll-right">›</button>
+            </div>
+
+            <!-- Onglets de vue -->
+            <div class="analyzer-view-tabs">
+              <button type="button" class="analyzer-view-tab active" data-view="grid">Grille d'accords</button>
+              <button type="button" class="analyzer-view-tab" data-view="preview">Aperçu des accords</button>
+              <button type="button" class="analyzer-view-tab" data-view="lyrics">Accords & Paroles</button>
+            </div>
+
+            <!-- Contenu principal : grille de mini-claviers + panneau latéral -->
+            <div class="analyzer-main-layout">
+              <div class="analyzer-main-content">
+                <div class="analyzer-chord-grid" id="analyzer-chord-grid">
+                  <!-- Les cartes d'accords avec mini-clavier sont injectées ici -->
+                </div>
+
+                <div class="analyzer-preview-view" id="analyzer-preview-view" style="display: none;">
+                  <p class="detail-hint">Aperçu audio des accords — à venir.</p>
+                </div>
+
+                <div class="analyzer-lyrics-view" id="analyzer-lyrics-view" style="display: none;">
+                  <p class="detail-hint">Synchronisation des paroles — à venir.</p>
+                </div>
+              </div>
+
+              <aside class="analyzer-sidebar" id="analyzer-sidebar">
+                <div class="analyzer-video-box" id="analyzer-video-box">
+                  <div class="analyzer-video-placeholder">🎹</div>
+                  <div class="analyzer-video-hint">Lecteur visuel</div>
+                </div>
+
+                <div class="analyzer-info-panel">
+                  <h3>Détails de la chanson</h3>
+                  <div class="analyzer-info-row">
+                    <span class="analyzer-info-label">Tonalité</span>
+                    <span class="analyzer-info-value" id="analyzer-info-key">—</span>
+                  </div>
+                  <div class="analyzer-info-row">
+                    <span class="analyzer-info-label">Accords</span>
+                    <span class="analyzer-info-value" id="analyzer-info-chords">—</span>
+                  </div>
+                  <div class="analyzer-info-row">
+                    <span class="analyzer-info-label">BPM</span>
+                    <span class="analyzer-info-value" id="analyzer-info-bpm">—</span>
+                  </div>
+                  <div class="analyzer-info-row">
+                    <span class="analyzer-info-label">Signature</span>
+                    <span class="analyzer-info-value" id="analyzer-info-signature">—</span>
+                  </div>
+                  <div class="analyzer-info-row">
+                    <span class="analyzer-info-label">Durée</span>
+                    <span class="analyzer-info-value" id="analyzer-info-duration">—</span>
+                  </div>
+                </div>
+
+                <div class="analyzer-similar-panel">
+                  <h3>Morceaux similaires</h3>
+                  <p class="detail-hint">Suggestions de morceaux à venir.</p>
+                </div>
+              </aside>
+            </div>
+          </div>
+
+          <!-- Overlay de traitement -->
+          <div class="analyzer-processing" id="analyzer-processing" style="display: none;">
+            <div class="analyzer-processing-spinner"></div>
+            <p id="analyzer-processing-text">Analyse en cours...</p>
           </div>
         </section>
-
-        <section class="recording-center">
-          <div class="panel session-info-panel" id="session-info-panel">
-            <div class="panel-title">Session en cours</div>
-            <div class="selected-session-info" id="selected-session-info">
-              <p class="detail-hint">Aucune session sélectionnée. Créez une nouvelle session ou choisissez-en une dans la liste.</p>
-            </div>
-            <div class="transport-bar" id="transport-bar" style="display:none;">
-              <button type="button" id="transport-rewind" class="transport-btn" title="Retour au début">⏮</button>
-              <button type="button" id="transport-play" class="transport-btn transport-play" title="Lecture">▶</button>
-              <input type="range" id="transport-slider" class="transport-slider" min="0" max="100" value="0" step="0.1" />
-            </div>
-          </div>
-
-          <div class="panel timeline-panel">
-            <div class="panel-title">
-              <span id="analysis-panel-title">Analyse</span>
-              <button id="analyze-session-btn" class="panel-action" title="Analyser la session" disabled>Analyser</button>
-            </div>
-
-            <div class="analysis-content" id="analysis-content">
-              <p class="detail-hint">Sélectionnez une session pour voir son analyse.</p>
-            </div>
-          </div>
-        </section>
-
-        <!-- Compte à rebours visuel de l'enregistrement -->
-        <div class="countdown-overlay" id="countdown-overlay" style="display: none;">
-          <div class="countdown-rec-badge">REC</div>
-          <div class="countdown-number" id="countdown-number">3</div>
-        </div>
       </main>
 
       <!-- [OpenCode] — 2026-07-04 — Onglet Studio : import, lecture et séparation de pistes -->
@@ -187,12 +269,29 @@
           <span>✅ Le morceau est prêt dans le Studio !</span>
         </div>
 
-        <aside class="studio-sidebar left">
-          <div class="panel">
-            <div class="panel-title">🎵 Morceaux importés</div>
-            <p class="studio-empty-hint">Sélectionnez un morceau pour commencer à travailler.</p>
-            <button id="studio-import-btn" class="record-action">Importer un fichier</button>
-            <div class="studio-track-list" id="studio-track-list"></div>
+        <!-- Compte à rebours enregistrement vidéo -->
+        <div id="studio-record-countdown" class="studio-record-countdown" style="display: none;">
+          <div class="studio-record-countdown-number" id="studio-record-countdown-number">3</div>
+        </div>
+
+        <!-- Indicateur d'enregistrement en cours -->
+        <div id="studio-recording-indicator" class="studio-recording-indicator" style="display: none;">
+          <span class="studio-recording-dot"></span>
+          <span>REC</span>
+        </div>
+
+        <aside class="studio-sidebar left" id="studio-sidebar-left">
+          <div class="panel studio-tracks-panel" id="studio-tracks-panel">
+            <button class="studio-collapse-tab" id="studio-collapse-tab" title="Développer le panneau" aria-label="Développer le panneau Morceaux importés">▼</button>
+            <div class="studio-panel-header" id="studio-tracks-header">
+              <span class="studio-panel-title">🎵 Morceaux importés</span>
+              <button class="studio-collapse-btn" id="studio-collapse-left" title="Réduire le panneau" aria-label="Réduire le panneau Morceaux importés">▲</button>
+            </div>
+            <div class="studio-panel-body" id="studio-tracks-body">
+              <p class="studio-empty-hint">Sélectionnez un morceau pour commencer à travailler.</p>
+              <button id="studio-import-btn" class="record-action">Importer un fichier</button>
+              <div class="studio-track-list" id="studio-track-list"></div>
+            </div>
           </div>
         </aside>
 
@@ -231,6 +330,7 @@
               <button id="studio-prev-btn" title="Revenir au début">◀◀</button>
               <button id="studio-play-btn" title="Lecture / Pause">▶</button>
               <button id="studio-stop-btn" title="Stop">■</button>
+              <button id="studio-record-btn" class="studio-record-btn" title="Enregistrer la fenêtre (R)" aria-label="Enregistrer la fenêtre">●</button>
             </div>
             <input type="range" id="studio-progress" min="0" max="100" value="0" step="0.1" />
             <div class="studio-time" id="studio-time">00:00 / 00:00</div>

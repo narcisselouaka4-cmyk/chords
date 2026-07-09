@@ -1,0 +1,37 @@
+{
+  "source_file": "/home/visiteur/piano-jazz-chords/tests/references/autumn_leaves.json",
+  "key": "G minor",
+  "tempo": 120,
+  "seed": 42,
+  "soundfont": "/usr/share/sounds/sf2/FluidR3_GM.sf2",
+  "bass_program": 43,
+  "piano_program": 0,
+  "measures": 16,
+  "duration_seconds": 32.0,
+  "chords_parsed": [
+    "Aø7",
+    "D7",
+    "G-7",
+    "G-7",
+    "C-7",
+    "F7",
+    "B♭Δ7",
+    "E♭Δ7",
+    "Aø7",
+    "D7",
+    "G-7",
+    "G-7",
+    "C-7",
+    "F7",
+    "B♭Δ7",
+    "E♭Δ7"
+  ],
+  "total_bass_notes": 64,
+  "root_percent": 25.0,
+  "passing_percent": 75.0,
+  "midi_range": [
+    36,
+    55
+  ],
+  "generated_at": "2026-07-09T14:20:11"
+}

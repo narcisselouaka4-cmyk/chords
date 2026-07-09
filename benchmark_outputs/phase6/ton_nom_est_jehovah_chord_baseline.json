@@ -1,0 +1,134 @@
+[
+  {
+    "startTime": 0.0,
+    "endTime": 2.23,
+    "midi": 40,
+    "note": "E2"
+  },
+  {
+    "startTime": 2.23,
+    "endTime": 4.461,
+    "midi": 45,
+    "note": "A2"
+  },
+  {
+    "startTime": 4.461,
+    "endTime": 6.691,
+    "midi": 38,
+    "note": "D2"
+  },
+  {
+    "startTime": 6.691,
+    "endTime": 8.922,
+    "midi": 40,
+    "note": "E2"
+  },
+  {
+    "startTime": 8.922,
+    "endTime": 11.152,
+    "midi": 38,
+    "note": "D2"
+  },
+  {
+    "startTime": 11.152,
+    "endTime": 13.383,
+    "midi": 44,
+    "note": "G#2"
+  },
+  {
+    "startTime": 13.383,
+    "endTime": 17.844,
+    "midi": 40,
+    "note": "E2"
+  },
+  {
+    "startTime": 17.844,
+    "endTime": 22.305,
+    "midi": 45,
+    "note": "A2"
+  },
+  {
+    "startTime": 22.305,
+    "endTime": 24.535,
+    "midi": 38,
+    "note": "D2"
+  },
+  {
+    "startTime": 24.535,
+    "endTime": 26.766,
+    "midi": 37,
+    "note": "C#2"
+  },
+  {
+    "startTime": 26.766,
+    "endTime": 28.996,
+    "midi": 42,
+    "note": "F#2"
+  },
+  {
+    "startTime": 28.996,
+    "endTime": 31.227,
+    "midi": 42,
+    "note": "F#2"
+  },
+  {
+    "startTime": 31.227,
+    "endTime": 35.688,
+    "midi": 40,
+    "note": "E2"
+  },
+  {
+    "startTime": 35.688,
+    "endTime": 37.918,
+    "midi": 45,
+    "note": "A2"
+  },
+  {
+    "startTime": 37.918,
+    "endTime": 40.149,
+    "midi": 37,
+    "note": "C#2"
+  },
+  {
+    "startTime": 40.149,
+    "endTime": 42.379,
+    "midi": 42,
+    "note": "F#2"
+  },
+  {
+    "startTime": 42.379,
+    "endTime": 44.61,
+    "midi": 45,
+    "note": "A2"
+  },
+  {
+    "startTime": 44.61,
+    "endTime": 46.84,
+    "midi": 42,
+    "note": "F#2"
+  },
+  {
+    "startTime": 46.84,
+    "endTime": 51.301,
+    "midi": 40,
+    "note": "E2"
+  },
+  {
+    "startTime": 51.301,
+    "endTime": 53.532,
+    "midi": 38,
+    "note": "D2"
+  },
+  {
+    "startTime": 53.532,
+    "endTime": 57.993,
+    "midi": 45,
+    "note": "A2"
+  },
+  {
+    "startTime": 57.993,
+    "endTime": 60.0,
+    "midi": 38,
+    "note": "D2"
+  }
+]

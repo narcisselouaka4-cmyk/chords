@@ -1,0 +1,208 @@
+{
+  "report_generated": "2026-07-09T05:11:30.855808",
+  "reference_file": "amazing_grace_gospel_piano.json",
+  "ground_truth": {
+    "source": "manual annotation (chord symbols)",
+    "detail": "Bass note derived from chord symbol: root for non-slash chords (e.g., G → bass=G), note after / for slash chords (e.g., G/B → bass=B). No octave information in reference.",
+    "known_limitations": [
+      "No octave data — cannot measure octave accuracy against ground truth.",
+      "Temporal alignment is uniform (one chord per position) — no tempo map beyond global BPM.",
+      "Chord symbols are an approximation of the actual performance."
+    ]
+  },
+  "signal": {
+    "mix": {
+      "label": "mix",
+      "duration": 123.25,
+      "sr": 22050,
+      "samples": 2717568,
+      "rms": 0.120956,
+      "peak": 0.7933776378631592,
+      "energy_below_150hz_ratio": 0.0678
+    },
+    "stem": {
+      "label": "stem",
+      "duration": 123.25,
+      "sr": 22050,
+      "samples": 2717568,
+      "rms": 0.001221,
+      "peak": 0.08981258422136307,
+      "energy_below_150hz_ratio": 0.444
+    }
+  },
+  "frame_analysis": {
+    "per_frame_csv": "/home/visiteur/piano-jazz-chords/scripts/tests/diagnostic/per_frame_mix_20260709_050818.csv",
+    "mix_segments": 231,
+    "stem_segments": 8
+  },
+  "alignment": {
+    "mix": {
+      "n_aligned_pairs": 231,
+      "n_exact": 56,
+      "n_pitch_class_error": 7,
+      "n_insertion": 168,
+      "n_deletion": 0,
+      "n_ref_notes": 63,
+      "per_ref_chord_accuracy_pct": 88.9,
+      "pitch_class_accuracy_pct": 24.2,
+      "insertion_rate_pct": 72.7,
+      "deletion_rate_pct": 0.0,
+      "error_rate_pct": 3.0,
+      "confusion_matrix": {
+        "B": {
+          "B": 6
+        },
+        "C": {
+          "C": 9
+        },
+        "D": {
+          "D": 12,
+          "G": 1
+        },
+        "G": {
+          "G": 14
+        },
+        "F#": {
+          "F#": 4,
+          "D": 1,
+          "B": 1
+        },
+        "E": {
+          "E": 8
+        },
+        "A": {
+          "B": 1,
+          "A": 1,
+          "F": 1,
+          "G": 1
+        },
+        "C#": {
+          "C#": 2
+        },
+        "?": {
+          "G": 1
+        }
+      },
+      "top_confusions": [
+        [
+          "D",
+          "G",
+          1
+        ],
+        [
+          "F#",
+          "D",
+          1
+        ],
+        [
+          "F#",
+          "B",
+          1
+        ],
+        [
+          "A",
+          "B",
+          1
+        ],
+        [
+          "A",
+          "F",
+          1
+        ],
+        [
+          "A",
+          "G",
+          1
+        ],
+        [
+          "?",
+          "G",
+          1
+        ]
+      ]
+    },
+    "stem": {
+      "n_aligned_pairs": 63,
+      "n_exact": 7,
+      "n_pitch_class_error": 1,
+      "n_insertion": 0,
+      "n_deletion": 55,
+      "n_ref_notes": 63,
+      "per_ref_chord_accuracy_pct": 11.1,
+      "pitch_class_accuracy_pct": 11.1,
+      "insertion_rate_pct": 0.0,
+      "deletion_rate_pct": 87.3,
+      "error_rate_pct": 1.6,
+      "confusion_matrix": {
+        "E": {
+          "E": 1
+        },
+        "C": {
+          "C": 2
+        },
+        "B": {
+          "B": 2,
+          "C#": 1
+        },
+        "A": {
+          "A": 1
+        },
+        "G": {
+          "G": 1
+        }
+      },
+      "top_confusions": [
+        [
+          "B",
+          "C#",
+          1
+        ]
+      ]
+    }
+  },
+  "confidence_correlation": {
+    "mix": [
+      {
+        "bin": "0.6-0.8",
+        "total": 1,
+        "correct": 0,
+        "accuracy_pct": 0.0,
+        "avg_confidence": 0.75
+      },
+      {
+        "bin": "0.8-1.0",
+        "total": 230,
+        "correct": 40,
+        "accuracy_pct": 17.4,
+        "avg_confidence": 0.9942
+      }
+    ],
+    "stem": [
+      {
+        "bin": "0.6-0.8",
+        "total": 3,
+        "correct": 0,
+        "accuracy_pct": 0.0,
+        "avg_confidence": 0.7509
+      },
+      {
+        "bin": "0.8-1.0",
+        "total": 5,
+        "correct": 1,
+        "accuracy_pct": 20.0,
+        "avg_confidence": 0.9486
+      }
+    ]
+  },
+  "ablation": {
+    "demucs_separation_time_s": 192.6
+  },
+  "conclusions": [
+    "WARNING: Énergie basse-fréquence modeste (6.8%). Le signal de basse peut être partiellement masqué.",
+    "Mix — pitch class accuracy: 24.2% (insertions: 72.7%, deletions: 0.0%).",
+    "Top confusions: D→G (x1), F#→D (x1), F#→B (x1)",
+    "Précision pitch class sur les notes de référence: 88.9%. Le CQT+HPS trouve la BONNE NOTE ~8 fois sur 10. Le problème n'est PAS le détecteur mais la fragmentation temporelle (168 insertions pour 231 segments).",
+    "Le stem basse Demucs est 99× plus silencieux que le mix (RMS 0.00122 vs 0.12096). La basse piano n'est pas séparable de la main droite par Demucs — le stem est trop pauvre pour être un test valide (87.3% délétions sur les accords de référence). Le comparatif mix/stem n'est PAS pertinent ici.",
+    "Confiance: quasi tous les segments (230/231) sont à conf>0.8. La métrique de corrélation confiance/erreur est biaisée par la fragmentation : parmi les segments à haute confiance, seuls 27.3% correspondent à une note de référence, les 72.7% restants sont des insertions temporelles (pas nécessairement fausses)."
+  ]
+}

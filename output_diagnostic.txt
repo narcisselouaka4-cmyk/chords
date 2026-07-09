@@ -1,0 +1,78 @@
+=================================
+Chargement de la référence : tests/references/track_002_pere_nous_tadorons.json
+Fichier audio détecté : /home/visiteur/PianoJazzChords/Studio/Track_002/audio.wav
+Analyse en cours par le moteur Python... (cette opération peut prendre quelques secondes)
+Analyse terminée !
+=================================
+RÉSUMÉ DU MOTEUR :
+Tonalité détectée : B (major) [Confiance: 98%]
+BPM détecté       : 112
+Durée             : 608.7s
+Segments trouvés  : 231
+=================================
+=================================
+RAPPORT DE DIAGNOSTIC DE CONFIANCE
+=================================
+Morceau : audio.wav
+
+COMPARAISON DE GRILLES D'ACCORDS (Premières 60 secondes) :
+---------------------------------------------------------
+Temps (s)   | Référence (Attendu) | Détecté (Moteur)
+---------------------------------------------------------
+0.0         | B                   | G#sus4
+2.0         | B                   | Esus2
+4.0         | E                   | Esus2
+6.0         | E                   | Esus4
+8.0         | B                   | B
+10.0        | B                   | Bsus2
+12.0        | F#                  | C#m
+14.0        | F#                  | N
+16.0        | B                   | N
+18.0        | B                   | N
+20.0        | E                   | F#7
+22.0        | E                   | F#7
+24.0        | F#                  | B
+26.0        | F#                  | B
+28.0        | B                   | E
+30.0        | B                   | Esus4
+32.0        | B                   | B
+34.0        | B                   | B
+36.0        | E                   | E
+38.0        | E                   | E
+40.0        | B                   | B
+42.0        | B                   | B
+44.0        | F#                  | B
+46.0        | F#                  | C#m
+48.0        | B                   | N
+50.0        | B                   | N
+52.0        | E                   | B
+54.0        | E                   | E
+56.0        | F#                  | Asus2
+58.0        | F#                  | B
+---------------------------------------------------------
+
+=================================
+STATISTIQUES DE DIAGNOSTIC
+=================================
+
+Score de reconnaissance globale : 35.8%
+ - Matchs Parfaits            : 27.9% (67 frames)
+ - Matchs Simplifiés          : 0.0% (0 frames)
+ - Matchs par Extension        : 7.9% (19 frames)
+
+Stabilité temporelle (Timing)  : 13.3%
+ - Blocs de référence stables : 2 / 15
+ - Blocs fragmentés           : 13
+ - Faux changements d'accords : 17
+
+RÉPARTITION DES ERREURS :
+ - Mauvaises fondamentales    : 48.8% (117 frames)
+ - Mauvaises qualités (M/m)   : 0.0% (0 frames)
+ - Mismatchs de silence (N)   : 15.4% (37 frames)
+ - Erreur globale de tonalité  : NON (Tonalité correcte)
+
+DIAGNOSTIC ET ACTION RECOMMANDÉE :
+🚨 Priorité #1 : Améliorer le lissage et limiter la fragmentation temporelle.
+   Le bégaiement temporel (fragmentation) est très élevé (13 blocs fragmentés).
+   Solution : Agrégation macroscopique des chromagrammes (demi-mesures) ou augmentation des seuils de durée.
+=================================

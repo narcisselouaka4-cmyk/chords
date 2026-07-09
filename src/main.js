@@ -11,15 +11,7 @@ import { initWebMidi, getWebMidiInputs, openWebMidiInput } from './midi-fallback
 import { createChordHistory } from './chord-history.js';
 
 import { createNoteGrouper } from './note-grouper.js';
-import {
-  initRecordingTab,
-  setRecordingNotation,
-  feedRecorderNoteOn,
-  feedRecorderNoteOff,
-  feedRecorderSustain,
-  feedRecorderPitchWheel,
-  feedRecorderModWheel,
-} from './ui/recording-tab.js';
+import { initAnalyzerTab } from './ui/analyzer-tab.js';
 import { initStudioTab } from './ui/studio-tab.js';
 import {
   getAIConfig,
@@ -27,6 +19,7 @@ import {
   testAIConfig,
   PRESETS,
 } from './ai/openai-config.js';
+import { createPracticeExercise, renderExerciseTarget } from './practice-exercise.js';
 
 const state = {
   activeNotes: new Map(), // midi -> velocity
@@ -53,6 +46,36 @@ const state = {
 
 let chordHistory = null;
 let noteGrouper = null;
+let practiceExercise = null;
+
+// [Claude] — 2026-07-08 — Détection d'accord différée pour ne pas bloquer le thread
+// principal quand le clavier MIDI envoie beaucoup d'événements. Cela permet au
+// lecteur audio de l'onglet Analyse de continuer à défiler sans saccade.
+let chordRefreshTimer = null;
+function scheduleRefreshChord() {
+  if (chordRefreshTimer) return;
+  chordRefreshTimer = setTimeout(() => {
+    chordRefreshTimer = null;
+    refreshChord();
+  }, 80);
+}
+
+let groupedDetectionTimer = null;
+let pendingGroupNotes = null;
+function scheduleGroupedDetection(notes) {
+  pendingGroupNotes = notes;
+  if (groupedDetectionTimer) return;
+  groupedDetectionTimer = setTimeout(() => {
+    groupedDetectionTimer = null;
+    const toAnalyze = pendingGroupNotes;
+    pendingGroupNotes = null;
+    if (toAnalyze && toAnalyze.length >= 3) {
+      const result = detectChord(toAnalyze);
+      updateDisplay(els, result, toAnalyze, state.notation === 'latin');
+      addToHistory(result);
+    }
+  }, 50);
+}
 
 const els = {
   midiSelect: document.getElementById('midi-select'),
@@ -243,6 +266,11 @@ function refreshChord() {
   state.currentChord = result;
   updateDisplay(els, result, notes, state.notation === 'latin');
   addToHistory(result);
+
+  // Vérification de l'exercice rapide si un accord valide est détecté
+  if (result && result.notes.length >= 3 && result.symbol !== '?') {
+    checkPracticeExercise(result.notes);
+  }
 }
 
 function addToHistory(result) {
@@ -281,8 +309,20 @@ function transposeNote(note) {
   return note + state.transpose;
 }
 
+function isPlayableMidi(note) {
+  return Number.isFinite(note) && Number.isInteger(note) && note >= 0 && note <= 127;
+}
+
 function handleNoteOn(note, velocity = 0.8, virtual = false, audible = true) {
+  if (!isPlayableMidi(note)) {
+    console.warn('[Main] noteOn MIDI invalide ignorée:', note);
+    return;
+  }
   const transposed = transposeNote(note);
+  if (!isPlayableMidi(transposed)) {
+    console.warn('[Main] noteOn transposée invalide ignorée:', transposed);
+    return;
+  }
   // Auto-clear suggestion notes when user plays real MIDI
   if (!state.isPlayback && state.suggestionNotes.size > 0) {
     for (const n of state.suggestionNotes) {
@@ -291,20 +331,28 @@ function handleNoteOn(note, velocity = 0.8, virtual = false, audible = true) {
     }
     state.suggestionNotes.clear();
   }
-  if (audible && !state.silentMode) playVirtualNote(transposed, velocity);
-  state.activeNotes.set(transposed, velocity);
+  const safeVelocity = Number.isFinite(velocity) && velocity >= 0 && velocity <= 1 ? velocity : 0.8;
+  if (audible && !state.silentMode) playVirtualNote(transposed, safeVelocity);
+  state.activeNotes.set(transposed, safeVelocity);
   highlightKey(transposed, 'active');
   noteGrouper?.noteOn(transposed, velocity);
-  if (!state.isPlayback) feedRecorderNoteOn(transposed, velocity);
-  // Real-time chord detection still happens, but grouped detection will refine it
-  refreshChord();
+  // La détection est différée pour ne pas bloquer le thread principal
+  // (lecture audio / défilement de l'onglet Analyse).
+  scheduleRefreshChord();
 }
 
 // [Claude] — 2026-07-03 — Gestion des grace notes : une note relâchée est retirée du groupement temporel sauf si la pédale de sustain est active.
 function handleNoteOff(note, virtual = false, audible = true) {
+  if (!isPlayableMidi(note)) {
+    console.warn('[Main] noteOff MIDI invalide ignorée:', note);
+    return;
+  }
   const transposed = transposeNote(note);
+  if (!isPlayableMidi(transposed)) {
+    console.warn('[Main] noteOff transposée invalide ignorée:', transposed);
+    return;
+  }
   if (audible) releaseVirtualNote(transposed);
-  if (!state.isPlayback) feedRecorderNoteOff(transposed);
   if (state.sustain) {
     state.sustainedNotes.add(transposed);
     noteGrouper?.noteOff(transposed, { sustained: true });
@@ -313,12 +361,11 @@ function handleNoteOff(note, virtual = false, audible = true) {
   state.activeNotes.delete(transposed);
   unhighlightKey(transposed, 'active');
   noteGrouper?.noteOff(transposed, { sustained: false });
-  refreshChord();
+  scheduleRefreshChord();
 }
 
 function handleSustain(value) {
   state.sustain = value;
-  if (!state.isPlayback) feedRecorderSustain(value);
   if (!value) {
     for (const note of state.sustainedNotes) {
       if (!state.activeNotes.has(note)) {
@@ -326,19 +373,17 @@ function handleSustain(value) {
       }
     }
     state.sustainedNotes.clear();
-    refreshChord();
+    scheduleRefreshChord();
   }
 }
 
 function handlePitchWheel(value) {
   state.currentPitch = value;
-  if (!state.isPlayback) feedRecorderPitchWheel(value);
   setPitchWheel(value);
 }
 
 function handleModWheel(value) {
   state.currentMod = value;
-  if (!state.isPlayback) feedRecorderModWheel(value);
   setModWheel(value);
 }
 
@@ -614,7 +659,10 @@ function initSettings() {
   els.colorNote.value = state.colorNote;
   els.colorTonic.value = state.colorTonic;
   els.transposeInput.value = state.transpose;
-  els.silentMode.checked = state.silentMode;
+  // [Claude] — 2026-07-07 — Forcer le checkbox Silencieux à décoché au démarrage
+  // pour éviter que le clavier MIDI virtuel soit muet par défaut.
+  state.silentMode = false;
+  els.silentMode.checked = false;
   els.rhodesMode.checked = state.rhodesMode;
 
   const update = () => {
@@ -661,7 +709,6 @@ function initSettings() {
   });
   els.notation.addEventListener('change', () => {
     update();
-    setRecordingNotation(state.notation);
   });
   els.transposeInput.addEventListener('change', update);
   els.toleranceInput?.addEventListener('change', update);
@@ -730,13 +777,12 @@ function initNoteGrouper() {
   noteGrouper = createNoteGrouper({
     toleranceMs: Number(els.toleranceInput?.value) || 200,
     onGroupReady: (group) => {
-      // Re-evaluate chord after grouping window closes
+      // Re-evaluate chord after grouping window closes, en différé pour ne pas
+      // bloquer l'animation / le lecteur audio.
       const notes = group.map((n) => n.note);
       const unique = Array.from(new Set(notes)).sort((a, b) => a - b);
       if (unique.length >= 3) {
-        const result = detectChord(unique);
-        updateDisplay(els, result, unique, state.notation === 'latin');
-        addToHistory(result);
+        scheduleGroupedDetection(unique);
       }
     },
   });
@@ -744,6 +790,62 @@ function initNoteGrouper() {
 
 function initHistory() {
   chordHistory = createChordHistory(() => {});
+}
+
+// [Claude] — 2026-07-07 — Initialisation du panneau d'exercice rapide
+function initPracticeExercise() {
+  const panel = document.getElementById('practice-exercise-panel');
+  if (!panel) return;
+
+  const modeButtons = panel.querySelectorAll('.exercise-mode-btn');
+  const newBtn = document.getElementById('new-exercise-btn');
+  const targetDiv = document.getElementById('exercise-target');
+  const feedbackDiv = document.getElementById('exercise-feedback');
+
+  practiceExercise = createPracticeExercise();
+
+  function render() {
+    const exState = practiceExercise.getState();
+    targetDiv.style.display = exState.target ? 'flex' : 'none';
+    if (exState.target) {
+      targetDiv.innerHTML = renderExerciseTarget(exState.target);
+    }
+  }
+
+  modeButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      modeButtons.forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      practiceExercise.setMode(btn.dataset.mode);
+      feedbackDiv.textContent = '';
+      render();
+    });
+  });
+
+  newBtn?.addEventListener('click', () => {
+    practiceExercise.next();
+    feedbackDiv.textContent = '';
+    render();
+  });
+
+  // Premier exercice au démarrage
+  practiceExercise.next();
+  render();
+}
+
+function checkPracticeExercise(notes) {
+  if (!practiceExercise) return;
+  const result = practiceExercise.check(notes);
+  const feedbackDiv = document.getElementById('exercise-feedback');
+  if (feedbackDiv) {
+    feedbackDiv.textContent = result.message;
+    feedbackDiv.className = `exercise-feedback ${result.success ? 'success' : 'error'}`;
+  }
+  if (result.success) {
+    const targetDiv = document.getElementById('exercise-target');
+    const exState = practiceExercise.getState();
+    targetDiv.innerHTML = renderExerciseTarget(exState.target);
+  }
 }
 
 // [Claude] — 2026-07-04 — Initialisation du panneau de configuration API IA
@@ -827,48 +929,10 @@ async function init() {
   initSettings();
   initNoteGrouper();
   initHistory();
+  initPracticeExercise();
   initAISettings();
-  // [OpenCode] — 2026-07-04 — Initialisation de l'onglet Enregistrement (Module 3)
-  initRecordingTab({
-    notation: state.notation,
-    feedMidiEvent: (type, ...args) => {
-      state.isPlayback = true;
-      try {
-        switch (type) {
-          case 'noteOn':
-            handleNoteOn(args[0], args[1], false, true);
-            break;
-          case 'noteOff':
-            handleNoteOff(args[0], false, true);
-            break;
-          case 'sustain':
-            handleSustain(args[0]);
-            break;
-          case 'pitchWheel':
-            handlePitchWheel(args[0]);
-            break;
-          case 'modWheel':
-            handleModWheel(args[0]);
-            break;
-          case 'suggestion':
-            state.isPlayback = false;
-            handleSuggestionPlay(args[0], args[1], args[2]);
-            break;
-        }
-      } finally {
-        state.isPlayback = false;
-      }
-    },
-    getCurrentChord: () => {
-      if (!state.currentChord) return null;
-      return {
-        name: state.currentChord.symbol === '?'
-          ? null
-          : formatChordResult(state.currentChord),
-        notes: state.currentChord.notes,
-      };
-    },
-  });
+  // [Claude] — 2026-07-08 — Initialisation de l'onglet Analyse simplifié (import → analyse → grille).
+  initAnalyzerTab();
 
   // [OpenCode] — 2026-07-04 — Initialisation de l'onglet Studio (Module 4)
   // Le Studio est isolé du synthétiseur/clavier principal : aucun feedMidiEvent.
@@ -886,7 +950,7 @@ function initTabNavigation() {
 
   function switchToTab(tab) {
     if (practiceTab) practiceTab.style.display = tab === 'practice' ? 'grid' : 'none';
-    if (analysisTab) analysisTab.style.display = tab === 'analysis' ? 'grid' : 'none';
+    if (analysisTab) analysisTab.style.display = tab === 'analysis' ? 'flex' : 'none';
     if (studioTab) studioTab.style.display = tab === 'studio' ? 'grid' : 'none';
 
     document.querySelectorAll('.tab-btn').forEach((b) => {

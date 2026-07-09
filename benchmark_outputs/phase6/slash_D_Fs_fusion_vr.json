@@ -1,0 +1,91 @@
+{
+  "params": {
+    "candidates": "benchmark_outputs/phase6/slash_D_Fs_candidates.json",
+    "chords": "/home/visiteur/piano-jazz-chords/benchmark_outputs/chords_slash_D_Fs.json",
+    "fusion_params": [
+      {
+        "name": "bass_engine",
+        "weight": 1.0,
+        "class": "BassScore"
+      },
+      {
+        "name": "harmonic",
+        "weight": 0.6,
+        "class": "HarmonicScore"
+      },
+      {
+        "name": "octave",
+        "weight": 0.3,
+        "class": "OctaveScore"
+      },
+      {
+        "name": "continuity",
+        "weight": 0.4,
+        "class": "ContinuityScore"
+      },
+      {
+        "name": "chord_confidence",
+        "target": "harmonic",
+        "weight": 1.0,
+        "class": "ChordConfidenceMultiplier"
+      }
+    ]
+  },
+  "n_segments": 6,
+  "segments": [
+    {
+      "startTime": 0.0,
+      "endTime": 0.209,
+      "midi": 30,
+      "bass": "F#",
+      "octave": 1,
+      "note": "F#1",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 0.209,
+      "endTime": 0.372,
+      "midi": 42,
+      "bass": "F#",
+      "octave": 2,
+      "note": "F#2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 0.372,
+      "endTime": 0.697,
+      "midi": 30,
+      "bass": "F#",
+      "octave": 1,
+      "note": "F#1",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 0.697,
+      "endTime": 1.486,
+      "midi": 54,
+      "bass": "F#",
+      "octave": 3,
+      "note": "F#3",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 1.486,
+      "endTime": 1.718,
+      "midi": 30,
+      "bass": "F#",
+      "octave": 1,
+      "note": "F#1",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 1.834,
+      "endTime": 2.0202,
+      "midi": 30,
+      "bass": "F#",
+      "octave": 1,
+      "note": "F#1",
+      "confidence": 1.0
+    }
+  ]
+}

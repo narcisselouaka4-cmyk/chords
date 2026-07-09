@@ -1,0 +1,65 @@
+{
+  "params": {
+    "smoothing_window": 2,
+    "min_segment_duration": 0.15,
+    "tracking": "mode"
+  },
+  "pieces": [
+    {
+      "id": "amazing_grace",
+      "audio": "data/amazing_grace.mp3",
+      "ground_truth": "tests/references/amazing_grace_gospel_piano.json",
+      "style": "slow gospel",
+      "description": "Gospel lent (65 BPM) — 63 accords dont 27 slash chords. Référence principale du benchmark V2.5."
+    },
+    {
+      "id": "walking_bass",
+      "audio": "tests/audio/walking_bass.wav",
+      "ground_truth": null,
+      "style": "jazz walking bass (synthétique)",
+      "description": "Walking bass 16 notes rapides — test de réactivité et fragmentation temporelle."
+    },
+    {
+      "id": "slash_Am7_G",
+      "audio": "tests/audio/slash_Am7_G.wav",
+      "ground_truth": null,
+      "style": "slash chord (synthétique)",
+      "description": "Accord Am7 avec basse G — test ciblé de détection de note de basse différente de la racine."
+    },
+    {
+      "id": "chord_C",
+      "audio": "tests/audio/chord_C.wav",
+      "ground_truth": null,
+      "style": "accord simple (synthétique)",
+      "description": "Accord de Do Majeur tenu — test de base sans complexité harmonique."
+    },
+    {
+      "id": "note_E2",
+      "audio": "tests/audio/bass_E2.wav",
+      "ground_truth": null,
+      "style": "note de basse tenue (synthétique)",
+      "description": "Note E2 tenue 2s — vérifie l'absence de faux segments ou sauts intempestifs."
+    },
+    {
+      "id": "autumn_leaves_bass_only",
+      "audio": "data/autumn_leaves/autumn_leaves_bass_only.wav",
+      "ground_truth": "data/autumn_leaves/autumn_leaves_ground_truth.csv",
+      "style": "jazz walking bass (synthétique, basse seule)",
+      "description": "Autumn Leaves (Bill Evans, G minor) — basse seule. 64 quarter notes, 120 BPM. Mesure la détection en environnement idéal."
+    },
+    {
+      "id": "autumn_leaves_mix",
+      "audio": "data/autumn_leaves/autumn_leaves_mix.wav",
+      "ground_truth": "data/autumn_leaves/autumn_leaves_ground_truth.csv",
+      "style": "jazz walking bass (synthétique, piano+basse)",
+      "description": "Autumn Leaves (Bill Evans, G minor) — piano + basse. Test réaliste avec masquage spectral harmonique."
+    },
+    {
+      "id": "ton_nom_est_jehovah",
+      "audio": "data/real/ton_nom_est_jehovah_extrait.wav",
+      "ground_truth": "data/real/ton_nom_est_jehovah_ground_truth.csv",
+      "style": "gospel_reel_basse_implicite",
+      "description": "Ton NOM est Jéhovah — extrait 60s (0-60s). Mix gospel réel, basse implicite extraite des fréquences graves du piano."
+    }
+  ]
+}

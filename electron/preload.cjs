@@ -46,6 +46,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     deleteDir: (dirPath) => ipcRenderer.invoke('files:delete-dir', dirPath),
     deleteFile: (filePath) => ipcRenderer.invoke('files:delete-file', filePath),
   },
+  analyzer: {
+    processFile: (filePath, options = {}) => ipcRenderer.invoke('analyzer:process-file', filePath, options),
+  },
   studio: {
     selectFile: () => ipcRenderer.invoke('studio:select-file'),
     separate: (trackId, inputPath) => ipcRenderer.invoke('studio:separate', trackId, inputPath),
@@ -67,5 +70,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     pitchShift: (trackId, semitones, startSec, endSec, useStems) => ipcRenderer.invoke('studio:pitch-shift', trackId, semitones, startSec, endSec, useStems),
     pitchShiftStems: (trackId, semitones, startSec, endSec, stemPaths) => ipcRenderer.invoke('studio:pitch-shift-stems', trackId, semitones, startSec, endSec, stemPaths),
     cleanupShifted: (trackId) => ipcRenderer.invoke('studio:cleanup-shifted', trackId),
+    getWindowSource: () => ipcRenderer.invoke('studio:get-window-source'),
+    saveVideo: (arrayBuffer) => ipcRenderer.invoke('studio:save-video', arrayBuffer),
+    getScreenSourceId: () => ipcRenderer.invoke('studio:get-screen-source-id'),
+    saveRecording: (arrayBuffer) => ipcRenderer.invoke('studio:save-recording', arrayBuffer),
   },
 });

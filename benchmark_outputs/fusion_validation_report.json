@@ -1,0 +1,127 @@
+{
+  "params": "fusion_params.json",
+  "dev": [
+    "amazing_grace",
+    "autumn_leaves_mix"
+  ],
+  "test": [
+    "ton_nom_est_jehovah"
+  ],
+  "results": {
+    "dev": [
+      {
+        "piece": "amazing_grace",
+        "style": "slow gospel",
+        "n_ref_notes": 63,
+        "n_det_segments": 211,
+        "n_virtual_selected": 327,
+        "virtual_pct": 6.2,
+        "source_metrics": {
+          "be_pct": 93.8,
+          "virtual_pct": 6.2,
+          "virtual_by_octave": {
+            "2": 234,
+            "3": 88,
+            "4": 5
+          }
+        },
+        "execution_time_s": 2.449,
+        "metrics": {
+          "nw_accuracy": 90.5,
+          "nw_matches": 57,
+          "nw_total": 63,
+          "alignment_score": -97,
+          "octave_error_pct": 63.5,
+          "octave_error_count": 40,
+          "octave_total": 63,
+          "fragmentation": 3.35
+        },
+        "baseline": {
+          "nw_accuracy": 90.5,
+          "fragmentation": 3.6,
+          "n_segments": 227
+        }
+      },
+      {
+        "piece": "autumn_leaves_mix",
+        "style": "jazz walking bass (synth\u00e9tique, piano+basse)",
+        "n_ref_notes": 64,
+        "n_det_segments": 74,
+        "n_virtual_selected": 231,
+        "virtual_pct": 16.2,
+        "source_metrics": {
+          "be_pct": 83.8,
+          "virtual_pct": 16.2,
+          "virtual_by_octave": {
+            "2": 182,
+            "3": 30,
+            "4": 19
+          }
+        },
+        "execution_time_s": 0.877,
+        "metrics": {
+          "nw_accuracy": 84.4,
+          "nw_matches": 54,
+          "nw_total": 64,
+          "alignment_score": 31,
+          "octave_error_pct": 21.9,
+          "octave_error_count": 14,
+          "octave_total": 64,
+          "fragmentation": 1.16
+        },
+        "baseline": {
+          "nw_accuracy": 87.5,
+          "fragmentation": 1.16,
+          "n_segments": 74
+        }
+      }
+    ],
+    "test": [
+      {
+        "piece": "ton_nom_est_jehovah",
+        "style": "gospel_reel_basse_implicite",
+        "n_ref_notes": 18,
+        "n_det_segments": 126,
+        "n_virtual_selected": 427,
+        "virtual_pct": 16.8,
+        "source_metrics": {
+          "be_pct": 83.2,
+          "virtual_pct": 16.8,
+          "virtual_by_octave": {
+            "2": 208,
+            "3": 203,
+            "4": 16
+          }
+        },
+        "execution_time_s": 1.318,
+        "metrics": {
+          "nw_accuracy": 100.0,
+          "nw_matches": 18,
+          "nw_total": 18,
+          "alignment_score": -90,
+          "octave_error_pct": 66.7,
+          "octave_error_count": 12,
+          "octave_total": 18,
+          "fragmentation": 7.0
+        },
+        "baseline": {
+          "nw_accuracy": 94.4,
+          "fragmentation": 6.44,
+          "n_segments": 116
+        }
+      }
+    ]
+  },
+  "dev_summary": {
+    "mean_nw_accuracy": 87.4,
+    "mean_octave_error": 42.7,
+    "mean_virtual_pct": 16.8,
+    "mean_fragmentation": 2.26
+  },
+  "test_summary": {
+    "mean_nw_accuracy": 100.0,
+    "mean_octave_error": 66.7,
+    "mean_virtual_pct": 16.8,
+    "mean_fragmentation": 7.0
+  }
+}

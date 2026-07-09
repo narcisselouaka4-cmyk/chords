@@ -1,0 +1,181 @@
+{
+  "params": {
+    "candidates": "benchmark_outputs/phase6/walking_bass_candidates.json",
+    "chords": "/home/visiteur/piano-jazz-chords/benchmark_outputs/chords_walking_bass.json",
+    "fusion_params": [
+      {
+        "name": "bass_engine",
+        "weight": 1.0,
+        "class": "BassScore"
+      },
+      {
+        "name": "harmonic",
+        "weight": 0.6,
+        "class": "HarmonicScore"
+      },
+      {
+        "name": "octave",
+        "weight": 0.3,
+        "class": "OctaveScore"
+      },
+      {
+        "name": "continuity",
+        "weight": 0.4,
+        "class": "ContinuityScore"
+      },
+      {
+        "name": "chord_confidence",
+        "target": "harmonic",
+        "weight": 1.0,
+        "class": "ChordConfidenceMultiplier"
+      }
+    ]
+  },
+  "n_segments": 16,
+  "segments": [
+    {
+      "startTime": 0.0,
+      "endTime": 0.232,
+      "midi": 24,
+      "bass": "C",
+      "octave": 1,
+      "note": "C1",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 0.232,
+      "endTime": 0.488,
+      "midi": 40,
+      "bass": "E",
+      "octave": 2,
+      "note": "E2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 0.488,
+      "endTime": 0.72,
+      "midi": 43,
+      "bass": "G",
+      "octave": 2,
+      "note": "G2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 0.72,
+      "endTime": 1.022,
+      "midi": 47,
+      "bass": "B",
+      "octave": 2,
+      "note": "B2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 1.022,
+      "endTime": 1.231,
+      "midi": 24,
+      "bass": "C",
+      "octave": 1,
+      "note": "C1",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 1.231,
+      "endTime": 1.463,
+      "midi": 47,
+      "bass": "B",
+      "octave": 2,
+      "note": "B2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 1.463,
+      "endTime": 1.718,
+      "midi": 43,
+      "bass": "G",
+      "octave": 2,
+      "note": "G2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 1.718,
+      "endTime": 1.974,
+      "midi": 40,
+      "bass": "E",
+      "octave": 2,
+      "note": "E2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 1.974,
+      "endTime": 2.229,
+      "midi": 24,
+      "bass": "C",
+      "octave": 1,
+      "note": "C1",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 2.229,
+      "endTime": 2.461,
+      "midi": 26,
+      "bass": "D",
+      "octave": 1,
+      "note": "D1",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 2.485,
+      "endTime": 2.717,
+      "midi": 40,
+      "bass": "E",
+      "octave": 2,
+      "note": "E2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 2.717,
+      "endTime": 2.995,
+      "midi": 42,
+      "bass": "F#",
+      "octave": 2,
+      "note": "F#2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 2.995,
+      "endTime": 3.204,
+      "midi": 43,
+      "bass": "G",
+      "octave": 2,
+      "note": "G2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 3.204,
+      "endTime": 3.483,
+      "midi": 42,
+      "bass": "F#",
+      "octave": 2,
+      "note": "F#2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 3.483,
+      "endTime": 3.715,
+      "midi": 40,
+      "bass": "E",
+      "octave": 2,
+      "note": "E2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 3.831,
+      "endTime": 4.0172,
+      "midi": 26,
+      "bass": "D",
+      "octave": 1,
+      "note": "D1",
+      "confidence": 1.0
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+[
+  {
+    "startTime": 0.0,
+    "endTime": 0.209,
+    "midi": 24,
+    "note": "C1"
+  },
+  {
+    "startTime": 0.209,
+    "endTime": 1.811,
+    "midi": 60,
+    "note": "C4"
+  },
+  {
+    "startTime": 1.811,
+    "endTime": 2.0202,
+    "midi": 24,
+    "note": "C1"
+  }
+]
