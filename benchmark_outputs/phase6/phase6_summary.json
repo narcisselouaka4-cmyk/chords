@@ -1,0 +1,2587 @@
+{
+  "generated_at": "2026-07-09T22:07:58",
+  "n_pieces": 24,
+  "pipelines": [
+    "be_only",
+    "fusion_no_vr",
+    "fusion_vr",
+    "chord_baseline"
+  ],
+  "results": [
+    {
+      "piece": "amazing_grace",
+      "style": "gospel",
+      "be_only": {
+        "nw_accuracy": 26.7,
+        "octave_error_rate": 66.7,
+        "fragmentation": 3.78,
+        "n_correct": 16,
+        "n_pc_errors": 4,
+        "n_oct_errors": 40,
+        "n_total": 60,
+        "n_det_segments": 227,
+        "error_classes": {
+          "octave_wrong": 40,
+          "pitch_class_wrong": 4,
+          "fragmentation_excessive": 1
+        },
+        "time_s": 10.51
+      },
+      "fusion_no_vr": {
+        "nw_accuracy": 38.3,
+        "octave_error_rate": 58.3,
+        "fragmentation": 3.7,
+        "n_correct": 23,
+        "n_pc_errors": 2,
+        "n_oct_errors": 35,
+        "n_total": 60,
+        "n_det_segments": 222,
+        "error_classes": {
+          "octave_wrong": 35,
+          "pitch_class_wrong": 2,
+          "fragmentation_excessive": 1
+        },
+        "time_s": 2.27
+      },
+      "fusion_vr": {
+        "nw_accuracy": 43.3,
+        "octave_error_rate": 55.0,
+        "fragmentation": 3.52,
+        "n_correct": 26,
+        "n_pc_errors": 1,
+        "n_oct_errors": 33,
+        "n_total": 60,
+        "n_det_segments": 211,
+        "error_classes": {
+          "octave_wrong": 33,
+          "pitch_class_wrong": 1,
+          "fragmentation_excessive": 1
+        },
+        "time_s": 2.85,
+        "n_virtual": 327,
+        "virtual_pct": 6.2
+      },
+      "chord_baseline": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 60,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 60,
+        "n_det_segments": 60,
+        "error_classes": {},
+        "time_s": 0
+      }
+    },
+    {
+      "piece": "autumn_leaves_mix",
+      "style": "jazz",
+      "be_only": {
+        "nw_accuracy": 56.2,
+        "octave_error_rate": 31.2,
+        "fragmentation": 1.22,
+        "n_correct": 36,
+        "n_pc_errors": 7,
+        "n_oct_errors": 20,
+        "n_total": 64,
+        "n_det_segments": 78,
+        "error_classes": {
+          "octave_wrong": 20,
+          "pitch_class_wrong": 7,
+          "bass_missing": 1
+        },
+        "time_s": 6.51
+      },
+      "fusion_no_vr": {
+        "nw_accuracy": 59.4,
+        "octave_error_rate": 28.1,
+        "fragmentation": 1.16,
+        "n_correct": 38,
+        "n_pc_errors": 7,
+        "n_oct_errors": 18,
+        "n_total": 64,
+        "n_det_segments": 74,
+        "error_classes": {
+          "octave_wrong": 18,
+          "pitch_class_wrong": 7,
+          "bass_missing": 1
+        },
+        "time_s": 0.88
+      },
+      "fusion_vr": {
+        "nw_accuracy": 57.8,
+        "octave_error_rate": 26.6,
+        "fragmentation": 1.16,
+        "n_correct": 37,
+        "n_pc_errors": 7,
+        "n_oct_errors": 17,
+        "n_total": 64,
+        "n_det_segments": 74,
+        "error_classes": {
+          "pitch_class_wrong": 7,
+          "octave_wrong": 17,
+          "bass_missing": 3
+        },
+        "time_s": 1.09,
+        "n_virtual": 231,
+        "virtual_pct": 16.2
+      },
+      "chord_baseline": {
+        "nw_accuracy": 21.9,
+        "octave_error_rate": 0.0,
+        "fragmentation": 0.23,
+        "n_correct": 14,
+        "n_pc_errors": 1,
+        "n_oct_errors": 0,
+        "n_total": 64,
+        "n_det_segments": 15,
+        "error_classes": {
+          "bass_missing": 49,
+          "pitch_class_wrong": 1
+        },
+        "time_s": 0
+      }
+    },
+    {
+      "piece": "ton_nom_est_jehovah",
+      "style": "gospel",
+      "be_only": {
+        "nw_accuracy": 11.1,
+        "octave_error_rate": 83.3,
+        "fragmentation": 6.44,
+        "n_correct": 2,
+        "n_pc_errors": 1,
+        "n_oct_errors": 15,
+        "n_total": 18,
+        "n_det_segments": 116,
+        "error_classes": {
+          "octave_wrong": 15,
+          "pitch_class_wrong": 1,
+          "fragmentation_excessive": 1
+        },
+        "time_s": 7.72
+      },
+      "fusion_no_vr": {
+        "nw_accuracy": 16.7,
+        "octave_error_rate": 77.8,
+        "fragmentation": 6.89,
+        "n_correct": 3,
+        "n_pc_errors": 1,
+        "n_oct_errors": 14,
+        "n_total": 18,
+        "n_det_segments": 124,
+        "error_classes": {
+          "octave_wrong": 14,
+          "pitch_class_wrong": 1,
+          "fragmentation_excessive": 1
+        },
+        "time_s": 1.33
+      },
+      "fusion_vr": {
+        "nw_accuracy": 33.3,
+        "octave_error_rate": 66.7,
+        "fragmentation": 7.0,
+        "n_correct": 6,
+        "n_pc_errors": 0,
+        "n_oct_errors": 12,
+        "n_total": 18,
+        "n_det_segments": 126,
+        "error_classes": {
+          "octave_wrong": 12,
+          "fragmentation_excessive": 1
+        },
+        "time_s": 1.59,
+        "n_virtual": 427,
+        "virtual_pct": 16.8
+      },
+      "chord_baseline": {
+        "nw_accuracy": 27.8,
+        "octave_error_rate": 38.9,
+        "fragmentation": 1.22,
+        "n_correct": 5,
+        "n_pc_errors": 5,
+        "n_oct_errors": 7,
+        "n_total": 18,
+        "n_det_segments": 22,
+        "error_classes": {
+          "octave_wrong": 7,
+          "pitch_class_wrong": 5,
+          "bass_missing": 1
+        },
+        "time_s": 0
+      }
+    },
+    {
+      "piece": "note_C2",
+      "style": "synthetic_note",
+      "be_only": {
+        "nw_accuracy": 0.0,
+        "octave_error_rate": 100.0,
+        "fragmentation": 3.0,
+        "n_correct": 0,
+        "n_pc_errors": 0,
+        "n_oct_errors": 1,
+        "n_total": 1,
+        "n_det_segments": 3,
+        "error_classes": {
+          "octave_wrong": 1,
+          "fragmentation_excessive": 1
+        },
+        "time_s": 5.22
+      },
+      "fusion_no_vr": {
+        "nw_accuracy": 0.0,
+        "octave_error_rate": 100.0,
+        "fragmentation": 3.0,
+        "n_correct": 0,
+        "n_pc_errors": 0,
+        "n_oct_errors": 1,
+        "n_total": 1,
+        "n_det_segments": 3,
+        "error_classes": {
+          "octave_wrong": 1,
+          "fragmentation_excessive": 1
+        },
+        "time_s": 0.37
+      },
+      "fusion_vr": {
+        "nw_accuracy": 0.0,
+        "octave_error_rate": 100.0,
+        "fragmentation": 3.0,
+        "n_correct": 0,
+        "n_pc_errors": 0,
+        "n_oct_errors": 1,
+        "n_total": 1,
+        "n_det_segments": 3,
+        "error_classes": {
+          "octave_wrong": 1,
+          "fragmentation_excessive": 1
+        },
+        "time_s": 0.39,
+        "n_virtual": 0,
+        "virtual_pct": 0.0
+      },
+      "chord_baseline": {
+        "nw_accuracy": 0.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 0.0,
+        "n_correct": 0,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 0,
+        "error_classes": {
+          "bass_missing": 1
+        },
+        "time_s": 0
+      }
+    },
+    {
+      "piece": "note_E2",
+      "style": "synthetic_note",
+      "be_only": {
+        "nw_accuracy": 0.0,
+        "octave_error_rate": 100.0,
+        "fragmentation": 5.0,
+        "n_correct": 0,
+        "n_pc_errors": 0,
+        "n_oct_errors": 1,
+        "n_total": 1,
+        "n_det_segments": 5,
+        "error_classes": {
+          "octave_wrong": 1,
+          "fragmentation_excessive": 1
+        },
+        "time_s": 5.33
+      },
+      "fusion_no_vr": {
+        "nw_accuracy": 0.0,
+        "octave_error_rate": 100.0,
+        "fragmentation": 3.0,
+        "n_correct": 0,
+        "n_pc_errors": 0,
+        "n_oct_errors": 1,
+        "n_total": 1,
+        "n_det_segments": 3,
+        "error_classes": {
+          "octave_wrong": 1,
+          "fragmentation_excessive": 1
+        },
+        "time_s": 0.32
+      },
+      "fusion_vr": {
+        "nw_accuracy": 0.0,
+        "octave_error_rate": 100.0,
+        "fragmentation": 3.0,
+        "n_correct": 0,
+        "n_pc_errors": 0,
+        "n_oct_errors": 1,
+        "n_total": 1,
+        "n_det_segments": 3,
+        "error_classes": {
+          "octave_wrong": 1,
+          "fragmentation_excessive": 1
+        },
+        "time_s": 0.33,
+        "n_virtual": 0,
+        "virtual_pct": 0.0
+      },
+      "chord_baseline": {
+        "nw_accuracy": 0.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 0.0,
+        "n_correct": 0,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 0,
+        "error_classes": {
+          "bass_missing": 1
+        },
+        "time_s": 0
+      }
+    },
+    {
+      "piece": "note_Fs2",
+      "style": "synthetic_note",
+      "be_only": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 5.31
+      },
+      "fusion_no_vr": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0.4
+      },
+      "fusion_vr": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0.32,
+        "n_virtual": 0,
+        "virtual_pct": 0.0
+      },
+      "chord_baseline": {
+        "nw_accuracy": 0.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 0.0,
+        "n_correct": 0,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 0,
+        "error_classes": {
+          "bass_missing": 1
+        },
+        "time_s": 0
+      }
+    },
+    {
+      "piece": "note_G2",
+      "style": "synthetic_note",
+      "be_only": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 5.19
+      },
+      "fusion_no_vr": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0.36
+      },
+      "fusion_vr": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0.35,
+        "n_virtual": 0,
+        "virtual_pct": 0.0
+      },
+      "chord_baseline": {
+        "nw_accuracy": 0.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 0.0,
+        "n_correct": 0,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 0,
+        "error_classes": {
+          "bass_missing": 1
+        },
+        "time_s": 0
+      }
+    },
+    {
+      "piece": "note_A2",
+      "style": "synthetic_note",
+      "be_only": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 5.4
+      },
+      "fusion_no_vr": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0.32
+      },
+      "fusion_vr": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0.34,
+        "n_virtual": 0,
+        "virtual_pct": 0.0
+      },
+      "chord_baseline": {
+        "nw_accuracy": 0.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 0.0,
+        "n_correct": 0,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 0,
+        "error_classes": {
+          "bass_missing": 1
+        },
+        "time_s": 0
+      }
+    },
+    {
+      "piece": "note_B2",
+      "style": "synthetic_note",
+      "be_only": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 5.25
+      },
+      "fusion_no_vr": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0.4
+      },
+      "fusion_vr": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0.34,
+        "n_virtual": 0,
+        "virtual_pct": 0.0
+      },
+      "chord_baseline": {
+        "nw_accuracy": 0.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 0.0,
+        "n_correct": 0,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 0,
+        "error_classes": {
+          "bass_missing": 1
+        },
+        "time_s": 0
+      }
+    },
+    {
+      "piece": "note_harm_C2",
+      "style": "synthetic_harmonic",
+      "be_only": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 5.31
+      },
+      "fusion_no_vr": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0.32
+      },
+      "fusion_vr": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0.31,
+        "n_virtual": 0,
+        "virtual_pct": 0.0
+      },
+      "chord_baseline": {
+        "nw_accuracy": 0.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 0.0,
+        "n_correct": 0,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 0,
+        "error_classes": {
+          "bass_missing": 1
+        },
+        "time_s": 0
+      }
+    },
+    {
+      "piece": "note_harm_E2",
+      "style": "synthetic_harmonic",
+      "be_only": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 5.28
+      },
+      "fusion_no_vr": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0.3
+      },
+      "fusion_vr": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0.32,
+        "n_virtual": 0,
+        "virtual_pct": 0.0
+      },
+      "chord_baseline": {
+        "nw_accuracy": 0.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 0.0,
+        "n_correct": 0,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 0,
+        "error_classes": {
+          "bass_missing": 1
+        },
+        "time_s": 0
+      }
+    },
+    {
+      "piece": "note_harm_G2",
+      "style": "synthetic_harmonic",
+      "be_only": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 4.73
+      },
+      "fusion_no_vr": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0.34
+      },
+      "fusion_vr": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0.36,
+        "n_virtual": 0,
+        "virtual_pct": 0.0
+      },
+      "chord_baseline": {
+        "nw_accuracy": 0.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 0.0,
+        "n_correct": 0,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 0,
+        "error_classes": {
+          "bass_missing": 1
+        },
+        "time_s": 0
+      }
+    },
+    {
+      "piece": "note_harm_B2",
+      "style": "synthetic_harmonic",
+      "be_only": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 5.07
+      },
+      "fusion_no_vr": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0.35
+      },
+      "fusion_vr": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0.33,
+        "n_virtual": 0,
+        "virtual_pct": 0.0
+      },
+      "chord_baseline": {
+        "nw_accuracy": 0.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 0.0,
+        "n_correct": 0,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 0,
+        "error_classes": {
+          "bass_missing": 1
+        },
+        "time_s": 0
+      }
+    },
+    {
+      "piece": "chord_C",
+      "style": "synthetic_chord",
+      "be_only": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 4.87
+      },
+      "fusion_no_vr": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0.37
+      },
+      "fusion_vr": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0.34,
+        "n_virtual": 0,
+        "virtual_pct": 0.0
+      },
+      "chord_baseline": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0
+      }
+    },
+    {
+      "piece": "chord_G",
+      "style": "synthetic_chord",
+      "be_only": {
+        "nw_accuracy": 0.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 0,
+        "n_pc_errors": 1,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {
+          "pitch_class_wrong": 1
+        },
+        "time_s": 4.89
+      },
+      "fusion_no_vr": {
+        "nw_accuracy": 0.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 0,
+        "n_pc_errors": 1,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {
+          "pitch_class_wrong": 1
+        },
+        "time_s": 0.34
+      },
+      "fusion_vr": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0.34,
+        "n_virtual": 82,
+        "virtual_pct": 94.3
+      },
+      "chord_baseline": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0
+      }
+    },
+    {
+      "piece": "chord_Dm",
+      "style": "synthetic_chord",
+      "be_only": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 5.14
+      },
+      "fusion_no_vr": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0.39
+      },
+      "fusion_vr": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0.32,
+        "n_virtual": 0,
+        "virtual_pct": 0.0
+      },
+      "chord_baseline": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0
+      }
+    },
+    {
+      "piece": "slash_C_E",
+      "style": "synthetic_slash",
+      "be_only": {
+        "nw_accuracy": 0.0,
+        "octave_error_rate": 100.0,
+        "fragmentation": 3.0,
+        "n_correct": 0,
+        "n_pc_errors": 0,
+        "n_oct_errors": 1,
+        "n_total": 1,
+        "n_det_segments": 3,
+        "error_classes": {
+          "octave_wrong": 1,
+          "fragmentation_excessive": 1
+        },
+        "time_s": 4.94
+      },
+      "fusion_no_vr": {
+        "nw_accuracy": 0.0,
+        "octave_error_rate": 100.0,
+        "fragmentation": 3.0,
+        "n_correct": 0,
+        "n_pc_errors": 0,
+        "n_oct_errors": 1,
+        "n_total": 1,
+        "n_det_segments": 3,
+        "error_classes": {
+          "octave_wrong": 1,
+          "fragmentation_excessive": 1
+        },
+        "time_s": 0.34
+      },
+      "fusion_vr": {
+        "nw_accuracy": 0.0,
+        "octave_error_rate": 100.0,
+        "fragmentation": 3.0,
+        "n_correct": 0,
+        "n_pc_errors": 0,
+        "n_oct_errors": 1,
+        "n_total": 1,
+        "n_det_segments": 3,
+        "error_classes": {
+          "octave_wrong": 1,
+          "fragmentation_excessive": 1
+        },
+        "time_s": 0.37,
+        "n_virtual": 0,
+        "virtual_pct": 0.0
+      },
+      "chord_baseline": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0
+      }
+    },
+    {
+      "piece": "slash_G_B",
+      "style": "synthetic_slash",
+      "be_only": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 5.29
+      },
+      "fusion_no_vr": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0.36
+      },
+      "fusion_vr": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0.34,
+        "n_virtual": 3,
+        "virtual_pct": 3.4
+      },
+      "chord_baseline": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0
+      }
+    },
+    {
+      "piece": "slash_D_Fs",
+      "style": "synthetic_slash",
+      "be_only": {
+        "nw_accuracy": 0.0,
+        "octave_error_rate": 100.0,
+        "fragmentation": 6.0,
+        "n_correct": 0,
+        "n_pc_errors": 0,
+        "n_oct_errors": 1,
+        "n_total": 1,
+        "n_det_segments": 6,
+        "error_classes": {
+          "octave_wrong": 1,
+          "fragmentation_excessive": 1
+        },
+        "time_s": 5.12
+      },
+      "fusion_no_vr": {
+        "nw_accuracy": 0.0,
+        "octave_error_rate": 100.0,
+        "fragmentation": 6.0,
+        "n_correct": 0,
+        "n_pc_errors": 0,
+        "n_oct_errors": 1,
+        "n_total": 1,
+        "n_det_segments": 6,
+        "error_classes": {
+          "octave_wrong": 1,
+          "fragmentation_excessive": 1
+        },
+        "time_s": 0.43
+      },
+      "fusion_vr": {
+        "nw_accuracy": 0.0,
+        "octave_error_rate": 100.0,
+        "fragmentation": 6.0,
+        "n_correct": 0,
+        "n_pc_errors": 0,
+        "n_oct_errors": 1,
+        "n_total": 1,
+        "n_det_segments": 6,
+        "error_classes": {
+          "octave_wrong": 1,
+          "fragmentation_excessive": 1
+        },
+        "time_s": 0.4,
+        "n_virtual": 0,
+        "virtual_pct": 0.0
+      },
+      "chord_baseline": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0
+      }
+    },
+    {
+      "piece": "slash_Am7_G",
+      "style": "synthetic_slash",
+      "be_only": {
+        "nw_accuracy": 0.0,
+        "octave_error_rate": 100.0,
+        "fragmentation": 1.0,
+        "n_correct": 0,
+        "n_pc_errors": 0,
+        "n_oct_errors": 1,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {
+          "octave_wrong": 1
+        },
+        "time_s": 5.5
+      },
+      "fusion_no_vr": {
+        "nw_accuracy": 0.0,
+        "octave_error_rate": 100.0,
+        "fragmentation": 1.0,
+        "n_correct": 0,
+        "n_pc_errors": 0,
+        "n_oct_errors": 1,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {
+          "octave_wrong": 1
+        },
+        "time_s": 0.33
+      },
+      "fusion_vr": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0.39,
+        "n_virtual": 8,
+        "virtual_pct": 9.2
+      },
+      "chord_baseline": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0
+      }
+    },
+    {
+      "piece": "walking_bass",
+      "style": "synthetic_walking",
+      "be_only": {
+        "nw_accuracy": 50.0,
+        "octave_error_rate": 37.5,
+        "fragmentation": 0.88,
+        "n_correct": 8,
+        "n_pc_errors": 0,
+        "n_oct_errors": 6,
+        "n_total": 16,
+        "n_det_segments": 14,
+        "error_classes": {
+          "octave_wrong": 6,
+          "bass_missing": 2
+        },
+        "time_s": 5.47
+      },
+      "fusion_no_vr": {
+        "nw_accuracy": 68.8,
+        "octave_error_rate": 31.2,
+        "fragmentation": 1.0,
+        "n_correct": 11,
+        "n_pc_errors": 0,
+        "n_oct_errors": 5,
+        "n_total": 16,
+        "n_det_segments": 16,
+        "error_classes": {
+          "octave_wrong": 5
+        },
+        "time_s": 0.35
+      },
+      "fusion_vr": {
+        "nw_accuracy": 12.5,
+        "octave_error_rate": 6.2,
+        "fragmentation": 0.31,
+        "n_correct": 2,
+        "n_pc_errors": 2,
+        "n_oct_errors": 1,
+        "n_total": 16,
+        "n_det_segments": 5,
+        "error_classes": {
+          "bass_missing": 11,
+          "pitch_class_wrong": 2,
+          "octave_wrong": 1
+        },
+        "time_s": 0.4,
+        "n_virtual": 140,
+        "virtual_pct": 80.9
+      },
+      "chord_baseline": {
+        "nw_accuracy": 12.5,
+        "octave_error_rate": 0.0,
+        "fragmentation": 0.25,
+        "n_correct": 2,
+        "n_pc_errors": 2,
+        "n_oct_errors": 0,
+        "n_total": 16,
+        "n_det_segments": 4,
+        "error_classes": {
+          "bass_missing": 12,
+          "pitch_class_wrong": 2
+        },
+        "time_s": 0
+      }
+    },
+    {
+      "piece": "jazz_Cmaj9",
+      "style": "synthetic_jazz",
+      "be_only": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 5.19
+      },
+      "fusion_no_vr": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0.32
+      },
+      "fusion_vr": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0.34,
+        "n_virtual": 0,
+        "virtual_pct": 0.0
+      },
+      "chord_baseline": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0
+      }
+    },
+    {
+      "piece": "jazz_Dm7_G",
+      "style": "synthetic_jazz",
+      "be_only": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 5.45
+      },
+      "fusion_no_vr": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0.31
+      },
+      "fusion_vr": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0.34,
+        "n_virtual": 6,
+        "virtual_pct": 6.9
+      },
+      "chord_baseline": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0
+      }
+    },
+    {
+      "piece": "jazz_G13",
+      "style": "synthetic_jazz",
+      "be_only": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 4.81
+      },
+      "fusion_no_vr": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0.33
+      },
+      "fusion_vr": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0.35,
+        "n_virtual": 5,
+        "virtual_pct": 5.7
+      },
+      "chord_baseline": {
+        "nw_accuracy": 100.0,
+        "octave_error_rate": 0.0,
+        "fragmentation": 1.0,
+        "n_correct": 1,
+        "n_pc_errors": 0,
+        "n_oct_errors": 0,
+        "n_total": 1,
+        "n_det_segments": 1,
+        "error_classes": {},
+        "time_s": 0
+      }
+    }
+  ],
+  "config": {
+    "_description": "Phase 6 benchmark corpus \u2014 dev/test split, 4 pipelines comparison",
+    "dev_pieces": [
+      "amazing_grace",
+      "autumn_leaves_mix",
+      "note_C2",
+      "note_E2",
+      "note_G2",
+      "chord_C",
+      "chord_Dm",
+      "slash_C_E",
+      "slash_D_Fs",
+      "jazz_Cmaj9",
+      "jazz_Dm7_G"
+    ],
+    "test_pieces": [
+      "ton_nom_est_jehovah",
+      "note_Fs2",
+      "note_A2",
+      "note_B2",
+      "note_harm_C2",
+      "note_harm_E2",
+      "note_harm_G2",
+      "note_harm_B2",
+      "chord_G",
+      "slash_G_B",
+      "slash_Am7_G",
+      "walking_bass",
+      "jazz_G13"
+    ],
+    "pieces": [
+      {
+        "id": "amazing_grace",
+        "audio": "/home/visiteur/piano-jazz-chords/data/amazing_grace.wav",
+        "style": "gospel",
+        "ground_truth": "data/benchmark/amazing_grace_ground_truth_proposal.csv",
+        "set": "dev",
+        "ground_truth_data": [
+          {
+            "start": 0.0,
+            "end": 1.671,
+            "midi": 43
+          },
+          {
+            "start": 1.671,
+            "end": 3.343,
+            "midi": 43
+          },
+          {
+            "start": 3.343,
+            "end": 5.014,
+            "midi": 47
+          },
+          {
+            "start": 5.014,
+            "end": 8.357,
+            "midi": 38
+          },
+          {
+            "start": 8.357,
+            "end": 11.699,
+            "midi": 47
+          },
+          {
+            "start": 11.699,
+            "end": 13.37,
+            "midi": 43
+          },
+          {
+            "start": 13.37,
+            "end": 15.042,
+            "midi": 38
+          },
+          {
+            "start": 15.042,
+            "end": 16.713,
+            "midi": 43
+          },
+          {
+            "start": 16.713,
+            "end": 18.384,
+            "midi": 47
+          },
+          {
+            "start": 18.384,
+            "end": 20.056,
+            "midi": 36
+          },
+          {
+            "start": 20.056,
+            "end": 21.727,
+            "midi": 40
+          },
+          {
+            "start": 21.727,
+            "end": 23.398,
+            "midi": 43
+          },
+          {
+            "start": 23.398,
+            "end": 26.741,
+            "midi": 40
+          },
+          {
+            "start": 26.741,
+            "end": 28.412,
+            "midi": 47
+          },
+          {
+            "start": 28.412,
+            "end": 30.084,
+            "midi": 47
+          },
+          {
+            "start": 30.084,
+            "end": 31.755,
+            "midi": 45
+          },
+          {
+            "start": 31.755,
+            "end": 33.426,
+            "midi": 42
+          },
+          {
+            "start": 33.426,
+            "end": 35.097,
+            "midi": 40
+          },
+          {
+            "start": 35.097,
+            "end": 36.769,
+            "midi": 38
+          },
+          {
+            "start": 36.769,
+            "end": 38.44,
+            "midi": 43
+          },
+          {
+            "start": 38.44,
+            "end": 40.111,
+            "midi": 45
+          },
+          {
+            "start": 40.111,
+            "end": 41.783,
+            "midi": 36
+          },
+          {
+            "start": 41.783,
+            "end": 43.454,
+            "midi": 40
+          },
+          {
+            "start": 43.454,
+            "end": 45.125,
+            "midi": 43
+          },
+          {
+            "start": 45.125,
+            "end": 46.797,
+            "midi": 40
+          },
+          {
+            "start": 46.797,
+            "end": 48.468,
+            "midi": 36
+          },
+          {
+            "start": 48.468,
+            "end": 50.139,
+            "midi": 45
+          },
+          {
+            "start": 50.139,
+            "end": 51.811,
+            "midi": 38
+          },
+          {
+            "start": 51.811,
+            "end": 53.482,
+            "midi": 47
+          },
+          {
+            "start": 53.482,
+            "end": 55.153,
+            "midi": 43
+          },
+          {
+            "start": 55.153,
+            "end": 56.825,
+            "midi": 38
+          },
+          {
+            "start": 56.825,
+            "end": 58.496,
+            "midi": 40
+          },
+          {
+            "start": 58.496,
+            "end": 60.167,
+            "midi": 38
+          },
+          {
+            "start": 60.167,
+            "end": 61.838,
+            "midi": 38
+          },
+          {
+            "start": 61.838,
+            "end": 65.181,
+            "midi": 36
+          },
+          {
+            "start": 65.181,
+            "end": 66.852,
+            "midi": 43
+          },
+          {
+            "start": 66.852,
+            "end": 70.195,
+            "midi": 47
+          },
+          {
+            "start": 70.195,
+            "end": 73.538,
+            "midi": 47
+          },
+          {
+            "start": 73.538,
+            "end": 75.209,
+            "midi": 45
+          },
+          {
+            "start": 75.209,
+            "end": 76.88,
+            "midi": 45
+          },
+          {
+            "start": 76.88,
+            "end": 78.552,
+            "midi": 36
+          },
+          {
+            "start": 78.552,
+            "end": 80.223,
+            "midi": 47
+          },
+          {
+            "start": 80.223,
+            "end": 81.894,
+            "midi": 38
+          },
+          {
+            "start": 81.894,
+            "end": 83.565,
+            "midi": 38
+          },
+          {
+            "start": 83.565,
+            "end": 85.237,
+            "midi": 36
+          },
+          {
+            "start": 85.237,
+            "end": 88.579,
+            "midi": 43
+          },
+          {
+            "start": 88.579,
+            "end": 90.251,
+            "midi": 38
+          },
+          {
+            "start": 90.251,
+            "end": 91.922,
+            "midi": 40
+          },
+          {
+            "start": 91.922,
+            "end": 93.593,
+            "midi": 43
+          },
+          {
+            "start": 93.593,
+            "end": 95.265,
+            "midi": 38
+          },
+          {
+            "start": 95.265,
+            "end": 98.607,
+            "midi": 38
+          },
+          {
+            "start": 98.607,
+            "end": 100.279,
+            "midi": 43
+          },
+          {
+            "start": 100.279,
+            "end": 101.95,
+            "midi": 38
+          },
+          {
+            "start": 101.95,
+            "end": 103.621,
+            "midi": 43
+          },
+          {
+            "start": 103.621,
+            "end": 105.292,
+            "midi": 38
+          },
+          {
+            "start": 105.292,
+            "end": 106.964,
+            "midi": 43
+          },
+          {
+            "start": 106.964,
+            "end": 108.635,
+            "midi": 47
+          },
+          {
+            "start": 108.635,
+            "end": 110.306,
+            "midi": 38
+          },
+          {
+            "start": 110.306,
+            "end": 111.978,
+            "midi": 36
+          },
+          {
+            "start": 111.978,
+            "end": 123.246,
+            "midi": 43
+          }
+        ]
+      },
+      {
+        "id": "autumn_leaves_mix",
+        "audio": "/home/visiteur/piano-jazz-chords/data/autumn_leaves/autumn_leaves_mix.wav",
+        "style": "jazz",
+        "ground_truth": "data/autumn_leaves/autumn_leaves_ground_truth.csv",
+        "set": "dev",
+        "ground_truth_data": [
+          {
+            "start": 0.0,
+            "end": 0.45,
+            "midi": 45
+          },
+          {
+            "start": 0.5,
+            "end": 0.95,
+            "midi": 42
+          },
+          {
+            "start": 1.0,
+            "end": 1.45,
+            "midi": 47
+          },
+          {
+            "start": 1.5,
+            "end": 1.95,
+            "midi": 37
+          },
+          {
+            "start": 2.0,
+            "end": 2.45,
+            "midi": 38
+          },
+          {
+            "start": 2.5,
+            "end": 2.95,
+            "midi": 39
+          },
+          {
+            "start": 3.0,
+            "end": 3.45,
+            "midi": 40
+          },
+          {
+            "start": 3.5,
+            "end": 3.95,
+            "midi": 42
+          },
+          {
+            "start": 4.0,
+            "end": 4.45,
+            "midi": 43
+          },
+          {
+            "start": 4.5,
+            "end": 4.95,
+            "midi": 42
+          },
+          {
+            "start": 5.0,
+            "end": 5.45,
+            "midi": 41
+          },
+          {
+            "start": 5.5,
+            "end": 5.95,
+            "midi": 42
+          },
+          {
+            "start": 6.0,
+            "end": 6.45,
+            "midi": 43
+          },
+          {
+            "start": 6.5,
+            "end": 6.95,
+            "midi": 50
+          },
+          {
+            "start": 7.0,
+            "end": 7.45,
+            "midi": 45
+          },
+          {
+            "start": 7.5,
+            "end": 7.95,
+            "midi": 36
+          },
+          {
+            "start": 8.0,
+            "end": 8.45,
+            "midi": 36
+          },
+          {
+            "start": 8.5,
+            "end": 8.95,
+            "midi": 37
+          },
+          {
+            "start": 9.0,
+            "end": 9.45,
+            "midi": 38
+          },
+          {
+            "start": 9.5,
+            "end": 9.95,
+            "midi": 40
+          },
+          {
+            "start": 10.0,
+            "end": 10.45,
+            "midi": 41
+          },
+          {
+            "start": 10.5,
+            "end": 10.95,
+            "midi": 43
+          },
+          {
+            "start": 11.0,
+            "end": 11.45,
+            "midi": 45
+          },
+          {
+            "start": 11.5,
+            "end": 11.95,
+            "midi": 48
+          },
+          {
+            "start": 12.0,
+            "end": 12.45,
+            "midi": 47
+          },
+          {
+            "start": 12.5,
+            "end": 12.95,
+            "midi": 44
+          },
+          {
+            "start": 13.0,
+            "end": 13.45,
+            "midi": 41
+          },
+          {
+            "start": 13.5,
+            "end": 13.95,
+            "midi": 39
+          },
+          {
+            "start": 14.0,
+            "end": 14.45,
+            "midi": 40
+          },
+          {
+            "start": 14.5,
+            "end": 14.95,
+            "midi": 41
+          },
+          {
+            "start": 15.0,
+            "end": 15.45,
+            "midi": 42
+          },
+          {
+            "start": 15.5,
+            "end": 15.95,
+            "midi": 44
+          },
+          {
+            "start": 16.0,
+            "end": 16.45,
+            "midi": 45
+          },
+          {
+            "start": 16.5,
+            "end": 16.95,
+            "midi": 42
+          },
+          {
+            "start": 17.0,
+            "end": 17.45,
+            "midi": 39
+          },
+          {
+            "start": 17.5,
+            "end": 17.95,
+            "midi": 37
+          },
+          {
+            "start": 18.0,
+            "end": 18.45,
+            "midi": 38
+          },
+          {
+            "start": 18.5,
+            "end": 18.95,
+            "midi": 45
+          },
+          {
+            "start": 19.0,
+            "end": 19.45,
+            "midi": 40
+          },
+          {
+            "start": 19.5,
+            "end": 19.95,
+            "midi": 42
+          },
+          {
+            "start": 20.0,
+            "end": 20.45,
+            "midi": 43
+          },
+          {
+            "start": 20.5,
+            "end": 20.95,
+            "midi": 48
+          },
+          {
+            "start": 21.0,
+            "end": 21.45,
+            "midi": 55
+          },
+          {
+            "start": 21.5,
+            "end": 21.95,
+            "midi": 42
+          },
+          {
+            "start": 22.0,
+            "end": 22.45,
+            "midi": 43
+          },
+          {
+            "start": 22.5,
+            "end": 22.95,
+            "midi": 48
+          },
+          {
+            "start": 23.0,
+            "end": 23.45,
+            "midi": 37
+          },
+          {
+            "start": 23.5,
+            "end": 23.95,
+            "midi": 36
+          },
+          {
+            "start": 24.0,
+            "end": 24.45,
+            "midi": 36
+          },
+          {
+            "start": 24.5,
+            "end": 24.95,
+            "midi": 37
+          },
+          {
+            "start": 25.0,
+            "end": 25.45,
+            "midi": 38
+          },
+          {
+            "start": 25.5,
+            "end": 25.95,
+            "midi": 40
+          },
+          {
+            "start": 26.0,
+            "end": 26.45,
+            "midi": 41
+          },
+          {
+            "start": 26.5,
+            "end": 26.95,
+            "midi": 43
+          },
+          {
+            "start": 27.0,
+            "end": 27.45,
+            "midi": 45
+          },
+          {
+            "start": 27.5,
+            "end": 27.95,
+            "midi": 48
+          },
+          {
+            "start": 28.0,
+            "end": 28.45,
+            "midi": 47
+          },
+          {
+            "start": 28.5,
+            "end": 28.95,
+            "midi": 44
+          },
+          {
+            "start": 29.0,
+            "end": 29.45,
+            "midi": 41
+          },
+          {
+            "start": 29.5,
+            "end": 29.95,
+            "midi": 39
+          },
+          {
+            "start": 30.0,
+            "end": 30.45,
+            "midi": 40
+          },
+          {
+            "start": 30.5,
+            "end": 30.95,
+            "midi": 41
+          },
+          {
+            "start": 31.0,
+            "end": 31.45,
+            "midi": 42
+          },
+          {
+            "start": 31.5,
+            "end": 31.95,
+            "midi": 44
+          }
+        ]
+      },
+      {
+        "id": "ton_nom_est_jehovah",
+        "audio": "/home/visiteur/piano-jazz-chords/data/real/ton_nom_est_jehovah_extrait.wav",
+        "style": "gospel",
+        "ground_truth": "data/real/ton_nom_est_jehovah_ground_truth.csv",
+        "chords": "benchmark_outputs/chords_ton_nom_est_jehovah.json",
+        "set": "test",
+        "ground_truth_data": [
+          {
+            "start": 0.0,
+            "end": 4.0,
+            "midi": 45
+          },
+          {
+            "start": 4.0,
+            "end": 6.0,
+            "midi": 50
+          },
+          {
+            "start": 6.0,
+            "end": 9.0,
+            "midi": 45
+          },
+          {
+            "start": 9.0,
+            "end": 13.0,
+            "midi": 47
+          },
+          {
+            "start": 13.0,
+            "end": 18.0,
+            "midi": 52
+          },
+          {
+            "start": 18.0,
+            "end": 22.0,
+            "midi": 45
+          },
+          {
+            "start": 22.0,
+            "end": 25.0,
+            "midi": 50
+          },
+          {
+            "start": 25.0,
+            "end": 27.0,
+            "midi": 49
+          },
+          {
+            "start": 27.0,
+            "end": 31.0,
+            "midi": 47
+          },
+          {
+            "start": 31.0,
+            "end": 33.0,
+            "midi": 52
+          },
+          {
+            "start": 33.0,
+            "end": 36.0,
+            "midi": 50
+          },
+          {
+            "start": 36.0,
+            "end": 40.0,
+            "midi": 45
+          },
+          {
+            "start": 40.0,
+            "end": 42.0,
+            "midi": 50
+          },
+          {
+            "start": 42.0,
+            "end": 45.0,
+            "midi": 45
+          },
+          {
+            "start": 45.0,
+            "end": 49.0,
+            "midi": 47
+          },
+          {
+            "start": 49.0,
+            "end": 52.0,
+            "midi": 52
+          },
+          {
+            "start": 52.0,
+            "end": 54.0,
+            "midi": 50
+          },
+          {
+            "start": 54.0,
+            "end": 60.0,
+            "midi": 45
+          }
+        ]
+      },
+      {
+        "id": "note_C2",
+        "audio": "/home/visiteur/piano-jazz-chords/tests/audio/bass_C2.wav",
+        "style": "synthetic_note",
+        "ground_truth": "data/benchmark/note_C2_ground_truth.csv",
+        "chords": "benchmark_outputs/chords_note_C2.json",
+        "set": "dev",
+        "ground_truth_data": [
+          {
+            "start": 0.0,
+            "end": 2.0,
+            "midi": 36
+          }
+        ]
+      },
+      {
+        "id": "note_E2",
+        "audio": "/home/visiteur/piano-jazz-chords/tests/audio/bass_E2.wav",
+        "style": "synthetic_note",
+        "ground_truth": "data/benchmark/note_E2_ground_truth.csv",
+        "chords": "benchmark_outputs/chords_note_E2.json",
+        "set": "dev",
+        "ground_truth_data": [
+          {
+            "start": 0.0,
+            "end": 2.0,
+            "midi": 40
+          }
+        ]
+      },
+      {
+        "id": "note_Fs2",
+        "audio": "/home/visiteur/piano-jazz-chords/tests/audio/bass_Fs2.wav",
+        "style": "synthetic_note",
+        "ground_truth": "data/benchmark/note_Fs2_ground_truth.csv",
+        "chords": "benchmark_outputs/chords_note_Fs2.json",
+        "set": "test",
+        "ground_truth_data": [
+          {
+            "start": 0.0,
+            "end": 2.0,
+            "midi": 42
+          }
+        ]
+      },
+      {
+        "id": "note_G2",
+        "audio": "/home/visiteur/piano-jazz-chords/tests/audio/bass_G2.wav",
+        "style": "synthetic_note",
+        "ground_truth": "data/benchmark/note_G2_ground_truth.csv",
+        "chords": "benchmark_outputs/chords_note_G2.json",
+        "set": "dev",
+        "ground_truth_data": [
+          {
+            "start": 0.0,
+            "end": 2.0,
+            "midi": 43
+          }
+        ]
+      },
+      {
+        "id": "note_A2",
+        "audio": "/home/visiteur/piano-jazz-chords/tests/audio/bass_A2.wav",
+        "style": "synthetic_note",
+        "ground_truth": "data/benchmark/note_A2_ground_truth.csv",
+        "chords": "benchmark_outputs/chords_note_A2.json",
+        "set": "test",
+        "ground_truth_data": [
+          {
+            "start": 0.0,
+            "end": 2.0,
+            "midi": 45
+          }
+        ]
+      },
+      {
+        "id": "note_B2",
+        "audio": "/home/visiteur/piano-jazz-chords/tests/audio/bass_B2.wav",
+        "style": "synthetic_note",
+        "ground_truth": "data/benchmark/note_B2_ground_truth.csv",
+        "chords": "benchmark_outputs/chords_note_B2.json",
+        "set": "test",
+        "ground_truth_data": [
+          {
+            "start": 0.0,
+            "end": 2.0,
+            "midi": 47
+          }
+        ]
+      },
+      {
+        "id": "note_harm_C2",
+        "audio": "/home/visiteur/piano-jazz-chords/tests/audio/bass_harm_C2.wav",
+        "style": "synthetic_harmonic",
+        "ground_truth": "data/benchmark/note_harm_C2_ground_truth.csv",
+        "chords": "benchmark_outputs/chords_note_harm_C2.json",
+        "set": "test",
+        "ground_truth_data": [
+          {
+            "start": 0.0,
+            "end": 2.0,
+            "midi": 36
+          }
+        ]
+      },
+      {
+        "id": "note_harm_E2",
+        "audio": "/home/visiteur/piano-jazz-chords/tests/audio/bass_harm_E2.wav",
+        "style": "synthetic_harmonic",
+        "ground_truth": "data/benchmark/note_harm_E2_ground_truth.csv",
+        "chords": "benchmark_outputs/chords_note_harm_E2.json",
+        "set": "test",
+        "ground_truth_data": [
+          {
+            "start": 0.0,
+            "end": 2.0,
+            "midi": 40
+          }
+        ]
+      },
+      {
+        "id": "note_harm_G2",
+        "audio": "/home/visiteur/piano-jazz-chords/tests/audio/bass_harm_G2.wav",
+        "style": "synthetic_harmonic",
+        "ground_truth": "data/benchmark/note_harm_G2_ground_truth.csv",
+        "chords": "benchmark_outputs/chords_note_harm_G2.json",
+        "set": "test",
+        "ground_truth_data": [
+          {
+            "start": 0.0,
+            "end": 2.0,
+            "midi": 43
+          }
+        ]
+      },
+      {
+        "id": "note_harm_B2",
+        "audio": "/home/visiteur/piano-jazz-chords/tests/audio/bass_harm_B2.wav",
+        "style": "synthetic_harmonic",
+        "ground_truth": "data/benchmark/note_harm_B2_ground_truth.csv",
+        "chords": "benchmark_outputs/chords_note_harm_B2.json",
+        "set": "test",
+        "ground_truth_data": [
+          {
+            "start": 0.0,
+            "end": 2.0,
+            "midi": 47
+          }
+        ]
+      },
+      {
+        "id": "chord_C",
+        "audio": "/home/visiteur/piano-jazz-chords/tests/audio/chord_C.wav",
+        "style": "synthetic_chord",
+        "ground_truth": "data/benchmark/chord_C_ground_truth.csv",
+        "chords": "benchmark_outputs/chords_chord_C.json",
+        "set": "dev",
+        "ground_truth_data": [
+          {
+            "start": 0.0,
+            "end": 2.0,
+            "midi": 36
+          }
+        ]
+      },
+      {
+        "id": "chord_G",
+        "audio": "/home/visiteur/piano-jazz-chords/tests/audio/chord_G.wav",
+        "style": "synthetic_chord",
+        "ground_truth": "data/benchmark/chord_G_ground_truth.csv",
+        "chords": "benchmark_outputs/chords_chord_G.json",
+        "set": "test",
+        "ground_truth_data": [
+          {
+            "start": 0.0,
+            "end": 2.0,
+            "midi": 43
+          }
+        ]
+      },
+      {
+        "id": "chord_Dm",
+        "audio": "/home/visiteur/piano-jazz-chords/tests/audio/chord_Dm.wav",
+        "style": "synthetic_chord",
+        "ground_truth": "data/benchmark/chord_Dm_ground_truth.csv",
+        "chords": "benchmark_outputs/chords_chord_Dm.json",
+        "set": "dev",
+        "ground_truth_data": [
+          {
+            "start": 0.0,
+            "end": 2.0,
+            "midi": 38
+          }
+        ]
+      },
+      {
+        "id": "slash_C_E",
+        "audio": "/home/visiteur/piano-jazz-chords/tests/audio/slash_C_E.wav",
+        "style": "synthetic_slash",
+        "ground_truth": "data/benchmark/slash_C_E_ground_truth.csv",
+        "chords": "benchmark_outputs/chords_slash_C_E.json",
+        "set": "dev",
+        "ground_truth_data": [
+          {
+            "start": 0.0,
+            "end": 2.0,
+            "midi": 40
+          }
+        ]
+      },
+      {
+        "id": "slash_G_B",
+        "audio": "/home/visiteur/piano-jazz-chords/tests/audio/slash_G_B.wav",
+        "style": "synthetic_slash",
+        "ground_truth": "data/benchmark/slash_G_B_ground_truth.csv",
+        "chords": "benchmark_outputs/chords_slash_G_B.json",
+        "set": "test",
+        "ground_truth_data": [
+          {
+            "start": 0.0,
+            "end": 2.0,
+            "midi": 47
+          }
+        ]
+      },
+      {
+        "id": "slash_D_Fs",
+        "audio": "/home/visiteur/piano-jazz-chords/tests/audio/slash_D_Fs.wav",
+        "style": "synthetic_slash",
+        "ground_truth": "data/benchmark/slash_D_Fs_ground_truth.csv",
+        "chords": "benchmark_outputs/chords_slash_D_Fs.json",
+        "set": "dev",
+        "ground_truth_data": [
+          {
+            "start": 0.0,
+            "end": 2.0,
+            "midi": 42
+          }
+        ]
+      },
+      {
+        "id": "slash_Am7_G",
+        "audio": "/home/visiteur/piano-jazz-chords/tests/audio/slash_Am7_G.wav",
+        "style": "synthetic_slash",
+        "ground_truth": "data/benchmark/slash_Am7_G_ground_truth.csv",
+        "chords": "benchmark_outputs/chords_slash_Am7_G.json",
+        "set": "test",
+        "ground_truth_data": [
+          {
+            "start": 0.0,
+            "end": 2.0,
+            "midi": 43
+          }
+        ]
+      },
+      {
+        "id": "walking_bass",
+        "audio": "/home/visiteur/piano-jazz-chords/tests/audio/walking_bass.wav",
+        "style": "synthetic_walking",
+        "ground_truth": "data/benchmark/walking_bass_ground_truth.csv",
+        "chords": "benchmark_outputs/chords_walking_bass.json",
+        "set": "test",
+        "ground_truth_data": [
+          {
+            "start": 0.0,
+            "end": 0.25,
+            "midi": 36
+          },
+          {
+            "start": 0.25,
+            "end": 0.5,
+            "midi": 40
+          },
+          {
+            "start": 0.5,
+            "end": 0.75,
+            "midi": 43
+          },
+          {
+            "start": 0.75,
+            "end": 1.0,
+            "midi": 47
+          },
+          {
+            "start": 1.0,
+            "end": 1.25,
+            "midi": 48
+          },
+          {
+            "start": 1.25,
+            "end": 1.5,
+            "midi": 47
+          },
+          {
+            "start": 1.5,
+            "end": 1.75,
+            "midi": 43
+          },
+          {
+            "start": 1.75,
+            "end": 2.0,
+            "midi": 40
+          },
+          {
+            "start": 2.0,
+            "end": 2.25,
+            "midi": 36
+          },
+          {
+            "start": 2.25,
+            "end": 2.5,
+            "midi": 38
+          },
+          {
+            "start": 2.5,
+            "end": 2.75,
+            "midi": 40
+          },
+          {
+            "start": 2.75,
+            "end": 3.0,
+            "midi": 42
+          },
+          {
+            "start": 3.0,
+            "end": 3.25,
+            "midi": 43
+          },
+          {
+            "start": 3.25,
+            "end": 3.5,
+            "midi": 42
+          },
+          {
+            "start": 3.5,
+            "end": 3.75,
+            "midi": 40
+          },
+          {
+            "start": 3.75,
+            "end": 4.0,
+            "midi": 38
+          }
+        ]
+      },
+      {
+        "id": "jazz_Cmaj9",
+        "audio": "/home/visiteur/piano-jazz-chords/tests/audio/jazz_Cmaj9.wav",
+        "style": "synthetic_jazz",
+        "ground_truth": "data/benchmark/jazz_Cmaj9_ground_truth.csv",
+        "chords": "benchmark_outputs/chords_jazz_Cmaj9.json",
+        "set": "dev",
+        "ground_truth_data": [
+          {
+            "start": 0.0,
+            "end": 2.0,
+            "midi": 36
+          }
+        ]
+      },
+      {
+        "id": "jazz_Dm7_G",
+        "audio": "/home/visiteur/piano-jazz-chords/tests/audio/jazz_Dm7_G.wav",
+        "style": "synthetic_jazz",
+        "ground_truth": "data/benchmark/jazz_Dm7_G_ground_truth.csv",
+        "chords": "benchmark_outputs/chords_jazz_Dm7_G.json",
+        "set": "dev",
+        "ground_truth_data": [
+          {
+            "start": 0.0,
+            "end": 2.0,
+            "midi": 43
+          }
+        ]
+      },
+      {
+        "id": "jazz_G13",
+        "audio": "/home/visiteur/piano-jazz-chords/tests/audio/jazz_G13.wav",
+        "style": "synthetic_jazz",
+        "ground_truth": "data/benchmark/jazz_G13_ground_truth.csv",
+        "chords": "benchmark_outputs/chords_jazz_G13.json",
+        "set": "test",
+        "ground_truth_data": [
+          {
+            "start": 0.0,
+            "end": 2.0,
+            "midi": 43
+          }
+        ]
+      }
+    ]
+  }
+}

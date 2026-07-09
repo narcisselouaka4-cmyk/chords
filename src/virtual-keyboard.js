@@ -33,12 +33,16 @@ export function initVirtualKeyboard({ onNoteOn, onNoteOff }) {
 
   const startNote = (el) => {
     const midi = Number(el.getAttribute('data-midi'));
-    if (midi && noteOnHandler) noteOnHandler(midi, 0.8, true);
+    if (Number.isFinite(midi) && midi >= 12 && midi <= 127 && noteOnHandler) {
+      noteOnHandler(midi, 0.8, true);
+    }
   };
 
   const endNote = (el) => {
     const midi = Number(el.getAttribute('data-midi'));
-    if (midi && noteOffHandler) noteOffHandler(midi, true);
+    if (Number.isFinite(midi) && midi >= 12 && midi <= 127 && noteOffHandler) {
+      noteOffHandler(midi, true);
+    }
   };
 
   for (const key of keys) {

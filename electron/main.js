@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, session, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, session, dialog, desktopCapturer } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import midi from '@julusian/midi';
@@ -52,6 +52,19 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
     },
+  });
+
+  // [Claude] — 2026-07-07 — Autorise la capture d'écran pour la fenêtre de l'application elle-même.
+  // Sans ce gestionnaire, navigator.mediaDevices.getUserMedia({ chromeMediaSource: 'desktop' })
+  // échoue avec NotAllowedError dans le renderer.
+  mainWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback, details) => {
+    const isOwnWindow = webContents.id === mainWindow.webContents.id;
+    const isMedia = permission === 'media' || permission === 'display-capture' || permission === 'clipboard-sanitized-write';
+    if (isOwnWindow && isMedia) {
+      callback(true);
+    } else {
+      callback(false);
+    }
   });
 
   // [OpenCode] — 2026-07-04 — En développement, charge Vite HMR ; en production, charge le build dist.
@@ -355,6 +368,65 @@ function setupFileSystemIPC() {
 const STUDIO_DIR_NAME = 'PianoJazzChords/Studio';
 const STEMS = ['bass', 'drums', 'vocals', 'other', 'piano'];
 
+// [Claude] — 2026-07-08 — Si un fichier importé dans l'onglet Analyse correspond
+// à un morceau déjà séparé dans le Studio, on utilise le stem piano isolé pour
+// l'analyse. Cela améliore nettement la qualité par rapport au mix complet.
+async function findStudioPianoStemForFile(filePath) {
+  const studioDir = getStudioDir();
+  try {
+    const entries = await fs.readdir(studioDir, { withFileTypes: true });
+    const realFilePath = await fs.realpath(filePath).catch(() => filePath);
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const trackDir = path.join(studioDir, entry.name);
+      const files = await fs.readdir(trackDir);
+      const originalFile = files.find((f) => f.startsWith('original.'));
+      if (!originalFile) continue;
+      const originalPath = path.join(trackDir, originalFile);
+      const realOriginalPath = await fs.realpath(originalPath).catch(() => originalPath);
+      if (realFilePath !== realOriginalPath) continue;
+      const pianoStem = path.join(trackDir, 'stems', 'piano.wav');
+      try {
+        await fs.access(pianoStem);
+        return pianoStem;
+      } catch {
+        return null;
+      }
+    }
+  } catch (e) {
+    // ignore: le dossier Studio peut ne pas exister.
+  }
+  return null;
+}
+
+async function findStudioBassStemForFile(filePath) {
+  const studioDir = getStudioDir();
+  try {
+    const entries = await fs.readdir(studioDir, { withFileTypes: true });
+    const realFilePath = await fs.realpath(filePath).catch(() => filePath);
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const trackDir = path.join(studioDir, entry.name);
+      const files = await fs.readdir(trackDir);
+      const originalFile = files.find((f) => f.startsWith('original.'));
+      if (!originalFile) continue;
+      const originalPath = path.join(trackDir, originalFile);
+      const realOriginalPath = await fs.realpath(originalPath).catch(() => originalPath);
+      if (realFilePath !== realOriginalPath) continue;
+      const bassStem = path.join(trackDir, 'stems', 'bass.wav');
+      try {
+        await fs.access(bassStem);
+        return bassStem;
+      } catch {
+        return null;
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+  return null;
+}
+
 // [OpenCode] — 2026-07-04 — Utilise le venv local s'il existe, sinon python3.
 function getVenvPythonPath() {
   const venvPython = path.join(__dirname, '..', '.venv', 'bin', 'python');
@@ -431,6 +503,60 @@ async function pitchShiftRegion(inputWav, outputWav, semitones, startSec, endSec
 async function mixStemsToMaster(stemPaths, outputWav) {
   await runAudioProcessor(['mix-stems', stemPaths.join(','), outputWav]);
   return outputWav;
+}
+
+async function runBassAnalysis(analysisWav, chordsData, tmpDir) {
+  const scriptsDir = path.join(__dirname, '..', 'scripts');
+  const paramsPath = path.join(__dirname, '..', 'fusion_params.json');
+  const candidatesJson = path.join(tmpDir, 'candidates.json');
+  const chordsJson = path.join(tmpDir, 'chords.json');
+  const segmentsJson = path.join(tmpDir, 'fusion_segments.json');
+
+  // Save chords data to temp file for Fusion Engine
+  await fs.writeFile(chordsJson, JSON.stringify(chordsData, null, 2));
+
+  // Step 1: export BE candidates
+  await new Promise((resolve, reject) => {
+    const proc = spawn(getPythonCommand(), [
+      path.join(scriptsDir, 'export_bass_candidates.py'),
+      '--wav', analysisWav,
+      '--output', candidatesJson,
+    ], { shell: false });
+    let stderr = '';
+    proc.stderr.on('data', (d) => { stderr += d.toString(); });
+    proc.on('error', reject);
+    proc.on('exit', (code) => {
+      if (code !== 0) return reject(new Error(stderr || `export_bass_candidates failed (code ${code})`));
+      resolve();
+    });
+  });
+
+  // Step 2: run Fusion Engine
+  await new Promise((resolve, reject) => {
+    const proc = spawn(getPythonCommand(), [
+      path.join(scriptsDir, 'fusion_bass_chord.py'),
+      '--candidates', candidatesJson,
+      '--chords', chordsJson,
+      '--params', paramsPath,
+      '--output-segments', segmentsJson,
+    ], { shell: false });
+    let stderr = '';
+    proc.stderr.on('data', (d) => { stderr += d.toString(); });
+    proc.on('error', reject);
+    proc.on('exit', (code) => {
+      if (code !== 0) return reject(new Error(stderr || `fusion_bass_chord failed (code ${code})`));
+      resolve();
+    });
+  });
+
+  // Parse and return segments
+  const segContent = await fs.readFile(segmentsJson, 'utf-8');
+  return JSON.parse(segContent).segments || [];
+}
+
+async function convertWebmToMp4(inputWebm, outputMp4) {
+  await runAudioProcessor(['convert-webm-to-mp4', inputWebm, outputMp4]);
+  return outputMp4;
 }
 
 function getStudioDir() {
@@ -786,6 +912,164 @@ function setupStudioIPC() {
     }
     return true;
   });
+
+  // [Claude] — 2026-07-08 — Analyse audio automatique pour l'onglet Analyse.
+  // Extrait la piste audio du fichier importé, lance analyze-chords, retourne la grille enrichie.
+  // Si le fichier a déjà été séparé dans le Studio, on analyse le stem piano isolé
+  // pour plus de précision, tout en conservant le mix original pour la lecture.
+  ipcMain.handle('analyzer:process-file', async (event, filePath, options = {}) => {
+    const tmpDir = path.join(os.tmpdir(), `pjc-analyze-${Date.now()}`);
+    await fs.mkdir(tmpDir, { recursive: true });
+    const playbackWav = path.join(tmpDir, 'audio.wav');
+
+    try {
+      const pianoStem = await findStudioPianoStemForFile(filePath);
+      if (pianoStem) {
+        console.log('[Analyzer] using Studio piano stem:', pianoStem);
+      }
+
+      // Find bass stem if requested
+      const bassStem = options.analyzeBass !== false
+        ? await findStudioBassStemForFile(filePath) : null;
+      if (bassStem) {
+        console.log('[Analyzer] using Studio bass stem for bass detection:', bassStem);
+      }
+
+      // Durée du fichier original importé, indépendamment du stem utilisé pour l'analyse.
+      let duration = null;
+      try {
+        const probeJson = await runAudioProcessor(['probe', filePath]);
+        const probeLines = probeJson.split('\n').filter(Boolean);
+        const probeResult = JSON.parse(probeLines[probeLines.length - 1]);
+        duration = probeResult.duration;
+      } catch (probeErr) {
+        console.warn('[Analyzer] probe duration failed:', probeErr.message);
+      }
+
+      // La lecture utilise toujours le mix original.
+      await extractTrackAudio(filePath, playbackWav);
+
+      // L'analyse des accords utilise le piano isolé si disponible, sinon le mix.
+      const analysisWav = pianoStem || playbackWav;
+      const chordJson = await runAudioProcessor(['analyze-chords', analysisWav]);
+      const lines = chordJson.split('\n').filter(Boolean);
+      const result = JSON.parse(lines[lines.length - 1]);
+
+      // Analyse de la basse via Fusion Engine
+      let bassSegments = [];
+      if (options.analyzeBass !== false) {
+        try {
+          const bassWav = bassStem || playbackWav;
+          console.log('[Analyzer] running bass analysis on:', bassWav);
+          bassSegments = await runBassAnalysis(bassWav, result, tmpDir);
+          console.log(`[Analyzer] bass analysis done: ${bassSegments.length} segments`);
+        } catch (bassErr) {
+          console.warn('[Analyzer] bass analysis failed (fallback to chords only):', bassErr.message);
+        }
+      }
+
+      return {
+        wavPath: playbackWav,
+        analysisWavPath: analysisWav,
+        usedPianoStem: Boolean(pianoStem),
+        usedBassStem: Boolean(bassStem),
+        duration: duration ?? result.duration ?? 0,
+        tempo: result.tempo ?? null,
+        timeSignature: result.timeSignature ?? '4/4',
+        key: result.key ?? null,
+        keyConfidence: result.keyConfidence ?? 0,
+        confidence: result.confidence ?? 0,
+        chords: result.chords ?? [],
+        bassSegments: bassSegments,
+      };
+    } catch (err) {
+      console.error('[Analyzer] process-file failed:', err);
+      throw err;
+    }
+  });
+
+  // [Claude] — 2026-07-07 — Screen Recorder : source vidéo via desktopCapturer.
+  // Le renderer demande l'id de la source de la fenêtre de l'application.
+  ipcMain.handle('studio:get-screen-source-id', async () => {
+    try {
+      if (!mainWindow || mainWindow.isDestroyed()) {
+        return { error: 'Fenêtre principale indisponible' };
+      }
+      // Utilise l'API fiable de la fenêtre plutôt qu'une recherche par titre
+      // dans desktopCapturer.getSources(), qui peut échouer si le titre change
+      // ou si la source n'est pas encore listée.
+      const sourceId = mainWindow.getMediaSourceId();
+      if (!sourceId) {
+        return { error: 'Source d\'écran introuvable' };
+      }
+      return { id: sourceId };
+    } catch (err) {
+      console.error('[Studio] getMediaSourceId failed:', err);
+      return { error: err.message };
+    }
+  });
+
+  // [Claude] — 2026-07-07 — Screen Recorder : dialogue de sauvegarde du Blob enregistré.
+  ipcMain.handle('studio:save-recording', async (event, arrayBuffer) => {
+    if (!mainWindow || mainWindow.isDestroyed()) return { canceled: true };
+    const home = os.homedir();
+    const desktopCandidates = ['Desktop', 'Bureau', 'Schreibtisch', 'Escritorio', 'Scrivania', 'Рабочий стол'];
+    let desktopDir = null;
+    for (const name of desktopCandidates) {
+      const candidate = path.join(home, name);
+      try {
+        await fs.access(candidate);
+        desktopDir = candidate;
+        break;
+      } catch (_) {}
+    }
+    const defaultPath = path.join(desktopDir || home, `studio-record-${Date.now()}.mp4`);
+    const result = await dialog.showSaveDialog(mainWindow, {
+      title: 'Enregistrer la vidéo',
+      defaultPath,
+      filters: [{ name: 'Vidéo MP4', extensions: ['mp4'] }],
+    });
+    if (result.canceled) return { canceled: true };
+
+    try {
+      // MediaRecorder produit un WebM. On le remux en MP4 H.264 + AAC via ffmpeg.
+      const tmpWebm = path.join(os.tmpdir(), `studio-record-${Date.now()}.webm`);
+      await fs.writeFile(tmpWebm, Buffer.from(arrayBuffer));
+      await new Promise((resolve, reject) => {
+        const proc = spawn('ffmpeg', [
+          '-y',
+          '-i', tmpWebm,
+          '-c:v', 'libx264',
+          '-preset', 'fast',
+          '-crf', '23',
+          '-pix_fmt', 'yuv420p',
+          '-c:a', 'aac',
+          '-b:a', '128k',
+          '-movflags', '+faststart',
+          result.filePath,
+        ], { shell: false });
+        let stderr = '';
+        proc.stderr.on('data', (data) => { stderr += data.toString(); });
+        proc.on('error', reject);
+        proc.on('exit', (code) => {
+          fs.rm(tmpWebm, { force: true }).catch(() => {});
+          code !== 0 ? reject(new Error(stderr || `ffmpeg exit ${code}`)) : resolve();
+        });
+      });
+      return { canceled: false, path: result.filePath };
+    } catch (err) {
+      console.error('[Studio] save recording failed:', err);
+      throw err;
+    }
+  });
+
+  // Legacy handlers supprimés / inactifs.
+  ipcMain.handle('studio:get-window-source', async () => null);
+  ipcMain.handle('studio:save-video', async () => null);
+  ipcMain.handle('studio:start-screen-record', async () => ({ error: 'deprecated' }));
+  ipcMain.handle('studio:stop-screen-record', async () => ({ error: 'deprecated' }));
+  ipcMain.handle('studio:save-dialog', async () => ({ canceled: true }));
+  ipcMain.handle('studio:save-recorded-video', async () => ({ error: 'deprecated' }));
 }
 
 app.whenReady().then(() => {

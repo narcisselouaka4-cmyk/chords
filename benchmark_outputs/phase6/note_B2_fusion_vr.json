@@ -1,0 +1,46 @@
+{
+  "params": {
+    "candidates": "benchmark_outputs/phase6/note_B2_candidates.json",
+    "chords": "/home/visiteur/piano-jazz-chords/benchmark_outputs/chords_note_B2.json",
+    "fusion_params": [
+      {
+        "name": "bass_engine",
+        "weight": 1.0,
+        "class": "BassScore"
+      },
+      {
+        "name": "harmonic",
+        "weight": 0.6,
+        "class": "HarmonicScore"
+      },
+      {
+        "name": "octave",
+        "weight": 0.3,
+        "class": "OctaveScore"
+      },
+      {
+        "name": "continuity",
+        "weight": 0.4,
+        "class": "ContinuityScore"
+      },
+      {
+        "name": "chord_confidence",
+        "target": "harmonic",
+        "weight": 1.0,
+        "class": "ChordConfidenceMultiplier"
+      }
+    ]
+  },
+  "n_segments": 1,
+  "segments": [
+    {
+      "startTime": 0.0,
+      "endTime": 2.0202,
+      "midi": 47,
+      "bass": "B",
+      "octave": 2,
+      "note": "B2",
+      "confidence": 1.0
+    }
+  ]
+}

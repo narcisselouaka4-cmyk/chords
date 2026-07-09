@@ -302,6 +302,80 @@ function transformNeoSoul(chord) {
   };
 }
 
+// ────────────────────────────── Réharmonisation d'une progression complète ──────────────────────────────
+
+export function suggestProgression(chords, style = 'jazz') {
+  if (!Array.isArray(chords) || chords.length === 0) return [];
+
+  return chords.map((chord) => {
+    const suggestion = suggestForChord(chord, style);
+    return {
+      original: {
+        rootPc: chord.rootPc,
+        symbol: chord.symbol,
+        bassPc: chord.bassPc,
+        notes: chord.notes,
+        time: chord.time,
+        duration: chord.duration,
+      },
+      replacement: {
+        rootPc: chord.rootPc,
+        symbol: suggestion.name.replace(/^[^/]+/, '').replace(/^\//, '') || chord.symbol,
+        name: suggestion.name,
+        notes: suggestion.notes,
+        style,
+      },
+      time: chord.time,
+      duration: chord.duration,
+    };
+  });
+}
+
+export function renderProgressionToEvents(progression, bpm = 90) {
+  if (!Array.isArray(progression) || progression.length === 0) return [];
+
+  const beatDuration = 60 / bpm;
+  const events = [];
+
+  for (const entry of progression) {
+    const notes = entry.replacement?.notes || entry.original?.notes || [];
+    if (notes.length === 0) continue;
+
+    const duration = entry.duration || entry.original?.duration || beatDuration * 4;
+    const startTime = entry.time || entry.original?.time || 0;
+    const velocity = 0.72;
+
+    for (const note of notes) {
+      events.push({ time: startTime, type: 'note_on', note, velocity, channel: 0 });
+      events.push({ time: startTime + duration, type: 'note_off', note, velocity: 0, channel: 0 });
+    }
+  }
+
+  return events.sort((a, b) => a.time - b.time);
+}
+
+export function playProgression(progression, feedMidiEvent, bpm = 90) {
+  if (!feedMidiEvent || !Array.isArray(progression) || progression.length === 0) return;
+
+  const events = renderProgressionToEvents(progression, bpm);
+  const now = performance.now();
+  const startOffset = events[0]?.time || 0;
+
+  for (const event of events) {
+    const delay = (event.time - startOffset) * 1000;
+    setTimeout(() => {
+      switch (event.type) {
+        case 'note_on':
+          feedMidiEvent('noteOn', event.note, event.velocity);
+          break;
+        case 'note_off':
+          feedMidiEvent('noteOff', event.note);
+          break;
+      }
+    }, delay);
+  }
+}
+
 // ────────────────────────────── Export playback helpers ──────────────────────────────
 
 export function renderSuggestionToEvents(suggestion, channel = 0) {

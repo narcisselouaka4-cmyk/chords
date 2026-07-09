@@ -1,0 +1,32 @@
+[
+  {
+    "startTime": 0.0,
+    "endTime": 0.186,
+    "midi": 28,
+    "note": "E1"
+  },
+  {
+    "startTime": 0.186,
+    "endTime": 0.418,
+    "midi": 64,
+    "note": "E4"
+  },
+  {
+    "startTime": 0.534,
+    "endTime": 0.952,
+    "midi": 64,
+    "note": "E4"
+  },
+  {
+    "startTime": 1.207,
+    "endTime": 1.37,
+    "midi": 64,
+    "note": "E4"
+  },
+  {
+    "startTime": 1.834,
+    "endTime": 2.0202,
+    "midi": 28,
+    "note": "E1"
+  }
+]

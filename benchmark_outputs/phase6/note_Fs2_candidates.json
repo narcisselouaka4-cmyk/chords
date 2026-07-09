@@ -1,0 +1,4887 @@
+{
+  "wav": "/home/visiteur/piano-jazz-chords/tests/audio/bass_Fs2.wav",
+  "duration": 2.0,
+  "n_frames": 87,
+  "frame_rate": 43.07,
+  "params": {
+    "sr": 22050,
+    "hop_length": 512,
+    "fmin": 32.7,
+    "n_bins": 144,
+    "bins_per_octave": 36
+  },
+  "frames": [
+    {
+      "time": 0.0,
+      "frame": 0,
+      "energy": 11.180111,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.5135
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 1.2951,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.5865,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3477,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.4358,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2305,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.023,
+      "frame": 1,
+      "energy": 13.009228,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.6443
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 1.293,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.5751,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3318,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.3371,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.1345,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.046,
+      "frame": 2,
+      "energy": 14.775108,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.9293
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 1.2907,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.5575,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3105,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.1873,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.0256,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.07,
+      "frame": 3,
+      "energy": 16.421652,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 1.0
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 1.2884,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.5515,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.0827,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.0209,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.093,
+      "frame": 4,
+      "energy": 17.900414,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 1.0
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 1.0472,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.5506,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3004,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.0919,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.0252,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.116,
+      "frame": 5,
+      "energy": 19.173666,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 1.0
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.5601,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.5502,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3001,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.0926,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.0281,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.139,
+      "frame": 6,
+      "energy": 20.217035,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 1.0
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2997,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.1002,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.0346,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.163,
+      "frame": 7,
+      "energy": 21.02088,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 1.0
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.3159,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3001,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.2931,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.1885,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.186,
+      "frame": 8,
+      "energy": 21.592461,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8468
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2871,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.4944,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2771,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.209,
+      "frame": 9,
+      "energy": 21.957729,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8595
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2851,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3001,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.5072,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2739,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.232,
+      "frame": 10,
+      "energy": 22.158237,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8991
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2843,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.4988,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2919,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.255,
+      "frame": 11,
+      "energy": 22.243553,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8833
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2837,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3001,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.522,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2947,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.279,
+      "frame": 12,
+      "energy": 22.262707,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 1.0
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2866,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3001,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.4253,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.1962,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.302,
+      "frame": 13,
+      "energy": 22.255411,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8906
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2857,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3003,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.4976,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2713,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.325,
+      "frame": 14,
+      "energy": 22.245808,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8764
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2836,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.5141,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2811,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.348,
+      "frame": 15,
+      "energy": 22.243034,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8729
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2842,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.4979,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2791,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.372,
+      "frame": 16,
+      "energy": 22.2467,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8591
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.284,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.5275,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2626,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.395,
+      "frame": 17,
+      "energy": 22.252308,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8883
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.284,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3003,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.4962,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2846,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.418,
+      "frame": 18,
+      "energy": 22.255665,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8736
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2839,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.5217,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2895,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.441,
+      "frame": 19,
+      "energy": 22.255783,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.9339
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2837,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3001,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.481,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2012,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.464,
+      "frame": 20,
+      "energy": 22.254032,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8853
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2836,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.5001,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2738,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.488,
+      "frame": 21,
+      "energy": 22.251642,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8784
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2835,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.5193,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2684,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.511,
+      "frame": 22,
+      "energy": 22.249428,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 1.0
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3001,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.4267,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.1819,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.534,
+      "frame": 23,
+      "energy": 22.248249,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8856
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.4838,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2846,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.557,
+      "frame": 24,
+      "energy": 22.248352,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8819
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3003,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.5306,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2732,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.58,
+      "frame": 25,
+      "energy": 22.249516,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.9016
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.4502,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2329,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.604,
+      "frame": 26,
+      "energy": 22.251741,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8725
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.5125,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2995,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.627,
+      "frame": 27,
+      "energy": 22.254328,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8865
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3003,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.5054,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2719,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.65,
+      "frame": 28,
+      "energy": 22.25551,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8796
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.512,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2869,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.673,
+      "frame": 29,
+      "energy": 22.254307,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 1.0
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3001,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.424,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2124,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.697,
+      "frame": 30,
+      "energy": 22.251438,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8698
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.5207,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2729,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.72,
+      "frame": 31,
+      "energy": 22.248318,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8833
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.4985,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2766,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.743,
+      "frame": 32,
+      "energy": 22.246635,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.9603
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3001,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.481,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2672,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.766,
+      "frame": 33,
+      "energy": 22.246634,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.857
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.5069,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2764,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.789,
+      "frame": 34,
+      "energy": 22.24695,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8884
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3003,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.505,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2697,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.813,
+      "frame": 35,
+      "energy": 22.246801,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8786
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.5044,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2511,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.836,
+      "frame": 36,
+      "energy": 22.246572,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.9102
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3001,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.493,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2668,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.859,
+      "frame": 37,
+      "energy": 22.246843,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8832
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.5072,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2861,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.882,
+      "frame": 38,
+      "energy": 22.246916,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8911
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.493,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2839,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.906,
+      "frame": 39,
+      "energy": 22.246593,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 1.0
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3001,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.4794,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.1696,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.929,
+      "frame": 40,
+      "energy": 22.2467,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8851
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.4943,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2728,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.952,
+      "frame": 41,
+      "energy": 22.246954,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8847
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3003,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.5178,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2696,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.975,
+      "frame": 42,
+      "energy": 22.246698,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.9031
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.4949,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2735,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 0.998,
+      "frame": 43,
+      "energy": 22.246586,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8901
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.5267,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2463,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.022,
+      "frame": 44,
+      "energy": 22.246901,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.887
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.4932,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2791,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.045,
+      "frame": 45,
+      "energy": 22.246834,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8793
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.514,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2744,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.068,
+      "frame": 46,
+      "energy": 22.246548,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.9619
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3001,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.4159,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2193,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.091,
+      "frame": 47,
+      "energy": 22.246771,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8805
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.5209,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2641,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.115,
+      "frame": 48,
+      "energy": 22.24692,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8847
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.5019,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2629,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.138,
+      "frame": 49,
+      "energy": 22.246614,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.9952
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3001,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.4732,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.1753,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.161,
+      "frame": 50,
+      "energy": 22.246635,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8921
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.4877,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2733,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.184,
+      "frame": 51,
+      "energy": 22.246931,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.867
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3003,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.518,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2767,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.207,
+      "frame": 52,
+      "energy": 22.24674,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8591
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.4887,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2704,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.231,
+      "frame": 53,
+      "energy": 22.24655,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8771
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3001,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.4813,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2859,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.254,
+      "frame": 54,
+      "energy": 22.246851,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8851
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3003,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.5101,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2743,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.277,
+      "frame": 55,
+      "energy": 22.248024,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8661
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.5269,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.275,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.3,
+      "frame": 56,
+      "energy": 22.251053,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 1.0
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3001,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.4586,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.1876,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.324,
+      "frame": 57,
+      "energy": 22.254183,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8855
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.49,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2853,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.347,
+      "frame": 58,
+      "energy": 22.255489,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8867
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3003,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.5139,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2705,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.37,
+      "frame": 59,
+      "energy": 22.254313,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8934
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3001,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.4873,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2365,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.393,
+      "frame": 60,
+      "energy": 22.251911,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8767
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.5171,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2649,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.416,
+      "frame": 61,
+      "energy": 22.249697,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8744
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3003,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.5028,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2739,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.44,
+      "frame": 62,
+      "energy": 22.248272,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8845
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.5101,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.261,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.463,
+      "frame": 63,
+      "energy": 22.248127,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.9634
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3001,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.4613,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2479,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.486,
+      "frame": 64,
+      "energy": 22.249386,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8742
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2834,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.5162,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2811,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.509,
+      "frame": 65,
+      "energy": 22.251425,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.897
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2835,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.4948,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2696,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.533,
+      "frame": 66,
+      "energy": 22.253733,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 1.0
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2836,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3001,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.4778,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.1455,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.556,
+      "frame": 67,
+      "energy": 22.255733,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8795
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2837,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.5091,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2833,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.579,
+      "frame": 68,
+      "energy": 22.2558,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8933
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2839,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3003,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.5084,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2667,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.602,
+      "frame": 69,
+      "energy": 22.252504,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8744
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2841,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.497,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2384,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.625,
+      "frame": 70,
+      "energy": 22.247055,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8753
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.284,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.5101,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2726,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.649,
+      "frame": 71,
+      "energy": 22.243208,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8831
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.284,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.4988,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2706,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.672,
+      "frame": 72,
+      "energy": 22.24526,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8851
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2838,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.534,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2718,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.695,
+      "frame": 73,
+      "energy": 22.254505,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.946
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2841,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.477,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2275,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.718,
+      "frame": 74,
+      "energy": 22.262751,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.884
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2836,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.5015,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2824,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.741,
+      "frame": 75,
+      "energy": 22.246555,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.887
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2842,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.5061,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2869,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.765,
+      "frame": 76,
+      "energy": 22.167387,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.9451
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2841,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3001,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.4917,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2365,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.788,
+      "frame": 77,
+      "energy": 21.976955,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8553
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2878,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.4975,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.3019,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.811,
+      "frame": 78,
+      "energy": 21.625019,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.8782
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.2842,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3001,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.5218,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2863,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.834,
+      "frame": 79,
+      "energy": 21.069063,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 1.0
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.322,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3001,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.197,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.0713,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.858,
+      "frame": 80,
+      "energy": 20.282312,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 1.0
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.3047,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.55,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.1192,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.0378,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.881,
+      "frame": 81,
+      "energy": 19.256054,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 1.0
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.5159,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.5501,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.1019,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.0291,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.904,
+      "frame": 82,
+      "energy": 17.998426,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 1.0
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 0.9924,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.5506,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3002,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.0878,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.0227,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.927,
+      "frame": 83,
+      "energy": 16.533152,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 1.0
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 1.2882,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.5514,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3003,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.085,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.022,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.95,
+      "frame": 84,
+      "energy": 14.897273,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.9749
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 1.2904,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.5562,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3085,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.17,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.0226,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.974,
+      "frame": 85,
+      "energy": 13.138098,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.6673
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 1.2928,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.5724,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3289,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.3191,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.1161,
+          "is_winner": false
+        }
+      ]
+    },
+    {
+      "time": 1.997,
+      "frame": 86,
+      "energy": 11.311339,
+      "silent": false,
+      "pc": 6,
+      "use_hps": false,
+      "selected": {
+        "midi": 42,
+        "octave": 2,
+        "note": "F#2",
+        "confidence": 0.5192
+      },
+      "candidates": [
+        {
+          "octave": 1,
+          "midi": 30,
+          "note": "F#1",
+          "freq": 46.25,
+          "score": 1.2949,
+          "is_winner": false
+        },
+        {
+          "octave": 2,
+          "midi": 42,
+          "note": "F#2",
+          "freq": 92.5,
+          "score": 0.5858,
+          "is_winner": true
+        },
+        {
+          "octave": 3,
+          "midi": 54,
+          "note": "F#3",
+          "freq": 185.0,
+          "score": 0.3463,
+          "is_winner": false
+        },
+        {
+          "octave": 4,
+          "midi": 66,
+          "note": "F#4",
+          "freq": 369.99,
+          "score": 0.4299,
+          "is_winner": false
+        },
+        {
+          "octave": 5,
+          "midi": 78,
+          "note": "F#5",
+          "freq": 739.99,
+          "score": 0.2253,
+          "is_winner": false
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,140 @@
+{
+  "id": "walking_bass",
+  "style": "jazz walking bass (synthétique)",
+  "audio": "tests/audio/walking_bass.wav",
+  "duration": 4.0,
+  "process_time": 0.192,
+  "rtf": 0.048,
+  "has_ground_truth": false,
+  "metrics": null,
+  "segments": [
+    {
+      "startTime": 0.0,
+      "endTime": 0.2322,
+      "midi": 36,
+      "bass": "C",
+      "octave": 2,
+      "confidence": 1.0
+    },
+    {
+      "startTime": 0.2322,
+      "endTime": 0.4876,
+      "midi": 40,
+      "bass": "E",
+      "octave": 2,
+      "confidence": 1.0
+    },
+    {
+      "startTime": 0.4876,
+      "endTime": 0.7198,
+      "midi": 43,
+      "bass": "G",
+      "octave": 2,
+      "confidence": 1.0
+    },
+    {
+      "startTime": 0.7198,
+      "endTime": 0.9985,
+      "midi": 47,
+      "bass": "B",
+      "octave": 2,
+      "confidence": 0.935
+    },
+    {
+      "startTime": 0.9985,
+      "endTime": 1.2307,
+      "midi": 48,
+      "bass": "C",
+      "octave": 3,
+      "confidence": 0.8407
+    },
+    {
+      "startTime": 1.2307,
+      "endTime": 1.4629,
+      "midi": 47,
+      "bass": "B",
+      "octave": 2,
+      "confidence": 0.946
+    },
+    {
+      "startTime": 1.4629,
+      "endTime": 1.7183,
+      "midi": 43,
+      "bass": "G",
+      "octave": 2,
+      "confidence": 0.9544
+    },
+    {
+      "startTime": 1.7183,
+      "endTime": 1.9737,
+      "midi": 40,
+      "bass": "E",
+      "octave": 2,
+      "confidence": 1.0
+    },
+    {
+      "startTime": 1.9737,
+      "endTime": 2.2291,
+      "midi": 36,
+      "bass": "C",
+      "octave": 2,
+      "confidence": 0.9672
+    },
+    {
+      "startTime": 2.2291,
+      "endTime": 2.4845,
+      "midi": 38,
+      "bass": "D",
+      "octave": 2,
+      "confidence": 0.8729
+    },
+    {
+      "startTime": 2.4845,
+      "endTime": 2.7167,
+      "midi": 40,
+      "bass": "E",
+      "octave": 2,
+      "confidence": 0.9958
+    },
+    {
+      "startTime": 2.7167,
+      "endTime": 2.9954,
+      "midi": 42,
+      "bass": "F#",
+      "octave": 2,
+      "confidence": 0.9903
+    },
+    {
+      "startTime": 2.9954,
+      "endTime": 3.2044,
+      "midi": 43,
+      "bass": "G",
+      "octave": 2,
+      "confidence": 0.839
+    },
+    {
+      "startTime": 3.2044,
+      "endTime": 3.483,
+      "midi": 42,
+      "bass": "F#",
+      "octave": 2,
+      "confidence": 0.9581
+    },
+    {
+      "startTime": 3.483,
+      "endTime": 3.7152,
+      "midi": 40,
+      "bass": "E",
+      "octave": 2,
+      "confidence": 1.0
+    },
+    {
+      "startTime": 3.7152,
+      "endTime": 3.9938,
+      "midi": 38,
+      "bass": "D",
+      "octave": 2,
+      "confidence": 0.7994
+    }
+  ]
+}

@@ -2,14 +2,26 @@ const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 const activeOscillators = new Map();
 let synthMode = 'piano';
 
+// [Claude] — 2026-07-07 — Bus de sortie permanent du synthé.
+// Toutes les notes passent par ce gain, qui est branché sur la destination système.
+// Pour l'enregistrement Studio, on branche temporairement une MediaStreamDestination
+// sur ce bus au moment de l'appel à getMediaStream().
+const synthOutput = audioCtx.createGain();
+synthOutput.connect(audioCtx.destination);
+
 export function midiToFrequency(midi) {
   return 440 * Math.pow(2, (midi - 69) / 12);
 }
 
 const MAX_OSC_FREQUENCY = 20000; // Marge sous la limite Web Audio nominale (24000 Hz)
+const MIN_MIDI_NOTE = 12;        // C0 — rejette la note 0 et les infrasons en dessous
 
 function clampOscFrequency(freq) {
   return Math.min(Math.max(freq, 20), MAX_OSC_FREQUENCY);
+}
+
+function isValidMidiNote(midi) {
+  return Number.isFinite(midi) && Number.isInteger(midi) && midi >= MIN_MIDI_NOTE && midi <= 127;
 }
 
 export async function resumeAudio() {
@@ -20,6 +32,22 @@ export async function resumeAudio() {
 
 export function getAudioContext() {
   return audioCtx;
+}
+
+export function getMediaStream() {
+  // Crée une destination temporaire branchée sur le bus permanent du synthé.
+  // Ainsi, toutes les notes jouées (même après l'appel) sont capturées.
+  const destination = audioCtx.createMediaStreamDestination();
+  synthOutput.connect(destination);
+  return destination.stream;
+}
+
+export function connectOutput(destination) {
+  // Branche le bus permanent du synthé sur une destination externe.
+  // Utilisé par le Studio pour mixer le synthé dans un seul MediaStream.
+  if (destination && destination.context === audioCtx) {
+    synthOutput.connect(destination);
+  }
 }
 
 export function setSynthMode(mode) {
@@ -52,7 +80,7 @@ function playPianoNote(midi, velocity) {
   filter.Q.value = 0;
 
   masterGain.connect(filter);
-  filter.connect(audioCtx.destination);
+  filter.connect(synthOutput);
 
   const oscillators = [];
   const gains = [];
@@ -97,7 +125,7 @@ function playRhodesNote(midi, velocity) {
   filter.Q.value = 0.5;
 
   masterGain.connect(filter);
-  filter.connect(audioCtx.destination);
+  filter.connect(synthOutput);
 
   // FM: carrier + modulator
   const modRatio = 3 + (Math.random() - 0.5) * 0.2;
@@ -164,10 +192,14 @@ function playRhodesNote(midi, velocity) {
 }
 
 export function playNote(midi, velocity = 0.8) {
-  if (!Number.isFinite(midi) || midi < 0 || midi > 127) {
+  if (!isValidMidiNote(midi)) {
     console.warn('[simple-synth] Note MIDI invalide ignorée:', midi);
     return;
   }
+
+  const vel = Number.isFinite(velocity) && velocity >= 0 && velocity <= 1
+    ? velocity
+    : 0.8;
 
   resumeAudio();
 
@@ -176,8 +208,8 @@ export function playNote(midi, velocity = 0.8) {
   }
 
   const nodes = synthMode === 'rhodes'
-    ? playRhodesNote(midi, velocity)
-    : playPianoNote(midi, velocity);
+    ? playRhodesNote(midi, vel)
+    : playPianoNote(midi, vel);
 
   activeOscillators.set(midi, nodes);
 }
@@ -214,7 +246,7 @@ function stopOscillators({ oscillators, gains, masterGain, filter }) {
 }
 
 export function releaseNote(midi) {
-  if (!Number.isFinite(midi) || midi < 0 || midi > 127) return;
+  if (!isValidMidiNote(midi)) return;
   if (!activeOscillators.has(midi)) return;
   stopOscillators(activeOscillators.get(midi));
   activeOscillators.delete(midi);

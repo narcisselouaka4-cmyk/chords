@@ -1,0 +1,25 @@
+{
+  "title": "Autumn Leaves (Bill Evans Trio)",
+  "key": "G minor",
+  "bpm": 120,
+  "time_signature": "4/4",
+  "file": "(synthétique — généré par generate_autumn_leaves_dataset.py)",
+  "chords": [
+    { "measure": 1,  "chord": "Aø7" },
+    { "measure": 2,  "chord": "D7" },
+    { "measure": 3,  "chord": "G-7" },
+    { "measure": 4,  "chord": "G-7" },
+    { "measure": 5,  "chord": "C-7" },
+    { "measure": 6,  "chord": "F7" },
+    { "measure": 7,  "chord": "B♭Δ7" },
+    { "measure": 8,  "chord": "E♭Δ7" },
+    { "measure": 9,  "chord": "Aø7" },
+    { "measure": 10, "chord": "D7" },
+    { "measure": 11, "chord": "G-7" },
+    { "measure": 12, "chord": "G-7" },
+    { "measure": 13, "chord": "C-7" },
+    { "measure": 14, "chord": "F7" },
+    { "measure": 15, "chord": "B♭Δ7" },
+    { "measure": 16, "chord": "E♭Δ7" }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "id": "slash_Am7_G",
+  "style": "slash chord (synthétique)",
+  "audio": "tests/audio/slash_Am7_G.wav",
+  "duration": 2.0,
+  "process_time": 0.177,
+  "rtf": 0.0883,
+  "has_ground_truth": false,
+  "metrics": null,
+  "segments": [
+    {
+      "startTime": 0.1161,
+      "endTime": 1.9969,
+      "midi": 43,
+      "bass": "G",
+      "octave": 2,
+      "confidence": 0.9968
+    }
+  ]
+}

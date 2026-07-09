@@ -192,3 +192,24 @@ export async function readAllStemsAsBlobUrls(trackId) {
   }
   return result;
 }
+
+export async function deleteTrack(trackId) {
+  const files = getElectronFiles();
+  if (!files) throw new Error('File system IPC unavailable');
+  const studioDir = await ensureStudioDir();
+  const dirPath = `${studioDir}/${trackId}`;
+  if (await files.exists(dirPath)) {
+    await files.deleteDir(dirPath);
+  }
+  return true;
+}
+
+export async function renameTrack(trackId, newName) {
+  const files = getElectronFiles();
+  if (!files) throw new Error('File system IPC unavailable');
+  const metadata = await loadMetadata(trackId);
+  if (!metadata) throw new Error('Métadonnées introuvables');
+  metadata.name = newName;
+  await saveMetadata(trackId, metadata);
+  return true;
+}

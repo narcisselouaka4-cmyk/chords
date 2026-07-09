@@ -1,0 +1,20 @@
+{
+  "id": "note_E2",
+  "style": "note de basse tenue (synthétique)",
+  "audio": "tests/audio/bass_E2.wav",
+  "duration": 2.0,
+  "process_time": 0.163,
+  "rtf": 0.0815,
+  "has_ground_truth": false,
+  "metrics": null,
+  "segments": [
+    {
+      "startTime": 0.0,
+      "endTime": 1.9969,
+      "midi": 40,
+      "bass": "E",
+      "octave": 2,
+      "confidence": 0.895
+    }
+  ]
+}

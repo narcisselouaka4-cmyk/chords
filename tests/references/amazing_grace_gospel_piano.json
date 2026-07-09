@@ -1,0 +1,17 @@
+{
+  "title": "Amazing Grace - Gospel Piano",
+  "file": "/home/visiteur/Musique/”Amazing Grace” Gospel Piano.mp3",
+  "key": "G",
+  "bpm": 65,
+  "time_signature": "4/4",
+  "comparison_mode": "sequence",
+  "chords_in_order": [
+    "G/B", "Cm7", "G/D", "D7", "G", "G", "BØ", "C", "D7", "G",
+    "D/F#", "Em", "G/A", "A7(9)/C#", "D7sus4", "D7", "C/E", "D7/F#", "G", "C",
+    "G", "D/F#", "Em", "G/B", "Cm7", "G/D", "D7", "C/G", "G", "D/F#",
+    "Em", "Dm7", "G7", "C", "G", "D/F#", "Em", "F#°/E", "G/A", "A7(9)/C#",
+    "D7sus4", "D/C", "G/B", "D7/A", "Dm7/G", "C", "G/D", "Eb°", "Em", "G/D",
+    "C/G", "G", "G", "D/F#", "Em", "G/B", "Cm7", "G/D", "D7", "C",
+    "G/B", "Am7", "G"
+  ]
+}

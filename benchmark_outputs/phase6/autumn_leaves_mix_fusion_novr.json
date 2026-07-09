@@ -1,0 +1,703 @@
+{
+  "params": {
+    "candidates": "benchmark_outputs/phase6/autumn_leaves_mix_candidates.json",
+    "chords": "/home/visiteur/piano-jazz-chords/benchmark_outputs/chords_autumn_leaves_mix.json",
+    "fusion_params": [
+      {
+        "name": "bass_engine",
+        "weight": 1.0,
+        "class": "BassScore"
+      },
+      {
+        "name": "harmonic",
+        "weight": 0.6,
+        "class": "HarmonicScore"
+      },
+      {
+        "name": "octave",
+        "weight": 0.3,
+        "class": "OctaveScore"
+      },
+      {
+        "name": "continuity",
+        "weight": 0.4,
+        "class": "ContinuityScore"
+      },
+      {
+        "name": "chord_confidence",
+        "target": "harmonic",
+        "weight": 1.0,
+        "class": "ChordConfidenceMultiplier"
+      }
+    ]
+  },
+  "n_segments": 74,
+  "segments": [
+    {
+      "startTime": 0.0,
+      "endTime": 0.209,
+      "midi": 63,
+      "bass": "D#",
+      "octave": 4,
+      "note": "D#4",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 0.209,
+      "endTime": 0.464,
+      "midi": 45,
+      "bass": "A",
+      "octave": 2,
+      "note": "A2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 0.464,
+      "endTime": 0.627,
+      "midi": 60,
+      "bass": "C",
+      "octave": 4,
+      "note": "C4",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 0.627,
+      "endTime": 1.045,
+      "midi": 42,
+      "bass": "F#",
+      "octave": 2,
+      "note": "F#2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 1.138,
+      "endTime": 1.463,
+      "midi": 47,
+      "bass": "B",
+      "octave": 2,
+      "note": "B2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 1.463,
+      "endTime": 2.02,
+      "midi": 37,
+      "bass": "C#",
+      "octave": 2,
+      "note": "C#2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 2.02,
+      "endTime": 2.531,
+      "midi": 38,
+      "bass": "D",
+      "octave": 2,
+      "note": "D2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 2.67,
+      "endTime": 3.088,
+      "midi": 39,
+      "bass": "D#",
+      "octave": 2,
+      "note": "D#2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 3.088,
+      "endTime": 3.529,
+      "midi": 40,
+      "bass": "E",
+      "octave": 2,
+      "note": "E2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 3.529,
+      "endTime": 4.04,
+      "midi": 42,
+      "bass": "F#",
+      "octave": 2,
+      "note": "F#2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 4.04,
+      "endTime": 4.319,
+      "midi": 53,
+      "bass": "F",
+      "octave": 3,
+      "note": "F3",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 4.319,
+      "endTime": 4.574,
+      "midi": 43,
+      "bass": "G",
+      "octave": 2,
+      "note": "G2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 4.574,
+      "endTime": 5.039,
+      "midi": 42,
+      "bass": "F#",
+      "octave": 2,
+      "note": "F#2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 5.039,
+      "endTime": 5.526,
+      "midi": 53,
+      "bass": "F",
+      "octave": 3,
+      "note": "F3",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 5.526,
+      "endTime": 6.037,
+      "midi": 42,
+      "bass": "F#",
+      "octave": 2,
+      "note": "F#2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 6.037,
+      "endTime": 6.316,
+      "midi": 53,
+      "bass": "F",
+      "octave": 3,
+      "note": "F3",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 6.316,
+      "endTime": 6.571,
+      "midi": 43,
+      "bass": "G",
+      "octave": 2,
+      "note": "G2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 6.571,
+      "endTime": 6.78,
+      "midi": 53,
+      "bass": "F",
+      "octave": 3,
+      "note": "F3",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 6.78,
+      "endTime": 6.943,
+      "midi": 69,
+      "bass": "A",
+      "octave": 4,
+      "note": "A4",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 7.082,
+      "endTime": 7.43,
+      "midi": 45,
+      "bass": "A",
+      "octave": 2,
+      "note": "A2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 7.43,
+      "endTime": 8.522,
+      "midi": 36,
+      "bass": "C",
+      "octave": 2,
+      "note": "C2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 8.522,
+      "endTime": 9.033,
+      "midi": 37,
+      "bass": "C#",
+      "octave": 2,
+      "note": "C#2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 9.033,
+      "endTime": 9.613,
+      "midi": 38,
+      "bass": "D",
+      "octave": 2,
+      "note": "D2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 9.613,
+      "endTime": 10.031,
+      "midi": 40,
+      "bass": "E",
+      "octave": 2,
+      "note": "E2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 10.031,
+      "endTime": 10.449,
+      "midi": 41,
+      "bass": "F",
+      "octave": 2,
+      "note": "F2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 10.449,
+      "endTime": 10.635,
+      "midi": 60,
+      "bass": "C",
+      "octave": 4,
+      "note": "C4",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 10.635,
+      "endTime": 11.099,
+      "midi": 43,
+      "bass": "G",
+      "octave": 2,
+      "note": "G2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 11.099,
+      "endTime": 11.54,
+      "midi": 45,
+      "bass": "A",
+      "octave": 2,
+      "note": "A2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 11.54,
+      "endTime": 12.005,
+      "midi": 60,
+      "bass": "C",
+      "octave": 4,
+      "note": "C4",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 12.074,
+      "endTime": 12.539,
+      "midi": 53,
+      "bass": "F",
+      "octave": 3,
+      "note": "F3",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 12.539,
+      "endTime": 13.05,
+      "midi": 44,
+      "bass": "G#",
+      "octave": 2,
+      "note": "G#2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 13.05,
+      "endTime": 13.514,
+      "midi": 53,
+      "bass": "F",
+      "octave": 3,
+      "note": "F3",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 13.537,
+      "endTime": 14.211,
+      "midi": 39,
+      "bass": "D#",
+      "octave": 2,
+      "note": "D#2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 14.211,
+      "endTime": 14.652,
+      "midi": 38,
+      "bass": "D",
+      "octave": 2,
+      "note": "D2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 14.652,
+      "endTime": 15.0,
+      "midi": 41,
+      "bass": "F",
+      "octave": 2,
+      "note": "F2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 15.0,
+      "endTime": 15.557,
+      "midi": 42,
+      "bass": "F#",
+      "octave": 2,
+      "note": "F#2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 15.557,
+      "endTime": 16.022,
+      "midi": 44,
+      "bass": "G#",
+      "octave": 2,
+      "note": "G#2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 16.022,
+      "endTime": 16.208,
+      "midi": 63,
+      "bass": "D#",
+      "octave": 4,
+      "note": "D#4",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 16.208,
+      "endTime": 16.463,
+      "midi": 45,
+      "bass": "A",
+      "octave": 2,
+      "note": "A2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 16.463,
+      "endTime": 16.625,
+      "midi": 60,
+      "bass": "C",
+      "octave": 4,
+      "note": "C4",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 16.625,
+      "endTime": 17.043,
+      "midi": 42,
+      "bass": "F#",
+      "octave": 2,
+      "note": "F#2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 17.043,
+      "endTime": 17.508,
+      "midi": 39,
+      "bass": "D#",
+      "octave": 2,
+      "note": "D#2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 17.508,
+      "endTime": 18.019,
+      "midi": 37,
+      "bass": "C#",
+      "octave": 2,
+      "note": "C#2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 18.019,
+      "endTime": 18.53,
+      "midi": 38,
+      "bass": "D",
+      "octave": 2,
+      "note": "D2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 18.53,
+      "endTime": 18.739,
+      "midi": 36,
+      "bass": "C",
+      "octave": 2,
+      "note": "C2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 18.739,
+      "endTime": 18.947,
+      "midi": 45,
+      "bass": "A",
+      "octave": 2,
+      "note": "A2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 19.064,
+      "endTime": 19.528,
+      "midi": 40,
+      "bass": "E",
+      "octave": 2,
+      "note": "E2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 19.528,
+      "endTime": 20.039,
+      "midi": 42,
+      "bass": "F#",
+      "octave": 2,
+      "note": "F#2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 20.039,
+      "endTime": 20.317,
+      "midi": 53,
+      "bass": "F",
+      "octave": 3,
+      "note": "F3",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 20.317,
+      "endTime": 20.596,
+      "midi": 43,
+      "bass": "G",
+      "octave": 2,
+      "note": "G2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 20.596,
+      "endTime": 21.014,
+      "midi": 24,
+      "bass": "C",
+      "octave": 1,
+      "note": "C1",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 21.107,
+      "endTime": 21.409,
+      "midi": 53,
+      "bass": "F",
+      "octave": 3,
+      "note": "F3",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 21.502,
+      "endTime": 22.036,
+      "midi": 42,
+      "bass": "F#",
+      "octave": 2,
+      "note": "F#2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 22.036,
+      "endTime": 22.314,
+      "midi": 53,
+      "bass": "F",
+      "octave": 3,
+      "note": "F3",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 22.314,
+      "endTime": 22.593,
+      "midi": 43,
+      "bass": "G",
+      "octave": 2,
+      "note": "G2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 22.639,
+      "endTime": 22.965,
+      "midi": 36,
+      "bass": "C",
+      "octave": 2,
+      "note": "C2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 22.965,
+      "endTime": 23.545,
+      "midi": 37,
+      "bass": "C#",
+      "octave": 2,
+      "note": "C#2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 23.545,
+      "endTime": 24.52,
+      "midi": 36,
+      "bass": "C",
+      "octave": 2,
+      "note": "C2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 24.52,
+      "endTime": 25.054,
+      "midi": 37,
+      "bass": "C#",
+      "octave": 2,
+      "note": "C#2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 25.054,
+      "endTime": 25.612,
+      "midi": 38,
+      "bass": "D",
+      "octave": 2,
+      "note": "D2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 25.612,
+      "endTime": 26.03,
+      "midi": 40,
+      "bass": "E",
+      "octave": 2,
+      "note": "E2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 26.03,
+      "endTime": 26.471,
+      "midi": 41,
+      "bass": "F",
+      "octave": 2,
+      "note": "F2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 26.471,
+      "endTime": 26.633,
+      "midi": 36,
+      "bass": "C",
+      "octave": 2,
+      "note": "C2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 26.633,
+      "endTime": 27.098,
+      "midi": 43,
+      "bass": "G",
+      "octave": 2,
+      "note": "G2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 27.098,
+      "endTime": 27.539,
+      "midi": 45,
+      "bass": "A",
+      "octave": 2,
+      "note": "A2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 27.539,
+      "endTime": 28.003,
+      "midi": 60,
+      "bass": "C",
+      "octave": 4,
+      "note": "C4",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 28.073,
+      "endTime": 28.537,
+      "midi": 53,
+      "bass": "F",
+      "octave": 3,
+      "note": "F3",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 28.537,
+      "endTime": 29.048,
+      "midi": 44,
+      "bass": "G#",
+      "octave": 2,
+      "note": "G#2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 29.048,
+      "endTime": 29.513,
+      "midi": 53,
+      "bass": "F",
+      "octave": 3,
+      "note": "F3",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 29.536,
+      "endTime": 30.209,
+      "midi": 39,
+      "bass": "D#",
+      "octave": 2,
+      "note": "D#2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 30.209,
+      "endTime": 30.65,
+      "midi": 38,
+      "bass": "D",
+      "octave": 2,
+      "note": "D2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 30.65,
+      "endTime": 30.999,
+      "midi": 41,
+      "bass": "F",
+      "octave": 2,
+      "note": "F2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 30.999,
+      "endTime": 31.533,
+      "midi": 42,
+      "bass": "F#",
+      "octave": 2,
+      "note": "F#2",
+      "confidence": 1.0
+    },
+    {
+      "startTime": 31.533,
+      "endTime": 33.065,
+      "midi": 44,
+      "bass": "G#",
+      "octave": 2,
+      "note": "G#2",
+      "confidence": 1.0
+    }
+  ]
+}

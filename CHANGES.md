@@ -3,6 +3,304 @@
 > Ce fichier permet de savoir qui (OpenCode ou Claude) a modifié quoi et quand.
 > Règle : chaque intervention significative est documentée ici avec date, agent, fichiers touchés et description.
 
+## 2026-07-09 — OpenCode (Baseline officielle du moteur harmonique)
+
+**Objectif** : enrichir le moteur HMM (10 qualités, 109 états), stabiliser
+les sorties par régularisation post-Viterbi, et figer la baseline officielle.
+
+**Ce qui a été fait :**
+
+- `electron/audio-processor.py`
+  - Passage de 5 à 10 qualités d'accords (`CHORD_TEMPLATES_WEIGHTED`) :
+    ajout de `maj7`, `m7`, `dim`, `aug`, `m7b5`
+  - `_build_diatonic_roots()` : union de 3 variantes mineures (naturelle,
+    harmonique, mélodique)
+  - `_compute_observation_scores()` : score root-only, bonus diatonique +0.05
+  - `observation_candidates` + `viterbi_choice` dans la sortie JSON
+  - `ENABLE_CHORD_DOWNGRADE=False` (désactivé)
+  - `QUALITY_FAMILIES` (5 familles) + `_is_similar_quality()` pour la
+    régularisation
+  - `_build_transition_matrix()` : `same_root_similar` (qualité voisine =
+    −0.02, neutre)
+  - `_merge_similar_segments()` : fusion post-Viterbi des segments de même
+    fondamentale et qualité voisine
+
+- `scripts/test-analysis-diagnostic.js`
+  - Ajout de `sanitizeAudioPath()` (robustesse aux guillemets Unicode)
+  - Ajout de `HARMONIC_FAMILIES` + `toHarmonicKey()` + `computeChordsPerMeasure()`
+  - Ajout de `segmentsPerMinute` + `qualityCounts` dans les stats
+  - Flags `--save-pre=<path>` / `--benchmark-pre=<path>`
+  - Section `FINAL HARMONIC ENGINE BENCHMARK` + timeline comparative 15s
+
+- `docs/ARCHITECTURE.md` (création) — documentation complète du moteur,
+  de la baseline et de la commande de reproductibilité
+
+**Benchmark final — Amazing Grace Gospel Piano (72 BPM, 63 accords)**
+
+```
+Pipeline                   Score    Fond.    Segm.  Chg/m  Seg/min
+RAW enrichi (avant régul.)   21.2%   22.9%   231  5.45  112.5
+RAW + régularisation         27.7%   30.5%   175  4.72   85.2
+GRID_HALF + régul.           47.9%   52.1%    60  1.60   29.2
+```
+
+**Vérifications :**
+- `node --check scripts/test-analysis-diagnostic.js` OK
+- Benchmark reproductible via `--benchmark-pre=/tmp/pre_regul.json`
+- Moteur figé comme baseline officielle du projet
+
+---
+
+## 2026-07-08 — Claude (Diagnostic audio et corrections d'interface)
+
+**Objectif** : expliquer et corriger les mauvais résultats constatés sur un morceau réel (tempo à 152, accords incohérents) ; améliorer l'interface de l'onglet Analyse.
+
+**Diagnostic réalisé :**
+- Morceau test : `Track_006` du Studio (original en Sol majeur).
+- Analyse du **mix complet** : tonalité `G majeur`, tempo `152 BPM`, accords `G Bm Em Dsus4 D7 G F#m D7 D G Em G...`
+- Analyse du **piano isolé** (stem `piano.wav`) : tonalité `G majeur`, tempo `78.3 BPM`, accords `G C D7 G Gmaj7 G D F#m Em G Gsus4 G...`
+- Conclusion : le moteur n'est pas fondamentalement cassé. La densité du mix (batterie, voix, autres instruments) noie le chromagramme et double artificiellement le tempo perçu. La séparation source et la correction du tempo sont les leviers principaux.
+
+**Ce qui a été fait :**
+- `electron/audio-processor.py`
+  - Ajout de `_resolve_tempo(y, sr, detected_tempo)` : choisit entre `tempo/2`, `tempo` et `tempo*2` en maximisant l'alignement de la grille sur l'enveloppe d'onset.
+  - Pénalise les tempi en dehors de la plage musicale raisonnable (45–200 BPM) et désavantage légèrement le double pour favoriser la valeur réelle.
+  - Le mix testé passe ainsi de `152 BPM` à `76 BPM`, cohérent avec le piano isolé (`78.3 BPM`).
+
+- `electron/main.js`
+  - Ajout de `findStudioPianoStemForFile(filePath)` : si le fichier importé dans l'onglet Analyse correspond à un morceau déjà séparé dans le Studio, on analyse son stem `piano.wav` au lieu du mix complet.
+  - Le lecteur audio continue de jouer le mix original (`wavPath`), tandis que l'analyse utilise le stem (`analysisWavPath`).
+  - Retourne `usedPianoStem: true` quand ce mécanisme s'active.
+
+- `src/analyzer/audio-analyzer.js`
+  - Propagation des champs `analysisWavPath` et `usedPianoStem`.
+
+- `src/ui/analyzer-tab.js` / `src/index.html` / `src/style.css`
+  - Suppression des pourcentages de confiance dans le résumé (tonalité, alternatives, carte Confiance) : ils prêtaient à confusion.
+  - Ajout d'un badge "Analyse piano isolé" dans la carte Tonalité quand `usedPianoStem` est actif.
+  - Correction du clavier MIDI virtuel qui apparaissait "croqué" sur les onglets Analyse/Studio : le SVG force désormais `height: 100%` et `width: auto` avec `max-width: 100%`, évitant que le ratio du viewBox ne fasse déborder et couper les touches.
+
+**Vérifications :**
+- `npm run build` OK.
+- `node src/analyzer/test-regression-part1.js` OK.
+- `node src/chord-engine/test-regression-part3.js` OK.
+- Test Python : mix `Track_006` → `G majeur 76 BPM` ; piano isolé → `G majeur 78.3 BPM` avec progression diatonique nettement plus propre.
+
+## 2026-07-08 — Claude (Refonte UI de l'onglet Analyse au modèle Chordify)
+
+**Objectif** : reproduire l'interface Chordify observée dans la capture `Capture d’écran du 2026-07-08 03-22-47.png` : en-tête morceau, lecteur avec outils, timeline horizontale, mini-claviers par accord, onglets et panneau latéral d'informations.
+
+**Ce qui a été fait :**
+- `src/index.html`
+  - Remplacement de la structure précédente (cartes de résumé + timeline simple) par une interface complète :
+    - En-tête : titre du morceau, artiste/source, badge "Analyse piano isolé", bouton "Importer un autre fichier".
+    - Lecteur : transport (précédent, play/pause), barre de progression avec temps courant/total.
+    - Barre d'outils : compte à rebours, boucle, tempo, transposer, simplifier, accordeur.
+    - Timeline horizontale défilable avec gros blocs d'accords.
+    - Onglets : "Grille d'accords", "Aperçu des accords", "Accords & Paroles".
+    - Zone principale : grille de cartes d'accords avec mini-claviers.
+    - Panneau latéral droit : lecteur visuel (placeholder), détails de la chanson (tonalité, accords, BPM, signature, durée), morceaux similaires (placeholder).
+
+- `src/ui/analyzer-tab.js` (réécriture complète)
+  - Rendu de l'en-tête, du lecteur personnalisé, de la timeline, de la grille de mini-claviers et du panneau latéral.
+  - Calcul des notes d'un accord à partir de son nom texte pour générer les mini-claviers pédagogiques.
+  - Synchronisation temps : barre de progression, accord actif dans la timeline et dans la grille.
+  - Clic sur un accord (timeline ou grille) → saut à l'instant correspondant + lecture.
+  - Contrôles fonctionnels : lecture/pause, retour au début, tempo de lecture, boucle.
+  - Placeholders éducatifs pour compte à rebours, transposition globale, simplification et accordeur.
+
+- `src/style.css`
+  - Styles complets pour la nouvelle interface : en-tête, lecteur, outils, timeline, onglets, grille de cartes, mini-claviers, sidebar, responsive.
+  - Suppression des anciens styles `.analyzer-summary`, `.analyzer-timeline`, `.analyzer-chord-block`, `.analyzer-playhead`, etc.
+
+**Fonctionnalités volontairement en placeholder :**
+- Paroles synchronisées.
+- Aperçu audio individuel des accords.
+- Accordeur, transposition globale, simplification, compte à rebours.
+- Lecteur vidéo / visuel et suggestions de morceaux similaires.
+
+**Vérifications :**
+- `npm run build` OK.
+- `node src/analyzer/test-regression-part1.js` OK.
+- `node src/chord-engine/test-regression-part3.js` OK.
+
+## 2026-07-08 — Claude (Refonte du moteur d'analyse audio – HMM + contexte harmonique)
+
+**Objectif** : obtenir une détection d'accords fiable (tonalité, triades, 7/maj7/sus si confiance élevée, timing) pour l'onglet Analyse, et empêcher l'entrée MIDI de perturber la lecture audio.
+
+**Ce qui a été fait :**
+- `electron/audio-processor.py`
+  - Remplacement du template-matching frame par frame par un décodeur **HMM + chromagramme beat-synchrone**.
+  - Prétraitement : séparation harmonique/percussive (`librosa.effects.hpss`) et chroma CQT.
+  - Détection des beats réels, tempo moyen robuste (médiane des inter-beat intervals) et signature rythmique conservée.
+  - Tonalité par profils Krumhansl-Schmuckler, avec liste des candidates ordonnées.
+  - Vocabulaire strict d'accords : majeur, mineur, 7, maj7, sus2, sus4 — pas de 9/11/13/altérations.
+  - Matrice de transition privilégiant la stabilité, les mouvements naturels (quinte, ton voisin) et les degrés diatoniques.
+  - Décodage Viterbi pour corriger les erreurs isolées et produire des progressions cohérentes.
+  - Post-traitement : suppression des silences/segments très courts, fusion des répétitions, downgrade conditionnel des accords avancés vers la triade simple si la confiance n'est pas nette.
+  - Sortie enrichie : `keyMode`, `keyCandidates`.
+
+- `src/analyzer/audio-analyzer.js`
+  - Normalisation des nouveaux champs `keyMode` et `keyCandidates`.
+
+- `src/ui/analyzer-tab.js` / `src/index.html` / `src/style.css`
+  - Affichage de la tonalité principale avec confiance (`G majeur 96 %`).
+  - Affichage des alternatives (`Em mineur 78 %`, etc.) sous la carte Tonalité.
+  - Styles pour les pastilles d'alternatives.
+
+- `src/main.js`
+  - Différé de `refreshChord` (80 ms) et du callback du `noteGrouper` (50 ms) pour ne pas bloquer le thread principal.
+  - Cela garantit que le défilement de la timeline de l'onglet Analyse reste fluide quand on joue sur le clavier MIDI.
+
+**Fonctionnalités volontairement absentes :**
+- Accords enrichis (9, 11, 13), altérations, rootless, polychords, upper structures, substitutions, réharmonisation.
+- IA, scores, voice leading, analyses pédagogiques.
+
+**Vérifications :**
+- `npm run build` OK.
+- `node src/analyzer/test-regression-part1.js` OK.
+- `node src/chord-engine/test-regression-part3.js` OK.
+- Test Python sur progression synthétique `C – Am – F – G` : tonalité `C majeur`, accords correctement détectés.
+
+## 2026-07-08 — Claude (Refonte du module Analyse – Étape 2 : fiabilité et interface horizontale)
+
+**Objectif** : rendre le module Analyse fiable, lisible et agréable à utiliser : pipeline d'analyse logique, informations globales affichées, détection contextuelle des accords principaux, timeline horizontale synchronisée.
+
+**Ce qui a été fait :**
+- `electron/audio-processor.py`
+  - Pipeline d'analyse réorganisé : extraction → tempo → signature estimée → tonalité → segmentation → accords principaux contextualisés.
+  - Détection du tempo avec `librosa.beat.beat_track` (wrapper robuste aux versions de librosa).
+  - Estimation de la signature rythmique par autocorrélation des beats (3/4 vs 4/4, fallback 4/4).
+  - Détection de la tonalité par profils Krumhansl-Schmuckler pondérés par l'énergie.
+  - Templates restreints aux accords diatoniques de la tonalité + emprunts modaux courants (bVI, bVII, V/V).
+  - Suppression du template `maj7` : seuls majeur, mineur, 7 et m7 sont détectés à cette étape.
+  - Lissage temporel par vote majoritaire et fusion des segments très courts.
+  - Format de sortie enrichi : `{ duration, tempo, timeSignature, key, keyConfidence, confidence, chords: [ChordEvent] }`.
+
+- `electron/main.js`
+  - Handler IPC `analyzer:process-file` propagates désormais tous les champs globaux (tempo, signature, tonalité, confiances).
+
+- `src/analyzer/audio-analyzer.js`
+  - `TemplateAudioAnalyzer` normalise les nouveaux champs globaux.
+  - Les champs réservés aux futures évolutions (`analysis`, `techniques`, `suggestions`, `reharmonizations`, `voiceLeading`) restent vides.
+
+- `src/ui/analyzer-tab.js`
+  - Affichage d'un résumé global : tonalité, tempo, signature, confiance.
+  - Timeline horizontale avec blocs d'accords proportionnels à leur durée.
+  - Tête de lecture et auto-scroll synchronisés avec la lecture audio.
+  - Clic sur un accord → saut à cet instant.
+  - Lecteur audio conservé : play/pause natifs + bouton Stop + sélecteur de vitesse.
+
+- `src/index.html`
+  - Ajout de la carte de résumé global et de la structure de timeline horizontale.
+
+- `src/style.css`
+  - Styles pour le résumé, la timeline horizontale, les blocs d'accords, la tête de lecture et les contrôles du lecteur.
+
+**Fonctionnalités volontairement absentes de cette étape :**
+- Accords enrichis, voicings, accords de passage, substitutions, tensions, réharmonisations.
+- IA, scores, voice leading, techniques détectées, commentaires pédagogiques.
+
+**Vérifications :**
+- `npm run build` OK.
+- `node src/analyzer/test-regression-part1.js` OK.
+- `node src/chord-engine/test-regression-part3.js` OK.
+- Test Python sur fichier synthétique : tonalité, tempo, signature et accords principaux retournés.
+
+## 2026-07-08 — Claude (Refonte du module Analyse – Étape 1 : réduction de périmètre)
+
+**Objectif** : transformer l'onglet Analyse en un outil simple et fiable : import fichier → analyse automatique → grille d'accords synchronisée avec la lecture.
+
+**Fonctionnalités supprimées de l'onglet Analyse pour cette étape :**
+- Sessions MIDI (enregistrement, liste, transport)
+- Réharmonisation, suggestions IA, Masterclass
+- Scores, voice leading, analyses pédagogiques
+- Onglets internes Accords / Analyse / Masterclass
+
+- `electron/audio-processor.py`
+  - Nouvelle commande `analyze-chords` : calcule un chromagramme avec `librosa`, applique un template matching sur les accords de base (majeur, mineur, 7, maj7, m7), segmente dans le temps et retourne une grille `{ duration, chords: [{ startTime, endTime, chord, confidence }] }`.
+  - C'est un moteur volontairement simple, conçu pour être remplacé par un modèle plus avancé plus tard.
+
+- `electron/main.js`
+  - Nouvel handler IPC `analyzer:process-file` : extrait la piste audio du fichier importé, lance `analyze-chords`, retourne `{ wavPath, duration, chords }`.
+
+- `electron/preload.cjs`
+  - Exposition de `window.electronAPI.analyzer.processFile(filePath)`.
+
+- `src/analyzer/audio-analyzer.js` (création)
+  - Abstraction `AudioAnalyzer` avec implémentation `TemplateAudioAnalyzer`.
+  - Normalise les résultats dans le format extensible demandé (`analysis`, `suggestions`, `reharmonizations`, `voiceLeading`, `techniques` vides pour l'instant).
+
+- `src/audio/media-engine.js` (création)
+  - Service audio partagé minimal : `selectMediaFile()`, `isSupportedMediaFile()`, `createAudioPlayer(container, blobUrl, callbacks)`.
+  - Prévu pour évoluer vers un moteur commun avec le Studio.
+
+- `src/ui/analyzer-tab.js` (refonte complète)
+  - Écran d'accueil : "Importer un fichier" avec formats acceptés (MP3, WAV, MP4, M4A).
+  - Workflow automatique : import → extraction → analyse → affichage.
+  - Affichage d'une grille verticale d'accords avec temps, nom et confiance.
+  - Lecteur audio synchronisé : accord courant mis en évidence, clic sur un accord = saut à ce moment.
+  - Lecture du WAV via blob URL (le lecteur HTML5 ne peut pas lire directement les chemins /tmp).
+
+- `src/index.html`
+  - Suppression de la structure complexe de l'ancien onglet Analyse (sidebar sessions, transport MIDI, sous-onglets).
+  - Nouvelle structure minimale : écran d'import + résultats (lecteur + timeline).
+
+- `src/style.css`
+  - Styles pour l'onglet Analyse simplifié : carte d'import, grille d'accords, lecteur, état actif.
+
+- `src/main.js`
+  - Remplacement de `initRecordingTab` par `initAnalyzerTab`.
+  - Suppression des appels à `feedRecorderNoteOn/Off/Sustain/PitchWheel/ModWheel` et `setRecordingNotation`.
+  - Adaptation de `switchToTab` pour afficher l'onglet Analyse en `flex`.
+
+- Vérifications
+  - `npm run build` OK.
+  - `node src/analyzer/test-regression-part1.js` OK.
+  - `node src/chord-engine/test-regression-part3.js` OK.
+  - Test réel d'analyse audio : à valider manuellement.
+
+## 2026-07-07 — Claude (Correctifs Studio : permission capture + CSP + son d'enregistrement)
+
+- `src/audio/simple-synth.js`
+  - Remplacement de la `MediaStreamDestination` unique par un **bus de sortie permanent** (`synthOutput`, un `GainNode`). Toutes les notes jouées passent par ce bus.
+  - `getMediaStream()` crée désormais une `MediaStreamDestination` temporaire branchée sur `synthOutput` au moment de l'appel : toutes les notes jouées pendant l'enregistrement sont capturées, y compris celles qui démarrent après le début de l'enregistrement.
+  - Ajout de `connectOutput(destination)` pour brancher le bus du synthé sur une destination externe (utilisé par le Studio).
+
+- `src/ui/studio-tab.js`
+  - `ensureStudioAudioContext()` partage désormais le même `AudioContext` que le synthétiseur (`getAudioContext()`) au lieu d'en créer un second.
+  - `startCapture()` attend explicitement le resume du contexte audio partagé avant de créer les `MediaStreamDestination`.
+  - Toutes les sources audio sont maintenant mixées dans une **seule** `MediaStreamDestination` d'enregistrement :
+    - sortie du lecteur principal (`studioDestination`) ;
+    - sortie du mixer de stems (`mixer.getDestination()`) ;
+    - sortie du synthétiseur global (`connectSynthOutput`).
+    Cela évite les problèmes de synchronisation entre plusieurs pistes audio dans `MediaRecorder`.
+
+- `electron/main.js`
+  - `studio:get-screen-source-id` utilise désormais `mainWindow.getMediaSourceId()` pour obtenir l'ID fiable de la fenêtre de l'application.
+  - Suppression de la recherche par titre dans `desktopCapturer.getSources()`, cause de l'erreur "Source d'écran introuvable".
+  - Ajout d'un `setPermissionRequestHandler` sur la session de la fenêtre principale : autorise automatiquement les requêtes `media`, `display-capture` et `clipboard-sanitized-write` provenant de la fenêtre de l'application elle-même. Corrige le `NotAllowedError: Permission denied` au lancement de `navigator.mediaDevices.getUserMedia({ chromeMediaSource: 'desktop' })`.
+
+- `src/index.html`
+  - CSP (Content-Security-Policy) générée dynamiquement : `unsafe-eval` autorisé seulement en développement pour Vite HMR, supprimé en production. L'avertissement Electron Security Warning (Insecure Content-Security-Policy) ne doit plus apparaître une fois l'application packagée.
+
+- `src/audio/simple-synth.js`
+  - Ajout d'une `MediaStreamDestination` partagée (`synthDestination`) connectée à la sortie du synthétiseur.
+  - Export de `getMediaStream()` pour récupérer le flux audio du synthé.
+
+- `src/ui/studio-tab.js`
+  - Import de `getMediaStream` depuis `simple-synth.js`.
+  - Le `MediaRecorder` du Studio mixe désormais :
+    - la vidéo de la fenêtre (desktopCapturer),
+    - l'audio du graphe Studio (`studioAudioCtx`),
+    - l'audio du synthétiseur global (clavier MIDI / virtuel de l'onglet Entraînement).
+
+- Vérifications
+  - `npm run build` OK.
+  - `node src/analyzer/test-regression-part1.js` OK.
+  - `node src/chord-engine/test-regression-part3.js` OK.
+  - Test réel d'enregistrement avec son MIDI : à valider manuellement (pas de serveur graphier dans l'environnement de cette session).
+
 ## Convention de commentaires dans le code
 
 Pour les modifications non triviales, ajouter un commentaire court au-dessus du bloc concerné :
