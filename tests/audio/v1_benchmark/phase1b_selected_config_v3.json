@@ -1,0 +1,87 @@
+{
+  "status": "CALIBRATED_ON_DEV_ONLY_WITH_EXACT_CHORD_METRIC",
+  "supersedes": "phase1b_selected_config_v2.json",
+  "superseded_hash": "575786c006ac749e9f75c030c08673d4",
+  "validation_accessed": false,
+  "tonal_component_status": "NOT_EVALUABLE",
+  "tonal_component_reason": "key_context unavailable in DEV fixtures",
+  "historical_production_baseline_evaluated": true,
+  "historical_production_baseline_note": "Called via scripts/historical_baseline.py \u2192 audio-processor.py private functions. Comparison limited by vocabulary gap and argmax-only (no Viterbi for single chroma).",
+  "selection_primary_metric": "exact_chord_t1",
+  "benchmark_bug_correction": "Previous ablation A1/A2 inherited bass_weight=0.0 / tonal_weight=0.0 from selected config, making all configurations identical. A1_BASS now tests each non-zero bass_weight separately. A2_TONAL and FULL_NEUTRAL are NOT_EVALUABLE. Selection primary metric changed from quality_t1 to exact_chord_t1.",
+  "selected_parameters": {
+    "delta_gate": 0.04,
+    "bass_weight": 0.1,
+    "tonal_weight": 0.0,
+    "no5_cost": 0.02,
+    "rootless_cost": 0.04,
+    "shell_cost": 0.02
+  },
+  "search_space": {
+    "delta_gate": [
+      0.04,
+      0.06,
+      0.08,
+      0.1,
+      0.12
+    ],
+    "bass_weight": [
+      0.0,
+      0.1,
+      0.2,
+      0.25,
+      0.3
+    ],
+    "tonal_weight": [
+      0.0,
+      0.05,
+      0.1,
+      0.15
+    ],
+    "no5_cost": [
+      0.02,
+      0.04,
+      0.06
+    ],
+    "rootless_cost": [
+      0.04,
+      0.06,
+      0.08,
+      0.1
+    ],
+    "shell_cost": [
+      0.02,
+      0.04,
+      0.06
+    ]
+  },
+  "selection_rule": {
+    "primary": "maximize exact_chord_t1 EMG-DEV mean",
+    "constraints": [
+      "root_t1 >= baseline - 2pts",
+      "exact_chord_t1 >= baseline - 2pts",
+      "false_enrich_rate <= 15%",
+      "max_candidates <= 12",
+      "no profile non-neutral used"
+    ],
+    "tiebreak": [
+      "median partition exact_chord_t1",
+      "worst partition exact_chord_t1",
+      "quality_t1 EMG-DEV mean",
+      "root_t1 EMG-DEV mean",
+      "lowest false_enrich_rate",
+      "lowest contextual weights",
+      "lowest CPU"
+    ]
+  },
+  "dev_group_emg_dev_results": {
+    "n_partitions": 11,
+    "n_groups": 11,
+    "n_fixtures": 29
+  },
+  "seed": 20260711,
+  "code_hashes": {
+    "electron/harmony_engine/scoring.py": "ca9d3bd5384722ba0f426d5c9d73487b",
+    "electron/harmony_engine/structured_v1.py": "61aa2df908d7526909a7be1403770c0a"
+  }
+}

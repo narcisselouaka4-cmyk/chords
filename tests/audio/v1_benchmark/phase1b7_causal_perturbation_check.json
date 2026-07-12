@@ -1,0 +1,26 @@
+{
+  "experiment": "causal_perturbation_test",
+  "procedure": "Modified fixture[0] prediction in a COPY of structured predictions. Historical baseline not recomputed.",
+  "pre_perturbation_metrics": {
+    "root_t1": 0.931,
+    "exact_chord_t1": 0.4828
+  },
+  "perturbed_fixture": {
+    "fixture_id": "complete_C",
+    "original_prediction": "C:",
+    "perturbed_prediction": "PERTURBED_FOR_TEST"
+  },
+  "post_perturbation_metrics_structured": {
+    "root_t1": 0.8966,
+    "exact_chord_t1": 0.4483
+  },
+  "historical_baseline_unchanged": true,
+  "historical_baseline_metrics": {
+    "root_t1": 0.931,
+    "exact_chord_t1": 0.931
+  },
+  "historical_baseline_hash": "8fedff9ef275651756899cd6ca916d6e",
+  "original_tables_hash_dev": "d07080a793b8c2256d7bf27194a9778d",
+  "original_tables_hash_inv": "cfea2a471ba183280a7059f3eda69ef3",
+  "original_tables_unchanged": true
+}

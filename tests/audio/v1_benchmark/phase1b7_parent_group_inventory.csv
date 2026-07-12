@@ -1,0 +1,30 @@
+fixture_id,parent_group_id,root,quality,triad,seventh,voicing_type,bass_pc,comment
+complete_C,"root=0, quality=major",0,,major,none,complete,0,C complete voicing
+complete_Cm,"root=0, quality=m",0,m,minor,none,complete,0,Cm complete voicing
+complete_C7,"root=0, quality=7",0,7,major,b7,complete,0,C7 complete voicing
+complete_Cmaj7,"root=0, quality=maj7",0,maj7,major,maj7,complete,0,Cmaj7 complete voicing
+complete_Csus2,"root=0, quality=sus2",0,sus2,sus2,none,complete,0,Csus2 complete voicing
+complete_Csus4,"root=0, quality=sus4",0,sus4,sus4,none,complete,0,Csus4 complete voicing
+complete_Cm7,"root=0, quality=m7",0,m7,minor,b7,complete,0,Cm7 complete voicing
+complete_Cdim,"root=0, quality=dim",0,dim,dim,none,complete,0,Cdim complete voicing
+complete_Cm7b5,"root=0, quality=m7b5",0,m7b5,dim,b7,complete,0,Cm7b5 complete voicing
+no5_C7,"root=0, quality=7",0,7,major,b7,no5,0,C7 no fifth
+rootless_Cmaj7,"root=0, quality=maj7",0,maj7,major,maj7,rootless,0,Cmaj7 rootless (bass supplies root)
+shell_Cmaj7,"root=0, quality=maj7",0,maj7,major,maj7,shell,0,Cmaj7 shell voicing
+shell_G7,"root=7, quality=7",7,7,major,b7,shell,7,G7 shell voicing
+inv_C_bassE,"root=0, quality=major",0,,major,none,inversion,4,"C inversion, bass=E"
+inv_G7_bassD,"root=7, quality=7",7,7,major,b7,inversion,2,"G7 inversion, bass=D"
+foreign_C_noteF#,"root=0, quality=major",0,,major,none,foreign_melody,0,C with foreign note F#
+spread_Cmaj7,"root=0, quality=maj7",0,maj7,major,maj7,temporal_spread,0,Cmaj7 temporally spread
+spread_Dm7b5,"root=2, quality=m7b5",2,m7b5,dim,b7,temporal_spread,2,Dm7b5 temporally spread
+conf_major_vs_maj7_clean,"root=0, quality=major",0,,major,none,complete,0,C major -> seventh=none expected
+conf_maj7_clean,"root=0, quality=maj7",0,maj7,major,maj7,complete,0,Cmaj7 -> seventh=maj7 expected
+conf_major_vs_sus2,"root=0, quality=major",0,,major,none,complete,0,"C major -> triad=major, sus2 FALSE"
+conf_sus2_clean,"root=0, quality=sus2",0,sus2,sus2,none,complete,0,Csus2 -> triad=sus2 expected
+conf_sus4_clean,"root=0, quality=sus4",0,sus4,sus4,none,complete,0,Csus4 -> triad=sus4 expected
+invariant_order_G7_a,"root=7, quality=7",7,7,major,b7,complete,7,G7 insertion order test a
+invariant_order_G7_b,"root=7, quality=7",7,7,major,b7,complete,7,G7 insertion order test b (identical chroma)
+invariant_major_third_4,"root=0, quality=major",0,,major,none,complete,0,C major -> third uses interval 4
+invariant_minor_third_3,"root=0, quality=m",0,m,minor,none,complete,0,C minor -> third uses interval 3
+rootless_bass5th_Cmaj7,"root=0, quality=maj7",0,maj7,major,maj7,rootless,7,Cmaj7 rootless with bass=G (5th)
+foreign_Fsharp_in_C,"root=0, quality=major",0,,major,none,foreign_melody,0,C major with F# foreign -> F# NOT in expected_pcs

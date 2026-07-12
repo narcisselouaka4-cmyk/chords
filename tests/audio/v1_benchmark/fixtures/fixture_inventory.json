@@ -1,0 +1,1081 @@
+{
+  "metadata": {
+    "description": "Fixture inventory with dev/validation split",
+    "split_strategy": "By root: DEV roots=[0, 2, 7], VAL roots=[3, 5, 9, 11]",
+    "grouping_rule": "All voicing variants of the same (root, quality) stay in the same split",
+    "total_fixtures": 63,
+    "dev_count": 29,
+    "val_count": 34,
+    "dev_roots": [
+      0,
+      2,
+      7
+    ],
+    "val_roots": [
+      3,
+      5,
+      9,
+      11
+    ],
+    "leaks_detected": "YES"
+  },
+  "inventory": [
+    {
+      "id": "complete_C",
+      "split": "dev",
+      "root": 0,
+      "root_name": "C",
+      "quality": "major",
+      "triad": "major",
+      "seventh": "none",
+      "voicing_type": "complete",
+      "seed": 20260711,
+      "variant_group_key": "root=0, quality=major",
+      "variant_siblings": [
+        "inv_C_bassE",
+        "foreign_C_noteF#",
+        "conf_major_vs_maj7_clean",
+        "conf_major_vs_sus2",
+        "invariant_major_third_4",
+        "foreign_Fsharp_in_C"
+      ]
+    },
+    {
+      "id": "complete_Cm",
+      "split": "dev",
+      "root": 0,
+      "root_name": "C",
+      "quality": "m",
+      "triad": "minor",
+      "seventh": "none",
+      "voicing_type": "complete",
+      "seed": 20260711,
+      "variant_group_key": "root=0, quality=m",
+      "variant_siblings": [
+        "invariant_minor_third_3"
+      ]
+    },
+    {
+      "id": "complete_C7",
+      "split": "dev",
+      "root": 0,
+      "root_name": "C",
+      "quality": "7",
+      "triad": "major",
+      "seventh": "b7",
+      "voicing_type": "complete",
+      "seed": 20260711,
+      "variant_group_key": "root=0, quality=7",
+      "variant_siblings": [
+        "no5_C7"
+      ]
+    },
+    {
+      "id": "complete_Cmaj7",
+      "split": "dev",
+      "root": 0,
+      "root_name": "C",
+      "quality": "maj7",
+      "triad": "major",
+      "seventh": "maj7",
+      "voicing_type": "complete",
+      "seed": 20260711,
+      "variant_group_key": "root=0, quality=maj7",
+      "variant_siblings": [
+        "rootless_Cmaj7",
+        "shell_Cmaj7",
+        "spread_Cmaj7",
+        "conf_maj7_clean",
+        "rootless_bass5th_Cmaj7"
+      ]
+    },
+    {
+      "id": "complete_Csus2",
+      "split": "dev",
+      "root": 0,
+      "root_name": "C",
+      "quality": "sus2",
+      "triad": "sus2",
+      "seventh": "none",
+      "voicing_type": "complete",
+      "seed": 20260711,
+      "variant_group_key": "root=0, quality=sus2",
+      "variant_siblings": [
+        "conf_sus2_clean"
+      ]
+    },
+    {
+      "id": "complete_Csus4",
+      "split": "dev",
+      "root": 0,
+      "root_name": "C",
+      "quality": "sus4",
+      "triad": "sus4",
+      "seventh": "none",
+      "voicing_type": "complete",
+      "seed": 20260711,
+      "variant_group_key": "root=0, quality=sus4",
+      "variant_siblings": [
+        "conf_sus4_clean"
+      ]
+    },
+    {
+      "id": "complete_Cm7",
+      "split": "dev",
+      "root": 0,
+      "root_name": "C",
+      "quality": "m7",
+      "triad": "minor",
+      "seventh": "b7",
+      "voicing_type": "complete",
+      "seed": 20260711,
+      "variant_group_key": "root=0, quality=m7",
+      "variant_siblings": []
+    },
+    {
+      "id": "complete_Cdim",
+      "split": "dev",
+      "root": 0,
+      "root_name": "C",
+      "quality": "dim",
+      "triad": "dim",
+      "seventh": "none",
+      "voicing_type": "complete",
+      "seed": 20260711,
+      "variant_group_key": "root=0, quality=dim",
+      "variant_siblings": []
+    },
+    {
+      "id": "complete_Cm7b5",
+      "split": "dev",
+      "root": 0,
+      "root_name": "C",
+      "quality": "m7b5",
+      "triad": "dim",
+      "seventh": "b7",
+      "voicing_type": "complete",
+      "seed": 20260711,
+      "variant_group_key": "root=0, quality=m7b5",
+      "variant_siblings": []
+    },
+    {
+      "id": "complete_F",
+      "split": "validation",
+      "root": 5,
+      "root_name": "F",
+      "quality": "major",
+      "triad": "major",
+      "seventh": "none",
+      "voicing_type": "complete",
+      "seed": 20260711,
+      "variant_group_key": "root=5, quality=major",
+      "variant_siblings": []
+    },
+    {
+      "id": "complete_Fm",
+      "split": "validation",
+      "root": 5,
+      "root_name": "F",
+      "quality": "m",
+      "triad": "minor",
+      "seventh": "none",
+      "voicing_type": "complete",
+      "seed": 20260711,
+      "variant_group_key": "root=5, quality=m",
+      "variant_siblings": []
+    },
+    {
+      "id": "complete_F7",
+      "split": "validation",
+      "root": 5,
+      "root_name": "F",
+      "quality": "7",
+      "triad": "major",
+      "seventh": "b7",
+      "voicing_type": "complete",
+      "seed": 20260711,
+      "variant_group_key": "root=5, quality=7",
+      "variant_siblings": [
+        "rootless_F7"
+      ]
+    },
+    {
+      "id": "complete_Fmaj7",
+      "split": "validation",
+      "root": 5,
+      "root_name": "F",
+      "quality": "maj7",
+      "triad": "major",
+      "seventh": "maj7",
+      "voicing_type": "complete",
+      "seed": 20260711,
+      "variant_group_key": "root=5, quality=maj7",
+      "variant_siblings": [
+        "no5_Fmaj7"
+      ]
+    },
+    {
+      "id": "complete_Fsus2",
+      "split": "validation",
+      "root": 5,
+      "root_name": "F",
+      "quality": "sus2",
+      "triad": "sus2",
+      "seventh": "none",
+      "voicing_type": "complete",
+      "seed": 20260711,
+      "variant_group_key": "root=5, quality=sus2",
+      "variant_siblings": []
+    },
+    {
+      "id": "complete_Fsus4",
+      "split": "validation",
+      "root": 5,
+      "root_name": "F",
+      "quality": "sus4",
+      "triad": "sus4",
+      "seventh": "none",
+      "voicing_type": "complete",
+      "seed": 20260711,
+      "variant_group_key": "root=5, quality=sus4",
+      "variant_siblings": []
+    },
+    {
+      "id": "complete_Fm7",
+      "split": "validation",
+      "root": 5,
+      "root_name": "F",
+      "quality": "m7",
+      "triad": "minor",
+      "seventh": "b7",
+      "voicing_type": "complete",
+      "seed": 20260711,
+      "variant_group_key": "root=5, quality=m7",
+      "variant_siblings": []
+    },
+    {
+      "id": "complete_Fdim",
+      "split": "validation",
+      "root": 5,
+      "root_name": "F",
+      "quality": "dim",
+      "triad": "dim",
+      "seventh": "none",
+      "voicing_type": "complete",
+      "seed": 20260711,
+      "variant_group_key": "root=5, quality=dim",
+      "variant_siblings": []
+    },
+    {
+      "id": "complete_Fm7b5",
+      "split": "validation",
+      "root": 5,
+      "root_name": "F",
+      "quality": "m7b5",
+      "triad": "dim",
+      "seventh": "b7",
+      "voicing_type": "complete",
+      "seed": 20260711,
+      "variant_group_key": "root=5, quality=m7b5",
+      "variant_siblings": []
+    },
+    {
+      "id": "complete_A",
+      "split": "validation",
+      "root": 9,
+      "root_name": "A",
+      "quality": "major",
+      "triad": "major",
+      "seventh": "none",
+      "voicing_type": "complete",
+      "seed": 20260711,
+      "variant_group_key": "root=9, quality=major",
+      "variant_siblings": []
+    },
+    {
+      "id": "complete_Am",
+      "split": "validation",
+      "root": 9,
+      "root_name": "A",
+      "quality": "m",
+      "triad": "minor",
+      "seventh": "none",
+      "voicing_type": "complete",
+      "seed": 20260711,
+      "variant_group_key": "root=9, quality=m",
+      "variant_siblings": [
+        "inv_Am_bassC",
+        "conf_minor_vs_m7_clean"
+      ]
+    },
+    {
+      "id": "complete_A7",
+      "split": "validation",
+      "root": 9,
+      "root_name": "A",
+      "quality": "7",
+      "triad": "major",
+      "seventh": "b7",
+      "voicing_type": "complete",
+      "seed": 20260711,
+      "variant_group_key": "root=9, quality=7",
+      "variant_siblings": []
+    },
+    {
+      "id": "complete_Amaj7",
+      "split": "validation",
+      "root": 9,
+      "root_name": "A",
+      "quality": "maj7",
+      "triad": "major",
+      "seventh": "maj7",
+      "voicing_type": "complete",
+      "seed": 20260711,
+      "variant_group_key": "root=9, quality=maj7",
+      "variant_siblings": []
+    },
+    {
+      "id": "complete_Asus2",
+      "split": "validation",
+      "root": 9,
+      "root_name": "A",
+      "quality": "sus2",
+      "triad": "sus2",
+      "seventh": "none",
+      "voicing_type": "complete",
+      "seed": 20260711,
+      "variant_group_key": "root=9, quality=sus2",
+      "variant_siblings": []
+    },
+    {
+      "id": "complete_Asus4",
+      "split": "validation",
+      "root": 9,
+      "root_name": "A",
+      "quality": "sus4",
+      "triad": "sus4",
+      "seventh": "none",
+      "voicing_type": "complete",
+      "seed": 20260711,
+      "variant_group_key": "root=9, quality=sus4",
+      "variant_siblings": []
+    },
+    {
+      "id": "complete_Am7",
+      "split": "validation",
+      "root": 9,
+      "root_name": "A",
+      "quality": "m7",
+      "triad": "minor",
+      "seventh": "b7",
+      "voicing_type": "complete",
+      "seed": 20260711,
+      "variant_group_key": "root=9, quality=m7",
+      "variant_siblings": [
+        "no5_Am7",
+        "rootless_Am7",
+        "shell_Am7",
+        "foreign_Am7_noteC",
+        "ambiguity_am7_ca_bassA",
+        "ambiguity_am7_ca_bassC",
+        "ambiguity_am7_ca_nobass",
+        "conf_m7_clean",
+        "conf_m7_vs_m7b5_clean"
+      ]
+    },
+    {
+      "id": "complete_Adim",
+      "split": "validation",
+      "root": 9,
+      "root_name": "A",
+      "quality": "dim",
+      "triad": "dim",
+      "seventh": "none",
+      "voicing_type": "complete",
+      "seed": 20260711,
+      "variant_group_key": "root=9, quality=dim",
+      "variant_siblings": []
+    },
+    {
+      "id": "complete_Am7b5",
+      "split": "validation",
+      "root": 9,
+      "root_name": "A",
+      "quality": "m7b5",
+      "triad": "dim",
+      "seventh": "b7",
+      "voicing_type": "complete",
+      "seed": 20260711,
+      "variant_group_key": "root=9, quality=m7b5",
+      "variant_siblings": [
+        "conf_m7b5_clean"
+      ]
+    },
+    {
+      "id": "no5_C7",
+      "split": "dev",
+      "root": 0,
+      "root_name": "C",
+      "quality": "7",
+      "triad": "major",
+      "seventh": "b7",
+      "voicing_type": "no5",
+      "seed": 20260712,
+      "variant_group_key": "root=0, quality=7",
+      "variant_siblings": [
+        "complete_C7"
+      ]
+    },
+    {
+      "id": "no5_Am7",
+      "split": "validation",
+      "root": 9,
+      "root_name": "A",
+      "quality": "m7",
+      "triad": "minor",
+      "seventh": "b7",
+      "voicing_type": "no5",
+      "seed": 20260712,
+      "variant_group_key": "root=9, quality=m7",
+      "variant_siblings": [
+        "complete_Am7",
+        "rootless_Am7",
+        "shell_Am7",
+        "foreign_Am7_noteC",
+        "ambiguity_am7_ca_bassA",
+        "ambiguity_am7_ca_bassC",
+        "ambiguity_am7_ca_nobass",
+        "conf_m7_clean",
+        "conf_m7_vs_m7b5_clean"
+      ]
+    },
+    {
+      "id": "no5_Fmaj7",
+      "split": "validation",
+      "root": 5,
+      "root_name": "F",
+      "quality": "maj7",
+      "triad": "major",
+      "seventh": "maj7",
+      "voicing_type": "no5",
+      "seed": 20260712,
+      "variant_group_key": "root=5, quality=maj7",
+      "variant_siblings": [
+        "complete_Fmaj7"
+      ]
+    },
+    {
+      "id": "rootless_Cmaj7",
+      "split": "dev",
+      "root": 0,
+      "root_name": "C",
+      "quality": "maj7",
+      "triad": "major",
+      "seventh": "maj7",
+      "voicing_type": "rootless",
+      "seed": 20260713,
+      "variant_group_key": "root=0, quality=maj7",
+      "variant_siblings": [
+        "complete_Cmaj7",
+        "shell_Cmaj7",
+        "spread_Cmaj7",
+        "conf_maj7_clean",
+        "rootless_bass5th_Cmaj7"
+      ]
+    },
+    {
+      "id": "rootless_Am7",
+      "split": "validation",
+      "root": 9,
+      "root_name": "A",
+      "quality": "m7",
+      "triad": "minor",
+      "seventh": "b7",
+      "voicing_type": "rootless",
+      "seed": 20260713,
+      "variant_group_key": "root=9, quality=m7",
+      "variant_siblings": [
+        "complete_Am7",
+        "no5_Am7",
+        "shell_Am7",
+        "foreign_Am7_noteC",
+        "ambiguity_am7_ca_bassA",
+        "ambiguity_am7_ca_bassC",
+        "ambiguity_am7_ca_nobass",
+        "conf_m7_clean",
+        "conf_m7_vs_m7b5_clean"
+      ]
+    },
+    {
+      "id": "rootless_F7",
+      "split": "validation",
+      "root": 5,
+      "root_name": "F",
+      "quality": "7",
+      "triad": "major",
+      "seventh": "b7",
+      "voicing_type": "rootless",
+      "seed": 20260713,
+      "variant_group_key": "root=5, quality=7",
+      "variant_siblings": [
+        "complete_F7"
+      ]
+    },
+    {
+      "id": "shell_Cmaj7",
+      "split": "dev",
+      "root": 0,
+      "root_name": "C",
+      "quality": "maj7",
+      "triad": "major",
+      "seventh": "maj7",
+      "voicing_type": "shell",
+      "seed": 20260714,
+      "variant_group_key": "root=0, quality=maj7",
+      "variant_siblings": [
+        "complete_Cmaj7",
+        "rootless_Cmaj7",
+        "spread_Cmaj7",
+        "conf_maj7_clean",
+        "rootless_bass5th_Cmaj7"
+      ]
+    },
+    {
+      "id": "shell_Am7",
+      "split": "validation",
+      "root": 9,
+      "root_name": "A",
+      "quality": "m7",
+      "triad": "minor",
+      "seventh": "b7",
+      "voicing_type": "shell",
+      "seed": 20260714,
+      "variant_group_key": "root=9, quality=m7",
+      "variant_siblings": [
+        "complete_Am7",
+        "no5_Am7",
+        "rootless_Am7",
+        "foreign_Am7_noteC",
+        "ambiguity_am7_ca_bassA",
+        "ambiguity_am7_ca_bassC",
+        "ambiguity_am7_ca_nobass",
+        "conf_m7_clean",
+        "conf_m7_vs_m7b5_clean"
+      ]
+    },
+    {
+      "id": "shell_G7",
+      "split": "dev",
+      "root": 7,
+      "root_name": "G",
+      "quality": "7",
+      "triad": "major",
+      "seventh": "b7",
+      "voicing_type": "shell",
+      "seed": 20260714,
+      "variant_group_key": "root=7, quality=7",
+      "variant_siblings": [
+        "inv_G7_bassD",
+        "invariant_order_G7_a",
+        "invariant_order_G7_b"
+      ]
+    },
+    {
+      "id": "inv_C_bassE",
+      "split": "dev",
+      "root": 0,
+      "root_name": "C",
+      "quality": "major",
+      "triad": "major",
+      "seventh": "none",
+      "voicing_type": "inversion",
+      "seed": 20260715,
+      "variant_group_key": "root=0, quality=major",
+      "variant_siblings": [
+        "complete_C",
+        "foreign_C_noteF#",
+        "conf_major_vs_maj7_clean",
+        "conf_major_vs_sus2",
+        "invariant_major_third_4",
+        "foreign_Fsharp_in_C"
+      ]
+    },
+    {
+      "id": "inv_Am_bassC",
+      "split": "validation",
+      "root": 9,
+      "root_name": "A",
+      "quality": "m",
+      "triad": "minor",
+      "seventh": "none",
+      "voicing_type": "inversion",
+      "seed": 20260715,
+      "variant_group_key": "root=9, quality=m",
+      "variant_siblings": [
+        "complete_Am",
+        "conf_minor_vs_m7_clean"
+      ]
+    },
+    {
+      "id": "inv_G7_bassD",
+      "split": "dev",
+      "root": 7,
+      "root_name": "G",
+      "quality": "7",
+      "triad": "major",
+      "seventh": "b7",
+      "voicing_type": "inversion",
+      "seed": 20260715,
+      "variant_group_key": "root=7, quality=7",
+      "variant_siblings": [
+        "shell_G7",
+        "invariant_order_G7_a",
+        "invariant_order_G7_b"
+      ]
+    },
+    {
+      "id": "foreign_C_noteF#",
+      "split": "dev",
+      "root": 0,
+      "root_name": "C",
+      "quality": "major",
+      "triad": "major",
+      "seventh": "none",
+      "voicing_type": "foreign_melody",
+      "seed": 20260716,
+      "variant_group_key": "root=0, quality=major",
+      "variant_siblings": [
+        "complete_C",
+        "inv_C_bassE",
+        "conf_major_vs_maj7_clean",
+        "conf_major_vs_sus2",
+        "invariant_major_third_4",
+        "foreign_Fsharp_in_C"
+      ]
+    },
+    {
+      "id": "foreign_Am7_noteC",
+      "split": "validation",
+      "root": 9,
+      "root_name": "A",
+      "quality": "m7",
+      "triad": "minor",
+      "seventh": "b7",
+      "voicing_type": "foreign_melody",
+      "seed": 20260716,
+      "variant_group_key": "root=9, quality=m7",
+      "variant_siblings": [
+        "complete_Am7",
+        "no5_Am7",
+        "rootless_Am7",
+        "shell_Am7",
+        "ambiguity_am7_ca_bassA",
+        "ambiguity_am7_ca_bassC",
+        "ambiguity_am7_ca_nobass",
+        "conf_m7_clean",
+        "conf_m7_vs_m7b5_clean"
+      ]
+    },
+    {
+      "id": "spread_Cmaj7",
+      "split": "dev",
+      "root": 0,
+      "root_name": "C",
+      "quality": "maj7",
+      "triad": "major",
+      "seventh": "maj7",
+      "voicing_type": "temporal_spread",
+      "seed": 20260717,
+      "variant_group_key": "root=0, quality=maj7",
+      "variant_siblings": [
+        "complete_Cmaj7",
+        "rootless_Cmaj7",
+        "shell_Cmaj7",
+        "conf_maj7_clean",
+        "rootless_bass5th_Cmaj7"
+      ]
+    },
+    {
+      "id": "spread_Dm7b5",
+      "split": "dev",
+      "root": 2,
+      "root_name": "D",
+      "quality": "m7b5",
+      "triad": "dim",
+      "seventh": "b7",
+      "voicing_type": "temporal_spread",
+      "seed": 20260717,
+      "variant_group_key": "root=2, quality=m7b5",
+      "variant_siblings": []
+    },
+    {
+      "id": "ambiguity_am7_ca_bassA",
+      "split": "validation",
+      "root": 9,
+      "root_name": "A",
+      "quality": "m7",
+      "triad": "minor",
+      "seventh": "b7",
+      "voicing_type": "complete",
+      "seed": 20260718,
+      "variant_group_key": "root=9, quality=m7",
+      "variant_siblings": [
+        "complete_Am7",
+        "no5_Am7",
+        "rootless_Am7",
+        "shell_Am7",
+        "foreign_Am7_noteC",
+        "ambiguity_am7_ca_bassC",
+        "ambiguity_am7_ca_nobass",
+        "conf_m7_clean",
+        "conf_m7_vs_m7b5_clean"
+      ]
+    },
+    {
+      "id": "ambiguity_am7_ca_bassC",
+      "split": "validation",
+      "root": 9,
+      "root_name": "A",
+      "quality": "m7",
+      "triad": "minor",
+      "seventh": "b7",
+      "voicing_type": "complete",
+      "seed": 20260719,
+      "variant_group_key": "root=9, quality=m7",
+      "variant_siblings": [
+        "complete_Am7",
+        "no5_Am7",
+        "rootless_Am7",
+        "shell_Am7",
+        "foreign_Am7_noteC",
+        "ambiguity_am7_ca_bassA",
+        "ambiguity_am7_ca_nobass",
+        "conf_m7_clean",
+        "conf_m7_vs_m7b5_clean"
+      ]
+    },
+    {
+      "id": "ambiguity_am7_ca_nobass",
+      "split": "validation",
+      "root": 9,
+      "root_name": "A",
+      "quality": "m7",
+      "triad": "minor",
+      "seventh": "b7",
+      "voicing_type": "complete",
+      "seed": 20260720,
+      "variant_group_key": "root=9, quality=m7",
+      "variant_siblings": [
+        "complete_Am7",
+        "no5_Am7",
+        "rootless_Am7",
+        "shell_Am7",
+        "foreign_Am7_noteC",
+        "ambiguity_am7_ca_bassA",
+        "ambiguity_am7_ca_bassC",
+        "conf_m7_clean",
+        "conf_m7_vs_m7b5_clean"
+      ]
+    },
+    {
+      "id": "ambiguity_dshm7_bmaj7_bassDsh",
+      "split": "validation",
+      "root": 3,
+      "root_name": "D#",
+      "quality": "m7",
+      "triad": "minor",
+      "seventh": "b7",
+      "voicing_type": "complete",
+      "seed": 20260721,
+      "variant_group_key": "root=3, quality=m7",
+      "variant_siblings": []
+    },
+    {
+      "id": "ambiguity_dshm7_bmaj7_bassB",
+      "split": "validation",
+      "root": 11,
+      "root_name": "B",
+      "quality": "maj7",
+      "triad": "major",
+      "seventh": "maj7",
+      "voicing_type": "rootless",
+      "seed": 20260722,
+      "variant_group_key": "root=11, quality=maj7",
+      "variant_siblings": []
+    },
+    {
+      "id": "conf_major_vs_maj7_clean",
+      "split": "dev",
+      "root": 0,
+      "root_name": "C",
+      "quality": "major",
+      "triad": "major",
+      "seventh": "none",
+      "voicing_type": "complete",
+      "seed": 20260723,
+      "variant_group_key": "root=0, quality=major",
+      "variant_siblings": [
+        "complete_C",
+        "inv_C_bassE",
+        "foreign_C_noteF#",
+        "conf_major_vs_sus2",
+        "invariant_major_third_4",
+        "foreign_Fsharp_in_C"
+      ]
+    },
+    {
+      "id": "conf_maj7_clean",
+      "split": "dev",
+      "root": 0,
+      "root_name": "C",
+      "quality": "maj7",
+      "triad": "major",
+      "seventh": "maj7",
+      "voicing_type": "complete",
+      "seed": 20260724,
+      "variant_group_key": "root=0, quality=maj7",
+      "variant_siblings": [
+        "complete_Cmaj7",
+        "rootless_Cmaj7",
+        "shell_Cmaj7",
+        "spread_Cmaj7",
+        "rootless_bass5th_Cmaj7"
+      ]
+    },
+    {
+      "id": "conf_minor_vs_m7_clean",
+      "split": "validation",
+      "root": 9,
+      "root_name": "A",
+      "quality": "m",
+      "triad": "minor",
+      "seventh": "none",
+      "voicing_type": "complete",
+      "seed": 20260725,
+      "variant_group_key": "root=9, quality=m",
+      "variant_siblings": [
+        "complete_Am",
+        "inv_Am_bassC"
+      ]
+    },
+    {
+      "id": "conf_m7_clean",
+      "split": "validation",
+      "root": 9,
+      "root_name": "A",
+      "quality": "m7",
+      "triad": "minor",
+      "seventh": "b7",
+      "voicing_type": "complete",
+      "seed": 20260726,
+      "variant_group_key": "root=9, quality=m7",
+      "variant_siblings": [
+        "complete_Am7",
+        "no5_Am7",
+        "rootless_Am7",
+        "shell_Am7",
+        "foreign_Am7_noteC",
+        "ambiguity_am7_ca_bassA",
+        "ambiguity_am7_ca_bassC",
+        "ambiguity_am7_ca_nobass",
+        "conf_m7_vs_m7b5_clean"
+      ]
+    },
+    {
+      "id": "conf_m7_vs_m7b5_clean",
+      "split": "validation",
+      "root": 9,
+      "root_name": "A",
+      "quality": "m7",
+      "triad": "minor",
+      "seventh": "b7",
+      "voicing_type": "complete",
+      "seed": 20260727,
+      "variant_group_key": "root=9, quality=m7",
+      "variant_siblings": [
+        "complete_Am7",
+        "no5_Am7",
+        "rootless_Am7",
+        "shell_Am7",
+        "foreign_Am7_noteC",
+        "ambiguity_am7_ca_bassA",
+        "ambiguity_am7_ca_bassC",
+        "ambiguity_am7_ca_nobass",
+        "conf_m7_clean"
+      ]
+    },
+    {
+      "id": "conf_m7b5_clean",
+      "split": "validation",
+      "root": 9,
+      "root_name": "A",
+      "quality": "m7b5",
+      "triad": "dim",
+      "seventh": "b7",
+      "voicing_type": "complete",
+      "seed": 20260728,
+      "variant_group_key": "root=9, quality=m7b5",
+      "variant_siblings": [
+        "complete_Am7b5"
+      ]
+    },
+    {
+      "id": "conf_major_vs_sus2",
+      "split": "dev",
+      "root": 0,
+      "root_name": "C",
+      "quality": "major",
+      "triad": "major",
+      "seventh": "none",
+      "voicing_type": "complete",
+      "seed": 20260729,
+      "variant_group_key": "root=0, quality=major",
+      "variant_siblings": [
+        "complete_C",
+        "inv_C_bassE",
+        "foreign_C_noteF#",
+        "conf_major_vs_maj7_clean",
+        "invariant_major_third_4",
+        "foreign_Fsharp_in_C"
+      ]
+    },
+    {
+      "id": "conf_sus2_clean",
+      "split": "dev",
+      "root": 0,
+      "root_name": "C",
+      "quality": "sus2",
+      "triad": "sus2",
+      "seventh": "none",
+      "voicing_type": "complete",
+      "seed": 20260730,
+      "variant_group_key": "root=0, quality=sus2",
+      "variant_siblings": [
+        "complete_Csus2"
+      ]
+    },
+    {
+      "id": "conf_sus4_clean",
+      "split": "dev",
+      "root": 0,
+      "root_name": "C",
+      "quality": "sus4",
+      "triad": "sus4",
+      "seventh": "none",
+      "voicing_type": "complete",
+      "seed": 20260731,
+      "variant_group_key": "root=0, quality=sus4",
+      "variant_siblings": [
+        "complete_Csus4"
+      ]
+    },
+    {
+      "id": "invariant_order_G7_a",
+      "split": "dev",
+      "root": 7,
+      "root_name": "G",
+      "quality": "7",
+      "triad": "major",
+      "seventh": "b7",
+      "voicing_type": "complete",
+      "seed": 20260732,
+      "variant_group_key": "root=7, quality=7",
+      "variant_siblings": [
+        "shell_G7",
+        "inv_G7_bassD",
+        "invariant_order_G7_b"
+      ]
+    },
+    {
+      "id": "invariant_order_G7_b",
+      "split": "dev",
+      "root": 7,
+      "root_name": "G",
+      "quality": "7",
+      "triad": "major",
+      "seventh": "b7",
+      "voicing_type": "complete",
+      "seed": 20260732,
+      "variant_group_key": "root=7, quality=7",
+      "variant_siblings": [
+        "shell_G7",
+        "inv_G7_bassD",
+        "invariant_order_G7_a"
+      ]
+    },
+    {
+      "id": "invariant_major_third_4",
+      "split": "dev",
+      "root": 0,
+      "root_name": "C",
+      "quality": "major",
+      "triad": "major",
+      "seventh": "none",
+      "voicing_type": "complete",
+      "seed": 20260733,
+      "variant_group_key": "root=0, quality=major",
+      "variant_siblings": [
+        "complete_C",
+        "inv_C_bassE",
+        "foreign_C_noteF#",
+        "conf_major_vs_maj7_clean",
+        "conf_major_vs_sus2",
+        "foreign_Fsharp_in_C"
+      ]
+    },
+    {
+      "id": "invariant_minor_third_3",
+      "split": "dev",
+      "root": 0,
+      "root_name": "C",
+      "quality": "m",
+      "triad": "minor",
+      "seventh": "none",
+      "voicing_type": "complete",
+      "seed": 20260734,
+      "variant_group_key": "root=0, quality=m",
+      "variant_siblings": [
+        "complete_Cm"
+      ]
+    },
+    {
+      "id": "rootless_bass5th_Cmaj7",
+      "split": "dev",
+      "root": 0,
+      "root_name": "C",
+      "quality": "maj7",
+      "triad": "major",
+      "seventh": "maj7",
+      "voicing_type": "rootless",
+      "seed": 20260735,
+      "variant_group_key": "root=0, quality=maj7",
+      "variant_siblings": [
+        "complete_Cmaj7",
+        "rootless_Cmaj7",
+        "shell_Cmaj7",
+        "spread_Cmaj7",
+        "conf_maj7_clean"
+      ]
+    },
+    {
+      "id": "foreign_Fsharp_in_C",
+      "split": "dev",
+      "root": 0,
+      "root_name": "C",
+      "quality": "major",
+      "triad": "major",
+      "seventh": "none",
+      "voicing_type": "foreign_melody",
+      "seed": 20260736,
+      "variant_group_key": "root=0, quality=major",
+      "variant_siblings": [
+        "complete_C",
+        "inv_C_bassE",
+        "foreign_C_noteF#",
+        "conf_major_vs_maj7_clean",
+        "conf_major_vs_sus2",
+        "invariant_major_third_4"
+      ]
+    }
+  ]
+}

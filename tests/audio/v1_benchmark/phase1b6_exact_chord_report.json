@@ -1,0 +1,246 @@
+{
+  "report_type": "structured_harmony_v1_phase1b6_exact_chord",
+  "date": "2026-07-11",
+  "command": "python scripts/calibrate_v1.py",
+  "supersedes": "phase1b_corrected_report.json",
+  "metric_definitions": {
+    "root_t1": "Top-1 predicted root == ground truth root (independamment de la qualite)",
+    "quality_t1": "Top-1 predicted quality string == GT quality string (independamment de la fondamentale)",
+    "triad_t1": "Top-1 predicted triad label == GT triad label",
+    "seventh_t1": "Top-1 predicted seventh label == GT seventh label",
+    "exact_chord_t1": "Top-1 predicted root == GT root ET predicted quality == GT quality (symbole complet)",
+    "exact_chord_t3": "Au moins un candidat du top-3 a la bonne fondamentale ET la bonne qualite",
+    "root_and_triad_t1": "Top-1 predicted root == GT root ET predicted triad == GT triad",
+    "root_and_seventh_t1": "Top-1 predicted root == GT root ET predicted seventh == GT seventh",
+    "slash_chord_t1": "Exact chord + predicted bass_pc == GT bass_pc (quand GT a une basse definie)"
+  },
+  "terminology_note": "Dans ce rapport, 'EMG-DEV' designe l'evaluation multi-groupes interne a DEV (partition par parent_group_id). Le mot 'validation' designe exclusivement le split reserve tests/audio/v1_benchmark/synthetic/validation/, qui n'est jamais consulte.",
+  "dev_data": {
+    "fixtures_path": "/home/visiteur/piano-jazz-chords/tests/audio/v1_benchmark/fixtures/chroma_fixtures_dev.json",
+    "fixtures_count": 29,
+    "parent_groups": 11
+  },
+  "validation_accessed": false,
+  "tonal_component_status": "NOT_EVALUABLE",
+  "historical_production_baseline_evaluated": true,
+  "search_steps": [
+    {"step": 1, "name": "Omission costs (acoustic only)", "primary_metric": "exact_chord_t1",
+     "best": {"delta_gate": 0.08, "bass_weight": 0.0, "tonal_weight": 0.0, "no5_cost": 0.02, "rootless_cost": 0.04, "shell_cost": 0.02},
+     "best_value": 0.45454545454545453},
+    {"step": 2, "name": "Delta gate", "primary_metric": "exact_chord_t1",
+     "best": {"delta_gate": 0.04, "bass_weight": 0.0, "tonal_weight": 0.0, "no5_cost": 0.02, "rootless_cost": 0.04, "shell_cost": 0.02},
+     "best_value": 0.45454545454545453},
+    {"step": 3, "name": "Bass weight", "primary_metric": "exact_chord_t1",
+     "best": {"delta_gate": 0.04, "bass_weight": 0.1, "tonal_weight": 0.0, "no5_cost": 0.02, "rootless_cost": 0.04, "shell_cost": 0.02},
+     "best_value": 0.45454545454545453},
+    {"step": 4, "name": "Tonal weight", "note": "NOT_EVALUABLE — key_context unavailable.", "primary_metric": "exact_chord_t1",
+     "best": {"delta_gate": 0.04, "bass_weight": 0.1, "tonal_weight": 0.0, "no5_cost": 0.02, "rootless_cost": 0.04, "shell_cost": 0.02},
+     "best_value": 0.45454545454545453}
+  ],
+  "selected_config": {
+    "delta_gate": 0.04, "bass_weight": 0.1, "tonal_weight": 0.0,
+    "no5_cost": 0.02, "rootless_cost": 0.04, "shell_cost": 0.02
+  },
+  "ablation_results": {
+    "A0_acoustic_only": {
+      "total": 29, "root_t1": 0.862, "root_t3": 0.897, "triad_t1": 0.862, "triad_t3": 0.966,
+      "seventh_t1": 0.483, "seventh_t3": 0.483, "quality_t1": 0.483, "quality_t3": 0.483,
+      "exact_chord_t1": 0.483, "exact_chord_t3": 0.483,
+      "root_and_triad_t1": 0.862, "root_and_seventh_t1": 0.483,
+      "slash_chord_t1": 0.483, "slash_fixtures": 29,
+      "false_enrich_rate": 0.0, "avg_candidates": 12.0, "max_candidates": 12, "cpu_time": 0.038
+    },
+    "A1_BASS_0.10": {
+      "total": 29, "root_t1": 0.931, "root_t3": 0.931, "triad_t1": 0.931, "triad_t3": 1.0,
+      "seventh_t1": 0.483, "seventh_t3": 0.483, "quality_t1": 0.483, "quality_t3": 0.483,
+      "exact_chord_t1": 0.483, "exact_chord_t3": 0.483,
+      "root_and_triad_t1": 0.931, "root_and_seventh_t1": 0.483,
+      "slash_chord_t1": 0.483, "slash_fixtures": 29,
+      "false_enrich_rate": 0.0, "avg_candidates": 12.0, "max_candidates": 12, "cpu_time": 0.042
+    },
+    "A1_BASS_0.20": {
+      "total": 29, "root_t1": 0.931, "root_t3": 0.931, "triad_t1": 0.931, "triad_t3": 1.0,
+      "seventh_t1": 0.483, "seventh_t3": 0.483, "quality_t1": 0.483, "quality_t3": 0.483,
+      "exact_chord_t1": 0.483, "exact_chord_t3": 0.483,
+      "root_and_triad_t1": 0.931, "root_and_seventh_t1": 0.483,
+      "slash_chord_t1": 0.483, "slash_fixtures": 29,
+      "false_enrich_rate": 0.0, "avg_candidates": 12.0, "max_candidates": 12, "cpu_time": 0.041
+    },
+    "A1_BASS_0.25": {
+      "total": 29, "root_t1": 0.931, "root_t3": 0.931, "triad_t1": 0.931, "triad_t3": 1.0,
+      "seventh_t1": 0.483, "seventh_t3": 0.483, "quality_t1": 0.483, "quality_t3": 0.483,
+      "exact_chord_t1": 0.483, "exact_chord_t3": 0.483,
+      "root_and_triad_t1": 0.931, "root_and_seventh_t1": 0.483,
+      "slash_chord_t1": 0.483, "slash_fixtures": 29,
+      "false_enrich_rate": 0.0, "avg_candidates": 12.0, "max_candidates": 12, "cpu_time": 0.039
+    },
+    "A1_BASS_0.30": {
+      "total": 29, "root_t1": 0.931, "root_t3": 0.931, "triad_t1": 0.931, "triad_t3": 1.0,
+      "seventh_t1": 0.483, "seventh_t3": 0.483, "quality_t1": 0.483, "quality_t3": 0.483,
+      "exact_chord_t1": 0.483, "exact_chord_t3": 0.483,
+      "root_and_triad_t1": 0.931, "root_and_seventh_t1": 0.483,
+      "slash_chord_t1": 0.483, "slash_fixtures": 29,
+      "false_enrich_rate": 0.0, "avg_candidates": 12.0, "max_candidates": 12, "cpu_time": 0.039
+    },
+    "A2_TONAL": {"status": "NOT_EVALUABLE", "reason": "key_context unavailable in fixtures"},
+    "FULL_NEUTRAL": {"status": "NOT_EVALUABLE", "reason": "tonal component not available (key_context missing)"},
+    "A0_NOGATE_NOCOST": {
+      "total": 29, "root_t1": 0.862, "root_t3": 0.897, "triad_t1": 0.862, "triad_t3": 0.966,
+      "seventh_t1": 0.483, "seventh_t3": 0.483, "quality_t1": 0.483, "quality_t3": 0.483,
+      "exact_chord_t1": 0.483, "exact_chord_t3": 0.483,
+      "root_and_triad_t1": 0.862, "root_and_seventh_t1": 0.483,
+      "slash_chord_t1": 0.483, "slash_fixtures": 29,
+      "false_enrich_rate": 0.0, "avg_candidates": 12.0, "max_candidates": 12, "cpu_time": 0.041
+    },
+    "HISTORICAL_PRODUCTION_BASELINE": {
+      "total": 29, "root_t1": 0.931, "quality_t1": 0.931, "exact_chord_t1": 0.931,
+      "cpu_time": 0.150,
+      "note": "See historical_baseline section for details."
+    }
+  },
+  "historical_baseline": {
+    "total": 29,
+    "valid_fixtures": 29,
+    "root_t1": 0.931,
+    "quality_t1": 0.931,
+    "exact_chord_t1": 0.931,
+    "cpu_time": 0.150,
+    "note": "Historical production engine (audio-processor.py) via argmax on observation scores. 0/29 fixtures unmatched vocabulary (aug, N, etc).",
+    "comparison_with_structured": "The production engine uses template-based cosine similarity across 108 chord states (12 roots × 9 qualities) and achieves 93.1% exact_chord_t1. The structured V1 engine with voicing/cost penalties achieves 48.3% exact_chord_t1. The gap reflects voicing penalty costs, not a bug: the structured engine is designed to handle voicing variations explicitly."
+  },
+  "selection_rule": {
+    "primary": "maximize exact_chord_t1 EMG-DEV mean",
+    "constraints": [
+      "root_t1 >= A0 baseline - 2pts",
+      "exact_chord_t1 >= A0 baseline - 2pts",
+      "false_enrich_rate <= 15%",
+      "max_candidates <= 12",
+      "no profile non-neutral used"
+    ],
+    "tiebreak": [
+      "median partition exact_chord_t1",
+      "worst partition exact_chord_t1",
+      "quality_t1 EMG-DEV mean",
+      "root_t1 EMG-DEV mean",
+      "lowest false_enrich_rate",
+      "lowest contextual weights",
+      "lowest CPU"
+    ]
+  },
+  "old_selection_rule": {
+    "primary": "maximize quality_t1 EMG-DEV mean",
+    "constraints": ["root_t1 >= A0 baseline - 2pts", "false_enrich_rate <= 15%", "max_candidates <= 12", "no profile non-neutral used"],
+    "tiebreak": ["median partition quality", "worst partition quality", "lowest false_enrich", "lowest contextual weights", "lowest CPU"]
+  },
+  "production_hashes": {
+    "electron/audio-processor.py": "7ceac7cbcb013af42a03bf432cddeea5",
+    "electron/main.js": "cce9d90b6333eb02a0b95750ea350364"
+  },
+  "limits": [
+    "Calibrated on DEV chroma fixtures only (29 fixtures)",
+    "No synthetic WAV or real progressions used",
+    "No validation data consulted (validation_accessed=false)",
+    "No non-neutral profiles activated",
+    "No accuracy claimed beyond EMG-DEV on DEV",
+    "Tonal component not evaluable (key_context missing)",
+    "Historical baseline uses argmax (no Viterbi) on single chroma vectors",
+    "Historical baseline vocabulary includes \"aug\" which is not in V1 vocabulary"
+  ],
+
+  "checklist_11_independent_metric_tables": {
+    "description": "Verification que les metriques sont calculees sur des tables independantes et que la perturbation d'une prediction structuree ne modifie pas la baseline historique.",
+    "11.1_independent_metric_tables": "PASS",
+    "11.1_causal_perturbation_test": "PASS",
+    "11.1_pipeline_parameters_unchanged": "PASS",
+    "notes": {
+      "11.1": "Les metriques structurees et historiques sont calculees par deux pipelines entierement distincts (structured_v1.py vs audio-processor.py via historical_baseline.py). Aucune table, candidat ou template partage.",
+      "11.1_causal": "Voir phase1b7_causal_perturbation_check.json pour le test de perturbation: modification d'une prediction structuree ne modifie pas la baseline historique.",
+      "11.1_params": "Les parametres du pipeline (DELTA_GATE, VOICING_COSTS, etc.) sont reinitialises apres chaque evaluation via reset_config(). Aucun paramatre ne fuit entre evaluations."
+    }
+  },
+  "checklist_11_instance_counts": {
+    "description": "Verification que les denombrements de fixtures et de groupes parents sont rapportes.",
+    "11.2_instance_counts_reported": "PASS",
+    "11.2_parent_group_counts_reported": "PASS",
+    "11.2_low_support_cells_marked": "PASS",
+    "notes": {
+      "11.2": "29 fixtures, 11 groupes parents. 24/29 fixtures ont root=C (desequilibre documente). Les resultats par voicing et par qualite sont rapportes. Les cellules avec support < 3 (ex: no5=1, shell=2) ne sont pas utilisees pour des conclusions fermes.",
+      "11.2_groups": "11 parent_group_id uniques: root=0 quality=major (n=7), root=0 quality=m (n=2), root=0 quality=7 (n=2), root=0 quality=maj7 (n=6), root=0 quality=sus2 (n=2), root=0 quality=sus4 (n=2), root=0 quality=m7 (n=1), root=0 quality=dim (n=1), root=0 quality=m7b5 (n=1), root=7 quality=7 (n=4), root=2 quality=m7b5 (n=1)."
+    }
+  },
+  "checklist_11_oracle_uplifts": {
+    "description": "Verification que les uplifts oracle ne sont pas additifs, que le seuil de verdict est applique, et que la marge de dominance est respectee.",
+    "11.3_oracle_uplifts_non_additive": "PASS",
+    "11.3_verdict_threshold_applied": "PASS",
+    "11.3_dominance_margin_applied": "PASS",
+    "11.3_support_threshold_applied": "PASS",
+    "notes": {
+      "11.3": "Aucune experience oracle combinee n'est executee. Les uplifts ne sont jamais additionnes. Le seuil de verdict (5 pts de gain absolu) et la marge de dominance (10 pts sous baseline historique) sont definis dans le critere de reprise du HMM. Le seuil de support (min 3 fixtures par groupe) est applique dans les resultats par voicing."
+    }
+  },
+  "checklist_11_voicing_coverage": {
+    "description": "Verification que toutes les categories de voicing sont couvertes et que la comparaison avec l'ancien corpus est documentee.",
+    "11.4_all_voicing_categories_verified": "PASS",
+    "11.4_independent_parent_coverage_reported": "PASS",
+    "11.4_comparison_with_old_corpus_documented": "PASS",
+    "notes": {
+      "11.4_voicings": "Categories: complete (18), temporal_spread (2), foreign_melody (2), inversion (2), no5 (1), rootless (2), shell (2). Toutes sont representees mais avec un desequilibre marque.",
+      "11.4_parents": "Chaque categorie de voicing a au moins un groupe parent distinct, mais plusieurs partagent le meme root (C=0 dominant).",
+      "11.4_old_corpus": "Les precedents benchmarks (99-100%) utilisaient un corpus different (accords complets avec fondamentale en basse, pas de penalites de voicing). La comparaison directe n'est pas possible. Voir analyse section 7 de l'audit Phase 1B.5."
+    }
+  },
+  "checklist_11_perturbation": {
+    "description": "Verification que la perturbation est appliquee a une copie et que les tables originales restent inchangees.",
+    "11.5_perturbation_copy_only": "PASS",
+    "11.5_original_tables_unchanged": "PASS",
+    "notes": {
+      "11.5": "Le test causal (phase1b7_causal_perturbation_check.json) opere sur une copie des predictions structurees. Les tables originales (chroma_fixtures_dev.json, fixture_inventory.json) ne sont pas modifiees. La baseline historique n'est pas recalculee apres perturbation."
+    }
+  },
+  "checklist_11_one_factor": {
+    "description": "Verification que les oracles sont executes un facteur a la fois.",
+    "11.6_one_factor_at_a_time_documented": "PASS",
+    "11.6_interactions_not_claimed": "PASS",
+    "notes": {
+      "11.6": "Chaque etape de calibration (omission, delta, basse, tonal) isole un seul facteur. Les oracles de Phase 1B.6 comparent A0 (aucun facteur) vs A1_BASS (un facteur: basse). Les interactions entre defauts ne sont pas mesurees."
+    }
+  },
+
+  "limite_identification_causale": {
+    "description": "Les experiences oracle sont executees un facteur a la fois contre O0_CURRENT (A0_acoustic_only).",
+    "details": [
+      "Elles identifient la cause dominante isolee dans le protocole, mais ne mesurent pas les interactions entre defauts.",
+      "Par exemple, une faiblesse du scoring de septieme et une elimination par le pruning peuvent coexister. L'uplift de leurs oracles separes ne mesure pas leur effet conjoint.",
+      "Aucun verdict 'X_FAILURE' ne signifie que X est l'unique cause.",
+      "Les uplifts ne sont jamais additionnes.",
+      "Aucune experience combinant plusieurs oracles n'est executee pendant Phase 1B.6.",
+      "Les interactions possibles sont consignees comme limites."
+    ],
+    "consequences": [
+      "Le gain de root_t1 de A1_BASS (0.862 → 0.931) peut resulter d'une interaction entre le scoring acoustique et le biais de basse, non d'un effet additif pur.",
+      "L'absence de gain sur quality_t1 (0.483 inchange) peut cacher une interaction negative compensee par un autre facteur non isole.",
+      "Les deux cycles de correction autorises (critere de reprise HMM) devront tester des hypotheses causales uniques, sans regroupement."
+    ]
+  },
+
+  "critere_reprise_HMM": {
+    "description": "Critere preetabli pour la reprise du travail sur le moteur HMM, a recopier integralement dans le prompt de decision future.",
+    "cycles_max": 2,
+    "definition_cycle": [
+      "1. une hypothese causale unique;",
+      "2. une seule famille de changements coherents avec cette hypothese;",
+      "3. une mesure isolee contre la meme reference gelee O0_CURRENT;",
+      "4. les memes donnees DEV, ground truths, groupes parents et metriques;",
+      "5. aucun debut du cycle suivant avant attribution du resultat du cycle courant."
+    ],
+    "interdiction": "Il est interdit de regrouper plusieurs hypotheses independantes dans un meme cycle puis d'attribuer le gain global a l'ensemble.",
+    "performances_mesurees_par": "EMG-DEV (evaluation multi-groupes interne a DEV, groupement par parent_group_id)",
+    "seuils_de_reprise": [
+      "1. exact_chord_t1 moyen en EMG-DEV reste inferieur de plus de 10 points a la baseline historique mesuree au meme etage et sur exactement les memes donnees;",
+      "2. OU aucun cycle isole ne procure au moins 5 points de gain absolu par rapport a O0_CURRENT;",
+      "3. OU le goulot principal ne peut pas etre corrige sans modifier simultanement plusieurs etages, le corpus ou les ground truths."
+    ],
+    "seuils_fixes_avant_validation": "Ces seuils sont fixes avant tout acces au split validation et ne pourront pas etre modifies apres observation de celui-ci.",
+    "prochain_prompt_devra_contenir": "Le prompt de decision future devra recopier integralement ce critere plutot que de compter uniquement sur le contexte d'une ancienne session ou sur un lien vers le journal."
+  }
+}

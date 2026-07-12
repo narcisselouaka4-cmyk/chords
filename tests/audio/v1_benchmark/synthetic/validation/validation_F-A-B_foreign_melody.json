@@ -1,0 +1,238 @@
+{
+  "file": "validation_F-A-B_foreign_melody.wav",
+  "sr": 22050,
+  "bpm": 120,
+  "chord_duration": 2.0,
+  "repeats": 2,
+  "voicing_type": "foreign_melody",
+  "segments": [
+    {
+      "start_time": 0.0,
+      "end_time": 2.0,
+      "root": "F",
+      "quality": "maj7",
+      "bass": "F2",
+      "bass_pc": 5,
+      "upper_notes": [
+        "A3",
+        "C4",
+        "E4",
+        "B4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        11
+      ],
+      "voicing_type": "foreign_melody",
+      "observed_pcs": [
+        0,
+        4,
+        5,
+        9
+      ],
+      "expected_pcs": [
+        5,
+        9,
+        0,
+        4
+      ],
+      "missing_pcs": [],
+      "extra_pcs": [],
+      "tension_pcs": [],
+      "temporal_spread": false,
+      "extra_note": "B4"
+    },
+    {
+      "start_time": 2.0,
+      "end_time": 4.0,
+      "root": "A",
+      "quality": "m7",
+      "bass": "A2",
+      "bass_pc": 9,
+      "upper_notes": [
+        "C4",
+        "E4",
+        "G4",
+        "D#4"
+      ],
+      "intervals": [
+        0,
+        3,
+        7,
+        10
+      ],
+      "voicing_type": "foreign_melody",
+      "observed_pcs": [
+        0,
+        4,
+        7,
+        9
+      ],
+      "expected_pcs": [
+        9,
+        0,
+        4,
+        7
+      ],
+      "missing_pcs": [],
+      "extra_pcs": [],
+      "tension_pcs": [],
+      "temporal_spread": false,
+      "extra_note": "D#4"
+    },
+    {
+      "start_time": 4.0,
+      "end_time": 6.0,
+      "root": "B",
+      "quality": "7",
+      "bass": "B2",
+      "bass_pc": 11,
+      "upper_notes": [
+        "D#4",
+        "F#4",
+        "A4",
+        "F4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        10
+      ],
+      "voicing_type": "foreign_melody",
+      "observed_pcs": [
+        3,
+        6,
+        9,
+        11
+      ],
+      "expected_pcs": [
+        11,
+        3,
+        6,
+        9
+      ],
+      "missing_pcs": [],
+      "extra_pcs": [],
+      "tension_pcs": [],
+      "temporal_spread": false,
+      "extra_note": "F4"
+    },
+    {
+      "start_time": 6.0,
+      "end_time": 8.0,
+      "root": "F",
+      "quality": "maj7",
+      "bass": "F2",
+      "bass_pc": 5,
+      "upper_notes": [
+        "A3",
+        "C4",
+        "E4",
+        "B4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        11
+      ],
+      "voicing_type": "foreign_melody",
+      "observed_pcs": [
+        0,
+        4,
+        5,
+        9
+      ],
+      "expected_pcs": [
+        5,
+        9,
+        0,
+        4
+      ],
+      "missing_pcs": [],
+      "extra_pcs": [],
+      "tension_pcs": [],
+      "temporal_spread": false,
+      "extra_note": "B4"
+    },
+    {
+      "start_time": 8.0,
+      "end_time": 10.0,
+      "root": "A",
+      "quality": "m7",
+      "bass": "A2",
+      "bass_pc": 9,
+      "upper_notes": [
+        "C4",
+        "E4",
+        "G4",
+        "D#4"
+      ],
+      "intervals": [
+        0,
+        3,
+        7,
+        10
+      ],
+      "voicing_type": "foreign_melody",
+      "observed_pcs": [
+        0,
+        4,
+        7,
+        9
+      ],
+      "expected_pcs": [
+        9,
+        0,
+        4,
+        7
+      ],
+      "missing_pcs": [],
+      "extra_pcs": [],
+      "tension_pcs": [],
+      "temporal_spread": false,
+      "extra_note": "D#4"
+    },
+    {
+      "start_time": 10.0,
+      "end_time": 12.0,
+      "root": "B",
+      "quality": "7",
+      "bass": "B2",
+      "bass_pc": 11,
+      "upper_notes": [
+        "D#4",
+        "F#4",
+        "A4",
+        "F4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        10
+      ],
+      "voicing_type": "foreign_melody",
+      "observed_pcs": [
+        3,
+        6,
+        9,
+        11
+      ],
+      "expected_pcs": [
+        11,
+        3,
+        6,
+        9
+      ],
+      "missing_pcs": [],
+      "extra_pcs": [],
+      "tension_pcs": [],
+      "temporal_spread": false,
+      "extra_note": "F4"
+    }
+  ]
+}

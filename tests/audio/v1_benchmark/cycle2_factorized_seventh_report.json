@@ -1,0 +1,5178 @@
+{
+  "experiment": "cycle2_factorized_seventh_benchmark",
+  "structured_correction_cycles_used": 2,
+  "structured_correction_cycles_remaining": 0,
+  "hypothesis": "factorized family seventh (root+triad without seventh influence)",
+  "calibrated_on": "DEV_EMG_ONLY",
+  "validation_accessed": false,
+  "phase1c_authorized": false,
+  "correction_cycle": 2,
+  "changed_component": "analyze_chord_two_stage_selection + seventh_scorer",
+  "baseline_C0": {
+    "scorer": "legacy_seventh_scorer",
+    "global_metrics": {
+      "root_t1": 0.931,
+      "exact_chord_t1": 0.4828,
+      "exact_chord_t3": 0.4828,
+      "triad_only_t1": 0.931,
+      "root_and_triad_t1": 0.931,
+      "seventh_t1": 0.4828,
+      "seventh_t3": 0.4828,
+      "false_enrich_rate": 0.0,
+      "false_impoverish_rate": 0.5172,
+      "total": 29
+    },
+    "partition_metrics_c0": {
+      "root_t1": {
+        "mean": 0.9697,
+        "median": 1.0,
+        "min": 0.6667,
+        "max": 1.0,
+        "std": 0.0958
+      },
+      "exact_chord_t1": {
+        "mean": 0.4545,
+        "median": 0.0,
+        "min": 0.0,
+        "max": 1.0,
+        "std": 0.4979
+      },
+      "exact_chord_t3": {
+        "mean": 0.4545,
+        "median": 0.0,
+        "min": 0.0,
+        "max": 1.0,
+        "std": 0.4979
+      },
+      "seventh_t1": {
+        "mean": 0.4545,
+        "median": 0.0,
+        "min": 0.0,
+        "max": 1.0,
+        "std": 0.4979
+      },
+      "triad_only_t1": {
+        "mean": 0.9697,
+        "median": 1.0,
+        "min": 0.6667,
+        "max": 1.0,
+        "std": 0.0958
+      },
+      "root_and_triad_t1": {
+        "mean": 0.9697,
+        "median": 1.0,
+        "min": 0.6667,
+        "max": 1.0,
+        "std": 0.0958
+      },
+      "false_enrich_rate": {
+        "mean": 0.0,
+        "median": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "false_impoverish_rate": {
+        "mean": 0.5455,
+        "median": 1.0,
+        "min": 0.0,
+        "max": 1.0,
+        "std": 0.4979
+      },
+      "n_partitions": 11,
+      "total_fixtures": 29,
+      "avg_candidates": 0.0,
+      "_partition_values": {
+        "root_t1": {
+          "root=0, quality=major": 1.0,
+          "root=0, quality=m": 1.0,
+          "root=0, quality=7": 1.0,
+          "root=0, quality=maj7": 0.6667,
+          "root=0, quality=sus2": 1.0,
+          "root=0, quality=sus4": 1.0,
+          "root=0, quality=m7": 1.0,
+          "root=0, quality=dim": 1.0,
+          "root=0, quality=m7b5": 1.0,
+          "root=7, quality=7": 1.0,
+          "root=2, quality=m7b5": 1.0
+        },
+        "exact_chord_t1": {
+          "root=0, quality=major": 1.0,
+          "root=0, quality=m": 1.0,
+          "root=0, quality=7": 0.0,
+          "root=0, quality=maj7": 0.0,
+          "root=0, quality=sus2": 1.0,
+          "root=0, quality=sus4": 1.0,
+          "root=0, quality=m7": 0.0,
+          "root=0, quality=dim": 1.0,
+          "root=0, quality=m7b5": 0.0,
+          "root=7, quality=7": 0.0,
+          "root=2, quality=m7b5": 0.0
+        },
+        "exact_chord_t3": {
+          "root=0, quality=major": 1.0,
+          "root=0, quality=m": 1.0,
+          "root=0, quality=7": 0.0,
+          "root=0, quality=maj7": 0.0,
+          "root=0, quality=sus2": 1.0,
+          "root=0, quality=sus4": 1.0,
+          "root=0, quality=m7": 0.0,
+          "root=0, quality=dim": 1.0,
+          "root=0, quality=m7b5": 0.0,
+          "root=7, quality=7": 0.0,
+          "root=2, quality=m7b5": 0.0
+        },
+        "seventh_t1": {
+          "root=0, quality=major": 1.0,
+          "root=0, quality=m": 1.0,
+          "root=0, quality=7": 0.0,
+          "root=0, quality=maj7": 0.0,
+          "root=0, quality=sus2": 1.0,
+          "root=0, quality=sus4": 1.0,
+          "root=0, quality=m7": 0.0,
+          "root=0, quality=dim": 1.0,
+          "root=0, quality=m7b5": 0.0,
+          "root=7, quality=7": 0.0,
+          "root=2, quality=m7b5": 0.0
+        },
+        "triad_only_t1": {
+          "root=0, quality=major": 1.0,
+          "root=0, quality=m": 1.0,
+          "root=0, quality=7": 1.0,
+          "root=0, quality=maj7": 0.6667,
+          "root=0, quality=sus2": 1.0,
+          "root=0, quality=sus4": 1.0,
+          "root=0, quality=m7": 1.0,
+          "root=0, quality=dim": 1.0,
+          "root=0, quality=m7b5": 1.0,
+          "root=7, quality=7": 1.0,
+          "root=2, quality=m7b5": 1.0
+        },
+        "root_and_triad_t1": {
+          "root=0, quality=major": 1.0,
+          "root=0, quality=m": 1.0,
+          "root=0, quality=7": 1.0,
+          "root=0, quality=maj7": 0.6667,
+          "root=0, quality=sus2": 1.0,
+          "root=0, quality=sus4": 1.0,
+          "root=0, quality=m7": 1.0,
+          "root=0, quality=dim": 1.0,
+          "root=0, quality=m7b5": 1.0,
+          "root=7, quality=7": 1.0,
+          "root=2, quality=m7b5": 1.0
+        },
+        "false_enrich_rate": {
+          "root=0, quality=major": 0.0,
+          "root=0, quality=m": 0.0,
+          "root=0, quality=7": 0.0,
+          "root=0, quality=maj7": 0.0,
+          "root=0, quality=sus2": 0.0,
+          "root=0, quality=sus4": 0.0,
+          "root=0, quality=m7": 0.0,
+          "root=0, quality=dim": 0.0,
+          "root=0, quality=m7b5": 0.0,
+          "root=7, quality=7": 0.0,
+          "root=2, quality=m7b5": 0.0
+        },
+        "false_impoverish_rate": {
+          "root=0, quality=major": 0.0,
+          "root=0, quality=m": 0.0,
+          "root=0, quality=7": 1.0,
+          "root=0, quality=maj7": 1.0,
+          "root=0, quality=sus2": 0.0,
+          "root=0, quality=sus4": 0.0,
+          "root=0, quality=m7": 1.0,
+          "root=0, quality=dim": 0.0,
+          "root=0, quality=m7b5": 1.0,
+          "root=7, quality=7": 1.0,
+          "root=2, quality=m7b5": 1.0
+        }
+      }
+    },
+    "cpu_time": 0.0518
+  },
+  "c1_grid": [
+    {
+      "presence_threshold": 0.03,
+      "dominance_threshold": 0.0,
+      "global_metrics": {
+        "root_t1": 0.3448,
+        "exact_chord_t1": 0.3103,
+        "exact_chord_t3": 0.3103,
+        "triad_only_t1": 0.3103,
+        "root_and_triad_t1": 0.3103,
+        "seventh_t1": 0.3448,
+        "seventh_t3": 0.3103,
+        "false_enrich_rate": 0.0,
+        "false_impoverish_rate": 0.5172,
+        "total": 29
+      },
+      "partition_metrics": {
+        "root_t1": {
+          "mean": 0.2727,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4454
+        },
+        "exact_chord_t1": {
+          "mean": 0.2273,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.391
+        },
+        "exact_chord_t3": {
+          "mean": 0.2273,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.391
+        },
+        "seventh_t1": {
+          "mean": 0.2727,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4454
+        },
+        "triad_only_t1": {
+          "mean": 0.2273,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.391
+        },
+        "root_and_triad_t1": {
+          "mean": 0.2273,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.391
+        },
+        "false_enrich_rate": {
+          "mean": 0.0,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "std": 0.0
+        },
+        "false_impoverish_rate": {
+          "mean": 0.5455,
+          "median": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "n_partitions": 11,
+        "total_fixtures": 29,
+        "avg_candidates": 0.0,
+        "_partition_values": {
+          "root_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "exact_chord_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 0.5,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "exact_chord_t3": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 0.5,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "seventh_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "triad_only_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 0.5,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "root_and_triad_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 0.5,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_enrich_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_impoverish_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 1.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          }
+        }
+      },
+      "cpu_time": 0.0247
+    },
+    {
+      "presence_threshold": 0.03,
+      "dominance_threshold": 0.02,
+      "global_metrics": {
+        "root_t1": 0.3448,
+        "exact_chord_t1": 0.3103,
+        "exact_chord_t3": 0.3103,
+        "triad_only_t1": 0.3103,
+        "root_and_triad_t1": 0.3103,
+        "seventh_t1": 0.3448,
+        "seventh_t3": 0.3103,
+        "false_enrich_rate": 0.0,
+        "false_impoverish_rate": 0.5172,
+        "total": 29
+      },
+      "partition_metrics": {
+        "root_t1": {
+          "mean": 0.2727,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4454
+        },
+        "exact_chord_t1": {
+          "mean": 0.2273,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.391
+        },
+        "exact_chord_t3": {
+          "mean": 0.2273,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.391
+        },
+        "seventh_t1": {
+          "mean": 0.2727,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4454
+        },
+        "triad_only_t1": {
+          "mean": 0.2273,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.391
+        },
+        "root_and_triad_t1": {
+          "mean": 0.2273,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.391
+        },
+        "false_enrich_rate": {
+          "mean": 0.0,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "std": 0.0
+        },
+        "false_impoverish_rate": {
+          "mean": 0.5455,
+          "median": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "n_partitions": 11,
+        "total_fixtures": 29,
+        "avg_candidates": 0.0,
+        "_partition_values": {
+          "root_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "exact_chord_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 0.5,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "exact_chord_t3": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 0.5,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "seventh_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "triad_only_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 0.5,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "root_and_triad_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 0.5,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_enrich_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_impoverish_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 1.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          }
+        }
+      },
+      "cpu_time": 0.0249
+    },
+    {
+      "presence_threshold": 0.03,
+      "dominance_threshold": 0.04,
+      "global_metrics": {
+        "root_t1": 0.3448,
+        "exact_chord_t1": 0.3103,
+        "exact_chord_t3": 0.3103,
+        "triad_only_t1": 0.3103,
+        "root_and_triad_t1": 0.3103,
+        "seventh_t1": 0.3448,
+        "seventh_t3": 0.3103,
+        "false_enrich_rate": 0.0,
+        "false_impoverish_rate": 0.5172,
+        "total": 29
+      },
+      "partition_metrics": {
+        "root_t1": {
+          "mean": 0.2727,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4454
+        },
+        "exact_chord_t1": {
+          "mean": 0.2273,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.391
+        },
+        "exact_chord_t3": {
+          "mean": 0.2273,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.391
+        },
+        "seventh_t1": {
+          "mean": 0.2727,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4454
+        },
+        "triad_only_t1": {
+          "mean": 0.2273,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.391
+        },
+        "root_and_triad_t1": {
+          "mean": 0.2273,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.391
+        },
+        "false_enrich_rate": {
+          "mean": 0.0,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "std": 0.0
+        },
+        "false_impoverish_rate": {
+          "mean": 0.5455,
+          "median": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "n_partitions": 11,
+        "total_fixtures": 29,
+        "avg_candidates": 0.0,
+        "_partition_values": {
+          "root_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "exact_chord_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 0.5,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "exact_chord_t3": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 0.5,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "seventh_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "triad_only_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 0.5,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "root_and_triad_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 0.5,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_enrich_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_impoverish_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 1.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          }
+        }
+      },
+      "cpu_time": 0.0262
+    },
+    {
+      "presence_threshold": 0.05,
+      "dominance_threshold": 0.0,
+      "global_metrics": {
+        "root_t1": 0.4828,
+        "exact_chord_t1": 0.4828,
+        "exact_chord_t3": 0.4828,
+        "triad_only_t1": 0.4828,
+        "root_and_triad_t1": 0.4828,
+        "seventh_t1": 0.4828,
+        "seventh_t3": 0.4828,
+        "false_enrich_rate": 0.0,
+        "false_impoverish_rate": 0.5172,
+        "total": 29
+      },
+      "partition_metrics": {
+        "root_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "exact_chord_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "exact_chord_t3": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "seventh_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "triad_only_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "root_and_triad_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "false_enrich_rate": {
+          "mean": 0.0,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "std": 0.0
+        },
+        "false_impoverish_rate": {
+          "mean": 0.5455,
+          "median": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "n_partitions": 11,
+        "total_fixtures": 29,
+        "avg_candidates": 0.0,
+        "_partition_values": {
+          "root_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "exact_chord_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "exact_chord_t3": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "seventh_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "triad_only_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "root_and_triad_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_enrich_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_impoverish_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 1.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          }
+        }
+      },
+      "cpu_time": 0.0256
+    },
+    {
+      "presence_threshold": 0.05,
+      "dominance_threshold": 0.02,
+      "global_metrics": {
+        "root_t1": 0.4828,
+        "exact_chord_t1": 0.4828,
+        "exact_chord_t3": 0.4828,
+        "triad_only_t1": 0.4828,
+        "root_and_triad_t1": 0.4828,
+        "seventh_t1": 0.4828,
+        "seventh_t3": 0.4828,
+        "false_enrich_rate": 0.0,
+        "false_impoverish_rate": 0.5172,
+        "total": 29
+      },
+      "partition_metrics": {
+        "root_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "exact_chord_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "exact_chord_t3": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "seventh_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "triad_only_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "root_and_triad_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "false_enrich_rate": {
+          "mean": 0.0,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "std": 0.0
+        },
+        "false_impoverish_rate": {
+          "mean": 0.5455,
+          "median": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "n_partitions": 11,
+        "total_fixtures": 29,
+        "avg_candidates": 0.0,
+        "_partition_values": {
+          "root_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "exact_chord_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "exact_chord_t3": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "seventh_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "triad_only_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "root_and_triad_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_enrich_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_impoverish_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 1.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          }
+        }
+      },
+      "cpu_time": 0.0257
+    },
+    {
+      "presence_threshold": 0.05,
+      "dominance_threshold": 0.04,
+      "global_metrics": {
+        "root_t1": 0.4828,
+        "exact_chord_t1": 0.4828,
+        "exact_chord_t3": 0.4828,
+        "triad_only_t1": 0.4828,
+        "root_and_triad_t1": 0.4828,
+        "seventh_t1": 0.4828,
+        "seventh_t3": 0.4828,
+        "false_enrich_rate": 0.0,
+        "false_impoverish_rate": 0.5172,
+        "total": 29
+      },
+      "partition_metrics": {
+        "root_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "exact_chord_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "exact_chord_t3": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "seventh_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "triad_only_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "root_and_triad_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "false_enrich_rate": {
+          "mean": 0.0,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "std": 0.0
+        },
+        "false_impoverish_rate": {
+          "mean": 0.5455,
+          "median": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "n_partitions": 11,
+        "total_fixtures": 29,
+        "avg_candidates": 0.0,
+        "_partition_values": {
+          "root_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "exact_chord_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "exact_chord_t3": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "seventh_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "triad_only_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "root_and_triad_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_enrich_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_impoverish_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 1.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          }
+        }
+      },
+      "cpu_time": 0.0251
+    },
+    {
+      "presence_threshold": 0.07,
+      "dominance_threshold": 0.0,
+      "global_metrics": {
+        "root_t1": 0.4828,
+        "exact_chord_t1": 0.4828,
+        "exact_chord_t3": 0.4828,
+        "triad_only_t1": 0.4828,
+        "root_and_triad_t1": 0.4828,
+        "seventh_t1": 0.4828,
+        "seventh_t3": 0.4828,
+        "false_enrich_rate": 0.0,
+        "false_impoverish_rate": 0.5172,
+        "total": 29
+      },
+      "partition_metrics": {
+        "root_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "exact_chord_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "exact_chord_t3": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "seventh_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "triad_only_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "root_and_triad_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "false_enrich_rate": {
+          "mean": 0.0,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "std": 0.0
+        },
+        "false_impoverish_rate": {
+          "mean": 0.5455,
+          "median": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "n_partitions": 11,
+        "total_fixtures": 29,
+        "avg_candidates": 0.0,
+        "_partition_values": {
+          "root_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "exact_chord_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "exact_chord_t3": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "seventh_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "triad_only_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "root_and_triad_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_enrich_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_impoverish_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 1.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          }
+        }
+      },
+      "cpu_time": 0.0259
+    },
+    {
+      "presence_threshold": 0.07,
+      "dominance_threshold": 0.02,
+      "global_metrics": {
+        "root_t1": 0.4828,
+        "exact_chord_t1": 0.4828,
+        "exact_chord_t3": 0.4828,
+        "triad_only_t1": 0.4828,
+        "root_and_triad_t1": 0.4828,
+        "seventh_t1": 0.4828,
+        "seventh_t3": 0.4828,
+        "false_enrich_rate": 0.0,
+        "false_impoverish_rate": 0.5172,
+        "total": 29
+      },
+      "partition_metrics": {
+        "root_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "exact_chord_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "exact_chord_t3": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "seventh_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "triad_only_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "root_and_triad_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "false_enrich_rate": {
+          "mean": 0.0,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "std": 0.0
+        },
+        "false_impoverish_rate": {
+          "mean": 0.5455,
+          "median": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "n_partitions": 11,
+        "total_fixtures": 29,
+        "avg_candidates": 0.0,
+        "_partition_values": {
+          "root_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "exact_chord_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "exact_chord_t3": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "seventh_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "triad_only_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "root_and_triad_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_enrich_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_impoverish_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 1.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          }
+        }
+      },
+      "cpu_time": 0.0267
+    },
+    {
+      "presence_threshold": 0.07,
+      "dominance_threshold": 0.04,
+      "global_metrics": {
+        "root_t1": 0.4828,
+        "exact_chord_t1": 0.4828,
+        "exact_chord_t3": 0.4828,
+        "triad_only_t1": 0.4828,
+        "root_and_triad_t1": 0.4828,
+        "seventh_t1": 0.4828,
+        "seventh_t3": 0.4828,
+        "false_enrich_rate": 0.0,
+        "false_impoverish_rate": 0.5172,
+        "total": 29
+      },
+      "partition_metrics": {
+        "root_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "exact_chord_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "exact_chord_t3": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "seventh_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "triad_only_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "root_and_triad_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "false_enrich_rate": {
+          "mean": 0.0,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "std": 0.0
+        },
+        "false_impoverish_rate": {
+          "mean": 0.5455,
+          "median": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "n_partitions": 11,
+        "total_fixtures": 29,
+        "avg_candidates": 0.0,
+        "_partition_values": {
+          "root_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "exact_chord_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "exact_chord_t3": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "seventh_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "triad_only_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "root_and_triad_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_enrich_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_impoverish_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 1.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          }
+        }
+      },
+      "cpu_time": 0.027
+    },
+    {
+      "presence_threshold": 0.1,
+      "dominance_threshold": 0.0,
+      "global_metrics": {
+        "root_t1": 0.4828,
+        "exact_chord_t1": 0.4828,
+        "exact_chord_t3": 0.4828,
+        "triad_only_t1": 0.4828,
+        "root_and_triad_t1": 0.4828,
+        "seventh_t1": 0.4828,
+        "seventh_t3": 0.4828,
+        "false_enrich_rate": 0.0,
+        "false_impoverish_rate": 0.5172,
+        "total": 29
+      },
+      "partition_metrics": {
+        "root_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "exact_chord_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "exact_chord_t3": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "seventh_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "triad_only_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "root_and_triad_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "false_enrich_rate": {
+          "mean": 0.0,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "std": 0.0
+        },
+        "false_impoverish_rate": {
+          "mean": 0.5455,
+          "median": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "n_partitions": 11,
+        "total_fixtures": 29,
+        "avg_candidates": 0.0,
+        "_partition_values": {
+          "root_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "exact_chord_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "exact_chord_t3": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "seventh_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "triad_only_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "root_and_triad_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_enrich_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_impoverish_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 1.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          }
+        }
+      },
+      "cpu_time": 0.0261
+    },
+    {
+      "presence_threshold": 0.1,
+      "dominance_threshold": 0.02,
+      "global_metrics": {
+        "root_t1": 0.4828,
+        "exact_chord_t1": 0.4828,
+        "exact_chord_t3": 0.4828,
+        "triad_only_t1": 0.4828,
+        "root_and_triad_t1": 0.4828,
+        "seventh_t1": 0.4828,
+        "seventh_t3": 0.4828,
+        "false_enrich_rate": 0.0,
+        "false_impoverish_rate": 0.5172,
+        "total": 29
+      },
+      "partition_metrics": {
+        "root_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "exact_chord_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "exact_chord_t3": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "seventh_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "triad_only_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "root_and_triad_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "false_enrich_rate": {
+          "mean": 0.0,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "std": 0.0
+        },
+        "false_impoverish_rate": {
+          "mean": 0.5455,
+          "median": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "n_partitions": 11,
+        "total_fixtures": 29,
+        "avg_candidates": 0.0,
+        "_partition_values": {
+          "root_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "exact_chord_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "exact_chord_t3": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "seventh_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "triad_only_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "root_and_triad_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_enrich_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_impoverish_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 1.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          }
+        }
+      },
+      "cpu_time": 0.0267
+    },
+    {
+      "presence_threshold": 0.1,
+      "dominance_threshold": 0.04,
+      "global_metrics": {
+        "root_t1": 0.4828,
+        "exact_chord_t1": 0.4828,
+        "exact_chord_t3": 0.4828,
+        "triad_only_t1": 0.4828,
+        "root_and_triad_t1": 0.4828,
+        "seventh_t1": 0.4828,
+        "seventh_t3": 0.4828,
+        "false_enrich_rate": 0.0,
+        "false_impoverish_rate": 0.5172,
+        "total": 29
+      },
+      "partition_metrics": {
+        "root_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "exact_chord_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "exact_chord_t3": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "seventh_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "triad_only_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "root_and_triad_t1": {
+          "mean": 0.4545,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "false_enrich_rate": {
+          "mean": 0.0,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "std": 0.0
+        },
+        "false_impoverish_rate": {
+          "mean": 0.5455,
+          "median": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.4979
+        },
+        "n_partitions": 11,
+        "total_fixtures": 29,
+        "avg_candidates": 0.0,
+        "_partition_values": {
+          "root_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "exact_chord_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "exact_chord_t3": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "seventh_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "triad_only_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "root_and_triad_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_enrich_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_impoverish_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 1.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          }
+        }
+      },
+      "cpu_time": 0.0273
+    }
+  ],
+  "c2_grid": [
+    {
+      "presence_threshold": 0.03,
+      "dominance_threshold": 0.0,
+      "global_metrics": {
+        "root_t1": 0.931,
+        "exact_chord_t1": 0.7586,
+        "exact_chord_t3": 0.931,
+        "triad_only_t1": 0.931,
+        "root_and_triad_t1": 0.931,
+        "seventh_t1": 0.7586,
+        "seventh_t3": 0.931,
+        "false_enrich_rate": 0.1724,
+        "false_impoverish_rate": 0.069,
+        "total": 29
+      },
+      "partition_metrics": {
+        "root_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "exact_chord_t1": {
+          "mean": 0.7424,
+          "median": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.3851
+        },
+        "exact_chord_t3": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "seventh_t1": {
+          "mean": 0.7424,
+          "median": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.3851
+        },
+        "triad_only_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "root_and_triad_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "false_enrich_rate": {
+          "mean": 0.2273,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.391
+        },
+        "false_impoverish_rate": {
+          "mean": 0.0303,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.3333,
+          "std": 0.0958
+        },
+        "n_partitions": 11,
+        "total_fixtures": 29,
+        "avg_candidates": 0.0,
+        "_partition_values": {
+          "root_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "exact_chord_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 0.5,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "exact_chord_t3": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "seventh_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 0.5,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "triad_only_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "root_and_triad_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "false_enrich_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.5,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_impoverish_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.3333,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          }
+        }
+      },
+      "cpu_time": 0.0353,
+      "root_mismatches_vs_C0": 0,
+      "triad_mismatches_vs_C0": 0,
+      "acceptable": false,
+      "gain_pp": 0,
+      "improved_fixtures": 0,
+      "improved_groups": 0
+    },
+    {
+      "presence_threshold": 0.03,
+      "dominance_threshold": 0.02,
+      "global_metrics": {
+        "root_t1": 0.931,
+        "exact_chord_t1": 0.7586,
+        "exact_chord_t3": 0.931,
+        "triad_only_t1": 0.931,
+        "root_and_triad_t1": 0.931,
+        "seventh_t1": 0.7586,
+        "seventh_t3": 0.931,
+        "false_enrich_rate": 0.1724,
+        "false_impoverish_rate": 0.069,
+        "total": 29
+      },
+      "partition_metrics": {
+        "root_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "exact_chord_t1": {
+          "mean": 0.7424,
+          "median": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.3851
+        },
+        "exact_chord_t3": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "seventh_t1": {
+          "mean": 0.7424,
+          "median": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.3851
+        },
+        "triad_only_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "root_and_triad_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "false_enrich_rate": {
+          "mean": 0.2273,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.391
+        },
+        "false_impoverish_rate": {
+          "mean": 0.0303,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.3333,
+          "std": 0.0958
+        },
+        "n_partitions": 11,
+        "total_fixtures": 29,
+        "avg_candidates": 0.0,
+        "_partition_values": {
+          "root_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "exact_chord_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 0.5,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "exact_chord_t3": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "seventh_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 0.5,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "triad_only_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "root_and_triad_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "false_enrich_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.5,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_impoverish_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.3333,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          }
+        }
+      },
+      "cpu_time": 0.0338,
+      "root_mismatches_vs_C0": 0,
+      "triad_mismatches_vs_C0": 0,
+      "acceptable": false,
+      "gain_pp": 0,
+      "improved_fixtures": 0,
+      "improved_groups": 0
+    },
+    {
+      "presence_threshold": 0.03,
+      "dominance_threshold": 0.04,
+      "global_metrics": {
+        "root_t1": 0.931,
+        "exact_chord_t1": 0.7586,
+        "exact_chord_t3": 0.931,
+        "triad_only_t1": 0.931,
+        "root_and_triad_t1": 0.931,
+        "seventh_t1": 0.7586,
+        "seventh_t3": 0.931,
+        "false_enrich_rate": 0.1724,
+        "false_impoverish_rate": 0.069,
+        "total": 29
+      },
+      "partition_metrics": {
+        "root_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "exact_chord_t1": {
+          "mean": 0.7424,
+          "median": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.3851
+        },
+        "exact_chord_t3": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "seventh_t1": {
+          "mean": 0.7424,
+          "median": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.3851
+        },
+        "triad_only_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "root_and_triad_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "false_enrich_rate": {
+          "mean": 0.2273,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "std": 0.391
+        },
+        "false_impoverish_rate": {
+          "mean": 0.0303,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.3333,
+          "std": 0.0958
+        },
+        "n_partitions": 11,
+        "total_fixtures": 29,
+        "avg_candidates": 0.0,
+        "_partition_values": {
+          "root_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "exact_chord_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 0.5,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "exact_chord_t3": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "seventh_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 0.5,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "triad_only_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "root_and_triad_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "false_enrich_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.5,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_impoverish_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.3333,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          }
+        }
+      },
+      "cpu_time": 0.0337,
+      "root_mismatches_vs_C0": 0,
+      "triad_mismatches_vs_C0": 0,
+      "acceptable": false,
+      "gain_pp": 0,
+      "improved_fixtures": 0,
+      "improved_groups": 0
+    },
+    {
+      "presence_threshold": 0.05,
+      "dominance_threshold": 0.0,
+      "global_metrics": {
+        "root_t1": 0.931,
+        "exact_chord_t1": 0.931,
+        "exact_chord_t3": 0.931,
+        "triad_only_t1": 0.931,
+        "root_and_triad_t1": 0.931,
+        "seventh_t1": 0.931,
+        "seventh_t3": 0.931,
+        "false_enrich_rate": 0.0,
+        "false_impoverish_rate": 0.069,
+        "total": 29
+      },
+      "partition_metrics": {
+        "root_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "exact_chord_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "exact_chord_t3": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "seventh_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "triad_only_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "root_and_triad_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "false_enrich_rate": {
+          "mean": 0.0,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "std": 0.0
+        },
+        "false_impoverish_rate": {
+          "mean": 0.0303,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.3333,
+          "std": 0.0958
+        },
+        "n_partitions": 11,
+        "total_fixtures": 29,
+        "avg_candidates": 0.0,
+        "_partition_values": {
+          "root_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "exact_chord_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "exact_chord_t3": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "seventh_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "triad_only_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "root_and_triad_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "false_enrich_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_impoverish_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.3333,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          }
+        }
+      },
+      "cpu_time": 0.0346,
+      "root_mismatches_vs_C0": 0,
+      "triad_mismatches_vs_C0": 0,
+      "acceptable": true,
+      "gain_pp": 44.83,
+      "improved_fixtures": 13,
+      "improved_groups": 6
+    },
+    {
+      "presence_threshold": 0.05,
+      "dominance_threshold": 0.02,
+      "global_metrics": {
+        "root_t1": 0.931,
+        "exact_chord_t1": 0.931,
+        "exact_chord_t3": 0.931,
+        "triad_only_t1": 0.931,
+        "root_and_triad_t1": 0.931,
+        "seventh_t1": 0.931,
+        "seventh_t3": 0.931,
+        "false_enrich_rate": 0.0,
+        "false_impoverish_rate": 0.069,
+        "total": 29
+      },
+      "partition_metrics": {
+        "root_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "exact_chord_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "exact_chord_t3": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "seventh_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "triad_only_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "root_and_triad_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "false_enrich_rate": {
+          "mean": 0.0,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "std": 0.0
+        },
+        "false_impoverish_rate": {
+          "mean": 0.0303,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.3333,
+          "std": 0.0958
+        },
+        "n_partitions": 11,
+        "total_fixtures": 29,
+        "avg_candidates": 0.0,
+        "_partition_values": {
+          "root_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "exact_chord_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "exact_chord_t3": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "seventh_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "triad_only_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "root_and_triad_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "false_enrich_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_impoverish_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.3333,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          }
+        }
+      },
+      "cpu_time": 0.0344,
+      "root_mismatches_vs_C0": 0,
+      "triad_mismatches_vs_C0": 0,
+      "acceptable": true,
+      "gain_pp": 44.83,
+      "improved_fixtures": 13,
+      "improved_groups": 6
+    },
+    {
+      "presence_threshold": 0.05,
+      "dominance_threshold": 0.04,
+      "global_metrics": {
+        "root_t1": 0.931,
+        "exact_chord_t1": 0.931,
+        "exact_chord_t3": 0.931,
+        "triad_only_t1": 0.931,
+        "root_and_triad_t1": 0.931,
+        "seventh_t1": 0.931,
+        "seventh_t3": 0.931,
+        "false_enrich_rate": 0.0,
+        "false_impoverish_rate": 0.069,
+        "total": 29
+      },
+      "partition_metrics": {
+        "root_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "exact_chord_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "exact_chord_t3": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "seventh_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "triad_only_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "root_and_triad_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "false_enrich_rate": {
+          "mean": 0.0,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "std": 0.0
+        },
+        "false_impoverish_rate": {
+          "mean": 0.0303,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.3333,
+          "std": 0.0958
+        },
+        "n_partitions": 11,
+        "total_fixtures": 29,
+        "avg_candidates": 0.0,
+        "_partition_values": {
+          "root_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "exact_chord_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "exact_chord_t3": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "seventh_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "triad_only_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "root_and_triad_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "false_enrich_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_impoverish_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.3333,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          }
+        }
+      },
+      "cpu_time": 0.0338,
+      "root_mismatches_vs_C0": 0,
+      "triad_mismatches_vs_C0": 0,
+      "acceptable": true,
+      "gain_pp": 44.83,
+      "improved_fixtures": 13,
+      "improved_groups": 6
+    },
+    {
+      "presence_threshold": 0.07,
+      "dominance_threshold": 0.0,
+      "global_metrics": {
+        "root_t1": 0.931,
+        "exact_chord_t1": 0.931,
+        "exact_chord_t3": 0.931,
+        "triad_only_t1": 0.931,
+        "root_and_triad_t1": 0.931,
+        "seventh_t1": 0.931,
+        "seventh_t3": 0.931,
+        "false_enrich_rate": 0.0,
+        "false_impoverish_rate": 0.069,
+        "total": 29
+      },
+      "partition_metrics": {
+        "root_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "exact_chord_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "exact_chord_t3": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "seventh_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "triad_only_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "root_and_triad_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "false_enrich_rate": {
+          "mean": 0.0,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "std": 0.0
+        },
+        "false_impoverish_rate": {
+          "mean": 0.0303,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.3333,
+          "std": 0.0958
+        },
+        "n_partitions": 11,
+        "total_fixtures": 29,
+        "avg_candidates": 0.0,
+        "_partition_values": {
+          "root_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "exact_chord_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "exact_chord_t3": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "seventh_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "triad_only_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "root_and_triad_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "false_enrich_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_impoverish_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.3333,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          }
+        }
+      },
+      "cpu_time": 0.0327,
+      "root_mismatches_vs_C0": 0,
+      "triad_mismatches_vs_C0": 0,
+      "acceptable": true,
+      "gain_pp": 44.83,
+      "improved_fixtures": 13,
+      "improved_groups": 6
+    },
+    {
+      "presence_threshold": 0.07,
+      "dominance_threshold": 0.02,
+      "global_metrics": {
+        "root_t1": 0.931,
+        "exact_chord_t1": 0.931,
+        "exact_chord_t3": 0.931,
+        "triad_only_t1": 0.931,
+        "root_and_triad_t1": 0.931,
+        "seventh_t1": 0.931,
+        "seventh_t3": 0.931,
+        "false_enrich_rate": 0.0,
+        "false_impoverish_rate": 0.069,
+        "total": 29
+      },
+      "partition_metrics": {
+        "root_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "exact_chord_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "exact_chord_t3": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "seventh_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "triad_only_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "root_and_triad_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "false_enrich_rate": {
+          "mean": 0.0,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "std": 0.0
+        },
+        "false_impoverish_rate": {
+          "mean": 0.0303,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.3333,
+          "std": 0.0958
+        },
+        "n_partitions": 11,
+        "total_fixtures": 29,
+        "avg_candidates": 0.0,
+        "_partition_values": {
+          "root_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "exact_chord_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "exact_chord_t3": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "seventh_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "triad_only_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "root_and_triad_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "false_enrich_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_impoverish_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.3333,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          }
+        }
+      },
+      "cpu_time": 0.0331,
+      "root_mismatches_vs_C0": 0,
+      "triad_mismatches_vs_C0": 0,
+      "acceptable": true,
+      "gain_pp": 44.83,
+      "improved_fixtures": 13,
+      "improved_groups": 6
+    },
+    {
+      "presence_threshold": 0.07,
+      "dominance_threshold": 0.04,
+      "global_metrics": {
+        "root_t1": 0.931,
+        "exact_chord_t1": 0.931,
+        "exact_chord_t3": 0.931,
+        "triad_only_t1": 0.931,
+        "root_and_triad_t1": 0.931,
+        "seventh_t1": 0.931,
+        "seventh_t3": 0.931,
+        "false_enrich_rate": 0.0,
+        "false_impoverish_rate": 0.069,
+        "total": 29
+      },
+      "partition_metrics": {
+        "root_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "exact_chord_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "exact_chord_t3": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "seventh_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "triad_only_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "root_and_triad_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "false_enrich_rate": {
+          "mean": 0.0,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "std": 0.0
+        },
+        "false_impoverish_rate": {
+          "mean": 0.0303,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.3333,
+          "std": 0.0958
+        },
+        "n_partitions": 11,
+        "total_fixtures": 29,
+        "avg_candidates": 0.0,
+        "_partition_values": {
+          "root_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "exact_chord_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "exact_chord_t3": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "seventh_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "triad_only_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "root_and_triad_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "false_enrich_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_impoverish_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.3333,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          }
+        }
+      },
+      "cpu_time": 0.0381,
+      "root_mismatches_vs_C0": 0,
+      "triad_mismatches_vs_C0": 0,
+      "acceptable": true,
+      "gain_pp": 44.83,
+      "improved_fixtures": 13,
+      "improved_groups": 6
+    },
+    {
+      "presence_threshold": 0.1,
+      "dominance_threshold": 0.0,
+      "global_metrics": {
+        "root_t1": 0.931,
+        "exact_chord_t1": 0.931,
+        "exact_chord_t3": 0.931,
+        "triad_only_t1": 0.931,
+        "root_and_triad_t1": 0.931,
+        "seventh_t1": 0.931,
+        "seventh_t3": 0.931,
+        "false_enrich_rate": 0.0,
+        "false_impoverish_rate": 0.069,
+        "total": 29
+      },
+      "partition_metrics": {
+        "root_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "exact_chord_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "exact_chord_t3": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "seventh_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "triad_only_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "root_and_triad_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "false_enrich_rate": {
+          "mean": 0.0,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "std": 0.0
+        },
+        "false_impoverish_rate": {
+          "mean": 0.0303,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.3333,
+          "std": 0.0958
+        },
+        "n_partitions": 11,
+        "total_fixtures": 29,
+        "avg_candidates": 0.0,
+        "_partition_values": {
+          "root_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "exact_chord_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "exact_chord_t3": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "seventh_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "triad_only_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "root_and_triad_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "false_enrich_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_impoverish_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.3333,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          }
+        }
+      },
+      "cpu_time": 0.0344,
+      "root_mismatches_vs_C0": 0,
+      "triad_mismatches_vs_C0": 0,
+      "acceptable": true,
+      "gain_pp": 44.83,
+      "improved_fixtures": 13,
+      "improved_groups": 6
+    },
+    {
+      "presence_threshold": 0.1,
+      "dominance_threshold": 0.02,
+      "global_metrics": {
+        "root_t1": 0.931,
+        "exact_chord_t1": 0.931,
+        "exact_chord_t3": 0.931,
+        "triad_only_t1": 0.931,
+        "root_and_triad_t1": 0.931,
+        "seventh_t1": 0.931,
+        "seventh_t3": 0.931,
+        "false_enrich_rate": 0.0,
+        "false_impoverish_rate": 0.069,
+        "total": 29
+      },
+      "partition_metrics": {
+        "root_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "exact_chord_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "exact_chord_t3": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "seventh_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "triad_only_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "root_and_triad_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "false_enrich_rate": {
+          "mean": 0.0,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "std": 0.0
+        },
+        "false_impoverish_rate": {
+          "mean": 0.0303,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.3333,
+          "std": 0.0958
+        },
+        "n_partitions": 11,
+        "total_fixtures": 29,
+        "avg_candidates": 0.0,
+        "_partition_values": {
+          "root_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "exact_chord_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "exact_chord_t3": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "seventh_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "triad_only_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "root_and_triad_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "false_enrich_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_impoverish_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.3333,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          }
+        }
+      },
+      "cpu_time": 0.0342,
+      "root_mismatches_vs_C0": 0,
+      "triad_mismatches_vs_C0": 0,
+      "acceptable": true,
+      "gain_pp": 44.83,
+      "improved_fixtures": 13,
+      "improved_groups": 6
+    },
+    {
+      "presence_threshold": 0.1,
+      "dominance_threshold": 0.04,
+      "global_metrics": {
+        "root_t1": 0.931,
+        "exact_chord_t1": 0.931,
+        "exact_chord_t3": 0.931,
+        "triad_only_t1": 0.931,
+        "root_and_triad_t1": 0.931,
+        "seventh_t1": 0.931,
+        "seventh_t3": 0.931,
+        "false_enrich_rate": 0.0,
+        "false_impoverish_rate": 0.069,
+        "total": 29
+      },
+      "partition_metrics": {
+        "root_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "exact_chord_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "exact_chord_t3": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "seventh_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "triad_only_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "root_and_triad_t1": {
+          "mean": 0.9697,
+          "median": 1.0,
+          "min": 0.6667,
+          "max": 1.0,
+          "std": 0.0958
+        },
+        "false_enrich_rate": {
+          "mean": 0.0,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "std": 0.0
+        },
+        "false_impoverish_rate": {
+          "mean": 0.0303,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.3333,
+          "std": 0.0958
+        },
+        "n_partitions": 11,
+        "total_fixtures": 29,
+        "avg_candidates": 0.0,
+        "_partition_values": {
+          "root_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "exact_chord_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "exact_chord_t3": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "seventh_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "triad_only_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "root_and_triad_t1": {
+            "root=0, quality=major": 1.0,
+            "root=0, quality=m": 1.0,
+            "root=0, quality=7": 1.0,
+            "root=0, quality=maj7": 0.6667,
+            "root=0, quality=sus2": 1.0,
+            "root=0, quality=sus4": 1.0,
+            "root=0, quality=m7": 1.0,
+            "root=0, quality=dim": 1.0,
+            "root=0, quality=m7b5": 1.0,
+            "root=7, quality=7": 1.0,
+            "root=2, quality=m7b5": 1.0
+          },
+          "false_enrich_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.0,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          },
+          "false_impoverish_rate": {
+            "root=0, quality=major": 0.0,
+            "root=0, quality=m": 0.0,
+            "root=0, quality=7": 0.0,
+            "root=0, quality=maj7": 0.3333,
+            "root=0, quality=sus2": 0.0,
+            "root=0, quality=sus4": 0.0,
+            "root=0, quality=m7": 0.0,
+            "root=0, quality=dim": 0.0,
+            "root=0, quality=m7b5": 0.0,
+            "root=7, quality=7": 0.0,
+            "root=2, quality=m7b5": 0.0
+          }
+        }
+      },
+      "cpu_time": 0.033,
+      "root_mismatches_vs_C0": 0,
+      "triad_mismatches_vs_C0": 0,
+      "acceptable": true,
+      "gain_pp": 44.83,
+      "improved_fixtures": 13,
+      "improved_groups": 6
+    }
+  ],
+  "selection_rule": {
+    "primary": "maximize exact_chord_t1 EMG-DEV mean",
+    "constraints": [
+      "root_t1 identical to C0 (bit-identical, no mismatches)",
+      "triad_only_t1 identical to C0 (bit-identical, no mismatches)",
+      "exact_chord_t1 gain >= 5pp vs C0",
+      "gain covers >= 5 fixtures",
+      "gain covers >= 4 parent groups",
+      "false_enrich_rate <= 15%",
+      "no invariant violated"
+    ],
+    "tiebreak": [
+      "EMG-DEV mean exact_chord_t1",
+      "EMG-DEV median exact_chord_t1",
+      "EMG-DEV worst partition exact_chord_t1",
+      "seventh_t1",
+      "lowest false_enrich_rate",
+      "most conservative thresholds",
+      "lowest CPU"
+    ]
+  },
+  "code_hashes": {
+    "chroma_fixtures_dev": "d07080a793b8c2256d7bf27194a9778d",
+    "fixture_inventory": "cfea2a471ba183280a7059f3eda69ef3",
+    "structured_v1_py": "4adff9d5d92e9ad3dbdbcda4cce9721e",
+    "seventh_scorer_py": "c169270c28602d1b3baa24d848b8af9f",
+    "scoring_py": "ca9d3bd5384722ba0f426d5c9d73487b",
+    "voicing_py": "6cd88070d1076accf0cbd5ba39e9caf9"
+  },
+  "selected": {
+    "presence_threshold": 0.05,
+    "dominance_threshold": 0.0,
+    "global_metrics": {
+      "root_t1": 0.931,
+      "exact_chord_t1": 0.931,
+      "exact_chord_t3": 0.931,
+      "triad_only_t1": 0.931,
+      "root_and_triad_t1": 0.931,
+      "seventh_t1": 0.931,
+      "seventh_t3": 0.931,
+      "false_enrich_rate": 0.0,
+      "false_impoverish_rate": 0.069,
+      "total": 29
+    },
+    "partition_metrics": {
+      "root_t1": {
+        "mean": 0.9697,
+        "median": 1.0,
+        "min": 0.6667,
+        "max": 1.0,
+        "std": 0.0958
+      },
+      "exact_chord_t1": {
+        "mean": 0.9697,
+        "median": 1.0,
+        "min": 0.6667,
+        "max": 1.0,
+        "std": 0.0958
+      },
+      "exact_chord_t3": {
+        "mean": 0.9697,
+        "median": 1.0,
+        "min": 0.6667,
+        "max": 1.0,
+        "std": 0.0958
+      },
+      "seventh_t1": {
+        "mean": 0.9697,
+        "median": 1.0,
+        "min": 0.6667,
+        "max": 1.0,
+        "std": 0.0958
+      },
+      "triad_only_t1": {
+        "mean": 0.9697,
+        "median": 1.0,
+        "min": 0.6667,
+        "max": 1.0,
+        "std": 0.0958
+      },
+      "root_and_triad_t1": {
+        "mean": 0.9697,
+        "median": 1.0,
+        "min": 0.6667,
+        "max": 1.0,
+        "std": 0.0958
+      },
+      "false_enrich_rate": {
+        "mean": 0.0,
+        "median": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "std": 0.0
+      },
+      "false_impoverish_rate": {
+        "mean": 0.0303,
+        "median": 0.0,
+        "min": 0.0,
+        "max": 0.3333,
+        "std": 0.0958
+      },
+      "n_partitions": 11,
+      "total_fixtures": 29,
+      "avg_candidates": 0.0,
+      "_partition_values": {
+        "root_t1": {
+          "root=0, quality=major": 1.0,
+          "root=0, quality=m": 1.0,
+          "root=0, quality=7": 1.0,
+          "root=0, quality=maj7": 0.6667,
+          "root=0, quality=sus2": 1.0,
+          "root=0, quality=sus4": 1.0,
+          "root=0, quality=m7": 1.0,
+          "root=0, quality=dim": 1.0,
+          "root=0, quality=m7b5": 1.0,
+          "root=7, quality=7": 1.0,
+          "root=2, quality=m7b5": 1.0
+        },
+        "exact_chord_t1": {
+          "root=0, quality=major": 1.0,
+          "root=0, quality=m": 1.0,
+          "root=0, quality=7": 1.0,
+          "root=0, quality=maj7": 0.6667,
+          "root=0, quality=sus2": 1.0,
+          "root=0, quality=sus4": 1.0,
+          "root=0, quality=m7": 1.0,
+          "root=0, quality=dim": 1.0,
+          "root=0, quality=m7b5": 1.0,
+          "root=7, quality=7": 1.0,
+          "root=2, quality=m7b5": 1.0
+        },
+        "exact_chord_t3": {
+          "root=0, quality=major": 1.0,
+          "root=0, quality=m": 1.0,
+          "root=0, quality=7": 1.0,
+          "root=0, quality=maj7": 0.6667,
+          "root=0, quality=sus2": 1.0,
+          "root=0, quality=sus4": 1.0,
+          "root=0, quality=m7": 1.0,
+          "root=0, quality=dim": 1.0,
+          "root=0, quality=m7b5": 1.0,
+          "root=7, quality=7": 1.0,
+          "root=2, quality=m7b5": 1.0
+        },
+        "seventh_t1": {
+          "root=0, quality=major": 1.0,
+          "root=0, quality=m": 1.0,
+          "root=0, quality=7": 1.0,
+          "root=0, quality=maj7": 0.6667,
+          "root=0, quality=sus2": 1.0,
+          "root=0, quality=sus4": 1.0,
+          "root=0, quality=m7": 1.0,
+          "root=0, quality=dim": 1.0,
+          "root=0, quality=m7b5": 1.0,
+          "root=7, quality=7": 1.0,
+          "root=2, quality=m7b5": 1.0
+        },
+        "triad_only_t1": {
+          "root=0, quality=major": 1.0,
+          "root=0, quality=m": 1.0,
+          "root=0, quality=7": 1.0,
+          "root=0, quality=maj7": 0.6667,
+          "root=0, quality=sus2": 1.0,
+          "root=0, quality=sus4": 1.0,
+          "root=0, quality=m7": 1.0,
+          "root=0, quality=dim": 1.0,
+          "root=0, quality=m7b5": 1.0,
+          "root=7, quality=7": 1.0,
+          "root=2, quality=m7b5": 1.0
+        },
+        "root_and_triad_t1": {
+          "root=0, quality=major": 1.0,
+          "root=0, quality=m": 1.0,
+          "root=0, quality=7": 1.0,
+          "root=0, quality=maj7": 0.6667,
+          "root=0, quality=sus2": 1.0,
+          "root=0, quality=sus4": 1.0,
+          "root=0, quality=m7": 1.0,
+          "root=0, quality=dim": 1.0,
+          "root=0, quality=m7b5": 1.0,
+          "root=7, quality=7": 1.0,
+          "root=2, quality=m7b5": 1.0
+        },
+        "false_enrich_rate": {
+          "root=0, quality=major": 0.0,
+          "root=0, quality=m": 0.0,
+          "root=0, quality=7": 0.0,
+          "root=0, quality=maj7": 0.0,
+          "root=0, quality=sus2": 0.0,
+          "root=0, quality=sus4": 0.0,
+          "root=0, quality=m7": 0.0,
+          "root=0, quality=dim": 0.0,
+          "root=0, quality=m7b5": 0.0,
+          "root=7, quality=7": 0.0,
+          "root=2, quality=m7b5": 0.0
+        },
+        "false_impoverish_rate": {
+          "root=0, quality=major": 0.0,
+          "root=0, quality=m": 0.0,
+          "root=0, quality=7": 0.0,
+          "root=0, quality=maj7": 0.3333,
+          "root=0, quality=sus2": 0.0,
+          "root=0, quality=sus4": 0.0,
+          "root=0, quality=m7": 0.0,
+          "root=0, quality=dim": 0.0,
+          "root=0, quality=m7b5": 0.0,
+          "root=7, quality=7": 0.0,
+          "root=2, quality=m7b5": 0.0
+        }
+      }
+    },
+    "gain_pp": 44.83,
+    "improved_fixtures": 13,
+    "improved_groups": 6,
+    "root_mismatches_vs_C0": 0,
+    "triad_mismatches_vs_C0": 0
+  },
+  "survival_audit": {
+    "per_fixture": [
+      {
+        "fixture_id": "complete_C7",
+        "parent_group_id": "root=0, quality=7",
+        "ground_truth": "C:7",
+        "gt_seventh": "b7",
+        "legacy_prediction": "C:",
+        "new_prediction": "C:7",
+        "legacy_seventh": "none",
+        "new_seventh": "b7",
+        "residual_floor": 0.0704,
+        "energy_9": 0.0412,
+        "energy_10": 0.2748,
+        "energy_11": 0.1031,
+        "contrast_9": 0.0,
+        "contrast_10": 0.2044,
+        "contrast_11": 0.0326,
+        "correction_or_regression": "corrected"
+      },
+      {
+        "fixture_id": "complete_Cmaj7",
+        "parent_group_id": "root=0, quality=maj7",
+        "ground_truth": "C:maj7",
+        "gt_seventh": "maj7",
+        "legacy_prediction": "C:",
+        "new_prediction": "C:maj7",
+        "legacy_seventh": "none",
+        "new_seventh": "maj7",
+        "residual_floor": 0.0643,
+        "energy_9": 0.0386,
+        "energy_10": 0.0772,
+        "energy_11": 0.5147,
+        "contrast_9": 0.0,
+        "contrast_10": 0.0129,
+        "contrast_11": 0.4504,
+        "correction_or_regression": "corrected"
+      },
+      {
+        "fixture_id": "complete_Cm7",
+        "parent_group_id": "root=0, quality=m7",
+        "ground_truth": "C:m7",
+        "gt_seventh": "b7",
+        "legacy_prediction": "C:m",
+        "new_prediction": "C:m7",
+        "legacy_seventh": "none",
+        "new_seventh": "b7",
+        "residual_floor": 0.064,
+        "energy_9": 0.0738,
+        "energy_10": 0.492,
+        "energy_11": 0.0868,
+        "contrast_9": 0.0098,
+        "contrast_10": 0.428,
+        "contrast_11": 0.0228,
+        "correction_or_regression": "corrected"
+      },
+      {
+        "fixture_id": "complete_Cm7b5",
+        "parent_group_id": "root=0, quality=m7b5",
+        "ground_truth": "C:m7b5",
+        "gt_seventh": "b7",
+        "legacy_prediction": "C:dim",
+        "new_prediction": "C:m7b5",
+        "legacy_seventh": "none",
+        "new_seventh": "b7",
+        "residual_floor": 0.0672,
+        "energy_9": 0.0693,
+        "energy_10": 0.4617,
+        "energy_11": 0.0815,
+        "contrast_9": 0.002,
+        "contrast_10": 0.3945,
+        "contrast_11": 0.0143,
+        "correction_or_regression": "corrected"
+      },
+      {
+        "fixture_id": "no5_C7",
+        "parent_group_id": "root=0, quality=7",
+        "ground_truth": "C:7",
+        "gt_seventh": "b7",
+        "legacy_prediction": "C:",
+        "new_prediction": "C:7",
+        "legacy_seventh": "none",
+        "new_seventh": "b7",
+        "residual_floor": 0.0665,
+        "energy_9": 0.0446,
+        "energy_10": 0.2976,
+        "energy_11": 0.1116,
+        "contrast_9": 0.0,
+        "contrast_10": 0.2311,
+        "contrast_11": 0.0451,
+        "correction_or_regression": "corrected"
+      },
+      {
+        "fixture_id": "rootless_Cmaj7",
+        "parent_group_id": "root=0, quality=maj7",
+        "ground_truth": "C:maj7",
+        "gt_seventh": "maj7",
+        "legacy_prediction": "E:m",
+        "new_prediction": "E:m",
+        "legacy_seventh": "none",
+        "new_seventh": "none",
+        "residual_floor": 0.0214,
+        "energy_9": 0.0214,
+        "energy_10": 0.0214,
+        "energy_11": 0.6423,
+        "contrast_9": 0.0,
+        "contrast_10": 0.0,
+        "contrast_11": 0.6209,
+        "correction_or_regression": "still_incorrect"
+      },
+      {
+        "fixture_id": "shell_Cmaj7",
+        "parent_group_id": "root=0, quality=maj7",
+        "ground_truth": "C:maj7",
+        "gt_seventh": "maj7",
+        "legacy_prediction": "C:",
+        "new_prediction": "C:maj7",
+        "legacy_seventh": "none",
+        "new_seventh": "maj7",
+        "residual_floor": 0.0596,
+        "energy_9": 0.0425,
+        "energy_10": 0.0851,
+        "energy_11": 0.5672,
+        "contrast_9": 0.0,
+        "contrast_10": 0.0255,
+        "contrast_11": 0.5076,
+        "correction_or_regression": "corrected"
+      },
+      {
+        "fixture_id": "shell_G7",
+        "parent_group_id": "root=7, quality=7",
+        "ground_truth": "G:7",
+        "gt_seventh": "b7",
+        "legacy_prediction": "G:",
+        "new_prediction": "G:7",
+        "legacy_seventh": "none",
+        "new_seventh": "b7",
+        "residual_floor": 0.0636,
+        "energy_9": 0.0848,
+        "energy_10": 0.5652,
+        "energy_11": 0.0848,
+        "contrast_9": 0.0212,
+        "contrast_10": 0.5016,
+        "contrast_11": 0.0212,
+        "correction_or_regression": "corrected"
+      },
+      {
+        "fixture_id": "inv_G7_bassD",
+        "parent_group_id": "root=7, quality=7",
+        "ground_truth": "G:7",
+        "gt_seventh": "b7",
+        "legacy_prediction": "G:",
+        "new_prediction": "G:7",
+        "legacy_seventh": "none",
+        "new_seventh": "b7",
+        "residual_floor": 0.0704,
+        "energy_9": 0.0412,
+        "energy_10": 0.2748,
+        "energy_11": 0.1031,
+        "contrast_9": 0.0,
+        "contrast_10": 0.2044,
+        "contrast_11": 0.0326,
+        "correction_or_regression": "corrected"
+      },
+      {
+        "fixture_id": "spread_Cmaj7",
+        "parent_group_id": "root=0, quality=maj7",
+        "ground_truth": "C:maj7",
+        "gt_seventh": "maj7",
+        "legacy_prediction": "C:",
+        "new_prediction": "C:maj7",
+        "legacy_seventh": "none",
+        "new_seventh": "maj7",
+        "residual_floor": 0.0628,
+        "energy_9": 0.0422,
+        "energy_10": 0.0844,
+        "energy_11": 0.5624,
+        "contrast_9": 0.0,
+        "contrast_10": 0.0216,
+        "contrast_11": 0.4997,
+        "correction_or_regression": "corrected"
+      },
+      {
+        "fixture_id": "spread_Dm7b5",
+        "parent_group_id": "root=2, quality=m7b5",
+        "ground_truth": "D:m7b5",
+        "gt_seventh": "b7",
+        "legacy_prediction": "D:dim",
+        "new_prediction": "D:m7b5",
+        "legacy_seventh": "none",
+        "new_seventh": "b7",
+        "residual_floor": 0.0671,
+        "energy_9": 0.0712,
+        "energy_10": 0.4749,
+        "energy_11": 0.0793,
+        "contrast_9": 0.0041,
+        "contrast_10": 0.4078,
+        "contrast_11": 0.0122,
+        "correction_or_regression": "corrected"
+      },
+      {
+        "fixture_id": "conf_maj7_clean",
+        "parent_group_id": "root=0, quality=maj7",
+        "ground_truth": "C:maj7",
+        "gt_seventh": "maj7",
+        "legacy_prediction": "C:",
+        "new_prediction": "C:maj7",
+        "legacy_seventh": "none",
+        "new_seventh": "maj7",
+        "residual_floor": 0.0643,
+        "energy_9": 0.0386,
+        "energy_10": 0.0772,
+        "energy_11": 0.5147,
+        "contrast_9": 0.0,
+        "contrast_10": 0.0129,
+        "contrast_11": 0.4504,
+        "correction_or_regression": "corrected"
+      },
+      {
+        "fixture_id": "invariant_order_G7_a",
+        "parent_group_id": "root=7, quality=7",
+        "ground_truth": "G:7",
+        "gt_seventh": "b7",
+        "legacy_prediction": "G:",
+        "new_prediction": "G:7",
+        "legacy_seventh": "none",
+        "new_seventh": "b7",
+        "residual_floor": 0.0704,
+        "energy_9": 0.0412,
+        "energy_10": 0.2748,
+        "energy_11": 0.1031,
+        "contrast_9": 0.0,
+        "contrast_10": 0.2044,
+        "contrast_11": 0.0326,
+        "correction_or_regression": "corrected"
+      },
+      {
+        "fixture_id": "invariant_order_G7_b",
+        "parent_group_id": "root=7, quality=7",
+        "ground_truth": "G:7",
+        "gt_seventh": "b7",
+        "legacy_prediction": "G:",
+        "new_prediction": "G:7",
+        "legacy_seventh": "none",
+        "new_seventh": "b7",
+        "residual_floor": 0.0704,
+        "energy_9": 0.0412,
+        "energy_10": 0.2748,
+        "energy_11": 0.1031,
+        "contrast_9": 0.0,
+        "contrast_10": 0.2044,
+        "contrast_11": 0.0326,
+        "correction_or_regression": "corrected"
+      },
+      {
+        "fixture_id": "rootless_bass5th_Cmaj7",
+        "parent_group_id": "root=0, quality=maj7",
+        "ground_truth": "C:maj7",
+        "gt_seventh": "maj7",
+        "legacy_prediction": "E:m",
+        "new_prediction": "E:m",
+        "legacy_seventh": "none",
+        "new_seventh": "none",
+        "residual_floor": 0.0214,
+        "energy_9": 0.0214,
+        "energy_10": 0.0214,
+        "energy_11": 0.6423,
+        "contrast_9": 0.0,
+        "contrast_10": 0.0,
+        "contrast_11": 0.6209,
+        "correction_or_regression": "still_incorrect"
+      }
+    ],
+    "corrected_count": 13
+  }
+}

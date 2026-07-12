@@ -1,0 +1,186 @@
+{
+  "report_type": "structured_harmony_v1_phase0_5",
+  "date": "2026-07-11",
+  "status": "PASS",
+  "fixtures": {
+    "path": "tests/audio/v1_benchmark/fixtures/chroma_fixtures.json",
+    "dev_path": "tests/audio/v1_benchmark/fixtures/chroma_fixtures_dev.json",
+    "val_path": "tests/audio/v1_benchmark/fixtures/chroma_fixtures_val.json",
+    "total": 63,
+    "dev": 29,
+    "validation": 34,
+    "seeds": [
+      20260711, 20260712, 20260713, 20260714, 20260715,
+      20260716, 20260717, 20260718, 20260719, 20260720,
+      20260721, 20260722, 20260723, 20260724, 20260725,
+      20260726, 20260727, 20260728, 20260729, 20260730,
+      20260731, 20260732, 20260733, 20260734, 20260735,
+      20260736
+    ],
+    "voicing_coverage": {
+      "complete": 44,
+      "no5": 3,
+      "rootless": 5,
+      "shell": 3,
+      "inversion": 3,
+      "foreign_melody": 3,
+      "temporal_spread": 2
+    }
+  },
+  "split_strategy": {
+    "fixtures": "By root: DEV roots=[0,2,7], VAL roots=[3,5,9,11]",
+    "synthetic": "By progression: all voicing variants of same progression stay together",
+    "cross_split_correction": "ii-V-i_Gm (mixed roots {2,7,9}) force-assigned to DEV",
+    "grouping_rule": "All voicing variants of the same (root, quality) stay in the same split",
+    "directory_structure": "synthetic/dev/ and synthetic/validation/"
+  },
+  "schema": {
+    "path": "tests/audio/v1_benchmark/schema/experimental_gt_schema.json",
+    "exists": true,
+    "validated": true
+  },
+  "synthetic_generator": {
+    "path": "scripts/generate_v1_fixtures.py",
+    "wav_count_dev": 14,
+    "wav_count_validation": 14,
+    "wav_count_total": 28,
+    "all_wav_unique_md5": true,
+    "no_inter_split_duplicates": true,
+    "defects_fixed_20260711": [
+      {
+        "id": "DEFECT_01_inversion_unhandled",
+        "description": "voicing_type='inversion' had no transform: bass_note stayed as root, upper unchanged. Produced identical WAV to 'full'.",
+        "fix": "Added inversion case in _voicing_transform: bass_note = 3rd+'2', bass_pc = 3rd pitch class."
+      },
+      {
+        "id": "DEFECT_02_rootless_no_bass_change",
+        "description": "voicing_type='rootless' only filtered root from upper_notes, but upper_notes never contain the root (root is in bass_note only). No bass change. Produced identical WAV to 'full'.",
+        "fix": "Changed bass_note to 7th (or 5th fallback for triads) and used pitch-class comparison."
+      },
+      {
+        "id": "DEFECT_03_shell_identical_to_no5",
+        "description": "voicing_type='shell' filtered to keep_intervals={root, 3rd, 7th}, but upper_notes never contain root. Same result as no5 (3rd+7th). Produced identical WAV to 'no5'.",
+        "fix": "Shell now adds root note at octave 3 to upper voices, producing distinct audio from no5."
+      },
+      {
+        "id": "DEFECT_04_no5_hardcoded_perfect_fifth",
+        "description": "no5 used hardcoded fifth_pc = (root + 7) % 12 (perfect 5th). Failed for m7b5 chords whose 5th is diminished (interval 6). Eb vs D# enharmonic mismatch also caused filter failure.",
+        "fix": "Scan chord intervals for any fifth-degree interval {6,7,8}. Compare by pitch class via _note_pc() instead of string matching."
+      },
+      {
+        "id": "DEFECT_05_enharmonic_string_comparison",
+        "description": "All note comparisons used n[0] or .startswith(), which fails for two-character note names (e.g., 'Eb' key was 'B' for 'Bb3', 'D#' from NOTE_NAMES != 'Eb' from upper_notes).",
+        "fix": "Added _note_letter() and _note_pc() helpers. All comparisons now use pitch class (0-11) via NOTE_TO_PC map."
+      }
+    ],
+    "wav_md5_dev": {
+      "dev_ii-V-I_C_full.wav": "945b23b8989355ee122d000ae754df15",
+      "dev_ii-V-I_C_no5.wav": "f739309030f19c714ec54868bb0dcac4",
+      "dev_ii-V-I_C_rootless.wav": "bfa2877360bd9bb3bfb5cb40ca058f9d",
+      "dev_ii-V-I_C_shell.wav": "0cb7b2d1b632fa47991a7d2e5be5c8c6",
+      "dev_ii-V-I_C_inversion.wav": "c8e3b25fc781bfac63b7d21be18210aa",
+      "dev_ii-V-I_C_foreign_melody.wav": "8daf5e752c9170c7c431372ef8375373",
+      "dev_ii-V-I_C_temporal_spread.wav": "934bc6a36b292035966acddcfe6c2f1c",
+      "dev_ii-V-i_Gm_full.wav": "fa027b024bdaa20011eebf3af0ec88a2",
+      "dev_ii-V-i_Gm_no5.wav": "c348d40a11bf597fc4e257a3cb92a06f",
+      "dev_ii-V-i_Gm_rootless.wav": "1fd5d966df1b121c3a31fab5cef725cd",
+      "dev_ii-V-i_Gm_shell.wav": "d9a421a1ad2e1db2a6353244401f7184",
+      "dev_ii-V-i_Gm_inversion.wav": "183f489be1b2c1a643d269f1d7e9d98a",
+      "dev_ii-V-i_Gm_foreign_melody.wav": "0d40a8176f48067f7ab0aef44a4d7be8",
+      "dev_ii-V-i_Gm_temporal_spread.wav": "0b3af1549a6c9dbf3a0d4ad548027f52"
+    }
+  },
+  "synthetic_validation": {
+    "progressions": [
+      {
+        "name": "F-A-B",
+        "roots": [5, 9, 11],
+        "qualities": ["maj7", "m7", "7"],
+        "chords": ["Fmaj7", "Am7", "B7"],
+        "voicings": ["full","no5","rootless","shell","inversion","foreign_melody","temporal_spread"]
+      },
+      {
+        "name": "D#-F#-A",
+        "roots": [3, 5, 9],
+        "qualities": ["m7b5", "m", "maj7"],
+        "chords": ["D#m7b5", "Fm", "Amaj7"],
+        "voicings": ["full","no5","rootless","shell","inversion","foreign_melody","temporal_spread"]
+      }
+    ],
+    "wav_count": 14,
+    "seeds_fixed": true,
+    "no_dev_overlap": true
+  },
+  "inventory": {
+    "fixtures_dev": 29,
+    "fixtures_validation": 34,
+    "parent_groups_dev": 11,
+    "parent_groups_validation": 20,
+    "wav_dev": 14,
+    "wav_validation": 14,
+    "json_dev": 14,
+    "json_validation": 14,
+    "no_cross_split_parent_groups": true,
+    "no_inter_split_wav_duplicates": true
+  },
+  "tests": {
+    "file": "tests/test_harmony_v1.py",
+    "total": 31,
+    "passed": 31,
+    "failed": 0,
+    "new_tests_added": [
+      "test_validation_split_not_for_calibration",
+      "test_variant_groups_dont_cross_splits",
+      "test_calibration_guard_rejects_validation",
+      "test_synthetic_dirs_have_wav_and_json",
+      "test_every_wav_has_corresponding_json",
+      "test_no_inter_split_wav_duplicates",
+      "test_no_parent_group_crosses_splits_synthetic"
+    ],
+    "coverage": {
+      "template_intervals": ["major_third=4","minor_third=3","major_interval_4_static","minor_interval_3_static"],
+      "root_relative": ["root_is_relative","missing_relative_not_C","expected_pcs_from_intervals"],
+      "voicing_types": ["foreign_not_integrated","corroboration_only_confirms","bass_separate_chroma","voicing_coverage"],
+      "ambiguity_tests": ["Am7_bassA","Am7_bassC","Dshm7_bassDsh","Bmaj7_rootless_bassB"],
+      "invariants": ["insertion_order","schema_compliance","aug_excluded","no_C6","no_Bmaj9"],
+      "style_gating": ["neutral_identity_profile","acoustic_gate_range"],
+      "quality_mapping": ["triad_seventh_consistency","intervals_match_quality"],
+      "split_calibration": ["val_split_not_for_calibration","variant_groups_no_cross_split","calibration_guard_rejects_validation"],
+      "synthetic_integrity": ["synth_dirs_have_wav_and_json","every_wav_has_json","no_inter_split_wav_duplicates","no_parent_group_crosses_splits_synthetic"]
+    }
+  },
+  "constants": {
+    "delta_gate": 0.08,
+    "observation_threshold": 0.08,
+    "spread_default": 0.15,
+    "spread_rootless": 0.02,
+    "noise_floor": 0.03,
+    "lambda_full": 0.0,
+    "lambda_no5": 0.02,
+    "lambda_rootless": 0.06,
+    "weight_acoustic": 1.0,
+    "weight_bass": 0.25,
+    "weight_tonal": 0.1,
+    "weight_style": 0.05,
+    "calibration_status": "NOT_CALIBRATED",
+    "calibration_split": "DEV_ONLY",
+    "validation_used": false
+  },
+  "versioned_plan": {
+    "path": "docs/STRUCTURED_HARMONY_V1_PLAN_REVISED.md",
+    "size_bytes": 10480,
+    "md5": "86c614aa62ba83e0a2e6a0b4afb777aa",
+    "lines": 278,
+    "status": "READY_FOR_BUILD",
+    "note": "Version corrigee apres audit Fable 5. 10 incoherences resolues."
+  },
+  "warning": "NO ENGINE PERFORMANCE DEMONSTRATED. These fixtures validate invariants, schema, split integrity, and generator correctness only. Constant values are placeholders requiring calibration on DEV split exclusively in Phase 1. No tuning performed on validation data.",
+  "conclusion": "PHASE_0_VALIDATED",
+  "next_steps": [
+    "Phase 1: Implement harmony-engine dataclasses and scoring functions on DEV split only",
+    "Phase 1: Calibrate softmax temperatures and lambda constants on DEV split",
+    "Phase 2: Benchmark ablation on fixtures, synthetic WAVs, and real progressions",
+    "Phase 2: Measure root/triad/seventh/full accuracy per voicing type on VAL split",
+    "Phase 3: Branch audio-processor.py observation_mode=structured_harmony_v1"
+  ]
+}

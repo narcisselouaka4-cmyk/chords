@@ -1,0 +1,461 @@
+{
+  "metadata": {
+    "description": "Synthetic WAV/JSON inventory with dev/validation split \u2014 Phase 0.5",
+    "split_strategy": "Per-progression: all voicing variants of same progression stay together",
+    "directory_structure": "synthetic/dev/ and synthetic/validation/",
+    "total_wav": 28,
+    "total_json": 28,
+    "dev_wav": 14,
+    "validation_wav": 14
+  },
+  "files": [
+    {
+      "file": "dev_ii-V-I_C_foreign_melody",
+      "wav_size": 529244,
+      "json_size": 3954,
+      "split": "dev",
+      "progression": "ii-V-I",
+      "voicing": "C_foreign_melody",
+      "roots": [
+        0,
+        2,
+        7
+      ],
+      "duration": 12.0,
+      "segments": 6,
+      "hash": "8daf5e752c9170c7c431372ef8375373"
+    },
+    {
+      "file": "dev_ii-V-I_C_full",
+      "wav_size": 529244,
+      "json_size": 3778,
+      "split": "dev",
+      "progression": "ii-V-I",
+      "voicing": "C_full",
+      "roots": [
+        0,
+        2,
+        7
+      ],
+      "duration": 12.0,
+      "segments": 6,
+      "hash": "945b23b8989355ee122d000ae754df15"
+    },
+    {
+      "file": "dev_ii-V-I_C_inversion",
+      "wav_size": 529244,
+      "json_size": 3856,
+      "split": "dev",
+      "progression": "ii-V-I",
+      "voicing": "C_inversion",
+      "roots": [
+        4,
+        5,
+        11
+      ],
+      "duration": 12.0,
+      "segments": 6,
+      "hash": "c8e3b25fc781bfac63b7d21be18210aa"
+    },
+    {
+      "file": "dev_ii-V-I_C_no5",
+      "wav_size": 529244,
+      "json_size": 3722,
+      "split": "dev",
+      "progression": "ii-V-I",
+      "voicing": "C_no5",
+      "roots": [
+        0,
+        2,
+        7
+      ],
+      "duration": 12.0,
+      "segments": 6,
+      "hash": "f739309030f19c714ec54868bb0dcac4"
+    },
+    {
+      "file": "dev_ii-V-I_C_rootless",
+      "wav_size": 529244,
+      "json_size": 3848,
+      "split": "dev",
+      "progression": "ii-V-I",
+      "voicing": "C_rootless",
+      "roots": [
+        0,
+        5,
+        11
+      ],
+      "duration": 12.0,
+      "segments": 6,
+      "hash": "bfa2877360bd9bb3bfb5cb40ca058f9d"
+    },
+    {
+      "file": "dev_ii-V-I_C_shell",
+      "wav_size": 529244,
+      "json_size": 3822,
+      "split": "dev",
+      "progression": "ii-V-I",
+      "voicing": "C_shell",
+      "roots": [
+        0,
+        2,
+        7
+      ],
+      "duration": 12.0,
+      "segments": 6,
+      "hash": "0cb7b2d1b632fa47991a7d2e5be5c8c6"
+    },
+    {
+      "file": "dev_ii-V-I_C_temporal_spread",
+      "wav_size": 529244,
+      "json_size": 3872,
+      "split": "dev",
+      "progression": "ii-V-I",
+      "voicing": "C_temporal_spread",
+      "roots": [
+        0,
+        2,
+        7
+      ],
+      "duration": 12.0,
+      "segments": 6,
+      "hash": "934bc6a36b292035966acddcfe6c2f1c"
+    },
+    {
+      "file": "dev_ii-V-i_Gm_foreign_melody",
+      "wav_size": 529244,
+      "json_size": 3859,
+      "split": "dev",
+      "progression": "ii-V-i",
+      "voicing": "Gm_foreign_melody",
+      "roots": [
+        2,
+        7,
+        9
+      ],
+      "duration": 12.0,
+      "segments": 6,
+      "hash": "0d40a8176f48067f7ab0aef44a4d7be8"
+    },
+    {
+      "file": "dev_ii-V-i_Gm_full",
+      "wav_size": 529244,
+      "json_size": 3683,
+      "split": "dev",
+      "progression": "ii-V-i",
+      "voicing": "Gm_full",
+      "roots": [
+        2,
+        7,
+        9
+      ],
+      "duration": 12.0,
+      "segments": 6,
+      "hash": "fa027b024bdaa20011eebf3af0ec88a2"
+    },
+    {
+      "file": "dev_ii-V-i_Gm_inversion",
+      "wav_size": 529244,
+      "json_size": 3765,
+      "split": "dev",
+      "progression": "ii-V-i",
+      "voicing": "Gm_inversion",
+      "roots": [
+        0,
+        6,
+        10
+      ],
+      "duration": 12.0,
+      "segments": 6,
+      "hash": "183f489be1b2c1a643d269f1d7e9d98a"
+    },
+    {
+      "file": "dev_ii-V-i_Gm_no5",
+      "wav_size": 529244,
+      "json_size": 3625,
+      "split": "dev",
+      "progression": "ii-V-i",
+      "voicing": "Gm_no5",
+      "roots": [
+        2,
+        7,
+        9
+      ],
+      "duration": 12.0,
+      "segments": 6,
+      "hash": "b3e89221313d47f52a0bb1038621edf4"
+    },
+    {
+      "file": "dev_ii-V-i_Gm_rootless",
+      "wav_size": 529244,
+      "json_size": 3751,
+      "split": "dev",
+      "progression": "ii-V-i",
+      "voicing": "Gm_rootless",
+      "roots": [
+        0,
+        2,
+        7
+      ],
+      "duration": 12.0,
+      "segments": 6,
+      "hash": "1fd5d966df1b121c3a31fab5cef725cd"
+    },
+    {
+      "file": "dev_ii-V-i_Gm_shell",
+      "wav_size": 529244,
+      "json_size": 3725,
+      "split": "dev",
+      "progression": "ii-V-i",
+      "voicing": "Gm_shell",
+      "roots": [
+        2,
+        7,
+        9
+      ],
+      "duration": 12.0,
+      "segments": 6,
+      "hash": "edd782f70b8b5e2a39c6d484ad98d35d"
+    },
+    {
+      "file": "dev_ii-V-i_Gm_temporal_spread",
+      "wav_size": 529244,
+      "json_size": 3777,
+      "split": "dev",
+      "progression": "ii-V-i",
+      "voicing": "Gm_temporal_spread",
+      "roots": [
+        2,
+        7,
+        9
+      ],
+      "duration": 12.0,
+      "segments": 6,
+      "hash": "0b3af1549a6c9dbf3a0d4ad548027f52"
+    },
+    {
+      "file": "validation_D#-F#-A_foreign_melody",
+      "wav_size": 529244,
+      "json_size": 3866,
+      "split": "validation",
+      "progression": "D#-F#-A",
+      "voicing": "foreign_melody",
+      "roots": [
+        3,
+        5,
+        9
+      ],
+      "duration": 12.0,
+      "segments": 6,
+      "hash": "51d1064567bc2f3a4abae91f4fa9a1f3"
+    },
+    {
+      "file": "validation_D#-F#-A_full",
+      "wav_size": 529244,
+      "json_size": 3698,
+      "split": "validation",
+      "progression": "D#-F#-A",
+      "voicing": "full",
+      "roots": [
+        3,
+        5,
+        9
+      ],
+      "duration": 12.0,
+      "segments": 6,
+      "hash": "82a2b8fafa0495c1efaa7f8630cc289b"
+    },
+    {
+      "file": "validation_D#-F#-A_inversion",
+      "wav_size": 529244,
+      "json_size": 3778,
+      "split": "validation",
+      "progression": "D#-F#-A",
+      "voicing": "inversion",
+      "roots": [
+        1,
+        6,
+        8
+      ],
+      "duration": 12.0,
+      "segments": 6,
+      "hash": "c8930ae7ba1a07ded2ebe2f4066234fb"
+    },
+    {
+      "file": "validation_D#-F#-A_no5",
+      "wav_size": 529244,
+      "json_size": 3642,
+      "split": "validation",
+      "progression": "D#-F#-A",
+      "voicing": "no5",
+      "roots": [
+        3,
+        5,
+        9
+      ],
+      "duration": 12.0,
+      "segments": 6,
+      "hash": "5de2173d6e0a790924447b04638913b4"
+    },
+    {
+      "file": "validation_D#-F#-A_rootless",
+      "wav_size": 529244,
+      "json_size": 3768,
+      "split": "validation",
+      "progression": "D#-F#-A",
+      "voicing": "rootless",
+      "roots": [
+        0,
+        1,
+        8
+      ],
+      "duration": 12.0,
+      "segments": 6,
+      "hash": "44ae37f7d30f118aafa268944fe717c5"
+    },
+    {
+      "file": "validation_D#-F#-A_shell",
+      "wav_size": 529244,
+      "json_size": 3744,
+      "split": "validation",
+      "progression": "D#-F#-A",
+      "voicing": "shell",
+      "roots": [
+        3,
+        5,
+        9
+      ],
+      "duration": 12.0,
+      "segments": 6,
+      "hash": "59cb8a8a6e8aa48729905886714aa9b7"
+    },
+    {
+      "file": "validation_D#-F#-A_temporal_spread",
+      "wav_size": 529244,
+      "json_size": 3792,
+      "split": "validation",
+      "progression": "D#-F#-A",
+      "voicing": "temporal_spread",
+      "roots": [
+        3,
+        5,
+        9
+      ],
+      "duration": 12.0,
+      "segments": 6,
+      "hash": "bcc40baeeacf28732731dfb1ccd60321"
+    },
+    {
+      "file": "validation_F-A-B_foreign_melody",
+      "wav_size": 529244,
+      "json_size": 3952,
+      "split": "validation",
+      "progression": "F-A-B",
+      "voicing": "foreign_melody",
+      "roots": [
+        5,
+        9,
+        11
+      ],
+      "duration": 12.0,
+      "segments": 6,
+      "hash": "434c924898786554cde888fd24b53ba5"
+    },
+    {
+      "file": "validation_F-A-B_full",
+      "wav_size": 529244,
+      "json_size": 3784,
+      "split": "validation",
+      "progression": "F-A-B",
+      "voicing": "full",
+      "roots": [
+        5,
+        9,
+        11
+      ],
+      "duration": 12.0,
+      "segments": 6,
+      "hash": "b9515ae05a8338c4c0dc0217835d5cf3"
+    },
+    {
+      "file": "validation_F-A-B_inversion",
+      "wav_size": 529244,
+      "json_size": 3860,
+      "split": "validation",
+      "progression": "F-A-B",
+      "voicing": "inversion",
+      "roots": [
+        0,
+        3,
+        9
+      ],
+      "duration": 12.0,
+      "segments": 6,
+      "hash": "80b1d8f5196991efa5376dcf0a1f1189"
+    },
+    {
+      "file": "validation_F-A-B_no5",
+      "wav_size": 529244,
+      "json_size": 3726,
+      "split": "validation",
+      "progression": "F-A-B",
+      "voicing": "no5",
+      "roots": [
+        5,
+        9,
+        11
+      ],
+      "duration": 12.0,
+      "segments": 6,
+      "hash": "3833e64af10b2afc007833f84a5fb0dd"
+    },
+    {
+      "file": "validation_F-A-B_rootless",
+      "wav_size": 529244,
+      "json_size": 3850,
+      "split": "validation",
+      "progression": "F-A-B",
+      "voicing": "rootless",
+      "roots": [
+        4,
+        7,
+        9
+      ],
+      "duration": 12.0,
+      "segments": 6,
+      "hash": "48e275d5b8ef2413f24c0e315b048f00"
+    },
+    {
+      "file": "validation_F-A-B_shell",
+      "wav_size": 529244,
+      "json_size": 3826,
+      "split": "validation",
+      "progression": "F-A-B",
+      "voicing": "shell",
+      "roots": [
+        5,
+        9,
+        11
+      ],
+      "duration": 12.0,
+      "segments": 6,
+      "hash": "7ddfca929ced4f0c760ad3dcabce6c7d"
+    },
+    {
+      "file": "validation_F-A-B_temporal_spread",
+      "wav_size": 529244,
+      "json_size": 3866,
+      "split": "validation",
+      "progression": "F-A-B",
+      "voicing": "temporal_spread",
+      "roots": [
+        5,
+        9,
+        11
+      ],
+      "duration": 12.0,
+      "segments": 6,
+      "hash": "c09a27d95a8bdeb0e2998b4948451517"
+    }
+  ]
+}
