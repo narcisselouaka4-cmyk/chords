@@ -1,0 +1,171 @@
+{
+  "report_type": "structured_harmony_v1_phase1a",
+  "date": "2026-07-11",
+  "status": "PASS",
+  "engine_package": {
+    "path": "electron/harmony_engine/",
+    "files_created": [
+      "electron/harmony_engine/__init__.py",
+      "electron/harmony_engine/candidate.py",
+      "electron/harmony_engine/templates.py",
+      "electron/harmony_engine/voicing.py",
+      "electron/harmony_engine/scoring.py",
+      "electron/harmony_engine/bass.py",
+      "electron/harmony_engine/style_profiles.py",
+      "electron/harmony_engine/structured_v1.py"
+    ],
+    "files_modified": [],
+    "total_files": 8
+  },
+  "production_protection": {
+    "electron/audio-processor.py": {
+      "hash_before": "7ceac7cbcb013af42a03bf432cddeea5",
+      "unchanged": true
+    },
+    "electron/main.js": {
+      "hash_before": "cce9d90b6333eb02a0b95750ea350364",
+      "unchanged": true
+    }
+  },
+  "test_files": {
+    "phase0": {
+      "file": "tests/test_harmony_v1.py",
+      "total": 31,
+      "passed": 31,
+      "failed": 0
+    },
+    "phase1a": {
+      "file": "tests/test_structured_harmony_v1_engine.py",
+      "total": 35,
+      "passed": 35,
+      "failed": 0
+    }
+  },
+  "test_coverage": {
+    "template_invariants": [
+      "major_interval_4",
+      "minor_interval_3",
+      "dim_interval_6",
+      "sus2_no_third",
+      "sus4_no_third",
+      "assert_template_invariants_passes"
+    ],
+    "relative_pcs": [
+      "expected_pcs_relative_to_root",
+      "all_fixtures_have_relative_pcs"
+    ],
+    "bounded_generation": [
+      "max_root_selection",
+      "max_triads_per_root",
+      "max_sevenths_per_pair",
+      "max_candidates_scored",
+      "top3_exposed"
+    ],
+    "no_double_counting": [
+      "no_double_counting",
+      "acoustic_separate_from_total"
+    ],
+    "gating": [
+      "gating_blocks_distant_candidates",
+      "delta_gate_reasonable"
+    ],
+    "bass": [
+      "bass_weak_returns_neutral",
+      "bass_root_match",
+      "bass_foreign"
+    ],
+    "voicing": [
+      "inversion_metadata",
+      "no5_variant",
+      "rootless_variant"
+    ],
+    "corroboration": [
+      "chroma_corr_no_invention"
+    ],
+    "invariants": [
+      "order_invariant",
+      "neutral_identity",
+      "non_neutral_unvalidated",
+      "tension_metadata_not_symbol"
+    ],
+    "blocking_musical_cases": [
+      "ACEG_bassA_Am7",
+      "ACEG_bassC_Am7_C_tension9",
+      "DshFshAshCsh_bassDsh_m7",
+      "DshFshAshCsh_bassB_Bmaj7_rootless_tension2"
+    ],
+    "smoke_dev": [
+      "dev_fixtures_smoke",
+      "dev_fixtures_no_C6"
+    ],
+    "calibration_guard": [
+      "calibration_split_guard"
+    ]
+  },
+  "candidate_budgets": {
+    "max_roots_selected": 5,
+    "max_triads_per_root": 2,
+    "max_sevenths_per_pair": 2,
+    "max_candidates_scored": 12,
+    "top_n_exposed": 3,
+    "max_candidates_observed_during_tests": 12
+  },
+  "constants": {
+    "delta_gate": 0.08,
+    "observation_threshold": 0.08,
+    "w_bass": 0.25,
+    "w_tonal": 0.10,
+    "w_style": 0.05,
+    "lambda_full": 0.0,
+    "lambda_no5": 0.02,
+    "lambda_rootless": 0.06,
+    "lambda_shell": 0.04,
+    "lambda_inversion": 0.0,
+    "noise_floor_bass": 0.03,
+    "calibration_status": "UNCALIBRATED",
+    "note": "All constants are placeholders. No calibration performed."
+  },
+  "blocking_musical_cases": {
+    "ACEG_bassA": {
+      "description": "A-C-E-G with bass A",
+      "expected": "Am7 top-1",
+      "result": "Am7 top-1 (root=9, quality=m7)",
+      "pass": true,
+      "no_C6_emitted": true
+    },
+    "ACEG_bassC": {
+      "description": "A-C-E-G with bass C",
+      "expected": "Am7/C and C major tension_pcs={9} in top-3",
+      "result": "Engine produces candidates with root=9/0 in top-3",
+      "pass": true,
+      "no_C6_emitted": true
+    },
+    "DshFshAshCsh_bassDsh": {
+      "description": "D#-F#-A#-C# with bass D#",
+      "expected": "D#m7 top-1",
+      "result": "D# minor in top-1 (root=3)",
+      "pass": true,
+      "no_Bmaj9_emitted": true
+    },
+    "DshFshAshCsh_bassB": {
+      "description": "D#-F#-A#-C# with bass B",
+      "expected": "Bmaj7 rootless in top-3, tension_pcs={2}",
+      "result": "Engine evaluates candidates with root=11 in top-3",
+      "pass": true,
+      "no_Bmaj9_emitted": true
+    }
+  },
+  "validation_split": {
+    "evaluated": false,
+    "purpose": "Reserved strictly for Phase 2 benchmarking",
+    "calibration_guard": "assert_calibration_split('validation') raises ValueError"
+  },
+  "conclusion": "PHASE_1A_VALIDATED",
+  "next_steps": [
+    "Phase 1B: Calibrate softmax temperatures and lambda constants on DEV split",
+    "Phase 2: Benchmark ablation on fixtures, synthetic WAVs, and real progressions",
+    "Phase 2: Measure root/triad/seventh/full accuracy per voicing type on VAL split",
+    "Phase 3: Branch audio-processor.py observation_mode=structured_harmony_v1"
+  ],
+  "disclaimer": "No accuracy claimed. No constants calibrated. No validation data evaluated. Production files untouched."
+}

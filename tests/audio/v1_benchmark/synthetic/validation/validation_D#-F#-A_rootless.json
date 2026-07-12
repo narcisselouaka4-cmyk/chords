@@ -1,0 +1,230 @@
+{
+  "file": "validation_D#-F#-A_rootless.wav",
+  "sr": 22050,
+  "bpm": 120,
+  "chord_duration": 2.0,
+  "repeats": 2,
+  "voicing_type": "rootless",
+  "segments": [
+    {
+      "start_time": 0.0,
+      "end_time": 2.0,
+      "root": "D#",
+      "quality": "m7b5",
+      "bass": "C#2",
+      "bass_pc": 1,
+      "upper_notes": [
+        "F#3",
+        "A3",
+        "C#4"
+      ],
+      "intervals": [
+        0,
+        3,
+        6,
+        10
+      ],
+      "voicing_type": "rootless",
+      "observed_pcs": [
+        1,
+        6,
+        9
+      ],
+      "expected_pcs": [
+        3,
+        6,
+        9,
+        1
+      ],
+      "missing_pcs": [
+        3
+      ],
+      "extra_pcs": [],
+      "tension_pcs": [],
+      "temporal_spread": false,
+      "extra_note": null
+    },
+    {
+      "start_time": 2.0,
+      "end_time": 4.0,
+      "root": "F",
+      "quality": "m",
+      "bass": "C2",
+      "bass_pc": 0,
+      "upper_notes": [
+        "Ab3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        3,
+        7
+      ],
+      "voicing_type": "rootless",
+      "observed_pcs": [
+        0,
+        8
+      ],
+      "expected_pcs": [
+        5,
+        8,
+        0
+      ],
+      "missing_pcs": [
+        5
+      ],
+      "extra_pcs": [],
+      "tension_pcs": [],
+      "temporal_spread": false,
+      "extra_note": null
+    },
+    {
+      "start_time": 4.0,
+      "end_time": 6.0,
+      "root": "A",
+      "quality": "maj7",
+      "bass": "G#2",
+      "bass_pc": 8,
+      "upper_notes": [
+        "C#4",
+        "E4",
+        "G#4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        11
+      ],
+      "voicing_type": "rootless",
+      "observed_pcs": [
+        1,
+        4,
+        8
+      ],
+      "expected_pcs": [
+        9,
+        1,
+        4,
+        8
+      ],
+      "missing_pcs": [
+        9
+      ],
+      "extra_pcs": [],
+      "tension_pcs": [],
+      "temporal_spread": false,
+      "extra_note": null
+    },
+    {
+      "start_time": 6.0,
+      "end_time": 8.0,
+      "root": "D#",
+      "quality": "m7b5",
+      "bass": "C#2",
+      "bass_pc": 1,
+      "upper_notes": [
+        "F#3",
+        "A3",
+        "C#4"
+      ],
+      "intervals": [
+        0,
+        3,
+        6,
+        10
+      ],
+      "voicing_type": "rootless",
+      "observed_pcs": [
+        1,
+        6,
+        9
+      ],
+      "expected_pcs": [
+        3,
+        6,
+        9,
+        1
+      ],
+      "missing_pcs": [
+        3
+      ],
+      "extra_pcs": [],
+      "tension_pcs": [],
+      "temporal_spread": false,
+      "extra_note": null
+    },
+    {
+      "start_time": 8.0,
+      "end_time": 10.0,
+      "root": "F",
+      "quality": "m",
+      "bass": "C2",
+      "bass_pc": 0,
+      "upper_notes": [
+        "Ab3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        3,
+        7
+      ],
+      "voicing_type": "rootless",
+      "observed_pcs": [
+        0,
+        8
+      ],
+      "expected_pcs": [
+        5,
+        8,
+        0
+      ],
+      "missing_pcs": [
+        5
+      ],
+      "extra_pcs": [],
+      "tension_pcs": [],
+      "temporal_spread": false,
+      "extra_note": null
+    },
+    {
+      "start_time": 10.0,
+      "end_time": 12.0,
+      "root": "A",
+      "quality": "maj7",
+      "bass": "G#2",
+      "bass_pc": 8,
+      "upper_notes": [
+        "C#4",
+        "E4",
+        "G#4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        11
+      ],
+      "voicing_type": "rootless",
+      "observed_pcs": [
+        1,
+        4,
+        8
+      ],
+      "expected_pcs": [
+        9,
+        1,
+        4,
+        8
+      ],
+      "missing_pcs": [
+        9
+      ],
+      "extra_pcs": [],
+      "tension_pcs": [],
+      "temporal_spread": false,
+      "extra_note": null
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "hypothesis": "factorized family seventh (root+triad without seventh influence)",
+  "calibrated_on": "DEV_EMG_ONLY",
+  "validation_accessed": false,
+  "correction_cycle": 2,
+  "changed_component": "analyze_chord_two_stage_selection + seventh_scorer",
+  "selected_scorer": "factorized_family_seventh_v2",
+  "parameters": {
+    "presence_threshold": 0.05,
+    "dominance_threshold": 0.0
+  },
+  "v3_config_unchanged": {
+    "delta_gate": 0.04,
+    "bass_weight": 0.1,
+    "tonal_weight": 0.0,
+    "no5_cost": 0.02,
+    "rootless_cost": 0.04,
+    "shell_cost": 0.02
+  },
+  "root_t1_identical_to_C0": true,
+  "triad_only_t1_identical_to_C0": true,
+  "performance_vs_C0": {
+    "exact_chord_t1_gain_pp": 44.83,
+    "improved_fixtures": 13,
+    "improved_parent_groups": 6,
+    "root_t1_change_pp": 0.0,
+    "triad_only_t1_change_pp": 0.0
+  },
+  "code_hashes": {
+    "chroma_fixtures_dev": "d07080a793b8c2256d7bf27194a9778d",
+    "fixture_inventory": "cfea2a471ba183280a7059f3eda69ef3",
+    "structured_v1_py": "4adff9d5d92e9ad3dbdbcda4cce9721e",
+    "seventh_scorer_py": "c169270c28602d1b3baa24d848b8af9f",
+    "scoring_py": "ca9d3bd5384722ba0f426d5c9d73487b",
+    "voicing_py": "6cd88070d1076accf0cbd5ba39e9caf9"
+  }
+}

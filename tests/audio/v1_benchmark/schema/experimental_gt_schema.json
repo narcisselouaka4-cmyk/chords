@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/07/schema#",
+  "title": "Experimental Ground Truth — structured_harmony_v1 Phase 0",
+  "description": "Extended schema for V1 fixture evaluation. Production schema unchanged.",
+
+  "definitions": {
+    "fixture": {
+      "type": "object",
+      "required": [
+        "id", "seed", "root", "triad", "seventh", "quality",
+        "bass_pc", "observed_pcs", "expected_pcs", "missing_pcs",
+        "extra_pcs", "voicing_type", "tension_pcs", "temporal_spread",
+        "intervals", "chroma", "chroma_bass", "comment"
+      ],
+      "properties": {
+        "id":                { "type": "string" },
+        "seed":              { "type": "integer" },
+        "root":              { "type": "integer", "minimum": 0, "maximum": 11 },
+        "triad":             { "type": "string", "enum": ["major","minor","dim","sus2","sus4"] },
+        "seventh":           { "type": "string", "enum": ["none","b7","maj7","bb7"] },
+        "quality":           { "type": "string", "enum": ["","m","7","maj7","sus2","sus4","m7","dim","m7b5","aug"] },
+        "bass_pc":           { "type": "integer", "minimum": 0, "maximum": 11 },
+        "observed_pcs":      { "type": "array", "items": { "type": "integer", "minimum": 0, "maximum": 11 } },
+        "expected_pcs":      { "type": "array", "items": { "type": "integer", "minimum": 0, "maximum": 11 } },
+        "missing_pcs":       { "type": "array", "items": { "type": "integer", "minimum": 0, "maximum": 11 } },
+        "extra_pcs":         { "type": "array", "items": { "type": "integer", "minimum": 0, "maximum": 11 } },
+        "voicing_type":      { "type": "string", "enum": ["complete","no5","rootless","shell","inversion","foreign_melody","temporal_spread"] },
+        "tension_pcs":       { "type": "array", "items": { "type": "integer", "minimum": 0, "maximum": 11 } },
+        "temporal_spread":   { "type": "boolean" },
+        "intervals":         { "type": "array", "items": { "type": "integer", "minimum": 0, "maximum": 11 } },
+        "chroma":            { "type": "array", "minItems": 12, "maxItems": 12, "items": { "type": "number", "minimum": 0 } },
+        "chroma_bass":       { "type": "array", "minItems": 12, "maxItems": 12, "items": { "type": "number", "minimum": 0 } },
+        "comment":           { "type": "string" }
+      }
+    }
+  },
+
+  "type": "object",
+  "required": ["metadata", "fixtures"],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "required": ["description", "schema_version", "total_fixtures", "seeds"],
+      "properties": {
+        "description":     { "type": "string" },
+        "schema_version":  { "type": "string" },
+        "total_fixtures":  { "type": "integer" },
+        "seeds":           { "type": "array", "items": { "type": "integer" } }
+      }
+    },
+    "fixtures": { "type": "array", "items": { "$ref": "#/definitions/fixture" } }
+  }
+}

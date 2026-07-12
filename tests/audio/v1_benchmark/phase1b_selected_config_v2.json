@@ -1,0 +1,47 @@
+{
+  "status": "CALIBRATED_ON_DEV_ONLY_AFTER_BENCHMARK_FIX",
+  "supersedes": "phase1b_selected_config.json",
+  "superseded_hash": null,
+  "validation_accessed": false,
+  "tonal_component_status": "NOT_EVALUABLE",
+  "tonal_component_reason": "key_context unavailable in DEV fixtures",
+  "historical_production_baseline_evaluated": false,
+  "historical_production_baseline_note": "BASELINE_historical renamed to A0_NOGATE_NOCOST. Production engine (audio-processor.py analyze_chords()) is a different code path and was not invoked.",
+  "benchmark_bug_correction": "Previous ablation A1/A2 inherited bass_weight=0.0 / tonal_weight=0.0 from selected config, making all configurations identical. Now A1_BASS tests each non-zero bass_weight separately. A2_TONAL and FULL_NEUTRAL are NOT_EVALUABLE.",
+  "selected_parameters": {
+    "delta_gate": 0.04,
+    "bass_weight": 0.0,
+    "tonal_weight": 0.0,
+    "no5_cost": 0.02,
+    "rootless_cost": 0.04,
+    "shell_cost": 0.02
+  },
+  "search_space": {
+    "delta_gate": [0.04, 0.06, 0.08, 0.1, 0.12],
+    "bass_weight": [0.0, 0.1, 0.2, 0.25, 0.3],
+    "tonal_weight": [0.0, 0.05, 0.1, 0.15],
+    "no5_cost": [0.02, 0.04, 0.06],
+    "rootless_cost": [0.04, 0.06, 0.08, 0.1],
+    "shell_cost": [0.02, 0.04, 0.06]
+  },
+  "selection_rule": {
+    "primary": "maximize quality_t1 cross-validated mean",
+    "constraints": [
+      "root_t1 >= baseline - 2pts",
+      "false_enrich_rate <= 15%",
+      "max_candidates <= 12",
+      "no profile non-neutral used"
+    ],
+    "tiebreak": ["median fold quality", "worst fold quality", "lowest false_enrich", "lowest contextual weights", "lowest CPU"]
+  },
+  "dev_group_cv_results": {
+    "n_folds": 11,
+    "n_groups": 11,
+    "n_fixtures": 29
+  },
+  "seed": 20260711,
+  "code_hashes": {
+    "electron/harmony_engine/scoring.py": "ca9d3bd5384722ba0f426d5c9d73487b",
+    "electron/harmony_engine/structured_v1.py": "61aa2df908d7526909a7be1403770c0a"
+  }
+}

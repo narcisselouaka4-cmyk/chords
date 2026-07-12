@@ -1,0 +1,29 @@
+{
+  "status": "FROZEN_BEFORE_RESERVED_SPLIT_EVALUATION",
+  "seventh_scorer": "factorized_family_seventh_v2",
+  "presence_threshold": 0.05,
+  "dominance_threshold": 0.0,
+  "bass_weight": 0.1,
+  "tonal_weight": 0.0,
+  "delta_gate": 0.04,
+  "correction_cycles_used": 2,
+  "correction_cycles_remaining": 0,
+  "code_hashes": {
+    "structured_v1.py": "4adff9d5d92e9ad3dbdbcda4cce9721e",
+    "seventh_scorer.py": "c169270c28602d1b3baa24d848b8af9f",
+    "scoring.py": "ca9d3bd5384722ba0f426d5c9d73487b",
+    "voicing.py": "6cd88070d1076accf0cbd5ba39e9caf9",
+    "bass.py": "a235ed3e941b4fc7b851f8a726eabaec",
+    "templates.py": "9c3746dabf1f6308d34970d31dd5e2de",
+    "candidate.py": "a19ac39520a0bffcf741c373cc246cd5",
+    "style_profiles.py": "ab96c3399c48bd46c4c3e3b67170a55d",
+    "audio-processor.py": "7ceac7cbcb013af42a03bf432cddeea5",
+    "main.js": "cce9d90b6333eb02a0b95750ea350364",
+    "historical_baseline.py": "a146ecb5f53d607d4f79b9e4422c2dc2",
+    "cycle2_seventh_benchmark.py": "46f07a18ccb8662d1a38f65561483c4c",
+    "chroma_fixtures_dev.json": "d07080a793b8c2256d7bf27194a9778d",
+    "chroma_fixtures_val.json": "f36c0591e83bb42260e96c5c558dbf99",
+    "chroma_fixtures.json": "f2c607d37fed6f8d84566aa26392e686",
+    "fixture_inventory.json": "cfea2a471ba183280a7059f3eda69ef3"
+  }
+}

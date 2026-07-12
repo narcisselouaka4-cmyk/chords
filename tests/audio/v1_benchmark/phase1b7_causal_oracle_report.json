@@ -1,0 +1,1370 @@
+{
+  "experiment": "phase1b7_causal_oracle_diagnostics",
+  "structured_correction_cycles_used": 0,
+  "structured_correction_cycles_remaining": 2,
+  "cycle_invariant_note": "Phase 1B.7 is diagnostic only. No correction cycle begins before a valid Phase 1B.7 verdict and a single causal hypothesis tested against O0_CURRENT.",
+  "validation_accessed": false,
+  "phase1c_authorized": false,
+  "tonal_component_status": "NOT_EVALUABLE",
+  "tonal_component_reason": "key_context unavailable in DEV fixtures",
+  "principle": "O0-O6 oracle experiments on DEV only. Each oracle perturbs exactly one stage of the pipeline. Uplifts are measured individually and are not additive.",
+  "selected_config": {
+    "delta_gate": 0.04,
+    "bass_weight": 0.1,
+    "tonal_weight": 0.0,
+    "no5_cost": 0.02,
+    "rootless_cost": 0.04,
+    "shell_cost": 0.02
+  },
+  "baseline_metrics_O0": {
+    "exact_chord_t1": 0.4828,
+    "exact_chord_t3": 0.4828,
+    "root_t1": 0.931,
+    "triad_t1": 0.931,
+    "seventh_t1": 0.4828,
+    "total_fixtures": 29,
+    "emg_dev": {
+      "mean": 0.4545,
+      "median": 0.0,
+      "min": 0.0,
+      "max": 1.0,
+      "std": 0.4979
+    }
+  },
+  "oracle_experiments": [
+    {
+      "experiment": "O0_CURRENT",
+      "description": "Selected config v3 (reference)",
+      "exact_chord_t1": 0.4828,
+      "exact_chord_t3": 0.4828,
+      "root_t1": 0.931,
+      "triad_t1": 0.931,
+      "seventh_t1": 0.4828,
+      "uplift_vs_O0_pp": 0.0,
+      "n_fixtures": 29,
+      "emg_dev_mean": 0.4545,
+      "emg_dev_median": 0.0,
+      "emg_dev_std": 0.4979,
+      "emg_dev_worst_partition": 0.0
+    },
+    {
+      "experiment": "O1_ORACLE_ROOT",
+      "description": "Force ground-truth root. Select triad + seventh normally.",
+      "exact_chord_t1": 0.5517,
+      "exact_chord_t3": 1.0,
+      "root_t1": 1.0,
+      "triad_t1": 1.0,
+      "seventh_t1": 0.5517,
+      "uplift_vs_O0_pp": 6.9,
+      "n_fixtures": 29,
+      "emg_dev_mean": 0.4848,
+      "emg_dev_median": 0.3333,
+      "emg_dev_std": 0.4791,
+      "emg_dev_worst_partition": 0.0
+    },
+    {
+      "experiment": "O2_ORACLE_ROOT_TRIAD",
+      "description": "Force ground-truth root + triad. Select seventh normally.",
+      "exact_chord_t1": 0.5517,
+      "exact_chord_t3": 1.0,
+      "root_t1": 1.0,
+      "triad_t1": 1.0,
+      "seventh_t1": 0.5517,
+      "uplift_vs_O0_pp": 6.9,
+      "n_fixtures": 29,
+      "emg_dev_mean": 0.4848,
+      "emg_dev_median": 0.3333,
+      "emg_dev_std": 0.4791,
+      "emg_dev_worst_partition": 0.0
+    },
+    {
+      "experiment": "O3_ORACLE_ROOT_SEVENTH",
+      "description": "Force ground-truth root + seventh. Select triad normally.",
+      "exact_chord_t1": 1.0,
+      "exact_chord_t3": 1.0,
+      "root_t1": 1.0,
+      "triad_t1": 1.0,
+      "seventh_t1": 1.0,
+      "uplift_vs_O0_pp": 51.72,
+      "n_fixtures": 29,
+      "emg_dev_mean": 1.0,
+      "emg_dev_median": 1.0,
+      "emg_dev_std": 0.0,
+      "emg_dev_worst_partition": 1.0
+    },
+    {
+      "experiment": "O4_NO_PRUNING",
+      "description": "Standard pipeline without MAX_CANDIDATES_SCORED cap.",
+      "exact_chord_t1": 0.4828,
+      "exact_chord_t3": 0.4828,
+      "root_t1": 0.931,
+      "triad_t1": 0.931,
+      "seventh_t1": 0.4828,
+      "uplift_vs_O0_pp": 0.0,
+      "n_fixtures": 29,
+      "emg_dev_mean": 0.4545,
+      "emg_dev_median": 0.0,
+      "emg_dev_std": 0.4979,
+      "emg_dev_worst_partition": 0.0
+    },
+    {
+      "experiment": "O5_ZERO_OMISSION_COSTS",
+      "description": "All voicing omission costs set to 0 (no5, rootless, shell).",
+      "exact_chord_t1": 0.4828,
+      "exact_chord_t3": 0.4828,
+      "root_t1": 0.931,
+      "triad_t1": 0.931,
+      "seventh_t1": 0.4828,
+      "uplift_vs_O0_pp": 0.0,
+      "n_fixtures": 29,
+      "emg_dev_mean": 0.4545,
+      "emg_dev_median": 0.0,
+      "emg_dev_std": 0.4979,
+      "emg_dev_worst_partition": 0.0
+    },
+    {
+      "experiment": "O6_FULL_V1_TEMPLATE_MATCHER",
+      "description": "Full V1 template matcher: all 12 roots \u00d7 9 qualities \u00d7 5 voicings, scored.",
+      "exact_chord_t1": 0.4828,
+      "exact_chord_t3": 0.4828,
+      "root_t1": 0.931,
+      "triad_t1": 0.931,
+      "seventh_t1": 0.4828,
+      "uplift_vs_O0_pp": 0.0,
+      "n_fixtures": 29,
+      "emg_dev_mean": 0.4545,
+      "emg_dev_median": 0.0,
+      "emg_dev_std": 0.4979,
+      "emg_dev_worst_partition": 0.0
+    }
+  ],
+  "verdict_candidates": [
+    {
+      "experiment": "O3_ORACLE_ROOT_SEVENTH",
+      "uplift_pp": 51.72,
+      "meets_15pt_threshold": true,
+      "n_fixtures_improved_vs_O0": 15,
+      "n_parent_groups_improved_vs_O0": 6,
+      "meets_5_fixtures": true,
+      "meets_4_groups": true,
+      "improved_fixture_ids": [
+        "complete_C7",
+        "complete_Cmaj7",
+        "complete_Cm7",
+        "complete_Cm7b5",
+        "no5_C7",
+        "rootless_Cmaj7",
+        "shell_Cmaj7",
+        "shell_G7",
+        "inv_G7_bassD",
+        "spread_Cmaj7",
+        "spread_Dm7b5",
+        "conf_maj7_clean",
+        "invariant_order_G7_a",
+        "invariant_order_G7_b",
+        "rootless_bass5th_Cmaj7"
+      ],
+      "improved_parent_group_ids": [
+        "root=0, quality=7",
+        "root=0, quality=m7",
+        "root=0, quality=m7b5",
+        "root=0, quality=maj7",
+        "root=2, quality=m7b5",
+        "root=7, quality=7"
+      ]
+    },
+    {
+      "experiment": "O1_ORACLE_ROOT",
+      "uplift_pp": 6.9,
+      "meets_15pt_threshold": false,
+      "n_fixtures_improved_vs_O0": 2,
+      "n_parent_groups_improved_vs_O0": 1,
+      "meets_5_fixtures": true,
+      "meets_4_groups": false,
+      "improved_fixture_ids": [
+        "rootless_Cmaj7",
+        "rootless_bass5th_Cmaj7"
+      ],
+      "improved_parent_group_ids": [
+        "root=0, quality=maj7"
+      ]
+    },
+    {
+      "experiment": "O2_ORACLE_ROOT_TRIAD",
+      "uplift_pp": 6.9,
+      "meets_15pt_threshold": false,
+      "n_fixtures_improved_vs_O0": 2,
+      "n_parent_groups_improved_vs_O0": 1,
+      "meets_5_fixtures": true,
+      "meets_4_groups": false,
+      "improved_fixture_ids": [
+        "rootless_Cmaj7",
+        "rootless_bass5th_Cmaj7"
+      ],
+      "improved_parent_group_ids": [
+        "root=0, quality=maj7"
+      ]
+    },
+    {
+      "experiment": "O4_NO_PRUNING",
+      "uplift_pp": 0.0,
+      "meets_15pt_threshold": false,
+      "n_fixtures_improved_vs_O0": 0,
+      "n_parent_groups_improved_vs_O0": 0,
+      "meets_5_fixtures": true,
+      "meets_4_groups": false,
+      "improved_fixture_ids": [],
+      "improved_parent_group_ids": []
+    },
+    {
+      "experiment": "O5_ZERO_OMISSION_COSTS",
+      "uplift_pp": 0.0,
+      "meets_15pt_threshold": false,
+      "n_fixtures_improved_vs_O0": 0,
+      "n_parent_groups_improved_vs_O0": 0,
+      "meets_5_fixtures": true,
+      "meets_4_groups": false,
+      "improved_fixture_ids": [],
+      "improved_parent_group_ids": []
+    },
+    {
+      "experiment": "O6_FULL_V1_TEMPLATE_MATCHER",
+      "uplift_pp": 0.0,
+      "meets_15pt_threshold": false,
+      "n_fixtures_improved_vs_O0": 0,
+      "n_parent_groups_improved_vs_O0": 0,
+      "meets_5_fixtures": true,
+      "meets_4_groups": false,
+      "improved_fixture_ids": [],
+      "improved_parent_group_ids": []
+    }
+  ],
+  "dominant_cause": {
+    "experiment": "O3_ORACLE_ROOT_SEVENTH",
+    "uplift_pp": 51.72,
+    "second_cause": "O1_ORACLE_ROOT",
+    "dominance_margin_pp": 44.82,
+    "not_limited_to_insufficient_support": true
+  },
+  "verdict": "PHASE_1B7_SEVENTH_SCORING_FAILURE (O3 filters root+seventh only, triad never read, multiple triads eligible, triad perturbation invariant, triad_isolated_metrics confirm triad not a comparable bottleneck)",
+  "verdict_applied": "X_FAILURE requires uplift >= 15pp, >= 5 fixtures, >= 4 groups, dominance margin >= 5pp, no INSUFFICIENT_SUPPORT. Otherwise PHASE_1B7_MIXED_FAILURE.",
+  "survival_audit": {
+    "totals": {
+      "never_generated": 0,
+      "eliminated_root_selection": 0,
+      "eliminated_triad_selection": 0,
+      "eliminated_seventh_selection": 0,
+      "eliminated_by_pruning": 0,
+      "eliminated_by_cap_of_12": 0,
+      "conserved_outside_top3": 15,
+      "present_top3_not_top1": 0,
+      "correctly_classified_top1": 14
+    },
+    "per_fixture": [
+      {
+        "fixture_id": "complete_C",
+        "parent_group_id": "root=0, quality=major",
+        "ground_truth": "C:",
+        "voicing_type": "complete",
+        "gt_root_rank": 0,
+        "gt_triad_rank_given_gt_root": 0,
+        "gt_seventh_rank_given_gt_root_and_triad": 0,
+        "gt_candidate_generated": true,
+        "gt_candidate_acoustic_rank": null,
+        "gt_candidate_score_rank": 0,
+        "elimination_stage": "correctly_classified_top1",
+        "final_prediction": "C:"
+      },
+      {
+        "fixture_id": "complete_Cm",
+        "parent_group_id": "root=0, quality=m",
+        "ground_truth": "C:m",
+        "voicing_type": "complete",
+        "gt_root_rank": 0,
+        "gt_triad_rank_given_gt_root": 0,
+        "gt_seventh_rank_given_gt_root_and_triad": 0,
+        "gt_candidate_generated": true,
+        "gt_candidate_acoustic_rank": null,
+        "gt_candidate_score_rank": 0,
+        "elimination_stage": "correctly_classified_top1",
+        "final_prediction": "C:m"
+      },
+      {
+        "fixture_id": "complete_C7",
+        "parent_group_id": "root=0, quality=7",
+        "ground_truth": "C:7",
+        "voicing_type": "complete",
+        "gt_root_rank": 0,
+        "gt_triad_rank_given_gt_root": 0,
+        "gt_seventh_rank_given_gt_root_and_triad": 1,
+        "gt_candidate_generated": true,
+        "gt_candidate_acoustic_rank": null,
+        "gt_candidate_score_rank": 8,
+        "elimination_stage": "conserved_outside_top3",
+        "final_prediction": "C:"
+      },
+      {
+        "fixture_id": "complete_Cmaj7",
+        "parent_group_id": "root=0, quality=maj7",
+        "ground_truth": "C:maj7",
+        "voicing_type": "complete",
+        "gt_root_rank": 0,
+        "gt_triad_rank_given_gt_root": 0,
+        "gt_seventh_rank_given_gt_root_and_triad": 1,
+        "gt_candidate_generated": true,
+        "gt_candidate_acoustic_rank": null,
+        "gt_candidate_score_rank": 8,
+        "elimination_stage": "conserved_outside_top3",
+        "final_prediction": "C:"
+      },
+      {
+        "fixture_id": "complete_Csus2",
+        "parent_group_id": "root=0, quality=sus2",
+        "ground_truth": "C:sus2",
+        "voicing_type": "complete",
+        "gt_root_rank": 0,
+        "gt_triad_rank_given_gt_root": 0,
+        "gt_seventh_rank_given_gt_root_and_triad": 0,
+        "gt_candidate_generated": true,
+        "gt_candidate_acoustic_rank": null,
+        "gt_candidate_score_rank": 0,
+        "elimination_stage": "correctly_classified_top1",
+        "final_prediction": "C:sus2"
+      },
+      {
+        "fixture_id": "complete_Csus4",
+        "parent_group_id": "root=0, quality=sus4",
+        "ground_truth": "C:sus4",
+        "voicing_type": "complete",
+        "gt_root_rank": 0,
+        "gt_triad_rank_given_gt_root": 0,
+        "gt_seventh_rank_given_gt_root_and_triad": 0,
+        "gt_candidate_generated": true,
+        "gt_candidate_acoustic_rank": null,
+        "gt_candidate_score_rank": 0,
+        "elimination_stage": "correctly_classified_top1",
+        "final_prediction": "C:sus4"
+      },
+      {
+        "fixture_id": "complete_Cm7",
+        "parent_group_id": "root=0, quality=m7",
+        "ground_truth": "C:m7",
+        "voicing_type": "complete",
+        "gt_root_rank": 0,
+        "gt_triad_rank_given_gt_root": 0,
+        "gt_seventh_rank_given_gt_root_and_triad": 1,
+        "gt_candidate_generated": true,
+        "gt_candidate_acoustic_rank": null,
+        "gt_candidate_score_rank": 8,
+        "elimination_stage": "conserved_outside_top3",
+        "final_prediction": "C:m"
+      },
+      {
+        "fixture_id": "complete_Cdim",
+        "parent_group_id": "root=0, quality=dim",
+        "ground_truth": "C:dim",
+        "voicing_type": "complete",
+        "gt_root_rank": 0,
+        "gt_triad_rank_given_gt_root": 0,
+        "gt_seventh_rank_given_gt_root_and_triad": 0,
+        "gt_candidate_generated": true,
+        "gt_candidate_acoustic_rank": null,
+        "gt_candidate_score_rank": 0,
+        "elimination_stage": "correctly_classified_top1",
+        "final_prediction": "C:dim"
+      },
+      {
+        "fixture_id": "complete_Cm7b5",
+        "parent_group_id": "root=0, quality=m7b5",
+        "ground_truth": "C:m7b5",
+        "voicing_type": "complete",
+        "gt_root_rank": 0,
+        "gt_triad_rank_given_gt_root": 0,
+        "gt_seventh_rank_given_gt_root_and_triad": 1,
+        "gt_candidate_generated": true,
+        "gt_candidate_acoustic_rank": null,
+        "gt_candidate_score_rank": 8,
+        "elimination_stage": "conserved_outside_top3",
+        "final_prediction": "C:dim"
+      },
+      {
+        "fixture_id": "no5_C7",
+        "parent_group_id": "root=0, quality=7",
+        "ground_truth": "C:7",
+        "voicing_type": "no5",
+        "gt_root_rank": 0,
+        "gt_triad_rank_given_gt_root": 0,
+        "gt_seventh_rank_given_gt_root_and_triad": 1,
+        "gt_candidate_generated": true,
+        "gt_candidate_acoustic_rank": null,
+        "gt_candidate_score_rank": 10,
+        "elimination_stage": "conserved_outside_top3",
+        "final_prediction": "C:"
+      },
+      {
+        "fixture_id": "rootless_Cmaj7",
+        "parent_group_id": "root=0, quality=maj7",
+        "ground_truth": "C:maj7",
+        "voicing_type": "rootless",
+        "gt_root_rank": 3,
+        "gt_triad_rank_given_gt_root": 0,
+        "gt_seventh_rank_given_gt_root_and_triad": 1,
+        "gt_candidate_generated": true,
+        "gt_candidate_acoustic_rank": null,
+        "gt_candidate_score_rank": 5,
+        "elimination_stage": "conserved_outside_top3",
+        "final_prediction": "E:m"
+      },
+      {
+        "fixture_id": "shell_Cmaj7",
+        "parent_group_id": "root=0, quality=maj7",
+        "ground_truth": "C:maj7",
+        "voicing_type": "shell",
+        "gt_root_rank": 0,
+        "gt_triad_rank_given_gt_root": 0,
+        "gt_seventh_rank_given_gt_root_and_triad": 1,
+        "gt_candidate_generated": true,
+        "gt_candidate_acoustic_rank": null,
+        "gt_candidate_score_rank": 6,
+        "elimination_stage": "conserved_outside_top3",
+        "final_prediction": "C:"
+      },
+      {
+        "fixture_id": "shell_G7",
+        "parent_group_id": "root=7, quality=7",
+        "ground_truth": "G:7",
+        "voicing_type": "shell",
+        "gt_root_rank": 1,
+        "gt_triad_rank_given_gt_root": 0,
+        "gt_seventh_rank_given_gt_root_and_triad": 1,
+        "gt_candidate_generated": true,
+        "gt_candidate_acoustic_rank": null,
+        "gt_candidate_score_rank": 8,
+        "elimination_stage": "conserved_outside_top3",
+        "final_prediction": "G:"
+      },
+      {
+        "fixture_id": "inv_C_bassE",
+        "parent_group_id": "root=0, quality=major",
+        "ground_truth": "C:",
+        "voicing_type": "inversion",
+        "gt_root_rank": 0,
+        "gt_triad_rank_given_gt_root": 0,
+        "gt_seventh_rank_given_gt_root_and_triad": 0,
+        "gt_candidate_generated": true,
+        "gt_candidate_acoustic_rank": null,
+        "gt_candidate_score_rank": 0,
+        "elimination_stage": "correctly_classified_top1",
+        "final_prediction": "C:"
+      },
+      {
+        "fixture_id": "inv_G7_bassD",
+        "parent_group_id": "root=7, quality=7",
+        "ground_truth": "G:7",
+        "voicing_type": "inversion",
+        "gt_root_rank": 0,
+        "gt_triad_rank_given_gt_root": 0,
+        "gt_seventh_rank_given_gt_root_and_triad": 1,
+        "gt_candidate_generated": true,
+        "gt_candidate_acoustic_rank": null,
+        "gt_candidate_score_rank": 8,
+        "elimination_stage": "conserved_outside_top3",
+        "final_prediction": "G:"
+      },
+      {
+        "fixture_id": "foreign_C_noteF#",
+        "parent_group_id": "root=0, quality=major",
+        "ground_truth": "C:",
+        "voicing_type": "foreign_melody",
+        "gt_root_rank": 0,
+        "gt_triad_rank_given_gt_root": 0,
+        "gt_seventh_rank_given_gt_root_and_triad": 0,
+        "gt_candidate_generated": true,
+        "gt_candidate_acoustic_rank": null,
+        "gt_candidate_score_rank": 0,
+        "elimination_stage": "correctly_classified_top1",
+        "final_prediction": "C:"
+      },
+      {
+        "fixture_id": "spread_Cmaj7",
+        "parent_group_id": "root=0, quality=maj7",
+        "ground_truth": "C:maj7",
+        "voicing_type": "temporal_spread",
+        "gt_root_rank": 1,
+        "gt_triad_rank_given_gt_root": 0,
+        "gt_seventh_rank_given_gt_root_and_triad": 1,
+        "gt_candidate_generated": true,
+        "gt_candidate_acoustic_rank": null,
+        "gt_candidate_score_rank": 8,
+        "elimination_stage": "conserved_outside_top3",
+        "final_prediction": "C:"
+      },
+      {
+        "fixture_id": "spread_Dm7b5",
+        "parent_group_id": "root=2, quality=m7b5",
+        "ground_truth": "D:m7b5",
+        "voicing_type": "temporal_spread",
+        "gt_root_rank": 0,
+        "gt_triad_rank_given_gt_root": 0,
+        "gt_seventh_rank_given_gt_root_and_triad": 1,
+        "gt_candidate_generated": true,
+        "gt_candidate_acoustic_rank": null,
+        "gt_candidate_score_rank": 8,
+        "elimination_stage": "conserved_outside_top3",
+        "final_prediction": "D:dim"
+      },
+      {
+        "fixture_id": "conf_major_vs_maj7_clean",
+        "parent_group_id": "root=0, quality=major",
+        "ground_truth": "C:",
+        "voicing_type": "complete",
+        "gt_root_rank": 0,
+        "gt_triad_rank_given_gt_root": 0,
+        "gt_seventh_rank_given_gt_root_and_triad": 0,
+        "gt_candidate_generated": true,
+        "gt_candidate_acoustic_rank": null,
+        "gt_candidate_score_rank": 0,
+        "elimination_stage": "correctly_classified_top1",
+        "final_prediction": "C:"
+      },
+      {
+        "fixture_id": "conf_maj7_clean",
+        "parent_group_id": "root=0, quality=maj7",
+        "ground_truth": "C:maj7",
+        "voicing_type": "complete",
+        "gt_root_rank": 0,
+        "gt_triad_rank_given_gt_root": 0,
+        "gt_seventh_rank_given_gt_root_and_triad": 1,
+        "gt_candidate_generated": true,
+        "gt_candidate_acoustic_rank": null,
+        "gt_candidate_score_rank": 8,
+        "elimination_stage": "conserved_outside_top3",
+        "final_prediction": "C:"
+      },
+      {
+        "fixture_id": "conf_major_vs_sus2",
+        "parent_group_id": "root=0, quality=major",
+        "ground_truth": "C:",
+        "voicing_type": "complete",
+        "gt_root_rank": 0,
+        "gt_triad_rank_given_gt_root": 0,
+        "gt_seventh_rank_given_gt_root_and_triad": 0,
+        "gt_candidate_generated": true,
+        "gt_candidate_acoustic_rank": null,
+        "gt_candidate_score_rank": 0,
+        "elimination_stage": "correctly_classified_top1",
+        "final_prediction": "C:"
+      },
+      {
+        "fixture_id": "conf_sus2_clean",
+        "parent_group_id": "root=0, quality=sus2",
+        "ground_truth": "C:sus2",
+        "voicing_type": "complete",
+        "gt_root_rank": 0,
+        "gt_triad_rank_given_gt_root": 0,
+        "gt_seventh_rank_given_gt_root_and_triad": 0,
+        "gt_candidate_generated": true,
+        "gt_candidate_acoustic_rank": null,
+        "gt_candidate_score_rank": 0,
+        "elimination_stage": "correctly_classified_top1",
+        "final_prediction": "C:sus2"
+      },
+      {
+        "fixture_id": "conf_sus4_clean",
+        "parent_group_id": "root=0, quality=sus4",
+        "ground_truth": "C:sus4",
+        "voicing_type": "complete",
+        "gt_root_rank": 0,
+        "gt_triad_rank_given_gt_root": 0,
+        "gt_seventh_rank_given_gt_root_and_triad": 0,
+        "gt_candidate_generated": true,
+        "gt_candidate_acoustic_rank": null,
+        "gt_candidate_score_rank": 0,
+        "elimination_stage": "correctly_classified_top1",
+        "final_prediction": "C:sus4"
+      },
+      {
+        "fixture_id": "invariant_order_G7_a",
+        "parent_group_id": "root=7, quality=7",
+        "ground_truth": "G:7",
+        "voicing_type": "complete",
+        "gt_root_rank": 0,
+        "gt_triad_rank_given_gt_root": 0,
+        "gt_seventh_rank_given_gt_root_and_triad": 1,
+        "gt_candidate_generated": true,
+        "gt_candidate_acoustic_rank": null,
+        "gt_candidate_score_rank": 8,
+        "elimination_stage": "conserved_outside_top3",
+        "final_prediction": "G:"
+      },
+      {
+        "fixture_id": "invariant_order_G7_b",
+        "parent_group_id": "root=7, quality=7",
+        "ground_truth": "G:7",
+        "voicing_type": "complete",
+        "gt_root_rank": 0,
+        "gt_triad_rank_given_gt_root": 0,
+        "gt_seventh_rank_given_gt_root_and_triad": 1,
+        "gt_candidate_generated": true,
+        "gt_candidate_acoustic_rank": null,
+        "gt_candidate_score_rank": 8,
+        "elimination_stage": "conserved_outside_top3",
+        "final_prediction": "G:"
+      },
+      {
+        "fixture_id": "invariant_major_third_4",
+        "parent_group_id": "root=0, quality=major",
+        "ground_truth": "C:",
+        "voicing_type": "complete",
+        "gt_root_rank": 0,
+        "gt_triad_rank_given_gt_root": 0,
+        "gt_seventh_rank_given_gt_root_and_triad": 0,
+        "gt_candidate_generated": true,
+        "gt_candidate_acoustic_rank": null,
+        "gt_candidate_score_rank": 0,
+        "elimination_stage": "correctly_classified_top1",
+        "final_prediction": "C:"
+      },
+      {
+        "fixture_id": "invariant_minor_third_3",
+        "parent_group_id": "root=0, quality=m",
+        "ground_truth": "C:m",
+        "voicing_type": "complete",
+        "gt_root_rank": 0,
+        "gt_triad_rank_given_gt_root": 0,
+        "gt_seventh_rank_given_gt_root_and_triad": 0,
+        "gt_candidate_generated": true,
+        "gt_candidate_acoustic_rank": null,
+        "gt_candidate_score_rank": 0,
+        "elimination_stage": "correctly_classified_top1",
+        "final_prediction": "C:m"
+      },
+      {
+        "fixture_id": "rootless_bass5th_Cmaj7",
+        "parent_group_id": "root=0, quality=maj7",
+        "ground_truth": "C:maj7",
+        "voicing_type": "rootless",
+        "gt_root_rank": 3,
+        "gt_triad_rank_given_gt_root": 0,
+        "gt_seventh_rank_given_gt_root_and_triad": 1,
+        "gt_candidate_generated": true,
+        "gt_candidate_acoustic_rank": null,
+        "gt_candidate_score_rank": 5,
+        "elimination_stage": "conserved_outside_top3",
+        "final_prediction": "E:m"
+      },
+      {
+        "fixture_id": "foreign_Fsharp_in_C",
+        "parent_group_id": "root=0, quality=major",
+        "ground_truth": "C:",
+        "voicing_type": "foreign_melody",
+        "gt_root_rank": 0,
+        "gt_triad_rank_given_gt_root": 0,
+        "gt_seventh_rank_given_gt_root_and_triad": 0,
+        "gt_candidate_generated": true,
+        "gt_candidate_acoustic_rank": null,
+        "gt_candidate_score_rank": 0,
+        "elimination_stage": "correctly_classified_top1",
+        "final_prediction": "C:"
+      }
+    ]
+  },
+  "support_tables": {
+    "by_quality": {
+      "": {
+        "n_fixtures": 7,
+        "n_parent_groups": 1,
+        "correct": 7,
+        "incorrect": 0,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      },
+      "7": {
+        "n_fixtures": 6,
+        "n_parent_groups": 2,
+        "correct": 0,
+        "incorrect": 6,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      },
+      "dim": {
+        "n_fixtures": 1,
+        "n_parent_groups": 1,
+        "correct": 1,
+        "incorrect": 0,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      },
+      "m": {
+        "n_fixtures": 2,
+        "n_parent_groups": 1,
+        "correct": 2,
+        "incorrect": 0,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      },
+      "m7": {
+        "n_fixtures": 1,
+        "n_parent_groups": 1,
+        "correct": 0,
+        "incorrect": 1,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      },
+      "m7b5": {
+        "n_fixtures": 2,
+        "n_parent_groups": 2,
+        "correct": 0,
+        "incorrect": 2,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      },
+      "maj7": {
+        "n_fixtures": 6,
+        "n_parent_groups": 1,
+        "correct": 0,
+        "incorrect": 6,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      },
+      "sus2": {
+        "n_fixtures": 2,
+        "n_parent_groups": 1,
+        "correct": 2,
+        "incorrect": 0,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      },
+      "sus4": {
+        "n_fixtures": 2,
+        "n_parent_groups": 1,
+        "correct": 2,
+        "incorrect": 0,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      }
+    },
+    "by_voicing": {
+      "complete": {
+        "n_fixtures": 18,
+        "n_parent_groups": 10,
+        "correct": 11,
+        "incorrect": 7,
+        "support_status": "SUPPORTED"
+      },
+      "foreign_melody": {
+        "n_fixtures": 2,
+        "n_parent_groups": 1,
+        "correct": 2,
+        "incorrect": 0,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      },
+      "inversion": {
+        "n_fixtures": 2,
+        "n_parent_groups": 2,
+        "correct": 1,
+        "incorrect": 1,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      },
+      "no5": {
+        "n_fixtures": 1,
+        "n_parent_groups": 1,
+        "correct": 0,
+        "incorrect": 1,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      },
+      "rootless": {
+        "n_fixtures": 2,
+        "n_parent_groups": 1,
+        "correct": 0,
+        "incorrect": 2,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      },
+      "shell": {
+        "n_fixtures": 2,
+        "n_parent_groups": 2,
+        "correct": 0,
+        "incorrect": 2,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      },
+      "temporal_spread": {
+        "n_fixtures": 2,
+        "n_parent_groups": 2,
+        "correct": 0,
+        "incorrect": 2,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      }
+    },
+    "by_quality_x_voicing": {
+      " \u00d7 complete": {
+        "n_fixtures": 4,
+        "n_parent_groups": 1,
+        "correct": 4,
+        "incorrect": 0,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      },
+      " \u00d7 foreign_melody": {
+        "n_fixtures": 2,
+        "n_parent_groups": 1,
+        "correct": 2,
+        "incorrect": 0,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      },
+      " \u00d7 inversion": {
+        "n_fixtures": 1,
+        "n_parent_groups": 1,
+        "correct": 1,
+        "incorrect": 0,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      },
+      "7 \u00d7 complete": {
+        "n_fixtures": 3,
+        "n_parent_groups": 2,
+        "correct": 0,
+        "incorrect": 3,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      },
+      "7 \u00d7 inversion": {
+        "n_fixtures": 1,
+        "n_parent_groups": 1,
+        "correct": 0,
+        "incorrect": 1,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      },
+      "7 \u00d7 no5": {
+        "n_fixtures": 1,
+        "n_parent_groups": 1,
+        "correct": 0,
+        "incorrect": 1,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      },
+      "7 \u00d7 shell": {
+        "n_fixtures": 1,
+        "n_parent_groups": 1,
+        "correct": 0,
+        "incorrect": 1,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      },
+      "dim \u00d7 complete": {
+        "n_fixtures": 1,
+        "n_parent_groups": 1,
+        "correct": 1,
+        "incorrect": 0,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      },
+      "m \u00d7 complete": {
+        "n_fixtures": 2,
+        "n_parent_groups": 1,
+        "correct": 2,
+        "incorrect": 0,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      },
+      "m7 \u00d7 complete": {
+        "n_fixtures": 1,
+        "n_parent_groups": 1,
+        "correct": 0,
+        "incorrect": 1,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      },
+      "m7b5 \u00d7 complete": {
+        "n_fixtures": 1,
+        "n_parent_groups": 1,
+        "correct": 0,
+        "incorrect": 1,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      },
+      "m7b5 \u00d7 temporal_spread": {
+        "n_fixtures": 1,
+        "n_parent_groups": 1,
+        "correct": 0,
+        "incorrect": 1,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      },
+      "maj7 \u00d7 complete": {
+        "n_fixtures": 2,
+        "n_parent_groups": 1,
+        "correct": 0,
+        "incorrect": 2,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      },
+      "maj7 \u00d7 rootless": {
+        "n_fixtures": 2,
+        "n_parent_groups": 1,
+        "correct": 0,
+        "incorrect": 2,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      },
+      "maj7 \u00d7 shell": {
+        "n_fixtures": 1,
+        "n_parent_groups": 1,
+        "correct": 0,
+        "incorrect": 1,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      },
+      "maj7 \u00d7 temporal_spread": {
+        "n_fixtures": 1,
+        "n_parent_groups": 1,
+        "correct": 0,
+        "incorrect": 1,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      },
+      "sus2 \u00d7 complete": {
+        "n_fixtures": 2,
+        "n_parent_groups": 1,
+        "correct": 2,
+        "incorrect": 0,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      },
+      "sus4 \u00d7 complete": {
+        "n_fixtures": 2,
+        "n_parent_groups": 1,
+        "correct": 2,
+        "incorrect": 0,
+        "support_status": "INSUFFICIENT_SUPPORT"
+      }
+    }
+  },
+  "coincidence_0.931_verification": {
+    "original_structured_metrics": {
+      "root_t1": 0.931,
+      "exact_chord_t1": 0.4828
+    },
+    "historical_production_baseline_metrics": {
+      "root_t1": 0.931,
+      "exact_chord_t1": 0.931,
+      "quality_t1": 0.931
+    },
+    "perturbed_structured_metrics": {
+      "root_t1": 0.8966,
+      "exact_chord_t1": 0.4483
+    },
+    "perturbation_applied_to_copy": true,
+    "perturbed_fixture_0": {
+      "fixture_id": "complete_C",
+      "original_prediction": "C:",
+      "perturbed_prediction": "?:PERTURBED"
+    },
+    "original_tables_unchanged": {
+      "chroma_fixtures_dev_hash_before": "d07080a793b8c2256d7bf27194a9778d",
+      "fixture_inventory_hash_before": "cfea2a471ba183280a7059f3eda69ef3",
+      "audio_processor_hash_before": "7ceac7cbcb013af42a03bf432cddeea5",
+      "structured_tables_hash_after": "aaf1313bc7cdddd2cb4e104d62d62daa"
+    }
+  },
+  "checklist": {
+    "11.1_independent_metric_tables": "PASS",
+    "11.1_causal_perturbation_test": "PASS",
+    "11.1_pipeline_parameters_unchanged": "PASS",
+    "11.2_instance_counts_reported": "PASS",
+    "11.2_parent_group_counts_reported": "PASS",
+    "11.2_low_support_cells_marked": "PASS",
+    "11.3_oracle_uplifts_non_additive": "PASS",
+    "11.3_verdict_threshold_applied": "PASS",
+    "11.3_dominance_margin_applied": "PASS",
+    "11.3_support_threshold_applied": "PASS",
+    "11.4_all_voicing_categories_verified": "PASS",
+    "11.4_independent_parent_coverage_reported": "PASS",
+    "11.4_comparison_with_old_corpus_documented": "PASS",
+    "11.5_perturbation_copy_only": "PASS",
+    "11.5_original_tables_unchanged": "PASS",
+    "11.6_one_factor_at_a_time_documented": "PASS",
+    "11.6_interactions_not_claimed": "PASS",
+    "11.7_o3_filters_root_and_seventh_only": "PASS",
+    "11.7_o3_never_reads_ground_truth_triad": "PASS",
+    "11.7_o3_multiple_triads_remain_eligible": "PASS",
+    "11.7_o3_ground_truth_triad_perturbation_invariant": "PASS",
+    "11.7_triad_only_metrics_reported": "PASS",
+    "11.7_o1_o3_uplifts_not_presented_as_independent": "PASS",
+    "11.7_global_support_separated_from_cell_check": "PASS"
+  },
+  "methodological_violation": null,
+  "code_hashes": {
+    "chroma_fixtures_dev_json": "d07080a793b8c2256d7bf27194a9778d",
+    "fixture_inventory_json": "cfea2a471ba183280a7059f3eda69ef3",
+    "audio_processor_production": "7ceac7cbcb013af42a03bf432cddeea5"
+  },
+  "triad_isolated_metrics": {
+    "O0_CURRENT": {
+      "triad_only_t1": 0.9310344827586207,
+      "triad_only_t3": 1.0,
+      "root_and_triad_t1": 0.9310344827586207,
+      "root_and_triad_t3": 0.9310344827586207,
+      "total": 29
+    },
+    "O1_ORACLE_ROOT": {
+      "triad_only_t1": 1.0,
+      "triad_only_t3": 1.0,
+      "root_and_triad_t1": 1.0,
+      "root_and_triad_t3": 1.0,
+      "total": 29
+    },
+    "O2_ORACLE_ROOT_TRIAD": {
+      "triad_only_t1": 1.0,
+      "triad_only_t3": 1.0,
+      "root_and_triad_t1": 1.0,
+      "root_and_triad_t3": 1.0,
+      "total": 29
+    },
+    "O3_ORACLE_ROOT_SEVENTH": {
+      "triad_only_t1": 1.0,
+      "triad_only_t3": 1.0,
+      "root_and_triad_t1": 1.0,
+      "root_and_triad_t3": 1.0,
+      "total": 29
+    }
+  },
+  "o3_structural_audit": {
+    "implementation_file": "scripts/phase1b7_oracles.py",
+    "function": "OracleEngine.oracle_root_seventh",
+    "line_numbers": "115-130",
+    "parameters_received": [
+      "chroma",
+      "bass_chroma",
+      "gt_root",
+      "gt_triad",
+      "gt_seventh"
+    ],
+    "gt_triad_used": false,
+    "gt_quality_used": false,
+    "gt_root_used": true,
+    "gt_seventh_used": true,
+    "code_path": {
+      "step_1": "observed_pcs = chroma > OBSERVATION_THRESHOLD (standard)",
+      "step_2": "bass_pc = compute_bass_pc(bass_chroma) (standard)",
+      "step_3": "triads = _evaluate_triad(chroma, gt_root) \u2014 uses ONLY gt_root, evaluates all 5 triad types",
+      "step_4": "For each triad: _make_candidate(gt_root, triad, gt_seventh, ...) \u2014 forces gt_seventh",
+      "step_5": "Candidates scored via _score_and_sort (acoustic + total_score_with_gating)"
+    },
+    "equivalence": "Same as filtering all_candidates by candidate.root == gt_root AND candidate.seventh == gt_seventh",
+    "note": "gt_triad is accepted as parameter but NEVER referenced in the function body. It exists only because the caller passes all GT fields uniformly."
+  },
+  "o3_structural_tests": {
+    "ground_truth_triad_perturbation": {
+      "test": "Run O3 with wrong gt_triad for each fixture, verify top-3 unchanged",
+      "invariant_fixtures": 29,
+      "total_fixtures": 29,
+      "passed": true,
+      "perturbed_triad_map": {
+        "complete_C": "dim",
+        "complete_Cm": "dim",
+        "complete_C7": "dim",
+        "complete_Cmaj7": "dim",
+        "complete_Csus2": "dim",
+        "complete_Csus4": "dim",
+        "complete_Cm7": "dim",
+        "complete_Cdim": "major",
+        "complete_Cm7b5": "major",
+        "no5_C7": "dim",
+        "rootless_Cmaj7": "dim",
+        "shell_Cmaj7": "dim",
+        "shell_G7": "dim",
+        "inv_C_bassE": "dim",
+        "inv_G7_bassD": "dim",
+        "foreign_C_noteF#": "dim",
+        "spread_Cmaj7": "dim",
+        "spread_Dm7b5": "major",
+        "conf_major_vs_maj7_clean": "dim",
+        "conf_maj7_clean": "dim",
+        "conf_major_vs_sus2": "dim",
+        "conf_sus2_clean": "dim",
+        "conf_sus4_clean": "dim",
+        "invariant_order_G7_a": "dim",
+        "invariant_order_G7_b": "dim",
+        "invariant_major_third_4": "dim",
+        "invariant_minor_third_3": "dim",
+        "rootless_bass5th_Cmaj7": "dim",
+        "foreign_Fsharp_in_C": "dim"
+      }
+    },
+    "multiple_triads_eligible": {
+      "test": "Count eligible triads under O3 filter (gt_root + gt_seventh only)",
+      "multi_triad_fixtures": 29,
+      "single_triad_fixtures": 0,
+      "total_fixtures": 29,
+      "triad_selection_is_real": true
+    },
+    "eligible_triads_per_fixture": [
+      {
+        "fixture_id": "complete_C",
+        "gt_quality": "",
+        "gt_triad": "major",
+        "gt_seventh": "none",
+        "n_eligible": 2,
+        "selected_triad": "major",
+        "correct_triad_selected": true
+      },
+      {
+        "fixture_id": "complete_Cm",
+        "gt_quality": "m",
+        "gt_triad": "minor",
+        "gt_seventh": "none",
+        "n_eligible": 2,
+        "selected_triad": "minor",
+        "correct_triad_selected": true
+      },
+      {
+        "fixture_id": "complete_C7",
+        "gt_quality": "7",
+        "gt_triad": "major",
+        "gt_seventh": "b7",
+        "n_eligible": 2,
+        "selected_triad": "major",
+        "correct_triad_selected": true
+      },
+      {
+        "fixture_id": "complete_Cmaj7",
+        "gt_quality": "maj7",
+        "gt_triad": "major",
+        "gt_seventh": "maj7",
+        "n_eligible": 2,
+        "selected_triad": "major",
+        "correct_triad_selected": true
+      },
+      {
+        "fixture_id": "complete_Csus2",
+        "gt_quality": "sus2",
+        "gt_triad": "sus2",
+        "gt_seventh": "none",
+        "n_eligible": 2,
+        "selected_triad": "sus2",
+        "correct_triad_selected": true
+      },
+      {
+        "fixture_id": "complete_Csus4",
+        "gt_quality": "sus4",
+        "gt_triad": "sus4",
+        "gt_seventh": "none",
+        "n_eligible": 2,
+        "selected_triad": "sus4",
+        "correct_triad_selected": true
+      },
+      {
+        "fixture_id": "complete_Cm7",
+        "gt_quality": "m7",
+        "gt_triad": "minor",
+        "gt_seventh": "b7",
+        "n_eligible": 2,
+        "selected_triad": "minor",
+        "correct_triad_selected": true
+      },
+      {
+        "fixture_id": "complete_Cdim",
+        "gt_quality": "dim",
+        "gt_triad": "dim",
+        "gt_seventh": "none",
+        "n_eligible": 2,
+        "selected_triad": "dim",
+        "correct_triad_selected": true
+      },
+      {
+        "fixture_id": "complete_Cm7b5",
+        "gt_quality": "m7b5",
+        "gt_triad": "dim",
+        "gt_seventh": "b7",
+        "n_eligible": 2,
+        "selected_triad": "dim",
+        "correct_triad_selected": true
+      },
+      {
+        "fixture_id": "no5_C7",
+        "gt_quality": "7",
+        "gt_triad": "major",
+        "gt_seventh": "b7",
+        "n_eligible": 2,
+        "selected_triad": "major",
+        "correct_triad_selected": true
+      },
+      {
+        "fixture_id": "rootless_Cmaj7",
+        "gt_quality": "maj7",
+        "gt_triad": "major",
+        "gt_seventh": "maj7",
+        "n_eligible": 2,
+        "selected_triad": "major",
+        "correct_triad_selected": true
+      },
+      {
+        "fixture_id": "shell_Cmaj7",
+        "gt_quality": "maj7",
+        "gt_triad": "major",
+        "gt_seventh": "maj7",
+        "n_eligible": 2,
+        "selected_triad": "major",
+        "correct_triad_selected": true
+      },
+      {
+        "fixture_id": "shell_G7",
+        "gt_quality": "7",
+        "gt_triad": "major",
+        "gt_seventh": "b7",
+        "n_eligible": 2,
+        "selected_triad": "major",
+        "correct_triad_selected": true
+      },
+      {
+        "fixture_id": "inv_C_bassE",
+        "gt_quality": "",
+        "gt_triad": "major",
+        "gt_seventh": "none",
+        "n_eligible": 2,
+        "selected_triad": "major",
+        "correct_triad_selected": true
+      },
+      {
+        "fixture_id": "inv_G7_bassD",
+        "gt_quality": "7",
+        "gt_triad": "major",
+        "gt_seventh": "b7",
+        "n_eligible": 2,
+        "selected_triad": "major",
+        "correct_triad_selected": true
+      },
+      {
+        "fixture_id": "foreign_C_noteF#",
+        "gt_quality": "",
+        "gt_triad": "major",
+        "gt_seventh": "none",
+        "n_eligible": 2,
+        "selected_triad": "major",
+        "correct_triad_selected": true
+      },
+      {
+        "fixture_id": "spread_Cmaj7",
+        "gt_quality": "maj7",
+        "gt_triad": "major",
+        "gt_seventh": "maj7",
+        "n_eligible": 2,
+        "selected_triad": "major",
+        "correct_triad_selected": true
+      },
+      {
+        "fixture_id": "spread_Dm7b5",
+        "gt_quality": "m7b5",
+        "gt_triad": "dim",
+        "gt_seventh": "b7",
+        "n_eligible": 2,
+        "selected_triad": "dim",
+        "correct_triad_selected": true
+      },
+      {
+        "fixture_id": "conf_major_vs_maj7_clean",
+        "gt_quality": "",
+        "gt_triad": "major",
+        "gt_seventh": "none",
+        "n_eligible": 2,
+        "selected_triad": "major",
+        "correct_triad_selected": true
+      },
+      {
+        "fixture_id": "conf_maj7_clean",
+        "gt_quality": "maj7",
+        "gt_triad": "major",
+        "gt_seventh": "maj7",
+        "n_eligible": 2,
+        "selected_triad": "major",
+        "correct_triad_selected": true
+      },
+      {
+        "fixture_id": "conf_major_vs_sus2",
+        "gt_quality": "",
+        "gt_triad": "major",
+        "gt_seventh": "none",
+        "n_eligible": 2,
+        "selected_triad": "major",
+        "correct_triad_selected": true
+      },
+      {
+        "fixture_id": "conf_sus2_clean",
+        "gt_quality": "sus2",
+        "gt_triad": "sus2",
+        "gt_seventh": "none",
+        "n_eligible": 2,
+        "selected_triad": "sus2",
+        "correct_triad_selected": true
+      },
+      {
+        "fixture_id": "conf_sus4_clean",
+        "gt_quality": "sus4",
+        "gt_triad": "sus4",
+        "gt_seventh": "none",
+        "n_eligible": 2,
+        "selected_triad": "sus4",
+        "correct_triad_selected": true
+      },
+      {
+        "fixture_id": "invariant_order_G7_a",
+        "gt_quality": "7",
+        "gt_triad": "major",
+        "gt_seventh": "b7",
+        "n_eligible": 2,
+        "selected_triad": "major",
+        "correct_triad_selected": true
+      },
+      {
+        "fixture_id": "invariant_order_G7_b",
+        "gt_quality": "7",
+        "gt_triad": "major",
+        "gt_seventh": "b7",
+        "n_eligible": 2,
+        "selected_triad": "major",
+        "correct_triad_selected": true
+      },
+      {
+        "fixture_id": "invariant_major_third_4",
+        "gt_quality": "",
+        "gt_triad": "major",
+        "gt_seventh": "none",
+        "n_eligible": 2,
+        "selected_triad": "major",
+        "correct_triad_selected": true
+      },
+      {
+        "fixture_id": "invariant_minor_third_3",
+        "gt_quality": "m",
+        "gt_triad": "minor",
+        "gt_seventh": "none",
+        "n_eligible": 2,
+        "selected_triad": "minor",
+        "correct_triad_selected": true
+      },
+      {
+        "fixture_id": "rootless_bass5th_Cmaj7",
+        "gt_quality": "maj7",
+        "gt_triad": "major",
+        "gt_seventh": "maj7",
+        "n_eligible": 2,
+        "selected_triad": "major",
+        "correct_triad_selected": true
+      },
+      {
+        "fixture_id": "foreign_Fsharp_in_C",
+        "gt_quality": "",
+        "gt_triad": "major",
+        "gt_seventh": "none",
+        "n_eligible": 2,
+        "selected_triad": "major",
+        "correct_triad_selected": true
+      }
+    ]
+  },
+  "arithmetic_clarification": {
+    "o0_exact_chord_t1": 0.4828,
+    "o1_root_oracle_uptime": 0.5517,
+    "o3_root_plus_seventh_oracle_uptime": 1.0,
+    "o1_root_oracle_uplift_pp": 6.9,
+    "o3_root_plus_seventh_oracle_uplift_pp": 51.72,
+    "seventh_marginal_given_oracle_root_pp": 44.82,
+    "second_cause_uplift_pp": 6.9,
+    "dominance_margin_vs_second_oracle_pp": 44.82,
+    "same_arithmetic_source": true,
+    "independent_evidence_count": 1,
+    "note": "O1 uplift (root oracle) = +6.90pp. O3 uplift (root+seventh oracle) = +51.72pp. The marginal contribution of seventh given perfect root = 51.72 - 6.90 = 44.82pp. This marginal value is numerically equal to the dominance margin vs O1 (44.82pp) because O1 is the second-best oracle. These are the same arithmetic value, not two independent statistical proofs."
+  },
+  "cell_level_sanity_check": {
+    "check_type": "complementary_sanity_check",
+    "relationship_to_global_verdict": "The cell-level check does not replace the global support calculation. It is a complementary check to verify that a specific confusion pattern is not artificially amplified by multiple variants of the same parent group.",
+    "global_verdict_support": {
+      "n_fixtures_improved": 15,
+      "n_independent_parent_groups": 6,
+      "meets_5_fixtures": true,
+      "meets_4_groups": true
+    },
+    "cell_level_sanity_check": {
+      "insufficient_support_cells": "18 of 18 quality\u00d7voicing cells have <5 fixtures or <4 groups (corpus-wide limitation). No single cell drives the verdict.",
+      "global_support_sufficient": true,
+      "cell_level_support_insufficient": true,
+      "conclusion": "Global support is sufficient for the verdict. Cell-level insufficiency reflects corpus size, not a data artifact amplifying a single confusion pattern."
+    }
+  }
+}

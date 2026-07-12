@@ -1,0 +1,164 @@
+{
+  "status": "INVALIDATED_BY_BENCHMARK_BUG",
+  "status_reason": "Ablation A1/A2 structurellement identiques a A0 (heritent des poids 0.0 de la config selectionnee). BASELINE n'est pas un moteur historique distinct. tonal_score toujours 0.0 (key_context jamais fourni). Voir phase1b_corrected_report.json.",
+  "report_type": "structured_harmony_v1_phase1b",
+  "date": "2026-07-11",
+  "command": "python scripts/calibrate_v1.py",
+  "dev_data": {
+    "fixtures_path": "/home/visiteur/piano-jazz-chords/tests/audio/v1_benchmark/fixtures/chroma_fixtures_dev.json",
+    "fixtures_count": 29,
+    "parent_groups": 11
+  },
+  "validation_accessed": false,
+  "search_steps": [
+    {
+      "step": 1,
+      "name": "Omission costs (acoustic only)",
+      "best": {
+        "delta_gate": 0.08,
+        "bass_weight": 0.0,
+        "tonal_weight": 0.0,
+        "no5_cost": 0.02,
+        "rootless_cost": 0.04,
+        "shell_cost": 0.02
+      },
+      "best_quality": 0.45454545454545453
+    },
+    {
+      "step": 2,
+      "name": "Delta gate",
+      "best": {
+        "delta_gate": 0.04,
+        "bass_weight": 0.0,
+        "tonal_weight": 0.0,
+        "no5_cost": 0.02,
+        "rootless_cost": 0.04,
+        "shell_cost": 0.02
+      },
+      "best_quality": 0.45454545454545453
+    },
+    {
+      "step": 3,
+      "name": "Bass weight",
+      "best": {
+        "delta_gate": 0.04,
+        "bass_weight": 0.0,
+        "tonal_weight": 0.0,
+        "no5_cost": 0.02,
+        "rootless_cost": 0.04,
+        "shell_cost": 0.02
+      },
+      "best_quality": 0.45454545454545453
+    },
+    {
+      "step": 4,
+      "name": "Tonal weight",
+      "best": {
+        "delta_gate": 0.04,
+        "bass_weight": 0.0,
+        "tonal_weight": 0.0,
+        "no5_cost": 0.02,
+        "rootless_cost": 0.04,
+        "shell_cost": 0.02
+      },
+      "best_quality": 0.45454545454545453
+    }
+  ],
+  "selected_config": {
+    "delta_gate": 0.04,
+    "bass_weight": 0.0,
+    "tonal_weight": 0.0,
+    "no5_cost": 0.02,
+    "rootless_cost": 0.04,
+    "shell_cost": 0.02
+  },
+  "ablation_results": {
+    "A0_acoustic_only": {
+      "total": 29,
+      "root_t1": 0.8620689655172413,
+      "root_t3": 0.896551724137931,
+      "triad_t1": 0.8620689655172413,
+      "triad_t3": 0.9655172413793104,
+      "seventh_t1": 0.4827586206896552,
+      "seventh_t3": 0.4827586206896552,
+      "quality_t1": 0.4827586206896552,
+      "quality_t3": 0.4827586206896552,
+      "false_enrich_rate": 0.0,
+      "avg_candidates": 12.0,
+      "max_candidates": 12,
+      "cpu_time": 0.04822881505242549
+    },
+    "A1_acoustic_bass": {
+      "total": 29,
+      "root_t1": 0.8620689655172413,
+      "root_t3": 0.896551724137931,
+      "triad_t1": 0.8620689655172413,
+      "triad_t3": 0.9655172413793104,
+      "seventh_t1": 0.4827586206896552,
+      "seventh_t3": 0.4827586206896552,
+      "quality_t1": 0.4827586206896552,
+      "quality_t3": 0.4827586206896552,
+      "false_enrich_rate": 0.0,
+      "avg_candidates": 12.0,
+      "max_candidates": 12,
+      "cpu_time": 0.04776778697851114
+    },
+    "A2_acoustic_tonal": {
+      "total": 29,
+      "root_t1": 0.8620689655172413,
+      "root_t3": 0.896551724137931,
+      "triad_t1": 0.8620689655172413,
+      "triad_t3": 0.9655172413793104,
+      "seventh_t1": 0.4827586206896552,
+      "seventh_t3": 0.4827586206896552,
+      "quality_t1": 0.4827586206896552,
+      "quality_t3": 0.4827586206896552,
+      "false_enrich_rate": 0.0,
+      "avg_candidates": 12.0,
+      "max_candidates": 12,
+      "cpu_time": 0.05086792787187733
+    },
+    "FULL_NEUTRAL": {
+      "total": 29,
+      "root_t1": 0.8620689655172413,
+      "root_t3": 0.896551724137931,
+      "triad_t1": 0.8620689655172413,
+      "triad_t3": 0.9655172413793104,
+      "seventh_t1": 0.4827586206896552,
+      "seventh_t3": 0.4827586206896552,
+      "quality_t1": 0.4827586206896552,
+      "quality_t3": 0.4827586206896552,
+      "false_enrich_rate": 0.0,
+      "avg_candidates": 12.0,
+      "max_candidates": 12,
+      "cpu_time": 0.04258277200278826
+    },
+    "BASELINE_historical": {
+      "total": 29,
+      "root_t1": 0.8620689655172413,
+      "root_t3": 0.896551724137931,
+      "triad_t1": 0.8620689655172413,
+      "triad_t3": 0.9655172413793104,
+      "seventh_t1": 0.4827586206896552,
+      "seventh_t3": 0.4827586206896552,
+      "quality_t1": 0.4827586206896552,
+      "quality_t3": 0.4827586206896552,
+      "false_enrich_rate": 0.0,
+      "avg_candidates": 12.0,
+      "max_candidates": 12,
+      "cpu_time": 0.048639072017977014
+    }
+  },
+  "selected_by": "Lexicographic: max quality_t1 CV mean, then constraints",
+  "production_hashes": {
+    "electron/audio-processor.py": "7ceac7cbcb013af42a03bf432cddeea5",
+    "electron/main.js": "cce9d90b6333eb02a0b95750ea350364"
+  },
+  "limits": [
+    "Calibrated on DEV chroma fixtures only (29 fixtures)",
+    "No synthetic WAV or real progressions used",
+    "No validation data consulted",
+    "No non-neutral profiles activated",
+    "No accuracy claimed beyond DEV cross-validation"
+  ]
+}
