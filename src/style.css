@@ -1,3 +1,31 @@
+@import "tailwindcss";
+
+/* ── shadcn/ui design tokens ── */
+@theme {
+  --color-background: #09090b;
+  --color-foreground: #e4e4e7;
+  --color-card: #18181b;
+  --color-card-foreground: #e4e4e7;
+  --color-popover: #18181b;
+  --color-popover-foreground: #e4e4e7;
+  --color-primary: #0ea5e9;
+  --color-primary-foreground: #0c0a09;
+  --color-secondary: #27272a;
+  --color-secondary-foreground: #e4e4e7;
+  --color-muted: #71717a;
+  --color-muted-foreground: #a1a1aa;
+  --color-accent: #0ea5e9;
+  --color-accent-foreground: #e4e4e7;
+  --color-destructive: #7f1d1d;
+  --color-destructive-foreground: #fef2f2;
+  --color-border: #27272a;
+  --color-input: #27272a;
+  --color-ring: #0ea5e9;
+  --radius: 0.5rem;
+  --font-sans: 'Inter', 'Geist Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'SF Mono', 'Fira Code', monospace;
+}
+
 :root {
   --bg: #f4f6f8;
   --panel-bg: #ffffff;
@@ -4013,6 +4041,7 @@ body.studio-recording-cursor * {
   overflow: hidden;
   gap: 14px;
   min-height: 0;
+  position: relative;
 }
 
 /* En-tête morceau */
@@ -4693,4 +4722,220 @@ body.studio-recording-cursor * {
   .analyzer-progress-wrap {
     min-width: 100%;
   }
+}
+
+/* ── Manual Chord Editor ── */
+
+.chord-editor-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 200;
+}
+
+.chord-editor-panel {
+  background: var(--card, #18181b);
+  border: 1px solid var(--border, #27272a);
+  border-radius: 12px;
+  width: 360px;
+  max-width: 90vw;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.chord-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border, #27272a);
+}
+
+.chord-editor-title {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--foreground, #e4e4e7);
+}
+
+.chord-editor-body {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chord-editor-detected {
+  font-size: 0.85rem;
+  color: var(--muted, #71717a);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border, #27272a);
+}
+
+.chord-editor-detected-name {
+  font-weight: 700;
+  color: var(--foreground, #e4e4e7);
+}
+
+.chord-editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chord-editor-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted-foreground, #a1a1aa);
+}
+
+.chord-editor-select {
+  background: var(--card, #18181b);
+  border: 1px solid var(--border, #27272a);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 0.9rem;
+  color: var(--foreground, #e4e4e7);
+  cursor: pointer;
+  outline: none;
+}
+
+.chord-editor-select:focus {
+  border-color: var(--accent, #0ea5e9);
+  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.2);
+}
+
+.chord-editor-preview {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--muted-foreground, #a1a1aa);
+  padding-top: 6px;
+  border-top: 1px solid var(--border, #27272a);
+}
+
+.chord-editor-preview-name {
+  font-weight: 800;
+  font-size: 1.3rem;
+  color: var(--accent, #0ea5e9);
+}
+
+.chord-editor-footer {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border, #27272a);
+  justify-content: flex-end;
+}
+
+.chord-editor-btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border, #27272a);
+  background: var(--card, #18181b);
+  color: var(--foreground, #e4e4e7);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.chord-editor-btn:hover {
+  background: var(--secondary, #27272a);
+}
+
+.chord-editor-save-btn {
+  background: #0ea5e9;
+  color: #fff;
+  border-color: #0ea5e9;
+}
+
+.chord-editor-save-btn:hover {
+  background: #0284c7;
+  border-color: #0284c7;
+}
+
+.chord-editor-cancel-btn {
+  background: transparent;
+}
+
+.chord-editor-reset-btn {
+  background: transparent;
+  color: #f59e0b;
+  border-color: #f59e0b;
+  margin-right: auto;
+}
+
+.chord-editor-reset-btn:hover {
+  background: rgba(245, 158, 11, 0.1);
+}
+
+/* Indicateur de correction manuelle dans la timeline */
+.manual-override {
+  border-color: #f59e0b !important;
+}
+
+.manual-override:hover {
+  border-color: #fbbf24 !important;
+}
+
+.manual-override-icon {
+  position: absolute;
+  top: 1px;
+  right: 3px;
+  font-size: 0.6rem;
+  line-height: 1;
+  opacity: 0.7;
+  pointer-events: none;
+  color: #f59e0b;
+}
+
+.manual-override:hover .manual-override-icon {
+  opacity: 1;
+}
+
+/* Timeline blocks : jamais de débordement visuel */
+#analyzer-chord-timeline button > span,
+#analyzer-chord-timeline-inner button > span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: calc(100% - 4px);
+  display: block;
+}
+
+#analyzer-chord-timeline button.manual-override > span {
+  max-width: calc(100% - 18px);
+}
+
+/* Bloc très étroit : marqueur visuel sans texte */
+#analyzer-chord-timeline button.timeline-block-micro > span {
+  display: none !important;
+}
+
+#analyzer-chord-timeline button.timeline-block-micro .manual-override-icon {
+  display: none !important;
+}
+
+/* Scrollbar timeline — visible mais discrète */
+#analyzer-chord-timeline::-webkit-scrollbar {
+  height: 8px;
+}
+#analyzer-chord-timeline::-webkit-scrollbar-track {
+  background: #27272a;
+  border-radius: 4px;
+}
+#analyzer-chord-timeline::-webkit-scrollbar-thumb {
+  background: #52525b;
+  border-radius: 4px;
+}
+#analyzer-chord-timeline::-webkit-scrollbar-thumb:hover {
+  background: #71717a;
+}
+
+/* Scrollbar Firefox */
+#analyzer-chord-timeline {
+  scrollbar-width: auto;
+  scrollbar-color: #52525b #27272a;
 }

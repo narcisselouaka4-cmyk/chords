@@ -16,6 +16,7 @@
     </script>
     <title>Piano Jazz Chords</title>
     <link rel="stylesheet" href="./style.css" />
+    <link rel="stylesheet" href="./ui/components/design-system.css" />
   </head>
   <body data-theme="light">
     <div id="app" class="app">
@@ -67,7 +68,6 @@
 
           <div class="notes-display" id="notes-display"></div>
 
-          <!-- [Claude] — 2026-07-03 — Panneau Techniques déplacé au centre pour une lisibilité maximale sans interaction -->
           <div class="panel pedagogy-panel center-pedagogy" id="pedagogy-panel">
             <div class="panel-title">
               Techniques
@@ -94,154 +94,182 @@
         </aside>
       </main>
 
-      <!-- [Claude] — 2026-07-08 — Onglet Analyse : modèle Chordify. -->
-      <main class="analyzer-tab" id="analysis-tab" style="display: none;">
-        <section class="analyzer-workspace" id="analyzer-workspace">
-          <!-- Écran d'accueil : import de fichier -->
-          <div class="analyzer-import-screen" id="analyzer-import-screen">
-            <div class="analyzer-import-card">
-              <div class="analyzer-import-icon">🎵</div>
-              <h2>Importer un fichier</h2>
-              <p class="analyzer-formats">
+      <!-- Onglet Analyse — version Tailwind -->
+      <main class="flex-1 flex overflow-hidden bg-zinc-950" id="analysis-tab" style="display: none;">
+        <section class="flex-1 flex flex-col overflow-hidden min-w-0 relative" id="analyzer-workspace">
+          <div class="flex items-center justify-center flex-1" id="analyzer-import-screen">
+            <div class="flex flex-col items-center gap-4 p-8">
+              <div class="text-5xl">🎵</div>
+              <h2 class="text-xl font-bold text-zinc-200">Importer un fichier</h2>
+              <p class="text-sm text-zinc-500 text-center">
                 Formats acceptés :<br />
                 MP3 · WAV · MP4 · M4A
               </p>
-              <button type="button" id="analyzer-import-btn" class="analyzer-import-btn">
+              <button type="button" id="analyzer-import-btn" class="px-6 py-3 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-medium transition-colors">
                 Choisir un fichier
               </button>
-              <p class="analyzer-import-hint">
+              <p class="text-xs text-zinc-600 text-center">
                 Importez un morceau ou une vidéo afin de lancer son analyse.
               </p>
             </div>
           </div>
 
-          <!-- Conteneur des résultats (caché initialement) -->
-          <div class="analyzer-results" id="analyzer-results" style="display: none;">
-            <!-- En-tête morceau -->
-            <header class="analyzer-song-header">
-              <div class="analyzer-song-meta">
-                <h2 class="analyzer-song-title" id="analyzer-song-title">Titre du morceau</h2>
-                <div class="analyzer-song-subtitle">
-                  <span class="analyzer-song-artist" id="analyzer-song-artist">Inconnu</span>
-                  <span class="analyzer-stem-badge" id="analyzer-stem-badge"></span>
-                </div>
+          <div class="flex-1 flex flex-col overflow-hidden min-w-0" id="analyzer-results" style="display: none;">
+            <div class="flex items-center gap-3 px-4 py-2 bg-zinc-900/50 border-b border-zinc-800 flex-shrink-0">
+              <div class="flex items-center gap-3 flex-1 min-w-0">
+                <h2 class="text-sm font-semibold text-zinc-200 truncate" id="analyzer-song-title">Titre du morceau</h2>
+                <span class="text-xs text-zinc-500" id="analyzer-song-artist">Inconnu</span>
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-800 text-zinc-400" id="analyzer-stem-badge" style="display:none"></span>
               </div>
-              <div class="analyzer-song-actions">
-                <button type="button" id="analyzer-back-btn" class="analyzer-back-btn">Importer un autre fichier</button>
-              </div>
-            </header>
-
-            <!-- Lecteur + outils -->
-            <div class="analyzer-player-bar">
-              <div class="analyzer-transport">
-                <button type="button" id="analyzer-prev-btn" class="analyzer-transport-btn" title="Revenir au début">⏮</button>
-                <button type="button" id="analyzer-play-btn" class="analyzer-play-btn" title="Lecture / Pause">▶</button>
-              </div>
-              <div class="analyzer-progress-wrap">
-                <span class="analyzer-current-time" id="analyzer-current-time">00:00</span>
-                <div class="analyzer-progress-track" id="analyzer-progress-track">
-                  <div class="analyzer-progress-fill" id="analyzer-progress-fill"></div>
-                  <div class="analyzer-progress-thumb" id="analyzer-progress-thumb"></div>
-                </div>
-                <span class="analyzer-duration" id="analyzer-duration">00:00</span>
+              <div class="flex items-center gap-2">
+                <button type="button" id="analyzer-prev-btn" class="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors" title="Revenir au début">⏮</button>
+                <button type="button" id="analyzer-play-btn" class="px-3 py-1 rounded text-sm bg-sky-600 hover:bg-sky-500 text-white font-medium transition-colors" title="Lecture / Pause">▶</button>
+                <button type="button" id="analyzer-back-btn" class="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors">Importer</button>
               </div>
             </div>
 
-            <div class="analyzer-toolbar">
-              <button type="button" id="analyzer-countdown-btn" class="analyzer-tool-btn" title="Compte à rebours">3, 2, 1…</button>
-              <button type="button" id="analyzer-loop-btn" class="analyzer-tool-btn" title="Boucle">🔁 Boucle</button>
-              <div class="analyzer-tool-group">
-                <label for="analyzer-tempo">Tempo</label>
-                <input type="range" id="analyzer-tempo" min="0.5" max="1.5" step="0.05" value="1" />
-                <span id="analyzer-tempo-value">100%</span>
+            <div class="flex items-center gap-3 px-4 py-1.5 bg-zinc-900/30 border-b border-zinc-800 flex-shrink-0">
+              <span class="text-xs text-zinc-500 font-mono w-12 text-right" id="analyzer-current-time">00:00</span>
+              <div class="flex-1 relative h-6 bg-zinc-800 rounded-full cursor-pointer" id="analyzer-progress-track">
+                <div class="absolute left-0 top-0 h-full bg-sky-600 rounded-full" id="analyzer-progress-fill" style="width:0%"></div>
+                <div class="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-md" id="analyzer-progress-thumb" style="left:0%"></div>
               </div>
-              <button type="button" id="analyzer-transpose-btn" class="analyzer-tool-btn" title="Transposer">Transposer</button>
-              <button type="button" id="analyzer-simplify-btn" class="analyzer-tool-btn" title="Simplifier">Simplifier</button>
-              <button type="button" id="analyzer-tuner-btn" class="analyzer-tool-btn" title="Accordeur">Accordeur</button>
+              <span class="text-xs text-zinc-500 font-mono w-12" id="analyzer-duration">00:00</span>
+              <div class="flex items-center gap-2 ml-4">
+                <label for="analyzer-zoom" class="text-xs text-zinc-500">Zoom</label>
+                <input type="range" id="analyzer-zoom" min="0.25" max="8.0" step="0.1" value="1" class="w-20 h-1 accent-sky-500" />
+                <span class="text-xs text-zinc-500 w-10" id="analyzer-zoom-value">100%</span>
+              </div>
             </div>
 
-            <!-- Lecteur audio natif caché -->
             <div id="analyzer-audio-container" style="display: none;"></div>
 
-            <!-- Timeline horizontale des accords -->
-            <div class="analyzer-chord-timeline" id="analyzer-chord-timeline">
-              <div class="analyzer-chord-timeline-inner" id="analyzer-chord-timeline-inner"></div>
-              <button type="button" class="analyzer-timeline-scroll analyzer-timeline-scroll-left" id="analyzer-timeline-scroll-left">‹</button>
-              <button type="button" class="analyzer-timeline-scroll analyzer-timeline-scroll-right" id="analyzer-timeline-scroll-right">›</button>
+            <div class="relative flex-shrink-0 h-20 overflow-x-auto overflow-y-hidden bg-zinc-900 border-b border-zinc-800" id="analyzer-chord-timeline">
+              <div class="relative h-full min-w-full" id="analyzer-chord-timeline-inner"></div>
+              <button type="button" class="absolute top-1/2 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center bg-zinc-800 border border-zinc-700 rounded-full text-zinc-400 hover:text-sky-400 hover:border-sky-500 cursor-pointer text-sm shadow-lg left-2" id="analyzer-timeline-scroll-left">‹</button>
+              <button type="button" class="absolute top-1/2 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center bg-zinc-800 border border-zinc-700 rounded-full text-zinc-400 hover:text-sky-400 hover:border-sky-500 cursor-pointer text-sm shadow-lg right-2" id="analyzer-timeline-scroll-right">›</button>
             </div>
 
-            <!-- Onglets de vue -->
-            <div class="analyzer-view-tabs">
-              <button type="button" class="analyzer-view-tab active" data-view="grid">Grille d'accords</button>
-              <button type="button" class="analyzer-view-tab" data-view="preview">Aperçu des accords</button>
-              <button type="button" class="analyzer-view-tab" data-view="lyrics">Accords & Paroles</button>
+            <div class="flex flex-col items-center gap-3 py-6 flex-shrink-0" id="analyzer-hero" style="display:none">
+              <div class="text-6xl font-extrabold tracking-tight text-white" id="analyzer-hero-name"></div>
+              <div class="text-base text-zinc-400" id="analyzer-hero-notes"></div>
+              <div class="flex justify-center" id="analyzer-hero-keyboard"></div>
             </div>
 
-            <!-- Contenu principal : grille de mini-claviers + panneau latéral -->
-            <div class="analyzer-main-layout">
-              <div class="analyzer-main-content">
-                <div class="analyzer-chord-grid" id="analyzer-chord-grid">
-                  <!-- Les cartes d'accords avec mini-clavier sont injectées ici -->
-                </div>
+            <div class="flex gap-0 px-4 border-b border-zinc-800 flex-shrink-0" id="analyzer-section-tabs" role="tablist">
+              <button type="button" class="px-4 py-2 text-sm font-medium transition-colors text-sky-400 border-b-2 border-sky-400" data-section="chords" role="tab" aria-selected="true">Accords</button>
+              <button type="button" class="px-4 py-2 text-sm font-medium transition-colors text-zinc-500 hover:text-zinc-300" data-section="analysis" role="tab" aria-selected="false">Analyse</button>
+              <button type="button" class="px-4 py-2 text-sm font-medium transition-colors text-zinc-500 hover:text-zinc-300" data-section="masterclass" role="tab" aria-selected="false">Masterclass</button>
+              <button type="button" class="px-4 py-2 text-sm font-medium transition-colors text-zinc-500 hover:text-zinc-300" data-section="tools" role="tab" aria-selected="false">Outils</button>
+            </div>
 
-                <div class="analyzer-preview-view" id="analyzer-preview-view" style="display: none;">
-                  <p class="detail-hint">Aperçu audio des accords — à venir.</p>
-                </div>
+            <div class="flex-1 overflow-y-auto min-h-0 px-4 py-4" id="analyzer-section-panels">
+              <div class="flex flex-col items-center justify-center h-full text-sm text-zinc-500" data-section="chords" role="tabpanel">
+                <p>Les accords sont affichés dans la timeline et le panneau hero ci-dessus.</p>
+                <p class="mt-1">Sélectionnez un accord dans la timeline pour voir ses détails.</p>
+              </div>
 
-                <div class="analyzer-lyrics-view" id="analyzer-lyrics-view" style="display: none;">
-                  <p class="detail-hint">Synchronisation des paroles — à venir.</p>
+              <div class="flex flex-col gap-3 h-full overflow-y-auto" data-section="analysis" role="tabpanel" style="display:none">
+                <details class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden" open>
+                  <summary class="px-4 py-2.5 text-sm font-semibold text-zinc-300 cursor-pointer hover:bg-zinc-800/50 transition-colors">Scores d'analyse</summary>
+                  <div class="p-4 text-sm text-zinc-400" id="analyzer-scores-panel">
+                    <p class="text-xs text-zinc-500">Scores de confiance et métriques globales s'afficheront ici après analyse.</p>
+                  </div>
+                </details>
+                <details class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+                  <summary class="px-4 py-2.5 text-sm font-semibold text-zinc-300 cursor-pointer hover:bg-zinc-800/50 transition-colors">Patterns harmoniques</summary>
+                  <div class="p-4 text-sm text-zinc-400" id="analyzer-patterns-panel">
+                    <p class="text-xs text-zinc-500">II-V-I, cadences, turnarounds et substitutions détectés s'afficheront ici.</p>
+                  </div>
+                </details>
+                <details class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+                  <summary class="px-4 py-2.5 text-sm font-semibold text-zinc-300 cursor-pointer hover:bg-zinc-800/50 transition-colors">Réharmonisation</summary>
+                  <div class="p-4 text-sm text-zinc-400" id="analyzer-reharm-panel">
+                    <div class="flex items-center gap-3 mb-3">
+                      <label for="analyzer-reharm-style" class="text-xs text-zinc-500">Style</label>
+                      <select id="analyzer-reharm-style" class="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300">
+                        <option value="jazz" selected>Jazz</option>
+                        <option value="gospel">Gospel</option>
+                        <option value="worship">Worship</option>
+                        <option value="neoSoul">Neo Soul</option>
+                      </select>
+                      <button type="button" id="analyzer-reharm-run" class="px-3 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors">Générer suggestions</button>
+                    </div>
+                    <div class="analyzer-reharm-output" id="analyzer-reharm-output"></div>
+                  </div>
+                </details>
+                <details class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+                  <summary class="px-4 py-2.5 text-sm font-semibold text-zinc-300 cursor-pointer hover:bg-zinc-800/50 transition-colors">Ligne de basse</summary>
+                  <div class="p-4 text-sm text-zinc-400" id="analyzer-bass-panel">
+                    <p class="text-xs text-zinc-500">Résumé de la ligne de basse détectée.</p>
+                    <div class="analyzer-bass-summary" id="analyzer-bass-summary"></div>
+                  </div>
+                </details>
+                <details class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+                  <summary class="px-4 py-2.5 text-sm font-semibold text-zinc-300 cursor-pointer hover:bg-zinc-800/50 transition-colors">Export MIDI</summary>
+                  <div class="p-4 text-sm text-zinc-400" id="analyzer-midi-panel">
+                    <button type="button" id="analyzer-export-midi-btn" class="px-4 py-2 rounded-lg text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors">Exporter l'analyse en MIDI</button>
+                    <p class="text-xs text-zinc-500 mt-2">Génère un fichier MIDI avec les accords et la basse détectés.</p>
+                  </div>
+                </details>
+              </div>
+
+              <div class="flex flex-col gap-4 h-full" data-section="masterclass" role="tabpanel" style="display:none">
+                <div class="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg p-4 text-sm text-zinc-400" id="analyzer-masterclass-output">
+                  <div class="text-xs text-zinc-500 text-center">
+                    Configurez une clé API OpenAI-compatible (Groq, OpenRouter, Google AI Studio…) via le bouton 🔑 en haut à droite pour obtenir une analyse pédagogique personnalisée.
+                  </div>
+                </div>
+                <div class="flex-shrink-0">
+                  <button type="button" id="analyzer-masterclass-run" class="px-4 py-2 rounded-lg text-sm bg-zinc-800 text-zinc-500 cursor-not-allowed transition-colors" disabled>Générer l'analyse pédagogique</button>
                 </div>
               </div>
 
-              <aside class="analyzer-sidebar" id="analyzer-sidebar">
-                <div class="analyzer-video-box" id="analyzer-video-box">
-                  <div class="analyzer-video-placeholder">🎹</div>
-                  <div class="analyzer-video-hint">Lecteur visuel</div>
+              <div class="grid grid-cols-3 gap-4 h-full" data-section="tools" role="tabpanel" style="display:none">
+                <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex flex-col items-center gap-2 text-center">
+                  <div class="text-2xl">🎧</div>
+                  <div class="text-sm font-semibold text-zinc-300">Aperçu audio</div>
+                  <p class="text-xs text-zinc-500">Écoute isolée des accords détectés — à venir.</p>
                 </div>
-
-                <div class="analyzer-info-panel">
-                  <h3>Détails de la chanson</h3>
-                  <div class="analyzer-info-row">
-                    <span class="analyzer-info-label">Tonalité</span>
-                    <span class="analyzer-info-value" id="analyzer-info-key">—</span>
-                  </div>
-                  <div class="analyzer-info-row">
-                    <span class="analyzer-info-label">Accords</span>
-                    <span class="analyzer-info-value" id="analyzer-info-chords">—</span>
-                  </div>
-                  <div class="analyzer-info-row">
-                    <span class="analyzer-info-label">BPM</span>
-                    <span class="analyzer-info-value" id="analyzer-info-bpm">—</span>
-                  </div>
-                  <div class="analyzer-info-row">
-                    <span class="analyzer-info-label">Signature</span>
-                    <span class="analyzer-info-value" id="analyzer-info-signature">—</span>
-                  </div>
-                  <div class="analyzer-info-row">
-                    <span class="analyzer-info-label">Durée</span>
-                    <span class="analyzer-info-value" id="analyzer-info-duration">—</span>
-                  </div>
+                <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex flex-col items-center gap-2 text-center">
+                  <div class="text-2xl">🎤</div>
+                  <div class="text-sm font-semibold text-zinc-300">Accords &amp; Paroles</div>
+                  <p class="text-xs text-zinc-500">Synchronisation des paroles — à venir.</p>
                 </div>
-
-                <div class="analyzer-similar-panel">
-                  <h3>Morceaux similaires</h3>
-                  <p class="detail-hint">Suggestions de morceaux à venir.</p>
+                <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex flex-col items-center gap-2 text-center">
+                  <div class="text-2xl">🎚</div>
+                  <div class="text-sm font-semibold text-zinc-300">Accordeur</div>
+                  <p class="text-xs text-zinc-500">Accordeur intégré — à venir.</p>
                 </div>
-              </aside>
+                <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex flex-col items-center gap-2 text-center">
+                  <div class="text-2xl">⏱</div>
+                  <div class="text-sm font-semibold text-zinc-300">Compte à rebours</div>
+                  <p class="text-xs text-zinc-500">Décompte avant lecture — à venir.</p>
+                </div>
+                <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex flex-col items-center gap-2 text-center">
+                  <div class="text-2xl">🔁</div>
+                  <div class="text-sm font-semibold text-zinc-300">Transposition globale</div>
+                  <p class="text-xs text-zinc-500">Transposer tous les accords — à venir.</p>
+                </div>
+                <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex flex-col items-center gap-2 text-center">
+                  <div class="text-2xl">✨</div>
+                  <div class="text-sm font-semibold text-zinc-300">Simplification</div>
+                  <p class="text-xs text-zinc-500">Simplifier les enrichissements — à venir.</p>
+                </div>
+              </div>
             </div>
           </div>
 
-          <!-- Overlay de traitement -->
-          <div class="analyzer-processing" id="analyzer-processing" style="display: none;">
-            <div class="analyzer-processing-spinner"></div>
-            <p id="analyzer-processing-text">Analyse en cours...</p>
+          <div class="absolute inset-0 flex items-center justify-center bg-zinc-950/80 z-30" id="analyzer-processing" style="display: none;">
+            <div class="flex flex-col items-center gap-3">
+              <div class="w-8 h-8 border-2 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
+              <p class="text-sm text-zinc-400" id="analyzer-processing-text">Analyse en cours...</p>
+            </div>
           </div>
         </section>
       </main>
 
-      <!-- [OpenCode] — 2026-07-04 — Onglet Studio : import, lecture et séparation de pistes -->
       <main class="studio-tab" id="studio-tab" style="display: none;">
-        <!-- Overlay de l'Étape 1 : message flottant uniquement, ne bloque pas la waveform -->
         <div id="studio-stage-overlay" class="studio-stage-overlay" style="display: none;">
           <div class="studio-stage-overlay-inner">
             <h3>🎯 Sélectionnez une zone à travailler</h3>
@@ -251,7 +279,6 @@
           </div>
         </div>
 
-        <!-- Loader de l'Étape 2 : Traitement en arrière-plan -->
         <div id="studio-processing-overlay" class="studio-processing-overlay" style="display: none;">
           <div class="studio-processing-box">
             <div class="studio-processing-spinner"></div>
@@ -264,17 +291,14 @@
           </div>
         </div>
 
-        <!-- Notification Étape 3 prête -->
         <div id="studio-ready-toast" class="studio-ready-toast" style="display: none;">
           <span>✅ Le morceau est prêt dans le Studio !</span>
         </div>
 
-        <!-- Compte à rebours enregistrement vidéo -->
         <div id="studio-record-countdown" class="studio-record-countdown" style="display: none;">
           <div class="studio-record-countdown-number" id="studio-record-countdown-number">3</div>
         </div>
 
-        <!-- Indicateur d'enregistrement en cours -->
         <div id="studio-recording-indicator" class="studio-recording-indicator" style="display: none;">
           <span class="studio-recording-dot"></span>
           <span>REC</span>
@@ -297,11 +321,8 @@
 
         <section class="studio-center">
           <div class="studio-player-wrap" id="studio-player-wrap">
-            <!-- Vidéo visible : image uniquement -->
             <div id="studio-video-container" class="studio-video-container"></div>
-            <!-- Audio caché : son natif + WebAudio (positionné hors écran, jamais display:none) -->
             <div id="studio-audio-container" class="studio-audio-container"></div>
-            <!-- [Claude] — 2026-07-04 — Fond musical stylisé pour les fichiers audio sans image (MP3, WAV…) -->
             <div id="studio-audio-backdrop" class="studio-audio-backdrop" style="display: none;">
               <div class="studio-backdrop-icon">🎵</div>
               <div class="studio-backdrop-title" id="studio-backdrop-title"></div>
@@ -309,7 +330,6 @@
             </div>
           </div>
 
-          <!-- [OpenCode] — 2026-07-04 — Waveform + sélection de région -->
           <div class="studio-waveform-wrap" id="studio-waveform-wrap">
             <canvas id="studio-waveform" class="studio-waveform" width="800" height="80"></canvas>
             <div class="studio-region" id="studio-region"></div>
@@ -334,7 +354,6 @@
             </div>
             <input type="range" id="studio-progress" min="0" max="100" value="0" step="0.1" />
             <div class="studio-time" id="studio-time">00:00 / 00:00</div>
-            <!-- [Claude] — 2026-07-04 — Transposition du morceau importé en demi-tons -->
             <div class="studio-transpose-control" id="studio-transpose-control">
               <span class="studio-transpose-title">Transpo</span>
               <button id="studio-transpose-minus" type="button" aria-label="Diminuer la transposition">−</button>
@@ -356,13 +375,11 @@
             <button id="studio-separate-btn" class="record-action">Séparer les pistes</button>
             <div class="studio-separate-status" id="studio-separate-status"></div>
             <div class="studio-stems-list" id="studio-stems-list"></div>
-            <!-- Zone d'état Studio visible -->
             <div class="studio-status-box" id="studio-status-text">Aucun morceau sélectionné</div>
           </div>
         </aside>
       </main>
 
-      <!-- Clavier MIDI virtuel global visible dans tous les onglets -->
       <section class="keyboard-panel global-keyboard-panel" id="keyboard-panel">
         <div id="keyboard-container" class="keyboard-container"></div>
         <div class="keyboard-controls">
@@ -435,7 +452,7 @@
 
         <div class="footer-right" id="status-bar"></div>
       </footer>
-      <!-- [OpenCode] — 2026-07-04 — Dialogue de fin d'enregistrement -->
+
       <div class="modal-overlay" id="session-end-modal" style="display: none;">
         <div class="modal-box">
           <h3>Session terminée</h3>
@@ -448,7 +465,6 @@
         </div>
       </div>
 
-      <!-- [Claude] — 2026-07-04 — Modal des paramètres API IA -->
       <div class="modal-overlay" id="ai-settings-modal" style="display: none;">
         <div class="modal-box ai-settings-box">
           <h3>Paramètres IA</h3>
