@@ -365,3 +365,105 @@ export class ChordEditor {
     this.close();
   }
 }
+
+// ── Phase B : Persistance des overrides ──
+
+export function buildProjectPath(audioPath) {
+  if (!audioPath) return null;
+  return audioPath.replace(/\.[^/.]+$/, '') + '.pjc.json';
+}
+
+export function buildProjectData(audioIdentity, chords, existingOrphanedOverrides = {}) {
+  const overrides = {};
+  for (const seg of chords) {
+    if (seg.manualOverride) {
+      overrides[seg.segmentId] = {
+        root: seg.manualOverride.root,
+        quality: seg.manualOverride.quality,
+        bass: seg.manualOverride.bass,
+        editedAt: new Date().toISOString(),
+        source: 'user',
+        startTime: seg.startTime,
+        endTime: seg.endTime,
+        detectedChord: seg.chord,
+      };
+    }
+  }
+  return {
+    schemaVersion: 1,
+    audio: { ...audioIdentity },
+    analysis: { segmentSignatureVersion: 1 },
+    manualChordOverrides: overrides,
+    orphanedOverrides: { ...(existingOrphanedOverrides || {}) },
+  };
+}
+
+export function validateProjectSchema(data) {
+  if (!data || typeof data !== 'object') return false;
+  if (data.schemaVersion !== 1) return false;
+  if (!data.audio || typeof data.audio !== 'object') return false;
+  if (!data.audio.path) return false;
+  if (typeof data.audio.path !== 'string') return false;
+  if (!data.manualChordOverrides || typeof data.manualChordOverrides !== 'object') return false;
+  return true;
+}
+
+export function verifyAudioIdentity(savedInfo, currentInfo) {
+  if (!savedInfo || !currentInfo) return false;
+  if (savedInfo.path !== currentInfo.path) return false;
+  if (savedInfo.size > 0 && currentInfo.size > 0 && savedInfo.size !== currentInfo.size) return false;
+  if (savedInfo.modifiedAt > 0 && currentInfo.modifiedAt > 0 && savedInfo.modifiedAt !== currentInfo.modifiedAt) return false;
+  return true;
+}
+
+export function findTemporalFallback(overrideData, segments) {
+  const origStart = overrideData.startTime;
+  const origEnd = overrideData.endTime;
+  if (origStart == null || origEnd == null) return null;
+  const origDur = origEnd - origStart;
+  if (origDur <= 0) return null;
+
+  const candidates = segments.filter((s) => {
+    const dur = s.endTime - s.startTime;
+    if (dur <= 0) return false;
+    const overlapStart = Math.max(origStart, s.startTime);
+    const overlapEnd = Math.min(origEnd, s.endTime);
+    const overlap = Math.max(0, overlapEnd - overlapStart);
+    const overlapRatio = overlap / Math.min(origDur, dur);
+    if (overlapRatio < 0.8) return false;
+    const durRatio = Math.abs(origDur - dur) / Math.max(origDur, dur);
+    if (durRatio > 0.2) return false;
+    return true;
+  });
+
+  if (candidates.length === 1) return candidates[0];
+  return null;
+}
+
+export function tryApplyProjectOverrides(projectData, segments) {
+  const applied = [];
+  const orphaned = { ...(projectData.orphanedOverrides || {}) };
+  const overrides = projectData.manualChordOverrides || {};
+
+  for (const [segmentId, overrideData] of Object.entries(overrides)) {
+    let match = segments.find((s) => s.segmentId === segmentId);
+
+    if (!match) {
+      match = findTemporalFallback(overrideData, segments);
+    }
+
+    if (match) {
+      const normalized = normalizeOverride(match, {
+        root: overrideData.root,
+        quality: overrideData.quality,
+        bass: overrideData.bass,
+      });
+      match.manualOverride = normalized;
+      applied.push({ segmentId, status: 'applied', segmentIndex: segments.indexOf(match), temporal: match.segmentId !== segmentId });
+    } else {
+      orphaned[segmentId] = overrideData;
+    }
+  }
+
+  return { applied, orphaned };
+}

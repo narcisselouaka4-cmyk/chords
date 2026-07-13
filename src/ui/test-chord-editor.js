@@ -7,6 +7,12 @@ import {
   deriveChordDisplay,
   NOTE_NAMES,
   QUALITY_OPTIONS,
+  buildProjectPath,
+  buildProjectData,
+  validateProjectSchema,
+  verifyAudioIdentity,
+  findTemporalFallback,
+  tryApplyProjectOverrides,
 } from './chord-editor.js';
 
 function assert(condition, message) {
@@ -531,4 +537,306 @@ function arraysMatch(a, b) {
   return true;
 }
 
-console.log('\nTests Phase A — Chord Editor terminés.');
+// ---------------------------------------------------------------------------
+// Phase B : Persistance
+// ---------------------------------------------------------------------------
+
+function makeSegments() {
+  return [
+    { startTime: 0, endTime: 2, chord: 'C', segmentId: makeSegmentId({ startTime: 0, endTime: 2, chord: 'C' }), manualOverride: null },
+    { startTime: 2, endTime: 4, chord: 'G7', segmentId: makeSegmentId({ startTime: 2, endTime: 4, chord: 'G7' }), manualOverride: null },
+    { startTime: 4, endTime: 6, chord: 'Am7', segmentId: makeSegmentId({ startTime: 4, endTime: 6, chord: 'Am7' }), manualOverride: null },
+  ];
+}
+
+runTest('Phase B — buildProjectPath transforme chemin audio', () => {
+  const p = buildProjectPath('/home/test/audio.mp3');
+  assert(p === '/home/test/audio.pjc.json', `path: ${p}`);
+});
+
+runTest('Phase B — buildProjectPath null si chemin vide', () => {
+  assert(buildProjectPath(null) === null, 'null input');
+  assert(buildProjectPath('') === null, 'empty input');
+});
+
+runTest('Phase B — buildProjectPath gère chemins sans extension', () => {
+  const p = buildProjectPath('/home/test/file');
+  assert(p === '/home/test/file.pjc.json', `path: ${p}`);
+});
+
+runTest('Phase B — buildProjectData sans overrides', () => {
+  const identity = { path: '/test.mp3', size: 1000, duration: 30, modifiedAt: 12345 };
+  const data = buildProjectData(identity, makeSegments());
+  assert(data.schemaVersion === 1, `schemaVersion: ${data.schemaVersion}`);
+  assert(data.audio.path === '/test.mp3', `audio.path: ${data.audio.path}`);
+  assert(Object.keys(data.manualChordOverrides).length === 0, `overrides length: ${Object.keys(data.manualChordOverrides).length}`);
+  assert(data.analysis.segmentSignatureVersion === 1, `segmentSignatureVersion`);
+});
+
+runTest('Phase B — buildProjectData avec overrides', () => {
+  const identity = { path: '/test.mp3', size: 1000, duration: 30, modifiedAt: 12345 };
+  const segments = makeSegments();
+  segments[1].manualOverride = { root: 0, quality: 'maj7', bass: null };
+  const data = buildProjectData(identity, segments);
+  assert(Object.keys(data.manualChordOverrides).length === 1, `overrides: ${Object.keys(data.manualChordOverrides).length}`);
+  const key = segments[1].segmentId;
+  assert(data.manualChordOverrides[key] !== undefined, 'override present');
+  assert(data.manualChordOverrides[key].root === 0, 'root=0');
+  assert(data.manualChordOverrides[key].quality === 'maj7', 'quality=maj7');
+  assert(data.manualChordOverrides[key].bass === null, 'bass=null');
+  assert(typeof data.manualChordOverrides[key].editedAt === 'string', 'editedAt present');
+  assert(data.manualChordOverrides[key].source === 'user', 'source=user');
+  assert(data.manualChordOverrides[key].startTime === 2, 'startTime stocké');
+  assert(data.manualChordOverrides[key].endTime === 4, 'endTime stocké');
+  assert(data.manualChordOverrides[key].detectedChord === 'G7', 'detectedChord stocké');
+});
+
+runTest('Phase B — buildProjectData ne modifie pas les originaux', () => {
+  const segments = makeSegments();
+  const origChord = segments[0].chord;
+  buildProjectData({ path: '/x', size: 0, duration: 0, modifiedAt: 0 }, segments);
+  assert(segments[0].chord === origChord, 'chord inchangé');
+});
+
+runTest('Phase B — validateProjectSchema valide un projet correct', () => {
+  const data = {
+    schemaVersion: 1,
+    audio: { path: '/test.mp3', size: 1000, duration: 30, modifiedAt: 0 },
+    analysis: { segmentSignatureVersion: 1 },
+    manualChordOverrides: {},
+    orphanedOverrides: {},
+  };
+  assert(validateProjectSchema(data) === true, 'devrait être valide');
+});
+
+runTest('Phase B — validateProjectSchema rejette schemaVersion invalide', () => {
+  assert(validateProjectSchema(null) === false, 'null');
+  assert(validateProjectSchema({}) === false, 'objet vide');
+  assert(validateProjectSchema({ schemaVersion: 2 }) === false, 'version 2');
+  assert(validateProjectSchema({ schemaVersion: 1, audio: null }) === false, 'audio null');
+  assert(validateProjectSchema({ schemaVersion: 1, audio: {} }) === false, 'audio sans path');
+  assert(validateProjectSchema({ schemaVersion: 1, audio: { path: '/x' }, manualChordOverrides: null }) === false, 'overrides null');
+});
+
+runTest('Phase B — verifyAudioIdentity correspondance', () => {
+  const saved = { path: '/a.mp3', size: 1000, duration: 30, modifiedAt: 12345 };
+  const current = { path: '/a.mp3', size: 1000, duration: 30, modifiedAt: 12345 };
+  assert(verifyAudioIdentity(saved, current) === true, 'identique');
+});
+
+runTest('Phase B — verifyAudioIdentity chemin différent', () => {
+  const saved = { path: '/a.mp3', size: 1000 };
+  const current = { path: '/b.mp3', size: 1000 };
+  assert(verifyAudioIdentity(saved, current) === false, 'path différent');
+});
+
+runTest('Phase B — verifyAudioIdentity taille différente', () => {
+  const saved = { path: '/a.mp3', size: 1000, modifiedAt: 12345 };
+  const current = { path: '/a.mp3', size: 2000, modifiedAt: 12345 };
+  assert(verifyAudioIdentity(saved, current) === false, 'size différent');
+});
+
+runTest('Phase B — verifyAudioIdentity taille zero ignorée', () => {
+  const saved = { path: '/a.mp3', size: 0, modifiedAt: 0 };
+  const current = { path: '/a.mp3', size: 1000, modifiedAt: 12345 };
+  // Quand l'une des deux tailles est 0 (non disponible), on ignore la vérification
+  assert(verifyAudioIdentity(saved, current) === true, 'size zero ignoré');
+});
+
+runTest('Phase B — verifyAudioIdentity null safe', () => {
+  assert(verifyAudioIdentity(null, {}) === false, 'saved null');
+  assert(verifyAudioIdentity({}, null) === false, 'current null');
+});
+
+runTest('Phase B — findTemporalFallback retourne null si pas de timing', () => {
+  const segments = makeSegments();
+  const overrideData = { root: 0, quality: 'maj7', bass: null };
+  assert(findTemporalFallback(overrideData, segments) === null, 'pas de timing');
+});
+
+runTest('Phase B — findTemporalFallback correspondance temporelle', () => {
+  const segments = makeSegments();
+  const overrideData = { startTime: 2, endTime: 4, root: 0, quality: 'maj7', bass: null };
+  const match = findTemporalFallback(overrideData, segments);
+  assert(match !== null, 'devrait trouver un match');
+  assert(match.startTime === 2, `startTime: ${match.startTime}`);
+  assert(match.endTime === 4, `endTime: ${match.endTime}`);
+});
+
+runTest('Phase B — findTemporalFallback pas de match temporel', () => {
+  const segments = makeSegments();
+  const overrideData = { startTime: 10, endTime: 12, root: 0, quality: 'maj7', bass: null };
+  assert(findTemporalFallback(overrideData, segments) === null, 'pas de match');
+});
+
+runTest('Phase B — findTemporalFallback ambiguïté retourne null', () => {
+  // Deux segments qui se chevauchent avec le même temps → ambigu
+  const segments = [
+    { startTime: 1, endTime: 5, chord: 'C', manualOverride: null },
+    { startTime: 2, endTime: 6, chord: 'G', manualOverride: null },
+  ];
+  const overrideData = { startTime: 2, endTime: 5, root: 0, quality: 'maj7', bass: null };
+  assert(findTemporalFallback(overrideData, segments) === null, 'ambigu');
+});
+
+runTest('Phase B — findTemporalFallback overlap insuffisant', () => {
+  const segments = makeSegments();
+  const overrideData = { startTime: 2.5, endTime: 2.8, root: 0, quality: 'maj7', bass: null };
+  // overlap (0.3s) / min(origDur=0.3, segDur=2) = 1.0 → OK
+  // durRatio = |0.3-2|/max(0.3,2) = 1.7/2 = 0.85 > 0.2 → FAIL
+  assert(findTemporalFallback(overrideData, segments) === null, 'durée trop différente');
+});
+
+runTest('Phase B — tryApplyProjectOverrides chargement par segment_id exact', () => {
+  const segments = makeSegments();
+  const segmentId = segments[1].segmentId;
+  const projectData = {
+    schemaVersion: 1,
+    audio: { path: '/test.mp3' },
+    analysis: { segmentSignatureVersion: 1 },
+    manualChordOverrides: {
+      [segmentId]: { root: 0, quality: 'maj7', bass: null },
+    },
+    orphanedOverrides: {},
+  };
+  const { applied, orphaned } = tryApplyProjectOverrides(projectData, segments);
+  assert(applied.length === 1, `applied: ${applied.length}`);
+  assert(Object.keys(orphaned).length === 0, `orphaned: ${Object.keys(orphaned).length}`);
+  assert(applied[0].temporal === false, 'exact match, pas temporel');
+  assert(segments[1].manualOverride !== null, 'override appliqué');
+  assert(segments[1].manualOverride.root === 0, 'root=0');
+  assert(segments[1].manualOverride.quality === 'maj7', 'quality=maj7');
+});
+
+runTest('Phase B — tryApplyProjectOverrides chargement temporel', () => {
+  const segments = makeSegments();
+  // Utilise un segment_id qui n'existe pas, mais les temps correspondent
+  const fakeId = 'seg_unknown';
+  const projectData = {
+    schemaVersion: 1,
+    audio: { path: '/test.mp3' },
+    analysis: { segmentSignatureVersion: 1 },
+    manualChordOverrides: {
+      [fakeId]: {
+        root: 0, quality: 'maj7', bass: null,
+        startTime: 0, endTime: 2, detectedChord: 'C',
+      },
+    },
+    orphanedOverrides: {},
+  };
+  const { applied, orphaned } = tryApplyProjectOverrides(projectData, segments);
+  assert(applied.length === 1, `applied: ${applied.length}`);
+  assert(applied[0].temporal === true, 'fallback temporel');
+  assert(segments[0].manualOverride !== null, 'override sur segment 0');
+  assert(segments[0].manualOverride.root === 0, 'root=0');
+});
+
+runTest('Phase B — tryApplyProjectOverrides override identique → null (pas de dirty)', () => {
+  const segments = makeSegments();
+  const segmentId = segments[0].segmentId; // C
+  const projectData = {
+    schemaVersion: 1,
+    audio: { path: '/test.mp3' },
+    analysis: { segmentSignatureVersion: 1 },
+    manualChordOverrides: {
+      [segmentId]: { root: 0, quality: '', bass: null }, // same as detected C
+    },
+    orphanedOverrides: {},
+  };
+  const { applied } = tryApplyProjectOverrides(projectData, segments);
+  // L'override est identique à detected → normalizeOverride retourne null
+  assert(applied.length === 1, `applied: ${applied.length}`);
+  assert(segments[0].manualOverride === null, 'identique → null');
+  assert(applied[0].status === 'applied', 'applied status');
+});
+
+runTest('Phase B — tryApplyProjectOverrides orphelin si aucun match', () => {
+  const segments = makeSegments();
+  const projectData = {
+    schemaVersion: 1,
+    audio: { path: '/test.mp3' },
+    analysis: { segmentSignatureVersion: 1 },
+    manualChordOverrides: {
+      seg_phantom: { root: 7, quality: '7', bass: null, startTime: 20, endTime: 22, detectedChord: 'G' },
+    },
+    orphanedOverrides: {},
+  };
+  const { applied, orphaned } = tryApplyProjectOverrides(projectData, segments);
+  assert(applied.length === 0, `applied: ${applied.length}`);
+  assert(Object.keys(orphaned).length === 1, `orphaned: ${Object.keys(orphaned).length}`);
+  assert(orphaned['seg_phantom'] !== undefined, 'orphaned préservé');
+});
+
+runTest('Phase B — tryApplyProjectOverrides ne touche pas les autres segments', () => {
+  const segments = makeSegments();
+  const segmentId = segments[2].segmentId;
+  const projectData = {
+    schemaVersion: 1,
+    audio: { path: '/test.mp3' },
+    analysis: { segmentSignatureVersion: 1 },
+    manualChordOverrides: {
+      [segmentId]: { root: 0, quality: 'maj7', bass: null },
+    },
+    orphanedOverrides: {},
+  };
+  tryApplyProjectOverrides(projectData, segments);
+  assert(segments[0].manualOverride === null, 'seg0 untouched');
+  assert(segments[1].manualOverride === null, 'seg1 untouched');
+  assert(segments[2].manualOverride !== null, 'seg2 overridden');
+});
+
+runTest('Phase B — tryApplyProjectOverrides overrides multiples', () => {
+  const segments = makeSegments();
+  const id0 = segments[0].segmentId;
+  const id2 = segments[2].segmentId;
+  const projectData = {
+    schemaVersion: 1,
+    audio: { path: '/test.mp3' },
+    analysis: { segmentSignatureVersion: 1 },
+    manualChordOverrides: {
+      [id0]: { root: 7, quality: '7', bass: null },
+      [id2]: { root: 5, quality: 'maj7', bass: null },
+    },
+    orphanedOverrides: {},
+  };
+  const { applied } = tryApplyProjectOverrides(projectData, segments);
+  assert(applied.length === 2, `applied: ${applied.length}`);
+  assert(segments[0].manualOverride.root === 7, 'seg0 root=7');
+  assert(segments[2].manualOverride.root === 5, 'seg2 root=5');
+});
+
+runTest('Phase B — buildProjectData conserve dans orphanedOverrides existant', () => {
+  const identity = { path: '/x.mp3', size: 0, duration: 0, modifiedAt: 0 };
+  const segments = makeSegments();
+  const data = buildProjectData(identity, segments);
+  // orphanedOverrides est préservé comme objet vide
+  assert(typeof data.orphanedOverrides === 'object', 'orphanedOverrides present');
+  assert(Object.keys(data.orphanedOverrides).length === 0, 'orphanedOverrides empty');
+});
+
+runTest('Phase B — buildProjectData preserve orphanedOverrides passés', () => {
+  const identity = { path: '/x.mp3', size: 0, duration: 0, modifiedAt: 0 };
+  const segments = makeSegments();
+  const existingOrphans = { seg_old: { root: 0, quality: '', bass: null, startTime: 0, endTime: 1, detectedChord: 'C' } };
+  const data = buildProjectData(identity, segments, existingOrphans);
+  assert(data.orphanedOverrides.seg_old !== undefined, 'orphan preserved');
+});
+
+runTest('Phase B — orphanedOverrides jamais supprimés par tryApply', () => {
+  const segments = makeSegments();
+  const projectData = {
+    schemaVersion: 1,
+    audio: { path: '/test.mp3' },
+    analysis: { segmentSignatureVersion: 1 },
+    manualChordOverrides: {
+      seg_phantom: { root: 7, quality: '7', bass: null, startTime: 20, endTime: 22, detectedChord: 'G' },
+    },
+    orphanedOverrides: { seg_old: { root: 0, quality: '', bass: null, startTime: 0, endTime: 1, detectedChord: 'C' } },
+  };
+  const { applied, orphaned } = tryApplyProjectOverrides(projectData, segments);
+  assert(Object.keys(orphaned).length === 2, 'orphaned conserve nouveaux + anciens');
+  assert(orphaned['seg_phantom'] !== undefined, 'phantom');
+  assert(orphaned['seg_old'] !== undefined, 'old');
+});
+
+console.log('\nTests Phase B — Persistance terminés.');
