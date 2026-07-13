@@ -1,17 +1,22 @@
 import { selectMediaFile, createAudioPlayer, isSupportedMediaFile } from '../audio/media-engine.js';
 import { createAudioAnalyzer } from '../analyzer/audio-analyzer.js';
-import { enrichChordWithBass } from '../analyzer/bass-harmonic-relation.js';
+import { exportAnalysisToMidi } from '../analyzer/midi-exporter.js';
 import { miniKeyboardForNotes } from './mini-keyboard.js';
-import { formatNote } from '../chord-engine/intervals.js';
+import { CHORD_DEFINITIONS } from '../chord-engine/chord-defs.js';
+import { noteNameToPc } from '../chord-engine/intervals.js';
+import { ChordEditor, makeSegmentId, getEffectiveChord, normalizeOverride, formatEffectiveChord, deriveChordDisplay, NOTE_NAMES } from './chord-editor.js';
 
-// [Claude] — 2026-07-08 — Onglet Analyse au modèle Chordify.
-// Flux : import d'un fichier media → analyse automatique → affichage d'une timeline
-// horizontale d'accords synchronisée, avec mini-claviers pédagogiques.
-// Les fonctionnalités avancées (paroles, boucle fine, accordeur, suggestions)
-// sont volontairement en placeholder pour l'instant.
+const BASE_PIXELS_PER_SECOND = 80;
+const MIN_BLOCK_WIDTH = 4;
+const BLOCK_GAP = 4;
 
-const PIXELS_PER_SECOND = 64;
-const MIN_BLOCK_WIDTH = 56;
+let timelineZoom = 1.0;
+
+let undoStack = [];
+let redoStack = [];
+const MAX_UNDO = 50;
+
+let chordEditor = null;
 
 const els = {
   importScreen: document.getElementById('analyzer-import-screen'),
@@ -19,12 +24,10 @@ const els = {
   results: document.getElementById('analyzer-results'),
   backBtn: document.getElementById('analyzer-back-btn'),
 
-  // En-tête morceau
   songTitle: document.getElementById('analyzer-song-title'),
   songArtist: document.getElementById('analyzer-song-artist'),
   stemBadge: document.getElementById('analyzer-stem-badge'),
 
-  // Lecteur
   prevBtn: document.getElementById('analyzer-prev-btn'),
   playBtn: document.getElementById('analyzer-play-btn'),
   progressTrack: document.getElementById('analyzer-progress-track'),
@@ -33,36 +36,26 @@ const els = {
   currentTimeEl: document.getElementById('analyzer-current-time'),
   durationEl: document.getElementById('analyzer-duration'),
 
-  // Outils
-  countdownBtn: document.getElementById('analyzer-countdown-btn'),
-  loopBtn: document.getElementById('analyzer-loop-btn'),
-  tempoSlider: document.getElementById('analyzer-tempo'),
-  tempoValue: document.getElementById('analyzer-tempo-value'),
-  transposeBtn: document.getElementById('analyzer-transpose-btn'),
-  simplifyBtn: document.getElementById('analyzer-simplify-btn'),
-  tunerBtn: document.getElementById('analyzer-tuner-btn'),
+  zoomSlider: document.getElementById('analyzer-zoom'),
+  zoomValue: document.getElementById('analyzer-zoom-value'),
 
-  // Timeline horizontale
   chordTimeline: document.getElementById('analyzer-chord-timeline'),
   chordTimelineInner: document.getElementById('analyzer-chord-timeline-inner'),
   timelineScrollLeft: document.getElementById('analyzer-timeline-scroll-left'),
   timelineScrollRight: document.getElementById('analyzer-timeline-scroll-right'),
 
-  // Lecteur audio natif
   audioContainer: document.getElementById('analyzer-audio-container'),
 
-  // Onglets + contenu
-  viewTabs: document.querySelectorAll('.analyzer-view-tab'),
-  chordGrid: document.getElementById('analyzer-chord-grid'),
-  previewView: document.getElementById('analyzer-preview-view'),
-  lyricsView: document.getElementById('analyzer-lyrics-view'),
+  sectionTabs: document.querySelectorAll('#analyzer-section-tabs button[data-section]'),
+  sectionPanels: document.querySelectorAll('#analyzer-section-panels > [data-section]'),
 
-  // Panneau latéral
-  infoKey: document.getElementById('analyzer-info-key'),
-  infoChords: document.getElementById('analyzer-info-chords'),
-  infoBpm: document.getElementById('analyzer-info-bpm'),
-  infoSignature: document.getElementById('analyzer-info-signature'),
-  infoDuration: document.getElementById('analyzer-info-duration'),
+  exportMidiBtn: document.getElementById('analyzer-export-midi-btn'),
+
+  // Hero chord (sous la timeline)
+  hero: document.getElementById('analyzer-hero'),
+  heroName: document.getElementById('analyzer-hero-name'),
+  heroNotes: document.getElementById('analyzer-hero-notes'),
+  heroKeyboard: document.getElementById('analyzer-hero-keyboard'),
 
   processing: document.getElementById('analyzer-processing'),
   processingText: document.getElementById('analyzer-processing-text'),
@@ -73,16 +66,19 @@ let currentPlayer = null;
 let currentAnalysis = null;
 let currentFileName = '';
 let isDraggingProgress = false;
-let isLooping = false;
-let devMode = false;
+let lastAutoScrollIndex = -1;
 
 export function initAnalyzerTab() {
   analyzer = createAudioAnalyzer();
   bindImportButton();
   bindPlayerControls();
   bindToolbar();
+  initTimelineZoom();
   bindTimelineScroll();
-  bindViewTabs();
+  bindSectionTabs();
+  bindExportMidiButton();
+  initChordEditor();
+  initKeyboardShortcuts();
 }
 
 function bindImportButton() {
@@ -127,9 +123,13 @@ async function showResults(analysis) {
   hideProcessing();
   els.importScreen.style.display = 'none';
   els.results.style.display = 'flex';
+  currentAnalysis = analysis;
+  enrichSegments(analysis.chords);
+  resetUndoRedo();
+  chordEditor?.close();
+  resetZoom();
 
   renderHeader(analysis);
-  renderSidebar(analysis);
 
   if (currentPlayer) {
     currentPlayer.destroy();
@@ -143,20 +143,7 @@ async function showResults(analysis) {
     });
   }
 
-  const bassSegments = analysis.bassSegments || [];
-
-  // Enrich chords with bass info
-  const enrichedChords = bassSegments.length > 0
-    ? analysis.chords.map((c) => {
-        const dominant = findDominantBassForChord(bassSegments, c.startTime, c.endTime);
-        return enrichChordWithBass(c, dominant);
-      })
-    : analysis.chords;
-
   renderTimeline(analysis.chords || [], analysis.duration || 0);
-  renderBassTimeline(bassSegments, analysis.duration || 0);
-  renderChordGrid(enrichedChords);
-  renderBassDevInfo(bassSegments);
   updatePlayButton();
 }
 
@@ -174,23 +161,6 @@ function renderHeader(analysis) {
   }
 }
 
-function renderSidebar(analysis) {
-  const chords = analysis.chords || [];
-  const uniqueChords = [...new Set(chords.map((c) => c.chord).filter(Boolean))].slice(0, 8);
-
-  els.infoKey.textContent = analysis.key ? `${formatKeyLabel(analysis.key, analysis.keyMode)}` : '—';
-  els.infoChords.textContent = uniqueChords.length ? uniqueChords.join(' · ') : '—';
-  els.infoBpm.textContent = analysis.tempo ? `${Math.round(analysis.tempo)}` : '—';
-  els.infoSignature.textContent = analysis.timeSignature ?? '—';
-  els.infoDuration.textContent = analysis.duration ? formatTime(analysis.duration) : '—';
-}
-
-function formatKeyLabel(name, mode) {
-  if (!name) return '—';
-  const suffix = mode === 'minor' ? ' mineur' : ' majeur';
-  return `${name}${suffix}`;
-}
-
 function showImportScreen() {
   if (currentPlayer) {
     currentPlayer.destroy();
@@ -198,10 +168,12 @@ function showImportScreen() {
   }
   currentAnalysis = null;
   currentFileName = '';
+  resetUndoRedo();
+  chordEditor?.close();
   els.results.style.display = 'none';
   els.importScreen.style.display = 'flex';
   els.chordTimelineInner.innerHTML = '';
-  els.chordGrid.innerHTML = '';
+  if (els.hero) els.hero.style.display = 'none';
   els.stemBadge.textContent = '';
   els.stemBadge.classList.remove('visible');
   const bassTimeline = document.getElementById('analyzer-bass-timeline-wrapper');
@@ -218,46 +190,142 @@ function formatTime(seconds) {
 }
 
 function chordNotes(chordName) {
-  // Retourne les pitch-classes d'un accord standard à partir de son nom texte.
   if (!chordName || chordName === 'N') return [];
-  const rootMatch = chordName.match(/^([A-G][#b]?)/);
+  const slashIdx = chordName.indexOf('/');
+  const namePart = slashIdx >= 0 ? chordName.slice(0, slashIdx) : chordName;
+  const rootMatch = namePart.match(/^([A-G][#b]?)/);
   if (!rootMatch) return [];
   const rootPc = noteNameToPc(rootMatch[1]);
   if (rootPc === null) return [];
 
-  const suffix = chordName.slice(rootMatch[1].length).trim();
-  let intervals = [0, 4, 7]; // majeur par défaut
-  if (suffix === 'm' || suffix === 'min') intervals = [0, 3, 7];
-  else if (suffix === '7') intervals = [0, 4, 7, 10];
-  else if (suffix === 'maj7' || suffix === 'M7') intervals = [0, 4, 7, 11];
-  else if (suffix === 'm7') intervals = [0, 3, 7, 10];
-  else if (suffix === 'sus2') intervals = [0, 2, 7];
-  else if (suffix === 'sus4') intervals = [0, 5, 7];
-  else if (suffix === 'dim') intervals = [0, 3, 6];
-  else if (suffix === 'aug') intervals = [0, 4, 8];
+  const suffix = namePart.slice(rootMatch[1].length).trim();
+  const def = CHORD_DEFINITIONS.find((d) => d.symbol === suffix);
+  const intervals = def ? def.intervals : [0, 4, 7];
 
-  return intervals.map((i) => (rootPc + i) % 12);
-}
+  const chordPcs = intervals.map((i) => (rootPc + i) % 12);
 
-function noteNameToPc(name) {
-  const normalized = name.trim().replace(/♭/g, 'b').replace(/♯/g, '#');
-  const base = normalized.charAt(0).toUpperCase();
-  const alter = normalized.slice(1);
-  const baseIndex = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'].indexOf(base);
-  if (baseIndex === -1) return null;
-  let offset = 0;
-  for (const ch of alter) {
-    if (ch === '#') offset += 1;
-    else if (ch === 'b') offset -= 1;
+  if (slashIdx >= 0) {
+    const bassStr = chordName.slice(slashIdx + 1).trim();
+    const bassPc = noteNameToPc(bassStr);
+    if (bassPc != null) {
+      chordPcs.push(bassPc % 12);
+    }
   }
-  return (baseIndex + offset + 12) % 12;
+
+  return [...new Set(chordPcs)];
 }
 
-function chordNotesInRange(chordName) {
-  const pcs = chordNotes(chordName);
-  if (!pcs.length) return [];
-  // Octave C4 autour du centre : on construit des notes MIDI entre C4 et B5.
-  return pcs.map((pc) => 60 + ((pc - (60 % 12) + 12) % 12));
+function enrichSegments(chords) {
+  if (!chords) return;
+  for (const seg of chords) {
+    if (!seg.segmentId) seg.segmentId = makeSegmentId(seg);
+    if (!Object.prototype.hasOwnProperty.call(seg, 'manualOverride')) {
+      seg.manualOverride = null;
+    }
+  }
+}
+
+function resetUndoRedo() {
+  undoStack = [];
+  redoStack = [];
+}
+
+function pushUndo(action) {
+  undoStack.push(action);
+  redoStack.length = 0;
+  if (undoStack.length > MAX_UNDO) undoStack.shift();
+}
+
+function undo() {
+  const cmd = undoStack.pop();
+  if (!cmd) return;
+  const seg = currentAnalysis?.chords?.[cmd.segmentIndex];
+  if (!seg) return;
+  seg.manualOverride = cmd.oldState;
+  redoStack.push(cmd);
+  rerenderTimeline();
+}
+
+function redo() {
+  const cmd = redoStack.pop();
+  if (!cmd) return;
+  const seg = currentAnalysis?.chords?.[cmd.segmentIndex];
+  if (!seg) return;
+  seg.manualOverride = cmd.newState;
+  undoStack.push(cmd);
+  rerenderTimeline();
+}
+
+function rerenderTimeline() {
+  if (currentAnalysis) {
+    renderTimeline(currentAnalysis.chords || [], currentAnalysis.duration || 0);
+  }
+}
+
+function applyChordOverride(segmentIndex, override) {
+  const seg = currentAnalysis?.chords?.[segmentIndex];
+  if (!seg) return;
+  const normalized = normalizeOverride(seg, override);
+  pushUndo({ segmentIndex, oldState: seg.manualOverride, newState: normalized });
+  seg.manualOverride = normalized;
+  rerenderTimeline();
+}
+
+function initChordEditor() {
+  chordEditor = new ChordEditor({
+    onSave: (segmentIndex, override) => {
+      applyChordOverride(segmentIndex, override);
+    },
+    onCancel: () => {
+      // Rien à faire — l'éditeur est fermé
+    },
+    onReset: (segmentIndex) => {
+      applyChordOverride(segmentIndex, null);
+    },
+  });
+}
+
+function initKeyboardShortcuts() {
+  document.addEventListener('keydown', (e) => {
+    if (chordEditor?.isOpen) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        chordEditor.close();
+        return;
+      }
+      // Ne pas intercepter Ctrl+Z dans l'éditeur si un champ texte a le focus
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+    }
+
+    if (e.ctrlKey && e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+      e.preventDefault();
+      redo();
+      return;
+    }
+    if (e.ctrlKey && (e.key === 'z' || e.key === 'Z')) {
+      e.preventDefault();
+      // Ne pas intercepter dans les champs texte
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+      undo();
+      return;
+    }
+
+    if (e.key === ' ' || e.code === 'Space') {
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+      e.preventDefault();
+      togglePlayback();
+    }
+  });
+}
+
+function openChordEditor(segmentIndex) {
+  if (!currentAnalysis) return;
+  const seg = currentAnalysis.chords[segmentIndex];
+  if (!seg) return;
+  chordEditor.open(seg, segmentIndex, currentAnalysis);
 }
 
 function renderTimeline(chords, duration) {
@@ -265,28 +333,59 @@ function renderTimeline(chords, duration) {
   els.chordTimelineInner.innerHTML = '';
 
   duration = Math.max(duration || 0, 1);
-  const totalWidth = Math.max(duration * PIXELS_PER_SECOND, 0);
+  const pps = BASE_PIXELS_PER_SECOND * timelineZoom;
+  const totalWidth = Math.max(duration * pps + (chords.length - 1) * BLOCK_GAP, 0);
   els.chordTimelineInner.style.width = `${totalWidth}px`;
 
   if (chords.length === 0) {
-    els.chordTimelineInner.innerHTML = '<p class="detail-hint">Aucun accord détecté.</p>';
+    els.chordTimelineInner.innerHTML = '<span class="text-sm text-zinc-500">Aucun accord détecté.</span>';
     return;
   }
 
   chords.forEach((chord, index) => {
     const block = document.createElement('button');
-    block.className = 'analyzer-timeline-block';
+    block.className = 'absolute inset-y-2 flex items-center justify-center bg-zinc-800 border border-zinc-700 rounded-md text-zinc-200 font-bold text-lg cursor-pointer hover:bg-zinc-700 hover:border-sky-500 transition-all overflow-hidden';
     block.type = 'button';
     block.dataset.index = String(index);
     block.dataset.start = String(chord.startTime);
+    block.dataset.segmentId = chord.segmentId || '';
 
-    const left = chord.startTime * PIXELS_PER_SECOND;
-    const width = Math.max((chord.endTime - chord.startTime) * PIXELS_PER_SECOND, MIN_BLOCK_WIDTH);
+    const left = chord.startTime * pps + index * BLOCK_GAP;
+    const timeWidth = Math.max((chord.endTime - chord.startTime) * pps - BLOCK_GAP, 0);
     block.style.left = `${left}px`;
-    block.style.width = `${width}px`;
+    block.style.width = `${timeWidth}px`;
+
+    const fmt = (s) => {
+      const m = Math.floor(s / 60);
+      const sec = Math.floor(s % 60);
+      return `${m}:${String(sec).padStart(2, '0')}`;
+    };
+
+    const effectiveChordStr = getEffectiveChord(chord);
+    const originalDetected = chord.chord;
+    const isOverridden = chord.manualOverride != null;
+
+    if (isOverridden) {
+      block.title = `Corrigé manuellement — ${originalDetected} → ${effectiveChordStr}  ${fmt(chord.startTime)} → ${fmt(chord.endTime)}  (${(chord.endTime - chord.startTime).toFixed(1)}s)`;
+    } else {
+      block.title = `${effectiveChordStr}  ${fmt(chord.startTime)} → ${fmt(chord.endTime)}  (${(chord.endTime - chord.startTime).toFixed(1)}s)`;
+    }
+
+    const fontSize = effectiveChordStr.length >= 7 ? 'text-base' : 'text-lg';
+    block.classList.add(fontSize);
+
+    // Bloc très étroit : pas de texte, simple marqueur visuel
+    if (timeWidth < 24) {
+      block.classList.add('timeline-block-micro');
+    }
+
+    if (isOverridden) {
+      block.classList.add('manual-override');
+    }
 
     block.innerHTML = `
-      <span class="analyzer-timeline-block-name">${escapeHtml(chord.chord)}</span>
+      <span class="truncate max-w-full px-2 font-bold">${escapeHtml(effectiveChordStr)}</span>
+      ${isOverridden ? '<span class="manual-override-icon" title="Corrigé manuellement">✏</span>' : ''}
     `;
 
     block.addEventListener('click', () => {
@@ -294,177 +393,65 @@ function renderTimeline(chords, duration) {
         currentPlayer.seek(chord.startTime);
         currentPlayer.play();
       }
+      block.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    });
+    block.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        openChordEditor(index);
+      }
+    });
+    block.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      openChordEditor(index);
     });
     block.addEventListener('pointerdown', (e) => e.stopPropagation());
     els.chordTimelineInner.appendChild(block);
   });
-}
 
-function findDominantBassForChord(bassSegments, chordStart, chordEnd) {
-  const overlapping = bassSegments.filter((s) =>
-    s.startTime < chordEnd && s.endTime > chordStart
+  // Restaurer la sélection active
+  updatePlaybackPosition(
+    currentPlayer?.element?.currentTime ?? 0
   );
-  if (!overlapping.length) return null;
-
-  const byMidi = {};
-  for (const s of overlapping) {
-    const overlap = Math.min(s.endTime, chordEnd) - Math.max(s.startTime, chordStart);
-    if (overlap < 0.05) continue;
-    if (!byMidi[s.midi]) byMidi[s.midi] = { ...s, totalOverlap: 0 };
-    byMidi[s.midi].totalOverlap += overlap;
-  }
-
-  const entries = Object.entries(byMidi);
-  if (!entries.length) return null;
-  const best = entries.sort((a, b) => b[1].totalOverlap - a[1].totalOverlap)[0][1];
-  return best;
 }
 
-function renderBassTimeline(bassSegments, duration) {
-  const containerId = 'analyzer-bass-timeline-inner';
-  let inner = document.getElementById(containerId);
-  if (!inner) {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'analyzer-bass-timeline';
-    wrapper.id = 'analyzer-bass-timeline-wrapper';
-    inner = document.createElement('div');
-    inner.className = 'analyzer-timeline-inner';
-    inner.id = containerId;
-    wrapper.appendChild(inner);
-    els.chordTimeline.parentNode.insertBefore(wrapper, els.chordTimeline.nextSibling);
-  }
-  inner.innerHTML = '';
-
-  if (!bassSegments || bassSegments.length === 0) {
-    inner.innerHTML = '<p class="detail-hint">Aucune basse détectée.</p>';
+function renderHeroChord(chord) {
+  if (!els.hero) return;
+  if (!chord) {
+    els.hero.style.display = 'none';
     return;
   }
 
-  duration = Math.max(duration || 0, 1);
-  const totalWidth = Math.max(duration * PIXELS_PER_SECOND, 0);
-  inner.style.width = `${totalWidth}px`;
+  const effectiveChordStr = getEffectiveChord(chord);
+  const display = deriveChordDisplay(effectiveChordStr);
+  const originalDetected = chord.chord;
 
-  bassSegments.forEach((seg) => {
-    const block = document.createElement('div');
-    block.className = 'analyzer-bass-block';
-    block.dataset.start = String(seg.startTime);
+  els.hero.style.display = 'flex';
 
-    const left = seg.startTime * PIXELS_PER_SECOND;
-    const width = Math.max((seg.endTime - seg.startTime) * PIXELS_PER_SECOND, 4);
-    block.style.left = `${left}px`;
-    block.style.width = `${width}px`;
-
-    const noteLabel = `${seg.note || seg.noteName || ''}${seg.octave != null ? seg.octave : ''}`;
-    block.innerHTML = `<span class="analyzer-bass-block-label">${escapeHtml(noteLabel)}</span>`;
-
-    if (seg.isVirtual) block.classList.add('bass-virtual');
-    if (devMode) {
-      block.title = `src=${seg.source || 'bass_engine'} virt=${seg.isVirtual} conf=${seg.confidence}`;
-    }
-
-    block.addEventListener('click', () => {
-      if (currentPlayer) {
-        currentPlayer.seek(seg.startTime);
-        currentPlayer.play();
-      }
-    });
-
-    inner.appendChild(block);
-  });
-}
-
-function renderBassDevInfo(bassSegments) {
-  const containerId = 'analyzer-bass-dev-info';
-  let devInfo = document.getElementById(containerId);
-  if (!devInfo) {
-    devInfo = document.createElement('div');
-    devInfo.id = containerId;
-    devInfo.className = 'analyzer-dev-info';
-    els.chordTimeline.parentNode.insertBefore(devInfo, els.chordTimeline.nextSibling);
+  if (chord.manualOverride) {
+    els.heroName.textContent = display.symbol;
+    els.heroName.title = `Détecté : ${originalDetected}`;
+  } else {
+    els.heroName.textContent = display.symbol || originalDetected || '';
+    els.heroName.title = '';
   }
 
-  // Hide dev info by default
-  devInfo.style.display = devMode ? 'block' : 'none';
-
-  if (!devMode || !bassSegments || bassSegments.length === 0) return;
-
-  const virtualCount = bassSegments.filter((s) => s.isVirtual).length;
-  const realCount = bassSegments.length - virtualCount;
-  const virtualPct = bassSegments.length > 0 ? (virtualCount / bassSegments.length * 100).toFixed(1) : 0;
-
-  devInfo.innerHTML = `
-    <div class="dev-info-header">Mode développeur — Analyse basse</div>
-    <div class="dev-info-row">
-      <span>Segments basse</span><span>${bassSegments.length}</span>
-      <span>Dont virtuels</span><span>${virtualCount} (${virtualPct}%)</span>
-      <span>Dont réels BE</span><span>${realCount}</span>
-    </div>
-  `;
-}
-
-function toggleDevMode() {
-  devMode = !devMode;
-  const btn = document.getElementById('analyzer-dev-toggle');
-  if (btn) btn.classList.toggle('active', devMode);
-  if (currentAnalysis) {
-    renderBassDevInfo(currentAnalysis.bassSegments || []);
-    const bassBlocks = document.querySelectorAll('.analyzer-bass-block');
-    bassBlocks.forEach((b) => b.title = devMode ? 'mode dev' : '');
+  // Notes
+  let notesText = display.chordToneNames.join(' · ');
+  if (display.bassName) {
+    notesText = `Accord : ${notesText}    Basse : ${display.bassName}`;
   }
-}
+  els.heroNotes.textContent = notesText;
 
-function renderChordGrid(chords) {
-  if (!els.chordGrid) return;
-  els.chordGrid.innerHTML = '';
-
-  if (chords.length === 0) {
-    els.chordGrid.innerHTML = '<p class="detail-hint">Aucun accord détecté.</p>';
-    return;
+  // Mini clavier : toutes les notes y compris la basse
+  const allPcs = display.allPcs;
+  if (allPcs.length) {
+    const midiNotes = allPcs.map((pc) => 60 + ((pc - (60 % 12) + 12) % 12));
+    const { svg } = miniKeyboardForNotes(midiNotes);
+    els.heroKeyboard.innerHTML = svg;
+  } else {
+    els.heroKeyboard.innerHTML = '';
   }
-
-  chords.forEach((chord, index) => {
-    const notes = chordNotesInRange(chord.chord || chord.structuralChord || '');
-    const { svg, noteNames } = notes.length
-      ? miniKeyboardForNotes(notes)
-      : { svg: '', noteNames: [] };
-
-    const card = document.createElement('div');
-    card.className = 'analyzer-chord-card';
-    card.dataset.index = String(index);
-
-    let bassHtml = '';
-    if (chord.bass) {
-      const bassLabel = `${chord.bass.note}${chord.bass.octave}`;
-      bassHtml = `<div class="chord-card-bass">Basse: ${escapeHtml(bassLabel)}`;
-      if (chord.bass.relationToChord && chord.bass.relationToChord !== 'root') {
-        bassHtml += ` <span class="chord-card-relation">(${chord.bass.relationToChord})</span>`;
-      }
-      bassHtml += '</div>';
-      if (chord.bassInterpretation?.slashChord && devMode) {
-        bassHtml += `<div class="chord-card-interp">→ ${escapeHtml(chord.bassInterpretation.slashChord.name)}</div>`;
-      }
-      if (devMode) {
-        bassHtml += `<div class="chord-card-dev">src=${chord.bass.source} virt=${chord.bass.isVirtual} conf=${chord.bass.confidence}</div>`;
-      }
-    }
-
-    card.innerHTML = `
-      <div class="analyzer-chord-card-name">${escapeHtml(chord.chord)}</div>
-      <div class="analyzer-chord-card-time">${formatTime(chord.startTime)}</div>
-      <div class="analyzer-chord-card-keyboard">${svg}</div>
-      <div class="analyzer-chord-card-notes">${escapeHtml(noteNames.join(' · ') || '')}</div>
-      ${bassHtml}
-    `;
-
-    card.addEventListener('click', () => {
-      if (currentPlayer) {
-        currentPlayer.seek(chord.startTime);
-        currentPlayer.play();
-      }
-    });
-
-    els.chordGrid.appendChild(card);
-  });
 }
 
 function updatePlaybackPosition(currentTime) {
@@ -478,7 +465,6 @@ function updatePlaybackPosition(currentTime) {
   els.currentTimeEl.textContent = formatTime(clamped);
   els.durationEl.textContent = formatTime(duration);
 
-  // Mise en évidence de l'accord courant dans la timeline.
   const chords = currentAnalysis.chords || [];
   let activeIndex = -1;
   for (let i = 0; i < chords.length; i++) {
@@ -488,50 +474,47 @@ function updatePlaybackPosition(currentTime) {
     }
   }
 
-  const blocks = els.chordTimelineInner.querySelectorAll('.analyzer-timeline-block');
+  const blocks = els.chordTimelineInner.querySelectorAll('.analyzer-timeline-block, button[data-index]');
   blocks.forEach((block, idx) => {
-    block.classList.toggle('active', idx === activeIndex);
-  });
-
-  const cards = els.chordGrid.querySelectorAll('.analyzer-chord-card');
-  cards.forEach((card, idx) => {
-    card.classList.toggle('active', idx === activeIndex);
-  });
-
-  // Mise en évidence de la basse courante.
-  const bassBlocks = document.querySelectorAll('#analyzer-bass-timeline-inner .analyzer-bass-block');
-  const bassSegments = currentAnalysis.bassSegments || [];
-  let activeBassIdx = -1;
-  for (let i = 0; i < bassSegments.length; i++) {
-    if (clamped >= bassSegments[i].startTime && clamped < bassSegments[i].endTime) {
-      activeBassIdx = i;
-      break;
+    if (idx === activeIndex) {
+      block.classList.add('!bg-sky-600', '!border-sky-400', '!text-white', 'shadow-lg', 'shadow-sky-500/20', 'scale-105', 'z-10');
+      block.classList.remove('bg-zinc-800', 'border-zinc-700', 'text-zinc-200');
+    } else {
+      block.classList.remove('!bg-sky-600', '!border-sky-400', '!text-white', 'shadow-lg', 'shadow-sky-500/20', 'scale-105', 'z-10');
+      block.classList.add('bg-zinc-800', 'border-zinc-700', 'text-zinc-200');
     }
-  }
-  bassBlocks.forEach((block, idx) => {
-    block.classList.toggle('active', idx === activeBassIdx);
   });
 
-  // Auto-scroll horizontal de la timeline des accords.
-  if (activeIndex >= 0 && blocks[activeIndex]) {
+  // Hero chord
+  const activeChord = activeIndex >= 0 ? chords[activeIndex] : null;
+  renderHeroChord(activeChord);
+
+  // Auto-scroll horizontal : défiler uniquement quand le segment approche du bord.
+  if (activeIndex >= 0 && activeIndex !== lastAutoScrollIndex && blocks[activeIndex]) {
+    lastAutoScrollIndex = activeIndex;
     const block = blocks[activeIndex];
     const containerRect = els.chordTimeline.getBoundingClientRect();
     const blockRect = block.getBoundingClientRect();
-    const targetScroll = els.chordTimeline.scrollLeft + blockRect.left - containerRect.left - containerRect.width / 2 + blockRect.width / 2;
-    els.chordTimeline.scrollTo({ left: targetScroll, behavior: 'smooth' });
+    const margin = 120;
+    if (blockRect.right > containerRect.right - margin || blockRect.left < containerRect.left + margin) {
+      const targetScroll = els.chordTimeline.scrollLeft + blockRect.left - containerRect.left - containerRect.width / 3 + blockRect.width / 2;
+      els.chordTimeline.scrollTo({ left: targetScroll, behavior: 'smooth' });
+    }
   }
 }
 
+function togglePlayback() {
+  if (!currentPlayer) return;
+  if (currentPlayer.element?.paused) {
+    currentPlayer.play();
+  } else {
+    currentPlayer.pause();
+  }
+  updatePlayButton();
+}
+
 function bindPlayerControls() {
-  els.playBtn?.addEventListener('click', () => {
-    if (!currentPlayer) return;
-    if (currentPlayer.element?.paused) {
-      currentPlayer.play();
-    } else {
-      currentPlayer.pause();
-    }
-    updatePlayButton();
-  });
+  els.playBtn?.addEventListener('click', togglePlayback);
 
   els.prevBtn?.addEventListener('click', () => {
     if (!currentPlayer) return;
@@ -575,73 +558,99 @@ function updatePlayButton() {
 }
 
 function bindToolbar() {
-  els.tempoSlider?.addEventListener('input', () => {
-    const rate = Number(els.tempoSlider.value);
-    els.tempoValue.textContent = `${Math.round(rate * 100)}%`;
-    if (currentPlayer?.element) {
-      currentPlayer.element.playbackRate = rate;
+  // Only zoom slider in the toolbar for now
+}
+
+function resetZoom() {
+  timelineZoom = 1.0;
+  if (els.zoomSlider) els.zoomSlider.value = '1';
+  if (els.zoomValue) els.zoomValue.textContent = '100%';
+}
+
+function initTimelineZoom() {
+  els.zoomSlider?.addEventListener('input', () => {
+    timelineZoom = Number(els.zoomSlider.value);
+    els.zoomValue.textContent = `${Math.round(timelineZoom * 100)}%`;
+    if (currentAnalysis) {
+      renderTimeline(currentAnalysis.chords || [], currentAnalysis.duration || 0);
     }
   });
+}
 
-  els.loopBtn?.addEventListener('click', () => {
-    isLooping = !isLooping;
-    els.loopBtn.classList.toggle('active', isLooping);
-    if (currentPlayer?.element) {
-      currentPlayer.element.loop = isLooping;
-    }
+async function handleExportMidi() {
+  if (!currentAnalysis) return;
+  if (!window.electronAPI?.files?.saveDialog || !window.electronAPI?.files?.writeBinary) {
+    alert('Export MIDI non disponible dans cet environnement.');
+    return;
+  }
+
+  const baseName = currentFileName.replace(/\.[^.]+$/, '') || 'analyse';
+  const filePath = await window.electronAPI.files.saveDialog({
+    defaultPath: `${baseName}_analysis.mid`,
   });
+  if (!filePath) return;
 
-  // Placeholders : affichent une alerte éducative pour l'instant.
-  els.countdownBtn?.addEventListener('click', () => alert('Compte à rebours — à venir.'));
-  els.transposeBtn?.addEventListener('click', () => alert('Transposition globale — à venir.'));
-  els.simplifyBtn?.addEventListener('click', () => alert('Simplification des accords — à venir.'));
-  els.tunerBtn?.addEventListener('click', () => alert('Accordeur — à venir.'));
+  const midiBytes = exportAnalysisToMidi(currentAnalysis);
+  if (!midiBytes) {
+    alert('Aucune donnée à exporter.');
+    return;
+  }
+  await window.electronAPI.files.writeBinary(filePath, midiBytes);
+  showToast(`MIDI exporté vers ${filePath}`);
+}
 
-  // Dev mode toggle
-  const devToggle = document.createElement('button');
-  devToggle.type = 'button';
-  devToggle.id = 'analyzer-dev-toggle';
-  devToggle.className = 'analyzer-tool-btn analyzer-dev-toggle';
-  devToggle.title = 'Mode développeur (basse)';
-  devToggle.textContent = 'Dev';
-  devToggle.addEventListener('click', toggleDevMode);
-  els.tunerBtn?.parentNode?.insertBefore(devToggle, els.tunerBtn.nextSibling);
+function showToast(message, duration = 3000) {
+  const existing = document.getElementById('analyzer-toast');
+  if (existing) existing.remove();
+  const toast = document.createElement('div');
+  toast.id = 'analyzer-toast';
+  toast.className = 'analyzer-toast';
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.classList.add('visible'), 10);
+  setTimeout(() => {
+    toast.classList.remove('visible');
+    setTimeout(() => toast.remove(), 300);
+  }, duration);
 }
 
 function bindTimelineScroll() {
   els.timelineScrollLeft?.addEventListener('click', () => {
-    const delta = -els.chordTimeline.clientWidth * 0.6;
-    els.chordTimeline.scrollBy({ left: delta, behavior: 'smooth' });
-    syncBassTimelineScroll();
+    els.chordTimeline.scrollBy({ left: -els.chordTimeline.clientWidth * 0.6, behavior: 'smooth' });
   });
   els.timelineScrollRight?.addEventListener('click', () => {
-    const delta = els.chordTimeline.clientWidth * 0.6;
-    els.chordTimeline.scrollBy({ left: delta, behavior: 'smooth' });
-    syncBassTimelineScroll();
+    els.chordTimeline.scrollBy({ left: els.chordTimeline.clientWidth * 0.6, behavior: 'smooth' });
   });
-
-  // Sync bass timeline when chord timeline scrolls
-  els.chordTimeline?.addEventListener('scroll', syncBassTimelineScroll);
 }
 
-function syncBassTimelineScroll() {
-  const bassWrapper = document.getElementById('analyzer-bass-timeline-wrapper');
-  if (bassWrapper) {
-    bassWrapper.scrollLeft = els.chordTimeline?.scrollLeft || 0;
-  }
-}
+function bindSectionTabs() {
+  if (!els.sectionTabs.length) return;
 
-function bindViewTabs() {
-  els.viewTabs?.forEach((tab) => {
+  els.sectionTabs.forEach((tab) => {
     tab.addEventListener('click', () => {
-      els.viewTabs.forEach((t) => t.classList.remove('active'));
-      tab.classList.add('active');
-      const view = tab.dataset.view;
-      els.chordGrid.style.display = view === 'grid' ? 'grid' : 'none';
-      els.previewView.style.display = view === 'preview' ? 'flex' : 'none';
-      els.lyricsView.style.display = view === 'lyrics' ? 'flex' : 'none';
+      els.sectionTabs.forEach((t) => {
+        t.classList.remove('text-sky-400', 'border-b-2', 'border-sky-400');
+        t.classList.add('text-zinc-500', 'hover:text-zinc-300');
+        t.setAttribute('aria-selected', 'false');
+      });
+      tab.classList.remove('text-zinc-500', 'hover:text-zinc-300');
+      tab.classList.add('text-sky-400', 'border-b-2', 'border-sky-400');
+      tab.setAttribute('aria-selected', 'true');
+
+      const section = tab.dataset.section;
+      els.sectionPanels.forEach((panel) => {
+        if (panel.dataset.section === section) {
+          panel.style.display = '';
+        } else {
+          panel.style.display = 'none';
+        }
+      });
     });
   });
+}
+
+function bindExportMidiButton() {
+  els.exportMidiBtn?.addEventListener('click', handleExportMidi);
 }
 
 async function loadAudioBlobUrl(filePath) {
