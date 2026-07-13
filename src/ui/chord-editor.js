@@ -1,6 +1,17 @@
 import { noteNameToPc, NOTE_NAMES } from '../chord-engine/intervals.js';
 export { NOTE_NAMES } from '../chord-engine/intervals.js';
-import { CHORD_DEFINITIONS } from '../chord-engine/chord-defs.js';
+
+// Fonctions harmoniques pures déplacées dans le module partagé chord-display.js.
+export {
+  parseChordSymbol,
+  formatEffectiveChord,
+  getEffectiveChord,
+  normalizeOverride,
+  deriveChordDisplay,
+} from '../chord-engine/chord-display.js';
+
+// Import local utilisé par les fonctions de persistance.
+import { normalizeOverride as normalizeOverridePure } from '../chord-engine/chord-display.js';
 
 export const QUALITY_OPTIONS = [
   { value: '', label: 'Majeur' },
@@ -26,110 +37,9 @@ export function makeSegmentId(seg) {
   return `seg_${Math.abs(hash).toString(36)}`;
 }
 
-export function parseChordSymbol(chordStr) {
-  if (!chordStr || chordStr === 'N') return { root: 0, quality: '', bass: null, isN: !chordStr || chordStr === 'N' };
-  const slashParts = chordStr.split('/');
-  const namePart = slashParts[0];
-  const bassPart = slashParts[1];
-  const rootMatch = namePart.match(/^([A-G][#b]?)(.*)/);
-  if (!rootMatch) return { root: 0, quality: '', bass: null, isN: false };
-  const root = noteNameToPc(rootMatch[1]);
-  const quality = rootMatch[2] || '';
-  const bass = bassPart ? noteNameToPc(bassPart.trim()) : null;
-  return { root: root != null ? root : 0, quality: quality || '', bass, isN: false };
-}
-
-export function formatEffectiveChord(root, quality, bass) {
-  const idx = ((root % 12) + 12) % 12;
-  const rootName = NOTE_NAMES[idx];
-  const sym = quality === '' ? rootName : `${rootName}${quality}`;
-  if (bass != null && bass >= 0) {
-    const bassIdx = ((bass % 12) + 12) % 12;
-    return `${sym}/${NOTE_NAMES[bassIdx]}`;
-  }
-  return sym;
-}
-
-export function getEffectiveChord(segment) {
-  if (segment.manualOverride) {
-    return formatEffectiveChord(
-      segment.manualOverride.root,
-      segment.manualOverride.quality,
-      segment.manualOverride.bass
-    );
-  }
-  return segment.chord;
-}
-
-export function normalizeOverride(segment, override) {
-  if (override == null) return null;
-  const detected = parseChordSymbol(segment.chord);
-  const overrideRoot = ((override.root % 12) + 12) % 12;
-  const detectedRoot = ((detected.root % 12) + 12) % 12;
-  if (
-    detectedRoot === overrideRoot &&
-    detected.quality === override.quality &&
-    detected.bass === override.bass
-  ) {
-    return null;
-  }
-  return { root: override.root, quality: override.quality, bass: override.bass != null ? override.bass : null };
-}
-
 export function findQualityIndex(quality) {
   const idx = QUALITY_OPTIONS.findIndex((o) => o.value === quality);
   return idx >= 0 ? idx : 0;
-}
-
-export function deriveChordDisplay(effectiveChord) {
-  if (!effectiveChord || effectiveChord === 'N') {
-    return { symbol: effectiveChord || 'N', rootPc: null, quality: null, bassPc: null, chordTonePcs: [], chordToneNames: [], bassName: null, allPcs: [], allNames: [] };
-  }
-
-  const slashIdx = effectiveChord.indexOf('/');
-  const chordPart = slashIdx >= 0 ? effectiveChord.slice(0, slashIdx) : effectiveChord;
-  const bassStr = slashIdx >= 0 ? effectiveChord.slice(slashIdx + 1).trim() : null;
-
-  const rootMatch = chordPart.match(/^([A-G][#b]?)(.*)/);
-  if (!rootMatch) {
-    return { symbol: effectiveChord, rootPc: null, quality: null, bassPc: null, chordTonePcs: [], chordToneNames: [], bassName: null, allPcs: [], allNames: [] };
-  }
-
-  const rootName = rootMatch[1];
-  const quality = rootMatch[2].trim();
-  const rootPc = noteNameToPc(rootName);
-  if (rootPc == null) {
-    return { symbol: effectiveChord, rootPc: null, quality: null, bassPc: null, chordTonePcs: [], chordToneNames: [], bassName: null, allPcs: [], allNames: [] };
-  }
-
-  const def = CHORD_DEFINITIONS.find((d) => d.symbol === quality);
-  const intervals = def ? def.intervals : [0, 4, 7];
-
-  const pcSet = new Set(intervals.map((i) => ((rootPc + i) % 12 + 12) % 12));
-  const chordTonePcs = [...pcSet].sort((a, b) => a - b);
-
-  const bassPc = bassStr != null ? noteNameToPc(bassStr) : null;
-  const normalizedBassPc = bassPc != null ? ((bassPc % 12) + 12) % 12 : null;
-
-  const chordToneNames = chordTonePcs.map((pc) => NOTE_NAMES[pc]);
-  const bassName = normalizedBassPc != null ? NOTE_NAMES[normalizedBassPc] : null;
-
-  const bassInChord = normalizedBassPc != null && pcSet.has(normalizedBassPc);
-  const allPcsRaw = bassInChord ? chordTonePcs : [...chordTonePcs, ...(normalizedBassPc != null ? [normalizedBassPc] : [])];
-  const allPcs = [...allPcsRaw].sort((a, b) => a - b);
-  const allNames = allPcs.map((pc) => NOTE_NAMES[pc]);
-
-  return {
-    symbol: effectiveChord,
-    rootPc: ((rootPc % 12) + 12) % 12,
-    quality,
-    bassPc: normalizedBassPc,
-    chordTonePcs,
-    chordToneNames,
-    bassName,
-    allPcs,
-    allNames,
-  };
 }
 
 export class ChordEditor {
@@ -453,7 +363,7 @@ export function tryApplyProjectOverrides(projectData, segments) {
     }
 
     if (match) {
-      const normalized = normalizeOverride(match, {
+      const normalized = normalizeOverridePure(match, {
         root: overrideData.root,
         quality: overrideData.quality,
         bass: overrideData.bass,
