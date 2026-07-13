@@ -86,6 +86,35 @@ function createWindow() {
   // [OpenCode] — 2026-07-04 — DevTools ouverts en permanence pour déboguer les bugs UI.
   mainWindow.webContents.openDevTools({ mode: 'detach' });
 
+  mainWindow.on('close', async (e) => {
+    try {
+      const dirty = await mainWindow.webContents.executeJavaScript('window.__projectDirty || false');
+      if (!dirty) return;
+    } catch {
+      return; // renderer not ready
+    }
+    e.preventDefault();
+    const result = await dialog.showMessageBox(mainWindow, {
+      type: 'question',
+      buttons: ['Enregistrer', 'Ignorer', 'Annuler la fermeture'],
+      defaultId: 0,
+      cancelId: 2,
+      title: 'Modifications non enregistrées',
+      message: 'Des modifications d\'accords n\'ont pas été enregistrées.',
+      detail: 'Les corrections manuelles seront perdues si vous ne les enregistrez pas.',
+    });
+    if (result.response === 0) {
+      try {
+        await mainWindow.webContents.executeJavaScript('window.__saveProjectBeforeClose()');
+      } catch (saveErr) {
+        console.error('[Main] save before close failed:', saveErr);
+      }
+      mainWindow.destroy();
+    } else if (result.response === 1) {
+      mainWindow.destroy();
+    }
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
     closeMidiInput();
@@ -363,6 +392,33 @@ function setupFileSystemIPC() {
     await fs.rm(filePath, { force: true });
     return true;
   });
+
+  ipcMain.handle('files:save-dialog', async (event, options = {}) => {
+    if (!mainWindow) return null;
+    const result = await dialog.showSaveDialog(mainWindow, {
+      defaultPath: options.defaultPath || 'analysis.mid',
+      filters: options.filters || [
+        { name: 'Fichier MIDI', extensions: ['mid'] },
+        { name: 'Tous les fichiers', extensions: ['*'] },
+      ],
+    });
+    return result.canceled ? null : result.filePath;
+  });
+
+  ipcMain.handle('files:stat', async (event, filePath) => {
+    try {
+      const st = await fs.stat(filePath);
+      return { size: st.size, mtimeMs: st.mtimeMs, isFile: st.isFile(), isDirectory: st.isDirectory() };
+    } catch (err) {
+      if (err.code === 'ENOENT') return null;
+      throw err;
+    }
+  });
+
+  ipcMain.handle('files:rename', async (event, oldPath, newPath) => {
+    await fs.rename(oldPath, newPath);
+    return true;
+  });
 }
 
 const STUDIO_DIR_NAME = 'PianoJazzChords/Studio';
@@ -513,7 +569,7 @@ async function runBassAnalysis(analysisWav, chordsData, tmpDir) {
   const segmentsJson = path.join(tmpDir, 'fusion_segments.json');
 
   // Save chords data to temp file for Fusion Engine
-  await fs.writeFile(chordsJson, JSON.stringify(chordsData, null, 2));
+  await fs.writeFile(chordsJson, JSON.stringify(chordsData));
 
   // Step 1: export BE candidates
   await new Promise((resolve, reject) => {
@@ -951,7 +1007,20 @@ function setupStudioIPC() {
 
       // L'analyse des accords utilise le piano isolé si disponible, sinon le mix.
       const analysisWav = pianoStem || playbackWav;
-      const chordJson = await runAudioProcessor(['analyze-chords', analysisWav]);
+      const chordArgs = ['analyze-chords', analysisWav];
+      if (options.observationMode && options.observationMode !== 'baseline') {
+        chordArgs.push(`--observation-mode=${options.observationMode}`);
+      }
+      if (options.contradictionWeight != null) {
+        chordArgs.push(`--contradiction-weight=${options.contradictionWeight}`);
+      }
+      if (options.discriminatorThreshold != null) {
+        chordArgs.push(`--discriminator-threshold=${options.discriminatorThreshold}`);
+      }
+      if (options.discriminatorStrength != null) {
+        chordArgs.push(`--discriminator-strength=${options.discriminatorStrength}`);
+      }
+      const chordJson = await runAudioProcessor(chordArgs);
       const lines = chordJson.split('\n').filter(Boolean);
       const result = JSON.parse(lines[lines.length - 1]);
 

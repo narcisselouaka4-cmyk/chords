@@ -4,7 +4,12 @@ import { exportAnalysisToMidi } from '../analyzer/midi-exporter.js';
 import { miniKeyboardForNotes } from './mini-keyboard.js';
 import { CHORD_DEFINITIONS } from '../chord-engine/chord-defs.js';
 import { noteNameToPc } from '../chord-engine/intervals.js';
-import { ChordEditor, makeSegmentId, getEffectiveChord, normalizeOverride, formatEffectiveChord, deriveChordDisplay, NOTE_NAMES } from './chord-editor.js';
+import {
+  ChordEditor, makeSegmentId, getEffectiveChord, normalizeOverride,
+  formatEffectiveChord, deriveChordDisplay, NOTE_NAMES,
+  buildProjectPath, buildProjectData, validateProjectSchema,
+  verifyAudioIdentity, tryApplyProjectOverrides,
+} from './chord-editor.js';
 
 const BASE_PIXELS_PER_SECOND = 80;
 const MIN_BLOCK_WIDTH = 4;
@@ -65,8 +70,16 @@ let analyzer = null;
 let currentPlayer = null;
 let currentAnalysis = null;
 let currentFileName = '';
+let currentAudioPath = '';
 let isDraggingProgress = false;
 let lastAutoScrollIndex = -1;
+
+// Phase B : persistance
+let projectDirty = false;
+let projectPath = null;
+let audioIdentity = null;
+let saveStatusEl = null;
+let currentProjectOrphanedOverrides = {};
 
 export function initAnalyzerTab() {
   analyzer = createAudioAnalyzer();
@@ -96,6 +109,7 @@ async function handleImportClick() {
       return;
     }
 
+    currentAudioPath = filePath;
     currentFileName = filePath.split('/').pop() || filePath.split('\\').pop() || filePath;
     showProcessing('Extraction audio en cours…');
 
@@ -130,6 +144,8 @@ async function showResults(analysis) {
   resetZoom();
 
   renderHeader(analysis);
+  addSaveIndicator();
+  await loadProjectIfExists();
 
   if (currentPlayer) {
     currentPlayer.destroy();
@@ -168,6 +184,8 @@ function showImportScreen() {
   }
   currentAnalysis = null;
   currentFileName = '';
+  currentAudioPath = '';
+  resetProjectState();
   resetUndoRedo();
   chordEditor?.close();
   els.results.style.display = 'none';
@@ -268,6 +286,7 @@ function applyChordOverride(segmentIndex, override) {
   const normalized = normalizeOverride(seg, override);
   pushUndo({ segmentIndex, oldState: seg.manualOverride, newState: normalized });
   seg.manualOverride = normalized;
+  markDirty();
   rerenderTimeline();
 }
 
@@ -293,9 +312,16 @@ function initKeyboardShortcuts() {
         chordEditor.close();
         return;
       }
-      // Ne pas intercepter Ctrl+Z dans l'éditeur si un champ texte a le focus
+      // Ne pas intercepter Ctrl+Z/S dans l'éditeur si un champ texte a le focus
       const tag = document.activeElement?.tagName;
       if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+    }
+
+    // Ctrl+S : sauvegarde du projet
+    if (e.ctrlKey && (e.key === 's' || e.key === 'S')) {
+      e.preventDefault();
+      saveProject();
+      return;
     }
 
     if (e.ctrlKey && e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
@@ -599,12 +625,12 @@ async function handleExportMidi() {
   showToast(`MIDI exporté vers ${filePath}`);
 }
 
-function showToast(message, duration = 3000) {
+function showToast(message, duration = 3000, type = 'info') {
   const existing = document.getElementById('analyzer-toast');
   if (existing) existing.remove();
   const toast = document.createElement('div');
   toast.id = 'analyzer-toast';
-  toast.className = 'analyzer-toast';
+  toast.className = `analyzer-toast ${type}`;
   toast.textContent = message;
   document.body.appendChild(toast);
   setTimeout(() => toast.classList.add('visible'), 10);
@@ -661,6 +687,207 @@ async function loadAudioBlobUrl(filePath) {
   const blob = new Blob([bytes], { type: 'audio/wav' });
   return URL.createObjectURL(blob);
 }
+
+// ── Phase B : Persistance des overrides ──
+
+function resetProjectState() {
+  projectDirty = false;
+  projectPath = null;
+  audioIdentity = null;
+  currentProjectOrphanedOverrides = {};
+  if (saveStatusEl) {
+    saveStatusEl.remove();
+    saveStatusEl = null;
+  }
+  window.__projectDirty = false;
+}
+
+function addSaveIndicator() {
+  if (saveStatusEl) { saveStatusEl.remove(); saveStatusEl = null; }
+  saveStatusEl = document.createElement('span');
+  saveStatusEl.id = 'analyzer-save-status';
+  saveStatusEl.className = 'analyzer-save-status';
+  const projectPathDisplay = projectPath || buildProjectPath(currentAudioPath) || '(chemin inconnu)';
+  saveStatusEl.title = `Enregistrer les corrections (Ctrl+S)\nFichier : ${projectPathDisplay}`;
+  saveStatusEl.addEventListener('click', (e) => {
+    e.stopPropagation();
+    saveProject();
+  });
+  const header = els.songTitle?.parentElement;
+  if (header) {
+    header.appendChild(saveStatusEl);
+  }
+  markClean();
+}
+
+async function getAudioStat(filePath) {
+  if (!window.electronAPI?.files?.stat) return null;
+  try {
+    return await window.electronAPI.files.stat(filePath);
+  } catch {
+    return null;
+  }
+}
+
+function markDirty() {
+  if (!projectDirty) {
+    projectDirty = true;
+    window.__projectDirty = true;
+    updateSaveIndicator();
+  }
+}
+
+function markClean() {
+  projectDirty = false;
+  window.__projectDirty = false;
+  updateSaveIndicator();
+}
+
+function updateSaveIndicator() {
+  if (!saveStatusEl) return;
+  const projectPathDisplay = projectPath || buildProjectPath(currentAudioPath) || '(chemin inconnu)';
+  saveStatusEl.title = `Enregistrer les corrections (Ctrl+S)\nFichier : ${projectPathDisplay}`;
+  if (projectDirty) {
+    saveStatusEl.textContent = '⚠ Modifications non enregistrées';
+    saveStatusEl.className = 'analyzer-save-status dirty';
+  } else {
+    saveStatusEl.textContent = '💾 Enregistré';
+    saveStatusEl.className = 'analyzer-save-status clean';
+  }
+}
+
+async function saveProject() {
+  if (!currentAudioPath || !currentAnalysis) return;
+  if (!window.electronAPI?.files?.writeFile || !window.electronAPI?.files?.rename) {
+    showToast('Sauvegarde non disponible dans cet environnement.');
+    return;
+  }
+
+  try {
+    if (!audioIdentity) {
+      const stat = await getAudioStat(currentAudioPath);
+      audioIdentity = buildAudioIdentity(currentAudioPath, currentAnalysis, stat);
+    }
+
+    projectPath = projectPath || buildProjectPath(currentAudioPath);
+    const data = buildProjectData(audioIdentity, currentAnalysis.chords || [], currentProjectOrphanedOverrides);
+
+    // Écriture atomique : fichier temporaire → renommage
+    const tmpPath = projectPath + '.tmp';
+    await window.electronAPI.files.writeFile(tmpPath, JSON.stringify(data, null, 2));
+    await window.electronAPI.files.rename(tmpPath, projectPath);
+
+    markClean();
+    const displayPath = projectPath || '';
+    const shortPath = displayPath.length > 60 ? '…' + displayPath.slice(-60) : displayPath;
+    showToast(`Projet enregistré : ${shortPath}`, 4000);
+  } catch (err) {
+    console.error('[Analyzer] save failed:', err);
+    showToast("Erreur d'enregistrement : " + err.message, 5000);
+    // Les corrections en mémoire restent intactes
+  }
+}
+
+async function loadProjectIfExists() {
+  if (!currentAudioPath || !currentAnalysis) return;
+  if (!window.electronAPI?.files?.readFile) return;
+
+  const path = buildProjectPath(currentAudioPath);
+  if (!path) return;
+  projectPath = path;
+
+  try {
+    const exists = await window.electronAPI.files.exists(path);
+    if (!exists) return;
+
+    const content = await window.electronAPI.files.readFile(path);
+    if (!content) {
+      showToast('Projet existant vide ou illisible.', 5000, 'warning');
+      return;
+    }
+
+    const data = safeJsonParse(content);
+    if (!data) {
+      console.warn('[Analyzer] projet invalide (JSON mal formé) :', path);
+      showToast('Projet existant illisible (JSON invalide).', 6000, 'warning');
+      return;
+    }
+
+    if (!validateProjectSchema(data)) {
+      console.warn('[Analyzer] projet incompatible (schemaVersion) :', path);
+      const version = data && data.schemaVersion;
+      const detail = version != null ? ` (version ${version})` : '';
+      showToast(`Projet incompatible${detail}. Créez un nouveau projet avec Ctrl+S.`, 6000, 'warning');
+      return;
+    }
+
+    const stat = await getAudioStat(currentAudioPath);
+    const identity = buildAudioIdentity(currentAudioPath, currentAnalysis, stat);
+    audioIdentity = identity;
+
+    if (!verifyAudioIdentity(data.audio, identity)) {
+      console.warn('[Analyzer] identité audio différente — overrides ignorés');
+      const diff = describeIdentityDiff(data.audio, identity);
+      showToast(`Projet existant incompatible.${diff} Corrections non appliquées.`, 8000, 'warning');
+      return;
+    }
+
+    const { applied, orphaned } = tryApplyProjectOverrides(data, currentAnalysis.chords || []);
+    currentProjectOrphanedOverrides = orphaned;
+
+    // L'état chargé est la nouvelle ligne de base : pas d'undo possible sur le load
+    resetUndoRedo();
+    rerenderTimeline();
+
+    if (applied.length > 0) {
+      showToast(`${applied.length} correction(s) chargée(s).`, 3000, 'info');
+    } else if (Object.keys(data.manualChordOverrides || {}).length === 0) {
+      showToast('Aucune correction enregistrée dans ce projet.', 2000, 'info');
+    }
+    if (Object.keys(orphaned).length > 0) {
+      console.warn('[Analyzer] overrides orphelins conservés :', Object.keys(orphaned));
+      showToast(`${Object.keys(orphaned).length} correction(s) orpheline(s) conservée(s).`, 5000, 'warning');
+    }
+
+    markClean();
+  } catch (err) {
+    console.error('[Analyzer] load project failed:', err);
+    showToast('Erreur de lecture du projet.', 6000, 'error');
+  }
+}
+
+function describeIdentityDiff(savedAudio, currentAudio) {
+  if (!savedAudio || !currentAudio) return '';
+  if (savedAudio.path !== currentAudio.path) {
+    return ' Ce fichier audio semble différent.';
+  }
+  if (savedAudio.size > 0 && currentAudio.size > 0 && savedAudio.size !== currentAudio.size) {
+    return ' La taille du fichier a changé.';
+  }
+  if (savedAudio.modifiedAt > 0 && currentAudio.modifiedAt > 0 && savedAudio.modifiedAt !== currentAudio.modifiedAt) {
+    return ' Le fichier a été modifié.';
+  }
+  return '';
+}
+
+function safeJsonParse(str) {
+  try { return JSON.parse(str); } catch { return null; }
+}
+
+function buildAudioIdentity(audioPath, analysis, stat) {
+  return {
+    path: audioPath,
+    size: stat?.size ?? 0,
+    duration: analysis?.duration ?? 0,
+    modifiedAt: stat?.mtimeMs ?? 0,
+  };
+}
+
+// Exposé pour le gestionnaire close dans main.js
+window.__projectDirty = false;
+window.__saveProjectBeforeClose = async function () {
+  await saveProject();
+};
 
 function escapeHtml(str) {
   return String(str)

@@ -45,6 +45,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     exists: (filePath) => ipcRenderer.invoke('files:exists', filePath),
     deleteDir: (dirPath) => ipcRenderer.invoke('files:delete-dir', dirPath),
     deleteFile: (filePath) => ipcRenderer.invoke('files:delete-file', filePath),
+    saveDialog: (options) => ipcRenderer.invoke('files:save-dialog', options),
+    stat: (filePath) => ipcRenderer.invoke('files:stat', filePath),
+    rename: (oldPath, newPath) => ipcRenderer.invoke('files:rename', oldPath, newPath),
   },
   analyzer: {
     processFile: (filePath, options = {}) => ipcRenderer.invoke('analyzer:process-file', filePath, options),
