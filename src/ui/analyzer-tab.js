@@ -1,6 +1,12 @@
 import { selectMediaFile, createAudioPlayer, isSupportedMediaFile } from '../audio/media-engine.js';
 import { createAudioAnalyzer } from '../analyzer/audio-analyzer.js';
-import { exportAnalysisToMidi } from '../analyzer/midi-exporter.js';
+import {
+  exportAnalysisToMidi,
+  exportAnalysisToJson,
+  exportAnalysisToText,
+  computeProductStatistics,
+  countManuallyEditedChords,
+} from '../analyzer/analysis-export.js';
 import { miniKeyboardForNotes } from './mini-keyboard.js';
 import { CHORD_DEFINITIONS } from '../chord-engine/chord-defs.js';
 import { noteNameToPc } from '../chord-engine/intervals.js';
@@ -55,6 +61,9 @@ const els = {
   sectionPanels: document.querySelectorAll('#analyzer-section-panels > [data-section]'),
 
   exportMidiBtn: document.getElementById('analyzer-export-midi-btn'),
+  exportJsonBtn: document.getElementById('analyzer-export-json-btn'),
+  copyTextBtn: document.getElementById('analyzer-copy-text-btn'),
+  statsContent: document.getElementById('analyzer-stats-content'),
 
   // Hero chord (sous la timeline)
   hero: document.getElementById('analyzer-hero'),
@@ -90,6 +99,8 @@ export function initAnalyzerTab() {
   bindTimelineScroll();
   bindSectionTabs();
   bindExportMidiButton();
+  bindExportJsonButton();
+  bindCopyTextButton();
   initChordEditor();
   initKeyboardShortcuts();
 }
@@ -161,6 +172,7 @@ async function showResults(analysis) {
 
   renderTimeline(analysis.chords || [], analysis.duration || 0);
   updatePlayButton();
+  renderStats(analysis);
 }
 
 function renderHeader(analysis) {
@@ -622,7 +634,48 @@ async function handleExportMidi() {
     return;
   }
   await window.electronAPI.files.writeBinary(filePath, midiBytes);
-  showToast(`MIDI exporté vers ${filePath}`);
+  const edited = countManuallyEditedChords(currentAnalysis);
+  const suffix = edited > 0 ? ` — ${edited} accord(s) corrigé(s) manuellement inclus(s)` : '';
+  showToast(`MIDI exporté${suffix} vers ${filePath}`, 4000);
+}
+
+async function handleExportJson() {
+  if (!currentAnalysis) return;
+  if (!window.electronAPI?.files?.saveDialog || !window.electronAPI?.files?.writeFile) {
+    alert('Export JSON non disponible dans cet environnement.');
+    return;
+  }
+
+  const baseName = currentFileName.replace(/\.[^.]+$/, '') || 'analyse';
+  const filePath = await window.electronAPI.files.saveDialog({
+    defaultPath: `${baseName}_analysis.json`,
+    filters: [{ name: 'Fichier JSON', extensions: ['json'] }, { name: 'Tous les fichiers', extensions: ['*'] }],
+  });
+  if (!filePath) return;
+
+  const jsonData = exportAnalysisToJson(currentAnalysis);
+  await window.electronAPI.files.writeFile(filePath, JSON.stringify(jsonData, null, 2));
+  const edited = countManuallyEditedChords(currentAnalysis);
+  const suffix = edited > 0 ? ` — ${edited} correction(s) manuelle(s)` : '';
+  showToast(`JSON exporté${suffix} vers ${filePath}`, 4000);
+}
+
+async function handleCopyText() {
+  if (!currentAnalysis) return;
+  const text = exportAnalysisToText(currentAnalysis);
+  if (navigator.clipboard) {
+    await navigator.clipboard.writeText(text);
+  } else {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    textarea.remove();
+  }
+  const edited = countManuallyEditedChords(currentAnalysis);
+  const suffix = edited > 0 ? ` — ${edited} correction(s) manuelle(s)` : '';
+  showToast(`Grille texte copiée${suffix}`, 3000);
 }
 
 function showToast(message, duration = 3000, type = 'info') {
@@ -677,6 +730,14 @@ function bindSectionTabs() {
 
 function bindExportMidiButton() {
   els.exportMidiBtn?.addEventListener('click', handleExportMidi);
+}
+
+function bindExportJsonButton() {
+  els.exportJsonBtn?.addEventListener('click', handleExportJson);
+}
+
+function bindCopyTextButton() {
+  els.copyTextBtn?.addEventListener('click', handleCopyText);
 }
 
 async function loadAudioBlobUrl(filePath) {
@@ -889,10 +950,40 @@ window.__saveProjectBeforeClose = async function () {
   await saveProject();
 };
 
+function renderStats(analysis) {
+  if (!els.statsContent) return;
+  const stats = computeProductStatistics(analysis);
+  const qualityRows = Object.entries(stats.qualityCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([q, count]) => `<div class="flex justify-between text-xs"><span>${q || 'majeur'}</span><span>${count}</span></div>`)
+    .join('');
+
+  const topRows = stats.mostUsedChords
+    .map(({ symbol, count }) => `<div class="flex justify-between text-xs"><span>${escapeHtml(symbol)}</span><span>${count}</span></div>`)
+    .join('');
+
+  els.statsContent.innerHTML = `
+    <div class="space-y-3">
+      <div class="flex justify-between text-sm font-medium text-zinc-300"><span>Segments</span><span>${stats.totalSegments}</span></div>
+      <div class="flex justify-between text-sm font-medium text-zinc-300"><span>Durée totale</span><span>${formatTime(stats.totalDuration)}</span></div>
+      <div class="flex justify-between text-sm font-medium text-zinc-300"><span>Corrections manuelles</span><span>${stats.manuallyEditedCount}</span></div>
+      <div class="flex justify-between text-sm font-medium text-zinc-300"><span>Slash chords</span><span>${stats.slashChordCount}</span></div>
+      <div>
+        <div class="text-xs font-semibold text-zinc-500 uppercase mb-1">Qualités</div>
+        ${qualityRows || '<div class="text-xs text-zinc-600">Aucune</div>'}
+      </div>
+      <div>
+        <div class="text-xs font-semibold text-zinc-500 uppercase mb-1">Accords les plus utilisés</div>
+        ${topRows || '<div class="text-xs text-zinc-600">Aucun</div>'}
+      </div>
+    </div>
+  `;
+}
+
 function escapeHtml(str) {
   return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replace(/\u0026/g, '\u0026amp;')
+    .replace(/\u003c/g, '\u0026lt;')
+    .replace(/\u003e/g, '\u0026gt;')
+    .replace(/"/g, '\u0026quot;');
 }

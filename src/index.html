@@ -206,10 +206,19 @@
                   </div>
                 </details>
                 <details class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-                  <summary class="px-4 py-2.5 text-sm font-semibold text-zinc-300 cursor-pointer hover:bg-zinc-800/50 transition-colors">Export MIDI</summary>
-                  <div class="p-4 text-sm text-zinc-400" id="analyzer-midi-panel">
+                  <summary class="px-4 py-2.5 text-sm font-semibold text-zinc-300 cursor-pointer hover:bg-zinc-800/50 transition-colors">Export</summary>
+                  <div class="p-4 text-sm text-zinc-400 flex flex-col gap-2" id="analyzer-export-panel">
                     <button type="button" id="analyzer-export-midi-btn" class="px-4 py-2 rounded-lg text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors">Exporter l'analyse en MIDI</button>
-                    <p class="text-xs text-zinc-500 mt-2">Génère un fichier MIDI avec les accords et la basse détectés.</p>
+                    <button type="button" id="analyzer-export-json-btn" class="px-4 py-2 rounded-lg text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors">Exporter en JSON</button>
+                    <button type="button" id="analyzer-copy-text-btn" class="px-4 py-2 rounded-lg text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors">Copier la grille texte</button>
+                    <p class="text-xs text-zinc-500 mt-1">MIDI, JSON et texte reflètent les corrections manuelles. JSON conserve aussi la détection originale.</p>
+                  </div>
+                </details>
+
+                <details class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+                  <summary class="px-4 py-2.5 text-sm font-semibold text-zinc-300 cursor-pointer hover:bg-zinc-800/50 transition-colors">Statistiques</summary>
+                  <div class="p-4 text-sm text-zinc-400" id="analyzer-stats-panel">
+                    <div class="analyzer-stats-content" id="analyzer-stats-content">Aucune statistique disponible.</div>
                   </div>
                 </details>
               </div>
