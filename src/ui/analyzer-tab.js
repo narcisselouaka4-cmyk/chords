@@ -10,11 +10,19 @@ import {
 import { miniKeyboardForNotes } from './mini-keyboard.js';
 import { CHORD_DEFINITIONS } from '../chord-engine/chord-defs.js';
 import { noteNameToPc } from '../chord-engine/intervals.js';
+import { ChordEditor, makeSegmentId, NOTE_NAMES } from './chord-editor.js';
 import {
-  ChordEditor, makeSegmentId, getEffectiveChord, normalizeOverride,
-  formatEffectiveChord, deriveChordDisplay, NOTE_NAMES,
-  buildProjectPath, buildProjectData, validateProjectSchema,
-  verifyAudioIdentity, tryApplyProjectOverrides,
+  getEffectiveChord,
+  normalizeOverride,
+  formatEffectiveChord,
+  deriveChordDisplay,
+} from '../chord-engine/chord-display.js';
+import {
+  buildProjectPath,
+  buildProjectData,
+  validateProjectSchema,
+  verifyAudioIdentity,
+  tryApplyProjectOverrides,
 } from './chord-editor.js';
 
 const BASE_PIXELS_PER_SECOND = 80;
@@ -229,7 +237,7 @@ function chordNotes(chordName) {
   if (rootPc === null) return [];
 
   const suffix = namePart.slice(rootMatch[1].length).trim();
-  const def = CHORD_DEFINITIONS.find((d) => d.symbol === suffix);
+  const def = CHORD_DEFINITIONS.find((d) => d.symbol === suffix && !d.parentSymbol);
   const intervals = def ? def.intervals : [0, 4, 7];
 
   const chordPcs = intervals.map((i) => (rootPc + i) % 12);

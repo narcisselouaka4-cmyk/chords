@@ -1,5 +1,5 @@
 import { buildMidiFileMultiTrack } from '../recorder/serializer.js';
-import { getEffectiveChord, deriveChordDisplay, parseChordSymbol } from '../ui/chord-editor.js';
+import { getEffectiveChord, deriveChordDisplay, parseChordSymbol } from '../chord-engine/chord-display.js';
 
 // ── Phase D : exports et statistiques basés sur effectiveChord ──
 

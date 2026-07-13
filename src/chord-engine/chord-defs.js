@@ -69,6 +69,12 @@ export const CHORD_DEFINITIONS = [
 
   // Single notes
   { name: '', symbol: '', intervals: [0] },
+
+  // Définition factice partageant le symbole 'm7b5' pour tester la résolution
+  // canonique. Elle doit être placée après la définition standard. Grâce à
+  // `parentSymbol`, `resolveCanonicalChordDefinition` l'ignore et la définition
+  // complète [0,3,6,10] reste choisie pour 'm7b5'.
+  { name: 'Half-Diminished 7 (rootless mirror)', symbol: 'm7b5', parentSymbol: 'm7b5', intervals: [3, 6, 10] },
 ];
 
 // [OpenCode] — 2026-07-03 — Common rootless jazz voicings

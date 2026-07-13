@@ -1,12 +1,12 @@
+import { makeSegmentId, NOTE_NAMES, QUALITY_OPTIONS } from './chord-editor.js';
 import {
-  makeSegmentId,
   parseChordSymbol,
   formatEffectiveChord,
   getEffectiveChord,
   normalizeOverride,
   deriveChordDisplay,
-  NOTE_NAMES,
-  QUALITY_OPTIONS,
+} from '../chord-engine/chord-display.js';
+import {
   buildProjectPath,
   buildProjectData,
   validateProjectSchema,
