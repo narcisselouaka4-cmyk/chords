@@ -8,6 +8,10 @@ import {
   countManuallyEditedChords,
 } from '../analyzer/analysis-export.js';
 import { miniKeyboardForNotes } from './mini-keyboard.js';
+import {
+  updateVoicingPreviewForChord,
+  clearVoicingTextPreview,
+} from './voicing-preview.js';
 import { CHORD_DEFINITIONS } from '../chord-engine/chord-defs.js';
 import { noteNameToPc } from '../chord-engine/intervals.js';
 import { ChordEditor, makeSegmentId, NOTE_NAMES } from './chord-editor.js';
@@ -90,6 +94,7 @@ let currentFileName = '';
 let currentAudioPath = '';
 let isDraggingProgress = false;
 let lastAutoScrollIndex = -1;
+let lastRenderedVoicingChord = null;
 
 // Phase B : persistance
 let projectDirty = false;
@@ -161,6 +166,7 @@ async function showResults(analysis) {
   resetUndoRedo();
   chordEditor?.close();
   resetZoom();
+  lastRenderedVoicingChord = null;
 
   renderHeader(analysis);
   addSaveIndicator();
@@ -212,6 +218,7 @@ function showImportScreen() {
   els.importScreen.style.display = 'flex';
   els.chordTimelineInner.innerHTML = '';
   if (els.hero) els.hero.style.display = 'none';
+  clearVoicingTextPreview();
   els.stemBadge.textContent = '';
   els.stemBadge.classList.remove('visible');
   const bassTimeline = document.getElementById('analyzer-bass-timeline-wrapper');
@@ -534,6 +541,17 @@ function updatePlaybackPosition(currentTime) {
   // Hero chord
   const activeChord = activeIndex >= 0 ? chords[activeIndex] : null;
   renderHeroChord(activeChord);
+
+  // Phase 1.5A : read-only close voicing text preview
+  const effectiveChord = activeChord ? getEffectiveChord(activeChord) : null;
+  if (effectiveChord !== lastRenderedVoicingChord) {
+    lastRenderedVoicingChord = effectiveChord;
+    if (effectiveChord) {
+      updateVoicingPreviewForChord(effectiveChord);
+    } else {
+      clearVoicingTextPreview();
+    }
+  }
 
   // Auto-scroll horizontal : défiler uniquement quand le segment approche du bord.
   if (activeIndex >= 0 && activeIndex !== lastAutoScrollIndex && blocks[activeIndex]) {
