@@ -10,8 +10,8 @@ export {
   deriveChordDisplay,
 } from '../chord-engine/chord-display.js';
 
-// Import local utilisé par les fonctions de persistance.
-import { normalizeOverride as normalizeOverridePure } from '../chord-engine/chord-display.js';
+// Imports locaux : les re-exports ci-dessus ne créent pas de liaison locale.
+import { parseChordSymbol, formatEffectiveChord, normalizeOverride as normalizeOverridePure } from '../chord-engine/chord-display.js';
 
 export const QUALITY_OPTIONS = [
   { value: '', label: 'Majeur' },
