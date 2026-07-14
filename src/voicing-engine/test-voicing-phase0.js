@@ -873,8 +873,18 @@ test('aucun module du voicing-engine n\'importe src/ui/', async () => {
   const fs = await import('node:fs');
   const path = await import('node:path');
   const dir = path.dirname(new URL(import.meta.url).pathname);
-  const files = fs.readdirSync(dir).filter((f) => f.endsWith('.js') && f !== 'test-voicing-phase0.js');
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  const files = [];
+  for (const e of entries) {
+    if (e.isFile() && e.name.endsWith('.js') && e.name !== 'test-voicing-phase0.js') files.push(e.name);
+    if (e.isDirectory()) {
+      for (const sub of fs.readdirSync(path.join(dir, e.name))) {
+        if (sub.endsWith('.js')) files.push(`${e.name}/${sub}`);
+      }
+    }
+  }
   for (const f of files) {
+    if (f.startsWith('test-voicing-phase')) continue;
     const content = fs.readFileSync(path.join(dir, f), 'utf8');
     if (/from\s+['"]\.\.\/ui\//.test(content)) {
       throw new Error(`${f} imports from ../ui/ (forbidden)`);
