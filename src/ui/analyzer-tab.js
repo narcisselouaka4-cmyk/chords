@@ -11,6 +11,11 @@ import { miniKeyboardForNotes } from './mini-keyboard.js';
 import {
   updateVoicingPreviewForChord,
   clearVoicingTextPreview,
+  initVoicingStyle,
+  getVoicingStyle,
+  selectVoicingStyle,
+  setRerenderActiveVoicing,
+  renderVoicingStyleSelector,
 } from './voicing-preview.js';
 import { CHORD_DEFINITIONS } from '../chord-engine/chord-defs.js';
 import { noteNameToPc } from '../chord-engine/intervals.js';
@@ -95,6 +100,7 @@ let currentAudioPath = '';
 let isDraggingProgress = false;
 let lastAutoScrollIndex = -1;
 let lastRenderedVoicingChord = null;
+let lastRenderedVoicingStyle = null;
 
 // Phase B : persistance
 let projectDirty = false;
@@ -167,6 +173,16 @@ async function showResults(analysis) {
   chordEditor?.close();
   resetZoom();
   lastRenderedVoicingChord = null;
+  lastRenderedVoicingStyle = null;
+
+  initVoicingStyle();
+  setRerenderActiveVoicing(() => {
+    lastRenderedVoicingChord = null;
+    lastRenderedVoicingStyle = null;
+    if (currentPlayer) {
+      updatePlaybackPosition(currentPlayer.element?.currentTime ?? 0);
+    }
+  });
 
   renderHeader(analysis);
   addSaveIndicator();
@@ -216,6 +232,8 @@ function showImportScreen() {
   chordEditor?.close();
   els.results.style.display = 'none';
   els.importScreen.style.display = 'flex';
+  lastRenderedVoicingChord = null;
+  lastRenderedVoicingStyle = null;
   els.chordTimelineInner.innerHTML = '';
   if (els.hero) els.hero.style.display = 'none';
   clearVoicingTextPreview();
@@ -542,12 +560,14 @@ function updatePlaybackPosition(currentTime) {
   const activeChord = activeIndex >= 0 ? chords[activeIndex] : null;
   renderHeroChord(activeChord);
 
-  // Phase 1.5A : read-only close voicing text preview
+  // Phase 1.5A + 2B : read-only close/simple voicing text preview
   const effectiveChord = activeChord ? getEffectiveChord(activeChord) : null;
-  if (effectiveChord !== lastRenderedVoicingChord) {
+  const currentStyle = getVoicingStyle();
+  if (effectiveChord !== lastRenderedVoicingChord || currentStyle !== lastRenderedVoicingStyle) {
     lastRenderedVoicingChord = effectiveChord;
+    lastRenderedVoicingStyle = currentStyle;
     if (effectiveChord) {
-      updateVoicingPreviewForChord(effectiveChord);
+      updateVoicingPreviewForChord(effectiveChord, { style: currentStyle });
     } else {
       clearVoicingTextPreview();
     }
