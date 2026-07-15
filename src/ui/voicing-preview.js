@@ -1,4 +1,5 @@
 // Phase 1.5A — Read-Only Close Voicing Text Preview.
+// Phase 2B — Close/Simple style selector.
 // Ce module UI est la seule couche autorisée à importer le moteur de voicing.
 // Aucune règle musicale n’est déplacée ici : l’UI se contente d’adapter,
 // formater et rendre le résultat immuable produit par generateVoicing().
@@ -12,10 +13,123 @@ import { generateVoicing } from '../voicing-engine/generate-voicing.js';
  */
 
 const CONTAINER_ID = 'analyzer-voicing-preview';
+const SELECTOR_CONTAINER_ID = 'analyzer-voicing-style-selector';
+const CONTENT_ID = 'analyzer-voicing-content';
 const STORAGE_KEY = 'piano-jazz-chords:notation-sharps';
+const VOICING_STYLE_KEY = 'piano-jazz-chords.voicing-style';
+
+let currentVoicingStyle = 'close';
+let voicingStyleInitialized = false;
 
 function getLocalStorage() {
   return (typeof window !== 'undefined' && window.localStorage) ? window.localStorage : null;
+}
+
+export function normalizeVoicingStyle(raw) {
+  if (raw === 'simple') return 'simple';
+  return 'close';
+}
+
+export function getVoicingStyle() {
+  return currentVoicingStyle;
+}
+
+export function setVoicingStyle(rawStyle) {
+  const normalizedStyle = normalizeVoicingStyle(rawStyle);
+  currentVoicingStyle = normalizedStyle;
+
+  try {
+    getLocalStorage()?.setItem(VOICING_STYLE_KEY, normalizedStyle);
+  } catch {
+    // La préférence reste active pour la session courante.
+  }
+
+  return normalizedStyle;
+}
+
+export function selectVoicingStyle(rawStyle) {
+  const newStyle = normalizeVoicingStyle(rawStyle);
+  const previousStyle = currentVoicingStyle;
+
+  if (newStyle === previousStyle) {
+    updateVoicingStyleSelector(previousStyle);
+    return false;
+  }
+
+  setVoicingStyle(newStyle);
+  updateVoicingStyleSelector(newStyle);
+  rerenderActiveVoicing();
+  return true;
+}
+
+export function updateVoicingStyleSelector(selectedStyle) {
+  const container = document.getElementById(SELECTOR_CONTAINER_ID);
+  if (!container) return;
+  const buttons = container.querySelectorAll('[data-voicing-style]');
+  buttons.forEach((btn) => {
+    const isActive = btn.dataset.voicingStyle === selectedStyle;
+    btn.setAttribute('aria-pressed', String(isActive));
+    btn.classList.toggle('active', isActive);
+  });
+}
+
+export function renderVoicingStyleSelector(container, currentStyle, onChange) {
+  const selectorContainer = document.getElementById(SELECTOR_CONTAINER_ID);
+  if (!selectorContainer) return;
+  if (selectorContainer.dataset.voicingListenersAttached === 'true') return;
+
+  selectorContainer.dataset.voicingListenersAttached = 'true';
+
+  const buttons = selectorContainer.querySelectorAll('[data-voicing-style]');
+  buttons.forEach((btn) => {
+    const style = btn.dataset.voicingStyle;
+    if (!style) return;
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      onChange(style);
+    });
+
+    btn.addEventListener('keydown', (e) => {
+      if (e.key === ' ' || e.key === 'Enter') {
+        e.stopPropagation();
+      }
+    });
+  });
+}
+
+export function initVoicingStyle() {
+  if (voicingStyleInitialized) return;
+
+  let stored = 'close';
+  try {
+    const raw = getLocalStorage()?.getItem(VOICING_STYLE_KEY);
+    if (raw !== null && raw !== undefined) {
+      stored = raw;
+    }
+  } catch {
+    // localStorage inaccessible : utiliser close par défaut
+  }
+
+  currentVoicingStyle = normalizeVoicingStyle(stored);
+
+  const selectorContainer = document.getElementById(SELECTOR_CONTAINER_ID);
+  if (!selectorContainer) return;
+
+  voicingStyleInitialized = true;
+
+  renderVoicingStyleSelector(null, currentVoicingStyle, (style) => {
+    selectVoicingStyle(style);
+  });
+  updateVoicingStyleSelector(currentVoicingStyle);
+}
+
+// Re-rend le segment actif via le cache de l'analyseur.
+// Cette fonction est appelée depuis selectVoicingStyle et doit être
+// définie après l'export ; elle est remplacée par l'analyseur.
+export let rerenderActiveVoicing = () => {};
+
+export function setRerenderActiveVoicing(fn) {
+  rerenderActiveVoicing = fn;
 }
 
 /**
@@ -130,21 +244,23 @@ export function effectiveChordToVoicingInput(effectiveChord) {
  * Construit le modèle textuel à partir du résultat du moteur.
  * L’ordre des notes suit strictement l’ordre MIDI retourné.
  * @param {VoicingResult|null} result
- * @param {{ useSharps?: boolean, effectiveChord?: string }} [options]
+ * @param {{ useSharps?: boolean, effectiveChord?: string, style?: string }} [options]
  * @returns {VoicingTextModel}
  */
 export function buildVoicingTextModel(result, options = {}) {
   const useSharps = resolveUseSharps(options);
+  const style = options.style || 'close';
+  const titlePrefix = style === 'simple' ? 'VOICING SIMPLE' : 'VOICING CLOSE';
 
   if (!result) {
-    return { title: 'Voicing Close', hands: [], state: 'no-chord' };
+    return { title: titlePrefix, hands: [], state: 'no-chord' };
   }
 
   if (!result.ok) {
     const reasons = result.rejectionReasons || [];
     const isUnsupported = reasons.includes('UNSUPPORTED_QUALITY');
     return {
-      title: 'Voicing Close',
+      title: titlePrefix,
       hands: [],
       state: isUnsupported ? 'unsupported' : 'no-valid',
       reason: isUnsupported ? 'Qualité non supportée en V1' : (reasons[0] || 'Aucun voicing valide'),
@@ -155,7 +271,7 @@ export function buildVoicingTextModel(result, options = {}) {
   const formatNotes = (notes) => notes.map((midi) => midiToNoteName(midi, { useSharps }));
 
   return {
-    title: 'Voicing Close',
+    title: titlePrefix,
     hands: [
       { hand: 'LH', names: formatNotes(candidate.lh.notes), midis: [...candidate.lh.notes] },
       { hand: 'RH', names: formatNotes(candidate.rh.notes), midis: [...candidate.rh.notes] },
@@ -167,21 +283,25 @@ export function buildVoicingTextModel(result, options = {}) {
 /**
  * Rend le preview textuel dans le conteneur dédié.
  * @param {VoicingResult|null} result
- * @param {{ useSharps?: boolean, separator?: string, effectiveChord?: string }} [options]
+ * @param {{ useSharps?: boolean, separator?: string, effectiveChord?: string, style?: string }} [options]
  */
 export function renderVoicingTextPreview(result, options = {}) {
   const container = document.getElementById(CONTAINER_ID);
   if (!container) return;
 
+  const content = document.getElementById(CONTENT_ID);
   const model = buildVoicingTextModel(result, options);
 
-  container.innerHTML = '';
+  // Ne jamais toucher au sélecteur : vider uniquement la zone de contenu.
+  if (content) {
+    content.innerHTML = '';
+  }
   container.style.display = 'none';
 
   const title = document.createElement('div');
   title.className = 'voicing-preview-title';
   title.textContent = model.title;
-  container.appendChild(title);
+  appendToPreview(container, content, title);
 
   if (model.state === 'no-chord') {
     container.style.display = '';
@@ -197,8 +317,8 @@ export function renderVoicingTextPreview(result, options = {}) {
     const reason = document.createElement('div');
     reason.className = 'voicing-preview-reason';
     reason.textContent = model.reason || '';
-    container.appendChild(status);
-    container.appendChild(reason);
+    appendToPreview(container, content, status);
+    appendToPreview(container, content, reason);
     container.style.display = '';
     return;
   }
@@ -220,10 +340,22 @@ export function renderVoicingTextPreview(result, options = {}) {
 
     row.appendChild(label);
     row.appendChild(notes);
-    container.appendChild(row);
+    appendToPreview(container, content, row);
   }
 
   container.style.display = '';
+}
+
+/**
+ * Ajoute un nœud dans la zone de contenu si elle existe, sinon dans le conteneur.
+ * Préserve le sélecteur de style qui vit en dehors de la zone de contenu.
+ */
+function appendToPreview(container, content, node) {
+  if (content) {
+    content.appendChild(node);
+  } else {
+    container.appendChild(node);
+  }
 }
 
 /**
@@ -232,15 +364,19 @@ export function renderVoicingTextPreview(result, options = {}) {
 export function clearVoicingTextPreview() {
   const container = document.getElementById(CONTAINER_ID);
   if (!container) return;
-  container.innerHTML = '';
+
+  const content = document.getElementById(CONTENT_ID);
+  if (content) {
+    content.innerHTML = '';
+  }
   container.style.display = 'none';
 }
 
 /**
- * Génère le voicing Close pour un accord effectif et rend le preview textuel.
+ * Génère le voicing pour un accord effectif et rend le preview textuel.
  * Cette fonction est le point d’entrée principal pour l’analyseur.
  * @param {string|null} effectiveChord
- * @param {{ useSharps?: boolean }} [options]
+ * @param {{ useSharps?: boolean, style?: string }} [options]
  * @returns {VoicingResult|null}
  */
 export function updateVoicingPreviewForChord(effectiveChord, options = {}) {
@@ -250,9 +386,11 @@ export function updateVoicingPreviewForChord(effectiveChord, options = {}) {
     return null;
   }
 
-  const result = generateVoicing(input);
+  const style = options.style || getVoicingStyle();
+  const result = generateVoicing(input, { style });
   renderVoicingTextPreview(result, {
     ...options,
+    style,
     effectiveChord,
   });
   return result;
