@@ -226,6 +226,42 @@ export function detectChord(activeNotes) {
     }
   }
 
+  // [OpenCode] — 2026-07-16 — N2-B: Rooted seventh shell recognition
+  // When a maj7/7/m7 voicing omits the 5th but keeps root (as bass), 3rd, and 7th,
+  // the canonical quality is returned rather than falling back to power chords.
+  const SHELL_DEFS = [
+    { symbol: 'maj7', fullName: 'Major 7', intervals: [0, 4, 11] },
+    { symbol: '7',    fullName: 'Dominant 7', intervals: [0, 4, 10] },
+    { symbol: 'm7',   fullName: 'Minor 7', intervals: [0, 3, 10] },
+  ];
+  if (!bestMatch || bestScore < 68) {
+    for (const def of SHELL_DEFS) {
+      const shellPcs = buildPcSet(bassPc, def.intervals);
+      if (setEquals(shellPcs, pcSet)) {
+        const shellScore = 30 + 20 + 15 + (bassPc === uniquePcs[0] ? 3 : 0);
+        if (shellScore > bestScore) {
+          bestScore = shellScore;
+          bestMatch = {
+            rootPc: bassPc,
+            symbol: def.symbol,
+            fullName: def.fullName,
+            intervals: def.intervals,
+            notes: sortedNotes,
+            bassPc,
+            inversion: 0,
+            isSlash: false,
+            missing: [],
+            confidence: 1.0,
+            rootless: false,
+            voicing,
+            omittedIntervals: [7],
+          };
+        }
+        break;
+      }
+    }
+  }
+
   // [OpenCode] — 2026-07-03 — Rootless post-processing
   // Prefer a rootless interpretation when the standard match is a triad in root position
   // and the notes also form a known rootless 7th chord. This covers guide-tone voicings
