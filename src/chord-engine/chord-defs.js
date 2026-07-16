@@ -41,6 +41,8 @@ export const CHORD_DEFINITIONS = [
   { name: 'Minor Major 7', symbol: 'mMaj7', intervals: [0, 3, 7, 11] },
   { name: 'Dominant 7 sus4', symbol: '7sus4', intervals: [0, 5, 7, 10] },
   { name: 'Dominant 7 sus2', symbol: '7sus2', intervals: [0, 2, 7, 10] },
+  { name: 'Major 7 suspended 2', symbol: 'maj7sus2', intervals: [0, 2, 7, 11] },
+  { name: 'Major 7 suspended 4', symbol: 'maj7sus4', intervals: [0, 5, 7, 11] },
   { name: 'Minor 7 b5', symbol: 'm7b5', intervals: [0, 3, 6, 10] },
 
   // 6/9 and add chords
