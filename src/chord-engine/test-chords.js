@@ -196,6 +196,78 @@ const TESTS = [
     notes: ['E3', 'B3', 'D4', 'F4', 'G4', 'B4'].map(extractPc),
     expect: 'Em7b9',
   },
+
+  // [OpenCode] — 2026-07-16 — N2-B: Rooted seventh shell voicings (no 5th)
+  {
+    name: 'Cmaj7 shell (C E B)',
+    notes: ['C3', 'E3', 'B3'].map(extractPc),
+    expect: 'Cmaj7',
+    check: (r) => r.rootPc === 0 && r.isSlash === false && r.omittedIntervals?.includes(7),
+  },
+  {
+    name: 'C7 shell (C E Bb)',
+    notes: ['C3', 'E3', 'Bb3'].map(extractPc),
+    expect: 'C7',
+    check: (r) => r.rootPc === 0 && r.isSlash === false && r.omittedIntervals?.includes(7),
+  },
+  {
+    name: 'Cm7 shell (C Eb Bb)',
+    notes: ['C3', 'Eb3', 'Bb3'].map(extractPc),
+    expect: 'Cm7',
+    check: (r) => r.rootPc === 0 && r.isSlash === false && r.omittedIntervals?.includes(7),
+  },
+
+  // N2-B: Full seventh chords (with 5th) must still be recognised
+  {
+    name: 'Cmaj7 full (C E G B)',
+    notes: ['C3', 'E3', 'G3', 'B3'].map(extractPc),
+    expect: 'Cmaj7',
+    check: (r) => r.rootPc === 0 && r.isSlash === false,
+  },
+  {
+    name: 'C7 full (C E G Bb)',
+    notes: ['C3', 'E3', 'G3', 'Bb3'].map(extractPc),
+    expect: 'C7',
+    check: (r) => r.rootPc === 0 && r.isSlash === false,
+  },
+  {
+    name: 'Cm7 full (C Eb G Bb)',
+    notes: ['C3', 'Eb3', 'G3', 'Bb3'].map(extractPc),
+    expect: 'Cm7',
+    check: (r) => r.rootPc === 0 && r.isSlash === false,
+  },
+
+  // N2-B: Negative tests — shell must NOT override
+  {
+    name: 'C7 no5 — power chord not shell (E B)',
+    notes: ['E3', 'B3'].map(extractPc),
+    expect: 'E5',
+  },
+  {
+    name: 'Em — not Cmaj7 shell (E G B)',
+    notes: ['E3', 'G3', 'B3'].map(extractPc),
+    expect: 'Em',
+  },
+  {
+    name: 'Eb5 — not Cm7 shell (Eb Bb)',
+    notes: ['Eb3', 'Bb3'].map(extractPc),
+    expect: 'D#5',
+  },
+  {
+    name: 'Cmaj7 shell with 9th — not recognised yet (C E B D)',
+    notes: ['C3', 'E3', 'B3', 'D4'].map(extractPc),
+    expect: 'E5/C',
+  },
+  {
+    name: 'C7 shell with 13th — not recognised yet (C E Bb A)',
+    notes: ['C3', 'E3', 'Bb3', 'A4'].map(extractPc),
+    expect: 'Am/C',
+  },
+  {
+    name: 'C9sus4 no5 — not recognised as shell (C F Bb D)',
+    notes: ['C3', 'F3', 'Bb3', 'D4'].map(extractPc),
+    expect: 'A#add9/C',
+  },
 ];
 
 function extractPc(noteNameWithOctave) {
@@ -244,6 +316,43 @@ for (const qual of TRANS_QUALITIES) {
 }
 
 passed += transPassed;
+
+// [OpenCode] — 2026-07-16 — N2-B: Programmatic 12-key transposition for shell voicings (no 5th)
+const SHELL_TRANS_QUALITIES = [
+  { symbol: 'maj7', intervals: [0, 4, 11] },
+  { symbol: '7',    intervals: [0, 4, 10] },
+  { symbol: 'm7',   intervals: [0, 3, 10] },
+];
+
+let shellTransPassed = 0;
+
+for (const qual of SHELL_TRANS_QUALITIES) {
+  for (let rootPc = 0; rootPc < 12; rootPc++) {
+    transTotal++;
+    const rootName = NOTE_NAMES_MAP[rootPc];
+    const midiNotes = qual.intervals.map((interval, idx) => {
+      const notePc = (rootPc + interval) % 12;
+      return notePc + (idx === 0 ? 4 : 5) * 12;
+    });
+    const result = detectChord(midiNotes);
+    const detectedName = result
+      ? `${NOTE_NAMES_MAP[result.rootPc]}${result.symbol}${result.isSlash ? `/${NOTE_NAMES_MAP[result.bassPc]}` : ''}`
+      : 'null';
+    const expectedName = `${rootName}${qual.symbol}`;
+    const ok = result && detectedName === expectedName && result.isSlash === false && result.omittedIntervals?.includes(7);
+    if (ok) {
+      transPassed++;
+      shellTransPassed++;
+    } else {
+      let detail = `detected=${detectedName}`;
+      if (result) detail += `, omittedIntervals=${JSON.stringify(result.omittedIntervals)}`;
+      console.log(`❌ Shell transposition ${expectedName} → attendu ${expectedName}, obtenu ${detectedName} (isSlash=${result?.isSlash}) ${detail}`);
+      failed++;
+    }
+  }
+}
+
+passed += shellTransPassed;
 
 for (const test of TESTS) {
   const result = detectChord(test.notes);
