@@ -146,6 +146,50 @@ const TESTS = [
     expect: 'C13sus4',
   },
 
+  // [OpenCode] — 2026-07-16 — N1: Major 7 suspended chords
+  {
+    name: 'Cmaj7sus2',
+    notes: ['C3', 'D4', 'G4', 'B4'].map(extractPc),
+    expect: 'Cmaj7sus2',
+  },
+  {
+    name: 'Cmaj7sus4',
+    notes: ['C3', 'F4', 'G4', 'B4'].map(extractPc),
+    expect: 'Cmaj7sus4',
+  },
+  {
+    name: 'Dmaj7sus2',
+    notes: ['D3', 'E4', 'A4', 'C#5'].map(extractPc),
+    expect: 'Dmaj7sus2',
+  },
+
+  // [OpenCode] — 2026-07-16 — N1: Non-régression — C7sus4 (must not become maj7sus4)
+  {
+    name: 'C7sus4 regression',
+    notes: ['C3', 'F4', 'G4', 'Bb4'].map(extractPc),
+    expect: 'C7sus4',
+  },
+  // Non-régression — C9sus4
+  {
+    name: 'C9sus4 regression',
+    notes: ['C3', 'F4', 'G4', 'Bb4', 'D5'].map(extractPc),
+    expect: 'C9sus4',
+  },
+  // Non-régression — Gadd11 with G bass (must NOT become Cmaj7sus2)
+  {
+    name: 'Gadd11 regression',
+    notes: ['G2', 'B3', 'D4', 'C5'].map(extractPc),
+    expect: 'Gadd11',
+    check: (r) => r.rootPc === 7 && r.isSlash === false,
+  },
+  // Non-régression — Aadd11 with A bass (must NOT become Dmaj7sus2)
+  {
+    name: 'Aadd11 regression',
+    notes: ['A2', 'C#4', 'E4', 'D5'].map(extractPc),
+    expect: 'Aadd11',
+    check: (r) => r.rootPc === 9 && r.isSlash === false,
+  },
+
   // [OpenCode] — 2026-07-04 — Cluster voicing should keep harmonic name (Em7b9)
   {
     name: 'Em7b9 cluster voicing',
@@ -164,6 +208,42 @@ function extractPc(noteNameWithOctave) {
 
 let passed = 0;
 let failed = 0;
+
+// [OpenCode] — 2026-07-16 — N1: Programmatic 12-key transposition for maj7sus2 and maj7sus4
+const NOTE_NAMES_MAP = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const TRANS_QUALITIES = [
+  { symbol: 'maj7sus2', intervals: [0, 2, 7, 11] },
+  { symbol: 'maj7sus4', intervals: [0, 5, 7, 11] },
+];
+
+let transPassed = 0;
+let transTotal = 0;
+
+for (const qual of TRANS_QUALITIES) {
+  for (let rootPc = 0; rootPc < 12; rootPc++) {
+    transTotal++;
+    const rootName = NOTE_NAMES_MAP[rootPc];
+    const midiNotes = qual.intervals.map((interval, idx) => {
+      const notePc = (rootPc + interval) % 12;
+      // Root in octave 3, others in octave 4
+      return notePc + (idx === 0 ? 4 : 5) * 12;
+    });
+    const result = detectChord(midiNotes);
+    const detectedName = result
+      ? `${NOTE_NAMES_MAP[result.rootPc]}${result.symbol}${result.isSlash ? `/${NOTE_NAMES_MAP[result.bassPc]}` : ''}`
+      : 'null';
+    const expectedName = `${rootName}${qual.symbol}`;
+    const ok = result && detectedName === expectedName && result.isSlash === false;
+    if (ok) {
+      transPassed++;
+    } else {
+      console.log(`❌ Transposition ${expectedName} → attendu ${expectedName}, obtenu ${detectedName} (isSlash=${result?.isSlash})`);
+      failed++;
+    }
+  }
+}
+
+passed += transPassed;
 
 for (const test of TESTS) {
   const result = detectChord(test.notes);
@@ -189,5 +269,6 @@ for (const test of TESTS) {
   }
 }
 
-console.log(`\nRésultat : ${passed}/${TESTS.length} tests réussis`);
+const totalTests = TESTS.length + transTotal;
+console.log(`\nRésultat : ${passed}/${totalTests} tests réussis (${TESTS.length} directs + ${transTotal} transpositions)`);
 process.exit(failed > 0 ? 1 : 0);
