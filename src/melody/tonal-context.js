@@ -9,6 +9,13 @@ import {
   parseKeyInput,
   buildPcHistogram,
 } from '../analyzer/key-detector.js';
+import {
+  createSpelledKeyFromKeyObject,
+  createSpelledKeyFromTonicSpelling,
+  pitchClassFromSpelling,
+  setPreferredKeySpelling as applyPreferredKeySpelling,
+  clearPreferredKeySpelling as applyClearPreferredKeySpelling,
+} from './spelled-pitch.js';
 
 // ---------------------------------------------------------------------------
 // Types conceptuels (documentés dans ./midi-types.js)
@@ -34,6 +41,7 @@ import {
  * @typedef {{
  *   id: string,
  *   selected: { tonicPitchClass: number, mode: string } | null,
+ *   spelledKey: import('./midi-types.js').SpelledKey | null,
  *   candidates: TonalCandidate[],
  *   selectionOrigin: 'detected' | 'manual' | 'corrected' | null,
  *   melodyEstimate: TonalCandidate | null,
@@ -143,6 +151,7 @@ export function estimateTonalContextFromMelody(track, options = {}) {
       context: {
         id: makeContextId(),
         selected: null,
+        spelledKey: null,
         candidates: [],
         selectionOrigin: null,
         melodyEstimate: null,
@@ -178,11 +187,16 @@ export function estimateTonalContextFromMelody(track, options = {}) {
     ? { tonicPitchClass: melodyEstimate.tonicPitchClass, mode: melodyEstimate.mode }
     : null;
 
+  const spelledKey = selected
+    ? createSpelledKeyFromKeyObject(selected, 'detected-default')
+    : null;
+
   const now = Date.now();
   return {
     context: {
       id: makeContextId(),
       selected,
+      spelledKey,
       candidates,
       selectionOrigin: selected ? 'detected' : null,
       melodyEstimate,
@@ -201,6 +215,7 @@ export function estimateTonalContextFromMelody(track, options = {}) {
  *
  * @param {object} [options]
  * @param {{ tonicPitchClass: number, mode: string } | null} [options.selected]
+ * @param {import('./midi-types.js').SpelledKey | null} [options.spelledKey]
  * @param {TonalCandidate[]} [options.candidates]
  * @param {TonalCandidate | null} [options.melodyEstimate]
  * @param {TonalCandidate | null} [options.harmonyEstimate]
@@ -208,11 +223,19 @@ export function estimateTonalContextFromMelody(track, options = {}) {
  */
 export function createTonalContext(options = {}) {
   const now = Date.now();
+  const selected = options.selected || null;
+
+  let spelledKey = options.spelledKey || null;
+  if (selected && !spelledKey) {
+    spelledKey = createSpelledKeyFromKeyObject(selected, 'manual');
+  }
+
   return {
     id: makeContextId(),
-    selected: options.selected || null,
+    selected,
+    spelledKey,
     candidates: options.candidates || [],
-    selectionOrigin: options.selected ? 'manual' : null,
+    selectionOrigin: selected ? 'manual' : null,
     melodyEstimate: options.melodyEstimate || null,
     harmonyEstimate: options.harmonyEstimate || null,
     confirmedByUser: false,
@@ -234,9 +257,12 @@ export function selectTonalCandidate(context, candidateIndex) {
     throw new RangeError(`Index candidat invalide : ${candidateIndex}`);
   }
   const candidate = context.candidates[candidateIndex];
+  const selected = { tonicPitchClass: candidate.tonicPitchClass, mode: candidate.mode };
+  const spelledKey = createSpelledKeyFromKeyObject(selected, 'detected-default');
   return {
     ...context,
-    selected: { tonicPitchClass: candidate.tonicPitchClass, mode: candidate.mode },
+    selected,
+    spelledKey,
     selectionOrigin: 'detected',
     confirmedByUser: true,
     confidence: candidate.confidence,
@@ -245,35 +271,89 @@ export function selectTonalCandidate(context, candidateIndex) {
 }
 
 /**
+ * Parse une chaîne de tonalité enharmonique (C#, Db, C#m, Dbm...).
+ *
+ * @param {string} key
+ * @returns {{ tonicPitchClass: number, mode: string, letter: string, accidental: number } | null}
+ */
+function parseManualKeyInput(key) {
+  if (!key) return null;
+  const normalized = String(key).trim().replace(/♭/g, 'b').replace(/♯/g, '#');
+  const match = normalized.match(/^([A-Ga-g][#b]?)(m?)$/);
+  if (!match) return null;
+
+  const raw = match[1];
+  const letter = raw.charAt(0).toUpperCase();
+  const accidentalStr = raw.slice(1).toLowerCase();
+  let accidental = 0;
+  for (const ch of accidentalStr) {
+    if (ch === '#') accidental += 1;
+    else if (ch === 'b') accidental -= 1;
+  }
+
+  const tonicPitchClass = pitchClassFromSpelling(letter, accidental);
+  const mode = match[2] === 'm' ? 'minor' : 'major';
+  return { tonicPitchClass, mode, letter, accidental };
+}
+
+function normalizePc(pc) {
+  return ((pc % 12) + 12) % 12;
+}
+
+/**
  * Définit manuellement une tonalité (écrase toute détection).
+ * Conserve l'orthographe enharmonique exacte si une chaîne "C#" ou "Db" est fournie.
  *
  * @param {TonalContext} context
- * @param {{ tonicPitchClass: number, mode: string } | string} key - objet {tonicPitchClass, mode} ou chaîne "C", "Cm", "F#m", etc.
+ * @param {{ tonicPitchClass: number, mode: string, letter?: string, accidental?: number, spelledKey?: import('./midi-types.js').SpelledKey } | string} key
  * @returns {TonalContext}
  */
 export function setManualTonalContext(context, key) {
-  let resolved;
+  let selected;
+  let spelledKey;
+
   if (typeof key === 'string') {
-    const parsed = parseKeyInput(key);
+    const parsed = parseManualKeyInput(key);
     if (!parsed) {
       throw new Error(`Impossible de parser la tonalité : "${key}"`);
     }
-    resolved = { tonicPitchClass: parsed.pc, mode: parsed.mode };
-  } else if (key && typeof key.tonicPitchClass === 'number' && typeof key.mode === 'string') {
-    resolved = { tonicPitchClass: ((key.tonicPitchClass % 12) + 12) % 12, mode: key.mode };
+    selected = { tonicPitchClass: parsed.tonicPitchClass, mode: parsed.mode };
+    spelledKey = createSpelledKeyFromTonicSpelling(
+      selected.tonicPitchClass,
+      selected.mode,
+      parsed.letter,
+      parsed.accidental,
+      'manual',
+    );
+  } else if (key && typeof key === 'object' && typeof key.tonicPitchClass === 'number' && typeof key.mode === 'string') {
+    selected = { tonicPitchClass: normalizePc(key.tonicPitchClass), mode: key.mode };
+    if (typeof key.letter === 'string' && typeof key.accidental === 'number') {
+      spelledKey = createSpelledKeyFromTonicSpelling(
+        selected.tonicPitchClass,
+        selected.mode,
+        key.letter,
+        key.accidental,
+        'manual',
+      );
+    } else if (key.spelledKey && typeof key.spelledKey === 'object') {
+      spelledKey = applyPreferredKeySpelling({ ...context, selected }, key.spelledKey).spelledKey;
+    } else {
+      spelledKey = createSpelledKeyFromKeyObject(selected, 'manual');
+    }
   } else {
     throw new TypeError('Tonalité invalide : fournir {tonicPitchClass, mode} ou une chaîne "C", "Cm", etc.');
   }
 
-  if (resolved.mode !== 'major' && resolved.mode !== 'minor') {
-    throw new Error(`Mode non supporté : "${resolved.mode}". Utiliser "major" ou "minor".`);
+  if (selected.mode !== 'major' && selected.mode !== 'minor') {
+    throw new Error(`Mode non supporté : "${selected.mode}". Utiliser "major" ou "minor".`);
   }
 
   // La sélection manuelle est conservée séparément des candidats détectés.
   // On ne modifie ni les scores ni la liste des candidats automatiques.
   return {
     ...context,
-    selected: resolved,
+    selected,
+    spelledKey,
     candidates: context.candidates.map((c) => ({ ...c, evidence: { ...c.evidence } })),
     selectionOrigin: 'manual',
     confirmedByUser: true,
@@ -287,13 +367,17 @@ export function setManualTonalContext(context, key) {
  * Se comporte comme setManualTonalContext mais conserve selectionOrigin = 'corrected'.
  *
  * @param {TonalContext} context
- * @param {{ tonicPitchClass: number, mode: string } | string} key
+ * @param {{ tonicPitchClass: number, mode: string, letter?: string, accidental?: number, spelledKey?: import('./midi-types.js').SpelledKey } | string} key
  * @returns {TonalContext}
  */
 export function correctTonalContext(context, key) {
   const corrected = setManualTonalContext(context, key);
+  const spelledKey = corrected.spelledKey
+    ? Object.freeze({ ...corrected.spelledKey, source: 'corrected', explicit: true })
+    : null;
   return {
     ...corrected,
+    spelledKey,
     selectionOrigin: 'corrected',
   };
 }
@@ -310,9 +394,14 @@ export function clearTonalConfirmation(context) {
     ? { tonicPitchClass: melodyEstimate.tonicPitchClass, mode: melodyEstimate.mode }
     : null;
 
+  const spelledKey = selected
+    ? createSpelledKeyFromKeyObject(selected, 'detected-default')
+    : null;
+
   return {
     ...context,
     selected,
+    spelledKey,
     selectionOrigin: selected ? 'detected' : null,
     confirmedByUser: false,
     confidence: melodyEstimate ? melodyEstimate.confidence : null,

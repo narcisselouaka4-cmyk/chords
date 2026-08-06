@@ -122,39 +122,108 @@
  */
 
 /**
+ * Candidat tonal.
+ * @typedef {{
+ *   tonicPitchClass: number,
+ *   mode: string,
+ *   confidence: number,
+ *   score: number,
+ *   source: 'melody-raw-notes' | 'harmony-chords' | 'combined' | 'manual',
+ *   evidence: {
+ *     noteCount: number,
+ *     weightedPitchClasses: number[],
+ *     supportingEventIds: string[],
+ *     conflictingEventIds: string[]
+ *   }
+ * }} TonalCandidate
+ */
+
+/**
  * Contexte tonal.
  * @typedef {{
- *   tonicPc: number,
- *   mode: 'major' | 'minor',
- *   confidence: number,
- *   candidates: { tonicPc: number, mode: string, confidence: number }[]
+ *   id: string,
+ *   selected: { tonicPitchClass: number, mode: string } | null,
+ *   spelledKey: SpelledKey | null,
+ *   candidates: TonalCandidate[],
+ *   selectionOrigin: 'detected' | 'manual' | 'corrected' | null,
+ *   melodyEstimate: TonalCandidate | null,
+ *   harmonyEstimate: TonalCandidate | null,
+ *   confirmedByUser: boolean,
+ *   confidence: number | null,
+ *   createdAt: number,
+ *   updatedAt: number
  * }} TonalContext
+ */
+
+/**
+ * Référence d'accord conservant l'orthographe originale.
+ * @typedef {{
+ *   root: number,
+ *   quality: string,
+ *   bass: number | null,
+ *   rootSpelling: SpelledPitch | null,
+ *   bassSpelling: SpelledPitch | null,
+ *   originalSymbol: string | null
+ * }} ChordReference
  */
 
 /**
  * Point d'ancrage harmonique dans la phrase.
  * @typedef {{
  *   anchorId: string,
- *   melodyEventId: string,
- *   time: number,
- *   rootPc: number,
- *   quality: string,
- *   bassPc: number | null,
- *   isUserDefined: boolean,
- *   source: 'manual' | 'detected' | 'imported'
+ *   melodyEventId: string | null,
+ *   relativeTime: number,
+ *   sourceTime: number | null,
+ *   type: 'start' | 'end' | 'user' | 'original-chord' | 'section',
+ *   harmonizationPolicy: 'force' | 'automatic' | 'skip',
+ *   originalChord: ChordReference | null,
+ *   locked: boolean,
+ *   label: string | null
  * }} HarmonicAnchor
  */
 
 /**
- * Pitch class avec orthographe enharmonique.
+ * Contexte harmonique lié à une MelodyTrack.
  * @typedef {{
- *   midi: number,
- *   pitchClass: number,
- *   letter: string,
- *   accidental: string,
- *   octave: number,
- *   displayName: string
+ *   id: string,
+ *   melodyTrackId: string,
+ *   tonalContext: TonalContext | null,
+ *   startChord: { chord: ChordReference, locked: boolean } | null,
+ *   endChord: { chord: ChordReference, locked: boolean } | null,
+ *   originalProgression: HarmonicAnchor[],
+ *   anchors: HarmonicAnchor[],
+ *   version: number,
+ *   createdAt: number,
+ *   updatedAt: number
+ * }} HarmonicContext
+ */
+
+/**
+ * Hauteur sonore et orthographe musicale distinctes.
+ *
+ * Identité sonore : pitchClass 0-11 (+ octave éventuelle).
+ * Orthographe     : letter A-G + accidental entier.
+ *
+ * @typedef {{
+ *   pitchClass: number,      // 0-11
+ *   letter: 'C' | 'D' | 'E' | 'F' | 'G' | 'A' | 'B',
+ *   accidental: number,       // -2 double bémol, -1 bémol, 0 naturel, 1 dièse, 2 double dièse
+ *   octave: number | null,
+ *   origin: 'key-context' | 'chord-symbol' | 'manual' | 'detected' | 'fallback',
+ *   explicit: boolean
  * }} SpelledPitch
+ */
+
+/**
+ * Tonalité avec orthographe préférée explicite.
+ * @typedef {{
+ *   tonicPitchClass: number,
+ *   mode: string,
+ *   tonic: SpelledPitch,
+ *   fifths: number | null,
+ *   source: 'detected-default' | 'manual' | 'corrected' | 'imported',
+ *   explicit: boolean
+ * }} SpelledKey
  */
 
 /**

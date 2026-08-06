@@ -4,6 +4,7 @@
 // d'accords existant (src/chord-engine/chord-display.js, chord-defs.js).
 
 import { parseChordSymbol, resolveCanonicalChordDefinition } from '../chord-engine/chord-display.js';
+import { parseSpelledChordSymbol, spellChordReference } from './spelled-pitch.js';
 
 // ---------------------------------------------------------------------------
 // Types conceptuels (documentés dans ./midi-types.js)
@@ -12,11 +13,15 @@ import { parseChordSymbol, resolveCanonicalChordDefinition } from '../chord-engi
 /**
  * Référence d'accord réutilisant les structures existantes du moteur d'accords.
  * Format compatible avec parseChordSymbol() de chord-display.js.
+ * Conserve l'orthographe exacte saisie par l'utilisateur.
  *
  * @typedef {{
  *   root: number,
  *   quality: string,
- *   bass: number | null
+ *   bass: number | null,
+ *   rootSpelling: import('./midi-types.js').SpelledPitch | null,
+ *   bassSpelling: import('./midi-types.js').SpelledPitch | null,
+ *   originalSymbol: string | null
  * }} ChordReference
  */
 
@@ -39,8 +44,8 @@ import { parseChordSymbol, resolveCanonicalChordDefinition } from '../chord-engi
  *   id: string,
  *   melodyTrackId: string,
  *   tonalContext: import('./tonal-context.js').TonalContext,
- *   startChord: ChordReference | null,
- *   endChord: ChordReference | null,
+ *   startChord: { chord: ChordReference, locked: boolean } | null,
+ *   endChord: { chord: ChordReference, locked: boolean } | null,
  *   originalProgression: HarmonicAnchor[],
  *   anchors: HarmonicAnchor[],
  *   version: number,
@@ -55,7 +60,8 @@ import { parseChordSymbol, resolveCanonicalChordDefinition } from '../chord-engi
  *   code: string,
  *   message: string,
  *   anchorId: string | null,
- *   melodyEventId: string | null
+ *   melodyEventId: string | null,
+ *   details: object
  * }} ValidationIssue
  */
 
@@ -63,7 +69,8 @@ import { parseChordSymbol, resolveCanonicalChordDefinition } from '../chord-engi
  * @typedef {{
  *   valid: boolean,
  *   errors: ValidationIssue[],
- *   warnings: ValidationIssue[]
+ *   warnings: ValidationIssue[],
+ *   anchorStatuses: { anchorId: string, status: 'ok' | 'warning' | 'error', issues: ValidationIssue[] }[]
  * }} ValidationResult
  */
 
@@ -97,25 +104,18 @@ function resolveChordReference(chordStr) {
     return { chord: null, error: null };
   }
 
-  const parsed = parseChordSymbol(chordStr);
-  if (parsed.isN) {
+  const chord = parseSpelledChordSymbol(chordStr);
+  if (!chord) {
     return { chord: null, error: null };
   }
 
-  const quality = parsed.quality || '';
+  const quality = chord.quality || '';
   const def = resolveCanonicalChordDefinition(quality);
   if (!def && quality !== '') {
     return { chord: null, error: `Qualité d'accord inconnue : "${quality}" dans "${chordStr}"` };
   }
 
-  return {
-    chord: {
-      root: ((parsed.root % 12) + 12) % 12,
-      quality: quality,
-      bass: parsed.bass != null ? ((parsed.bass % 12) + 12) % 12 : null,
-    },
-    error: null,
-  };
+  return { chord, error: null };
 }
 
 // ---------------------------------------------------------------------------
@@ -142,7 +142,7 @@ export function createHarmonicContext(track, options = {}) {
     if (resolved.error) {
       throw new Error(`Accord initial invalide : ${resolved.error}`);
     }
-    startChord = resolved.chord;
+    startChord = resolved.chord ? { chord: resolved.chord, locked: false } : null;
   }
 
   let endChord = null;
@@ -151,7 +151,7 @@ export function createHarmonicContext(track, options = {}) {
     if (resolved.error) {
       throw new Error(`Accord final invalide : ${resolved.error}`);
     }
-    endChord = resolved.chord;
+    endChord = resolved.chord ? { chord: resolved.chord, locked: false } : null;
   }
 
   return {
@@ -172,25 +172,32 @@ export function createHarmonicContext(track, options = {}) {
  * Définit l'accord initial.
  *
  * @param {HarmonicContext} context
- * @param {string | ChordReference | null} chord - symbole d'accord ou null pour retirer
+ * @param {string | import('./midi-types.js').ChordReference | { chord: import('./midi-types.js').ChordReference, locked: boolean } | null} chord - symbole d'accord ou null pour retirer
+ * @param {{ locked?: boolean }} [options]
  * @returns {HarmonicContext}
  */
-export function setStartChord(context, chord) {
-  let resolved = null;
+export function setStartChord(context, chord, options = {}) {
+  let next = null;
   if (chord !== null && chord !== undefined) {
     if (typeof chord === 'string') {
       const r = resolveChordReference(chord);
       if (r.error) {
         throw new Error(`Accord initial invalide : ${r.error}`);
       }
-      resolved = r.chord;
+      next = { chord: r.chord, locked: options.locked === true };
+    } else if (chord && typeof chord === 'object' && chord.chord) {
+      // Déjà un objet { chord, locked }
+      next = {
+        chord: { ...chord.chord },
+        locked: options.locked === true || chord.locked === true,
+      };
     } else {
-      resolved = { ...chord };
+      next = { chord: { ...chord }, locked: options.locked === true };
     }
   }
   return {
     ...context,
-    startChord: resolved,
+    startChord: next,
     version: context.version + 1,
     updatedAt: Date.now(),
   };
@@ -200,25 +207,67 @@ export function setStartChord(context, chord) {
  * Définit l'accord final.
  *
  * @param {HarmonicContext} context
- * @param {string | ChordReference | null} chord - symbole d'accord ou null pour retirer
+ * @param {string | import('./midi-types.js').ChordReference | { chord: import('./midi-types.js').ChordReference, locked: boolean } | null} chord - symbole d'accord ou null pour retirer
+ * @param {{ locked?: boolean }} [options]
  * @returns {HarmonicContext}
  */
-export function setEndChord(context, chord) {
-  let resolved = null;
+export function setEndChord(context, chord, options = {}) {
+  let next = null;
   if (chord !== null && chord !== undefined) {
     if (typeof chord === 'string') {
       const r = resolveChordReference(chord);
       if (r.error) {
         throw new Error(`Accord final invalide : ${r.error}`);
       }
-      resolved = r.chord;
+      next = { chord: r.chord, locked: options.locked === true };
+    } else if (chord && typeof chord === 'object' && chord.chord) {
+      next = {
+        chord: { ...chord.chord },
+        locked: options.locked === true || chord.locked === true,
+      };
     } else {
-      resolved = { ...chord };
+      next = { chord: { ...chord }, locked: options.locked === true };
     }
   }
   return {
     ...context,
-    endChord: resolved,
+    endChord: next,
+    version: context.version + 1,
+    updatedAt: Date.now(),
+  };
+}
+
+/**
+ * Verrouille ou déverrouille l'accord initial.
+ *
+ * @param {HarmonicContext} context
+ * @param {boolean} locked
+ * @returns {HarmonicContext}
+ */
+export function setStartChordLocked(context, locked) {
+  return {
+    ...context,
+    startChord: context.startChord
+      ? { chord: { ...context.startChord.chord }, locked: locked === true }
+      : null,
+    version: context.version + 1,
+    updatedAt: Date.now(),
+  };
+}
+
+/**
+ * Verrouille ou déverrouille l'accord final.
+ *
+ * @param {HarmonicContext} context
+ * @param {boolean} locked
+ * @returns {HarmonicContext}
+ */
+export function setEndChordLocked(context, locked) {
+  return {
+    ...context,
+    endChord: context.endChord
+      ? { chord: { ...context.endChord.chord }, locked: locked === true }
+      : null,
     version: context.version + 1,
     updatedAt: Date.now(),
   };
@@ -412,6 +461,8 @@ export function validateHarmonicContext(context, track) {
   const errors = [];
   /** @type {ValidationIssue[]} */
   const warnings = [];
+  /** @type {ValidationResult['anchorStatuses']} */
+  const anchorStatuses = [];
 
   // 1. MelodyTrack référencée
   if (!track || !track.id) {
@@ -458,7 +509,7 @@ export function validateHarmonicContext(context, track) {
 
   // 3. startChord et endChord reconnus
   if (context.startChord) {
-    const quality = context.startChord.quality || '';
+    const quality = context.startChord.chord.quality || '';
     if (quality !== '') {
       const def = resolveCanonicalChordDefinition(quality);
       if (!def) {
@@ -468,13 +519,14 @@ export function validateHarmonicContext(context, track) {
           message: `Qualité d'accord initial inconnue : "${quality}".`,
           anchorId: null,
           melodyEventId: null,
+          details: {},
         });
       }
     }
   }
 
   if (context.endChord) {
-    const quality = context.endChord.quality || '';
+    const quality = context.endChord.chord.quality || '';
     if (quality !== '') {
       const def = resolveCanonicalChordDefinition(quality);
       if (!def) {
@@ -484,6 +536,7 @@ export function validateHarmonicContext(context, track) {
           message: `Qualité d'accord final inconnue : "${quality}".`,
           anchorId: null,
           melodyEventId: null,
+          details: {},
         });
       }
     }
@@ -550,22 +603,48 @@ export function validateHarmonicContext(context, track) {
   const trackDuration = track.duration || (track.endedAt - track.startedAt);
   for (const anchor of context.anchors) {
     if (anchor.relativeTime < 0) {
-      errors.push({
+      const issue = {
         severity: 'error',
         code: 'ANCHOR_TIME_NEGATIVE',
         message: `L'ancre "${anchor.id}" a un temps négatif : ${anchor.relativeTime}.`,
         anchorId: anchor.id,
         melodyEventId: anchor.melodyEventId,
-      });
+        details: { relativeTime: anchor.relativeTime },
+      };
+      errors.push(issue);
+      anchorStatuses.push({ anchorId: anchor.id, status: 'error', issues: [issue] });
+      continue;
     }
+
     if (trackDuration > 0 && anchor.relativeTime > trackDuration + 1e-6) {
-      warnings.push({
-        severity: 'warning',
+      const isForce = anchor.harmonizationPolicy === 'force';
+      const isLocked = anchor.locked === true;
+      const isImposedProgression = anchor.type === 'original-chord' && anchor.originalChord != null;
+      const severity = (isForce || isLocked || isImposedProgression) ? 'error' : 'warning';
+
+      const issue = {
+        severity,
         code: 'ANCHOR_TIME_OUTSIDE_TRACK',
         message: `L'ancre "${anchor.id}" (t=${anchor.relativeTime}) dépasse la durée de la piste (${trackDuration}).`,
         anchorId: anchor.id,
         melodyEventId: anchor.melodyEventId,
-      });
+        details: {
+          relativeTime: anchor.relativeTime,
+          trackDuration,
+          isForce,
+          isLocked,
+          isImposedProgression,
+        },
+      };
+
+      if (severity === 'error') {
+        errors.push(issue);
+      } else {
+        warnings.push(issue);
+      }
+      anchorStatuses.push({ anchorId: anchor.id, status: severity, issues: [issue] });
+    } else {
+      anchorStatuses.push({ anchorId: anchor.id, status: 'ok', issues: [] });
     }
   }
 
@@ -642,6 +721,7 @@ export function validateHarmonicContext(context, track) {
     valid: errors.length === 0,
     errors,
     warnings,
+    anchorStatuses,
   };
 }
 
