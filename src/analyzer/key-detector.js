@@ -184,6 +184,49 @@ export function computeKeyFromRawNotes(events, options = {}) {
   };
 }
 
+/**
+ * Retourne tous les candidats tonals (24 combinaisons pc × mode) triés par
+ * score Krumhansl-Kessler décroissant. Utilisé par le contexte tonal pour
+ * conserver les alternatives et permettre la sélection/correction manuelle.
+ *
+ * @param {Array<{time:number, type:string, note?:number, velocity?:number}>} events
+ * @param {object} [options]
+ * @param {boolean} [options.useSharps]
+ * @param {boolean} [options.latin]
+ * @returns {Array<{pc:number, mode:string, name:string, score:number, confidence:number}>}
+ */
+export function computeKeyCandidatesFromRawNotes(events, options = {}) {
+  const hist = buildPcHistogram(events);
+  const histTotal = hist.reduce((a, b) => a + b, 0);
+
+  if (histTotal <= 0) return [];
+
+  const normalized = hist.map((v) => v / (Math.max(...hist) || 1));
+  const candidates = [];
+
+  for (let pc = 0; pc < 12; pc++) {
+    const majorScore = correlation(normalized, rotate(MAJOR_PROFILE, pc));
+    const minorScore = correlation(normalized, rotate(MINOR_PROFILE, pc));
+    candidates.push({
+      pc,
+      mode: 'major',
+      name: keyName(pc, 'major', options.useSharps !== false, options.latin),
+      score: majorScore,
+      confidence: Math.min(1, Math.max(0, majorScore)),
+    });
+    candidates.push({
+      pc,
+      mode: 'minor',
+      name: keyName(pc, 'minor', options.useSharps !== false, options.latin),
+      score: minorScore,
+      confidence: Math.min(1, Math.max(0, minorScore)),
+    });
+  }
+
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates;
+}
+
 export function detectKey(events, chords, options = {}) {
   const hist = buildPcHistogram(events);
   const histTotal = hist.reduce((a, b) => a + b, 0);
