@@ -13,7 +13,8 @@
  *   controller?: number,      // 0-127, présent pour control
  *   value?: number,           // 0-127 pour control
  *   channel: number,           // 0-15
- *   synthetic?: boolean,      // true si généré par le moteur (finalize, reset...)
+ *   sourceId?: string,         // identifiant de la source MIDI
+ *   synthetic: boolean,        // false si réel, true si généré par le moteur
  *   terminationReason?: string // raison de fin pour note_off synthétique
  * }} MidiNoteEvent
  */
@@ -46,17 +47,35 @@
  */
 
 /**
+ * Marqueur temporel sur une piste mélodique.
+ * @typedef {{
+ *   id: string,
+ *   time: number,            // secondes depuis le début de la piste
+ *   type: 'phrase-start' | 'phrase-end' | 'section' | 'user',
+ *   label: string | null
+ * }} MelodyMarker
+ */
+
+/**
  * Note de mélodie avec politique d'harmonisation.
  * @typedef {{
- *   id: string,                        // identifiant stable
- *   midi: number,                    // 0-127
- *   pitchClass: number,              // 0-11
- *   octave: number,                  // C4=4
- *   startTime: number,               // secondes
- *   duration: number,                // secondes
- *   velocity: number,                // 0-1
+ *   id: string,              // identifiant stable
+ *   sourceNoteId: string,    // référence à la MidiNote source
+ *   midi: number,            // 0-127
+ *   pitchClass: number,      // 0-11
+ *   octave: number,          // C4=4
+ *   velocity: number,        // 0-1
+ *   startedAt: number,       // secondes depuis le début de la piste
+ *   releasedAt: number | null,
+ *   endedAt: number,
+ *   duration: number,
+ *   channel: number,         // 0-15
+ *   sourceId: string | null, // identifiant de la source MIDI
+ *   preserveExactPitch: boolean,
+ *   sopranoPolicy: 'allow-notes-above' | 'melody-must-be-top' | 'free',
  *   harmonizationPolicy: 'force' | 'automatic' | 'skip',
- *   spelled: SpelledPitch | null     // orthographe enharmonique (Incrément 3)
+ *   enabled: boolean,
+ *   annotations: string[]
  * }} MelodyEvent
  */
 
@@ -64,11 +83,42 @@
  * Piste mélodique complète.
  * @typedef {{
  *   id: string,
- *   events: MelodyEvent[],
- *   markers: { time: number, label: string }[],
+ *   name: string,
+ *   sourceCaptureId: string,
+ *   startedAt: number,       // secondes absolus de la capture source
+ *   endedAt: number,
  *   duration: number,
- *   tonalContext: TonalContext | null
+ *   events: MelodyEvent[],
+ *   markers: MelodyMarker[],
+ *   version: number,
+ *   createdAt: number,
+ *   updatedAt: number
  * }} MelodyTrack
+ */
+
+/**
+ * Diagnostic non destructif d'une piste mélodique.
+ * @typedef {{
+ *   overlaps: { fromId: string, toId: string, time: number }[],
+ *   simultaneousAttacks: { time: number, ids: string[] }[],
+ *   unusuallyLongNotes: { id: string, duration: number, threshold: number }[],
+ *   incompleteEvents: { id: string, reason: string }[],
+ *   forcedTerminations: { id: string, reason: string }[],
+ *   warnings: string[]
+ * }} MelodyTrackDiagnostic
+ */
+
+/**
+ * Événement de lecture produit à partir d'une MelodyTrack.
+ * @typedef {{
+ *   time: number,            // secondes relatifs à la piste
+ *   type: 'note_on' | 'note_off',
+ *   midi: number,
+ *   velocity: number,
+ *   channel: number,
+ *   sourceId: string | null,
+ *   melodyEventId: string
+ * }} MelodyPlaybackEvent
  */
 
 /**
