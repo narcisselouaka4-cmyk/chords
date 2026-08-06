@@ -88,6 +88,7 @@ export function createMidiCapture({ getTime = getDefaultTime } = {}) {
       velocity: safeVelocity,
       channel,
       sourceId,
+      synthetic: false,
     });
 
     // Si une note de même clé est déjà active, on la considère comme
@@ -137,6 +138,7 @@ export function createMidiCapture({ getTime = getDefaultTime } = {}) {
       velocity: safeReleaseVelocity,
       channel,
       sourceId,
+      synthetic: false,
     });
 
     const active = activeNotes.get(key);
@@ -184,6 +186,7 @@ export function createMidiCapture({ getTime = getDefaultTime } = {}) {
       value: safeValue,
       channel,
       sourceId,
+      synthetic: false,
     });
 
     if (controller === DEFAULT_SUSTAIN_CONTROLLER) {
@@ -344,6 +347,22 @@ export function createMidiCapture({ getTime = getDefaultTime } = {}) {
     for (const event of sorted) {
       const key = noteKey(event.sourceId || DEFAULT_SOURCE_ID, event.channel, event.note);
       if (event.type === 'note_on') {
+        // Deux note-on successifs de même hauteur sans note-off intermédiaire
+        // produisent deux notes distinctes : la note précédente est fermée
+        // implicitement au moment du second note-on.
+        const previous = ongoing.get(key);
+        if (previous) {
+          previous.endedAt = event.time;
+          previous.duration = previous.endedAt - previous.startedAt;
+          if (!previous.terminationReason) {
+            previous.terminationReason = previous.sustained ? 'sustain-release' : 'physical-release';
+          }
+          if (!seen.has(previous.id)) {
+            seen.add(previous.id);
+            result.push(previous);
+          }
+        }
+
         const note = {
           id: makeNoteId(),
           midi: event.note,
