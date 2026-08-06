@@ -85,6 +85,10 @@ function assertScoreInRange(value, msg = 'score') {
 const W_COMPATIBILITY = 0.60;
 const W_TRANSITION = 0.40;
 
+// Unités entières exactes, miroir du module (3 = 3×0.2, 6 = 2×amp;).
+const UNIT_COMPATIBILITY = 3;
+const UNIT_TRANSITION = 2;
+
 const CATEGORY_SCORES = {
   'chord-tone': 100,
   'available-tension': 90,
@@ -170,10 +174,12 @@ function candidatesByAnchor(ctx, track, index) {
   return generateChordCandidatesForAnchor({ anchor, track, harmonicContext: ctx }).candidates;
 }
 
-function weightedSumOf(path, transitions) {
+// Score pondéré en unités entières exactes (miroir du module) :
+// 3×compatSum + 2×transSum, strictement équivalent à 0.60/0.40 sans flottants.
+function scoreUnitsOf(path, transitions) {
   const compatSum = path.reduce((s, c) => s + CATEGORY_SCORES[c.melodyCompatibility.category], 0);
   const transSum = transitions.reduce((s, tr) => s + tr.totalScore, 0);
-  return W_COMPATIBILITY * compatSum + W_TRANSITION * transSum;
+  return UNIT_COMPATIBILITY * compatSum + UNIT_TRANSITION * transSum;
 }
 
 function compareStringSeq(a, b) {
@@ -195,7 +201,7 @@ function exhaustiveBest(candidateLayers) {
   let best = null;
   function rec(t, compatSum, transSum, ids, idxs) {
     if (t === candidateLayers.length) {
-      const ws = W_COMPATIBILITY * compatSum + W_TRANSITION * transSum;
+      const ws = UNIT_COMPATIBILITY * compatSum + UNIT_TRANSITION * transSum;
       const cand = { ws, compatSum, transSum, ids, idxs };
       if (best === null || beats(cand, best)) best = cand;
       return;
@@ -320,14 +326,14 @@ runTest('T3 — le couple optimal est sélectionné avec la formule exacte', () 
   let bestWs = null;
   for (const a of l0) {
     for (const b of l1) {
-      const ws = weightedSumOf([a, b], [scoreChordTransition({ from: a, to: b })]);
+      const ws = scoreUnitsOf([a, b], [scoreChordTransition({ from: a, to: b })]);
       if (bestWs === null || ws > bestWs) bestWs = ws;
     }
   }
-  const chosenWs = weightedSumOf(r.path, r.transitions);
+  const chosenWs = scoreUnitsOf(r.path, r.transitions);
   assertEqual(chosenWs, bestWs, 'le couple retenu atteint le maximum manuel');
-  const norm = W_COMPATIBILITY * 2 + W_TRANSITION * 1;
-  assertEqual(r.totalScore, chosenWs / norm, 'totalScore = weightedSum / normalizationWeight');
+  const norm = UNIT_COMPATIBILITY * 2 + UNIT_TRANSITION * 1;
+  assertEqual(r.totalScore, chosenWs / norm, 'totalScore = scoreUnits / unités totales');
 });
 
 // ===========================================================================
@@ -354,9 +360,9 @@ runTest('T4 — l optimum global bat le greedy couche par couche', () => {
     scoreChordTransition({ from: A1, to: B1 }),
     scoreChordTransition({ from: B1, to: C1 }),
   ];
-  assertTrue(weightedSumOf(r.path, r.transitions) > weightedSumOf(greedyPath, greedyTrans),
+  assertTrue(scoreUnitsOf(r.path, r.transitions) > scoreUnitsOf(greedyPath, greedyTrans),
     'le chemin global dépasse le greedy');
-  const greedyTotal = weightedSumOf(greedyPath, greedyTrans) / (W_COMPATIBILITY * 3 + W_TRANSITION * 2);
+  const greedyTotal = scoreUnitsOf(greedyPath, greedyTrans) / (UNIT_COMPATIBILITY * 3 + UNIT_TRANSITION * 2);
   assertTrue(r.totalScore > greedyTotal, 'totalScore optimal > totalScore greedy');
 });
 
@@ -373,7 +379,7 @@ runTest('T5a — oracle exhaustif (3 couches 2×2×2)', () => {
   const r = findBestHarmonicPath({ candidateLayers: layers });
   const oracle = exhaustiveBest(layers);
   assertDeepEqual(r.path.map((c) => c.id), oracle.ids);
-  assertEqual(weightedSumOf(r.path, r.transitions), oracle.ws);
+  assertEqual(scoreUnitsOf(r.path, r.transitions), oracle.ws);
 });
 
 runTest('T5b — oracle exhaustif (4 couches 3×2×4×2)', () => {
@@ -387,7 +393,7 @@ runTest('T5b — oracle exhaustif (4 couches 3×2×4×2)', () => {
   const oracle = exhaustiveBest(layers);
   assertEqual(r.path.length, 4);
   assertDeepEqual(r.path.map((c) => c.id), oracle.ids);
-  assertEqual(weightedSumOf(r.path, r.transitions), oracle.ws);
+  assertEqual(scoreUnitsOf(r.path, r.transitions), oracle.ws);
 });
 
 // ===========================================================================
@@ -405,8 +411,8 @@ runTest('T6 — formula exactes vérifiées séparément', () => {
   const transSum = r.transitions.reduce((s, tr) => s + tr.totalScore, 0);
   assertEqual(r.compatibilityScore, compatSum / r.path.length);
   assertEqual(r.transitionScore, transSum / r.transitions.length);
-  const norm = W_COMPATIBILITY * r.path.length + W_TRANSITION * (r.path.length - 1);
-  const wsum = W_COMPATIBILITY * compatSum + W_TRANSITION * transSum;
+  const norm = UNIT_COMPATIBILITY * r.path.length + UNIT_TRANSITION * (r.path.length - 1);
+  const wsum = UNIT_COMPATIBILITY * compatSum + UNIT_TRANSITION * transSum;
   assertEqual(r.totalScore, wsum / norm);
   assertEqual(r.weights.compatibility, 0.60);
   assertEqual(r.weights.transition, 0.40);
@@ -433,7 +439,7 @@ runTest('T7a — départage par compatibilité sur égalité pondérée', () => 
     scoreChordTransition({ from: makeCandidate('p', p.root, p.pcs), to: makeCandidate('q', q.root, q.pcs) }).totalScore));
   const cats = ['chord-tone', 'available-tension', 'suspension', 'non-chord-tone-allowed'];
   function sc(cat) { return CATEGORY_SCORES[cat]; }
-  function ws(ca, cx, w) { return W_COMPATIBILITY * (sc(ca) + sc(cx)) + W_TRANSITION * w; }
+  function ws(ca, cx, w) { return UNIT_COMPATIBILITY * (sc(ca) + sc(cx)) + UNIT_TRANSITION * w; }
   let found = null;
   outer:
   for (let i = 0; i < pool.length; i++) {
@@ -524,8 +530,8 @@ runTest('T8 — le bonus V→I influence le chemin, pas l ordre inverse', () => 
   assertDeepEqual(reverse.path.map((c) => c.id), ['CM', 'G7'], 'I→V de l autre côté');
   assertEqual(reverse.transitions[0].resolutionScore, null, 'pas de bonus inversé');
 
-  const wForward = weightedSumOf(forward.path, forward.transitions);
-  const wReverse = weightedSumOf(reverse.path, reverse.transitions);
+  const wForward = scoreUnitsOf(forward.path, forward.transitions);
+  const wReverse = scoreUnitsOf(reverse.path, reverse.transitions);
   assertTrue(wForward > wReverse, 'le bonus V→I améliore réellement le chemin');
 });
 
@@ -779,12 +785,86 @@ runTest('T14f — identifiants identiques, départagés par toute la suite d ind
   assertTrue(r.path[0] === layers[0][0], 'indice 0 de la couche 0 retenu');
   assertTrue(r.path[1] === layers[1][0], 'indice 0 de la couche 1 retenu');
   assertTrue(r.path[2] === layers[2][0], 'indice 0 de la couche 2 retenu');
-  assertEqual(r.totalScore, weightedSumOf(r.path, r.transitions) / (W_COMPATIBILITY * 3 + W_TRANSITION * 2));
+  assertEqual(r.totalScore, scoreUnitsOf(r.path, r.transitions) / (UNIT_COMPATIBILITY * 3 + UNIT_TRANSITION * 2));
 });
 
 // ===========================================================================
-// T15 — Matrice suffisamment large
+// T14g — Régression : chemin parfait en unités entières exactes
 // ===========================================================================
+
+runTest('T14g — trois couches parfaites identiques : totalScore exactement 100', () => {
+  // Trois couches contenant chacune un candidat parfait identique (même accord,
+  // chord-tone). Le score doit être exactement 100, sans dérive de cumul
+  // flottant (3×3+2×2 = 13 unités pour 420×3+2×270 = 1300 → 100 exact).
+  const perfect = makeCandidate('P', 0, [0, 4, 7, 11], { category: 'chord-tone' });
+  const layers = [[perfect], [perfect], [perfect]];
+  const r = findBestHarmonicPath({ candidateLayers: layers });
+  assertEqual(r.path.length, 3);
+  assertEqual(r.compatibilityScore, 100);
+  assertEqual(r.transitionScore, 100);
+  assertEqual(r.totalScore, 100, 'totalScore exactement 100');
+  assertScoreInRange(r.totalScore, 'totalScore');
+  // Vérification en unités entières.
+  const units = UNIT_COMPATIBILITY * 300 + UNIT_TRANSITION * 200;
+  assertEqual(units / (UNIT_COMPATIBILITY * 3 + UNIT_TRANSITION * 2), 100);
+  assertEqual(r.totalScore, units / (UNIT_COMPATIBILITY * 3 + UNIT_TRANSITION * 2));
+});
+
+// ===========================================================================
+// T14h — Régression : départage par indices sans flottants
+// ===========================================================================
+
+runTest('T14h — départage par indices quand les unités sont égales', () => {
+  // Deux chemins numériquement identiques en unités entières exactes :
+  // compatSum = 460, transSum = 270, scoreUnits = 3×460 + 2×270 = 1920.
+  // Tous les identifiants sont identiques ; seul le contenu de L3 (deux 'z')
+  // diffère. Le code qui accumulait 0.60/0.40 en flottant pouvait, selon
+  // l ordre de cumul, choisir le second ; les unités entières garantissent
+  // l égalité exacte et le départage par suite d indices (indice 0 retenu).
+  const makeNoTonal = (id, rootPc, pcs, bass, cat) => {
+    const c = {
+      id,
+      rootPitchClass: rootPc,
+      rootSpelling: { pitchClass: rootPc, letter: 'C', accidental: 0, octave: null, origin: 'fallback', explicit: false },
+      qualityId: 'test',
+      pitchClasses: pcs.slice(),
+      melodyCompatibility: {
+        category: cat,
+        melodyPitchClass: 0,
+        melodyMidi: null,
+        matchingInterval: null,
+        exactPitchRequired: false,
+        exactPitchSatisfied: true,
+        sopranoPolicy: 'free',
+        harmonizationPolicy: 'automatic',
+        reasons: [],
+      },
+      anchorId: 'anchor-retest',
+    };
+    if (bass !== null && bass !== undefined) c.bassPitchClass = bass;
+    return c;
+  };
+  const layers = [
+    [makeNoTonal('z', 10, [10, 8, 1], 10, 'available-tension')],
+    [makeNoTonal('a', 8, [8, 1, 10, 3], 0, 'available-tension')],
+    [makeNoTonal('aa', 11, [11, 0, 10], 0, 'available-tension')],
+    [
+      makeNoTonal('z', 6, [6, 0, 4, 7], null, 'chord-tone'), // indice 0
+      makeNoTonal('z', 2, [2, 9, 11, 0], 4, 'chord-tone'), // indice 1
+    ],
+    [makeNoTonal('c', 11, [11, 6, 1, 10], 4, 'available-tension')],
+  ];
+  const r = findBestHarmonicPath({ candidateLayers: layers });
+  const compatSum = r.path.reduce(
+    (s, c) => s + CATEGORY_SCORES[c.melodyCompatibility.category], 0);
+  const transSum = r.transitions.reduce((s, tr) => s + tr.totalScore, 0);
+  assertEqual(compatSum, 460, 'compatSum attendu 460');
+  assertEqual(transSum, 270, 'transSum attendu 270');
+  assertEqual(UNIT_COMPATIBILITY * compatSum + UNIT_TRANSITION * transSum, 1920);
+  // Le premier candidat de L3 doit être retenu (indice 0) grâce au départage.
+  assertEqual(r.path[3], layers[3][0], 'L3 indice 0 retenu par la suite d indices');
+  assertEqual(r.path[3].rootPitchClass, 6);
+});
 
 runTest('T15 — matrice large : fini, borné, déterministe', () => {
   // Matrice large volontairement sans assertion chronométrée dépendante du

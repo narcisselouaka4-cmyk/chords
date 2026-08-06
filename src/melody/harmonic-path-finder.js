@@ -21,11 +21,26 @@ import { scoreChordTransition } from './transition-score.js';
 // Constantes internes non configurables
 // ---------------------------------------------------------------------------
 
-/** Poids du score de compatibilité mélodique dans le chemin global. */
+/**
+ * Poids du score de compatibilité mélodique dans le chemin global.
+ * Conservés uniquement pour la sortie publique `weights` .
+ */
 const W_COMPATIBILITY = 0.60;
 
 /** Poids du score de transition dans le chemin global. */
 const W_TRANSITION = 0.40;
+
+/**
+ * Unités entières exactes du score pondéré.
+ *
+ * Les poids 0.60 et 0.40 étant respectivement égaux à  3/5 et 2/5 , on compare
+ * les chemins avec une unité entière exacte `scoreUnits = 3×compatSum
+ * + 2×transSum`, strictement équivalente à `0.60×compatSum + 0.40×transSum`
+ * mais sans erreurs flottantes d'accumulation. Le score final se normalise
+ * alors par `3×N + 2×(N−1)` et vaut exactement 100 pour un chemin parfait.
+ */
+const UNIT_COMPATIBILITY = 3;
+const UNIT_TRANSITION = 2;
 
 /**
  * Score MelodyCompatibility canonique.
@@ -121,7 +136,7 @@ function validateCandidate(candidate, role) {
  * @returns {boolean} vrai si `a` bat `b`
  */
 function sameColumnBeats(a, b) {
-  if (a.weightedSum !== b.weightedSum) return a.weightedSum > b.weightedSum;
+  if (a.scoreUnits !== b.scoreUnits) return a.scoreUnits > b.scoreUnits;
   if (a.compatSum !== b.compatSum) return a.compatSum > b.compatSum;
   if (a.transSum !== b.transSum) return a.transSum > b.transSum;
   if (a.prefixRank !== b.prefixRank) return a.prefixRank < b.prefixRank;
@@ -139,7 +154,7 @@ function sameColumnBeats(a, b) {
  * @returns {boolean} vrai si `a` bat `b`
  */
 function stateBeats(a, b) {
-  if (a.weightedSum !== b.weightedSum) return a.weightedSum > b.weightedSum;
+  if (a.scoreUnits !== b.scoreUnits) return a.scoreUnits > b.scoreUnits;
   if (a.compatSum !== b.compatSum) return a.compatSum > b.compatSum;
   if (a.transSum !== b.transSum) return a.transSum > b.transSum;
   if (a.rank !== b.rank) return a.rank < b.rank;
@@ -283,8 +298,8 @@ export function findBestHarmonicPath({ candidateLayers }) {
   const idOrd = layers.map((layer) => identOrdinals(layer));
 
   // 4. État initial : couche 0. Chaque état est de taille constante : rangs
-  //    lexicographique et d'indices (suites de longueur 1), sommes numériques,
-  //    backpointer, candidat et indice d'origine.
+  //    lexicographique et d'indices (suites de longueur 1), sommes numériques
+  //    en unités entières exactes, backpointer, candidat et indice d'origine.
   const K0 = layers[0].length;
   let dp = new Array(K0);
   for (let j = 0; j < K0; j++) {
@@ -293,7 +308,7 @@ export function findBestHarmonicPath({ candidateLayers }) {
       candidate: cand,
       index: j,
       prev: null,
-      weightedSum: W_COMPATIBILITY * compatScores[0][j],
+      scoreUnits: UNIT_COMPATIBILITY * compatScores[0][j],
       compatSum: compatScores[0][j],
       transSum: 0,
       rank: idOrd[0].get(cand.id),
@@ -315,9 +330,9 @@ export function findBestHarmonicPath({ candidateLayers }) {
         const cand = {
           candidate: layer[j],
           index: j,
-          weightedSum: prev.weightedSum
-            + W_COMPATIBILITY * compatScores[t][j]
-            + W_TRANSITION * transition.totalScore,
+          scoreUnits: prev.scoreUnits
+            + UNIT_COMPATIBILITY * compatScores[t][j]
+            + UNIT_TRANSITION * transition.totalScore,
           compatSum: prev.compatSum + compatScores[t][j],
           transSum: prev.transSum + transition.totalScore,
           prev,
@@ -371,11 +386,13 @@ export function findBestHarmonicPath({ candidateLayers }) {
 
   // 8. Métriques finales réutilisant les sommes portées par la feuille : aucun
   //    re-parcours, aucune nouvelle lecture de `category`.
+  //    La normalisation en unités entières est strictement équivalente à la
+  //    formule 0.60/0.40 et garantit exactement 100 pour un chemin parfait.
   const N = path.length;
   const compatibilityScore = leaf.compatSum / N;
   const transitionScore = N > 1 ? leaf.transSum / (N - 1) : null;
-  const normalizationWeight = W_COMPATIBILITY * N + W_TRANSITION * (N - 1);
-  const totalScore = leaf.weightedSum / normalizationWeight;
+  const normalizationWeight = UNIT_COMPATIBILITY * N + UNIT_TRANSITION * (N - 1);
+  const totalScore = leaf.scoreUnits / normalizationWeight;
 
   const weights = Object.freeze({
     compatibility: W_COMPATIBILITY,
