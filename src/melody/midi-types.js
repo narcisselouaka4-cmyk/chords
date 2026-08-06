@@ -360,6 +360,34 @@
  */
 
 /**
+ * Poids de score d'un chemin harmonique global (Incrément 6).
+ * @typedef {{
+ *   compatibility: number, // 0.60
+ *   transition: number     // 0.40
+ * }} HarmonicPathWeights
+ */
+
+/**
+ * Meilleur chemin harmonique global à travers des couches de ChordCandidate.
+ *
+ * Produit par `findBestHarmonicPath({ candidateLayers })` (Incrément 6) par
+ * programmation dynamique exacte. `path` contient une référence de chaque
+ * couche ; `transitions[k]` décrit `path[k] → path[k+1]`. Le score de
+ * compatibilité mélodique est dérivé de manière déterministe de
+ * `melodyCompatibility.category` (le contrat canonique de l'Inc 4 ne portant
+ * aucun champ numérique), selon l'échelle figée du module.
+ *
+ * @typedef {{
+ *   path: ChordCandidate[],
+ *   transitions: TransitionScore[],
+ *   compatibilityScore: number,        // 0-100
+ *   transitionScore: number | null,    // null si une seule couche
+ *   totalScore: number,                // 0-100
+ *   weights: HarmonicPathWeights
+ * }} HarmonicPathResult
+ */
+
+/**
  * Profil de jouabilité configurable.
  * @typedef {{
  *   leftHandMin: number,
