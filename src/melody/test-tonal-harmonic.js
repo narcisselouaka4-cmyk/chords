@@ -18,6 +18,8 @@ import {
   createHarmonicContext,
   setStartChord,
   setEndChord,
+  setStartChordLocked,
+  setEndChordLocked,
   addHarmonicAnchor,
   updateHarmonicAnchor,
   removeHarmonicAnchor,
@@ -335,9 +337,10 @@ runTest('T13 — accord initial valide', () => {
   const track = makeCMajorMelody();
   const ctx = createHarmonicContext(track, { startChord: 'Cmaj7' });
   assertNotNull(ctx.startChord);
-  assertEqual(ctx.startChord.root, 0);
-  assertEqual(ctx.startChord.quality, 'maj7');
-  assertEqual(ctx.startChord.bass, null);
+  assertEqual(ctx.startChord.chord.root, 0);
+  assertEqual(ctx.startChord.chord.quality, 'maj7');
+  assertEqual(ctx.startChord.chord.bass, null);
+  assertEqual(ctx.startChord.locked, false);
 });
 
 // T14 : Accord final valide
@@ -345,8 +348,9 @@ runTest('T14 — accord final valide', () => {
   const track = makeCMajorMelody();
   const ctx = createHarmonicContext(track, { endChord: 'G7' });
   assertNotNull(ctx.endChord);
-  assertEqual(ctx.endChord.root, 7);
-  assertEqual(ctx.endChord.quality, '7');
+  assertEqual(ctx.endChord.chord.root, 7);
+  assertEqual(ctx.endChord.chord.quality, '7');
+  assertEqual(ctx.endChord.locked, false);
 });
 
 // T15 : Symbole d'accord inconnu rejeté proprement
@@ -512,8 +516,9 @@ runTest('T24 — sorties JSON-sérialisables', () => {
   const harmCtx = createHarmonicContext(track, { startChord: 'Cmaj7' });
   const harmJson = JSON.stringify(harmCtx);
   const harmParsed = JSON.parse(harmJson);
-  assertEqual(harmParsed.startChord.root, 0);
-  assertEqual(harmParsed.startChord.quality, 'maj7');
+  assertEqual(harmParsed.startChord.chord.root, 0);
+  assertEqual(harmParsed.startChord.chord.quality, 'maj7');
+  assertEqual(harmParsed.startChord.locked, false);
 });
 
 // T25 : Immutabilité des entrées
@@ -532,6 +537,7 @@ runTest('T25 — immutabilité des entrées', () => {
   assertEqual(JSON.stringify(ctx), ctxJson);
   assertEqual(ctx.startChord, null);
   assertNotNull(updated.startChord);
+  assertEqual(updated.startChord.locked, false);
 });
 
 // T26 : Version incrémentée après édition
@@ -645,6 +651,56 @@ runTest('T33 — setEndChord avec null retire l\'accord', () => {
   assertNotNull(ctx.endChord);
   ctx = setEndChord(ctx, null);
   assertEqual(ctx.endChord, null);
+});
+
+// T48 : Verrouillage de startChord
+runTest('T48 — startChord verrouillable', () => {
+  const track = makeCMajorMelody();
+  let ctx = createHarmonicContext(track, { startChord: 'Cmaj7' });
+  assertFalse(ctx.startChord.locked);
+  ctx = setStartChordLocked(ctx, true);
+  assertTrue(ctx.startChord.locked);
+  assertEqual(ctx.startChord.chord.root, 0);
+});
+
+// T49 : Verrouillage de endChord
+runTest('T49 — endChord verrouillable', () => {
+  const track = makeCMajorMelody();
+  let ctx = createHarmonicContext(track, { endChord: 'G7' });
+  assertFalse(ctx.endChord.locked);
+  ctx = setEndChordLocked(ctx, true);
+  assertTrue(ctx.endChord.locked);
+  assertEqual(ctx.endChord.chord.root, 7);
+});
+
+// T50 : Tonalité manuelle enharmonique C# vs Db
+runTest('T50 — tonalité manuelle C# majeur conservée', () => {
+  const track = makeCMajorMelody();
+  const { context } = estimateTonalContextFromMelody(track);
+  const manualCs = correctTonalContext(context, 'C#');
+  assertEqual(manualCs.selected.tonicPitchClass, 1);
+  assertEqual(manualCs.spelledKey.tonic.letter, 'C');
+  assertEqual(manualCs.spelledKey.tonic.accidental, 1);
+  assertEqual(manualCs.spelledKey.source, 'corrected');
+});
+
+// T51 : Tonalité manuelle Db majeur conservée
+runTest('T51 — tonalité manuelle Db majeur conservée', () => {
+  const track = makeCMajorMelody();
+  const { context } = estimateTonalContextFromMelody(track);
+  const manualDb = correctTonalContext(context, 'Db');
+  assertEqual(manualDb.selected.tonicPitchClass, 1);
+  assertEqual(manualDb.spelledKey.tonic.letter, 'D');
+  assertEqual(manualDb.spelledKey.tonic.accidental, -1);
+  assertEqual(manualDb.spelledKey.source, 'corrected');
+});
+
+// T52 : setStartChord avec option locked
+runTest('T52 — setStartChord accepte une option locked', () => {
+  const track = makeCMajorMelody();
+  let ctx = createHarmonicContext(track);
+  ctx = setStartChord(ctx, 'Cmaj7', { locked: true });
+  assertTrue(ctx.startChord.locked);
 });
 
 // T34 : rebuildTonalContext crée un nouvel ID
