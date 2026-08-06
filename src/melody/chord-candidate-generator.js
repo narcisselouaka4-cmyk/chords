@@ -196,11 +196,6 @@ function buildChordReference(rootPc, quality, bassPc, tonalContext, explicitRefe
   };
 }
 
-function formatPcAsSharp(pc) {
-  const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-  return names[normalizePc(pc)];
-}
-
 /**
  * Propose une orthographe contextuelle pour chaque note de l'accord.
  *
@@ -375,6 +370,30 @@ function validateChordCandidate(candidate, context) {
     });
   }
 
+  // 8. Avertissements heuristiques sur les catégories mélodiques permissives.
+  // Ces classifications sont initiales ; la justification musicale complète
+  // (durée, position temporelle, résolution) sera vérifiée lors du voicing.
+  if (compat.category === 'non-chord-tone-allowed') {
+    warnings.push({
+      severity: 'warning',
+      code: 'NON_CHORD_TONE_HEURISTIC',
+      message: 'Note mélodique classée comme non-chord-tone autorisée : justification musicale à vérifier lors du voicing.',
+      anchorId: candidate.anchorId,
+      melodyEventId: candidate.melodyEventId,
+      details: { melodyPitchClass: compat.melodyPitchClass },
+    });
+  }
+  if (compat.category === 'suspension') {
+    warnings.push({
+      severity: 'warning',
+      code: 'SUSPENSION_HEURISTIC',
+      message: 'Note mélodique classée comme suspension : résolution et contexte à vérifier lors du voicing.',
+      anchorId: candidate.anchorId,
+      melodyEventId: candidate.melodyEventId,
+      details: { melodyPitchClass: compat.melodyPitchClass, matchingInterval: compat.matchingInterval },
+    });
+  }
+
   return {
     valid: hardViolations.length === 0,
     hardViolations,
@@ -458,9 +477,14 @@ function classifyMelodyCompatibility(input) {
   }
 
   const exactPitchRequired = policies.preserveExactPitch === true;
-  const exactPitchSatisfied = exactPitchRequired
-    ? allPcs.includes(normalizePc(melodyMidi))
-    : true;
+  // La contrainte d'exactitude MIDI est enregistrée pour le voicing futur.
+  // À ce stade, aucun voicing n'est généré : on ne prétend pas que la
+  // contrainte est déjà satisfaite, et on évite toute réduction à la pitch class.
+  const exactPitchSatisfied = exactPitchRequired ? false : true;
+
+  if (exactPitchRequired) {
+    reasons.push(`Contrainte d'exactitude MIDI enregistrée (midi ${melodyMidi}) pour le voicing futur.`);
+  }
 
   return {
     category,
@@ -1009,7 +1033,7 @@ export function generateChordCandidatesForAnchor(input) {
       status: 'generated',
       candidates: [lockedCandidate],
       rejectedSummary,
-      warnings: lockedCandidate.validation.warnings,
+      warnings: lockedCandidate.validation.warnings.concat(lockedCandidate.validation.hardViolations),
     };
   }
 
