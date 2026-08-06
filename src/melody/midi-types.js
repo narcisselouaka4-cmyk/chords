@@ -226,25 +226,81 @@
  * }} SpelledKey
  */
 
+
 /**
- * Candidat d'accord.
+ * Compatibilité mélodique d'un candidat par rapport à un événement mélodique.
  * @typedef {{
- *   rootPc: number,
- *   quality: string,
- *   bassPc: number | null,
- *   inversion: number,
- *   chordTonePcs: number[],
- *   identityIntervals: string[],
- *   optionalIntervals: string[],
- *   omittedIntervals: string[],
+ *   category: 'chord-tone' | 'available-tension' | 'suspension' | 'non-chord-tone-allowed' | 'incompatible',
+ *   melodyPitchClass: number,
+ *   melodyMidi: number | null,
+ *   matchingInterval: number | null,
+ *   exactPitchRequired: boolean,
+ *   exactPitchSatisfied: boolean,
+ *   sopranoPolicy: 'allow-notes-above' | 'melody-must-be-top' | 'free',
+ *   harmonizationPolicy: 'force' | 'automatic' | 'skip',
+ *   reasons: string[]
+ * }} MelodyCompatibility
+ */
+
+/**
+ * Relation d'un candidat à la tonalité courante.
+ * @typedef {{
+ *   degree: number | null,
+ *   romanNumeral: string | null,
+ *   diatonic: boolean,
+ *   borrowed: boolean,
+ *   secondaryDominantTarget: number | null,
+ *   approachType: 'none' | 'diatonic-substitution' | 'secondary-dominant' | 'diminished-approach' | 'modal-borrowing'
+ * }} TonalRelation
+ */
+
+/**
+ * Rapport de validation d'un candidat.
+ * @typedef {{
+ *   valid: boolean,
+ *   hardViolations: ValidationIssue[],
+ *   warnings: ValidationIssue[],
+ *   satisfiedConstraints: string[]
+ * }} CandidateValidationReport
+ */
+
+/**
+ * Candidat d'accord enrichi.
+ * @typedef {{
+ *   id: string,
+ *   anchorId: string,
+ *   melodyEventId: string | null,
+ *   chord: ChordReference,
+ *   rootPitchClass: number,
+ *   rootSpelling: SpelledPitch,
+ *   bassPitchClass: number | null,
+ *   bassSpelling: SpelledPitch | null,
+ *   qualityId: string,
+ *   canonicalDefinitionId: string,
+ *   pitchClasses: number[],
+ *   spelledTones: SpelledPitch[],
+ *   identityIntervals: number[],
+ *   optionalIntervals: number[],
+ *   omittedIntervals: number[],
  *   omissionReason: string | null,
- *   melodyCompatibility: 'chord-tone' | 'available-tension' | 'suspension' | 'non-chord-tone-allowed' | 'incompatible',
- *   containsMelodyNote: boolean,
- *   melodyNotePosition: 'soprano' | 'inner' | 'bass' | 'absent',
- *   isDiatonic: boolean,
- *   harmonicFunction: string | null,
- *   source: 'diatonic' | 'secondary-dominant' | 'approach-diminished' | 'substitution' | 'borrowed'
+ *   melodyCompatibility: MelodyCompatibility,
+ *   tonalRelation: TonalRelation,
+ *   locked: boolean,
+ *   source: 'locked-boundary' | 'diatonic' | 'substitution' | 'secondary-dominant' | 'diminished-approach' | 'borrowed' | 'manual',
+ *   validation: CandidateValidationReport
  * }} ChordCandidate
+ */
+
+/**
+ * Résultat de la génération de candidats pour une ancre.
+ * @typedef {{
+ *   anchorId: string,
+ *   melodyEventId: string | null,
+ *   status: 'generated' | 'skipped' | 'no-valid-candidate' | 'invalid-anchor',
+ *   candidates: ChordCandidate[],
+ *   rejectedSummary: { total: number, byReason: Record<string, number> },
+ *   warnings: ValidationIssue[]
+ * }} AnchorCandidateGenerationResult
  */
 
 /**
