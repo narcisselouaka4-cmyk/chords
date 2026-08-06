@@ -292,6 +292,22 @@ runTest('T2b — une couche : tie-break déterministe sur égalité', () => {
   assertEqual(r.totalScore, 100);
 });
 
+runTest('T2c — chaque catégorie V1 retourne exactement son score prévu', () => {
+  const cases = [
+    ['chord-tone', 100],
+    ['available-tension', 90],
+    ['suspension', 60],
+    ['non-chord-tone-allowed', 30],
+    ['incompatible', 0],
+  ];
+  for (const [cat, expected] of cases) {
+    const r = findBestHarmonicPath({ candidateLayers: [[makeCandidate('x', 0, [0, 4, 7], { category: cat })]] });
+    assertEqual(r.path.length, 1);
+    assertEqual(r.compatibilityScore, expected, `compatibilityScore de ${cat}`);
+    assertEqual(r.totalScore, expected, `totalScore de ${cat}`);
+  }
+});
+
 // ===========================================================================
 // T3 — Deux couches
 // ===========================================================================
@@ -647,10 +663,132 @@ runTest('T14 — TypeError sur entrées invalides', () => {
 });
 
 // ===========================================================================
+// T14b — Clés héritées d'Object.prototype et catégories non chaîne
+// ===========================================================================
+
+runTest('T14b — clés héritées dangereuses : toutes lèvent TypeError', () => {
+  const dangerous = ['toString', 'constructor', 'valueOf', 'hasOwnProperty', '__proto__'];
+  for (const key of dangerous) {
+    const cand = makeCandidate('dc', 0, [0, 4, 7]);
+    cand.melodyCompatibility = { category: key };
+    assertThrowsTypeError(
+      () => findBestHarmonicPath({ candidateLayers: [[cand]] }),
+      `category delimiter ${key} doit lever TypeError`,
+    );
+  }
+  // categories non-chaîne ou résolvant autrement que par propriété propre.
+  for (const bad of [5, Symbol('x'), 2.5]) {
+    const cand = makeCandidate('bc', 0, [0, 4, 7]);
+    cand.melodyCompatibility = { category: bad };
+    assertThrowsTypeError(
+      () => findBestHarmonicPath({ candidateLayers: [[cand]] }),
+      `category non-chaîne doit lever TypeError`,
+    );
+  }
+  // melodyCompatibility non objet (null, tableau, nombre).
+  const nullMc = makeCandidate('nm', 0, [0, 4, 7]);
+  nullMc.melodyCompatibility = null;
+  assertThrowsTypeError(() => findBestHarmonicPath({ candidateLayers: [[nullMc]] }), 'melodyCompatibility null');
+  const arrMc = makeCandidate('am', 0, [0, 4, 7]);
+  arrMc.melodyCompatibility = ['chord-tone'];
+  assertThrowsTypeError(() => findBestHarmonicPath({ candidateLayers: [[arrMc]] }), 'melodyCompatibility tableau');
+  const numMc = makeCandidate('nm2', 0, [0, 4, 7]);
+  numMc.melodyCompatibility = 42;
+  assertThrowsTypeError(() => findBestHarmonicPath({ candidateLayers: [[numMc]] }), 'melodyCompatibility nombre');
+});
+
+// ===========================================================================
+// T14c — Argument absent, non-objet, couches creuses
+// ===========================================================================
+
+runTest('T14c — argument absent, non-objet, creux externes et internes', () => {
+  assertThrowsTypeError(() => findBestHarmonicPath(), 'appel sans argument');
+  assertThrowsTypeError(() => findBestHarmonicPath(null), 'argument null');
+  assertThrowsTypeError(() => findBestHarmonicPath(42), 'argument numérique');
+  assertThrowsTypeError(() => findBestHarmonicPath('x'), 'argument chaîne');
+  // Couche externe creuse (trou entre deux couches).
+  const extSparse = [[makeCandidate('a', 0, [0, 4, 7])]];
+  extSparse.length = 3;
+  assertThrowsTypeError(() => findBestHarmonicPath({ candidateLayers: extSparse }), 'couches externes creuses');
+  // Couche interne creuse (trou dans une couche).
+  const intSparse = [makeCandidate('a', 0, [0, 4, 7]), , makeCandidate('b', 0, [0, 4, 7])];
+  assertThrowsTypeError(() => findBestHarmonicPath({ candidateLayers: [intSparse] }), 'couche interne creuse');
+});
+
+// ===========================================================================
+// T14d — Lecture unique de la catégorie par candidat
+// ===========================================================================
+
+runTest('T14d — category lue au plus une fois par candidat', () => {
+  const readings = [];
+  const layers = [];
+  for (let t = 0; t < 3; t++) {
+    const layer = [];
+    for (let j = 0; j < 3; j++) {
+      const cand = makeCandidate(`L${t}-${j}`, (t * 5 + j) % 12, [0, 4, 7, 11]);
+      let count = 0;
+      Object.defineProperty(cand, 'melodyCompatibility', {
+        enumerable: true,
+        configurable: true,
+        get() {
+          count++;
+          return { category: 'chord-tone' };
+        },
+      });
+      layer.push(cand);
+      readings.push(() => count);
+    }
+    layers.push(layer);
+  }
+  const r = findBestHarmonicPath({ candidateLayers: layers });
+  for (const read of readings) {
+    assertEqual(read(), 1, 'la catégorie doit être lue exactement une fois par candidat');
+  }
+  assertAllNumbersFinite(r);
+});
+
+// ===========================================================================
+// T14e — Départage lexical multi-couches, priorité à la première différence
+// ===========================================================================
+
+runTest('T14e — départage lexical sur plusieurs couches, priorité à la première différence', () => {
+  // Toutes les entrées ont des pitch classes identiques et la même catégorie :
+  // chaque chemin est numériquement à égalité. Le départage est purement
+  // lexical sur la suite complète d'identifiants.
+  const layers = [
+    [makeCandidate('a3', 0, [0, 4, 7, 11]), makeCandidate('b1', 0, [0, 4, 7, 11])],
+    [makeCandidate('x0', 0, [0, 4, 7, 11]), makeCandidate('y2', 0, [0, 4, 7, 11])],
+    [makeCandidate('m5', 0, [0, 4, 7, 11])],
+  ];
+  const r = findBestHarmonicPath({ candidateLayers: layers });
+  // La première différence décide ('a3' < 'b1'), la deuxième doit ensuite
+  // départager 'x0' < 'y2' entre chemins partageant le même premier id.
+  assertDeepEqual(r.path.map((c) => c.id), ['a3', 'x0', 'm5'], 'première différence prioritaire, puis suivantes');
+});
+
+runTest('T14f — identifiants identiques, départagés par toute la suite d indices', () => {
+  const layers = [
+    [makeCandidate('dup', 0, [0, 4, 7]), makeCandidate('dup', 0, [0, 4, 7])],
+    [makeCandidate('dup', 0, [0, 4, 7]), makeCandidate('dup', 0, [0, 4, 7])],
+    [makeCandidate('dup', 0, [0, 4, 7]), makeCandidate('dup', 0, [0, 4, 7])],
+  ];
+  // Tous les candidats à identique id et pitch classes : tout est à égalité.
+  // Le départage doit se faire par la suite d'indices la plus petite possible
+  // [0, 0, 0].
+  const r = findBestHarmonicPath({ candidateLayers: layers });
+  assertTrue(r.path[0] === layers[0][0], 'indice 0 de la couche 0 retenu');
+  assertTrue(r.path[1] === layers[1][0], 'indice 0 de la couche 1 retenu');
+  assertTrue(r.path[2] === layers[2][0], 'indice 0 de la couche 2 retenu');
+  assertEqual(r.totalScore, weightedSumOf(r.path, r.transitions) / (W_COMPATIBILITY * 3 + W_TRANSITION * 2));
+});
+
+// ===========================================================================
 // T15 — Matrice suffisamment large
 // ===========================================================================
 
 runTest('T15 — matrice large : fini, borné, déterministe', () => {
+  // Matrice large volontairement sans assertion chronométrée dépendante du
+  // matériel : on vérifie uniquement le résultat, les bornes et le déterminisme.
   const sizes = [6, 8, 7, 9, 5];
   const roots = [0, 2, 4, 5, 7, 9, 11, 1, 3, 6];
   const cats = ['chord-tone', 'available-tension', 'suspension', 'non-chord-tone-allowed'];
@@ -662,14 +800,13 @@ runTest('T15 — matrice large : fini, borné, déterministe', () => {
         { category: cats[(t + j) % 4] });
     }),
   );
-  const t0 = process.hrtime.bigint();
   const r1 = findBestHarmonicPath({ candidateLayers: layers });
   const r2 = findBestHarmonicPath({ candidateLayers: layers });
-  const elapsedMs = Number(process.hrtime.bigint() - t0) / 1e6;
   assertDeepEqual(r1.path.map((c) => c.id), r2.path.map((c) => c.id));
   assertAllNumbersFinite(r1);
   assertScoreInRange(r1.totalScore, 'totalScore');
-  assertTrue(elapsedMs < 5000, 'temps compatible programmation dynamique');
+  assertEqual(r1.totalScore, r2.totalScore, 'déterminisme du score');
+  assertDeepEqual(r1.transitions.map((t) => t.totalScore), r2.transitions.map((t) => t.totalScore));
 });
 
 // ===========================================================================
