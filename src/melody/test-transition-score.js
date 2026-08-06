@@ -89,6 +89,12 @@ function makeCandidate(id, pcs, rootPc, bassPc = null, degree = null, spelling =
   };
 }
 
+function makeCandidateNoBass(id, pcs, rootPc, degree = null) {
+  const c = makeCandidate(id, pcs, rootPc, null, degree);
+  delete c.bassPitchClass;
+  return c;
+}
+
 function makeClock() {
   let t = 0;
   return {
@@ -260,6 +266,36 @@ runTest('T08c — Deux basses présentes → composante bass active', () => {
   assertTrue(s.bassScore !== null);
   assertEqual(s.activeWeights.bass, TRANSITION_WEIGHTS.bass);
   assertTrue(Number.isFinite(s.bassScore));
+});
+
+runTest('T08d — Deux propriétés bassPitchClass omises → valide, bass inactif', () => {
+  const s = scoreChordTransition({
+    from: makeCandidateNoBass('a', [0, 4, 7], 0),
+    to: makeCandidateNoBass('b', [9, 0, 4], 9),
+  });
+  assertEqual(s.bassScore, null);
+  assertFalse('bass' in s.activeWeights);
+  assertAllNumbersFinite(s);
+});
+
+runTest('T08e — Une seule propriété omise → bassScore null, bass inactif', () => {
+  const s = scoreChordTransition({
+    from: makeCandidate('a', [0, 4, 7], 0, 0),
+    to: makeCandidateNoBass('b', [9, 0, 4], 9),
+  });
+  assertEqual(s.bassScore, null);
+  assertFalse('bass' in s.activeWeights);
+  assertAllNumbersFinite(s);
+});
+
+runTest('T08f — Ordre inverse : basse omise côté from, présente côté to', () => {
+  const s = scoreChordTransition({
+    from: makeCandidateNoBass('a', [0, 4, 7], 0),
+    to: makeCandidate('b', [9, 0, 4], 9, 9),
+  });
+  assertEqual(s.bassScore, null);
+  assertFalse('bass' in s.activeWeights);
+  assertAllNumbersFinite(s);
 });
 
 // ===========================================================================

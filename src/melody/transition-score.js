@@ -102,7 +102,8 @@ function validateCandidate(candidate, role) {
     throw new TypeError(`${role}.rootPitchClass doit être un entier entre 0 et 11`);
   }
   const bass = candidate.bassPitchClass;
-  if (bass !== null) {
+  // Une basse absente (propriété omise) ou null est valide et normalisée à null.
+  if (bass !== undefined && bass !== null) {
     if (typeof bass !== 'number' || !Number.isInteger(bass) || bass < 0 || bass > 11) {
       throw new TypeError(`${role}.bassPitchClass doit être un entier entre 0 et 11, ou null`);
     }
@@ -124,13 +125,20 @@ function deepFreeze(value) {
   return value;
 }
 
-/** Poids des composantes actives d'une transition. Figé. */
+/** Poids des composantes actives d'une transition. Figés, non configurables. */
+const W_COMMON = 0.35;
+const W_MOTION = 0.35;
+const W_ROOT = 0.30;
+const W_BASS = 0.10;
+const W_RESOLUTION = 0.10;
+
+/** Association nom → poids, figée, dérivée des constantes W_*. */
 export const TRANSITION_WEIGHTS = Object.freeze({
-  common: 0.35,
-  motion: 0.35,
-  root: 0.30,
-  bass: 0.10,
-  resolution: 0.10,
+  common: W_COMMON,
+  motion: W_MOTION,
+  root: W_ROOT,
+  bass: W_BASS,
+  resolution: W_RESOLUTION,
 });
 
 /** Limites documentées du proxy (pitch classes seules, sans voicings). */
@@ -173,9 +181,12 @@ export function scoreChordTransition({ from, to }) {
   const rootScore = 100 * (1 - rootFifthsDistance / 6);
 
   // --- Basse explicite (active seulement si les deux basses existent) ---
-  const bassActive = from.bassPitchClass !== null && to.bassPitchClass !== null;
+  // Une basse absente (propriété omise) est normalisée à null ici.
+  const fromBass = from.bassPitchClass === undefined ? null : from.bassPitchClass;
+  const toBass = to.bassPitchClass === undefined ? null : to.bassPitchClass;
+  const bassActive = fromBass !== null && toBass !== null;
   const bassScore = bassActive
-    ? 100 * (1 - fifthsDistance(from.bassPitchClass, to.bassPitchClass) / 6)
+    ? 100 * (1 - fifthsDistance(fromBass, toBass) / 6)
     : null;
 
   // --- Résolution directional V → I (bonus de résolution) ---
