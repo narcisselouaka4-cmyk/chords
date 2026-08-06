@@ -6,6 +6,14 @@
 //
 // Module pur : pas de DOM, pas de réseau, pas d'IA, pas de mutation des entrées,
 // pas d'état global, pas de cache persistant entre deux appels.
+//
+// Complexité de l'espace : chaque état dynamique a une taille constante (aucune
+// copie de suite d'identifiants ni de suite d'indices). Le départage
+// lexicographique et le départage par indices utilisent des rangs entiers
+// re-numérotés à chaque profondeur, calculés à partir de la paire
+// (rang du préfixe, identifiant courant) puis (rang d'indices du préfixe,
+// indice courant), ce qui préserve l'ordre d'une comparaison vraiment
+// lexicographique sans jamais matérialiser les suites complètes.
 
 import { scoreChordTransition } from './transition-score.js';
 
@@ -25,7 +33,8 @@ const W_TRANSITION = 0.40;
  * L'Incrément 4 ne définit aucun champ numérique de compatibilité : le contrat
  * réel expose uniquement `melodyCompatibility.category`. Le score déterministe
  * C_i utilisé ici est donc dérivé exclusivement de cette catégorie canonique,
- * selon l'échelle figée ci-dessous. Aucun autre champ n'est lu ni inventé.
+ * selon l'échelle figée ci-dessous (adoptée explicitement par l'utilisateur).
+ * Aucun autre champ n'est lu ni inventé.
  */
 const MELODY_CATEGORY_SCORES = Object.freeze({
   'chord-tone': 100,
@@ -52,19 +61,28 @@ const MELODY_CATEGORY_SCORES = Object.freeze({
 /**
  * Score de compatibilité mélodique canonique d'un candidat.
  *
+ * Lecture stricte : `melodyCompatibility` doit être un objet non nul, et
+ * `category` doit être une chaîne qui soit une propriété propre de la table des
+ * scores. Un check par `Object.hasOwn` rend impossible toute résolution vers
+ * des valeurs héritées d'`Object.prototype` (toString, constructor, valueOf,
+ * hasOwnProperty, __proto__…), qui lèveraient `TypeError` au lieu de produire
+ * `NaN` ou `Infinity`. La propriété `category` n'est lue qu'une seule fois.
+ *
  * @param {ChordCandidate} candidate
  * @returns {number} score dans [0,100]
  */
 function compatibilityScoreOf(candidate) {
   const mc = candidate.melodyCompatibility;
-  if (mc == null) {
-    throw new TypeError('melodyCompatibility absente : la compatibilité mélodique est requise');
+  if (mc === null || typeof mc !== 'object' || Array.isArray(mc)) {
+    throw new TypeError('melodyCompatibility doit être un objet non nul');
   }
-  const score = MELODY_CATEGORY_SCORES[mc.category];
-  if (score === undefined) {
-    throw new TypeError(`category de melodyCompatibility invalide : ${String(mc.category)}`);
+  const category = mc.category;
+  if (typeof category !== 'string' || !Object.hasOwn(MELODY_CATEGORY_SCORES, category)) {
+    throw new TypeError(
+      `category de melodyCompatibility invalide : ${category === null ? 'null' : String(category)}`,
+    );
   }
-  return score;
+  return MELODY_CATEGORY_SCORES[category];
 }
 
 /**
@@ -75,7 +93,7 @@ function compatibilityScoreOf(candidate) {
  *
  * @param {ChordCandidate} candidate
  * @param {string} role
- * @returns {number} score de compatibilité mélodique dans [0,100]
+ * @returns {number} score de compatibilité mélodique dans [0..100]
  */
 function validateCandidate(candidate, role) {
   if (candidate == null || typeof candidate !== 'object') {
@@ -88,62 +106,118 @@ function validateCandidate(candidate, role) {
 }
 
 // ---------------------------------------------------------------------------
-// Départage déterministe
+// Départage déterministe (par rangs)
 // ---------------------------------------------------------------------------
 
 /**
- * Compare deux suites de chaînes en partant de la première valeur.
- * Ordre lexicographique strict par indices, indéterminé en cas d'égalité.
+ * Même colonne : deux choix de prédécesseur pour le même candidat courant j.
+ * La comparaison lexicographique des suites complètes « préfixe + identifiant
+ * courant » se réduit alors à la comparaison des suites de préfixes (le suffixe
+ * étant identique), soit exactement le rang du préfixe. Il en va de même pour
+ * les suites d'indices. Aucune suite n'est jamais copiée.
  *
- * @param {string[]} a
- * @param {string[]} b
- * @returns {-1|0|1}
+ * @param {object} a candidat en cours de construction
+ * @param {object} b meilleur candidat jusqu'ici (même colonne j)
+ * @returns {boolean} vrai si `a` bat `b`
  */
-function compareStringSequences(a, b) {
-  const len = Math.min(a.length, b.length);
-  for (let i = 0; i < len; i++) {
-    if (a[i] !== b[i]) return a[i] < b[i] ? -1 : 1;
-  }
-  if (a.length !== b.length) return a.length < b.length ? -1 : 1;
-  return 0;
+function sameColumnBeats(a, b) {
+  if (a.weightedSum !== b.weightedSum) return a.weightedSum > b.weightedSum;
+  if (a.compatSum !== b.compatSum) return a.compatSum > b.compatSum;
+  if (a.transSum !== b.transSum) return a.transSum > b.transSum;
+  if (a.prefixRank !== b.prefixRank) return a.prefixRank < b.prefixRank;
+  if (a.prefixIndexRank !== b.prefixIndexRank) return a.prefixIndexRank < b.prefixIndexRank;
+  return false;
 }
 
 /**
- * Compare deux suites d'indices d'origine en partant de la première couche.
- *
- * @param {number[]} a
- * @param {number[]} b
- * @returns {number}
- */
-function compareIndexSequences(a, b) {
-  const len = Math.min(a.length, b.length);
-  for (let i = 0; i < len; i++) {
-    if (a[i] !== b[i]) return a[i] - b[i];
-  }
-  if (a.length !== b.length) return a.length - b.length;
-  return 0;
-}
-
-/**
- * Comparaison de deux états dynamiques. Retourne true si `A` bat `B`.
- *
- * 1. plus grande somme pondérée ;
- * 2. à égalité, plus grande somme de compatibilité ;
- * 3. à égalité, plus grande somme de transitions ;
- * 4. à égalité, identifiants lexicalement plus petits ;
- * 5. à égalité, indices d'origine plus petits.
+ * Comparaison terminale de deux états de profondeur égale. Les rangs de la
+ * profondeur étant injectifs et ordonnés de façon exactement lexicographique,
+ * la comparaison d'entiers reproduit la comparaison des suites complètes.
  *
  * @param {object} a
  * @param {object} b
- * @returns {boolean}
+ * @returns {boolean} vrai si `a` bat `b`
  */
 function stateBeats(a, b) {
   if (a.weightedSum !== b.weightedSum) return a.weightedSum > b.weightedSum;
   if (a.compatSum !== b.compatSum) return a.compatSum > b.compatSum;
   if (a.transSum !== b.transSum) return a.transSum > b.transSum;
-  const idCmp = compareStringSequences(a.ids, b.ids);
-  if (idCmp !== 0) return idCmp < 0;
-  return compareIndexSequences(a.indices, b.indices) < 0;
+  if (a.rank !== b.rank) return a.rank < b.rank;
+  return a.indexRank < b.indexRank;
+}
+
+/**
+ * Re-numérote les rangs lexicographiques d'une ligne de la profondeur courante.
+ *
+ * Le rang du nouvel état est dérivé du couple (rang du préfixe, ordre de
+ * l'identifiant courant). Deux suites d'identifiants réellement identiques
+ * reçoivent le même rang ; des suites distinctes reçoivent des rangs
+ * distincts, dans l'ordre lexicographique exact.
+ *
+ * @param {object[]} row
+ */
+function assignLexicRanks(row) {
+  const order = row.map((_, i) => i);
+  order.sort((x, y) => {
+    const a = row[x];
+    const b = row[y];
+    if (a.prefixRank !== b.prefixRank) return a.prefixRank - b.prefixRank;
+    return a.identOrdinal - b.identOrdinal;
+  });
+  let rank = 0;
+  let lastPrefix = null;
+  let lastOrd = null;
+  for (let k = 0; k < order.length; k++) {
+    const state = row[order[k]];
+    if (k > 0 && (state.prefixRank !== lastPrefix || state.identOrdinal !== lastOrd)) {
+      rank++;
+    }
+    state.rank = rank;
+    lastPrefix = state.prefixRank;
+    lastOrd = state.identOrdinal;
+  }
+}
+
+/**
+ * Re-numérote séparément les rangs des suites d'indices d'origine pour la
+ * même profondeur, sur le même principe que les rangs lexicographiques.
+ *
+ * @param {Array[]} row
+ */
+function assignIndexRanks(row) {
+  const order = row.map((_, i) => i);
+  order.sort((x, y) => {
+    const a = row[x];
+    const b = row[y];
+    if (a.prefixIndexRank !== b.prefixIndexRank) return a.prefixIndexRank - b.prefixIndexRank;
+    return a.index - b.index;
+  });
+  let rank = 0;
+  let lastPrefix = null;
+  let lastIdx = null;
+  for (let k = 0; k < order.length; k++) {
+    const state = row[order[k]];
+    if (k > 0 && (state.prefixIndexRank !== lastPrefix || state.index !== lastIdx)) {
+      rank++;
+    }
+    state.indexRank = rank;
+    lastPrefix = state.prefixIndexRank;
+    lastIdx = state.index;
+  }
+}
+
+/**
+ * Ordinal lexicographique de chaque identifiant d'une couche.
+ *
+ * @param {ChordCandidate[]} layer
+ * @returns {Map<string, number>}
+ */
+function identOrdinals(layer) {
+  const distinct = Array.from(new Set(layer.map((c) => c.id)));
+  distinct.sort((x, y) => (x < y ? -1 : x > y ? 1 : 0));
+  const ord = new Map();
+  for (let k = 0; k < distinct.length; k++) ord.set(distinct[k], k);
+  return ord;
 }
 
 // ---------------------------------------------------------------------------
@@ -164,7 +238,6 @@ export function findBestHarmonicPath({ candidateLayers }) {
     throw new TypeError('candidateLayers doit être un tableau non vide de couches');
   }
 
-  const compensations = candidateLayers.length;
   const layers = candidateLayers;
   for (let t = 0; t < layers.length; t++) {
     const layer = layers[t];
@@ -174,6 +247,7 @@ export function findBestHarmonicPath({ candidateLayers }) {
   }
 
   // 1. Scores de compatibilité pré-calculés et validation de chaque candidat.
+  //    Une seule lecture de category par candidat, au plus.
   const compatScores = layers.map((layer, t) =>
     layer.map((candidate, j) => {
       try {
@@ -205,62 +279,87 @@ export function findBestHarmonicPath({ candidateLayers }) {
     transCache.push(row);
   }
 
-  // 3. Viterbi avec backpointers.
-  let dp = layers[0].map((cand, j) => ({
-    weightedSum: W_COMPATIBILITY * compatScores[0][j],
-    compatSum: compatScores[0][j],
-    transSum: 0,
-    ids: [cand.id],
-    indices: [j],
-    candidate: cand,
-    prev: null,
-  }));
+  // 3. Ordres lexicographiques des identifiants par couche (pour les rangs).
+  const idOrd = layers.map((layer) => identOrdinals(layer));
 
-  for (let t = 1; t < layers.length; t++) {
-    const next = [];
-    for (let j = 0; j < layers[t].length; j++) {
-      let best = null;
-      for (let i = 0; i < layers[t - 1].length; i++) {
-        const prevState = dp[i];
-        const transition = transCache[t - 1][i][j];
-        const candidate = {
-          weightedSum: prevState.weightedSum
-            + W_COMPATIBILITY * compatScores[t][j]
-            + W_TRANSITION * transition.totalScore,
-          compatSum: prevState.compatSum + compatScores[t][j],
-          transSum: prevState.transSum + transition.totalScore,
-          ids: [...prevState.ids, layers[t][j].id],
-          indices: [...prevState.indices, j],
-          candidate: layers[t][j],
-          prev: prevState,
-        };
-        if (best === null || stateBeats(candidate, best)) {
-          best = candidate;
-        }
-      }
-      next.push(best);
-    }
-    dp = next;
+  // 4. État initial : couche 0. Chaque état est de taille constante : rangs
+  //    lexicographique et d'indices (suites de longueur 1), sommes numériques,
+  //    backpointer, candidat et indice d'origine.
+  const K0 = layers[0].length;
+  let dp = new Array(K0);
+  for (let j = 0; j < K0; j++) {
+    const cand = layers[0][j];
+    dp[j] = {
+      candidate: cand,
+      index: j,
+      prev: null,
+      weightedSum: W_COMPATIBILITY * compatScores[0][j],
+      compatSum: compatScores[0][j],
+      transSum: 0,
+      rank: idOrd[0].get(cand.id),
+      indexRank: j,
+    };
   }
 
-  // 4. Meilleur état terminal.
+  // 5. Viterbi, profondeur par profondeur. Aucune suite n'est copiée : chaque
+  //    état porte uniquement les rangs de son préfixe et le backpointer vers
+  //    son prédécesseur.
+  for (let t = 1; t < layers.length; t++) {
+    const row = new Array(layers[t].length);
+    const layer = layers[t];
+    for (let j = 0; j < layer.length; j++) {
+      let best = null;
+      for (let i = 0; i < layers[t - 1].length; i++) {
+        const prev = dp[i];
+        const transition = transCache[t - 1][i][j];
+        const cand = {
+          candidate: layer[j],
+          index: j,
+          weightedSum: prev.weightedSum
+            + W_COMPATIBILITY * compatScores[t][j]
+            + W_TRANSITION * transition.totalScore,
+          compatSum: prev.compatSum + compatScores[t][j],
+          transSum: prev.transSum + transition.totalScore,
+          prev,
+          // Rangs provisoires du préfix (profondeur t-1) utilisés par le
+          // départage de cette profondeur.
+          prefixRank: prev.rank,
+          prefixIndexRank: prev.indexRank,
+          identOrdinal: idOrd[t].get(layer[j].id),
+        };
+        if (best === null || sameColumnBeats(cand, best)) {
+          best = cand;
+        }
+      }
+      row[j] = best;
+    }
+    // Rangs définitifs de la profondeur t (suite complète = préfixe + id).
+    assignLexicRanks(row);
+    // Rangs distincts des suites d'indices.
+    assignIndexRanks(row);
+    dp = row;
+  }
+
+  // 6. Meilleur état terminal de la dernière profondeur.
   let leaf = dp[0];
   for (let j = 1; j < dp.length; j++) {
     if (stateBeats(dp[j], leaf)) leaf = dp[j];
   }
 
-  // 5. Reconstruction du chemin et des transitions.
-  // La feuille terminale porte les indices d'origine de chaque couche.
-  const indicesInPath = leaf.indices;
-  const revPath = [];
+  // 7. Reconstruction du chemin et des transitions par simple backtracking.
+  const revCandidates = [];
+  const revIndices = [];
   let state = leaf;
   while (state) {
-    revPath.push(state.candidate);
+    revCandidates.push(state.candidate);
+    revIndices.push(state.index);
     state = state.prev;
   }
   const path = [];
-  for (let k = revPath.length - 1; k >= 0; k--) {
-    path.push(revPath[k]);
+  const indicesInPath = [];
+  for (let k = revCandidates.length - 1; k >= 0; k--) {
+    path.push(revCandidates[k]);
+    indicesInPath.push(revIndices[k]);
   }
 
   // Les TransitionScore ont déjà été calculés pendant la DP : on les
@@ -270,21 +369,13 @@ export function findBestHarmonicPath({ candidateLayers }) {
     transitions.push(transCache[t][indicesInPath[t]][indicesInPath[t + 1]]);
   }
 
-  // 6. Métriques finales.
+  // 8. Métriques finales réutilisant les sommes portées par la feuille : aucun
+  //    re-parcours, aucune nouvelle lecture de `category`.
   const N = path.length;
-  const compatTotal = path.reduce((acc, c) => acc + compatibilityScoreOf(c), 0);
-  const compatibilityScore = compatTotal / N;
-
-  let transitionScore = null;
-  if (N > 1) {
-    const transTotal = transitions.reduce((acc, tr) => acc + tr.totalScore, 0);
-    transitionScore = transTotal / (N - 1);
-  }
-
-  const weightedSum = W_COMPATIBILITY * compatTotal + W_TRANSITION *
-    (N > 1 ? transitions.reduce((acc, tr) => acc + tr.totalScore, 0) : 0);
+  const compatibilityScore = leaf.compatSum / N;
+  const transitionScore = N > 1 ? leaf.transSum / (N - 1) : null;
   const normalizationWeight = W_COMPATIBILITY * N + W_TRANSITION * (N - 1);
-  const totalScore = weightedSum / normalizationWeight;
+  const totalScore = leaf.weightedSum / normalizationWeight;
 
   const weights = Object.freeze({
     compatibility: W_COMPATIBILITY,
