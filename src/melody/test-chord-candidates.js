@@ -300,7 +300,7 @@ runTest('M17 — Note incompatible rejetée', () => {
   assertEqual(compat.category, 'incompatible');
 });
 
-runTest('M18 — preserveExactPitch conservé', () => {
+runTest('M18 — preserveExactPitch enregistré comme contrainte future', () => {
   const compat = classifyMelodyCompatibility({
     melodyEvent: { pitchClass: 4, midi: 64, sopranoPolicy: 'allow-notes-above', harmonizationPolicy: 'automatic', preserveExactPitch: true },
     rootPc: 0,
@@ -309,7 +309,10 @@ runTest('M18 — preserveExactPitch conservé', () => {
     policies: { sopranoPolicy: 'allow-notes-above', harmonizationPolicy: 'automatic', preserveExactPitch: true },
   });
   assertTrue(compat.exactPitchRequired);
-  assertTrue(compat.exactPitchSatisfied);
+  assertEqual(compat.melodyMidi, 64);
+  // Aucun voicing n'est généré : la satisfaction exacte n'est pas prétendue.
+  assertFalse(compat.exactPitchSatisfied);
+  assertTrue(compat.reasons.some((r) => r.includes('voicing futur')));
 });
 
 runTest('M19 — melody-must-be-top enregistré comme contrainte future', () => {
@@ -1032,6 +1035,156 @@ runTest('NR67 — Résultat historique du détecteur tonal inchangé', () => {
 runTest('NR68 — Build réussi non testable ici, mais modules syntaxiquement valides', () => {
   // node --check a déjà été effectué sur les fichiers créés/modifiés.
   assertTrue(true);
+});
+
+// ===========================================================================
+// 11. DURCISSEMENT DE L'INCRÉMENT 4
+// ===========================================================================
+
+runTest('H69 — preserveExactPitch ne se réduit pas à la pitch class', () => {
+  // C3 (midi 48) et C4 (midi 60) partagent la pitch class 0.
+  // La contrainte exacte n'est pas prétendue satisfaite à ce stade.
+  const c3 = classifyMelodyCompatibility({
+    melodyEvent: { pitchClass: 0, midi: 48, sopranoPolicy: 'allow-notes-above', harmonizationPolicy: 'automatic', preserveExactPitch: true },
+    rootPc: 0, quality: 'maj7', bassPc: null,
+    policies: { sopranoPolicy: 'allow-notes-above', harmonizationPolicy: 'automatic', preserveExactPitch: true },
+  });
+  assertTrue(c3.exactPitchRequired);
+  assertFalse(c3.exactPitchSatisfied);
+  assertEqual(c3.melodyMidi, 48);
+});
+
+runTest('H70 — non-chord-tone-allowed produit un avertissement explicite', () => {
+  const track = trackFromMidiNotes([66]); // F#4 en Do majeur
+  let ctx = harmonicContextInKey(track, 'C');
+  ctx = addNoteAnchor(ctx, track, 0, 'automatic');
+  const result = generateChordCandidatesForAnchor({
+    anchor: ctx.anchors[0],
+    track,
+    harmonicContext: ctx,
+  });
+  const nct = result.candidates.filter((c) => c.melodyCompatibility.category === 'non-chord-tone-allowed');
+  assertTrue(nct.length > 0, 'Au moins un candidat non-chord-tone-allowed attendu');
+  assertTrue(nct.every((c) =>
+    c.validation.warnings.some((w) => w.code === 'NON_CHORD_TONE_HEURISTIC')),
+    'Chaque non-chord-tone doit être signalé comme heuristique');
+});
+
+runTest('H71 — suspension produit un avertissement explicite', () => {
+  const track = trackFromMidiNotes([65]); // F4 = quarte de Cmaj7
+  let ctx = harmonicContextInKey(track, 'C');
+  ctx = addNoteAnchor(ctx, track, 0, 'automatic');
+  const result = generateChordCandidatesForAnchor({
+    anchor: ctx.anchors[0],
+    track,
+    harmonicContext: ctx,
+  });
+  const sus = result.candidates.filter((c) => c.melodyCompatibility.category === 'suspension');
+  assertTrue(sus.length > 0, 'Au moins un candidat suspension attendu');
+  assertTrue(sus.every((c) =>
+    c.validation.warnings.some((w) => w.code === 'SUSPENSION_HEURISTIC')),
+    'Chaque suspension doit être signalée comme heuristique');
+});
+
+runTest('H72 — intervalle identitaire prime sur available-tension', () => {
+  // Tierce majeure (E, pc 4) sur un accord de 7 : c'est identitaire, pas tension.
+  const compat = classifyMelodyCompatibility({
+    melodyEvent: { pitchClass: 4, midi: 64, sopranoPolicy: 'allow-notes-above', harmonizationPolicy: 'automatic', preserveExactPitch: false },
+    rootPc: 0, quality: '7', bassPc: null,
+    policies: { sopranoPolicy: 'allow-notes-above', harmonizationPolicy: 'automatic', preserveExactPitch: false },
+  });
+  assertEqual(compat.category, 'chord-tone');
+  assertEqual(compat.matchingInterval, 4);
+});
+
+runTest('H73 — accord initial verrouillé incompatible expose une violation exploitable', () => {
+  const track = trackFromMidiNotes([61]); // C#4 incompatible avec G7
+  let ctx = harmonicContextInKey(track, 'C');
+  ctx = setStartChord(ctx, 'G7', { locked: true });
+  ctx = addHarmonicAnchor(ctx, {
+    melodyEventId: track.events[0].id,
+    relativeTime: track.events[0].startedAt,
+    type: 'start',
+    harmonizationPolicy: 'force',
+  });
+  const result = generateChordCandidatesForAnchor({
+    anchor: ctx.anchors[0],
+    track,
+    harmonicContext: ctx,
+  });
+  assertEqual(result.candidates.length, 1);
+  assertTrue(result.candidates[0].validation.hardViolations.some((v) => v.code === 'MELODY_INCOMPATIBLE'));
+  assertTrue(result.warnings.some((w) => w.code === 'MELODY_INCOMPATIBLE'),
+    'La violation doit être exposée au niveau du résultat');
+});
+
+runTest('H74 — plafond bas ne supprime pas le candidat verrouillé', () => {
+  const track = trackFromMidiNotes([60]);
+  let ctx = harmonicContextInKey(track, 'C');
+  ctx = setStartChord(ctx, 'Cmaj7', { locked: true });
+  ctx = addHarmonicAnchor(ctx, {
+    melodyEventId: track.events[0].id,
+    relativeTime: track.events[0].startedAt,
+    type: 'start',
+    harmonizationPolicy: 'automatic',
+  });
+  const result = generateChordCandidatesForAnchor({
+    anchor: ctx.anchors[0],
+    track,
+    harmonicContext: ctx,
+    options: { maxCandidatesPerAnchor: 1 },
+  });
+  assertEqual(result.candidates.length, 1);
+  assertTrue(result.candidates[0].locked);
+});
+
+runTest('H75 — troncature signalée avec le code CANDIDATES_TRUNCATED', () => {
+  const track = trackFromMidiNotes([60]);
+  let ctx = harmonicContextInKey(track, 'C');
+  ctx = addNoteAnchor(ctx, track, 0, 'automatic');
+  const result = generateChordCandidatesForAnchor({
+    anchor: ctx.anchors[0],
+    track,
+    harmonicContext: ctx,
+    options: { maxCandidatesPerAnchor: 3 },
+  });
+  assertTrue(result.warnings.some((w) => w.code === 'CANDIDATES_TRUNCATED'),
+    'La troncature doit être signalée');
+});
+
+runTest('H76 — aucun score musical caché dans les candidats', () => {
+  const track = trackFromMidiNotes([60, 64, 67]);
+  let ctx = harmonicContextInKey(track, 'C');
+  ctx = addNoteAnchor(ctx, track, 1);
+  const result = generateChordCandidatesForAnchor({
+    anchor: ctx.anchors[0],
+    track,
+    harmonicContext: ctx,
+  });
+  for (const c of result.candidates) {
+    assertFalse('voiceLeadingScore' in c);
+    assertFalse('resolutionScore' in c);
+    assertFalse('commonTones' in c);
+    assertFalse('totalScore' in c);
+    assertFalse('bassMovementScore' in c);
+  }
+});
+
+runTest('H77 — emprunts modaux strictement limités au vocabulaire documenté', () => {
+  const track = trackFromMidiNotes([60]);
+  let ctx = harmonicContextInKey(track, 'C');
+  ctx = addNoteAnchor(ctx, track, 0, 'automatic');
+  const result = generateChordCandidatesForAnchor({
+    anchor: ctx.anchors[0],
+    track,
+    harmonicContext: ctx,
+    options: { maxCandidatesPerAnchor: 100 },
+  });
+  const borrowed = result.candidates.filter((c) => c.source === 'borrowed');
+  const allowedRomans = new Set(['bIII', 'bVI', 'bVII', 'iv']);
+  assertTrue(borrowed.length <= 4, `Attendu ≤4 emprunts, obtenu ${borrowed.length}`);
+  assertTrue(borrowed.every((c) => allowedRomans.has(c.tonalRelation.romanNumeral)),
+    'Tout emprunt doit appartenir au vocabulaire documenté');
 });
 
 console.log(`\n=== Résultat : ${passed}/${total} tests passés ===`);
