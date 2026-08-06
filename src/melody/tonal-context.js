@@ -7,6 +7,7 @@ import {
   computeKeyFromRawNotes,
   computeKeyCandidatesFromRawNotes,
   parseKeyInput,
+  buildPcHistogram,
 } from '../analyzer/key-detector.js';
 
 // ---------------------------------------------------------------------------
@@ -156,8 +157,9 @@ export function estimateTonalContextFromMelody(track, options = {}) {
   }
 
   const rawCandidates = computeKeyCandidatesFromRawNotes(events, options);
+  const weightedPitchClasses = buildPcHistogram(events);
 
-  const candidates = rawCandidates.map((c, i) => ({
+  const candidates = rawCandidates.map((c) => ({
     tonicPitchClass: c.pc,
     mode: c.mode,
     confidence: c.confidence,
@@ -165,7 +167,7 @@ export function estimateTonalContextFromMelody(track, options = {}) {
     source: /** @type {'melody-raw-notes'} */ ('melody-raw-notes'),
     evidence: {
       noteCount: diagnostics.totalEnabled,
-      weightedPitchClasses: new Array(12).fill(0),
+      weightedPitchClasses,
       supportingEventIds: [],
       conflictingEventIds: [],
     },
@@ -267,31 +269,15 @@ export function setManualTonalContext(context, key) {
     throw new Error(`Mode non supporté : "${resolved.mode}". Utiliser "major" ou "minor".`);
   }
 
-  const manualCandidate = {
-    tonicPitchClass: resolved.tonicPitchClass,
-    mode: resolved.mode,
-    confidence: 1,
-    score: 1,
-    source: /** @type {'manual'} */ ('manual'),
-    evidence: {
-      noteCount: 0,
-      weightedPitchClasses: new Array(12).fill(0),
-      supportingEventIds: [],
-      conflictingEventIds: [],
-    },
-  };
-
-  const candidates = [manualCandidate, ...context.candidates.filter(
-    (c) => !(c.tonicPitchClass === resolved.tonicPitchClass && c.mode === resolved.mode),
-  )];
-
+  // La sélection manuelle est conservée séparément des candidats détectés.
+  // On ne modifie ni les scores ni la liste des candidats automatiques.
   return {
     ...context,
     selected: resolved,
-    candidates,
+    candidates: context.candidates.map((c) => ({ ...c, evidence: { ...c.evidence } })),
     selectionOrigin: 'manual',
     confirmedByUser: true,
-    confidence: 1,
+    confidence: null,
     updatedAt: Date.now(),
   };
 }

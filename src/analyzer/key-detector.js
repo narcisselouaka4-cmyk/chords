@@ -31,7 +31,7 @@ function correlation(a, b) {
   return a.reduce((sum, av, i) => sum + (av - ma) * (b[i] - mb), 0) / (a.length * sa * sb);
 }
 
-function buildPcHistogram(events) {
+export function buildPcHistogram(events) {
   const hist = new Array(12).fill(0);
   if (!events || events.length === 0) return hist;
 
@@ -62,25 +62,37 @@ function buildPcHistogram(events) {
   return hist;
 }
 
-function detectByKrumhansl(hist) {
+function computeKrumhanslCandidates(hist, options = {}) {
   const normalized = hist.map((v) => v / (Math.max(...hist) || 1));
-  let bestScore = -Infinity;
-  let best = null;
+  const candidates = [];
 
   for (let pc = 0; pc < 12; pc++) {
-    const major = correlation(normalized, rotate(MAJOR_PROFILE, pc));
-    const minor = correlation(normalized, rotate(MINOR_PROFILE, pc));
-    if (major > bestScore) {
-      bestScore = major;
-      best = { pc, mode: 'major', score: major };
-    }
-    if (minor > bestScore) {
-      bestScore = minor;
-      best = { pc, mode: 'minor', score: minor };
-    }
+    const majorScore = correlation(normalized, rotate(MAJOR_PROFILE, pc));
+    const minorScore = correlation(normalized, rotate(MINOR_PROFILE, pc));
+    candidates.push({
+      pc,
+      mode: 'major',
+      name: keyName(pc, 'major', options.useSharps !== false, options.latin),
+      score: majorScore,
+      confidence: Math.min(1, Math.max(0, majorScore)),
+    });
+    candidates.push({
+      pc,
+      mode: 'minor',
+      name: keyName(pc, 'minor', options.useSharps !== false, options.latin),
+      score: minorScore,
+      confidence: Math.min(1, Math.max(0, minorScore)),
+    });
   }
 
-  return best;
+  // Tri stable par score décroissant, puis pc croissant, puis major avant minor.
+  candidates.sort((a, b) => b.score - a.score || a.pc - b.pc || (a.mode === 'major' ? -1 : 1));
+  return candidates;
+}
+
+function detectByKrumhansl(hist) {
+  const candidates = computeKrumhanslCandidates(hist);
+  return candidates[0] || null;
 }
 
 function chordRootPc(chord) {
@@ -179,7 +191,7 @@ export function computeKeyFromRawNotes(events, options = {}) {
     pc: krumhanslResult.pc,
     mode: krumhanslResult.mode,
     name: keyName(krumhanslResult.pc, krumhanslResult.mode, options.useSharps !== false, options.latin),
-    confidence: Math.min(1, Math.max(0, krumhanslResult.score)),
+    confidence: krumhanslResult.confidence,
     source: 'krumhansl-raw',
   };
 }
@@ -201,30 +213,7 @@ export function computeKeyCandidatesFromRawNotes(events, options = {}) {
 
   if (histTotal <= 0) return [];
 
-  const normalized = hist.map((v) => v / (Math.max(...hist) || 1));
-  const candidates = [];
-
-  for (let pc = 0; pc < 12; pc++) {
-    const majorScore = correlation(normalized, rotate(MAJOR_PROFILE, pc));
-    const minorScore = correlation(normalized, rotate(MINOR_PROFILE, pc));
-    candidates.push({
-      pc,
-      mode: 'major',
-      name: keyName(pc, 'major', options.useSharps !== false, options.latin),
-      score: majorScore,
-      confidence: Math.min(1, Math.max(0, majorScore)),
-    });
-    candidates.push({
-      pc,
-      mode: 'minor',
-      name: keyName(pc, 'minor', options.useSharps !== false, options.latin),
-      score: minorScore,
-      confidence: Math.min(1, Math.max(0, minorScore)),
-    });
-  }
-
-  candidates.sort((a, b) => b.score - a.score);
-  return candidates;
+  return computeKrumhanslCandidates(hist, options);
 }
 
 export function detectKey(events, chords, options = {}) {
