@@ -305,6 +305,12 @@
 
 /**
  * Transition entre deux accords candidats.
+ *
+ * NB : les champs dépendant des voicings — `parallelFifths`, `parallelOctaves`
+ * et un véritable `voiceLeadingScore` (mouvement de voix par registre) —
+ * attendent l'Incrément 7 (génération de voicings). L'Incrément 5 ne produit
+ * que {@link TransitionScore}, un proxy sur pitch classes.
+ *
  * @typedef {{
  *   from: ChordCandidate,
  *   to: ChordCandidate,
@@ -317,6 +323,40 @@
  *   parallelOctaves: boolean,
  *   totalScore: number
  * }} CandidateTransition
+ */
+
+/**
+ * Score pur d'une transition dirigée entre deux ChordCandidate.
+ *
+ * Produit par `scoreChordTransition({ from, to })` (Incrément 5), sans
+ * voicings, sans sélection de chemin et sans recalcul de MelodyCompatibility.
+ * Toutes les composantes et le total sont compris entre 0 et 100 ; plus le
+ * score est élevé, plus la transition est fluide/cohérente selon ce proxy.
+ * `totalScore` est arrondi à l'entier. Chaque composante non active vaut null.
+ *
+ * @typedef {{
+ *   fromId: string,
+ *   toId: string,
+ *   commonTones: number,
+ *   commonToneRate: number,
+ *   movementSemitones: number,
+ *   movementRate: number,
+ *   rootFifthsDistance: number,
+ *   rootScore: number,
+ *   bassScore: number | null,
+ *   resolutionScore: number | null,
+ *   componentScores: {
+ *     common: number,
+ *     motion: number,
+ *     root: number,
+ *     bass: number | null,
+ *     resolution: number | null
+ *   },
+ *   activeWeights: Record<string, number>,
+ *   direction: 'directional',
+ *   totalScore: number,
+ *   limits: string[]
+ * }} TransitionScore
  */
 
 /**
