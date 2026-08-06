@@ -118,6 +118,56 @@ function makeEmptyMelody() {
   return createMelodyTrack({ notes: capture.getNotes(), sourceCaptureId: 'cap-empty' });
 }
 
+// Fixture : mélodie ambiguë C majeur / A mineur (C D E G A)
+function makeAmbiguousMelody() {
+  const clock = makeClock();
+  const capture = makeCapture(clock);
+  const notes = [60, 62, 64, 67, 69]; // C D E G A
+  for (const note of notes) {
+    capture.noteOn(note, 0.8, 0);
+    clock.advance(400);
+    capture.noteOff(note, 0, 0);
+    clock.advance(100);
+  }
+  capture.finalize();
+  return createMelodyTrack({ notes: capture.getNotes(), sourceCaptureId: 'cap-ambig' });
+}
+
+// Fixture : mélodie très courte (une seule note)
+function makeShortMelody() {
+  const clock = makeClock();
+  const capture = makeCapture(clock);
+  capture.noteOn(60, 0.8, 0);
+  clock.advance(400);
+  capture.noteOff(60, 0, 0);
+  capture.finalize();
+  return createMelodyTrack({ notes: capture.getNotes(), sourceCaptureId: 'cap-short' });
+}
+
+// Fixture : poids par durée (C long, E et G courts)
+function makeWeightedMelody() {
+  const clock = makeClock();
+  const capture = makeCapture(clock);
+  capture.noteOn(60, 0.8, 0);
+  clock.advance(1000);
+  capture.noteOff(60, 0, 0);
+  clock.advance(50);
+  capture.noteOn(64, 0.8, 0);
+  clock.advance(100);
+  capture.noteOff(64, 0, 0);
+  clock.advance(50);
+  capture.noteOn(67, 0.8, 0);
+  clock.advance(100);
+  capture.noteOff(67, 0, 0);
+  capture.finalize();
+  return createMelodyTrack({ notes: capture.getNotes(), sourceCaptureId: 'cap-weighted' });
+}
+
+function getFirstCandidateEvidence(track) {
+  const { context } = estimateTonalContextFromMelody(track);
+  return context.candidates[0].evidence;
+}
+
 console.log('=== Incrément 2 — Contexte tonal et harmonique ===\n');
 
 // ===========================================================================
@@ -201,18 +251,24 @@ runTest('T07 — sélection d\'un candidat', () => {
   assertTrue(updated.confirmedByUser);
 });
 
-// T08 : Tonalité manuelle prioritaire
-runTest('T08 — tonalité manuelle prioritaire', () => {
+// T08 : Tonalité manuelle séparée des candidats détectés
+runTest('T08 — tonalité manuelle séparée des candidats détectés', () => {
   const track = makeCMajorMelody();
   const { context } = estimateTonalContextFromMelody(track);
+  const beforeCandidates = context.candidates.length;
   const manual = setManualTonalContext(context, 'Fm');
   assertEqual(manual.selected.tonicPitchClass, 5); // Fa
   assertEqual(manual.selected.mode, 'minor');
   assertEqual(manual.selectionOrigin, 'manual');
   assertTrue(manual.confirmedByUser);
-  assertEqual(manual.confidence, 1);
-  // Le candidat manuel doit être en tête
-  assertEqual(manual.candidates[0].source, 'manual');
+  // La confiance manuelle n'est pas une confiance calculée par le détecteur
+  assertEqual(manual.confidence, null);
+  // Les candidats détectés sont conservés intacts, aucun candidat factice injecté
+  assertEqual(manual.candidates.length, beforeCandidates);
+  assertTrue(manual.candidates.every((c) => c.source === 'melody-raw-notes'),
+    'Aucun candidat factice ne doit être injecté');
+  assertTrue(manual.candidates.every((c) => Number.isFinite(c.score) && c.score <= 1),
+    'Les scores doivent rester les scores de corrélation');
 });
 
 // T09 : Correction utilisateur non écrasée
@@ -233,14 +289,19 @@ runTest('T09 — correction utilisateur non écrasée', () => {
 runTest('T10 — retrait de confirmation', () => {
   const track = makeCMajorMelody();
   const { context } = estimateTonalContextFromMelody(track);
+  const originalTopCandidate = context.candidates[0];
   const manual = setManualTonalContext(context, 'Am');
   assertTrue(manual.confirmedByUser);
+  assertEqual(manual.candidates.length, context.candidates.length);
   const cleared = clearTonalConfirmation(manual);
   assertFalse(cleared.confirmedByUser);
   assertEqual(cleared.selectionOrigin, 'detected');
-  // Doit revenir à l'estimation mélodique (Do majeur)
-  assertEqual(cleared.selected.tonicPitchClass, 0);
-  assertEqual(cleared.selected.mode, 'major');
+  // Doit revenir à l'estimation mélodique
+  assertEqual(cleared.selected.tonicPitchClass, originalTopCandidate.tonicPitchClass);
+  assertEqual(cleared.selected.mode, originalTopCandidate.mode);
+  // Aucun candidat factice ne doit subsister
+  assertTrue(cleared.candidates.every((c) => c.source === 'melody-raw-notes'),
+    'Les candidats automatiques d\'origine doivent rester intacts');
 });
 
 // T11 : Contexte sans estimation suffisante
@@ -670,6 +731,105 @@ runTest('T40 — mélodie en La mineur produit une estimation', () => {
     assertTrue(c.mode === 'major' || c.mode === 'minor');
     assertTrue(c.confidence >= 0 && c.confidence <= 1);
   }
+});
+
+// ===========================================================================
+// SECTION F : Garanties supplémentaires de l'Incrément 2
+// ===========================================================================
+
+// T41 : Non-régression — meilleur candidat = résultat historique
+runTest('T41 — cohérence entre computeKeyFromRawNotes et computeKeyCandidatesFromRawNotes', () => {
+  const track = makeCMajorMelody();
+  const { events } = melodyTrackToRawEvents(track);
+  const key = computeKeyFromRawNotes(events);
+  const candidates = computeKeyCandidatesFromRawNotes(events);
+  assertNotNull(key);
+  assertEqual(candidates.length, 24);
+  assertEqual(candidates[0].pc, key.pc, 'Le meilleur candidat correspond au résultat historique');
+  assertEqual(candidates[0].mode, key.mode);
+  assertEqual(candidates[0].score, key.confidence, 'Même score/confiance normalisé');
+});
+
+// T42 : Résultat historique de computeKeyFromRawNotes inchangé
+runTest('T42 — résultat historique de computeKeyFromRawNotes inchangé', () => {
+  const track = makeCMajorMelody();
+  const { events } = melodyTrackToRawEvents(track);
+  const key = computeKeyFromRawNotes(events);
+  assertEqual(key.pc, 0);
+  assertEqual(key.mode, 'major');
+  assertEqual(key.source, 'krumhansl-raw');
+});
+
+// T43 : Mélodie ambiguë C majeur / A mineur conserve les deux candidats
+runTest('T43 — mélodie ambiguë conserve Do majeur et La mineur', () => {
+  const track = makeAmbiguousMelody();
+  const { context } = estimateTonalContextFromMelody(track);
+  assertNotNull(context.melodyEstimate);
+  const hasC = context.candidates.some((c) => c.tonicPitchClass === 0 && c.mode === 'major');
+  const hasAm = context.candidates.some((c) => c.tonicPitchClass === 9 && c.mode === 'minor');
+  assertTrue(hasC, 'Do majeur doit être parmi les candidats');
+  assertTrue(hasAm, 'La mineur doit être parmi les candidats');
+});
+
+// T44 : Très courte mélodie gérée sans confiance artificielle
+runTest('T44 — très courte mélodie', () => {
+  const track = makeShortMelody();
+  const { context, diagnostics } = estimateTonalContextFromMelody(track);
+  assertEqual(diagnostics.totalEnabled, 1);
+  assertNotNull(context.melodyEstimate);
+  assertTrue(context.candidates.length >= 2);
+  // La confiance doit rester bornée réalistement
+  assertTrue(context.melodyEstimate.confidence >= 0 && context.melodyEstimate.confidence <= 1);
+});
+
+// T45 : Corrections manuelles répétées sans accumulation de candidats
+runTest('T45 — corrections manuelles répétées sans accumulation', () => {
+  const track = makeCMajorMelody();
+  const { context } = estimateTonalContextFromMelody(track);
+  const count = context.candidates.length;
+  let corrected = correctTonalContext(context, 'G');
+  corrected = correctTonalContext(corrected, 'F');
+  corrected = correctTonalContext(corrected, 'Bb');
+  assertEqual(corrected.candidates.length, count, 'Aucun candidat factice accumulé');
+  assertEqual(corrected.candidates.filter((c) => c.source === 'manual').length, 0,
+    'Les candidats détectés ne doivent pas être remplacés par des entrées manuelles');
+  assertEqual(corrected.selected.tonicPitchClass, 10); // Bb
+  assertEqual(corrected.selected.mode, 'major');
+  assertEqual(corrected.selectionOrigin, 'corrected');
+});
+
+// T46 : Symétrie de compareTonalEstimates
+runTest('T46 — symétrie de compareTonalEstimates', () => {
+  const a = {
+    tonicPitchClass: 0, mode: 'major', confidence: 0.8, score: 0.8,
+    source: 'melody-raw-notes',
+    evidence: { noteCount: 5, weightedPitchClasses: [], supportingEventIds: [], conflictingEventIds: [] },
+  };
+  const b = {
+    tonicPitchClass: 7, mode: 'major', confidence: 0.6, score: 0.6,
+    source: 'harmony-chords',
+    evidence: { noteCount: 3, weightedPitchClasses: [], supportingEventIds: [], conflictingEventIds: [] },
+  };
+  const ab = compareTonalEstimates(a, b);
+  const ba = compareTonalEstimates(b, a);
+  assertEqual(ab.agreement, ba.agreement, 'L\'agreement doit être symétrique');
+  assertEqual(ab.confidenceDelta, -ba.confidenceDelta, 'Le delta change de signe lors de l\'inversion');
+});
+
+// T47 : Les durées sont exploitées conformément au détecteur
+runTest('T47 — durée exploitée conformément au détecteur', () => {
+  const track = makeWeightedMelody();
+  const { events, diagnostics } = melodyTrackToRawEvents(track);
+  assertEqual(diagnostics.totalEnabled, 3);
+  const candidates = computeKeyCandidatesFromRawNotes(events);
+  const top = candidates[0];
+  // La note C dominante en durée avec E et G courts devrait favoriser Do majeur (pc 0)
+  assertEqual(top.pc, 0, 'La tonique attendue est Do majeur');
+  assertEqual(top.mode, 'major');
+  // Vérification que l'histogramme reflète bien les durées
+  const evidence = getFirstCandidateEvidence(track);
+  assertTrue(evidence.weightedPitchClasses[0] > evidence.weightedPitchClasses[4],
+    'C (pc 0) doit avoir plus de poids que E (pc 4)');
 });
 
 console.log(`\n=== Résultat : ${passed}/${total} tests passés ===`);
