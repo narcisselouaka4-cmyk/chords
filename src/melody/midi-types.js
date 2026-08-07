@@ -629,3 +629,45 @@
  *   settings: VoicingPathSettings
  * }} VoicingPathResult
  */
+
+/**
+ * Étape alignée d'un plan d'harmonisation (Increment 8).
+ *
+ * Produit par `buildHarmonizationPlan({ track, harmonicContext })`. Chaque
+ * étape relie une ancre, sa couche de candidats, le candidat choisi par le
+ * chemin harmonique, le voicing choisi par le chemin de voicings, et les
+ * transitions entrantes (nulles à l'indice 0). `candidateLayer` est une copie
+ * figée de la couche générée ; `candidate` et `voicing` sont les références
+ * exactes retournées par les moteurs amont.
+ *
+ * @typedef {{
+ *   index: number,
+ *   anchor: HarmonicAnchor,
+ *   candidateLayer: ChordCandidate[],
+ *   candidate: ChordCandidate,
+ *   voicing: PianoVoicing,
+ *   harmonicTransition: TransitionScore | null,
+ *   voicingTransition: VoicingTransition | null
+ * }} HarmonizationStep
+ */
+
+/**
+ * Plan d'harmonisation assemblé couche par couche (Increment 8).
+ *
+ * Produit par `buildHarmonizationPlan({ track, harmonicContext })`. Orchestrateur
+ * pur : il relie les contrats validés par les Incréments 2 à 7 sans recalculer
+ * aucun score, reclasser, rechoisir ou remplacer. `track` et `harmonicContext`
+ * sont les références exactes d'entrée (non copiées, non figées a posteriori) ;
+ * `candidateLayers` est un nouveau tableau figé de tableaux figés ; les deux
+ * résultats `harmonicPathResult` et `voicingPathResult` sont les objets exacts
+ * retournés par les moteurs amont. Aucun champ audio/UI/lecture/doigté/pédale.
+ *
+ * @typedef {{
+ *   track: MelodyTrack,
+ *   harmonicContext: HarmonicContext,
+ *   candidateLayers: ChordCandidate[][],
+ *   harmonicPathResult: HarmonicPathResult,
+ *   voicingPathResult: VoicingPathResult,
+ *   steps: HarmonizationStep[]
+ * }} HarmonizationPlan
+ */
