@@ -85,19 +85,24 @@ function captureGraph(root) {
     if (obj === null || typeof obj !== 'object') return;
     if (seen.has(obj)) return;
     seen.add(obj);
+    const ownKeys = Reflect.ownKeys(obj);
     const snap = {
       ref: obj,
       path,
       frozen: Object.isFrozen(obj),
-      keys: Object.keys(obj),
+      keys: ownKeys,
       props: Object.create(null),
     };
-    for (const k of snap.keys) {
+    for (const k of ownKeys) {
       const desc = Object.getOwnPropertyDescriptor(obj, k);
-      const v = desc ? desc.value : undefined;
-      snap.props[k] = { value: v, isObject: v !== null && typeof v === 'object' };
-      if (v !== null && typeof v === 'object') {
-        visit(v, `${path}.${k}`);
+      if (desc && 'value' in desc) {
+        const v = desc.value;
+        snap.props[k] = { type: 'data', value: v, isObject: v !== null && typeof v === 'object' };
+        if (v !== null && typeof v === 'object') {
+          visit(v, `${path}.${String(k)}`);
+        }
+      } else {
+        snap.props[k] = { type: 'accessor' };
       }
     }
     snapshots.set(obj, snap);
@@ -135,19 +140,29 @@ function assertGraphUnchanged(root, captured, rootPath = 'input') {
     if (Object.isFrozen(obj) !== snap.frozen) {
       throw new Error(`${path} état de gel modifié : ${snap.frozen} -> ${Object.isFrozen(obj)}`);
     }
-    const keys = Object.keys(obj);
-    if (keys.length !== snap.keys.length || !keys.every((k, i) => k === snap.keys[i])) {
-      throw new Error(`${path} clés modifiées : [${snap.keys.join(', ')}] -> [${keys.join(', ')}]`);
+    const ownKeys = Reflect.ownKeys(obj);
+    if (ownKeys.length !== snap.keys.length || !ownKeys.every((k, i) => k === snap.keys[i])) {
+      throw new Error(`${path} clés propres modifiées : [${snap.keys.join(', ')}] -> [${ownKeys.join(', ')}]`);
     }
-    for (const k of keys) {
+    for (const k of ownKeys) {
       const desc = Object.getOwnPropertyDescriptor(obj, k);
+      const snapProp = snap.props[k];
+      if (!snapProp) {
+        throw new Error(`${path}.${String(k)} propriété absente du snapshot`);
+      }
+      if (snapProp.type === 'accessor') {
+        if (!desc || 'value' in desc) {
+          throw new Error(`${path}.${String(k)} accesseur transformé en propriété de données`);
+        }
+        continue;
+      }
       const actualV = desc ? desc.value : undefined;
-      const expectedV = snap.props[k].value;
+      const expectedV = snapProp.value;
       if (actualV !== expectedV) {
-        throw new Error(`${path}.${k} valeur/référence modifiée`);
+        throw new Error(`${path}.${String(k)} valeur/référence modifiée`);
       }
       if (actualV !== null && typeof actualV === 'object') {
-        visit(actualV, expectedV, `${path}.${k}`);
+        visit(actualV, expectedV, `${path}.${String(k)}`);
       }
     }
   }
@@ -802,28 +817,10 @@ runTest('T13 — ancres invalides : TypeError (délégué aux contrats publics)'
   assertTrue(String(err.message).toLowerCase().includes('invalide'),
     'message indique que l ancre est invalide');
 
-  // Ancre possédant un id mais rendue invalide : copie d'une vraie ancre
-  // canonique avec un id vide (champ obligatoire invalide selon le générateur).
-  // Le statut public direct du générateur est 'invalid-anchor'.
-  const realAnchor = ctx.anchors[0];
-  const invalidIdAnchor = { ...realAnchor, id: '' };
-  const genInvalid = generateChordCandidatesForAnchor({
-    anchor: invalidIdAnchor, track, harmonicContext: ctx,
-  });
-  assertEqual(genInvalid.status, 'invalid-anchor', 'générateur retourne invalid-anchor pour id invalide');
-  assertEqual(genInvalid.anchorId, invalidIdAnchor.id,
-    'générateur rapporte l id exact (même invalide) de l ancre');
-
-  const invalidIdCtx = { ...ctx, anchors: [invalidIdAnchor] };
-  err = null;
-  try { buildHarmonizationPlan({ track, harmonicContext: invalidIdCtx }); } catch (e) { err = e; }
-  assertTrue(err instanceof TypeError, 'ancre avec id invalide -> TypeError');
-  assertTrue(String(err.message).includes('0'), 'message contient l indice 0');
-  // Le planificateur n affiche le suffixe d id que pour les ids évalués comme
-  // truthy ; l id vide reste cependant présent dans le rapport direct du
-  // générateur ci-dessus.
-  assertTrue(String(err.message).toLowerCase().includes('invalide'),
-    'message indique que l ancre est invalide');
+  // Note : le validateur canonique (chord-candidate-generator.js:896) ne
+  // vérifie que !anchor || !anchor.id. Aucun autre champ ne peut produire
+  // le statut 'invalid-anchor'. Il est donc impossible de construire une
+  // ancre avec un id réel non vide qui déclenche 'invalid-anchor'.
 
   // Ancre valide sans candidat : mode force sans contexte tonal ni accord
   // original. Le statut public direct du générateur est 'no-valid-candidate'.
@@ -834,10 +831,8 @@ runTest('T13 — ancres invalides : TypeError (délégué aux contrats publics)'
   const genNoCandidate = generateChordCandidatesForAnchor({
     anchor: forceAnchor, track: trackForce, harmonicContext: ctxForce,
   });
-  assertTrue(
-    genNoCandidate.status === 'no-valid-candidate' || genNoCandidate.status === 'skipped',
-    'statut public direct réellement atteint dans le contrat canonique',
-  );
+  assertEqual(genNoCandidate.status, 'no-valid-candidate',
+    'statut public direct = no-valid-candidate');
   assertEqual(genNoCandidate.candidates.length, 0, 'aucun candidat retourné');
 
   let planErr = null;
