@@ -33,6 +33,19 @@ import {
   verifyAudioIdentity,
   tryApplyProjectOverrides,
 } from './chord-editor.js';
+// [OpenCode] — 2026-08-07 — Incrément 9, Lot 1 : raccordement du panneau
+// Réharmonisation au moteur canonique buildHarmonizationPlan via un
+// orchestrateur UI déterministe. Entrée de démonstration (fixture) tant que
+// l'extraction d'une vraie MelodyTrack (Incrément 11) n'est pas raccordée.
+import { buildDemoFixture } from './reharmonization-demo-fixture.js';
+import { buildReharmonizationViewModel } from './reharmonization-orchestrator.js';
+import {
+  renderReharmonizationEmpty,
+  renderReharmonizationLoading,
+  renderReharmonizationError,
+  renderReharmonizationSuccess,
+} from './reharmonization-view.js';
+import './reharmonization-view.css';
 
 const BASE_PIXELS_PER_SECOND = 80;
 const MIN_BLOCK_WIDTH = 4;
@@ -90,6 +103,11 @@ const els = {
 
   processing: document.getElementById('analyzer-processing'),
   processingText: document.getElementById('analyzer-processing-text'),
+
+  // Panneau Réharmonisation (Incrément 9, Lot 1) — démonstration du moteur canonique.
+  reharmStyle: document.getElementById('analyzer-reharm-style'),
+  reharmRun: document.getElementById('analyzer-reharm-run'),
+  reharmOutput: document.getElementById('analyzer-reharm-output'),
 };
 
 let analyzer = null;
@@ -122,6 +140,7 @@ export function initAnalyzerTab() {
   bindCopyTextButton();
   initChordEditor();
   initKeyboardShortcuts();
+  initReharmonizationPanel();
 }
 
 function bindImportButton() {
@@ -1032,4 +1051,76 @@ function escapeHtml(str) {
     .replace(/\u003c/g, '\u0026lt;')
     .replace(/\u003e/g, '\u0026gt;')
     .replace(/"/g, '\u0026quot;');
+}
+
+// ---------------------------------------------------------------------------
+// Incrément 9, Lot 1 — Panneau Réharmonisation (démonstration du moteur canonique)
+// ---------------------------------------------------------------------------
+
+// Initialise le panneau Réharmonisation existant (#analyzer-reharm-style / run /
+// output). Le sélecteur de style est DÉSACTIVÉ et jamais lu : aucun mapping
+// Worship/Gospel/Jazz/Neo Soul déterministe n'existe dans le moteur canonique.
+// Le bouton lance une démonstration explicite d'une fixture déterministe.
+function initReharmonizationPanel() {
+  const styleSelect = els.reharmStyle;
+  const runBtn = els.reharmRun;
+  const output = els.reharmOutput;
+
+  if (styleSelect) {
+    // Désactivation + accessibilité : la valeur n'est jamais lue.
+    styleSelect.disabled = true;
+    styleSelect.setAttribute('aria-disabled', 'true');
+    styleSelect.setAttribute('tabindex', '-1');
+    styleSelect.title = 'Style désactivé : aucun mapping déterministe style → moteur n’existe encore.';
+  }
+
+  if (runBtn) {
+    // Formulation explicite : il s’agit d’une démonstration, pas d’une analyse
+    // du fichier audio actuellement chargé.
+    runBtn.textContent = 'Voir la démonstration';
+    runBtn.setAttribute('aria-controls', 'analyzer-reharm-output');
+    runBtn.addEventListener('click', runReharmonizationDemo);
+  }
+
+  if (output) {
+    output.setAttribute('aria-live', 'polite');
+    output.setAttribute('aria-busy', 'false');
+    renderReharmonizationEmpty(output);
+  }
+}
+
+// Lance la démonstration : construit la fixture canonique, appelle le moteur
+// via l’orchestrateur, affiche le résultat. États vide/chargement/succès/erreur.
+async function runReharmonizationDemo() {
+  const runBtn = els.reharmRun;
+  const output = els.reharmOutput;
+  if (!runBtn || !output) return;
+
+  runBtn.disabled = true;
+  output.setAttribute('aria-busy', 'true');
+  renderReharmonizationLoading(output);
+
+  // Laisse le navigateur peindre l’état chargement avant le travail synchrone.
+  await new Promise((resolve) => requestAnimationFrame(resolve));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  try {
+    const fixture = buildDemoFixture();
+    const viewModel = buildReharmonizationViewModel({
+      track: fixture.track,
+      harmonicContext: fixture.harmonicContext,
+    });
+
+    if (viewModel.status === 'success') {
+      renderReharmonizationSuccess(output, viewModel, fixture.meta);
+    } else {
+      renderReharmonizationError(output, viewModel.message, viewModel.errorKind);
+    }
+  } catch (err) {
+    // Filet de sécurité : toute erreur non interceptée par l’orchestrateur.
+    renderReharmonizationError(output, err && err.message ? err.message : 'Erreur inattendue.', 'Error');
+  } finally {
+    runBtn.disabled = false;
+    output.setAttribute('aria-busy', 'false');
+  }
 }

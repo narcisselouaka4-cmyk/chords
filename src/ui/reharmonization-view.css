@@ -1,0 +1,194 @@
+/* [OpenCode] — 2026-08-07 — Incrément 9, Lot 1 : styles du rendu de démonstration
+   du moteur de réharmonisation. Complément de style.css / design-system.css ;
+   ne dépend d'aucun framework. */
+
+.analyzer-reharm-output {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.reharm-empty,
+.reharm-loading,
+.reharm-error {
+  border: 1px solid var(--border, #27272a);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: var(--surface-secondary, rgba(24, 24, 27, 0.6));
+}
+
+.reharm-empty-title,
+.reharm-loading,
+.reharm-error-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-strong, #d4d4d8);
+  margin: 0 0 6px;
+}
+
+.reharm-empty-text,
+.reharm-error-message {
+  font-size: 0.75rem;
+  color: var(--text-muted, #71717a);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.reharm-error-kind {
+  font-size: 0.6875rem;
+  color: var(--text-muted, #71717a);
+  margin: 0 0 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.reharm-error {
+  border-color: #7f1d1d;
+  background: rgba(127, 29, 29, 0.12);
+}
+
+.reharm-demo-banner {
+  border: 1px solid #3b2f1d;
+  border-radius: 8px;
+  padding: 10px 14px;
+  background: rgba(161, 98, 7, 0.12);
+}
+
+.reharm-demo-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #fbbf24;
+  margin: 0 0 4px;
+}
+
+.reharm-demo-desc {
+  font-size: 0.6875rem;
+  color: var(--text-muted, #a1a1aa);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.reharm-totals {
+  border: 1px solid var(--border, #27272a);
+  border-radius: 8px;
+  padding: 10px 14px;
+  background: var(--surface-secondary, rgba(24, 24, 27, 0.6));
+}
+
+.reharm-totals-title,
+.reharm-progression-title {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted, #71717a);
+  margin: 0 0 8px;
+}
+
+.reharm-totals-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.75rem;
+  color: var(--text, #d4d4d8);
+  font-variant-numeric: tabular-nums;
+  padding: 1px 0;
+}
+
+.reharm-totals-label {
+  color: var(--text-muted, #a1a1aa);
+}
+
+.reharm-totals-value {
+  color: var(--text-strong, #f4f4f5);
+}
+
+.reharm-progression {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.reharm-step {
+  border: 1px solid var(--border, #27272a);
+  border-radius: 8px;
+  padding: 10px 14px;
+  background: var(--surface, rgba(9, 9, 11, 0.4));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reharm-step-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.reharm-step-index {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-strong, #f4f4f5);
+}
+
+.reharm-step-topnote {
+  font-size: 0.6875rem;
+  color: var(--text-muted, #a1a1aa);
+  font-variant-numeric: tabular-nums;
+}
+
+.reharm-step-chord {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #fbbf24;
+}
+
+.reharm-step-melcomp,
+.reharm-step-transitions,
+.reharm-step-voicing-notes,
+.reharm-step-voicing-hands {
+  font-size: 0.6875rem;
+  color: var(--text, #d4d4d8);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+}
+
+.reharm-step-voicing-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-muted, #a1a1aa);
+  margin-bottom: 2px;
+}
+
+.reharm-mini-keyboard {
+  margin: 2px 0 4px;
+}
+
+.reharm-mini-keyboard :is(svg) {
+  max-width: 100%;
+  height: auto;
+}
+
+.reharm-step-alternatives-label {
+  font-size: 0.6875rem;
+  color: var(--text-muted, #a1a1aa);
+  margin-bottom: 4px;
+}
+
+.reharm-step-alternatives-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.reharm-alt-chip {
+  font-size: 0.625rem;
+  padding: 1px 6px;
+  border: 1px solid var(--border, #3f3f46);
+  border-radius: 999px;
+  color: var(--text-muted, #a1a1aa);
+  background: var(--surface-secondary, rgba(39, 39, 42, 0.5));
+  cursor: default;
+  user-select: none;
+}
