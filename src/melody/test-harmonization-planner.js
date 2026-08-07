@@ -68,6 +68,120 @@ function assertThrowsRangeError(fn, msg = '') {
   if (!threw) throw new Error(`${msg} aucune erreur levée, RangeError attendu`);
 }
 
+/**
+ * Capture, sans mutation, tout le graphe d'objets accessible depuis une racine.
+ * Pour chaque objet/tableau accessible, mémorise sa référence, son état de gel,
+ * ses clés propres et la valeur/référence exacte de chaque propriété propre.
+ * Un WeakSet évite les boucles et les parcours redondants sur les références
+ * partagées.
+ *
+ * @param {object} root
+ * @returns {{ snapshots: WeakMap<object, object>, seen: WeakSet<object> }}
+ */
+function captureGraph(root) {
+  const seen = new WeakSet();
+  const snapshots = new WeakMap();
+  function visit(obj, path) {
+    if (obj === null || typeof obj !== 'object') return;
+    if (seen.has(obj)) return;
+    seen.add(obj);
+    const snap = {
+      ref: obj,
+      path,
+      frozen: Object.isFrozen(obj),
+      keys: Object.keys(obj),
+      props: Object.create(null),
+    };
+    for (const k of snap.keys) {
+      const desc = Object.getOwnPropertyDescriptor(obj, k);
+      const v = desc ? desc.value : undefined;
+      snap.props[k] = { value: v, isObject: v !== null && typeof v === 'object' };
+      if (v !== null && typeof v === 'object') {
+        visit(v, `${path}.${k}`);
+      }
+    }
+    snapshots.set(obj, snap);
+  }
+  visit(root, 'input');
+  return { snapshots, seen };
+}
+
+/**
+ * Vérifie que le graphe accessible depuis root est inchangé par rapport au
+ * snapshot capturé. Pour chaque objet capturé, contrôle : même référence à
+ * chaque emplacement, mêmes clés, mêmes valeurs primitives, mêmes références
+ * pour les valeurs objet, même état de gel.
+ *
+ * @param {object} root
+ * @param {{ snapshots: WeakMap<object, object>, seen: WeakSet<object> }} captured
+ * @param {string} rootPath
+ */
+function assertGraphUnchanged(root, captured, rootPath = 'input') {
+  const visited = new WeakSet();
+  function visit(obj, expectedObj, path) {
+    if (obj === null || typeof obj !== 'object') {
+      if (obj !== expectedObj) {
+        throw new Error(`${path} valeur primitive changée : ${JSON.stringify(expectedObj)} -> ${JSON.stringify(obj)}`);
+      }
+      return;
+    }
+    const snap = captured.snapshots.get(obj);
+    if (!snap) {
+      throw new Error(`${path} objet non présent dans le snapshot initial (référence inconnue ou remplacée)`);
+    }
+    if (visited.has(obj)) return;
+    visited.add(obj);
+
+    if (Object.isFrozen(obj) !== snap.frozen) {
+      throw new Error(`${path} état de gel modifié : ${snap.frozen} -> ${Object.isFrozen(obj)}`);
+    }
+    const keys = Object.keys(obj);
+    if (keys.length !== snap.keys.length || !keys.every((k, i) => k === snap.keys[i])) {
+      throw new Error(`${path} clés modifiées : [${snap.keys.join(', ')}] -> [${keys.join(', ')}]`);
+    }
+    for (const k of keys) {
+      const desc = Object.getOwnPropertyDescriptor(obj, k);
+      const actualV = desc ? desc.value : undefined;
+      const expectedV = snap.props[k].value;
+      if (actualV !== expectedV) {
+        throw new Error(`${path}.${k} valeur/référence modifiée`);
+      }
+      if (actualV !== null && typeof actualV === 'object') {
+        visit(actualV, expectedV, `${path}.${k}`);
+      }
+    }
+  }
+  visit(root, null, rootPath);
+}
+
+/**
+ * Vérifie récursivement qu'aucun nombre NaN, Infinity ou -Infinity n'est
+ * présent dans une valeur. Protégé par WeakSet pour éviter les références
+ * circulaires.
+ *
+ * @param {unknown} value
+ * @param {string} path
+ * @param {WeakSet<object>} seen
+ */
+function assertAllNumbersFinite(value, path = 'value', seen = new WeakSet()) {
+  if (value === null || typeof value !== 'object') {
+    if (typeof value === 'number') {
+      assertTrue(Number.isFinite(value), `${path} doit être un nombre fini, obtenu ${value}`);
+    }
+    return;
+  }
+  if (seen.has(value)) return;
+  seen.add(value);
+  if (Array.isArray(value)) {
+    for (let i = 0; i < value.length; i++) {
+      assertAllNumbersFinite(value[i], `${path}[${i}]`, seen);
+    }
+  }
+  for (const k of Object.keys(value)) {
+    assertAllNumbersFinite(value[k], `${path}.${k}`, seen);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Helpers de construction réels (miroir des tests amont)
 // ---------------------------------------------------------------------------
@@ -130,11 +244,27 @@ function manualComposition(track, harmonicContext) {
 }
 
 // Champs temporels/performance interdits dans les nouveaux conteneurs.
+// Normalisés en minuscules pour une comparaison insensible à la casse.
 const FORBIDDEN_FIELDS = new Set([
   'audio', 'ui', 'playback', 'noteOn', 'noteOff', 'duration', 'velocity',
   'channel', 'tempo', 'tick', 'pedal', 'sustain', 'finger', 'export',
   'style', 'reharmonization',
-]);
+].map((f) => f.toLowerCase()));
+
+/**
+ * Vrai test de clé d'index de tableau. Rejette les chaînes comme '01', '1e2',
+ * '' ou 'foo' : seule une chaîne décimale non signée représentant un entier
+ * dans [0, 2**32 - 2] est un index valide selon la spécification JS.
+ *
+ * @param {string} key
+ * @returns {boolean}
+ */
+function isArrayIndex(key) {
+  if (typeof key !== 'string' || key === '' || key === '0' && key.length !== 1) return false;
+  const num = Number(key);
+  if (!Number.isInteger(num) || num < 0) return false;
+  return String(num) === key && num < 4294967295;
+}
 
 // Inspecte uniquement les clés propres des nouveaux conteneurs de l'Incrément 8
 // (plan, steps, candidateLayers, chaque couche). Ne parcourt jamais les valeurs
@@ -148,17 +278,17 @@ function collectNewContainerKeys(plan) {
   for (const k of Object.keys(plan)) keys.add(k.toLowerCase());
   // candidateLayers : clés propres du tableau extérieur (propriétés non numériques).
   for (const k of Object.keys(plan.candidateLayers)) {
-    if (isNaN(Number(k))) keys.add(k.toLowerCase());
+    if (!isArrayIndex(k)) keys.add(k.toLowerCase());
   }
   // Chaque couche : clés propres (propriétés non numériques).
   for (const layer of plan.candidateLayers) {
     for (const k of Object.keys(layer)) {
-      if (isNaN(Number(k))) keys.add(k.toLowerCase());
+      if (!isArrayIndex(k)) keys.add(k.toLowerCase());
     }
   }
   // steps : clés propres du tableau extérieur.
   for (const k of Object.keys(plan.steps)) {
-    if (isNaN(Number(k))) keys.add(k.toLowerCase());
+    if (!isArrayIndex(k)) keys.add(k.toLowerCase());
   }
   // Chaque HarmonizationStep : clés propres.
   for (const s of plan.steps) {
@@ -348,7 +478,28 @@ runTest('T7 — équivalence stricte avec la composition manuelle des API publiq
   const manual = manualComposition(track, ctx);
   const plan = buildHarmonizationPlan({ track, harmonicContext: ctx });
 
-  // Toutes les candidateLayers (ids + ordre).
+  // Égalité sérialisable complète des trois agrégats produits. Le test échoue
+  // si un champ sérialisable diffère, même lorsque les identifiants et les
+  // notes MIDI restent identiques.
+  assertDeepEqual(
+    plan.candidateLayers,
+    manual.candidateLayers,
+    'candidateLayers complètes',
+  );
+  assertDeepEqual(
+    plan.harmonicPathResult,
+    manual.harmonicPathResult,
+    'HarmonicPathResult complet',
+  );
+  assertDeepEqual(
+    plan.voicingPathResult,
+    manual.voicingPathResult,
+    'VoicingPathResult complet',
+  );
+
+  // Vérifications explicites conservées : ordre des identifiants, notes MIDI,
+  // transitions harmoniques, wrappers de transitions de voicing, scores,
+  // movements, totaux et settings.
   assertDeepEqual(
     plan.candidateLayers.map((l) => l.map((c) => c.id)),
     manual.candidateLayers.map((l) => l.map((c) => c.id)),
@@ -507,7 +658,7 @@ runTest('T10 — déterminisme : même JSON, ids, notes MIDI, scores, ordre', ()
 // T11 — Immutabilité complète
 // ===========================================================================
 
-runTest('T11 — immutabilité complète : entrées intactes, nouveaux conteneurs figés', () => {
+runTest('T11 — immutabilité complète : graphe des entrées inchangé, nouveaux conteneurs figés', () => {
   const track = trackFromMidiNotes([60, 64, 67]);
   const ctx = makeThreeAnchorContext(track);
   const input = { track, harmonicContext: ctx };
@@ -530,7 +681,16 @@ runTest('T11 — immutabilité complète : entrées intactes, nouveaux conteneur
   const anchorsJson = JSON.stringify(ctx.anchors);
   const eventsJson = JSON.stringify(track.events);
 
+  // Capture complète du graphe d'objets accessible depuis les entrées.
+  const captured = captureGraph(input);
+
   const plan = buildHarmonizationPlan(input);
+
+  // Vérification globale du graphe : chaque objet accessible conserve sa
+  // référence, son état de gel, ses clés propres et la valeur/référence de
+  // chaque propriété propre. Détecte un gel ou un remplacement post-call de
+  // ctx.tonalContext, d'un tableau du contexte tonal, d'un événement ou d'une ancre.
+  assertGraphUnchanged(input, captured, 'input');
 
   // Wrapper : référence et état de gel inchangés.
   assertTrue(input === inputRef, 'wrapper même référence');
@@ -629,13 +789,64 @@ runTest('T13 — ancres invalides : TypeError (délégué aux contrats publics)'
   // ancre primitive.
   const primAnchor = { ...ctx, anchors: [5] };
   assertThrowsTypeError(() => buildHarmonizationPlan({ track, harmonicContext: primAnchor }), 'ancre primitive');
-  // ancre invalide selon le contrat public du générateur : objet sans id.
+
+  // Ancre invalide selon le contrat public du générateur : objet sans id.
   // Le générateur retourne status 'invalid-anchor' : le planificateur lève
   // TypeError (ancre structurellement invalide), pas RangeError.
   const badAnchor = { relativeTime: 0, type: 'user', harmonizationPolicy: 'automatic' };
   const invalidCtx = { ...ctx, anchors: [badAnchor] };
-  assertThrowsTypeError(() => buildHarmonizationPlan({ track, harmonicContext: invalidCtx }),
-    'ancre invalide sans id -> TypeError');
+  let err = null;
+  try { buildHarmonizationPlan({ track, harmonicContext: invalidCtx }); } catch (e) { err = e; }
+  assertTrue(err instanceof TypeError, 'ancre sans id -> TypeError');
+  assertTrue(String(err.message).includes('0'), 'message contient l indice 0');
+  assertTrue(String(err.message).toLowerCase().includes('invalide'),
+    'message indique que l ancre est invalide');
+
+  // Ancre possédant un id mais rendue invalide : copie d'une vraie ancre
+  // canonique avec un id vide (champ obligatoire invalide selon le générateur).
+  // Le statut public direct du générateur est 'invalid-anchor'.
+  const realAnchor = ctx.anchors[0];
+  const invalidIdAnchor = { ...realAnchor, id: '' };
+  const genInvalid = generateChordCandidatesForAnchor({
+    anchor: invalidIdAnchor, track, harmonicContext: ctx,
+  });
+  assertEqual(genInvalid.status, 'invalid-anchor', 'générateur retourne invalid-anchor pour id invalide');
+  assertEqual(genInvalid.anchorId, invalidIdAnchor.id,
+    'générateur rapporte l id exact (même invalide) de l ancre');
+
+  const invalidIdCtx = { ...ctx, anchors: [invalidIdAnchor] };
+  err = null;
+  try { buildHarmonizationPlan({ track, harmonicContext: invalidIdCtx }); } catch (e) { err = e; }
+  assertTrue(err instanceof TypeError, 'ancre avec id invalide -> TypeError');
+  assertTrue(String(err.message).includes('0'), 'message contient l indice 0');
+  // Le planificateur n affiche le suffixe d id que pour les ids évalués comme
+  // truthy ; l id vide reste cependant présent dans le rapport direct du
+  // générateur ci-dessus.
+  assertTrue(String(err.message).toLowerCase().includes('invalide'),
+    'message indique que l ancre est invalide');
+
+  // Ancre valide sans candidat : mode force sans contexte tonal ni accord
+  // original. Le statut public direct du générateur est 'no-valid-candidate'.
+  const trackForce = trackFromMidiNotes([61]); // C#4
+  let ctxForce = createHarmonicContext(trackForce);
+  ctxForce = addHarmonicAnchor(ctxForce, { relativeTime: 0, harmonizationPolicy: 'force' });
+  const forceAnchor = ctxForce.anchors[0];
+  const genNoCandidate = generateChordCandidatesForAnchor({
+    anchor: forceAnchor, track: trackForce, harmonicContext: ctxForce,
+  });
+  assertTrue(
+    genNoCandidate.status === 'no-valid-candidate' || genNoCandidate.status === 'skipped',
+    'statut public direct réellement atteint dans le contrat canonique',
+  );
+  assertEqual(genNoCandidate.candidates.length, 0, 'aucun candidat retourné');
+
+  let planErr = null;
+  try { buildHarmonizationPlan({ track: trackForce, harmonicContext: ctxForce }); } catch (e) { planErr = e; }
+  assertTrue(planErr instanceof RangeError, 'ancre valide sans candidat -> RangeError');
+  assertTrue(String(planErr.message).includes('0'), 'message contient l indice 0');
+  assertTrue(String(planErr.message).includes(forceAnchor.id),
+    'message contient l identifiant canonique exact de l ancre');
+  assertTrue(!planErr.partialPlan, 'aucun plan partiel retourné');
 
   // Contexte créé pour une piste mais utilisé avec une autre : le contrat
   // canonique encode melodyTrackId, le planificateur lève TypeError.
@@ -720,25 +931,36 @@ runTest('T15 — progression avec cardinalités de pitch classes différentes ga
         `vt[${i}].to === steps[${i}].voicing`);
     }
   }
-  // Tous les nombres des résultats, scores, mouvements et transitions sont finis.
+  // Tous les nombres des résultats, scores, mouvements et transitions sont
+  // finis. Le contrôle récursif couvre totaux, compatibilityScore,
+  // transitionScore, poids, champs numériques des transitions harmoniques,
+  // des voicings, des scores de transitions de voicing, chaque VoicingMovement,
+  // index et notes MIDI.
+  assertAllNumbersFinite(plan.harmonicPathResult, 'plan.harmonicPathResult');
+  assertAllNumbersFinite(plan.voicingPathResult, 'plan.voicingPathResult');
+
+  // Vérifications explicites conservées sur les totaux et les sous-scores.
   assertTrue(Number.isFinite(plan.voicingPathResult.totalCost), 'totalCost fini');
   assertTrue(Number.isFinite(plan.voicingPathResult.totalMovement), 'totalMovement fini');
   assertTrue(Number.isFinite(plan.voicingPathResult.registerDeviation), 'registerDeviation fini');
   assertTrue(Number.isFinite(plan.harmonicPathResult.totalScore), 'hpath totalScore fini');
+  assertTrue(plan.harmonicPathResult.transitionScore === null
+    || Number.isFinite(plan.harmonicPathResult.transitionScore), 'hpath transitionScore fini ou null');
+  assertTrue(Number.isFinite(plan.harmonicPathResult.compatibilityScore), 'hpath compatibilityScore fini');
+  assertTrue(Number.isFinite(plan.harmonicPathResult.weights.compatibility)
+    && Number.isFinite(plan.harmonicPathResult.weights.transition), 'hpath weights finis');
   for (const tr of plan.voicingPathResult.transitions) {
     assertTrue(Number.isFinite(tr.score.cost), 'vpath transition cost fini');
     assertTrue(Number.isFinite(tr.score.totalMovement), 'vpath transition movement fini');
     for (const m of tr.score.movements) {
       if (m.semitones !== null) assertTrue(Number.isFinite(m.semitones), 'movement semitones fini');
+      if (m.fromIndex !== null) assertTrue(Number.isFinite(m.fromIndex), 'movement fromIndex fini');
+      if (m.toIndex !== null) assertTrue(Number.isFinite(m.toIndex), 'movement toIndex fini');
     }
   }
   for (const tr of plan.harmonicPathResult.transitions) {
     assertTrue(Number.isFinite(tr.totalScore), 'hpath transition totalScore fini');
   }
-  // Aucun NaN ni Infinity.
-  const json = JSON.stringify(plan);
-  assertFalse(json.includes('NaN'), 'aucun NaN dans le plan');
-  assertFalse(json.includes('Infinity'), 'aucun Infinity dans le plan');
 });
 
 // ===========================================================================
@@ -757,10 +979,8 @@ runTest('T16 — aucun champ interdit dans les nouveaux conteneurs', () => {
   const seen = collectNewContainerKeys(plan);
 
   // Vérifie l'absence des champs interdits parmi les clés des nouveaux
-  // conteneurs. (Les clés autorisées sont : candidateLayers, harmonicContext,
-  // harmonicPathResult, steps, track, voicingPathResult pour le plan ;
-  // anchor, candidate, candidateLayer, harmonicTransition, index, voicing,
-  // voicingTransition pour chaque step.)
+  // conteneurs. La liste et les clés observées sont toutes normalisées en
+  // minuscules, donc noteOn/noteOff sont bel et bien détectés.
   for (const f of FORBIDDEN_FIELDS) {
     assertFalse(seen.has(f), `champ interdit présent: ${f}`);
   }
@@ -771,6 +991,36 @@ runTest('T16 — aucun champ interdit dans les nouveaux conteneurs', () => {
     const keys = Object.keys(plan.steps[i]);
     assertEqual(keys.length, 7, `step[${i}] exactement 7 clés`);
   }
+
+  // Preuve synthétique : le collecteur détecte réellement noteOn, noteOff,
+  // un champ interdit sur un step et un champ interdit sur une couche.
+  // Ces conteneurs artificiels ne contiennent que des références nulles pour
+  // ne pas parcourir d'objets canoniques réels.
+  const syntheticPlan = {
+    candidateLayers: [],
+    steps: [],
+  };
+  const layerWithNoteOn = [];
+  layerWithNoteOn.noteOn = true;
+  const layerWithNoteOff = [];
+  layerWithNoteOff.noteOff = true;
+  syntheticPlan.candidateLayers.push(layerWithNoteOn, layerWithNoteOff);
+  const stepWithAudio = {
+    anchor: null, candidate: null, candidateLayer: null,
+    harmonicTransition: null, index: 0, voicing: null, voicingTransition: null,
+    audio: null,
+  };
+  const stepWithUi = {
+    anchor: null, candidate: null, candidateLayer: null,
+    harmonicTransition: null, index: 1, voicing: null, voicingTransition: null,
+    ui: null,
+  };
+  syntheticPlan.steps.push(stepWithAudio, stepWithUi);
+  const syntheticSeen = collectNewContainerKeys(syntheticPlan);
+  assertTrue(syntheticSeen.has('noteon'), 'collecteur détecte noteOn sur une couche');
+  assertTrue(syntheticSeen.has('noteoff'), 'collecteur détecte noteOff sur une couche');
+  assertTrue(syntheticSeen.has('audio'), 'collecteur détecte un champ interdit sur un step');
+  assertTrue(syntheticSeen.has('ui'), 'collecteur détecte un autre champ interdit sur un step');
 });
 
 // ===========================================================================
