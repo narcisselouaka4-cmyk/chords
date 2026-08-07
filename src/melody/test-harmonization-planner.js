@@ -71,9 +71,12 @@ function assertThrowsRangeError(fn, msg = '') {
 /**
  * Capture, sans mutation, tout le graphe d'objets accessible depuis une racine.
  * Pour chaque objet/tableau accessible, mémorise sa référence, son état de gel,
- * ses clés propres et la valeur/référence exacte de chaque propriété propre.
+ * ses clés propres et le descripteur complet de chaque propriété propre
+ * (type, value, writable, enumerable, configurable pour les données ;
+ *  type, get, set, enumerable, configurable pour les accesseurs).
  * Un WeakSet évite les boucles et les parcours redondants sur les références
- * partagées.
+ * partagées. Les snapshots de propriétés utilisent un Map pour conserver
+ * les symboles comme clés réelles. Aucun getter n'est déclenché.
  *
  * @param {object} root
  * @returns {{ snapshots: WeakMap<object, object>, seen: WeakSet<object> }}
@@ -86,26 +89,37 @@ function captureGraph(root) {
     if (seen.has(obj)) return;
     seen.add(obj);
     const ownKeys = Reflect.ownKeys(obj);
-    const snap = {
+    const props = new Map();
+    for (const k of ownKeys) {
+      const desc = Object.getOwnPropertyDescriptor(obj, k);
+      if (desc && 'value' in desc) {
+        props.set(k, {
+          type: 'data',
+          value: desc.value,
+          writable: desc.writable,
+          enumerable: desc.enumerable,
+          configurable: desc.configurable,
+        });
+        if (desc.value !== null && typeof desc.value === 'object') {
+          visit(desc.value, `${path}.${String(k)}`);
+        }
+      } else {
+        props.set(k, {
+          type: 'accessor',
+          get: desc ? desc.get : undefined,
+          set: desc ? desc.set : undefined,
+          enumerable: desc ? desc.enumerable : undefined,
+          configurable: desc ? desc.configurable : undefined,
+        });
+      }
+    }
+    snapshots.set(obj, {
       ref: obj,
       path,
       frozen: Object.isFrozen(obj),
       keys: ownKeys,
-      props: Object.create(null),
-    };
-    for (const k of ownKeys) {
-      const desc = Object.getOwnPropertyDescriptor(obj, k);
-      if (desc && 'value' in desc) {
-        const v = desc.value;
-        snap.props[k] = { type: 'data', value: v, isObject: v !== null && typeof v === 'object' };
-        if (v !== null && typeof v === 'object') {
-          visit(v, `${path}.${String(k)}`);
-        }
-      } else {
-        snap.props[k] = { type: 'accessor' };
-      }
-    }
-    snapshots.set(obj, snap);
+      props,
+    });
   }
   visit(root, 'input');
   return { snapshots, seen };
@@ -115,13 +129,23 @@ function captureGraph(root) {
  * Vérifie que le graphe accessible depuis root est inchangé par rapport au
  * snapshot capturé. Pour chaque objet capturé, contrôle : même référence à
  * chaque emplacement, mêmes clés, mêmes valeurs primitives, mêmes références
- * pour les valeurs objet, même état de gel.
+ * pour les valeurs objet, même état de gel, et descripteurs complets identiques
+ * (writable, enumerable, configurable pour les données ; get, set, enumerable,
+ * configurable pour les accesseurs). Vérifie aussi la référence exacte de la
+ * racine.
  *
  * @param {object} root
  * @param {{ snapshots: WeakMap<object, object>, seen: WeakSet<object> }} captured
  * @param {string} rootPath
  */
 function assertGraphUnchanged(root, captured, rootPath = 'input') {
+  const rootSnap = captured.snapshots.get(root);
+  if (!rootSnap) {
+    throw new Error(`${rootPath} racine absente du snapshot (référence remplacée)`);
+  }
+  if (root !== rootSnap.ref) {
+    throw new Error(`${rootPath} référence de la racine modifiée`);
+  }
   const visited = new WeakSet();
   function visit(obj, expectedObj, path) {
     if (obj === null || typeof obj !== 'object') {
@@ -146,7 +170,7 @@ function assertGraphUnchanged(root, captured, rootPath = 'input') {
     }
     for (const k of ownKeys) {
       const desc = Object.getOwnPropertyDescriptor(obj, k);
-      const snapProp = snap.props[k];
+      const snapProp = snap.props.get(k);
       if (!snapProp) {
         throw new Error(`${path}.${String(k)} propriété absente du snapshot`);
       }
@@ -154,12 +178,33 @@ function assertGraphUnchanged(root, captured, rootPath = 'input') {
         if (!desc || 'value' in desc) {
           throw new Error(`${path}.${String(k)} accesseur transformé en propriété de données`);
         }
+        if (desc.get !== snapProp.get) {
+          throw new Error(`${path}.${String(k)} getter modifié`);
+        }
+        if (desc.set !== snapProp.set) {
+          throw new Error(`${path}.${String(k)} setter modifié`);
+        }
+        if (desc.enumerable !== snapProp.enumerable) {
+          throw new Error(`${path}.${String(k)} enumerable modifié : ${snapProp.enumerable} -> ${desc.enumerable}`);
+        }
+        if (desc.configurable !== snapProp.configurable) {
+          throw new Error(`${path}.${String(k)} configurable modifié : ${snapProp.configurable} -> ${desc.configurable}`);
+        }
         continue;
       }
       const actualV = desc ? desc.value : undefined;
       const expectedV = snapProp.value;
       if (actualV !== expectedV) {
         throw new Error(`${path}.${String(k)} valeur/référence modifiée`);
+      }
+      if (desc && desc.writable !== snapProp.writable) {
+        throw new Error(`${path}.${String(k)} writable modifié : ${snapProp.writable} -> ${desc.writable}`);
+      }
+      if (desc && desc.enumerable !== snapProp.enumerable) {
+        throw new Error(`${path}.${String(k)} enumerable modifié : ${snapProp.enumerable} -> ${desc.enumerable}`);
+      }
+      if (desc && desc.configurable !== snapProp.configurable) {
+        throw new Error(`${path}.${String(k)} configurable modifié : ${snapProp.configurable} -> ${desc.configurable}`);
       }
       if (actualV !== null && typeof actualV === 'object') {
         visit(actualV, expectedV, `${path}.${String(k)}`);
@@ -702,10 +747,83 @@ runTest('T11 — immutabilité complète : graphe des entrées inchangé, nouvea
   const plan = buildHarmonizationPlan(input);
 
   // Vérification globale du graphe : chaque objet accessible conserve sa
-  // référence, son état de gel, ses clés propres et la valeur/référence de
-  // chaque propriété propre. Détecte un gel ou un remplacement post-call de
-  // ctx.tonalContext, d'un tableau du contexte tonal, d'un événement ou d'une ancre.
+  // référence, son état de gel, ses clés propres et le descripteur complet de
+  // chaque propriété propre. Détecte un gel, un remplacement post-call, un
+  // changement de writable/enumerable/configurable, un remplacement de getter
+  // ou setter, un changement d'ordre des clés, un changement de référence racine.
   assertGraphUnchanged(input, captured, 'input');
+
+  // --- Contrôles synthétiques : preuve que le helper détecte les mutations
+  // de descripteurs seuls (sans changer la valeur). Ces contrôles ne créent
+  // pas de nouveau test public ; ils valident la robustesse interne du helper.
+
+  // 1. Propriété non énumérable dont seul writable change.
+  (() => {
+    const obj = { x: 1 };
+    Object.defineProperty(obj, 'x', { writable: false, enumerable: false, configurable: true });
+    const cap = captureGraph(obj);
+    Object.defineProperty(obj, 'x', { writable: true, enumerable: false, configurable: true });
+    let err = null;
+    try { assertGraphUnchanged(obj, cap, 'synth'); } catch (e) { err = e; }
+    assertTrue(err !== null, 'synth1: writable modifié détecté');
+    assertTrue(String(err.message).includes('writable'), 'synth1: message mentionne writable');
+  })();
+
+  // 2. Propriété portée par un symbole dont seul enumerable change.
+  (() => {
+    const sym = Symbol('test');
+    const obj = {};
+    Object.defineProperty(obj, sym, { value: 42, writable: true, enumerable: false, configurable: true });
+    const cap = captureGraph(obj);
+    Object.defineProperty(obj, sym, { value: 42, writable: true, enumerable: true, configurable: true });
+    let err = null;
+    try { assertGraphUnchanged(obj, cap, 'synth'); } catch (e) { err = e; }
+    assertTrue(err !== null, 'synth2: enumerable modifié sur symbole détecté');
+    assertTrue(String(err.message).includes('enumerable'), 'synth2: message mentionne enumerable');
+  })();
+
+  // 3. Accesseur dont le getter est remplacé par une autre fonction.
+  (() => {
+    let v = 1;
+    const obj = {};
+    const get1 = () => v;
+    const get2 = () => v + 1;
+    Object.defineProperty(obj, 'val', { get: get1, set: undefined, enumerable: true, configurable: true });
+    const cap = captureGraph(obj);
+    Object.defineProperty(obj, 'val', { get: get2, set: undefined, enumerable: true, configurable: true });
+    let err = null;
+    try { assertGraphUnchanged(obj, cap, 'synth'); } catch (e) { err = e; }
+    assertTrue(err !== null, 'synth3: getter remplacé détecté');
+    assertTrue(String(err.message).includes('getter'), 'synth3: message mentionne getter');
+  })();
+
+  // 4. Tableau dont length ou l'ordre des éléments change.
+  (() => {
+    const arr = [1, 2, 3];
+    const cap = captureGraph(arr);
+    arr.push(4);
+    let err = null;
+    try { assertGraphUnchanged(arr, cap, 'synth'); } catch (e) { err = e; }
+    assertTrue(err !== null, 'synth4: length/ordre modifié détecté');
+  })();
+
+  // 5. Preuve qu'aucun getter n'a été exécuté pendant la capture ou la
+  //    vérification. On crée un objet avec un getter qui lève une erreur
+  //    s'il est appelé. La capture et la vérification doivent réussir sans
+  //    déclencher le getter.
+  (() => {
+    const obj = {};
+    let getterCalled = false;
+    Object.defineProperty(obj, 'computed', {
+      get() { getterCalled = true; return 99; },
+      enumerable: true,
+      configurable: true,
+    });
+    const cap = captureGraph(obj);
+    assertFalse(getterCalled, 'synth5: aucun getter déclenché pendant captureGraph');
+    assertGraphUnchanged(obj, cap, 'synth');
+    assertFalse(getterCalled, 'synth5: aucun getter déclenché pendant assertGraphUnchanged');
+  })();
 
   // Wrapper : référence et état de gel inchangés.
   assertTrue(input === inputRef, 'wrapper même référence');
@@ -810,6 +928,16 @@ runTest('T13 — ancres invalides : TypeError (délégué aux contrats publics)'
   // TypeError (ancre structurellement invalide), pas RangeError.
   const badAnchor = { relativeTime: 0, type: 'user', harmonizationPolicy: 'automatic' };
   const invalidCtx = { ...ctx, anchors: [badAnchor] };
+
+  // Preuve directe : le générateur public confirme le statut invalid-anchor.
+  const directResult = generateChordCandidatesForAnchor({
+    anchor: badAnchor,
+    track,
+    harmonicContext: invalidCtx,
+  });
+  assertEqual(directResult.status, 'invalid-anchor',
+    'statut public direct = invalid-anchor pour ancre sans id');
+
   let err = null;
   try { buildHarmonizationPlan({ track, harmonicContext: invalidCtx }); } catch (e) { err = e; }
   assertTrue(err instanceof TypeError, 'ancre sans id -> TypeError');
@@ -817,10 +945,12 @@ runTest('T13 — ancres invalides : TypeError (délégué aux contrats publics)'
   assertTrue(String(err.message).toLowerCase().includes('invalide'),
     'message indique que l ancre est invalide');
 
-  // Note : le validateur canonique (chord-candidate-generator.js:896) ne
-  // vérifie que !anchor || !anchor.id. Aucun autre champ ne peut produire
-  // le statut 'invalid-anchor'. Il est donc impossible de construire une
-  // ancre avec un id réel non vide qui déclenche 'invalid-anchor'.
+  // Note : le validateur canonique (chord-candidate-generator.js) ne vérifie
+  // que la condition `!anchor || !anchor.id`. Aucun autre champ ne peut
+  // produire le statut 'invalid-anchor'. Il est donc impossible de construire
+  // une ancre avec un id réel non vide qui déclenche 'invalid-anchor'.
+  // Cette limitation est inhérente au contrat du générateur, pas à une ligne
+  // de code particulière.
 
   // Ancre valide sans candidat : mode force sans contexte tonal ni accord
   // original. Le statut public direct du générateur est 'no-valid-candidate'.
