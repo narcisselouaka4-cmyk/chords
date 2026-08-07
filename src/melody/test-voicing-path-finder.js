@@ -358,16 +358,31 @@ runTest('T4 — basse omise et null valides, plusieurs renverseents, pas de NaN'
 // T5 — Registre : bornes inclusives prouvées (36 et 84 réellement générées)
 // ---------------------------------------------------------------------------
 
-runTest('T5 — bornes inclusives 36/84 atteintes, mains, spans, registerDeviation', () => {
+runTest('T5 — bornes inclusives 36/84 atteintes, plages des mains, spans, registerDeviation', () => {
   const cand = mkChord('c', 0, [0, 4, 7]);
   const vs = generatePlayableChordVoicings({ candidate: cand });
-  // Codecs: les bornes sont atteignables, pas seulement vérifiées par inégalité.
+  // Les bornes sont atteignables, pas seulement vérifiées par inégalité.
   assertTrue(vs.some((v) => v.midiNotes.includes(36)), 'contient la note 36');
   assertTrue(vs.some((v) => v.midiNotes.includes(84)), 'contient la note 84');
 
   const s = SETTINGS;
   for (const v of vs) {
     for (const n of v.midiNotes) assertTrue(n >= s.minMidiNote && n <= s.maxMidiNote, `note ${n}>${s.maxMidiNote} ou <${s.minMidiNote}`);
+    // Plages des mains : chaque note de la main gauche dans [36,60].
+    for (const ln of v.leftHand) {
+      assertTrue(ln >= s.leftHandMinMidi && ln <= s.leftHandMaxMidi,
+        `note gauche ${ln} hors [${s.leftHandMinMidi},${s.leftHandMaxMidi}]`);
+    }
+    // Plages des mains : chaque note de la main droite dans [48,84].
+    for (const rn of v.rightHand) {
+      assertTrue(rn >= s.rightHandMinMidi && rn <= s.rightHandMaxMidi,
+        `note droite ${rn} hors [${s.rightHandMinMidi},${s.rightHandMaxMidi}]`);
+    }
+    // Cardinalités : gauche 1-2 notes, droite 2-4 notes.
+    assertTrue(v.leftHand.length >= s.leftHandMinNotes && v.leftHand.length <= s.leftHandMaxNotes,
+      'gauche contient 1 ou 2 notes');
+    assertTrue(v.rightHand.length >= s.rightHandMinNotes && v.rightHand.length <= s.rightHandMaxNotes,
+      'droite contient 2 à 4 notes');
     assertTrue(v.leftHand.length <= 2, 'max 2 notes à gauche');
     assertTrue(v.rightHand.length <= 4, 'max 4 notes à droite');
     if (v.leftHand.length > 1) assertTrue(v.leftHand[1] - v.leftHand[0] <= s.leftHandMaxSpan);
@@ -570,9 +585,9 @@ runTest('T10 — greedy vs DP : DP strictement meilleur (C→G7→Fmaj7)', () =>
   const gMid = g.map((v) => v.midiNotes);
   const dMid = dm.voicings.map((v) => v.midiNotes);
   assertEqual(dm.voicings.length, 3, '3 couches');
-  assertTrue(JSON.stringify(gMid) !== JSON.stringify(dMid), 'greedy diverge de la DP');
-  assertTrue(JSON.stringify(gMid[0]) !== JSON.stringify(dMid[0]) ||
-             JSON.stringify(gMid[1]) !== JSON.stringify(dMid[1]), 'le premier choix diffère');
+  assertTrue(JSON.stringify(gMid) !== JSON.stringify(dMid), 'le chemin complet greedy diverge du chemin DP');
+  // Premier choix : affirmation directe, sans condition OU.
+  assertTrue(JSON.stringify(gMid[0]) !== JSON.stringify(dMid[0]), 'le premier choix greedy diffère du premier choix DP');
 
   const tg = movingTotals(g);
   const tp = { cost: dm.totalCost, oct: dm.parallelOctaves, fifth: dm.parallelFifths,
@@ -743,27 +758,112 @@ runTest('T14 — départages registre/MIDI, témoins métriques exacts, non-atte
     findBestVoicingPath({ harmonicPathResult: harmonicResult([c, c, c]) }),
     'déterminisme',
   );
+
+  // (9) indices de variantes : sur plusieurs couches générées, aucune
+  //     duplication de midiNotes, tri strict selon compareArrays(), position =
+  //     ordre MIDI lexical, et stabilité entre deux générations répétées.
+  const multiCands = [
+    mkChord('d0', 0, [0, 4, 7]),
+    mkChord('d1', 7, [7, 11, 2, 5]),
+    mkChord('d2', 5, [5, 9, 0]),
+  ];
+  const layerSets = multiCands.map((cc) => generatePlayableChordVoicings({ candidate: cc }));
+  for (const layer of layerSets) {
+    assertTrue(layer.length >= 2, 'couche avec plusieurs variantes pour un ordre pertinent');
+    // (a) aucune duplication de tableau midiNotes.
+    const keys = layer.map((v) => JSON.stringify(v.midiNotes));
+    assertEqual(new Set(keys).size, keys.length, 'aucun doublon de midiNotes dans la couche');
+    // (b) variantes strictement triées selon compareArrays, (c) position = ordre MIDI.
+    for (let i = 1; i < layer.length; i++) {
+      assertTrue(compareArrays(layer[i - 1].midiNotes, layer[i].midiNotes) < 0,
+        `variantes strictement triées par compareArrays (${i - 1} < ${i})`);
+    }
+    // (d) deux générations répétées donnent les mêmes tableaux dans le même ordre.
+    const again = generatePlayableChordVoicings({ candidate: layer[0].candidate });
+    assertDeepEqual(again.map((v) => v.midiNotes), layer.map((v) => v.midiNotes),
+      'génération répétée identique');
+  }
 });
 
 // ---------------------------------------------------------------------------
 // T15 — Immutabilité
 // ---------------------------------------------------------------------------
 
-runTest('T15 — entrées non mutées, résultats figés', () => {
+runTest('T15 — immutabilité complète : résultats figés, entrées non figées et intactes', () => {
+  // Deux couches pour obtenir une transition.
   const cand = mkChord('c', 0, [0, 4, 7]);
-  const snapshot = JSON.stringify(cand);
-  const r = findBestVoicingPath({ harmonicPathResult: harmonicResult([cand]) });
-  assertEqual(JSON.stringify(cand), snapshot, 'candidat non modifié');
+  const cand2 = mkChord('c2', 5, [5, 9, 0, 2]);
+  const fromMidiNotes = [60, 64, 67];
+  const toMidiNotes = [60, 64, 67];
+
+  const hpr = harmonicResult([cand, cand2]);
+
+  // Entrées initialement non figées.
   assertFalse(Object.isFrozen(cand), 'candidat d entrée non figé');
-  assertTrue(Object.isFrozen(r));
-  assertTrue(Object.isFrozen(r.voicings));
-  assertTrue(Object.isFrozen(r.transitions));
-  assertTrue(Object.isFrozen(r.settings));
+  assertFalse(Object.isFrozen(cand.pitchClasses), 'pitchClasses d entrée non figé');
+  assertFalse(Object.isFrozen(hpr), 'harmonicPathResult non figé');
+  assertFalse(Object.isFrozen(hpr.path), 'path non figé');
+  assertFalse(Object.isFrozen(fromMidiNotes), 'fromMidiNotes non figé');
+  assertFalse(Object.isFrozen(toMidiNotes), 'toMidiNotes non figé');
+
+  const snapCand = JSON.stringify(cand);
+  const snapPcs = JSON.stringify(cand.pitchClasses);
+  const snapHpr = JSON.stringify(hpr);
+  const snapPath = JSON.stringify(hpr.path);
+  const snapFrom = JSON.stringify(fromMidiNotes);
+  const snapTo = JSON.stringify(toMidiNotes);
+
+  // Lance la transition et le chemin (les entrées ne sont pas réutilisées par
+  // scoreVoicingTransition via des tableaux internes).
+  scoreVoicingTransition({ fromMidiNotes, toMidiNotes });
+  const r = findBestVoicingPath({ harmonicPathResult: hpr });
+
+  // Entrées restent non figées.
+  assertFalse(Object.isFrozen(cand), 'candidat toujours non figé');
+  assertFalse(Object.isFrozen(cand.pitchClasses), 'pitchClasses toujours non figé');
+  assertFalse(Object.isFrozen(hpr), 'harmonicPathResult toujours non figé');
+  assertFalse(Object.isFrozen(hpr.path), 'path toujours non figé');
+  assertFalse(Object.isFrozen(fromMidiNotes), 'fromMidiNotes toujours non figé');
+  assertFalse(Object.isFrozen(toMidiNotes), 'toMidiNotes toujours non figé');
+
+  // Contenu, ordre et références identiques.
+  assertEqual(JSON.stringify(cand), snapCand, 'candidat inchangé');
+  assertEqual(JSON.stringify(cand.pitchClasses), snapPcs, 'pitchClasses inchangé');
+  assertEqual(JSON.stringify(hpr), snapHpr, 'harmonicPathResult inchangé');
+  assertEqual(JSON.stringify(hpr.path), snapPath, 'path inchangé');
+  assertEqual(JSON.stringify(fromMidiNotes), snapFrom, 'fromMidiNotes inchangé');
+  assertEqual(JSON.stringify(toMidiNotes), snapTo, 'toMidiNotes inchangé');
+  assertEqual(hpr.path[0], cand, 'référence candidate inchangée');
+  assertEqual(hpr.path[1], cand2, 'référence candidate 2 inchangée');
+
+  // Résultats figés.
+  assertTrue(Object.isFrozen(r), 'VoicingPathResult figé');
+  assertTrue(Object.isFrozen(r.chordPath), 'chordPath figé');
+  assertTrue(Object.isFrozen(r.voicings), 'voicings figé');
+  assertTrue(Object.isFrozen(r.transitions), 'transitions figé');
+  assertTrue(Object.isFrozen(r.settings), 'settings figé');
+  assertEqual(r.transitions.length, 1, 'une transition obtenue');
   for (const v of r.voicings) {
-    assertTrue(Object.isFrozen(v));
-    assertTrue(Object.isFrozen(v.midiNotes));
-    assertTrue(Object.isFrozen(v.leftHand));
-    assertTrue(Object.isFrozen(v.rightHand));
+    assertTrue(Object.isFrozen(v), 'PianoVoicing figé');
+    assertTrue(Object.isFrozen(v.midiNotes), 'midiNotes figé');
+    assertTrue(Object.isFrozen(v.leftHand), 'leftHand figé');
+    assertTrue(Object.isFrozen(v.rightHand), 'rightHand figé');
+  }
+  for (const tr of r.transitions) {
+    assertTrue(Object.isFrozen(tr), 'wrapper { from, to, score } figé');
+    assertTrue(Object.isFrozen(tr.from), 'from (PianoVoicing) figé');
+    assertTrue(Object.isFrozen(tr.from.midiNotes), 'from.midiNotes figé');
+    assertTrue(Object.isFrozen(tr.from.leftHand), 'from.leftHand figé');
+    assertTrue(Object.isFrozen(tr.from.rightHand), 'from.rightHand figé');
+    assertTrue(Object.isFrozen(tr.to), 'to (PianoVoicing) figé');
+    assertTrue(Object.isFrozen(tr.to.midiNotes), 'to.midiNotes figé');
+    assertTrue(Object.isFrozen(tr.to.leftHand), 'to.leftHand figé');
+    assertTrue(Object.isFrozen(tr.to.rightHand), 'to.rightHand figé');
+    assertTrue(Object.isFrozen(tr.score), 'score figé');
+    assertTrue(Object.isFrozen(tr.score.movements), 'movements figé');
+    for (const m of tr.score.movements) {
+      assertTrue(Object.isFrozen(m), 'VoicingMovement figé');
+    }
   }
 });
 
@@ -786,6 +886,11 @@ runTest('T16 — TypeError sur entrées invalides (options / chemins creux)', ()
   assertThrowsTypeError(() => scoreVoicingTransition({ fromMidiNotes: [64, 60], toMidiNotes: [60, 62] }), 'non trié');
   assertThrowsTypeError(() => scoreVoicingTransition({ fromMidiNotes: [200], toMidiNotes: [64] }), 'hors 0-127');
   assertThrowsTypeError(() => scoreVoicingTransition({ fromMidiNotes: [-5], toMidiNotes: [64] }), 'négatif');
+  // Bornes symétriques : quatre cas séparés.
+  assertThrowsTypeError(() => scoreVoicingTransition({ fromMidiNotes: [-1], toMidiNotes: [64, 67] }), 'from contient -1');
+  assertThrowsTypeError(() => scoreVoicingTransition({ fromMidiNotes: [128], toMidiNotes: [64, 67] }), 'from contient 128');
+  assertThrowsTypeError(() => scoreVoicingTransition({ fromMidiNotes: [60, 64], toMidiNotes: [-1, 67] }), 'to contient -1');
+  assertThrowsTypeError(() => scoreVoicingTransition({ fromMidiNotes: [60, 64], toMidiNotes: [128, 67] }), 'to contient 128');
   // valeurs hors bornes des deux côtés.
   assertThrowsTypeError(() => scoreVoicingTransition({ fromMidiNotes: [150], toMidiNotes: [-3] }), 'hors bornes des deux côtés');
   const sparseF = []; sparseF[0] = 60; sparseF[2] = 64;
