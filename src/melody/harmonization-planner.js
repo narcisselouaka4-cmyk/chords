@@ -149,6 +149,18 @@ export function buildHarmonizationPlan(input) {
   requireObjectNotArray(track, 'track');
   requireObjectNotArray(harmonicContext, 'harmonicContext');
 
+  // Appartenance à une piste : le contrat canonique encode melodyTrackId.
+  if (
+    typeof harmonicContext.melodyTrackId === 'string' &&
+    typeof track.id === 'string' &&
+    harmonicContext.melodyTrackId !== track.id
+  ) {
+    throw new TypeError(
+      `buildHarmonizationPlan : le contexte harmonique appartient à la piste ` +
+      `"${harmonicContext.melodyTrackId}" mais la piste fournie est "${track.id}"`,
+    );
+  }
+
   // Les ancres sont lues dans l ordre exact du contexte canonique : jamais
   // triées, dédupliquées, remplacées ou réordonnées. Une absence d ancre est
   // une erreur de plage (RangeError) ; un tableau structurellement invalide
@@ -165,6 +177,11 @@ export function buildHarmonizationPlan(input) {
   // Génération des candidats : une seule fois par ancre, dans l ordre stocké.
   // Chaque couche est une copie figée du tableau retourné ; les références
   // exactes des candidats sont préservées. Aucun reclassement, aucun tri.
+  //
+  // Classification des statuts canoniques du générateur :
+  //   invalid-anchor → TypeError (ancre structurellement invalide)
+  //   skipped / no-valid-candidate → RangeError (ancre valide sans candidat)
+  //   generated → procéder normalement
   const candidateLayersFrozen = [];
   for (let i = 0; i < N; i++) {
     const result = generateChordCandidatesForAnchor({
@@ -172,12 +189,26 @@ export function buildHarmonizationPlan(input) {
       track,
       harmonicContext,
     });
-    const layer = result.candidates;
-    if (!Array.isArray(layer) || layer.length === 0) {
-      const anchorId = anchors[i] && anchors[i].id ? anchors[i].id : null;
+    const anchorId = anchors[i] && anchors[i].id ? anchors[i].id : null;
+    const idSuffix = anchorId !== null ? ` (${anchorId})` : '';
+
+    if (result.status === 'invalid-anchor') {
+      throw new TypeError(
+        `buildHarmonizationPlan : ancre d indice ${i}${idSuffix} structurellement invalide`,
+      );
+    }
+    if (result.status === 'skipped' || result.status === 'no-valid-candidate') {
       throw new RangeError(
         `buildHarmonizationPlan : aucune couche de candidat admissible pour ` +
-        `l ancre d indice ${i}${anchorId !== null ? ` (${anchorId})` : ''}`,
+        `l ancre d indice ${i}${idSuffix}`,
+      );
+    }
+
+    const layer = result.candidates;
+    if (!Array.isArray(layer) || layer.length === 0) {
+      throw new RangeError(
+        `buildHarmonizationPlan : aucune couche de candidat admissible pour ` +
+        `l ancre d indice ${i}${idSuffix}`,
       );
     }
     // Copie plate figée : les références des candidats sont conservées telles
