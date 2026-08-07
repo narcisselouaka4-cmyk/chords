@@ -136,19 +136,35 @@ const FORBIDDEN_FIELDS = new Set([
   'style', 'reharmonization',
 ]);
 
-// Parcourt uniquement les nouveaux conteneurs (plan, steps, candidateLayers)
-// sans récursion dans les objets canoniques référencés (anchor, candidate,
-// voicing, transitions, scores).
-function walkNewContainers(plan, visit) {
-  visit(plan, 'plan');
-  for (const k of Object.keys(plan)) visit(plan[k], `plan.${k}`);
-  for (let i = 0; i < plan.steps.length; i++) {
-    visit(plan.steps[i], `plan.steps[${i}]`);
-    for (const k of Object.keys(plan.steps[i])) visit(plan.steps[i][k], `plan.steps[${i}].${k}`);
+// Inspecte uniquement les clés propres des nouveaux conteneurs de l'Incrément 8
+// (plan, steps, candidateLayers, chaque couche). Ne parcourt jamais les valeurs
+// référencées (track, harmonicContext, anchor, candidate, voicing,
+// harmonicTransition, voicingTransition, harmonicPathResult, voicingPathResult).
+// Pour les tableaux, ignore les clés numériques normales et recherche seulement
+// d'éventuelles propriétés publiques ajoutées artificiellement.
+function collectNewContainerKeys(plan) {
+  const keys = new Set();
+  // HarmonizationPlan : clés propres.
+  for (const k of Object.keys(plan)) keys.add(k.toLowerCase());
+  // candidateLayers : clés propres du tableau extérieur (propriétés non numériques).
+  for (const k of Object.keys(plan.candidateLayers)) {
+    if (isNaN(Number(k))) keys.add(k.toLowerCase());
   }
-  for (let i = 0; i < plan.candidateLayers.length; i++) {
-    visit(plan.candidateLayers[i], `plan.candidateLayers[${i}]`);
+  // Chaque couche : clés propres (propriétés non numériques).
+  for (const layer of plan.candidateLayers) {
+    for (const k of Object.keys(layer)) {
+      if (isNaN(Number(k))) keys.add(k.toLowerCase());
+    }
   }
+  // steps : clés propres du tableau extérieur.
+  for (const k of Object.keys(plan.steps)) {
+    if (isNaN(Number(k))) keys.add(k.toLowerCase());
+  }
+  // Chaque HarmonizationStep : clés propres.
+  for (const s of plan.steps) {
+    for (const k of Object.keys(s)) keys.add(k.toLowerCase());
+  }
+  return keys;
 }
 
 // ===========================================================================
@@ -292,7 +308,7 @@ runTest('T5 — candidat de départ verrouillé respecté, couches suivantes lib
 // T6 — Une seule ancre
 // ===========================================================================
 
-runTest('T6 — une seule ancre : mono-couche, transitions nulles, totaux Inc 7', () => {
+runTest('T6 — une seule ancre : mono-couche, transitions nulles, totaux exacts', () => {
   const track = trackFromMidiNotes([60]);
   let ctx = harmonicContextInKey(track, 'C');
   ctx = addHarmonicAnchor(ctx, {
@@ -309,14 +325,17 @@ runTest('T6 — une seule ancre : mono-couche, transitions nulles, totaux Inc 7'
   assertEqual(plan.voicingPathResult.transitions.length, 0, 'aucune transition de voicings');
   assertTrue(plan.steps[0].harmonicTransition === null, 'step0.harmonicTransition === null');
   assertTrue(plan.steps[0].voicingTransition === null, 'step0.voicingTransition === null');
-  // Totaux Inc 7 du résultat mono-couche.
-  assertEqual(plan.voicingPathResult.totalCost, 0, 'totalCost = 0');
-  assertEqual(plan.voicingPathResult.totalMovement, 0, 'totalMovement = 0');
-  assertEqual(plan.voicingPathResult.unmatchedVoiceCount, 0);
-  assertEqual(plan.voicingPathResult.largeLeapCount, 0);
-  assertEqual(plan.voicingPathResult.parallelFifths, 0);
-  assertEqual(plan.voicingPathResult.parallelOctaves, 0);
-  assertTrue(plan.voicingPathResult.registerDeviation > 0, 'registerDeviation > 0 (une seule couche)');
+
+  // Composition manuelle mono-couche pour comparaison exacte.
+  const manual = manualComposition(track, ctx);
+  assertEqual(plan.voicingPathResult.totalCost, manual.voicingPathResult.totalCost, 'totalCost exact');
+  assertEqual(plan.voicingPathResult.totalMovement, manual.voicingPathResult.totalMovement, 'totalMovement exact');
+  assertEqual(plan.voicingPathResult.unmatchedVoiceCount, manual.voicingPathResult.unmatchedVoiceCount, 'unmatchedVoiceCount exact');
+  assertEqual(plan.voicingPathResult.largeLeapCount, manual.voicingPathResult.largeLeapCount, 'largeLeapCount exact');
+  assertEqual(plan.voicingPathResult.parallelFifths, manual.voicingPathResult.parallelFifths, 'parallelFifths exact');
+  assertEqual(plan.voicingPathResult.parallelOctaves, manual.voicingPathResult.parallelOctaves, 'parallelOctaves exact');
+  assertEqual(plan.voicingPathResult.registerDeviation, manual.voicingPathResult.registerDeviation, 'registerDeviation exact');
+  assertDeepEqual(plan.voicingPathResult.settings, manual.voicingPathResult.settings, 'settings identiques');
 });
 
 // ===========================================================================
@@ -329,42 +348,50 @@ runTest('T7 — équivalence stricte avec la composition manuelle des API publiq
   const manual = manualComposition(track, ctx);
   const plan = buildHarmonizationPlan({ track, harmonicContext: ctx });
 
-  // Identifiants et ordre de chaque couche.
+  // Toutes les candidateLayers (ids + ordre).
   assertDeepEqual(
     plan.candidateLayers.map((l) => l.map((c) => c.id)),
     manual.candidateLayers.map((l) => l.map((c) => c.id)),
     'couches identiques (id + ordre)',
   );
-  // Identifiants du chemin harmonique.
-  assertDeepEqual(
-    plan.harmonicPathResult.path.map((c) => c.id),
-    manual.harmonicPathResult.path.map((c) => c.id),
-    'chemin harmonique identique',
-  );
-  // Notes MIDI de chaque voicing.
-  assertDeepEqual(
-    plan.voicingPathResult.voicings.map((v) => v.midiNotes),
-    manual.voicingPathResult.voicings.map((v) => v.midiNotes),
-    'voicings MIDI identiques',
-  );
-  // Transitions : scores et totaux exacts.
+
+  // HarmonicPathResult complet.
+  assertDeepEqual(plan.harmonicPathResult.path.map((c) => c.id), manual.harmonicPathResult.path.map((c) => c.id),
+    'chemin harmonique : ids');
   assertEqual(plan.harmonicPathResult.totalScore, manual.harmonicPathResult.totalScore, 'hpath totalScore');
-  assertEqual(plan.harmonicPathResult.compatibilityScore, manual.harmonicPathResult.compatibilityScore);
-  assertEqual(plan.harmonicPathResult.transitionScore, manual.harmonicPathResult.transitionScore);
+  assertEqual(plan.harmonicPathResult.compatibilityScore, manual.harmonicPathResult.compatibilityScore, 'hpath compatScore');
+  assertEqual(plan.harmonicPathResult.transitionScore, manual.harmonicPathResult.transitionScore, 'hpath transScore');
+  assertDeepEqual(plan.harmonicPathResult.weights, manual.harmonicPathResult.weights, 'hpath weights');
+  // Toutes les TransitionScore et tous leurs champs.
   for (let t = 0; t < plan.harmonicPathResult.transitions.length; t++) {
-    assertEqual(plan.harmonicPathResult.transitions[t].totalScore, manual.harmonicPathResult.transitions[t].totalScore,
-      `hpath transition[${t}].totalScore`);
+    assertDeepEqual(plan.harmonicPathResult.transitions[t], manual.harmonicPathResult.transitions[t],
+      `hpath transition[${t}] complète`);
   }
+
+  // VoicingPathResult complet.
+  assertDeepEqual(plan.voicingPathResult.voicings.map((v) => v.midiNotes),
+    manual.voicingPathResult.voicings.map((v) => v.midiNotes), 'voicings MIDI identiques');
   assertEqual(plan.voicingPathResult.totalCost, manual.voicingPathResult.totalCost, 'vpath totalCost');
-  assertEqual(plan.voicingPathResult.totalMovement, manual.voicingPathResult.totalMovement);
-  assertEqual(plan.voicingPathResult.unmatchedVoiceCount, manual.voicingPathResult.unmatchedVoiceCount);
-  assertEqual(plan.voicingPathResult.largeLeapCount, manual.voicingPathResult.largeLeapCount);
-  assertEqual(plan.voicingPathResult.parallelFifths, manual.voicingPathResult.parallelFifths);
-  assertEqual(plan.voicingPathResult.parallelOctaves, manual.voicingPathResult.parallelOctaves);
-  assertEqual(plan.voicingPathResult.registerDeviation, manual.voicingPathResult.registerDeviation);
+  assertEqual(plan.voicingPathResult.totalMovement, manual.voicingPathResult.totalMovement, 'vpath totalMovement');
+  assertEqual(plan.voicingPathResult.unmatchedVoiceCount, manual.voicingPathResult.unmatchedVoiceCount, 'vpath unmatched');
+  assertEqual(plan.voicingPathResult.largeLeapCount, manual.voicingPathResult.largeLeapCount, 'vpath leap');
+  assertEqual(plan.voicingPathResult.parallelFifths, manual.voicingPathResult.parallelFifths, 'vpath fifths');
+  assertEqual(plan.voicingPathResult.parallelOctaves, manual.voicingPathResult.parallelOctaves, 'vpath octaves');
+  assertEqual(plan.voicingPathResult.registerDeviation, manual.voicingPathResult.registerDeviation, 'vpath regDev');
+  assertDeepEqual(plan.voicingPathResult.settings, manual.voicingPathResult.settings, 'vpath settings');
+
+  // Chaque wrapper de transition de voicing, chaque score, chaque movements,
+  // chaque VoicingMovement.
   for (let t = 0; t < plan.voicingPathResult.transitions.length; t++) {
-    assertEqual(plan.voicingPathResult.transitions[t].score.cost, manual.voicingPathResult.transitions[t].score.cost,
-      `vpath transition[${t}].score.cost`);
+    const pt = plan.voicingPathResult.transitions[t];
+    const mt = manual.voicingPathResult.transitions[t];
+    assertDeepEqual(pt.from.midiNotes, mt.from.midiNotes, `vt[${t}].from.midiNotes`);
+    assertDeepEqual(pt.to.midiNotes, mt.to.midiNotes, `vt[${t}].to.midiNotes`);
+    assertDeepEqual(pt.score, mt.score, `vt[${t}].score complet`);
+    assertDeepEqual(pt.score.movements, mt.score.movements, `vt[${t}].score.movements`);
+    for (let m = 0; m < pt.score.movements.length; m++) {
+      assertDeepEqual(pt.score.movements[m], mt.score.movements[m], `vt[${t}].movements[${m}]`);
+    }
   }
 });
 
@@ -394,7 +421,15 @@ runTest('T8 — ordre exact des ancres conservé, ancres distinctes, pas de tri'
   // L'ordre du plan est l'ordre exact de ctx.anchors (non trié).
   const anchorIds = plan.steps.map((s) => s.anchor.id);
   assertDeepEqual(anchorIds, ctx.anchors.map((a) => a.id), 'ordre des ancres = ctx.anchors');
-  // Chaque candidat porte l'anchorId de l'ancre correspondante (contrat canonique).
+  // Chaque candidat de la couche (pas seulement le sélectionné) porte
+  // l'anchorId de l'ancre correspondante.
+  for (let i = 0; i < plan.candidateLayers.length; i++) {
+    for (const c of plan.candidateLayers[i]) {
+      assertEqual(c.anchorId, ctx.anchors[i].id,
+        `candidateLayers[${i}] chaque candidat.anchorId === anchors[${i}].id`);
+    }
+  }
+  // Chaque candidat sélectionné porte aussi l'anchorId de l'ancre.
   for (let i = 0; i < plan.steps.length; i++) {
     assertEqual(plan.steps[i].candidate.anchorId, ctx.anchors[i].id,
       `steps[${i}].candidate.anchorId === anchors[${i}].id`);
@@ -472,43 +507,62 @@ runTest('T10 — déterminisme : même JSON, ids, notes MIDI, scores, ordre', ()
 // T11 — Immutabilité complète
 // ===========================================================================
 
-runTest('T11 — immutabilité : entrées intactes, nouveaux conteneurs figés', () => {
+runTest('T11 — immutabilité complète : entrées intactes, nouveaux conteneurs figés', () => {
   const track = trackFromMidiNotes([60, 64, 67]);
   const ctx = makeThreeAnchorContext(track);
+  const input = { track, harmonicContext: ctx };
 
-  // Snapshots avant appel.
-  const trackEventsRef = track.events.slice();
-  const anchorsRef = ctx.anchors.slice();
+  // Snapshots avant appel : références, état de gel, contenu JSON, ordre.
+  const inputRef = input;
+  const inputFrozenBefore = Object.isFrozen(input);
+  const trackRef = track;
+  const ctxRef = ctx;
   const trackFrozenBefore = Object.isFrozen(track);
   const ctxFrozenBefore = Object.isFrozen(ctx);
+  const anchorsRef = ctx.anchors;
   const anchorsFrozenBefore = Object.isFrozen(ctx.anchors);
+  const eventsRef = track.events;
+  const eventsFrozenBefore = track.events.map((e) => Object.isFrozen(e));
+  const anchorsFrozenEachBefore = ctx.anchors.map((a) => Object.isFrozen(a));
+  const inputJson = JSON.stringify(input);
   const trackJson = JSON.stringify(track);
   const ctxJson = JSON.stringify(ctx);
   const anchorsJson = JSON.stringify(ctx.anchors);
   const eventsJson = JSON.stringify(track.events);
-  const eventFrozenStates = track.events.map((e) => Object.isFrozen(e));
 
-  const plan = buildHarmonizationPlan({ track, harmonicContext: ctx });
+  const plan = buildHarmonizationPlan(input);
 
-  // État de gel initial inchangé : les entrées ne sont pas figées a posteriori.
-  assertEqual(Object.isFrozen(track), trackFrozenBefore, 'track : état de gel inchangé');
-  assertEqual(Object.isFrozen(ctx), ctxFrozenBefore, 'ctx : état de gel inchangé');
-  assertEqual(Object.isFrozen(ctx.anchors), anchorsFrozenBefore, 'anchors : état de gel inchangé');
-  for (let i = 0; i < track.events.length; i++) {
-    assertEqual(Object.isFrozen(track.events[i]), eventFrozenStates[i], `event[${i}] gel inchangé`);
-  }
+  // Wrapper : référence et état de gel inchangés.
+  assertTrue(input === inputRef, 'wrapper même référence');
+  assertEqual(Object.isFrozen(input), inputFrozenBefore, 'wrapper état de gel inchangé');
 
-  // Contenu, ordre et références identiques.
-  assertEqual(JSON.stringify(track), trackJson, 'track JSON inchangé');
-  assertEqual(JSON.stringify(ctx), ctxJson, 'ctx JSON inchangé');
+  // track et harmonicContext : références et état de gel inchangés.
+  assertTrue(track === trackRef, 'track même référence');
+  assertTrue(ctx === ctxRef, 'harmonicContext même référence');
+  assertEqual(Object.isFrozen(track), trackFrozenBefore, 'track état de gel inchangé');
+  assertEqual(Object.isFrozen(ctx), ctxFrozenBefore, 'ctx état de gel inchangé');
+
+  // anchors : référence, état de gel, contenu, ordre.
+  assertTrue(ctx.anchors === anchorsRef, 'anchors même référence');
+  assertEqual(Object.isFrozen(ctx.anchors), anchorsFrozenBefore, 'anchors état de gel inchangé');
   assertEqual(JSON.stringify(ctx.anchors), anchorsJson, 'anchors JSON inchangé');
-  assertEqual(JSON.stringify(track.events), eventsJson, 'events JSON inchangé');
-  for (let i = 0; i < trackEventsRef.length; i++) {
-    assertTrue(track.events[i] === trackEventsRef[i], `event[${i}] même référence`);
-  }
   for (let i = 0; i < anchorsRef.length; i++) {
     assertTrue(ctx.anchors[i] === anchorsRef[i], `anchor[${i}] même référence`);
+    assertEqual(Object.isFrozen(ctx.anchors[i]), anchorsFrozenEachBefore[i], `anchor[${i}] gel inchangé`);
   }
+
+  // events : référence, état de gel, contenu, ordre.
+  assertTrue(track.events === eventsRef, 'events même référence');
+  assertEqual(JSON.stringify(track.events), eventsJson, 'events JSON inchangé');
+  for (let i = 0; i < eventsRef.length; i++) {
+    assertTrue(track.events[i] === eventsRef[i], `event[${i}] même référence`);
+    assertEqual(Object.isFrozen(track.events[i]), eventsFrozenBefore[i], `event[${i}] gel inchangé`);
+  }
+
+  // Contenu JSON global inchangé.
+  assertEqual(JSON.stringify(input), inputJson, 'input JSON inchangé');
+  assertEqual(JSON.stringify(track), trackJson, 'track JSON inchangé');
+  assertEqual(JSON.stringify(ctx), ctxJson, 'ctx JSON inchangé');
 
   // Nouveaux conteneurs publics figés.
   assertTrue(Object.isFrozen(plan), 'plan figé');
@@ -576,14 +630,23 @@ runTest('T13 — ancres invalides : TypeError (délégué aux contrats publics)'
   const primAnchor = { ...ctx, anchors: [5] };
   assertThrowsTypeError(() => buildHarmonizationPlan({ track, harmonicContext: primAnchor }), 'ancre primitive');
   // ancre invalide selon le contrat public du générateur : objet sans id.
-  // La validation profonde est déléguée au générateur (status invalid-anchor =>
-  // couche vide => RangeError dans le planificateur, qui signale l'indice + l'id).
+  // Le générateur retourne status 'invalid-anchor' : le planificateur lève
+  // TypeError (ancre structurellement invalide), pas RangeError.
   const badAnchor = { relativeTime: 0, type: 'user', harmonizationPolicy: 'automatic' };
   const invalidCtx = { ...ctx, anchors: [badAnchor] };
-  // Le générateur retourne status 'invalid-anchor' avec candidates vides :
-  // le planificateur lève RangeError (pas de candidat admissible).
-  assertThrowsRangeError(() => buildHarmonizationPlan({ track, harmonicContext: invalidCtx }),
-    'ancre invalide selon le générateur -> RangeError');
+  assertThrowsTypeError(() => buildHarmonizationPlan({ track, harmonicContext: invalidCtx }),
+    'ancre invalide sans id -> TypeError');
+
+  // Contexte créé pour une piste mais utilisé avec une autre : le contrat
+  // canonique encode melodyTrackId, le planificateur lève TypeError.
+  const track2 = trackFromMidiNotes([64, 67]);
+  const ctxForTrack1 = harmonicContextInKey(track, 'C');
+  const ctxWithAnchor = addHarmonicAnchor(ctxForTrack1, {
+    melodyEventId: track.events[0].id, relativeTime: track.events[0].startedAt,
+    type: 'start', harmonizationPolicy: 'automatic',
+  });
+  assertThrowsTypeError(() => buildHarmonizationPlan({ track: track2, harmonicContext: ctxWithAnchor }),
+    'contexte d une autre piste -> TypeError');
 });
 
 // ===========================================================================
@@ -603,10 +666,14 @@ runTest('T14 — contexte canonique sans ancre -> RangeError', () => {
 // T15 — Plusieurs cardinalités d'accords
 // ===========================================================================
 
-runTest('T15 — progression avec cardinalités de pitch classes variées', () => {
-  // start (Cmaj7, 4 pcs), user (Dm7, 4 pcs), end (C, 3 pcs via mélodie 3 notes).
-  const track = trackFromMidiNotes([60, 62, 67]);
-  let ctx = harmonicContextInKey(track, 'C', { startChord: 'Cmaj7', startLocked: true });
+runTest('T15 — progression avec cardinalités de pitch classes différentes garanties', () => {
+  // Cmaj7 verrouillé au départ (4 pcs), C triade verrouillé à la fin (3 pcs),
+  // au moins une ancre intermédiaire libre.
+  const track = trackFromMidiNotes([60, 62, 64, 67]);
+  let ctx = harmonicContextInKey(track, 'C', {
+    startChord: 'Cmaj7', startLocked: true,
+    endChord: 'C', endLocked: true,
+  });
   ctx = addHarmonicAnchor(ctx, {
     melodyEventId: track.events[0].id, relativeTime: track.events[0].startedAt,
     type: 'start', harmonizationPolicy: 'automatic',
@@ -616,7 +683,7 @@ runTest('T15 — progression avec cardinalités de pitch classes variées', () =
     type: 'user', harmonizationPolicy: 'automatic',
   });
   ctx = addHarmonicAnchor(ctx, {
-    melodyEventId: track.events[2].id, relativeTime: track.events[2].startedAt,
+    melodyEventId: track.events[3].id, relativeTime: track.events[3].startedAt,
     type: 'end', harmonizationPolicy: 'automatic',
   });
   const plan = buildHarmonizationPlan({ track, harmonicContext: ctx });
@@ -624,24 +691,54 @@ runTest('T15 — progression avec cardinalités de pitch classes variées', () =
   assertEqual(N, 3, 'plan fini à 3 étapes');
 
   const cardinalities = plan.steps.map((s) => s.candidate.pitchClasses.length);
-  // Au moins deux cardinalités distinctes parmi les candidats choisis.
-  assertTrue(new Set(cardinalities).size >= 1, 'cardinalités de pitch classes présentes');
+  assertEqual(cardinalities[0], 4, 'premier candidat (Cmaj7) = 4 pitch classes');
+  assertEqual(cardinalities[N - 1], 3, 'dernier candidat (C triade) = 3 pitch classes');
+  assertTrue(new Set(cardinalities).size >= 2, 'au moins deux cardinalités distinctes');
 
   for (let i = 0; i < N; i++) {
     const s = plan.steps[i];
+    // Chaque voicing correspond exactement à son candidat.
+    assertTrue(s.voicing.candidate === s.candidate, `step[${i}] voicing.candidate === candidate`);
     // Notes MIDI valides (entiers finis 36-84 selon le contrat V1).
     for (const n of s.voicing.midiNotes) {
       assertTrue(Number.isInteger(n) && n >= 36 && n <= 84, `step[${i}] note MIDI valide ${n}`);
+      assertTrue(Number.isFinite(n), `step[${i}] note finie`);
     }
-    // Cohérence exacte candidat -> voicing.
-    assertTrue(s.voicing.candidate === s.candidate, `step[${i}] voicing.candidate === candidate`);
-    // Pas de NaN / Infinity dans les notes et les totaux.
-    for (const n of s.voicing.midiNotes) assertTrue(Number.isFinite(n), `step[${i}] note finie`);
+    // Transitions harmoniques et de voicings conservées par référence.
+    if (i > 0) {
+      assertTrue(s.harmonicTransition === plan.harmonicPathResult.transitions[i - 1],
+        `step[${i}].harmonicTransition === transitions[${i - 1}]`);
+      assertTrue(s.voicingTransition === plan.voicingPathResult.transitions[i - 1],
+        `step[${i}].voicingTransition === transitions[${i - 1}]`);
+      assertEqual(s.harmonicTransition.fromId, plan.steps[i - 1].candidate.id,
+        `ht[${i}].fromId === steps[${i - 1}].candidate.id`);
+      assertEqual(s.harmonicTransition.toId, s.candidate.id,
+        `ht[${i}].toId === steps[${i}].candidate.id`);
+      assertTrue(s.voicingTransition.from === plan.steps[i - 1].voicing,
+        `vt[${i}].from === steps[${i - 1}].voicing`);
+      assertTrue(s.voicingTransition.to === s.voicing,
+        `vt[${i}].to === steps[${i}].voicing`);
+    }
   }
+  // Tous les nombres des résultats, scores, mouvements et transitions sont finis.
   assertTrue(Number.isFinite(plan.voicingPathResult.totalCost), 'totalCost fini');
   assertTrue(Number.isFinite(plan.voicingPathResult.totalMovement), 'totalMovement fini');
   assertTrue(Number.isFinite(plan.voicingPathResult.registerDeviation), 'registerDeviation fini');
   assertTrue(Number.isFinite(plan.harmonicPathResult.totalScore), 'hpath totalScore fini');
+  for (const tr of plan.voicingPathResult.transitions) {
+    assertTrue(Number.isFinite(tr.score.cost), 'vpath transition cost fini');
+    assertTrue(Number.isFinite(tr.score.totalMovement), 'vpath transition movement fini');
+    for (const m of tr.score.movements) {
+      if (m.semitones !== null) assertTrue(Number.isFinite(m.semitones), 'movement semitones fini');
+    }
+  }
+  for (const tr of plan.harmonicPathResult.transitions) {
+    assertTrue(Number.isFinite(tr.totalScore), 'hpath transition totalScore fini');
+  }
+  // Aucun NaN ni Infinity.
+  const json = JSON.stringify(plan);
+  assertFalse(json.includes('NaN'), 'aucun NaN dans le plan');
+  assertFalse(json.includes('Infinity'), 'aucun Infinity dans le plan');
 });
 
 // ===========================================================================
@@ -653,30 +750,17 @@ runTest('T16 — aucun champ interdit dans les nouveaux conteneurs', () => {
   const ctx = makeThreeAnchorContext(track);
   const plan = buildHarmonizationPlan({ track, harmonicContext: ctx });
 
-  // Parcourt uniquement les nouveaux conteneurs (clés propres), sans récursion
-  // dans les objets canoniques référencés.
-  const seen = new Set();
-  function visit(obj, path) {
-    if (obj === null || typeof obj !== 'object') return;
-    if (Array.isArray(obj)) {
-      // Pour les tableaux de candidats/voicings, on n'inspecte que les clés
-      // propres du conteneur, pas le contenu référencé.
-      return;
-    }
-    for (const key of Object.keys(obj)) {
-      // On ne collecte que les clés des nouveaux conteneurs (plan, steps,
-      // candidateLayers extérieur), pas celles des objets canoniques.
-      if (path === 'plan' || path.startsWith('plan.steps[') || path === 'plan.candidateLayers') {
-        seen.add(key.toLowerCase());
-      }
-    }
-  }
-  walkNewContainers(plan, visit);
+  // Collecte uniquement les clés propres des nouveaux conteneurs (plan, steps,
+  // candidateLayers, chaque couche), sans jamais parcourir les valeurs
+  // référencées (track, harmonicContext, anchor, candidate, voicing,
+  // harmonicTransition, voicingTransition, harmonicPathResult, voicingPathResult).
+  const seen = collectNewContainerKeys(plan);
 
   // Vérifie l'absence des champs interdits parmi les clés des nouveaux
-  // conteneurs. (Les champs de steps sont : index, anchor, candidateLayer,
-  // candidate, voicing, harmonicTransition, voicingTransition — aucun champ
-  // temporel/performance.)
+  // conteneurs. (Les clés autorisées sont : candidateLayers, harmonicContext,
+  // harmonicPathResult, steps, track, voicingPathResult pour le plan ;
+  // anchor, candidate, candidateLayer, harmonicTransition, index, voicing,
+  // voicingTransition pour chaque step.)
   for (const f of FORBIDDEN_FIELDS) {
     assertFalse(seen.has(f), `champ interdit présent: ${f}`);
   }
