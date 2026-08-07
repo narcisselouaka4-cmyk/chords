@@ -506,3 +506,126 @@
  *   useDiatonicSubstitutions: boolean
  * }} ReharmonizationConstraints
  */
+
+/**
+ * Voicing de piano jouable d'un accord (Increment 7).
+ *
+ * Produit par `generatePlayableChordVoicings({ candidate })`. Les notes MIDI
+ * sont des entiers strictement croissants dans `[36,84]`, toutes les pitch
+ * classes canoniques de l'accord apparaissent exactement une fois, et une basse
+ * explicite (appartenant ou non a l'accord) reste la note la plus grave.
+ * `leftHand.concat(rightHand)` est exactement egal a `midiNotes`.
+ *
+ * @typedef {{
+ *   candidate: ChordCandidate,
+ *   midiNotes: number[],
+ *   leftHand: number[],
+ *   rightHand: number[],
+ *   bassMidiNote: number,
+ *   bassPitchClass: number,
+ *   inversionInterval: number,
+ *   isRootPosition: boolean,
+ *   spanSemitones: number,
+ *   registerDeviation: number
+ * }} PianoVoicing
+ */
+
+/**
+ * Mouvement d'une voix entre deux voicings (Increment 7).
+ *
+ * Pour une voix non appariee, l'index et la note du cote absent valent `null`,
+ * et `semitones` vaut `null`. Le tableau des mouvements est ordonne de la voix
+ * la plus grave a la plus aigue.
+ *
+ * @typedef {{
+ *   fromIndex: number | null,
+ *   toIndex: number | null,
+ *   fromNote: number | null,
+ *   toNote: number | null,
+ *   semitones: number | null
+ * }} VoicingMovement
+ */
+
+/**
+ * Score d'une transition entre deux voicings (Increment 7).
+ *
+ * Produit par `scoreVoicingTransition({ fromMidiNotes, toMidiNotes })`.
+ * Toutes les valeurs sont des entiers finis non negatifs. Pour des
+ * cardinalites egales, les voix sont appariees par indice ; sinon un
+ * alignement dynamique monotone minimise le cout (appariement =
+ * `abs(fromNote - toNote)`, insertion/suppression = `12`).
+ *
+ * @typedef {{
+ *   movements: VoicingMovement[],
+ *   totalMovement: number,
+ *   maxMovement: number,
+ *   stationaryVoiceCount: number,
+ *   unmatchedVoiceCount: number,
+ *   largeLeapCount: number,
+ *   parallelFifths: number,
+ *   parallelOctaves: number,
+ *   cost: number
+ * }} VoicingTransitionScore
+ */
+
+/**
+ * Transition dirigee entre deux voicings consecutifs du chemin (Increment 7).
+ * @typedef {{
+ *   from: PianoVoicing,
+ *   to: PianoVoicing,
+ *   score: VoicingTransitionScore
+ * }} VoicingTransition
+ */
+
+/**
+ * Parametres de jouabilite V1 exposes dans `findBestVoicingPath().settings`.
+ * Figes, non configurables.
+ * @typedef {{
+ *   minMidiNote: number,
+ *   maxMidiNote: number,
+ *   leftHandMinMidi: number,
+ *   leftHandMaxMidi: number,
+ *   rightHandMinMidi: number,
+ *   rightHandMaxMidi: number,
+ *   leftHandMinNotes: number,
+ *   leftHandMaxNotes: number,
+ *   rightHandMinNotes: number,
+ *   rightHandMaxNotes: number,
+ *   leftHandMaxSpan: number,
+ *   rightHandMaxSpan: number,
+ *   maxInterHandGap: number,
+ *   unmatchedVoiceCost: number,
+ *   largeLeapThreshold: number,
+ *   largeLeapPenalty: number,
+ *   parallelFifthPenalty: number,
+ *   parallelOctavePenalty: number,
+ *   targetBassMidi: number,
+ *   targetLeftUpperMidi: number,
+ *   targetRightHandMidi: number
+ * }} VoicingPathSettings
+ */
+
+/**
+ * Chemin global de voicings de piano (Increment 7).
+ *
+ * Produit par `findBestVoicingPath({ harmonicPathResult })` par programmation
+ * dynamique exacte. `chordPath` contient les references exactes des candidats
+ * de `harmonicPathResult.path` ; `voicings[i].candidate === chordPath[i]` ;
+ * `transitions.length === Math.max(0, voicings.length - 1)`. Tous les
+ * compteurs et couts sont des entiers finis non negatifs, et les totaux sont
+ * exactement la somme des transitions choisies.
+ *
+ * @typedef {{
+ *   chordPath: ChordCandidate[],
+ *   voicings: PianoVoicing[],
+ *   transitions: VoicingTransition[],
+ *   totalMovement: number,
+ *   unmatchedVoiceCount: number,
+ *   largeLeapCount: number,
+ *   parallelFifths: number,
+ *   parallelOctaves: number,
+ *   totalCost: number,
+ *   registerDeviation: number,
+ *   settings: VoicingPathSettings
+ * }} VoicingPathResult
+ */
