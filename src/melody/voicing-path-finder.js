@@ -442,41 +442,65 @@ function alignVoices(from, to) {
   }
 
   const COST = s.unmatchedVoiceCost;
+  // Ordre lexicographique des opérations complet, depuis le début (voix les
+  // plus graves) : match < delete < insert. Les opérations jouent sur le
+  // préfixe du préfixe courant : on compare toute la longueur de la suite.
   const opRank = { match: 0, delete: 1, insert: 2 };
-  const key = (cand) => [
-    cand.cost,
-    -cand.stationary,
-    -cand.matched,
-    opRank[cand.op],
-  ];
+  function opsBeats(a, b) {
+    const len = Math.max(a.length, b.length);
+    for (let k = 0; k < len; k++) {
+      const ra = k < a.length ? opRank[a[k]] : -1;
+      const rb = k < b.length ? opRank[b[k]] : -1;
+      if (ra !== rb) return ra < rb;
+    }
+    return false;
+  }
 
   // dp[i][j] = meilleure valeur pour préfixes from[0..i) et to[0..j).
-  // stocké : { cost, stationary, matched, op, prevI, prevJ }
+  // stocké : { cost, stationary, matched, ops, prevI, prevJ }
+  // ops = suite complète des opérations (match/delete/insert) depuis le début,
+  // conservée explicitement car chaque voicing compte au plus 6 notes.
   const dp = [];
   for (let i = 0; i <= n; i++) dp.push(new Array(m + 1));
 
-  dp[0][0] = { cost: 0, stationary: 0, matched: 0, op: '', prevI: 0, prevJ: 0 };
+  dp[0][0] = { cost: 0, stationary: 0, matched: 0, ops: [], prevI: 0, prevJ: 0 };
 
   for (let i = 0; i <= n; i++) {
     for (let j = 0; j <= m; j++) {
       if (i === 0 && j === 0) continue;
       let best = null;
-      let bestKey = null;
+      let bestOps = null;
       const consider = (cand) => {
-        const ck = key(cand);
-        if (bestKey === null) {
+        const ck = cand.ops;
+        if (best === null) {
           best = cand;
-          bestKey = ck;
+          bestOps = ck;
           return;
         }
-        for (let k = 0; k < 4; k++) {
-          if (ck[k] !== bestKey[k]) {
-            if (ck[k] < bestKey[k]) {
-              best = cand;
-              bestKey = ck;
-            }
-            return;
+        if (cand.cost !== best.cost) {
+          if (cand.cost < best.cost) {
+            best = cand;
+            bestOps = ck;
           }
+          return;
+        }
+        if (cand.stationary !== best.stationary) {
+          if (cand.stationary > best.stationary) {
+            best = cand;
+            bestOps = ck;
+          }
+          return;
+        }
+        if (cand.matched !== best.matched) {
+          if (cand.matched > best.matched) {
+            best = cand;
+            bestOps = ck;
+          }
+          return;
+        }
+        if (opsBeats(ck, bestOps)) {
+          best = cand;
+          bestOps = ck;
         }
       };
 
@@ -487,7 +511,7 @@ function alignVoices(from, to) {
           cost: prev.cost + d,
           stationary: prev.stationary + (d === 0 ? 1 : 0),
           matched: prev.matched + 1,
-          op: 'match',
+          ops: prev.ops.concat(['match']),
           prevI: i - 1,
           prevJ: j - 1,
         });
@@ -498,7 +522,7 @@ function alignVoices(from, to) {
           cost: prev.cost + COST,
           stationary: prev.stationary,
           matched: prev.matched,
-          op: 'delete',
+          ops: prev.ops.concat(['delete']),
           prevI: i - 1,
           prevJ: j,
         });
@@ -509,7 +533,7 @@ function alignVoices(from, to) {
           cost: prev.cost + COST,
           stationary: prev.stationary,
           matched: prev.matched,
-          op: 'insert',
+          ops: prev.ops.concat(['insert']),
           prevI: i,
           prevJ: j - 1,
         });
@@ -518,17 +542,8 @@ function alignVoices(from, to) {
     }
   }
 
-  // Reconstruction des opérations (de la fin vers le début, puis inversion).
-  const ops = [];
-  let i = n;
-  let j = m;
-  while (i > 0 || j > 0) {
-    const cell = dp[i][j];
-    ops.push(cell.op);
-    i = cell.prevI;
-    j = cell.prevJ;
-  }
-  ops.reverse();
+  // Suite complète des opérations départagée depuis le début (voix graves).
+  const ops = dp[n][m].ops;
 
   // Construction des mouvements et agrégats.
   const movements = [];
