@@ -92,6 +92,131 @@ function expectedChordSymbol(candidate, tonalContext) {
   return sym;
 }
 
+// --- Projections sémantiques (helpers de test uniquement) -------------------
+// Excluent UNIQUEMENT les métadonnées d'instance générées par les factories
+// (identifiants et horodatages de création) et, pour le viewModel, les identités
+// dérivées des nouvelles instances. Tout le contenu musical et fonctionnel
+// reste comparé. Pas de suppression récursive générique des propriétés nommées
+// id ou timestamp : chaque projection est explicite, clé par clé, d'après les
+// contrats runtime réels des types canoniques.
+
+function projectEventSemantic(event) {
+  return {
+    midi: event.midi,
+    pitchClass: event.pitchClass,
+    octave: event.octave,
+    velocity: event.velocity,
+    startedAt: event.startedAt,
+    releasedAt: event.releasedAt,
+    endedAt: event.endedAt,
+    duration: event.duration,
+    channel: event.channel,
+    sourceId: event.sourceId,
+    preserveExactPitch: event.preserveExactPitch,
+    sopranoPolicy: event.sopranoPolicy,
+    harmonizationPolicy: event.harmonizationPolicy,
+    enabled: event.enabled,
+    annotations: [...(event.annotations || [])],
+  };
+}
+
+function projectTonalContextSemantic(tc) {
+  if (!tc) return null;
+  return {
+    selected: tc.selected,
+    spelledKey: tc.spelledKey,
+    candidates: tc.candidates,
+    selectionOrigin: tc.selectionOrigin,
+    melodyEstimate: tc.melodyEstimate,
+    harmonyEstimate: tc.harmonyEstimate,
+    confirmedByUser: tc.confirmedByUser,
+    confidence: tc.confidence,
+  };
+}
+
+function projectAnchorSemantic(anchor) {
+  return {
+    relativeTime: anchor.relativeTime,
+    sourceTime: anchor.sourceTime,
+    type: anchor.type,
+    harmonizationPolicy: anchor.harmonizationPolicy,
+    originalChord: anchor.originalChord,
+    locked: anchor.locked,
+    label: anchor.label,
+  };
+}
+
+function projectFixtureSemantic(fixture) {
+  const t = fixture.track;
+  const h = fixture.harmonicContext;
+  return {
+    track: {
+      name: t.name,
+      sourceCaptureId: t.sourceCaptureId,
+      startedAt: t.startedAt,
+      endedAt: t.endedAt,
+      duration: t.duration,
+      events: t.events.map(projectEventSemantic),
+      markers: t.markers,
+      version: t.version,
+    },
+    harmonicContext: {
+      tonalContext: projectTonalContextSemantic(h.tonalContext),
+      startChord: h.startChord,
+      endChord: h.endChord,
+      originalProgression: (h.originalProgression || []).map(projectAnchorSemantic),
+      anchors: h.anchors.map(projectAnchorSemantic),
+      version: h.version,
+    },
+    meta: fixture.meta,
+  };
+}
+
+function projectAlternativeSemantic(alt) {
+  return {
+    symbol: alt.symbol,
+    qualityId: alt.qualityId,
+    melodyCompatibilityCategory: alt.melodyCompatibilityCategory,
+    locked: alt.locked,
+    source: alt.source,
+  };
+}
+
+function projectStepSemantic(step) {
+  return {
+    index: step.index,
+    anchorType: step.anchorType,
+    anchorLabel: step.anchorLabel,
+    topNoteMidi: step.topNoteMidi,
+    topNoteName: step.topNoteName,
+    chordSymbol: step.chordSymbol,
+    chordQualityId: step.chordQualityId,
+    melodyCompatibility: step.melodyCompatibility,
+    voicingMidiNotes: step.voicingMidiNotes,
+    voicingLeftHand: step.voicingLeftHand,
+    voicingRightHand: step.voicingRightHand,
+    voicingBassMidiNote: step.voicingBassMidiNote,
+    voicingIsRootPosition: step.voicingIsRootPosition,
+    voicingSpanSemitones: step.voicingSpanSemitones,
+    harmonicTransitionTotal: step.harmonicTransitionTotal,
+    voicingTransitionCost: step.voicingTransitionCost,
+    voicingTransitionTotalMovement: step.voicingTransitionTotalMovement,
+    alternatives: (step.alternatives || []).map(projectAlternativeSemantic),
+  };
+}
+
+function projectViewModelSemantic(vm) {
+  return {
+    status: vm.status,
+    steps: vm.steps.map(projectStepSemantic),
+    totals: vm.totals,
+    meta: {
+      anchorCount: vm.meta.anchorCount,
+      stepCount: vm.meta.stepCount,
+    },
+  };
+}
+
 // --- Source des fichiers (pour les gardes statiques) -----------------------
 
 const fixtureSrc = fs.readFileSync(
@@ -206,51 +331,99 @@ runTest('T5 — alternatives (candidat retenu exclu) et totaux issus du plan ré
   assertEqual(vm.totals.voicingParallelOctaves, v.parallelOctaves, 'voicingParallelOctaves');
 });
 
-runTest('T6 — déterminisme de deux fixtures fraîches et de leurs viewModels', () => {
-  // Deux constructions réellement indépendantes (deux appels à buildDemoFixture).
+runTest('T6 — fixtures fraîches indépendantes et résultat musical déterministe', () => {
+  // A. Indépendance des constructions : deux appels à buildDemoFixture() doivent
+  // produire deux graphes d'objets indépendants (la fonction ne conserve aucun
+  // état entre les appels).
   const fixture1 = buildDemoFixture();
   const fixture2 = buildDemoFixture();
 
-  // Représentation JSON complète des deux fixtures.
-  assertDeepEqual(JSON.stringify(fixture1), JSON.stringify(fixture2), 'JSON complet des deux fixtures');
-
-  // track.id et harmonicContext.id.
-  assertEqual(fixture1.track.id, fixture2.track.id, 'track.id');
-  assertEqual(fixture1.harmonicContext.id, fixture2.harmonicContext.id, 'harmonicContext.id');
-
-  // MelodyEvent et leurs identifiants.
-  assertEqual(fixture1.track.events.length, fixture2.track.events.length, 'nombre d’événements');
+  assertTrue(fixture1 !== fixture2, 'wrappers distincts');
+  assertTrue(fixture1.track !== fixture2.track, 'tracks distincts');
+  assertTrue(fixture1.harmonicContext !== fixture2.harmonicContext, 'harmonicContexts distincts');
+  assertTrue(fixture1.track.events !== fixture2.track.events, 'tableaux events distincts');
   for (let i = 0; i < fixture1.track.events.length; i++) {
-    assertEqual(fixture1.track.events[i].id, fixture2.track.events[i].id, `event id ${i}`);
+    assertTrue(fixture1.track.events[i] !== fixture2.track.events[i], `event ${i} distinct`);
   }
-
-  // Timestamps (startedAt/endedAt/duration des events, createdAt/updatedAt du
-  // track et du harmonicContext).
-  for (let i = 0; i < fixture1.track.events.length; i++) {
-    assertEqual(fixture1.track.events[i].startedAt, fixture2.track.events[i].startedAt, `event startedAt ${i}`);
-    assertEqual(fixture1.track.events[i].endedAt, fixture2.track.events[i].endedAt, `event endedAt ${i}`);
-    assertEqual(fixture1.track.events[i].duration, fixture2.track.events[i].duration, `event duration ${i}`);
-  }
-  assertEqual(fixture1.track.createdAt, fixture2.track.createdAt, 'track.createdAt');
-  assertEqual(fixture1.track.updatedAt, fixture2.track.updatedAt, 'track.updatedAt');
-  assertEqual(fixture1.harmonicContext.createdAt, fixture2.harmonicContext.createdAt, 'harmonicContext.createdAt');
-
-  // Ancres et leurs identifiants.
-  assertEqual(fixture1.harmonicContext.anchors.length, fixture2.harmonicContext.anchors.length, 'nombre d’ancres');
+  assertTrue(fixture1.harmonicContext.anchors !== fixture2.harmonicContext.anchors, 'tableaux anchors distincts');
   for (let i = 0; i < fixture1.harmonicContext.anchors.length; i++) {
-    assertEqual(fixture1.harmonicContext.anchors[i].id, fixture2.harmonicContext.anchors[i].id, `anchor id ${i}`);
-    assertEqual(fixture1.harmonicContext.anchors[i].relativeTime, fixture2.harmonicContext.anchors[i].relativeTime, `anchor relativeTime ${i}`);
+    assertTrue(fixture1.harmonicContext.anchors[i] !== fixture2.harmonicContext.anchors[i], `anchor ${i} distincte`);
+  }
+  const tc1 = fixture1.harmonicContext.tonalContext;
+  const tc2 = fixture2.harmonicContext.tonalContext;
+  assertTrue(tc1 && tc2 && tc1 !== tc2, 'tonalContexts distincts lorsqu’ils existent');
+
+  // Relations internes propres à chaque fixture : chaque ancre pointe vers
+  // l'événement de SA fixture, et melodyTrackId correspond au track de SA fixture.
+  assertEqual(fixture1.harmonicContext.melodyTrackId, fixture1.track.id, 'f1 melodyTrackId === f1 track.id');
+  assertEqual(fixture2.harmonicContext.melodyTrackId, fixture2.track.id, 'f2 melodyTrackId === f2 track.id');
+  for (let i = 0; i < fixture1.harmonicContext.anchors.length; i++) {
+    assertEqual(fixture1.harmonicContext.anchors[i].melodyEventId, fixture1.track.events[i].id, `f1 anchor ${i}.melodyEventId === f1 event ${i}.id`);
+    assertEqual(fixture2.harmonicContext.anchors[i].melodyEventId, fixture2.track.events[i].id, `f2 anchor ${i}.melodyEventId === f2 event ${i}.id`);
   }
 
-  // Deux viewModels produits séparément.
-  const vm1 = buildReharmonizationViewModel({ track: fixture1.track, harmonicContext: fixture1.harmonicContext });
-  const vm2 = buildReharmonizationViewModel({ track: fixture2.track, harmonicContext: fixture2.harmonicContext });
-  assertDeepEqual(vm1, vm2, 'viewModels produits séparément');
+  // Identifiants générés DIFFÉRENTS entre deux constructions indépendantes
+  // (métadonnées d'instance : elles n'ont pas vocation à être identiques).
+  assertEqual(fixture1.track.id !== fixture2.track.id, true, 'track.id différents');
+  assertEqual(fixture1.harmonicContext.id !== fixture2.harmonicContext.id, true, 'harmonicContext.id différents');
+  for (let i = 0; i < fixture1.track.events.length; i++) {
+    assertEqual(fixture1.track.events[i].id !== fixture2.track.events[i].id, true, `event ${i} id différents`);
+  }
+  for (let i = 0; i < fixture1.harmonicContext.anchors.length; i++) {
+    assertEqual(fixture1.harmonicContext.anchors[i].id !== fixture2.harmonicContext.anchors[i].id, true, `anchor ${i} id différents`);
+  }
+  // createdAt/updatedAt : valide selon le contrat public (nombre fini), sans
+  // exiger une différence (deux constructions peuvent survenir dans la même
+  // unité d'horloge).
+  assertTrue(Number.isFinite(fixture1.track.createdAt), 'f1 track.createdAt valide');
+  assertTrue(Number.isFinite(fixture2.track.createdAt), 'f2 track.createdAt valide');
+  assertTrue(Number.isFinite(fixture1.harmonicContext.updatedAt), 'f1 harmonicContext.updatedAt valide');
+  assertTrue(Number.isFinite(fixture2.harmonicContext.updatedAt), 'f2 harmonicContext.updatedAt valide');
+
+  // B. Stabilité du contenu musical : les projections sémantiques complètes
+  // (excluant uniquement les métadonnées d'instance générées) sont égales.
+  assertDeepEqual(projectFixtureSemantic(fixture1), projectFixtureSemantic(fixture2), 'projections sémantiques des fixtures égales');
+
+  // C. Déterminisme du moteur sur une même entrée : deux appels de
+  // buildReharmonizationViewModel() sur la MÊME fixture produisent exactement
+  // le même JSON complet, identifiants compris.
+  const wrapper1 = { track: fixture1.track, harmonicContext: fixture1.harmonicContext };
+  const vm1a = buildReharmonizationViewModel(wrapper1);
+  const vm1b = buildReharmonizationViewModel(wrapper1);
+  assertDeepEqual(JSON.stringify(vm1a), JSON.stringify(vm1b), 'JSON complet identique sur la même fixture (ids compris)');
+
+  // D. Équivalence musicale de deux entrées fraîchement construites : un
+  // viewModel construit depuis fixture1 et un viewModel construit depuis
+  // fixture2 peuvent avoir des identifiants différents, mais leurs projections
+  // sémantiques sont strictement égales.
+  const vm1 = buildReharmonizationViewModel(wrapper1);
+  const wrapper2 = { track: fixture2.track, harmonicContext: fixture2.harmonicContext };
+  const vm2 = buildReharmonizationViewModel(wrapper2);
+  assertEqual(vm1.meta.trackId !== vm2.meta.trackId, true, 'meta.trackId différents entre viewModels frais');
+  assertEqual(vm1.steps[0].anchorId !== vm2.steps[0].anchorId, true, 'anchorId différents entre viewModels frais');
+  assertDeepEqual(projectViewModelSemantic(vm1), projectViewModelSemantic(vm2), 'projections sémantiques des viewModels frais égales');
+
+  // E. Chaque viewModel est vérifié contre le véritable plan construit depuis
+  // SA PROPRE fixture (pas de comparaison croisée).
+  const plan1 = buildHarmonizationPlan(sanitizeHarmonizationInput(wrapper1));
+  const plan2 = buildHarmonizationPlan(sanitizeHarmonizationInput(wrapper2));
+  assertEqual(vm1.steps.length, plan1.steps.length, 'vm1 vs plan1 : longueurs');
+  assertEqual(vm2.steps.length, plan2.steps.length, 'vm2 vs plan2 : longueurs');
+  for (let i = 0; i < plan1.steps.length; i++) {
+    assertDeepEqual(vm1.steps[i].voicingMidiNotes, plan1.steps[i].voicing.midiNotes, `vm1 voicing ${i} == plan1`);
+    assertEqual(vm1.steps[i].chordSymbol, expectedChordSymbol(plan1.steps[i].candidate, fixture1.harmonicContext.tonalContext), `vm1 chordSymbol ${i} == plan1`);
+  }
+  for (let i = 0; i < plan2.steps.length; i++) {
+    assertDeepEqual(vm2.steps[i].voicingMidiNotes, plan2.steps[i].voicing.midiNotes, `vm2 voicing ${i} == plan2`);
+    assertEqual(vm2.steps[i].chordSymbol, expectedChordSymbol(plan2.steps[i].candidate, fixture2.harmonicContext.tonalContext), `vm2 chordSymbol ${i} == plan2`);
+  }
 });
 
-runTest('T7 — absence de Date.now et Math.random dans la fixture', () => {
+runTest('T7 — absence de Date.now, Math.random et de mise en cache dans la fixture', () => {
   assertTrue(!/Date\.now\s*\(/.test(fixtureSrc), 'la fixture ne doit pas appeler Date.now()');
   assertTrue(!/Math\.random\s*\(/.test(fixtureSrc), 'la fixture ne doit pas appeler Math.random()');
+  // Garde contre toute remise en cache de la fixture.
+  assertTrue(!/cachedDemoFixture|memoized|memoïs|singleton/.test(fixtureSrc), 'la fixture ne doit pas mettre en cache son résultat (interdit : cachedDemoFixture, memoized, memoïs, singleton)');
 });
 
 runTest('T8 — TypeError transformé en état erreur', () => {

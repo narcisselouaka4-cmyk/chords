@@ -92,42 +92,38 @@ function buildDemoHarmonicContext(track) {
 }
 
 /**
- * Construit le wrapper canonique de démonstration { track, harmonicContext }
- * via les factories publiques uniquement.
+ * Construit un NOUVEAU wrapper canonique de démonstration
+ * { track, harmonicContext } via les factories publiques uniquement.
  *
- * Déterminisme : les factories canoniques (createMelodyTrack, createHarmonicContext,
- * createTonalContext, createMidiCapture) utilisent des compteurs module-level
- * (track-N, anchor-N, n-N, e-N, harm-ctx-N, tonal-ctx-N) et l'horloge temps réel
- * en interne pour leurs identifiants et horodatages (createdAt/updatedAt). Aucune
- * option publique ne permet de fixer ces ids/timestamps. Deux constructions fraîches
- * et indépendantes produiraient donc des identifiants et horodatages différents
- * (track-1 vs track-2, etc.), sans aucune marge de correction côté fixture via
- * les options publiques des factories.
+ * Chaque appel reconstruit intégralement la MelodyTrack (createMidiCapture +
+ * createMelodyTrack), le TonalContext (createTonalContext +
+ * setManualTonalContext) et le HarmonicContext (createHarmonicContext +
+ * addHarmonicAnchor). La fonction ne conserve aucun état entre les appels :
+ * deux appels renvoient deux graphes d'objets indépendants.
  *
- * Pour garantir une sortie déterministe (même fixture à chaque appel) tout en
- * utilisant exclusivement les factories publiques — sans modifier le moteur, sans
- * inventer de champ canonique, sans normaliser ni geler l'horloge temps réel — la
- * construction est mémoïsée : le premier appel construit le wrapper figé via les
- * factories, les appels suivants renvoient la même référence. La musicalité (notes
- * MIDI, temps relatifs, alignement ancre/événement, tonalité) est déterministe par
- * construction (horloge fixe) ; la mémoïsation étend ce déterminisme aux ids et
- * horodatages générés par les factories.
+ * Les identifiants (track-N, anchor-N, n-N, etc.) et les horodatages de création
+ * (createdAt/updatedAt) sont générés par les factories canoniques elles-mêmes
+ * (compteurs module-level et horloge temps réel). Ce sont des métadonnées
+ * d'instance : elles n'ont pas vocation à être identiques entre deux
+ * constructions indépendantes. Aucune option publique ne permet de les fixer, et
+ * cette fonction ne les réécrit pas.
+ *
+ * Le CONTENU MUSICAL, en revanche, est déterministe par construction : horloge
+ * musicale fixe de createMidiCapture (startedAt/releasedAt/endedAt/duration
+ * reproductibles), notes MIDI, tonalité, alignement ancre/événement et ancres.
  *
  * @returns {{ track: import('../melody/midi-types.js').MelodyTrack,
  *             harmonicContext: import('../melody/midi-types.js').HarmonicContext,
  *             meta: object }}
- *   L'objet renvoyé est figé en lecture seule. Ne jamais muter `track` ni
+ *   Nouvel objet figé en lecture seule. Ne jamais muter `track` ni
  *   `harmonicContext` : ce sont les valeurs de retour des factories.
  */
-let cachedDemoFixture = null;
 export function buildDemoFixture() {
-  if (cachedDemoFixture) return cachedDemoFixture;
   const track = buildDemoTrack();
   const harmonicContext = buildDemoHarmonicContext(track);
-  cachedDemoFixture = Object.freeze({
+  return Object.freeze({
     track,
     harmonicContext,
     meta: DEMO_FIXTURE_META,
   });
-  return cachedDemoFixture;
 }
