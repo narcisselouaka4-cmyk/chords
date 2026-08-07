@@ -123,8 +123,16 @@ function mapStep(step, track, tonalContext) {
       ? step.voicingTransition.score.totalMovement
       : null,
     // Alternatives RÉELLES de candidateLayer (consultation seule).
+    // Invariant canonique : le chemin conserve la référence exacte du candidat
+    // sélectionné, donc step.candidate appartient à candidateLayer. On l'exclut
+    // de la présentation : la liste « Alternatives » ne contient que les candidats
+    // NON retenus, dans l'ordre original du générateur. Transformation de
+    // présentation uniquement — aucune nouvelle décision musicale, aucun tri par
+    // score, aucune modification de candidateLayer ni de step.candidate.
     alternatives: Object.freeze(
-      (step.candidateLayer || []).map((c) => mapAlternative(c, tonalContext)),
+      (step.candidateLayer || [])
+        .filter((c) => c !== step.candidate)
+        .map((c) => mapAlternative(c, tonalContext)),
     ),
   });
 }
@@ -145,6 +153,34 @@ function mapTotals(plan) {
     voicingRegisterDeviation: v.registerDeviation,
     voicingParallelFifths: v.parallelFifths,
     voicingParallelOctaves: v.parallelOctaves,
+  });
+}
+
+/**
+ * Fonction pure de transformation d'un HarmonizationPlan canonique en modèle de
+ * vue UI. Ne fait que LIRE le plan (et track/harmonicContext passés par
+ * l'appelant) : aucune décision musicale, aucun recalcul d'accord ou de voicing,
+ * aucun appel à un autre moteur, aucune mutation du plan ni de ses sous-objets.
+ *
+ * @param {import('../melody/midi-types.js').HarmonizationPlan} plan
+ * @param {{ track: object, harmonicContext: object }} ctx - track et
+ *   harmonicContext utilisés pour résoudre la top note de chaque ancre.
+ * @returns {{ status: 'success', steps: object[], totals: object, meta: object }}
+ *   Modèle de vue figé (même forme « success » que buildReharmonizationViewModel).
+ */
+export function mapHarmonizationPlanToViewModel(plan, { track, harmonicContext }) {
+  const tonalContext = harmonicContext.tonalContext || null;
+  const steps = plan.steps.map((step) => mapStep(step, track, tonalContext));
+  return Object.freeze({
+    status: 'success',
+    steps: Object.freeze(steps),
+    totals: mapTotals(plan),
+    meta: Object.freeze({
+      trackId: track.id,
+      harmonicContextId: harmonicContext.id,
+      anchorCount: harmonicContext.anchors.length,
+      stepCount: plan.steps.length,
+    }),
   });
 }
 
@@ -196,19 +232,7 @@ export function buildReharmonizationViewModel(input) {
 
   try {
     const plan = buildHarmonizationPlan(wrapper);
-    const tonalContext = wrapper.harmonicContext.tonalContext || null;
-    const steps = plan.steps.map((step) => mapStep(step, wrapper.track, tonalContext));
-    return Object.freeze({
-      status: 'success',
-      steps: Object.freeze(steps),
-      totals: mapTotals(plan),
-      meta: Object.freeze({
-        trackId: wrapper.track.id,
-        harmonicContextId: wrapper.harmonicContext.id,
-        anchorCount: wrapper.harmonicContext.anchors.length,
-        stepCount: plan.steps.length,
-      }),
-    });
+    return mapHarmonizationPlanToViewModel(plan, wrapper);
   } catch (err) {
     const errorKind = err instanceof TypeError
       ? 'TypeError'

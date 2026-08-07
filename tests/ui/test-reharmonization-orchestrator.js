@@ -9,7 +9,9 @@ import { buildDemoFixture, DEMO_FIXTURE_META } from '../../src/ui/reharmonizatio
 import {
   buildReharmonizationViewModel,
   sanitizeHarmonizationInput,
+  mapHarmonizationPlanToViewModel,
 } from '../../src/ui/reharmonization-orchestrator.js';
+import { miniKeyboardForNotes } from '../../src/ui/mini-keyboard.js';
 import { buildHarmonizationPlan } from '../../src/melody/harmonization-planner.js';
 import {
   spellChordReference,
@@ -156,28 +158,94 @@ runTest('T4 — identifiants, symboles et notes MIDI issus du plan réel', () =>
   }
 });
 
-runTest('T5 — alternatives issues des candidateLayers réelles', () => {
+runTest('T5 — alternatives (candidat retenu exclu) et totaux issus du plan réel', () => {
   const fixture = buildDemoFixture();
   const wrapper = { track: fixture.track, harmonicContext: fixture.harmonicContext };
   const plan = buildHarmonizationPlan(sanitizeHarmonizationInput(wrapper));
   const vm = buildReharmonizationViewModel(wrapper);
   const tc = fixture.harmonicContext.tonalContext;
   for (let i = 0; i < plan.steps.length; i++) {
-    const layer = plan.steps[i].candidateLayer;
-    assertEqual(vm.steps[i].alternatives.length, layer.length, `nb alternatives ${i}`);
-    for (let j = 0; j < layer.length; j++) {
-      assertEqual(vm.steps[i].alternatives[j].id, layer[j].id, `alt id ${i}.${j}`);
-      assertEqual(vm.steps[i].alternatives[j].symbol, expectedChordSymbol(layer[j], tc), `alt symbol ${i}.${j}`);
+    const step = plan.steps[i];
+    const layer = step.candidateLayer;
+
+    // Le candidat retenu appartient bien à candidateLayer (invariant canonique).
+    const candidateIndexInLayer = layer.findIndex((c) => c === step.candidate);
+    assertTrue(candidateIndexInLayer >= 0, `step ${i} : le candidat retenu doit appartenir à candidateLayer`);
+
+    // Le viewModel contient exactement candidateLayer.length - 1 alternatives.
+    assertEqual(vm.steps[i].alternatives.length, layer.length - 1, `nb alternatives ${i}`);
+
+    // Le candidat retenu n'apparaît pas dans les alternatives.
+    for (const alt of vm.steps[i].alternatives) {
+      assertEqual(alt.id === step.candidate.id, false, `step ${i} : le candidat retenu ne doit pas figurer dans les alternatives`);
+    }
+
+    // Ordre des autres candidats conservé : les alternatives correspondent à
+    // candidateLayer privée du candidat retenu, dans l'ordre original.
+    const expectedAlts = layer.filter((c) => c !== step.candidate);
+    assertEqual(expectedAlts.length, vm.steps[i].alternatives.length, `longueur attendue ${i}`);
+    for (let j = 0; j < expectedAlts.length; j++) {
+      assertEqual(vm.steps[i].alternatives[j].id, expectedAlts[j].id, `alt id ${i}.${j}`);
+      assertEqual(vm.steps[i].alternatives[j].symbol, expectedChordSymbol(expectedAlts[j], tc), `alt symbol ${i}.${j}`);
     }
   }
+
+  // Vérification exacte des totaux : chaque valeur comparée directement au
+  // champ correspondant du véritable HarmonizationPlan (aucune valeur inventée).
+  const h = plan.harmonicPathResult;
+  const v = plan.voicingPathResult;
+  assertEqual(vm.totals.harmonicPathTotal, h.totalScore, 'harmonicPathTotal');
+  assertEqual(vm.totals.harmonicCompatibilityScore, h.compatibilityScore, 'harmonicCompatibilityScore');
+  assertEqual(vm.totals.harmonicTransitionScore, h.transitionScore, 'harmonicTransitionScore');
+  assertEqual(vm.totals.harmonicWeights.compatibility, h.weights.compatibility, 'harmonicWeights.compatibility');
+  assertEqual(vm.totals.harmonicWeights.transition, h.weights.transition, 'harmonicWeights.transition');
+  assertEqual(vm.totals.voicingTotalCost, v.totalCost, 'voicingTotalCost');
+  assertEqual(vm.totals.voicingTotalMovement, v.totalMovement, 'voicingTotalMovement');
+  assertEqual(vm.totals.voicingRegisterDeviation, v.registerDeviation, 'voicingRegisterDeviation');
+  assertEqual(vm.totals.voicingParallelFifths, v.parallelFifths, 'voicingParallelFifths');
+  assertEqual(vm.totals.voicingParallelOctaves, v.parallelOctaves, 'voicingParallelOctaves');
 });
 
-runTest('T6 — déterminisme de deux exécutions', () => {
-  const fixture = buildDemoFixture();
-  const wrapper = { track: fixture.track, harmonicContext: fixture.harmonicContext };
-  const vm1 = buildReharmonizationViewModel(wrapper);
-  const vm2 = buildReharmonizationViewModel(wrapper);
-  assertDeepEqual(vm1, vm2, 'deux exécutions doivent produire un viewModel identique');
+runTest('T6 — déterminisme de deux fixtures fraîches et de leurs viewModels', () => {
+  // Deux constructions réellement indépendantes (deux appels à buildDemoFixture).
+  const fixture1 = buildDemoFixture();
+  const fixture2 = buildDemoFixture();
+
+  // Représentation JSON complète des deux fixtures.
+  assertDeepEqual(JSON.stringify(fixture1), JSON.stringify(fixture2), 'JSON complet des deux fixtures');
+
+  // track.id et harmonicContext.id.
+  assertEqual(fixture1.track.id, fixture2.track.id, 'track.id');
+  assertEqual(fixture1.harmonicContext.id, fixture2.harmonicContext.id, 'harmonicContext.id');
+
+  // MelodyEvent et leurs identifiants.
+  assertEqual(fixture1.track.events.length, fixture2.track.events.length, 'nombre d’événements');
+  for (let i = 0; i < fixture1.track.events.length; i++) {
+    assertEqual(fixture1.track.events[i].id, fixture2.track.events[i].id, `event id ${i}`);
+  }
+
+  // Timestamps (startedAt/endedAt/duration des events, createdAt/updatedAt du
+  // track et du harmonicContext).
+  for (let i = 0; i < fixture1.track.events.length; i++) {
+    assertEqual(fixture1.track.events[i].startedAt, fixture2.track.events[i].startedAt, `event startedAt ${i}`);
+    assertEqual(fixture1.track.events[i].endedAt, fixture2.track.events[i].endedAt, `event endedAt ${i}`);
+    assertEqual(fixture1.track.events[i].duration, fixture2.track.events[i].duration, `event duration ${i}`);
+  }
+  assertEqual(fixture1.track.createdAt, fixture2.track.createdAt, 'track.createdAt');
+  assertEqual(fixture1.track.updatedAt, fixture2.track.updatedAt, 'track.updatedAt');
+  assertEqual(fixture1.harmonicContext.createdAt, fixture2.harmonicContext.createdAt, 'harmonicContext.createdAt');
+
+  // Ancres et leurs identifiants.
+  assertEqual(fixture1.harmonicContext.anchors.length, fixture2.harmonicContext.anchors.length, 'nombre d’ancres');
+  for (let i = 0; i < fixture1.harmonicContext.anchors.length; i++) {
+    assertEqual(fixture1.harmonicContext.anchors[i].id, fixture2.harmonicContext.anchors[i].id, `anchor id ${i}`);
+    assertEqual(fixture1.harmonicContext.anchors[i].relativeTime, fixture2.harmonicContext.anchors[i].relativeTime, `anchor relativeTime ${i}`);
+  }
+
+  // Deux viewModels produits séparément.
+  const vm1 = buildReharmonizationViewModel({ track: fixture1.track, harmonicContext: fixture1.harmonicContext });
+  const vm2 = buildReharmonizationViewModel({ track: fixture2.track, harmonicContext: fixture2.harmonicContext });
+  assertDeepEqual(vm1, vm2, 'viewModels produits séparément');
 });
 
 runTest('T7 — absence de Date.now et Math.random dans la fixture', () => {
@@ -207,22 +275,38 @@ runTest('T9 — RangeError pour contexte sans ancre transformé en état erreur'
   assertTrue(/ancre/i.test(vm.message), 'le message doit mentionner une ancre');
 });
 
-runTest('T10 — absence de mutation des entrées et du plan', () => {
+runTest('T10 — absence de mutation du véritable plan transformé', () => {
   const fixture = buildDemoFixture();
   const wrapper = { track: fixture.track, harmonicContext: fixture.harmonicContext };
+
+  // 1. Construire un véritable plan canonique.
+  const plan = buildHarmonizationPlan(sanitizeHarmonizationInput(wrapper));
+
+  // 2. Enregistrer son snapshot JSON (avant transformation), ainsi que ceux de
+  //    track et harmonicContext.
+  const snapPlan = JSON.stringify(plan);
   const snapTrack = JSON.stringify(fixture.track);
   const snapCtx = JSON.stringify(fixture.harmonicContext);
 
-  const plan = buildHarmonizationPlan(sanitizeHarmonizationInput(wrapper));
-  const snapPlan = JSON.stringify(plan);
+  // 3. Transmettre CE MÊME plan à mapHarmonizationPlanToViewModel (la
+  //    transformation réellement exécutée par l'orchestrateur sur le plan).
+  const vm = mapHarmonizationPlanToViewModel(plan, {
+    track: fixture.track,
+    harmonicContext: fixture.harmonicContext,
+  });
+  assertEqual(vm.status, 'success', 'mapHarmonizationPlanToViewModel doit produire un succès');
 
-  // L'orchestrateur ne doit muter ni les entrées ni le plan.
-  buildReharmonizationViewModel(wrapper);
-  buildReharmonizationViewModel(wrapper);
+  // 4. Vérifier le snapshot du plan après transformation (le plan et ses
+  //    sous-objets ne doivent pas avoir été mutés).
+  assertEqual(JSON.stringify(plan), snapPlan, 'le plan transformé ne doit pas être muté');
 
+  // 5. track et harmonicContext inchangés.
   assertEqual(JSON.stringify(fixture.track), snapTrack, 'track ne doit pas être muté');
   assertEqual(JSON.stringify(fixture.harmonicContext), snapCtx, 'harmonicContext ne doit pas être muté');
-  assertEqual(JSON.stringify(plan), snapPlan, 'le plan ne doit pas être muté');
+
+  // Double appel pour s'assurer de la pureté (idempotence).
+  mapHarmonizationPlanToViewModel(plan, { track: fixture.track, harmonicContext: fixture.harmonicContext });
+  assertEqual(JSON.stringify(plan), snapPlan, 'le plan reste non muté après un second appel');
 });
 
 runTest('T11 — aucun champ interdit envoyé au moteur (sanitarisation)', () => {
@@ -260,6 +344,20 @@ runTest('T12 — aucun appel à reharmonizer.js ni au moteur de voicing UI', () 
   for (let i = 0; i < plan.steps.length; i++) {
     assertDeepEqual(vm.steps[i].voicingMidiNotes, plan.steps[i].voicing.midiNotes, `voicing canonique ${i}`);
   }
+});
+
+runTest('T13 — contrat miniKeyboardForNotes().svg sur un véritable viewStep', () => {
+  const fixture = buildDemoFixture();
+  const vm = buildReharmonizationViewModel({ track: fixture.track, harmonicContext: fixture.harmonicContext });
+  assertEqual(vm.status, 'success', 'viewModel success requis');
+  // Prend les notes d’un véritable viewStep (voicing réel issu du plan).
+  const step = vm.steps[0];
+  assertTrue(Array.isArray(step.voicingMidiNotes) && step.voicingMidiNotes.length > 0, 'voicingMidiNotes non vide requis');
+  const result = miniKeyboardForNotes(step.voicingMidiNotes.slice());
+  assertTrue(result && typeof result === 'object', 'result doit être un objet');
+  assertTrue(typeof result.svg === 'string', 'result.svg doit être une chaîne');
+  assertTrue(result.svg.length > 0, 'result.svg doit être non vide');
+  assertTrue(/<svg[\s>]/.test(result.svg), 'result.svg doit contenir un élément svg');
 });
 
 // ===========================================================================
