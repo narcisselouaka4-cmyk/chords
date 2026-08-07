@@ -69,11 +69,25 @@ function assertThrowsRangeError(fn, msg = '') {
 }
 
 /**
- * Capture, sans mutation, tout le graphe d'objets accessible depuis une racine.
- * Pour chaque objet/tableau accessible, mémorise sa référence, son état de gel,
- * ses clés propres et le descripteur complet de chaque propriété propre
- * (type, value, writable, enumerable, configurable pour les données ;
- *  type, get, set, enumerable, configurable pour les accesseurs).
+ * Détermine si une valeur est un nœud du graphe (objet ou fonction non nul).
+ * Les fonctions sont traitées comme des nœuds à part entière : elles possèdent
+ * des clés propres, des descripteurs, un état de gel et peuvent contenir des
+ * sous-objets ou sous-fonctions.
+ *
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+function isGraphNode(value) {
+  return value !== null
+    && (typeof value === 'object' || typeof value === 'function');
+}
+
+/**
+ * Capture, sans mutation, tout le graphe d'objets et de fonctions accessible
+ * depuis une racine. Pour chaque nœud accessible, mémorise sa référence, son
+ * état de gel, ses clés propres et le descripteur complet de chaque propriété
+ * propre (type, value, writable, enumerable, configurable pour les données ;
+ * type, get, set, enumerable, configurable pour les accesseurs).
  * Un WeakSet évite les boucles et les parcours redondants sur les références
  * partagées. Les snapshots de propriétés utilisent un Map pour conserver
  * les symboles comme clés réelles. Aucun getter n'est déclenché.
@@ -85,7 +99,7 @@ function captureGraph(root) {
   const seen = new WeakSet();
   const snapshots = new WeakMap();
   function visit(obj, path) {
-    if (obj === null || typeof obj !== 'object') return;
+    if (!isGraphNode(obj)) return;
     if (seen.has(obj)) return;
     seen.add(obj);
     const ownKeys = Reflect.ownKeys(obj);
@@ -100,7 +114,7 @@ function captureGraph(root) {
           enumerable: desc.enumerable,
           configurable: desc.configurable,
         });
-        if (desc.value !== null && typeof desc.value === 'object') {
+        if (isGraphNode(desc.value)) {
           visit(desc.value, `${path}.${String(k)}`);
         }
       } else {
@@ -127,12 +141,12 @@ function captureGraph(root) {
 
 /**
  * Vérifie que le graphe accessible depuis root est inchangé par rapport au
- * snapshot capturé. Pour chaque objet capturé, contrôle : même référence à
- * chaque emplacement, mêmes clés, mêmes valeurs primitives, mêmes références
- * pour les valeurs objet, même état de gel, et descripteurs complets identiques
- * (writable, enumerable, configurable pour les données ; get, set, enumerable,
- * configurable pour les accesseurs). Vérifie aussi la référence exacte de la
- * racine.
+ * snapshot capturé. Pour chaque nœud capturé (objet ou fonction), contrôle :
+ * même référence à chaque emplacement, mêmes clés, mêmes valeurs primitives,
+ * mêmes références pour les valeurs objet/fonction, même état de gel, et
+ * descripteurs complets identiques (writable, enumerable, configurable pour
+ * les données ; get, set, enumerable, configurable pour les accesseurs).
+ * Vérifie aussi la référence exacte de la racine.
  *
  * @param {object} root
  * @param {{ snapshots: WeakMap<object, object>, seen: WeakSet<object> }} captured
@@ -148,7 +162,7 @@ function assertGraphUnchanged(root, captured, rootPath = 'input') {
   }
   const visited = new WeakSet();
   function visit(obj, expectedObj, path) {
-    if (obj === null || typeof obj !== 'object') {
+    if (!isGraphNode(obj)) {
       if (obj !== expectedObj) {
         throw new Error(`${path} valeur primitive changée : ${JSON.stringify(expectedObj)} -> ${JSON.stringify(obj)}`);
       }
@@ -156,7 +170,7 @@ function assertGraphUnchanged(root, captured, rootPath = 'input') {
     }
     const snap = captured.snapshots.get(obj);
     if (!snap) {
-      throw new Error(`${path} objet non présent dans le snapshot initial (référence inconnue ou remplacée)`);
+      throw new Error(`${path} objet/fonction non présent dans le snapshot initial (référence inconnue ou remplacée)`);
     }
     if (visited.has(obj)) return;
     visited.add(obj);
@@ -206,7 +220,7 @@ function assertGraphUnchanged(root, captured, rootPath = 'input') {
       if (desc && desc.configurable !== snapProp.configurable) {
         throw new Error(`${path}.${String(k)} configurable modifié : ${snapProp.configurable} -> ${desc.configurable}`);
       }
-      if (actualV !== null && typeof actualV === 'object') {
+      if (isGraphNode(actualV)) {
         visit(actualV, expectedV, `${path}.${String(k)}`);
       }
     }
@@ -823,6 +837,20 @@ runTest('T11 — immutabilité complète : graphe des entrées inchangé, nouvea
     assertFalse(getterCalled, 'synth5: aucun getter déclenché pendant captureGraph');
     assertGraphUnchanged(obj, cap, 'synth');
     assertFalse(getterCalled, 'synth5: aucun getter déclenché pendant assertGraphUnchanged');
+  })();
+
+  // 6. Fonction comme valeur de propriété de données, avec propriété propre
+  //    imbriquée. La capture traverse la fonction, ses clés propres et ses
+  //    descripteurs. Une mutation d'une propriété de la fonction est détectée.
+  (() => {
+    function fn() { return 1; }
+    fn.customProp = { nested: 42 };
+    const obj = { myFn: fn };
+    const cap = captureGraph(obj);
+    fn.customProp.nested = 99;
+    let err = null;
+    try { assertGraphUnchanged(obj, cap, 'synth'); } catch (e) { err = e; }
+    assertTrue(err !== null, 'synth6: mutation dans propriété imbriquée de fonction détectée');
   })();
 
   // Wrapper : référence et état de gel inchangés.
