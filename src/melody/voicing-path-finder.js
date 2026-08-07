@@ -19,7 +19,7 @@ import { scoreChordTransition } from './transition-score.js';
 // Constantes internes du modèle de jouabilité V1 (non configurables)
 // ---------------------------------------------------------------------------
 
-export const VOICING_PATH_SETTINGS = Object.freeze({
+const VOICING_PATH_SETTINGS = Object.freeze({
   minMidiNote: 36,
   maxMidiNote: 84,
   leftHandMinMidi: 36,
@@ -72,6 +72,41 @@ function deepFreeze(value) {
     return Object.freeze(value);
   }
   return value;
+}
+
+/**
+ * Valide que l'argument d'options d'une API publique est un objet non nul et
+ * non tableau. Un argument absent, null, primitive ou tableau est lui aussi
+ * rejecté avant toute déstructuration.
+ *
+ * @param {unknown} options
+ * @param {string} fnName
+ * @returns {object} l'objet d'options validé
+ */
+function requireOptionsObject(options, fnName) {
+  if (options === undefined) {
+    throw new TypeError(`${fnName} : l argument d options est obligatoire`);
+  }
+  if (options === null || typeof options !== 'object' || Array.isArray(options)) {
+    throw new TypeError(
+      `${fnName} : l argument d options doit être un objet non nul et non tableau`,
+    );
+  }
+  return options;
+}
+
+/**
+ * Vérifie qu'une propriété publique est présente par propriété propre (et non
+ * héritée) sur l'objet d'options.
+ *
+ * @param {object} options
+ * @param {string} prop
+ * @param {string} fnName
+ */
+function requireOwnProperty(options, prop, fnName) {
+  if (!Object.prototype.hasOwnProperty.call(options, prop)) {
+    throw new TypeError(`${fnName} : propriété '${prop}' manquante`);
+  }
 }
 
 /**
@@ -259,7 +294,10 @@ function buildVoicing(candidate, notes, hands) {
  * @param {{ candidate: ChordCandidate }} input
  * @returns {PianoVoicing[]} tableau figé, trié (ordre MIDI puis lexical)
  */
-export function generatePlayableChordVoicings({ candidate }) {
+export function generatePlayableChordVoicings(options) {
+  const opts = requireOptionsObject(options, 'generatePlayableChordVoicings');
+  requireOwnProperty(opts, 'candidate', 'generatePlayableChordVoicings');
+  const { candidate } = opts;
   validateCandidate(candidate, 'candidate');
   const bass =
     candidate.bassPitchClass === undefined ? null : candidate.bassPitchClass;
@@ -314,10 +352,46 @@ export function generatePlayableChordVoicings({ candidate }) {
 // ---------------------------------------------------------------------------
 
 /**
- * Alignement dynamique monotone minimal entre deux suites de notes MIDI
- * strictement croissantes. Renvoie les mouvements orientés (du grave vers
- * l'aigu) et les compteurs. Départage : coût minimal, puis davantage de voix
- * immobiles, puis davantage de voix appariées, puis match < delete < insert.
+ * Compte les quintes et octaves parallèles entre voix appariées (même
+ * direction, intervalle consonant conservé modulo 12, pas d'unisson).
+ *
+ * @param {{ fr: number, tt: number }[]} matchedRefs
+ * @returns {{ parallelFifths: number, parallelOctaves: number }}
+ */
+function countParallelMotions(matchedRefs) {
+  let parallelFifths = 0;
+  let parallelOctaves = 0;
+  for (let a = 0; a < matchedRefs.length; a++) {
+    for (let b = a + 1; b < matchedRefs.length; b++) {
+      const va = matchedRefs[a];
+      const vb = matchedRefs[b];
+      const dirA = Math.sign(va.tt - va.fr);
+      const dirB = Math.sign(vb.tt - vb.fr);
+      if (dirA === 0 || dirB === 0 || dirA !== dirB) continue;
+      const intervalInitial = Math.abs(vb.fr - va.fr);
+      const intervalFinal = Math.abs(vb.tt - va.tt);
+      if (intervalInitial % 12 === 7 && intervalFinal % 12 === 7) {
+        parallelFifths++;
+      } else if (
+        intervalInitial > 0 && intervalInitial % 12 === 0 &&
+        intervalFinal > 0 && intervalFinal % 12 === 0
+      ) {
+        parallelOctaves++;
+      }
+    }
+  }
+  return { parallelFifths, parallelOctaves };
+}
+
+/**
+ * Alignement monotone entre deux suites de notes MIDI strictement croissantes.
+ *
+ * Règle V1 impérative : lorsque les deux cardinalités sont égales, les voix
+ * sont appariées obligatoirement par indice (from[i] vers to[i]). Aucune
+ * insertion ni suppression n'est alors possible, unmatchedVoiceCount vaut 0, et
+ * les mouvements, grands sauts et parallèles sont calculés sur ces appariements
+ * directs. L'alignement dynamique (match/delete/insert) n'est utilisé que
+ * lorsque les cardinalités diffèrent.
  *
  * @param {number[]} from
  * @param {number[]} to
@@ -331,7 +405,43 @@ export function generatePlayableChordVoicings({ candidate }) {
 function alignVoices(from, to) {
   const n = from.length;
   const m = to.length;
-  const COST = VOICING_PATH_SETTINGS.unmatchedVoiceCost;
+  const s = VOICING_PATH_SETTINGS;
+
+  // Cardinalités égales : appariement direct par indice, jamais de
+  // suppression/insertion (une insertion coûterait moins que le grand saut,
+  // mais le contrat V1 l'interdit expressément).
+  if (n === m) {
+    const movements = [];
+    const matchedRefs = [];
+    let totalMovement = 0;
+    let maxMovement = 0;
+    let stationaryVoiceCount = 0;
+    let largeLeapCount = 0;
+    for (let k = 0; k < n; k++) {
+      const fr = from[k];
+      const tt = to[k];
+      const sem = Math.abs(tt - fr);
+      movements.push({ fromIndex: k, toIndex: k, fromNote: fr, toNote: tt, semitones: sem });
+      totalMovement += sem;
+      if (sem > maxMovement) maxMovement = sem;
+      if (sem === 0) stationaryVoiceCount++;
+      if (sem > s.largeLeapThreshold) largeLeapCount++;
+      matchedRefs.push({ fr, tt });
+    }
+    const { parallelFifths, parallelOctaves } = countParallelMotions(matchedRefs);
+    return {
+      movements: deepFreeze(movements),
+      totalMovement,
+      maxMovement,
+      stationaryVoiceCount,
+      unmatchedVoiceCount: 0,
+      largeLeapCount,
+      parallelFifths,
+      parallelOctaves,
+    };
+  }
+
+  const COST = s.unmatchedVoiceCost;
   const opRank = { match: 0, delete: 1, insert: 2 };
   const key = (cand) => [
     cand.cost,
@@ -459,27 +569,7 @@ function alignVoices(from, to) {
   }
 
   // Quintes et octaves parallèles entre voix appariées.
-  let parallelFifths = 0;
-  let parallelOctaves = 0;
-  for (let a = 0; a < matchedRefs.length; a++) {
-    for (let b = a + 1; b < matchedRefs.length; b++) {
-      const va = matchedRefs[a];
-      const vb = matchedRefs[b];
-      const dirA = Math.sign(va.tt - va.fr);
-      const dirB = Math.sign(vb.tt - vb.fr);
-      if (dirA === 0 || dirB === 0 || dirA !== dirB) continue;
-      const intervalInitial = Math.abs(vb.fr - va.fr);
-      const intervalFinal = Math.abs(vb.tt - va.tt);
-      if (intervalInitial % 12 === 7 && intervalFinal % 12 === 7) {
-        parallelFifths++;
-      } else if (
-        intervalInitial > 0 && intervalInitial % 12 === 0 &&
-        intervalFinal > 0 && intervalFinal % 12 === 0
-      ) {
-        parallelOctaves++;
-      }
-    }
-  }
+  const { parallelFifths, parallelOctaves } = countParallelMotions(matchedRefs);
 
   return {
     movements: deepFreeze(movements),
@@ -499,7 +589,11 @@ function alignVoices(from, to) {
  * @param {{ fromMidiNotes: number[], toMidiNotes: number[] }} input
  * @returns {VoicingTransitionScore} objet figé
  */
-export function scoreVoicingTransition({ fromMidiNotes, toMidiNotes }) {
+export function scoreVoicingTransition(options) {
+  const opts = requireOptionsObject(options, 'scoreVoicingTransition');
+  requireOwnProperty(opts, 'fromMidiNotes', 'scoreVoicingTransition');
+  requireOwnProperty(opts, 'toMidiNotes', 'scoreVoicingTransition');
+  const { fromMidiNotes, toMidiNotes } = opts;
   validateMidiArray(fromMidiNotes, 'fromMidiNotes', true);
   validateMidiArray(toMidiNotes, 'toMidiNotes', true);
 
@@ -642,15 +736,26 @@ function assignIndexRanks(row) {
  * @param {{ harmonicPathResult: HarmonicPathResult }} input
  * @returns {VoicingPathResult}
  */
-export function findBestVoicingPath({ harmonicPathResult }) {
-  if (harmonicPathResult == null || typeof harmonicPathResult !== 'object') {
-    throw new TypeError('harmonicPathResult doit être un objet non nul');
+export function findBestVoicingPath(options) {
+  const opts = requireOptionsObject(options, 'findBestVoicingPath');
+  requireOwnProperty(opts, 'harmonicPathResult', 'findBestVoicingPath');
+  const { harmonicPathResult } = opts;
+  if (
+    harmonicPathResult == null ||
+    typeof harmonicPathResult !== 'object' ||
+    Array.isArray(harmonicPathResult)
+  ) {
+    throw new TypeError('harmonicPathResult doit être un objet non nul et non tableau');
   }
+  requireOwnProperty(harmonicPathResult, 'path', 'findBestVoicingPath');
   const path = harmonicPathResult.path;
   if (!Array.isArray(path) || path.length === 0) {
     throw new TypeError('harmonicPathResult.path doit être un tableau non vide');
   }
   for (let t = 0; t < path.length; t++) {
+    if (!(t in path)) {
+      throw new TypeError('harmonicPathResult.path ne doit pas être un tableau creux');
+    }
     validateCandidate(path[t], `harmonicPathResult.path[${t}]`);
   }
 
