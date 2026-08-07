@@ -108,6 +108,10 @@ const els = {
   reharmStyle: document.getElementById('analyzer-reharm-style'),
   reharmRun: document.getElementById('analyzer-reharm-run'),
   reharmOutput: document.getElementById('analyzer-reharm-output'),
+  // Lot A — conteneur <details> parent et son <summary>, pour ouverture
+  // automatique et aria-expanded lors d'un rendu réussi.
+  reharmDetails: document.getElementById('analyzer-reharm-details'),
+  reharmSummary: document.getElementById('analyzer-reharm-summary'),
 };
 
 let analyzer = null;
@@ -1065,6 +1069,8 @@ function initReharmonizationPanel() {
   const styleSelect = els.reharmStyle;
   const runBtn = els.reharmRun;
   const output = els.reharmOutput;
+  const details = els.reharmDetails;
+  const summary = els.reharmSummary;
 
   if (styleSelect) {
     // Désactivation + accessibilité : la valeur n'est jamais lue.
@@ -1079,7 +1085,20 @@ function initReharmonizationPanel() {
     // du fichier audio actuellement chargé.
     runBtn.textContent = 'Voir la démonstration';
     runBtn.setAttribute('aria-controls', 'analyzer-reharm-output');
+    runBtn.setAttribute('aria-expanded', 'false');
     runBtn.addEventListener('click', runReharmonizationDemo);
+  }
+
+  // Lot A — synchronisation de aria-expanded sur le <summary> quand
+  // l'utilisateur ouvre/ferme manuellement le <details>. On n'intercepte pas
+  // le comportement natif : on observe simplement l'état pour l'accessibilité.
+  if (details && summary) {
+    const syncExpanded = () => {
+      const open = details.hasAttribute('open');
+      summary.setAttribute('aria-expanded', String(open));
+    };
+    syncExpanded();
+    details.addEventListener('toggle', syncExpanded);
   }
 
   if (output) {
@@ -1097,6 +1116,7 @@ async function runReharmonizationDemo() {
   if (!runBtn || !output) return;
 
   runBtn.disabled = true;
+  runBtn.setAttribute('aria-expanded', 'true');
   output.setAttribute('aria-busy', 'true');
   renderReharmonizationLoading(output);
 
@@ -1113,6 +1133,17 @@ async function runReharmonizationDemo() {
 
     if (viewModel.status === 'success') {
       renderReharmonizationSuccess(output, viewModel, fixture.meta);
+      // Lot A — ouvrir automatiquement le <details> parent pour rendre les
+      // étapes visibles immédiatement après le succès. La fermeture puis
+      // réouverture ne dupliquent pas les résultats : renderReharmonizationSuccess
+      // appelle clearChildren() au début, donc chaque rendu repart d'un
+      // conteneur vide.
+      if (els.reharmDetails && !els.reharmDetails.hasAttribute('open')) {
+        els.reharmDetails.setAttribute('open', '');
+      }
+      if (els.reharmSummary) {
+        els.reharmSummary.setAttribute('aria-expanded', 'true');
+      }
     } else {
       renderReharmonizationError(output, viewModel.message, viewModel.errorKind);
     }
@@ -1121,6 +1152,7 @@ async function runReharmonizationDemo() {
     renderReharmonizationError(output, err && err.message ? err.message : 'Erreur inattendue.', 'Error');
   } finally {
     runBtn.disabled = false;
+    runBtn.setAttribute('aria-expanded', String(!!els.reharmDetails?.hasAttribute('open')));
     output.setAttribute('aria-busy', 'false');
   }
 }

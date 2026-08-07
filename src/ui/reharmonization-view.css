@@ -2,10 +2,34 @@
    du moteur de réharmonisation. Complément de style.css / design-system.css ;
    ne dépend d'aucun framework. */
 
+/* Lot A — le conteneur de résultats doit s'agrandir avec son contenu et rester
+   dans le flux normal de la page. On proscrit toute hauteur fixe, max-height ou
+   overflow:hidden sur ce conteneur : les étapes doivent être consultables sans
+   être coupées par l'accordéon parent. */
 .analyzer-reharm-output {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  /* Aucune hauteur fixe ni overflow coupant : le conteneur suit son contenu. */
+  min-height: 0;
+}
+
+/* Lot A — le <details> parent ne doit pas couper son contenu ouvert. On retire
+   explicitement tout overflow:hidden qui aurait pu être appliqué par les classes
+   Tailwind historiques, et on laisse le <details> s'étendre naturellement. */
+details#analyzer-reharm-summary,
+#analyzer-reharm-details {
+  overflow: visible;
+}
+
+#analyzer-reharm-details > summary {
+  list-style: none;
+}
+
+/* Flèche personnalisée conservée si présente, mais on s'assure que le summary
+   reste cliquable et expose bien aria-expanded. */
+#analyzer-reharm-details > summary::-webkit-details-marker {
+  display: none;
 }
 
 .reharm-empty,
