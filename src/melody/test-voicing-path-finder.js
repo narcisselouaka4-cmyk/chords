@@ -2,6 +2,7 @@
 // de piano jouables et sélection globale du chemin de voicings optimal.
 // Exécutable avec : node src/melody/test-voicing-path-finder.js
 
+import * as voicingPathModule from './voicing-path-finder.js';
 import {
   generatePlayableChordVoicings,
   scoreVoicingTransition,
@@ -180,6 +181,60 @@ function scoreTransitionFrom(from, to) {
 }
 
 // ---------------------------------------------------------------------------
+// Oracle exhaustif indépendant : énumère tous les chemins entre voicings de
+// couches données et garde le meilleur selon les neuf critères (coût cumulé,
+// octaves, quintes, grands sauts, non appariées, mouvement, registre, puis
+// séquence MIDI lexicographique et séquence d indices). Aucune DP ni greedy.
+// ---------------------------------------------------------------------------
+
+function exhaustiveOracle(layers) {
+  function oracleBeats(a, b) {
+    if (a.cost !== b.cost) return a.cost < b.cost;
+    if (a.oct !== b.oct) return a.oct < b.oct;
+    if (a.fifth !== b.fifth) return a.fifth < b.fifth;
+    if (a.leap !== b.leap) return a.leap < b.leap;
+    if (a.unm !== b.unm) return a.unm < b.unm;
+    if (a.move !== b.move) return a.move < b.move;
+    if (a.reg !== b.reg) return a.reg < b.reg;
+    for (let i = 0; i < a.midseq.length; i++) {
+      const d = compareArrays(a.midseq[i], b.midseq[i]);
+      if (d !== 0) return d < 0;
+    }
+    for (let i = 0; i < a.idxseq.length; i++) {
+      if (a.idxseq[i] !== b.idxseq[i]) return a.idxseq[i] < b.idxseq[i];
+    }
+    return false;
+  }
+  let best = null;
+  function rec(t, chosen, cost, oct, fifth, leap, unm, move, reg) {
+    if (t === layers.length) {
+      const cand = {
+        midseq: chosen.map((v) => v.midiNotes),
+        idxseq: chosen.map((v, idx) => layers[idx].indexOf(v)),
+        cost, oct, fifth, leap, unm, move, reg,
+      };
+      if (best === null || oracleBeats(cand, best)) best = cand;
+      return;
+    }
+    for (const v of layers[t]) {
+      let nc = cost, no = oct, nf = fifth, nl = leap, nu = unm, nm = move, nr = reg;
+      nr += v.registerDeviation;
+      if (t > 0) {
+        const tr = scoreVoicingTransition({
+          fromMidiNotes: chosen[t - 1].midiNotes,
+          toMidiNotes: v.midiNotes,
+        });
+        nc += tr.cost; no += tr.parallelOctaves; nf += tr.parallelFifths;
+        nl += tr.largeLeapCount; nu += tr.unmatchedVoiceCount; nm += tr.totalMovement;
+      }
+      rec(t + 1, chosen.concat([v]), nc, no, nf, nl, nu, nm, nr);
+    }
+  }
+  rec(0, [], 0, 0, 0, 0, 0, 0, 0);
+  return best;
+}
+
+// ---------------------------------------------------------------------------
 // T1 — API : exports (3) et settings littéral indépendant
 // ---------------------------------------------------------------------------
 
@@ -188,16 +243,47 @@ runTest('T1 — exports exacts (3) et settings figés/identiques au littéral', 
   assertEqual(typeof scoreVoicingTransition, 'function');
   assertEqual(typeof findBestVoicingPath, 'function');
 
+  // Exports du module en tant que namespace : exactement les trois fonctions.
+  assertDeepEqual(
+    Object.keys(voicingPathModule).sort(),
+    ['findBestVoicingPath', 'generatePlayableChordVoicings', 'scoreVoicingTransition'],
+    'exactement 3 exports publics',
+  );
+
+  // VoicingTransitionScore : clés exactes.
+  const score = scoreVoicingTransition({ fromMidiNotes: [60, 64, 67], toMidiNotes: [60, 64, 67] });
+  assertDeepEqual(Object.keys(score).sort(), [
+    'cost', 'largeLeapCount', 'maxMovement', 'movements', 'parallelFifths',
+    'parallelOctaves', 'stationaryVoiceCount', 'totalMovement', 'unmatchedVoiceCount',
+  ], 'clés du VoicingTransitionScore');
+  // VoicingMovement : clés exactes sur un mouvement match.
+  assertDeepEqual(Object.keys(score.movements[0]).sort(), [
+    'fromIndex', 'fromNote', 'semitones', 'toIndex', 'toNote',
+  ], 'clés du VoicingMovement');
+
   const cand = makeCandidate('c', 0, [0, 4, 7]);
   const result = findBestVoicingPath({ harmonicPathResult: harmonicResult([cand]) });
+  // VoicingPathResult : clés exactes.
   assertDeepEqual(
     Object.keys(result).sort(),
     ['chordPath', 'largeLeapCount', 'parallelFifths', 'parallelOctaves', 'registerDeviation',
       'settings', 'totalCost', 'totalMovement', 'transitions', 'unmatchedVoiceCount', 'voicings'],
-    'champs exacts du résultat',
+    'champs exacts du VoicingPathResult',
   );
+  // transitioion wrapper : { from, to, score }.
+  const two = findBestVoicingPath({ harmonicPathResult: harmonicResult([cand, cand]) });
+  assertDeepEqual(Object.keys(two.transitions[0]).sort(), ['from', 'score', 'to'],
+    'wrapper transition { from, to, score }');
+  assertTrue(Object.keys(two.transitions[0].from).length > 0, 'from = PianoVoicing');
+  // PianoVoicing : clés exactes.
+  assertDeepEqual(Object.keys(two.transitions[0].from).sort(), [
+    'bassMidiNote', 'bassPitchClass', 'candidate', 'inversionInterval', 'isRootPosition',
+    'leftHand', 'midiNotes', 'registerDeviation', 'rightHand', 'spanSemitones',
+  ], 'clés du PianoVoicing');
+
   assertTrue(Object.isFrozen(result.settings), 'settings figé');
   assertDeepEqual(Object.keys(result.settings).sort(), Object.keys(SETTINGS).sort(), 'clés settings');
+  assertEqual(Object.keys(result.settings).length, 21, '21 clés settings');
   for (const k of Object.keys(SETTINGS)) {
     assertEqual(result.settings[k], SETTINGS[k], `settings.${k}`);
   }
@@ -347,6 +433,71 @@ runTest('T8 — cardinalités égales : appariement direct par indice (36→72)'
 });
 
 // ---------------------------------------------------------------------------
+// T8b — Cardinalités différentes : immobiles + suppression, sans croisement
+// ---------------------------------------------------------------------------
+
+runTest('T8b — cardinalités différentes : [60,64,67]→[60,64]', () => {
+  const t = scoreTransitionFrom([60, 64, 67], [60, 64]);
+  assertEqual(t.unmatchedVoiceCount, 1, 'une suppression');
+  assertEqual(t.totalMovement, 0, 'aucun mouvement');
+  assertEqual(t.cost, SETTINGS.unmatchedVoiceCost, 'cost = 12');
+  assertEqual(t.stationaryVoiceCount, 2, 'deux voix immobiles');
+  assertEqual(t.largeLeapCount, 0);
+  assertEqual(t.parallelFifths, 0);
+  assertEqual(t.parallelOctaves, 0);
+  // Pas de croisement : appariements 60→60 puis 64→64, suppression de 67.
+  assertDeepEqual(t.movements.map((mm) => [mm.fromIndex, mm.toIndex]),
+    [[0, 0], [1, 1], [2, null]], 'ordres non croisés');
+  assertDeepEqual(t.movements.map((mm) => [mm.fromNote, mm.toNote]),
+    [[60, 60], [64, 64], [67, null]], 'notes exactes');
+});
+
+// ---------------------------------------------------------------------------
+// T8c — Égalités exactes d alignement (suite d opérations depuis le début)
+// ---------------------------------------------------------------------------
+
+runTest('T8c — égalités [50]↔[48,52] : match/insert puis match/delete', () => {
+  const a = scoreTransitionFrom([50], [48, 52]);
+  assertDeepEqual(a.movements.map((mm) =>
+    mm.fromIndex === null ? 'insert' : mm.toIndex === null ? 'delete' : 'match'),
+    ['match', 'insert'], 'A : match puis insert (voix graves d abord)');
+  assertDeepEqual(a.movements[0], { fromIndex: 0, toIndex: 0, fromNote: 50, toNote: 48, semitones: 2 },
+    'A mouvement 1 : 50→48');
+  assertEqual(a.movements[1].fromIndex, null);
+  assertEqual(a.movements[1].toIndex, 1);
+  assertEqual(a.movements[1].fromNote, null);
+  assertEqual(a.movements[1].toNote, 52);
+  assertEqual(a.movements[1].semitones, null);
+  assertEqual(a.totalMovement, 2);
+  assertEqual(a.maxMovement, 2);
+  assertEqual(a.stationaryVoiceCount, 0);
+  assertEqual(a.unmatchedVoiceCount, 1);
+  assertEqual(a.largeLeapCount, 0);
+  assertEqual(a.parallelFifths, 0);
+  assertEqual(a.parallelOctaves, 0);
+  assertEqual(a.cost, 14);
+
+  const b = scoreTransitionFrom([48, 52], [50]);
+  assertDeepEqual(b.movements.map((mm) =>
+    mm.fromIndex === null ? 'insert' : mm.toIndex === null ? 'delete' : 'match'),
+    ['match', 'delete'], 'B : match puis delete');
+  assertDeepEqual(b.movements[0], { fromIndex: 0, toIndex: 0, fromNote: 48, toNote: 50, semitones: 2 },
+    'B : 48→50 apparié');
+  assertEqual(b.movements[1].fromIndex, 1);
+  assertEqual(b.movements[1].toIndex, null);
+  assertEqual(b.movements[1].fromNote, 52);
+  assertEqual(b.movements[1].semitones, null);
+  assertEqual(b.totalMovement, 2);
+  assertEqual(b.maxMovement, 2);
+  assertEqual(b.stationaryVoiceCount, 0);
+  assertEqual(b.unmatchedVoiceCount, 1);
+  assertEqual(b.largeLeapCount, 0);
+  assertEqual(b.parallelFifths, 0);
+  assertEqual(b.parallelOctaves, 0);
+  assertEqual(b.cost, 14);
+});
+
+// ---------------------------------------------------------------------------
 // T9 — Parallèles
 // ---------------------------------------------------------------------------
 
@@ -435,6 +586,17 @@ runTest('T10 — greedy vs DP : DP strictement meilleur (C→G7→Fmaj7)', () =>
   assertTrue(strictlyBetter, 'le tuple DP bat strictement le greedy');
   // cohérence interne : totalCost = somme des coûts de transition.
   assertEqual(dm.transitions.reduce((a, t) => a + t.score.cost, 0), dm.totalCost, 'totalCost = Σ transitions');
+
+  // La DP correspond exactement à l oracle exhaustif sur cette même progression.
+  const oracle = exhaustiveOracle(layers);
+  assertDeepEqual(dMid, oracle.midseq, 'la DP doit égaler l oracle exhaustif');
+  assertEqual(dm.totalCost, oracle.cost);
+  assertEqual(dm.parallelOctaves, oracle.oct);
+  assertEqual(dm.parallelFifths, oracle.fifth);
+  assertEqual(dm.largeLeapCount, oracle.leap);
+  assertEqual(dm.unmatchedVoiceCount, oracle.unm);
+  assertEqual(dm.totalMovement, oracle.move);
+  assertEqual(dm.registerDeviation, oracle.reg);
 });
 
 // ---------------------------------------------------------------------------
@@ -447,49 +609,7 @@ runTest('T11 — oracle exhaustif indépendant (petites couches)', () => {
   const cand2 = mkChord('c', 0, [0, 4, 7]);
   const layers = [cand0, cand1, cand2].map((c) => generatePlayableChordVoicings({ candidate: c }));
 
-  let best = null;
-  function rec(t, chosen, cost, oct, fifth, leap, unm, move, reg) {
-    if (t === layers.length) {
-      const cand = {
-        midseq: chosen.map((v) => v.midiNotes),
-        idxseq: chosen.map((v, idx) => layers[idx].indexOf(v)),
-        cost, oct, fifth, leap, unm, move, reg,
-      };
-      if (best === null || oracleBeats(cand, best)) best = cand;
-      return;
-    }
-    for (const v of layers[t]) {
-      let nc = cost, no = oct, nf = fifth, nl = leap, nu = unm, nm = move, nr = reg;
-      nr += v.registerDeviation;
-      if (t > 0) {
-        const tr = scoreVoicingTransition({
-          fromMidiNotes: chosen[t - 1].midiNotes,
-          toMidiNotes: v.midiNotes,
-        });
-        nc += tr.cost; no += tr.parallelOctaves; nf += tr.parallelFifths;
-        nl += tr.largeLeapCount; nu += tr.unmatchedVoiceCount; nm += tr.totalMovement;
-      }
-      rec(t + 1, chosen.concat([v]), nc, no, nf, nl, nu, nm, nr);
-    }
-  }
-  function oracleBeats(a, b) {
-    if (a.cost !== b.cost) return a.cost < b.cost;
-    if (a.oct !== b.oct) return a.oct < b.oct;
-    if (a.fifth !== b.fifth) return a.fifth < b.fifth;
-    if (a.leap !== b.leap) return a.leap < b.leap;
-    if (a.unm !== b.unm) return a.unm < b.unm;
-    if (a.move !== b.move) return a.move < b.move;
-    if (a.reg !== b.reg) return a.reg < b.reg;
-    for (let i = 0; i < a.midseq.length; i++) {
-      const d = compareArrays(a.midseq[i], b.midseq[i]);
-      if (d !== 0) return d < 0;
-    }
-    for (let i = 0; i < a.idxseq.length; i++) {
-      if (a.idxseq[i] !== b.idxseq[i]) return a.idxseq[i] < b.idxseq[i];
-    }
-    return false;
-  }
-  rec(0, [], 0, 0, 0, 0, 0, 0, 0);
+  const best = exhaustiveOracle(layers);
 
   const result = findBestVoicingPath({ harmonicPathResult: harmonicResult([cand0, cand1, cand2]) });
   assertDeepEqual(result.voicings.map((v) => v.midiNotes), best.midseq, 'la DP doit égaler l oracle');
@@ -544,7 +664,7 @@ runTest('T13 — [c,c,c] voicing répété, midiNotes identiques, déterminisme'
 // T14 — Départages déterministes (registe + ordre MIDI) et non-atteignabilités
 // ---------------------------------------------------------------------------
 
-runTest('T14 — départages registre/MIDI, provocations parity, non-atteignabilité octaves', () => {
+runTest('T14 — départages registre/MIDI, témoins métriques exacts, non-atteignabilité octaves', () => {
   const c = mkChord('d', 0, [0, 4, 7]);
   const vsC = generatePlayableChordVoicings({ candidate: c });
 
@@ -559,17 +679,54 @@ runTest('T14 — départages registre/MIDI, provocations parity, non-atteignabil
     assertEqual(rhs, t.cost, 'cost = mouvement + pénalités exactes');
   }
 
-  // (2) octaves parallèles structurellement 0 (jamais atteignables → jamais décisives).
+  // (2) témoins métriques exacts : quintes, critères précédents égaux.
+  {
+    const t1 = scoreVoicingTransition({ fromMidiNotes: [36, 52, 55], toMidiNotes: [43, 64, 72] });
+    assertEqual(t1.cost, 48); assertEqual(t1.parallelOctaves, 0);
+    assertEqual(t1.parallelFifths, 0); assertEqual(t1.largeLeapCount, 2);
+    assertEqual(t1.unmatchedVoiceCount, 0); assertEqual(t1.totalMovement, 36);
+    const t2 = scoreVoicingTransition({ fromMidiNotes: [40, 48, 55], toMidiNotes: [40, 60, 67] });
+    assertEqual(t2.cost, 48); assertEqual(t2.parallelOctaves, 0);
+    assertEqual(t2.parallelFifths, 1); assertEqual(t2.largeLeapCount, 2);
+    assertEqual(t2.unmatchedVoiceCount, 0); assertEqual(t2.totalMovement, 24);
+  }
+
+  // (3) témoins métriques exacts : grands sauts, critères précédents égaux.
+  {
+    const t1 = scoreVoicingTransition({ fromMidiNotes: [36, 52, 55], toMidiNotes: [43, 64, 72] });
+    assertEqual(t1.cost, 48); assertEqual(t1.parallelOctaves, 0);
+    assertEqual(t1.parallelFifths, 0); assertEqual(t1.largeLeapCount, 2);
+    const t2 = scoreVoicingTransition({ fromMidiNotes: [43, 64, 72], toMidiNotes: [52, 55, 60] });
+    assertEqual(t2.cost, 48); assertEqual(t2.parallelOctaves, 0);
+    assertEqual(t2.parallelFifths, 0); assertEqual(t2.largeLeapCount, 3);
+  }
+
+  // (4) témoins métriques exacts : voix non appariées, critères précédents égaux.
+  {
+    const t1 = scoreVoicingTransition({ fromMidiNotes: [60, 76, 79], toMidiNotes: [40, 55, 59, 60] });
+    assertEqual(t1.cost, 65); assertEqual(t1.parallelOctaves, 0);
+    assertEqual(t1.parallelFifths, 0); assertEqual(t1.largeLeapCount, 2);
+    assertEqual(t1.unmatchedVoiceCount, 1); assertEqual(t1.totalMovement, 41);
+    const t2 = scoreVoicingTransition({ fromMidiNotes: [36, 52, 55], toMidiNotes: [60, 64, 67, 71] });
+    assertEqual(t2.cost, 65); assertEqual(t2.parallelOctaves, 0);
+    assertEqual(t2.parallelFifths, 0); assertEqual(t2.largeLeapCount, 2);
+    assertEqual(t2.unmatchedVoiceCount, 3); assertEqual(t2.totalMovement, 17);
+  }
+
+  // (5) octaves parallèles structurellement 0 (jamais atteignables → jamais décisives)
+  //     sur un chemin V1 généré ; elles restent atteignables dans scoreVoicingTransition.
   for (const a of vsC) for (const b of vsC) {
     const t = scoreVoicingTransition({ fromMidiNotes: a.midiNotes, toMidiNotes: b.midiNotes });
     assertEqual(t.parallelOctaves, 0, 'octaves parallèles structurellement 0');
   }
+  const octWitness = scoreVoicingTransition({ fromMidiNotes: [48, 60], toMidiNotes: [50, 62] });
+  assertEqual(octWitness.parallelOctaves, 1, 'octaves parallèles atteignables dans scoreVoicingTransition');
 
-  // (3) registre départage : C→C conserve la voicing au meilleur registre.
+  // (6) registre départage : C→C conserve la voicing au meilleur registre.
   const res = findBestVoicingPath({ harmonicPathResult: harmonicResult([c, c]) });
   assertDeepEqual(res.voicings.map((v) => v.midiNotes), [[43, 60, 64], [43, 60, 64]], 'registre min en C→C');
 
-  // (4) départ (ordre MIDI) à registre égal : Cmaj7 seul.
+  // (7) départ (ordre MIDI) à registre égal : Cmaj7 seul.
   const c4 = mkChord('c4t', 0, [0, 4, 7, 11]);
   const solo = findBestVoicingPath({ harmonicPathResult: harmonicResult([c4]) });
   const all4 = generatePlayableChordVoicings({ candidate: c4 });
@@ -580,7 +737,7 @@ runTest('T14 — départages registre/MIDI, provocations parity, non-atteignabil
   assertDeepEqual(solo.voicings[0].midiNotes, lexMin.midiNotes,
     'à registre égal, l ordre MIDI départage');
 
-  // (5) déterminisme parfait.
+  // (8) déterminisme parfait.
   assertDeepEqual(
     findBestVoicingPath({ harmonicPathResult: harmonicResult([c, c, c]) }),
     findBestVoicingPath({ harmonicPathResult: harmonicResult([c, c, c]) }),
@@ -629,14 +786,29 @@ runTest('T16 — TypeError sur entrées invalides (options / chemins creux)', ()
   assertThrowsTypeError(() => scoreVoicingTransition({ fromMidiNotes: [64, 60], toMidiNotes: [60, 62] }), 'non trié');
   assertThrowsTypeError(() => scoreVoicingTransition({ fromMidiNotes: [200], toMidiNotes: [64] }), 'hors 0-127');
   assertThrowsTypeError(() => scoreVoicingTransition({ fromMidiNotes: [-5], toMidiNotes: [64] }), 'négatif');
+  // valeurs hors bornes des deux côtés.
+  assertThrowsTypeError(() => scoreVoicingTransition({ fromMidiNotes: [150], toMidiNotes: [-3] }), 'hors bornes des deux côtés');
   const sparseF = []; sparseF[0] = 60; sparseF[2] = 64;
   assertThrowsTypeError(() => scoreVoicingTransition({ fromMidiNotes: sparseF, toMidiNotes: [64, 67] }), 'from creux');
+  const sparseT = []; sparseT[0] = 60; sparseT[2] = 64;
+  assertThrowsTypeError(() => scoreVoicingTransition({ fromMidiNotes: [64, 67], toMidiNotes: sparseT }), 'to creux');
+  const sparseBothF = []; sparseBothF[0] = 60; sparseBothF[2] = 64;
+  const sparseBothT = []; sparseBothT[0] = 64; sparseBothT[2] = 67;
+  assertThrowsTypeError(() => scoreVoicingTransition({ fromMidiNotes: sparseBothF, toMidiNotes: sparseBothT }), 'creux des deux côtés');
+  // fromMidiNotes absent.
+  assertThrowsTypeError(() => scoreVoicingTransition({ toMidiNotes: [64] }), 'from absent');
+  // options tableau portant artificiellement les notes.
+  const arrNotes = []; arrNotes.fromMidiNotes = [60]; arrNotes.toMidiNotes = [64];
+  assertThrowsTypeError(() => scoreVoicingTransition(arrNotes), 'options tableau avec from/to');
 
   assertThrowsTypeError(() => generatePlayableChordVoicings(), 'gen sans options');
   assertThrowsTypeError(() => generatePlayableChordVoicings(null), 'gen null');
   assertThrowsTypeError(() => generatePlayableChordVoicings([]), 'gen tableau');
   assertThrowsTypeError(() => generatePlayableChordVoicings({}), 'gen candidate absent');
   assertThrowsTypeError(() => generatePlayableChordVoicings(5), 'gen primitive');
+  // options tableau portant artificiellement candidate.
+  const arrCand = []; arrCand.candidate = makeCandidate('q', 0, [0, 4, 7]);
+  assertThrowsTypeError(() => generatePlayableChordVoicings(arrCand), 'gen options tableau porte candidate');
 
   assertThrowsTypeError(() => findBestVoicingPath(), 'path sans options');
   assertThrowsTypeError(() => findBestVoicingPath(null), 'path null');
@@ -645,6 +817,9 @@ runTest('T16 — TypeError sur entrées invalides (options / chemins creux)', ()
   assertThrowsTypeError(() => findBestVoicingPath({ harmonicPathResult: null }), 'hpr null');
   assertThrowsTypeError(() => findBestVoicingPath({ harmonicPathResult: {} }), 'path absent');
   assertThrowsTypeError(() => findBestVoicingPath({ harmonicPathResult: { path: [] } }), 'path vide');
+  // harmonicPathResult tableau portant artificiellement path.
+  const arrPath = []; arrPath.path = [mkCompleteCandidate()];
+  assertThrowsTypeError(() => findBestVoicingPath({ harmonicPathResult: arrPath }), 'hpr tableau porte path');
   const creux = []; creux[0] = mkCompleteCandidate(); creux[2] = mkCompleteCandidate();
   assertThrowsTypeError(() => findBestVoicingPath({ harmonicPathResult: { path: creux } }), 'path creux');
   assertThrowsTypeError(() => findBestVoicingPath({ harmonicPathResult: { path: [null] } }), 'candidat null');
