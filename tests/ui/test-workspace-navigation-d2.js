@@ -184,7 +184,7 @@ runTest('D2.9 — Studio sans média garde son interface d’import visible', ()
   assertEqual(collapseButton.disabled, true, 'le repli doit être désactivé en étape 0');
   assertTrue(indexHtml.includes('class="studio-tab stage-0"'), 'Studio doit démarrer explicitement en étape 0');
   assertTrue(indexHtml.includes('id="studio-import-btn"'), 'action d’import absente');
-  assertTrue(indexHtml.includes('Sélectionnez un morceau pour commencer à travailler.'), 'message vide absent');
+  assertTrue(indexHtml.includes('Sélectionnez un morceau pour travailler ses pistes et sa lecture.'), 'message vide absent');
   assertTrue(/if \(!currentTrack\) updateStudioStage\(0\)/.test(studioJs), 'retour Studio sans média non réconcilié');
 });
 
