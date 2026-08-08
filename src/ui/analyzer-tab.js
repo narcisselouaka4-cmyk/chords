@@ -21,8 +21,12 @@ import { CHORD_DEFINITIONS } from '../chord-engine/chord-defs.js';
 import { noteNameToPc } from '../chord-engine/intervals.js';
 import { ChordEditor, makeSegmentId, NOTE_NAMES } from './chord-editor.js';
 import {
+  openChordEditSession,
+  applyChordTargetMutation,
+  resolveChordTarget,
+} from './chord-edit-session.js';
+import {
   getEffectiveChord,
-  normalizeOverride,
   formatEffectiveChord,
   deriveChordDisplay,
 } from '../chord-engine/chord-display.js';
@@ -360,28 +364,48 @@ function rerenderTimeline() {
   }
 }
 
-function applyChordOverride(segmentIndex, override) {
-  const seg = currentAnalysis?.chords?.[segmentIndex];
-  if (!seg) return;
-  const normalized = normalizeOverride(seg, override);
-  pushUndo({ segmentIndex, oldState: seg.manualOverride, newState: normalized });
-  seg.manualOverride = normalized;
+// Lot C — applique un override UNIQUEMENT sur la cible d'édition capturée
+// (descripteur { segmentId }). Résolution par identité stable, jamais par
+// l'index d'origine ni par l'état de lecture courant. Si la cible a disparu,
+// la mutation est refusée sans modifier un autre segment et sans erreur.
+function applyChordOverride(target, override) {
+  if (!currentAnalysis || !target) return;
+  const mutation = applyChordTargetMutation(currentAnalysis.chords, target, override);
+  if (!mutation.ok) {
+    showToast("L'accord ciblé n'est plus disponible. Aucune modification appliquée.", 3000, 'warning');
+    return;
+  }
+  pushUndo({ segmentIndex: mutation.index, oldState: mutation.oldValue, newState: mutation.newValue });
   markDirty();
   rerenderTimeline();
 }
 
 function initChordEditor() {
   chordEditor = new ChordEditor({
-    onSave: (segmentIndex, override) => {
-      applyChordOverride(segmentIndex, override);
+    onSave: (target, override) => {
+      applyChordOverride(target, override);
     },
     onCancel: () => {
       // Rien à faire — l'éditeur est fermé
     },
-    onReset: (segmentIndex) => {
-      applyChordOverride(segmentIndex, null);
+    onReset: (target) => {
+      applyChordOverride(target, null);
     },
   });
+}
+
+// Lot C — la lecture est-elle active ?
+function isPlaybackActive() {
+  return !!(currentPlayer && currentPlayer.element && !currentPlayer.element.paused);
+}
+
+// Lot C — met la lecture en pause (sans effet si déjà en pause). Ne relance
+// jamais la lecture.
+function pausePlayback() {
+  if (currentPlayer && !currentPlayer.element?.paused) {
+    currentPlayer.pause();
+  }
+  updatePlayButton();
 }
 
 function initKeyboardShortcuts() {
@@ -395,6 +419,12 @@ function initKeyboardShortcuts() {
       // Ne pas intercepter Ctrl+Z/S dans l'éditeur si un champ texte a le focus
       const tag = document.activeElement?.tagName;
       if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+      // Lot C — pendant qu'un accord est en cours d'édition, la barre d'espace
+      // ne relance JAMAIS la lecture.
+      if (e.key === ' ' || e.code === 'Space') {
+        e.preventDefault();
+        return;
+      }
     }
 
     // Ctrl+S : sauvegarde du projet
@@ -431,7 +461,19 @@ function openChordEditor(segmentIndex) {
   if (!currentAnalysis) return;
   const seg = currentAnalysis.chords[segmentIndex];
   if (!seg) return;
-  chordEditor.open(seg, segmentIndex, currentAnalysis);
+  // Lot C — ouverture d'une session d'édition : la lecture active est mise en
+  // pause immédiatement (avant toute évolution qui pourrait déplacer la cible),
+  // et la cible est capturée par segmentId. Si le segment n'est pas valide,
+  // on n'ouvre rien.
+  const target = openChordEditSession({
+    chords: currentAnalysis.chords,
+    index: segmentIndex,
+    playbackActive: isPlaybackActive,
+    pause: pausePlayback,
+  });
+  if (!target) return;
+  const resolved = resolveChordTarget(currentAnalysis.chords, target) || seg;
+  chordEditor.open(resolved, segmentIndex, currentAnalysis);
 }
 
 function renderTimeline(chords, duration) {
