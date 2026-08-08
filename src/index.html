@@ -121,6 +121,7 @@
                 <span class="text-xs text-zinc-500" id="analyzer-song-artist">Inconnu</span>
                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-800 text-zinc-400" id="analyzer-stem-badge" style="display:none"></span>
               </div>
+              <div class="analyzer-media-context" id="analyzer-media-context" aria-live="polite">Fichier analysé : Aucun fichier analysé</div>
               <div class="flex items-center gap-2">
                 <button type="button" id="analyzer-prev-btn" class="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors" title="Revenir au début">⏮</button>
                 <button type="button" id="analyzer-play-btn" class="px-3 py-1 rounded text-sm bg-sky-600 hover:bg-sky-500 text-white font-medium transition-colors" title="Lecture / Pause">▶</button>
@@ -365,6 +366,8 @@
               <div class="studio-backdrop-hint">Fichier audio</div>
             </div>
           </div>
+
+          <div class="studio-media-context" id="studio-media-context" aria-live="polite">Fichier du Studio : Aucun fichier chargé dans le Studio</div>
 
           <div class="studio-waveform-wrap" id="studio-waveform-wrap">
             <canvas id="studio-waveform" class="studio-waveform" width="800" height="80"></canvas>

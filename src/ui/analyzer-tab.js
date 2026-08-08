@@ -46,6 +46,7 @@ import {
   renderReharmonizationSuccess,
 } from './reharmonization-view.js';
 import './reharmonization-view.css';
+import { buildFileContextText } from './file-context.js';
 
 const BASE_PIXELS_PER_SECOND = 80;
 const MIN_BLOCK_WIDTH = 4;
@@ -76,6 +77,7 @@ const els = {
   progressThumb: document.getElementById('analyzer-progress-thumb'),
   currentTimeEl: document.getElementById('analyzer-current-time'),
   durationEl: document.getElementById('analyzer-duration'),
+  mediaContext: document.getElementById('analyzer-media-context'),
 
   zoomSlider: document.getElementById('analyzer-zoom'),
   zoomValue: document.getElementById('analyzer-zoom-value'),
@@ -191,6 +193,8 @@ async function showResults(analysis) {
   els.importScreen.style.display = 'none';
   els.results.style.display = 'flex';
   currentAnalysis = analysis;
+  // Lot B — contexte fichier explicite : « Fichier analysé : <nom> ».
+  updateAnalyzerFileContext(currentFileName);
   enrichSegments(analysis.chords);
   resetUndoRedo();
   chordEditor?.close();
@@ -266,6 +270,14 @@ function showImportScreen() {
   if (bassTimeline) bassTimeline.remove();
   const bassDevInfo = document.getElementById('analyzer-bass-dev-info');
   if (bassDevInfo) bassDevInfo.remove();
+  // Lot B — retour à l’état vide explicite quand aucun fichier n’est analysé.
+  updateAnalyzerFileContext('');
+}
+
+// Lot B — affiche « Fichier analysé : <nom> » ou « Aucun fichier analysé ».
+function updateAnalyzerFileContext(fileName) {
+  if (!els.mediaContext) return;
+  els.mediaContext.textContent = buildFileContextText({ tab: 'analyzer', fileName: fileName || '' });
 }
 
 function formatTime(seconds) {

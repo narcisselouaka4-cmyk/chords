@@ -463,6 +463,13 @@ function populateMidiSelect(inputs, onChange) {
   if (inputs.length === 0) {
     els.midiStatus.textContent = 'Aucun périphérique';
     els.midiPorts.textContent = 'Aucun port MIDI trouvé';
+    // Lot B — le sélecteur ne doit jamais paraître cassé/vide : une option
+    // explicite « Aucun périphérique » est affichée lorsque rien n’est détecté.
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = 'Aucun périphérique MIDI';
+    opt.disabled = true;
+    els.midiSelect.appendChild(opt);
     return;
   }
 
