@@ -1,0 +1,126 @@
+# Source Files Analyzed for Chord System Audit
+# Project: Piano Jazz Chords
+# Date: 2026-07-16
+
+## Core Detection Engine — src/chord-engine/
+
+### src/chord-engine/chord-defs.js
+- PURPOSE: Single source of truth for all 38 chord quality interval definitions + 7 rootless voicing templates + interval name map.
+- KEY STRUCTURES: CHORD_DEFINITIONS (line 5-78), ROOTLESS_DEFINITIONS (line 83-91), INTERVAL_NAMES (line 94-116).
+- IMPORTED BY: index.js, chord-display.js.
+
+### src/chord-engine/index.js
+- PURPOSE: Main detection orchestrator. Exports detectChord() and classifyVoicing().
+- KEY FUNCTIONS: detectChord (line 173-356), classifyVoicing (line 131-171), findUpperStructure (line 16-31), findPolychord (line 35-60), findRootlessMatches (line 92-127).
+- IMPORTED BY: chord-timeline.js, test-chords.js, test-regression-part3.js, display.js, voicing-preview.js.
+
+### src/chord-engine/intervals.js
+- PURPOSE: Note/interval math utilities — pitch class conversion, naming, formatting.
+- KEY STRUCTURES: NOTE_NAMES, FLAT_NAMES, LATIN_NAMES, LATIN_FLAT_NAMES, NAME_ALIASES.
+- KEY FUNCTIONS: noteNameToPc, midiToNoteName, noteSetToPcs, formatNote, noteNameToMidi.
+- IMPORTED BY: All other chord-engine modules, bass-harmonic-relation.js.
+
+### src/chord-engine/naming.js
+- PURPOSE: Formatting chord names with Unicode sharp/flat symbols and HTML.
+- KEY FUNCTIONS: chordName (line 27-31), slashName (line 33-37), formatSymbol (line 14-25), inversionName (line 43-58).
+- IMPORTED BY: display.js, bass-harmonic-relation.js, test-chords.js, voicing-preview.js.
+
+### src/chord-engine/chord-display.js
+- PURPOSE: Pure module for resolving effective chords, computing pitch classes, handling slash bass, formatting symbols.
+- KEY FUNCTIONS: parseChordSymbol (line 35-50), deriveChordDisplay (line 122-203), resolveCanonicalChordDefinition (line 25-28), getEffectiveChord (line 75-84), normalizeOverride (line 92-105), formatEffectiveChord (line 59-68).
+- CONSUMERS: chord-editor.js, analyzer-tab.js, analysis-export.js, voicing-engine/*.
+
+### src/chord-engine/voicing.js
+- PURPOSE: Voicing type labels and musical aliases.
+- KEY STRUCTURES: VOICING_LABELS (line 3-10), ALIASES (line 18-25).
+- FUNCTIONS: getVoicingLabel (line 12-14), getAlias (line 27-29).
+
+### src/chord-engine/pedagogy.js
+- PURPOSE: Pedagogical content generation — voicing suggestions and jazz usage hints for detected chords.
+- FUNCTIONS: buildVoicing, drop2Voicing, drop3Voicing, drop24Voicing, getPedagogy.
+
+### src/chord-engine/test-chords.js
+- PURPOSE: 18 active detection tests (3 more commented out — rootless tests disabled to avoid breaking simple triads).
+- COVERAGE: C9, C13, Cm7b5, C7#9b13, C13#11, C/E, Cmaj9, Dm9, G7sus4, F#m7b5, C major, F major, C quartal, C quartal add4, C13#11 upper, D/C polychord, C9sus4, C13sus4, Em7b9.
+
+### src/chord-engine/test-regression-part3.js
+- PURPOSE: 3 regression tests for bug fixes Part 3.
+- COVERAGE: Cluster classification, upper structure/slash on E major over C bass, classifier purity (same input order independence).
+
+## Analysis Pipeline — src/analyzer/
+
+### src/analyzer/harmonic-utils.js
+- PURPOSE: Symbol classification (minor/dominant/major), degree mapping, chord brief formatting.
+- KEY FUNCTIONS: isMinorSymbol (line 9-12), isDominantSymbol (line 14-17), isMajorSymbol (line 19-21), degreeOf (line 23-25), degreeName (line 27-31).
+
+### src/analyzer/bass-harmonic-relation.js
+- PURPOSE: Computes relationship between detected bass notes and chord names, enables slash chord interpretation.
+- KEY STRUCTURES: NOTE_PCS (line 4-8), CHORD_QUALITY_PATTERNS (line 10-19), QUALITY_INTERVALS (line 21-32).
+- KEY FUNCTIONS: computeRelationToChord (line 69-142), findDominantBassForChord (line 163-210), enrichChordWithBass (line 212-268).
+
+### src/analyzer/chord-timeline.js
+- PURPOSE: Builds a timeline of chords from MIDI events (collect-then-analyze synchronous pattern).
+- KEY FUNCTIONS: buildChordTimeline (line 13-103), collectNoteGroups (line 133-187).
+
+### src/analyzer/key-detector.js
+- PURPOSE: Key detection using Krumhansl-Schmuckler profiles + chord heuristics.
+
+### src/analyzer/scorer.js
+- PURPOSE: Session scoring (voice leading, transitions, tensions, inner voices).
+
+### src/analyzer/harmonic-patterns.js
+- PURPOSE: II-V-I, cadences, turnarounds, tritone substitution, backdoor substitution detection.
+
+### src/analyzer/voice-leading.js
+- PURPOSE: Voice leading analysis between consecutive chords.
+
+### src/analyzer/substitutions.js
+- PURPOSE: Harmonic substitution detection (tritone, secondary dominant, chromatic passing).
+
+### src/analyzer/segmenter.js
+- PURPOSE: Session segmentation into musical sections.
+
+### src/analyzer/reharmonizer.js
+- PURPOSE: Style-based reharmonization suggestions (worship, gospel, jazz, neoSoul).
+
+### src/analyzer/analysis-export.js
+- PURPOSE: Export analysis results to MIDI, JSON, text. Uses getEffectiveChord and deriveChordDisplay.
+- FUNCTIONS: buildAnalysisMidiEvents, exportAnalysisToMidi, exportAnalysisToJson, exportAnalysisToText, computeProductStatistics.
+
+### src/analyzer/test-analysis.js
+- PURPOSE: Integration test for analysis pipeline (16-chord II-V-I progression in C major).
+
+### src/analyzer/test-analysis-export.js
+- PURPOSE: 18 unit tests for analysis-export.js (MIDI, JSON, text, stats).
+
+### src/analyzer/test-regression-part1.js
+- PURPOSE: 3 regression tests (Fmaj9 with jitter, melodic session, II-V-I non-melodic detection).
+
+## UI — src/ui/ (display layer only, not detection)
+
+### src/ui/display.js
+- PURPOSE: Updates live chord display panel (name, alias, pedagogy, note pills, keyboard tonic).
+
+### src/ui/chord-editor.js
+- PURPOSE: Inline chord editor dialog with root, quality (10 options), and bass selectors.
+- KEY: QUALITY_OPTIONS (line 16-27) — only 10 basic qualities for manual override.
+
+### src/ui/analyzer-tab.js
+- PURPOSE: Full analyzer tab: timeline rendering, chord editing, playback, export, project persistence.
+
+### src/ui/voicing-preview.js
+- PURPOSE: Read-only close/simple voicing text preview (uses detectChord via generateVoicing).
+
+### src/ui/mini-keyboard.js
+- PURPOSE: SVG mini keyboard renderer for chord visualization.
+
+## Test Files
+
+### src/analyzer/test-regression-part1.js
+- COVERAGE: 3 tests (bug 1.3, bug 1.4, sanity II-V-I).
+
+### src/chord-engine/test-regression-part3.js
+- COVERAGE: 3 tests (cluster, upper structure, classifier purity).
+
+### src/chord-engine/test-chords.js
+- COVERAGE: 18 tests (see above for details).

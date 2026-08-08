@@ -1,0 +1,468 @@
+{
+  "meta": {
+    "description": "Test cases for chord recognition audit. Includes existing tests from src/chord-engine/test-chords.js (18 active) plus deliberately ambiguous cases. All actual results verified by calling detectChord() on 2026-07-16.",
+    "totalCases": 34,
+    "existingTests": 18,
+    "newCases": 16,
+    "note": "Each case shows actual detection result from the engine. Fields: notes (MIDI values), bass (lowest note name), pcSet (unique pitch classes detected), detectedName (engine output), rootPc (detected root), symbol (detected quality), isSlash (bass != root), expectedOrQuestion (expected or question for auditor)"
+  },
+  "testCases": [
+    {
+      "notes": [48, 52, 55, 58, 62],
+      "pcSet": [0, 2, 4, 7, 10],
+      "bass": "C3",
+      "bassPc": 0,
+      "detectedName": "C9",
+      "rootPc": 0,
+      "symbol": "9",
+      "isSlash": false,
+      "expectedOrQuestion": "C9 (dominant 9th) — PASS",
+      "sourceTest": "src/chord-engine/test-chords.js:29 (C9)"
+    },
+    {
+      "notes": [48, 52, 55, 58, 62, 65, 69],
+      "pcSet": [0, 2, 4, 5, 7, 9, 10],
+      "bass": "C3",
+      "bassPc": 0,
+      "detectedName": "C13",
+      "rootPc": 0,
+      "symbol": "13",
+      "isSlash": false,
+      "expectedOrQuestion": "C13 (dominant 13th) — PASS",
+      "sourceTest": "src/chord-engine/test-chords.js:34 (C13)"
+    },
+    {
+      "notes": [48, 51, 54, 58],
+      "pcSet": [0, 3, 6, 10],
+      "bass": "C3",
+      "bassPc": 0,
+      "detectedName": "Cm7b5",
+      "rootPc": 0,
+      "symbol": "m7b5",
+      "isSlash": false,
+      "expectedOrQuestion": "Cm7b5 — PASS",
+      "sourceTest": "src/chord-engine/test-chords.js:39 (Cm7b5)"
+    },
+    {
+      "notes": [48, 52, 55, 58, 63, 68],
+      "pcSet": [0, 3, 4, 7, 8, 10],
+      "bass": "C3",
+      "bassPc": 0,
+      "detectedName": "C7#9b13",
+      "rootPc": 0,
+      "symbol": "7#9b13",
+      "isSlash": false,
+      "expectedOrQuestion": "C7#9b13 — PASS",
+      "sourceTest": "src/chord-engine/test-chords.js:44 (C7#9b13)"
+    },
+    {
+      "notes": [48, 52, 55, 58, 62, 66, 69],
+      "pcSet": [0, 2, 4, 6, 7, 9, 10],
+      "bass": "C3",
+      "bassPc": 0,
+      "detectedName": "C13#11",
+      "rootPc": 0,
+      "symbol": "13#11",
+      "isSlash": false,
+      "expectedOrQuestion": "C13#11 — PASS",
+      "sourceTest": "src/chord-engine/test-chords.js:49 (C13#11)"
+    },
+    {
+      "notes": [52, 55, 60],
+      "pcSet": [0, 4, 7],
+      "bass": "E3",
+      "bassPc": 4,
+      "detectedName": "C/E",
+      "rootPc": 0,
+      "symbol": "",
+      "isSlash": true,
+      "expectedOrQuestion": "C/E (1st inversion) — PASS",
+      "sourceTest": "src/chord-engine/test-chords.js:54 (C/E)"
+    },
+    {
+      "notes": [48, 52, 55, 59, 62],
+      "pcSet": [0, 2, 4, 7, 11],
+      "bass": "C3",
+      "bassPc": 0,
+      "detectedName": "Cmaj9",
+      "rootPc": 0,
+      "symbol": "maj9",
+      "isSlash": false,
+      "expectedOrQuestion": "Cmaj9 — PASS",
+      "sourceTest": "src/chord-engine/test-chords.js:59 (Cmaj9)"
+    },
+    {
+      "notes": [50, 53, 57, 60, 64],
+      "pcSet": [0, 2, 4, 5, 9],
+      "bass": "D3",
+      "bassPc": 2,
+      "detectedName": "Dm9",
+      "rootPc": 2,
+      "symbol": "m9",
+      "isSlash": false,
+      "expectedOrQuestion": "Dm9 — PASS",
+      "sourceTest": "src/chord-engine/test-chords.js:64 (Dm9)"
+    },
+    {
+      "notes": [55, 60, 62, 65],
+      "pcSet": [0, 2, 5, 7],
+      "bass": "G3",
+      "bassPc": 7,
+      "detectedName": "G7sus4",
+      "rootPc": 7,
+      "symbol": "7sus4",
+      "isSlash": false,
+      "expectedOrQuestion": "G7sus4 — PASS",
+      "sourceTest": "src/chord-engine/test-chords.js:69 (G7sus4)"
+    },
+    {
+      "notes": [54, 57, 61, 64],
+      "pcSet": [0, 4, 6, 9],
+      "bass": "F#3",
+      "bassPc": 6,
+      "detectedName": "F#m7b5",
+      "rootPc": 6,
+      "symbol": "m7b5",
+      "isSlash": false,
+      "expectedOrQuestion": "F#m7b5 — PASS",
+      "sourceTest": "src/chord-engine/test-chords.js:74 (F#m7b5)"
+    },
+    {
+      "notes": [48, 52, 55],
+      "pcSet": [0, 4, 7],
+      "bass": "C3",
+      "bassPc": 0,
+      "detectedName": "C",
+      "rootPc": 0,
+      "symbol": "",
+      "isSlash": false,
+      "expectedOrQuestion": "C major triad — PASS",
+      "sourceTest": "src/chord-engine/test-chords.js:99 (C major)"
+    },
+    {
+      "notes": [53, 57, 60],
+      "pcSet": [0, 5, 9],
+      "bass": "F3",
+      "bassPc": 5,
+      "detectedName": "F",
+      "rootPc": 5,
+      "symbol": "",
+      "isSlash": false,
+      "expectedOrQuestion": "F major triad — PASS",
+      "sourceTest": "src/chord-engine/test-chords.js:104 (F major)"
+    },
+    {
+      "notes": [48, 53, 58],
+      "pcSet": [0, 5, 10],
+      "bass": "C3",
+      "bassPc": 0,
+      "detectedName": "Cquartal",
+      "rootPc": 0,
+      "symbol": "quartal",
+      "isSlash": false,
+      "expectedOrQuestion": "C quartal — PASS",
+      "sourceTest": "src/chord-engine/test-chords.js:111 (C quartal)"
+    },
+    {
+      "notes": [48, 53, 58, 63],
+      "pcSet": [0, 3, 5, 10],
+      "bass": "C3",
+      "bassPc": 0,
+      "detectedName": "Cquartal(add4)",
+      "rootPc": 0,
+      "symbol": "quartal(add4)",
+      "isSlash": false,
+      "expectedOrQuestion": "C quartal add4 — PASS",
+      "sourceTest": "src/chord-engine/test-chords.js:116 (C quartal add4)"
+    },
+    {
+      "notes": [48, 52, 55, 58, 62, 66, 69],
+      "pcSet": [0, 2, 4, 6, 7, 9, 10],
+      "bass": "C3",
+      "bassPc": 0,
+      "detectedName": "C13#11",
+      "rootPc": 0,
+      "symbol": "13#11",
+      "isSlash": false,
+      "expectedOrQuestion": "C13#11 with D major upper structure (verify upperStructure.triad.name='Major', rootPc=2) — PASS",
+      "sourceTest": "src/chord-engine/test-chords.js:123 (C13#11 upper structure)"
+    },
+    {
+      "notes": [36, 40, 43, 50, 54, 57],
+      "pcSet": [0, 2, 4, 6, 7, 9],
+      "bass": "C2",
+      "bassPc": 0,
+      "detectedName": "C/D",
+      "rootPc": 0,
+      "symbol": "",
+      "isSlash": true,
+      "expectedOrQuestion": "C/D polychord (verify polychord.lower.rootPc=0, upper.rootPc=2) — PASS",
+      "sourceTest": "src/chord-engine/test-chords.js:131 (D/C polychord)"
+    },
+    {
+      "notes": [48, 53, 55, 58, 62],
+      "pcSet": [0, 2, 5, 7, 10],
+      "bass": "C3",
+      "bassPc": 0,
+      "detectedName": "C9sus4",
+      "rootPc": 0,
+      "symbol": "9sus4",
+      "isSlash": false,
+      "expectedOrQuestion": "C9sus4 — PASS",
+      "sourceTest": "src/chord-engine/test-chords.js:139 (C9sus4)"
+    },
+    {
+      "notes": [48, 53, 55, 58, 62, 65, 69],
+      "pcSet": [0, 2, 5, 7, 9, 10],
+      "bass": "C3",
+      "bassPc": 0,
+      "detectedName": "C13sus4",
+      "rootPc": 0,
+      "symbol": "13sus4",
+      "isSlash": false,
+      "expectedOrQuestion": "C13sus4 — PASS",
+      "sourceTest": "src/chord-engine/test-chords.js:144 (C13sus4)"
+    },
+    {
+      "notes": [52, 59, 62, 65, 67, 71],
+      "pcSet": [2, 4, 5, 7, 11],
+      "bass": "E3",
+      "bassPc": 4,
+      "detectedName": "Em7b9 (upper: Major G)",
+      "rootPc": 4,
+      "symbol": "m7b9",
+      "isSlash": false,
+      "expectedOrQuestion": "Em7b9 cluster voicing (upper structure: G major triad over Em7b9) — PASS",
+      "sourceTest": "src/chord-engine/test-chords.js:151 (Em7b9 cluster)"
+    },
+    {
+      "notes": [48, 52, 55, 59],
+      "pcSet": [0, 4, 7, 11],
+      "bass": "C3",
+      "bassPc": 0,
+      "detectedName": "Cmaj7",
+      "rootPc": 0,
+      "symbol": "maj7",
+      "isSlash": false,
+      "expectedOrQuestion": "Cmaj7 — PASS (clear C major 7th, exact match)",
+      "sourceTest": "Explicit request: C E G B"
+    },
+    {
+      "notes": [48, 50, 55, 59],
+      "pcSet": [0, 2, 7, 11],
+      "bass": "C3",
+      "bassPc": 0,
+      "detectedName": "Gadd11/C",
+      "rootPc": 7,
+      "symbol": "add11",
+      "isSlash": true,
+      "expectedOrQuestion": "Gadd11/C. Gadd11 is an EXACT match (G+B+D+C = {7,11,2,0} = {0,2,7,11}). Csus2 is only a partial match (needs only 3 of 4 PCs). No maj7sus2 definition exists. REQUIRES_MUSICAL_REVIEW: is Gadd11/C the right name, or should it be Cmaj7sus2?",
+      "sourceTest": "Explicit request: C D G B"
+    },
+    {
+      "notes": [48, 53, 55, 59],
+      "pcSet": [0, 5, 7, 11],
+      "bass": "C3",
+      "bassPc": 0,
+      "detectedName": "Csus4",
+      "rootPc": 0,
+      "symbol": "sus4",
+      "isSlash": false,
+      "expectedOrQuestion": "Csus4 — the B (maj7/PC 11) is extra but tolerated. No maj7sus4 definition exists. REQUIRES_MUSICAL_REVIEW: should this be Cmaj7sus4?",
+      "sourceTest": "Explicit request: C F G B"
+    },
+    {
+      "notes": [48, 53, 55, 58],
+      "pcSet": [0, 5, 7, 10],
+      "bass": "C3",
+      "bassPc": 0,
+      "detectedName": "C7sus4",
+      "rootPc": 0,
+      "symbol": "7sus4",
+      "isSlash": false,
+      "expectedOrQuestion": "C7sus4 — EXACT match. PASS (no ambiguity).",
+      "sourceTest": "Explicit request: C F G Bb"
+    },
+    {
+      "notes": [48, 50, 53, 55, 58],
+      "pcSet": [0, 2, 5, 7, 10],
+      "bass": "C3",
+      "bassPc": 0,
+      "detectedName": "C9sus4",
+      "rootPc": 0,
+      "symbol": "9sus4",
+      "isSlash": false,
+      "expectedOrQuestion": "C9sus4 — EXACT match. PASS (no ambiguity).",
+      "sourceTest": "Explicit request: C D F G Bb"
+    },
+    {
+      "notes": [48, 53, 55, 57, 58],
+      "pcSet": [0, 5, 7, 9, 10],
+      "bass": "C3",
+      "bassPc": 0,
+      "detectedName": "C7sus4",
+      "rootPc": 0,
+      "symbol": "7sus4",
+      "isSlash": false,
+      "expectedOrQuestion": "C7sus4 — partial match. A(9/PC 9) is extra. C13sus4 requires D(9th/PC 2) which is absent. REQUIRES_MUSICAL_REVIEW: should this be C13sus4(no9th) or just C7sus4?",
+      "sourceTest": "Explicit request: C F G A Bb"
+    },
+    {
+      "notes": [50, 52, 57, 61],
+      "pcSet": [1, 2, 4, 9],
+      "bass": "D3",
+      "bassPc": 2,
+      "detectedName": "Aadd11/D",
+      "rootPc": 9,
+      "symbol": "add11",
+      "isSlash": true,
+      "expectedOrQuestion": "Aadd11/D — exact match (A+C#+E+D = {9,1,4,2} = {1,2,4,9}). Dsus2 is only a partial match (3 of 4 PCs). No Dmaj9(no3) definition exists. REQUIRES_MUSICAL_REVIEW: is Aadd11/D the best name, or should there be a 'no3' or 'omit3' mechanism?",
+      "sourceTest": "Explicit request: D E A C#"
+    },
+    {
+      "notes": [48, 51, 55],
+      "pcSet": [0, 3, 7],
+      "bass": "C3",
+      "bassPc": 0,
+      "detectedName": "Cm",
+      "rootPc": 0,
+      "symbol": "m",
+      "isSlash": false,
+      "expectedOrQuestion": "Cm minor triad — PASS",
+      "sourceTest": "Suggested: Cm triad"
+    },
+    {
+      "notes": [48, 52, 56],
+      "pcSet": [0, 4, 8],
+      "bass": "C3",
+      "bassPc": 0,
+      "detectedName": "Caug",
+      "rootPc": 0,
+      "symbol": "aug",
+      "isSlash": false,
+      "expectedOrQuestion": "C aug triad — PASS",
+      "sourceTest": "Suggested: C aug triad"
+    },
+    {
+      "notes": [48, 51, 54],
+      "pcSet": [0, 3, 6],
+      "bass": "C3",
+      "bassPc": 0,
+      "detectedName": "Cdim",
+      "rootPc": 0,
+      "symbol": "dim",
+      "isSlash": false,
+      "expectedOrQuestion": "C dim triad — PASS",
+      "sourceTest": "Suggested: C dim triad"
+    },
+    {
+      "notes": [48, 52, 55, 58],
+      "pcSet": [0, 4, 7, 10],
+      "bass": "C3",
+      "bassPc": 0,
+      "detectedName": "C7",
+      "rootPc": 0,
+      "symbol": "7",
+      "isSlash": false,
+      "expectedOrQuestion": "C7 dominant 7th — PASS. C9 would require D (PC 2) which is absent.",
+      "sourceTest": "Suggested: C7"
+    },
+    {
+      "notes": [48, 51, 55, 58],
+      "pcSet": [0, 3, 7, 10],
+      "bass": "C3",
+      "bassPc": 0,
+      "detectedName": "Cm7",
+      "rootPc": 0,
+      "symbol": "m7",
+      "isSlash": false,
+      "expectedOrQuestion": "Cm7 — PASS",
+      "sourceTest": "Suggested: Cm7"
+    },
+    {
+      "notes": [48, 52, 55, 57],
+      "pcSet": [0, 4, 7, 9],
+      "bass": "C3",
+      "bassPc": 0,
+      "detectedName": "C6",
+      "rootPc": 0,
+      "symbol": "6",
+      "isSlash": false,
+      "expectedOrQuestion": "C6 — PASS",
+      "sourceTest": "Suggested: C6"
+    },
+    {
+      "notes": [48, 51, 55, 58, 62],
+      "pcSet": [0, 2, 3, 7, 10],
+      "bass": "C3",
+      "bassPc": 0,
+      "detectedName": "Cm9",
+      "rootPc": 0,
+      "symbol": "m9",
+      "isSlash": false,
+      "expectedOrQuestion": "Cm9 — PASS",
+      "sourceTest": "Suggested: Cm9"
+    },
+    {
+      "notes": [48, 51, 55, 58, 62, 65],
+      "pcSet": [0, 2, 3, 5, 7, 10],
+      "bass": "C3",
+      "bassPc": 0,
+      "detectedName": "Cm11",
+      "rootPc": 0,
+      "symbol": "m11",
+      "isSlash": false,
+      "expectedOrQuestion": "Cm11 — PASS",
+      "sourceTest": "Suggested: Cm11"
+    }
+  ],
+  "requestedAnalysis": [
+    {
+      "category": "Qualities manquantes",
+      "items": [
+        "maj7sus2 (C D G B → detected as Gadd11/C instead)",
+        "maj7sus4 (C F G B → detected as Csus4 instead)",
+        "m9sus4, m13sus4 (suspended chords with minor quality)",
+        "7alt (altered dominant — individual alterations exist but no combined 7alt)",
+        "7#9#11, 7b9#11, 7b9b5 (combination alterations not covered)",
+        "dimMaj7, mMaj9, mMaj11, mMaj13 (minor major extensions)",
+        "sus24 (combined sus2 and sus4)",
+        "7sus4b9, 7sus4#9 (altered sus chords)",
+        "no3 / no5 / omit markers — no mechanism exists",
+        "N.C. (no chord) — N is supported as special symbol"
+      ]
+    },
+    {
+      "category": "Intervalles suspects",
+      "items": [
+        "m13: interval 10 for b7 is correct (minor 7th = 10 semitones). No issue.",
+        "maj11: natural 11 (17) clashes with major 3rd (4). Jazz convention avoids this.",
+        "7b5: interval 6 = diminished 5th. Correct.",
+        "dim7: interval 9 = diminished 7th (double-flat 7 = d7). Correct for dim7 (d7 = 9 semitones from root).",
+        "quartal: [0,5,10] = C-F-Bb. Bb is the minor 7th from C. Correct for quartal voicing (C-F-Bb = stack of 4ths)."
+      ]
+    },
+    {
+      "category": "Problèmes d'aliasing",
+      "items": [
+        "Seulement 6 alias musicaux dans voicing.js:18-25",
+        "Aucun alias pour : C6 = Am7 (inverse), m7b5 = dim7 (enharmonique), C7 = Bdim (certaines inversions)",
+        "Aucun alias de nom latin (Do=Ré=Mi etc.) pour la détection — uniquement pour l'entrée utilisateur",
+        "ALIASES map is purely for display, NOT used in detection"
+      ]
+    },
+    {
+      "category": "Détection ambiguë vérifiée",
+      "items": [
+        "C D G B → Gadd11/C (root=G, exact match). NOT Csus2 (partial match). Engine prefers exact match with wrong root over partial with correct root.",
+        "C F G B → Csus4 (root=C). B(maj7) is extra but tolerated. No maj7sus4 → no better match exists.",
+        "C F G Bb → C7sus4 (root=C, exact match). Correct.",
+        "C D F G Bb → C9sus4 (root=C, exact match). Correct.",
+        "C F G A Bb → C7sus4 (root=C, partial match). A(9) is extra. C13sus4 requires D(9th) which is absent. Best available match.",
+        "D E A C# → Aadd11/D (root=A, exact match). Dsus2 is only partial. No Dmaj9(no3) definition.",
+        "WARNING: add11 chords are favored as exact matches when the root is the 5th of an add11 chord. This affects slash detection.",
+        "The engine's exact-match bonus (+20) strongly favors add11/add9 matches. A 4-note add11 will always beat a 3-note sus2/sus4 even if the sus chord root is the played bass."
+      ]
+    }
+  ]
+}

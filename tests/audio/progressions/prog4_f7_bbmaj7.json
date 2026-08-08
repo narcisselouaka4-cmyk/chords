@@ -1,0 +1,187 @@
+{
+  "file": "prog4_f7_bbmaj7.wav",
+  "sr": 22050,
+  "bpm": 120,
+  "chord_duration": 2.0,
+  "repeats": 4,
+  "progression": [
+    {
+      "root": "F",
+      "quality": "7",
+      "bass": "F2",
+      "upper_notes": [
+        "A3",
+        "C4",
+        "Eb4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        10
+      ]
+    },
+    {
+      "root": "Bb",
+      "quality": "maj7",
+      "bass": "Bb2",
+      "upper_notes": [
+        "D4",
+        "F4",
+        "A4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        11
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "start_time": 0.0,
+      "end_time": 2.0,
+      "root": "F",
+      "quality": "7",
+      "bass": "F2",
+      "upper_notes": [
+        "A3",
+        "C4",
+        "Eb4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        10
+      ]
+    },
+    {
+      "start_time": 2.0,
+      "end_time": 4.0,
+      "root": "Bb",
+      "quality": "maj7",
+      "bass": "Bb2",
+      "upper_notes": [
+        "D4",
+        "F4",
+        "A4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        11
+      ]
+    },
+    {
+      "start_time": 4.0,
+      "end_time": 6.0,
+      "root": "F",
+      "quality": "7",
+      "bass": "F2",
+      "upper_notes": [
+        "A3",
+        "C4",
+        "Eb4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        10
+      ]
+    },
+    {
+      "start_time": 6.0,
+      "end_time": 8.0,
+      "root": "Bb",
+      "quality": "maj7",
+      "bass": "Bb2",
+      "upper_notes": [
+        "D4",
+        "F4",
+        "A4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        11
+      ]
+    },
+    {
+      "start_time": 8.0,
+      "end_time": 10.0,
+      "root": "F",
+      "quality": "7",
+      "bass": "F2",
+      "upper_notes": [
+        "A3",
+        "C4",
+        "Eb4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        10
+      ]
+    },
+    {
+      "start_time": 10.0,
+      "end_time": 12.0,
+      "root": "Bb",
+      "quality": "maj7",
+      "bass": "Bb2",
+      "upper_notes": [
+        "D4",
+        "F4",
+        "A4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        11
+      ]
+    },
+    {
+      "start_time": 12.0,
+      "end_time": 14.0,
+      "root": "F",
+      "quality": "7",
+      "bass": "F2",
+      "upper_notes": [
+        "A3",
+        "C4",
+        "Eb4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        10
+      ]
+    },
+    {
+      "start_time": 14.0,
+      "end_time": 16.0,
+      "root": "Bb",
+      "quality": "maj7",
+      "bass": "Bb2",
+      "upper_notes": [
+        "D4",
+        "F4",
+        "A4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        11
+      ]
+    }
+  ]
+}

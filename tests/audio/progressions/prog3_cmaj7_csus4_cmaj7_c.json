@@ -1,0 +1,358 @@
+{
+  "file": "prog3_cmaj7_csus4_cmaj7_c.wav",
+  "sr": 22050,
+  "bpm": 120,
+  "chord_duration": 2.0,
+  "repeats": 4,
+  "progression": [
+    {
+      "root": "C",
+      "quality": "maj7",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "B3"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        11
+      ]
+    },
+    {
+      "root": "C",
+      "quality": "sus4",
+      "bass": "C2",
+      "upper_notes": [
+        "F3",
+        "G3",
+        "B3"
+      ],
+      "intervals": [
+        0,
+        5,
+        7,
+        11
+      ]
+    },
+    {
+      "root": "C",
+      "quality": "maj7",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "B3"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        11
+      ]
+    },
+    {
+      "root": "C",
+      "quality": "major",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "start_time": 0.0,
+      "end_time": 2.0,
+      "root": "C",
+      "quality": "maj7",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "B3"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        11
+      ]
+    },
+    {
+      "start_time": 2.0,
+      "end_time": 4.0,
+      "root": "C",
+      "quality": "sus4",
+      "bass": "C2",
+      "upper_notes": [
+        "F3",
+        "G3",
+        "B3"
+      ],
+      "intervals": [
+        0,
+        5,
+        7,
+        11
+      ]
+    },
+    {
+      "start_time": 4.0,
+      "end_time": 6.0,
+      "root": "C",
+      "quality": "maj7",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "B3"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        11
+      ]
+    },
+    {
+      "start_time": 6.0,
+      "end_time": 8.0,
+      "root": "C",
+      "quality": "major",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ]
+    },
+    {
+      "start_time": 8.0,
+      "end_time": 10.0,
+      "root": "C",
+      "quality": "maj7",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "B3"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        11
+      ]
+    },
+    {
+      "start_time": 10.0,
+      "end_time": 12.0,
+      "root": "C",
+      "quality": "sus4",
+      "bass": "C2",
+      "upper_notes": [
+        "F3",
+        "G3",
+        "B3"
+      ],
+      "intervals": [
+        0,
+        5,
+        7,
+        11
+      ]
+    },
+    {
+      "start_time": 12.0,
+      "end_time": 14.0,
+      "root": "C",
+      "quality": "maj7",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "B3"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        11
+      ]
+    },
+    {
+      "start_time": 14.0,
+      "end_time": 16.0,
+      "root": "C",
+      "quality": "major",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ]
+    },
+    {
+      "start_time": 16.0,
+      "end_time": 18.0,
+      "root": "C",
+      "quality": "maj7",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "B3"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        11
+      ]
+    },
+    {
+      "start_time": 18.0,
+      "end_time": 20.0,
+      "root": "C",
+      "quality": "sus4",
+      "bass": "C2",
+      "upper_notes": [
+        "F3",
+        "G3",
+        "B3"
+      ],
+      "intervals": [
+        0,
+        5,
+        7,
+        11
+      ]
+    },
+    {
+      "start_time": 20.0,
+      "end_time": 22.0,
+      "root": "C",
+      "quality": "maj7",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "B3"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        11
+      ]
+    },
+    {
+      "start_time": 22.0,
+      "end_time": 24.0,
+      "root": "C",
+      "quality": "major",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ]
+    },
+    {
+      "start_time": 24.0,
+      "end_time": 26.0,
+      "root": "C",
+      "quality": "maj7",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "B3"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        11
+      ]
+    },
+    {
+      "start_time": 26.0,
+      "end_time": 28.0,
+      "root": "C",
+      "quality": "sus4",
+      "bass": "C2",
+      "upper_notes": [
+        "F3",
+        "G3",
+        "B3"
+      ],
+      "intervals": [
+        0,
+        5,
+        7,
+        11
+      ]
+    },
+    {
+      "start_time": 28.0,
+      "end_time": 30.0,
+      "root": "C",
+      "quality": "maj7",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "B3"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        11
+      ]
+    },
+    {
+      "start_time": 30.0,
+      "end_time": 32.0,
+      "root": "C",
+      "quality": "major",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ]
+    }
+  ]
+}

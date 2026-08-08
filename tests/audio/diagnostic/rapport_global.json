@@ -1,0 +1,61 @@
+{
+  "total_duration": 96.0,
+  "summary": {
+    "s1_best_obs": {
+      "root_accuracy": 0.9909,
+      "quality_accuracy": 0.4742,
+      "full_accuracy": 0.4742
+    },
+    "s2_viterbi": {
+      "root_accuracy": 0.9928,
+      "quality_accuracy": 0.4128,
+      "full_accuracy": 0.4128
+    },
+    "s3_segmented": {
+      "root_accuracy": 0.9928,
+      "quality_accuracy": 0.4128,
+      "full_accuracy": 0.4128
+    },
+    "s4_merged": {
+      "root_accuracy": 0.9928,
+      "quality_accuracy": 0.4128,
+      "full_accuracy": 0.4128
+    },
+    "s5a_downgrade_A": {
+      "root_accuracy": 0.9928,
+      "quality_accuracy": 0.4128,
+      "full_accuracy": 0.4128
+    },
+    "s5c_downgrade_C": {
+      "root_accuracy": 0.9928,
+      "quality_accuracy": 0.4128,
+      "full_accuracy": 0.4128
+    },
+    "s6a_clean_A": {
+      "root_accuracy": 0.9928,
+      "quality_accuracy": 0.4128,
+      "full_accuracy": 0.4128
+    },
+    "s6c_clean_C": {
+      "root_accuracy": 0.9928,
+      "quality_accuracy": 0.4128,
+      "full_accuracy": 0.4128
+    }
+  },
+  "global_confusions": {
+    "m7": {
+      "7": 7.939410430839003
+    },
+    "maj7": {
+      "": 15.804444444444446,
+      "sus4": 16.0
+    },
+    "m7b5": {
+      "7": 2.0,
+      "m": 5.939410430839003
+    },
+    "": {
+      "sus4": 8.0
+    }
+  }
+}

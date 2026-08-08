@@ -1,4 +1,5 @@
 import { selectMediaFile, createAudioPlayer, isSupportedMediaFile } from '../audio/media-engine.js';
+import { globalAudioFocusManager } from '../audio/audio-focus-manager.js';
 import { createAudioAnalyzer } from '../analyzer/audio-analyzer.js';
 import {
   exportAnalysisToMidi,
@@ -147,6 +148,15 @@ export function initAnalyzerTab() {
   initKeyboardShortcuts();
   initReharmonizationPanel();
   refreshLibraryList();
+
+  // [Claude] — 2026-08-08 — Enregistrement auprès du gestionnaire d’audio focus.
+  // Studio et Analyse restent deux lecteurs indépendants, mais un seul workspace
+  // peut produire du son à la fois.
+  globalAudioFocusManager.register('analysis', {
+    play: () => currentPlayer?.play(),
+    pause: () => currentPlayer?.pause(),
+    isPlaying: () => !!(currentPlayer && !currentPlayer.element?.paused),
+  });
 }
 
 function bindImportButton() {
@@ -736,6 +746,10 @@ function updatePlaybackPosition(currentTime) {
 function togglePlayback() {
   if (!currentPlayer) return;
   if (currentPlayer.element?.paused) {
+    // [Claude] — 2026-08-08 — Demande l’audio focus avant de jouer. Si Studio
+    // est en train de jouer, il est mis en pause sans synchronisation de
+    // currentTime ou de position.
+    globalAudioFocusManager.requestFocus('analysis');
     currentPlayer.play();
   } else {
     currentPlayer.pause();

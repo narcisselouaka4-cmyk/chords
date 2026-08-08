@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- [Claude] — 2026-07-07 — CSP stricte en production, 'unsafe-eval' seulement en dev pour Vite HMR. -->
+    <meta id="csp-meta" http-equiv="Content-Security-Policy" content="" />
+    <script>
+      (function () {
+        const isDev = location.protocol === 'http:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+        const csp = isDev
+          ? "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://localhost:* http://localhost:* https://api.groq.com https://openrouter.ai https://generativelanguage.googleapis.com; img-src 'self' data: blob:; media-src 'self' blob:;"
+          : "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.groq.com https://openrouter.ai https://generativelanguage.googleapis.com; img-src 'self' data: blob:; media-src 'self' blob:;";
+        document.getElementById('csp-meta').setAttribute('content', csp);
+      })();
+    </script>
+    <title>Piano Jazz Chords</title>
+    <link rel="stylesheet" href="./style.css" />
+    <link rel="stylesheet" href="./ui/components/design-system.css" />
+  </head>
+  <body class="bg-zinc-950 text-zinc-200 font-sans antialiased h-screen w-screen overflow-hidden">
+    <div id="app" class="flex flex-col h-full">
+      <header class="flex items-center justify-between px-4 py-2 bg-zinc-900 border-b border-zinc-800 flex-shrink-0">
+        <div class="flex items-center gap-3 text-sm text-zinc-400">
+          <span class="text-lg">🎹</span>
+          <span class="font-semibold text-zinc-200">Piano Jazz Chords</span>
+        </div>
+        <nav class="flex gap-1" id="tab-nav">
+          <button class="px-4 py-1.5 rounded-lg text-sm font-medium transition-colors bg-sky-600 text-white" data-tab="practice" title="Entraînement en temps réel">Entraînement</button>
+          <button class="px-4 py-1.5 rounded-lg text-sm font-medium transition-colors text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800" data-tab="analysis" title="Analyser et rejouer des sessions MIDI">Analyse</button>
+          <button class="px-4 py-1.5 rounded-lg text-sm font-medium transition-colors text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800" data-tab="studio" title="Importer, lire et séparer des morceaux">Studio</button>
+          <button class="ml-2 px-2 py-1.5 rounded-lg text-sm transition-colors text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800" id="ai-settings-toggle" title="Paramètres IA">🔑</button>
+          <button class="px-2 py-1.5 rounded-lg text-sm transition-colors text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800" id="theme-toggle" title="Changer de thème" style="display:none">🌙</button>
+        </nav>
+      </header>
+
+      <main class="flex-1 flex overflow-hidden gap-4 p-4" id="practice-tab">
+        <aside class="w-64 flex-shrink-0 flex flex-col gap-4" id="practice-tools-panel">
+          <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4" id="practice-exercise-panel">
+            <div class="text-sm font-semibold text-zinc-300 mb-3">Exercice rapide</div>
+            <div class="flex gap-2 mb-3">
+              <button class="flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors bg-sky-600 text-white exercise-mode-btn active" data-mode="chord" type="button">Accord cible</button>
+              <button class="flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors bg-zinc-800 text-zinc-300 hover:bg-zinc-700 exercise-mode-btn" data-mode="progression" type="button">Progression</button>
+            </div>
+            <div class="exercise-content" id="exercise-content">
+              <p class="text-xs text-zinc-500 text-center mb-3">Lancez un exercice pour vous entraîner sur un accord ou une progression.</p>
+              <button class="w-full px-4 py-2 rounded-lg text-sm font-medium bg-sky-600 hover:bg-sky-500 text-white transition-colors" id="new-exercise-btn" type="button">Nouvel exercice</button>
+              <div class="exercise-target" id="exercise-target" style="display:none;"></div>
+              <div class="exercise-feedback" id="exercise-feedback"></div>
+            </div>
+          </div>
+        </aside>
+
+        <section class="flex-1 flex flex-col gap-4 overflow-y-auto min-w-0">
+          <div class="flex flex-col items-center gap-2 py-4" id="chord-display">
+            <div class="flex items-baseline justify-center gap-1 leading-none font-extrabold tracking-tight text-white" id="chord-hero" aria-live="polite">
+              <span class="text-6xl" id="chord-hero-root"></span>
+              <span class="text-3xl text-sky-400 font-bold" id="chord-hero-quality"></span>
+              <span class="text-2xl text-zinc-400 font-semibold self-end mb-1" id="chord-hero-extensions"></span>
+              <span class="text-3xl text-zinc-500 font-bold self-end mb-0.5" id="chord-hero-bass"></span>
+            </div>
+            <div class="flex items-center justify-center gap-3" id="chord-meta">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-zinc-800 text-zinc-300" id="voicing-label" style="display: none;"></span>
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-zinc-800 text-zinc-500" id="alias-label" style="display: none;"></span>
+            </div>
+            <div class="text-sm text-zinc-500 font-semibold" id="chord-detail"></div>
+          </div>
+
+          <div class="notes-display" id="notes-display"></div>
+
+          <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4" id="history-panel">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-sm font-semibold text-zinc-300">Historique</span>
+              <div class="flex items-center gap-2">
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-800 text-zinc-400" id="history-count">0</span>
+                <button type="button" class="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors" id="history-clear-btn" title="Effacer l'historique">✕</button>
+              </div>
+            </div>
+            <div class="flex gap-2.5 overflow-x-auto pb-3 scrollbar-thin" id="chord-history-list">
+              <p class="text-xs text-zinc-500 text-center w-full">Aucun accord joué pour le moment.</p>
+            </div>
+          </div>
+
+          <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4" id="pedagogy-panel">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-sm font-semibold text-zinc-300">Techniques</span>
+              <button class="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors" id="pedagogy-toggle" title="Masquer les techniques">−</button>
+            </div>
+            <div class="bg-zinc-800/50 rounded-lg p-3 text-sm text-zinc-400" id="pedagogy-content">
+              <p class="text-xs text-zinc-500 text-center">Jouez des notes pour voir les techniques...</p>
+            </div>
+          </div>
+        </section>
+
+        <aside class="w-64 flex-shrink-0" id="right-panel">
+          <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4" id="midi-diagnostic-panel" style="display: none;">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-sm font-semibold text-zinc-300">Diagnostic MIDI</span>
+              <button class="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors" id="midi-diagnostic-toggle" title="Afficher le diagnostic MIDI">+</button>
+            </div>
+            <div class="midi-diagnostic-box" id="midi-diagnostic-content" style="display: none;">
+              <div class="midi-system" id="midi-system"></div>
+              <div class="midi-ports" id="midi-ports"></div>
+              <div class="midi-log" id="midi-log"></div>
+            </div>
+          </div>
+        </aside>
+      </main>
+
+          <!-- [Claude] — 2026-07-10 — Onglet Analyse : hiérarchie Accords / Analyse / Masterclass / Outils. -->
+    <main class="flex-1 flex overflow-hidden bg-zinc-950" id="analysis-tab" style="display: none;">
+      <section class="flex-1 flex flex-col overflow-hidden min-w-0" id="analyzer-workspace">
+        <!-- Écran d'accueil : import de fichier -->
+        <div class="flex items-center justify-center flex-1" id="analyzer-import-screen">
+          <div class="flex flex-col items-center gap-4 p-8">
+            <div class="text-5xl">🎵</div>
+            <h2 class="text-xl font-bold text-zinc-200">Importer un fichier</h2>
+            <p class="text-sm text-zinc-500 text-center">
+              Formats acceptés :<br />
+              MP3 · WAV · MP4 · M4A
+            </p>
+            <button type="button" id="analyzer-import-btn" class="px-6 py-3 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-medium transition-colors">
+              Choisir un fichier
+            </button>
+            <p class="text-xs text-zinc-600 text-center">
+              Importez un morceau ou une vidéo afin de lancer son analyse.
+            </p>
+          </div>
+        </div>
+
+        <!-- Conteneur des résultats (caché initialement) -->
+        <div class="flex-1 flex flex-col overflow-hidden min-w-0" id="analyzer-results" style="display: none;">
+          <!-- Barre : titre fichier + retour + transport -->
+          <div class="flex items-center gap-3 px-4 py-2 bg-zinc-900/50 border-b border-zinc-800 flex-shrink-0">
+            <div class="flex items-center gap-3 flex-1 min-w-0">
+              <h2 class="text-sm font-semibold text-zinc-200 truncate" id="analyzer-song-title">Titre du morceau</h2>
+              <span class="text-xs text-zinc-500" id="analyzer-song-artist">Inconnu</span>
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-800 text-zinc-400" id="analyzer-stem-badge" style="display:none"></span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button type="button" id="analyzer-prev-btn" class="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors" title="Revenir au début">⏮</button>
+              <button type="button" id="analyzer-play-btn" class="px-3 py-1 rounded text-sm bg-sky-600 hover:bg-sky-500 text-white font-medium transition-colors" title="Lecture / Pause">▶</button>
+              <button type="button" id="analyzer-back-btn" class="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors">Importer</button>
+            </div>
+          </div>
+
+          <!-- Seek + Zoom -->
+          <div class="flex items-center gap-3 px-4 py-1.5 bg-zinc-900/30 border-b border-zinc-800 flex-shrink-0">
+            <span class="text-xs text-zinc-500 font-mono w-12 text-right" id="analyzer-current-time">00:00</span>
+            <div class="flex-1 relative h-6 bg-zinc-800 rounded-full cursor-pointer" id="analyzer-progress-track">
+              <div class="absolute left-0 top-0 h-full bg-sky-600 rounded-full" id="analyzer-progress-fill" style="width:0%"></div>
+              <div class="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-md" id="analyzer-progress-thumb" style="left:0%"></div>
+            </div>
+            <span class="text-xs text-zinc-500 font-mono w-12" id="analyzer-duration">00:00</span>
+            <div class="flex items-center gap-2 ml-4">
+              <label for="analyzer-zoom" class="text-xs text-zinc-500">Zoom</label>
+              <input type="range" id="analyzer-zoom" min="0.5" max="4.0" step="0.1" value="1" class="w-20 h-1 accent-sky-500" />
+              <span class="text-xs text-zinc-500 w-10" id="analyzer-zoom-value">100%</span>
+            </div>
+          </div>
+
+          <!-- Lecteur audio natif caché -->
+          <div id="analyzer-audio-container" style="display: none;"></div>
+
+          <!-- Timeline horizontale des accords -->
+          <div class="relative flex-shrink-0 h-20 overflow-x-auto overflow-y-hidden bg-zinc-900 border-b border-zinc-800" id="analyzer-chord-timeline">
+            <div class="relative h-full min-w-full" id="analyzer-chord-timeline-inner"></div>
+            <button type="button" class="absolute top-1/2 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center bg-zinc-800 border border-zinc-700 rounded-full text-zinc-400 hover:text-sky-400 hover:border-sky-500 cursor-pointer text-sm shadow-lg left-2" id="analyzer-timeline-scroll-left">‹</button>
+            <button type="button" class="absolute top-1/2 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center bg-zinc-800 border border-zinc-700 rounded-full text-zinc-400 hover:text-sky-400 hover:border-sky-500 cursor-pointer text-sm shadow-lg right-2" id="analyzer-timeline-scroll-right">›</button>
+          </div>
+
+          <!-- Hero accord courant + mini-clavier -->
+          <div class="flex flex-col items-center gap-3 py-6 flex-shrink-0" id="analyzer-hero" style="display:none">
+            <div class="text-6xl font-extrabold tracking-tight text-white" id="analyzer-hero-name"></div>
+            <div class="text-base text-zinc-400" id="analyzer-hero-notes"></div>
+            <div class="flex justify-center" id="analyzer-hero-keyboard"></div>
+          </div>
+
+          <!-- Sous-onglets : Accords / Analyse / Masterclass / Outils -->
+          <div class="flex gap-0 px-4 border-b border-zinc-800 flex-shrink-0" id="analyzer-section-tabs" role="tablist">
+            <button type="button" class="px-4 py-2 text-sm font-medium transition-colors text-sky-400 border-b-2 border-sky-400" data-section="chords" role="tab" aria-selected="true">Accords</button>
+            <button type="button" class="px-4 py-2 text-sm font-medium transition-colors text-zinc-500 hover:text-zinc-300" data-section="analysis" role="tab" aria-selected="false">Analyse</button>
+            <button type="button" class="px-4 py-2 text-sm font-medium transition-colors text-zinc-500 hover:text-zinc-300" data-section="masterclass" role="tab" aria-selected="false">Masterclass</button>
+            <button type="button" class="px-4 py-2 text-sm font-medium transition-colors text-zinc-500 hover:text-zinc-300" data-section="tools" role="tab" aria-selected="false">Outils</button>
+          </div>
+
+          <!-- Contenu des sous-onglets -->
+          <div class="flex-1 overflow-y-auto min-h-0 px-4 py-4" id="analyzer-section-panels">
+            <!-- Accords : panel vide (timeline + hero suffisent) -->
+            <div class="flex flex-col items-center justify-center h-full text-sm text-zinc-500" data-section="chords" role="tabpanel">
+              <p>Les accords sont affichés dans la timeline et le panneau hero ci-dessus.</p>
+              <p class="mt-1">Sélectionnez un accord dans la timeline pour voir ses détails.</p>
+            </div>
+
+            <!-- Analyse : panneaux repliables -->
+            <div class="flex flex-col gap-3 h-full overflow-y-auto" data-section="analysis" role="tabpanel" style="display:none">
+              <details class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden" open>
+                <summary class="px-4 py-2.5 text-sm font-semibold text-zinc-300 cursor-pointer hover:bg-zinc-800/50 transition-colors">Scores d'analyse</summary>
+                <div class="p-4 text-sm text-zinc-400" id="analyzer-scores-panel">
+                  <p class="text-xs text-zinc-500">Scores de confiance et métriques globales s'afficheront ici après analyse.</p>
+                </div>
+              </details>
+
+              <details class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+                <summary class="px-4 py-2.5 text-sm font-semibold text-zinc-300 cursor-pointer hover:bg-zinc-800/50 transition-colors">Patterns harmoniques</summary>
+                <div class="p-4 text-sm text-zinc-400" id="analyzer-patterns-panel">
+                  <p class="text-xs text-zinc-500">II-V-I, cadences, turnarounds et substitutions détectés s'afficheront ici.</p>
+                </div>
+              </details>
+
+              <details class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+                <summary class="px-4 py-2.5 text-sm font-semibold text-zinc-300 cursor-pointer hover:bg-zinc-800/50 transition-colors">Réharmonisation</summary>
+                <div class="p-4 text-sm text-zinc-400" id="analyzer-reharm-panel">
+                  <div class="flex items-center gap-3 mb-3">
+                    <label for="analyzer-reharm-style" class="text-xs text-zinc-500">Style</label>
+                    <select id="analyzer-reharm-style" class="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300">
+                      <option value="jazz" selected>Jazz</option>
+                      <option value="gospel">Gospel</option>
+                      <option value="worship">Worship</option>
+                      <option value="neoSoul">Neo Soul</option>
+                    </select>
+                    <button type="button" id="analyzer-reharm-run" class="px-3 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors">Générer suggestions</button>
+                  </div>
+                  <div class="analyzer-reharm-output" id="analyzer-reharm-output"></div>
+                </div>
+              </details>
+
+              <details class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+                <summary class="px-4 py-2.5 text-sm font-semibold text-zinc-300 cursor-pointer hover:bg-zinc-800/50 transition-colors">Ligne de basse</summary>
+                <div class="p-4 text-sm text-zinc-400" id="analyzer-bass-panel">
+                  <p class="text-xs text-zinc-500">Résumé de la ligne de basse détectée.</p>
+                  <div class="analyzer-bass-summary" id="analyzer-bass-summary"></div>
+                </div>
+              </details>
+
+              <details class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+                <summary class="px-4 py-2.5 text-sm font-semibold text-zinc-300 cursor-pointer hover:bg-zinc-800/50 transition-colors">Export MIDI</summary>
+                <div class="p-4 text-sm text-zinc-400" id="analyzer-midi-panel">
+                  <button type="button" id="analyzer-export-midi-btn" class="px-4 py-2 rounded-lg text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors">Exporter l'analyse en MIDI</button>
+                  <p class="text-xs text-zinc-500 mt-2">Génère un fichier MIDI avec les accords et la basse détectés.</p>
+                </div>
+              </details>
+            </div>
+
+            <!-- Masterclass : IA / fallback -->
+            <div class="flex flex-col gap-4 h-full" data-section="masterclass" role="tabpanel" style="display:none">
+              <div class="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg p-4 text-sm text-zinc-400" id="analyzer-masterclass-output">
+                <div class="text-xs text-zinc-500 text-center">
+                  Configurez une clé API OpenAI-compatible (Groq, OpenRouter, Google AI Studio…) via le bouton 🔑 en haut à droite pour obtenir une analyse pédagogique personnalisée.
+                </div>
+              </div>
+              <div class="flex-shrink-0">
+                <button type="button" id="analyzer-masterclass-run" class="px-4 py-2 rounded-lg text-sm bg-zinc-800 text-zinc-500 cursor-not-allowed transition-colors" disabled>Générer l'analyse pédagogique</button>
+              </div>
+            </div>
+
+            <!-- Outils : placeholders -->
+            <div class="grid grid-cols-3 gap-4 h-full" data-section="tools" role="tabpanel" style="display:none">
+              <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex flex-col items-center gap-2 text-center">
+                <div class="text-2xl">🎧</div>
+                <div class="text-sm font-semibold text-zinc-300">Aperçu audio</div>
+                <p class="text-xs text-zinc-500">Écoute isolée des accords détectés — à venir.</p>
+              </div>
+              <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex flex-col items-center gap-2 text-center">
+                <div class="text-2xl">🎤</div>
+                <div class="text-sm font-semibold text-zinc-300">Accords &amp; Paroles</div>
+                <p class="text-xs text-zinc-500">Synchronisation des paroles — à venir.</p>
+              </div>
+              <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex flex-col items-center gap-2 text-center">
+                <div class="text-2xl">🎚</div>
+                <div class="text-sm font-semibold text-zinc-300">Accordeur</div>
+                <p class="text-xs text-zinc-500">Accordeur intégré — à venir.</p>
+              </div>
+              <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex flex-col items-center gap-2 text-center">
+                <div class="text-2xl">⏱</div>
+                <div class="text-sm font-semibold text-zinc-300">Compte à rebours</div>
+                <p class="text-xs text-zinc-500">Décompte avant lecture — à venir.</p>
+              </div>
+              <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex flex-col items-center gap-2 text-center">
+                <div class="text-2xl">🔁</div>
+                <div class="text-sm font-semibold text-zinc-300">Transposition globale</div>
+                <p class="text-xs text-zinc-500">Transposer tous les accords — à venir.</p>
+              </div>
+              <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex flex-col items-center gap-2 text-center">
+                <div class="text-2xl">✨</div>
+                <div class="text-sm font-semibold text-zinc-300">Simplification</div>
+                <p class="text-xs text-zinc-500">Simplifier les enrichissements — à venir.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Overlay de traitement -->
+        <div class="absolute inset-0 flex items-center justify-center bg-zinc-950/80 z-30" id="analyzer-processing" style="display: none;">
+          <div class="flex flex-col items-center gap-3">
+            <div class="w-8 h-8 border-2 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
+            <p class="text-sm text-zinc-400" id="analyzer-processing-text">Analyse en cours...</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+      <!-- [OpenCode] — 2026-07-04 — Onglet Studio : import, lecture et séparation de pistes -->
+      <main class="flex-1 flex overflow-hidden bg-zinc-950" id="studio-tab" style="display: none;">
+        <div id="studio-stage-overlay" class="absolute inset-0 flex items-center justify-center bg-zinc-950/60 z-20" style="display: none;">
+          <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-md text-center">
+            <h3 class="text-lg font-bold text-zinc-200 mb-3">🎯 Sélectionnez une zone à travailler</h3>
+            <p class="text-sm text-zinc-400 mb-2">1. Écoutez le morceau avec le bouton <strong class="text-zinc-200">▶</strong>.</p>
+            <p class="text-sm text-zinc-400 mb-2">2. Tracez une région de maximum 5 minutes sur la waveform.</p>
+            <p class="text-sm text-zinc-400">3. Cliquez sur <strong class="text-zinc-200">Confirmer la région</strong>.</p>
+          </div>
+        </div>
+
+        <div id="studio-processing-overlay" class="absolute inset-0 flex items-center justify-center bg-zinc-950/80 z-20" style="display: none;">
+          <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-sm text-center">
+            <div class="w-8 h-8 border-2 border-sky-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+            <h3 class="text-base font-semibold text-zinc-200 mb-2">Préparation du morceau</h3>
+            <p class="text-sm text-zinc-400 mb-3" id="studio-processing-label">Extraction audio en cours...</p>
+            <div class="h-1.5 bg-zinc-800 rounded-full mb-2">
+              <div id="studio-processing-bar" class="h-full bg-sky-500 rounded-full" style="width: 0%"></div>
+            </div>
+            <p class="text-xs text-zinc-500">Vous pouvez utiliser les autres onglets en attendant.</p>
+          </div>
+        </div>
+
+        <div id="studio-ready-toast" class="absolute top-4 left-1/2 -translate-x-1/2 bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2 text-sm text-zinc-200 shadow-lg z-30" style="display: none;">
+          <span>✅ Le morceau est prêt dans le Studio !</span>
+        </div>
+
+        <div id="studio-record-countdown" class="absolute inset-0 flex items-center justify-center bg-zinc-950/80 z-20" style="display: none;">
+          <div class="text-6xl font-extrabold text-sky-400" id="studio-record-countdown-number">3</div>
+        </div>
+
+        <div id="studio-recording-indicator" class="absolute top-4 right-4 flex items-center gap-2 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-red-400 z-20" style="display: none;">
+          <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+          <span>REC</span>
+        </div>
+
+        <aside class="w-64 flex-shrink-0 flex flex-col p-4" id="studio-sidebar-left">
+          <div class="bg-zinc-900 border border-zinc-800 rounded-lg flex-1 flex flex-col overflow-hidden" id="studio-tracks-panel">
+            <div class="flex items-center justify-between px-3 py-2 border-b border-zinc-800" id="studio-tracks-header">
+              <span class="text-sm font-semibold text-zinc-300">🎵 Morceaux importés</span>
+              <button class="text-xs text-zinc-500 hover:text-zinc-300 transition-colors" id="studio-collapse-left" title="Réduire le panneau">▲</button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-3" id="studio-tracks-body">
+              <p class="text-xs text-zinc-500 mb-3">Sélectionnez un morceau pour commencer à travailler.</p>
+              <button id="studio-import-btn" class="w-full px-4 py-2 rounded-lg text-sm font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors">Importer un fichier</button>
+              <div class="studio-track-list mt-3" id="studio-track-list"></div>
+            </div>
+            <button class="hidden" id="studio-collapse-tab"></button>
+          </div>
+        </aside>
+
+        <section class="flex-1 flex flex-col gap-3 p-4 min-w-0">
+          <div id="studio-player-wrap" class="relative">
+            <div id="studio-video-container" class="studio-video-container"></div>
+            <div id="studio-audio-container" class="hidden"></div>
+            <div id="studio-audio-backdrop" class="flex flex-col items-center justify-center gap-2 bg-zinc-900 border border-zinc-800 rounded-lg aspect-video" style="display: none;">
+              <div class="text-4xl">🎵</div>
+              <div class="text-sm font-semibold text-zinc-300" id="studio-backdrop-title"></div>
+              <div class="text-xs text-zinc-500">Fichier audio</div>
+            </div>
+          </div>
+
+          <div class="relative" id="studio-waveform-wrap">
+            <canvas id="studio-waveform" class="studio-waveform w-full h-20" width="800" height="80"></canvas>
+            <div class="studio-region" id="studio-region"></div>
+            <div class="studio-playhead" id="studio-playhead"></div>
+            <div class="studio-handle studio-handle-start" id="studio-handle-start"></div>
+            <div class="studio-handle studio-handle-end" id="studio-handle-end"></div>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-zinc-500 flex-1" id="studio-region-info">Sélectionnez une région pour activer transpo / séparation</span>
+            <button id="studio-confirm-region" class="px-3 py-1.5 rounded text-xs bg-sky-600 hover:bg-sky-500 text-white font-medium transition-colors" style="display:none;">Confirmer la région</button>
+            <button id="studio-back-region" class="px-3 py-1.5 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors" style="display:none;">↩</button>
+            <button id="studio-reset-region" class="px-3 py-1.5 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors">↺</button>
+          </div>
+
+          <div class="flex items-center gap-3 flex-wrap">
+            <div class="flex items-center gap-1">
+              <button id="studio-prev-btn" class="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors" title="Revenir au début">◀◀</button>
+              <button id="studio-play-btn" class="px-3 py-1 rounded text-sm bg-sky-600 hover:bg-sky-500 text-white font-medium transition-colors" title="Lecture / Pause">▶</button>
+              <button id="studio-stop-btn" class="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors" title="Stop">■</button>
+              <button id="studio-record-btn" class="px-2 py-1 rounded text-xs bg-red-600 hover:bg-red-500 text-white transition-colors studio-record-btn" title="Enregistrer la fenêtre (R)">●</button>
+            </div>
+            <input type="range" id="studio-progress" min="0" max="100" value="0" step="0.1" class="flex-1 h-1 accent-sky-500 max-w-xs" />
+            <span class="text-xs text-zinc-500 font-mono" id="studio-time">00:00 / 00:00</span>
+            <div class="flex items-center gap-2" id="studio-transpose-control">
+              <span class="text-xs text-zinc-500">Transpo</span>
+              <button id="studio-transpose-minus" class="px-1.5 py-0.5 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors">−</button>
+              <input type="number" id="studio-transpose" value="0" min="-12" max="12" step="1" class="w-12 text-xs text-center bg-zinc-800 border border-zinc-700 rounded text-zinc-300" />
+              <button id="studio-transpose-plus" class="px-1.5 py-0.5 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors">+</button>
+              <span id="studio-transpose-status" class="text-xs text-zinc-500"></span>
+            </div>
+            <label class="flex items-center gap-2 text-xs text-zinc-500" id="studio-master-volume-label">
+              <span>Vol</span>
+              <span id="studio-volume-label" class="w-8">0 dB</span>
+              <input type="range" id="studio-volume" min="-60" max="6" value="0" step="1" class="w-16 h-1 accent-sky-500" />
+            </label>
+          </div>
+        </section>
+
+        <aside class="w-64 flex-shrink-0 flex flex-col p-4">
+          <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+            <div class="text-sm font-semibold text-zinc-300 mb-3">Pistes séparées</div>
+            <button id="studio-separate-btn" class="w-full px-4 py-2 rounded-lg text-sm font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors">Séparer les pistes</button>
+            <div class="studio-separate-status mt-2 text-xs text-zinc-500" id="studio-separate-status"></div>
+            <div class="studio-stems-list mt-3" id="studio-stems-list"></div>
+            <div class="mt-3 pt-3 border-t border-zinc-800 text-xs text-zinc-500" id="studio-status-text">Aucun morceau sélectionné</div>
+          </div>
+        </aside>
+      </main>
+
+      <!-- Clavier MIDI virtuel global visible dans tous les onglets -->
+      <section class="flex-shrink-0 bg-zinc-900 border-t border-zinc-800" id="keyboard-panel">
+        <div id="keyboard-container" class="keyboard-container"></div>
+        <div class="flex items-center gap-4 px-4 py-2 text-xs text-zinc-500 flex-wrap">
+          <label class="flex items-center gap-1.5">
+            Taille
+            <select id="keyboard-size" class="bg-zinc-800 border border-zinc-700 rounded px-1.5 py-1 text-xs text-zinc-300">
+              <option value="custom">Personnalisé</option>
+              <option value="25">25 touches (C3–C5)</option>
+              <option value="49">49 touches (C2–C6)</option>
+              <option value="61">61 touches (C2–C7)</option>
+              <option value="76">76 touches (E1–G7)</option>
+              <option value="88">88 touches (A0–C8)</option>
+              <option value="midi" selected>Virtuel MIDI (C0–C9)</option>
+            </select>
+          </label>
+          <button id="keyboard-toggle" class="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors" type="button" title="Réduire/développer le clavier">[^]</button>
+          <label class="flex items-center gap-1.5">
+            Début
+            <input type="text" id="note-start" value="C0" class="w-12 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-1 text-xs text-zinc-300 text-center" />
+          </label>
+          <label class="flex items-center gap-1.5">
+            Fin
+            <input type="text" id="note-end" value="C9" class="w-12 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-1 text-xs text-zinc-300 text-center" />
+          </label>
+          <label class="flex items-center gap-1.5">
+            Transposition
+            <input type="number" id="transpose" value="0" min="-12" max="12" class="w-12 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-1 text-xs text-zinc-300 text-center" />
+          </label>
+          <label class="flex items-center gap-1.5">
+            Tolérance (ms)
+            <input type="number" id="tolerance" value="200" min="50" max="500" step="10" class="w-16 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-1 text-xs text-zinc-300 text-center" />
+          </label>
+          <label class="flex items-center gap-1.5">
+            Notation
+            <select id="notation-select" class="bg-zinc-800 border border-zinc-700 rounded px-1.5 py-1 text-xs text-zinc-300">
+              <option value="latin">Latine (Do/Ré/Mi)</option>
+              <option value="english" selected>Anglaise (C/D/E)</option>
+            </select>
+          </label>
+          <label class="flex items-center gap-1.5 cursor-pointer">
+            <input type="checkbox" id="silent-mode" class="accent-sky-500" />
+            Silencieux
+          </label>
+          <label class="flex items-center gap-1.5 cursor-pointer">
+            <input type="checkbox" id="rhodes-mode" class="accent-sky-500" />
+            Rhodes
+          </label>
+        </div>
+      </section>
+
+      <footer class="flex items-center justify-between px-4 py-2 bg-zinc-900 border-t border-zinc-800 text-xs text-zinc-500 flex-shrink-0">
+        <div class="flex items-center gap-4">
+          <label class="flex items-center gap-1.5">
+            Couleur notes
+            <input type="color" id="color-note" value="#0ea5e9" class="w-6 h-6 rounded cursor-pointer" />
+          </label>
+          <label class="flex items-center gap-1.5">
+            Couleur fondamentale
+            <input type="color" id="color-tonic" value="#ffffff" class="w-6 h-6 rounded cursor-pointer" />
+          </label>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <label for="midi-select">MIDI :</label>
+          <select id="midi-select" class="bg-zinc-800 border border-zinc-700 rounded px-1.5 py-1 text-xs text-zinc-300" data-last-count="0"></select>
+          <span id="midi-status-text">Aucun</span>
+          <span id="midi-port-count">(0)</span>
+          <button id="midi-refresh" class="px-1.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors" title="Rafraîchir les périphériques MIDI">↻</button>
+        </div>
+
+        <div class="flex items-center gap-2" id="status-bar"></div>
+      </footer>
+      <!-- [OpenCode] — 2026-07-04 — Dialogue de fin d'enregistrement -->
+      <div class="modal-overlay" id="session-end-modal" style="display: none;">
+        <div class="modal-box">
+          <h3>Session terminée</h3>
+          <div class="modal-stats" id="modal-stats"></div>
+          <div class="modal-actions">
+            <button type="button" id="modal-delete" class="secondary">Supprimer</button>
+            <button type="button" id="modal-replay" class="record">▶ Rejouer</button>
+            <button type="button" id="modal-keep" class="primary">Conserver</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- [Claude] — 2026-07-04 — Modal des paramètres API IA -->
+      <div class="modal-overlay" id="ai-settings-modal" style="display: none;">
+        <div class="modal-box ai-settings-box">
+          <h3>Paramètres IA</h3>
+          <p class="modal-hint">Configure une clé API gratuite (Groq, OpenRouter, Google AI Studio…). Le format est compatible OpenAI.</p>
+
+          <label class="ai-field">
+            <span>Preset</span>
+            <select id="ai-preset">
+              <option value="" disabled selected>Choisir un provider…</option>
+              <option value="groq">Groq (gratuit, rapide)</option>
+              <option value="openrouter">OpenRouter (multi-modèles gratuits)</option>
+              <option value="gemini">Google AI Studio (Gemini Flash)</option>
+              <option value="custom">Personnalisé</option>
+            </select>
+          </label>
+
+          <label class="ai-field">
+            <span>Base URL</span>
+            <input type="url" id="ai-base-url" placeholder="https://api.groq.com/openai/v1" />
+          </label>
+
+          <label class="ai-field">
+            <span>Clé API</span>
+            <input type="password" id="ai-api-key" placeholder="gsk_..." />
+          </label>
+
+          <label class="ai-field">
+            <span>Modèle</span>
+            <input type="text" id="ai-model" placeholder="llama-3.1-8b-instant" />
+          </label>
+
+          <div class="ai-test-result" id="ai-test-result"></div>
+
+          <div class="modal-actions">
+            <button type="button" id="ai-test-btn" class="secondary">🧪 Tester</button>
+            <button type="button" id="ai-save-btn" class="primary">Enregistrer</button>
+            <button type="button" id="ai-cancel-btn" class="secondary">Annuler</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

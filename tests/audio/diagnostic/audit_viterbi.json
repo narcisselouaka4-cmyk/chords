@@ -1,0 +1,65 @@
+{
+  "experiment": "O1_noL2",
+  "results": {
+    "prog1_dm7_g7_cmaj7": {
+      "progression": "prog1_dm7_g7_cmaj7",
+      "dur_total": 24.0,
+      "actual_dur": 24.0,
+      "obs_correct_and_viterbi_correct": 15.989,
+      "obs_correct_but_viterbi_wrong": 0.0,
+      "obs_wrong_but_viterbi_corrected": 0.0,
+      "obs_wrong_and_viterbi_wrong": 8.011,
+      "regression_pct": 0.0,
+      "correction_pct": 0.0,
+      "n_wrong_runs": 4,
+      "max_wrong_run_beats": 1,
+      "mean_wrong_run_beats": 1.0,
+      "regression_details": []
+    },
+    "prog2_am7b5_d7_gm": {
+      "progression": "prog2_am7b5_d7_gm",
+      "dur_total": 24.0,
+      "actual_dur": 24.0,
+      "obs_correct_and_viterbi_correct": 8.034,
+      "obs_correct_but_viterbi_wrong": 0.0,
+      "obs_wrong_but_viterbi_corrected": 0.0,
+      "obs_wrong_and_viterbi_wrong": 15.966,
+      "regression_pct": 0.0,
+      "correction_pct": 0.0,
+      "n_wrong_runs": 4,
+      "max_wrong_run_beats": 2,
+      "mean_wrong_run_beats": 2.0,
+      "regression_details": []
+    },
+    "prog3_cmaj7_csus4_cmaj7_c": {
+      "progression": "prog3_cmaj7_csus4_cmaj7_c",
+      "dur_total": 32.0,
+      "actual_dur": 32.0,
+      "obs_correct_and_viterbi_correct": 15.999,
+      "obs_correct_but_viterbi_wrong": 0.0,
+      "obs_wrong_but_viterbi_corrected": 0.0,
+      "obs_wrong_and_viterbi_wrong": 16.001,
+      "regression_pct": 0.0,
+      "correction_pct": 0.0,
+      "n_wrong_runs": 8,
+      "max_wrong_run_beats": 1,
+      "mean_wrong_run_beats": 1.0,
+      "regression_details": []
+    },
+    "prog4_f7_bbmaj7": {
+      "progression": "prog4_f7_bbmaj7",
+      "dur_total": 16.0,
+      "actual_dur": 16.0,
+      "obs_correct_and_viterbi_correct": 7.989,
+      "obs_correct_but_viterbi_wrong": 0.0,
+      "obs_wrong_but_viterbi_corrected": 0.0,
+      "obs_wrong_and_viterbi_wrong": 8.011,
+      "regression_pct": 0.0,
+      "correction_pct": 0.0,
+      "n_wrong_runs": 4,
+      "max_wrong_run_beats": 1,
+      "mean_wrong_run_beats": 1.0,
+      "regression_details": []
+    }
+  }
+}

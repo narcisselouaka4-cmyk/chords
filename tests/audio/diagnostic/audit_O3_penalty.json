@@ -1,0 +1,1629 @@
+{
+  "prog1_dm7_g7_cmaj7": {
+    "experiment": "O3_penalty",
+    "progression": "prog1_dm7_g7_cmaj7",
+    "dur_total": 24.0,
+    "actual_dur": 24.0,
+    "quality_accuracy": 0.3338,
+    "root_accuracy": 1.0,
+    "n_segments": 12,
+    "correct_rank1": 33.3,
+    "correct_top3": 33.3,
+    "absent_from_top3": 0.0,
+    "mean_rank_of_correct": 3.33,
+    "mean_gap_to_winner": 0.0611,
+    "confusion": {
+      "m7": {
+        "sus2": 8.034104308390024
+      },
+      "7": {
+        "7": 8.010884353741496
+      },
+      "maj7": {
+        "": 7.955011337868481
+      }
+    },
+    "false_positive_extensions": {
+      "triad_to_extension": 8.034
+    },
+    "segments": [
+      {
+        "gt_start": 0.0,
+        "gt_end": 2.0,
+        "gt_root": "D",
+        "gt_quality": "m7",
+        "best_chord": "Dsus2",
+        "best_quality": "sus2",
+        "correct_rank": 5,
+        "correct_score": 0.5551,
+        "gap": 0.1599,
+        "top5": [
+          {
+            "chord": "Dsus2",
+            "root": "D",
+            "quality": "sus2",
+            "score": 0.715,
+            "rank": 1
+          },
+          {
+            "chord": "Csus2",
+            "root": "C",
+            "quality": "sus2",
+            "score": 0.6388,
+            "rank": 2
+          },
+          {
+            "chord": "Dm",
+            "root": "D",
+            "quality": "m",
+            "score": 0.5815,
+            "rank": 3
+          },
+          {
+            "chord": "Dsus4",
+            "root": "D",
+            "quality": "sus4",
+            "score": 0.5666,
+            "rank": 4
+          },
+          {
+            "chord": "Dm7",
+            "root": "D",
+            "quality": "m7",
+            "score": 0.5551,
+            "rank": 5
+          }
+        ],
+        "overlap_dur": 8.034
+      },
+      {
+        "gt_start": 2.0,
+        "gt_end": 4.0,
+        "gt_root": "G",
+        "gt_quality": "7",
+        "best_chord": "G7",
+        "best_quality": "7",
+        "correct_rank": 1,
+        "correct_score": 0.7822,
+        "gap": 0.0,
+        "top5": [
+          {
+            "chord": "G7",
+            "root": "G",
+            "quality": "7",
+            "score": 0.7822,
+            "rank": 1
+          }
+        ],
+        "overlap_dur": 8.011
+      },
+      {
+        "gt_start": 4.0,
+        "gt_end": 6.0,
+        "gt_root": "C",
+        "gt_quality": "maj7",
+        "best_chord": "C",
+        "best_quality": "",
+        "correct_rank": 4,
+        "correct_score": 0.7439,
+        "gap": 0.0234,
+        "top5": [
+          {
+            "chord": "C",
+            "root": "C",
+            "quality": "",
+            "score": 0.7673,
+            "rank": 1
+          },
+          {
+            "chord": "C7",
+            "root": "C",
+            "quality": "7",
+            "score": 0.7637,
+            "rank": 2
+          },
+          {
+            "chord": "Csus2",
+            "root": "C",
+            "quality": "sus2",
+            "score": 0.7519,
+            "rank": 3
+          },
+          {
+            "chord": "Cmaj7",
+            "root": "C",
+            "quality": "maj7",
+            "score": 0.7439,
+            "rank": 4
+          }
+        ],
+        "overlap_dur": 7.955
+      },
+      {
+        "gt_start": 6.0,
+        "gt_end": 8.0,
+        "gt_root": "D",
+        "gt_quality": "m7",
+        "best_chord": "Dsus2",
+        "best_quality": "sus2",
+        "correct_rank": 5,
+        "correct_score": 0.5551,
+        "gap": 0.1599,
+        "top5": [
+          {
+            "chord": "Dsus2",
+            "root": "D",
+            "quality": "sus2",
+            "score": 0.715,
+            "rank": 1
+          },
+          {
+            "chord": "Csus2",
+            "root": "C",
+            "quality": "sus2",
+            "score": 0.6388,
+            "rank": 2
+          },
+          {
+            "chord": "Dm",
+            "root": "D",
+            "quality": "m",
+            "score": 0.5815,
+            "rank": 3
+          },
+          {
+            "chord": "Dsus4",
+            "root": "D",
+            "quality": "sus4",
+            "score": 0.5666,
+            "rank": 4
+          },
+          {
+            "chord": "Dm7",
+            "root": "D",
+            "quality": "m7",
+            "score": 0.5551,
+            "rank": 5
+          }
+        ],
+        "overlap_dur": 8.034
+      },
+      {
+        "gt_start": 8.0,
+        "gt_end": 10.0,
+        "gt_root": "G",
+        "gt_quality": "7",
+        "best_chord": "G7",
+        "best_quality": "7",
+        "correct_rank": 1,
+        "correct_score": 0.7822,
+        "gap": 0.0,
+        "top5": [
+          {
+            "chord": "G7",
+            "root": "G",
+            "quality": "7",
+            "score": 0.7822,
+            "rank": 1
+          }
+        ],
+        "overlap_dur": 8.011
+      },
+      {
+        "gt_start": 10.0,
+        "gt_end": 12.0,
+        "gt_root": "C",
+        "gt_quality": "maj7",
+        "best_chord": "C",
+        "best_quality": "",
+        "correct_rank": 4,
+        "correct_score": 0.7439,
+        "gap": 0.0234,
+        "top5": [
+          {
+            "chord": "C",
+            "root": "C",
+            "quality": "",
+            "score": 0.7673,
+            "rank": 1
+          },
+          {
+            "chord": "C7",
+            "root": "C",
+            "quality": "7",
+            "score": 0.7637,
+            "rank": 2
+          },
+          {
+            "chord": "Csus2",
+            "root": "C",
+            "quality": "sus2",
+            "score": 0.7519,
+            "rank": 3
+          },
+          {
+            "chord": "Cmaj7",
+            "root": "C",
+            "quality": "maj7",
+            "score": 0.7439,
+            "rank": 4
+          }
+        ],
+        "overlap_dur": 7.955
+      },
+      {
+        "gt_start": 12.0,
+        "gt_end": 14.0,
+        "gt_root": "D",
+        "gt_quality": "m7",
+        "best_chord": "Dsus2",
+        "best_quality": "sus2",
+        "correct_rank": 5,
+        "correct_score": 0.5551,
+        "gap": 0.1599,
+        "top5": [
+          {
+            "chord": "Dsus2",
+            "root": "D",
+            "quality": "sus2",
+            "score": 0.715,
+            "rank": 1
+          },
+          {
+            "chord": "Csus2",
+            "root": "C",
+            "quality": "sus2",
+            "score": 0.6388,
+            "rank": 2
+          },
+          {
+            "chord": "Dm",
+            "root": "D",
+            "quality": "m",
+            "score": 0.5815,
+            "rank": 3
+          },
+          {
+            "chord": "Dsus4",
+            "root": "D",
+            "quality": "sus4",
+            "score": 0.5666,
+            "rank": 4
+          },
+          {
+            "chord": "Dm7",
+            "root": "D",
+            "quality": "m7",
+            "score": 0.5551,
+            "rank": 5
+          }
+        ],
+        "overlap_dur": 8.034
+      },
+      {
+        "gt_start": 14.0,
+        "gt_end": 16.0,
+        "gt_root": "G",
+        "gt_quality": "7",
+        "best_chord": "G7",
+        "best_quality": "7",
+        "correct_rank": 1,
+        "correct_score": 0.7822,
+        "gap": 0.0,
+        "top5": [
+          {
+            "chord": "G7",
+            "root": "G",
+            "quality": "7",
+            "score": 0.7822,
+            "rank": 1
+          }
+        ],
+        "overlap_dur": 8.011
+      },
+      {
+        "gt_start": 16.0,
+        "gt_end": 18.0,
+        "gt_root": "C",
+        "gt_quality": "maj7",
+        "best_chord": "C",
+        "best_quality": "",
+        "correct_rank": 4,
+        "correct_score": 0.7439,
+        "gap": 0.0234,
+        "top5": [
+          {
+            "chord": "C",
+            "root": "C",
+            "quality": "",
+            "score": 0.7673,
+            "rank": 1
+          },
+          {
+            "chord": "C7",
+            "root": "C",
+            "quality": "7",
+            "score": 0.7637,
+            "rank": 2
+          },
+          {
+            "chord": "Csus2",
+            "root": "C",
+            "quality": "sus2",
+            "score": 0.7519,
+            "rank": 3
+          },
+          {
+            "chord": "Cmaj7",
+            "root": "C",
+            "quality": "maj7",
+            "score": 0.7439,
+            "rank": 4
+          }
+        ],
+        "overlap_dur": 7.955
+      },
+      {
+        "gt_start": 18.0,
+        "gt_end": 20.0,
+        "gt_root": "D",
+        "gt_quality": "m7",
+        "best_chord": "Dsus2",
+        "best_quality": "sus2",
+        "correct_rank": 5,
+        "correct_score": 0.5551,
+        "gap": 0.1599,
+        "top5": [
+          {
+            "chord": "Dsus2",
+            "root": "D",
+            "quality": "sus2",
+            "score": 0.715,
+            "rank": 1
+          },
+          {
+            "chord": "Csus2",
+            "root": "C",
+            "quality": "sus2",
+            "score": 0.6388,
+            "rank": 2
+          },
+          {
+            "chord": "Dm",
+            "root": "D",
+            "quality": "m",
+            "score": 0.5815,
+            "rank": 3
+          },
+          {
+            "chord": "Dsus4",
+            "root": "D",
+            "quality": "sus4",
+            "score": 0.5666,
+            "rank": 4
+          },
+          {
+            "chord": "Dm7",
+            "root": "D",
+            "quality": "m7",
+            "score": 0.5551,
+            "rank": 5
+          }
+        ],
+        "overlap_dur": 8.034
+      },
+      {
+        "gt_start": 20.0,
+        "gt_end": 22.0,
+        "gt_root": "G",
+        "gt_quality": "7",
+        "best_chord": "G7",
+        "best_quality": "7",
+        "correct_rank": 1,
+        "correct_score": 0.7822,
+        "gap": 0.0,
+        "top5": [
+          {
+            "chord": "G7",
+            "root": "G",
+            "quality": "7",
+            "score": 0.7822,
+            "rank": 1
+          }
+        ],
+        "overlap_dur": 8.011
+      },
+      {
+        "gt_start": 22.0,
+        "gt_end": 24.0,
+        "gt_root": "C",
+        "gt_quality": "maj7",
+        "best_chord": "C",
+        "best_quality": "",
+        "correct_rank": 4,
+        "correct_score": 0.7439,
+        "gap": 0.0234,
+        "top5": [
+          {
+            "chord": "C",
+            "root": "C",
+            "quality": "",
+            "score": 0.7673,
+            "rank": 1
+          },
+          {
+            "chord": "C7",
+            "root": "C",
+            "quality": "7",
+            "score": 0.7637,
+            "rank": 2
+          },
+          {
+            "chord": "Csus2",
+            "root": "C",
+            "quality": "sus2",
+            "score": 0.7519,
+            "rank": 3
+          },
+          {
+            "chord": "Cmaj7",
+            "root": "C",
+            "quality": "maj7",
+            "score": 0.7439,
+            "rank": 4
+          }
+        ],
+        "overlap_dur": 7.955
+      }
+    ]
+  },
+  "prog2_am7b5_d7_gm": {
+    "experiment": "O3_penalty",
+    "progression": "prog2_am7b5_d7_gm",
+    "dur_total": 24.0,
+    "actual_dur": 24.0,
+    "quality_accuracy": 0.3315,
+    "root_accuracy": 1.0,
+    "n_segments": 12,
+    "correct_rank1": 33.3,
+    "correct_top3": 100.0,
+    "absent_from_top3": 0.0,
+    "mean_rank_of_correct": 2.0,
+    "mean_gap_to_winner": 0.0495,
+    "confusion": {
+      "m7b5": {
+        "m": 8.034104308390024
+      },
+      "7": {
+        "sus2": 8.010884353741496
+      },
+      "m": {
+        "m": 7.955011337868481
+      }
+    },
+    "false_positive_extensions": {
+      "triad_to_extension": 8.011
+    },
+    "segments": [
+      {
+        "gt_start": 0.0,
+        "gt_end": 2.0,
+        "gt_root": "A",
+        "gt_quality": "m7b5",
+        "best_chord": "Am",
+        "best_quality": "m",
+        "correct_rank": 3,
+        "correct_score": 0.5367,
+        "gap": 0.0338,
+        "top5": [
+          {
+            "chord": "Am",
+            "root": "A",
+            "quality": "m",
+            "score": 0.5705,
+            "rank": 1
+          },
+          {
+            "chord": "Adim",
+            "root": "A",
+            "quality": "dim",
+            "score": 0.5387,
+            "rank": 2
+          },
+          {
+            "chord": "Am7b5",
+            "root": "A",
+            "quality": "m7b5",
+            "score": 0.5367,
+            "rank": 3
+          }
+        ],
+        "overlap_dur": 8.034
+      },
+      {
+        "gt_start": 2.0,
+        "gt_end": 4.0,
+        "gt_root": "D",
+        "gt_quality": "7",
+        "best_chord": "Dsus2",
+        "best_quality": "sus2",
+        "correct_rank": 2,
+        "correct_score": 0.613,
+        "gap": 0.1148,
+        "top5": [
+          {
+            "chord": "Dsus2",
+            "root": "D",
+            "quality": "sus2",
+            "score": 0.7278,
+            "rank": 1
+          },
+          {
+            "chord": "D7",
+            "root": "D",
+            "quality": "7",
+            "score": 0.613,
+            "rank": 2
+          }
+        ],
+        "overlap_dur": 8.011
+      },
+      {
+        "gt_start": 4.0,
+        "gt_end": 6.0,
+        "gt_root": "G",
+        "gt_quality": "m",
+        "best_chord": "Gm",
+        "best_quality": "m",
+        "correct_rank": 1,
+        "correct_score": 0.8139,
+        "gap": 0.0,
+        "top5": [
+          {
+            "chord": "Gm",
+            "root": "G",
+            "quality": "m",
+            "score": 0.8139,
+            "rank": 1
+          }
+        ],
+        "overlap_dur": 7.955
+      },
+      {
+        "gt_start": 6.0,
+        "gt_end": 8.0,
+        "gt_root": "A",
+        "gt_quality": "m7b5",
+        "best_chord": "Am",
+        "best_quality": "m",
+        "correct_rank": 3,
+        "correct_score": 0.5367,
+        "gap": 0.0338,
+        "top5": [
+          {
+            "chord": "Am",
+            "root": "A",
+            "quality": "m",
+            "score": 0.5705,
+            "rank": 1
+          },
+          {
+            "chord": "Adim",
+            "root": "A",
+            "quality": "dim",
+            "score": 0.5387,
+            "rank": 2
+          },
+          {
+            "chord": "Am7b5",
+            "root": "A",
+            "quality": "m7b5",
+            "score": 0.5367,
+            "rank": 3
+          }
+        ],
+        "overlap_dur": 8.034
+      },
+      {
+        "gt_start": 8.0,
+        "gt_end": 10.0,
+        "gt_root": "D",
+        "gt_quality": "7",
+        "best_chord": "Dsus2",
+        "best_quality": "sus2",
+        "correct_rank": 2,
+        "correct_score": 0.613,
+        "gap": 0.1148,
+        "top5": [
+          {
+            "chord": "Dsus2",
+            "root": "D",
+            "quality": "sus2",
+            "score": 0.7278,
+            "rank": 1
+          },
+          {
+            "chord": "D7",
+            "root": "D",
+            "quality": "7",
+            "score": 0.613,
+            "rank": 2
+          }
+        ],
+        "overlap_dur": 8.011
+      },
+      {
+        "gt_start": 10.0,
+        "gt_end": 12.0,
+        "gt_root": "G",
+        "gt_quality": "m",
+        "best_chord": "Gm",
+        "best_quality": "m",
+        "correct_rank": 1,
+        "correct_score": 0.8139,
+        "gap": 0.0,
+        "top5": [
+          {
+            "chord": "Gm",
+            "root": "G",
+            "quality": "m",
+            "score": 0.8139,
+            "rank": 1
+          }
+        ],
+        "overlap_dur": 7.955
+      },
+      {
+        "gt_start": 12.0,
+        "gt_end": 14.0,
+        "gt_root": "A",
+        "gt_quality": "m7b5",
+        "best_chord": "Am",
+        "best_quality": "m",
+        "correct_rank": 3,
+        "correct_score": 0.5367,
+        "gap": 0.0338,
+        "top5": [
+          {
+            "chord": "Am",
+            "root": "A",
+            "quality": "m",
+            "score": 0.5705,
+            "rank": 1
+          },
+          {
+            "chord": "Adim",
+            "root": "A",
+            "quality": "dim",
+            "score": 0.5387,
+            "rank": 2
+          },
+          {
+            "chord": "Am7b5",
+            "root": "A",
+            "quality": "m7b5",
+            "score": 0.5367,
+            "rank": 3
+          }
+        ],
+        "overlap_dur": 8.034
+      },
+      {
+        "gt_start": 14.0,
+        "gt_end": 16.0,
+        "gt_root": "D",
+        "gt_quality": "7",
+        "best_chord": "Dsus2",
+        "best_quality": "sus2",
+        "correct_rank": 2,
+        "correct_score": 0.613,
+        "gap": 0.1148,
+        "top5": [
+          {
+            "chord": "Dsus2",
+            "root": "D",
+            "quality": "sus2",
+            "score": 0.7278,
+            "rank": 1
+          },
+          {
+            "chord": "D7",
+            "root": "D",
+            "quality": "7",
+            "score": 0.613,
+            "rank": 2
+          }
+        ],
+        "overlap_dur": 8.011
+      },
+      {
+        "gt_start": 16.0,
+        "gt_end": 18.0,
+        "gt_root": "G",
+        "gt_quality": "m",
+        "best_chord": "Gm",
+        "best_quality": "m",
+        "correct_rank": 1,
+        "correct_score": 0.8139,
+        "gap": 0.0,
+        "top5": [
+          {
+            "chord": "Gm",
+            "root": "G",
+            "quality": "m",
+            "score": 0.8139,
+            "rank": 1
+          }
+        ],
+        "overlap_dur": 7.955
+      },
+      {
+        "gt_start": 18.0,
+        "gt_end": 20.0,
+        "gt_root": "A",
+        "gt_quality": "m7b5",
+        "best_chord": "Am",
+        "best_quality": "m",
+        "correct_rank": 3,
+        "correct_score": 0.5367,
+        "gap": 0.0338,
+        "top5": [
+          {
+            "chord": "Am",
+            "root": "A",
+            "quality": "m",
+            "score": 0.5705,
+            "rank": 1
+          },
+          {
+            "chord": "Adim",
+            "root": "A",
+            "quality": "dim",
+            "score": 0.5387,
+            "rank": 2
+          },
+          {
+            "chord": "Am7b5",
+            "root": "A",
+            "quality": "m7b5",
+            "score": 0.5367,
+            "rank": 3
+          }
+        ],
+        "overlap_dur": 8.034
+      },
+      {
+        "gt_start": 20.0,
+        "gt_end": 22.0,
+        "gt_root": "D",
+        "gt_quality": "7",
+        "best_chord": "Dsus2",
+        "best_quality": "sus2",
+        "correct_rank": 2,
+        "correct_score": 0.613,
+        "gap": 0.1148,
+        "top5": [
+          {
+            "chord": "Dsus2",
+            "root": "D",
+            "quality": "sus2",
+            "score": 0.7278,
+            "rank": 1
+          },
+          {
+            "chord": "D7",
+            "root": "D",
+            "quality": "7",
+            "score": 0.613,
+            "rank": 2
+          }
+        ],
+        "overlap_dur": 8.011
+      },
+      {
+        "gt_start": 22.0,
+        "gt_end": 24.0,
+        "gt_root": "G",
+        "gt_quality": "m",
+        "best_chord": "Gm",
+        "best_quality": "m",
+        "correct_rank": 1,
+        "correct_score": 0.8139,
+        "gap": 0.0,
+        "top5": [
+          {
+            "chord": "Gm",
+            "root": "G",
+            "quality": "m",
+            "score": 0.8139,
+            "rank": 1
+          }
+        ],
+        "overlap_dur": 7.955
+      }
+    ]
+  },
+  "prog3_cmaj7_csus4_cmaj7_c": {
+    "experiment": "O3_penalty",
+    "progression": "prog3_cmaj7_csus4_cmaj7_c",
+    "dur_total": 32.0,
+    "actual_dur": 32.0,
+    "quality_accuracy": 0.5,
+    "root_accuracy": 1.0,
+    "n_segments": 16,
+    "correct_rank1": 50.0,
+    "correct_top3": 100.0,
+    "absent_from_top3": 0.0,
+    "mean_rank_of_correct": 2.0,
+    "mean_gap_to_winner": 0.0032,
+    "confusion": {
+      "maj7": {
+        "": 15.998548752834461
+      },
+      "sus4": {
+        "sus4": 7.987664399092974
+      },
+      "": {
+        "": 8.013786848072566
+      }
+    },
+    "false_positive_extensions": {},
+    "segments": [
+      {
+        "gt_start": 0.0,
+        "gt_end": 2.0,
+        "gt_root": "C",
+        "gt_quality": "maj7",
+        "best_chord": "C",
+        "best_quality": "",
+        "correct_rank": 3,
+        "correct_score": 0.7727,
+        "gap": 0.0064,
+        "top5": [
+          {
+            "chord": "C",
+            "root": "C",
+            "quality": "",
+            "score": 0.7791,
+            "rank": 1
+          },
+          {
+            "chord": "C7",
+            "root": "C",
+            "quality": "7",
+            "score": 0.7769,
+            "rank": 2
+          },
+          {
+            "chord": "Cmaj7",
+            "root": "C",
+            "quality": "maj7",
+            "score": 0.7727,
+            "rank": 3
+          }
+        ],
+        "overlap_dur": 15.999
+      },
+      {
+        "gt_start": 2.0,
+        "gt_end": 4.0,
+        "gt_root": "C",
+        "gt_quality": "sus4",
+        "best_chord": "Csus4",
+        "best_quality": "sus4",
+        "correct_rank": 1,
+        "correct_score": 0.8265,
+        "gap": 0.0,
+        "top5": [
+          {
+            "chord": "Csus4",
+            "root": "C",
+            "quality": "sus4",
+            "score": 0.8265,
+            "rank": 1
+          }
+        ],
+        "overlap_dur": 7.988
+      },
+      {
+        "gt_start": 4.0,
+        "gt_end": 6.0,
+        "gt_root": "C",
+        "gt_quality": "maj7",
+        "best_chord": "C",
+        "best_quality": "",
+        "correct_rank": 3,
+        "correct_score": 0.7727,
+        "gap": 0.0064,
+        "top5": [
+          {
+            "chord": "C",
+            "root": "C",
+            "quality": "",
+            "score": 0.7791,
+            "rank": 1
+          },
+          {
+            "chord": "C7",
+            "root": "C",
+            "quality": "7",
+            "score": 0.7769,
+            "rank": 2
+          },
+          {
+            "chord": "Cmaj7",
+            "root": "C",
+            "quality": "maj7",
+            "score": 0.7727,
+            "rank": 3
+          }
+        ],
+        "overlap_dur": 15.999
+      },
+      {
+        "gt_start": 6.0,
+        "gt_end": 8.0,
+        "gt_root": "C",
+        "gt_quality": "",
+        "best_chord": "C",
+        "best_quality": "",
+        "correct_rank": 1,
+        "correct_score": 0.7962,
+        "gap": 0.0,
+        "top5": [
+          {
+            "chord": "C",
+            "root": "C",
+            "quality": "",
+            "score": 0.7962,
+            "rank": 1
+          }
+        ],
+        "overlap_dur": 8.014
+      },
+      {
+        "gt_start": 8.0,
+        "gt_end": 10.0,
+        "gt_root": "C",
+        "gt_quality": "maj7",
+        "best_chord": "C",
+        "best_quality": "",
+        "correct_rank": 3,
+        "correct_score": 0.7727,
+        "gap": 0.0064,
+        "top5": [
+          {
+            "chord": "C",
+            "root": "C",
+            "quality": "",
+            "score": 0.7791,
+            "rank": 1
+          },
+          {
+            "chord": "C7",
+            "root": "C",
+            "quality": "7",
+            "score": 0.7769,
+            "rank": 2
+          },
+          {
+            "chord": "Cmaj7",
+            "root": "C",
+            "quality": "maj7",
+            "score": 0.7727,
+            "rank": 3
+          }
+        ],
+        "overlap_dur": 15.999
+      },
+      {
+        "gt_start": 10.0,
+        "gt_end": 12.0,
+        "gt_root": "C",
+        "gt_quality": "sus4",
+        "best_chord": "Csus4",
+        "best_quality": "sus4",
+        "correct_rank": 1,
+        "correct_score": 0.8265,
+        "gap": 0.0,
+        "top5": [
+          {
+            "chord": "Csus4",
+            "root": "C",
+            "quality": "sus4",
+            "score": 0.8265,
+            "rank": 1
+          }
+        ],
+        "overlap_dur": 7.988
+      },
+      {
+        "gt_start": 12.0,
+        "gt_end": 14.0,
+        "gt_root": "C",
+        "gt_quality": "maj7",
+        "best_chord": "C",
+        "best_quality": "",
+        "correct_rank": 3,
+        "correct_score": 0.7727,
+        "gap": 0.0064,
+        "top5": [
+          {
+            "chord": "C",
+            "root": "C",
+            "quality": "",
+            "score": 0.7791,
+            "rank": 1
+          },
+          {
+            "chord": "C7",
+            "root": "C",
+            "quality": "7",
+            "score": 0.7769,
+            "rank": 2
+          },
+          {
+            "chord": "Cmaj7",
+            "root": "C",
+            "quality": "maj7",
+            "score": 0.7727,
+            "rank": 3
+          }
+        ],
+        "overlap_dur": 15.999
+      },
+      {
+        "gt_start": 14.0,
+        "gt_end": 16.0,
+        "gt_root": "C",
+        "gt_quality": "",
+        "best_chord": "C",
+        "best_quality": "",
+        "correct_rank": 1,
+        "correct_score": 0.7962,
+        "gap": 0.0,
+        "top5": [
+          {
+            "chord": "C",
+            "root": "C",
+            "quality": "",
+            "score": 0.7962,
+            "rank": 1
+          }
+        ],
+        "overlap_dur": 8.014
+      },
+      {
+        "gt_start": 16.0,
+        "gt_end": 18.0,
+        "gt_root": "C",
+        "gt_quality": "maj7",
+        "best_chord": "C",
+        "best_quality": "",
+        "correct_rank": 3,
+        "correct_score": 0.7727,
+        "gap": 0.0064,
+        "top5": [
+          {
+            "chord": "C",
+            "root": "C",
+            "quality": "",
+            "score": 0.7791,
+            "rank": 1
+          },
+          {
+            "chord": "C7",
+            "root": "C",
+            "quality": "7",
+            "score": 0.7769,
+            "rank": 2
+          },
+          {
+            "chord": "Cmaj7",
+            "root": "C",
+            "quality": "maj7",
+            "score": 0.7727,
+            "rank": 3
+          }
+        ],
+        "overlap_dur": 15.999
+      },
+      {
+        "gt_start": 18.0,
+        "gt_end": 20.0,
+        "gt_root": "C",
+        "gt_quality": "sus4",
+        "best_chord": "Csus4",
+        "best_quality": "sus4",
+        "correct_rank": 1,
+        "correct_score": 0.8265,
+        "gap": 0.0,
+        "top5": [
+          {
+            "chord": "Csus4",
+            "root": "C",
+            "quality": "sus4",
+            "score": 0.8265,
+            "rank": 1
+          }
+        ],
+        "overlap_dur": 7.988
+      },
+      {
+        "gt_start": 20.0,
+        "gt_end": 22.0,
+        "gt_root": "C",
+        "gt_quality": "maj7",
+        "best_chord": "C",
+        "best_quality": "",
+        "correct_rank": 3,
+        "correct_score": 0.7727,
+        "gap": 0.0064,
+        "top5": [
+          {
+            "chord": "C",
+            "root": "C",
+            "quality": "",
+            "score": 0.7791,
+            "rank": 1
+          },
+          {
+            "chord": "C7",
+            "root": "C",
+            "quality": "7",
+            "score": 0.7769,
+            "rank": 2
+          },
+          {
+            "chord": "Cmaj7",
+            "root": "C",
+            "quality": "maj7",
+            "score": 0.7727,
+            "rank": 3
+          }
+        ],
+        "overlap_dur": 15.999
+      },
+      {
+        "gt_start": 22.0,
+        "gt_end": 24.0,
+        "gt_root": "C",
+        "gt_quality": "",
+        "best_chord": "C",
+        "best_quality": "",
+        "correct_rank": 1,
+        "correct_score": 0.7962,
+        "gap": 0.0,
+        "top5": [
+          {
+            "chord": "C",
+            "root": "C",
+            "quality": "",
+            "score": 0.7962,
+            "rank": 1
+          }
+        ],
+        "overlap_dur": 8.014
+      },
+      {
+        "gt_start": 24.0,
+        "gt_end": 26.0,
+        "gt_root": "C",
+        "gt_quality": "maj7",
+        "best_chord": "C",
+        "best_quality": "",
+        "correct_rank": 3,
+        "correct_score": 0.7727,
+        "gap": 0.0064,
+        "top5": [
+          {
+            "chord": "C",
+            "root": "C",
+            "quality": "",
+            "score": 0.7791,
+            "rank": 1
+          },
+          {
+            "chord": "C7",
+            "root": "C",
+            "quality": "7",
+            "score": 0.7769,
+            "rank": 2
+          },
+          {
+            "chord": "Cmaj7",
+            "root": "C",
+            "quality": "maj7",
+            "score": 0.7727,
+            "rank": 3
+          }
+        ],
+        "overlap_dur": 15.999
+      },
+      {
+        "gt_start": 26.0,
+        "gt_end": 28.0,
+        "gt_root": "C",
+        "gt_quality": "sus4",
+        "best_chord": "Csus4",
+        "best_quality": "sus4",
+        "correct_rank": 1,
+        "correct_score": 0.8265,
+        "gap": 0.0,
+        "top5": [
+          {
+            "chord": "Csus4",
+            "root": "C",
+            "quality": "sus4",
+            "score": 0.8265,
+            "rank": 1
+          }
+        ],
+        "overlap_dur": 7.988
+      },
+      {
+        "gt_start": 28.0,
+        "gt_end": 30.0,
+        "gt_root": "C",
+        "gt_quality": "maj7",
+        "best_chord": "C",
+        "best_quality": "",
+        "correct_rank": 3,
+        "correct_score": 0.7727,
+        "gap": 0.0064,
+        "top5": [
+          {
+            "chord": "C",
+            "root": "C",
+            "quality": "",
+            "score": 0.7791,
+            "rank": 1
+          },
+          {
+            "chord": "C7",
+            "root": "C",
+            "quality": "7",
+            "score": 0.7769,
+            "rank": 2
+          },
+          {
+            "chord": "Cmaj7",
+            "root": "C",
+            "quality": "maj7",
+            "score": 0.7727,
+            "rank": 3
+          }
+        ],
+        "overlap_dur": 15.999
+      },
+      {
+        "gt_start": 30.0,
+        "gt_end": 32.0,
+        "gt_root": "C",
+        "gt_quality": "",
+        "best_chord": "C",
+        "best_quality": "",
+        "correct_rank": 1,
+        "correct_score": 0.7962,
+        "gap": 0.0,
+        "top5": [
+          {
+            "chord": "C",
+            "root": "C",
+            "quality": "",
+            "score": 0.7962,
+            "rank": 1
+          }
+        ],
+        "overlap_dur": 8.014
+      }
+    ]
+  },
+  "prog4_f7_bbmaj7": {
+    "experiment": "O3_penalty",
+    "progression": "prog4_f7_bbmaj7",
+    "dur_total": 16.0,
+    "actual_dur": 16.0,
+    "quality_accuracy": 0.0,
+    "root_accuracy": 1.0,
+    "n_segments": 8,
+    "correct_rank1": 0.0,
+    "correct_top3": 50.0,
+    "absent_from_top3": 0.0,
+    "mean_rank_of_correct": 3.0,
+    "mean_gap_to_winner": 0.1545,
+    "confusion": {
+      "7": {
+        "sus4": 8.010884353741497
+      },
+      "maj7": {
+        "7": 7.989115646258503
+      }
+    },
+    "false_positive_extensions": {
+      "triad_to_extension": 16.0
+    },
+    "segments": [
+      {
+        "gt_start": 0.0,
+        "gt_end": 2.0,
+        "gt_root": "F",
+        "gt_quality": "7",
+        "best_chord": "Fsus4",
+        "best_quality": "sus4",
+        "correct_rank": 2,
+        "correct_score": 0.6369,
+        "gap": 0.1205,
+        "top5": [
+          {
+            "chord": "Fsus4",
+            "root": "F",
+            "quality": "sus4",
+            "score": 0.7574,
+            "rank": 1
+          },
+          {
+            "chord": "F7",
+            "root": "F",
+            "quality": "7",
+            "score": 0.6369,
+            "rank": 2
+          }
+        ],
+        "overlap_dur": 8.011
+      },
+      {
+        "gt_start": 2.0,
+        "gt_end": 4.0,
+        "gt_root": "A#",
+        "gt_quality": "maj7",
+        "best_chord": "A#7",
+        "best_quality": "7",
+        "correct_rank": 4,
+        "correct_score": 0.5569,
+        "gap": 0.1886,
+        "top5": [
+          {
+            "chord": "A#7",
+            "root": "A#",
+            "quality": "7",
+            "score": 0.7455,
+            "rank": 1
+          },
+          {
+            "chord": "A#",
+            "root": "A#",
+            "quality": "",
+            "score": 0.5767,
+            "rank": 2
+          },
+          {
+            "chord": "Gm7",
+            "root": "G",
+            "quality": "m7",
+            "score": 0.5588,
+            "rank": 3
+          },
+          {
+            "chord": "A#maj7",
+            "root": "A#",
+            "quality": "maj7",
+            "score": 0.5569,
+            "rank": 4
+          }
+        ],
+        "overlap_dur": 7.989
+      },
+      {
+        "gt_start": 4.0,
+        "gt_end": 6.0,
+        "gt_root": "F",
+        "gt_quality": "7",
+        "best_chord": "Fsus4",
+        "best_quality": "sus4",
+        "correct_rank": 2,
+        "correct_score": 0.6369,
+        "gap": 0.1205,
+        "top5": [
+          {
+            "chord": "Fsus4",
+            "root": "F",
+            "quality": "sus4",
+            "score": 0.7574,
+            "rank": 1
+          },
+          {
+            "chord": "F7",
+            "root": "F",
+            "quality": "7",
+            "score": 0.6369,
+            "rank": 2
+          }
+        ],
+        "overlap_dur": 8.011
+      },
+      {
+        "gt_start": 6.0,
+        "gt_end": 8.0,
+        "gt_root": "A#",
+        "gt_quality": "maj7",
+        "best_chord": "A#7",
+        "best_quality": "7",
+        "correct_rank": 4,
+        "correct_score": 0.5569,
+        "gap": 0.1886,
+        "top5": [
+          {
+            "chord": "A#7",
+            "root": "A#",
+            "quality": "7",
+            "score": 0.7455,
+            "rank": 1
+          },
+          {
+            "chord": "A#",
+            "root": "A#",
+            "quality": "",
+            "score": 0.5767,
+            "rank": 2
+          },
+          {
+            "chord": "Gm7",
+            "root": "G",
+            "quality": "m7",
+            "score": 0.5588,
+            "rank": 3
+          },
+          {
+            "chord": "A#maj7",
+            "root": "A#",
+            "quality": "maj7",
+            "score": 0.5569,
+            "rank": 4
+          }
+        ],
+        "overlap_dur": 7.989
+      },
+      {
+        "gt_start": 8.0,
+        "gt_end": 10.0,
+        "gt_root": "F",
+        "gt_quality": "7",
+        "best_chord": "Fsus4",
+        "best_quality": "sus4",
+        "correct_rank": 2,
+        "correct_score": 0.6369,
+        "gap": 0.1205,
+        "top5": [
+          {
+            "chord": "Fsus4",
+            "root": "F",
+            "quality": "sus4",
+            "score": 0.7574,
+            "rank": 1
+          },
+          {
+            "chord": "F7",
+            "root": "F",
+            "quality": "7",
+            "score": 0.6369,
+            "rank": 2
+          }
+        ],
+        "overlap_dur": 8.011
+      },
+      {
+        "gt_start": 10.0,
+        "gt_end": 12.0,
+        "gt_root": "A#",
+        "gt_quality": "maj7",
+        "best_chord": "A#7",
+        "best_quality": "7",
+        "correct_rank": 4,
+        "correct_score": 0.5569,
+        "gap": 0.1886,
+        "top5": [
+          {
+            "chord": "A#7",
+            "root": "A#",
+            "quality": "7",
+            "score": 0.7455,
+            "rank": 1
+          },
+          {
+            "chord": "A#",
+            "root": "A#",
+            "quality": "",
+            "score": 0.5767,
+            "rank": 2
+          },
+          {
+            "chord": "Gm7",
+            "root": "G",
+            "quality": "m7",
+            "score": 0.5588,
+            "rank": 3
+          },
+          {
+            "chord": "A#maj7",
+            "root": "A#",
+            "quality": "maj7",
+            "score": 0.5569,
+            "rank": 4
+          }
+        ],
+        "overlap_dur": 7.989
+      },
+      {
+        "gt_start": 12.0,
+        "gt_end": 14.0,
+        "gt_root": "F",
+        "gt_quality": "7",
+        "best_chord": "Fsus4",
+        "best_quality": "sus4",
+        "correct_rank": 2,
+        "correct_score": 0.6369,
+        "gap": 0.1205,
+        "top5": [
+          {
+            "chord": "Fsus4",
+            "root": "F",
+            "quality": "sus4",
+            "score": 0.7574,
+            "rank": 1
+          },
+          {
+            "chord": "F7",
+            "root": "F",
+            "quality": "7",
+            "score": 0.6369,
+            "rank": 2
+          }
+        ],
+        "overlap_dur": 8.011
+      },
+      {
+        "gt_start": 14.0,
+        "gt_end": 16.0,
+        "gt_root": "A#",
+        "gt_quality": "maj7",
+        "best_chord": "A#7",
+        "best_quality": "7",
+        "correct_rank": 4,
+        "correct_score": 0.5569,
+        "gap": 0.1886,
+        "top5": [
+          {
+            "chord": "A#7",
+            "root": "A#",
+            "quality": "7",
+            "score": 0.7455,
+            "rank": 1
+          },
+          {
+            "chord": "A#",
+            "root": "A#",
+            "quality": "",
+            "score": 0.5767,
+            "rank": 2
+          },
+          {
+            "chord": "Gm7",
+            "root": "G",
+            "quality": "m7",
+            "score": 0.5588,
+            "rank": 3
+          },
+          {
+            "chord": "A#maj7",
+            "root": "A#",
+            "quality": "maj7",
+            "score": 0.5569,
+            "rank": 4
+          }
+        ],
+        "overlap_dur": 7.989
+      }
+    ]
+  }
+}

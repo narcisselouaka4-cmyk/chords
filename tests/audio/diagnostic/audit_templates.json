@@ -1,0 +1,724 @@
+{
+  "norms": {
+    "": {
+      "L2_norm_raw": 1.4142,
+      "n_notes": 3,
+      "intervals": [
+        0,
+        4,
+        7
+      ],
+      "weights": [
+        1.0,
+        0.8,
+        0.6
+      ],
+      "template_vector_C": [
+        0.7071,
+        0.0,
+        0.0,
+        0.0,
+        0.5657,
+        0.0,
+        0.0,
+        0.4243,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "m": {
+      "L2_norm_raw": 1.423,
+      "n_notes": 3,
+      "intervals": [
+        0,
+        3,
+        7
+      ],
+      "weights": [
+        1.0,
+        0.85,
+        0.55
+      ],
+      "template_vector_C": [
+        0.7027,
+        0.0,
+        0.0,
+        0.5973,
+        0.0,
+        0.0,
+        0.0,
+        0.3865,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "7": {
+      "L2_norm_raw": 1.423,
+      "n_notes": 4,
+      "intervals": [
+        0,
+        4,
+        7,
+        10
+      ],
+      "weights": [
+        1.0,
+        0.75,
+        0.55,
+        0.4
+      ],
+      "template_vector_C": [
+        0.7027,
+        0.0,
+        0.0,
+        0.0,
+        0.527,
+        0.0,
+        0.0,
+        0.3865,
+        0.0,
+        0.0,
+        0.2811,
+        0.0
+      ]
+    },
+    "maj7": {
+      "L2_norm_raw": 1.719,
+      "n_notes": 4,
+      "intervals": [
+        0,
+        4,
+        7,
+        11
+      ],
+      "weights": [
+        1.0,
+        0.85,
+        0.65,
+        0.9
+      ],
+      "template_vector_C": [
+        0.5817,
+        0.0,
+        0.0,
+        0.0,
+        0.4945,
+        0.0,
+        0.0,
+        0.3781,
+        0.0,
+        0.0,
+        0.0,
+        0.5236
+      ]
+    },
+    "sus2": {
+      "L2_norm_raw": 1.3657,
+      "n_notes": 3,
+      "intervals": [
+        0,
+        2,
+        7
+      ],
+      "weights": [
+        1.0,
+        0.75,
+        0.55
+      ],
+      "template_vector_C": [
+        0.7323,
+        0.0,
+        0.5492,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.4027,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "sus4": {
+      "L2_norm_raw": 1.3657,
+      "n_notes": 3,
+      "intervals": [
+        0,
+        5,
+        7
+      ],
+      "weights": [
+        1.0,
+        0.75,
+        0.55
+      ],
+      "template_vector_C": [
+        0.7323,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.5492,
+        0.0,
+        0.4027,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "m7": {
+      "L2_norm_raw": 1.6934,
+      "n_notes": 4,
+      "intervals": [
+        0,
+        3,
+        7,
+        10
+      ],
+      "weights": [
+        1.0,
+        0.85,
+        0.65,
+        0.85
+      ],
+      "template_vector_C": [
+        0.5905,
+        0.0,
+        0.0,
+        0.502,
+        0.0,
+        0.0,
+        0.0,
+        0.3839,
+        0.0,
+        0.0,
+        0.502,
+        0.0
+      ]
+    },
+    "dim": {
+      "L2_norm_raw": 1.6186,
+      "n_notes": 3,
+      "intervals": [
+        0,
+        3,
+        6
+      ],
+      "weights": [
+        1.0,
+        0.9,
+        0.9
+      ],
+      "template_vector_C": [
+        0.6178,
+        0.0,
+        0.0,
+        0.556,
+        0.0,
+        0.0,
+        0.556,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "m7b5": {
+      "L2_norm_raw": 1.8042,
+      "n_notes": 4,
+      "intervals": [
+        0,
+        3,
+        6,
+        10
+      ],
+      "weights": [
+        1.0,
+        0.85,
+        0.9,
+        0.85
+      ],
+      "template_vector_C": [
+        0.5543,
+        0.0,
+        0.0,
+        0.4711,
+        0.0,
+        0.0,
+        0.4988,
+        0.0,
+        0.0,
+        0.0,
+        0.4711,
+        0.0
+      ]
+    },
+    "aug": {
+      "L2_norm_raw": 1.5914,
+      "n_notes": 3,
+      "intervals": [
+        0,
+        4,
+        8
+      ],
+      "weights": [
+        1.0,
+        0.85,
+        0.9
+      ],
+      "template_vector_C": [
+        0.6284,
+        0.0,
+        0.0,
+        0.0,
+        0.5341,
+        0.0,
+        0.0,
+        0.0,
+        0.5655,
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "n_notes": {},
+  "pairwise_similarity": {
+    "_vs_m": {
+      "cosine_similarity": 0.6609,
+      "common_intervals": [
+        0,
+        7
+      ]
+    },
+    "_vs_7": {
+      "cosine_similarity": 0.959,
+      "common_intervals": [
+        0,
+        4,
+        7
+      ]
+    },
+    "_vs_maj7": {
+      "cosine_similarity": 0.8515,
+      "common_intervals": [
+        0,
+        4,
+        7
+      ]
+    },
+    "_vs_sus2": {
+      "cosine_similarity": 0.6886,
+      "common_intervals": [
+        0,
+        7
+      ]
+    },
+    "_vs_sus4": {
+      "cosine_similarity": 0.6886,
+      "common_intervals": [
+        0,
+        7
+      ]
+    },
+    "_vs_m7": {
+      "cosine_similarity": 0.5804,
+      "common_intervals": [
+        0,
+        7
+      ]
+    },
+    "_vs_dim": {
+      "cosine_similarity": 0.4369,
+      "common_intervals": [
+        0
+      ]
+    },
+    "_vs_m7b5": {
+      "cosine_similarity": 0.3919,
+      "common_intervals": [
+        0
+      ]
+    },
+    "_vs_aug": {
+      "cosine_similarity": 0.7465,
+      "common_intervals": [
+        0,
+        4
+      ]
+    },
+    "m_vs_7": {
+      "cosine_similarity": 0.6432,
+      "common_intervals": [
+        0,
+        7
+      ]
+    },
+    "m_vs_maj7": {
+      "cosine_similarity": 0.5549,
+      "common_intervals": [
+        0,
+        7
+      ]
+    },
+    "m_vs_sus2": {
+      "cosine_similarity": 0.6702,
+      "common_intervals": [
+        0,
+        7
+      ]
+    },
+    "m_vs_sus4": {
+      "cosine_similarity": 0.6702,
+      "common_intervals": [
+        0,
+        7
+      ]
+    },
+    "m_vs_m7": {
+      "cosine_similarity": 0.8632,
+      "common_intervals": [
+        0,
+        3,
+        7
+      ]
+    },
+    "m_vs_dim": {
+      "cosine_similarity": 0.7663,
+      "common_intervals": [
+        0,
+        3
+      ]
+    },
+    "m_vs_m7b5": {
+      "cosine_similarity": 0.6709,
+      "common_intervals": [
+        0,
+        3
+      ]
+    },
+    "m_vs_aug": {
+      "cosine_similarity": 0.4416,
+      "common_intervals": [
+        0
+      ]
+    },
+    "7_vs_maj7": {
+      "cosine_similarity": 0.8156,
+      "common_intervals": [
+        0,
+        4,
+        7
+      ]
+    },
+    "7_vs_sus2": {
+      "cosine_similarity": 0.6702,
+      "common_intervals": [
+        0,
+        7
+      ]
+    },
+    "7_vs_sus4": {
+      "cosine_similarity": 0.6702,
+      "common_intervals": [
+        0,
+        7
+      ]
+    },
+    "7_vs_m7": {
+      "cosine_similarity": 0.7044,
+      "common_intervals": [
+        0,
+        7,
+        10
+      ]
+    },
+    "7_vs_dim": {
+      "cosine_similarity": 0.4341,
+      "common_intervals": [
+        0
+      ]
+    },
+    "7_vs_m7b5": {
+      "cosine_similarity": 0.5219,
+      "common_intervals": [
+        0,
+        10
+      ]
+    },
+    "7_vs_aug": {
+      "cosine_similarity": 0.7231,
+      "common_intervals": [
+        0,
+        4
+      ]
+    },
+    "maj7_vs_sus2": {
+      "cosine_similarity": 0.5783,
+      "common_intervals": [
+        0,
+        7
+      ]
+    },
+    "maj7_vs_sus4": {
+      "cosine_similarity": 0.5783,
+      "common_intervals": [
+        0,
+        7
+      ]
+    },
+    "maj7_vs_m7": {
+      "cosine_similarity": 0.4887,
+      "common_intervals": [
+        0,
+        7
+      ]
+    },
+    "maj7_vs_dim": {
+      "cosine_similarity": 0.3594,
+      "common_intervals": [
+        0
+      ]
+    },
+    "maj7_vs_m7b5": {
+      "cosine_similarity": 0.3224,
+      "common_intervals": [
+        0
+      ]
+    },
+    "maj7_vs_aug": {
+      "cosine_similarity": 0.6297,
+      "common_intervals": [
+        0,
+        4
+      ]
+    },
+    "sus2_vs_sus4": {
+      "cosine_similarity": 0.6984,
+      "common_intervals": [
+        0,
+        7
+      ]
+    },
+    "sus2_vs_m7": {
+      "cosine_similarity": 0.587,
+      "common_intervals": [
+        0,
+        7
+      ]
+    },
+    "sus2_vs_dim": {
+      "cosine_similarity": 0.4524,
+      "common_intervals": [
+        0
+      ]
+    },
+    "sus2_vs_m7b5": {
+      "cosine_similarity": 0.4059,
+      "common_intervals": [
+        0
+      ]
+    },
+    "sus2_vs_aug": {
+      "cosine_similarity": 0.4601,
+      "common_intervals": [
+        0
+      ]
+    },
+    "sus4_vs_m7": {
+      "cosine_similarity": 0.587,
+      "common_intervals": [
+        0,
+        7
+      ]
+    },
+    "sus4_vs_dim": {
+      "cosine_similarity": 0.4524,
+      "common_intervals": [
+        0
+      ]
+    },
+    "sus4_vs_m7b5": {
+      "cosine_similarity": 0.4059,
+      "common_intervals": [
+        0
+      ]
+    },
+    "sus4_vs_aug": {
+      "cosine_similarity": 0.4601,
+      "common_intervals": [
+        0
+      ]
+    },
+    "m7_vs_dim": {
+      "cosine_similarity": 0.6439,
+      "common_intervals": [
+        0,
+        3
+      ]
+    },
+    "m7_vs_m7b5": {
+      "cosine_similarity": 0.8003,
+      "common_intervals": [
+        0,
+        3,
+        10
+      ]
+    },
+    "m7_vs_aug": {
+      "cosine_similarity": 0.3711,
+      "common_intervals": [
+        0
+      ]
+    },
+    "dim_vs_m7b5": {
+      "cosine_similarity": 0.8818,
+      "common_intervals": [
+        0,
+        3,
+        6
+      ]
+    },
+    "dim_vs_aug": {
+      "cosine_similarity": 0.3882,
+      "common_intervals": [
+        0
+      ]
+    },
+    "m7b5_vs_aug": {
+      "cosine_similarity": 0.3483,
+      "common_intervals": [
+        0
+      ]
+    }
+  },
+  "theoretical_scores": {
+    "": {
+      "": 1.0,
+      "m": 0.6609,
+      "7": 0.959,
+      "maj7": 0.8515,
+      "sus2": 0.6886,
+      "sus4": 0.6886,
+      "m7": 0.5804,
+      "dim": 0.4369,
+      "m7b5": 0.3919,
+      "aug": 0.7465
+    },
+    "m": {
+      "": 0.6609,
+      "m": 1.0,
+      "7": 0.6432,
+      "maj7": 0.5549,
+      "sus2": 0.6702,
+      "sus4": 0.6702,
+      "m7": 0.8632,
+      "dim": 0.7663,
+      "m7b5": 0.6709,
+      "aug": 0.4416
+    },
+    "7": {
+      "": 0.959,
+      "m": 0.6432,
+      "7": 1.0,
+      "maj7": 0.8156,
+      "sus2": 0.6702,
+      "sus4": 0.6702,
+      "m7": 0.7044,
+      "dim": 0.4341,
+      "m7b5": 0.5219,
+      "aug": 0.7231
+    },
+    "maj7": {
+      "": 0.8515,
+      "m": 0.5549,
+      "7": 0.8156,
+      "maj7": 1.0,
+      "sus2": 0.5783,
+      "sus4": 0.5783,
+      "m7": 0.4887,
+      "dim": 0.3594,
+      "m7b5": 0.3224,
+      "aug": 0.6297
+    },
+    "sus2": {
+      "": 0.6886,
+      "m": 0.6702,
+      "7": 0.6702,
+      "maj7": 0.5783,
+      "sus2": 1.0,
+      "sus4": 0.6984,
+      "m7": 0.587,
+      "dim": 0.4524,
+      "m7b5": 0.4059,
+      "aug": 0.4601
+    },
+    "sus4": {
+      "": 0.6886,
+      "m": 0.6702,
+      "7": 0.6702,
+      "maj7": 0.5783,
+      "sus2": 0.6984,
+      "sus4": 1.0,
+      "m7": 0.587,
+      "dim": 0.4524,
+      "m7b5": 0.4059,
+      "aug": 0.4601
+    },
+    "m7": {
+      "": 0.5804,
+      "m": 0.8632,
+      "7": 0.7044,
+      "maj7": 0.4887,
+      "sus2": 0.587,
+      "sus4": 0.587,
+      "m7": 1.0,
+      "dim": 0.6439,
+      "m7b5": 0.8003,
+      "aug": 0.3711
+    },
+    "dim": {
+      "": 0.4369,
+      "m": 0.7663,
+      "7": 0.4341,
+      "maj7": 0.3594,
+      "sus2": 0.4524,
+      "sus4": 0.4524,
+      "m7": 0.6439,
+      "dim": 1.0,
+      "m7b5": 0.8818,
+      "aug": 0.3882
+    },
+    "m7b5": {
+      "": 0.3919,
+      "m": 0.6709,
+      "7": 0.5219,
+      "maj7": 0.3224,
+      "sus2": 0.4059,
+      "sus4": 0.4059,
+      "m7": 0.8003,
+      "dim": 0.8818,
+      "m7b5": 1.0,
+      "aug": 0.3483
+    },
+    "aug": {
+      "": 0.7465,
+      "m": 0.4416,
+      "7": 0.7231,
+      "maj7": 0.6297,
+      "sus2": 0.4601,
+      "sus4": 0.4601,
+      "m7": 0.3711,
+      "dim": 0.3882,
+      "m7b5": 0.3483,
+      "aug": 1.0
+    }
+  }
+}
