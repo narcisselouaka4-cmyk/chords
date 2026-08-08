@@ -361,6 +361,20 @@ DISCRIMINATOR_PAIRS = [
     ('m7b5', 'dim', None, 10), # 7e mineure → départager m7b5/dim
 ]
 
+# [OpenCode] — 2026-07-10 — Discrimination de tierce (LOT 7).
+# Les familles possèdent une caractéristique réelle de tierce : la (b3) pour
+# le mineur, la (3M) pour le majeur/dominant. La similarité cosinus ne pénalise
+# pas l'absence d'une note ; un template "7" (3M + b7) peut donc gagner sur un
+# vrai m7 via la b7 partagée alors que sa 3M n'est pas jouée.
+# On ajoute un bonus aux familles dont la tierce caractéristique ressort du
+# chroma (b3 > 3M → renforcer m/m7/dim ; 3M > b3 → renforcer maj/7/aug).
+# Ce bonus est purement basé sur le contenu acoustique (jamais sur la tonalité
+# ni le degré) : les sus2/sus4 (sans tierce) restent neutralères et les vraies
+# dominantes (3M réellement jouée) conservent leur supériorité.
+THIRD_EVIDENCE_WEIGHT = 0.12
+_MINOR_THIRD_SUFFIXES = frozenset({'m', 'm7', 'm7b5', 'dim'})
+_MAJOR_THIRD_SUFFIXES = frozenset({'', '7', 'maj7', 'aug'})
+
 ADVANCED_SUFFIXES = {'7', 'maj7', 'sus2', 'sus4', 'm7'}
 # [OpenCode] — 2026-07-10 — Template simple cohérent avec la famille harmonique.
 SIMPLE_TRIAD_FOR_SUFFIX = {
@@ -783,6 +797,17 @@ def _compute_observation_scores(beat_chroma, states, key, frame_energies):
             else:
                 sim = float(np.dot(frame / norm, template))
             sim = max(0.0, min(1.0, sim))
+
+            # LOT 7 — Discrimination de tierce (contenu acoustique uniquement).
+            # Compare l'énergie de la tierce mineure vs majeure pour la racine
+            # de cet état et renforce la famille dont la caractéristique ressort.
+            # Sus2/sus4 (sans tierce) et 'N' ne sont pas affectés.
+            if state['root'] is not None and state['suffix'] != 'N':
+                third_diff = frame[(state['root'] + 3) % 12] - frame[(state['root'] + 4) % 12]
+                if state['suffix'] in _MINOR_THIRD_SUFFIXES and third_diff > 0:
+                    sim = min(1.0, sim + THIRD_EVIDENCE_WEIGHT * third_diff)
+                elif state['suffix'] in _MAJOR_THIRD_SUFFIXES and third_diff < 0:
+                    sim = min(1.0, sim - THIRD_EVIDENCE_WEIGHT * third_diff)
 
             # Biais tonal doux : bonus sur la fondamentale seule, sans pénalité.
             if state['root'] is not None and state['root'] in diatonic_roots:
