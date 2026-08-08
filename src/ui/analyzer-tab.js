@@ -30,6 +30,7 @@ import {
   getEffectiveChord,
   formatEffectiveChord,
   deriveChordDisplay,
+  parseChordSymbol,
 } from '../chord-engine/chord-display.js';
 import {
   buildProjectPath,
@@ -65,9 +66,51 @@ let chordEditor = null;
 const els = {
   importScreen: document.getElementById('analyzer-import-screen'),
   importBtn: document.getElementById('analyzer-import-btn'),
+  importAudioBtn: document.getElementById('analyzer-import-audio-btn'),
+  importVideoBtn: document.getElementById('analyzer-import-video-btn'),
+  importMidiBtn: document.getElementById('analyzer-import-midi-btn'),
   libraryList: document.getElementById('analyzer-library-list'),
   results: document.getElementById('analyzer-results'),
   backBtn: document.getElementById('analyzer-back-btn'),
+  backToImportBtn: document.getElementById('analyzer-back-to-import-btn'),
+
+  // États du workspace (maquettes)
+  statePrepare: document.getElementById('analyzer-state-prepare'),
+  stateVideoType: document.getElementById('analyzer-state-video-type'),
+  stateMidiRecord: document.getElementById('analyzer-state-midi-record'),
+  stateResults: document.getElementById('analyzer-state-results'),
+  sidebar: document.getElementById('analyzer-sidebar'),
+  flowImport: document.getElementById('analyzer-flow-import'),
+  flowDetect: document.getElementById('analyzer-flow-detect'),
+  flowLaunch: document.getElementById('analyzer-flow-launch'),
+
+  // Préparation audio
+  prepareFileName: document.getElementById('analyzer-prepare-file-name'),
+  prepareFileMeta: document.getElementById('analyzer-prepare-file-meta'),
+  prepareWaveform: document.getElementById('analyzer-prepare-waveform'),
+  prepareRemove: document.getElementById('analyzer-prepare-file-remove'),
+  launchAnalysisBtn: document.getElementById('analyzer-launch-analysis-btn'),
+
+  // Type vidéo
+  videoTypeCards: document.querySelectorAll('#analyzer-state-video-type .analyzer-video-card'),
+  confirmVideoTypeBtn: document.getElementById('analyzer-confirm-video-type'),
+
+  // Enregistrement MIDI
+  midiSourceName: document.getElementById('analyzer-midi-source-name'),
+  midiRecordBtn: document.getElementById('analyzer-midi-record-btn'),
+  midiPauseBtn: document.getElementById('analyzer-midi-pause-btn'),
+  midiStopBtn: document.getElementById('analyzer-midi-stop-btn'),
+  midiTimer: document.getElementById('analyzer-midi-timer'),
+  topNotesList: document.getElementById('analyzer-topnotes-list'),
+
+  // Résultats réharmonisation
+  resultKey: document.getElementById('analyzer-result-key'),
+  resultStyle: document.getElementById('analyzer-result-style'),
+  resultSource: document.getElementById('analyzer-result-source'),
+  resultDuration: document.getElementById('analyzer-result-duration'),
+  reharmGrid: document.getElementById('analyzer-reharm-grid'),
+  summaryKey: document.getElementById('analyzer-summary-key'),
+  summaryAnalysis: document.getElementById('analyzer-summary-analysis'),
 
   songTitle: document.getElementById('analyzer-song-title'),
   songArtist: document.getElementById('analyzer-song-artist'),
@@ -99,12 +142,19 @@ const els = {
   exportJsonBtn: document.getElementById('analyzer-export-json-btn'),
   copyTextBtn: document.getElementById('analyzer-copy-text-btn'),
   statsContent: document.getElementById('analyzer-stats-content'),
+  overviewContent: document.getElementById('analyzer-overview-content'),
 
-  // Hero chord (sous la timeline)
+  // Hero chord + inspecteur
   hero: document.getElementById('analyzer-hero'),
   heroName: document.getElementById('analyzer-hero-name'),
   heroNotes: document.getElementById('analyzer-hero-notes'),
   heroKeyboard: document.getElementById('analyzer-hero-keyboard'),
+  inspectorEmpty: document.getElementById('analyzer-inspector-empty'),
+  inspectorContent: document.getElementById('analyzer-inspector-content'),
+  inspectorChord: document.getElementById('analyzer-inspector-chord'),
+  inspectorTimes: document.getElementById('analyzer-inspector-times'),
+  inspectorDetails: document.getElementById('analyzer-inspector-details'),
+  inspectorEditBtn: document.getElementById('analyzer-inspector-edit-btn'),
 
   processing: document.getElementById('analyzer-processing'),
   processingText: document.getElementById('analyzer-processing-text'),
@@ -121,10 +171,13 @@ let currentPlayer = null;
 let currentAnalysis = null;
 let currentFileName = '';
 let currentAudioPath = '';
+let currentSourceType = null; // 'audio' | 'video' | 'midi'
+let currentVideoType = null; // 'tutorial' | 'cover' | 'song' | 'demo'
 let isDraggingProgress = false;
 let lastAutoScrollIndex = -1;
 let lastRenderedVoicingChord = null;
 let lastRenderedVoicingStyle = null;
+let selectedSegmentId = null; // segmentId sélectionné dans la timeline
 
 // Phase B : persistance
 let projectDirty = false;
@@ -156,6 +209,94 @@ export function initAnalyzerTab() {
     play: () => currentPlayer?.play(),
     pause: () => currentPlayer?.pause(),
     isPlaying: () => !!(currentPlayer && !currentPlayer.element?.paused),
+  });
+
+  initWorkspaceStates();
+}
+
+// [Claude] — 2026-08-08 — Gestion des états du workspace Analyse.
+function setAnalyzerState(state) {
+  const states = ['import', 'prepare', 'video-type', 'midi-record', 'results', 'analysis'];
+  if (!states.includes(state)) return;
+
+  // Réinitialiser tous les états
+  els.importScreen?.classList.remove('active');
+  els.statePrepare?.classList.remove('active');
+  els.stateVideoType?.classList.remove('active');
+  els.stateMidiRecord?.classList.remove('active');
+  els.stateResults?.classList.remove('active');
+  els.results?.classList.remove('active');
+
+  // Flux d'analyse
+  els.flowImport?.classList.toggle('active', state === 'import');
+  els.flowDetect?.classList.toggle('active', ['prepare', 'video-type', 'midi-record'].includes(state));
+  els.flowLaunch?.classList.toggle('active', state === 'analysis');
+
+  switch (state) {
+    case 'import':
+      els.importScreen?.classList.add('active');
+      break;
+    case 'prepare':
+      els.statePrepare?.classList.add('active');
+      break;
+    case 'video-type':
+      els.stateVideoType?.classList.add('active');
+      break;
+    case 'midi-record':
+      els.stateMidiRecord?.classList.add('active');
+      break;
+    case 'results':
+      els.stateResults?.classList.add('active');
+      break;
+    case 'analysis':
+      els.results?.classList.add('active');
+      break;
+  }
+}
+
+function initWorkspaceStates() {
+  // Par défaut, l'écran d'import est visible (CSS active + setAnalyzerState au cas où)
+  setAnalyzerState('import');
+
+  // Boutons de l'écran d'accueil
+  els.importAudioBtn?.addEventListener('click', () => handleImportClick('audio'));
+  els.importVideoBtn?.addEventListener('click', () => handleImportClick('video'));
+  els.importMidiBtn?.addEventListener('click', () => setAnalyzerState('midi-record'));
+  els.importBtn?.addEventListener('click', () => handleImportClick('audio'));
+
+  // Préparation audio
+  els.prepareRemove?.addEventListener('click', () => showImportScreen());
+  els.launchAnalysisBtn?.addEventListener('click', () => {
+    if (currentSourceType === 'video' && !currentVideoType) {
+      setAnalyzerState('video-type');
+    } else {
+      launchAnalysisFromPrepare();
+    }
+  });
+
+  // Type vidéo
+  els.videoTypeCards?.forEach((card) => {
+    card.addEventListener('click', () => {
+      els.videoTypeCards.forEach((c) => c.classList.remove('selected'));
+      card.classList.add('selected');
+      currentVideoType = card.dataset.videoType;
+      if (els.confirmVideoTypeBtn) els.confirmVideoTypeBtn.disabled = false;
+    });
+  });
+  els.confirmVideoTypeBtn?.addEventListener('click', () => {
+    if (!currentVideoType) return;
+    launchAnalysisFromPrepare();
+  });
+
+  // Retour à l'import
+  els.backBtn?.addEventListener('click', showImportScreen);
+  els.backToImportBtn?.addEventListener('click', showImportScreen);
+
+  // Inspecteur
+  els.inspectorEditBtn?.addEventListener('click', () => {
+    if (!selectedSegmentId || !currentAnalysis) return;
+    const index = currentAnalysis.chords.findIndex((s) => s.segmentId === selectedSegmentId);
+    if (index >= 0) openChordEditor(index);
   });
 }
 
@@ -227,7 +368,7 @@ async function analyzeLibraryTrack(track) {
   }
 }
 
-async function handleImportClick() {
+async function handleImportClick(sourceType = 'audio') {
   try {
     const filePath = await selectMediaFile();
     if (!filePath) return;
@@ -239,19 +380,67 @@ async function handleImportClick() {
 
     currentAudioPath = filePath;
     currentFileName = filePath.split('/').pop() || filePath.split('\\').pop() || filePath;
-    showProcessing('Extraction audio en cours…');
+    currentSourceType = sourceType;
 
-    const analysis = await analyzer.analyze(filePath);
+    // Détection automatique audio vs vidéo par extension si l'utilisateur a
+    // cliqué sur Audio générique.
+    const ext = (filePath.split('.').pop() || '').toLowerCase();
+    if (sourceType === 'audio' && ['mp4', 'm4v', 'mov', 'webm'].includes(ext)) {
+      currentSourceType = 'video';
+    }
+
+    showPrepareScreen();
+  } catch (err) {
+    console.error('[Analyzer] import failed:', err);
+    hideProcessing();
+    alert(`Erreur d'import : ${err.message}`);
+  }
+}
+
+function showPrepareScreen() {
+  selectedSegmentId = null;
+  setAnalyzerState('prepare');
+
+  // Remplir la carte fichier avec les vraies métadonnées disponibles.
+  if (els.prepareFileName) els.prepareFileName.textContent = currentFileName || '—';
+  const ext = (currentAudioPath.split('.').pop() || '').toUpperCase();
+  const metaParts = [];
+  if (ext) metaParts.push(ext);
+  if (currentAnalysis?.duration) metaParts.push(formatTime(currentAnalysis.duration));
+  if (els.prepareFileMeta) els.prepareFileMeta.textContent = metaParts.join(' · ') || '—';
+
+  // La waveform n'est pas encore extraite ici : message honnête.
+  if (els.prepareWaveform) {
+    els.prepareWaveform.innerHTML = `<span class="analyzer-waveform-hint">Waveform disponible après lancement de l'analyse</span>`;
+  }
+
+  // Vidéo : activer l'étape type.
+  if (currentSourceType === 'video') {
+    currentVideoType = null;
+    if (els.videoTypeCards) {
+      els.videoTypeCards.forEach((c) => c.classList.remove('selected'));
+    }
+    if (els.confirmVideoTypeBtn) els.confirmVideoTypeBtn.disabled = true;
+  }
+}
+
+async function launchAnalysisFromPrepare() {
+  if (!currentAudioPath) return;
+  showProcessing('Extraction audio en cours…');
+  try {
+    const analysis = await analyzer.analyze(currentAudioPath);
     currentAnalysis = analysis;
-
+    // Enregistrer le type vidéo dans l'analyse si pertinent.
+    if (currentSourceType === 'video' && currentVideoType) {
+      analysis.videoType = currentVideoType;
+    }
     showResults(analysis);
-
-    // Ajouter à la bibliothèque en arrière-plan (ne bloque pas l'analyse).
-    importToLibrary(filePath).then(() => refreshLibraryList()).catch((e) => {
+    // Ajouter à la bibliothèque en arrière-plan.
+    importToLibrary(currentAudioPath).then(() => refreshLibraryList()).catch((e) => {
       console.warn('[Analyzer] library import failed:', e);
     });
   } catch (err) {
-    console.error('[Analyzer] import failed:', err);
+    console.error('[Analyzer] analysis failed:', err);
     hideProcessing();
     alert(`Erreur d'analyse : ${err.message}`);
   }
@@ -268,9 +457,10 @@ function hideProcessing() {
 
 async function showResults(analysis) {
   hideProcessing();
-  els.importScreen.style.display = 'none';
-  els.results.style.display = 'flex';
+  setAnalyzerState('analysis');
   currentAnalysis = analysis;
+  selectedSegmentId = null;
+  clearInspector();
   // Lot B — contexte fichier explicite : « Fichier analysé : <nom> ».
   updateAnalyzerFileContext(currentFileName);
   enrichSegments(analysis.chords);
@@ -308,6 +498,8 @@ async function showResults(analysis) {
   renderTimeline(analysis.chords || [], analysis.duration || 0);
   updatePlayButton();
   renderStats(analysis);
+  renderOverview(analysis);
+  renderResultsSidebar(analysis);
 }
 
 function renderHeader(analysis) {
@@ -332,23 +524,23 @@ function showImportScreen() {
   currentAnalysis = null;
   currentFileName = '';
   currentAudioPath = '';
+  currentSourceType = null;
+  currentVideoType = null;
+  selectedSegmentId = null;
+  clearInspector();
   resetProjectState();
   resetUndoRedo();
   chordEditor?.close();
-  els.results.style.display = 'none';
-  els.importScreen.style.display = 'flex';
+  setAnalyzerState('import');
   refreshLibraryList();
   lastRenderedVoicingChord = null;
   lastRenderedVoicingStyle = null;
   els.chordTimelineInner.innerHTML = '';
   if (els.hero) els.hero.style.display = 'none';
   clearVoicingTextPreview();
+  if (els.overviewContent) els.overviewContent.innerHTML = '';
   els.stemBadge.textContent = '';
   els.stemBadge.classList.remove('visible');
-  const bassTimeline = document.getElementById('analyzer-bass-timeline-wrapper');
-  if (bassTimeline) bassTimeline.remove();
-  const bassDevInfo = document.getElementById('analyzer-bass-dev-info');
-  if (bassDevInfo) bassDevInfo.remove();
   // Lot B — retour à l’état vide explicite quand aucun fichier n’est analysé.
   updateAnalyzerFileContext('');
 }
@@ -561,13 +753,26 @@ function renderTimeline(chords, duration) {
   els.chordTimelineInner.style.width = `${totalWidth}px`;
 
   if (chords.length === 0) {
-    els.chordTimelineInner.innerHTML = '<span class="text-sm text-(--text-dim)">Aucun accord détecté.</span>';
+    els.chordTimelineInner.innerHTML = '<span class="analyzer-timeline-empty">Aucun accord détecté.</span>';
     return;
   }
 
+  const fmt = (s) => {
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${String(sec).padStart(2, '0')}`;
+  };
+
   chords.forEach((chord, index) => {
+    const effectiveChordStr = getEffectiveChord(chord);
+    const originalDetected = chord.chord;
+    const isOverridden = chord.manualOverride != null;
+
+    const left = chord.startTime * pps + index * BLOCK_GAP;
+    const timeWidth = Math.max((chord.endTime - chord.startTime) * pps - BLOCK_GAP, 0);
+
     const block = document.createElement('button');
-    block.className = 'absolute inset-y-2 flex items-center justify-center bg-(--surface-secondary) border border-(--border) rounded-md text-(--text) font-bold text-lg cursor-pointer hover:bg-(--border) hover:border-sky-500 transition-all overflow-hidden';
+    block.className = 'analyzer-timeline-block';
     block.type = 'button';
     block.setAttribute('tabindex', '0');
     block.setAttribute('role', 'button');
@@ -575,21 +780,8 @@ function renderTimeline(chords, duration) {
     block.dataset.index = String(index);
     block.dataset.start = String(chord.startTime);
     block.dataset.segmentId = chord.segmentId || '';
-
-    const left = chord.startTime * pps + index * BLOCK_GAP;
-    const timeWidth = Math.max((chord.endTime - chord.startTime) * pps - BLOCK_GAP, 0);
     block.style.left = `${left}px`;
     block.style.width = `${timeWidth}px`;
-
-    const fmt = (s) => {
-      const m = Math.floor(s / 60);
-      const sec = Math.floor(s % 60);
-      return `${m}:${String(sec).padStart(2, '0')}`;
-    };
-
-    const effectiveChordStr = getEffectiveChord(chord);
-    const originalDetected = chord.chord;
-    const isOverridden = chord.manualOverride != null;
 
     if (isOverridden) {
       block.title = `Corrigé manuellement — ${originalDetected} → ${effectiveChordStr}  ${fmt(chord.startTime)} → ${fmt(chord.endTime)}  (${(chord.endTime - chord.startTime).toFixed(1)}s)`;
@@ -597,29 +789,22 @@ function renderTimeline(chords, duration) {
       block.title = `${effectiveChordStr}  ${fmt(chord.startTime)} → ${fmt(chord.endTime)}  (${(chord.endTime - chord.startTime).toFixed(1)}s)`;
     }
 
-    const fontSize = effectiveChordStr.length >= 7 ? 'text-base' : 'text-lg';
-    block.classList.add(fontSize);
-
-    // Bloc très étroit : pas de texte, simple marqueur visuel
-    if (timeWidth < 24) {
-      block.classList.add('timeline-block-micro');
+    if (timeWidth < 32) {
+      block.classList.add('micro');
     }
-
     if (isOverridden) {
       block.classList.add('manual-override');
     }
 
     block.innerHTML = `
-      <span class="truncate max-w-full px-2 font-bold">${escapeHtml(effectiveChordStr)}</span>
-      ${isOverridden ? '<span class="manual-override-icon" title="Corrigé manuellement">✏</span>' : ''}
-      <span class="timeline-edit-hint" aria-hidden="true">✎</span>
+      <span class="truncate max-w-full px-2 font-bold" style="font-size: ${effectiveChordStr.length >= 7 ? '0.85rem' : '1rem'}">${escapeHtml(effectiveChordStr)}</span>
+      ${isOverridden ? '<span class="override-icon" title="Corrigé manuellement">✏</span>' : ''}
     `;
 
+    // Clic simple : sélection + mise à jour de l'inspecteur.
+    // Double-clic : édition.
     block.addEventListener('click', () => {
-      if (currentPlayer) {
-        currentPlayer.seek(chord.startTime);
-        currentPlayer.play();
-      }
+      selectSegment(chord.segmentId);
       block.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
     });
     block.addEventListener('keydown', (e) => {
@@ -630,16 +815,75 @@ function renderTimeline(chords, duration) {
     });
     block.addEventListener('dblclick', (e) => {
       e.stopPropagation();
+      selectSegment(chord.segmentId);
       openChordEditor(index);
     });
     block.addEventListener('pointerdown', (e) => e.stopPropagation());
     els.chordTimelineInner.appendChild(block);
   });
 
-  // Restaurer la sélection active
-  updatePlaybackPosition(
-    currentPlayer?.element?.currentTime ?? 0
-  );
+  // Restaurer la sélection et l’accord courant
+  updatePlaybackPosition(currentPlayer?.element?.currentTime ?? 0);
+  if (selectedSegmentId) highlightSelectedSegment(selectedSegmentId);
+}
+
+function selectSegment(segmentId) {
+  selectedSegmentId = segmentId;
+  highlightSelectedSegment(segmentId);
+  const segment = currentAnalysis?.chords?.find((s) => s.segmentId === segmentId) || null;
+  renderInspector(segment);
+}
+
+function highlightSelectedSegment(segmentId) {
+  const blocks = els.chordTimelineInner?.querySelectorAll('.analyzer-timeline-block');
+  if (!blocks) return;
+  blocks.forEach((block) => {
+    const isSelected = block.dataset.segmentId === segmentId;
+    block.classList.toggle('selected', isSelected);
+  });
+}
+
+function clearInspector() {
+  if (!els.inspectorEmpty || !els.inspectorContent) return;
+  els.inspectorEmpty.style.display = '';
+  els.inspectorContent.style.display = 'none';
+}
+
+function renderInspector(segment) {
+  if (!segment) {
+    clearInspector();
+    return;
+  }
+  const effective = getEffectiveChord(segment);
+  const display = deriveChordDisplay(effective);
+  const detected = parseChordSymbol(segment.chord);
+
+  if (els.inspectorEmpty) els.inspectorEmpty.style.display = 'none';
+  if (els.inspectorContent) els.inspectorContent.style.display = '';
+  if (els.inspectorChord) els.inspectorChord.textContent = effective;
+  if (els.inspectorTimes) {
+    els.inspectorTimes.textContent = `${formatTime(segment.startTime)} – ${formatTime(segment.endTime)}`;
+  }
+
+  const rows = [];
+  rows.push(['Fondamentale', NOTE_NAMES[display.rootPc] || '—']);
+  rows.push(['Qualité', display.quality || 'majeur']);
+  rows.push(['Basse', display.bassName || NOTE_NAMES[display.rootPc] || '—']);
+  rows.push(['Notes', display.allNames.join(' · ') || '—']);
+  if (segment.degree) rows.push(['Degré', segment.degree]);
+  if (typeof segment.confidence === 'number') {
+    rows.push(['Confiance', `${(segment.confidence * 100).toFixed(0)}%`]);
+  }
+  rows.push(['Origine', segment.manualOverride ? 'Corrigé manuellement' : 'Détecté automatiquement']);
+
+  if (els.inspectorDetails) {
+    els.inspectorDetails.innerHTML = rows
+      .map(([label, value]) => `
+        <span class="label">${escapeHtml(label)}</span>
+        <span class="value">${escapeHtml(value)}</span>
+      `)
+      .join('');
+  }
 }
 
 function renderHeroChord(chord) {
@@ -701,15 +945,9 @@ function updatePlaybackPosition(currentTime) {
     }
   }
 
-  const blocks = els.chordTimelineInner.querySelectorAll('.analyzer-timeline-block, button[data-index]');
+  const blocks = els.chordTimelineInner.querySelectorAll('.analyzer-timeline-block');
   blocks.forEach((block, idx) => {
-    if (idx === activeIndex) {
-      block.classList.add('!bg-sky-600', '!border-sky-400', '!text-white', 'shadow-lg', 'shadow-sky-500/20', 'scale-105', 'z-10');
-      block.classList.remove('bg-(--surface-secondary)', 'border-(--border)', 'text-(--text)');
-    } else {
-      block.classList.remove('!bg-sky-600', '!border-sky-400', '!text-white', 'shadow-lg', 'shadow-sky-500/20', 'scale-105', 'z-10');
-      block.classList.add('bg-(--surface-secondary)', 'border-(--border)', 'text-(--text)');
-    }
+    block.classList.toggle('current', idx === activeIndex);
   });
 
   // Hero chord
@@ -914,21 +1152,15 @@ function bindSectionTabs() {
   els.sectionTabs.forEach((tab) => {
     tab.addEventListener('click', () => {
       els.sectionTabs.forEach((t) => {
-        t.classList.remove('text-sky-400', 'border-b-2', 'border-sky-400');
-        t.classList.add('text-(--text-dim)', 'hover:text-(--text)');
+        t.classList.remove('active');
         t.setAttribute('aria-selected', 'false');
       });
-      tab.classList.remove('text-(--text-dim)', 'hover:text-(--text)');
-      tab.classList.add('text-sky-400', 'border-b-2', 'border-sky-400');
+      tab.classList.add('active');
       tab.setAttribute('aria-selected', 'true');
 
       const section = tab.dataset.section;
       els.sectionPanels.forEach((panel) => {
-        if (panel.dataset.section === section) {
-          panel.style.display = '';
-        } else {
-          panel.style.display = 'none';
-        }
+        panel.style.display = panel.dataset.section === section ? '' : 'none';
       });
     });
   });
@@ -1184,6 +1416,161 @@ function renderStats(analysis) {
       </div>
     </div>
   `;
+}
+
+// [Claude] — 2026-08-08 — Vue d'ensemble scrollable (LOT 4).
+// Remplit #analyzer-overview-content avec les blocs : score, pattern, basse,
+// réharmonisation, statistiques, export.
+function renderOverview(analysis) {
+  if (!els.overviewContent) return;
+  const stats = computeProductStatistics(analysis);
+  const chords = analysis.chords || [];
+  const duration = analysis.duration || 0;
+
+  // Score analyse
+  const scoreItems = [
+    { label: 'Tonalité', value: analysis.key ? `${analysis.key} ${analysis.keyMode || 'majeur'}` : '—' },
+    { label: 'Confiance tonalité', value: analysis.keyConfidence ? `${(analysis.keyConfidence * 100).toFixed(0)}%` : '—' },
+    { label: 'Tempo', value: analysis.tempo ? `${Math.round(analysis.tempo)} BPM` : '—' },
+    { label: 'Durée', value: formatTime(duration) },
+    { label: 'Segments', value: String(stats.totalSegments) },
+    { label: 'Confiance moyenne', value: analysis.confidence ? `${(analysis.confidence * 100).toFixed(0)}%` : '—' },
+  ];
+
+  // Pattern harmonique : progression simplifiée
+  const progression = chords
+    .map((c) => getEffectiveChord(c))
+    .filter((s, i, arr) => i === 0 || s !== arr[i - 1])
+    .slice(0, 32);
+
+  // Ligne de basse : fondamentale de chaque accord
+  const bassNotes = chords
+    .map((c) => {
+      const eff = getEffectiveChord(c);
+      const display = deriveChordDisplay(eff);
+      return display.bassName || NOTE_NAMES[display.rootPc] || '?';
+    })
+    .filter((n, i, arr) => i === 0 || n !== arr[i - 1])
+    .slice(0, 32);
+
+  // Qualités
+  const qualityRows = Object.entries(stats.qualityCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([q, count]) => `<div class="flex justify-between text-xs"><span>${q || 'majeur'}</span><span>${count}</span></div>`)
+    .join('') || '<div class="text-xs text-(--text-dim)">Aucune</div>';
+
+  // Accords les plus utilisés
+  const topRows = stats.mostUsedChords
+    .map(({ symbol, count }) => `<div class="flex justify-between text-xs"><span>${escapeHtml(symbol)}</span><span>${count}</span></div>`)
+    .join('') || '<div class="text-xs text-(--text-dim)">Aucun</div>';
+
+  els.overviewContent.innerHTML = `
+    <div class="analyzer-overview-block">
+      <h3>Score analyse</h3>
+      <div class="analyzer-overview-grid">
+        ${scoreItems.map(({ label, value }) => `
+          <div class="analyzer-overview-metric">
+            <div class="value">${escapeHtml(value)}</div>
+            <div class="label">${escapeHtml(label)}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    <div class="analyzer-overview-block">
+      <h3>Pattern harmonique</h3>
+      <div class="analyzer-bass-line">
+        ${progression.length > 0
+          ? progression.map((s) => `<span class="note-pill">${escapeHtml(s)}</span>`).join(' ')
+          : '<span class="text-xs text-(--text-dim)">Aucun accord détecté.</span>'}
+      </div>
+    </div>
+
+    <div class="analyzer-overview-block">
+      <h3>Ligne de basse</h3>
+      <div class="analyzer-bass-line">
+        ${bassNotes.length > 0
+          ? bassNotes.map((n) => `<span class="note-pill">${escapeHtml(n)}</span>`).join(' → ')
+          : '<span class="text-xs text-(--text-dim)">Non disponible.</span>'}
+      </div>
+    </div>
+
+    <div class="analyzer-overview-block">
+      <h3>Réharmonisation</h3>
+      <p class="text-xs text-(--text-dim) mb-2">Lancez la démonstration du moteur de réharmonisation dans l'onglet <strong>Outils</strong> pour explorer des variantes.</p>
+      <button type="button" class="btn-secondary btn-sm" id="analyzer-overview-reharm-btn">Ouvrir les outils de réharmonisation</button>
+    </div>
+
+    <div class="analyzer-overview-block">
+      <h3>Statistiques</h3>
+      <div class="analyzer-overview-grid">
+        <div class="analyzer-overview-metric">
+          <div class="value">${stats.totalSegments}</div>
+          <div class="label">Segments</div>
+        </div>
+        <div class="analyzer-overview-metric">
+          <div class="value">${formatTime(stats.totalDuration)}</div>
+          <div class="label">Durée totale</div>
+        </div>
+        <div class="analyzer-overview-metric">
+          <div class="value">${stats.manuallyEditedCount}</div>
+          <div class="label">Corrections</div>
+        </div>
+        <div class="analyzer-overview-metric">
+          <div class="value">${stats.slashChordCount}</div>
+          <div class="label">Slash chords</div>
+        </div>
+      </div>
+      <div class="mt-3">
+        <div class="text-xs font-semibold text-(--text-dim) uppercase mb-1">Qualités</div>
+        ${qualityRows}
+      </div>
+      <div class="mt-2">
+        <div class="text-xs font-semibold text-(--text-dim) uppercase mb-1">Accords les plus utilisés</div>
+        ${topRows}
+      </div>
+    </div>
+
+    <div class="analyzer-overview-block">
+      <h3>Export</h3>
+      <div class="flex flex-wrap gap-2">
+        <button type="button" class="btn-secondary btn-sm" id="analyzer-overview-export-midi">Exporter en MIDI</button>
+        <button type="button" class="btn-secondary btn-sm" id="analyzer-overview-export-json">Exporter en JSON</button>
+        <button type="button" class="btn-secondary btn-sm" id="analyzer-overview-copy-text">Copier la grille texte</button>
+      </div>
+      <p class="text-xs text-(--text-dim) mt-2">MIDI, JSON et texte reflètent les corrections manuelles. JSON conserve aussi la détection originale.</p>
+    </div>
+  `;
+
+  // Brancher les boutons d'export de la vue d'ensemble
+  const overviewExportMidi = document.getElementById('analyzer-overview-export-midi');
+  const overviewExportJson = document.getElementById('analyzer-overview-export-json');
+  const overviewCopyText = document.getElementById('analyzer-overview-copy-text');
+  const overviewReharmBtn = document.getElementById('analyzer-overview-reharm-btn');
+
+  if (overviewExportMidi) overviewExportMidi.addEventListener('click', () => exportAnalysisToMidi(analysis, currentFileName));
+  if (overviewExportJson) overviewExportJson.addEventListener('click', () => exportAnalysisToJson(analysis, currentFileName));
+  if (overviewCopyText) overviewCopyText.addEventListener('click', () => exportAnalysisToText(analysis, currentFileName));
+  if (overviewReharmBtn) {
+    overviewReharmBtn.addEventListener('click', () => {
+      const toolsTab = document.querySelector('#analyzer-section-tabs button[data-section="tools"]');
+      if (toolsTab) toolsTab.click();
+    });
+  }
+}
+
+// [Claude] — 2026-08-08 — Sidebar résultats (LOT 3).
+// Remplit les infos de la sidebar dans l'état "results" (réharmonisation).
+function renderResultsSidebar(analysis) {
+  if (els.resultKey) els.resultKey.textContent = analysis.key ? `${analysis.key} ${analysis.keyMode || 'majeur'}` : '—';
+  if (els.resultStyle) els.resultStyle.textContent = analysis.style || '—';
+  if (els.resultSource) els.resultSource.textContent = currentSourceType === 'midi' ? 'MIDI' : (currentSourceType === 'video' ? 'Vidéo' : 'Audio');
+  if (els.resultDuration) els.resultDuration.textContent = formatTime(analysis.duration || 0);
+  if (els.summaryKey) els.summaryKey.textContent = analysis.key ? `${analysis.key} ${analysis.keyMode || 'majeur'}` : '—';
+  if (els.summaryAnalysis) {
+    const chordCount = (analysis.chords || []).length;
+    els.summaryAnalysis.textContent = chordCount > 0 ? `${chordCount} accords détectés` : '—';
+  }
 }
 
 function escapeHtml(str) {

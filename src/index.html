@@ -29,6 +29,7 @@
     <title>Piano Jazz Chords</title>
     <link rel="stylesheet" href="./style.css" />
     <link rel="stylesheet" href="./ui/components/design-system.css" />
+    <link rel="stylesheet" href="./ui/components/analyzer-workspace.css" />
   </head>
   <body>
     <div id="app" class="app">
@@ -123,68 +124,417 @@
         </div>
       </main>
 
-      <!-- Onglet Analyse — version Tailwind -->
-      <main class="flex-1 flex overflow-hidden bg-(--bg)" id="analysis-tab" style="display: none;">
-        <section class="flex-1 flex flex-col overflow-hidden min-w-0 relative" id="analyzer-workspace">
-          <div class="flex items-center justify-center flex-1" id="analyzer-import-screen">
-            <div class="flex flex-col items-center gap-4 p-8 max-w-md w-full">
-              <div class="text-5xl">🎵</div>
-              <h2 class="text-xl font-bold text-(--text)">Analyser un morceau</h2>
-              <p class="text-sm text-(--text-dim) text-center">
-                Formats acceptés :<br />
-                MP3 · WAV · MP4 · M4A
-              </p>
-              <div class="flex flex-col gap-2 w-full" id="analyzer-library-list"></div>
-              <button type="button" id="analyzer-import-btn" class="px-6 py-3 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-medium transition-colors">
-                Importer un nouveau fichier
+      <!-- Onglet Analyse — reconstruction autour des maquettes officielles -->
+      <main class="analysis-tab" id="analysis-tab" style="display: none;">
+        <section class="analyzer-workspace" id="analyzer-workspace">
+          <!-- État 1 : Import source -->
+          <div class="analyzer-state" id="analyzer-import-screen">
+            <div class="analyzer-import-hero">
+              <div class="analyzer-import-icon">📤</div>
+              <h2>Importer un fichier</h2>
+              <p>Importez un fichier audio ou vidéo pour lancer l'analyse et détecter les accords utilisés.</p>
+              <div class="analyzer-import-cards">
+                <button type="button" class="analyzer-import-card" id="analyzer-import-audio-btn" aria-label="Importer un fichier audio">
+                  <span class="analyzer-import-card-icon audio" aria-hidden="true">🎵</span>
+                  <div>
+                    <div class="analyzer-import-card-title">Audio (MP3, WAV)</div>
+                    <div class="analyzer-import-card-sub">Importez un fichier audio pour analyser les accords.</div>
+                  </div>
+                  <span class="analyzer-import-card-arrow" aria-hidden="true">›</span>
+                </button>
+                <button type="button" class="analyzer-import-card" id="analyzer-import-video-btn" aria-label="Importer une vidéo">
+                  <span class="analyzer-import-card-icon video" aria-hidden="true">🎬</span>
+                  <div>
+                    <div class="analyzer-import-card-title">Vidéo (MP4)</div>
+                    <div class="analyzer-import-card-sub">Importez une vidéo (le son sera analysé).</div>
+                  </div>
+                  <span class="analyzer-import-card-arrow" aria-hidden="true">›</span>
+                </button>
+              </div>
+              <div class="analyzer-import-separator"><span>OU</span></div>
+              <button type="button" class="analyzer-import-card midi" id="analyzer-import-midi-btn" aria-label="Enregistrer au clavier MIDI">
+                <span class="analyzer-import-card-icon midi" aria-hidden="true">🎹</span>
+                <div>
+                  <div class="analyzer-import-card-title">Enregistrer au clavier MIDI</div>
+                  <div class="analyzer-import-card-sub">Jouez des notes en temps réel pour capturer et analyser les accords.</div>
+                </div>
+                <span class="analyzer-import-card-arrow" aria-hidden="true">›</span>
               </button>
-              <p class="text-xs text-(--text-dim) text-center">
-                Choisissez un morceau de la bibliothèque ou importez-en un nouveau pour lancer son analyse.
-              </p>
+              <div class="analyzer-library-section">
+                <div id="analyzer-library-list"></div>
+              </div>
+              <!-- Bouton historique conservé pour compatibilité initiale -->
+              <button type="button" id="analyzer-import-btn" class="analyzer-import-legacy" style="display:none">Importer un nouveau fichier</button>
             </div>
           </div>
 
-          <div class="flex-1 flex flex-col overflow-hidden min-w-0" id="analyzer-results" style="display: none;">
-            <div class="flex items-center gap-3 px-4 py-2 bg-(--panel-bg) border-b border-(--border) flex-shrink-0">
-              <div class="flex items-center gap-3 flex-1 min-w-0">
-                <h2 class="text-sm font-semibold text-(--text) truncate" id="analyzer-song-title">Titre du morceau</h2>
-                <span class="text-xs text-(--text-dim)" id="analyzer-song-artist">Inconnu</span>
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-(--surface-secondary) text-(--text-dim)" id="analyzer-stem-badge" style="display:none"></span>
+          <!-- État 2 : Préparation audio -->
+          <div class="analyzer-state" id="analyzer-state-prepare" style="display: none;">
+            <div class="analyzer-prepare-header">
+              <h2>Préparer l'analyse audio</h2>
+              <p>Votre fichier est prêt. Configurez les options d'analyse puis lancez la détection des accords et de la structure.</p>
+              <div class="analyzer-stepper">
+                <div class="analyzer-step active"><span>1</span><div>Fichier audio sélectionné</div></div>
+                <div class="analyzer-step"><span>2</span><div>Paramètres d'analyse</div></div>
+                <div class="analyzer-step"><span>3</span><div>Lancer l'analyse</div></div>
               </div>
-              <div class="analyzer-media-context" id="analyzer-media-context" aria-live="polite">Fichier analysé : Aucun fichier analysé</div>
-              <div class="flex items-center gap-2">
-                <button type="button" id="analyzer-prev-btn" class="px-2 py-1 rounded text-xs bg-(--surface-secondary) hover:bg-(--border) text-(--text-dim) transition-colors" title="Revenir au début">⏮</button>
-                <button type="button" id="analyzer-play-btn" class="px-3 py-1 rounded text-sm bg-sky-600 hover:bg-sky-500 text-white font-medium transition-colors" title="Lecture / Pause">▶</button>
-                <button type="button" id="analyzer-back-btn" class="px-2 py-1 rounded text-xs bg-(--surface-secondary) hover:bg-(--border) text-(--text-dim) transition-colors">Importer</button>
+            </div>
+            <div class="analyzer-prepare-grid">
+              <div class="analyzer-prepare-card file">
+                <div class="analyzer-prepare-card-title">Fichier sélectionné</div>
+                <div class="analyzer-file-row">
+                  <span class="analyzer-file-icon" id="analyzer-prepare-file-icon" aria-hidden="true">🎵</span>
+                  <div class="analyzer-file-info">
+                    <div class="analyzer-file-name" id="analyzer-prepare-file-name">—</div>
+                    <div class="analyzer-file-meta" id="analyzer-prepare-file-meta">—</div>
+                  </div>
+                  <button type="button" class="analyzer-file-remove" id="analyzer-prepare-file-remove" title="Retirer le fichier" aria-label="Retirer le fichier">🗑</button>
+                </div>
+                <div class="analyzer-waveform-preview" id="analyzer-prepare-waveform"></div>
+                <div class="analyzer-prepare-info" id="analyzer-prepare-info">Le fichier sera analysé pour détecter les accords, la tonalité, le tempo et la structure.</div>
+              </div>
+              <div class="analyzer-prepare-card options">
+                <div class="analyzer-prepare-card-title">Options d'analyse</div>
+                <label class="analyzer-option">
+                  <input type="checkbox" id="analyzer-opt-chords" checked />
+                  <div>
+                    <div class="analyzer-option-title">Détection des accords</div>
+                    <div class="analyzer-option-sub">Identifier les accords joués au cours du morceau.</div>
+                  </div>
+                </label>
+                <label class="analyzer-option">
+                  <input type="checkbox" id="analyzer-opt-key" checked />
+                  <div>
+                    <div class="analyzer-option-title">Détection de la tonalité</div>
+                    <div class="analyzer-option-sub">Estimer la tonalité principale et les modulations.</div>
+                  </div>
+                </label>
+                <label class="analyzer-option">
+                  <input type="checkbox" id="analyzer-opt-tempo" checked />
+                  <div>
+                    <div class="analyzer-option-title">Détection du tempo</div>
+                    <div class="analyzer-option-sub">Estimer le tempo global et les variations.</div>
+                  </div>
+                </label>
+                <label class="analyzer-option">
+                  <input type="checkbox" id="analyzer-opt-segment" checked />
+                  <div>
+                    <div class="analyzer-option-title">Segmentation automatique</div>
+                    <div class="analyzer-option-sub">Découper le morceau en sections (intro, couplets, etc.).</div>
+                  </div>
+                </label>
+                <button type="button" class="btn-primary analyzer-launch-btn" id="analyzer-launch-analysis-btn">▶ Lancer l'analyse</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- État 3 : Type vidéo -->
+          <div class="analyzer-state" id="analyzer-state-video-type" style="display: none;">
+            <div class="analyzer-video-modal">
+              <div class="analyzer-modal-icon" aria-hidden="true">❓</div>
+              <h2>Quel type de vidéo avez-vous importé ?</h2>
+              <p>Ce choix nous aide à adapter l'analyse et les résultats.</p>
+              <div class="analyzer-video-grid">
+                <button type="button" class="analyzer-video-card" data-video-type="tutorial" aria-label="Tutoriel pédagogique">
+                  <span class="analyzer-video-icon" aria-hidden="true">🎓</span>
+                  <div class="analyzer-video-title">Tutoriel pédagogique</div>
+                  <div class="analyzer-video-sub">Contenu éducatif expliquant des accords, progressions ou concepts.</div>
+                </button>
+                <button type="button" class="analyzer-video-card" data-video-type="cover" aria-label="Cover ou reprise">
+                  <span class="analyzer-video-icon" aria-hidden="true">🎤</span>
+                  <div class="analyzer-video-title">Cover / Reprise</div>
+                  <div class="analyzer-video-sub">Reprise d'un morceau existant (interprétation personnelle).</div>
+                </button>
+                <button type="button" class="analyzer-video-card" data-video-type="song" aria-label="Morceau original">
+                  <span class="analyzer-video-icon" aria-hidden="true">🎼</span>
+                  <div class="analyzer-video-title">Morceau</div>
+                  <div class="analyzer-video-sub">Composition ou titre original (œuvre complète).</div>
+                </button>
+                <button type="button" class="analyzer-video-card" data-video-type="demo" aria-label="Démonstration ou autre">
+                  <span class="analyzer-video-icon" aria-hidden="true">✨</span>
+                  <div class="analyzer-video-title">Démonstration / Autre</div>
+                  <div class="analyzer-video-sub">Démonstration, improvisation libre ou autre type de contenu.</div>
+                </button>
+              </div>
+              <button type="button" class="btn-primary" id="analyzer-confirm-video-type" disabled>Continuer l'analyse</button>
+              <p class="analyzer-modal-hint">Vous pourrez modifier ce choix plus tard.</p>
+            </div>
+          </div>
+
+          <!-- État 4 : Enregistrement MIDI -->
+          <div class="analyzer-state" id="analyzer-state-midi-record" style="display: none;">
+            <aside class="analyzer-midi-sidebar left">
+              <div class="analyzer-panel-title">Paramètres de session</div>
+              <label class="analyzer-field">
+                <span>Nom de la session</span>
+                <input type="text" id="analyzer-midi-session-name" value="Impro MIDI" />
+              </label>
+              <div class="analyzer-midi-source">
+                <div class="analyzer-field-label">Source MIDI</div>
+                <div class="analyzer-midi-source-name" id="analyzer-midi-source-name">—</div>
+                <div class="analyzer-midi-source-status" id="analyzer-midi-source-status">Connecté</div>
+              </div>
+              <label class="analyzer-field">
+                <span>Compte à rebours</span>
+                <select id="analyzer-midi-countdown">
+                  <option value="0">Aucun</option>
+                  <option value="1">1 mesure</option>
+                  <option value="2" selected>2 mesures (en 4/4)</option>
+                  <option value="4">4 mesures</option>
+                </select>
+              </label>
+              <label class="analyzer-field">
+                <span>Quantification</span>
+                <select id="analyzer-midi-quantization">
+                  <option value="none">Désactivée</option>
+                  <option value="1/16" selected>1/16</option>
+                  <option value="1/8">1/8</option>
+                  <option value="1/4">1/4</option>
+                </select>
+              </label>
+              <label class="analyzer-field switch">
+                <span>Conserver la mélodie</span>
+                <input type="checkbox" id="analyzer-midi-keep-melody" checked />
+              </label>
+              <button type="button" class="btn-secondary analyzer-reset-btn" id="analyzer-midi-reset">↺ Réinitialiser la session</button>
+            </aside>
+
+            <div class="analyzer-midi-center">
+              <div class="analyzer-midi-status">
+                <div class="analyzer-midi-rec-dot" id="analyzer-midi-rec-dot"></div>
+                <div class="analyzer-midi-status-text" id="analyzer-midi-status-text">SESSION MIDI EN COURS</div>
+              </div>
+              <div class="analyzer-midi-timer" id="analyzer-midi-timer">00:00</div>
+              <div class="analyzer-midi-bpm" id="analyzer-midi-bpm">4/4 • 120 BPM</div>
+              <div class="analyzer-midi-controls">
+                <button type="button" class="analyzer-midi-record-btn" id="analyzer-midi-record-btn">● Enregistrer</button>
+                <button type="button" class="btn-secondary" id="analyzer-midi-pause-btn">⏸ Pause</button>
+                <button type="button" class="btn-secondary" id="analyzer-midi-stop-btn">■ Arrêter</button>
+              </div>
+              <div class="analyzer-pianoroll" id="analyzer-pianoroll" aria-label="Piano-roll temps réel">
+                <div class="analyzer-pianoroll-placeholder">Piano-roll temps réel</div>
+              </div>
+              <div class="analyzer-midi-bottom">
+                <div class="analyzer-midi-topnotes">
+                  <div class="analyzer-midi-section-title">Top notes détectées</div>
+                  <div class="analyzer-topnotes-list" id="analyzer-topnotes-list">—</div>
+                  <div class="analyzer-topnotes-hint" id="analyzer-topnotes-hint">Basé sur les dernières notes reçues</div>
+                </div>
+                <div class="analyzer-midi-segments">
+                  <div class="analyzer-midi-section-title">Segments capturés</div>
+                  <div class="analyzer-segments-list" id="analyzer-segments-list">
+                    <span class="analyzer-segment-placeholder">Aucun segment</span>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div class="flex items-center gap-3 px-4 py-1.5 bg-(--panel-bg) border-b border-(--border) flex-shrink-0">
-              <span class="text-xs text-(--text-dim) font-mono w-12 text-right" id="analyzer-current-time">00:00</span>
-              <div class="flex-1 relative h-6 bg-(--surface-secondary) rounded-full cursor-pointer" id="analyzer-progress-track">
-                <div class="absolute left-0 top-0 h-full bg-sky-600 rounded-full" id="analyzer-progress-fill" style="width:0%"></div>
-                <div class="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-md" id="analyzer-progress-thumb" style="left:0%"></div>
+            <aside class="analyzer-midi-sidebar right">
+              <div class="analyzer-panel-title">État de l'analyse</div>
+              <div class="analyzer-midi-state-list">
+                <div class="analyzer-midi-state-item active" id="analyzer-midi-state-source">
+                  <div class="analyzer-midi-state-num">1</div>
+                  <div>
+                    <div class="analyzer-midi-state-title">Source MIDI connectée</div>
+                    <div class="analyzer-midi-state-sub" id="analyzer-midi-state-source-sub">Entrée active</div>
+                  </div>
+                </div>
+                <div class="analyzer-midi-state-item" id="analyzer-midi-state-session">
+                  <div class="analyzer-midi-state-num">2</div>
+                  <div>
+                    <div class="analyzer-midi-state-title">Session active</div>
+                    <div class="analyzer-midi-state-sub" id="analyzer-midi-state-session-sub">En attente</div>
+                  </div>
+                </div>
+                <div class="analyzer-midi-state-item" id="analyzer-midi-state-live">
+                  <div class="analyzer-midi-state-num">3</div>
+                  <div>
+                    <div class="analyzer-midi-state-title">Accords détectés en direct</div>
+                    <div class="analyzer-midi-state-sub">Analyse en temps réel<br />Mise à jour continue</div>
+                  </div>
+                </div>
+                <div class="analyzer-midi-state-item" id="analyzer-midi-state-ready">
+                  <div class="analyzer-midi-state-num">4</div>
+                  <div>
+                    <div class="analyzer-midi-state-title">Prêt pour analyse après arrêt</div>
+                    <div class="analyzer-midi-state-sub">Arrêtez l'enregistrement pour passer à l'analyse détaillée</div>
+                  </div>
+                </div>
               </div>
-              <span class="text-xs text-(--text-dim) font-mono w-12" id="analyzer-duration">00:00</span>
-              <div class="flex items-center gap-2 ml-4">
-                <label for="analyzer-zoom" class="text-xs text-(--text-dim)">Zoom</label>
-                <input type="range" id="analyzer-zoom" min="0.25" max="8.0" step="0.1" value="1" class="w-20 h-1 accent-sky-500" />
-                <span class="text-xs text-(--text-dim) w-10" id="analyzer-zoom-value">100%</span>
+              <div class="analyzer-tip">
+                <div class="analyzer-tip-title">💡 Conseil</div>
+                <div class="analyzer-tip-text">Jouez librement sur votre synthé. Nous capturons à la fois la mélodie et l'harmonie.</div>
+              </div>
+            </aside>
+          </div>
+
+          <!-- État 5 : Résultats / Réharmonisation -->
+          <div class="analyzer-state" id="analyzer-state-results" style="display: none;">
+            <aside class="analyzer-results-sidebar left">
+              <div class="analyzer-panel-title">Détails de la session</div>
+              <div class="analyzer-detail-row">
+                <span class="analyzer-detail-icon" aria-hidden="true">🎵</span>
+                <div>
+                  <div class="analyzer-detail-label">Tonalité détectée</div>
+                  <div class="analyzer-detail-value" id="analyzer-result-key">—</div>
+                </div>
+              </div>
+              <div class="analyzer-detail-row">
+                <span class="analyzer-detail-icon" aria-hidden="true">🎷</span>
+                <div>
+                  <div class="analyzer-detail-label">Style détecté</div>
+                  <div class="analyzer-detail-value" id="analyzer-result-style">—</div>
+                </div>
+              </div>
+              <div class="analyzer-detail-row">
+                <span class="analyzer-detail-icon" aria-hidden="true">🎹</span>
+                <div>
+                  <div class="analyzer-detail-label">Source</div>
+                  <div class="analyzer-detail-value" id="analyzer-result-source">—</div>
+                </div>
+              </div>
+              <div class="analyzer-detail-row">
+                <span class="analyzer-detail-icon" aria-hidden="true">⏱</span>
+                <div>
+                  <div class="analyzer-detail-label">Durée</div>
+                  <div class="analyzer-detail-value" id="analyzer-result-duration">—</div>
+                </div>
+              </div>
+              <div class="analyzer-detail-row constraints">
+                <span class="analyzer-detail-icon" aria-hidden="true">📋</span>
+                <div>
+                  <div class="analyzer-detail-label">Contraintes</div>
+                  <ul id="analyzer-result-constraints">
+                    <li>Conserver la mélodie</li>
+                    <li>Voicings jouables</li>
+                    <li>Éviter les quintes parallèles</li>
+                    <li>Préférer les tensions douces</li>
+                  </ul>
+                </div>
+              </div>
+              <button type="button" class="btn-secondary w-full" id="analyzer-result-view-capture">🎹 Voir la capture MIDI</button>
+            </aside>
+
+            <div class="analyzer-results-center">
+              <div class="analyzer-result-section">
+                <div class="analyzer-section-title">Mélodie capturée</div>
+                <div class="analyzer-melody-staff" id="analyzer-melody-staff">
+                  <div class="analyzer-melody-placeholder">Portée musicale (données MIDI requises)</div>
+                </div>
+              </div>
+              <div class="analyzer-result-section">
+                <div class="analyzer-section-title">Notes repères</div>
+                <div class="analyzer-anchor-notes" id="analyzer-anchor-notes">—</div>
+              </div>
+              <div class="analyzer-result-section">
+                <div class="analyzer-section-header">
+                  <div class="analyzer-section-title">Propositions de réharmonisation</div>
+                  <div class="analyzer-sort">
+                    <label>Trier par</label>
+                    <select id="analyzer-reharm-sort">
+                      <option value="relevance">Pertinence</option>
+                      <option value="coherence">Cohérence</option>
+                      <option value="tension">Tension</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="analyzer-reharm-grid" id="analyzer-reharm-grid"></div>
+                <button type="button" class="btn-secondary analyzer-more-btn" id="analyzer-reharm-more">Afficher plus de variantes</button>
+              </div>
+            </div>
+
+            <aside class="analyzer-results-sidebar right">
+              <div class="analyzer-panel-title">Résumé</div>
+              <div class="analyzer-detail-row">
+                <span class="analyzer-detail-icon" aria-hidden="true">🎵</span>
+                <div>
+                  <div class="analyzer-detail-label">Contrainte mélodique</div>
+                  <div class="analyzer-detail-value" id="analyzer-summary-melody">La mélodie sera conservée.</div>
+                </div>
+              </div>
+              <div class="analyzer-detail-row">
+                <span class="analyzer-detail-icon" aria-hidden="true">🎼</span>
+                <div>
+                  <div class="analyzer-detail-label">Tonalité détectée</div>
+                  <div class="analyzer-detail-value" id="analyzer-summary-key">—</div>
+                </div>
+              </div>
+              <div class="analyzer-detail-row">
+                <span class="analyzer-detail-icon" aria-hidden="true">📊</span>
+                <div>
+                  <div class="analyzer-detail-label">Analyse</div>
+                  <div class="analyzer-detail-value" id="analyzer-summary-analysis">—</div>
+                </div>
+              </div>
+              <div class="analyzer-detail-row">
+                <span class="analyzer-detail-icon" aria-hidden="true">⏩</span>
+                <div>
+                  <div class="analyzer-detail-label">Action suivante</div>
+                  <div class="analyzer-detail-value" id="analyzer-summary-next">Comparez les propositions pour écouter et choisir la version qui convient le mieux à votre morceau.</div>
+                </div>
+              </div>
+              <button type="button" class="btn-primary w-full" id="analyzer-compare-btn" disabled>⚖ Comparer les propositions</button>
+              <button type="button" class="btn-secondary w-full" id="analyzer-apply-recommended-btn" disabled>✨ Appliquer la version recommandée</button>
+            </aside>
+          </div>
+
+          <!-- Vue d'analyse active : lecteur + timeline + inspecteur + onglets -->
+          <div class="analyzer-state analyzer-analysis-view" id="analyzer-results" style="display: none;">
+            <div class="analyzer-analysis-header">
+              <div class="flex items-center gap-3 flex-1 min-w-0">
+                <button type="button" id="analyzer-back-to-import-btn" class="btn-secondary btn-sm" title="Nouvelle analyse">← Nouvelle analyse</button>
+                <h2 class="analyzer-song-title truncate" id="analyzer-song-title">Titre du morceau</h2>
+                <span class="analyzer-song-artist" id="analyzer-song-artist">Inconnu</span>
+                <span class="badge" id="analyzer-stem-badge" style="display:none"></span>
+              </div>
+              <div class="analyzer-media-context" id="analyzer-media-context" aria-live="polite">Fichier analysé : Aucun fichier analysé</div>
+              <div class="flex items-center gap-2">
+                <button type="button" id="analyzer-prev-btn" class="btn-secondary btn-sm" title="Revenir au début">⏮</button>
+                <button type="button" id="analyzer-play-btn" class="btn-primary btn-sm" title="Lecture / Pause">▶</button>
+                <button type="button" id="analyzer-back-btn" class="btn-secondary btn-sm">Importer</button>
+              </div>
+            </div>
+
+            <div class="analyzer-transport-bar">
+              <span class="analyzer-time" id="analyzer-current-time">00:00</span>
+              <div class="analyzer-progress-track" id="analyzer-progress-track">
+                <div class="analyzer-progress-fill" id="analyzer-progress-fill" style="width:0%"></div>
+                <div class="analyzer-progress-thumb" id="analyzer-progress-thumb" style="left:0%"></div>
+              </div>
+              <span class="analyzer-time" id="analyzer-duration">00:00</span>
+              <div class="analyzer-zoom-control">
+                <label for="analyzer-zoom">Zoom</label>
+                <input type="range" id="analyzer-zoom" min="0.25" max="8.0" step="0.1" value="1" />
+                <span id="analyzer-zoom-value">100%</span>
               </div>
             </div>
 
             <div id="analyzer-audio-container" style="display: none;"></div>
 
-            <div class="relative flex-shrink-0 h-20 overflow-x-auto overflow-y-hidden bg-(--panel-bg) border-b border-(--border)" id="analyzer-chord-timeline">
-              <div class="relative h-full min-w-full" id="analyzer-chord-timeline-inner"></div>
-              <button type="button" class="absolute top-1/2 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center bg-(--surface-secondary) border border-(--border) rounded-full text-(--text-dim) hover:text-sky-400 hover:border-sky-500 cursor-pointer text-sm shadow-lg left-2" id="analyzer-timeline-scroll-left">‹</button>
-              <button type="button" class="absolute top-1/2 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center bg-(--surface-secondary) border border-(--border) rounded-full text-(--text-dim) hover:text-sky-400 hover:border-sky-500 cursor-pointer text-sm shadow-lg right-2" id="analyzer-timeline-scroll-right">›</button>
+            <div class="analyzer-timeline-wrapper">
+              <div class="analyzer-timeline-scroll" id="analyzer-chord-timeline">
+                <div class="analyzer-timeline-inner" id="analyzer-chord-timeline-inner"></div>
+              </div>
+              <button type="button" class="analyzer-timeline-scroll-btn left" id="analyzer-timeline-scroll-left" aria-label="Défiler à gauche">‹</button>
+              <button type="button" class="analyzer-timeline-scroll-btn right" id="analyzer-timeline-scroll-right" aria-label="Défiler à droite">›</button>
             </div>
 
-            <div class="flex flex-col items-center gap-2 py-2 flex-shrink-0" id="analyzer-hero" style="display:none">
-              <div class="text-6xl font-extrabold tracking-tight text-(--text)" id="analyzer-hero-name"></div>
-              <div class="text-base text-(--text-dim)" id="analyzer-hero-notes"></div>
-              <div class="flex justify-center" id="analyzer-hero-keyboard"></div>
+            <div class="analyzer-inspector-row">
+              <div class="analyzer-hero-card" id="analyzer-hero" style="display:none">
+                <div class="analyzer-hero-name" id="analyzer-hero-name"></div>
+                <div class="analyzer-hero-notes" id="analyzer-hero-notes"></div>
+                <div class="analyzer-hero-keyboard" id="analyzer-hero-keyboard"></div>
+              </div>
+              <div class="analyzer-inspector-card" id="analyzer-chord-inspector">
+                <div class="analyzer-inspector-title">Accord sélectionné</div>
+                <div class="analyzer-inspector-empty" id="analyzer-inspector-empty">Sélectionnez un accord dans la timeline pour voir ses détails.</div>
+                <div class="analyzer-inspector-content" id="analyzer-inspector-content" style="display:none">
+                  <div class="analyzer-inspector-chord" id="analyzer-inspector-chord">—</div>
+                  <div class="analyzer-inspector-times" id="analyzer-inspector-times">—</div>
+                  <div class="analyzer-inspector-details" id="analyzer-inspector-details"></div>
+                  <button type="button" class="btn-secondary btn-sm" id="analyzer-inspector-edit-btn">Modifier</button>
+                </div>
+              </div>
             </div>
 
             <section id="analyzer-voicing-preview" class="voicing-preview-panel" aria-label="Aperçu du voicing piano" style="display:none">
@@ -194,53 +544,34 @@
                 role="group"
                 aria-label="Style de voicing"
               >
-                <button
-                  type="button"
-                  class="voicing-style-btn"
-                  data-voicing-style="close"
-                  aria-pressed="true"
-                >
-                  Fermer
-                </button>
-                <button
-                  type="button"
-                  class="voicing-style-btn"
-                  data-voicing-style="simple"
-                  aria-pressed="false"
-                >
-                  Simple
-                </button>
+                <button type="button" class="voicing-style-btn" data-voicing-style="close" aria-pressed="true">Fermer</button>
+                <button type="button" class="voicing-style-btn" data-voicing-style="simple" aria-pressed="false">Simple</button>
               </div>
               <div id="analyzer-voicing-content"></div>
             </section>
 
-            <div class="flex gap-0 px-4 border-b border-(--border) flex-shrink-0" id="analyzer-section-tabs" role="tablist">
-              <button type="button" class="px-4 py-2 text-sm font-medium transition-colors text-sky-400 border-b-2 border-sky-400" data-section="chords" role="tab" aria-selected="true">Accords</button>
-              <button type="button" class="px-4 py-2 text-sm font-medium transition-colors text-(--text-dim) hover:text-(--text)" data-section="analysis" role="tab" aria-selected="false" title="Vue d'ensemble de l'analyse">Vue d'ensemble</button>
-              <button type="button" class="px-4 py-2 text-sm font-medium transition-colors text-(--text-dim) hover:text-(--text)" data-section="masterclass" role="tab" aria-selected="false">Masterclass</button>
-              <button type="button" class="px-4 py-2 text-sm font-medium transition-colors text-(--text-dim) hover:text-(--text)" data-section="tools" role="tab" aria-selected="false">Outils</button>
+            <div class="analyzer-section-tabs" id="analyzer-section-tabs" role="tablist">
+              <button type="button" class="active" data-section="chords" role="tab" aria-selected="true">Accord sélectionné</button>
+              <button type="button" data-section="analysis" role="tab" aria-selected="false">Vue d'ensemble</button>
+              <button type="button" data-section="masterclass" role="tab" aria-selected="false">Masterclass</button>
+              <button type="button" data-section="tools" role="tab" aria-selected="false">Outils</button>
             </div>
 
-            <div class="flex-1 overflow-y-auto min-h-0 px-3 py-3" id="analyzer-section-panels">
-              <div class="flex flex-col items-center justify-center h-full text-sm text-(--text-dim)" data-section="chords" role="tabpanel">
-                <p>Les accords sont affichés dans la timeline et le panneau hero ci-dessus.</p>
-                <p class="mt-1">Sélectionnez un accord dans la timeline pour voir ses détails.</p>
+            <div class="analyzer-section-panels" id="analyzer-section-panels">
+              <div class="analyzer-panel" data-section="chords" role="tabpanel">
+                <p class="analyzer-panel-hint">L’accord sélectionné est affiché dans l’inspecteur au-dessus de la timeline.</p>
               </div>
-
-              <div class="flex flex-col gap-2 h-full overflow-y-auto" data-section="analysis" role="tabpanel" style="display:none">
-                <details class="bg-(--panel-bg) border border-(--border) rounded-lg overflow-hidden" open>
-                  <summary class="px-4 py-2.5 text-sm font-semibold text-(--text) cursor-pointer hover:bg-(--surface-secondary) transition-colors">Scores d'analyse</summary>
-                  <div class="p-4 text-sm text-(--text-dim)" id="analyzer-scores-panel">
-                    <p class="text-xs text-(--text-dim)">Scores de confiance et métriques globales s'afficheront ici après analyse.</p>
-                  </div>
-                </details>
-                <details class="bg-(--panel-bg) border border-(--border) rounded-lg overflow-hidden">
-                  <summary class="px-4 py-2.5 text-sm font-semibold text-(--text) cursor-pointer hover:bg-(--surface-secondary) transition-colors">Patterns harmoniques</summary>
-                  <div class="p-4 text-sm text-(--text-dim)" id="analyzer-patterns-panel">
-                    <p class="text-xs text-(--text-dim)">II-V-I, cadences, turnarounds et substitutions détectés s'afficheront ici.</p>
-                  </div>
-                </details>
-                <details class="bg-(--panel-bg) border border-(--border) rounded-lg" id="analyzer-reharm-details">
+              <div class="analyzer-panel" data-section="analysis" role="tabpanel" style="display:none">
+                <div class="analyzer-overview-scroll" id="analyzer-overview-content"></div>
+              </div>
+              <div class="analyzer-panel" data-section="masterclass" role="tabpanel" style="display:none">
+                <div class="analyzer-masterclass-box" id="analyzer-masterclass-output">
+                  <p>Configurez une clé API OpenAI-compatible (Groq, OpenRouter, Google AI Studio…) via le bouton 🔑 en haut à droite pour obtenir une analyse pédagogique personnalisée.</p>
+                </div>
+                <button type="button" id="analyzer-masterclass-run" class="btn-secondary" disabled>Générer l'analyse pédagogique</button>
+              </div>
+              <div class="analyzer-panel analyzer-panel-center" data-section="tools" role="tabpanel" style="display:none">
+                <details class="bg-(--panel-bg) border border-(--border) rounded-lg overflow-hidden w-full max-w-xl" id="analyzer-reharm-details">
                   <summary class="px-4 py-2.5 text-sm font-semibold text-(--text) cursor-pointer hover:bg-(--surface-secondary) transition-colors" id="analyzer-reharm-summary" aria-expanded="false" aria-controls="analyzer-reharm-output">Réharmonisation</summary>
                   <div class="p-4 text-sm text-(--text-dim) flex flex-col gap-4" id="analyzer-reharm-panel">
                     <div class="border border-(--border) rounded-lg p-3 bg-(--surface-secondary)">
@@ -255,56 +586,62 @@
                     <div class="analyzer-reharm-output" id="analyzer-reharm-output" role="region" aria-label="Résultats de la démonstration de réharmonisation"></div>
                   </div>
                 </details>
-                <details class="bg-(--panel-bg) border border-(--border) rounded-lg overflow-hidden">
-                  <summary class="px-4 py-2.5 text-sm font-semibold text-(--text) cursor-pointer hover:bg-(--surface-secondary) transition-colors">Ligne de basse</summary>
-                  <div class="p-4 text-sm text-(--text-dim)" id="analyzer-bass-panel">
-                    <p class="text-xs text-(--text-dim)">Résumé de la ligne de basse détectée.</p>
-                    <div class="analyzer-bass-summary" id="analyzer-bass-summary"></div>
-                  </div>
-                </details>
-                <details class="bg-(--panel-bg) border border-(--border) rounded-lg overflow-hidden">
-                  <summary class="px-4 py-2.5 text-sm font-semibold text-(--text) cursor-pointer hover:bg-(--surface-secondary) transition-colors">Export</summary>
-                  <div class="p-4 text-sm text-(--text-dim) flex flex-col gap-2" id="analyzer-export-panel">
-                    <button type="button" id="analyzer-export-midi-btn" class="px-4 py-2 rounded-lg text-sm bg-(--surface-secondary) hover:bg-(--border) text-(--text) transition-colors">Exporter l'analyse en MIDI</button>
-                    <button type="button" id="analyzer-export-json-btn" class="px-4 py-2 rounded-lg text-sm bg-(--surface-secondary) hover:bg-(--border) text-(--text) transition-colors">Exporter en JSON</button>
-                    <button type="button" id="analyzer-copy-text-btn" class="px-4 py-2 rounded-lg text-sm bg-(--surface-secondary) hover:bg-(--border) text-(--text) transition-colors">Copier la grille texte</button>
-                    <p class="text-xs text-(--text-dim) mt-1">MIDI, JSON et texte reflètent les corrections manuelles. JSON conserve aussi la détection originale.</p>
-                  </div>
-                </details>
-
-                <details class="bg-(--panel-bg) border border-(--border) rounded-lg overflow-hidden">
-                  <summary class="px-4 py-2.5 text-sm font-semibold text-(--text) cursor-pointer hover:bg-(--surface-secondary) transition-colors">Statistiques</summary>
-                  <div class="p-4 text-sm text-(--text-dim)" id="analyzer-stats-panel">
-                    <div class="analyzer-stats-content" id="analyzer-stats-content">Aucune statistique disponible.</div>
-                  </div>
-                </details>
-              </div>
-
-              <div class="flex flex-col gap-4 h-full" data-section="masterclass" role="tabpanel" style="display:none">
-                <div class="flex-1 bg-(--panel-bg) border border-(--border) rounded-lg p-4 text-sm text-(--text-dim)" id="analyzer-masterclass-output">
-                  <div class="text-xs text-(--text-dim) text-center">
-                    Configurez une clé API OpenAI-compatible (Groq, OpenRouter, Google AI Studio…) via le bouton 🔑 en haut à droite pour obtenir une analyse pédagogique personnalisée.
-                  </div>
+                <div class="flex flex-wrap gap-2 mt-6">
+                  <button type="button" id="analyzer-export-midi-btn" class="btn-secondary btn-sm">Exporter l'analyse en MIDI</button>
+                  <button type="button" id="analyzer-export-json-btn" class="btn-secondary btn-sm">Exporter en JSON</button>
+                  <button type="button" id="analyzer-copy-text-btn" class="btn-secondary btn-sm">Copier la grille texte</button>
                 </div>
-                <div class="flex-shrink-0">
-                  <button type="button" id="analyzer-masterclass-run" class="px-4 py-2 rounded-lg text-sm bg-(--surface-secondary) text-(--text-dim) cursor-not-allowed transition-colors" disabled>Générer l'analyse pédagogique</button>
-                </div>
-              </div>
-
-              <div class="flex flex-col items-center justify-center h-full gap-2 text-center text-sm text-(--text-dim)" data-section="tools" role="tabpanel" style="display:none">
-                <div class="text-2xl">🧰</div>
+                <p class="text-xs text-(--text-dim) mt-2">MIDI, JSON et texte reflètent les corrections manuelles. JSON conserve aussi la détection originale.</p>
+                <div class="text-2xl mt-6" aria-hidden="true">🧰</div>
                 <p>D'autres outils d'analyse seront ajoutés prochainement.</p>
               </div>
             </div>
           </div>
 
-          <div class="absolute inset-0 flex items-center justify-center bg-(--bg)/80 z-30" id="analyzer-processing" style="display: none;">
-            <div class="flex flex-col items-center gap-3">
-              <div class="w-8 h-8 border-2 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
-              <p class="text-sm text-(--text-dim)" id="analyzer-processing-text">Analyse en cours...</p>
+          <div class="analyzer-processing-overlay" id="analyzer-processing" style="display: none;">
+            <div class="analyzer-processing-box">
+              <div class="analyzer-processing-spinner"></div>
+              <p class="analyzer-processing-text" id="analyzer-processing-text">Analyse en cours…</p>
             </div>
           </div>
         </section>
+
+        <!-- Sidebar droite : Flux d'analyse / Résumé -->
+        <aside class="analyzer-sidebar" id="analyzer-sidebar">
+          <div class="analyzer-sidebar-card">
+            <div class="analyzer-sidebar-title">
+              Flux d'analyse
+              <button type="button" class="analyzer-info-btn" title="Informations" aria-label="Informations sur le flux d'analyse">ⓘ</button>
+            </div>
+            <div class="analyzer-flow">
+              <div class="analyzer-flow-item active" id="analyzer-flow-import">
+                <div class="analyzer-flow-num">1</div>
+                <div>
+                  <div class="analyzer-flow-title">Importer</div>
+                  <div class="analyzer-flow-sub">Choisissez un fichier audio ou vidéo à analyser.</div>
+                </div>
+              </div>
+              <div class="analyzer-flow-item" id="analyzer-flow-detect">
+                <div class="analyzer-flow-num">2</div>
+                <div>
+                  <div class="analyzer-flow-title">Détecter le type</div>
+                  <div class="analyzer-flow-sub">Le logiciel détecte automatiquement le tempo, la tonalité et les accords.</div>
+                </div>
+              </div>
+              <div class="analyzer-flow-item" id="analyzer-flow-launch">
+                <div class="analyzer-flow-num">3</div>
+                <div>
+                  <div class="analyzer-flow-title">Lancer l'analyse</div>
+                  <div class="analyzer-flow-sub">L'analyse est lancée et les accords sont affichés en temps réel.</div>
+                </div>
+              </div>
+            </div>
+            <div class="analyzer-tip">
+              <div class="analyzer-tip-title">💡 Conseil</div>
+              <div class="analyzer-tip-text">Pour de meilleurs résultats, utilisez des enregistrements de bonne qualité et sans bruit de fond excessif.</div>
+            </div>
+          </div>
+        </aside>
       </main>
 
       <main class="studio-tab stage-0" id="studio-tab" style="display: none;">
