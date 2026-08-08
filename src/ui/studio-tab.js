@@ -103,6 +103,8 @@ const els = {
   playerAudio: null,   // référence au <audio> caché (son)
   audioBackdrop: document.getElementById('studio-audio-backdrop'),
   backdropTitle: document.getElementById('studio-backdrop-title'),
+  liveChordName: document.getElementById('studio-live-chord-name'),
+  liveChordNotes: document.getElementById('studio-live-chord-notes'),
   playBtn: document.getElementById('studio-play-btn'),
   stopBtn: document.getElementById('studio-stop-btn'),
   prevBtn: document.getElementById('studio-prev-btn'),
@@ -192,6 +194,20 @@ export function initStudioTab() {
       if (!currentTrack) updateStudioStage(0);
       refreshTrackList();
     }
+  });
+
+  // [OpenCode] — 2026-08-08 — Bloc "Accord que vous jouez" en direct.
+  // Alimenté uniquement par la reconnaissance temps réel du clavier/MIDI principal
+  // (événement broadcasté par refreshChord), jamais par l'analyse du morceau.
+  document.addEventListener('studio:played-chord', (e) => {
+    const detail = e.detail;
+    if (!detail || !detail.name || !els.liveChordName || !els.liveChordNotes) {
+      if (els.liveChordName) els.liveChordName.textContent = '—';
+      if (els.liveChordNotes) els.liveChordNotes.textContent = '';
+      return;
+    }
+    els.liveChordName.textContent = detail.name;
+    els.liveChordNotes.textContent = detail.noteNames?.join(' – ') || '';
   });
 
   // [Claude] — 2026-08-08 — Enregistrement auprès du gestionnaire d’audio focus.
@@ -1254,9 +1270,11 @@ function updateAudioBackdrop(title) {
   if (isAudioOnly) {
     els.audioBackdrop.style.display = 'flex';
     els.backdropTitle.textContent = title || 'Fichier audio';
+    els.playerWrap?.classList.add('is-audio-only');
   } else {
     els.audioBackdrop.style.display = 'none';
     els.backdropTitle.textContent = '';
+    els.playerWrap?.classList.remove('is-audio-only');
   }
 }
 
