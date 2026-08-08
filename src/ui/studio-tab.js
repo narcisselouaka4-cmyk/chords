@@ -2454,9 +2454,11 @@ function updateSeparateButton(hasStems) {
   if (!els.separateBtn) return;
   if (hasStems) {
     els.separateBtn.textContent = 'Réanalyser le fichier';
+    els.separateBtn.title = 'Relancer la séparation des pistes à partir du fichier original';
     els.separateBtn.classList.add('studio-separate-done');
   } else {
     els.separateBtn.textContent = 'Séparer les pistes';
+    els.separateBtn.title = 'Séparer les pistes (basse, batterie, voix, autres, piano) avec Demucs';
     els.separateBtn.classList.remove('studio-separate-done');
   }
   els.separateBtn.disabled = !regionConfirmed;
@@ -2489,7 +2491,8 @@ function renderStems(stemPaths) {
 
     const muteBtn = document.createElement('button');
     muteBtn.textContent = 'M';
-    muteBtn.title = 'Mute';
+    muteBtn.title = 'Muet — couper le son de cette piste';
+    muteBtn.setAttribute('aria-label', 'Muet');
     muteBtn.className = 'studio-stem-btn';
     if (s.muted) muteBtn.classList.add('active');
     muteBtn.addEventListener('click', () => {
@@ -2501,7 +2504,8 @@ function renderStems(stemPaths) {
 
     const soloBtn = document.createElement('button');
     soloBtn.textContent = 'S';
-    soloBtn.title = 'Solo';
+    soloBtn.title = 'Solo — écouter uniquement cette piste';
+    soloBtn.setAttribute('aria-label', 'Solo');
     soloBtn.className = 'studio-stem-btn';
     if (s.solo) soloBtn.classList.add('active');
     soloBtn.addEventListener('click', () => {
@@ -2521,6 +2525,8 @@ function renderStems(stemPaths) {
     volume.step = '1';
     volume.value = String(s.volumeDb);
     volume.className = 'studio-stem-volume';
+    volume.title = `Volume ${labels[stem]} (dB)`;
+    volume.setAttribute('aria-label', `Volume ${labels[stem]}`);
     volume.addEventListener('input', () => {
       if (isLoadingTrack) return;
       const db = Number(volume.value);

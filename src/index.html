@@ -395,13 +395,13 @@
             <input type="range" id="studio-progress" min="0" max="100" value="0" step="0.1" />
             <div class="studio-time" id="studio-time">00:00 / 00:00</div>
             <div class="studio-transpose-control" id="studio-transpose-control">
-              <span class="studio-transpose-title">Transpo</span>
+              <span class="studio-transpose-title" title="Transposition en demi-tons (±12)">Transpo</span>
               <button id="studio-transpose-minus" type="button" aria-label="Diminuer la transposition">−</button>
               <input type="number" id="studio-transpose" value="0" min="-12" max="12" step="1" aria-label="Transposition en demi-tons" />
               <button id="studio-transpose-plus" type="button" aria-label="Augmenter la transposition">+</button>
               <span id="studio-transpose-status" class="studio-transpose-status"></span>
             </div>
-            <label class="studio-volume-label" id="studio-master-volume-label">
+            <label class="studio-volume-label" id="studio-master-volume-label" title="Volume général (dB)">
               <span>Vol</span>
               <span id="studio-volume-label">0 dB</span>
               <input type="range" id="studio-volume" min="-60" max="6" value="0" step="1" />
