@@ -1427,14 +1427,24 @@ function renderOverview(analysis) {
   const chords = analysis.chords || [];
   const duration = analysis.duration || 0;
 
-  // Score analyse
-  const scoreItems = [
+  // En-tête : métriques globales (LOT 4)
+  const headerItems = [
     { label: 'Tonalité', value: analysis.key ? `${analysis.key} ${analysis.keyMode || 'majeur'}` : '—' },
-    { label: 'Confiance tonalité', value: analysis.keyConfidence ? `${(analysis.keyConfidence * 100).toFixed(0)}%` : '—' },
     { label: 'Tempo', value: analysis.tempo ? `${Math.round(analysis.tempo)} BPM` : '—' },
     { label: 'Durée', value: formatTime(duration) },
+    { label: 'Confiance', value: analysis.confidence ? `${(analysis.confidence * 100).toFixed(0)}%` : '—' },
+  ];
+
+  // Score analyse : détails mesurables
+  const avgConfidence = chords.length > 0
+    ? `${(chords.reduce((acc, c) => acc + (typeof c.confidence === 'number' ? c.confidence : 0), 0) / chords.length * 100).toFixed(0)}%`
+    : '—';
+  const uniqueChordCount = new Set(chords.map((c) => getEffectiveChord(c))).size;
+  const scoreRows = [
     { label: 'Segments', value: String(stats.totalSegments) },
-    { label: 'Confiance moyenne', value: analysis.confidence ? `${(analysis.confidence * 100).toFixed(0)}%` : '—' },
+    { label: 'Accords distincts', value: String(uniqueChordCount) },
+    { label: 'Confiance moyenne', value: avgConfidence },
+    { label: 'Durée couverte', value: `${((stats.totalDuration / Math.max(duration, 1)) * 100).toFixed(0)}%` },
   ];
 
   // Pattern harmonique : progression simplifiée
@@ -1465,80 +1475,95 @@ function renderOverview(analysis) {
     .join('') || '<div class="text-xs text-(--text-dim)">Aucun</div>';
 
   els.overviewContent.innerHTML = `
-    <div class="analyzer-overview-block">
-      <h3>Score analyse</h3>
-      <div class="analyzer-overview-grid">
-        ${scoreItems.map(({ label, value }) => `
+    <div class="analyzer-overview-header">
+      ${headerItems.map(({ label, value }) => `
+        <div class="analyzer-overview-metric overview-header-metric">
+          <div class="value">${escapeHtml(value)}</div>
+          <div class="label">${escapeHtml(label)}</div>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="analyzer-overview-row">
+      <div class="analyzer-overview-block">
+        <h3>Score analyse</h3>
+        <div class="analyzer-overview-grid">
+          ${scoreRows.map(({ label, value }) => `
+            <div class="analyzer-overview-metric">
+              <div class="value">${escapeHtml(value)}</div>
+              <div class="label">${escapeHtml(label)}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="analyzer-overview-block">
+        <h3>Pattern harmonique</h3>
+        <div class="analyzer-bass-line">
+          ${progression.length > 0
+            ? progression.map((s) => `<span class="note-pill">${escapeHtml(s)}</span>`).join(' ')
+            : '<span class="text-xs text-(--text-dim)">Aucun accord détecté.</span>'}
+        </div>
+      </div>
+    </div>
+
+    <div class="analyzer-overview-row">
+      <div class="analyzer-overview-block">
+        <h3>Ligne de basse</h3>
+        <div class="analyzer-bass-line">
+          ${bassNotes.length > 0
+            ? bassNotes.map((n) => `<span class="note-pill">${escapeHtml(n)}</span>`).join('<span class="bass-arrow" aria-hidden="true">→</span>')
+            : '<span class="text-xs text-(--text-dim)">Non disponible.</span>'}
+        </div>
+      </div>
+
+      <div class="analyzer-overview-block">
+        <h3>Statistiques</h3>
+        <div class="analyzer-overview-grid">
           <div class="analyzer-overview-metric">
-            <div class="value">${escapeHtml(value)}</div>
-            <div class="label">${escapeHtml(label)}</div>
+            <div class="value">${stats.totalSegments}</div>
+            <div class="label">Segments</div>
           </div>
-        `).join('')}
-      </div>
-    </div>
-
-    <div class="analyzer-overview-block">
-      <h3>Pattern harmonique</h3>
-      <div class="analyzer-bass-line">
-        ${progression.length > 0
-          ? progression.map((s) => `<span class="note-pill">${escapeHtml(s)}</span>`).join(' ')
-          : '<span class="text-xs text-(--text-dim)">Aucun accord détecté.</span>'}
-      </div>
-    </div>
-
-    <div class="analyzer-overview-block">
-      <h3>Ligne de basse</h3>
-      <div class="analyzer-bass-line">
-        ${bassNotes.length > 0
-          ? bassNotes.map((n) => `<span class="note-pill">${escapeHtml(n)}</span>`).join(' → ')
-          : '<span class="text-xs text-(--text-dim)">Non disponible.</span>'}
-      </div>
-    </div>
-
-    <div class="analyzer-overview-block">
-      <h3>Réharmonisation</h3>
-      <p class="text-xs text-(--text-dim) mb-2">Lancez la démonstration du moteur de réharmonisation dans l'onglet <strong>Outils</strong> pour explorer des variantes.</p>
-      <button type="button" class="btn-secondary btn-sm" id="analyzer-overview-reharm-btn">Ouvrir les outils de réharmonisation</button>
-    </div>
-
-    <div class="analyzer-overview-block">
-      <h3>Statistiques</h3>
-      <div class="analyzer-overview-grid">
-        <div class="analyzer-overview-metric">
-          <div class="value">${stats.totalSegments}</div>
-          <div class="label">Segments</div>
+          <div class="analyzer-overview-metric">
+            <div class="value">${formatTime(stats.totalDuration)}</div>
+            <div class="label">Durée totale</div>
+          </div>
+          <div class="analyzer-overview-metric">
+            <div class="value">${stats.manuallyEditedCount}</div>
+            <div class="label">Corrections</div>
+          </div>
+          <div class="analyzer-overview-metric">
+            <div class="value">${stats.slashChordCount}</div>
+            <div class="label">Slash chords</div>
+          </div>
         </div>
-        <div class="analyzer-overview-metric">
-          <div class="value">${formatTime(stats.totalDuration)}</div>
-          <div class="label">Durée totale</div>
+        <div class="mt-3">
+          <div class="text-xs font-semibold text-(--text-dim) uppercase mb-1">Qualités</div>
+          ${qualityRows}
         </div>
-        <div class="analyzer-overview-metric">
-          <div class="value">${stats.manuallyEditedCount}</div>
-          <div class="label">Corrections</div>
-        </div>
-        <div class="analyzer-overview-metric">
-          <div class="value">${stats.slashChordCount}</div>
-          <div class="label">Slash chords</div>
+        <div class="mt-2">
+          <div class="text-xs font-semibold text-(--text-dim) uppercase mb-1">Accords les plus utilisés</div>
+          ${topRows}
         </div>
       </div>
-      <div class="mt-3">
-        <div class="text-xs font-semibold text-(--text-dim) uppercase mb-1">Qualités</div>
-        ${qualityRows}
-      </div>
-      <div class="mt-2">
-        <div class="text-xs font-semibold text-(--text-dim) uppercase mb-1">Accords les plus utilisés</div>
-        ${topRows}
-      </div>
     </div>
 
-    <div class="analyzer-overview-block">
-      <h3>Export</h3>
-      <div class="flex flex-wrap gap-2">
-        <button type="button" class="btn-secondary btn-sm" id="analyzer-overview-export-midi">Exporter en MIDI</button>
-        <button type="button" class="btn-secondary btn-sm" id="analyzer-overview-export-json">Exporter en JSON</button>
-        <button type="button" class="btn-secondary btn-sm" id="analyzer-overview-copy-text">Copier la grille texte</button>
+    <div class="analyzer-overview-row">
+      <div class="analyzer-overview-block">
+        <h3>Réharmonisation</h3>
+        <p class="text-sm text-(--text-dim) mb-3">Lancez la démonstration du moteur de réharmonisation dans l'onglet <strong>Outils</strong> pour explorer des variantes de voicing et de remplacement harmonique.</p>
+        <button type="button" class="btn-secondary" id="analyzer-overview-reharm-btn">Ouvrir les outils de réharmonisation</button>
       </div>
-      <p class="text-xs text-(--text-dim) mt-2">MIDI, JSON et texte reflètent les corrections manuelles. JSON conserve aussi la détection originale.</p>
+
+      <div class="analyzer-overview-block">
+        <h3>Export / Actions</h3>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="btn-secondary" id="analyzer-overview-export-midi">Exporter en MIDI</button>
+          <button type="button" class="btn-secondary" id="analyzer-overview-export-json">Exporter en JSON</button>
+          <button type="button" class="btn-secondary" id="analyzer-overview-copy-text">Copier la grille texte</button>
+        </div>
+        <p class="text-xs text-(--text-dim) mt-2">MIDI, JSON et texte reflètent les corrections manuelles. JSON conserve aussi la détection originale.</p>
+      </div>
     </div>
   `;
 
