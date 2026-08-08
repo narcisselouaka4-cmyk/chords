@@ -101,15 +101,15 @@ runTest('Le sous-onglet affiche « Vue d’ensemble »', () => {
   void reharmView;
 });
 
-// 6. Désactivation réelle du contrôle Style + « Bientôt disponible ».
-  runTest('« Style » désactivé et accompagné de « Bientôt disponible »', () => {
-  const reharmBlock = indexHtml.split('analyzer-reharm-style"')[1].split('</div>')[0];
-  assertTrue(indexHtml.includes('id="analyzer-reharm-style"'), 'le sélecteur Style existe');
-  const selectAttr = indexHtml.split('<select id="analyzer-reharm-style"')[1].split('>')[0];
-  assertTrue(selectAttr.includes('disabled'), 'le select Style doit être réellement désactivé');
-  assertTrue(selectAttr.includes('aria-disabled="true"'), 'aria-disabled doit être posé');
-  assertTrue(indexHtml.includes('>Bientôt disponible<'), 'le message « Bientôt disponible » doit être visible');
-  void reharmBlock;
+// 6. Séparation claire entre réharmonisation réelle (à venir) et démonstration.
+runTest('Réharmonisation : séparation morceau réel / démonstration', () => {
+  assertTrue(indexHtml.includes('Réharmoniser ce morceau'), 'la section « Réharmoniser ce morceau » doit exister');
+  assertTrue(indexHtml.includes('sera disponible prochainement'), 'le statut « à venir » doit être visible');
+  assertTrue(indexHtml.includes('Démonstration du moteur'), 'la section « Démonstration du moteur » doit exister');
+  assertTrue(indexHtml.includes('mélodie d\'exemple indépendante'), 'la mention d\'indépendance du fichier chargé doit être présente');
+  assertTrue(indexHtml.includes('Lancer la démonstration'), 'le bouton de démonstration doit être présent');
+  assertTrue(!indexHtml.includes('id="analyzer-reharm-style"'), 'le sélecteur de style obsolète doit être supprimé');
+  assertTrue(!indexHtml.includes('Bientôt disponible'), 'le badge « Bientôt disponible » obsolète doit être supprimé');
 });
 
 // 7. Message compact des futurs outils — la grande grille a disparu.
