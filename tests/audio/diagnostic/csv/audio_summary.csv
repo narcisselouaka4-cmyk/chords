@@ -1,0 +1,4 @@
+experiment,quality_accuracy
+O2_w0.10,0.58358
+O3_w0.3_d0.05,0.41641
+O0_baseline,0.49989

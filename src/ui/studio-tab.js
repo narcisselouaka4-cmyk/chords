@@ -15,6 +15,7 @@ import { createStemMixer, dbToGain } from '../audio/stem-mixer.js';
 import { separateStems, getStems, STEMS } from '../audio/stem-separator.js';
 import { createPitchShifter } from '../audio/pitch-shifter.js';
 import { getAudioContext, connectOutput as connectSynthOutput } from '../audio/simple-synth.js';
+import { globalAudioFocusManager } from '../audio/audio-focus-manager.js';
 import { formatMediaDuration, isValidMediaDuration } from './media-format.js';
 import { buildFileContextText } from './file-context.js';
 import { applyStudioSidebarState } from './studio-view-state.js';
@@ -191,6 +192,15 @@ export function initStudioTab() {
       if (!currentTrack) updateStudioStage(0);
       refreshTrackList();
     }
+  });
+
+  // [Claude] — 2026-08-08 — Enregistrement auprès du gestionnaire d’audio focus.
+  // Studio et Analyse restent deux lecteurs indépendants, mais un seul workspace
+  // peut produire du son à la fois.
+  globalAudioFocusManager.register('studio', {
+    play,
+    pause,
+    isPlaying: () => isPlaying,
   });
 }
 
@@ -2305,6 +2315,11 @@ function seekHtml5Audio(audio, time) {
 
 export async function play() {
   if (isLoadingTrack || isPlaying) return;
+
+  // [Claude] — 2026-08-08 — Demande l’audio focus. Si Analyse est en train de
+  // jouer, elle est mise en pause sans que ses positions ou son currentTime
+  // soient modifiés.
+  globalAudioFocusManager.requestFocus('studio');
 
   const canPlay = await waitHtml5AudioReady();
   if (!canPlay) {

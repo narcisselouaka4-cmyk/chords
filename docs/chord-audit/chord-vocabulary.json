@@ -1,0 +1,851 @@
+{
+  "meta": {
+    "description": "Complete vocabulary of chord qualities supported by the Piano Jazz Chords detection engine (src/chord-engine/chord-defs.js).",
+    "totalChordDefinitions": 50,
+    "uniqueMusicalQualities": 47,
+    "note": "CHORD_DEFINITIONS array has 50 entries: 8 thirteenths, 4 elevenths, 8 ninths, 12 seventh chords (includes 1 duplicate m7b5 at line 44 identical to line 36), 7 sixth/add, 6 triads, 1 power chord, 2 quartal, 1 single note, 1 rootless mirror m7b5 with parentSymbol (for resolveCanonicalChordDefinition testing only). Unique musical qualities = 47. Rootless definitions = 7 (in ROOTLESS_DEFINITIONS, separate from CHORD_DEFINITIONS). The system does not distinguish required vs optional vs omitted intervals. Altered intervals are encoded as raw semitone intervals. The only aliases are in src/chord-engine/voicing.js ALIASES map."
+  },
+  "qualities": [
+    {
+      "canonicalId": "13sus4",
+      "preferredSymbol": "13sus4",
+      "aliases": ["sus4 13"],
+      "intervalsFromRoot": [0, 5, 7, 10, 14, 17, 21],
+      "requiredIntervals": [0, 5, 7, 10, 14, 17, 21],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:7",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Dominant 13 sus4. The #11 (18) is NOT included — this is a pure sus4 with natural 13. Requires 7 unique pitch classes."
+    },
+    {
+      "canonicalId": "maj13",
+      "preferredSymbol": "maj13",
+      "aliases": [],
+      "intervalsFromRoot": [0, 4, 7, 11, 14, 17, 21],
+      "requiredIntervals": [0, 4, 7, 11, 14, 17, 21],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:8",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Major 13. Requires all 7 intervals (root, 3, 5, 7, 9, 11, 13)."
+    },
+    {
+      "canonicalId": "13",
+      "preferredSymbol": "13",
+      "aliases": [],
+      "intervalsFromRoot": [0, 4, 7, 10, 14, 17, 21],
+      "requiredIntervals": [0, 4, 7, 10, 14, 17, 21],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:9",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Dominant 13. Requires all 7 intervals."
+    },
+    {
+      "canonicalId": "m13",
+      "preferredSymbol": "m13",
+      "aliases": [],
+      "intervalsFromRoot": [0, 3, 7, 10, 14, 17, 21],
+      "requiredIntervals": [0, 3, 7, 10, 14, 17, 21],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:10",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Minor 13. Interval 10 = b7 (minor 7th = 10 semitones from root). This is correct for a minor 7th chord. Minor 3rd = interval 3. No interval issue."
+    },
+    {
+      "canonicalId": "13#11",
+      "preferredSymbol": "13#11",
+      "aliases": [],
+      "intervalsFromRoot": [0, 4, 7, 10, 14, 18, 21],
+      "requiredIntervals": [0, 4, 7, 10, 14, 18, 21],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [18],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:11",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Dominant 13 #11. The #11 is encoded as interval 18 = +18 semitones = augmented 11th."
+    },
+    {
+      "canonicalId": "7b13",
+      "preferredSymbol": "7b13",
+      "aliases": [],
+      "intervalsFromRoot": [0, 4, 7, 10, 14, 20],
+      "requiredIntervals": [0, 4, 7, 10, 14, 20],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [20],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:12",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Dominant 7 b13. Interval 20 = b13 (minor 13th). Contains natural 9 (14)."
+    },
+    {
+      "canonicalId": "7#9b13",
+      "preferredSymbol": "7#9b13",
+      "aliases": [],
+      "intervalsFromRoot": [0, 4, 7, 10, 15, 20],
+      "requiredIntervals": [0, 4, 7, 10, 15, 20],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [15, 20],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:13",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Dominant 7 #9 b13. The 'Hendrix chord' with altered 9 and 13. Interval 15 = #9, 20 = b13."
+    },
+    {
+      "canonicalId": "7b9b13",
+      "preferredSymbol": "7b9b13",
+      "aliases": [],
+      "intervalsFromRoot": [0, 4, 7, 10, 13, 20],
+      "requiredIntervals": [0, 4, 7, 10, 13, 20],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [13, 20],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:14",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Dominant 7 b9 b13. Altered dominant with both b9 and b13."
+    },
+    {
+      "canonicalId": "maj11",
+      "preferredSymbol": "maj11",
+      "aliases": [],
+      "intervalsFromRoot": [0, 4, 7, 11, 14, 17],
+      "requiredIntervals": [0, 4, 7, 11, 14, 17],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:17",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Major 11. Contains natural 11 — the #4 (Lydian) is NOT used. The natural 11 clashes with the major 3rd."
+    },
+    {
+      "canonicalId": "11",
+      "preferredSymbol": "11",
+      "aliases": [],
+      "intervalsFromRoot": [0, 4, 7, 10, 14, 17],
+      "requiredIntervals": [0, 4, 7, 10, 14, 17],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:18",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Dominant 11. Natural 11 and natural 9."
+    },
+    {
+      "canonicalId": "m11",
+      "preferredSymbol": "m11",
+      "aliases": [],
+      "intervalsFromRoot": [0, 3, 7, 10, 14, 17],
+      "requiredIntervals": [0, 3, 7, 10, 14, 17],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:19",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Minor 11. Minor 3rd (3), natural 11 (17)."
+    },
+    {
+      "canonicalId": "7#11",
+      "preferredSymbol": "7#11",
+      "aliases": [],
+      "intervalsFromRoot": [0, 4, 7, 10, 18],
+      "requiredIntervals": [0, 4, 7, 10, 18],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [18],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:20",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Dominant 7 #11 (lydian dominant). Interval 18 = #11 (augmented 11th). No 9 included."
+    },
+    {
+      "canonicalId": "9sus4",
+      "preferredSymbol": "9sus4",
+      "aliases": ["sus4 9"],
+      "intervalsFromRoot": [0, 5, 7, 10, 14],
+      "requiredIntervals": [0, 5, 7, 10, 14],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:23",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Dominant 9 sus4. No 3rd — uses 4th (5) instead."
+    },
+    {
+      "canonicalId": "maj9",
+      "preferredSymbol": "maj9",
+      "aliases": [],
+      "intervalsFromRoot": [0, 4, 7, 11, 14],
+      "requiredIntervals": [0, 4, 7, 11, 14],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:24",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Major 9. Contains major 7th (11) and major 9th (14)."
+    },
+    {
+      "canonicalId": "9",
+      "preferredSymbol": "9",
+      "aliases": [],
+      "intervalsFromRoot": [0, 4, 7, 10, 14],
+      "requiredIntervals": [0, 4, 7, 10, 14],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:25",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Dominant 9."
+    },
+    {
+      "canonicalId": "m9",
+      "preferredSymbol": "m9",
+      "aliases": [],
+      "intervalsFromRoot": [0, 3, 7, 10, 14],
+      "requiredIntervals": [0, 3, 7, 10, 14],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:26",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Minor 9. Minor 3rd (3), minor 7th (10), major 9th (14)."
+    },
+    {
+      "canonicalId": "7b9",
+      "preferredSymbol": "7b9",
+      "aliases": [],
+      "intervalsFromRoot": [0, 4, 7, 10, 13],
+      "requiredIntervals": [0, 4, 7, 10, 13],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [13],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:27",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Dominant 7 b9. Interval 13 = b9 (minor 9th)."
+    },
+    {
+      "canonicalId": "7#9",
+      "preferredSymbol": "7#9",
+      "aliases": [],
+      "intervalsFromRoot": [0, 4, 7, 10, 15],
+      "requiredIntervals": [0, 4, 7, 10, 15],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [15],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:28",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Dominant 7 #9. Interval 15 = #9 (augmented 9th)."
+    },
+    {
+      "canonicalId": "7b9#9",
+      "preferredSymbol": "7b9#9",
+      "aliases": [],
+      "intervalsFromRoot": [0, 4, 7, 10, 13, 15],
+      "requiredIntervals": [0, 4, 7, 10, 13, 15],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [13, 15],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:29",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Dominant 7 with both b9 and #9."
+    },
+    {
+      "canonicalId": "m7b9",
+      "preferredSymbol": "m7b9",
+      "aliases": [],
+      "intervalsFromRoot": [0, 3, 7, 10, 13],
+      "requiredIntervals": [0, 3, 7, 10, 13],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [13],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:30",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Minor 7 b9. Root, minor 3rd, perfect 5th, minor 7th, minor 9th. Used in Phrygian or locrian natural 9 contexts."
+    },
+    {
+      "canonicalId": "maj7",
+      "preferredSymbol": "maj7",
+      "aliases": [],
+      "intervalsFromRoot": [0, 4, 7, 11],
+      "requiredIntervals": [0, 4, 7, 11],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:33",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Major 7th chord (Δ7)."
+    },
+    {
+      "canonicalId": "7",
+      "preferredSymbol": "7",
+      "aliases": [],
+      "intervalsFromRoot": [0, 4, 7, 10],
+      "requiredIntervals": [0, 4, 7, 10],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:34",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Dominant 7th chord."
+    },
+    {
+      "canonicalId": "m7",
+      "preferredSymbol": "m7",
+      "aliases": ["6 (relative major)"],
+      "intervalsFromRoot": [0, 3, 7, 10],
+      "requiredIntervals": [0, 3, 7, 10],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:35",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Minor 7th chord. The alias '6 (relative major)' reflects the enharmonic equivalence Fm7 = Ab6."
+    },
+    {
+      "canonicalId": "m7b5",
+      "preferredSymbol": "m7b5",
+      "aliases": [],
+      "intervalsFromRoot": [0, 3, 6, 10],
+      "requiredIntervals": [0, 3, 6, 10],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [6],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:36",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Half-diminished 7. Interval 6 = diminished 5th (b5). Also has a rootless mirror definition with intervals [3,6,10] for resolution testing (line 77)."
+    },
+    {
+      "canonicalId": "dim7",
+      "preferredSymbol": "dim7",
+      "aliases": [],
+      "intervalsFromRoot": [0, 3, 6, 9],
+      "requiredIntervals": [0, 3, 6, 9],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [6, 9],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:37",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Diminished 7th. Interval 9 = diminished 7th (double-flat 7 / d7)."
+    },
+    {
+      "canonicalId": "7#5",
+      "preferredSymbol": "7#5",
+      "aliases": [],
+      "intervalsFromRoot": [0, 4, 8, 10],
+      "requiredIntervals": [0, 4, 8, 10],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [8],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:38",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Augmented 7th (dominant 7 #5). Interval 8 = augmented 5th."
+    },
+    {
+      "canonicalId": "7b5",
+      "preferredSymbol": "7b5",
+      "aliases": [],
+      "intervalsFromRoot": [0, 4, 6, 10],
+      "requiredIntervals": [0, 4, 6, 10],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [6],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:39",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Dominant 7 b5. Interval 6 = diminished 5th."
+    },
+    {
+      "canonicalId": "maj7#5",
+      "preferredSymbol": "maj7#5",
+      "aliases": ["maj7alt"],
+      "intervalsFromRoot": [0, 4, 8, 11],
+      "requiredIntervals": [0, 4, 8, 11],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [8],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:40",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Major 7 #5 (augmented major 7th). The alias 'maj7alt' is generic."
+    },
+    {
+      "canonicalId": "mMaj7",
+      "preferredSymbol": "mMaj7",
+      "aliases": [],
+      "intervalsFromRoot": [0, 3, 7, 11],
+      "requiredIntervals": [0, 3, 7, 11],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:41",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Minor major 7th (harmonic minor quality)."
+    },
+    {
+      "canonicalId": "7sus4",
+      "preferredSymbol": "7sus4",
+      "aliases": ["sus4 7"],
+      "intervalsFromRoot": [0, 5, 7, 10],
+      "requiredIntervals": [0, 5, 7, 10],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:42",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Dominant 7 sus4. 4th replaces 3rd."
+    },
+    {
+      "canonicalId": "7sus2",
+      "preferredSymbol": "7sus2",
+      "aliases": [],
+      "intervalsFromRoot": [0, 2, 7, 10],
+      "requiredIntervals": [0, 2, 7, 10],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:43",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Dominant 7 sus2. 2nd (9th) replaces 3rd."
+    },
+    {
+      "canonicalId": "6/9",
+      "preferredSymbol": "6/9",
+      "aliases": [],
+      "intervalsFromRoot": [0, 4, 7, 9, 14],
+      "requiredIntervals": [0, 4, 7, 9, 14],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:47",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Major 6/9. Contains 6th (9) and 9th (14)."
+    },
+    {
+      "canonicalId": "6",
+      "preferredSymbol": "6",
+      "aliases": ["m7 (3rd inversion)"],
+      "intervalsFromRoot": [0, 4, 7, 9],
+      "requiredIntervals": [0, 4, 7, 9],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:48",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Major 6th chord. The alias reflects C6 = Am7 in 3rd inversion."
+    },
+    {
+      "canonicalId": "m6",
+      "preferredSymbol": "m6",
+      "aliases": [],
+      "intervalsFromRoot": [0, 3, 7, 9],
+      "requiredIntervals": [0, 3, 7, 9],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:49",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Minor 6th chord."
+    },
+    {
+      "canonicalId": "add9",
+      "preferredSymbol": "add9",
+      "aliases": [],
+      "intervalsFromRoot": [0, 4, 7, 14],
+      "requiredIntervals": [0, 4, 7, 14],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:50",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Major triad with added 9th. No 7th."
+    },
+    {
+      "canonicalId": "madd9",
+      "preferredSymbol": "madd9",
+      "aliases": [],
+      "intervalsFromRoot": [0, 3, 7, 14],
+      "requiredIntervals": [0, 3, 7, 14],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:51",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Minor triad with added 9th. No 7th."
+    },
+    {
+      "canonicalId": "add11",
+      "preferredSymbol": "add11",
+      "aliases": [],
+      "intervalsFromRoot": [0, 4, 7, 17],
+      "requiredIntervals": [0, 4, 7, 17],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:52",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Major triad with added 11th (perfect 4th an octave up). No 7th."
+    },
+    {
+      "canonicalId": "6add11",
+      "preferredSymbol": "6add11",
+      "aliases": [],
+      "intervalsFromRoot": [0, 4, 7, 9, 17],
+      "requiredIntervals": [0, 4, 7, 9, 17],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:53",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Major 6th with added 11th."
+    },
+    {
+      "canonicalId": "aug",
+      "preferredSymbol": "aug",
+      "aliases": [],
+      "intervalsFromRoot": [0, 4, 8],
+      "requiredIntervals": [0, 4, 8],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [8],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:56",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Augmented triad."
+    },
+    {
+      "canonicalId": "dim",
+      "preferredSymbol": "dim",
+      "aliases": [],
+      "intervalsFromRoot": [0, 3, 6],
+      "requiredIntervals": [0, 3, 6],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [6],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:57",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Diminished triad. Different from dim7 which adds a diminished 7th (interval 9)."
+    },
+    {
+      "canonicalId": "",
+      "preferredSymbol": "Major",
+      "aliases": [],
+      "intervalsFromRoot": [0, 4, 7],
+      "requiredIntervals": [0, 4, 7],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:58",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Major triad. The empty symbol '' means the root alone is shown (e.g. 'C' for C major)."
+    },
+    {
+      "canonicalId": "m",
+      "preferredSymbol": "m",
+      "aliases": [],
+      "intervalsFromRoot": [0, 3, 7],
+      "requiredIntervals": [0, 3, 7],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:59",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Minor triad."
+    },
+    {
+      "canonicalId": "sus4",
+      "preferredSymbol": "sus4",
+      "aliases": [],
+      "intervalsFromRoot": [0, 5, 7],
+      "requiredIntervals": [0, 5, 7],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:60",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Suspended 4th triad. The 3rd is replaced by the 4th."
+    },
+    {
+      "canonicalId": "sus2",
+      "preferredSymbol": "sus2",
+      "aliases": [],
+      "intervalsFromRoot": [0, 2, 7],
+      "requiredIntervals": [0, 2, 7],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:61",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Suspended 2nd triad. The 3rd is replaced by the 2nd."
+    },
+    {
+      "canonicalId": "5",
+      "preferredSymbol": "5",
+      "aliases": [],
+      "intervalsFromRoot": [0, 7],
+      "requiredIntervals": [0, 7],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:64",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Power chord (root and 5th only)."
+    },
+    {
+      "canonicalId": "quartal",
+      "preferredSymbol": "quartal",
+      "aliases": [],
+      "intervalsFromRoot": [0, 5, 10],
+      "requiredIntervals": [0, 5, 10],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:67",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Quartal voicing (stack of perfect 4ths: root, 4th, b7th)."
+    },
+    {
+      "canonicalId": "quartal(add4)",
+      "preferredSymbol": "quartal(add4)",
+      "aliases": [],
+      "intervalsFromRoot": [0, 5, 10, 15],
+      "requiredIntervals": [0, 5, 10, 15],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:68",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Extended quartal voicing (4 perfect 4ths)."
+    },
+    {
+      "canonicalId": "",
+      "preferredSymbol": "Single note",
+      "aliases": [],
+      "intervalsFromRoot": [0],
+      "requiredIntervals": [0],
+      "optionalIntervals": null,
+      "omittedIntervals": null,
+      "alteredIntervals": [],
+      "supportsSlashBass": true,
+      "sourceFiles": [
+        "src/chord-engine/chord-defs.js:71",
+        "src/chord-engine/index.js:189-227"
+      ],
+      "notes": "Single note. Matches any single note."
+    }
+  ],
+  "rootlessDefinitions": [
+    {
+      "canonicalId": "maj7 (rootless)",
+      "preferredSymbol": "maj7",
+      "aliases": [],
+      "intervalsFromRoot": [4, 7, 11],
+      "requiredIntervals": [4, 7, 11],
+      "parentSymbol": "maj7",
+      "notes": "Rootless major 7th voicing (3-5-7). Used when root is NOT present in played notes.",
+      "supportsSlashBass": true,
+      "sourceFiles": ["src/chord-engine/chord-defs.js:84"]
+    },
+    {
+      "canonicalId": "maj9 (rootless)",
+      "preferredSymbol": "maj9",
+      "aliases": [],
+      "intervalsFromRoot": [4, 7, 11, 14],
+      "requiredIntervals": [4, 7, 11, 14],
+      "parentSymbol": "maj9",
+      "supportsSlashBass": true,
+      "sourceFiles": ["src/chord-engine/chord-defs.js:85"]
+    },
+    {
+      "canonicalId": "7 (rootless)",
+      "preferredSymbol": "7",
+      "aliases": [],
+      "intervalsFromRoot": [4, 7, 10],
+      "requiredIntervals": [4, 7, 10],
+      "parentSymbol": "7",
+      "supportsSlashBass": true,
+      "sourceFiles": ["src/chord-engine/chord-defs.js:86"]
+    },
+    {
+      "canonicalId": "9 (rootless)",
+      "preferredSymbol": "9",
+      "aliases": [],
+      "intervalsFromRoot": [4, 7, 10, 14],
+      "requiredIntervals": [4, 7, 10, 14],
+      "parentSymbol": "9",
+      "supportsSlashBass": true,
+      "sourceFiles": ["src/chord-engine/chord-defs.js:87"]
+    },
+    {
+      "canonicalId": "m7 (rootless)",
+      "preferredSymbol": "m7",
+      "aliases": [],
+      "intervalsFromRoot": [3, 7, 10],
+      "requiredIntervals": [3, 7, 10],
+      "parentSymbol": "m7",
+      "supportsSlashBass": true,
+      "sourceFiles": ["src/chord-engine/chord-defs.js:88"]
+    },
+    {
+      "canonicalId": "m9 (rootless)",
+      "preferredSymbol": "m9",
+      "aliases": [],
+      "intervalsFromRoot": [3, 7, 10, 14],
+      "requiredIntervals": [3, 7, 10, 14],
+      "parentSymbol": "m9",
+      "supportsSlashBass": true,
+      "sourceFiles": ["src/chord-engine/chord-defs.js:89"]
+    },
+    {
+      "canonicalId": "m7b5 (rootless)",
+      "preferredSymbol": "m7b5",
+      "aliases": [],
+      "intervalsFromRoot": [3, 6, 10],
+      "requiredIntervals": [3, 6, 10],
+      "parentSymbol": "m7b5",
+      "supportsSlashBass": true,
+      "sourceFiles": ["src/chord-engine/chord-defs.js:90"]
+    }
+  ]
+}

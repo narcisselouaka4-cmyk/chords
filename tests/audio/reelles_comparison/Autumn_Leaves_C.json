@@ -1,0 +1,6119 @@
+{
+  "duration": 164.049,
+  "tempo": 51.7,
+  "timeSignature": "4/4",
+  "key": "Gm",
+  "keyMode": "minor",
+  "keyConfidence": 0.979,
+  "keyCandidates": [
+    {
+      "pc": 7,
+      "mode": "minor",
+      "name": "Gm",
+      "confidence": 1.0
+    },
+    {
+      "pc": 2,
+      "mode": "minor",
+      "name": "Dm",
+      "confidence": 0.989
+    },
+    {
+      "pc": 10,
+      "mode": "major",
+      "name": "A#",
+      "confidence": 0.978
+    },
+    {
+      "pc": 0,
+      "mode": "minor",
+      "name": "Cm",
+      "confidence": 0.975
+    },
+    {
+      "pc": 9,
+      "mode": "minor",
+      "name": "Am",
+      "confidence": 0.974
+    }
+  ],
+  "confidence": 0.817,
+  "chords": [
+    {
+      "startTime": 0.0,
+      "endTime": 0.65,
+      "chord": "D7",
+      "structural_chord": "D7",
+      "confidence": 0.921,
+      "observation_candidates": [
+        {
+          "chord": "Gsus2",
+          "emission_score": 0.952
+        },
+        {
+          "chord": "D7",
+          "emission_score": 0.921
+        },
+        {
+          "chord": "D",
+          "emission_score": 0.908
+        }
+      ],
+      "viterbi_choice": "D7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 0.65,
+      "endTime": 1.231,
+      "chord": "F#m7b5",
+      "structural_chord": "F#m7b5",
+      "confidence": 0.818,
+      "observation_candidates": [
+        {
+          "chord": "F#m7b5",
+          "emission_score": 0.818
+        },
+        {
+          "chord": "D7",
+          "emission_score": 0.776
+        },
+        {
+          "chord": "F#m7",
+          "emission_score": 0.758
+        }
+      ],
+      "viterbi_choice": "F#m7b5",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 1.231,
+      "endTime": 3.158,
+      "chord": "Dmaj7",
+      "structural_chord": "Dmaj7",
+      "confidence": 0.882,
+      "observation_candidates": [
+        {
+          "chord": "Dmaj7",
+          "emission_score": 0.882
+        },
+        {
+          "chord": "D7",
+          "emission_score": 0.761
+        },
+        {
+          "chord": "D",
+          "emission_score": 0.723
+        }
+      ],
+      "viterbi_choice": "Dmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 3.158,
+      "endTime": 3.738,
+      "chord": "F#sus4",
+      "structural_chord": "F#sus4",
+      "confidence": 0.782,
+      "observation_candidates": [
+        {
+          "chord": "F#sus2",
+          "emission_score": 0.807
+        },
+        {
+          "chord": "F#7",
+          "emission_score": 0.788
+        },
+        {
+          "chord": "F#",
+          "emission_score": 0.784
+        }
+      ],
+      "viterbi_choice": "F#sus4",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 3.738,
+      "endTime": 4.342,
+      "chord": "Dsus4",
+      "structural_chord": "Dsus4",
+      "confidence": 0.916,
+      "observation_candidates": [
+        {
+          "chord": "Dsus4",
+          "emission_score": 0.916
+        },
+        {
+          "chord": "D7",
+          "emission_score": 0.803
+        },
+        {
+          "chord": "D",
+          "emission_score": 0.797
+        }
+      ],
+      "viterbi_choice": "Dsus4",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 4.342,
+      "endTime": 4.923,
+      "chord": "Gsus4",
+      "structural_chord": "Gsus4",
+      "confidence": 0.842,
+      "observation_candidates": [
+        {
+          "chord": "Gsus4",
+          "emission_score": 0.842
+        },
+        {
+          "chord": "Cm7",
+          "emission_score": 0.838
+        },
+        {
+          "chord": "Gdim",
+          "emission_score": 0.815
+        }
+      ],
+      "viterbi_choice": "Gsus4",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 4.923,
+      "endTime": 6.153,
+      "chord": "Dsus4",
+      "structural_chord": "Dsus4",
+      "confidence": 0.853,
+      "observation_candidates": [
+        {
+          "chord": "Dsus4",
+          "emission_score": 0.853
+        },
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.8
+        },
+        {
+          "chord": "Gm",
+          "emission_score": 0.723
+        }
+      ],
+      "viterbi_choice": "Dsus4",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 6.153,
+      "endTime": 6.757,
+      "chord": "Cmaj7",
+      "structural_chord": "Cmaj7",
+      "confidence": 0.733,
+      "observation_candidates": [
+        {
+          "chord": "G7",
+          "emission_score": 0.751
+        },
+        {
+          "chord": "Cmaj7",
+          "emission_score": 0.733
+        },
+        {
+          "chord": "G",
+          "emission_score": 0.729
+        }
+      ],
+      "viterbi_choice": "Cmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 6.757,
+      "endTime": 7.314,
+      "chord": "D#maj7",
+      "structural_chord": "D#maj7",
+      "confidence": 0.898,
+      "observation_candidates": [
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.898
+        },
+        {
+          "chord": "Dsus2",
+          "emission_score": 0.709
+        },
+        {
+          "chord": "Dsus4",
+          "emission_score": 0.682
+        }
+      ],
+      "viterbi_choice": "D#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 7.314,
+      "endTime": 7.941,
+      "chord": "Fmaj7",
+      "structural_chord": "Fmaj7",
+      "confidence": 0.705,
+      "observation_candidates": [
+        {
+          "chord": "D#sus2",
+          "emission_score": 0.746
+        },
+        {
+          "chord": "A#sus4",
+          "emission_score": 0.744
+        },
+        {
+          "chord": "Gm7",
+          "emission_score": 0.709
+        }
+      ],
+      "viterbi_choice": "Fmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 7.941,
+      "endTime": 8.499,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.856,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.856
+        },
+        {
+          "chord": "A#7",
+          "emission_score": 0.762
+        },
+        {
+          "chord": "A#sus2",
+          "emission_score": 0.76
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 8.499,
+      "endTime": 9.079,
+      "chord": "Dm7",
+      "structural_chord": "Dm7",
+      "confidence": 0.864,
+      "observation_candidates": [
+        {
+          "chord": "Dm7",
+          "emission_score": 0.864
+        },
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.858
+        },
+        {
+          "chord": "Dm",
+          "emission_score": 0.822
+        }
+      ],
+      "viterbi_choice": "Dm7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 9.079,
+      "endTime": 9.66,
+      "chord": "Gm7",
+      "structural_chord": "Gm7",
+      "confidence": 0.813,
+      "observation_candidates": [
+        {
+          "chord": "Gm7",
+          "emission_score": 0.813
+        },
+        {
+          "chord": "Gm",
+          "emission_score": 0.786
+        },
+        {
+          "chord": "Gm7b5",
+          "emission_score": 0.777
+        }
+      ],
+      "viterbi_choice": "Gm7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 9.66,
+      "endTime": 10.263,
+      "chord": "D#maj7",
+      "structural_chord": "D#maj7",
+      "confidence": 0.896,
+      "observation_candidates": [
+        {
+          "chord": "Gm",
+          "emission_score": 0.916
+        },
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.896
+        },
+        {
+          "chord": "Gsus4",
+          "emission_score": 0.882
+        }
+      ],
+      "viterbi_choice": "D#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 10.263,
+      "endTime": 10.89,
+      "chord": "Gsus2",
+      "structural_chord": "Gsus2",
+      "confidence": 0.857,
+      "observation_candidates": [
+        {
+          "chord": "Gsus2",
+          "emission_score": 0.857
+        },
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.817
+        },
+        {
+          "chord": "Am7b5",
+          "emission_score": 0.804
+        }
+      ],
+      "viterbi_choice": "Gsus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 10.89,
+      "endTime": 12.051,
+      "chord": "D#maj7",
+      "structural_chord": "D#maj7",
+      "confidence": 0.858,
+      "observation_candidates": [
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.858
+        },
+        {
+          "chord": "Dm",
+          "emission_score": 0.745
+        },
+        {
+          "chord": "Dsus4",
+          "emission_score": 0.722
+        }
+      ],
+      "viterbi_choice": "D#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 12.051,
+      "endTime": 13.816,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.83,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.83
+        },
+        {
+          "chord": "Asus4",
+          "emission_score": 0.668
+        },
+        {
+          "chord": "Asus2",
+          "emission_score": 0.66
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 13.816,
+      "endTime": 14.396,
+      "chord": "Gsus2",
+      "structural_chord": "Gsus2",
+      "confidence": 0.909,
+      "observation_candidates": [
+        {
+          "chord": "Gsus2",
+          "emission_score": 0.909
+        },
+        {
+          "chord": "Dsus4",
+          "emission_score": 0.816
+        },
+        {
+          "chord": "Gmaj7",
+          "emission_score": 0.786
+        }
+      ],
+      "viterbi_choice": "Gsus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 14.396,
+      "endTime": 14.977,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.741,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.741
+        },
+        {
+          "chord": "Gm",
+          "emission_score": 0.724
+        },
+        {
+          "chord": "D#",
+          "emission_score": 0.707
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 14.977,
+      "endTime": 15.488,
+      "chord": "D#maj7",
+      "structural_chord": "D#maj7",
+      "confidence": 0.915,
+      "observation_candidates": [
+        {
+          "chord": "Gm",
+          "emission_score": 0.917
+        },
+        {
+          "chord": "Dsus4",
+          "emission_score": 0.917
+        },
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.915
+        }
+      ],
+      "viterbi_choice": "D#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 15.488,
+      "endTime": 16.068,
+      "chord": "Csus2",
+      "structural_chord": "Csus2",
+      "confidence": 0.925,
+      "observation_candidates": [
+        {
+          "chord": "Csus2",
+          "emission_score": 0.925
+        },
+        {
+          "chord": "Gsus4",
+          "emission_score": 0.885
+        },
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.737
+        }
+      ],
+      "viterbi_choice": "Csus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 16.068,
+      "endTime": 16.718,
+      "chord": "D#sus2",
+      "structural_chord": "D#sus2",
+      "confidence": 0.91,
+      "observation_candidates": [
+        {
+          "chord": "D#sus2",
+          "emission_score": 0.91
+        },
+        {
+          "chord": "D#sus4",
+          "emission_score": 0.874
+        },
+        {
+          "chord": "A#sus4",
+          "emission_score": 0.85
+        }
+      ],
+      "viterbi_choice": "D#sus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 16.718,
+      "endTime": 17.322,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.798,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.798
+        },
+        {
+          "chord": "Asus2",
+          "emission_score": 0.768
+        },
+        {
+          "chord": "Asus4",
+          "emission_score": 0.767
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 17.322,
+      "endTime": 17.81,
+      "chord": "Fmaj7",
+      "structural_chord": "Fmaj7",
+      "confidence": 0.901,
+      "observation_candidates": [
+        {
+          "chord": "F",
+          "emission_score": 0.926
+        },
+        {
+          "chord": "F7",
+          "emission_score": 0.92
+        },
+        {
+          "chord": "Fmaj7",
+          "emission_score": 0.901
+        }
+      ],
+      "viterbi_choice": "Fmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 17.81,
+      "endTime": 18.46,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.866,
+      "observation_candidates": [
+        {
+          "chord": "A#7",
+          "emission_score": 0.867
+        },
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.866
+        },
+        {
+          "chord": "A#",
+          "emission_score": 0.831
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 18.46,
+      "endTime": 19.064,
+      "chord": "D#maj7",
+      "structural_chord": "D#maj7",
+      "confidence": 0.841,
+      "observation_candidates": [
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.841
+        },
+        {
+          "chord": "A#7",
+          "emission_score": 0.826
+        },
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.801
+        }
+      ],
+      "viterbi_choice": "D#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 19.064,
+      "endTime": 19.644,
+      "chord": "Gm7",
+      "structural_chord": "Gm7",
+      "confidence": 0.916,
+      "observation_candidates": [
+        {
+          "chord": "Gm7",
+          "emission_score": 0.916
+        },
+        {
+          "chord": "Gm",
+          "emission_score": 0.842
+        },
+        {
+          "chord": "Gm7b5",
+          "emission_score": 0.804
+        }
+      ],
+      "viterbi_choice": "Gm7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 19.644,
+      "endTime": 20.225,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.788,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.788
+        },
+        {
+          "chord": "Gsus2",
+          "emission_score": 0.705
+        },
+        {
+          "chord": "Gm",
+          "emission_score": 0.659
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 20.225,
+      "endTime": 20.805,
+      "chord": "Fmaj7",
+      "structural_chord": "Fmaj7",
+      "confidence": 0.687,
+      "observation_candidates": [
+        {
+          "chord": "Am",
+          "emission_score": 0.782
+        },
+        {
+          "chord": "Adim",
+          "emission_score": 0.78
+        },
+        {
+          "chord": "F7",
+          "emission_score": 0.748
+        }
+      ],
+      "viterbi_choice": "Fmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 20.805,
+      "endTime": 21.409,
+      "chord": "D#maj7",
+      "structural_chord": "D#maj7",
+      "confidence": 0.79,
+      "observation_candidates": [
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.79
+        },
+        {
+          "chord": "Cm",
+          "emission_score": 0.674
+        },
+        {
+          "chord": "D#7",
+          "emission_score": 0.643
+        }
+      ],
+      "viterbi_choice": "D#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 21.409,
+      "endTime": 21.92,
+      "chord": "Cm7",
+      "structural_chord": "Cm7",
+      "confidence": 0.762,
+      "observation_candidates": [
+        {
+          "chord": "Cm7",
+          "emission_score": 0.762
+        },
+        {
+          "chord": "A#sus2",
+          "emission_score": 0.759
+        },
+        {
+          "chord": "Cm7b5",
+          "emission_score": 0.724
+        }
+      ],
+      "viterbi_choice": "Cm7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 21.92,
+      "endTime": 23.081,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.764,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.764
+        },
+        {
+          "chord": "Asus2",
+          "emission_score": 0.709
+        },
+        {
+          "chord": "Bmaj7",
+          "emission_score": 0.628
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 23.081,
+      "endTime": 23.731,
+      "chord": "Gm7",
+      "structural_chord": "Gm7",
+      "confidence": 0.867,
+      "observation_candidates": [
+        {
+          "chord": "Gm7",
+          "emission_score": 0.867
+        },
+        {
+          "chord": "Gm",
+          "emission_score": 0.864
+        },
+        {
+          "chord": "Gm7b5",
+          "emission_score": 0.789
+        }
+      ],
+      "viterbi_choice": "Gm7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 23.731,
+      "endTime": 24.311,
+      "chord": "Fm7",
+      "structural_chord": "Fm7",
+      "confidence": 0.762,
+      "observation_candidates": [
+        {
+          "chord": "D#sus2",
+          "emission_score": 0.845
+        },
+        {
+          "chord": "Fm7",
+          "emission_score": 0.762
+        },
+        {
+          "chord": "Fm7b5",
+          "emission_score": 0.726
+        }
+      ],
+      "viterbi_choice": "Fm7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 24.311,
+      "endTime": 24.822,
+      "chord": "D#maj7",
+      "structural_chord": "D#maj7",
+      "confidence": 0.828,
+      "observation_candidates": [
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.828
+        },
+        {
+          "chord": "D#7",
+          "emission_score": 0.65
+        },
+        {
+          "chord": "Dsus2",
+          "emission_score": 0.649
+        }
+      ],
+      "viterbi_choice": "D#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 24.822,
+      "endTime": 27.167,
+      "chord": "Csus2",
+      "structural_chord": "Csus2",
+      "confidence": 0.827,
+      "observation_candidates": [
+        {
+          "chord": "Csus2",
+          "emission_score": 0.827
+        },
+        {
+          "chord": "Cm",
+          "emission_score": 0.761
+        },
+        {
+          "chord": "Cdim",
+          "emission_score": 0.68
+        }
+      ],
+      "viterbi_choice": "Csus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 27.167,
+      "endTime": 27.748,
+      "chord": "Gsus4",
+      "structural_chord": "Gsus4",
+      "confidence": 0.87,
+      "observation_candidates": [
+        {
+          "chord": "Gsus4",
+          "emission_score": 0.87
+        },
+        {
+          "chord": "Csus2",
+          "emission_score": 0.858
+        },
+        {
+          "chord": "Cm7",
+          "emission_score": 0.787
+        }
+      ],
+      "viterbi_choice": "Gsus4",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 27.748,
+      "endTime": 28.328,
+      "chord": "Am7",
+      "structural_chord": "Am7",
+      "confidence": 0.764,
+      "observation_candidates": [
+        {
+          "chord": "Am7",
+          "emission_score": 0.764
+        },
+        {
+          "chord": "A7",
+          "emission_score": 0.74
+        },
+        {
+          "chord": "Am7b5",
+          "emission_score": 0.717
+        }
+      ],
+      "viterbi_choice": "Am7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 28.328,
+      "endTime": 28.909,
+      "chord": "Gsus2",
+      "structural_chord": "Gsus2",
+      "confidence": 0.848,
+      "observation_candidates": [
+        {
+          "chord": "Gsus2",
+          "emission_score": 0.848
+        },
+        {
+          "chord": "Am7",
+          "emission_score": 0.829
+        },
+        {
+          "chord": "Am7b5",
+          "emission_score": 0.768
+        }
+      ],
+      "viterbi_choice": "Gsus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 28.909,
+      "endTime": 29.513,
+      "chord": "Csus2",
+      "structural_chord": "Csus2",
+      "confidence": 0.817,
+      "observation_candidates": [
+        {
+          "chord": "Csus2",
+          "emission_score": 0.817
+        },
+        {
+          "chord": "Cm7",
+          "emission_score": 0.788
+        },
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.776
+        }
+      ],
+      "viterbi_choice": "Csus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 29.513,
+      "endTime": 30.093,
+      "chord": "Gdim",
+      "structural_chord": "Gdim",
+      "confidence": 0.904,
+      "observation_candidates": [
+        {
+          "chord": "Gdim",
+          "emission_score": 0.904
+        },
+        {
+          "chord": "Gm",
+          "emission_score": 0.863
+        },
+        {
+          "chord": "Gm7b5",
+          "emission_score": 0.827
+        }
+      ],
+      "viterbi_choice": "Gdim",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 30.093,
+      "endTime": 30.72,
+      "chord": "C",
+      "structural_chord": "C",
+      "confidence": 0.851,
+      "observation_candidates": [
+        {
+          "chord": "C",
+          "emission_score": 0.851
+        },
+        {
+          "chord": "Fmaj7",
+          "emission_score": 0.825
+        },
+        {
+          "chord": "C7",
+          "emission_score": 0.822
+        }
+      ],
+      "viterbi_choice": "C",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 30.72,
+      "endTime": 31.254,
+      "chord": "D#m7",
+      "structural_chord": "D#m7",
+      "confidence": 0.716,
+      "observation_candidates": [
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.717
+        },
+        {
+          "chord": "D#m7",
+          "emission_score": 0.716
+        },
+        {
+          "chord": "Cm",
+          "emission_score": 0.707
+        }
+      ],
+      "viterbi_choice": "D#m7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 31.254,
+      "endTime": 31.858,
+      "chord": "Cm7",
+      "structural_chord": "Cm7",
+      "confidence": 0.835,
+      "observation_candidates": [
+        {
+          "chord": "Cm7",
+          "emission_score": 0.835
+        },
+        {
+          "chord": "Cm7b5",
+          "emission_score": 0.781
+        },
+        {
+          "chord": "Cm",
+          "emission_score": 0.778
+        }
+      ],
+      "viterbi_choice": "Cm7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 31.858,
+      "endTime": 32.996,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.796,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.796
+        },
+        {
+          "chord": "A#sus2",
+          "emission_score": 0.679
+        },
+        {
+          "chord": "A#7",
+          "emission_score": 0.662
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 32.996,
+      "endTime": 33.576,
+      "chord": "Cmaj7",
+      "structural_chord": "Cmaj7",
+      "confidence": 0.848,
+      "observation_candidates": [
+        {
+          "chord": "Cmaj7",
+          "emission_score": 0.848
+        },
+        {
+          "chord": "C7",
+          "emission_score": 0.811
+        },
+        {
+          "chord": "C",
+          "emission_score": 0.79
+        }
+      ],
+      "viterbi_choice": "Cmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 33.576,
+      "endTime": 34.18,
+      "chord": "Dmaj7",
+      "structural_chord": "Dmaj7",
+      "confidence": 0.824,
+      "observation_candidates": [
+        {
+          "chord": "Dsus4",
+          "emission_score": 0.841
+        },
+        {
+          "chord": "Dmaj7",
+          "emission_score": 0.824
+        },
+        {
+          "chord": "Dsus2",
+          "emission_score": 0.751
+        }
+      ],
+      "viterbi_choice": "Dmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 34.18,
+      "endTime": 34.76,
+      "chord": "Gaug",
+      "structural_chord": "Gaug",
+      "confidence": 0.786,
+      "observation_candidates": [
+        {
+          "chord": "D#7",
+          "emission_score": 0.863
+        },
+        {
+          "chord": "Gaug",
+          "emission_score": 0.786
+        },
+        {
+          "chord": "D#",
+          "emission_score": 0.765
+        }
+      ],
+      "viterbi_choice": "Gaug",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 34.76,
+      "endTime": 35.294,
+      "chord": "Dmaj7",
+      "structural_chord": "Dmaj7",
+      "confidence": 0.811,
+      "observation_candidates": [
+        {
+          "chord": "Dmaj7",
+          "emission_score": 0.811
+        },
+        {
+          "chord": "A7",
+          "emission_score": 0.77
+        },
+        {
+          "chord": "A",
+          "emission_score": 0.757
+        }
+      ],
+      "viterbi_choice": "Dmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 35.294,
+      "endTime": 35.898,
+      "chord": "Cm7",
+      "structural_chord": "Cm7",
+      "confidence": 0.78,
+      "observation_candidates": [
+        {
+          "chord": "Cm7",
+          "emission_score": 0.78
+        },
+        {
+          "chord": "D#m7",
+          "emission_score": 0.776
+        },
+        {
+          "chord": "D#7",
+          "emission_score": 0.742
+        }
+      ],
+      "viterbi_choice": "Cm7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 35.898,
+      "endTime": 36.571,
+      "chord": "Gsus4",
+      "structural_chord": "Gsus4",
+      "confidence": 0.84,
+      "observation_candidates": [
+        {
+          "chord": "Gsus4",
+          "emission_score": 0.84
+        },
+        {
+          "chord": "Csus2",
+          "emission_score": 0.796
+        },
+        {
+          "chord": "Gm",
+          "emission_score": 0.796
+        }
+      ],
+      "viterbi_choice": "Gsus4",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 36.571,
+      "endTime": 37.338,
+      "chord": "Dmaj7",
+      "structural_chord": "Dmaj7",
+      "confidence": 0.789,
+      "observation_candidates": [
+        {
+          "chord": "Dmaj7",
+          "emission_score": 0.789
+        },
+        {
+          "chord": "D#m7",
+          "emission_score": 0.786
+        },
+        {
+          "chord": "D#m7b5",
+          "emission_score": 0.751
+        }
+      ],
+      "viterbi_choice": "Dmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 37.338,
+      "endTime": 37.918,
+      "chord": "Gmaj7",
+      "structural_chord": "Gmaj7",
+      "confidence": 0.778,
+      "observation_candidates": [
+        {
+          "chord": "Gmaj7",
+          "emission_score": 0.778
+        },
+        {
+          "chord": "Gm",
+          "emission_score": 0.766
+        },
+        {
+          "chord": "Gdim",
+          "emission_score": 0.711
+        }
+      ],
+      "viterbi_choice": "Gmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 37.918,
+      "endTime": 38.499,
+      "chord": "Fmaj7",
+      "structural_chord": "Fmaj7",
+      "confidence": 0.825,
+      "observation_candidates": [
+        {
+          "chord": "Fsus2",
+          "emission_score": 0.842
+        },
+        {
+          "chord": "Fmaj7",
+          "emission_score": 0.825
+        },
+        {
+          "chord": "Csus4",
+          "emission_score": 0.798
+        }
+      ],
+      "viterbi_choice": "Fmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 38.499,
+      "endTime": 39.079,
+      "chord": "Cm7",
+      "structural_chord": "Cm7",
+      "confidence": 0.819,
+      "observation_candidates": [
+        {
+          "chord": "Cm7",
+          "emission_score": 0.819
+        },
+        {
+          "chord": "Cm7b5",
+          "emission_score": 0.8
+        },
+        {
+          "chord": "Cm",
+          "emission_score": 0.795
+        }
+      ],
+      "viterbi_choice": "Cm7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 39.079,
+      "endTime": 39.66,
+      "chord": "A#sus4",
+      "structural_chord": "A#sus4",
+      "confidence": 0.773,
+      "observation_candidates": [
+        {
+          "chord": "A#sus4",
+          "emission_score": 0.773
+        },
+        {
+          "chord": "D#sus4",
+          "emission_score": 0.73
+        },
+        {
+          "chord": "Cm7",
+          "emission_score": 0.727
+        }
+      ],
+      "viterbi_choice": "A#sus4",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 39.66,
+      "endTime": 40.24,
+      "chord": "D#maj7",
+      "structural_chord": "D#maj7",
+      "confidence": 0.698,
+      "observation_candidates": [
+        {
+          "chord": "Csus2",
+          "emission_score": 0.701
+        },
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.698
+        },
+        {
+          "chord": "Dm7",
+          "emission_score": 0.674
+        }
+      ],
+      "viterbi_choice": "D#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 40.24,
+      "endTime": 42.005,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.768,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.768
+        },
+        {
+          "chord": "Asus2",
+          "emission_score": 0.654
+        },
+        {
+          "chord": "Bm7",
+          "emission_score": 0.619
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 42.005,
+      "endTime": 42.585,
+      "chord": "Gsus2",
+      "structural_chord": "Gsus2",
+      "confidence": 0.904,
+      "observation_candidates": [
+        {
+          "chord": "Gsus2",
+          "emission_score": 0.904
+        },
+        {
+          "chord": "Am7",
+          "emission_score": 0.76
+        },
+        {
+          "chord": "Am7b5",
+          "emission_score": 0.715
+        }
+      ],
+      "viterbi_choice": "Gsus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 42.585,
+      "endTime": 43.166,
+      "chord": "Cm7",
+      "structural_chord": "Cm7",
+      "confidence": 0.733,
+      "observation_candidates": [
+        {
+          "chord": "G#sus2",
+          "emission_score": 0.786
+        },
+        {
+          "chord": "D#sus4",
+          "emission_score": 0.775
+        },
+        {
+          "chord": "Cm7",
+          "emission_score": 0.733
+        }
+      ],
+      "viterbi_choice": "Cm7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 43.166,
+      "endTime": 43.77,
+      "chord": "Am7b5",
+      "structural_chord": "Am7b5",
+      "confidence": 0.842,
+      "observation_candidates": [
+        {
+          "chord": "Am7b5",
+          "emission_score": 0.842
+        },
+        {
+          "chord": "Dm7",
+          "emission_score": 0.793
+        },
+        {
+          "chord": "Am7",
+          "emission_score": 0.78
+        }
+      ],
+      "viterbi_choice": "Am7b5",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 43.77,
+      "endTime": 44.35,
+      "chord": "Gsus2",
+      "structural_chord": "Gsus2",
+      "confidence": 0.845,
+      "observation_candidates": [
+        {
+          "chord": "Gsus2",
+          "emission_score": 0.845
+        },
+        {
+          "chord": "Am7",
+          "emission_score": 0.773
+        },
+        {
+          "chord": "A7",
+          "emission_score": 0.752
+        }
+      ],
+      "viterbi_choice": "Gsus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 44.35,
+      "endTime": 45.511,
+      "chord": "D#sus2",
+      "structural_chord": "D#sus2",
+      "confidence": 0.874,
+      "observation_candidates": [
+        {
+          "chord": "D#sus2",
+          "emission_score": 0.874
+        },
+        {
+          "chord": "A#sus4",
+          "emission_score": 0.825
+        },
+        {
+          "chord": "Gm7",
+          "emission_score": 0.81
+        }
+      ],
+      "viterbi_choice": "D#sus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 45.511,
+      "endTime": 46.092,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.953,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.953
+        },
+        {
+          "chord": "A#7",
+          "emission_score": 0.916
+        },
+        {
+          "chord": "A#",
+          "emission_score": 0.915
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 46.092,
+      "endTime": 46.649,
+      "chord": "Dm",
+      "structural_chord": "Dm",
+      "confidence": 0.917,
+      "observation_candidates": [
+        {
+          "chord": "Dm",
+          "emission_score": 0.917
+        },
+        {
+          "chord": "Gm7",
+          "emission_score": 0.89
+        },
+        {
+          "chord": "Ddim",
+          "emission_score": 0.864
+        }
+      ],
+      "viterbi_choice": "Dm",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 46.649,
+      "endTime": 47.253,
+      "chord": "Gsus4",
+      "structural_chord": "Gsus4",
+      "confidence": 0.896,
+      "observation_candidates": [
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.902
+        },
+        {
+          "chord": "Gsus4",
+          "emission_score": 0.896
+        },
+        {
+          "chord": "Csus2",
+          "emission_score": 0.861
+        }
+      ],
+      "viterbi_choice": "Gsus4",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 47.253,
+      "endTime": 47.833,
+      "chord": "Csus2",
+      "structural_chord": "Csus2",
+      "confidence": 0.822,
+      "observation_candidates": [
+        {
+          "chord": "Csus2",
+          "emission_score": 0.822
+        },
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.807
+        },
+        {
+          "chord": "Gsus4",
+          "emission_score": 0.795
+        }
+      ],
+      "viterbi_choice": "Csus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 47.833,
+      "endTime": 48.414,
+      "chord": "Gsus2",
+      "structural_chord": "Gsus2",
+      "confidence": 0.829,
+      "observation_candidates": [
+        {
+          "chord": "Gsus4",
+          "emission_score": 0.907
+        },
+        {
+          "chord": "Gsus2",
+          "emission_score": 0.829
+        },
+        {
+          "chord": "G",
+          "emission_score": 0.821
+        }
+      ],
+      "viterbi_choice": "Gsus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 48.414,
+      "endTime": 48.971,
+      "chord": "Csus2",
+      "structural_chord": "Csus2",
+      "confidence": 0.758,
+      "observation_candidates": [
+        {
+          "chord": "Am7b5",
+          "emission_score": 0.785
+        },
+        {
+          "chord": "Am7",
+          "emission_score": 0.78
+        },
+        {
+          "chord": "Gsus4",
+          "emission_score": 0.775
+        }
+      ],
+      "viterbi_choice": "Csus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 48.971,
+      "endTime": 50.132,
+      "chord": "Gsus2",
+      "structural_chord": "Gsus2",
+      "confidence": 0.95,
+      "observation_candidates": [
+        {
+          "chord": "Gsus2",
+          "emission_score": 0.95
+        },
+        {
+          "chord": "Dsus4",
+          "emission_score": 0.873
+        },
+        {
+          "chord": "Am7",
+          "emission_score": 0.788
+        }
+      ],
+      "viterbi_choice": "Gsus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 50.132,
+      "endTime": 50.62,
+      "chord": "Dsus4",
+      "structural_chord": "Dsus4",
+      "confidence": 0.899,
+      "observation_candidates": [
+        {
+          "chord": "Dsus4",
+          "emission_score": 0.899
+        },
+        {
+          "chord": "Gm",
+          "emission_score": 0.869
+        },
+        {
+          "chord": "Gm7",
+          "emission_score": 0.834
+        }
+      ],
+      "viterbi_choice": "Dsus4",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 50.62,
+      "endTime": 51.084,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.765,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.765
+        },
+        {
+          "chord": "Amaj7",
+          "emission_score": 0.755
+        },
+        {
+          "chord": "Gsus2",
+          "emission_score": 0.708
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 51.084,
+      "endTime": 51.595,
+      "chord": "G#maj7",
+      "structural_chord": "G#maj7",
+      "confidence": 0.758,
+      "observation_candidates": [
+        {
+          "chord": "G#maj7",
+          "emission_score": 0.758
+        },
+        {
+          "chord": "Gsus2",
+          "emission_score": 0.715
+        },
+        {
+          "chord": "G7",
+          "emission_score": 0.651
+        }
+      ],
+      "viterbi_choice": "G#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 51.595,
+      "endTime": 52.733,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.818,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.818
+        },
+        {
+          "chord": "Asus2",
+          "emission_score": 0.653
+        },
+        {
+          "chord": "A7",
+          "emission_score": 0.626
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 52.733,
+      "endTime": 53.29,
+      "chord": "Cmaj7",
+      "structural_chord": "Cmaj7",
+      "confidence": 0.737,
+      "observation_candidates": [
+        {
+          "chord": "F#sus4",
+          "emission_score": 0.742
+        },
+        {
+          "chord": "Cmaj7",
+          "emission_score": 0.737
+        },
+        {
+          "chord": "F#dim",
+          "emission_score": 0.717
+        }
+      ],
+      "viterbi_choice": "Cmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 53.29,
+      "endTime": 55.031,
+      "chord": "D#maj7",
+      "structural_chord": "D#maj7",
+      "confidence": 0.803,
+      "observation_candidates": [
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.803
+        },
+        {
+          "chord": "D#sus2",
+          "emission_score": 0.713
+        },
+        {
+          "chord": "D#7",
+          "emission_score": 0.713
+        }
+      ],
+      "viterbi_choice": "D#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 55.031,
+      "endTime": 55.635,
+      "chord": "Csus2",
+      "structural_chord": "Csus2",
+      "confidence": 0.771,
+      "observation_candidates": [
+        {
+          "chord": "Adim",
+          "emission_score": 0.779
+        },
+        {
+          "chord": "Csus2",
+          "emission_score": 0.771
+        },
+        {
+          "chord": "Am7b5",
+          "emission_score": 0.762
+        }
+      ],
+      "viterbi_choice": "Csus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 55.635,
+      "endTime": 56.285,
+      "chord": "Gsus2",
+      "structural_chord": "Gsus2",
+      "confidence": 0.928,
+      "observation_candidates": [
+        {
+          "chord": "Dsus4",
+          "emission_score": 0.978
+        },
+        {
+          "chord": "Gsus2",
+          "emission_score": 0.928
+        },
+        {
+          "chord": "Gm",
+          "emission_score": 0.876
+        }
+      ],
+      "viterbi_choice": "Gsus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 56.285,
+      "endTime": 56.889,
+      "chord": "Dm7",
+      "structural_chord": "Dm7",
+      "confidence": 0.855,
+      "observation_candidates": [
+        {
+          "chord": "Dm7",
+          "emission_score": 0.855
+        },
+        {
+          "chord": "Dm7b5",
+          "emission_score": 0.818
+        },
+        {
+          "chord": "Csus4",
+          "emission_score": 0.786
+        }
+      ],
+      "viterbi_choice": "Dm7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 56.889,
+      "endTime": 57.446,
+      "chord": "Cm7",
+      "structural_chord": "Cm7",
+      "confidence": 0.782,
+      "observation_candidates": [
+        {
+          "chord": "Cm7",
+          "emission_score": 0.782
+        },
+        {
+          "chord": "Am7",
+          "emission_score": 0.772
+        },
+        {
+          "chord": "C7",
+          "emission_score": 0.736
+        }
+      ],
+      "viterbi_choice": "Cm7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 57.446,
+      "endTime": 58.027,
+      "chord": "A#sus2",
+      "structural_chord": "A#sus2",
+      "confidence": 0.701,
+      "observation_candidates": [
+        {
+          "chord": "Cm7",
+          "emission_score": 0.724
+        },
+        {
+          "chord": "Am",
+          "emission_score": 0.721
+        },
+        {
+          "chord": "Adim",
+          "emission_score": 0.706
+        }
+      ],
+      "viterbi_choice": "A#sus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 58.027,
+      "endTime": 58.607,
+      "chord": "Csus2",
+      "structural_chord": "Csus2",
+      "confidence": 0.912,
+      "observation_candidates": [
+        {
+          "chord": "Csus2",
+          "emission_score": 0.912
+        },
+        {
+          "chord": "Cm",
+          "emission_score": 0.788
+        },
+        {
+          "chord": "Dm7",
+          "emission_score": 0.769
+        }
+      ],
+      "viterbi_choice": "Csus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 58.607,
+      "endTime": 60.349,
+      "chord": "A#sus2",
+      "structural_chord": "A#sus2",
+      "confidence": 0.698,
+      "observation_candidates": [
+        {
+          "chord": "Bmaj7",
+          "emission_score": 0.747
+        },
+        {
+          "chord": "Cm7b5",
+          "emission_score": 0.737
+        },
+        {
+          "chord": "A#sus2",
+          "emission_score": 0.698
+        }
+      ],
+      "viterbi_choice": "A#sus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 60.349,
+      "endTime": 60.929,
+      "chord": "Gsus2",
+      "structural_chord": "Gsus2",
+      "confidence": 0.867,
+      "observation_candidates": [
+        {
+          "chord": "Gsus2",
+          "emission_score": 0.867
+        },
+        {
+          "chord": "Gsus4",
+          "emission_score": 0.784
+        },
+        {
+          "chord": "Am7",
+          "emission_score": 0.764
+        }
+      ],
+      "viterbi_choice": "Gsus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 60.929,
+      "endTime": 61.44,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.827,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.827
+        },
+        {
+          "chord": "Gsus2",
+          "emission_score": 0.724
+        },
+        {
+          "chord": "Asus4",
+          "emission_score": 0.663
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 61.44,
+      "endTime": 62.044,
+      "chord": "Gsus2",
+      "structural_chord": "Gsus2",
+      "confidence": 0.845,
+      "observation_candidates": [
+        {
+          "chord": "Gsus2",
+          "emission_score": 0.845
+        },
+        {
+          "chord": "Am7",
+          "emission_score": 0.755
+        },
+        {
+          "chord": "A7",
+          "emission_score": 0.753
+        }
+      ],
+      "viterbi_choice": "Gsus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 62.044,
+      "endTime": 62.624,
+      "chord": "Fmaj7",
+      "structural_chord": "Fmaj7",
+      "confidence": 0.763,
+      "observation_candidates": [
+        {
+          "chord": "Fmaj7",
+          "emission_score": 0.763
+        },
+        {
+          "chord": "Fsus2",
+          "emission_score": 0.658
+        },
+        {
+          "chord": "Em",
+          "emission_score": 0.657
+        }
+      ],
+      "viterbi_choice": "Fmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 62.624,
+      "endTime": 63.205,
+      "chord": "Dsus2",
+      "structural_chord": "Dsus2",
+      "confidence": 0.806,
+      "observation_candidates": [
+        {
+          "chord": "Dsus2",
+          "emission_score": 0.806
+        },
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.746
+        },
+        {
+          "chord": "Dmaj7",
+          "emission_score": 0.688
+        }
+      ],
+      "viterbi_choice": "Dsus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 63.205,
+      "endTime": 63.762,
+      "chord": "Csus2",
+      "structural_chord": "Csus2",
+      "confidence": 0.702,
+      "observation_candidates": [
+        {
+          "chord": "A#sus2",
+          "emission_score": 0.717
+        },
+        {
+          "chord": "Cm7",
+          "emission_score": 0.711
+        },
+        {
+          "chord": "Csus2",
+          "emission_score": 0.702
+        }
+      ],
+      "viterbi_choice": "Csus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 63.762,
+      "endTime": 64.946,
+      "chord": "Asus2",
+      "structural_chord": "Asus2",
+      "confidence": 0.81,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.814
+        },
+        {
+          "chord": "Asus2",
+          "emission_score": 0.81
+        },
+        {
+          "chord": "Asus4",
+          "emission_score": 0.807
+        }
+      ],
+      "viterbi_choice": "Asus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 64.946,
+      "endTime": 65.573,
+      "chord": "Fsus2",
+      "structural_chord": "Fsus2",
+      "confidence": 0.8,
+      "observation_candidates": [
+        {
+          "chord": "Am7",
+          "emission_score": 0.833
+        },
+        {
+          "chord": "Gsus4",
+          "emission_score": 0.803
+        },
+        {
+          "chord": "Fsus2",
+          "emission_score": 0.8
+        }
+      ],
+      "viterbi_choice": "Fsus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 65.573,
+      "endTime": 66.084,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.86,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.86
+        },
+        {
+          "chord": "Gsus2",
+          "emission_score": 0.718
+        },
+        {
+          "chord": "Asus4",
+          "emission_score": 0.7
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 66.084,
+      "endTime": 66.757,
+      "chord": "Cm7",
+      "structural_chord": "Cm7",
+      "confidence": 0.846,
+      "observation_candidates": [
+        {
+          "chord": "Cm7",
+          "emission_score": 0.846
+        },
+        {
+          "chord": "Cm",
+          "emission_score": 0.838
+        },
+        {
+          "chord": "Cm7b5",
+          "emission_score": 0.766
+        }
+      ],
+      "viterbi_choice": "Cm7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 66.757,
+      "endTime": 67.895,
+      "chord": "D#maj7",
+      "structural_chord": "D#maj7",
+      "confidence": 0.856,
+      "observation_candidates": [
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.856
+        },
+        {
+          "chord": "Dsus4",
+          "emission_score": 0.673
+        },
+        {
+          "chord": "D#",
+          "emission_score": 0.636
+        }
+      ],
+      "viterbi_choice": "D#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 67.895,
+      "endTime": 68.406,
+      "chord": "Fm7",
+      "structural_chord": "Fm7",
+      "confidence": 0.702,
+      "observation_candidates": [
+        {
+          "chord": "Emaj7",
+          "emission_score": 0.739
+        },
+        {
+          "chord": "Fm7",
+          "emission_score": 0.702
+        },
+        {
+          "chord": "Fm7b5",
+          "emission_score": 0.685
+        }
+      ],
+      "viterbi_choice": "Fm7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 68.406,
+      "endTime": 69.033,
+      "chord": "Gm7",
+      "structural_chord": "Gm7",
+      "confidence": 0.79,
+      "observation_candidates": [
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.812
+        },
+        {
+          "chord": "Gm7",
+          "emission_score": 0.79
+        },
+        {
+          "chord": "Dm",
+          "emission_score": 0.772
+        }
+      ],
+      "viterbi_choice": "Gm7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 69.033,
+      "endTime": 69.613,
+      "chord": "Dm7",
+      "structural_chord": "Dm7",
+      "confidence": 0.693,
+      "observation_candidates": [
+        {
+          "chord": "G#dim",
+          "emission_score": 0.779
+        },
+        {
+          "chord": "Bm7",
+          "emission_score": 0.754
+        },
+        {
+          "chord": "G#m7b5",
+          "emission_score": 0.752
+        }
+      ],
+      "viterbi_choice": "Dm7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 69.613,
+      "endTime": 70.147,
+      "chord": "Asus2",
+      "structural_chord": "Asus2",
+      "confidence": 0.761,
+      "observation_candidates": [
+        {
+          "chord": "Bm7b5",
+          "emission_score": 0.768
+        },
+        {
+          "chord": "Asus2",
+          "emission_score": 0.761
+        },
+        {
+          "chord": "F",
+          "emission_score": 0.702
+        }
+      ],
+      "viterbi_choice": "Asus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 70.147,
+      "endTime": 70.728,
+      "chord": "Ddim",
+      "structural_chord": "Ddim",
+      "confidence": 0.803,
+      "observation_candidates": [
+        {
+          "chord": "Gm7",
+          "emission_score": 0.839
+        },
+        {
+          "chord": "Ddim",
+          "emission_score": 0.803
+        },
+        {
+          "chord": "Dm",
+          "emission_score": 0.757
+        }
+      ],
+      "viterbi_choice": "Ddim",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 70.728,
+      "endTime": 71.378,
+      "chord": "Gdim",
+      "structural_chord": "Gdim",
+      "confidence": 0.814,
+      "observation_candidates": [
+        {
+          "chord": "Gdim",
+          "emission_score": 0.814
+        },
+        {
+          "chord": "Gm",
+          "emission_score": 0.784
+        },
+        {
+          "chord": "Gsus2",
+          "emission_score": 0.777
+        }
+      ],
+      "viterbi_choice": "Gdim",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 71.378,
+      "endTime": 71.959,
+      "chord": "Gsus2",
+      "structural_chord": "Gsus2",
+      "confidence": 0.916,
+      "observation_candidates": [
+        {
+          "chord": "Gsus2",
+          "emission_score": 0.916
+        },
+        {
+          "chord": "Dsus4",
+          "emission_score": 0.89
+        },
+        {
+          "chord": "Gsus4",
+          "emission_score": 0.862
+        }
+      ],
+      "viterbi_choice": "Gsus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 71.959,
+      "endTime": 72.446,
+      "chord": "D#maj7",
+      "structural_chord": "D#maj7",
+      "confidence": 0.814,
+      "observation_candidates": [
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.814
+        },
+        {
+          "chord": "D#7",
+          "emission_score": 0.712
+        },
+        {
+          "chord": "D#m7",
+          "emission_score": 0.677
+        }
+      ],
+      "viterbi_choice": "D#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 72.446,
+      "endTime": 73.073,
+      "chord": "F#maj7",
+      "structural_chord": "F#maj7",
+      "confidence": 0.742,
+      "observation_candidates": [
+        {
+          "chord": "F#aug",
+          "emission_score": 0.795
+        },
+        {
+          "chord": "A#aug",
+          "emission_score": 0.79
+        },
+        {
+          "chord": "F#sus4",
+          "emission_score": 0.784
+        }
+      ],
+      "viterbi_choice": "F#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 73.073,
+      "endTime": 75.906,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.785,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.785
+        },
+        {
+          "chord": "Asus2",
+          "emission_score": 0.675
+        },
+        {
+          "chord": "A#7",
+          "emission_score": 0.631
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 75.906,
+      "endTime": 76.487,
+      "chord": "Gmaj7",
+      "structural_chord": "Gmaj7",
+      "confidence": 0.789,
+      "observation_candidates": [
+        {
+          "chord": "Gmaj7",
+          "emission_score": 0.789
+        },
+        {
+          "chord": "F#m",
+          "emission_score": 0.745
+        },
+        {
+          "chord": "Gsus2",
+          "emission_score": 0.738
+        }
+      ],
+      "viterbi_choice": "Gmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 76.487,
+      "endTime": 77.067,
+      "chord": "Dmaj7",
+      "structural_chord": "Dmaj7",
+      "confidence": 0.854,
+      "observation_candidates": [
+        {
+          "chord": "Dmaj7",
+          "emission_score": 0.854
+        },
+        {
+          "chord": "D7",
+          "emission_score": 0.835
+        },
+        {
+          "chord": "D",
+          "emission_score": 0.834
+        }
+      ],
+      "viterbi_choice": "Dmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 77.067,
+      "endTime": 77.648,
+      "chord": "Cmaj7",
+      "structural_chord": "Cmaj7",
+      "confidence": 0.668,
+      "observation_candidates": [
+        {
+          "chord": "Cm7b5",
+          "emission_score": 0.706
+        },
+        {
+          "chord": "Cmaj7",
+          "emission_score": 0.668
+        },
+        {
+          "chord": "G#7",
+          "emission_score": 0.666
+        }
+      ],
+      "viterbi_choice": "Cmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 77.648,
+      "endTime": 78.228,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.867,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.867
+        },
+        {
+          "chord": "A#7",
+          "emission_score": 0.711
+        },
+        {
+          "chord": "Asus4",
+          "emission_score": 0.698
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 78.228,
+      "endTime": 78.878,
+      "chord": "Dsus4",
+      "structural_chord": "Dsus4",
+      "confidence": 0.967,
+      "observation_candidates": [
+        {
+          "chord": "Dsus4",
+          "emission_score": 0.967
+        },
+        {
+          "chord": "Gsus2",
+          "emission_score": 0.905
+        },
+        {
+          "chord": "D",
+          "emission_score": 0.807
+        }
+      ],
+      "viterbi_choice": "Dsus4",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 78.878,
+      "endTime": 79.459,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.718,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.718
+        },
+        {
+          "chord": "Amaj7",
+          "emission_score": 0.677
+        },
+        {
+          "chord": "G#sus2",
+          "emission_score": 0.648
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 79.459,
+      "endTime": 80.062,
+      "chord": "Gmaj7",
+      "structural_chord": "Gmaj7",
+      "confidence": 0.663,
+      "observation_candidates": [
+        {
+          "chord": "G#maj7",
+          "emission_score": 0.742
+        },
+        {
+          "chord": "Gsus2",
+          "emission_score": 0.72
+        },
+        {
+          "chord": "Gmaj7",
+          "emission_score": 0.663
+        }
+      ],
+      "viterbi_choice": "Gmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 80.062,
+      "endTime": 80.643,
+      "chord": "D#maj7",
+      "structural_chord": "D#maj7",
+      "confidence": 0.87,
+      "observation_candidates": [
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.87
+        },
+        {
+          "chord": "Cm7",
+          "emission_score": 0.848
+        },
+        {
+          "chord": "D#7",
+          "emission_score": 0.847
+        }
+      ],
+      "viterbi_choice": "D#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 80.643,
+      "endTime": 81.2,
+      "chord": "Cm7",
+      "structural_chord": "Cm7",
+      "confidence": 0.815,
+      "observation_candidates": [
+        {
+          "chord": "Cm7",
+          "emission_score": 0.815
+        },
+        {
+          "chord": "Cm",
+          "emission_score": 0.787
+        },
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.77
+        }
+      ],
+      "viterbi_choice": "Cm7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 81.2,
+      "endTime": 81.781,
+      "chord": "A#sus2",
+      "structural_chord": "A#sus2",
+      "confidence": 0.816,
+      "observation_candidates": [
+        {
+          "chord": "A#sus2",
+          "emission_score": 0.816
+        },
+        {
+          "chord": "Fsus4",
+          "emission_score": 0.815
+        },
+        {
+          "chord": "A#sus4",
+          "emission_score": 0.796
+        }
+      ],
+      "viterbi_choice": "A#sus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 81.781,
+      "endTime": 82.361,
+      "chord": "D#dim",
+      "structural_chord": "D#dim",
+      "confidence": 0.899,
+      "observation_candidates": [
+        {
+          "chord": "D#dim",
+          "emission_score": 0.899
+        },
+        {
+          "chord": "D#m7b5",
+          "emission_score": 0.812
+        },
+        {
+          "chord": "D#m",
+          "emission_score": 0.785
+        }
+      ],
+      "viterbi_choice": "D#dim",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 82.361,
+      "endTime": 82.942,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.906,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.906
+        },
+        {
+          "chord": "Dm",
+          "emission_score": 0.746
+        },
+        {
+          "chord": "Asus4",
+          "emission_score": 0.744
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 82.942,
+      "endTime": 84.103,
+      "chord": "D#sus2",
+      "structural_chord": "D#sus2",
+      "confidence": 0.908,
+      "observation_candidates": [
+        {
+          "chord": "D#sus2",
+          "emission_score": 0.908
+        },
+        {
+          "chord": "A#sus4",
+          "emission_score": 0.809
+        },
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.8
+        }
+      ],
+      "viterbi_choice": "D#sus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 84.103,
+      "endTime": 85.194,
+      "chord": "Gm7",
+      "structural_chord": "Gm7",
+      "confidence": 0.86,
+      "observation_candidates": [
+        {
+          "chord": "Gm7",
+          "emission_score": 0.86
+        },
+        {
+          "chord": "Dm",
+          "emission_score": 0.817
+        },
+        {
+          "chord": "Ddim",
+          "emission_score": 0.781
+        }
+      ],
+      "viterbi_choice": "Gm7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 85.194,
+      "endTime": 85.751,
+      "chord": "D#maj7",
+      "structural_chord": "D#maj7",
+      "confidence": 0.919,
+      "observation_candidates": [
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.919
+        },
+        {
+          "chord": "Dsus4",
+          "emission_score": 0.783
+        },
+        {
+          "chord": "D#7",
+          "emission_score": 0.725
+        }
+      ],
+      "viterbi_choice": "D#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 85.751,
+      "endTime": 86.355,
+      "chord": "F#maj7",
+      "structural_chord": "F#maj7",
+      "confidence": 0.708,
+      "observation_candidates": [
+        {
+          "chord": "Gm7",
+          "emission_score": 0.777
+        },
+        {
+          "chord": "Fsus2",
+          "emission_score": 0.726
+        },
+        {
+          "chord": "F#maj7",
+          "emission_score": 0.708
+        }
+      ],
+      "viterbi_choice": "F#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 86.355,
+      "endTime": 86.982,
+      "chord": "D#maj7",
+      "structural_chord": "D#maj7",
+      "confidence": 0.83,
+      "observation_candidates": [
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.83
+        },
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.745
+        },
+        {
+          "chord": "D7",
+          "emission_score": 0.712
+        }
+      ],
+      "viterbi_choice": "D#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 86.982,
+      "endTime": 87.586,
+      "chord": "F#maj7",
+      "structural_chord": "F#maj7",
+      "confidence": 0.728,
+      "observation_candidates": [
+        {
+          "chord": "Bmaj7",
+          "emission_score": 0.766
+        },
+        {
+          "chord": "A#aug",
+          "emission_score": 0.739
+        },
+        {
+          "chord": "F#",
+          "emission_score": 0.734
+        }
+      ],
+      "viterbi_choice": "F#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 87.586,
+      "endTime": 88.375,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.775,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.775
+        },
+        {
+          "chord": "Asus2",
+          "emission_score": 0.739
+        },
+        {
+          "chord": "Bm7",
+          "emission_score": 0.693
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 88.375,
+      "endTime": 89.025,
+      "chord": "Gm",
+      "structural_chord": "Gm",
+      "confidence": 0.855,
+      "observation_candidates": [
+        {
+          "chord": "Gm",
+          "emission_score": 0.855
+        },
+        {
+          "chord": "Gdim",
+          "emission_score": 0.787
+        },
+        {
+          "chord": "Gm7",
+          "emission_score": 0.77
+        }
+      ],
+      "viterbi_choice": "Gm",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 89.025,
+      "endTime": 89.606,
+      "chord": "Cmaj7",
+      "structural_chord": "Cmaj7",
+      "confidence": 0.627,
+      "observation_candidates": [
+        {
+          "chord": "C#maj7",
+          "emission_score": 0.791
+        },
+        {
+          "chord": "Csus2",
+          "emission_score": 0.659
+        },
+        {
+          "chord": "Cmaj7",
+          "emission_score": 0.627
+        }
+      ],
+      "viterbi_choice": "Cmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 89.606,
+      "endTime": 90.674,
+      "chord": "D#maj7",
+      "structural_chord": "D#maj7",
+      "confidence": 0.721,
+      "observation_candidates": [
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.721
+        },
+        {
+          "chord": "A#",
+          "emission_score": 0.59
+        },
+        {
+          "chord": "A#7",
+          "emission_score": 0.577
+        }
+      ],
+      "viterbi_choice": "D#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 90.674,
+      "endTime": 91.254,
+      "chord": "Cmaj7",
+      "structural_chord": "Cmaj7",
+      "confidence": 0.869,
+      "observation_candidates": [
+        {
+          "chord": "Cmaj7",
+          "emission_score": 0.869
+        },
+        {
+          "chord": "C7",
+          "emission_score": 0.758
+        },
+        {
+          "chord": "C",
+          "emission_score": 0.681
+        }
+      ],
+      "viterbi_choice": "Cmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 91.254,
+      "endTime": 91.835,
+      "chord": "Fmaj7",
+      "structural_chord": "Fmaj7",
+      "confidence": 0.878,
+      "observation_candidates": [
+        {
+          "chord": "Fmaj7",
+          "emission_score": 0.878
+        },
+        {
+          "chord": "F7",
+          "emission_score": 0.834
+        },
+        {
+          "chord": "F",
+          "emission_score": 0.78
+        }
+      ],
+      "viterbi_choice": "Fmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 91.835,
+      "endTime": 93.553,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.874,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.874
+        },
+        {
+          "chord": "Dm",
+          "emission_score": 0.861
+        },
+        {
+          "chord": "A#7",
+          "emission_score": 0.809
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 93.553,
+      "endTime": 94.134,
+      "chord": "D#maj7",
+      "structural_chord": "D#maj7",
+      "confidence": 0.885,
+      "observation_candidates": [
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.885
+        },
+        {
+          "chord": "Dsus4",
+          "emission_score": 0.845
+        },
+        {
+          "chord": "D7",
+          "emission_score": 0.747
+        }
+      ],
+      "viterbi_choice": "D#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 94.134,
+      "endTime": 95.295,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.778,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.778
+        },
+        {
+          "chord": "Asus4",
+          "emission_score": 0.74
+        },
+        {
+          "chord": "Am7b5",
+          "emission_score": 0.736
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 95.295,
+      "endTime": 95.875,
+      "chord": "D#maj7",
+      "structural_chord": "D#maj7",
+      "confidence": 0.852,
+      "observation_candidates": [
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.852
+        },
+        {
+          "chord": "Csus2",
+          "emission_score": 0.817
+        },
+        {
+          "chord": "Gsus4",
+          "emission_score": 0.8
+        }
+      ],
+      "viterbi_choice": "D#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 95.875,
+      "endTime": 96.456,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.752,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.752
+        },
+        {
+          "chord": "A#sus2",
+          "emission_score": 0.668
+        },
+        {
+          "chord": "Bmaj7",
+          "emission_score": 0.646
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 96.456,
+      "endTime": 96.99,
+      "chord": "F#maj7",
+      "structural_chord": "F#maj7",
+      "confidence": 0.67,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.708
+        },
+        {
+          "chord": "F#",
+          "emission_score": 0.684
+        },
+        {
+          "chord": "F#7",
+          "emission_score": 0.682
+        }
+      ],
+      "viterbi_choice": "F#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 96.99,
+      "endTime": 97.501,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.811,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.811
+        },
+        {
+          "chord": "Asus2",
+          "emission_score": 0.743
+        },
+        {
+          "chord": "A7",
+          "emission_score": 0.693
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 97.501,
+      "endTime": 98.011,
+      "chord": "Gmaj7",
+      "structural_chord": "Gmaj7",
+      "confidence": 0.8,
+      "observation_candidates": [
+        {
+          "chord": "Gsus2",
+          "emission_score": 0.87
+        },
+        {
+          "chord": "Gm",
+          "emission_score": 0.808
+        },
+        {
+          "chord": "Gmaj7",
+          "emission_score": 0.8
+        }
+      ],
+      "viterbi_choice": "Gmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 98.011,
+      "endTime": 98.592,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.709,
+      "observation_candidates": [
+        {
+          "chord": "Gm",
+          "emission_score": 0.745
+        },
+        {
+          "chord": "Gdim",
+          "emission_score": 0.736
+        },
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.709
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 98.592,
+      "endTime": 99.172,
+      "chord": "Dmaj7",
+      "structural_chord": "Dmaj7",
+      "confidence": 0.791,
+      "observation_candidates": [
+        {
+          "chord": "Dmaj7",
+          "emission_score": 0.791
+        },
+        {
+          "chord": "Amaj7",
+          "emission_score": 0.767
+        },
+        {
+          "chord": "A#m7",
+          "emission_score": 0.754
+        }
+      ],
+      "viterbi_choice": "Dmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 99.172,
+      "endTime": 99.73,
+      "chord": "Aaug",
+      "structural_chord": "Aaug",
+      "confidence": 0.796,
+      "observation_candidates": [
+        {
+          "chord": "F7",
+          "emission_score": 0.82
+        },
+        {
+          "chord": "Aaug",
+          "emission_score": 0.796
+        },
+        {
+          "chord": "Faug",
+          "emission_score": 0.789
+        }
+      ],
+      "viterbi_choice": "Aaug",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 99.73,
+      "endTime": 100.241,
+      "chord": "F#maj7",
+      "structural_chord": "F#maj7",
+      "confidence": 0.829,
+      "observation_candidates": [
+        {
+          "chord": "F#maj7",
+          "emission_score": 0.829
+        },
+        {
+          "chord": "Gm7b5",
+          "emission_score": 0.763
+        },
+        {
+          "chord": "Gm7",
+          "emission_score": 0.758
+        }
+      ],
+      "viterbi_choice": "F#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 100.241,
+      "endTime": 101.402,
+      "chord": "Dmaj7",
+      "structural_chord": "Dmaj7",
+      "confidence": 0.853,
+      "observation_candidates": [
+        {
+          "chord": "D7",
+          "emission_score": 0.857
+        },
+        {
+          "chord": "Dmaj7",
+          "emission_score": 0.853
+        },
+        {
+          "chord": "D",
+          "emission_score": 0.847
+        }
+      ],
+      "viterbi_choice": "Dmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 101.402,
+      "endTime": 102.052,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.736,
+      "observation_candidates": [
+        {
+          "chord": "Gsus2",
+          "emission_score": 0.745
+        },
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.736
+        },
+        {
+          "chord": "Asus2",
+          "emission_score": 0.691
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 102.052,
+      "endTime": 102.632,
+      "chord": "Gsus2",
+      "structural_chord": "Gsus2",
+      "confidence": 0.852,
+      "observation_candidates": [
+        {
+          "chord": "Gsus2",
+          "emission_score": 0.852
+        },
+        {
+          "chord": "Gm",
+          "emission_score": 0.785
+        },
+        {
+          "chord": "Gmaj7",
+          "emission_score": 0.754
+        }
+      ],
+      "viterbi_choice": "Gsus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 102.632,
+      "endTime": 103.236,
+      "chord": "F7",
+      "structural_chord": "F7",
+      "confidence": 0.745,
+      "observation_candidates": [
+        {
+          "chord": "Dm",
+          "emission_score": 0.745
+        },
+        {
+          "chord": "F7",
+          "emission_score": 0.745
+        },
+        {
+          "chord": "D#sus2",
+          "emission_score": 0.725
+        }
+      ],
+      "viterbi_choice": "F7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 103.236,
+      "endTime": 103.793,
+      "chord": "Dm7",
+      "structural_chord": "Dm7",
+      "confidence": 0.885,
+      "observation_candidates": [
+        {
+          "chord": "Dm7",
+          "emission_score": 0.885
+        },
+        {
+          "chord": "Dm7b5",
+          "emission_score": 0.835
+        },
+        {
+          "chord": "Bdim",
+          "emission_score": 0.829
+        }
+      ],
+      "viterbi_choice": "Dm7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 103.793,
+      "endTime": 104.374,
+      "chord": "Cm7",
+      "structural_chord": "Cm7",
+      "confidence": 0.828,
+      "observation_candidates": [
+        {
+          "chord": "Cm7",
+          "emission_score": 0.828
+        },
+        {
+          "chord": "Bmaj7",
+          "emission_score": 0.762
+        },
+        {
+          "chord": "A#sus4",
+          "emission_score": 0.745
+        }
+      ],
+      "viterbi_choice": "Cm7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 104.374,
+      "endTime": 106.046,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.874,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.874
+        },
+        {
+          "chord": "F7",
+          "emission_score": 0.732
+        },
+        {
+          "chord": "F",
+          "emission_score": 0.728
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 106.046,
+      "endTime": 106.626,
+      "chord": "Dm",
+      "structural_chord": "Dm",
+      "confidence": 0.828,
+      "observation_candidates": [
+        {
+          "chord": "Dm",
+          "emission_score": 0.828
+        },
+        {
+          "chord": "D#sus2",
+          "emission_score": 0.776
+        },
+        {
+          "chord": "F7",
+          "emission_score": 0.77
+        }
+      ],
+      "viterbi_choice": "Dm",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 106.626,
+      "endTime": 107.183,
+      "chord": "Fmaj7",
+      "structural_chord": "Fmaj7",
+      "confidence": 0.788,
+      "observation_candidates": [
+        {
+          "chord": "Fmaj7",
+          "emission_score": 0.788
+        },
+        {
+          "chord": "D#sus2",
+          "emission_score": 0.679
+        },
+        {
+          "chord": "Fm7",
+          "emission_score": 0.633
+        }
+      ],
+      "viterbi_choice": "Fmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 107.183,
+      "endTime": 107.764,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.861,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.861
+        },
+        {
+          "chord": "Fsus4",
+          "emission_score": 0.838
+        },
+        {
+          "chord": "F",
+          "emission_score": 0.794
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 107.764,
+      "endTime": 108.368,
+      "chord": "D#sus2",
+      "structural_chord": "D#sus2",
+      "confidence": 0.837,
+      "observation_candidates": [
+        {
+          "chord": "D#sus2",
+          "emission_score": 0.837
+        },
+        {
+          "chord": "Dm",
+          "emission_score": 0.742
+        },
+        {
+          "chord": "A#sus4",
+          "emission_score": 0.734
+        }
+      ],
+      "viterbi_choice": "D#sus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 108.368,
+      "endTime": 108.948,
+      "chord": "F7",
+      "structural_chord": "F7",
+      "confidence": 0.734,
+      "observation_candidates": [
+        {
+          "chord": "F7",
+          "emission_score": 0.734
+        },
+        {
+          "chord": "F",
+          "emission_score": 0.708
+        },
+        {
+          "chord": "Aaug",
+          "emission_score": 0.7
+        }
+      ],
+      "viterbi_choice": "F7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 108.948,
+      "endTime": 109.529,
+      "chord": "D#maj7",
+      "structural_chord": "D#maj7",
+      "confidence": 0.81,
+      "observation_candidates": [
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.81
+        },
+        {
+          "chord": "D7",
+          "emission_score": 0.722
+        },
+        {
+          "chord": "Dsus4",
+          "emission_score": 0.716
+        }
+      ],
+      "viterbi_choice": "D#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 109.529,
+      "endTime": 110.202,
+      "chord": "Cm7b5",
+      "structural_chord": "Cm7b5",
+      "confidence": 0.789,
+      "observation_candidates": [
+        {
+          "chord": "Cm7b5",
+          "emission_score": 0.789
+        },
+        {
+          "chord": "Bmaj7",
+          "emission_score": 0.772
+        },
+        {
+          "chord": "Cm7",
+          "emission_score": 0.744
+        }
+      ],
+      "viterbi_choice": "Cm7b5",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 110.202,
+      "endTime": 111.386,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.833,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.833
+        },
+        {
+          "chord": "A#7",
+          "emission_score": 0.755
+        },
+        {
+          "chord": "Gm7",
+          "emission_score": 0.749
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 111.386,
+      "endTime": 111.92,
+      "chord": "Dsus2",
+      "structural_chord": "Dsus2",
+      "confidence": 0.677,
+      "observation_candidates": [
+        {
+          "chord": "Em",
+          "emission_score": 0.745
+        },
+        {
+          "chord": "Esus2",
+          "emission_score": 0.737
+        },
+        {
+          "chord": "Em7",
+          "emission_score": 0.716
+        }
+      ],
+      "viterbi_choice": "Dsus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 111.92,
+      "endTime": 112.454,
+      "chord": "Fsus2",
+      "structural_chord": "Fsus2",
+      "confidence": 0.789,
+      "observation_candidates": [
+        {
+          "chord": "Fsus2",
+          "emission_score": 0.789
+        },
+        {
+          "chord": "Gm7",
+          "emission_score": 0.754
+        },
+        {
+          "chord": "Gm7b5",
+          "emission_score": 0.704
+        }
+      ],
+      "viterbi_choice": "Fsus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 112.454,
+      "endTime": 113.035,
+      "chord": "Gsus2",
+      "structural_chord": "Gsus2",
+      "confidence": 0.858,
+      "observation_candidates": [
+        {
+          "chord": "Gsus2",
+          "emission_score": 0.858
+        },
+        {
+          "chord": "Am7",
+          "emission_score": 0.802
+        },
+        {
+          "chord": "A7",
+          "emission_score": 0.792
+        }
+      ],
+      "viterbi_choice": "Gsus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 113.035,
+      "endTime": 113.638,
+      "chord": "Fsus2",
+      "structural_chord": "Fsus2",
+      "confidence": 0.82,
+      "observation_candidates": [
+        {
+          "chord": "Fsus2",
+          "emission_score": 0.82
+        },
+        {
+          "chord": "Am7",
+          "emission_score": 0.789
+        },
+        {
+          "chord": "Csus4",
+          "emission_score": 0.77
+        }
+      ],
+      "viterbi_choice": "Fsus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 113.638,
+      "endTime": 114.196,
+      "chord": "Dm",
+      "structural_chord": "Dm",
+      "confidence": 0.93,
+      "observation_candidates": [
+        {
+          "chord": "Dm",
+          "emission_score": 0.93
+        },
+        {
+          "chord": "Dm7",
+          "emission_score": 0.843
+        },
+        {
+          "chord": "Ddim",
+          "emission_score": 0.841
+        }
+      ],
+      "viterbi_choice": "Dm",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 114.196,
+      "endTime": 114.753,
+      "chord": "Fsus4",
+      "structural_chord": "Fsus4",
+      "confidence": 0.762,
+      "observation_candidates": [
+        {
+          "chord": "Fsus4",
+          "emission_score": 0.762
+        },
+        {
+          "chord": "A#sus2",
+          "emission_score": 0.744
+        },
+        {
+          "chord": "Bdim",
+          "emission_score": 0.735
+        }
+      ],
+      "viterbi_choice": "Fsus4",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 114.753,
+      "endTime": 115.914,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.878,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.878
+        },
+        {
+          "chord": "A#7",
+          "emission_score": 0.731
+        },
+        {
+          "chord": "Dsus4",
+          "emission_score": 0.712
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 115.914,
+      "endTime": 116.495,
+      "chord": "Gsus2",
+      "structural_chord": "Gsus2",
+      "confidence": 0.864,
+      "observation_candidates": [
+        {
+          "chord": "Gsus2",
+          "emission_score": 0.864
+        },
+        {
+          "chord": "Gm",
+          "emission_score": 0.767
+        },
+        {
+          "chord": "Am7",
+          "emission_score": 0.743
+        }
+      ],
+      "viterbi_choice": "Gsus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 116.495,
+      "endTime": 117.702,
+      "chord": "D#",
+      "structural_chord": "D#",
+      "confidence": 0.767,
+      "observation_candidates": [
+        {
+          "chord": "D#",
+          "emission_score": 0.767
+        },
+        {
+          "chord": "Am7b5",
+          "emission_score": 0.755
+        },
+        {
+          "chord": "D#7",
+          "emission_score": 0.738
+        }
+      ],
+      "viterbi_choice": "D#",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 117.702,
+      "endTime": 118.352,
+      "chord": "Gm7",
+      "structural_chord": "Gm7",
+      "confidence": 0.906,
+      "observation_candidates": [
+        {
+          "chord": "Gm7",
+          "emission_score": 0.906
+        },
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.873
+        },
+        {
+          "chord": "A#7",
+          "emission_score": 0.845
+        }
+      ],
+      "viterbi_choice": "Gm7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 118.352,
+      "endTime": 118.956,
+      "chord": "A#",
+      "structural_chord": "A#",
+      "confidence": 0.844,
+      "observation_candidates": [
+        {
+          "chord": "A#",
+          "emission_score": 0.844
+        },
+        {
+          "chord": "Dm",
+          "emission_score": 0.832
+        },
+        {
+          "chord": "A#7",
+          "emission_score": 0.816
+        }
+      ],
+      "viterbi_choice": "A#",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 118.956,
+      "endTime": 119.513,
+      "chord": "Csus2",
+      "structural_chord": "Csus2",
+      "confidence": 0.853,
+      "observation_candidates": [
+        {
+          "chord": "Csus2",
+          "emission_score": 0.853
+        },
+        {
+          "chord": "Dm7",
+          "emission_score": 0.737
+        },
+        {
+          "chord": "Gsus4",
+          "emission_score": 0.715
+        }
+      ],
+      "viterbi_choice": "Csus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 119.513,
+      "endTime": 120.024,
+      "chord": "Dmaj7",
+      "structural_chord": "Dmaj7",
+      "confidence": 0.798,
+      "observation_candidates": [
+        {
+          "chord": "Dmaj7",
+          "emission_score": 0.798
+        },
+        {
+          "chord": "C#maj7",
+          "emission_score": 0.662
+        },
+        {
+          "chord": "C#7",
+          "emission_score": 0.651
+        }
+      ],
+      "viterbi_choice": "Dmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 120.024,
+      "endTime": 120.697,
+      "chord": "Gm7",
+      "structural_chord": "Gm7",
+      "confidence": 0.884,
+      "observation_candidates": [
+        {
+          "chord": "Gm7",
+          "emission_score": 0.884
+        },
+        {
+          "chord": "Dm",
+          "emission_score": 0.86
+        },
+        {
+          "chord": "Fsus2",
+          "emission_score": 0.834
+        }
+      ],
+      "viterbi_choice": "Gm7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 120.697,
+      "endTime": 121.858,
+      "chord": "Dm",
+      "structural_chord": "Dm",
+      "confidence": 0.864,
+      "observation_candidates": [
+        {
+          "chord": "Dm",
+          "emission_score": 0.864
+        },
+        {
+          "chord": "Fsus2",
+          "emission_score": 0.833
+        },
+        {
+          "chord": "Dm7",
+          "emission_score": 0.796
+        }
+      ],
+      "viterbi_choice": "Dm",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 121.858,
+      "endTime": 122.439,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.689,
+      "observation_candidates": [
+        {
+          "chord": "Am7b5",
+          "emission_score": 0.799
+        },
+        {
+          "chord": "Adim",
+          "emission_score": 0.725
+        },
+        {
+          "chord": "D#dim",
+          "emission_score": 0.717
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 122.439,
+      "endTime": 124.738,
+      "chord": "D#maj7",
+      "structural_chord": "D#maj7",
+      "confidence": 0.865,
+      "observation_candidates": [
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.865
+        },
+        {
+          "chord": "D#7",
+          "emission_score": 0.827
+        },
+        {
+          "chord": "D#",
+          "emission_score": 0.825
+        }
+      ],
+      "viterbi_choice": "D#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 124.738,
+      "endTime": 125.318,
+      "chord": "Fmaj7",
+      "structural_chord": "Fmaj7",
+      "confidence": 0.697,
+      "observation_candidates": [
+        {
+          "chord": "Dsus2",
+          "emission_score": 0.75
+        },
+        {
+          "chord": "Em7b5",
+          "emission_score": 0.736
+        },
+        {
+          "chord": "Dm",
+          "emission_score": 0.698
+        }
+      ],
+      "viterbi_choice": "Fmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 125.318,
+      "endTime": 126.502,
+      "chord": "Dmaj7",
+      "structural_chord": "Dmaj7",
+      "confidence": 0.735,
+      "observation_candidates": [
+        {
+          "chord": "Dmaj7",
+          "emission_score": 0.735
+        },
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.676
+        },
+        {
+          "chord": "Dsus2",
+          "emission_score": 0.671
+        }
+      ],
+      "viterbi_choice": "Dmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 126.502,
+      "endTime": 127.083,
+      "chord": "Csus2",
+      "structural_chord": "Csus2",
+      "confidence": 0.663,
+      "observation_candidates": [
+        {
+          "chord": "C#maj7",
+          "emission_score": 0.694
+        },
+        {
+          "chord": "Dmaj7",
+          "emission_score": 0.675
+        },
+        {
+          "chord": "Csus2",
+          "emission_score": 0.663
+        }
+      ],
+      "viterbi_choice": "Csus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 127.083,
+      "endTime": 127.594,
+      "chord": "Dsus2",
+      "structural_chord": "Dsus2",
+      "confidence": 0.813,
+      "observation_candidates": [
+        {
+          "chord": "Dsus2",
+          "emission_score": 0.813
+        },
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.79
+        },
+        {
+          "chord": "Dsus4",
+          "emission_score": 0.781
+        }
+      ],
+      "viterbi_choice": "Dsus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 127.594,
+      "endTime": 128.174,
+      "chord": "Fmaj7",
+      "structural_chord": "Fmaj7",
+      "confidence": 0.671,
+      "observation_candidates": [
+        {
+          "chord": "Dm",
+          "emission_score": 0.765
+        },
+        {
+          "chord": "Dsus2",
+          "emission_score": 0.742
+        },
+        {
+          "chord": "Ddim",
+          "emission_score": 0.696
+        }
+      ],
+      "viterbi_choice": "Fmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 128.174,
+      "endTime": 128.755,
+      "chord": "D#maj7",
+      "structural_chord": "D#maj7",
+      "confidence": 0.902,
+      "observation_candidates": [
+        {
+          "chord": "D#7",
+          "emission_score": 0.928
+        },
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.902
+        },
+        {
+          "chord": "D#",
+          "emission_score": 0.837
+        }
+      ],
+      "viterbi_choice": "D#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 128.755,
+      "endTime": 129.312,
+      "chord": "Cmaj7",
+      "structural_chord": "Cmaj7",
+      "confidence": 0.697,
+      "observation_candidates": [
+        {
+          "chord": "Cm7",
+          "emission_score": 0.75
+        },
+        {
+          "chord": "A#sus2",
+          "emission_score": 0.712
+        },
+        {
+          "chord": "Cmaj7",
+          "emission_score": 0.697
+        }
+      ],
+      "viterbi_choice": "Cmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 129.312,
+      "endTime": 130.009,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.88,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.88
+        },
+        {
+          "chord": "A#",
+          "emission_score": 0.859
+        },
+        {
+          "chord": "A#7",
+          "emission_score": 0.842
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 130.009,
+      "endTime": 131.146,
+      "chord": "D#maj7",
+      "structural_chord": "D#maj7",
+      "confidence": 0.916,
+      "observation_candidates": [
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.916
+        },
+        {
+          "chord": "D#7",
+          "emission_score": 0.773
+        },
+        {
+          "chord": "D#",
+          "emission_score": 0.772
+        }
+      ],
+      "viterbi_choice": "D#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 131.146,
+      "endTime": 131.657,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.722,
+      "observation_candidates": [
+        {
+          "chord": "G#sus2",
+          "emission_score": 0.744
+        },
+        {
+          "chord": "D#sus4",
+          "emission_score": 0.735
+        },
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.722
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 131.657,
+      "endTime": 132.795,
+      "chord": "D#maj7",
+      "structural_chord": "D#maj7",
+      "confidence": 0.893,
+      "observation_candidates": [
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.893
+        },
+        {
+          "chord": "D#7",
+          "emission_score": 0.773
+        },
+        {
+          "chord": "D#",
+          "emission_score": 0.772
+        }
+      ],
+      "viterbi_choice": "D#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 132.795,
+      "endTime": 133.399,
+      "chord": "Cm7",
+      "structural_chord": "Cm7",
+      "confidence": 0.862,
+      "observation_candidates": [
+        {
+          "chord": "Cm7",
+          "emission_score": 0.862
+        },
+        {
+          "chord": "Cm7b5",
+          "emission_score": 0.827
+        },
+        {
+          "chord": "Cm",
+          "emission_score": 0.776
+        }
+      ],
+      "viterbi_choice": "Cm7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 133.399,
+      "endTime": 134.002,
+      "chord": "D#maj7",
+      "structural_chord": "D#maj7",
+      "confidence": 0.769,
+      "observation_candidates": [
+        {
+          "chord": "Cm7",
+          "emission_score": 0.783
+        },
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.769
+        },
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.743
+        }
+      ],
+      "viterbi_choice": "D#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 134.002,
+      "endTime": 134.56,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.907,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.907
+        },
+        {
+          "chord": "A#7",
+          "emission_score": 0.819
+        },
+        {
+          "chord": "A#",
+          "emission_score": 0.782
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 134.56,
+      "endTime": 135.21,
+      "chord": "Gsus2",
+      "structural_chord": "Gsus2",
+      "confidence": 0.904,
+      "observation_candidates": [
+        {
+          "chord": "Gsus2",
+          "emission_score": 0.904
+        },
+        {
+          "chord": "Dsus4",
+          "emission_score": 0.818
+        },
+        {
+          "chord": "Gm",
+          "emission_score": 0.796
+        }
+      ],
+      "viterbi_choice": "Gsus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 135.21,
+      "endTime": 135.79,
+      "chord": "A#sus2",
+      "structural_chord": "A#sus2",
+      "confidence": 0.859,
+      "observation_candidates": [
+        {
+          "chord": "A#sus2",
+          "emission_score": 0.859
+        },
+        {
+          "chord": "Cm7",
+          "emission_score": 0.818
+        },
+        {
+          "chord": "Cm7b5",
+          "emission_score": 0.753
+        }
+      ],
+      "viterbi_choice": "A#sus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 135.79,
+      "endTime": 136.348,
+      "chord": "Dmaj7",
+      "structural_chord": "Dmaj7",
+      "confidence": 0.788,
+      "observation_candidates": [
+        {
+          "chord": "Dmaj7",
+          "emission_score": 0.788
+        },
+        {
+          "chord": "D7",
+          "emission_score": 0.769
+        },
+        {
+          "chord": "G#m7b5",
+          "emission_score": 0.736
+        }
+      ],
+      "viterbi_choice": "Dmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 136.348,
+      "endTime": 137.485,
+      "chord": "F#sus2",
+      "structural_chord": "F#sus2",
+      "confidence": 0.896,
+      "observation_candidates": [
+        {
+          "chord": "F#sus2",
+          "emission_score": 0.896
+        },
+        {
+          "chord": "F#m",
+          "emission_score": 0.882
+        },
+        {
+          "chord": "F#sus4",
+          "emission_score": 0.875
+        }
+      ],
+      "viterbi_choice": "F#sus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 137.485,
+      "endTime": 137.996,
+      "chord": "Aaug",
+      "structural_chord": "Aaug",
+      "confidence": 0.797,
+      "observation_candidates": [
+        {
+          "chord": "F",
+          "emission_score": 0.964
+        },
+        {
+          "chord": "F7",
+          "emission_score": 0.939
+        },
+        {
+          "chord": "Fsus4",
+          "emission_score": 0.868
+        }
+      ],
+      "viterbi_choice": "Aaug",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 137.996,
+      "endTime": 138.577,
+      "chord": "Gm7",
+      "structural_chord": "Gm7",
+      "confidence": 0.779,
+      "observation_candidates": [
+        {
+          "chord": "Gm7",
+          "emission_score": 0.779
+        },
+        {
+          "chord": "Dm",
+          "emission_score": 0.775
+        },
+        {
+          "chord": "Ddim",
+          "emission_score": 0.746
+        }
+      ],
+      "viterbi_choice": "Gm7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 138.577,
+      "endTime": 139.227,
+      "chord": "Fmaj7",
+      "structural_chord": "Fmaj7",
+      "confidence": 0.754,
+      "observation_candidates": [
+        {
+          "chord": "Fmaj7",
+          "emission_score": 0.754
+        },
+        {
+          "chord": "Em7",
+          "emission_score": 0.649
+        },
+        {
+          "chord": "Fm7",
+          "emission_score": 0.634
+        }
+      ],
+      "viterbi_choice": "Fmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 139.227,
+      "endTime": 139.761,
+      "chord": "D#maj7",
+      "structural_chord": "D#maj7",
+      "confidence": 0.789,
+      "observation_candidates": [
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.789
+        },
+        {
+          "chord": "D#m7",
+          "emission_score": 0.649
+        },
+        {
+          "chord": "D#7",
+          "emission_score": 0.643
+        }
+      ],
+      "viterbi_choice": "D#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 139.761,
+      "endTime": 140.899,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.745,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.745
+        },
+        {
+          "chord": "A#7",
+          "emission_score": 0.658
+        },
+        {
+          "chord": "Bm7",
+          "emission_score": 0.657
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 140.899,
+      "endTime": 142.733,
+      "chord": "D#maj7",
+      "structural_chord": "D#maj7",
+      "confidence": 0.892,
+      "observation_candidates": [
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.892
+        },
+        {
+          "chord": "D#7",
+          "emission_score": 0.728
+        },
+        {
+          "chord": "D#",
+          "emission_score": 0.717
+        }
+      ],
+      "viterbi_choice": "D#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 142.733,
+      "endTime": 143.314,
+      "chord": "Fsus4",
+      "structural_chord": "Fsus4",
+      "confidence": 0.746,
+      "observation_candidates": [
+        {
+          "chord": "Dm7",
+          "emission_score": 0.752
+        },
+        {
+          "chord": "Fsus4",
+          "emission_score": 0.746
+        },
+        {
+          "chord": "F7",
+          "emission_score": 0.744
+        }
+      ],
+      "viterbi_choice": "Fsus4",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 143.314,
+      "endTime": 143.894,
+      "chord": "Dm",
+      "structural_chord": "Dm",
+      "confidence": 0.89,
+      "observation_candidates": [
+        {
+          "chord": "Dm",
+          "emission_score": 0.89
+        },
+        {
+          "chord": "Ddim",
+          "emission_score": 0.82
+        },
+        {
+          "chord": "Dm7",
+          "emission_score": 0.817
+        }
+      ],
+      "viterbi_choice": "Dm",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 143.894,
+      "endTime": 144.567,
+      "chord": "Fsus2",
+      "structural_chord": "Fsus2",
+      "confidence": 0.922,
+      "observation_candidates": [
+        {
+          "chord": "Fsus2",
+          "emission_score": 0.922
+        },
+        {
+          "chord": "Gm7",
+          "emission_score": 0.823
+        },
+        {
+          "chord": "Csus4",
+          "emission_score": 0.806
+        }
+      ],
+      "viterbi_choice": "Fsus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 144.567,
+      "endTime": 145.241,
+      "chord": "A#sus2",
+      "structural_chord": "A#sus2",
+      "confidence": 0.833,
+      "observation_candidates": [
+        {
+          "chord": "Fsus4",
+          "emission_score": 0.886
+        },
+        {
+          "chord": "A#sus2",
+          "emission_score": 0.833
+        },
+        {
+          "chord": "Dm7",
+          "emission_score": 0.817
+        }
+      ],
+      "viterbi_choice": "A#sus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 145.241,
+      "endTime": 146.402,
+      "chord": "Faug",
+      "structural_chord": "Faug",
+      "confidence": 0.813,
+      "observation_candidates": [
+        {
+          "chord": "Faug",
+          "emission_score": 0.813
+        },
+        {
+          "chord": "Aaug",
+          "emission_score": 0.761
+        },
+        {
+          "chord": "C#",
+          "emission_score": 0.753
+        }
+      ],
+      "viterbi_choice": "Faug",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 146.402,
+      "endTime": 146.982,
+      "chord": "D#maj7",
+      "structural_chord": "D#maj7",
+      "confidence": 0.819,
+      "observation_candidates": [
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.819
+        },
+        {
+          "chord": "Dsus2",
+          "emission_score": 0.726
+        },
+        {
+          "chord": "Em7",
+          "emission_score": 0.719
+        }
+      ],
+      "viterbi_choice": "D#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 146.982,
+      "endTime": 147.563,
+      "chord": "Csus2",
+      "structural_chord": "Csus2",
+      "confidence": 0.757,
+      "observation_candidates": [
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.829
+        },
+        {
+          "chord": "Csus2",
+          "emission_score": 0.757
+        },
+        {
+          "chord": "Dsus4",
+          "emission_score": 0.719
+        }
+      ],
+      "viterbi_choice": "Csus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 147.563,
+      "endTime": 148.724,
+      "chord": "Dsus4",
+      "structural_chord": "Dsus4",
+      "confidence": 0.87,
+      "observation_candidates": [
+        {
+          "chord": "Dsus4",
+          "emission_score": 0.87
+        },
+        {
+          "chord": "D7",
+          "emission_score": 0.821
+        },
+        {
+          "chord": "D",
+          "emission_score": 0.821
+        }
+      ],
+      "viterbi_choice": "Dsus4",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 148.724,
+      "endTime": 149.304,
+      "chord": "F#aug",
+      "structural_chord": "F#aug",
+      "confidence": 0.961,
+      "observation_candidates": [
+        {
+          "chord": "F#aug",
+          "emission_score": 0.961
+        },
+        {
+          "chord": "Daug",
+          "emission_score": 0.957
+        },
+        {
+          "chord": "A#aug",
+          "emission_score": 0.952
+        }
+      ],
+      "viterbi_choice": "F#aug",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 149.304,
+      "endTime": 149.885,
+      "chord": "Daug",
+      "structural_chord": "Daug",
+      "confidence": 0.882,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.915
+        },
+        {
+          "chord": "A#7",
+          "emission_score": 0.882
+        },
+        {
+          "chord": "Daug",
+          "emission_score": 0.882
+        }
+      ],
+      "viterbi_choice": "Daug",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 149.885,
+      "endTime": 150.442,
+      "chord": "Amaj7",
+      "structural_chord": "Amaj7",
+      "confidence": 0.881,
+      "observation_candidates": [
+        {
+          "chord": "A7",
+          "emission_score": 0.885
+        },
+        {
+          "chord": "Amaj7",
+          "emission_score": 0.881
+        },
+        {
+          "chord": "A",
+          "emission_score": 0.875
+        }
+      ],
+      "viterbi_choice": "Amaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 150.442,
+      "endTime": 151.046,
+      "chord": "Dmaj7",
+      "structural_chord": "Dmaj7",
+      "confidence": 0.782,
+      "observation_candidates": [
+        {
+          "chord": "Dmaj7",
+          "emission_score": 0.782
+        },
+        {
+          "chord": "A",
+          "emission_score": 0.766
+        },
+        {
+          "chord": "C#sus2",
+          "emission_score": 0.765
+        }
+      ],
+      "viterbi_choice": "Dmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 151.046,
+      "endTime": 151.626,
+      "chord": "Csus2",
+      "structural_chord": "Csus2",
+      "confidence": 0.749,
+      "observation_candidates": [
+        {
+          "chord": "Csus2",
+          "emission_score": 0.749
+        },
+        {
+          "chord": "C#maj7",
+          "emission_score": 0.7
+        },
+        {
+          "chord": "Dm7",
+          "emission_score": 0.644
+        }
+      ],
+      "viterbi_choice": "Csus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 151.626,
+      "endTime": 153.368,
+      "chord": "A#sus2",
+      "structural_chord": "A#sus2",
+      "confidence": 0.703,
+      "observation_candidates": [
+        {
+          "chord": "Am",
+          "emission_score": 0.766
+        },
+        {
+          "chord": "Am7",
+          "emission_score": 0.704
+        },
+        {
+          "chord": "A#sus2",
+          "emission_score": 0.703
+        }
+      ],
+      "viterbi_choice": "A#sus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 153.368,
+      "endTime": 153.972,
+      "chord": "Gsus2",
+      "structural_chord": "Gsus2",
+      "confidence": 0.874,
+      "observation_candidates": [
+        {
+          "chord": "Gsus2",
+          "emission_score": 0.874
+        },
+        {
+          "chord": "Gm",
+          "emission_score": 0.757
+        },
+        {
+          "chord": "Am7",
+          "emission_score": 0.736
+        }
+      ],
+      "viterbi_choice": "Gsus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 153.972,
+      "endTime": 154.622,
+      "chord": "Fsus4",
+      "structural_chord": "Fsus4",
+      "confidence": 0.917,
+      "observation_candidates": [
+        {
+          "chord": "Fsus4",
+          "emission_score": 0.917
+        },
+        {
+          "chord": "F7",
+          "emission_score": 0.856
+        },
+        {
+          "chord": "F",
+          "emission_score": 0.854
+        }
+      ],
+      "viterbi_choice": "Fsus4",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 154.622,
+      "endTime": 155.225,
+      "chord": "Dsus4",
+      "structural_chord": "Dsus4",
+      "confidence": 0.82,
+      "observation_candidates": [
+        {
+          "chord": "Dm",
+          "emission_score": 0.856
+        },
+        {
+          "chord": "Dsus4",
+          "emission_score": 0.82
+        },
+        {
+          "chord": "Dm7",
+          "emission_score": 0.81
+        }
+      ],
+      "viterbi_choice": "Dsus4",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 155.225,
+      "endTime": 155.806,
+      "chord": "Csus2",
+      "structural_chord": "Csus2",
+      "confidence": 0.781,
+      "observation_candidates": [
+        {
+          "chord": "D7",
+          "emission_score": 0.799
+        },
+        {
+          "chord": "Csus2",
+          "emission_score": 0.781
+        },
+        {
+          "chord": "Dsus4",
+          "emission_score": 0.775
+        }
+      ],
+      "viterbi_choice": "Csus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 155.806,
+      "endTime": 156.386,
+      "chord": "Dmaj7",
+      "structural_chord": "Dmaj7",
+      "confidence": 0.749,
+      "observation_candidates": [
+        {
+          "chord": "Dmaj7",
+          "emission_score": 0.749
+        },
+        {
+          "chord": "Gdim",
+          "emission_score": 0.684
+        },
+        {
+          "chord": "A#m",
+          "emission_score": 0.659
+        }
+      ],
+      "viterbi_choice": "Dmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 156.386,
+      "endTime": 156.967,
+      "chord": "Csus4",
+      "structural_chord": "Csus4",
+      "confidence": 0.851,
+      "observation_candidates": [
+        {
+          "chord": "Csus4",
+          "emission_score": 0.851
+        },
+        {
+          "chord": "F7",
+          "emission_score": 0.834
+        },
+        {
+          "chord": "Fm7",
+          "emission_score": 0.818
+        }
+      ],
+      "viterbi_choice": "Csus4",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 156.967,
+      "endTime": 157.478,
+      "chord": "D#maj7",
+      "structural_chord": "D#maj7",
+      "confidence": 0.766,
+      "observation_candidates": [
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.766
+        },
+        {
+          "chord": "Adim",
+          "emission_score": 0.743
+        },
+        {
+          "chord": "Am7b5",
+          "emission_score": 0.733
+        }
+      ],
+      "viterbi_choice": "D#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 157.478,
+      "endTime": 158.035,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.777,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.777
+        },
+        {
+          "chord": "Dm7",
+          "emission_score": 0.754
+        },
+        {
+          "chord": "Dm",
+          "emission_score": 0.741
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 158.035,
+      "endTime": 158.616,
+      "chord": "Cmaj7",
+      "structural_chord": "Cmaj7",
+      "confidence": 0.652,
+      "observation_candidates": [
+        {
+          "chord": "Cm7",
+          "emission_score": 0.715
+        },
+        {
+          "chord": "A#sus2",
+          "emission_score": 0.713
+        },
+        {
+          "chord": "Gm7b5",
+          "emission_score": 0.705
+        }
+      ],
+      "viterbi_choice": "Cmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 158.616,
+      "endTime": 159.196,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.731,
+      "observation_candidates": [
+        {
+          "chord": "A#maj7",
+          "emission_score": 0.731
+        },
+        {
+          "chord": "Amaj7",
+          "emission_score": 0.692
+        },
+        {
+          "chord": "Asus2",
+          "emission_score": 0.641
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 159.196,
+      "endTime": 159.777,
+      "chord": "Fmaj7",
+      "structural_chord": "Fmaj7",
+      "confidence": 0.652,
+      "observation_candidates": [
+        {
+          "chord": "Fm7b5",
+          "emission_score": 0.691
+        },
+        {
+          "chord": "Fm7",
+          "emission_score": 0.66
+        },
+        {
+          "chord": "Fmaj7",
+          "emission_score": 0.652
+        }
+      ],
+      "viterbi_choice": "Fmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 159.777,
+      "endTime": 160.38,
+      "chord": "D#maj7",
+      "structural_chord": "D#maj7",
+      "confidence": 0.772,
+      "observation_candidates": [
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.772
+        },
+        {
+          "chord": "D#7",
+          "emission_score": 0.74
+        },
+        {
+          "chord": "D#aug",
+          "emission_score": 0.708
+        }
+      ],
+      "viterbi_choice": "D#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 160.38,
+      "endTime": 160.961,
+      "chord": "A#maj7",
+      "structural_chord": "A#maj7",
+      "confidence": 0.551,
+      "observation_candidates": [
+        {
+          "chord": "Gsus2",
+          "emission_score": 0.705
+        },
+        {
+          "chord": "Am7",
+          "emission_score": 0.679
+        },
+        {
+          "chord": "Gm",
+          "emission_score": 0.667
+        }
+      ],
+      "viterbi_choice": "A#maj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 160.961,
+      "endTime": 161.541,
+      "chord": "F#sus2",
+      "structural_chord": "F#sus2",
+      "confidence": 0.776,
+      "observation_candidates": [
+        {
+          "chord": "F#sus2",
+          "emission_score": 0.776
+        },
+        {
+          "chord": "G#maj7",
+          "emission_score": 0.712
+        },
+        {
+          "chord": "G#m7",
+          "emission_score": 0.711
+        }
+      ],
+      "viterbi_choice": "F#sus2",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    },
+    {
+      "startTime": 161.541,
+      "endTime": 164.049,
+      "chord": "Dmaj7",
+      "structural_chord": "Dmaj7",
+      "confidence": 0.789,
+      "observation_candidates": [
+        {
+          "chord": "Dmaj7",
+          "emission_score": 0.789
+        },
+        {
+          "chord": "D#maj7",
+          "emission_score": 0.728
+        },
+        {
+          "chord": "D7",
+          "emission_score": 0.726
+        }
+      ],
+      "viterbi_choice": "Dmaj7",
+      "analysis": {},
+      "techniques": [],
+      "suggestions": [],
+      "reharmonizations": [],
+      "voiceLeading": {}
+    }
+  ],
+  "aggregation": null
+}

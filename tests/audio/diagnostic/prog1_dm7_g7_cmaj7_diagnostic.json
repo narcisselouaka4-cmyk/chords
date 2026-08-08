@@ -1,0 +1,846 @@
+{
+  "name": "prog1_dm7_g7_cmaj7",
+  "duration": 24.0,
+  "dur_total": 24.0,
+  "progression": [
+    {
+      "root": "D",
+      "quality": "m7",
+      "bass": "D2",
+      "upper_notes": [
+        "F3",
+        "A3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        3,
+        7,
+        10
+      ]
+    },
+    {
+      "root": "G",
+      "quality": "7",
+      "bass": "G2",
+      "upper_notes": [
+        "B3",
+        "D4",
+        "F4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        10
+      ]
+    },
+    {
+      "root": "C",
+      "quality": "maj7",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "B3"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        11
+      ]
+    }
+  ],
+  "repeats": 4,
+  "key": {
+    "pc": 7,
+    "mode": "major",
+    "name": "G",
+    "confidence": 0.899
+  },
+  "tempo": 30.046329941860463,
+  "n_beats": 12,
+  "metrics": {
+    "s1_best_obs": {
+      "duration_total": 24.0,
+      "root_accuracy": 0.9891,
+      "quality_accuracy": 0.3294,
+      "full_accuracy": 0.3294,
+      "root_correct_seconds": 23.739,
+      "quality_correct_seconds": 7.905,
+      "full_correct_seconds": 7.905,
+      "confusion": {
+        "m7": {
+          "m": 7.939410430839003
+        },
+        "7": {
+          "7": 7.9053061224489785
+        },
+        "maj7": {
+          "": 5.925442176870749,
+          "sus2": 1.9689795918367352
+        }
+      },
+      "n_segments": 12
+    },
+    "s2_viterbi": {
+      "duration_total": 24.0,
+      "root_accuracy": 0.9891,
+      "quality_accuracy": 0.3294,
+      "full_accuracy": 0.3294,
+      "root_correct_seconds": 23.739,
+      "quality_correct_seconds": 7.905,
+      "full_correct_seconds": 7.905,
+      "confusion": {
+        "m7": {
+          "7": 7.939410430839003
+        },
+        "7": {
+          "7": 7.9053061224489785
+        },
+        "maj7": {
+          "7": 7.894421768707484
+        }
+      },
+      "n_segments": 12
+    },
+    "s3_segmented": {
+      "duration_total": 24.0,
+      "root_accuracy": 0.9891,
+      "quality_accuracy": 0.3294,
+      "full_accuracy": 0.3294,
+      "root_correct_seconds": 23.739,
+      "quality_correct_seconds": 7.905,
+      "full_correct_seconds": 7.905,
+      "confusion": {
+        "m7": {
+          "7": 7.939410430839003
+        },
+        "7": {
+          "7": 7.9053061224489785
+        },
+        "maj7": {
+          "7": 7.894421768707484
+        }
+      },
+      "n_segments": 12
+    },
+    "s4_merged": {
+      "duration_total": 24.0,
+      "root_accuracy": 0.9891,
+      "quality_accuracy": 0.3294,
+      "full_accuracy": 0.3294,
+      "root_correct_seconds": 23.739,
+      "quality_correct_seconds": 7.905,
+      "full_correct_seconds": 7.905,
+      "confusion": {
+        "m7": {
+          "7": 7.939410430839003
+        },
+        "7": {
+          "7": 7.9053061224489785
+        },
+        "maj7": {
+          "7": 7.894421768707484
+        }
+      },
+      "n_segments": 12
+    },
+    "s5a_downgrade_A": {
+      "duration_total": 24.0,
+      "root_accuracy": 0.9891,
+      "quality_accuracy": 0.3294,
+      "full_accuracy": 0.3294,
+      "root_correct_seconds": 23.739,
+      "quality_correct_seconds": 7.905,
+      "full_correct_seconds": 7.905,
+      "confusion": {
+        "m7": {
+          "7": 7.939410430839003
+        },
+        "7": {
+          "7": 7.9053061224489785
+        },
+        "maj7": {
+          "7": 7.894421768707484
+        }
+      },
+      "n_segments": 12
+    },
+    "s5c_downgrade_C": {
+      "duration_total": 24.0,
+      "root_accuracy": 0.9891,
+      "quality_accuracy": 0.3294,
+      "full_accuracy": 0.3294,
+      "root_correct_seconds": 23.739,
+      "quality_correct_seconds": 7.905,
+      "full_correct_seconds": 7.905,
+      "confusion": {
+        "m7": {
+          "7": 7.939410430839003
+        },
+        "7": {
+          "7": 7.9053061224489785
+        },
+        "maj7": {
+          "": 7.894421768707484
+        }
+      },
+      "n_segments": 12
+    },
+    "s6a_clean_A": {
+      "duration_total": 24.0,
+      "root_accuracy": 0.9891,
+      "quality_accuracy": 0.3294,
+      "full_accuracy": 0.3294,
+      "root_correct_seconds": 23.739,
+      "quality_correct_seconds": 7.905,
+      "full_correct_seconds": 7.905,
+      "confusion": {
+        "m7": {
+          "7": 7.939410430839003
+        },
+        "7": {
+          "7": 7.9053061224489785
+        },
+        "maj7": {
+          "7": 7.894421768707484
+        }
+      },
+      "n_segments": 12
+    },
+    "s6c_clean_C": {
+      "duration_total": 24.0,
+      "root_accuracy": 0.9891,
+      "quality_accuracy": 0.3294,
+      "full_accuracy": 0.3294,
+      "root_correct_seconds": 23.739,
+      "quality_correct_seconds": 7.905,
+      "full_correct_seconds": 7.905,
+      "confusion": {
+        "m7": {
+          "7": 7.939410430839003
+        },
+        "7": {
+          "7": 7.9053061224489785
+        },
+        "maj7": {
+          "": 7.894421768707484
+        }
+      },
+      "n_segments": 12
+    }
+  },
+  "stage_labels": {
+    "s1_best_obs": "1. Best observation (per beat)",
+    "s2_viterbi": "2. Viterbi brut (per beat)",
+    "s3_segmented": "3. Apres segmentation",
+    "s4_merged": "4. Apres merge_similar_segments",
+    "s5a_downgrade_A": "5a. Apres downgrade A (legacy_family_fix)",
+    "s5c_downgrade_C": "5c. Apres downgrade C (hybrid)",
+    "s6a_clean_A": "6a. Apres clean (A final)",
+    "s6c_clean_C": "6c. Apres clean (C final)"
+  },
+  "changes": {
+    "s1_best_obs\u2192s2_viterbi": {
+      "corrected_seconds": 0.0,
+      "regressed_seconds": 0.0,
+      "wrong_to_wrong_seconds": 16.0,
+      "unchanged_seconds": 8.0,
+      "corrected_pct": 0.0,
+      "regressed_pct": 0.0,
+      "w2w_pct": 66.7,
+      "n_segments_prev": 12,
+      "n_segments_curr": 12
+    },
+    "s2_viterbi\u2192s3_segmented": {
+      "corrected_seconds": 0.0,
+      "regressed_seconds": 0.0,
+      "wrong_to_wrong_seconds": 0.0,
+      "unchanged_seconds": 24.0,
+      "corrected_pct": 0.0,
+      "regressed_pct": 0.0,
+      "w2w_pct": 0.0,
+      "n_segments_prev": 12,
+      "n_segments_curr": 12
+    },
+    "s3_segmented\u2192s4_merged": {
+      "corrected_seconds": 0.0,
+      "regressed_seconds": 0.0,
+      "wrong_to_wrong_seconds": 0.0,
+      "unchanged_seconds": 24.0,
+      "corrected_pct": 0.0,
+      "regressed_pct": 0.0,
+      "w2w_pct": 0.0,
+      "n_segments_prev": 12,
+      "n_segments_curr": 12
+    },
+    "s4_merged\u2192s5a_downgrade_A": {
+      "corrected_seconds": 0.0,
+      "regressed_seconds": 0.0,
+      "wrong_to_wrong_seconds": 0.0,
+      "unchanged_seconds": 24.0,
+      "corrected_pct": 0.0,
+      "regressed_pct": 0.0,
+      "w2w_pct": 0.0,
+      "n_segments_prev": 12,
+      "n_segments_curr": 12
+    },
+    "s5a_downgrade_A\u2192s6a_clean_A": {
+      "corrected_seconds": 0.0,
+      "regressed_seconds": 0.0,
+      "wrong_to_wrong_seconds": 0.0,
+      "unchanged_seconds": 24.0,
+      "corrected_pct": 0.0,
+      "regressed_pct": 0.0,
+      "w2w_pct": 0.0,
+      "n_segments_prev": 12,
+      "n_segments_curr": 12
+    },
+    "s4_merged\u2192s5c_downgrade_C": {
+      "corrected_seconds": 0.0,
+      "regressed_seconds": 0.0,
+      "wrong_to_wrong_seconds": 8.0,
+      "unchanged_seconds": 16.0,
+      "corrected_pct": 0.0,
+      "regressed_pct": 0.0,
+      "w2w_pct": 33.3,
+      "n_segments_prev": 12,
+      "n_segments_curr": 12
+    },
+    "s5c_downgrade_C\u2192s6c_clean_C": {
+      "corrected_seconds": 0.0,
+      "regressed_seconds": 0.0,
+      "wrong_to_wrong_seconds": 0.0,
+      "unchanged_seconds": 24.0,
+      "corrected_pct": 0.0,
+      "regressed_pct": 0.0,
+      "w2w_pct": 0.0,
+      "n_segments_prev": 12,
+      "n_segments_curr": 12
+    }
+  },
+  "stages": {
+    "s1_best_obs": [
+      {
+        "startTime": 0.0,
+        "endTime": 2.020136054421769,
+        "root": "D",
+        "quality": "m"
+      },
+      {
+        "startTime": 2.020136054421769,
+        "endTime": 4.017052154195011,
+        "root": "G",
+        "quality": "7"
+      },
+      {
+        "startTime": 4.017052154195011,
+        "endTime": 6.013968253968254,
+        "root": "C",
+        "quality": ""
+      },
+      {
+        "startTime": 6.013968253968254,
+        "endTime": 8.034104308390022,
+        "root": "D",
+        "quality": "m"
+      },
+      {
+        "startTime": 8.034104308390022,
+        "endTime": 10.031020408163265,
+        "root": "G",
+        "quality": "7"
+      },
+      {
+        "startTime": 10.031020408163265,
+        "endTime": 12.027936507936507,
+        "root": "C",
+        "quality": "sus2"
+      },
+      {
+        "startTime": 12.027936507936507,
+        "endTime": 14.02485260770975,
+        "root": "D",
+        "quality": "m"
+      },
+      {
+        "startTime": 14.02485260770975,
+        "endTime": 16.021768707482995,
+        "root": "G",
+        "quality": "7"
+      },
+      {
+        "startTime": 16.021768707482995,
+        "endTime": 18.018684807256236,
+        "root": "C",
+        "quality": ""
+      },
+      {
+        "startTime": 18.018684807256236,
+        "endTime": 20.01560090702948,
+        "root": "D",
+        "quality": "m"
+      },
+      {
+        "startTime": 20.01560090702948,
+        "endTime": 22.035736961451246,
+        "root": "G",
+        "quality": "7"
+      },
+      {
+        "startTime": 22.035736961451246,
+        "endTime": 24.0,
+        "root": "C",
+        "quality": ""
+      }
+    ],
+    "s2_viterbi": [
+      {
+        "startTime": 0.0,
+        "endTime": 2.020136054421769,
+        "root": "D",
+        "quality": "7"
+      },
+      {
+        "startTime": 2.020136054421769,
+        "endTime": 4.017052154195011,
+        "root": "G",
+        "quality": "7"
+      },
+      {
+        "startTime": 4.017052154195011,
+        "endTime": 6.013968253968254,
+        "root": "C",
+        "quality": "7"
+      },
+      {
+        "startTime": 6.013968253968254,
+        "endTime": 8.034104308390022,
+        "root": "D",
+        "quality": "7"
+      },
+      {
+        "startTime": 8.034104308390022,
+        "endTime": 10.031020408163265,
+        "root": "G",
+        "quality": "7"
+      },
+      {
+        "startTime": 10.031020408163265,
+        "endTime": 12.027936507936507,
+        "root": "C",
+        "quality": "7"
+      },
+      {
+        "startTime": 12.027936507936507,
+        "endTime": 14.02485260770975,
+        "root": "D",
+        "quality": "7"
+      },
+      {
+        "startTime": 14.02485260770975,
+        "endTime": 16.021768707482995,
+        "root": "G",
+        "quality": "7"
+      },
+      {
+        "startTime": 16.021768707482995,
+        "endTime": 18.018684807256236,
+        "root": "C",
+        "quality": "7"
+      },
+      {
+        "startTime": 18.018684807256236,
+        "endTime": 20.01560090702948,
+        "root": "D",
+        "quality": "7"
+      },
+      {
+        "startTime": 20.01560090702948,
+        "endTime": 22.035736961451246,
+        "root": "G",
+        "quality": "7"
+      },
+      {
+        "startTime": 22.035736961451246,
+        "endTime": 24.0,
+        "root": "C",
+        "quality": "7"
+      }
+    ],
+    "s3_segmented": [
+      {
+        "startTime": 0.0,
+        "endTime": 2.020136054421769,
+        "chord": "D7"
+      },
+      {
+        "startTime": 2.020136054421769,
+        "endTime": 4.017052154195011,
+        "chord": "G7"
+      },
+      {
+        "startTime": 4.017052154195011,
+        "endTime": 6.013968253968254,
+        "chord": "C7"
+      },
+      {
+        "startTime": 6.013968253968254,
+        "endTime": 8.034104308390022,
+        "chord": "D7"
+      },
+      {
+        "startTime": 8.034104308390022,
+        "endTime": 10.031020408163265,
+        "chord": "G7"
+      },
+      {
+        "startTime": 10.031020408163265,
+        "endTime": 12.027936507936507,
+        "chord": "C7"
+      },
+      {
+        "startTime": 12.027936507936507,
+        "endTime": 14.02485260770975,
+        "chord": "D7"
+      },
+      {
+        "startTime": 14.02485260770975,
+        "endTime": 16.021768707482995,
+        "chord": "G7"
+      },
+      {
+        "startTime": 16.021768707482995,
+        "endTime": 18.018684807256236,
+        "chord": "C7"
+      },
+      {
+        "startTime": 18.018684807256236,
+        "endTime": 20.01560090702948,
+        "chord": "D7"
+      },
+      {
+        "startTime": 20.01560090702948,
+        "endTime": 22.035736961451246,
+        "chord": "G7"
+      },
+      {
+        "startTime": 22.035736961451246,
+        "endTime": 24.0,
+        "chord": "C7"
+      }
+    ],
+    "s4_merged": [
+      {
+        "startTime": 0.0,
+        "endTime": 2.020136054421769,
+        "chord": "D7"
+      },
+      {
+        "startTime": 2.020136054421769,
+        "endTime": 4.017052154195011,
+        "chord": "G7"
+      },
+      {
+        "startTime": 4.017052154195011,
+        "endTime": 6.013968253968254,
+        "chord": "C7"
+      },
+      {
+        "startTime": 6.013968253968254,
+        "endTime": 8.034104308390022,
+        "chord": "D7"
+      },
+      {
+        "startTime": 8.034104308390022,
+        "endTime": 10.031020408163265,
+        "chord": "G7"
+      },
+      {
+        "startTime": 10.031020408163265,
+        "endTime": 12.027936507936507,
+        "chord": "C7"
+      },
+      {
+        "startTime": 12.027936507936507,
+        "endTime": 14.02485260770975,
+        "chord": "D7"
+      },
+      {
+        "startTime": 14.02485260770975,
+        "endTime": 16.021768707482995,
+        "chord": "G7"
+      },
+      {
+        "startTime": 16.021768707482995,
+        "endTime": 18.018684807256236,
+        "chord": "C7"
+      },
+      {
+        "startTime": 18.018684807256236,
+        "endTime": 20.01560090702948,
+        "chord": "D7"
+      },
+      {
+        "startTime": 20.01560090702948,
+        "endTime": 22.035736961451246,
+        "chord": "G7"
+      },
+      {
+        "startTime": 22.035736961451246,
+        "endTime": 24.0,
+        "chord": "C7"
+      }
+    ],
+    "s5a_downgrade_A": [
+      {
+        "startTime": 0.0,
+        "endTime": 2.020136054421769,
+        "chord": "D7"
+      },
+      {
+        "startTime": 2.020136054421769,
+        "endTime": 4.017052154195011,
+        "chord": "G7"
+      },
+      {
+        "startTime": 4.017052154195011,
+        "endTime": 6.013968253968254,
+        "chord": "C7"
+      },
+      {
+        "startTime": 6.013968253968254,
+        "endTime": 8.034104308390022,
+        "chord": "D7"
+      },
+      {
+        "startTime": 8.034104308390022,
+        "endTime": 10.031020408163265,
+        "chord": "G7"
+      },
+      {
+        "startTime": 10.031020408163265,
+        "endTime": 12.027936507936507,
+        "chord": "C7"
+      },
+      {
+        "startTime": 12.027936507936507,
+        "endTime": 14.02485260770975,
+        "chord": "D7"
+      },
+      {
+        "startTime": 14.02485260770975,
+        "endTime": 16.021768707482995,
+        "chord": "G7"
+      },
+      {
+        "startTime": 16.021768707482995,
+        "endTime": 18.018684807256236,
+        "chord": "C7"
+      },
+      {
+        "startTime": 18.018684807256236,
+        "endTime": 20.01560090702948,
+        "chord": "D7"
+      },
+      {
+        "startTime": 20.01560090702948,
+        "endTime": 22.035736961451246,
+        "chord": "G7"
+      },
+      {
+        "startTime": 22.035736961451246,
+        "endTime": 24.0,
+        "chord": "C7"
+      }
+    ],
+    "s5c_downgrade_C": [
+      {
+        "startTime": 0.0,
+        "endTime": 2.020136054421769,
+        "chord": "D7"
+      },
+      {
+        "startTime": 2.020136054421769,
+        "endTime": 4.017052154195011,
+        "chord": "G7"
+      },
+      {
+        "startTime": 4.017052154195011,
+        "endTime": 6.013968253968254,
+        "chord": "C"
+      },
+      {
+        "startTime": 6.013968253968254,
+        "endTime": 8.034104308390022,
+        "chord": "D7"
+      },
+      {
+        "startTime": 8.034104308390022,
+        "endTime": 10.031020408163265,
+        "chord": "G7"
+      },
+      {
+        "startTime": 10.031020408163265,
+        "endTime": 12.027936507936507,
+        "chord": "C"
+      },
+      {
+        "startTime": 12.027936507936507,
+        "endTime": 14.02485260770975,
+        "chord": "D7"
+      },
+      {
+        "startTime": 14.02485260770975,
+        "endTime": 16.021768707482995,
+        "chord": "G7"
+      },
+      {
+        "startTime": 16.021768707482995,
+        "endTime": 18.018684807256236,
+        "chord": "C"
+      },
+      {
+        "startTime": 18.018684807256236,
+        "endTime": 20.01560090702948,
+        "chord": "D7"
+      },
+      {
+        "startTime": 20.01560090702948,
+        "endTime": 22.035736961451246,
+        "chord": "G7"
+      },
+      {
+        "startTime": 22.035736961451246,
+        "endTime": 24.0,
+        "chord": "C"
+      }
+    ],
+    "s6a_clean_A": [
+      {
+        "startTime": 0.0,
+        "endTime": 2.020136054421769,
+        "chord": "D7"
+      },
+      {
+        "startTime": 2.020136054421769,
+        "endTime": 4.017052154195011,
+        "chord": "G7"
+      },
+      {
+        "startTime": 4.017052154195011,
+        "endTime": 6.013968253968254,
+        "chord": "C7"
+      },
+      {
+        "startTime": 6.013968253968254,
+        "endTime": 8.034104308390022,
+        "chord": "D7"
+      },
+      {
+        "startTime": 8.034104308390022,
+        "endTime": 10.031020408163265,
+        "chord": "G7"
+      },
+      {
+        "startTime": 10.031020408163265,
+        "endTime": 12.027936507936507,
+        "chord": "C7"
+      },
+      {
+        "startTime": 12.027936507936507,
+        "endTime": 14.02485260770975,
+        "chord": "D7"
+      },
+      {
+        "startTime": 14.02485260770975,
+        "endTime": 16.021768707482995,
+        "chord": "G7"
+      },
+      {
+        "startTime": 16.021768707482995,
+        "endTime": 18.018684807256236,
+        "chord": "C7"
+      },
+      {
+        "startTime": 18.018684807256236,
+        "endTime": 20.01560090702948,
+        "chord": "D7"
+      },
+      {
+        "startTime": 20.01560090702948,
+        "endTime": 22.035736961451246,
+        "chord": "G7"
+      },
+      {
+        "startTime": 22.035736961451246,
+        "endTime": 24.0,
+        "chord": "C7"
+      }
+    ],
+    "s6c_clean_C": [
+      {
+        "startTime": 0.0,
+        "endTime": 2.020136054421769,
+        "chord": "D7"
+      },
+      {
+        "startTime": 2.020136054421769,
+        "endTime": 4.017052154195011,
+        "chord": "G7"
+      },
+      {
+        "startTime": 4.017052154195011,
+        "endTime": 6.013968253968254,
+        "chord": "C"
+      },
+      {
+        "startTime": 6.013968253968254,
+        "endTime": 8.034104308390022,
+        "chord": "D7"
+      },
+      {
+        "startTime": 8.034104308390022,
+        "endTime": 10.031020408163265,
+        "chord": "G7"
+      },
+      {
+        "startTime": 10.031020408163265,
+        "endTime": 12.027936507936507,
+        "chord": "C"
+      },
+      {
+        "startTime": 12.027936507936507,
+        "endTime": 14.02485260770975,
+        "chord": "D7"
+      },
+      {
+        "startTime": 14.02485260770975,
+        "endTime": 16.021768707482995,
+        "chord": "G7"
+      },
+      {
+        "startTime": 16.021768707482995,
+        "endTime": 18.018684807256236,
+        "chord": "C"
+      },
+      {
+        "startTime": 18.018684807256236,
+        "endTime": 20.01560090702948,
+        "chord": "D7"
+      },
+      {
+        "startTime": 20.01560090702948,
+        "endTime": 22.035736961451246,
+        "chord": "G7"
+      },
+      {
+        "startTime": 22.035736961451246,
+        "endTime": 24.0,
+        "chord": "C"
+      }
+    ]
+  }
+}
