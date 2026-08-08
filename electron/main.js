@@ -1021,6 +1021,9 @@ function setupStudioIPC() {
       if (options.discriminatorStrength != null) {
         chordArgs.push(`--discriminator-strength=${options.discriminatorStrength}`);
       }
+      if (options.diagnostics) {
+        chordArgs.push('--diagnostics');
+      }
       const chordJson = await runAudioProcessor(chordArgs);
       const lines = chordJson.split('\n').filter(Boolean);
       const result = JSON.parse(lines[lines.length - 1]);
@@ -1050,6 +1053,7 @@ function setupStudioIPC() {
         keyConfidence: result.keyConfidence ?? 0,
         confidence: result.confidence ?? 0,
         chords: result.chords ?? [],
+        diagnostics: result.diagnostics ?? null,
         bassSegments: bassSegments,
       };
     } catch (err) {

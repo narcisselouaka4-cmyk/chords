@@ -1451,10 +1451,119 @@ def _log_seg_stage(label, segments, states=None):
     sys.stdout.flush()
 
 
+def _beat_indices_in_range(start_time, end_time, beat_times, eps=1e-3):
+    """Retourne les indices des beats couverts par un segment [start, end].
+
+    Un beat est inclus si son centre est dans [start - eps, end + eps].
+    Retourne une liste vide si le segment ne couvre aucun beat.
+    """
+    idxs = []
+    for k, t in enumerate(beat_times):
+        if t >= start_time - eps and t <= end_time + eps:
+            idxs.append(k)
+    return idxs
+
+
+def _segment_diagnostic(seg, states, obs_scores, beat_chroma, beat_times, key):
+    """Construit le diagnostic déterministe d'un segment d'accord.
+
+    Instrumentation en lecture seule : ne modifie ni les poids ni les scorers.
+    Pour chaque segment on expose :
+      - la plage temporelle ; le chroma moyen observé sur le segment ;
+      - la fondamentale dominante du chroma (preuve observée) ;
+      - les candidats d'états considérés (top 5 par émission moyenne) avec :
+        similarité brute (dot chroma/template, sans biais tonal), émission finale
+        (avec le biais tonal +0.05 si racine diatonique, comme _compute_observation_scores),
+        et marge vs le 2e candidat ;
+      - la tonalité/contexte tonal utilisé ;
+      - l'accord choisi par le HMM (state) et l'accord final affiché (post traitement).
+    Retourne None si le segment ne couvre aucun beat.
+    """
+    start = seg["startTime"]
+    end = seg["endTime"]
+    idxs = _beat_indices_in_range(start, end, beat_times)
+    if not idxs:
+        return None
+
+    n_states = len(states)
+
+    # Chroma moyen observé sur le segment.
+    mean_chroma = np.zeros(12, dtype=np.float64)
+    for idx in idxs:
+        mean_chroma += beat_chroma[:, idx]
+    mean_chroma /= len(idxs)
+
+    # Score moyen d'observation (émission finale telle que l'a vue le HMM).
+    mean_scores = np.zeros(n_states, dtype=np.float64)
+    for idx in idxs:
+        for j in range(n_states):
+            mean_scores[j] += obs_scores[idx][j]
+    mean_scores /= len(idxs)
+
+    # Recalcul déterministe de la similarité brute (sans biais) pour la décomposition.
+    similar = np.zeros(n_states, dtype=np.float64)
+    diatonic_roots = _build_diatonic_roots(key)
+    chroma_norm = np.linalg.norm(mean_chroma)
+    for j, st in enumerate(states):
+        template = st.get('template')
+        if template is None:
+            similar[j] = 0.0
+        elif chroma_norm < 1e-6:
+            similar[j] = 0.0
+        else:
+            similar[j] = float(np.dot(mean_chroma / chroma_norm, template))
+
+    # Candidats classés par émission finale moyenne du segment.
+    ranked = []
+    for j, st in enumerate(states):
+        if st.get('suffix') == 'N':
+            continue
+        ranked.append((j, st, float(mean_scores[j])))
+    ranked.sort(key=lambda c: c[2], reverse=True)
+
+    # Candidats topN avec décomposition de score.
+    candidates = []
+    second_score = ranked[1][2] if len(ranked) > 1 else None
+    for j, st, score in ranked[:5]:
+        margin = (score - second_score) if second_score is not None else 0.0
+        candidates.append({
+            'chord': st['name'],
+            'state': j,
+            'suffix': st.get('suffix'),
+            'rootPc': st.get('root'),
+            'similarityRaw': round(float(similar[j]), 4),
+            'emissionFinal': round(score, 4),
+            'marginVsNext': round(margin, 4),
+            'inDiatonic': bool(st.get('root') in diatonic_roots),
+        })
+
+    # fondamentale dominante du chroma (preuve observée).
+    dom_pc = int(np.argmax(mean_chroma)) if np.sum(mean_chroma) > 1e-6 else None
+    dom_energy = float(mean_chroma[dom_pc]) if dom_pc is not None else 0.0
+
+    return {
+        'segmentStart': round(float(start), 3),
+        'segmentEnd': round(float(end), 3),
+        'beatIndices': idxs,
+        'meanChroma': [round(float(v), 4) for v in mean_chroma],
+        'dominantChromaPc': dom_pc,
+        'dominantChromaNote': NOTE_NAMES[dom_pc % 12] if dom_pc is not None else None,
+        'dominantChromaEnergy': round(dom_energy, 4),
+        'key': (key['name'] if key else None),
+        'keyMode': (key['mode'] if key else None),
+        'keyPc': (key['pc'] if key else None),
+        'candidates': candidates,
+        'hmmChoice': int(seg['state']) if seg.get('state') is not None else None,
+        'finalChord': seg.get('chord'),
+        'confidence': round(float(seg.get('confidence', 0.0)), 4),
+    }
+
+
 def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="hybrid",
                    observation_mode="baseline", contradiction_weight=0.10,
                    discriminator_threshold=0.02,
-                   discriminator_strength=0.05):
+                   discriminator_strength=0.05,
+                   diagnostics=False):
     """Pipeline d'analyse audio : tempo, signature, tonalité, accords principaux contextualisés.
 
     observation_mode : "baseline", "targeted_contradictions" (O2 expérimental),
@@ -1613,6 +1722,7 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
         pass
 
     chords = []
+    diagnostics = [] if diagnostics else None
     total_confidence = 0.0
     total_duration = 0.0
     for seg in segments:
@@ -1636,6 +1746,10 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
             "reharmonizations": seg.get("reharmonizations", []),
             "voiceLeading": seg.get("voiceLeading", {})
         })
+        if diagnostics is not None:
+            diag = _segment_diagnostic(seg, states, obs_scores, beat_chroma, beat_times, key)
+            if diag is not None:
+                diagnostics.append(diag)
         total_confidence += seg["confidence"] * length
         total_duration += length
 
@@ -1654,7 +1768,7 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
             "normalization": normalization
         }
 
-    return {
+    result = {
         "duration": round(duration, 3),
         "tempo": avg_tempo,
         "timeSignature": time_signature,
@@ -1666,6 +1780,9 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
         "chords": chords,
         "aggregation": aggregation_info
     }
+    if diagnostics is not None:
+        result["diagnostics"] = diagnostics
+    return result
 
 
 def main():
@@ -1735,6 +1852,7 @@ def main():
         contradiction_weight = 0.10
         discriminator_threshold = 0.02
         discriminator_strength = 0.05
+        diagnostics = '--diagnostics' in sys.argv
         for a in sys.argv:
             if a.startswith('--observation-mode='):
                 observation_mode = a.split('=', 1)[1]
@@ -1748,7 +1866,8 @@ def main():
                                 observation_mode=observation_mode,
                                 contradiction_weight=contradiction_weight,
                                 discriminator_threshold=discriminator_threshold,
-                                discriminator_strength=discriminator_strength)
+                                discriminator_strength=discriminator_strength,
+                                diagnostics=diagnostics)
         if not debug_mode:
             print(json.dumps(result))
         else:
