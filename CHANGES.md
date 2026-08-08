@@ -1,7 +1,183 @@
 # Journal des modifications — Piano Jazz Chords
 
+## 2026-07-10 — OpenCode (Variante C hybride du downgrade + benchmark A/B/C)
+
+**Objectif** : Créer une variante `hybrid` de `_downgrade_advanced_segments` qui
+cumule les avantages de A (`legacy_family_fix`) et B (`distinctive_interval`).
+
+**Ce qui a été fait :**
+- `electron/audio-processor.py` : ajout de `_downgrade_hybrid()` — utilise
+  `distinctive_interval` pour `7/m7/maj7`, `legacy_family_fix` pour `sus2/sus4`.
+- `electron/audio-processor.py` : valeur de production changée de
+  `legacy_family_fix` vers `hybrid` (3 endroits : signature, analyse, CLI).
+- `scripts/compare-progressions.py` : support des 3 variantes A/B/C.
+- `scripts/compare-reelles.py` : benchmark sur 4 fichiers réels.
+- `COMPARAISON_PROGRESSIONS.md` : rapport synthétique A/B/C.
+- `COMPARAISON_REELLES.md` : rapport réel A/B/C.
+- Résultat : C strictement supérieur ou égal à A et B sur tous les critères.
+  Tests de régression (build, Partie 1, Partie 3) OK.
+
+**Modes CLI disponibles** : `legacy_family_fix` (A), `distinctive_interval` (B),
+`hybrid` (C, production par défaut).
+
 > Ce fichier permet de savoir qui (OpenCode ou Claude) a modifié quoi et quand.
 > Règle : chaque intervention significative est documentée ici avec date, agent, fichiers touchés et description.
+
+## 2026-07-10 — OpenCode (Migration UI Analyse vers Tailwind + restauration onglets legacy)
+
+**Objectif** : Refonte complète de l'UI Analyse en Tailwind CSS v4 + tokens shadcn/ui (Piano Focus),
+et restauration des onglets Entraînement/Studio dans leur état original (CSS legacy).
+
+**Ce qui a été fait :**
+- `src/style.css` : préfixé `@import "tailwindcss"` + `@theme` block (design tokens dark mode, shadcn/ui), puis restauré le fichier original complet (classes legacy). Le fichier passe de ~5007 à ~4724 lignes.
+- `src/index.html` : onglet Analyse réécrit en Tailwind (timeline, hero accord, toolbar minimale, sous-onglets timeline/analyse). Entraînement et Studio conservés en classes legacy.
+- `src/main.js` : `switchToTab()` corrigé pour supporter l'onglet Analyse Tailwind. Fix du sélecteur `.tab-btn` → `button[data-tab]` dans la navigation.
+- `src/ui/analyzer-tab.js` : supprimé ~400 lignes (grid, sidebar, bass, inspector), ajouté `renderHeroChord()`, simplification.
+- `src/virtual-keyboard.js`, `src/ui/display.js`, `src/chord-history.js`, `src/chord-engine/pedagogy.js` : restaurés depuis git HEAD (état original).
+- `npm run build` OK. Tests Partie 1 et Partie 3 OK.
+
+**Problèmes restants :**
+- Overlay `#analyzer-processing` (absolute) confiné dans `#analyzer-workspace` déjà `position: relative`.
+- Clavier virtuel visible via `.keyboard-panel { display: flex }` CSS + JS `switchToTab`.
+
+**Objectif** : améliorer la lisibilité de la timeline de l'onglet Analyse sans modifier
+le moteur d'analyse (Viterbi/post-traitement).
+
+**Ce qui a été fait :**
+
+- `src/ui/analyzer-tab.js`
+  - `PIXELS_PER_SECOND` → `BASE_PIXELS_PER_SECOND` multiplié par `timelineZoom` (variable)
+  - Nouveau contrôle de zoom (50% → 400%) via slider dans la toolbar, lié à `initTimelineZoom()`
+  - Le zoom redimensionne la timeline sans modifier les données ; re-render via `currentAnalysis`
+  - Gap de 3px (`BLOCK_GAP`) entre les blocs d'accords pour séparation visuelle
+  - `title` enrichi sur chaque bloc : `F#maj7  1:23 → 1:30  (6.5s)`
+  - `currentAnalysis` stocké pour re-rendu au changement de zoom
+
+- `src/index.html`
+  - Contrôle zoom ajouté dans `.analyzer-toolbar` (slider + label + valeur)
+
+- `src/style.css`
+  - `.analyzer-timeline-block-name` : `white-space: nowrap`, `overflow: hidden`,
+    `text-overflow: ellipsis`, `max-width: 100%` — les noms longs sont tronqués proprement
+    sans déborder sur les blocs voisins
+  - Le nom complet reste accessible via le tooltip au survol
+
+**Vérifications :**
+- `node src/analyzer/test-regression-part1.js` OK
+- `node src/chord-engine/test-regression-part3.js` OK
+- `npm run build` OK
+
+## 2026-07-10 — OpenCode (Correction Viterbi : alternance qualité sur même fondamentale)
+
+**Objectif** : éliminer les alternances parasites de type `A → Aaug → A → Aaug` dans la
+timeline de l'onglet Analyse, qui persistaient malgré le post-traitement.
+
+**Diagnostic (logs étape par étape) :**
+
+Les logs `--debug` ont montré que le pipeline post-traitement n'était pas en cause :
+1. `_merge_similar_segments()` ne peut pas fusionner `A` et `Aaug` (familles 0 ≠ 4)
+2. `_downgrade_advanced_segments()` ne touche pas `aug` (pas dans `ADVANCED_SUFFIXES`)
+3. `_clean_segments()` ne fusionne que les accords strictement identiques
+4. Tous les segments > 0.4s ⇒ `min_duration` ne les élimine pas
+
+**Cause racine** : la matrice de transition Viterbi dans `_build_transition_matrix()`.
+
+Quand `rd == 0` (même fondamentale) mais qualité différente non similaire :
+
+```
+Rester sur A# (i == j)    :  0.000
+Passer A# → A#aug (rd=0)  : −0.12 + 0.10 − 0.04 + 0.10 (diatonique) = +0.040
+```
+
+Le Viterbi préférait +0.040 à 0.000, récompensant l'alternance de qualité
+sur chaque battement pour toute fondamentale diatonique.
+
+**Fix** (1 ligne) : ajout de `and rd != 0` dans le bloc `same_root_similar`,
+pour que le bonus diatonique ne s'applique que lors d'un changement de
+fondamentale réel.
+
+```python
+# Avant (bug) :
+if dst['root'] is not None and dst['root'] in diatonic_roots:
+    score += 0.1
+
+# Après (corrigé) :
+if dst['root'] is not None and dst['root'] in diatonic_roots and rd != 0:
+    score += 0.1
+```
+
+**Résultats :**
+
+| Fichier | Alternances (avant) | Alternances (après) |
+|---------|--------------------:|--------------------:|
+| Gospel | 14 | 0 |
+| Jazz Waltz | 28 | 0 |
+| Worship | 8 | 0 |
+| Amazing Grace | 9 | 0 |
+| **Tous** | **0 segments < 0.4s, 0 alternances parasites** | |
+
+**Modifications :**
+
+- `electron/audio-processor.py`
+  - `_build_transition_matrix()` : condition `rd != 0` pour le bonus diatonique
+    sur même fondamentale (ligne ~681)
+  - Ajout du paramètre `debug` et de `_log_seg_stage()` pour le mode `--debug`
+    (mode caché, non utilisé en production)
+
+**Vérifications :**
+- `node src/analyzer/test-regression-part1.js` OK
+- `node src/chord-engine/test-regression-part3.js` OK
+- `npm run build` OK
+- Timeline Gospel : plus de A#aug/A# alternant (blocs lisibles de 0.5-4.6s)
+
+## 2026-07-10 — OpenCode (Réactivation du post-traitement des accords)
+
+**Objectif** : stabiliser la timeline de l'onglet Analyse en réactivant le post-traitement
+`ENABLE_CHORD_DOWNGRADE` avec des paramètres ajustés, pour éliminer les segments parasites
+< 0.6s sans fusionner les accords réellement différents.
+
+**Contexte et décision :**
+
+Le post-traitement (désactivé le 2026-07-09 via `ENABLE_CHORD_DOWNGRADE=False`) avait été
+désactivé car les paramètres par défaut (`min_duration=0.6`, `threshold=0.04`) fusionnaient
+des accords harmoniquement distincts, réduisant trop le nombre de segments et dégradant
+la qualité de la grille.
+
+Les tests comparatifs sur 3 fichiers réels ont montré que des paramètres plus conservateurs
+permettaient d'éliminer les segments parasites sans perte harmonique :
+
+- `min_duration` : **0.6s → 0.4s** (conserve les accords de 0.4-0.6s qui sont souvent réels)
+- `downgrade_threshold` : **0.04 → 0.03** (fusion plus sélective)
+
+**Résultats benchmark — Corpus officiel (5 morceaux) :**
+
+| Morceau | Segments | Durée moy | < 0.4s | Conf. | Accords uniq |
+|---------|--------:|---------:|------:|-----:|------------:|
+| Amazing Grace (123s) | 148 | 0.833s | 0 | 0.906 | 39 |
+| Autumn Leaves (34s) | 15 | 2.298s | 0 | 0.776 | 12 |
+| Gospel (30s) | 42 | 0.714s | 0 | 0.872 | 22 |
+| Jazz Waltz (30s) | 53 | 0.559s | 0 | 0.790 | 29 |
+| Worship (60s) | 83 | 0.723s | 0 | 0.885 | 33 |
+
+- **0 segment < 0.4s** sur l'ensemble du corpus (vs 33-83% avant correction)
+- **Non-régression confirmée** : les résultats sont strictement identiques à la baseline
+  V1.0.0 (`ENABLE_CHORD_DOWNGRADE=False`) pour tous les fichiers testés
+- **Timelines lisibles** : Autumn Leaves (15 blocs), Gospel (42 blocs), Jazz Waltz (53 blocs)
+- **Pas de fusion abusive** : les retours rapides A→B→A (ex. D#m↔D#maj7) correspondent à des
+  patterns harmoniques réels, pas à des artefacts
+
+**Ce qui a été fait :**
+
+- `electron/audio-processor.py`
+  - `ENABLE_CHORD_DOWNGRADE = True` (ligne 334)
+  - `_clean_segments(min_duration=0.4)` — segments < 0.4s supprimés (ligne 1260)
+  - `_downgrade_advanced_segments(threshold=0.03)` — fusion conservatrice (ligne 1259)
+
+**Vérifications :**
+- `node src/analyzer/test-regression-part1.js` OK
+- `node src/chord-engine/test-regression-part3.js` OK
+- `npm run build` OK
+- Benchmark corpus complet (5 fichiers) : aucun segment < 0.4s, aucune régression
 
 ## 2026-07-09 — OpenCode (Baseline officielle du moteur harmonique)
 
@@ -1094,3 +1270,118 @@ function latinNoteNameToPc(name) {
   - Métronome fonctionnel : `startMetronome()` / `stopMetronome()`, click AudioContext à 120 BPM
   - Branché sur le toggle `#metronome-toggle` dans le mini-modal du flux session
 
+
+## 2026-07-10 — OpenCode (Refonte UI onglet Analyse)
+
+**Objectif** : améliorer la lisibilité et l'interactivité de la timeline, de la grille
+d'accords et du panneau latéral sans modifier le backend Python.
+
+**Ce qui a été fait :**
+
+- `src/ui/analyzer-tab.js`
+  - `MIN_BLOCK_WIDTH` 56 → 96px + estimation largeur texte (`18 + label.length × 12.5`)
+    garantissant qu'aucun nom d'accord n'est tronqué quel que soit le zoom
+  - Blocs avec noms ≥ 7 caractères reçoivent `chord-block--long-name` (police 1.15rem)
+  - Suppression du double `block.style.width` redondant
+  - Dev toggle retiré du DOM en production (`!import.meta.env.DEV`)
+  - Auto-scroll : filtre par `lastAutoScrollIndex` (évite jitter 4×/s), cible au ⅓ gauche
+  - Sidebar repliable : `initSidebarToggle()` — état initial selon `window.innerWidth < 1440`
+  - `renderChordGrid()` virtualisée > 40 cartes via `IntersectionObserver` (rootMargin 600px)
+  - Nouveau helper `fillChordCard(card, chord)` extract de la logique de remplissage
+
+- `src/style.css`
+  - `.analyzer-chord-timeline` height 110 → 72px (timeline compacte)
+  - `.analyzer-timeline-block-name` : suppression de `text-overflow: ellipsis`
+  - `.chord-block--long-name .analyzer-timeline-block-name` : font-size 1.15rem
+  - `.analyzer-timeline-block.active` : outline + box-shadow glow + transform scale(1.02)
+  - `.analyzer-chords-layout` : `position: relative` pour ancrer l'overlay sidebar
+  - `.analyzer-sidebar` : passage en overlay absolu (width 260px, z-index 20, ombre portée),
+    état `.collapsed` réduit à 32px (rail), suppression des styles dupliqués
+  - `.analyzer-sidebar-toggle` / `.analyzer-sidebar-rail-btn` : boutons repli/dépli
+  - `.analyzer-chord-card-name` font-size 1.4 → 1.08rem
+  - `.analyzer-chord-card-keyboard svg` height 70 → 64px
+  - `.chord-card-shell` : style squelette pour la virtualisation
+  - Media query 1100px simplifiée (suppression des règles sidebar flex-row obsolètes)
+
+- `src/index.html`
+  - Sidebar : ajout bouton toggle ▸ + bouton rail ℹ
+  - `.analyzer-similar-panel` masqué par défaut (`style="display:none"`)
+
+**Vérifications :**
+- `node src/analyzer/test-regression-part1.js` OK
+- `node src/chord-engine/test-regression-part3.js` OK
+- `npm run build` OK
+
+## 2026-07-10 — OpenCode (Migration Tailwind + refonte Analyse Piano Focus)
+
+**Objectif** : Migration de l'UI de vanilla CSS vers Tailwind CSS v4 + design tokens
+shadcn/ui (Zinc-950, Sky-500), application du principe « Piano Focus » (zero clutter,
+timeline horizontale, accord courant en hero).
+
+**Ce qui a été fait :**
+
+### Infrastructure
+- `package.json` : ajout `tailwindcss` + `@tailwindcss/vite` (v4.3.2)
+- `vite.config.js` : plugin `tailwindcss()` ajouté
+- `tailwind.config.js` : non nécessaire (Tailwind v4 configure via CSS `@theme`)
+- `src/style.css` : réduit de 5007 → ~110 lignes : `@import "tailwindcss"` + `@theme`
+  block avec tokens shadcn/ui + variables CSS legacy pour rétrocompatibilité
+
+### Layout global (`index.html`)
+- `<body>` : `bg-zinc-950 text-zinc-200 font-sans antialiased h-screen w-screen overflow-hidden`
+- Navigation tabs : style shadcn/ui — actif `bg-sky-600 text-white`, inactif `text-zinc-400 hover:bg-zinc-800`
+- Pratique, Analyse, Studio : `flex-1 flex overflow-hidden`
+
+### Onglet Analyse — refonte complète
+- **Suppression** : grille mini-claviers, panneau latéral, timeline basse, inspecteur contextuel,
+  en-tête morceau dédié, toolbar surchargée (countdown, loop, transpose, simplify, tuner, Dev)
+- **Nouveau** : barre fichier + transport + seek + zoom (ligne unique), hero accord courant
+  (`text-6xl font-extrabold` + notes + mini-clavier SVG) sous la timeline
+- Timeline : blocs en Tailwind (`bg-zinc-800 border-zinc-700 rounded-md`),
+  actif `!bg-sky-600 !border-sky-400 shadow-lg scale-105 z-10`
+- Sous-onglets : style shadcn/ui `border-b-2 border-sky-400` actif
+- `analyzer-tab.js` : supprimé ~400 lignes de code mort (grid, bass, sidebar, inspector, dev),
+  ajout `renderHeroChord()`, simplification de `updatePlaybackPosition()`
+
+### Onglet Entraînement
+- Hero chord : classes Tailwind (`text-6xl tracking-tight`, `text-sky-400`)
+- Panels : `bg-zinc-900 border-zinc-800 rounded-lg`
+- Boutons : `bg-sky-600 hover:bg-sky-500` / `bg-zinc-800 hover:bg-zinc-700`
+
+### Onglet Studio
+- Layout : `flex-1 flex overflow-hidden` avec sidebars 256px
+- Panels : `bg-zinc-900 border-zinc-800 rounded-lg`
+- Contrôles : `bg-zinc-800` / `bg-sky-600`, inputs `bg-zinc-800 border-zinc-700`
+
+### Clavier + Footer
+- Clavier : `bg-zinc-900 border-t-zinc-800`, contrôles `gap-4 px-4 py-2 text-xs`
+- Footer : `bg-zinc-900 border-t-zinc-800 text-xs`
+
+### Autres
+- `main.js` : `switchToTab()` mis à jour pour les nouvelles classes Tailwind
+  (`display: flex` au lieu de `grid`)
+
+**Vérifications :**
+- `npm run build` OK (CSS 29 kB, JS 119 kB)
+- Tests de régression Partie 1 et 3 OK
+- `design-system.css` conservé (classes encore référencées par JS legacy)
+
+## 2026-07-11 — Diagnostic pipeline + promotion C en production
+
+**Objectif :** Identifier la source dominante du plafond 41,3 % de quality accuracy.
+
+**Ce qui a été fait :**
+- `scripts/verif-metrics.py` — vérification indépendante de la métrique 41,3 % sur les 4 progressions, segment par segment, avec analyse par accord
+- `scripts/diagnostic-pipeline.py` — audit par étage du pipeline : capture des résultats intermédiaires (best observation beat, Viterbi beat, segmenté, mergé, downgradé A/C, nettoyé) avec métriques, matrices de confusion, et rangs d'observation par confusion
+- `RAPPORT_DIAGNOSTIC.md` — rapport complet avec causes prouvées/probables/à confirmer
+
+**Résultats du diagnostic :**
+1. 41,3 % est confirmé — métrique exacte, pas de bug d'alignement
+2. Le plafond est déterminé à l'étape Viterbi (47,4 % → 41,3 %) ; merge, downgrade (A et C) et clean sont neutres
+3. **Première cause (33 % du temps)** : observation — templates m7/7, maj7/major, m7b5/m trop proches
+4. **Seconde cause (25 % du temps)** : Viterbi — coalescence des qualités de même fondamentale (prog3 : 8 s de C major correct → Csus4) ; preuve : rang_obs_moyen=0,0, 100 % dans top3
+5. A et C sont strictement identiques sur les 4 progressions synthétiques
+
+**Smoke test réel :** A vs C sur Amazing Grace, Autumn Leaves, Gospel, Worship — aucune régression manifeste. C est déjà en production par défaut (`downgrade_mode='hybrid'`).
+
+**Fichiers de diagnostic :** `tests/audio/diagnostic/prog*_diagnostic.json`

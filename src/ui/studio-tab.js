@@ -17,6 +17,7 @@ import { createPitchShifter } from '../audio/pitch-shifter.js';
 import { getAudioContext, connectOutput as connectSynthOutput } from '../audio/simple-synth.js';
 import { formatMediaDuration, isValidMediaDuration } from './media-format.js';
 import { buildFileContextText } from './file-context.js';
+import { applyStudioSidebarState } from './studio-view-state.js';
 
 /**
  * Lit un fichier audio via IPC et retourne un ArrayBuffer brut.
@@ -54,8 +55,8 @@ let pendingTranspose = 0;
 let isLoadingTrack = false;
 let currentWaveformTrackId = null;
 
-// UX Studio en 3 étapes : 1=ciblage, 2=traitement, 3=lecture pro
-let studioStage = 1;
+// UX Studio en 4 étapes : 0=accueil, 1=ciblage, 2=traitement, 3=lecture pro
+let studioStage = 0;
 let isProcessing = false;
 let processingJobId = null;
 let pendingRegion = null;
@@ -170,6 +171,8 @@ function setTransposeControlsEnabled(enabled) {
 }
 
 export function initStudioTab() {
+  // L'état vide doit être visible même si l'initialisation audio échoue ensuite.
+  updateStudioStage(0);
   ensureStudioAudioContext();
   mixer = createStemMixer(studioAudioCtx, readAudioFile);
   mixer.setOnProgress((current, duration) => {
@@ -182,10 +185,12 @@ export function initStudioTab() {
   bindCropButtons();
   bindScreenRecorder();
   refreshTrackList();
-  updateStudioStage(0);
 
   document.addEventListener('app-switch-tab', (e) => {
-    if (e.detail?.tab === 'studio') refreshTrackList();
+    if (e.detail?.tab === 'studio') {
+      if (!currentTrack) updateStudioStage(0);
+      refreshTrackList();
+    }
   });
 }
 
@@ -295,8 +300,15 @@ function bindScreenRecorder() {
 }
 
 function toggleLeftPanel() {
-  isLeftPanelCollapsed = !isLeftPanelCollapsed;
-  els.sidebarLeft?.classList.toggle('collapsed', isLeftPanelCollapsed);
+  setLeftPanelCollapsed(!isLeftPanelCollapsed);
+}
+
+function setLeftPanelCollapsed(collapsed) {
+  isLeftPanelCollapsed = applyStudioSidebarState({
+    sidebar: els.sidebarLeft,
+    collapseButton: els.collapseLeftBtn,
+    expandButton: els.collapseTabBtn,
+  }, studioStage, collapsed);
 }
 
 function toggleRecording() {
@@ -733,7 +745,17 @@ async function resetRegion() {
 export async function resetStudioState() {
   stop();
   mixer?.reset();
-  resetRegion();
+  destroyMediaPlayer();
+  audioWavPath = null;
+  waveformData = null;
+  originalStemsBlobUrls = null;
+  originalStemsPaths = null;
+  currentWaveformTrackId = null;
+  regionStart = 0;
+  regionEnd = null;
+  regionConfirmed = false;
+  pendingRegion = null;
+  updateProgressUI(0, 0);
 }
 
 function bindWaveform() {
@@ -1203,8 +1225,9 @@ async function handleDeleteTrack(trackId, displayName) {
   if (!confirmed) return;
   try {
     if (currentTrack?.id === trackId) {
-      resetStudioState();
+      await resetStudioState();
       currentTrack = null;
+      updateStudioFileContext('');
       updateStudioStage(0);
     }
     await deleteTrack(trackId);
@@ -1725,6 +1748,7 @@ function storeOriginalStems(blobUrls, paths) {
 
 function updateStudioStage(stage) {
   studioStage = stage;
+  setLeftPanelCollapsed(stage === 0 ? false : isLeftPanelCollapsed);
   const tab = document.getElementById('studio-tab');
   if (tab) {
     tab.classList.remove('stage-0', 'stage-1', 'stage-2', 'stage-3');
@@ -1809,6 +1833,10 @@ function failTrackLoading(message) {
   }
   setStatus(message);
   setLoadingState(false);
+  destroyMediaPlayer();
+  currentTrack = null;
+  updateStudioFileContext('');
+  updateStudioStage(0);
   if (els.processingOverlay) {
     els.processingOverlay.style.display = 'none';
   }

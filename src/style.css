@@ -30,6 +30,7 @@
   --bg: #f4f6f8;
   --panel-bg: #ffffff;
   --panel-border: #e4e7ec;
+  --border: #d1d5db;
   --text: #1f2937;
   --muted: #6b7280;
   --accent: #4f46e5;
@@ -51,6 +52,7 @@
   --bg: #0f1117;
   --panel-bg: #181b24;
   --panel-border: #2d323e;
+  --border: #4b5163;
   --text: #f3f4f6;
   --muted: #d1d5db;
   --accent: #818cf8;
@@ -245,6 +247,78 @@ body {
   min-height: 0;
 }
 
+/* ── Layout spécifique de l'onglet Entraînement ── */
+.practice-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  gap: 0;
+}
+
+.practice-layout .training-workspace {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  gap: 14px;
+  padding: 14px;
+  padding-bottom: 0;
+}
+
+/* Panneau Exercice rapide (gauche, hauteur naturelle) */
+.quick-exercise-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: clamp(250px, 22vw, 290px);
+  flex-shrink: 0;
+  align-self: flex-start;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px;
+  max-height: min(420px, 60vh);
+  overflow-y: auto;
+}
+
+.quick-exercise-panel .panel-title {
+  flex-shrink: 0;
+  margin-bottom: 0;
+}
+
+.quick-exercise-panel .exercise-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Surface principale d'entraînement */
+.main-training-stage {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  gap: 10px;
+  overflow: hidden;
+  padding: 16px 20px;
+}
+
+/* [OpenCode] — 2026-08-06 — Le panneau Techniques est superposé en haut à droite ;
+   il ne doit pas réserver d'espace ni décaler le centre du contenu principal. */
+
 .left-panel,
 .right-panel {
   grid-row: 1;
@@ -258,9 +332,7 @@ body {
 .left-panel { grid-column: 1; }
 .right-panel { grid-column: 3; }
 
-.right-panel:has(.pedagogy-panel[style*="display: none"]):has(.panel[style*="display: none"]) {
-  display: none;
-}
+
 
 .center-stage {
   grid-column: 2;
@@ -293,6 +365,8 @@ body {
   box-shadow: var(--shadow);
   padding: 8px;
   min-height: 0;
+  width: 100%;
+  max-width: 100%;
   overflow: hidden;
   gap: 8px;
 }
@@ -307,9 +381,11 @@ body {
   flex: 0 0 auto;
   display: flex;
   align-items: flex-end;
-  justify-content: center;
+  justify-content: flex-start;
   min-height: 0;
   min-width: 0;
+  width: 100%;
+  max-width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
   padding: 0;
@@ -422,31 +498,6 @@ body {
   width: 56px;
 }
 
-.keyboard-toggle {
-  background: transparent;
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius-sm);
-  color: var(--muted);
-  cursor: pointer;
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 2px 6px;
-  line-height: 1;
-  min-width: 28px;
-  text-align: center;
-}
-
-.keyboard-toggle:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-/* ── Lot D : focus visible et titre de section lisible ── */
-.keyboard-toggle:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
 .keyboard-section-title {
   font-size: 0.82rem;
   font-weight: 700;
@@ -454,24 +505,6 @@ body {
   letter-spacing: 0.5px;
   color: var(--text);
   align-items: center;
-}
-
-.keyboard-panel:not(.keyboard-compact) .keyboard-toggle[aria-expanded='true'],
-.keyboard-panel.keyboard-compact .keyboard-toggle[aria-expanded='false'] {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.keyboard-compact {
-  max-height: 120px;
-}
-
-.keyboard-compact .keyboard-container {
-  max-height: 70px;
-}
-
-.keyboard-compact .keyboard-container svg {
-  max-height: 70px;
 }
 
 .switch-label {
@@ -489,6 +522,20 @@ body {
   line-height: 1;
   letter-spacing: -2px;
   margin-bottom: 8px;
+  min-height: 1.1em;
+}
+
+/* [OpenCode] — 2026-08-05 — En état vide, le placeholder ne doit pas ressembler à un accord */
+.chord-name:empty,
+.chord-name.chord-name-empty {
+  display: none;
+}
+
+/* [OpenCode] — 2026-08-05 — En état vide, masquer les blocs d'accord vides */
+.chord-display.is-empty .chord-meta,
+.chord-display.is-empty .chord-detail,
+.chord-display.is-empty .notes-display {
+  display: none;
 }
 
 .chord-name .tonic-name {
@@ -507,6 +554,29 @@ body {
   font-weight: 500;
 }
 
+.chord-meta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+  min-height: 1.4rem;
+}
+
+.voicing-label,
+.alias-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--panel-border);
+  color: var(--text);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
 .notes-display {
   display: flex;
   justify-content: center;
@@ -523,6 +593,25 @@ body {
   background: var(--accent-soft);
   border: 1px solid var(--panel-border);
   color: var(--text);
+}
+
+.practice-empty-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 1.1rem;
+  text-align: center;
+  padding: 20px;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.practice-layout:has(.chord-detail:not(:empty)) .practice-empty-hint,
+.practice-layout:has(.notes-display:not(:empty)) .practice-empty-hint {
+  display: none;
 }
 
 .panel {
@@ -607,42 +696,47 @@ body {
 }
 
 .pedagogy-content {
-  flex: 1;
-  overflow-y: auto;
-  font-size: 1.1rem;
-  line-height: 1.55;
+  font-size: 0.95rem;
+  line-height: 1.5;
 }
 
-.pedagogy-panel.center-pedagogy {
-  width: 100%;
-  max-width: 800px;
-  min-height: 0;
-  flex: 1;
+/* Panneau Techniques ancré en haut à droite dans la surface principale */
+.techniques-panel {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: clamp(340px, 24vw, 400px);
+  max-height: min(420px, calc(100% - 32px));
   text-align: left;
   display: flex;
   flex-direction: column;
-}
-
-.pedagogy-panel.center-pedagogy .panel-title {
-  font-size: 0.85rem;
-  margin-bottom: 10px;
-}
-
-.pedagogy-panel.center-pedagogy .pedagogy-content {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px;
   gap: 10px;
-  align-content: start;
+  z-index: 2;
   overflow-y: auto;
 }
 
-.pedagogy-panel.center-pedagogy .pedagogy-content > p:only-child {
-  grid-column: 1 / -1;
-  text-align: center;
+.techniques-panel .panel-title {
+  font-size: 0.75rem;
+  margin-bottom: 0;
+  flex-shrink: 0;
+}
+
+.techniques-panel .pedagogy-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.techniques-panel .pedagogy-content > p:only-child {
   color: var(--muted);
-  font-size: 1.2rem;
-  align-self: center;
-  margin: auto;
+  font-size: 0.95rem;
+  text-align: center;
+  margin: auto 0;
 }
 
 .pedagogy-item {
@@ -660,6 +754,123 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.8px;
   margin-bottom: 3px;
+}
+
+.pedagogy-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pedagogy-section-title {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.pedagogy-section-value {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.pedagogy-section-value.muted {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.pedagogy-voicing {
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--panel-border);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pedagogy-voicing-title {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.pedagogy-voicing-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.pedagogy-voicing-notes {
+  font-size: 0.85rem;
+  color: var(--muted);
+  word-break: break-word;
+}
+
+/* Boutons d'ouverture des panneaux rétractés */
+.quick-exercise-open-control,
+.techniques-open-control {
+  position: absolute;
+  top: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+  box-shadow: var(--shadow);
+  z-index: 3;
+}
+
+.quick-exercise-open-control {
+  left: 16px;
+}
+
+.techniques-open-control {
+  right: 16px;
+}
+
+.quick-exercise-open-control:hover,
+.techniques-open-control:hover,
+.quick-exercise-open-control:focus-visible,
+.techniques-open-control:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.open-control-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+/* États rétractés */
+.practice-layout.practice-left-collapsed .quick-exercise-panel {
+  display: none;
+}
+
+.practice-layout.practice-right-collapsed .techniques-panel {
+  display: none;
+}
+
+.practice-layout:not(.practice-left-collapsed) .quick-exercise-open-control {
+  display: none !important;
+}
+
+.practice-layout:not(.practice-right-collapsed) .techniques-open-control {
+  display: none !important;
 }
 
 .tools-panel {
@@ -918,6 +1129,21 @@ input[type='color'] {
   justify-self: center;
   align-self: start;
   padding-top: 8vh;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  overflow: visible;
+}
+
+.studio-tab.stage-0 .studio-collapse-btn,
+.studio-tab.stage-0 .studio-collapse-tab {
+  display: none !important;
+}
+
+.studio-tab.stage-0 .studio-sidebar.left .studio-panel-body,
+.studio-tab.stage-0 .studio-sidebar.left .studio-panel-header {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .studio-tab.stage-0 .studio-sidebar.left .panel {
@@ -3885,35 +4111,43 @@ body.studio-recording-cursor * {
   line-height: 1.5;
 }
 
-/* ── Panneau d'exercice rapide ── */
-.practice-exercise-panel {
-  margin-bottom: 1rem;
-}
-
 .exercise-mode-selector {
   display: flex;
-  gap: 0.4rem;
+  gap: 0;
   margin: 0.5rem 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px;
+  overflow: hidden;
 }
 
 .exercise-mode-btn {
   flex: 1;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.35rem 0.5rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0.4rem 0.5rem;
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--text);
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  text-align: center;
+  white-space: nowrap;
 }
 
-.exercise-mode-btn:hover,
+.exercise-mode-btn:hover {
+  background: var(--accent-soft);
+  color: var(--text);
+  border-color: var(--panel-border);
+}
+
 .exercise-mode-btn.active {
-  background: var(--primary);
-  color: white;
-  border-color: var(--primary);
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+  box-shadow: var(--shadow);
 }
 
 .exercise-target {
@@ -3985,6 +4219,86 @@ body.studio-recording-cursor * {
   .studio-sidebar.left { grid-column: 1; grid-row: 1; }
   .studio-center { grid-column: 1; grid-row: 2; }
   .studio-sidebar.right { grid-column: 1; grid-row: 3; }
+
+  /* Entraînement : réduction des panneaux latéraux */
+  .practice-layout .training-workspace {
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .quick-exercise-panel {
+    width: 240px;
+    max-height: 220px;
+    padding: 12px;
+  }
+
+  .techniques-panel {
+    width: clamp(280px, 30vw, 320px);
+    top: 10px;
+    right: 10px;
+    padding: 12px;
+  }
+
+  .main-training-stage {
+    padding: 12px;
+  }
+
+  .quick-exercise-open-control,
+  .techniques-open-control {
+    top: 10px;
+    padding: 6px 10px;
+  }
+
+  .quick-exercise-open-control {
+    left: 10px;
+  }
+
+  .techniques-open-control {
+    right: 10px;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Entraînement : empilement vertical sur petit écran */
+  .practice-layout .training-workspace {
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .quick-exercise-panel {
+    width: 100%;
+    max-height: 200px;
+    align-self: stretch;
+  }
+
+  .main-training-stage {
+    min-height: 0;
+    padding: 12px;
+  }
+
+  .techniques-panel {
+    position: relative;
+    top: auto;
+    right: auto;
+    width: 100%;
+    max-height: 220px;
+    align-self: stretch;
+    order: -1;
+  }
+
+  .quick-exercise-open-control,
+  .techniques-open-control {
+    position: relative;
+    top: auto;
+    left: auto;
+    right: auto;
+    align-self: flex-start;
+  }
+
+  .chord-name {
+    font-size: clamp(2.2rem, 12vw, 4rem);
+  }
 }
 
 /* [Claude] — 2026-07-08 — Onglet Analyse : modèle Chordify. */
@@ -4934,9 +5248,9 @@ body.studio-recording-cursor * {
   bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
-  background: #18181b;
-  border: 1px solid #27272a;
-  color: #e4e4e7;
+  background: var(--panel-bg, #18181b);
+  border: 1px solid var(--border, #27272a);
+  color: var(--text, #e4e4e7);
   padding: 10px 16px;
   border-radius: 8px;
   font-size: 0.875rem;
@@ -5046,17 +5360,17 @@ body.studio-recording-cursor * {
   letter-spacing: 0.03em;
   padding: 0.2rem 0.6rem;
   border-radius: 0.25rem;
-  border: 1px solid rgba(63, 63, 70, 0.8);
-  background: rgba(39, 39, 42, 0.6);
-  color: #a1a1aa;
+  border: 1px solid var(--border, #3f3f46);
+  background: var(--surface-secondary, #27272a);
+  color: var(--text-dim, #a1a1aa);
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
   text-transform: uppercase;
 }
 
 .voicing-style-btn:hover {
-  background: rgba(63, 63, 70, 0.8);
-  color: #e4e4e7;
+  background: var(--border, #3f3f46);
+  color: var(--text, #e4e4e7);
   border-color: rgba(14, 165, 233, 0.5);
 }
 
@@ -5080,9 +5394,9 @@ body.studio-recording-cursor * {
   padding: 0.75rem 1rem 1rem;
   margin: 0 1rem 0.75rem;
   border-radius: 0.5rem;
-  background: rgba(39, 39, 42, 0.5);
-  border: 1px solid rgba(63, 63, 70, 0.8);
-  color: #e4e4e7;
+  background: var(--surface-secondary, #27272a);
+  border: 1px solid var(--border, #3f3f46);
+  color: var(--text, #e4e4e7);
   font-family: var(--font-sans);
 }
 
@@ -5091,7 +5405,7 @@ body.studio-recording-cursor * {
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #a1a1aa;
+  color: var(--text-dim, #a1a1aa);
   margin-bottom: 0.25rem;
 }
 
@@ -5107,27 +5421,27 @@ body.studio-recording-cursor * {
 
 .voicing-preview-label {
   font-weight: 600;
-  color: #a1a1aa;
+  color: var(--text-dim, #a1a1aa);
   min-width: 2rem;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
 .voicing-preview-notes {
-  color: #fafafa;
+  color: var(--text, #fafafa);
   font-weight: 500;
   letter-spacing: 0.02em;
 }
 
 .voicing-preview-status {
   font-size: 0.85rem;
-  color: #fca5a5;
+  color: var(--error, #fca5a5);
   font-weight: 500;
 }
 
 .voicing-preview-reason {
   font-size: 0.7rem;
-  color: #9ca3af;
+  color: var(--text-dim, #9ca3af);
   font-family: var(--font-mono);
 }
 

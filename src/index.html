@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-theme="dark" style="background-color: #0f1117;">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -14,11 +14,23 @@
         document.getElementById('csp-meta').setAttribute('content', csp);
       })();
     </script>
+    <script>
+      // Appliquer le thème enregistré avant le chargement des feuilles de style.
+      (function () {
+        let theme = 'dark';
+        try {
+          const saved = localStorage.getItem('theme');
+          if (saved === 'light' || saved === 'dark') theme = saved;
+        } catch (_) {}
+        document.documentElement.setAttribute('data-theme', theme);
+        document.documentElement.style.backgroundColor = theme === 'dark' ? '#0f1117' : '#f4f6f8';
+      })();
+    </script>
     <title>Piano Jazz Chords</title>
     <link rel="stylesheet" href="./style.css" />
     <link rel="stylesheet" href="./ui/components/design-system.css" />
   </head>
-  <body data-theme="light">
+  <body>
     <div id="app" class="app">
       <header class="app-header">
         <div class="brand">
@@ -39,121 +51,134 @@
         </div>
       </header>
 
-      <main class="app-main" id="practice-tab">
-        <aside class="left-panel tools-panel" id="practice-tools-panel">
-          <div class="panel practice-exercise-panel" id="practice-exercise-panel">
-            <div class="panel-title">Exercice rapide</div>
-            <div class="exercise-mode-selector">
-              <button class="exercise-mode-btn active" data-mode="chord" type="button">Accord cible</button>
-              <button class="exercise-mode-btn" data-mode="progression" type="button">Progression</button>
+      <main class="app-main practice-layout" id="practice-tab">
+        <div class="training-workspace">
+          <aside class="quick-exercise-panel" id="practice-exercise-panel">
+            <div class="panel-title">
+              Exercice rapide
+              <button class="panel-toggle" id="exercise-panel-toggle" title="Réduire le panneau Exercice rapide" aria-label="Réduire le panneau Exercice rapide" aria-expanded="true" aria-controls="practice-exercise-panel">−</button>
             </div>
             <div class="exercise-content" id="exercise-content">
+              <div class="exercise-mode-selector">
+                <button class="exercise-mode-btn active" data-mode="chord" type="button">Accord cible</button>
+                <button class="exercise-mode-btn" data-mode="progression" type="button">Progression</button>
+              </div>
               <p class="detail-hint">Lancez un exercice pour vous entraîner sur un accord ou une progression.</p>
               <button class="panel-action" id="new-exercise-btn" type="button">Nouvel exercice</button>
               <div class="exercise-target" id="exercise-target" style="display:none;"></div>
               <div class="exercise-feedback" id="exercise-feedback"></div>
             </div>
-          </div>
-        </aside>
+          </aside>
 
-        <section class="center-stage">
-          <div class="chord-display" id="chord-display">
-            <div class="chord-name" id="chord-name">—</div>
-            <div class="chord-meta" id="chord-meta">
-              <span class="voicing-label" id="voicing-label" style="display: none;"></span>
-              <span class="alias-label" id="alias-label" style="display: none;"></span>
-            </div>
-            <div class="chord-detail" id="chord-detail"></div>
-          </div>
+          <section class="main-training-stage" id="practice-center">
+            <button class="quick-exercise-open-control" id="exercise-panel-tab" title="Ouvrir Exercice rapide" aria-label="Ouvrir Exercice rapide" aria-expanded="false" aria-controls="practice-exercise-panel" style="display: none;">
+              <span class="open-control-icon">›</span>
+              <span class="open-control-label">Exercice rapide</span>
+            </button>
 
-          <div class="notes-display" id="notes-display"></div>
+            <div class="chord-display" id="chord-display">
+              <div class="chord-name chord-name-empty" id="chord-name"></div>
+              <div class="chord-meta" id="chord-meta">
+                <span class="voicing-label" id="voicing-label" style="display: none;"></span>
+                <span class="alias-label" id="alias-label" style="display: none;"></span>
+              </div>
+              <div class="chord-detail" id="chord-detail"></div>
+            </div>
 
-          <div class="panel pedagogy-panel center-pedagogy" id="pedagogy-panel">
-            <div class="panel-title">
-              Techniques
-              <button class="panel-toggle" id="pedagogy-toggle" title="Masquer les techniques">−</button>
-            </div>
-            <div class="pedagogy-content" id="pedagogy-content">
-              <p>Jouez des notes pour voir les techniques...</p>
-            </div>
-          </div>
-        </section>
+            <div class="notes-display" id="notes-display"></div>
 
-        <aside class="right-panel" id="right-panel">
-          <div class="panel" id="midi-diagnostic-panel" style="display: none;">
-            <div class="panel-title">
-              Diagnostic MIDI
-              <button class="panel-toggle" id="midi-diagnostic-toggle" title="Afficher le diagnostic MIDI">+</button>
+            <div class="practice-empty-hint" id="practice-empty-hint">Jouez des notes pour afficher l'accord…</div>
+
+            <aside class="techniques-panel" id="pedagogy-panel">
+              <div class="panel-title">
+                Techniques
+                <button class="panel-toggle" id="pedagogy-toggle" title="Masquer les techniques" aria-label="Masquer les techniques" aria-expanded="true" aria-controls="pedagogy-panel">−</button>
+              </div>
+              <div class="pedagogy-content" id="pedagogy-content">
+                <p>Jouez des notes pour voir les techniques...</p>
+              </div>
+            </aside>
+
+            <button class="techniques-open-control" id="pedagogy-panel-tab" title="Ouvrir Techniques" aria-label="Ouvrir Techniques" aria-expanded="false" aria-controls="pedagogy-panel" style="display: none;">
+              <span class="open-control-icon">‹</span>
+              <span class="open-control-label">Techniques</span>
+            </button>
+
+            <div class="panel" id="midi-diagnostic-panel" style="display: none;">
+              <div class="panel-title">
+                Diagnostic MIDI
+                <button class="panel-toggle" id="midi-diagnostic-toggle" title="Afficher le diagnostic MIDI">+</button>
+              </div>
+              <div class="midi-diagnostic-box" id="midi-diagnostic-content" style="display: none;">
+                <div class="midi-system" id="midi-system"></div>
+                <div class="midi-ports" id="midi-ports"></div>
+                <div class="midi-log" id="midi-log"></div>
+              </div>
             </div>
-            <div class="midi-diagnostic-box" id="midi-diagnostic-content" style="display: none;">
-              <div class="midi-system" id="midi-system"></div>
-              <div class="midi-ports" id="midi-ports"></div>
-              <div class="midi-log" id="midi-log"></div>
-            </div>
-          </div>
-        </aside>
+          </section>
+        </div>
       </main>
 
       <!-- Onglet Analyse — version Tailwind -->
-      <main class="flex-1 flex overflow-hidden bg-zinc-950" id="analysis-tab" style="display: none;">
+      <main class="flex-1 flex overflow-hidden bg-(--bg)" id="analysis-tab" style="display: none;">
         <section class="flex-1 flex flex-col overflow-hidden min-w-0 relative" id="analyzer-workspace">
           <div class="flex items-center justify-center flex-1" id="analyzer-import-screen">
             <div class="flex flex-col items-center gap-4 p-8">
               <div class="text-5xl">🎵</div>
-              <h2 class="text-xl font-bold text-zinc-200">Importer un fichier</h2>
-              <p class="text-sm text-zinc-500 text-center">
+              <h2 class="text-xl font-bold text-(--text)">Importer un fichier</h2>
+              <p class="text-sm text-(--text-dim) text-center">
                 Formats acceptés :<br />
                 MP3 · WAV · MP4 · M4A
               </p>
               <button type="button" id="analyzer-import-btn" class="px-6 py-3 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-medium transition-colors">
                 Choisir un fichier
               </button>
-              <p class="text-xs text-zinc-600 text-center">
+              <p class="text-xs text-(--text-dim) text-center">
                 Importez un morceau ou une vidéo afin de lancer son analyse.
               </p>
             </div>
           </div>
 
           <div class="flex-1 flex flex-col overflow-hidden min-w-0" id="analyzer-results" style="display: none;">
-            <div class="flex items-center gap-3 px-4 py-2 bg-zinc-900/50 border-b border-zinc-800 flex-shrink-0">
+            <div class="flex items-center gap-3 px-4 py-2 bg-(--panel-bg) border-b border-(--border) flex-shrink-0">
               <div class="flex items-center gap-3 flex-1 min-w-0">
-                <h2 class="text-sm font-semibold text-zinc-200 truncate" id="analyzer-song-title">Titre du morceau</h2>
-                <span class="text-xs text-zinc-500" id="analyzer-song-artist">Inconnu</span>
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-800 text-zinc-400" id="analyzer-stem-badge" style="display:none"></span>
+                <h2 class="text-sm font-semibold text-(--text) truncate" id="analyzer-song-title">Titre du morceau</h2>
+                <span class="text-xs text-(--text-dim)" id="analyzer-song-artist">Inconnu</span>
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-(--surface-secondary) text-(--text-dim)" id="analyzer-stem-badge" style="display:none"></span>
               </div>
               <div class="analyzer-media-context" id="analyzer-media-context" aria-live="polite">Fichier analysé : Aucun fichier analysé</div>
               <div class="flex items-center gap-2">
-                <button type="button" id="analyzer-prev-btn" class="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors" title="Revenir au début">⏮</button>
+                <button type="button" id="analyzer-prev-btn" class="px-2 py-1 rounded text-xs bg-(--surface-secondary) hover:bg-(--border) text-(--text-dim) transition-colors" title="Revenir au début">⏮</button>
                 <button type="button" id="analyzer-play-btn" class="px-3 py-1 rounded text-sm bg-sky-600 hover:bg-sky-500 text-white font-medium transition-colors" title="Lecture / Pause">▶</button>
-                <button type="button" id="analyzer-back-btn" class="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors">Importer</button>
+                <button type="button" id="analyzer-back-btn" class="px-2 py-1 rounded text-xs bg-(--surface-secondary) hover:bg-(--border) text-(--text-dim) transition-colors">Importer</button>
               </div>
             </div>
 
-            <div class="flex items-center gap-3 px-4 py-1.5 bg-zinc-900/30 border-b border-zinc-800 flex-shrink-0">
-              <span class="text-xs text-zinc-500 font-mono w-12 text-right" id="analyzer-current-time">00:00</span>
-              <div class="flex-1 relative h-6 bg-zinc-800 rounded-full cursor-pointer" id="analyzer-progress-track">
+            <div class="flex items-center gap-3 px-4 py-1.5 bg-(--panel-bg) border-b border-(--border) flex-shrink-0">
+              <span class="text-xs text-(--text-dim) font-mono w-12 text-right" id="analyzer-current-time">00:00</span>
+              <div class="flex-1 relative h-6 bg-(--surface-secondary) rounded-full cursor-pointer" id="analyzer-progress-track">
                 <div class="absolute left-0 top-0 h-full bg-sky-600 rounded-full" id="analyzer-progress-fill" style="width:0%"></div>
                 <div class="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-md" id="analyzer-progress-thumb" style="left:0%"></div>
               </div>
-              <span class="text-xs text-zinc-500 font-mono w-12" id="analyzer-duration">00:00</span>
+              <span class="text-xs text-(--text-dim) font-mono w-12" id="analyzer-duration">00:00</span>
               <div class="flex items-center gap-2 ml-4">
-                <label for="analyzer-zoom" class="text-xs text-zinc-500">Zoom</label>
+                <label for="analyzer-zoom" class="text-xs text-(--text-dim)">Zoom</label>
                 <input type="range" id="analyzer-zoom" min="0.25" max="8.0" step="0.1" value="1" class="w-20 h-1 accent-sky-500" />
-                <span class="text-xs text-zinc-500 w-10" id="analyzer-zoom-value">100%</span>
+                <span class="text-xs text-(--text-dim) w-10" id="analyzer-zoom-value">100%</span>
               </div>
             </div>
 
             <div id="analyzer-audio-container" style="display: none;"></div>
 
-            <div class="relative flex-shrink-0 h-20 overflow-x-auto overflow-y-hidden bg-zinc-900 border-b border-zinc-800" id="analyzer-chord-timeline">
+            <div class="relative flex-shrink-0 h-20 overflow-x-auto overflow-y-hidden bg-(--panel-bg) border-b border-(--border)" id="analyzer-chord-timeline">
               <div class="relative h-full min-w-full" id="analyzer-chord-timeline-inner"></div>
-              <button type="button" class="absolute top-1/2 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center bg-zinc-800 border border-zinc-700 rounded-full text-zinc-400 hover:text-sky-400 hover:border-sky-500 cursor-pointer text-sm shadow-lg left-2" id="analyzer-timeline-scroll-left">‹</button>
-              <button type="button" class="absolute top-1/2 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center bg-zinc-800 border border-zinc-700 rounded-full text-zinc-400 hover:text-sky-400 hover:border-sky-500 cursor-pointer text-sm shadow-lg right-2" id="analyzer-timeline-scroll-right">›</button>
+              <button type="button" class="absolute top-1/2 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center bg-(--surface-secondary) border border-(--border) rounded-full text-(--text-dim) hover:text-sky-400 hover:border-sky-500 cursor-pointer text-sm shadow-lg left-2" id="analyzer-timeline-scroll-left">‹</button>
+              <button type="button" class="absolute top-1/2 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center bg-(--surface-secondary) border border-(--border) rounded-full text-(--text-dim) hover:text-sky-400 hover:border-sky-500 cursor-pointer text-sm shadow-lg right-2" id="analyzer-timeline-scroll-right">›</button>
             </div>
 
             <div class="flex flex-col items-center gap-2 py-2 flex-shrink-0" id="analyzer-hero" style="display:none">
-              <div class="text-6xl font-extrabold tracking-tight text-white" id="analyzer-hero-name"></div>
-              <div class="text-base text-zinc-400" id="analyzer-hero-notes"></div>
+              <div class="text-6xl font-extrabold tracking-tight text-(--text)" id="analyzer-hero-name"></div>
+              <div class="text-base text-(--text-dim)" id="analyzer-hero-notes"></div>
               <div class="flex justify-center" id="analyzer-hero-keyboard"></div>
             </div>
 
@@ -184,102 +209,102 @@
               <div id="analyzer-voicing-content"></div>
             </section>
 
-            <div class="flex gap-0 px-4 border-b border-zinc-800 flex-shrink-0" id="analyzer-section-tabs" role="tablist">
+            <div class="flex gap-0 px-4 border-b border-(--border) flex-shrink-0" id="analyzer-section-tabs" role="tablist">
               <button type="button" class="px-4 py-2 text-sm font-medium transition-colors text-sky-400 border-b-2 border-sky-400" data-section="chords" role="tab" aria-selected="true">Accords</button>
-              <button type="button" class="px-4 py-2 text-sm font-medium transition-colors text-zinc-500 hover:text-zinc-300" data-section="analysis" role="tab" aria-selected="false" title="Vue d'ensemble de l'analyse">Vue d'ensemble</button>
-              <button type="button" class="px-4 py-2 text-sm font-medium transition-colors text-zinc-500 hover:text-zinc-300" data-section="masterclass" role="tab" aria-selected="false">Masterclass</button>
-              <button type="button" class="px-4 py-2 text-sm font-medium transition-colors text-zinc-500 hover:text-zinc-300" data-section="tools" role="tab" aria-selected="false">Outils</button>
+              <button type="button" class="px-4 py-2 text-sm font-medium transition-colors text-(--text-dim) hover:text-(--text)" data-section="analysis" role="tab" aria-selected="false" title="Vue d'ensemble de l'analyse">Vue d'ensemble</button>
+              <button type="button" class="px-4 py-2 text-sm font-medium transition-colors text-(--text-dim) hover:text-(--text)" data-section="masterclass" role="tab" aria-selected="false">Masterclass</button>
+              <button type="button" class="px-4 py-2 text-sm font-medium transition-colors text-(--text-dim) hover:text-(--text)" data-section="tools" role="tab" aria-selected="false">Outils</button>
             </div>
 
             <div class="flex-1 overflow-y-auto min-h-0 px-3 py-3" id="analyzer-section-panels">
-              <div class="flex flex-col items-center justify-center h-full text-sm text-zinc-500" data-section="chords" role="tabpanel">
+              <div class="flex flex-col items-center justify-center h-full text-sm text-(--text-dim)" data-section="chords" role="tabpanel">
                 <p>Les accords sont affichés dans la timeline et le panneau hero ci-dessus.</p>
                 <p class="mt-1">Sélectionnez un accord dans la timeline pour voir ses détails.</p>
               </div>
 
               <div class="flex flex-col gap-2 h-full overflow-y-auto" data-section="analysis" role="tabpanel" style="display:none">
-                <details class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden" open>
-                  <summary class="px-4 py-2.5 text-sm font-semibold text-zinc-300 cursor-pointer hover:bg-zinc-800/50 transition-colors">Scores d'analyse</summary>
-                  <div class="p-4 text-sm text-zinc-400" id="analyzer-scores-panel">
-                    <p class="text-xs text-zinc-500">Scores de confiance et métriques globales s'afficheront ici après analyse.</p>
+                <details class="bg-(--panel-bg) border border-(--border) rounded-lg overflow-hidden" open>
+                  <summary class="px-4 py-2.5 text-sm font-semibold text-(--text) cursor-pointer hover:bg-(--surface-secondary) transition-colors">Scores d'analyse</summary>
+                  <div class="p-4 text-sm text-(--text-dim)" id="analyzer-scores-panel">
+                    <p class="text-xs text-(--text-dim)">Scores de confiance et métriques globales s'afficheront ici après analyse.</p>
                   </div>
                 </details>
-                <details class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-                  <summary class="px-4 py-2.5 text-sm font-semibold text-zinc-300 cursor-pointer hover:bg-zinc-800/50 transition-colors">Patterns harmoniques</summary>
-                  <div class="p-4 text-sm text-zinc-400" id="analyzer-patterns-panel">
-                    <p class="text-xs text-zinc-500">II-V-I, cadences, turnarounds et substitutions détectés s'afficheront ici.</p>
+                <details class="bg-(--panel-bg) border border-(--border) rounded-lg overflow-hidden">
+                  <summary class="px-4 py-2.5 text-sm font-semibold text-(--text) cursor-pointer hover:bg-(--surface-secondary) transition-colors">Patterns harmoniques</summary>
+                  <div class="p-4 text-sm text-(--text-dim)" id="analyzer-patterns-panel">
+                    <p class="text-xs text-(--text-dim)">II-V-I, cadences, turnarounds et substitutions détectés s'afficheront ici.</p>
                   </div>
                 </details>
-                <details class="bg-zinc-900 border border-zinc-800 rounded-lg" id="analyzer-reharm-details">
-                  <summary class="px-4 py-2.5 text-sm font-semibold text-zinc-300 cursor-pointer hover:bg-zinc-800/50 transition-colors" id="analyzer-reharm-summary" aria-expanded="false" aria-controls="analyzer-reharm-output">Réharmonisation</summary>
-                  <div class="p-4 text-sm text-zinc-400" id="analyzer-reharm-panel">
+                <details class="bg-(--panel-bg) border border-(--border) rounded-lg" id="analyzer-reharm-details">
+                  <summary class="px-4 py-2.5 text-sm font-semibold text-(--text) cursor-pointer hover:bg-(--surface-secondary) transition-colors" id="analyzer-reharm-summary" aria-expanded="false" aria-controls="analyzer-reharm-output">Réharmonisation</summary>
+                  <div class="p-4 text-sm text-(--text-dim)" id="analyzer-reharm-panel">
                     <div class="flex items-center gap-3 mb-3">
-                      <label for="analyzer-reharm-style" class="text-xs text-zinc-500">Style</label>
-                      <select id="analyzer-reharm-style" class="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300" disabled aria-disabled="true" title="Bientôt disponible">
+                      <label for="analyzer-reharm-style" class="text-xs text-(--text-dim)">Style</label>
+                      <select id="analyzer-reharm-style" class="bg-(--surface-secondary) border border-(--border) rounded px-2 py-1 text-xs text-(--text)" disabled aria-disabled="true" title="Bientôt disponible">
                         <option value="jazz" selected>Jazz</option>
                         <option value="gospel">Gospel</option>
                         <option value="worship">Worship</option>
                         <option value="neoSoul">Neo Soul</option>
                       </select>
-                      <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[0.65rem] font-medium bg-zinc-800 text-zinc-500 border border-zinc-700" id="analyzer-reharm-style-soon">Bientôt disponible</span>
-                      <button type="button" id="analyzer-reharm-run" class="px-3 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors">Générer suggestions</button>
+                      <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[0.65rem] font-medium bg-(--surface-secondary) text-(--text-dim) border border-(--border)" id="analyzer-reharm-style-soon">Bientôt disponible</span>
+                      <button type="button" id="analyzer-reharm-run" class="px-3 py-1 rounded text-xs bg-(--surface-secondary) hover:bg-(--border) text-(--text) transition-colors">Générer suggestions</button>
                     </div>
                     <div class="analyzer-reharm-output" id="analyzer-reharm-output" role="region" aria-label="Résultats de la démonstration de réharmonisation"></div>
                   </div>
                 </details>
-                <details class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-                  <summary class="px-4 py-2.5 text-sm font-semibold text-zinc-300 cursor-pointer hover:bg-zinc-800/50 transition-colors">Ligne de basse</summary>
-                  <div class="p-4 text-sm text-zinc-400" id="analyzer-bass-panel">
-                    <p class="text-xs text-zinc-500">Résumé de la ligne de basse détectée.</p>
+                <details class="bg-(--panel-bg) border border-(--border) rounded-lg overflow-hidden">
+                  <summary class="px-4 py-2.5 text-sm font-semibold text-(--text) cursor-pointer hover:bg-(--surface-secondary) transition-colors">Ligne de basse</summary>
+                  <div class="p-4 text-sm text-(--text-dim)" id="analyzer-bass-panel">
+                    <p class="text-xs text-(--text-dim)">Résumé de la ligne de basse détectée.</p>
                     <div class="analyzer-bass-summary" id="analyzer-bass-summary"></div>
                   </div>
                 </details>
-                <details class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-                  <summary class="px-4 py-2.5 text-sm font-semibold text-zinc-300 cursor-pointer hover:bg-zinc-800/50 transition-colors">Export</summary>
-                  <div class="p-4 text-sm text-zinc-400 flex flex-col gap-2" id="analyzer-export-panel">
-                    <button type="button" id="analyzer-export-midi-btn" class="px-4 py-2 rounded-lg text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors">Exporter l'analyse en MIDI</button>
-                    <button type="button" id="analyzer-export-json-btn" class="px-4 py-2 rounded-lg text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors">Exporter en JSON</button>
-                    <button type="button" id="analyzer-copy-text-btn" class="px-4 py-2 rounded-lg text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors">Copier la grille texte</button>
-                    <p class="text-xs text-zinc-500 mt-1">MIDI, JSON et texte reflètent les corrections manuelles. JSON conserve aussi la détection originale.</p>
+                <details class="bg-(--panel-bg) border border-(--border) rounded-lg overflow-hidden">
+                  <summary class="px-4 py-2.5 text-sm font-semibold text-(--text) cursor-pointer hover:bg-(--surface-secondary) transition-colors">Export</summary>
+                  <div class="p-4 text-sm text-(--text-dim) flex flex-col gap-2" id="analyzer-export-panel">
+                    <button type="button" id="analyzer-export-midi-btn" class="px-4 py-2 rounded-lg text-sm bg-(--surface-secondary) hover:bg-(--border) text-(--text) transition-colors">Exporter l'analyse en MIDI</button>
+                    <button type="button" id="analyzer-export-json-btn" class="px-4 py-2 rounded-lg text-sm bg-(--surface-secondary) hover:bg-(--border) text-(--text) transition-colors">Exporter en JSON</button>
+                    <button type="button" id="analyzer-copy-text-btn" class="px-4 py-2 rounded-lg text-sm bg-(--surface-secondary) hover:bg-(--border) text-(--text) transition-colors">Copier la grille texte</button>
+                    <p class="text-xs text-(--text-dim) mt-1">MIDI, JSON et texte reflètent les corrections manuelles. JSON conserve aussi la détection originale.</p>
                   </div>
                 </details>
 
-                <details class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-                  <summary class="px-4 py-2.5 text-sm font-semibold text-zinc-300 cursor-pointer hover:bg-zinc-800/50 transition-colors">Statistiques</summary>
-                  <div class="p-4 text-sm text-zinc-400" id="analyzer-stats-panel">
+                <details class="bg-(--panel-bg) border border-(--border) rounded-lg overflow-hidden">
+                  <summary class="px-4 py-2.5 text-sm font-semibold text-(--text) cursor-pointer hover:bg-(--surface-secondary) transition-colors">Statistiques</summary>
+                  <div class="p-4 text-sm text-(--text-dim)" id="analyzer-stats-panel">
                     <div class="analyzer-stats-content" id="analyzer-stats-content">Aucune statistique disponible.</div>
                   </div>
                 </details>
               </div>
 
               <div class="flex flex-col gap-4 h-full" data-section="masterclass" role="tabpanel" style="display:none">
-                <div class="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg p-4 text-sm text-zinc-400" id="analyzer-masterclass-output">
-                  <div class="text-xs text-zinc-500 text-center">
+                <div class="flex-1 bg-(--panel-bg) border border-(--border) rounded-lg p-4 text-sm text-(--text-dim)" id="analyzer-masterclass-output">
+                  <div class="text-xs text-(--text-dim) text-center">
                     Configurez une clé API OpenAI-compatible (Groq, OpenRouter, Google AI Studio…) via le bouton 🔑 en haut à droite pour obtenir une analyse pédagogique personnalisée.
                   </div>
                 </div>
                 <div class="flex-shrink-0">
-                  <button type="button" id="analyzer-masterclass-run" class="px-4 py-2 rounded-lg text-sm bg-zinc-800 text-zinc-500 cursor-not-allowed transition-colors" disabled>Générer l'analyse pédagogique</button>
+                  <button type="button" id="analyzer-masterclass-run" class="px-4 py-2 rounded-lg text-sm bg-(--surface-secondary) text-(--text-dim) cursor-not-allowed transition-colors" disabled>Générer l'analyse pédagogique</button>
                 </div>
               </div>
 
-              <div class="flex flex-col items-center justify-center h-full gap-2 text-center text-sm text-zinc-500" data-section="tools" role="tabpanel" style="display:none">
+              <div class="flex flex-col items-center justify-center h-full gap-2 text-center text-sm text-(--text-dim)" data-section="tools" role="tabpanel" style="display:none">
                 <div class="text-2xl">🧰</div>
                 <p>D'autres outils d'analyse seront ajoutés prochainement.</p>
               </div>
             </div>
           </div>
 
-          <div class="absolute inset-0 flex items-center justify-center bg-zinc-950/80 z-30" id="analyzer-processing" style="display: none;">
+          <div class="absolute inset-0 flex items-center justify-center bg-(--bg)/80 z-30" id="analyzer-processing" style="display: none;">
             <div class="flex flex-col items-center gap-3">
               <div class="w-8 h-8 border-2 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
-              <p class="text-sm text-zinc-400" id="analyzer-processing-text">Analyse en cours...</p>
+              <p class="text-sm text-(--text-dim)" id="analyzer-processing-text">Analyse en cours...</p>
             </div>
           </div>
         </section>
       </main>
 
-      <main class="studio-tab" id="studio-tab" style="display: none;">
+      <main class="studio-tab stage-0" id="studio-tab" style="display: none;">
         <div id="studio-stage-overlay" class="studio-stage-overlay" style="display: none;">
           <div class="studio-stage-overlay-inner">
             <h3>🎯 Sélectionnez une zone à travailler</h3>
@@ -408,7 +433,6 @@
               <option value="midi" selected>Virtuel MIDI (C0–C9)</option>
             </select>
           </label>
-          <button id="keyboard-toggle" class="keyboard-toggle" type="button" aria-controls="keyboard-panel" aria-expanded="true" aria-label="Réduire le clavier" title="Réduire le clavier">[^]</button>
           <label>
             Début
             <input type="text" id="note-start" value="C0" />

@@ -98,6 +98,97 @@ export function buildMidiFile(events) {
   return result;
 }
 
+// [Claude] — 2026-07-10 — Extension : buildMidiFileMultiTrack (Format 1, multi-pistes, tempo dynamique)
+export function buildMidiFileMultiTrack(tracks, options = {}) {
+  const ppq = options.ppq ?? 480;
+  const tempoUsPerQn = options.tempo ? Math.round(60_000_000 / options.tempo) : 500000;
+  const tsNumerator = options.timeSignature?.[0] ?? 4;
+  const tsDenominator = options.timeSignature?.[1] ?? 4;
+  const tsMetronome = options.timeSignature?.[2] ?? 24;
+  const ts32nds = options.timeSignature?.[3] ?? 8;
+  const title = options.title ?? 'Piano Jazz Chords Analysis';
+
+  const trackChunks = [];
+
+  // Track 0: global tempo + time signature + title
+  const globalTrack = [];
+  globalTrack.push(...deltaTime(0), 0xff, 0x03, ...stringBytes(title));
+  globalTrack.push(...deltaTime(0), 0xff, 0x51, 0x03, ...uint24(tempoUsPerQn));
+  globalTrack.push(...deltaTime(0), 0xff, 0x58, 0x04, tsNumerator, tsDenominator === 4 ? 2 : 3, tsMetronome, ts32nds);
+  globalTrack.push(...deltaTime(0), 0xff, 0x2f, 0x00);
+  trackChunks.push(buildChunk('MTrk', new Uint8Array(globalTrack)));
+
+  // Track 1..N: each instrument track
+  for (const track of tracks) {
+    const trackEvents = [];
+    const channel = track.channel ?? 0;
+
+    if (track.name) {
+      trackEvents.push(...deltaTime(0), 0xff, 0x03, ...stringBytes(track.name));
+    }
+
+    if (track.program != null) {
+      trackEvents.push(...deltaTime(0), 0xc0 | channel, track.program);
+    }
+
+    const sorted = (track.events || []).filter((e) => MIDI_EVENT_TYPES.includes(e.type)).sort((a, b) => a.time - b.time);
+    let lastTick = 0;
+    for (const event of sorted) {
+      const tick = Math.round(event.time * ppq);
+      const delta = tick - lastTick;
+      lastTick = tick;
+
+      switch (event.type) {
+        case 'note_on': {
+          const velocity = Math.round((event.velocity ?? 0.8) * 127);
+          trackEvents.push(...deltaTime(Math.max(0, delta)), 0x90 | channel, event.note, velocity);
+          break;
+        }
+        case 'note_off': {
+          const velocity = Math.round((event.velocity ?? 0) * 127);
+          trackEvents.push(...deltaTime(Math.max(0, delta)), 0x80 | channel, event.note, velocity);
+          break;
+        }
+        case 'control': {
+          trackEvents.push(...deltaTime(Math.max(0, delta)), 0xb0 | channel, event.controller, event.value);
+          break;
+        }
+        case 'pitch_bend': {
+          const bend = Math.round(((event.value ?? 0) + 1) * 8191);
+          const lsb = bend & 0x7f;
+          const msb = (bend >> 7) & 0x7f;
+          trackEvents.push(...deltaTime(Math.max(0, delta)), 0xe0 | channel, lsb, msb);
+          break;
+        }
+        case 'program_change': {
+          trackEvents.push(...deltaTime(Math.max(0, delta)), 0xc0 | channel, event.program);
+          break;
+        }
+      }
+    }
+
+    trackEvents.push(...deltaTime(0), 0xff, 0x2f, 0x00);
+    trackChunks.push(buildChunk('MTrk', new Uint8Array(trackEvents)));
+  }
+
+  const numTracks = trackChunks.length;
+  const headerChunk = buildChunk('MThd', new Uint8Array([
+    0x00, 0x01,
+    (numTracks >> 8) & 0xff, numTracks & 0xff,
+    ...uint16(ppq),
+  ]));
+
+  const totalLength = headerChunk.length + trackChunks.reduce((s, c) => s + c.length, 0);
+  const result = new Uint8Array(totalLength);
+  result.set(headerChunk, 0);
+  let offset = headerChunk.length;
+  for (const chunk of trackChunks) {
+    result.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return result;
+}
+
 const MIDI_EVENT_TYPES = ['note_on', 'note_off', 'control', 'pitch_bend', 'program_change'];
 
 function buildChunk(type, data) {
