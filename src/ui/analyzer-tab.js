@@ -559,6 +559,9 @@ function renderTimeline(chords, duration) {
     const block = document.createElement('button');
     block.className = 'absolute inset-y-2 flex items-center justify-center bg-(--surface-secondary) border border-(--border) rounded-md text-(--text) font-bold text-lg cursor-pointer hover:bg-(--border) hover:border-sky-500 transition-all overflow-hidden';
     block.type = 'button';
+    block.setAttribute('tabindex', '0');
+    block.setAttribute('role', 'button');
+    block.setAttribute('aria-label', `${effectiveChordStr} — ${fmt(chord.startTime)} à ${fmt(chord.endTime)}`);
     block.dataset.index = String(index);
     block.dataset.start = String(chord.startTime);
     block.dataset.segmentId = chord.segmentId || '';
@@ -599,6 +602,7 @@ function renderTimeline(chords, duration) {
     block.innerHTML = `
       <span class="truncate max-w-full px-2 font-bold">${escapeHtml(effectiveChordStr)}</span>
       ${isOverridden ? '<span class="manual-override-icon" title="Corrigé manuellement">✏</span>' : ''}
+      <span class="timeline-edit-hint" aria-hidden="true">✎</span>
     `;
 
     block.addEventListener('click', () => {
