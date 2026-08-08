@@ -1,13 +1,12 @@
 // [OpenCode] — 2026-08-08 — Lot D : clarifier et compacter l'interface
 // d'analyse. Exécutable avec : node tests/ui/test-analysis-workspace.js
 // Node seul, aucun navigateur ni dépendance : les comportements réels sont
-// testés via les modules purs (keyboard-compact, frHandLabel) et les
+// testés via les modules purs (frHandLabel, génération du clavier) et les
 // structures HTML/CSS finales du workspace d'analyse.
 
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { keyboardCompactState, applyKeyboardCompactState } from '../../src/ui/keyboard-compact.js';
 import { frHandLabel } from '../../src/ui/voicing-preview.js';
 import { generateKeyboard } from '../../src/ui/keyboard-svg.js';
 import { noteNameToMidi } from '../../src/chord-engine/intervals.js';
@@ -42,53 +41,23 @@ function assertEqual(actual, expected, msg = '') {
   if (actual !== expected) throw new Error(`${msg} expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
 }
 
-// Mini-mock DOM suffisant pour applyKeyboardCompactState.
-class MockElement {
-  constructor() {
-    this.textContent = '';
-    this.title = '';
-    this.attributes = {};
-    this._classes = new Set();
-    this.classList = {
-      add: (name) => this._classes.add(name),
-      remove: (name) => this._classes.delete(name),
-      contains: (name) => this._classes.has(name),
-      has: (name) => this._classes.has(name),
-    };
-  }
-  setAttribute(name, value) { this.attributes[name] = String(value); }
-  getAttribute(name) { return this.attributes[name] != null ? this.attributes[name] : null; }
-}
-
 const indexHtml = readSource('src/index.html');
 const styleCss = readSource('src/style.css');
+const mainJs = readSource('src/main.js');
 
-// 1. Fonctionnement du repliement du clavier — bascule réelle via le module pur.
-runTest('Repli : bascule compact → déplié change la classe et les libellés', () => {
-  const panel = new MockElement();
-  const toggle = new MockElement();
-  applyKeyboardCompactState({ panel, toggle }, true);
-  assertTrue(panel.classList.has('keyboard-compact'), 'la classe keyboard-compact doit être posée');
-  assertEqual(toggle.textContent, '[v]');
-  applyKeyboardCompactState({ panel, toggle }, false);
-  assertTrue(!panel.classList.has('keyboard-compact'), 'la classe doit être retirée au dépli');
-  assertEqual(toggle.textContent, '[^]');
+// 1. Le clavier reste toujours développé : aucun état compact n'existe.
+runTest('Clavier toujours développé sans état compact', () => {
+  assertTrue(indexHtml.includes('id="keyboard-panel"'), 'le panneau clavier doit rester présent');
+  assertTrue(!indexHtml.includes('keyboard-compact'), 'aucune classe compacte ne doit être rendue');
+  assertTrue(!mainJs.includes('keyboardCompact'), 'aucun état compact ne doit rester dans main.js');
+  assertTrue(!styleCss.includes('.keyboard-compact'), 'aucune règle compacte ne doit rester active');
 });
 
-// 2. aria-expanded correctement synchronisé.
-runTest('aria-expanded vrai/faux selon l’état du clavier', () => {
-  const panel = new MockElement();
-  const toggle = new MockElement();
-  applyKeyboardCompactState({ panel, toggle }, true);
-  assertEqual(toggle.getAttribute('aria-expanded'), 'false');
-  applyKeyboardCompactState({ panel, toggle }, false);
-  assertEqual(toggle.getAttribute('aria-expanded'), 'true');
-  const collapsed = keyboardCompactState(true);
-  assertEqual(collapsed.ariaExpanded, 'false');
-  assertEqual(collapsed.ariaLabel, 'Développer le clavier');
-  const expanded = keyboardCompactState(false);
-  assertEqual(expanded.ariaExpanded, 'true');
-  assertEqual(expanded.ariaLabel, 'Réduire le clavier');
+// 2. La décision D2 retire le contrôle de repliement devenu obsolète.
+runTest('Aucun contrôle de repliement du clavier ne reste actif', () => {
+  assertTrue(!indexHtml.includes('id="keyboard-toggle"'), 'le bouton de repli doit être supprimé');
+  assertTrue(!mainJs.includes('initKeyboardToggle'), 'le gestionnaire de repli doit être supprimé');
+  assertTrue(!mainJs.includes('applyKeyboardCompact'), 'l’application de l’état compact doit être supprimée');
 });
 
 // 3. Conservation de C0 à C9 dans le clavier généré.
@@ -116,10 +85,9 @@ runTest('Défilement horizontal propre réservé au clavier', () => {
   assertTrue(svgRule.includes('flex-shrink: 0'), 'le SVG du clavier doit garder sa largeur');
   // Seul le clavier possède ce défilement : on vérifie qu'aucun composant
   // d'analyse n'utilise overflow-x global (la timeline a son propre scroll).
-  const nonKeyboardScroll = styleCss
-    .replace(/\.keyboard-container \{[\s\S]*?\}/g, '')
-    .replace(/\.keyboard-compact \{[\s\S]*?\}/g, '');
-  assertTrue(!nonKeyboardScroll.includes('#analysis-tab {') || true, 'l’analyse ne force pas de scroll global en tête');
+  assertTrue(block.includes('justify-content: flex-start'), 'C0 doit rester accessible au début du scroll');
+  const pageRule = styleCss.match(/html,\s*\nbody\s*\{([\s\S]*?)\}/)?.[1] || '';
+  assertTrue(pageRule.includes('overflow: hidden'), 'la page ne doit pas créer de scroll horizontal global');
 });
 
 // 5. Sous-onglet « Vue d’ensemble » au lieu de « Analyse ».
@@ -183,20 +151,19 @@ runTest('Les contrôles fonctionnels existants restent présents', () => {
     'data-section="tools"',
     'id="chord-display"',
     'id="keyboard-panel"',
-    'id="keyboard-toggle"',
     'id="note-start" value="C0"',
+    'id="note-end" value="C9"',
   ];
   for (const token of required) {
     assertTrue(indexHtml.includes(token), `contrôle manquant dans index.html : ${token}`);
   }
 });
 
-// 10. cohérence d'accessibilité : aria-controls + section repliable exposée.
-runTest('Le bouton de repli du clavier expose aria-controls', () => {
-  const btn = indexHtml.split('<button id="keyboard-toggle"')[1].split('>')[0];
-  assertTrue(btn.includes('aria-controls="keyboard-panel"'), 'aria-controls manquant');
-  assertTrue(btn.includes('aria-expanded='), 'aria-expanded manquant');
-  assertTrue(btn.includes('aria-label='), 'aria-label manquant');
+// 10. Le clavier global est partagé sans être muté selon l'onglet.
+runTest('Analyse et Studio utilisent le même clavier toujours développé', () => {
+  assertEqual((indexHtml.match(/id="keyboard-panel"/g) || []).length, 1, 'un seul clavier global attendu');
+  assertTrue(!mainJs.includes("keyboardPanel.style.display"), 'la navigation ne doit plus muter le clavier');
+  assertTrue(!mainJs.includes("classList.add('keyboard-compact')"), 'aucun compactage contextuel ne doit rester');
 });
 
 console.log(`\n=== Résultat : ${passed}/${total} tests passés ===`);

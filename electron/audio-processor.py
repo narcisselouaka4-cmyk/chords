@@ -330,8 +330,49 @@ CHORD_TEMPLATES_WEIGHTED = {
     'aug': [(0, 1.0), (4, 0.85), (8, 0.9)],
 }
 CHORD_INTERVALS = {suffix: [pc for pc, _ in tpl] for suffix, tpl in CHORD_TEMPLATES_WEIGHTED.items()}
+
+# Contradictions ciblées pour le mode "targeted_contradictions" (O2).
+# Chaque entrée : suffixe cible → liste de (intervalle, poids_relatif).
+# Le poids effectif = contradiction_weight * poids_relatif.
+# Validé par benchmark expérimental (scripts/experiment-templates.py).
+CHORD_CONTRADICTIONS = {
+    '': [(10, 0.15), (11, 0.15), (2, 0.10), (5, 0.10)],
+    'm': [(10, 0.15), (6, 0.15)],
+    '7': [(11, 0.15)],
+    'maj7': [(10, 0.15)],
+    'm7': [(6, 0.10)],
+    'm7b5': [(10, 0.10)],
+    'sus2': [(5, 0.10)],
+    'sus4': [(2, 0.10)],
+}
+
+# Paires de discriminateurs post-hoc pour le mode "posthoc_discriminator".
+# Chaque entrée : (q1, q2, interval1, interval2)
+#   Si interval2 is None : booster q2 quand chroma[interval1] > ENERGY_THRESHOLD
+#   Si les deux sont définis : comparer chroma[interval1] vs chroma[interval2]
+# Les paires couvrent les confusions observées sur l'audio réel.
+DISCRIMINATOR_PAIRS = [
+    ('m', 'm7b5', 7, 6),     # 5te vs b5 → départager m/m7b5
+    ('m', 'm7', None, 10),   # 7e mineure → départager m/m7
+    ('', 'maj7', None, 11),  # 7e majeure → départager major/maj7
+    ('', '7', None, 10),     # 7e mineure → départager major/7
+    ('maj7', '7', 11, 10),   # 7M vs 7m → départager maj7/7
+    ('sus2', 'sus4', 2, 5),  # 2de vs 4te → départager sus2/sus4
+    ('m7b5', 'dim', None, 10), # 7e mineure → départager m7b5/dim
+]
+
 ADVANCED_SUFFIXES = {'7', 'maj7', 'sus2', 'sus4', 'm7'}
-ENABLE_CHORD_DOWNGRADE = False
+# [OpenCode] — 2026-07-10 — Template simple cohérent avec la famille harmonique.
+SIMPLE_TRIAD_FOR_SUFFIX = {
+    '7': [0, 4, 7],      # majeur
+    'maj7': [0, 4, 7],   # majeur
+    'sus2': [0, 4, 7],   # majeur
+    'sus4': [0, 4, 7],   # majeur
+    'm7': [0, 3, 7],     # mineur
+}
+# [OpenCode] — 2026-07-10 — Réactivation du post-traitement (min_duration=0.4, threshold=0.03)
+# Voir CHANGES.md pour les résultats du benchmark corpus.
+ENABLE_CHORD_DOWNGRADE = True
 
 QUALITY_FAMILIES = {
     '': 0, 'maj7': 0, 'sus2': 0, 'sus4': 0,
@@ -561,14 +602,25 @@ def detect_key(y, sr):
         return None, []
 
 
-def _build_chord_states():
-    """Construit la liste des états d'accords du HMM."""
+def _build_chord_states(observation_mode="baseline", contradiction_weight=0.10):
+    """Construit la liste des états d'accords du HMM.
+
+    observation_mode :
+        "baseline" — templates originaux (CHORD_TEMPLATES_WEIGHTED).
+        "targeted_contradictions" — ajoute des poids négatifs sur les
+        intervalles distinctifs des rivales de même famille (CHORD_CONTRADICTIONS).
+    contradiction_weight : poids global appliqué aux contradictions (w dans O2).
+    """
     states = []
     for root in range(12):
         for suffix, tpl in CHORD_TEMPLATES_WEIGHTED.items():
             template = np.zeros(12, dtype=np.float32)
             for pc, weight in tpl:
                 template[(root + pc) % 12] = weight
+            if observation_mode == "targeted_contradictions" and suffix in CHORD_CONTRADICTIONS:
+                for interval, rel_weight in CHORD_CONTRADICTIONS[suffix]:
+                    pc = (root + interval) % 12
+                    template[pc] -= contradiction_weight * rel_weight
             norm = float(np.linalg.norm(template))
             if norm > 0:
                 template = template / norm
@@ -675,7 +727,10 @@ def _build_transition_matrix(states, key):
             )
 
             if not same_root_similar:
-                if dst['root'] is not None and dst['root'] in diatonic_roots:
+                # Bonus diatonique UNIQUEMENT si la fondamentale change (rd != 0).
+                # Ne pas l'appliquer sur la même fondamentale évite que le Viterbi
+                # récompense l'alternance de qualité (ex: A → Aaug → A → Aaug).
+                if dst['root'] is not None and dst['root'] in diatonic_roots and rd != 0:
                     score += 0.1
 
             mat[i, j] = score
@@ -735,6 +790,63 @@ def _compute_observation_scores(beat_chroma, states, key, frame_energies):
             scores[t, j] = max(0.0, min(1.0, sim))
 
     return scores
+
+
+def _apply_discriminator(obs_scores, beat_chroma, states,
+                          discriminator_threshold=0.02,
+                          discriminator_strength=0.05,
+                          energy_threshold=0.15):
+    """Correction post-hoc des scores d'observation pour les paires confuses.
+
+    Pour chaque battement et chaque paire (q1, q2), si l'écart entre les deux
+    scores est < discriminator_threshold, on consulte l'énergie du chroma sur
+    l'intervalle discriminant pour départager.
+    """
+    T = obs_scores.shape[0]
+    state_idx = {}
+    for i, st in enumerate(states):
+        if st['suffix'] != 'N':
+            state_idx.setdefault(st['root'], {})[st['suffix']] = i
+
+    for t in range(T):
+        frame = beat_chroma[:, t]
+        fn = float(np.linalg.norm(frame))
+        if fn < 1e-8:
+            continue
+        frame_n = frame / fn
+
+        for root in range(12):
+            root_states = state_idx.get(root)
+            if not root_states:
+                continue
+
+            for q1, q2, int1, int2 in DISCRIMINATOR_PAIRS:
+                i1 = root_states.get(q1)
+                i2 = root_states.get(q2)
+                if i1 is None or i2 is None:
+                    continue
+                s1 = obs_scores[t, i1]
+                s2 = obs_scores[t, i2]
+                if abs(s1 - s2) >= discriminator_threshold:
+                    continue
+
+                if int1 is not None and int2 is not None:
+                    pc1 = (root + int1) % 12
+                    pc2 = (root + int2) % 12
+                    if frame_n[pc1] > frame_n[pc2]:
+                        obs_scores[t, i1] = min(1.0, s1 + discriminator_strength)
+                    else:
+                        obs_scores[t, i2] = min(1.0, s2 + discriminator_strength)
+                elif int2 is not None:
+                    pc2 = (root + int2) % 12
+                    if frame_n[pc2] > energy_threshold:
+                        obs_scores[t, i2] = min(1.0, s2 + discriminator_strength)
+                elif int1 is not None:
+                    pc1 = (root + int1) % 12
+                    if frame_n[pc1] > energy_threshold:
+                        obs_scores[t, i1] = min(1.0, s1 + discriminator_strength)
+
+    return obs_scores
 
 
 def _initial_scores(states, key):
@@ -799,19 +911,39 @@ def _segment_path(path, beat_times, duration, states, obs_scores):
     return segments
 
 
-def _downgrade_advanced_segments(segments, beat_chroma, states, threshold=0.07):
-    """Remplace un accord avancé (7/maj7/sus) par sa triade simple si le gain de confiance
-    est insuffisant."""
+def _downgrade_advanced_segments(segments, beat_chroma, states, threshold=0.07, mode='hybrid'):
+    """Remplace un accord avancé par sa triade simple si la preuve harmonique
+    est insuffisante.
+
+    Trois modes :
+    - 'legacy_family_fix' (A) : comparaison par produit scalaire de templates
+      normalisés + seuil global. Seule différence avec l'original :
+      SIMPLE_TRIAD_FOR_SUFFIX['m7'] = [0,3,7].
+    - 'distinctive_interval' (B) : mesure directe de l'énergie relative sur
+      l'intervalle distinctif (7ème, 2nde, 4te) pour chaque suffixe.
+    - 'hybrid' (C) : distinctive_interval pour 7/maj7/m7, legacy_family_fix
+      pour sus2/sus4.
+    """
+    if mode == 'distinctive_interval':
+        return _downgrade_distinctive_interval(segments, beat_chroma, states, threshold)
+    elif mode == 'hybrid':
+        return _downgrade_hybrid(segments, beat_chroma, states, threshold)
+    else:
+        return _downgrade_legacy_family_fix(segments, beat_chroma, states, threshold)
+
+
+def _downgrade_legacy_family_fix(segments, beat_chroma, states, threshold):
+    """Variante A : ancienne comparaison par produits scalaires normalisés,
+    seuil global 0.03. Seule correction : m7 utilise [0,3,7] au lieu de [0,4,7]."""
     for seg in segments:
         state = states[seg['state']]
         suffix = state['suffix']
         if suffix not in ADVANCED_SUFFIXES:
             continue
 
-        # Triade simple correspondante : majeur pour 7/maj7/sus2/sus4, tournée sur la
-        # fondamentale de l'accord détecté.
+        simple_intervals = SIMPLE_TRIAD_FOR_SUFFIX.get(suffix, [0, 4, 7])
         simple_template = np.zeros(12, dtype=np.float32)
-        simple_template[np.array([0, 4, 7]) % 12] = 1.0
+        simple_template[np.array(simple_intervals) % 12] = 1.0
         simple_template = np.roll(simple_template, state['root'])
         simple_template = simple_template / np.linalg.norm(simple_template)
 
@@ -831,9 +963,159 @@ def _downgrade_advanced_segments(segments, beat_chroma, states, threshold=0.07):
         mean_advanced = float(np.mean(advanced_scores))
         mean_simple = float(np.mean(simple_scores))
         if mean_advanced - mean_simple < threshold:
-            seg['chord'] = chord_name(state['root'], '')
-            # On garde la confiance de la triade pour cohérence.
+            simple_suffix = ''
+            if suffix == 'm7':
+                simple_suffix = 'm'
+            seg['chord'] = chord_name(state['root'], simple_suffix)
             seg['confidence'] = round(mean_simple, 3)
+    return segments
+
+
+def _downgrade_distinctive_interval(segments, beat_chroma, states, threshold):
+    """Variante B : mesure directe de l'énergie relative sur l'intervalle
+    distinctif de chaque suffixe, évitant l'annulation par norme L2."""
+    SUFFIX_RATIO_THRESHOLD = {
+        '7': 0.08,
+        'maj7': 0.15,
+        'sus2': 0.20,
+        'sus4': 0.20,
+        'm7': 0.08,
+    }
+    INTERVAL_KEY = {
+        '7': 10,
+        'maj7': 11,
+        'sus2': 2,
+        'sus4': 5,
+        'm7': 10,
+    }
+
+    for seg in segments:
+        state = states[seg['state']]
+        suffix = state['suffix']
+        if suffix not in ADVANCED_SUFFIXES:
+            continue
+
+        root = state['root']
+        dist_interval = INTERVAL_KEY.get(suffix)
+        threshold_ratio = SUFFIX_RATIO_THRESHOLD.get(suffix, 0.2)
+
+        avg_chroma = np.zeros(12, dtype=np.float32)
+        count = 0
+        for idx in seg['beatIndices']:
+            frame = beat_chroma[:, idx]
+            norm = np.linalg.norm(frame)
+            if norm > 1e-6:
+                avg_chroma += frame / norm
+                count += 1
+        if count == 0:
+            continue
+        avg_chroma /= count
+
+        energy_root = float(avg_chroma[root % 12])
+        if energy_root < 1e-6:
+            continue
+
+        energy_dist = float(avg_chroma[(root + dist_interval) % 12])
+        ratio = energy_dist / energy_root
+
+        downgrade = False
+        if suffix in ('7', 'maj7', 'm7'):
+            if ratio < threshold_ratio:
+                downgrade = True
+        elif suffix == 'sus2':
+            energy_third = float(avg_chroma[(root + 4) % 12])
+            if energy_dist < energy_third * 0.8 or ratio < threshold_ratio:
+                downgrade = True
+        elif suffix == 'sus4':
+            energy_third = float(avg_chroma[(root + 4) % 12])
+            if energy_dist < energy_third * 0.8 or ratio < threshold_ratio:
+                downgrade = True
+
+        if downgrade:
+            simple_suffix = ''
+            if suffix == 'm7':
+                simple_suffix = 'm'
+            seg['chord'] = chord_name(root, simple_suffix)
+    return segments
+
+
+def _downgrade_hybrid(segments, beat_chroma, states, threshold=0.07):
+    """Variante C : distinctive_interval pour 7/maj7/m7, legacy_family_fix
+    pour sus2/sus4."""
+    SUFFIX_RATIO_THRESHOLD = {
+        '7': 0.08,
+        'maj7': 0.15,
+        'm7': 0.08,
+    }
+    INTERVAL_KEY = {
+        '7': 10,
+        'maj7': 11,
+        'm7': 10,
+    }
+
+    for seg in segments:
+        state = states[seg['state']]
+        suffix = state['suffix']
+        if suffix not in ADVANCED_SUFFIXES:
+            continue
+
+        root = state['root']
+
+        if suffix in ('7', 'maj7', 'm7'):
+            # Distinctive-interval logic (B)
+            dist_interval = INTERVAL_KEY.get(suffix)
+            threshold_ratio = SUFFIX_RATIO_THRESHOLD.get(suffix, 0.15)
+
+            avg_chroma = np.zeros(12, dtype=np.float32)
+            count = 0
+            for idx in seg['beatIndices']:
+                frame = beat_chroma[:, idx]
+                norm = np.linalg.norm(frame)
+                if norm > 1e-6:
+                    avg_chroma += frame / norm
+                    count += 1
+            if count == 0:
+                continue
+            avg_chroma /= count
+
+            energy_root = float(avg_chroma[root % 12])
+            if energy_root < 1e-6:
+                continue
+
+            energy_dist = float(avg_chroma[(root + dist_interval) % 12])
+            ratio = energy_dist / energy_root
+
+            if ratio < threshold_ratio:
+                simple_suffix = 'm' if suffix == 'm7' else ''
+                seg['chord'] = chord_name(root, simple_suffix)
+
+        elif suffix in ('sus2', 'sus4'):
+            # Legacy template dot-product logic (A)
+            simple_intervals = SIMPLE_TRIAD_FOR_SUFFIX.get(suffix, [0, 4, 7])
+            simple_template = np.zeros(12, dtype=np.float32)
+            simple_template[np.array(simple_intervals) % 12] = 1.0
+            simple_template = np.roll(simple_template, root)
+            simple_template = simple_template / np.linalg.norm(simple_template)
+
+            advanced_scores = []
+            simple_scores = []
+            for idx in seg['beatIndices']:
+                frame = beat_chroma[:, idx]
+                norm = np.linalg.norm(frame)
+                if norm < 1e-6:
+                    advanced_scores.append(0.0)
+                    simple_scores.append(0.0)
+                    continue
+                f = frame / norm
+                advanced_scores.append(float(np.dot(f, state['template'])))
+                simple_scores.append(float(np.dot(f, simple_template)))
+
+            mean_advanced = float(np.mean(advanced_scores))
+            mean_simple = float(np.mean(simple_scores))
+            if mean_advanced - mean_simple < threshold:
+                seg['chord'] = chord_name(root, '')
+                seg['confidence'] = round(mean_simple, 3)
+
     return segments
 
 
@@ -1140,13 +1422,51 @@ def aggregate_chords_to_grid(segments, bpm, beats_per_bar=4, subdivision="full_b
     return final_segments
 
 
-def analyze_chords(wav_path, clean_mode="legacy"):
+def _log_seg_stage(label, segments, states=None):
+    """Affiche les stats d'une étape du pipeline pour le debug."""
+    if not segments:
+        print(f"[DEBUG] {label}: 0 segments")
+        return
+    durs = [s['endTime'] - s['startTime'] for s in segments]
+    chords = [s['chord'] for s in segments]
+    print(f"[DEBUG] {label}:")
+    print(f"        count={len(segments)}, total_dur={sum(durs):.2f}s, avg={sum(durs)/len(durs):.3f}s")
+    print(f"        min={min(durs):.3f}s, max={max(durs):.3f}s")
+    print(f"        <0.4s={sum(1 for d in durs if d < 0.4)}")
+    print(f"        <0.6s={sum(1 for d in durs if d < 0.6)}")
+    # Compte les alternances rapides (root identique, qualité différente)
+    alt = 0
+    for i in range(1, len(segments)):
+        r1, s1 = _parse_chord_label(segments[i-1]['chord'])
+        r2, s2 = _parse_chord_label(segments[i]['chord'])
+        if r1 is not None and r1 == r2 and s1 != s2:
+            alt += 1
+    print(f"        same_root_diff_quality_adjacent={alt}")
+    # Affiche les 5 premiers segments pour inspection
+    for s in segments[:5]:
+        d = s['endTime'] - s['startTime']
+        print(f"          {s['chord']:>10}  t={s['startTime']:.1f}s  dur={d:.3f}s  conf={s.get('confidence',0):.3f}")
+    if len(segments) > 5:
+        print(f"          ... (+{len(segments)-5})")
+    sys.stdout.flush()
+
+
+def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="hybrid",
+                   observation_mode="baseline", contradiction_weight=0.10,
+                   discriminator_threshold=0.02,
+                   discriminator_strength=0.05):
     """Pipeline d'analyse audio : tempo, signature, tonalité, accords principaux contextualisés.
+
+    observation_mode : "baseline", "targeted_contradictions" (O2 expérimental),
+                       ou "posthoc_discriminator" (correction post-hoc des paires confuses).
+    contradiction_weight : pondération des contradictions (mode targeted_contradictions).
+    discriminator_threshold : écart max pour déclencher le discriminateur (mode posthoc).
+    discriminator_strength : bonus ajouté au vainqueur du discriminateur.
 
     Retourne un dict enrichi {duration, tempo, timeSignature, key, keyConfidence,
     keyCandidates, confidence, chords: [ChordEvent]}.
     """
-    log(f'analyzing chords from {wav_path} (mode={clean_mode})')
+    log(f'analyzing chords from {wav_path} (mode={clean_mode}, obs={observation_mode})')
     y, sr = librosa.load(wav_path, sr=22050, mono=True)
     duration = float(len(y) / sr)
 
@@ -1220,8 +1540,13 @@ def analyze_chords(wav_path, clean_mode="legacy"):
             frame_energies[k] = float(np.sum(beat_chroma[:, k]))
 
     # 4. HMM : observation + transition + Viterbi.
-    states = _build_chord_states()
+    states = _build_chord_states(observation_mode, contradiction_weight)
     obs_scores = _compute_observation_scores(beat_chroma, states, key, frame_energies)
+    if observation_mode == "posthoc_discriminator":
+        obs_scores = _apply_discriminator(
+            obs_scores, beat_chroma, states,
+            discriminator_threshold=discriminator_threshold,
+            discriminator_strength=discriminator_strength)
     obs_scores[0] += _initial_scores(states, key)
     obs_scores = np.clip(obs_scores, 0.0, 1.0)
     trans = _build_transition_matrix(states, key)
@@ -1229,7 +1554,11 @@ def analyze_chords(wav_path, clean_mode="legacy"):
 
     # 5. Segmentation et post-traitement.
     segments = _segment_path(path, beat_times, duration, states, obs_scores)
+    if debug:
+        _log_seg_stage("after Viterbi + segment_path", segments, states)
     segments = _merge_similar_segments(segments)
+    if debug:
+        _log_seg_stage("after _merge_similar_segments", segments, states)
 
     # Exposition des candidats d'observation (top 3) pour chaque segment.
     for seg in segments:
@@ -1256,8 +1585,12 @@ def analyze_chords(wav_path, clean_mode="legacy"):
 
     if clean_mode == "legacy":
         if ENABLE_CHORD_DOWNGRADE:
-            segments = _downgrade_advanced_segments(segments, beat_chroma, states, threshold=0.04)
-            segments = _clean_segments(segments, min_duration=0.6, silence_min=1.2)
+            segments = _downgrade_advanced_segments(segments, beat_chroma, states, threshold=0.03, mode=downgrade_mode)
+            if debug:
+                _log_seg_stage("after _downgrade_advanced_segments", segments, states)
+            segments = _clean_segments(segments, min_duration=0.4, silence_min=1.2)
+            if debug:
+                _log_seg_stage("after _clean_segments", segments, states)
         subdivision_method = "legacy"
     elif clean_mode in ("grid", "grid_half", "grid_norm", "grid_full"):
         # grid_half : grille d'origine (baseline historique)
@@ -1393,8 +1726,35 @@ def main():
     elif command == 'analyze-chords':
         wav_path = sys.argv[2]
         clean_mode = sys.argv[3] if len(sys.argv) > 3 else 'legacy'
-        result = analyze_chords(wav_path, clean_mode)
-        print(json.dumps(result))
+        debug_mode = '--debug' in sys.argv
+        # Le downgrade_mode peut être passé en 4ème argument positionnel.
+        downgrade_mode = 'hybrid'
+        if len(sys.argv) > 4 and not sys.argv[4].startswith('--'):
+            downgrade_mode = sys.argv[4]
+        observation_mode = 'baseline'
+        contradiction_weight = 0.10
+        discriminator_threshold = 0.02
+        discriminator_strength = 0.05
+        for a in sys.argv:
+            if a.startswith('--observation-mode='):
+                observation_mode = a.split('=', 1)[1]
+            elif a.startswith('--contradiction-weight='):
+                contradiction_weight = float(a.split('=', 1)[1])
+            elif a.startswith('--discriminator-threshold='):
+                discriminator_threshold = float(a.split('=', 1)[1])
+            elif a.startswith('--discriminator-strength='):
+                discriminator_strength = float(a.split('=', 1)[1])
+        result = analyze_chords(wav_path, clean_mode, debug=debug_mode, downgrade_mode=downgrade_mode,
+                                observation_mode=observation_mode,
+                                contradiction_weight=contradiction_weight,
+                                discriminator_threshold=discriminator_threshold,
+                                discriminator_strength=discriminator_strength)
+        if not debug_mode:
+            print(json.dumps(result))
+        else:
+            # En mode debug, on imprime le JSON en dernier pour ne pas polluer
+            print("\n[JSON_OUTPUT]")
+            print(json.dumps(result))
 
     else:
         print(f'unknown command: {command}', file=sys.stderr)

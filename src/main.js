@@ -1,6 +1,5 @@
 import { generateKeyboard, setPitchWheel, setModWheel } from './ui/keyboard-svg.js';
 import { updateDisplay, clearDisplay } from './ui/display.js';
-import { getPedagogyHtml } from './chord-engine/pedagogy.js';
 import { detectChord } from './chord-engine/index.js';
 import { noteName, formatPc } from './chord-engine/naming.js';
 
@@ -20,7 +19,7 @@ import {
   PRESETS,
 } from './ai/openai-config.js';
 import { createPracticeExercise, renderExerciseTarget } from './practice-exercise.js';
-import { applyKeyboardCompactState, keyboardCompactState } from './ui/keyboard-compact.js';
+import { applyTabVisibility } from './ui/tab-visibility.js';
 
 const state = {
   activeNotes: new Map(), // midi -> velocity
@@ -40,10 +39,6 @@ const state = {
   currentChord: null,
   // [Claude] — 2026-07-03 — true quand une session est rejouée pour éviter la ré-enregistrement
   isPlayback: false,
-  // [OpenCode] — 2026-08-08 — Lot D : repliable. Le clavier est replié
-  // automatiquement quand l'utilisateur quitte l'onglet Entraînement (voir
-  // initTabNavigation) afin de ne pas imposer de hauteur excessive inutile.
-  keyboardCompact: false,
   // [OpenCode] — 2026-07-04 — Notes de suggestion affichées sur le clavier principal
   suggestionNotes: new Set(),
 };
@@ -88,13 +83,12 @@ const els = {
   noteStart: document.getElementById('note-start'),
   noteEnd: document.getElementById('note-end'),
   notation: document.getElementById('notation-select'),
-  keyboardToggle: document.getElementById('keyboard-toggle'),
-  keyboardPanel: document.getElementById('keyboard-panel'),
   chordName: document.getElementById('chord-name'),
   chordDetail: document.getElementById('chord-detail'),
   chordMeta: document.getElementById('chord-meta'),
   voicingLabel: document.getElementById('voicing-label'),
   aliasLabel: document.getElementById('alias-label'),
+  chordDisplay: document.getElementById('chord-display'),
   notesDisplay: document.getElementById('notes-display'),
   pedagogy: document.getElementById('pedagogy-content'),
   colorNote: document.getElementById('color-note'),
@@ -109,6 +103,11 @@ const els = {
   pedagogyPanel: document.getElementById('pedagogy-panel'),
   pedagogyToggle: document.getElementById('pedagogy-toggle'),
   pedagogyContent: document.getElementById('pedagogy-content'),
+  pedagogyPanelTab: document.getElementById('pedagogy-panel-tab'),
+  exercisePanel: document.getElementById('practice-exercise-panel'),
+  exercisePanelToggle: document.getElementById('exercise-panel-toggle'),
+  exercisePanelTab: document.getElementById('exercise-panel-tab'),
+  practiceLayout: document.getElementById('practice-tab'),
 
   keyboardSize: document.getElementById('keyboard-size'),
   transposeInput: document.getElementById('transpose'),
@@ -158,24 +157,6 @@ function renderKeyboardAtCurrentSize() {
     onNoteOn: (note, velocity = 0.8) => handleNoteOn(note, velocity, true, true),
     onNoteOff: (note) => handleNoteOff(note, true, true),
   });
-}
-
-function initKeyboardToggle() {
-  if (!els.keyboardToggle || !els.keyboardPanel) return;
-  els.keyboardToggle.addEventListener('click', () => {
-    state.keyboardCompact = !state.keyboardCompact;
-    applyKeyboardCompact();
-    refreshKeyboard();
-  });
-  applyKeyboardCompact();
-}
-
-function applyKeyboardCompact() {
-  if (!els.keyboardPanel || !els.keyboardToggle) return;
-  applyKeyboardCompactState(
-    { panel: els.keyboardPanel, toggle: els.keyboardToggle },
-    state.keyboardCompact,
-  );
 }
 
 function refreshKeyboard() {
@@ -732,20 +713,73 @@ function initSettings() {
 }
 
 function initPanelToggles() {
-  // Pedagogy panel: starts visible, can be collapsed
-  const pedagogyCollapsed = localStorage.getItem('pedagogy-collapsed') === 'true';
-  if (pedagogyCollapsed) {
-    els.pedagogyContent.style.display = 'none';
-    els.pedagogyToggle.textContent = '+';
-    els.pedagogyToggle.title = 'Afficher les techniques';
+  const LEFT_COLLAPSED_CLASS = 'practice-left-collapsed';
+  const RIGHT_COLLAPSED_CLASS = 'practice-right-collapsed';
+
+  function applyPedagogyCollapsed(collapsed) {
+    if (!els.practiceLayout) return;
+    if (collapsed) {
+      els.practiceLayout.classList.add(RIGHT_COLLAPSED_CLASS);
+    } else {
+      els.practiceLayout.classList.remove(RIGHT_COLLAPSED_CLASS);
+    }
+    if (els.pedagogyToggle) {
+      els.pedagogyToggle.textContent = collapsed ? '+' : '−';
+      els.pedagogyToggle.title = collapsed ? 'Afficher les techniques' : 'Masquer les techniques';
+      els.pedagogyToggle.setAttribute('aria-expanded', String(!collapsed));
+    }
+    if (els.pedagogyPanelTab) {
+      els.pedagogyPanelTab.style.display = collapsed ? 'flex' : 'none';
+      els.pedagogyPanelTab.setAttribute('aria-expanded', String(collapsed));
+    }
   }
 
+  function applyExerciseCollapsed(collapsed) {
+    if (!els.practiceLayout) return;
+    if (collapsed) {
+      els.practiceLayout.classList.add(LEFT_COLLAPSED_CLASS);
+    } else {
+      els.practiceLayout.classList.remove(LEFT_COLLAPSED_CLASS);
+    }
+    if (els.exercisePanelToggle) {
+      els.exercisePanelToggle.textContent = collapsed ? '+' : '−';
+      els.exercisePanelToggle.title = collapsed ? 'Développer Exercice rapide' : 'Réduire le panneau Exercice rapide';
+      els.exercisePanelToggle.setAttribute('aria-expanded', String(!collapsed));
+    }
+    if (els.exercisePanelTab) {
+      els.exercisePanelTab.style.display = collapsed ? 'flex' : 'none';
+      els.exercisePanelTab.setAttribute('aria-expanded', String(collapsed));
+    }
+  }
+
+  // Pedagogy panel: starts visible, can be collapsed
+  const pedagogyCollapsed = localStorage.getItem('pedagogy-collapsed') === 'true';
+  applyPedagogyCollapsed(pedagogyCollapsed);
+
   els.pedagogyToggle?.addEventListener('click', () => {
-    const isHidden = els.pedagogyContent.style.display === 'none';
-    els.pedagogyContent.style.display = isHidden ? '' : 'none';
-    els.pedagogyToggle.textContent = isHidden ? '−' : '+';
-    els.pedagogyToggle.title = isHidden ? 'Masquer les techniques' : 'Afficher les techniques';
-    localStorage.setItem('pedagogy-collapsed', String(!isHidden));
+    const collapsed = !els.practiceLayout?.classList.contains(RIGHT_COLLAPSED_CLASS);
+    applyPedagogyCollapsed(collapsed);
+    localStorage.setItem('pedagogy-collapsed', String(collapsed));
+  });
+
+  els.pedagogyPanelTab?.addEventListener('click', () => {
+    applyPedagogyCollapsed(false);
+    localStorage.setItem('pedagogy-collapsed', 'false');
+  });
+
+  // Exercise panel: starts visible, can be collapsed
+  const exerciseCollapsed = localStorage.getItem('exercise-collapsed') === 'true';
+  applyExerciseCollapsed(exerciseCollapsed);
+
+  els.exercisePanelToggle?.addEventListener('click', () => {
+    const collapsed = !els.practiceLayout?.classList.contains(LEFT_COLLAPSED_CLASS);
+    applyExerciseCollapsed(collapsed);
+    localStorage.setItem('exercise-collapsed', String(collapsed));
+  });
+
+  els.exercisePanelTab?.addEventListener('click', () => {
+    applyExerciseCollapsed(false);
+    localStorage.setItem('exercise-collapsed', 'false');
   });
 
   // MIDI diagnostic panel: starts hidden
@@ -759,14 +793,17 @@ function initPanelToggles() {
 }
 
 function initTheme() {
-  const saved = localStorage.getItem('theme') || 'light';
-  document.body.setAttribute('data-theme', saved);
+  const saved = localStorage.getItem('theme') || 'dark';
+  const root = document.documentElement;
+  root.setAttribute('data-theme', saved);
+  root.style.backgroundColor = saved === 'dark' ? '#0f1117' : '#f4f6f8';
   updateThemeIcon(saved);
 
   els.themeToggle?.addEventListener('click', () => {
-    const current = document.body.getAttribute('data-theme') || 'light';
+    const current = root.getAttribute('data-theme') || 'dark';
     const next = current === 'light' ? 'dark' : 'light';
-    document.body.setAttribute('data-theme', next);
+    root.setAttribute('data-theme', next);
+    root.style.backgroundColor = next === 'dark' ? '#0f1117' : '#f4f6f8';
     localStorage.setItem('theme', next);
     updateThemeIcon(next);
   });
@@ -931,7 +968,6 @@ async function init() {
   initTheme();
   initPanelToggles();
   refreshKeyboard();
-  initKeyboardToggle();
   initSettings();
   initNoteGrouper();
   initHistory();
@@ -952,25 +988,18 @@ function initTabNavigation() {
   const practiceTab = document.getElementById('practice-tab');
   const analysisTab = document.getElementById('analysis-tab');
   const studioTab = document.getElementById('studio-tab');
-  const keyboardPanel = document.getElementById('keyboard-panel');
 
   function switchToTab(tab) {
-    if (practiceTab) practiceTab.style.display = tab === 'practice' ? 'grid' : 'none';
-    if (analysisTab) analysisTab.style.display = tab === 'analysis' ? 'flex' : 'none';
-    if (studioTab) studioTab.style.display = tab === 'studio' ? 'grid' : 'none';
+    applyTabVisibility({
+      practice: practiceTab,
+      analysis: analysisTab,
+      studio: studioTab,
+    }, tab);
 
     document.querySelectorAll('.tab-btn').forEach((b) => {
       b.classList.toggle('active', b.dataset.tab === tab);
     });
 
-    if (keyboardPanel) keyboardPanel.style.display = 'flex';
-
-    // Lot D — replier le clavier hors de l'onglet Entraînement pour ne pas
-    // imposer de hauteur excessive quand il n'est pas utilisé.
-    if (tab !== 'practice' && !state.keyboardCompact) {
-      state.keyboardCompact = true;
-      applyKeyboardCompact();
-    }
   }
 
   tabNav?.addEventListener('click', (e) => {
@@ -996,6 +1025,7 @@ function initTabNavigation() {
 
   if (window.location.hash === '#analysis') switchToTab('analysis');
   else if (window.location.hash === '#studio') switchToTab('studio');
+  else switchToTab('practice');
 }
 
 init();

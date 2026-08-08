@@ -45,6 +45,7 @@ function createWindow() {
     height: 900,
     minWidth: 1100,
     minHeight: 700,
+    backgroundColor: '#0f1117',
     title: 'Piano Jazz Chords',
     icon: path.join(__dirname, '../assets/icon.svg'),
     webPreferences: {

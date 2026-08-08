@@ -486,13 +486,13 @@ function renderTimeline(chords, duration) {
   els.chordTimelineInner.style.width = `${totalWidth}px`;
 
   if (chords.length === 0) {
-    els.chordTimelineInner.innerHTML = '<span class="text-sm text-zinc-500">Aucun accord détecté.</span>';
+    els.chordTimelineInner.innerHTML = '<span class="text-sm text-(--text-dim)">Aucun accord détecté.</span>';
     return;
   }
 
   chords.forEach((chord, index) => {
     const block = document.createElement('button');
-    block.className = 'absolute inset-y-2 flex items-center justify-center bg-zinc-800 border border-zinc-700 rounded-md text-zinc-200 font-bold text-lg cursor-pointer hover:bg-zinc-700 hover:border-sky-500 transition-all overflow-hidden';
+    block.className = 'absolute inset-y-2 flex items-center justify-center bg-(--surface-secondary) border border-(--border) rounded-md text-(--text) font-bold text-lg cursor-pointer hover:bg-(--border) hover:border-sky-500 transition-all overflow-hidden';
     block.type = 'button';
     block.dataset.index = String(index);
     block.dataset.start = String(chord.startTime);
@@ -626,10 +626,10 @@ function updatePlaybackPosition(currentTime) {
   blocks.forEach((block, idx) => {
     if (idx === activeIndex) {
       block.classList.add('!bg-sky-600', '!border-sky-400', '!text-white', 'shadow-lg', 'shadow-sky-500/20', 'scale-105', 'z-10');
-      block.classList.remove('bg-zinc-800', 'border-zinc-700', 'text-zinc-200');
+      block.classList.remove('bg-(--surface-secondary)', 'border-(--border)', 'text-(--text)');
     } else {
       block.classList.remove('!bg-sky-600', '!border-sky-400', '!text-white', 'shadow-lg', 'shadow-sky-500/20', 'scale-105', 'z-10');
-      block.classList.add('bg-zinc-800', 'border-zinc-700', 'text-zinc-200');
+      block.classList.add('bg-(--surface-secondary)', 'border-(--border)', 'text-(--text)');
     }
   });
 
@@ -832,10 +832,10 @@ function bindSectionTabs() {
     tab.addEventListener('click', () => {
       els.sectionTabs.forEach((t) => {
         t.classList.remove('text-sky-400', 'border-b-2', 'border-sky-400');
-        t.classList.add('text-zinc-500', 'hover:text-zinc-300');
+        t.classList.add('text-(--text-dim)', 'hover:text-(--text)');
         t.setAttribute('aria-selected', 'false');
       });
-      tab.classList.remove('text-zinc-500', 'hover:text-zinc-300');
+      tab.classList.remove('text-(--text-dim)', 'hover:text-(--text)');
       tab.classList.add('text-sky-400', 'border-b-2', 'border-sky-400');
       tab.setAttribute('aria-selected', 'true');
 
@@ -1087,17 +1087,17 @@ function renderStats(analysis) {
 
   els.statsContent.innerHTML = `
     <div class="space-y-3">
-      <div class="flex justify-between text-sm font-medium text-zinc-300"><span>Segments</span><span>${stats.totalSegments}</span></div>
-      <div class="flex justify-between text-sm font-medium text-zinc-300"><span>Durée totale</span><span>${formatTime(stats.totalDuration)}</span></div>
-      <div class="flex justify-between text-sm font-medium text-zinc-300"><span>Corrections manuelles</span><span>${stats.manuallyEditedCount}</span></div>
-      <div class="flex justify-between text-sm font-medium text-zinc-300"><span>Slash chords</span><span>${stats.slashChordCount}</span></div>
+      <div class="flex justify-between text-sm font-medium text-(--text)"><span>Segments</span><span>${stats.totalSegments}</span></div>
+      <div class="flex justify-between text-sm font-medium text-(--text)"><span>Durée totale</span><span>${formatTime(stats.totalDuration)}</span></div>
+      <div class="flex justify-between text-sm font-medium text-(--text)"><span>Corrections manuelles</span><span>${stats.manuallyEditedCount}</span></div>
+      <div class="flex justify-between text-sm font-medium text-(--text)"><span>Slash chords</span><span>${stats.slashChordCount}</span></div>
       <div>
-        <div class="text-xs font-semibold text-zinc-500 uppercase mb-1">Qualités</div>
-        ${qualityRows || '<div class="text-xs text-zinc-600">Aucune</div>'}
+        <div class="text-xs font-semibold text-(--text-dim) uppercase mb-1">Qualités</div>
+        ${qualityRows || '<div class="text-xs text-(--text-dim)">Aucune</div>'}
       </div>
       <div>
-        <div class="text-xs font-semibold text-zinc-500 uppercase mb-1">Accords les plus utilisés</div>
-        ${topRows || '<div class="text-xs text-zinc-600">Aucun</div>'}
+        <div class="text-xs font-semibold text-(--text-dim) uppercase mb-1">Accords les plus utilisés</div>
+        ${topRows || '<div class="text-xs text-(--text-dim)">Aucun</div>'}
       </div>
     </div>
   `;
