@@ -1,5 +1,6 @@
 import { noteNameToPc, NOTE_NAMES } from '../chord-engine/intervals.js';
 export { NOTE_NAMES } from '../chord-engine/intervals.js';
+import { captureChordTarget } from './chord-edit-session.js';
 
 // Fonctions harmoniques pures déplacées dans le module partagé chord-display.js.
 export {
@@ -49,6 +50,7 @@ export class ChordEditor {
     this.isOpen = false;
     this.segmentIndex = -1;
     this.segment = null;
+    this.editTarget = null;
     this.analysis = null;
     this.onSave = callbacks.onSave || (() => {});
     this.onCancel = callbacks.onCancel || (() => {});
@@ -69,6 +71,10 @@ export class ChordEditor {
     if (this.isOpen) this.close();
     this.segment = segment;
     this.segmentIndex = segmentIndex;
+    // Lot C — cible d'édition immuable, capturée à l'ouverture via segmentId.
+    // Elle ne sera JAMAIS recalculée depuis currentTime, l'index actif de
+    // lecture, la surbrillance ou la position visuelle de la timeline.
+    this.editTarget = captureChordTarget(segment);
     this.analysis = analysis;
     this.isOpen = true;
     this._build();
@@ -88,6 +94,8 @@ export class ChordEditor {
     this.isOpen = false;
     this.segment = null;
     this.segmentIndex = -1;
+    // Lot C — nettoyage complet de la cible d'édition locale.
+    this.editTarget = null;
     this._rootSelect = null;
     this._qualitySelect = null;
     this._bassSelect = null;
@@ -266,12 +274,14 @@ export class ChordEditor {
 
   _onSave() {
     const { root, quality, bass } = this._getFormValues();
-    this.onSave(this.segmentIndex, { root, quality, bass });
+    // Lot C : transmet la cible immuable capturée, jamais l'index d'origine.
+    this.onSave(this.editTarget, { root, quality, bass });
     this.close();
   }
 
   _onReset() {
-    this.onReset(this.segmentIndex);
+    // Lot C : transmet la cible immuable capturée, jamais l'index d'origine.
+    this.onReset(this.editTarget);
     this.close();
   }
 }
