@@ -107,6 +107,7 @@ const els = {
   exercisePanel: document.getElementById('practice-exercise-panel'),
   exercisePanelToggle: document.getElementById('exercise-panel-toggle'),
   exercisePanelTab: document.getElementById('exercise-panel-tab'),
+  practiceMidiHint: document.getElementById('practice-midi-hint'),
   practiceLayout: document.getElementById('practice-tab'),
 
   keyboardSize: document.getElementById('keyboard-size'),
@@ -417,6 +418,15 @@ async function loadSystemInfo() {
 // [OpenCode] — 2026-07-04 — Gestion unifiée et robuste des ports MIDI.
 let currentMidiName = null;
 
+function updatePracticeMidiHint() {
+  if (!els.practiceMidiHint) return;
+  if (currentMidiName) {
+    els.practiceMidiHint.textContent = `MIDI connecté : ${currentMidiName}`;
+  } else {
+    els.practiceMidiHint.textContent = '';
+  }
+}
+
 const PREFERRED_MIDI_KEYWORDS = ['usb', 'piano', 'keyboard', 'mpk', 'midi', 'key', 'synth', 'controller'];
 const VIRTUAL_PORT_NAMES = ['midi through', 'through', 'virmidi', 'timidity', 'fluidsynth', 'pipewire'];
 
@@ -476,6 +486,7 @@ async function tryOpenMidi(portId, inputs) {
   const result = await window.electronAPI.midi.openInput(portId);
   if (result?.success) {
     currentMidiName = result.name || name;
+    updatePracticeMidiHint();
     els.midiStatus.textContent = 'Connecté';
     els.midiSelect.value = String(result.portId || portId);
     setStatus(`MIDI connecté : ${currentMidiName}`);
@@ -518,6 +529,7 @@ async function initMidi() {
 
   window.electronAPI.midi.onDeviceConnected?.((event) => {
     currentMidiName = event.name;
+    updatePracticeMidiHint();
     els.midiStatus.textContent = 'Connecté';
     if (els.midiSelect.value !== String(event.portId)) {
       els.midiSelect.value = String(event.portId);
@@ -528,6 +540,7 @@ async function initMidi() {
 
   window.electronAPI.midi.onPortLost?.((event) => {
     currentMidiName = null;
+    updatePracticeMidiHint();
     logMidiEvent({ type: 'port-lost', data: event, time: Date.now() });
     els.midiStatus.textContent = 'Périphérique perdu';
     setStatus('Périphérique MIDI débranché');
@@ -606,6 +619,8 @@ function updateMidiList(inputs, callbacks, isWeb) {
     openWebMidiInput(portId, callbacks);
     els.midiStatus.textContent = 'Connecté (Web MIDI)';
     const name = els.midiSelect.options[els.midiSelect.selectedIndex]?.text || 'Web MIDI';
+    currentMidiName = name;
+    updatePracticeMidiHint();
     setStatus(`MIDI connecté : ${name}`);
   });
 
@@ -614,6 +629,8 @@ function updateMidiList(inputs, callbacks, isWeb) {
     els.midiSelect.value = preferred.id;
     openWebMidiInput(preferred.id, callbacks);
     els.midiStatus.textContent = 'Connecté (Web MIDI)';
+    currentMidiName = preferred.name;
+    updatePracticeMidiHint();
     setStatus(`MIDI connecté : ${preferred.name}`);
   }
 }

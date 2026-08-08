@@ -599,14 +599,32 @@ body {
   position: absolute;
   inset: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   color: var(--muted);
-  font-size: 1.1rem;
   text-align: center;
   padding: 20px;
   pointer-events: none;
   opacity: 0.7;
+}
+
+.practice-empty-hint-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.practice-empty-hint-sub {
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.practice-empty-hint-detail {
+  font-size: 0.8rem;
+  margin: 0;
+  opacity: 0.8;
 }
 
 .practice-layout:has(.chord-detail:not(:empty)) .practice-empty-hint,
