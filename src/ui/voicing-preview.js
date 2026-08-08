@@ -207,6 +207,19 @@ export function setUseSharps(useSharps) {
 }
 
 /**
+ * Libellé français d'une main pour l'affichage.
+ * Les identifiants internes (LH / RH) restent invariants : seule la valeur
+ * réellement rendue en français (MG / MD) change.
+ * @param {'LH' | 'RH' | string} hand
+ * @returns {string} 'MG', 'MD' ou la valeur inchangée si non reconnue
+ */
+export function frHandLabel(hand) {
+  if (hand === 'LH') return 'MG';
+  if (hand === 'RH') return 'MD';
+  return hand;
+}
+
+/**
  * Convertit un symbole d’accord effectif (ex: "Fm7/D") en entrée normalisée
  * pour le générateur Close.
  * @param {string} effectiveChord
@@ -331,7 +344,7 @@ export function renderVoicingTextPreview(result, options = {}) {
 
     const label = document.createElement('span');
     label.className = 'voicing-preview-label';
-    label.textContent = hand.hand;
+    label.textContent = frHandLabel(hand.hand);
 
     const notes = document.createElement('span');
     notes.className = 'voicing-preview-notes';

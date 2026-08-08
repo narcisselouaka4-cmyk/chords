@@ -310,14 +310,19 @@ body {
   justify-content: center;
   min-height: 0;
   min-width: 0;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   padding: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--panel-border) transparent;
 }
 
+/* ── Lot D : le clavier conserve son propre défilement horizontal ── */
 .keyboard-container svg {
+  flex-shrink: 0;
   width: auto;
   height: 100%;
-  max-width: 100%;
+  max-width: none;
   user-select: none;
   display: block;
   overflow: visible;
@@ -432,6 +437,27 @@ body {
 }
 
 .keyboard-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Lot D : focus visible et titre de section lisible ── */
+.keyboard-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.keyboard-section-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text);
+  align-items: center;
+}
+
+.keyboard-panel:not(.keyboard-compact) .keyboard-toggle[aria-expanded='true'],
+.keyboard-panel.keyboard-compact .keyboard-toggle[aria-expanded='false'] {
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -5126,4 +5152,76 @@ body.studio-recording-cursor * {
   text-overflow: ellipsis;
   max-width: 320px;
   flex-shrink: 0;
+}
+
+/* ── Lot D : compactage et lisibilité de l'espace Analyse ── */
+
+/* Focus visible pour les interactions non couvertes par Tailwind. */
+#analysis-tab button:focus-visible,
+#analysis-tab [role='tab']:focus-visible,
+#analysis-tab select:focus-visible,
+#analysis-tab input:focus-visible {
+  outline: 2px solid var(--accent, #38bdf8);
+  outline-offset: 1px;
+}
+
+/* Sous-onglets : libellés lisibles, ne jamais tronquer les actions. */
+#analyzer-section-tabs button {
+  min-height: 36px;
+  line-height: 1;
+}
+
+/* Le contenu d'édition ne doit pas pousser ni couper les actions principales. */
+#analyzer-section-panels {
+  max-height: 100%;
+}
+
+/* Message compact des futurs outils : centré, peu volumineux. */
+#analyzer-section-panels [data-section='tools'] p {
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  /* Rangs du haut : enroulement propre sans chevauchement. */
+  #analysis-tab .px-4.py-2,
+  #analysis-tab .px-4.py-1\.5 {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  #analyzer-section-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #analyzer-section-tabs button {
+    white-space: nowrap;
+  }
+
+  /* Sur écran étroit, l'ordre fichier → timeline → accords → actions reste
+     intact : la timeline garde son propre défilement horizontal. */
+  #analyzer-progress-track {
+    min-width: 160px;
+  }
+
+  .analyzer-media-context {
+    max-width: 180px;
+  }
+}
+
+@media (max-height: 720px) {
+  #analyzer-results > .flex.items-center {
+    gap: 6px;
+  }
+
+  #analyzer-chord-timeline {
+    min-height: 48px;
+  }
+
+  #analyzer-section-panels {
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
 }

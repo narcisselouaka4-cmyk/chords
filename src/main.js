@@ -20,6 +20,7 @@ import {
   PRESETS,
 } from './ai/openai-config.js';
 import { createPracticeExercise, renderExerciseTarget } from './practice-exercise.js';
+import { applyKeyboardCompactState, keyboardCompactState } from './ui/keyboard-compact.js';
 
 const state = {
   activeNotes: new Map(), // midi -> velocity
@@ -39,6 +40,9 @@ const state = {
   currentChord: null,
   // [Claude] — 2026-07-03 — true quand une session est rejouée pour éviter la ré-enregistrement
   isPlayback: false,
+  // [OpenCode] — 2026-08-08 — Lot D : repliable. Le clavier est replié
+  // automatiquement quand l'utilisateur quitte l'onglet Entraînement (voir
+  // initTabNavigation) afin de ne pas imposer de hauteur excessive inutile.
   keyboardCompact: false,
   // [OpenCode] — 2026-07-04 — Notes de suggestion affichées sur le clavier principal
   suggestionNotes: new Set(),
@@ -168,15 +172,10 @@ function initKeyboardToggle() {
 
 function applyKeyboardCompact() {
   if (!els.keyboardPanel || !els.keyboardToggle) return;
-  if (state.keyboardCompact) {
-    els.keyboardPanel.classList.add('keyboard-compact');
-    els.keyboardToggle.textContent = '[v]';
-    els.keyboardToggle.title = 'Développer le clavier';
-  } else {
-    els.keyboardPanel.classList.remove('keyboard-compact');
-    els.keyboardToggle.textContent = '[^]';
-    els.keyboardToggle.title = 'Réduire le clavier';
-  }
+  applyKeyboardCompactState(
+    { panel: els.keyboardPanel, toggle: els.keyboardToggle },
+    state.keyboardCompact,
+  );
 }
 
 function refreshKeyboard() {
@@ -965,6 +964,13 @@ function initTabNavigation() {
     });
 
     if (keyboardPanel) keyboardPanel.style.display = 'flex';
+
+    // Lot D — replier le clavier hors de l'onglet Entraînement pour ne pas
+    // imposer de hauteur excessive quand il n'est pas utilisé.
+    if (tab !== 'practice' && !state.keyboardCompact) {
+      state.keyboardCompact = true;
+      applyKeyboardCompact();
+    }
   }
 
   tabNav?.addEventListener('click', (e) => {

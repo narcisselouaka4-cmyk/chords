@@ -151,7 +151,7 @@
               <button type="button" class="absolute top-1/2 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center bg-zinc-800 border border-zinc-700 rounded-full text-zinc-400 hover:text-sky-400 hover:border-sky-500 cursor-pointer text-sm shadow-lg right-2" id="analyzer-timeline-scroll-right">›</button>
             </div>
 
-            <div class="flex flex-col items-center gap-3 py-6 flex-shrink-0" id="analyzer-hero" style="display:none">
+            <div class="flex flex-col items-center gap-2 py-2 flex-shrink-0" id="analyzer-hero" style="display:none">
               <div class="text-6xl font-extrabold tracking-tight text-white" id="analyzer-hero-name"></div>
               <div class="text-base text-zinc-400" id="analyzer-hero-notes"></div>
               <div class="flex justify-center" id="analyzer-hero-keyboard"></div>
@@ -170,7 +170,7 @@
                   data-voicing-style="close"
                   aria-pressed="true"
                 >
-                  Close
+                  Fermer
                 </button>
                 <button
                   type="button"
@@ -186,18 +186,18 @@
 
             <div class="flex gap-0 px-4 border-b border-zinc-800 flex-shrink-0" id="analyzer-section-tabs" role="tablist">
               <button type="button" class="px-4 py-2 text-sm font-medium transition-colors text-sky-400 border-b-2 border-sky-400" data-section="chords" role="tab" aria-selected="true">Accords</button>
-              <button type="button" class="px-4 py-2 text-sm font-medium transition-colors text-zinc-500 hover:text-zinc-300" data-section="analysis" role="tab" aria-selected="false">Analyse</button>
+              <button type="button" class="px-4 py-2 text-sm font-medium transition-colors text-zinc-500 hover:text-zinc-300" data-section="analysis" role="tab" aria-selected="false" title="Vue d'ensemble de l'analyse">Vue d'ensemble</button>
               <button type="button" class="px-4 py-2 text-sm font-medium transition-colors text-zinc-500 hover:text-zinc-300" data-section="masterclass" role="tab" aria-selected="false">Masterclass</button>
               <button type="button" class="px-4 py-2 text-sm font-medium transition-colors text-zinc-500 hover:text-zinc-300" data-section="tools" role="tab" aria-selected="false">Outils</button>
             </div>
 
-            <div class="flex-1 overflow-y-auto min-h-0 px-4 py-4" id="analyzer-section-panels">
+            <div class="flex-1 overflow-y-auto min-h-0 px-3 py-3" id="analyzer-section-panels">
               <div class="flex flex-col items-center justify-center h-full text-sm text-zinc-500" data-section="chords" role="tabpanel">
                 <p>Les accords sont affichés dans la timeline et le panneau hero ci-dessus.</p>
                 <p class="mt-1">Sélectionnez un accord dans la timeline pour voir ses détails.</p>
               </div>
 
-              <div class="flex flex-col gap-3 h-full overflow-y-auto" data-section="analysis" role="tabpanel" style="display:none">
+              <div class="flex flex-col gap-2 h-full overflow-y-auto" data-section="analysis" role="tabpanel" style="display:none">
                 <details class="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden" open>
                   <summary class="px-4 py-2.5 text-sm font-semibold text-zinc-300 cursor-pointer hover:bg-zinc-800/50 transition-colors">Scores d'analyse</summary>
                   <div class="p-4 text-sm text-zinc-400" id="analyzer-scores-panel">
@@ -215,12 +215,13 @@
                   <div class="p-4 text-sm text-zinc-400" id="analyzer-reharm-panel">
                     <div class="flex items-center gap-3 mb-3">
                       <label for="analyzer-reharm-style" class="text-xs text-zinc-500">Style</label>
-                      <select id="analyzer-reharm-style" class="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300">
+                      <select id="analyzer-reharm-style" class="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300" disabled aria-disabled="true" title="Bientôt disponible">
                         <option value="jazz" selected>Jazz</option>
                         <option value="gospel">Gospel</option>
                         <option value="worship">Worship</option>
                         <option value="neoSoul">Neo Soul</option>
                       </select>
+                      <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[0.65rem] font-medium bg-zinc-800 text-zinc-500 border border-zinc-700" id="analyzer-reharm-style-soon">Bientôt disponible</span>
                       <button type="button" id="analyzer-reharm-run" class="px-3 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors">Générer suggestions</button>
                     </div>
                     <div class="analyzer-reharm-output" id="analyzer-reharm-output" role="region" aria-label="Résultats de la démonstration de réharmonisation"></div>
@@ -262,37 +263,9 @@
                 </div>
               </div>
 
-              <div class="grid grid-cols-3 gap-4 h-full" data-section="tools" role="tabpanel" style="display:none">
-                <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex flex-col items-center gap-2 text-center">
-                  <div class="text-2xl">🎧</div>
-                  <div class="text-sm font-semibold text-zinc-300">Aperçu audio</div>
-                  <p class="text-xs text-zinc-500">Écoute isolée des accords détectés — à venir.</p>
-                </div>
-                <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex flex-col items-center gap-2 text-center">
-                  <div class="text-2xl">🎤</div>
-                  <div class="text-sm font-semibold text-zinc-300">Accords &amp; Paroles</div>
-                  <p class="text-xs text-zinc-500">Synchronisation des paroles — à venir.</p>
-                </div>
-                <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex flex-col items-center gap-2 text-center">
-                  <div class="text-2xl">🎚</div>
-                  <div class="text-sm font-semibold text-zinc-300">Accordeur</div>
-                  <p class="text-xs text-zinc-500">Accordeur intégré — à venir.</p>
-                </div>
-                <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex flex-col items-center gap-2 text-center">
-                  <div class="text-2xl">⏱</div>
-                  <div class="text-sm font-semibold text-zinc-300">Compte à rebours</div>
-                  <p class="text-xs text-zinc-500">Décompte avant lecture — à venir.</p>
-                </div>
-                <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex flex-col items-center gap-2 text-center">
-                  <div class="text-2xl">🔁</div>
-                  <div class="text-sm font-semibold text-zinc-300">Transposition globale</div>
-                  <p class="text-xs text-zinc-500">Transposer tous les accords — à venir.</p>
-                </div>
-                <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex flex-col items-center gap-2 text-center">
-                  <div class="text-2xl">✨</div>
-                  <div class="text-sm font-semibold text-zinc-300">Simplification</div>
-                  <p class="text-xs text-zinc-500">Simplifier les enrichissements — à venir.</p>
-                </div>
+              <div class="flex flex-col items-center justify-center h-full gap-2 text-center text-sm text-zinc-500" data-section="tools" role="tabpanel" style="display:none">
+                <div class="text-2xl">🧰</div>
+                <p>D'autres outils d'analyse seront ajoutés prochainement.</p>
               </div>
             </div>
           </div>
@@ -422,6 +395,7 @@
       <section class="keyboard-panel global-keyboard-panel" id="keyboard-panel">
         <div id="keyboard-container" class="keyboard-container"></div>
         <div class="keyboard-controls">
+          <span class="keyboard-section-title" id="keyboard-section-title">Clavier</span>
           <label>
             Taille
             <select id="keyboard-size">
@@ -434,7 +408,7 @@
               <option value="midi" selected>Virtuel MIDI (C0–C9)</option>
             </select>
           </label>
-          <button id="keyboard-toggle" class="keyboard-toggle" type="button" title="Réduire/développer le clavier">[^]</button>
+          <button id="keyboard-toggle" class="keyboard-toggle" type="button" aria-controls="keyboard-panel" aria-expanded="true" aria-label="Réduire le clavier" title="Réduire le clavier">[^]</button>
           <label>
             Début
             <input type="text" id="note-start" value="C0" />
