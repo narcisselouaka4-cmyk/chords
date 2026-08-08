@@ -123,18 +123,19 @@
       <main class="flex-1 flex overflow-hidden bg-(--bg)" id="analysis-tab" style="display: none;">
         <section class="flex-1 flex flex-col overflow-hidden min-w-0 relative" id="analyzer-workspace">
           <div class="flex items-center justify-center flex-1" id="analyzer-import-screen">
-            <div class="flex flex-col items-center gap-4 p-8">
+            <div class="flex flex-col items-center gap-4 p-8 max-w-md w-full">
               <div class="text-5xl">🎵</div>
-              <h2 class="text-xl font-bold text-(--text)">Importer un fichier</h2>
+              <h2 class="text-xl font-bold text-(--text)">Analyser un morceau</h2>
               <p class="text-sm text-(--text-dim) text-center">
                 Formats acceptés :<br />
                 MP3 · WAV · MP4 · M4A
               </p>
+              <div class="flex flex-col gap-2 w-full" id="analyzer-library-list"></div>
               <button type="button" id="analyzer-import-btn" class="px-6 py-3 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-medium transition-colors">
-                Choisir un fichier
+                Importer un nouveau fichier
               </button>
               <p class="text-xs text-(--text-dim) text-center">
-                Importez un morceau ou une vidéo afin de lancer son analyse.
+                Choisissez un morceau de la bibliothèque ou importez-en un nouveau pour lancer son analyse.
               </p>
             </div>
           </div>

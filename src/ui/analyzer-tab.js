@@ -37,10 +37,6 @@ import {
   verifyAudioIdentity,
   tryApplyProjectOverrides,
 } from './chord-editor.js';
-// [OpenCode] — 2026-08-07 — Incrément 9, Lot 1 : raccordement du panneau
-// Réharmonisation au moteur canonique buildHarmonizationPlan via un
-// orchestrateur UI déterministe. Entrée de démonstration (fixture) tant que
-// l'extraction d'une vraie MelodyTrack (Incrément 11) n'est pas raccordée.
 import { buildDemoFixture } from './reharmonization-demo-fixture.js';
 import { buildReharmonizationViewModel } from './reharmonization-orchestrator.js';
 import {
@@ -51,6 +47,7 @@ import {
 } from './reharmonization-view.js';
 import './reharmonization-view.css';
 import { buildFileContextText } from './file-context.js';
+import { listTracks, loadMetadata, getOriginalPath, importToLibrary } from './media-library.js';
 
 const BASE_PIXELS_PER_SECOND = 80;
 const MIN_BLOCK_WIDTH = 4;
@@ -67,6 +64,7 @@ let chordEditor = null;
 const els = {
   importScreen: document.getElementById('analyzer-import-screen'),
   importBtn: document.getElementById('analyzer-import-btn'),
+  libraryList: document.getElementById('analyzer-library-list'),
   results: document.getElementById('analyzer-results'),
   backBtn: document.getElementById('analyzer-back-btn'),
 
@@ -148,11 +146,75 @@ export function initAnalyzerTab() {
   initChordEditor();
   initKeyboardShortcuts();
   initReharmonizationPanel();
+  refreshLibraryList();
 }
 
 function bindImportButton() {
   els.importBtn?.addEventListener('click', handleImportClick);
   els.backBtn?.addEventListener('click', showImportScreen);
+}
+
+async function refreshLibraryList() {
+  if (!els.libraryList) return;
+  try {
+    const tracks = await listTracks();
+    const enriched = await Promise.all(tracks.map(async (track) => {
+      try {
+        const metadata = await loadMetadata(track.id);
+        return { ...track, metadata };
+      } catch (e) {
+        return track;
+      }
+    }));
+    renderLibraryList(enriched);
+  } catch (err) {
+    console.error('[Analyzer] library list failed:', err);
+  }
+}
+
+function renderLibraryList(tracks) {
+  if (!els.libraryList) return;
+  els.libraryList.innerHTML = '';
+
+  if (tracks.length === 0) return;
+
+  const label = document.createElement('div');
+  label.className = 'text-xs font-semibold text-(--text-dim) mb-1';
+  label.textContent = 'Bibliothèque';
+  els.libraryList.appendChild(label);
+
+  for (const track of tracks) {
+    const metadata = track.metadata || {};
+    const displayName = metadata.name || track.id;
+    const ext = (metadata.format || metadata.sourcePath?.split('.').pop() || '').toUpperCase();
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'w-full text-left px-3 py-2 rounded text-xs bg-(--surface-secondary) hover:bg-(--border) text-(--text) transition-colors flex items-center gap-2';
+    btn.innerHTML = `<span class="truncate flex-1">${escapeHtml(displayName)}</span><span class="text-(--text-dim) shrink-0">${ext}</span>`;
+    btn.addEventListener('click', () => analyzeLibraryTrack(track));
+    els.libraryList.appendChild(btn);
+  }
+}
+
+async function analyzeLibraryTrack(track) {
+  try {
+    const originalPath = await getOriginalPath(track.id);
+    if (!originalPath) {
+      alert('Fichier original introuvable.');
+      return;
+    }
+    currentAudioPath = originalPath;
+    currentFileName = track.metadata?.name || track.id;
+    showProcessing('Extraction audio en cours…');
+    const analysis = await analyzer.analyze(originalPath);
+    currentAnalysis = analysis;
+    showResults(analysis);
+  } catch (err) {
+    console.error('[Analyzer] library track analysis failed:', err);
+    hideProcessing();
+    alert(`Erreur d'analyse : ${err.message}`);
+  }
 }
 
 async function handleImportClick() {
@@ -173,6 +235,11 @@ async function handleImportClick() {
     currentAnalysis = analysis;
 
     showResults(analysis);
+
+    // Ajouter à la bibliothèque en arrière-plan (ne bloque pas l'analyse).
+    importToLibrary(filePath).then(() => refreshLibraryList()).catch((e) => {
+      console.warn('[Analyzer] library import failed:', e);
+    });
   } catch (err) {
     console.error('[Analyzer] import failed:', err);
     hideProcessing();
@@ -260,6 +327,7 @@ function showImportScreen() {
   chordEditor?.close();
   els.results.style.display = 'none';
   els.importScreen.style.display = 'flex';
+  refreshLibraryList();
   lastRenderedVoicingChord = null;
   lastRenderedVoicingStyle = null;
   els.chordTimelineInner.innerHTML = '';
