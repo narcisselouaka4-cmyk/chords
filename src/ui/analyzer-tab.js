@@ -111,11 +111,8 @@ const els = {
   processingText: document.getElementById('analyzer-processing-text'),
 
   // Panneau Réharmonisation (Incrément 9, Lot 1) — démonstration du moteur canonique.
-  reharmStyle: document.getElementById('analyzer-reharm-style'),
   reharmRun: document.getElementById('analyzer-reharm-run'),
   reharmOutput: document.getElementById('analyzer-reharm-output'),
-  // Lot A — conteneur <details> parent et son <summary>, pour ouverture
-  // automatique et aria-expanded lors d'un rendu réussi.
   reharmDetails: document.getElementById('analyzer-reharm-details'),
   reharmSummary: document.getElementById('analyzer-reharm-summary'),
 };
@@ -1120,24 +1117,13 @@ function escapeHtml(str) {
 // Worship/Gospel/Jazz/Neo Soul déterministe n'existe dans le moteur canonique.
 // Le bouton lance une démonstration explicite d'une fixture déterministe.
 function initReharmonizationPanel() {
-  const styleSelect = els.reharmStyle;
   const runBtn = els.reharmRun;
   const output = els.reharmOutput;
   const details = els.reharmDetails;
   const summary = els.reharmSummary;
 
-  if (styleSelect) {
-    // Désactivation + accessibilité : la valeur n'est jamais lue.
-    styleSelect.disabled = true;
-    styleSelect.setAttribute('aria-disabled', 'true');
-    styleSelect.setAttribute('tabindex', '-1');
-    styleSelect.title = 'Style désactivé : aucun mapping déterministe style → moteur n’existe encore.';
-  }
-
   if (runBtn) {
-    // Formulation explicite : il s’agit d’une démonstration, pas d’une analyse
-    // du fichier audio actuellement chargé.
-    runBtn.textContent = 'Voir la démonstration';
+    runBtn.textContent = 'Lancer la démonstration';
     runBtn.setAttribute('aria-controls', 'analyzer-reharm-output');
     runBtn.setAttribute('aria-expanded', 'false');
     runBtn.addEventListener('click', runReharmonizationDemo);

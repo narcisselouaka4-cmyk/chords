@@ -38,15 +38,13 @@ export function renderReharmonizationEmpty(container) {
   const notice = el('div', { className: 'reharm-empty' });
   notice.appendChild(el('p', {
     className: 'reharm-empty-title',
-    text: 'Aucune réharmonisation affichée.',
+    text: 'Aucune démonstration lancée.',
   }));
   notice.appendChild(el('p', {
     className: 'reharm-empty-text',
     text:
-      'Le bouton « Voir la démonstration » lance une mélodie déterministe dans le ' +
-      'moteur canonique. La sélection d’un style (Worship / Gospel / Jazz / Neo Soul) ' +
-      'et l’utilisation d’une mélodie réelle extraite de votre fichier audio ' +
-      'arriveront ultérieurement.',
+      'Cliquez sur « Lancer la démonstration » pour exécuter le moteur de réharmonisation ' +
+      'sur une mélodie d\'exemple indépendante du fichier chargé.',
   }));
   container.appendChild(notice);
 }

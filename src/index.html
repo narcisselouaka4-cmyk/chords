@@ -237,17 +237,15 @@
                 </details>
                 <details class="bg-(--panel-bg) border border-(--border) rounded-lg" id="analyzer-reharm-details">
                   <summary class="px-4 py-2.5 text-sm font-semibold text-(--text) cursor-pointer hover:bg-(--surface-secondary) transition-colors" id="analyzer-reharm-summary" aria-expanded="false" aria-controls="analyzer-reharm-output">Réharmonisation</summary>
-                  <div class="p-4 text-sm text-(--text-dim)" id="analyzer-reharm-panel">
-                    <div class="flex items-center gap-3 mb-3">
-                      <label for="analyzer-reharm-style" class="text-xs text-(--text-dim)">Style</label>
-                      <select id="analyzer-reharm-style" class="bg-(--surface-secondary) border border-(--border) rounded px-2 py-1 text-xs text-(--text)" disabled aria-disabled="true" title="Bientôt disponible">
-                        <option value="jazz" selected>Jazz</option>
-                        <option value="gospel">Gospel</option>
-                        <option value="worship">Worship</option>
-                        <option value="neoSoul">Neo Soul</option>
-                      </select>
-                      <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[0.65rem] font-medium bg-(--surface-secondary) text-(--text-dim) border border-(--border)" id="analyzer-reharm-style-soon">Bientôt disponible</span>
-                      <button type="button" id="analyzer-reharm-run" class="px-3 py-1 rounded text-xs bg-(--surface-secondary) hover:bg-(--border) text-(--text) transition-colors">Générer suggestions</button>
+                  <div class="p-4 text-sm text-(--text-dim) flex flex-col gap-4" id="analyzer-reharm-panel">
+                    <div class="border border-(--border) rounded-lg p-3 bg-(--surface-secondary)">
+                      <div class="text-xs font-semibold text-(--text) mb-1">Réharmoniser ce morceau</div>
+                      <p class="text-xs text-(--text-dim)">La réharmonisation automatique du morceau analysé sera disponible prochainement.</p>
+                    </div>
+                    <div class="border border-(--border) rounded-lg p-3">
+                      <div class="text-xs font-semibold text-(--text) mb-1">Démonstration du moteur</div>
+                      <p class="text-xs text-(--text-dim) mb-3">Cette démonstration utilise une mélodie d'exemple indépendante du fichier actuellement chargé.</p>
+                      <button type="button" id="analyzer-reharm-run" class="px-3 py-1 rounded text-xs bg-(--surface-secondary) hover:bg-(--border) text-(--text) transition-colors">Lancer la démonstration</button>
                     </div>
                     <div class="analyzer-reharm-output" id="analyzer-reharm-output" role="region" aria-label="Résultats de la démonstration de réharmonisation"></div>
                   </div>
