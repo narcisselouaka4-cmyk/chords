@@ -15,6 +15,8 @@ import { createStemMixer, dbToGain } from '../audio/stem-mixer.js';
 import { separateStems, getStems, STEMS } from '../audio/stem-separator.js';
 import { createPitchShifter } from '../audio/pitch-shifter.js';
 import { getAudioContext, connectOutput as connectSynthOutput } from '../audio/simple-synth.js';
+import { formatMediaDuration, isValidMediaDuration } from './media-format.js';
+import { buildFileContextText } from './file-context.js';
 
 /**
  * Lit un fichier audio via IPC et retourne un ArrayBuffer brut.
@@ -128,6 +130,7 @@ const els = {
   resetRegionBtn: document.getElementById('studio-reset-region'),
   confirmRegionBtn: document.getElementById('studio-confirm-region'),
   backRegionBtn: document.getElementById('studio-back-region'),
+  mediaContext: document.getElementById('studio-media-context'),
   transposeStatus: document.getElementById('studio-transpose-status'),
   sidebarLeft: document.getElementById('studio-sidebar-left'),
   tracksHeader: document.getElementById('studio-tracks-header'),
@@ -140,11 +143,9 @@ const els = {
 };
 
 function formatDuration(seconds) {
-  if (!seconds || isNaN(seconds)) return '00:00';
-  const total = Math.floor(Number(seconds));
-  const mins = String(Math.floor(total / 60)).padStart(2, '0');
-  const secs = String(total % 60).padStart(2, '0');
-  return `${mins}:${secs}`;
+  // Lot B — délègue au formateur robuste partagé. Gère NaN, Infinity,
+  // négatifs et bornage. Conservé pour ne pas toucher tous les sites d’appel.
+  return formatMediaDuration(seconds);
 }
 
 function updateTransposeUI() {
@@ -517,13 +518,27 @@ function bindMediaEvents(audio) {
       seek(regionEnd - 0.001);
     }
   };
+  // Lot B — rafraîchir le timer dès que la durée réelle est connue, y compris
+  // si elle arrive tard (loadedmetadata) ou est corrigée (durationchange).
+  const onAudioLoadedMetadata = () => {
+    const d = audio?.duration;
+    if (Number.isFinite(d) && d > 0) {
+      mediaDuration = d;
+      refreshMediaDurationDisplay();
+    }
+  };
+  const onAudioDurationChange = onAudioLoadedMetadata;
 
   audio.addEventListener('ended', onAudioEnded);
   audio.addEventListener('timeupdate', onAudioTimeUpdate);
+  audio.addEventListener('loadedmetadata', onAudioLoadedMetadata);
+  audio.addEventListener('durationchange', onAudioDurationChange);
 
   mediaEventCleanup = () => {
     audio.removeEventListener('ended', onAudioEnded);
     audio.removeEventListener('timeupdate', onAudioTimeUpdate);
+    audio.removeEventListener('loadedmetadata', onAudioLoadedMetadata);
+    audio.removeEventListener('durationchange', onAudioDurationChange);
   };
 }
 
@@ -842,12 +857,19 @@ function bindWaveform() {
 }
 
 function getTotalDuration() {
-  return html5Audio?.duration
-    || waveformData?.duration
-    || els.playerAudio?.duration
-    || els.player?.duration
-    || mediaDuration
-    || 0;
+  // Lot B — ne jamais retourner NaN/Infinity/négatif. On retourne la première
+  // durée finie strictement positive parmi les sources disponibles, sinon 0.
+  const candidates = [
+    html5Audio?.duration,
+    waveformData?.duration,
+    els.playerAudio?.duration,
+    els.player?.duration,
+    mediaDuration,
+  ];
+  for (const c of candidates) {
+    if (isValidMediaDuration(c)) return Number(c);
+  }
+  return 0;
 }
 
 function getHandleX(time) {
@@ -1397,6 +1419,10 @@ function destroyMediaPlayer() {
   masterPlayer?.stop();
   masterPlayer = null;
   masterAudioBuffer = null;
+  // Lot B — réinitialiser l’état durée lors d’un changement de fichier pour
+  // éviter d’afficher la durée d’un fichier précédent.
+  mediaDuration = 0;
+  lastKnownDuration = 0;
   if (masterAudioUrl) {
     URL.revokeObjectURL(masterAudioUrl);
     masterAudioUrl = null;
@@ -1421,6 +1447,7 @@ function destroyMediaPlayer() {
       html5Audio.ontimeupdate = null;
       html5Audio.oncanplaythrough = null;
       html5Audio.onloadedmetadata = null;
+      html5Audio.ondurationchange = null;
       html5Audio.pause();
       html5Audio.removeAttribute('src');
       html5Audio.load();
@@ -1553,8 +1580,21 @@ async function createMediaPlayer(originalBlobUrl, wavPath, wavBytes, isVideo, op
           renderWaveform();
           updateRegionUI();
         }
+        // Lot B — rafraîchir immédiatement le timer dès que la durée réelle
+        // est disponible, pour ne jamais rester bloqué sur 00:00 / 00:00.
+        refreshMediaDurationDisplay();
       }
       console.log('[Studio] HTML5 audio metadata:', { duration: html5Audio.duration });
+    };
+
+    // Lot B — durationchange couvre le cas où la durée est mise à jour après
+    // loadedmetadata (certains conteneurs MP4 mettent la durée à jour tard).
+    html5Audio.ondurationchange = () => {
+      const realDuration = html5Audio.duration;
+      if (Number.isFinite(realDuration) && realDuration > 0) {
+        mediaDuration = realDuration;
+        refreshMediaDurationDisplay();
+      }
     };
 
     html5Audio.oncanplaythrough = () => {
@@ -1745,11 +1785,21 @@ function finishTrackLoading(name) {
   // Nettoyer les messages d'extraction/waveform pour ne pas laisser de texte fantôme.
   setStatus(`Morceau chargé : ${name}`);
   setLoadingState(false);
+  // Lot B — contexte fichier explicite : le nom du fichier actif est affiché
+  // dans le Studio. Le libellé ne laisse aucun doute sur l’onglet concerné.
+  updateStudioFileContext(name);
   // S'assurer que l'overlay initial est bien caché même si updateStudioStage a été
   // appelé entre-temps (cas région confirmée + stems déjà séparés).
   if (els.processingOverlay && studioStage !== 2) {
     els.processingOverlay.style.display = 'none';
   }
+}
+
+// Lot B — affiche « Fichier du Studio : <nom> » (ou l’état vide explicite).
+function updateStudioFileContext(name) {
+  if (!els.mediaContext) return;
+  const trackName = currentTrack?.metadata?.name || name || '';
+  els.mediaContext.textContent = buildFileContextText({ tab: 'studio', fileName: trackName });
 }
 
 function failTrackLoading(message) {
@@ -2072,6 +2122,9 @@ async function generateWaveformBlocking(preferredWavPath, fallbackOriginalPath) 
     renderWaveform();
     updateRegionUI();
     updatePlayhead(getStudioCurrentTime(), getEffectiveDuration());
+    // Lot B — la waveform apporte souvent la durée avant le lecteur HTML5 :
+    // rafraîchir le timer dès que la waveform est prête.
+    refreshMediaDurationDisplay();
   } else {
     console.warn('[Studio] waveform generation timed out or failed');
   }
@@ -2110,10 +2163,29 @@ function renderWaveform() {
 
 function updateProgressUI(current, duration) {
   if (!els.progress || !els.time) return;
-  const pct = duration ? (current / duration) * 100 : 0;
+  // Lot B — ne jamais afficher NaN/Infinity. Le temps courant et la durée
+  // utilisent le même formateur robuste.
+  const dur = isValidMediaDuration(duration) ? Number(duration) : getTotalDuration();
+  const cur = Number.isFinite(current) ? Math.max(0, Math.min(current, dur > 0 ? dur : current)) : 0;
+  const pct = dur > 0 ? (cur / dur) * 100 : 0;
   els.progress.value = Math.max(0, Math.min(100, pct));
   // ABSOLUTE TIMELINE : le timer affiche toujours le temps absolu du fichier.
-  els.time.textContent = `${formatDuration(current)} / ${formatDuration(duration)}`;
+  els.time.textContent = `${formatDuration(cur)} / ${formatDuration(dur)}`;
+  // Mémorise la dernière durée valide pour les rafraîchissements différés.
+  if (isValidMediaDuration(dur)) lastKnownDuration = dur;
+}
+
+// Lot B — rafraîchit l’affichage du timer à partir de la durée réellement
+// disponible. Appelé à loadedmetadata / durationchange / waveform ready,
+// ainsi qu’après un changement de fichier. Ne force pas la lecture.
+let lastKnownDuration = 0;
+function refreshMediaDurationDisplay() {
+  const dur = getTotalDuration();
+  if (isValidMediaDuration(dur)) {
+    lastKnownDuration = dur;
+  }
+  const cur = getStudioCurrentTime() || 0;
+  updateProgressUI(cur, isValidMediaDuration(dur) ? dur : (isValidMediaDuration(lastKnownDuration) ? lastKnownDuration : 0));
 }
 
 
