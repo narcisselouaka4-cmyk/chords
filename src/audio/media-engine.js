@@ -2,11 +2,23 @@
 // Pour l'instant, ce service encapsule l'import d'un fichier media et la lecture audio simple.
 // Il est conçu pour évoluer vers un moteur complet commun aux deux onglets.
 
-const SUPPORTED_FORMATS = ['mp3', 'wav', 'mp4', 'm4a', 'ogg', 'flac', 'aac', 'webm'];
+const SUPPORTED_AUDIO_FORMATS = ['mp3', 'wav', 'm4a'];
+const SUPPORTED_VIDEO_FORMATS = ['mp4'];
+const SUPPORTED_FORMATS = [...SUPPORTED_AUDIO_FORMATS, ...SUPPORTED_VIDEO_FORMATS, 'ogg', 'flac', 'aac', 'webm'];
 
 export function isSupportedMediaFile(filePath) {
   const ext = (filePath.split('.').pop() || '').toLowerCase();
   return SUPPORTED_FORMATS.includes(ext);
+}
+
+export function isAudioFile(filePath) {
+  const ext = (filePath.split('.').pop() || '').toLowerCase();
+  return SUPPORTED_AUDIO_FORMATS.includes(ext);
+}
+
+export function isVideoFile(filePath) {
+  const ext = (filePath.split('.').pop() || '').toLowerCase();
+  return SUPPORTED_VIDEO_FORMATS.includes(ext);
 }
 
 export async function selectMediaFile() {
@@ -14,6 +26,20 @@ export async function selectMediaFile() {
     throw new Error('Sélection de fichier non disponible');
   }
   return window.electronAPI.studio.selectFile();
+}
+
+export async function selectAudioFile() {
+  if (!window.electronAPI?.studio?.selectAudioFile) {
+    throw new Error('Sélection de fichier audio non disponible');
+  }
+  return window.electronAPI.studio.selectAudioFile();
+}
+
+export async function selectVideoFile() {
+  if (!window.electronAPI?.studio?.selectVideoFile) {
+    throw new Error('Sélection de fichier vidéo non disponible');
+  }
+  return window.electronAPI.studio.selectVideoFile();
 }
 
 /**
