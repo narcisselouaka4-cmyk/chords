@@ -813,6 +813,31 @@ function setupStudioIPC() {
     return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
   });
 
+  // [OpenCode] — Filtres stricts Audio / Vidéo pour l'onglet Analyse.
+  ipcMain.handle('studio:select-audio-file', async () => {
+    if (!mainWindow) return null;
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'Importer un fichier audio',
+      properties: ['openFile'],
+      filters: [
+        { name: 'Fichiers audio (MP3, WAV, M4A)', extensions: ['mp3', 'wav', 'm4a'] },
+      ],
+    });
+    return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
+  });
+
+  ipcMain.handle('studio:select-video-file', async () => {
+    if (!mainWindow) return null;
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'Importer une vidéo',
+      properties: ['openFile'],
+      filters: [
+        { name: 'Fichiers vidéo (MP4)', extensions: ['mp4'] },
+      ],
+    });
+    return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
+  });
+
   ipcMain.handle('studio:separate', async (event, trackId, inputPath) => {
     console.log('[Studio] separation requested for', trackId, inputPath);
     try {

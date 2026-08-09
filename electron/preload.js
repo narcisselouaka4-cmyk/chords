@@ -45,6 +45,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   studio: {
     selectFile: () => ipcRenderer.invoke('studio:select-file'),
+    selectAudioFile: () => ipcRenderer.invoke('studio:select-audio-file'),
+    selectVideoFile: () => ipcRenderer.invoke('studio:select-video-file'),
     separate: (trackId, inputPath) => ipcRenderer.invoke('studio:separate', trackId, inputPath),
     isSeparated: (trackId) => ipcRenderer.invoke('studio:is-separated', trackId),
     getStems: (trackId) => ipcRenderer.invoke('studio:get-stems', trackId),

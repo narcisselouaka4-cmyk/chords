@@ -741,60 +741,67 @@
   color: var(--text-dim);
 }
 
-.analyzer-midi-state-list {
+/* Panneau d'état MIDI compact (badges + métriques) */
+.analyzer-midi-status-grid {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
 }
 
-.analyzer-midi-state-item {
+.analyzer-midi-status-row {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 12px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: var(--surface);
-  opacity: 0.7;
-  transition: opacity 0.15s ease, border-color 0.15s ease;
-}
-
-.analyzer-midi-state-item.active {
-  opacity: 1;
-  border-color: var(--accent);
-  background: var(--accent-soft);
-}
-
-.analyzer-midi-state-num {
-  width: 24px;
-  height: 24px;
-  display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-pill);
-  background: var(--surface-secondary);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
   border: 1px solid var(--border);
-  font-weight: 700;
-  font-size: 0.75rem;
-  flex-shrink: 0;
 }
 
-.analyzer-midi-state-item.active .analyzer-midi-state-num {
-  background: var(--accent);
-  color: var(--accent-text);
-  border-color: var(--accent);
-}
-
-.analyzer-midi-state-title {
-  font-weight: 700;
-  font-size: 0.85rem;
-  color: var(--text);
-}
-
-.analyzer-midi-state-sub {
+.analyzer-midi-status-label {
   font-size: 0.75rem;
   color: var(--text-dim);
-  line-height: 1.4;
+  font-weight: 500;
+}
+
+.analyzer-midi-status-value {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.analyzer-midi-status-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.analyzer-midi-status-badge.connected {
+  background: #16a34a20;
+  color: #16a34a;
+  border: 1px solid #16a34a40;
+}
+
+.analyzer-midi-status-badge.ready {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+.analyzer-midi-status-badge.recording {
+  background: #dc262620;
+  color: #dc2626;
+  border: 1px solid #dc262640;
+  animation: pulse-rec 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-rec {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
 }
 
 .analyzer-tip {

@@ -333,35 +333,31 @@
             </div>
 
             <aside class="analyzer-midi-sidebar right">
-              <div class="analyzer-panel-title">État de l'analyse</div>
-              <div class="analyzer-midi-state-list">
-                <div class="analyzer-midi-state-item active" id="analyzer-midi-state-source">
-                  <div class="analyzer-midi-state-num">1</div>
-                  <div>
-                    <div class="analyzer-midi-state-title">Source MIDI connectée</div>
-                    <div class="analyzer-midi-state-sub" id="analyzer-midi-state-source-sub">Entrée active</div>
-                  </div>
+              <div class="analyzer-panel-title">État de la session</div>
+              <div class="analyzer-midi-status-grid">
+                <div class="analyzer-midi-status-row">
+                  <span class="analyzer-midi-status-label">Source MIDI</span>
+                  <span class="analyzer-midi-status-badge connected" id="analyzer-midi-source-badge">Connectée</span>
                 </div>
-                <div class="analyzer-midi-state-item" id="analyzer-midi-state-session">
-                  <div class="analyzer-midi-state-num">2</div>
-                  <div>
-                    <div class="analyzer-midi-state-title">Session active</div>
-                    <div class="analyzer-midi-state-sub" id="analyzer-midi-state-session-sub">En attente</div>
-                  </div>
+                <div class="analyzer-midi-status-row">
+                  <span class="analyzer-midi-status-label">Enregistrement</span>
+                  <span class="analyzer-midi-status-badge" id="analyzer-midi-rec-badge">Inactif</span>
                 </div>
-                <div class="analyzer-midi-state-item" id="analyzer-midi-state-live">
-                  <div class="analyzer-midi-state-num">3</div>
-                  <div>
-                    <div class="analyzer-midi-state-title">Accords détectés en direct</div>
-                    <div class="analyzer-midi-state-sub">Analyse en temps réel<br />Mise à jour continue</div>
-                  </div>
+                <div class="analyzer-midi-status-row">
+                  <span class="analyzer-midi-status-label">Durée</span>
+                  <span class="analyzer-midi-status-value" id="analyzer-midi-duration-stat">00:00</span>
                 </div>
-                <div class="analyzer-midi-state-item" id="analyzer-midi-state-ready">
-                  <div class="analyzer-midi-state-num">4</div>
-                  <div>
-                    <div class="analyzer-midi-state-title">Prêt pour analyse après arrêt</div>
-                    <div class="analyzer-midi-state-sub">Arrêtez l'enregistrement pour passer à l'analyse détaillée</div>
-                  </div>
+                <div class="analyzer-midi-status-row">
+                  <span class="analyzer-midi-status-label">Segments</span>
+                  <span class="analyzer-midi-status-value" id="analyzer-midi-segments-stat">0</span>
+                </div>
+                <div class="analyzer-midi-status-row">
+                  <span class="analyzer-midi-status-label">Notes capturées</span>
+                  <span class="analyzer-midi-status-value" id="analyzer-midi-notes-stat">0</span>
+                </div>
+                <div class="analyzer-midi-status-row">
+                  <span class="analyzer-midi-status-label">Statut</span>
+                  <span class="analyzer-midi-status-badge ready" id="analyzer-midi-status-badge">Prêt</span>
                 </div>
               </div>
               <div class="analyzer-tip">

@@ -1,4 +1,4 @@
-import { selectMediaFile, createAudioPlayer, isSupportedMediaFile } from '../audio/media-engine.js';
+import { selectMediaFile, selectAudioFile, selectVideoFile, createAudioPlayer, isSupportedMediaFile, isAudioFile, isVideoFile } from '../audio/media-engine.js';
 import { globalAudioFocusManager } from '../audio/audio-focus-manager.js';
 import { createAudioAnalyzer } from '../analyzer/audio-analyzer.js';
 import {
@@ -389,12 +389,22 @@ function loadAnalysisSource(sourceType, filePath, fileName) {
 
 async function handleImportClick(sourceType = 'audio') {
   try {
-    const filePath = await selectMediaFile();
+    // Filtre strict : le file picker natif n'accepte que les formats du type demandé.
+    const filePath = sourceType === 'video'
+      ? await selectVideoFile()
+      : await selectAudioFile();
     if (!filePath) return;
-    if (!isSupportedMediaFile(filePath)) {
-      alert('Format non supporté. Formats acceptés : MP3, WAV, MP4, M4A.');
+
+    // Validation défensive : refuser un format qui aurait contourné le filtre natif.
+    if (sourceType === 'video' && !isVideoFile(filePath)) {
+      alert('Format non supporté pour la vidéo. Seuls les fichiers .mp4 sont acceptés.');
       return;
     }
+    if (sourceType === 'audio' && !isAudioFile(filePath)) {
+      alert('Format non supporté pour l\'audio. Formats acceptés : MP3, WAV, M4A.');
+      return;
+    }
+
     loadAnalysisSource(sourceType, filePath);
   } catch (err) {
     console.error('[Analyzer] import failed:', err);
