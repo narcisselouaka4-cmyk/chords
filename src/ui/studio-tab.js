@@ -1766,9 +1766,16 @@ function updateStudioStage(stage) {
   }
 
   if (els.stageOverlay) {
-    els.stageOverlay.style.display = stage === 1 ? 'flex' : 'none';
+    // Masquer les instructions de ciblage tant que le morceau n'est pas chargé :
+    // montrer les consignes "écoutez + tracez" pendant l'extraction donnerait
+    // l'illusion que le morceau est prêt alors que le son/la waveform ne le sont pas.
+    els.stageOverlay.style.display = (stage === 1 && !isLoadingTrack) ? 'flex' : 'none';
   }
-  if (els.processingOverlay) {
+  // Ne jamais cacher l'overlay de chargement pendant que isLoadingTrack est
+  // vrai. updateStudioStage est appelé plusieurs fois pendant loadTrack
+  // (restauration de région, initialisation du stage) et écraserait
+  // l'affichage du spinner, donnant l'illusion que le morceau est prêt.
+  if (els.processingOverlay && !isLoadingTrack) {
     els.processingOverlay.style.display = stage === 2 ? 'flex' : 'none';
   }
   if (els.readyToast) {
