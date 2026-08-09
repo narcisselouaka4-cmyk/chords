@@ -437,6 +437,7 @@ function showPrepareScreen() {
     return;
   }
   if (currentSourceType === 'audio' && currentAudioPath) {
+    if (els.prepareFileName) els.prepareFileName.textContent = currentFileName || '—';
     const ext = (currentAudioPath.split('.').pop() || '').toUpperCase();
     const metaParts = [];
     if (ext) metaParts.push(ext);
