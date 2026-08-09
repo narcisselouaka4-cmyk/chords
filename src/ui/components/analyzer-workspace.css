@@ -1266,14 +1266,21 @@
 .analyzer-timeline-scroll-btn.left { left: 8px; }
 .analyzer-timeline-scroll-btn.right { right: 8px; }
 
-/* Bloc accord courant + inspecteur */
-.analyzer-inspector-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+/* Bloc accord courant + inspecteur — désormais dans l'onglet "Accord sélectionné" */
+.analyzer-chords-layout {
+  display: flex;
+  flex-direction: column;
   gap: 14px;
-  padding: 14px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  height: 100%;
+  overflow-y: auto;
+}
+
+.analyzer-chords-layout .analyzer-hero-card,
+.analyzer-chords-layout .analyzer-inspector-card {
+  flex-shrink: 0;
+}
+
+.analyzer-chords-layout .voicing-preview-panel {
   flex-shrink: 0;
 }
 
@@ -1636,8 +1643,7 @@
     grid-template-columns: 1fr 260px;
   }
 
-  .analyzer-prepare-grid,
-  .analyzer-inspector-row {
+  .analyzer-prepare-grid {
     grid-template-columns: 1fr;
   }
 

@@ -522,47 +522,44 @@
               <button type="button" class="analyzer-timeline-scroll-btn right" id="analyzer-timeline-scroll-right" aria-label="Défiler à droite">›</button>
             </div>
 
-            <div class="analyzer-inspector-row">
-              <div class="analyzer-hero-card" id="analyzer-hero" style="display:none">
-                <div class="analyzer-hero-name" id="analyzer-hero-name"></div>
-                <div class="analyzer-hero-notes" id="analyzer-hero-notes"></div>
-                <div class="analyzer-hero-keyboard" id="analyzer-hero-keyboard"></div>
-              </div>
-              <div class="analyzer-inspector-card" id="analyzer-chord-inspector">
-                <div class="analyzer-inspector-title">Accord sélectionné</div>
-                <div class="analyzer-inspector-empty" id="analyzer-inspector-empty">Sélectionnez un accord dans la timeline pour voir ses détails.</div>
-                <div class="analyzer-inspector-content" id="analyzer-inspector-content" style="display:none">
-                  <div class="analyzer-inspector-chord" id="analyzer-inspector-chord">—</div>
-                  <div class="analyzer-inspector-times" id="analyzer-inspector-times">—</div>
-                  <div class="analyzer-inspector-details" id="analyzer-inspector-details"></div>
-                  <button type="button" class="btn-secondary btn-sm" id="analyzer-inspector-edit-btn">Modifier</button>
-                </div>
-              </div>
-            </div>
-
-            <section id="analyzer-voicing-preview" class="voicing-preview-panel" aria-label="Aperçu du voicing piano" style="display:none">
-              <div
-                id="analyzer-voicing-style-selector"
-                class="voicing-style-selector"
-                role="group"
-                aria-label="Style de voicing"
-              >
-                <button type="button" class="voicing-style-btn" data-voicing-style="close" aria-pressed="true">Fermer</button>
-                <button type="button" class="voicing-style-btn" data-voicing-style="simple" aria-pressed="false">Simple</button>
-              </div>
-              <div id="analyzer-voicing-content"></div>
-            </section>
-
             <div class="analyzer-section-tabs" id="analyzer-section-tabs" role="tablist">
               <button type="button" class="active" data-section="chords" role="tab" aria-selected="true">Accord sélectionné</button>
-              <button type="button" data-section="analysis" role="tab" aria-selected="false">Vue d'ensemble</button>
+              <button type="button" data-section="analysis" role="tab" aria-selected="false">Vue d’ensemble</button>
               <button type="button" data-section="masterclass" role="tab" aria-selected="false">Masterclass</button>
               <button type="button" data-section="tools" role="tab" aria-selected="false">Outils</button>
             </div>
 
             <div class="analyzer-section-panels" id="analyzer-section-panels">
               <div class="analyzer-panel" data-section="chords" role="tabpanel">
-                <p class="analyzer-panel-hint">L’accord sélectionné est affiché dans l’inspecteur au-dessus de la timeline.</p>
+                <div class="analyzer-chords-layout">
+                  <div class="analyzer-hero-card" id="analyzer-hero" style="display:none">
+                    <div class="analyzer-hero-name" id="analyzer-hero-name"></div>
+                    <div class="analyzer-hero-notes" id="analyzer-hero-notes"></div>
+                    <div class="analyzer-hero-keyboard" id="analyzer-hero-keyboard"></div>
+                  </div>
+                  <div class="analyzer-inspector-card" id="analyzer-chord-inspector">
+                    <div class="analyzer-inspector-title">Accord sélectionné</div>
+                    <div class="analyzer-inspector-empty" id="analyzer-inspector-empty">Sélectionnez un accord dans la timeline pour voir ses détails.</div>
+                    <div class="analyzer-inspector-content" id="analyzer-inspector-content" style="display:none">
+                      <div class="analyzer-inspector-chord" id="analyzer-inspector-chord">—</div>
+                      <div class="analyzer-inspector-times" id="analyzer-inspector-times">—</div>
+                      <div class="analyzer-inspector-details" id="analyzer-inspector-details"></div>
+                      <button type="button" class="btn-secondary btn-sm" id="analyzer-inspector-edit-btn">Modifier</button>
+                    </div>
+                  </div>
+                  <section id="analyzer-voicing-preview" class="voicing-preview-panel" aria-label="Aperçu du voicing piano" style="display:none">
+                    <div
+                      id="analyzer-voicing-style-selector"
+                      class="voicing-style-selector"
+                      role="group"
+                      aria-label="Style de voicing"
+                    >
+                      <button type="button" class="voicing-style-btn" data-voicing-style="close" aria-pressed="true">Fermer</button>
+                      <button type="button" class="voicing-style-btn" data-voicing-style="simple" aria-pressed="false">Simple</button>
+                    </div>
+                    <div id="analyzer-voicing-content"></div>
+                  </section>
+                </div>
               </div>
               <div class="analyzer-panel" data-section="analysis" role="tabpanel" style="display:none">
                 <div class="analyzer-overview-scroll" id="analyzer-overview-content"></div>
