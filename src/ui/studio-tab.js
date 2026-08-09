@@ -1982,6 +1982,11 @@ export async function loadTrack(trackId) {
     const metadata = await loadMetadata(trackId);
     currentTrack = { id: trackId, metadata };
     trackName = metadata?.name || trackId;
+    // Mettre à jour le contexte fichier immédiatement, sans attendre la fin
+    // du chargement (extraction audio + waveform). Sans cela, le texte
+    // « Aucun fichier chargé dans le Studio » persiste pendant tout le
+    // chargement, en contradiction avec le backdrop qui affiche déjà le nom.
+    updateStudioFileContext(trackName);
 
     const originalBlobUrl = await readOriginalAsBlobUrl(trackId);
     if (!originalBlobUrl) {
