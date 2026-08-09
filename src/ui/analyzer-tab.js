@@ -8,6 +8,7 @@ import {
   computeProductStatistics,
   countManuallyEditedChords,
 } from '../analyzer/analysis-export.js';
+import { resolveAnalysisState, inferSourceType } from './analyzer-workflow.js';
 import { miniKeyboardForNotes } from './mini-keyboard.js';
 import {
   updateVoicingPreviewForChord,
@@ -65,7 +66,10 @@ let chordEditor = null;
 
 const els = {
   importScreen: document.getElementById('analyzer-import-screen'),
-  importBtn: document.getElementById('analyzer-import-btn'),
+   importBtn: document.getElementById('analyzer-import-btn'),
+   prepareBackBtn: document.getElementById('analyzer-prepare-back-btn'),
+   videoTypeBackBtn: document.getElementById('analyzer-videotype-back-btn'),
+   midiBackBtn: document.getElementById('analyzer-midi-back-btn'),
   importAudioBtn: document.getElementById('analyzer-import-audio-btn'),
   importVideoBtn: document.getElementById('analyzer-import-video-btn'),
   importMidiBtn: document.getElementById('analyzer-import-midi-btn'),
@@ -261,7 +265,7 @@ function initWorkspaceStates() {
   // Boutons de l'écran d'accueil
   els.importAudioBtn?.addEventListener('click', () => handleImportClick('audio'));
   els.importVideoBtn?.addEventListener('click', () => handleImportClick('video'));
-  els.importMidiBtn?.addEventListener('click', () => setAnalyzerState('midi-record'));
+  els.importMidiBtn?.addEventListener('click', () => { resetAnalysisSession(); setAnalyzerState('midi-record'); });
   els.importBtn?.addEventListener('click', () => handleImportClick('audio'));
 
   // Préparation audio
@@ -288,9 +292,12 @@ function initWorkspaceStates() {
     launchAnalysisFromPrepare();
   });
 
-  // Retour à l'import
-  els.backBtn?.addEventListener('click', showImportScreen);
-  els.backToImportBtn?.addEventListener('click', showImportScreen);
+  // Retour à l'accueil (« Nouvelle analyse ») : reset centralisé, jamais reload.
+  els.backBtn?.addEventListener('click', resetAnalysisSession);
+  els.backToImportBtn?.addEventListener('click', resetAnalysisSession);
+  els.prepareBackBtn?.addEventListener('click', resetAnalysisSession);
+  els.videoTypeBackBtn?.addEventListener('click', resetAnalysisSession);
+  els.midiBackBtn?.addEventListener('click', resetAnalysisSession);
 
   // Inspecteur
   els.inspectorEditBtn?.addEventListener('click', () => {
@@ -300,9 +307,10 @@ function initWorkspaceStates() {
   });
 }
 
+// [OpenCode] — Passe corrective — Le bouton d'import global est déjà lié dans
+// initWorkspaceStates (handleImportClick('audio')) ; on évite un double file
+// picker. bindImportButton est conservé comme point d'accroche éventuel.
 function bindImportButton() {
-  els.importBtn?.addEventListener('click', handleImportClick);
-  els.backBtn?.addEventListener('click', showImportScreen);
 }
 
 async function refreshLibraryList() {
@@ -348,23 +356,34 @@ function renderLibraryList(tracks) {
   }
 }
 
-async function analyzeLibraryTrack(track) {
-  try {
-    const originalPath = await getOriginalPath(track.id);
-    if (!originalPath) {
-      alert('Fichier original introuvable.');
-      return;
+// [OpenCode] — Passe corrective — Pipeline d'import unifié.
+// `loadAnalysisSource` est le SEUL point d'entrée pour charger une source
+// (choix depuis le file picker OU depuis la bibliothèque). La bibliothèque
+// réutilise exactement le même chemin d'état que l'import manuel :
+//   MP3/WAV → AUDIO_PREP (état 'prepare')
+//   MP4/M4V/MOV/WEBM → VIDEO_TYPE_SELECTION (état 'video-type')
+// Aucun pipeline parallèle entre manuel et bibliothèque.
+function loadAnalysisSource(sourceType, filePath, fileName) {
+  if (!filePath) return;
+  currentAudioPath = filePath;
+  currentFileName = fileName || filePath.split('/').pop() || filePath.split('\\').pop() || filePath;
+  currentSourceType = sourceType;
+
+  // Discrimination audio/vidéo par extension (auto-détection fiable du format).
+  const ext = (filePath.split('.').pop() || '').toLowerCase();
+  currentSourceType = inferSourceType(ext, currentSourceType);
+
+  const target = resolveAnalysisState(ext, currentSourceType);
+  if (target === 'video-type') {
+    // La vidéo passe directement à la sélection de type (HOME → Vidéo → choix).
+    currentVideoType = null;
+    if (els.videoTypeCards) {
+      els.videoTypeCards.forEach((c) => c.classList.remove('selected'));
     }
-    currentAudioPath = originalPath;
-    currentFileName = track.metadata?.name || track.id;
-    showProcessing('Extraction audio en cours…');
-    const analysis = await analyzer.analyze(originalPath);
-    currentAnalysis = analysis;
-    showResults(analysis);
-  } catch (err) {
-    console.error('[Analyzer] library track analysis failed:', err);
-    hideProcessing();
-    alert(`Erreur d'analyse : ${err.message}`);
+    if (els.confirmVideoTypeBtn) els.confirmVideoTypeBtn.disabled = true;
+    setAnalyzerState('video-type');
+  } else {
+    showPrepareScreen();
   }
 }
 
@@ -372,28 +391,38 @@ async function handleImportClick(sourceType = 'audio') {
   try {
     const filePath = await selectMediaFile();
     if (!filePath) return;
-
     if (!isSupportedMediaFile(filePath)) {
       alert('Format non supporté. Formats acceptés : MP3, WAV, MP4, M4A.');
       return;
     }
-
-    currentAudioPath = filePath;
-    currentFileName = filePath.split('/').pop() || filePath.split('\\').pop() || filePath;
-    currentSourceType = sourceType;
-
-    // Détection automatique audio vs vidéo par extension si l'utilisateur a
-    // cliqué sur Audio générique.
-    const ext = (filePath.split('.').pop() || '').toLowerCase();
-    if (sourceType === 'audio' && ['mp4', 'm4v', 'mov', 'webm'].includes(ext)) {
-      currentSourceType = 'video';
-    }
-
-    showPrepareScreen();
+    loadAnalysisSource(sourceType, filePath);
   } catch (err) {
     console.error('[Analyzer] import failed:', err);
-    hideProcessing();
     alert(`Erreur d'import : ${err.message}`);
+  }
+}
+
+// [OpenCode] — Passe corrective — Bibliographie réutilise le pipeline d'import.
+async function analyzeLibraryTrack(track) {
+  try {
+    const originalPath = await getOriginalPath(track.id);
+    if (!originalPath) {
+      alert('Fichier original introuvable.');
+      return;
+    }
+    // Gestion propre des entrées orphelines (fichier supprimé).
+    const exists = await window.electronAPI?.files?.exists?.(originalPath);
+    if (exists === false) {
+      alert('Fichier introuvable dans la bibliothèque. Réimportez-le.');
+      return;
+    }
+    const name = track.metadata?.name || track.id;
+    const sourceType = inferSourceType(originalPath, 'audio');
+    resetAnalysisSession();
+    loadAnalysisSource(sourceType, originalPath, name);
+  } catch (err) {
+    console.error('[Analyzer] library track load failed:', err);
+    alert(`Erreur de chargement : ${err.message}`);
   }
 }
 
@@ -401,26 +430,23 @@ function showPrepareScreen() {
   selectedSegmentId = null;
   setAnalyzerState('prepare');
 
-  // Remplir la carte fichier avec les vraies métadonnées disponibles.
-  if (els.prepareFileName) els.prepareFileName.textContent = currentFileName || '—';
-  const ext = (currentAudioPath.split('.').pop() || '').toUpperCase();
-  const metaParts = [];
-  if (ext) metaParts.push(ext);
-  if (currentAnalysis?.duration) metaParts.push(formatTime(currentAnalysis.duration));
-  if (els.prepareFileMeta) els.prepareFileMeta.textContent = metaParts.join(' · ') || '—';
+  // Audio : la case fichier reprend les métadonnées disponibles.
+  if (currentSourceType === 'video') {
+    // La vidéo est routée directement vers la sélection de type par
+    // loadAnalysisSource ; on ne passe pas par showPrepareScreen.
+    return;
+  }
+  if (currentSourceType === 'audio' && currentAudioPath) {
+    const ext = (currentAudioPath.split('.').pop() || '').toUpperCase();
+    const metaParts = [];
+    if (ext) metaParts.push(ext);
+    if (currentAnalysis?.duration) metaParts.push(formatTime(currentAnalysis.duration));
+    if (els.prepareFileMeta) els.prepareFileMeta.textContent = metaParts.join(' · ') || '—';
+  }
 
   // La waveform n'est pas encore extraite ici : message honnête.
   if (els.prepareWaveform) {
     els.prepareWaveform.innerHTML = `<span class="analyzer-waveform-hint">Waveform disponible après lancement de l'analyse</span>`;
-  }
-
-  // Vidéo : activer l'étape type.
-  if (currentSourceType === 'video') {
-    currentVideoType = null;
-    if (els.videoTypeCards) {
-      els.videoTypeCards.forEach((c) => c.classList.remove('selected'));
-    }
-    if (els.confirmVideoTypeBtn) els.confirmVideoTypeBtn.disabled = true;
   }
 }
 
@@ -516,11 +542,16 @@ function renderHeader(analysis) {
   }
 }
 
-function showImportScreen() {
+// [P0 Analyse] — Reset centralisé de la session Analyse.
+// Utilisé par « Nouvelle analyse » / Retour. Stoppe le lecteur, libère les
+// références média temporaires, nettoie l'état, remet la machine d'état à
+// HOME. Ne touche en aucun cas au Studio ni à Electron (pas de reload).
+export function resetAnalysisSession() {
   if (currentPlayer) {
     currentPlayer.destroy();
     currentPlayer = null;
   }
+  hideProcessing();
   currentAnalysis = null;
   currentFileName = '';
   currentAudioPath = '';
@@ -531,8 +562,6 @@ function showImportScreen() {
   resetProjectState();
   resetUndoRedo();
   chordEditor?.close();
-  setAnalyzerState('import');
-  refreshLibraryList();
   lastRenderedVoicingChord = null;
   lastRenderedVoicingStyle = null;
   els.chordTimelineInner.innerHTML = '';
@@ -541,8 +570,14 @@ function showImportScreen() {
   if (els.overviewContent) els.overviewContent.innerHTML = '';
   els.stemBadge.textContent = '';
   els.stemBadge.classList.remove('visible');
-  // Lot B — retour à l’état vide explicite quand aucun fichier n’est analysé.
+  // Retour à l’état vide explicite quand aucun fichier n’est analysé.
   updateAnalyzerFileContext('');
+  setAnalyzerState('import');
+  refreshLibraryList();
+}
+
+function showImportScreen() {
+  resetAnalysisSession();
 }
 
 // Lot B — affiche « Fichier analysé : <nom> » ou « Aucun fichier analysé ».
