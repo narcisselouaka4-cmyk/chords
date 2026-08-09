@@ -171,6 +171,7 @@
           <!-- État 2 : Préparation audio -->
           <div class="analyzer-state" id="analyzer-state-prepare" style="display: none;">
             <div class="analyzer-prepare-header">
+              <button type="button" id="analyzer-prepare-back-btn" class="btn-secondary btn-sm" title="Nouvelle analyse">← Nouvelle analyse</button>
               <h2>Préparer l'analyse audio</h2>
               <p>Votre fichier est prêt. Configurez les options d'analyse puis lancez la détection des accords et de la structure.</p>
               <div class="analyzer-stepper">
@@ -231,6 +232,7 @@
           <!-- État 3 : Type vidéo -->
           <div class="analyzer-state" id="analyzer-state-video-type" style="display: none;">
             <div class="analyzer-video-modal">
+              <button type="button" id="analyzer-videotype-back-btn" class="btn-secondary btn-sm" title="Nouvelle analyse" style="align-self: flex-start;">← Nouvelle analyse</button>
               <div class="analyzer-modal-icon" aria-hidden="true">❓</div>
               <h2>Quel type de vidéo avez-vous importé ?</h2>
               <p>Ce choix nous aide à adapter l'analyse et les résultats.</p>
@@ -300,6 +302,7 @@
             </aside>
 
             <div class="analyzer-midi-center">
+              <button type="button" id="analyzer-midi-back-btn" class="btn-secondary btn-sm" title="Nouvelle analyse" style="align-self: flex-start; margin-bottom: 12px;">← Nouvelle analyse</button>
               <div class="analyzer-midi-status">
                 <div class="analyzer-midi-rec-dot" id="analyzer-midi-rec-dot"></div>
                 <div class="analyzer-midi-status-text" id="analyzer-midi-status-text">SESSION MIDI EN COURS</div>
@@ -703,11 +706,6 @@
               <div class="studio-backdrop-meta">
                 <div class="studio-backdrop-title" id="studio-backdrop-title"></div>
                 <div class="studio-backdrop-hint">Fichier audio — aucun contenu vidéo</div>
-                <div class="studio-backdrop-live">
-                  <div class="studio-backdrop-live-label">Accord que vous jouez <span class="studio-backdrop-live-now">· clavier</span></div>
-                  <div class="studio-backdrop-live-name" id="studio-live-chord-name">—</div>
-                  <div class="studio-backdrop-live-notes" id="studio-live-chord-notes"></div>
-                </div>
               </div>
             </div>
           </div>

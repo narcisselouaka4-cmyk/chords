@@ -103,8 +103,6 @@ const els = {
   playerAudio: null,   // référence au <audio> caché (son)
   audioBackdrop: document.getElementById('studio-audio-backdrop'),
   backdropTitle: document.getElementById('studio-backdrop-title'),
-  liveChordName: document.getElementById('studio-live-chord-name'),
-  liveChordNotes: document.getElementById('studio-live-chord-notes'),
   playBtn: document.getElementById('studio-play-btn'),
   stopBtn: document.getElementById('studio-stop-btn'),
   prevBtn: document.getElementById('studio-prev-btn'),
@@ -194,20 +192,6 @@ export function initStudioTab() {
       if (!currentTrack) updateStudioStage(0);
       refreshTrackList();
     }
-  });
-
-  // [OpenCode] — 2026-08-08 — Bloc "Accord que vous jouez" en direct.
-  // Alimenté uniquement par la reconnaissance temps réel du clavier/MIDI principal
-  // (événement broadcasté par refreshChord), jamais par l'analyse du morceau.
-  document.addEventListener('studio:played-chord', (e) => {
-    const detail = e.detail;
-    if (!detail || !detail.name || !els.liveChordName || !els.liveChordNotes) {
-      if (els.liveChordName) els.liveChordName.textContent = '—';
-      if (els.liveChordNotes) els.liveChordNotes.textContent = '';
-      return;
-    }
-    els.liveChordName.textContent = detail.name;
-    els.liveChordNotes.textContent = detail.noteNames?.join(' – ') || '';
   });
 
   // [Claude] — 2026-08-08 — Enregistrement auprès du gestionnaire d’audio focus.
@@ -1270,11 +1254,9 @@ function updateAudioBackdrop(title) {
   if (isAudioOnly) {
     els.audioBackdrop.style.display = 'flex';
     els.backdropTitle.textContent = title || 'Fichier audio';
-    els.playerWrap?.classList.add('is-audio-only');
   } else {
     els.audioBackdrop.style.display = 'none';
     els.backdropTitle.textContent = '';
-    els.playerWrap?.classList.remove('is-audio-only');
   }
 }
 
@@ -1985,6 +1967,18 @@ export async function loadTrack(trackId) {
     stop();
     mixer?.reset();
     currentWaveformTrackId = null;
+    // [OpenCode] — Passe corrective — Nettoyer immédiatement l'ancien état
+    // visuel lors d'un changement de fichier : l'ancienne waveform / ancien
+    // nom ne doivent jamais être visibles pendant le chargement du nouveau
+    // morceau (rien ne doit paraître "prêt" tant que play/seek ne sont pas réels).
+    waveformData = null;
+    if (els.waveform) {
+      const ctx = els.waveform.getContext('2d');
+      if (ctx) ctx.clearRect(0, 0, els.waveform.width, els.waveform.height);
+    }
+    if (els.waveformWrap) els.waveformWrap.style.display = 'none';
+    if (els.regionInfo) els.regionInfo.style.display = 'none';
+    if (els.readyToast) els.readyToast.style.display = 'none';
     const metadata = await loadMetadata(trackId);
     currentTrack = { id: trackId, metadata };
     trackName = metadata?.name || trackId;

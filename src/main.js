@@ -240,7 +240,6 @@ function refreshChord() {
   if (notes.length === 0) {
     clearDisplay(els);
     state.currentChord = null;
-    broadcastPlayedChord(null);
     return;
   }
 
@@ -249,27 +248,10 @@ function refreshChord() {
   updateDisplay(els, result, notes, state.notation === 'latin');
   addToHistory(result);
 
-  broadcastPlayedChord(result, notes);
-
   // Vérification de l'exercice rapide si un accord valide est détecté
   if (result && result.notes.length >= 3 && result.symbol !== '?') {
     checkPracticeExercise(result.notes);
   }
-}
-
-// [OpenCode] — 2026-08-08 — Relai du jeu réel en cours vers l'onglet Studio.
-// N'est déclenché que par la reconnaissance temps réel du clavier/MIDI (refreshChord),
-// jamais par l'analyse d'un morceau. Le Studio affiche alors un bloc "Accord que vous
-// jouez" distinct de toute détection sur le fichier audio.
-function broadcastPlayedChord(result, notes = null) {
-  let detail = null;
-  if (result && result.symbol && result.symbol !== '?') {
-    detail = {
-      name: formatChordResult(result),
-      noteNames: (notes || []).map((n) => formatNoteForDisplay(n % 12)),
-    };
-  }
-  document.dispatchEvent(new CustomEvent('studio:played-chord', { detail }));
 }
 
 function addToHistory(result) {
