@@ -1541,6 +1541,11 @@ input[type='color'] {
   background: var(--bg);
   border-radius: var(--radius-sm);
   border: 1px solid var(--panel-border);
+  /* [OpenCode] — LOT I — Transport toujours collé en bas du center panel.
+     Le margin-top: auto absorbe l'espace vertical restant dans la colonne
+     flexible du .studio-center, garantissant que le transport reste en bas
+     quelle que soit la hauteur du lecteur (audio-only ou vidéo). */
+  margin-top: auto;
 }
 
 .studio-buttons {
@@ -5491,7 +5496,6 @@ body.studio-recording-cursor * {
 
 /* ── Lot B : contexte fichier explicite (Studio / Analyse) ── */
 .studio-media-context {
-  order: 1;
   font-size: 0.75rem;
   color: var(--muted, #a1a1aa);
   padding: 0 2px;
