@@ -39,7 +39,7 @@ let updateInterval = null;
 let tracks = [];
 let currentTrack = null;
 
-// [OpenCode] — 2026-07-04 — État transposition / waveform de l’onglet Studio
+// [OpenCode] — 2026-07-04 — État transposition / waveform de l'onglet Studio
 let transpose = 0;
 let audioWavPath = null;
 let waveformData = null;
@@ -146,7 +146,7 @@ const els = {
 
 function formatDuration(seconds) {
   // Lot B — délègue au formateur robuste partagé. Gère NaN, Infinity,
-  // négatifs et bornage. Conservé pour ne pas toucher tous les sites d’appel.
+  // négatifs et bornage. Conservé pour ne pas toucher tous les sites d'appel.
   return formatMediaDuration(seconds);
 }
 
@@ -194,13 +194,20 @@ export function initStudioTab() {
     }
   });
 
-  // [Claude] — 2026-08-08 — Enregistrement auprès du gestionnaire d’audio focus.
+  // [Claude] — 2026-08-08 — Enregistrement auprès du gestionnaire d'audio focus.
   // Studio et Analyse restent deux lecteurs indépendants, mais un seul workspace
   // peut produire du son à la fois.
   globalAudioFocusManager.register('studio', {
     play,
     pause,
     isPlaying: () => isPlaying,
+  });
+
+  // Redessiner la waveform au changement de thème (clair ↔ sombre).
+  // Le canvas est rasterisé avec la couleur du thème courant via getComputedStyle ;
+  // sans redraw, il garde l'ancienne couleur et devient invisible sur le nouveau fond.
+  window.addEventListener('app-theme-changed', () => {
+    if (waveformData) renderWaveform();
   });
 }
 
@@ -1264,9 +1271,11 @@ function updateAudioBackdrop(title) {
   if (isAudioOnly) {
     els.audioBackdrop.style.display = 'flex';
     els.backdropTitle.textContent = title || 'Fichier audio';
+    els.playerWrap?.classList.add('is-audio-only');
   } else {
     els.audioBackdrop.style.display = 'none';
     els.backdropTitle.textContent = '';
+    els.playerWrap?.classList.remove('is-audio-only');
   }
 }
 
@@ -1462,8 +1471,8 @@ function destroyMediaPlayer() {
   masterPlayer?.stop();
   masterPlayer = null;
   masterAudioBuffer = null;
-  // Lot B — réinitialiser l’état durée lors d’un changement de fichier pour
-  // éviter d’afficher la durée d’un fichier précédent.
+  // Lot B — réinitialiser l'état durée lors d'un changement de fichier pour
+  // éviter d'afficher la durée d'un fichier précédent.
   mediaDuration = 0;
   lastKnownDuration = 0;
   if (masterAudioUrl) {
@@ -1837,7 +1846,7 @@ function finishTrackLoading(name) {
   setStatus(`Morceau chargé : ${name}`);
   setLoadingState(false);
   // Lot B — contexte fichier explicite : le nom du fichier actif est affiché
-  // dans le Studio. Le libellé ne laisse aucun doute sur l’onglet concerné.
+  // dans le Studio. Le libellé ne laisse aucun doute sur l'onglet concerné.
   updateStudioFileContext(name);
   // S'assurer que l'overlay initial est bien caché même si updateStudioStage a été
   // appelé entre-temps (cas région confirmée + stems déjà séparés).
@@ -1846,7 +1855,7 @@ function finishTrackLoading(name) {
   }
 }
 
-// Lot B — affiche « Fichier du Studio : <nom> » (ou l’état vide explicite).
+// Lot B — affiche « Fichier du Studio : <nom> » (ou l'état vide explicite).
 function updateStudioFileContext(name) {
   if (!els.mediaContext) return;
   const trackName = currentTrack?.metadata?.name || name || '';
@@ -2247,9 +2256,9 @@ function updateProgressUI(current, duration) {
   if (isValidMediaDuration(dur)) lastKnownDuration = dur;
 }
 
-// Lot B — rafraîchit l’affichage du timer à partir de la durée réellement
+// Lot B — rafraîchit l'affichage du timer à partir de la durée réellement
 // disponible. Appelé à loadedmetadata / durationchange / waveform ready,
-// ainsi qu’après un changement de fichier. Ne force pas la lecture.
+// ainsi qu'après un changement de fichier. Ne force pas la lecture.
 let lastKnownDuration = 0;
 function refreshMediaDurationDisplay() {
   const dur = getTotalDuration();
@@ -2350,7 +2359,7 @@ function seekHtml5Audio(audio, time) {
 export async function play() {
   if (isLoadingTrack || isPlaying) return;
 
-  // [Claude] — 2026-08-08 — Demande l’audio focus. Si Analyse est en train de
+  // [Claude] — 2026-08-08 — Demande l'audio focus. Si Analyse est en train de
   // jouer, elle est mise en pause sans que ses positions ou son currentTime
   // soient modifiés.
   globalAudioFocusManager.requestFocus('studio');

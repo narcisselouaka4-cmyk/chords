@@ -1297,6 +1297,13 @@ input[type='color'] {
   overflow: hidden;
 }
 
+/* Audio-only : la zone média prend tout l'espace flexible disponible,
+   comme le fait naturellement la vidéo en MP4. */
+.studio-player-wrap.is-audio-only {
+  flex: 1 1 auto;
+  max-height: none;
+}
+
 .studio-video-container,
 .studio-audio-container,
 .studio-video-container video,
@@ -2019,6 +2026,32 @@ body.studio-recording-cursor * {
 .studio-track-list,
 .studio-stems-mode {
   margin-top: 12px;
+}
+
+/* Scrollbar verticale pour la liste de morceaux dans la sidebar gauche.
+   Le panneau a une hauteur contrainte par le grid, la liste à l'intérieur
+   doit défiler sans pousser le header hors de l'écran. */
+.studio-sidebar.left .studio-panel-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.studio-sidebar.left .studio-track-list {
+  flex-shrink: 0;
+}
+
+/* Stage 0 : liste centrée — scroll si le contenu dépasse la hauteur dispo. */
+.studio-tab.stage-0 .studio-sidebar.left {
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+}
+
+.studio-tab.stage-0 .studio-track-list {
+  max-height: none;
+  overflow-y: visible;
 }
 
 #studio-stems-mode-toggle {
