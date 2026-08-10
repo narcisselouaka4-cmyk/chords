@@ -1694,12 +1694,6 @@ function renderOverview(analysis) {
 
     <div class="analyzer-overview-row">
       <div class="analyzer-overview-block">
-        <h3>Réharmonisation</h3>
-        <p class="text-sm text-(--text-dim) mb-3">Lancez la démonstration du moteur de réharmonisation dans l'onglet <strong>Outils</strong> pour explorer des variantes de voicing et de remplacement harmonique.</p>
-        <button type="button" class="btn-secondary" id="analyzer-overview-reharm-btn">Ouvrir les outils de réharmonisation</button>
-      </div>
-
-      <div class="analyzer-overview-block">
         <h3>Export / Actions</h3>
         <div class="flex flex-wrap gap-2">
           <button type="button" class="btn-secondary" id="analyzer-overview-export-midi">Exporter en MIDI</button>
@@ -1715,17 +1709,10 @@ function renderOverview(analysis) {
   const overviewExportMidi = document.getElementById('analyzer-overview-export-midi');
   const overviewExportJson = document.getElementById('analyzer-overview-export-json');
   const overviewCopyText = document.getElementById('analyzer-overview-copy-text');
-  const overviewReharmBtn = document.getElementById('analyzer-overview-reharm-btn');
 
   if (overviewExportMidi) overviewExportMidi.addEventListener('click', () => exportAnalysisToMidi(analysis, currentFileName));
   if (overviewExportJson) overviewExportJson.addEventListener('click', () => exportAnalysisToJson(analysis, currentFileName));
   if (overviewCopyText) overviewCopyText.addEventListener('click', () => exportAnalysisToText(analysis, currentFileName));
-  if (overviewReharmBtn) {
-    overviewReharmBtn.addEventListener('click', () => {
-      const toolsTab = document.querySelector('#analyzer-section-tabs button[data-section="tools"]');
-      if (toolsTab) toolsTab.click();
-    });
-  }
 }
 
 // [Claude] — 2026-08-08 — Sidebar résultats (LOT 3).
