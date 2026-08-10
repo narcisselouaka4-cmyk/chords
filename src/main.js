@@ -823,6 +823,8 @@ function initTheme() {
     root.style.backgroundColor = next === 'dark' ? '#0f1117' : '#f4f6f8';
     localStorage.setItem('theme', next);
     updateThemeIcon(next);
+    // Notifier les composants qui dépendent des couleurs du thème (waveform canvas, etc.)
+    window.dispatchEvent(new CustomEvent('app-theme-changed', { detail: { theme: next } }));
   });
 }
 
