@@ -1,7 +1,130 @@
 const STUDIO_DIR_NAME = 'PianoJazzChords/Studio';
+const MEDIA_INDEX_FILE = 'media_index.json';
 
 function getElectronFiles() {
   return window.electronAPI?.files;
+}
+
+// ── Identité stable d'un média ──
+// Combine le chemin normalisé, la taille et la date de modification.
+// Permet de reconnaître qu'un fichier déjà importé est réimporté,
+// sans calculer de hash coûteux sur des fichiers volumineux.
+
+/**
+ * Construit une clé d'identité pour un fichier média.
+ * @param {string} sourcePath - chemin absolu du fichier source
+ * @param {{ size: number, mtimeMs: number }} [stat] - résultats de fs.stat
+ * @returns {string} clé unique
+ */
+export function buildMediaIdentity(sourcePath, stat) {
+  const normalized = sourcePath.replace(/\\/g, '/');
+  const size = stat?.size ?? 0;
+  const mtime = stat?.mtimeMs ?? 0;
+  return `${normalized}::${size}::${mtime}`;
+}
+
+/**
+ * Récupère le stat d'un fichier via l'IPC Electron.
+ */
+export async function statFile(filePath) {
+  const files = getElectronFiles();
+  if (!files?.stat) return null;
+  try {
+    return await files.stat(filePath);
+  } catch {
+    return null;
+  }
+}
+
+// ── Index des médias (media_index.json) ──
+// Fichier JSON dans le répertoire Studio qui mappe identity_key → trackId.
+// Évite de scanner tous les dossiers Track_XXX à chaque import.
+
+async function loadMediaIndex() {
+  const files = getElectronFiles();
+  if (!files) return {};
+  const studioDir = await ensureStudioDir();
+  const indexPath = `${studioDir}/${MEDIA_INDEX_FILE}`;
+  try {
+    if (await files.exists(indexPath)) {
+      const raw = await files.readFile(indexPath);
+      return raw ? JSON.parse(raw) : {};
+    }
+  } catch (e) {
+    console.warn('[media-index] load failed:', e);
+  }
+  return {};
+}
+
+async function saveMediaIndex(index) {
+  const files = getElectronFiles();
+  if (!files) return;
+  const studioDir = await ensureStudioDir();
+  const indexPath = `${studioDir}/${MEDIA_INDEX_FILE}`;
+  await files.writeFile(indexPath, JSON.stringify(index, null, 2));
+}
+
+/**
+ * Recherche une piste existante par identité de média.
+ * @returns {{ trackId: string, metadata: object } | null}
+ */
+export async function findExistingTrack(sourcePath) {
+  const stat = await statFile(sourcePath);
+  if (!stat) return null;
+  const identity = buildMediaIdentity(sourcePath, stat);
+  const index = await loadMediaIndex();
+  const trackId = index[identity];
+  if (!trackId) return null;
+  // Vérifier que la piste existe toujours
+  const metadata = await loadMetadata(trackId);
+  if (!metadata) {
+    // Entrée orpheline : nettoyer l'index
+    delete index[identity];
+    await saveMediaIndex(index);
+    return null;
+  }
+  return { trackId, metadata };
+}
+
+/**
+ * Enregistre une piste dans l'index des médias.
+ */
+export async function registerInIndex(trackId, sourcePath) {
+  const stat = await statFile(sourcePath);
+  if (!stat) return;
+  const identity = buildMediaIdentity(sourcePath, stat);
+  const index = await loadMediaIndex();
+  index[identity] = trackId;
+  await saveMediaIndex(index);
+}
+
+/**
+ * Supprime une entrée de l'index des médias.
+ */
+export async function unregisterFromIndex(trackId) {
+  const index = await loadMediaIndex();
+  for (const [key, id] of Object.entries(index)) {
+    if (id === trackId) {
+      delete index[key];
+    }
+  }
+  await saveMediaIndex(index);
+}
+
+/**
+ * Vérifie si un nom est déjà utilisé par une autre piste (conflit de nom).
+ * @returns {string|null} le trackId existant, ou null
+ */
+export async function findTrackByName(displayName, excludeTrackId = null) {
+  const tracks = await listTracks();
+  for (const track of tracks) {
+    if (excludeTrackId && track.id === excludeTrackId) continue;
+    try {
+      const meta = await loadMetadata(track.id);
+      if (meta?.name === displayName) return track.id;
+    } catch {}
+  }
+  return null;
 }
 
 export async function ensureStudioDir() {
@@ -201,6 +324,8 @@ export async function deleteTrack(trackId) {
   if (await files.exists(dirPath)) {
     await files.deleteDir(dirPath);
   }
+  // Nettoyer l'index des médias
+  await unregisterFromIndex(trackId);
   return true;
 }
 

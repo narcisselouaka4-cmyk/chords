@@ -8,6 +8,9 @@ import {
   saveOriginal,
   saveMetadata,
   deleteTrack,
+  findExistingTrack,
+  registerInIndex,
+  findTrackByName,
 } from '../recorder/studio-storage.js';
 
 export {
@@ -18,18 +21,53 @@ export {
   deleteTrack,
 };
 
+/**
+ * Importe un fichier dans la bibliothèque persistante avec dédoublonnage.
+ *
+ * - Même fichier (même chemin + taille + mtime) → retrouve l'entrée existante,
+ *   conserve toutes ses modifications, ne crée PAS de doublon.
+ * - Même nom mais fichier différent → ajoute un suffixe "(2)", "(3)" etc.
+ *   pour éviter deux lignes visuellement identiques.
+ * - Nouveau fichier → crée une nouvelle entrée normalement.
+ *
+ * @param {string} filePath - chemin absolu du fichier source
+ * @returns {{ id: string, metadata: object, originalPath: string, isReimport: boolean }}
+ */
 export async function importToLibrary(filePath) {
   const files = window.electronAPI?.files;
   if (!files) throw new Error('Système de fichiers non disponible');
 
+  // 1. Vérifier si ce fichier exact a déjà été importé (identité stable).
+  const existing = await findExistingTrack(filePath);
+  if (existing) {
+    // Même fichier : réutiliser l'entrée existante, conserver toutes les modifs.
+    return { id: existing.trackId, metadata: existing.metadata, originalPath: filePath, isReimport: true };
+  }
+
+  // 2. Nouveau fichier : créer une entrée.
   const trackId = await getNextTrackId();
   await createTrackDir(trackId);
 
   const bytes = await files.readBinary(filePath);
   const originalPath = await saveOriginal(trackId, filePath, bytes);
 
-  const name = filePath.split('/').pop() || filePath.split('\\').pop() || filePath;
+  let name = filePath.split('/').pop() || filePath.split('\\').pop() || filePath;
   const ext = filePath.split('.').pop()?.toLowerCase() || 'mp3';
+
+  // 3. Dédoublonnage par nom : si un autre fichier porte déjà ce nom, suffixer.
+  const conflictId = await findTrackByName(name);
+  if (conflictId) {
+    // Trouver un suffixe disponible : "nom (2)", "nom (3)", etc.
+    let suffix = 2;
+    let candidate;
+    do {
+      const baseName = name.replace(/\.[^.]+$/, '');
+      candidate = `${baseName} (${suffix}).${ext}`;
+      suffix++;
+    } while (await findTrackByName(candidate));
+    name = candidate;
+  }
+
   const metadata = {
     name,
     sourcePath: filePath,
@@ -41,5 +79,8 @@ export async function importToLibrary(filePath) {
   };
   await saveMetadata(trackId, metadata);
 
-  return { id: trackId, metadata, originalPath };
+  // 4. Enregistrer dans l'index pour les futures recherches.
+  await registerInIndex(trackId, filePath);
+
+  return { id: trackId, metadata, originalPath, isReimport: false };
 }

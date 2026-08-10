@@ -40,6 +40,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     readFile: (filePath) => ipcRenderer.invoke('files:read-file', filePath),
     readBinary: (filePath) => ipcRenderer.invoke('files:read-binary', filePath),
     exists: (filePath) => ipcRenderer.invoke('files:exists', filePath),
+    stat: (filePath) => ipcRenderer.invoke('files:stat', filePath),
     deleteDir: (dirPath) => ipcRenderer.invoke('files:delete-dir', dirPath),
     deleteFile: (filePath) => ipcRenderer.invoke('files:delete-file', filePath),
   },

@@ -11,6 +11,7 @@ import {
   deleteTrack,
   renameTrack,
 } from '../recorder/studio-storage.js';
+import { importToLibrary } from './media-library.js';
 import { createStemMixer, dbToGain } from '../audio/stem-mixer.js';
 import { separateStems, getStems, STEMS } from '../audio/stem-separator.js';
 import { createPitchShifter } from '../audio/pitch-shifter.js';
@@ -1015,24 +1016,25 @@ async function importFile() {
     if (!sourceType) return;
 
     setStatus(`Import de ${filePath}...`);
-    const trackId = await getNextTrackId();
-    await createTrackDir(trackId);
 
-    const bytes = await window.electronAPI.files.readBinary(filePath);
-    const originalPath = await saveOriginal(trackId, filePath, bytes);
-    const name = filePath.split('/').pop() || filePath.split('\\').pop() || filePath;
-    await saveMetadata(trackId, {
-      name,
-      sourcePath: filePath,
-      originalPath,
-      sourceType,
-      duration: 0,
-      importedAt: new Date().toISOString(),
-    });
+    // Dédoublonnage : importToLibrary retrouve une entrée existante si le
+    // même fichier (identité stable) a déjà été importé, ou crée une
+    // nouvelle entrée avec résolution de conflit de nom.
+    const { id: trackId, isReimport } = await importToLibrary(filePath);
+
+    // Mettre à jour le type de source dans les métadonnées.
+    const meta = await loadMetadata(trackId);
+    if (meta) {
+      meta.sourceType = sourceType;
+      await saveMetadata(trackId, meta);
+    }
 
     await refreshTrackList();
     await loadTrack(trackId);
-    setStatus(`Morceau importé : ${name}`);
+    const displayName = meta?.name || trackId;
+    setStatus(isReimport
+      ? `Morceau retrouvé : ${displayName} (modifications conservées)`
+      : `Morceau importé : ${displayName}`);
   } catch (err) {
     console.error('Import failed:', err);
     setStatus(`Erreur d'import : ${err.message}`);
