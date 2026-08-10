@@ -705,8 +705,13 @@ async function backRegion() {
   mixer?.reset();
   stop();
   setLoadingState(true);
-  await rebuildMediaPlayerForFullTrack();
-  setLoadingState(false);
+  try {
+    await rebuildMediaPlayerForFullTrack();
+  } catch (err) {
+    console.error('[Studio] backRegion failed:', err);
+  } finally {
+    setLoadingState(false);
+  }
   seek(0);
   renderWaveform();
   updateCropButtons();
@@ -735,8 +740,13 @@ async function resetRegion() {
   mixer?.reset();
   stop();
   setLoadingState(true);
-  await rebuildMediaPlayerForFullTrack();
-  setLoadingState(false);
+  try {
+    await rebuildMediaPlayerForFullTrack();
+  } catch (err) {
+    console.error('[Studio] resetRegion failed:', err);
+  } finally {
+    setLoadingState(false);
+  }
   // Remettre le lecteur au début du fichier original.
   seek(0);
   renderWaveform();
