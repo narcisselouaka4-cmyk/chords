@@ -521,6 +521,7 @@
             <div class="analyzer-section-tabs" id="analyzer-section-tabs" role="tablist">
               <button type="button" class="active" data-section="chords" role="tab" aria-selected="true">Accord sélectionné</button>
               <button type="button" data-section="analysis" role="tab" aria-selected="false">Vue d’ensemble</button>
+              <button type="button" data-section="reharm" role="tab" aria-selected="false">Réharmonisation</button>
               <button type="button" data-section="masterclass" role="tab" aria-selected="false">Masterclass</button>
               <button type="button" data-section="tools" role="tab" aria-selected="false">Outils</button>
             </div>
@@ -560,13 +561,7 @@
               <div class="analyzer-panel" data-section="analysis" role="tabpanel" style="display:none">
                 <div class="analyzer-overview-scroll" id="analyzer-overview-content"></div>
               </div>
-              <div class="analyzer-panel" data-section="masterclass" role="tabpanel" style="display:none">
-                <div class="analyzer-masterclass-box" id="analyzer-masterclass-output">
-                  <p>Configurez une clé API OpenAI-compatible (Groq, OpenRouter, Google AI Studio…) via le bouton 🔑 en haut à droite pour obtenir une analyse pédagogique personnalisée.</p>
-                </div>
-                <button type="button" id="analyzer-masterclass-run" class="btn-secondary" disabled>Générer l'analyse pédagogique</button>
-              </div>
-              <div class="analyzer-panel analyzer-panel-center" data-section="tools" role="tabpanel" style="display:none">
+              <div class="analyzer-panel" data-section="reharm" role="tabpanel" style="display:none">
                 <details class="bg-(--panel-bg) border border-(--border) rounded-lg overflow-hidden w-full max-w-xl" id="analyzer-reharm-details">
                   <summary class="px-4 py-2.5 text-sm font-semibold text-(--text) cursor-pointer hover:bg-(--surface-secondary) transition-colors" id="analyzer-reharm-summary" aria-expanded="false" aria-controls="analyzer-reharm-output">Réharmonisation</summary>
                   <div class="p-4 text-sm text-(--text-dim) flex flex-col gap-4" id="analyzer-reharm-panel">
@@ -576,20 +571,28 @@
                     </div>
                     <div class="border border-(--border) rounded-lg p-3">
                       <div class="text-xs font-semibold text-(--text) mb-1">Démonstration du moteur</div>
-                      <p class="text-xs text-(--text-dim) mb-3">Cette démonstration utilise une mélodie d'exemple indépendante du fichier actuellement chargé.</p>
+                      <p class="text-xs text-(--text-dim) mb-3">Cette démonstration utilise une mélodie d’exemple indépendante du fichier actuellement chargé.</p>
                       <button type="button" id="analyzer-reharm-run" class="px-3 py-1 rounded text-xs bg-(--surface-secondary) hover:bg-(--border) text-(--text) transition-colors">Lancer la démonstration</button>
                     </div>
                     <div class="analyzer-reharm-output" id="analyzer-reharm-output" role="region" aria-label="Résultats de la démonstration de réharmonisation"></div>
                   </div>
                 </details>
+              </div>
+              <div class="analyzer-panel" data-section="masterclass" role="tabpanel" style="display:none">
+                <div class="analyzer-masterclass-box" id="analyzer-masterclass-output">
+                  <p>Configurez une clé API OpenAI-compatible (Groq, OpenRouter, Google AI Studio…) via le bouton 🔑 en haut à droite pour obtenir une analyse pédagogique personnalisée.</p>
+                </div>
+                <button type="button" id="analyzer-masterclass-run" class="btn-secondary" disabled>Générer l’analyse pédagogique</button>
+              </div>
+              <div class="analyzer-panel analyzer-panel-center" data-section="tools" role="tabpanel" style="display:none">
                 <div class="flex flex-wrap gap-2 mt-6">
-                  <button type="button" id="analyzer-export-midi-btn" class="btn-secondary btn-sm">Exporter l'analyse en MIDI</button>
+                  <button type="button" id="analyzer-export-midi-btn" class="btn-secondary btn-sm">Exporter l’analyse en MIDI</button>
                   <button type="button" id="analyzer-export-json-btn" class="btn-secondary btn-sm">Exporter en JSON</button>
                   <button type="button" id="analyzer-copy-text-btn" class="btn-secondary btn-sm">Copier la grille texte</button>
                 </div>
                 <p class="text-xs text-(--text-dim) mt-2">MIDI, JSON et texte reflètent les corrections manuelles. JSON conserve aussi la détection originale.</p>
                 <div class="text-2xl mt-6" aria-hidden="true">🧰</div>
-                <p>D'autres outils d'analyse seront ajoutés prochainement.</p>
+                <p>D’autres outils d’analyse seront ajoutés prochainement.</p>
               </div>
             </div>
           </div>
