@@ -83,6 +83,7 @@ const els = {
   stateVideoType: document.getElementById('analyzer-state-video-type'),
   stateMidiRecord: document.getElementById('analyzer-state-midi-record'),
   stateResults: document.getElementById('analyzer-state-results'),
+  analysisTab: document.getElementById('analysis-tab'),
   sidebar: document.getElementById('analyzer-sidebar'),
   flowImport: document.getElementById('analyzer-flow-import'),
   flowDetect: document.getElementById('analyzer-flow-detect'),
@@ -106,6 +107,12 @@ const els = {
   midiStopBtn: document.getElementById('analyzer-midi-stop-btn'),
   midiTimer: document.getElementById('analyzer-midi-timer'),
   topNotesList: document.getElementById('analyzer-topnotes-list'),
+  midiSourceBadge: document.getElementById('analyzer-midi-source-badge'),
+  midiRecBadge: document.getElementById('analyzer-midi-rec-badge'),
+  midiDurationStat: document.getElementById('analyzer-midi-duration-stat'),
+  midiSegmentsStat: document.getElementById('analyzer-midi-segments-stat'),
+  midiNotesStat: document.getElementById('analyzer-midi-notes-stat'),
+  midiStatusBadge: document.getElementById('analyzer-midi-status-badge'),
 
   // Résultats réharmonisation
   resultKey: document.getElementById('analyzer-result-key'),
@@ -183,6 +190,11 @@ let lastRenderedVoicingChord = null;
 let lastRenderedVoicingStyle = null;
 let selectedSegmentId = null; // segmentId sélectionné dans la timeline
 
+// Capture MIDI (UI) — métriques du panneau droit « État de la session ».
+let midiCaptureSeconds = 0;
+let midiCaptureTimer = null;
+let midiCaptureRunning = false; // true pendant l'enregistrement actif
+
 // Phase B : persistance
 let projectDirty = false;
 let projectPath = null;
@@ -235,6 +247,10 @@ function setAnalyzerState(state) {
   els.flowImport?.classList.toggle('active', state === 'import');
   els.flowDetect?.classList.toggle('active', ['prepare', 'video-type', 'midi-record'].includes(state));
   els.flowLaunch?.classList.toggle('active', state === 'analysis');
+
+  // En capture MIDI, la sidebar globale « Flux d'analyse » est masquée : le
+  // panneau de droite de l'état affiche les métriques de session.
+  els.analysisTab?.classList.toggle('midi-capture', state === 'midi-record');
 
   switch (state) {
     case 'import':
@@ -298,6 +314,13 @@ function initWorkspaceStates() {
   els.prepareBackBtn?.addEventListener('click', resetAnalysisSession);
   els.videoTypeBackBtn?.addEventListener('click', resetAnalysisSession);
   els.midiBackBtn?.addEventListener('click', resetAnalysisSession);
+
+  // [OpenCode] — 2026-08-08 — Capture MIDI : câblage des métriques du panneau
+  // droit « État de la session ». Le moteur de capture réel reste
+  // src/melody/midi-capture.js ; ici on alimente l'UI (durée, badges, statut).
+  els.midiRecordBtn?.addEventListener('click', startMidiCaptureUI);
+  els.midiPauseBtn?.addEventListener('click', pauseMidiCaptureUI);
+  els.midiStopBtn?.addEventListener('click', stopMidiCaptureUI);
 
   // Inspecteur
   els.inspectorEditBtn?.addEventListener('click', () => {
@@ -583,12 +606,70 @@ export function resetAnalysisSession() {
   els.stemBadge.classList.remove('visible');
   // Retour à l’état vide explicite quand aucun fichier n’est analysé.
   updateAnalyzerFileContext('');
+  resetMidiMetricsUI();
   setAnalyzerState('import');
   refreshLibraryList();
 }
 
 function showImportScreen() {
   resetAnalysisSession();
+}
+
+// ── Capture MIDI (UI) : métriques du panneau droit « État de la session » ──
+function resetMidiMetricsUI() {
+  clearMidiCaptureTimer();
+  midiCaptureSeconds = 0;
+  midiCaptureRunning = false;
+  if (els.midiTimer) els.midiTimer.textContent = formatTime(0);
+  if (els.midiDurationStat) els.midiDurationStat.textContent = formatTime(0);
+  if (els.midiSegmentsStat) els.midiSegmentsStat.textContent = '0';
+  if (els.midiNotesStat) els.midiNotesStat.textContent = '0';
+  setMidiBadge(els.midiSourceBadge, 'Connectée', 'connected');
+  setMidiBadge(els.midiRecBadge, 'Inactif', '');
+  setMidiBadge(els.midiStatusBadge, 'Prêt', 'ready');
+  els.stateMidiRecord?.classList.remove('recording');
+}
+
+function startMidiCaptureUI() {
+  clearMidiCaptureTimer();
+  midiCaptureRunning = true;
+  els.stateMidiRecord?.classList.add('recording');
+  setMidiBadge(els.midiRecBadge, 'En cours', 'recording');
+  setMidiBadge(els.midiStatusBadge, 'Enregistrement', 'recording');
+  midiCaptureTimer = setInterval(() => {
+    midiCaptureSeconds += 1;
+    const t = formatTime(midiCaptureSeconds);
+    if (els.midiTimer) els.midiTimer.textContent = t;
+    if (els.midiDurationStat) els.midiDurationStat.textContent = t;
+  }, 1000);
+}
+
+function pauseMidiCaptureUI() {
+  clearMidiCaptureTimer();
+  midiCaptureRunning = false;
+  setMidiBadge(els.midiRecBadge, 'En pause', '');
+  setMidiBadge(els.midiStatusBadge, 'En pause', '');
+}
+
+function stopMidiCaptureUI() {
+  const kept = midiCaptureSeconds;
+  resetMidiMetricsUI();
+  if (els.midiStatusBadge) els.midiStatusBadge.textContent = 'Session terminée';
+  if (kept > 0 && els.midiDurationStat) els.midiDurationStat.textContent = formatTime(kept);
+}
+
+function setMidiBadge(el, text, modifier) {
+  if (!el) return;
+  el.textContent = text;
+  el.classList.remove('connected', 'ready', 'recording');
+  if (modifier) el.classList.add(modifier);
+}
+
+function clearMidiCaptureTimer() {
+  if (midiCaptureTimer) {
+    clearInterval(midiCaptureTimer);
+    midiCaptureTimer = null;
+  }
 }
 
 // Lot B — affiche « Fichier analysé : <nom> » ou « Aucun fichier analysé ».

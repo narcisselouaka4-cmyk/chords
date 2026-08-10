@@ -38,6 +38,17 @@
   overflow-y: auto;
 }
 
+/* En capture MIDI : la sidebar globale « Flux d'analyse » est masquée, le
+   workspace occupe toute la largeur et les métriques de session prennent le
+   panneau de droite (sidebar interne de #analyzer-state-midi-record). */
+.analysis-tab.midi-capture {
+  grid-template-columns: 1fr;
+}
+
+.analysis-tab.midi-capture .analyzer-sidebar {
+  display: none;
+}
+
 /* ── États du workspace ── */
 .analyzer-state {
   display: none;
