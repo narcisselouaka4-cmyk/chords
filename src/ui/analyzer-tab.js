@@ -194,6 +194,7 @@ let selectedSegmentId = null; // segmentId sélectionné dans la timeline
 let midiCaptureSeconds = 0;
 let midiCaptureTimer = null;
 let midiCaptureRunning = false; // true pendant l'enregistrement actif
+let midiSessionFinalized = false; // true après Stop : la session est terminée
 
 // Phase B : persistance
 let projectDirty = false;
@@ -620,6 +621,7 @@ function resetMidiMetricsUI() {
   clearMidiCaptureTimer();
   midiCaptureSeconds = 0;
   midiCaptureRunning = false;
+  midiSessionFinalized = false;
   if (els.midiTimer) els.midiTimer.textContent = formatTime(0);
   if (els.midiDurationStat) els.midiDurationStat.textContent = formatTime(0);
   if (els.midiSegmentsStat) els.midiSegmentsStat.textContent = '0';
@@ -631,8 +633,13 @@ function resetMidiMetricsUI() {
 }
 
 function startMidiCaptureUI() {
+  // Si une session précédente a été finalisée (Stop), on repart à zéro.
+  if (midiSessionFinalized) {
+    resetMidiMetricsUI();
+  }
   clearMidiCaptureTimer();
   midiCaptureRunning = true;
+  midiSessionFinalized = false;
   els.stateMidiRecord?.classList.add('recording');
   setMidiBadge(els.midiRecBadge, 'En cours', 'recording');
   setMidiBadge(els.midiStatusBadge, 'Enregistrement', 'recording');
@@ -652,10 +659,20 @@ function pauseMidiCaptureUI() {
 }
 
 function stopMidiCaptureUI() {
+  // Arrêter le timer et figer les métriques.
+  clearMidiCaptureTimer();
   const kept = midiCaptureSeconds;
-  resetMidiMetricsUI();
-  if (els.midiStatusBadge) els.midiStatusBadge.textContent = 'Session terminée';
+  midiCaptureRunning = false;
+  midiSessionFinalized = true;
+
+  // Conserver les données capturées (ne pas les remettre à zéro).
   if (kept > 0 && els.midiDurationStat) els.midiDurationStat.textContent = formatTime(kept);
+  if (els.midiTimer) els.midiTimer.textContent = formatTime(kept);
+
+  // Badges : session terminée.
+  els.stateMidiRecord?.classList.remove('recording');
+  setMidiBadge(els.midiRecBadge, 'Terminé', '');
+  setMidiBadge(els.midiStatusBadge, 'Session terminée', 'ready');
 }
 
 function setMidiBadge(el, text, modifier) {
