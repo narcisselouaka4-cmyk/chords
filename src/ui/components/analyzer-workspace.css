@@ -1137,7 +1137,10 @@
 }
 
 /* ── Vue d'analyse active (résultats) ── */
+/* NOTE : display est contrôlé par .analyzer-state / .analyzer-state.active
+   pour garantir la séparation HOME / RESULTS. Ne pas remettre display:flex ici. */
 .analyzer-analysis-view {
+  flex-direction: column;
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -1248,6 +1251,19 @@
   inset: 0;
   overflow-x: auto;
   overflow-y: hidden;
+  /* Surcharge des anciennes règles style.css qui stylaient ce sélecteur comme un bouton 28×28 */
+  width: auto;
+  height: auto;
+  display: block;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  z-index: auto;
+  transform: none;
+  cursor: default;
+  font-size: inherit;
+  color: inherit;
 }
 
 .analyzer-timeline-inner {
@@ -1279,6 +1295,13 @@
 .analyzer-timeline-scroll-btn:hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+/* Surcharge des anciennes règles style.css qui ciblaient .analyzer-timeline-scroll:hover */
+.analyzer-timeline-scroll:hover {
+  background: transparent;
+  border-color: transparent;
+  transform: none;
 }
 
 .analyzer-timeline-scroll-btn.left { left: 8px; }
@@ -1623,6 +1646,7 @@
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
   overflow: hidden;
+  padding: 0;
 }
 
 .analyzer-timeline-block:hover {
@@ -1653,6 +1677,80 @@
   top: 2px;
   right: 4px;
   font-size: 0.7rem;
+}
+
+/* ── Menu bibliothèque (⋮) ── */
+.analyzer-library-menu-container {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.analyzer-library-menu-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.analyzer-library-menu-btn:hover {
+  background: var(--border);
+  color: var(--text);
+}
+
+.analyzer-library-menu {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 4px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  z-index: 100;
+  min-width: 150px;
+  padding: 4px;
+}
+
+.analyzer-library-menu.open {
+  display: block;
+}
+
+.analyzer-library-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s ease;
+}
+
+.analyzer-library-menu-item:hover {
+  background: var(--surface-secondary);
+}
+
+.analyzer-library-menu-item.danger {
+  color: #e0556a;
+}
+
+.analyzer-library-menu-item.danger:hover {
+  background: rgba(224, 85, 106, 0.1);
 }
 
 /* Responsive */
