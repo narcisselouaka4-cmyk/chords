@@ -50,7 +50,7 @@ import {
 } from './reharmonization-view.js';
 import './reharmonization-view.css';
 import { buildFileContextText } from './file-context.js';
-import { listTracks, loadMetadata, getOriginalPath, importToLibrary } from './media-library.js';
+import { listTracks, loadMetadata, getOriginalPath, importToLibrary, renameTrack, deleteTrack } from './media-library.js';
 
 const BASE_PIXELS_PER_SECOND = 80;
 const MIN_BLOCK_WIDTH = 4;
@@ -371,13 +371,226 @@ function renderLibraryList(tracks) {
     const displayName = metadata.name || track.id;
     const ext = (metadata.format || metadata.sourcePath?.split('.').pop() || '').toUpperCase();
 
+    const row = document.createElement('div');
+    row.className = 'flex items-center gap-1 w-full';
+
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'w-full text-left px-3 py-2 rounded text-xs bg-(--surface-secondary) hover:bg-(--border) text-(--text) transition-colors flex items-center gap-2';
+    btn.className = 'flex-1 text-left px-3 py-2 rounded text-xs bg-(--surface-secondary) hover:bg-(--border) text-(--text) transition-colors flex items-center gap-2 min-w-0';
     btn.innerHTML = `<span class="truncate flex-1">${escapeHtml(displayName)}</span><span class="text-(--text-dim) shrink-0">${ext}</span>`;
     btn.addEventListener('click', () => analyzeLibraryTrack(track));
-    els.libraryList.appendChild(btn);
+    row.appendChild(btn);
+
+    // Menu ⋮
+    const menuContainer = document.createElement('div');
+    menuContainer.className = 'analyzer-library-menu-container';
+
+    const menuBtn = document.createElement('button');
+    menuBtn.type = 'button';
+    menuBtn.className = 'analyzer-library-menu-btn';
+    menuBtn.textContent = '⋮';
+    menuBtn.title = 'Actions';
+
+    const menu = document.createElement('div');
+    menu.className = 'analyzer-library-menu';
+
+    // Renommer
+    const renameItem = document.createElement('button');
+    renameItem.type = 'button';
+    renameItem.className = 'analyzer-library-menu-item';
+    renameItem.innerHTML = '<span>✏️</span> Renommer';
+    renameItem.addEventListener('click', () => {
+      menu.classList.remove('open');
+      promptRenameTrack(track, displayName);
+    });
+    menu.appendChild(renameItem);
+
+    // Supprimer
+    const deleteItem = document.createElement('button');
+    deleteItem.type = 'button';
+    deleteItem.className = 'analyzer-library-menu-item danger';
+    deleteItem.innerHTML = '<span>🗑️</span> Supprimer';
+    deleteItem.addEventListener('click', () => {
+      menu.classList.remove('open');
+      confirmDeleteTrack(track, displayName);
+    });
+    menu.appendChild(deleteItem);
+
+    // Toggle menu au clic sur ⋮ — détection d'espace pour ouvrir vers le haut
+    // si le menu dépasserait le bas de la zone visible.
+    menuBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      // Fermer tous les autres menus
+      document.querySelectorAll('.analyzer-library-menu.open').forEach(m => {
+        if (m !== menu) m.classList.remove('open');
+      });
+      const willOpen = !menu.classList.contains('open');
+      if (willOpen) {
+        // Calculer l'espace disponible sous le bouton
+        const btnRect = menuBtn.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        const estimatedMenuHeight = 90; // 2 items × ~45px chacun
+        const spaceBelow = viewportHeight - btnRect.bottom;
+        if (spaceBelow < estimatedMenuHeight) {
+          menu.classList.add('up');
+        } else {
+          menu.classList.remove('up');
+        }
+      }
+      menu.classList.toggle('open');
+    });
+
+    // Fermer le menu si on clique ailleurs
+    document.addEventListener('click', function closeMenu(e) {
+      if (!menuContainer.contains(e.target)) {
+        menu.classList.remove('open');
+      }
+    });
+
+    menuContainer.appendChild(menuBtn);
+    menuContainer.appendChild(menu);
+    row.appendChild(menuContainer);
+    els.libraryList.appendChild(row);
   }
+}
+
+async function promptRenameTrack(track, currentName) {
+  const newName = await showRenameModal(currentName);
+  if (!newName || newName.trim() === '' || newName.trim() === currentName) return;
+  try {
+    await renameTrack(track.id, newName.trim());
+    await refreshLibraryList();
+  } catch (err) {
+    console.error('[Analyzer] rename failed:', err);
+    alert(`Erreur lors du renommage : ${err.message}`);
+  }
+}
+
+async function confirmDeleteTrack(track, displayName) {
+  const confirmed = await showDeleteModal(displayName);
+  if (!confirmed) return;
+  try {
+    await deleteTrack(track.id);
+    await refreshLibraryList();
+  } catch (err) {
+    console.error('[Analyzer] delete failed:', err);
+    alert(`Erreur lors de la suppression : ${err.message}`);
+  }
+}
+
+// ── Modales bibliothèque ──
+
+function showRenameModal(currentName) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'analyzer-modal-overlay';
+    overlay.innerHTML = `
+      <div class="analyzer-modal">
+        <h3 class="analyzer-modal-title">Renommer le morceau</h3>
+        <div class="analyzer-modal-body">
+          <label class="analyzer-modal-label" for="analyzer-rename-input">Nouveau nom</label>
+          <input type="text" id="analyzer-rename-input" class="analyzer-modal-input" value="${escapeHtml(currentName)}" autofocus />
+        </div>
+        <div class="analyzer-modal-actions">
+          <button type="button" class="btn-secondary btn-sm analyzer-modal-cancel">Annuler</button>
+          <button type="button" class="btn-primary btn-sm analyzer-modal-confirm">Enregistrer</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const input = overlay.querySelector('#analyzer-rename-input');
+    const confirmBtn = overlay.querySelector('.analyzer-modal-confirm');
+    const cancelBtn = overlay.querySelector('.analyzer-modal-cancel');
+
+    const cleanup = () => {
+      overlay.removeEventListener('click', onOverlayClick);
+      overlay.remove();
+    };
+
+    const submit = () => {
+      const value = input.value.trim();
+      cleanup();
+      resolve(value || null);
+    };
+
+    const cancel = () => {
+      cleanup();
+      resolve(null);
+    };
+
+    const onOverlayClick = (e) => {
+      if (e.target === overlay) cancel();
+    };
+
+    confirmBtn.addEventListener('click', submit);
+    cancelBtn.addEventListener('click', cancel);
+    overlay.addEventListener('click', onOverlayClick);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') submit();
+      if (e.key === 'Escape') cancel();
+    });
+
+    // Focus automatique
+    requestAnimationFrame(() => {
+      input.focus();
+      input.select();
+    });
+  });
+}
+
+function showDeleteModal(displayName) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'analyzer-modal-overlay';
+    overlay.innerHTML = `
+      <div class="analyzer-modal">
+        <h3 class="analyzer-modal-title">Supprimer le morceau</h3>
+        <div class="analyzer-modal-body">
+          <p class="analyzer-modal-text">Supprimer définitivement <strong>${escapeHtml(displayName)}</strong> ?</p>
+          <p class="analyzer-modal-hint">Cette action est irréversible.</p>
+        </div>
+        <div class="analyzer-modal-actions">
+          <button type="button" class="btn-secondary btn-sm analyzer-modal-cancel">Annuler</button>
+          <button type="button" class="btn-danger btn-sm analyzer-modal-confirm">Supprimer</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const confirmBtn = overlay.querySelector('.analyzer-modal-confirm');
+    const cancelBtn = overlay.querySelector('.analyzer-modal-cancel');
+
+    const cleanup = () => {
+      overlay.removeEventListener('click', onOverlayClick);
+      overlay.remove();
+    };
+
+    const submit = () => {
+      cleanup();
+      resolve(true);
+    };
+
+    const cancel = () => {
+      cleanup();
+      resolve(null);
+    };
+
+    const onOverlayClick = (e) => {
+      if (e.target === overlay) cancel();
+    };
+
+    confirmBtn.addEventListener('click', submit);
+    cancelBtn.addEventListener('click', cancel);
+    overlay.addEventListener('click', onOverlayClick);
+    overlay.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') cancel();
+    });
+
+    // Focus sur le bouton Annuler par défaut (sécurité)
+    requestAnimationFrame(() => cancelBtn.focus());
+  });
 }
 
 // [OpenCode] — Passe corrective — Pipeline d'import unifié.
