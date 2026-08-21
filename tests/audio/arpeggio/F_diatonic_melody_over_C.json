@@ -1,0 +1,125 @@
+{
+  "file": "F_diatonic_melody_over_C.wav",
+  "sr": 22050,
+  "bpm": 120,
+  "chord_duration": 2.0,
+  "repeats": 4,
+  "description": "Mouvement m\u00e9lodique diatonique au-dessus d un C stable",
+  "expected_segments_min": 4,
+  "expected_segments_max": 4,
+  "expected_chords": [
+    "C",
+    "Cmaj7"
+  ],
+  "absorb_internal": true,
+  "segments": [
+    {
+      "start_time": 0.0,
+      "end_time": 2.0,
+      "root": "C",
+      "quality": "major",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "C4",
+        "D4",
+        "E4",
+        "F4",
+        "G4",
+        "A4",
+        "G4",
+        "E4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ],
+      "kind": "melody_over_chord",
+      "absorb": true,
+      "expected": "absorb_internal"
+    },
+    {
+      "start_time": 2.0,
+      "end_time": 4.0,
+      "root": "C",
+      "quality": "major",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "C4",
+        "D4",
+        "E4",
+        "F4",
+        "G4",
+        "A4",
+        "G4",
+        "E4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ],
+      "kind": "melody_over_chord",
+      "absorb": true,
+      "expected": "absorb_internal"
+    },
+    {
+      "start_time": 4.0,
+      "end_time": 6.0,
+      "root": "C",
+      "quality": "major",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "C4",
+        "D4",
+        "E4",
+        "F4",
+        "G4",
+        "A4",
+        "G4",
+        "E4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ],
+      "kind": "melody_over_chord",
+      "absorb": true,
+      "expected": "absorb_internal"
+    },
+    {
+      "start_time": 6.0,
+      "end_time": 8.0,
+      "root": "C",
+      "quality": "major",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "C4",
+        "D4",
+        "E4",
+        "F4",
+        "G4",
+        "A4",
+        "G4",
+        "E4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ],
+      "kind": "melody_over_chord",
+      "absorb": true,
+      "expected": "absorb_internal"
+    }
+  ]
+}

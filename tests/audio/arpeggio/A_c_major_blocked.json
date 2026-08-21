@@ -1,0 +1,99 @@
+{
+  "file": "A_c_major_blocked.wav",
+  "sr": 22050,
+  "bpm": 120,
+  "chord_duration": 2.0,
+  "repeats": 4,
+  "description": "C majeur plaqu\u00e9 pendant 4 temps, r\u00e9p\u00e9t\u00e9 4 fois",
+  "expected_segments_min": 4,
+  "expected_segments_max": 4,
+  "expected_chords": [
+    "C",
+    "C",
+    "C",
+    "C"
+  ],
+  "absorb_internal": true,
+  "segments": [
+    {
+      "start_time": 0.0,
+      "end_time": 2.0,
+      "root": "C",
+      "quality": "major",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ],
+      "kind": "chord",
+      "absorb": false,
+      "expected": "keep"
+    },
+    {
+      "start_time": 2.0,
+      "end_time": 4.0,
+      "root": "C",
+      "quality": "major",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ],
+      "kind": "chord",
+      "absorb": false,
+      "expected": "keep"
+    },
+    {
+      "start_time": 4.0,
+      "end_time": 6.0,
+      "root": "C",
+      "quality": "major",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ],
+      "kind": "chord",
+      "absorb": false,
+      "expected": "keep"
+    },
+    {
+      "start_time": 6.0,
+      "end_time": 8.0,
+      "root": "C",
+      "quality": "major",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ],
+      "kind": "chord",
+      "absorb": false,
+      "expected": "keep"
+    }
+  ]
+}

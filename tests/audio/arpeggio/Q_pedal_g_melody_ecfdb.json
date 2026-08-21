@@ -1,0 +1,122 @@
+{
+  "file": "Q_pedal_g_melody_ecfdb.wav",
+  "sr": 22050,
+  "bpm": 120,
+  "chord_duration": 2.0,
+  "repeats": 4,
+  "description": "P\u00e9dale G avec voix sup\u00e9rieures mobiles E-C-F-D-B",
+  "expected_segments_min": 4,
+  "expected_segments_max": 8,
+  "expected_chords": [
+    "G",
+    "Gmaj7",
+    "C/G"
+  ],
+  "absorb_internal": true,
+  "forbidden_chords": [
+    "Gm7",
+    "Dsus4"
+  ],
+  "segments": [
+    {
+      "start_time": 0.0,
+      "end_time": 2.0,
+      "root": "G",
+      "quality": "major",
+      "bass": "G2",
+      "upper_notes": [
+        "E4",
+        "C4",
+        "F4",
+        "D4",
+        "B3",
+        "E4",
+        "C4",
+        "F4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ],
+      "kind": "pedal_with_melody",
+      "absorb": true,
+      "expected": "absorb_no_gm7_dsus4"
+    },
+    {
+      "start_time": 2.0,
+      "end_time": 4.0,
+      "root": "G",
+      "quality": "major",
+      "bass": "G2",
+      "upper_notes": [
+        "E4",
+        "C4",
+        "F4",
+        "D4",
+        "B3",
+        "E4",
+        "C4",
+        "F4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ],
+      "kind": "pedal_with_melody",
+      "absorb": true,
+      "expected": "absorb_no_gm7_dsus4"
+    },
+    {
+      "start_time": 4.0,
+      "end_time": 6.0,
+      "root": "G",
+      "quality": "major",
+      "bass": "G2",
+      "upper_notes": [
+        "E4",
+        "C4",
+        "F4",
+        "D4",
+        "B3",
+        "E4",
+        "C4",
+        "F4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ],
+      "kind": "pedal_with_melody",
+      "absorb": true,
+      "expected": "absorb_no_gm7_dsus4"
+    },
+    {
+      "start_time": 6.0,
+      "end_time": 8.0,
+      "root": "G",
+      "quality": "major",
+      "bass": "G2",
+      "upper_notes": [
+        "E4",
+        "C4",
+        "F4",
+        "D4",
+        "B3",
+        "E4",
+        "C4",
+        "F4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ],
+      "kind": "pedal_with_melody",
+      "absorb": true,
+      "expected": "absorb_no_gm7_dsus4"
+    }
+  ]
+}

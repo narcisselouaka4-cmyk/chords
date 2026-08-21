@@ -1,0 +1,105 @@
+{
+  "file": "C_cmaj7_arpeg_quarter.wav",
+  "sr": 22050,
+  "bpm": 120,
+  "chord_duration": 2.0,
+  "repeats": 4,
+  "description": "Cmaj7 arp\u00e9g\u00e9 \u00e0 une note par temps (croche implicite = noire), p\u00e9dale C",
+  "expected_segments_min": 4,
+  "expected_segments_max": 4,
+  "expected_chords": [
+    "Cmaj7",
+    "C"
+  ],
+  "absorb_internal": true,
+  "segments": [
+    {
+      "start_time": 0.0,
+      "end_time": 2.0,
+      "root": "C",
+      "quality": "maj7",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "B3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        11
+      ],
+      "kind": "arpeggio",
+      "absorb": true,
+      "expected": "absorb_internal"
+    },
+    {
+      "start_time": 2.0,
+      "end_time": 4.0,
+      "root": "C",
+      "quality": "maj7",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "B3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        11
+      ],
+      "kind": "arpeggio",
+      "absorb": true,
+      "expected": "absorb_internal"
+    },
+    {
+      "start_time": 4.0,
+      "end_time": 6.0,
+      "root": "C",
+      "quality": "maj7",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "B3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        11
+      ],
+      "kind": "arpeggio",
+      "absorb": true,
+      "expected": "absorb_internal"
+    },
+    {
+      "start_time": 6.0,
+      "end_time": 8.0,
+      "root": "C",
+      "quality": "maj7",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "B3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        11
+      ],
+      "kind": "arpeggio",
+      "absorb": true,
+      "expected": "absorb_internal"
+    }
+  ]
+}

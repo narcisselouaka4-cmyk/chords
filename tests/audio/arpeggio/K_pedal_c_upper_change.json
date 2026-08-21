@@ -1,0 +1,183 @@
+{
+  "file": "K_pedal_c_upper_change.wav",
+  "sr": 22050,
+  "bpm": 120,
+  "chord_duration": 1.0,
+  "repeats": 4,
+  "description": "P\u00e9dale C avec changement r\u00e9el des voix sup\u00e9rieures (C -> Am)",
+  "expected_segments_min": 8,
+  "expected_segments_max": 8,
+  "expected_chords": [
+    "C",
+    "Am",
+    "C",
+    "Am",
+    "C",
+    "Am",
+    "C",
+    "Am"
+  ],
+  "absorb_internal": false,
+  "segments": [
+    {
+      "start_time": 0.0,
+      "end_time": 1.0,
+      "root": "C",
+      "quality": "major",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ],
+      "kind": "chord",
+      "absorb": false,
+      "expected": "keep"
+    },
+    {
+      "start_time": 1.0,
+      "end_time": 2.0,
+      "root": "A",
+      "quality": "minor",
+      "bass": "C2",
+      "upper_notes": [
+        "A3",
+        "C4",
+        "E4"
+      ],
+      "intervals": [
+        0,
+        3,
+        7
+      ],
+      "kind": "chord",
+      "absorb": false,
+      "expected": "keep_upper_change"
+    },
+    {
+      "start_time": 2.0,
+      "end_time": 3.0,
+      "root": "C",
+      "quality": "major",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ],
+      "kind": "chord",
+      "absorb": false,
+      "expected": "keep"
+    },
+    {
+      "start_time": 3.0,
+      "end_time": 4.0,
+      "root": "A",
+      "quality": "minor",
+      "bass": "C2",
+      "upper_notes": [
+        "A3",
+        "C4",
+        "E4"
+      ],
+      "intervals": [
+        0,
+        3,
+        7
+      ],
+      "kind": "chord",
+      "absorb": false,
+      "expected": "keep_upper_change"
+    },
+    {
+      "start_time": 4.0,
+      "end_time": 5.0,
+      "root": "C",
+      "quality": "major",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ],
+      "kind": "chord",
+      "absorb": false,
+      "expected": "keep"
+    },
+    {
+      "start_time": 5.0,
+      "end_time": 6.0,
+      "root": "A",
+      "quality": "minor",
+      "bass": "C2",
+      "upper_notes": [
+        "A3",
+        "C4",
+        "E4"
+      ],
+      "intervals": [
+        0,
+        3,
+        7
+      ],
+      "kind": "chord",
+      "absorb": false,
+      "expected": "keep_upper_change"
+    },
+    {
+      "start_time": 6.0,
+      "end_time": 7.0,
+      "root": "C",
+      "quality": "major",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ],
+      "kind": "chord",
+      "absorb": false,
+      "expected": "keep"
+    },
+    {
+      "start_time": 7.0,
+      "end_time": 8.0,
+      "root": "A",
+      "quality": "minor",
+      "bass": "C2",
+      "upper_notes": [
+        "A3",
+        "C4",
+        "E4"
+      ],
+      "intervals": [
+        0,
+        3,
+        7
+      ],
+      "kind": "chord",
+      "absorb": false,
+      "expected": "keep_upper_change"
+    }
+  ]
+}

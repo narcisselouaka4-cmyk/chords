@@ -1,0 +1,208 @@
+{
+  "file": "P_real_cell_bde_am.wav",
+  "sr": 22050,
+  "bpm": 120,
+  "chord_duration": 1.0,
+  "repeats": 4,
+  "description": "Cellule r\u00e9elle : G/B + voix B-D-E mobiles + Am",
+  "expected_segments_min": 8,
+  "expected_segments_max": 8,
+  "expected_chords": [
+    [
+      "G",
+      "G/B",
+      "Em7/B",
+      "G6/B",
+      "Cmaj7/B"
+    ],
+    "Am",
+    [
+      "G",
+      "G/B",
+      "Em7/B",
+      "G6/B",
+      "Cmaj7/B"
+    ],
+    "Am",
+    [
+      "G",
+      "G/B",
+      "Em7/B",
+      "G6/B",
+      "Cmaj7/B"
+    ],
+    "Am",
+    [
+      "G",
+      "G/B",
+      "Em7/B",
+      "G6/B",
+      "Cmaj7/B"
+    ],
+    "Am"
+  ],
+  "absorb_internal": true,
+  "forbidden_succession": [
+    "Bm7",
+    "Em7",
+    "Bm"
+  ],
+  "segments": [
+    {
+      "start_time": 0.0,
+      "end_time": 2.0,
+      "root": "",
+      "quality": "",
+      "bass": "B2",
+      "upper_notes": [
+        "G3",
+        "D4",
+        "B3",
+        "D4",
+        "E4",
+        "D4"
+      ],
+      "intervals": [],
+      "kind": "real_cell_arpeggio",
+      "absorb": true,
+      "expected": "absorb_no_bde_split"
+    },
+    {
+      "start_time": 2.0,
+      "end_time": 3.0,
+      "root": "A",
+      "quality": "minor",
+      "bass": "A2",
+      "upper_notes": [
+        "A3",
+        "C4",
+        "E4"
+      ],
+      "intervals": [
+        0,
+        3,
+        7
+      ],
+      "kind": "chord",
+      "absorb": false,
+      "expected": "keep"
+    },
+    {
+      "start_time": 3.0,
+      "end_time": 5.0,
+      "root": "",
+      "quality": "",
+      "bass": "B2",
+      "upper_notes": [
+        "G3",
+        "D4",
+        "B3",
+        "D4",
+        "E4",
+        "D4"
+      ],
+      "intervals": [],
+      "kind": "real_cell_arpeggio",
+      "absorb": true,
+      "expected": "absorb_no_bde_split"
+    },
+    {
+      "start_time": 5.0,
+      "end_time": 6.0,
+      "root": "A",
+      "quality": "minor",
+      "bass": "A2",
+      "upper_notes": [
+        "A3",
+        "C4",
+        "E4"
+      ],
+      "intervals": [
+        0,
+        3,
+        7
+      ],
+      "kind": "chord",
+      "absorb": false,
+      "expected": "keep"
+    },
+    {
+      "start_time": 6.0,
+      "end_time": 8.0,
+      "root": "",
+      "quality": "",
+      "bass": "B2",
+      "upper_notes": [
+        "G3",
+        "D4",
+        "B3",
+        "D4",
+        "E4",
+        "D4"
+      ],
+      "intervals": [],
+      "kind": "real_cell_arpeggio",
+      "absorb": true,
+      "expected": "absorb_no_bde_split"
+    },
+    {
+      "start_time": 8.0,
+      "end_time": 9.0,
+      "root": "A",
+      "quality": "minor",
+      "bass": "A2",
+      "upper_notes": [
+        "A3",
+        "C4",
+        "E4"
+      ],
+      "intervals": [
+        0,
+        3,
+        7
+      ],
+      "kind": "chord",
+      "absorb": false,
+      "expected": "keep"
+    },
+    {
+      "start_time": 9.0,
+      "end_time": 11.0,
+      "root": "",
+      "quality": "",
+      "bass": "B2",
+      "upper_notes": [
+        "G3",
+        "D4",
+        "B3",
+        "D4",
+        "E4",
+        "D4"
+      ],
+      "intervals": [],
+      "kind": "real_cell_arpeggio",
+      "absorb": true,
+      "expected": "absorb_no_bde_split"
+    },
+    {
+      "start_time": 11.0,
+      "end_time": 12.0,
+      "root": "A",
+      "quality": "minor",
+      "bass": "A2",
+      "upper_notes": [
+        "A3",
+        "C4",
+        "E4"
+      ],
+      "intervals": [
+        0,
+        3,
+        7
+      ],
+      "kind": "chord",
+      "absorb": false,
+      "expected": "keep"
+    }
+  ]
+}
