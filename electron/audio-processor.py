@@ -406,6 +406,11 @@ ENABLE_SIMPLE_CHORD_VOCABULARY = True
 # défaut (conservateur, opt-in).
 ENABLE_REPEATED_PROGRESSION_REGULARIZATION = False
 
+# Active la détection de boucle structurelle vs accords de passage.
+# Couche additive purement informative : ajoute un champ `role` aux segments
+# (`structural`, `passing`, `unreliable`) sans modifier l'accord affiché.
+ENABLE_STRUCTURAL_LOOP_DETECTION = True
+
 SIMPLE_ALLOWED_SUFFIXES = {'', 'm', 'maj7', 'm7', '7', 'dim', 'dim7', 'aug', 'aug7'}
 SIMPLE_MAJOR_FAMILY = {'', 'maj7', '7', 'sus2', 'sus4', 'aug', 'aug7'}
 SIMPLE_MINOR_FAMILY = {'m', 'm7', 'dim', 'dim7', 'm7b5'}
@@ -2813,6 +2818,102 @@ def _absorb_vi_parasites(segments, key, max_parasite_dur=2.5,
     return final
 
 
+def _detect_structural_loop(segments, key,
+                            coverage_threshold=0.80,
+                            n_top_roots=4,
+                            diatonic_bonus=5.0):
+    """Annote chaque segment avec un champ `role` (structural/unreliable).
+
+    Couche très conservative : si un morceau est dominé par une boucle simple
+    de 4 accords, ces accords sont marqués `structural` et tout le reste est
+    `unreliable`. Aucune tentative de détection d'accords de passage ici,
+    pour éviter les faux positifs.
+
+    La boucle structurelle est déduite des accords les plus couverts
+    temporellement, avec un bonus pour les accords diatoniques complets
+    (fondamentale + qualité attendue) en majeur : I, ii, iii, IV, V, vi.
+    """
+    if not ENABLE_STRUCTURAL_LOOP_DETECTION or not key or not segments:
+        return segments
+
+    key_pc = key['pc']
+
+    # Degrés diatoniques en majeur avec la qualité attendue.
+    # suffixe vide = majeur, 'm' = mineur, 'dim' = diminué.
+    diatonic_degrees = {
+        (key_pc + 0) % 12: '',      # I   : majeur
+        (key_pc + 2) % 12: 'm',     # ii  : mineur
+        (key_pc + 4) % 12: 'm',     # iii : mineur
+        (key_pc + 5) % 12: '',      # IV  : majeur
+        (key_pc + 7) % 12: '',      # V   : majeur
+        (key_pc + 9) % 12: 'm',     # vi  : mineur
+        (key_pc + 11) % 12: 'dim',  # vii°: diminué
+    }
+
+    def is_diatonic(root, suffix):
+        if root is None:
+            return False
+        expected = diatonic_degrees.get(root % 12)
+        if expected is None:
+            return False
+        # Accepte la qualité exacte ou sa famille proche (7 pour majeur/mineur).
+        if expected == '':
+            return suffix in ('', '7', 'maj7', 'sus2', 'sus4')
+        if expected == 'm':
+            return suffix in ('m', 'm7')
+        if expected == 'dim':
+            return suffix in ('dim', 'dim7', 'm7b5')
+        return suffix == expected
+
+    # Durée cumulée par accord diatonique (root + suffix exact).
+    chord_dur = {}
+    for seg in segments:
+        if seg.get('chord') == 'N':
+            continue
+        root, suffix = _parse_chord_label(seg['chord'])
+        if root is None or not is_diatonic(root, suffix):
+            continue
+        token = (root, suffix)
+        chord_dur[token] = chord_dur.get(token, 0.0) + (seg['endTime'] - seg['startTime'])
+
+    total_dur = sum(seg['endTime'] - seg['startTime'] for seg in segments if seg.get('chord') != 'N')
+    if total_dur <= 0 or not chord_dur:
+        for seg in segments:
+            seg['role'] = 'structural'
+        return segments
+
+    def chord_score(token):
+        root, suffix = token
+        score = chord_dur[token]
+        # Bonus diatonique (fondamentale dans les degrés naturels).
+        if (root % 12) in diatonic_degrees:
+            score += diatonic_bonus
+        return score
+
+    # Sélectionner les top-N accords diatoniques.
+    ranked = sorted(chord_dur.keys(), key=lambda t: -chord_score(t))
+    structural_chords = set(ranked[:n_top_roots])
+    covered = sum(chord_dur.get(t, 0.0) for t in structural_chords)
+
+    # Pas de boucle clairement dominante : tout est structural par défaut.
+    if covered < coverage_threshold * total_dur:
+        for seg in segments:
+            seg['role'] = 'structural'
+        return segments
+
+    for seg in segments:
+        if seg.get('chord') == 'N':
+            seg['role'] = 'structural'
+            continue
+        root, suffix = _parse_chord_label(seg['chord'])
+        if root is None:
+            seg['role'] = 'unreliable'
+            continue
+        seg['role'] = 'structural' if (root, suffix) in structural_chords else 'unreliable'
+
+    return segments
+
+
 # [OpenCode] — 2026-08-21 — Régularisation des progressions répétitives
 # (mission refrain/couplet "You Are Yahweh").
 # Couche additive qui régularise les longues tenues d'un accord I (tonique)
@@ -3727,6 +3828,11 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
                         segments, key, states, beat_chroma, beat_times=beat_times)
                     if debug:
                         _log_seg_stage("after _regularize_repeated_progression", segments, states)
+                # Détection structurelle vs accords de passage (informationnelle).
+                if ENABLE_SIMPLE_CHORD_VOCABULARY and ENABLE_STRUCTURAL_LOOP_DETECTION:
+                    segments = _detect_structural_loop(segments, key)
+                    if debug:
+                        _log_seg_stage("after _detect_structural_loop", segments, states)
             segments = _clean_segments(segments, min_duration=0.4, silence_min=1.2)
             if debug:
                 _log_seg_stage("after _clean_segments", segments, states)
@@ -3762,7 +3868,7 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
         structural_chord = seg.get("structural_chord", seg["chord"]) # par défaut, l'accord brut si non agrégué
         display_chord = seg["chord"] # l'accord brut ou celui de l'aggrégation
 
-        chords.append({
+        chord_entry = {
             "startTime": round(seg["startTime"], 3),
             "endTime": round(seg["endTime"], 3),
             "chord": display_chord,
@@ -3775,7 +3881,10 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
             "suggestions": seg.get("suggestions", []),
             "reharmonizations": seg.get("reharmonizations", []),
             "voiceLeading": seg.get("voiceLeading", {})
-        })
+        }
+        if "role" in seg:
+            chord_entry["role"] = seg["role"]
+        chords.append(chord_entry)
         if diagnostics is not None:
             diag = _segment_diagnostic(seg, states, obs_scores, beat_chroma, beat_times, key)
             if diag is not None:
