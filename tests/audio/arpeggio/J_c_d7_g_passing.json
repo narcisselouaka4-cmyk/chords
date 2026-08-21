@@ -1,0 +1,271 @@
+{
+  "file": "J_c_d7_g_passing.wav",
+  "sr": 22050,
+  "bpm": 120,
+  "chord_duration": 0.5,
+  "repeats": 4,
+  "description": "C 2 temps -> D7 passage 1 temps -> G 1 temps",
+  "expected_segments_min": 12,
+  "expected_segments_max": 12,
+  "expected_chords": [
+    "C",
+    "D7",
+    "G",
+    "C",
+    "D7",
+    "G",
+    "C",
+    "D7",
+    "G",
+    "C",
+    "D7",
+    "G"
+  ],
+  "absorb_internal": false,
+  "segments": [
+    {
+      "start_time": 0.0,
+      "end_time": 1.0,
+      "root": "C",
+      "quality": "major",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ],
+      "kind": "chord",
+      "absorb": false,
+      "expected": "keep"
+    },
+    {
+      "start_time": 1.0,
+      "end_time": 1.5,
+      "root": "D",
+      "quality": "7",
+      "bass": "D2",
+      "upper_notes": [
+        "F3",
+        "A3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        10
+      ],
+      "kind": "passing",
+      "absorb": false,
+      "expected": "keep"
+    },
+    {
+      "start_time": 1.5,
+      "end_time": 2.0,
+      "root": "G",
+      "quality": "major",
+      "bass": "G2",
+      "upper_notes": [
+        "B3",
+        "D4",
+        "G4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ],
+      "kind": "chord",
+      "absorb": false,
+      "expected": "keep"
+    },
+    {
+      "start_time": 2.0,
+      "end_time": 3.0,
+      "root": "C",
+      "quality": "major",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ],
+      "kind": "chord",
+      "absorb": false,
+      "expected": "keep"
+    },
+    {
+      "start_time": 3.0,
+      "end_time": 3.5,
+      "root": "D",
+      "quality": "7",
+      "bass": "D2",
+      "upper_notes": [
+        "F3",
+        "A3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        10
+      ],
+      "kind": "passing",
+      "absorb": false,
+      "expected": "keep"
+    },
+    {
+      "start_time": 3.5,
+      "end_time": 4.0,
+      "root": "G",
+      "quality": "major",
+      "bass": "G2",
+      "upper_notes": [
+        "B3",
+        "D4",
+        "G4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ],
+      "kind": "chord",
+      "absorb": false,
+      "expected": "keep"
+    },
+    {
+      "start_time": 4.0,
+      "end_time": 5.0,
+      "root": "C",
+      "quality": "major",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ],
+      "kind": "chord",
+      "absorb": false,
+      "expected": "keep"
+    },
+    {
+      "start_time": 5.0,
+      "end_time": 5.5,
+      "root": "D",
+      "quality": "7",
+      "bass": "D2",
+      "upper_notes": [
+        "F3",
+        "A3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        10
+      ],
+      "kind": "passing",
+      "absorb": false,
+      "expected": "keep"
+    },
+    {
+      "start_time": 5.5,
+      "end_time": 6.0,
+      "root": "G",
+      "quality": "major",
+      "bass": "G2",
+      "upper_notes": [
+        "B3",
+        "D4",
+        "G4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ],
+      "kind": "chord",
+      "absorb": false,
+      "expected": "keep"
+    },
+    {
+      "start_time": 6.0,
+      "end_time": 7.0,
+      "root": "C",
+      "quality": "major",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ],
+      "kind": "chord",
+      "absorb": false,
+      "expected": "keep"
+    },
+    {
+      "start_time": 7.0,
+      "end_time": 7.5,
+      "root": "D",
+      "quality": "7",
+      "bass": "D2",
+      "upper_notes": [
+        "F3",
+        "A3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        10
+      ],
+      "kind": "passing",
+      "absorb": false,
+      "expected": "keep"
+    },
+    {
+      "start_time": 7.5,
+      "end_time": 8.0,
+      "root": "G",
+      "quality": "major",
+      "bass": "G2",
+      "upper_notes": [
+        "B3",
+        "D4",
+        "G4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ],
+      "kind": "chord",
+      "absorb": false,
+      "expected": "keep"
+    }
+  ]
+}

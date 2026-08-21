@@ -1,0 +1,117 @@
+{
+  "file": "L_walking_bass_cmaj7.wav",
+  "sr": 22050,
+  "bpm": 120,
+  "chord_duration": 2.0,
+  "repeats": 4,
+  "description": "Basse mobile interne \u00e0 Cmaj7 (walking C-E-G-B)",
+  "expected_segments_min": 4,
+  "expected_segments_max": 4,
+  "expected_chords": [
+    "Cmaj7",
+    "C"
+  ],
+  "absorb_internal": true,
+  "segments": [
+    {
+      "start_time": 0.0,
+      "end_time": 2.0,
+      "root": "C",
+      "quality": "maj7",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "B3",
+        "C2",
+        "E2",
+        "G2",
+        "B2"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        11
+      ],
+      "kind": "walking_bass",
+      "absorb": true,
+      "expected": "absorb_internal"
+    },
+    {
+      "start_time": 2.0,
+      "end_time": 4.0,
+      "root": "C",
+      "quality": "maj7",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "B3",
+        "C2",
+        "E2",
+        "G2",
+        "B2"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        11
+      ],
+      "kind": "walking_bass",
+      "absorb": true,
+      "expected": "absorb_internal"
+    },
+    {
+      "start_time": 4.0,
+      "end_time": 6.0,
+      "root": "C",
+      "quality": "maj7",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "B3",
+        "C2",
+        "E2",
+        "G2",
+        "B2"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        11
+      ],
+      "kind": "walking_bass",
+      "absorb": true,
+      "expected": "absorb_internal"
+    },
+    {
+      "start_time": 6.0,
+      "end_time": 8.0,
+      "root": "C",
+      "quality": "maj7",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "B3",
+        "C2",
+        "E2",
+        "G2",
+        "B2"
+      ],
+      "intervals": [
+        0,
+        4,
+        7,
+        11
+      ],
+      "kind": "walking_bass",
+      "absorb": true,
+      "expected": "absorb_internal"
+    }
+  ]
+}

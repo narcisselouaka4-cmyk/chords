@@ -1,0 +1,183 @@
+{
+  "file": "M_csus4_to_c.wav",
+  "sr": 22050,
+  "bpm": 120,
+  "chord_duration": 1.0,
+  "repeats": 4,
+  "description": "Csus4 -> C, r\u00e9solution pr\u00e9serv\u00e9e",
+  "expected_segments_min": 8,
+  "expected_segments_max": 8,
+  "expected_chords": [
+    "Csus4",
+    "C",
+    "Csus4",
+    "C",
+    "Csus4",
+    "C",
+    "Csus4",
+    "C"
+  ],
+  "absorb_internal": false,
+  "segments": [
+    {
+      "start_time": 0.0,
+      "end_time": 1.0,
+      "root": "C",
+      "quality": "sus4",
+      "bass": "C2",
+      "upper_notes": [
+        "F3",
+        "G3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        5,
+        7
+      ],
+      "kind": "chord",
+      "absorb": false,
+      "expected": "keep"
+    },
+    {
+      "start_time": 1.0,
+      "end_time": 2.0,
+      "root": "C",
+      "quality": "major",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ],
+      "kind": "chord",
+      "absorb": false,
+      "expected": "keep"
+    },
+    {
+      "start_time": 2.0,
+      "end_time": 3.0,
+      "root": "C",
+      "quality": "sus4",
+      "bass": "C2",
+      "upper_notes": [
+        "F3",
+        "G3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        5,
+        7
+      ],
+      "kind": "chord",
+      "absorb": false,
+      "expected": "keep"
+    },
+    {
+      "start_time": 3.0,
+      "end_time": 4.0,
+      "root": "C",
+      "quality": "major",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ],
+      "kind": "chord",
+      "absorb": false,
+      "expected": "keep"
+    },
+    {
+      "start_time": 4.0,
+      "end_time": 5.0,
+      "root": "C",
+      "quality": "sus4",
+      "bass": "C2",
+      "upper_notes": [
+        "F3",
+        "G3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        5,
+        7
+      ],
+      "kind": "chord",
+      "absorb": false,
+      "expected": "keep"
+    },
+    {
+      "start_time": 5.0,
+      "end_time": 6.0,
+      "root": "C",
+      "quality": "major",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ],
+      "kind": "chord",
+      "absorb": false,
+      "expected": "keep"
+    },
+    {
+      "start_time": 6.0,
+      "end_time": 7.0,
+      "root": "C",
+      "quality": "sus4",
+      "bass": "C2",
+      "upper_notes": [
+        "F3",
+        "G3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        5,
+        7
+      ],
+      "kind": "chord",
+      "absorb": false,
+      "expected": "keep"
+    },
+    {
+      "start_time": 7.0,
+      "end_time": 8.0,
+      "root": "C",
+      "quality": "major",
+      "bass": "C2",
+      "upper_notes": [
+        "E3",
+        "G3",
+        "C4"
+      ],
+      "intervals": [
+        0,
+        4,
+        7
+      ],
+      "kind": "chord",
+      "absorb": false,
+      "expected": "keep"
+    }
+  ]
+}

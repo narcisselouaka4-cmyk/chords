@@ -8,6 +8,7 @@ import {
   saveOriginal,
   saveMetadata,
   deleteTrack,
+  renameTrack,
   findExistingTrack,
   registerInIndex,
   findTrackByName,
@@ -19,6 +20,7 @@ export {
   getOriginalPath,
   readOriginalAsBlobUrl,
   deleteTrack,
+  renameTrack,
 };
 
 /**
