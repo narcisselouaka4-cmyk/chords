@@ -19,3 +19,4 @@ __pycache__/*-pytest-*.pyc
 # `python3 scripts/corpus_b1.py generate`. Les .mid et .json de vérité terrain,
 # eux, sont suivis : ce sont eux qui définissent le corpus.
 tests/corpus/b1/*.wav
+tests/corpus/b2/*.wav

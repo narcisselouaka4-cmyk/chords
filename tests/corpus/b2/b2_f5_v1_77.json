@@ -1,0 +1,93 @@
+{
+  "caseId": "b2_f5_v1_77",
+  "battery": "B2",
+  "family": "f5",
+  "familyLabel": "silences",
+  "key": "C",
+  "tempo": 77.0,
+  "duration": 31.168832,
+  "status": "exact",
+  "source": "Audio rendu depuis cette grille. La vérité terrain n’est pas une annotation : c’est ce qui a servi à produire le son.",
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 2.337662,
+      "chord": "C:maj"
+    },
+    {
+      "start": 2.337662,
+      "end": 3.896104,
+      "chord": "N"
+    },
+    {
+      "start": 3.896104,
+      "end": 6.233766,
+      "chord": "A:min"
+    },
+    {
+      "start": 6.233766,
+      "end": 7.792208,
+      "chord": "N"
+    },
+    {
+      "start": 7.792208,
+      "end": 10.12987,
+      "chord": "F:maj"
+    },
+    {
+      "start": 10.12987,
+      "end": 11.688312,
+      "chord": "N"
+    },
+    {
+      "start": 11.688312,
+      "end": 14.025974,
+      "chord": "G:maj"
+    },
+    {
+      "start": 14.025974,
+      "end": 15.584416,
+      "chord": "N"
+    },
+    {
+      "start": 15.584416,
+      "end": 17.922078,
+      "chord": "C:maj"
+    },
+    {
+      "start": 17.922078,
+      "end": 19.48052,
+      "chord": "N"
+    },
+    {
+      "start": 19.48052,
+      "end": 21.818182,
+      "chord": "A:min"
+    },
+    {
+      "start": 21.818182,
+      "end": 23.376624,
+      "chord": "N"
+    },
+    {
+      "start": 23.376624,
+      "end": 25.714286,
+      "chord": "F:maj"
+    },
+    {
+      "start": 25.714286,
+      "end": 27.272728,
+      "chord": "N"
+    },
+    {
+      "start": 27.272728,
+      "end": 29.61039,
+      "chord": "G:maj"
+    },
+    {
+      "start": 29.61039,
+      "end": 31.168832,
+      "chord": "N"
+    }
+  ]
+}

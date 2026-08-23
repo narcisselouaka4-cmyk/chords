@@ -1,0 +1,53 @@
+{
+  "caseId": "b2_f4_v4_100",
+  "battery": "B2",
+  "family": "f4",
+  "familyLabel": "arpège",
+  "key": "A",
+  "tempo": 100.0,
+  "duration": 19.2,
+  "status": "exact",
+  "source": "Audio rendu depuis cette grille. La vérité terrain n’est pas une annotation : c’est ce qui a servi à produire le son.",
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 2.4,
+      "chord": "D:maj"
+    },
+    {
+      "start": 2.4,
+      "end": 4.8,
+      "chord": "A:maj"
+    },
+    {
+      "start": 4.8,
+      "end": 7.2,
+      "chord": "E:maj"
+    },
+    {
+      "start": 7.2,
+      "end": 9.6,
+      "chord": "F#:min"
+    },
+    {
+      "start": 9.6,
+      "end": 12.0,
+      "chord": "D:maj"
+    },
+    {
+      "start": 12.0,
+      "end": 14.4,
+      "chord": "A:maj"
+    },
+    {
+      "start": 14.4,
+      "end": 16.8,
+      "chord": "E:maj"
+    },
+    {
+      "start": 16.8,
+      "end": 19.2,
+      "chord": "F#:min"
+    }
+  ]
+}

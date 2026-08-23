@@ -1,0 +1,249 @@
+{
+  "battery": "B2",
+  "soundfont": "/usr/share/sounds/sf2/FluidR3_GM.sf2",
+  "families": [
+    {
+      "id": "f1",
+      "label": "pédale de basse"
+    },
+    {
+      "id": "f2",
+      "label": "quinte dominante"
+    },
+    {
+      "id": "f3",
+      "label": "walking bass"
+    },
+    {
+      "id": "f4",
+      "label": "arpège"
+    },
+    {
+      "id": "f5",
+      "label": "silences"
+    },
+    {
+      "id": "f6",
+      "label": "pédale + progression"
+    }
+  ],
+  "generated": "2026-08-23T21:52:53",
+  "cases": [
+    {
+      "caseId": "b2_f1_v1_77",
+      "family": "f1",
+      "familyLabel": "pédale de basse",
+      "key": "C",
+      "tempo": 77,
+      "duration": 24.94,
+      "wav": "tests/corpus/b2/b2_f1_v1_77.wav"
+    },
+    {
+      "caseId": "b2_f1_v2_100",
+      "family": "f1",
+      "familyLabel": "pédale de basse",
+      "key": "C",
+      "tempo": 100,
+      "duration": 19.2,
+      "wav": "tests/corpus/b2/b2_f1_v2_100.wav"
+    },
+    {
+      "caseId": "b2_f1_v3_77",
+      "family": "f1",
+      "familyLabel": "pédale de basse",
+      "key": "A",
+      "tempo": 77,
+      "duration": 24.94,
+      "wav": "tests/corpus/b2/b2_f1_v3_77.wav"
+    },
+    {
+      "caseId": "b2_f1_v4_100",
+      "family": "f1",
+      "familyLabel": "pédale de basse",
+      "key": "A",
+      "tempo": 100,
+      "duration": 19.2,
+      "wav": "tests/corpus/b2/b2_f1_v4_100.wav"
+    },
+    {
+      "caseId": "b2_f2_v1_77",
+      "family": "f2",
+      "familyLabel": "quinte dominante",
+      "key": "C",
+      "tempo": 77,
+      "duration": 24.94,
+      "wav": "tests/corpus/b2/b2_f2_v1_77.wav"
+    },
+    {
+      "caseId": "b2_f2_v2_100",
+      "family": "f2",
+      "familyLabel": "quinte dominante",
+      "key": "C",
+      "tempo": 100,
+      "duration": 19.2,
+      "wav": "tests/corpus/b2/b2_f2_v2_100.wav"
+    },
+    {
+      "caseId": "b2_f2_v3_77",
+      "family": "f2",
+      "familyLabel": "quinte dominante",
+      "key": "A",
+      "tempo": 77,
+      "duration": 24.94,
+      "wav": "tests/corpus/b2/b2_f2_v3_77.wav"
+    },
+    {
+      "caseId": "b2_f2_v4_100",
+      "family": "f2",
+      "familyLabel": "quinte dominante",
+      "key": "A",
+      "tempo": 100,
+      "duration": 19.2,
+      "wav": "tests/corpus/b2/b2_f2_v4_100.wav"
+    },
+    {
+      "caseId": "b2_f3_v1_77",
+      "family": "f3",
+      "familyLabel": "walking bass",
+      "key": "C",
+      "tempo": 77,
+      "duration": 24.94,
+      "wav": "tests/corpus/b2/b2_f3_v1_77.wav"
+    },
+    {
+      "caseId": "b2_f3_v2_100",
+      "family": "f3",
+      "familyLabel": "walking bass",
+      "key": "C",
+      "tempo": 100,
+      "duration": 19.2,
+      "wav": "tests/corpus/b2/b2_f3_v2_100.wav"
+    },
+    {
+      "caseId": "b2_f3_v3_77",
+      "family": "f3",
+      "familyLabel": "walking bass",
+      "key": "A",
+      "tempo": 77,
+      "duration": 24.94,
+      "wav": "tests/corpus/b2/b2_f3_v3_77.wav"
+    },
+    {
+      "caseId": "b2_f3_v4_100",
+      "family": "f3",
+      "familyLabel": "walking bass",
+      "key": "A",
+      "tempo": 100,
+      "duration": 19.2,
+      "wav": "tests/corpus/b2/b2_f3_v4_100.wav"
+    },
+    {
+      "caseId": "b2_f4_v1_77",
+      "family": "f4",
+      "familyLabel": "arpège",
+      "key": "C",
+      "tempo": 77,
+      "duration": 24.94,
+      "wav": "tests/corpus/b2/b2_f4_v1_77.wav"
+    },
+    {
+      "caseId": "b2_f4_v2_100",
+      "family": "f4",
+      "familyLabel": "arpège",
+      "key": "C",
+      "tempo": 100,
+      "duration": 19.2,
+      "wav": "tests/corpus/b2/b2_f4_v2_100.wav"
+    },
+    {
+      "caseId": "b2_f4_v3_77",
+      "family": "f4",
+      "familyLabel": "arpège",
+      "key": "A",
+      "tempo": 77,
+      "duration": 24.94,
+      "wav": "tests/corpus/b2/b2_f4_v3_77.wav"
+    },
+    {
+      "caseId": "b2_f4_v4_100",
+      "family": "f4",
+      "familyLabel": "arpège",
+      "key": "A",
+      "tempo": 100,
+      "duration": 19.2,
+      "wav": "tests/corpus/b2/b2_f4_v4_100.wav"
+    },
+    {
+      "caseId": "b2_f5_v1_77",
+      "family": "f5",
+      "familyLabel": "silences",
+      "key": "C",
+      "tempo": 77,
+      "duration": 31.17,
+      "wav": "tests/corpus/b2/b2_f5_v1_77.wav"
+    },
+    {
+      "caseId": "b2_f5_v2_100",
+      "family": "f5",
+      "familyLabel": "silences",
+      "key": "C",
+      "tempo": 100,
+      "duration": 24.0,
+      "wav": "tests/corpus/b2/b2_f5_v2_100.wav"
+    },
+    {
+      "caseId": "b2_f5_v3_77",
+      "family": "f5",
+      "familyLabel": "silences",
+      "key": "A",
+      "tempo": 77,
+      "duration": 31.17,
+      "wav": "tests/corpus/b2/b2_f5_v3_77.wav"
+    },
+    {
+      "caseId": "b2_f5_v4_100",
+      "family": "f5",
+      "familyLabel": "silences",
+      "key": "A",
+      "tempo": 100,
+      "duration": 24.0,
+      "wav": "tests/corpus/b2/b2_f5_v4_100.wav"
+    },
+    {
+      "caseId": "b2_f6_v1_77",
+      "family": "f6",
+      "familyLabel": "pédale + progression",
+      "key": "C",
+      "tempo": 77,
+      "duration": 24.94,
+      "wav": "tests/corpus/b2/b2_f6_v1_77.wav"
+    },
+    {
+      "caseId": "b2_f6_v2_100",
+      "family": "f6",
+      "familyLabel": "pédale + progression",
+      "key": "C",
+      "tempo": 100,
+      "duration": 19.2,
+      "wav": "tests/corpus/b2/b2_f6_v2_100.wav"
+    },
+    {
+      "caseId": "b2_f6_v3_77",
+      "family": "f6",
+      "familyLabel": "pédale + progression",
+      "key": "A",
+      "tempo": 77,
+      "duration": 24.94,
+      "wav": "tests/corpus/b2/b2_f6_v3_77.wav"
+    },
+    {
+      "caseId": "b2_f6_v4_100",
+      "family": "f6",
+      "familyLabel": "pédale + progression",
+      "key": "A",
+      "tempo": 100,
+      "duration": 19.2,
+      "wav": "tests/corpus/b2/b2_f6_v4_100.wav"
+    }
+  ]
+}
