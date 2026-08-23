@@ -1988,7 +1988,17 @@ def _stabilize_antiparasite(segments, key, states, beat_chroma,
 #
 # Conçu pour ne pas régresser sur les morceaux sans boucle : on exige une
 # dégradation claire du score de l'accord plat sur la fenêtre candidate.
-ENABLE_CHORUS_LOOP_REFINE = True
+# DÉSACTIVÉE le 2026-08-23 — mesurée sans effet.
+#
+# Écrite pour « You Are Yahweh » contre une vérité terrain décalée de 18 s (voir
+# EXP-009), elle valait alors +6 points sur ce seul morceau. Sur la mesure
+# assainie, ablation sur les deux corpus :
+#   corpus réel (5 morceaux) : +0,0 point
+#   batterie B1 (20 cas)     : +0,0 point
+#
+# Le code est conservé plutôt que supprimé : c'est une information historique,
+# et le flag suffit à la réactiver si un cas la justifie à nouveau.
+ENABLE_CHORUS_LOOP_REFINE = False
 
 
 def _refine_chorus_loops(segments, key, states, beat_chroma,
@@ -2152,7 +2162,15 @@ def _refine_chorus_loops(segments, key, states, beat_chroma,
 # beaucoup plus long, et le chroma global du début soutient nettement cet
 # accord structurel plutôt que la tonique. On fusionne alors ce "préfixe"
 # parasite dans l'accord d'intro.
-ENABLE_INTRO_PREFIX_FIX = True
+# DÉSACTIVÉE le 2026-08-23 — mesurée nuisible, faiblement.
+#
+# Même origine que _refine_chorus_loops : corriger un faux accord d'intro sur
+# « You Are Yahweh », contre une mesure fausse. Ablation :
+#   corpus réel (5 morceaux) : +0,0 point en la retirant
+#   batterie B1 (20 cas)     : +0,8 point en la retirant
+#
+# Elle ne corrige plus rien et coûte un peu. Code conservé, flag à False.
+ENABLE_INTRO_PREFIX_FIX = False
 
 
 def _fix_intro_prefix(segments, key, states, beat_chroma, max_prefix_dur=2.5):
