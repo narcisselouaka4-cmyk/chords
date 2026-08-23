@@ -6,7 +6,7 @@
   "validatedBy": "utilisateur",
   "source": "User-provided structural grid played on virtual MIDI keyboard",
   "key": "A",
-  "tempo": 51.7,
+  "tempo": null,
   "segments": [
     {
       "start": 18.09,
@@ -129,8 +129,8 @@
       "section": "chorus"
     }
   ],
-  "tempoConfidence": "utilisateur",
-  "tempoNote": "Adoration lente. Le 103.4 détecté correspond aux croches ; le pulse réel est la moitié.",
+  "tempoConfidence": "inconnu",
+  "tempoNote": "La valeur 51,7 précédemment inscrite ici venait de l'hypothèse que le pulse réel du morceau était la moitié du tempo détecté. L'utilisateur a infirmé cette hypothèse le 2026-08-23 : le tempo officiel est 107. Ce fichier étant un enregistrement live différent du tutoriel de référence, son tempo propre n'a pas été vérifié — laissé à null plutôt que supposé.",
   "annotatedRange": [
     18.09,
     93.09

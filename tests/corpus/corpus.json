@@ -4,12 +4,20 @@
   "metric": "chord_accuracy = fraction de la durée totale où l'accord détecté est exactement l'accord attendu (fondamentale + qualité), pondérée par la durée.",
   "tracks": [
     {
+      "id": "you-are-yahweh-tutorial",
+      "title": "You Are Yahweh — tutoriel piano Extreme Midi",
+      "genre": "gospel/worship (tutoriel piano)",
+      "media": "/home/visiteur/Téléchargements/Steve Crown - You are Yahwe  EASY PIANO TUTORIAL BY Extreme Midi.mp4",
+      "status": "validated",
+      "note": "Fichier de référence désigné par l'utilisateur. Ne pas le remplacer par un autre export de la même vidéo : un ré-encodage décale le point zéro de quelques images et fausse silencieusement les mesures de latence, qui se comptent en centaines de millisecondes."
+    },
+    {
       "id": "you-are-yahweh",
       "title": "You Are Yahweh — Steve Crown (live)",
       "genre": "gospel/worship",
       "media": "/home/visiteur/Musique/YOU ARE YAHWEH (LIVE) STEVE CROWN  #worship #stevecrown #yahweh   #trending #trendingvideo.mp3",
-      "status": "validated",
-      "note": "Grille structurelle fournie par l'utilisateur (A majeur, intro D-A-E-F#m, refrain E-D-A). Vérité terrain restreinte le 2026-08-23 à 0–75 s : au-delà, la grille avait été extrapolée mécaniquement et mesurait l'annotation."
+      "status": "provisional",
+      "note": "MP3 live. La vérité terrain de l'utilisateur est transcrite depuis le tutoriel MP4, pas depuis cet enregistrement : ce sont deux exécutions différentes. Conservé en provisoire pour le suivi de non-régression ; la référence de ce morceau est you-are-yahweh-tutorial."
     },
     {
       "id": "autumn-leaves-synth",
@@ -58,6 +66,14 @@
       "media": "/home/visiteur/piano-jazz-chords/data/real/ton_nom_est_jehovah_extrait.wav",
       "status": "provisional",
       "note": "Annotation héritée de tests/references/, provenance non tracée. À confirmer par l'utilisateur."
+    },
+    {
+      "id": "you-are-yahweh-tutorial-extrapole",
+      "title": "You Are Yahweh — tutoriel, boucle extrapolée",
+      "genre": "gospel/worship (tutoriel piano)",
+      "media": "/home/visiteur/Téléchargements/Steve Crown - You are Yahwe  EASY PIANO TUTORIAL BY Extreme Midi.mp4",
+      "status": "provisional",
+      "note": "Contrôle de l'hypothèse de boucle au-delà de 75 s. Jamais dans le chiffre de référence."
     }
   ],
   "statusLevels": {

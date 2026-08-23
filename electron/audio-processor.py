@@ -392,26 +392,28 @@ SIMPLE_TRIAD_FOR_SUFFIX = {
 ENABLE_TEMPO_OCTAVE_FIX = True
 
 # Tempo perceptif de référence : à périodicité comparable, l'auditeur choisit
-# l'octave la plus proche de cette valeur. Sert de prior pour arbitrer
-# moitié / réel / double.
+# l'octave la plus proche de cette valeur. Sert de prior pour arbitrer entre
+# les octaves candidates.
 #
-# ATTENTION — cette valeur n'est PAS la constante de la littérature (≈110 BPM,
-# établie sur du répertoire pop/rock). Elle est calibrée sur les tempos réels
-# du répertoire de l'application, fournis par l'utilisateur :
-#   You Are Yahweh 51.7 · Saint Esprit 77 (officiel) · Ton Nom est Jéhovah 53.8
-#   · Amazing Grace 71.8
-# Sur ces morceaux d'adoration, le suiveur de beats verrouille sur les croches
-# et annonce le double du pulse réel. Un prior à 110 BPM échouait sur 4 cas
-# sur 4 ; le plateau de configurations correctes s'étend de 40 à 72 BPM, d'où
-# la valeur centrale retenue.
+# HISTORIQUE — cette constante a valu 65.0, calibrée sur l'hypothèse que « You
+# Are Yahweh » tournait à 51,7 BPM. L'utilisateur a infirmé cette hypothèse le
+# 2026-08-23 : le tempo officiel du morceau est 107. La calibration reposait
+# donc sur une donnée fausse, et divisait par deux un tempo que librosa
+# trouvait déjà juste (107,7 brut).
 #
-# LIMITE CONNUE : ce réglage est ajusté à un répertoire lent. Sur du jazz
-# rapide il divisera à tort (Autumn Leaves ressort à 51.7 au lieu de 103.4).
-# Un prior par genre, ou une correction manuelle dans l'UI, sera nécessaire
-# pour couvrir les deux répertoires. Recalibrer via
-# benchmark_outputs/harmonic/calibrate_tempo.py après tout ajout au corpus.
-TEMPO_PERCEPTUAL_CENTER = 65.0
+# Retour à la valeur de la littérature. Vérifié sur les deux seuls tempos de
+# référence dont la provenance est traçable — You Are Yahweh 107 (utilisateur)
+# et Autumn Leaves 120 (exact par construction, rendu depuis MIDI) : les deux
+# ressortent exacts, et le résultat est insensible au centre entre 100 et 120
+# comme au sigma. Ce plateau large est le signe qu'on ne surajuste pas.
+TEMPO_PERCEPTUAL_CENTER = 110.0
 TEMPO_PRIOR_SIGMA = 0.7
+
+# Octaves candidates. Se limiter à moitié / réel / double ne suffit pas : sur
+# « Autumn Leaves » le suiveur verrouille sur la mesure et annonce 30 BPM pour
+# un morceau à 120 — le quart. Le vrai tempo était hors de portée des candidats
+# quel que soit le prior.
+TEMPO_OCTAVE_RATIOS = (0.25, 0.5, 1.0, 2.0, 4.0)
 
 ENABLE_CHORD_DOWNGRADE = True
 
@@ -537,8 +539,21 @@ ROLE_VOCABULARY_MIN_OCCURRENCES = 2
 # tenu deux mesures porte l'harmonie même s'il n'apparaît qu'une fois : c'est le
 # cas du F#m qui clôt l'intro de « You Are Yahweh » (4,6 s, une occurrence).
 ROLE_VOCABULARY_MIN_HELD_BEATS = 4.0
-# Un accord de passage n'excède pas cette durée, exprimée en temps.
-ROLE_PASSING_MAX_BEATS = 2.0
+# Un accord structurel doit AUSSI durer : porter la progression suppose d'être
+# tenu. Sans condition de durée, la règle « diatonique + récurrent » suffisait,
+# et des fragments de 0,56 s issus de la sur-segmentation étaient présentés
+# comme des piliers — 12 des 14 segments de moins d'une seconde de « You Are
+# Yahweh » étaient marqués structural, ce que l'utilisateur a vu immédiatement
+# à l'écran le 2026-08-23.
+#
+# Le seuil est une fraction de la durée MÉDIANE des segments du morceau, et non
+# un nombre de temps. Exprimé en temps, il dépendait de l'octave choisie par le
+# suiveur de beats : sur les fixtures où celui-ci verrouille sur la moitié du
+# pulse, le seuil doublait en secondes et déclassait des accords parfaitement
+# légitimes. La médiane, elle, se calibre sur ce que le morceau tient
+# réellement — « un pilier n'est pas nettement plus court que ce que ce morceau
+# tient d'habitude ».
+ROLE_STRUCTURAL_MIN_RATIO = 0.5
 
 ENABLE_STRUCTURAL_LOOP_DETECTION = True
 
@@ -722,7 +737,7 @@ def _resolve_tempo(y, sr, detected_tempo):
     # donc la grille double paraît aussi valide que la grille réelle. Le
     # critère qui tranche est perceptif : à périodicité comparable, l'oreille
     # choisit le tempo le plus proche d'environ 110 BPM.
-    candidates = [tempo / 2.0, tempo, tempo * 2.0]
+    candidates = [tempo * ratio for ratio in TEMPO_OCTAVE_RATIOS]
     best_tempo, best_score = tempo, -1.0
 
     for cand in candidates:
@@ -3177,31 +3192,41 @@ def _classify_chord_roles(segments, key, beat_dur=None):
             if _is_diatonic_chord(root, suffix, degrees):
                 vocabulary.add(chord)
 
-    # Première passe : les piliers.
+    # Première passe : les piliers. Trois conditions cumulatives — appartenir à
+    # la tonalité, appartenir au vocabulaire récurrent, et être tenu assez
+    # longtemps pour porter l'harmonie.
+    sounding = [float(seg['endTime'] - seg['startTime']) for seg in segments
+                if seg.get('chord') and seg['chord'] != 'N']
+    median_dur = float(np.median(sounding)) if sounding else 0.0
+    min_structural = ROLE_STRUCTURAL_MIN_RATIO * median_dur
     for seg in segments:
         chord = seg.get('chord')
         if not chord or chord == 'N':
             seg['role'] = 'silence'
             continue
+        dur = float(seg['endTime'] - seg['startTime'])
         root, suffix = _parse_chord_label(chord)
         diatonic = _is_diatonic_chord(root, suffix, degrees)
-        # Sans tonalité fiable, on ne prétend pas hiérarchiser : tout ce qui est
-        # récurrent est tenu pour structurel.
+        held = dur >= min_structural
+        # Sans tonalité fiable, on ne prétend pas hiérarchiser finement : tout ce
+        # qui est récurrent et tenu est admis comme structurel.
         if not degrees:
-            seg['role'] = 'structural' if chord in vocabulary else 'uncertain'
+            seg['role'] = 'structural' if (chord in vocabulary and held) else None
         else:
-            seg['role'] = 'structural' if (diatonic and chord in vocabulary) else None
+            seg['role'] = 'structural' if (diatonic and chord in vocabulary and held) else None
 
-    # Seconde passe : passage contre incertain, décidé par le voisinage.
-    max_passing = ROLE_PASSING_MAX_BEATS * float(beat_dur)
+    # Seconde passe : passage contre incertain, décidé par le voisinage. Un
+    # accord de passage relie deux piliers ; il peut parfaitement être
+    # diatonique — un IV bref entre deux I en est un. Un seul seuil sépare donc
+    # les deux rôles : trop court pour être un pilier, mais encadré par deux
+    # piliers, c'est un passage ; sinon on ne prétend rien et c'est incertain.
     for i, seg in enumerate(segments):
         if seg.get('role') is not None:
             continue
-        dur = float(seg['endTime'] - seg['startTime'])
         prev_role = segments[i - 1].get('role') if i > 0 else None
         next_role = segments[i + 1].get('role') if i + 1 < len(segments) else None
         framed = prev_role == 'structural' and next_role == 'structural'
-        seg['role'] = 'passing' if (dur <= max_passing and framed) else 'uncertain'
+        seg['role'] = 'passing' if framed else 'uncertain'
 
     return segments
 

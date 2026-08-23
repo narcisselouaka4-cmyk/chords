@@ -1,0 +1,278 @@
+{
+  "trackId": "you-are-yahweh-tutorial-extrapole",
+  "title": "You Are Yahweh — tutoriel, boucle extrapolée jusqu'à la fin",
+  "media": "/home/visiteur/Téléchargements/Steve Crown - You are Yahwe  EASY PIANO TUTORIAL BY Extreme Midi.mp4",
+  "status": "provisional",
+  "validatedBy": "extrapolation mécanique de la boucle décrite par l'utilisateur",
+  "source": "Transcription à l'oreille par l'utilisateur le 2026-08-23, puis corrigée par lecture image par image du tutoriel : à t=17 s la main gauche affiche F#, A, Db (triade de fa dièse mineur) ; à t=8 s la mélodie joue un Do# incompatible avec un La mineur. L'utilisateur a confirmé que « Fa mineur » et « La mineur » de la première transcription étaient des fautes de frappe — aucun accord mineur autre que F#m n'existe dans ce morceau.",
+  "key": "A",
+  "tempo": 107.0,
+  "tempoConfidence": "utilisateur — tempo officiel du morceau",
+  "tempoNote": "107 BPM. Le moteur affiche 54, soit une erreur d'octave (verrouillage sur la moitié). L'ancienne fiche de ce morceau affirmait l'inverse — que 51,7 était le vrai pulse — ce que l'utilisateur a infirmé le 2026-08-23.",
+  "annotatedRange": [
+    0.0,
+    141.0
+  ],
+  "annotatedNote": "0–75 s annotées par l'utilisateur ; 75–141 s extrapolées en répétant E 2 s / D 2 s / A 5 s. Sert UNIQUEMENT à tester si cette hypothèse de boucle tient : si le score s'effondre après 75 s, l'extrapolation est fausse et doit être retirée, pas le moteur corrigé.",
+  "harmonicNote": "Progression entièrement diatonique à La majeur : intro IV-I-V-vi, refrain V-IV-I. Cohérent avec la tonalité détectée par le moteur.",
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 7.0,
+      "chord": "D",
+      "section": "intro"
+    },
+    {
+      "start": 7.0,
+      "end": 11.0,
+      "chord": "A",
+      "section": "intro"
+    },
+    {
+      "start": 11.0,
+      "end": 16.0,
+      "chord": "E",
+      "section": "intro"
+    },
+    {
+      "start": 16.0,
+      "end": 21.0,
+      "chord": "F#m",
+      "section": "intro"
+    },
+    {
+      "start": 21.0,
+      "end": 25.0,
+      "chord": "D",
+      "section": "intro_loop"
+    },
+    {
+      "start": 25.0,
+      "end": 30.0,
+      "chord": "A",
+      "section": "intro_loop"
+    },
+    {
+      "start": 30.0,
+      "end": 34.0,
+      "chord": "E",
+      "section": "pre_chorus"
+    },
+    {
+      "start": 34.0,
+      "end": 39.0,
+      "chord": "A",
+      "section": "pre_chorus"
+    },
+    {
+      "start": 39.0,
+      "end": 41.0,
+      "chord": "E",
+      "section": "chorus"
+    },
+    {
+      "start": 41.0,
+      "end": 43.0,
+      "chord": "D",
+      "section": "chorus"
+    },
+    {
+      "start": 43.0,
+      "end": 48.0,
+      "chord": "A",
+      "section": "chorus"
+    },
+    {
+      "start": 48.0,
+      "end": 50.0,
+      "chord": "E",
+      "section": "chorus"
+    },
+    {
+      "start": 50.0,
+      "end": 52.0,
+      "chord": "D",
+      "section": "chorus"
+    },
+    {
+      "start": 52.0,
+      "end": 57.0,
+      "chord": "A",
+      "section": "chorus"
+    },
+    {
+      "start": 57.0,
+      "end": 59.0,
+      "chord": "E",
+      "section": "chorus"
+    },
+    {
+      "start": 59.0,
+      "end": 61.0,
+      "chord": "D",
+      "section": "chorus"
+    },
+    {
+      "start": 61.0,
+      "end": 66.0,
+      "chord": "A",
+      "section": "chorus"
+    },
+    {
+      "start": 66.0,
+      "end": 68.0,
+      "chord": "E",
+      "section": "chorus"
+    },
+    {
+      "start": 68.0,
+      "end": 71.0,
+      "chord": "D",
+      "section": "chorus"
+    },
+    {
+      "start": 71.0,
+      "end": 75.0,
+      "chord": "A",
+      "section": "chorus"
+    },
+    {
+      "start": 75.0,
+      "end": 77.0,
+      "chord": "E",
+      "section": "chorus_extrapole"
+    },
+    {
+      "start": 77.0,
+      "end": 79.0,
+      "chord": "D",
+      "section": "chorus_extrapole"
+    },
+    {
+      "start": 79.0,
+      "end": 84.0,
+      "chord": "A",
+      "section": "chorus_extrapole"
+    },
+    {
+      "start": 84.0,
+      "end": 86.0,
+      "chord": "E",
+      "section": "chorus_extrapole"
+    },
+    {
+      "start": 86.0,
+      "end": 88.0,
+      "chord": "D",
+      "section": "chorus_extrapole"
+    },
+    {
+      "start": 88.0,
+      "end": 93.0,
+      "chord": "A",
+      "section": "chorus_extrapole"
+    },
+    {
+      "start": 93.0,
+      "end": 95.0,
+      "chord": "E",
+      "section": "chorus_extrapole"
+    },
+    {
+      "start": 95.0,
+      "end": 97.0,
+      "chord": "D",
+      "section": "chorus_extrapole"
+    },
+    {
+      "start": 97.0,
+      "end": 102.0,
+      "chord": "A",
+      "section": "chorus_extrapole"
+    },
+    {
+      "start": 102.0,
+      "end": 104.0,
+      "chord": "E",
+      "section": "chorus_extrapole"
+    },
+    {
+      "start": 104.0,
+      "end": 106.0,
+      "chord": "D",
+      "section": "chorus_extrapole"
+    },
+    {
+      "start": 106.0,
+      "end": 111.0,
+      "chord": "A",
+      "section": "chorus_extrapole"
+    },
+    {
+      "start": 111.0,
+      "end": 113.0,
+      "chord": "E",
+      "section": "chorus_extrapole"
+    },
+    {
+      "start": 113.0,
+      "end": 115.0,
+      "chord": "D",
+      "section": "chorus_extrapole"
+    },
+    {
+      "start": 115.0,
+      "end": 120.0,
+      "chord": "A",
+      "section": "chorus_extrapole"
+    },
+    {
+      "start": 120.0,
+      "end": 122.0,
+      "chord": "E",
+      "section": "chorus_extrapole"
+    },
+    {
+      "start": 122.0,
+      "end": 124.0,
+      "chord": "D",
+      "section": "chorus_extrapole"
+    },
+    {
+      "start": 124.0,
+      "end": 129.0,
+      "chord": "A",
+      "section": "chorus_extrapole"
+    },
+    {
+      "start": 129.0,
+      "end": 131.0,
+      "chord": "E",
+      "section": "chorus_extrapole"
+    },
+    {
+      "start": 131.0,
+      "end": 133.0,
+      "chord": "D",
+      "section": "chorus_extrapole"
+    },
+    {
+      "start": 133.0,
+      "end": 138.0,
+      "chord": "A",
+      "section": "chorus_extrapole"
+    },
+    {
+      "start": 138.0,
+      "end": 140.0,
+      "chord": "E",
+      "section": "chorus_extrapole"
+    },
+    {
+      "start": 140.0,
+      "end": 141.0,
+      "chord": "D",
+      "section": "chorus_extrapole"
+    }
+  ]
+}
