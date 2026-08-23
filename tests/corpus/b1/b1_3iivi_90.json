@@ -1,0 +1,57 @@
+{
+  "caseId": "b1_3iivi_90",
+  "battery": "B1",
+  "progression": "ii-V-I",
+  "key": "F",
+  "tempo": 90.0,
+  "duration": 24.0,
+  "status": "exact",
+  "source": "Audio rendu depuis cette grille par fluidsynth. Les frontières sont exactes par construction, pas relevées à l'oreille.",
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 2.666667,
+      "chord": "G:min7"
+    },
+    {
+      "start": 2.666667,
+      "end": 5.333333,
+      "chord": "C:7"
+    },
+    {
+      "start": 5.333333,
+      "end": 8.0,
+      "chord": "F:maj7"
+    },
+    {
+      "start": 8.0,
+      "end": 10.666667,
+      "chord": "G:min7"
+    },
+    {
+      "start": 10.666667,
+      "end": 13.333333,
+      "chord": "C:7"
+    },
+    {
+      "start": 13.333333,
+      "end": 16.0,
+      "chord": "F:maj7"
+    },
+    {
+      "start": 16.0,
+      "end": 18.666667,
+      "chord": "G:min7"
+    },
+    {
+      "start": 18.666667,
+      "end": 21.333333,
+      "chord": "C:7"
+    },
+    {
+      "start": 21.333333,
+      "end": 24.0,
+      "chord": "F:maj7"
+    }
+  ]
+}

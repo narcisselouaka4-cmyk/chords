@@ -544,6 +544,24 @@ ENABLE_REPEATED_PROGRESSION_REGULARIZATION = False
 #
 # Couche additive : ne touche ni au HMM ni aux observations, réécrit seulement
 # l'étiquette d'un segment déjà décidé.
+# Silence de tête : ne pas inventer d'accord avant que la musique commence.
+#
+# Le chroma d'un silence numérique est du bruit ; le HMM y place quand même un
+# accord, et `_clean_segments` ne l'écarte pas dès qu'il dure plus longtemps que
+# `min_duration`. Sur le tutoriel « You Are Yahweh », 1,765 s de silence réel
+# produisaient un Si majeur de 1,811 s en tête de morceau.
+#
+# On marque ces segments `N` plutôt que de rogner l'audio. Rogner déplacerait
+# l'origine temporelle de l'analyse par rapport au fichier : la lecture, les
+# corrections manuelles enregistrées et toutes les vérités terrain sont
+# exprimées dans le temps DU FICHIER. Créer un second axe de temps serait
+# reproduire, à l'envers, le défaut de mesure qui a coûté le plus cher à ce
+# projet (voir experiments/EXP-009).
+ENABLE_LEADING_SILENCE_GUARD = True
+# Seuil d'énergie sous lequel une zone est tenue pour silencieuse, en fraction
+# du RMS maximal du morceau.
+SILENCE_RMS_RATIO = 0.02
+
 ENABLE_FIFTH_CONFUSION_FIX = True
 # Écart minimal de couverture pour accepter la correction. Assez large pour ne
 # pas osciller sur des cas ambigus.
@@ -3154,6 +3172,68 @@ def _is_diatonic_chord(root, suffix, degrees):
     return suffix == expected
 
 
+def _audio_onset_time(y, sr, hop_length=512, rel_threshold=SILENCE_RMS_RATIO):
+    """Instant du premier son réel du fichier, en secondes.
+
+    Retourne 0.0 si le morceau commence directement par de la musique.
+    """
+    if len(y) == 0:
+        return 0.0
+    rms = librosa.feature.rms(y=y, hop_length=hop_length)[0]
+    if len(rms) == 0:
+        return 0.0
+    peak = float(rms.max())
+    if peak <= 0:
+        return 0.0
+    loud = np.flatnonzero(rms > peak * rel_threshold)
+    if len(loud) == 0:
+        return 0.0
+    return float(librosa.frames_to_time(loud[0], sr=sr, hop_length=hop_length))
+
+
+def _silence_leading_segments(segments, onset_time):
+    """Remplace par `N` ce qui est détecté avant le début réel du son.
+
+    Un segment à cheval sur l'onset est coupé : sa partie silencieuse devient
+    `N`, sa partie sonore garde son accord. On ne déplace aucune frontière
+    réelle et l'axe de temps du fichier reste intact.
+    """
+    if not ENABLE_LEADING_SILENCE_GUARD or onset_time <= 0 or not segments:
+        return segments
+
+    out = []
+    for seg in segments:
+        start, end = float(seg['startTime']), float(seg['endTime'])
+        if end <= onset_time:
+            quiet = dict(seg)
+            quiet['chord'] = 'N'
+            quiet['state'] = None
+            quiet['confidence'] = 0.0
+            out.append(quiet)
+            continue
+        if start < onset_time < end:
+            quiet = dict(seg)
+            quiet['chord'] = 'N'
+            quiet['state'] = None
+            quiet['confidence'] = 0.0
+            quiet['endTime'] = onset_time
+            quiet['beatIndices'] = []
+            quiet['beatRealTimes'] = []
+            out.append(quiet)
+            seg = dict(seg)
+            seg['startTime'] = onset_time
+        out.append(seg)
+
+    # Fusionner les `N` consécutifs pour ne pas multiplier les blocs vides.
+    merged = []
+    for seg in out:
+        if merged and seg['chord'] == 'N' and merged[-1]['chord'] == 'N':
+            merged[-1]['endTime'] = seg['endTime']
+            continue
+        merged.append(seg)
+    return merged
+
+
 def _resolve_fifth_confusion(segments, beat_chroma, states, key,
                              min_gain=FIFTH_CONFUSION_MIN_GAIN):
     """Corrige les étiquettes décalées d'une quinte vers le haut.
@@ -4386,6 +4466,9 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
                     segments = _detect_structural_loop(segments, key)
                     if debug:
                         _log_seg_stage("after _detect_structural_loop", segments, states)
+            segments = _silence_leading_segments(segments, _audio_onset_time(y, sr, hop_length))
+            if debug:
+                _log_seg_stage("after _silence_leading_segments", segments, states)
             segments = _clean_segments(segments, min_duration=0.4, silence_min=1.2)
             # Qualification des segments définitifs. Placée en dernier pour que
             # le rôle porte sur ce que l'utilisateur voit réellement.

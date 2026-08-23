@@ -18,6 +18,19 @@
  * }
  */
 
+/**
+ * Champs de segment que l'interface consomme réellement. Sert de contrat
+ * vérifiable entre le moteur et l'affichage : `test-analyzer-mapping.js`
+ * s'assure qu'aucun d'eux n'est perdu par le mapper ci-dessous.
+ *
+ * `segmentId` et `manualOverride` n'y figurent pas : ils sont ajoutés côté UI
+ * par enrichSegments(), pas produits par le moteur.
+ */
+export const UI_SEGMENT_FIELDS = [
+  'startTime', 'endTime', 'chord', 'confidence', 'role', 'degree',
+  'structuralChord', 'inStructuralLoop',
+];
+
 export class AudioAnalyzer {
   /**
    * Analyse un fichier media et retourne un objet enrichi.
@@ -70,12 +83,22 @@ export class TemplateAudioAnalyzer extends AudioAnalyzer {
       keyConfidence: result.keyConfidence ?? 0,
       keyCandidates,
       confidence: result.confidence ?? 0,
+      // ⚠ Liste blanche : tout champ absent d'ici est SILENCIEUSEMENT perdu
+      // entre le moteur et l'interface. C'est ce qui est arrivé à `role` —
+      // le moteur classait bien les accords en structurel / passage, l'IPC les
+      // transmettait, et ce mapper les effaçait : la timeline retombait sur
+      // « structural » pour tout, et la hiérarchie ne s'affichait jamais.
+      // Avant d'ajouter un champ lu par l'UI, l'ajouter ici.
+      // Couvert par src/analyzer/test-analyzer-mapping.js.
       chords: (result.chords || []).map((c) => ({
         startTime: c.startTime ?? 0,
         endTime: c.endTime ?? 0,
         chord: c.chord || '?',
         structuralChord: c.structural_chord || c.structuralChord || null,
         confidence: c.confidence ?? 0,
+        role: c.role ?? null,
+        inStructuralLoop: c.inStructuralLoop ?? null,
+        degree: c.degree ?? null,
         analysis: c.analysis || {},
         techniques: c.techniques || [],
         suggestions: c.suggestions || [],
