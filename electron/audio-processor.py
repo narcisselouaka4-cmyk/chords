@@ -528,6 +528,27 @@ ENABLE_REPEATED_PROGRESSION_REGULARIZATION = False
 # structurels. Vérifié sur la fixture J (C → D7 → G) où D7 est étiqueté
 # `passing` par la vérité terrain : D7 porte un fa dièse hors de do majeur,
 # alors que C et G sont les piliers diatoniques.
+# Désambiguïsation de la confusion à la quinte.
+#
+# Les templates pondèrent la fondamentale à 1,0 et la quinte à 0,6 : ils
+# supposent que la fondamentale est la note la plus présente. Sur les voicings
+# où la quinte domine — courant au piano gospel, main gauche en quintes ouvertes
+# et tierce haute et discrète — l'étiquette glisse d'une quinte vers le haut.
+# Mesuré sur le tutoriel « You Are Yahweh » : les SIX accords de Mi du morceau
+# ressortaient en Si, avec un chroma à B 44 %, E 21 %, G# 6 %, D# 0 %.
+#
+# Le critère qui tranche est la couverture NON pondérée : quelle proportion du
+# chroma les notes de l'accord expliquent-elles réellement ? Sur ce même chroma,
+# Mi majeur couvre 71 %, Si mineur 61 %, Si majeur 56 %. La question « quelles
+# notes sont là » sépare, là où « quelle note est la plus forte » se trompe.
+#
+# Couche additive : ne touche ni au HMM ni aux observations, réécrit seulement
+# l'étiquette d'un segment déjà décidé.
+ENABLE_FIFTH_CONFUSION_FIX = True
+# Écart minimal de couverture pour accepter la correction. Assez large pour ne
+# pas osciller sur des cas ambigus.
+FIFTH_CONFUSION_MIN_GAIN = 0.08
+
 ENABLE_CHORD_ROLE_CLASSIFICATION = True
 # Part de la durée totale couverte par les accords retenus comme vocabulaire.
 ROLE_VOCABULARY_COVERAGE = 0.85
@@ -3133,6 +3154,90 @@ def _is_diatonic_chord(root, suffix, degrees):
     return suffix == expected
 
 
+def _resolve_fifth_confusion(segments, beat_chroma, states, key,
+                             min_gain=FIFTH_CONFUSION_MIN_GAIN):
+    """Corrige les étiquettes décalées d'une quinte vers le haut.
+
+    Pour un segment étiqueté X, on examine le candidat Y dont X est la quinte
+    (Y = X - 7 demi-tons). On compare la part du chroma que chacun explique, en
+    comptant ses notes SANS pondération : c'est précisément la pondération de la
+    fondamentale qui produit l'erreur, s'en servir pour l'arbitrer reviendrait à
+    demander au coupable de juger.
+
+    Garde-fous : le candidat doit appartenir à la tonalité, et l'emporter d'une
+    marge nette. Un V/V légitime — non diatonique — n'est donc jamais réécrit.
+    """
+    if not ENABLE_FIFTH_CONFUSION_FIX or not key or not segments:
+        return segments
+
+    degrees = _diatonic_degree_map(key)
+    if not degrees:
+        return segments
+
+    def coverage(chroma_norm, root, suffix):
+        """Part du chroma couverte par les notes de l'accord, sans pondération."""
+        intervals = CHORD_INTERVALS.get(suffix)
+        if intervals is None:
+            return 0.0
+        return float(sum(chroma_norm[(root + i) % 12] for i in intervals))
+
+    changed = False
+    for seg in segments:
+        chord = seg.get('chord')
+        if not chord or chord == 'N':
+            continue
+        idxs = seg.get('beatIndices') or []
+        if not idxs:
+            continue
+        root, suffix = _parse_chord_label(chord)
+        if root is None or suffix not in CHORD_INTERVALS:
+            continue
+
+        agg = np.mean(beat_chroma[:, idxs], axis=1)
+        total = float(agg.sum())
+        if total <= 0:
+            continue
+        chroma_norm = agg / total
+
+        # Candidat : l'accord dont la fondamentale actuelle est la quinte.
+        cand_root = (root - 7) % 12
+        cand_suffix = degrees.get(cand_root)
+        if cand_suffix is None or cand_suffix not in CHORD_INTERVALS:
+            continue
+
+        here = coverage(chroma_norm, root, suffix)
+        there = coverage(chroma_norm, cand_root, cand_suffix)
+        if there - here < min_gain:
+            continue
+
+        new_state = _chord_state_index(states, cand_root, cand_suffix)
+        if new_state is None:
+            # Sans état correspondant, les couches suivantes ne sauraient plus
+            # sur quoi travailler : on préfère ne pas corriger.
+            continue
+        seg['chord'] = chord_name(cand_root, cand_suffix)
+        seg['fifth_confusion_fixed'] = True
+        seg['state'] = new_state
+        changed = True
+
+    if not changed:
+        return segments
+
+    # Deux voisins devenus identiques doivent fusionner : la correction ne doit
+    # pas laisser une frontière qui ne correspond plus à aucun changement.
+    merged = [segments[0]]
+    for seg in segments[1:]:
+        if seg.get('chord') == merged[-1].get('chord') and seg['chord'] != 'N':
+            merged[-1]['endTime'] = seg['endTime']
+            merged[-1]['beatIndices'] = (merged[-1].get('beatIndices', [])
+                                         + seg.get('beatIndices', []))
+            merged[-1]['beatRealTimes'] = (merged[-1].get('beatRealTimes', [])
+                                           + seg.get('beatRealTimes', []))
+        else:
+            merged.append(seg)
+    return merged
+
+
 def _classify_chord_roles(segments, key, beat_dur=None):
     """Annote chaque segment d'un `role` : structural, passing, uncertain, silence.
 
@@ -4249,6 +4354,11 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
     beats_per_bar = 4
 
     if clean_mode == "legacy":
+        # Placé avant la simplification du vocabulaire pour que les couches
+        # suivantes travaillent sur la bonne fondamentale.
+        segments = _resolve_fifth_confusion(segments, beat_chroma, states, key)
+        if debug:
+            _log_seg_stage("after _resolve_fifth_confusion", segments, states)
         if ENABLE_CHORD_DOWNGRADE:
             segments = _downgrade_advanced_segments(segments, beat_chroma, states, threshold=0.03, mode=downgrade_mode)
             if debug:
