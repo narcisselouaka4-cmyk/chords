@@ -557,10 +557,62 @@ ENABLE_REPEATED_PROGRESSION_REGULARIZATION = False
 # exprimées dans le temps DU FICHIER. Créer un second axe de temps serait
 # reproduire, à l'envers, le défaut de mesure qui a coûté le plus cher à ce
 # projet (voir experiments/EXP-009).
+# Énergie réelle des fenêtres d'analyse, au lieu de la somme du chroma.
+#
+# `frame_energies` alimente le seul état « N » (pas d'accord) :
+#   score(N) = max(0,05 ; 1 − énergie / énergie_max)
+#
+# Il était calculé comme la somme du vecteur chroma. Or `chroma_cqt` normalise
+# chaque trame : un silence n'y devient pas un vecteur nul mais du bruit
+# amplifié. Mesuré sur la batterie B2, famille « silences » — dans un silence à
+# −40 dB, la somme du chroma vaut **1,94 fois celle d'une zone sonore**, quand
+# le RMS réel vaut 0,0008 fois.
+#
+# Le compteur n'était donc pas seulement aveugle à l'intensité : il était
+# INVERSÉ. L'état N scorait son plancher de 0,05 précisément là où il aurait dû
+# scorer 1,0, et le moteur n'a jamais émis un seul « N » en milieu de morceau.
+#
+# DÉSACTIVÉ malgré tout, le 2026-08-23, parce que corriger cette quantité SEULE
+# dégrade le résultat : −14,8 points sur le MP3 live de « You Are Yahweh »,
+# isolé par ablation. La formule d'observation de N — `1 − énergie / max` — a
+# été réglée pour une quantité qui, en pratique, ne variait pas. La rendre
+# variable fait gagner l'état N sur des passages simplement doux mais bel et
+# bien harmoniques.
+#
+# La correction complète suppose de recalibrer l'observation de N, ce qui relève
+# de la baseline HMM gelée (ADR-003) et demande sa propre expérience. Le
+# problème utilisateur — ne pas inventer d'accord dans le silence — est résolu
+# autrement, par ENABLE_SILENCE_CARVING, qui opère sur le signal et non sur
+# l'observation, sans rien coûter nulle part.
+ENABLE_TRUE_FRAME_ENERGY = False
+
 ENABLE_LEADING_SILENCE_GUARD = True
 # Seuil d'énergie sous lequel une zone est tenue pour silencieuse, en fraction
 # du RMS maximal du morceau.
-SILENCE_RMS_RATIO = 0.02
+#
+# Calibré sur la distribution mesurée, et non choisi a priori. À 0,02, la QUEUE
+# d'une note de piano qui décroît pendant quatre secondes passe sous le seuil :
+# 35,6 % des trames de la batterie B1 à 60 BPM y tombent, et le moteur y
+# découpait des silences fantômes — B1 perdait 6 points. À 0,005, ces mêmes
+# queues n'y tombent plus (5,1 %) alors que les vrais silences de B2 restent
+# largement en dessous (38,0 % des trames, à un quart de millième du maximum).
+SILENCE_RMS_RATIO = 0.005
+
+# Silences EN MILIEU de morceau, pas seulement en tête.
+#
+# Le seul mécanisme prévu pour eux était l'état « N » du HMM, inatteignable pour
+# deux raisons cumulées : son énergie de référence était inversée (voir
+# ENABLE_TRUE_FRAME_ENERGY), et la fenêtre d'analyse est beat-synchrone, donc
+# souvent plus longue que le silence lui-même. Sur la batterie B2, famille
+# « silences », le moteur n'émettait **aucun** N sur des trous de 1,56 s à
+# −40 dB, et les accords voisins s'étiraient par-dessus.
+#
+# La détection se fait donc directement sur le signal, indépendamment de la
+# grille : un silence n'est pas un phénomène rythmique.
+ENABLE_SILENCE_CARVING = True
+# Durée minimale d'un silence pour être découpé. En dessous, c'est une
+# respiration entre deux accords, pas une absence d'harmonie.
+SILENCE_MIN_DURATION = 0.45
 
 ENABLE_FIFTH_CONFUSION_FIX = True
 # Écart minimal de couverture pour accepter la correction. Assez large pour ne
@@ -3209,6 +3261,84 @@ def _audio_onset_time(y, sr, hop_length=512, rel_threshold=SILENCE_RMS_RATIO):
     return float(librosa.frames_to_time(loud[0], sr=sr, hop_length=hop_length))
 
 
+def _detect_silent_regions(y, sr, hop_length=512,
+                           rel_threshold=SILENCE_RMS_RATIO,
+                           min_duration=SILENCE_MIN_DURATION):
+    """Régions du signal réellement silencieuses, en secondes.
+
+    Mesurées sur le signal brut, pas sur la grille de beats : un silence est un
+    fait acoustique, pas un fait rythmique, et il peut parfaitement être plus
+    court qu'une fenêtre d'analyse.
+    """
+    if len(y) == 0:
+        return []
+    rms = librosa.feature.rms(y=y, hop_length=hop_length)[0]
+    if len(rms) == 0:
+        return []
+    peak = float(rms.max())
+    if peak <= 0:
+        return []
+    quiet = rms <= peak * rel_threshold
+    times = librosa.frames_to_time(np.arange(len(rms) + 1), sr=sr, hop_length=hop_length)
+
+    regions = []
+    start = None
+    for i, is_quiet in enumerate(quiet):
+        if is_quiet and start is None:
+            start = i
+        elif not is_quiet and start is not None:
+            regions.append((float(times[start]), float(times[i])))
+            start = None
+    if start is not None:
+        regions.append((float(times[start]), float(times[len(rms)])))
+    return [(a, b) for a, b in regions if b - a >= min_duration]
+
+
+def _carve_silences(segments, silent_regions):
+    """Retire des segments ce qui tombe dans un silence, en le remplaçant par `N`.
+
+    Un segment à cheval sur un silence est scindé : ses parties sonores gardent
+    leur accord, sa partie silencieuse devient `N`. Aucune frontière réelle
+    n'est déplacée — on ne fait que refuser d'attribuer une harmonie au vide.
+    """
+    if not ENABLE_SILENCE_CARVING or not silent_regions or not segments:
+        return segments
+
+    out = []
+    for seg in segments:
+        pieces = [(float(seg['startTime']), float(seg['endTime']), seg.get('chord'))]
+        for q0, q1 in silent_regions:
+            nouveaux = []
+            for a, b, chord in pieces:
+                if q1 <= a or q0 >= b or chord == 'N':
+                    nouveaux.append((a, b, chord))
+                    continue
+                if a < q0:
+                    nouveaux.append((a, min(q0, b), chord))
+                nouveaux.append((max(a, q0), min(b, q1), 'N'))
+                if b > q1:
+                    nouveaux.append((max(q1, a), b, chord))
+            pieces = [(a, b, c) for a, b, c in nouveaux if b - a > 1e-3]
+        for a, b, chord in pieces:
+            piece = dict(seg)
+            piece['startTime'], piece['endTime'] = a, b
+            if chord == 'N':
+                piece['chord'] = 'N'
+                piece['state'] = None
+                piece['confidence'] = 0.0
+                piece['beatIndices'] = []
+                piece['beatRealTimes'] = []
+            out.append(piece)
+
+    merged = []
+    for seg in out:
+        if merged and seg['chord'] == merged[-1]['chord']:
+            merged[-1]['endTime'] = seg['endTime']
+            continue
+        merged.append(seg)
+    return merged
+
+
 def _silence_leading_segments(segments, onset_time):
     """Remplace par `N` ce qui est détecté avant le début réel du son.
 
@@ -4317,6 +4447,12 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
     beat_chroma_upper = (np.zeros((12, K), dtype=np.float32)
                          if chroma_upper is not None else None)
     frame_energies = np.zeros(K, dtype=np.float32)
+    # Énergie réelle du signal par fenêtre, indépendante de la normalisation du
+    # chroma. Voir ENABLE_TRUE_FRAME_ENERGY : la somme du chroma est inversée
+    # dans les silences et rendait l'état « N » inatteignable.
+    rms = librosa.feature.rms(y=y, hop_length=hop_length)[0] \
+        if ENABLE_TRUE_FRAME_ENERGY else None
+
     for k in range(K):
         start_f = int(beat_frames[k])
         end_f = int(beat_frames[k + 1]) if k + 1 < K else n_frames
@@ -4325,7 +4461,11 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
             frame_energies[k] = 0.0
         else:
             beat_chroma[:, k] = np.mean(chroma[:, start_f:end_f], axis=1)
-            frame_energies[k] = float(np.sum(beat_chroma[:, k]))
+            if rms is not None:
+                lo, hi = min(start_f, len(rms)), min(end_f, len(rms))
+                frame_energies[k] = float(np.mean(rms[lo:hi])) if hi > lo else 0.0
+            else:
+                frame_energies[k] = float(np.sum(beat_chroma[:, k]))
         if beat_chroma_upper is not None:
             e_up = min(end_f, chroma_upper.shape[1])
             s_up = min(start_f, e_up)
@@ -4485,6 +4625,7 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
                     if debug:
                         _log_seg_stage("after _detect_structural_loop", segments, states)
             segments = _silence_leading_segments(segments, _audio_onset_time(y, sr, hop_length))
+            segments = _carve_silences(segments, _detect_silent_regions(y, sr, hop_length))
             if debug:
                 _log_seg_stage("after _silence_leading_segments", segments, states)
             segments = _clean_segments(segments, min_duration=0.4, silence_min=1.2)
