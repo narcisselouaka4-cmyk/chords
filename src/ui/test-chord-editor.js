@@ -9,6 +9,7 @@ import {
 import {
   buildProjectPath,
   buildProjectData,
+  extractCachedAnalysis,
   validateProjectSchema,
   verifyAudioIdentity,
   findTemporalFallback,
@@ -567,7 +568,7 @@ runTest('Phase B — buildProjectPath gère chemins sans extension', () => {
 runTest('Phase B — buildProjectData sans overrides', () => {
   const identity = { path: '/test.mp3', size: 1000, duration: 30, modifiedAt: 12345 };
   const data = buildProjectData(identity, makeSegments());
-  assert(data.schemaVersion === 1, `schemaVersion: ${data.schemaVersion}`);
+  assert(data.schemaVersion === 2, `schemaVersion: ${data.schemaVersion}`);
   assert(data.audio.path === '/test.mp3', `audio.path: ${data.audio.path}`);
   assert(Object.keys(data.manualChordOverrides).length === 0, `overrides length: ${Object.keys(data.manualChordOverrides).length}`);
   assert(data.analysis.segmentSignatureVersion === 1, `segmentSignatureVersion`);
@@ -612,10 +613,79 @@ runTest('Phase B — validateProjectSchema valide un projet correct', () => {
 runTest('Phase B — validateProjectSchema rejette schemaVersion invalide', () => {
   assert(validateProjectSchema(null) === false, 'null');
   assert(validateProjectSchema({}) === false, 'objet vide');
-  assert(validateProjectSchema({ schemaVersion: 2 }) === false, 'version 2');
+  assert(validateProjectSchema({ schemaVersion: 3 }) === false, 'version 3 non supportée');
+  assert(validateProjectSchema({ schemaVersion: 2 }) === false, 'version 2 sans audio');
   assert(validateProjectSchema({ schemaVersion: 1, audio: null }) === false, 'audio null');
   assert(validateProjectSchema({ schemaVersion: 1, audio: {} }) === false, 'audio sans path');
   assert(validateProjectSchema({ schemaVersion: 1, audio: { path: '/x' }, manualChordOverrides: null }) === false, 'overrides null');
+});
+
+// ── Phase C : persistance du résultat d'analyse (DoD niveau 6) ──
+
+runTest("Phase C — buildProjectData conserve les accords pour éviter un recalcul", () => {
+  const identity = { path: '/test.mp3', size: 1000, duration: 30, modifiedAt: 12345 };
+  const data = buildProjectData(identity, makeSegments(), {}, {
+    chords: makeSegments(), duration: 30, tempo: 92, key: 'C', keyConfidence: 0.8,
+  });
+  assert(Array.isArray(data.analysis.chords), 'analysis.chords est un tableau');
+  assert(data.analysis.chords.length === makeSegments().length, 'tous les segments sont conservés');
+  assert(data.analysis.tempo === 92, `tempo conservé : ${data.analysis.tempo}`);
+  assert(data.analysis.key === 'C', `tonalité conservée : ${data.analysis.key}`);
+  assert(typeof data.analysis.savedAt === 'string', 'la date d’enregistrement est conservée');
+});
+
+runTest("Phase C — les chemins temporaires ne sont pas conservés", () => {
+  const data = buildProjectData(
+    { path: '/test.mp3', size: 1, duration: 30, modifiedAt: 0 },
+    makeSegments(), {},
+    { chords: makeSegments(), wavPath: '/tmp/pjc-12345/audio.wav', analysisWavPath: '/tmp/x.wav' },
+  );
+  assert(data.analysis.wavPath === undefined, 'wavPath absent du projet enregistré');
+  assert(data.analysis.analysisWavPath === undefined, 'analysisWavPath absent');
+});
+
+runTest('Phase C — extractCachedAnalysis restitue une analyse exploitable', () => {
+  const data = buildProjectData(
+    { path: '/test.mp3', size: 1, duration: 30, modifiedAt: 0 },
+    makeSegments(), {},
+    { chords: makeSegments(), duration: 30, tempo: 92, key: 'C' },
+  );
+  const restored = extractCachedAnalysis(data);
+  assert(restored !== null, 'une analyse est restituée');
+  assert(restored.chords.length === makeSegments().length, 'les accords sont restitués');
+  assert(restored.tempo === 92, 'le tempo est restitué');
+  assert(restored.savedAt === undefined, 'les métadonnées internes ne polluent pas l’analyse');
+});
+
+runTest('Phase C — extractCachedAnalysis refuse ce qui ne peut pas être restauré', () => {
+  assert(extractCachedAnalysis(null) === null, 'projet null');
+  assert(extractCachedAnalysis({}) === null, 'projet sans analyse');
+  assert(extractCachedAnalysis({ analysis: { segmentSignatureVersion: 1 } }) === null,
+         'projet en schéma 1 : pas d’accords enregistrés');
+  assert(extractCachedAnalysis({ analysis: { chords: [] } }) === null, 'analyse vide');
+});
+
+runTest('Phase C — un projet en schéma 1 reste lisible', () => {
+  const legacy = {
+    schemaVersion: 1,
+    audio: { path: '/test.mp3', size: 1000, duration: 30, modifiedAt: 0 },
+    analysis: { segmentSignatureVersion: 1 },
+    manualChordOverrides: {},
+    orphanedOverrides: {},
+  };
+  assert(validateProjectSchema(legacy) === true, 'le schéma 1 reste valide');
+  assert(extractCachedAnalysis(legacy) === null, 'sans accords : l’analyse sera recalculée');
+});
+
+runTest("Phase C — le rôle harmonique survit à l'enregistrement", () => {
+  const segments = makeSegments();
+  segments[0].role = 'structural';
+  segments[1].role = 'passing';
+  const data = buildProjectData({ path: '/t.mp3', size: 1, duration: 1, modifiedAt: 0 },
+                                segments, {}, { chords: segments });
+  const restored = extractCachedAnalysis(data);
+  assert(restored.chords[0].role === 'structural', 'rôle structurel conservé');
+  assert(restored.chords[1].role === 'passing', 'rôle de passage conservé');
 });
 
 runTest('Phase B — verifyAudioIdentity correspondance', () => {

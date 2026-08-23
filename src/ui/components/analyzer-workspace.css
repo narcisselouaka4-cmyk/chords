@@ -1915,3 +1915,115 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Hiérarchie harmonique de la timeline ──────────────────────────────────
+   Le moteur qualifie chaque segment (structurel / passage / incertain) ; la
+   timeline le traduit en poids visuel. Principe : on hiérarchise, on ne masque
+   jamais. Un accord de passage reste lisible, cliquable et corrigible — il est
+   seulement présenté comme secondaire. Le codage repose sur trois canaux
+   redondants (cadre, opacité, style de bordure) pour rester lisible en cas de
+   daltonisme et sur écran peu contrasté. */
+
+.analyzer-timeline-legend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 10px 8px;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  flex-wrap: wrap;
+}
+
+.analyzer-timeline-legend.muted {
+  opacity: 0.45;
+}
+
+.analyzer-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.analyzer-legend-swatch {
+  width: 18px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--surface-secondary);
+  flex-shrink: 0;
+}
+
+.analyzer-legend-swatch.role-structural {
+  border: 1px solid var(--accent);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.analyzer-legend-swatch.role-passing {
+  border: 1px dashed var(--border);
+  opacity: 0.75;
+}
+
+.analyzer-legend-swatch.role-uncertain {
+  border: 1px dotted var(--border);
+  opacity: 0.5;
+}
+
+.analyzer-legend-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  cursor: pointer;
+  user-select: none;
+}
+
+.analyzer-legend-toggle input {
+  cursor: pointer;
+}
+
+/* Accord structurel : cadre net et liseré d'accent sur le bord d'attaque. */
+.analyzer-timeline-block.role-structural {
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* Accord de passage : présent, mais visiblement secondaire. */
+.analyzer-timeline-block.role-passing {
+  border-style: dashed;
+  opacity: 0.72;
+  font-weight: 500;
+}
+
+/* Détection incertaine : le plus discret des trois, sans jamais disparaître. */
+.analyzer-timeline-block.role-uncertain {
+  border-style: dotted;
+  opacity: 0.5;
+  font-weight: 400;
+  font-style: italic;
+}
+
+/* Silence : aucune harmonie à afficher. */
+.analyzer-timeline-block.role-silence {
+  background: transparent;
+  border-style: dotted;
+  opacity: 0.3;
+  font-weight: 400;
+}
+
+/* La sélection, la lecture en cours et la correction manuelle priment toujours
+   sur la hiérarchie : l'utilisateur doit voir où il est et ce qu'il a corrigé,
+   quel que soit le rôle du segment. */
+.analyzer-timeline-block.role-passing.current,
+.analyzer-timeline-block.role-uncertain.current,
+.analyzer-timeline-block.role-silence.current,
+.analyzer-timeline-block.role-passing.selected,
+.analyzer-timeline-block.role-uncertain.selected,
+.analyzer-timeline-block.role-silence.selected,
+.analyzer-timeline-block.manual-override {
+  opacity: 1;
+  font-style: normal;
+}
+
+.analyzer-timeline-block:hover {
+  opacity: 1;
+}

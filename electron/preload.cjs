@@ -51,6 +51,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   analyzer: {
     processFile: (filePath, options = {}) => ipcRenderer.invoke('analyzer:process-file', filePath, options),
+    preparePlayback: (filePath) => ipcRenderer.invoke('analyzer:prepare-playback', filePath),
   },
   studio: {
     selectFile: () => ipcRenderer.invoke('studio:select-file'),

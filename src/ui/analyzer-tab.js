@@ -39,7 +39,9 @@ import {
   validateProjectSchema,
   verifyAudioIdentity,
   tryApplyProjectOverrides,
+  extractCachedAnalysis,
 } from './chord-editor.js';
+import { notifyOnboarding } from './onboarding.js';
 import { buildDemoFixture } from './reharmonization-demo-fixture.js';
 import { buildReharmonizationViewModel } from './reharmonization-orchestrator.js';
 import {
@@ -141,6 +143,10 @@ const els = {
 
   chordTimeline: document.getElementById('analyzer-chord-timeline'),
   chordTimelineInner: document.getElementById('analyzer-chord-timeline-inner'),
+  reanalyzeBtn: document.getElementById('analyzer-reanalyze-btn'),
+  cachedBadge: document.getElementById('analyzer-cached-badge'),
+  timelineLegend: document.getElementById('analyzer-timeline-legend'),
+  hierarchyToggle: document.getElementById('analyzer-hierarchy-toggle'),
   timelineScrollLeft: document.getElementById('analyzer-timeline-scroll-left'),
   timelineScrollRight: document.getElementById('analyzer-timeline-scroll-right'),
 
@@ -190,6 +196,28 @@ let lastRenderedVoicingChord = null;
 let lastRenderedVoicingStyle = null;
 let selectedSegmentId = null; // segmentId sélectionné dans la timeline
 
+// Hiérarchie visuelle structurel / passage. Le moteur qualifie chaque segment
+// d'un rôle harmonique ; la timeline le traduit en poids visuel. Désactivable :
+// certains utilisateurs préfèrent une grille uniforme.
+let hierarchyEnabled = true;
+
+const ROLE_LABELS = {
+  structural: 'Accord structurel',
+  passing: 'Accord de passage',
+  uncertain: 'Détection incertaine',
+  silence: 'Silence',
+};
+
+// Rôle par défaut : les analyses produites avant l'introduction du champ, et
+// les segments corrigés à la main, sont traités comme structurels — un accord
+// que l'utilisateur a lui-même saisi n'est jamais « incertain ».
+function segmentRole(segment) {
+  if (!segment) return 'structural';
+  if (segment.manualOverride) return 'structural';
+  const role = segment.role;
+  return Object.prototype.hasOwnProperty.call(ROLE_LABELS, role) ? role : 'structural';
+}
+
 // Capture MIDI (UI) — métriques du panneau droit « État de la session ».
 let midiCaptureSeconds = 0;
 let midiCaptureTimer = null;
@@ -210,6 +238,8 @@ export function initAnalyzerTab() {
   bindToolbar();
   initTimelineZoom();
   bindTimelineScroll();
+  bindHierarchyToggle();
+  els.reanalyzeBtn?.addEventListener('click', () => { reanalyzeCurrentTrack(); });
   bindSectionTabs();
   bindExportMidiButton();
   bindExportJsonButton();
@@ -600,7 +630,7 @@ function showDeleteModal(displayName) {
 //   MP3/WAV → AUDIO_PREP (état 'prepare')
 //   MP4/M4V/MOV/WEBM → VIDEO_TYPE_SELECTION (état 'video-type')
 // Aucun pipeline parallèle entre manuel et bibliothèque.
-function loadAnalysisSource(sourceType, filePath, fileName) {
+async function loadAnalysisSource(sourceType, filePath, fileName) {
   if (!filePath) return;
   currentAudioPath = filePath;
   currentFileName = fileName || filePath.split('/').pop() || filePath.split('\\').pop() || filePath;
@@ -609,6 +639,11 @@ function loadAnalysisSource(sourceType, filePath, fileName) {
   // Discrimination audio/vidéo par extension (auto-détection fiable du format).
   const ext = (filePath.split('.').pop() || '').toLowerCase();
   currentSourceType = inferSourceType(ext, currentSourceType);
+
+  // Un morceau déjà analysé revient directement à ses résultats : l'analyse
+  // est relue depuis le projet .pjc.json plutôt que recalculée. Exigence du
+  // niveau 6 de la Definition of Done.
+  if (await restoreSavedAnalysis(filePath)) return;
 
   const target = resolveAnalysisState(ext, currentSourceType);
   if (target === 'video-type') {
@@ -698,6 +733,80 @@ function showPrepareScreen() {
   }
 }
 
+/**
+ * Tente de rouvrir un morceau depuis son analyse enregistrée.
+ *
+ * Retourne true si les résultats ont été affichés sans relancer l'analyse.
+ * Toute anomalie — projet absent, illisible, d'un autre schéma, fichier audio
+ * modifié depuis — fait retomber silencieusement sur le flux normal : la
+ * restauration est une optimisation, jamais un point de défaillance.
+ */
+async function restoreSavedAnalysis(filePath) {
+  const files = window.electronAPI?.files;
+  const path = buildProjectPath(filePath);
+  if (!files?.readFile || !path) return false;
+
+  try {
+    if (!(await files.exists(path))) return false;
+    const data = safeJsonParse(await files.readFile(path));
+    if (!validateProjectSchema(data)) return false;
+
+    const cached = extractCachedAnalysis(data);
+    if (!cached) return false; // projet en schéma 1 : analyse à refaire
+
+    // Le fichier audio a-t-il changé depuis l'enregistrement ? Si oui, les
+    // temps de l'analyse ne décrivent plus ce fichier : on ne restaure pas.
+    const stat = await getAudioStat(filePath);
+    if (stat && data.audio) {
+      const current = buildAudioIdentity(filePath, { duration: cached.duration }, stat);
+      if (!verifyAudioIdentity(data.audio, current)) {
+        showToast(
+          "Le fichier audio a changé depuis la dernière analyse : nouvelle analyse nécessaire.",
+          6000,
+          'warning',
+        );
+        return false;
+      }
+    }
+
+    showProcessing('Chargement de l’analyse enregistrée…');
+    const playback = await window.electronAPI?.analyzer?.preparePlayback?.(filePath);
+    if (!playback?.wavPath) {
+      hideProcessing();
+      return false;
+    }
+
+    const analysis = {
+      ...cached,
+      wavPath: playback.wavPath,
+      duration: cached.duration ?? playback.duration ?? 0,
+      restoredFromProject: true,
+    };
+    if (analysis.videoType) currentVideoType = analysis.videoType;
+
+    currentAnalysis = analysis;
+    await showResults(analysis);
+    showToast('Analyse enregistrée rechargée — aucun recalcul.', 4000);
+    return true;
+  } catch (err) {
+    console.warn('[Analyzer] restauration impossible, analyse normale :', err);
+    hideProcessing();
+    return false;
+  }
+}
+
+/** Relance une analyse complète sur le morceau courant, en écrasant le cache. */
+async function reanalyzeCurrentTrack() {
+  if (!currentAudioPath) return;
+  const hasEdits = (currentAnalysis?.chords || []).some((seg) => seg.manualOverride);
+  if (hasEdits && !window.confirm(
+    'Relancer l’analyse va recalculer tous les accords. '
+    + 'Vos corrections manuelles seront réappliquées quand le segment correspondant existe encore, '
+    + 'et conservées de côté sinon. Continuer ?',
+  )) return;
+  await launchAnalysisFromPrepare();
+}
+
 async function launchAnalysisFromPrepare() {
   if (!currentAudioPath) return;
   showProcessing('Extraction audio en cours…');
@@ -774,6 +883,19 @@ async function showResults(analysis) {
   renderStats(analysis);
   renderOverview(analysis);
   renderResultsSidebar(analysis);
+
+  // Première grille d'accords affichée : c'est le moment où expliquer Chordify
+  // a un sens, puisque ses éléments existent enfin à l'écran.
+  notifyOnboarding('chordify', 'first-results');
+
+  // Une analyse fraîche est enregistrée aussitôt : sans cela le cache
+  // n'existerait jamais et la réouverture relancerait tout. Placé après
+  // loadProjectIfExists pour ne pas écraser les corrections déjà connues.
+  if (!analysis.restoredFromProject) {
+    saveProject({ silent: true }).catch((err) => {
+      console.warn('[Analyzer] enregistrement automatique impossible :', err);
+    });
+  }
 }
 
 function renderHeader(analysis) {
@@ -787,6 +909,12 @@ function renderHeader(analysis) {
   } else {
     els.stemBadge.textContent = '';
     els.stemBadge.classList.remove('visible');
+  }
+
+  // L'utilisateur doit savoir s'il regarde un résultat frais ou relu : sans
+  // cette indication, « pourquoi l'analyse n'a pas changé » devient un mystère.
+  if (els.cachedBadge) {
+    els.cachedBadge.style.display = analysis.restoredFromProject ? '' : 'none';
   }
 }
 
@@ -1133,17 +1261,22 @@ function renderTimeline(chords, duration) {
     block.type = 'button';
     block.setAttribute('tabindex', '0');
     block.setAttribute('role', 'button');
-    block.setAttribute('aria-label', `${effectiveChordStr} — ${fmt(chord.startTime)} à ${fmt(chord.endTime)}`);
+    block.setAttribute(
+      'aria-label',
+      `${effectiveChordStr}, ${ROLE_LABELS[segmentRole(chord)] || ''} — ${fmt(chord.startTime)} à ${fmt(chord.endTime)}`,
+    );
     block.dataset.index = String(index);
     block.dataset.start = String(chord.startTime);
     block.dataset.segmentId = chord.segmentId || '';
     block.style.left = `${left}px`;
     block.style.width = `${timeWidth}px`;
 
+    const roleLabel = ROLE_LABELS[segmentRole(chord)] || '';
+    const timeRange = `${fmt(chord.startTime)} → ${fmt(chord.endTime)}  (${(chord.endTime - chord.startTime).toFixed(1)}s)`;
     if (isOverridden) {
-      block.title = `Corrigé manuellement — ${originalDetected} → ${effectiveChordStr}  ${fmt(chord.startTime)} → ${fmt(chord.endTime)}  (${(chord.endTime - chord.startTime).toFixed(1)}s)`;
+      block.title = `Corrigé manuellement — ${originalDetected} → ${effectiveChordStr}  ${timeRange}`;
     } else {
-      block.title = `${effectiveChordStr}  ${fmt(chord.startTime)} → ${fmt(chord.endTime)}  (${(chord.endTime - chord.startTime).toFixed(1)}s)`;
+      block.title = `${effectiveChordStr} · ${roleLabel}  ${timeRange}`;
     }
 
     if (timeWidth < 32) {
@@ -1151,6 +1284,15 @@ function renderTimeline(chords, duration) {
     }
     if (isOverridden) {
       block.classList.add('manual-override');
+    }
+
+    // Hiérarchie harmonique : le rôle devient un poids visuel, jamais un
+    // masquage. Un accord de passage reste lisible et cliquable — il est
+    // seulement présenté comme secondaire.
+    const role = segmentRole(chord);
+    block.dataset.harmonicRole = role;
+    if (hierarchyEnabled) {
+      block.classList.add(`role-${role}`);
     }
 
     block.innerHTML = `
@@ -1182,6 +1324,16 @@ function renderTimeline(chords, duration) {
   // Restaurer la sélection et l’accord courant
   updatePlaybackPosition(currentPlayer?.element?.currentTime ?? 0);
   if (selectedSegmentId) highlightSelectedSegment(selectedSegmentId);
+}
+
+function bindHierarchyToggle() {
+  if (!els.hierarchyToggle) return;
+  hierarchyEnabled = els.hierarchyToggle.checked;
+  els.hierarchyToggle.addEventListener('change', () => {
+    hierarchyEnabled = els.hierarchyToggle.checked;
+    els.timelineLegend?.classList.toggle('muted', !hierarchyEnabled);
+    rerenderTimeline();
+  });
 }
 
 function selectSegment(segmentId) {
@@ -1231,6 +1383,7 @@ function renderInspector(segment) {
   if (typeof segment.confidence === 'number') {
     rows.push(['Confiance', `${(segment.confidence * 100).toFixed(0)}%`]);
   }
+  rows.push(['Rôle', ROLE_LABELS[segmentRole(segment)] || '—']);
   rows.push(['Origine', segment.manualOverride ? 'Corrigé manuellement' : 'Détecté automatiquement']);
 
   if (els.inspectorDetails) {
@@ -1612,7 +1765,7 @@ function updateSaveIndicator() {
   }
 }
 
-async function saveProject() {
+async function saveProject({ silent = false } = {}) {
   if (!currentAudioPath || !currentAnalysis) return;
   if (!window.electronAPI?.files?.writeFile || !window.electronAPI?.files?.rename) {
     showToast('Sauvegarde non disponible dans cet environnement.');
@@ -1626,7 +1779,12 @@ async function saveProject() {
     }
 
     projectPath = projectPath || buildProjectPath(currentAudioPath);
-    const data = buildProjectData(audioIdentity, currentAnalysis.chords || [], currentProjectOrphanedOverrides);
+    const data = buildProjectData(
+      audioIdentity,
+      currentAnalysis.chords || [],
+      currentProjectOrphanedOverrides,
+      currentAnalysis,
+    );
 
     // Écriture atomique : fichier temporaire → renommage
     const tmpPath = projectPath + '.tmp';
@@ -1634,12 +1792,14 @@ async function saveProject() {
     await window.electronAPI.files.rename(tmpPath, projectPath);
 
     markClean();
-    const displayPath = projectPath || '';
-    const shortPath = displayPath.length > 60 ? '…' + displayPath.slice(-60) : displayPath;
-    showToast(`Projet enregistré : ${shortPath}`, 4000);
+    if (!silent) {
+      const displayPath = projectPath || '';
+      const shortPath = displayPath.length > 60 ? '…' + displayPath.slice(-60) : displayPath;
+      showToast(`Projet enregistré : ${shortPath}`, 4000);
+    }
   } catch (err) {
     console.error('[Analyzer] save failed:', err);
-    showToast("Erreur d'enregistrement : " + err.message, 5000);
+    if (!silent) showToast("Erreur d'enregistrement : " + err.message, 5000);
     // Les corrections en mémoire restent intactes
   }
 }

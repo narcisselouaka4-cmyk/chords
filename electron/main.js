@@ -999,6 +999,28 @@ function setupStudioIPC() {
   // Extrait la piste audio du fichier importé, lance analyze-chords, retourne la grille enrichie.
   // Si le fichier a déjà été séparé dans le Studio, on analyse le stem piano isolé
   // pour plus de précision, tout en conservant le mix original pour la lecture.
+  // Prépare uniquement l'audio de lecture, sans analyse harmonique.
+  // Utilisé au rechargement d'un morceau déjà analysé : le résultat d'analyse
+  // vient du fichier .pjc.json, seul le WAV de lecture doit être régénéré
+  // (quelques secondes d'ffmpeg contre une analyse complète bien plus longue).
+  ipcMain.handle('analyzer:prepare-playback', async (event, filePath) => {
+    const tmpDir = path.join(os.tmpdir(), `pjc-playback-${Date.now()}`);
+    await fs.mkdir(tmpDir, { recursive: true });
+    const playbackWav = path.join(tmpDir, 'audio.wav');
+
+    let duration = null;
+    try {
+      const probeJson = await runAudioProcessor(['probe', filePath]);
+      const probeLines = probeJson.split('\n').filter(Boolean);
+      duration = JSON.parse(probeLines[probeLines.length - 1]).duration;
+    } catch (probeErr) {
+      console.warn('[Analyzer] probe duration failed:', probeErr.message);
+    }
+
+    await extractTrackAudio(filePath, playbackWav);
+    return { wavPath: playbackWav, duration };
+  });
+
   ipcMain.handle('analyzer:process-file', async (event, filePath, options = {}) => {
     const tmpDir = path.join(os.tmpdir(), `pjc-analyze-${Date.now()}`);
     await fs.mkdir(tmpDir, { recursive: true });
