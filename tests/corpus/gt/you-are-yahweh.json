@@ -1,0 +1,141 @@
+{
+  "trackId": "you-are-yahweh",
+  "title": "Steve Crown - You are Yahweh",
+  "media": "/home/visiteur/Musique/YOU ARE YAHWEH (LIVE) STEVE CROWN  #worship #stevecrown #yahweh   #trending #trendingvideo.mp3",
+  "status": "validated",
+  "validatedBy": "utilisateur",
+  "source": "User-provided structural grid played on virtual MIDI keyboard",
+  "key": "A",
+  "tempo": 51.7,
+  "segments": [
+    {
+      "start": 18.09,
+      "end": 25.09,
+      "chord": "D",
+      "section": "intro"
+    },
+    {
+      "start": 25.09,
+      "end": 29.09,
+      "chord": "A",
+      "section": "intro"
+    },
+    {
+      "start": 29.09,
+      "end": 34.09,
+      "chord": "E",
+      "section": "intro"
+    },
+    {
+      "start": 34.09,
+      "end": 39.09,
+      "chord": "F#m",
+      "section": "intro"
+    },
+    {
+      "start": 39.09,
+      "end": 43.09,
+      "chord": "D",
+      "section": "verse"
+    },
+    {
+      "start": 43.09,
+      "end": 48.09,
+      "chord": "A",
+      "section": "verse"
+    },
+    {
+      "start": 48.09,
+      "end": 52.09,
+      "chord": "E",
+      "section": "verse"
+    },
+    {
+      "start": 52.09,
+      "end": 57.09,
+      "chord": "A",
+      "section": "verse"
+    },
+    {
+      "start": 57.09,
+      "end": 59.09,
+      "chord": "E",
+      "section": "chorus"
+    },
+    {
+      "start": 59.09,
+      "end": 61.09,
+      "chord": "D",
+      "section": "chorus"
+    },
+    {
+      "start": 61.09,
+      "end": 66.09,
+      "chord": "A",
+      "section": "chorus"
+    },
+    {
+      "start": 66.09,
+      "end": 68.09,
+      "chord": "E",
+      "section": "chorus"
+    },
+    {
+      "start": 68.09,
+      "end": 70.09,
+      "chord": "D",
+      "section": "chorus"
+    },
+    {
+      "start": 70.09,
+      "end": 75.09,
+      "chord": "A",
+      "section": "chorus"
+    },
+    {
+      "start": 75.09,
+      "end": 77.09,
+      "chord": "E",
+      "section": "chorus"
+    },
+    {
+      "start": 77.09,
+      "end": 79.09,
+      "chord": "D",
+      "section": "chorus"
+    },
+    {
+      "start": 79.09,
+      "end": 84.09,
+      "chord": "A",
+      "section": "chorus"
+    },
+    {
+      "start": 84.09,
+      "end": 86.09,
+      "chord": "E",
+      "section": "chorus"
+    },
+    {
+      "start": 86.09,
+      "end": 89.09,
+      "chord": "D",
+      "section": "chorus"
+    },
+    {
+      "start": 89.09,
+      "end": 93.09,
+      "chord": "A",
+      "section": "chorus"
+    }
+  ],
+  "tempoConfidence": "utilisateur",
+  "tempoNote": "Adoration lente. Le 103.4 détecté correspond aux croches ; le pulse réel est la moitié.",
+  "annotatedRange": [
+    18.09,
+    93.09
+  ],
+  "annotatedNote": "La grille fournie par l'utilisateur s'arrête à 1:15. Les 66 s suivantes de la version précédente de ce fichier étaient une extrapolation mécanique (E 2 s / D 2 s / A 5 s, période exacte de 9,00 s) : le moteur y tombait à 25,9 % contre 49,6 % ici, ce qui mesurait l'annotation et non le moteur. Elles ont été retirées le 2026-08-23. Ne pas réextrapoler : prolonger cette vérité terrain demande une écoute.",
+  "mediaOffsetApplied": 18.09,
+  "mediaOffsetNote": "Le fichier audio commence par 18.09 s de silence numérique : le son démarre à 18,09 s. La grille de l'utilisateur était comptée depuis le début de la MUSIQUE (probablement lue sur la vidéo YouTube), pas depuis le début du FICHIER. Toutes les mesures antérieures à 2026-08-23 comparaient donc deux axes de temps décalés de ~18 s, ce qui explique les scores autour de 38-46 % et une bonne part des couches de correction spécifiques à ce morceau. Décalage appliqué une seule fois ; l'ancrage est le premier échantillon audible du fichier, mesuré sans faire intervenir le moteur."
+}

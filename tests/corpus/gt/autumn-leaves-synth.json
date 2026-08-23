@@ -1,0 +1,84 @@
+{
+  "trackId": "autumn-leaves-synth",
+  "title": "Autumn Leaves — grille Bill Evans, rendu MIDI de synthèse",
+  "media": "/home/visiteur/piano-jazz-chords/data/autumn_leaves/autumn_leaves_mix.wav",
+  "status": "validated",
+  "validatedBy": "construction",
+  "source": "Audio rendu depuis MIDI par generate_autumn_leaves_dataset.py à partir de tests/references/autumn_leaves.json. La vérité terrain n'est pas une annotation à l'oreille : elle est la grille qui a SERVI à produire l'audio. Exacte par construction, aucune écoute requise.",
+  "key": "G minor",
+  "tempo": 120.0,
+  "tempoConfidence": "construction",
+  "note": "120 BPM, 4/4 → 2,000 s par mesure. L'audio dure 34,5 s (queue de résonance) ; la grille couvre 0–32 s. Basse walking à 75 % de notes de passage : cas volontairement difficile pour la frontière harmonie/mélodie.",
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 2.0,
+      "chord": "Aø7"
+    },
+    {
+      "start": 2.0,
+      "end": 4.0,
+      "chord": "D7"
+    },
+    {
+      "start": 4.0,
+      "end": 8.0,
+      "chord": "G-7"
+    },
+    {
+      "start": 8.0,
+      "end": 10.0,
+      "chord": "C-7"
+    },
+    {
+      "start": 10.0,
+      "end": 12.0,
+      "chord": "F7"
+    },
+    {
+      "start": 12.0,
+      "end": 14.0,
+      "chord": "B♭Δ7"
+    },
+    {
+      "start": 14.0,
+      "end": 16.0,
+      "chord": "E♭Δ7"
+    },
+    {
+      "start": 16.0,
+      "end": 18.0,
+      "chord": "Aø7"
+    },
+    {
+      "start": 18.0,
+      "end": 20.0,
+      "chord": "D7"
+    },
+    {
+      "start": 20.0,
+      "end": 24.0,
+      "chord": "G-7"
+    },
+    {
+      "start": 24.0,
+      "end": 26.0,
+      "chord": "C-7"
+    },
+    {
+      "start": 26.0,
+      "end": 28.0,
+      "chord": "F7"
+    },
+    {
+      "start": 28.0,
+      "end": 30.0,
+      "chord": "B♭Δ7"
+    },
+    {
+      "start": 30.0,
+      "end": 32.0,
+      "chord": "E♭Δ7"
+    }
+  ]
+}

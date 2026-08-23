@@ -1,0 +1,543 @@
+{
+  "trackId": "saint-esprit",
+  "title": "Saint Esprit — MLK Music & Jessy Elsa Palma",
+  "media": "/home/visiteur/Musique/Saint Esprit  MLK Music et Jessy Elsa Palma.mp3",
+  "status": "draft",
+  "key": "G",
+  "tempo": 77.0,
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 3.13,
+      "chord": "Em"
+    },
+    {
+      "start": 3.13,
+      "end": 7.8,
+      "chord": "C"
+    },
+    {
+      "start": 7.8,
+      "end": 8.96,
+      "chord": "D"
+    },
+    {
+      "start": 8.96,
+      "end": 9.71,
+      "chord": "A"
+    },
+    {
+      "start": 9.71,
+      "end": 16.21,
+      "chord": "G"
+    },
+    {
+      "start": 16.21,
+      "end": 18.92,
+      "chord": "Em"
+    },
+    {
+      "start": 18.92,
+      "end": 25.84,
+      "chord": "D"
+    },
+    {
+      "start": 25.84,
+      "end": 30.49,
+      "chord": "Em"
+    },
+    {
+      "start": 30.49,
+      "end": 32.44,
+      "chord": "D"
+    },
+    {
+      "start": 32.44,
+      "end": 36.62,
+      "chord": "G"
+    },
+    {
+      "start": 36.62,
+      "end": 39.68,
+      "chord": "D"
+    },
+    {
+      "start": 39.68,
+      "end": 42.79,
+      "chord": "Em"
+    },
+    {
+      "start": 42.79,
+      "end": 45.07,
+      "chord": "C"
+    },
+    {
+      "start": 45.07,
+      "end": 50.9,
+      "chord": "D"
+    },
+    {
+      "start": 50.9,
+      "end": 55.1,
+      "chord": "Em"
+    },
+    {
+      "start": 55.1,
+      "end": 58.17,
+      "chord": "C"
+    },
+    {
+      "start": 58.17,
+      "end": 67.04,
+      "chord": "D"
+    },
+    {
+      "start": 67.04,
+      "end": 70.87,
+      "chord": "C"
+    },
+    {
+      "start": 70.87,
+      "end": 73.56,
+      "chord": "Em"
+    },
+    {
+      "start": 73.56,
+      "end": 79.34,
+      "chord": "Bm"
+    },
+    {
+      "start": 79.34,
+      "end": 82.04,
+      "chord": "C"
+    },
+    {
+      "start": 82.04,
+      "end": 88.56,
+      "chord": "Em"
+    },
+    {
+      "start": 88.56,
+      "end": 91.63,
+      "chord": "A"
+    },
+    {
+      "start": 91.63,
+      "end": 92.42,
+      "chord": "C"
+    },
+    {
+      "start": 92.42,
+      "end": 97.01,
+      "chord": "G"
+    },
+    {
+      "start": 97.01,
+      "end": 100.89,
+      "chord": "D"
+    },
+    {
+      "start": 100.89,
+      "end": 105.12,
+      "chord": "Em"
+    },
+    {
+      "start": 105.12,
+      "end": 106.65,
+      "chord": "C"
+    },
+    {
+      "start": 106.65,
+      "end": 109.69,
+      "chord": "D"
+    },
+    {
+      "start": 109.69,
+      "end": 110.46,
+      "chord": "C"
+    },
+    {
+      "start": 110.46,
+      "end": 112.76,
+      "chord": "D"
+    },
+    {
+      "start": 112.76,
+      "end": 113.96,
+      "chord": "C"
+    },
+    {
+      "start": 113.96,
+      "end": 116.63,
+      "chord": "Em"
+    },
+    {
+      "start": 116.63,
+      "end": 119.3,
+      "chord": "C"
+    },
+    {
+      "start": 119.3,
+      "end": 122.02,
+      "chord": "G"
+    },
+    {
+      "start": 122.02,
+      "end": 122.81,
+      "chord": "C"
+    },
+    {
+      "start": 122.81,
+      "end": 124.34,
+      "chord": "D"
+    },
+    {
+      "start": 124.34,
+      "end": 128.94,
+      "chord": "Em"
+    },
+    {
+      "start": 128.94,
+      "end": 135.51,
+      "chord": "C"
+    },
+    {
+      "start": 135.51,
+      "end": 136.67,
+      "chord": "D"
+    },
+    {
+      "start": 136.67,
+      "end": 140.11,
+      "chord": "Em"
+    },
+    {
+      "start": 140.11,
+      "end": 146.63,
+      "chord": "C"
+    },
+    {
+      "start": 146.63,
+      "end": 150.12,
+      "chord": "D"
+    },
+    {
+      "start": 150.12,
+      "end": 153.21,
+      "chord": "Em"
+    },
+    {
+      "start": 153.21,
+      "end": 153.97,
+      "chord": "Am7"
+    },
+    {
+      "start": 153.97,
+      "end": 155.09,
+      "chord": "C"
+    },
+    {
+      "start": 155.09,
+      "end": 162.01,
+      "chord": "D"
+    },
+    {
+      "start": 162.01,
+      "end": 162.42,
+      "chord": "Cm"
+    },
+    {
+      "start": 162.42,
+      "end": 165.49,
+      "chord": "Em"
+    },
+    {
+      "start": 165.49,
+      "end": 166.28,
+      "chord": "Am7"
+    },
+    {
+      "start": 166.28,
+      "end": 172.11,
+      "chord": "G"
+    },
+    {
+      "start": 172.11,
+      "end": 174.1,
+      "chord": "D"
+    },
+    {
+      "start": 174.1,
+      "end": 175.29,
+      "chord": "C"
+    },
+    {
+      "start": 175.29,
+      "end": 178.56,
+      "chord": "E"
+    },
+    {
+      "start": 178.56,
+      "end": 183.21,
+      "chord": "C"
+    },
+    {
+      "start": 183.21,
+      "end": 185.46,
+      "chord": "D"
+    },
+    {
+      "start": 185.46,
+      "end": 192.77,
+      "chord": "E"
+    },
+    {
+      "start": 192.77,
+      "end": 195.86,
+      "chord": "C"
+    },
+    {
+      "start": 195.86,
+      "end": 202.76,
+      "chord": "D"
+    },
+    {
+      "start": 202.76,
+      "end": 204.34,
+      "chord": "C"
+    },
+    {
+      "start": 204.34,
+      "end": 205.08,
+      "chord": "Amaj7"
+    },
+    {
+      "start": 205.08,
+      "end": 205.5,
+      "chord": "C"
+    },
+    {
+      "start": 205.5,
+      "end": 207.03,
+      "chord": "D"
+    },
+    {
+      "start": 207.03,
+      "end": 208.17,
+      "chord": "Amaj7"
+    },
+    {
+      "start": 208.17,
+      "end": 208.59,
+      "chord": "C"
+    },
+    {
+      "start": 208.59,
+      "end": 215.48,
+      "chord": "D"
+    },
+    {
+      "start": 215.48,
+      "end": 217.78,
+      "chord": "C"
+    },
+    {
+      "start": 217.78,
+      "end": 218.52,
+      "chord": "Am7"
+    },
+    {
+      "start": 218.52,
+      "end": 220.84,
+      "chord": "C"
+    },
+    {
+      "start": 220.84,
+      "end": 228.18,
+      "chord": "D"
+    },
+    {
+      "start": 228.18,
+      "end": 235.89,
+      "chord": "C"
+    },
+    {
+      "start": 235.89,
+      "end": 238.96,
+      "chord": "Amaj7"
+    },
+    {
+      "start": 238.96,
+      "end": 240.44,
+      "chord": "D"
+    },
+    {
+      "start": 240.44,
+      "end": 242.76,
+      "chord": "C"
+    },
+    {
+      "start": 242.76,
+      "end": 243.18,
+      "chord": "Am7"
+    },
+    {
+      "start": 243.18,
+      "end": 245.11,
+      "chord": "C"
+    },
+    {
+      "start": 245.11,
+      "end": 253.96,
+      "chord": "D"
+    },
+    {
+      "start": 253.96,
+      "end": 258.18,
+      "chord": "C"
+    },
+    {
+      "start": 258.18,
+      "end": 260.46,
+      "chord": "G"
+    },
+    {
+      "start": 260.46,
+      "end": 261.25,
+      "chord": "C"
+    },
+    {
+      "start": 261.25,
+      "end": 263.89,
+      "chord": "D"
+    },
+    {
+      "start": 263.89,
+      "end": 264.66,
+      "chord": "A"
+    },
+    {
+      "start": 264.66,
+      "end": 267.82,
+      "chord": "Am7"
+    },
+    {
+      "start": 267.82,
+      "end": 270.49,
+      "chord": "C"
+    },
+    {
+      "start": 270.49,
+      "end": 271.98,
+      "chord": "A"
+    },
+    {
+      "start": 271.98,
+      "end": 273.88,
+      "chord": "D"
+    },
+    {
+      "start": 273.88,
+      "end": 275.88,
+      "chord": "C"
+    },
+    {
+      "start": 275.88,
+      "end": 278.8,
+      "chord": "Am7"
+    },
+    {
+      "start": 278.8,
+      "end": 287.14,
+      "chord": "G"
+    },
+    {
+      "start": 287.14,
+      "end": 289.11,
+      "chord": "A"
+    },
+    {
+      "start": 289.11,
+      "end": 289.53,
+      "chord": "C"
+    },
+    {
+      "start": 289.53,
+      "end": 299.91,
+      "chord": "D"
+    },
+    {
+      "start": 299.91,
+      "end": 301.07,
+      "chord": "A"
+    },
+    {
+      "start": 301.07,
+      "end": 302.97,
+      "chord": "C"
+    },
+    {
+      "start": 302.97,
+      "end": 306.67,
+      "chord": "G"
+    },
+    {
+      "start": 306.67,
+      "end": 307.08,
+      "chord": "C"
+    },
+    {
+      "start": 307.08,
+      "end": 309.92,
+      "chord": "D"
+    },
+    {
+      "start": 309.92,
+      "end": 313.98,
+      "chord": "Em"
+    },
+    {
+      "start": 313.98,
+      "end": 315.93,
+      "chord": "C"
+    },
+    {
+      "start": 315.93,
+      "end": 317.6,
+      "chord": "G"
+    },
+    {
+      "start": 317.6,
+      "end": 325.33,
+      "chord": "Bm"
+    },
+    {
+      "start": 325.33,
+      "end": 326.54,
+      "chord": "A"
+    },
+    {
+      "start": 326.54,
+      "end": 330.63,
+      "chord": "C"
+    },
+    {
+      "start": 330.63,
+      "end": 332.23,
+      "chord": "Bm"
+    },
+    {
+      "start": 332.23,
+      "end": 333.39,
+      "chord": "C"
+    },
+    {
+      "start": 333.39,
+      "end": 344.19,
+      "chord": "D"
+    }
+  ],
+  "tempoConfidence": "officiel",
+  "tempoNote": "Tempo officiel du morceau, confirmé par l'utilisateur.",
+  "warning": "ATTENTION — ce fichier est la SORTIE DU MOTEUR produite par la sous-commande `sheet`, pas une vérité terrain. Le comparer au moteur mesurerait le moteur contre lui-même. Il attend une relecture humaine ; ne pas passer status à validated avant."
+}

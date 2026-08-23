@@ -1,0 +1,102 @@
+{
+  "trackId": "ton-nom-est-jehovah-extrait",
+  "title": "Ton Nom est Jéhovah — extrait 60 s",
+  "media": "/home/visiteur/piano-jazz-chords/data/real/ton_nom_est_jehovah_extrait.wav",
+  "status": "provisional",
+  "validatedBy": "agent antérieur, non confirmé par l'utilisateur",
+  "source": "tests/references/ton_nom_est_jehovah_chords.json. Durées irrégulières (4-2-3-4-5-4-3-2…) et frontières arrondies à la seconde : profil d'une annotation faite à l'oreille, pas d'une extrapolation mécanique — mais la provenance n'est pas tracée. Sert au suivi de non-régression, pas au chiffre de référence, tant que l'utilisateur ne l'a pas confirmée.",
+  "key": "A",
+  "tempo": null,
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 4.0,
+      "chord": "A"
+    },
+    {
+      "start": 4.0,
+      "end": 6.0,
+      "chord": "D"
+    },
+    {
+      "start": 6.0,
+      "end": 9.0,
+      "chord": "A"
+    },
+    {
+      "start": 9.0,
+      "end": 13.0,
+      "chord": "Bm"
+    },
+    {
+      "start": 13.0,
+      "end": 18.0,
+      "chord": "E"
+    },
+    {
+      "start": 18.0,
+      "end": 22.0,
+      "chord": "A"
+    },
+    {
+      "start": 22.0,
+      "end": 25.0,
+      "chord": "D"
+    },
+    {
+      "start": 25.0,
+      "end": 27.0,
+      "chord": "C#m"
+    },
+    {
+      "start": 27.0,
+      "end": 31.0,
+      "chord": "Bm"
+    },
+    {
+      "start": 31.0,
+      "end": 33.0,
+      "chord": "E"
+    },
+    {
+      "start": 33.0,
+      "end": 36.0,
+      "chord": "D"
+    },
+    {
+      "start": 36.0,
+      "end": 40.0,
+      "chord": "A"
+    },
+    {
+      "start": 40.0,
+      "end": 42.0,
+      "chord": "D"
+    },
+    {
+      "start": 42.0,
+      "end": 45.0,
+      "chord": "A"
+    },
+    {
+      "start": 45.0,
+      "end": 49.0,
+      "chord": "Bm"
+    },
+    {
+      "start": 49.0,
+      "end": 52.0,
+      "chord": "E"
+    },
+    {
+      "start": 52.0,
+      "end": 54.0,
+      "chord": "D"
+    },
+    {
+      "start": 54.0,
+      "end": 60.0,
+      "chord": "A"
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "name": "analyse-v1",
+  "description": "Corpus de référence du moteur harmonique. Un morceau ne compte dans la mesure que si status = validated (vérité terrain relue par l'utilisateur).",
+  "metric": "chord_accuracy = fraction de la durée totale où l'accord détecté est exactement l'accord attendu (fondamentale + qualité), pondérée par la durée.",
+  "tracks": [
+    {
+      "id": "you-are-yahweh",
+      "title": "You Are Yahweh — Steve Crown (live)",
+      "genre": "gospel/worship",
+      "media": "/home/visiteur/Musique/YOU ARE YAHWEH (LIVE) STEVE CROWN  #worship #stevecrown #yahweh   #trending #trendingvideo.mp3",
+      "status": "validated",
+      "note": "Grille structurelle fournie par l'utilisateur (A majeur, intro D-A-E-F#m, refrain E-D-A). Vérité terrain restreinte le 2026-08-23 à 0–75 s : au-delà, la grille avait été extrapolée mécaniquement et mesurait l'annotation."
+    },
+    {
+      "id": "autumn-leaves-synth",
+      "title": "Autumn Leaves — grille Bill Evans, rendu MIDI de synthèse",
+      "genre": "jazz (synthèse)",
+      "media": "/home/visiteur/piano-jazz-chords/data/autumn_leaves/autumn_leaves_mix.wav",
+      "status": "validated",
+      "note": "Audio rendu depuis la grille : vérité terrain exacte par construction, aucune écoute requise. Basse walking à 75 % de notes de passage — garde-fou contre un moteur qui confondrait ligne de basse et changement d'accord."
+    },
+    {
+      "id": "saint-esprit",
+      "title": "Saint Esprit — MLK Music & Jessy Elsa Palma",
+      "genre": "gospel francophone",
+      "media": "/home/visiteur/Musique/Saint Esprit  MLK Music et Jessy Elsa Palma.mp3",
+      "status": "draft",
+      "note": "Boucle Em-C-G-D en sol majeur. Cas de référence du décalage de frontières (~0.4s d'avance)."
+    },
+    {
+      "id": "amazing-grace",
+      "title": "Amazing Grace — Gospel Piano",
+      "genre": "hymne / piano solo",
+      "media": "/home/visiteur/Musique/”Amazing Grace” Gospel Piano.mp3",
+      "status": "draft",
+      "note": "Piano solo, harmonie lente : cas favorable qui doit être proche du sans-faute."
+    },
+    {
+      "id": "ton-nom-est-jehovah",
+      "title": "Ton Nom est Jéhovah",
+      "genre": "gospel francophone",
+      "media": "/home/visiteur/Musique/Ton NOm est Jéhovah.mp3",
+      "status": "draft",
+      "note": "Déjà présent dans le corpus de détection de basse (BENCHMARK_REPORT)."
+    },
+    {
+      "id": "autumn-leaves",
+      "title": "Autumn Leaves — Bill Evans (transcription)",
+      "genre": "jazz",
+      "media": "/home/visiteur/Musique/Bill Evans - Autumn Leaves - Piano Solo Transcription.mp3",
+      "status": "draft",
+      "note": "Cas difficile volontaire : jazz, harmonie dense, beaucoup de lignes mélodiques. Sert de garde-fou contre un moteur sur-ajusté au gospel."
+    },
+    {
+      "id": "ton-nom-est-jehovah-extrait",
+      "title": "Ton Nom est Jéhovah — extrait 60 s",
+      "genre": "gospel francophone",
+      "media": "/home/visiteur/piano-jazz-chords/data/real/ton_nom_est_jehovah_extrait.wav",
+      "status": "provisional",
+      "note": "Annotation héritée de tests/references/, provenance non tracée. À confirmer par l'utilisateur."
+    }
+  ],
+  "statusLevels": {
+    "validated": "Vérité terrain défendable : fournie par l'utilisateur ou exacte par construction. Seuls ces morceaux forment le chiffre de référence.",
+    "provisional": "Annotation plausible mais de provenance non confirmée. Mesurée et rapportée à part : sert au suivi de non-régression.",
+    "draft": "Sortie du moteur en attente de relecture. Jamais mesurée."
+  }
+}
