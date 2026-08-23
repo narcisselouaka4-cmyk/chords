@@ -293,7 +293,62 @@ export function buildProjectPath(audioPath) {
   return audioPath.replace(/\.[^/.]+$/, '') + '.pjc.json';
 }
 
-export function buildProjectData(audioIdentity, chords, existingOrphanedOverrides = {}) {
+// Version 1 : le projet ne stockait que les corrections manuelles ; rouvrir un
+// morceau relançait une analyse complète. Version 2 : le résultat d'analyse est
+// lui aussi conservé, ce qu'exige le niveau 6 de la Definition of Done —
+// retrouver accords, tonalité et corrections sans relancer l'analyse.
+// Les projets en version 1 restent lisibles : leurs corrections sont
+// appliquées, seule l'analyse est recalculée.
+export const PROJECT_SCHEMA_VERSION = 2;
+export const SUPPORTED_PROJECT_SCHEMA_VERSIONS = [1, 2];
+
+// Champs du résultat d'analyse conservés. Liste explicite plutôt que copie
+// intégrale : les objets d'analyse portent des chemins temporaires (wavPath)
+// qui n'ont aucun sens d'une session à l'autre.
+const PERSISTED_ANALYSIS_FIELDS = [
+  'duration', 'tempo', 'timeSignature', 'key', 'keyMode', 'keyConfidence',
+  'keyCandidates', 'confidence', 'videoType', 'usedPianoStem', 'usedBassStem',
+];
+
+const PERSISTED_SEGMENT_FIELDS = [
+  'startTime', 'endTime', 'chord', 'segmentId', 'role', 'inStructuralLoop',
+  'confidence', 'degree', 'structural_chord', 'bass', 'observation_candidates',
+  'viterbi_choice',
+];
+
+function pick(source, fields) {
+  const out = {};
+  if (!source) return out;
+  for (const field of fields) {
+    if (source[field] !== undefined) out[field] = source[field];
+  }
+  return out;
+}
+
+export function buildAnalysisSnapshot(analysis) {
+  if (!analysis || !Array.isArray(analysis.chords)) return null;
+  return {
+    ...pick(analysis, PERSISTED_ANALYSIS_FIELDS),
+    segmentSignatureVersion: 1,
+    savedAt: new Date().toISOString(),
+    chords: analysis.chords.map((seg) => pick(seg, PERSISTED_SEGMENT_FIELDS)),
+    bassSegments: Array.isArray(analysis.bassSegments) ? analysis.bassSegments : [],
+  };
+}
+
+/**
+ * Reconstruit un objet d'analyse exploitable depuis un projet enregistré.
+ * Retourne null si le projet ne porte pas d'analyse (version 1, ou fichier
+ * écrit avant la fin d'une analyse) : l'appelant doit alors relancer l'analyse.
+ */
+export function extractCachedAnalysis(projectData) {
+  const cached = projectData && projectData.analysis;
+  if (!cached || !Array.isArray(cached.chords) || cached.chords.length === 0) return null;
+  const { savedAt, segmentSignatureVersion, ...rest } = cached;
+  return { ...rest, chords: cached.chords.map((seg) => ({ ...seg })) };
+}
+
+export function buildProjectData(audioIdentity, chords, existingOrphanedOverrides = {}, analysis = null) {
   const overrides = {};
   for (const seg of chords) {
     if (seg.manualOverride) {
@@ -309,10 +364,15 @@ export function buildProjectData(audioIdentity, chords, existingOrphanedOverride
       };
     }
   }
+  // À défaut d'objet d'analyse complet, on conserve au moins les segments :
+  // c'est ce qui évite de relancer l'analyse au rechargement.
+  const snapshot = buildAnalysisSnapshot(analysis)
+    || buildAnalysisSnapshot({ chords })
+    || { segmentSignatureVersion: 1 };
   return {
-    schemaVersion: 1,
+    schemaVersion: PROJECT_SCHEMA_VERSION,
     audio: { ...audioIdentity },
-    analysis: { segmentSignatureVersion: 1 },
+    analysis: snapshot,
     manualChordOverrides: overrides,
     orphanedOverrides: { ...(existingOrphanedOverrides || {}) },
   };
@@ -320,7 +380,7 @@ export function buildProjectData(audioIdentity, chords, existingOrphanedOverride
 
 export function validateProjectSchema(data) {
   if (!data || typeof data !== 'object') return false;
-  if (data.schemaVersion !== 1) return false;
+  if (!SUPPORTED_PROJECT_SCHEMA_VERSIONS.includes(data.schemaVersion)) return false;
   if (!data.audio || typeof data.audio !== 'object') return false;
   if (!data.audio.path) return false;
   if (typeof data.audio.path !== 'string') return false;

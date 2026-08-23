@@ -20,6 +20,7 @@ import {
 } from './ai/openai-config.js';
 import { createPracticeExercise, renderExerciseTarget } from './practice-exercise.js';
 import { applyTabVisibility } from './ui/tab-visibility.js';
+import { initOnboarding, notifyOnboarding } from './ui/onboarding.js';
 
 const state = {
   activeNotes: new Map(), // midi -> velocity
@@ -1019,6 +1020,9 @@ function initTabNavigation() {
       b.classList.toggle('active', b.dataset.tab === tab);
     });
 
+    // Le chapitre Studio n'a de sens qu'une fois le Studio à l'écran : ses
+    // étapes visent des éléments qui n'existent nulle part ailleurs.
+    if (tab === 'studio') notifyOnboarding('studio', 'first-studio');
   }
 
   tabNav?.addEventListener('click', (e) => {
@@ -1041,6 +1045,8 @@ function initTabNavigation() {
       switchToTab(e.detail.tab);
     }
   });
+
+  initOnboarding();
 
   if (window.location.hash === '#analysis') switchToTab('analysis');
   else if (window.location.hash === '#studio') switchToTab('studio');

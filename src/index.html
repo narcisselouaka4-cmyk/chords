@@ -47,6 +47,7 @@
             <button class="tab-btn" data-tab="analysis" title="Analyser et rejouer des sessions MIDI">Analyse</button>
             <button class="tab-btn" data-tab="studio" title="Importer, lire et séparer des morceaux">Studio</button>
           </nav>
+          <button class="onboarding-help-toggle" id="onboarding-help-btn" title="Tutoriel — comment utiliser l'application" aria-label="Ouvrir le tutoriel" aria-haspopup="menu">?</button>
           <button class="settings-toggle" id="ai-settings-toggle" title="Paramètres IA">🔑</button>
           <button class="theme-toggle" id="theme-toggle" title="Changer de thème">🌙</button>
         </div>
@@ -485,11 +486,13 @@
                 <h2 class="analyzer-song-title truncate" id="analyzer-song-title">Titre du morceau</h2>
                 <span class="analyzer-song-artist" id="analyzer-song-artist">Inconnu</span>
                 <span class="badge" id="analyzer-stem-badge" style="display:none"></span>
+                <span class="badge" id="analyzer-cached-badge" style="display:none" title="Résultat relu depuis le projet enregistré, sans nouveau calcul">↺ Analyse enregistrée</span>
               </div>
               <div class="analyzer-media-context" id="analyzer-media-context" aria-live="polite">Fichier analysé : Aucun fichier analysé</div>
               <div class="flex items-center gap-2">
                 <button type="button" id="analyzer-prev-btn" class="btn-secondary btn-sm" title="Revenir au début">⏮</button>
                 <button type="button" id="analyzer-play-btn" class="btn-primary btn-sm" title="Lecture / Pause">▶</button>
+                <button type="button" id="analyzer-reanalyze-btn" class="btn-secondary btn-sm" title="Recalculer les accords depuis l'audio">↻ Relancer l'analyse</button>
                 <button type="button" id="analyzer-back-btn" class="btn-secondary btn-sm">Importer</button>
               </div>
             </div>
@@ -509,6 +512,25 @@
             </div>
 
             <div id="analyzer-audio-container" style="display: none;"></div>
+
+            <div class="analyzer-timeline-legend" id="analyzer-timeline-legend">
+              <span class="analyzer-legend-item">
+                <span class="analyzer-legend-swatch role-structural" aria-hidden="true"></span>
+                Accord structurel
+              </span>
+              <span class="analyzer-legend-item">
+                <span class="analyzer-legend-swatch role-passing" aria-hidden="true"></span>
+                Accord de passage
+              </span>
+              <span class="analyzer-legend-item">
+                <span class="analyzer-legend-swatch role-uncertain" aria-hidden="true"></span>
+                Incertain
+              </span>
+              <label class="analyzer-legend-toggle">
+                <input type="checkbox" id="analyzer-hierarchy-toggle" checked />
+                Hiérarchiser
+              </label>
+            </div>
 
             <div class="analyzer-timeline-wrapper">
               <div class="analyzer-timeline-scroll" id="analyzer-chord-timeline">
