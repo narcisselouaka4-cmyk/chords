@@ -1,0 +1,140 @@
+{
+  "trackId": "you-are-yahweh-tutorial",
+  "title": "You Are Yahweh — tutoriel piano Extreme Midi",
+  "media": "/home/visiteur/Téléchargements/Steve Crown - You are Yahwe  EASY PIANO TUTORIAL BY Extreme Midi.mp4",
+  "status": "validated",
+  "validatedBy": "utilisateur",
+  "source": "Transcription à l'oreille par l'utilisateur le 2026-08-23, puis corrigée par lecture image par image du tutoriel : à t=17 s la main gauche affiche F#, A, Db (triade de fa dièse mineur) ; à t=8 s la mélodie joue un Do# incompatible avec un La mineur. L'utilisateur a confirmé que « Fa mineur » et « La mineur » de la première transcription étaient des fautes de frappe — aucun accord mineur autre que F#m n'existe dans ce morceau.",
+  "key": "A",
+  "tempo": 107.0,
+  "tempoConfidence": "utilisateur — tempo officiel du morceau",
+  "tempoNote": "107 BPM. Le moteur affiche 54, soit une erreur d'octave (verrouillage sur la moitié). L'ancienne fiche de ce morceau affirmait l'inverse — que 51,7 était le vrai pulse — ce que l'utilisateur a infirmé le 2026-08-23.",
+  "annotatedRange": [
+    0.0,
+    75.0
+  ],
+  "annotatedNote": "La grille s'arrête à 75 s. L'utilisateur indique que la boucle du refrain (E 2 s, D 2 s, A 5 s) se répète à l'identique jusqu'à la fin, le refrain étant joué strictement au tempo contrairement à l'intro en rubato. L'extrapolation est mesurée SÉPARÉMENT (piste you-are-yahweh-tutorial-extrapole) et n'entre pas dans le chiffre de référence : c'est précisément une extrapolation de ce type qui avait faussé toutes les mesures du projet avant le 2026-08-23.",
+  "harmonicNote": "Progression entièrement diatonique à La majeur : intro IV-I-V-vi, refrain V-IV-I. Cohérent avec la tonalité détectée par le moteur.",
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 7.0,
+      "chord": "D",
+      "section": "intro"
+    },
+    {
+      "start": 7.0,
+      "end": 11.0,
+      "chord": "A",
+      "section": "intro"
+    },
+    {
+      "start": 11.0,
+      "end": 16.0,
+      "chord": "E",
+      "section": "intro"
+    },
+    {
+      "start": 16.0,
+      "end": 21.0,
+      "chord": "F#m",
+      "section": "intro"
+    },
+    {
+      "start": 21.0,
+      "end": 25.0,
+      "chord": "D",
+      "section": "intro_loop"
+    },
+    {
+      "start": 25.0,
+      "end": 30.0,
+      "chord": "A",
+      "section": "intro_loop"
+    },
+    {
+      "start": 30.0,
+      "end": 34.0,
+      "chord": "E",
+      "section": "pre_chorus"
+    },
+    {
+      "start": 34.0,
+      "end": 39.0,
+      "chord": "A",
+      "section": "pre_chorus"
+    },
+    {
+      "start": 39.0,
+      "end": 41.0,
+      "chord": "E",
+      "section": "chorus"
+    },
+    {
+      "start": 41.0,
+      "end": 43.0,
+      "chord": "D",
+      "section": "chorus"
+    },
+    {
+      "start": 43.0,
+      "end": 48.0,
+      "chord": "A",
+      "section": "chorus"
+    },
+    {
+      "start": 48.0,
+      "end": 50.0,
+      "chord": "E",
+      "section": "chorus"
+    },
+    {
+      "start": 50.0,
+      "end": 52.0,
+      "chord": "D",
+      "section": "chorus"
+    },
+    {
+      "start": 52.0,
+      "end": 57.0,
+      "chord": "A",
+      "section": "chorus"
+    },
+    {
+      "start": 57.0,
+      "end": 59.0,
+      "chord": "E",
+      "section": "chorus"
+    },
+    {
+      "start": 59.0,
+      "end": 61.0,
+      "chord": "D",
+      "section": "chorus"
+    },
+    {
+      "start": 61.0,
+      "end": 66.0,
+      "chord": "A",
+      "section": "chorus"
+    },
+    {
+      "start": 66.0,
+      "end": 68.0,
+      "chord": "E",
+      "section": "chorus"
+    },
+    {
+      "start": 68.0,
+      "end": 71.0,
+      "chord": "D",
+      "section": "chorus"
+    },
+    {
+      "start": 71.0,
+      "end": 75.0,
+      "chord": "A",
+      "section": "chorus"
+    }
+  ]
+}
