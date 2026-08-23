@@ -3,9 +3,13 @@
    Toutes les couleurs passent par les variables du thème clair/sombre. */
 
 /* ── Layout global ── */
+/* Une seule colonne : le panneau « Flux d'analyse » a été retiré le
+   2026-08-23 à la demande de l'utilisateur — il décrivait les étapes plutôt
+   qu'il n'aidait à les franchir, et sa colonne de 320 px manquait à la
+   timeline. */
 .analysis-tab {
   display: grid;
-  grid-template-columns: 1fr 320px;
+  grid-template-columns: 1fr;
   grid-template-rows: 1fr;
   gap: 16px;
   padding: 16px;
@@ -27,26 +31,6 @@
   border: 1px solid var(--panel-border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-}
-
-.analyzer-sidebar {
-  grid-column: 2;
-  grid-row: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow-y: auto;
-}
-
-/* En capture MIDI : la sidebar globale « Flux d'analyse » est masquée, le
-   workspace occupe toute la largeur et les métriques de session prennent le
-   panneau de droite (sidebar interne de #analyzer-state-midi-record). */
-.analysis-tab.midi-capture {
-  grid-template-columns: 1fr;
-}
-
-.analysis-tab.midi-capture .analyzer-sidebar {
-  display: none;
 }
 
 /* ── États du workspace ── */
@@ -1668,10 +1652,6 @@
   z-index: 4;
 }
 
-.analyzer-timeline-block.micro {
-  font-size: 0;
-}
-
 .analyzer-timeline-block .override-icon {
   position: absolute;
   top: 2px;
@@ -1898,17 +1878,6 @@
 }
 
 @media (max-width: 900px) {
-  .analysis-tab {
-    grid-template-columns: 1fr;
-    grid-template-rows: 1fr auto;
-  }
-
-  .analyzer-sidebar {
-    grid-column: 1;
-    grid-row: 2;
-    max-height: 200px;
-  }
-
   .analyzer-import-cards,
   .analyzer-video-grid,
   .analyzer-reharm-grid {
@@ -2026,4 +1995,40 @@
 
 .analyzer-timeline-block:hover {
   opacity: 1;
+}
+
+/* ── Libellé adaptatif et repli progressif ─────────────────────────────────
+   Le symbole d'accord n'est jamais tronqué : il se réduit par paliers musicaux
+   (symbole complet → triade → fondamentale → rien), le nom entier restant dans
+   l'infobulle et l'aria-label. */
+
+.analyzer-timeline-label {
+  font-weight: inherit;
+  line-height: 1;
+  white-space: nowrap;
+  padding: 0 3px;
+}
+
+/* Forme abrégée : un léger soulignement pointillé signale qu'il existe une
+   information plus complète, sans faire croire à une erreur de détection. */
+.analyzer-timeline-block.label-reduced .analyzer-timeline-label {
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--text-dim);
+}
+
+/* Replié : un marqueur fin, toujours cliquable et toujours dans le modèle.
+   Zoomer le rend à sa taille normale. */
+.analyzer-timeline-block.collapsed {
+  min-width: 3px;
+  padding: 0;
+  border-radius: 2px;
+  opacity: 0.55;
+}
+
+.analyzer-timeline-block.collapsed:hover,
+.analyzer-timeline-block.collapsed.selected,
+.analyzer-timeline-block.collapsed.current {
+  opacity: 1;
+  min-width: 5px;
 }

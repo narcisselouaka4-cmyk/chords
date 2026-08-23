@@ -41,6 +41,7 @@ import {
   tryApplyProjectOverrides,
   extractCachedAnalysis,
 } from './chord-editor.js';
+import { fitChordLabel } from './chord-label-fit.js';
 import { notifyOnboarding } from './onboarding.js';
 import { buildDemoFixture } from './reharmonization-demo-fixture.js';
 import { buildReharmonizationViewModel } from './reharmonization-orchestrator.js';
@@ -87,9 +88,6 @@ const els = {
   stateResults: document.getElementById('analyzer-state-results'),
   analysisTab: document.getElementById('analysis-tab'),
   sidebar: document.getElementById('analyzer-sidebar'),
-  flowImport: document.getElementById('analyzer-flow-import'),
-  flowDetect: document.getElementById('analyzer-flow-detect'),
-  flowLaunch: document.getElementById('analyzer-flow-launch'),
 
   // Préparation audio
   prepareFileName: document.getElementById('analyzer-prepare-file-name'),
@@ -130,6 +128,8 @@ const els = {
   stemBadge: document.getElementById('analyzer-stem-badge'),
 
   prevBtn: document.getElementById('analyzer-prev-btn'),
+  skipBackBtn: document.getElementById('analyzer-skip-back-btn'),
+  skipFwdBtn: document.getElementById('analyzer-skip-fwd-btn'),
   playBtn: document.getElementById('analyzer-play-btn'),
   progressTrack: document.getElementById('analyzer-progress-track'),
   progressFill: document.getElementById('analyzer-progress-fill'),
@@ -200,6 +200,15 @@ let selectedSegmentId = null; // segmentId sélectionné dans la timeline
 // d'un rôle harmonique ; la timeline le traduit en poids visuel. Désactivable :
 // certains utilisateurs préfèrent une grille uniforme.
 let hierarchyEnabled = true;
+
+// En dessous de cette largeur, un accord non structurel se replie en marqueur
+// fin : il ne disparaît pas du modèle et reste cliquable, il cesse seulement de
+// disputer la place aux piliers. C'est le « repli progressif » demandé plutôt
+// qu'une suppression — zoomer les fait réapparaître.
+const COLLAPSE_MIN_WIDTH_PX = 26;
+
+// Pas de navigation rapide, en secondes.
+const SKIP_SECONDS = 10;
 
 const ROLE_LABELS = {
   structural: 'Accord structurel',
@@ -273,11 +282,6 @@ function setAnalyzerState(state) {
   els.stateMidiRecord?.classList.remove('active');
   els.stateResults?.classList.remove('active');
   els.results?.classList.remove('active');
-
-  // Flux d'analyse
-  els.flowImport?.classList.toggle('active', state === 'import');
-  els.flowDetect?.classList.toggle('active', ['prepare', 'video-type', 'midi-record'].includes(state));
-  els.flowLaunch?.classList.toggle('active', state === 'analysis');
 
   // En capture MIDI, la sidebar globale « Flux d'analyse » est masquée : le
   // panneau de droite de l'état affiche les métriques de session.
@@ -1205,6 +1209,20 @@ function initKeyboardShortcuts() {
       if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
       e.preventDefault();
       togglePlayback();
+      return;
+    }
+
+    // Navigation rapide au clavier. Les blocs de la timeline ont le focus par
+    // moments : on ne détourne les flèches que lorsque ce n'est pas le cas,
+    // pour ne pas casser le déplacement d'accord en accord.
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      const active = document.activeElement;
+      const tag = active?.tagName;
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+      if (active?.classList?.contains('analyzer-timeline-block')) return;
+      if (!currentPlayer) return;
+      e.preventDefault();
+      seekBy(e.key === 'ArrowLeft' ? -SKIP_SECONDS : SKIP_SECONDS);
     }
   });
 }
@@ -1279,9 +1297,6 @@ function renderTimeline(chords, duration) {
       block.title = `${effectiveChordStr} · ${roleLabel}  ${timeRange}`;
     }
 
-    if (timeWidth < 32) {
-      block.classList.add('micro');
-    }
     if (isOverridden) {
       block.classList.add('manual-override');
     }
@@ -1295,8 +1310,25 @@ function renderTimeline(chords, duration) {
       block.classList.add(`role-${role}`);
     }
 
+    // Repli progressif : au dézoom, les accords non structurels devenus trop
+    // étroits se réduisent à un marqueur. Les piliers, eux, gardent toujours
+    // leur pastille — c'est la structure qu'on veut pouvoir lire de loin.
+    const collapsed = hierarchyEnabled
+      && role !== 'structural'
+      && timeWidth < COLLAPSE_MIN_WIDTH_PX;
+    if (collapsed) block.classList.add('collapsed');
+
+    // Le symbole s'adapte à la place disponible plutôt que d'être tronqué :
+    // « F#m » ne devient jamais « F... ». Quand rien ne tient, on n'affiche
+    // rien — le nom complet reste dans l'infobulle et l'aria-label.
+    const fitted = collapsed
+      ? { text: '', fontPx: 0, truncated: true }
+      : fitChordLabel(effectiveChordStr, timeWidth);
+    if (fitted.truncated) block.classList.add('label-reduced');
     block.innerHTML = `
-      <span class="truncate max-w-full px-2 font-bold" style="font-size: ${effectiveChordStr.length >= 7 ? '0.85rem' : '1rem'}">${escapeHtml(effectiveChordStr)}</span>
+      ${fitted.text
+        ? `<span class="analyzer-timeline-label" style="font-size:${fitted.fontPx}px">${escapeHtml(fitted.text)}</span>`
+        : ''}
       ${isOverridden ? '<span class="override-icon" title="Corrigé manuellement">✏</span>' : ''}
     `;
 
@@ -1507,6 +1539,8 @@ function togglePlayback() {
 
 function bindPlayerControls() {
   els.playBtn?.addEventListener('click', togglePlayback);
+  els.skipBackBtn?.addEventListener('click', () => seekBy(-SKIP_SECONDS));
+  els.skipFwdBtn?.addEventListener('click', () => seekBy(SKIP_SECONDS));
 
   els.prevBtn?.addEventListener('click', () => {
     if (!currentPlayer) return;
@@ -1540,6 +1574,19 @@ function seekFromPointerEvent(e) {
   const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
   const duration = currentPlayer.getDuration?.() || currentAnalysis?.duration || 1;
   currentPlayer.seek(ratio * duration);
+}
+
+/**
+ * Déplace la lecture d'un pas relatif, sans interrompre ni réinitialiser.
+ * Revenir de quelques secondes ne doit pas obliger à repartir du début.
+ */
+function seekBy(seconds) {
+  const el = currentPlayer?.element;
+  if (!el) return;
+  const duration = currentPlayer.getDuration?.() || currentAnalysis?.duration || 0;
+  const target = Math.max(0, Math.min(el.currentTime + seconds, Math.max(duration - 0.05, 0)));
+  el.currentTime = target;
+  updatePlaybackPosition(target);
 }
 
 function updatePlayButton() {
