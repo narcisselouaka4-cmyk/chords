@@ -491,7 +491,9 @@
               <div class="analyzer-media-context" id="analyzer-media-context" aria-live="polite">Fichier analysé : Aucun fichier analysé</div>
               <div class="flex items-center gap-2">
                 <button type="button" id="analyzer-prev-btn" class="btn-secondary btn-sm" title="Revenir au début">⏮</button>
+                <button type="button" id="analyzer-skip-back-btn" class="btn-secondary btn-sm" title="Reculer de 10 secondes (flèche gauche)" aria-label="Reculer de 10 secondes">↩10s</button>
                 <button type="button" id="analyzer-play-btn" class="btn-primary btn-sm" title="Lecture / Pause">▶</button>
+                <button type="button" id="analyzer-skip-fwd-btn" class="btn-secondary btn-sm" title="Avancer de 10 secondes (flèche droite)" aria-label="Avancer de 10 secondes">10s↪</button>
                 <button type="button" id="analyzer-reanalyze-btn" class="btn-secondary btn-sm" title="Recalculer les accords depuis l'audio">↻ Relancer l'analyse</button>
                 <button type="button" id="analyzer-back-btn" class="btn-secondary btn-sm">Importer</button>
               </div>
@@ -627,42 +629,6 @@
           </div>
         </section>
 
-        <!-- Sidebar droite : Flux d'analyse / Résumé -->
-        <aside class="analyzer-sidebar" id="analyzer-sidebar">
-          <div class="analyzer-sidebar-card">
-            <div class="analyzer-sidebar-title">
-              Flux d'analyse
-              <button type="button" class="analyzer-info-btn" title="Informations" aria-label="Informations sur le flux d'analyse">ⓘ</button>
-            </div>
-            <div class="analyzer-flow">
-              <div class="analyzer-flow-item active" id="analyzer-flow-import">
-                <div class="analyzer-flow-num">1</div>
-                <div>
-                  <div class="analyzer-flow-title">Importer</div>
-                  <div class="analyzer-flow-sub">Choisissez un fichier audio ou vidéo à analyser.</div>
-                </div>
-              </div>
-              <div class="analyzer-flow-item" id="analyzer-flow-detect">
-                <div class="analyzer-flow-num">2</div>
-                <div>
-                  <div class="analyzer-flow-title">Détecter le type</div>
-                  <div class="analyzer-flow-sub">Le logiciel détecte automatiquement le tempo, la tonalité et les accords.</div>
-                </div>
-              </div>
-              <div class="analyzer-flow-item" id="analyzer-flow-launch">
-                <div class="analyzer-flow-num">3</div>
-                <div>
-                  <div class="analyzer-flow-title">Lancer l'analyse</div>
-                  <div class="analyzer-flow-sub">L'analyse est lancée et les accords sont affichés en temps réel.</div>
-                </div>
-              </div>
-            </div>
-            <div class="analyzer-tip">
-              <div class="analyzer-tip-title">💡 Conseil</div>
-              <div class="analyzer-tip-text">Pour de meilleurs résultats, utilisez des enregistrements de bonne qualité et sans bruit de fond excessif.</div>
-            </div>
-          </div>
-        </aside>
       </main>
 
       <main class="studio-tab stage-0" id="studio-tab" style="display: none;">

@@ -74,17 +74,28 @@ function testStateElementIds() {
   console.log('✅ DOM — Tous les IDs de setAnalyzerState existent dans index.html');
 }
 
-// ── Test 4 : Les IDs de la sidebar (Flux d'analyse) existent ──
+// ── Test 4 : Le panneau « Flux d'analyse » a bien été retiré ──
+// Retiré le 2026-08-23 à la demande de l'utilisateur : il décrivait les étapes
+// plutôt qu'il n'aidait à les franchir, et sa colonne de 320 px manquait à la
+// timeline. Ce test empêche sa réintroduction par inadvertance, et vérifie que
+// la mise en page a bien récupéré la largeur.
 function testSidebarIds() {
   const html = readText('src/index.html');
-  const flowIds = ['analyzer-flow-import', 'analyzer-flow-detect', 'analyzer-flow-launch'];
-  for (const id of flowIds) {
-    if (!html.includes(`id="${id}"`)) {
-      console.error(`❌ DOM — ID sidebar "${id}" introuvable`);
+  const removed = ['analyzer-flow-import', 'analyzer-flow-detect',
+                   'analyzer-flow-launch', 'analyzer-sidebar'];
+  for (const id of removed) {
+    if (html.includes(`id="${id}"`)) {
+      console.error(`❌ DOM — « ${id} » devrait avoir été retiré du panneau Flux d'analyse`);
       process.exit(1);
     }
   }
-  console.log('✅ DOM — IDs sidebar Flux d\'analyse présents');
+  const css = readText('src/ui/components/analyzer-workspace.css');
+  const layout = /\.analysis-tab\s*\{([^}]*)\}/s.exec(css);
+  if (!layout || !/grid-template-columns:\s*1fr\s*;/.test(layout[1])) {
+    console.error("❌ DOM — .analysis-tab devrait occuper une seule colonne après le retrait de la sidebar");
+    process.exit(1);
+  }
+  console.log('✅ DOM — panneau Flux d\'analyse retiré, workspace en pleine largeur');
 }
 
 // ── Test 5 : Contrat de mapping état → élément DOM ──
