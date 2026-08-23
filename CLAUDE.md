@@ -3,6 +3,27 @@
 > Ce fichier est le contrat de travail entre l'utilisateur et Claude sur ce projet.
 > Il fixe l'architecture, les conventions, les commandes et les pièges déjà connus.
 
+## 0. Mémoire du projet — lire en premier
+
+La mémoire persistante du projet est un vault Obsidian **hors du dépôt** :
+
+```
+/home/visiteur/.openclaw/workspace/apps/piano-jazz-chord/
+```
+
+**Avant toute tâche non triviale, lire `00_AGENT_START_HERE.md` dans ce vault**,
+puis `schema.md`, `state/current-state.md`, `state/current-work.md`,
+`state/next-actions.md`.
+
+On y trouve : les invariants à ne pas casser (`contracts/`), les décisions
+(`decisions/ADR-*`), les expériences déjà tentées et rejetées (`experiments/`),
+les concepts musicaux partagés (`concepts/`), les sources brutes (`raw/`) et la
+Definition of Done du module Analyse
+(`features/analyse-definition-of-done.md`).
+
+Le vault doit aussi être **mis à jour** en fin de tâche : `state/` + `log.md`,
+plus `experiments/` ou `decisions/` si pertinent.
+
 ---
 
 ## 1. Vue d'ensemble
