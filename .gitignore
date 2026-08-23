@@ -14,3 +14,8 @@ benchmark_outputs/harmonic/cache/
 # Bytecode produit par les exécutions pytest (le dépôt ne suit que les .pyc
 # générés par les runners natifs).
 __pycache__/*-pytest-*.pyc
+
+# Audio rendu de la batterie B1 : 122 Mo régénérables par
+# `python3 scripts/corpus_b1.py generate`. Les .mid et .json de vérité terrain,
+# eux, sont suivis : ce sont eux qui définissent le corpus.
+tests/corpus/b1/*.wav

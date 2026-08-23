@@ -1,0 +1,72 @@
+{
+  "caseId": "b1_5iivvi_60",
+  "battery": "B1",
+  "progression": "i-iv-v-i",
+  "key": "Am",
+  "tempo": 60.0,
+  "duration": 48.0,
+  "status": "exact",
+  "source": "Audio rendu depuis cette grille par fluidsynth. Les frontières sont exactes par construction, pas relevées à l'oreille.",
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 4.0,
+      "chord": "A:min"
+    },
+    {
+      "start": 4.0,
+      "end": 8.0,
+      "chord": "D:min"
+    },
+    {
+      "start": 8.0,
+      "end": 12.0,
+      "chord": "E:min"
+    },
+    {
+      "start": 12.0,
+      "end": 16.0,
+      "chord": "A:min"
+    },
+    {
+      "start": 16.0,
+      "end": 20.0,
+      "chord": "A:min"
+    },
+    {
+      "start": 20.0,
+      "end": 24.0,
+      "chord": "D:min"
+    },
+    {
+      "start": 24.0,
+      "end": 28.0,
+      "chord": "E:min"
+    },
+    {
+      "start": 28.0,
+      "end": 32.0,
+      "chord": "A:min"
+    },
+    {
+      "start": 32.0,
+      "end": 36.0,
+      "chord": "A:min"
+    },
+    {
+      "start": 36.0,
+      "end": 40.0,
+      "chord": "D:min"
+    },
+    {
+      "start": 40.0,
+      "end": 44.0,
+      "chord": "E:min"
+    },
+    {
+      "start": 44.0,
+      "end": 48.0,
+      "chord": "A:min"
+    }
+  ]
+}

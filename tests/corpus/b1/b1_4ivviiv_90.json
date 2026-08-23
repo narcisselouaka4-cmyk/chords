@@ -1,0 +1,72 @@
+{
+  "caseId": "b1_4ivviiv_90",
+  "battery": "B1",
+  "progression": "I-V-vi-IV",
+  "key": "D",
+  "tempo": 90.0,
+  "duration": 32.0,
+  "status": "exact",
+  "source": "Audio rendu depuis cette grille par fluidsynth. Les frontières sont exactes par construction, pas relevées à l'oreille.",
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 2.666667,
+      "chord": "D:maj"
+    },
+    {
+      "start": 2.666667,
+      "end": 5.333333,
+      "chord": "A:maj"
+    },
+    {
+      "start": 5.333333,
+      "end": 8.0,
+      "chord": "B:min"
+    },
+    {
+      "start": 8.0,
+      "end": 10.666667,
+      "chord": "G:maj"
+    },
+    {
+      "start": 10.666667,
+      "end": 13.333333,
+      "chord": "D:maj"
+    },
+    {
+      "start": 13.333333,
+      "end": 16.0,
+      "chord": "A:maj"
+    },
+    {
+      "start": 16.0,
+      "end": 18.666667,
+      "chord": "B:min"
+    },
+    {
+      "start": 18.666667,
+      "end": 21.333333,
+      "chord": "G:maj"
+    },
+    {
+      "start": 21.333333,
+      "end": 24.0,
+      "chord": "D:maj"
+    },
+    {
+      "start": 24.0,
+      "end": 26.666667,
+      "chord": "A:maj"
+    },
+    {
+      "start": 26.666667,
+      "end": 29.333333,
+      "chord": "B:min"
+    },
+    {
+      "start": 29.333333,
+      "end": 32.0,
+      "chord": "G:maj"
+    }
+  ]
+}
