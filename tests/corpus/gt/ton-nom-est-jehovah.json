@@ -1,0 +1,403 @@
+{
+  "trackId": "ton-nom-est-jehovah",
+  "title": "Ton Nom est Jéhovah",
+  "media": "/home/visiteur/Musique/Ton NOm est Jéhovah.mp3",
+  "status": "draft",
+  "key": "A",
+  "tempo": 53.8,
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 5.36,
+      "chord": "D"
+    },
+    {
+      "start": 5.36,
+      "end": 6.5,
+      "chord": "F#m"
+    },
+    {
+      "start": 6.5,
+      "end": 9.33,
+      "chord": "E"
+    },
+    {
+      "start": 9.33,
+      "end": 10.43,
+      "chord": "D"
+    },
+    {
+      "start": 10.43,
+      "end": 12.72,
+      "chord": "F#"
+    },
+    {
+      "start": 12.72,
+      "end": 20.09,
+      "chord": "E"
+    },
+    {
+      "start": 20.09,
+      "end": 24.64,
+      "chord": "D"
+    },
+    {
+      "start": 24.64,
+      "end": 26.31,
+      "chord": "A"
+    },
+    {
+      "start": 26.31,
+      "end": 30.84,
+      "chord": "D"
+    },
+    {
+      "start": 30.84,
+      "end": 37.06,
+      "chord": "E"
+    },
+    {
+      "start": 37.06,
+      "end": 39.34,
+      "chord": "A"
+    },
+    {
+      "start": 39.34,
+      "end": 44.44,
+      "chord": "D"
+    },
+    {
+      "start": 44.44,
+      "end": 48.92,
+      "chord": "F#m"
+    },
+    {
+      "start": 48.92,
+      "end": 52.94,
+      "chord": "E"
+    },
+    {
+      "start": 52.94,
+      "end": 55.73,
+      "chord": "A"
+    },
+    {
+      "start": 55.73,
+      "end": 61.44,
+      "chord": "D"
+    },
+    {
+      "start": 61.44,
+      "end": 64.25,
+      "chord": "F#"
+    },
+    {
+      "start": 64.25,
+      "end": 65.92,
+      "chord": "D"
+    },
+    {
+      "start": 65.92,
+      "end": 71.52,
+      "chord": "E"
+    },
+    {
+      "start": 71.52,
+      "end": 75.0,
+      "chord": "A"
+    },
+    {
+      "start": 75.0,
+      "end": 85.15,
+      "chord": "D"
+    },
+    {
+      "start": 85.15,
+      "end": 89.7,
+      "chord": "E"
+    },
+    {
+      "start": 89.7,
+      "end": 93.67,
+      "chord": "A"
+    },
+    {
+      "start": 93.67,
+      "end": 96.5,
+      "chord": "D"
+    },
+    {
+      "start": 96.5,
+      "end": 99.92,
+      "chord": "A"
+    },
+    {
+      "start": 99.92,
+      "end": 101.03,
+      "chord": "D"
+    },
+    {
+      "start": 101.03,
+      "end": 103.31,
+      "chord": "A"
+    },
+    {
+      "start": 103.31,
+      "end": 107.86,
+      "chord": "E"
+    },
+    {
+      "start": 107.86,
+      "end": 111.76,
+      "chord": "A"
+    },
+    {
+      "start": 111.76,
+      "end": 119.72,
+      "chord": "D"
+    },
+    {
+      "start": 119.72,
+      "end": 123.67,
+      "chord": "B"
+    },
+    {
+      "start": 123.67,
+      "end": 124.67,
+      "chord": "E"
+    },
+    {
+      "start": 124.67,
+      "end": 125.74,
+      "chord": "Em"
+    },
+    {
+      "start": 125.74,
+      "end": 126.25,
+      "chord": "E"
+    },
+    {
+      "start": 126.25,
+      "end": 126.76,
+      "chord": "A"
+    },
+    {
+      "start": 126.76,
+      "end": 127.31,
+      "chord": "D"
+    },
+    {
+      "start": 127.31,
+      "end": 131.08,
+      "chord": "A"
+    },
+    {
+      "start": 131.08,
+      "end": 133.31,
+      "chord": "D"
+    },
+    {
+      "start": 133.31,
+      "end": 136.12,
+      "chord": "A"
+    },
+    {
+      "start": 136.12,
+      "end": 136.67,
+      "chord": "D"
+    },
+    {
+      "start": 136.67,
+      "end": 138.39,
+      "chord": "A"
+    },
+    {
+      "start": 138.39,
+      "end": 145.73,
+      "chord": "E"
+    },
+    {
+      "start": 145.73,
+      "end": 146.29,
+      "chord": "D"
+    },
+    {
+      "start": 146.29,
+      "end": 148.56,
+      "chord": "A"
+    },
+    {
+      "start": 148.56,
+      "end": 153.14,
+      "chord": "D"
+    },
+    {
+      "start": 153.14,
+      "end": 155.14,
+      "chord": "Bm"
+    },
+    {
+      "start": 155.14,
+      "end": 162.17,
+      "chord": "E"
+    },
+    {
+      "start": 162.17,
+      "end": 163.84,
+      "chord": "A"
+    },
+    {
+      "start": 163.84,
+      "end": 168.44,
+      "chord": "D"
+    },
+    {
+      "start": 168.44,
+      "end": 171.25,
+      "chord": "A"
+    },
+    {
+      "start": 171.25,
+      "end": 175.19,
+      "chord": "Bm"
+    },
+    {
+      "start": 175.19,
+      "end": 175.78,
+      "chord": "A"
+    },
+    {
+      "start": 175.78,
+      "end": 179.96,
+      "chord": "E"
+    },
+    {
+      "start": 179.96,
+      "end": 185.88,
+      "chord": "A"
+    },
+    {
+      "start": 185.88,
+      "end": 187.08,
+      "chord": "E"
+    },
+    {
+      "start": 187.08,
+      "end": 188.8,
+      "chord": "D"
+    },
+    {
+      "start": 188.8,
+      "end": 193.86,
+      "chord": "A"
+    },
+    {
+      "start": 193.86,
+      "end": 197.83,
+      "chord": "F#m"
+    },
+    {
+      "start": 197.83,
+      "end": 198.37,
+      "chord": "E"
+    },
+    {
+      "start": 198.37,
+      "end": 202.9,
+      "chord": "Bm"
+    },
+    {
+      "start": 202.9,
+      "end": 207.47,
+      "chord": "E"
+    },
+    {
+      "start": 207.47,
+      "end": 213.69,
+      "chord": "F#m"
+    },
+    {
+      "start": 213.69,
+      "end": 217.66,
+      "chord": "F#"
+    },
+    {
+      "start": 217.66,
+      "end": 221.03,
+      "chord": "Daug"
+    },
+    {
+      "start": 221.03,
+      "end": 223.28,
+      "chord": "A"
+    },
+    {
+      "start": 223.28,
+      "end": 226.14,
+      "chord": "E"
+    },
+    {
+      "start": 226.14,
+      "end": 229.48,
+      "chord": "A"
+    },
+    {
+      "start": 229.48,
+      "end": 234.64,
+      "chord": "F#m"
+    },
+    {
+      "start": 234.64,
+      "end": 239.72,
+      "chord": "D"
+    },
+    {
+      "start": 239.72,
+      "end": 243.09,
+      "chord": "E"
+    },
+    {
+      "start": 243.09,
+      "end": 249.34,
+      "chord": "A"
+    },
+    {
+      "start": 249.34,
+      "end": 251.61,
+      "chord": "E"
+    },
+    {
+      "start": 251.61,
+      "end": 252.75,
+      "chord": "A"
+    },
+    {
+      "start": 252.75,
+      "end": 256.7,
+      "chord": "D"
+    },
+    {
+      "start": 256.7,
+      "end": 260.49,
+      "chord": "A"
+    },
+    {
+      "start": 260.49,
+      "end": 262.49,
+      "chord": "E"
+    },
+    {
+      "start": 262.49,
+      "end": 268.63,
+      "chord": "F#m"
+    },
+    {
+      "start": 268.63,
+      "end": 277.55,
+      "chord": "E"
+    }
+  ],
+  "tempoConfidence": "utilisateur",
+  "tempoNote": "Adoration : jamais au-dessus de 70 BPM. Le 107.7 détecté est la subdivision.",
+  "warning": "ATTENTION — ce fichier est la SORTIE DU MOTEUR produite par la sous-commande `sheet`, pas une vérité terrain. Le comparer au moteur mesurerait le moteur contre lui-même. Il attend une relecture humaine ; ne pas passer status à validated avant."
+}

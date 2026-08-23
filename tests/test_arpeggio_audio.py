@@ -95,6 +95,25 @@ class AudioStrictSpec:
         self.blocked_note = blocked_note or ''
 
 
+def _simple_vocabulary_active():
+    """Le moteur a-t-il le droit d'émettre sus2/sus4 en sortie ?
+
+    Certains oracles portent sur des qualités que le mode vocabulaire simple
+    interdit par décision produit. Les évaluer quand même produirait un échec
+    qui ne dit rien du moteur.
+    """
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('_ap_flags', AUDIO_PROCESSOR)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return bool(getattr(mod, 'ENABLE_SIMPLE_CHORD_VOCABULARY', False))
+    except Exception:
+        return False
+
+
+SIMPLE_VOCABULARY_ACTIVE = _simple_vocabulary_active()
+
 AUDIO_SPECS = {}
 
 # Note : les temps de début attendus proviennent des ground truths JSON.
@@ -135,12 +154,15 @@ AUDIO_SPECS['G_chromatic_passing_over_C'] = AudioStrictSpec(
     expected=[ZoneExpectation(0, {'', 'maj7'}, 0.0)],
 )
 
-# H : exactement 2 zones (C puis G). Le motif est répété 4 fois mais l'oracle
-# strict exige le nombre exact de zones de l'unité C→G : 2.
+# H : 8 zones. La fixture déclare expected_segments 8-8 et expected_chords
+# C G C G C G C G, chaque cellule marquée kind=chord / expected=keep. L'oracle
+# précédent n'attendait que l'unité C→G (2 zones) : il RÉCOMPENSAIT donc le
+# moteur qui écrase les répétitions et PUNISSAIT celui qui les restitue.
+# Corrigé le 2026-08-23 d'après tests/audio/arpeggio/H_c_then_g_half_bar.json.
 AUDIO_SPECS['H_c_then_g_half_bar'] = AudioStrictSpec(
-    'H', 'C 2 temps puis G 2 temps (unité C→G)',
-    expected=[ZoneExpectation(0, {'', 'maj7'}, 0.0),
-              ZoneExpectation(7, {'', 'maj7'}, 1.0)],
+    'H', 'C 2 temps puis G 2 temps, répété 4 fois',
+    expected=[ZoneExpectation(0 if i % 2 == 0 else 7, {'', 'maj7'}, float(i))
+              for i in range(8)],
 )
 
 # I : le G occupe 0.25s, plus court que le beat détecté (~1.0s) → BLOCKED.
@@ -153,19 +175,27 @@ AUDIO_SPECS['I_c_g_off_half_beat'] = AudioStrictSpec(
                   'la grille ne peut pas représenter cette frontière'),
 )
 
-# J : exactement 3 zones (C, D7/D, G). Le motif est répété 4 fois.
+# J : 12 zones (C, D7 de passage, G) × 4. Même correction qu'en H : la fixture
+# déclare expected_segments 12-12 et toutes ses cellules en expected=keep,
+# l'accord de passage D7 compris.
 AUDIO_SPECS['J_c_d7_g_passing'] = AudioStrictSpec(
-    'J', 'C 2 temps -> D7 passage 1 temps -> G 1 temps (unité C-D7-G)',
-    expected=[ZoneExpectation(0, {'', 'maj7'}, 0.0),
-              ZoneExpectation(2, {'7', ''}, 1.0),
-              ZoneExpectation(7, {'', 'maj7'}, 1.5)],
+    'J', 'C 2 temps -> D7 passage 1 temps -> G 1 temps, répété 4 fois',
+    expected=[e for i in range(4) for e in (
+        ZoneExpectation(0, {'', 'maj7'}, 2.0 * i),
+        ZoneExpectation(2, {'7', ''}, 2.0 * i + 1.0),
+        ZoneExpectation(7, {'', 'maj7'}, 2.0 * i + 1.5))],
     forbidden=['Dm', 'Dm7'],
 )
 
+# K : 8 zones. La basse reste sur C mais les voix supérieures changent
+# réellement (C → Am) : ce sont bien 8 accords, pas une pédale à absorber.
+# Corrigé d'après tests/audio/arpeggio/K_pedal_c_upper_change.json.
 AUDIO_SPECS['K_pedal_c_upper_change'] = AudioStrictSpec(
-    'K', 'Pédale C avec changement réel des voix supérieures (C -> Am)',
-    expected=[ZoneExpectation(0, {'', 'maj7'}, 0.0),
-              ZoneExpectation(9, {'m', 'm7'}, 1.0)],
+    'K', 'Pédale C avec changement réel des voix supérieures (C -> Am), répété 4 fois',
+    expected=[ZoneExpectation(0 if i % 2 == 0 else 9,
+                              {'', 'maj7'} if i % 2 == 0 else {'m', 'm7'},
+                              float(i))
+              for i in range(8)],
     forbidden=['Cm'],
 )
 
@@ -174,11 +204,20 @@ AUDIO_SPECS['L_walking_bass_cmaj7'] = AudioStrictSpec(
     expected=[ZoneExpectation(0, {'', 'maj7'}, 0.0)],
 )
 
+# M : 8 zones alternant Csus4 et C. Cet oracle n'est évaluable que si le
+# moteur a le droit d'émettre « sus4 » : sous ENABLE_SIMPLE_CHORD_VOCABULARY,
+# sus4 est réécrit en majeur par décision produit, les deux zones deviennent
+# « C » et fusionnent. Le cas est alors BLOCKED, jamais PASS — voir la tension
+# assumée dans features/analyse-definition-of-done du vault.
 AUDIO_SPECS['M_csus4_to_c'] = AudioStrictSpec(
-    'M', 'Csus4 -> C, résolution préservée',
-    expected=[ZoneExpectation(0, {'sus4', 'sus2'}, 0.0),
-              ZoneExpectation(0, {'', 'maj7'}, 1.0)],
+    'M', 'Csus4 -> C, résolution préservée, répété 4 fois',
+    expected=[ZoneExpectation(0, {'sus4', 'sus2'} if i % 2 == 0 else {'', 'maj7'},
+                              float(i))
+              for i in range(8)],
     forbidden=['Fsus2'],
+    blocked_note=(SIMPLE_VOCABULARY_ACTIVE and
+                  'ENABLE_SIMPLE_CHORD_VOCABULARY réécrit sus4 en majeur : la '
+                  'résolution sus4 → majeur ne peut pas être observée en sortie') or None,
 )
 
 # N : exactement 1 zone admissible (racine C), l'arpège est incomplet sans tierce.
@@ -187,12 +226,14 @@ AUDIO_SPECS['N_incomplete_arpeg_no_third'] = AudioStrictSpec(
     expected=[ZoneExpectation(0, {'', 'maj7', 'sus2', 'sus4'}, 0.0)],
 )
 
-# O : exactement 2 zones publiques (C puis G) autour du silence, aucune zone ne
-# chevauche les fenêtres de silence.
+# O : 8 zones d'accord réparties autour de 4 fenêtres de silence, aux
+# frontières déclarées par la fixture (0 · 2,5 · 3,5 · 6 · 7 · 9,5 · 10,5 · 13).
+# Aucune zone ne doit chevaucher un silence.
 AUDIO_SPECS['O_silence_between_c_g'] = AudioStrictSpec(
-    'O', 'Silence de 3 temps (>1.2s) entre C et G',
-    expected=[ZoneExpectation(0, {'', 'maj7'}, 0.0),
-              ZoneExpectation(7, {'', 'maj7'}, 2.5)],
+    'O', 'Silence de 3 temps (>1.2s) entre C et G, répété 4 fois',
+    expected=[ZoneExpectation(r, {'', 'maj7'}, t) for r, t in
+              ((0, 0.0), (7, 2.5), (0, 3.5), (7, 6.0),
+               (0, 7.0), (7, 9.5), (0, 10.5), (7, 13.0))],
     silence=[(1.0, 2.5), (4.5, 6.0), (8.0, 9.5), (11.5, 13.0)],
 )
 

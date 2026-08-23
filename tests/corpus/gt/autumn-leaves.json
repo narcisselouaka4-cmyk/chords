@@ -1,0 +1,393 @@
+{
+  "trackId": "autumn-leaves",
+  "title": "Autumn Leaves — Bill Evans (transcription)",
+  "media": "/home/visiteur/Musique/Bill Evans - Autumn Leaves - Piano Solo Transcription.mp3",
+  "status": "draft",
+  "key": "Gm",
+  "tempo": null,
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 4.34,
+      "chord": "D"
+    },
+    {
+      "start": 4.34,
+      "end": 7.31,
+      "chord": "D#"
+    },
+    {
+      "start": 7.31,
+      "end": 7.94,
+      "chord": "F#maj7"
+    },
+    {
+      "start": 7.94,
+      "end": 9.08,
+      "chord": "A#"
+    },
+    {
+      "start": 9.08,
+      "end": 12.05,
+      "chord": "D#"
+    },
+    {
+      "start": 12.05,
+      "end": 14.98,
+      "chord": "A#"
+    },
+    {
+      "start": 14.98,
+      "end": 16.72,
+      "chord": "D#"
+    },
+    {
+      "start": 16.72,
+      "end": 18.46,
+      "chord": "A#"
+    },
+    {
+      "start": 18.46,
+      "end": 19.64,
+      "chord": "D#"
+    },
+    {
+      "start": 19.64,
+      "end": 23.08,
+      "chord": "A#"
+    },
+    {
+      "start": 23.08,
+      "end": 25.08,
+      "chord": "D#"
+    },
+    {
+      "start": 25.08,
+      "end": 27.08,
+      "chord": "A#"
+    },
+    {
+      "start": 27.08,
+      "end": 33.58,
+      "chord": "D#"
+    },
+    {
+      "start": 33.58,
+      "end": 39.08,
+      "chord": "D"
+    },
+    {
+      "start": 39.08,
+      "end": 39.66,
+      "chord": "A#"
+    },
+    {
+      "start": 39.66,
+      "end": 40.24,
+      "chord": "D#"
+    },
+    {
+      "start": 40.24,
+      "end": 42.01,
+      "chord": "A#"
+    },
+    {
+      "start": 42.01,
+      "end": 45.51,
+      "chord": "Adim"
+    },
+    {
+      "start": 45.51,
+      "end": 46.65,
+      "chord": "A#"
+    },
+    {
+      "start": 46.65,
+      "end": 48.97,
+      "chord": "D#"
+    },
+    {
+      "start": 48.97,
+      "end": 52.73,
+      "chord": "A#"
+    },
+    {
+      "start": 52.73,
+      "end": 56.28,
+      "chord": "D#"
+    },
+    {
+      "start": 56.28,
+      "end": 58.61,
+      "chord": "Dm"
+    },
+    {
+      "start": 58.61,
+      "end": 62.04,
+      "chord": "A#"
+    },
+    {
+      "start": 62.04,
+      "end": 63.2,
+      "chord": "D"
+    },
+    {
+      "start": 63.2,
+      "end": 66.76,
+      "chord": "A#"
+    },
+    {
+      "start": 66.76,
+      "end": 72.45,
+      "chord": "D#"
+    },
+    {
+      "start": 72.45,
+      "end": 73.07,
+      "chord": "F#maj7"
+    },
+    {
+      "start": 73.07,
+      "end": 75.91,
+      "chord": "A#"
+    },
+    {
+      "start": 75.91,
+      "end": 77.65,
+      "chord": "D"
+    },
+    {
+      "start": 77.65,
+      "end": 79.46,
+      "chord": "A#"
+    },
+    {
+      "start": 79.46,
+      "end": 85.75,
+      "chord": "D#"
+    },
+    {
+      "start": 85.75,
+      "end": 86.36,
+      "chord": "F#maj7"
+    },
+    {
+      "start": 86.36,
+      "end": 86.98,
+      "chord": "D#"
+    },
+    {
+      "start": 86.98,
+      "end": 87.59,
+      "chord": "F#maj7"
+    },
+    {
+      "start": 87.59,
+      "end": 88.38,
+      "chord": "A#"
+    },
+    {
+      "start": 88.38,
+      "end": 90.16,
+      "chord": "D#"
+    },
+    {
+      "start": 90.16,
+      "end": 93.55,
+      "chord": "A#"
+    },
+    {
+      "start": 93.55,
+      "end": 94.13,
+      "chord": "D#"
+    },
+    {
+      "start": 94.13,
+      "end": 95.3,
+      "chord": "A#"
+    },
+    {
+      "start": 95.3,
+      "end": 95.88,
+      "chord": "D#"
+    },
+    {
+      "start": 95.88,
+      "end": 96.46,
+      "chord": "A#"
+    },
+    {
+      "start": 96.46,
+      "end": 96.99,
+      "chord": "F#maj7"
+    },
+    {
+      "start": 96.99,
+      "end": 97.5,
+      "chord": "A#"
+    },
+    {
+      "start": 97.5,
+      "end": 99.73,
+      "chord": "Dm"
+    },
+    {
+      "start": 99.73,
+      "end": 100.24,
+      "chord": "F#maj7"
+    },
+    {
+      "start": 100.24,
+      "end": 100.82,
+      "chord": "A#"
+    },
+    {
+      "start": 100.82,
+      "end": 101.4,
+      "chord": "D"
+    },
+    {
+      "start": 101.4,
+      "end": 102.05,
+      "chord": "A#"
+    },
+    {
+      "start": 102.05,
+      "end": 103.79,
+      "chord": "Dm"
+    },
+    {
+      "start": 103.79,
+      "end": 107.76,
+      "chord": "A#"
+    },
+    {
+      "start": 107.76,
+      "end": 109.53,
+      "chord": "D#"
+    },
+    {
+      "start": 109.53,
+      "end": 112.45,
+      "chord": "A#"
+    },
+    {
+      "start": 112.45,
+      "end": 114.2,
+      "chord": "Dm"
+    },
+    {
+      "start": 114.2,
+      "end": 115.91,
+      "chord": "A#"
+    },
+    {
+      "start": 115.91,
+      "end": 118.96,
+      "chord": "D#"
+    },
+    {
+      "start": 118.96,
+      "end": 121.86,
+      "chord": "Dm"
+    },
+    {
+      "start": 121.86,
+      "end": 122.44,
+      "chord": "A#"
+    },
+    {
+      "start": 122.44,
+      "end": 124.44,
+      "chord": "D#"
+    },
+    {
+      "start": 124.44,
+      "end": 126.44,
+      "chord": "A#"
+    },
+    {
+      "start": 126.44,
+      "end": 128.44,
+      "chord": "D#"
+    },
+    {
+      "start": 128.44,
+      "end": 130.44,
+      "chord": "A#"
+    },
+    {
+      "start": 130.44,
+      "end": 135.79,
+      "chord": "D#"
+    },
+    {
+      "start": 135.79,
+      "end": 137.49,
+      "chord": "D"
+    },
+    {
+      "start": 137.49,
+      "end": 138.58,
+      "chord": "Dm"
+    },
+    {
+      "start": 138.58,
+      "end": 142.73,
+      "chord": "D#"
+    },
+    {
+      "start": 142.73,
+      "end": 146.4,
+      "chord": "Dm"
+    },
+    {
+      "start": 146.4,
+      "end": 148.14,
+      "chord": "D#"
+    },
+    {
+      "start": 148.14,
+      "end": 148.72,
+      "chord": "A#aug"
+    },
+    {
+      "start": 148.72,
+      "end": 151.63,
+      "chord": "D"
+    },
+    {
+      "start": 151.63,
+      "end": 153.37,
+      "chord": "A#"
+    },
+    {
+      "start": 153.37,
+      "end": 156.94,
+      "chord": "Dm"
+    },
+    {
+      "start": 156.94,
+      "end": 157.48,
+      "chord": "D#"
+    },
+    {
+      "start": 157.48,
+      "end": 159.78,
+      "chord": "A#"
+    },
+    {
+      "start": 159.78,
+      "end": 160.96,
+      "chord": "D#"
+    },
+    {
+      "start": 160.96,
+      "end": 164.05,
+      "chord": "D"
+    }
+  ],
+  "tempoConfidence": "inconnu",
+  "tempoNote": "Non évalué par l'utilisateur.",
+  "warning": "ATTENTION — ce fichier est la SORTIE DU MOTEUR produite par la sous-commande `sheet`, pas une vérité terrain. Le comparer au moteur mesurerait le moteur contre lui-même. Il attend une relecture humaine ; ne pas passer status à validated avant."
+}

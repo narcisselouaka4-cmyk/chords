@@ -386,11 +386,113 @@ SIMPLE_TRIAD_FOR_SUFFIX = {
 }
 # [OpenCode] — 2026-07-10 — Réactivation du post-traitement (min_duration=0.4, threshold=0.03)
 # Voir CHANGES.md pour les résultats du benchmark corpus.
+# Correction de l'erreur d'octave du tempo (moitié / double). L'ancien
+# critère — force d'onset moyenne sur la grille — favorisait mécaniquement le
+# tempo divisé par deux. Désactiver ce flag restaure le tempo brut de librosa.
+ENABLE_TEMPO_OCTAVE_FIX = True
+
+# Tempo perceptif de référence : à périodicité comparable, l'auditeur choisit
+# l'octave la plus proche de cette valeur. Sert de prior pour arbitrer
+# moitié / réel / double.
+#
+# ATTENTION — cette valeur n'est PAS la constante de la littérature (≈110 BPM,
+# établie sur du répertoire pop/rock). Elle est calibrée sur les tempos réels
+# du répertoire de l'application, fournis par l'utilisateur :
+#   You Are Yahweh 51.7 · Saint Esprit 77 (officiel) · Ton Nom est Jéhovah 53.8
+#   · Amazing Grace 71.8
+# Sur ces morceaux d'adoration, le suiveur de beats verrouille sur les croches
+# et annonce le double du pulse réel. Un prior à 110 BPM échouait sur 4 cas
+# sur 4 ; le plateau de configurations correctes s'étend de 40 à 72 BPM, d'où
+# la valeur centrale retenue.
+#
+# LIMITE CONNUE : ce réglage est ajusté à un répertoire lent. Sur du jazz
+# rapide il divisera à tort (Autumn Leaves ressort à 51.7 au lieu de 103.4).
+# Un prior par genre, ou une correction manuelle dans l'UI, sera nécessaire
+# pour couvrir les deux répertoires. Recalibrer via
+# benchmark_outputs/harmonic/calibrate_tempo.py après tout ajout au corpus.
+TEMPO_PERCEPTUAL_CENTER = 65.0
+TEMPO_PRIOR_SIGMA = 0.7
+
 ENABLE_CHORD_DOWNGRADE = True
 
 # Active l'absorption des figures d'arpège / walking bass / pédale détectées
 # par analyse du chroma global (cas L et Q du test déterministe). Cette couche
 # est additive et très conservative pour ne pas affecter l'audio réel.
+# Garde d'identité de la fusion d'arpèges. Sans elle, la branche « couverture
+# totale » de _merge_arpeggio_segments absorbe n'importe quelle alternance
+# d'accords à la quinte (I↔V) : les deux fondamentales appartiennent toujours au
+# PC-set d'un même accord diatonique, et le chroma moyen de C+G ressemble à un
+# Gsus4. Mesuré sur les fixtures : la couche fusionnait à tort H (C/G toutes les
+# 2 temps), J (C-D7-G), O (silences) et P (cellule réelle), pour ne servir
+# correctement que L (walking bass dans Cmaj7).
+#
+# Critère retenu : absorber un arpège, c'est reconnaître que la fenêtre est
+# l'un des accords DÉJÀ hypothésés, étalé dans le temps — pas un accord
+# nouveau fabriqué à partir du mélange. On exige donc que l'accord gagnant
+# soit exactement l'un des accords de la fenêtre. Ce critère sépare les 5 cas
+# mesurés sans exception ; le critère « le vainqueur explique aussi chaque
+# segment » avait été essayé d'abord et ne séparait pas (L, fusion légitime,
+# présentait le plus grand écart de tous : +0,209).
+# Garde de registre pour la branche « cycle de walking bass » de
+# _absorb_arpeggio_figures. Un cycle de fondamentales répété (C-G-C-G…) a deux
+# lectures possibles : une basse qui se promène sous un accord tenu, ou une
+# vraie alternance d'accords. Le chroma global ne les distingue pas ; le chroma
+# restreint aux voix supérieures, si — mesuré sur les fixtures :
+#
+#   walking bass Cmaj7  1,000 |  alternance C/G      0,178
+#   pédale G + mélodie  1,000 |  C-D7-G              0,561
+#                             |  cellule B-D-E + Am  0,445
+#                             |  pédale C, voix qui changent  0,663
+#
+# Sous un accord tenu les voix supérieures sont immobiles ; dès qu'un accord
+# change réellement, elles bougent. Seuil placé entre 0,663 et 1,000.
+ENABLE_UPPER_VOICE_STABILITY_GUARD = True
+UPPER_VOICE_STABILITY_MIN = 0.80
+
+# Plafond de durée des cellules absorbées par _merge_arpeggio_segments.
+# La couche n'en avait aucun : sur « You Are Yahweh » elle fusionnait un segment
+# de 18,7 s avec ses voisins en un seul accord de 33 s. Un arpège, une walking
+# bass ou une note de passage sont par définition des cellules brèves ; un
+# segment qui dure plusieurs mesures est une harmonie établie, quoi qu'en dise
+# le chroma agrégé. Exprimé en temps (et non en secondes) pour rester valable
+# quel que soit le tempo.
+# Comblement des trous de la grille de beats.
+#
+# Toute l'analyse harmonique est beat-synchrone : le chroma est moyenné entre
+# deux beats consécutifs. Là où le suiveur de beats ne trouve rien, il n'existe
+# qu'UNE fenêtre d'observation, et le HMM ne peut structurellement pas
+# segmenter. Sur « You Are Yahweh », librosa ne place aucun beat entre 0 et
+# 18,11 s — l'intro rubato sans batterie — ce qui produisait un unique accord
+# de 18,7 s là où la grille attend D → A → E → F#m. Ce n'était ni un défaut du
+# HMM ni du post-traitement : l'information n'atteignait jamais le décodeur.
+#
+# On comble les trous par une subdivision régulière à l'intervalle médian.
+# _beat_track n'est pas modifié (gel ADR-003) : la couche est additive, opère
+# après lui, et se désactive par ce flag.
+ENABLE_BEAT_GRID_GAP_FILL = True
+BEAT_GAP_FACTOR = 1.75
+
+ENABLE_ARPEGGIO_CELL_DURATION_CAP = True
+# Une cellule d'arpège, de walking bass ou de note de passage est brève par
+# nature. Sans cette borne la couche n'en avait aucune : sur « You Are Yahweh »
+# elle fusionnait un segment de 18,7 s avec ses voisins en un accord de 33 s,
+# effaçant l'intro entière. Un segment qui dure plusieurs mesures est une
+# harmonie établie, quoi qu'en dise le chroma agrégé.
+ARPEGGIO_CELL_MAX_BEATS = 2.0
+# Plancher absolu en secondes, 0 = pas de plancher. Balayage mesuré du plafond
+# (2 / 3 / 4 temps) le 2026-08-23 :
+#   2 temps → fixtures audio 11/17 · You Are Yahweh 68,8 % · frontières 36,8 %
+#   3 temps → fixtures audio 10/17 · You Are Yahweh 65,9 % · frontières 21,1 %
+#   4 temps → fixtures audio 10/17 · You Are Yahweh 65,3 % · frontières 21,1 %
+# 2 temps retenu : meilleur sur l'audio réel des trois axes. Contrepartie
+# assumée et documentée — le cas P de tests/test_harmonic_deterministic.py
+# (chroma SYNTHÉTIQUE) attend l'absorption d'une cellule d'une mesure entière
+# et échoue ; son équivalent sur audio réel échoue dans toutes les
+# configurations, y compris avant ce changement.
+ARPEGGIO_CELL_MAX_SECONDS = 0.0
+
+ENABLE_ARPEGGIO_MERGE_IDENTITY_GUARD = True
+
 ENABLE_ARPEGGIO_FIGURE_ABSORPTION = True
 
 # Active le vocabulaire d'accords simplifié en sortie : uniquement les accords
@@ -409,6 +511,35 @@ ENABLE_REPEATED_PROGRESSION_REGULARIZATION = False
 # Active la détection de boucle structurelle vs accords de passage.
 # Couche additive purement informative : ajoute un champ `role` aux segments
 # (`structural`, `passing`, `unreliable`) sans modifier l'accord affiché.
+# Classification du rôle harmonique de chaque segment, pour la hiérarchie
+# visuelle de Chordify (accord structurel encadré, accord de passage discret).
+#
+# Le champ `role` produit précédemment par _detect_structural_loop valait
+# structural | unreliable et confondait deux questions distinctes : « cet
+# accord porte-t-il la structure ? » et « cette détection est-elle fiable ? ».
+# Il ne s'activait de plus que sur les morceaux dominés à 80 % par une boucle
+# de quatre accords — donc presque jamais.
+#
+# Le discriminant retenu est musical et non statistique : un accord structurel
+# est diatonique ET fait partie du vocabulaire récurrent du morceau ; un accord
+# de passage est bref, étranger à ce vocabulaire, et encadré par deux accords
+# structurels. Vérifié sur la fixture J (C → D7 → G) où D7 est étiqueté
+# `passing` par la vérité terrain : D7 porte un fa dièse hors de do majeur,
+# alors que C et G sont les piliers diatoniques.
+ENABLE_CHORD_ROLE_CLASSIFICATION = True
+# Part de la durée totale couverte par les accords retenus comme vocabulaire.
+ROLE_VOCABULARY_COVERAGE = 0.85
+# Un accord diatonique revenant au moins ce nombre de fois appartient au
+# vocabulaire même s'il tombe hors des 85 % : le F#m de l'intro de « You Are
+# Yahweh » est un vrai pilier, il est simplement moins tenu que A, D et E.
+ROLE_VOCABULARY_MIN_OCCURRENCES = 2
+# … ou tenu au moins ce nombre de temps en une seule fois. Un accord diatonique
+# tenu deux mesures porte l'harmonie même s'il n'apparaît qu'une fois : c'est le
+# cas du F#m qui clôt l'intro de « You Are Yahweh » (4,6 s, une occurrence).
+ROLE_VOCABULARY_MIN_HELD_BEATS = 4.0
+# Un accord de passage n'excède pas cette durée, exprimée en temps.
+ROLE_PASSING_MAX_BEATS = 2.0
+
 ENABLE_STRUCTURAL_LOOP_DETECTION = True
 
 SIMPLE_ALLOWED_SUFFIXES = {'', 'm', 'maj7', 'm7', '7', 'dim', 'dim7', 'aug', 'aug7'}
@@ -487,10 +618,87 @@ def _beat_track(y, sr, hop_length=512):
     return tempo, beats
 
 
+def _grid_onset_strength(onset_env, sr, hop_length, times):
+    """Force d'onset moyenne aux positions temporelles données."""
+    if len(times) == 0:
+        return 0.0
+    frames = librosa.time_to_frames(times, sr=sr, hop_length=hop_length)
+    frames = frames[(frames >= 0) & (frames < len(onset_env))]
+    if len(frames) == 0:
+        return 0.0
+    return float(np.mean(onset_env[frames]))
+
+
+def _subdivision_support(onset_env, sr, hop_length, duration, tempo):
+    """Les temps intercalaires de cette grille portent-ils de l'énergie ?
+
+    Retourne le rapport entre la force d'onset moyenne des positions
+    intercalaires (contretemps) et celle des positions principales.
+    Proche de 1 : la grille fine correspond à de vrais événements, le tempo
+    ne doit pas être divisé. Proche de 0 : les contretemps sont vides, le
+    tempo est probablement le double du tempo réel.
+    """
+    interval = 60.0 / tempo
+    if interval <= 0 or duration < 2 * interval:
+        return 1.0
+    main = np.arange(0.0, duration, 2 * interval)
+    offs = np.arange(interval, duration, 2 * interval)
+    strong = _grid_onset_strength(onset_env, sr, hop_length, main)
+    weak = _grid_onset_strength(onset_env, sr, hop_length, offs)
+    if strong <= 0:
+        return 1.0
+    return weak / strong
+
+
+def _fill_beat_grid_gaps(beat_frames):
+    """Subdivise les intervalles anormalement longs de la grille de beats.
+
+    Un trou dans la grille est un angle mort de l'analyse : le chroma y est
+    moyenné sur toute la durée du trou, donc une seule observation atteint le
+    décodeur et aucune segmentation n'y est possible. On y insère des frames
+    régulièrement espacées à l'intervalle médian, ce qui rend au HMM sa
+    résolution temporelle sans rien changer aux beats réellement détectés.
+    """
+    if not ENABLE_BEAT_GRID_GAP_FILL or len(beat_frames) < 3:
+        return beat_frames
+    frames = np.asarray(beat_frames, dtype=np.int64)
+    gaps = np.diff(frames)
+    gaps = gaps[gaps > 0]
+    if len(gaps) == 0:
+        return beat_frames
+    median_gap = float(np.median(gaps))
+    if median_gap <= 0:
+        return beat_frames
+
+    filled = [int(frames[0])]
+    for prev, nxt in zip(frames[:-1], frames[1:]):
+        gap = int(nxt) - int(prev)
+        if gap > BEAT_GAP_FACTOR * median_gap:
+            n_insert = max(1, int(round(gap / median_gap)) - 1)
+            for i in range(1, n_insert + 1):
+                filled.append(int(round(prev + i * gap / (n_insert + 1))))
+        filled.append(int(nxt))
+    out = np.array(sorted(set(filled)), dtype=np.int64)
+    if len(out) > len(frames):
+        log(f'grille de beats : {len(out) - len(frames)} frames insérées '
+            f'dans {int(np.sum(gaps > BEAT_GAP_FACTOR * median_gap))} trou(s)')
+    return out
+
+
 def _resolve_tempo(y, sr, detected_tempo):
-    """Choisit entre tempo/2, tempo et tempo*2 en maximisant l'alignement
-    de la grille sur l'enveloppe d'onset. Cela corrige l'erreur classique
-    'double ou moitié du vrai tempo' rencontrée sur mix et stems piano."""
+    """Corrige l'erreur classique 'double ou moitié' du tempo détecté.
+
+    L'ancienne version choisissait le candidat maximisant la force d'onset
+    moyenne sur sa grille. Ce critère est structurellement biaisé vers le
+    tempo divisé par deux : une grille deux fois plus grossière ne retient
+    que les temps forts, donc sa moyenne est mécaniquement plus élevée,
+    même quand les contretemps sont pleinement joués. En pratique la moitié
+    l'emportait sur presque tous les morceaux du corpus.
+
+    La décision repose désormais sur une question mesurable et non biaisée :
+    les positions intercalaires portent-elles de l'énergie ? Si oui, la
+    grille fine est réelle et on ne divise pas.
+    """
     if not detected_tempo or detected_tempo <= 0:
         return detected_tempo
 
@@ -504,39 +712,41 @@ def _resolve_tempo(y, sr, detected_tempo):
     if duration <= 0 or len(onset_env) == 0:
         return round(float(detected_tempo), 1)
 
-    # Candidats : le tempo brut, sa moitié et son double.
-    candidates = [detected_tempo / 2.0, detected_tempo, detected_tempo * 2.0]
-    best_tempo = float(detected_tempo)
-    best_score = -1.0
+    tempo = float(detected_tempo)
 
-    for tempo in candidates:
-        if tempo <= 0:
-            continue
-        interval = 60.0 / tempo
-        # Grille régulière à ce tempo sur toute la durée.
-        beat_times = np.arange(0.0, duration, interval)
-        if len(beat_times) < 2:
-            continue
-        beat_frames = librosa.time_to_frames(beat_times, sr=sr, hop_length=hop_length)
-        beat_frames = beat_frames[beat_frames < len(onset_env)]
-        if len(beat_frames) < 2:
-            continue
+    if not ENABLE_TEMPO_OCTAVE_FIX:
+        return round(tempo, 1)
 
-        # Score d'alignement : somme des forces d'onset sur les beats.
-        score = float(np.sum(onset_env[beat_frames])) / len(beat_frames)
+    # L'énergie des onsets ne peut pas trancher seule l'ambiguïté d'octave :
+    # sur une ballade jouée en croches, les contretemps sont réellement joués,
+    # donc la grille double paraît aussi valide que la grille réelle. Le
+    # critère qui tranche est perceptif : à périodicité comparable, l'oreille
+    # choisit le tempo le plus proche d'environ 110 BPM.
+    candidates = [tempo / 2.0, tempo, tempo * 2.0]
+    best_tempo, best_score = tempo, -1.0
 
-        # Pénaliser les tempi en dehors d'une plage musicale raisonnable
-        # et désavantager légèrement le double pour favoriser la valeur réelle.
-        if tempo < 45 or tempo > 200:
-            score *= 0.5
-        elif tempo > 150:
-            score *= 0.85
+    for cand in candidates:
+        if cand <= 0:
+            continue
+        # Périodicité : énergie moyenne d'onset sur la grille du candidat,
+        # normalisée pour ne pas favoriser les grilles grossières.
+        interval = 60.0 / cand
+        if duration < 2 * interval:
+            continue
+        grid = np.arange(0.0, duration, interval)
+        strength = _grid_onset_strength(onset_env, sr, hop_length, grid)
+        overall = float(np.mean(onset_env)) or 1.0
+        periodicity = strength / overall
+
+        # Prior log-normal centré sur le tempo perceptif de référence.
+        prior = math.exp(-0.5 * (math.log2(cand / TEMPO_PERCEPTUAL_CENTER)
+                                 / TEMPO_PRIOR_SIGMA) ** 2)
+        score = periodicity * prior
 
         if score > best_score:
-            best_score = score
-            best_tempo = float(tempo)
+            best_score, best_tempo = score, cand
 
-    return round(best_tempo, 1)
+    return round(float(best_tempo), 1)
 
 
 def detect_tempo(wav_path):
@@ -732,7 +942,8 @@ def _merge_arpeggio_segments(segments, beat_chroma, states, key, obs_scores=None
                              max_window_beats=4,
                              min_obs_score=0.50,
                              min_score_gain=0.08,
-                             min_pc_coverage=0.60):
+                             min_pc_coverage=0.60,
+                             beat_dur=None):
     """Fusionne les courts segments consécutifs issus d'un même harmonie.
 
     Quand un arpège, un walking bass ou une figure mélodique courte fait
@@ -756,6 +967,13 @@ def _merge_arpeggio_segments(segments, beat_chroma, states, key, obs_scores=None
         return segments
 
     seg_beats = [seg.get('beatIndices', []) for seg in segments]
+
+    # Durée maximale d'une cellule absorbable, en secondes.
+    if beat_dur is None:
+        ref = next((s for s in segments if len(s.get('beatRealTimes', [])) > 1), None)
+        beat_dur = float(np.mean(np.diff(ref['beatRealTimes']))) if ref else 0.5
+    max_cell_dur = max(ARPEGGIO_CELL_MAX_BEATS * float(beat_dur),
+                       ARPEGGIO_CELL_MAX_SECONDS)
 
     def segment_score(seg):
         """Score moyen du segment avec son propre état, si disponible."""
@@ -810,6 +1028,7 @@ def _merge_arpeggio_segments(segments, beat_chroma, states, key, obs_scores=None
             beat_idxs = []
             window_root_pcs = []
             window_scores = []
+            window_chord_names = []
             valid = True
             for k in range(i, i + w):
                 seg = segments[k]
@@ -820,10 +1039,15 @@ def _merge_arpeggio_segments(segments, beat_chroma, states, key, obs_scores=None
                 if not idxs:
                     valid = False
                     break
+                if (ENABLE_ARPEGGIO_CELL_DURATION_CAP
+                        and seg['endTime'] - seg['startTime'] > max_cell_dur):
+                    valid = False
+                    break
                 beat_idxs.extend(idxs)
                 root, _ = _parse_chord_label(seg['chord'])
                 window_root_pcs.append(root if root is not None else -1)
                 window_scores.append(segment_score(seg))
+                window_chord_names.append(seg['chord'])
 
             if not valid or not beat_idxs or any(r < 0 for r in window_root_pcs):
                 continue
@@ -836,6 +1060,13 @@ def _merge_arpeggio_segments(segments, beat_chroma, states, key, obs_scores=None
 
             # L'accord gagnant doit être diatonique
             if states[state_idx]['root'] not in diatonic_roots:
+                continue
+
+            # Garde d'identité : l'accord gagnant doit être l'un des accords
+            # déjà présents dans la fenêtre. Un arpège est un accord connu
+            # étalé dans le temps ; une alternance C↔G n'est pas un Gsus4.
+            if (ENABLE_ARPEGGIO_MERGE_IDENTITY_GUARD
+                    and states[state_idx]['name'] not in window_chord_names):
                 continue
 
             # Score agrégé nettement supérieur au score moyen individuel
@@ -979,7 +1210,8 @@ def _simplify_quality(root_pc, suffix, key, confidence, complex_confidence):
     return diatonic_suffix
 
 
-def _absorb_arpeggio_figures(segments, beat_chroma, states, beat_dur=None):
+def _absorb_arpeggio_figures(segments, beat_chroma, states, beat_dur=None,
+                             beat_chroma_upper=None):
     """Absorbe les figures d'arpège / walking bass / pédale très conservatives.
 
     Cette couche est additive et n'intervient que lorsque le chroma global d'une
@@ -1033,6 +1265,29 @@ def _absorb_arpeggio_figures(segments, beat_chroma, states, beat_dur=None):
         maj_score = _template_score(chroma, root_pc, '')
         maj7_score = _template_score(chroma, root_pc, 'maj7')
         return 'maj7' if maj7_score > maj_score else ''
+
+    def _upper_voice_stability(start_s, end_s):
+        """Immobilité des voix supérieures sur la zone : cosinus moyen entre
+        beats consécutifs du chroma aigu. 1,0 = registre figé (accord tenu),
+        valeurs basses = l'harmonie change réellement.
+
+        Retourne None quand le chroma aigu n'est pas disponible : la garde est
+        alors inopérante et le comportement historique est conservé."""
+        if beat_chroma_upper is None:
+            return None
+        start_b = max(0, int(round(start_s / beat_dur)))
+        end_b = min(beat_chroma_upper.shape[1], int(round(end_s / beat_dur)))
+        if end_b - start_b < 2:
+            return None
+        sims = []
+        for t in range(start_b, end_b - 1):
+            a = beat_chroma_upper[:, t]
+            b = beat_chroma_upper[:, t + 1]
+            na, nb = float(np.linalg.norm(a)), float(np.linalg.norm(b))
+            if na < 1e-6 or nb < 1e-6:
+                continue
+            sims.append(float(np.dot(a / na, b / nb)))
+        return float(np.mean(sims)) if sims else None
 
     # 1. Découper en groupes sans silence.
     groups = []
@@ -1120,6 +1375,15 @@ def _absorb_arpeggio_figures(segments, beat_chroma, states, beat_dur=None):
             distinct = len(set(pattern))
             if distinct < 2:
                 continue
+
+            # Un cycle de fondamentales ne vaut absorption que si les voix
+            # supérieures restent immobiles : sinon ce n'est pas une basse qui
+            # se promène sous un accord tenu, c'est une vraie progression.
+            if ENABLE_UPPER_VOICE_STABILITY_GUARD:
+                stab = _upper_voice_stability(zone_start, zone_end)
+                if stab is not None and stab < UPPER_VOICE_STABILITY_MIN:
+                    continue
+
             # Vérifier que l'accord de début correspond au chroma global.
             tonic = pattern[0]
             suffix = _choose_quality(tonic, zone_chroma)
@@ -2818,11 +3082,140 @@ def _absorb_vi_parasites(segments, key, max_parasite_dur=2.5,
     return final
 
 
+def _diatonic_degree_map(key):
+    """Degrés diatoniques attendus de la tonalité : {pitch class: suffixe}."""
+    if not key:
+        return {}
+    pc = key['pc']
+    if key.get('mode') == 'minor':
+        # Mineur naturel, avec la dominante majeure admise (v ou V).
+        return {(pc + 0) % 12: 'm', (pc + 2) % 12: 'dim', (pc + 3) % 12: '',
+                (pc + 5) % 12: 'm', (pc + 7) % 12: 'm', (pc + 8) % 12: '',
+                (pc + 10) % 12: ''}
+    return {(pc + 0) % 12: '', (pc + 2) % 12: 'm', (pc + 4) % 12: 'm',
+            (pc + 5) % 12: '', (pc + 7) % 12: '', (pc + 9) % 12: 'm',
+            (pc + 11) % 12: 'dim'}
+
+
+def _is_diatonic_chord(root, suffix, degrees):
+    """L'accord appartient-il à la tonalité, fondamentale ET qualité ?
+
+    Un accord dont la fondamentale est diatonique mais la qualité non (un D7 en
+    do majeur, dominante secondaire) n'est PAS diatonique : c'est précisément ce
+    qui en fait un accord de passage plutôt qu'un pilier.
+    """
+    if root is None:
+        return False
+    expected = degrees.get(root % 12)
+    if expected is None:
+        return False
+    if expected == '':
+        return suffix in ('', 'maj7', 'sus2', 'sus4')
+    if expected == 'm':
+        return suffix in ('m', 'm7')
+    if expected == 'dim':
+        return suffix in ('dim', 'dim7', 'm7b5')
+    return suffix == expected
+
+
+def _classify_chord_roles(segments, key, beat_dur=None):
+    """Annote chaque segment d'un `role` : structural, passing, uncertain, silence.
+
+    Sert la hiérarchie visuelle de Chordify. Aucune conséquence sur les accords
+    détectés : cette couche ne renomme ni ne fusionne rien, elle qualifie.
+
+    - `structural` : diatonique et membre du vocabulaire récurrent du morceau.
+      C'est l'accord fondamental au sens de concepts/accord-fondamental.
+    - `passing`    : bref, hors vocabulaire structurel, encadré des deux côtés
+      par des accords structurels. C'est concepts/accord-passage.
+    - `uncertain`  : ni l'un ni l'autre — à afficher, mais sans prétendre qu'il
+      porte la structure.
+    - `silence`    : absence d'accord.
+    """
+    if not ENABLE_CHORD_ROLE_CLASSIFICATION or not segments:
+        return segments
+
+    degrees = _diatonic_degree_map(key)
+    if beat_dur is None or beat_dur <= 0:
+        ref = next((s for s in segments if len(s.get('beatRealTimes', [])) > 1), None)
+        beat_dur = float(np.mean(np.diff(ref['beatRealTimes']))) if ref else 0.5
+
+    # Vocabulaire récurrent : les accords qui, cumulés du plus tenu au moins
+    # tenu, couvrent l'essentiel du morceau. Un accord entendu une seule fois
+    # pendant deux secondes sur quatre minutes n'est pas un pilier.
+    durations = {}
+    occurrences = {}
+    longest = {}
+    total = 0.0
+    for seg in segments:
+        chord = seg.get('chord')
+        if not chord or chord == 'N':
+            continue
+        dur = float(seg['endTime'] - seg['startTime'])
+        durations[chord] = durations.get(chord, 0.0) + dur
+        occurrences[chord] = occurrences.get(chord, 0) + 1
+        longest[chord] = max(longest.get(chord, 0.0), dur)
+        total += dur
+    vocabulary = set()
+    if total > 0:
+        cumulative = 0.0
+        for chord, dur in sorted(durations.items(), key=lambda kv: -kv[1]):
+            vocabulary.add(chord)
+            cumulative += dur
+            if cumulative >= ROLE_VOCABULARY_COVERAGE * total:
+                break
+        # Repêchage : un accord diatonique qui revient plusieurs fois porte la
+        # structure même s'il est moins tenu que les autres.
+        held_threshold = ROLE_VOCABULARY_MIN_HELD_BEATS * float(beat_dur)
+        for chord, count in occurrences.items():
+            if chord in vocabulary:
+                continue
+            if (count < ROLE_VOCABULARY_MIN_OCCURRENCES
+                    and longest.get(chord, 0.0) < held_threshold):
+                continue
+            root, suffix = _parse_chord_label(chord)
+            if _is_diatonic_chord(root, suffix, degrees):
+                vocabulary.add(chord)
+
+    # Première passe : les piliers.
+    for seg in segments:
+        chord = seg.get('chord')
+        if not chord or chord == 'N':
+            seg['role'] = 'silence'
+            continue
+        root, suffix = _parse_chord_label(chord)
+        diatonic = _is_diatonic_chord(root, suffix, degrees)
+        # Sans tonalité fiable, on ne prétend pas hiérarchiser : tout ce qui est
+        # récurrent est tenu pour structurel.
+        if not degrees:
+            seg['role'] = 'structural' if chord in vocabulary else 'uncertain'
+        else:
+            seg['role'] = 'structural' if (diatonic and chord in vocabulary) else None
+
+    # Seconde passe : passage contre incertain, décidé par le voisinage.
+    max_passing = ROLE_PASSING_MAX_BEATS * float(beat_dur)
+    for i, seg in enumerate(segments):
+        if seg.get('role') is not None:
+            continue
+        dur = float(seg['endTime'] - seg['startTime'])
+        prev_role = segments[i - 1].get('role') if i > 0 else None
+        next_role = segments[i + 1].get('role') if i + 1 < len(segments) else None
+        framed = prev_role == 'structural' and next_role == 'structural'
+        seg['role'] = 'passing' if (dur <= max_passing and framed) else 'uncertain'
+
+    return segments
+
+
 def _detect_structural_loop(segments, key,
                             coverage_threshold=0.80,
                             n_top_roots=4,
                             diatonic_bonus=5.0):
-    """Annote chaque segment avec un champ `role` (structural/unreliable).
+    """Annote chaque segment d'un champ `inStructuralLoop` (booléen ou None).
+
+    N'écrit plus `role` : ce champ appartient désormais à
+    _classify_chord_roles, qui distingue structurel, passage et incertain.
+    Cette couche ne répond qu'à une question plus étroite — l'accord fait-il
+    partie de la boucle de quatre accords qui domine le morceau ?
 
     Couche très conservative : si un morceau est dominé par une boucle simple
     de 4 accords, ces accords sont marqués `structural` et tout le reste est
@@ -2879,7 +3272,7 @@ def _detect_structural_loop(segments, key,
     total_dur = sum(seg['endTime'] - seg['startTime'] for seg in segments if seg.get('chord') != 'N')
     if total_dur <= 0 or not chord_dur:
         for seg in segments:
-            seg['role'] = 'structural'
+            seg['inStructuralLoop'] = None
         return segments
 
     def chord_score(token):
@@ -2898,18 +3291,18 @@ def _detect_structural_loop(segments, key,
     # Pas de boucle clairement dominante : tout est structural par défaut.
     if covered < coverage_threshold * total_dur:
         for seg in segments:
-            seg['role'] = 'structural'
+            seg['inStructuralLoop'] = None
         return segments
 
     for seg in segments:
         if seg.get('chord') == 'N':
-            seg['role'] = 'structural'
+            seg['inStructuralLoop'] = None
             continue
         root, suffix = _parse_chord_label(seg['chord'])
         if root is None:
-            seg['role'] = 'unreliable'
+            seg['inStructuralLoop'] = False
             continue
-        seg['role'] = 'structural' if (root, suffix) in structural_chords else 'unreliable'
+        seg['inStructuralLoop'] = (root, suffix) in structural_chords
 
     return segments
 
@@ -3640,6 +4033,7 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
     # On inclut explicitement le début du fichier pour ne pas perdre la première mesure.
     if len(beat_frames) == 0 or beat_frames[0] != 0:
         beat_frames = np.concatenate(([0], beat_frames))
+    beat_frames = _fill_beat_grid_gaps(beat_frames)
     beat_times = librosa.frames_to_time(beat_frames, sr=sr, hop_length=hop_length)
     if len(beat_times) < 2:
         # Fallback : pas assez de beats, on retourne une grille vide.
@@ -3675,9 +4069,25 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
     chroma = librosa.feature.chroma_cqt(y=y_harm, sr=sr, hop_length=hop_length, bins_per_octave=36)
     n_frames = chroma.shape[1]
 
+    # Chroma des seules voix supérieures (à partir de C4). Il ne sert PAS à la
+    # détection : uniquement à distinguer, en post-traitement, une basse mobile
+    # sous un accord tenu d'une vraie progression d'accords. Le chroma global
+    # confond les deux ; celui-ci reste figé dans le premier cas.
+    chroma_upper = None
+    if ENABLE_UPPER_VOICE_STABILITY_GUARD:
+        try:
+            chroma_upper = librosa.feature.chroma_cqt(
+                y=y_harm, sr=sr, hop_length=hop_length, bins_per_octave=36,
+                fmin=librosa.note_to_hz('C4'), n_octaves=3)
+        except Exception as exc:  # pragma: no cover - dépend de la durée du signal
+            log(f'chroma aigu indisponible ({exc}) : garde de registre inactive')
+            chroma_upper = None
+
     # Moyenne des frames à l'intérieur de chaque intervalle beat.
     K = len(beat_frames)
     beat_chroma = np.zeros((12, K), dtype=np.float32)
+    beat_chroma_upper = (np.zeros((12, K), dtype=np.float32)
+                         if chroma_upper is not None else None)
     frame_energies = np.zeros(K, dtype=np.float32)
     for k in range(K):
         start_f = int(beat_frames[k])
@@ -3688,6 +4098,11 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
         else:
             beat_chroma[:, k] = np.mean(chroma[:, start_f:end_f], axis=1)
             frame_energies[k] = float(np.sum(beat_chroma[:, k]))
+        if beat_chroma_upper is not None:
+            e_up = min(end_f, chroma_upper.shape[1])
+            s_up = min(start_f, e_up)
+            if e_up > s_up:
+                beat_chroma_upper[:, k] = np.mean(chroma_upper[:, s_up:e_up], axis=1)
 
     # 4. HMM : observation + transition + Viterbi.
     states = _build_chord_states(observation_mode, contradiction_weight)
@@ -3713,7 +4128,8 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
     # Fusion des courts segments appartenant à un même harmonie (arpèges,
     # walking bass, figures mélodiques courtes). Cette couche est additive :
     # elle ne modifie ni le HMM ni l'observation.
-    segments = _merge_arpeggio_segments(segments, beat_chroma, states, key, obs_scores=obs_scores)
+    segments = _merge_arpeggio_segments(segments, beat_chroma, states, key,
+                                       obs_scores=obs_scores, beat_dur=median_ibi)
     if debug:
         _log_seg_stage("after _merge_arpeggio_segments", segments, states)
 
@@ -3722,7 +4138,9 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
     # ENABLE_ARPEGGIO_FIGURE_ABSORPTION). Résout les cas L et Q du test
     # déterministe sans toucher au HMM ni au beat tracker.
     if ENABLE_ARPEGGIO_FIGURE_ABSORPTION:
-        segments = _absorb_arpeggio_figures(segments, beat_chroma, states, beat_dur=median_ibi)
+        segments = _absorb_arpeggio_figures(segments, beat_chroma, states,
+                                            beat_dur=median_ibi,
+                                            beat_chroma_upper=beat_chroma_upper)
         if debug:
             _log_seg_stage("after _absorb_arpeggio_figures", segments, states)
 
@@ -3834,6 +4252,9 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
                     if debug:
                         _log_seg_stage("after _detect_structural_loop", segments, states)
             segments = _clean_segments(segments, min_duration=0.4, silence_min=1.2)
+            # Qualification des segments définitifs. Placée en dernier pour que
+            # le rôle porte sur ce que l'utilisateur voit réellement.
+            segments = _classify_chord_roles(segments, key, beat_dur=median_ibi)
             if debug:
                 _log_seg_stage("after _clean_segments", segments, states)
         subdivision_method = "legacy"
@@ -3884,6 +4305,8 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
         }
         if "role" in seg:
             chord_entry["role"] = seg["role"]
+        if "inStructuralLoop" in seg:
+            chord_entry["inStructuralLoop"] = seg["inStructuralLoop"]
         chords.append(chord_entry)
         if diagnostics is not None:
             diag = _segment_diagnostic(seg, states, obs_scores, beat_chroma, beat_times, key)

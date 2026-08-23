@@ -8,3 +8,9 @@ dist/
 coverage/
 *.tmp
 .cache/
+
+# Cache WAV du harnais de benchmark : 400+ Mo régénérables à la demande.
+benchmark_outputs/harmonic/cache/
+# Bytecode produit par les exécutions pytest (le dépôt ne suit que les .pyc
+# générés par les runners natifs).
+__pycache__/*-pytest-*.pyc

@@ -1,0 +1,233 @@
+{
+  "trackId": "amazing-grace",
+  "title": "Amazing Grace — Gospel Piano",
+  "media": "/home/visiteur/Musique/”Amazing Grace” Gospel Piano.mp3",
+  "status": "draft",
+  "key": "G",
+  "tempo": 71.8,
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 3.11,
+      "chord": "G"
+    },
+    {
+      "start": 3.11,
+      "end": 3.95,
+      "chord": "C"
+    },
+    {
+      "start": 3.95,
+      "end": 5.2,
+      "chord": "G"
+    },
+    {
+      "start": 5.2,
+      "end": 6.04,
+      "chord": "Em"
+    },
+    {
+      "start": 6.04,
+      "end": 6.87,
+      "chord": "D"
+    },
+    {
+      "start": 6.87,
+      "end": 7.75,
+      "chord": "G"
+    },
+    {
+      "start": 7.75,
+      "end": 8.17,
+      "chord": "C"
+    },
+    {
+      "start": 8.17,
+      "end": 13.68,
+      "chord": "G"
+    },
+    {
+      "start": 13.68,
+      "end": 15.28,
+      "chord": "D"
+    },
+    {
+      "start": 15.28,
+      "end": 15.7,
+      "chord": "Em"
+    },
+    {
+      "start": 15.7,
+      "end": 19.06,
+      "chord": "G"
+    },
+    {
+      "start": 19.06,
+      "end": 21.15,
+      "chord": "C"
+    },
+    {
+      "start": 21.15,
+      "end": 24.01,
+      "chord": "G"
+    },
+    {
+      "start": 24.01,
+      "end": 28.82,
+      "chord": "Em"
+    },
+    {
+      "start": 28.82,
+      "end": 34.25,
+      "chord": "A"
+    },
+    {
+      "start": 34.25,
+      "end": 36.94,
+      "chord": "G"
+    },
+    {
+      "start": 36.94,
+      "end": 39.59,
+      "chord": "D"
+    },
+    {
+      "start": 39.59,
+      "end": 40.45,
+      "chord": "G"
+    },
+    {
+      "start": 40.45,
+      "end": 41.33,
+      "chord": "C"
+    },
+    {
+      "start": 41.33,
+      "end": 47.48,
+      "chord": "G"
+    },
+    {
+      "start": 47.48,
+      "end": 48.74,
+      "chord": "C"
+    },
+    {
+      "start": 48.74,
+      "end": 52.45,
+      "chord": "D"
+    },
+    {
+      "start": 52.45,
+      "end": 53.29,
+      "chord": "C"
+    },
+    {
+      "start": 53.29,
+      "end": 57.08,
+      "chord": "G"
+    },
+    {
+      "start": 57.08,
+      "end": 59.7,
+      "chord": "Em"
+    },
+    {
+      "start": 59.7,
+      "end": 61.0,
+      "chord": "Dm"
+    },
+    {
+      "start": 61.0,
+      "end": 65.43,
+      "chord": "C"
+    },
+    {
+      "start": 65.43,
+      "end": 76.53,
+      "chord": "G"
+    },
+    {
+      "start": 76.53,
+      "end": 79.3,
+      "chord": "C"
+    },
+    {
+      "start": 79.3,
+      "end": 79.74,
+      "chord": "G"
+    },
+    {
+      "start": 79.74,
+      "end": 83.17,
+      "chord": "Dm"
+    },
+    {
+      "start": 83.17,
+      "end": 87.75,
+      "chord": "C"
+    },
+    {
+      "start": 87.75,
+      "end": 89.0,
+      "chord": "D"
+    },
+    {
+      "start": 89.0,
+      "end": 89.81,
+      "chord": "Cdim"
+    },
+    {
+      "start": 89.81,
+      "end": 92.32,
+      "chord": "Em"
+    },
+    {
+      "start": 92.32,
+      "end": 93.09,
+      "chord": "C"
+    },
+    {
+      "start": 93.09,
+      "end": 98.41,
+      "chord": "D"
+    },
+    {
+      "start": 98.41,
+      "end": 100.36,
+      "chord": "G"
+    },
+    {
+      "start": 100.36,
+      "end": 102.35,
+      "chord": "D"
+    },
+    {
+      "start": 102.35,
+      "end": 106.35,
+      "chord": "G"
+    },
+    {
+      "start": 106.35,
+      "end": 107.14,
+      "chord": "C"
+    },
+    {
+      "start": 107.14,
+      "end": 108.81,
+      "chord": "G"
+    },
+    {
+      "start": 108.81,
+      "end": 110.81,
+      "chord": "D"
+    },
+    {
+      "start": 110.81,
+      "end": 123.25,
+      "chord": "C"
+    }
+  ],
+  "tempoConfidence": "non-validé",
+  "tempoNote": "Hymne lente, valeur cohérente mais non confirmée à l'oreille.",
+  "warning": "ATTENTION — ce fichier est la SORTIE DU MOTEUR produite par la sous-commande `sheet`, pas une vérité terrain. Le comparer au moteur mesurerait le moteur contre lui-même. Il attend une relecture humaine ; ne pas passer status à validated avant."
+}
