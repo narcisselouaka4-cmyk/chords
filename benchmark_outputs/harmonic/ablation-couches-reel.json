@@ -1,0 +1,128 @@
+[
+ {
+  "nom": "BASELINE (tout actif)",
+  "you-are-yahweh-tutorial": 0.7859,
+  "you-are-yahweh": 0.656,
+  "autumn-leaves-synth": 0.0,
+  "ton-nom-est-jehovah-extrait": 0.5119,
+  "you-are-yahweh-tutorial-extrapole": 0.7187,
+  "_GLOBAL_VALIDE": 0.5508644859813084
+ },
+ {
+  "nom": "groupe \u00ab mission v4 \u00bb OFF",
+  "you-are-yahweh-tutorial": 0.6648,
+  "you-are-yahweh": 0.5813,
+  "autumn-leaves-synth": 0.0,
+  "ton-nom-est-jehovah-extrait": 0.5123,
+  "you-are-yahweh-tutorial-extrapole": 0.6308,
+  "_GLOBAL_VALIDE": 0.46598130841121493
+ },
+ {
+  "nom": "INTRO_PREFIX_FIX OFF",
+  "you-are-yahweh-tutorial": 0.7859,
+  "you-are-yahweh": 0.656,
+  "autumn-leaves-synth": 0.0,
+  "ton-nom-est-jehovah-extrait": 0.5119,
+  "you-are-yahweh-tutorial-extrapole": 0.7187,
+  "_GLOBAL_VALIDE": 0.5508644859813084
+ },
+ {
+  "nom": "ANTIPARASITE_STABILIZATION OFF",
+  "you-are-yahweh-tutorial": 0.7759,
+  "you-are-yahweh": 0.6295,
+  "autumn-leaves-synth": 0.0,
+  "ton-nom-est-jehovah-extrait": 0.5034,
+  "you-are-yahweh-tutorial-extrapole": 0.7156,
+  "_GLOBAL_VALIDE": 0.5438551401869159
+ },
+ {
+  "nom": "CHORUS_LOOP_REFINE OFF",
+  "you-are-yahweh-tutorial": 0.7859,
+  "you-are-yahweh": 0.656,
+  "autumn-leaves-synth": 0.0,
+  "ton-nom-est-jehovah-extrait": 0.5119,
+  "you-are-yahweh-tutorial-extrapole": 0.7187,
+  "_GLOBAL_VALIDE": 0.5508644859813084
+ },
+ {
+  "nom": "PROGRESSIVE_STABILIZATION OFF",
+  "you-are-yahweh-tutorial": 0.65,
+  "you-are-yahweh": 0.6078,
+  "autumn-leaves-synth": 0.0,
+  "ton-nom-est-jehovah-extrait": 0.5955,
+  "you-are-yahweh-tutorial-extrapole": 0.6448,
+  "_GLOBAL_VALIDE": 0.45560747663551404
+ },
+ {
+  "nom": "CHORD_DOWNGRADE OFF",
+  "you-are-yahweh-tutorial": 0.7782,
+  "you-are-yahweh": 0.656,
+  "autumn-leaves-synth": 0.0,
+  "ton-nom-est-jehovah-extrait": 0.5289,
+  "you-are-yahweh-tutorial-extrapole": 0.7146,
+  "_GLOBAL_VALIDE": 0.5454672897196262
+ },
+ {
+  "nom": "SIMPLE_CHORD_VOCABULARY OFF",
+  "you-are-yahweh-tutorial": 0.7782,
+  "you-are-yahweh": 0.656,
+  "autumn-leaves-synth": 0.0,
+  "ton-nom-est-jehovah-extrait": 0.5119,
+  "you-are-yahweh-tutorial-extrapole": 0.7146,
+  "_GLOBAL_VALIDE": 0.5454672897196262
+ },
+ {
+  "nom": "ARPEGGIO_FIGURE_ABSORPTION OFF",
+  "you-are-yahweh-tutorial": 0.7859,
+  "you-are-yahweh": 0.656,
+  "autumn-leaves-synth": 0.0,
+  "ton-nom-est-jehovah-extrait": 0.5119,
+  "you-are-yahweh-tutorial-extrapole": 0.7187,
+  "_GLOBAL_VALIDE": 0.5508644859813084
+ },
+ {
+  "nom": "BEAT_GRID_GAP_FILL OFF",
+  "you-are-yahweh-tutorial": 0.7859,
+  "you-are-yahweh": 0.6279,
+  "autumn-leaves-synth": 0.0,
+  "ton-nom-est-jehovah-extrait": 0.5119,
+  "you-are-yahweh-tutorial-extrapole": 0.7187,
+  "_GLOBAL_VALIDE": 0.5508644859813084
+ },
+ {
+  "nom": "LEADING_SILENCE_GUARD OFF",
+  "you-are-yahweh-tutorial": 0.7859,
+  "you-are-yahweh": 0.656,
+  "autumn-leaves-synth": 0.0,
+  "ton-nom-est-jehovah-extrait": 0.5289,
+  "you-are-yahweh-tutorial-extrapole": 0.7187,
+  "_GLOBAL_VALIDE": 0.5508644859813084
+ },
+ {
+  "nom": "UPPER_VOICE_STABILITY_GUARD OFF",
+  "you-are-yahweh-tutorial": 0.7859,
+  "you-are-yahweh": 0.656,
+  "autumn-leaves-synth": 0.0,
+  "ton-nom-est-jehovah-extrait": 0.5119,
+  "you-are-yahweh-tutorial-extrapole": 0.7187,
+  "_GLOBAL_VALIDE": 0.5508644859813084
+ },
+ {
+  "nom": "ARPEGGIO_CELL_DURATION_CAP OFF",
+  "you-are-yahweh-tutorial": 0.6661,
+  "you-are-yahweh": 0.5947,
+  "autumn-leaves-synth": 0.0,
+  "ton-nom-est-jehovah-extrait": 0.3542,
+  "you-are-yahweh-tutorial-extrapole": 0.6933,
+  "_GLOBAL_VALIDE": 0.466892523364486
+ },
+ {
+  "nom": "FIFTH_CONFUSION_FIX OFF",
+  "you-are-yahweh-tutorial": 0.5578,
+  "you-are-yahweh": 0.6876,
+  "autumn-leaves-synth": 0.0,
+  "ton-nom-est-jehovah-extrait": 0.4929,
+  "you-are-yahweh-tutorial-extrapole": 0.5145,
+  "_GLOBAL_VALIDE": 0.39098130841121487
+ }
+]

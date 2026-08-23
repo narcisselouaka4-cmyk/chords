@@ -1,0 +1,164 @@
+[
+ {
+  "majmin": 0.935932676685133,
+  "sevenths": 0.7380972372415772,
+  "offset_ms": 34.000000000000696,
+  "tempo": 20,
+  "key": 16,
+  "nom": "BASELINE (tout actif)",
+  "duree_s": 94.8
+ },
+ {
+  "majmin": 0.6434639804125885,
+  "sevenths": 0.44562854096903265,
+  "offset_ms": 33.00000000000125,
+  "tempo": 20,
+  "key": 16,
+  "nom": "groupe EXP-009 (4 couches) OFF",
+  "duree_s": 81.1
+ },
+ {
+  "majmin": 0.9439972600184664,
+  "sevenths": 0.7461618205749105,
+  "offset_ms": 34.000000000000696,
+  "tempo": 20,
+  "key": 16,
+  "nom": "groupe \u00ab mission v4 \u00bb OFF",
+  "duree_s": 86.8
+ },
+ {
+  "majmin": 0.6245369491789683,
+  "sevenths": 0.42670150973541243,
+  "offset_ms": 34.000000000000696,
+  "tempo": 0,
+  "key": 16,
+  "nom": "tout post-traitement OFF",
+  "duree_s": 80.5
+ },
+ {
+  "majmin": 0.9400180933517996,
+  "sevenths": 0.7421826539082439,
+  "offset_ms": 34.000000000000696,
+  "tempo": 20,
+  "key": 16,
+  "nom": "CHORD_DOWNGRADE OFF",
+  "duree_s": 86.1
+ },
+ {
+  "majmin": 0.935932676685133,
+  "sevenths": 0.7380972372415772,
+  "offset_ms": 34.000000000000696,
+  "tempo": 20,
+  "key": 16,
+  "nom": "UPPER_VOICE_STABILITY_GUARD OFF",
+  "duree_s": 79.1
+ },
+ {
+  "majmin": 0.935932676685133,
+  "sevenths": 0.7380972372415772,
+  "offset_ms": 34.000000000000696,
+  "tempo": 20,
+  "key": 16,
+  "nom": "BEAT_GRID_GAP_FILL OFF",
+  "duree_s": 85.1
+ },
+ {
+  "majmin": 0.935932676685133,
+  "sevenths": 0.7380972372415772,
+  "offset_ms": 34.000000000000696,
+  "tempo": 20,
+  "key": 16,
+  "nom": "ARPEGGIO_CELL_DURATION_CAP OFF",
+  "duree_s": 86.5
+ },
+ {
+  "majmin": 0.7382204551497737,
+  "sevenths": 0.540385015706218,
+  "offset_ms": 33.00000000000125,
+  "tempo": 20,
+  "key": 16,
+  "nom": "ARPEGGIO_MERGE_IDENTITY_GUARD OFF",
+  "duree_s": 87.0
+ },
+ {
+  "majmin": 0.935932676685133,
+  "sevenths": 0.7380972372415772,
+  "offset_ms": 34.000000000000696,
+  "tempo": 20,
+  "key": 16,
+  "nom": "ARPEGGIO_FIGURE_ABSORPTION OFF",
+  "duree_s": 88.0
+ },
+ {
+  "majmin": 0.9400180933517996,
+  "sevenths": 0.7421826539082439,
+  "offset_ms": 34.000000000000696,
+  "tempo": 20,
+  "key": 16,
+  "nom": "SIMPLE_CHORD_VOCABULARY OFF",
+  "duree_s": 87.3
+ },
+ {
+  "majmin": 0.935932676685133,
+  "sevenths": 0.7380972372415772,
+  "offset_ms": 34.000000000000696,
+  "tempo": 20,
+  "key": 16,
+  "nom": "LEADING_SILENCE_GUARD OFF",
+  "duree_s": 85.5
+ },
+ {
+  "majmin": 0.935932676685133,
+  "sevenths": 0.7380972372415772,
+  "offset_ms": 34.000000000000696,
+  "tempo": 20,
+  "key": 16,
+  "nom": "FIFTH_CONFUSION_FIX OFF",
+  "duree_s": 84.4
+ },
+ {
+  "majmin": 0.935932676685133,
+  "sevenths": 0.7380972372415772,
+  "offset_ms": 34.000000000000696,
+  "tempo": 20,
+  "key": 16,
+  "nom": "ANTIPARASITE_STABILIZATION OFF",
+  "duree_s": 84.0
+ },
+ {
+  "majmin": 0.935932676685133,
+  "sevenths": 0.7380972372415772,
+  "offset_ms": 34.000000000000696,
+  "tempo": 20,
+  "key": 16,
+  "nom": "CHORUS_LOOP_REFINE OFF",
+  "duree_s": 85.2
+ },
+ {
+  "majmin": 0.9439972600184664,
+  "sevenths": 0.7461618205749105,
+  "offset_ms": 34.000000000000696,
+  "tempo": 20,
+  "key": 16,
+  "nom": "INTRO_PREFIX_FIX OFF",
+  "duree_s": 85.8
+ },
+ {
+  "majmin": 0.935932676685133,
+  "sevenths": 0.7380972372415772,
+  "offset_ms": 34.000000000000696,
+  "tempo": 20,
+  "key": 16,
+  "nom": "PROGRESSIVE_STABILIZATION OFF",
+  "duree_s": 85.9
+ },
+ {
+  "majmin": 0.935932676685133,
+  "sevenths": 0.7380972372415772,
+  "offset_ms": 34.000000000000696,
+  "tempo": 0,
+  "key": 16,
+  "nom": "TEMPO_OCTAVE_FIX OFF",
+  "duree_s": 87.2
+ }
+]

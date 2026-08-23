@@ -370,9 +370,30 @@ def main():
     p_run.add_argument('--label', default='b1')
     p_run.add_argument('--compare', default=None,
                        help='label d’un rapport antérieur à comparer')
+    p_run.add_argument('--flag', action='append', default=[], metavar='NOM=VALEUR',
+                       help="force un flag ENABLE_* du moteur le temps de la mesure, "
+                            "ex. --flag ENABLE_FIFTH_CONFUSION_FIX=False. Répétable. "
+                            "L'état effectif de tous les flags est enregistré dans le rapport.")
     p_run.set_defaults(func=cmd_run)
 
     args = parser.parse_args()
+    for assignment in getattr(args, 'flag', []) or []:
+        name, _, raw = assignment.partition('=')
+        name = name.strip()
+        if not hasattr(ap(), name):
+            sys.exit(f'flag inconnu : {name}')
+        value = raw.strip().lower()
+        if value in ('true', '1', 'on'):
+            parsed = True
+        elif value in ('false', '0', 'off'):
+            parsed = False
+        else:
+            try:
+                parsed = float(raw)
+            except ValueError:
+                sys.exit(f'valeur non interprétable pour {name} : {raw!r}')
+        setattr(ap(), name, parsed)
+        print(f'  flag forcé : {name} = {parsed}')
     args.func(args)
 
 
