@@ -45,6 +45,7 @@ import { fitChordLabel } from './chord-label-fit.js';
 import { notifyOnboarding } from './onboarding.js';
 import { buildDemoFixture } from './reharmonization-demo-fixture.js';
 import { buildReharmonizationViewModel } from './reharmonization-orchestrator.js';
+import { startLiveMelodyCapture } from '../melody/reharmonization-live-capture.js';
 import {
   renderReharmonizationEmpty,
   renderReharmonizationLoading,
@@ -181,6 +182,9 @@ const els = {
   reharmOutput: document.getElementById('analyzer-reharm-output'),
   reharmDetails: document.getElementById('analyzer-reharm-details'),
   reharmSummary: document.getElementById('analyzer-reharm-summary'),
+  // [OpenCode] — 2026-08-24 — Réharmonisation V1, Étape 1 : capture live.
+  reharmLive: document.getElementById('analyzer-reharm-live'),
+  reharmLiveStatus: document.getElementById('analyzer-reharm-live-status'),
 };
 
 let analyzer = null;
@@ -232,6 +236,13 @@ let midiCaptureSeconds = 0;
 let midiCaptureTimer = null;
 let midiCaptureRunning = false; // true pendant l'enregistrement actif
 let midiSessionFinalized = false; // true après Stop : la session est terminée
+
+// [OpenCode] — 2026-08-24 — Réharmonisation V1, Étape 1 : capture MIDI live.
+// Session de capture active (instance de startLiveMelodyCapture) + dernier
+// wrapper finalisé prêt à alimenter le moteur canonique. null tant qu'aucune
+// capture n'a été lancée ou qu'aucune note n'a été jouée.
+let reharmLiveSession = null;
+let reharmLiveWrapper = null;
 
 // Phase B : persistance
 let projectDirty = false;
@@ -994,6 +1005,22 @@ function startMidiCaptureUI() {
     if (els.midiTimer) els.midiTimer.textContent = t;
     if (els.midiDurationStat) els.midiDurationStat.textContent = t;
   }, 1000);
+
+  // [OpenCode] — 2026-08-24 — Démarre une capture de mélodie live pour la
+  // réharmonisation. On nettoie tout wrapper précédent : un nouvel
+  // enregistrement invalide l'ancien.
+  try {
+    if (reharmLiveSession) reharmLiveSession.unsubscribe();
+    reharmLiveSession = startLiveMelodyCapture({ name: 'Mélodie live (session Analyse)' });
+    reharmLiveWrapper = null;
+    if (els.reharmLiveStatus) {
+      els.reharmLiveStatus.textContent = 'Capture en cours… jouez votre mélodie.';
+    }
+    if (els.reharmLive) els.reharmLive.disabled = true;
+  } catch (err) {
+    console.warn('[Analyse] capture live échouée:', err);
+    reharmLiveSession = null;
+  }
 }
 
 function pauseMidiCaptureUI() {
@@ -1018,6 +1045,35 @@ function stopMidiCaptureUI() {
   els.stateMidiRecord?.classList.remove('recording');
   setMidiBadge(els.midiRecBadge, 'Terminé', '');
   setMidiBadge(els.midiStatusBadge, 'Session terminée', 'ready');
+
+  // [OpenCode] — 2026-08-24 — Finalise la capture live et stocke le wrapper
+  // canonique { track, harmonicContext }. Active le bouton « Réharmoniser ma
+  // mélodie » si la capture a produit au moins une note.
+  if (reharmLiveSession) {
+    try {
+      const result = reharmLiveSession.finalize();
+      if (result.status === 'success' && result.wrapper) {
+        reharmLiveWrapper = result.wrapper;
+        if (els.reharmLive) els.reharmLive.disabled = false;
+        if (els.reharmLiveStatus) {
+          els.reharmLiveStatus.textContent =
+            `${result.noteCount} note(s) capturée(s). Cliquez sur « Réharmoniser ma mélodie ».`;
+        }
+      } else {
+        if (els.reharmLive) els.reharmLive.disabled = true;
+        if (els.reharmLiveStatus) {
+          els.reharmLiveStatus.textContent = result.message || 'Capture vide.';
+        }
+      }
+    } catch (err) {
+      console.warn('[Analyse] finalisation live échouée:', err);
+      if (els.reharmLiveStatus) {
+        els.reharmLiveStatus.textContent = 'Erreur de finalisation de la capture.';
+      }
+    } finally {
+      reharmLiveSession = null;
+    }
+  }
 }
 
 function setMidiBadge(el, text, modifier) {
@@ -2170,12 +2226,20 @@ function initReharmonizationPanel() {
   const output = els.reharmOutput;
   const details = els.reharmDetails;
   const summary = els.reharmSummary;
+  const liveBtn = els.reharmLive;
 
   if (runBtn) {
     runBtn.textContent = 'Lancer la démonstration';
     runBtn.setAttribute('aria-controls', 'analyzer-reharm-output');
     runBtn.setAttribute('aria-expanded', 'false');
     runBtn.addEventListener('click', runReharmonizationDemo);
+  }
+
+  // [OpenCode] — 2026-08-24 — Bouton « Réharmoniser ma mélodie » : utilise la
+  // dernière capture live. Désactivé tant qu'aucune mélodie n'est disponible.
+  if (liveBtn) {
+    liveBtn.setAttribute('aria-controls', 'analyzer-reharm-output');
+    liveBtn.addEventListener('click', runReharmonizationLive);
   }
 
   // Lot A — synchronisation de aria-expanded sur le <summary> quand
@@ -2242,6 +2306,59 @@ async function runReharmonizationDemo() {
   } finally {
     runBtn.disabled = false;
     runBtn.setAttribute('aria-expanded', String(!!els.reharmDetails?.hasAttribute('open')));
+    output.setAttribute('aria-busy', 'false');
+  }
+}
+
+// [OpenCode] — 2026-08-24 — Réharmonisation V1, Étape 1 : lance le moteur
+// canonique sur la dernière capture MIDI live au lieu de la fixture de démo.
+// Comportement identique à runReharmonizationDemo mais avec le wrapper live.
+async function runReharmonizationLive() {
+  const liveBtn = els.reharmLive;
+  const output = els.reharmOutput;
+  if (!liveBtn || !output) return;
+  if (!reharmLiveWrapper) {
+    renderReharmonizationError(
+      output,
+      'Aucune mélodie live disponible. Lancez une session MIDI, jouez une mélodie, puis arrêtez.',
+      'EmptyMelody',
+    );
+    return;
+  }
+
+  liveBtn.disabled = true;
+  output.setAttribute('aria-busy', 'true');
+  renderReharmonizationLoading(output);
+
+  await new Promise((resolve) => requestAnimationFrame(resolve));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  try {
+    const viewModel = buildReharmonizationViewModel({
+      track: reharmLiveWrapper.track,
+      harmonicContext: reharmLiveWrapper.harmonicContext,
+    });
+    if (viewModel.status === 'success') {
+      const meta = Object.freeze({
+        isDemo: false,
+        isLive: true,
+        label: 'Réharmonisation de votre mélodie',
+        description: `Mélodie live capturée au clavier (${reharmLiveWrapper.track.events.length} notes). Tonalité détectée : ${reharmLiveWrapper.harmonicContext.tonalContext?.spelledKey?.tonicSpelling?.letter || '?'} ${reharmLiveWrapper.harmonicContext.tonalContext?.selected?.mode || '?'}.`,
+      });
+      renderReharmonizationSuccess(output, viewModel, meta);
+      if (els.reharmDetails && !els.reharmDetails.hasAttribute('open')) {
+        els.reharmDetails.setAttribute('open', '');
+      }
+      if (els.reharmSummary) {
+        els.reharmSummary.setAttribute('aria-expanded', 'true');
+      }
+    } else {
+      renderReharmonizationError(output, viewModel.message, viewModel.errorKind);
+    }
+  } catch (err) {
+    renderReharmonizationError(output, err && err.message ? err.message : 'Erreur inattendue.', 'Error');
+  } finally {
+    liveBtn.disabled = false;
     output.setAttribute('aria-busy', 'false');
   }
 }

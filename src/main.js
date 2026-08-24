@@ -21,6 +21,12 @@ import {
 import { createPracticeExercise, renderExerciseTarget } from './practice-exercise.js';
 import { applyTabVisibility } from './ui/tab-visibility.js';
 import { initOnboarding, notifyOnboarding } from './ui/onboarding.js';
+import {
+  publishLiveNoteOn,
+  publishLiveNoteOff,
+  publishLiveSustain,
+  hasLiveMidiSubscribers,
+} from './melody/live-midi-bus.js';
 
 const state = {
   activeNotes: new Map(), // midi -> velocity
@@ -318,6 +324,10 @@ function handleNoteOn(note, velocity = 0.8, virtual = false, audible = true) {
   state.activeNotes.set(transposed, safeVelocity);
   highlightKey(transposed, 'active');
   noteGrouper?.noteOn(transposed, velocity);
+  // [OpenCode] — 2026-08-24 — Publier la note brute vers le bus MIDI live pour
+  // la réharmonisation (note non transposée : la transposition est un offset
+  // d'affichage, pas une altération de la mélodie source).
+  if (hasLiveMidiSubscribers()) publishLiveNoteOn(note, safeVelocity, 0);
   // La détection est différée pour ne pas bloquer le thread principal
   // (lecture audio / défilement de l'onglet Analyse).
   scheduleRefreshChord();
@@ -338,16 +348,19 @@ function handleNoteOff(note, virtual = false, audible = true) {
   if (state.sustain) {
     state.sustainedNotes.add(transposed);
     noteGrouper?.noteOff(transposed, { sustained: true });
+    if (hasLiveMidiSubscribers()) publishLiveNoteOff(note, 0);
     return;
   }
   state.activeNotes.delete(transposed);
   unhighlightKey(transposed, 'active');
   noteGrouper?.noteOff(transposed, { sustained: false });
+  if (hasLiveMidiSubscribers()) publishLiveNoteOff(note, 0);
   scheduleRefreshChord();
 }
 
 function handleSustain(value) {
   state.sustain = value;
+  if (hasLiveMidiSubscribers()) publishLiveSustain(value, 0);
   if (!value) {
     for (const note of state.sustainedNotes) {
       if (!state.activeNotes.has(note)) {
