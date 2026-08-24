@@ -1,0 +1,47 @@
+{
+  "battery": "B5",
+  "soundfont": "/usr/share/sounds/sf2/FluidR3_GM.sf2",
+  "generated": "2026-08-24T03:34:38",
+  "cases": [
+    {
+      "caseId": "b5_f1_no_root",
+      "family": "f1_no_root",
+      "familyLabel": "sans fondamentale (basse=quinte)",
+      "tempo": 90,
+      "duration": 21.333333,
+      "wav": "tests/corpus/b5/b5_f1_no_root.wav"
+    },
+    {
+      "caseId": "b5_f2_upper",
+      "family": "f2_upper",
+      "familyLabel": "upper structures",
+      "tempo": 90,
+      "duration": 21.333333,
+      "wav": "tests/corpus/b5/b5_f2_upper.wav"
+    },
+    {
+      "caseId": "b5_f3_quartal",
+      "family": "f3_quartal",
+      "familyLabel": "quartal / clusters",
+      "tempo": 90,
+      "duration": 21.333333,
+      "wav": "tests/corpus/b5/b5_f3_quartal.wav"
+    },
+    {
+      "caseId": "b5_f4_slash",
+      "family": "f4_slash",
+      "familyLabel": "renversements / slash",
+      "tempo": 90,
+      "duration": 21.333333,
+      "wav": "tests/corpus/b5/b5_f4_slash.wav"
+    },
+    {
+      "caseId": "b5_f5_tensions",
+      "family": "f5_tensions",
+      "familyLabel": "tensions 9/11/13",
+      "tempo": 90,
+      "duration": 21.333333,
+      "wav": "tests/corpus/b5/b5_f5_tensions.wav"
+    }
+  ]
+}
