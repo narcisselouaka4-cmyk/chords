@@ -1,0 +1,123 @@
+{
+  "label": "identite-seule",
+  "engine": {
+    "commit": "b9a083b",
+    "audio_processor_modified": true,
+    "flags": {
+      "ENABLE_ANTIPARASITE_STABILIZATION": true,
+      "ENABLE_ARPEGGIO_FIGURE_ABSORPTION": true,
+      "ENABLE_ARPEGGIO_MERGE_IDENTITY_GUARD": true,
+      "ENABLE_CHORD_DOWNGRADE": true,
+      "ENABLE_CHORUS_LOOP_REFINE": true,
+      "ENABLE_INTRO_PREFIX_FIX": true,
+      "ENABLE_PROGRESSIVE_STABILIZATION": true,
+      "ENABLE_REPEATED_PROGRESSION_REGULARIZATION": false,
+      "ENABLE_SIMPLE_CHORD_VOCABULARY": true,
+      "ENABLE_STRUCTURAL_LOOP_DETECTION": true,
+      "ENABLE_TEMPO_OCTAVE_FIX": true,
+      "ENABLE_UPPER_VOICE_STABILITY_GUARD": false
+    },
+    "vocabulary": [
+      "",
+      "7",
+      "aug",
+      "aug7",
+      "dim",
+      "dim7",
+      "m",
+      "m7",
+      "maj7"
+    ],
+    "date": "2026-08-23T00:39:09"
+  },
+  "tracks": {
+    "you-are-yahweh": {
+      "chord_accuracy": 0.4606,
+      "chord_accuracy_tolerant": 0.4671,
+      "root_accuracy": 0.4606,
+      "quality_accuracy_on_correct_root": 1.0,
+      "coverage": 1.0,
+      "boundary_median_s": 1.0,
+      "boundary_within_tolerance": 0.1053,
+      "segments_gt": 20,
+      "segments_pred": 71,
+      "fragmentation": 3.55,
+      "gt_duration_s": 75.0,
+      "analysis_seconds": 28.9,
+      "realtime_factor": 0.386,
+      "tempo_pred": 51.7,
+      "tempo_gt": 51.7,
+      "tempo_verdict": "exact",
+      "tempo_error_pct": 0.0,
+      "tempo_confidence": "utilisateur",
+      "key_pred": "A",
+      "key_gt": "A",
+      "status": "validated"
+    },
+    "autumn-leaves-synth": {
+      "chord_accuracy": 0.0,
+      "chord_accuracy_tolerant": 0.0,
+      "root_accuracy": 0.4323,
+      "quality_accuracy_on_correct_root": 0.0,
+      "coverage": 1.0,
+      "boundary_median_s": 0.053,
+      "boundary_within_tolerance": 0.6923,
+      "segments_gt": 14,
+      "segments_pred": 12,
+      "fragmentation": 0.857,
+      "gt_duration_s": 32.0,
+      "analysis_seconds": 3.0,
+      "realtime_factor": 0.093,
+      "tempo_pred": 60.1,
+      "tempo_gt": 120.0,
+      "tempo_verdict": "moitié",
+      "tempo_error_pct": -49.9,
+      "tempo_confidence": "construction",
+      "key_pred": "F",
+      "key_gt": "G minor",
+      "status": "validated"
+    },
+    "ton-nom-est-jehovah-extrait": {
+      "chord_accuracy": 0.2702,
+      "chord_accuracy_tolerant": 0.255,
+      "root_accuracy": 0.2702,
+      "quality_accuracy_on_correct_root": 1.0,
+      "coverage": 1.0,
+      "boundary_median_s": 0.924,
+      "boundary_within_tolerance": 0.1765,
+      "segments_gt": 18,
+      "segments_pred": 16,
+      "fragmentation": 0.889,
+      "gt_duration_s": 60.0,
+      "analysis_seconds": 5.0,
+      "realtime_factor": 0.084,
+      "tempo_pred": 53.8,
+      "tempo_gt": null,
+      "tempo_verdict": null,
+      "tempo_error_pct": null,
+      "tempo_confidence": null,
+      "key_pred": "A",
+      "key_gt": "A",
+      "status": "provisional"
+    }
+  },
+  "status": {
+    "you-are-yahweh": "validated",
+    "autumn-leaves-synth": "validated",
+    "ton-nom-est-jehovah-extrait": "provisional"
+  },
+  "global": {
+    "chord_accuracy": 0.3229,
+    "root_accuracy": 0.4521,
+    "tempo_exact": 1,
+    "tracks": 2,
+    "total_duration_s": 107.0
+  },
+  "global_provisional": {
+    "chord_accuracy": 0.2702,
+    "root_accuracy": 0.2702,
+    "tempo_exact": 0,
+    "tracks": 1,
+    "total_duration_s": 60.0
+  }
+}

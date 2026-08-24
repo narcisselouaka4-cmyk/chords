@@ -1,0 +1,57 @@
+{
+  "label": "baseline",
+  "engine": {
+    "commit": "b9a083b",
+    "audio_processor_modified": false,
+    "flags": {
+      "ENABLE_ANTIPARASITE_STABILIZATION": true,
+      "ENABLE_ARPEGGIO_FIGURE_ABSORPTION": true,
+      "ENABLE_CHORD_DOWNGRADE": true,
+      "ENABLE_CHORUS_LOOP_REFINE": true,
+      "ENABLE_INTRO_PREFIX_FIX": true,
+      "ENABLE_PROGRESSIVE_STABILIZATION": true,
+      "ENABLE_REPEATED_PROGRESSION_REGULARIZATION": false,
+      "ENABLE_SIMPLE_CHORD_VOCABULARY": true,
+      "ENABLE_STRUCTURAL_LOOP_DETECTION": true
+    },
+    "vocabulary": [
+      "",
+      "7",
+      "aug",
+      "aug7",
+      "dim",
+      "dim7",
+      "m",
+      "m7",
+      "maj7"
+    ],
+    "date": "2026-08-22T04:05:45"
+  },
+  "tracks": {
+    "you-are-yahweh": {
+      "chord_accuracy": 0.382,
+      "chord_accuracy_tolerant": 0.4011,
+      "root_accuracy": 0.382,
+      "quality_accuracy_on_correct_root": 1.0,
+      "coverage": 1.0,
+      "boundary_median_s": 1.07,
+      "boundary_within_tolerance": 0.122,
+      "segments_gt": 42,
+      "segments_pred": 65,
+      "fragmentation": 1.548,
+      "gt_duration_s": 141.0,
+      "analysis_seconds": 40.6,
+      "realtime_factor": 0.288,
+      "tempo_pred": 103.4,
+      "tempo_gt": null,
+      "key_pred": "A",
+      "key_gt": "A"
+    }
+  },
+  "global": {
+    "chord_accuracy": 0.382,
+    "root_accuracy": 0.382,
+    "tracks": 1,
+    "total_duration_s": 141.0
+  }
+}
