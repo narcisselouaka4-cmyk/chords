@@ -1,0 +1,53 @@
+{
+  "caseId": "b4_rubato_60",
+  "battery": "B4",
+  "family": "f2_rubato",
+  "familyLabel": "rubato ±3 %",
+  "key": "C",
+  "tempo": 60.0,
+  "duration": 32.0,
+  "status": "exact",
+  "source": "Audio rendu depuis cette grille. Le tempo attendu est la moyenne de la courbe (exact pour F1).",
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 4.0,
+      "chord": "C:maj"
+    },
+    {
+      "start": 4.0,
+      "end": 8.084853,
+      "chord": "A:min"
+    },
+    {
+      "start": 8.084853,
+      "end": 12.204853,
+      "chord": "F:maj"
+    },
+    {
+      "start": 12.204853,
+      "end": 16.289706,
+      "chord": "G:maj"
+    },
+    {
+      "start": 16.289706,
+      "end": 20.289706,
+      "chord": "C:maj"
+    },
+    {
+      "start": 20.289706,
+      "end": 24.204853,
+      "chord": "A:min"
+    },
+    {
+      "start": 24.204853,
+      "end": 28.084853,
+      "chord": "F:maj"
+    },
+    {
+      "start": 28.084853,
+      "end": 32.0,
+      "chord": "G:maj"
+    }
+  ]
+}

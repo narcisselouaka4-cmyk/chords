@@ -1,0 +1,53 @@
+{
+  "caseId": "b4_ritard_110_70",
+  "battery": "B4",
+  "family": "f3_ritard",
+  "familyLabel": "ritardando 110→70",
+  "key": "C",
+  "tempo": 90.0,
+  "duration": 21.802436,
+  "status": "exact",
+  "source": "Audio rendu depuis cette grille. Le tempo attendu est la moyenne de la courbe (exact pour F1).",
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 2.181818,
+      "chord": "C:maj"
+    },
+    {
+      "start": 2.181818,
+      "end": 4.483188,
+      "chord": "A:min"
+    },
+    {
+      "start": 4.483188,
+      "end": 6.917971,
+      "chord": "F:maj"
+    },
+    {
+      "start": 6.917971,
+      "end": 9.502586,
+      "chord": "G:maj"
+    },
+    {
+      "start": 9.502586,
+      "end": 12.256684,
+      "chord": "C:maj"
+    },
+    {
+      "start": 12.256684,
+      "end": 15.204053,
+      "chord": "A:min"
+    },
+    {
+      "start": 15.204053,
+      "end": 18.373864,
+      "chord": "F:maj"
+    },
+    {
+      "start": 18.373864,
+      "end": 21.802436,
+      "chord": "G:maj"
+    }
+  ]
+}
