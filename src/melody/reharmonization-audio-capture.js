@@ -122,11 +122,29 @@ export function buildAudioMelodyWrapper(extracted, options = {}) {
     };
   }
 
-  // Détection de tonalité sur la mélodie extraite.
-  const { context: tonalContext } = estimateTonalContextFromMelody(track);
-  const usedTonalContext = (tonalContext && tonalContext.selected)
-    ? tonalContext
-    : setManualTonalContextSafe(createTonalContext(), options.key || 'C');
+  // [OpenCode] — 2026-08-24 — EXP-029 Tâche 2 : la tonalité utilisée par le
+  // moteur de réharmonisation doit s'appuyer sur l'harmonie déjà fiable
+  // (Chordify), pas sur une inférence recalculée depuis la seule mélodie
+  // extraite. Si options.harmonicKey = {key, mode} est fourni (depuis
+  // Chordify), on l'utilise en priorité. Sinon, fallback sur
+  // estimateTonalContextFromMelody, puis sur la clé manuelle.
+  let usedTonalContext = null;
+  if (options.harmonicKey && options.harmonicKey.key) {
+    // Construit la chaîne de tonalité (ex: "C" pour Do majeur, "Am" pour La mineur).
+    const keyStr = options.harmonicKey.mode === 'minor'
+      ? options.harmonicKey.key + 'm'
+      : options.harmonicKey.key;
+    usedTonalContext = setManualTonalContextSafe(createTonalContext(), keyStr);
+  }
+  if (!usedTonalContext || !usedTonalContext.selected) {
+    // Fallback : détection sur la mélodie extraite.
+    const { context: estimated } = estimateTonalContextFromMelody(track);
+    if (estimated && estimated.selected) {
+      usedTonalContext = estimated;
+    } else {
+      usedTonalContext = setManualTonalContextSafe(createTonalContext(), options.key || 'C');
+    }
+  }
 
   let ctx = createHarmonicContext(track, { tonalContext: usedTonalContext });
   // Une ancre par événement mélodique.
