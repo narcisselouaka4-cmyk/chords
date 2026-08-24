@@ -44,7 +44,7 @@ import {
 import { fitChordLabel } from './chord-label-fit.js';
 import { notifyOnboarding } from './onboarding.js';
 import { buildDemoFixture } from './reharmonization-demo-fixture.js';
-import { buildReharmonizationViewModel } from './reharmonization-orchestrator.js';
+import { buildReharmonizationViewModel, buildGospelReharmonizationViewModel } from './reharmonization-orchestrator.js';
 import { startLiveMelodyCapture } from '../melody/reharmonization-live-capture.js';
 import {
   renderReharmonizationEmpty,
@@ -2334,7 +2334,9 @@ async function runReharmonizationLive() {
   await new Promise((resolve) => setTimeout(resolve, 0));
 
   try {
-    const viewModel = buildReharmonizationViewModel({
+    // [OpenCode] — 2026-08-24 — V1, Tâche 2 : utilise le planificateur Gospel
+    // (candidats canoniques + techniques Gospel) sur la capture live.
+    const viewModel = buildGospelReharmonizationViewModel({
       track: reharmLiveWrapper.track,
       harmonicContext: reharmLiveWrapper.harmonicContext,
     });

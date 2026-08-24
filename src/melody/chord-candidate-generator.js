@@ -1175,6 +1175,7 @@ export function generateChordCandidatesForContext(input) {
 // ---------------------------------------------------------------------------
 
 export {
+  buildCandidate,
   buildDiatonicCandidates,
   buildDiatonicSubstitutionCandidates,
   buildSecondaryDominantCandidates,
@@ -1184,8 +1185,13 @@ export {
   validateChordCandidate,
   deduplicateChordCandidates,
   limitChordCandidates,
+  sortCandidates,
   computeChordPitchClasses,
   getIdentityMetadata,
+  resolveDegree,
   SUPPORTED_QUALITIES,
   DEFAULT_MAX_CANDIDATES_PER_ANCHOR,
+  MAJOR_DEGREES,
+  MINOR_DEGREES,
+  DIATONIC_SUBSTITUTIONS,
 };
