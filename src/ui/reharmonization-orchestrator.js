@@ -17,6 +17,8 @@
 // canonique).
 
 import { buildHarmonizationPlan } from '../melody/harmonization-planner.js';
+import { buildGospelHarmonizationPlan } from '../melody/gospel-harmonization-planner.js';
+import { identifyGospelTechnique } from '../melody/gospel-techniques.js';
 import {
   spellChordReference,
   formatSpelledPitch,
@@ -243,6 +245,47 @@ export function buildReharmonizationViewModel(input) {
       status: 'error',
       errorKind,
       message: err.message || 'Erreur du planificateur de réharmonisation.',
+    };
+  }
+}
+
+// [OpenCode] — 2026-08-24 — Réharmonisation V1, Tâche 2 : variante Gospel.
+// Identique à buildReharmonizationViewModel mais utilise l'orchestrateur
+// Gospel (candidats canoniques enrichis des techniques Gospel) et ajoute le
+// rapport de techniques au viewModel pour la traçabilité (critère 4 du score).
+export function buildGospelReharmonizationViewModel(input) {
+  if (
+    !input
+    || typeof input !== 'object'
+    || Array.isArray(input)
+    || !input.track
+    || !input.harmonicContext
+  ) {
+    return {
+      status: 'error',
+      errorKind: 'TypeError',
+      message: 'Entrée canonique invalide : wrapper { track, harmonicContext } requis.',
+    };
+  }
+  const wrapper = sanitizeHarmonizationInput(input);
+  try {
+    const plan = buildGospelHarmonizationPlan(wrapper);
+    const vm = mapHarmonizationPlanToViewModel(plan, wrapper);
+    // Ajoute le rapport de techniques pour la traçabilité (critère 4).
+    return Object.freeze({
+      ...vm,
+      techniqueReport: plan.techniqueReport,
+    });
+  } catch (err) {
+    const errorKind = err instanceof TypeError
+      ? 'TypeError'
+      : err instanceof RangeError
+        ? 'RangeError'
+        : 'Error';
+    return {
+      status: 'error',
+      errorKind,
+      message: err.message || 'Erreur du planificateur Gospel.',
     };
   }
 }
