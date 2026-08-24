@@ -1,0 +1,187 @@
+{
+  "battery": "B4",
+  "soundfont": "/usr/share/sounds/sf2/FluidR3_GM.sf2",
+  "generated": "2026-08-24T03:32:04",
+  "cases": [
+    {
+      "caseId": "b4_stable_60",
+      "family": "f1_stable",
+      "familyLabel": "tempo stable",
+      "key": "C",
+      "tempo": 60.0,
+      "duration": 32.0,
+      "wav": "tests/corpus/b4/b4_stable_60.wav"
+    },
+    {
+      "caseId": "b4_stable_77",
+      "family": "f1_stable",
+      "familyLabel": "tempo stable",
+      "key": "C",
+      "tempo": 77.0,
+      "duration": 24.935065,
+      "wav": "tests/corpus/b4/b4_stable_77.wav"
+    },
+    {
+      "caseId": "b4_stable_90",
+      "family": "f1_stable",
+      "familyLabel": "tempo stable",
+      "key": "C",
+      "tempo": 90.0,
+      "duration": 21.333333,
+      "wav": "tests/corpus/b4/b4_stable_90.wav"
+    },
+    {
+      "caseId": "b4_stable_120",
+      "family": "f1_stable",
+      "familyLabel": "tempo stable",
+      "key": "C",
+      "tempo": 120.0,
+      "duration": 16.0,
+      "wav": "tests/corpus/b4/b4_stable_120.wav"
+    },
+    {
+      "caseId": "b4_stable_140",
+      "family": "f1_stable",
+      "familyLabel": "tempo stable",
+      "key": "C",
+      "tempo": 140.0,
+      "duration": 13.714286,
+      "wav": "tests/corpus/b4/b4_stable_140.wav"
+    },
+    {
+      "caseId": "b4_rubato_60",
+      "family": "f2_rubato",
+      "familyLabel": "rubato ±3 %",
+      "key": "C",
+      "tempo": 60.0,
+      "duration": 32.0,
+      "wav": "tests/corpus/b4/b4_rubato_60.wav"
+    },
+    {
+      "caseId": "b4_rubato_77",
+      "family": "f2_rubato",
+      "familyLabel": "rubato ±3 %",
+      "key": "C",
+      "tempo": 77.0,
+      "duration": 24.935065,
+      "wav": "tests/corpus/b4/b4_rubato_77.wav"
+    },
+    {
+      "caseId": "b4_rubato_90",
+      "family": "f2_rubato",
+      "familyLabel": "rubato ±3 %",
+      "key": "C",
+      "tempo": 90.0,
+      "duration": 21.333333,
+      "wav": "tests/corpus/b4/b4_rubato_90.wav"
+    },
+    {
+      "caseId": "b4_rubato_120",
+      "family": "f2_rubato",
+      "familyLabel": "rubato ±3 %",
+      "key": "C",
+      "tempo": 120.0,
+      "duration": 16.0,
+      "wav": "tests/corpus/b4/b4_rubato_120.wav"
+    },
+    {
+      "caseId": "b4_rubato_140",
+      "family": "f2_rubato",
+      "familyLabel": "rubato ±3 %",
+      "key": "C",
+      "tempo": 140.0,
+      "duration": 13.714286,
+      "wav": "tests/corpus/b4/b4_rubato_140.wav"
+    },
+    {
+      "caseId": "b4_accel_70_110",
+      "family": "f3_accel",
+      "familyLabel": "accelerando 70→110",
+      "key": "C",
+      "tempo": 90.0,
+      "duration": 21.802436,
+      "wav": "tests/corpus/b4/b4_accel_70_110.wav"
+    },
+    {
+      "caseId": "b4_ritard_110_70",
+      "family": "f3_ritard",
+      "familyLabel": "ritardando 110→70",
+      "key": "C",
+      "tempo": 90.0,
+      "duration": 21.802436,
+      "wav": "tests/corpus/b4/b4_ritard_110_70.wav"
+    },
+    {
+      "caseId": "b4_accel_60_90",
+      "family": "f3_accel_slow",
+      "familyLabel": "accelerando 60→90",
+      "key": "C",
+      "tempo": 90.0,
+      "duration": 21.802436,
+      "wav": "tests/corpus/b4/b4_accel_60_90.wav"
+    },
+    {
+      "caseId": "b4_ritard_90_60",
+      "family": "f3_ritard_slow",
+      "familyLabel": "ritardando 90→60",
+      "key": "C",
+      "tempo": 90.0,
+      "duration": 21.802436,
+      "wav": "tests/corpus/b4/b4_ritard_90_60.wav"
+    },
+    {
+      "caseId": "b4_accel_100_140",
+      "family": "f3_accel_fast",
+      "familyLabel": "accelerando 100→140",
+      "key": "C",
+      "tempo": 90.0,
+      "duration": 21.802436,
+      "wav": "tests/corpus/b4/b4_accel_100_140.wav"
+    },
+    {
+      "caseId": "b4_syncop_60",
+      "family": "f4_syncop",
+      "familyLabel": "syncopes basse contretemps",
+      "key": "C",
+      "tempo": 60.0,
+      "duration": 32.0,
+      "wav": "tests/corpus/b4/b4_syncop_60.wav"
+    },
+    {
+      "caseId": "b4_syncop_77",
+      "family": "f4_syncop",
+      "familyLabel": "syncopes basse contretemps",
+      "key": "C",
+      "tempo": 77.0,
+      "duration": 24.935065,
+      "wav": "tests/corpus/b4/b4_syncop_77.wav"
+    },
+    {
+      "caseId": "b4_syncop_90",
+      "family": "f4_syncop",
+      "familyLabel": "syncopes basse contretemps",
+      "key": "C",
+      "tempo": 90.0,
+      "duration": 21.333333,
+      "wav": "tests/corpus/b4/b4_syncop_90.wav"
+    },
+    {
+      "caseId": "b4_syncop_120",
+      "family": "f4_syncop",
+      "familyLabel": "syncopes basse contretemps",
+      "key": "C",
+      "tempo": 120.0,
+      "duration": 16.0,
+      "wav": "tests/corpus/b4/b4_syncop_120.wav"
+    },
+    {
+      "caseId": "b4_syncop_140",
+      "family": "f4_syncop",
+      "familyLabel": "syncopes basse contretemps",
+      "key": "C",
+      "tempo": 140.0,
+      "duration": 13.714286,
+      "wav": "tests/corpus/b4/b4_syncop_140.wav"
+    }
+  ]
+}

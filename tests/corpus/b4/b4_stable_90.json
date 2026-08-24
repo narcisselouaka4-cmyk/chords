@@ -1,0 +1,53 @@
+{
+  "caseId": "b4_stable_90",
+  "battery": "B4",
+  "family": "f1_stable",
+  "familyLabel": "tempo stable",
+  "key": "C",
+  "tempo": 90.0,
+  "duration": 21.333333,
+  "status": "exact",
+  "source": "Audio rendu depuis cette grille. Le tempo attendu est la moyenne de la courbe (exact pour F1).",
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 2.666667,
+      "chord": "C:maj"
+    },
+    {
+      "start": 2.666667,
+      "end": 5.333333,
+      "chord": "A:min"
+    },
+    {
+      "start": 5.333333,
+      "end": 8.0,
+      "chord": "F:maj"
+    },
+    {
+      "start": 8.0,
+      "end": 10.666667,
+      "chord": "G:maj"
+    },
+    {
+      "start": 10.666667,
+      "end": 13.333333,
+      "chord": "C:maj"
+    },
+    {
+      "start": 13.333333,
+      "end": 16.0,
+      "chord": "A:min"
+    },
+    {
+      "start": 16.0,
+      "end": 18.666667,
+      "chord": "F:maj"
+    },
+    {
+      "start": 18.666667,
+      "end": 21.333333,
+      "chord": "G:maj"
+    }
+  ]
+}

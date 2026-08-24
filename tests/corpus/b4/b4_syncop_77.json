@@ -1,0 +1,53 @@
+{
+  "caseId": "b4_syncop_77",
+  "battery": "B4",
+  "family": "f4_syncop",
+  "familyLabel": "syncopes basse contretemps",
+  "key": "C",
+  "tempo": 77.0,
+  "duration": 24.935065,
+  "status": "exact",
+  "source": "Audio rendu depuis cette grille. Le tempo attendu est la moyenne de la courbe (exact pour F1).",
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 3.116883,
+      "chord": "C:maj"
+    },
+    {
+      "start": 3.116883,
+      "end": 6.233766,
+      "chord": "A:min"
+    },
+    {
+      "start": 6.233766,
+      "end": 9.350649,
+      "chord": "F:maj"
+    },
+    {
+      "start": 9.350649,
+      "end": 12.467532,
+      "chord": "G:maj"
+    },
+    {
+      "start": 12.467532,
+      "end": 15.584416,
+      "chord": "C:maj"
+    },
+    {
+      "start": 15.584416,
+      "end": 18.701299,
+      "chord": "A:min"
+    },
+    {
+      "start": 18.701299,
+      "end": 21.818182,
+      "chord": "F:maj"
+    },
+    {
+      "start": 21.818182,
+      "end": 24.935065,
+      "chord": "G:maj"
+    }
+  ]
+}

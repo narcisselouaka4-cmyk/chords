@@ -1,0 +1,53 @@
+{
+  "caseId": "b4_accel_70_110",
+  "battery": "B4",
+  "family": "f3_accel",
+  "familyLabel": "accelerando 70→110",
+  "key": "C",
+  "tempo": 90.0,
+  "duration": 21.802436,
+  "status": "exact",
+  "source": "Audio rendu depuis cette grille. Le tempo attendu est la moyenne de la courbe (exact pour F1).",
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 3.428571,
+      "chord": "C:maj"
+    },
+    {
+      "start": 3.428571,
+      "end": 6.598383,
+      "chord": "A:min"
+    },
+    {
+      "start": 6.598383,
+      "end": 9.545751,
+      "chord": "F:maj"
+    },
+    {
+      "start": 9.545751,
+      "end": 12.29985,
+      "chord": "G:maj"
+    },
+    {
+      "start": 12.29985,
+      "end": 14.884465,
+      "chord": "C:maj"
+    },
+    {
+      "start": 14.884465,
+      "end": 17.319248,
+      "chord": "A:min"
+    },
+    {
+      "start": 17.319248,
+      "end": 19.620617,
+      "chord": "F:maj"
+    },
+    {
+      "start": 19.620617,
+      "end": 21.802436,
+      "chord": "G:maj"
+    }
+  ]
+}
