@@ -20,6 +20,7 @@ import { buildHarmonizationPlan } from '../melody/harmonization-planner.js';
 import { buildGospelHarmonizationPlan } from '../melody/gospel-harmonization-planner.js';
 import { identifyGospelTechnique } from '../melody/gospel-techniques.js';
 import { validateReharmonizationPlan } from '../melody/reharmonization-validator.js';
+import { buildReharmonizationVariants } from '../melody/reharmonization-variants.js';
 import {
   spellChordReference,
   formatSpelledPitch,
@@ -250,11 +251,11 @@ export function buildReharmonizationViewModel(input) {
   }
 }
 
-// [OpenCode] — 2026-08-24 — Réharmonisation V1, Tâche 2 : variante Gospel.
-// Identique à buildReharmonizationViewModel mais utilise l'orchestrateur
-// Gospel (candidats canoniques enrichis des techniques Gospel) et ajoute le
-// rapport de techniques au viewModel pour la traçabilité (critère 4 du score).
-export function buildGospelReharmonizationViewModel(input) {
+// [OpenCode] — 2026-08-24 — Réharmonisation V1, Tâche 4 : cartes multiples.
+// Génère 3 variantes complètes (fidèle, gospel, tendue) sur la même mélodie,
+// chacune validée sur les 4 critères, avec une désignée recommandée par défaut
+// (meilleur score de validité).
+export function buildReharmonizationVariantsViewModel(input) {
   if (
     !input
     || typeof input !== 'object'
@@ -270,16 +271,25 @@ export function buildGospelReharmonizationViewModel(input) {
   }
   const wrapper = sanitizeHarmonizationInput(input);
   try {
-    const plan = buildGospelHarmonizationPlan(wrapper);
-    const vm = mapHarmonizationPlanToViewModel(plan, wrapper);
-    // Score de validité 4 critères (Tâche 3).
-    const validationReport = validateReharmonizationPlan(plan);
-    // Ajoute le rapport de techniques pour la traçabilité (critère 4) et le
-    // score de validité au viewModel.
+    const { variants, recommendedId } = buildReharmonizationVariants(wrapper);
+    const variantViewModels = variants.map((v) => {
+      const stepVm = mapHarmonizationPlanToViewModel(v.plan, wrapper);
+      return Object.freeze({
+        id: v.id,
+        label: v.label,
+        description: v.description,
+        recommended: v.recommended,
+        steps: stepVm.steps,
+        totals: stepVm.totals,
+        meta: stepVm.meta,
+        techniqueReport: v.plan.techniqueReport,
+        validationReport: v.validationReport,
+      });
+    });
     return Object.freeze({
-      ...vm,
-      techniqueReport: plan.techniqueReport,
-      validationReport,
+      status: 'success',
+      variants: Object.freeze(variantViewModels),
+      recommendedId,
     });
   } catch (err) {
     const errorKind = err instanceof TypeError
@@ -290,7 +300,7 @@ export function buildGospelReharmonizationViewModel(input) {
     return {
       status: 'error',
       errorKind,
-      message: err.message || 'Erreur du planificateur Gospel.',
+      message: err.message || 'Erreur de génération des variantes.',
     };
   }
 }

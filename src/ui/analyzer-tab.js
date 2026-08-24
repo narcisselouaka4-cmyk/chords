@@ -44,13 +44,14 @@ import {
 import { fitChordLabel } from './chord-label-fit.js';
 import { notifyOnboarding } from './onboarding.js';
 import { buildDemoFixture } from './reharmonization-demo-fixture.js';
-import { buildReharmonizationViewModel, buildGospelReharmonizationViewModel } from './reharmonization-orchestrator.js';
+import { buildReharmonizationViewModel, buildReharmonizationVariantsViewModel } from './reharmonization-orchestrator.js';
 import { startLiveMelodyCapture } from '../melody/reharmonization-live-capture.js';
 import {
   renderReharmonizationEmpty,
   renderReharmonizationLoading,
   renderReharmonizationError,
   renderReharmonizationSuccess,
+  renderReharmonizationVariants,
 } from './reharmonization-view.js';
 import './reharmonization-view.css';
 import { buildFileContextText } from './file-context.js';
@@ -2334,9 +2335,10 @@ async function runReharmonizationLive() {
   await new Promise((resolve) => setTimeout(resolve, 0));
 
   try {
-    // [OpenCode] — 2026-08-24 — V1, Tâche 2 : utilise le planificateur Gospel
-    // (candidats canoniques + techniques Gospel) sur la capture live.
-    const viewModel = buildGospelReharmonizationViewModel({
+    // [OpenCode] — 2026-08-24 — V1, Tâche 4 : génère 3 variantes complètes
+    // (fidèle, gospel, tendue) sur la capture live, avec la mieux notée
+    // recommandée par défaut.
+    const viewModel = buildReharmonizationVariantsViewModel({
       track: reharmLiveWrapper.track,
       harmonicContext: reharmLiveWrapper.harmonicContext,
     });
@@ -2347,7 +2349,7 @@ async function runReharmonizationLive() {
         label: 'Réharmonisation de votre mélodie',
         description: `Mélodie live capturée au clavier (${reharmLiveWrapper.track.events.length} notes). Tonalité détectée : ${reharmLiveWrapper.harmonicContext.tonalContext?.spelledKey?.tonicSpelling?.letter || '?'} ${reharmLiveWrapper.harmonicContext.tonalContext?.selected?.mode || '?'}.`,
       });
-      renderReharmonizationSuccess(output, viewModel, meta);
+      renderReharmonizationVariants(output, viewModel, meta);
       if (els.reharmDetails && !els.reharmDetails.hasAttribute('open')) {
         els.reharmDetails.setAttribute('open', '');
       }
