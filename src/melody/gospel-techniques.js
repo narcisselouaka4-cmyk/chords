@@ -206,9 +206,44 @@ function buildAlt7Sharp5Candidates({ anchor, track, harmonicContext, policies })
 
   const melodyPc = melodyPcOf(anchor, track);
   if (melodyPc === null) return [];
-  // 7#5 n'est pas dans SUPPORTED_QUALITIES — on l'écarte pour V1 (pas de définition canonique).
-  // Documenté comme limitation V1 : à ajouter quand la définition canonique existera.
-  return [];
+  // [OpenCode] — 2026-08-24 — EXP-030 Tâche B : 7#5 est maintenant dans
+  // SUPPORTED_QUALITIES (débloqué). Intervalle 8 = #5 au-dessus de la
+  // dominante.
+  if (!isSupported('7#5')) return [];
+
+  const tonic = normalizePc(harmonicContext.tonalContext.selected.tonicPitchClass);
+  const mode = harmonicContext.tonalContext.selected.mode;
+  const degrees = mode === 'minor' ? MINOR_DEGREES : MAJOR_DEGREES;
+
+  const candidates = [];
+  for (const targetDeg of degrees) {
+    const targetRoot = normalizePc(tonic + targetDeg.rootOffset);
+    const dominantRoot = normalizePc(targetRoot + 7);
+    const sharp5Interval = normalizePc(melodyPc - dominantRoot);
+    if (sharp5Interval !== 8) continue;
+
+    const targetDegreeInfo = degreeOf(dominantRoot, harmonicContext.tonalContext);
+    candidates.push(buildCandidate({
+      anchorId: anchor.id,
+      melodyEvent: track.events.find((e) => e.id === anchor.melodyEventId) || null,
+      rootPc: dominantRoot,
+      quality: '7#5',
+      bassPc: null,
+      tonalContext: harmonicContext.tonalContext,
+      source: 'gospel-passage-7sharp5',
+      locked: false,
+      tonalRelation: {
+        degree: targetDegreeInfo ? targetDegreeInfo.degree : null,
+        romanNumeral: targetDeg.roman ? `V7#5/${targetDeg.roman}` : 'V7#5',
+        diatonic: false,
+        borrowed: false,
+        secondaryDominantTarget: targetDeg.degree,
+        approachType: 'gospel-passage',
+      },
+      policies,
+    }));
+  }
+  return candidates;
 }
 
 /**
