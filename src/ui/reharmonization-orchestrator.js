@@ -19,6 +19,7 @@
 import { buildHarmonizationPlan } from '../melody/harmonization-planner.js';
 import { buildGospelHarmonizationPlan } from '../melody/gospel-harmonization-planner.js';
 import { identifyGospelTechnique } from '../melody/gospel-techniques.js';
+import { validateReharmonizationPlan } from '../melody/reharmonization-validator.js';
 import {
   spellChordReference,
   formatSpelledPitch,
@@ -271,10 +272,14 @@ export function buildGospelReharmonizationViewModel(input) {
   try {
     const plan = buildGospelHarmonizationPlan(wrapper);
     const vm = mapHarmonizationPlanToViewModel(plan, wrapper);
-    // Ajoute le rapport de techniques pour la traçabilité (critère 4).
+    // Score de validité 4 critères (Tâche 3).
+    const validationReport = validateReharmonizationPlan(plan);
+    // Ajoute le rapport de techniques pour la traçabilité (critère 4) et le
+    // score de validité au viewModel.
     return Object.freeze({
       ...vm,
       techniqueReport: plan.techniqueReport,
+      validationReport,
     });
   } catch (err) {
     const errorKind = err instanceof TypeError

@@ -204,6 +204,16 @@ export function renderReharmonizationSuccess(container, viewModel, meta) {
     container.appendChild(renderTotals(viewModel.totals));
   }
 
+  // [OpenCode] — 2026-08-24 — Tâche 3 : score de validité 4 critères.
+  if (viewModel.validationReport) {
+    container.appendChild(renderValidationReport(viewModel.validationReport));
+  }
+
+  // [OpenCode] — 2026-08-24 — Tâche 2 : rapport des techniques Gospel utilisées.
+  if (viewModel.techniqueReport) {
+    container.appendChild(renderTechniqueReport(viewModel.techniqueReport));
+  }
+
   // Progression : un carte par step.
   const progression = el('div', { className: 'reharm-progression' });
   progression.appendChild(el('div', { className: 'reharm-progression-title', text: 'Progression retenue' }));
@@ -211,4 +221,52 @@ export function renderReharmonizationSuccess(container, viewModel, meta) {
     progression.appendChild(renderStep(step));
   }
   container.appendChild(progression);
+}
+
+function renderValidationReport(report) {
+  const section = el('div', { className: 'reharm-validation' });
+  section.appendChild(el('div', {
+    className: 'reharm-validation-title',
+    text: `Score de validité : ${report.score}/${report.maxScore}`,
+  }));
+  section.appendChild(el('div', { className: 'reharm-validation-summary', text: report.summary }));
+  const list = el('div', { className: 'reharm-validation-list' });
+  for (const c of report.criteria) {
+    const row = el('div', { className: 'reharm-validation-row' });
+    row.appendChild(el('span', {
+      className: c.satisfied ? 'reharm-validation-ok' : 'reharm-validation-ko',
+      text: c.satisfied ? 'OK' : 'KO',
+    }));
+    row.appendChild(el('span', { className: 'reharm-validation-name', text: c.criterionName }));
+    row.appendChild(el('span', { className: 'reharm-validation-details', text: c.details }));
+    list.appendChild(row);
+  }
+  section.appendChild(list);
+  return section;
+}
+
+function renderTechniqueReport(report) {
+  const section = el('div', { className: 'reharm-techniques' });
+  section.appendChild(el('div', { className: 'reharm-techniques-title', text: 'Techniques Gospel' }));
+  if (report.used && report.used.length > 0) {
+    const used = el('div', { className: 'reharm-techniques-used' });
+    used.appendChild(el('span', { className: 'reharm-techniques-label', text: 'Utilisées : ' }));
+    used.appendChild(el('span', {
+      className: 'reharm-techniques-list',
+      text: report.used.map((t) => `${t.name} (step ${t.stepIndex + 1})`).join(', '),
+    }));
+    section.appendChild(used);
+  } else {
+    section.appendChild(el('div', { className: 'reharm-techniques-none', text: 'Aucune technique Gospel utilisée (harmonie diatonique pure).' }));
+  }
+  if (report.unused && report.unused.length > 0) {
+    const unused = el('div', { className: 'reharm-techniques-unused' });
+    unused.appendChild(el('span', { className: 'reharm-techniques-label', text: 'Disponibles non utilisées : ' }));
+    unused.appendChild(el('span', {
+      className: 'reharm-techniques-list',
+      text: report.unused.map((t) => t.name).join(', '),
+    }));
+    section.appendChild(unused);
+  }
+  return section;
 }
