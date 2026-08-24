@@ -46,6 +46,7 @@ import { notifyOnboarding } from './onboarding.js';
 import { buildDemoFixture } from './reharmonization-demo-fixture.js';
 import { buildReharmonizationViewModel, buildReharmonizationVariantsViewModel } from './reharmonization-orchestrator.js';
 import { startLiveMelodyCapture } from '../melody/reharmonization-live-capture.js';
+import { extractAudioMelody } from '../melody/reharmonization-audio-capture.js';
 import {
   renderReharmonizationEmpty,
   renderReharmonizationLoading,
@@ -186,6 +187,10 @@ const els = {
   // [OpenCode] — 2026-08-24 — Réharmonisation V1, Étape 1 : capture live.
   reharmLive: document.getElementById('analyzer-reharm-live'),
   reharmLiveStatus: document.getElementById('analyzer-reharm-live-status'),
+  // [OpenCode] — 2026-08-24 — EXP-027 Étape 2 : extraction depuis audio.
+  reharmAudioStem: document.getElementById('analyzer-reharm-audio-stem'),
+  reharmAudioStemKind: document.getElementById('analyzer-reharm-audio-stem-kind'),
+  reharmAudioStatus: document.getElementById('analyzer-reharm-audio-status'),
 };
 
 let analyzer = null;
@@ -2243,6 +2248,13 @@ function initReharmonizationPanel() {
     liveBtn.addEventListener('click', runReharmonizationLive);
   }
 
+  // [OpenCode] — 2026-08-24 — EXP-027 Étape 2 : bouton « Depuis un fichier
+  // audio ». Sélection d'un stem WAV déjà séparé dans le Studio.
+  if (els.reharmAudioStem) {
+    els.reharmAudioStem.setAttribute('aria-controls', 'analyzer-reharm-output');
+    els.reharmAudioStem.addEventListener('click', runReharmonizationFromAudio);
+  }
+
   // Lot A — synchronisation de aria-expanded sur le <summary> quand
   // l'utilisateur ouvre/ferme manuellement le <details>. On n'intercepte pas
   // le comportement natif : on observe simplement l'état pour l'accessibilité.
@@ -2363,6 +2375,86 @@ async function runReharmonizationLive() {
     renderReharmonizationError(output, err && err.message ? err.message : 'Erreur inattendue.', 'Error');
   } finally {
     liveBtn.disabled = false;
+    output.setAttribute('aria-busy', 'false');
+  }
+}
+
+// [OpenCode] — 2026-08-24 — EXP-027 Étape 2 : réharmonisation depuis un stem
+// audio sélectionné (vocals/piano/other) déjà séparé dans le Studio. Flux :
+// 1. sélecteur de fichier (filter .wav) 2. IPC reharm:extract-melody
+// 3. buildAudioMelodyWrapper 4. orchestrateur variantes 5. rendu cartes.
+async function runReharmonizationFromAudio() {
+  const stemBtn = els.reharmAudioStem;
+  const output = els.reharmOutput;
+  const statusEl = els.reharmAudioStatus;
+  if (!stemBtn || !output) return;
+
+  const api = window.electronAPI;
+  if (!api?.studio?.selectAudioFile) {
+    renderReharmonizationError(output, 'IPC Studio non disponible.', 'NoIPC');
+    return;
+  }
+
+  // 1. Sélection du stem WAV (filtre .wav pour pointer vers un stem déjà séparé).
+  // On réutilise le sélecteur audio qui accepte aussi .wav.
+  const stemPath = await api.studio.selectAudioFile();
+  if (!stemPath) return; // annulé
+
+  // Choix du type de stem (informe l'utilisateur, ne change pas le fichier
+  // sélectionné — l'utilisateur pointe directement le bon stem).
+  const stemKind = els.reharmAudioStemKind?.value || 'vocals';
+
+  stemBtn.disabled = true;
+  if (statusEl) statusEl.textContent = `Extraction de la mélodie depuis ${stemKind}… (peut prendre 20-30s pour 60s d'audio)`;
+  output.setAttribute('aria-busy', 'true');
+  renderReharmonizationLoading(output);
+
+  await new Promise((resolve) => requestAnimationFrame(resolve));
+
+  try {
+    // 2. Extraction de la mélodie (IPC → melody_extractor.py → notes).
+    const extracted = await extractAudioMelody(stemPath, {
+      name: `Mélodie extraite (${stemKind})`,
+      ipcOptions: {},
+    });
+
+    if (extracted.status !== 'success') {
+      renderReharmonizationError(output, extracted.message, extracted.errorKind);
+      if (statusEl) statusEl.textContent = extracted.message || 'Échec de l\'extraction.';
+      return;
+    }
+
+    // 3. Variantes via l'orchestrateur canonique existant.
+    const viewModel = buildReharmonizationVariantsViewModel({
+      track: extracted.wrapper.track,
+      harmonicContext: extracted.wrapper.harmonicContext,
+    });
+
+    if (viewModel.status === 'success') {
+      const meta = Object.freeze({
+        isDemo: false,
+        isLive: false,
+        isAudio: true,
+        label: 'Réharmonisation depuis fichier audio',
+        description: `${extracted.noteCount} notes extraites du stem « ${stemKind} ». Tonalité détectée : ${extracted.wrapper.harmonicContext.tonalContext?.spelledKey?.tonicSpelling?.letter || '?'} ${extracted.wrapper.harmonicContext.tonalContext?.selected?.mode || '?'}.`,
+      });
+      renderReharmonizationVariants(output, viewModel, meta);
+      if (statusEl) statusEl.textContent = `${extracted.noteCount} notes extraites → ${viewModel.variants.length} variantes. Recommandée : ${viewModel.recommendedId}.`;
+      if (els.reharmDetails && !els.reharmDetails.hasAttribute('open')) {
+        els.reharmDetails.setAttribute('open', '');
+      }
+      if (els.reharmSummary) {
+        els.reharmSummary.setAttribute('aria-expanded', 'true');
+      }
+    } else {
+      renderReharmonizationError(output, viewModel.message, viewModel.errorKind);
+      if (statusEl) statusEl.textContent = viewModel.message || 'Échec de la réharmonisation.';
+    }
+  } catch (err) {
+    renderReharmonizationError(output, err && err.message ? err.message : 'Erreur inattendue.', 'Error');
+    if (statusEl) statusEl.textContent = 'Erreur inattendue.';
+  } finally {
+    stemBtn.disabled = false;
     output.setAttribute('aria-busy', 'false');
   }
 }
