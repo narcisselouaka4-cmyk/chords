@@ -45,6 +45,82 @@ DEFAULT_FMAX = 1046.0   # Do6 ~ soprano aiguë
 DEFAULT_MIN_DURATION_S = 0.12   # 120 ms — plus court = ornement/grace note
 DEFAULT_MAX_GAP_S = 0.18         # 180 ms — gap plus court interpolé
 DEFAULT_MIN_CONFIDENCE = 0.4     # seuil de confiance pyin pour noter une frame
+DEFAULT_OCTAVE_WINDOW_S = 0.5    # fenêtre médiane pour correction d'octave
+DEFAULT_OCTAVE_MAX_JUMP = 7      # saut > 7 demi-tons = suspect (quinte)
+DEFAULT_OCTAVE_MIN_SUPPORT = 3   # nb min de frames voisées dans la fenêtre
+
+
+# ---------------------------------------------------------------------------
+# Correction des erreurs d'octave de pyin
+# ---------------------------------------------------------------------------
+
+def correct_octave_errors(f0, voiced_prob, sr=DEFAULT_SR,
+                          hop_length=DEFAULT_HOP_LENGTH,
+                          window_s=DEFAULT_OCTAVE_WINDOW_S,
+                          max_jump=DEFAULT_OCTAVE_MAX_JUMP,
+                          min_support=DEFAULT_OCTAVE_MIN_SUPPORT):
+    """Corrige les erreurs d'octave de pyin (confusion d'octave sur vibrato).
+
+    Deux passes :
+    1. **Passe globale** : si la médiane des frames voisées est dans une
+       tessiture donnée (ex. soprano MIDI 72-83), les frames isolées à plus
+       d'une octave en dessous/au-dessus sont transposées d'±12 pour les
+       ramener dans la tessiture principale. Cette passe corrige les passages
+       entiers extraits à la mauvaise octave (le cas R1 audio : G3 au lieu
+       de G5 sur un passage avec vibrato).
+    2. **Passe locale** : pour chaque frame voisée, si la note diffère de la
+       médiane des frames voisées dans une fenêtre de ±window_s de plus de
+       max_jump demi-tons, et qu'une transposition d'±12 la rapproche, alors
+       corriger. Cette passe corrige les sauts d'octave ponctuels (1-2 frames).
+
+    @param f0: array de fréquences en Hz (0 = non voisé)
+    @param voiced_prob: array de probabilités de voising [0,1]
+    @return: f0 corrigé (même shape, même dtype)
+    """
+    if len(f0) == 0:
+        return f0.copy()
+
+    f0_corr = f0.copy()
+    voiced = (voiced_prob >= DEFAULT_MIN_CONFIDENCE) & (f0 > 0)
+    if not np.any(voiced):
+        return f0_corr
+
+    midi = np.zeros_like(f0_corr)
+    mask = f0_corr > 0
+    midi[mask] = 69 + 12 * np.log2(f0_corr[mask] / 440.0)
+
+    # --- Passe 1 : correction globale de tessiture ---
+    # La tessiture principale est définie par la médiane de toutes les frames
+    # voisées. Les frames à plus d'une octave (12 demi-tons) de cette médiane
+    # sont candidates à une correction d'octave.
+    global_median = np.median(midi[voiced])
+    for i in np.where(voiced)[0]:
+        diff = midi[i] - global_median
+        if abs(diff) > 12:
+            # Tente une correction d'octave (±12) qui rapproche de la médiane
+            corrected = midi[i] - 12 if diff > 0 else midi[i] + 12
+            if abs(corrected - global_median) < abs(diff):
+                f0_corr[i] = 440.0 * 2 ** ((corrected - 69) / 12.0)
+                midi[i] = corrected  # met à jour pour la passe locale
+
+    # --- Passe 2 : correction locale (sauts d'octave ponctuels) ---
+    window_frames = max(1, int(window_s * sr / hop_length))
+    for i in np.where(voiced)[0]:
+        lo = max(0, i - window_frames)
+        hi = min(len(midi), i + window_frames + 1)
+        local_voiced = voiced[lo:hi]
+        local_midi = midi[lo:hi][local_voiced]
+        if len(local_midi) < min_support:
+            continue
+        local_median = np.median(local_midi)
+        diff = midi[i] - local_median
+        if abs(diff) > max_jump and abs(diff) > 12:
+            corrected = midi[i] - 12 if diff > 0 else midi[i] + 12
+            if abs(corrected - local_median) <= max_jump:
+                f0_corr[i] = 440.0 * 2 ** ((corrected - 69) / 12.0)
+                midi[i] = corrected
+
+    return f0_corr
 
 
 # ---------------------------------------------------------------------------
@@ -52,8 +128,12 @@ DEFAULT_MIN_CONFIDENCE = 0.4     # seuil de confiance pyin pour noter une frame
 # ---------------------------------------------------------------------------
 
 def track_pitch(audio_path, sr=DEFAULT_SR, frame_length=DEFAULT_FRAME_LENGTH,
-                hop_length=DEFAULT_HOP_LENGTH, fmin=DEFAULT_FMIN, fmax=DEFAULT_FMAX):
+                hop_length=DEFAULT_HOP_LENGTH, fmin=DEFAULT_FMIN, fmax=DEFAULT_FMAX,
+                correct_octaves=True):
     """Charge le WAV et calcule f0 + voicing par frame via librosa.pyin.
+
+    Si correct_octaves=True, applique une post-correction des erreurs d'octave
+    (confusion d'octave typique de pyin sur voix chantée avec vibrato).
 
     Retourne (f0, voiced_prob, times). f0 en Hz (0 si non voisé),
     voiced_prob en [0,1], times en secondes (centre de chaque frame).
@@ -68,6 +148,8 @@ def track_pitch(audio_path, sr=DEFAULT_SR, frame_length=DEFAULT_FRAME_LENGTH,
         hop_length=hop_length,
         fill_na=0.0,
     )
+    if correct_octaves:
+        f0 = correct_octave_errors(f0, voiced_prob, sr=sr, hop_length=hop_length)
     times = librosa.times_like(f0, sr=sr, hop_length=hop_length)
     return f0, voiced_prob, times, sr
 
