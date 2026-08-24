@@ -1556,7 +1556,8 @@ def _absorb_arpeggio_figures(segments, beat_chroma, states, beat_dur=None,
 def _stabilize_progression(segments, key, states,
                            n_structural_roots=4,
                            short_threshold=1.5,
-                           complex_confidence=0.95):
+                           complex_confidence=0.95,
+                           beat_chroma=None):
     """Couche additive de stabilisation harmonique post-Viterbi.
 
     Détecte les progressions simples en boucle (ex: I-V-II-IV en La majeur)
@@ -1712,6 +1713,10 @@ def _stabilize_progression(segments, key, states,
     merged = [seg for k, seg in zip(keep, merged) if k]
 
     # ── 3. Simplification des qualités ──
+    # Garde acoustique (EXP-022) : conserver la septième si sa preuve chroma
+    # est nette, même principe que dans _stabilize_progressive_harmony.
+    SEVENTH_PC = {'maj7': 11, 'm7': 10, '7': 10}
+    SEVENTH_KEEP_RATIO = 0.08
     for seg in merged:
         if seg['chord'] == 'N':
             continue
@@ -1720,6 +1725,17 @@ def _stabilize_progression(segments, key, states,
             continue
         if rp not in structural_roots:
             continue
+        # Garde acoustique : conserver la septième si sa preuve chroma est nette.
+        if sfx in SEVENTH_PC and beat_chroma is not None:
+            beat_idxs = seg.get('beatIndices', [])
+            agg = _aggregate_chroma(beat_idxs, beat_chroma)
+            if agg is not None:
+                seventh_pc = (rp + SEVENTH_PC[sfx]) % 12
+                total = float(agg.sum())
+                if total > 1e-8:
+                    seventh_ratio = float(agg[seventh_pc]) / total
+                    if seventh_ratio >= SEVENTH_KEEP_RATIO:
+                        continue  # la 7e est nettement présente, conserver
         conf = float(seg.get('confidence', 0.0))
         new_sfx = _simplify_quality(rp, sfx, key, conf, complex_confidence)
         if new_sfx != sfx:
@@ -2503,6 +2519,13 @@ def _stabilize_progressive_harmony(segments, beat_chroma, states, key,
     principal_roots = {r for r, d in root_dur.items() if d >= principal_fraction * total_dur}
 
     # ── 2. Simplification des qualités avancées sur les fondamentales stables ──
+    # Garde acoustique (EXP-022) : avant de simplifier une septième (maj7, m7, 7)
+    # vers la triade, on vérifie que la 7e n'est pas nettement présente dans le
+    # chroma agrégé du segment. Si elle l'est, on conserve la septième — même
+    # principe que la désambiguïsation à la quinte d'EXP-010 : un seuil de
+    # preuve acoustique, pas une désactivation globale.
+    SEVENTH_PC = {'maj7': 11, 'm7': 10, '7': 10}  # intervalle de la 7e
+    SEVENTH_KEEP_RATIO = 0.08  # la 7e doit représenter >= 12 % du chroma agrégé
     n = len(segs)
     for i in range(n):
         s = segs[i]
@@ -2519,6 +2542,17 @@ def _stabilize_progressive_harmony(segments, beat_chroma, states, key,
             if (nxt_root == root and nxt_suffix in ('', 'm')
                     and nxt_dur >= same_root_resolved_min):
                 continue
+        # Garde acoustique : conserver la septième si sa preuve chroma est nette.
+        if suffix in SEVENTH_PC and beat_chroma is not None:
+            beat_idxs = s.get('beatIndices', [])
+            agg = _aggregate_chroma(beat_idxs, beat_chroma)
+            if agg is not None:
+                seventh_pc = (root + SEVENTH_PC[suffix]) % 12
+                total = float(agg.sum())
+                if total > 1e-8:
+                    seventh_ratio = float(agg[seventh_pc]) / total
+                    if seventh_ratio >= SEVENTH_KEEP_RATIO:
+                        continue  # la 7e est nettement présente, conserver
         new_suffix = _simple_triad_suffix(suffix)
         if new_suffix == suffix:
             continue
@@ -4523,7 +4557,7 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
     # Stabilisation de progression : nettoie les fondamentales parasites
     # (notes de passage / arpèges) sur les progressions simples en boucle et
     # simplifie les qualités vers des triades stables. Couche additive pure.
-    segments = _stabilize_progression(segments, key, states)
+    segments = _stabilize_progression(segments, key, states, beat_chroma=beat_chroma)
     if debug:
         _log_seg_stage("after _stabilize_progression", segments, states)
 
