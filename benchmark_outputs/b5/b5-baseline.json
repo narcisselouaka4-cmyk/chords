@@ -1,0 +1,161 @@
+{
+  "label": "b5-baseline",
+  "battery": "B5",
+  "commit": "6cb5eb9",
+  "flags": {
+    "ENABLE_ANTIPARASITE_STABILIZATION": true,
+    "ENABLE_ARPEGGIO_CELL_DURATION_CAP": true,
+    "ENABLE_ARPEGGIO_FIGURE_ABSORPTION": true,
+    "ENABLE_ARPEGGIO_MERGE_IDENTITY_GUARD": true,
+    "ENABLE_BEAT_GRID_GAP_FILL": true,
+    "ENABLE_CHORD_DOWNGRADE": true,
+    "ENABLE_CHORD_ROLE_CLASSIFICATION": true,
+    "ENABLE_CHORUS_LOOP_REFINE": false,
+    "ENABLE_FIFTH_CONFUSION_FIX": true,
+    "ENABLE_INTRO_PREFIX_FIX": false,
+    "ENABLE_LEADING_SILENCE_GUARD": true,
+    "ENABLE_PROGRESSIVE_STABILIZATION": true,
+    "ENABLE_REPEATED_PROGRESSION_REGULARIZATION": false,
+    "ENABLE_SILENCE_CARVING": true,
+    "ENABLE_SIMPLE_CHORD_VOCABULARY": true,
+    "ENABLE_STRUCTURAL_LOOP_DETECTION": true,
+    "ENABLE_TEMPO_OCTAVE_FIX": true,
+    "ENABLE_TRUE_FRAME_ENERGY": false,
+    "ENABLE_UPPER_VOICE_STABILITY_GUARD": true
+  },
+  "date": "2026-08-24T03:34:39",
+  "cases": {
+    "b5_f1_no_root": {
+      "majmin": 0.12340626755322291,
+      "sevenths": 0.0,
+      "offsets_ms": [
+        5367.3,
+        2700.7000000000003,
+        34.000000000000696,
+        -2632.7,
+        41.700000000000514,
+        45.000000000001705,
+        48.30000000000112
+      ],
+      "segments_gt": 8,
+      "segments_pred": 6,
+      "tempo_pred": 89.9,
+      "tempo_gt": 90.0,
+      "key_pred": "D",
+      "key_gt": null
+    },
+    "b5_f2_upper": {
+      "majmin": 0.6175937440249022,
+      "sevenths": 0.24614062884594728,
+      "offsets_ms": [
+        2697.2999999999997,
+        30.699999999999505,
+        34.000000000000696,
+        -2632.7,
+        41.700000000000514,
+        45.000000000001705,
+        48.30000000000112
+      ],
+      "segments_gt": 8,
+      "segments_pred": 7,
+      "tempo_pred": 89.9,
+      "tempo_gt": 90.0,
+      "key_pred": "C",
+      "key_gt": null
+    },
+    "b5_f3_quartal": {
+      "majmin": 0.6209844003278813,
+      "sevenths": 0.37325002145703157,
+      "offsets_ms": [
+        50.30000000000001,
+        30.699999999999505,
+        -2636.0,
+        37.30000000000011,
+        41.700000000000514,
+        -2625.0,
+        48.30000000000112
+      ],
+      "segments_gt": 8,
+      "segments_pred": 7,
+      "tempo_pred": 89.9,
+      "tempo_gt": 90.0,
+      "key_pred": "G",
+      "key_gt": null
+    },
+    "b5_f4_slash": {
+      "majmin": 0.36985941202905326,
+      "sevenths": 0.36985941202905326,
+      "offsets_ms": [
+        50.30000000000001,
+        30.699999999999505,
+        34.000000000000696,
+        -2632.7,
+        2711.700000000002,
+        45.000000000001705,
+        48.30000000000112
+      ],
+      "segments_gt": 8,
+      "segments_pred": 7,
+      "tempo_pred": 89.9,
+      "tempo_gt": 90.0,
+      "key_pred": "Em",
+      "key_gt": null
+    },
+    "b5_f5_tensions": {
+      "majmin": 0.49470310147973584,
+      "sevenths": 0.2482499570039055,
+      "offsets_ms": [
+        2697.2999999999997,
+        30.699999999999505,
+        34.000000000000696,
+        37.30000000000011,
+        41.700000000000514,
+        45.000000000001705,
+        48.30000000000112
+      ],
+      "segments_gt": 8,
+      "segments_pred": 8,
+      "tempo_pred": 89.9,
+      "tempo_gt": 90.0,
+      "key_pred": "C",
+      "key_gt": null
+    }
+  },
+  "global": {
+    "cases": 5,
+    "csr_majmin": 0.4453093850829591,
+    "csr_sevenths": 0.2475000038671875
+  },
+  "families": {
+    "f1_no_root": {
+      "label": "f1_no_root",
+      "cases": 1,
+      "csr_majmin": 0.12340626755322291,
+      "csr_sevenths": 0.0
+    },
+    "f2_upper": {
+      "label": "f2_upper",
+      "cases": 1,
+      "csr_majmin": 0.6175937440249022,
+      "csr_sevenths": 0.24614062884594728
+    },
+    "f3_quartal": {
+      "label": "f3_quartal",
+      "cases": 1,
+      "csr_majmin": 0.6209844003278813,
+      "csr_sevenths": 0.37325002145703157
+    },
+    "f4_slash": {
+      "label": "f4_slash",
+      "cases": 1,
+      "csr_majmin": 0.36985941202905326,
+      "csr_sevenths": 0.36985941202905326
+    },
+    "f5_tensions": {
+      "label": "f5_tensions",
+      "cases": 1,
+      "csr_majmin": 0.49470310147973584,
+      "csr_sevenths": 0.2482499570039055
+    }
+  }
+}
