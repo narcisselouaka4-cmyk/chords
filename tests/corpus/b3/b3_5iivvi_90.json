@@ -1,0 +1,132 @@
+{
+  "caseId": "b3_5iivvi_90",
+  "battery": "B3",
+  "progression": "i-iv-v-i",
+  "key": "Am",
+  "tempo": 90.0,
+  "duration": 64.0,
+  "status": "exact",
+  "source": "Audio rendu depuis cette grille. La basse anticipe la fondamentale du prochain accord (1/16, 1/8, 1/4 de temps). La vérité terrain note l'accord d'harmonie.",
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 2.666667,
+      "chord": "A:min"
+    },
+    {
+      "start": 2.666667,
+      "end": 5.333333,
+      "chord": "D:min"
+    },
+    {
+      "start": 5.333333,
+      "end": 8.0,
+      "chord": "E:min"
+    },
+    {
+      "start": 8.0,
+      "end": 10.666667,
+      "chord": "A:min"
+    },
+    {
+      "start": 10.666667,
+      "end": 13.333333,
+      "chord": "A:min"
+    },
+    {
+      "start": 13.333333,
+      "end": 16.0,
+      "chord": "D:min"
+    },
+    {
+      "start": 16.0,
+      "end": 18.666667,
+      "chord": "E:min"
+    },
+    {
+      "start": 18.666667,
+      "end": 21.333333,
+      "chord": "A:min"
+    },
+    {
+      "start": 21.333333,
+      "end": 24.0,
+      "chord": "A:min"
+    },
+    {
+      "start": 24.0,
+      "end": 26.666667,
+      "chord": "D:min"
+    },
+    {
+      "start": 26.666667,
+      "end": 29.333333,
+      "chord": "E:min"
+    },
+    {
+      "start": 29.333333,
+      "end": 32.0,
+      "chord": "A:min"
+    },
+    {
+      "start": 32.0,
+      "end": 34.666667,
+      "chord": "A:min"
+    },
+    {
+      "start": 34.666667,
+      "end": 37.333333,
+      "chord": "D:min"
+    },
+    {
+      "start": 37.333333,
+      "end": 40.0,
+      "chord": "E:min"
+    },
+    {
+      "start": 40.0,
+      "end": 42.666667,
+      "chord": "A:min"
+    },
+    {
+      "start": 42.666667,
+      "end": 45.333333,
+      "chord": "A:min"
+    },
+    {
+      "start": 45.333333,
+      "end": 48.0,
+      "chord": "D:min"
+    },
+    {
+      "start": 48.0,
+      "end": 50.666667,
+      "chord": "E:min"
+    },
+    {
+      "start": 50.666667,
+      "end": 53.333333,
+      "chord": "A:min"
+    },
+    {
+      "start": 53.333333,
+      "end": 56.0,
+      "chord": "A:min"
+    },
+    {
+      "start": 56.0,
+      "end": 58.666667,
+      "chord": "D:min"
+    },
+    {
+      "start": 58.666667,
+      "end": 61.333333,
+      "chord": "E:min"
+    },
+    {
+      "start": 61.333333,
+      "end": 64.0,
+      "chord": "A:min"
+    }
+  ]
+}

@@ -1,0 +1,102 @@
+{
+  "caseId": "b3_3iivi_90",
+  "battery": "B3",
+  "progression": "ii-V-I",
+  "key": "F",
+  "tempo": 90.0,
+  "duration": 48.0,
+  "status": "exact",
+  "source": "Audio rendu depuis cette grille. La basse anticipe la fondamentale du prochain accord (1/16, 1/8, 1/4 de temps). La vérité terrain note l'accord d'harmonie.",
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 2.666667,
+      "chord": "G:min7"
+    },
+    {
+      "start": 2.666667,
+      "end": 5.333333,
+      "chord": "C:7"
+    },
+    {
+      "start": 5.333333,
+      "end": 8.0,
+      "chord": "F:maj7"
+    },
+    {
+      "start": 8.0,
+      "end": 10.666667,
+      "chord": "G:min7"
+    },
+    {
+      "start": 10.666667,
+      "end": 13.333333,
+      "chord": "C:7"
+    },
+    {
+      "start": 13.333333,
+      "end": 16.0,
+      "chord": "F:maj7"
+    },
+    {
+      "start": 16.0,
+      "end": 18.666667,
+      "chord": "G:min7"
+    },
+    {
+      "start": 18.666667,
+      "end": 21.333333,
+      "chord": "C:7"
+    },
+    {
+      "start": 21.333333,
+      "end": 24.0,
+      "chord": "F:maj7"
+    },
+    {
+      "start": 24.0,
+      "end": 26.666667,
+      "chord": "G:min7"
+    },
+    {
+      "start": 26.666667,
+      "end": 29.333333,
+      "chord": "C:7"
+    },
+    {
+      "start": 29.333333,
+      "end": 32.0,
+      "chord": "F:maj7"
+    },
+    {
+      "start": 32.0,
+      "end": 34.666667,
+      "chord": "G:min7"
+    },
+    {
+      "start": 34.666667,
+      "end": 37.333333,
+      "chord": "C:7"
+    },
+    {
+      "start": 37.333333,
+      "end": 40.0,
+      "chord": "F:maj7"
+    },
+    {
+      "start": 40.0,
+      "end": 42.666667,
+      "chord": "G:min7"
+    },
+    {
+      "start": 42.666667,
+      "end": 45.333333,
+      "chord": "C:7"
+    },
+    {
+      "start": 45.333333,
+      "end": 48.0,
+      "chord": "F:maj7"
+    }
+  ]
+}
