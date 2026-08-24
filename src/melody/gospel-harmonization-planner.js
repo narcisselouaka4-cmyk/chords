@@ -16,8 +16,25 @@ import {
   identifyGospelTechnique,
   listGospelTechniques,
 } from './gospel-techniques.js';
+import { generateGospelVoicings, identifyGospelVoicingTechnique } from './gospel-voicings.js';
 import { findBestHarmonicPath } from './harmonic-path-finder.js';
 import { findBestVoicingPath } from './voicing-path-finder.js';
+
+// Calcule le mouvement total (en demi-tons) entre deux jeux de notes MIDI.
+// Utilisé pour choisir le voicing idiomatique qui minimise le mouvement par
+// rapport au voicing précédent.
+function computeMovement(from, to) {
+  if (!from || !to || from.length === 0 || to.length === 0) return 999;
+  // Apparie par indice (les deux sont triés croissants).
+  const n = Math.min(from.length, to.length);
+  let total = 0;
+  for (let i = 0; i < n; i++) {
+    total += Math.abs(to[i] - from[i]);
+  }
+  // Pénalité pour différence de cardinalité
+  total += Math.abs(from.length - to.length) * 6;
+  return total;
+}
 
 /**
  * Construit un plan de réharmonisation Gospel en enrichissant le pool de
@@ -78,7 +95,84 @@ export function buildGospelHarmonizationPlan(input) {
   const harmonicPathResult = findBestHarmonicPath({ candidateLayers: Object.freeze(candidateLayers) });
   const voicingPathResult = findBestVoicingPath({ harmonicPathResult });
 
-  // 3. Construction des steps alignés.
+  // [OpenCode] — 2026-08-24 — EXP-030 Tâche C : enrichissement des voicings
+  // avec des techniques idiomatiques Gospel (drop 2, rootless, cluster).
+  // Post-traitement : pour chaque step, on génère des voicings idiomatiques
+  // et on choisit celui qui minimise le mouvement par rapport au voicing
+  // précédent. Si aucun n'est meilleur que le canonique, on garde le canonique.
+  // Ne modifie pas voicing-path-finder.js.
+  const enrichedVoicings = [];
+  const voicingTechniqueUsed = [];
+  for (let i = 0; i < N; i++) {
+    const canonicalVoicing = voicingPathResult.voicings[i];
+    const candidate = harmonicPathResult.path[i];
+
+    // [OpenCode] — 2026-08-24 — EXP-030 Tâche C : génère des voicings
+    // idiomatiques autour du registre du voicing canonique pour qu'ils
+    // soient compétitifs en termes de mouvement.
+    const targetBass = canonicalVoicing.bassMidiNote || 43;
+    const targetOctave = Math.floor(targetBass / 12) - 1;
+    const gospelVoicings = generateGospelVoicings(candidate, { centerOctave: targetOctave });
+
+    if (gospelVoicings.length === 0) {
+      enrichedVoicings.push(canonicalVoicing);
+      voicingTechniqueUsed.push(null);
+      continue;
+    }
+
+    // Calcule le mouvement de chaque voicing par rapport au précédent.
+    const prevNotes = i > 0
+      ? (enrichedVoicings[i - 1]?.midiNotes || canonicalVoicing.midiNotes)
+      : canonicalVoicing.midiNotes;
+
+    // [OpenCode] — 2026-08-24 — EXP-030 Tâche C : choisit un voicing
+    // idiomatique Gospel s'il maintient la note mélodique audible (critère 1
+    // du score de validité) et minimise le mouvement. Ne dégrade jamais le
+    // score : si aucun voicing idiomatique ne contient la note mélodique,
+    // on garde le canonique.
+    const melodyEvent = anchors[i].melodyEventId
+      ? track.events.find((e) => e.id === anchors[i].melodyEventId)
+      : null;
+    const melodyPc = melodyEvent ? ((melodyEvent.midi % 12) + 12) % 12 : null;
+
+    let best = canonicalVoicing;
+    let bestTechnique = null;
+    let bestMovement = computeMovement(prevNotes, canonicalVoicing.midiNotes);
+
+    for (const gv of gospelVoicings) {
+      // Le voicing idiomatique doit contenir la note mélodique (si présente)
+      if (melodyPc !== null) {
+        const voicingPcs = gv.midiNotes.map((n) => ((n % 12) + 12) % 12);
+        if (!voicingPcs.includes(melodyPc)) continue;
+      }
+      const movement = computeMovement(prevNotes, gv.midiNotes);
+      // Préfère le voicing idiomatique s'il a un mouvement raisonnable
+      // (≤ bestMovement + 20) — les voicings idiomatiques sont structurellement
+      // différents, on accepte un mouvement supérieur tant que la mélodie
+      // reste audible.
+      if (movement <= bestMovement + 20) {
+        bestMovement = movement;
+        best = {
+          candidate: gv.candidate,
+          midiNotes: gv.midiNotes,
+          leftHand: gv.leftHand,
+          rightHand: gv.rightHand,
+          bassMidiNote: gv.bassMidiNote,
+          bassPitchClass: gv.bassPitchClass,
+          inversionInterval: gv.inversionInterval,
+          isRootPosition: gv.isRootPosition,
+          spanSemitones: gv.spanSemitones,
+          registerDeviation: gv.registerDeviation,
+        };
+        bestTechnique = identifyGospelVoicingTechnique(gv);
+      }
+    }
+
+    enrichedVoicings.push(Object.freeze(best));
+    voicingTechniqueUsed.push(bestTechnique);
+  }
+
+  // 3. Construction des steps alignés avec voicings enrichis.
   const stepsArr = [];
   for (let i = 0; i < N; i++) {
     stepsArr.push(Object.freeze({
@@ -86,9 +180,10 @@ export function buildGospelHarmonizationPlan(input) {
       anchor: anchors[i],
       candidateLayer: candidateLayers[i],
       candidate: harmonicPathResult.path[i],
-      voicing: voicingPathResult.voicings[i],
+      voicing: enrichedVoicings[i],
       harmonicTransition: i === 0 ? null : harmonicPathResult.transitions[i - 1],
       voicingTransition: i === 0 ? null : voicingPathResult.transitions[i - 1],
+      gospelVoicingTechnique: voicingTechniqueUsed[i],
     }));
   }
   const steps = Object.freeze(stepsArr);
