@@ -24,7 +24,7 @@ import {
 // Vocabulaire harmonique initial supporté.
 const SUPPORTED_QUALITIES = new Set([
   '', 'm', 'maj7', 'm7', '7', 'm7b5', 'dim7',
-  '6', 'm6', '6/9', 'maj9', 'm9', '9',
+  '6', 'm6', '6/9', 'maj9', 'm9', '9', 'm11',
   '7sus4', '9sus4', '7b9', '13',
   '7#5', // [OpenCode] — 2026-08-24 — EXP-030 Tâche B : débloque la technique gospel-passage-7sharp5
 ]);

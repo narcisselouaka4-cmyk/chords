@@ -26,6 +26,7 @@ import {
   buildGospelCandidatesForAnchor,
 } from './gospel-techniques.js';
 import { buildGospelHarmonizationPlan } from './gospel-harmonization-planner.js';
+import { generateGospelVoicings, identifyGospelVoicingTechnique } from './gospel-voicings.js';
 import {
   JAZZ_TECHNIQUES,
   listJazzTechniques,
@@ -33,6 +34,7 @@ import {
   buildJazzCandidatesForAnchor,
 } from './jazz-techniques.js';
 import { buildJazzHarmonizationPlan } from './jazz-harmonization-planner.js';
+import { generateJazzVoicings, identifyJazzVoicingTechnique } from './jazz-voicings.js';
 import {
   NEO_SOUL_TECHNIQUES,
   listNeoSoulTechniques,
@@ -40,6 +42,7 @@ import {
   buildNeoSoulCandidatesForAnchor,
 } from './neo-soul-techniques.js';
 import { buildNeoSoulHarmonizationPlan } from './neo-soul-harmonization-planner.js';
+import { generateNeoSoulVoicings, identifyNeoSoulVoicingTechnique } from './neo-soul-voicings.js';
 
 /**
  * @typedef {{
@@ -50,6 +53,8 @@ import { buildNeoSoulHarmonizationPlan } from './neo-soul-harmonization-planner.
  *   listTechniques: () => object[],
  *   identifyTechnique: (candidate: object) => object | null,
  *   buildCandidatesForAnchor: (input: object) => object[],
+ *   generateVoicings: (candidate: object, options?: object) => object[],
+ *   identifyVoicingTechnique: (voicing: object) => object | null,
  *   techniqueSources: string[],
  *   structuralSources: string[],
  *   passageSources: string[]
@@ -72,10 +77,12 @@ export const STYLE_REGISTRY = Object.freeze({
     id: 'worship',
     label: 'Worship',
     description: 'Harmonie diatonique canonique, sans enrichissements stylistiques.',
-    buildHarmonizationPlan: null, // Worship = fidèle, pas de plan style-spécifique
+    buildHarmonizationPlan: null,
     listTechniques: () => [],
     identifyTechnique: () => null,
     buildCandidatesForAnchor: () => [],
+    generateVoicings: () => [],
+    identifyVoicingTechnique: () => null,
     techniqueSources: [],
     structuralSources: ['locked-boundary', 'manual', 'diatonic', 'substitution', 'borrowed'],
     passageSources: ['secondary-dominant', 'diminished-approach'],
@@ -89,6 +96,8 @@ export const STYLE_REGISTRY = Object.freeze({
     listTechniques: listGospelTechniques,
     identifyTechnique: identifyGospelTechnique,
     buildCandidatesForAnchor: buildGospelCandidatesForAnchor,
+    generateVoicings: generateGospelVoicings,
+    identifyVoicingTechnique: identifyGospelVoicingTechnique,
     techniqueSources: GOSPEL_TECHNIQUES.map((t) => t.source),
     structuralSources: ['locked-boundary', 'manual', 'diatonic', 'substitution', 'borrowed', 'gospel-add9', 'gospel-add6', 'gospel-sus2'],
     passageSources: ['secondary-dominant', 'diminished-approach', 'gospel-passage-7b9', 'gospel-passage-7sharp5'],
@@ -102,6 +111,8 @@ export const STYLE_REGISTRY = Object.freeze({
     listTechniques: listJazzTechniques,
     identifyTechnique: identifyJazzTechnique,
     buildCandidatesForAnchor: buildJazzCandidatesForAnchor,
+    generateVoicings: generateJazzVoicings,
+    identifyVoicingTechnique: identifyJazzVoicingTechnique,
     techniqueSources: JAZZ_TECHNIQUES.map((t) => t.source),
     structuralSources: ['locked-boundary', 'manual', 'diatonic', 'substitution', 'borrowed'],
     passageSources: ['secondary-dominant', 'diminished-approach', 'jazz-tritone-sub'],
@@ -115,6 +126,8 @@ export const STYLE_REGISTRY = Object.freeze({
     listTechniques: listNeoSoulTechniques,
     identifyTechnique: identifyNeoSoulTechnique,
     buildCandidatesForAnchor: buildNeoSoulCandidatesForAnchor,
+    generateVoicings: generateNeoSoulVoicings,
+    identifyVoicingTechnique: identifyNeoSoulVoicingTechnique,
     techniqueSources: NEO_SOUL_TECHNIQUES.map((t) => t.source),
     structuralSources: ['locked-boundary', 'manual', 'diatonic', 'substitution', 'borrowed'],
     passageSources: ['secondary-dominant', 'diminished-approach', 'neo-soul-7b9-to-minor'],
