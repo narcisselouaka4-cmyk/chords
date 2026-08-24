@@ -270,3 +270,78 @@ function renderTechniqueReport(report) {
   }
   return section;
 }
+
+// [OpenCode] — 2026-08-24 — Tâche 4 : rendu des cartes multiples.
+export function renderReharmonizationVariants(container, variantsVm, meta) {
+  if (!container) return;
+  clearChildren(container);
+
+  // Mention honnête (démo ou live).
+  const banner = el('div', { className: 'reharm-demo-banner', role: 'status' });
+  banner.appendChild(el('p', {
+    className: 'reharm-demo-title',
+    text: (meta && meta.label) || 'Réharmonisation',
+  }));
+  if (meta && meta.description) {
+    banner.appendChild(el('p', { className: 'reharm-demo-desc', text: meta.description }));
+  }
+  container.appendChild(banner);
+
+  // Cartes des variantes.
+  const cards = el('div', { className: 'reharm-variants' });
+  for (const v of variantsVm.variants) {
+    const card = el('div', { className: v.recommended ? 'reharm-variant reharm-variant-recommended' : 'reharm-variant' });
+    const header = el('div', { className: 'reharm-variant-header' });
+    header.appendChild(el('div', {
+      className: 'reharm-variant-label',
+      text: v.recommended ? `★ ${v.label} (recommandée)` : v.label,
+    }));
+    header.appendChild(el('div', { className: 'reharm-variant-score', text: `${v.validationReport.score}/4` }));
+    card.appendChild(header);
+    card.appendChild(el('div', { className: 'reharm-variant-desc', text: v.description }));
+
+    // Progression compacte.
+    const prog = el('div', { className: 'reharm-variant-progression' });
+    prog.appendChild(el('span', {
+      className: 'reharm-variant-prog-text',
+      text: v.steps.map((s) => s.chordSymbol).join(' | '),
+    }));
+    card.appendChild(prog);
+
+    // Validation.
+    const val = el('div', { className: 'reharm-variant-validation' });
+    val.appendChild(el('span', {
+      className: 'reharm-variant-validation-summary',
+      text: v.validationReport.summary,
+    }));
+    card.appendChild(val);
+
+    // Techniques.
+    if (v.techniqueReport && v.techniqueReport.used && v.techniqueReport.used.length > 0) {
+      card.appendChild(el('div', {
+        className: 'reharm-variant-techniques',
+        text: 'Techniques : ' + v.techniqueReport.used.map((t) => t.name).join(', '),
+      }));
+    }
+
+    cards.appendChild(card);
+  }
+  container.appendChild(cards);
+
+  // Détail de la variante recommandée (steps complets, voicings, totaux).
+  const recommended = variantsVm.variants.find((v) => v.recommended) || variantsVm.variants[0];
+  if (recommended) {
+    const detail = el('div', { className: 'reharm-variant-detail' });
+    detail.appendChild(el('div', { className: 'reharm-variant-detail-title', text: `Détail — ${recommended.label}` }));
+    if (recommended.totals) detail.appendChild(renderTotals(recommended.totals));
+    if (recommended.validationReport) detail.appendChild(renderValidationReport(recommended.validationReport));
+    if (recommended.techniqueReport) detail.appendChild(renderTechniqueReport(recommended.techniqueReport));
+    const progression = el('div', { className: 'reharm-progression' });
+    progression.appendChild(el('div', { className: 'reharm-progression-title', text: 'Progression retenue' }));
+    for (const step of recommended.steps) {
+      progression.appendChild(renderStep(step));
+    }
+    detail.appendChild(progression);
+    container.appendChild(detail);
+  }
+}
