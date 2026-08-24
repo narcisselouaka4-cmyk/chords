@@ -68,4 +68,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     pitchShiftStems: (trackId, semitones, startSec, endSec, stemPaths) => ipcRenderer.invoke('studio:pitch-shift-stems', trackId, semitones, startSec, endSec, stemPaths),
     cleanupShifted: (trackId) => ipcRenderer.invoke('studio:cleanup-shifted', trackId),
   },
+  // [OpenCode] — 2026-08-24 — EXP-027 Tâche 4 : extraction de mélodie audio.
+  reharm: {
+    extractMelody: (stemPath, options) => ipcRenderer.invoke('reharm:extract-melody', stemPath, options || {}),
+  },
 });
