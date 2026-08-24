@@ -545,6 +545,35 @@ async function generateWaveform(wavPath, onProgress = null) {
   return JSON.parse(json.split('\n').filter(Boolean).pop());
 }
 
+// [OpenCode] — 2026-08-24 — EXP-027 Tâche 4 : IPC pour l'extraction de mélodie
+// depuis un stem audio (vocals/piano/other) via melody_extractor.py (librosa.pyin).
+// Retourne {notes: [{midi, start, end, confidence}], sr, duration, n_notes}.
+function runMelodyExtractor(stemPath, options = {}) {
+  return new Promise((resolve, reject) => {
+    const args = [path.join(__dirname, 'melody_extractor.py'), stemPath];
+    if (options.fmin) args.push('--fmin', String(options.fmin));
+    if (options.fmax) args.push('--fmax', String(options.fmax));
+    const proc = spawn(getPythonCommand(), args, { shell: false });
+    let stdout = '';
+    let stderr = '';
+    proc.stdout.on('data', (data) => { stdout += data.toString(); });
+    proc.stderr.on('data', (data) => { stderr += data.toString(); });
+    proc.on('error', (err) => reject(err));
+    proc.on('exit', (code) => {
+      if (code !== 0) {
+        reject(new Error(stderr || `melody_extractor exited with code ${code}`));
+        return;
+      }
+      try {
+        const out = stdout.trim().split('\n').filter(Boolean).pop();
+        resolve(JSON.parse(out));
+      } catch (err) {
+        reject(new Error(`melody_extractor: JSON invalide — ${err.message}`));
+      }
+    });
+  });
+}
+
 async function pitchShiftRegion(inputWav, outputWav, semitones, startSec, endSec) {
   await runAudioProcessor([
     'pitch-shift',
@@ -1019,6 +1048,22 @@ function setupStudioIPC() {
 
     await extractTrackAudio(filePath, playbackWav);
     return { wavPath: playbackWav, duration };
+  });
+
+  // [OpenCode] — 2026-08-24 — EXP-027 Tâche 4 : extraction de mélodie depuis un
+  // stem audio séparé (Demucs). Reçoit un chemin de stem WAV (typiquement
+  // vocals.wav d'un morceau déjà séparé dans le Studio) et retourne les notes
+  // de la mélodie. Le branchement vers MelodyTrack se fait côté renderer.
+  ipcMain.handle('reharm:extract-melody', async (event, stemPath, options = {}) => {
+    if (!stemPath || typeof stemPath !== 'string') {
+      throw new Error('reharm:extract-melody : chemin de stem requis');
+    }
+    try {
+      await fs.access(stemPath);
+    } catch {
+      throw new Error(`reharm:extract-melody : stem introuvable : ${stemPath}`);
+    }
+    return await runMelodyExtractor(stemPath, options);
   });
 
   ipcMain.handle('analyzer:process-file', async (event, filePath, options = {}) => {
