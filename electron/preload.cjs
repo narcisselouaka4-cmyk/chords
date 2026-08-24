@@ -81,4 +81,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getScreenSourceId: () => ipcRenderer.invoke('studio:get-screen-source-id'),
     saveRecording: (arrayBuffer) => ipcRenderer.invoke('studio:save-recording', arrayBuffer),
   },
+  // [OpenCode] — 2026-08-24 — EXP-027/029 : extraction de mélodie audio.
+  reharm: {
+    extractMelody: (stemPath, options) => ipcRenderer.invoke('reharm:extract-melody', stemPath, options || {}),
+  },
 });

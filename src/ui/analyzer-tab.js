@@ -2404,6 +2404,40 @@ async function runReharmonizationFromAudio() {
   // sélectionné — l'utilisateur pointe directement le bon stem).
   const stemKind = els.reharmAudioStemKind?.value || 'vocals';
 
+  // [OpenCode] — 2026-08-24 — EXP-029 Tâche 2 : récupérer la tonalité depuis
+  // Chordify (déjà fiable, cf. EXP-028) plutôt que depuis la seule mélodie
+  // extraite. On déduit le fichier original depuis le chemin du stem
+  // (~/PianoJazzChords/Studio/<trackId>/stems/<stem>.wav → original.mp3).
+  let harmonicKey = null;
+  try {
+    // Le stem est à .../Studio/<trackId>/stems/<stem>.wav
+    // L'original est à .../Studio/<trackId>/original.<ext>
+    const stemDir = stemPath.includes('/stems/') ? stemPath.split('/stems/')[0] : null;
+    if (stemDir && api.analyzer?.processFile) {
+      // Cherche original.mp3 ou original.mp4 ou original.m4a
+      const fs = api.files;
+      const candidates = ['original.mp3', 'original.mp4', 'original.m4a', 'original.wav'];
+      let originalPath = null;
+      for (const c of candidates) {
+        const candidate = stemDir + '/' + c;
+        try {
+          const stat = await fs?.stat?.(candidate);
+          if (stat) { originalPath = candidate; break; }
+        } catch (_) { /* try next */ }
+      }
+      if (originalPath) {
+        if (statusEl) statusEl.textContent = `Analyse harmonique (Chordify) de ${originalPath.split('/').pop()}…`;
+        const analysis = await api.analyzer.processFile(originalPath, { analyzeBass: false });
+        if (analysis && analysis.key) {
+          harmonicKey = { key: analysis.key, mode: analysis.keyMode || 'major' };
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[Reharm] Chordify key detection échouée:', err);
+    // Continue sans tonalité Chordify — fallback sur estimateTonalContextFromMelody.
+  }
+
   stemBtn.disabled = true;
   if (statusEl) statusEl.textContent = `Extraction de la mélodie depuis ${stemKind}… (peut prendre 20-30s pour 60s d'audio)`;
   output.setAttribute('aria-busy', 'true');
@@ -2413,9 +2447,11 @@ async function runReharmonizationFromAudio() {
 
   try {
     // 2. Extraction de la mélodie (IPC → melody_extractor.py → notes).
+    // Passe harmonicKey si disponible (depuis Chordify).
     const extracted = await extractAudioMelody(stemPath, {
       name: `Mélodie extraite (${stemKind})`,
       ipcOptions: {},
+      harmonicKey,
     });
 
     if (extracted.status !== 'success') {
