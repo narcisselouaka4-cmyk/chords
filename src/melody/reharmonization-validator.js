@@ -11,41 +11,35 @@
 //   3. Absence de quintes/octaves parallèles consécutives.
 //   4. Traçabilité : chaque accord est justifiable par une règle explicite.
 //
+// [OpenCode] — 2026-08-25 — EXP-031 Tâche 3 : paramétré par style via le
+// registre (style-registry.js). Le style par défaut est 'gospel' pour
+// préserver R1 inchangé.
+//
 // Aucune décision musicale : lecture seule du plan.
 
-import { identifyGospelTechnique, GOSPEL_TECHNIQUES } from './gospel-techniques.js';
+import {
+  justifiableSourcesForStyle,
+  passageSourcesForStyle,
+  structuralSourcesForStyle,
+} from './style-registry.js';
 
 // Sources canoniques considérées comme justifiables (règles explicites du
-// moteur canonique + techniques Gospel).
-const JUSTIFIABLE_SOURCES = new Set([
-  'locked-boundary',
-  'manual',
-  'diatonic',
-  'substitution',
-  'secondary-dominant',
-  'diminished-approach',
-  'borrowed',
-  ...GOSPEL_TECHNIQUES.map((t) => t.source),
-]);
+// moteur canonique + techniques du style actif).
+// NB : calculé dynamiquement via justifiableSourcesForStyle(styleId).
 
 // Sources qui dénotent un accord de passage (la résolution est obligatoire).
-const PASSAGE_SOURCES = new Set([
+const CANONICAL_PASSAGE_SOURCES = new Set([
   'secondary-dominant',
   'diminished-approach',
-  'gospel-passage-7b9',
-  'gospel-passage-7sharp5',
 ]);
 
 // Sources qui dénotent un accord structurel (pas de résolution requise).
-const STRUCTURAL_SOURCES = new Set([
+const CANONICAL_STRUCTURAL_SOURCES = new Set([
   'locked-boundary',
   'manual',
   'diatonic',
   'substitution',
   'borrowed',
-  'gospel-add9',
-  'gospel-add6',
-  'gospel-sus2',
 ]);
 
 /**
@@ -72,9 +66,10 @@ const STRUCTURAL_SOURCES = new Set([
  * Valide un plan de réharmonisation sur les 4 critères.
  *
  * @param {{ steps: object[], voicingPathResult: { parallelFifths: number, parallelOctaves: number }, track?: object }} plan
+ * @param {{ styleId?: string }} [options]
  * @returns {ValidationReport}
  */
-export function validateReharmonizationPlan(plan) {
+export function validateReharmonizationPlan(plan, options = {}) {
   if (!plan || !Array.isArray(plan.steps) || !plan.voicingPathResult) {
     return {
       score: 0,
@@ -85,14 +80,15 @@ export function validateReharmonizationPlan(plan) {
     };
   }
 
+  const styleId = options.styleId || 'gospel';
   const steps = plan.steps;
   const track = plan.track || null;
 
   const criteria = [
     checkMelodyAudible(steps, track),
-    checkPassageResolution(steps),
+    checkPassageResolution(steps, styleId),
     checkNoParallelMotions(plan),
-    checkTraceability(steps),
+    checkTraceability(steps, styleId),
   ];
 
   const score = criteria.filter((c) => c.satisfied).length;
@@ -151,7 +147,9 @@ function checkMelodyAudible(steps, track) {
 // Critère 2 : résolution des accords de passage
 // ---------------------------------------------------------------------------
 
-function checkPassageResolution(steps) {
+function checkPassageResolution(steps, styleId) {
+  const PASSAGE_SOURCES = passageSourcesForStyle(styleId);
+  const STRUCTURAL_SOURCES = structuralSourcesForStyle(styleId);
   const failing = [];
   for (let i = 0; i < steps.length - 1; i++) {
     const src = steps[i].candidate?.source;
@@ -205,7 +203,8 @@ function checkNoParallelMotions(plan) {
 // Critère 4 : traçabilité de chaque accord à une règle
 // ---------------------------------------------------------------------------
 
-function checkTraceability(steps) {
+function checkTraceability(steps, styleId) {
+  const JUSTIFIABLE_SOURCES = justifiableSourcesForStyle(styleId);
   const failing = [];
   for (let i = 0; i < steps.length; i++) {
     const src = steps[i].candidate?.source;

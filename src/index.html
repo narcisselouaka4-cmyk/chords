@@ -590,6 +590,17 @@
                   <summary class="px-4 py-2.5 text-sm font-semibold text-(--text) cursor-pointer hover:bg-(--surface-secondary) transition-colors" id="analyzer-reharm-summary" aria-expanded="false" aria-controls="analyzer-reharm-output">Réharmonisation</summary>
                   <div class="p-4 text-sm text-(--text-dim) flex flex-col gap-4" id="analyzer-reharm-panel">
                     <div class="border border-(--border) rounded-lg p-3 bg-(--surface-secondary)">
+                      <div class="text-xs font-semibold text-(--text) mb-1">Style de réharmonisation</div>
+                      <label for="analyzer-reharm-style" class="text-xs text-(--text-dim)">Style</label>
+                      <select id="analyzer-reharm-style" class="bg-(--surface-secondary) border border-(--border) rounded px-2 py-1 text-xs text-(--text)">
+                        <option value="gospel" selected>Gospel</option>
+                        <option value="jazz">Jazz</option>
+                        <option value="neoSoul">Neo Soul</option>
+                        <option value="worship">Worship (diatonique pur)</option>
+                      </select>
+                      <p class="text-xs text-(--text-dim) mt-2" id="analyzer-reharm-style-status">Style appliqué aux variantes. Worship = harmonie diatonique canonique sans enrichissements.</p>
+                    </div>
+                    <div class="border border-(--border) rounded-lg p-3 bg-(--surface-secondary)">
                       <div class="text-xs font-semibold text-(--text) mb-1">Réharmoniser ce morceau</div>
                       <p class="text-xs text-(--text-dim)">La réharmonisation automatique du morceau analysé sera disponible prochainement.</p>
                     </div>

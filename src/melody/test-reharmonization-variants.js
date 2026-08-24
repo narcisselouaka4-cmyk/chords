@@ -38,7 +38,7 @@ function buildR1Wrapper() {
   const { variants, recommendedId } = buildReharmonizationVariants(wrapper);
   assert(variants.length === 3, 'R1 : 3 variantes générées');
   assert(variants.some((v) => v.id === 'faithful'), 'variante faithful présente');
-  assert(variants.some((v) => v.id === 'gospel'), 'variante gospel présente');
+  assert(variants.some((v) => v.id === 'stylistic'), 'variante stylistic présente');
   assert(variants.some((v) => v.id === 'tense'), 'variante tense présente');
   assert(variants.some((v) => v.id === recommendedId && v.recommended === true), 'une variante recommandée');
   assert(variants.filter((v) => v.recommended).length === 1, 'exactement une variante recommandée');
@@ -65,14 +65,14 @@ function buildR1Wrapper() {
   assert(faithful.plan.techniqueReport.used.length === 0, 'faithful : aucune technique Gospel utilisée');
 }
 
-// V4 : variante gospel utilise seulement des techniques structurelles
+// V4 : variante stylistic utilise seulement des techniques structurelles
 {
   const wrapper = buildR1Wrapper();
   const { variants } = buildReharmonizationVariants(wrapper);
-  const gospel = variants.find((v) => v.id === 'gospel');
-  for (const used of gospel.plan.techniqueReport.used) {
-    const src = gospel.plan.steps[used.stepIndex].candidate.source;
-    assert(['gospel-add9', 'gospel-add6', 'gospel-sus2'].includes(src), `gospel : technique structurelle à step ${used.stepIndex} (src=${src})`);
+  const stylistic = variants.find((v) => v.id === 'stylistic');
+  for (const used of stylistic.plan.techniqueReport.used) {
+    const src = stylistic.plan.steps[used.stepIndex].candidate.source;
+    assert(['gospel-add9', 'gospel-add6', 'gospel-sus2'].includes(src), `stylistic : technique structurelle à step ${used.stepIndex} (src=${src})`);
   }
 }
 
