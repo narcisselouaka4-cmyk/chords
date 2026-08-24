@@ -4516,6 +4516,18 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
             discriminator_strength=discriminator_strength)
     obs_scores[0] += _initial_scores(states, key)
     obs_scores = np.clip(obs_scores, 0.0, 1.0)
+    # Bonus de qualité tonale au beat 0 (EXP-024) : appliqué APRÈS clipping pour
+    # qu'il ne soit pas clipé à 1.0. En cas d'égalité d'observation entre C et
+    # Cm (tous deux à 1.0), ce bonus fait préférer la qualité de la tonalité.
+    # Scopé au beat 0 uniquement, ne touche pas la matrice de transition.
+    if key:
+        key_mode = key.get('mode', 'major')
+        for j, state in enumerate(states):
+            if state['root'] is not None:
+                if key_mode == 'major' and state['suffix'] == '':
+                    obs_scores[0, j] += 0.06
+                elif key_mode == 'minor' and state['suffix'] == 'm':
+                    obs_scores[0, j] += 0.06
     trans = _build_transition_matrix(states, key)
     path = _viterbi(obs_scores, trans)
 
