@@ -39,8 +39,20 @@ import { getStyle, STYLE_REGISTRY } from './style-registry.js';
  * }} ReharmonizationVariant
  */
 
+function computeMovement(from, to) {
+  if (!from || !to || from.length === 0 || to.length === 0) return 999;
+  const n = Math.min(from.length, to.length);
+  let total = 0;
+  for (let i = 0; i < n; i++) {
+    total += Math.abs(to[i] - from[i]);
+  }
+  total += Math.abs(from.length - to.length) * 6;
+  return total;
+}
+
 /**
- * Construit un plan en filtrant les candidats stylistiques selon les sources autorisées.
+ * Construit un plan en filtrant les candidats stylistiques selon les sources autorisées,
+ * avec enrichissement des voicings via le générateur du style.
  *
  * @param {{ track: object, harmonicContext: object }} wrapper
  * @param {{ styleId: string, allowedSources: Set<string> | null }} filter
@@ -82,17 +94,94 @@ function buildFilteredPlan(wrapper, filter) {
   const harmonicPathResult = findBestHarmonicPath({ candidateLayers: Object.freeze(candidateLayers) });
   const voicingPathResult = findBestVoicingPath({ harmonicPathResult });
 
+  // [OpenCode] — 2026-08-25 — EXP-032 : enrichissement des voicings avec le
+  // générateur du style (même patron que gospel-harmonization-planner.js).
+  // Pour la variante fidèle (allowedSources=null), pas d'enrichissement.
+  const enrichedVoicings = [];
+  const voicingTechniqueUsed = [];
+  // Vérifie si le style a un générateur de voicings ET qu'on n'est pas en mode fidèle.
+  const hasStyleVoicings = filter.allowedSources !== null && typeof style.generateVoicings === 'function';
+
+  for (let i = 0; i < N; i++) {
+    const canonicalVoicing = voicingPathResult.voicings[i];
+    const candidate = harmonicPathResult.path[i];
+
+    if (!hasStyleVoicings) {
+      enrichedVoicings.push(canonicalVoicing);
+      voicingTechniqueUsed.push(null);
+      continue;
+    }
+
+    const targetBass = canonicalVoicing.bassMidiNote || 43;
+    const targetOctave = Math.floor(targetBass / 12) - 1;
+    const styleVoicings = style.generateVoicings(candidate, { centerOctave: targetOctave });
+
+    if (styleVoicings.length === 0) {
+      enrichedVoicings.push(canonicalVoicing);
+      voicingTechniqueUsed.push(null);
+      continue;
+    }
+
+    const prevNotes = i > 0
+      ? (enrichedVoicings[i - 1]?.midiNotes || canonicalVoicing.midiNotes)
+      : canonicalVoicing.midiNotes;
+
+    const melodyEvent = anchors[i].melodyEventId
+      ? track.events.find((e) => e.id === anchors[i].melodyEventId)
+      : null;
+    const melodyPc = melodyEvent ? ((melodyEvent.midi % 12) + 12) % 12 : null;
+
+    let best = canonicalVoicing;
+    let bestTechnique = null;
+    let bestMovement = computeMovement(prevNotes, canonicalVoicing.midiNotes);
+
+    for (const sv of styleVoicings) {
+      // Le voicing idiomatique doit contenir la note mélodique (si présente) — critère 1
+      if (melodyPc !== null) {
+        const voicingPcs = sv.midiNotes.map((n) => ((n % 12) + 12) % 12);
+        if (!voicingPcs.includes(melodyPc)) continue;
+      }
+      const movement = computeMovement(prevNotes, sv.midiNotes);
+      // Préfère le voicing idiomatique s'il a un mouvement raisonnable
+      // (≤ bestMovement + 20) — même seuil que Gospel (EXP-030 Tâche C).
+      if (movement <= bestMovement + 20) {
+        bestMovement = movement;
+        best = {
+          candidate: sv.candidate,
+          midiNotes: sv.midiNotes,
+          leftHand: sv.leftHand,
+          rightHand: sv.rightHand,
+          bassMidiNote: sv.bassMidiNote,
+          bassPitchClass: sv.bassPitchClass,
+          inversionInterval: sv.inversionInterval,
+          isRootPosition: sv.isRootPosition,
+          spanSemitones: sv.spanSemitones,
+          registerDeviation: sv.registerDeviation,
+        };
+        bestTechnique = style.identifyVoicingTechnique(sv);
+      }
+    }
+
+    enrichedVoicings.push(Object.freeze(best));
+    voicingTechniqueUsed.push(bestTechnique);
+  }
+
   const stepsArr = [];
   for (let i = 0; i < N; i++) {
-    stepsArr.push(Object.freeze({
+    const step = {
       index: i,
       anchor: anchors[i],
       candidateLayer: candidateLayers[i],
       candidate: harmonicPathResult.path[i],
-      voicing: voicingPathResult.voicings[i],
+      voicing: enrichedVoicings[i],
       harmonicTransition: i === 0 ? null : harmonicPathResult.transitions[i - 1],
       voicingTransition: i === 0 ? null : voicingPathResult.transitions[i - 1],
-    }));
+    };
+    // Clé de technique de voicing spécifique au style pour la traçabilité UI.
+    if (hasStyleVoicings) {
+      step[`${style.id}VoicingTechnique`] = voicingTechniqueUsed[i];
+    }
+    stepsArr.push(Object.freeze(step));
   }
   const steps = Object.freeze(stepsArr);
 

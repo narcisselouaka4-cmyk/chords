@@ -29,6 +29,13 @@ function isSupported(q) {
   return typeof q === 'string' && SUPPORTED_QUALITIES.has(q);
 }
 
+// NB : 'maj7'.startsWith('m') === true, donc on doit exclure explicitement
+// les qualités majeures. On accepte m7, m7b5, m6, m9, m11 — tout ce qui commence
+// par 'm' MAIS pas 'maj'.
+function isMinorQuality(q) {
+  return q.startsWith('m') && !q.startsWith('maj');
+}
+
 // ---------------------------------------------------------------------------
 // Catalogue des techniques Neo Soul (traçabilité — critère 4)
 // ---------------------------------------------------------------------------
@@ -54,6 +61,16 @@ export const NEO_SOUL_TECHNIQUES = Object.freeze([
       "dominante altérée (b9, #9, 13 notamment).",
     appliesTo: 'passage',
     source: 'neo-soul-7b9-to-minor',
+  },
+  {
+    id: 'neo-soul-minor-extended',
+    name: 'Accord mineur étendu (m9/m11)',
+    description:
+      "Accord mineur enrichi d'une 9e ou 11e quand la mélodie est la 9e ou " +
+      "la 11e de l'accord. Cible typique du schéma Neo Soul V7b9 → im9. " +
+      "Produit m9 (melodie = 9e) ou m11 (melodie = 11e).",
+    appliesTo: 'structural',
+    source: 'neo-soul-minor-extended',
   },
 ]);
 
@@ -130,11 +147,8 @@ function build7b9ToMinorCandidates({ anchor, track, harmonicContext, policies })
 
   // On cible uniquement les degrés mineurs (qualité m7 ou m7b5).
   // NB : 'maj7'.startsWith('m') === true, donc on doit exclure explicitement
-  // les qualités majeures. On accepte m7, m7b5, m6, m9 — tout ce qui commence
-  // par 'm' MAIS pas 'maj'.
-  function isMinorQuality(q) {
-    return q.startsWith('m') && !q.startsWith('maj');
-  }
+  // les qualités majeures. On accepte m7, m7b5, m6, m9, m11 — tout ce qui commence
+  // par 'm' MAIS pas 'maj' (fonction isMinorQuality au niveau module).
   for (const targetDeg of degrees) {
     if (!isMinorQuality(targetDeg.quality)) continue;
     const targetRoot = normalizePc(tonic + targetDeg.rootOffset);
@@ -169,6 +183,72 @@ function build7b9ToMinorCandidates({ anchor, track, harmonicContext, policies })
 }
 
 // ---------------------------------------------------------------------------
+// Technique N1b : Accord mineur étendu (m9/m11) — cible du schéma 7b9→mineur
+// ---------------------------------------------------------------------------
+
+/**
+ * Construit les candidats d'accords mineurs étendus (m9, m11) pour une ancre.
+ *
+ * Règle Neo Soul V1 : quand la mélodie est la 9e (intervalle 2 ou 14) ou
+ * la 11e (intervalle 5 ou 17) au-dessus d'une fondamentale mineure diatonique,
+ * on propose l'accord mineur étendu correspondant (m9 ou m11).
+ * Cela complète le schéma 7b9 → im9 en fournissant la cible étendue.
+ */
+function buildMinorExtendedCandidates({ anchor, track, harmonicContext, policies }) {
+  if (!harmonicContext.tonalContext || !harmonicContext.tonalContext.selected) return [];
+
+  const melodyPc = melodyPcOf(anchor, track);
+  if (melodyPc === null) return [];
+
+  const tonic = normalizePc(harmonicContext.tonalContext.selected.tonicPitchClass);
+  const mode = harmonicContext.tonalContext.selected.mode;
+  const degrees = mode === 'minor' ? MINOR_DEGREES : MAJOR_DEGREES;
+
+  const candidates = [];
+
+  for (const deg of degrees) {
+    if (!isMinorQuality(deg.quality)) continue;
+    const rootPc = normalizePc(tonic + deg.rootOffset);
+
+    // Intervalle mélodie - fondamentale
+    const interval = normalizePc(melodyPc - rootPc);
+    // 9e = intervalle 2 (ou 14), 11e = intervalle 5 (ou 17)
+    let enrichedQuality = null;
+    if (interval === 2 || interval === 14) {
+      // 9e -> m9
+      if (isSupported('m9')) enrichedQuality = 'm9';
+    } else if (interval === 5 || interval === 17) {
+      // 11e -> m11
+      if (isSupported('m11')) enrichedQuality = 'm11';
+    }
+    if (!enrichedQuality) continue;
+
+    const degInfo = degreeOf(rootPc, harmonicContext.tonalContext);
+    candidates.push(buildCandidate({
+      anchorId: anchor.id,
+      melodyEvent: track.events.find((e) => e.id === anchor.melodyEventId) || null,
+      rootPc,
+      quality: enrichedQuality,
+      bassPc: null,
+      tonalContext: harmonicContext.tonalContext,
+      source: 'neo-soul-minor-extended',
+      locked: false,
+      tonalRelation: {
+        degree: degInfo ? degInfo.degree : deg.degree,
+        romanNumeral: deg.roman,
+        diatonic: true,
+        borrowed: false,
+        secondaryDominantTarget: null,
+        approachType: 'neo-soul-minor-extended',
+      },
+      policies,
+    }));
+  }
+
+  return candidates;
+}
+
+// ---------------------------------------------------------------------------
 // API publique
 // ---------------------------------------------------------------------------
 
@@ -186,6 +266,9 @@ export function buildNeoSoulCandidatesForAnchor(input) {
   let candidates = [];
   candidates = candidates.concat(
     build7b9ToMinorCandidates({ anchor, track, harmonicContext, policies: p }),
+  );
+  candidates = candidates.concat(
+    buildMinorExtendedCandidates({ anchor, track, harmonicContext, policies: p }),
   );
 
   return candidates.filter((c) => c.validation && c.validation.valid);

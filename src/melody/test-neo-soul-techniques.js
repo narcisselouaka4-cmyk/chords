@@ -53,8 +53,8 @@ function sourcesOf(candidates) {
 }
 
 // N1 : catalogue
-assert(NEO_SOUL_TECHNIQUES.length === 1, 'catalogue techniques contient 1 technique V1');
-assert(listNeoSoulTechniques().length === 1, 'listNeoSoulTechniques retourne 1 entrée');
+assert(NEO_SOUL_TECHNIQUES.length === 2, 'catalogue techniques contient 2 techniques V1 (7b9->mineur + mineur étendu)');
+assert(listNeoSoulTechniques().length === 2, 'listNeoSoulTechniques retourne 2 entrées');
 assert(NEO_SOUL_TECHNIQUES.every((t) => t.id && t.name && t.description && t.source), 'chaque technique a id/name/description/source');
 
 // N2 : catalogue voicings
