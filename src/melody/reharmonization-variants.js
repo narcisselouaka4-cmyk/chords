@@ -4,36 +4,29 @@
 // mélodie, présentées comme des cartes nommées. Une variante est désignée
 // par défaut = la mieux notée sur les 4 critères de validité.
 //
-// Trois variantes V1 :
+// Trois variantes V1 (schéma Gospel) :
 //   1. « Version fidèle » : candidats canoniques seuls, pas de techniques
-//      Gospel. Reste proche de la progression originale.
-//   2. « Version gospel » : candidats canoniques + techniques structurelles
-//      Gospel (add9, add6, sus2). Enrichie mais sans tension de passage.
-//   3. « Version tendue » : candidats canoniques + toutes techniques Gospel
-//      y compris passages altérés (V7b9). Plus de tension harmonique.
+//      stylistiques. Reste proche de la progression originale.
+//   2. « Version <style>-structurelle » : candidats canoniques + techniques
+//      structurelles du style (add9, add6, sus2 pour Gospel).
+//   3. « Version tendue » : candidats canoniques + toutes techniques du style
+//      y compris passages.
+//
+// [OpenCode] — 2026-08-25 — EXP-031 Tâche 3 : paramétré par style via le
+// registre (style-registry.js). Le style par défaut est 'gospel' pour
+// préserver R1 inchangé. Pour Worship, seule la variante fidèle est produite
+// (pas de techniques stylistiques). Pour Jazz/Neo Soul V1, seules les
+// techniques de passage existent → la variante structurelle = fidèle est
+// ignorée (pas de doublon).
 //
 // Aucune décision musicale nouvelle : on enrichit ou non le pool de candidats
 // et on délègue au path-finder canonique. Les variantes sont déterministes.
 
 import { generateChordCandidatesForAnchor } from './chord-candidate-generator.js';
-import { buildGospelCandidatesForAnchor } from './gospel-techniques.js';
 import { findBestHarmonicPath } from './harmonic-path-finder.js';
 import { findBestVoicingPath } from './voicing-path-finder.js';
 import { validateReharmonizationPlan } from './reharmonization-validator.js';
-import { identifyGospelTechnique, listGospelTechniques } from './gospel-techniques.js';
-
-// Techniques structurelles seulement (add9, add6, sus2) — sans passages.
-const STRUCTURAL_TECHNIQUE_SOURCES = new Set([
-  'gospel-add9',
-  'gospel-add6',
-  'gospel-sus2',
-]);
-
-// Techniques de passage altéré (V7b9) — pour la version tendue.
-const PASSAGE_TECHNIQUE_SOURCES = new Set([
-  'gospel-passage-7b9',
-  'gospel-passage-7sharp5',
-]);
+import { getStyle, STYLE_REGISTRY } from './style-registry.js';
 
 /**
  * @typedef {{
@@ -47,25 +40,29 @@ const PASSAGE_TECHNIQUE_SOURCES = new Set([
  */
 
 /**
- * Construit un plan en filtrant les candidats Gospel selon les sources autorisées.
+ * Construit un plan en filtrant les candidats stylistiques selon les sources autorisées.
  *
  * @param {{ track: object, harmonicContext: object }} wrapper
- * @param {{ allowGospel: boolean, allowedGospelSources: Set<string> }} filter
+ * @param {{ styleId: string, allowedSources: Set<string> | null }} filter
+ *   - styleId : id du style (registre)
+ *   - allowedSources : null = canonique seul (fidèle) ; sinon set de sources
+ *     stylistiques autorisées
  * @returns {object} HarmonizationPlan (même forme que buildHarmonizationPlan)
  */
 function buildFilteredPlan(wrapper, filter) {
   const { track, harmonicContext } = wrapper;
   const anchors = harmonicContext.anchors;
   const N = anchors.length;
+  const style = getStyle(filter.styleId) || STYLE_REGISTRY.gospel;
 
   const candidateLayers = [];
   for (let i = 0; i < N; i++) {
     const canonical = generateChordCandidatesForAnchor({ anchor: anchors[i], track, harmonicContext });
     const canonicalCandidates = canonical.status === 'generated' ? canonical.candidates : [];
     let merged = canonicalCandidates.slice();
-    if (filter.allowGospel) {
-      const gospel = buildGospelCandidatesForAnchor({ anchor: anchors[i], track, harmonicContext });
-      merged = merged.concat(gospel.filter((c) => filter.allowedGospelSources.has(c.source)));
+    if (filter.allowedSources && style.buildCandidatesForAnchor) {
+      const styleCands = style.buildCandidatesForAnchor({ anchor: anchors[i], track, harmonicContext });
+      merged = merged.concat(styleCands.filter((c) => filter.allowedSources.has(c.source)));
     }
     // Dédoublonnage par (pitchClasses, quality, bass).
     const seen = new Set();
@@ -99,17 +96,17 @@ function buildFilteredPlan(wrapper, filter) {
   }
   const steps = Object.freeze(stepsArr);
 
-  // Rapport de techniques (traçabilité).
+  // Rapport de techniques (traçabilité — style-spécifique).
   const used = [];
   const usedIds = new Set();
   for (let i = 0; i < steps.length; i++) {
-    const tech = identifyGospelTechnique(steps[i].candidate);
+    const tech = style.identifyTechnique(steps[i].candidate);
     if (tech) {
       used.push({ techniqueId: tech.id, name: tech.name, stepIndex: i });
       usedIds.add(tech.id);
     }
   }
-  const allTechniques = listGospelTechniques();
+  const allTechniques = style.listTechniques();
   const unused = allTechniques.filter((t) => !usedIds.has(t.id)).map((t) => ({ techniqueId: t.id, name: t.name }));
 
   return Object.freeze({
@@ -123,74 +120,97 @@ function buildFilteredPlan(wrapper, filter) {
   });
 }
 
+// Sépare les sources stylistiques en structurelles vs passage pour un style.
+// Retourne { structuralSources, passageSources } comme Sets.
+function splitStyleSources(styleId) {
+  const style = getStyle(styleId) || STYLE_REGISTRY.gospel;
+  const structural = new Set(style.techniqueSources.filter((s) => style.structuralSources.includes(s)));
+  const passage = new Set(style.techniqueSources.filter((s) => style.passageSources.includes(s)));
+  return { structuralSources: structural, passageSources: passage };
+}
+
 /**
- * Génère les trois variantes de réharmonisation sur la même mélodie.
+ * Génère les variantes de réharmonisation sur la même mélodie, paramétrées
+ * par le style actif (défaut 'gospel' pour préserver R1).
  *
  * @param {{ track: object, harmonicContext: object }} wrapper
+ * @param {{ styleId?: string }} [options]
  * @returns {{ variants: ReharmonizationVariant[], recommendedId: string }}
  */
-export function buildReharmonizationVariants(wrapper) {
+export function buildReharmonizationVariants(wrapper, options = {}) {
   if (!wrapper || !wrapper.track || !wrapper.harmonicContext) {
     throw new TypeError('buildReharmonizationVariants : { track, harmonicContext } requis');
   }
+  const styleId = options.styleId || 'gospel';
+  const style = getStyle(styleId) || STYLE_REGISTRY.gospel;
+  const { structuralSources, passageSources } = splitStyleSources(styleId);
 
   const variants = [];
 
   // 1. Version fidèle : candidats canoniques seuls.
   try {
-    const plan = buildFilteredPlan(wrapper, { allowGospel: false, allowedGospelSources: new Set() });
+    const plan = buildFilteredPlan(wrapper, { styleId, allowedSources: null });
     variants.push({
       id: 'faithful',
       label: 'Version fidèle',
-      description: 'Harmonie diatonique canonique, sans enrichissements Gospel.',
+      description: 'Harmonie diatonique canonique, sans enrichissements stylistiques.',
       plan,
-      validationReport: validateReharmonizationPlan(plan),
+      validationReport: validateReharmonizationPlan(plan, { styleId }),
       recommended: false,
     });
   } catch (err) {
     // Une variante peut échouer si le pool est vide ; on la saute.
   }
 
-  // 2. Version gospel : canonique + techniques structurelles.
-  try {
-    const plan = buildFilteredPlan(wrapper, {
-      allowGospel: true,
-      allowedGospelSources: STRUCTURAL_TECHNIQUE_SOURCES,
-    });
-    variants.push({
-      id: 'gospel',
-      label: 'Version gospel',
-      description: 'Harmonie enrichie de couleurs gospel (add9, add6, sus2).',
-      plan,
-      validationReport: validateReharmonizationPlan(plan),
-      recommended: false,
-    });
-  } catch (err) { /* skip */ }
+  // 2. Version <style> structurelle : canonique + techniques structurelles.
+  //    Pour Worship (pas de techniques) ou Jazz/Neo Soul V1 (pas de techniques
+  //    structurelles — seulement des passages), cette variante est identique à
+  //    fidèle → on la saute pour éviter un doublon.
+  if (structuralSources.size > 0) {
+    try {
+      const plan = buildFilteredPlan(wrapper, {
+        styleId,
+        allowedSources: structuralSources,
+      });
+      variants.push({
+        id: 'stylistic',
+        label: `Version ${style.label.toLowerCase()}`,
+        description: `Harmonie enrichie de couleurs ${style.label.toLowerCase()} (techniques structurelles).`,
+        plan,
+        validationReport: validateReharmonizationPlan(plan, { styleId }),
+        recommended: false,
+      });
+    } catch (err) { /* skip */ }
+  }
 
-  // 3. Version tendue : canonique + techniques structurelles + passages altérés.
-  try {
-    const plan = buildFilteredPlan(wrapper, {
-      allowGospel: true,
-      allowedGospelSources: new Set([...STRUCTURAL_TECHNIQUE_SOURCES, ...PASSAGE_TECHNIQUE_SOURCES]),
-    });
-    variants.push({
-      id: 'tense',
-      label: 'Version tendue',
-      description: 'Harmonie gospel avec accords de passage altérés (V7b9) pour plus de tension.',
-      plan,
-      validationReport: validateReharmonizationPlan(plan),
-      recommended: false,
-    });
-  } catch (err) { /* skip */ }
+  // 3. Version tendue : canonique + techniques structurelles + passages.
+  //    Pour Worship, pas de techniques → pas de variante tendue.
+  if (passageSources.size > 0) {
+    try {
+      const allStyleSources = new Set([...structuralSources, ...passageSources]);
+      const plan = buildFilteredPlan(wrapper, {
+        styleId,
+        allowedSources: allStyleSources,
+      });
+      variants.push({
+        id: 'tense',
+        label: 'Version tendue',
+        description: `Harmonie ${style.label.toLowerCase()} avec accords de passage pour plus de tension.`,
+        plan,
+        validationReport: validateReharmonizationPlan(plan, { styleId }),
+        recommended: false,
+      });
+    } catch (err) { /* skip */ }
+  }
 
   if (variants.length === 0) {
     throw new Error('Aucune variante n\'a pu être construite.');
   }
 
   // Désignation de la variante recommandée : la mieux notée sur les 4 critères.
-  // En cas d'égalité, priorité gospel > faithful > tense (la plus riche sans
+  // En cas d'égalité, priorité stylistic > faithful > tense (la plus riche sans
   // excès de tension). On départage par le score harmonique total décroissant.
-  const scoreOrder = { gospel: 3, faithful: 2, tense: 1 };
+  const scoreOrder = { stylistic: 3, faithful: 2, tense: 1 };
   variants.sort((a, b) => {
     const sa = a.validationReport.score;
     const sb = b.validationReport.score;

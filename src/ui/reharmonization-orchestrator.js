@@ -269,9 +269,10 @@ export function buildReharmonizationVariantsViewModel(input) {
       message: 'Entrée canonique invalide : wrapper { track, harmonicContext } requis.',
     };
   }
+  const styleId = input.styleId || 'gospel';
   const wrapper = sanitizeHarmonizationInput(input);
   try {
-    const { variants, recommendedId } = buildReharmonizationVariants(wrapper);
+    const { variants, recommendedId } = buildReharmonizationVariants(wrapper, { styleId });
     const variantViewModels = variants.map((v) => {
       const stepVm = mapHarmonizationPlanToViewModel(v.plan, wrapper);
       return Object.freeze({

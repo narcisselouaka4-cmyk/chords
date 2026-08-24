@@ -196,6 +196,9 @@ const els = {
   reharmSession: document.getElementById('analyzer-reharm-session'),
   reharmSessionSelect: document.getElementById('analyzer-reharm-session-select'),
   reharmSessionStatus: document.getElementById('analyzer-reharm-session-status'),
+  // [OpenCode] — 2026-08-25 — EXP-031 Tâche 3 : sélecteur de style.
+  reharmStyle: document.getElementById('analyzer-reharm-style'),
+  reharmStyleStatus: document.getElementById('analyzer-reharm-style-status'),
 };
 
 let analyzer = null;
@@ -254,6 +257,17 @@ let midiSessionFinalized = false; // true après Stop : la session est terminée
 // capture n'a été lancée ou qu'aucune note n'a été jouée.
 let reharmLiveSession = null;
 let reharmLiveWrapper = null;
+// [OpenCode] — 2026-08-25 — EXP-031 Tâche 3 : style de réharmonisation actif.
+// 'gospel' par défaut pour préserver R1 inchangé.
+let reharmActiveStyle = 'gospel';
+
+// Retourne le style de réharmonisation actuellement sélectionné dans l'UI.
+function getReharmActiveStyle() {
+  if (els.reharmStyle && els.reharmStyle.value) {
+    return els.reharmStyle.value;
+  }
+  return reharmActiveStyle;
+}
 
 // Phase B : persistance
 let projectDirty = false;
@@ -2279,6 +2293,22 @@ function initReharmonizationPanel() {
     details.addEventListener('toggle', syncExpanded);
   }
 
+  // [OpenCode] — 2026-08-25 — EXP-031 Tâche 3 : sélecteur de style actif.
+  if (els.reharmStyle) {
+    els.reharmStyle.addEventListener('change', () => {
+      reharmActiveStyle = els.reharmStyle.value;
+      if (els.reharmStyleStatus) {
+        const labels = {
+          worship: 'Worship : harmonie diatonique canonique, sans enrichissements.',
+          gospel: 'Gospel : add9, add6, sus2, passages V7b9/V7#5, voicings Drop 2/Rootless/Cluster.',
+          jazz: 'Jazz : substitution tritonique, voicings Drop 2/Rootless.',
+          neoSoul: 'Neo Soul : dominante 7b9 vers mineur, voicing quartal.',
+        };
+        els.reharmStyleStatus.textContent = labels[reharmActiveStyle] || labels.gospel;
+      }
+    });
+  }
+
   if (output) {
     output.setAttribute('aria-live', 'polite');
     output.setAttribute('aria-busy', 'false');
@@ -2365,6 +2395,7 @@ async function runReharmonizationLive() {
     const viewModel = buildReharmonizationVariantsViewModel({
       track: reharmLiveWrapper.track,
       harmonicContext: reharmLiveWrapper.harmonicContext,
+      styleId: getReharmActiveStyle(),
     });
     if (viewModel.status === 'success') {
       const meta = Object.freeze({
@@ -2476,6 +2507,7 @@ async function runReharmonizationFromAudio() {
     const viewModel = buildReharmonizationVariantsViewModel({
       track: extracted.wrapper.track,
       harmonicContext: extracted.wrapper.harmonicContext,
+      styleId: getReharmActiveStyle(),
     });
 
     if (viewModel.status === 'success') {
@@ -2574,7 +2606,10 @@ async function runReharmonizationFromSession() {
         return;
       }
 
-      const viewModel = buildReharmonizationVariantsViewModel(wrapperResult.wrapper);
+      const viewModel = buildReharmonizationVariantsViewModel({
+        ...wrapperResult.wrapper,
+        styleId: getReharmActiveStyle(),
+      });
       if (viewModel.status === 'success') {
         const meta = Object.freeze({
           isDemo: false, isLive: false, isAudio: false, isSession: true,
