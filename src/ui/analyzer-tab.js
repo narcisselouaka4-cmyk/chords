@@ -47,6 +47,7 @@ import { buildDemoFixture } from './reharmonization-demo-fixture.js';
 import { buildReharmonizationViewModel, buildReharmonizationVariantsViewModel } from './reharmonization-orchestrator.js';
 import { startLiveMelodyCapture } from '../melody/reharmonization-live-capture.js';
 import { extractAudioMelody } from '../melody/reharmonization-audio-capture.js';
+import { buildSessionMelodyWrapper } from '../melody/reharmonization-session-capture.js';
 import {
   renderReharmonizationEmpty,
   renderReharmonizationLoading,
@@ -191,6 +192,10 @@ const els = {
   reharmAudioStem: document.getElementById('analyzer-reharm-audio-stem'),
   reharmAudioStemKind: document.getElementById('analyzer-reharm-audio-stem-kind'),
   reharmAudioStatus: document.getElementById('analyzer-reharm-audio-status'),
+  // [OpenCode] — 2026-08-24 — EXP-030 Tâche A : session enregistrée.
+  reharmSession: document.getElementById('analyzer-reharm-session'),
+  reharmSessionSelect: document.getElementById('analyzer-reharm-session-select'),
+  reharmSessionStatus: document.getElementById('analyzer-reharm-session-status'),
 };
 
 let analyzer = null;
@@ -2255,6 +2260,13 @@ function initReharmonizationPanel() {
     els.reharmAudioStem.addEventListener('click', runReharmonizationFromAudio);
   }
 
+  // [OpenCode] — 2026-08-24 — EXP-030 Tâche A : bouton « Depuis une session
+  // enregistrée ». Charge les sessions disponibles et déclenche la réharm.
+  if (els.reharmSession) {
+    els.reharmSession.setAttribute('aria-controls', 'analyzer-reharm-output');
+    els.reharmSession.addEventListener('click', runReharmonizationFromSession);
+  }
+
   // Lot A — synchronisation de aria-expanded sur le <summary> quand
   // l'utilisateur ouvre/ferme manuellement le <details>. On n'intercepte pas
   // le comportement natif : on observe simplement l'état pour l'accessibilité.
@@ -2493,4 +2505,94 @@ async function runReharmonizationFromAudio() {
     stemBtn.disabled = false;
     output.setAttribute('aria-busy', 'false');
   }
+}
+
+// [OpenCode] — 2026-08-24 — EXP-030 Tâche A : réharmonisation depuis une
+// session enregistrée. Charge la liste des sessions, propose un sélecteur,
+// puis déclenche la réharmonisation via buildSessionMelodyWrapper.
+async function runReharmonizationFromSession() {
+  const btn = els.reharmSession;
+  const output = els.reharmOutput;
+  const statusEl = els.reharmSessionStatus;
+  const selectEl = els.reharmSessionSelect;
+  if (!btn || !output) return;
+
+  const api = window.electronAPI;
+  if (!api?.files?.homeDir || !api?.files?.readDir || !api?.files?.readFile) {
+    renderReharmonizationError(output, 'IPC fichiers non disponible.', 'NoIPC');
+    return;
+  }
+
+  // 1. Liste les sessions (~/PianoJazzChords/Sessions/).
+  const home = await api.files.homeDir();
+  const sessionsDir = home + '/PianoJazzChords/Sessions';
+  let dirs = [];
+  try {
+    dirs = await api.files.readDir(sessionsDir);
+  } catch (_) { /* dossier inexistant */ }
+  if (!dirs || dirs.length === 0) {
+    if (statusEl) statusEl.textContent = 'Aucune session enregistrée trouvée.';
+    return;
+  }
+
+  // 2. Construit un sélecteur de session si pas déjà fait.
+  if (selectEl) {
+    selectEl.innerHTML = '';
+    for (const d of dirs) {
+      const name = typeof d === 'string' ? d : d.name;
+      if (!name) continue;
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      selectEl.appendChild(opt);
+    }
+    selectEl.classList.remove('hidden');
+    btn.textContent = 'Réharmoniser la session sélectionnée';
+  }
+
+  // Si un clic suivant : charge la session sélectionnée.
+  btn.onclick = async () => {
+    const sessionId = selectEl?.value;
+    if (!sessionId) return;
+    btn.disabled = true;
+    if (statusEl) statusEl.textContent = `Chargement de ${sessionId}…`;
+    output.setAttribute('aria-busy', 'true');
+    renderReharmonizationLoading(output);
+    await new Promise((r) => requestAnimationFrame(r));
+
+    try {
+      // Charge events.json et session.json.
+      const eventsJson = await api.files.readFile(sessionsDir + '/' + sessionId + '/events.json');
+      const sessionJson = await api.files.readFile(sessionsDir + '/' + sessionId + '/session.json').catch(() => '{}');
+      const events = JSON.parse(eventsJson || '[]');
+      const session = JSON.parse(sessionJson || '{}');
+
+      const wrapperResult = buildSessionMelodyWrapper({ events, session }, { name: sessionId });
+      if (wrapperResult.status !== 'success') {
+        renderReharmonizationError(output, wrapperResult.message, wrapperResult.errorKind);
+        if (statusEl) statusEl.textContent = wrapperResult.message;
+        return;
+      }
+
+      const viewModel = buildReharmonizationVariantsViewModel(wrapperResult.wrapper);
+      if (viewModel.status === 'success') {
+        const meta = Object.freeze({
+          isDemo: false, isLive: false, isAudio: false, isSession: true,
+          label: 'Réharmonisation depuis session enregistrée',
+          description: `${wrapperResult.noteCount} notes de la session « ${sessionId} ». Tonalité : ${wrapperResult.wrapper.harmonicContext.tonalContext?.spelledKey?.tonicSpelling?.letter || '?'} ${wrapperResult.wrapper.harmonicContext.tonalContext?.selected?.mode || '?'}.`,
+        });
+        renderReharmonizationVariants(output, viewModel, meta);
+        if (statusEl) statusEl.textContent = `${wrapperResult.noteCount} notes → ${viewModel.variants.length} variantes. Recommandée : ${viewModel.recommendedId}.`;
+        if (els.reharmDetails && !els.reharmDetails.hasAttribute('open')) els.reharmDetails.setAttribute('open', '');
+        if (els.reharmSummary) els.reharmSummary.setAttribute('aria-expanded', 'true');
+      } else {
+        renderReharmonizationError(output, viewModel.message, viewModel.errorKind);
+      }
+    } catch (err) {
+      renderReharmonizationError(output, err && err.message ? err.message : 'Erreur inattendue.', 'Error');
+    } finally {
+      btn.disabled = false;
+      output.setAttribute('aria-busy', 'false');
+    }
+  };
 }
