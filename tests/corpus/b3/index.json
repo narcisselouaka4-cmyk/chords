@@ -1,0 +1,185 @@
+{
+  "battery": "B3",
+  "soundfont": "/usr/share/sounds/sf2/FluidR3_GM.sf2",
+  "tempos": [
+    60,
+    77,
+    90,
+    120
+  ],
+  "progressions": [
+    "I-IV-V-I",
+    "I-vi-IV-V",
+    "ii-V-I",
+    "I-V-vi-IV",
+    "i-iv-v-i"
+  ],
+  "anticipations": [
+    "1/16",
+    "1/8",
+    "1/4"
+  ],
+  "generated": "2026-08-24T03:25:43",
+  "cases": [
+    {
+      "caseId": "b3_1iivvi_60",
+      "progression": "I-IV-V-I",
+      "key": "C",
+      "tempo": 60,
+      "duration": 96.0,
+      "wav": "tests/corpus/b3/b3_1iivvi_60.wav"
+    },
+    {
+      "caseId": "b3_1iivvi_77",
+      "progression": "I-IV-V-I",
+      "key": "C",
+      "tempo": 77,
+      "duration": 74.805195,
+      "wav": "tests/corpus/b3/b3_1iivvi_77.wav"
+    },
+    {
+      "caseId": "b3_1iivvi_90",
+      "progression": "I-IV-V-I",
+      "key": "C",
+      "tempo": 90,
+      "duration": 64.0,
+      "wav": "tests/corpus/b3/b3_1iivvi_90.wav"
+    },
+    {
+      "caseId": "b3_1iivvi_120",
+      "progression": "I-IV-V-I",
+      "key": "C",
+      "tempo": 120,
+      "duration": 48.0,
+      "wav": "tests/corpus/b3/b3_1iivvi_120.wav"
+    },
+    {
+      "caseId": "b3_2iviivv_60",
+      "progression": "I-vi-IV-V",
+      "key": "G",
+      "tempo": 60,
+      "duration": 96.0,
+      "wav": "tests/corpus/b3/b3_2iviivv_60.wav"
+    },
+    {
+      "caseId": "b3_2iviivv_77",
+      "progression": "I-vi-IV-V",
+      "key": "G",
+      "tempo": 77,
+      "duration": 74.805195,
+      "wav": "tests/corpus/b3/b3_2iviivv_77.wav"
+    },
+    {
+      "caseId": "b3_2iviivv_90",
+      "progression": "I-vi-IV-V",
+      "key": "G",
+      "tempo": 90,
+      "duration": 64.0,
+      "wav": "tests/corpus/b3/b3_2iviivv_90.wav"
+    },
+    {
+      "caseId": "b3_2iviivv_120",
+      "progression": "I-vi-IV-V",
+      "key": "G",
+      "tempo": 120,
+      "duration": 48.0,
+      "wav": "tests/corpus/b3/b3_2iviivv_120.wav"
+    },
+    {
+      "caseId": "b3_3iivi_60",
+      "progression": "ii-V-I",
+      "key": "F",
+      "tempo": 60,
+      "duration": 72.0,
+      "wav": "tests/corpus/b3/b3_3iivi_60.wav"
+    },
+    {
+      "caseId": "b3_3iivi_77",
+      "progression": "ii-V-I",
+      "key": "F",
+      "tempo": 77,
+      "duration": 56.103896,
+      "wav": "tests/corpus/b3/b3_3iivi_77.wav"
+    },
+    {
+      "caseId": "b3_3iivi_90",
+      "progression": "ii-V-I",
+      "key": "F",
+      "tempo": 90,
+      "duration": 48.0,
+      "wav": "tests/corpus/b3/b3_3iivi_90.wav"
+    },
+    {
+      "caseId": "b3_3iivi_120",
+      "progression": "ii-V-I",
+      "key": "F",
+      "tempo": 120,
+      "duration": 36.0,
+      "wav": "tests/corpus/b3/b3_3iivi_120.wav"
+    },
+    {
+      "caseId": "b3_4ivviiv_60",
+      "progression": "I-V-vi-IV",
+      "key": "D",
+      "tempo": 60,
+      "duration": 96.0,
+      "wav": "tests/corpus/b3/b3_4ivviiv_60.wav"
+    },
+    {
+      "caseId": "b3_4ivviiv_77",
+      "progression": "I-V-vi-IV",
+      "key": "D",
+      "tempo": 77,
+      "duration": 74.805195,
+      "wav": "tests/corpus/b3/b3_4ivviiv_77.wav"
+    },
+    {
+      "caseId": "b3_4ivviiv_90",
+      "progression": "I-V-vi-IV",
+      "key": "D",
+      "tempo": 90,
+      "duration": 64.0,
+      "wav": "tests/corpus/b3/b3_4ivviiv_90.wav"
+    },
+    {
+      "caseId": "b3_4ivviiv_120",
+      "progression": "I-V-vi-IV",
+      "key": "D",
+      "tempo": 120,
+      "duration": 48.0,
+      "wav": "tests/corpus/b3/b3_4ivviiv_120.wav"
+    },
+    {
+      "caseId": "b3_5iivvi_60",
+      "progression": "i-iv-v-i",
+      "key": "Am",
+      "tempo": 60,
+      "duration": 96.0,
+      "wav": "tests/corpus/b3/b3_5iivvi_60.wav"
+    },
+    {
+      "caseId": "b3_5iivvi_77",
+      "progression": "i-iv-v-i",
+      "key": "Am",
+      "tempo": 77,
+      "duration": 74.805195,
+      "wav": "tests/corpus/b3/b3_5iivvi_77.wav"
+    },
+    {
+      "caseId": "b3_5iivvi_90",
+      "progression": "i-iv-v-i",
+      "key": "Am",
+      "tempo": 90,
+      "duration": 64.0,
+      "wav": "tests/corpus/b3/b3_5iivvi_90.wav"
+    },
+    {
+      "caseId": "b3_5iivvi_120",
+      "progression": "i-iv-v-i",
+      "key": "Am",
+      "tempo": 120,
+      "duration": 48.0,
+      "wav": "tests/corpus/b3/b3_5iivvi_120.wav"
+    }
+  ]
+}

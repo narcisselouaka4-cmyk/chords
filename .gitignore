@@ -20,3 +20,6 @@ __pycache__/*-pytest-*.pyc
 # eux, sont suivis : ce sont eux qui définissent le corpus.
 tests/corpus/b1/*.wav
 tests/corpus/b2/*.wav
+tests/corpus/b3/*.wav
+tests/corpus/b4/*.wav
+tests/corpus/b5/*.wav
