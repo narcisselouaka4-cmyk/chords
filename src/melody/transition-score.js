@@ -64,16 +64,26 @@ function deduplicatedSortedPcs(pcs) {
 }
 
 /**
- * Résolution V → I reconnue depuis les degrés tonalRelation existants.
+ * Détecte une résolution V → I (principale ou secondaire).
+ * - Résolution principale : V (degré 4) → I (degré 0) dans la tonalité principale.
+ * - Résolution secondaire : from.secondaryDominantTarget === to.degree
+ *   (ex. V/ii → ii, V/vi → vi, etc.)
  * @param {ChordCandidate} from
  * @param {ChordCandidate} to
  * @returns {boolean}
  */
 function isDominantToTonic(from, to) {
-  return from.tonalRelation != null
-    && to.tonalRelation != null
-    && from.tonalRelation.degree === 4
-    && to.tonalRelation.degree === 0;
+  if (!from.tonalRelation || !to.tonalRelation) return false;
+  // Résolution principale : V (degré 4) → I (degré 0) dans la tonalité principale
+  if (from.tonalRelation.degree === 4 && to.tonalRelation.degree === 0) {
+    return true;
+  }
+  // Résolution secondaire : dominante secondaire vers sa cible
+  const target = from.tonalRelation.secondaryDominantTarget;
+  if (target !== null && target !== undefined && target === to.tonalRelation.degree) {
+    return true;
+  }
+  return false;
 }
 
 /**

@@ -276,18 +276,58 @@ export function findBestHarmonicPath({ candidateLayers }) {
 
   // 2. Transitions pré-calculées entre couches adjacentes.
   // transCache[t][i][j] = TransitionScore(candidateLayers[t][i] → candidateLayers[t+1][j]).
+  // [OpenCode] — 2026-08-26 — EXP-033 : lookahead bonus for secondary dominants.
+  // Si le candidat d'arrivée (layer t+1) est une dominante secondaire (a secondaryDominantTarget),
+  // et que la couche suivante (t+2) contient un candidat de degré correspondant,
+  // on ajoute un bonus au score de transition pour favoriser l'approche de la dominante secondaire.
   const transCache = [];
   for (let t = 0; t < layers.length - 1; t++) {
     const row = [];
     for (let i = 0; i < layers[t].length; i++) {
       const cell = [];
       for (let j = 0; j < layers[t + 1].length; j++) {
-        cell.push(
-          scoreChordTransition({
-            from: layers[t][i],
-            to: layers[t + 1][j],
-          }),
-        );
+        const fromCand = layers[t][i];
+        const toCand = layers[t + 1][j];
+        let transition = scoreChordTransition({
+          from: fromCand,
+          to: toCand,
+        });
+
+        // Lookahead bonus : si 'to' est une dominante secondaire Neo Soul N1 (7b9→mineur),
+        // et que la couche suivante (t+2) contient un candidat de degré correspondant,
+        // on ajoute un bonus au score de transition pour favoriser l'approche de la dominante secondaire.
+        // On restreint au approachType 'neo-soul-7b9-to-minor' pour ne pas affecter Gospel ni les dominantes secondaires canoniques.
+        const secDomTarget = toCand.tonalRelation?.secondaryDominantTarget;
+        const approachType = toCand.tonalRelation?.approachType;
+        if (
+          approachType === 'neo-soul-7b9-to-minor' &&
+          secDomTarget !== null &&
+          secDomTarget !== undefined &&
+          t + 2 < layers.length
+        ) {
+          // Vérifier si la couche t+2 a un candidat de degré = secDomTarget
+          const hasTarget = layers[t + 2].some(
+            (c) => c.tonalRelation?.degree === secDomTarget
+          );
+          if (hasTarget) {
+            // On marque le bonus dans componentScores pour l'affichage/debug.
+            // Le bonus réel est ajouté en unités (scoreUnits) dans la boucle Viterbi
+            // pour éviter l'écrêtage du totalScore à 100.
+            transition = Object.freeze({
+              ...transition,
+              componentScores: Object.freeze({
+                ...transition.componentScores,
+                secondaryDominantApproach: 35,
+              }),
+              activeWeights: Object.freeze({
+                ...transition.activeWeights,
+                secondaryDominantApproach: 0.10,
+              }),
+            });
+          }
+        }
+
+        cell.push(transition);
       }
       row.push(cell);
     }
@@ -327,17 +367,21 @@ export function findBestHarmonicPath({ candidateLayers }) {
       for (let i = 0; i < layers[t - 1].length; i++) {
         const prev = dp[i];
         const transition = transCache[t - 1][i][j];
+        // [OpenCode] — 2026-08-26 — EXP-033 : bonus direct en unités pour approche dominante secondaire Neo Soul.
+        // Le bonus est ajouté directement aux scoreUnits pour éviter l'écrêtage à 100 du totalScore.
+        const approachBonus = transition.componentScores?.secondaryDominantApproach
+          ? UNIT_TRANSITION * transition.componentScores.secondaryDominantApproach
+          : 0;
         const cand = {
           candidate: layer[j],
           index: j,
           scoreUnits: prev.scoreUnits
             + UNIT_COMPATIBILITY * compatScores[t][j]
-            + UNIT_TRANSITION * transition.totalScore,
+            + UNIT_TRANSITION * transition.totalScore
+            + approachBonus,
           compatSum: prev.compatSum + compatScores[t][j],
           transSum: prev.transSum + transition.totalScore,
           prev,
-          // Rangs provisoires du préfix (profondeur t-1) utilisés par le
-          // départage de cette profondeur.
           prefixRank: prev.rank,
           prefixIndexRank: prev.indexRank,
           identOrdinal: idOrd[t].get(layer[j].id),
