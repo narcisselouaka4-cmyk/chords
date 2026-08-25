@@ -14,12 +14,32 @@
 //      gospel moderne, utilisé ponctuellement.
 //
 // Périmètre : ce module produit des voicings ALTERNATIFS, sans modifier
-// voicing-path-finder.js ni la logique d'inclusion des tensions disponibles
-// (le défaut découvert dans EXP-029, hors périmètre). Les voicings produits
-// ne contiennent que les pitch classes canoniques de l'accord (pas de
-// tensions ajoutées).
+// voicing-path-finder.js.
+//
+// [Claude] — 2026-08-25 — EXP-034 : les trois techniques partagent désormais
+// l'ensemble de tons résolu par `voicing-tone-set.js`, le même que celui du
+// chemin canonique. Sans cela, une tension mélodique entrée dans le voicing
+// canonique aurait fait disparaître la forme idiomatique : le post-traitement
+// de `gospel-harmonization-planner.js` écarte tout voicing idiomatique qui ne
+// contient pas la note mélodique, et serait retombé sur le canonique à chaque
+// fois. La règle est unique et partagée, pas dupliquée.
+
+import { withMelodyTension, MAX_VOICING_TONES } from './voicing-tone-set.js';
 
 const C4 = 60;
+
+/**
+ * Ensemble de tons d'un candidat pour les techniques de style : les pitch
+ * classes canoniques, plus la tension disponible que joue la mélodie.
+ *
+ * @param {object} candidate
+ * @returns {{ pitchClasses: number[], addedTensions: number[] }}
+ */
+function toneSetOf(candidate) {
+  return withMelodyTension(candidate.pitchClasses, candidate, {
+    maxTones: MAX_VOICING_TONES,
+  });
+}
 
 function normalizePc(pc) {
   return ((pc % 12) + 12) % 12;
@@ -62,7 +82,7 @@ function pcToMidi(pc, minOctave = 3, maxOctave = 6) {
  * @returns {GospelVoicing | null}
  */
 function buildDrop2Voicing(candidate, octave = 4) {
-  const pcs = candidate.pitchClasses;
+  const { pitchClasses: pcs, addedTensions } = toneSetOf(candidate);
   if (!pcs || pcs.length < 4 || pcs.length > 5) return null;
 
   // Position serrée : trier les pitch classes par ordre croissant depuis la
@@ -115,6 +135,7 @@ function buildDrop2Voicing(candidate, octave = 4) {
     isRootPosition: (bassMidi % 12) === root,
     spanSemitones: span,
     registerDeviation: Math.abs(bassMidi - 43) + Math.abs(drop2[drop2.length - 1] - 64),
+    addedTensions: Object.freeze(addedTensions.slice()),
     techniqueId: 'gospel-drop2',
     techniqueName: 'Drop 2',
   });
@@ -131,7 +152,7 @@ function buildDrop2Voicing(candidate, octave = 4) {
  * @returns {GospelVoicing | null}
  */
 function buildRootlessVoicing(candidate, octave = 4) {
-  const pcs = candidate.pitchClasses;
+  const { pitchClasses: pcs, addedTensions } = toneSetOf(candidate);
   if (!pcs || pcs.length < 4) return null;
 
   const root = normalizePc(candidate.rootPitchClass);
@@ -193,6 +214,7 @@ function buildRootlessVoicing(candidate, octave = 4) {
     isRootPosition: false, // rootless n'est jamais en position fondamentale
     spanSemitones: span,
     registerDeviation: Math.abs(bassMidi - 52) + Math.abs(voicing[voicing.length - 1] - 64),
+    addedTensions: Object.freeze(addedTensions.slice()),
     techniqueId: 'gospel-rootless',
     techniqueName: 'Rootless',
   });
@@ -209,8 +231,11 @@ function buildRootlessVoicing(candidate, octave = 4) {
  * @returns {GospelVoicing | null}
  */
 function buildClusterVoicing(candidate, octave = 4) {
-  const pcs = candidate.pitchClasses;
-  if (!pcs || pcs.length < 3 || pcs.length > 4) return null;
+  const { pitchClasses: pcs, addedTensions } = toneSetOf(candidate);
+  // La borne haute suit exactement le nombre de tensions ajoutées : sans
+  // enrichissement le comportement est inchangé, et un cluster de cinq notes
+  // n'existe que lorsqu'une de ces notes est la mélodie.
+  if (!pcs || pcs.length < 3 || pcs.length > 4 + addedTensions.length) return null;
 
   const root = normalizePc(candidate.rootPitchClass);
   const sorted = [...pcs].sort((a, b) => a - b);
@@ -246,6 +271,7 @@ function buildClusterVoicing(candidate, octave = 4) {
     isRootPosition: (bassMidi % 12) === root,
     spanSemitones: span,
     registerDeviation: Math.abs(bassMidi - 55) + Math.abs(voicing[voicing.length - 1] - 64),
+    addedTensions: Object.freeze(addedTensions.slice()),
     techniqueId: 'gospel-cluster',
     techniqueName: 'Cluster',
   });

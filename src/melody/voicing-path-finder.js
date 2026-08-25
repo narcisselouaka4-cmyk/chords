@@ -14,6 +14,7 @@
 // constant car chaque voicing contient au plus 6 notes.
 
 import { scoreChordTransition } from './transition-score.js';
+import { withMelodyTension, MAX_VOICING_TONES } from './voicing-tone-set.js';
 
 // ---------------------------------------------------------------------------
 // Constantes internes du modèle de jouabilité V1 (non configurables)
@@ -170,6 +171,24 @@ function chordPitchClasses(candidate) {
 }
 
 /**
+ * [Claude] — 2026-08-25 — EXP-034 : ensemble de tons effectivement voicé.
+ *
+ * Les pitch classes canoniques, plus la note mélodique quand elle est une
+ * tension disponible de cet accord. La règle et sa justification vivent dans
+ * `voicing-tone-set.js` — un seul endroit, partagé avec les voicings
+ * idiomatiques de style, pour qu'une forme Drop 2 / Rootless / Cluster puisse
+ * placer cette tension au lieu de se voir refuser faute de la contenir.
+ *
+ * @param {ChordCandidate} candidate
+ * @returns {{ pitchClasses: number[], addedTensions: number[] }}
+ */
+function voicingToneSet(candidate) {
+  return withMelodyTension(chordPitchClasses(candidate), candidate, {
+    maxTones: MAX_VOICING_TONES,
+  });
+}
+
+/**
  * Comparaison lexicale de deux tableaux MIDI.
  * @param {number[]} a
  * @param {number[]} b
@@ -268,7 +287,7 @@ function registerDeviationOf(leftHand, rightHand) {
  * @param {{ leftHand: number[], rightHand: number[] }} hands
  * @returns {PianoVoicing}
  */
-function buildVoicing(candidate, notes, hands) {
+function buildVoicing(candidate, notes, hands, addedTensions) {
   const bassMidiNote = notes[0];
   const bassPitchClass = bassMidiNote % 12;
   const rootPitchClass = candidate.rootPitchClass;
@@ -285,6 +304,11 @@ function buildVoicing(candidate, notes, hands) {
     isRootPosition: inversionInterval === 0,
     spanSemitones,
     registerDeviation: registerDeviationOf(hands.leftHand, hands.rightHand),
+    // [Claude] — 2026-08-25 — EXP-034 : tensions disponibles entrées dans le
+    // voicing parce que la mélodie les joue. Vide dans le cas courant.
+    // Traçabilité : l'accord reste nommé par son candidat (ADR-008), la
+    // couleur ajoutée est lisible ici.
+    addedTensions: Object.freeze((addedTensions || []).slice()),
   });
 }
 
@@ -301,41 +325,61 @@ export function generatePlayableChordVoicings(options) {
   validateCandidate(candidate, 'candidate');
   const bass =
     candidate.bassPitchClass === undefined ? null : candidate.bassPitchClass;
-  const pcs = chordPitchClasses(candidate);
+  const canonicalPcs = chordPitchClasses(candidate);
 
-  if (pcs.length < 3 || pcs.length > 6) {
+  if (canonicalPcs.length < 3 || canonicalPcs.length > 6) {
     throw new RangeError(
-      `candidat ${candidate.id} : ${pcs.length} pitch classes, un voicing V1 exige de 3 à 6 notes distintas sans doublon`,
+      `candidat ${candidate.id} : ${canonicalPcs.length} pitch classes, un voicing V1 exige de 3 à 6 notes distintas sans doublon`,
     );
   }
 
   // Énumère toutes les affectations d'une octave par pitch class. Chaque pitch
   // class apparaît exactement une fois ; aucune note étrangère n'est ajoutée ;
   // l'ordre original de pitchClasses n'influence pas le résultat (tri de pcs).
-  const octaveLists = pcs.map((pc) => midiCandidatesForPc(pc));
-  const seen = new Set();
-  const voicings = [];
+  //
+  // [Claude] — 2026-08-25 — EXP-034 : « étrangère » se lit désormais par
+  // rapport à l'ensemble de tons résolu, qui peut contenir une tension
+  // disponible parce que la mélodie la joue. Toute pitch class de cet
+  // ensemble apparaît exactement une fois dans chaque voicing produit :
+  // l'inclusion de la tension est donc garantie, pas seulement permise.
+  function enumerate(pcs, addedTensions) {
+    const octaveLists = pcs.map((pc) => midiCandidatesForPc(pc));
+    const seen = new Set();
+    const out = [];
 
-  function rec(i, acc) {
-    if (i === pcs.length) {
-      const sorted = acc.slice().sort((a, b) => a - b);
-      const key = sorted.join(',');
-      if (seen.has(key)) return;
-      seen.add(key);
-      // Basse explicite = note la plus grave.
-      if (bass !== null && sorted[0] % 12 !== bass) return;
-      const hands = handDivisionOf(sorted);
-      if (!hands) return;
-      voicings.push(buildVoicing(candidate, sorted, hands));
-      return;
+    function rec(i, acc) {
+      if (i === pcs.length) {
+        const sorted = acc.slice().sort((a, b) => a - b);
+        const key = sorted.join(',');
+        if (seen.has(key)) return;
+        seen.add(key);
+        // Basse explicite = note la plus grave.
+        if (bass !== null && sorted[0] % 12 !== bass) return;
+        const hands = handDivisionOf(sorted);
+        if (!hands) return;
+        out.push(buildVoicing(candidate, sorted, hands, addedTensions));
+        return;
+      }
+      for (const v of octaveLists[i]) {
+        acc.push(v);
+        rec(i + 1, acc);
+        acc.pop();
+      }
     }
-    for (const v of octaveLists[i]) {
-      acc.push(v);
-      rec(i + 1, acc);
-      acc.pop();
-    }
+    rec(0, []);
+    return out;
   }
-  rec(0, []);
+
+  const resolved = voicingToneSet(candidate);
+  let voicings = enumerate(resolved.pitchClasses, resolved.addedTensions);
+
+  // Repli : une tension de plus peut rendre toute division de mains
+  // impossible (registre, écart, cardinalité). Dans ce cas on revient à
+  // l'ensemble canonique — enrichir le voicing ne doit jamais transformer un
+  // accord jouable en accord sans voicing admissible.
+  if (voicings.length === 0 && resolved.addedTensions.length > 0) {
+    voicings = enumerate(canonicalPcs, []);
+  }
 
   if (voicings.length === 0) {
     throw new RangeError(
