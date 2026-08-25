@@ -276,10 +276,19 @@ runTest('T1 — exports exacts (3) et settings figés/identiques au littéral', 
     'wrapper transition { from, to, score }');
   assertTrue(Object.keys(two.transitions[0].from).length > 0, 'from = PianoVoicing');
   // PianoVoicing : clés exactes.
+  // [Claude] — 2026-08-25 — EXP-034 : `addedTensions` s'ajoute au contrat.
+  // Il vaut [] dans le cas courant et porte la pitch class de la tension
+  // disponible quand la mélodie l'impose. L'extension est délibérée : c'est
+  // la trace lisible de ce que le voicing joue en plus de l'accord nommé,
+  // exigée par le critère de traçabilité (ADR-008 : la forme change, pas le
+  // nom).
   assertDeepEqual(Object.keys(two.transitions[0].from).sort(), [
+    'addedTensions',
     'bassMidiNote', 'bassPitchClass', 'candidate', 'inversionInterval', 'isRootPosition',
     'leftHand', 'midiNotes', 'registerDeviation', 'rightHand', 'spanSemitones',
   ], 'clés du PianoVoicing');
+  assertDeepEqual(two.transitions[0].from.addedTensions, [],
+    'addedTensions vide quand la mélodie est une note de l accord');
 
   assertTrue(Object.isFrozen(result.settings), 'settings figé');
   assertDeepEqual(Object.keys(result.settings).sort(), Object.keys(SETTINGS).sort(), 'clés settings');

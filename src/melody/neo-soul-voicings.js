@@ -10,7 +10,18 @@
 //   N7 — Voicing quartal : empilement de quartes justes plutôt que de
 //        tierces, posé au-dessus d'une note de basse.
 //
-// Garde-fou respecté : voicing-path-finder.js non modifié.
+// Garde-fou respecté à l'époque d'EXP-031 : voicing-path-finder.js non
+// modifié. EXP-034 (2026-08-25) a levé ce garde-fou de façon explicite et
+// délimitée : la règle d'inclusion des tensions disponibles vit dans
+// voicing-tone-set.js et est partagée par ce module et le chemin canonique.
+
+import { withMelodyTension, MAX_VOICING_TONES } from './voicing-tone-set.js';
+
+function toneSetOf(candidate) {
+  return withMelodyTension(candidate.pitchClasses, candidate, {
+    maxTones: MAX_VOICING_TONES,
+  });
+}
 
 function normalizePc(pc) {
   return ((pc % 12) + 12) % 12;
@@ -51,7 +62,10 @@ const C4 = 60;
  * @returns {NeoSoulVoicing | null}
  */
 function buildQuartalVoicing(candidate, octave = 4) {
-  const pcs = candidate.pitchClasses;
+  // [Claude] — 2026-08-25 — EXP-034 : même ensemble de tons résolu que les
+  // autres techniques, pour que l'empilement de quartes puisse porter la
+  // tension mélodique au lieu de l'ignorer.
+  const { pitchClasses: pcs, addedTensions } = toneSetOf(candidate);
   if (!pcs || pcs.length < 3) return null;
 
   const root = normalizePc(candidate.rootPitchClass);
@@ -104,6 +118,7 @@ function buildQuartalVoicing(candidate, octave = 4) {
     isRootPosition: (bassMidi % 12) === root,
     spanSemitones: span + 12, // inclut la basse
     registerDeviation: Math.abs(bassMidi - 36) + Math.abs(voicing[voicing.length - 1] - 64),
+    addedTensions: Object.freeze(addedTensions.slice()),
     techniqueId: 'neo-soul-quartal',
     techniqueName: 'Quartal',
   });
