@@ -1,0 +1,193 @@
+/* ============================================================================
+   Refonte visuelle — onglet Analyse : chrome commun (en-tête, transport,
+   timeline, barre de sous-onglets), skins « global » et « v2 ».
+   Réf : images 03/06/09/10 du dossier handoff/refonte, relais §3 et §5.
+   ----------------------------------------------------------------------------
+   Feuille d'OVERRIDE par-dessus analyzer-workspace.css. Scopée
+   :root[data-skin='…'] #analysis-tab. Ne change aucun comportement : la
+   bascule de sous-onglets, la timeline et la lecture restent pilotées par
+   analyzer-tab.js. Le contenu détaillé des panneaux (Réharmonisation,
+   Masterclass, Corriger, Réglages IA) est traité dans des feuilles dédiées.
+   ============================================================================ */
+
+/* ========================================================================== *
+ *  COMMUN                                                                     *
+ * ========================================================================== */
+:root[data-skin='global'] #analysis-tab,
+:root[data-skin='v2'] #analysis-tab {
+  background: var(--r-ground);
+  color: var(--r-text);
+  font-family: var(--r-font-body);
+}
+
+:root[data-skin='global'] #analysis-tab .analyzer-analysis-header,
+:root[data-skin='v2'] #analysis-tab .analyzer-analysis-header,
+:root[data-skin='global'] #analysis-tab .analyzer-transport-bar,
+:root[data-skin='v2'] #analysis-tab .analyzer-transport-bar,
+:root[data-skin='global'] #analysis-tab .analyzer-section-tabs,
+:root[data-skin='v2'] #analysis-tab .analyzer-section-tabs {
+  background: var(--r-surface-raised);
+  border-color: var(--r-border);
+}
+
+:root[data-skin='global'] #analysis-tab .analyzer-song-title,
+:root[data-skin='v2'] #analysis-tab .analyzer-song-title {
+  font-family: var(--r-font-title);
+  color: var(--r-text);
+}
+:root[data-skin='global'] #analysis-tab .analyzer-media-context,
+:root[data-skin='v2'] #analysis-tab .analyzer-media-context,
+:root[data-skin='global'] #analysis-tab .analyzer-time,
+:root[data-skin='v2'] #analysis-tab .analyzer-time,
+:root[data-skin='global'] #analysis-tab .analyzer-song-artist,
+:root[data-skin='v2'] #analysis-tab .analyzer-song-artist {
+  font-family: var(--r-font-mono);
+  color: var(--r-text-faint);
+}
+
+:root[data-skin='global'] #analysis-tab .analyzer-timeline-legend,
+:root[data-skin='v2'] #analysis-tab .analyzer-timeline-legend {
+  font-family: var(--r-font-mono);
+  color: var(--r-text-faint);
+}
+
+:root[data-skin='global'] #analysis-tab .analyzer-section-panels,
+:root[data-skin='v2'] #analysis-tab .analyzer-section-panels,
+:root[data-skin='global'] #analysis-tab .analyzer-panel,
+:root[data-skin='v2'] #analysis-tab .analyzer-panel {
+  background: var(--r-ground);
+}
+
+/* Progress bar */
+:root[data-skin='global'] #analysis-tab .analyzer-progress-fill,
+:root[data-skin='v2'] #analysis-tab .analyzer-progress-fill {
+  background: var(--r-accent);
+}
+:root[data-skin='v2'] #analysis-tab .analyzer-progress-fill {
+  background: var(--r-grad);
+}
+
+/* Boutons de transport de l'en-tête (btn-sm existants) */
+:root[data-skin='global'] #analysis-tab .analyzer-analysis-header .btn-secondary,
+:root[data-skin='v2'] #analysis-tab .analyzer-analysis-header .btn-secondary {
+  background: transparent;
+  border-color: var(--r-border);
+  color: var(--r-text-muted);
+}
+:root[data-skin='global'] #analysis-tab .analyzer-analysis-header .btn-primary {
+  background: var(--r-accent);
+  border-color: var(--r-accent);
+  color: #fff;
+}
+:root[data-skin='v2'] #analysis-tab .analyzer-analysis-header .btn-primary {
+  background: var(--r-grad);
+  border-color: transparent;
+  color: #fff;
+  border-radius: 100px;
+}
+
+/* Badges de l'en-tête (« Analyse enregistrée », stem) */
+:root[data-skin='global'] #analysis-tab .analyzer-analysis-header .badge,
+:root[data-skin='v2'] #analysis-tab .analyzer-analysis-header .badge {
+  background: var(--r-accent-soft);
+  color: var(--r-text);
+  border-color: rgba(139, 108, 245, 0.4);
+}
+
+/* ========================================================================== *
+ *  BARRE DE SOUS-ONGLETS                                                      *
+ *  Global = soulignement (§5) · v2 = pilule en dégradé                        *
+ * ========================================================================== */
+:root[data-skin='global'] #analysis-tab .analyzer-section-tabs button,
+:root[data-skin='v2'] #analysis-tab .analyzer-section-tabs button {
+  font-family: var(--r-font-title);
+  color: var(--r-text-muted);
+}
+:root[data-skin='global'] #analysis-tab .analyzer-section-tabs button:hover,
+:root[data-skin='v2'] #analysis-tab .analyzer-section-tabs button:hover {
+  color: var(--r-text);
+}
+:root[data-skin='global'] #analysis-tab .analyzer-section-tabs button.active {
+  color: var(--r-text);
+  border-bottom-color: var(--r-accent);
+}
+:root[data-skin='v2'] #analysis-tab .analyzer-section-tabs {
+  gap: 4px;
+  padding: 8px 14px;
+}
+:root[data-skin='v2'] #analysis-tab .analyzer-section-tabs button {
+  border: none;
+  border-radius: 100px;
+  padding: 7px 15px;
+}
+:root[data-skin='v2'] #analysis-tab .analyzer-section-tabs button.active {
+  background: var(--r-grad);
+  color: #fff;
+  border: none;
+}
+
+/* ========================================================================== *
+ *  BANDE D'ACCORDS (timeline)                                                 *
+ * ========================================================================== */
+:root[data-skin='global'] #analysis-tab .analyzer-timeline-block,
+:root[data-skin='v2'] #analysis-tab .analyzer-timeline-block {
+  background: var(--r-surface-chip);
+  border-color: var(--r-border);
+  color: var(--r-text);
+  font-family: var(--r-font-title);
+}
+
+/* ---- Global : étiquettes rectangulaires, filet d'accent (§5) ---- */
+:root[data-skin='global'] #analysis-tab .analyzer-timeline-block {
+  border-radius: 5px;
+}
+:root[data-skin='global'] #analysis-tab .analyzer-timeline-block.role-structural {
+  border-color: rgba(139, 108, 245, 0.5);
+  box-shadow: inset 3px 0 0 var(--r-accent);
+}
+:root[data-skin='global'] #analysis-tab .analyzer-timeline-block.role-passing {
+  color: var(--r-text-muted);
+}
+:root[data-skin='global'] #analysis-tab .analyzer-timeline-block.role-uncertain {
+  color: var(--r-text-faint);
+}
+:root[data-skin='global'] #analysis-tab .analyzer-timeline-block.current {
+  background: var(--r-accent-soft);
+  border-color: var(--r-accent);
+  color: var(--r-text);
+}
+
+/* ---- v2 : pilules 100px, dégradé sur l'actif ---- */
+:root[data-skin='v2'] #analysis-tab .analyzer-timeline-block {
+  border-radius: 100px;
+}
+:root[data-skin='v2'] #analysis-tab .analyzer-timeline-block.role-structural {
+  background: var(--r-accent-soft);
+  border-color: rgba(139, 108, 245, 0.5);
+}
+:root[data-skin='v2'] #analysis-tab .analyzer-timeline-block.role-passing {
+  color: var(--r-text-muted);
+}
+:root[data-skin='v2'] #analysis-tab .analyzer-timeline-block.role-uncertain {
+  color: var(--r-text-faint);
+}
+:root[data-skin='v2'] #analysis-tab .analyzer-timeline-block.current {
+  background: var(--r-grad);
+  border-color: transparent;
+  color: #fff;
+}
+
+/* ---- Sélection : contour blanc neutre dans les deux skins (§5 : Narcisse a
+        tranché contre le corail historique) ---- */
+:root[data-skin='global'] #analysis-tab .analyzer-timeline-block.selected,
+:root[data-skin='v2'] #analysis-tab .analyzer-timeline-block.selected {
+  outline: 2px solid #ffffff;
+  outline-offset: -2px;
+}
+
+/* Légende : pastilles cohérentes avec la bande */
+:root[data-skin='global'] #analysis-tab .analyzer-legend-swatch.role-structural,
+:root[data-skin='v2'] #analysis-tab .analyzer-legend-swatch.role-structural {
+  border-color: var(--r-accent);
+  box-shadow: inset 2px 0 0 var(--r-accent);
+}
