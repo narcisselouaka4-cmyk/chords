@@ -49,6 +49,9 @@ let originalStemsPaths = null;
 let regionStart = 0;
 let regionEnd = null;
 let regionConfirmed = false;
+// [Refonte v2/Global] — « Boucler la région » (relais §2). Quand true, atteindre
+// regionEnd relance la lecture à regionStart au lieu de mettre en pause.
+let loopRegion = false;
 let isDraggingHandle = null;
 let isAudioOnly = false;
 let mediaDuration = 0;
@@ -113,6 +116,7 @@ const els = {
   transposeControl: document.getElementById('studio-transpose-control'),
   transposeInput: document.getElementById('studio-transpose'),
   transposeMinus: document.getElementById('studio-transpose-minus'),
+  loopRegion: document.getElementById('studio-loop-region'),
   transposePlus: document.getElementById('studio-transpose-plus'),
   separateBtn: document.getElementById('studio-separate-btn'),
   separateStatus: document.getElementById('studio-separate-status'),
@@ -305,6 +309,20 @@ function bindPlayer() {
     updateTransposeUI();
     runPitchShift();
   });
+
+  // [Refonte v2/Global] — bascule « Boucler la région » (bloc Lecture).
+  if (els.loopRegion) {
+    try {
+      loopRegion = localStorage.getItem('studio-loop-region') === '1';
+    } catch (_) {}
+    els.loopRegion.checked = loopRegion;
+    els.loopRegion.addEventListener('change', () => {
+      loopRegion = els.loopRegion.checked;
+      try {
+        localStorage.setItem('studio-loop-region', loopRegion ? '1' : '0');
+      } catch (_) {}
+    });
+  }
 
   // Les événements media sont attachés dynamiquement à chaque nouvel élément.
   // Voir createMediaPlayer().
@@ -542,10 +560,14 @@ function bindMediaEvents(audio) {
     stopSyncLoop();
   };
   const onAudioTimeUpdate = () => {
-    // ABSOLUTE TIMELINE : pause automatique à la fin de la région confirmée.
+    // ABSOLUTE TIMELINE : fin de la région confirmée.
     if (regionConfirmed && regionEnd !== null && audio.currentTime >= regionEnd - 0.02) {
-      pause();
-      seek(regionEnd - 0.001);
+      if (loopRegion) {
+        seek(regionStart);
+      } else {
+        pause();
+        seek(regionEnd - 0.001);
+      }
     }
   };
   // Lot B — rafraîchir le timer dès que la durée réelle est connue, y compris
@@ -612,10 +634,14 @@ function syncVideoAndCursor() {
     const realTime = getStudioCurrentTime();
     const duration = getStudioDuration();
 
-    // Gestion de la région comme zone restreinte : pause automatique à la fin.
+    // Gestion de la région comme zone restreinte : fin de région.
     if (regionConfirmed && regionEnd !== null && realTime >= regionEnd - 0.02) {
-      pause();
-      seek(regionEnd - 0.001);
+      if (loopRegion) {
+        seek(regionStart);
+      } else {
+        pause();
+        seek(regionEnd - 0.001);
+      }
     }
 
     // Synchronisation de l'élément vidéo visible (muet) sur le temps audio réel.
@@ -2542,6 +2568,7 @@ function renderStems(stemPaths) {
     const path = stemPaths[stem];
     const row = document.createElement('div');
     row.className = 'studio-stem-row';
+    row.dataset.stem = stem; // [Refonte] pastille de couleur par stem en CSS
 
     const name = document.createElement('div');
     name.className = 'studio-stem-name';

@@ -1,0 +1,468 @@
+/* ============================================================================
+   Refonte visuelle — onglet Studio (skins « global » et « v2 »)
+   Réf : /home/visiteur/handoff/ — relais §2, images 01 (v2) / 02 (Global),
+         maquettes ~/Téléchargements/refonte-studio-{global,v2}_2.html
+   ----------------------------------------------------------------------------
+   Feuille d'OVERRIDE : elle se pose par-dessus les règles Studio de style.css
+   sans les remplacer. Toute la logique de stages (.stage-0..3, display:none)
+   reste pilotée par style.css / studio-tab.js — on ne touche qu'à l'habillage.
+   Rien ici ne modifie un comportement.
+   ============================================================================ */
+
+/* Couleurs de stems, communes aux deux skins (issues des maquettes). */
+:root {
+  --r-vocals: #f2637a;
+  --r-drums: #4fd1c5;
+  --r-bass: #8b6cf5;
+  --r-other: #f0b155;
+}
+
+/* ========================================================================== *
+ *  COMMUN AUX DEUX SKINS — structure de la colonne « Lecture » déplacée       *
+ * ========================================================================== */
+#studio-playback-block {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--r-border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.studio-rp-title {
+  font-family: var(--r-font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--r-text-faint);
+}
+.studio-rp-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.78rem;
+  color: var(--r-text);
+  margin: 0;
+}
+.studio-rp-label { color: var(--r-text-muted); }
+.studio-rp-row #studio-volume { flex: 1; margin: 0 4px; }
+.studio-loop-row { cursor: pointer; }
+
+/* ========================================================================== *
+ *  SKIN GLOBAL                                                                *
+ * ========================================================================== */
+:root[data-skin='global'] #studio-tab {
+  background: var(--r-ground);
+  color: var(--r-text);
+  font-family: var(--r-font-body);
+}
+:root[data-skin='global'] #studio-tab .panel,
+:root[data-skin='global'] #studio-tab .studio-sidebar {
+  background: var(--r-surface);
+  border-color: var(--r-border);
+  box-shadow: none;
+  color: var(--r-text);
+}
+:root[data-skin='global'] #studio-tab .panel-title,
+:root[data-skin='global'] #studio-tab .studio-panel-title {
+  font-family: var(--r-font-title);
+  font-weight: 700;
+  font-size: 0.82rem;
+  color: var(--r-text);
+}
+
+/* Colonne centrale : à plat sur le fond, pas une carte */
+:root[data-skin='global'] #studio-tab .studio-center {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 4px 4px 0;
+}
+:root[data-skin='global'] #studio-tab .studio-media-context {
+  font-family: var(--r-font-mono);
+  font-size: 0.68rem;
+  color: var(--r-text-faint);
+  padding: 4px 2px 0;
+}
+
+/* Le lecteur = « moniteur » 16:9 dégradé */
+:root[data-skin='global'] #studio-tab .studio-player-wrap {
+  border: 1px solid var(--r-border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #20232d 0%, #171922 55%, #0c0d11 100%);
+}
+:root[data-skin='global'] #studio-tab .studio-audio-backdrop {
+  background: transparent;
+}
+:root[data-skin='global'] #studio-tab .studio-backdrop-title {
+  font-family: var(--r-font-title);
+  color: var(--r-text);
+}
+:root[data-skin='global'] #studio-tab .studio-backdrop-hint {
+  font-family: var(--r-font-mono);
+  font-size: 0.62rem;
+  color: var(--r-text-faint);
+}
+
+/* Waveform = panneau encadré, traits fins */
+:root[data-skin='global'] #studio-tab .studio-waveform-wrap {
+  height: 104px;
+  background: var(--r-surface);
+  border: 1px solid var(--r-border);
+  border-radius: 12px;
+  margin-top: 12px;
+  padding: 4px;
+}
+:root[data-skin='global'] #studio-tab .studio-region {
+  background: rgba(139, 108, 245, 0.14);
+  opacity: 1;
+  border-left: 2px solid var(--r-accent);
+  border-right: 2px solid var(--r-accent);
+}
+:root[data-skin='global'] #studio-tab .studio-playhead {
+  width: 1px;
+  background: #fff;
+  opacity: 0.7;
+}
+:root[data-skin='global'] #studio-tab .studio-handle {
+  width: 10px;
+  height: 10px;
+  top: -3px;
+  bottom: auto;
+  border-radius: 50%;
+  background: var(--r-accent);
+  opacity: 1;
+  box-shadow: 0 0 0 3px rgba(139, 108, 245, 0.3);
+}
+
+/* Barre de région */
+:root[data-skin='global'] #studio-tab .studio-region-bar {
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--r-border);
+}
+:root[data-skin='global'] #studio-tab .studio-region-info {
+  font-size: 0.72rem;
+  color: var(--r-text-muted);
+}
+:root[data-skin='global'] #studio-tab .studio-action-btn,
+:root[data-skin='global'] #studio-tab .studio-confirm-btn {
+  font-family: var(--r-font-mono);
+  font-size: 0.68rem;
+  color: var(--r-text-muted);
+  background: transparent;
+  border: 1px solid var(--r-border);
+  border-radius: 6px;
+  padding: 5px 9px;
+  width: auto;
+  height: auto;
+}
+:root[data-skin='global'] #studio-tab .studio-confirm-btn {
+  background: var(--r-accent-soft);
+  color: #d7ccff;
+  border-color: rgba(139, 108, 245, 0.4);
+}
+
+/* Transport bas = rangée à plat */
+:root[data-skin='global'] #studio-tab .studio-controls {
+  gap: 14px;
+  padding: 12px 14px;
+  background: var(--r-surface-raised);
+  border: 1px solid var(--r-border);
+  border-radius: 10px;
+}
+:root[data-skin='global'] #studio-tab .studio-buttons button {
+  width: 30px;
+  height: 30px;
+  min-width: 0;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid var(--r-border);
+  background: transparent;
+  color: var(--r-text-muted);
+  font-size: 0.72rem;
+}
+:root[data-skin='global'] #studio-tab #studio-play-btn {
+  background: var(--r-accent);
+  color: #fff;
+  border-color: var(--r-accent);
+}
+:root[data-skin='global'] #studio-tab #studio-record-btn {
+  color: var(--r-vocals);
+  border-color: rgba(242, 99, 122, 0.4);
+}
+:root[data-skin='global'] #studio-tab .studio-time {
+  font-family: var(--r-font-mono);
+  font-size: 0.7rem;
+  color: var(--r-text-faint);
+}
+
+/* Colonne droite : bouton séparer + cartes de stems */
+:root[data-skin='global'] #studio-tab #studio-separate-btn {
+  background: var(--r-surface-chip);
+  color: var(--r-text);
+  border: 1px solid var(--r-border);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.76rem;
+}
+:root[data-skin='global'] #studio-tab .studio-stem-row {
+  border: 1px solid var(--r-border);
+  border-radius: 9px;
+  padding: 9px 10px;
+  margin-bottom: 8px;
+  background: var(--r-surface-raised);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+:root[data-skin='global'] #studio-tab .studio-stem-name {
+  font-size: 0.74rem;
+  font-weight: 600;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+:root[data-skin='global'] #studio-tab .studio-stem-name::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--r-text-faint);
+  flex: none;
+}
+:root[data-skin='global'] #studio-tab .studio-stem-row[data-stem='vocals'] .studio-stem-name::before { background: var(--r-vocals); }
+:root[data-skin='global'] #studio-tab .studio-stem-row[data-stem='drums'] .studio-stem-name::before { background: var(--r-drums); }
+:root[data-skin='global'] #studio-tab .studio-stem-row[data-stem='bass'] .studio-stem-name::before { background: var(--r-bass); }
+:root[data-skin='global'] #studio-tab .studio-stem-row[data-stem='other'] .studio-stem-name::before { background: var(--r-other); }
+:root[data-skin='global'] #studio-tab .studio-stem-btn {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  border: 1px solid var(--r-border);
+  background: transparent;
+  color: var(--r-text-faint);
+  font-family: var(--r-font-mono);
+  font-size: 0.6rem;
+}
+:root[data-skin='global'] #studio-tab .studio-stem-btn.active {
+  background: var(--r-accent-soft);
+  color: var(--r-accent);
+  border-color: rgba(139, 108, 245, 0.5);
+}
+:root[data-skin='global'] #studio-tab .studio-stem-volume-wrap {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+:root[data-skin='global'] #studio-tab .studio-stem-volume { flex: 1; }
+:root[data-skin='global'] #studio-tab .studio-stem-volume-label {
+  font-family: var(--r-font-mono);
+  font-size: 0.6rem;
+  color: var(--r-text-faint);
+}
+
+/* Bloc Lecture */
+:root[data-skin='global'] #studio-tab .studio-transpose-control button {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  border: 1px solid var(--r-border);
+  background: transparent;
+  color: var(--r-text-muted);
+  font-size: 0.72rem;
+}
+:root[data-skin='global'] #studio-tab #studio-transpose {
+  width: 40px;
+  background: var(--r-surface-chip);
+  border: 1px solid var(--r-border);
+  color: var(--r-text);
+  font-family: var(--r-font-mono);
+}
+
+/* Liste « Musiques importées » — items en cartes */
+:root[data-skin='global'] #studio-tab .studio-track-item {
+  border: 1px solid var(--r-border);
+  border-radius: 9px;
+  padding: 9px 10px;
+  background: var(--r-surface-raised);
+}
+:root[data-skin='global'] #studio-tab .studio-track-item.active {
+  border-color: rgba(139, 108, 245, 0.5);
+  background: var(--r-accent-soft);
+}
+:root[data-skin='global'] #studio-tab .studio-track-name {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--r-text);
+}
+:root[data-skin='global'] #studio-tab .studio-track-meta {
+  font-family: var(--r-font-mono);
+  font-size: 0.62rem;
+  color: var(--r-text-faint);
+}
+:root[data-skin='global'] #studio-tab #studio-import-btn {
+  background: var(--r-accent-soft);
+  color: #d7ccff;
+  border: 1px solid rgba(139, 108, 245, 0.35);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.76rem;
+}
+:root[data-skin='global'] #studio-tab .studio-collapse-tab,
+:root[data-skin='global'] #studio-tab .studio-collapse-btn {
+  background: var(--r-surface-chip);
+  border-color: var(--r-border);
+  color: var(--r-text-faint);
+}
+
+/* ========================================================================== *
+ *  SKIN v2  (démarré ici — affiné à l'étape v2)                               *
+ * ========================================================================== */
+:root[data-skin='v2'] #studio-tab {
+  background: var(--r-ground);
+  color: var(--r-text);
+  font-family: var(--r-font-body);
+}
+:root[data-skin='v2'] #studio-tab .panel,
+:root[data-skin='v2'] #studio-tab .studio-sidebar {
+  background: var(--r-surface);
+  border-color: var(--r-border);
+  box-shadow: none;
+}
+:root[data-skin='v2'] #studio-tab .studio-center {
+  background: var(--r-ground);
+  border: none;
+  box-shadow: none;
+}
+:root[data-skin='v2'] #studio-tab .panel-title,
+:root[data-skin='v2'] #studio-tab .studio-panel-title {
+  font-family: var(--r-font-title);
+  font-weight: 700;
+}
+:root[data-skin='v2'] #studio-tab .studio-track-item {
+  border: 1px solid var(--r-border);
+  border-radius: 11px;
+  background: var(--r-surface-chip);
+}
+:root[data-skin='v2'] #studio-tab .studio-track-item.active {
+  border-color: rgba(139, 108, 245, 0.5);
+  background: var(--r-accent-soft);
+}
+:root[data-skin='v2'] #studio-tab #studio-import-btn {
+  border: 1px dashed var(--r-border-strong);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--r-text-muted);
+}
+:root[data-skin='v2'] #studio-tab .studio-waveform-wrap {
+  border-radius: 14px;
+  border: 1px solid var(--r-border);
+  background: var(--r-surface);
+}
+:root[data-skin='v2'] #studio-tab .studio-region {
+  background: var(--r-accent-soft);
+  opacity: 1;
+  border-radius: 10px;
+  border: 1px solid rgba(139, 108, 245, 0.5);
+}
+:root[data-skin='v2'] #studio-tab .studio-handle {
+  border-radius: 50%;
+  width: 11px;
+  height: 11px;
+  top: -4px;
+  bottom: auto;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.25);
+}
+:root[data-skin='v2'] #studio-tab .studio-controls {
+  gap: 14px;
+  padding: 12px 16px;
+  background: var(--r-surface-raised);
+  border: 1px solid var(--r-border);
+  border-radius: 16px;
+}
+:root[data-skin='v2'] #studio-tab .studio-buttons button {
+  width: 32px;
+  height: 32px;
+  min-width: 0;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--r-border);
+  background: transparent;
+  color: var(--r-text-muted);
+}
+:root[data-skin='v2'] #studio-tab #studio-play-btn {
+  background: var(--r-grad);
+  color: #fff;
+  border-color: transparent;
+}
+:root[data-skin='v2'] #studio-tab #studio-record-btn {
+  color: var(--r-coral);
+  border-color: rgba(255, 138, 92, 0.45);
+}
+:root[data-skin='v2'] #studio-tab .studio-stem-row {
+  border: 1px solid var(--r-border);
+  border-radius: 100px;
+  padding: 7px 14px;
+  background: var(--r-surface-chip);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+:root[data-skin='v2'] #studio-tab .studio-stem-name {
+  font-size: 0.74rem;
+  font-weight: 600;
+  flex: 1;
+}
+:root[data-skin='v2'] #studio-tab .studio-stem-btn {
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  border: 1px solid var(--r-border);
+  background: transparent;
+  color: var(--r-text-faint);
+  font-family: var(--r-font-mono);
+  font-size: 0.58rem;
+}
+:root[data-skin='v2'] #studio-tab .studio-stem-btn.active {
+  background: var(--r-grad);
+  color: #fff;
+  border-color: transparent;
+}
+:root[data-skin='v2'] #studio-tab .studio-stem-volume-wrap {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+:root[data-skin='v2'] #studio-tab .studio-stem-volume { flex: 1; }
+:root[data-skin='v2'] #studio-tab #studio-separate-btn {
+  border-radius: 100px;
+  background: var(--r-surface-chip);
+  border: 1px solid var(--r-border);
+  color: var(--r-text);
+}
+:root[data-skin='v2'] #studio-tab .studio-transpose-control button {
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--r-border);
+  background: var(--r-surface-chip);
+  color: var(--r-text-muted);
+}
+:root[data-skin='v2'] #studio-tab .studio-action-btn,
+:root[data-skin='v2'] #studio-tab .studio-confirm-btn {
+  border-radius: 100px;
+}
+:root[data-skin='v2'] #studio-tab .studio-confirm-btn {
+  background: var(--r-grad);
+  color: #fff;
+  border-color: transparent;
+}
