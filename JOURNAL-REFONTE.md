@@ -14,8 +14,8 @@
 
 Pour **Studio**, **Analyse** (6 sous-onglets) et **Entraînement**, dans **les deux thèmes** :
 
-- [ ] Studio — thème Global
-- [ ] Studio — thème v2
+- [x] Studio — thème Global
+- [x] Studio — thème v2
 - [ ] Analyse / Accord sélectionné — v2
 - [ ] Analyse / Accord sélectionné — Global
 - [ ] Analyse / Réharmonisation (+ comportement « Appliquer ») — v2
@@ -376,6 +376,42 @@ Captures Chrome headless (script `refonte-preview.sh`) :
 - Refonte de Pédagogie IA (pipeline OCR).
 - Étape 6 Pédagogie IA (§12.6) non traitée.
 
+### ✅ Correction / refonte — Studio : deux layouts réels (v2 / Global)
+
+**Constat** : l'Étape 2 initiale ne faisait que repeindre les tokens CSS. Le
+sélecteur « Apparence › Thème visuel » ne basculait pas la structure du Studio :
+la maquette v2 (carte « En cours » à gauche, lecteur centré fixe, pistes en
+bandes horizontales en bas, panneau Lecture à droite) et la maquette Global
+(liste « Musiques importées » à gauche, lecteur + waveform turquoise au centre,
+stems dans la sidebar droite + sections Effets / Export) n'étaient pas réalisées.
+
+**Changements**
+
+- `src/index.html` : ajout de `#studio-center-header` (breadcrumb + bouton
+  « Séparer les pistes »), déplacement de `#studio-stems-bottom` en frère de
+  `.studio-center`/`.studio-sidebar` pour le placement en grille v2, ajout des
+  sections « Effets » et « Export » placeholders dans la sidebar droite (Global).
+- `src/ui/studio-tab.js` : `applyStudioSkinLayout()` déplace physiquement
+  `#studio-stems-list` entre la sidebar droite (Global) et le panneau du bas
+  (v2) au changement de skin ; `applyStudioSkinStageVisibility()` masque la
+  waveform classique et affiche les stems en bas uniquement en v2 stage 3.
+  `renderWaveform()` lit `--r-waveform` pour obtenir la couleur turquoise
+  (Global) / violette (v2).
+- `src/ui/refonte/studio.css` : réécriture complète du skin Studio. Global :
+  liste de morceaux stylisée, lecteur moniteur, waveform turquoise, stems en
+  cartes dans la sidebar + sections Lecture / Effets / Export. v2 : grille
+  `#studio-tab` dédiée (`left / center / playback` + ligne `stems-bottom`),
+  header central, carte « EN COURS » sur l'item actif, stems en pilules colorées
+  horizontales en bas, Lecture uniquement à droite, waveform violette.
+
+**Invariants Studio respectés** : aucune modification de la logique audio
+(AudioContext unique, `decodeAudioData`, vidéo muette, stages 0-3, séparation
+Demucs/simulation, transport). Seule la disposition et l'habillage changent.
+
+**Vérification** : build OK · `test-studio-skin.js` OK ·
+`test-skin-manager.js` OK · `test-analyse-skin.js` OK · régressions Partie 1
+et Partie 3 OK · `npm run test:chords` 98/98.
+
 ### Notes pour la suite
 
 - Le panneau Corriger et Masterclass ne peuvent être pleinement vérifiés visuellement
@@ -383,3 +419,6 @@ Captures Chrome headless (script `refonte-preview.sh`) :
   est sélectionné dans la timeline.
 - L'environnement de capture reste fragile (Chrome headless one-shot) ; les captures
   servent de contrôle de non-régression globale plutôt que de recette interactive.
+- Studio stages 1-3 restent difficiles à capturer en l'état (besoin d'un
+  fichier audio chargé + d'IPC Demucs/waveform). Une prochaine session pourrait
+  construire un mock d'état stage-3 suffisant pour le rendu statique.
