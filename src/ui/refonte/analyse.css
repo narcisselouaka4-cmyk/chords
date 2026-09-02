@@ -191,3 +191,110 @@
   border-color: var(--r-accent);
   box-shadow: inset 2px 0 0 var(--r-accent);
 }
+
+/* ========================================================================== *
+ *  §3.1 — SOUS-ONGLET « ACCORD SÉLECTIONNÉ »                                  *
+ *  Réf images 03 (v2) / 09 (Global)                                          *
+ * ========================================================================== */
+:root[data-skin='global'] #analysis-tab .analyzer-hero-card,
+:root[data-skin='v2'] #analysis-tab .analyzer-hero-card,
+:root[data-skin='global'] #analysis-tab .analyzer-inspector-card,
+:root[data-skin='v2'] #analysis-tab .analyzer-inspector-card,
+:root[data-skin='global'] #analysis-tab .voicing-preview-panel,
+:root[data-skin='v2'] #analysis-tab .voicing-preview-panel {
+  background: var(--r-surface);
+  border-color: var(--r-border);
+  color: var(--r-text);
+}
+
+/* Carte héros : dégradé plein en v2, aplat en Global */
+:root[data-skin='v2'] #analysis-tab .analyzer-hero-card {
+  background: linear-gradient(150deg, #7c4dff 0%, #5b4bd1 100%);
+  border-color: transparent;
+  border-radius: var(--r-radius-card);
+}
+:root[data-skin='v2'] #analysis-tab .analyzer-hero-name,
+:root[data-skin='v2'] #analysis-tab .analyzer-hero-notes {
+  color: #fff;
+}
+:root[data-skin='global'] #analysis-tab .analyzer-hero-card {
+  border-radius: var(--r-radius-card);
+}
+:root[data-skin='global'] #analysis-tab .analyzer-hero-name,
+:root[data-skin='v2'] #analysis-tab .analyzer-hero-name {
+  font-family: var(--r-font-title);
+}
+:root[data-skin='global'] #analysis-tab .analyzer-hero-notes {
+  font-family: var(--r-font-mono);
+  color: var(--r-text-muted);
+}
+
+:root[data-skin='global'] #analysis-tab .analyzer-inspector-title,
+:root[data-skin='v2'] #analysis-tab .analyzer-inspector-title,
+:root[data-skin='global'] #analysis-tab .analyzer-inspector-times,
+:root[data-skin='v2'] #analysis-tab .analyzer-inspector-times {
+  font-family: var(--r-font-mono);
+  color: var(--r-text-faint);
+}
+:root[data-skin='global'] #analysis-tab .analyzer-inspector-chord,
+:root[data-skin='v2'] #analysis-tab .analyzer-inspector-chord {
+  font-family: var(--r-font-title);
+  color: var(--r-text);
+}
+:root[data-skin='global'] #analysis-tab .analyzer-inspector-details .label,
+:root[data-skin='v2'] #analysis-tab .analyzer-inspector-details .label {
+  color: var(--r-text-muted);
+}
+
+/* « Modifier » et boutons secondaires du panneau */
+:root[data-skin='global'] #analysis-tab .analyzer-inspector-card .btn-secondary,
+:root[data-skin='v2'] #analysis-tab .analyzer-inspector-card .btn-secondary {
+  background: transparent;
+  border-color: var(--r-border);
+  color: var(--r-text-muted);
+}
+
+/* Groupe segmenté « Fermer / Simple » du voicing (motif §5 : reste en pilule
+   dans les deux skins) */
+:root[data-skin='global'] #analysis-tab .voicing-style-selector,
+:root[data-skin='v2'] #analysis-tab .voicing-style-selector {
+  border-radius: 100px;
+  border: 1px solid var(--r-border-strong);
+  background: var(--r-surface-chip);
+  padding: 3px;
+}
+:root[data-skin='global'] #analysis-tab .voicing-style-btn,
+:root[data-skin='v2'] #analysis-tab .voicing-style-btn {
+  border-radius: 100px;
+  border: none;
+  background: transparent;
+  color: var(--r-text-muted);
+  font-family: var(--r-font-title);
+}
+:root[data-skin='v2'] #analysis-tab .voicing-style-btn[aria-pressed='true'] {
+  background: var(--r-grad);
+  color: #fff;
+}
+:root[data-skin='global'] #analysis-tab .voicing-style-btn[aria-pressed='true'] {
+  background: var(--r-accent-soft);
+  color: var(--r-text);
+}
+:root[data-skin='global'] #analysis-tab #analyzer-voicing-content,
+:root[data-skin='v2'] #analysis-tab #analyzer-voicing-content {
+  font-family: var(--r-font-mono);
+  color: var(--r-text-muted);
+}
+
+/* ── Écrans d'import / préparation : ne pas jurer avec la palette ── */
+:root[data-skin='global'] #analysis-tab .analyzer-import-card,
+:root[data-skin='v2'] #analysis-tab .analyzer-import-card,
+:root[data-skin='global'] #analysis-tab .analyzer-prepare-card,
+:root[data-skin='v2'] #analysis-tab .analyzer-prepare-card {
+  background: var(--r-surface);
+  border-color: var(--r-border);
+  color: var(--r-text);
+}
+:root[data-skin='global'] #analysis-tab .analyzer-import-hero h2,
+:root[data-skin='v2'] #analysis-tab .analyzer-import-hero h2 {
+  font-family: var(--r-font-title);
+}

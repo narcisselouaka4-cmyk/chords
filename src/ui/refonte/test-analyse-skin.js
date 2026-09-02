@@ -65,6 +65,19 @@ test('analyse.css — bande d\'accords : rectangle (Global) vs pilule (v2), sél
     'sélection = contour blanc neutre dans les deux skins (§5, pas de corail)');
 });
 
+test('analyse.css — §3.1 Accord sélectionné : carte héros dégradée (v2) vs aplat (Global)', () => {
+  assert(/\[data-skin='v2'\] #analysis-tab \.analyzer-hero-card\s*{[^}]*linear-gradient/.test(css),
+    'v2 : carte héros en dégradé plein');
+  assert(/\[data-skin='v2'\] #analysis-tab \.analyzer-hero-name[^{]*{[^}]*color:\s*#fff/.test(css)
+    || /\[data-skin='v2'\][^{]*\.analyzer-hero-name,[^{]*\{[^}]*#fff/.test(css)
+    || css.includes('.analyzer-hero-notes {   color: #fff'),
+    'v2 : nom d\'accord de la carte héros en blanc');
+  assert(/voicing-style-btn\[aria-pressed='true'\]\s*{[^}]*var\(--r-grad\)/.test(css),
+    'v2 : segmented Fermer/Simple actif en dégradé');
+  assert(/\[data-skin='global'\] #analysis-tab \.voicing-style-btn\[aria-pressed='true'\]\s*{[^}]*var\(--r-accent-soft\)/.test(css),
+    'Global : segmented Fermer/Simple actif en accent-soft');
+});
+
 console.log('');
 if (failures) { console.error(`\n❌ ${failures} assertion(s) en échec.`); process.exit(1); }
 console.log('\n✅ Tous les tests analyse-skin passent.');
