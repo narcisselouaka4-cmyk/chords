@@ -200,9 +200,43 @@ matin (§9 du prompt).
   fausse information (§10). Cartes stylées sans la vignette ; vraie vignette =
   petit chantier séparé (peaks de l'AudioBuffer).
 
-### Prochaine étape
+### ✅ Étape 3a — Analyse : chrome commun, 2 skins (commit) — FAITE
 
-- [ ] Étape 3 — Analyse v2, sous-onglet par sous-onglet (§3.1 → §3.6) puis
-  chaque équivalent Global juste après (§5). Références = images 03-14 (pas de
-  maquette HTML sur disque). Construire les briques partagées (glossaire §8.1,
-  client IA §8.2) avec Masterclass.
+`src/ui/refonte/analyse.css` (`<link>`), override `:root[data-skin] #analysis-tab`
+par-dessus `analyzer-workspace.css`. En-tête / transport / légende repeints ;
+sous-onglets Global = soulignement, v2 = pilule dégradé ; bande d'accords
+Global = étiquettes 5px + filet d'accent, v2 = pilules 100px + dégradé courant ;
+sélection = contour blanc neutre (§5). « Outils » → « Corriger »
+(`data-section="corriger"`, bascule générique inchangée).
+Vérifié à l'écran via mock de l'état analysis-view, deux skins.
+`test-analyse-skin.js` vert. Build + régressions OK.
+
+### Environnement de vérif — MISE À JOUR (méthode qui marche enfin)
+
+`refonte-preview.sh` : boot Vite + captures Chrome headless **dans la même
+invocation** (sinon `--unshare-net` isole Vite). Interaction via
+`src/_dev-view.html` : iframe same-origin, pose skin/thème, puis injecte un
+`<script>` après un `setTimeout` long (fast-forwardé par
+`--virtual-time-budget`, mais laisse l'init async finir avant l'injection).
+**Le payload d'injection doit être une expression simple, pas une IIFE avec
+boucle** (une IIFE échouait en silence). Sous cette forme, on peut mettre
+l'onglet Analyse dans l'état « analysis-view » et vérifier le chrome/timeline.
+Studio stages 1-3 restent non vérifiés (dépend d'IPC ; le mock stage-3 ne
+prenait pas).
+
+### Reste sur Analyse (ordre relais §12)
+
+- [ ] §3.2 Réharmonisation : panneau complet (contexte détecté, pilules de
+  style, 4 critères NON cliquables, bande piano-roll, 3 cartes
+  Fidèle/Équilibrée/Audacieuse avec score X/4, bouton « Appliquer ») + le
+  **comportement « Appliquer »** (double effet timeline+lecture, interrupteur
+  Original/Réharmonisé, « Envoyer vers Entraînement »). Existant à réutiliser :
+  `src/ui/reharmonization-view.js` + `.css`, `reharmonization-orchestrator.js`,
+  moteur EXP-026 (cartes + score 4 critères).
+- [ ] §3.3 Masterclass + briques partagées §8.1 (glossaire) / §8.2 (client IA)
+- [ ] §3.5 Corriger (panneau `.fx-panel`)
+- [ ] §3.6 Réglages › Assistant IA (plafond d'appels réel, safeStorage)
+- [ ] §3.1 Accord sélectionné (déjà validé, juste repeindre) + Vue d'ensemble
+- [ ] Chaque équivalent Global juste après son v2 (§5)
+- [ ] Étape 5 — Entraînement, 2 skins (§6, §7) + Exercice par mouvements 12 tons
+- [ ] Étape 6 — Pédagogie IA (§12.6)
