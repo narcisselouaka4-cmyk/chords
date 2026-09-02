@@ -116,7 +116,7 @@
 }
 :root[data-skin='global'] #studio-tab #studio-import-btn {
   background: var(--r-accent-soft);
-  color: #d7ccff;
+  color: var(--r-accent-text);
   border: 1px solid rgba(139, 108, 245, 0.35);
   border-radius: 8px;
   font-weight: 600;
@@ -137,8 +137,12 @@
   transition: border-color 0.15s, background 0.15s;
 }
 :root[data-skin='global'] #studio-tab .studio-track-item.active {
-  border-color: rgba(79, 209, 197, 0.55);
-  background: rgba(79, 209, 197, 0.10);
+  /* Le morceau en cours se signale par l'accent de l'application, comme dans la
+     maquette — pas par le turquoise de la forme d'onde, qui désignait une autre
+     chose et devenait un vert d'eau délavé en thème clair. */
+  border-color: rgba(139, 108, 245, 0.45);
+  background: var(--r-accent-soft);
+  box-shadow: inset 3px 0 0 var(--r-accent);
 }
 :root[data-skin='global'] #studio-tab .studio-track-item:hover {
   border-color: var(--r-border-strong);
@@ -153,6 +157,207 @@
   font-size: 0.62rem;
   color: var(--r-text-faint);
   margin-top: 2px;
+}
+
+/* -------------------------------------------------------------------------- *
+ *  COMMUN — panneau « Musiques importées »                                    *
+ * -------------------------------------------------------------------------- */
+
+/* ---- Barres de défilement visibles ----
+   Sur ce système, les ascenseurs sont en superposition : ils n'apparaissent
+   qu'au survol et restent invisibles au repos. Rien n'indiquait donc qu'une
+   liste continuait sous la zone visible — d'où l'impression, à juste titre
+   répétée, que les derniers morceaux étaient inaccessibles. On leur donne une
+   gouttière permanente et un pouce contrasté : la présence de contenu au-delà
+   du cadre devient lisible d'un coup d'œil. */
+#studio-tab .studio-sidebar.left .studio-panel-body,
+#studio-tab .studio-sidebar.right,
+#analysis-tab .analyzer-panel,
+#analyzer-library-list {
+  scrollbar-width: thin;
+  scrollbar-color: var(--r-border-strong) transparent;
+}
+
+#studio-tab .studio-sidebar.left .studio-panel-body::-webkit-scrollbar,
+#studio-tab .studio-sidebar.right::-webkit-scrollbar,
+#analysis-tab .analyzer-panel::-webkit-scrollbar,
+#analyzer-library-list::-webkit-scrollbar {
+  width: 10px;
+}
+
+#studio-tab .studio-sidebar.left .studio-panel-body::-webkit-scrollbar-track,
+#studio-tab .studio-sidebar.right::-webkit-scrollbar-track,
+#analysis-tab .analyzer-panel::-webkit-scrollbar-track,
+#analyzer-library-list::-webkit-scrollbar-track {
+  background: var(--r-surface-chip);
+  border-radius: 100px;
+}
+
+#studio-tab .studio-sidebar.left .studio-panel-body::-webkit-scrollbar-thumb,
+#studio-tab .studio-sidebar.right::-webkit-scrollbar-thumb,
+#analysis-tab .analyzer-panel::-webkit-scrollbar-thumb,
+#analyzer-library-list::-webkit-scrollbar-thumb {
+  background: var(--r-border-strong);
+  border-radius: 100px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+#studio-tab .studio-sidebar.left .studio-panel-body::-webkit-scrollbar-thumb:hover,
+#studio-tab .studio-sidebar.right::-webkit-scrollbar-thumb:hover,
+#analysis-tab .analyzer-panel::-webkit-scrollbar-thumb:hover {
+  background: var(--r-accent);
+  background-clip: content-box;
+}
+
+/* La liste des morceaux doit défiler à l'intérieur du panneau : sans hauteur
+   contrainte, elle poussait simplement vers le bas et les derniers morceaux
+   devenaient inatteignables. Le panneau prend la hauteur disponible, son corps
+   défile, son en-tête reste visible. */
+#studio-tab .studio-sidebar.left {
+  min-height: 0;
+  overflow: hidden;
+}
+
+#studio-tab .studio-tracks-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#studio-tab .studio-sidebar.left .studio-panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+/* Renommer / supprimer ne concernent pas la lecture : ils restent en retrait et
+   n'apparaissent qu'au survol de la carte, pour ne pas concurrencer le titre. */
+#studio-tab .studio-track-actions {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+#studio-tab .studio-track-item:hover .studio-track-actions,
+#studio-tab .studio-track-item:focus-within .studio-track-actions {
+  opacity: 1;
+}
+
+/* Importer est une action secondaire et permanente : discrète, pas un aplat
+   d'accent qui capte l'œil avant la liste des morceaux elle-même. */
+#studio-tab #studio-import-btn {
+  background: var(--r-surface-chip);
+  color: var(--r-text-muted);
+  border: 1px solid var(--r-border);
+  font-weight: 600;
+  box-shadow: none;
+}
+
+#studio-tab #studio-import-btn:hover {
+  color: var(--r-text);
+  border-color: var(--r-border-strong);
+}
+
+/* Le statut de séparation est une information de service : une ligne de texte
+   technique suffit, là où une boîte pleine largeur pesait autant que les
+   pistes elles-mêmes. */
+#studio-tab .studio-status-box {
+  background: transparent;
+  border: none;
+  padding: 2px 0 0;
+  font-family: var(--r-font-mono);
+  font-size: 0.66rem;
+  color: var(--r-text-faint);
+}
+
+/* -------------------------------------------------------------------------- *
+ *  COMMUN — mise en page verticale du centre                                  *
+ * -------------------------------------------------------------------------- */
+
+/* Répartition verticale de la colonne centrale.
+   Le lecteur absorbe l'espace disponible — sinon un grand vide s'installe entre
+   la barre de région et le transport — mais il doit aussi pouvoir *rétrécir* :
+   sans plancher bas, il poussait la waveform, la barre de région et surtout le
+   transport hors du cadre, qui est en overflow: hidden. Résultat : plus aucun
+   bouton de lecture visible. D'où `flex: 1 1 auto` avec un minimum modeste, et
+   une hauteur fixe pour tout ce qui suit. */
+#studio-tab .studio-player-wrap {
+  flex: 1 1 auto;
+  min-height: 120px;
+  max-height: none;
+}
+
+/* La forme d'onde n'a pas besoin d'être épaisse pour être lisible : elle
+   occupait un tiers de la colonne. On la ramène à une bande fine, sur toute la
+   longueur du morceau comme avant. */
+#studio-tab .studio-waveform-wrap {
+  flex: 0 0 auto;
+  height: 66px;
+}
+
+#studio-tab .studio-region-bar,
+#studio-tab .studio-controls {
+  flex: 0 0 auto;
+}
+
+/* La colonne de droite peut dépasser la hauteur de fenêtre une fois les pistes
+   séparées affichées : elle défile d'un seul bloc, sans jamais rogner
+   « Lecture ». La liste des pistes ne défile donc PAS de son côté — deux
+   ascenseurs imbriqués rendaient le bloc Lecture pratiquement inatteignable. */
+#studio-tab .studio-sidebar.right {
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  /* Sans cette réserve, la gouttière de l'ascenseur rogne la fin des lignes du
+     bloc Lecture — c'est ce qui coupait « 0 dB » sur le bord droit. */
+  padding-right: 4px;
+}
+
+/* Rien dans cette colonne ne doit dépasser sa largeur : les lignes du bloc
+   Lecture se compriment au lieu de sortir du cadre. */
+#studio-tab .studio-sidebar.right,
+#studio-tab .studio-right-panel,
+#studio-tab .studio-playback-section,
+#studio-tab .studio-rp-row {
+  min-width: 0;
+}
+
+#studio-tab .studio-rp-row {
+  flex-wrap: nowrap;
+}
+
+#studio-tab .studio-rp-row #studio-volume {
+  min-width: 0;
+}
+
+#studio-tab #studio-volume-label,
+#studio-tab .studio-transpose-status {
+  flex: none;
+  white-space: nowrap;
+}
+
+#studio-tab .studio-stems-list {
+  max-height: none;
+  overflow: visible;
+}
+
+/* Le nom du morceau chargé est déjà affiché en haut de la colonne centrale et
+   dans la liste de gauche : le répéter ici coûtait plusieurs lignes de hauteur
+   à l'endroit précis où « Lecture » avait besoin de place. */
+#studio-tab .studio-status-box {
+  display: none;
+}
+
+/* Resserrement entre le bouton de séparation et les pistes. */
+#studio-tab #studio-separate-btn,
+#studio-tab .studio-separate-status {
+  margin-bottom: 8px;
+}
+
+#studio-tab .studio-separate-status:empty {
+  display: none;
+  margin: 0;
 }
 
 /* --- Centre : lecteur + waveform turquoise --- */
@@ -179,7 +384,7 @@
   padding: 2px 7px;
   border-radius: 6px;
   background: var(--r-accent-soft);
-  color: #d7ccff;
+  color: var(--r-accent-text);
   font-family: var(--r-font-mono);
   font-size: 0.58rem;
   letter-spacing: 0.04em;
@@ -190,7 +395,7 @@
   border: 1px solid var(--r-border);
   border-radius: 14px;
   overflow: hidden;
-  background: linear-gradient(135deg, #20232d 0%, #171922 55%, #0c0d11 100%);
+  background: var(--r-player-bg);
   min-height: 220px;
 }
 :root[data-skin='global'] #studio-tab .studio-audio-backdrop {
@@ -207,7 +412,7 @@
 }
 
 :root[data-skin='global'] #studio-tab .studio-waveform-wrap {
-  height: 110px;
+  height: 66px;
   background: var(--r-surface);
   border: 1px solid rgba(79, 209, 197, 0.35);
   border-radius: 14px;
@@ -260,7 +465,7 @@
 }
 :root[data-skin='global'] #studio-tab .studio-confirm-btn {
   background: var(--r-accent-soft);
-  color: #d7ccff;
+  color: var(--r-accent-text);
   border-color: rgba(139, 108, 245, 0.4);
 }
 
@@ -439,22 +644,25 @@
 /* -------------------------------------------------------------------------- *
  *  SKIN v2                                                                    *
  * -------------------------------------------------------------------------- */
+/* Scène adopte la même ossature qu'Atelier : morceaux à gauche, écoute au
+   centre, pistes et lecture à droite. La bande de pistes sous la forme d'onde
+   est abandonnée — elle écrasait la zone d'écoute et repoussait « Lecture »
+   hors de vue. La colonne de droite est assez large (280 px) pour que les
+   valeurs en bout de ligne (« 0 dB ») ne soient jamais rognées. */
 :root[data-skin='v2'] #studio-tab {
   background: var(--r-ground);
   color: var(--r-text);
   font-family: var(--r-font-body);
-  grid-template-columns: 260px 1fr 220px;
-  grid-template-rows: 1fr auto;
-  grid-template-areas:
-    "left center playback"
-    "left stems-bottom playback";
+  grid-template-columns: 260px minmax(0, 1fr) 280px;
+  grid-template-rows: 1fr;
+  grid-template-areas: "left center playback";
   gap: 12px;
   padding: 12px;
 }
 :root[data-skin='v2'] #studio-tab .studio-sidebar.left { grid-area: left; }
 :root[data-skin='v2'] #studio-tab .studio-center { grid-area: center; }
-:root[data-skin='v2'] #studio-tab .studio-stems-bottom { grid-area: stems-bottom; }
 :root[data-skin='v2'] #studio-tab .studio-sidebar.right { grid-area: playback; }
+:root[data-skin='v2'] #studio-tab .studio-stems-bottom { display: none !important; }
 
 /* En stage 0, la sidebar gauche occupe toute la largeur comme en Global. */
 :root[data-skin='v2'] #studio-tab.stage-0 {
@@ -614,7 +822,7 @@
 }
 
 :root[data-skin='v2'] #studio-tab .studio-waveform-wrap {
-  height: 96px;
+  height: 66px;
   background: var(--r-surface);
   border: 1px solid rgba(167, 139, 250, 0.35);
   border-radius: 14px;
@@ -783,13 +991,37 @@
   color: #fff;
   border-color: transparent;
 }
+/* Dans une colonne de 280 px, nom + mute/solo + curseur ne tiennent pas sur une
+   seule ligne sans réduire les noms à une initiale. La piste s'écrit donc sur
+   deux lignes, comme en Atelier — identité de Scène conservée par la forme
+   (pilule, filet de couleur), pas par la disposition. */
+:root[data-skin='v2'] #studio-tab .studio-stem-row {
+  flex-wrap: wrap;
+  border-radius: var(--r-radius-card);
+  padding: 9px 12px;
+}
+:root[data-skin='v2'] #studio-tab .studio-stem-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 :root[data-skin='v2'] #studio-tab .studio-stem-volume-wrap {
-  flex-basis: 100%;
+  flex: 1 1 100%;
+  min-width: 0;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  margin-top: 2px;
 }
-:root[data-skin='v2'] #studio-tab .studio-stem-volume { flex: 1; }
+:root[data-skin='v2'] #studio-tab .studio-stem-volume { flex: 1; min-width: 0; }
+
+/* Le titre du panneau garde la même casse que dans l'autre habillage. */
+:root[data-skin='v2'] #studio-tab .studio-stems-section .panel-title {
+  text-transform: none;
+  letter-spacing: normal;
+}
 :root[data-skin='v2'] #studio-tab .studio-stem-volume-label {
   font-family: var(--r-font-mono);
   font-size: 0.6rem;
@@ -810,7 +1042,21 @@
   border: none;
   padding: 0;
 }
-:root[data-skin='v2'] #studio-tab .studio-stems-section,
+/* Les pistes séparées reviennent dans la colonne de droite en Scène aussi
+   (structure commune aux deux habillages), habillées comme le reste du skin :
+   carte arrondie, pilules. Effets et Export restent masqués ici — ce sont des
+   emplacements réservés, sans contenu réel pour l'instant. */
+:root[data-skin='v2'] #studio-tab .studio-stems-section {
+  background: var(--r-surface);
+  border: 1px solid var(--r-border);
+  border-radius: 16px;
+  padding: 12px;
+}
+
+:root[data-skin='v2'] #studio-tab .studio-stems-section .panel-title {
+  margin-bottom: 10px;
+}
+
 :root[data-skin='v2'] #studio-tab .studio-effects-section,
 :root[data-skin='v2'] #studio-tab .studio-export-section {
   display: none;
@@ -896,4 +1142,227 @@
   :root[data-skin='global'] #studio-tab .studio-sidebar.right {
     grid-column: 1;
   }
+}
+
+/* ========================================================================== *
+ *  CADRAGE VERTICAL DU STUDIO — 2026-09-02                                   *
+ *                                                                            *
+ *  Symptôme rapporté : « le lecteur continue en dessous de la zone visible,   *
+ *  sans aucun moyen d'y accéder ». Mesuré dans l'application : la grille de   *
+ *  #studio-tab faisait 1235 px de contenu pour 564 px de cadre, avec          *
+ *  overflow:hidden — près de la moitié de l'interface était rendue puis       *
+ *  découpée, donc réellement inatteignable.                                   *
+ *                                                                            *
+ *  Deux causes, toutes deux structurelles :                                   *
+ *                                                                            *
+ *  1. `grid-template-rows: 1fr` vaut `minmax(auto, 1fr)` : le minimum « auto »*
+ *     autorise la ligne à grandir jusqu'à la hauteur de son contenu. La ligne *
+ *     débordait donc du conteneur, qui la rognait. `minmax(0, 1fr)` rend la   *
+ *     contrainte réelle et rend leur rôle aux ascenseurs internes.            *
+ *                                                                            *
+ *  2. `.studio-sidebar.left { align-self: start }` empêchait l'étirement de   *
+ *     la colonne de gauche : sa hauteur suivait la liste des morceaux         *
+ *     (1221 px pour neuf morceaux) au lieu de suivre le cadre.                *
+ *                                                                            *
+ *  Corollaire : la colonne de droite ne doit plus rien rogner elle-même — le  *
+ *  seul ascenseur est le sien, et « Lecture » se trouve toujours au bout.     *
+ * ========================================================================== */
+
+#studio-tab {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+:root[data-skin='global'] #studio-tab,
+:root[data-skin='v2'] #studio-tab {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+/* La colonne centrale ne doit pas non plus imposer sa largeur minimale. */
+:root[data-skin='global'] #studio-tab {
+  grid-template-columns: minmax(230px, 0.8fr) minmax(0, 2.1fr) minmax(270px, 0.85fr);
+}
+
+/* Étapes 1 à 3 : les trois colonnes occupent toute la hauteur du cadre.
+   L'étape 0 garde sa carte centrée (règle dédiée plus bas). */
+#studio-tab:not(.stage-0) .studio-sidebar.left,
+#studio-tab:not(.stage-0) .studio-sidebar.right,
+#studio-tab:not(.stage-0) .studio-center {
+  align-self: stretch;
+  min-height: 0;
+  max-height: 100%;
+}
+
+/* Colonne de droite : « Lecture » est ancré en bas, toujours visible.
+ *
+ * C'est le point du signalement : « on a l'impression que le lecteur continue
+ * en dessous de la zone visible ». Faire défiler la colonne entière ne suffit
+ * pas — les commandes de lecture, qui servent en permanence, disparaissaient
+ * dès qu'un morceau avait cinq pistes. Seule la liste des pistes défile donc :
+ * transposition, volume et bouclage restent sous les yeux en toutes
+ * circonstances, et il n'y a jamais deux ascenseurs concurrents. */
+#studio-tab:not(.stage-0) .studio-sidebar.right {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+#studio-tab:not(.stage-0) .studio-right-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#studio-tab:not(.stage-0) .studio-stems-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 110px;
+  overflow: hidden;
+}
+
+#studio-tab:not(.stage-0) .studio-stems-section .studio-stems-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: none;
+  padding-right: 4px;
+}
+
+#studio-tab:not(.stage-0) .studio-playback-section,
+#studio-tab:not(.stage-0) .studio-effects-section,
+#studio-tab:not(.stage-0) .studio-export-section {
+  flex: 0 0 auto;
+  min-height: 0;
+  overflow: visible;
+}
+
+/* Ascenseur de la liste des pistes, au même style que les autres. */
+#studio-tab .studio-stems-section .studio-stems-list {
+  scrollbar-width: thin;
+  scrollbar-color: var(--r-border-strong) transparent;
+}
+#studio-tab .studio-stems-section .studio-stems-list::-webkit-scrollbar { width: 10px; }
+#studio-tab .studio-stems-section .studio-stems-list::-webkit-scrollbar-track {
+  background: var(--r-surface-chip);
+  border-radius: 100px;
+}
+#studio-tab .studio-stems-section .studio-stems-list::-webkit-scrollbar-thumb {
+  background: var(--r-border-strong);
+  border-radius: 100px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+/* L'étape 0 reste une carte centrée qui ne dépasse jamais le cadre. */
+#studio-tab.stage-0 .studio-sidebar.left {
+  align-self: start;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+/* ---- Sections repliables « Effets » / « Export » ----
+   Une ligne de titre suivie d'un « + » qui devient « − » une fois ouverte,
+   conformément aux maquettes des deux habillages. */
+#studio-tab .studio-foldable {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+#studio-tab .studio-foldable[open] {
+  padding-bottom: 12px;
+}
+
+#studio-tab .studio-foldable-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  list-style: none;
+  margin: 0;
+  user-select: none;
+}
+
+#studio-tab .studio-foldable-summary::-webkit-details-marker { display: none; }
+
+#studio-tab .studio-foldable-summary::after {
+  content: '+';
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--r-text-muted);
+}
+
+#studio-tab .studio-foldable[open] > .studio-foldable-summary::after {
+  content: '−';
+}
+
+#studio-tab .studio-foldable-summary:hover::after,
+#studio-tab .studio-foldable-summary:focus-visible::after {
+  color: var(--r-accent);
+}
+
+#studio-tab .studio-foldable > *:not(summary) {
+  margin-top: 8px;
+}
+
+/* ---- Densité de la colonne de droite ----
+   Cinq pistes séparées, le bloc Lecture, Effets et Export doivent tenir dans
+   une colonne de 536 px sur une fenêtre de 900 px de haut. À la densité
+   d'origine, une piste et demie seulement était visible. On resserre les
+   marges internes sans toucher aux tailles de police ni aux cibles de clic. */
+#studio-tab #studio-playback-block {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+  gap: 8px;
+}
+
+:root[data-skin] #studio-tab .studio-stem-row {
+  padding: 5px 9px;
+  margin-bottom: 6px;
+  gap: 3px;
+}
+
+:root[data-skin] #studio-tab .studio-stem-volume-wrap {
+  margin-top: 0;
+}
+
+:root[data-skin] #studio-tab .studio-stem-volume-wrap input[type='range'] {
+  height: 14px;
+}
+
+#studio-tab #studio-separate-btn,
+#studio-tab .studio-stems-section .record-action {
+  padding-top: 7px;
+  padding-bottom: 7px;
+}
+
+#studio-tab .studio-foldable {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+/* Région à la durée maximale : le signal reste, l'aplat rouge saturé sur toute
+   la forme d'onde rendait celle-ci illisible. */
+#studio-tab .studio-region-maxed {
+  background: rgba(239, 68, 68, 0.13) !important;
+}
+
+/* La phrase d'accueil « Sélectionnez un morceau… » n'a de sens qu'à l'étape 0,
+   quand rien n'est encore choisi. Une fois un morceau chargé elle occupe trois
+   lignes en haut de la liste, là où l'espace manque le plus. */
+#studio-tab:not(.stage-0) .studio-empty-hint {
+  display: none;
+}
+
+/* Les colonnes latérales ne portent pas de fond : ce sont les cartes qu'elles
+   contiennent qui en ont un. Sans cela, l'étape 0 laissait apparaître un
+   rectangle vide au-dessus de la liste — le cadre de la colonne, visible sur
+   toute la hauteur réservée par son décalage vertical. */
+:root[data-skin] #studio-tab .studio-sidebar {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
 }

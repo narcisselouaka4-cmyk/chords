@@ -1021,8 +1021,11 @@ async function init() {
   // [Refonte 2026-09-02] — Chargement sécurisé de la config IA avant tout appel.
   await loadSecureAIConfig();
   initTheme();
-  // [Refonte v2/Global] — bascule de skin (Réglages › Apparence).
+  // [Refonte v2/Global] — bascule de skin (Paramètres › Apparence).
   initSkin({ selector: document.getElementById('skin-selector') });
+  initAppSettings();
+  initLibraryModal();
+  initKeyboardCollapse();
   initPanelToggles();
   refreshKeyboard();
   initSettings();
@@ -1038,6 +1041,95 @@ async function init() {
   initStudioTab();
   initTabNavigation();
   await initMidi();
+}
+
+// [Refonte] — Ma bibliothèque : fenêtre commune au Studio et à l'Analyse,
+// ouverte depuis l'en-tête (🎵) ou depuis l'écran d'import de l'Analyse.
+function initLibraryModal() {
+  const modal = document.getElementById('library-modal');
+  if (!modal) return;
+  const open = () => {
+    modal.style.display = 'flex';
+    // La liste est peuplée par analyzer-tab.js ; on lui demande de se
+    // rafraîchir à l'ouverture pour refléter les derniers imports.
+    document.dispatchEvent(new CustomEvent('app-library-refresh'));
+  };
+  document.getElementById('library-toggle')?.addEventListener('click', open);
+  document.getElementById('analyzer-library-open')?.addEventListener('click', open);
+  document.getElementById('library-close')?.addEventListener('click', () => {
+    modal.style.display = 'none';
+  });
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.style.display = 'none';
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal.style.display === 'flex') modal.style.display = 'none';
+  });
+  // Un morceau choisi dans la bibliothèque lance son analyse : la fenêtre a
+  // fait son travail, elle se referme.
+  modal.addEventListener('click', (e) => {
+    if (e.target.closest('.analyzer-library-item')) modal.style.display = 'none';
+  });
+}
+
+// [Refonte 2026-09-02] — Repli du clavier virtuel.
+//
+// Le clavier et sa barre de réglages tiennent environ 200 px en bas de chaque
+// écran. Sur une fenêtre de 900 px, il ne reste alors que 490 px à l'espace de
+// travail : c'est ce qui obligeait la colonne « Lecture » du Studio et le
+// bouton « Lancer l'analyse » à se battre pour quelques dizaines de pixels.
+// Le repli est purement additif — déployé par défaut, l'état est mémorisé —
+// et ne touche en rien au composant clavier lui-même.
+function initKeyboardCollapse() {
+  const panel = document.getElementById('keyboard-panel');
+  const btn = document.getElementById('keyboard-collapse-btn');
+  if (!panel || !btn) return;
+  const STORAGE_KEY = 'keyboard-collapsed';
+
+  const apply = (collapsed) => {
+    panel.classList.toggle('collapsed', collapsed);
+    btn.setAttribute('aria-expanded', String(!collapsed));
+    btn.title = collapsed ? 'Afficher le clavier virtuel' : 'Réduire le clavier virtuel';
+    // Le clavier se redessine sur la largeur disponible : on prévient les
+    // composants qui écoutent le redimensionnement.
+    window.dispatchEvent(new Event('resize'));
+  };
+
+  let saved = false;
+  try {
+    saved = localStorage.getItem(STORAGE_KEY) === '1';
+  } catch (_) { /* pas de persistance : on reste déployé */ }
+  apply(saved);
+
+  btn.addEventListener('click', () => {
+    const collapsed = !panel.classList.contains('collapsed');
+    apply(collapsed);
+    try {
+      localStorage.setItem(STORAGE_KEY, collapsed ? '1' : '0');
+    } catch (_) { /* ignore */ }
+  });
+}
+
+// [Refonte] — Paramètres de l'application (rouage de l'en-tête). Distinct du
+// modal 🔑 qui ne concerne que la clé API de l'assistant IA.
+function initAppSettings() {
+  const modal = document.getElementById('app-settings-modal');
+  const toggle = document.getElementById('app-settings-toggle');
+  const close = document.getElementById('app-settings-close');
+  if (!modal || !toggle) return;
+
+  toggle.addEventListener('click', () => {
+    modal.style.display = 'flex';
+  });
+  close?.addEventListener('click', () => {
+    modal.style.display = 'none';
+  });
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.style.display = 'none';
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal.style.display === 'flex') modal.style.display = 'none';
+  });
 }
 
 function initTabNavigation() {

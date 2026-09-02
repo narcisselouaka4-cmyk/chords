@@ -371,12 +371,21 @@ function applyStudioSkinLayout(skin) {
   const bottomList = els.stemsListBottom;
   const section = els.stemsSection;
 
+  // [Refonte — décision du 02/09] Les pistes séparées vivent DANS LA COLONNE DE
+  // DROITE dans les deux habillages. La maquette Scène les plaçait en bandes
+  // sous la forme d'onde ; à l'usage, cela écrasait la zone d'écoute, repoussait
+  // le bloc « Lecture » hors de vue et donnait deux structures différentes à
+  // maintenir pour un simple changement d'habillage. Un thème change l'aspect,
+  // pas l'organisation : la structure est désormais la même, seule la forme des
+  // composants distingue Atelier de Scène.
+  if (list && section && list.parentElement !== section) {
+    section.appendChild(list);
+  }
+  if (section) section.style.display = '';
+  if (bottomList && els.stemsBottom) els.stemsBottom.style.display = 'none';
+
   if (isV2) {
-    // v2 : déplacer la liste de stems en bas de la zone centrale.
-    if (list && bottomList && list.parentElement !== bottomList) {
-      bottomList.appendChild(list);
-    }
-    if (section) section.style.display = 'none';
+    // Scène garde sa signature : en-tête central (fil d'ariane + séparation).
     if (els.centerHeader) els.centerHeader.style.display = '';
     if (els.mediaContext) els.mediaContext.style.display = 'none';
     if (els.separateBtnCenter) {
@@ -385,11 +394,6 @@ function applyStudioSkinLayout(skin) {
     }
     if (els.separateBtn) els.separateBtn.style.display = 'none';
   } else {
-    // Global : remettre la liste de stems dans la sidebar droite.
-    if (list && section && list.parentElement !== section) {
-      section.appendChild(list);
-    }
-    if (section) section.style.display = '';
     if (els.centerHeader) els.centerHeader.style.display = 'none';
     if (els.mediaContext) els.mediaContext.style.display = '';
     if (els.separateBtnCenter) els.separateBtnCenter.style.display = 'none';
@@ -399,20 +403,12 @@ function applyStudioSkinLayout(skin) {
   applyStudioSkinStageVisibility(skin, studioStage);
 }
 
-// Affiche ou masque la zone stems-bottom en v2 selon l'étape (stage 3 seulement).
+// La bande de pistes sous la forme d'onde n'est plus utilisée (voir
+// applyStudioSkinLayout) : les pistes sont à droite dans les deux habillages, et
+// la forme d'onde reste donc visible à toutes les étapes, y compris après
+// séparation — c'est elle qui porte la région de travail.
 function applyStudioSkinStageVisibility(skin, stage) {
-  const isV2 = skin === 'v2';
-  if (els.stemsBottom) {
-    const showBottom = isV2 && stage >= 3;
-    els.stemsBottom.style.display = showBottom ? '' : 'none';
-  }
-  if (isV2 && els.waveformWrap && els.regionBar) {
-    // En v2, la waveform classique reste visible aux étapes 1 et 2, puis est
-    // remplacée visuellement par les stems en bas à l'étape 3.
-    const showWaveform = stage === 1 || stage === 2;
-    els.waveformWrap.style.display = showWaveform ? '' : 'none';
-    els.regionBar.style.display = showWaveform ? '' : 'none';
-  }
+  if (els.stemsBottom) els.stemsBottom.style.display = 'none';
 }
 
 function toggleRecording() {
@@ -1214,11 +1210,13 @@ function renderTrackList(tracks) {
     const source = metadata.sourcePath ? metadata.sourcePath.split('/').pop() || metadata.sourcePath.split('\\').pop() : track.id;
     const ext = metadata.sourcePath ? getFileExtension(metadata.sourcePath).toUpperCase() : '';
 
-    // Si le morceau a été renommé, on n'affiche pas l'ancien nom source en doublon.
-    const wasRenamed = metadata.name && metadata.name !== source && metadata.name !== track.id;
-    const metaLine = wasRenamed
-      ? `${ext ? `.${ext} · ` : ''}${formatDuration(metadata.duration || 0)}`
-      : `${escapeHtml(source)} · ${formatDuration(metadata.duration || 0)}`;
+    // La ligne de détail ne répète jamais le titre affiché juste au-dessus.
+    // Elle ne montre le nom du fichier source que s'il diffère réellement du
+    // titre — c'est-à-dire après un renommage. Sinon, format et durée suffisent.
+    const sourceDiffers = source && source !== displayName;
+    const metaLine = sourceDiffers
+      ? `${escapeHtml(source)} · ${formatDuration(metadata.duration || 0)}`
+      : `${ext ? `${ext} · ` : ''}${formatDuration(metadata.duration || 0)}`;
 
     const info = document.createElement('div');
     info.className = 'studio-track-info';

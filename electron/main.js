@@ -35,6 +35,12 @@ app.commandLine.appendSwitch('disable-software-rasterizer');
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 let mainWindow = null;
+// [Refonte 2026-09-02] — Analyse en cours (verrou global, voir analyzer:process-file).
+let analysisInFlight = null;
+// Processus Python vivants : suivis pour être tués à la fermeture, afin qu'aucune
+// analyse ne continue à consommer le CPU après la fermeture de la fenêtre.
+const liveChildren = new Set();
+let midiPollTimer = null;
 let midiInput = null;
 let currentInputId = null; // currently opened input port id
 let currentInputName = null; // name used to reconnect after hot-plug
@@ -84,8 +90,12 @@ function createWindow() {
     });
   }
 
-  // [OpenCode] — 2026-07-04 — DevTools ouverts en permanence pour déboguer les bugs UI.
-  mainWindow.webContents.openDevTools({ mode: 'detach' });
+  // [Refonte 2026-09-02] — DevTools seulement en développement. Ouverts en
+  // permanence, ils s'affichaient aussi dans l'application installée : une
+  // seconde fenêtre, un second processus, et une consommation inutile.
+  if (isDev) {
+    mainWindow.webContents.openDevTools({ mode: 'detach' });
+  }
 
   mainWindow.on('close', async (e) => {
     try {
@@ -164,15 +174,19 @@ function closeMidiInputEnumerator() {
   }
 }
 
-function getMidiInputs() {
+// [Refonte 2026-09-02] — `quiet` : le scrutateur tourne toutes les 2 secondes.
+// Sans ce drapeau il envoyait trois messages IPC par tour, en continu, pour
+// répéter une liste de ports inchangée. On ne journalise plus que les scans
+// demandés explicitement (rafraîchissement manuel, ouverture de port).
+function getMidiInputs(quiet = false) {
   const input = getMidiInputEnumerator();
   if (!input) return [];
   const ports = [];
   const count = input.getPortCount();
-  sendMidiLog('scan', { count });
+  if (!quiet) sendMidiLog('scan', { count });
   for (let i = 0; i < count; i++) {
     const name = input.getPortName(i);
-    sendMidiLog('port', { id: i, name });
+    if (!quiet) sendMidiLog('port', { id: i, name });
     ports.push({
       id: i,
       name,
@@ -425,6 +439,80 @@ function setupFileSystemIPC() {
 const STUDIO_DIR_NAME = 'PianoJazzChords/Studio';
 const STEMS = ['bass', 'drums', 'vocals', 'other', 'piano'];
 
+// [Refonte 2026-09-02] — Dossier de travail de l'analyse et de la lecture.
+//
+// Ces dossiers contenaient des WAV décompressés (37 Mo pour 1 min 26 d'audio)
+// écrits dans os.tmpdir(). Sur cette machine — et sur la plupart des Linux
+// récents — /tmp est un **tmpfs, donc de la RAM** : 69 dossiers oubliés
+// pesaient 3,2 Go de mémoire vive, ce qui explique à lui seul le
+// « le PC devient extrêmement lent ». On écrit désormais sur le disque réel,
+// à côté des données de l'application, et on ne conserve que le dossier
+// courant.
+const WORK_DIR_NAME = 'PianoJazzChords/.work';
+
+function getWorkRoot() {
+  return path.join(os.homedir(), WORK_DIR_NAME);
+}
+
+/**
+ * Crée un dossier de travail et supprime tous les précédents.
+ * Un seul dossier vit à la fois : celui du morceau en cours.
+ * @param {string} prefix — 'analyze' ou 'playback'
+ */
+async function createWorkDir(prefix) {
+  const root = getWorkRoot();
+  await fs.mkdir(root, { recursive: true });
+  const dir = path.join(root, `${prefix}-${Date.now()}`);
+  await fs.mkdir(dir, { recursive: true });
+  await purgeWorkDirs(dir);
+  return dir;
+}
+
+/** Supprime les dossiers de travail sauf celui qu'on vient de créer. */
+async function purgeWorkDirs(keepDir = null) {
+  const root = getWorkRoot();
+  try {
+    const entries = await fs.readdir(root);
+    await Promise.all(entries.map(async (name) => {
+      const full = path.join(root, name);
+      if (keepDir && full === keepDir) return;
+      await fs.rm(full, { recursive: true, force: true }).catch(() => {});
+    }));
+  } catch {
+    /* dossier absent : rien à purger */
+  }
+}
+
+/**
+ * Purge les dossiers temporaires laissés par les versions précédentes dans
+ * os.tmpdir() (`pjc-analyze-*`, `pjc-playback-*`). Ils n'étaient jamais
+ * supprimés ; sur un /tmp en tmpfs ils immobilisent de la RAM tant que la
+ * machine n'a pas redémarré.
+ */
+async function purgeLegacyTempDirs() {
+  const tmp = os.tmpdir();
+  try {
+    const entries = await fs.readdir(tmp);
+    const stale = entries.filter((n) => n.startsWith('pjc-analyze-') || n.startsWith('pjc-playback-'));
+    if (!stale.length) return;
+    let freed = 0;
+    for (const name of stale) {
+      const full = path.join(tmp, name);
+      try {
+        for (const f of await fs.readdir(full)) {
+          const st = await fs.stat(path.join(full, f)).catch(() => null);
+          if (st?.isFile()) freed += st.size;
+        }
+      } catch { /* taille indisponible : on supprime quand même */ }
+      await fs.rm(full, { recursive: true, force: true }).catch(() => {});
+    }
+    console.log(`[Cleanup] ${stale.length} dossier(s) temporaire(s) hérité(s) supprimé(s)`
+      + ` (${(freed / 1024 / 1024).toFixed(0)} Mo).`);
+  } catch {
+    /* ignore */
+  }
+}
+
 // [Claude] — 2026-07-08 — Si un fichier importé dans l'onglet Analyse correspond
 // à un morceau déjà séparé dans le Studio, on utilise le stem piano isolé pour
 // l'analyse. Cela améliore nettement la qualité par rapport au mix complet.
@@ -503,12 +591,32 @@ function getPythonCommand() {
   }
 }
 
+/**
+ * Suit un processus enfant pour pouvoir le tuer à la fermeture de l'application.
+ * Sans cela, une analyse lancée puis abandonnée continue à saturer un cœur.
+ */
+function trackChild(proc) {
+  liveChildren.add(proc);
+  const forget = () => liveChildren.delete(proc);
+  proc.on('exit', forget);
+  proc.on('error', forget);
+  return proc;
+}
+
+/** Tue tous les processus Python encore vivants (fermeture de l'application). */
+function killLiveChildren() {
+  for (const proc of liveChildren) {
+    try { proc.kill('SIGTERM'); } catch { /* déjà mort */ }
+  }
+  liveChildren.clear();
+}
+
 function runAudioProcessor(args, onProgress = null) {
   return new Promise((resolve, reject) => {
-    const proc = spawn(getPythonCommand(), [
+    const proc = trackChild(spawn(getPythonCommand(), [
       path.join(__dirname, 'audio-processor.py'),
       ...args,
-    ], { shell: false });
+    ], { shell: false }));
 
     let stdout = '';
     let stderr = '';
@@ -553,7 +661,7 @@ function runMelodyExtractor(stemPath, options = {}) {
     const args = [path.join(__dirname, 'melody_extractor.py'), stemPath];
     if (options.fmin) args.push('--fmin', String(options.fmin));
     if (options.fmax) args.push('--fmax', String(options.fmax));
-    const proc = spawn(getPythonCommand(), args, { shell: false });
+    const proc = trackChild(spawn(getPythonCommand(), args, { shell: false }));
     let stdout = '';
     let stderr = '';
     proc.stdout.on('data', (data) => { stdout += data.toString(); });
@@ -603,11 +711,11 @@ async function runBassAnalysis(analysisWav, chordsData, tmpDir) {
 
   // Step 1: export BE candidates
   await new Promise((resolve, reject) => {
-    const proc = spawn(getPythonCommand(), [
+    const proc = trackChild(spawn(getPythonCommand(), [
       path.join(scriptsDir, 'export_bass_candidates.py'),
       '--wav', analysisWav,
       '--output', candidatesJson,
-    ], { shell: false });
+    ], { shell: false }));
     let stderr = '';
     proc.stderr.on('data', (d) => { stderr += d.toString(); });
     proc.on('error', reject);
@@ -619,13 +727,13 @@ async function runBassAnalysis(analysisWav, chordsData, tmpDir) {
 
   // Step 2: run Fusion Engine
   await new Promise((resolve, reject) => {
-    const proc = spawn(getPythonCommand(), [
+    const proc = trackChild(spawn(getPythonCommand(), [
       path.join(scriptsDir, 'fusion_bass_chord.py'),
       '--candidates', candidatesJson,
       '--chords', chordsJson,
       '--params', paramsPath,
       '--output-segments', segmentsJson,
-    ], { shell: false });
+    ], { shell: false }));
     let stderr = '';
     proc.stderr.on('data', (d) => { stderr += d.toString(); });
     proc.on('error', reject);
@@ -1033,8 +1141,7 @@ function setupStudioIPC() {
   // vient du fichier .pjc.json, seul le WAV de lecture doit être régénéré
   // (quelques secondes d'ffmpeg contre une analyse complète bien plus longue).
   ipcMain.handle('analyzer:prepare-playback', async (event, filePath) => {
-    const tmpDir = path.join(os.tmpdir(), `pjc-playback-${Date.now()}`);
-    await fs.mkdir(tmpDir, { recursive: true });
+    const tmpDir = await createWorkDir('playback');
     const playbackWav = path.join(tmpDir, 'audio.wav');
 
     let duration = null;
@@ -1066,9 +1173,33 @@ function setupStudioIPC() {
     return await runMelodyExtractor(stemPath, options);
   });
 
+  // [Refonte 2026-09-02] — Verrou d'analyse : une seule analyse à la fois.
+  //
+  // Sans ce verrou, chaque déclenchement lançait un pipeline complet — ffmpeg,
+  // librosa, le moteur de basse, trois processus Python et un WAV décompressé.
+  // Les traces laissées dans /tmp montrent jusqu'à 25 analyses démarrées en
+  // 30 secondes (18 ms d'écart entre deux : la répétition clavier d'un bouton
+  // resté focusable sous l'overlay). Le renderer se garde aussi de son côté ;
+  // ce verrou-ci est le filet de sécurité, il ne peut pas être contourné.
   ipcMain.handle('analyzer:process-file', async (event, filePath, options = {}) => {
-    const tmpDir = path.join(os.tmpdir(), `pjc-analyze-${Date.now()}`);
-    await fs.mkdir(tmpDir, { recursive: true });
+    const key = JSON.stringify([filePath, options]);
+    if (analysisInFlight) {
+      // Même demande relancée pendant qu'elle tourne : on rend la même
+      // promesse plutôt qu'un second pipeline.
+      if (analysisInFlight.key === key) return analysisInFlight.promise;
+      throw new Error('Une analyse est déjà en cours. Attendez qu’elle se termine.');
+    }
+    const promise = runAnalysisPipeline(filePath, options);
+    analysisInFlight = { key, promise };
+    try {
+      return await promise;
+    } finally {
+      analysisInFlight = null;
+    }
+  });
+
+  async function runAnalysisPipeline(filePath, options = {}) {
+    const tmpDir = await createWorkDir('analyze');
     const playbackWav = path.join(tmpDir, 'audio.wav');
 
     try {
@@ -1150,9 +1281,11 @@ function setupStudioIPC() {
       };
     } catch (err) {
       console.error('[Analyzer] process-file failed:', err);
+      // Le dossier de travail n'a plus d'utilité si l'analyse a échoué.
+      await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
       throw err;
     }
-  });
+  }
 
   // [Claude] — 2026-07-07 — Screen Recorder : source vidéo via desktopCapturer.
   // Le renderer demande l'id de la source de la fenêtre de l'application.
@@ -1259,11 +1392,17 @@ app.whenReady().then(() => {
   setupStudioIPC();
   createWindow();
 
+  // [Refonte 2026-09-02] — Ménage au démarrage : les dossiers de travail des
+  // sessions précédentes (y compris ceux laissés dans /tmp par les versions
+  // antérieures) sont supprimés. Sur un /tmp en tmpfs, ils occupaient de la RAM.
+  purgeWorkDirs().catch(() => {});
+  purgeLegacyTempDirs().catch(() => {});
+
   // Poll native MIDI ports so hot-plugged keyboards/synths are detected automatically.
   // [OpenCode] — 2026-07-04 — Even when a port is open we still scan to detect hot-unplug.
-  setInterval(() => {
+  midiPollTimer = setInterval(() => {
     if (nativeMidiFailed) return;
-    const inputs = getMidiInputs();
+    const inputs = getMidiInputs(true);
 
     // [Claude] — 2026-07-03 — Hot-plug handling : if the currently opened port disappeared, close it and notify renderer.
     if (currentInputId !== null) {
@@ -1349,4 +1488,18 @@ app.on('window-all-closed', () => {
   closeMidiInput();
   closeMidiInputEnumerator();
   if (process.platform !== 'darwin') app.quit();
+});
+
+// [Refonte 2026-09-02] — Arrêt propre.
+//
+// Le scrutateur MIDI continuait d'émettre vers un renderer détruit, d'où les
+// « Render frame was disposed before WebFrameMain could be accessed » en boucle
+// au moment de quitter. Et une analyse en cours survivait à la fermeture de la
+// fenêtre : un cœur saturé sans plus aucune fenêtre pour le montrer.
+app.on('before-quit', () => {
+  if (midiPollTimer) {
+    clearInterval(midiPollTimer);
+    midiPollTimer = null;
+  }
+  killLiveChildren();
 });

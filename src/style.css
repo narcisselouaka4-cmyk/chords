@@ -5644,3 +5644,48 @@ body.studio-recording-cursor * {
     padding-bottom: 4px;
   }
 }
+
+/* ========================================================================== *
+ *  REPLI DU CLAVIER VIRTUEL — 2026-09-02                                     *
+ *  Déployé par défaut ; l'état est mémorisé (voir initKeyboardCollapse).      *
+ * ========================================================================== */
+.keyboard-collapse-btn {
+  order: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 3px 8px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.keyboard-collapse-btn:hover {
+  color: var(--text);
+  background: var(--surface);
+}
+
+.keyboard-collapse-caret {
+  transition: transform 0.2s ease;
+}
+
+.keyboard-panel.collapsed {
+  padding: 2px 8px;
+  gap: 0;
+}
+
+.keyboard-panel.collapsed .keyboard-container,
+.keyboard-panel.collapsed .keyboard-controls {
+  display: none;
+}
+
+.keyboard-panel.collapsed .keyboard-collapse-caret {
+  transform: rotate(180deg);
+}

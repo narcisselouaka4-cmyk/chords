@@ -23,6 +23,10 @@
 :root[data-skin='global'] #practice-tab .exercise-mode-selector,
 :root[data-skin='v2'] #practice-tab .exercise-mode-selector {
   display: flex;
+  /* Trois modes dont « Mouvement 12 tons » dans une colonne de 280 px : sur une
+     seule ligne, le troisième était tronqué en plein mot. Ils passent à la
+     ligne plutôt que d'être rognés. */
+  flex-wrap: wrap;
   gap: var(--r-space-1);
   padding: 4px;
   border-radius: var(--r-radius-pill);
@@ -31,7 +35,8 @@
 }
 :root[data-skin='global'] #practice-tab .exercise-mode-btn,
 :root[data-skin='v2'] #practice-tab .exercise-mode-btn {
-  flex: 1 1 0;
+  flex: 1 1 auto;
+  white-space: nowrap;
   padding: 8px 10px;
   border-radius: var(--r-radius-pill);
   border: none;

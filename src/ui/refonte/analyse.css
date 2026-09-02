@@ -207,6 +207,177 @@
   color: var(--r-text);
 }
 
+/* ---- Frise des accords ----
+   Dans les maquettes, la frise est une bande fine posée au-dessus des
+   sous-onglets : on y lit la suite harmonique d'un regard, sans qu'elle
+   accapare l'écran. L'implémentation lui donnait 88 px de haut, soit un tiers
+   de la zone de travail, ce qui repoussait le contenu du sous-onglet hors de
+   vue et obligeait à défiler pour lire une fiche d'accord. */
+#analysis-tab .analyzer-timeline-wrapper {
+  height: 62px;
+}
+
+#analysis-tab .analyzer-timeline-block {
+  top: 6px;
+  bottom: 6px;
+  font-size: 0.86rem;
+}
+
+/* La barre de défilement horizontale de la frise reste discrète mais visible :
+   elle signale qu'il y a d'autres accords à droite. */
+#analysis-tab .analyzer-timeline-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--r-border-strong) transparent;
+}
+
+#analysis-tab .analyzer-timeline-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+#analysis-tab .analyzer-timeline-scroll::-webkit-scrollbar-thumb {
+  background: var(--r-border-strong);
+  border-radius: 100px;
+}
+
+/* Mise en page du sous-onglet « Accord sélectionné » — maquettes 03 et 09.
+   Les deux maquettes montrent la même chose : une colonne unique, centrée, où
+   trois cartes de même largeur s'empilent dans cet ordre — l'accord en grand,
+   puis sa fiche d'analyse, puis l'aperçu de voicing. C'est cette composition
+   qui est reprise ici, et non une répartition en deux colonnes : l'œil suit une
+   lecture verticale, du plus visuel au plus technique. */
+#analysis-tab .analyzer-chords-layout {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 13px;
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 6px 0 20px;
+}
+
+/* Les trois cartes partagent exactement la même largeur et le même rythme
+   d'espacement — c'est ce qui donne à la colonne son aspect composé plutôt
+   qu'empilé au hasard. */
+#analysis-tab .analyzer-chords-layout > * {
+  width: 100%;
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+/* Aperçu du voicing : intitulé technique à gauche, groupe Fermer/Simple à
+   droite sur la même ligne, contenu dessous et aligné à gauche (maquette 03).
+   Il était centré et empilé, ce qui le faisait ressembler à une boîte de
+   dialogue posée par-dessus les autres cartes. */
+#analysis-tab .voicing-preview-panel {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 14px 16px;
+  text-align: left;
+}
+
+#analysis-tab .voicing-preview-panel > #analyzer-voicing-content {
+  grid-column: 1 / -1;
+  text-align: left;
+}
+
+#analysis-tab .voicing-preview-panel .voicing-style-selector {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+}
+
+#analysis-tab .voicing-preview-title {
+  margin: 0;
+  text-align: left;
+}
+
+#analysis-tab .voicing-preview-hand {
+  justify-content: flex-start;
+}
+
+#analysis-tab .analyzer-hero-card {
+  padding: 24px 22px 26px;
+  text-align: center;
+}
+
+#analysis-tab .analyzer-hero-name {
+  font-size: clamp(2.1rem, 4.4vw, 3.1rem);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+#analysis-tab .analyzer-hero-notes {
+  margin-top: 9px;
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+}
+
+/* Inspecteur : intitulé discret, nom d'accord, minutage, puis les
+   caractéristiques en deux colonnes — libellé à droite, valeur en gras. */
+#analysis-tab .analyzer-inspector-card {
+  padding: 18px 20px 20px;
+  text-align: left;
+}
+
+#analysis-tab .analyzer-inspector-title {
+  font-size: 0.62rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+#analysis-tab .analyzer-inspector-content {
+  display: block;
+  text-align: left;
+}
+
+#analysis-tab .analyzer-inspector-chord {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin-bottom: 3px;
+}
+
+#analysis-tab .analyzer-inspector-times {
+  font-size: 0.74rem;
+  margin-bottom: 14px;
+}
+
+#analysis-tab .analyzer-inspector-details {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 7px 14px;
+  align-items: baseline;
+  margin-bottom: 16px;
+  font-size: 0.82rem;
+}
+
+#analysis-tab .analyzer-inspector-details .label {
+  text-align: right;
+  white-space: nowrap;
+}
+
+#analysis-tab .analyzer-inspector-details .value {
+  font-weight: 600;
+  color: var(--r-text);
+}
+
+/* Le bouton était rogné par la carte : on lui rend sa hauteur propre. */
+#analysis-tab .analyzer-inspector-card .btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  width: auto;
+  height: auto;
+  padding: 7px 15px;
+  font-size: 0.8rem;
+  border-radius: var(--r-radius-btn);
+}
+
 /* Carte héros : dégradé plein en v2, aplat en Global */
 :root[data-skin='v2'] #analysis-tab .analyzer-hero-card {
   background: linear-gradient(150deg, #7c4dff 0%, #5b4bd1 100%);

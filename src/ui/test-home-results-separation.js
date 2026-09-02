@@ -129,7 +129,14 @@ runTest('B. HTML — #analyzer-import-screen contient les cartes d\'import', () 
   assert(content.includes('analyzer-import-audio-btn'), 'Bouton Audio présent');
   assert(content.includes('analyzer-import-video-btn'), 'Bouton Vidéo présent');
   assert(content.includes('analyzer-import-midi-btn'), 'Bouton MIDI présent');
-  assert(content.includes('analyzer-library-list'), 'Bibliothèque présente');
+  // [Refonte 2026-09-02] — La liste des morceaux ne vit plus dans l'écran
+  // d'import : elle a été sortie dans « Ma bibliothèque », fenêtre commune au
+  // Studio et à l'Analyse. Ce que l'écran d'accueil doit garantir, c'est
+  // l'accès à cette bibliothèque — c'est donc cela que l'on vérifie, la liste
+  // elle-même étant contrôlée là où elle se trouve désormais.
+  assert(content.includes('analyzer-library-open'), 'Accès à la bibliothèque présent');
+  assert(html.includes('id="library-modal"'), 'Fenêtre « Ma bibliothèque » présente');
+  assert(html.includes('analyzer-library-list'), 'Liste de la bibliothèque présente dans la fenêtre');
 });
 
 // ── C. Vérification JS — setAnalyzerState ──
