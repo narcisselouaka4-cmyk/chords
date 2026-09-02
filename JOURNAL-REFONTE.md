@@ -140,8 +140,69 @@ aspect à revoir à l'œil quand l'écran Réglages complet sera fait (§3.6).
 - Dépendance dev ajoutée : `puppeteer-core` (finalement inutilisée — laissée car
   déjà installée ; à retirer si on veut nettoyer). *(à réévaluer)*
 
+### ✅ Étape 2 — Studio, skins v2 et Global (relais §2, §12.2) — FAITE (commit d8ed061)
+
+**Approche** : `src/ui/refonte/studio.css` en `<link>`, override scopé
+`:root[data-skin='…'] #studio-tab` par-dessus le Studio existant. Zéro
+changement à la logique de stages (0/1/2/3, `display:none`, overlays) — pilotée
+comme avant par `style.css` + `studio-tab.js`.
+
+**Ce qui a bougé dans le DOM (une fois, pour les deux skins)** : le bloc
+« Lecture » (transposition + volume) quitte la barre de transport pour la
+colonne de droite, comme sur les deux maquettes ; ajout de la bascule
+« Boucler la région » (relais §2).
+
+**Comportement câblé** : « Boucler la région » — `loopRegion` persisté dans
+`localStorage`, et les deux gardes de fin de région (`onAudioTimeUpdate` +
+`syncVideoAndCursor`) relancent à `regionStart` au lieu de `pause()` quand la
+boucle est active. `renderStems` pose `data-stem` → pastille de couleur par
+stem en CSS.
+
+**Grammaire appliquée** : Global = cartes anguleuses 9-12px, aplats,
+`accent-soft`, filet d'accent, transport plat, moniteur 16:9 dégradé, waveform
+encadrée traits fins. v2 = pilules (stems à `border-radius:100px`, boutons
+ronds, bouton play en dégradé), waveform arrondie, région pilule.
+
+**Tests** : `src/ui/refonte/test-studio-skin.js` (18 assertions statiques :
+markup du bloc Lecture, deux blocs de skin, boucle réellement câblée). Vert.
+Build OK, régressions Partie 1 & 3 + test-chords 98/98 OK.
+
+**Limite de vérification — IMPORTANT pour Narcisse** : l'environnement de cette
+session **n'a pas d'affichage exploitable** (Chrome headless : crash « FD
+ownership violation » + network service en boucle, CDP/puppeteer HS ;
+`_dev-view.html` avec iframe : injection de script non exécutée ; Electron via
+`run_in_background` : SIGKILL immédiat). Seules les captures **statiques sans
+interaction ni IPC** marchent (`refonte-shot.sh` / `refonte-preview.sh`). Donc :
+Studio **stage 0** (liste des morceaux) vérifié à l'écran dans les deux skins ;
+**stages 1-3** (lecteur, waveform de région, cartes de stems, bloc Lecture) —
+CSS dérivée ligne à ligne des maquettes `refonte-studio-{global,v2}_2.html`
+mais **pas capturée en vrai**. À mettre en tête de liste du prochain point
+matin (§9 du prompt).
+
+### Décision non tranchée résolue (Studio)
+
+- **Rail d'icônes v2** : la maquette `refonte-studio-v2_2.html` téléchargée le
+  montre encore (colonne 56px `.icon-rail`). Écarté — §1.1 + `decision-deux-
+  themes` abandonnent le rail dans les DEUX skins ; l'image `01-studio-v2.png`
+  (référence) ne le montre pas. La barre d'onglets du haut (déjà en place, étape
+  1) le remplace.
+- **Panneau « Réglages du son » v2 avec ✕** (image 01) vs « Sound Settings
+  abandonné » (addendum) : ce qui est abandonné c'est le *tiroir* accroché au
+  rail. Le panneau de droite (volume / transpo / région / boucle / tags de
+  stems) est réel — je garde le contenu, rendu dans la colonne de droite
+  existante. Le ✕ n'est pas repris (pas de comportement garanti, §10) : on
+  garde le mécanisme de repli `#studio-collapse` déjà présent.
+- **« Effets + » / « Export + »** de la maquette Global : non repris — ces
+  fonctions n'existent pas dans le code (§10 : ne pas afficher un contrôle sans
+  comportement).
+- **Miniatures de waveform** dans la liste des morceaux / les cartes de stems
+  (maquettes) : non reprises pour l'instant — une fausse waveform est une
+  fausse information (§10). Cartes stylées sans la vignette ; vraie vignette =
+  petit chantier séparé (peaks de l'AudioBuffer).
+
 ### Prochaine étape
 
-- [ ] Étape 2 — Studio, les deux skins (relais §2, §12.2). Global d'abord (le
-  plus abouti), puis v2. Maquettes HTML dispo sur disque :
-  `~/Téléchargements/refonte-studio-{global,v2}_2.html` (= images 01/02).
+- [ ] Étape 3 — Analyse v2, sous-onglet par sous-onglet (§3.1 → §3.6) puis
+  chaque équivalent Global juste après (§5). Références = images 03-14 (pas de
+  maquette HTML sur disque). Construire les briques partagées (glossaire §8.1,
+  client IA §8.2) avec Masterclass.
