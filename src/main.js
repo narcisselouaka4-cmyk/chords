@@ -21,8 +21,14 @@ import {
   getAIConfig,
   saveAIConfig,
   testAIConfig,
+  loadSecureAIConfig,
   PRESETS,
 } from './ai/openai-config.js';
+import {
+  getMonthlyCap,
+  setMonthlyCap,
+  getMonthlyUsage,
+} from './ui/masterclass-panel.js';
 import { createPracticeExercise, renderExerciseTarget } from './practice-exercise.js';
 import { applyTabVisibility } from './ui/tab-visibility.js';
 import { initOnboarding, notifyOnboarding } from './ui/onboarding.js';
@@ -143,6 +149,8 @@ const els = {
   aiSaveBtn: document.getElementById('ai-save-btn'),
   aiCancelBtn: document.getElementById('ai-cancel-btn'),
   aiTestResult: document.getElementById('ai-test-result'),
+  aiMonthlyCap: document.getElementById('ai-monthly-cap'),
+  aiUsage: document.getElementById('ai-usage'),
 };
 
 function setStatus(message) {
@@ -930,15 +938,18 @@ function checkPracticeExercise(notes) {
 }
 
 // [Claude] — 2026-07-04 — Initialisation du panneau de configuration API IA
+// [Refonte 2026-09-02] — Chiffrement safeStorage + plafond mensuel réel.
 function initAISettings() {
   const modal = els.aiSettingsModal;
   if (!modal) return;
 
-  function loadConfigIntoUI() {
-    const cfg = getAIConfig();
+  async function loadConfigIntoUI() {
+    const cfg = await loadSecureAIConfig();
     if (els.aiBaseUrl) els.aiBaseUrl.value = cfg.baseUrl;
     if (els.aiApiKey) els.aiApiKey.value = cfg.apiKey;
     if (els.aiModel) els.aiModel.value = cfg.model;
+    if (els.aiMonthlyCap) els.aiMonthlyCap.value = String(getMonthlyCap());
+    if (els.aiUsage) els.aiUsage.textContent = `${getMonthlyUsage()} / ${getMonthlyCap()} ce mois`;
     if (els.aiPreset) els.aiPreset.value = '';
     if (els.aiTestResult) {
       els.aiTestResult.textContent = '';
@@ -951,6 +962,7 @@ function initAISettings() {
       baseUrl: els.aiBaseUrl?.value || '',
       apiKey: els.aiApiKey?.value || '',
       model: els.aiModel?.value || '',
+      monthlyCap: els.aiMonthlyCap?.value || '50',
     };
   }
 
@@ -995,14 +1007,19 @@ function initAISettings() {
     }
   });
 
-  els.aiSaveBtn?.addEventListener('click', () => {
-    const cfg = saveAIConfig(gatherConfigFromUI());
+  els.aiSaveBtn?.addEventListener('click', async () => {
+    const gathered = gatherConfigFromUI();
+    const cfg = await saveAIConfig(gathered);
+    setMonthlyCap(gathered.monthlyCap);
+    if (els.aiUsage) els.aiUsage.textContent = `${getMonthlyUsage()} / ${getMonthlyCap()} ce mois`;
     setStatus(`Paramètres IA enregistrés (${cfg.model})`);
     modal.style.display = 'none';
   });
 }
 
 async function init() {
+  // [Refonte 2026-09-02] — Chargement sécurisé de la config IA avant tout appel.
+  await loadSecureAIConfig();
   initTheme();
   // [Refonte v2/Global] — bascule de skin (Réglages › Apparence).
   initSkin({ selector: document.getElementById('skin-selector') });

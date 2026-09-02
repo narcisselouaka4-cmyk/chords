@@ -55,6 +55,16 @@ import {
   renderReharmonizationSuccess,
   renderReharmonizationVariants,
 } from './reharmonization-view.js';
+import {
+  initMasterclassPanel,
+  renderMasterclass,
+  updateAIConnected,
+  setMasterclassSourceType,
+} from './masterclass-panel.js';
+import {
+  initCorrigerPanel,
+  renderCorriger,
+} from './corriger-panel.js';
 import './reharmonization-view.css';
 import { buildFileContextText } from './file-context.js';
 import { listTracks, loadMetadata, getOriginalPath, importToLibrary, renameTrack, deleteTrack } from './media-library.js';
@@ -180,25 +190,44 @@ const els = {
   processing: document.getElementById('analyzer-processing'),
   processingText: document.getElementById('analyzer-processing-text'),
 
-  // Panneau Réharmonisation (Incrément 9, Lot 1) — démonstration du moteur canonique.
-  reharmRun: document.getElementById('analyzer-reharm-run'),
-  reharmOutput: document.getElementById('analyzer-reharm-output'),
-  reharmDetails: document.getElementById('analyzer-reharm-details'),
-  reharmSummary: document.getElementById('analyzer-reharm-summary'),
-  // [OpenCode] — 2026-08-24 — Réharmonisation V1, Étape 1 : capture live.
-  reharmLive: document.getElementById('analyzer-reharm-live'),
-  reharmLiveStatus: document.getElementById('analyzer-reharm-live-status'),
-  // [OpenCode] — 2026-08-24 — EXP-027 Étape 2 : extraction depuis audio.
-  reharmAudioStem: document.getElementById('analyzer-reharm-audio-stem'),
-  reharmAudioStemKind: document.getElementById('analyzer-reharm-audio-stem-kind'),
-  reharmAudioStatus: document.getElementById('analyzer-reharm-audio-status'),
-  // [OpenCode] — 2026-08-24 — EXP-030 Tâche A : session enregistrée.
-  reharmSession: document.getElementById('analyzer-reharm-session'),
-  reharmSessionSelect: document.getElementById('analyzer-reharm-session-select'),
-  reharmSessionStatus: document.getElementById('analyzer-reharm-session-status'),
-  // [OpenCode] — 2026-08-25 — EXP-031 Tâche 3 : sélecteur de style.
-  reharmStyle: document.getElementById('analyzer-reharm-style'),
-  reharmStyleStatus: document.getElementById('analyzer-reharm-style-status'),
+  // Panneau Réharmonisation (refonte visuelle §3.2).
+  reharmRun: document.getElementById('reharm-run-btn'),
+  reharmResults: document.getElementById('reharm-results'),
+  reharmContextKey: document.getElementById('reharm-context-key'),
+  reharmContextSource: document.getElementById('reharm-context-source'),
+  reharmContextRange: document.getElementById('reharm-context-range'),
+  reharmStyleSelector: document.getElementById('reharm-style-selector'),
+  reharmMelodyStrip: document.getElementById('reharm-melody-strip'),
+  reharmMelodyEmpty: document.getElementById('reharm-melody-empty'),
+  reharmPostApply: document.getElementById('reharm-post-apply'),
+  reharmVersionToggle: document.getElementById('reharm-version-toggle'),
+  reharmAppliedContext: document.getElementById('reharm-applied-context'),
+  reharmAppliedScore: document.getElementById('reharm-applied-score'),
+  reharmConfirmBand: document.getElementById('reharm-confirm-band'),
+  reharmRevertBtn: document.getElementById('reharm-revert-btn'),
+  reharmRelistenBtn: document.getElementById('reharm-relisten-btn'),
+  reharmSendTrainingBtn: document.getElementById('reharm-send-training-btn'),
+  reharmCompareBtn: document.getElementById('reharm-compare-btn'),
+
+  // Panneau Masterclass (refonte visuelle §3.3).
+  masterclassEmpty: document.getElementById('masterclass-empty'),
+  masterclassContent: document.getElementById('masterclass-content'),
+
+  // Panneau Corriger (refonte visuelle §3.4).
+  corrigerHeader: document.getElementById('corriger-header'),
+  corrigerFilter: document.getElementById('corriger-filter'),
+  corrigerMessage: document.getElementById('corriger-message'),
+  corrigerList: document.getElementById('corriger-list'),
+  corrigerEditor: document.getElementById('corriger-editor'),
+  corrigerEditorDetected: document.getElementById('corriger-editor-detected'),
+  corrigerEditorMeta: document.getElementById('corriger-editor-meta'),
+  corrigerKeyboard: document.getElementById('corriger-keyboard'),
+  corrigerInput: document.getElementById('corriger-input'),
+  corrigerCandidates: document.getElementById('corriger-candidates'),
+  corrigerListenBtn: document.getElementById('corriger-listen-btn'),
+  corrigerApplyBtn: document.getElementById('corriger-apply-btn'),
+  corrigerCorrectBtn: document.getElementById('corriger-correct-btn'),
+  corrigerResetBtn: document.getElementById('corriger-reset-btn'),
 };
 
 let analyzer = null;
@@ -261,12 +290,27 @@ let reharmLiveWrapper = null;
 // 'gospel' par défaut pour préserver R1 inchangé.
 let reharmActiveStyle = 'gospel';
 
+// [Refonte visuelle 2026-09-02] — État d'une réharmonisation appliquée.
+let appliedReharmonization = null; // { variantId, styleId, chords[], meta }
+let timelineViewMode = 'original'; // 'original' | 'reharm'
+let lastReharmVariantsVm = null;
+let lastReharmMeta = null;
+
 // Retourne le style de réharmonisation actuellement sélectionné dans l'UI.
 function getReharmActiveStyle() {
-  if (els.reharmStyle && els.reharmStyle.value) {
-    return els.reharmStyle.value;
+  if (els.reharmStyleSelector) {
+    const active = els.reharmStyleSelector.querySelector('[aria-pressed="true"]');
+    if (active) return active.dataset.style;
   }
   return reharmActiveStyle;
+}
+
+// Retourne l'accord affiché selon le mode timeline actuel.
+function getDisplayChords() {
+  if (timelineViewMode === 'reharm' && appliedReharmonization && appliedReharmonization.chords) {
+    return appliedReharmonization.chords;
+  }
+  return currentAnalysis?.chords || [];
 }
 
 // Phase B : persistance
@@ -292,6 +336,34 @@ export function initAnalyzerTab() {
   initChordEditor();
   initKeyboardShortcuts();
   initReharmonizationPanel();
+  initMasterclassPanel(els, {
+    sourceType: currentSourceType,
+    onCorrect: (segment) => {
+      // Basculer vers Corriger et sélectionner le segment concerné.
+      activateSectionTab('corriger');
+      if (segment) selectSegment(segment.segmentId);
+    },
+    onAskAI: (segment) => {
+      activateSectionTab('corriger');
+      if (segment) selectSegment(segment.segmentId);
+    },
+  });
+  initCorrigerPanel(els, {
+    getSegments: () => getDisplayChords(),
+    getAnalysis: () => currentAnalysis,
+    getPlayer: () => currentPlayer,
+    requestPause: () => pausePlayback(),
+    onSelect: (segmentId) => selectSegment(segmentId),
+    onCorrected: (segmentId) => {
+      markDirty();
+      rerenderTimeline();
+      const segment = getDisplayChords().find((s) => s.segmentId === segmentId) || null;
+      renderCorriger(els, segment, currentAnalysis);
+    },
+    onExportMidi: () => handleExportMidi(),
+    onExportJson: () => handleExportJson(),
+    onCopyText: () => handleCopyText(),
+  });
   refreshLibraryList();
 
   // [Claude] — 2026-08-08 — Enregistrement auprès du gestionnaire d’audio focus.
@@ -679,6 +751,7 @@ async function loadAnalysisSource(sourceType, filePath, fileName) {
   // Discrimination audio/vidéo par extension (auto-détection fiable du format).
   const ext = (filePath.split('.').pop() || '').toLowerCase();
   currentSourceType = inferSourceType(ext, currentSourceType);
+  setMasterclassSourceType(currentSourceType);
 
   // Un morceau déjà analysé revient directement à ses résultats : l'analyse
   // est relue depuis le projet .pjc.json plutôt que recalculée. Exigence du
@@ -972,6 +1045,7 @@ export function resetAnalysisSession() {
   currentFileName = '';
   currentAudioPath = '';
   currentSourceType = null;
+  setMasterclassSourceType('audio');
   currentVideoType = null;
   selectedSegmentId = null;
   clearInspector();
@@ -1197,7 +1271,7 @@ function redo() {
 
 function rerenderTimeline() {
   if (currentAnalysis) {
-    renderTimeline(currentAnalysis.chords || [], currentAnalysis.duration || 0);
+    renderTimeline(getDisplayChords(), currentAnalysis.duration || 0);
   }
 }
 
@@ -1452,8 +1526,10 @@ function bindHierarchyToggle() {
 function selectSegment(segmentId) {
   selectedSegmentId = segmentId;
   highlightSelectedSegment(segmentId);
-  const segment = currentAnalysis?.chords?.find((s) => s.segmentId === segmentId) || null;
+  const segment = getDisplayChords().find((s) => s.segmentId === segmentId) || null;
   renderInspector(segment);
+  renderMasterclass(els, segment, currentAnalysis);
+  renderCorriger(els, segment, currentAnalysis);
 }
 
 function highlightSelectedSegment(segmentId) {
@@ -1559,7 +1635,7 @@ function updatePlaybackPosition(currentTime) {
   els.currentTimeEl.textContent = formatTime(clamped);
   els.durationEl.textContent = formatTime(duration);
 
-  const chords = currentAnalysis.chords || [];
+  const chords = getDisplayChords();
   let activeIndex = -1;
   for (let i = 0; i < chords.length; i++) {
     if (clamped >= chords[i].startTime && clamped < chords[i].endTime) {
@@ -1692,7 +1768,7 @@ function initTimelineZoom() {
     timelineZoom = Number(els.zoomSlider.value);
     els.zoomValue.textContent = `${Math.round(timelineZoom * 100)}%`;
     if (currentAnalysis) {
-      renderTimeline(currentAnalysis.chords || [], currentAnalysis.duration || 0);
+      renderTimeline(getDisplayChords(), currentAnalysis.duration || 0);
     }
   });
 }
@@ -1789,18 +1865,26 @@ function bindSectionTabs() {
 
   els.sectionTabs.forEach((tab) => {
     tab.addEventListener('click', () => {
-      els.sectionTabs.forEach((t) => {
-        t.classList.remove('active');
-        t.setAttribute('aria-selected', 'false');
-      });
-      tab.classList.add('active');
-      tab.setAttribute('aria-selected', 'true');
-
-      const section = tab.dataset.section;
-      els.sectionPanels.forEach((panel) => {
-        panel.style.display = panel.dataset.section === section ? '' : 'none';
-      });
+      activateSectionTab(tab.dataset.section);
     });
+  });
+}
+
+function activateSectionTab(section) {
+  els.sectionTabs.forEach((t) => {
+    const active = t.dataset.section === section;
+    t.classList.toggle('active', active);
+    t.setAttribute('aria-selected', String(active));
+  });
+  els.sectionPanels.forEach((panel) => {
+    const active = panel.dataset.section === section;
+    panel.style.display = active ? '' : 'none';
+    if (active && section === 'masterclass') {
+      renderMasterclass(els, getDisplayChords().find((s) => s.segmentId === selectedSegmentId) || null, currentAnalysis);
+    }
+    if (active && section === 'corriger') {
+      renderCorriger(els, getDisplayChords().find((s) => s.segmentId === selectedSegmentId) || null, currentAnalysis);
+    }
   });
 }
 
@@ -2239,139 +2323,308 @@ function escapeHtml(str) {
 }
 
 // ---------------------------------------------------------------------------
-// Incrément 9, Lot 1 — Panneau Réharmonisation (démonstration du moteur canonique)
+// ---------------------------------------------------------------------------
+// Refonte visuelle — Panneau Réharmonisation (§3.2)
 // ---------------------------------------------------------------------------
 
-// Initialise le panneau Réharmonisation existant (#analyzer-reharm-style / run /
-// output). Le sélecteur de style est DÉSACTIVÉ et jamais lu : aucun mapping
-// Worship/Gospel/Jazz/Neo Soul déterministe n'existe dans le moteur canonique.
-// Le bouton lance une démonstration explicite d'une fixture déterministe.
+// Initialise le panneau Réharmonisation : sélecteur de style en pilules,
+// lancement de la démonstration, comparaison, puis gestion des états post-apply.
 function initReharmonizationPanel() {
-  const runBtn = els.reharmRun;
-  const output = els.reharmOutput;
-  const details = els.reharmDetails;
-  const summary = els.reharmSummary;
-  const liveBtn = els.reharmLive;
-
-  if (runBtn) {
-    runBtn.textContent = 'Lancer la démonstration';
-    runBtn.setAttribute('aria-controls', 'analyzer-reharm-output');
-    runBtn.setAttribute('aria-expanded', 'false');
-    runBtn.addEventListener('click', runReharmonizationDemo);
+  // Sélecteur de style (Worship / Gospel / Jazz / Neo Soul).
+  if (els.reharmStyleSelector) {
+    const buttons = els.reharmStyleSelector.querySelectorAll('button[data-style]');
+    buttons.forEach((btn) => {
+      const active = btn.dataset.style === reharmActiveStyle;
+      btn.setAttribute('aria-pressed', String(active));
+      btn.classList.toggle('active', active);
+      btn.addEventListener('click', () => setReharmStyle(btn.dataset.style));
+    });
   }
 
-  // [OpenCode] — 2026-08-24 — Bouton « Réharmoniser ma mélodie » : utilise la
-  // dernière capture live. Désactivé tant qu'aucune mélodie n'est disponible.
-  if (liveBtn) {
-    liveBtn.setAttribute('aria-controls', 'analyzer-reharm-output');
-    liveBtn.addEventListener('click', runReharmonizationLive);
+  // Bouton principal : lancer la démonstration du moteur.
+  if (els.reharmRun) {
+    els.reharmRun.addEventListener('click', runReharmonizationDemo);
   }
 
-  // [OpenCode] — 2026-08-24 — EXP-027 Étape 2 : bouton « Depuis un fichier
-  // audio ». Sélection d'un stem WAV déjà séparé dans le Studio.
-  if (els.reharmAudioStem) {
-    els.reharmAudioStem.setAttribute('aria-controls', 'analyzer-reharm-output');
-    els.reharmAudioStem.addEventListener('click', runReharmonizationFromAudio);
-  }
-
-  // [OpenCode] — 2026-08-24 — EXP-030 Tâche A : bouton « Depuis une session
-  // enregistrée ». Charge les sessions disponibles et déclenche la réharm.
-  if (els.reharmSession) {
-    els.reharmSession.setAttribute('aria-controls', 'analyzer-reharm-output');
-    els.reharmSession.addEventListener('click', runReharmonizationFromSession);
-  }
-
-  // Lot A — synchronisation de aria-expanded sur le <summary> quand
-  // l'utilisateur ouvre/ferme manuellement le <details>. On n'intercepte pas
-  // le comportement natif : on observe simplement l'état pour l'accessibilité.
-  if (details && summary) {
-    const syncExpanded = () => {
-      const open = details.hasAttribute('open');
-      summary.setAttribute('aria-expanded', String(open));
-    };
-    syncExpanded();
-    details.addEventListener('toggle', syncExpanded);
-  }
-
-  // [OpenCode] — 2026-08-25 — EXP-031 Tâche 3 : sélecteur de style actif.
-  if (els.reharmStyle) {
-    els.reharmStyle.addEventListener('change', () => {
-      reharmActiveStyle = els.reharmStyle.value;
-      if (els.reharmStyleStatus) {
-        const labels = {
-          worship: 'Worship : harmonie diatonique canonique, sans enrichissements.',
-          gospel: 'Gospel : add9, add6, sus2, passages V7b9/V7#5, voicings Drop 2/Rootless/Cluster.',
-          jazz: 'Jazz : substitution tritonique, voicings Drop 2/Rootless.',
-          neoSoul: 'Neo Soul : dominante 7b9 vers mineur, voicing quartal.',
-        };
-        els.reharmStyleStatus.textContent = labels[reharmActiveStyle] || labels.gospel;
+  // Bouton secondaire : comparer les propositions (scroll vers les cartes).
+  if (els.reharmCompareBtn) {
+    els.reharmCompareBtn.addEventListener('click', () => {
+      if (lastReharmVariantsVm) {
+        els.reharmResults?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        showToast('Lancez d’abord une réharmonisation pour comparer les propositions.', 3000);
       }
     });
   }
 
-  if (output) {
-    output.setAttribute('aria-live', 'polite');
-    output.setAttribute('aria-busy', 'false');
-    renderReharmonizationEmpty(output);
+  // Clics délégués sur les cartes (Appliquer / Basculer).
+  els.reharmResults?.addEventListener('click', (e) => {
+    const applyBtn = e.target.closest('[data-reharm-apply]');
+    if (applyBtn) {
+      applyReharmonization(applyBtn.dataset.reharmApply);
+      return;
+    }
+    const switchBtn = e.target.closest('[data-reharm-switch]');
+    if (switchBtn) {
+      applyReharmonization(switchBtn.dataset.reharmSwitch);
+    }
+  });
+
+  // Interrupteur Original / Réharmonisé après application.
+  if (els.reharmVersionToggle) {
+    const buttons = els.reharmVersionToggle.querySelectorAll('button[data-version]');
+    buttons.forEach((btn) => {
+      btn.addEventListener('click', () => setTimelineViewMode(btn.dataset.version));
+    });
+  }
+
+  els.reharmRevertBtn?.addEventListener('click', () => {
+    setTimelineViewMode('original');
+    appliedReharmonization = null;
+    if (els.reharmPostApply) els.reharmPostApply.style.display = 'none';
+    rerenderTimeline();
+  });
+
+  els.reharmRelistenBtn?.addEventListener('click', () => {
+    if (timelineViewMode !== 'reharm') setTimelineViewMode('reharm');
+    togglePlayback();
+  });
+
+  els.reharmSendTrainingBtn?.addEventListener('click', () => {
+    showToast('Envoi vers Entraînement — à brancher dans l’onglet Entraînement.', 3000);
+  });
+
+  if (els.reharmResults) {
+    els.reharmResults.setAttribute('aria-live', 'polite');
+    els.reharmResults.setAttribute('aria-busy', 'false');
+    renderReharmonizationEmpty(els.reharmResults);
   }
 }
 
+function setReharmStyle(styleId) {
+  reharmActiveStyle = styleId;
+  if (els.reharmStyleSelector) {
+    const buttons = els.reharmStyleSelector.querySelectorAll('button[data-style]');
+    buttons.forEach((btn) => {
+      const active = btn.dataset.style === styleId;
+      btn.setAttribute('aria-pressed', String(active));
+      btn.classList.toggle('active', active);
+    });
+  }
+}
+
+function setTimelineViewMode(mode) {
+  timelineViewMode = mode === 'reharm' ? 'reharm' : 'original';
+  if (els.reharmVersionToggle) {
+    const buttons = els.reharmVersionToggle.querySelectorAll('button[data-version]');
+    buttons.forEach((btn) => {
+      const active = btn.dataset.version === timelineViewMode;
+      btn.setAttribute('aria-pressed', String(active));
+      btn.classList.toggle('active', active);
+    });
+  }
+  rerenderTimeline();
+}
+
+function countModifiedChords(reharmChords, originalChords) {
+  if (!originalChords || originalChords.length === 0) return reharmChords.length;
+  let modified = 0;
+  const n = Math.min(reharmChords.length, originalChords.length);
+  for (let i = 0; i < n; i++) {
+    if (reharmChords[i].chord !== originalChords[i].chord) modified++;
+  }
+  modified += Math.abs(reharmChords.length - originalChords.length);
+  return modified;
+}
+
+function buildReharmChords(variant) {
+  const duration = currentAnalysis?.duration || lastReharmMeta?.track?.duration || 10;
+  const stepDuration = duration / Math.max(variant.steps.length, 1);
+  return variant.steps.map((step, i) => ({
+    segmentId: `reharm-${variant.id}-${i}`,
+    chord: step.chordSymbol,
+    startTime: i * stepDuration,
+    endTime: (i + 1) * stepDuration,
+    confidence: 1,
+    role: 'structural',
+  }));
+}
+
+function applyReharmonization(variantId) {
+  if (!lastReharmVariantsVm) return;
+  const variant = lastReharmVariantsVm.variants.find((v) => v.id === variantId);
+  if (!variant) return;
+
+  const chords = buildReharmChords(variant);
+  appliedReharmonization = {
+    variantId: variant.id,
+    styleId: getReharmActiveStyle(),
+    chords,
+    meta: lastReharmMeta,
+  };
+
+  if (els.reharmPostApply) els.reharmPostApply.style.display = '';
+
+  const styleLabels = {
+    worship: 'Worship',
+    gospel: 'Gospel',
+    jazz: 'Jazz',
+    neoSoul: 'Neo Soul',
+  };
+  const styleLabel = styleLabels[appliedReharmonization.styleId] || appliedReharmonization.styleId;
+  const originalCount = (currentAnalysis?.chords || []).length || variant.steps.length;
+  const modifiedCount = countModifiedChords(chords, currentAnalysis?.chords || []);
+  if (els.reharmAppliedContext) {
+    els.reharmAppliedContext.textContent = `${styleLabel} · ${variant.label} — ${modifiedCount} accord(s) sur ${originalCount} modifié(s)`;
+  }
+  if (els.reharmAppliedScore) {
+    els.reharmAppliedScore.textContent = `${variant.validationReport.score}/4 critères`;
+  }
+
+  // Met à jour les cartes : la variante appliquée passe en « ✓ Appliquée ».
+  if (els.reharmResults) {
+    renderReharmonizationVariants(els.reharmResults, lastReharmVariantsVm, lastReharmMeta, variantId);
+  }
+
+  setTimelineViewMode('reharm');
+  togglePlayback();
+}
+
+function updateReharmContext(meta, viewModel) {
+  if (!meta) return;
+  const hc = meta.harmonicContext;
+  const track = meta.track;
+
+  if (els.reharmContextKey) {
+    const tonic = hc?.tonalContext?.spelledKey?.tonicSpelling?.letter;
+    const mode = hc?.tonalContext?.selected?.mode === 'minor' ? 'mineur' : 'majeur';
+    els.reharmContextKey.textContent = tonic ? `${tonic} ${mode}` : '—';
+  }
+
+  let sourceText = 'Démonstration';
+  if (meta.isLive) sourceText = 'Clavier MIDI';
+  else if (meta.isAudio) sourceText = 'Fichier audio';
+  else if (meta.isSession) sourceText = 'Session enregistrée';
+  if (els.reharmContextSource) els.reharmContextSource.textContent = sourceText;
+
+  if (els.reharmContextRange) {
+    let rangeText = '—';
+    if (track && Array.isArray(track.events) && track.events.length > 0) {
+      const times = track.events
+        .map((e) => e.startedAt ?? 0)
+        .filter((t) => typeof t === 'number')
+        .sort((a, b) => a - b);
+      const first = times[0];
+      const last = times[times.length - 1];
+      if (first != null && last != null) {
+        rangeText = `${formatTime(first / 1000)} – ${formatTime(last / 1000)}`;
+      }
+    }
+    els.reharmContextRange.textContent = rangeText;
+  }
+
+  renderReharmMelodyStrip(track, viewModel?.variants?.[0]?.steps || []);
+}
+
+function renderReharmMelodyStrip(track, steps) {
+  if (!els.reharmMelodyStrip || !els.reharmMelodyEmpty) return;
+  if (!track || !Array.isArray(track.events) || track.events.length === 0) {
+    els.reharmMelodyStrip.innerHTML = '';
+    els.reharmMelodyEmpty.style.display = '';
+    return;
+  }
+
+  const melodyEvents = track.events
+    .filter((e) => typeof e.midi === 'number')
+    .sort((a, b) => (a.startedAt ?? 0) - (b.startedAt ?? 0));
+
+  if (melodyEvents.length === 0) {
+    els.reharmMelodyStrip.innerHTML = '';
+    els.reharmMelodyEmpty.style.display = '';
+    return;
+  }
+
+  els.reharmMelodyEmpty.style.display = 'none';
+
+  const times = melodyEvents.map((e) => e.startedAt ?? 0);
+  const minTime = Math.min(...times);
+  const maxTime = Math.max(...times) || minTime + 1;
+  const range = maxTime - minTime || 1;
+  const minMidi = Math.min(...melodyEvents.map((e) => e.midi));
+  const maxMidi = Math.max(...melodyEvents.map((e) => e.midi));
+  const midiRange = Math.max(maxMidi - minMidi, 1);
+
+  // Notes repères : jusqu'à 4 ancres mélodiques.
+  const anchorEventIds = new Set();
+  steps.slice(0, 4).forEach((s) => {
+    if (s.melodyEventId) anchorEventIds.add(s.melodyEventId);
+  });
+
+  els.reharmMelodyStrip.innerHTML = '';
+  melodyEvents.forEach((ev) => {
+    const bar = document.createElement('div');
+    bar.className = 'reharm-melody-bar';
+    if (anchorEventIds.has(ev.id)) bar.classList.add('highlight');
+    const left = ((ev.startedAt - minTime) / range) * 100;
+    const bottom = ((ev.midi - minMidi) / midiRange) * 100;
+    bar.style.left = `${Math.max(0, Math.min(100, left))}%`;
+    bar.style.bottom = `${Math.max(0, Math.min(100, bottom))}%`;
+    bar.style.height = `${Math.max(4, Math.min(40, (ev.duration || 200) / 30))}px`;
+    bar.title = `MIDI ${ev.midi} @ ${formatTime((ev.startedAt ?? 0) / 1000)}`;
+    els.reharmMelodyStrip.appendChild(bar);
+  });
+}
+
 // Lance la démonstration : construit la fixture canonique, appelle le moteur
-// via l’orchestrateur, affiche le résultat. États vide/chargement/succès/erreur.
+// via l’orchestrateur, affiche les 3 cartes de propositions.
 async function runReharmonizationDemo() {
   const runBtn = els.reharmRun;
-  const output = els.reharmOutput;
+  const output = els.reharmResults;
   if (!runBtn || !output) return;
 
   runBtn.disabled = true;
-  runBtn.setAttribute('aria-expanded', 'true');
   output.setAttribute('aria-busy', 'true');
   renderReharmonizationLoading(output);
 
-  // Laisse le navigateur peindre l’état chargement avant le travail synchrone.
   await new Promise((resolve) => requestAnimationFrame(resolve));
   await new Promise((resolve) => setTimeout(resolve, 0));
 
   try {
     const fixture = buildDemoFixture();
-    const viewModel = buildReharmonizationViewModel({
+    const viewModel = buildReharmonizationVariantsViewModel({
       track: fixture.track,
       harmonicContext: fixture.harmonicContext,
+      styleId: getReharmActiveStyle(),
     });
 
     if (viewModel.status === 'success') {
-      renderReharmonizationSuccess(output, viewModel, fixture.meta);
-      // Lot A — ouvrir automatiquement le <details> parent pour rendre les
-      // étapes visibles immédiatement après le succès. La fermeture puis
-      // réouverture ne dupliquent pas les résultats : renderReharmonizationSuccess
-      // appelle clearChildren() au début, donc chaque rendu repart d'un
-      // conteneur vide.
-      if (els.reharmDetails && !els.reharmDetails.hasAttribute('open')) {
-        els.reharmDetails.setAttribute('open', '');
-      }
-      if (els.reharmSummary) {
-        els.reharmSummary.setAttribute('aria-expanded', 'true');
-      }
+      const meta = Object.freeze({
+        isDemo: true,
+        label: 'Démonstration du moteur de réharmonisation',
+        description: 'Ligne mélodique déterministe Do-Mi-Sol en Do majeur.',
+        track: fixture.track,
+        harmonicContext: fixture.harmonicContext,
+      });
+      lastReharmVariantsVm = viewModel;
+      lastReharmMeta = meta;
+      renderReharmonizationVariants(output, viewModel, meta);
+      updateReharmContext(meta, viewModel);
     } else {
       renderReharmonizationError(output, viewModel.message, viewModel.errorKind);
     }
   } catch (err) {
-    // Filet de sécurité : toute erreur non interceptée par l’orchestrateur.
     renderReharmonizationError(output, err && err.message ? err.message : 'Erreur inattendue.', 'Error');
   } finally {
     runBtn.disabled = false;
-    runBtn.setAttribute('aria-expanded', String(!!els.reharmDetails?.hasAttribute('open')));
     output.setAttribute('aria-busy', 'false');
   }
 }
 
 // [OpenCode] — 2026-08-24 — Réharmonisation V1, Étape 1 : lance le moteur
-// canonique sur la dernière capture MIDI live au lieu de la fixture de démo.
-// Comportement identique à runReharmonizationDemo mais avec le wrapper live.
+// canonique sur la dernière capture MIDI live.
 async function runReharmonizationLive() {
-  const liveBtn = els.reharmLive;
-  const output = els.reharmOutput;
-  if (!liveBtn || !output) return;
+  const output = els.reharmResults;
+  if (!output) return;
   if (!reharmLiveWrapper) {
     renderReharmonizationError(
       output,
@@ -2381,17 +2634,12 @@ async function runReharmonizationLive() {
     return;
   }
 
-  liveBtn.disabled = true;
   output.setAttribute('aria-busy', 'true');
   renderReharmonizationLoading(output);
-
   await new Promise((resolve) => requestAnimationFrame(resolve));
   await new Promise((resolve) => setTimeout(resolve, 0));
 
   try {
-    // [OpenCode] — 2026-08-24 — V1, Tâche 4 : génère 3 variantes complètes
-    // (fidèle, gospel, tendue) sur la capture live, avec la mieux notée
-    // recommandée par défaut.
     const viewModel = buildReharmonizationVariantsViewModel({
       track: reharmLiveWrapper.track,
       harmonicContext: reharmLiveWrapper.harmonicContext,
@@ -2402,35 +2650,29 @@ async function runReharmonizationLive() {
         isDemo: false,
         isLive: true,
         label: 'Réharmonisation de votre mélodie',
-        description: `Mélodie live capturée au clavier (${reharmLiveWrapper.track.events.length} notes). Tonalité détectée : ${reharmLiveWrapper.harmonicContext.tonalContext?.spelledKey?.tonicSpelling?.letter || '?'} ${reharmLiveWrapper.harmonicContext.tonalContext?.selected?.mode || '?'}.`,
+        description: `Mélodie live capturée au clavier (${reharmLiveWrapper.track.events.length} notes).`,
+        track: reharmLiveWrapper.track,
+        harmonicContext: reharmLiveWrapper.harmonicContext,
       });
+      lastReharmVariantsVm = viewModel;
+      lastReharmMeta = meta;
       renderReharmonizationVariants(output, viewModel, meta);
-      if (els.reharmDetails && !els.reharmDetails.hasAttribute('open')) {
-        els.reharmDetails.setAttribute('open', '');
-      }
-      if (els.reharmSummary) {
-        els.reharmSummary.setAttribute('aria-expanded', 'true');
-      }
+      updateReharmContext(meta, viewModel);
     } else {
       renderReharmonizationError(output, viewModel.message, viewModel.errorKind);
     }
   } catch (err) {
     renderReharmonizationError(output, err && err.message ? err.message : 'Erreur inattendue.', 'Error');
   } finally {
-    liveBtn.disabled = false;
     output.setAttribute('aria-busy', 'false');
   }
 }
 
 // [OpenCode] — 2026-08-24 — EXP-027 Étape 2 : réharmonisation depuis un stem
-// audio sélectionné (vocals/piano/other) déjà séparé dans le Studio. Flux :
-// 1. sélecteur de fichier (filter .wav) 2. IPC reharm:extract-melody
-// 3. buildAudioMelodyWrapper 4. orchestrateur variantes 5. rendu cartes.
-async function runReharmonizationFromAudio() {
-  const stemBtn = els.reharmAudioStem;
-  const output = els.reharmOutput;
-  const statusEl = els.reharmAudioStatus;
-  if (!stemBtn || !output) return;
+// audio sélectionné (vocals/piano/other) déjà séparé dans le Studio.
+async function runReharmonizationFromAudio(stemPath, stemKind = 'vocals') {
+  const output = els.reharmResults;
+  if (!output) return;
 
   const api = window.electronAPI;
   if (!api?.studio?.selectAudioFile) {
@@ -2438,26 +2680,15 @@ async function runReharmonizationFromAudio() {
     return;
   }
 
-  // 1. Sélection du stem WAV (filtre .wav pour pointer vers un stem déjà séparé).
-  // On réutilise le sélecteur audio qui accepte aussi .wav.
-  const stemPath = await api.studio.selectAudioFile();
-  if (!stemPath) return; // annulé
+  if (!stemPath) {
+    stemPath = await api.studio.selectAudioFile();
+    if (!stemPath) return;
+  }
 
-  // Choix du type de stem (informe l'utilisateur, ne change pas le fichier
-  // sélectionné — l'utilisateur pointe directement le bon stem).
-  const stemKind = els.reharmAudioStemKind?.value || 'vocals';
-
-  // [OpenCode] — 2026-08-24 — EXP-029 Tâche 2 : récupérer la tonalité depuis
-  // Chordify (déjà fiable, cf. EXP-028) plutôt que depuis la seule mélodie
-  // extraite. On déduit le fichier original depuis le chemin du stem
-  // (~/PianoJazzChords/Studio/<trackId>/stems/<stem>.wav → original.mp3).
   let harmonicKey = null;
   try {
-    // Le stem est à .../Studio/<trackId>/stems/<stem>.wav
-    // L'original est à .../Studio/<trackId>/original.<ext>
     const stemDir = stemPath.includes('/stems/') ? stemPath.split('/stems/')[0] : null;
     if (stemDir && api.analyzer?.processFile) {
-      // Cherche original.mp3 ou original.mp4 ou original.m4a
       const fs = api.files;
       const candidates = ['original.mp3', 'original.mp4', 'original.m4a', 'original.wav'];
       let originalPath = null;
@@ -2469,7 +2700,6 @@ async function runReharmonizationFromAudio() {
         } catch (_) { /* try next */ }
       }
       if (originalPath) {
-        if (statusEl) statusEl.textContent = `Analyse harmonique (Chordify) de ${originalPath.split('/').pop()}…`;
         const analysis = await api.analyzer.processFile(originalPath, { analyzeBass: false });
         if (analysis && analysis.key) {
           harmonicKey = { key: analysis.key, mode: analysis.keyMode || 'major' };
@@ -2478,19 +2708,13 @@ async function runReharmonizationFromAudio() {
     }
   } catch (err) {
     console.warn('[Reharm] Chordify key detection échouée:', err);
-    // Continue sans tonalité Chordify — fallback sur estimateTonalContextFromMelody.
   }
 
-  stemBtn.disabled = true;
-  if (statusEl) statusEl.textContent = `Extraction de la mélodie depuis ${stemKind}… (peut prendre 20-30s pour 60s d'audio)`;
   output.setAttribute('aria-busy', 'true');
   renderReharmonizationLoading(output);
-
   await new Promise((resolve) => requestAnimationFrame(resolve));
 
   try {
-    // 2. Extraction de la mélodie (IPC → melody_extractor.py → notes).
-    // Passe harmonicKey si disponible (depuis Chordify).
     const extracted = await extractAudioMelody(stemPath, {
       name: `Mélodie extraite (${stemKind})`,
       ipcOptions: {},
@@ -2499,11 +2723,9 @@ async function runReharmonizationFromAudio() {
 
     if (extracted.status !== 'success') {
       renderReharmonizationError(output, extracted.message, extracted.errorKind);
-      if (statusEl) statusEl.textContent = extracted.message || 'Échec de l\'extraction.';
       return;
     }
 
-    // 3. Variantes via l'orchestrateur canonique existant.
     const viewModel = buildReharmonizationVariantsViewModel({
       track: extracted.wrapper.track,
       harmonicContext: extracted.wrapper.harmonicContext,
@@ -2516,38 +2738,29 @@ async function runReharmonizationFromAudio() {
         isLive: false,
         isAudio: true,
         label: 'Réharmonisation depuis fichier audio',
-        description: `${extracted.noteCount} notes extraites du stem « ${stemKind} ». Tonalité détectée : ${extracted.wrapper.harmonicContext.tonalContext?.spelledKey?.tonicSpelling?.letter || '?'} ${extracted.wrapper.harmonicContext.tonalContext?.selected?.mode || '?'}.`,
+        description: `${extracted.noteCount} notes extraites du stem « ${stemKind} ».`,
+        track: extracted.wrapper.track,
+        harmonicContext: extracted.wrapper.harmonicContext,
       });
+      lastReharmVariantsVm = viewModel;
+      lastReharmMeta = meta;
       renderReharmonizationVariants(output, viewModel, meta);
-      if (statusEl) statusEl.textContent = `${extracted.noteCount} notes extraites → ${viewModel.variants.length} variantes. Recommandée : ${viewModel.recommendedId}.`;
-      if (els.reharmDetails && !els.reharmDetails.hasAttribute('open')) {
-        els.reharmDetails.setAttribute('open', '');
-      }
-      if (els.reharmSummary) {
-        els.reharmSummary.setAttribute('aria-expanded', 'true');
-      }
+      updateReharmContext(meta, viewModel);
     } else {
       renderReharmonizationError(output, viewModel.message, viewModel.errorKind);
-      if (statusEl) statusEl.textContent = viewModel.message || 'Échec de la réharmonisation.';
     }
   } catch (err) {
     renderReharmonizationError(output, err && err.message ? err.message : 'Erreur inattendue.', 'Error');
-    if (statusEl) statusEl.textContent = 'Erreur inattendue.';
   } finally {
-    stemBtn.disabled = false;
     output.setAttribute('aria-busy', 'false');
   }
 }
 
 // [OpenCode] — 2026-08-24 — EXP-030 Tâche A : réharmonisation depuis une
-// session enregistrée. Charge la liste des sessions, propose un sélecteur,
-// puis déclenche la réharmonisation via buildSessionMelodyWrapper.
-async function runReharmonizationFromSession() {
-  const btn = els.reharmSession;
-  const output = els.reharmOutput;
-  const statusEl = els.reharmSessionStatus;
-  const selectEl = els.reharmSessionSelect;
-  if (!btn || !output) return;
+// session enregistrée.
+async function runReharmonizationFromSession(sessionId) {
+  const output = els.reharmResults;
+  if (!output) return;
 
   const api = window.electronAPI;
   if (!api?.files?.homeDir || !api?.files?.readDir || !api?.files?.readFile) {
@@ -2555,79 +2768,63 @@ async function runReharmonizationFromSession() {
     return;
   }
 
-  // 1. Liste les sessions (~/PianoJazzChords/Sessions/).
-  const home = await api.files.homeDir();
-  const sessionsDir = home + '/PianoJazzChords/Sessions';
-  let dirs = [];
-  try {
-    dirs = await api.files.readDir(sessionsDir);
-  } catch (_) { /* dossier inexistant */ }
-  if (!dirs || dirs.length === 0) {
-    if (statusEl) statusEl.textContent = 'Aucune session enregistrée trouvée.';
-    return;
-  }
-
-  // 2. Construit un sélecteur de session si pas déjà fait.
-  if (selectEl) {
-    selectEl.innerHTML = '';
-    for (const d of dirs) {
-      const name = typeof d === 'string' ? d : d.name;
-      if (!name) continue;
-      const opt = document.createElement('option');
-      opt.value = name;
-      opt.textContent = name;
-      selectEl.appendChild(opt);
-    }
-    selectEl.classList.remove('hidden');
-    btn.textContent = 'Réharmoniser la session sélectionnée';
-  }
-
-  // Si un clic suivant : charge la session sélectionnée.
-  btn.onclick = async () => {
-    const sessionId = selectEl?.value;
-    if (!sessionId) return;
-    btn.disabled = true;
-    if (statusEl) statusEl.textContent = `Chargement de ${sessionId}…`;
-    output.setAttribute('aria-busy', 'true');
-    renderReharmonizationLoading(output);
-    await new Promise((r) => requestAnimationFrame(r));
-
+  if (!sessionId) {
+    const home = await api.files.homeDir();
+    const sessionsDir = home + '/PianoJazzChords/Sessions';
+    let dirs = [];
     try {
-      // Charge events.json et session.json.
-      const eventsJson = await api.files.readFile(sessionsDir + '/' + sessionId + '/events.json');
-      const sessionJson = await api.files.readFile(sessionsDir + '/' + sessionId + '/session.json').catch(() => '{}');
-      const events = JSON.parse(eventsJson || '[]');
-      const session = JSON.parse(sessionJson || '{}');
-
-      const wrapperResult = buildSessionMelodyWrapper({ events, session }, { name: sessionId });
-      if (wrapperResult.status !== 'success') {
-        renderReharmonizationError(output, wrapperResult.message, wrapperResult.errorKind);
-        if (statusEl) statusEl.textContent = wrapperResult.message;
-        return;
-      }
-
-      const viewModel = buildReharmonizationVariantsViewModel({
-        ...wrapperResult.wrapper,
-        styleId: getReharmActiveStyle(),
-      });
-      if (viewModel.status === 'success') {
-        const meta = Object.freeze({
-          isDemo: false, isLive: false, isAudio: false, isSession: true,
-          label: 'Réharmonisation depuis session enregistrée',
-          description: `${wrapperResult.noteCount} notes de la session « ${sessionId} ». Tonalité : ${wrapperResult.wrapper.harmonicContext.tonalContext?.spelledKey?.tonicSpelling?.letter || '?'} ${wrapperResult.wrapper.harmonicContext.tonalContext?.selected?.mode || '?'}.`,
-        });
-        renderReharmonizationVariants(output, viewModel, meta);
-        if (statusEl) statusEl.textContent = `${wrapperResult.noteCount} notes → ${viewModel.variants.length} variantes. Recommandée : ${viewModel.recommendedId}.`;
-        if (els.reharmDetails && !els.reharmDetails.hasAttribute('open')) els.reharmDetails.setAttribute('open', '');
-        if (els.reharmSummary) els.reharmSummary.setAttribute('aria-expanded', 'true');
-      } else {
-        renderReharmonizationError(output, viewModel.message, viewModel.errorKind);
-      }
-    } catch (err) {
-      renderReharmonizationError(output, err && err.message ? err.message : 'Erreur inattendue.', 'Error');
-    } finally {
-      btn.disabled = false;
-      output.setAttribute('aria-busy', 'false');
+      dirs = await api.files.readDir(sessionsDir);
+    } catch (_) { /* dossier inexistant */ }
+    if (!dirs || dirs.length === 0) {
+      showToast('Aucune session enregistrée trouvée.', 3000);
+      return;
     }
-  };
+    sessionId = typeof dirs[0] === 'string' ? dirs[0] : dirs[0].name;
+  }
+
+  output.setAttribute('aria-busy', 'true');
+  renderReharmonizationLoading(output);
+  await new Promise((r) => requestAnimationFrame(r));
+
+  try {
+    const home = await api.files.homeDir();
+    const sessionsDir = home + '/PianoJazzChords/Sessions';
+    const eventsJson = await api.files.readFile(sessionsDir + '/' + sessionId + '/events.json');
+    const sessionJson = await api.files.readFile(sessionsDir + '/' + sessionId + '/session.json').catch(() => '{}');
+    const events = JSON.parse(eventsJson || '[]');
+    const session = JSON.parse(sessionJson || '{}');
+
+    const wrapperResult = buildSessionMelodyWrapper({ events, session }, { name: sessionId });
+    if (wrapperResult.status !== 'success') {
+      renderReharmonizationError(output, wrapperResult.message, wrapperResult.errorKind);
+      return;
+    }
+
+    const viewModel = buildReharmonizationVariantsViewModel({
+      ...wrapperResult.wrapper,
+      styleId: getReharmActiveStyle(),
+    });
+    if (viewModel.status === 'success') {
+      const meta = Object.freeze({
+        isDemo: false,
+        isLive: false,
+        isAudio: false,
+        isSession: true,
+        label: 'Réharmonisation depuis session enregistrée',
+        description: `${wrapperResult.noteCount} notes de la session « ${sessionId} ».`,
+        track: wrapperResult.wrapper.track,
+        harmonicContext: wrapperResult.wrapper.harmonicContext,
+      });
+      lastReharmVariantsVm = viewModel;
+      lastReharmMeta = meta;
+      renderReharmonizationVariants(output, viewModel, meta);
+      updateReharmContext(meta, viewModel);
+    } else {
+      renderReharmonizationError(output, viewModel.message, viewModel.errorKind);
+    }
+  } catch (err) {
+    renderReharmonizationError(output, err && err.message ? err.message : 'Erreur inattendue.', 'Error');
+  } finally {
+    output.setAttribute('aria-busy', 'false');
+  }
 }

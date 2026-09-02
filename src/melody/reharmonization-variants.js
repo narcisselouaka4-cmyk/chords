@@ -4,13 +4,13 @@
 // mélodie, présentées comme des cartes nommées. Une variante est désignée
 // par défaut = la mieux notée sur les 4 critères de validité.
 //
-// Trois variantes V1 (schéma Gospel) :
-//   1. « Version fidèle » : candidats canoniques seuls, pas de techniques
+// Trois variantes V1 présentées par intensité, jamais par nom de style :
+//   1. « Fidèle » : candidats canoniques seuls, pas de techniques
 //      stylistiques. Reste proche de la progression originale.
-//   2. « Version <style>-structurelle » : candidats canoniques + techniques
-//      structurelles du style (add9, add6, sus2 pour Gospel).
-//   3. « Version tendue » : candidats canoniques + toutes techniques du style
-//      y compris passages.
+//   2. « Équilibrée » : candidats canoniques + techniques structurelles du style
+//      (add9, add6, sus2 pour Gospel). Recommandée par défaut.
+//   3. « Audacieuse » : candidats canoniques + toutes techniques du style
+//      y compris passages pour plus de tension.
 //
 // [OpenCode] — 2026-08-25 — EXP-031 Tâche 3 : paramétré par style via le
 // registre (style-registry.js). Le style par défaut est 'gospel' pour
@@ -241,8 +241,8 @@ export function buildReharmonizationVariants(wrapper, options = {}) {
     const plan = buildFilteredPlan(wrapper, { styleId, allowedSources: null });
     variants.push({
       id: 'faithful',
-      label: 'Version fidèle',
-      description: 'Harmonie diatonique canonique, sans enrichissements stylistiques.',
+      label: 'Fidèle',
+      description: 'Changements minimes, proche de la progression originale.',
       plan,
       validationReport: validateReharmonizationPlan(plan, { styleId }),
       recommended: false,
@@ -263,8 +263,8 @@ export function buildReharmonizationVariants(wrapper, options = {}) {
       });
       variants.push({
         id: 'stylistic',
-        label: `Version ${style.label.toLowerCase()}`,
-        description: `Harmonie enrichie de couleurs ${style.label.toLowerCase()} (techniques structurelles).`,
+        label: 'Équilibrée',
+        description: 'Recommandée — enrichissements stylistiques mesurés.',
         plan,
         validationReport: validateReharmonizationPlan(plan, { styleId }),
         recommended: false,
@@ -283,8 +283,8 @@ export function buildReharmonizationVariants(wrapper, options = {}) {
       });
       variants.push({
         id: 'tense',
-        label: 'Version tendue',
-        description: `Harmonie ${style.label.toLowerCase()} avec accords de passage pour plus de tension.`,
+        label: 'Audacieuse',
+        description: 'Tensions les plus marquées, couleurs harmoniques avancées.',
         plan,
         validationReport: validateReharmonizationPlan(plan, { styleId }),
         recommended: false,

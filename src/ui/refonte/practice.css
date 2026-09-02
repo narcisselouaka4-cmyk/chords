@@ -1,0 +1,217 @@
+/* [Refonte v2/Global] — 2026-09-02 — Habillage de l’onglet Entraînement. */
+
+/* ── Panneau Exercice rapide ── */
+:root[data-skin='global'] #practice-tab .quick-exercise-panel,
+:root[data-skin='v2'] #practice-tab .quick-exercise-panel {
+  background: var(--r-surface-elevated);
+  border: 1px solid var(--r-border-soft);
+  border-radius: var(--r-radius-card);
+  box-shadow: var(--r-shadow-card);
+}
+:root[data-skin='global'] #practice-tab .quick-exercise-panel .panel-title,
+:root[data-skin='v2'] #practice-tab .quick-exercise-panel .panel-title {
+  font-weight: 800;
+  color: var(--r-text);
+  border-bottom: 1px solid var(--r-border-soft);
+}
+:root[data-skin='global'] #practice-tab .exercise-content,
+:root[data-skin='v2'] #practice-tab .exercise-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--r-space-3);
+}
+:root[data-skin='global'] #practice-tab .exercise-mode-selector,
+:root[data-skin='v2'] #practice-tab .exercise-mode-selector {
+  display: flex;
+  gap: var(--r-space-1);
+  padding: 4px;
+  border-radius: var(--r-radius-pill);
+  background: var(--r-surface);
+  border: 1px solid var(--r-border-soft);
+}
+:root[data-skin='global'] #practice-tab .exercise-mode-btn,
+:root[data-skin='v2'] #practice-tab .exercise-mode-btn {
+  flex: 1 1 0;
+  padding: 8px 10px;
+  border-radius: var(--r-radius-pill);
+  border: none;
+  background: transparent;
+  color: var(--r-text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+:root[data-skin='global'] #practice-tab .exercise-mode-btn:hover,
+:root[data-skin='v2'] #practice-tab .exercise-mode-btn:hover {
+  color: var(--r-text);
+}
+:root[data-skin='global'] #practice-tab .exercise-mode-btn.active,
+:root[data-skin='v2'] #practice-tab .exercise-mode-btn.active {
+  background: var(--r-accent);
+  color: var(--r-accent-contrast, #ffffff);
+  box-shadow: var(--r-shadow-sm);
+}
+:root[data-skin='global'] #practice-tab .panel-action#new-exercise-btn,
+:root[data-skin='v2'] #practice-tab .panel-action#new-exercise-btn {
+  width: 100%;
+  padding: 10px 16px;
+  border-radius: var(--r-radius-btn);
+  border: none;
+  background: var(--r-accent);
+  color: var(--r-accent-contrast, #ffffff);
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.05s;
+}
+:root[data-skin='global'] #practice-tab .panel-action#new-exercise-btn:hover,
+:root[data-skin='v2'] #practice-tab .panel-action#new-exercise-btn:hover {
+  filter: brightness(1.08);
+}
+:root[data-skin='global'] #practice-tab .exercise-feedback,
+:root[data-skin='v2'] #practice-tab .exercise-feedback {
+  min-height: 1.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--r-text-muted);
+}
+:root[data-skin='global'] #practice-tab .exercise-feedback.success,
+:root[data-skin='v2'] #practice-tab .exercise-feedback.success {
+  color: var(--r-good, #10b981);
+}
+:root[data-skin='global'] #practice-tab .exercise-feedback.error,
+:root[data-skin='v2'] #practice-tab .exercise-feedback.error {
+  color: var(--r-error, #ef4444);
+}
+
+/* ── Carte cible ── */
+:root[data-skin='global'] #practice-tab .exercise-target-card,
+:root[data-skin='v2'] #practice-tab .exercise-target-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--r-space-3);
+  padding: var(--r-space-4);
+  border-radius: var(--r-radius-card);
+  background: var(--r-surface);
+  border: 1px solid var(--r-border-soft);
+}
+:root[data-skin='global'] #practice-tab .exercise-target-name,
+:root[data-skin='v2'] #practice-tab .exercise-target-name {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--r-text);
+  font-family: var(--r-font-mono);
+  text-align: center;
+}
+:root[data-skin='global'] #practice-tab .exercise-target-keyboard,
+:root[data-skin='v2'] #practice-tab .exercise-target-keyboard {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+:root[data-skin='global'] #practice-tab .exercise-target-keyboard svg,
+:root[data-skin='v2'] #practice-tab .exercise-target-keyboard svg {
+  max-width: 100%;
+  height: auto;
+  max-height: 110px;
+}
+:root[data-skin='global'] #practice-tab .exercise-target-notes,
+:root[data-skin='v2'] #practice-tab .exercise-target-notes {
+  font-size: 0.82rem;
+  color: var(--r-text-muted);
+  font-family: var(--r-font-mono);
+  text-align: center;
+}
+
+/* ── En-tête mouvement 12 tons ── */
+:root[data-skin='global'] #practice-tab .exercise-movement-header,
+:root[data-skin='v2'] #practice-tab .exercise-movement-header {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--r-space-1);
+  padding-bottom: var(--r-space-3);
+  border-bottom: 1px solid var(--r-border-soft);
+  margin-bottom: var(--r-space-1);
+}
+:root[data-skin='global'] #practice-tab .exercise-movement-category,
+:root[data-skin='v2'] #practice-tab .exercise-movement-category {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--r-accent);
+  font-weight: 700;
+}
+:root[data-skin='global'] #practice-tab .exercise-movement-name,
+:root[data-skin='v2'] #practice-tab .exercise-movement-name {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--r-text);
+  line-height: 1.2;
+}
+:root[data-skin='global'] #practice-tab .exercise-movement-description,
+:root[data-skin='v2'] #practice-tab .exercise-movement-description {
+  font-size: 0.78rem;
+  color: var(--r-text-muted);
+  line-height: 1.4;
+}
+:root[data-skin='global'] #practice-tab .exercise-movement-progress,
+:root[data-skin='v2'] #practice-tab .exercise-movement-progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--r-space-2) var(--r-space-4);
+  margin-top: var(--r-space-1);
+}
+:root[data-skin='global'] #practice-tab .exercise-key-label,
+:root[data-skin='v2'] #practice-tab .exercise-key-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--r-text);
+  font-family: var(--r-font-mono);
+}
+:root[data-skin='global'] #practice-tab .exercise-key-progress,
+:root[data-skin='global'] #practice-tab .exercise-step-progress,
+:root[data-skin='v2'] #practice-tab .exercise-key-progress,
+:root[data-skin='v2'] #practice-tab .exercise-step-progress {
+  font-size: 0.72rem;
+  color: var(--r-text-muted);
+  background: var(--r-surface-elevated);
+  padding: 2px 8px;
+  border-radius: var(--r-radius-pill);
+}
+
+/* ── Stage principal ── */
+:root[data-skin='global'] #practice-tab .main-training-stage,
+:root[data-skin='v2'] #practice-tab .main-training-stage {
+  background: var(--r-surface);
+  border-radius: var(--r-radius-card);
+  border: 1px solid var(--r-border-soft);
+}
+:root[data-skin='global'] #practice-tab .practice-empty-hint,
+:root[data-skin='v2'] #practice-tab .practice-empty-hint {
+  color: var(--r-text-muted);
+  text-align: center;
+}
+:root[data-skin='global'] #practice-tab .practice-empty-hint-title,
+:root[data-skin='v2'] #practice-tab .practice-empty-hint-title {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--r-text);
+}
+:root[data-skin='global'] #practice-tab .techniques-panel,
+:root[data-skin='v2'] #practice-tab .techniques-panel {
+  background: var(--r-surface-elevated);
+  border: 1px solid var(--r-border-soft);
+  border-radius: var(--r-radius-card);
+}
+
+/* ── Réactivité ── */
+@media (max-width: 860px) {
+  :root[data-skin='global'] #practice-tab .quick-exercise-panel,
+  :root[data-skin='v2'] #practice-tab .quick-exercise-panel {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+}
