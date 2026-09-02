@@ -20,6 +20,7 @@ import { globalAudioFocusManager } from '../audio/audio-focus-manager.js';
 import { formatMediaDuration, isValidMediaDuration } from './media-format.js';
 import { buildFileContextText } from './file-context.js';
 import { applyStudioSidebarState } from './studio-view-state.js';
+import { getSkin } from './refonte/skin-manager.js';
 
 /**
  * Lit un fichier audio via IPC et retourne un ArrayBuffer brut.
@@ -119,7 +120,14 @@ const els = {
   loopRegion: document.getElementById('studio-loop-region'),
   transposePlus: document.getElementById('studio-transpose-plus'),
   separateBtn: document.getElementById('studio-separate-btn'),
+  separateBtnCenter: document.getElementById('studio-separate-btn-center'),
   separateStatus: document.getElementById('studio-separate-status'),
+  centerHeader: document.getElementById('studio-center-header'),
+  centerTitle: document.getElementById('studio-center-title'),
+  stemsSection: document.getElementById('studio-stems-section'),
+  stemsBottom: document.getElementById('studio-stems-bottom'),
+  stemsListBottom: document.getElementById('studio-stems-list-bottom'),
+  stemsBottomStatus: document.getElementById('studio-stems-bottom-status'),
   stageOverlay: document.getElementById('studio-stage-overlay'),
   processingOverlay: document.getElementById('studio-processing-overlay'),
   processingLabel: document.getElementById('studio-processing-label'),
@@ -213,6 +221,13 @@ export function initStudioTab() {
   // sans redraw, il garde l'ancienne couleur et devient invisible sur le nouveau fond.
   window.addEventListener('app-theme-changed', () => {
     if (waveformData) renderWaveform();
+  });
+
+  // [Refonte v2/Global] — réorganise le DOM du Studio selon le skin sélectionné
+  // (stems à droite en Global, stems en bas en v2, header central, etc.).
+  applyStudioSkinLayout(getSkin());
+  window.addEventListener('app-skin-changed', (e) => {
+    applyStudioSkinLayout(e.detail?.skin || getSkin());
   });
 }
 
@@ -345,6 +360,59 @@ function setLeftPanelCollapsed(collapsed) {
     collapseButton: els.collapseLeftBtn,
     expandButton: els.collapseTabBtn,
   }, studioStage, collapsed);
+}
+
+// [Refonte v2/Global] — Déplace les éléments du Studio entre leurs deux positions
+// selon le skin actif. v2 : pistes en bas + header central + Lecture à droite.
+// Global : pistes à droite + contexte fichier sous lecteur + Lecture dans la sidebar.
+function applyStudioSkinLayout(skin) {
+  const isV2 = skin === 'v2';
+  const list = els.stemsList;
+  const bottomList = els.stemsListBottom;
+  const section = els.stemsSection;
+
+  if (isV2) {
+    // v2 : déplacer la liste de stems en bas de la zone centrale.
+    if (list && bottomList && list.parentElement !== bottomList) {
+      bottomList.appendChild(list);
+    }
+    if (section) section.style.display = 'none';
+    if (els.centerHeader) els.centerHeader.style.display = '';
+    if (els.mediaContext) els.mediaContext.style.display = 'none';
+    if (els.separateBtnCenter) {
+      els.separateBtnCenter.style.display = '';
+      els.separateBtnCenter.disabled = els.separateBtn?.disabled ?? true;
+    }
+    if (els.separateBtn) els.separateBtn.style.display = 'none';
+  } else {
+    // Global : remettre la liste de stems dans la sidebar droite.
+    if (list && section && list.parentElement !== section) {
+      section.appendChild(list);
+    }
+    if (section) section.style.display = '';
+    if (els.centerHeader) els.centerHeader.style.display = 'none';
+    if (els.mediaContext) els.mediaContext.style.display = '';
+    if (els.separateBtnCenter) els.separateBtnCenter.style.display = 'none';
+    if (els.separateBtn) els.separateBtn.style.display = '';
+  }
+
+  applyStudioSkinStageVisibility(skin, studioStage);
+}
+
+// Affiche ou masque la zone stems-bottom en v2 selon l'étape (stage 3 seulement).
+function applyStudioSkinStageVisibility(skin, stage) {
+  const isV2 = skin === 'v2';
+  if (els.stemsBottom) {
+    const showBottom = isV2 && stage >= 3;
+    els.stemsBottom.style.display = showBottom ? '' : 'none';
+  }
+  if (isV2 && els.waveformWrap && els.regionBar) {
+    // En v2, la waveform classique reste visible aux étapes 1 et 2, puis est
+    // remplacée visuellement par les stems en bas à l'étape 3.
+    const showWaveform = stage === 1 || stage === 2;
+    els.waveformWrap.style.display = showWaveform ? '' : 'none';
+    els.regionBar.style.display = showWaveform ? '' : 'none';
+  }
 }
 
 function toggleRecording() {
@@ -697,6 +765,7 @@ function stopSyncLoop() {
 
 function bindStems() {
   els.separateBtn?.addEventListener('click', () => runSeparation());
+  els.separateBtnCenter?.addEventListener('click', () => runSeparation());
 }
 
 // [Claude] — 2026-07-06 — Le mode hybride et son toggle ont été supprimés.
@@ -1835,16 +1904,22 @@ function updateStudioStage(stage) {
   if (els.waveformWrap) els.waveformWrap.style.display = stage0 ? 'none' : '';
   if (els.regionInfo) els.regionInfo.style.display = stage0 ? 'none' : '';
   if (els.studioCenter) els.studioCenter.style.display = stage0 ? 'none' : '';
+  if (els.centerHeader) els.centerHeader.style.display = stage0 ? 'none' : '';
 
   // Stage 1 : seuls la waveform, le play et la sélection de région sont actifs.
   const stage1Locked = stage === 1;
+  const canSeparate = !stage1Locked && regionConfirmed && !stage0 && !isLoadingTrack;
   setTransposeControlsEnabled(!stage1Locked && regionConfirmed && !stage0 && !isLoadingTrack);
   if (els.playBtn) els.playBtn.disabled = isLoadingTrack;
   if (els.stopBtn) els.stopBtn.disabled = isLoadingTrack;
   if (els.prevBtn) els.prevBtn.disabled = isLoadingTrack;
-  if (els.separateBtn) els.separateBtn.disabled = stage1Locked || !regionConfirmed || stage0 || isLoadingTrack;
+  if (els.separateBtn) els.separateBtn.disabled = !canSeparate;
+  if (els.separateBtnCenter) els.separateBtnCenter.disabled = !canSeparate;
   if (els.stemsList) els.stemsList.style.display = (stage1Locked || stage0) ? 'none' : '';
   if (els.separateStatus) els.separateStatus.style.display = (stage1Locked || stage0) ? 'none' : '';
+
+  // [Refonte v2/Global] — visibilité des zones spécifiques au skin.
+  applyStudioSkinStageVisibility(getSkin(), stage);
 
   if (stage === 3) {
     showReadyToast();
@@ -1885,9 +1960,11 @@ function finishTrackLoading(name) {
 
 // Lot B — affiche « Fichier du Studio : <nom> » (ou l'état vide explicite).
 function updateStudioFileContext(name) {
-  if (!els.mediaContext) return;
   const trackName = currentTrack?.metadata?.name || name || '';
-  els.mediaContext.textContent = buildFileContextText({ tab: 'studio', fileName: trackName });
+  const text = buildFileContextText({ tab: 'studio', fileName: trackName });
+  if (els.mediaContext) els.mediaContext.textContent = text;
+  // [Refonte v2] — breadcrumb "Studio / nom" dans l'en-tête centrale.
+  if (els.centerTitle) els.centerTitle.textContent = trackName ? `Studio / ${trackName}` : 'Studio / Aucun fichier chargé';
 }
 
 function failTrackLoading(message) {
@@ -2252,7 +2329,10 @@ function renderWaveform() {
   const center = h / 2;
 
   ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--text') || '#1f2937';
+  // [Refonte v2/Global] — la waveform hérite de sa couleur skin via CSS.
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--r-waveform')
+    || getComputedStyle(document.body).getPropertyValue('--text')
+    || '#1f2937';
 
   let peaks = waveformData.peaks || [];
   if (peaks.length === 0) return;
@@ -2537,17 +2617,23 @@ async function refreshStems() {
 }
 
 function updateSeparateButton(hasStems) {
-  if (!els.separateBtn) return;
-  if (hasStems) {
-    els.separateBtn.textContent = 'Réanalyser le fichier';
-    els.separateBtn.title = 'Relancer la séparation des pistes à partir du fichier original';
-    els.separateBtn.classList.add('studio-separate-done');
-  } else {
-    els.separateBtn.textContent = 'Séparer les pistes';
-    els.separateBtn.title = 'Séparer les pistes (basse, batterie, voix, autres, piano) avec Demucs';
-    els.separateBtn.classList.remove('studio-separate-done');
+  const globalText = hasStems ? 'Réanalyser le fichier' : '🎚 Séparer les pistes';
+  const v2Text = hasStems ? 'Réanalyser le fichier' : '🎚 Séparer les pistes';
+  const title = hasStems
+    ? 'Relancer la séparation des pistes à partir du fichier original'
+    : 'Séparer les pistes (basse, batterie, voix, autres, piano) avec Demucs';
+  if (els.separateBtn) {
+    els.separateBtn.textContent = globalText;
+    els.separateBtn.title = title;
+    els.separateBtn.classList.toggle('studio-separate-done', hasStems);
+    els.separateBtn.disabled = !regionConfirmed;
   }
-  els.separateBtn.disabled = !regionConfirmed;
+  if (els.separateBtnCenter) {
+    els.separateBtnCenter.textContent = v2Text;
+    els.separateBtnCenter.title = title;
+    els.separateBtnCenter.classList.toggle('studio-separate-done', hasStems);
+    els.separateBtnCenter.disabled = !regionConfirmed;
+  }
 }
 
 function renderStems(stemPaths) {

@@ -775,6 +775,14 @@
         </aside>
 
         <section class="studio-center">
+          <!-- [Refonte v2] — en-tête centrale : breadcrumb Studio + bouton séparer -->
+          <div class="studio-center-header" id="studio-center-header">
+            <span class="studio-center-title" id="studio-center-title">Studio / Aucun fichier chargé</span>
+            <button type="button" class="studio-separate-center-btn" id="studio-separate-btn-center" title="Séparer les pistes">🎚 Séparer les pistes</button>
+          </div>
+
+          <div class="studio-media-context" id="studio-media-context" aria-live="polite">Fichier du Studio : Aucun fichier chargé dans le Studio</div>
+
           <div class="studio-player-wrap" id="studio-player-wrap">
             <div id="studio-video-container" class="studio-video-container"></div>
             <div id="studio-audio-container" class="studio-audio-container"></div>
@@ -786,8 +794,6 @@
               </div>
             </div>
           </div>
-
-          <div class="studio-media-context" id="studio-media-context" aria-live="polite">Fichier du Studio : Aucun fichier chargé dans le Studio</div>
 
           <div class="studio-waveform-wrap" id="studio-waveform-wrap">
             <canvas id="studio-waveform" class="studio-waveform" width="800" height="80"></canvas>
@@ -816,18 +822,34 @@
           </div>
         </section>
 
+        <!-- [Refonte v2] — pistes séparées en bas de la zone centrale.
+             Élément frère de .studio-center et .studio-sidebar pour pouvoir
+             être placé dans la grille de #studio-tab en v2. -->
+        <div class="studio-stems-bottom" id="studio-stems-bottom" style="display: none;">
+          <div class="studio-stems-bottom-header">
+            <span class="studio-stems-bottom-title">Pistes séparées</span>
+            <span class="studio-stems-bottom-status" id="studio-stems-bottom-status"></span>
+          </div>
+          <div class="studio-stems-list" id="studio-stems-list-bottom"></div>
+        </div>
+
         <aside class="studio-sidebar right">
-          <div class="panel">
-            <div class="panel-title">Pistes séparées</div>
-            <button id="studio-separate-btn" class="record-action">Séparer les pistes</button>
-            <div class="studio-separate-status" id="studio-separate-status"></div>
-            <div class="studio-stems-list" id="studio-stems-list"></div>
-            <div class="studio-status-box" id="studio-status-text">Aucun morceau sélectionné</div>
+          <div class="panel studio-right-panel">
+            <!-- Section Pistes séparées (Global). En v2 cette section est déplacée
+                 visuellement en bas de la zone centrale par studio-tab.js. -->
+            <div class="studio-stems-section" id="studio-stems-section">
+              <div class="panel-title">Pistes séparées</div>
+              <button id="studio-separate-btn" class="record-action">🎚 Séparer les pistes</button>
+              <div class="studio-separate-status" id="studio-separate-status"></div>
+              <div class="studio-stems-list" id="studio-stems-list"></div>
+              <div class="studio-status-box" id="studio-status-text">Aucun morceau sélectionné</div>
+            </div>
 
             <!-- [Refonte v2/Global] — bloc « Lecture » : transposition + volume
                  déplacés ici depuis la barre de transport (maquettes Studio des
                  deux skins), plus la bascule « Boucler la région » (relais §2). -->
-            <div class="studio-playback-block" id="studio-playback-block">
+            <div class="studio-playback-section" id="studio-playback-section">
+              <div class="studio-playback-block" id="studio-playback-block">
               <div class="studio-rp-title">Lecture</div>
               <div class="studio-rp-row">
                 <span class="studio-rp-label">Transposition</span>
@@ -848,6 +870,24 @@
                 <input type="checkbox" id="studio-loop-region" />
               </label>
             </div>
+          </div>
+
+          <!-- [Refonte Global] — sections "Effets" et "Export" (placeholders). -->
+          <div class="studio-effects-section" id="studio-effects-section">
+            <div class="studio-rp-title">Effets</div>
+            <div class="studio-placeholder-row">
+              <span class="studio-placeholder-label">Réverb</span>
+              <span class="studio-placeholder-value">À venir</span>
+            </div>
+            <div class="studio-placeholder-row">
+              <span class="studio-placeholder-label">EQ</span>
+              <span class="studio-placeholder-value">À venir</span>
+            </div>
+          </div>
+          <div class="studio-export-section" id="studio-export-section">
+            <div class="studio-rp-title">Export</div>
+            <button type="button" class="studio-placeholder-btn" id="studio-export-wav-btn" disabled>Exporter WAV</button>
+            <button type="button" class="studio-placeholder-btn" id="studio-export-midi-btn" disabled>Exporter MIDI</button>
           </div>
         </aside>
       </main>
