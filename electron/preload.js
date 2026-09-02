@@ -72,4 +72,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   reharm: {
     extractMelody: (stemPath, options) => ipcRenderer.invoke('reharm:extract-melody', stemPath, options || {}),
   },
+  safeStorage: {
+    isAvailable: () => ipcRenderer.invoke('safe-storage:is-available'),
+    encryptString: (plainText) => ipcRenderer.invoke('safe-storage:encrypt', plainText),
+    decryptString: (encryptedBase64) => ipcRenderer.invoke('safe-storage:decrypt', encryptedBase64),
+  },
 });

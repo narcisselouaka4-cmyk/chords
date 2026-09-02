@@ -268,3 +268,118 @@ injection = expression simple).
 - [ ] Chaque équivalent Global juste après son v2 (§5)
 - [ ] Étape 5 — Entraînement, 2 skins (§6, §7) + Exercice par mouvements 12 tons
 - [ ] Étape 6 — Pédagogie IA (§12.6)
+
+---
+
+## 2026-09-02 — Session 2 : Masterclass, Corriger, Réglages IA, Entraînement
+
+### ✅ Étape 3c — Masterclass (§3.3)
+
+**Fichiers ajoutés**
+- `src/ui/masterclass-panel.js` — panneau autonome : détection déterministe de concepts,
+  fiches pré-écrites, lecture A/B par synthétiseur, bascule Jouer/Comprendre,
+  avertissement si confiance faible, zone de question IA avec plafond mensuel.
+- Re-utilise `simple-synth.js`, `chord-display.js`, `chord-edit-session.js`, `openai-config.js`.
+
+**Fichiers modifiés**
+- `src/ui/analyzer-tab.js` — importe `initMasterclassPanel`, `renderMasterclass`,
+  `setMasterclassSourceType`, `updateAIConnected` ; appelle `renderMasterclass` dans
+  `selectSegment` et `activateSectionTab('masterclass')`.
+- `src/index.html` — panneau `data-section="masterclass"` avec `.masterclass-empty`
+  et `.masterclass-content`.
+- `src/ui/refonte/analyse.css` — styles `mc-*` pour les deux skins.
+
+**Vérification** : build OK, tests Partie 1 & 3 OK, test-analyse-skin OK.
+
+### ✅ Étape 3d — Corriger (§3.5)
+
+**Fichiers ajoutés**
+- `src/ui/corriger-panel.js` — en-tête statistique, liste filtrable (signalés / tous),
+  éditeur de segment avec mini-clavier, candidats alternatifs générés depuis les
+  notes de l'accord effectif, écoute en boucle, actions Marquer correct / Appliquer.
+  Persistance via `applyChordTargetMutation` et notification à l'appelant
+  (`markDirty` + `rerenderTimeline`).
+
+**Fichiers modifiés**
+- `src/index.html` — remplace le placeholder `.fx-panel` par le markup complet du
+  panneau Corriger (`corriger-header`, `corriger-list`, `corriger-editor`, etc.).
+  Les boutons d'export MIDI/JSON/Texte sont conservés dans l'en-tête Corriger.
+- `src/ui/analyzer-tab.js` — récupère les éléments Corriger, importe et initie
+  `corriger-panel`, appelle `renderCorriger` dans `selectSegment` et
+  `activateSectionTab('corriger')`.
+- `src/ui/refonte/analyse.css` — styles `corriger-*` pour les deux skins.
+
+**Vérification** : build OK, tests Partie 1 & 3 OK, test-analyse-skin OK.
+
+### ✅ Étape 3f — Réglages › Assistant IA (§3.6)
+
+**Fichiers modifiés**
+- `src/ai/openai-config.js` — ajout du `monthlyCap`, chiffrement asynchrone de la
+  clé API via Electron `safeStorage` (`enc:` prefix), cache mémoire pour garder
+  `getAIConfig()` synchrone après le chargement initial. Fonctions exportées :
+  `loadSecureAIConfig`, `getAIConfig`, `saveAIConfig`, `testAIConfig`.
+- `electron/main.js` — import `safeStorage` ; handlers IPC
+  `safe-storage:is-available`, `safe-storage:encrypt`, `safe-storage:decrypt`.
+- `electron/preload.cjs` & `electron/preload.js` — expose `window.electronAPI.safeStorage`.
+- `src/index.html` — champ « Plafond mensuel d'appels IA » + compteur d'usage
+  `ai-usage` dans le modal Réglages.
+- `src/main.js` — appelle `loadSecureAIConfig()` au boot, charge le plafond et
+  l'usage dans l'UI, sauvegarde le plafond via `setMonthlyCap` du masterclass.
+- `src/style.css` — styles `.ai-cap-row`, `.ai-cap-field`, `.ai-usage`.
+
+**Vérification** : build OK, tests Partie 1 & 3 OK, test-skin-manager OK.
+
+### ✅ Étape 5 — Entraînement, 2 skins + Exercice par mouvements 12 tons (§6, §7)
+
+**Fichiers ajoutés**
+- `src/ui/refonte/practice.css` — habillage Entraînement pour v2 et Global :
+  panneau d'exercice, boutons de mode en pilule, carte cible, en-tête de
+  mouvement, stage principal.
+
+**Fichiers modifiés**
+- `src/practice-exercise.js` — ajout du mode `movement` : lecture d'un mouvement
+  issu de `movements-library.json` dans les 12 tons, avancée accord par accord
+  puis tonalité par tonalité, génération des notes via `deriveChordDisplay`.
+  `renderExerciseTarget` affiche le nom du mouvement, la catégorie, la description,
+  la tonalité courante et la progression (ton / accord).
+- `src/index.html` — bouton `data-mode="movement"` « Mouvement 12 tons » ;
+  `<link>` vers `practice.css`.
+- `src/main.js` — aucun changement fonctionnel (le sélecteur de mode déjà générique).
+
+**Vérification** : build OK, tests Partie 1 & 3 OK, test-chords 98/98.
+
+### Captures d'écran
+
+Captures Chrome headless (script `refonte-preview.sh`) :
+- `$TMPDIR/refonte-shots/practice-global.png` — Entraînement, thème Global.
+- `$TMPDIR/refonte-shots/practice-v2.png` — Entraînement, thème v2.
+- `$TMPDIR/refonte-shots/settings-global.png` — modal Réglages › Assistant IA
+  (plafond + usage) + Apparence.
+- `$TMPDIR/refonte-shots/analysis-corriger-v2.png` / `analysis-corriger-global.png` —
+  Analyse onglet Corriger (nécessite un état d'analyse peuplé pour un rendu complet).
+- `$TMPDIR/refonte-shots/analysis-masterclass-v2.png` — Analyse onglet Masterclass.
+
+### Non-régression
+
+- `npm run build` : OK.
+- `node src/analyzer/test-regression-part1.js` : OK.
+- `node src/chord-engine/test-regression-part3.js` : OK.
+- `npm run test:chords` : 98/98.
+- `node src/ui/refonte/test-skin-manager.js` : OK.
+- `node src/ui/refonte/test-studio-skin.js` : OK.
+- `node src/ui/refonte/test-analyse-skin.js` : OK.
+
+### Reste (toujours hors périmètre)
+
+- Coach d'accompagnement au chant (§9.1).
+- Couche de jeu rythmique + licks (§9.2).
+- Refonte de Pédagogie IA (pipeline OCR).
+- Étape 6 Pédagogie IA (§12.6) non traitée.
+
+### Notes pour la suite
+
+- Le panneau Corriger et Masterclass ne peuvent être pleinement vérifiés visuellement
+  sans un état d'analyse peuplé ; le code est câblé pour apparaître dès qu'un segment
+  est sélectionné dans la timeline.
+- L'environnement de capture reste fragile (Chrome headless one-shot) ; les captures
+  servent de contrôle de non-régression globale plutôt que de recette interactive.

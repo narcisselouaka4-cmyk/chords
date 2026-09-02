@@ -38,13 +38,13 @@ export function renderReharmonizationEmpty(container) {
   const notice = el('div', { className: 'reharm-empty' });
   notice.appendChild(el('p', {
     className: 'reharm-empty-title',
-    text: 'Aucune démonstration lancée.',
+    text: 'Aucune proposition générée.',
   }));
   notice.appendChild(el('p', {
     className: 'reharm-empty-text',
     text:
-      'Cliquez sur « Lancer la démonstration » pour exécuter le moteur de réharmonisation ' +
-      'sur une mélodie d\'exemple indépendante du fichier chargé.',
+      'Cliquez sur « Lancer la démonstration » pour exécuter le moteur et obtenir ' +
+      'trois propositions de réharmonisation.',
   }));
   container.appendChild(notice);
 }
@@ -271,77 +271,95 @@ function renderTechniqueReport(report) {
   return section;
 }
 
-// [OpenCode] — 2026-08-24 — Tâche 4 : rendu des cartes multiples.
-export function renderReharmonizationVariants(container, variantsVm, meta) {
+const CRITERION_LABELS = {
+  'melody-audible': 'Mélodie',
+  'passage-resolution': 'Tensions',
+  'no-parallel-motion': 'Parallèles',
+  'traceability': 'Règle',
+};
+
+function renderCriterionBadge(criterion) {
+  const node = el('span', {
+    className: criterion.satisfied
+      ? 'reharm-criterion-badge ok'
+      : 'reharm-criterion-badge ko',
+    title: criterion.details,
+  });
+  node.appendChild(el('span', { className: 'reharm-criterion-dot' }));
+  node.appendChild(el('span', {
+    className: 'reharm-criterion-name',
+    text: CRITERION_LABELS[criterion.criterionId] || criterion.criterionName,
+  }));
+  return node;
+}
+
+// [Refonte visuelle 2026-09-02] — Trois cartes Fidèle / Équilibrée / Audacieuse.
+// Le conteneur est piloté par analyzer-tab.js via data-reharm-apply / data-reharm-switch.
+export function renderReharmonizationVariants(container, variantsVm, meta, appliedVariantId = null) {
   if (!container) return;
   clearChildren(container);
 
-  // Mention honnête (démo ou live).
-  const banner = el('div', { className: 'reharm-demo-banner', role: 'status' });
-  banner.appendChild(el('p', {
-    className: 'reharm-demo-title',
-    text: (meta && meta.label) || 'Réharmonisation',
-  }));
-  if (meta && meta.description) {
-    banner.appendChild(el('p', { className: 'reharm-demo-desc', text: meta.description }));
-  }
-  container.appendChild(banner);
-
-  // Cartes des variantes.
-  const cards = el('div', { className: 'reharm-variants' });
+  const cards = el('div', { className: 'reharm-cards' });
   for (const v of variantsVm.variants) {
-    const card = el('div', { className: v.recommended ? 'reharm-variant reharm-variant-recommended' : 'reharm-variant' });
-    const header = el('div', { className: 'reharm-variant-header' });
-    header.appendChild(el('div', {
-      className: 'reharm-variant-label',
-      text: v.recommended ? `★ ${v.label} (recommandée)` : v.label,
-    }));
-    header.appendChild(el('div', { className: 'reharm-variant-score', text: `${v.validationReport.score}/4` }));
+    const isApplied = appliedVariantId === v.id;
+    const isRecommended = v.recommended;
+
+    const card = el('div', {
+      className:
+        `reharm-card ${isRecommended ? 'reharm-card-recommended' : ''} ${isApplied ? 'reharm-card-applied' : ''}`,
+    });
+
+    const header = el('div', { className: 'reharm-card-header' });
+    const titleWrap = el('div', { className: 'reharm-card-title-wrap' });
+    titleWrap.appendChild(el('div', { className: 'reharm-card-label', text: v.label }));
+    if (isRecommended) {
+      titleWrap.appendChild(el('span', { className: 'reharm-card-badge', text: 'Recommandée' }));
+    }
+    header.appendChild(titleWrap);
+
+    const scoreClass = v.validationReport.score === 4
+      ? 'reharm-card-score full'
+      : 'reharm-card-score';
+    header.appendChild(el('div', { className: scoreClass, text: `${v.validationReport.score}/4` }));
     card.appendChild(header);
-    card.appendChild(el('div', { className: 'reharm-variant-desc', text: v.description }));
+
+    card.appendChild(el('div', { className: 'reharm-card-desc', text: v.description }));
+
+    // Critères vérifiés (4 pastilles).
+    const criteria = el('div', { className: 'reharm-card-criteria' });
+    for (const c of v.validationReport.criteria) {
+      criteria.appendChild(renderCriterionBadge(c));
+    }
+    card.appendChild(criteria);
 
     // Progression compacte.
-    const prog = el('div', { className: 'reharm-variant-progression' });
-    prog.appendChild(el('span', {
-      className: 'reharm-variant-prog-text',
-      text: v.steps.map((s) => s.chordSymbol).join(' | '),
-    }));
+    const prog = el('div', { className: 'reharm-card-progression' });
+    for (const step of v.steps) {
+      prog.appendChild(el('span', { className: 'reharm-card-chord', text: step.chordSymbol }));
+    }
     card.appendChild(prog);
 
-    // Validation.
-    const val = el('div', { className: 'reharm-variant-validation' });
-    val.appendChild(el('span', {
-      className: 'reharm-variant-validation-summary',
-      text: v.validationReport.summary,
-    }));
-    card.appendChild(val);
-
-    // Techniques.
-    if (v.techniqueReport && v.techniqueReport.used && v.techniqueReport.used.length > 0) {
-      card.appendChild(el('div', {
-        className: 'reharm-variant-techniques',
-        text: 'Techniques : ' + v.techniqueReport.used.map((t) => t.name).join(', '),
-      }));
+    // Action principale de la carte.
+    const action = el('button', {
+      type: 'button',
+      className: isRecommended ? 'btn-primary reharm-card-apply' : 'btn-secondary reharm-card-apply',
+    });
+    if (isApplied) {
+      action.textContent = '✓ Appliquée';
+      action.disabled = true;
+    } else if (appliedVariantId && !isApplied) {
+      action.textContent = 'Basculer dessus';
+      action.dataset.reharmSwitch = v.id;
+    } else if (isRecommended) {
+      action.textContent = 'Appliquer la version recommandée';
+      action.dataset.reharmApply = v.id;
+    } else {
+      action.textContent = 'Appliquer';
+      action.dataset.reharmApply = v.id;
     }
+    card.appendChild(action);
 
     cards.appendChild(card);
   }
   container.appendChild(cards);
-
-  // Détail de la variante recommandée (steps complets, voicings, totaux).
-  const recommended = variantsVm.variants.find((v) => v.recommended) || variantsVm.variants[0];
-  if (recommended) {
-    const detail = el('div', { className: 'reharm-variant-detail' });
-    detail.appendChild(el('div', { className: 'reharm-variant-detail-title', text: `Détail — ${recommended.label}` }));
-    if (recommended.totals) detail.appendChild(renderTotals(recommended.totals));
-    if (recommended.validationReport) detail.appendChild(renderValidationReport(recommended.validationReport));
-    if (recommended.techniqueReport) detail.appendChild(renderTechniqueReport(recommended.techniqueReport));
-    const progression = el('div', { className: 'reharm-progression' });
-    progression.appendChild(el('div', { className: 'reharm-progression-title', text: 'Progression retenue' }));
-    for (const step of recommended.steps) {
-      progression.appendChild(renderStep(step));
-    }
-    detail.appendChild(progression);
-    container.appendChild(detail);
-  }
 }

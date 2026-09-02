@@ -45,6 +45,7 @@
     <link rel="stylesheet" href="./ui/refonte/theme.css" />
     <link rel="stylesheet" href="./ui/refonte/studio.css" />
     <link rel="stylesheet" href="./ui/refonte/analyse.css" />
+    <link rel="stylesheet" href="./ui/refonte/practice.css" />
   </head>
   <body>
     <div id="app" class="app">
@@ -79,8 +80,9 @@
               <div class="exercise-mode-selector">
                 <button class="exercise-mode-btn active" data-mode="chord" type="button">Accord cible</button>
                 <button class="exercise-mode-btn" data-mode="progression" type="button">Progression</button>
+                <button class="exercise-mode-btn" data-mode="movement" type="button">Mouvement 12 tons</button>
               </div>
-              <p class="detail-hint">Lancez un exercice pour vous entraîner sur un accord ou une progression.</p>
+              <p class="detail-hint">Lancez un exercice pour vous entraîner sur un accord, une progression ou un mouvement dans les 12 tons.</p>
               <button class="panel-action" id="new-exercise-btn" type="button">Nouvel exercice</button>
               <div class="exercise-target" id="exercise-target" style="display:none;"></div>
               <div class="exercise-feedback" id="exercise-feedback"></div>
@@ -601,77 +603,116 @@
                 <div class="analyzer-overview-scroll" id="analyzer-overview-content"></div>
               </div>
               <div class="analyzer-panel" data-section="reharm" role="tabpanel" style="display:none">
-                <details class="bg-(--panel-bg) border border-(--border) rounded-lg overflow-hidden w-full max-w-xl" id="analyzer-reharm-details">
-                  <summary class="px-4 py-2.5 text-sm font-semibold text-(--text) cursor-pointer hover:bg-(--surface-secondary) transition-colors" id="analyzer-reharm-summary" aria-expanded="false" aria-controls="analyzer-reharm-output">Réharmonisation</summary>
-                  <div class="p-4 text-sm text-(--text-dim) flex flex-col gap-4" id="analyzer-reharm-panel">
-                    <div class="border border-(--border) rounded-lg p-3 bg-(--surface-secondary)">
-                      <div class="text-xs font-semibold text-(--text) mb-1">Style de réharmonisation</div>
-                      <label for="analyzer-reharm-style" class="text-xs text-(--text-dim)">Style</label>
-                      <select id="analyzer-reharm-style" class="bg-(--surface-secondary) border border-(--border) rounded px-2 py-1 text-xs text-(--text)">
-                        <option value="gospel" selected>Gospel</option>
-                        <option value="jazz">Jazz</option>
-                        <option value="neoSoul">Neo Soul</option>
-                        <option value="worship">Worship (diatonique pur)</option>
-                      </select>
-                      <p class="text-xs text-(--text-dim) mt-2" id="analyzer-reharm-style-status">Style appliqué aux variantes. Worship = harmonie diatonique canonique sans enrichissements.</p>
+                <div class="reharm-panel" id="reharm-panel">
+                  <div class="reharm-context-bar">
+                    <div class="reharm-context-item">
+                      <span class="reharm-context-label">Tonalité</span>
+                      <span class="reharm-context-value" id="reharm-context-key">—</span>
                     </div>
-                    <div class="border border-(--border) rounded-lg p-3 bg-(--surface-secondary)">
-                      <div class="text-xs font-semibold text-(--text) mb-1">Réharmoniser ce morceau</div>
-                      <p class="text-xs text-(--text-dim)">La réharmonisation automatique du morceau analysé sera disponible prochainement.</p>
+                    <div class="reharm-context-item">
+                      <span class="reharm-context-label">Source mélodie</span>
+                      <span class="reharm-context-value" id="reharm-context-source">—</span>
                     </div>
-                    <div class="border border-(--border) rounded-lg p-3">
-                      <div class="text-xs font-semibold text-(--text) mb-1">Réharmoniser votre mélodie (MIDI live)</div>
-                      <p class="text-xs text-(--text-dim) mb-3">Jouez une mélodie au clavier MIDI ou virtuel dans l’écran « Session MIDI », puis arrêtez l’enregistrement : la réharmonisation est construite sur votre mélodie réelle.</p>
-                      <button type="button" id="analyzer-reharm-live" class="px-3 py-1 rounded text-xs bg-(--accent) hover:opacity-90 text-(--accent-text) transition-colors" disabled>Réharmoniser ma mélodie</button>
-                      <p class="text-xs text-(--text-dim) mt-2" id="analyzer-reharm-live-status">Aucune mélodie capturée. Lancez une session MIDI puis arrêtez-la.</p>
+                    <div class="reharm-context-item">
+                      <span class="reharm-context-label">Plage</span>
+                      <span class="reharm-context-value" id="reharm-context-range">—</span>
                     </div>
-                    <div class="border border-(--border) rounded-lg p-3">
-                      <div class="text-xs font-semibold text-(--text) mb-1">Réharmoniser depuis un fichier audio (EXP-027)</div>
-                      <p class="text-xs text-(--text-dim) mb-3">Sélectionnez un stem vocal déjà séparé (vocals.wav d’un morceau importé dans le Studio). La mélodie est extraite automatiquement par suivi de pitch (librosa.pyin), puis réharmonisée.</p>
-                      <div class="flex gap-2 flex-wrap">
-                        <button type="button" id="analyzer-reharm-audio-stem" class="px-3 py-1 rounded text-xs bg-(--surface-secondary) hover:bg-(--border) text-(--text) transition-colors">Choisir un stem vocal…</button>
-                        <select id="analyzer-reharm-audio-stem-kind" class="px-2 py-1 rounded text-xs bg-(--surface-secondary) text-(--text) border border-(--border)" title="Stem à utiliser">
-                          <option value="vocals" selected>Vocals (chant)</option>
-                          <option value="piano">Piano</option>
-                          <option value="other">Other</option>
-                        </select>
-                      </div>
-                      <p class="text-xs text-(--text-dim) mt-2" id="analyzer-reharm-audio-status">Aucun stem sélectionné.</p>
-                    </div>
-                    <div class="border border-(--border) rounded-lg p-3">
-                      <div class="text-xs font-semibold text-(--text) mb-1">Réharmoniser depuis une session enregistrée (EXP-030)</div>
-                      <p class="text-xs text-(--text-dim) mb-3">Charge une session MIDI enregistrée (onglet Enregistrement) et réharmonise sa mélodie. Sélectionnez une session dans la liste.</p>
-                      <button type="button" id="analyzer-reharm-session" class="px-3 py-1 rounded text-xs bg-(--surface-secondary) hover:bg-(--border) text-(--text) transition-colors" disabled>Choisir une session…</button>
-                      <select id="analyzer-reharm-session-select" class="hidden px-2 py-1 rounded text-xs bg-(--surface-secondary) text-(--text) border border-(--border)"></select>
-                      <p class="text-xs text-(--text-dim) mt-2" id="analyzer-reharm-session-status">Aucune session sélectionnée.</p>
-                    </div>
-                    <div class="border border-(--border) rounded-lg p-3">
-                      <div class="text-xs font-semibold text-(--text) mb-1">Démonstration du moteur</div>
-                      <p class="text-xs text-(--text-dim) mb-3">Cette démonstration utilise une mélodie d’exemple indépendante du fichier actuellement chargé.</p>
-                      <button type="button" id="analyzer-reharm-run" class="px-3 py-1 rounded text-xs bg-(--surface-secondary) hover:bg-(--border) text-(--text) transition-colors">Lancer la démonstration</button>
-                    </div>
-                    <div class="analyzer-reharm-output" id="analyzer-reharm-output" role="region" aria-label="Résultats de la démonstration de réharmonisation"></div>
                   </div>
-                </details>
+
+                  <div class="reharm-style-bar">
+                    <span class="reharm-style-label">Style de réharmonisation</span>
+                    <div class="reharm-style-selector segmented" id="reharm-style-selector" role="group" aria-label="Style de réharmonisation">
+                      <button type="button" data-style="worship">Worship</button>
+                      <button type="button" data-style="gospel">Gospel</button>
+                      <button type="button" data-style="jazz">Jazz</button>
+                      <button type="button" data-style="neoSoul">Neo Soul</button>
+                    </div>
+                  </div>
+
+                  <div class="reharm-criteria">
+                    <span class="reharm-criteria-title">Critères vérifiés sur chaque proposition</span>
+                    <div class="reharm-criteria-list" id="reharm-criteria-list" aria-label="Critères de validité">
+                      <span class="reharm-criterion" data-criterion="melody-audible">Mélodie audible</span>
+                      <span class="reharm-criterion" data-criterion="passage-resolution">Les tensions retombent juste</span>
+                      <span class="reharm-criterion" data-criterion="no-parallel-motion">Pas de quintes parallèles</span>
+                      <span class="reharm-criterion" data-criterion="traceability">Chaque accord justifié par une règle</span>
+                    </div>
+                  </div>
+
+                  <div class="reharm-melody" id="reharm-melody" aria-label="Mélodie capturée">
+                    <div class="reharm-melody-empty" id="reharm-melody-empty">Aucune mélodie capturée.</div>
+                    <div class="reharm-melody-strip" id="reharm-melody-strip"></div>
+                  </div>
+
+                  <div class="reharm-actions">
+                    <button type="button" class="btn-secondary" id="reharm-compare-btn">Comparer les propositions</button>
+                    <button type="button" class="btn-primary" id="reharm-run-btn">Lancer la démonstration</button>
+                  </div>
+
+                  <div class="reharm-results" id="reharm-results" role="region" aria-label="Propositions de réharmonisation"></div>
+
+                  <div class="reharm-post-apply" id="reharm-post-apply" style="display:none">
+                    <div class="reharm-applied-bar">
+                      <div class="reharm-version-toggle segmented" id="reharm-version-toggle" role="group" aria-label="Version affichée">
+                        <button type="button" data-version="original">Original</button>
+                        <button type="button" data-version="reharm">Réharmonisé</button>
+                      </div>
+                      <div class="reharm-applied-context" id="reharm-applied-context">—</div>
+                    </div>
+                    <div class="reharm-confirm-band" id="reharm-confirm-band">
+                      <span class="reharm-confirm-icon">✓</span>
+                      <span class="reharm-confirm-text">Version appliquée</span>
+                      <span class="reharm-confirm-score" id="reharm-applied-score">—</span>
+                    </div>
+                    <div class="reharm-applied-actions">
+                      <button type="button" class="btn-secondary" id="reharm-revert-btn">↩ Revenir à l'original</button>
+                      <button type="button" class="btn-secondary" id="reharm-relisten-btn">▶ Réécouter au piano</button>
+                      <button type="button" class="btn-primary" id="reharm-send-training-btn">Envoyer vers Entraînement</button>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div class="analyzer-panel" data-section="masterclass" role="tabpanel" style="display:none">
-                <div class="analyzer-masterclass-box" id="analyzer-masterclass-output">
-                  <p>Configurez une clé API OpenAI-compatible (Groq, OpenRouter, Google AI Studio…) via le bouton 🔑 en haut à droite pour obtenir une analyse pédagogique personnalisée.</p>
+                <div class="masterclass-panel" id="masterclass-panel">
+                  <div class="masterclass-empty" id="masterclass-empty">
+                    <p>Les fiches Masterclass s'affichent ici après avoir sélectionné un accord ou un passage dans la timeline.</p>
+                  </div>
+                  <div class="masterclass-content" id="masterclass-content" style="display:none"></div>
                 </div>
-                <button type="button" id="analyzer-masterclass-run" class="btn-secondary" disabled>Générer l’analyse pédagogique</button>
               </div>
-              <div class="analyzer-panel analyzer-panel-center" data-section="corriger" role="tabpanel" style="display:none">
-                <div class="flex flex-wrap gap-2 mt-6">
-                  <button type="button" id="analyzer-export-midi-btn" class="btn-secondary btn-sm">Exporter l’analyse en MIDI</button>
-                  <button type="button" id="analyzer-export-json-btn" class="btn-secondary btn-sm">Exporter en JSON</button>
-                  <button type="button" id="analyzer-copy-text-btn" class="btn-secondary btn-sm">Copier la grille texte</button>
+              <div class="analyzer-panel corriger-panel" data-section="corriger" role="tabpanel" style="display:none">
+                <div class="corriger-header" id="corriger-header"></div>
+                <div class="corriger-toolbar">
+                  <label class="corriger-filter-label" for="corriger-filter">Afficher</label>
+                  <select class="corriger-filter" id="corriger-filter">
+                    <option value="flagged" selected>Segments signalés</option>
+                    <option value="all">Tous les segments</option>
+                  </select>
+                  <div class="corriger-message" id="corriger-message" style="display:none"></div>
                 </div>
-                <p class="text-xs text-(--text-dim) mt-2">MIDI, JSON et texte reflètent les corrections manuelles. JSON conserve aussi la détection originale.</p>
-                <div class="text-2xl mt-6" aria-hidden="true">🧰</div>
-                <p>D’autres outils d’analyse seront ajoutés prochainement.</p>
+                <div class="corriger-layout">
+                  <div class="corriger-list" id="corriger-list"></div>
+                  <div class="corriger-editor" id="corriger-editor" style="display:none">
+                    <div class="corriger-editor-header">
+                      <div class="corriger-editor-detected" id="corriger-editor-detected"></div>
+                      <div class="corriger-editor-meta" id="corriger-editor-meta"></div>
+                    </div>
+                    <div class="corriger-keyboard" id="corriger-keyboard"></div>
+                    <label class="corriger-input-label" for="corriger-input">Symbole corrigé</label>
+                    <div class="corriger-input-row">
+                      <input type="text" class="corriger-input" id="corriger-input" placeholder="Ex. F#m7, C/E, Bbmaj9" autocomplete="off" />
+                      <button type="button" class="btn-secondary" id="corriger-reset-btn" title="Reprendre l’accord détecté">↺</button>
+                    </div>
+                    <div class="corriger-candidates" id="corriger-candidates"></div>
+                    <div class="corriger-editor-actions">
+                      <button type="button" class="btn-secondary" id="corriger-listen-btn" aria-pressed="false">▶ Écouter en boucle</button>
+                      <button type="button" class="btn-secondary" id="corriger-correct-btn">Marquer correct</button>
+                      <button type="button" class="btn-primary" id="corriger-apply-btn">Appliquer la correction</button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
 
           <div class="analyzer-processing-overlay" id="analyzer-processing" style="display: none;">
             <div class="analyzer-processing-box">
@@ -948,6 +989,14 @@
             <span>Modèle</span>
             <input type="text" id="ai-model" placeholder="llama-3.1-8b-instant" />
           </label>
+
+          <div class="ai-cap-row">
+            <label class="ai-field ai-cap-field">
+              <span>Plafond mensuel d’appels IA</span>
+              <input type="number" id="ai-monthly-cap" min="1" step="1" value="50" />
+            </label>
+            <span class="ai-usage" id="ai-usage">0 / 50 ce mois</span>
+          </div>
 
           <div class="ai-test-result" id="ai-test-result"></div>
 

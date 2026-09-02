@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, session, dialog, desktopCapturer } from 'electron';
+import { app, BrowserWindow, ipcMain, session, dialog, desktopCapturer, safeStorage } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import midi from '@julusian/midi';
@@ -1237,6 +1237,21 @@ function setupStudioIPC() {
   ipcMain.handle('studio:save-dialog', async () => ({ canceled: true }));
   ipcMain.handle('studio:save-recorded-video', async () => ({ error: 'deprecated' }));
 }
+
+// [Refonte 2026-09-02] — safeStorage pour la clé API IA.
+ipcMain.handle('safe-storage:is-available', () => safeStorage.isEncryptionAvailable());
+ipcMain.handle('safe-storage:encrypt', (event, plainText) => {
+  if (!safeStorage.isEncryptionAvailable()) {
+    throw new Error('safeStorage non disponible');
+  }
+  return safeStorage.encryptString(plainText).toString('base64');
+});
+ipcMain.handle('safe-storage:decrypt', (event, encryptedBase64) => {
+  if (!safeStorage.isEncryptionAvailable()) {
+    throw new Error('safeStorage non disponible');
+  }
+  return safeStorage.decryptString(Buffer.from(encryptedBase64, 'base64'));
+});
 
 app.whenReady().then(() => {
   requestMidiPermission();
