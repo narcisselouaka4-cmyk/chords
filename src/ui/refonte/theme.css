@@ -55,6 +55,99 @@
   --r-space-4: 16px;
   --r-space-5: 24px;
   --r-space-6: 32px;
+
+  /* ---- Alias ----------------------------------------------------------
+     Les feuilles d'écran (analyse.css, practice.css, studio.css) référencent
+     ces noms sans qu'ils aient jamais été définis. Or `var()` sur une variable
+     absente rend la déclaration entière invalide, silencieusement : une
+     trentaine de règles — rayons de pilule, bordures, fonds de carte — ne
+     s'appliquaient tout simplement pas, ce qui contribuait à l'écart entre le
+     rendu et les maquettes. On les définit ici comme alias des tokens réels
+     plutôt que de réécrire chaque feuille : un seul point de vérité, et tout
+     le CSS existant se remet à produire ce qu'il décrit.
+     -------------------------------------------------------------------- */
+  --r-border-soft: var(--r-border);
+  --r-surface-elevated: var(--r-surface-raised);
+  --r-accent-contrast: #ffffff;
+  --r-error: #f2637a;
+  --r-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --r-shadow-card: 0 18px 44px -22px rgba(0, 0, 0, 0.75);
+
+  /* Couleurs de forme d'onde par skin, aussi utilisées en valeur directe. */
+  --r-waveform-global: #4fd1c5;
+  --r-waveform-v2: #a78bfa;
+
+  /* Texte lisible posé sur un fond --r-accent-soft (étiquettes, boutons doux). */
+  --r-accent-text: #d7ccff;
+  /* Fond du cadre de lecture (vidéo ou pochette) et voile des fenêtres modales. */
+  --r-player-bg: linear-gradient(135deg, #20232d 0%, #171922 55%, #0c0d11 100%);
+  --r-overlay: rgba(8, 5, 12, 0.72);
+}
+
+/* ============================================================================
+   Thème clair
+   ----------------------------------------------------------------------------
+   Toute la refonte consomme les tokens --r-*, et rien d'autre : il suffit donc
+   de redéfinir ce jeu de valeurs pour que les deux habillages, sur les trois
+   onglets, basculent en clair — sans dupliquer une seule règle de mise en
+   forme. Les formes, les rayons et la grammaire v2/Global restent identiques :
+   seule la matière change.
+
+   Ce n'est pas une inversion mécanique de la palette sombre. Sur fond clair,
+   l'accent violet est assombri pour rester lisible sur blanc, les couleurs de
+   pistes sont désaturées et foncées, et les ombres deviennent discrètes — un
+   thème clair qui garde les ombres profondes du sombre paraît sale.
+   ============================================================================ */
+
+:root[data-theme='light'] {
+  --r-ground: #f4f2f9;
+  --r-surface: #ffffff;
+  --r-surface-raised: #faf9fe;
+  --r-surface-chip: #f0edf8;
+  --r-border: rgba(28, 18, 51, 0.12);
+  --r-border-strong: rgba(28, 18, 51, 0.24);
+  --r-text: #1c1526;
+  --r-text-muted: #574f6b;
+  --r-text-faint: #8a819f;
+
+  --r-accent: #6d47e0;
+  --r-accent-soft: rgba(109, 71, 224, 0.11);
+  --r-accent-text: #4526ad;
+  --r-grad: linear-gradient(90deg, #7c4dff, #5b3fd6);
+
+  --r-coral: #cf5f33;
+  --r-coral-soft: rgba(207, 95, 51, 0.13);
+  --r-good: #0f9d63;
+  --r-good-soft: rgba(15, 157, 99, 0.13);
+  --r-warn: #a8730f;
+  --r-error: #cf3f58;
+
+  --r-shadow-sm: 0 1px 3px rgba(28, 18, 51, 0.10);
+  --r-shadow-card: 0 14px 34px -20px rgba(28, 18, 51, 0.35);
+
+  --r-waveform-global: #12a196;
+  --r-waveform-v2: #6d47e0;
+
+  --r-player-bg: linear-gradient(135deg, #edeaf6 0%, #e6e2f2 55%, #dedaec 100%);
+  --r-overlay: rgba(38, 28, 60, 0.42);
+
+  /* Pistes séparées : mêmes familles de teintes, assombries pour rester
+     lisibles sur blanc — les versions claires du thème sombre y disparaissent. */
+  --r-vocals: #d1435f;
+  --r-drums: #0e9a90;
+  --r-bass: #6d47e0;
+  --r-other: #b8760f;
+  --r-piano: #2b9257;
+}
+
+/* Le rayon « pilule » suit la grammaire du skin actif : arrondi complet en
+   Scène (v2), angle sobre en Atelier (Global) — comme --r-radius-btn. */
+:root[data-skin='v2'] {
+  --r-radius-pill: 100px;
+}
+
+:root[data-skin='global'] {
+  --r-radius-pill: 7px;
 }
 
 /* ------------------------------------------------------------------ *
@@ -142,56 +235,444 @@
 }
 
 /* ============================================================================
+   SOCLE — remappage du design system historique vers la palette de la refonte
+   ----------------------------------------------------------------------------
+   C'est la pièce maîtresse de la refonte, et elle tient en trente lignes.
+
+   style.css définit une douzaine de variables (--bg, --panel-bg, --accent…)
+   utilisées plus de 700 fois dans toute l'application. Tant qu'elles gardent
+   leurs anciennes valeurs (bleu indigo #818cf8, gris ardoise #0f1117), aucun
+   habillage posé par-dessus ne peut faire ressembler l'app aux maquettes : il
+   faudrait surcharger chaque composant un par un, indéfiniment, et le moindre
+   écran oublié retombe à l'ancienne palette. C'est l'écueil des tentatives
+   précédentes (70 Ko de surcharges pour un résultat hybride).
+
+   On prend donc le problème à la racine : ces variables pointent désormais vers
+   les tokens --r-*. Tout ce qui les consomme — y compris les écrans que la
+   refonte n'a jamais touchés — hérite de la nouvelle identité d'un seul coup,
+   et reste cohérent par construction.
+
+   Portée : uniquement le thème sombre, le seul maquetté. Le thème clair est
+   explicitement laissé intact (relais §1 : « ne pas improviser une palette
+   claire à partir de la palette sombre »).
+   ============================================================================ */
+
+:root[data-skin] {
+  --bg: var(--r-ground);
+  --panel-bg: var(--r-surface);
+  --panel-border: var(--r-border);
+  --border: var(--r-border-strong);
+  --text: var(--r-text);
+  --muted: var(--r-text-muted);
+  --accent: var(--r-accent);
+  --accent-text: #ffffff; /* texte posé SUR l'accent : blanc, pas l'ancien gris sombre */
+  --accent-soft: var(--r-accent-soft);
+  --shadow: 0 18px 44px -22px rgba(0, 0, 0, 0.75);
+
+  --radius: var(--r-radius-card);
+  --radius-sm: var(--r-radius-inset);
+  --font: var(--r-font-body);
+
+  /* Les contrôles natifs (input[type=range], checkbox) s'affichaient en bleu
+     système : c'est ce qui trahissait le plus l'habillage sur l'écran Studio. */
+  accent-color: var(--r-accent);
+}
+
+/* Le fond est posé en style inline sur <html> par le script anti-flash de
+   index.html (ancienne valeur #0f1117) : il gagne sur toute règle CSS. On le
+   neutralise ici pour que la couleur de fond vienne bien de la palette. */
+:root[data-skin] {
+  background-color: var(--r-ground) !important;
+}
+
+/* Titres en Manrope — la police de titre des maquettes, déjà bundlée. */
+:root[data-skin] h1,
+:root[data-skin] h2,
+:root[data-skin] h3,
+:root[data-skin] h4,
+:root[data-skin] .panel-title,
+:root[data-skin] .studio-panel-title {
+  font-family: var(--r-font-title);
+  letter-spacing: -0.01em;
+}
+
+/* ============================================================================
    Primitives de composant partagées par les écrans de la refonte.
    Elles lisent les tokens --r-* : une seule règle, deux rendus selon data-skin.
    ============================================================================ */
 
-/* ---- Barre d'onglets de premier niveau, alignée à droite (§1.1) ---- */
-.tab-nav {
-  font-family: var(--r-font-title);
+/* ============================================================================
+   Contrôles de formulaire — champs, listes déroulantes, curseurs, cases
+   ----------------------------------------------------------------------------
+   Second levier transversal, après le socle de variables. Ces éléments étaient
+   restés au rendu natif du navigateur (bordures grises, curseurs bleus, cases
+   système) et se retrouvent partout : barre du clavier, réglages d'analyse,
+   panneaux du Studio. Les habiller ici les met d'un coup dans la palette, sur
+   tous les écrans — y compris ceux que la refonte n'a pas encore repris.
+   ============================================================================ */
+
+:root[data-skin] input[type='text'],
+:root[data-skin] input[type='number'],
+:root[data-skin] input[type='password'],
+:root[data-skin] input[type='search'],
+:root[data-skin] select,
+:root[data-skin] textarea {
+  background: var(--r-surface-chip);
+  color: var(--r-text);
+  border: 1px solid var(--r-border);
+  border-radius: var(--r-radius-field);
+  padding: 6px 10px;
+  font-family: var(--r-font-body);
+  font-size: 0.8rem;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-:root[data-skin='v2'] .tab-nav,
-:root[data-skin='global'] .tab-nav {
-  gap: 4px;
+:root[data-skin] input[type='text']:focus,
+:root[data-skin] input[type='number']:focus,
+:root[data-skin] input[type='password']:focus,
+:root[data-skin] input[type='search']:focus,
+:root[data-skin] select:focus,
+:root[data-skin] textarea:focus {
+  border-color: rgba(139, 108, 245, 0.55);
+  box-shadow: 0 0 0 3px var(--r-accent-soft);
+}
+
+:root[data-skin] select {
+  cursor: pointer;
+}
+
+/* Curseurs : on garde le rendu natif, simplement teinté par accent-color (posé
+   dans le socle) — il dessine déjà le remplissage jusqu'à la valeur courante,
+   ce qu'un curseur entièrement redessiné en CSS ne sait pas faire sans l'aide
+   du JS. On se contente d'affiner la piste. */
+:root[data-skin] input[type='range'] {
+  height: 16px;
+  cursor: pointer;
+}
+
+:root[data-skin] input[type='checkbox'] {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+/* ============================================================================
+   Barre de réglages du clavier
+   ----------------------------------------------------------------------------
+   Présente sous les trois onglets, elle était restée un alignement de champs de
+   formulaire où le libellé pesait autant que la valeur. Chaque réglage devient
+   une pastille compacte : intitulé technique en petit, valeur lisible. Le
+   clavier virtuel lui-même n'est pas touché — c'est une consigne explicite du
+   projet, et ceci n'habille que la bande de réglages sous lui.
+   ============================================================================ */
+
+:root[data-skin] .keyboard-panel {
+  background: var(--r-surface);
+  border-top: 1px solid var(--r-border);
+}
+
+:root[data-skin] .keyboard-controls {
+  gap: 7px;
+  padding: 9px 12px;
   background: transparent;
   border: none;
-  padding: 0;
+  border-radius: 0;
 }
 
-:root[data-skin='v2'] .tab-btn,
-:root[data-skin='global'] .tab-btn {
-  position: relative;
-  background: transparent;
-  color: var(--r-text-muted);
-  border: 1px solid transparent;
+:root[data-skin] .keyboard-section-title {
+  font-family: var(--r-font-mono);
+  font-size: 0.6rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: var(--r-text-faint);
+  display: flex;
+  align-items: center;
+}
+
+:root[data-skin] .keyboard-controls label {
+  gap: 7px;
+  padding: 4px 9px;
+  background: var(--r-surface-chip);
+  border: 1px solid var(--r-border);
   border-radius: var(--r-radius-btn);
-  padding: 7px 16px;
-  font-size: 0.86rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  font-family: var(--r-font-mono);
+  font-size: 0.63rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  color: var(--r-text-faint);
 }
 
-:root[data-skin='v2'] .tab-btn:hover,
-:root[data-skin='global'] .tab-btn:hover {
+/* Dans une pastille, le champ n'a plus besoin de son propre cadre : la pastille
+   fait déjà l'encadrement. */
+:root[data-skin] .keyboard-controls label select,
+:root[data-skin] .keyboard-controls label input[type='text'],
+:root[data-skin] .keyboard-controls label input[type='number'] {
+  padding: 2px 4px;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  color: var(--r-text);
+  font-family: var(--r-font-body);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+:root[data-skin] .keyboard-controls label select:focus,
+:root[data-skin] .keyboard-controls label input:focus {
+  box-shadow: none;
+  color: var(--r-accent);
+}
+
+:root[data-skin] .keyboard-controls label:focus-within {
+  border-color: rgba(139, 108, 245, 0.5);
+}
+
+:root[data-skin] .keyboard-controls input[type='text'] {
+  width: 46px;
+}
+
+:root[data-skin] .keyboard-controls input[type='number'] {
+  width: 48px;
+}
+
+/* Les deux bascules (Silencieux, Rhodes) : case puis intitulé, même pastille. */
+:root[data-skin] .keyboard-controls .switch-label {
+  gap: 6px;
+}
+
+:root[data-skin] .keyboard-controls .switch-label input[type='checkbox'] {
+  width: 13px;
+  height: 13px;
+  margin: 0;
+}
+
+/* ---- Barre d'état (couleurs des notes, port MIDI) ----
+   Dernière bande de la fenêtre : purement informative, elle doit se faire
+   oublier. Intitulés techniques discrets, pastilles de couleur nettes. */
+:root[data-skin] .app-footer {
+  padding: 7px 20px;
+  background: var(--r-surface);
+  border-top: 1px solid var(--r-border);
+  font-family: var(--r-font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.02em;
+  color: var(--r-text-faint);
+}
+
+:root[data-skin] .app-footer label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--r-text-faint);
+}
+
+:root[data-skin] .footer-left,
+:root[data-skin] .footer-midi {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+:root[data-skin] .app-footer input[type='color'] {
+  width: 22px;
+  height: 16px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--r-border-strong);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+:root[data-skin] .app-footer select {
+  padding: 3px 7px;
+  font-family: var(--r-font-mono);
+  font-size: 0.65rem;
+  border-radius: var(--r-radius-btn);
+}
+
+:root[data-skin] #midi-refresh {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: var(--r-surface-chip);
+  border: 1px solid var(--r-border);
+  border-radius: var(--r-radius-btn);
+  color: var(--r-text-muted);
+  cursor: pointer;
+}
+
+:root[data-skin] #midi-refresh:hover {
+  color: var(--r-text);
+  border-color: var(--r-border-strong);
+}
+
+/* ---- En-tête : identité + icônes, puis onglets sur une bande dédiée ----
+   Les maquettes des deux thèmes montrent deux bandes distinctes plutôt qu'une
+   seule ligne surchargée : l'identité et les icônes en haut, la navigation
+   alignée à droite juste en dessous. */
+:root[data-skin] .app-header {
+  padding: 11px 20px;
+  background: var(--r-surface);
+  border-bottom: 1px solid var(--r-border);
+  box-shadow: none;
+}
+
+:root[data-skin] .brand {
+  gap: 11px;
+}
+
+:root[data-skin] .brand-icon {
+  width: 32px;
+  height: 32px;
+  font-size: 1rem;
+  border-radius: 9px;
+  background: var(--r-accent-soft);
+  border: 1px solid rgba(139, 108, 245, 0.35);
+}
+
+:root[data-skin='v2'][data-theme='dark'] .brand-icon {
+  background: var(--r-grad);
+  border-color: transparent;
+}
+
+:root[data-skin] .app-header h1 {
+  font-family: var(--r-font-title);
+  font-size: 0.98rem;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.01em;
   color: var(--r-text);
 }
 
-:root[data-skin='v2'] .tab-btn.active {
-  background: var(--r-tab-active-bg);
-  color: var(--r-tab-active-fg);
-  border-color: var(--r-tab-active-border);
+/* Le sous-titre n'existe dans aucune des deux maquettes : l'en-tête y est une
+   barre d'identité compacte, pas un bandeau de présentation. */
+:root[data-skin] .brand-subtitle {
+  display: none;
 }
 
-:root[data-skin='global'] .tab-btn {
+:root[data-skin] .header-icons {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+/* Les quatre icônes (?, clé, rouage, thème) partagent une seule apparence :
+   pastilles discrètes et de même poids. Auparavant chacune avait sa couleur
+   propre — la clé en jaune vif, le thème en violet plein — ce qui attirait
+   l'œil sur des commandes secondaires. */
+:root[data-skin] .header-icons > button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.82rem;
+  line-height: 1;
+  color: var(--r-text-muted);
+  background: var(--r-surface-chip);
+  border: 1px solid var(--r-border);
+  border-radius: 9px;
+  box-shadow: none;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+:root[data-skin='v2'][data-theme='dark'] .header-icons > button {
+  border-radius: 100px;
+}
+
+:root[data-skin] .header-icons > button:hover {
+  color: var(--r-text);
+  border-color: var(--r-border-strong);
+  background: var(--r-surface-raised);
+}
+
+/* ---- Barre d'onglets de premier niveau, alignée à droite (§1.1) ---- */
+:root[data-skin] .tab-nav {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 9px 20px;
+  background: var(--r-surface);
+  border: none;
+  border-bottom: 1px solid var(--r-border);
+  flex-shrink: 0;
+  font-family: var(--r-font-title);
+}
+
+:root[data-skin] .tab-btn {
+  position: relative;
+  background: transparent;
+  color: var(--r-text-faint);
+  border: 1px solid transparent;
   border-radius: var(--r-radius-btn);
+  padding: 7px 15px;
+  font-family: var(--r-font-title);
+  font-size: 0.84rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+:root[data-skin] .tab-btn:hover {
+  color: var(--r-text);
+  background: var(--r-surface-chip);
+}
+
+/* ---- Lisibilité de la navigation ----
+   L'onglet actif se distinguait surtout par une nuance de fond : suffisant sur
+   un fond sombre, presque invisible sur un fond clair, où l'utilisateur ne
+   voyait plus où il se trouvait ni qu'il pouvait aller ailleurs. Trois signaux
+   se cumulent désormais, indépendants du thème : les onglets inactifs sont
+   nettement lisibles (et non plus estompés), l'onglet actif est plus gras et
+   porte un trait d'accent sous lui. */
+:root[data-skin] .tab-nav {
+  gap: 2px;
+}
+
+:root[data-skin] .tab-btn {
+  color: var(--r-text-muted);
+  padding-bottom: 9px;
+  border-bottom: 2px solid transparent;
+  border-radius: var(--r-radius-btn) var(--r-radius-btn) 0 0;
+}
+
+:root[data-skin] .tab-btn.active {
+  font-weight: 800;
+  border-bottom-color: var(--r-accent);
 }
 
 :root[data-skin='global'] .tab-btn.active {
   background: var(--r-accent-soft);
   color: var(--r-text);
-  border-color: var(--r-active-border-color);
+  border-color: transparent;
+  border-bottom: 2px solid var(--r-accent);
+}
+
+:root[data-skin='v2'] .tab-btn.active {
+  background: var(--r-grad);
+  color: #ffffff;
+  border-color: transparent;
+  border-bottom: 2px solid var(--r-accent);
+}
+
+:root[data-skin='global'][data-theme='dark'] .tab-btn.active {
+  background: var(--r-accent-soft);
+  color: var(--r-text);
+  border-color: rgba(139, 108, 245, 0.4);
+}
+
+:root[data-skin='v2'][data-theme='dark'] .tab-btn.active {
+  background: var(--r-grad);
+  color: #ffffff;
+  border-color: transparent;
 }
 
 /* ---- Sélecteur de skin (Réglages › Apparence) ---- */
@@ -242,6 +723,139 @@
   color: var(--muted);
   line-height: 1.5;
   margin: 0;
+}
+
+/* ---- Fenêtres modales (Paramètres, Ma bibliothèque, clé API) ---- */
+:root[data-skin] .modal-overlay {
+  background: var(--r-overlay);
+  backdrop-filter: blur(3px);
+}
+
+:root[data-skin] .modal-box {
+  background: var(--r-surface-raised);
+  border: 1px solid var(--r-border);
+  border-radius: var(--r-radius-card);
+  box-shadow: 0 30px 70px -28px rgba(0, 0, 0, 0.85);
+}
+
+:root[data-skin] .modal-box h3 {
+  font-family: var(--r-font-title);
+  font-size: 1.05rem;
+  font-weight: 800;
+  margin: 0 0 4px;
+}
+
+:root[data-skin] .modal-hint {
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--r-text-muted);
+}
+
+:root[data-skin] .modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+/* Les modales historiques (confirmations) veulent des boutons qui se partagent
+   la largeur — d'où le `flex: 1` de style.css, qu'on ne touche pas. Les deux
+   fenêtres ajoutées ici n'ont qu'un bouton « Fermer » : il garde sa taille
+   propre au lieu de s'étirer sur toute la largeur. */
+:root[data-skin] #app-settings-modal .modal-actions > button,
+:root[data-skin] #library-modal .modal-actions > button {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 100px;
+  padding: 9px 18px;
+  border-radius: var(--r-radius-btn);
+  font-weight: 700;
+}
+
+/* ---- Ma bibliothèque ---- */
+:root[data-skin] .library-box {
+  width: min(560px, 92vw);
+}
+
+:root[data-skin] #analyzer-library-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 46vh;
+  overflow-y: auto;
+  margin-top: 14px;
+  scrollbar-width: thin;
+}
+
+:root[data-skin] .analyzer-library-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+:root[data-skin] .analyzer-library-item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 13px;
+  text-align: left;
+  background: var(--r-surface-chip);
+  border: 1px solid var(--r-border);
+  border-radius: var(--r-radius-inset);
+  color: var(--r-text);
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+:root[data-skin] .analyzer-library-item:hover {
+  background: var(--r-surface-raised);
+  border-color: rgba(139, 108, 245, 0.45);
+}
+
+:root[data-skin] .analyzer-library-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:root[data-skin] .analyzer-library-ext {
+  flex: none;
+  font-family: var(--r-font-mono);
+  font-size: 0.62rem;
+  color: var(--r-text-faint);
+}
+
+:root[data-skin] .analyzer-library-empty {
+  margin: 16px 0 0;
+  font-size: 0.8rem;
+  color: var(--r-text-faint);
+}
+
+/* Raccourci vers la bibliothèque depuis l'écran d'import de l'Analyse. */
+:root[data-skin] .analyzer-library-open {
+  display: block;
+  margin: 18px auto 0;
+  padding: 9px 16px;
+  background: transparent;
+  border: 1px solid var(--r-border);
+  border-radius: var(--r-radius-btn);
+  color: var(--r-text-muted);
+  font-family: var(--r-font-body);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+:root[data-skin] .analyzer-library-open:hover {
+  color: var(--r-text);
+  border-color: var(--r-border-strong);
 }
 
 /* ---- Sections du modal Réglages (Apparence / Assistant IA) ---- */

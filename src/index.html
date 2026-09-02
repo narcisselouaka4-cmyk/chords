@@ -24,7 +24,7 @@
           if (saved === 'light' || saved === 'dark') theme = saved;
         } catch (_) {}
         document.documentElement.setAttribute('data-theme', theme);
-        document.documentElement.style.backgroundColor = theme === 'dark' ? '#0f1117' : '#f4f6f8';
+        document.documentElement.style.backgroundColor = theme === 'dark' ? '#100c14' : '#f4f2f9';
 
         // Skin de la refonte visuelle : 'v2' | 'global' (défaut 'global').
         let skin = 'global';
@@ -49,6 +49,12 @@
   </head>
   <body>
     <div id="app" class="app">
+      <!-- [Refonte] — En-tête sur deux bandes, comme les maquettes des deux
+           thèmes : identité + icônes en haut, navigation d'onglets alignée à
+           droite juste en dessous. La <nav> a seulement changé de place dans le
+           document : elle garde son id et ses .tab-btn[data-tab], donc toute la
+           navigation existante (délégation de clic dans main.js) fonctionne
+           sans modification. -->
       <header class="app-header">
         <div class="brand">
           <div class="brand-icon">🎹</div>
@@ -57,17 +63,20 @@
             <div class="brand-subtitle">Affichage & apprentissage des accords en temps réel</div>
           </div>
         </div>
-        <div class="header-actions">
-          <nav class="tab-nav" id="tab-nav">
-            <button class="tab-btn active" data-tab="practice" title="Entraînement en temps réel">Entraînement</button>
-            <button class="tab-btn" data-tab="analysis" title="Analyser et rejouer des sessions MIDI">Analyse</button>
-            <button class="tab-btn" data-tab="studio" title="Importer, lire et séparer des morceaux">Studio</button>
-          </nav>
+        <div class="header-icons">
+          <button class="library-toggle" id="library-toggle" title="Ma bibliothèque — morceaux importés" aria-label="Ouvrir ma bibliothèque">🎵</button>
           <button class="onboarding-help-toggle" id="onboarding-help-btn" title="Tutoriel — comment utiliser l'application" aria-label="Ouvrir le tutoriel" aria-haspopup="menu">?</button>
-          <button class="settings-toggle" id="ai-settings-toggle" title="Paramètres IA">🔑</button>
+          <button class="settings-toggle" id="ai-settings-toggle" title="Clé API de l'assistant IA">🔑</button>
+          <button class="app-settings-toggle" id="app-settings-toggle" title="Paramètres" aria-label="Ouvrir les paramètres">⚙</button>
           <button class="theme-toggle" id="theme-toggle" title="Changer de thème">🌙</button>
         </div>
       </header>
+
+      <nav class="tab-nav" id="tab-nav" aria-label="Sections de l'application">
+        <button class="tab-btn active" data-tab="practice" title="Entraînement en temps réel">Entraînement</button>
+        <button class="tab-btn" data-tab="analysis" title="Analyser et rejouer des sessions MIDI">Analyse</button>
+        <button class="tab-btn" data-tab="studio" title="Importer, lire et séparer des morceaux">Studio</button>
+      </nav>
 
       <main class="app-main practice-layout" id="practice-tab">
         <div class="training-workspace">
@@ -178,9 +187,14 @@
                 </div>
                 <span class="analyzer-import-card-arrow" aria-hidden="true">›</span>
               </button>
-              <div class="analyzer-library-section">
-                <div id="analyzer-library-list"></div>
-              </div>
+              <!-- [Refonte] — La bibliothèque n'est plus listée ici : elle a sa
+                   propre fenêtre, ouverte depuis l'en-tête (🎵) et donc
+                   atteignable aussi bien depuis le Studio que depuis l'Analyse.
+                   Il reste ce raccourci pour ne pas perdre le chemin d'accès
+                   depuis l'écran d'import. -->
+              <button type="button" class="analyzer-library-open" id="analyzer-library-open">
+                🎵 Reprendre un morceau de ma bibliothèque
+              </button>
               <!-- Bouton historique conservé pour compatibilité initiale -->
               <button type="button" id="analyzer-import-btn" class="analyzer-import-legacy" style="display:none">Importer un nouveau fichier</button>
             </div>
@@ -242,8 +256,15 @@
                     <div class="analyzer-option-sub">Découper le morceau en sections (intro, couplets, etc.).</div>
                   </div>
                 </label>
-                <button type="button" class="btn-primary analyzer-launch-btn" id="analyzer-launch-analysis-btn">▶ Lancer l'analyse</button>
               </div>
+            </div>
+            <!-- [Refonte 2026-09-02] — L'action principale sort de la carte
+                 « Options » : au fond d'une colonne qui défile, elle tombait
+                 sous la zone visible sur une fenêtre de 900 px et l'écran
+                 semblait sans issue. Elle est désormais ancrée en bas de
+                 l'écran de préparation, toujours visible. -->
+            <div class="analyzer-prepare-actions">
+              <button type="button" class="btn-primary analyzer-launch-btn" id="analyzer-launch-analysis-btn">▶ Lancer l'analyse</button>
             </div>
           </div>
 
@@ -718,6 +739,11 @@
             <div class="analyzer-processing-box">
               <div class="analyzer-processing-spinner"></div>
               <p class="analyzer-processing-text" id="analyzer-processing-text">Analyse en cours…</p>
+              <!-- [Refonte] — compteur de temps écoulé : une analyse dure
+                   souvent plus d'une minute ; sans lui, l'écran d'attente est
+                   indistinguable d'une application figée. -->
+              <p class="analyzer-processing-elapsed" id="analyzer-processing-elapsed" aria-live="polite"></p>
+              <p class="analyzer-processing-hint">Vous pouvez continuer à utiliser les onglets Entraînement et Studio.</p>
             </div>
           </div>
         </section>
@@ -761,10 +787,10 @@
 
         <aside class="studio-sidebar left" id="studio-sidebar-left">
           <div class="panel studio-tracks-panel" id="studio-tracks-panel">
-            <button class="studio-collapse-tab" id="studio-collapse-tab" title="Développer le panneau" aria-label="Développer le panneau Morceaux importés">▼</button>
+            <button class="studio-collapse-tab" id="studio-collapse-tab" title="Développer le panneau" aria-label="Développer le panneau Musiques importées">▼</button>
             <div class="studio-panel-header" id="studio-tracks-header">
-              <span class="studio-panel-title">🎵 Morceaux importés</span>
-              <button class="studio-collapse-btn" id="studio-collapse-left" title="Réduire le panneau" aria-label="Réduire le panneau Morceaux importés">▲</button>
+              <span class="studio-panel-title">🎵 Musiques importées</span>
+              <button class="studio-collapse-btn" id="studio-collapse-left" title="Réduire le panneau" aria-label="Réduire le panneau Musiques importées">▲</button>
             </div>
             <div class="studio-panel-body" id="studio-tracks-body">
               <p class="studio-empty-hint">Sélectionnez un morceau pour travailler ses pistes et sa lecture.</p>
@@ -869,12 +895,18 @@
                 <span class="studio-rp-label">Boucler la région</span>
                 <input type="checkbox" id="studio-loop-region" />
               </label>
+              </div>
             </div>
           </div>
 
-          <!-- [Refonte Global] — sections "Effets" et "Export" (placeholders). -->
-          <div class="studio-effects-section" id="studio-effects-section">
-            <div class="studio-rp-title">Effets</div>
+          <!-- [Refonte Global] — sections « Effets » et « Export ».
+               Repliées par défaut, comme sur la maquette : ce sont des
+               emplacements réservés sans contenu réel, et déployées elles
+               prenaient 140 px dans la colonne où « Lecture » manque de
+               place. Le pli est natif (<details>), donc accessible au
+               clavier sans une ligne de JavaScript. -->
+          <details class="studio-effects-section studio-foldable" id="studio-effects-section">
+            <summary class="studio-rp-title studio-foldable-summary">Effets</summary>
             <div class="studio-placeholder-row">
               <span class="studio-placeholder-label">Réverb</span>
               <span class="studio-placeholder-value">À venir</span>
@@ -883,16 +915,28 @@
               <span class="studio-placeholder-label">EQ</span>
               <span class="studio-placeholder-value">À venir</span>
             </div>
-          </div>
-          <div class="studio-export-section" id="studio-export-section">
-            <div class="studio-rp-title">Export</div>
+          </details>
+          <details class="studio-export-section studio-foldable" id="studio-export-section">
+            <summary class="studio-rp-title studio-foldable-summary">Export</summary>
             <button type="button" class="studio-placeholder-btn" id="studio-export-wav-btn" disabled>Exporter WAV</button>
             <button type="button" class="studio-placeholder-btn" id="studio-export-midi-btn" disabled>Exporter MIDI</button>
-          </div>
+          </details>
         </aside>
       </main>
 
       <section class="keyboard-panel global-keyboard-panel" id="keyboard-panel">
+        <!-- [Refonte 2026-09-02] — Repli du clavier virtuel.
+             Le clavier et sa barre de réglages occupent près de 200 px en
+             permanence : c'est autant de moins pour la forme d'onde, le
+             lecteur et la grille d'accords, sur les trois onglets à la fois.
+             Il reste déployé par défaut — rien ne change tant qu'on ne clique
+             pas — et se réduit à une bande de rappel, comme sur les maquettes. -->
+        <button type="button" class="keyboard-collapse-btn" id="keyboard-collapse-btn"
+                aria-expanded="true" aria-controls="keyboard-container"
+                title="Réduire le clavier virtuel">
+          <span class="keyboard-collapse-label">🎹 Clavier virtuel MIDI</span>
+          <span class="keyboard-collapse-caret" aria-hidden="true">▾</span>
+        </button>
         <div id="keyboard-container" class="keyboard-container"></div>
         <div class="keyboard-controls">
           <span class="keyboard-section-title" id="keyboard-section-title">Clavier</span>
@@ -977,28 +1021,56 @@
         </div>
       </div>
 
-      <div class="modal-overlay" id="ai-settings-modal" style="display: none;">
-        <div class="modal-box ai-settings-box">
-          <h3>Réglages</h3>
+      <!-- [Refonte] — Ma bibliothèque. Les morceaux importés sont un stock
+           commun au Studio et à l'Analyse (même stockage, studio-storage.js) :
+           ils méritaient donc un accès commun plutôt qu'une liste reléguée au
+           bas de l'écran d'import de l'Analyse. La liste elle-même garde son
+           id : le code qui la remplit et gère ses actions est inchangé. -->
+      <div class="modal-overlay" id="library-modal" style="display: none;">
+        <div class="modal-box library-box">
+          <h3>Ma bibliothèque</h3>
+          <p class="modal-hint">Les morceaux que vous avez importés. Cliquez sur un morceau pour l'analyser ; le menu ⋮ permet de le renommer ou de le supprimer.</p>
+          <div id="analyzer-library-list"></div>
+          <div class="modal-actions">
+            <button type="button" class="btn-primary" id="library-close">Fermer</button>
+          </div>
+        </div>
+      </div>
 
-          <!-- [Refonte v2/Global] — 2026-09-02 — Section Apparence : sélecteur de
-               skin visuel. Emplacement retenu (décision non tranchée §5) :
-               Réglages, au-dessus d'Assistant IA — le plus conservateur, cohérent
-               avec l'existant, et l'endroit où viendra un jour le thème clair. -->
+      <!-- [Refonte] — Paramètres de l'application, ouverts par le rouage de
+           l'en-tête. Séparés des réglages de clé API (🔑), qui restent à part :
+           ici vivent les préférences générales, à commencer par l'apparence.
+           Une seule section aujourd'hui, mais le modal est fait pour en
+           accueillir d'autres sans changer sa structure. -->
+      <div class="modal-overlay" id="app-settings-modal" style="display: none;">
+        <div class="modal-box app-settings-box">
+          <h3>Paramètres</h3>
+
           <div class="settings-section" id="settings-appearance">
             <h4 class="settings-section-title">Apparence</h4>
             <div class="appearance-field">
-              <span>Thème visuel</span>
-              <div class="skin-segmented" id="skin-selector" role="group" aria-label="Thème visuel">
-                <button type="button" data-skin-value="global" aria-pressed="true">Global</button>
-                <button type="button" data-skin-value="v2" aria-pressed="false">v2</button>
+              <span>Habillage de l'application</span>
+              <div class="skin-segmented" id="skin-selector" role="group" aria-label="Habillage de l'application">
+                <button type="button" data-skin-value="global" aria-pressed="true">Atelier</button>
+                <button type="button" data-skin-value="v2" aria-pressed="false">Scène</button>
               </div>
               <p class="appearance-hint">
-                Global : anguleux, aplats. v2 : pilules, dégradés violets. Le contenu
-                et le fonctionnement sont identiques — seul l'habillage change.
+                <strong>Atelier</strong> — net et sobre, formes droites et aplats : la vue de travail.<br />
+                <strong>Scène</strong> — plus chaleureux, formes arrondies et dégradés violets.<br />
+                Les deux affichent exactement le même contenu et fonctionnent à l'identique : seul l'habillage change.
               </p>
             </div>
           </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn-primary" id="app-settings-close">Fermer</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-overlay" id="ai-settings-modal" style="display: none;">
+        <div class="modal-box ai-settings-box">
+          <h3>Réglages</h3>
 
           <div class="settings-section">
             <h4 class="settings-section-title">Assistant IA</h4>

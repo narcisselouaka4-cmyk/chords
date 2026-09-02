@@ -2032,3 +2032,106 @@
   opacity: 1;
   min-width: 5px;
 }
+
+/* [Refonte 2026-09-02] — Écran d'attente de l'analyse.
+   Le compteur et la note d'attente remplacent un spinner muet : l'analyse
+   d'un morceau de cinq minutes occupe le processeur plusieurs minutes, et
+   sans repère visible l'utilisateur conclut que l'application a planté. */
+.analyzer-processing-elapsed {
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  opacity: 0.9;
+  margin: 0;
+}
+
+.analyzer-processing-hint {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  margin: 0;
+  max-width: 34ch;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.analyzer-processing-box {
+  max-width: min(420px, 80vw);
+}
+
+/* ========================================================================== *
+ *  CADRAGE VERTICAL DE L'ANALYSE — 2026-09-02                                *
+ * ========================================================================== */
+
+/* Écran d'accueil : `justify-content: center` sur un conteneur qui défile
+   rogne le haut du contenu dès qu'il dépasse, et la partie rognée devient
+   inatteignable (l'ascenseur ne remonte pas au-dessus de l'origine). Les
+   marges automatiques centrent sans ce défaut. */
+#analyzer-import-screen {
+  justify-content: flex-start;
+  padding: 16px 16px 24px;
+}
+
+#analyzer-import-screen > * {
+  margin-top: auto;
+  margin-bottom: auto;
+}
+
+/* Écran de préparation : barre d'action ancrée en bas.
+   « Lancer l'analyse » est l'unique raison d'être de cet écran ; elle ne doit
+   jamais demander de faire défiler pour être trouvée. */
+#analyzer-state-prepare {
+  padding-bottom: 0;
+}
+
+.analyzer-prepare-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  padding: 12px 0 14px;
+  margin-top: auto;
+  background: var(--panel-bg);
+  border-top: 1px solid var(--border);
+}
+
+.analyzer-prepare-actions .analyzer-launch-btn {
+  margin-top: 0;
+  width: auto;
+  min-width: 260px;
+}
+
+/* Densité de l'écran d'accueil : sur une fenêtre de 900 px, le clavier virtuel
+   et le pied de page laissent environ 520 px à l'espace de travail. L'écran
+   d'import en réclamait 560 et repoussait « Ouvrir ma bibliothèque » hors du
+   cadre — le seul chemin vers les morceaux déjà importés. On resserre le
+   rythme vertical pour que tout tienne, sans réduire les cibles de clic. */
+.analyzer-import-hero {
+  gap: 10px;
+  padding: 12px 24px 16px;
+}
+
+.analyzer-import-icon {
+  width: 48px;
+  height: 48px;
+  font-size: 1.5rem;
+}
+
+.analyzer-import-hero h2 {
+  font-size: 1.3rem;
+}
+
+.analyzer-import-cards {
+  gap: 12px;
+}
+
+.analyzer-import-card {
+  padding: 14px;
+  gap: 12px;
+}
+
+.analyzer-import-card-icon {
+  width: 40px;
+  height: 40px;
+  font-size: 1.25rem;
+}

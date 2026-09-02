@@ -189,6 +189,7 @@ const els = {
 
   processing: document.getElementById('analyzer-processing'),
   processingText: document.getElementById('analyzer-processing-text'),
+  processingElapsed: document.getElementById('analyzer-processing-elapsed'),
 
   // Panneau Réharmonisation (refonte visuelle §3.2).
   reharmRun: document.getElementById('reharm-run-btn'),
@@ -365,6 +366,9 @@ export function initAnalyzerTab() {
     onCopyText: () => handleCopyText(),
   });
   refreshLibraryList();
+  // [Refonte] — la bibliothèque vit maintenant dans sa propre fenêtre : elle se
+  // rafraîchit à chaque ouverture, pour refléter les imports faits entretemps.
+  document.addEventListener('app-library-refresh', () => refreshLibraryList());
 
   // [Claude] — 2026-08-08 — Enregistrement auprès du gestionnaire d’audio focus.
   // Studio et Analyse restent deux lecteurs indépendants, mais un seul workspace
@@ -501,25 +505,28 @@ function renderLibraryList(tracks) {
   if (!els.libraryList) return;
   els.libraryList.innerHTML = '';
 
-  if (tracks.length === 0) return;
+  if (tracks.length === 0) {
+    els.libraryList.innerHTML =
+      '<p class="analyzer-library-empty">Aucun morceau importé pour l\'instant.</p>';
+    return;
+  }
 
-  const label = document.createElement('div');
-  label.className = 'text-xs font-semibold text-(--text-dim) mb-1';
-  label.textContent = 'Bibliothèque';
-  els.libraryList.appendChild(label);
-
+  // [Refonte] — Ces lignes utilisaient des classes utilitaires Tailwind
+  // pointant vers des variables inexistantes (--surface-secondary, --text-dim) :
+  // elles s'affichaient donc en blanc sur fond sombre. Classes propres, mises en
+  // forme dans analyse.css comme le reste de la refonte.
   for (const track of tracks) {
     const metadata = track.metadata || {};
     const displayName = metadata.name || track.id;
     const ext = (metadata.format || metadata.sourcePath?.split('.').pop() || '').toUpperCase();
 
     const row = document.createElement('div');
-    row.className = 'flex items-center gap-1 w-full';
+    row.className = 'analyzer-library-row';
 
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'flex-1 text-left px-3 py-2 rounded text-xs bg-(--surface-secondary) hover:bg-(--border) text-(--text) transition-colors flex items-center gap-2 min-w-0';
-    btn.innerHTML = `<span class="truncate flex-1">${escapeHtml(displayName)}</span><span class="text-(--text-dim) shrink-0">${ext}</span>`;
+    btn.className = 'analyzer-library-item';
+    btn.innerHTML = `<span class="analyzer-library-name">${escapeHtml(displayName)}</span><span class="analyzer-library-ext">${ext}</span>`;
     btn.addEventListener('click', () => analyzeLibraryTrack(track));
     row.appendChild(btn);
 
@@ -773,6 +780,10 @@ async function loadAnalysisSource(sourceType, filePath, fileName) {
 }
 
 async function handleImportClick(sourceType = 'audio') {
+  if (analysisRunning) {
+    showToast('Une analyse est en cours : attendez qu’elle se termine avant d’importer.', 4000, 'warning');
+    return;
+  }
   try {
     // Filtre strict : le file picker natif n'accepte que les formats du type demandé.
     const filePath = sourceType === 'video'
@@ -799,6 +810,10 @@ async function handleImportClick(sourceType = 'audio') {
 
 // [OpenCode] — Passe corrective — Bibliographie réutilise le pipeline d'import.
 async function analyzeLibraryTrack(track) {
+  if (analysisRunning) {
+    showToast('Une analyse est en cours : attendez qu’elle se termine.', 4000, 'warning');
+    return;
+  }
   try {
     const originalPath = await getOriginalPath(track.id);
     if (!originalPath) {
@@ -920,9 +935,49 @@ async function reanalyzeCurrentTrack() {
   await launchAnalysisFromPrepare();
 }
 
+// [Refonte 2026-09-02] — Une seule analyse à la fois.
+//
+// L'analyse est une opération lourde : ffmpeg, librosa, le moteur de basse,
+// trois processus Python et un WAV décompressé, soit près d'une minute de CPU
+// plein pour une minute et demie d'audio. Rien n'empêchait jusqu'ici d'en
+// lancer plusieurs : l'overlay masquait le bouton « Lancer l'analyse » mais ne
+// le désactivait pas, et un bouton visuellement recouvert reste **activable au
+// clavier** — la répétition automatique d'une touche Entrée maintenue suffisait
+// à empiler les analyses. Les traces laissées dans /tmp en portaient la marque :
+// 25 pipelines démarrés en 30 secondes, à 18 ms d'intervalle.
+//
+// On garde donc l'état ici, on désactive réellement les commandes concernées, et
+// le processus principal applique le même verrou de son côté.
+let analysisRunning = false;
+let processingTimer = null;
+let processingStartedAt = 0;
+
+/** Active ou désactive les commandes qui déclencheraient une seconde analyse. */
+function setAnalysisControlsDisabled(disabled) {
+  const controls = [
+    els.launchAnalysisBtn,
+    els.reanalyzeBtn,
+    els.confirmVideoTypeBtn,
+    els.importAudioBtn,
+    els.importVideoBtn,
+    els.importBtn,
+  ];
+  for (const el of controls) {
+    if (!el) continue;
+    el.disabled = disabled;
+    el.setAttribute('aria-disabled', String(disabled));
+  }
+}
+
 async function launchAnalysisFromPrepare() {
   if (!currentAudioPath) return;
-  showProcessing('Extraction audio en cours…');
+  if (analysisRunning) {
+    showToast('Une analyse est déjà en cours.', 3000, 'warning');
+    return;
+  }
+  analysisRunning = true;
+  setAnalysisControlsDisabled(true);
+  showProcessing('Extraction audio en cours…', { withElapsed: true });
   try {
     const analysis = await analyzer.analyze(currentAudioPath);
     currentAnalysis = analysis;
@@ -930,7 +985,7 @@ async function launchAnalysisFromPrepare() {
     if (currentSourceType === 'video' && currentVideoType) {
       analysis.videoType = currentVideoType;
     }
-    showResults(analysis);
+    await showResults(analysis);
     // Ajouter à la bibliothèque en arrière-plan.
     importToLibrary(currentAudioPath).then(() => refreshLibraryList()).catch((e) => {
       console.warn('[Analyzer] library import failed:', e);
@@ -939,16 +994,45 @@ async function launchAnalysisFromPrepare() {
     console.error('[Analyzer] analysis failed:', err);
     hideProcessing();
     alert(`Erreur d'analyse : ${err.message}`);
+  } finally {
+    analysisRunning = false;
+    setAnalysisControlsDisabled(false);
   }
 }
 
-function showProcessing(text) {
+/**
+ * Affiche l'écran d'attente.
+ * @param {string} text
+ * @param {{withElapsed?: boolean}} [opts] — affiche le temps écoulé : une
+ *   analyse peut durer plusieurs minutes, un compteur qui avance est la seule
+ *   preuve visible que l'application n'est pas figée.
+ */
+function showProcessing(text, opts = {}) {
   els.processingText.textContent = text;
   els.processing.style.display = 'flex';
+  if (processingTimer) clearInterval(processingTimer);
+  processingTimer = null;
+  if (els.processingElapsed) els.processingElapsed.textContent = '';
+  if (!opts.withElapsed) return;
+  processingStartedAt = Date.now();
+  const tick = () => {
+    if (!els.processingElapsed) return;
+    const s = Math.round((Date.now() - processingStartedAt) / 1000);
+    const mm = String(Math.floor(s / 60)).padStart(2, '0');
+    const ss = String(s % 60).padStart(2, '0');
+    els.processingElapsed.textContent = `Temps écoulé ${mm}:${ss}`;
+  };
+  tick();
+  processingTimer = setInterval(tick, 1000);
 }
 
 function hideProcessing() {
   els.processing.style.display = 'none';
+  if (processingTimer) {
+    clearInterval(processingTimer);
+    processingTimer = null;
+  }
+  if (els.processingElapsed) els.processingElapsed.textContent = '';
 }
 
 async function showResults(analysis) {

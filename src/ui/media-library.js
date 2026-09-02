@@ -39,6 +39,23 @@ export async function importToLibrary(filePath) {
   const files = window.electronAPI?.files;
   if (!files) throw new Error('Système de fichiers non disponible');
 
+  // 0. Le fichier est-il DÉJÀ un original de la bibliothèque ?
+  //
+  // Analyser un morceau choisi dans la bibliothèque passe par le chemin de son
+  // original (…/Studio/Track_004/original.m4a). Sans cette garde, la fin de
+  // l'analyse le réimportait : nouvelle entrée « original.m4a », nouvelle copie
+  // du fichier sur le disque (18 Mo dans le cas observé), et un doublon dans la
+  // liste. L'identité par (chemin, taille, mtime) ne le rattrapait pas, puisque
+  // le chemin d'origine était celui du fichier importé, pas celui de la copie.
+  const asLibraryOriginal = filePath.match(/\/(Track_\d+)\/original\.[^/]+$/);
+  if (asLibraryOriginal) {
+    const trackId = asLibraryOriginal[1];
+    const metadata = await loadMetadata(trackId).catch(() => null);
+    if (metadata) {
+      return { id: trackId, metadata, originalPath: filePath, isReimport: true };
+    }
+  }
+
   // 1. Vérifier si ce fichier exact a déjà été importé (identité stable).
   const existing = await findExistingTrack(filePath);
   if (existing) {
