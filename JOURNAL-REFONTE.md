@@ -224,6 +224,34 @@ l'onglet Analyse dans l'état « analysis-view » et vérifier le chrome/timelin
 Studio stages 1-3 restent non vérifiés (dépend d'IPC ; le mock stage-3 ne
 prenait pas).
 
+### ✅ Étape 3b — Analyse §3.1 « Accord sélectionné », 2 skins (commit 3394961) — FAITE
+
+Carte héros : dégradé violet plein (v2) / aplat `--r-surface` (Global). Nom
+d'accord en Manrope, notes + métadonnées en JetBrains Mono. Segmented
+« Fermer / Simple » du voicing en pilule (dégradé actif v2, accent-soft actif
+Global). Écrans import/préparation alignés sur la palette. Vérifié à l'écran
+dans les deux skins. `test-analyse-skin.js` étendu, vert.
+
+---
+
+## FIN DE SESSION 1 — 2026-09-02
+
+**Branche `refonte-visuelle-v2-global`, 6 commits au-dessus de `master`** (via
+`analyse-v1-finalisation`). Arbre propre. Build OK. Toutes les régressions +
+les 3 tests refonte verts.
+
+**Fait** : infra de bascule de skin (data-skin + theme.css + skin-manager +
+sélecteur Réglages › Apparence + polices bundlées) · Studio 2 skins (+ boucle
+de région câblée) · Analyse chrome 2 skins (en-tête, timeline, sous-onglets,
+Outils→Corriger) · Analyse « Accord sélectionné » 2 skins.
+
+**Pour reprendre** : `git log --oneline master..HEAD`, relire ce fichier,
+`bash refonte-preview.sh` pour les captures (voir « Environnement de vérif »
+plus haut — Vite + Chrome dans la même invocation, sandbox désactivé,
+injection = expression simple).
+
+**Reste, par priorité (ordre relais §12)** — voir détail juste en dessous.
+
 ### Reste sur Analyse (ordre relais §12)
 
 - [ ] §3.2 Réharmonisation : panneau complet (contexte détecté, pilules de
