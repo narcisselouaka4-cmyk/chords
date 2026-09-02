@@ -12,6 +12,11 @@ import { createChordHistory } from './chord-history.js';
 import { createNoteGrouper } from './note-grouper.js';
 import { initAnalyzerTab } from './ui/analyzer-tab.js';
 import { initStudioTab } from './ui/studio-tab.js';
+
+// [Refonte v2/Global] — 2026-09-02 — Polices + gestion du skin.
+// theme.css est chargé en <link> dans index.html (cascade non-layered).
+import './ui/refonte/refonte-fonts.js';
+import { initSkin } from './ui/refonte/skin-manager.js';
 import {
   getAIConfig,
   saveAIConfig,
@@ -999,6 +1004,8 @@ function initAISettings() {
 
 async function init() {
   initTheme();
+  // [Refonte v2/Global] — bascule de skin (Réglages › Apparence).
+  initSkin({ selector: document.getElementById('skin-selector') });
   initPanelToggles();
   refreshKeyboard();
   initSettings();

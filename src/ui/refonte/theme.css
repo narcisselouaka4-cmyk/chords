@@ -1,0 +1,261 @@
+/* ============================================================================
+   Refonte visuelle — système de thème « v2 » / « Global »
+   ----------------------------------------------------------------------------
+   Sources qui font foi : /home/visiteur/handoff/
+     - relais-refonte-visuelle-globale-implementation.md  (§1 palette, §5 table
+       de traduction v2 ↔ Global, §1.1 navigation)
+     - decision-deux-themes-selectionnables-v2-global.md   (deux skins réels)
+
+   Principe :
+     - La PALETTE (§1) est identique pour les deux skins. Elle est définie une
+       seule fois, en tokens --r-*.
+     - La différence v2 ↔ Global est une GRAMMAIRE DE FORME (pilules + dégradés
+       vs anguleux + aplats + filet d'accent). Elle est portée par les tokens
+       --r-* redéfinis sous :root[data-skin='v2'] / :root[data-skin='global'].
+     - Un thème est un habillage, jamais un comportement : aucune règle métier
+       ici, uniquement de la présentation.
+
+   L'attribut data-skin est posé très tôt (script inline de index.html) et vaut
+   toujours 'v2' ou 'global' — jamais absent. Défaut : 'global' (thème le plus
+   abouti, cf. decision-direction-studio 01/09).
+   ============================================================================ */
+
+:root {
+  /* ---- Palette partagée (§1 du relais — variante sombre, seule maquettée) ---- */
+  --r-ground: #100c14;
+  --r-surface: #18131f;
+  --r-surface-raised: #1f1828;
+  --r-surface-chip: #241d2f;
+  --r-border: rgba(255, 255, 255, 0.09);
+  --r-border-strong: rgba(255, 255, 255, 0.22);
+  --r-text: #f1eef7;
+  --r-text-muted: #a79cc4;
+  --r-text-faint: #665a82;
+  --r-accent: #8b6cf5;
+  --r-accent-soft: rgba(139, 108, 245, 0.18);
+  --r-coral: #ff8a5c;
+  --r-coral-soft: rgba(255, 138, 92, 0.18);
+  --r-good: #34d399;
+  --r-good-soft: rgba(52, 211, 153, 0.16);
+  --r-warn: #f0b866;
+
+  /* Dégradé signature : violet monochrome. Le violet→corail façon Apple Music
+     est explicitement écarté (§1) — ne pas le réintroduire. */
+  --r-grad: linear-gradient(90deg, var(--r-accent), #5b4bd1);
+
+  /* Polices (§1 : Manrope titres, Inter courant, JetBrains Mono technique) */
+  --r-font-title: 'Manrope', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --r-font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --r-font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, 'Courier New', monospace;
+
+  /* Rythme d'espacement commun aux deux skins */
+  --r-space-1: 4px;
+  --r-space-2: 8px;
+  --r-space-3: 12px;
+  --r-space-4: 16px;
+  --r-space-5: 24px;
+  --r-space-6: 32px;
+}
+
+/* ------------------------------------------------------------------ *
+ *  Skin v2 — pilules arrondies à 100px, dégradés violets, .set-block  *
+ * ------------------------------------------------------------------ */
+:root[data-skin='v2'] {
+  --r-radius-card: 16px;
+  --r-radius-inset: 12px;
+  --r-radius-chip: 100px;
+  --r-radius-btn: 100px;
+  --r-radius-field: 12px;
+
+  /* Élément « actif » (accord courant, moment en cours, item sélectionné) */
+  --r-active-bg: var(--r-grad);
+  --r-active-fg: #ffffff;
+  --r-active-border-color: transparent;
+  --r-active-filet: none;
+
+  /* Onglet de premier niveau actif (Entraînement / Analyse / Studio + sous-onglets) */
+  --r-tab-active-bg: var(--r-grad);
+  --r-tab-active-fg: #ffffff;
+  --r-tab-active-border: transparent;
+  --r-tab-active-underline: 2px solid transparent;
+
+  /* Badge « fiches vérifiées » (vert) et « IA connectée » (violet) */
+  --r-badge-verified-bg: transparent;
+  --r-badge-verified-fg: var(--r-good);
+  --r-badge-verified-border-color: var(--r-good);
+  --r-badge-verified-filet: none;
+  --r-badge-ai-bg: var(--r-grad);
+  --r-badge-ai-fg: #ffffff;
+  --r-badge-ai-border-color: transparent;
+  --r-badge-ai-filet: none;
+
+  /* Bouton principal / d'appel à l'action */
+  --r-btn-primary-bg: var(--r-grad);
+  --r-btn-primary-fg: #ffffff;
+  --r-btn-primary-border: transparent;
+
+  /* Groupe segmenté (Jouer/Comprendre, Original/Réharmonisé, sélecteur style…) */
+  --r-segmented-radius: 100px;
+  --r-segmented-active-bg: var(--r-grad);
+  --r-segmented-active-fg: #ffffff;
+}
+
+/* ------------------------------------------------------------------ *
+ *  Skin Global — anguleux, aplats, filet d'accent en bordure gauche   *
+ * ------------------------------------------------------------------ */
+:root[data-skin='global'] {
+  --r-radius-card: 12px;
+  --r-radius-inset: 8px;
+  --r-radius-chip: 5px;
+  --r-radius-btn: 7px;
+  --r-radius-field: 8px;
+
+  --r-active-bg: var(--r-accent-soft);
+  --r-active-fg: var(--r-text);
+  --r-active-border-color: rgba(139, 108, 245, 0.4);
+  /* Signature Global : filet d'accent inséré à gauche (§5) */
+  --r-active-filet: inset 3px 0 0 var(--r-accent);
+
+  --r-tab-active-bg: transparent;
+  --r-tab-active-fg: var(--r-text);
+  --r-tab-active-border: transparent;
+  --r-tab-active-underline: 2px solid var(--r-accent);
+
+  --r-badge-verified-bg: transparent;
+  --r-badge-verified-fg: var(--r-good);
+  --r-badge-verified-border-color: transparent;
+  --r-badge-verified-filet: inset 3px 0 0 var(--r-good);
+  --r-badge-ai-bg: var(--r-accent-soft);
+  --r-badge-ai-fg: var(--r-text);
+  --r-badge-ai-border-color: rgba(139, 108, 245, 0.4);
+  --r-badge-ai-filet: none;
+
+  --r-btn-primary-bg: var(--r-accent);
+  --r-btn-primary-fg: #ffffff;
+  --r-btn-primary-border: var(--r-accent);
+
+  /* §5 : le groupe segmenté reste en pilule à 100px même en Global — choix
+     assumé (c'est un segmented-control, pas une étiquette d'état). */
+  --r-segmented-radius: 100px;
+  --r-segmented-active-bg: var(--r-accent-soft);
+  --r-segmented-active-fg: var(--r-text);
+}
+
+/* ============================================================================
+   Primitives de composant partagées par les écrans de la refonte.
+   Elles lisent les tokens --r-* : une seule règle, deux rendus selon data-skin.
+   ============================================================================ */
+
+/* ---- Barre d'onglets de premier niveau, alignée à droite (§1.1) ---- */
+.tab-nav {
+  font-family: var(--r-font-title);
+}
+
+:root[data-skin='v2'] .tab-nav,
+:root[data-skin='global'] .tab-nav {
+  gap: 4px;
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+:root[data-skin='v2'] .tab-btn,
+:root[data-skin='global'] .tab-btn {
+  position: relative;
+  background: transparent;
+  color: var(--r-text-muted);
+  border: 1px solid transparent;
+  border-radius: var(--r-radius-btn);
+  padding: 7px 16px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+:root[data-skin='v2'] .tab-btn:hover,
+:root[data-skin='global'] .tab-btn:hover {
+  color: var(--r-text);
+}
+
+:root[data-skin='v2'] .tab-btn.active {
+  background: var(--r-tab-active-bg);
+  color: var(--r-tab-active-fg);
+  border-color: var(--r-tab-active-border);
+}
+
+:root[data-skin='global'] .tab-btn {
+  border-radius: var(--r-radius-btn);
+}
+
+:root[data-skin='global'] .tab-btn.active {
+  background: var(--r-accent-soft);
+  color: var(--r-text);
+  border-color: var(--r-active-border-color);
+}
+
+/* ---- Sélecteur de skin (Réglages › Apparence) ---- */
+.appearance-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
+
+.appearance-field > span {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.skin-segmented {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 100px;
+  border: 1px solid var(--r-border-strong);
+  background: var(--r-surface-chip);
+  width: fit-content;
+}
+
+.skin-segmented button {
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  border-radius: 100px;
+  padding: 7px 18px;
+  font-family: var(--r-font-title, inherit);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--r-text-muted);
+  background: transparent;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.skin-segmented button[aria-pressed='true'] {
+  color: #fff;
+  background: var(--r-grad);
+}
+
+.appearance-hint {
+  font-size: 0.74rem;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ---- Sections du modal Réglages (Apparence / Assistant IA) ---- */
+.settings-section + .settings-section {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--panel-border);
+}
+
+.settings-section-title {
+  margin: 0 0 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr" data-theme="dark" style="background-color: #0f1117;">
+<html lang="fr" data-theme="dark" data-skin="global" style="background-color: #0f1117;">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -15,7 +15,8 @@
       })();
     </script>
     <script>
-      // Appliquer le thème enregistré avant le chargement des feuilles de style.
+      // Appliquer le thème et le skin enregistrés avant le chargement des
+      // feuilles de style, pour éviter tout flash à l'ouverture.
       (function () {
         let theme = 'dark';
         try {
@@ -24,12 +25,24 @@
         } catch (_) {}
         document.documentElement.setAttribute('data-theme', theme);
         document.documentElement.style.backgroundColor = theme === 'dark' ? '#0f1117' : '#f4f6f8';
+
+        // Skin de la refonte visuelle : 'v2' | 'global' (défaut 'global').
+        let skin = 'global';
+        try {
+          const savedSkin = localStorage.getItem('skin');
+          if (savedSkin === 'v2' || savedSkin === 'global') skin = savedSkin;
+        } catch (_) {}
+        document.documentElement.setAttribute('data-skin', skin);
       })();
     </script>
     <title>Piano Jazz Chords</title>
     <link rel="stylesheet" href="./style.css" />
     <link rel="stylesheet" href="./ui/components/design-system.css" />
     <link rel="stylesheet" href="./ui/components/analyzer-workspace.css" />
+    <!-- [Refonte v2/Global] — système de thème v2/Global. Chargé en <link>
+         (et non via import JS) pour rester non-layered, au même niveau de
+         cascade que style.css : la spécificité tranche, pas l'ordre d'injection. -->
+    <link rel="stylesheet" href="./ui/refonte/theme.css" />
   </head>
   <body>
     <div id="app" class="app">
@@ -870,7 +883,29 @@
 
       <div class="modal-overlay" id="ai-settings-modal" style="display: none;">
         <div class="modal-box ai-settings-box">
-          <h3>Paramètres IA</h3>
+          <h3>Réglages</h3>
+
+          <!-- [Refonte v2/Global] — 2026-09-02 — Section Apparence : sélecteur de
+               skin visuel. Emplacement retenu (décision non tranchée §5) :
+               Réglages, au-dessus d'Assistant IA — le plus conservateur, cohérent
+               avec l'existant, et l'endroit où viendra un jour le thème clair. -->
+          <div class="settings-section" id="settings-appearance">
+            <h4 class="settings-section-title">Apparence</h4>
+            <div class="appearance-field">
+              <span>Thème visuel</span>
+              <div class="skin-segmented" id="skin-selector" role="group" aria-label="Thème visuel">
+                <button type="button" data-skin-value="global" aria-pressed="true">Global</button>
+                <button type="button" data-skin-value="v2" aria-pressed="false">v2</button>
+              </div>
+              <p class="appearance-hint">
+                Global : anguleux, aplats. v2 : pilules, dégradés violets. Le contenu
+                et le fonctionnement sont identiques — seul l'habillage change.
+              </p>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h4 class="settings-section-title">Assistant IA</h4>
           <p class="modal-hint">Configure une clé API gratuite (Groq, OpenRouter, Google AI Studio…). Le format est compatible OpenAI.</p>
 
           <label class="ai-field">
@@ -906,6 +941,7 @@
             <button type="button" id="ai-save-btn" class="primary">Enregistrer</button>
             <button type="button" id="ai-cancel-btn" class="secondary">Annuler</button>
           </div>
+          </div><!-- /.settings-section Assistant IA -->
         </div>
       </div>
     </div>
