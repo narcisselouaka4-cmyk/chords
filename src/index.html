@@ -43,6 +43,7 @@
          (et non via import JS) pour rester non-layered, au même niveau de
          cascade que style.css : la spécificité tranche, pas l'ordre d'injection. -->
     <link rel="stylesheet" href="./ui/refonte/theme.css" />
+    <link rel="stylesheet" href="./ui/refonte/studio.css" />
   </head>
   <body>
     <div id="app" class="app">
@@ -770,18 +771,6 @@
             </div>
             <input type="range" id="studio-progress" min="0" max="100" value="0" step="0.1" />
             <div class="studio-time" id="studio-time">00:00 / 00:00</div>
-            <div class="studio-transpose-control" id="studio-transpose-control">
-              <span class="studio-transpose-title" title="Transposition en demi-tons (±12)">Transpo</span>
-              <button id="studio-transpose-minus" type="button" aria-label="Diminuer la transposition">−</button>
-              <input type="number" id="studio-transpose" value="0" min="-12" max="12" step="1" aria-label="Transposition en demi-tons" />
-              <button id="studio-transpose-plus" type="button" aria-label="Augmenter la transposition">+</button>
-              <span id="studio-transpose-status" class="studio-transpose-status"></span>
-            </div>
-            <label class="studio-volume-label" id="studio-master-volume-label" title="Volume général (dB)">
-              <span>Vol</span>
-              <span id="studio-volume-label">0 dB</span>
-              <input type="range" id="studio-volume" min="-60" max="6" value="0" step="1" />
-            </label>
           </div>
         </section>
 
@@ -792,6 +781,31 @@
             <div class="studio-separate-status" id="studio-separate-status"></div>
             <div class="studio-stems-list" id="studio-stems-list"></div>
             <div class="studio-status-box" id="studio-status-text">Aucun morceau sélectionné</div>
+
+            <!-- [Refonte v2/Global] — bloc « Lecture » : transposition + volume
+                 déplacés ici depuis la barre de transport (maquettes Studio des
+                 deux skins), plus la bascule « Boucler la région » (relais §2). -->
+            <div class="studio-playback-block" id="studio-playback-block">
+              <div class="studio-rp-title">Lecture</div>
+              <div class="studio-rp-row">
+                <span class="studio-rp-label">Transposition</span>
+                <div class="studio-transpose-control" id="studio-transpose-control">
+                  <button id="studio-transpose-minus" type="button" aria-label="Diminuer la transposition">−</button>
+                  <input type="number" id="studio-transpose" value="0" min="-12" max="12" step="1" aria-label="Transposition en demi-tons" />
+                  <button id="studio-transpose-plus" type="button" aria-label="Augmenter la transposition">+</button>
+                  <span id="studio-transpose-status" class="studio-transpose-status"></span>
+                </div>
+              </div>
+              <label class="studio-rp-row studio-volume-label" id="studio-master-volume-label" title="Volume général (dB)">
+                <span class="studio-rp-label">Volume</span>
+                <input type="range" id="studio-volume" min="-60" max="6" value="0" step="1" />
+                <span id="studio-volume-label">0 dB</span>
+              </label>
+              <label class="studio-rp-row studio-loop-row" title="Rejouer la région en boucle">
+                <span class="studio-rp-label">Boucler la région</span>
+                <input type="checkbox" id="studio-loop-region" />
+              </label>
+            </div>
           </div>
         </aside>
       </main>
