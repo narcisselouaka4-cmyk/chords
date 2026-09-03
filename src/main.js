@@ -12,6 +12,18 @@ import { createChordHistory } from './chord-history.js';
 import { createNoteGrouper } from './note-grouper.js';
 import { initAnalyzerTab } from './ui/analyzer-tab.js';
 import { initStudioTab } from './ui/studio-tab.js';
+// [Refonte 03/09] — Sous-vue « Sessions MIDI » d'Entraînement, raccordée sur
+// demande explicite de Narcisse (décision : reste séparée de Coach
+// d'accompagnement, cf. spec-coach-accompagnement-chant.md).
+import {
+  initRecordingTab,
+  switchToRecordingTab,
+  feedRecorderNoteOn,
+  feedRecorderNoteOff,
+  feedRecorderSustain,
+  feedRecorderPitchWheel,
+  feedRecorderModWheel,
+} from './ui/recording-tab.js';
 
 // [Refonte v2/Global] — 2026-09-02 — Polices + gestion du skin.
 // theme.css est chargé en <link> dans index.html (cascade non-layered).
@@ -123,10 +135,14 @@ const els = {
   pedagogyContent: document.getElementById('pedagogy-content'),
   pedagogyPanelTab: document.getElementById('pedagogy-panel-tab'),
   exercisePanel: document.getElementById('practice-exercise-panel'),
-  exercisePanelToggle: document.getElementById('exercise-panel-toggle'),
-  exercisePanelTab: document.getElementById('exercise-panel-tab'),
   practiceMidiHint: document.getElementById('practice-midi-hint'),
   practiceLayout: document.getElementById('practice-tab'),
+  exerciseCollapsedProgress: document.getElementById('exercise-collapsed-progress'),
+  exerciseDegreeBadge: document.getElementById('exercise-degree-badge'),
+  practiceMidiStatusDot: document.getElementById('practice-midi-status-dot'),
+  practiceMidiStatusText: document.getElementById('practice-midi-status-text'),
+  practiceRecordBtn: document.getElementById('practice-record-btn'),
+  practiceViewMidiSessions: document.getElementById('practice-view-midi-sessions'),
 
   keyboardSize: document.getElementById('keyboard-size'),
   transposeInput: document.getElementById('transpose'),
@@ -268,8 +284,10 @@ function refreshChord() {
   updateDisplay(els, result, notes, state.notation === 'latin');
   addToHistory(result);
 
-  // Vérification de l'exercice rapide si un accord valide est détecté
-  if (result && result.notes.length >= 3 && result.symbol !== '?') {
+  // Vérification de l'exercice rapide si un accord valide est détecté.
+  // [Refonte 03/09] — Jamais pendant une relecture Sessions MIDI : rejouer une
+  // session ne doit pas faire progresser un exercice en cours.
+  if (!state.isPlayback && result && result.notes.length >= 3 && result.symbol !== '?') {
     checkPracticeExercise(result.notes);
   }
 }
@@ -341,6 +359,12 @@ function handleNoteOn(note, velocity = 0.8, virtual = false, audible = true) {
   // la réharmonisation (note non transposée : la transposition est un offset
   // d'affichage, pas une altération de la mélodie source).
   if (hasLiveMidiSubscribers()) publishLiveNoteOn(note, safeVelocity, 0);
+  // [Refonte 03/09] — Alimente l'enregistrement Sessions MIDI en cours (no-op
+  // tant qu'aucune session n'est en cours d'enregistrement). Jamais pendant
+  // une relecture (state.isPlayback), pour ne pas ré-enregistrer ce qu'on est
+  // en train de rejouer. Note brute, comme pour le bus live ci-dessus : la
+  // transposition est un offset d'affichage, pas une altération enregistrée.
+  if (!state.isPlayback) feedRecorderNoteOn(note, safeVelocity);
   // La détection est différée pour ne pas bloquer le thread principal
   // (lecture audio / défilement de l'onglet Analyse).
   scheduleRefreshChord();
@@ -358,6 +382,9 @@ function handleNoteOff(note, virtual = false, audible = true) {
     return;
   }
   if (audible) releaseVirtualNote(transposed);
+  // [Refonte 03/09] — Voir handleNoteOn : même pont vers Sessions MIDI, jamais
+  // pendant une relecture, note brute.
+  if (!state.isPlayback) feedRecorderNoteOff(note);
   if (state.sustain) {
     state.sustainedNotes.add(transposed);
     noteGrouper?.noteOff(transposed, { sustained: true });
@@ -374,6 +401,7 @@ function handleNoteOff(note, virtual = false, audible = true) {
 function handleSustain(value) {
   state.sustain = value;
   if (hasLiveMidiSubscribers()) publishLiveSustain(value, 0);
+  if (!state.isPlayback) feedRecorderSustain(value);
   if (!value) {
     for (const note of state.sustainedNotes) {
       if (!state.activeNotes.has(note)) {
@@ -388,11 +416,37 @@ function handleSustain(value) {
 function handlePitchWheel(value) {
   state.currentPitch = value;
   setPitchWheel(value);
+  if (!state.isPlayback) feedRecorderPitchWheel(value);
 }
 
 function handleModWheel(value) {
   state.currentMod = value;
   setModWheel(value);
+  if (!state.isPlayback) feedRecorderModWheel(value);
+}
+
+// [Refonte 03/09] — Pont de relecture pour Sessions MIDI (recording-tab.js) :
+// le lecteur de session appelle cette fonction pour chaque évènement rejoué,
+// afin qu'il traverse exactement le même pipeline qu'un évènement MIDI réel
+// (affichage, clavier, détection d'accord, bus live). state.isPlayback est
+// levé le temps de l'appel — il existait déjà dans state (déclaré le
+// 2026-07-03) mais rien ne le positionnait jusqu'ici faute de relecture
+// raccordée ; handleNoteOn le consultait déjà pour ne pas effacer les notes
+// de suggestion pendant une relecture.
+function feedMidiEvent(type, a, b) {
+  state.isPlayback = true;
+  try {
+    switch (type) {
+      case 'noteOn': handleNoteOn(a, b, true, true); break;
+      case 'noteOff': handleNoteOff(a, true, true); break;
+      case 'sustain': handleSustain(a); break;
+      case 'pitchWheel': handlePitchWheel(a); break;
+      case 'modWheel': handleModWheel(a); break;
+      default: console.warn('[Main] feedMidiEvent : type inconnu', type);
+    }
+  } finally {
+    state.isPlayback = false;
+  }
 }
 
 function logMidiEvent(event) {
@@ -446,11 +500,19 @@ async function loadSystemInfo() {
 let currentMidiName = null;
 
 function updatePracticeMidiHint() {
-  if (!els.practiceMidiHint) return;
-  if (currentMidiName) {
-    els.practiceMidiHint.textContent = `MIDI connecté : ${currentMidiName}`;
-  } else {
-    els.practiceMidiHint.textContent = '';
+  if (els.practiceMidiHint) {
+    els.practiceMidiHint.textContent = currentMidiName ? `MIDI connecté : ${currentMidiName}` : '';
+  }
+  // [Refonte 02/09] — Même état, affiché aussi dans la sous-navigation
+  // d'Entraînement (point + texte, maquettes 15/16) — pas une détection
+  // supplémentaire, juste une seconde lecture de currentMidiName.
+  if (els.practiceMidiStatusDot) {
+    els.practiceMidiStatusDot.classList.toggle('connected', Boolean(currentMidiName));
+  }
+  if (els.practiceMidiStatusText) {
+    els.practiceMidiStatusText.textContent = currentMidiName
+      ? `Clavier MIDI connecté`
+      : 'Clavier MIDI non détecté';
   }
 }
 
@@ -757,7 +819,6 @@ function initSettings() {
 }
 
 function initPanelToggles() {
-  const LEFT_COLLAPSED_CLASS = 'practice-left-collapsed';
   const RIGHT_COLLAPSED_CLASS = 'practice-right-collapsed';
 
   function applyPedagogyCollapsed(collapsed) {
@@ -778,24 +839,6 @@ function initPanelToggles() {
     }
   }
 
-  function applyExerciseCollapsed(collapsed) {
-    if (!els.practiceLayout) return;
-    if (collapsed) {
-      els.practiceLayout.classList.add(LEFT_COLLAPSED_CLASS);
-    } else {
-      els.practiceLayout.classList.remove(LEFT_COLLAPSED_CLASS);
-    }
-    if (els.exercisePanelToggle) {
-      els.exercisePanelToggle.textContent = collapsed ? '+' : '−';
-      els.exercisePanelToggle.title = collapsed ? 'Développer Exercice rapide' : 'Réduire le panneau Exercice rapide';
-      els.exercisePanelToggle.setAttribute('aria-expanded', String(!collapsed));
-    }
-    if (els.exercisePanelTab) {
-      els.exercisePanelTab.style.display = collapsed ? 'flex' : 'none';
-      els.exercisePanelTab.setAttribute('aria-expanded', String(collapsed));
-    }
-  }
-
   // Pedagogy panel: starts visible, can be collapsed
   const pedagogyCollapsed = localStorage.getItem('pedagogy-collapsed') === 'true';
   applyPedagogyCollapsed(pedagogyCollapsed);
@@ -811,20 +854,9 @@ function initPanelToggles() {
     localStorage.setItem('pedagogy-collapsed', 'false');
   });
 
-  // Exercise panel: starts visible, can be collapsed
-  const exerciseCollapsed = localStorage.getItem('exercise-collapsed') === 'true';
-  applyExerciseCollapsed(exerciseCollapsed);
-
-  els.exercisePanelToggle?.addEventListener('click', () => {
-    const collapsed = !els.practiceLayout?.classList.contains(LEFT_COLLAPSED_CLASS);
-    applyExerciseCollapsed(collapsed);
-    localStorage.setItem('exercise-collapsed', String(collapsed));
-  });
-
-  els.exercisePanelTab?.addEventListener('click', () => {
-    applyExerciseCollapsed(false);
-    localStorage.setItem('exercise-collapsed', 'false');
-  });
+  // [Refonte 03/09] — Exercice n'a plus d'état replié/déplié à restaurer :
+  // c'est une vue de sous-navigation à part entière désormais (voir
+  // initPracticeSubnavViews()), au même titre que Sessions MIDI.
 
   // MIDI diagnostic panel: starts hidden
   els.midiDiagnosticToggle?.addEventListener('click', () => {
@@ -833,6 +865,68 @@ function initPanelToggles() {
     els.midiDiagnosticPanel.style.display = '';
     els.midiDiagnosticToggle.textContent = isHidden ? '−' : '+';
     els.midiDiagnosticToggle.title = isHidden ? 'Masquer le diagnostic MIDI' : 'Afficher le diagnostic MIDI';
+  });
+}
+
+// [Refonte 03/09] — Bascule entre les vues de la sous-navigation
+// d'Entraînement (Temps réel ↔ Sessions MIDI), sur le même principe que
+// initTabNavigation() pour les onglets principaux : un clic sur une pilule
+// [data-view] déclenche l'évènement app-switch-training-view, un seul
+// gestionnaire l'écoute et bascule l'affichage. Coach d'accompagnement et
+// Pédagogie IA n'ont pas de data-view : elles restent des pilules
+// désactivées, il n'y a encore aucune vue à basculer pour elles.
+// [Refonte 03/09] — Exercices a rejoint Sessions MIDI comme vraie destination
+// (data-view="exercise") au lieu d'un panneau qu'on ouvrait/fermait à côté de
+// Temps réel, sur demande explicite de Narcisse. La scène (#practice-center)
+// ne peut pas être dupliquée — c'est la même détection d'accord, une seule
+// instance, avec des id= fixes que display.js écrit sans condition — donc les
+// trois vues partagent la même .training-workspace ; seul l'attribut
+// data-training-view sur #practice-tab change, et c'est practice.css qui,
+// selon sa valeur, réduit la scène en bande compacte et élargit le panneau
+// Exercice (vue « exercise »), ou masque entièrement le panneau Exercice (vue
+// « realtime »). Rien de nouveau n'est calculé ; seule la présentation change.
+function initPracticeSubnavViews() {
+  const practiceTab = els.practiceLayout;
+  const workspace = document.querySelector('#practice-tab .training-workspace');
+  const midiView = els.practiceViewMidiSessions;
+
+  function applyView(view) {
+    const isMidi = view === 'midi-sessions';
+    if (practiceTab) practiceTab.dataset.trainingView = view;
+    if (workspace) workspace.style.display = isMidi ? 'none' : '';
+    if (midiView) {
+      midiView.style.display = isMidi ? 'flex' : 'none';
+      midiView.style.flexDirection = isMidi ? 'column' : '';
+    }
+    document.querySelectorAll('#practice-subnav .practice-mode-btn[data-view]').forEach((btn) => {
+      const active = btn.dataset.view === view;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-selected', String(active));
+    });
+  }
+
+  document.addEventListener('app-switch-training-view', (e) => {
+    if (e.detail?.view) applyView(e.detail.view);
+  });
+
+  document.querySelectorAll('#practice-subnav .practice-mode-btn[data-view]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (btn.disabled) return;
+      document.dispatchEvent(new CustomEvent('app-switch-training-view', { detail: { view: btn.dataset.view } }));
+    });
+  });
+
+  // État initial explicite : sans ça, data-training-view resterait absent au
+  // chargement et .quick-exercise-panel (display:flex par défaut dans
+  // style.css) apparaîtrait à côté de la scène avant tout clic.
+  applyView('realtime');
+
+  // Raccourci « Enregistrer » depuis Temps réel : bascule vers Sessions MIDI
+  // et ouvre directement la modale de nouvelle session, comme un clic sur la
+  // pilule suivi d'un clic sur « + Nouvelle session ».
+  els.practiceRecordBtn?.addEventListener('click', () => {
+    switchToRecordingTab();
+    document.getElementById('midi-session-new-btn')?.click();
   });
 }
 
@@ -882,6 +976,35 @@ function initHistory() {
 }
 
 // [Claude] — 2026-07-07 — Initialisation du panneau d'exercice rapide
+// [Refonte 02/09] — Alimente le rail Exercice replié (badge d'avancement,
+// maquettes 15/16) et le badge de degré de la scène, à partir des seules
+// données déjà calculées par practice-exercise.js. Aucune analyse tonale
+// nouvelle : en mode « Accord cible » ou hors exercice, pas de degré à
+// afficher, donc le badge reste masqué plutôt que rempli d'une valeur inventée.
+function updateExerciseProgressUI(exState) {
+  if (els.exerciseCollapsedProgress) {
+    let progressText = '';
+    if (exState.mode === 'progression' && exState.progression) {
+      const total = exState.progression.chords.length;
+      progressText = `${exState.progression.name} · ${exState.stepIndex + 1}/${total}`;
+    } else if (exState.target) {
+      progressText = exState.score > 0 ? `Accord cible · ${exState.score} pts` : 'Accord cible';
+    }
+    els.exerciseCollapsedProgress.textContent = progressText;
+    els.exerciseCollapsedProgress.style.display = progressText ? '' : 'none';
+  }
+
+  if (els.exerciseDegreeBadge) {
+    const degree = exState.mode === 'progression' ? exState.target?.degree : null;
+    if (degree) {
+      els.exerciseDegreeBadge.textContent = degree;
+      els.exerciseDegreeBadge.style.display = '';
+    } else {
+      els.exerciseDegreeBadge.style.display = 'none';
+    }
+  }
+}
+
 function initPracticeExercise() {
   const panel = document.getElementById('practice-exercise-panel');
   if (!panel) return;
@@ -899,6 +1022,7 @@ function initPracticeExercise() {
     if (exState.target) {
       targetDiv.innerHTML = renderExerciseTarget(exState.target);
     }
+    updateExerciseProgressUI(exState);
   }
 
   modeButtons.forEach((btn) => {
@@ -934,6 +1058,7 @@ function checkPracticeExercise(notes) {
     const targetDiv = document.getElementById('exercise-target');
     const exState = practiceExercise.getState();
     targetDiv.innerHTML = renderExerciseTarget(exState.target);
+    updateExerciseProgressUI(exState);
   }
 }
 
@@ -1032,6 +1157,18 @@ async function init() {
   initNoteGrouper();
   initHistory();
   initPracticeExercise();
+  initPracticeSubnavViews();
+  // [Refonte 03/09] — Raccordement de Sessions MIDI : getCurrentChord réutilise
+  // formatChordResult (même fonction que l'historique d'accords) pour que
+  // le nom affiché pendant l'enregistrement soit identique partout ailleurs
+  // dans l'app, sans dupliquer la logique de formatage.
+  initRecordingTab({
+    notation: state.notation,
+    feedMidiEvent,
+    getCurrentChord: () => (state.currentChord
+      ? { ...state.currentChord, name: formatChordResult(state.currentChord) }
+      : null),
+  });
   initAISettings();
   // [Claude] — 2026-07-08 — Initialisation de l'onglet Analyse simplifié (import → analyse → grille).
   initAnalyzerTab();
@@ -1072,7 +1209,7 @@ function initLibraryModal() {
   });
 }
 
-// [Refonte 2026-09-02] — Repli du clavier virtuel.
+// [Refonte 2026-09-02, rétabli le 2026-09-03] — Repli du clavier virtuel.
 //
 // Le clavier et sa barre de réglages tiennent environ 200 px en bas de chaque
 // écran. Sur une fenêtre de 900 px, il ne reste alors que 490 px à l'espace de

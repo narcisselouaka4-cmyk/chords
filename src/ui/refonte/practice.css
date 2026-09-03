@@ -1,6 +1,265 @@
-/* [Refonte v2/Global] — 2026-09-02 — Habillage de l’onglet Entraînement. */
+/* [Refonte v2/Global] — 2026-09-02 — Habillage de l'onglet Entraînement.
+   Réf : images 15 (v2) / 16 (Global) du dossier handoff/refonte, relais §6/§7.
+   ----------------------------------------------------------------------------
+   Restructuration du 02/09 : sous-navigation à quatre pilules (Temps réel /
+   Sessions MIDI / Coach d'accompagnement / Pédagogie IA) + Enregistrer +
+   statut MIDI ; le compagnon Techniques est masqué (compagnon retiré,
+   décision du 01/09). Exercice est d'abord passé d'un panneau large à gauche
+   à un rail replié sur le bord droit (maquettes 15/16), puis — sur retour de
+   Narcisse le jour même — a rejoint la sous-navigation comme une pilule de
+   plus, avec un espacement élargi entre pilules pour qu'elles restent
+   lisibles séparément. Ne change aucun comportement de détection — seule la
+   présentation.
+   ----------------------------------------------------------------------------
+   [Raccordement 03/09] — Sessions MIDI et Enregistrer sont maintenant
+   fonctionnels (recording-tab.js importé dans main.js) : leurs styles
+   « désactivé » (opacity réduite, curseur not-allowed) passent d'un état
+   permanent à un état conditionné par :disabled, pour le jour où on voudra
+   à nouveau désactiver Enregistrer (ex. aucun port MIDI). */
 
-/* ── Panneau Exercice rapide ── */
+/* ========================================================================== *
+ *  SOUS-NAVIGATION — Temps réel / Sessions MIDI / Coach / Pédagogie IA        *
+ *  Global = soulignement (grammaire de .analyzer-section-tabs) · v2 = pilule  *
+ * ========================================================================== */
+:root[data-skin='global'] #practice-tab .practice-subnav,
+:root[data-skin='v2'] #practice-tab .practice-subnav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--r-space-3);
+  padding: 10px 16px;
+  background: var(--r-surface-raised);
+  border-bottom: 1px solid var(--r-border);
+  flex-wrap: wrap;
+}
+
+:root[data-skin='global'] #practice-tab .practice-mode-tabs,
+:root[data-skin='v2'] #practice-tab .practice-mode-tabs {
+  display: flex;
+  align-items: center;
+  /* [Refonte 02/09] — Cinq pilules maintenant (Exercice a rejoint les quatre
+     modes) : plus d'écart pour que chacune reste un bouton clairement séparé,
+     pas une bande continue — retour explicite de Narcisse. */
+  gap: 22px;
+}
+
+:root[data-skin='global'] #practice-tab .practice-mode-btn,
+:root[data-skin='v2'] #practice-tab .practice-mode-btn {
+  font-family: var(--r-font-title);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--r-text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+:root[data-skin='global'] #practice-tab .practice-mode-btn:hover:not(:disabled),
+:root[data-skin='v2'] #practice-tab .practice-mode-btn:hover:not(:disabled) {
+  color: var(--r-text);
+}
+:root[data-skin='global'] #practice-tab .practice-mode-btn.is-placeholder,
+:root[data-skin='v2'] #practice-tab .practice-mode-btn.is-placeholder {
+  font-style: italic;
+  color: var(--r-text-faint);
+  cursor: not-allowed;
+}
+:root[data-skin='global'] #practice-tab .practice-mode-btn.is-placeholder:hover,
+:root[data-skin='v2'] #practice-tab .practice-mode-btn.is-placeholder:hover {
+  color: var(--r-text-faint);
+}
+
+/* Global : pilules soulignées */
+:root[data-skin='global'] #practice-tab .practice-mode-btn {
+  padding: 6px 4px 9px;
+  border-bottom: 2px solid transparent;
+}
+:root[data-skin='global'] #practice-tab .practice-mode-btn.active {
+  color: var(--r-text);
+  border-bottom-color: var(--r-accent);
+}
+
+/* v2 : pilules en dégradé, dans un même bandeau segmenté — l'écart y reste
+   plus modeste que Global (le fond du bandeau délimite déjà chaque pilule),
+   mais un peu plus large qu'avant pour la même raison de lisibilité. */
+:root[data-skin='v2'] #practice-tab .practice-mode-tabs {
+  padding: 4px 8px;
+  gap: 10px;
+  border-radius: var(--r-radius-pill);
+  background: var(--r-surface);
+  border: 1px solid var(--r-border-soft);
+}
+:root[data-skin='v2'] #practice-tab .practice-mode-btn {
+  padding: 7px 14px;
+  border-radius: var(--r-radius-pill);
+}
+:root[data-skin='v2'] #practice-tab .practice-mode-btn.active {
+  background: var(--r-grad);
+  color: #fff;
+}
+
+/* ── Enregistrer + statut MIDI (droite de la sous-nav) ── */
+:root[data-skin='global'] #practice-tab .practice-subnav-actions,
+:root[data-skin='v2'] #practice-tab .practice-subnav-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--r-space-3);
+}
+
+:root[data-skin='global'] #practice-tab .practice-record-btn,
+:root[data-skin='v2'] #practice-tab .practice-record-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--r-text-muted);
+  background: var(--r-surface);
+  border: 1px solid var(--r-border-soft);
+  border-radius: var(--r-radius-btn);
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+:root[data-skin='global'] #practice-tab .practice-record-btn:hover:not(:disabled),
+:root[data-skin='v2'] #practice-tab .practice-record-btn:hover:not(:disabled) {
+  color: var(--r-text);
+  border-color: var(--r-accent);
+}
+:root[data-skin='global'] #practice-tab .practice-record-btn:disabled,
+:root[data-skin='v2'] #practice-tab .practice-record-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+:root[data-skin='v2'] #practice-tab .practice-record-btn {
+  border-radius: var(--r-radius-pill);
+}
+:root[data-skin='global'] #practice-tab .practice-record-dot,
+:root[data-skin='v2'] #practice-tab .practice-record-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--r-error, #ef4444);
+  opacity: 0.6;
+}
+
+:root[data-skin='global'] #practice-tab .practice-midi-status,
+:root[data-skin='v2'] #practice-tab .practice-midi-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  font-family: var(--r-font-mono);
+  color: var(--r-text-faint);
+}
+:root[data-skin='global'] #practice-tab .practice-midi-status-dot,
+:root[data-skin='v2'] #practice-tab .practice-midi-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--r-text-faint);
+}
+:root[data-skin='global'] #practice-tab .practice-midi-status-dot.connected,
+:root[data-skin='v2'] #practice-tab .practice-midi-status-dot.connected {
+  background: var(--r-good, #10b981);
+}
+
+/* ========================================================================== *
+ *  ESPACE DE TRAVAIL — Temps réel (scène pleine largeur, pas de panneau       *
+ *  Exercice) vs Exercices (scène réduite en bande compacte, panneau Exercice  *
+ *  large et central). Bascule sur #practice-tab[data-training-view], posée   *
+ *  par initPracticeSubnavViews() dans main.js. Sessions MIDI masque toute la  *
+ *  .training-workspace via un style inline (elle vit dans un autre écran).   *
+ * ========================================================================== */
+.practice-layout .training-workspace {
+  align-items: stretch;
+}
+
+/* Temps réel (et par défaut avant tout clic) : pas de panneau Exercice —
+   c'est du jeu libre, sans matériel d'exercice à côté. */
+#practice-tab:not([data-training-view='exercise']) .quick-exercise-panel {
+  display: none;
+}
+
+/* ── Vue Exercices : scène réduite en bande compacte, panneau élargi ── */
+#practice-tab[data-training-view='exercise'] .main-training-stage {
+  flex: 0 0 300px;
+  padding: 14px 16px;
+}
+#practice-tab[data-training-view='exercise'] #chord-name {
+  font-size: 1.8rem;
+  letter-spacing: -0.5px;
+  margin-bottom: 4px;
+}
+#practice-tab[data-training-view='exercise'] .notes-display {
+  font-size: 0.95rem;
+  gap: 6px;
+}
+#practice-tab[data-training-view='exercise'] .note-pill {
+  padding: 4px 10px;
+}
+#practice-tab[data-training-view='exercise'] .chord-detail {
+  font-size: 0.8rem;
+}
+/* La ligne d'explication générique (« les notes jouées seront reconnues... »)
+   n'apporte rien dans une bande compacte déjà dédiée à l'exercice en cours. */
+#practice-tab[data-training-view='exercise'] .practice-empty-hint-detail {
+  display: none;
+}
+#practice-tab[data-training-view='exercise'] .practice-empty-hint-title {
+  font-size: 0.92rem;
+}
+#practice-tab[data-training-view='exercise'] .practice-empty-hint-sub {
+  font-size: 0.76rem;
+}
+
+#practice-tab[data-training-view='exercise'] .quick-exercise-panel {
+  flex: 1;
+  width: auto;
+  max-width: none;
+  align-self: stretch;
+  max-height: none;
+}
+/* Le contenu reste dans une colonne confortable à lire/jouer, centrée dans
+   l'espace élargi plutôt qu'étirée d'un bord à l'autre sur un grand écran. */
+#practice-tab[data-training-view='exercise'] .exercise-content {
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  align-items: stretch;
+  justify-content: center;
+  flex: 1;
+  gap: var(--r-space-5, 28px);
+}
+#practice-tab[data-training-view='exercise'] .exercise-mode-btn {
+  padding: 11px 14px;
+  font-size: 0.86rem;
+}
+#practice-tab[data-training-view='exercise'] .exercise-target-name {
+  font-size: clamp(2.4rem, 5vw, 3.6rem);
+}
+#practice-tab[data-training-view='exercise'] .exercise-target-keyboard svg {
+  max-height: 170px;
+}
+#practice-tab[data-training-view='exercise'] .panel-action#new-exercise-btn {
+  padding: 13px 16px;
+  font-size: 0.95rem;
+}
+#practice-tab[data-training-view='exercise'] .exercise-feedback {
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+:root[data-skin='global'] #practice-tab .main-training-stage,
+:root[data-skin='v2'] #practice-tab .main-training-stage {
+  order: 1;
+}
+:root[data-skin='global'] #practice-tab .quick-exercise-panel,
+:root[data-skin='v2'] #practice-tab .quick-exercise-panel {
+  order: 2;
+}
+
+/* ── Panneau Exercice rapide (déplié, bord droit) ── */
 :root[data-skin='global'] #practice-tab .quick-exercise-panel,
 :root[data-skin='v2'] #practice-tab .quick-exercise-panel {
   background: var(--r-surface-elevated);
@@ -186,7 +445,43 @@
   border-radius: var(--r-radius-pill);
 }
 
-/* ── Stage principal ── */
+/* ========================================================================== *
+ *  PILULE EXERCICE — dans la sous-navigation, avec les autres (02/09)         *
+ * ========================================================================== */
+:root[data-skin='global'] #practice-tab .practice-exercise-progress,
+:root[data-skin='v2'] #practice-tab .practice-exercise-progress {
+  margin-left: 7px;
+  font-family: var(--r-font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--r-radius-pill);
+  white-space: nowrap;
+  vertical-align: middle;
+}
+/* Global : badge de progression en filet accent-soft (recette des badges d'en-tête) */
+:root[data-skin='global'] #practice-tab .practice-exercise-progress {
+  background: var(--r-accent-soft);
+  color: var(--r-text);
+  border: 1px solid rgba(139, 108, 245, 0.4);
+}
+/* v2 : badge de progression en dégradé (identité v2 déjà utilisée sur .tab-btn.active) */
+:root[data-skin='v2'] #practice-tab .practice-exercise-progress {
+  background: var(--r-grad);
+  color: #fff;
+}
+/* Pilule Exercice active (panneau ouvert) : quand Global l'affiche à la fois
+   en actif ET en italique-grisé placeholder, l'italique reste plus prioritaire
+   visuellement — non pertinent ici puisque Exercice n'est pas un placeholder. */
+:root[data-skin='global'] #practice-tab .practice-mode-btn[data-view='exercise'].active .practice-exercise-progress {
+  background: var(--r-accent);
+  color: var(--r-accent-contrast, #fff);
+  border-color: transparent;
+}
+
+/* ========================================================================== *
+ *  SCÈNE PRINCIPALE                                                           *
+ * ========================================================================== */
 :root[data-skin='global'] #practice-tab .main-training-stage,
 :root[data-skin='v2'] #practice-tab .main-training-stage {
   background: var(--r-surface);
@@ -204,11 +499,351 @@
   font-weight: 800;
   color: var(--r-text);
 }
+
+/* ── Badge de degré/fonction (« ♭II — emprunt modal » dans la maquette ;
+   ici seul le degré est affiché — le libellé d'emprunt suppose un contexte
+   tonal non calculé en jeu libre, voir note dans index.html) ── */
+:root[data-skin='global'] #practice-tab .exercise-degree-badge,
+:root[data-skin='v2'] #practice-tab .exercise-degree-badge {
+  font-family: var(--r-font-mono);
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+:root[data-skin='global'] #practice-tab .exercise-degree-badge {
+  padding: 4px 12px;
+  border-radius: 6px;
+  background: var(--r-accent-soft);
+  color: var(--r-text);
+  border: 1px solid rgba(139, 108, 245, 0.4);
+}
+:root[data-skin='v2'] #practice-tab .exercise-degree-badge {
+  padding: 5px 16px;
+  border-radius: var(--r-radius-pill);
+  background: var(--r-grad);
+  color: #fff;
+}
+
+/* ── Compagnon Techniques — retiré (décision du 01/09) ──
+   Gardé dans le DOM (display.js y écrit sans condition), masqué en CSS. */
 :root[data-skin='global'] #practice-tab .techniques-panel,
-:root[data-skin='v2'] #practice-tab .techniques-panel {
+:root[data-skin='v2'] #practice-tab .techniques-panel,
+:root[data-skin='global'] #practice-tab .techniques-open-control,
+:root[data-skin='v2'] #practice-tab .techniques-open-control {
+  display: none !important;
+}
+
+/* ========================================================================== *
+ *  APERÇU « SESSIONS MIDI » — pas encore raccordé (voir commentaire HTML).    *
+ *  IDs et classes alignés sur recording-tab.js pour un raccordement direct.   *
+ * ========================================================================== */
+:root[data-skin='global'] #practice-view-midi-sessions,
+:root[data-skin='v2'] #practice-view-midi-sessions {
+  flex: 1;
+  min-height: 0;
+  padding: 14px;
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .midi-sessions-layout,
+:root[data-skin='v2'] #practice-view-midi-sessions .midi-sessions-layout {
+  display: flex;
+  flex-direction: row;
+  gap: 14px;
+  height: 100%;
+  min-height: 0;
+}
+
+/* ── Colonne des sessions (même langage visuel que « Musiques importées ») ── */
+:root[data-skin='global'] #practice-view-midi-sessions .midi-sessions-sidebar,
+:root[data-skin='v2'] #practice-view-midi-sessions .midi-sessions-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--r-space-3);
+  width: clamp(260px, 24vw, 320px);
+  flex-shrink: 0;
+  padding: 16px;
   background: var(--r-surface-elevated);
   border: 1px solid var(--r-border-soft);
   border-radius: var(--r-radius-card);
+  box-shadow: var(--r-shadow-card);
+  overflow: hidden;
+}
+:root[data-skin='global'] #practice-view-midi-sessions .midi-sessions-sidebar .panel-title,
+:root[data-skin='v2'] #practice-view-midi-sessions .midi-sessions-sidebar .panel-title {
+  font-weight: 800;
+  color: var(--r-text);
+}
+:root[data-skin='global'] #practice-view-midi-sessions .panel-action,
+:root[data-skin='v2'] #practice-view-midi-sessions .panel-action {
+  padding: 10px 14px;
+  border-radius: var(--r-radius-btn);
+  border: none;
+  background: var(--r-accent);
+  color: var(--r-accent-contrast, #fff);
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+:root[data-skin='global'] #practice-view-midi-sessions .panel-action:hover,
+:root[data-skin='v2'] #practice-view-midi-sessions .panel-action:hover {
+  filter: brightness(1.08);
+}
+:root[data-skin='global'] #practice-view-midi-sessions .panel-action:disabled,
+:root[data-skin='v2'] #practice-view-midi-sessions .panel-action:disabled {
+  background: var(--r-surface);
+  color: var(--r-text-faint);
+  cursor: not-allowed;
+  filter: none;
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .midi-session-list,
+:root[data-skin='v2'] #practice-view-midi-sessions .midi-session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--r-border-strong) transparent;
+}
+:root[data-skin='global'] #practice-view-midi-sessions .midi-session-list::-webkit-scrollbar,
+:root[data-skin='v2'] #practice-view-midi-sessions .midi-session-list::-webkit-scrollbar {
+  width: 8px;
+}
+:root[data-skin='global'] #practice-view-midi-sessions .midi-session-list::-webkit-scrollbar-thumb,
+:root[data-skin='v2'] #practice-view-midi-sessions .midi-session-list::-webkit-scrollbar-thumb {
+  background: var(--r-border-strong);
+  border-radius: 100px;
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .session-item,
+:root[data-skin='v2'] #practice-view-midi-sessions .session-item {
+  padding: 10px 12px;
+  border-radius: var(--r-radius-btn);
+  background: var(--r-surface);
+  border: 1px solid var(--r-border-soft);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+:root[data-skin='global'] #practice-view-midi-sessions .session-item:hover,
+:root[data-skin='v2'] #practice-view-midi-sessions .session-item:hover {
+  border-color: var(--r-accent);
+}
+:root[data-skin='global'] #practice-view-midi-sessions .session-item.active,
+:root[data-skin='v2'] #practice-view-midi-sessions .session-item.active {
+  border-color: rgba(139, 108, 245, 0.45);
+  background: var(--r-accent-soft);
+  box-shadow: inset 3px 0 0 var(--r-accent);
+}
+:root[data-skin='global'] #practice-view-midi-sessions .session-name,
+:root[data-skin='v2'] #practice-view-midi-sessions .session-name {
+  font-weight: 700;
+  color: var(--r-text);
+  font-size: 0.86rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+:root[data-skin='global'] #practice-view-midi-sessions .session-meta,
+:root[data-skin='v2'] #practice-view-midi-sessions .session-meta {
+  font-family: var(--r-font-mono);
+  font-size: 0.72rem;
+  color: var(--r-text-faint);
+  margin-top: 3px;
+}
+:root[data-skin='global'] #practice-view-midi-sessions .session-actions,
+:root[data-skin='v2'] #practice-view-midi-sessions .session-actions {
+  margin-top: 6px;
+  display: flex;
+  justify-content: flex-end;
+}
+:root[data-skin='global'] #practice-view-midi-sessions .session-action,
+:root[data-skin='v2'] #practice-view-midi-sessions .session-action {
+  background: none;
+  border: none;
+  color: var(--r-text-faint);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 2px 6px;
+}
+:root[data-skin='global'] #practice-view-midi-sessions .session-action:hover,
+:root[data-skin='v2'] #practice-view-midi-sessions .session-action:hover {
+  color: var(--r-error, #ef4444);
+}
+
+/* ── Zone principale ── */
+:root[data-skin='global'] #practice-view-midi-sessions .midi-sessions-main,
+:root[data-skin='v2'] #practice-view-midi-sessions .midi-sessions-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--r-space-3);
+  padding: 20px;
+  background: var(--r-surface);
+  border: 1px solid var(--r-border-soft);
+  border-radius: var(--r-radius-card);
+}
+:root[data-skin='global'] #practice-view-midi-sessions .midi-session-info .info-row,
+:root[data-skin='v2'] #practice-view-midi-sessions .midi-session-info .info-row {
+  color: var(--r-text-muted);
+  font-size: 0.88rem;
+  margin-bottom: 4px;
+}
+:root[data-skin='global'] #practice-view-midi-sessions .midi-session-info .info-row:first-child,
+:root[data-skin='v2'] #practice-view-midi-sessions .midi-session-info .info-row:first-child {
+  color: var(--r-text);
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+:root[data-skin='global'] #practice-view-midi-sessions .info-tags,
+:root[data-skin='v2'] #practice-view-midi-sessions .info-tags {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+:root[data-skin='global'] #practice-view-midi-sessions .tag,
+:root[data-skin='v2'] #practice-view-midi-sessions .tag {
+  font-size: 0.7rem;
+  padding: 2px 9px;
+  border-radius: var(--r-radius-pill);
+  background: var(--r-accent-soft);
+  color: var(--r-text);
+  border: 1px solid rgba(139, 108, 245, 0.4);
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .midi-session-transport,
+:root[data-skin='v2'] #practice-view-midi-sessions .midi-session-transport {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--r-surface-elevated);
+  border: 1px solid var(--r-border-soft);
+  border-radius: var(--r-radius-btn);
+}
+:root[data-skin='global'] #practice-view-midi-sessions .midi-transport-btn,
+:root[data-skin='v2'] #practice-view-midi-sessions .midi-transport-btn {
+  background: none;
+  border: none;
+  color: var(--r-text);
+  font-size: 1rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+:root[data-skin='global'] #practice-view-midi-sessions .midi-transport-slider,
+:root[data-skin='v2'] #practice-view-midi-sessions .midi-transport-slider {
+  flex: 1;
+  accent-color: var(--r-accent);
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .midi-session-controls,
+:root[data-skin='v2'] #practice-view-midi-sessions .midi-session-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--r-space-3);
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  background: var(--r-accent-soft);
+  border: 1px solid rgba(139, 108, 245, 0.4);
+  border-radius: var(--r-radius-btn);
+}
+:root[data-skin='global'] #practice-view-midi-sessions .midi-session-status,
+:root[data-skin='v2'] #practice-view-midi-sessions .midi-session-status {
+  font-weight: 700;
+  color: var(--r-error, #ef4444);
+}
+:root[data-skin='global'] #practice-view-midi-sessions .midi-session-status[data-state='saved'],
+:root[data-skin='v2'] #practice-view-midi-sessions .midi-session-status[data-state='saved'] {
+  color: var(--r-good, #10b981);
+}
+:root[data-skin='global'] #practice-view-midi-sessions .midi-session-timer,
+:root[data-skin='v2'] #practice-view-midi-sessions .midi-session-timer {
+  font-family: var(--r-font-mono);
+  font-weight: 700;
+  color: var(--r-text);
+}
+:root[data-skin='global'] #practice-view-midi-sessions .midi-session-stats,
+:root[data-skin='v2'] #practice-view-midi-sessions .midi-session-stats {
+  font-family: var(--r-font-mono);
+  font-size: 0.8rem;
+  color: var(--r-text-muted);
+}
+:root[data-skin='global'] #practice-view-midi-sessions .midi-stop-btn,
+:root[data-skin='v2'] #practice-view-midi-sessions .midi-stop-btn {
+  margin-left: auto;
+  padding: 7px 14px;
+  border-radius: var(--r-radius-btn);
+  border: none;
+  background: var(--r-error, #ef4444);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* ── Modales (démarrage / fin de session) — structure générique déjà en
+   place dans theme.css (.modal-overlay/.modal-box/.modal-actions) ── */
+:root[data-skin='global'] #midi-session-init-modal .midi-modal-field,
+:root[data-skin='v2'] #midi-session-init-modal .midi-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--r-text-muted);
+  margin-bottom: var(--r-space-3);
+}
+:root[data-skin='global'] #midi-session-init-modal .midi-modal-field input,
+:root[data-skin='v2'] #midi-session-init-modal .midi-modal-field input {
+  padding: 9px 12px;
+  border-radius: var(--r-radius-btn);
+  border: 1px solid var(--r-border-soft);
+  background: var(--r-surface);
+  color: var(--r-text);
+  font-size: 0.88rem;
+}
+:root[data-skin='global'] #midi-session-init-modal .midi-modal-checkbox,
+:root[data-skin='v2'] #midi-session-init-modal .midi-modal-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--r-text-muted);
+  margin-bottom: var(--r-space-3);
+}
+:root[data-skin='global'] #midi-session-init-modal .midi-modal-checkbox input,
+:root[data-skin='v2'] #midi-session-init-modal .midi-modal-checkbox input {
+  accent-color: var(--r-accent);
+}
+:root[data-skin='global'] #midi-session-init-modal .modal-actions button.primary,
+:root[data-skin='v2'] #midi-session-init-modal .modal-actions button.primary,
+:root[data-skin='global'] #session-end-modal .modal-actions button.primary,
+:root[data-skin='v2'] #session-end-modal .modal-actions button.primary {
+  background: var(--r-accent);
+  color: var(--r-accent-contrast, #fff);
+  border: none;
+  font-weight: 700;
+}
+:root[data-skin='global'] #session-end-modal .midi-modal-stats,
+:root[data-skin='v2'] #session-end-modal .midi-modal-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.88rem;
+  color: var(--r-text-muted);
+  margin-bottom: var(--r-space-3);
+}
+:root[data-skin='global'] #midi-session-init-modal .modal-actions,
+:root[data-skin='v2'] #midi-session-init-modal .modal-actions,
+:root[data-skin='global'] #session-end-modal .modal-actions,
+:root[data-skin='v2'] #session-end-modal .modal-actions {
+  flex-wrap: wrap;
+}
+:root[data-skin='global'] #midi-session-init-modal .modal-actions > button,
+:root[data-skin='v2'] #midi-session-init-modal .modal-actions > button,
+:root[data-skin='global'] #session-end-modal .modal-actions > button,
+:root[data-skin='v2'] #session-end-modal .modal-actions > button {
+  flex: 0 0 auto;
+  min-width: 100px;
 }
 
 /* ── Réactivité ── */
@@ -218,5 +853,9 @@
     border-radius: 0;
     border-left: none;
     border-right: none;
+  }
+  :root[data-skin='global'] #practice-tab .practice-subnav,
+  :root[data-skin='v2'] #practice-tab .practice-subnav {
+    padding: 8px 10px;
   }
 }

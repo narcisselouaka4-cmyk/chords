@@ -8,11 +8,17 @@ import {
 } from '../recorder/session-manager.js';
 import { createRecorder } from '../recorder/recorder.js';
 import { createPlayer } from '../recorder/player.js';
-import {
-  renderAnalysis,
-  setAnalyzerNotation,
-  initAnalyzerTab,
-} from './analyzer-tab.js';
+// [Refonte 2026-09-03] — Plus d'import depuis analyzer-tab.js.
+//
+// Ce module visait une API qui n'existe plus : `renderAnalysis` et
+// `setAnalyzerNotation` ont été retirés d'analyzer-tab.js (commit 8a1a9e2), et
+// `initAnalyzerTab` ne prend plus d'options — c'est main.js qui l'initialise,
+// une fois pour toute l'application. L'import restait sans effet tant que
+// personne ne chargeait recording-tab.js ; le jour où main.js l'a importé pour
+// brancher « Sessions MIDI », l'import manquant a fait échouer l'évaluation du
+// module — donc de main.js tout entier : plus de navigation entre onglets, plus
+// d'initialisation MIDI côté interface. Une seule ligne d'import a suffi à
+// éteindre l'application.
 
 let currentNotation = 'english';
 let recorder = null;
@@ -71,21 +77,9 @@ export function initRecordingTab({
   getCurrentChordFn = getCurrentChord;
   refreshHistoryCallback = refreshHistory;
 
-  // Initialise l'analyseur avec le callback de lecture dès le départ.
-  // On transmet les événements MIDI au pipeline principal : il met à jour l'UI
-  // et déclenche le synthétiseur via handleNoteOn/handleNoteOff.
-  initAnalyzerTab({
-    onPlay: (type, note, velocity) => {
-      if (type === 'noteOn') {
-        onMidiEvent?.('noteOn', note, velocity ?? 0.78);
-      } else if (type === 'noteOff') {
-        onMidiEvent?.('noteOff', note);
-      }
-    },
-    onSuggestionPlay: (action, notes, name) => {
-      onMidiEvent?.('suggestion', action, notes, name);
-    },
-  });
+  // L'onglet Analyse est initialisé une seule fois, par main.js. L'appel qui se
+  // trouvait ici en posait un second jeu d'écouteurs sur les mêmes boutons :
+  // un clic sur « Lancer l'analyse » déclenchait deux analyses.
 
   player = createPlayer({
     onNoteOn: (note, velocity) => feedMidiEvent?.('noteOn', note, velocity),
@@ -545,8 +539,9 @@ function escapeHtml(str) {
 }
 
 export function setRecordingNotation(notation) {
+  // La notation de l'onglet Analyse est gérée par analyzer-tab.js lui-même
+  // depuis la refonte ; on ne conserve ici que celle des Sessions MIDI.
   currentNotation = notation;
-  setAnalyzerNotation(notation);
 }
 
 function bindAnalyzeButton() {
@@ -557,10 +552,14 @@ function bindAnalyzeButton() {
   });
 }
 
+// [Refonte 2026-09-03] — L'analyse d'une session enregistrée n'est plus câblée.
+// Ses ancrages DOM (#analysis-content, #analyze-session-btn) ont disparu de
+// index.html lors de la refonte de la navigation, et le rendu qu'elle appelait
+// a été retiré d'analyzer-tab.js : le chemin était mort des deux côtés. On le
+// laisse explicitement inerte plutôt que de simuler une fonctionnalité absente.
+// Enregistrement, relecture et gestion des sessions ne sont pas concernés.
 async function runAnalysis() {
-  if (!els.analysisContent || !currentSession || !currentEvents.length) return;
-  setAnalyzerNotation(currentNotation);
-  await renderAnalysis(currentSession.id, currentEvents, currentSession, els.analysisContent);
+  console.info('[Sessions MIDI] Analyse de session non disponible dans cette version.');
 }
 
 let transportRafId = null;

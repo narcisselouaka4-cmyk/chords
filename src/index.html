@@ -79,31 +79,45 @@
       </nav>
 
       <main class="app-main practice-layout" id="practice-tab">
-        <div class="training-workspace">
-          <aside class="quick-exercise-panel" id="practice-exercise-panel">
-            <div class="panel-title">
-              Exercice rapide
-              <button class="panel-toggle" id="exercise-panel-toggle" title="Réduire le panneau Exercice rapide" aria-label="Réduire le panneau Exercice rapide" aria-expanded="true" aria-controls="practice-exercise-panel">−</button>
-            </div>
-            <div class="exercise-content" id="exercise-content">
-              <div class="exercise-mode-selector">
-                <button class="exercise-mode-btn active" data-mode="chord" type="button">Accord cible</button>
-                <button class="exercise-mode-btn" data-mode="progression" type="button">Progression</button>
-                <button class="exercise-mode-btn" data-mode="movement" type="button">Mouvement 12 tons</button>
-              </div>
-              <p class="detail-hint">Lancez un exercice pour vous entraîner sur un accord, une progression ou un mouvement dans les 12 tons.</p>
-              <button class="panel-action" id="new-exercise-btn" type="button">Nouvel exercice</button>
-              <div class="exercise-target" id="exercise-target" style="display:none;"></div>
-              <div class="exercise-feedback" id="exercise-feedback"></div>
-            </div>
-          </aside>
-
-          <section class="main-training-stage" id="practice-center">
-            <button class="quick-exercise-open-control" id="exercise-panel-tab" title="Ouvrir Exercice rapide" aria-label="Ouvrir Exercice rapide" aria-expanded="false" aria-controls="practice-exercise-panel" style="display: none;">
-              <span class="open-control-icon">›</span>
-              <span class="open-control-label">Exercice rapide</span>
+        <!-- [Refonte 02/09, raccordé 03/09, Exercices en vue à part le 03/09]
+             — Sous-navigation d'Entraînement. Les anciens « compagnons »
+             (Historique, Technique, Suggestions) ont été retirés par décision
+             de Narcisse (01/09). Sessions MIDI est raccordée (recording-tab.js
+             importé dans main.js, bascule de vue via data-view + l'évènement
+             app-switch-training-view). Exercices a suivi le même principe :
+             ce n'était d'abord qu'un panneau qu'on ouvrait/fermait à côté de
+             Temps réel (rail replié, puis pilule-toggle) ; Narcisse a demandé
+             une vraie fenêtre indépendante, pas rattachée à Temps réel — c'est
+             maintenant une destination de sous-navigation comme les autres.
+             Coach d'accompagnement et Pédagogie IA restent de vraies
+             fonctionnalités à construire (la première a sa propre fiche,
+             spec-coach-accompagnement-chant.md — elle ne prend pas une session
+             Sessions MIDI en entrée) : affichées honnêtement en italique
+             grisé. -->
+        <div class="practice-subnav" id="practice-subnav">
+          <div class="practice-mode-tabs" role="tablist" aria-label="Modes d'Entraînement">
+            <button class="practice-mode-btn active" type="button" role="tab" aria-selected="true" data-view="realtime">Temps réel</button>
+            <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="midi-sessions" title="Enregistrer et rejouer vos sessions MIDI">Sessions MIDI</button>
+            <button class="practice-mode-btn is-placeholder" type="button" role="tab" aria-selected="false" disabled title="À construire">Coach d'accompagnement</button>
+            <button class="practice-mode-btn is-placeholder" type="button" role="tab" aria-selected="false" disabled title="À construire">Pédagogie IA</button>
+            <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="exercise" title="Ouvrir Exercices">
+              Exercices
+              <span class="practice-exercise-progress" id="exercise-collapsed-progress"></span>
             </button>
+          </div>
+          <div class="practice-subnav-actions">
+            <button class="practice-record-btn" id="practice-record-btn" type="button" title="Démarrer une nouvelle session MIDI">
+              <span class="practice-record-dot" aria-hidden="true"></span>Enregistrer
+            </button>
+            <div class="practice-midi-status" id="practice-midi-status">
+              <span class="practice-midi-status-dot" id="practice-midi-status-dot"></span>
+              <span id="practice-midi-status-text">Clavier MIDI non détecté</span>
+            </div>
+          </div>
+        </div>
 
+        <div class="training-workspace">
+          <section class="main-training-stage" id="practice-center">
             <div class="chord-display" id="chord-display">
               <div class="chord-name chord-name-empty" id="chord-name"></div>
               <div class="chord-meta" id="chord-meta">
@@ -115,12 +129,22 @@
 
             <div class="notes-display" id="notes-display"></div>
 
+            <!-- [Refonte] — Badge de degré/fonction (ex. maquette « ♭II — emprunt
+                 modal »). Rempli seulement quand un exercice Progression fournit
+                 un degré réel (practice-exercise.js) ; pas de contexte tonal
+                 calculé en jeu libre, donc masqué par défaut plutôt qu'inventé. -->
+            <div class="exercise-degree-badge" id="exercise-degree-badge" style="display: none;"></div>
+
             <div class="practice-empty-hint" id="practice-empty-hint">
               <p class="practice-empty-hint-title">Jouez un accord sur votre clavier MIDI</p>
               <p class="practice-empty-hint-sub" id="practice-midi-hint"></p>
               <p class="practice-empty-hint-detail">Les notes jouées seront reconnues automatiquement.</p>
             </div>
 
+            <!-- [Refonte] — Panneau Techniques : compagnon retiré (décision du
+                 01/09, « jugé sans utilité par Narcisse »). Gardé dans le DOM
+                 (display.js y écrit sans condition) mais masqué en CSS plutôt que
+                 supprimé, pour ne rien casser côté fonctionnel. -->
             <aside class="techniques-panel" id="pedagogy-panel">
               <div class="panel-title">
                 Techniques
@@ -148,6 +172,100 @@
               </div>
             </div>
           </section>
+
+          <!-- [Refonte 03/09] — Exercices est maintenant une vraie vue de
+               sous-navigation (pilule data-view="exercise" ci-dessus), pas un
+               panneau qu'on replie : plus de bouton −/+ ici, on la quitte en
+               cliquant une autre pilule. #practice-center (la scène — nom
+               d'accord, notes, clavier) est partagé avec Temps réel : c'est la
+               même détection, une seule instance, elle ne peut pas être
+               dupliquée. practice.css la réduit en bande compacte et élargit
+               ce panneau quand #practice-tab[data-training-view="exercise"]. -->
+          <aside class="quick-exercise-panel" id="practice-exercise-panel">
+            <div class="panel-title">Exercice rapide</div>
+            <div class="exercise-content" id="exercise-content">
+              <div class="exercise-mode-selector">
+                <button class="exercise-mode-btn active" data-mode="chord" type="button">Accord cible</button>
+                <button class="exercise-mode-btn" data-mode="progression" type="button">Progression</button>
+                <button class="exercise-mode-btn" data-mode="movement" type="button">Mouvement 12 tons</button>
+              </div>
+              <p class="detail-hint">Lancez un exercice pour vous entraîner sur un accord, une progression ou un mouvement dans les 12 tons.</p>
+              <button class="panel-action" id="new-exercise-btn" type="button">Nouvel exercice</button>
+              <div class="exercise-target" id="exercise-target" style="display:none;"></div>
+              <div class="exercise-feedback" id="exercise-feedback"></div>
+            </div>
+          </aside>
+        </div>
+
+        <!-- [Refonte 02/09, raccordé 03/09] — Vue « Sessions MIDI ». Les id=
+             correspondent exactement à ce que recording-tab.js lit
+             (els.sessionList, els.newSessionBtn, etc.). display:none reste le
+             défaut au chargement pour éviter un flash avant que main.js ne
+             bascule la vue via initPracticeSubnavViews()/app-switch-training-view. -->
+        <div class="practice-midi-sessions" id="practice-view-midi-sessions" style="display: none;">
+          <div class="midi-sessions-layout">
+            <aside class="midi-sessions-sidebar">
+              <div class="panel-title">Sessions enregistrées</div>
+              <button class="panel-action" id="midi-session-new-btn" type="button">+ Nouvelle session</button>
+              <div class="midi-session-list" id="midi-session-list"></div>
+            </aside>
+
+            <section class="midi-sessions-main">
+              <div class="midi-session-info" id="midi-session-info">
+                <p class="detail-hint">Aucune session sélectionnée. Créez une nouvelle session ou choisissez-en une dans la liste.</p>
+              </div>
+
+              <div class="midi-session-transport" id="midi-session-transport" style="display: none;">
+                <button class="midi-transport-btn" id="midi-session-rewind" type="button" title="Revenir au début">⏮</button>
+                <button class="midi-transport-btn" id="midi-session-play" type="button" title="Lecture">▶</button>
+                <input type="range" id="midi-session-slider" class="midi-transport-slider" min="0" max="100" value="0">
+              </div>
+
+              <button class="panel-action" id="midi-session-analyze-btn" type="button" disabled>Analyser cette session</button>
+
+              <div class="midi-session-controls" id="midi-session-controls" style="display: none;">
+                <div class="midi-session-status" id="midi-session-status" data-state="recording">● Enregistrement en cours...</div>
+                <div class="midi-session-timer" id="midi-session-timer">00:00</div>
+                <div class="midi-session-stats" id="midi-session-stats">0 notes · 0 accords · Accord : —</div>
+                <button class="midi-stop-btn" id="midi-session-stop-btn" type="button">■ Arrêter</button>
+              </div>
+            </section>
+          </div>
+
+          <!-- Modale de démarrage -->
+          <div class="modal-overlay" id="midi-session-init-modal" style="display: none;">
+            <div class="modal-box">
+              <h3>Nouvelle session MIDI</h3>
+              <label class="midi-modal-field">
+                Nom de la session
+                <input type="text" id="midi-session-title-input" placeholder="Session du ...">
+              </label>
+              <label class="midi-modal-checkbox">
+                <input type="checkbox" id="midi-session-metronome-toggle">
+                Métronome
+              </label>
+              <label class="midi-modal-field" id="midi-session-bpm-row" style="display: none;">
+                Tempo (BPM)
+                <input type="number" id="midi-session-bpm-input" value="90" min="40" max="240">
+              </label>
+              <div class="modal-actions">
+                <button class="primary" id="midi-session-start-btn" type="button">Démarrer (3…2…1…)</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modale de fin d'enregistrement -->
+          <div class="modal-overlay" id="session-end-modal" style="display: none;">
+            <div class="modal-box">
+              <h3>Session terminée</h3>
+              <div class="midi-modal-stats" id="modal-stats"></div>
+              <div class="modal-actions">
+                <button id="modal-delete" type="button">Supprimer</button>
+                <button id="modal-replay" type="button">Écouter</button>
+                <button class="primary" id="modal-keep" type="button">Garder</button>
+              </div>
+            </div>
+          </div>
         </div>
       </main>
 
@@ -258,11 +376,11 @@
                 </label>
               </div>
             </div>
-            <!-- [Refonte 2026-09-02] — L'action principale sort de la carte
-                 « Options » : au fond d'une colonne qui défile, elle tombait
-                 sous la zone visible sur une fenêtre de 900 px et l'écran
-                 semblait sans issue. Elle est désormais ancrée en bas de
-                 l'écran de préparation, toujours visible. -->
+            <!-- [Refonte 2026-09-02, rétabli le 2026-09-03] — L'action
+                 principale sort de la carte « Options » : au fond d'une colonne
+                 qui défile, elle tombait sous la zone visible sur une fenêtre de
+                 900 px et l'écran semblait sans issue. Elle est désormais ancrée
+                 en bas de l'écran de préparation, toujours visible. -->
             <div class="analyzer-prepare-actions">
               <button type="button" class="btn-primary analyzer-launch-btn" id="analyzer-launch-analysis-btn">▶ Lancer l'analyse</button>
             </div>
@@ -739,9 +857,10 @@
             <div class="analyzer-processing-box">
               <div class="analyzer-processing-spinner"></div>
               <p class="analyzer-processing-text" id="analyzer-processing-text">Analyse en cours…</p>
-              <!-- [Refonte] — compteur de temps écoulé : une analyse dure
-                   souvent plus d'une minute ; sans lui, l'écran d'attente est
-                   indistinguable d'une application figée. -->
+              <!-- [Refonte 2026-09-02, rétabli le 2026-09-03] — compteur de
+                   temps écoulé : une analyse dure souvent plus d'une minute ;
+                   sans lui, l'écran d'attente est indistinguable d'une
+                   application figée, et l'utilisateur re-clique. -->
               <p class="analyzer-processing-elapsed" id="analyzer-processing-elapsed" aria-live="polite"></p>
               <p class="analyzer-processing-hint">Vous pouvez continuer à utiliser les onglets Entraînement et Studio.</p>
             </div>
@@ -899,12 +1018,11 @@
             </div>
           </div>
 
-          <!-- [Refonte Global] — sections « Effets » et « Export ».
-               Repliées par défaut, comme sur la maquette : ce sont des
-               emplacements réservés sans contenu réel, et déployées elles
-               prenaient 140 px dans la colonne où « Lecture » manque de
-               place. Le pli est natif (<details>), donc accessible au
-               clavier sans une ligne de JavaScript. -->
+          <!-- [Refonte Global, rétabli le 2026-09-03] — sections « Effets » et
+               « Export ». Repliées par défaut, comme sur la maquette : ce sont
+               des emplacements réservés sans contenu réel, et déployées elles
+               prenaient 140 px dans la colonne où « Lecture » manque de place.
+               Le pli est natif, donc accessible au clavier sans JavaScript. -->
           <details class="studio-effects-section studio-foldable" id="studio-effects-section">
             <summary class="studio-rp-title studio-foldable-summary">Effets</summary>
             <div class="studio-placeholder-row">
@@ -925,9 +1043,9 @@
       </main>
 
       <section class="keyboard-panel global-keyboard-panel" id="keyboard-panel">
-        <!-- [Refonte 2026-09-02] — Repli du clavier virtuel.
-             Le clavier et sa barre de réglages occupent près de 200 px en
-             permanence : c'est autant de moins pour la forme d'onde, le
+        <!-- [Refonte 2026-09-02, rétabli le 2026-09-03] — Repli du clavier
+             virtuel. Le clavier et sa barre de réglages occupent près de 200 px
+             en permanence : c'est autant de moins pour la forme d'onde, le
              lecteur et la grille d'accords, sur les trois onglets à la fois.
              Il reste déployé par défaut — rien ne change tant qu'on ne clique
              pas — et se réduit à une bande de rappel, comme sur les maquettes. -->
@@ -1068,56 +1186,82 @@
         </div>
       </div>
 
+      <!-- [Refonte visuelle 2026-09-03] — Réglages › Assistant IA. Habillage v2/Global
+           du modal existant (fonctionnel depuis le 2026-07-04, chiffré safeStorage
+           depuis le 2026-09-02) : mêmes id=, même logique dans main.js
+           (initAISettings()), aucun changement fonctionnel ici — uniquement le
+           balisage et les classes, pour reprendre la structure du 5e bloc de la
+           maquette Analyse v2 (bloc de confiance, présentation de l'utilisation).
+           Écart assumé et non tranché seul : la maquette proposait les préréglages
+           Claude/OpenAI/Ollama/Autre, le code réel propose Groq/OpenRouter/Google AI
+           Studio/Personnalisé (fournisseurs gratuits) — liste réelle conservée telle
+           quelle, voir decouverte-analyse-deja-construite.md. -->
       <div class="modal-overlay" id="ai-settings-modal" style="display: none;">
         <div class="modal-box ai-settings-box">
-          <h3>Réglages</h3>
+          <div class="ai-settings-header">
+            <h3>Assistant IA</h3>
+            <span class="mc-badge ai-settings-badge-optional">Zic fonctionne sans clé</span>
+          </div>
+          <p class="ai-settings-note">Toutes les fiches de Masterclass sont rédigées à l’avance : elles s’affichent sans clé, sans connexion, et ne coûtent rien. Une clé API sert uniquement à aller plus loin — combler un concept sans fiche, approfondir une explication, poser une question libre. <strong>C’est ta clé, tu paies ta propre consommation.</strong></p>
 
-          <div class="settings-section">
-            <h4 class="settings-section-title">Assistant IA</h4>
-          <p class="modal-hint">Configure une clé API gratuite (Groq, OpenRouter, Google AI Studio…). Le format est compatible OpenAI.</p>
-
-          <label class="ai-field">
-            <span>Preset</span>
-            <select id="ai-preset">
-              <option value="" disabled selected>Choisir un provider…</option>
-              <option value="groq">Groq (gratuit, rapide)</option>
-              <option value="openrouter">OpenRouter (multi-modèles gratuits)</option>
-              <option value="gemini">Google AI Studio (Gemini Flash)</option>
-              <option value="custom">Personnalisé</option>
-            </select>
-          </label>
-
-          <label class="ai-field">
-            <span>Base URL</span>
-            <input type="url" id="ai-base-url" placeholder="https://api.groq.com/openai/v1" />
-          </label>
-
-          <label class="ai-field">
-            <span>Clé API</span>
-            <input type="password" id="ai-api-key" placeholder="gsk_..." />
-          </label>
-
-          <label class="ai-field">
-            <span>Modèle</span>
-            <input type="text" id="ai-model" placeholder="llama-3.1-8b-instant" />
-          </label>
-
-          <div class="ai-cap-row">
-            <label class="ai-field ai-cap-field">
-              <span>Plafond mensuel d’appels IA</span>
-              <input type="number" id="ai-monthly-cap" min="1" step="1" value="50" />
+          <div class="ai-settings-section">
+            <label class="ai-field">
+              <span>Préréglage</span>
+              <select id="ai-preset">
+                <option value="" disabled selected>Choisir un fournisseur…</option>
+                <option value="groq">Groq (gratuit, rapide)</option>
+                <option value="openrouter">OpenRouter (multi-modèles gratuits)</option>
+                <option value="gemini">Google AI Studio (Gemini Flash)</option>
+                <option value="custom">Autre — compatible OpenAI</option>
+              </select>
             </label>
-            <span class="ai-usage" id="ai-usage">0 / 50 ce mois</span>
+
+            <div class="ai-settings-grid">
+              <label class="ai-field">
+                <span>Adresse de l’API</span>
+                <input type="url" id="ai-base-url" placeholder="https://api.groq.com/openai/v1" />
+              </label>
+              <label class="ai-field">
+                <span>Modèle</span>
+                <input type="text" id="ai-model" placeholder="llama-3.1-8b-instant" />
+              </label>
+              <label class="ai-field ai-field-wide">
+                <span>Clé API</span>
+                <input type="password" id="ai-api-key" placeholder="gsk_..." autocomplete="off" />
+              </label>
+            </div>
+
+            <div class="ai-settings-test-row">
+              <button type="button" id="ai-test-btn" class="btn-secondary">Tester la connexion</button>
+              <span class="ai-test-result" id="ai-test-result"></span>
+            </div>
           </div>
 
-          <div class="ai-test-result" id="ai-test-result"></div>
-
-          <div class="modal-actions">
-            <button type="button" id="ai-test-btn" class="secondary">🧪 Tester</button>
-            <button type="button" id="ai-save-btn" class="primary">Enregistrer</button>
-            <button type="button" id="ai-cancel-btn" class="secondary">Annuler</button>
+          <div class="ai-settings-section">
+            <div class="ai-settings-section-label">Utilisation ce mois-ci</div>
+            <div class="ai-cap-row">
+              <label class="ai-field ai-cap-field">
+                <span>Plafond d’appels par mois</span>
+                <input type="number" id="ai-monthly-cap" min="1" step="1" value="50" />
+              </label>
+              <span class="ai-usage" id="ai-usage">0 / 50 ce mois</span>
+            </div>
+            <p class="ai-settings-note ai-settings-note-small">Zic compte les appels qu’il déclenche lui-même — c’est exact et ça ne dépend d’aucun fournisseur. Ce compteur ne mesure pas un coût : un appel court et un appel long ne valent pas le même prix. Pour un montant en euros, seul le tableau de bord de ton fournisseur fait foi.</p>
           </div>
-          </div><!-- /.settings-section Assistant IA -->
+
+          <div class="ai-settings-section ai-settings-trust">
+            <div class="ai-settings-section-label">Ce que Zic garantit</div>
+            <ul class="ai-settings-trust-list">
+              <li>🔒 Ta clé est chiffrée dans le trousseau de ton système d’exploitation quand il est disponible, et ne quitte jamais cet ordinateur — elle n’est envoyée qu’au fournisseur que tu as choisi.</li>
+              <li>↩ Si l’IA ne répond pas, répond mal, ou si le plafond mensuel est atteint, Zic retombe automatiquement sur les fiches préécrites. Aucun écran ne se retrouve vide.</li>
+              <li>⚠ Une explication générée par un modèle n’est pas vérifiée. Elle est signalée comme telle dans l’interface, à la différence des fiches du glossaire.</li>
+            </ul>
+          </div>
+
+          <div class="modal-actions ai-settings-actions">
+            <button type="button" id="ai-cancel-btn" class="btn-secondary">Annuler</button>
+            <button type="button" id="ai-save-btn" class="btn-primary">Enregistrer</button>
+          </div>
         </div>
       </div>
     </div>
