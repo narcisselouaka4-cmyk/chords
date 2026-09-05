@@ -1,0 +1,18 @@
+KEY=A BPM=53.8 N=44
+  exact_pct: 51.50442477876106
+  structural_recall_pct: 51.50442477876106
+--- Durée par fondamentale ---
+   A   68.88s   47.1%  [STRUCT]
+   E   36.81s   25.2%  [STRUCT]
+   D   25.53s   17.4%  [STRUCT]
+  F#   15.11s   10.3%  [STRUCT]
+Durée structurelle (A,D,E,F#m): 146.33s / 146.33s = 100.0%
+Segments parasites: 0
+--- Overlap moyen par section: 48.1% ---
+  intro     D    0.0-   7.0   57.1%
+  intro     A    7.0-  11.0  100.0%
+  intro     E   11.0-  16.0   27.2%
+  verse     D   21.0-  25.0   66.0%
+  verse     A   25.0-  30.0   66.1%
+  verse     E   30.0-  34.0   50.0%
+  verse     A   34.0-  39.0   67.8%

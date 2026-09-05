@@ -278,8 +278,9 @@ export function computeRegisterMetrics(pianoNotes, vocalNotes, options = {}) {
       available: false,
       confidence: 'low',
       reason: 'NoVocalPitch',
-      message: 'Le suivi de hauteur de la voix n\'a rien produit d\'exploitable : '
-        + 'la mesure de registre n\'est pas disponible pour cette session.',
+      message: 'Le programme n\'a pas réussi à suivre la hauteur des notes chantées : '
+        + 'la mesure de registre (où votre piano se place par rapport à la voix) '
+        + 'n\'est pas disponible pour cette session. Le reste du rapport reste valable.',
     };
   }
 
@@ -322,8 +323,9 @@ export function computeRegisterMetrics(pianoNotes, vocalNotes, options = {}) {
     confidence: 'low',
     // Rappel explicite, transporté jusqu'à l'affichage : cette couche repose
     // sur melody_extractor.py, F1 = 0,484 sur du réel (EXP-027).
-    confidenceNote: 'Le suivi de hauteur de la voix se trompe environ une fois sur deux '
-      + '(F1 = 0,48 mesuré sur du réel). Ces proportions donnent une tendance, pas un verdict.',
+    confidenceNote: 'Le programme se trompe environ une fois sur deux quand il suit la '
+      + 'hauteur de la voix (F1 = 0,48 mesuré sur du réel). Prenez ce chiffre comme une '
+      + 'indication à vérifier à l\'oreille en réécoute, pas comme un fait établi.',
     vocalNoteCount: vocals.length,
     pianoNoteCount: notes.length,
     tessitura: {
@@ -375,7 +377,9 @@ export function analyzeAccompaniment(params) {
       available: false,
       confidence: 'low',
       reason: 'NotRequested',
-      message: 'Le suivi de hauteur de la voix n\'a pas été lancé pour cette session.',
+      message: 'La mesure de registre (où votre piano se place par rapport à la voix) '
+        + 'n\'a pas pu être calculée pour cette session. Le reste du rapport '
+        + '— placement dans le temps, respirations — reste valable.',
     };
 
   return {
@@ -389,6 +393,10 @@ export function analyzeAccompaniment(params) {
       sungDuration: segmentation.sungDuration,
       silentDuration: segmentation.silentDuration,
       minGapSec: segmentation.options?.minGapSec,
+      // Fenêtre de restriction si la segmentation en est une (restrictToWindow) :
+      // en temps absolu du morceau. Absent = toute la piste. L'UI s'en sert
+      // pour dire au lecteur que le rapport porte sur un passage.
+      window: segmentation.window || null,
     },
     space,
     register,

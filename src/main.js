@@ -4,7 +4,7 @@ import { detectChord } from './chord-engine/index.js';
 import { noteName, formatPc } from './chord-engine/naming.js';
 
 import { initVirtualKeyboard, playVirtualNote, releaseVirtualNote } from './virtual-keyboard.js';
-import { setSynthMode } from './audio/simple-synth.js';
+import { setSynthMode, setSustain, ensurePianoSamples } from './audio/simple-synth.js';
 
 import { initWebMidi, getWebMidiInputs, openWebMidiInput } from './midi-fallback.js';
 import { createChordHistory } from './chord-history.js';
@@ -405,6 +405,9 @@ function handleNoteOff(note, virtual = false, audible = true) {
 
 function handleSustain(value) {
   state.sustain = value;
+  // [Claude] — 2026-09-05 — Le synthé connaît maintenant la pédale : les notes
+  // relâchées pédale enfoncée continuent de sonner et s'éteignent à la remontée.
+  setSustain(value);
   if (hasLiveMidiSubscribers()) publishLiveSustain(value, 0);
   if (!state.isPlayback) feedRecorderSustain(value);
   if (!value) {
@@ -1210,6 +1213,13 @@ async function init() {
   initStudioTab();
   initTabNavigation();
   await initMidi();
+
+  // [Claude] — 2026-09-05 — Précharge les échantillons de piano du sampler en
+  // arrière-plan, pour que la première vraie note n'attende pas le décodage.
+  // Silencieux : en cas d'échec, le moteur synthétique reste le repli.
+  ensurePianoSamples().then((ok) => {
+    if (!ok) console.warn('[Main] échantillons piano indisponibles — repli synthétique');
+  }).catch(() => { /* chargement paresseux : le repli reste jouable */ });
 }
 
 // [Refonte] — Ma bibliothèque : fenêtre commune au Studio et à l'Analyse,

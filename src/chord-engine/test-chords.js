@@ -106,16 +106,16 @@ const TESTS = [
     expect: 'F',
   },
 
-  // [OpenCode] — 2026-07-03 — Quartal voicings tests
+  // [OpenCode] — 2026-09-04 — Quartal retiré : ces notes retombent sur sus4/7sus4
   {
-    name: 'C quartal (C-F-Bb)',
+    name: 'C-F-Bb sans quartal (retombe sur sus4/basse)',
     notes: ['C3', 'F3', 'Bb3'].map(extractPc),
-    expect: 'Cquartal',
+    expect: 'Fsus4/C',
   },
   {
-    name: 'C quartal add4 (C-F-Bb-Eb)',
+    name: 'C-F-Bb-Eb sans quartal (retombe sur 7sus4/basse)',
     notes: ['C3', 'F3', 'Bb3', 'Eb4'].map(extractPc),
-    expect: 'Cquartal(add4)',
+    expect: 'F7sus4/C',
   },
 
   // [OpenCode] — 2026-07-03 — Upper structure tests

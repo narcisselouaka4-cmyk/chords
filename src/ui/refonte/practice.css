@@ -1096,6 +1096,36 @@
   color: var(--r-text);
 }
 
+/* Région de travail : même patron que le réglage de respiration, avec deux
+   champs texte mm:ss (habillés par les input globaux de theme.css) et le
+   bouton secondaire existant. */
+:root[data-skin='global'] #practice-view-coach #coach-region-setting,
+:root[data-skin='v2'] #practice-view-coach #coach-region-setting {
+  display: grid;
+  grid-template-columns: auto 110px auto 110px auto;
+  align-items: center;
+  gap: var(--r-space-3);
+}
+:root[data-skin='global'] #practice-view-coach #coach-region-setting .coach-region-input,
+:root[data-skin='v2'] #practice-view-coach #coach-region-setting .coach-region-input {
+  font-family: var(--r-font-mono);
+  width: 100%;
+}
+:root[data-skin='global'] #practice-view-coach #coach-region-setting .coach-region-reset,
+:root[data-skin='v2'] #practice-view-coach #coach-region-setting .coach-region-reset {
+  padding: 6px 12px;
+  font-size: 0.78rem;
+}
+:root[data-skin='global'] #practice-view-coach #coach-region-setting .coach-setting-hint,
+:root[data-skin='v2'] #practice-view-coach #coach-region-setting .coach-setting-hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: var(--r-text-muted);
+  max-width: 62ch;
+}
+
 /* Ligne de latence : c'est une information sur la fiabilité, pas un réglage. */
 :root[data-skin='global'] #practice-view-coach .coach-latency,
 :root[data-skin='v2'] #practice-view-coach .coach-latency {
@@ -1372,6 +1402,10 @@
   }
   :root[data-skin='global'] #practice-view-coach #coach-phrase-setting,
   :root[data-skin='v2'] #practice-view-coach #coach-phrase-setting {
+    grid-template-columns: 1fr;
+  }
+  :root[data-skin='global'] #practice-view-coach #coach-region-setting,
+  :root[data-skin='v2'] #practice-view-coach #coach-region-setting {
     grid-template-columns: 1fr;
   }
   :root[data-skin='global'] #practice-tab .quick-exercise-panel,

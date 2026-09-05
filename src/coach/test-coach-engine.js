@@ -17,6 +17,7 @@ import {
   detectVocalPhrases,
   estimateThresholds,
   assessVocalStem,
+  restrictToWindow,
   percentile,
   toDb,
 } from './vocal-activity.js';
@@ -660,6 +661,116 @@ runTest('T52 — la piste de séance reste valide au sens du moteur canonique', 
   );
   const validation = validateMelodyTrack(track);
   assertTrue(validation.valid, (validation.errors || []).join('; '));
+});
+
+// ===========================================================================
+// restrictToWindow — travailler un passage, pas tout le morceau
+// ===========================================================================
+//
+// Retour 1 de Narcisse. Le contrat verrouillé par ces tests :
+//   - une phrase à cheval sur une borne est CLIPPÉE, pas exclue ;
+//   - les temps restent en temps ABSOLU du morceau (la réécoute, branchée
+//     sur le stem complet, ne doit rien convertir) ;
+//   - un silence en tête de fenêtre n'est pas la vraie intro du morceau :
+//     il n'hérite du flag `leading` que si la fenêtre commence à 0 ;
+//   - `sungDuration`/`silentDuration`/`duration` sont recalculés sur la
+//     fenêtre, pas hérités du morceau entier.
+
+runTest('T53 — fenêtre entière : la segmentation restreinte est identique (aux bornes près)', () => {
+  const seg = segmentationFor(8, [[1, 2.5], [4, 5.5]]);
+  const full = restrictToWindow(seg, 0, 8);
+  assertEqual(full.phrases.length, 2, 'les deux phrases restent');
+  assertEqual(full.gaps.length, 3, 'intro, respiration et coda restent');
+  assertClose(full.duration, 8, 1e-6, 'durée = fenêtre entière');
+  assertClose(full.sungDuration, seg.sungDuration, 0.01, 'temps chanté conservé');
+  assertClose(full.silentDuration, seg.silentDuration, 0.01, 'temps silencieux conservé');
+  // Une fenêtre qui couvre tout doit garder l'intro et la coda marquées.
+  assertEqual(full.gaps.filter((g) => g.leading).length, 1, 'l\'intro reste leading');
+  assertEqual(full.gaps.filter((g) => g.trailing).length, 1, 'la coda reste trailing');
+});
+
+runTest('T54 — phrase entièrement dans la fenêtre conservée, phrase hors fenêtre supprimée', () => {
+  const seg = segmentationFor(8, [[1, 2.5], [4, 5.5]]);
+  const restricted = restrictToWindow(seg, 0.5, 3);
+  // La première phrase chevauche légèrement la borne haute (2,5 ≤ 3) : elle
+  // reste ; la seconde (4 → 5,5) est entièrement hors fenêtre : elle disparaît.
+  assertEqual(restricted.phrases.length, 1, 'une seule phrase dans la fenêtre');
+  assertClose(restricted.phrases[0].start, 1, 0.06, 'début inchangé, temps absolu');
+  assertClose(restricted.phrases[0].end, 2.5, 0.06, 'fin inchangée');
+  assertEqual(restricted.phrases[0].index, 0, 'index renuméroté depuis la fenêtre');
+  assertEqual(restricted.duration, 2.5, 1e-9, 'durée = windowEnd - windowStart');
+});
+
+runTest('T54b — phrase à cheval sur une borne : clippée, pas exclue', () => {
+  const seg = segmentationFor(8, [[1, 2.5], [4, 5.5]]);
+  // La fenêtre commence AU MILIEU de la première phrase et coupe la seconde.
+  const restricted = restrictToWindow(seg, 1.5, 4.7);
+  assertEqual(restricted.phrases.length, 2, 'les deux phrases chevauchent : toutes deux restent');
+  assertClose(restricted.phrases[0].start, 1.5, 0.01, 'début clippé à la borne de fenêtre');
+  assertClose(restricted.phrases[0].end, 2.5, 0.06, 'fin inchangée');
+  assertClose(restricted.phrases[1].start, 4, 0.06);
+  assertClose(restricted.phrases[1].end, 4.7, 0.01, 'fin clippée à la borne de fenêtre');
+  // Les temps restent ABSOLUS : rien n'est rebase à 0.
+  assertTrue(restricted.phrases[0].start > 1 && restricted.phrases[1].start > 3,
+    'temps absolus conservés');
+  assertClose(restricted.sungDuration,
+    (2.5 - 1.5) + (4.7 - 4), 0.05, 'temps chanté recalculé sur les intervalles clippés');
+  assertClose(restricted.sungDuration + restricted.silentDuration,
+    restricted.duration, 1e-6, 'partition du temps sur la fenêtre');
+});
+
+runTest('T55 — silence en tête de fenêtre : pas l\'intro du morceau', () => {
+  const seg = segmentationFor(8, [[1, 2.5], [4, 5.5]]);
+  // Fenêtre [2, 6] : elle commence dans le vide entre les deux phrases, mais
+  // ce vide est une respiration INTERNE du morceau, pas son intro.
+  const restricted = restrictToWindow(seg, 2, 6);
+  assertEqual(restricted.gaps.length, 2, 'un vide en tête, un en pied de fenêtre');
+  assertEqual(restricted.gaps[0].leading, false,
+    'le vide en tête de fenêtre n\'est pas la vraie intro : pas de flag leading');
+  assertEqual(restricted.gaps[0].trailing, false, 'et pas une coda non plus');
+  // Le vide en pied [5,5 → 6] est la vraie coda du morceau CLIPPÉE : la
+  // fenêtre ne couvre pas sa fin, mais c'en est bien une — le flag reste.
+  assertEqual(restricted.gaps[1].trailing, true, 'la vraie coda clippée reste trailing');
+  assertEqual(restricted.gaps[1].leading, false);
+  // Contraste : la même segmentation non restreinte a bien une intro marquée.
+  assertEqual(seg.gaps.filter((g) => g.leading).length, 1, 'contraste : l\'intro existe bien dans l\'original');
+});
+
+runTest('T56 — les métriques d\'espace portent sur la fenêtre, base temps absolu', () => {
+  // Bout en bout : restreindre PUIS mesurer doit donner le même résultat que
+  // ce que le câblage de coach-tab.js produira (restrictToWindow après
+  // detectVocalPhrases, notes alignées avec stemOriginSec = début de région).
+  const seg = segmentationFor(8, [[1, 2.5], [4, 5.5]]);
+  const regionStart = 2;
+  const regionEnd = 6;
+  const restricted = restrictToWindow(seg, regionStart, regionEnd);
+
+  // Le piano n'a joué que dans la respiration interne clippée (2,5 → 4).
+  const notes = [pianoNote(60, 3.0, 3.4)];
+  const space = computeSpaceMetrics(restricted, notes);
+
+  assertEqual(space.analyzedDuration, regionEnd - regionStart, 'durée analysée = fenêtre');
+  assertEqual(space.gapFill.gapCount, 1, 'seule la respiration interne compte');
+  assertEqual(space.gapFill.answeredCount, 1, 'elle a reçu une réponse');
+  assertClose(space.overlap.ratio, 0, 1e-9, 'aucun recouvrement : la note tombe dans le vide');
+  // Le flag leading de la segmentation restreinte ne doit pas masquer le vide
+  // de tête de fenêtre au point de le retirer des respirations mesurables :
+  // il n'est PAS leading, donc il reste interne.
+  assertTrue(restricted.gaps[0].leading === false, 'le vide de tête reste une respiration');
+});
+
+runTest('T56b — fenêtre dégénérée : bornes échangées ou nulles ne plantent pas', () => {
+  const seg = segmentationFor(8, [[1, 2.5], [4, 5.5]]);
+  // Bornes échangées : ordonnées automatiquement, comme une région tracée
+  // de droite à gauche dans le Studio. La fenêtre [2, 6] contient bien les
+  // deux phrases partiellement.
+  const swapped = restrictToWindow(seg, 6, 2);
+  assertEqual(swapped.phrases.length, 2, 'fenêtre réordonnée [2, 6] : les deux phrases clippées restent');
+  assertEqual(swapped.duration, 4, 1e-9, 'bornes ordonnées automatiquement');
+  const zero = restrictToWindow(seg, 3, 3);
+  assertEqual(zero.phrases.length, 0);
+  assertEqual(zero.duration, 0);
+  assertEqual(zero.sungDuration, 0);
 });
 
 console.log(`\n=== Résultat : ${passed}/${total} tests passés ===`);

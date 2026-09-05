@@ -284,6 +284,102 @@ export function detectVocalPhrases(envelope, options = {}) {
 }
 
 /**
+ * Restreint une segmentation à une fenêtre de temps [windowStart, windowEnd].
+ *
+ * Retour 1 de Narcisse : « je ne veux pas travailler toute la musique d'un coup.
+ * Si j'ai simplement envie de travailler une certaine partie, il faudrait que
+ * je puisse sélectionner une sorte de région pour travailler uniquement ce
+ * passage-là. »
+ *
+ * Ce filtre ne change NI les seuils de détection, NI le calcul des métriques,
+ * NI la discipline du rapport : il change seulement la fenêtre de temps sur
+ * laquelle ils portent. Les phrases et vides qui chevauchent une borne sont
+ * clippés (gardés), pas exclus — une phrase entamée avant la fenêtre reste
+ * une phrase chantée dedans. Les `start`/`end` renvoyés restent en TEMPS
+ * ABSOLU du morceau, pas relatifs à la fenêtre : c'est ce qui permet à la
+ * réécoute (`replayRegion`, déjà branchée sur le stem complet) de continuer à
+ * fonctionner sans aucune conversion.
+ *
+ * Les flags `leading`/`trailing` sont recalculés pour la fenêtre : un silence
+ * en tête de fenêtre n'est l'intro du morceau que si c'en était déjà une dans
+ * la segmentation d'origine (idem en coda) — une respiration interne qui tombe
+ * en bord de fenêtre ne devient ni intro ni coda par magie.
+ *
+ * Bornes échangées : la fenêtre est ordonnée automatiquement (start = min,
+ * end = max), exactement comme le Studio accepte une région tracée de droite
+ * à gauche ; une fenêtre nulle produit une segmentation vide plutôt qu'une
+ * erreur.
+ *
+ * @param {ReturnType<typeof detectVocalPhrases>} segmentation
+ * @param {number} windowStart - début de la fenêtre, en secondes du morceau
+ * @param {number} windowEnd - fin de la fenêtre, en secondes du morceau
+ * @returns {ReturnType<typeof detectVocalPhrases>} même forme, restreinte
+ */
+export function restrictToWindow(segmentation, windowStart, windowEnd) {
+  if (!segmentation || !Array.isArray(segmentation.phrases)) {
+    throw new TypeError('segmentation invalide');
+  }
+  if (!Number.isFinite(windowStart) || !Number.isFinite(windowEnd)) {
+    throw new TypeError('les bornes de la fenêtre doivent être des nombres finis');
+  }
+  const start = Math.max(0, Math.min(windowStart, windowEnd));
+  const end = Math.max(windowStart, windowEnd);
+  const duration = end - start;
+
+  // Clippe un intervalle à la fenêtre ; renvoie null s'il ne la chevauche pas.
+  const clipped = (interval) => {
+    const from = Math.max(start, interval.start);
+    const to = Math.min(end, interval.end);
+    if (to <= from) return null;
+    return { start: from, end: to, duration: to - from };
+  };
+
+  const phrases = [];
+  for (const phrase of segmentation.phrases) {
+    const window = clipped(phrase);
+    if (!window) continue;
+    phrases.push({
+      ...phrase,
+      ...window,
+      // index renuméroté dans l'ordre de la fenêtre : le rapport dit
+      // « phrase n° X » et la réécoute s'y retrouve.
+      index: phrases.length,
+    });
+  }
+
+  const gaps = [];
+  for (const gap of segmentation.gaps) {
+    const window = clipped(gap);
+    if (!window) continue;
+    const atWindowStart = window.start === start;
+    const atWindowEnd = window.end === end;
+    gaps.push({
+      ...gap,
+      ...window,
+      // Une respiration interne du morceau qui touche le bord de la fenêtre
+      // n'est pas de ce fait une intro/une coda : `leading`/`trailing` ne sont
+      // vrais que si le bord coïncide AUSSI avec un bord du morceau.
+      leading: gap.leading && atWindowStart,
+      trailing: gap.trailing && atWindowEnd,
+      index: gaps.length,
+    });
+  }
+
+  const sungDuration = phrases.reduce((acc, p) => acc + p.duration, 0);
+
+  return {
+    phrases,
+    gaps,
+    thresholds: segmentation.thresholds,
+    sungDuration,
+    silentDuration: Math.max(0, duration - sungDuration),
+    duration,
+    options: segmentation.options,
+    window: { start, end },
+  };
+}
+
+/**
  * Indique si un stem est exploitable comme voix de référence.
  *
  * Question tranchée ici conformément au garde-fou transverse du projet (« ne

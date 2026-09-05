@@ -314,11 +314,14 @@ export function buildCoachReport(analysis, options = {}) {
 export function buildCalibrationNote() {
   return {
     calibrated: false,
-    title: 'Aucun seuil de jugement n\'est calibré',
-    text: 'Les mesures ci-dessus sont exactes, mais l\'application ne dit pas encore à partir '
-      + 'de quel chiffre « c\'est trop ». Ce seuil ne peut venir que de la comparaison de '
-      + 'plusieurs séances réelles avec votre propre ressenti. En attendant, le rapport '
-      + 'montre des faits, des classements et des comparaisons de sens — pas des verdicts.',
+    title: 'À vous de juger : l\'application n\'a pas encore de point de comparaison',
+    text: 'Les mesures ci-dessus sont exactes, mais c\'est à vous de les interpréter : '
+      + 'l\'application ne dit pas encore à partir de quel chiffre « c\'est trop », parce '
+      + 'que ce point de repère ne peut venir que de la comparaison de plusieurs de vos '
+      + 'séances avec votre propre ressenti. En attendant, écoutez les passages proposés '
+      + 'en réécoute et jugez à l\'oreille : le rapport vous donne les faits, des '
+      + 'classements et le sens vers lequel viser — pas des verdicts. Ce sera affiné '
+      + 'quand vous aurez utilisé l\'outil plusieurs fois.',
   };
 }
 

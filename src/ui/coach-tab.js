@@ -30,6 +30,7 @@ import {
   computeEnergyEnvelope,
   detectVocalPhrases,
   assessVocalStem,
+  restrictToWindow,
   DEFAULT_PHRASE_OPTIONS,
 } from '../coach/vocal-activity.js';
 import { alignPianoNotes, analyzeAccompaniment } from '../coach/accompaniment-metrics.js';
@@ -79,6 +80,13 @@ let replayNodes = [];
 let calibration = null;      // résultat de la mesure de latence, si elle a tourné
 let latencyEstimate = null;  // estimation automatique, en attendant la mesure
 let minGapSec = DEFAULT_PHRASE_OPTIONS.minGapSec;
+
+// Région de travail (retour 1 de Narcisse) : `null` = toute la piste. Les deux
+// champs texte mm:ss sont la seule source de vérité affichée ; ces variables
+// gardent les dernières valeurs VALIDES pour y revenir silencieusement si
+// l'utilisateur tape quelque chose d'invalide.
+let regionStartSec = null;
+let regionEndSec = null;
 
 // ---------------------------------------------------------------------------
 // Utilitaires
@@ -146,6 +154,62 @@ function setStatus(message, tone = 'info') {
 }
 
 // ---------------------------------------------------------------------------
+// Région de travail (retour 1 : travailler un passage, pas tout le morceau)
+// ---------------------------------------------------------------------------
+
+/** Analyse « m:ss » (ou « ss ») ; renvoie null si ce n'est pas un temps valide. */
+function parseTimeInput(text) {
+  if (typeof text !== 'string') return null;
+  const trimmed = text.trim();
+  const match = trimmed.match(/^(\d+):([0-5]?\d)$/);
+  if (match) {
+    return Number(match[1]) * 60 + Number(match[2]);
+  }
+  if (/^\d+$/.test(trimmed)) {
+    return Number(trimmed);
+  }
+  return null;
+}
+
+/** Formate des secondes en m:ss pour les champs de région. */
+function secondsToMinutes(seconds) {
+  return formatTime(seconds);
+}
+
+/**
+ * Valide un couple de bornes contre le morceau chargé.
+ * Renvoie {start, end} clampés, ou null si inutilisable (fin ≤ début).
+ */
+function validateRegion(startText, endText, trackDurationSec) {
+  const start = parseTimeInput(startText);
+  const end = parseTimeInput(endText);
+  if (start === null || end === null) return null;
+  const duration = Number.isFinite(trackDurationSec) ? trackDurationSec : 0;
+  const safeStart = Math.max(0, Math.min(start, duration));
+  const safeEnd = Math.max(0, Math.min(end, duration));
+  if (safeEnd <= safeStart) return null;
+  return { start: safeStart, end: safeEnd };
+}
+
+/** Renvoie la durée du stem vocal chargé, ou null s'il n'est pas encore là. */
+function vocalDuration() {
+  return vocalBuffer ? vocalBuffer.duration : null;
+}
+
+/**
+ * Bornes réellement utilisées par la séance, selon qu'une région est active.
+ * `null` = piste entière (0 → fin du stem). Une région qui couvre déjà toute
+ * la piste est traitée comme « toute la piste » : même comportement, et le
+ * rapport ne parle pas d'un « passage ».
+ */
+function activeRegion() {
+  if (regionStartSec === null || regionEndSec === null) return null;
+  const duration = vocalDuration();
+  if (duration && regionStartSec <= 0.05 && regionEndSec >= duration - 0.05) return null;
+  return { start: regionStartSec, end: regionEndSec };
+}
+
+// ---------------------------------------------------------------------------
 // Bibliothèque de morceaux
 // ---------------------------------------------------------------------------
 
@@ -178,6 +242,10 @@ async function refreshTrackList() {
     const item = el('button', {
       className: `coach-track-item${track.id === selectedTrackId ? ' active' : ''}`,
       type: 'button',
+      title: track.hasVocals
+        ? null
+        : 'La voix doit d\'abord être isolée du reste du morceau — ça se fait '
+          + 'automatiquement quand vous démarrez la séance, et ça prend un peu de temps.',
       onClick: () => selectTrack(track.id),
     }, [
       el('span', { className: 'coach-track-name', text: track.name }),
@@ -198,6 +266,9 @@ async function selectTrack(trackId) {
   vocalBuffer = null;
   vocalMonoSamples = null;
   vocalStemPath = null;
+  // La région de l'ancien morceau n'a plus de sens : retour à toute la piste.
+  regionStartSec = null;
+  regionEndSec = null;
   lastAnalysis = null;
   lastReport = null;
   renderReport();
@@ -225,16 +296,20 @@ async function ensureVocalStem() {
     const metadata = tracks.find((t) => t.id === selectedTrackId)?.metadata;
     const originalPath = metadata?.originalPath;
     if (!originalPath) {
-      setStatus('Fichier original introuvable pour ce morceau.', 'error');
+      setStatus('Fichier original introuvable pour ce morceau : l\'application ne peut '
+        + 'pas en isoler la voix. Réimportez le morceau depuis l\'onglet Studio.', 'error');
       return false;
     }
-    setStatus('Séparation des pistes en cours — la voix doit être isolée avant de jouer…', 'busy');
+    setStatus('Isolation de la voix en cours — l\'application sépare le chant du reste du '
+      + 'morceau, pour que vous n\'entendiez que la voix pendant la séance. Ça peut prendre '
+      + 'quelques minutes, mais une seule fois par morceau.', 'busy');
     try {
       await separateStems(selectedTrackId, originalPath, (percent) => {
-        setStatus(`Séparation des pistes… ${Math.round(percent)} %`, 'busy');
+        setStatus(`Isolation de la voix… ${Math.round(percent)} %`, 'busy');
       });
     } catch (err) {
-      setStatus(`La séparation a échoué : ${err.message}`, 'error');
+      setStatus(`L'isolation de la voix a échoué : ${err.message}. Relancez la séance pour `
+        + `réessayer ; si ça échoue encore, réimportez le morceau depuis l'onglet Studio.`, 'error');
       return false;
     }
   }
@@ -244,7 +319,8 @@ async function ensureVocalStem() {
   try {
     vocalBuffer = await decodeFile(vocalStemPath);
   } catch (err) {
-    setStatus(`Impossible de charger la voix : ${err.message}`, 'error');
+    setStatus(`La voix n'a pas pu être lue (${err.message}). Réimportez le morceau `
+      + `depuis l'onglet Studio si le problème persiste.`, 'error');
     return false;
   }
   vocalMonoSamples = toMono(vocalBuffer);
@@ -262,7 +338,7 @@ async function ensureVocalStem() {
   }
 
   setStatus(`Voix prête : ${segmentation.phrases.length} phrases chantées détectées sur `
-    + `${formatTime(segmentation.duration)}.`, 'ok');
+    + `${formatTime(segmentation.duration)}. Vous pouvez lancer la séance.`, 'ok');
   await refreshTrackList();
   return true;
 }
@@ -328,6 +404,7 @@ function beginCapture() {
   // cet instant dans la base performance.now() pour pouvoir y rapporter les
   // horodatages MIDI. C'est ce couple qui rend l'alignement exact plutôt
   // qu'approximatif.
+  const region = activeRegion();
   const startAt = ctx.currentTime + 0.12;
   sessionStartCtxTime = startAt;
   const startPerfMs = contextTimeToPerformanceMs(ctx, startAt)
@@ -340,16 +417,24 @@ function beginCapture() {
   sourceNode.onended = () => {
     if (sessionState === 'running') finishSession();
   };
-  sourceNode.start(startAt);
+  // Avec une région : lecture bornée (offset + durée) — le stem s'arrête de
+  // lui-même à la fin du passage. Sans région : comportement inchangé,
+  // lecture de toute la piste.
+  if (region) {
+    sourceNode.start(startAt, region.start, region.end - region.start);
+  } else {
+    sourceNode.start(startAt);
+  }
   playing = true;
 
   sessionState = 'running';
   renderSetup();
 
+  const totalSec = region ? region.end - region.start : vocalBuffer.duration;
   timerInterval = setInterval(() => {
     if (!els.timer || sessionState !== 'running') return;
-    const elapsed = Math.max(0, audioCtx.currentTime - sessionStartCtxTime);
-    els.timer.textContent = `${formatTime(elapsed)} / ${formatTime(vocalBuffer.duration)}`;
+    const elapsed = Math.max(0, Math.min(totalSec, audioCtx.currentTime - sessionStartCtxTime));
+    els.timer.textContent = `${formatTime(elapsed)} / ${formatTime(totalSec)}`;
   }, 200);
 }
 
@@ -366,8 +451,18 @@ async function finishSession() {
   renderSetup();
   setStatus('Analyse de la séance…', 'busy');
 
+  const region = activeRegion();
+  const regionStart = region ? region.start : 0;
+
   const envelope = computeEnergyEnvelope(vocalMonoSamples, vocalBuffer.sampleRate);
-  const segmentation = detectVocalPhrases(envelope, { minGapSec });
+  const fullSegmentation = detectVocalPhrases(envelope, { minGapSec });
+  // Restriction à la fenêtre travaillée : les temps restent ABSOLUS dans le
+  // morceau, donc la réécoute (branchée sur le stem complet) n'a rien à
+  // convertir. Sans région, restrictToWindow sur toute la piste est un
+  // passage identique — un seul code chemin, pas de mode hybride.
+  const segmentation = region
+    ? restrictToWindow(fullSegmentation, region.start, region.end)
+    : fullSegmentation;
 
   // Correction de latence : la mesure réelle si elle a tourné, sinon
   // l'estimation automatique. Le rapport dit laquelle a été utilisée.
@@ -375,20 +470,27 @@ async function finishSession() {
     ? calibration.correctionSec
     : (latencyEstimate?.correctionSec ?? 0);
 
-  const pianoNotes = alignPianoNotes(notes, { captureOriginSec, stemOriginSec: 0, offsetSec });
+  // La lecture a démarré à regionStart dans le stem : stemOriginSec replace
+  // les notes MIDI sur l'axe absolu du morceau (cf. alignPianoNotes).
+  const pianoNotes = alignPianoNotes(notes, {
+    captureOriginSec,
+    stemOriginSec: regionStart,
+    offsetSec,
+  });
 
   // Séance conservée sous forme de MelodyTrack canonique (EXP-030) : c'est le
   // pont déjà construit entre une capture MIDI et une structure exploitable.
   // On lui donne pour origine l'instant de départ du stem CORRIGÉ de la
-  // latence, si bien que les temps de ses événements sont directement ceux du
-  // stem : la même piste sert de trace de la séance ET de source pour la
-  // réécoute, sans seconde conversion qui pourrait diverger.
+  // latence et replacé dans l'axe du morceau, si bien que les temps de ses
+  // événements sont directement ceux du stem : la même piste sert de trace
+  // de la séance ET de source pour la réécoute, sans seconde conversion qui
+  // pourrait diverger.
   lastMelodyTrack = notes.length > 0
     ? createMelodyTrack(
       {
         notes,
         sourceCaptureId: CAPTURE_SOURCE_ID,
-        startedAt: captureOriginSec - offsetSec,
+        startedAt: captureOriginSec - offsetSec - regionStart,
       },
       { name: `Accompagnement — ${selectedTrackName}`, harmonizationPolicy: 'automatic' },
     )
@@ -434,7 +536,7 @@ function cancelSession() {
   capture = null;
   sessionState = 'idle';
   if (els.countdown) els.countdown.style.display = 'none';
-  setStatus('Séance interrompue. Rien n\'a été analysé.', 'info');
+  setStatus('Séance interrompue : rien n\'a été analysé. Relancez quand vous voulez.', 'info');
   renderSetup();
 }
 
@@ -526,7 +628,9 @@ async function runLatencyCalibration() {
     noteOn: () => session.registerTap(performance.now()),
   });
 
-  setStatus('Calibration : tapez une note sur chaque clic.', 'busy');
+  setStatus('Calibration : tapez une note sur chaque clic entendu — le programme mesure '
+    + 'ainsi le délai entre votre frappe et le son, pour placer votre jeu au bon endroit '
+    + 'dans le rapport.', 'busy');
   session.start();
 
   await new Promise((resolve) => setTimeout(resolve, (session.durationSec + 0.6) * 1000));
@@ -590,6 +694,7 @@ function renderSetup() {
 
   renderLatencyLine();
   renderPhraseSetting();
+  renderRegionSetting();
 }
 
 function renderLatencyLine() {
@@ -598,16 +703,21 @@ function renderLatencyLine() {
   let text;
   let tone;
   if (calibration?.status === 'ok') {
-    text = `Latence mesurée sur ce poste : ${Math.round(calibration.offsetMs)} ms `
-      + `(±${Math.round(calibration.spreadMs)} ms, ${calibration.usedTaps} frappes). Appliquée au placement.`;
+    text = `Le délai entre votre frappe et le son entendu a été mesuré sur ce poste : `
+      + `${Math.round(calibration.offsetMs)} ms (±${Math.round(calibration.spreadMs)} ms, `
+      + `${calibration.usedTaps} frappes). Il est déjà compensé dans l'analyse : vous `
+      + `n'avez rien à faire.`;
     tone = 'ok';
   } else if (latencyEstimate) {
-    text = `Latence estimée depuis la sortie audio : ${Math.round(latencyEstimate.totalSec * 1000)} ms. `
-      + 'Cette estimation ne couvre ni l\'entrée MIDI ni votre propre décalage — '
-      + 'lancez la calibration pour une vraie mesure.';
+    text = `Le programme ne connaît pas encore précisément le petit délai entre le moment `
+      + `où vous appuyez sur une touche et le son que vous entendez : une valeur `
+      + `approximative (${Math.round(latencyEstimate.totalSec * 1000)} ms, mesurée sur la `
+      + `sortie audio seule) est utilisée pour l'instant. Cliquez sur « Calibrer la latence » `
+      + `pour l'affiner — c'est facultatif, mais ça rend le rapport plus précis.`;
     tone = 'warn';
   } else {
-    text = 'Latence non estimée : l\'audio n\'a pas encore été ouvert.';
+    text = 'Le délai entre votre clavier et le son entendu n\'est pas encore estimé : '
+      + 'il sera mesuré à la première ouverture de l\'audio.';
     tone = 'warn';
   }
   els.latencyLine.appendChild(el('span', { className: `coach-latency ${tone}`, text }));
@@ -634,7 +744,8 @@ function renderPhraseSetting() {
     },
     onChange: () => {
       // Le découpage change : un rapport déjà affiché ne correspondrait plus.
-      if (lastAnalysis) setStatus('Le découpage a changé : relancez une séance pour un rapport à jour.', 'info');
+      if (lastAnalysis) setStatus('Le découpage des respirations a changé : le rapport '
+        + 'affiché ne correspond plus. Relancez une séance pour un rapport à jour.', 'info');
     },
   });
   els.phraseSetting.appendChild(input);
@@ -645,8 +756,112 @@ function renderPhraseSetting() {
   els.phraseSetting.appendChild(els.phraseValue);
   els.phraseSetting.appendChild(el('p', {
     className: 'coach-setting-hint',
-    text: 'En dessous de cette durée, un silence est considéré comme une articulation entre '
-      + 'deux mots ; au-dessus, comme une respiration où le piano a sa place.',
+    text: 'Vous n\'avez normalement pas besoin d\'ajuster ce réglage : la valeur par '
+      + 'défaut convient à la plupart des morceaux. Si vous voulez comprendre : en dessous '
+      + 'de cette durée, un silence est considéré comme une articulation entre deux mots ; '
+      + 'au-dessus, comme une respiration où le piano a sa place.',
+  }));
+}
+
+// Contrôle de région : mêmes classes que le réglage de respiration, pour que
+// les deux skins l'habillent sans nouveau CSS.
+function renderRegionSetting() {
+  if (!els.regionSetting) return;
+  els.regionSetting.innerHTML = '';
+
+  const duration = vocalDuration();
+  const disabled = sessionState === 'running' || sessionState === 'countdown'
+    || sessionState === 'preparing' || sessionState === 'analyzing';
+
+  const startText = regionStartSec !== null && duration
+    ? secondsToMinutes(regionStartSec)
+    : (duration ? '0:00' : '—');
+  const endText = regionEndSec !== null && duration
+    ? secondsToMinutes(regionEndSec)
+    : (duration ? secondsToMinutes(duration) : '—');
+
+  els.regionSetting.appendChild(el('label', {
+    className: 'coach-setting-label',
+    text: 'Passage à travailler (début → fin)',
+  }));
+
+  const startInput = el('input', {
+    type: 'text',
+    id: 'coach-region-start',
+    className: 'coach-region-input',
+    value: startText,
+    placeholder: '0:00',
+    disabled: disabled || !duration ? '' : null,
+    'aria-label': 'Début du passage, en mm:ss',
+    inputMode: 'numeric',
+    title: 'Instant où commence le passage travaillé, au format mm:ss (ex. 1:12).',
+  });
+  const endInput = el('input', {
+    type: 'text',
+    id: 'coach-region-end',
+    className: 'coach-region-input',
+    value: endText,
+    placeholder: duration ? secondsToMinutes(duration) : 'mm:ss',
+    disabled: disabled || !duration ? '' : null,
+    'aria-label': 'Fin du passage, en mm:ss',
+    inputMode: 'numeric',
+    title: 'Instant où se termine le passage travaillé, au format mm:ss (ex. 1:48).',
+  });
+
+  // À la sortie d'un champ : valider silencieusement. Valeur invalide → on
+  // revient aux dernières bornes valides sans message d'erreur bloquant.
+  const commit = () => {
+    if (!duration) return;
+    const previous = activeRegion();
+    const region = validateRegion(startInput.value, endInput.value, duration);
+    if (region) {
+      regionStartSec = region.start;
+      regionEndSec = region.end;
+      // Un rapport déjà affiché porterait sur une autre fenêtre : à refaire.
+      if (lastAnalysis) {
+        const changed = !previous
+          || previous.start !== region.start
+          || previous.end !== region.end;
+        if (changed) {
+          setStatus('Le passage a changé : relancez une séance pour un rapport à jour.', 'info');
+        }
+      }
+    } else {
+      setStatus('Valeur non valide : la fin doit être après le début, dans les '
+        + 'bornes du morceau. Retour aux dernières valeurs valides.', 'info');
+    }
+    renderRegionSetting();
+  };
+  startInput.addEventListener('blur', commit);
+  endInput.addEventListener('blur', commit);
+  startInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') startInput.blur(); });
+  endInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') endInput.blur(); });
+
+  els.regionSetting.appendChild(startInput);
+  els.regionSetting.appendChild(el('span', { className: 'coach-setting-value', text: '→' }));
+  els.regionSetting.appendChild(endInput);
+
+  const resetBtn = el('button', {
+    type: 'button',
+    className: 'coach-secondary-btn coach-region-reset',
+    text: 'Toute la piste',
+    disabled: disabled || !duration ? '' : null,
+    title: 'Travailler le morceau entier, du début à la fin.',
+    onClick: () => {
+      regionStartSec = null;
+      regionEndSec = null;
+      renderRegionSetting();
+    },
+  });
+  els.regionSetting.appendChild(resetBtn);
+
+  els.regionSetting.appendChild(el('p', {
+    className: 'coach-setting-hint',
+    text: 'Pour travailler un passage précis plutôt que tout le morceau, indiquez '
+      + 'ses bornes en mm:ss (ex. 1:12 → 1:48) — c\'est ce passage qui sera joué et '
+      + 'analysé. Laissez « Toute la piste » si vous n\'en avez pas besoin : ce '
+      + 'réglage ne change ni la mesure, ni le rapport, seulement la partie du '
+      + 'morceau sur laquelle ils portent.',
   }));
 }
 
@@ -657,7 +872,9 @@ function renderFinding(f) {
   if (f.confidence === 'low') {
     node.appendChild(el('span', {
       className: 'coach-finding-flag',
-      text: f.confidenceNote || 'Mesure peu fiable — à lire comme une tendance.',
+      text: f.confidenceNote
+        || 'Cette mesure se trompe parfois (environ une fois sur deux) : prenez-la '
+          + 'comme une indication, pas comme un fait établi.',
     }));
   }
   return node;
@@ -679,14 +896,20 @@ function renderReport() {
   }
   els.report.style.display = '';
 
+  const subtitle = `${selectedTrackName} · style annoncé : `
+    + `${STYLES.find((s) => s.id === lastAnalysis.style)?.label || '—'} · `
+    + `${lastAnalysis.segmentation.phraseCount} phrases chantées`;
+  // Avec une région : le rapport porte sur un passage — il doit le dire, car
+  // « 4 phrases chantées » ne se lirait pas pareil sachant que c'est un extrait.
+  // La segmentation restreinte transporte sa fenêtre (temps absolu) ; le cas
+  // « toute la piste » n'en a pas et garde le sous-titre actuel.
+  const window = lastAnalysis.segmentation.window;
+  const subtitleText = window
+    ? `${subtitle} · passage travaillé : ${formatTime(window.start)} → ${formatTime(window.end)}`
+    : subtitle;
   els.report.appendChild(el('div', { className: 'coach-report-head' }, [
     el('h3', { className: 'coach-report-title', text: 'Ce que montre la séance' }),
-    el('p', {
-      className: 'coach-report-sub',
-      text: `${selectedTrackName} · style annoncé : `
-        + `${STYLES.find((s) => s.id === lastAnalysis.style)?.label || '—'} · `
-        + `${lastAnalysis.segmentation.phraseCount} phrases chantées`,
-    }),
+    el('p', { className: 'coach-report-sub', text: subtitleText }),
   ]));
 
   els.report.appendChild(el('div', { className: 'coach-cards' }, [
@@ -721,9 +944,11 @@ function renderReport() {
   }
 
   // Chiffres nus, sans commentaire de valeur — précisément parce qu'aucun seuil
-  // ne permet encore de les qualifier.
+  // ne permet encore de les qualifier. Le titre dit juste « ce sont les chiffres,
+  // pas encore un jugement » sans jargon : l'idée « pas déjà interprétés » reste
+  // portée par la note de calibration juste en dessous.
   els.report.appendChild(el('section', { className: 'coach-card is-facts' }, [
-    el('h4', { className: 'coach-card-title', text: 'Les chiffres, sans interprétation' }),
+    el('h4', { className: 'coach-card-title', text: 'Le détail, en chiffres' }),
     el('ul', { className: 'coach-finding-list' }, lastReport.facts.map(renderFinding)),
   ]));
 
@@ -762,6 +987,7 @@ export function initCoachTab() {
   els.report = document.getElementById('coach-report');
   els.latencyLine = document.getElementById('coach-latency-line');
   els.phraseSetting = document.getElementById('coach-phrase-setting');
+  els.regionSetting = document.getElementById('coach-region-setting');
   els.liveNotice = document.getElementById('coach-live-notice');
 
   els.startBtn?.addEventListener('click', () => { startSession(); });

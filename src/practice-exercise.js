@@ -165,6 +165,10 @@ export function createPracticeExercise() {
       currentKey: startKey,
       totalKeys: 12,
       keyIndex: 0,
+      // Sans ce champ, advanceMovement() fait stepIndex++ sur undefined (NaN)
+      // et chords[NaN] renvoie undefined : la carte affichait "undefined"
+      // après la première bonne réponse en mode "Mouvement 12 tons".
+      stepIndex: 0,
       chords,
     };
   }

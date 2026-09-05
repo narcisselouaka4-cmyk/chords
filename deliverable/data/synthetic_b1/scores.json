@@ -1,0 +1,342 @@
+[
+  {
+    "id": "B1_offset_060bpm_prog01_I-IV-V-I",
+    "bpm": 60,
+    "progression": "prog01_I-IV-V-I",
+    "n_chords_ref": 4,
+    "hmm": {
+      "csr_majmin": 62.46,
+      "csr_sevenths": 62.46,
+      "csr_root": 62.46,
+      "csr_mirex": 62.46,
+      "offset_median_ms": 34.0,
+      "offset_std_ms": 2.8,
+      "transitions_matched": 3,
+      "transitions_ref": 3,
+      "n_chords_est": 5
+    }
+  },
+  {
+    "id": "B1_offset_060bpm_prog02_I-vi-IV-V",
+    "bpm": 60,
+    "progression": "prog02_I-vi-IV-V",
+    "n_chords_ref": 4,
+    "hmm": {
+      "csr_majmin": 74.61,
+      "csr_sevenths": 74.61,
+      "csr_root": 74.61,
+      "csr_mirex": 74.61,
+      "offset_median_ms": 31.0,
+      "offset_std_ms": 3.0,
+      "transitions_matched": 2,
+      "transitions_ref": 3,
+      "n_chords_est": 3
+    }
+  },
+  {
+    "id": "B1_offset_060bpm_prog03_ii-V-I",
+    "bpm": 60,
+    "progression": "prog03_ii-V-I",
+    "n_chords_ref": 3,
+    "hmm": {
+      "csr_majmin": 33.05,
+      "csr_sevenths": 33.05,
+      "csr_root": 66.38,
+      "csr_mirex": 33.05,
+      "offset_median_ms": 34.0,
+      "offset_std_ms": 0.0,
+      "transitions_matched": 1,
+      "transitions_ref": 2,
+      "n_chords_est": 2
+    }
+  },
+  {
+    "id": "B1_offset_060bpm_prog04_I-V-vi-IV",
+    "bpm": 60,
+    "progression": "prog04_I-V-vi-IV",
+    "n_chords_ref": 4,
+    "hmm": {
+      "csr_majmin": 49.82,
+      "csr_sevenths": 49.82,
+      "csr_root": 49.82,
+      "csr_mirex": 49.82,
+      "offset_median_ms": 28.0,
+      "offset_std_ms": 0.0,
+      "transitions_matched": 1,
+      "transitions_ref": 3,
+      "n_chords_est": 2
+    }
+  },
+  {
+    "id": "B1_offset_060bpm_prog05_vi-ii-V-I",
+    "bpm": 60,
+    "progression": "prog05_vi-ii-V-I",
+    "n_chords_ref": 4,
+    "hmm": {
+      "csr_majmin": 37.5,
+      "csr_sevenths": 37.5,
+      "csr_root": 37.5,
+      "csr_mirex": 37.5,
+      "offset_median_ms": 34.0,
+      "offset_std_ms": 0.0,
+      "transitions_matched": 2,
+      "transitions_ref": 3,
+      "n_chords_est": 4
+    }
+  },
+  {
+    "id": "B1_offset_077bpm_prog01_I-IV-V-I",
+    "bpm": 77,
+    "progression": "prog01_I-IV-V-I",
+    "n_chords_ref": 4,
+    "hmm": {
+      "csr_majmin": 73.08,
+      "csr_sevenths": 73.08,
+      "csr_root": 73.08,
+      "csr_mirex": 73.08,
+      "offset_median_ms": 41.1,
+      "offset_std_ms": 414.9,
+      "transitions_matched": 3,
+      "transitions_ref": 3,
+      "n_chords_est": 5
+    }
+  },
+  {
+    "id": "B1_offset_077bpm_prog02_I-vi-IV-V",
+    "bpm": 77,
+    "progression": "prog02_I-vi-IV-V",
+    "n_chords_ref": 4,
+    "hmm": {
+      "csr_majmin": 74.47,
+      "csr_sevenths": 74.47,
+      "csr_root": 74.47,
+      "csr_mirex": 74.47,
+      "offset_median_ms": 32.8,
+      "offset_std_ms": 2.4,
+      "transitions_matched": 2,
+      "transitions_ref": 3,
+      "n_chords_est": 3
+    }
+  },
+  {
+    "id": "B1_offset_077bpm_prog03_ii-V-I",
+    "bpm": 77,
+    "progression": "prog03_ii-V-I",
+    "n_chords_ref": 3,
+    "hmm": {
+      "csr_majmin": 32.96,
+      "csr_sevenths": 32.96,
+      "csr_root": 66.29,
+      "csr_mirex": 32.96,
+      "offset_median_ms": 35.2,
+      "offset_std_ms": 0.0,
+      "transitions_matched": 1,
+      "transitions_ref": 2,
+      "n_chords_est": 2
+    }
+  },
+  {
+    "id": "B1_offset_077bpm_prog04_I-V-vi-IV",
+    "bpm": 77,
+    "progression": "prog04_I-V-vi-IV",
+    "n_chords_ref": 4,
+    "hmm": {
+      "csr_majmin": 74.47,
+      "csr_sevenths": 74.47,
+      "csr_root": 74.47,
+      "csr_mirex": 74.47,
+      "offset_median_ms": 32.8,
+      "offset_std_ms": 2.4,
+      "transitions_matched": 2,
+      "transitions_ref": 3,
+      "n_chords_est": 3
+    }
+  },
+  {
+    "id": "B1_offset_077bpm_prog05_vi-ii-V-I",
+    "bpm": 77,
+    "progression": "prog05_vi-ii-V-I",
+    "n_chords_ref": 4,
+    "hmm": {
+      "csr_majmin": 16.04,
+      "csr_sevenths": 16.04,
+      "csr_root": 41.04,
+      "csr_mirex": 16.04,
+      "offset_median_ms": 476.8,
+      "offset_std_ms": 441.6,
+      "transitions_matched": 2,
+      "transitions_ref": 3,
+      "n_chords_est": 4
+    }
+  },
+  {
+    "id": "B1_offset_090bpm_prog01_I-IV-V-I",
+    "bpm": 90,
+    "progression": "prog01_I-IV-V-I",
+    "n_chords_ref": 4,
+    "hmm": {
+      "csr_majmin": 81.28,
+      "csr_sevenths": 81.28,
+      "csr_root": 81.28,
+      "csr_mirex": 81.28,
+      "offset_median_ms": 27.3,
+      "offset_std_ms": 313.5,
+      "transitions_matched": 3,
+      "transitions_ref": 3,
+      "n_chords_est": 5
+    }
+  },
+  {
+    "id": "B1_offset_090bpm_prog02_I-vi-IV-V",
+    "bpm": 90,
+    "progression": "prog02_I-vi-IV-V",
+    "n_chords_ref": 4,
+    "hmm": {
+      "csr_majmin": 74.39,
+      "csr_sevenths": 74.39,
+      "csr_root": 74.39,
+      "csr_mirex": 74.39,
+      "offset_median_ms": 32.3,
+      "offset_std_ms": 1.7,
+      "transitions_matched": 2,
+      "transitions_ref": 3,
+      "n_chords_est": 3
+    }
+  },
+  {
+    "id": "B1_offset_090bpm_prog03_ii-V-I",
+    "bpm": 90,
+    "progression": "prog03_ii-V-I",
+    "n_chords_ref": 3,
+    "hmm": {
+      "csr_majmin": 32.95,
+      "csr_sevenths": 32.95,
+      "csr_root": 66.28,
+      "csr_mirex": 32.95,
+      "offset_median_ms": 30.7,
+      "offset_std_ms": 0.0,
+      "transitions_matched": 1,
+      "transitions_ref": 2,
+      "n_chords_est": 2
+    }
+  },
+  {
+    "id": "B1_offset_090bpm_prog04_I-V-vi-IV",
+    "bpm": 90,
+    "progression": "prog04_I-V-vi-IV",
+    "n_chords_ref": 4,
+    "hmm": {
+      "csr_majmin": 74.39,
+      "csr_sevenths": 74.39,
+      "csr_root": 74.39,
+      "csr_mirex": 74.39,
+      "offset_median_ms": 32.3,
+      "offset_std_ms": 1.7,
+      "transitions_matched": 2,
+      "transitions_ref": 3,
+      "n_chords_est": 3
+    }
+  },
+  {
+    "id": "B1_offset_090bpm_prog05_vi-ii-V-I",
+    "bpm": 90,
+    "progression": "prog05_vi-ii-V-I",
+    "n_chords_ref": 4,
+    "hmm": {
+      "csr_majmin": 18.75,
+      "csr_sevenths": 18.75,
+      "csr_root": 43.75,
+      "csr_mirex": 18.75,
+      "offset_median_ms": -302.7,
+      "offset_std_ms": 333.3,
+      "transitions_matched": 2,
+      "transitions_ref": 3,
+      "n_chords_est": 4
+    }
+  },
+  {
+    "id": "B1_offset_120bpm_prog01_I-IV-V-I",
+    "bpm": 120,
+    "progression": "prog01_I-IV-V-I",
+    "n_chords_ref": 4,
+    "hmm": {
+      "csr_majmin": 73.96,
+      "csr_sevenths": 73.96,
+      "csr_root": 73.96,
+      "csr_mirex": 73.96,
+      "offset_median_ms": 41.5,
+      "offset_std_ms": 1.5,
+      "transitions_matched": 2,
+      "transitions_ref": 3,
+      "n_chords_est": 3
+    }
+  },
+  {
+    "id": "B1_offset_120bpm_prog02_I-vi-IV-V",
+    "bpm": 120,
+    "progression": "prog02_I-vi-IV-V",
+    "n_chords_ref": 4,
+    "hmm": {
+      "csr_majmin": 74.04,
+      "csr_sevenths": 74.04,
+      "csr_root": 74.04,
+      "csr_mirex": 74.04,
+      "offset_median_ms": 38.5,
+      "offset_std_ms": 1.5,
+      "transitions_matched": 2,
+      "transitions_ref": 3,
+      "n_chords_est": 3
+    }
+  },
+  {
+    "id": "B1_offset_120bpm_prog03_ii-V-I",
+    "bpm": 120,
+    "progression": "prog03_ii-V-I",
+    "n_chords_ref": 3,
+    "hmm": {
+      "csr_majmin": 33.33,
+      "csr_sevenths": 33.33,
+      "csr_root": 33.33,
+      "csr_mirex": 33.33,
+      "offset_median_ms": null,
+      "offset_std_ms": null,
+      "transitions_matched": 0,
+      "transitions_ref": 2,
+      "n_chords_est": 1
+    }
+  },
+  {
+    "id": "B1_offset_120bpm_prog04_I-V-vi-IV",
+    "bpm": 120,
+    "progression": "prog04_I-V-vi-IV",
+    "n_chords_ref": 4,
+    "hmm": {
+      "csr_majmin": 74.04,
+      "csr_sevenths": 74.04,
+      "csr_root": 74.04,
+      "csr_mirex": 74.04,
+      "offset_median_ms": 38.5,
+      "offset_std_ms": 1.5,
+      "transitions_matched": 2,
+      "transitions_ref": 3,
+      "n_chords_est": 3
+    }
+  },
+  {
+    "id": "B1_offset_120bpm_prog05_vi-ii-V-I",
+    "bpm": 120,
+    "progression": "prog05_vi-ii-V-I",
+    "n_chords_ref": 4,
+    "hmm": {
+      "csr_majmin": 24.5,
+      "csr_sevenths": 24.5,
+      "csr_root": 49.5,
+      "csr_mirex": 24.5,
+      "offset_median_ms": 40.0,
+      "offset_std_ms": 0.0,
+      "transitions_matched": 1,
+      "transitions_ref": 3,
+      "n_chords_est": 2
+    }
+  }
+]

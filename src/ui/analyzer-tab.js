@@ -66,6 +66,7 @@ import {
   renderCorriger,
 } from './corriger-panel.js';
 import './reharmonization-view.css';
+import { playNote, releaseNote, resumeAudio } from '../audio/simple-synth.js';
 import { buildFileContextText } from './file-context.js';
 import { listTracks, loadMetadata, getOriginalPath, importToLibrary, renameTrack, deleteTrack } from './media-library.js';
 
@@ -198,6 +199,7 @@ const els = {
   reharmContextSource: document.getElementById('reharm-context-source'),
   reharmContextRange: document.getElementById('reharm-context-range'),
   reharmStyleSelector: document.getElementById('reharm-style-selector'),
+  reharmPlayStyleSelector: document.getElementById('reharm-play-style-selector'),
   reharmMelodyStrip: document.getElementById('reharm-melody-strip'),
   reharmMelodyEmpty: document.getElementById('reharm-melody-empty'),
   reharmPostApply: document.getElementById('reharm-post-apply'),
@@ -296,6 +298,9 @@ let appliedReharmonization = null; // { variantId, styleId, chords[], meta }
 let timelineViewMode = 'original'; // 'original' | 'reharm'
 let lastReharmVariantsVm = null;
 let lastReharmMeta = null;
+// 'block' (accords plaqués, comportement historique) ou 'arpeggio' (notes égrenées).
+// Contrôle uniquement le bouton "▶ Écouter" — n'affecte ni Appliquer, ni Basculer.
+let reharmPlayStyle = 'block';
 
 // Retourne le style de réharmonisation actuellement sélectionné dans l'UI.
 function getReharmActiveStyle() {
@@ -2425,9 +2430,21 @@ function initReharmonizationPanel() {
     });
   }
 
-  // Bouton principal : lancer la démonstration du moteur.
+  // Sélecteur de style de lecture (Plaqué / Arpégé) pour le bouton "▶ Écouter".
+  if (els.reharmPlayStyleSelector) {
+    const playButtons = els.reharmPlayStyleSelector.querySelectorAll('button[data-play-style]');
+    playButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        reharmPlayStyle = btn.dataset.playStyle;
+        playButtons.forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
+      });
+    });
+  }
+
+  // Bouton principal : réharmoniser le morceau chargé dans Analyse (stems Studio
+  // si disponibles, sinon sélection manuelle d'un stem).
   if (els.reharmRun) {
-    els.reharmRun.addEventListener('click', runReharmonizationDemo);
+    els.reharmRun.addEventListener('click', runReharmonizationFromCurrentFile);
   }
 
   // Bouton secondaire : comparer les propositions (scroll vers les cartes).
@@ -2441,8 +2458,16 @@ function initReharmonizationPanel() {
     });
   }
 
-  // Clics délégués sur les cartes (Appliquer / Basculer).
+  // Clics délégués sur les cartes (Écouter / Appliquer / Basculer).
   els.reharmResults?.addEventListener('click', (e) => {
+    const listenBtn = e.target.closest('[data-reharm-listen]');
+    if (listenBtn) {
+      const variant = lastReharmVariantsVm?.variants?.find(
+        (v) => v.id === listenBtn.dataset.reharmListen
+      );
+      if (variant) playReharmonizationVariant(variant);
+      return;
+    }
     const applyBtn = e.target.closest('[data-reharm-apply]');
     if (applyBtn) {
       applyReharmonization(applyBtn.dataset.reharmApply);
@@ -2482,6 +2507,32 @@ function initReharmonizationPanel() {
     els.reharmResults.setAttribute('aria-live', 'polite');
     els.reharmResults.setAttribute('aria-busy', 'false');
     renderReharmonizationEmpty(els.reharmResults);
+  }
+}
+
+// [2026-09-04] — Lecture audio d'une proposition de réharmonisation, dans
+// l'ordre des steps, plaquée ou égrenée selon le sélecteur Plaqué / Arpégé.
+// Espacement entre accords constant (CHORD_DURATION_MS + GAP_MS) quel que
+// soit le mode ; l'extinction reste groupée au même instant pour toutes les
+// notes d'un même accord. Sur le modèle de playNotes() de masterclass-panel.js
+// (mêmes playNote/releaseNote, extinction différée).
+async function playReharmonizationVariant(variant) {
+  if (!variant || !Array.isArray(variant.steps) || variant.steps.length === 0) return;
+  await resumeAudio();
+  const CHORD_DURATION_MS = 1200;
+  const GAP_MS = 150;
+  const ARPEGGIO_STEP_MS = 70;
+  const RELEASE_OFFSET_MS = CHORD_DURATION_MS - 100;
+  let delay = 0;
+  for (const step of variant.steps) {
+    const notes = (step.voicingMidiNotes || []).slice().sort((a, b) => a - b);
+    const startDelay = delay;
+    notes.forEach((midi, i) => {
+      const strikeOffset = reharmPlayStyle === 'arpeggio' ? i * ARPEGGIO_STEP_MS : 0;
+      setTimeout(() => playNote(midi, 0.75), startDelay + strikeOffset);
+      setTimeout(() => releaseNote(midi), startDelay + RELEASE_OFFSET_MS);
+    });
+    delay += CHORD_DURATION_MS + GAP_MS;
   }
 }
 
@@ -2750,6 +2801,60 @@ async function runReharmonizationLive() {
   } finally {
     output.setAttribute('aria-busy', 'false');
   }
+}
+
+// Cherche si le fichier actuellement chargé dans Analyse a déjà des pistes
+// séparées dans Studio, en comparant metadata.json.sourcePath de chaque piste.
+async function findExistingStemsForPath(audioPath, preferredStem = 'piano') {
+  const api = window.electronAPI;
+  if (!api?.files?.homeDir || !api?.files?.readDir || !api?.files?.readFile || !audioPath) return null;
+  try {
+    const home = await api.files.homeDir();
+    const studioDir = home + '/PianoJazzChords/Studio';
+    let entries = [];
+    try {
+      entries = await api.files.readDir(studioDir);
+    } catch (_) {
+      return null;
+    }
+    const trackNames = (entries || [])
+      .map((e) => (typeof e === 'string' ? e : e.name))
+      .filter((name) => name && name.startsWith('Track_'));
+
+    for (const trackName of trackNames) {
+      try {
+        const metaJson = await api.files.readFile(studioDir + '/' + trackName + '/metadata.json');
+        const meta = JSON.parse(metaJson || '{}');
+        if (meta.sourcePath !== audioPath) continue;
+
+        const preferredPath = studioDir + '/' + trackName + '/stems/' + preferredStem + '.wav';
+        const fallbackPath = studioDir + '/' + trackName + '/stems/vocals.wav';
+        if (api.files.stat) {
+          if (await api.files.stat(preferredPath).catch(() => null)) return preferredPath;
+          if (await api.files.stat(fallbackPath).catch(() => null)) return fallbackPath;
+          return null;
+        }
+        return preferredPath;
+      } catch (_) {
+        continue;
+      }
+    }
+  } catch (_) {
+    return null;
+  }
+  return null;
+}
+
+// Remplace runReharmonizationDemo comme gestionnaire du bouton principal.
+async function runReharmonizationFromCurrentFile() {
+  const output = els.reharmResults;
+  if (!output) return;
+  if (!currentAudioPath) {
+    renderReharmonizationError(output, 'Aucun fichier audio chargé dans Analyse.', 'NoFile');
+    return;
+  }
+  const existingStemPath = await findExistingStemsForPath(currentAudioPath, 'piano');
+  await runReharmonizationFromAudio(existingStemPath || undefined, 'piano');
 }
 
 // [OpenCode] — 2026-08-24 — EXP-027 Étape 2 : réharmonisation depuis un stem

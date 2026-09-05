@@ -7,7 +7,7 @@ const ENCRYPTED_PREFIX = 'enc:';
 const DEFAULTS = {
   baseUrl: 'https://api.groq.com/openai/v1',
   apiKey: '',
-  model: 'llama-3.1-8b-instant',
+  model: 'openai/gpt-oss-20b',
   monthlyCap: 50,
 };
 
@@ -177,13 +177,7 @@ export const PRESETS = [
   {
     name: 'Groq (gratuit, rapide)',
     baseUrl: 'https://api.groq.com/openai/v1',
-    models: [
-      'llama-3.1-8b-instant',
-      'llama-3.3-70b-versatile',
-      'llama-3.3-70b-specdec',
-      'gemma2-9b-it',
-      'mixtral-8x7b-32768',
-    ],
+    models: ['openai/gpt-oss-20b', 'openai/gpt-oss-120b', 'llama-3.3-70b-versatile'],
   },
   {
     name: 'OpenRouter (multi-modèles gratuits)',

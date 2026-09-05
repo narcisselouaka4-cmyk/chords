@@ -113,12 +113,6 @@ export const CHORD_DEFINITIONS = [
   { name: 'Power', symbol: '5', intervals: [0, 7],
     identityIntervals: [7], optionalIntervals: [], supportedOmissions: [], extensionIntervals: [], suspensionIntervals: [] },
 
-  // Quartal voicings (stacks of perfect fourths, common in modal/modern jazz)
-  { name: 'Quartal', symbol: 'quartal', intervals: [0, 5, 10],
-    identityIntervals: [5, 10], optionalIntervals: [], supportedOmissions: [], extensionIntervals: [], suspensionIntervals: [] },
-  { name: 'Quartal add4', symbol: 'quartal(add4)', intervals: [0, 5, 10, 15],
-    identityIntervals: [5, 10, 15], optionalIntervals: [], supportedOmissions: [], extensionIntervals: [], suspensionIntervals: [] },
-
   // Single notes
   { name: '', symbol: '', intervals: [0],
     identityIntervals: [], optionalIntervals: [], supportedOmissions: [], extensionIntervals: [], suspensionIntervals: [] },

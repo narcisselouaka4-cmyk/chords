@@ -2,8 +2,7 @@
 // Socle de fiches préécrites + IA optionnelle. L'IA ne calcule jamais d'accords :
 // elle ne fait que reformuler / approfondir une explication pédagogique.
 
-import { parseChordSymbol, getEffectiveChord } from '../chord-engine/chord-display.js';
-import { CHORD_DEFINITIONS } from '../chord-engine/chord-defs.js';
+import { parseChordSymbol, getEffectiveChord, resolveCanonicalChordDefinition } from '../chord-engine/chord-display.js';
 import { NOTE_NAMES } from './chord-editor.js';
 import { miniKeyboardForNotes } from './mini-keyboard.js';
 import { playNote, releaseNote, resumeAudio } from '../audio/simple-synth.js';
@@ -17,10 +16,10 @@ function chordSymbolToMidi(chordStr) {
   const effective = typeof chordStr === 'string' ? getEffectiveChord({ chord: chordStr }) : chordStr;
   const parsed = parseChordSymbol(effective);
   if (!parsed) return [];
-  const def = CHORD_DEFINITIONS[parsed.quality];
+  const def = resolveCanonicalChordDefinition(parsed.quality);
   if (!def || !Array.isArray(def.intervals)) return [];
-  const rootPc = parsed.rootPc;
-  const bassPc = parsed.bassPc ?? rootPc;
+  const rootPc = parsed.root;
+  const bassPc = parsed.bass ?? rootPc;
   const pcsSet = new Set([bassPc, rootPc]);
   for (const iv of def.intervals) pcsSet.add((rootPc + iv) % 12);
   const pcs = Array.from(pcsSet).sort((a, b) => a - b);
@@ -40,8 +39,8 @@ function chordSymbolToMidi(chordStr) {
   }
   // Réorganiser pour que la basse slash soit bien la plus grave.
   notes.sort((a, b) => a - b);
-  if (parsed.bassPc != null && parsed.bassPc !== rootPc) {
-    const bassMidi = notes.find((n) => n % 12 === parsed.bassPc);
+  if (parsed.bass != null && parsed.bass !== rootPc) {
+    const bassMidi = notes.find((n) => n % 12 === parsed.bass);
     if (bassMidi != null) {
       const filtered = notes.filter((n) => n !== bassMidi);
       notes.length = 0;
@@ -75,17 +74,17 @@ function isDominant7(chordStr) {
 
 function isMajor7(chordStr) {
   const parsed = parseChordSymbol(chordStr);
-  return parsed && (parsed.quality === 'maj7' || parsed.quality === 'maj');
+  return parsed && (parsed.quality === 'maj7' || parsed.quality === 'maj' || parsed.quality === '');
 }
 
 function isMinor7(chordStr) {
   const parsed = parseChordSymbol(chordStr);
-  return parsed && (parsed.quality === 'min7' || parsed.quality === 'm7' || parsed.quality === 'min');
+  return parsed && (parsed.quality === 'min7' || parsed.quality === 'm7' || parsed.quality === 'min' || parsed.quality === 'm');
 }
 
 function rootPcOf(chordStr) {
   const parsed = parseChordSymbol(chordStr);
-  return parsed ? parsed.rootPc : null;
+  return parsed ? parsed.root : null;
 }
 
 function pcDistance(from, to) {
@@ -252,7 +251,7 @@ function el(tag, attrs = {}, ...children) {
     if (k === 'className') node.className = v;
     else if (k === 'textContent') node.textContent = v;
     else if (k === 'innerHTML') node.innerHTML = v;
-    else if (k.startsWith('on') && typeof v === 'function') node.addEventListener(k.slice(2), v);
+    else if (k.startsWith('on') && typeof v === 'function') node.addEventListener(k.slice(2).toLowerCase(), v);
     else node.setAttribute(k, v);
   });
   children.forEach((c) => {
@@ -289,6 +288,7 @@ function buildBadge(label, variant = 'neutral') {
 
 function renderLowConfidence(container, data, options = {}) {
   container.innerHTML = '';
+  const answerBox = el('div', { className: 'mc-ai-answer' });
   const card = el('div', { className: 'mc-card mc-card-uncertain' },
     el('div', { className: 'mc-card-title' }, '⚠ Détection incertaine sur ce passage'),
     el('p', { className: 'mc-card-text' },
@@ -303,9 +303,13 @@ function renderLowConfidence(container, data, options = {}) {
       el('button', {
         type: 'button',
         className: 'btn-primary btn-sm',
-        onClick: options.onAskAI,
+        onClick: async () => {
+          const question = `Que peux-tu me dire sur l'accord ${data.chord || 'détecté ici'}, sachant que la détection automatique est incertaine à cet endroit ?`;
+          await askAIQuestion(card, question, 'Détection incertaine', data, options);
+        },
       }, '⚡ Demander à l’IA')
-    )
+    ),
+    answerBox
   );
   container.appendChild(card);
 }
@@ -422,24 +426,28 @@ async function askAIQuestion(container, question, concept, data, options) {
   const answerBox = container.querySelector('.mc-ai-answer');
   if (!answerBox) return;
 
-  const config = getAIConfig();
-  if (!config || !config.apiKey) {
-    answerBox.textContent = 'Aucune clé API configurée. Configure-la dans Réglages › Assistant IA.';
-    answerBox.className = 'mc-ai-answer error';
-    return;
-  }
-
-  const cap = getMonthlyCap();
-  const used = getMonthlyUsage();
-  if (used >= cap) {
-    answerBox.textContent = `Plafond mensuel atteint (${used}/${cap}). Passez au mois prochain ou augmentez le plafond dans les Réglages IA.`;
-    answerBox.className = 'mc-ai-answer error';
-    return;
-  }
-
-  answerBox.textContent = 'Lecture de la réponse…';
-  answerBox.className = 'mc-ai-answer';
+  // Garde-fou anti double-clic : désactiver le bouton déclencheur pendant
+  // toute la durée de l'appel (réactivé dans le finally, quel que soit le résultat).
+  const triggerBtn = container.querySelector('.mc-ai-btn, .btn-primary.btn-sm');
+  if (triggerBtn) triggerBtn.disabled = true;
   try {
+    const config = getAIConfig();
+    if (!config || !config.apiKey) {
+      answerBox.textContent = 'Aucune clé API configurée. Configure-la dans Réglages › Assistant IA.';
+      answerBox.className = 'mc-ai-answer error';
+      return;
+    }
+
+    const cap = getMonthlyCap();
+    const used = getMonthlyUsage();
+    if (used >= cap) {
+      answerBox.textContent = `Plafond mensuel atteint (${used}/${cap}). Passez au mois prochain ou augmentez le plafond dans les Réglages IA.`;
+      answerBox.className = 'mc-ai-answer error';
+      return;
+    }
+
+    answerBox.textContent = 'Lecture de la réponse…';
+    answerBox.className = 'mc-ai-answer';
     const messages = [
       {
         role: 'system',
@@ -453,7 +461,7 @@ async function askAIQuestion(container, question, concept, data, options) {
     const res = await fetch(`${config.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.apiKey}` },
-      body: JSON.stringify({ model: config.model, messages, max_tokens: 512, temperature: 0.6 }),
+      body: JSON.stringify({ model: config.model, messages, max_tokens: 1536, temperature: 0.6, reasoning_effort: 'low' }),
     });
     if (!res.ok) throw new Error(`Erreur API ${res.status}`);
     const json = await res.json();
@@ -464,6 +472,8 @@ async function askAIQuestion(container, question, concept, data, options) {
   } catch (err) {
     answerBox.textContent = `❌ ${err.message}`;
     answerBox.className = 'mc-ai-answer error';
+  } finally {
+    if (triggerBtn) triggerBtn.disabled = false;
   }
 }
 
@@ -545,6 +555,14 @@ export function renderMasterclass(els, segment, analysis) {
   const index = analysis.chords.findIndex((s) => s.segmentId === segment.segmentId);
   if (index < 0) {
     els.masterclassContent.innerHTML = '<p class="mc-empty">Sélectionnez un accord dans la timeline.</p>';
+    return;
+  }
+
+  // Garde-fou silence : un segment "N" (aucun accord détecté) n'a rien à
+  // expliquer — pas de fiche, pas de bouton IA (l'IA ne sait pas que N
+  // signifie silence).
+  if (!segment.chord || segment.chord === 'N') {
+    els.masterclassContent.innerHTML = '<p class="mc-empty">Ce passage ne contient pas d’accord détecté (silence ou signal trop faible). Rien à expliquer ici.</p>';
     return;
   }
 

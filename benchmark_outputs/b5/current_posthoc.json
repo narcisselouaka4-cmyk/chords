@@ -1,0 +1,161 @@
+{
+  "label": "current_posthoc",
+  "battery": "B5",
+  "commit": "0876c08",
+  "flags": {
+    "ENABLE_ANTIPARASITE_STABILIZATION": true,
+    "ENABLE_ARPEGGIO_CELL_DURATION_CAP": true,
+    "ENABLE_ARPEGGIO_FIGURE_ABSORPTION": true,
+    "ENABLE_ARPEGGIO_MERGE_IDENTITY_GUARD": true,
+    "ENABLE_BEAT_GRID_GAP_FILL": true,
+    "ENABLE_CHORD_DOWNGRADE": true,
+    "ENABLE_CHORD_ROLE_CLASSIFICATION": true,
+    "ENABLE_CHORUS_LOOP_REFINE": false,
+    "ENABLE_FIFTH_CONFUSION_FIX": true,
+    "ENABLE_INTRO_PREFIX_FIX": false,
+    "ENABLE_LEADING_SILENCE_GUARD": true,
+    "ENABLE_PROGRESSIVE_STABILIZATION": true,
+    "ENABLE_REPEATED_PROGRESSION_REGULARIZATION": false,
+    "ENABLE_SILENCE_CARVING": true,
+    "ENABLE_SIMPLE_CHORD_VOCABULARY": true,
+    "ENABLE_STRUCTURAL_LOOP_DETECTION": true,
+    "ENABLE_TEMPO_OCTAVE_FIX": true,
+    "ENABLE_TRUE_FRAME_ENERGY": false,
+    "ENABLE_UPPER_VOICE_STABILITY_GUARD": true
+  },
+  "date": "2026-08-26T04:25:04",
+  "cases": {
+    "b5_f1_no_root": {
+      "majmin": 0.0,
+      "sevenths": 0.0,
+      "offsets_ms": [
+        2697.2999999999997,
+        30.699999999999505,
+        34.000000000000696,
+        37.30000000000011,
+        -2629.299999999999,
+        2715.0,
+        48.30000000000112
+      ],
+      "segments_gt": 8,
+      "segments_pred": 6,
+      "tempo_pred": 89.9,
+      "tempo_gt": 90.0,
+      "key_pred": "D",
+      "key_gt": null
+    },
+    "b5_f2_upper": {
+      "majmin": 0.6175937440249022,
+      "sevenths": 0.12499997070312452,
+      "offsets_ms": [
+        2697.2999999999997,
+        30.699999999999505,
+        34.000000000000696,
+        -2632.7,
+        41.700000000000514,
+        45.000000000001705,
+        48.30000000000112
+      ],
+      "segments_gt": 8,
+      "segments_pred": 7,
+      "tempo_pred": 89.9,
+      "tempo_gt": 90.0,
+      "key_pred": "C",
+      "key_gt": null
+    },
+    "b5_f3_quartal": {
+      "majmin": 0.5003593671931151,
+      "sevenths": 0.2503593789118653,
+      "offsets_ms": [
+        50.30000000000001,
+        30.699999999999505,
+        -2636.0,
+        37.30000000000011,
+        41.700000000000514,
+        45.000000000001705,
+        -2621.699999999997
+      ],
+      "segments_gt": 8,
+      "segments_pred": 7,
+      "tempo_pred": 89.9,
+      "tempo_gt": 90.0,
+      "key_pred": "G",
+      "key_gt": null
+    },
+    "b5_f4_slash": {
+      "majmin": 0.36985941202905326,
+      "sevenths": 0.36985941202905326,
+      "offsets_ms": [
+        50.30000000000001,
+        30.699999999999505,
+        34.000000000000696,
+        -2632.7,
+        2711.700000000002,
+        45.000000000001705,
+        48.30000000000112
+      ],
+      "segments_gt": 8,
+      "segments_pred": 7,
+      "tempo_pred": 89.9,
+      "tempo_gt": 90.0,
+      "key_pred": "Em",
+      "key_gt": null
+    },
+    "b5_f5_tensions": {
+      "majmin": 0.3697031307766113,
+      "sevenths": 0.12324998630078099,
+      "offsets_ms": [
+        2697.2999999999997,
+        30.699999999999505,
+        34.000000000000696,
+        37.30000000000011,
+        41.700000000000514,
+        45.000000000001705,
+        48.30000000000112
+      ],
+      "segments_gt": 8,
+      "segments_pred": 8,
+      "tempo_pred": 89.9,
+      "tempo_gt": 90.0,
+      "key_pred": "C",
+      "key_gt": null
+    }
+  },
+  "global": {
+    "cases": 5,
+    "csr_majmin": 0.3715031308047364,
+    "csr_sevenths": 0.17369374958896483
+  },
+  "families": {
+    "f1_no_root": {
+      "label": "f1_no_root",
+      "cases": 1,
+      "csr_majmin": 0.0,
+      "csr_sevenths": 0.0
+    },
+    "f2_upper": {
+      "label": "f2_upper",
+      "cases": 1,
+      "csr_majmin": 0.6175937440249022,
+      "csr_sevenths": 0.12499997070312452
+    },
+    "f3_quartal": {
+      "label": "f3_quartal",
+      "cases": 1,
+      "csr_majmin": 0.5003593671931151,
+      "csr_sevenths": 0.2503593789118653
+    },
+    "f4_slash": {
+      "label": "f4_slash",
+      "cases": 1,
+      "csr_majmin": 0.36985941202905326,
+      "csr_sevenths": 0.36985941202905326
+    },
+    "f5_tensions": {
+      "label": "f5_tensions",
+      "cases": 1,
+      "csr_majmin": 0.3697031307766113,
+      "csr_sevenths": 0.12324998630078099
+    }
+  }
+}

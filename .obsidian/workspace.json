@@ -1,0 +1,233 @@
+{
+  "main": {
+    "id": "3cf314e5147952b6",
+    "type": "split",
+    "children": [
+      {
+        "id": "d1290a82828ae1d1",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "145dd0ae581e8d78",
+            "type": "leaf",
+            "state": {
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "Vue graphique"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "787067af0555ffd2",
+    "type": "split",
+    "children": [
+      {
+        "id": "ea5e9bec37f23d50",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "86adf96f34dbb280",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Explorateur de fichiers"
+            }
+          },
+          {
+            "id": "c019bb82b1038bd9",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Rechercher"
+            }
+          },
+          {
+            "id": "8f024d3207449425",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-bookmark",
+              "title": "Signets"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "eb88d1f0da7806d6",
+    "type": "split",
+    "children": [
+      {
+        "id": "f6538e6c0e134575",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "908c516b3d5003cf",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Rétroliens"
+            }
+          },
+          {
+            "id": "ec56cd3925eaa142",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Liens sortants"
+            }
+          },
+          {
+            "id": "6bce12f12f1d3729",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Mots-clés"
+            }
+          },
+          {
+            "id": "24d791a66fecd870",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "Toutes les propriétés"
+            }
+          },
+          {
+            "id": "3e7be63cc41b8498",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Plan"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Ouvrir le sélecteur rapide": false,
+      "graph:Ouvrir la vue graphique": false,
+      "canvas:Créer une nouvelle toile": false,
+      "daily-notes:Ouvrir la note quotidienne": false,
+      "templates:Insérer le modèle": false,
+      "command-palette:Ouvrir la palette de commandes": false,
+      "bases:Créer une nouvelle base": false
+    }
+  },
+  "active": "145dd0ae581e8d78",
+  "lastOpenFiles": [
+    "vite.config.js.timestamp-1788363250998-5fdc39a0c928e.mjs",
+    "vite.config.js.timestamp-1788362385884-fc5d26401601d8.mjs",
+    "vite.config.js.timestamp-1788362331461-e1dc608b0ae55.mjs",
+    "src/ui/refonte/studio.css.tmp.290837.a6169f19a95b",
+    "vite.config.js.timestamp-1788362013483-f45fb798502aa8.mjs",
+    "vite.config.js.timestamp-1788361357709-b3ee72d30fbd9.mjs",
+    "JOURNAL-REFONTE.md.tmp.290837.57a77d7788c9",
+    "JOURNAL-REFONTE.md.tmp.290837.167c5dfa732d",
+    "src/ui/refonte/studio.css.tmp.290837.b906087ba37b",
+    "vite.config.js.timestamp-1788361128245-85b0c6e8a5373.mjs",
+    "src/ui/studio-tab.js.tmp.290837.661125656000",
+    "RAPPORT-FINAL-REFONTE.md",
+    "node_modules/puppeteer-core/src/bidi/core/README.md",
+    "node_modules/puppeteer-core/src/templates/README.md",
+    "node_modules/puppeteer-core/src/injected/README.md",
+    "node_modules/puppeteer-core/README.md",
+    "node_modules/chromium-bidi/README.md",
+    "node_modules/zod/README.md",
+    "node_modules/@puppeteer/browsers/node_modules/yargs/README.md",
+    "node_modules/devtools-protocol/README.md",
+    "node_modules/@puppeteer/browsers/node_modules/ansi-regex/readme.md",
+    "node_modules/@puppeteer/browsers/README.md",
+    "node_modules/ws/README.md",
+    "node_modules/webdriver-bidi-protocol/README.md",
+    "node_modules/webdriver-bidi-protocol/CHANGELOG.md",
+    "node_modules/@puppeteer/browsers/node_modules/yargs-parser/README.md",
+    "node_modules/@puppeteer/browsers/node_modules/yargs-parser/CHANGELOG.md",
+    "node_modules/modern-tar/README.md",
+    "node_modules/mitt/README.md",
+    "node_modules/@puppeteer/browsers/node_modules/cliui/README.md",
+    "node_modules/get-east-asian-width/readme.md",
+    "node_modules/@puppeteer/browsers/node_modules/cliui/CHANGELOG.md",
+    "node_modules/@puppeteer/browsers/node_modules/cliui/node_modules/string-width/readme.md",
+    "node_modules/@puppeteer/browsers/node_modules/string-width/readme.md",
+    "node_modules/@puppeteer/browsers/node_modules/wrap-ansi/node_modules/string-width/readme.md",
+    "node_modules/@puppeteer/browsers/node_modules/ansi-styles/readme.md",
+    "ism2019-chord/venv/lib/python3.13/site-packages/networkx/drawing/tests/baseline/test_house_with_colors.png",
+    "ism2019-chord/venv/lib/python3.13/site-packages/networkx/drawing/tests/baseline/test_display_shortest_path.png",
+    "ism2019-chord/venv/lib/python3.13/site-packages/networkx/drawing/tests/baseline/test_display_labels_and_colors.png",
+    "ism2019-chord/venv/lib/python3.13/site-packages/networkx/drawing/tests/baseline/test_display_house_with_colors.png",
+    "ism2019-chord/venv/lib/python3.13/site-packages/networkx/drawing/tests/baseline/test_display_empty_graph.png",
+    "ism2019-chord/venv/lib/python3.13/site-packages/networkx/drawing/tests/baseline/test_display_complex.png",
+    "ism2019-chord/venv/lib/python3.13/site-packages/sympy/plotting/tests/test_region_xor.png",
+    "ism2019-chord/venv/lib/python3.13/site-packages/sympy/plotting/tests/test_region_or.png",
+    "ism2019-chord/venv/lib/python3.13/site-packages/sympy/plotting/tests/test_region_not.png",
+    "ism2019-chord/venv/lib/python3.13/site-packages/sympy/plotting/tests/test_region_and.png"
+  ]
+}

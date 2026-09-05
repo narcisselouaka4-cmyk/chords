@@ -107,15 +107,43 @@ runTest('B. HTML — #analyzer-results contient la timeline', () => {
   const htmlPath = resolve(projectRoot, 'src/index.html');
   const html = readFileSync(htmlPath, 'utf-8');
 
-  // Extraire le contenu entre #analyzer-results et la fermeture du div suivant
-  const resultsSection = html.match(/<div[^>]*\bid="analyzer-results"[^>]*>([\s\S]*?)(?=<div[^>]*\bid="analyzer-processing")/);
-  assert(resultsSection !== null, 'Contenu de #analyzer-results trouvé');
+  // Extraire le contenu de #analyzer-results par équilibre de divs.
+  // [Corrigé 03/09/2026] — l'ancienne regex s'arrêtait sur
+  // #analyzer-processing, qui était ENFANT de #analyzer-results (le bug
+  // refonte qui rendait l'overlay invisible pendant l'analyse). L'overlay
+  // est maintenant frère des analyzer-states ; l'extraction doit être
+  // indépendante de sa position.
+  const startMatch = html.match(/<div[^>]*\bid="analyzer-results"[^>]*>/);
+  assert(startMatch !== null, '#analyzer-results existe dans le HTML');
 
-  const content = resultsSection[1];
+  const startIdx = startMatch.index + startMatch[0].length;
+  let depth = 1;
+  let endIdx = -1;
+  const tagRegex = /<\/?div\b[^>]*>/g;
+  tagRegex.lastIndex = startIdx;
+  let m;
+  while ((m = tagRegex.exec(html)) !== null) {
+    depth += m[0].startsWith('</') ? -1 : 1;
+    if (depth === 0) { endIdx = m.index; break; }
+  }
+  assert(endIdx > startIdx, 'Fermeture de #analyzer-results trouvée');
+
+  const content = html.slice(startIdx, endIdx);
   assert(content.includes('analyzer-chord-timeline'), 'La timeline est dans #analyzer-results');
   assert(content.includes('analyzer-section-tabs'), 'Les onglets sont dans #analyzer-results');
   assert(content.includes('analyzer-transport-bar'), 'La barre de transport est dans #analyzer-results');
   assert(content.includes('analyzer-analysis-header'), 'Le header analyse est dans #analyzer-results');
+
+  // L'overlay de traitement doit être HORS de #analyzer-results (masqué
+  // pendant l'analyse, il y serait invisible) et DANS analyzer-workspace.
+  assert(!content.includes('id="analyzer-processing"'),
+    '#analyzer-processing n\'est PAS enfant de #analyzer-results');
+  const overlayMatch = html.match(/<div[^>]*\bid="analyzer-processing"[^>]*>/);
+  assert(overlayMatch !== null, '#analyzer-processing existe');
+  const workspaceIdx = html.indexOf('id="analyzer-workspace"');
+  const overlayIdx = overlayMatch ? overlayMatch.index : -1;
+  assert(workspaceIdx >= 0 && overlayIdx > workspaceIdx && overlayIdx < html.indexOf('id="analyzer-results"'),
+    '#analyzer-processing est dans analyzer-workspace, avant les états');
 });
 
 runTest('B. HTML — #analyzer-import-screen contient les cartes d\'import', () => {

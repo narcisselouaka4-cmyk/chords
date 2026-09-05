@@ -59,6 +59,26 @@
       "pattern": "2m7b5-b5alt-1m",
       "exampleChords": ["Dm7(b5)", "G7(#9#5)", "Cm(maj7)"],
       "description": "Voicings de type diminished scale sur le V altéré."
+    },
+    {
+      "id": "guide-tone-73-ii-v-i-jazz-1",
+      "style": "jazz",
+      "category": "Guide tone line (7→3)",
+      "name": "Résolution 7 vers 3 sur ii-V-I",
+      "context": "La ligne de conduite classique du jazz : la 7e de chaque accord descend d'un demi-ton pour devenir la 3ce de l'accord suivant.",
+      "pattern": "2-5-1",
+      "exampleChords": ["Dm7", "G7", "Cmaj7"],
+      "description": "Sur Dm7 → G7 → Cmaj7 : le Do (7e de Dm7) descend vers le Si (3ce de G7) ; le Fa (7e de G7) descend vers le Mi (3ce de Cmaj7). Concentre-toi sur cette ligne qui descend, pas sur le nom des accords."
+    },
+    {
+      "id": "minor6-diminished-barry-harris-jazz-1",
+      "style": "jazz",
+      "category": "Mouvement mineur 6 / diminué",
+      "name": "Alternance mineur 6 – diminué (Barry Harris)",
+      "context": "La gamme « 6th diminished » de Barry Harris, simplifiée à son alternance de base.",
+      "pattern": "1m6-7dim7-1m6-7dim7",
+      "exampleChords": ["Cm6", "Bdim7", "Cm6", "Bdim7"],
+      "description": "Cm6 alterné avec Bdim7 — les deux accords partagent presque toutes leurs notes (Cm6 = mêmes notes qu'un Am7b5), donc ce mouvement fait travailler l'oreille sur leur proximité. Version simplifiée de la gamme complète à 8 notes ; à enrichir plus tard si utile."
     }
   ]
 }

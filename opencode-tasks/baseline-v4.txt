@@ -1,0 +1,4 @@
+  structural_recall_pct: 43.89380530973451
+Durée structurelle (A,D,E,F#m): 119.33s / 149.33s = 79.9%
+Segments parasites: 15
+--- Overlap moyen par section: 31.3% ---

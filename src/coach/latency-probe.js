@@ -92,8 +92,9 @@ export function summarizeTapOffsets(offsetsMs, options = {}) {
       spreadMs: null,
       usedTaps: raw.length,
       rejectedTaps: 0,
-      message: `Il faut au moins ${minTaps} frappes exploitables pour mesurer la latence `
-        + `(${raw.length} enregistrée${raw.length > 1 ? 's' : ''}).`,
+      message: `Il faut au moins ${minTaps} frappes exploitables pour mesurer le délai `
+        + `(${raw.length} enregistrée${raw.length > 1 ? 's' : ''}). Relancez la calibration `
+        + `en tapant une note sur chaque clic entendu.`,
     };
   }
 
@@ -112,8 +113,9 @@ export function summarizeTapOffsets(offsetsMs, options = {}) {
       spreadMs: mad,
       usedTaps: kept.length,
       rejectedTaps: rejected,
-      message: 'Les frappes sont trop dispersées pour en tirer une latence fiable. '
-        + 'Recommencez en tapant régulièrement sur chaque clic.',
+      message: 'Les frappes sont trop irrégulières pour en tirer une mesure fiable du '
+        + 'délai. Recommencez en tapant une note sur chaque clic entendu, le plus '
+        + 'en rythme possible.',
     };
   }
 

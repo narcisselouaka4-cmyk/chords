@@ -1,0 +1,202 @@
+[
+  {
+    "battery": "B1",
+    "id": "B1_offset_060bpm_prog01_I-IV-V-I",
+    "audio": "data/synthetic_b1/B1_offset_060bpm_prog01_I-IV-V-I.wav",
+    "ground_truth": "data/synthetic_b1/B1_offset_060bpm_prog01_I-IV-V-I_ground_truth.json",
+    "bpm": 60,
+    "progression": "prog01_I-IV-V-I",
+    "n_chords": 4,
+    "duration": 16.0
+  },
+  {
+    "battery": "B1",
+    "id": "B1_offset_060bpm_prog02_I-vi-IV-V",
+    "audio": "data/synthetic_b1/B1_offset_060bpm_prog02_I-vi-IV-V.wav",
+    "ground_truth": "data/synthetic_b1/B1_offset_060bpm_prog02_I-vi-IV-V_ground_truth.json",
+    "bpm": 60,
+    "progression": "prog02_I-vi-IV-V",
+    "n_chords": 4,
+    "duration": 16.0
+  },
+  {
+    "battery": "B1",
+    "id": "B1_offset_060bpm_prog03_ii-V-I",
+    "audio": "data/synthetic_b1/B1_offset_060bpm_prog03_ii-V-I.wav",
+    "ground_truth": "data/synthetic_b1/B1_offset_060bpm_prog03_ii-V-I_ground_truth.json",
+    "bpm": 60,
+    "progression": "prog03_ii-V-I",
+    "n_chords": 3,
+    "duration": 12.0
+  },
+  {
+    "battery": "B1",
+    "id": "B1_offset_060bpm_prog04_I-V-vi-IV",
+    "audio": "data/synthetic_b1/B1_offset_060bpm_prog04_I-V-vi-IV.wav",
+    "ground_truth": "data/synthetic_b1/B1_offset_060bpm_prog04_I-V-vi-IV_ground_truth.json",
+    "bpm": 60,
+    "progression": "prog04_I-V-vi-IV",
+    "n_chords": 4,
+    "duration": 16.0
+  },
+  {
+    "battery": "B1",
+    "id": "B1_offset_060bpm_prog05_vi-ii-V-I",
+    "audio": "data/synthetic_b1/B1_offset_060bpm_prog05_vi-ii-V-I.wav",
+    "ground_truth": "data/synthetic_b1/B1_offset_060bpm_prog05_vi-ii-V-I_ground_truth.json",
+    "bpm": 60,
+    "progression": "prog05_vi-ii-V-I",
+    "n_chords": 4,
+    "duration": 16.0
+  },
+  {
+    "battery": "B1",
+    "id": "B1_offset_077bpm_prog01_I-IV-V-I",
+    "audio": "data/synthetic_b1/B1_offset_077bpm_prog01_I-IV-V-I.wav",
+    "ground_truth": "data/synthetic_b1/B1_offset_077bpm_prog01_I-IV-V-I_ground_truth.json",
+    "bpm": 77,
+    "progression": "prog01_I-IV-V-I",
+    "n_chords": 4,
+    "duration": 12.468
+  },
+  {
+    "battery": "B1",
+    "id": "B1_offset_077bpm_prog02_I-vi-IV-V",
+    "audio": "data/synthetic_b1/B1_offset_077bpm_prog02_I-vi-IV-V.wav",
+    "ground_truth": "data/synthetic_b1/B1_offset_077bpm_prog02_I-vi-IV-V_ground_truth.json",
+    "bpm": 77,
+    "progression": "prog02_I-vi-IV-V",
+    "n_chords": 4,
+    "duration": 12.468
+  },
+  {
+    "battery": "B1",
+    "id": "B1_offset_077bpm_prog03_ii-V-I",
+    "audio": "data/synthetic_b1/B1_offset_077bpm_prog03_ii-V-I.wav",
+    "ground_truth": "data/synthetic_b1/B1_offset_077bpm_prog03_ii-V-I_ground_truth.json",
+    "bpm": 77,
+    "progression": "prog03_ii-V-I",
+    "n_chords": 3,
+    "duration": 9.351
+  },
+  {
+    "battery": "B1",
+    "id": "B1_offset_077bpm_prog04_I-V-vi-IV",
+    "audio": "data/synthetic_b1/B1_offset_077bpm_prog04_I-V-vi-IV.wav",
+    "ground_truth": "data/synthetic_b1/B1_offset_077bpm_prog04_I-V-vi-IV_ground_truth.json",
+    "bpm": 77,
+    "progression": "prog04_I-V-vi-IV",
+    "n_chords": 4,
+    "duration": 12.468
+  },
+  {
+    "battery": "B1",
+    "id": "B1_offset_077bpm_prog05_vi-ii-V-I",
+    "audio": "data/synthetic_b1/B1_offset_077bpm_prog05_vi-ii-V-I.wav",
+    "ground_truth": "data/synthetic_b1/B1_offset_077bpm_prog05_vi-ii-V-I_ground_truth.json",
+    "bpm": 77,
+    "progression": "prog05_vi-ii-V-I",
+    "n_chords": 4,
+    "duration": 12.468
+  },
+  {
+    "battery": "B1",
+    "id": "B1_offset_090bpm_prog01_I-IV-V-I",
+    "audio": "data/synthetic_b1/B1_offset_090bpm_prog01_I-IV-V-I.wav",
+    "ground_truth": "data/synthetic_b1/B1_offset_090bpm_prog01_I-IV-V-I_ground_truth.json",
+    "bpm": 90,
+    "progression": "prog01_I-IV-V-I",
+    "n_chords": 4,
+    "duration": 10.667
+  },
+  {
+    "battery": "B1",
+    "id": "B1_offset_090bpm_prog02_I-vi-IV-V",
+    "audio": "data/synthetic_b1/B1_offset_090bpm_prog02_I-vi-IV-V.wav",
+    "ground_truth": "data/synthetic_b1/B1_offset_090bpm_prog02_I-vi-IV-V_ground_truth.json",
+    "bpm": 90,
+    "progression": "prog02_I-vi-IV-V",
+    "n_chords": 4,
+    "duration": 10.667
+  },
+  {
+    "battery": "B1",
+    "id": "B1_offset_090bpm_prog03_ii-V-I",
+    "audio": "data/synthetic_b1/B1_offset_090bpm_prog03_ii-V-I.wav",
+    "ground_truth": "data/synthetic_b1/B1_offset_090bpm_prog03_ii-V-I_ground_truth.json",
+    "bpm": 90,
+    "progression": "prog03_ii-V-I",
+    "n_chords": 3,
+    "duration": 8.0
+  },
+  {
+    "battery": "B1",
+    "id": "B1_offset_090bpm_prog04_I-V-vi-IV",
+    "audio": "data/synthetic_b1/B1_offset_090bpm_prog04_I-V-vi-IV.wav",
+    "ground_truth": "data/synthetic_b1/B1_offset_090bpm_prog04_I-V-vi-IV_ground_truth.json",
+    "bpm": 90,
+    "progression": "prog04_I-V-vi-IV",
+    "n_chords": 4,
+    "duration": 10.667
+  },
+  {
+    "battery": "B1",
+    "id": "B1_offset_090bpm_prog05_vi-ii-V-I",
+    "audio": "data/synthetic_b1/B1_offset_090bpm_prog05_vi-ii-V-I.wav",
+    "ground_truth": "data/synthetic_b1/B1_offset_090bpm_prog05_vi-ii-V-I_ground_truth.json",
+    "bpm": 90,
+    "progression": "prog05_vi-ii-V-I",
+    "n_chords": 4,
+    "duration": 10.667
+  },
+  {
+    "battery": "B1",
+    "id": "B1_offset_120bpm_prog01_I-IV-V-I",
+    "audio": "data/synthetic_b1/B1_offset_120bpm_prog01_I-IV-V-I.wav",
+    "ground_truth": "data/synthetic_b1/B1_offset_120bpm_prog01_I-IV-V-I_ground_truth.json",
+    "bpm": 120,
+    "progression": "prog01_I-IV-V-I",
+    "n_chords": 4,
+    "duration": 8.0
+  },
+  {
+    "battery": "B1",
+    "id": "B1_offset_120bpm_prog02_I-vi-IV-V",
+    "audio": "data/synthetic_b1/B1_offset_120bpm_prog02_I-vi-IV-V.wav",
+    "ground_truth": "data/synthetic_b1/B1_offset_120bpm_prog02_I-vi-IV-V_ground_truth.json",
+    "bpm": 120,
+    "progression": "prog02_I-vi-IV-V",
+    "n_chords": 4,
+    "duration": 8.0
+  },
+  {
+    "battery": "B1",
+    "id": "B1_offset_120bpm_prog03_ii-V-I",
+    "audio": "data/synthetic_b1/B1_offset_120bpm_prog03_ii-V-I.wav",
+    "ground_truth": "data/synthetic_b1/B1_offset_120bpm_prog03_ii-V-I_ground_truth.json",
+    "bpm": 120,
+    "progression": "prog03_ii-V-I",
+    "n_chords": 3,
+    "duration": 6.0
+  },
+  {
+    "battery": "B1",
+    "id": "B1_offset_120bpm_prog04_I-V-vi-IV",
+    "audio": "data/synthetic_b1/B1_offset_120bpm_prog04_I-V-vi-IV.wav",
+    "ground_truth": "data/synthetic_b1/B1_offset_120bpm_prog04_I-V-vi-IV_ground_truth.json",
+    "bpm": 120,
+    "progression": "prog04_I-V-vi-IV",
+    "n_chords": 4,
+    "duration": 8.0
+  },
+  {
+    "battery": "B1",
+    "id": "B1_offset_120bpm_prog05_vi-ii-V-I",
+    "audio": "data/synthetic_b1/B1_offset_120bpm_prog05_vi-ii-V-I.wav",
+    "ground_truth": "data/synthetic_b1/B1_offset_120bpm_prog05_vi-ii-V-I_ground_truth.json",
+    "bpm": 120,
+    "progression": "prog05_vi-ii-V-I",
+    "n_chords": 4,
+    "duration": 8.0
+  }
+]

@@ -33,6 +33,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   system: {
     getAudioGroups: () => ipcRenderer.invoke('system:audio-groups'),
   },
+  assets: {
+    // [Claude] — 2026-09-05 — Chemin absolu des échantillons de piano du
+    // sampler (assets/piano-samples), résolu côté main pour couvrir dev ET
+    // build asar. Le renderer n'a pas à connaître la disposition du disque.
+    pianoSamplesDir: () => ipcRenderer.invoke('assets:piano-samples-dir'),
+  },
   log: (msg) => ipcRenderer.invoke('app:log', msg),
   files: {
     homeDir: () => ipcRenderer.invoke('files:home-dir'),

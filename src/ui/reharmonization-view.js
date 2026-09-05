@@ -357,6 +357,14 @@ export function renderReharmonizationVariants(container, variantsVm, meta, appli
       action.textContent = 'Appliquer';
       action.dataset.reharmApply = v.id;
     }
+    // Lecture audio de la proposition : sans logique ici — le clic est marqué
+    // par data-reharm-listen, la lecture est gérée par analyzer-tab.js.
+    const listenBtn = el('button', {
+      type: 'button',
+      className: 'btn-secondary reharm-card-listen',
+    }, '▶ Écouter');
+    listenBtn.dataset.reharmListen = v.id;
+    card.appendChild(listenBtn);
     card.appendChild(action);
 
     cards.appendChild(card);

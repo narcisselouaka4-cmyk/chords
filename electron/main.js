@@ -218,17 +218,25 @@ function openMidiInput(portId) {
   // [OpenCode] — 2026-07-03 — Close the enumerator while a port is open to avoid ALSA conflicts
   // where the enumerator cannot see the same port that is currently in use.
   closeMidiInputEnumerator();
-  midiInput = new midi.Input();
+  const candidate = new midi.Input();
   let name = '';
   try {
-    midiInput.openPort(portId);
-    name = midiInput.getPortName(portId) || '';
+    candidate.openPort(portId);
+    name = candidate.getPortName(portId) || '';
     console.log('[MIDI] port opened successfully:', portId, name);
   } catch (err) {
+    // [OpenCode] — 2026-09-05 — Fuite ALSA corrigée : le constructeur de midi.Input ouvre
+    // un client ALSA séquenceur DÈS SA CRÉATION. Si openPort échoue, poser `midiInput = null`
+    // sans refermer laissait un client « RtMidi Input Client » orphelin. Le scrutateur
+    // réessaie toutes les 2 s : les clients s'accumulaient jusqu'à l'ENOMEM du séquenceur
+    // (« Cannot allocate memory » sur /dev/snd/seq) et PLUS AUCUN périphérique n'était
+    // détecté, même rebranché — mesuré : 61 fds /dev/snd/seq ouverts par le processus
+    // principal après quelques heures. On referme donc le client à chaque échec.
     console.error('[MIDI] openPort failed:', err.message);
-    midiInput = null;
+    try { candidate.closePort(); } catch (_) { /* déjà fermé */ }
     return { success: false, error: err.message };
   }
+  midiInput = candidate;
   midiInput.on('message', (deltaTime, message) => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
     const [status, data1, data2] = message;
@@ -673,8 +681,7 @@ function runMelodyExtractor(stemPath, options = {}) {
         return;
       }
       try {
-        const out = stdout.trim().split('\n').filter(Boolean).pop();
-        resolve(JSON.parse(out));
+        resolve(JSON.parse(stdout.trim()));
       } catch (err) {
         reject(new Error(`melody_extractor: JSON invalide — ${err.message}`));
       }
@@ -1468,6 +1475,14 @@ app.whenReady().then(() => {
 
   ipcMain.handle('system:audio-groups', () => {
     return userAudioGroups();
+  });
+
+  // [Claude] — 2026-09-05 — Sampler piano : résout le dossier des échantillons
+  // (assets/piano-samples) pour le renderer, qui les lit par files:read-binary
+  // puis decodeAudioData — la CSP bloque fetch(blob:), cf. CLAUDE.md. En dev
+  // comme en build, __dirname pointe sur electron/, donc ../assets.
+  ipcMain.handle('assets:piano-samples-dir', () => {
+    return path.join(__dirname, '..', 'assets', 'piano-samples');
   });
 
   ipcMain.handle('app:log', (event, msg) => {
