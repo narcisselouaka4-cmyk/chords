@@ -33,7 +33,7 @@ import {
   DEFAULT_PHRASE_OPTIONS,
 } from '../coach/vocal-activity.js';
 import { alignPianoNotes, analyzeAccompaniment } from '../coach/accompaniment-metrics.js';
-import { buildCoachReport, formatTime, formatPercent } from '../coach/coach-report.js';
+import { buildCoachReport, formatTime } from '../coach/coach-report.js';
 import {
   estimateOutputLatency,
   createTapCalibration,
@@ -75,7 +75,7 @@ let timerInterval = null;
 let lastAnalysis = null;
 let lastReport = null;
 let lastMelodyTrack = null;
-let replayNode = null;
+let replayNodes = [];
 let calibration = null;      // résultat de la mesure de latence, si elle a tourné
 let latencyEstimate = null;  // estimation automatique, en attendant la mesure
 let minGapSec = DEFAULT_PHRASE_OPTIONS.minGapSec;
@@ -366,16 +366,6 @@ async function finishSession() {
   renderSetup();
   setStatus('Analyse de la séance…', 'busy');
 
-  // Séance conservée sous forme de MelodyTrack canonique (EXP-030) : c'est le
-  // pont déjà construit entre une capture MIDI et une structure exploitable,
-  // et c'est ce qui rend « écoutez la phrase 4 » actionnable.
-  lastMelodyTrack = notes.length > 0
-    ? createMelodyTrack(
-      { notes, sourceCaptureId: CAPTURE_SOURCE_ID },
-      { name: `Accompagnement — ${selectedTrackName}`, harmonizationPolicy: 'automatic' },
-    )
-    : null;
-
   const envelope = computeEnergyEnvelope(vocalMonoSamples, vocalBuffer.sampleRate);
   const segmentation = detectVocalPhrases(envelope, { minGapSec });
 
@@ -386,6 +376,23 @@ async function finishSession() {
     : (latencyEstimate?.correctionSec ?? 0);
 
   const pianoNotes = alignPianoNotes(notes, { captureOriginSec, stemOriginSec: 0, offsetSec });
+
+  // Séance conservée sous forme de MelodyTrack canonique (EXP-030) : c'est le
+  // pont déjà construit entre une capture MIDI et une structure exploitable.
+  // On lui donne pour origine l'instant de départ du stem CORRIGÉ de la
+  // latence, si bien que les temps de ses événements sont directement ceux du
+  // stem : la même piste sert de trace de la séance ET de source pour la
+  // réécoute, sans seconde conversion qui pourrait diverger.
+  lastMelodyTrack = notes.length > 0
+    ? createMelodyTrack(
+      {
+        notes,
+        sourceCaptureId: CAPTURE_SOURCE_ID,
+        startedAt: captureOriginSec - offsetSec,
+      },
+      { name: `Accompagnement — ${selectedTrackName}`, harmonizationPolicy: 'automatic' },
+    )
+    : null;
 
   // Couche 2 : suivi de hauteur de la voix. Facultatif et faillible — s'il
   // échoue, la couche 1 reste entièrement valable et le rapport le dit.
@@ -436,23 +443,68 @@ function cancelSession() {
 // ---------------------------------------------------------------------------
 
 function stopReplay() {
-  if (replayNode) {
-    try { replayNode.onended = null; replayNode.stop(); } catch (_) { /* déjà arrêté */ }
-    replayNode = null;
+  for (const node of replayNodes) {
+    try { node.onended = null; node.stop(); } catch (_) { /* déjà arrêté */ }
   }
+  replayNodes = [];
 }
 
+/**
+ * Voix de piano de réécoute, planifiée à l'échantillon près.
+ *
+ * Volontairement synthétisée dans l'AudioContext du Coach plutôt que confiée à
+ * `simple-synth.js` : ce module possède son propre AudioContext et joue les
+ * notes à l'instant de l'appel, sans planification. Les deux horloges
+ * dériveraient, et la réécoute perdrait précisément ce qu'elle doit montrer —
+ * si le piano tombe sous la voix ou dans la respiration. Ici, voix et piano
+ * partent de la même horloge et restent calés.
+ */
+function schedulePianoNote(ctx, midi, when, duration, velocity) {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(440 * Math.pow(2, (midi - 69) / 12), when);
+  const peak = Math.max(0.02, Math.min(0.28, velocity * 0.28));
+  const end = when + Math.max(0.08, duration);
+  gain.gain.setValueAtTime(0.0001, when);
+  gain.gain.exponentialRampToValueAtTime(peak, when + 0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001, end);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(when);
+  osc.stop(end + 0.02);
+  replayNodes.push(osc);
+}
+
+/**
+ * Rejoue une région : la voix ET ce qui a été joué par-dessus.
+ *
+ * Réécouter la voix seule ne dirait rien — c'est la superposition qui montre
+ * si le piano a couvert la phrase ou habité la respiration. Les notes viennent
+ * de la MelodyTrack de la séance, dont les temps sont déjà ceux du stem.
+ */
 function replayRegion(start, end) {
   if (!vocalBuffer) return;
   const ctx = ensureAudioContext();
   globalAudioFocusManager.requestFocus(FOCUS_ID);
   stopReplay();
-  const duration = Math.max(0.05, end - start);
-  replayNode = ctx.createBufferSource();
-  replayNode.buffer = vocalBuffer;
-  replayNode.connect(ctx.destination);
-  replayNode.onended = () => { replayNode = null; };
-  replayNode.start(ctx.currentTime, Math.max(0, start), duration);
+
+  const from = Math.max(0, start);
+  const duration = Math.max(0.05, end - from);
+  const when = ctx.currentTime + 0.08;
+
+  const voice = ctx.createBufferSource();
+  voice.buffer = vocalBuffer;
+  voice.connect(ctx.destination);
+  voice.start(when, from, duration);
+  replayNodes.push(voice);
+
+  for (const event of lastMelodyTrack?.events || []) {
+    if (event.endedAt <= from || event.startedAt >= from + duration) continue;
+    const noteStart = when + Math.max(0, event.startedAt - from);
+    const noteEnd = when + Math.min(duration, event.endedAt - from);
+    schedulePianoNote(ctx, event.midi, noteStart, noteEnd - noteStart, event.velocity ?? 0.8);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -659,6 +711,11 @@ function renderReport() {
     }
     els.report.appendChild(el('section', { className: 'coach-card is-replay' }, [
       el('h4', { className: 'coach-card-title', text: 'Réécouter les passages cités' }),
+      el('p', {
+        className: 'coach-calibration-text',
+        text: 'La voix est rejouée avec ce que vous avez joué par-dessus : c\'est la '
+          + 'superposition qui montre si le piano a couvert la phrase ou habité la respiration.',
+      }),
       list,
     ]));
   }
@@ -720,7 +777,7 @@ export function initCoachTab() {
       if (sessionState === 'running') cancelSession();
       stopReplay();
     },
-    isPlaying: () => playing || replayNode !== null,
+    isPlaying: () => playing || replayNodes.length > 0,
   });
 
   document.addEventListener('app-switch-training-view', (e) => {

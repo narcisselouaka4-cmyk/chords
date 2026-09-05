@@ -32,6 +32,8 @@ import {
 } from './accompaniment-metrics.js';
 import { buildCoachReport, formatTime, formatPercent, midiToName } from './coach-report.js';
 import { summarizeTapOffsets, median, medianAbsoluteDeviation } from './latency-probe.js';
+import { createMidiCapture } from '../melody/midi-capture.js';
+import { createMelodyTrack, validateMelodyTrack } from '../melody/melody-track.js';
 
 let total = 0;
 let passed = 0;
@@ -594,6 +596,70 @@ runTest('T50 — frappes trop dispersées : refus plutôt que fausse précision'
   const summary = summarizeTapOffsets([10, 200, 400, 90, 350, 30, 500]);
   assertTrue(summary.status !== 'ok' || summary.spreadMs > 50,
     'une série incohérente ne doit pas produire une correction confiante');
+});
+
+// ===========================================================================
+// Base de temps commune mesure / réécoute
+// ===========================================================================
+//
+// La réécoute rejoue la voix ET ce qui a été joué, à partir de la MelodyTrack
+// de la séance. Pour que la superposition montre la vérité, les temps de cette
+// piste doivent être EXACTEMENT ceux sur lesquels la mesure a été faite. C'est
+// obtenu en donnant à la piste, pour origine, l'instant de départ du stem
+// corrigé de la latence. Ces tests verrouillent cette égalité : s'ils cassent,
+// le rapport et la réécoute ne parlent plus du même instant.
+
+runTest('T51 — MelodyTrack et notes alignées partagent la même base de temps', () => {
+  const capture = createMidiCapture({ getTime: (() => {
+    // Horloge factice : 1000 s, 1000,5 s, 1001,2 s… en millisecondes.
+    const stamps = [1000000, 1000500, 1001200, 1001900];
+    let i = 0;
+    return () => stamps[Math.min(i++, stamps.length - 1)];
+  })() });
+  capture.noteOn(60, 0.8, 0, 'coach-live');
+  capture.noteOff(60, 0, 0, 'coach-live');
+  capture.noteOn(64, 0.8, 0, 'coach-live');
+  capture.noteOff(64, 0, 0, 'coach-live');
+  capture.finalize('session-stop');
+
+  const notes = capture.getNotes();
+  const captureOriginSec = 999.8;
+  const offsetSec = -0.057;
+
+  const aligned = alignPianoNotes(notes, { captureOriginSec, stemOriginSec: 0, offsetSec });
+  const track = createMelodyTrack(
+    { notes, sourceCaptureId: 'coach-live', startedAt: captureOriginSec - offsetSec },
+    { name: 'Séance', harmonizationPolicy: 'automatic' },
+  );
+
+  assertEqual(track.events.length, aligned.length, 'même nombre d\'événements');
+  for (let i = 0; i < aligned.length; i++) {
+    assertClose(track.events[i].startedAt, aligned[i].start, 1e-9,
+      `événement ${i} : début identique`);
+    assertClose(track.events[i].endedAt, aligned[i].end, 1e-9,
+      `événement ${i} : fin identique`);
+    assertEqual(track.events[i].midi, aligned[i].midi, `événement ${i} : hauteur identique`);
+  }
+});
+
+runTest('T52 — la piste de séance reste valide au sens du moteur canonique', () => {
+  const capture = createMidiCapture({ getTime: (() => {
+    const stamps = [500000, 500400, 500900, 501300];
+    let i = 0;
+    return () => stamps[Math.min(i++, stamps.length - 1)];
+  })() });
+  capture.noteOn(67, 0.7, 0, 'coach-live');
+  capture.noteOff(67, 0, 0, 'coach-live');
+  capture.noteOn(71, 0.7, 0, 'coach-live');
+  capture.noteOff(71, 0, 0, 'coach-live');
+  capture.finalize('session-stop');
+
+  const track = createMelodyTrack(
+    { notes: capture.getNotes(), sourceCaptureId: 'coach-live', startedAt: 499.9 },
+    { name: 'Séance', harmonizationPolicy: 'automatic' },
+  );
+  const validation = validateMelodyTrack(track);
+  assertTrue(validation.valid, (validation.errors || []).join('; '));
 });
 
 console.log(`\n=== Résultat : ${passed}/${total} tests passés ===`);

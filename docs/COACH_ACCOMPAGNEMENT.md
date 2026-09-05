@@ -188,15 +188,28 @@ Le clavier virtuel MIDI existant n'est pas touché — un test le vérifie.
 ### 8.3 Séance enregistrée pour la réécoute
 
 Question tranchée : **oui**. À l'arrêt, la capture est convertie en
-**MelodyTrack canonique** (`createMelodyTrack`, le pont d'EXP-030), et le
-rapport produit une liste de passages réécoutables — phrases les plus couvertes
-et respirations laissées sans réponse. Un clic rejoue la région correspondante
-du stem vocal, ce qui rend « écoutez la phrase 4 » réellement actionnable.
+**MelodyTrack canonique** (`createMelodyTrack`, le pont d'EXP-030). La piste
+reçoit pour origine l'instant de départ du stem **corrigé de la latence**, si
+bien que les temps de ses événements sont directement ceux du stem : la même
+piste sert de trace de la séance ET de source pour la réécoute, sans seconde
+conversion qui pourrait diverger. Deux tests (T51, T52) verrouillent cette
+égalité — si elle casse, le rapport et la réécoute ne parlent plus du même
+instant.
+
+La réécoute rejoue **la voix ET ce qui a été joué par-dessus**. Réécouter la
+voix seule ne dirait rien : c'est la superposition qui montre si le piano a
+couvert la phrase ou habité la respiration. Les deux sont planifiés dans le
+même AudioContext, à l'échantillon près — d'où le choix de synthétiser la voix
+de piano localement plutôt que d'appeler `simple-synth.js`, qui possède son
+propre AudioContext et joue à l'instant de l'appel, sans planification : les
+deux horloges dériveraient et la réécoute perdrait exactement ce qu'elle doit
+montrer.
 
 **Limite assumée** : la séance vit en mémoire pour la durée de la session
 applicative ; elle n'est pas persistée sur disque et ne survit donc pas à un
-redémarrage. La structure produite étant déjà canonique, l'y ajouter plus tard
-ne demandera pas de retoucher la mesure.
+redémarrage. La structure produite étant déjà canonique et validée
+(`validateMelodyTrack`), l'y ajouter plus tard ne demandera pas de retoucher la
+mesure.
 
 ### 8.4 Ce qui n'a pas pu être vérifié dans cette session
 
@@ -216,7 +229,7 @@ calculés, pas à l'œil.
 ## 9. État d'avancement
 
 - [x] Moteur couches 1 et 2 + rapport + sonde de latence
-- [x] Suite de tests moteur (51 tests)
+- [x] Suite de tests moteur (53 tests)
 - [x] Écran, branchement dans la sous-navigation, deux skins
 - [x] Test de contrat DOM (30 contrôles)
 - [x] Séance conservée en MelodyTrack + réécoute des passages cités
