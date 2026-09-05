@@ -12,6 +12,10 @@ import { createChordHistory } from './chord-history.js';
 import { createNoteGrouper } from './note-grouper.js';
 import { initAnalyzerTab } from './ui/analyzer-tab.js';
 import { initStudioTab } from './ui/studio-tab.js';
+// [Claude 05/09] — Coach d'accompagnement au chant : vue sœur de Sessions MIDI
+// dans la sous-navigation d'Entraînement. Reste un flux séparé, sans pont de
+// données avec Sessions MIDI (décision du 03/09, non rouverte).
+import { initCoachTab } from './ui/coach-tab.js';
 // [Refonte 03/09] — Sous-vue « Sessions MIDI » d'Entraînement, raccordée sur
 // demande explicite de Narcisse (décision : reste séparée de Coach
 // d'accompagnement, cf. spec-coach-accompagnement-chant.md).
@@ -143,6 +147,7 @@ const els = {
   practiceMidiStatusText: document.getElementById('practice-midi-status-text'),
   practiceRecordBtn: document.getElementById('practice-record-btn'),
   practiceViewMidiSessions: document.getElementById('practice-view-midi-sessions'),
+  practiceViewCoach: document.getElementById('practice-view-coach'),
 
   keyboardSize: document.getElementById('keyboard-size'),
   transposeInput: document.getElementById('transpose'),
@@ -872,9 +877,10 @@ function initPanelToggles() {
 // d'Entraînement (Temps réel ↔ Sessions MIDI), sur le même principe que
 // initTabNavigation() pour les onglets principaux : un clic sur une pilule
 // [data-view] déclenche l'évènement app-switch-training-view, un seul
-// gestionnaire l'écoute et bascule l'affichage. Coach d'accompagnement et
-// Pédagogie IA n'ont pas de data-view : elles restent des pilules
-// désactivées, il n'y a encore aucune vue à basculer pour elles.
+// gestionnaire l'écoute et bascule l'affichage.
+// [Claude 05/09] — Coach d'accompagnement a désormais sa vue
+// (#practice-view-coach) et son data-view ; seule Pédagogie IA reste une
+// pilule désactivée, faute de vue à basculer.
 // [Refonte 03/09] — Exercices a rejoint Sessions MIDI comme vraie destination
 // (data-view="exercise") au lieu d'un panneau qu'on ouvrait/fermait à côté de
 // Temps réel, sur demande explicite de Narcisse. La scène (#practice-center)
@@ -888,15 +894,25 @@ function initPanelToggles() {
 function initPracticeSubnavViews() {
   const practiceTab = els.practiceLayout;
   const workspace = document.querySelector('#practice-tab .training-workspace');
-  const midiView = els.practiceViewMidiSessions;
+
+  // [Claude 05/09] — Table vue → élément, au lieu du seul `midiView` codé en
+  // dur : chaque destination qui possède sa propre vue s'ajoute ici. « realtime »
+  // et « exercise » n'y figurent pas — elles partagent .training-workspace et se
+  // distinguent par data-training-view, que practice.css interprète.
+  const dedicatedViews = {
+    'midi-sessions': els.practiceViewMidiSessions,
+    coach: els.practiceViewCoach,
+  };
 
   function applyView(view) {
-    const isMidi = view === 'midi-sessions';
+    const dedicated = dedicatedViews[view] || null;
     if (practiceTab) practiceTab.dataset.trainingView = view;
-    if (workspace) workspace.style.display = isMidi ? 'none' : '';
-    if (midiView) {
-      midiView.style.display = isMidi ? 'flex' : 'none';
-      midiView.style.flexDirection = isMidi ? 'column' : '';
+    if (workspace) workspace.style.display = dedicated ? 'none' : '';
+    for (const [name, node] of Object.entries(dedicatedViews)) {
+      if (!node) continue;
+      const active = name === view;
+      node.style.display = active ? 'flex' : 'none';
+      node.style.flexDirection = active ? 'column' : '';
     }
     document.querySelectorAll('#practice-subnav .practice-mode-btn[data-view]').forEach((btn) => {
       const active = btn.dataset.view === view;
@@ -1169,6 +1185,10 @@ async function init() {
       ? { ...state.currentChord, name: formatChordResult(state.currentChord) }
       : null),
   });
+  // [Claude 05/09] — Coach d'accompagnement : initialisé comme Sessions MIDI,
+  // une fois pour toute l'application. Le module s'abonne lui-même à
+  // app-switch-training-view pour rafraîchir sa liste à l'ouverture.
+  initCoachTab();
   initAISettings();
   // [Claude] — 2026-07-08 — Initialisation de l'onglet Analyse simplifié (import → analyse → grille).
   initAnalyzerTab();

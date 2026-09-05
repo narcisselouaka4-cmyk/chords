@@ -158,9 +158,68 @@ toujours le jeu à une courbe d'activité vocale qui n'existe pas dans une sessi
 MIDI classique. Le bouton « Analyser cette session » de Sessions MIDI garde son
 comportement actuel.
 
-## 8. État d'avancement
+## 8. L'écran
+
+### 8.1 Une destination de sous-navigation, pas un panneau compagnon
+
+Le menu ☰ d'Entraînement n'existe plus (abandonné le 02/09). Le Coach est une
+**pilule de la sous-navigation**, exactement comme Sessions MIDI :
+
+- `src/index.html` : la pilule perd `is-placeholder`/`disabled` et gagne
+  `data-view="coach"` ; une vue sœur `#practice-view-coach` est ajoutée sur le
+  patron de `#practice-view-midi-sessions`, cachée par défaut.
+- `src/main.js` : `applyView()` ne connaissait que `midiView` en dur. Elle
+  s'appuie désormais sur une **table `{ vue → élément }**, ce qui la rend
+  extensible sans la dupliquer. « realtime » et « exercise » n'y figurent pas :
+  elles partagent `.training-workspace` et se distinguent par
+  `data-training-view`, que `practice.css` interprète — comportement inchangé.
+
+### 8.2 Discipline visuelle
+
+Aucune couleur nouvelle : tout dérive des variables `--r-*` existantes. Le
+sélecteur de style réutilise le vocabulaire `.segmented` déjà en place (mêmes
+déclarations que dans `analyse.css`, re-portées dans `practice.css` parce que
+ce fichier-là est scopé à `#analysis-tab`). Différenciation des deux skins
+conforme à la table du projet : Global = anguleux, aplats, filet d'accent en
+bordure ; v2 = arrondis, pilules, dégradés.
+
+Le clavier virtuel MIDI existant n'est pas touché — un test le vérifie.
+
+### 8.3 Séance enregistrée pour la réécoute
+
+Question tranchée : **oui**. À l'arrêt, la capture est convertie en
+**MelodyTrack canonique** (`createMelodyTrack`, le pont d'EXP-030), et le
+rapport produit une liste de passages réécoutables — phrases les plus couvertes
+et respirations laissées sans réponse. Un clic rejoue la région correspondante
+du stem vocal, ce qui rend « écoutez la phrase 4 » réellement actionnable.
+
+**Limite assumée** : la séance vit en mémoire pour la durée de la session
+applicative ; elle n'est pas persistée sur disque et ne survit donc pas à un
+redémarrage. La structure produite étant déjà canonique, l'y ajouter plus tard
+ne demandera pas de retoucher la mesure.
+
+### 8.4 Ce qui n'a pas pu être vérifié dans cette session
+
+Vérifié réellement, dans un navigateur, sur le serveur de développement :
+bascule de vue (la vue s'affiche, l'espace de travail et Sessions MIDI se
+masquent, la pilule devient active), rendu du sélecteur de style, état vide de
+la liste de morceaux, bouton de démarrage désactivé sans morceau, styles
+calculés des cartes de rapport **dans les deux skins**, et absence d'erreur
+console imputable au module.
+
+**Non vérifié faute de matériel accessible** : le déroulé complet d'une séance
+(il faut Electron, un clavier MIDI branché et un stem séparé par Demucs), et
+donc la valeur réelle de la latence sur ce poste. Les captures d'écran n'étaient
+pas disponibles non plus — la vérification visuelle s'est faite par styles
+calculés, pas à l'œil.
+
+## 9. État d'avancement
 
 - [x] Moteur couches 1 et 2 + rapport + sonde de latence
 - [x] Suite de tests moteur (51 tests)
-- [ ] Écran et branchement dans la sous-navigation
-- [ ] Enregistrement de la séance pour la réécoute
+- [x] Écran, branchement dans la sous-navigation, deux skins
+- [x] Test de contrat DOM (30 contrôles)
+- [x] Séance conservée en MelodyTrack + réécoute des passages cités
+- [ ] Calibration de la latence à faire tourner sur le poste, avec le clavier
+- [ ] Seuils de jugement à calibrer sur des séances réelles (§5)
+- [ ] Persistance des séances sur disque (facultatif)

@@ -846,8 +846,534 @@
   min-width: 100px;
 }
 
+/* ===================================================================== */
+/* Coach d'accompagnement au chant — vue sœur de Sessions MIDI.           */
+/* [Claude 05/09]                                                        */
+/*                                                                       */
+/* Aucune couleur nouvelle : tout dérive des variables --r-* existantes.  */
+/* Le vocabulaire est celui déjà en place — .segmented pour le sélecteur  */
+/* de style (mêmes déclarations que dans analyse.css, re-portées ici      */
+/* parce que ce fichier-là est scopé à #analysis-tab), colonne + carte    */
+/* comme « Musiques importées » et Sessions MIDI.                        */
+/* Différenciation des deux skins conforme à la table du projet :         */
+/* Global = anguleux, aplats, filet d'accent en bordure ;                 */
+/* v2     = arrondis, pilules, dégradés.                                  */
+/* ===================================================================== */
+
+:root[data-skin='global'] #practice-view-coach,
+:root[data-skin='v2'] #practice-view-coach {
+  flex: 1;
+  min-height: 0;
+  padding: 14px;
+}
+
+:root[data-skin='global'] #practice-view-coach .coach-layout,
+:root[data-skin='v2'] #practice-view-coach .coach-layout {
+  display: flex;
+  flex-direction: row;
+  gap: 14px;
+  height: 100%;
+  min-height: 0;
+}
+
+/* ── Colonne des morceaux ── */
+:root[data-skin='global'] #practice-view-coach .coach-sidebar,
+:root[data-skin='v2'] #practice-view-coach .coach-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--r-space-3);
+  width: clamp(240px, 22vw, 300px);
+  flex-shrink: 0;
+  padding: 16px;
+  background: var(--r-surface-elevated);
+  border: 1px solid var(--r-border-soft);
+  border-radius: var(--r-radius-card);
+  box-shadow: var(--r-shadow-card);
+  overflow: hidden;
+}
+:root[data-skin='global'] #practice-view-coach .coach-sidebar .panel-title,
+:root[data-skin='v2'] #practice-view-coach .coach-sidebar .panel-title {
+  font-weight: 800;
+  color: var(--r-text);
+}
+:root[data-skin='global'] #practice-view-coach .coach-track-list,
+:root[data-skin='v2'] #practice-view-coach .coach-track-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  min-height: 0;
+}
+:root[data-skin='global'] #practice-view-coach .coach-track-list::-webkit-scrollbar,
+:root[data-skin='v2'] #practice-view-coach .coach-track-list::-webkit-scrollbar {
+  width: 8px;
+}
+:root[data-skin='global'] #practice-view-coach .coach-track-list::-webkit-scrollbar-thumb,
+:root[data-skin='v2'] #practice-view-coach .coach-track-list::-webkit-scrollbar-thumb {
+  background: var(--r-border-strong);
+  border-radius: 4px;
+}
+
+:root[data-skin='global'] #practice-view-coach .coach-track-item,
+:root[data-skin='v2'] #practice-view-coach .coach-track-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  padding: 10px 12px;
+  cursor: pointer;
+  text-align: left;
+  background: var(--r-surface);
+  border: 1px solid var(--r-border);
+  color: var(--r-text);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+:root[data-skin='global'] #practice-view-coach .coach-track-item:hover,
+:root[data-skin='v2'] #practice-view-coach .coach-track-item:hover {
+  background: var(--r-surface-chip);
+}
+:root[data-skin='global'] #practice-view-coach .coach-track-name,
+:root[data-skin='v2'] #practice-view-coach .coach-track-name {
+  font-weight: 700;
+  font-size: 0.86rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+:root[data-skin='global'] #practice-view-coach .coach-track-badge,
+:root[data-skin='v2'] #practice-view-coach .coach-track-badge {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--r-text-faint);
+}
+:root[data-skin='global'] #practice-view-coach .coach-track-badge.ready,
+:root[data-skin='v2'] #practice-view-coach .coach-track-badge.ready {
+  color: var(--r-good);
+}
+:root[data-skin='global'] #practice-view-coach .coach-empty,
+:root[data-skin='v2'] #practice-view-coach .coach-empty {
+  color: var(--r-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+/* Global : arêtes vives, sélection marquée par un filet d'accent en bordure. */
+:root[data-skin='global'] #practice-view-coach .coach-track-item {
+  border-radius: 0;
+  border-left: 2px solid transparent;
+}
+:root[data-skin='global'] #practice-view-coach .coach-track-item.active {
+  border-left-color: var(--r-accent);
+  background: var(--r-surface-chip);
+}
+/* v2 : coins arrondis, sélection par aplat teinté. */
+:root[data-skin='v2'] #practice-view-coach .coach-track-item {
+  border-radius: var(--r-radius-btn);
+}
+:root[data-skin='v2'] #practice-view-coach .coach-track-item.active {
+  background: var(--r-accent-soft);
+  border-color: var(--r-accent);
+}
+
+/* ── Colonne principale ── */
+:root[data-skin='global'] #practice-view-coach .coach-main,
+:root[data-skin='v2'] #practice-view-coach .coach-main {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--r-space-4);
+  padding: 18px;
+  overflow-y: auto;
+  background: var(--r-surface-elevated);
+  border: 1px solid var(--r-border-soft);
+  border-radius: var(--r-radius-card);
+  box-shadow: var(--r-shadow-card);
+}
+:root[data-skin='global'] #practice-view-coach .coach-selected-name,
+:root[data-skin='v2'] #practice-view-coach .coach-selected-name {
+  margin: 0 0 4px;
+  font-family: var(--r-font-title);
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--r-text);
+}
+:root[data-skin='global'] #practice-view-coach .coach-intro,
+:root[data-skin='v2'] #practice-view-coach .coach-intro {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--r-text-muted);
+  max-width: 62ch;
+}
+
+:root[data-skin='global'] #practice-view-coach .coach-setup,
+:root[data-skin='v2'] #practice-view-coach .coach-setup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--r-space-4);
+}
+:root[data-skin='global'] #practice-view-coach .coach-field,
+:root[data-skin='v2'] #practice-view-coach .coach-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--r-space-2);
+}
+:root[data-skin='global'] #practice-view-coach .coach-field-label,
+:root[data-skin='v2'] #practice-view-coach .coach-field-label,
+:root[data-skin='global'] #practice-view-coach .coach-setting-label,
+:root[data-skin='v2'] #practice-view-coach .coach-setting-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--r-text-faint);
+}
+
+/* Sélecteur de style — mêmes déclarations que le .segmented d'Analyse. */
+:root[data-skin='global'] #practice-view-coach .segmented,
+:root[data-skin='v2'] #practice-view-coach .segmented {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--r-segmented-radius);
+  border: 1px solid var(--r-border-strong);
+  background: var(--r-surface-chip);
+  width: fit-content;
+}
+:root[data-skin='global'] #practice-view-coach .segmented button,
+:root[data-skin='v2'] #practice-view-coach .segmented button {
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  border-radius: var(--r-segmented-radius);
+  padding: 6px 14px;
+  font-family: var(--r-font-title);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--r-text-muted);
+  background: transparent;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+:root[data-skin='global'] #practice-view-coach .segmented button[aria-pressed='true'],
+:root[data-skin='v2'] #practice-view-coach .segmented button[aria-pressed='true'] {
+  color: var(--r-segmented-active-fg);
+  background: var(--r-segmented-active-bg);
+}
+:root[data-skin='global'] #practice-view-coach .segmented button:disabled,
+:root[data-skin='v2'] #practice-view-coach .segmented button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Réglage de la respiration minimale. */
+:root[data-skin='global'] #practice-view-coach #coach-phrase-setting,
+:root[data-skin='v2'] #practice-view-coach #coach-phrase-setting {
+  display: grid;
+  grid-template-columns: auto 200px auto;
+  align-items: center;
+  gap: var(--r-space-3);
+}
+:root[data-skin='global'] #practice-view-coach #coach-phrase-setting .coach-setting-hint,
+:root[data-skin='v2'] #practice-view-coach #coach-phrase-setting .coach-setting-hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: var(--r-text-muted);
+  max-width: 62ch;
+}
+:root[data-skin='global'] #practice-view-coach .coach-setting-value,
+:root[data-skin='v2'] #practice-view-coach .coach-setting-value {
+  font-family: var(--r-font-mono);
+  font-size: 0.8rem;
+  color: var(--r-text);
+}
+
+/* Ligne de latence : c'est une information sur la fiabilité, pas un réglage. */
+:root[data-skin='global'] #practice-view-coach .coach-latency,
+:root[data-skin='v2'] #practice-view-coach .coach-latency {
+  font-size: 0.78rem;
+  line-height: 1.5;
+  padding: 8px 12px;
+  border-left: 2px solid var(--r-warn);
+  background: var(--r-surface-chip);
+  color: var(--r-text-muted);
+  max-width: 72ch;
+}
+:root[data-skin='global'] #practice-view-coach .coach-latency.ok,
+:root[data-skin='v2'] #practice-view-coach .coach-latency.ok {
+  border-left-color: var(--r-good);
+}
+:root[data-skin='v2'] #practice-view-coach .coach-latency {
+  border-radius: var(--r-radius-btn);
+}
+
+/* ── Actions ── */
+:root[data-skin='global'] #practice-view-coach .coach-actions,
+:root[data-skin='v2'] #practice-view-coach .coach-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--r-space-3);
+}
+:root[data-skin='global'] #practice-view-coach .coach-primary-btn,
+:root[data-skin='v2'] #practice-view-coach .coach-primary-btn,
+:root[data-skin='global'] #practice-view-coach .coach-secondary-btn,
+:root[data-skin='v2'] #practice-view-coach .coach-secondary-btn {
+  padding: 10px 18px;
+  border-radius: var(--r-radius-btn);
+  border: 1px solid transparent;
+  font-family: var(--r-font-title);
+  font-weight: 700;
+  font-size: 0.86rem;
+  cursor: pointer;
+  transition: filter 0.15s ease, background 0.15s ease;
+}
+:root[data-skin='global'] #practice-view-coach .coach-primary-btn,
+:root[data-skin='v2'] #practice-view-coach .coach-primary-btn {
+  background: var(--r-accent);
+  color: var(--r-accent-contrast, #fff);
+}
+:root[data-skin='v2'] #practice-view-coach .coach-primary-btn {
+  background: var(--r-grad);
+}
+:root[data-skin='global'] #practice-view-coach .coach-primary-btn:hover:not(:disabled),
+:root[data-skin='v2'] #practice-view-coach .coach-primary-btn:hover:not(:disabled),
+:root[data-skin='global'] #practice-view-coach .coach-secondary-btn:hover:not(:disabled),
+:root[data-skin='v2'] #practice-view-coach .coach-secondary-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+:root[data-skin='global'] #practice-view-coach .coach-secondary-btn,
+:root[data-skin='v2'] #practice-view-coach .coach-secondary-btn {
+  background: var(--r-surface-chip);
+  border-color: var(--r-border-strong);
+  color: var(--r-text);
+}
+:root[data-skin='global'] #practice-view-coach .coach-primary-btn:disabled,
+:root[data-skin='v2'] #practice-view-coach .coach-primary-btn:disabled,
+:root[data-skin='global'] #practice-view-coach .coach-secondary-btn:disabled,
+:root[data-skin='v2'] #practice-view-coach .coach-secondary-btn:disabled {
+  background: var(--r-surface);
+  color: var(--r-text-faint);
+  border-color: var(--r-border);
+  cursor: not-allowed;
+  filter: none;
+}
+:root[data-skin='global'] #practice-view-coach .coach-primary-btn {
+  border-radius: 0;
+}
+:root[data-skin='global'] #practice-view-coach .coach-secondary-btn {
+  border-radius: 0;
+}
+
+:root[data-skin='global'] #practice-view-coach .coach-timer,
+:root[data-skin='v2'] #practice-view-coach .coach-timer {
+  font-family: var(--r-font-mono);
+  font-size: 0.9rem;
+  color: var(--r-text);
+}
+:root[data-skin='global'] #practice-view-coach .coach-live-notice,
+:root[data-skin='v2'] #practice-view-coach .coach-live-notice {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--r-accent-text, var(--r-accent));
+}
+:root[data-skin='global'] #practice-view-coach .coach-status,
+:root[data-skin='v2'] #practice-view-coach .coach-status {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--r-text-muted);
+  max-width: 72ch;
+}
+:root[data-skin='global'] #practice-view-coach .coach-status[data-tone='error'],
+:root[data-skin='v2'] #practice-view-coach .coach-status[data-tone='error'] {
+  color: var(--r-error);
+}
+:root[data-skin='global'] #practice-view-coach .coach-status[data-tone='ok'],
+:root[data-skin='v2'] #practice-view-coach .coach-status[data-tone='ok'] {
+  color: var(--r-good);
+}
+
+/* ── Compte à rebours 3-2-1 ── */
+:root[data-skin='global'] #practice-view-coach .coach-countdown,
+:root[data-skin='v2'] #practice-view-coach .coach-countdown {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--r-font-title);
+  font-size: clamp(4rem, 18vw, 10rem);
+  font-weight: 800;
+  color: var(--r-accent);
+  background: var(--r-overlay);
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* ── Rapport en trois parties ── */
+:root[data-skin='global'] #practice-view-coach .coach-report,
+:root[data-skin='v2'] #practice-view-coach .coach-report {
+  display: flex;
+  flex-direction: column;
+  gap: var(--r-space-4);
+}
+:root[data-skin='global'] #practice-view-coach .coach-report-title,
+:root[data-skin='v2'] #practice-view-coach .coach-report-title {
+  margin: 0 0 4px;
+  font-family: var(--r-font-title);
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--r-text);
+}
+:root[data-skin='global'] #practice-view-coach .coach-report-sub,
+:root[data-skin='v2'] #practice-view-coach .coach-report-sub {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--r-text-muted);
+}
+:root[data-skin='global'] #practice-view-coach .coach-cards,
+:root[data-skin='v2'] #practice-view-coach .coach-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--r-space-3);
+}
+:root[data-skin='global'] #practice-view-coach .coach-card,
+:root[data-skin='v2'] #practice-view-coach .coach-card {
+  padding: 14px 16px;
+  background: var(--r-surface);
+  border: 1px solid var(--r-border);
+  border-left: 3px solid var(--r-border-strong);
+}
+:root[data-skin='v2'] #practice-view-coach .coach-card {
+  border-radius: var(--r-radius-card);
+}
+:root[data-skin='global'] #practice-view-coach .coach-card.is-good,
+:root[data-skin='v2'] #practice-view-coach .coach-card.is-good {
+  border-left-color: var(--r-good);
+}
+:root[data-skin='global'] #practice-view-coach .coach-card.is-blocker,
+:root[data-skin='v2'] #practice-view-coach .coach-card.is-blocker {
+  border-left-color: var(--r-coral);
+}
+:root[data-skin='global'] #practice-view-coach .coach-card.is-lighten,
+:root[data-skin='v2'] #practice-view-coach .coach-card.is-lighten {
+  border-left-color: var(--r-warn);
+}
+:root[data-skin='global'] #practice-view-coach .coach-card.is-replay,
+:root[data-skin='v2'] #practice-view-coach .coach-card.is-replay,
+:root[data-skin='global'] #practice-view-coach .coach-card.is-facts,
+:root[data-skin='v2'] #practice-view-coach .coach-card.is-facts,
+:root[data-skin='global'] #practice-view-coach .coach-card.is-calibration,
+:root[data-skin='v2'] #practice-view-coach .coach-card.is-calibration {
+  border-left-color: var(--r-accent);
+}
+:root[data-skin='global'] #practice-view-coach .coach-card-title,
+:root[data-skin='v2'] #practice-view-coach .coach-card-title {
+  margin: 0 0 10px;
+  font-family: var(--r-font-title);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--r-text-faint);
+}
+:root[data-skin='global'] #practice-view-coach .coach-finding-list,
+:root[data-skin='v2'] #practice-view-coach .coach-finding-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--r-space-3);
+}
+:root[data-skin='global'] #practice-view-coach .coach-finding,
+:root[data-skin='v2'] #practice-view-coach .coach-finding {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+:root[data-skin='global'] #practice-view-coach .coach-finding-text,
+:root[data-skin='v2'] #practice-view-coach .coach-finding-text {
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: var(--r-text);
+}
+/* Une observation peu fiable le dit d'elle-même, à côté de son texte : la
+   confiance ne doit jamais rester dans les données sans atteindre l'écran. */
+:root[data-skin='global'] #practice-view-coach .coach-finding-flag,
+:root[data-skin='v2'] #practice-view-coach .coach-finding-flag {
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--r-warn);
+}
+
+:root[data-skin='global'] #practice-view-coach .coach-replay-list,
+:root[data-skin='v2'] #practice-view-coach .coach-replay-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--r-space-2);
+}
+:root[data-skin='global'] #practice-view-coach .coach-replay-btn,
+:root[data-skin='v2'] #practice-view-coach .coach-replay-btn {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  background: var(--r-surface-chip);
+  border: 1px solid var(--r-border-strong);
+  color: var(--r-text);
+  font-size: 0.8rem;
+  font-weight: 700;
+  transition: background 0.15s ease;
+}
+:root[data-skin='v2'] #practice-view-coach .coach-replay-btn {
+  border-radius: 100px;
+}
+:root[data-skin='global'] #practice-view-coach .coach-replay-btn:hover,
+:root[data-skin='v2'] #practice-view-coach .coach-replay-btn:hover {
+  background: var(--r-accent-soft);
+}
+:root[data-skin='global'] #practice-view-coach .coach-replay-time,
+:root[data-skin='v2'] #practice-view-coach .coach-replay-time {
+  font-family: var(--r-font-mono);
+  font-size: 0.74rem;
+  color: var(--r-text-muted);
+}
+:root[data-skin='global'] #practice-view-coach .coach-calibration-text,
+:root[data-skin='v2'] #practice-view-coach .coach-calibration-text {
+  margin: 0 0 8px;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--r-text-muted);
+  max-width: 78ch;
+}
+
 /* ── Réactivité ── */
 @media (max-width: 860px) {
+  :root[data-skin='global'] #practice-view-coach .coach-layout,
+  :root[data-skin='v2'] #practice-view-coach .coach-layout {
+    flex-direction: column;
+  }
+  :root[data-skin='global'] #practice-view-coach .coach-sidebar,
+  :root[data-skin='v2'] #practice-view-coach .coach-sidebar {
+    width: 100%;
+    max-height: 30vh;
+  }
+  :root[data-skin='global'] #practice-view-coach #coach-phrase-setting,
+  :root[data-skin='v2'] #practice-view-coach #coach-phrase-setting {
+    grid-template-columns: 1fr;
+  }
   :root[data-skin='global'] #practice-tab .quick-exercise-panel,
   :root[data-skin='v2'] #practice-tab .quick-exercise-panel {
     border-radius: 0;
