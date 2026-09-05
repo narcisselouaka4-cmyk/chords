@@ -20,6 +20,7 @@ import { labelNotes, labelSegments, mergeSameLabel } from './chord-labeling.js';
 import { detectVideoFormat, FORMATS, explainUnrecognised } from './format-detector.js';
 import { crossCheck, DIVERGENCE, rootPitchClass, isMinorLabel } from './cross-check.js';
 import { collectConcepts, collectMissing, getEntry, GLOSSARY, noNarrationState } from './glossary.js';
+import { normalizeAnalyzerChords } from './audio-fallback.js';
 
 let total = 0;
 let passed = 0;
@@ -578,6 +579,45 @@ runTest('T53 — absence de narration : état explicite, pas un panneau vide', (
   const s = noNarrationState();
   assertEqual(s.available, false);
   assertTrue(s.message.includes('rien à citer'), 'l\'absence est dite, pas masquée');
+});
+
+// ---------------------------------------------------------------------------
+// Repli audio — traduction des champs du moteur d'analyse
+// (correctif : correctif-pedagogie-ia-repli-audio-champs.md)
+// ---------------------------------------------------------------------------
+
+runTest('T54 — les bornes du moteur (startTime/endTime) sont reconnues', () => {
+  const segs = normalizeAnalyzerChords({
+    chords: [
+      { startTime: 0, endTime: 2.5, chord: 'D' },
+      { startTime: 2.5, endTime: 5, chord: 'A' },
+    ],
+  });
+  assertEqual(segs.length, 2, 'les deux accords sont conservés :');
+  assertClose(segs[0].start, 0, 1e-9, 'début du premier :');
+  assertClose(segs[0].end, 2.5, 1e-9, 'fin du premier :');
+  assertEqual(segs[1].label, 'A');
+});
+
+runTest('T55 — une borne absente écarte le segment au lieu de le caler sur 0', () => {
+  const segs = normalizeAnalyzerChords({
+    chords: [
+      { startTime: 3, chord: 'D' },
+      { endTime: 4, chord: 'A' },
+      { startTime: 4, endTime: 4, chord: 'E' },
+    ],
+  });
+  assertEqual(segs.length, 0, 'aucun segment fabriqué à partir de bornes manquantes :');
+});
+
+runTest('T56 — les noms alternatifs restent acceptés en second rang', () => {
+  const segs = normalizeAnalyzerChords({
+    segments: [{ start: 1, end: 2, label: 'F#m' }],
+  });
+  assertEqual(segs.length, 1);
+  assertEqual(segs[0].label, 'F#m');
+  assertDeep(normalizeAnalyzerChords(null), [], 'un résultat absent ne casse rien :');
+  assertDeep(normalizeAnalyzerChords({ chords: 'oups' }), [], 'un champ mal typé ne casse rien :');
 });
 
 console.log(`\n=== Résultat : ${passed}/${total} tests passés ===`);

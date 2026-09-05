@@ -17,6 +17,7 @@ import { formatMediaDuration } from './media-format.js';
 import { buildVideoAnalysis, buildAudioOnlyAnalysis } from '../pedagogie/video-analysis.js';
 import { explainUnrecognised } from '../pedagogie/format-detector.js';
 import { crossCheck, DIVERGENCE } from '../pedagogie/cross-check.js';
+import { normalizeAnalyzerChords } from '../pedagogie/audio-fallback.js';
 
 const els = {};
 let tracks = [];
@@ -214,6 +215,10 @@ async function analyzeSelected() {
  * Repli audio : réutilise le pipeline d'analyse d'accords déjà en place
  * (`analyzer:process-file`), en mode `posthoc_discriminator`, plutôt que d'en
  * écrire un second. C'est le même moteur que l'onglet Analyse.
+ *
+ * La traduction des champs vit dans `src/pedagogie/audio-fallback.js` : elle
+ * lisait `start` / `end` là où le moteur écrit `startTime` / `endTime`, et
+ * vidait donc la grille en silence. Voir l'en-tête de ce module.
  */
 async function runAudioFallback(originalPath) {
   const api = window.electronAPI;
@@ -222,14 +227,7 @@ async function runAudioFallback(originalPath) {
     analyzeBass: false,
     observationMode: 'posthoc_discriminator',
   });
-  const segments = (result?.chords || result?.segments || [])
-    .map((c) => ({
-      start: Number(c.start ?? c.time ?? 0),
-      end: Number(c.end ?? 0),
-      label: c.chord ?? c.label ?? c.name ?? null,
-    }))
-    .filter((c) => c.label && Number.isFinite(c.start) && c.end > c.start);
-  return { segments, key: result?.key ?? null };
+  return { segments: normalizeAnalyzerChords(result), key: result?.key ?? null };
 }
 
 // ---------------------------------------------------------------------------

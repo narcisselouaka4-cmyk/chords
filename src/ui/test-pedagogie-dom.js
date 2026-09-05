@@ -111,6 +111,11 @@ check('Le repli audio passe par analyzer.processFile, pas par un second moteur',
   tabCode.includes('analyzer.processFile'));
 check('Le repli audio demande le mode posthoc_discriminator',
   tabCode.includes('posthoc_discriminator'));
+check('Le repli audio traduit les bornes par le module pur, pas à la main',
+  tabCode.includes('normalizeAnalyzerChords'));
+check('La traduction lit bien startTime/endTime, les noms du moteur',
+  readText('src/pedagogie/audio-fallback.js').includes('c?.startTime')
+  && readText('src/pedagogie/audio-fallback.js').includes('c?.endTime'));
 
 // ---------------------------------------------------------------------------
 // 7. Garde-fous du projet
