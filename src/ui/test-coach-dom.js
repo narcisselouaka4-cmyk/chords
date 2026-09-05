@@ -29,9 +29,15 @@ const practiceCss = readText('src/ui/refonte/practice.css');
  * pourquoi elle est interdite ne doit pas déclencher d'alerte.
  */
 function stripComments(source) {
+  // Les commentaires de LIGNE sont retirés d'abord, et les blocs ensuite.
+  // L'ordre inverse est un piège réel, rencontré ici : un commentaire de ligne
+  // qui cite un chemin comme « src/pedagogie/* » contient la séquence
+  // d'ouverture d'un bloc, et le motif de bloc avalait alors tout le fichier
+  // jusqu'au prochain « */ » — faisant échouer des contrôles portant sur du
+  // code parfaitement présent.
   return source
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/^\s*\/\/.*$/gm, '');
+    .replace(/^\s*\/\/.*$/gm, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '');
 }
 
 const coachCode = stripComments(coachJs);
