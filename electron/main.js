@@ -7,6 +7,13 @@ import fs from 'fs/promises';
 import fsSync from 'fs';
 import { spawn } from 'child_process';
 import { pathToFileURL } from 'url';
+// [Claude 05/09] — Pédagogie IA : lecture d'un tutoriel à l'image. Les briques
+// sont pures et partagées avec le rendu ; seule l'extraction des images vit ici,
+// parce qu'elle a besoin de ffmpeg et doit travailler en flux pour que la
+// mémoire n'enfle pas sur une vidéo longue.
+import { createFrame } from '../src/pedagogie/frame.js';
+import { detectVideoFormat } from '../src/pedagogie/format-detector.js';
+import { readLitKeys } from '../src/pedagogie/key-detection.js';
 
 // [OpenCode] — 2026-07-04 — Charge .env s'il existe (sans dépendance dotenv)
 try {
@@ -1181,6 +1188,153 @@ function setupStudioIPC() {
   // 30 secondes (18 ms d'écart entre deux : la répétition clavier d'un bouton
   // resté focusable sous l'overlay). Le renderer se garde aussi de son côté ;
   // ce verrou-ci est le filet de sécurité, il ne peut pas être contourné.
+  // [Claude 05/09] — Pédagogie IA : analyse d'un tutoriel vidéo à l'image.
+  //
+  // Deux passes ffmpeg, sur le même patron de spawn que le remux
+  // d'enregistrement Studio plus bas (même binaire, même mécanisme éprouvé) :
+  //
+  //   1. sondage — quelques images réparties sur toute la durée, pour
+  //      reconnaître le format. Réparties, et non prises au début : beaucoup de
+  //      tutoriels s'ouvrent sur un titre ou un visage avant l'instrument.
+  //   2. relevé — flux d'images à la cadence d'échantillonnage. Chaque image est
+  //      lue puis JETÉE : seules les touches allumées sont conservées. C'est ce
+  //      qui permet d'analyser une vidéo longue sans faire enfler la mémoire
+  //      (une image 640×360 pèse 691 ko ; dix minutes à 4 i/s en pèseraient 1,6 Go).
+  //
+  // Rien n'est écrit sur le disque : ni PNG intermédiaires, ni WAV. Le dossier
+  // de travail du projet reste réservé à l'audio.
+  ipcMain.handle('pedagogie:analyze-video', async (event, filePath, options = {}) => {
+    const sampleFps = Number(options.sampleFps) || 4;
+    const maxProbes = Number(options.maxProbes) || 24;
+
+    const dims = await probeVideoDimensions(filePath);
+    if (!dims) {
+      return {
+        ok: false,
+        reason: 'NoVideoStream',
+        message: 'Ce fichier ne contient pas de piste vidéo exploitable.',
+      };
+    }
+    const { width, height, duration } = dims;
+    const frameBytes = width * height * 3;
+
+    // 1. Sondage.
+    const probeFps = duration > 0 ? Math.min(1, maxProbes / duration) : 1;
+    const probeBuffers = await collectFrames(filePath, probeFps, frameBytes, maxProbes);
+    const probes = probeBuffers.map((b) => createFrame(b, width, height, 3));
+    const format = detectVideoFormat(probes);
+
+    if (!format.implemented) {
+      return {
+        ok: true,
+        format: format.format,
+        implemented: false,
+        fallback: format.fallback,
+        reason: format.reason,
+        confidence: format.confidence,
+        video: { width, height, duration },
+      };
+    }
+
+    // 2. Relevé en flux.
+    const geometry = format.geometry;
+    const samples = [];
+    await streamFrames(filePath, sampleFps, frameBytes, (buf, index) => {
+      const frame = createFrame(buf, width, height, 3);
+      samples.push({ t: index / sampleFps, keys: readLitKeys(frame, geometry) });
+    });
+
+    return {
+      ok: true,
+      format: format.format,
+      implemented: true,
+      confidence: format.confidence,
+      sampleInterval: 1 / sampleFps,
+      samples,
+      video: { width, height, duration },
+      geometry: {
+        lowestMidi: geometry.lowestMidi,
+        highestMidi: geometry.highestMidi,
+        anchorIsHeuristic: geometry.anchorIsHeuristic,
+        whiteKeyCount: geometry.whiteKeys.length,
+        blackKeyCount: geometry.blackKeys.length,
+      },
+    };
+  });
+
+  /** Dimensions et durée de la piste vidéo, via ffprobe (compagnon de ffmpeg). */
+  function probeVideoDimensions(filePath) {
+    return new Promise((resolve) => {
+      const proc = spawn('ffprobe', [
+        '-v', 'error',
+        '-select_streams', 'v:0',
+        '-show_entries', 'stream=width,height',
+        '-show_entries', 'format=duration',
+        '-of', 'json',
+        filePath,
+      ], { shell: false });
+      let out = '';
+      proc.stdout.on('data', (d) => { out += d.toString(); });
+      proc.on('error', () => resolve(null));
+      proc.on('exit', (code) => {
+        if (code !== 0) { resolve(null); return; }
+        try {
+          const json = JSON.parse(out);
+          const stream = json.streams?.[0];
+          if (!stream?.width || !stream?.height) { resolve(null); return; }
+          resolve({
+            width: stream.width,
+            height: stream.height,
+            duration: Number(json.format?.duration) || 0,
+          });
+        } catch (_) { resolve(null); }
+      });
+    });
+  }
+
+  /** Diffuse les images décodées, une par une, sans jamais toutes les garder. */
+  function streamFrames(filePath, fps, frameBytes, onFrame) {
+    return new Promise((resolve, reject) => {
+      const proc = trackChild(spawn('ffmpeg', [
+        '-v', 'error',
+        '-i', filePath,
+        '-vf', `fps=${fps}`,
+        '-f', 'rawvideo',
+        '-pix_fmt', 'rgb24',
+        '-',
+      ], { shell: false }));
+      let pending = Buffer.alloc(0);
+      let index = 0;
+      let stderr = '';
+      proc.stdout.on('data', (chunk) => {
+        pending = pending.length ? Buffer.concat([pending, chunk]) : chunk;
+        while (pending.length >= frameBytes) {
+          const frame = pending.subarray(0, frameBytes);
+          pending = pending.subarray(frameBytes);
+          try { onFrame(frame, index); } catch (err) {
+            console.warn('[Pedagogie] lecture d\'image échouée:', err.message);
+          }
+          index++;
+        }
+      });
+      proc.stderr.on('data', (d) => { stderr += d.toString(); });
+      proc.on('error', reject);
+      proc.on('exit', (code) => {
+        if (code !== 0 && index === 0) reject(new Error(stderr || `ffmpeg exit ${code}`));
+        else resolve(index);
+      });
+    });
+  }
+
+  /** Collecte au plus `limit` images, pour le sondage de format. */
+  async function collectFrames(filePath, fps, frameBytes, limit) {
+    const out = [];
+    await streamFrames(filePath, fps, frameBytes, (buf) => {
+      if (out.length < limit) out.push(Buffer.from(buf));
+    });
+    return out;
+  }
+
   ipcMain.handle('analyzer:process-file', async (event, filePath, options = {}) => {
     const key = JSON.stringify([filePath, options]);
     if (analysisInFlight) {

@@ -16,6 +16,9 @@ import { initStudioTab } from './ui/studio-tab.js';
 // dans la sous-navigation d'Entraînement. Reste un flux séparé, sans pont de
 // données avec Sessions MIDI (décision du 03/09, non rouverte).
 import { initCoachTab } from './ui/coach-tab.js';
+// [Claude 05/09] — Pédagogie IA : lecture d'un tutoriel vidéo. Vue sœur de
+// Coach d'accompagnement dans la sous-navigation d'Entraînement.
+import { initPedagogieTab } from './ui/pedagogie-tab.js';
 // [Refonte 03/09] — Sous-vue « Sessions MIDI » d'Entraînement, raccordée sur
 // demande explicite de Narcisse (décision : reste séparée de Coach
 // d'accompagnement, cf. spec-coach-accompagnement-chant.md).
@@ -148,6 +151,7 @@ const els = {
   practiceRecordBtn: document.getElementById('practice-record-btn'),
   practiceViewMidiSessions: document.getElementById('practice-view-midi-sessions'),
   practiceViewCoach: document.getElementById('practice-view-coach'),
+  practiceViewPedagogie: document.getElementById('practice-view-pedagogie'),
 
   keyboardSize: document.getElementById('keyboard-size'),
   transposeInput: document.getElementById('transpose'),
@@ -878,9 +882,8 @@ function initPanelToggles() {
 // initTabNavigation() pour les onglets principaux : un clic sur une pilule
 // [data-view] déclenche l'évènement app-switch-training-view, un seul
 // gestionnaire l'écoute et bascule l'affichage.
-// [Claude 05/09] — Coach d'accompagnement a désormais sa vue
-// (#practice-view-coach) et son data-view ; seule Pédagogie IA reste une
-// pilule désactivée, faute de vue à basculer.
+// [Claude 05/09] — Coach d'accompagnement et Pédagogie IA ont désormais chacune
+// leur vue et leur data-view ; plus aucune pilule n'est un placeholder.
 // [Refonte 03/09] — Exercices a rejoint Sessions MIDI comme vraie destination
 // (data-view="exercise") au lieu d'un panneau qu'on ouvrait/fermait à côté de
 // Temps réel, sur demande explicite de Narcisse. La scène (#practice-center)
@@ -902,6 +905,7 @@ function initPracticeSubnavViews() {
   const dedicatedViews = {
     'midi-sessions': els.practiceViewMidiSessions,
     coach: els.practiceViewCoach,
+    pedagogie: els.practiceViewPedagogie,
   };
 
   function applyView(view) {
@@ -1189,6 +1193,8 @@ async function init() {
   // une fois pour toute l'application. Le module s'abonne lui-même à
   // app-switch-training-view pour rafraîchir sa liste à l'ouverture.
   initCoachTab();
+  // [Claude 05/09] — Pédagogie IA, initialisée comme les autres vues dédiées.
+  initPedagogieTab();
   initAISettings();
   // [Claude] — 2026-07-08 — Initialisation de l'onglet Analyse simplifié (import → analyse → grille).
   initAnalyzerTab();

@@ -1359,8 +1359,433 @@
   max-width: 78ch;
 }
 
+/* ===================================================================== */
+/* Pédagogie IA — vue sœur de Coach d'accompagnement.  [Claude 05/09]     */
+/*                                                                       */
+/* Aucune couleur nouvelle : tout dérive des --r-* existantes. La         */
+/* colonne + carte reprend exactement le vocabulaire déjà posé pour       */
+/* Sessions MIDI et Coach d'accompagnement dans ce même fichier.          */
+/* Global = anguleux, filet d'accent en bordure ; v2 = arrondis, pilules. */
+/* ===================================================================== */
+
+:root[data-skin='global'] #practice-view-pedagogie,
+:root[data-skin='v2'] #practice-view-pedagogie {
+  flex: 1;
+  min-height: 0;
+  padding: 14px;
+}
+
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-layout,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-layout {
+  display: flex;
+  flex-direction: row;
+  gap: 14px;
+  height: 100%;
+  min-height: 0;
+}
+
+/* ── Colonne des tutoriels ── */
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-sidebar,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--r-space-3);
+  width: clamp(240px, 22vw, 300px);
+  flex-shrink: 0;
+  padding: 16px;
+  background: var(--r-surface-elevated);
+  border: 1px solid var(--r-border-soft);
+  border-radius: var(--r-radius-card);
+  box-shadow: var(--r-shadow-card);
+  overflow: hidden;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-sidebar .panel-title,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-sidebar .panel-title {
+  font-weight: 800;
+  color: var(--r-text);
+}
+:root[data-skin='global'] #practice-view-pedagogie .panel-action,
+:root[data-skin='v2'] #practice-view-pedagogie .panel-action {
+  padding: 10px 14px;
+  border-radius: var(--r-radius-btn);
+  border: none;
+  background: var(--r-accent);
+  color: var(--r-accent-contrast, #fff);
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+:root[data-skin='global'] #practice-view-pedagogie .panel-action {
+  border-radius: 0;
+}
+:root[data-skin='global'] #practice-view-pedagogie .panel-action:hover:not(:disabled),
+:root[data-skin='v2'] #practice-view-pedagogie .panel-action:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+:root[data-skin='global'] #practice-view-pedagogie .panel-action:disabled,
+:root[data-skin='v2'] #practice-view-pedagogie .panel-action:disabled {
+  background: var(--r-surface);
+  color: var(--r-text-faint);
+  cursor: not-allowed;
+  filter: none;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-track-list,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-track-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  min-height: 0;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-track-list::-webkit-scrollbar,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-track-list::-webkit-scrollbar {
+  width: 8px;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-track-list::-webkit-scrollbar-thumb,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-track-list::-webkit-scrollbar-thumb {
+  background: var(--r-border-strong);
+  border-radius: 4px;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-track-item,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-track-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  padding: 10px 12px;
+  cursor: pointer;
+  text-align: left;
+  background: var(--r-surface);
+  border: 1px solid var(--r-border);
+  color: var(--r-text);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-track-item:hover,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-track-item:hover {
+  background: var(--r-surface-chip);
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-track-item {
+  border-radius: 0;
+  border-left: 2px solid transparent;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-track-item.active {
+  border-left-color: var(--r-accent);
+  background: var(--r-surface-chip);
+}
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-track-item {
+  border-radius: var(--r-radius-btn);
+}
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-track-item.active {
+  background: var(--r-accent-soft);
+  border-color: var(--r-accent);
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-track-name,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-track-name {
+  font-weight: 700;
+  font-size: 0.86rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-track-meta,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-track-meta {
+  font-size: 0.7rem;
+  font-family: var(--r-font-mono);
+  color: var(--r-text-faint);
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-empty,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-empty {
+  margin: 0;
+  color: var(--r-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+/* ── Colonne principale ── */
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-main,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--r-space-4);
+  padding: 18px;
+  overflow-y: auto;
+  background: var(--r-surface-elevated);
+  border: 1px solid var(--r-border-soft);
+  border-radius: var(--r-radius-card);
+  box-shadow: var(--r-shadow-card);
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-selected-name,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-selected-name {
+  margin: 0 0 4px;
+  font-family: var(--r-font-title);
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--r-text);
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-intro,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-intro {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--r-text-muted);
+  max-width: 66ch;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-actions,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--r-space-3);
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-primary-btn,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-primary-btn {
+  padding: 10px 18px;
+  border: 1px solid transparent;
+  border-radius: var(--r-radius-btn);
+  font-family: var(--r-font-title);
+  font-weight: 700;
+  font-size: 0.86rem;
+  cursor: pointer;
+  background: var(--r-accent);
+  color: var(--r-accent-contrast, #fff);
+  transition: filter 0.15s ease;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-primary-btn {
+  border-radius: 0;
+}
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-primary-btn {
+  background: var(--r-grad);
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-primary-btn:hover:not(:disabled),
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-primary-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-primary-btn:disabled,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-primary-btn:disabled {
+  background: var(--r-surface);
+  color: var(--r-text-faint);
+  border-color: var(--r-border);
+  cursor: not-allowed;
+  filter: none;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-progress,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-progress {
+  font-size: 0.8rem;
+  color: var(--r-accent-text, var(--r-accent));
+  font-weight: 700;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-status,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-status {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--r-text-muted);
+  max-width: 72ch;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-status[data-tone='error'],
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-status[data-tone='error'] {
+  color: var(--r-error);
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-status[data-tone='ok'],
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-status[data-tone='ok'] {
+  color: var(--r-good);
+}
+
+/* ── Bandeau de provenance : image ou son ── */
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-format,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-format {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--r-space-3);
+  padding: 10px 14px;
+  background: var(--r-surface-chip);
+  border-left: 2px solid var(--r-accent);
+}
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-format {
+  border-radius: var(--r-radius-btn);
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-badge,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-badge {
+  padding: 3px 10px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--r-accent-contrast, #fff);
+  background: var(--r-accent);
+}
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-badge {
+  border-radius: 100px;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-badge.is-audio,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-badge.is-audio {
+  background: var(--r-warn);
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-format-text,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-format-text {
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--r-text-muted);
+}
+
+/* ── Résultat ── */
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-result,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--r-space-3);
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-card,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-card {
+  padding: 14px 16px;
+  background: var(--r-surface);
+  border: 1px solid var(--r-border);
+  border-left: 3px solid var(--r-accent);
+}
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-card {
+  border-radius: var(--r-radius-card);
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-card.is-notes,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-card.is-notes {
+  border-left-color: var(--r-warn);
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-card-title,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-card-title {
+  margin: 0 0 10px;
+  font-family: var(--r-font-title);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--r-text-faint);
+}
+
+/* Grille d'accords relevée */
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-grid,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-chip,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 58px;
+  padding: 6px 10px;
+  background: var(--r-surface-chip);
+  border: 1px solid var(--r-border);
+}
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-chip {
+  border-radius: var(--r-radius-btn);
+}
+/* Un accord sans tierce jouée est montré tel quel, mais distingué : c'est une
+   lecture littérale de l'écran, pas une harmonie complète. */
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-chip.is-partial,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-chip.is-partial {
+  border-style: dashed;
+  border-color: var(--r-warn);
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-chip.is-unresolved,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-chip.is-unresolved {
+  border-color: var(--r-error);
+  color: var(--r-text-faint);
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-chip-time,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-chip-time {
+  font-family: var(--r-font-mono);
+  font-size: 0.66rem;
+  color: var(--r-text-faint);
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-chip-label,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-chip-label {
+  font-family: var(--r-font-title);
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--r-text);
+}
+
+/* Recoupement et glossaire */
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-crosscheck-summary,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-crosscheck-summary {
+  margin: 0 0 10px;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--r-text-muted);
+  max-width: 78ch;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-glossary,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-glossary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--r-space-3);
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-narration,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-narration {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--r-text-faint);
+  font-style: italic;
+  max-width: 78ch;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-entry-title,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-entry-title {
+  font-family: var(--r-font-title);
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--r-text);
+  margin-bottom: 3px;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-entry-body,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-entry-body {
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--r-text-muted);
+  max-width: 78ch;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-entry-why,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-entry-why {
+  margin-top: 3px;
+  font-size: 0.72rem;
+  color: var(--r-text-faint);
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-notes,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-notes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--r-space-2);
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-notes li,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-notes li {
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--r-text-muted);
+  max-width: 82ch;
+}
+
 /* ── Réactivité ── */
 @media (max-width: 860px) {
+  :root[data-skin='global'] #practice-view-pedagogie .pedagogie-layout,
+  :root[data-skin='v2'] #practice-view-pedagogie .pedagogie-layout {
+    flex-direction: column;
+  }
+  :root[data-skin='global'] #practice-view-pedagogie .pedagogie-sidebar,
+  :root[data-skin='v2'] #practice-view-pedagogie .pedagogie-sidebar {
+    width: 100%;
+    max-height: 30vh;
+  }
   :root[data-skin='global'] #practice-view-coach .coach-layout,
   :root[data-skin='v2'] #practice-view-coach .coach-layout {
     flex-direction: column;

@@ -99,7 +99,7 @@
             <button class="practice-mode-btn active" type="button" role="tab" aria-selected="true" data-view="realtime">Temps réel</button>
             <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="midi-sessions" title="Enregistrer et rejouer vos sessions MIDI">Sessions MIDI</button>
             <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="coach" title="Accompagner une voix isolée et faire analyser votre placement">Coach d'accompagnement</button>
-            <button class="practice-mode-btn is-placeholder" type="button" role="tab" aria-selected="false" disabled title="À construire">Pédagogie IA</button>
+            <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="pedagogie" title="Lire un tutoriel vidéo et en extraire la grille d'accords">Pédagogie IA</button>
             <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="exercise" title="Ouvrir Exercices">
               Exercices
               <span class="practice-exercise-progress" id="exercise-collapsed-progress"></span>
@@ -318,6 +318,64 @@
               <div class="coach-countdown" id="coach-countdown" style="display: none;"></div>
 
               <div class="coach-report" id="coach-report" style="display: none;"></div>
+            </section>
+          </div>
+        </div>
+
+        <!-- [Claude 05/09] — Pédagogie IA : compréhension de tutoriel vidéo.
+             Vue sœur de Coach d'accompagnement, même patron. On lit le tutoriel
+             À L'IMAGE quand c'est possible (piano-roll type Synthesia : les
+             touches allumées du clavier graphique donnent la note exacte), et on
+             se rabat sur l'analyse du son quand l'image ne dit rien — cas d'un
+             tutoriel filmé sur un vrai piano. Toute la lecture vit dans
+             src/pedagogie/*, l'extraction d'images dans electron/main.js. -->
+        <div class="practice-pedagogie" id="practice-view-pedagogie" style="display: none;">
+          <div class="pedagogie-layout">
+            <aside class="pedagogie-sidebar">
+              <div class="panel-title">Tutoriels</div>
+              <button class="panel-action" id="pedagogie-import-btn" type="button">+ Importer une vidéo</button>
+              <div class="pedagogie-track-list" id="pedagogie-track-list"></div>
+            </aside>
+
+            <section class="pedagogie-main">
+              <header class="pedagogie-head">
+                <h3 class="pedagogie-selected-name" id="pedagogie-selected-name">Aucun tutoriel sélectionné</h3>
+                <p class="pedagogie-intro">
+                  L'application regarde la vidéo et relève ce qui est joué au clavier.
+                  Quand l'image ne permet rien de lire, elle le dit et se rabat sur le son.
+                </p>
+              </header>
+
+              <div class="pedagogie-actions">
+                <button class="pedagogie-primary-btn" id="pedagogie-analyze-btn" type="button" disabled>Lire ce tutoriel</button>
+                <span class="pedagogie-progress" id="pedagogie-progress" style="display: none;"></span>
+              </div>
+
+              <p class="pedagogie-status" id="pedagogie-status" style="display: none;"></p>
+
+              <div class="pedagogie-format" id="pedagogie-format" style="display: none;"></div>
+
+              <div class="pedagogie-result" id="pedagogie-result" style="display: none;">
+                <section class="pedagogie-card">
+                  <h4 class="pedagogie-card-title">Grille relevée</h4>
+                  <div class="pedagogie-grid" id="pedagogie-grid"></div>
+                </section>
+
+                <section class="pedagogie-card" id="pedagogie-crosscheck-card" style="display: none;">
+                  <h4 class="pedagogie-card-title">Recoupement image / son</h4>
+                  <div id="pedagogie-crosscheck"></div>
+                </section>
+
+                <section class="pedagogie-card">
+                  <h4 class="pedagogie-card-title">Ce qu'il y a à comprendre</h4>
+                  <div class="pedagogie-glossary" id="pedagogie-glossary"></div>
+                </section>
+
+                <section class="pedagogie-card is-notes">
+                  <h4 class="pedagogie-card-title">Ce que l'application ne garantit pas</h4>
+                  <ul class="pedagogie-notes" id="pedagogie-notes"></ul>
+                </section>
+              </div>
             </section>
           </div>
         </div>
