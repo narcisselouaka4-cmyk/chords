@@ -28,6 +28,21 @@ import {
   narrationNotAttemptedState,
 } from './glossary.js';
 
+// Durée de parole plausible pour UN passage, en secondes.
+//
+// MESURÉ, pas supposé (tutoriel « Gospel Piano Harmony Secrets », 12 min 32,
+// 140 segments) : 13 segments dépassent 10 s, le plus long atteint 33 s pour la
+// phrase « Or we could do something like that ». La raison est mécanique — le
+// détecteur d'activité vocale referme le segment sur la DÉMONSTRATION JOUÉE qui
+// suit la phrase, et non sur la fin de la parole. La borne de fin d'un tel
+// segment décrit donc du piano, pas du discours.
+//
+// Conséquence si on l'ignore : le recouvrement calculé sur tout l'intervalle
+// rattache la phrase à un accord de la démonstration, au lieu de l'accord
+// commenté au moment où elle est prononcée. On plafonne donc la fenêtre servant
+// à l'alignement. Le texte affiché, lui, n'est jamais tronqué.
+const MAX_SPEECH_SPAN = 12;
+
 /**
  * Nettoie les segments bruts : bornes exploitables, texte non vide, ordre
  * chronologique. Un segment mal formé est écarté, pas rafistolé.
@@ -125,6 +140,10 @@ export function alignNarration(narrationSegments, chordSegments) {
     .filter((c) => Number.isFinite(Number(c?.start)) && Number.isFinite(Number(c?.end)));
 
   return spoken.map((s) => {
+    // Fenêtre servant AU RAPPROCHEMENT seulement : plafonnée, parce qu'un
+    // segment long décrit une démonstration jouée, pas une phrase de 33 s.
+    const window = { start: s.start, end: Math.min(s.end, s.start + MAX_SPEECH_SPAN) };
+
     let best = null;
     let bestOverlap = 0;
     let nearest = null;
@@ -132,9 +151,9 @@ export function alignNarration(narrationSegments, chordSegments) {
 
     for (const c of chords) {
       const span = { start: Number(c.start), end: Number(c.end) };
-      const ov = overlap(s, span);
+      const ov = overlap(window, span);
       if (ov > bestOverlap) { bestOverlap = ov; best = c; }
-      const g = gap(s, span);
+      const g = gap(window, span);
       if (g < nearestGap) { nearestGap = g; nearest = c; }
     }
 
@@ -156,11 +175,15 @@ export function alignNarration(narrationSegments, chordSegments) {
  * Une limite de caractères est appliquée ici plutôt que dans src/ai/ : c'est une
  * décision sur le contenu, pas sur le transport.
  *
+ * MESURÉ : un tutoriel de 12 min 32 produit 6 134 caractères. La limite initiale de
+ * 6 000 coupait donc dès ce format-là. 12 000 couvre environ 25 minutes de
+ * parole continue, pour à peine 3 000 jetons envoyés au modèle.
+ *
  * @param {{text: string}[]} segments
  * @param {number} [maxChars]
  * @returns {string}
  */
-export function joinNarrationText(segments, maxChars = 6000) {
+export function joinNarrationText(segments, maxChars = 12000) {
   const text = (Array.isArray(segments) ? segments : [])
     .map((s) => (typeof s?.text === 'string' ? s.text.trim() : ''))
     .filter(Boolean)

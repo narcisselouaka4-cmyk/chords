@@ -752,5 +752,34 @@ runTest('T70 — sans transcription, l\'analyse ne déclare plus la vidéo muett
   assertEqual(declared.narration.available, true, 'le raccourci historique marche toujours :');
 });
 
+runTest('T71 — un segment étiré par la démonstration jouée reste sur l\'accord du début', () => {
+  // Cas RÉEL, mesuré sur le tutoriel de référence : le détecteur d'activité
+  // vocale referme le segment sur la démonstration qui suit la phrase, d'où un
+  // « segment parlé » de 33 s. Sans plafond, la phrase se retrouverait rattachée
+  // à un accord de la démonstration.
+  const grid = [
+    { start: 0, end: 10, chord: { resolved: true, label: 'F' } },
+    { start: 10, end: 33, chord: { resolved: true, label: 'Bb' } },
+  ];
+  const parle = [{ start: 0, end: 33, text: 'Or we could do something like that.' }];
+  assertEqual(alignNarration(parle, grid)[0].chord, 'F',
+    'la phrase est dite au début, pas pendant les 23 s de piano qui suivent :');
+
+  // Un passage de durée normale n'est pas affecté par le plafond : il tombe où
+  // il est réellement prononcé.
+  const court = [{ start: 12, end: 18, text: 'on passe au si bémol' }];
+  assertEqual(alignNarration(court, grid)[0].chord, 'Bb');
+  const debut = [{ start: 1, end: 6, text: 'on est en fa' }];
+  assertEqual(alignNarration(debut, grid)[0].chord, 'F');
+});
+
+runTest('T72 — la limite de texte pour l\'IA couvre un tutoriel de douze minutes', () => {
+  // Mesuré : 6 134 caractères pour 12 min 32 de parole. La limite ne doit pas
+  // couper à ce format-là.
+  const segments = [{ text: 'x'.repeat(6134) }];
+  assertEqual(joinNarrationText(segments).length, 6134, 'aucune coupe :');
+  assertTrue(!joinNarrationText(segments).endsWith('…'));
+});
+
 console.log(`\n=== Résultat : ${passed}/${total} tests passés ===`);
 if (passed < total) process.exitCode = 1;

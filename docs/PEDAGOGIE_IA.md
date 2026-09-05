@@ -374,17 +374,83 @@ parle huit secondes couvre souvent deux accords. Faute de recouvrement (phrase
 dite pendant un silence), c'est l'accord le plus proche, et l'écran le signale au
 lieu de le faire passer pour une simultanéité.
 
-### 6.7 Ce que la V2 ne fait pas
+### 6.7 Vérification en exécution réelle (06/09/2026)
+
+`faster-whisper 1.2.1` installé par Narcisse. Testé sur **« Gospel Piano Harmony
+Secrets — Key Borrowing »** (`Track_017`, 12 min 32, anglais).
+
+**Temps mesurés** (CPU, int8, sans GPU) :
+
+| Étape | Durée |
+|---|---|
+| Extraction du WAV (12 min 32 de vidéo) | 1,7 s |
+| Téléchargement du modèle `small` (une seule fois) | ~3 min |
+| Transcription de 90 s | ~1 min |
+| **Transcription des 12 min 32** | **2 min 17** (7 min 56 CPU cumulé) |
+
+Soit **5,5× plus rapide que le temps réel** grâce au multithread. 140 segments
+retenus, 0 écarté, 739 s couvertes sur 751, langue détectée `en` à 99,8 %.
+
+**Qualité** — le contenu pédagogique passe intact :
+
+> « So let's say we're in F major right? I'm gonna borrow from a minor third up,
+> just A flat. » … « that's technically borrowed from A flat major, which was
+> two, five, one, seven, back to F major. »
+
+**L'alignement se confirme de lui-même.** Croisé avec le vrai relevé du moteur
+d'accords sur le même extrait :
+
+| Ce que le professeur dit | Ce que l'application a relevé au même instant |
+|---|---|
+| « we're in F major » | F |
+| « borrow from A flat » | G♯ (= A♭) |
+| « borrowed from A flat major… back to F major » | G♯aug → Fmaj7 → F7 |
+
+**Le correctif du repli audio, mesuré** : sur le même extrait, 63 accords après
+traduction, **0 avant** (§6.1). La preuve chiffrée que la grille était vide.
+
+**Aucun texte n'est inventé** : testé sur « Amazing Grace Gospel Piano »
+(`Track_016`), 60 s de piano seul → **0 segment**, le détecteur d'activité vocale
+écarte tout en amont. L'IPC renvoie `no-speech`, l'écran affiche « cette source
+ne comporte pas de commentaire parlé » — et c'est vrai.
+
+#### Deux ajustements décidés PAR la mesure
+
+1. **Fenêtre d'alignement plafonnée à 12 s** (`MAX_SPEECH_SPAN`). 13 segments sur
+   140 dépassent 10 s, le plus long atteint 33 s pour la phrase « Or we could do
+   something like that ». Cause mécanique : le VAD referme le segment sur la
+   **démonstration jouée** qui suit la phrase, pas sur la fin de la parole. Sans
+   plafond, la phrase se rattachait à un accord de la démonstration au lieu de
+   celui commenté. Le texte affiché, lui, n'est jamais tronqué.
+2. **Limite du texte envoyé à l'IA portée de 6 000 à 12 000 caractères.** Un
+   tutoriel de 12 min 32 produit 6 134 caractères : l'ancienne limite coupait dès
+   ce format. 12 000 couvre ~25 min de parole pour ~3 000 jetons.
+
+#### Deux observations hors périmètre, signalées et non corrigées
+
+- Le moteur d'accords détecte **`Fm` (mineur)** là où le professeur dit
+  « F major ». Désaccord réel entre le son et la parole — c'est le moteur
+  d'accords, pas ce chantier. La transcription rend ce genre d'écart **visible**,
+  ce qu'elle ne faisait pas avant.
+- L'application écrit **`G♯`** là où le professeur dit « A flat ». Enharmonie,
+  réglée par [[ADR-005-notation-unique]] ; à rouvrir si la lecture pédagogique en
+  souffre à l'usage.
+
+### 6.8 Ce que la V2 ne fait pas
 
 - Pas de synchronisation mot à mot (choix tranché : granularité segment).
 - Pas de nouvelle description visuelle : « les images », ici, ce sont les touches
   que la V1 sait déjà lire. Aucun fichier du pipeline image n'a été touché.
 - La reformulation IA n'est **jamais** le comportement par défaut : la
   transcription brute s'affiche seule, et le bouton n'apparaît même pas sans clé.
-- **Non vérifié en exécution réelle** : faster-whisper n'est pas installé dans le
-  `.venv` de cette machine (`import faster_whisper` → `ModuleNotFoundError`). Le
-  script, l'IPC et le contrat sont testés ; la transcription d'une vraie vidéo
-  reste à observer après le `pip install`.
+- **Ce qui reste non observé** : la chaîne a été vérifiée bout à bout hors
+  Electron (§6.7) — extraction, transcription, traduction des champs, alignement,
+  assemblage. Le parcours dans la fenêtre Electron elle-même (clic sur « Lire ce
+  tutoriel », affichage de la carte, bouton IA) n'a pas été exercé ; il demande de
+  lancer l'application.
+- **La couche IA n'a pas été appelée pour de vrai** : aucune clé n'est configurée
+  dans cet environnement. Le chemin « sans clé » est testé (null, aucun appel
+  réseau) ; le chemin « avec clé » ne l'est pas.
 
 ## 7. État d'avancement
 
@@ -403,5 +469,5 @@ lieu de le faire passer pour une simultanéité.
 - [ ] Formats A, C, D
 - [ ] Seuil de présence à revalider sur d'autres tutoriels
 - [ ] Repli audio à observer en exécution réelle
-- [ ] Transcription à observer en exécution réelle (demande `pip install faster-whisper`)
+- [x] **V2** — transcription vérifiée en exécution réelle sur un vrai tutoriel (§6.7)
 - [ ] Granularité mot à mot si le segment s'avère trop grossier (§6.2)
