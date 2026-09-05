@@ -1767,6 +1767,99 @@
   font-style: italic;
   max-width: 78ch;
 }
+/* Ce que dit le professeur — transcription locale de la bande son.
+   Une ligne = un passage parlé, avec l'instant et l'accord joué au même moment. */
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-transcript,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-transcript {
+  display: flex;
+  flex-direction: column;
+  gap: var(--r-space-2);
+  max-height: 320px;
+  overflow-y: auto;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-line,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-line {
+  display: grid;
+  grid-template-columns: 52px 1fr auto;
+  align-items: baseline;
+  gap: var(--r-space-2);
+  padding-bottom: var(--r-space-2);
+  border-bottom: 1px solid var(--r-border-soft);
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-line-time,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-line-time {
+  font-family: var(--r-font-mono, monospace);
+  font-size: 0.74rem;
+  color: var(--r-text-faint);
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-line-text,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-line-text {
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: var(--r-text);
+  max-width: 78ch;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-line-chord,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-line-chord {
+  font-family: var(--r-font-title);
+  font-weight: 700;
+  font-size: 0.78rem;
+  color: var(--r-accent);
+  white-space: nowrap;
+}
+/* Aucun accord n'était joué pendant la phrase : c'est le plus proche, et
+   l'affichage doit le laisser voir plutôt que de le faire passer pour exact. */
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-line-chord.is-nearest,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-line-chord.is-nearest {
+  color: var(--r-text-faint);
+  font-weight: 600;
+  font-style: italic;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-explain,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-explain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--r-space-2);
+  margin-top: var(--r-space-3);
+  padding-top: var(--r-space-3);
+  border-top: 1px solid var(--r-border-soft);
+  align-items: flex-start;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-secondary-btn,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-secondary-btn {
+  padding: 7px 14px;
+  border: 1px solid var(--r-border);
+  border-radius: var(--r-radius-btn);
+  font-family: var(--r-font-title);
+  font-weight: 700;
+  font-size: 0.78rem;
+  cursor: pointer;
+  background: var(--r-surface);
+  color: var(--r-text);
+  transition: filter 0.15s ease;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-secondary-btn {
+  border-radius: 0;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-secondary-btn:hover:not(:disabled),
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-secondary-btn:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-secondary-btn:disabled,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-secondary-btn:disabled {
+  color: var(--r-text-faint);
+  cursor: not-allowed;
+  filter: none;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-explain-answer,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-explain-answer {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: var(--r-text-muted);
+  white-space: pre-wrap;
+  max-width: 78ch;
+}
 :root[data-skin='global'] #practice-view-pedagogie .pedagogie-entry-title,
 :root[data-skin='v2'] #practice-view-pedagogie .pedagogie-entry-title {
   font-family: var(--r-font-title);

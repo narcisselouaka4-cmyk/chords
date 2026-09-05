@@ -8,7 +8,7 @@
 
 import { groupSegments } from './note-grouping.js';
 import { labelSegments, mergeSameLabel } from './chord-labeling.js';
-import { collectConcepts, collectMissing, noNarrationState } from './glossary.js';
+import { collectConcepts, collectMissing, narrationNotAttemptedState } from './glossary.js';
 import { FORMATS, explainUnrecognised } from './format-detector.js';
 
 /**
@@ -19,7 +19,10 @@ import { FORMATS, explainUnrecognised } from './format-detector.js';
  * @param {object} params.geometry
  * @param {number} params.sampleInterval - pas entre deux relevés, en secondes
  * @param {string} [params.key] - tonalité, si une autre source la connaît
- * @param {boolean} [params.hasNarration]
+ * @param {object} [params.narration] - état de narration déjà construit
+ *        (voir transcription.js). C'est lui qui fait foi quand il est fourni.
+ * @param {boolean} [params.hasNarration] - raccourci historique : « il y a de
+ *        la parole », sans le texte. Conservé pour ne pas casser un appelant.
  * @param {object} [params.options]
  * @returns {object}
  */
@@ -47,7 +50,7 @@ export function buildVideoAnalysis(params) {
     segments,
     concepts,
     missingConcepts,
-    narration: params.hasNarration ? { available: true } : noNarrationState(),
+    narration: resolveNarration(params),
     keyboard: {
       lowestMidi: geometry?.lowestMidi ?? null,
       highestMidi: geometry?.highestMidi ?? null,
@@ -80,6 +83,7 @@ export function buildVideoAnalysis(params) {
  * @param {string} params.reason - motif d'échec de la cascade
  * @param {{start: number, end: number, label: string}[]} [params.audioSegments]
  * @param {string} [params.key]
+ * @param {object} [params.narration] - état de narration déjà construit
  * @returns {object}
  */
 export function buildAudioOnlyAnalysis(params) {
@@ -106,7 +110,7 @@ export function buildAudioOnlyAnalysis(params) {
     segments: audioSegments,
     concepts,
     missingConcepts: collectMissing(concepts),
-    narration: noNarrationState(),
+    narration: resolveNarration(params),
     keyboard: { lowestMidi: null, highestMidi: null, anchorIsHeuristic: null },
     stats: {
       sampleCount: 0,
@@ -127,6 +131,28 @@ export function buildAudioOnlyAnalysis(params) {
       },
     ],
   };
+}
+
+/**
+ * Quel état de narration porter dans l'analyse.
+ *
+ * L'ORDRE COMPTE, et c'est le point qui manquait jusqu'ici. `hasNarration`
+ * n'était jamais transmis par l'appelant : le champ retombait donc
+ * systématiquement sur « cette source ne comporte pas de commentaire parlé »,
+ * y compris sur un tutoriel où quelqu'un parle du début à la fin. Rien
+ * n'écoutait la bande son ; le message affirmait pourtant un fait sur elle.
+ *
+ * Désormais : un état construit par transcription.js fait foi — il porte la
+ * raison exacte. À défaut, on ne prétend rien sur le contenu : on dit que rien
+ * n'a été écouté.
+ *
+ * @param {object} params
+ * @returns {object}
+ */
+function resolveNarration(params) {
+  if (params?.narration && typeof params.narration === 'object') return params.narration;
+  if (params?.hasNarration) return { available: true };
+  return narrationNotAttemptedState();
 }
 
 function buildNotes({ unresolved, thirdless, missingConcepts, geometry }) {

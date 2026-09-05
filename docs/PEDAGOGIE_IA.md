@@ -254,7 +254,139 @@ son exécution réelle n'a pas pu être observée dans cette session.
   nouveau n'est requis — le chantier n'ajoute aucune dépendance npm, seulement
   un appel à `ffmpeg`/`ffprobe`, déjà supposés présents par le remux Studio.
 
-## 6. État d'avancement
+## 6. V2 — transcrire et expliquer ce que DIT le professeur (06/09/2026)
+
+La V1 lit les touches et nomme les accords. Elle ne dit rien de ce que le
+professeur **explique à l'oral** — et le champ prévu pour ça mentait.
+
+### 6.1 Ce qui était cassé, et que le prompt de relais avait vu juste
+
+`analysis.narration` existait depuis la V1, mais **rien ne l'alimentait** :
+
+- `buildVideoAnalysis()` posait `params.hasNarration ? { available: true } :
+  noNarrationState()`, et `hasNarration` n'était **jamais transmis** par
+  l'appelant (`pedagogie-tab.js` appelait `buildVideoAnalysis({ samples,
+  geometry, sampleInterval })`) ;
+- `buildAudioOnlyAnalysis()` appelait `noNarrationState()` sans condition.
+
+Résultat : l'écran affirmait « Cette source ne comporte pas de commentaire
+parlé » sur un tutoriel où quelqu'un parle pendant dix minutes. Ce n'était pas
+une fonctionnalité à moitié faite, c'était un **constat inventé sur le contenu**
+— exactement ce que le reste du chantier s'interdit.
+
+Une seconde panne, du même genre, a été corrigée **avant** de construire
+par-dessus (elle touchait la même fonction) : `runAudioFallback()` lisait
+`start` / `end` / `time` là où le moteur écrit `startTime` / `endTime`
+(`chord_entry`, `electron/audio-processor.py`). Toutes les bornes retombaient à
+0, le filtre `end > start` jetait **tous** les accords, et le repli audio rendait
+donc systématiquement une grille vide — sans message. La traduction vit
+maintenant dans `src/pedagogie/audio-fallback.js`, pur et testé : une fonction
+privée de contrôleur DOM n'était pas testable, ce qui explique que la panne soit
+restée invisible.
+
+### 6.2 Décision technique : faster-whisper, horodatage par segment
+
+| | faster-whisper | whisper-timestamped |
+|---|---|---|
+| Licence | **MIT** | AGPL-3.0 (copyleft, divulgation de source) |
+| Horodatage | par segment | par mot (alignement DTW) |
+| Retenu | **oui** | non |
+
+La granularité **segment** suffit à ce qui est demandé : situer un conseil dans
+le temps, pas sous-titrer mot à mot. La licence AGPL de whisper-timestamped est
+la contrainte que le projet évite depuis la décision du 28/08.
+
+**Piste future, pas faite** : si un segment de 15 s se met à mélanger deux
+conseils différents en usage réel, whisper-timestamped redevient une option — à
+rouvrir avec Narcisse, pas à substituer en silence.
+
+### 6.3 Taille de modèle : `small`, et comment en changer
+
+`tiny` et `base` décrochent sur du français parlé : ils confondent le vocabulaire
+musical (« tierce » / « tierces », « quinte » / « quinze ») et rendent un texte
+qu'on ne peut pas montrer comme étant la parole du professeur. `medium` et
+`large-v3` sont plus justes mais demandent plusieurs fois le temps réel sur un
+CPU sans GPU — le cas ici. `small` (~244 M paramètres, ~250 Mo en int8) est le
+premier palier qui tient un tutoriel calme en français.
+
+Pour changer : la constante `DEFAULT_MODEL` en tête de `electron/transcriber.py`,
+ou l'option `--model=` que l'IPC transmet. Rien d'autre à toucher.
+
+**Garde-fou anti-hallucination.** Whisper invente du texte sur les plages sans
+parole, et un tutoriel de piano en contient beaucoup (démonstrations jouées).
+Trois réglages l'en empêchent : le détecteur d'activité vocale (`vad_filter`)
+écarte les plages sans voix avant transcription, `condition_on_previous_text=False`
+casse les boucles de répétition, et les segments que le modèle juge lui-même
+probablement silencieux (`no_speech_prob`) sont jetés ensuite.
+
+### 6.4 Trois indisponibilités, trois messages
+
+C'est le cœur de la reprise. Il n'y a plus **un** message fourre-tout mais
+quatre états distincts (`src/pedagogie/glossary.js`) :
+
+| Raison | Ce que ça veut dire | Ce que l'écran dit |
+|---|---|---|
+| `no-speech` | la bande son a été écoutée, pas de parole | « ne comporte pas de commentaire parlé » |
+| `dependency-missing` | faster-whisper absent de **cette machine** | la cause + la commande pour l'installer |
+| `failed` | échec technique | l'échec est dit, le relevé d'accords reste valable |
+| `not-attempted` | rien n'a été lancé (hors Electron) | « rien n'a été écouté » |
+
+La règle : **ne jamais présenter comme un fait sur la vidéo ce qui n'est qu'une
+limite de la machine.** Aucun texte n'est jamais fabriqué — contrairement aux
+stems simulés de Demucs, acceptables parce que ce sont des bips de test ; ici un
+faux texte serait un mensonge pédagogique.
+
+### 6.5 Installation, à faire une fois
+
+```bash
+.venv/bin/pip install faster-whisper
+```
+
+Le modèle se télécharge tout seul au premier usage (~250 Mo pour `small`), puis
+tout tourne hors ligne. Un `requirements.txt` a été ajouté à la racine : il
+n'existait pas, les paquets étaient installés à la main sans trace écrite. Il
+est reconstitué depuis les imports réels, donc **pas garanti exhaustif**.
+
+### 6.6 Ce qui a été construit
+
+| Fichier | Rôle |
+|---|---|
+| `electron/transcriber.py` | **nouveau** — faster-whisper, JSON sur la dernière ligne de stdout |
+| `electron/main.js` | `transcriberInstalled()`, `runTranscriber()`, `createTranscribeDir()`, IPC `pedagogie:transcribe-video` |
+| `electron/preload.cjs` | expose `pedagogie.transcribeVideo` |
+| `src/pedagogie/transcription.js` | **nouveau** — pur : normalisation + alignement texte ↔ accords |
+| `src/pedagogie/audio-fallback.js` | **nouveau** — pur : traduction des champs du moteur (§6.1) |
+| `src/pedagogie/glossary.js` | quatre états de narration au lieu d'un message unique |
+| `src/pedagogie/video-analysis.js` | `resolveNarration()` — `hasNarration` enfin transmis |
+| `src/ui/pedagogie-tab.js` | transcription lancée **en parallèle**, carte dédiée, bouton IA conditionnel |
+| `src/ai/ai-client.js` | `explainNarration()` — facultatif, `null` sans clé |
+| `src/index.html`, `practice.css` | carte « Ce que dit le professeur », deux skins |
+
+**Le dossier de travail de la transcription est séparé**, et c'est délibéré :
+`createWorkDir()` purge tous les autres dossiers de sa racine à chaque appel
+(« un seul dossier vit à la fois »). La transcription tournant en parallèle de
+l'analyse d'accords, partager la racine reviendrait à ce que l'une efface le WAV
+de l'autre en pleine lecture.
+
+**L'alignement** rapproche chaque passage parlé de l'accord dont il recouvre le
+plus longtemps l'intervalle — pas du début le plus proche : un professeur qui
+parle huit secondes couvre souvent deux accords. Faute de recouvrement (phrase
+dite pendant un silence), c'est l'accord le plus proche, et l'écran le signale au
+lieu de le faire passer pour une simultanéité.
+
+### 6.7 Ce que la V2 ne fait pas
+
+- Pas de synchronisation mot à mot (choix tranché : granularité segment).
+- Pas de nouvelle description visuelle : « les images », ici, ce sont les touches
+  que la V1 sait déjà lire. Aucun fichier du pipeline image n'a été touché.
+- La reformulation IA n'est **jamais** le comportement par défaut : la
+  transcription brute s'affiche seule, et le bouton n'apparaît même pas sans clé.
+- **Non vérifié en exécution réelle** : faster-whisper n'est pas installé dans le
+  `.venv` de cette machine (`import faster_whisper` → `ModuleNotFoundError`). Le
+  script, l'IPC et le contrat sont testés ; la transcription d'une vraie vidéo
+  reste à observer après le `pip install`.
+
+## 7. État d'avancement
 
 - [x] Exploration et validation empirique sur le fichier de référence (7/7)
 - [x] Briques pures `src/pedagogie/*` (9 modules)
@@ -263,8 +395,13 @@ son exécution réelle n'a pas pu être observée dans cette session.
 - [x] Recoupement image / son sans arbitrage
 - [x] Glossaire déterministe + dette de contenu
 - [x] Écran, branchement, deux skins
-- [x] Tests : 55 unitaires + 37 contrôles de contrat DOM
+- [x] Tests : 72 unitaires + 62 contrôles de contrat DOM + 3 sur la couche IA
+- [x] **V2** — transcription locale de la parole (faster-whisper, MIT)
+- [x] **V2** — trois indisponibilités distinguées, aucun texte fabriqué
+- [x] **V2** — `hasNarration` enfin transmis ; repli audio réparé
+- [x] **V2** — couche IA facultative branchée (`explainNarration`)
 - [ ] Formats A, C, D
-- [ ] Couche IA facultative (point d'extension laissé ouvert, non branché)
 - [ ] Seuil de présence à revalider sur d'autres tutoriels
 - [ ] Repli audio à observer en exécution réelle
+- [ ] Transcription à observer en exécution réelle (demande `pip install faster-whisper`)
+- [ ] Granularité mot à mot si le segment s'avère trop grossier (§6.2)

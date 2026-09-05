@@ -21,6 +21,9 @@ import { detectVideoFormat, FORMATS, explainUnrecognised } from './format-detect
 import { crossCheck, DIVERGENCE, rootPitchClass, isMinorLabel } from './cross-check.js';
 import { collectConcepts, collectMissing, getEntry, GLOSSARY, noNarrationState } from './glossary.js';
 import { normalizeAnalyzerChords } from './audio-fallback.js';
+import { normalizeTranscription, alignNarration, joinNarrationText } from './transcription.js';
+import { NARRATION_REASON } from './glossary.js';
+import { buildVideoAnalysis, buildAudioOnlyAnalysis } from './video-analysis.js';
 
 let total = 0;
 let passed = 0;
@@ -618,6 +621,135 @@ runTest('T56 — les noms alternatifs restent acceptés en second rang', () => {
   assertEqual(segs[0].label, 'F#m');
   assertDeep(normalizeAnalyzerChords(null), [], 'un résultat absent ne casse rien :');
   assertDeep(normalizeAnalyzerChords({ chords: 'oups' }), [], 'un champ mal typé ne casse rien :');
+});
+
+// ---------------------------------------------------------------------------
+// Transcription — ce que DIT le professeur
+// ---------------------------------------------------------------------------
+
+runTest('T57 — dépendance absente : on ne prétend rien sur le contenu de la vidéo', () => {
+  const state = normalizeTranscription({ available: false, reason: 'dependency-missing' });
+  assertEqual(state.available, false);
+  assertEqual(state.reason, NARRATION_REASON.DEPENDENCY);
+  assertTrue(state.message.includes('installée'), 'la cause est nommée :');
+  assertTrue(state.message.includes('pip install faster-whisper'),
+    'la réparation est donnée :');
+  assertTrue(!state.message.includes('ne comporte pas de commentaire'),
+    'une limite de la machine ne se dit pas comme un constat sur la vidéo');
+});
+
+runTest('T58 — aucune parole détectée : constat sur le contenu, distinct du précédent', () => {
+  const state = normalizeTranscription({ available: false, reason: 'no-speech' });
+  assertEqual(state.reason, NARRATION_REASON.NO_SPEECH);
+  assertTrue(state.message.includes('rien à citer'));
+  const dependency = normalizeTranscription({ available: false, reason: 'dependency-missing' });
+  assertTrue(state.message !== dependency.message,
+    'les deux indisponibilités ne partagent pas le même texte');
+});
+
+runTest('T59 — échec technique : troisième message, avec le détail conservé', () => {
+  const state = normalizeTranscription({ available: false, reason: 'failed', detail: 'ffmpeg exit 1' });
+  assertEqual(state.reason, NARRATION_REASON.FAILED);
+  assertEqual(state.detail, 'ffmpeg exit 1');
+  assertTrue(state.message.includes('échoué'));
+});
+
+runTest('T60 — rien de reçu : « pas tenté », surtout pas « vidéo muette »', () => {
+  for (const raw of [null, undefined, 'oups', 42]) {
+    const state = normalizeTranscription(raw);
+    assertEqual(state.reason, NARRATION_REASON.NOT_ATTEMPTED, `pour ${String(raw)} :`);
+  }
+});
+
+runTest('T61 — une raison inconnue est un échec, pas une absence de parole', () => {
+  const state = normalizeTranscription({ available: false, reason: 'n-importe-quoi' });
+  assertEqual(state.reason, NARRATION_REASON.FAILED);
+});
+
+runTest('T62 — segments transcrits : nettoyés, triés, jamais rafistolés', () => {
+  const state = normalizeTranscription({
+    available: true,
+    language: 'fr',
+    model: 'small',
+    segments: [
+      { start: 10, end: 12, text: '  la quinte  ' },
+      { start: 2, end: 5, text: 'la tierce' },
+      { start: 6, end: 7, text: '   ' },          // texte vide : écarté
+      { start: 8, end: 4, text: 'bornes folles' }, // fin avant début : écarté
+      { start: 'x', end: 3, text: 'borne absente' },
+    ],
+  });
+  assertEqual(state.available, true);
+  assertEqual(state.segments.length, 2, 'deux segments exploitables :');
+  assertEqual(state.segments[0].text, 'la tierce', 'tri chronologique :');
+  assertEqual(state.segments[1].text, 'la quinte', 'texte détouré :');
+  assertEqual(state.language, 'fr');
+  assertEqual(state.model, 'small');
+});
+
+runTest('T63 — disponible mais sans segment retenu : la bande son a bien été écoutée', () => {
+  const state = normalizeTranscription({ available: true, segments: [] });
+  assertEqual(state.available, false);
+  assertEqual(state.reason, NARRATION_REASON.NO_SPEECH);
+});
+
+runTest('T64 — un passage parlé va à l\'accord qu\'il recouvre le plus longtemps', () => {
+  const grid = [
+    { start: 0, end: 4, chord: { resolved: true, label: 'D' } },
+    { start: 4, end: 12, chord: { resolved: true, label: 'A' } },
+  ];
+  const lines = alignNarration([{ start: 3, end: 10, text: 'on passe au la' }], grid);
+  assertEqual(lines.length, 1);
+  assertEqual(lines[0].chord, 'A', 'recouvrement de 6 s contre 1 s :');
+  assertEqual(lines[0].nearest, false, 'ce n\'est pas un voisinage, c\'est un recouvrement :');
+  assertClose(lines[0].chordStart, 4, 1e-9);
+});
+
+runTest('T65 — parole pendant un silence : accord le plus proche, et c\'est signalé', () => {
+  const grid = [{ start: 0, end: 4, chord: { resolved: true, label: 'D' } }];
+  const lines = alignNarration([{ start: 20, end: 22, text: 'écoutez bien' }], grid);
+  assertEqual(lines[0].chord, 'D');
+  assertEqual(lines[0].nearest, true, 'le voisinage ne se fait pas passer pour une simultanéité :');
+});
+
+runTest('T66 — sans grille, ou face à un accord non résolu, aucun accord n\'est inventé', () => {
+  assertEqual(alignNarration([{ start: 1, end: 2, text: 'bonjour' }], [])[0].chord, null);
+  assertEqual(alignNarration([{ start: 1, end: 2, text: 'bonjour' }], null)[0].chord, null);
+  const unresolved = [{ start: 0, end: 5, chord: { resolved: false, label: null } }];
+  assertEqual(alignNarration([{ start: 1, end: 2, text: 'bonjour' }], unresolved)[0].chord, null);
+});
+
+runTest('T67 — les segments d\'un repli audio (start/end/label) sont reconnus aussi', () => {
+  const audioGrid = [{ start: 0, end: 6, label: 'F#m' }];
+  assertEqual(alignNarration([{ start: 1, end: 2, text: 'ici' }], audioGrid)[0].chord, 'F#m');
+});
+
+runTest('T68 — le texte suivi est concaténé et borné', () => {
+  assertEqual(joinNarrationText([{ text: 'un' }, { text: ' deux ' }, { text: '' }]), 'un deux');
+  assertEqual(joinNarrationText(null), '');
+  const long = joinNarrationText([{ text: 'a'.repeat(50) }], 10);
+  assertEqual(long.length, 11, 'tronqué à 10 caractères plus le signe de coupe :');
+  assertTrue(long.endsWith('…'), 'la coupe est visible :');
+});
+
+runTest('T69 — l\'analyse porte l\'état de narration qu\'on lui donne', () => {
+  const narration = { available: true, segments: [{ start: 0, end: 1, text: 'salut' }] };
+  const video = buildVideoAnalysis({ samples: [], geometry: {}, sampleInterval: 0.25, narration });
+  assertEqual(video.narration.available, true, 'côté image :');
+  const audio = buildAudioOnlyAnalysis({ reason: 'NoKeyboard', audioSegments: [], narration });
+  assertEqual(audio.narration.available, true, 'côté son :');
+});
+
+runTest('T70 — sans transcription, l\'analyse ne déclare plus la vidéo muette', () => {
+  const video = buildVideoAnalysis({ samples: [], geometry: {}, sampleInterval: 0.25 });
+  assertEqual(video.narration.reason, NARRATION_REASON.NOT_ATTEMPTED,
+    'ce champ n\'était jamais alimenté et affirmait pourtant un fait :');
+  const audio = buildAudioOnlyAnalysis({ reason: 'NoKeyboard', audioSegments: [] });
+  assertEqual(audio.narration.reason, NARRATION_REASON.NOT_ATTEMPTED);
+  const declared = buildVideoAnalysis({
+    samples: [], geometry: {}, sampleInterval: 0.25, hasNarration: true,
+  });
+  assertEqual(declared.narration.available, true, 'le raccourci historique marche toujours :');
 });
 
 console.log(`\n=== Résultat : ${passed}/${total} tests passés ===`);

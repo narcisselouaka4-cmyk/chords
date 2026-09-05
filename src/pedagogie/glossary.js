@@ -163,16 +163,98 @@ export function collectMissing(concepts) {
   return (concepts || []).filter((c) => !c.entry).map((c) => c.id);
 }
 
+// ---------------------------------------------------------------------------
+// États du panneau narration
+// ---------------------------------------------------------------------------
+//
+// Il y a QUATRE raisons distinctes de n'avoir aucune parole à montrer, et elles
+// ne se disent pas de la même façon. Jusqu'ici un seul message les recouvrait
+// toutes — « cette source ne comporte pas de commentaire parlé » — affirmé même
+// sur un tutoriel où quelqu'un parle pendant dix minutes, parce que rien
+// n'écoutait la bande son. Un constat sur le CONTENU et une contrainte
+// D'ENVIRONNEMENT ne sont pas la même information pour la personne qui lit.
+//
+// La règle qui gouverne ces quatre états : ne jamais présenter comme un fait sur
+// la vidéo ce qui n'est qu'une limite de la machine.
+
+/** Raisons d'indisponibilité de la narration, partagées avec transcription.js. */
+export const NARRATION_REASON = {
+  /** La transcription a tourné et n'a trouvé aucune parole. */
+  NO_SPEECH: 'no-speech',
+  /** faster-whisper n'est pas installé sur cette machine. */
+  DEPENDENCY: 'dependency-missing',
+  /** La transcription a échoué techniquement. */
+  FAILED: 'failed',
+  /** Rien n'a été tenté (environnement sans le processus principal). */
+  NOT_ATTEMPTED: 'not-attempted',
+};
+
 /**
- * État du panneau glossaire quand la source ne comporte aucune narration
- * parlée — cas explicitement dans le périmètre (extraits de réseaux sociaux).
+ * La bande son a bien été écoutée : elle ne contient pas de parole.
  *
- * @returns {{ available: false, message: string }}
+ * Cas explicitement dans le périmètre — extrait de réseau social, démonstration
+ * jouée sans commentaire.
+ *
+ * @returns {{ available: false, reason: string, message: string }}
  */
 export function noNarrationState() {
   return {
     available: false,
+    reason: NARRATION_REASON.NO_SPEECH,
     message: 'Cette source ne comporte pas de commentaire parlé : il n\'y a rien à citer. '
       + 'Les explications ci-dessous viennent du glossaire de l\'application, pas de la vidéo.',
+  };
+}
+
+/**
+ * La reconnaissance vocale n'est pas installée sur cette machine.
+ *
+ * Ce n'est PAS un constat sur la vidéo : elle contient peut-être un commentaire
+ * parlé du début à la fin. C'est l'application qui ne sait pas encore l'écouter
+ * ici. La commande d'installation est donnée pour que ce soit réparable.
+ *
+ * @returns {{ available: false, reason: string, message: string }}
+ */
+export function transcriptionUnavailableState() {
+  return {
+    available: false,
+    reason: NARRATION_REASON.DEPENDENCY,
+    message: 'La reconnaissance vocale n\'est pas installée sur cet ordinateur : la parole du '
+      + 'professeur n\'a donc pas pu être transcrite. Cela ne dit rien du contenu de la vidéo. '
+      + 'Pour l\'activer : pip install faster-whisper dans l\'environnement Python du projet.',
+  };
+}
+
+/**
+ * La transcription a été tentée et a échoué.
+ *
+ * @param {string} [detail] - message technique, montré tel quel s'il existe
+ * @returns {{ available: false, reason: string, message: string, detail: string|null }}
+ */
+export function transcriptionFailedState(detail = null) {
+  return {
+    available: false,
+    reason: NARRATION_REASON.FAILED,
+    detail: detail || null,
+    message: 'La transcription de la bande son a échoué : la parole du professeur n\'a pas pu '
+      + 'être lue. Le relevé d\'accords ci-dessus, lui, reste valable.',
+  };
+}
+
+/**
+ * Aucune transcription n'a été tentée.
+ *
+ * État par défaut lorsque l'analyse tourne hors du processus principal Electron
+ * (tests, appel direct du moteur). L'écran ne doit pas en conclure que la vidéo
+ * est muette.
+ *
+ * @returns {{ available: false, reason: string, message: string }}
+ */
+export function narrationNotAttemptedState() {
+  return {
+    available: false,
+    reason: NARRATION_REASON.NOT_ATTEMPTED,
+    message: 'La bande son n\'a pas été transcrite pour ce relevé : rien n\'a donc été écouté. '
+      + 'Les explications ci-dessous viennent du glossaire de l\'application.',
   };
 }

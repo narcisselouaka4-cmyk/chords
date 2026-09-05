@@ -834,6 +834,82 @@ async function demucsInstalled() {
   });
 }
 
+// [Claude] — 2026-09-06 — Pédagogie IA v2 : reconnaissance vocale locale.
+//
+// Même principe que Demucs : une dépendance Python facultative, téléchargée une
+// fois, qui tourne hors ligne. UNE DIFFÉRENCE ESSENTIELLE avec Demucs, et elle
+// est délibérée : quand Demucs manque, l'application fabrique des stems simulés
+// (des bips) pour que la chaîne ne casse pas — c'est acceptable pour un signal
+// de test. Ici, un texte fabriqué serait un mensonge pédagogique. Quand
+// faster-whisper manque, on le DIT ; on n'invente pas la parole du professeur.
+
+/** faster-whisper est-il installé dans l'interpréteur Python utilisé ? */
+async function transcriberInstalled() {
+  return new Promise((resolve) => {
+    const proc = spawn(getPythonCommand(), ['-c', 'import faster_whisper'], { shell: false });
+    proc.on('error', () => resolve(false));
+    proc.on('exit', (code) => resolve(code === 0));
+  });
+}
+
+/**
+ * Lance electron/transcriber.py et lit le JSON de sa dernière ligne de stdout.
+ * Même contrat que runAudioProcessor, avec une tolérance en plus : le script
+ * sort avec le code 0 même en cas d'échec métier, la raison étant portée par le
+ * JSON. On lit donc le JSON avant de conclure à une panne.
+ */
+function runTranscriber(args) {
+  return new Promise((resolve, reject) => {
+    const proc = trackChild(spawn(getPythonCommand(), [
+      path.join(__dirname, 'transcriber.py'),
+      ...args,
+    ], { shell: false }));
+
+    let stdout = '';
+    let stderr = '';
+    proc.stdout.on('data', (d) => { stdout += d.toString(); });
+    proc.stderr.on('data', (d) => { stderr += d.toString(); });
+    proc.on('error', (err) => reject(err));
+    proc.on('exit', (code) => {
+      const line = stdout.trim().split('\n').filter(Boolean).pop();
+      if (!line) {
+        reject(new Error(stderr || `transcriber exited with code ${code}`));
+        return;
+      }
+      try {
+        resolve(JSON.parse(line));
+      } catch (err) {
+        reject(new Error(`transcriber: JSON invalide — ${err.message}`));
+      }
+    });
+  });
+}
+
+// Dossier de travail PROPRE à la transcription, et c'est volontaire.
+// createWorkDir() purge tous les autres dossiers du même racine à chaque appel
+// (« un seul dossier vit à la fois »). La transcription tourne en parallèle de
+// l'analyse d'accords : partager la racine reviendrait à ce que l'une efface le
+// WAV de l'autre en pleine lecture. Deux racines, deux purges indépendantes.
+const TRANSCRIBE_DIR_NAME = 'PianoJazzChords/.work-transcribe';
+
+async function createTranscribeDir() {
+  const root = path.join(os.homedir(), TRANSCRIBE_DIR_NAME);
+  await fs.mkdir(root, { recursive: true });
+  const dir = path.join(root, `transcribe-${Date.now()}`);
+  await fs.mkdir(dir, { recursive: true });
+  try {
+    const entries = await fs.readdir(root);
+    await Promise.all(entries.map(async (name) => {
+      const full = path.join(root, name);
+      if (full === dir) return;
+      await fs.rm(full, { recursive: true, force: true }).catch(() => {});
+    }));
+  } catch {
+    /* dossier absent : rien à purger */
+  }
+  return dir;
+}
+
 async function runDemucs(trackId, inputPath) {
   const studioDir = await ensureStudioDir();
   const trackDir = path.join(studioDir, trackId);
@@ -1267,6 +1343,67 @@ function setupStudioIPC() {
         blackKeyCount: geometry.blackKeys.length,
       },
     };
+  });
+
+  // [Claude] — 2026-09-06 — Pédagogie IA v2 : transcrire ce que DIT le professeur.
+  //
+  // Indépendant de `pedagogie:analyze-video` : la parole ne dépend pas de ce que
+  // l'image a donné, les deux tournent en parallèle depuis l'écran.
+  //
+  // L'extraction audio réutilise extractTrackAudio(), la même que le Studio et
+  // l'Analyse — il n'y a pas deux façons de sortir un WAV d'une vidéo dans ce
+  // dépôt, et il ne doit pas y en avoir.
+  //
+  // TROIS INDISPONIBILITÉS DISTINCTES sont remontées, jamais confondues :
+  //   - dependency-missing : faster-whisper absent de cette machine ;
+  //   - no-speech          : le modèle a tourné et n'a trouvé aucune parole ;
+  //   - failed             : échec technique (fichier illisible, modèle en erreur).
+  // L'écran en fait trois messages différents. Aucun texte n'est fabriqué.
+  ipcMain.handle('pedagogie:transcribe-video', async (event, filePath, options = {}) => {
+    if (!(await transcriberInstalled())) {
+      return { available: false, reason: 'dependency-missing' };
+    }
+
+    let workDir = null;
+    try {
+      workDir = await createTranscribeDir();
+      const wavPath = path.join(workDir, 'speech.wav');
+      await extractTrackAudio(filePath, wavPath);
+
+      const args = ['transcribe', wavPath];
+      if (options.model) args.push(`--model=${options.model}`);
+      if (options.language) args.push(`--language=${options.language}`);
+      const raw = await runTranscriber(args);
+
+      if (!raw?.ok) {
+        // Le script sait lui aussi dire que la dépendance manque : ce cas ne
+        // devrait pas arriver après le contrôle ci-dessus, mais s'il arrive on
+        // garde la bonne raison plutôt que de la ranger dans « échec ».
+        const reason = raw?.reason === 'MissingDependency' ? 'dependency-missing' : 'failed';
+        return { available: false, reason, detail: raw?.message || null };
+      }
+
+      if (!Array.isArray(raw.segments) || raw.segments.length === 0) {
+        return {
+          available: false,
+          reason: 'no-speech',
+          language: raw.language ?? null,
+          model: raw.model ?? null,
+        };
+      }
+
+      return {
+        available: true,
+        segments: raw.segments,
+        language: raw.language ?? null,
+        model: raw.model ?? null,
+      };
+    } catch (err) {
+      console.error('[Pedagogie] transcription échouée :', err);
+      return { available: false, reason: 'failed', detail: err.message };
+    } finally {
+      if (workDir) await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
+    }
   });
 
   /** Dimensions et durée de la piste vidéo, via ffprobe (compagnon de ffmpeg). */

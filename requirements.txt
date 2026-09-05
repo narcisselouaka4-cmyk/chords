@@ -1,0 +1,29 @@
+# Dépendances Python du backend local de Piano Jazz Chords.
+#
+# [Claude] — 2026-09-06 — Ce fichier n'existait pas : les paquets étaient
+# installés à la main dans le .venv, sans trace écrite. Il est RECONSTITUÉ à
+# partir des imports réels des scripts de electron/ et des versions présentement
+# installées ; il n'a pas été régénéré depuis un environnement figé, donc il
+# n'est pas garanti exhaustif. Le compléter au fil des ajouts plutôt que de le
+# supposer complet.
+#
+# Installation, dans le .venv du projet :
+#   .venv/bin/pip install -r requirements.txt
+
+# --- Extraction et analyse audio (audio-processor.py, melody_extractor.py) ---
+imageio-ffmpeg==0.6.0
+librosa==0.11.0
+numpy==2.4.6
+soundfile==0.14.0
+
+# --- Séparation de pistes, Studio (demucs-wrapper.py) ---
+# Facultatif : sans lui, le Studio produit des stems simulés.
+demucs==4.0.1
+torch==2.6.0+cpu
+
+# --- Reconnaissance vocale locale, Pédagogie IA (transcriber.py) ---
+# Facultatif : sans lui, l'écran dit que la parole n'a pas pu être transcrite —
+# aucun texte n'est fabriqué. Licence MIT ; voir l'en-tête de transcriber.py
+# pour le choix de faster-whisper plutôt que whisper-timestamped (AGPL-3.0).
+# Le modèle (« small » par défaut, ~250 Mo) se télécharge au premier usage.
+faster-whisper>=1.0

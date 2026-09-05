@@ -442,6 +442,133 @@ Analyse chaque accord et donne des conseils de maître.`;
   return fallback;
 }
 
+// ── Pédagogie IA : approfondir ce que dit le professeur ──
+//
+// FACULTATIF, ET JAMAIS LE COMPORTEMENT PAR DÉFAUT. La transcription brute est
+// toujours affichée seule ; cette fonction ne fait qu'ajouter une reformulation
+// quand une clé personnelle est configurée. Sans clé : `null` immédiat, aucun
+// appel réseau, l'écran garde le texte transcrit tel quel.
+//
+// Ce que l'IA a le droit de faire ici : reformuler et remettre en contexte ce
+// que le professeur a DIT, en s'appuyant sur les accords que l'application a
+// RELEVÉS. Ce qu'elle n'a pas le droit de faire : recalculer un accord ou
+// ajouter un conseil qui ne serait pas dans la vidéo — c'est la même règle que
+// pour les fiches du glossaire (voir src/pedagogie/glossary.js).
+
+const NARRATION_SYSTEM_PROMPT = 'Tu es un professeur de piano jazz et gospel qui aide un élève à '
+  + "comprendre un tutoriel vidéo. On te donne la TRANSCRIPTION de ce que dit le professeur dans la "
+  + "vidéo, et la GRILLE D'ACCORDS que l'application a relevée sur la même vidéo.\n\n"
+  + 'Ta tâche : expliquer avec des mots simples, en français, ce que le professeur enseigne — les '
+  + "conseils qu'il donne, ce qu'il demande de travailler, et le lien avec les accords relevés.\n\n"
+  + "RÈGLES STRICTES :\n"
+  + "- Ne parle QUE de ce qui est dans la transcription et dans la grille fournies.\n"
+  + "- N'invente aucun conseil, aucun accord, aucune note qui ne s'y trouve pas.\n"
+  + "- Si la transcription est trop courte ou trop confuse pour en tirer quelque chose, dis-le "
+  + "franchement en une phrase plutôt que de meubler.\n"
+  + '- Réponds en texte suivi, court (10 lignes maximum), sans JSON et sans titre.';
+
+/**
+ * Envoie la transcription au modèle et renvoie l'explication en texte.
+ * Même gestion des erreurs que fetchMasterclass : 401/403 et 429 sont nommées.
+ */
+async function fetchNarrationExplanation(config, userPrompt) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+  try {
+    const response = await fetch(`${config.baseUrl.replace(/\/$/, '')}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${config.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [
+          { role: 'system', content: NARRATION_SYSTEM_PROMPT },
+          { role: 'user', content: userPrompt },
+        ],
+        max_tokens: 900,
+        temperature: 0.3,
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('AI_API_KEY_INVALID');
+      } else if (response.status === 429) {
+        throw new Error('AI_RATE_LIMIT');
+      }
+      throw new Error(`AI_API_ERROR_${response.status}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+    const text = typeof content === 'string' ? content.trim() : '';
+    return text || null;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    throw err;
+  }
+}
+
+/**
+ * Reformule et met en contexte ce que le professeur explique dans la vidéo.
+ *
+ * @param {string} segmentText - transcription (un passage, ou le texte suivi)
+ * @param {object} [context]
+ * @param {string} [context.key] - tonalité relevée
+ * @param {string[]} [context.chords] - accords relevés, dans l'ordre
+ * @param {string} [context.source] - 'video' (lu à l'image) ou 'audio' (lu au son)
+ * @returns {Promise<string|null>} l'explication, ou null si aucune clé n'est
+ *          configurée, si le texte est vide, ou si l'appel échoue
+ */
+export async function explainNarration(segmentText, context = {}) {
+  const text = typeof segmentText === 'string' ? segmentText.trim() : '';
+  if (!text) return null;
+
+  const config = getApiConfig();
+  if (!config) return null;
+
+  const chords = Array.isArray(context.chords) ? context.chords.filter(Boolean) : [];
+  const sourceLine = context.source === 'video'
+    ? "Les accords ont été lus sur le clavier affiché à l'image."
+    : 'Les accords viennent de l\'analyse du son, pas de l\'image.';
+
+  const userPrompt = `Transcription de la vidéo :\n${text}\n\n`
+    + `Grille relevée par l'application${context.key ? ` (tonalité : ${context.key})` : ''} : `
+    + `${chords.length ? chords.join(' — ') : 'aucun accord relevé'}\n`
+    + `${sourceLine}\n\n`
+    + "Explique à l'élève ce que le professeur enseigne dans ce passage.";
+
+  let lastErr = null;
+  for (let attempt = 0; attempt <= RETRY_DELAYS.length; attempt++) {
+    try {
+      const result = await fetchNarrationExplanation(config, userPrompt);
+      if (result) return result;
+    } catch (err) {
+      lastErr = err;
+      if (err.message === 'AI_API_KEY_INVALID') {
+        console.error('[AI] Clé API invalide ou refusée.');
+        throw err;
+      }
+      if (attempt < RETRY_DELAYS.length) {
+        console.warn(`[AI] Explication tentative ${attempt + 1} échouée (${err.message}). Retry dans ${RETRY_DELAYS[attempt]}ms...`);
+        await sleep(RETRY_DELAYS[attempt]);
+      }
+    }
+  }
+
+  // Pas de repli fabriqué : contrairement à la Masterclass, il n'existe aucune
+  // bibliothèque locale capable de dire ce que CE professeur a expliqué. Le
+  // repli, c'est la transcription brute — déjà affichée à l'écran.
+  console.warn('[AI] Explication de la narration indisponible :', lastErr?.message);
+  return null;
+}
+
 // ── Utilitaires publics ──
 
 export function classifyAndLabel(notes, styleLabel = '') {

@@ -368,6 +368,20 @@
                   <div id="pedagogie-crosscheck"></div>
                 </section>
 
+                <!-- Ce que le professeur DIT, pas seulement ce qu'il joue.
+                     La transcription brute est toujours montrée telle quelle ;
+                     le bouton d'approfondissement n'apparaît que si une clé IA
+                     personnelle est configurée. -->
+                <section class="pedagogie-card" id="pedagogie-narration-card" style="display: none;">
+                  <h4 class="pedagogie-card-title">Ce que dit le professeur</h4>
+                  <p class="pedagogie-narration" id="pedagogie-narration-state" style="display: none;"></p>
+                  <div class="pedagogie-transcript" id="pedagogie-transcript"></div>
+                  <div class="pedagogie-explain" id="pedagogie-explain" style="display: none;">
+                    <button class="pedagogie-secondary-btn" id="pedagogie-explain-btn" type="button">Approfondir avec l'IA</button>
+                    <p class="pedagogie-explain-answer" id="pedagogie-explain-answer" style="display: none;"></p>
+                  </div>
+                </section>
+
                 <section class="pedagogie-card">
                   <h4 class="pedagogie-card-title">Ce qu'il y a à comprendre</h4>
                   <div class="pedagogie-glossary" id="pedagogie-glossary"></div>

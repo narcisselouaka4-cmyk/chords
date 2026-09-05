@@ -118,6 +118,60 @@ check('La traduction lit bien startTime/endTime, les noms du moteur',
   && readText('src/pedagogie/audio-fallback.js').includes('c?.endTime'));
 
 // ---------------------------------------------------------------------------
+// 6 bis. Ce que DIT le professeur : transcription locale de la bande son
+// ---------------------------------------------------------------------------
+
+const transcriber = readText('electron/transcriber.py');
+
+check('La carte « Ce que dit le professeur » existe',
+  html.includes('id="pedagogie-narration-card"'));
+check('Le texte transcrit a sa zone dédiée', html.includes('id="pedagogie-transcript"'));
+check('L\'état d\'indisponibilité a sa propre place, distincte du texte',
+  html.includes('id="pedagogie-narration-state"'));
+
+check('Le handler IPC pedagogie:transcribe-video existe',
+  electronMain.includes("ipcMain.handle('pedagogie:transcribe-video'"));
+check('Le preload actif expose transcribeVideo',
+  preload.includes("ipcRenderer.invoke('pedagogie:transcribe-video'"));
+check('Le contrôleur appelle bien cet IPC', tabCode.includes('pedagogie.transcribeVideo'));
+
+check('La transcription réutilise l\'extraction audio existante, pas une seconde',
+  /extractTrackAudio\([^)]*wavPath/.test(electronMain));
+check('La disponibilité de faster-whisper est vérifiée avant de lancer quoi que ce soit',
+  electronMain.includes("'import faster_whisper'"));
+check('Les trois indisponibilités sont distinguées par l\'IPC',
+  electronMain.includes("'dependency-missing'")
+  && electronMain.includes("'no-speech'")
+  && electronMain.includes("reason: 'failed'"));
+check('Le contrôleur traduit le retour par le module pur',
+  tabCode.includes('normalizeTranscription') && tabCode.includes('alignNarration'));
+
+check('Le script Python suit le contrat du dépôt : JSON sur stdout, journaux sur stderr',
+  transcriber.includes('print(json.dumps(') && transcriber.includes('file=sys.stderr'));
+check('La taille de modèle est une constante nommée, pas une valeur enfouie',
+  /DEFAULT_MODEL\s*=\s*"/.test(transcriber));
+check('Le garde-fou anti-hallucination est en place (VAD + seuil de silence)',
+  transcriber.includes('vad_filter=True') && transcriber.includes('no_speech_prob'));
+check('Aucun texte n\'est simulé quand la dépendance manque (contrairement aux stems Demucs)',
+  !/simulated.*transcri|fake.*transcript/i.test(electronMain));
+
+check('La transcription a son propre dossier de travail, pour ne pas purger celui de l\'analyse',
+  electronMain.includes('createTranscribeDir'));
+
+// La couche IA reste facultative : le texte brut s'affiche sans clé.
+check('Le bouton IA n\'apparaît que si une clé est réellement configurée',
+  tabCode.includes('hasAIKey()') && tabCode.includes('getAIConfig'));
+check('L\'affichage du texte transcrit ne dépend pas de la clé IA',
+  /els\.transcript\.innerHTML\s*=\s*''/.test(tabCode));
+check('L\'approfondissement passe par la fonction dédiée de la couche IA',
+  tabCode.includes('explainNarration'));
+check('explainNarration suit le patron des autres appels IA (401/403 et 429 nommés)',
+  readText('src/ai/ai-client.js').includes('fetchNarrationExplanation'));
+check('Masterclass et Réharmonisation ne sont pas touchées',
+  readText('src/ai/ai-client.js').includes('export async function generateMasterclass')
+  && readText('src/ai/ai-client.js').includes('export async function generateReharmonization'));
+
+// ---------------------------------------------------------------------------
 // 7. Garde-fous du projet
 // ---------------------------------------------------------------------------
 
@@ -141,7 +195,8 @@ const g = (practiceCss.match(/:root\[data-skin='global'\] #practice-view-pedagog
 const v = (practiceCss.match(/:root\[data-skin='v2'\] #practice-view-pedagogie/g) || []).length;
 check('practice.css habille la vue en skin Global', g > 20, `${g} règles`);
 check('practice.css habille la vue en skin v2', v > 20, `${v} règles`);
-for (const sel of ['.pedagogie-layout', '.pedagogie-card', '.pedagogie-chip', '.pedagogie-track-item']) {
+for (const sel of ['.pedagogie-layout', '.pedagogie-card', '.pedagogie-chip', '.pedagogie-track-item',
+  '.pedagogie-transcript', '.pedagogie-line', '.pedagogie-secondary-btn']) {
   check(`« ${sel} » est stylé dans les deux skins`,
     practiceCss.includes(`:root[data-skin='global'] #practice-view-pedagogie ${sel}`)
     && practiceCss.includes(`:root[data-skin='v2'] #practice-view-pedagogie ${sel}`));

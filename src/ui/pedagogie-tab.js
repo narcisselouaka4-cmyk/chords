@@ -18,6 +18,9 @@ import { buildVideoAnalysis, buildAudioOnlyAnalysis } from '../pedagogie/video-a
 import { explainUnrecognised } from '../pedagogie/format-detector.js';
 import { crossCheck, DIVERGENCE } from '../pedagogie/cross-check.js';
 import { normalizeAnalyzerChords } from '../pedagogie/audio-fallback.js';
+import { normalizeTranscription, alignNarration, joinNarrationText } from '../pedagogie/transcription.js';
+import { explainNarration } from '../ai/ai-client.js';
+import { getAIConfig } from '../ai/openai-config.js';
 
 const els = {};
 let tracks = [];
@@ -26,6 +29,12 @@ let selectedTrackName = null;
 let busy = false;
 let analysis = null;
 let comparison = null;
+// Passages parlés déjà rapprochés des accords (voir transcription.js).
+let narrationView = [];
+let detectedKey = null;
+// Approfondissement IA : facultatif, jamais le comportement par défaut.
+let explanation = null;
+let explaining = false;
 
 // ---------------------------------------------------------------------------
 // Utilitaires
@@ -116,6 +125,7 @@ function selectTrack(trackId) {
   selectedTrackName = tracks.find((t) => t.id === trackId)?.name || trackId;
   analysis = null;
   comparison = null;
+  resetNarration();
   setStatus('');
   render();
   refreshTrackList();
@@ -156,12 +166,19 @@ async function analyzeSelected() {
   busy = true;
   analysis = null;
   comparison = null;
+  resetNarration();
   render();
   setProgress('Lecture des images…');
   setStatus('');
 
   try {
     const originalPath = await getOriginalPath(selectedTrackId);
+
+    // La parole ne dépend pas de ce que l'image donne : les deux lectures
+    // partent ensemble, et l'on n'attend la transcription qu'au moment
+    // d'assembler le résultat.
+    const transcriptionPromise = runTranscription(originalPath);
+
     const result = await api.pedagogie.analyzeVideo(originalPath, { sampleFps: 4 });
 
     if (!result?.ok) {
@@ -173,25 +190,36 @@ async function analyzeSelected() {
       // L'image n'a rien donné : on le dit, puis on tente le son.
       setProgress('L\'image n\'a rien donné — analyse du son…');
       const audioSegments = await runAudioFallback(originalPath);
+      detectedKey = audioSegments.key ?? null;
+      setProgress('Transcription de la parole…');
+      const narration = normalizeTranscription(await transcriptionPromise);
       analysis = buildAudioOnlyAnalysis({
         reason: result.reason,
         audioSegments: audioSegments.segments,
         key: audioSegments.key,
+        narration,
       });
+      narrationView = alignNarration(narration.segments, analysis.segments);
       return;
     }
+
+    setProgress('Transcription de la parole…');
+    const narration = normalizeTranscription(await transcriptionPromise);
 
     setProgress('Relevé des accords…');
     analysis = buildVideoAnalysis({
       samples: result.samples,
       geometry: result.geometry,
       sampleInterval: result.sampleInterval,
+      narration,
     });
+    narrationView = alignNarration(narration.segments, analysis.segments);
 
     // Recoupement : le son est une seconde lecture indépendante de la même
     // vidéo. Un désaccord est consigné, jamais arbitré.
     setProgress('Recoupement avec le son…');
     const audio = await runAudioFallback(originalPath).catch(() => null);
+    detectedKey = audio?.key ?? null;
     if (audio?.segments?.length) {
       comparison = crossCheck({
         video: analysis.segments
@@ -230,6 +258,74 @@ async function runAudioFallback(originalPath) {
   return { segments: normalizeAnalyzerChords(result), key: result?.key ?? null };
 }
 
+/** Remet à zéro tout ce qui concerne la parole. Appelé à chaque nouveau relevé. */
+function resetNarration() {
+  narrationView = [];
+  detectedKey = null;
+  explanation = null;
+  explaining = false;
+}
+
+/**
+ * Transcription de la bande son par le modèle local (faster-whisper).
+ *
+ * Ne lève jamais : une panne de transcription ne doit pas emporter le relevé
+ * d'accords, qui est le cœur de l'écran. Elle devient un état d'indisponibilité,
+ * traduit en message par transcription.js.
+ */
+async function runTranscription(originalPath) {
+  const api = window.electronAPI;
+  // Pas d'IPC du tout (environnement de test, preload ancien) : on ne prétend
+  // pas que la vidéo est muette, on dit que rien n'a été écouté.
+  if (!api?.pedagogie?.transcribeVideo) return { available: false, reason: 'not-attempted' };
+  try {
+    return await api.pedagogie.transcribeVideo(originalPath, {});
+  } catch (err) {
+    console.warn('[Pedagogie] transcription échouée :', err);
+    return { available: false, reason: 'failed', detail: err.message };
+  }
+}
+
+/** Une clé IA personnelle est-elle configurée ? Même contrôle que masterclass-panel.js. */
+function hasAIKey() {
+  try {
+    const cfg = getAIConfig();
+    return Boolean(cfg && cfg.apiKey);
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
+ * Approfondissement facultatif : reformule ce que le professeur a dit, à la
+ * lumière des accords relevés. La transcription brute reste affichée au-dessus,
+ * inchangée — c'est elle la source, l'IA n'est qu'une relecture.
+ */
+async function askExplanation() {
+  if (explaining || !analysis) return;
+  explaining = true;
+  explanation = null;
+  renderNarration();
+
+  try {
+    const text = joinNarrationText(narrationView);
+    const result = await explainNarration(text, {
+      key: detectedKey,
+      chords: analysis.segments.filter((s) => s.chord.resolved).map((s) => s.chord.label),
+      source: analysis.source,
+    });
+    explanation = result
+      || 'L\'assistant n\'a rien renvoyé. La transcription ci-dessus reste la source.';
+  } catch (err) {
+    explanation = err.message === 'AI_API_KEY_INVALID'
+      ? 'La clé API a été refusée. Vérifiez-la dans Réglages › Assistant IA.'
+      : `Approfondissement impossible : ${err.message}`;
+  } finally {
+    explaining = false;
+    renderNarration();
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Rendu
 // ---------------------------------------------------------------------------
@@ -246,6 +342,7 @@ function render() {
 
   renderFormat();
   renderResult();
+  renderNarration();
 }
 
 function renderFormat() {
@@ -316,14 +413,9 @@ function renderResult() {
     }
   }
 
-  // Glossaire.
+  // Glossaire. L'état de la narration a désormais sa propre carte : le
+  // glossaire redevient ce qu'il est, une liste de fiches.
   els.glossary.innerHTML = '';
-  if (analysis.narration && analysis.narration.available === false) {
-    els.glossary.appendChild(el('p', {
-      className: 'pedagogie-narration',
-      text: analysis.narration.message,
-    }));
-  }
   for (const concept of analysis.concepts) {
     if (!concept.entry) continue;
     els.glossary.appendChild(el('div', { className: 'pedagogie-entry' }, [
@@ -350,6 +442,61 @@ function renderResult() {
   }
 }
 
+/**
+ * Ce que dit le professeur.
+ *
+ * Trois choses, dans cet ordre : ce qui manque et POURQUOI, le texte transcrit
+ * posé à côté de l'accord joué au même moment, puis — seulement si une clé IA
+ * est configurée — le bouton d'approfondissement.
+ */
+function renderNarration() {
+  if (!els.narrationCard) return;
+  if (!analysis) { els.narrationCard.style.display = 'none'; return; }
+  els.narrationCard.style.display = '';
+
+  const narration = analysis.narration || {};
+  const available = narration.available === true;
+
+  // L'absence est dite, et sa raison avec. Une machine sans reconnaissance
+  // vocale ne se lit pas comme une vidéo sans commentaire parlé.
+  if (els.narrationState) {
+    els.narrationState.style.display = available ? 'none' : '';
+    els.narrationState.textContent = available ? '' : (narration.message || '');
+    els.narrationState.dataset.reason = narration.reason || '';
+  }
+
+  els.transcript.innerHTML = '';
+  for (const line of narrationView) {
+    els.transcript.appendChild(el('div', { className: 'pedagogie-line' }, [
+      el('span', { className: 'pedagogie-line-time', text: formatTime(line.start) }),
+      el('span', { className: 'pedagogie-line-text', text: line.text }),
+      line.chord
+        ? el('span', {
+          className: `pedagogie-line-chord${line.nearest ? ' is-nearest' : ''}`,
+          text: line.chord,
+          title: line.nearest
+            ? 'Accord le plus proche : rien n\'était joué pendant cette phrase.'
+            : 'Accord joué pendant cette phrase.',
+        })
+        : null,
+    ]));
+  }
+
+  // Le bouton n'apparaît que si une clé personnelle est configurée ET s'il y a
+  // du texte à approfondir. Sans clé, l'écran ne montre rien de tout cela : la
+  // transcription brute se suffit.
+  const canExplain = hasAIKey() && narrationView.length > 0;
+  if (els.explain) els.explain.style.display = canExplain ? '' : 'none';
+  if (els.explainBtn) {
+    els.explainBtn.disabled = explaining;
+    els.explainBtn.textContent = explaining ? 'Lecture en cours…' : 'Approfondir avec l\'IA';
+  }
+  if (els.explainAnswer) {
+    els.explainAnswer.textContent = explanation || '';
+    els.explainAnswer.style.display = explanation ? '' : 'none';
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Initialisation
 // ---------------------------------------------------------------------------
@@ -372,9 +519,16 @@ export function initPedagogieTab() {
   els.crosscheck = document.getElementById('pedagogie-crosscheck');
   els.glossary = document.getElementById('pedagogie-glossary');
   els.notes = document.getElementById('pedagogie-notes');
+  els.narrationCard = document.getElementById('pedagogie-narration-card');
+  els.narrationState = document.getElementById('pedagogie-narration-state');
+  els.transcript = document.getElementById('pedagogie-transcript');
+  els.explain = document.getElementById('pedagogie-explain');
+  els.explainBtn = document.getElementById('pedagogie-explain-btn');
+  els.explainAnswer = document.getElementById('pedagogie-explain-answer');
 
   els.importBtn?.addEventListener('click', () => { importVideo(); });
   els.analyzeBtn?.addEventListener('click', () => { analyzeSelected(); });
+  els.explainBtn?.addEventListener('click', () => { askExplanation(); });
 
   document.addEventListener('app-switch-training-view', (e) => {
     if (e.detail?.view === 'pedagogie') {
