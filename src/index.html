@@ -98,7 +98,7 @@
           <div class="practice-mode-tabs" role="tablist" aria-label="Modes d'Entraînement">
             <button class="practice-mode-btn active" type="button" role="tab" aria-selected="true" data-view="realtime">Temps réel</button>
             <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="midi-sessions" title="Enregistrer et rejouer vos sessions MIDI">Sessions MIDI</button>
-            <button class="practice-mode-btn is-placeholder" type="button" role="tab" aria-selected="false" disabled title="À construire">Coach d'accompagnement</button>
+            <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="coach" title="Accompagner une voix isolée et faire analyser votre placement">Coach d'accompagnement</button>
             <button class="practice-mode-btn is-placeholder" type="button" role="tab" aria-selected="false" disabled title="À construire">Pédagogie IA</button>
             <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="exercise" title="Ouvrir Exercices">
               Exercices
@@ -265,6 +265,60 @@
                 <button class="primary" id="modal-keep" type="button">Garder</button>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- [Claude 05/09] — Coach d'accompagnement au chant.
+             Vue sœur de Sessions MIDI, sur le même patron : cachée par défaut,
+             basculée par applyView() depuis la pilule data-view="coach".
+             On accompagne une voix isolée (stem Demucs) et l'app mesure le
+             placement — densité et espace laissé à la voix — sans jamais
+             détecter d'accord. Toute la mesure vit dans src/coach/*. -->
+        <div class="practice-coach" id="practice-view-coach" style="display: none;">
+          <div class="coach-layout">
+            <aside class="coach-sidebar">
+              <div class="panel-title">Morceaux</div>
+              <div class="coach-track-list" id="coach-track-list"></div>
+            </aside>
+
+            <section class="coach-main">
+              <header class="coach-head">
+                <h3 class="coach-selected-name" id="coach-selected-name">Aucun morceau sélectionné</h3>
+                <p class="coach-intro">
+                  La voix seule est jouée ; vous accompagnez au piano. Rien n'est jugé pendant
+                  que vous jouez — le rapport arrive à la fin.
+                </p>
+              </header>
+
+              <div class="coach-setup">
+                <div class="coach-field">
+                  <span class="coach-field-label">Style annoncé</span>
+                  <div class="coach-style-row" id="coach-style-row"></div>
+                </div>
+
+                <div class="coach-field" id="coach-phrase-setting"></div>
+
+                <div class="coach-field" id="coach-latency-line"></div>
+
+                <div class="coach-actions">
+                  <button class="coach-primary-btn" id="coach-start-btn" type="button">Démarrer la séance</button>
+                  <button class="coach-secondary-btn" id="coach-stop-btn" type="button" style="display: none;">Arrêter et analyser</button>
+                  <button class="coach-secondary-btn" id="coach-cancel-btn" type="button" style="display: none;">Annuler</button>
+                  <button class="coach-secondary-btn" id="coach-calibrate-btn" type="button" title="Mesurer le décalage entre votre clavier et le son entendu">Calibrer la latence</button>
+                  <span class="coach-timer" id="coach-timer" style="display: none;">0:00</span>
+                </div>
+
+                <p class="coach-live-notice" id="coach-live-notice" style="display: none;">
+                  Séance en cours — jouez. Aucune analyse n'est faite en direct.
+                </p>
+
+                <p class="coach-status" id="coach-status" style="display: none;"></p>
+              </div>
+
+              <div class="coach-countdown" id="coach-countdown" style="display: none;"></div>
+
+              <div class="coach-report" id="coach-report" style="display: none;"></div>
+            </section>
           </div>
         </div>
       </main>
