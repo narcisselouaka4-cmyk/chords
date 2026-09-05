@@ -1027,6 +1027,12 @@ function initPracticeExercise() {
 
   modeButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
+      // Ne pas perdre la progression en cours sur un clic accidentel :
+      // si l'exercice courant a déjà été joué, demander confirmation.
+      const cur = practiceExercise.getState();
+      if (cur.score > 0 || cur.attempts > 0) {
+        if (!confirm('Recommencer ? Votre progression sur cet exercice sera perdue.')) return;
+      }
       modeButtons.forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
       practiceExercise.setMode(btn.dataset.mode);
@@ -1036,6 +1042,12 @@ function initPracticeExercise() {
   });
 
   newBtn?.addEventListener('click', () => {
+    // Même protection pour "Nouvel exercice" : confirmation si l'exercice
+    // courant a déjà été tenté, bascule immédiate sinon.
+    const cur = practiceExercise.getState();
+    if (cur.attempts > 0) {
+      if (!confirm('Recommencer ? Votre progression sur cet exercice sera perdue.')) return;
+    }
     practiceExercise.next();
     feedbackDiv.textContent = '';
     render();

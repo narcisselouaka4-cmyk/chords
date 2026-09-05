@@ -521,7 +521,23 @@
                 <div class="analyzer-tip-title">💡 Conseil</div>
                 <div class="analyzer-tip-text">Jouez librement sur votre synthé. Nous capturons à la fois la mélodie et l'harmonie.</div>
               </div>
-            </aside>
+             </aside>
+           </div>
+
+          <!-- [Refonte 2026-09-02, rétabli le 2026-09-03] — overlay de
+               traitement : FRÈRE des analyzer-states dans analyzer-workspace,
+               pas enfant de #analyzer-results (masqué pendant l'analyse,
+               l'overlay y serait invisible — bug refonte, corrigé le 03/09). -->
+          <div class="analyzer-processing-overlay" id="analyzer-processing" style="display: none;">
+            <div class="analyzer-processing-box">
+              <div class="analyzer-processing-spinner"></div>
+              <p class="analyzer-processing-text" id="analyzer-processing-text">Analyse en cours…</p>
+              <!-- Compteur de temps écoulé : une analyse dure souvent plus
+                   d'une minute ; sans lui, l'écran d'attente est
+                   indistinguable d'une application figée. -->
+              <p class="analyzer-processing-elapsed" id="analyzer-processing-elapsed" aria-live="polite"></p>
+              <p class="analyzer-processing-hint">Vous pouvez continuer à utiliser les onglets Entraînement et Studio.</p>
+            </div>
           </div>
 
           <!-- État 5 : Résultats / Réharmonisation -->
@@ -731,7 +747,7 @@
                       role="group"
                       aria-label="Style de voicing"
                     >
-                      <button type="button" class="voicing-style-btn" data-voicing-style="close" aria-pressed="true">Fermer</button>
+                      <button type="button" class="voicing-style-btn" data-voicing-style="close" aria-pressed="true">Serré</button>
                       <button type="button" class="voicing-style-btn" data-voicing-style="simple" aria-pressed="false">Simple</button>
                     </div>
                     <div id="analyzer-voicing-content"></div>
@@ -785,7 +801,15 @@
 
                   <div class="reharm-actions">
                     <button type="button" class="btn-secondary" id="reharm-compare-btn">Comparer les propositions</button>
-                    <button type="button" class="btn-primary" id="reharm-run-btn">Lancer la démonstration</button>
+                    <button type="button" class="btn-primary" id="reharm-run-btn">Réharmoniser mon morceau</button>
+                  </div>
+
+                  <div class="reharm-style-bar">
+                    <span class="reharm-style-label">Lecture</span>
+                    <div class="reharm-play-style-selector segmented" id="reharm-play-style-selector" role="group" aria-label="Style de lecture (bouton Écouter)">
+                      <button type="button" data-play-style="block" aria-pressed="true">Plaqué</button>
+                      <button type="button" data-play-style="arpeggio" aria-pressed="false">Arpégé</button>
+                    </div>
                   </div>
 
                   <div class="reharm-results" id="reharm-results" role="region" aria-label="Propositions de réharmonisation"></div>
@@ -853,18 +877,6 @@
               </div>
             </div>
 
-          <div class="analyzer-processing-overlay" id="analyzer-processing" style="display: none;">
-            <div class="analyzer-processing-box">
-              <div class="analyzer-processing-spinner"></div>
-              <p class="analyzer-processing-text" id="analyzer-processing-text">Analyse en cours…</p>
-              <!-- [Refonte 2026-09-02, rétabli le 2026-09-03] — compteur de
-                   temps écoulé : une analyse dure souvent plus d'une minute ;
-                   sans lui, l'écran d'attente est indistinguable d'une
-                   application figée, et l'utilisateur re-clique. -->
-              <p class="analyzer-processing-elapsed" id="analyzer-processing-elapsed" aria-live="polite"></p>
-              <p class="analyzer-processing-hint">Vous pouvez continuer à utiliser les onglets Entraînement et Studio.</p>
-            </div>
-          </div>
         </section>
 
       </main>
@@ -1223,7 +1235,7 @@
               </label>
               <label class="ai-field">
                 <span>Modèle</span>
-                <input type="text" id="ai-model" placeholder="llama-3.1-8b-instant" />
+                <input type="text" id="ai-model" placeholder="openai/gpt-oss-20b" />
               </label>
               <label class="ai-field ai-field-wide">
                 <span>Clé API</span>
