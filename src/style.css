@@ -402,6 +402,9 @@ body {
   user-select: none;
   display: block;
   overflow: visible;
+  /* [Claude 2026-09-06] Le SVG est généré à la largeur intrinsèque du
+     clavier (ex. 2560 px pour C0–C9) ; il ne doit pas être compressé pour
+     rentrer dans le conteneur, sinon il n'y a jamais de scrollbar. */
 }
 
 #keyboard-bg {
