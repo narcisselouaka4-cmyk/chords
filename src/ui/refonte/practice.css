@@ -1671,6 +1671,65 @@
   flex-direction: column;
   gap: var(--r-space-3);
 }
+
+/* ── Fenêtre principale : la vidéo importée ──
+   [Refonte Phase 1] — La vidéo est ce qu'on voit en premier et en grand ; la
+   grille d'accords n'est plus qu'un accompagnement dessous. Un seul élément
+   <video controls> natif avec le son : pas de stems ici. */
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-card.is-video,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-card.is-video {
+  padding: 0;
+  border-left: none;
+  overflow: hidden;
+  background: #000;
+}
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-card.is-video {
+  border-radius: var(--r-radius-card);
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-video-player,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-video-player {
+  display: block;
+  width: 100%;
+  max-height: min(62vh, 560px);
+  min-height: 220px;
+  background: #000;
+}
+
+/* ── Dossier des tutoriels, dans la barre latérale ── */
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-folder-hint,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-folder-hint {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-folder-path,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-folder-path {
+  font-family: var(--r-font-mono);
+  font-size: 0.68rem;
+  color: var(--r-text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-folder-btn,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-folder-btn {
+  padding: 4px 10px;
+  border: 1px dashed var(--r-border);
+  border-radius: var(--r-radius-btn);
+  background: transparent;
+  color: var(--r-text-muted);
+  font-size: 0.72rem;
+  font-family: var(--r-font-title);
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-folder-btn:hover,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-folder-btn:hover {
+  color: var(--r-accent-text, var(--r-accent));
+  border-color: var(--r-accent);
+}
 :root[data-skin='global'] #practice-view-pedagogie .pedagogie-card,
 :root[data-skin='v2'] #practice-view-pedagogie .pedagogie-card {
   padding: 14px 16px;
@@ -1685,6 +1744,32 @@
 :root[data-skin='v2'] #practice-view-pedagogie .pedagogie-card.is-notes {
   border-left-color: var(--r-warn);
 }
+/* Panneau repliable : l'honnêteté sur les limites reste, mais compacte — le
+   contenu détaillé ne prend plus une carte entière ouverte en permanence. */
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-card.is-notes summary,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-card.is-notes summary {
+  cursor: pointer;
+  list-style: none;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-card.is-notes summary::-webkit-details-marker,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-card.is-notes summary::-webkit-details-marker {
+  display: none;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-card.is-notes summary::after,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-card.is-notes summary::after {
+  content: '＋';
+  margin-left: var(--r-space-2);
+  color: var(--r-text-faint);
+  font-weight: 400;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-card.is-notes[open] summary::after,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-card.is-notes[open] summary::after {
+  content: '－';
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-card.is-notes[open] summary,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-card.is-notes[open] summary {
+  margin-bottom: var(--r-space-3);
+}
 :root[data-skin='global'] #practice-view-pedagogie .pedagogie-card-title,
 :root[data-skin='v2'] #practice-view-pedagogie .pedagogie-card-title {
   margin: 0 0 10px;
@@ -1696,12 +1781,16 @@
   color: var(--r-text-faint);
 }
 
-/* Grille d'accords relevée */
+/* Grille d'accords relevée — accompagnement compact de la vidéo, plus la
+   pièce maîtresse de l'écran. Les puces restent cliquables : un clic y fait
+   sauter la lecture vidéo. */
 :root[data-skin='global'] #practice-view-pedagogie .pedagogie-grid,
 :root[data-skin='v2'] #practice-view-pedagogie .pedagogie-grid {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  max-height: 168px;
+  overflow-y: auto;
 }
 :root[data-skin='global'] #practice-view-pedagogie .pedagogie-chip,
 :root[data-skin='v2'] #practice-view-pedagogie .pedagogie-chip {
@@ -1713,6 +1802,7 @@
   padding: 6px 10px;
   background: var(--r-surface-chip);
   border: 1px solid var(--r-border);
+  cursor: pointer;
 }
 :root[data-skin='v2'] #practice-view-pedagogie .pedagogie-chip {
   border-radius: var(--r-radius-btn);
@@ -1768,7 +1858,12 @@
   max-width: 78ch;
 }
 /* Ce que dit le professeur — transcription locale de la bande son.
-   Une ligne = un passage parlé, avec l'instant et l'accord joué au même moment. */
+   Une ligne = un passage parlé : l'instant et le texte, RIEN D'AUTRE.
+   [Refonte Phase 1] — plus d'étiquette d'accord par ligne : ce jugement par
+   ligne manquait de fiabilité (intro musicale où l'accord au plus long
+   recouvrement est visuellement loin de la phrase). La mise en relation avec
+   les accords se fait en CLIQUANT la ligne : la vidéo y saute. Le padding
+   droit évite que la ligne touche la barre de défilement verticale. */
 :root[data-skin='global'] #practice-view-pedagogie .pedagogie-transcript,
 :root[data-skin='v2'] #practice-view-pedagogie .pedagogie-transcript {
   display: flex;
@@ -1776,15 +1871,22 @@
   gap: var(--r-space-2);
   max-height: 320px;
   overflow-y: auto;
+  padding-right: var(--r-space-3);
 }
 :root[data-skin='global'] #practice-view-pedagogie .pedagogie-line,
 :root[data-skin='v2'] #practice-view-pedagogie .pedagogie-line {
   display: grid;
-  grid-template-columns: 52px 1fr auto;
+  grid-template-columns: 52px 1fr;
   align-items: baseline;
   gap: var(--r-space-2);
   padding-bottom: var(--r-space-2);
+  padding-right: var(--r-space-2);
   border-bottom: 1px solid var(--r-border-soft);
+  cursor: pointer;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-line:hover .pedagogie-line-text,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-line:hover .pedagogie-line-text {
+  color: var(--r-accent-text, var(--r-accent));
 }
 :root[data-skin='global'] #practice-view-pedagogie .pedagogie-line-time,
 :root[data-skin='v2'] #practice-view-pedagogie .pedagogie-line-time {
@@ -1799,21 +1901,29 @@
   color: var(--r-text);
   max-width: 78ch;
 }
-:root[data-skin='global'] #practice-view-pedagogie .pedagogie-line-chord,
-:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-line-chord {
-  font-family: var(--r-font-title);
-  font-weight: 700;
-  font-size: 0.78rem;
-  color: var(--r-accent);
-  white-space: nowrap;
+/* Badge « traduit automatiquement » : une traduction ne se fait jamais passer
+   pour la parole exacte du professeur. */
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-translation-badge,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-translation-badge {
+  display: inline-block;
+  margin-left: var(--r-space-2);
+  padding: 2px 8px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--r-text-muted);
+  background: var(--r-surface-chip);
+  border: 1px solid var(--r-border);
+  border-radius: 100px;
+  vertical-align: middle;
 }
-/* Aucun accord n'était joué pendant la phrase : c'est le plus proche, et
-   l'affichage doit le laisser voir plutôt que de le faire passer pour exact. */
-:root[data-skin='global'] #practice-view-pedagogie .pedagogie-line-chord.is-nearest,
-:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-line-chord.is-nearest {
-  color: var(--r-text-faint);
-  font-weight: 600;
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-translation-failed,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-translation-failed {
+  margin: 0 0 var(--r-space-2);
+  font-size: 0.74rem;
   font-style: italic;
+  color: var(--r-text-faint);
 }
 :root[data-skin='global'] #practice-view-pedagogie .pedagogie-explain,
 :root[data-skin='v2'] #practice-view-pedagogie .pedagogie-explain {

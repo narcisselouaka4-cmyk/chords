@@ -324,27 +324,32 @@
           </div>
         </div>
 
-        <!-- [Claude 05/09] — Pédagogie IA : compréhension de tutoriel vidéo.
-             Vue sœur de Coach d'accompagnement, même patron. On lit le tutoriel
-             À L'IMAGE quand c'est possible (piano-roll type Synthesia : les
-             touches allumées du clavier graphique donnent la note exacte), et on
-             se rabat sur l'analyse du son quand l'image ne dit rien — cas d'un
-             tutoriel filmé sur un vrai piano. Toute la lecture vit dans
-             src/pedagogie/*, l'extraction d'images dans electron/main.js. -->
+        <!-- [Claude 05/09, refonte 06/09] — Pédagogie IA : compréhension de tutoriel vidéo.
+             On lit le tutoriel À L'IMAGE quand c'est possible (piano-roll type
+             Synthesia : les touches allumées du clavier graphique donnent la note
+             exacte), et on se rabat sur l'analyse du son quand l'image ne dit
+             rien — cas d'un tutoriel filmé sur un vrai piano. Toute la lecture
+             vit dans src/pedagogie/*, l'extraction d'images dans electron/main.js.
+
+             [Refonte Phase 1] — La vidéo importée est la FENÊTRE PRINCIPALE.
+             La bibliothèque est propre à cet onglet : des .mp4 lus dans un
+             dossier choisi par l'utilisateur, indépendants du magasin Studio. -->
         <div class="practice-pedagogie" id="practice-view-pedagogie" style="display: none;">
           <div class="pedagogie-layout">
             <aside class="pedagogie-sidebar">
               <div class="panel-title">Tutoriels</div>
+              <!-- Dossier configurable : tant qu'aucun n'est choisi, l'écran le dit. -->
+              <div class="pedagogie-folder-hint" id="pedagogie-folder-hint"></div>
               <button class="panel-action" id="pedagogie-import-btn" type="button">+ Importer une vidéo</button>
               <div class="pedagogie-track-list" id="pedagogie-track-list"></div>
             </aside>
 
             <section class="pedagogie-main">
               <header class="pedagogie-head">
-                <h3 class="pedagogie-selected-name" id="pedagogie-selected-name">Aucun tutoriel sélectionné</h3>
-                <p class="pedagogie-intro">
-                  L'application regarde la vidéo et relève ce qui est joué au clavier.
-                  Quand l'image ne permet rien de lire, elle le dit et se rabat sur le son.
+                <h3 class="pedagogie-selected-name" id="pedagogie-selected-name">Bienvenue dans Pédagogie IA</h3>
+                <p class="pedagogie-intro" id="pedagogie-intro">
+                  Choisissez le dossier qui contient vos tutoriels vidéo (.mp4) dans la barre latérale.
+                  La vidéo et l'analyse apparaîtront ici.
                 </p>
               </header>
 
@@ -357,7 +362,18 @@
 
               <div class="pedagogie-format" id="pedagogie-format" style="display: none;"></div>
 
+              <!-- Fenêtre principale : la vidéo importée. Un seul élément
+                   <video controls> natif avec le son — pas de stems ici, la
+                   paire vidéo muette + audio caché du Studio serait de la
+                   sur-ingénierie pour ce sous-onglet. -->
+              <section class="pedagogie-card is-video" id="pedagogie-video-card" style="display: none;">
+                <video class="pedagogie-video-player" id="pedagogie-video-player" controls preload="metadata" playsinline></video>
+              </section>
+
               <div class="pedagogie-result" id="pedagogie-result" style="display: none;">
+                <!-- Accompagnement de la vidéo : bande compacte, plus la
+                     pièce maîtresse de l'écran. Un clic sur un accord y fait
+                     sauter la lecture. -->
                 <section class="pedagogie-card">
                   <h4 class="pedagogie-card-title">Grille relevée</h4>
                   <div class="pedagogie-grid" id="pedagogie-grid"></div>
@@ -369,12 +385,18 @@
                 </section>
 
                 <!-- Ce que le professeur DIT, pas seulement ce qu'il joue.
-                     La transcription brute est toujours montrée telle quelle ;
-                     le bouton d'approfondissement n'apparaît que si une clé IA
-                     personnelle est configurée. -->
+                     Le texte affiché est la transcription brute, ou sa
+                     traduction quand une clé IA est configurée — le badge le
+                     dit. Cliquer une ligne y fait sauter la lecture. -->
                 <section class="pedagogie-card" id="pedagogie-narration-card" style="display: none;">
-                  <h4 class="pedagogie-card-title">Ce que dit le professeur</h4>
+                  <h4 class="pedagogie-card-title">
+                    Ce que dit le professeur
+                    <span class="pedagogie-translation-badge" id="pedagogie-translation-badge" style="display: none;">traduit automatiquement</span>
+                  </h4>
                   <p class="pedagogie-narration" id="pedagogie-narration-state" style="display: none;"></p>
+                  <p class="pedagogie-translation-failed" id="pedagogie-translation-failed" style="display: none;">
+                    Traduction automatique indisponible : le texte original est affiché.
+                  </p>
                   <div class="pedagogie-transcript" id="pedagogie-transcript"></div>
                   <div class="pedagogie-explain" id="pedagogie-explain" style="display: none;">
                     <button class="pedagogie-secondary-btn" id="pedagogie-explain-btn" type="button">Approfondir avec l'IA</button>
@@ -387,10 +409,14 @@
                   <div class="pedagogie-glossary" id="pedagogie-glossary"></div>
                 </section>
 
-                <section class="pedagogie-card is-notes">
-                  <h4 class="pedagogie-card-title">Ce que l'application ne garantit pas</h4>
+                <!-- Honnêteté sur les limites, DÉDUPLIQUÉE : la provenance du
+                     relevé (image ou son) est déjà le badge du haut, ce panneau
+                     ne la répète plus. Il ne garde que ce qui n'est dit nulle
+                     part ailleurs, et se replie quand il n'a rien à dire. -->
+                <details class="pedagogie-card is-notes" id="pedagogie-notes-card" style="display: none;">
+                  <summary class="pedagogie-card-title">Ce que l'application ne garantit pas</summary>
                   <ul class="pedagogie-notes" id="pedagogie-notes"></ul>
-                </section>
+                </details>
               </div>
             </section>
           </div>

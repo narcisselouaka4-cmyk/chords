@@ -59,6 +59,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   pedagogie: {
     analyzeVideo: (filePath, options = {}) => ipcRenderer.invoke('pedagogie:analyze-video', filePath, options),
     transcribeVideo: (filePath, options = {}) => ipcRenderer.invoke('pedagogie:transcribe-video', filePath, options),
+    // [Claude 06/09, refonte Phase 1] — Sélecteur du dossier des tutoriels.
+    selectTutorialFolder: () => ipcRenderer.invoke('pedagogie:select-tutorial-folder'),
   },
   analyzer: {
     processFile: (filePath, options = {}) => ipcRenderer.invoke('analyzer:process-file', filePath, options),

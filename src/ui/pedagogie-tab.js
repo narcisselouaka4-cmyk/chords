@@ -1,4 +1,4 @@
-// [Claude] — 2026-09-05 — Pédagogie IA : contrôleur d'écran.
+// [Claude] — 2026-09-06 — Pédagogie IA : contrôleur d'écran.
 //
 // Orchestration seule. Aucune décision musicale n'est prise ici : la lecture de
 // l'image, le découpage en segments, le nommage des accords et le glossaire
@@ -10,31 +10,60 @@
 //   - d'où vient chaque accord (image ou son) ;
 //   - ce qui n'est pas garanti (octave heuristique, tierces non jouées,
 //     passages non résolus, concepts sans fiche).
+//
+// [Refonte Phase 1, 2026-09-06 — retour d'usage de Narcisse]
+//   - Bibliothèque PROPRE : des .mp4 lus dans un dossier choisi par
+//     l'utilisateur, indépendante du magasin Studio. Un tutoriel EST son
+//     fichier, à son emplacement réel (tutorial-library.js).
+//   - La vidéo importée est la FENÊTRE PRINCIPALE : un <video controls> natif
+//     avec le son, monté depuis un blob (même technique que le Studio, mais
+//     un seul élément : pas de stems ici, la complexité à deux éléments du
+//     Studio serait de la sur-ingénierie pour ce sous-onglet).
+//   - La grille d'accords est un accompagnement de la vidéo, plus la pièce
+//     maîtresse de l'écran.
+//   - La transcription n'affiche PLUS d'étiquette d'accord par ligne : ce
+//     jugement par ligne manquait de fiabilité (intro musicale où l'accord au
+//     plus long recouvrement est visuellement loin de la phrase).
+//   - Le texte parlé est traduit automatiquement quand une clé IA est
+//     configurée et que la langue détectée n'est pas déjà le français ; un
+//     badge le dit, une traduction ne se fait jamais passer pour la parole
+//     exacte du professeur.
 
-import { listTracks, loadMetadata, getOriginalPath } from '../recorder/studio-storage.js';
-import { importToLibrary } from './media-library.js';
-import { formatMediaDuration } from './media-format.js';
 import { buildVideoAnalysis, buildAudioOnlyAnalysis } from '../pedagogie/video-analysis.js';
 import { explainUnrecognised } from '../pedagogie/format-detector.js';
 import { crossCheck, DIVERGENCE } from '../pedagogie/cross-check.js';
 import { normalizeAnalyzerChords } from '../pedagogie/audio-fallback.js';
 import { normalizeTranscription, alignNarration, joinNarrationText } from '../pedagogie/transcription.js';
-import { explainNarration } from '../ai/ai-client.js';
+import { listTutorialFiles, copyTutorialIntoFolder, tutorialDisplayName, isMp4Name } from '../pedagogie/tutorial-library.js';
+import { getTutorialFolder, saveTutorialFolder } from '../pedagogie/tutorial-folder-pref.js';
+import { explainNarration, translateNarrationSegments } from '../ai/ai-client.js';
 import { getAIConfig } from '../ai/openai-config.js';
 
 const els = {};
-let tracks = [];
-let selectedTrackId = null;
-let selectedTrackName = null;
+// Un tutoriel est identifié par son CHEMIN de fichier, pas par un Track_ID.
+let tutorials = [];
+let selectedPath = null;
 let busy = false;
 let analysis = null;
 let comparison = null;
-// Passages parlés déjà rapprochés des accords (voir transcription.js).
+// Passages parlés déjà rapprochés des accords (voir transcription.js). Le
+// rapprochement ne sert plus au RENDU (plus d'étiquette d'accord par ligne),
+// mais conserve horodatages et textes affichés.
 let narrationView = [];
 let detectedKey = null;
+// Traduction automatique du transcript, quand une clé IA est configurée.
+// `byIndex` : index du segment transcrit → texte traduit (l'appariement avec
+// les horodatages ne doit jamais se perdre).
+let translated = null;        // { byIndex: Map<number, string>, targetLang: string } | null
+let translationFailed = false;
 // Approfondissement IA : facultatif, jamais le comportement par défaut.
 let explanation = null;
 let explaining = false;
+// Lecteur vidéo blob : une seule URL vitive à la fois.
+let videoBlobUrl = null;
+// Chemin dont l'URL blob courante est issue : suivre la sélection, pas seulement
+// la première apparition du lecteur.
+let mountedVideoPath = null;
 
 // ---------------------------------------------------------------------------
 // Utilitaires
@@ -74,55 +103,135 @@ function setProgress(message) {
   els.progress.style.display = message ? '' : 'none';
 }
 
+/** Une clé IA personnelle est-elle configurée ? Même contrôle que masterclass-panel.js. */
+function hasAIKey() {
+  try {
+    const cfg = getAIConfig();
+    return Boolean(cfg && cfg.apiKey);
+  } catch (_) {
+    return false;
+  }
+}
+
 // ---------------------------------------------------------------------------
-// Bibliothèque
+// Bibliothèque de tutoriels — dossier propre, .mp4 uniquement
 // ---------------------------------------------------------------------------
+
+function configuredFolder() {
+  return getTutorialFolder(typeof localStorage !== 'undefined' ? localStorage : null);
+}
+
+/** Message expliquant pourquoi la liste ne peut pas être peuplée, raison par raison. */
+function folderProblemText(reason) {
+  switch (reason) {
+    case 'no-folder':
+      return 'Aucun dossier de tutoriels n\'est configuré. Choisissez le dossier qui contient '
+        + 'vos vidéos .mp4 : elles seront listées ici.';
+    case 'missing':
+      return 'Le dossier configuré n\'existe plus sur le disque. Choisissez-en un autre.';
+    case 'unreadable':
+      return 'Le dossier n\'a pas pu être lu (accès refusé ou système de fichiers indisponible).';
+    default:
+      return 'Le dossier n\'a pas pu être listé.';
+  }
+}
 
 async function refreshTrackList() {
   if (!els.trackList) return;
   els.trackList.innerHTML = '';
-  try {
-    const entries = await listTracks();
-    tracks = [];
-    for (const entry of entries) {
-      const metadata = await loadMetadata(entry.id).catch(() => null);
-      if (!metadata) continue;
-      tracks.push({ id: entry.id, name: metadata.name || entry.id, metadata });
-    }
-  } catch (err) {
-    console.warn('[Pedagogie] listTracks a échoué :', err);
-    tracks = [];
-  }
 
-  if (tracks.length === 0) {
+  const folder = configuredFolder();
+  renderFolderHint(folder);
+
+  if (!folder) {
+    // [Refonte Phase 1] — Le choix du dossier est la PREMIÈRE action : sans
+    // dossier, rien d'autre n'est possible. On la rend proéminente dans la
+    // liste, pas comme un petit lien gris.
     els.trackList.appendChild(el('p', {
       className: 'pedagogie-empty',
-      text: 'Aucune vidéo importée. Importez un tutoriel pour commencer.',
+      text: 'Choisissez d\'abord le dossier qui contient vos tutoriels vidéo (.mp4).',
+    }));
+    els.trackList.appendChild(el('button', {
+      className: 'panel-action',
+      type: 'button',
+      text: '📁 Choisir le dossier des tutoriels',
+      onClick: () => chooseFolder(),
+    }));
+    tutorials = [];
+    return;
+  }
+
+  const result = await listTutorialFiles(folder);
+  tutorials = result.files;
+
+  if (!result.ok) {
+    els.trackList.appendChild(el('p', {
+      className: 'pedagogie-empty',
+      text: folderProblemText(result.reason),
     }));
     return;
   }
 
-  for (const track of tracks) {
+  if (tutorials.length === 0) {
+    els.trackList.appendChild(el('p', {
+      className: 'pedagogie-empty',
+      text: 'Aucune vidéo .mp4 dans ce dossier. Importez-en une ci-dessus.',
+    }));
+    return;
+  }
+
+  for (const tut of tutorials) {
     els.trackList.appendChild(el('button', {
-      className: `pedagogie-track-item${track.id === selectedTrackId ? ' active' : ''}`,
+      className: `pedagogie-track-item${tut.path === selectedPath ? ' active' : ''}`,
       type: 'button',
-      onClick: () => selectTrack(track.id),
+      title: tut.path,
+      onClick: () => selectTrack(tut.path),
     }, [
-      el('span', { className: 'pedagogie-track-name', text: track.name }),
-      el('span', {
-        className: 'pedagogie-track-meta',
-        text: track.metadata.duration
-          ? formatMediaDuration(track.metadata.duration)
-          : (track.metadata.format || ''),
-      }),
+      el('span', { className: 'pedagogie-track-name', text: tutorialDisplayName(tut.name) }),
     ]));
   }
 }
 
-function selectTrack(trackId) {
+/** Ligne « Dossier : … » sous le titre de la barre latérale, avec le bouton Changer. */
+function renderFolderHint(folder) {
+  if (!els.folderHint) return;
+  els.folderHint.innerHTML = '';
+  if (!folder) return; // le gros bouton est déjà dans la liste des tutoriels.
+  els.folderHint.appendChild(el('span', {
+    className: 'pedagogie-folder-path',
+    text: folder,
+    title: folder,
+  }));
+  els.folderHint.appendChild(el('button', {
+    className: 'pedagogie-folder-btn',
+    type: 'button',
+    text: 'Changer de dossier…',
+    onClick: () => chooseFolder(),
+  }));
+}
+
+async function chooseFolder() {
+  const api = window.electronAPI;
+  if (!api?.pedagogie?.selectTutorialFolder) {
+    setStatus('Le sélecteur de dossier n\'est pas disponible dans cet environnement.', 'error');
+    return;
+  }
+  const folder = await api.pedagogie.selectTutorialFolder();
+  if (!folder) return;
+  saveTutorialFolder(typeof localStorage !== 'undefined' ? localStorage : null, folder);
+  selectedPath = null;
+  analysis = null;
+  comparison = null;
+  resetNarration();
+  destroyVideo();
+  setStatus('');
+  render();
+  refreshTrackList();
+}
+
+function selectTrack(path) {
   if (busy) return;
-  selectedTrackId = trackId;
-  selectedTrackName = tracks.find((t) => t.id === trackId)?.name || trackId;
+  selectedPath = path;
   analysis = null;
   comparison = null;
   resetNarration();
@@ -131,8 +240,18 @@ function selectTrack(trackId) {
   refreshTrackList();
 }
 
+/**
+ * Import d'une vidéo : le fichier choisi (filtré .mp4 par la boîte de dialogue,
+ * re-filtré ici) est COPIÉ dans le dossier configuré. Plus d'entrée dans le
+ * magasin Studio — studio-storage.js et media-library.js ne sont pas touchés.
+ */
 async function importVideo() {
   const api = window.electronAPI;
+  const folder = configuredFolder();
+  if (!folder) {
+    setStatus('Choisissez d\'abord un dossier de tutoriels.', 'error');
+    return;
+  }
   if (!api?.studio?.selectVideoFile) {
     setStatus('L\'import de vidéo n\'est pas disponible.', 'error');
     return;
@@ -140,14 +259,74 @@ async function importVideo() {
   const picked = await api.studio.selectVideoFile();
   const filePath = typeof picked === 'string' ? picked : picked?.filePath || picked?.path;
   if (!filePath) return;
-  setStatus('Import en cours…', 'busy');
+  if (!isMp4Name(filePath)) {
+    setStatus('Seuls les fichiers .mp4 peuvent être importés.', 'error');
+    return;
+  }
+
+  setStatus('Copie dans le dossier des tutoriels…', 'busy');
   try {
-    const result = await importToLibrary(filePath);
+    const result = await copyTutorialIntoFolder(filePath, folder);
+    if (!result.ok) {
+      setStatus(result.error || 'Import impossible.', 'error');
+      return;
+    }
     await refreshTrackList();
-    selectTrack(result.id);
-    setStatus(result.isReimport ? 'Vidéo déjà présente : entrée réutilisée.' : 'Vidéo importée.', 'ok');
+    if (result.alreadyThere) {
+      setStatus('Cette vidéo est déjà dans le dossier des tutoriels.', 'ok');
+      selectTrack(`${folder.replace(/\/+$/, '')}/${result.fileName}`);
+    } else {
+      setStatus('Vidéo copiée dans le dossier des tutoriels.', 'ok');
+      selectTrack(`${folder.replace(/\/+$/, '')}/${result.fileName}`);
+    }
   } catch (err) {
     setStatus(`Import impossible : ${err.message}`, 'error');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Lecteur vidéo — fenêtre principale de l'écran
+// ---------------------------------------------------------------------------
+
+/**
+ * Monte la vidéo sélectionnée dans le lecteur principal.
+ *
+ * Même technique blob que le Studio (readBinary → Blob video/mp4 →
+ * createObjectURL), adaptée à un chemin absolu plutôt qu'à un Track_ID.
+ * UN SEUL élément <video controls> avec le son : pas de stems, pas de
+ * substitution de piste — reproduire la paire vidéo muette + audio caché du
+ * Studio serait de la sur-ingénierie ici.
+ *
+ * La CSP d'Electron bloque fetch(blob:) : le fichier passe par files.readBinary,
+ * jamais par fetch.
+ */
+async function mountVideo(path) {
+  destroyVideo();
+  if (!els.videoPlayer || !path) return;
+  const files = window.electronAPI?.files;
+  if (!files?.readBinary) return;
+  try {
+    const bytes = await files.readBinary(path);
+    videoBlobUrl = URL.createObjectURL(new Blob([bytes], { type: 'video/mp4' }));
+    mountedVideoPath = path;
+    els.videoPlayer.src = videoBlobUrl;
+    els.videoPlayer.load();
+  } catch (err) {
+    console.warn('[Pedagogie] montage vidéo échoué :', err);
+    setStatus('La vidéo n\'a pas pu être chargée.', 'error');
+  }
+}
+
+/** Libère l'URL blob courante. Toujours appelée avant un nouveau montage. */
+function destroyVideo() {
+  if (videoBlobUrl) {
+    URL.revokeObjectURL(videoBlobUrl);
+    videoBlobUrl = null;
+  }
+  mountedVideoPath = null;
+  if (els.videoPlayer) {
+    els.videoPlayer.removeAttribute('src');
+    els.videoPlayer.load();
   }
 }
 
@@ -156,7 +335,7 @@ async function importVideo() {
 // ---------------------------------------------------------------------------
 
 async function analyzeSelected() {
-  if (busy || !selectedTrackId) return;
+  if (busy || !selectedPath) return;
   const api = window.electronAPI;
   if (!api?.pedagogie?.analyzeVideo) {
     setStatus('L\'analyse vidéo n\'est pas disponible dans cet environnement.', 'error');
@@ -172,14 +351,12 @@ async function analyzeSelected() {
   setStatus('');
 
   try {
-    const originalPath = await getOriginalPath(selectedTrackId);
-
     // La parole ne dépend pas de ce que l'image donne : les deux lectures
     // partent ensemble, et l'on n'attend la transcription qu'au moment
     // d'assembler le résultat.
-    const transcriptionPromise = runTranscription(originalPath);
+    const transcriptionPromise = runTranscription(selectedPath);
 
-    const result = await api.pedagogie.analyzeVideo(originalPath, { sampleFps: 4 });
+    const result = await api.pedagogie.analyzeVideo(selectedPath, { sampleFps: 4 });
 
     if (!result?.ok) {
       setStatus(result?.message || 'La vidéo n\'a pas pu être lue.', 'error');
@@ -189,7 +366,7 @@ async function analyzeSelected() {
     if (!result.implemented) {
       // L'image n'a rien donné : on le dit, puis on tente le son.
       setProgress('L\'image n\'a rien donné — analyse du son…');
-      const audioSegments = await runAudioFallback(originalPath);
+      const audioSegments = await runAudioFallback(selectedPath);
       detectedKey = audioSegments.key ?? null;
       setProgress('Transcription de la parole…');
       const narration = normalizeTranscription(await transcriptionPromise);
@@ -200,6 +377,7 @@ async function analyzeSelected() {
         narration,
       });
       narrationView = alignNarration(narration.segments, analysis.segments);
+      await maybeTranslate(narration);
       return;
     }
 
@@ -214,11 +392,12 @@ async function analyzeSelected() {
       narration,
     });
     narrationView = alignNarration(narration.segments, analysis.segments);
+    await maybeTranslate(narration);
 
     // Recoupement : le son est une seconde lecture indépendante de la même
     // vidéo. Un désaccord est consigné, jamais arbitré.
     setProgress('Recoupement avec le son…');
-    const audio = await runAudioFallback(originalPath).catch(() => null);
+    const audio = await runAudioFallback(selectedPath).catch(() => null);
     detectedKey = audio?.key ?? null;
     if (audio?.segments?.length) {
       comparison = crossCheck({
@@ -264,6 +443,8 @@ function resetNarration() {
   detectedKey = null;
   explanation = null;
   explaining = false;
+  translated = null;
+  translationFailed = false;
 }
 
 /**
@@ -286,20 +467,64 @@ async function runTranscription(originalPath) {
   }
 }
 
-/** Une clé IA personnelle est-elle configurée ? Même contrôle que masterclass-panel.js. */
-function hasAIKey() {
+/**
+ * Traduction automatique du transcript, quand elle a un sens.
+ *
+ * Trois conditions, toutes exigées : une clé personnelle configurée (le repli
+ * sans clé reste le texte source, ce n'est pas une exigence nouvelle), une
+ * transcription disponible, et une langue détectée qui n'est PAS déjà le
+ * français. Une traduction ratée n'affiche rien d'alarmant : le texte original
+ * reste, avec une note discrète.
+ */
+async function maybeTranslate(narration) {
+  translated = null;
+  translationFailed = false;
+  if (!narration?.available || narration.segments.length === 0) return;
+  if (!hasAIKey()) return;
+  const lang = (narration.language || '').toLowerCase();
+  if (lang.startsWith('fr')) return;
+
+  setProgress('Traduction de la parole…');
   try {
-    const cfg = getAIConfig();
-    return Boolean(cfg && cfg.apiKey);
-  } catch (_) {
-    return false;
+    // La traduction ne porte que sur les passages non vides, dans l'ordre :
+    // la carte index → texte traduit préserve l'appariement avec les
+    // horodatages, même si des passages vides ont été écartés.
+    const speakable = narration.segments
+      .map((s, i) => ({ i, text: typeof s?.text === 'string' ? s.text.trim() : '' }))
+      .filter((s) => s.text.length > 0);
+    const lines = await translateNarrationSegments(narration.segments, {
+      targetLang: 'fr',
+      sourceLang: narration.language || null,
+    });
+    if (lines) {
+      const byIndex = new Map();
+      speakable.forEach((s, rank) => {
+        if (lines[rank]) byIndex.set(s.i, lines[rank]);
+      });
+      translated = { byIndex, targetLang: 'fr' };
+    } else {
+      translationFailed = true;
+    }
+  } catch (err) {
+    console.warn('[Pedagogie] traduction échouée :', err);
+    translationFailed = true;
   }
+}
+
+/** Texte affiché pour un passage parlé : la traduction si elle existe, sinon le texte transcrit. */
+function lineTextAt(index) {
+  if (translated?.byIndex && translated.byIndex.has(index)) {
+    return translated.byIndex.get(index);
+  }
+  return narrationView[index]?.text || '';
 }
 
 /**
  * Approfondissement facultatif : reformule ce que le professeur a dit, à la
  * lumière des accords relevés. La transcription brute reste affichée au-dessus,
- * inchangée — c'est elle la source, l'IA n'est qu'une relecture.
+ * inchangée — c'est elle la source, l'IA n'est qu'une relecture. Il porte sur le
+ * texte ORIGINAL (pas la traduction) : reformuler une traduction éloignerait
+ * deux fois de la parole du professeur.
  */
 async function askExplanation() {
   if (explaining || !analysis) return;
@@ -331,18 +556,55 @@ async function askExplanation() {
 // ---------------------------------------------------------------------------
 
 function render() {
-  if (els.selectedName) {
-    els.selectedName.textContent = selectedTrackName || 'Aucun tutoriel sélectionné';
-  }
-  if (els.analyzeBtn) {
-    els.analyzeBtn.disabled = busy || !selectedTrackId;
-    els.analyzeBtn.textContent = analysis ? 'Relire ce tutoriel' : 'Lire ce tutoriel';
-  }
-  if (els.importBtn) els.importBtn.disabled = busy;
+  const folder = configuredFolder();
 
+  if (els.selectedName) {
+    els.selectedName.textContent = !folder
+      ? 'Bienvenue dans Pédagogie IA'
+      : (selectedPath
+        ? tutorialDisplayName(selectedPath.split('/').pop() || selectedPath)
+        : 'Aucun tutoriel sélectionné');
+  }
+  if (els.intro) {
+    els.intro.textContent = !folder
+      ? 'Choisissez le dossier qui contient vos tutoriels vidéo (.mp4) dans la barre latérale. '
+        + 'La vidéo et l\'analyse apparaîtront ici.'
+      : 'La vidéo du tutoriel s\'affiche ici en grand. L\'application relève '
+        + 'ce qui est joué au clavier et ce que dit le professeur ; quand '
+        + 'l\'image ne permet rien de lire, elle le dit et se rabat sur le son.';
+  }
+
+  if (els.analyzeBtn) {
+    els.analyzeBtn.disabled = busy || !selectedPath;
+    els.analyzeBtn.textContent = analysis ? 'Relire ce tutoriel' : 'Lire ce tutoriel';
+    els.analyzeBtn.style.display = (!folder || !selectedPath) ? 'none' : '';
+  }
+  if (els.importBtn) {
+    els.importBtn.disabled = busy || !folder;
+    els.importBtn.style.display = folder ? '' : 'none';
+  }
+
+  renderVideo();
   renderFormat();
   renderResult();
   renderNarration();
+}
+
+/** La vidéo est la fenêtre principale : visible dès qu'un tutoriel est choisi. */
+function renderVideo() {
+  if (!els.videoCard || !els.videoPlayer) return;
+  if (!selectedPath) {
+    els.videoCard.style.display = 'none';
+    destroyVideo();
+    return;
+  }
+  els.videoCard.style.display = '';
+  // Le lecteur suit la SÉLECTION, pas seulement sa première apparition :
+  // changer de tutoriel recharge la source. mountVideo détruit l'URL
+  // précédente, une seule vit à la fois.
+  if (!videoBlobUrl || mountedVideoPath !== selectedPath) {
+    mountVideo(selectedPath);
+  }
 }
 
 function renderFormat() {
@@ -370,7 +632,8 @@ function renderResult() {
   if (!analysis) { els.result.style.display = 'none'; return; }
   els.result.style.display = '';
 
-  // Grille.
+  // Grille d'accords : un accompagnement compact SOUS le lecteur, plus la
+  // pièce maîtresse de l'écran.
   els.grid.innerHTML = '';
   for (const seg of analysis.segments) {
     const chip = el('div', {
@@ -379,6 +642,9 @@ function renderResult() {
       title: seg.chord.note || (seg.chord.noteNames.length
         ? `Notes lues : ${seg.chord.noteNames.join(' ')}`
         : ''),
+      // Bonus naturel de la vidéo en fenêtre principale : un clic sur un
+      // accord y fait sauter la lecture.
+      onClick: () => { seekVideo(seg.start); },
     }, [
       el('span', { className: 'pedagogie-chip-time', text: formatTime(seg.start) }),
       el('span', {
@@ -431,23 +697,45 @@ function renderResult() {
     }));
   }
 
-  // Ce qui n'est pas garanti.
+  // Ce qui n'est pas garanti. DÉDUPLIQUÉ (retour d'usage du 06/09) : le badge
+  // de provenance image/son est déjà affiché en haut de l'écran, le panneau ne
+  // le répète plus. buildNotes() (video-analysis.js) ne produit QUE ce qui
+  // n'est dit nulle part ailleurs : octave heuristique, tierces absentes,
+  // passages non résolus, dette de glossaire.
+  if (!els.notesCard || !els.notes) return;
   els.notes.innerHTML = '';
   const notes = analysis.notes || [];
   if (notes.length === 0) {
-    els.notes.appendChild(el('li', { text: 'Rien à signaler sur ce relevé.' }));
+    els.notesCard.style.display = 'none';
+    return;
   }
+  els.notesCard.style.display = '';
   for (const note of notes) {
     els.notes.appendChild(el('li', { text: note.text }));
   }
+}
+
+/** Fait sauter la lecture vidéo à un instant, si le lecteur est là. */
+function seekVideo(seconds) {
+  if (!els.videoPlayer || !Number.isFinite(seconds)) return;
+  try {
+    els.videoPlayer.currentTime = Math.max(0, seconds);
+    els.videoPlayer.play?.().catch(() => { /* lecture bloquée : le seek reste utile */ });
+  } catch (_) { /* lecteur pas encore prêt : le clic n'est pas une erreur */ }
 }
 
 /**
  * Ce que dit le professeur.
  *
  * Trois choses, dans cet ordre : ce qui manque et POURQUOI, le texte transcrit
- * posé à côté de l'accord joué au même moment, puis — seulement si une clé IA
- * est configurée — le bouton d'approfondissement.
+ * (traduit en français quand une traduction fiable a pu être faite — badge à
+ * l'appui, une traduction ne se fait jamais passer pour la parole exacte),
+ * puis — seulement si une clé IA est configurée — le bouton d'approfondissement.
+ *
+ * PLUS D'ÉTIQUETTE D'ACCORD PAR LIGNE (retour d'usage du 06/09) : le texte
+ * parlé s'affiche seul avec son horodatage. Cliquer une ligne fait sauter la
+ * vidéo à cet instant — c'est par la lecture qu'on met en relation la parole
+ * et les accords maintenant.
  */
 function renderNarration() {
   if (!els.narrationCard) return;
@@ -465,22 +753,27 @@ function renderNarration() {
     els.narrationState.dataset.reason = narration.reason || '';
   }
 
-  els.transcript.innerHTML = '';
-  for (const line of narrationView) {
-    els.transcript.appendChild(el('div', { className: 'pedagogie-line' }, [
-      el('span', { className: 'pedagogie-line-time', text: formatTime(line.start) }),
-      el('span', { className: 'pedagogie-line-text', text: line.text }),
-      line.chord
-        ? el('span', {
-          className: `pedagogie-line-chord${line.nearest ? ' is-nearest' : ''}`,
-          text: line.chord,
-          title: line.nearest
-            ? 'Accord le plus proche : rien n\'était joué pendant cette phrase.'
-            : 'Accord joué pendant cette phrase.',
-        })
-        : null,
-    ]));
+  // Badge de traduction : visible seulement quand le texte affiché est une
+  // traduction, jamais quand c'est la transcription originale.
+  if (els.translationBadge) {
+    els.translationBadge.style.display = translated ? '' : 'none';
   }
+  // Échec de traduction : note discrète, le texte original reste affiché.
+  if (els.translationFailed) {
+    els.translationFailed.style.display = translationFailed ? '' : 'none';
+  }
+
+  els.transcript.innerHTML = '';
+  narrationView.forEach((line, index) => {
+    els.transcript.appendChild(el('div', {
+      className: 'pedagogie-line',
+      title: 'Aller à ce moment de la vidéo',
+      onClick: () => { seekVideo(line.start); },
+    }, [
+      el('span', { className: 'pedagogie-line-time', text: formatTime(line.start) }),
+      el('span', { className: 'pedagogie-line-text', text: lineTextAt(index) }),
+    ]));
+  });
 
   // Le bouton n'apparaît que si une clé personnelle est configurée ET s'il y a
   // du texte à approfondir. Sans clé, l'écran ne montre rien de tout cela : la
@@ -508,19 +801,26 @@ export function initPedagogieTab() {
 
   els.trackList = document.getElementById('pedagogie-track-list');
   els.importBtn = document.getElementById('pedagogie-import-btn');
+  els.folderHint = document.getElementById('pedagogie-folder-hint');
   els.selectedName = document.getElementById('pedagogie-selected-name');
+  els.intro = document.getElementById('pedagogie-intro');
   els.analyzeBtn = document.getElementById('pedagogie-analyze-btn');
   els.progress = document.getElementById('pedagogie-progress');
   els.status = document.getElementById('pedagogie-status');
   els.format = document.getElementById('pedagogie-format');
+  els.videoCard = document.getElementById('pedagogie-video-card');
+  els.videoPlayer = document.getElementById('pedagogie-video-player');
   els.result = document.getElementById('pedagogie-result');
   els.grid = document.getElementById('pedagogie-grid');
   els.crosscheckCard = document.getElementById('pedagogie-crosscheck-card');
   els.crosscheck = document.getElementById('pedagogie-crosscheck');
   els.glossary = document.getElementById('pedagogie-glossary');
+  els.notesCard = document.getElementById('pedagogie-notes-card');
   els.notes = document.getElementById('pedagogie-notes');
   els.narrationCard = document.getElementById('pedagogie-narration-card');
   els.narrationState = document.getElementById('pedagogie-narration-state');
+  els.translationBadge = document.getElementById('pedagogie-translation-badge');
+  els.translationFailed = document.getElementById('pedagogie-translation-failed');
   els.transcript = document.getElementById('pedagogie-transcript');
   els.explain = document.getElementById('pedagogie-explain');
   els.explainBtn = document.getElementById('pedagogie-explain-btn');
@@ -538,6 +838,7 @@ export function initPedagogieTab() {
   });
 
   render();
+  refreshTrackList();
 }
 
 export { explainUnrecognised };

@@ -569,6 +569,133 @@ export async function explainNarration(segmentText, context = {}) {
   return null;
 }
 
+// ── Pédagogie IA : traduction automatique du transcript ──
+//
+// Narcisse ne parle pas anglais ; faster-whisper détection automatique laisse
+// la transcription dans la langue de la vidéo. Décision prise avec lui le
+// 06/09 : traduire en français QUAND une clé personnelle est configurée.
+// Sans clé, le texte brut dans la langue source reste le comportement par
+// défaut — ce n'est pas une nouvelle exigence posée sur la fonction de base.
+//
+// Même patron qu'explainNarration : null immédiat sans clé, pas de repli
+// inventé (une traduction ratée retombe sur le texte original, montré par
+// l'appelant), mêmes erreurs nommées 401/403 et 429.
+
+const NARRATION_TRANSLATION_PROMPT = 'Tu traduis la transcription d\'un tutoriel de piano. '
+  + 'Traduis chaque passage en français, dans l\'ordre, sans rien ajouter ni retirer — '
+  + 'ni titre, ni numérotation, ni commentaire. Un passage par ligne, autant de lignes '
+  + 'que de passages fournis, même si un passage est vide.\n'
+  + 'Conserve le vocabulaire musical tel quel (accords, notes, techniques). '
+  + 'Si un passage est inintelligible, recopie-le tel quel plutôt que de l\'inventer.';
+
+/**
+ * Appel réseau de la traduction. Réutilise la mise en forme et la gestion
+ * d'erreurs de fetchNarrationExplanation : 401/403 et 429 y sont nommées.
+ */
+async function fetchNarrationTranslation(config, userPrompt, maxSegments) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+  try {
+    const response = await fetch(`${config.baseUrl.replace(/\/$/, '')}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${config.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [
+          { role: 'system', content: NARRATION_TRANSLATION_PROMPT },
+          { role: 'user', content: userPrompt },
+        ],
+        max_tokens: Math.min(4000, Math.max(500, maxSegments * 90)),
+        temperature: 0.2,
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('AI_API_KEY_INVALID');
+      } else if (response.status === 429) {
+        throw new Error('AI_RATE_LIMIT');
+      }
+      throw new Error(`AI_API_ERROR_${response.status}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+    const text = typeof content === 'string' ? content.trim() : '';
+    return text || null;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    throw err;
+  }
+}
+
+/**
+ * Traduit les passages parlés dans la langue cible.
+ *
+ * Le nombre de lignes renvoyées est vérifié contre le nombre de passages
+ * envoyés : une traduction qui ne compte plus les passages est une traduction
+ * dont la synchronisation avec les horodatages est perdue. Elle est rejetée
+ * en bloc — l'appelant retombe sur le texte original, qui est toujours juste.
+ *
+ * @param {{start: number, end: number, text: string}[]} segments
+ * @param {object} [options]
+ * @param {string} [options.targetLang] - 'fr' par défaut
+ * @param {string} [options.sourceLang] - langue détectée, purement informative
+ * @returns {Promise<string[]|null>} un texte traduit par passage, ou null si
+ *          aucune clé n'est configurée, s'il n'y a rien à traduire, si l'appel
+ *          échoue ou si la réponse ne compte pas les passages
+ */
+export async function translateNarrationSegments(segments, options = {}) {
+  const list = (Array.isArray(segments) ? segments : [])
+    .map((s) => (typeof s?.text === 'string' ? s.text.trim() : ''))
+    .filter((t) => t.length > 0);
+  if (list.length === 0) return null;
+
+  const config = getApiConfig();
+  if (!config) return null;
+
+  const targetLang = options.targetLang || 'fr';
+  const userPrompt = `Langue source détectée : ${options.sourceLang || 'inconnue'}.\n`
+    + `Langue cible : ${targetLang}.\n\n`
+    + `${list.map((t) => `>>> ${t.replace(/\n/g, ' ')}`).join('\n')}\n\n`
+    + 'Traduis chaque ligne ci-dessus, une pour une.';
+
+  let lastErr = null;
+  for (let attempt = 0; attempt <= RETRY_DELAYS.length; attempt++) {
+    try {
+      const result = await fetchNarrationTranslation(config, userPrompt, list.length);
+      if (result) {
+        const lines = result.split('\n').map((l) => l.trim()).filter(Boolean);
+        // La traduction doit compter exactement les passages envoyés, sinon la
+        // correspondance texte ↔ horodatage est perdue : on ne l'affiche pas.
+        if (lines.length === list.length) return lines;
+        console.warn(`[AI] Traduction rejetée : ${lines.length} lignes pour ${list.length} passages.`);
+      }
+    } catch (err) {
+      lastErr = err;
+      if (err.message === 'AI_API_KEY_INVALID') {
+        console.error('[AI] Clé API invalide ou refusée.');
+        throw err;
+      }
+      if (attempt < RETRY_DELAYS.length) {
+        console.warn(`[AI] Traduction tentative ${attempt + 1} échouée (${err.message}). Retry dans ${RETRY_DELAYS[attempt]}ms...`);
+        await sleep(RETRY_DELAYS[attempt]);
+      }
+    }
+  }
+
+  // Pas de repli inventé : l'appelant garde le texte original, qui est exact.
+  console.warn('[AI] Traduction de la narration indisponible :', lastErr?.message);
+  return null;
+}
+
 // ── Utilitaires publics ──
 
 export function classifyAndLabel(notes, styleLabel = '') {

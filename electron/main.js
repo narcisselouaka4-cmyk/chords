@@ -1406,6 +1406,21 @@ function setupStudioIPC() {
     }
   });
 
+  // [Claude] — 2026-09-06 — Pédagogie IA refonte Phase 1 : dossier des tutoriels.
+  //
+  // Pédagogie IA a sa propre bibliothèque, indépendante du magasin Studio :
+  // un tutoriel EST un fichier .mp4 à son emplacement réel. Ce sélecteur
+  // retourne un DOSSIER (pas un fichier) — même patron que les sélecteurs
+  // ci-dessus, avec properties: ['openDirectory'].
+  ipcMain.handle('pedagogie:select-tutorial-folder', async () => {
+    if (!mainWindow) return null;
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'Dossier des tutoriels',
+      properties: ['openDirectory'],
+    });
+    return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
+  });
+
   /** Dimensions et durée de la piste vidéo, via ffprobe (compagnon de ffmpeg). */
   function probeVideoDimensions(filePath) {
     return new Promise((resolve) => {

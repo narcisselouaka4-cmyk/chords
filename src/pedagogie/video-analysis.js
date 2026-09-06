@@ -9,7 +9,7 @@
 import { groupSegments } from './note-grouping.js';
 import { labelSegments, mergeSameLabel } from './chord-labeling.js';
 import { collectConcepts, collectMissing, narrationNotAttemptedState } from './glossary.js';
-import { FORMATS, explainUnrecognised } from './format-detector.js';
+import { FORMATS } from './format-detector.js';
 
 /**
  * Construit l'analyse d'une vidéo au Format B.
@@ -119,17 +119,15 @@ export function buildAudioOnlyAnalysis(params) {
       thirdlessCount: 0,
       duration: audioSegments.length ? audioSegments[audioSegments.length - 1].end : 0,
     },
-    notes: [
-      {
-        kind: 'format',
-        text: explainUnrecognised(params.reason),
-      },
-      {
-        kind: 'source',
-        text: 'Les accords ci-dessous viennent de l\'analyse du son, pas de l\'image : '
-          + 'ils décrivent ce qui est entendu, pas les doigts sur le clavier.',
-      },
-    ],
+    // [Refonte Phase 1, 06/09] — Le panneau « Ce que l'application ne garantit
+    // pas » est DÉDUPLIQUÉ : la provenance du relevé (image illisible → relevé
+    // au son) est déjà le badge affiché en haut de l'écran par renderFormat().
+    // explainUnrecognised(params.reason) — le motif précis pour lequel l'image
+    // n'a rien donné — y est également rendu. Ces deux textes ne sont donc plus
+    // répétés ici : le panneau ne garde que ce qui n'est dit nulle part
+    // ailleurs. La raison brute reste dans `reason` pour tout usage futur.
+    notes: [],
+    reason: params.reason ?? null,
   };
 }
 

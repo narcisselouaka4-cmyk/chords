@@ -172,6 +172,94 @@ check('Masterclass et Réharmonisation ne sont pas touchées',
   && readText('src/ai/ai-client.js').includes('export async function generateReharmonization'));
 
 // ---------------------------------------------------------------------------
+// 6 ter. Refonte Phase 1 — bibliothèque propre, vidéo principale, traduction
+// ---------------------------------------------------------------------------
+
+const tutorialLib = readText('src/pedagogie/tutorial-library.js');
+const tutorialLibCode = stripComments(tutorialLib);
+
+check('Le contrôleur n\'utilise PLUS le magasin Studio (studio-storage ni media-library)',
+  !tabCode.includes('studio-storage') && !tabCode.includes('media-library'),
+  'un import résiduel empêcherait l\'indépendance des bibliothèques');
+check('La bibliothèque de tutoriels est un module à part, pas une modification du magasin',
+  readText('src/recorder/studio-storage.js').includes('STUDIO_DIR_NAME')
+  && !readText('src/recorder/studio-storage.js').includes('tutorial'));
+check('La bibliothèque de tutoriels ne retient que des .mp4',
+  tutorialLib.includes('.mp4') && /toLowerCase\(\)\.endsWith/.test(tutorialLib));
+check('La bibliothèque liste le dossier par files.readDir, sans copie ni Track_ID',
+  tutorialLibCode.includes('readDir') && !tutorialLibCode.includes('Track_'),
+  'le code doit lister, pas copier au listing');
+check('Le sélecteur de dossier existe côté IPC (openDirectory)',
+  electronMain.includes("ipcMain.handle('pedagogie:select-tutorial-folder'")
+  && /properties:\s*\['openDirectory'\]/.test(electronMain));
+check('Le preload expose selectTutorialFolder',
+  preload.includes("ipcRenderer.invoke('pedagogie:select-tutorial-folder'"));
+check('L\'import copie dans le dossier configuré (readBinary/writeBinary), sans entrée Studio',
+  tutorialLib.includes('readBinary') && tutorialLib.includes('writeBinary')
+  && !tutorialLib.includes('importToLibrary'));
+
+// La vidéo est la fenêtre principale de l'écran.
+check('Le lecteur vidéo principal existe dans le HTML',
+  html.includes('id="pedagogie-video-player"') && /<video[^>]*id="pedagogie-video-player"[^>]*controls/.test(html));
+check('La vidéo est un SEUL élément natif avec le son (pas la paire muette + audio du Studio)',
+  tabJs.includes("video/mp4") && !/video\.muted\s*=\s*true/.test(tabCode));
+check('Le montage vidéo passe par files.readBinary (CSP : jamais fetch(blob))',
+  tabCode.includes('readBinary') && !tabCode.includes('fetch('));
+check('La vidéo est montée depuis un blob, comme dans le Studio',
+  tabCode.includes('URL.createObjectURL'));
+check('L\'URL blob est libérée avant chaque nouveau montage (pas de fuite)',
+  tabCode.includes('URL.revokeObjectURL'));
+check('La grille d\'accords est un accompagnement : bande compacte sous le lecteur',
+  /max-height:\s*168px/.test(practiceCss) && html.indexOf('id="pedagogie-video-card"') < html.indexOf('id="pedagogie-grid"'));
+
+// Plus d'étiquette d'accord par ligne de transcription.
+check('Le rendu de transcription n\'affiche PLUS d\'étiquette d\'accord par ligne',
+  !tabCode.includes('pedagogie-line-chord') && !practiceCss.includes('pedagogie-line-chord'));
+// Bloc de règles CSS pour un sélecteur (les deux skins partagent le même bloc).
+function cssBlock(css, selector) {
+  const m = css.match(new RegExp(`#practice-view-pedagogie ${selector.replace('.', '\\.')} \\{[\\s\\S]*?\\}`));
+  return m ? m[0] : '';
+}
+check('La ligne de transcription ne touche plus la barre de défilement (marge à droite)',
+  cssBlock(practiceCss, '.pedagogie-transcript').includes('padding-right')
+  && cssBlock(practiceCss, '.pedagogie-line').includes('padding-right'),
+  'vérifier padding-right sur .pedagogie-line / .pedagogie-transcript');
+check('Cliquer une ligne de transcription fait sauter la vidéo à cet instant',
+  /pedagogie-line[\s\S]*seekVideo\(line\.start\)/.test(tabCode) || tabCode.includes('seekVideo(line.start)'));
+
+// Panneau « Ce que l'application ne garantit pas » : dédupliqué, pas supprimé.
+const audioOnlyJs = readText('src/pedagogie/video-analysis.js');
+check('Le panneau notes ne répète plus le badge de provenance (explainUnrecognised retiré du rendu notes)',
+  !readText('src/pedagogie/video-analysis.js').includes('kind: \'format\'')
+  && !readText('src/pedagogie/video-analysis.js').includes('kind: \'source\''));
+check('buildNotes garde ce qui n\'est dit nulle part ailleurs (octave, tierces, non résolus, glossaire)',
+  audioOnlyJs.includes('anchorIsHeuristic') && audioOnlyJs.includes('thirdless')
+  && audioOnlyJs.includes('unresolved') && audioOnlyJs.includes('missingConcepts'));
+check('Le panneau notes est repliable et se cache quand il n\'a rien à dire',
+  /<details[^>]*id="pedagogie-notes-card"/.test(html) && tabCode.includes('els.notesCard.style.display'));
+check('L\'écran dit clairement de choisir un dossier quand aucun n\'est configuré',
+  html.includes('pedagogie-folder-hint') && tabCode.includes('Choisissez le dossier'));
+check('Le gros bouton "Choisir le dossier" est créé par le contrôleur quand aucun dossier n\'est configuré',
+  tabCode.includes('Choisir le dossier des tutoriels')
+  && tabCode.includes("'panel-action'"));
+check('Le bouton d\'import est masqué quand aucun dossier n\'est configuré',
+  tabCode.includes('els.importBtn.style.display = folder') || tabCode.includes("importBtn.style.display = folder"));
+
+// Traduction automatique, quand une clé est configurée.
+check('translateNarrationSegments existe dans la couche IA',
+  readText('src/ai/ai-client.js').includes('export async function translateNarrationSegments'));
+check('La traduction n\'est tentée QUE si une clé est configurée',
+  tabCode.includes('hasAIKey()') && /maybeTranslate/.test(tabCode));
+check('Un texte déjà en français n\'est pas traduit',
+  /startsWith\('fr'\)/.test(tabCode));
+check('Un badge « traduit automatiquement » distingue traduction et transcription originale',
+  html.includes('id="pedagogie-translation-badge"') && tabCode.includes('els.translationBadge'));
+check('Un échec de traduction replie sur le texte original avec un message discret',
+  html.includes('id="pedagogie-translation-failed"') && tabCode.includes('translationFailed'));
+check('La traduction ne compte pas comme parole exacte : lignes = passages, sinon rejet',
+  readText('src/ai/ai-client.js').includes('lines.length === list.length'));
+
+// ---------------------------------------------------------------------------
 // 7. Garde-fous du projet
 // ---------------------------------------------------------------------------
 
