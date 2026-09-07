@@ -101,7 +101,11 @@ check('La table de vues contient Coach',
 check('La table de vues contient toujours Sessions MIDI',
   /dedicatedViews\s*=\s*\{[^}]*'midi-sessions':/s.test(mainJs));
 check('main.js importe initCoachTab', mainJs.includes("from './ui/coach-tab.js'"));
-check('main.js appelle initCoachTab()', mainJs.includes('initCoachTab();'));
+// [Régression 2026-09-06] — init() est blindé : l'appel est passé de
+// `initCoachTab();` à `safeInit('initCoachTab', initCoachTab);`.
+// Le câblage reste vérifié par la présence du nom dans l'appel.
+check('main.js appelle initCoachTab()',
+  /safeInit\(\s*'initCoachTab'\s*,\s*initCoachTab\s*\)|initCoachTab\(\)/.test(mainJs));
 
 // ---------------------------------------------------------------------------
 // 5. Les deux skins sont couverts — règle du projet depuis le 02/09

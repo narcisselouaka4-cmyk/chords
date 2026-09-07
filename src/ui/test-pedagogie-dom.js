@@ -87,7 +87,11 @@ check('La table de vues contient toujours coach', /dedicatedViews\s*=\s*\{[^}]*c
 check('La table de vues contient toujours Sessions MIDI',
   /dedicatedViews\s*=\s*\{[^}]*'midi-sessions':/s.test(mainJs));
 check('main.js importe initPedagogieTab', mainJs.includes("from './ui/pedagogie-tab.js'"));
-check('main.js appelle initPedagogieTab()', mainJs.includes('initPedagogieTab();'));
+// [Régression 2026-09-06] — init() est blindé : l'appel est passé de
+// `initPedagogieTab();` à `safeInit('initPedagogieTab', initPedagogieTab);`.
+// Le câblage reste vérifié par la présence du nom dans l'appel.
+check('main.js appelle initPedagogieTab()',
+  /safeInit\(\s*'initPedagogieTab'\s*,\s*initPedagogieTab\s*\)|initPedagogieTab\(\)/.test(mainJs));
 
 // ---------------------------------------------------------------------------
 // 5. Chaîne IPC complète

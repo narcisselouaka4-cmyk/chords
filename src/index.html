@@ -100,6 +100,7 @@
             <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="midi-sessions" title="Enregistrer et rejouer vos sessions MIDI">Sessions MIDI</button>
             <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="coach" title="Accompagner une voix isolée et faire analyser votre placement">Coach d'accompagnement</button>
             <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="pedagogie" title="Lire un tutoriel vidéo et en extraire la grille d'accords">Pédagogie IA</button>
+            <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="copilot" title="Assistant IA conversationnel pour le tutoriel en cours">Copilot IA</button>
             <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="exercise" title="Ouvrir Exercices">
               Exercices
               <span class="practice-exercise-progress" id="exercise-collapsed-progress"></span>
@@ -419,6 +420,46 @@
                 </details>
               </div>
             </section>
+          </div>
+        </div>
+
+        <!-- [Claude 2026-09-06] — Copilot IA : assistant conversationnel pour le
+             tutoriel Pédagogie IA. Vue dédiée de la sous-navigation Entraînement,
+             SŒUR de practice-view-pedagogie ci-dessus (enfant direct de
+             #practice-tab : applyView() la masque/affiche avec les autres). -->
+        <div class="practice-copilot" id="practice-view-copilot" style="display: none;">
+            <div class="copilot-layout">
+              <aside class="copilot-sidebar">
+                <div class="panel-title">Copilot IA</div>
+                <p class="copilot-hint">Sélectionnez un tutoriel dans Pédagogie IA pour commencer.</p>
+              </aside>
+
+              <section class="copilot-main">
+                <header class="copilot-head">
+                  <h3 class="copilot-selected-name" id="copilot-selected-name">Copilot IA</h3>
+                  <p class="copilot-intro" id="copilot-intro">Posez vos questions sur le tutoriel en cours.</p>
+                </header>
+
+                <div class="copilot-chat-area" id="copilot-chat-area" style="display: none;">
+                  <div class="copilot-messages" id="copilot-messages"></div>
+                  <div class="copilot-input-bar">
+                    <input type="text" class="copilot-input" id="copilot-input" placeholder="Votre question…" aria-label="Message au Copilot" />
+                    <button class="copilot-send-btn" id="copilot-send-btn" type="button" title="Envoyer">➤</button>
+                  </div>
+                </div>
+
+                <div class="copilot-no-key" id="copilot-no-key" style="display: none;">
+                  <div class="copilot-locked-icon">🔒</div>
+                  <h4>Assistant IA non configuré</h4>
+                  <p>Configurez votre clé API personnelle dans <strong>Réglages › Assistant IA</strong> pour activer le Copilot.</p>
+                  <button class="copilot-settings-btn" id="copilot-settings-btn" type="button">Ouvrir les réglages</button>
+                </div>
+
+                <div class="copilot-actions">
+                  <button class="copilot-secondary-btn" id="copilot-new-conv-btn" type="button">Nouvelle conversation</button>
+                </div>
+              </section>
+            </div>
           </div>
         </div>
       </main>

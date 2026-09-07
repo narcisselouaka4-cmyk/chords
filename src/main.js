@@ -8,6 +8,7 @@ import { setSynthMode, setSustain, ensurePianoSamples } from './audio/simple-syn
 
 import { initWebMidi, getWebMidiInputs, openWebMidiInput } from './midi-fallback.js';
 import { createChordHistory } from './chord-history.js';
+import { initCopilotTab } from './pedagogie/copilot-tab.js';
 
 import { createNoteGrouper } from './note-grouper.js';
 import { initAnalyzerTab } from './ui/analyzer-tab.js';
@@ -152,6 +153,7 @@ const els = {
   practiceViewMidiSessions: document.getElementById('practice-view-midi-sessions'),
   practiceViewCoach: document.getElementById('practice-view-coach'),
   practiceViewPedagogie: document.getElementById('practice-view-pedagogie'),
+  practiceViewCopilot: document.getElementById('practice-view-copilot'),
 
   keyboardSize: document.getElementById('keyboard-size'),
   transposeInput: document.getElementById('transpose'),
@@ -909,6 +911,7 @@ function initPracticeSubnavViews() {
     'midi-sessions': els.practiceViewMidiSessions,
     coach: els.practiceViewCoach,
     pedagogie: els.practiceViewPedagogie,
+    copilot: els.practiceViewCopilot,
   };
 
   function applyView(view) {
@@ -1177,55 +1180,83 @@ function initAISettings() {
   });
 }
 
+// [Régression 2026-09-06] — Chaque initialisation est blindée individuellement :
+// une exception dans UNE fonctionnalité (ex. un sous-onglet neuf) ne doit plus
+// JAMAIS empêcher les autres de démarrer. Avant ce correctif, un seul appel qui
+// levait dans la séquence ci-dessous laissait Studio, Analyse, la navigation et
+// le MIDI muets — silencieusement. Le label passe en argument pour que le
+// console.error nomme LA fonctionnalité fautive sans duplication de code.
+function safeInit(label, fn) {
+  try {
+    const result = fn();
+    // Les init asynchrones retournent une promesse : un rejet y est attrapé
+    // aussi, sinon il resterait non capturé (initMidi, loadSecureAIConfig).
+    if (result && typeof result.catch === 'function') {
+      result.catch((e) => {
+        console.error(`[Main] Échec asynchrone de ${label} — cette fonctionnalité restera indisponible, le reste de l'application continue :`, e);
+      });
+    }
+  } catch (e) {
+    console.error(`[Main] Échec de ${label} — cette fonctionnalité restera indisponible, le reste de l'application continue :`, e);
+  }
+}
+
 async function init() {
   // [Refonte 2026-09-02] — Chargement sécurisé de la config IA avant tout appel.
-  await loadSecureAIConfig();
-  initTheme();
+  // Un échec ici ne doit pas bloquer le reste : la clé resterait vide, mais
+  // l'app démarre (repli « pas de clé » déjà prévu partout).
+  safeInit('loadSecureAIConfig', () => loadSecureAIConfig());
+  safeInit('initTheme', initTheme);
   // [Refonte v2/Global] — bascule de skin (Paramètres › Apparence).
-  initSkin({ selector: document.getElementById('skin-selector') });
-  initAppSettings();
-  initLibraryModal();
-  initKeyboardCollapse();
-  initPanelToggles();
-  refreshKeyboard();
-  initSettings();
-  initNoteGrouper();
-  initHistory();
-  initPracticeExercise();
-  initPracticeSubnavViews();
+  safeInit('initSkin', () => initSkin({ selector: document.getElementById('skin-selector') }));
+  safeInit('initAppSettings', initAppSettings);
+  safeInit('initLibraryModal', initLibraryModal);
+  safeInit('initKeyboardCollapse', initKeyboardCollapse);
+  safeInit('initPanelToggles', initPanelToggles);
+  safeInit('refreshKeyboard', refreshKeyboard);
+  safeInit('initSettings', initSettings);
+  safeInit('initNoteGrouper', initNoteGrouper);
+  safeInit('initHistory', initHistory);
+  safeInit('initPracticeExercise', initPracticeExercise);
+  safeInit('initPracticeSubnavViews', initPracticeSubnavViews);
   // [Refonte 03/09] — Raccordement de Sessions MIDI : getCurrentChord réutilise
   // formatChordResult (même fonction que l'historique d'accords) pour que
   // le nom affiché pendant l'enregistrement soit identique partout ailleurs
   // dans l'app, sans dupliquer la logique de formatage.
-  initRecordingTab({
+  safeInit('initRecordingTab', () => initRecordingTab({
     notation: state.notation,
     feedMidiEvent,
     getCurrentChord: () => (state.currentChord
       ? { ...state.currentChord, name: formatChordResult(state.currentChord) }
       : null),
-  });
+  }));
   // [Claude 05/09] — Coach d'accompagnement : initialisé comme Sessions MIDI,
   // une fois pour toute l'application. Le module s'abonne lui-même à
   // app-switch-training-view pour rafraîchir sa liste à l'ouverture.
-  initCoachTab();
+  safeInit('initCoachTab', initCoachTab);
   // [Claude 05/09] — Pédagogie IA, initialisée comme les autres vues dédiées.
-  initPedagogieTab();
-  initAISettings();
+  safeInit('initPedagogieTab', initPedagogieTab);
+  // [Claude 2026-09-06] — Copilot IA : assistant conversationnel pour le tutoriel.
+  safeInit('initCopilotTab', initCopilotTab);
+  safeInit('initAISettings', initAISettings);
   // [Claude] — 2026-07-08 — Initialisation de l'onglet Analyse simplifié (import → analyse → grille).
-  initAnalyzerTab();
+  safeInit('initAnalyzerTab', initAnalyzerTab);
 
   // [OpenCode] — 2026-07-04 — Initialisation de l'onglet Studio (Module 4)
   // Le Studio est isolé du synthétiseur/clavier principal : aucun feedMidiEvent.
-  initStudioTab();
-  initTabNavigation();
-  await initMidi();
+  safeInit('initStudioTab', initStudioTab);
+  // La navigation d'onglets et le MIDI sont les deux fonctions les plus
+  // critiques : sans elles, l'app semble « vide » (aucun onglet cliquable,
+  // aucun périphérique). Elles restent donc en FIN de séquence ET blindées.
+  safeInit('initTabNavigation', initTabNavigation);
+  safeInit('initMidi', () => initMidi());
 
   // [Claude] — 2026-09-05 — Précharge les échantillons de piano du sampler en
   // arrière-plan, pour que la première vraie note n'attende pas le décodage.
   // Silencieux : en cas d'échec, le moteur synthétique reste le repli.
-  ensurePianoSamples().then((ok) => {
+  safeInit('ensurePianoSamples', () => ensurePianoSamples().then((ok) => {
     if (!ok) console.warn('[Main] échantillons piano indisponibles — repli synthétique');
-  }).catch(() => { /* chargement paresseux : le repli reste jouable */ });
+  }));
 }
 
 // [Refonte] — Ma bibliothèque : fenêtre commune au Studio et à l'Analyse,
@@ -1367,4 +1398,6 @@ function initTabNavigation() {
   else switchToTab('practice');
 }
 
-init();
+init().catch((e) => {
+  console.error('[Main] Échec global de init() — l\'application n\'a pas pu démarrer complètement :', e);
+});
