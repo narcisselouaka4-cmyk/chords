@@ -101,7 +101,7 @@ export function generateKeyboard(
   );
 
   return `\
-<svg width="${keyboardNotes.width}" height="${containerHeight}" viewBox="0 0 ${keyboardNotes.width} ${keyboardNotes.height}" preserveAspectRatio="xMidYMax meet" xmlns="http://www.w3.org/2000/svg">
+<svg width="100%" height="100%" viewBox="0 0 ${keyboardNotes.width} ${keyboardNotes.height}" preserveAspectRatio="xMidYMax meet" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <filter id="insetKey">
       <feOffset dx="0" dy="-7"/>
