@@ -45,7 +45,52 @@ function initAstraBrand() {
   });
 }
 
+/**
+ * Fenêtres et tiroirs recopiés de la maquette, sans framework.
+ * Convention : un bouton [data-astra-open="id"] affiche l'élément .tr-overlay
+ * qui porte cet id ; [data-astra-close], un clic sur le fond, ou Échap ferment
+ * la fenêtre ouverte. Le focus revient au bouton déclencheur.
+ */
+function initAstraDialogs() {
+  let opener = null;
+
+  const close = () => {
+    const open = document.querySelector('.tr-overlay:not([hidden])');
+    if (!open) return;
+    open.hidden = true;
+    document.body.classList.remove('tr-dialog-open');
+    opener?.focus();
+    opener = null;
+  };
+
+  const open = (id, trigger) => {
+    const overlay = document.getElementById(id);
+    if (!overlay) return;
+    close();
+    opener = trigger || null;
+    overlay.hidden = false;
+    document.body.classList.add('tr-dialog-open');
+    overlay.querySelector("input:not([type='checkbox']), textarea, button")?.focus();
+  };
+
+  document.addEventListener('click', (e) => {
+    const trigger = e.target.closest('[data-astra-open]');
+    if (trigger) { open(trigger.dataset.astraOpen, trigger); return; }
+    if (e.target.closest('[data-astra-close]')) { close(); return; }
+    // Clic sur le fond de la fenêtre (et non sur le panneau).
+    if (e.target.classList?.contains('tr-overlay')) close();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.querySelector('.tr-overlay:not([hidden])')) {
+      e.preventDefault();
+      close();
+    }
+  });
+}
+
 export function initAstraShell() {
   initAstraThemeSwitch();
   initAstraBrand();
+  initAstraDialogs();
 }

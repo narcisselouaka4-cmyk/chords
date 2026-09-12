@@ -162,6 +162,7 @@ const els = {
   practiceViewCoach: document.getElementById('practice-view-coach'),
   practiceViewPedagogie: document.getElementById('practice-view-pedagogie'),
   practiceViewCopilot: document.getElementById('practice-view-copilot'),
+  practiceViewExercices: document.getElementById('practice-view-exercices'),
 
   keyboardSize: document.getElementById('keyboard-size'),
   transposeInput: document.getElementById('transpose'),
@@ -926,6 +927,9 @@ function initPracticeSubnavViews() {
     coach: els.practiceViewCoach,
     pedagogie: els.practiceViewPedagogie,
     copilot: els.practiceViewCopilot,
+    // [Refonte Astra 12/09] — Exercices a maintenant sa vue dédiée : elle ne
+    // partage plus .training-workspace avec Temps réel, qui redevient intact.
+    exercise: els.practiceViewExercices,
   };
 
   function applyView(view) {

@@ -129,12 +129,6 @@
 
             <div class="notes-display" id="notes-display"></div>
 
-            <!-- [Refonte] — Badge de degré/fonction (ex. maquette « ♭II — emprunt
-                 modal »). Rempli seulement quand un exercice Progression fournit
-                 un degré réel (practice-exercise.js) ; pas de contexte tonal
-                 calculé en jeu libre, donc masqué par défaut plutôt qu'inventé. -->
-            <div class="exercise-degree-badge" id="exercise-degree-badge" style="display: none;"></div>
-
             <div class="practice-empty-hint" id="practice-empty-hint">
               <p class="practice-empty-hint-title">Jouez un accord sur votre clavier MIDI</p>
               <p class="practice-empty-hint-sub" id="practice-midi-hint"></p>
@@ -173,28 +167,93 @@
             </div>
           </section>
 
-          <!-- [Refonte 03/09] — Exercices est maintenant une vraie vue de
-               sous-navigation (pilule data-view="exercise" ci-dessus), pas un
-               panneau qu'on replie : plus de bouton −/+ ici, on la quitte en
-               cliquant une autre pilule. #practice-center (la scène — nom
-               d'accord, notes, clavier) est partagé avec Temps réel : c'est la
-               même détection, une seule instance, elle ne peut pas être
-               dupliquée. practice.css la réduit en bande compacte et élargit
-               ce panneau quand #practice-tab[data-training-view="exercise"]. -->
-          <aside class="quick-exercise-panel" id="practice-exercise-panel">
-            <div class="panel-title">Exercice rapide</div>
-            <div class="exercise-content" id="exercise-content">
-              <div class="exercise-mode-selector">
-                <button class="exercise-mode-btn active" data-mode="chord" type="button">Accord cible</button>
-                <button class="exercise-mode-btn" data-mode="progression" type="button">Progression</button>
-                <button class="exercise-mode-btn" data-mode="movement" type="button">Mouvement 12 tons</button>
-              </div>
-              <p class="detail-hint">Lancez un exercice pour vous entraîner sur un accord, une progression ou un mouvement dans les 12 tons.</p>
-              <button class="panel-action" id="new-exercise-btn" type="button">Nouvel exercice</button>
-              <div class="exercise-target" id="exercise-target" style="display:none;"></div>
-              <div class="exercise-feedback" id="exercise-feedback"></div>
+        </div>
+
+        <!-- [Refonte Astra 12/09] — Exercices a désormais sa PROPRE vue dédiée,
+             au lieu de partager .training-workspace avec Temps réel. C'est ce qui
+             permet de laisser Temps réel strictement intact. La table
+             dedicatedViews de main.js a reçu l'entrée correspondante.
+             Les identifiants que practice-exercise.js / main.js écrivent ou lisent
+             ont suivi ici sans être renommés : #practice-exercise-panel,
+             .exercise-mode-btn[data-mode], #new-exercise-btn, #exercise-target,
+             #exercise-feedback, #exercise-degree-badge. -->
+        <div class="tr-view practice-exercices" id="practice-view-exercices" style="display: none;">
+          <div class="tr-view-heading">
+            <div>
+              <div class="tr-page-title"><span class="tr-page-index">05</span><h1>Exercices</h1></div>
+              <p>Un mouvement à la fois. Jusqu'à ce qu'il devienne naturel.</p>
             </div>
-          </aside>
+            <div class="tr-heading-actions">
+              <button class="tr-button" type="button" data-astra-open="exercise-help-dialog"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>Comment jouer</button>
+              <button class="tr-button tr-primary panel-action" type="button" id="new-exercise-btn"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>Nouvel exercice</button>
+            </div>
+          </div>
+
+          <div class="tr-exercise-mode" id="practice-exercise-panel">
+            <div class="tr-segment-control exercise-mode-selector" role="tablist" aria-label="Type d'exercice">
+              <button class="exercise-mode-btn active is-active" data-mode="chord" role="tab" aria-selected="true" type="button">Accord cible</button>
+              <button class="exercise-mode-btn" data-mode="progression" role="tab" aria-selected="false" type="button">Progression</button>
+              <button class="exercise-mode-btn" data-mode="movement" role="tab" aria-selected="false" type="button">Mouvement 12 tons</button>
+            </div>
+            <span class="tr-local-detection"><span class="tr-status-dot"></span>Reconnaissance locale</span>
+          </div>
+
+          <section class="tr-exercise-stage">
+            <div class="tr-exercise-brief">
+              <div class="tr-exercise-label"><svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg><span>GUIDE TONE LINE</span><span>7 → 3</span></div>
+              <h2>Un accord,<br />puis le suivant.</h2>
+              <p>Jouez les notes de l'accord affiché, ensemble ou une à une. La
+                 reconnaissance est celle du moteur d'accords de l'application :
+                 elle compare les notes reçues, pas votre doigté.</p>
+              <div class="exercise-degree-badge" id="exercise-degree-badge" style="display: none;"></div>
+            </div>
+
+            <div class="tr-chord-arena">
+              <div class="tr-arena-ellipse" aria-hidden="true"></div>
+              <div class="tr-arena-ellipse tr-ellipse-outer" aria-hidden="true"></div>
+              <div class="tr-target-chord">
+                <span class="tr-eyebrow">À VOUS DE JOUER</span>
+                <div class="exercise-target" id="exercise-target" style="display:none;"></div>
+              </div>
+            </div>
+
+            <div class="tr-exercise-progress">
+              <span class="tr-eyebrow">VOTRE PROGRESSION</span>
+              <p class="tr-progress-quiet">L'avancement s'affiche à côté d'« Exercices »
+                 dans la sous-navigation, dès qu'un exercice est lancé.</p>
+            </div>
+          </section>
+
+          <div class="tr-exercise-response">
+            <div class="tr-response-content">
+              <div class="tr-input-indicator" aria-hidden="true"><i></i><i></i><i></i></div>
+              <div>
+                <strong>À votre rythme. Le clavier vous attend.</strong>
+                <div class="exercise-feedback" id="exercise-feedback"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Fenêtre « Comment jouer » (recopiée de la maquette). -->
+        <div class="tr-overlay" id="exercise-help-dialog" hidden>
+          <div class="tr-dialog" role="dialog" aria-modal="true" aria-label="Votre clavier, votre terrain de jeu">
+            <div class="tr-dialog-title"><h2>Votre clavier, votre terrain de jeu</h2>
+              <button class="tr-icon-button" type="button" data-astra-close aria-label="Fermer">✕</button></div>
+            <div class="tr-dialog-body">
+              <div class="tr-reading">
+                <span class="tr-eyebrow">EXERCICE GUIDÉ</span>
+                <h3>Suivez la résolution 7 vers 3.</h3>
+                <p>Sur Dm7, G7 puis Cmaj7, le Do (7e de Dm7) descend vers Si (3ce de
+                   G7). Ensuite, Fa (7e de G7) descend vers Mi (3ce de Cmaj7).</p>
+                <p>Utilisez votre clavier MIDI connecté, le clavier virtuel du bas, ou
+                   les touches du clavier d'ordinateur :</p>
+                <div class="tr-computer-keys"><kbd>A</kbd><kbd>W</kbd><kbd>S</kbd><kbd>E</kbd><kbd>D</kbd><kbd>F</kbd><kbd>T</kbd><kbd>G</kbd><kbd>Y</kbd><kbd>H</kbd><kbd>U</kbd><kbd>J</kbd><kbd>K</kbd></div>
+                <p class="tr-secondary">Le routage PC → MIDI se règle sous le clavier virtuel.</p>
+                <button class="tr-button tr-primary" type="button" data-astra-close>À moi de jouer<svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- [Refonte 02/09, raccordé 03/09] — Vue « Sessions MIDI ». Les id=
