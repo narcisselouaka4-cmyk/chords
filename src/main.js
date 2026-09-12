@@ -57,6 +57,7 @@ import {
 } from './ui/masterclass-panel.js';
 import { createPracticeExercise, renderExerciseTarget } from './practice-exercise.js';
 import { applyTabVisibility } from './ui/tab-visibility.js';
+import { initAstraShell } from './ui/refonte/astra-shell.js';
 import { initOnboarding, notifyOnboarding } from './ui/onboarding.js';
 import {
   publishLiveNoteOn,
@@ -1274,6 +1275,10 @@ async function init() {
   // critiques : sans elles, l'app semble « vide » (aucun onglet cliquable,
   // aucun périphérique). Elles restent donc en FIN de séquence ET blindées.
   safeInit('initTabNavigation', initTabNavigation);
+  // [Refonte Astra 12/09] — raccordement de la coquille recopiée (commutateur
+  // Sombre/Clair, logotype). Après initTabNavigation pour que #theme-toggle
+  // soit déjà câblé quand le commutateur le clique.
+  safeInit('initAstraShell', initAstraShell);
   safeInit('initMidi', () => initMidi());
 
   // [Claude] — 2026-09-05 — Précharge les échantillons de piano du sampler en

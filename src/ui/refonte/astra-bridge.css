@@ -86,3 +86,42 @@
   min-height: 0;
   flex: 1;
 }
+
+/* ---- Alias de classes -------------------------------------------------
+   Astra marque l'élément actif avec .is-active ; le JS de Zic écrit .active
+   (main.js : switchToTab(), applyView()). Plutôt que de toucher au JS, on
+   fait reconnaître les deux à la feuille copiée. */
+.tr-main-navigation button.active {
+  background: var(--tr-raised);
+  border-color: var(--tr-border);
+  color: var(--tr-text);
+  box-shadow: 0 2px 4px #0000000d;
+}
+.tr-main-navigation button.active svg { color: var(--tr-accent); }
+
+.tr-subnav-tabs > button.active { color: var(--tr-accent); }
+.tr-subnav-tabs > button.active > svg { color: var(--tr-accent); }
+.tr-subnav-tabs > button > .tr-active-underline { display: none; }
+.tr-subnav-tabs > button.active > .tr-active-underline { display: block; }
+.tr-subnav-tabs > button .practice-exercise-progress:empty { display: none; }
+
+/* ---- Onglet Entraînement : colonne sous-navigation + corps défilant ---- */
+#practice-tab.practice-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+  padding: 0;
+  gap: 0;
+  grid-template-columns: none;
+  grid-template-rows: none;
+}
+#practice-tab > .tr-subnavigation { flex-shrink: 0; }
+#practice-body.tr-workspace { flex: 1; min-height: 0; }
+
+/* L'ancien habillage de la sous-navigation de Zic ne doit plus peser :
+   les classes d'Astra sont chargées après, mais practice.css place encore un
+   fond et une bordure sur .practice-subnav. */
+.tr-subnavigation.practice-subnav { box-shadow: none; }
+.tr-record-button.practice-record-btn::before,
+.tr-midi-connection.practice-midi-status::before { content: none; }

@@ -53,74 +53,68 @@
     <link rel="stylesheet" href="./ui/refonte/astra-bridge.css" />
   </head>
   <body>
-    <div id="app" class="app">
-      <!-- [Refonte] — En-tête sur deux bandes, comme les maquettes des deux
-           thèmes : identité + icônes en haut, navigation d'onglets alignée à
-           droite juste en dessous. La <nav> a seulement changé de place dans le
-           document : elle garde son id et ses .tab-btn[data-tab], donc toute la
-           navigation existante (délégation de clic dans main.js) fonctionne
-           sans modification. -->
-      <header class="app-header">
-        <div class="brand">
-          <div class="brand-icon">🎹</div>
-          <div>
-            <h1>Piano Jazz Chords</h1>
-            <div class="brand-subtitle">Affichage & apprentissage des accords en temps réel</div>
+    <div id="app" class="app training-shell">
+      <!-- [Refonte Astra 12/09] — En-tête recopié de la maquette : identité à
+           gauche, navigation d'espaces centrée (c'est le #tab-nav de Zic — il
+           garde son id et ses .tab-btn[data-tab], donc main.js fonctionne sans
+           modification), outils à droite. Les cinq boutons d'outils gardent
+           leurs id d'origine. #theme-toggle est conservé mais masqué : il reste
+           le SEUL mécanisme de thème (interdit 2.6), le commutateur
+           Sombre/Clair d'Astra se contente de le cliquer. -->
+      <header class="tr-app-header">
+        <button class="tr-brand" type="button" id="brand-home" aria-label="Piano Jazz Chords">
+          <span class="tr-brand-symbol"><svg width="29" height="29" viewBox="0 0 30 30" aria-hidden="true"><path d="M5 6v19h5V6M13 6v19h5V6M21 6v19h5V6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 5h5v11H8zm8 0h5v11h-5z" fill="var(--tr-header)" stroke="var(--tr-header)" stroke-width="2"/></svg></span>
+          <span><strong>Piano Jazz Chords</strong><small>VOTRE ATELIER D'HARMONIE</small></span>
+        </button>
+
+        <nav class="tr-main-navigation" id="tab-nav" aria-label="Sections de l'application">
+          <button class="tab-btn active" data-tab="practice" title="Entraînement en temps réel"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 10v3M6 6v11M10 3v18M14 8v7M18 5v13M22 10v3"/></svg>Entraînement</button>
+          <button class="tab-btn" data-tab="analysis" title="Analyser et rejouer des sessions MIDI">Analyse</button>
+          <button class="tab-btn" data-tab="studio" title="Importer, lire et séparer des morceaux">Studio</button>
+        </nav>
+
+        <div class="tr-header-tools">
+          <div class="tr-theme-switch is-compact" id="astra-theme-switch" role="group" aria-label="Mode d'affichage">
+            <button type="button" data-theme-choice="dark" aria-label="Activer le mode sombre"><svg class="tr-i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg><span>Sombre</span></button>
+            <button type="button" data-theme-choice="light" aria-label="Activer le mode clair"><svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg><span>Clair</span></button>
           </div>
-        </div>
-        <div class="header-icons">
-          <button class="library-toggle" id="library-toggle" title="Ma bibliothèque — morceaux importés" aria-label="Ouvrir ma bibliothèque">🎵</button>
-          <button class="onboarding-help-toggle" id="onboarding-help-btn" title="Tutoriel — comment utiliser l'application" aria-label="Ouvrir le tutoriel" aria-haspopup="menu">?</button>
-          <button class="settings-toggle" id="ai-settings-toggle" title="Clé API de l'assistant IA">🔑</button>
-          <button class="app-settings-toggle" id="app-settings-toggle" title="Paramètres" aria-label="Ouvrir les paramètres">⚙</button>
-          <button class="theme-toggle" id="theme-toggle" title="Changer de thème">🌙</button>
+          <button class="theme-toggle" id="theme-toggle" title="Changer de thème" hidden>🌙</button>
+          <span class="tr-tool-separator" aria-hidden="true"></span>
+          <button class="tr-icon-button library-toggle" id="library-toggle" title="Ma bibliothèque — morceaux importés" aria-label="Ouvrir ma bibliothèque"><svg class="tr-i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></button>
+          <button class="tr-icon-button onboarding-help-toggle" id="onboarding-help-btn" title="Tutoriel — comment utiliser l'application" aria-label="Ouvrir le tutoriel" aria-haspopup="menu"><svg class="tr-i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></button>
+          <button class="tr-icon-button settings-toggle" id="ai-settings-toggle" title="Clé API de l'assistant IA" aria-label="Clé API de l'assistant IA"><svg class="tr-i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.6 17.4A2 2 0 0 0 2 18.8V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.2a2 2 0 0 0 1.4-.6l.8-.8a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".6" fill="currentColor"/></svg></button>
+          <button class="tr-icon-button app-settings-toggle" id="app-settings-toggle" title="Paramètres" aria-label="Ouvrir les paramètres"><svg class="tr-i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7h-9M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg></button>
         </div>
       </header>
 
-      <nav class="tab-nav" id="tab-nav" aria-label="Sections de l'application">
-        <button class="tab-btn active" data-tab="practice" title="Entraînement en temps réel">Entraînement</button>
-        <button class="tab-btn" data-tab="analysis" title="Analyser et rejouer des sessions MIDI">Analyse</button>
-        <button class="tab-btn" data-tab="studio" title="Importer, lire et séparer des morceaux">Studio</button>
-      </nav>
-
       <main class="app-main practice-layout" id="practice-tab">
-        <!-- [Refonte 02/09, raccordé 03/09, Exercices en vue à part le 03/09]
-             — Sous-navigation d'Entraînement. Les anciens « compagnons »
-             (Historique, Technique, Suggestions) ont été retirés par décision
-             de Narcisse (01/09). Sessions MIDI est raccordée (recording-tab.js
-             importé dans main.js, bascule de vue via data-view + l'évènement
-             app-switch-training-view). Exercices a suivi le même principe :
-             ce n'était d'abord qu'un panneau qu'on ouvrait/fermait à côté de
-             Temps réel (rail replié, puis pilule-toggle) ; Narcisse a demandé
-             une vraie fenêtre indépendante, pas rattachée à Temps réel — c'est
-             maintenant une destination de sous-navigation comme les autres.
-             Coach d'accompagnement et Pédagogie IA restent de vraies
-             fonctionnalités à construire (la première a sa propre fiche,
-             spec-coach-accompagnement-chant.md — elle ne prend pas une session
-             Sessions MIDI en entrée) : affichées honnêtement en italique
-             grisé. -->
-        <div class="practice-subnav" id="practice-subnav">
-          <div class="practice-mode-tabs" role="tablist" aria-label="Modes d'Entraînement">
-            <button class="practice-mode-btn active" type="button" role="tab" aria-selected="true" data-view="realtime">Temps réel</button>
-            <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="midi-sessions" title="Enregistrer et rejouer vos sessions MIDI">Sessions MIDI</button>
-            <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="coach" title="Accompagner une voix isolée et faire analyser votre placement">Coach d'accompagnement</button>
-            <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="pedagogie" title="Lire un tutoriel vidéo et en extraire la grille d'accords">Pédagogie IA</button>
-            <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="copilot" title="Assistant IA conversationnel pour le tutoriel en cours">Copilot IA</button>
-            <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="exercise" title="Ouvrir Exercices">
-              Exercices
-              <span class="practice-exercise-progress" id="exercise-collapsed-progress"></span>
+        <!-- [Refonte Astra 12/09] — Sous-navigation recopiée de la maquette. Les
+             six pilules gardent .practice-mode-btn et data-view : c'est ce que
+             lit initPracticeSubnavViews() dans main.js. « Exercices » a
+             désormais sa propre vue dédiée, #practice-view-exercices. -->
+        <div class="tr-subnavigation practice-subnav" id="practice-subnav">
+          <nav class="tr-subnav-tabs practice-mode-tabs" role="tablist" aria-label="Sous-onglets Entraînement">
+            <button class="practice-mode-btn active" type="button" role="tab" aria-selected="true" data-view="realtime" title="Jeu libre : les accords joués sont reconnus en direct"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-2.5a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0L6.41 10.54A2 2 0 0 1 4.49 12H2"/></svg><span>Temps réel</span><span class="tr-active-underline" aria-hidden="true"></span></button>
+            <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="midi-sessions" title="Enregistrer et rejouer vos sessions MIDI"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 10v3M6 6v11M10 3v18M14 8v7M18 5v13M22 10v3"/></svg><span>Sessions MIDI</span><span class="tr-active-underline" aria-hidden="true"></span></button>
+            <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="coach" title="Accompagner une voix isolée et faire analyser votre placement"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/></svg><span>Coach d'accompagnement</span><span class="tr-active-underline" aria-hidden="true"></span></button>
+            <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="pedagogie" title="Lire un tutoriel vidéo et en extraire la grille d'accords"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.42 10.92a1 1 0 0 0-.02-1.84L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.83l8.57 3.91a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg><span>Pédagogie IA</span><span class="tr-active-underline" aria-hidden="true"></span></button>
+            <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="copilot" title="Assistant IA conversationnel pour le tutoriel en cours"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.29 1.29L3 12l5.81 1.9a2 2 0 0 1 1.29 1.29L12 21l1.9-5.81a2 2 0 0 1 1.29-1.29L21 12l-5.81-1.9a2 2 0 0 1-1.29-1.29z"/><path d="M5 3v4M19 17v4M3 5h4M17 19h4"/></svg><span>Copilot IA</span><span class="tr-active-underline" aria-hidden="true"></span></button>
+            <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="exercise" title="Ouvrir Exercices"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg><span>Exercices</span><span class="practice-exercise-progress tr-points" id="exercise-collapsed-progress"></span><span class="tr-active-underline" aria-hidden="true"></span></button>
+          </nav>
+          <div class="tr-session-tools practice-subnav-actions">
+            <button class="tr-midi-connection practice-midi-status" id="practice-midi-status" type="button" title="État du clavier MIDI">
+              <span class="tr-status-dot practice-midi-status-dot" id="practice-midi-status-dot"></span>
+              <span id="practice-midi-status-text">Clavier MIDI non détecté</span>
             </button>
-          </div>
-          <div class="practice-subnav-actions">
-            <button class="practice-record-btn" id="practice-record-btn" type="button" title="Démarrer une nouvelle session MIDI">
+            <button class="tr-record-button practice-record-btn" id="practice-record-btn" type="button" title="Démarrer une nouvelle session MIDI">
               <span class="practice-record-dot" aria-hidden="true"></span>Enregistrer
             </button>
-            <div class="practice-midi-status" id="practice-midi-status">
-              <span class="practice-midi-status-dot" id="practice-midi-status-dot"></span>
-              <span id="practice-midi-status-text">Clavier MIDI non détecté</span>
-            </div>
           </div>
         </div>
+
+        <!-- Corps défilant d'Entraînement : c'est lui qui porte .tr-workspace,
+             la sous-navigation restant hors du cadre défilant comme chez Astra. -->
+        <div class="tr-workspace" id="practice-body">
 
         <div class="training-workspace">
           <section class="main-training-stage" id="practice-center">
@@ -542,6 +536,7 @@
               </section>
             </div>
           </div>
+        </div><!-- /#practice-body -->
       </main>
 
       <!-- Onglet Analyse — reconstruction autour des maquettes officielles -->
