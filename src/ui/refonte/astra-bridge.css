@@ -580,3 +580,9 @@
   color: var(--tr-secondary);
   font-size: 11px;
 }
+
+/* Temps réel n'a pas été refondu (consigne) : sa .training-workspace attend un
+   parent flex (elle portait flex: 1 dans #practice-tab en grille). Depuis que
+   le corps d'Entraînement est le cadre défilant .tr-workspace, on lui rend
+   simplement sa hauteur — son contenu, lui, n'est pas touché. */
+#practice-body > .training-workspace { min-height: 100%; }
