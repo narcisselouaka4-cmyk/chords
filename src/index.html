@@ -619,66 +619,86 @@
           </div>
         </div>
 
-        <!-- [Claude 2026-09-06] — Copilot IA : assistant conversationnel pour le
-             tutoriel Pédagogie IA. Vue dédiée de la sous-navigation Entraînement,
-             SŒUR de practice-view-pedagogie ci-dessus (enfant direct de
-             #practice-tab : applyView() la masque/affiche avec les autres). -->
-        <div class="practice-copilot" id="practice-view-copilot" style="display: none;">
-            <div class="copilot-layout">
-              <aside class="copilot-sidebar">
-                <div class="panel-title">Copilot IA</div>
-                <div class="copilot-history" id="copilot-history">
-                  <button class="copilot-new-conv-sidebar-btn" id="copilot-new-conv-sidebar-btn" type="button">+ Nouvelle conversation</button>
-                  <div class="copilot-history-list" id="copilot-history-list"></div>
-                </div>
-              </aside>
-
-              <section class="copilot-main">
-                <header class="copilot-head">
-                  <h3 class="copilot-selected-name" id="copilot-selected-name">Copilot IA</h3>
-                  <p class="copilot-intro" id="copilot-intro">Posez vos questions librement.</p>
-                </header>
-
-                <div class="copilot-chat-area" id="copilot-chat-area" style="display: none;">
-                  <div class="copilot-messages" id="copilot-messages"></div>
-                  <div class="copilot-quick-actions" id="copilot-quick-actions">
-                    <span class="copilot-quick-actions-label">Continuer : </span>
-                    <button type="button" class="copilot-chip" data-message="Montre-moi un voicing intéressant pour cet accord.">Voicing</button>
-                    <button type="button" class="copilot-chip" data-message="Qu’est-ce que la main gauche peut jouer ici ?">Main gauche</button>
-                    <button type="button" class="copilot-chip" data-message="Qu’est-ce que la main droite peut jouer ici ?">Main droite</button>
-                    <button type="button" class="copilot-chip" data-message="Fais-moi un arpège lent.">Arpège</button>
-                    <button type="button" class="copilot-chip" data-message="Fais-moi une démonstration au clavier.">Démonstration</button>
-                    <button type="button" class="copilot-chip" data-message="Fais-moi un lick adapté.">Lick</button>
-                    <span class="copilot-style-spacer"></span>
-                    <label class="copilot-style-label" for="copilot-style-select">Style</label>
-                    <select id="copilot-style-select" class="copilot-style-select">
-                      <option value="auto">Auto</option>
-                      <option value="worship">Worship</option>
-                      <option value="gospel">Gospel</option>
-                      <option value="jazz">Jazz</option>
-                      <option value="neoSoul">Neo Soul</option>
-                    </select>
-                  </div>
-                  <div class="copilot-input-bar">
-                    <input type="text" class="copilot-input" id="copilot-input" placeholder="Votre question…" aria-label="Message au Copilot" />
-                    <button class="copilot-send-btn" id="copilot-send-btn" type="button" title="Envoyer">➤</button>
-                  </div>
-                </div>
-
-                <div class="copilot-no-key" id="copilot-no-key" style="display: none;">
-                  <div class="copilot-locked-icon">🔒</div>
-                  <h4>Assistant IA non configuré</h4>
-                  <p>Configurez votre clé API personnelle dans <strong>Réglages › Assistant IA</strong> pour activer le Copilot.</p>
-                  <button class="copilot-settings-btn" id="copilot-settings-btn" type="button">Ouvrir les réglages</button>
-                </div>
-
-                <div class="copilot-actions">
-                  <button class="copilot-secondary-btn" id="copilot-mode-toggle-btn" type="button" style="display: none;">Mode tutoriel</button>
-                  <button class="copilot-secondary-btn" id="copilot-new-conv-btn" type="button">Nouvelle conversation</button>
-                </div>
-              </section>
+        <!-- [Refonte Astra 12/09] — Copilot IA : on prend l'HABILLAGE et le
+             tiroir « Conversations » de la maquette, PAS sa logique. Le Copilot
+             d'Astra est un faux (localAnswer() + expressions régulières) ; celui
+             de Zic est branché sur Ollama Cloud via IPC et reste intact
+             (src/pedagogie/copilot-tab.js et copilot-client.js ne sont pas
+             touchés). Tous les identifiants qu'il lit sont conservés. -->
+        <div class="tr-view practice-copilot" id="practice-view-copilot" style="display: none;">
+          <div class="tr-view-heading">
+            <div>
+              <div class="tr-page-title"><span class="tr-page-index">04</span><h1 class="copilot-selected-name" id="copilot-selected-name">Copilot IA</h1></div>
+              <p class="copilot-intro" id="copilot-intro">Posez vos questions. Donnez du sens à ce que vous jouez.</p>
+            </div>
+            <div class="tr-heading-actions">
+              <button class="tr-button" type="button" data-astra-open="copilot-history-drawer" data-astra-shortcut="c"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>Conversations</button>
+              <button class="tr-button copilot-secondary-btn" id="copilot-mode-toggle-btn" type="button" style="display: none;">Mode tutoriel</button>
+              <button class="tr-button tr-primary copilot-secondary-btn" id="copilot-new-conv-btn" type="button"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Nouvelle conversation</button>
             </div>
           </div>
+
+          <div class="tr-conversation-space copilot-chat-area" id="copilot-chat-area" style="display: none;">
+            <div class="tr-chat-messages copilot-messages" id="copilot-messages" role="log" aria-live="polite" aria-label="Conversation avec le Copilot"></div>
+
+            <div class="tr-composer-area">
+              <div class="copilot-quick-actions tr-prompt-options" id="copilot-quick-actions">
+                <span class="copilot-quick-actions-label">Continuer : </span>
+                <button type="button" class="copilot-chip" data-message="Montre-moi un voicing intéressant pour cet accord.">Voicing</button>
+                <button type="button" class="copilot-chip" data-message="Qu’est-ce que la main gauche peut jouer ici ?">Main gauche</button>
+                <button type="button" class="copilot-chip" data-message="Qu’est-ce que la main droite peut jouer ici ?">Main droite</button>
+                <button type="button" class="copilot-chip" data-message="Fais-moi un arpège lent.">Arpège</button>
+                <button type="button" class="copilot-chip" data-message="Fais-moi une démonstration au clavier.">Démonstration</button>
+                <button type="button" class="copilot-chip" data-message="Fais-moi un lick adapté.">Lick</button>
+                <span class="copilot-style-spacer"></span>
+                <label class="copilot-style-label" for="copilot-style-select">Style</label>
+                <select id="copilot-style-select" class="copilot-style-select">
+                  <option value="auto">Auto</option>
+                  <option value="worship">Worship</option>
+                  <option value="gospel">Gospel</option>
+                  <option value="jazz">Jazz</option>
+                  <option value="neoSoul">Neo Soul</option>
+                </select>
+              </div>
+
+              <div class="tr-composer copilot-input-bar">
+                <input type="text" class="copilot-input" id="copilot-input" placeholder="Quelle harmonie avez-vous en tête ?" aria-label="Message au Copilot" />
+                <div class="tr-composer-tools">
+                  <span><svg class="tr-i" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.29 1.29L3 12l5.81 1.9a2 2 0 0 1 1.29 1.29L12 21l1.9-5.81a2 2 0 0 1 1.29-1.29L21 12l-5.81-1.9a2 2 0 0 1-1.29-1.29z"/></svg>IA connectée</span>
+                  <button class="copilot-send-btn" id="copilot-send-btn" type="button" title="Envoyer" aria-label="Envoyer la question"><svg class="tr-i" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+                </div>
+              </div>
+              <div class="tr-composer-footnote">
+                <span>Le Copilot de Zic répond via votre service d'IA configuré.</span>
+                <span>Entrée pour envoyer</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="tr-copilot-welcome copilot-no-key" id="copilot-no-key" style="display: none;">
+            <div class="tr-ai-object" aria-hidden="true"><div></div><div></div><div></div><svg class="tr-i" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+            <span class="tr-eyebrow">VOTRE PARTENAIRE D'HARMONIE</span>
+            <h2>Assistant IA<br /><span>non configuré</span></h2>
+            <p>Configurez votre clé API personnelle dans <strong>Réglages › Assistant IA</strong> pour activer le Copilot.</p>
+            <button class="tr-button tr-primary copilot-settings-btn" id="copilot-settings-btn" type="button">Ouvrir les réglages</button>
+          </div>
+
+          <!-- Tiroir « Conversations » (recopié de la maquette). -->
+          <div class="tr-overlay tr-drawer-overlay" id="copilot-history-drawer" hidden>
+            <div class="tr-dialog tr-dialog-wide tr-drawer" role="dialog" aria-modal="true" aria-label="Vos conversations">
+              <div class="tr-dialog-title"><h2>Vos conversations</h2>
+                <button class="tr-icon-button" type="button" data-astra-close aria-label="Fermer">✕</button></div>
+              <div class="tr-dialog-body">
+                <div class="tr-history-tools">
+                  <span class="tr-secondary">Vos échanges restent sur votre appareil.</span>
+                  <button class="tr-button tr-primary copilot-new-conv-sidebar-btn" id="copilot-new-conv-sidebar-btn" type="button" data-astra-close><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Nouvelle conversation</button>
+                </div>
+                <div class="tr-conversation-history copilot-history-list" id="copilot-history-list" data-astra-close-on-click></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         </div><!-- /#practice-body -->
       </main>
 

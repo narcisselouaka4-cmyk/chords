@@ -442,3 +442,73 @@
 #pedagogie-track-list .is-selected,
 #pedagogie-track-list .active { border-color: var(--tr-accent); background: var(--tr-accent-soft); }
 #pedagogie-folder-hint { color: var(--tr-muted); font: 10px var(--tr-mono); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* ============================================================================
+   Copilot IA — habillage seulement (la logique reste celle de Zic).
+   ============================================================================ */
+#copilot-chat-area { flex: 1; min-height: 0; }
+#copilot-messages { flex: 1; min-height: 0; overflow: auto; }
+#practice-view-copilot .tr-composer.copilot-input-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+#copilot-input {
+  flex: 1;
+  min-width: 0;
+  height: 38px;
+  padding: 0 12px;
+  border: 0;
+  background: none;
+  color: var(--tr-text);
+  font-size: 13px;
+  outline: none;
+}
+#copilot-send-btn {
+  display: grid;
+  place-items: center;
+  width: 32px; height: 32px;
+  border: 0; border-radius: 6px;
+  background: var(--tr-button);
+  color: var(--tr-button-text);
+}
+#copilot-send-btn:disabled { opacity: .42; }
+#copilot-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  grid-template-columns: none;
+}
+#copilot-quick-actions .copilot-quick-actions-label,
+#copilot-quick-actions .copilot-style-label {
+  color: var(--tr-muted);
+  font: 9px var(--tr-mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+#copilot-quick-actions .copilot-chip {
+  height: 25px; padding: 0 10px;
+  border: 1px solid var(--tr-border); border-radius: 6px;
+  background: var(--tr-inset); color: var(--tr-secondary); font-size: 10.5px;
+}
+#copilot-quick-actions .copilot-chip:hover { color: var(--tr-text); border-color: var(--tr-accent); }
+#copilot-quick-actions .copilot-style-spacer { flex: 1; }
+#copilot-style-select {
+  height: 25px; padding: 0 6px;
+  border: 1px solid var(--tr-border); border-radius: 6px;
+  background: var(--tr-inset); color: var(--tr-text); font-size: 10.5px;
+}
+#copilot-history-list { display: flex; flex-direction: column; gap: 4px; max-height: 56vh; overflow: auto; }
+#copilot-history-list button,
+#copilot-history-list .copilot-history-item {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 10px 12px; text-align: left;
+  border: 1px solid transparent; border-radius: 7px;
+  background: transparent; color: var(--tr-text); font-size: 12px;
+}
+#copilot-history-list button:hover,
+#copilot-history-list .copilot-history-item:hover { background: var(--tr-hover); }
+#copilot-history-list .active,
+#copilot-history-list .is-active { background: var(--tr-accent-soft); border-color: var(--tr-accent); }
+#copilot-no-key { flex: 1; min-height: 0; }
