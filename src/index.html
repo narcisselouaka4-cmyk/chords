@@ -1157,15 +1157,19 @@
               <button type="button" class="an-ribbon-nav-btn analyzer-timeline-scroll-btn right" id="analyzer-timeline-scroll-right" aria-label="Défiler à droite" title="Accord suivant"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
             </div>
 
-            <div class="analyzer-section-tabs" id="analyzer-section-tabs" role="tablist">
-              <button type="button" class="active" data-section="chords" role="tab" aria-selected="true">Accord sélectionné</button>
-              <button type="button" data-section="analysis" role="tab" aria-selected="false">Vue d’ensemble</button>
-              <button type="button" data-section="reharm" role="tab" aria-selected="false">Réharmonisation</button>
-              <button type="button" data-section="masterclass" role="tab" aria-selected="false">Masterclass</button>
-              <button type="button" data-section="corriger" role="tab" aria-selected="false">Corriger</button>
-            </div>
+            <!-- [Refonte Astra Analyse 12/09] — Barre des cinq sous-onglets
+                 recopiée de la maquette. Les data-section sont ceux que lit
+                 activateSectionTab() dans analyzer-tab.js, et le module bascule
+                 la classe .active (et non .is-active) : le pont fait l'alias. -->
+            <nav class="an-subtabs-nav analyzer-section-tabs" id="analyzer-section-tabs" role="tablist" aria-label="Sous-onglets Analyse">
+              <button type="button" class="an-subtab-btn active" data-section="chords" role="tab" aria-selected="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><span>Accord sélectionné</span></button>
+              <button type="button" class="an-subtab-btn" data-section="analysis" role="tab" aria-selected="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg><span>Vue d’ensemble</span></button>
+              <button type="button" class="an-subtab-btn" data-section="reharm" role="tab" aria-selected="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12.83 2.18 8.58 3.91a1 1 0 0 1 0 1.82l-8.58 3.91a2 2 0 0 1-1.66 0L2.59 7.91a1 1 0 0 1 0-1.82l8.58-3.91a2 2 0 0 1 1.66 0Z"/><path d="m22 12.5-9.17 4.18a2 2 0 0 1-1.66 0L2 12.5"/><path d="m22 17.5-9.17 4.18a2 2 0 0 1-1.66 0L2 17.5"/></svg><span>Réharmonisation</span></button>
+              <button type="button" class="an-subtab-btn" data-section="masterclass" role="tab" aria-selected="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.42 10.92a1 1 0 0 0-.02-1.84L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.83l8.57 3.91a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg><span>Masterclass</span></button>
+              <button type="button" class="an-subtab-btn" data-section="corriger" role="tab" aria-selected="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg><span>Corriger</span></button>
+            </nav>
 
-            <div class="analyzer-section-panels" id="analyzer-section-panels">
+            <div class="an-stage-viewport analyzer-section-panels" id="analyzer-section-panels">
               <div class="analyzer-panel" data-section="chords" role="tabpanel">
                 <div class="analyzer-chords-layout">
                   <div class="analyzer-hero-card" id="analyzer-hero" style="display:none">
