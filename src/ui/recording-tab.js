@@ -79,6 +79,8 @@ const els = {
   sessionTitleInput: document.getElementById('midi-session-title-input'),
   sessionBpmInput: document.getElementById('midi-session-bpm-input'),
   bpmRow: document.getElementById('midi-session-bpm-row'),
+  immediateToggle: document.getElementById('midi-session-immediate-toggle'),
+  cancelSessionBtn: document.getElementById('midi-session-cancel-btn'),
   countdownOverlay: document.getElementById('midi-session-countdown-overlay'),
   countdownNumber: document.getElementById('midi-session-countdown-number'),
   copilotSessionBtn: document.getElementById('midi-session-copilot-btn'),
@@ -134,23 +136,64 @@ export function switchToRecordingTab() {
   // Analyse ici cassait la navigation.
 }
 
+// [Astra round 3] — Nom de session par défaut. Même format que celui déjà
+// utilisé par startRecording() en repli (« Session 12/09/2026 22:16 »), extrait
+// ici pour pouvoir pré-remplir le champ à l'ouverture de la modale, comme le
+// fait defaultSessionName() dans la maquette.
+function defaultSessionName() {
+  const now = new Date();
+  const dateStr = `${now.toLocaleDateString('fr-FR')} ${now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+  return `Session ${dateStr}`;
+}
+
+// Le libellé du bouton principal dit ce qui va réellement se passer.
+function updateStartButtonLabel() {
+  if (!els.startRecordingBtn) return;
+  els.startRecordingBtn.textContent = els.immediateToggle?.checked
+    ? 'Créer la session'
+    : 'Démarrer (3…2…1…)';
+}
+
+function closeSessionInitModal() {
+  if (els.recordingInitModal) els.recordingInitModal.style.display = 'none';
+  if (els.newSessionBtn) els.newSessionBtn.style.display = 'inline-flex';
+}
+
 function bindSessionForm() {
   els.newSessionBtn?.addEventListener('click', () => {
     els.recordingInitModal.style.display = 'flex';
     els.newSessionBtn.style.display = 'none';
-    if (els.sessionTitleInput) els.sessionTitleInput.value = '';
-    if (els.sessionTitleInput) els.sessionTitleInput.focus();
-    if (els.bpmRow) {
-      els.bpmRow.style.display = els.metronomeToggle?.checked ? 'flex' : 'none';
+    if (els.sessionTitleInput) {
+      // Pré-rempli et modifiable : le placeholder reste le repli si la date
+      // n'est pas disponible.
+      els.sessionTitleInput.value = defaultSessionName();
+      els.sessionTitleInput.focus();
+      els.sessionTitleInput.select();
     }
+    // Le tempo est une métadonnée de la session, pas un réglage du métronome :
+    // il reste visible en permanence (il l'était seulement métronome coché).
+    updateStartButtonLabel();
   });
-  els.startRecordingBtn?.addEventListener('click', () => startCountdown());
 
-  if (els.metronomeToggle && els.bpmRow) {
-    els.metronomeToggle.addEventListener('change', () => {
-      els.bpmRow.style.display = els.metronomeToggle.checked ? 'flex' : 'none';
-    });
-  }
+  els.startRecordingBtn?.addEventListener('click', () => {
+    // Chemin alternatif ajouté, le compte à rebours reste le comportement par
+    // défaut (case décochée).
+    if (els.immediateToggle?.checked) startImmediately();
+    else startCountdown();
+  });
+
+  els.cancelSessionBtn?.addEventListener('click', () => closeSessionInitModal());
+  els.immediateToggle?.addEventListener('change', updateStartButtonLabel);
+}
+
+// Démarrage sans compte à rebours : même séquence que startCountdown(), sans
+// l'overlay ni le décompte.
+function startImmediately() {
+  els.recordingInitModal.style.display = 'none';
+  els.recordingControls.style.display = 'flex';
+  if (els.recordingCountdown) els.recordingCountdown.style.display = 'none';
+  if (els.countdownOverlay) els.countdownOverlay.style.display = 'none';
+  startRecording();
 }
 
 function startCountdown() {
@@ -214,7 +257,10 @@ async function startRecording() {
     const now = new Date();
     const dateStr = now.toLocaleDateString('fr-FR') + ' ' + now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
     const title = els.sessionTitleInput?.value?.trim() || `Session ${dateStr}`;
-    const tempo = els.metronomeToggle?.checked ? Number(els.sessionBpmInput?.value) || 90 : 120;
+    // [Astra round 3] — Le tempo saisi est enregistré même métronome décoché :
+    // c'est une métadonnée de la session (liste, fiche, contexte Copilot), pas
+    // un réglage du seul métronome. Avant, un 120 arbitraire l'écrasait.
+    const tempo = Number(els.sessionBpmInput?.value) || 90;
     const metadata = {
       name: title,
       key: '',

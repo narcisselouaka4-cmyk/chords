@@ -860,6 +860,41 @@
   color: var(--r-text);
   font-size: 0.88rem;
 }
+/* [Astra round 3] — Sous-titre, unité BPM et note sous le champ Tempo, repris
+   de .tr-dialog-description / .tr-tempo-field / .tr-form-field small de la
+   maquette. Même spécificité que les règles voisines pour rester au-dessus des
+   styles génériques de .modal-box. */
+:root[data-skin='global'] #midi-session-init-modal .midi-modal-description,
+:root[data-skin='v2'] #midi-session-init-modal .midi-modal-description {
+  margin: 0 0 var(--r-space-5);
+  color: var(--r-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.7;
+}
+:root[data-skin='global'] #midi-session-init-modal .midi-modal-field small,
+:root[data-skin='v2'] #midi-session-init-modal .midi-modal-field small {
+  color: var(--r-text-faint);
+  font-size: 0.72rem;
+  font-weight: 400;
+}
+:root[data-skin='global'] #midi-session-init-modal .midi-modal-tempo > div,
+:root[data-skin='v2'] #midi-session-init-modal .midi-modal-tempo > div {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+:root[data-skin='global'] #midi-session-init-modal .midi-modal-tempo input,
+:root[data-skin='v2'] #midi-session-init-modal .midi-modal-tempo input {
+  width: 96px;
+  font-family: var(--r-font-mono);
+}
+:root[data-skin='global'] #midi-session-init-modal .midi-modal-tempo > div > span,
+:root[data-skin='v2'] #midi-session-init-modal .midi-modal-tempo > div > span {
+  color: var(--r-text-faint);
+  font: 0.7rem var(--r-font-mono);
+  letter-spacing: .08em;
+}
+
 :root[data-skin='global'] #midi-session-init-modal .midi-modal-checkbox,
 :root[data-skin='v2'] #midi-session-init-modal .midi-modal-checkbox {
   display: flex;

@@ -370,20 +370,34 @@
           <!-- Modale de démarrage -->
           <div class="modal-overlay astra-modal" id="midi-session-init-modal" style="display: none;">
             <div class="modal-box">
-              <h3>Nouvelle session MIDI</h3>
+              <!-- [Astra round 3] — Titre, sous-titre et champs repris mot pour mot
+                   de la maquette (src/training/TrainingWorkspace.tsx). Le tempo
+                   n'est plus caché derrière le métronome : il est enregistré avec
+                   la session dans tous les cas. -->
+              <h3>Une nouvelle session, à votre rythme</h3>
+              <p class="midi-modal-description">Installez-vous au clavier. Votre jeu sera enregistré localement, note par note.</p>
               <label class="midi-modal-field">
                 Nom de la session
-                <input type="text" id="midi-session-title-input" placeholder="Session du ...">
+                <input type="text" id="midi-session-title-input" placeholder="Session du ..." maxlength="90">
+              </label>
+              <label class="midi-modal-field midi-modal-tempo" id="midi-session-bpm-row">
+                Tempo de référence
+                <div>
+                  <input type="number" id="midi-session-bpm-input" value="90" min="40" max="240">
+                  <span>BPM</span>
+                </div>
+                <small>Enregistré avec la session : il règle le métronome et s'affiche dans la bibliothèque.</small>
               </label>
               <label class="midi-modal-checkbox">
                 <input type="checkbox" id="midi-session-metronome-toggle">
                 Métronome
               </label>
-              <label class="midi-modal-field" id="midi-session-bpm-row" style="display: none;">
-                Tempo (BPM)
-                <input type="number" id="midi-session-bpm-input" value="90" min="40" max="240">
+              <label class="midi-modal-checkbox">
+                <input type="checkbox" id="midi-session-immediate-toggle">
+                Commencer l'enregistrement immédiatement
               </label>
               <div class="modal-actions">
+                <button class="tr-button" id="midi-session-cancel-btn" type="button">Annuler</button>
                 <button class="tr-button tr-primary primary" id="midi-session-start-btn" type="button">Démarrer (3…2…1…)</button>
               </div>
             </div>
@@ -517,7 +531,7 @@
             </div>
           </div>
 
-          <section class="tr-cinema-shell pedagogie-main" id="pedagogie-main" aria-label="Lecteur de tutoriel">
+          <section class="tr-cinema-shell" id="pedagogie-main" aria-label="Lecteur de tutoriel">
             <div class="tr-cinema-stage">
               <section class="pedagogie-card is-video" id="pedagogie-video-card" style="display: none;">
                 <video class="pedagogie-video-player" id="pedagogie-video-player" controls preload="metadata" playsinline></video>
