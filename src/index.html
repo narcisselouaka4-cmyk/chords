@@ -1333,41 +1333,96 @@
                 </div>
               </div>
               <div class="analyzer-panel" data-section="masterclass" role="tabpanel" style="display:none">
-                <div class="masterclass-panel" id="masterclass-panel">
-                  <div class="masterclass-empty" id="masterclass-empty">
-                    <p>Les fiches Masterclass s'affichent ici après avoir sélectionné un accord ou un passage dans la timeline.</p>
+                <!-- [Refonte Astra Analyse 12/09] — « Masterclass » : on prend la
+                     bulle de conversation de la maquette (an-ai-*) comme cadre.
+                     Le CONTENU reste celui de masterclass-panel.js — fiches
+                     réelles construites depuis l'accord sélectionné et l'analyse,
+                     plus la zone de question à l'IA branchée de Zic.
+                     §2 APPLIQUÉ : les « leçons » d'Astra (question, réponse du
+                     mentor, mains gauche/droite, « secret du maître ») sont
+                     écrites à la main dans la maquette ; aucune n'est portée. -->
+                <div class="an-masterclass-container masterclass-panel" id="masterclass-panel">
+                  <div class="an-ai-bubble-stage">
+                    <div class="an-ai-speech-bubble" role="region" aria-label="Fiche Masterclass">
+                      <div class="an-ai-bubble-header">
+                        <div class="an-ai-avatar-wrap">
+                          <div class="an-ai-avatar-core"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.29 1.29L3 12l5.81 1.9a2 2 0 0 1 1.29 1.29L12 21l1.9-5.81a2 2 0 0 1 1.29-1.29L21 12l-5.81-1.9a2 2 0 0 1-1.29-1.29z"/></svg></div>
+                          <span class="an-ai-status-pulse"></span>
+                        </div>
+                        <div class="an-ai-meta">
+                          <div class="an-ai-title-row">
+                            <strong class="an-ai-name">Masterclass</strong>
+                          </div>
+                          <span class="an-ai-role">Fiche construite à partir de l'accord sélectionné</span>
+                        </div>
+                      </div>
+                      <div class="an-ai-speech-content">
+                        <div class="masterclass-empty" id="masterclass-empty">
+                          <p>Les fiches Masterclass s'affichent ici après avoir sélectionné un accord ou un passage dans la frise.</p>
+                        </div>
+                        <div class="masterclass-content" id="masterclass-content" style="display:none"></div>
+                      </div>
+                    </div>
                   </div>
-                  <div class="masterclass-content" id="masterclass-content" style="display:none"></div>
                 </div>
               </div>
+              <!-- [Refonte Astra Analyse 12/09] — « Corriger », établi à deux
+                   colonnes de la maquette. Le flux de segments et l'inspecteur
+                   sont remplis par corriger-panel.js ; tous ses identifiants sont
+                   conservés. Le filtre reste un <select> (c'est sa valeur que lit
+                   le module) plutôt que les pastilles de la maquette.
+                   §2 : les boutons d'export du bandeau d'Astra ne sont pas portés
+                   ici — les exports réels de Zic vivent dans « Vue d'ensemble ». -->
               <div class="analyzer-panel corriger-panel" data-section="corriger" role="tabpanel" style="display:none">
-                <div class="corriger-header" id="corriger-header"></div>
-                <div class="corriger-toolbar">
-                  <label class="corriger-filter-label" for="corriger-filter">Afficher</label>
-                  <select class="corriger-filter" id="corriger-filter">
-                    <option value="flagged" selected>Segments signalés</option>
-                    <option value="all">Tous les segments</option>
-                  </select>
-                  <div class="corriger-message" id="corriger-message" style="display:none"></div>
-                </div>
-                <div class="corriger-layout">
-                  <div class="corriger-list" id="corriger-list"></div>
-                  <div class="corriger-editor" id="corriger-editor" style="display:none">
-                    <div class="corriger-editor-header">
-                      <div class="corriger-editor-detected" id="corriger-editor-detected"></div>
-                      <div class="corriger-editor-meta" id="corriger-editor-meta"></div>
+                <div class="an-correction-container">
+                  <div class="an-correction-top-ribbon">
+                    <div class="an-stats-counters corriger-header" id="corriger-header"></div>
+                    <div class="an-stream-filter-bar">
+                      <label class="an-edit-label" for="corriger-filter">Afficher</label>
+                      <select class="an-chord-text-input corriger-filter" id="corriger-filter">
+                        <option value="flagged" selected>Segments signalés</option>
+                        <option value="all">Tous les segments</option>
+                      </select>
+                      <div class="an-hint-tag corriger-message" id="corriger-message" style="display:none"></div>
                     </div>
-                    <div class="corriger-keyboard" id="corriger-keyboard"></div>
-                    <label class="corriger-input-label" for="corriger-input">Symbole corrigé</label>
-                    <div class="corriger-input-row">
-                      <input type="text" class="corriger-input" id="corriger-input" placeholder="Ex. F#m7, C/E, Bbmaj9" autocomplete="off" />
-                      <button type="button" class="btn-secondary" id="corriger-reset-btn" title="Reprendre l’accord détecté">↺</button>
+                  </div>
+
+                  <div class="an-correction-workbench">
+                    <div class="an-card an-segments-stream-card">
+                      <div class="an-stream-filter-bar">
+                        <span class="an-eyebrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>FLUX DES ACCORDS</span>
+                      </div>
+                      <div class="an-segments-list corriger-list" id="corriger-list"></div>
                     </div>
-                    <div class="corriger-candidates" id="corriger-candidates"></div>
-                    <div class="corriger-editor-actions">
-                      <button type="button" class="btn-secondary" id="corriger-listen-btn" aria-pressed="false">▶ Écouter en boucle</button>
-                      <button type="button" class="btn-secondary" id="corriger-correct-btn">Marquer correct</button>
-                      <button type="button" class="btn-primary" id="corriger-apply-btn">Appliquer la correction</button>
+
+                    <div class="an-card an-inspector-card corriger-editor" id="corriger-editor" style="display:none">
+                      <div class="an-card-header">
+                        <div>
+                          <span class="an-eyebrow">INSPECTEUR DE L'ACCORD CIBLÉ</span>
+                          <h3 class="an-card-title corriger-editor-detected" id="corriger-editor-detected"></h3>
+                        </div>
+                        <span class="an-confidence-pill corriger-editor-meta" id="corriger-editor-meta"></span>
+                      </div>
+
+                      <div class="an-inspector-keyboard corriger-keyboard" id="corriger-keyboard"></div>
+
+                      <div class="an-smart-suggestions-block">
+                        <span class="an-section-mini-tag">Candidats proposés par le moteur</span>
+                        <div class="an-suggestions-pills corriger-candidates" id="corriger-candidates"></div>
+                      </div>
+
+                      <div class="an-manual-edit-block">
+                        <label class="an-edit-label" for="corriger-input">Symbole corrigé</label>
+                        <div class="an-input-row">
+                          <input type="text" class="an-chord-text-input corriger-input" id="corriger-input" placeholder="Ex. F#m7, C/E, Bbmaj9" autocomplete="off" />
+                          <button type="button" class="an-btn an-btn-ghost an-btn-mini" id="corriger-reset-btn" title="Reprendre l’accord détecté"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
+                        </div>
+                        <div class="an-input-row corriger-editor-actions">
+                          <button type="button" class="an-btn an-btn-ghost an-btn-mini" id="corriger-listen-btn" aria-pressed="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Écouter en boucle</button>
+                          <button type="button" class="an-btn an-btn-ghost an-btn-mini" id="corriger-correct-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Marquer correct</button>
+                          <button type="button" class="an-btn an-btn-primary an-btn-mini" id="corriger-apply-btn">Appliquer la correction</button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
