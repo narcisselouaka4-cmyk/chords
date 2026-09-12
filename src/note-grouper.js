@@ -1,6 +1,7 @@
-const DEFAULT_TOLERANCE_MS = 200;
-const MAX_SPAN_SEMITONES = 24; // > 2 octaves : mouvement/glissando, pas un accord tenu
-const MIN_SIMULTANEOUS = 3; // seuil minimal de notes réellement superposées dans le temps
+export const DEFAULT_TOLERANCE_MS = 200;
+export const MAX_SPAN_SEMITONES = 24; // > 2 octaves : mouvement/glissando, pas un accord tenu
+export const MIN_SIMULTANEOUS = 3; // seuil minimal de notes réellement superposées dans le temps
+export const CONJUNCT_INTERVAL_SEMITONES = 2; // pas conjoint (ton/demi-ton) typique d'une gamme/trait mélodique
 
 // [OpenCode] — 2026-07-04 — Groupement temporel des notes avec fenêtre glissante pour les cascades/arpèges.
 // [OpenCode] — 2026-09-05 — Un accord (même roulé, pédale tenue) a un instant où plusieurs
@@ -35,6 +36,22 @@ export function createNoteGrouper({ onGroupReady, toleranceMs = DEFAULT_TOLERANC
     }, toleranceMs);
   }
 
+  // Garde-fou "gamme sous pédale" : quand la pédale est tenue, noteOff() ne ferme jamais
+  // offTime (voir plus haut) — la concurrence calculée dans flush() peut donc être
+  // artificiellement gonflée même pour un trait joué note à note (gamme, mouvement).
+  // Un vrai accord (même roulé) empile des notes qui ne sont jamais toutes voisines d'un
+  // demi-ton/ton une fois triées par hauteur — une gamme ou un trait conjoint, si. On
+  // rejette donc comme "non-accord" tout groupe dont TOUTES les notes voisines (triées par
+  // hauteur) sont à un intervalle conjoint (≤ CONJUNCT_INTERVAL_SEMITONES).
+  function isMelodicRun(group) {
+    if (group.length < MIN_SIMULTANEOUS) return false;
+    const byPitch = group.map((n) => n.note).sort((a, b) => a - b);
+    for (let i = 1; i < byPitch.length; i++) {
+      if (byPitch[i] - byPitch[i - 1] > CONJUNCT_INTERVAL_SEMITONES) return false;
+    }
+    return true;
+  }
+
   function flush() {
     if (pendingNotes.length === 0) return;
     const group = pendingNotes.slice();
@@ -45,6 +62,8 @@ export function createNoteGrouper({ onGroupReady, toleranceMs = DEFAULT_TOLERANC
     const span = Math.max(...noteValues) - Math.min(...noteValues);
     // Garde-fou d'étendue : un mouvement/glissando large ne peut pas être un accord tenu.
     if (span > MAX_SPAN_SEMITONES) return;
+
+    if (isMelodicRun(group)) return;
 
     const flushTime = performance.now();
     const events = [];

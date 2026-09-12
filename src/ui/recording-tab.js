@@ -8,6 +8,8 @@ import {
 } from '../recorder/session-manager.js';
 import { createRecorder } from '../recorder/recorder.js';
 import { createPlayer } from '../recorder/player.js';
+import { playNote, releaseNote, resumeAudio } from '../audio/simple-synth.js';
+import { segmentSessionEvents, nameChordSegments } from '../recorder/session-analysis.js';
 // [Refonte 2026-09-03] — Plus d'import depuis analyzer-tab.js.
 //
 // Ce module visait une API qui n'existe plus : `renderAnalysis` et
@@ -35,35 +37,41 @@ let lastChordName = null;
 let chordCountDuringRecording = 0;
 
 const els = {
-  sessionList: document.getElementById('session-list'),
-  sessionSearch: document.getElementById('session-search'),
-  newSessionBtn: document.getElementById('new-session-btn'),
-  startRecordingBtn: document.getElementById('start-recording-btn'),
-  stopRecordingBtn: document.getElementById('stop-recording-btn'),
-  recordingControls: document.getElementById('recording-controls'),
-  recordingStatus: document.getElementById('recording-status'),
-  recordingCountdown: document.getElementById('recording-countdown'),
-  recordingTimer: document.getElementById('recording-timer'),
-  recordingStats: document.getElementById('recording-stats'),
-  recordingInitModal: document.getElementById('recording-init-modal'),
-  metronomeToggle: document.getElementById('metronome-toggle'),
-  selectedSessionInfo: document.getElementById('selected-session-info'),
-  analysisContent: document.getElementById('analysis-content'),
-  analyzeSessionBtn: document.getElementById('analyze-session-btn'),
-  modalOverlay: document.getElementById('session-end-modal'),
-  modalStats: document.getElementById('modal-stats'),
-  modalKeepBtn: document.getElementById('modal-keep'),
-  modalDeleteBtn: document.getElementById('modal-delete'),
-  modalReplayBtn: document.getElementById('modal-replay'),
-  transportBar: document.getElementById('transport-bar'),
-  transportRewind: document.getElementById('transport-rewind'),
-  transportPlay: document.getElementById('transport-play'),
-  transportSlider: document.getElementById('transport-slider'),
-  sessionTitleInput: document.getElementById('session-title-input'),
-  sessionBpmInput: document.getElementById('session-bpm-input'),
-  bpmRow: document.getElementById('bpm-row'),
-  countdownOverlay: document.getElementById('countdown-overlay'),
-  countdownNumber: document.getElementById('countdown-number'),
+  sessionList: document.getElementById('midi-session-list'),
+  sessionSearch: document.getElementById('midi-session-search'),
+  newSessionBtn: document.getElementById('midi-session-new-btn'),
+  startRecordingBtn: document.getElementById('midi-session-start-btn'),
+  stopRecordingBtn: document.getElementById('midi-session-stop-btn'),
+  recordingControls: document.getElementById('midi-session-controls'),
+  recordingStatus: document.getElementById('midi-session-status'),
+  recordingCountdown: document.getElementById('midi-session-countdown'),
+  recordingTimer: document.getElementById('midi-session-timer'),
+  recordingStats: document.getElementById('midi-session-stats'),
+  recordingInitModal: document.getElementById('midi-session-init-modal'),
+  metronomeToggle: document.getElementById('midi-session-metronome-toggle'),
+  selectedSessionInfo: document.getElementById('midi-session-info'),
+  carnet: document.getElementById('midi-session-carnet'),
+  carnetStickyHead: document.getElementById('carnet-sticky-head'),
+  carnetSessionTitle: document.getElementById('carnet-session-title'),
+  carnetSessionMeta: document.getElementById('carnet-session-meta'),
+  carnetExploreAll: document.getElementById('carnet-explore-all'),
+  carnetTimeline: document.getElementById('carnet-timeline'),
+  carnetEntries: document.getElementById('carnet-entries'),
+  modalOverlay: document.getElementById('midi-session-end-modal'),
+  modalStats: document.getElementById('midi-session-modal-stats'),
+  modalKeepBtn: document.getElementById('midi-session-keep'),
+  modalDeleteBtn: document.getElementById('midi-session-delete'),
+  modalReplayBtn: document.getElementById('midi-session-replay'),
+  transportBar: document.getElementById('midi-session-transport'),
+  transportRewind: document.getElementById('midi-session-rewind'),
+  transportPlay: document.getElementById('midi-session-play'),
+  transportSlider: document.getElementById('midi-session-slider'),
+  sessionTitleInput: document.getElementById('midi-session-title-input'),
+  sessionBpmInput: document.getElementById('midi-session-bpm-input'),
+  bpmRow: document.getElementById('midi-session-bpm-row'),
+  countdownOverlay: document.getElementById('midi-session-countdown-overlay'),
+  countdownNumber: document.getElementById('midi-session-countdown-number'),
+  copilotSessionBtn: document.getElementById('midi-session-copilot-btn'),
 };
 
 export function initRecordingTab({
@@ -81,28 +89,35 @@ export function initRecordingTab({
   // trouvait ici en posait un second jeu d'écouteurs sur les mêmes boutons :
   // un clic sur « Lancer l'analyse » déclenchait deux analyses.
 
+  // NOTE : recording-tab.js est initialisé au chargement de main.js. À ce
+  // moment, l'onglet Sessions MIDI n'est pas forcément affiché. On initialise
+  // le player sans branchement au clavier principal : le câblage MIDI live
+  // reste dans main.js. Le player sert uniquement à la relecture des sessions.
   player = createPlayer({
-    onNoteOn: (note, velocity) => feedMidiEvent?.('noteOn', note, velocity),
-    onNoteOff: (note) => feedMidiEvent?.('noteOff', note),
-    onSustain: (value) => feedMidiEvent?.('sustain', value),
-    onPitchWheel: (value) => feedMidiEvent?.('pitchWheel', value),
-    onModWheel: (value) => feedMidiEvent?.('modWheel', value),
+    onNoteOn: (note, velocity) => playNote(note, velocity),
+    onNoteOff: (note) => releaseNote(note),
+    onSustain: () => {},
+    onPitchWheel: () => {},
+    onModWheel: () => {},
   });
 
   bindSessionForm();
   bindRecordingControls();
   bindModal();
   bindSessionSearch();
-  bindAnalyzeButton();
+  bindCopilotButton();
   bindTransportBar();
+  bindCarnetEvents();
   refreshSessionList();
 
   switchToRecordingTab();
 }
 
 export function switchToRecordingTab() {
-  const event = new CustomEvent('app-switch-tab', { detail: { tab: 'analysis' } });
-  document.dispatchEvent(event);
+  // Ne rien faire : cette fonction datait du temps où Sessions MIDI était
+  // l'onglet Analyse. Aujourd'hui c'est une sous-vue de l'onglet Entraînement,
+  // gérée par app-switch-training-view dans main.js. Bascouler vers l'onglet
+  // Analyse ici cassait la navigation.
 }
 
 function bindSessionForm() {
@@ -205,6 +220,9 @@ async function startRecording() {
 
     recorder = createRecorder();
     recorder.start();
+
+    if (els.carnet) els.carnet.style.display = 'none';
+    stopCarnetLoop();
 
     startMetronome();
     setRecordingStatus('● Enregistrement en cours...', 'recording');
@@ -353,6 +371,8 @@ async function discardSession() {
     console.error('Failed to delete session:', err);
   }
   if (els.transportBar) els.transportBar.style.display = 'none';
+  if (els.carnet) els.carnet.style.display = 'none';
+  stopCarnetLoop();
   currentSession = null;
   currentEvents = [];
   currentMetadata = null;
@@ -465,6 +485,7 @@ function renderSessionList(sessions) {
         if (currentSession?.id === session.id) {
           currentSession = null;
           currentEvents = [];
+          currentMetadata = null;
           resetSelectedSessionInfo();
         }
         refreshSessionList();
@@ -488,12 +509,11 @@ async function loadAndPlaySession(sessionId, autoPlay = false) {
 
     player.load(currentEvents);
     renderSelectedSessionInfo();
+    renderCarnet();
     refreshSessionList();
-    if (els.analyzeSessionBtn) els.analyzeSessionBtn.disabled = false;
-    if (els.analysisContent) {
-      els.analysisContent.innerHTML = '<p class="detail-hint">Cliquez sur « Analyser » pour générer l\'analyse de cette session.</p>';
-    }
+    if (els.copilotSessionBtn) els.copilotSessionBtn.disabled = false;
     if (els.transportBar) els.transportBar.style.display = 'flex';
+    if (els.carnet) els.carnet.style.display = 'flex';
     updateTransportUI();
     if (autoPlay) {
       player.play();
@@ -522,6 +542,237 @@ function resetSelectedSessionInfo() {
   els.selectedSessionInfo.innerHTML = `<p class="detail-hint">Aucune session sélectionnée. Créez une nouvelle session ou choisissez-en une dans la liste.</p>`;
 }
 
+function formatTimeShort(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
+  const total = Math.floor(seconds);
+  const m = Math.floor(total / 60);
+  const s = String(total % 60).padStart(2, '0');
+  return `${m}:${s}`;
+}
+
+function renderCarnet() {
+  if (!currentSession || !currentEvents.length) return;
+
+  const segments = nameChordSegments(segmentSessionEvents(currentEvents));
+  if (!segments.length) return;
+
+  const totalDuration = currentSession.duration || segments[segments.length - 1].end || 1;
+
+  renderCarnetHeader(segments, totalDuration);
+  renderTimeline(segments, totalDuration);
+  renderCarnetEntries(segments);
+  bindCarnetPlayButtons(segments);
+  bindCarnetExploreButtons(segments);
+  bindCarnetExploreAll(segments);
+}
+
+function renderCarnetHeader(segments, totalDuration) {
+  if (!els.carnetSessionTitle || !els.carnetSessionMeta) return;
+  const chordCount = segments.filter((s) => s.type === 'chord').length;
+  const durationStr = formatDuration(totalDuration);
+  els.carnetSessionTitle.textContent = currentSession.name;
+  els.carnetSessionMeta.textContent = `${durationStr} · ${currentSession.noteCount || 0} notes · ${chordCount} vrais moments d'accord · ${currentSession.key || 'tonalité non définie'}`;
+}
+
+function renderTimeline(segments, totalDuration) {
+  if (!els.carnetTimeline) return;
+  els.carnetTimeline.innerHTML = '';
+
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    const segDuration = seg.end - seg.start;
+    const widthPercent = Math.max((segDuration / totalDuration) * 100, 1.2);
+    const segEl = document.createElement('div');
+    segEl.className = `tl-seg ${seg.type}`;
+    segEl.style.flex = `0 0 ${widthPercent}%`;
+    segEl.dataset.index = String(i);
+    segEl.title = seg.type === 'chord'
+      ? `${seg.chordName || 'Accord'} — ${formatTimeShort(seg.start)}`
+      : `Passage mélodique — ${formatTimeShort(seg.start)}–${formatTimeShort(seg.end)}`;
+    els.carnetTimeline.appendChild(segEl);
+  }
+}
+
+function renderCarnetEntries(segments) {
+  if (!els.carnetEntries) return;
+  els.carnetEntries.innerHTML = '';
+
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    const entry = document.createElement('div');
+    entry.className = `carnet-entry ${seg.type}`;
+    entry.dataset.index = String(i);
+    entry.id = `carnet-entry-${i}`;
+
+    const timeStr = formatTimeShort(seg.start);
+    const endTimeStr = formatTimeShort(seg.end);
+
+    if (seg.type === 'chord') {
+      const chordName = seg.chordName || 'Accord non identifié';
+      entry.innerHTML = `
+        <button class="carnet-play-btn" data-index="${i}" title="Écouter ce moment en boucle">▶</button>
+        <div class="carnet-entry-time">${timeStr}</div>
+        <div class="carnet-entry-main">
+          <div class="carnet-entry-label">${escapeHtml(chordName)} <span class="carnet-chip chord-tag">accord</span></div>
+          <div class="carnet-entry-detail">${seg.notes?.length || 0} notes tenues ensemble · ${seg.chordName ? 'voicing main gauche + main droite' : 'accord non identifié'}</div>
+        </div>
+        <button class="carnet-explore-btn" data-index="${i}">✨ Explorer ce moment</button>
+      `;
+    } else {
+      entry.innerHTML = `
+        <button class="carnet-play-btn" data-index="${i}" title="Écouter ce passage en boucle">▶</button>
+        <div class="carnet-entry-time">${timeStr}</div>
+        <div class="carnet-entry-main">
+          <div class="carnet-entry-label">Passage mélodique <span class="carnet-chip melody-tag">${seg.notes?.length || 0} notes</span></div>
+          <div class="carnet-entry-detail">${timeStr} → ${endTimeStr} · aucune note tenue simultanément — pas un accord</div>
+        </div>
+        <button class="carnet-explore-btn" data-index="${i}">✨ Explorer ce passage</button>
+      `;
+    }
+    els.carnetEntries.appendChild(entry);
+  }
+}
+
+let carnetLoopRafId = null;
+let carnetLoopSegment = null;
+let carnetLoopStart = 0;
+let carnetLoopEnd = 0;
+
+function bindCarnetPlayButtons(segments) {
+  if (!els.carnetEntries) return;
+  els.carnetEntries.querySelectorAll('.carnet-play-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const index = Number(btn.dataset.index);
+      const seg = segments[index];
+      if (!seg) return;
+      toggleCarnetLoop(seg, btn, segments);
+    });
+  });
+}
+
+async function toggleCarnetLoop(seg, btn, segments) {
+  const isCurrentlyPlaying = carnetLoopSegment === seg;
+
+  stopCarnetLoop();
+
+  if (!isCurrentlyPlaying) {
+    carnetLoopSegment = seg;
+    carnetLoopStart = seg.start;
+    carnetLoopEnd = seg.end;
+    btn.classList.add('is-playing');
+    btn.textContent = '⏸';
+
+    player.seek(carnetLoopStart);
+    await resumeAudio();
+    player.play();
+    startCarnetLoop();
+  }
+}
+
+function startCarnetLoop() {
+  if (carnetLoopRafId) cancelAnimationFrame(carnetLoopRafId);
+  function loop() {
+    if (!carnetLoopSegment || !player || !player.isPlaying) {
+      stopCarnetLoop();
+      return;
+    }
+    const cur = player.getCurrentTime();
+    if (cur >= carnetLoopEnd - 0.05) {
+      player.seek(carnetLoopStart);
+    }
+    carnetLoopRafId = requestAnimationFrame(loop);
+  }
+  carnetLoopRafId = requestAnimationFrame(loop);
+}
+
+function stopCarnetLoop() {
+  player?.pause();
+  if (carnetLoopRafId) {
+    cancelAnimationFrame(carnetLoopRafId);
+    carnetLoopRafId = null;
+  }
+  if (els.carnetEntries) {
+    els.carnetEntries.querySelectorAll('.carnet-play-btn.is-playing').forEach((b) => {
+      b.classList.remove('is-playing');
+      b.textContent = '▶';
+    });
+  }
+  carnetLoopSegment = null;
+  carnetLoopStart = 0;
+  carnetLoopEnd = 0;
+}
+
+function bindCarnetExploreButtons(segments) {
+  if (!els.carnetEntries) return;
+  els.carnetEntries.querySelectorAll('.carnet-explore-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const index = Number(btn.dataset.index);
+      const seg = segments[index];
+      if (!seg) return;
+      openCopilotForSegment(seg);
+    });
+  });
+}
+
+function bindCarnetExploreAll(segments) {
+  if (!els.carnetExploreAll) return;
+  els.carnetExploreAll.disabled = false;
+  els.carnetExploreAll.onclick = () => {
+    if (!currentSession) return;
+    const context = buildSessionContext();
+    if (!context) return;
+    document.dispatchEvent(new CustomEvent('app-switch-training-view', { detail: { view: 'copilot' } }));
+    document.dispatchEvent(new CustomEvent('copilot-switch-to-session', { detail: context }));
+    const starter = 'Que peux-tu me dire sur cette session ?';
+    setTimeout(() => {
+      document.dispatchEvent(new CustomEvent('copilot-send-message', { detail: { message: starter } }));
+    }, 50);
+  };
+}
+
+function openCopilotForSegment(seg) {
+  if (!currentSession) return;
+  const context = buildSessionContext();
+  if (!context) return;
+  document.dispatchEvent(new CustomEvent('app-switch-training-view', { detail: { view: 'copilot' } }));
+  document.dispatchEvent(new CustomEvent('copilot-switch-to-session', { detail: context }));
+
+  let starter = '';
+  if (seg.type === 'chord') {
+    starter = `Que peux-tu me dire sur l'accord ${seg.chordName || 'non identifié'} vers ${formatTimeShort(seg.start)} ?`;
+  } else {
+    starter = `Que peux-tu me dire sur le passage mélodique entre ${formatTimeShort(seg.start)} et ${formatTimeShort(seg.end)} ?`;
+  }
+  setTimeout(() => {
+    document.dispatchEvent(new CustomEvent('copilot-send-message', { detail: { message: starter } }));
+  }, 50);
+}
+
+function bindCarnetEvents() {
+  if (!els.carnetTimeline || !els.carnetEntries) return;
+
+  els.carnetTimeline.addEventListener('click', (e) => {
+    const segEl = e.target.closest('.tl-seg');
+    if (!segEl) return;
+    const index = Number(segEl.dataset.index);
+    const entry = els.carnetEntries.querySelector(`.carnet-entry[data-index="${index}"]`);
+    if (entry) {
+      entry.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      entry.classList.add('is-target');
+      setTimeout(() => entry.classList.remove('is-target'), 1400);
+    }
+  });
+
+  const mainContainer = document.querySelector('.midi-sessions-main');
+  if (mainContainer) {
+    mainContainer.addEventListener('scroll', () => {
+      mainContainer.classList.toggle('is-scrolled', mainContainer.scrollTop > 4);
+    });
+  }
+}
+
 function formatDuration(seconds) {
   if (!seconds || isNaN(seconds)) return '00:00';
   const total = Math.floor(Number(seconds));
@@ -544,22 +795,59 @@ export function setRecordingNotation(notation) {
   currentNotation = notation;
 }
 
-function bindAnalyzeButton() {
-  if (!els.analyzeSessionBtn) return;
-  els.analyzeSessionBtn.addEventListener('click', async () => {
-    if (!currentSession || !currentEvents.length) return;
-    await runAnalysis();
-  });
+function buildSessionContext() {
+  if (!currentSession) return null;
+
+  // Le vrai type d'événement stocké est 'note_on' (avec underscore), jamais
+  // 'noteOn'. Ce comptage ne sert que de repli si currentSession.noteCount
+  // est absent — currentSession.noteCount reste prioritaire pour rester
+  // cohérent avec ce qu'affiche déjà l'en-tête du carnet.
+  const noteEvents = (currentEvents || []).filter((e) => e.type === 'note_on' && e.velocity > 0);
+
+  // On ne cherche plus ev.chordName sur les événements bruts (ce champ n'a
+  // jamais existé) — on rejoue la session à travers la même analyse fraîche
+  // que le carnet (segmentSessionEvents + nameChordSegments), qui est déjà
+  // la source de vérité affichée à l'écran.
+  const segments = nameChordSegments(segmentSessionEvents(currentEvents || []));
+  const chordSegments = segments.filter((s) => s.type === 'chord');
+
+  // Liste chronologique des vrais moments d'accord. Pas de déduplication par
+  // nom : une grille qui repasse par le même accord doit apparaître à chaque
+  // occurrence, pas une seule fois.
+  const chordMoments = chordSegments
+    .filter((s) => s.chordName)
+    .map((s) => ({ start: s.start, label: s.chordName }));
+
+  return {
+    type: 'session',
+    sessionId: currentSession.id,
+    name: currentSession.name,
+    duration: Number.isFinite(currentSession.duration) ? currentSession.duration : 0,
+    tempo: currentSession.tempo || null,
+    key: currentSession.key || null,
+    noteCount: currentSession.noteCount || noteEvents.length || 0,
+    // chordCount reflète maintenant le VRAI nombre de moments d'accord
+    // (même calcul que renderCarnetHeader()), plus le vieux compteur périmé
+    // de l'enregistrement live.
+    chordCount: chordSegments.length,
+    comments: currentSession.comments || '',
+    chords: chordMoments,
+  };
 }
 
-// [Refonte 2026-09-03] — L'analyse d'une session enregistrée n'est plus câblée.
-// Ses ancrages DOM (#analysis-content, #analyze-session-btn) ont disparu de
-// index.html lors de la refonte de la navigation, et le rendu qu'elle appelait
-// a été retiré d'analyzer-tab.js : le chemin était mort des deux côtés. On le
-// laisse explicitement inerte plutôt que de simuler une fonctionnalité absente.
-// Enregistrement, relecture et gestion des sessions ne sont pas concernés.
-async function runAnalysis() {
-  console.info('[Sessions MIDI] Analyse de session non disponible dans cette version.');
+function bindCopilotButton() {
+  if (!els.copilotSessionBtn) return;
+  els.copilotSessionBtn.addEventListener('click', () => {
+    if (!currentSession) return;
+    const context = buildSessionContext();
+    if (!context) return;
+    document.dispatchEvent(new CustomEvent('app-switch-training-view', { detail: { view: 'copilot' } }));
+    document.dispatchEvent(new CustomEvent('copilot-switch-to-session', { detail: context }));
+    const starter = 'Que peux-tu me dire sur cette session ?';
+    setTimeout(() => {
+      document.dispatchEvent(new CustomEvent('copilot-send-message', { detail: { message: starter } }));
+    }, 50);
+  });
 }
 
 let transportRafId = null;
@@ -572,7 +860,7 @@ function bindTransportBar() {
     updateTransportUI();
   });
 
-  els.transportPlay?.addEventListener('click', () => {
+  els.transportPlay?.addEventListener('click', async () => {
     if (!player) return;
     if (player.isPlaying) {
       player.pause();
@@ -580,6 +868,7 @@ function bindTransportBar() {
       if (player.getCurrentTime() >= player.getDuration()) {
         player.stop();
       }
+      await resumeAudio();
       player.play();
     }
     updateTransportUI();

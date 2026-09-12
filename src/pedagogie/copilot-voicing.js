@@ -6,6 +6,7 @@
 // generate-voicing.js (moteur V1 limité en accords) pour fournir les notes :
 // il utilise chord-parser.js qui connaît les tensions, altérations et slash bass.
 
+import { Interval } from '@tonaljs/tonal';
 import {
   LH_HARD_RANGE,
   LH_SOFT_RANGE,
@@ -171,7 +172,11 @@ function buildCandidateNotes(parsed) {
   const notes = [];
   const rootPc = parsed.rootPc;
   // Utilise chordSymbolToMidi pour obtenir une octave de base, puis étend sur 4 octaves.
-  const baseNotes = chordSymbolToMidi(parsed.input || 'C', { baseMidi: base }) || [];
+  // chordSymbolToMidi (définie plus haut dans ce fichier) attend un baseMidi NUMÉRIQUE en
+  // 2e argument, pas un objet options — { baseMidi: base } ici était doublement enveloppé
+  // (chordSymbolToMidi refait lui-même { baseMidi } en interne), ce qui neutralisait
+  // silencieusement le paramètre `base` et retombait toujours sur la valeur par défaut (48).
+  const baseNotes = chordSymbolToMidi(parsed.input || 'C', base) || [];
   for (let oct = 0; oct < 5; oct += 1) {
     for (const midi of baseNotes) {
       const transposed = midi + oct * 12;
@@ -221,7 +226,7 @@ function splitHands(parsed, candidates, technique, styleId, hand, context) {
     // Tout à la main droite, réparti autour de C4/C5.
     rightHand = pickNotesFromRange(candidates, RH_HARD_RANGE.min, RH_HARD_RANGE.max, Math.min(4, parsed.intervals.length));
   } else if (hand === 'left') {
-    leftHand = pickNotesFromRange(candidates, LH_HARD_RANGE.min, LH_HARD_RANGE.max, Math.min(4, parsed.intervals.length));
+    leftHand = pickNotesFromRange(candidates, LH_HARD_RANGE.min, LH_HARD_RANGE.max, Math.min(4, parsed.intervals.length), LH_MAX_SPAN);
   } else {
     // LH : basse + une note structurante (5e ou guide tone).
     const bassNote = rootNotes.find((n) => midiInRange(n, LH_HARD_RANGE));
@@ -241,8 +246,18 @@ function splitHands(parsed, candidates, technique, styleId, hand, context) {
       if (thirdPc !== null) {
         const thirdNote = candidates.find((n) => n % 12 === thirdPc);
         if (thirdNote !== undefined) {
-          const thirdInLh = fitInRange(thirdNote, { min: LH_SOFT_RANGE.min, max: LH_HARD_RANGE.max });
-          if (thirdInLh - bass <= 7) leftHand.push(thirdInLh);
+          let thirdInLh = fitInRange(thirdNote, { min: LH_SOFT_RANGE.min, max: LH_HARD_RANGE.max });
+          // La tierce doit rester AU-DESSUS de la basse : fitInRange() la
+          // place seulement dans la plage LH, sans savoir où est tombée la
+          // basse — elle pouvait finir plus grave que `bass`, ce qui fait
+          // d'elle (une fois le tableau trié) la note la plus grave du
+          // voicing à la place de la fondamentale (observé sur Bb7, A7,
+          // Bm7b5). On la remonte d'octave(s) tant qu'elle n'est pas
+          // au-dessus de la basse, sans dépasser la tessiture main gauche.
+          while (thirdInLh <= bass && thirdInLh + 12 <= LH_HARD_RANGE.max) {
+            thirdInLh += 12;
+          }
+          if (thirdInLh > bass && thirdInLh - bass <= 7) leftHand.push(thirdInLh);
         }
       }
       // Si l'écart est trop grand, on garde juste la basse.
@@ -290,21 +305,35 @@ function splitHands(parsed, candidates, technique, styleId, hand, context) {
 
 function findIntervalPc(parsed, interval) {
   const pc = (parsed.rootPc + interval) % 12;
-  return parsed.intervals.some((iv) => iv % 12 === pc) ? pc : null;
+  // parsed.intervals contient des noms d'intervalles Tonal.js (ex. "3m", "7m", "9M"), pas des
+  // demi-tons numériques — il faut les convertir avant de comparer, sinon la comparaison
+  // échoue toujours silencieusement (NaN !== pc).
+  return parsed.intervals.some((iv) => Interval.semitones(iv) % 12 === interval) ? pc : null;
 }
 
-function pickNotesFromRange(candidates, min, max, count) {
+function pickNotesFromRange(candidates, min, max, count, maxSpan = RH_MAX_SPAN) {
   const inRange = candidates.filter((n) => n >= min && n <= max);
   if (inRange.length === 0) return [];
   // On prend les notes les plus proches du centre de la plage pour confort.
   const center = (min + max) / 2;
   const sorted = [...inRange].sort((a, b) => Math.abs(a - center) - Math.abs(b - center));
-  // On s'assure que l'écart entre la première et la dernière note ne dépasse pas RH_MAX_SPAN.
+  // On s'assure que l'écart ENTRE LA NOTE LA PLUS GRAVE ET LA PLUS AIGUË du
+  // groupe final ne dépasse pas maxSpan. L'ancienne version comparait chaque
+  // candidate à picked[0] (la toute première note ajoutée, pas forcément
+  // l'extrême du groupe final) : deux notes pouvaient chacune être "assez
+  // proches" de picked[0] tout en étant, une fois toutes les deux dans le
+  // groupe, plus éloignées l'une de l'autre que maxSpan (vu sur F#m7b5 en
+  // technique 'rootless' : span réel de 18 demi-tons validé à tort).
   const picked = [];
   for (const note of sorted) {
     if (picked.length === 0) {
       picked.push(note);
-    } else if (note - picked[0] <= RH_MAX_SPAN && picked.length < count) {
+      continue;
+    }
+    if (picked.length >= count) continue;
+    const candidateMin = Math.min(note, ...picked);
+    const candidateMax = Math.max(note, ...picked);
+    if (candidateMax - candidateMin <= maxSpan) {
       picked.push(note);
     }
   }

@@ -35,14 +35,46 @@ import { crossCheck, DIVERGENCE } from '../pedagogie/cross-check.js';
 import { normalizeAnalyzerChords } from '../pedagogie/audio-fallback.js';
 import { normalizeTranscription, alignNarration, joinNarrationText } from '../pedagogie/transcription.js';
 import { listTutorialFiles, copyTutorialIntoFolder, tutorialDisplayName, isMp4Name } from '../pedagogie/tutorial-library.js';
-import { getTutorialFolder, saveTutorialFolder } from '../pedagogie/tutorial-folder-pref.js';
-import { explainNarration, translateNarrationSegments } from '../ai/ai-client.js';
+import {
+  getTutorialFolder, saveTutorialFolder,
+  getTutorialCategory, saveTutorialCategory, TUTORIAL_CATEGORIES,
+} from '../pedagogie/tutorial-folder-pref.js';
+import { explainNarration } from '../ai/ai-client.js';
 import { getAIConfig } from '../ai/openai-config.js';
+
+// [OpenCode] — 2026-09-07 — V2N : calibration persistante par chemin de vidéo.
+const V2N_CORNERS_KEY = 'v2n-corners';
+
+function getV2nCorners(path) {
+  if (!path) return null;
+  try {
+    const raw = localStorage.getItem(V2N_CORNERS_KEY);
+    const all = raw ? JSON.parse(raw) : {};
+    const entry = all[path];
+    return Array.isArray(entry) && entry.length === 4 ? entry : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveV2nCorners(path, corners) {
+  if (!path || !corners) return;
+  try {
+    const raw = localStorage.getItem(V2N_CORNERS_KEY);
+    const all = raw ? JSON.parse(raw) : {};
+    all[path] = corners;
+    localStorage.setItem(V2N_CORNERS_KEY, JSON.stringify(all));
+  } catch { /* silencieux */ }
+}
 
 const els = {};
 // Un tutoriel est identifié par son CHEMIN de fichier, pas par un Track_ID.
 let tutorials = [];
 let selectedPath = null;
+// Distingue la SÉLECTION d'un tutoriel (la vidéo reste cachée) de la LECTURE
+// (la vidéo est affichée). selectedPath est mis à jour au clic dans la liste ;
+// playbackStarted passe à true au tout début de analyzeSelected().
+let playbackStarted = false;
 let busy = false;
 let analysis = null;
 let comparison = null;
@@ -51,19 +83,20 @@ let comparison = null;
 // mais conserve horodatages et textes affichés.
 let narrationView = [];
 let detectedKey = null;
-// Traduction automatique du transcript, quand une clé IA est configurée.
-// `byIndex` : index du segment transcrit → texte traduit (l'appariement avec
-// les horodatages ne doit jamais se perdre).
-let translated = null;        // { byIndex: Map<number, string>, targetLang: string } | null
-let translationFailed = false;
-// Approfondissement IA : facultatif, jamais le comportement par défaut.
-let explanation = null;
-let explaining = false;
+// Résumé automatique du sujet en mode "Tutoriel avec explications".
+let summary = null;
+let summarizing = false;
 // Lecteur vidéo blob : une seule URL vitive à la fois.
 let videoBlobUrl = null;
 // Chemin dont l'URL blob courante est issue : suivre la sélection, pas seulement
 // la première apparition du lecteur.
 let mountedVideoPath = null;
+// Catégorie du tutoriel sélectionné : 'tutorial' ou 'cover'. Persistée par
+// chemin de fichier. null signifie "non classé / comportement par défaut".
+let tutorialCategory = null;
+// Le sélecteur de catégorie est-il ouvert ? Pour éviter de lancer l'analyse
+// si l'utilisateur ferme la fenêtre sans répondre.
+let categoryPickerOpen = false;
 
 // ---------------------------------------------------------------------------
 // Utilitaires
@@ -220,10 +253,13 @@ async function chooseFolder() {
   if (!folder) return;
   saveTutorialFolder(typeof localStorage !== 'undefined' ? localStorage : null, folder);
   selectedPath = null;
+  playbackStarted = false;
   analysis = null;
   comparison = null;
   resetNarration();
   destroyVideo();
+  categoryPickerOpen = false;
+  tutorialCategory = null;
   setStatus('');
   render();
   refreshTrackList();
@@ -232,12 +268,131 @@ async function chooseFolder() {
 function selectTrack(path) {
   if (busy) return;
   selectedPath = path;
+  playbackStarted = false;
   analysis = null;
   comparison = null;
   resetNarration();
+  destroyVideo();
+  categoryPickerOpen = false;
+  refreshCategory();
   setStatus('');
   render();
   refreshTrackList();
+  // Notifier le Copilot IA du changement de tutoriel
+  document.dispatchEvent(new CustomEvent('pedagogie-selection-change', { detail: { path } }));
+}
+
+// ---------------------------------------------------------------------------
+// Calibration V2N — 4 coins persistante par vidéo
+// ---------------------------------------------------------------------------
+
+let calibrationMode = false;
+let calibrationPoints = [];
+
+function startCalibration() {
+  if (!selectedPath) return;
+  calibrationMode = true;
+  const stored = getV2nCorners(selectedPath);
+  calibrationPoints = [];
+  if (Array.isArray(stored)) {
+    for (const p of stored) {
+      if (typeof p === 'object' && p !== null && Number.isFinite(p.x) && Number.isFinite(p.y)) {
+        calibrationPoints.push({ x: Number(p.x), y: Number(p.y) });
+      } else if (Array.isArray(p) && p.length >= 2) {
+        calibrationPoints.push({ x: Number(p[0]), y: Number(p[1]) });
+      }
+    }
+  }
+  // S'assurer qu'on repart à 4 max
+  if (calibrationPoints.length > 4) calibrationPoints = calibrationPoints.slice(0, 4);
+  renderCalibrationOverlay();
+}
+
+function cancelCalibration() {
+  calibrationMode = false;
+  calibrationPoints = [];
+  const overlay = document.getElementById('pedagogie-calibration-overlay');
+  if (overlay) overlay.remove();
+}
+
+function confirmCalibration() {
+  if (calibrationPoints.length !== 4) return;
+  saveV2nCorners(selectedPath, calibrationPoints);
+  cancelCalibration();
+  setStatus('Calibration enregistrée. Relancez l\'analyse pour utiliser V2N.', 'ok');
+}
+
+function onCalibrationClick(evt) {
+  if (!calibrationMode) return;
+  const video = els.videoPlayer;
+  if (!video) return;
+  const rect = video.getBoundingClientRect();
+  const rawX = evt.clientX - rect.left;
+  const rawY = evt.clientY - rect.top;
+  const scaleX = video.videoWidth / rect.width;
+  const scaleY = video.videoHeight / rect.height;
+  const x = Math.round(rawX * scaleX);
+  const y = Math.round(rawY * scaleY);
+  calibrationPoints.push({ x, y });
+  if (calibrationPoints.length > 4) calibrationPoints = calibrationPoints.slice(-4);
+  renderCalibrationOverlay();
+}
+
+function renderCalibrationOverlay() {
+  let overlay = document.getElementById('pedagogie-calibration-overlay');
+  if (!overlay) {
+    overlay = el('div', {
+      id: 'pedagogie-calibration-overlay',
+      className: 'pedagogie-calibration-overlay',
+    });
+    const main = document.getElementById('pedagogie-main');
+    if (main) main.appendChild(overlay);
+  }
+  overlay.innerHTML = '';
+
+  calibrationPoints.forEach((p, i) => {
+    const video = els.videoPlayer;
+    if (!video || video.videoWidth === 0) return;
+    const rect = video.getBoundingClientRect();
+    const scaleX = rect.width / video.videoWidth;
+    const scaleY = rect.height / video.videoHeight;
+    overlay.appendChild(el('div', {
+      className: 'pedagogie-calibration-marker',
+      style: `left:${p.x * scaleX}px; top:${p.y * scaleY}px;`,
+      title: ['Gauche-haut', 'Droite-haut', 'Droite-bas', 'Gauche-bas'][i],
+    }, [
+      el('span', { text: ['LT', 'RT', 'RB', 'LB'][i] }),
+    ]));
+  });
+
+  const labels = ['coin supérieur gauche', 'coin supérieur droit', 'coin inférieur droit', 'coin inférieur gauche'];
+  const next = labels[calibrationPoints.length] || null;
+  overlay.appendChild(el('div', { className: 'pedagogie-calibration-hint' }, [
+    el('p', { text: calibrationPoints.length === 0
+      ? 'Cliquez les 4 coins du clavier sur la vidéo, dans l\'ordre : haut-gauche, haut-droite, bas-droite, bas-gauche.'
+      : `Coin suivant : ${next || 'confirmez ou recommencez'}.` }),
+    el('div', { className: 'pedagogie-calibration-actions' }, [
+      el('button', {
+        type: 'button',
+        className: 'pedagogie-secondary-btn',
+        text: 'Recommencer',
+        onClick: () => { calibrationPoints = []; renderCalibrationOverlay(); },
+      }),
+      el('button', {
+        type: 'button',
+        className: 'panel-action',
+        text: 'Confirmer',
+        disabled: calibrationPoints.length !== 4,
+        onClick: confirmCalibration,
+      }),
+      el('button', {
+        type: 'button',
+        className: 'pedagogie-secondary-btn',
+        text: 'Annuler',
+        onClick: cancelCalibration,
+      }),
+    ]),
+  ]));
 }
 
 /**
@@ -282,6 +437,17 @@ async function importVideo() {
   } catch (err) {
     setStatus(`Import impossible : ${err.message}`, 'error');
   }
+}
+
+function refreshCategory() {
+  tutorialCategory = getTutorialCategory(typeof localStorage !== 'undefined' ? localStorage : null, selectedPath);
+}
+
+function setCategory(category) {
+  const cat = saveTutorialCategory(typeof localStorage !== 'undefined' ? localStorage : null, selectedPath, category);
+  tutorialCategory = cat;
+  categoryPickerOpen = false;
+  render();
 }
 
 // ---------------------------------------------------------------------------
@@ -342,6 +508,18 @@ async function analyzeSelected() {
     return;
   }
 
+  // Demander la catégorie si elle n'est pas encore connue pour ce fichier.
+  // Si l'utilisateur ferme le sélecteur sans répondre, on continue avec le
+  // comportement par défaut (grille en avant, comme avant ce chantier).
+  if (!categoryPickerOpen && !getTutorialCategory(typeof localStorage !== 'undefined' ? localStorage : null, selectedPath)) {
+    categoryPickerOpen = true;
+    render();
+    return;
+  }
+
+  // C'est AU DÉBUT de la lecture que la vidéo doit apparaître, pas à la sélection.
+  playbackStarted = true;
+  categoryPickerOpen = false;
   busy = true;
   analysis = null;
   comparison = null;
@@ -363,7 +541,24 @@ async function analyzeSelected() {
       return;
     }
 
-    if (!result.implemented) {
+    // [OpenCode] — 2026-09-07 — V2N : si le format B n'est pas reconnu et que
+    // l'utilisateur a calibré un clavier réel, tenter la transcription visuelle.
+    let v2nResult = null;
+    if (!result.implemented && api?.pedagogie?.checkV2n && api?.pedagogie?.analyzeVideoVision) {
+      const v2nState = await api.pedagogie.checkV2n();
+      const corners = getV2nCorners(selectedPath);
+      if (v2nState?.available && corners) {
+        setProgress('Clavier réel détecté — transcription visuelle V2N…');
+        v2nResult = await api.pedagogie.analyzeVideoVision(selectedPath, {
+          corners,
+          onsetThreshold: 0.5,
+          frameThreshold: 0.5,
+          bottomMargin: 0,
+        });
+      }
+    }
+
+    if (!result.implemented && (!v2nResult || !v2nResult.available)) {
       // L'image n'a rien donné : on le dit, puis on tente le son.
       setProgress('L\'image n\'a rien donné — analyse du son…');
       const audioSegments = await runAudioFallback(selectedPath);
@@ -377,7 +572,7 @@ async function analyzeSelected() {
         narration,
       });
       narrationView = alignNarration(narration.segments, analysis.segments);
-      await maybeTranslate(narration);
+      maybeAutoSummarize();
       return;
     }
 
@@ -385,14 +580,22 @@ async function analyzeSelected() {
     const narration = normalizeTranscription(await transcriptionPromise);
 
     setProgress('Relevé des accords…');
-    analysis = buildVideoAnalysis({
-      samples: result.samples,
-      geometry: result.geometry,
-      sampleInterval: result.sampleInterval,
-      narration,
-    });
+    if (v2nResult?.available) {
+      analysis = buildVideoAnalysis({
+        v2nNotes: v2nResult.notes,
+        v2nDuration: v2nResult.duration,
+        narration,
+      });
+    } else {
+      analysis = buildVideoAnalysis({
+        samples: result.samples,
+        geometry: result.geometry,
+        sampleInterval: result.sampleInterval,
+        narration,
+      });
+    }
     narrationView = alignNarration(narration.segments, analysis.segments);
-    await maybeTranslate(narration);
+    maybeAutoSummarize();
 
     // Recoupement : le son est une seconde lecture indépendante de la même
     // vidéo. Un désaccord est consigné, jamais arbitré.
@@ -437,14 +640,12 @@ async function runAudioFallback(originalPath) {
   return { segments: normalizeAnalyzerChords(result), key: result?.key ?? null };
 }
 
-/** Remet à zéro tout ce qui concerne la parole. Appelé à chaque nouveau relevé. */
+/** Remet à zéro tout ce qui concerne la parole et le résumé. Appelé à chaque nouveau relevé. */
 function resetNarration() {
   narrationView = [];
   detectedKey = null;
-  explanation = null;
-  explaining = false;
-  translated = null;
-  translationFailed = false;
+  summary = null;
+  summarizing = false;
 }
 
 /**
@@ -468,86 +669,37 @@ async function runTranscription(originalPath) {
 }
 
 /**
- * Traduction automatique du transcript, quand elle a un sens.
- *
- * Trois conditions, toutes exigées : une clé personnelle configurée (le repli
- * sans clé reste le texte source, ce n'est pas une exigence nouvelle), une
- * transcription disponible, et une langue détectée qui n'est PAS déjà le
- * français. Une traduction ratée n'affiche rien d'alarmant : le texte original
- * reste, avec une note discrète.
+ * Résumé automatique du sujet en mode "Tutoriel avec explications".
+ * Déclenché sans action de l'utilisateur, mais uniquement quand une clé IA
+ * est configurée. Le rendu principal continue immédiatement ; la carte
+ * Copilot affiche l'état de génération puis le résultat quand il arrive.
  */
-async function maybeTranslate(narration) {
-  translated = null;
-  translationFailed = false;
-  if (!narration?.available || narration.segments.length === 0) return;
-  if (!hasAIKey()) return;
-  const lang = (narration.language || '').toLowerCase();
-  if (lang.startsWith('fr')) return;
-
-  setProgress('Traduction de la parole…');
-  try {
-    // La traduction ne porte que sur les passages non vides, dans l'ordre :
-    // la carte index → texte traduit préserve l'appariement avec les
-    // horodatages, même si des passages vides ont été écartés.
-    const speakable = narration.segments
-      .map((s, i) => ({ i, text: typeof s?.text === 'string' ? s.text.trim() : '' }))
-      .filter((s) => s.text.length > 0);
-    const lines = await translateNarrationSegments(narration.segments, {
-      targetLang: 'fr',
-      sourceLang: narration.language || null,
-    });
-    if (lines) {
-      const byIndex = new Map();
-      speakable.forEach((s, rank) => {
-        if (lines[rank]) byIndex.set(s.i, lines[rank]);
-      });
-      translated = { byIndex, targetLang: 'fr' };
-    } else {
-      translationFailed = true;
-    }
-  } catch (err) {
-    console.warn('[Pedagogie] traduction échouée :', err);
-    translationFailed = true;
-  }
-}
-
-/** Texte affiché pour un passage parlé : la traduction si elle existe, sinon le texte transcrit. */
-function lineTextAt(index) {
-  if (translated?.byIndex && translated.byIndex.has(index)) {
-    return translated.byIndex.get(index);
-  }
-  return narrationView[index]?.text || '';
-}
-
-/**
- * Approfondissement facultatif : reformule ce que le professeur a dit, à la
- * lumière des accords relevés. La transcription brute reste affichée au-dessus,
- * inchangée — c'est elle la source, l'IA n'est qu'une relecture. Il porte sur le
- * texte ORIGINAL (pas la traduction) : reformuler une traduction éloignerait
- * deux fois de la parole du professeur.
- */
-async function askExplanation() {
-  if (explaining || !analysis) return;
-  explaining = true;
-  explanation = null;
-  renderNarration();
+async function maybeAutoSummarize() {
+  if (!hasAIKey() || tutorialCategory !== TUTORIAL_CATEGORIES.TUTORIAL || !analysis) return;
+  if (summarizing || summary !== null) return;
+  summarizing = true;
+  summary = null;
+  renderResult();
 
   try {
     const text = joinNarrationText(narrationView);
+    if (!text.trim()) {
+      summary = 'Aucune parole transcrite pour résumer le sujet.';
+      return;
+    }
     const result = await explainNarration(text, {
       key: detectedKey,
       chords: analysis.segments.filter((s) => s.chord.resolved).map((s) => s.chord.label),
       source: analysis.source,
     });
-    explanation = result
-      || 'L\'assistant n\'a rien renvoyé. La transcription ci-dessus reste la source.';
+    summary = result || 'L\'assistant n\'a rien renvoyé.';
   } catch (err) {
-    explanation = err.message === 'AI_API_KEY_INVALID'
+    summary = err.message === 'AI_API_KEY_INVALID'
       ? 'La clé API a été refusée. Vérifiez-la dans Réglages › Assistant IA.'
-      : `Approfondissement impossible : ${err.message}`;
+      : `Résumé automatique impossible : ${err.message}`;
   } finally {
-    explaining = false;
-    renderNarration();
+    summarizing = false;
+    renderResult();
   }
 }
 
@@ -575,35 +727,94 @@ function render() {
   }
 
   if (els.analyzeBtn) {
-    els.analyzeBtn.disabled = busy || !selectedPath;
+    els.analyzeBtn.disabled = busy || !selectedPath || categoryPickerOpen;
     els.analyzeBtn.textContent = analysis ? 'Relire ce tutoriel' : 'Lire ce tutoriel';
-    els.analyzeBtn.style.display = (!folder || !selectedPath) ? 'none' : '';
+    els.analyzeBtn.style.display = (!folder || !selectedPath || categoryPickerOpen) ? 'none' : '';
   }
   if (els.importBtn) {
-    els.importBtn.disabled = busy || !folder;
+    els.importBtn.disabled = busy || !folder || categoryPickerOpen;
     els.importBtn.style.display = folder ? '' : 'none';
   }
 
+  if (els.videoActions) {
+    els.videoActions.style.display = (selectedPath && playbackStarted && !categoryPickerOpen) ? '' : 'none';
+  }
+
+  if (els.categoryHint) {
+    els.categoryHint.style.display = (selectedPath && playbackStarted && !categoryPickerOpen) ? '' : 'none';
+    if (els.categoryHintText) {
+      const name = selectedPath ? tutorialDisplayName(selectedPath.split('/').pop() || selectedPath) : '';
+      const label = tutorialCategory === TUTORIAL_CATEGORIES.TUTORIAL
+        ? 'Tutoriel avec explications'
+        : (tutorialCategory === TUTORIAL_CATEGORIES.COVER ? 'Cover / interprétation' : '');
+      els.categoryHintText.textContent = label ? `${name} — ${label} (cliquez pour changer)` : '';
+    }
+  }
+
   renderVideo();
+  renderSelectionIdle();
+  renderCategoryPicker();
   renderFormat();
   renderResult();
-  renderNarration();
 }
 
-/** La vidéo est la fenêtre principale : visible dès qu'un tutoriel est choisi. */
+/**
+ * La vidéo est la fenêtre principale, mais elle ne doit apparaître qu'au moment
+ * de la LECTURE, pas dès qu'un tutoriel est sélectionné dans la liste.
+ * Le lecteur suit la sélection : changer de tutoriel recharge la source.
+ * mountVideo détruit l'URL précédente, une seule vit à la fois.
+ */
 function renderVideo() {
   if (!els.videoCard || !els.videoPlayer) return;
-  if (!selectedPath) {
+  if (!selectedPath || !playbackStarted) {
     els.videoCard.style.display = 'none';
     destroyVideo();
     return;
   }
   els.videoCard.style.display = '';
-  // Le lecteur suit la SÉLECTION, pas seulement sa première apparition :
-  // changer de tutoriel recharge la source. mountVideo détruit l'URL
-  // précédente, une seule vit à la fois.
   if (!videoBlobUrl || mountedVideoPath !== selectedPath) {
     mountVideo(selectedPath);
+  }
+}
+
+/** Quelques éléments simples pour que la page ne paraisse pas vide entre la
+ * sélection d'un tutoriel et le clic sur « Lire ce tutoriel ».
+ */
+function renderSelectionIdle() {
+  if (!els.selectionIdleCard) return;
+  const visible = selectedPath && !playbackStarted && !busy && !categoryPickerOpen;
+  els.selectionIdleCard.style.display = visible ? '' : 'none';
+  if (!visible) return;
+  const fileName = selectedPath.split('/').pop() || selectedPath;
+  els.selectionIdleName.textContent = tutorialDisplayName(fileName);
+  els.selectionIdleHint.textContent = 'Cliquez sur « Lire ce tutoriel » pour commencer l\'analyse.';
+  // Durée/poids : rien n'est chargé à ce stade, laissons ces champs muets.
+}
+
+/** Sélecteur de catégorie affiché avant la première analyse d'un fichier. */
+function renderCategoryPicker() {
+  if (!els.categoryCard) return;
+  const visible = selectedPath && categoryPickerOpen && !busy;
+  els.categoryCard.style.display = visible ? '' : 'none';
+  if (!visible) return;
+  els.categoryGrid.innerHTML = '';
+  for (const [key, icon, title, sub] of [
+    [TUTORIAL_CATEGORIES.TUTORIAL, '🎓', 'Tutoriel avec explications',
+      'Le professeur explique des accords, progressions ou concepts.'],
+    [TUTORIAL_CATEGORIES.COVER, '🎹', 'Cover / interprétation',
+      'Le but est de reproduire ce qui est joué dans la vidéo.'],
+  ]) {
+    const selected = tutorialCategory === key;
+    els.categoryGrid.appendChild(el('button', {
+      type: 'button',
+      className: `pedagogie-category-card${selected ? ' is-selected' : ''}`,
+      'data-category': key,
+      onClick: () => { setCategory(key); analyzeSelected(); },
+    }, [
+      el('span', { className: 'pedagogie-category-icon', text: icon }),
+      el('span', { className: 'pedagogie-category-title', text: title }),
+      el('span', { className: 'pedagogie-category-sub', text: sub }),
+    ]));
   }
 }
 
@@ -613,17 +824,28 @@ function renderFormat() {
   if (!analysis) { els.format.style.display = 'none'; return; }
   els.format.style.display = '';
 
-  const fromImage = analysis.source === 'video';
+  const fromV2n = analysis.source === 'v2n';
+  const fromImage = fromV2n || analysis.source === 'video';
   els.format.appendChild(el('span', {
     className: `pedagogie-badge ${fromImage ? 'is-image' : 'is-audio'}`,
-    text: fromImage ? 'Lu à l\'image' : 'Lu au son',
+    text: fromV2n ? 'Lu à l\'image (V2N)' : (fromImage ? 'Lu à l\'image' : 'Lu au son'),
   }));
+  // En mode tutoriel, le nombre d'accords n'est pas la métrique affichée en
+  // badge (la grille reste secondaire). En mode cover, la formulation actuelle
+  // garde le décompte.
+  const isTutorialMode = tutorialCategory === TUTORIAL_CATEGORIES.TUTORIAL;
+  const badgeSuffix = fromV2n
+    ? (isTutorialMode
+      ? ` sur ${formatTime(analysis.stats.duration)}.`
+      : ` — ${analysis.stats.segmentCount} accords relevés sur ${formatTime(analysis.stats.duration)}.`)
+    : (fromImage
+      ? (isTutorialMode
+        ? ` sur ${formatTime(analysis.stats.duration)}.`
+        : ` — ${analysis.stats.segmentCount} accords relevés sur ${formatTime(analysis.stats.duration)}.`)
+      : 'Aucun clavier lisible à l\'image ; le relevé vient de l\'analyse du son.');
   els.format.appendChild(el('span', {
     className: 'pedagogie-format-text',
-    text: fromImage
-      ? `Clavier graphique reconnu — ${analysis.stats.segmentCount} accords relevés sur `
-        + `${formatTime(analysis.stats.duration)}.`
-      : 'Aucun clavier lisible à l\'image ; le relevé vient de l\'analyse du son.',
+    text: fromV2n ? 'Clavier réel transcrit par V2N' + badgeSuffix : (fromImage ? 'Clavier graphique reconnu' + badgeSuffix : badgeSuffix),
   }));
 }
 
@@ -632,8 +854,36 @@ function renderResult() {
   if (!analysis) { els.result.style.display = 'none'; return; }
   els.result.style.display = '';
 
+  // Mode « tutoriel avec explications » : la grille est calculée en interne
+  // (le Copilot en a besoin) mais n'est pas la surface principale. On la
+  // réduit visuellement et on met en avant le raccourci Copilot.
+  const isTutorialMode = tutorialCategory === TUTORIAL_CATEGORIES.TUTORIAL;
+
   // Grille d'accords : un accompagnement compact SOUS le lecteur, plus la
-  // pièce maîtresse de l'écran.
+  // pièce maîtresse de l'écran. En mode tutoriel, elle est secondaire.
+  if (els.resultGridCard) {
+    els.resultGridCard.style.display = isTutorialMode ? 'none' : '';
+  }
+  if (els.resultCopilotCard) {
+    els.resultCopilotCard.style.display = isTutorialMode ? '' : 'none';
+  }
+  if (els.copilotSummaryText) {
+    if (!isTutorialMode || !hasAIKey()) {
+      // Mode cover ou pas de clé : texte générique, pas de résumé automatique.
+      els.copilotSummaryText.textContent = 'Posez une question sur ce qui est expliqué dans la vidéo ou demandez une démonstration sur le clavier virtuel.';
+      els.copilotSummaryText.classList.remove('is-busy');
+    } else if (summarizing) {
+      els.copilotSummaryText.textContent = 'Génération du résumé…';
+      els.copilotSummaryText.classList.add('is-busy');
+    } else if (summary) {
+      els.copilotSummaryText.textContent = summary;
+      els.copilotSummaryText.classList.remove('is-busy');
+    } else {
+      // Tutoriel avec clé, mais le résumé n'a pas encore démarré (cas théorique).
+      els.copilotSummaryText.textContent = 'Posez une question sur ce qui est expliqué dans la vidéo ou demandez une démonstration sur le clavier virtuel.';
+      els.copilotSummaryText.classList.remove('is-busy');
+    }
+  }
   els.grid.innerHTML = '';
   for (const seg of analysis.segments) {
     const chip = el('div', {
@@ -655,28 +905,10 @@ function renderResult() {
     els.grid.appendChild(chip);
   }
 
-  // Recoupement.
+  // Recoupement. Le calcul est conservé pour un usage futur, mais le rapport
+  // brut n'est pas affiché à l'utilisateur final dans cette version.
   if (els.crosscheckCard) {
-    if (!comparison) {
-      els.crosscheckCard.style.display = 'none';
-    } else {
-      els.crosscheckCard.style.display = '';
-      els.crosscheck.innerHTML = '';
-      els.crosscheck.appendChild(el('p', {
-        className: 'pedagogie-crosscheck-summary',
-        text: comparison.summary,
-      }));
-      const conflicts = comparison.divergences.filter((d) => d.kind === DIVERGENCE.CONFLICT);
-      if (conflicts.length > 0) {
-        const list = el('ul', { className: 'pedagogie-notes' });
-        for (const d of conflicts.slice(0, 8)) {
-          list.appendChild(el('li', {
-            text: `${formatTime(d.start)} — image : ${d.video} · son : ${d.audio}`,
-          }));
-        }
-        els.crosscheck.appendChild(list);
-      }
-    }
+    els.crosscheckCard.style.display = 'none';
   }
 
   // Glossaire. L'état de la narration a désormais sa propre carte : le
@@ -724,72 +956,6 @@ function seekVideo(seconds) {
   } catch (_) { /* lecteur pas encore prêt : le clic n'est pas une erreur */ }
 }
 
-/**
- * Ce que dit le professeur.
- *
- * Trois choses, dans cet ordre : ce qui manque et POURQUOI, le texte transcrit
- * (traduit en français quand une traduction fiable a pu être faite — badge à
- * l'appui, une traduction ne se fait jamais passer pour la parole exacte),
- * puis — seulement si une clé IA est configurée — le bouton d'approfondissement.
- *
- * PLUS D'ÉTIQUETTE D'ACCORD PAR LIGNE (retour d'usage du 06/09) : le texte
- * parlé s'affiche seul avec son horodatage. Cliquer une ligne fait sauter la
- * vidéo à cet instant — c'est par la lecture qu'on met en relation la parole
- * et les accords maintenant.
- */
-function renderNarration() {
-  if (!els.narrationCard) return;
-  if (!analysis) { els.narrationCard.style.display = 'none'; return; }
-  els.narrationCard.style.display = '';
-
-  const narration = analysis.narration || {};
-  const available = narration.available === true;
-
-  // L'absence est dite, et sa raison avec. Une machine sans reconnaissance
-  // vocale ne se lit pas comme une vidéo sans commentaire parlé.
-  if (els.narrationState) {
-    els.narrationState.style.display = available ? 'none' : '';
-    els.narrationState.textContent = available ? '' : (narration.message || '');
-    els.narrationState.dataset.reason = narration.reason || '';
-  }
-
-  // Badge de traduction : visible seulement quand le texte affiché est une
-  // traduction, jamais quand c'est la transcription originale.
-  if (els.translationBadge) {
-    els.translationBadge.style.display = translated ? '' : 'none';
-  }
-  // Échec de traduction : note discrète, le texte original reste affiché.
-  if (els.translationFailed) {
-    els.translationFailed.style.display = translationFailed ? '' : 'none';
-  }
-
-  els.transcript.innerHTML = '';
-  narrationView.forEach((line, index) => {
-    els.transcript.appendChild(el('div', {
-      className: 'pedagogie-line',
-      title: 'Aller à ce moment de la vidéo',
-      onClick: () => { seekVideo(line.start); },
-    }, [
-      el('span', { className: 'pedagogie-line-time', text: formatTime(line.start) }),
-      el('span', { className: 'pedagogie-line-text', text: lineTextAt(index) }),
-    ]));
-  });
-
-  // Le bouton n'apparaît que si une clé personnelle est configurée ET s'il y a
-  // du texte à approfondir. Sans clé, l'écran ne montre rien de tout cela : la
-  // transcription brute se suffit.
-  const canExplain = hasAIKey() && narrationView.length > 0;
-  if (els.explain) els.explain.style.display = canExplain ? '' : 'none';
-  if (els.explainBtn) {
-    els.explainBtn.disabled = explaining;
-    els.explainBtn.textContent = explaining ? 'Lecture en cours…' : 'Approfondir avec l\'IA';
-  }
-  if (els.explainAnswer) {
-    els.explainAnswer.textContent = explanation || '';
-    els.explainAnswer.style.display = explanation ? '' : 'none';
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Initialisation
 // ---------------------------------------------------------------------------
@@ -817,18 +983,37 @@ export function initPedagogieTab() {
   els.glossary = document.getElementById('pedagogie-glossary');
   els.notesCard = document.getElementById('pedagogie-notes-card');
   els.notes = document.getElementById('pedagogie-notes');
-  els.narrationCard = document.getElementById('pedagogie-narration-card');
-  els.narrationState = document.getElementById('pedagogie-narration-state');
-  els.translationBadge = document.getElementById('pedagogie-translation-badge');
-  els.translationFailed = document.getElementById('pedagogie-translation-failed');
-  els.transcript = document.getElementById('pedagogie-transcript');
-  els.explain = document.getElementById('pedagogie-explain');
-  els.explainBtn = document.getElementById('pedagogie-explain-btn');
-  els.explainAnswer = document.getElementById('pedagogie-explain-answer');
+  els.selectionIdleCard = document.getElementById('pedagogie-selection-idle-card');
+  els.selectionIdleName = document.getElementById('pedagogie-selection-idle-name');
+  els.selectionIdleHint = document.getElementById('pedagogie-selection-idle-hint');
+  els.copilotShortcutBtn = document.getElementById('pedagogie-copilot-shortcut');
+  els.videoActions = document.getElementById('pedagogie-video-actions');
+  els.calibrateBtn = document.getElementById('pedagogie-calibrate-v2n-btn');
+  els.categoryCard = document.getElementById('pedagogie-category-card');
+  els.categoryGrid = document.getElementById('pedagogie-category-grid');
+  els.resultGridCard = document.getElementById('pedagogie-grid-card');
+  els.resultCopilotCard = document.getElementById('pedagogie-copilot-summary-card');
+  els.categoryHint = document.getElementById('pedagogie-category-hint');
+  els.categoryHintText = document.getElementById('pedagogie-category-hint-text');
+  els.copilotSummaryBtn = document.getElementById('pedagogie-copilot-summary-btn');
+  els.copilotSummaryText = document.getElementById('pedagogie-copilot-summary-text');
 
   els.importBtn?.addEventListener('click', () => { importVideo(); });
   els.analyzeBtn?.addEventListener('click', () => { analyzeSelected(); });
-  els.explainBtn?.addEventListener('click', () => { askExplanation(); });
+  els.copilotShortcutBtn?.addEventListener('click', () => {
+    document.dispatchEvent(new CustomEvent('app-switch-training-view', { detail: { view: 'copilot' } }));
+  });
+  els.copilotSummaryBtn?.addEventListener('click', () => {
+    document.dispatchEvent(new CustomEvent('app-switch-training-view', { detail: { view: 'copilot' } }));
+  });
+  els.calibrateBtn?.addEventListener('click', () => { startCalibration(); });
+  els.categoryHint?.addEventListener('click', () => {
+    categoryPickerOpen = true;
+    playbackStarted = false;
+    destroyVideo();
+    render();
+  });
+  els.videoPlayer?.addEventListener('click', onCalibrationClick);
 
   document.addEventListener('app-switch-training-view', (e) => {
     if (e.detail?.view === 'pedagogie') {

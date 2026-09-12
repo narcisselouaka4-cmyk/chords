@@ -59,6 +59,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   pedagogie: {
     analyzeVideo: (filePath, options = {}) => ipcRenderer.invoke('pedagogie:analyze-video', filePath, options),
     transcribeVideo: (filePath, options = {}) => ipcRenderer.invoke('pedagogie:transcribe-video', filePath, options),
+    // [OpenCode] — 2026-09-07 — V2N visual transcription : calibration + analyse.
+    checkV2n: () => ipcRenderer.invoke('pedagogie:check-v2n'),
+    analyzeVideoVision: (filePath, options = {}) => ipcRenderer.invoke('pedagogie:analyze-video-vision', filePath, options),
     // [Claude 06/09, refonte Phase 1] — Sélecteur du dossier des tutoriels.
     selectTutorialFolder: () => ipcRenderer.invoke('pedagogie:select-tutorial-folder'),
   },
@@ -102,5 +105,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     isAvailable: () => ipcRenderer.invoke('safe-storage:is-available'),
     encryptString: (plainText) => ipcRenderer.invoke('safe-storage:encrypt', plainText),
     decryptString: (encryptedBase64) => ipcRenderer.invoke('safe-storage:decrypt', encryptedBase64),
+  },
+  // [OpenCode] — 2026-09-08 — Passerelle IA pour contourner CORS du renderer.
+  ai: {
+    chatCompletion: (baseUrl, apiKey, body, timeoutMs) => ipcRenderer.invoke('ai:chat-completion', { baseUrl, apiKey, body, timeoutMs }),
   },
 });

@@ -3,7 +3,13 @@ import { updateDisplay, clearDisplay } from './ui/display.js';
 import { detectChord } from './chord-engine/index.js';
 import { noteName, formatPc } from './chord-engine/naming.js';
 
-import { initVirtualKeyboard, playVirtualNote, releaseVirtualNote } from './virtual-keyboard.js';
+import {
+  initVirtualKeyboard,
+  playVirtualNote,
+  releaseVirtualNote,
+  setPcKeyboardToMidiEnabled,
+  isPcKeyboardToMidiEnabled,
+} from './virtual-keyboard.js';
 import { setSynthMode, setSustain, ensurePianoSamples } from './audio/simple-synth.js';
 
 import { initWebMidi, getWebMidiInputs, openWebMidiInput } from './midi-fallback.js';
@@ -71,6 +77,7 @@ const state = {
   transpose: 0,
   silentMode: false,
   rhodesMode: false,
+  pcKeyboardToMidi: true,
   // [Claude] — 2026-07-03 — Couleur active par défaut alignée sur chord-display (#bf3a2b)
   colorNote: '#2563eb',
   colorTonic: '#111111',
@@ -160,6 +167,7 @@ const els = {
   toleranceInput: document.getElementById('tolerance'),
   silentMode: document.getElementById('silent-mode'),
   rhodesMode: document.getElementById('rhodes-mode'),
+  pcKeyboardMidi: document.getElementById('pc-keyboard-midi'),
   midiDiagnosticPanel: document.getElementById('midi-diagnostic-panel'),
   midiDiagnosticToggle: document.getElementById('midi-diagnostic-toggle'),
   midiDiagnosticContent: document.getElementById('midi-diagnostic-content'),
@@ -771,6 +779,8 @@ function initSettings() {
   state.silentMode = false;
   els.silentMode.checked = false;
   els.rhodesMode.checked = state.rhodesMode;
+  state.pcKeyboardToMidi = true;
+  if (els.pcKeyboardMidi) els.pcKeyboardMidi.checked = true;
 
   const update = () => {
     const previousTranspose = state.transpose;
@@ -779,6 +789,8 @@ function initSettings() {
     state.notation = els.notation.value || 'english';
     state.transpose = Number(els.transposeInput.value) || 0;
     state.silentMode = els.silentMode.checked;
+    state.pcKeyboardToMidi = els.pcKeyboardMidi ? els.pcKeyboardMidi.checked : true;
+    setPcKeyboardToMidiEnabled(state.pcKeyboardToMidi);
     state.colorNote = els.colorNote.value;
     state.colorTonic = els.colorTonic.value;
 
@@ -820,6 +832,7 @@ function initSettings() {
   els.transposeInput.addEventListener('change', update);
   els.toleranceInput?.addEventListener('change', update);
   els.silentMode.addEventListener('change', update);
+  els.pcKeyboardMidi?.addEventListener('change', update);
   els.rhodesMode.addEventListener('change', () => {
     state.rhodesMode = els.rhodesMode.checked;
     setSynthMode(state.rhodesMode ? 'rhodes' : 'piano');
@@ -1202,10 +1215,17 @@ function safeInit(label, fn) {
 }
 
 async function init() {
-  // [Refonte 2026-09-02] — Chargement sécurisé de la config IA avant tout appel.
+  // [Refonte 2026-09-02] — Chargement sécurisé de la config IA en PREMIER.
+  // Il doit être AWAITÉ avant d'initialiser le Copilot IA ou toute autre
+  // fonctionnalité qui appelle hasAIConfig(), sinon getAIConfig() retourne
+  // une clé vide (le préfixe enc: ne peut pas être déchiffré de façon synchrone).
   // Un échec ici ne doit pas bloquer le reste : la clé resterait vide, mais
   // l'app démarre (repli « pas de clé » déjà prévu partout).
-  safeInit('loadSecureAIConfig', () => loadSecureAIConfig());
+  try {
+    await loadSecureAIConfig();
+  } catch (e) {
+    console.warn('[Main] Chargement sécurisé de la config IA impossible :', e);
+  }
   safeInit('initTheme', initTheme);
   // [Refonte v2/Global] — bascule de skin (Paramètres › Apparence).
   safeInit('initSkin', () => initSkin({ selector: document.getElementById('skin-selector') }));
@@ -1237,7 +1257,12 @@ async function init() {
   // [Claude 05/09] — Pédagogie IA, initialisée comme les autres vues dédiées.
   safeInit('initPedagogieTab', initPedagogieTab);
   // [Claude 2026-09-06] — Copilot IA : assistant conversationnel pour le tutoriel.
-  safeInit('initCopilotTab', initCopilotTab);
+  safeInit('initCopilotTab', () => initCopilotTab());
+  // [Claude 2026-09-08] — Le Copilot IA démontre des notes sur le clavier virtuel
+  // sans passer par handleNoteOn (qui alimenterait state.activeNotes, le
+  // regroupeur d'accords et l'enregistreur). On écoute ses événements dédiés pour
+  // n'allumer / n'éteindre que visuellement la touche concernée.
+  safeInit('initCopilotKeyboardEvents', initCopilotKeyboardEvents);
   safeInit('initAISettings', initAISettings);
   // [Claude] — 2026-07-08 — Initialisation de l'onglet Analyse simplifié (import → analyse → grille).
   safeInit('initAnalyzerTab', initAnalyzerTab);
@@ -1296,6 +1321,17 @@ function initLibraryModal() {
 // bouton « Lancer l'analyse » à se battre pour quelques dizaines de pixels.
 // Le repli est purement additif — déployé par défaut, l'état est mémorisé —
 // et ne touche en rien au composant clavier lui-même.
+function initCopilotKeyboardEvents() {
+  document.addEventListener('copilot-note-on', (e) => {
+    const midi = Number(e.detail?.midi);
+    if (Number.isFinite(midi)) highlightKey(midi, 'active');
+  });
+  document.addEventListener('copilot-note-off', (e) => {
+    const midi = Number(e.detail?.midi);
+    if (Number.isFinite(midi)) unhighlightKey(midi, 'active');
+  });
+}
+
 function initKeyboardCollapse() {
   const panel = document.getElementById('keyboard-panel');
   const btn = document.getElementById('keyboard-collapse-btn');

@@ -79,11 +79,11 @@ export function findStrikeLine(frame, options = {}) {
  * claire quand il n'y a plus que du blanc, puis s'effondre sous le clavier.
  *
  * @param {import('./frame.js').PixelFrame} frame
- * @param {number} strikeY
+ * @param {number} topY
  * @param {object} [options]
  * @returns {{ whiteRow: number, blackRow: number, bottom: number } | null}
  */
-export function findKeyboardRows(frame, strikeY, options = {}) {
+export function findKeyboardRows(frame, topY, options = {}) {
   const opts = { ...DEFAULT_GEOMETRY_OPTIONS, ...options };
   const rowMean = (y) => {
     let sum = 0;
@@ -91,7 +91,7 @@ export function findKeyboardRows(frame, strikeY, options = {}) {
     return sum / frame.width;
   };
 
-  const start = strikeY + 2;
+  const start = topY + 2;
   if (start >= frame.height) return null;
 
   // Bas du clavier : première rangée nettement sombre après une zone claire.
@@ -352,38 +352,18 @@ export function classifyBlackGroups(groups) {
 }
 
 /**
- * Construit la géométrie complète du clavier à partir d'une image où il est
- * visible (de préférence au repos, mais des touches allumées ne gênent pas :
- * elles restent sombres ou claires selon leur type).
- *
- * Principe : les positions des blanches ET des noires sont MESURÉES, jamais
- * déduites les unes des autres. Une tentative précédente supposait que deux
- * noires d'un même groupe étaient espacées d'exactement une touche blanche —
- * c'est faux, les proportions réelles d'un clavier de piano sont irrégulières,
- * et l'erreur décalait tout le calage. Le seul lien géométrique utilisé ici est
- * celui qui est vrai sur tout clavier : un do♯ se trouve au-dessus de la
- * frontière entre do et ré.
+ * Assemble la géométrie complète à partir des rangées, touches noires et grille
+ * d'une image. Utilisé indifféremment par toutes les stratégies de détection.
  *
  * @param {import('./frame.js').PixelFrame} frame
+ * @param {{ whiteRow: number, bottom: number }} rows
+ * @param {{ row: number, keys: object[], grouping: object }} picked
+ * @param {{ width: number, origin: number, left: number, right: number }} grid
  * @param {object} [options]
- * @param {number} [options.octaveAnchor] - MIDI imposé pour la touche la plus
- *   grave ; sinon l'heuristique du centrage sur le do central s'applique.
  * @returns {object} `{ ok: true, ... }` ou `{ ok: false, reason, detail? }`
  */
-export function detectKeyboardGeometry(frame, options = {}) {
+function buildGeometry(frame, rows, picked, grid, options = {}) {
   const opts = { ...DEFAULT_GEOMETRY_OPTIONS, ...options };
-
-  const strike = findStrikeLine(frame, opts);
-  if (!strike) return { ok: false, reason: 'NoStrikeLine' };
-
-  const rows = findKeyboardRows(frame, strike.y, opts);
-  if (!rows) return { ok: false, reason: 'NoKeyboardRows' };
-
-  const picked = pickBlackRow(frame, rows.blackSearch, opts);
-  if (!picked) return { ok: false, reason: 'BlackKeyPattern', detail: 'NoValidRow' };
-
-  const grid = findWhiteGrid(frame, rows.whiteRow, opts);
-  if (!grid) return { ok: false, reason: 'NoWhiteGrid' };
 
   const isPair = classifyBlackGroups(picked.grouping.groups);
   if (!isPair) return { ok: false, reason: 'BlackKeyPattern', detail: 'Unclassifiable' };
@@ -442,6 +422,17 @@ export function detectKeyboardGeometry(frame, options = {}) {
     return { ok: false, reason: 'TooFewWhiteKeys', detail: String(whiteKeys.length) };
   }
 
+  // Un vrai clavier de piano n'a jamais plus d'une cinquantaine de blanches
+  // (88 touches = 52 blanches au maximum), et le rapport noires/blanches y
+  // est stable autour de 0,69 (36 noires pour 52 blanches). Une lecture hors
+  // de ces bornes n'est pas un clavier plus grand ou plus petit : c'est une
+  // mauvaise lecture (mauvaise rangée de noires, grille mal calée), qu'il
+  // faut écarter ici plutôt que la laisser fausser le contrôle de stabilité
+  // entre plusieurs images (detectVideoFormat).
+  if (whiteKeys.length > 60 || picked.keys.length < whiteKeys.length * 0.45) {
+    return { ok: false, reason: 'ImplausibleKeyCount', detail: `${whiteKeys.length}w/${picked.keys.length}b` };
+  }
+
   // 5. Demi-tons relatifs, do de référence = 0.
   const relSemitone = (whiteIndex) => {
     const d = whiteIndex - cMod;
@@ -498,18 +489,143 @@ export function detectKeyboardGeometry(frame, options = {}) {
     });
   }
 
+  // Ligne d'échantillonnage fiable pour les touches blanches, utilisable par
+  // readLitKeys() indépendamment de la stratégie de détection. On ne peut pas
+  // utiliser rows.whiteRow directement : pour les claviers statiques, elle est
+  // choisie comme la rangée la plus claire, qui peut tomber trop près du bord
+  // bas. La zone de couleur des touches allumées est entre les noires et le bas
+  // du clavier ; on place donc l'échantillon à une fraction de cette hauteur.
+  // Pour Synthesia, strikeY est au-dessus du clavier et la formule précédente
+  // (strikeY + ratio * (bottom - strikeY)) donnait une ligne similaire. On
+  // reproduit ici la même chose en utilisant le haut effectif du clavier :
+  // blackRow est toujours dans le clavier, y compris en statique.
+  const sampleRow = Math.round(picked.row + (rows.bottom - picked.row) * 0.78);
+
   return {
     ok: true,
-    strikeY: strike.y,
     whiteRow: rows.whiteRow,
     blackRow: picked.row,
     bottom: rows.bottom,
+    sampleRow,
     whiteWidth: grid.width,
     whiteKeys,
     blackKeys,
     lowestMidi: whiteKeys[0].midi,
     highestMidi: whiteKeys[whiteKeys.length - 1].midi,
     anchorIsHeuristic,
+  };
+}
+
+/**
+ * Stratégie 1 : clavier Synthesia classique avec barres tombantes.
+ * Repère d'abord la ligne de frappe rouge, puis le clavier en dessous.
+ *
+ * @param {import('./frame.js').PixelFrame} frame
+ * @param {object} [options]
+ * @returns {object} `{ ok: true, ... }` ou `{ ok: false, reason, detail? }`
+ */
+export function detectSynthesiaGeometry(frame, options = {}) {
+  const opts = { ...DEFAULT_GEOMETRY_OPTIONS, ...options };
+
+  const strike = findStrikeLine(frame, opts);
+  if (!strike) return { ok: false, reason: 'NoStrikeLine' };
+
+  const rows = findKeyboardRows(frame, strike.y, opts);
+  if (!rows) return { ok: false, reason: 'NoKeyboardRows' };
+
+  const picked = pickBlackRow(frame, rows.blackSearch, opts);
+  if (!picked) return { ok: false, reason: 'BlackKeyPattern', detail: 'NoValidRow' };
+
+  const grid = findWhiteGrid(frame, rows.whiteRow, opts);
+  if (!grid) return { ok: false, reason: 'NoWhiteGrid' };
+
+  const geometry = buildGeometry(frame, rows, picked, grid, opts);
+  if (!geometry.ok) return geometry;
+  geometry.strikeY = strike.y;
+  geometry.strategy = 'synthesia';
+  return geometry;
+}
+
+/**
+ * Stratégie 2 : clavier statique affiché sans ligne de frappe.
+ * Cherche directement dans la moitié basse de l'image le motif noir/blanc.
+ *
+ * @param {import('./frame.js').PixelFrame} frame
+ * @param {object} [options]
+ * @returns {object} `{ ok: true, ... }` ou `{ ok: false, reason, detail? }`
+ */
+export function detectStaticKeyboardGeometry(frame, options = {}) {
+  const opts = { ...DEFAULT_GEOMETRY_OPTIONS, ...options };
+
+  // Le clavier statique occupe typiquement le tiers ou la moitié basse.
+  const topY = Math.floor(frame.height * 0.5);
+  const bottom = frame.height;
+
+  // On essaye plusieurs plages de recherche si le clavier est petit ou mal centré.
+  const starts = [topY, Math.floor(frame.height * 0.45), Math.floor(frame.height * 0.55)];
+  let lastReason = 'StaticKeyboardNotFound';
+  let lastDetail;
+  for (const start of starts) {
+    if (start + 6 >= bottom) continue;
+    const rows = findKeyboardRows(frame, start, opts);
+    if (!rows) continue;
+    const picked = pickBlackRow(frame, rows.blackSearch, opts);
+    if (!picked) continue;
+    const grid = findWhiteGrid(frame, rows.whiteRow, opts);
+    if (!grid) continue;
+    const geometry = buildGeometry(frame, rows, picked, grid, opts);
+    if (!geometry.ok) {
+      lastReason = geometry.reason;
+      lastDetail = geometry.detail;
+      continue;
+    }
+    geometry.strategy = 'staticKeyboard';
+    return geometry;
+  }
+  return { ok: false, reason: lastReason, detail: lastDetail };
+}
+
+/**
+ * Liste ordonnée des stratégies de détection. Chaque stratégie a le même
+ * contrat : `(frame, options) => { ok: true, ... } | { ok: false, reason }`.
+ * Ajouter un format se résume à écrire une nouvelle fonction et l'insérer ici.
+ */
+export const DETECTION_STRATEGIES = [
+  detectSynthesiaGeometry,
+  detectStaticKeyboardGeometry,
+];
+
+/**
+ * Construit la géométrie complète du clavier à partir d'une image où il est
+ * visible (de préférence au repos, mais des touches allumées ne gênent pas :
+ * elles restent sombres ou claires selon leur type).
+ *
+ * Principe : les positions des blanches ET des noires sont MESURÉES, jamais
+ * déduites les unes des autres. Une tentative précédente supposait que deux
+ * noires d'un même groupe étaient espacées d'exactement une touche blanche —
+ * c'est faux, les proportions réelles d'un clavier de piano sont irrégulières,
+ * et l'erreur décalait tout le calage. Le seul lien géométrique utilisé ici est
+ * celui qui est vrai sur tout clavier : un do♯ se trouve au-dessus de la
+ * frontière entre do et ré.
+ *
+ * @param {import('./frame.js').PixelFrame} frame
+ * @param {object} [options]
+ * @param {number} [options.octaveAnchor] - MIDI imposé pour la touche la plus
+ *   grave ; sinon l'heuristique du centrage sur le do central s'applique.
+ * @returns {object} `{ ok: true, ... }` ou `{ ok: false, reason, detail? }`
+ */
+export function detectKeyboardGeometry(frame, options = {}) {
+  const failures = [];
+  for (const strategy of DETECTION_STRATEGIES) {
+    const result = strategy(frame, options);
+    if (result.ok) return result;
+    failures.push({ name: strategy.name, reason: result.reason, detail: result.detail });
+  }
+  return {
+    ok: false,
+    reason: 'AllStrategiesFailed',
+    failures,
+    detail: failures.map((f) => `${f.name}:${f.reason}`).join('; '),
   };
 }
 

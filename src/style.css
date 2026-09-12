@@ -376,9 +376,17 @@ body {
   border-color: var(--panel-border);
 }
 
-.keyboard-container {
+.keyboard-container-wrap {
   order: 1;
   flex: 0 0 auto;
+  position: relative;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+.keyboard-container {
   display: flex;
   align-items: flex-end;
   justify-content: flex-start;
@@ -5684,11 +5692,48 @@ body.studio-recording-cursor * {
   gap: 0;
 }
 
-.keyboard-panel.collapsed .keyboard-container,
+.keyboard-panel.collapsed .keyboard-container-wrap,
 .keyboard-panel.collapsed .keyboard-controls {
   display: none;
 }
 
 .keyboard-panel.collapsed .keyboard-collapse-caret {
   transform: rotate(180deg);
+}
+
+/* Annotation visuelle posée par le Copilot IA sur le clavier virtuel */
+.keyboard-annotation-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.keyboard-annotation-marker {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--accent, #bf3a2b);
+  font-weight: 800;
+  font-size: 0.72rem;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  animation: keyboard-annotation-pop 0.25s ease-out;
+}
+
+.keyboard-annotation-arrow {
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.keyboard-annotation-label {
+  white-space: nowrap;
+}
+
+@keyframes keyboard-annotation-pop {
+  0% { transform: translate(-50%, -8px); opacity: 0; }
+  100% { transform: translate(-50%, 0); opacity: 1; }
 }

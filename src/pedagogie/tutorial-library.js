@@ -23,6 +23,21 @@ function getElectronFiles() {
   return window.electronAPI?.files;
 }
 
+/**
+ * Renvoie le dossier racine des données utilisateur (~/PianoJazzChords).
+ * Partagé avec le Studio et, désormais, l'historique du Copilot IA.
+ */
+/**
+ * Renvoie le dossier racine des données utilisateur (~/PianoJazzChords).
+ * Partagé avec le Studio et, désormais, l'historique du Copilot IA.
+ */
+export async function getUserDataDir() {
+  const files = getElectronFiles();
+  if (!files?.homeDir) return null;
+  const home = await files.homeDir();
+  return `${home}/PianoJazzChords`;
+}
+
 /** Un nom se termine-t-il par .mp4, quelle que soit la casse ? */
 export function isMp4Name(name) {
   return typeof name === 'string' && name.toLowerCase().endsWith(MP4_EXTENSION);

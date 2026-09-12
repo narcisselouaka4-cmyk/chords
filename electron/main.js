@@ -97,12 +97,9 @@ function createWindow() {
     });
   }
 
-  // [Refonte 2026-09-02] — DevTools seulement en développement. Ouverts en
-  // permanence, ils s'affichaient aussi dans l'application installée : une
-  // seconde fenêtre, un second processus, et une consommation inutile.
-  if (isDev) {
-    mainWindow.webContents.openDevTools({ mode: 'detach' });
-  }
+  // [Refonte 2026-09-02] — DevTools ne s'ouvrent PLUS automatiquement au
+  // lancement, même en développement. Ils restent accessibles via le
+  // raccourci clavier standard (Ctrl+Shift+I / Cmd+Option+I).
 
   mainWindow.on('close', async (e) => {
     try {
@@ -852,6 +849,58 @@ async function transcriberInstalled() {
   });
 }
 
+// [OpenCode] — 2026-09-07 — V2N (visual piano transcription) : optionnel.
+// V2N dépend d'un venv spécifique (.venv) ET du fichier poids
+// electron/v2n-deps/v2n_pianovam.safetensors. On vérifie les deux.
+const V2N_MODEL_PATH = path.join(__dirname, 'v2n-deps', 'v2n_pianovam.safetensors');
+
+async function v2nInstalled() {
+  try {
+    fsSync.accessSync(V2N_MODEL_PATH);
+  } catch {
+    return false;
+  }
+  return new Promise((resolve) => {
+    const proc = spawn(getPythonCommand(), [
+      '-c',
+      'import torch, torchvision, cv2, numpy, safetensors, scipy',
+    ], { shell: false });
+    proc.on('error', () => resolve(false));
+    proc.on('exit', (code) => resolve(code === 0));
+  });
+}
+
+/**
+ * Lance electron/piano-vision.py et lit le JSON de sa dernière ligne de stdout.
+ * Le script sort toujours avec le code 0 ; la raison métier est dans le JSON.
+ */
+function runPianoVision(args) {
+  return new Promise((resolve, reject) => {
+    const proc = trackChild(spawn(getPythonCommand(), [
+      path.join(__dirname, 'piano-vision.py'),
+      ...args,
+    ], { shell: false }));
+
+    let stdout = '';
+    let stderr = '';
+    proc.stdout.on('data', (d) => { stdout += d.toString(); });
+    proc.stderr.on('data', (d) => { stderr += d.toString(); });
+    proc.on('error', (err) => reject(err));
+    proc.on('exit', (code) => {
+      const line = stdout.trim().split('\n').filter(Boolean).pop();
+      if (!line) {
+        reject(new Error(stderr || `piano-vision exited with code ${code}`));
+        return;
+      }
+      try {
+        resolve(JSON.parse(line));
+      } catch (err) {
+        reject(new Error(`piano-vision: JSON invalide — ${err.message}`));
+      }
+    });
+  });
+}
+
 /**
  * Lance electron/transcriber.py et lit le JSON de sa dernière ligne de stdout.
  * Même contrat que runAudioProcessor, avec une tolérance en plus : le script
@@ -1288,7 +1337,6 @@ function setupStudioIPC() {
   // de travail du projet reste réservé à l'audio.
   ipcMain.handle('pedagogie:analyze-video', async (event, filePath, options = {}) => {
     const sampleFps = Number(options.sampleFps) || 4;
-    const maxProbes = Number(options.maxProbes) || 24;
 
     const dims = await probeVideoDimensions(filePath);
     if (!dims) {
@@ -1301,7 +1349,24 @@ function setupStudioIPC() {
     const { width, height, duration } = dims;
     const frameBytes = width * height * 3;
 
-    // 1. Sondage.
+    // Plafond de durée : au-delà de 30 minutes, l'analyse à l'image n'est pas
+    // garantie fiable (espacement des sondages, temps de traitement linéaire,
+    // transcription d'un seul bloc). Voir décision produit / vault EXP-040.
+    const MAX_DURATION_SECONDS = 30 * 60;
+    if (duration > MAX_DURATION_SECONDS) {
+      return {
+        ok: false,
+        reason: 'VideoTooLong',
+        message: 'Cette vidéo dépasse 30 minutes. L\'analyse à l\'image de Pédagogie IA '
+          + 'n\'est pas conçue pour des fichiers aussi longs. Réessayez avec un extrait '
+          + 'plus court.',
+      };
+    }
+
+    // 1. Sondage. Garde un espacement d'environ 30 s entre deux sondages
+    // (comportement actuel sur un tutoriel de 12 min), plafonné à 60 sondages
+    // pour ne pas alourdir la passe sur les vidéos les plus longues autorisées.
+    const maxProbes = Number(options.maxProbes) || Math.min(60, Math.max(24, Math.ceil(duration / 30)));
     const probeFps = duration > 0 ? Math.min(1, maxProbes / duration) : 1;
     const probeBuffers = await collectFrames(filePath, probeFps, frameBytes, maxProbes);
     const probes = probeBuffers.map((b) => createFrame(b, width, height, 3));
@@ -1403,6 +1468,59 @@ function setupStudioIPC() {
       return { available: false, reason: 'failed', detail: err.message };
     } finally {
       if (workDir) await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
+    }
+  });
+
+  // [OpenCode] — 2026-09-07 — Pédagogie IA V2N : disponibilité du modèle.
+  ipcMain.handle('pedagogie:check-v2n', async () => {
+    return { available: await v2nInstalled(), modelPath: V2N_MODEL_PATH };
+  });
+
+  // [OpenCode] — 2026-09-07 — Pédagogie IA V2N : transcription visuelle d'une
+  // vidéo réelle de clavier, à partir d'une calibration 4 coins fournie par le
+  // renderer. Même contrat honnête que la transcription vocale : si V2N manque,
+  // on le dit, on n'invente pas une grille d'accords.
+  ipcMain.handle('pedagogie:analyze-video-vision', async (event, filePath, options = {}) => {
+    if (!(await v2nInstalled())) {
+      return { available: false, reason: 'dependency-missing' };
+    }
+
+    const corners = options.corners;
+    if (!Array.isArray(corners) || corners.length !== 4) {
+      return {
+        available: false,
+        reason: 'invalid-corners',
+        message: 'Une calibration 4 coins est requise avant de lancer V2N.',
+      };
+    }
+
+    const cornerArgs = corners.map((p) => `${Number(p.x)},${Number(p.y)}`);
+    const args = [filePath, '--corners', ...cornerArgs];
+    if (options.onsetThreshold) {
+      args.push('--onset-threshold', String(options.onsetThreshold));
+    }
+    if (options.frameThreshold) {
+      args.push('--frame-threshold', String(options.frameThreshold));
+    }
+    if (options.bottomMargin) {
+      args.push('--bottom-margin', String(options.bottomMargin));
+    }
+
+    try {
+      const raw = await runPianoVision(args);
+      if (!raw?.ok) {
+        const reason = raw?.reason === 'MissingDependency' ? 'dependency-missing' : 'failed';
+        return { available: false, reason, detail: raw?.message || null };
+      }
+      return {
+        available: true,
+        notes: raw.notes || [],
+        fps: raw.fps,
+        duration: raw.duration,
+      };
+    } catch (err) {
+      console.error('[Pedagogie] V2N a échoué :', err);
+      return { available: false, reason: 'failed', detail: err.message };
     }
   });
 
@@ -1697,6 +1815,38 @@ ipcMain.handle('safe-storage:decrypt', (event, encryptedBase64) => {
     throw new Error('safeStorage non disponible');
   }
   return safeStorage.decryptString(Buffer.from(encryptedBase64, 'base64'));
+});
+
+// [OpenCode] — 2026-09-08 — Fait passer les appels IA OpenAI-compatible par le
+// processus principal pour contourner les restrictions CORS du renderer
+// (en particulier Ollama Cloud qui ne déclare pas Authorization dans
+// Access-Control-Allow-Headers). Le renderer continue de bénéficier du
+// repli fetch() direct dans les environnements sans electronAPI (tests Node).
+ipcMain.handle('ai:chat-completion', async (event, { baseUrl, apiKey, body, timeoutMs }) => {
+  const controller = new AbortController();
+  const effectiveTimeout = Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : null;
+  const timer = effectiveTimeout ? setTimeout(() => controller.abort(), effectiveTimeout) : null;
+
+  try {
+    const res = await fetch(`${baseUrl.replace(/\/$/, '')}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      console.warn('[Main:ai:chat-completion] Erreur API', res.status, 'modèle', body.model, '—', text.slice(0, 500));
+    }
+    return { ok: res.ok, status: res.status, text };
+  } catch (err) {
+    if (controller.signal.aborted) {
+      throw new Error(`Request timeout after ${effectiveTimeout}ms`);
+    }
+    throw err;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 });
 
 app.whenReady().then(() => {

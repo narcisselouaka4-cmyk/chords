@@ -12,7 +12,8 @@
 import { createBlankFrame, createFrame, fillRect, getPixel, getLuma, sampleMedian } from './frame.js';
 import {
   detectKeyboardGeometry, findStrikeLine, findBlackKeys, groupBlackKeys,
-  classifyBlackGroups, findWhiteGrid,
+  classifyBlackGroups, findWhiteGrid, detectStaticKeyboardGeometry,
+  detectSynthesiaGeometry, DETECTION_STRATEGIES,
 } from './keyboard-geometry.js';
 import { readLitKeys, classifyTint, toMidiList, splitHands } from './key-detection.js';
 import { denoiseSamples, bassLine, groupSegments } from './note-grouping.js';
@@ -70,19 +71,30 @@ const BLACK_OFFSETS = { 1: 0.95, 3: 2.10, 6: 3.90, 8: 5.02, 10: 6.12 };
 /**
  * Peint un clavier de `octaves` octaves à partir de do, avec les touches
  * indiquées allumées. Retourne l'image et la table note MIDI → attendue.
+ *
+ * @param {object} [options]
+ * @param {number} [options.octaves]
+ * @param {number} [options.whiteW]
+ * @param {Object.<number, number[]>} [options.lit]
+ * @param {number} [options.lowestMidi]
+ * @param {boolean} [options.withStrikeLine] - faux pour simuler un clavier statique
+ * @param {number} [options.kbTopOverride] - forcer le haut du clavier (clavier statique)
+ * @param {number} [options.kbBottomOverride] - forcer le bas du clavier (clavier statique)
  */
-function makeKeyboard({ octaves = 3, whiteW = 22, lit = {}, lowestMidi = 48 } = {}) {
+function makeKeyboard({ octaves = 3, whiteW = 22, lit = {}, lowestMidi = 48, withStrikeLine = true, kbTopOverride = null, kbBottomOverride = null } = {}) {
   const whiteCount = octaves * 7 + 1;
   const width = Math.round(whiteCount * whiteW);
   const height = 300;
   const strikeY = 120;
-  const kbTop = strikeY + 4;
-  const kbBottom = 280;
+  const kbTop = kbTopOverride ?? (withStrikeLine ? strikeY + 4 : 150);
+  const kbBottom = kbBottomOverride ?? 280;
   const blackBottom = kbTop + Math.round((kbBottom - kbTop) * 0.6);
 
   const frame = createBlankFrame(width, height, [16, 16, 22]);
-  // Ligne de frappe rouge.
-  fillRect(frame, 0, strikeY, width, 3, [200, 40, 40]);
+  // Ligne de frappe rouge (optionnelle).
+  if (withStrikeLine) {
+    fillRect(frame, 0, strikeY, width, 3, [200, 40, 40]);
+  }
 
   // Touches blanches + séparations.
   for (let i = 0; i < whiteCount; i++) {
@@ -285,7 +297,20 @@ runTest('T21 — clavier au repos : aucune touche lue', () => {
   const { frame } = makeKeyboard();
   const g = detectKeyboardGeometry(frame);
   assertTrue(g.ok);
-  assertEqual(readLitKeys(frame, g).length, 0);
+  assertDeep(toMidiList(readLitKeys(frame, g)), []);
+});
+
+runTest('T21b — clavier statique au repos : aucune touche lue', () => {
+  // Sans ligne de frappe rouge, detectStaticKeyboardGeometry prend le relais.
+  // buildGeometry() doit fournir un sampleRow utilisable par readLitKeys()
+  // même quand strikeY est absent, sinon NaN faisait renvoyer toutes les
+  // touches blanches comme allumées (bug observé sur Gospel Piano Harmony Secrets).
+  const { frame } = makeKeyboard({ withStrikeLine: false, lowestMidi: 48 });
+  const g = detectKeyboardGeometry(frame);
+  assertTrue(g.ok, `géométrie statique en échec : ${g.reason} ${g.detail || ''}`);
+  assertEqual(g.strategy, 'staticKeyboard');
+  assertTrue(Number.isFinite(g.sampleRow), 'sampleRow doit être défini');
+  assertDeep(toMidiList(readLitKeys(frame, g)), []);
 });
 
 runTest('T22 — les mains sont séparées, la plus grave nommée gauche', () => {
@@ -466,9 +491,87 @@ runTest('T39 — aucune image : refus explicite, pas de plantage', () => {
 
 runTest('T40 — chaque motif d\'échec a un message affichable', () => {
   for (const reason of ['NoFrames', 'NoStrikeLine', 'NoKeyboardRows', 'NoWhiteGrid',
-    'BlackKeyPattern', 'InconsistentAnchor', 'UnstableGeometry:9', 'Inconnu']) {
+    'BlackKeyPattern', 'InconsistentAnchor', 'UnstableGeometry:9', 'AllStrategiesFailed',
+    'Inconnu']) {
     assertTrue(explainUnrecognised(reason).length > 20, `message pour ${reason}`);
   }
+  const detail = 'detectSynthesiaGeometry:NoStrikeLine; detectStaticKeyboardGeometry:StaticKeyboardNotFound';
+  assertTrue(explainUnrecognised('AllStrategiesFailed', detail).includes('detectSynthesiaGeometry'), 'détail des stratégies dans le message');
+});
+
+runTest('T40b — stratégie statique : clavier sans ligne rouge', () => {
+  const { frame } = makeKeyboard({ withStrikeLine: false, kbTopOverride: 160, kbBottomOverride: 280 });
+  const g = detectStaticKeyboardGeometry(frame);
+  assertTrue(g.ok, `statique doit réussir, obtenu ${g.reason}`);
+  assertEqual(g.strategy, 'staticKeyboard');
+  assertTrue(g.blackKeys.length >= 5, 'noires détectées');
+  assertTrue(g.whiteKeys.length >= 12, 'blanches détectées');
+});
+
+runTest('T40c — chaîne : Synthesia échoue, statique prend le relais', () => {
+  const { frame } = makeKeyboard({ withStrikeLine: false, kbTopOverride: 160, kbBottomOverride: 280 });
+  const g = detectKeyboardGeometry(frame);
+  assertTrue(g.ok, `chaîne doit réussir, obtenu ${g.reason}`);
+  assertEqual(g.strategy, 'staticKeyboard');
+});
+
+runTest('T40d — chaîne : les deux stratégies échouent et rapportent leurs raisons', () => {
+  const frame = createBlankFrame(320, 240, [60, 55, 50]);
+  const g = detectKeyboardGeometry(frame);
+  assertTrue(!g.ok, 'doit échouer sur une image vide');
+  assertEqual(g.reason, 'AllStrategiesFailed');
+  assertTrue(Array.isArray(g.failures), 'failures listées');
+  assertTrue(g.failures.length >= 2, 'au moins deux raisons');
+  assertTrue(g.failures.some((f) => f.name === 'detectSynthesiaGeometry'), 'raison Synthesia présente');
+  assertTrue(g.failures.some((f) => f.name === 'detectStaticKeyboardGeometry'), 'raison statique présente');
+  const msg = explainUnrecognised(g.reason, g.detail);
+  assertTrue(msg.includes('detectSynthesiaGeometry') || msg.includes('NoStrikeLine'), 'message explicite');
+});
+
+runTest('T40e — un clavier avec un rapport noires/blanches impossible est rejeté', () => {
+  // Fabrique un faux clavier : une zone de blanches régulières beaucoup trop
+  // large par rapport au nombre de noires réellement détectées (15 noires pour
+  // 42 blanches extrapolées). Ce n'est pas un piano. Le détecteur doit refuser
+  // plutôt que de retourner une géométrie aberrante qui casserait le contrôle
+  // de stabilité de detectVideoFormat.
+  const whiteW = 22;
+  const whiteCount = 22;
+  const extraWidth = 450;
+  const width = whiteCount * whiteW + extraWidth;
+  const height = 300;
+  const frame = createBlankFrame(width, height, [16, 16, 22]);
+  const kbTop = 160;
+  const kbBottom = 280;
+  // 22 blanches à gauche.
+  for (let i = 0; i < whiteCount; i++) {
+    const x = Math.round(i * whiteW);
+    fillRect(frame, x, kbTop, whiteW - 1, kbBottom - kbTop, [244, 244, 244]);
+    fillRect(frame, x + whiteW - 1, kbTop, 1, kbBottom - kbTop, [10, 10, 10]);
+  }
+  // Grande zone blanche à droite avec des séparations régulières qui vont faire
+  // croire à findWhiteGrid qu'il y a beaucoup de blanches.
+  fillRect(frame, whiteCount * whiteW, kbTop, extraWidth, kbBottom - kbTop, [244, 244, 244]);
+  for (let x = whiteCount * whiteW + 21; x < whiteCount * whiteW + extraWidth; x += 21) {
+    fillRect(frame, x, kbTop, 1, kbBottom - kbTop, [10, 10, 10]);
+  }
+  fillRect(frame, 0, kbBottom, width, height - kbBottom, [4, 4, 4]);
+  // 15 noires réelles uniquement sur les blanches de gauche.
+  const BLACK_OFFSETS = { 1: 0.95, 3: 2.10, 6: 3.90, 8: 5.02, 10: 6.12 };
+  const blackW = Math.round(whiteW * 0.58);
+  for (let oct = 0; oct < 3; oct++) {
+    for (const [semi, off] of Object.entries(BLACK_OFFSETS)) {
+      const cx = (oct * 7 + Number(off)) * whiteW;
+      const x = Math.round(cx - blackW / 2);
+      fillRect(frame, x, kbTop, blackW, Math.round((kbBottom - kbTop) * 0.6), [18, 18, 18]);
+    }
+  }
+  const g = detectKeyboardGeometry(frame);
+  assertTrue(!g.ok, 'doit échouer sur un rapport impossible');
+  assertEqual(g.reason, 'AllStrategiesFailed');
+  assertTrue(
+    g.failures.some((f) => f.name === 'detectStaticKeyboardGeometry' && f.reason === 'ImplausibleKeyCount'),
+    'la stratégie statique écarte le compte aberrant'
+  );
 });
 
 // ===========================================================================
@@ -779,6 +882,28 @@ runTest('T72 — la limite de texte pour l\'IA couvre un tutoriel de douze minut
   const segments = [{ text: 'x'.repeat(6134) }];
   assertEqual(joinNarrationText(segments).length, 6134, 'aucune coupe :');
   assertTrue(!joinNarrationText(segments).endsWith('…'));
+});
+
+runTest('T73 — V2N : les note events sont convertis en samples puis segmentés', () => {
+  // Do majeur tenu pendant 1 s à partir de t=0.2.
+  const notes = [
+    { midi: 60, onset: 0.2, offset: 1.2, velocity: 0.8 },
+    { midi: 64, onset: 0.2, offset: 1.2, velocity: 0.7 },
+    { midi: 67, onset: 0.2, offset: 1.2, velocity: 0.7 },
+  ];
+  const analysis = buildVideoAnalysis({ v2nNotes: notes, v2nDuration: 1.5 });
+  assertEqual(analysis.source, 'v2n', 'source :');
+  assertEqual(analysis.format, FORMATS.V2N, 'format :');
+  assertTrue(analysis.segments.length > 0, 'au moins un segment :');
+  const seg = analysis.segments[0];
+  assertTrue(seg.chord.resolved, 'accord résolu :');
+  assertEqual(seg.chord.label, 'C', 'do majeur :');
+});
+
+runTest('T74 — V2N absent ou vide retombe sur le pipeline video classique', () => {
+  const noV2n = buildVideoAnalysis({ samples: [], geometry: {}, sampleInterval: 0.25 });
+  assertEqual(noV2n.source, 'video', 'sans notes V2N, source video :');
+  assertEqual(noV2n.format, FORMATS.PIANO_ROLL, 'format piano-roll :');
 });
 
 console.log(`\n=== Résultat : ${passed}/${total} tests passés ===`);

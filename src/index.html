@@ -46,6 +46,11 @@
     <link rel="stylesheet" href="./ui/refonte/studio.css" />
     <link rel="stylesheet" href="./ui/refonte/analyse.css" />
     <link rel="stylesheet" href="./ui/refonte/practice.css" />
+    <!-- [Refonte Astra 12/09] — Feuilles recopiées de la maquette « Astra »
+         (classes tr-* et vk-*), plus un fichier-pont pour la cohabitation. -->
+    <link rel="stylesheet" href="./ui/refonte/astra-training.css" />
+    <link rel="stylesheet" href="./ui/refonte/astra-keyboard.css" />
+    <link rel="stylesheet" href="./ui/refonte/astra-bridge.css" />
   </head>
   <body>
     <div id="app" class="app">
@@ -208,6 +213,7 @@
             <aside class="midi-sessions-sidebar">
               <div class="panel-title">Sessions enregistrées</div>
               <button class="panel-action" id="midi-session-new-btn" type="button">+ Nouvelle session</button>
+              <input type="text" id="midi-session-search" class="midi-session-search" placeholder="Rechercher une session...">
               <div class="midi-session-list" id="midi-session-list"></div>
             </aside>
 
@@ -222,13 +228,36 @@
                 <input type="range" id="midi-session-slider" class="midi-transport-slider" min="0" max="100" value="0">
               </div>
 
-              <button class="panel-action" id="midi-session-analyze-btn" type="button" disabled>Analyser cette session</button>
+              <div class="midi-session-carnet" id="midi-session-carnet" style="display: none;">
+                <div class="carnet-sticky-head" id="carnet-sticky-head">
+                  <div class="carnet-session-header">
+                    <div class="carnet-session-title" id="carnet-session-title"></div>
+                    <div class="carnet-session-meta" id="carnet-session-meta"></div>
+                  </div>
+                  <button class="panel-action carnet-explore-all" id="carnet-explore-all" type="button" disabled>Explorer toute la session avec le Copilot</button>
+
+                  <div class="carnet-timeline" id="carnet-timeline" role="tablist" aria-label="Frise temporelle des moments marquants"></div>
+                  <div class="carnet-legend">
+                    <span><span class="legend-dot chord"></span>Vrai moment d'accord</span>
+                    <span><span class="legend-dot melody"></span>Passage mélodique</span>
+                  </div>
+                </div>
+
+                <div class="carnet-title">Carnet des moments marquants <span class="carnet-hint">— généré automatiquement</span></div>
+
+                <div class="carnet-entries" id="carnet-entries"></div>
+              </div>
 
               <div class="midi-session-controls" id="midi-session-controls" style="display: none;">
                 <div class="midi-session-status" id="midi-session-status" data-state="recording">● Enregistrement en cours...</div>
                 <div class="midi-session-timer" id="midi-session-timer">00:00</div>
                 <div class="midi-session-stats" id="midi-session-stats">0 notes · 0 accords · Accord : —</div>
                 <button class="midi-stop-btn" id="midi-session-stop-btn" type="button">■ Arrêter</button>
+              </div>
+
+              <div class="midi-session-countdown" id="midi-session-countdown" style="display: none;">3</div>
+              <div class="midi-session-countdown-overlay" id="midi-session-countdown-overlay" style="display: none;">
+                <div class="midi-session-countdown-number" id="midi-session-countdown-number">3</div>
               </div>
             </section>
           </div>
@@ -256,14 +285,14 @@
           </div>
 
           <!-- Modale de fin d'enregistrement -->
-          <div class="modal-overlay" id="session-end-modal" style="display: none;">
+          <div class="modal-overlay" id="midi-session-end-modal" style="display: none;">
             <div class="modal-box">
               <h3>Session terminée</h3>
-              <div class="midi-modal-stats" id="modal-stats"></div>
+              <div class="midi-modal-stats" id="midi-session-modal-stats"></div>
               <div class="modal-actions">
-                <button id="modal-delete" type="button">Supprimer</button>
-                <button id="modal-replay" type="button">Écouter</button>
-                <button class="primary" id="modal-keep" type="button">Garder</button>
+                <button id="midi-session-delete" type="button">Supprimer</button>
+                <button id="midi-session-replay" type="button">Écouter</button>
+                <button class="primary" id="midi-session-keep" type="button">Garder</button>
               </div>
             </div>
           </div>
@@ -345,7 +374,7 @@
               <div class="pedagogie-track-list" id="pedagogie-track-list"></div>
             </aside>
 
-            <section class="pedagogie-main">
+            <section class="pedagogie-main" id="pedagogie-main">
               <header class="pedagogie-head">
                 <h3 class="pedagogie-selected-name" id="pedagogie-selected-name">Bienvenue dans Pédagogie IA</h3>
                 <p class="pedagogie-intro" id="pedagogie-intro">
@@ -363,19 +392,68 @@
 
               <div class="pedagogie-format" id="pedagogie-format" style="display: none;"></div>
 
+              <!-- État intermédiaire : tutoriel sélectionné mais pas encore lu.
+                   Quelques éléments simples pour que la page ne paraisse pas vide. -->
+              <section class="pedagogie-card" id="pedagogie-selection-idle-card" style="display: none;">
+                <h4 class="pedagogie-card-title" id="pedagogie-selection-idle-name"></h4>
+                <p id="pedagogie-selection-idle-hint" class="pedagogie-intro"></p>
+              </section>
+
+              <!-- Question de catégorie posée avant la première analyse d'un fichier. -->
+              <section class="pedagogie-card" id="pedagogie-category-card" style="display: none;">
+                <h4 class="pedagogie-card-title">Quelle est la nature de cette vidéo ?</h4>
+                <p class="pedagogie-intro">Le classement adapte ce qui est mis en avant pendant la lecture.</p>
+                <div class="pedagogie-category-grid" id="pedagogie-category-grid">
+                  <button type="button" class="pedagogie-category-card" data-category="tutorial">
+                    <span class="pedagogie-category-icon">🎓</span>
+                    <span class="pedagogie-category-title">Tutoriel avec explications</span>
+                    <span class="pedagogie-category-sub">Le professeur explique des accords, progressions ou concepts.</span>
+                  </button>
+                  <button type="button" class="pedagogie-category-card" data-category="cover">
+                    <span class="pedagogie-category-icon">🎹</span>
+                    <span class="pedagogie-category-title">Cover / interprétation</span>
+                    <span class="pedagogie-category-sub">Le but est de reproduire ce qui est joué dans la vidéo.</span>
+                  </button>
+                </div>
+                <p class="pedagogie-category-hint">Vous pourrez modifier ce choix plus tard.</p>
+              </section>
+
               <!-- Fenêtre principale : la vidéo importée. Un seul élément
                    <video controls> natif avec le son — pas de stems ici, la
                    paire vidéo muette + audio caché du Studio serait de la
-                   sur-ingénierie pour ce sous-onglet. -->
+                   sur-ingénierie pour ce sous-onglet.
+                   La vidéo n'apparaît qu'après avoir cliqué sur « Lire ce tutoriel ». -->
               <section class="pedagogie-card is-video" id="pedagogie-video-card" style="display: none;">
                 <video class="pedagogie-video-player" id="pedagogie-video-player" controls preload="metadata" playsinline></video>
               </section>
 
+              <!-- Raccourci contextuel sous la vidéo, visible pendant la lecture. -->
+              <div class="pedagogie-video-actions" id="pedagogie-video-actions" style="display: none;">
+                <button type="button" class="pedagogie-secondary-btn" id="pedagogie-copilot-shortcut">
+                  🤖 Copilote IA
+                </button>
+                <button type="button" class="pedagogie-secondary-btn" id="pedagogie-calibrate-v2n-btn">
+                  📐 Calibrer le clavier (V2N)
+                </button>
+              </div>
+              <p class="pedagogie-category-hint" id="pedagogie-category-hint" style="display: none;">
+                <span id="pedagogie-category-hint-text"></span>
+              </p>
+
               <div class="pedagogie-result" id="pedagogie-result" style="display: none;">
+                <!-- Mode « tutoriel avec explications » : le Copilot IA est mis en avant.
+                     Mode « cover » : masqué, la grille reste la pièce maîtresse. -->
+                <section class="pedagogie-card is-copilot-summary" id="pedagogie-copilot-summary-card" style="display: none;">
+                  <h4 class="pedagogie-card-title">Copilote IA</h4>
+                  <p class="pedagogie-intro">Résumé du sujet traité dans cette vidéo.</p>
+                  <p class="pedagogie-copilot-summary-text" id="pedagogie-copilot-summary-text"></p>
+                  <button type="button" class="pedagogie-secondary-btn" id="pedagogie-copilot-summary-btn">Ouvrir le Copilote IA</button>
+                </section>
+
                 <!-- Accompagnement de la vidéo : bande compacte, plus la
                      pièce maîtresse de l'écran. Un clic sur un accord y fait
                      sauter la lecture. -->
-                <section class="pedagogie-card">
+                <section class="pedagogie-card" id="pedagogie-grid-card">
                   <h4 class="pedagogie-card-title">Grille relevée</h4>
                   <div class="pedagogie-grid" id="pedagogie-grid"></div>
                 </section>
@@ -385,25 +463,6 @@
                   <div id="pedagogie-crosscheck"></div>
                 </section>
 
-                <!-- Ce que le professeur DIT, pas seulement ce qu'il joue.
-                     Le texte affiché est la transcription brute, ou sa
-                     traduction quand une clé IA est configurée — le badge le
-                     dit. Cliquer une ligne y fait sauter la lecture. -->
-                <section class="pedagogie-card" id="pedagogie-narration-card" style="display: none;">
-                  <h4 class="pedagogie-card-title">
-                    Ce que dit le professeur
-                    <span class="pedagogie-translation-badge" id="pedagogie-translation-badge" style="display: none;">traduit automatiquement</span>
-                  </h4>
-                  <p class="pedagogie-narration" id="pedagogie-narration-state" style="display: none;"></p>
-                  <p class="pedagogie-translation-failed" id="pedagogie-translation-failed" style="display: none;">
-                    Traduction automatique indisponible : le texte original est affiché.
-                  </p>
-                  <div class="pedagogie-transcript" id="pedagogie-transcript"></div>
-                  <div class="pedagogie-explain" id="pedagogie-explain" style="display: none;">
-                    <button class="pedagogie-secondary-btn" id="pedagogie-explain-btn" type="button">Approfondir avec l'IA</button>
-                    <p class="pedagogie-explain-answer" id="pedagogie-explain-answer" style="display: none;"></p>
-                  </div>
-                </section>
 
                 <section class="pedagogie-card">
                   <h4 class="pedagogie-card-title">Ce qu'il y a à comprendre</h4>
@@ -431,17 +490,38 @@
             <div class="copilot-layout">
               <aside class="copilot-sidebar">
                 <div class="panel-title">Copilot IA</div>
-                <p class="copilot-hint">Sélectionnez un tutoriel dans Pédagogie IA pour commencer.</p>
+                <div class="copilot-history" id="copilot-history">
+                  <button class="copilot-new-conv-sidebar-btn" id="copilot-new-conv-sidebar-btn" type="button">+ Nouvelle conversation</button>
+                  <div class="copilot-history-list" id="copilot-history-list"></div>
+                </div>
               </aside>
 
               <section class="copilot-main">
                 <header class="copilot-head">
                   <h3 class="copilot-selected-name" id="copilot-selected-name">Copilot IA</h3>
-                  <p class="copilot-intro" id="copilot-intro">Posez vos questions sur le tutoriel en cours.</p>
+                  <p class="copilot-intro" id="copilot-intro">Posez vos questions librement.</p>
                 </header>
 
                 <div class="copilot-chat-area" id="copilot-chat-area" style="display: none;">
                   <div class="copilot-messages" id="copilot-messages"></div>
+                  <div class="copilot-quick-actions" id="copilot-quick-actions">
+                    <span class="copilot-quick-actions-label">Continuer : </span>
+                    <button type="button" class="copilot-chip" data-message="Montre-moi un voicing intéressant pour cet accord.">Voicing</button>
+                    <button type="button" class="copilot-chip" data-message="Qu’est-ce que la main gauche peut jouer ici ?">Main gauche</button>
+                    <button type="button" class="copilot-chip" data-message="Qu’est-ce que la main droite peut jouer ici ?">Main droite</button>
+                    <button type="button" class="copilot-chip" data-message="Fais-moi un arpège lent.">Arpège</button>
+                    <button type="button" class="copilot-chip" data-message="Fais-moi une démonstration au clavier.">Démonstration</button>
+                    <button type="button" class="copilot-chip" data-message="Fais-moi un lick adapté.">Lick</button>
+                    <span class="copilot-style-spacer"></span>
+                    <label class="copilot-style-label" for="copilot-style-select">Style</label>
+                    <select id="copilot-style-select" class="copilot-style-select">
+                      <option value="auto">Auto</option>
+                      <option value="worship">Worship</option>
+                      <option value="gospel">Gospel</option>
+                      <option value="jazz">Jazz</option>
+                      <option value="neoSoul">Neo Soul</option>
+                    </select>
+                  </div>
                   <div class="copilot-input-bar">
                     <input type="text" class="copilot-input" id="copilot-input" placeholder="Votre question…" aria-label="Message au Copilot" />
                     <button class="copilot-send-btn" id="copilot-send-btn" type="button" title="Envoyer">➤</button>
@@ -456,6 +536,7 @@
                 </div>
 
                 <div class="copilot-actions">
+                  <button class="copilot-secondary-btn" id="copilot-mode-toggle-btn" type="button" style="display: none;">Mode tutoriel</button>
                   <button class="copilot-secondary-btn" id="copilot-new-conv-btn" type="button">Nouvelle conversation</button>
                 </div>
               </section>
@@ -1261,7 +1342,10 @@
           <span class="keyboard-collapse-label">🎹 Clavier virtuel MIDI</span>
           <span class="keyboard-collapse-caret" aria-hidden="true">▾</span>
         </button>
-        <div id="keyboard-container" class="keyboard-container"></div>
+        <div class="keyboard-container-wrap" id="keyboard-container-wrap">
+          <div id="keyboard-container" class="keyboard-container"></div>
+          <div class="keyboard-annotation-layer" id="keyboard-annotation-layer" aria-hidden="true"></div>
+        </div>
         <div class="keyboard-controls">
           <span class="keyboard-section-title" id="keyboard-section-title">Clavier</span>
           <label>
@@ -1298,6 +1382,10 @@
               <option value="latin">Latine (Do/Ré/Mi)</option>
               <option value="english" selected>Anglaise (C/D/E)</option>
             </select>
+          </label>
+          <label class="switch-label" title="Activer/désactiver le routage du clavier PC vers le clavier MIDI virtuel">
+            <input type="checkbox" id="pc-keyboard-midi" checked />
+            🎹 PC → MIDI
           </label>
           <label class="switch-label">
             <input type="checkbox" id="silent-mode" />

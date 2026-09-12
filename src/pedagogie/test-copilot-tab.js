@@ -61,19 +61,27 @@ function check(name, condition, detail = '') {
 function testNextModeOnSelectionChange() {
   check(
     'Désélection en mode tutoriel → repli autonome',
-    nextModeOnSelectionChange('tutorial', null) === 'autonomous'
+    nextModeOnSelectionChange('tutorial', null, null) === 'autonomous'
   );
   check(
     'Nouveau tutoriel en mode tutoriel → reste tutoriel',
-    nextModeOnSelectionChange('tutorial', '/x.mp4') === 'tutorial'
+    nextModeOnSelectionChange('tutorial', '/x.mp4', null) === 'tutorial'
   );
   check(
     'Sélection en mode autonome → reste autonome',
-    nextModeOnSelectionChange('autonomous', '/x.mp4') === 'autonomous'
+    nextModeOnSelectionChange('autonomous', '/x.mp4', null) === 'autonomous'
   );
   check(
     'Désélection en mode autonome → reste autonome',
-    nextModeOnSelectionChange('autonomous', null) === 'autonomous'
+    nextModeOnSelectionChange('autonomous', null, null) === 'autonomous'
+  );
+  check(
+    'Désélection en mode session → repli autonome',
+    nextModeOnSelectionChange('session', null, null) === 'autonomous'
+  );
+  check(
+    'Nouvelle session en mode session → reste session',
+    nextModeOnSelectionChange('session', null, 'sess-123') === 'session'
   );
 }
 
@@ -102,6 +110,16 @@ function testToggleButtonState() {
   check(
     'Libellé "Revenir au mode autonome" en mode tutoriel',
     tutorialWithPath.label === 'Revenir au mode autonome'
+  );
+
+  const session = toggleButtonState('session', null);
+  check(
+    'Bouton visible en mode session',
+    session.visible === true
+  );
+  check(
+    'Libellé "Revenir au mode autonome" en mode session',
+    session.label === 'Revenir au mode autonome'
   );
 }
 

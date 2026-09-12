@@ -11,6 +11,11 @@ import { labelSegments, mergeSameLabel } from './chord-labeling.js';
 import { collectConcepts, collectMissing, narrationNotAttemptedState } from './glossary.js';
 import { FORMATS } from './format-detector.js';
 
+// [OpenCode] — 2026-09-07 — V2N produit des note events (onset/offset) ; il faut
+// les échantillonner pour que le reste du pipeline vidéo (segmentation, nommage,
+// concepts) reste inchangé et testable.
+const V2N_FPS = 25;
+
 /**
  * Construit l'analyse d'une vidéo au Format B.
  *
@@ -27,12 +32,25 @@ import { FORMATS } from './format-detector.js';
  * @returns {object}
  */
 export function buildVideoAnalysis(params) {
-  const { samples, geometry, sampleInterval } = params;
+  const { samples, geometry, sampleInterval, v2nNotes, v2nDuration } = params;
   const options = params.options || {};
+
+  // Trois sources possibles, mutuellement exclusives : échantillons Format B,
+  // échantillons V2N, ou audio seul. V2N est traité comme une vidéo lue.
+  let sourceSamples = samples || [];
+  let sourceInterval = sampleInterval;
+  let sourceGeometry = geometry;
+  let sourceFormat = FORMATS.PIANO_ROLL;
+  if (Array.isArray(v2nNotes) && v2nNotes.length > 0) {
+    sourceSamples = notesToSamples(v2nNotes, v2nDuration);
+    sourceInterval = 1 / V2N_FPS;
+    sourceGeometry = { lowestMidi: 21, highestMidi: 108, anchorIsHeuristic: true };
+    sourceFormat = FORMATS.V2N;
+  }
 
   const segments = mergeSameLabel(
     labelSegments(
-      groupSegments(samples || [], { ...options, sampleInterval }),
+      groupSegments(sourceSamples || [], { ...options, sampleInterval: sourceInterval }),
       options,
     ),
   );
@@ -45,31 +63,53 @@ export function buildVideoAnalysis(params) {
   const thirdless = segments.filter((s) => s.chord.resolved && s.chord.thirdMissing);
 
   return {
-    source: 'video',
-    format: FORMATS.PIANO_ROLL,
+    source: Array.isArray(v2nNotes) && v2nNotes.length > 0 ? 'v2n' : 'video',
+    format: sourceFormat,
     segments,
     concepts,
     missingConcepts,
     narration: resolveNarration(params),
     keyboard: {
-      lowestMidi: geometry?.lowestMidi ?? null,
-      highestMidi: geometry?.highestMidi ?? null,
+      lowestMidi: sourceGeometry?.lowestMidi ?? null,
+      highestMidi: sourceGeometry?.highestMidi ?? null,
       // Rappel porté jusqu'à l'affichage : l'octave affichée est une hypothèse.
       // Elle ne change AUCUN nom d'accord — seulement la hauteur à laquelle les
       // touches s'allument sur le clavier virtuel.
-      anchorIsHeuristic: geometry?.anchorIsHeuristic ?? null,
+      anchorIsHeuristic: sourceGeometry?.anchorIsHeuristic ?? null,
     },
     stats: {
-      sampleCount: (samples || []).length,
+      sampleCount: (sourceSamples || []).length,
       segmentCount: segments.length,
       unresolvedCount: unresolved.length,
       thirdlessCount: thirdless.length,
-      duration: samples && samples.length
-        ? samples[samples.length - 1].t + sampleInterval
-        : 0,
+      duration: sourceSamples && sourceSamples.length
+        ? sourceSamples[sourceSamples.length - 1].t + sourceInterval
+        : (Number.isFinite(v2nDuration) ? v2nDuration : 0),
     },
-    notes: buildNotes({ unresolved, thirdless, missingConcepts, geometry }),
+    notes: buildNotes({ unresolved, thirdless, missingConcepts, geometry: sourceGeometry }),
   };
+}
+
+/**
+ * Convertit les note events V2N en échantillons compatibles note-grouping.js.
+ *
+ * @param {{midi: number, onset: number, offset: number}[]} notes
+ * @param {number} duration
+ * @returns {{t: number, keys: {midi: number}[]}[]}
+ */
+function notesToSamples(notes, duration) {
+  const totalFrames = Math.max(1, Math.ceil((duration || 0) * V2N_FPS));
+  const active = Array.from({ length: totalFrames }, () => new Set());
+  for (const n of notes) {
+    if (!Number.isFinite(n.onset) || !Number.isFinite(n.offset) || !Number.isFinite(n.midi)) continue;
+    const from = Math.max(0, Math.floor(n.onset * V2N_FPS));
+    const to = Math.min(totalFrames, Math.ceil(n.offset * V2N_FPS));
+    for (let f = from; f < to; f++) active[f].add(Math.round(n.midi));
+  }
+  return active.map((set, i) => ({
+    t: i / V2N_FPS,
+    keys: [...set].sort((a, b) => a - b).map((midi) => ({ midi })),
+  }));
 }
 
 /**

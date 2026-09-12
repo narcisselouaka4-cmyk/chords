@@ -8,7 +8,7 @@
 // NOTE : le modèle llama-3.1-8b ne maîtrise pas toujours la théorie musicale.
 // Les notes générées sont validées avant d'être acceptées. Si invalides → fallback.
 
-import { getAIConfig } from './openai-config.js';
+import { getAIConfig, callChatCompletions } from './openai-config.js';
 import movementsLibrary from '../data/movements-library.json' with { type: 'json' };
 import { classifyVoicing } from '../chord-engine/index.js';
 
@@ -172,21 +172,14 @@ Style cible : ${style} — ${styleDesc[style] || ''}
 Propose 3 réharmonisations inspirées de la bibliothèque de mouvements locales pour ${originalName}.`;
 
   try {
-    const response = await fetch(`${config.baseUrl.replace(/\/$/, '')}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${config.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: config.model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        max_tokens: 500,
-        temperature: 0.35,
-      }),
+    const response = await callChatCompletions(config.baseUrl, config.apiKey, {
+      model: config.model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      max_tokens: 500,
+      temperature: 0.35,
     });
 
     if (!response.ok) {
@@ -303,50 +296,32 @@ function pickMovementForChord(chord, nextChord, movements) {
 }
 
 async function fetchMasterclass(config, systemPrompt, userPrompt) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  const response = await callChatCompletions(config.baseUrl, config.apiKey, {
+    model: config.model,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ],
+    max_tokens: 2000,
+    temperature: 0.3,
+  }, { timeoutMs: 30000 });
 
-  try {
-    const response = await fetch(`${config.baseUrl.replace(/\/$/, '')}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${config.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: config.model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        max_tokens: 2000,
-        temperature: 0.3,
-      }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      if (response.status === 401 || response.status === 403) {
-        throw new Error('AI_API_KEY_INVALID');
-      } else if (response.status === 429) {
-        throw new Error('AI_RATE_LIMIT');
-      }
-      throw new Error(`AI_API_ERROR_${response.status}`);
+  if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      throw new Error('AI_API_KEY_INVALID');
+    } else if (response.status === 429) {
+      throw new Error('AI_RATE_LIMIT');
     }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-    if (!content) return null;
-
-    const result = safeJsonParse(content);
-    if (!result || !result.masterclass || !Array.isArray(result.masterclass)) return null;
-    return result.masterclass;
-  } catch (err) {
-    clearTimeout(timeoutId);
-    throw err;
+    throw new Error(`AI_API_ERROR_${response.status}`);
   }
+
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content;
+  if (!content) return null;
+
+  const result = safeJsonParse(content);
+  if (!result || !result.masterclass || !Array.isArray(result.masterclass)) return null;
+  return result.masterclass;
 }
 
 export async function generateMasterclass(analysis) {
@@ -465,54 +440,37 @@ const NARRATION_SYSTEM_PROMPT = 'Tu es un professeur de piano jazz et gospel qui
   + "- N'invente aucun conseil, aucun accord, aucune note qui ne s'y trouve pas.\n"
   + "- Si la transcription est trop courte ou trop confuse pour en tirer quelque chose, dis-le "
   + "franchement en une phrase plutôt que de meubler.\n"
-  + '- Réponds en texte suivi, court (10 lignes maximum), sans JSON et sans titre.';
+  + '- Réponds en texte BRUT, sans Markdown (pas d\'astérisques, pas de dièse, pas de tirets de liste), '
+  + 'court (10 lignes maximum), sans JSON et sans titre.';
 
 /**
  * Envoie la transcription au modèle et renvoie l'explication en texte.
  * Même gestion des erreurs que fetchMasterclass : 401/403 et 429 sont nommées.
  */
 async function fetchNarrationExplanation(config, userPrompt) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  const response = await callChatCompletions(config.baseUrl, config.apiKey, {
+    model: config.model,
+    messages: [
+      { role: 'system', content: NARRATION_SYSTEM_PROMPT },
+      { role: 'user', content: userPrompt },
+    ],
+    max_tokens: 900,
+    temperature: 0.3,
+  }, { timeoutMs: 30000 });
 
-  try {
-    const response = await fetch(`${config.baseUrl.replace(/\/$/, '')}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${config.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: config.model,
-        messages: [
-          { role: 'system', content: NARRATION_SYSTEM_PROMPT },
-          { role: 'user', content: userPrompt },
-        ],
-        max_tokens: 900,
-        temperature: 0.3,
-      }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      if (response.status === 401 || response.status === 403) {
-        throw new Error('AI_API_KEY_INVALID');
-      } else if (response.status === 429) {
-        throw new Error('AI_RATE_LIMIT');
-      }
-      throw new Error(`AI_API_ERROR_${response.status}`);
+  if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      throw new Error('AI_API_KEY_INVALID');
+    } else if (response.status === 429) {
+      throw new Error('AI_RATE_LIMIT');
     }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-    const text = typeof content === 'string' ? content.trim() : '';
-    return text || null;
-  } catch (err) {
-    clearTimeout(timeoutId);
-    throw err;
+    throw new Error(`AI_API_ERROR_${response.status}`);
   }
+
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content;
+  const text = typeof content === 'string' ? content.trim() : '';
+  return text || null;
 }
 
 /**
@@ -593,47 +551,29 @@ const NARRATION_TRANSLATION_PROMPT = 'Tu traduis la transcription d\'un tutoriel
  * d'erreurs de fetchNarrationExplanation : 401/403 et 429 y sont nommées.
  */
 async function fetchNarrationTranslation(config, userPrompt, maxSegments) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  const response = await callChatCompletions(config.baseUrl, config.apiKey, {
+    model: config.model,
+    messages: [
+      { role: 'system', content: NARRATION_TRANSLATION_PROMPT },
+      { role: 'user', content: userPrompt },
+    ],
+    max_tokens: Math.min(4000, Math.max(500, maxSegments * 90)),
+    temperature: 0.2,
+  }, { timeoutMs: 30000 });
 
-  try {
-    const response = await fetch(`${config.baseUrl.replace(/\/$/, '')}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${config.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: config.model,
-        messages: [
-          { role: 'system', content: NARRATION_TRANSLATION_PROMPT },
-          { role: 'user', content: userPrompt },
-        ],
-        max_tokens: Math.min(4000, Math.max(500, maxSegments * 90)),
-        temperature: 0.2,
-      }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      if (response.status === 401 || response.status === 403) {
-        throw new Error('AI_API_KEY_INVALID');
-      } else if (response.status === 429) {
-        throw new Error('AI_RATE_LIMIT');
-      }
-      throw new Error(`AI_API_ERROR_${response.status}`);
+  if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      throw new Error('AI_API_KEY_INVALID');
+    } else if (response.status === 429) {
+      throw new Error('AI_RATE_LIMIT');
     }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-    const text = typeof content === 'string' ? content.trim() : '';
-    return text || null;
-  } catch (err) {
-    clearTimeout(timeoutId);
-    throw err;
+    throw new Error(`AI_API_ERROR_${response.status}`);
   }
+
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content;
+  const text = typeof content === 'string' ? content.trim() : '';
+  return text || null;
 }
 
 /**

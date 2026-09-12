@@ -30,6 +30,7 @@ export function parseChordSymbol(symbol) {
   const chord = Chord.get(chordPart);
   if (chord.empty || !chord.tonic) {
     return {
+      input,
       rootPc: null,
       bassPc,
       qualityId: '',
@@ -52,6 +53,7 @@ export function parseChordSymbol(symbol) {
   }
 
   return {
+    input,
     rootPc,
     bassPc,
     qualityId,

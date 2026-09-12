@@ -196,5 +196,42 @@ await runTest('N9 — panne réseau persistante : null après les retries, aucun
   }
 });
 
-console.log(`\n=== Résultat : ${passed}/${total} tests passés ===`);
+// Test isolé de callChatCompletions : vérifier que la branche repli fetch()
+// honore options.signal (AbortController local), et qu'un fetch qui ne répond
+// jamais est bien abandonné au bout du délai transmis.
+await runTest('N10 — fetch qui ne répond jamais est abandonné après le timeout du signal', async () => {
+  withKey('cle-test');
+  let callCount = 0;
+  globalThis.fetch = (url, options) => new Promise((_resolve, reject) => {
+    callCount++;
+    const onAbort = () => reject(new Error('Aborted by signal'));
+    if (options?.signal?.aborted) {
+      onAbort();
+      return;
+    }
+    options?.signal?.addEventListener('abort', onAbort);
+  });
+
+  try {
+    const { callChatCompletions } = await import('./openai-config.js');
+    // Branche repli : Node sans window.electronAPI, signal armé à 50 ms.
+    const ac = new AbortController();
+    const timeout = setTimeout(() => ac.abort(), 50);
+    let thrown = null;
+    try {
+      await callChatCompletions('http://localhost', 'cle-test', { model: 'test', messages: [] }, { signal: ac.signal });
+    } catch (err) {
+      thrown = err;
+    } finally {
+      clearTimeout(timeout);
+    }
+    assertTrue(callCount >= 1, 'fetch a bien été appelé :');
+    assertEqual(thrown?.message, 'Aborted by signal', 'le signal d\'abandon est bien transmis à fetch() :');
+  } finally {
+    withoutKey();
+    globalThis.fetch = () => { networkTouched = true; throw new Error('réseau interdit'); };
+  }
+});
+
+console.log(`\n=== Résultat : ${total} tests lancés, ${passed} passés ===`);
 if (passed < total) process.exitCode = 1;

@@ -66,9 +66,15 @@ export function readLitKeys(frame, geometry, options = {}) {
   const lit = [];
 
   // Rangée d'échantillonnage des blanches : bien sous les touches noires.
-  const whiteY = Math.round(
-    geometry.strikeY + (geometry.bottom - geometry.strikeY) * opts.whiteSampleRatio,
-  );
+  // `sampleRow` est calculé par buildGeometry() à partir de mesures communes
+  // aux deux stratégies (blackRow + bottom). En repli, on garde l'ancienne
+  // formule strikeY-based pour la compatibilité avec d'éventuelles géométries
+  // externes, mais les stratégies du dépôt fournissent toujours sampleRow.
+  let whiteY = geometry.sampleRow;
+  if (!Number.isFinite(whiteY)) {
+    const top = Number.isFinite(geometry.strikeY) ? geometry.strikeY : geometry.blackRow;
+    whiteY = Math.round(top + (geometry.bottom - top) * opts.whiteSampleRatio);
+  }
 
   for (const key of geometry.blackKeys) {
     const [r, g, b] = sampleMedian(frame, key.center, geometry.blackRow, opts.sampleRadius);

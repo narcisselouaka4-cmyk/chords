@@ -115,6 +115,19 @@ export function getAIConfig() {
   }
 }
 
+/**
+ * Vérifie si une clé API personnelle est configurée.
+ * Même logique que dans masterclass-panel.js et pedagogie-tab.js.
+ */
+export function hasAIKey() {
+  try {
+    const cfg = getAIConfig();
+    return Boolean(cfg && cfg.apiKey);
+  } catch (_) {
+    return false;
+  }
+}
+
 export async function saveAIConfig(config) {
   const plainKey = config.apiKey?.trim() || '';
   const encryptedKey = await encryptApiKey(plainKey);
@@ -135,6 +148,9 @@ export async function saveAIConfig(config) {
     monthlyCap: safe.monthlyCap,
   };
   secureLoaded = true;
+  if (isBrowser()) {
+    document.dispatchEvent(new CustomEvent('app-ai-config-saved', { detail: { ...cachedConfig } }));
+  }
   return { ...cachedConfig };
 }
 
@@ -146,23 +162,47 @@ export function createOpenAIClient(config = getAIConfig()) {
   };
 }
 
+/**
+ * Appelle /chat/completions en passant par le processus principal d'Electron
+ * quand c'est possible (pour contourner CORS du renderer, notamment Ollama Cloud).
+ * Sinon, retombe sur fetch() direct (tests Node, navigateur hors Electron).
+ *
+ * L'objet retourné imite la réponse fetch() minimale utilisée dans le projet :
+ * { ok, status, json(), text() }.
+ */
+export async function callChatCompletions(baseUrl, apiKey, body, options = {}) {
+  const url = `${baseUrl.replace(/\/$/, '')}/chat/completions`;
+  if (typeof window !== 'undefined' && window.electronAPI?.ai?.chatCompletion) {
+    // Les appelants historiques construisent un AbortController + setTimeout(30000).
+    // Un AbortSignal ne traverse pas IPC ; on transmet donc le délai explicite
+    // au processus principal pour qu'il l'applique sur son propre fetch().
+    const timeoutMs = options.timeoutMs || (options.signal ? 30000 : undefined);
+    const { ok, status, text } = await window.electronAPI.ai.chatCompletion(baseUrl, apiKey, body, timeoutMs);
+    return {
+      ok,
+      status,
+      json: async () => JSON.parse(text),
+      text: async () => text,
+    };
+  }
+  return fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify(body),
+    ...(options.signal ? { signal: options.signal } : {}),
+  });
+}
+
 export async function testAIConfig(config) {
   const client = createOpenAIClient(config);
   if (!client.apiKey) {
     throw new Error('Clé API manquante');
   }
 
-  const res = await fetch(`${client.baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${client.apiKey}`,
-    },
-    body: JSON.stringify({
-      model: client.model,
-      messages: [{ role: 'user', content: 'Réponds par un simple OK.' }],
-      max_tokens: 5,
-    }),
+  const res = await callChatCompletions(client.baseUrl, client.apiKey, {
+    model: client.model,
+    messages: [{ role: 'user', content: 'Réponds par un simple OK.' }],
+    max_tokens: 5,
   });
 
   if (!res.ok) {

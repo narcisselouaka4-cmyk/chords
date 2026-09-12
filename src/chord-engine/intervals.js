@@ -56,7 +56,7 @@ export function noteNameToPc(name) {
   return (baseIndex + offset + 12) % 12;
 }
 
-function latinNoteNameToPc(name) {
+export function latinNoteNameToPc(name) {
   const normalized = name.trim().toLowerCase().replace(/♭/g, 'b').replace(/♯/g, '#').replace(/-?\d+$/, '');
   const baseMatch = normalized.match(/^([a-zéèêôóò]+)([#b]*)$/);
   if (!baseMatch) return null;

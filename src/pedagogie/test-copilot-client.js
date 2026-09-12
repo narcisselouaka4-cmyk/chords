@@ -154,7 +154,7 @@ function testToolCalls() {
 
 async function testNoKey() {
   global.localStorage.store = {};
-  const res = await sendCopilotMessage({ message: 'Bonjour', messages: [], tutorial: {} });
+  const res = await sendCopilotMessage({ message: 'Bonjour', messages: [], context: {} });
   check('Sans clé API, le client retourne une erreur', res.ok === false);
   check("L'erreur mentionne la clé API", res.error.includes('clé') || res.error.includes('API'));
 }
@@ -163,7 +163,7 @@ async function test401() {
   const originalFetch = global.fetch;
   global.fetch = async () => ({ ok: false, status: 401, text: async () => 'Unauthorized' });
   global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
-  const res = await sendCopilotMessage({ message: 'Test', messages: [], tutorial: {} });
+  const res = await sendCopilotMessage({ message: 'Test', messages: [], context: {} });
   check('Une erreur 401 retourne AI_API_KEY_INVALID', res.error === 'AI_API_KEY_INVALID');
   global.fetch = originalFetch;
 }
@@ -232,7 +232,7 @@ async function testRequestBodySchemaAndTokens() {
   };
   global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
 
-  await sendCopilotMessage({ message: 'Quels outils envoies-tu ?', messages: [], tutorial: {} });
+  await sendCopilotMessage({ message: 'Quels outils envoies-tu ?', messages: [], context: {} });
 
   check('Le corps de requête a été capturé', capturedBody !== null);
   check('Le corps utilise max_completion_tokens et non max_tokens', capturedBody?.max_completion_tokens === 1200 && !('max_tokens' in capturedBody));
@@ -277,7 +277,7 @@ async function testMessagesSanitizedBeforeApiCall() {
     { role: 'user', content: 'Première question', timestamp: '2026-09-08T10:00:00Z' },
     { role: 'assistant', content: 'Première réponse', toolResult: { played: [] }, timestamp: '2026-09-08T10:00:01Z' },
   ];
-  await sendCopilotMessage({ message: 'Deuxième question', messages: messagesWithExtraFields, tutorial: {} });
+  await sendCopilotMessage({ message: 'Deuxième question', messages: messagesWithExtraFields, context: {} });
 
   check('Le corps de requête a été capturé (sanitization)', capturedBody !== null);
 
@@ -291,6 +291,48 @@ async function testMessagesSanitizedBeforeApiCall() {
   check('toolResult est retiré des messages envoyés à l\'API', apiMessages.every((m) => !('toolResult' in m)));
   check('Le message système est présent', apiMessages[0]?.role === 'system');
   check('Le message en cours est ajouté à la fin', apiMessages[apiMessages.length - 1]?.content === 'Deuxième question');
+
+  global.fetch = originalFetch;
+}
+
+async function testAutonomousModeNoPhantomContext() {
+  const originalFetch = global.fetch;
+  let capturedBody = null;
+  global.fetch = async (url, options) => {
+    capturedBody = JSON.parse(options.body);
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        choices: [{
+          message: {
+            role: 'assistant',
+            content: 'Réponse de test.',
+          },
+        }],
+      }),
+    };
+  };
+  global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
+
+  await sendCopilotMessage({ message: 'Bonjour', messages: [], context: null });
+
+  check('Le corps de requête a été capturé (contexte null)', capturedBody !== null);
+
+  const systemMessage = capturedBody?.messages?.find((m) => m.role === 'system')?.content || '';
+  check('Mode autonome (null) : PAS de section "Tutoriel en cours"', !systemMessage.includes('## Tutoriel en cours'));
+  check('Mode autonome (null) : PAS de section "Session MIDI en cours"', !systemMessage.includes('## Session MIDI en cours'));
+  check('Mode autonome (null) : contient toujours "Clavier MIDI virtuel"', systemMessage.includes('Clavier MIDI virtuel :'));
+
+  capturedBody = null;
+  await sendCopilotMessage({ message: 'Bonjour', messages: [], context: {} });
+
+  check('Le corps de requête a été capturé (contexte {})', capturedBody !== null);
+
+  const systemMessage2 = capturedBody?.messages?.find((m) => m.role === 'system')?.content || '';
+  check('Mode autonome ({}) : PAS de section "Tutoriel en cours"', !systemMessage2.includes('## Tutoriel en cours'));
+  check('Mode autonome ({}) : PAS de section "Session MIDI en cours"', !systemMessage2.includes('## Session MIDI en cours'));
+  check('Mode autonome ({}) : contient toujours "Clavier MIDI virtuel"', systemMessage2.includes('Clavier MIDI virtuel :'));
 
   global.fetch = originalFetch;
 }
@@ -410,7 +452,7 @@ async function testRetryWhenDemoAnnouncedButNoToolCalls() {
   };
   global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
 
-  const res = await sendCopilotMessage({ message: 'Joue-moi un Cmaj7', messages: [], tutorial: {} });
+  const res = await sendCopilotMessage({ message: 'Joue-moi un Cmaj7', messages: [], context: {} });
 
   check('Texte affiché = texte original (première réponse)', res.content === 'Voici la démonstration : un Cmaj7 en arpège.');
   check('Routage d\'intention offline joue le voicing Cmaj7', res.toolResult.played.length >= 3);
@@ -439,7 +481,7 @@ async function testRetryFailsAgainAddsNotice() {
   };
   global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
 
-  const res = await sendCopilotMessage({ message: 'Joue-moi un Cmaj7', messages: [], tutorial: {} });
+  const res = await sendCopilotMessage({ message: 'Joue-moi un Cmaj7', messages: [], context: {} });
 
   check('Routage d\'intention joue Cmaj7 sans retry', callCount === 1);
   check('toolResult contient les notes du voicing Cmaj7', res.toolResult.played.length >= 3);
@@ -493,7 +535,7 @@ async function testNoRetryWhenToolCallsPlayImmediately() {
   };
   global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
 
-  const res = await sendCopilotMessage({ message: 'Joue-moi un Cmaj7', messages: [], tutorial: {} });
+  const res = await sendCopilotMessage({ message: 'Joue-moi un Cmaj7', messages: [], context: {} });
 
   check('Un seul appel API quand les tool_calls jouent un accord complet', callCount === 1);
   check('Les 4 notes du Cmaj7 ont été jouées', res.toolResult.played.length === 4);
@@ -521,7 +563,7 @@ async function testNoRetryWithoutAnnouncement() {
   };
   global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
 
-  const res = await sendCopilotMessage({ message: "C'est quoi un Cmaj7 ?", messages: [], tutorial: {} });
+  const res = await sendCopilotMessage({ message: "C'est quoi un Cmaj7 ?", messages: [], context: {} });
 
   check('Un seul appel API quand aucune démonstration n\'est promise', callCount === 1);
   check('Aucun retry déclenché', res.content === 'Un Cmaj7 est un accord de do majeur septième.');
@@ -580,7 +622,7 @@ async function testCorrectsAnnouncedChordMismatchOnRetry() {
   };
   global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
 
-  const res = await sendCopilotMessage({ message: 'Joue-moi un Cmaj7', messages: [], tutorial: {} });
+  const res = await sendCopilotMessage({ message: 'Joue-moi un Cmaj7', messages: [], context: {} });
 
   check('Accord faux → relance utilisée (2 appels API)', callCount === 2);
   check('Texte final = texte de la seconde réponse', res.content === "Précision : c'est en réalité un **Fm**.");
@@ -621,7 +663,7 @@ async function testChordMismatchFallbackOnNetworkFailure() {
   };
   global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
 
-  const res = await sendCopilotMessage({ message: 'Joue-moi un Cmaj7', messages: [], tutorial: {} });
+  const res = await sendCopilotMessage({ message: 'Joue-moi un Cmaj7', messages: [], context: {} });
 
   check('Accord faux + retry reseau impossible -> 2 appels', callCount === 2, `callCount=${callCount}`);
   check('Note de correction ajoutee au texte original', res.content && res.content.includes('les notes jouées correspondent en réalité'), `content=${JSON.stringify(res.content)}`);
@@ -651,7 +693,7 @@ async function testDemoRetryThenChordFallbackNoThirdCall() {
   };
   global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
 
-  const res = await sendCopilotMessage({ message: 'Joue-moi un Cmaj7', messages: [], tutorial: {} });
+  const res = await sendCopilotMessage({ message: 'Joue-moi un Cmaj7', messages: [], context: {} });
 
   check('Routage d\'intention offline = 1 seul appel API', callCount === 1);
   check('Le voicing Cmaj7 est joué', res.toolResult.played.length >= 3);
@@ -684,7 +726,7 @@ async function testCorrectAnnouncedChordNotCorrected() {
   };
   global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
 
-  const res = await sendCopilotMessage({ message: 'Joue-moi un Cmaj7', messages: [], tutorial: {} });
+  const res = await sendCopilotMessage({ message: 'Joue-moi un Cmaj7', messages: [], context: {} });
 
   check('Accord correct → 1 seul appel API', callCount === 1);
   check('Texte inchangé quand accord correct', res.content === 'Voici un **Cmaj7**.');
@@ -717,7 +759,7 @@ async function testNoChordCorrectionWhenNoMetadata() {
   };
   global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
 
-  const res = await sendCopilotMessage({ message: 'Joue-moi un Cmaj7', messages: [], tutorial: {} });
+  const res = await sendCopilotMessage({ message: 'Joue-moi un Cmaj7', messages: [], context: {} });
 
   check('Sans métadonnée → 1 seul appel API', callCount === 1);
   check('Texte inchangé sans métadonnée', res.content === 'Voici la démonstration.');
@@ -762,7 +804,7 @@ async function testRetry31KeepsOriginalTextEvenIfRetryHasDifferentText() {
   };
   global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
 
-  const res = await sendCopilotMessage({ message: 'Joue-moi quelque chose', messages: [], tutorial: {} });
+  const res = await sendCopilotMessage({ message: 'Joue-moi quelque chose', messages: [], context: {} });
 
   check('Relance 3.1 avec texte différent garde le texte ORIGINAL', res.content === 'Je vais te jouer un exemple.');
   check('toolResult vient bien de la relance (note jouée)', res.toolResult.played.length === 1);
@@ -812,7 +854,7 @@ async function testCorrectsAnnouncedDegreeMismatchOnRetry() {
   };
   global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
 
-  const res = await sendCopilotMessage({ message: 'Montre-moi le iii de Do# majeur', messages: [], tutorial: {} });
+  const res = await sendCopilotMessage({ message: 'Montre-moi le iii de Do# majeur', messages: [], context: {} });
 
   check('Désaccord degré/tonalité → relance (2 appels API)', callCount === 2);
   check('Texte final = texte de la seconde réponse', res.content === "Précision : c'est plutôt un accord de Do majeur.");
@@ -850,7 +892,7 @@ async function testDegreeMismatchFallbackOnNetworkFailure() {
   };
   global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
 
-  const res = await sendCopilotMessage({ message: 'Montre-moi le iii de Do# majeur', messages: [], tutorial: {} });
+  const res = await sendCopilotMessage({ message: 'Montre-moi le iii de Do# majeur', messages: [], context: {} });
 
   check('Désaccord degré + retry réseau impossible → 2 appels', callCount === 2, `callCount=${callCount}`);
   check('Note de précision degré ajoutée', res.content && res.content.includes('l\'accord théoriquement attendu est plutôt'), `content=${JSON.stringify(res.content)}`);
@@ -907,7 +949,7 @@ async function testDegreeRetryAfterChordRetryNoThirdCallButNoDoubleFallback() {
   };
   global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
 
-  const res = await sendCopilotMessage({ message: 'Montre-moi le iii de Do# majeur', messages: [], tutorial: {} });
+  const res = await sendCopilotMessage({ message: 'Montre-moi le iii de Do# majeur', messages: [], context: {} });
 
   check('Retry 3.3 puis fallback 3.4 = exactement 2 appels API', callCount === 2);
   // La seconde réponse (Fm) est musicalement CORRECTE pour le iii de Do# majeur
@@ -944,7 +986,7 @@ async function testCorrectDegreeNotCorrected() {
   };
   global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
 
-  const res = await sendCopilotMessage({ message: 'Montre-moi le iii de Do# majeur', messages: [], tutorial: {} });
+  const res = await sendCopilotMessage({ message: 'Montre-moi le iii de Do# majeur', messages: [], context: {} });
 
   check('Degré/tonalité corrects → 1 seul appel API', callCount === 1);
   check('Texte inchangé quand degré correct', res.content === 'Voici le iii de Do# majeur.');
@@ -980,7 +1022,7 @@ async function testFallbackWithoutToolsOn400() {
     };
   };
 
-  const res = await sendCopilotMessage({ message: 'Joue-moi un Cmaj7', messages: [], tutorial: {} });
+  const res = await sendCopilotMessage({ message: 'Joue-moi un Cmaj7', messages: [], context: {} });
 
   check('Erreur 400 → repli sans tools (2 appels)', callCount === 2);
   check('Le second appel ne contient pas tools', !('tools' in capturedBodies[1]));
@@ -1022,7 +1064,7 @@ async function testParsePlayNoteFromText() {
     };
   };
 
-  const res = await sendCopilotMessage({ message: 'Montre-moi un Cmaj7', messages: [], tutorial: {} });
+  const res = await sendCopilotMessage({ message: 'Montre-moi un Cmaj7', messages: [], context: {} });
 
   check('Trois notes textuelles trouvées dans un seul groupe', res.toolResult.played.length === 3, `played.length=${res.toolResult.played.length}`);
   if (res.toolResult.played.length >= 3) {
@@ -1040,6 +1082,7 @@ async function runTests() {
   await test401();
   await testRequestBodySchemaAndTokens();
   await testMessagesSanitizedBeforeApiCall();
+  await testAutonomousModeNoPhantomContext();
   await testRetryWhenDemoAnnouncedButNoToolCalls();
   await testRetryFailsAgainAddsNotice();
   await testNoRetryWhenToolCallsPlayImmediately();

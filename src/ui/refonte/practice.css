@@ -544,7 +544,11 @@
 }
 
 :root[data-skin='global'] #practice-view-midi-sessions .midi-sessions-layout,
-:root[data-skin='v2'] #practice-view-midi-sessions .midi-sessions-layout {
+:root[data-skin='v2'] #practice-view-midi-sessions .midi-sessions-layout,
+:root[data-skin='global'] #practice-view-coach .coach-layout,
+:root[data-skin='v2'] #practice-view-coach .coach-layout,
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-layout,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-layout {
   display: flex;
   flex-direction: row;
   gap: 14px;
@@ -568,7 +572,11 @@
   overflow: hidden;
 }
 :root[data-skin='global'] #practice-view-midi-sessions .midi-sessions-sidebar .panel-title,
-:root[data-skin='v2'] #practice-view-midi-sessions .midi-sessions-sidebar .panel-title {
+:root[data-skin='v2'] #practice-view-midi-sessions .midi-sessions-sidebar .panel-title,
+:root[data-skin='global'] #practice-view-coach .coach-sidebar .panel-title,
+:root[data-skin='v2'] #practice-view-coach .coach-sidebar .panel-title,
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-sidebar .panel-title,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-sidebar .panel-title {
   font-weight: 800;
   color: var(--r-text);
 }
@@ -716,24 +724,75 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
+  height: 46px;
+  padding: 0 14px;
   background: var(--r-surface-elevated);
   border: 1px solid var(--r-border-soft);
   border-radius: var(--r-radius-btn);
 }
 :root[data-skin='global'] #practice-view-midi-sessions .midi-transport-btn,
 :root[data-skin='v2'] #practice-view-midi-sessions .midi-transport-btn {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
   background: none;
   border: none;
-  color: var(--r-text);
-  font-size: 1rem;
+  border-radius: 50%;
+  color: var(--r-text-muted);
+  font-size: 0.95rem;
   cursor: pointer;
   flex-shrink: 0;
+  transition: color 0.15s ease;
+}
+:root[data-skin='global'] #practice-view-midi-sessions .midi-transport-btn:hover,
+:root[data-skin='v2'] #practice-view-midi-sessions .midi-transport-btn:hover {
+  color: var(--r-text);
+}
+:root[data-skin='global'] #practice-view-midi-sessions #midi-session-play,
+:root[data-skin='v2'] #practice-view-midi-sessions #midi-session-play {
+  width: 28px;
+  height: 28px;
+  color: #fff;
+  background: var(--r-accent);
+  box-shadow: 0 0 0 5px var(--r-accent-soft);
+}
+:root[data-skin='global'] #practice-view-midi-sessions #midi-session-play:hover,
+:root[data-skin='v2'] #practice-view-midi-sessions #midi-session-play:hover {
+  color: #fff;
+  filter: brightness(1.08);
 }
 :root[data-skin='global'] #practice-view-midi-sessions .midi-transport-slider,
 :root[data-skin='v2'] #practice-view-midi-sessions .midi-transport-slider {
   flex: 1;
-  accent-color: var(--r-accent);
+  -webkit-appearance: none;
+  appearance: none;
+  height: 5px;
+  background: transparent;
+  cursor: pointer;
+}
+:root[data-skin='global'] #practice-view-midi-sessions .midi-transport-slider::-webkit-slider-runnable-track,
+:root[data-skin='v2'] #practice-view-midi-sessions .midi-transport-slider::-webkit-slider-runnable-track {
+  height: 5px;
+  border-radius: 999px;
+  background: var(--r-border-soft);
+}
+:root[data-skin='global'] #practice-view-midi-sessions .midi-transport-slider::-webkit-slider-thumb,
+:root[data-skin='v2'] #practice-view-midi-sessions .midi-transport-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -3.5px;
+  border-radius: 50%;
+  background: var(--r-accent);
+  box-shadow: 0 0 0 4px var(--r-accent-soft);
+  border: 2px solid var(--r-surface-elevated);
+}
+:root[data-skin='global'] #practice-view-midi-sessions .midi-transport-slider:focus-visible::-webkit-slider-thumb,
+:root[data-skin='v2'] #practice-view-midi-sessions .midi-transport-slider:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px var(--r-accent-soft), 0 0 0 6px var(--r-accent);
 }
 
 :root[data-skin='global'] #practice-view-midi-sessions .midi-session-controls,
@@ -867,15 +926,6 @@
   padding: 14px;
 }
 
-:root[data-skin='global'] #practice-view-coach .coach-layout,
-:root[data-skin='v2'] #practice-view-coach .coach-layout {
-  display: flex;
-  flex-direction: row;
-  gap: 14px;
-  height: 100%;
-  min-height: 0;
-}
-
 /* ── Colonne des morceaux ── */
 :root[data-skin='global'] #practice-view-coach .coach-sidebar,
 :root[data-skin='v2'] #practice-view-coach .coach-sidebar {
@@ -890,11 +940,6 @@
   border-radius: var(--r-radius-card);
   box-shadow: var(--r-shadow-card);
   overflow: hidden;
-}
-:root[data-skin='global'] #practice-view-coach .coach-sidebar .panel-title,
-:root[data-skin='v2'] #practice-view-coach .coach-sidebar .panel-title {
-  font-weight: 800;
-  color: var(--r-text);
 }
 :root[data-skin='global'] #practice-view-coach .coach-track-list,
 :root[data-skin='v2'] #practice-view-coach .coach-track-list {
@@ -1390,6 +1435,489 @@
 }
 
 /* ===================================================================== */
+/* Copilot IA — assistant conversationnel pour le tutoriel Pédagogie.    */
+/*                                                                       */
+/* Mêmes conventions visuelles que Coach / Pédagogie : colonne + carte.  */
+/* ===================================================================== */
+
+:root[data-skin='global'] #practice-view-copilot,
+:root[data-skin='v2'] #practice-view-copilot {
+  flex: 1;
+  min-height: 0;
+  padding: 14px;
+}
+
+:root[data-skin='global'] #practice-view-copilot .copilot-layout,
+:root[data-skin='v2'] #practice-view-copilot .copilot-layout {
+  display: flex;
+  flex-direction: row;
+  gap: 14px;
+  height: 100%;
+  min-height: 0;
+}
+
+/* ── Colonne latérale ── */
+:root[data-skin='global'] #practice-view-copilot .copilot-sidebar,
+:root[data-skin='v2'] #practice-view-copilot .copilot-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--r-space-3);
+  width: clamp(240px, 22vw, 300px);
+  flex-shrink: 0;
+  padding: 16px;
+  background: var(--r-surface-elevated);
+  border: 1px solid var(--r-border-soft);
+  border-radius: var(--r-radius-card);
+  box-shadow: var(--r-shadow-card);
+  overflow: hidden;
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-sidebar .panel-title,
+:root[data-skin='v2'] #practice-view-copilot .copilot-sidebar .panel-title {
+  font-weight: 800;
+  color: var(--r-text);
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-history,
+:root[data-skin='v2'] #practice-view-copilot .copilot-history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--r-space-3);
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-new-conv-sidebar-btn,
+:root[data-skin='v2'] #practice-view-copilot .copilot-new-conv-sidebar-btn {
+  padding: 8px 12px;
+  border: 1px solid var(--r-border);
+  border-radius: var(--r-radius-btn);
+  background: var(--r-surface);
+  color: var(--r-text);
+  font-family: var(--r-font-title);
+  font-weight: 700;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: filter 0.15s;
+  text-align: left;
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-new-conv-sidebar-btn:hover,
+:root[data-skin='v2'] #practice-view-copilot .copilot-new-conv-sidebar-btn:hover {
+  filter: brightness(1.12);
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-history-list,
+:root[data-skin='v2'] #practice-view-copilot .copilot-history-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--r-space-2);
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-history-item,
+:root[data-skin='v2'] #practice-view-copilot .copilot-history-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--r-space-2);
+  padding: 8px 10px;
+  border-radius: var(--r-radius-btn);
+  background: var(--r-surface);
+  border: 1px solid var(--r-border-soft);
+  cursor: pointer;
+  transition: background 0.15s;
+  text-align: left;
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-history-item:hover,
+:root[data-skin='v2'] #practice-view-copilot .copilot-history-item:hover {
+  background: var(--r-surface-hover, var(--r-surface-chip));
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-history-item.active,
+:root[data-skin='v2'] #practice-view-copilot .copilot-history-item.active {
+  border-color: var(--r-accent);
+  background: var(--r-accent-subtle, rgba(191, 58, 43, 0.12));
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-history-info,
+:root[data-skin='v2'] #practice-view-copilot .copilot-history-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-history-label,
+:root[data-skin='v2'] #practice-view-copilot .copilot-history-label {
+  font-weight: 700;
+  font-size: 0.82rem;
+  color: var(--r-text);
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-history-preview,
+:root[data-skin='v2'] #practice-view-copilot .copilot-history-preview {
+  font-size: 0.75rem;
+  color: var(--r-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-history-delete,
+:root[data-skin='v2'] #practice-view-copilot .copilot-history-delete {
+  padding: 2px 6px;
+  border: none;
+  background: transparent;
+  color: var(--r-text-muted);
+  cursor: pointer;
+  border-radius: var(--r-radius-sm);
+  font-size: 0.9rem;
+  line-height: 1;
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-history-delete:hover,
+:root[data-skin='v2'] #practice-view-copilot .copilot-history-delete:hover {
+  background: var(--r-warn);
+  color: var(--r-warn-contrast, #fff);
+}
+
+/* Bulle « en train d'écrire » */
+
+/* ── Colonne principale ── */
+:root[data-skin='global'] #practice-view-copilot .copilot-main,
+:root[data-skin='v2'] #practice-view-copilot .copilot-main {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--r-space-4);
+  padding: 18px;
+  overflow-y: auto;
+  background: var(--r-surface-elevated);
+  border: 1px solid var(--r-border-soft);
+  border-radius: var(--r-radius-card);
+  box-shadow: var(--r-shadow-card);
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-selected-name,
+:root[data-skin='v2'] #practice-view-copilot .copilot-selected-name {
+  margin: 0 0 4px;
+  font-family: var(--r-font-title);
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--r-text);
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-intro,
+:root[data-skin='v2'] #practice-view-copilot .copilot-intro {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--r-text-muted);
+  max-width: 66ch;
+}
+
+/* ── Zone de chat ── */
+:root[data-skin='global'] #practice-view-copilot .copilot-chat-area,
+:root[data-skin='v2'] #practice-view-copilot .copilot-chat-area {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: var(--r-space-3);
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-messages,
+:root[data-skin='v2'] #practice-view-copilot .copilot-messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--r-space-2);
+  padding-right: var(--r-space-2);
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-message,
+:root[data-skin='v2'] #practice-view-copilot .copilot-message {
+  display: flex;
+  flex-direction: column;
+  gap: var(--r-space-1);
+  max-width: 85%;
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-message.user,
+:root[data-skin='v2'] #practice-view-copilot .copilot-message.user {
+  align-self: flex-end;
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-message.assistant,
+:root[data-skin='v2'] #practice-view-copilot .copilot-message.assistant {
+  align-self: flex-start;
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-bubble,
+:root[data-skin='v2'] #practice-view-copilot .copilot-bubble {
+  padding: 10px 14px;
+  border-radius: var(--r-radius-btn);
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-message.user .copilot-bubble,
+:root[data-skin='v2'] #practice-view-copilot .copilot-message.user .copilot-bubble {
+  background: var(--r-accent);
+  color: var(--r-accent-contrast, #fff);
+  border-bottom-right-radius: 4px;
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-message.assistant .copilot-bubble,
+:root[data-skin='v2'] #practice-view-copilot .copilot-message.assistant .copilot-bubble {
+  background: var(--r-surface-chip);
+  color: var(--r-text);
+  border: 1px solid var(--r-border);
+  border-bottom-left-radius: 4px;
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-message.is-system .copilot-bubble,
+:root[data-skin='v2'] #practice-view-copilot .copilot-message.is-system .copilot-bubble {
+  background: var(--r-warn);
+  color: var(--r-warn-contrast, #000);
+  font-size: 0.78rem;
+  font-style: italic;
+  text-align: center;
+  align-self: center;
+  max-width: 90%;
+}
+
+/* Bulle « en train d'écrire » */
+:root[data-skin='global'] #practice-view-copilot .copilot-message.is-typing,
+:root[data-skin='v2'] #practice-view-copilot .copilot-message.is-typing {
+  align-self: flex-start;
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-typing-dots,
+:root[data-skin='v2'] #practice-view-copilot .copilot-typing-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 1.2em;
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-typing-dots span,
+:root[data-skin='v2'] #practice-view-copilot .copilot-typing-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.4;
+  animation: copilotTyping 1.2s infinite ease-in-out;
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-typing-dots span:nth-child(2),
+:root[data-skin='v2'] #practice-view-copilot .copilot-typing-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-typing-dots span:nth-child(3),
+:root[data-skin='v2'] #practice-view-copilot .copilot-typing-dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes copilotTyping {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-tool-note,
+:root[data-skin='v2'] #practice-view-copilot .copilot-tool-note {
+  margin-top: var(--r-space-1);
+  font-size: 0.72rem;
+  color: var(--r-accent);
+  font-family: var(--r-font-mono);
+}
+
+/* ── Suggestions rapides (chips) ── */
+:root[data-skin='global'] #practice-view-copilot .copilot-quick-actions,
+:root[data-skin='v2'] #practice-view-copilot .copilot-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--r-space-2);
+  padding: var(--r-space-2) 0;
+  border-top: 1px solid var(--r-border);
+  font-size: 0.78rem;
+  color: var(--r-text-secondary);
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-quick-actions-label,
+:root[data-skin='v2'] #practice-view-copilot .copilot-quick-actions-label {
+  flex-shrink: 0;
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-chip,
+:root[data-skin='v2'] #practice-view-copilot .copilot-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border: 1px solid var(--r-border);
+  border-radius: var(--r-radius-pill, 999px);
+  background: var(--r-surface-chip);
+  color: var(--r-text);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-chip:hover,
+:root[data-skin='v2'] #practice-view-copilot .copilot-chip:hover {
+  background: var(--r-accent);
+  border-color: var(--r-accent);
+  color: var(--r-accent-contrast, #fff);
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-style-spacer,
+:root[data-skin='v2'] #practice-view-copilot .copilot-style-spacer {
+  flex: 1;
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-style-label,
+:root[data-skin='v2'] #practice-view-copilot .copilot-style-label {
+  font-size: 0.72rem;
+  color: var(--r-text-muted);
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-style-select,
+:root[data-skin='v2'] #practice-view-copilot .copilot-style-select {
+  padding: 4px 8px;
+  border: 1px solid var(--r-border);
+  border-radius: var(--r-radius-btn);
+  background: var(--r-surface);
+  color: var(--r-text);
+  font-size: 0.75rem;
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-message-actions,
+:root[data-skin='v2'] #practice-view-copilot .copilot-message-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--r-space-2);
+  margin-top: var(--r-space-1);
+}
+
+/* ── Barre de saisie ── */
+:root[data-skin='global'] #practice-view-copilot .copilot-input-bar,
+:root[data-skin='v2'] #practice-view-copilot .copilot-input-bar {
+  display: flex;
+  gap: var(--r-space-2);
+  flex-shrink: 0;
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-input,
+:root[data-skin='v2'] #practice-view-copilot .copilot-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid var(--r-border);
+  border-radius: var(--r-radius-btn);
+  background: var(--r-surface);
+  color: var(--r-text);
+  font-size: 0.86rem;
+  font-family: var(--r-font-body);
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-input:focus,
+:root[data-skin='v2'] #practice-view-copilot .copilot-input:focus {
+  outline: none;
+  border-color: var(--r-accent);
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-send-btn,
+:root[data-skin='v2'] #practice-view-copilot .copilot-send-btn {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: var(--r-radius-btn);
+  background: var(--r-accent);
+  color: var(--r-accent-contrast, #fff);
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: filter 0.15s;
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-send-btn:hover:not(:disabled),
+:root[data-skin='v2'] #practice-view-copilot .copilot-send-btn:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-send-btn:disabled,
+:root[data-skin='v2'] #practice-view-copilot .copilot-send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: none;
+}
+
+/* ── État sans clé ── */
+:root[data-skin='global'] #practice-view-copilot .copilot-no-key,
+:root[data-skin='v2'] #practice-view-copilot .copilot-no-key {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--r-space-3);
+  flex: 1;
+  min-height: 0;
+  padding: var(--r-space-6);
+  text-align: center;
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-locked-icon,
+:root[data-skin='v2'] #practice-view-copilot .copilot-locked-icon {
+  font-size: 3rem;
+  line-height: 1;
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-no-key h4,
+:root[data-skin='v2'] #practice-view-copilot .copilot-no-key h4 {
+  margin: 0;
+  font-family: var(--r-font-title);
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--r-text);
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-no-key p,
+:root[data-skin='v2'] #practice-view-copilot .copilot-no-key p {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: var(--r-text-muted);
+  max-width: 50ch;
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-settings-btn,
+:root[data-skin='v2'] #practice-view-copilot .copilot-settings-btn {
+  margin-top: var(--r-space-2);
+  padding: 10px 18px;
+  border: none;
+  border-radius: var(--r-radius-btn);
+  background: var(--r-accent);
+  color: var(--r-accent-contrast, #fff);
+  font-family: var(--r-font-title);
+  font-weight: 700;
+  font-size: 0.86rem;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+:root[data-sskin='global'] #practice-view-copilot .copilot-settings-btn:hover,
+:root[data-skin='v2'] #practice-view-copilot .copilot-settings-btn:hover {
+  filter: brightness(1.12);
+}
+
+/* ── Actions ── */
+:root[data-skin='global'] #practice-view-copilot .copilot-actions,
+:root[data-skin='v2'] #practice-view-copilot .copilot-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--r-space-3);
+  border-top: 1px solid var(--r-border-soft);
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-secondary-btn,
+:root[data-skin='v2'] #practice-view-copilot .copilot-secondary-btn {
+  padding: 8px 14px;
+  border: 1px solid var(--r-border);
+  border-radius: var(--r-radius-btn);
+  font-family: var(--r-font-title);
+  font-weight: 700;
+  font-size: 0.78rem;
+  cursor: pointer;
+  background: var(--r-surface);
+  color: var(--r-text);
+  transition: filter 0.15s;
+}
+:root[data-skin='global'] #practice-view-copilot .copilot-secondary-btn:hover:not(:disabled),
+:root[data-skin='v2'] #practice-view-copilot .copilot-secondary-btn:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+
+/* ── Réactivité ── */
+@media (max-width: 860px) {
+  :root[data-skin='global'] #practice-view-copilot .copilot-layout,
+  :root[data-skin='v2'] #practice-view-copilot .copilot-layout {
+    flex-direction: column;
+  }
+  :root[data-skin='global'] #practice-view-copilot .copilot-sidebar,
+  :root[data-skin='v2'] #practice-view-copilot .copilot-sidebar {
+    width: 100%;
+    max-height: 30vh;
+  }
+}
+
+/* ===================================================================== */
 /* Pédagogie IA — vue sœur de Coach d'accompagnement.  [Claude 05/09]     */
 /*                                                                       */
 /* Aucune couleur nouvelle : tout dérive des --r-* existantes. La         */
@@ -1403,15 +1931,6 @@
   flex: 1;
   min-height: 0;
   padding: 14px;
-}
-
-:root[data-skin='global'] #practice-view-pedagogie .pedagogie-layout,
-:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-layout {
-  display: flex;
-  flex-direction: row;
-  gap: 14px;
-  height: 100%;
-  min-height: 0;
 }
 
 /* ── Colonne des tutoriels ── */
@@ -1428,11 +1947,6 @@
   border-radius: var(--r-radius-card);
   box-shadow: var(--r-shadow-card);
   overflow: hidden;
-}
-:root[data-skin='global'] #practice-view-pedagogie .pedagogie-sidebar .panel-title,
-:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-sidebar .panel-title {
-  font-weight: 800;
-  color: var(--r-text);
 }
 :root[data-skin='global'] #practice-view-pedagogie .panel-action,
 :root[data-skin='v2'] #practice-view-pedagogie .panel-action {
@@ -1682,10 +2196,21 @@
   border-left: none;
   overflow: hidden;
   background: #000;
+  position: relative;
 }
 :root[data-skin='v2'] #practice-view-pedagogie .pedagogie-card.is-video {
   border-radius: var(--r-radius-card);
 }
+
+/* Raccourci contextuel sous le lecteur vidéo (CapCut-style) */
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-video-actions,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-video-actions {
+  display: flex;
+  justify-content: flex-start;
+  gap: var(--r-space-3);
+  flex-wrap: wrap;
+}
+
 :root[data-skin='global'] #practice-view-pedagogie .pedagogie-video-player,
 :root[data-skin='v2'] #practice-view-pedagogie .pedagogie-video-player {
   display: block;
@@ -1693,6 +2218,62 @@
   max-height: min(62vh, 560px);
   min-height: 220px;
   background: #000;
+}
+
+/* Overlay de calibration V2N (positionné sur la vidéo, pointer-events none
+   sur le fond pour laisser les clics atteindre la vidéo). */
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-calibration-overlay,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-calibration-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-calibration-marker,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-calibration-marker {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  margin-left: -12px;
+  margin-top: -12px;
+  border-radius: 50%;
+  background: var(--r-accent);
+  color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  pointer-events: none;
+  box-shadow: 0 0 0 2px #000, 0 0 0 4px var(--r-accent);
+}
+
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-calibration-hint,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-calibration-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: var(--r-radius-card);
+  font-size: 0.78rem;
+  text-align: center;
+  pointer-events: auto;
+  max-width: 90%;
+}
+
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-calibration-actions,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-calibration-actions {
+  display: flex;
+  gap: var(--r-space-2);
+  justify-content: center;
+  margin-top: 8px;
 }
 
 /* ── Dossier des tutoriels, dans la barre latérale ── */
@@ -1857,84 +2438,6 @@
   font-style: italic;
   max-width: 78ch;
 }
-/* Ce que dit le professeur — transcription locale de la bande son.
-   Une ligne = un passage parlé : l'instant et le texte, RIEN D'AUTRE.
-   [Refonte Phase 1] — plus d'étiquette d'accord par ligne : ce jugement par
-   ligne manquait de fiabilité (intro musicale où l'accord au plus long
-   recouvrement est visuellement loin de la phrase). La mise en relation avec
-   les accords se fait en CLIQUANT la ligne : la vidéo y saute. Le padding
-   droit évite que la ligne touche la barre de défilement verticale. */
-:root[data-skin='global'] #practice-view-pedagogie .pedagogie-transcript,
-:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-transcript {
-  display: flex;
-  flex-direction: column;
-  gap: var(--r-space-2);
-  max-height: 320px;
-  overflow-y: auto;
-  padding-right: var(--r-space-3);
-}
-:root[data-skin='global'] #practice-view-pedagogie .pedagogie-line,
-:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-line {
-  display: grid;
-  grid-template-columns: 52px 1fr;
-  align-items: baseline;
-  gap: var(--r-space-2);
-  padding-bottom: var(--r-space-2);
-  padding-right: var(--r-space-2);
-  border-bottom: 1px solid var(--r-border-soft);
-  cursor: pointer;
-}
-:root[data-skin='global'] #practice-view-pedagogie .pedagogie-line:hover .pedagogie-line-text,
-:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-line:hover .pedagogie-line-text {
-  color: var(--r-accent-text, var(--r-accent));
-}
-:root[data-skin='global'] #practice-view-pedagogie .pedagogie-line-time,
-:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-line-time {
-  font-family: var(--r-font-mono, monospace);
-  font-size: 0.74rem;
-  color: var(--r-text-faint);
-}
-:root[data-skin='global'] #practice-view-pedagogie .pedagogie-line-text,
-:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-line-text {
-  font-size: 0.84rem;
-  line-height: 1.55;
-  color: var(--r-text);
-  max-width: 78ch;
-}
-/* Badge « traduit automatiquement » : une traduction ne se fait jamais passer
-   pour la parole exacte du professeur. */
-:root[data-skin='global'] #practice-view-pedagogie .pedagogie-translation-badge,
-:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-translation-badge {
-  display: inline-block;
-  margin-left: var(--r-space-2);
-  padding: 2px 8px;
-  font-size: 0.62rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--r-text-muted);
-  background: var(--r-surface-chip);
-  border: 1px solid var(--r-border);
-  border-radius: 100px;
-  vertical-align: middle;
-}
-:root[data-skin='global'] #practice-view-pedagogie .pedagogie-translation-failed,
-:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-translation-failed {
-  margin: 0 0 var(--r-space-2);
-  font-size: 0.74rem;
-  font-style: italic;
-  color: var(--r-text-faint);
-}
-:root[data-skin='global'] #practice-view-pedagogie .pedagogie-explain,
-:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-explain {
-  display: flex;
-  flex-direction: column;
-  gap: var(--r-space-2);
-  margin-top: var(--r-space-3);
-  padding-top: var(--r-space-3);
-  border-top: 1px solid var(--r-border-soft);
-  align-items: flex-start;
-}
 :root[data-skin='global'] #practice-view-pedagogie .pedagogie-secondary-btn,
 :root[data-skin='v2'] #practice-view-pedagogie .pedagogie-secondary-btn {
   padding: 7px 14px;
@@ -1960,15 +2463,6 @@
   color: var(--r-text-faint);
   cursor: not-allowed;
   filter: none;
-}
-:root[data-skin='global'] #practice-view-pedagogie .pedagogie-explain-answer,
-:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-explain-answer {
-  margin: 0;
-  font-size: 0.82rem;
-  line-height: 1.6;
-  color: var(--r-text-muted);
-  white-space: pre-wrap;
-  max-width: 78ch;
 }
 :root[data-skin='global'] #practice-view-pedagogie .pedagogie-entry-title,
 :root[data-skin='v2'] #practice-view-pedagogie .pedagogie-entry-title {
@@ -2006,6 +2500,87 @@
   line-height: 1.55;
   color: var(--r-text-muted);
   max-width: 82ch;
+}
+
+/* ── Sélecteur de catégorie vidéo ── */
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-category-grid,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--r-space-3);
+  margin: var(--r-space-3) 0;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-category-card,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-category-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 16px;
+  background: var(--r-surface);
+  border: 1px solid var(--r-border);
+  border-left: 3px solid var(--r-border);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-category-card {
+  border-radius: var(--r-radius-card);
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-category-card:hover,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-category-card:hover,
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-category-card.is-selected,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-category-card.is-selected {
+  border-left-color: var(--r-accent);
+  background: var(--r-surface-raised);
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-category-icon,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-category-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-category-title,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-category-title {
+  font-family: var(--r-font-title);
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--r-text);
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-category-sub,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-category-sub {
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--r-text-muted);
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-category-hint,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-category-hint {
+  margin: 0;
+  font-size: 0.74rem;
+  font-style: italic;
+  color: var(--r-text-faint);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  transition: text-decoration-color 0.15s;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-category-hint:hover,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-category-hint:hover {
+  text-decoration-color: var(--r-text-faint);
+}
+
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-copilot-summary-text,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-copilot-summary-text {
+  margin: 0 0 var(--r-space-3);
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: var(--r-text);
+  max-width: 78ch;
+  white-space: pre-wrap;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-copilot-summary-text.is-busy,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-copilot-summary-text.is-busy {
+  font-style: italic;
+  color: var(--r-text-muted);
 }
 
 /* ── Réactivité ── */
@@ -2046,4 +2621,353 @@
   :root[data-skin='v2'] #practice-tab .practice-subnav {
     padding: 8px 10px;
   }
+}
+
+/* ========================================================================== *
+ *  CARNET DES MOMENTS MARQUANTS — Sessions MIDI                                *
+ * ========================================================================== */
+
+:root[data-skin='global'] #practice-view-midi-sessions .midi-session-carnet,
+:root[data-skin='v2'] #practice-view-midi-sessions .midi-session-carnet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--r-space-3);
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-sticky-head,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-sticky-head {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--r-ground);
+  padding: var(--r-space-4) 0 var(--r-space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--r-space-3);
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .midi-sessions-main.is-scrolled .carnet-sticky-head,
+:root[data-skin='v2'] #practice-view-midi-sessions .midi-sessions-main.is-scrolled .carnet-sticky-head {
+  border-bottom-color: var(--r-border);
+  box-shadow: 0 10px 18px -14px rgba(0, 0, 0, 0.6);
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-session-header,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-session-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--r-space-1);
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-session-title,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-session-title {
+  font-family: var(--r-font-title);
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--r-text);
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-session-meta,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-session-meta {
+  font-size: 0.82rem;
+  color: var(--r-text-muted);
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-explore-all,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-explore-all {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: var(--r-radius-btn);
+  background: var(--r-surface-chip);
+  border: 1px solid var(--r-border-strong);
+  color: var(--r-text);
+  font-weight: 700;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-explore-all:hover:not(:disabled),
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-explore-all:hover:not(:disabled) {
+  border-color: var(--r-accent);
+  color: var(--r-text);
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-explore-all:disabled,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-explore-all:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-timeline,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-timeline {
+  display: flex;
+  gap: 3px;
+  height: 36px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--r-surface);
+  border: 1px solid var(--r-border-soft);
+  padding: 4px;
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .tl-seg,
+:root[data-skin='v2'] #practice-view-midi-sessions .tl-seg {
+  border-radius: 6px;
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .tl-seg:hover,
+:root[data-skin='v2'] #practice-view-midi-sessions .tl-seg:hover {
+  filter: brightness(1.15);
+  transform: scaleY(1.06);
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .tl-seg.chord,
+:root[data-skin='v2'] #practice-view-midi-sessions .tl-seg.chord {
+  background: var(--r-grad);
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .tl-seg.melody,
+:root[data-skin='v2'] #practice-view-midi-sessions .tl-seg.melody {
+  background: var(--r-surface-chip);
+  border: 1px dashed var(--r-border-strong);
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-legend,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-legend {
+  display: flex;
+  gap: var(--r-space-4);
+  font-size: 0.74rem;
+  color: var(--r-text-faint);
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-legend span,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .legend-dot,
+:root[data-skin='v2'] #practice-view-midi-sessions .legend-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .legend-dot.chord,
+:root[data-skin='v2'] #practice-view-midi-sessions .legend-dot.chord {
+  background: var(--r-grad);
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .legend-dot.melody,
+:root[data-skin='v2'] #practice-view-midi-sessions .legend-dot.melody {
+  background: var(--r-surface-chip);
+  border: 1px dashed var(--r-border-strong);
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-title,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-title {
+  font-family: var(--r-font-title);
+  font-weight: 800;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: var(--r-space-1) 0 calc(var(--r-space-1) * -1);
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-hint,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-hint {
+  font-weight: 500;
+  font-size: 0.76rem;
+  color: var(--r-text-faint);
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-entries,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-entries {
+  display: flex;
+  flex-direction: column;
+  gap: var(--r-space-3);
+  padding-top: var(--r-space-2);
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-entry,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-entry {
+  display: flex;
+  align-items: center;
+  gap: var(--r-space-3);
+  padding: 12px 14px;
+  border-radius: var(--r-radius-card);
+  background: var(--r-surface-raised);
+  border: 1px solid var(--r-border-soft);
+  scroll-margin-top: 148px;
+  transition: background 0.4s ease, border-color 0.4s ease;
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-entry.chord,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-entry.chord {
+  border-left: 3px solid var(--r-accent);
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-entry.melody,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-entry.melody {
+  border-left: 3px solid var(--r-text-faint);
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-entry.is-target,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-entry.is-target {
+  background: var(--r-accent-soft);
+  border-color: rgba(139, 108, 245, 0.5);
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-play-btn,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-play-btn {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--r-surface-chip);
+  border: 1px solid var(--r-border-strong);
+  color: var(--r-text-muted);
+  font-size: 0.65rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-play-btn:hover,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-play-btn:hover {
+  color: var(--r-text);
+  border-color: var(--r-accent);
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-play-btn.is-playing,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-play-btn.is-playing {
+  color: #fff;
+  background: var(--r-grad);
+  border-color: transparent;
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-play-btn.is-playing::after,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-play-btn.is-playing::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1.5px solid var(--r-accent);
+  animation: carnetPulseRing 1.1s ease-out infinite;
+}
+
+@keyframes carnetPulseRing {
+  0% { transform: scale(0.85); opacity: 0.9; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-entry-time,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-entry-time {
+  font-family: var(--r-font-mono);
+  font-size: 0.74rem;
+  color: var(--r-text-faint);
+  width: 40px;
+  flex: none;
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-entry-main,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-entry-main {
+  flex: 1;
+  min-width: 0;
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-entry-label,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-entry-label {
+  font-family: var(--r-font-title);
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--r-text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-entry.melody .carnet-entry-label,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-entry.melody .carnet-entry-label {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--r-text-muted);
+  font-style: italic;
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-chip,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-chip {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--r-radius-pill);
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-chip.chord-tag,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-chip.chord-tag {
+  background: var(--r-accent-soft);
+  color: var(--r-accent);
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-chip.melody-tag,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-chip.melody-tag {
+  background: var(--r-surface-chip);
+  color: var(--r-text-faint);
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-entry-detail,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-entry-detail {
+  font-size: 0.76rem;
+  color: var(--r-text-faint);
+  margin-top: 3px;
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-explore-btn,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-explore-btn {
+  flex: none;
+  padding: 7px 13px;
+  border-radius: var(--r-radius-btn);
+  background: var(--r-surface-chip);
+  border: 1px solid var(--r-border-soft);
+  color: var(--r-text-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-explore-btn:hover,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-explore-btn:hover {
+  border-color: var(--r-accent);
+  color: var(--r-text);
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-note,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-note {
+  font-size: 0.76rem;
+  color: var(--r-text-faint);
+  text-align: center;
+  padding: 6px 0 22px;
 }

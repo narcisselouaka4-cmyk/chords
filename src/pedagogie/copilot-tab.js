@@ -22,23 +22,25 @@ let currentConversationId = null;
 
 export const AUTONOMOUS_HISTORY_KEY = HISTORY_AUTONOMOUS_KEY;
 let currentMode = 'autonomous';
+let currentSessionId = null;
+let currentSessionContext = null;
 
 /**
- * Nouveau mode à adopter quand la sélection de tutoriel change.
- * Le mode NE bascule JAMAIS automatiquement vers 'tutorial' (ça reste une
- * action explicite de l'utilisateur, cf. bouton bascule) — seule la
- * DÉSÉLECTION pendant qu'on est déjà en mode tutoriel force un repli
- * automatique vers 'autonomous', puisque le prisme 2 ne peut pas exister
- * sans tutoriel.
+ * Nouveau mode à adopter quand la sélection de tutoriel ou de session change.
+ * Le mode NE bascule JAMAIS automatiquement vers 'tutorial' ou 'session' (ça
+ * reste une action explicite de l'utilisateur) — seule la DÉSÉLECTION pendant
+ * qu'on est déjà en mode tutoriel ou session force un repli automatique vers
+ * 'autonomous', puisque le prisme 2/3 ne peut pas exister sans contexte.
  */
-export function nextModeOnSelectionChange(currentMode, newTutorialPath) {
+export function nextModeOnSelectionChange(currentMode, newTutorialPath, newSessionId) {
   if (currentMode === 'tutorial' && !newTutorialPath) return 'autonomous';
+  if (currentMode === 'session' && !newSessionId) return 'autonomous';
   return currentMode;
 }
 
 /** État du bouton de bascule (visibilité + libellé) selon mode + sélection. */
 export function toggleButtonState(mode, tutorialPath) {
-  if (mode === 'tutorial') {
+  if (mode === 'tutorial' || mode === 'session') {
     return { visible: true, label: 'Revenir au mode autonome' };
   }
   return { visible: Boolean(tutorialPath), label: 'Mode tutoriel' };
@@ -71,7 +73,7 @@ function formatTime(seconds) {
 function getTutorialContext() {
   if (currentMode !== 'tutorial' || !currentTutorialPath) return null;
   const analysis = window.__pedagogieAnalysis;
-  if (!analysis) return { path: currentTutorialPath };
+  if (!analysis) return { type: 'tutorial', path: currentTutorialPath };
 
   const chords = analysis.segments
     .filter((s) => s.chord?.resolved)
@@ -82,12 +84,19 @@ function getTutorialContext() {
     : [];
 
   return {
+    type: 'tutorial',
     path: currentTutorialPath,
     name: currentTutorialPath.split('/').pop(),
     key: analysis.key,
     chords,
     transcript,
   };
+}
+
+/** Renvoie un résumé de la session MIDI pour le contexte IA. */
+function getSessionContext() {
+  if (currentMode !== 'session' || !currentSessionContext) return null;
+  return currentSessionContext;
 }
 
 const STATIC_QUICK_ACTIONS = [
@@ -182,9 +191,12 @@ async function startNewConversation(tutorialPath) {
 
 async function ensureCurrentConversation() {
   if (currentConversationId) return currentConversationId;
-  const key = currentMode === 'tutorial' && currentTutorialPath
-    ? currentTutorialPath
-    : AUTONOMOUS_HISTORY_KEY;
+  const key =
+    currentMode === 'tutorial' && currentTutorialPath
+      ? currentTutorialPath
+      : currentMode === 'session' && currentSessionId
+        ? currentSessionId
+        : AUTONOMOUS_HISTORY_KEY;
   return startNewConversation(key);
 }
 
@@ -244,6 +256,9 @@ async function loadHistoryItem(conversationId) {
   currentConversationId = conversationId;
   messages = history.messages || [];
   currentMode = 'autonomous';
+  currentSessionId = null;
+  currentSessionContext = null;
+  currentTutorialPath = null;
   updateHeaderForMode();
   updateModeToggle();
   showChatArea();
@@ -256,6 +271,10 @@ function updateHeaderForMode() {
     const name = currentTutorialPath.split('/').pop();
     if (els.selectedName) els.selectedName.textContent = `Copilot IA — ${name}`;
     if (els.introText) els.introText.textContent = 'Mode accompagnement : le Copilot connaît la grille, la transcription et la tonalité de ce tutoriel.';
+  } else if (currentMode === 'session' && currentSessionContext) {
+    const name = currentSessionContext.name || currentSessionId;
+    if (els.selectedName) els.selectedName.textContent = `Copilot IA — Session : ${name}`;
+    if (els.introText) els.introText.textContent = 'Mode session : le Copilot analyse la session MIDI sélectionnée.';
   } else {
     if (els.selectedName) els.selectedName.textContent = 'Copilot IA';
     if (els.introText) els.introText.textContent = 'Mode autonome : posez vos questions librement, le Copilot peut démontrer au clavier virtuel.';
@@ -271,6 +290,9 @@ function updateModeToggle() {
 
 async function switchToAutonomousMode() {
   currentMode = 'autonomous';
+  currentSessionId = null;
+  currentSessionContext = null;
+  currentTutorialPath = null;
   updateHeaderForMode();
   updateModeToggle();
   if (!hasAIKey()) { showNoKeyState(); return; }
@@ -282,6 +304,9 @@ async function switchToAutonomousMode() {
 async function switchToTutorialMode(path) {
   if (!path) return;
   currentMode = 'tutorial';
+  currentSessionId = null;
+  currentSessionContext = null;
+  currentTutorialPath = path;
   updateHeaderForMode();
   updateModeToggle();
   if (!hasAIKey()) { showNoKeyState(); return; }
@@ -290,8 +315,22 @@ async function switchToTutorialMode(path) {
   await renderHistoryList();
 }
 
+export async function switchToSessionMode(sessionContext) {
+  if (!sessionContext?.sessionId) return;
+  currentMode = 'session';
+  currentSessionId = sessionContext.sessionId;
+  currentSessionContext = sessionContext;
+  currentTutorialPath = null;
+  updateHeaderForMode();
+  updateModeToggle();
+  if (!hasAIKey()) { showNoKeyState(); return; }
+  await startNewConversation(currentSessionId);
+  renderMessages();
+  await renderHistoryList();
+}
+
 async function onModeToggleClick() {
-  if (currentMode === 'tutorial') {
+  if (currentMode === 'tutorial' || currentMode === 'session') {
     await switchToAutonomousMode();
   } else if (currentTutorialPath) {
     await switchToTutorialMode(currentTutorialPath);
@@ -310,9 +349,9 @@ async function sendUserMessage() {
   messages.push({ role: 'user', content: text, timestamp: new Date().toISOString() });
   addTypingIndicator();
 
-  const tutorial = getTutorialContext();
+  const context = getTutorialContext() || getSessionContext();
   const copilotStyleId = els.styleSelect?.value || 'auto';
-  const res = await sendCopilotMessage({ message: text, messages, tutorial, copilotStyleId });
+  const res = await sendCopilotMessage({ message: text, messages, context, copilotStyleId });
 
   removeTypingIndicator();
   if (res.ok) {
@@ -323,9 +362,12 @@ async function sendUserMessage() {
       suggestedActions: res.suggestedActions,
       timestamp: new Date().toISOString(),
     });
-    const key = currentMode === 'tutorial' && currentTutorialPath
-      ? currentTutorialPath
-      : AUTONOMOUS_HISTORY_KEY;
+    const key =
+      currentMode === 'tutorial' && currentTutorialPath
+        ? currentTutorialPath
+        : currentMode === 'session' && currentSessionId
+          ? currentSessionId
+          : AUTONOMOUS_HISTORY_KEY;
     await saveHistory(currentConversationId, key, messages);
   } else {
     const errorMsg = res.error === 'AI_API_KEY_INVALID'
@@ -343,9 +385,12 @@ async function sendUserMessage() {
 
 /** Reset de la conversation. */
 async function onNewConversation() {
-  const key = currentMode === 'tutorial' && currentTutorialPath
-    ? currentTutorialPath
-    : AUTONOMOUS_HISTORY_KEY;
+  const key =
+    currentMode === 'tutorial' && currentTutorialPath
+      ? currentTutorialPath
+      : currentMode === 'session' && currentSessionId
+        ? currentSessionId
+        : AUTONOMOUS_HISTORY_KEY;
   await startNewConversation(key);
   renderMessages();
   await renderHistoryList();
@@ -397,8 +442,16 @@ export async function initCopilotTab() {
   // Écoute le changement de tutoriel dans Pédagogie
   document.addEventListener('pedagogie-selection-change', async (e) => {
     const path = e.detail?.path || null;
-    const newMode = nextModeOnSelectionChange(currentMode, path);
+    const newMode = nextModeOnSelectionChange(currentMode, path, currentSessionId);
     currentTutorialPath = path;
+    if (currentMode === 'session' && path) {
+      // Une session et un tutoriel ne coexistent pas : on repasse en mode autonome
+      // pour éviter un conflit de contexte.
+      await switchToAutonomousMode();
+      currentTutorialPath = path;
+      updateModeToggle();
+      return;
+    }
     if (newMode !== currentMode) {
       await switchToAutonomousMode(); // repli forcé (désélection en mode tutoriel)
     } else if (currentMode === 'tutorial') {
@@ -406,6 +459,19 @@ export async function initCopilotTab() {
     } else {
       updateModeToggle(); // mode autonome inchangé : juste (dés)afficher le bouton bascule
     }
+  });
+
+  document.addEventListener('copilot-switch-to-session', async (e) => {
+    const sessionContext = e.detail;
+    if (!sessionContext?.sessionId) return;
+    await switchToSessionMode(sessionContext);
+  });
+
+  document.addEventListener('copilot-send-message', async (e) => {
+    const message = e.detail?.message;
+    if (!message || !els.input) return;
+    els.input.value = String(message);
+    await sendUserMessage();
   });
 
   // Quand la clé API est configurée/enregistrée alors que l'onglet est déjà
@@ -427,6 +493,8 @@ export async function initCopilotTab() {
   const currentPath = document.querySelector('#pedagogie-track-list .pedagogie-track-item.active')?.title;
   currentTutorialPath = currentPath || null;
   currentMode = 'autonomous';
+  currentSessionId = null;
+  currentSessionContext = null;
   currentConversationId = null;
   updateHeaderForMode();
   updateModeToggle();

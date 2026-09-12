@@ -1,9 +1,33 @@
-import { playNote, releaseNote } from './audio/simple-synth.js';
+import { playNote, releaseNote, resumeAudio } from './audio/simple-synth.js';
 
 let noteOnHandler = null;
 let noteOffHandler = null;
 let keyboardKeydownHandler = null;
 let keyboardKeyupHandler = null;
+
+let pcKeyboardToMidiEnabled = true;
+let pcKeyboardEnabledCallback = null;
+
+export function setPcKeyboardToMidiEnabled(enabled) {
+  pcKeyboardToMidiEnabled = Boolean(enabled);
+  pcKeyboardEnabledCallback?.(pcKeyboardToMidiEnabled);
+  // Relâcher toutes les notes actuellement enfoncées par le clavier PC
+  // si on désactive en cours de jeu, pour éviter les notes bloquées.
+  if (!pcKeyboardToMidiEnabled) {
+    for (const midi of pressed) {
+      if (noteOffHandler) noteOffHandler(midi, true);
+    }
+    pressed.clear();
+  }
+}
+
+export function isPcKeyboardToMidiEnabled() {
+  return pcKeyboardToMidiEnabled;
+}
+
+export function onPcKeyboardToMidiChange(callback) {
+  pcKeyboardEnabledCallback = callback;
+}
 
 function getActiveTab() {
   const activeBtn = document.querySelector('.tab-btn.active');
@@ -13,7 +37,18 @@ function getActiveTab() {
 function shouldHandleKeyboardShortcuts() {
   // Only enable computer-keyboard shortcuts on the practice tab,
   // where the virtual keyboard is the primary input method.
-  return getActiveTab() === 'practice';
+  if (!pcKeyboardToMidiEnabled) return false;
+  if (getActiveTab() !== 'practice') return false;
+
+  // Ne jamais intercepter les touches quand l'utilisateur est dans un
+  // champ de saisie (Copilot, réglages, etc.).
+  const active = document.activeElement;
+  if (!active) return true;
+  const tag = active.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return false;
+  if (active.isContentEditable) return false;
+
+  return true;
 }
 
 export function initVirtualKeyboard({ onNoteOn, onNoteOff }) {
@@ -93,7 +128,10 @@ export function initVirtualKeyboard({ onNoteOn, onNoteOff }) {
   document.addEventListener('keyup', keyboardKeyupHandler);
 }
 
-export function playVirtualNote(midi, velocity) {
+export async function playVirtualNote(midi, velocity) {
+  // Réveille l'AudioContext s'il a été suspendu par la politique d'autoplay
+  // (notamment après une période d'inactivité dans une conversation Copilot).
+  await resumeAudio();
   playNote(midi, velocity);
 }
 

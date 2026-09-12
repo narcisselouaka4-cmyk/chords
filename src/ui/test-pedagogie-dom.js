@@ -21,6 +21,7 @@ const tabJs = readText('src/ui/pedagogie-tab.js');
 const practiceCss = readText('src/ui/refonte/practice.css');
 const preload = readText('electron/preload.cjs');
 const electronMain = readText('electron/main.js');
+const electronMainCode = stripComments(electronMain);
 
 /** Retire les commentaires : un invariant porte sur le code, pas sur sa doc. */
 function stripComments(source) {
@@ -72,7 +73,8 @@ check('La vue est cachée par défaut',
 
 const ids = [...tabJs.matchAll(/getElementById\('([^']+)'\)/g)].map((m) => m[1]);
 check('pedagogie-tab.js référence des identifiants', ids.length > 0);
-const missing = ids.filter((id) => !html.includes(`id="${id}"`));
+// pedagogie-calibration-overlay est créé dynamiquement, pas dans le HTML statique.
+const missing = ids.filter((id) => id !== 'pedagogie-calibration-overlay' && !html.includes(`id="${id}"`));
 check('Tous les identifiants lus par pedagogie-tab.js existent dans index.html',
   missing.length === 0, missing.join(', '));
 
@@ -106,6 +108,13 @@ check('L\'extraction d\'images réutilise ffmpeg, comme le remux Studio',
   /spawn\('ffmpeg'/.test(electronMain));
 check('Les images sont lues en flux, jamais toutes gardées en mémoire',
   electronMain.includes('streamFrames'));
+check('Le handler impose un plafond de durée de 30 minutes (VideoTooLong)',
+  electronMain.includes('VideoTooLong') && electronMain.includes('MAX_DURATION_SECONDS')
+  && /duration\s*>\s*MAX_DURATION_SECONDS/.test(electronMainCode));
+check('Le nombre d\'images de sondage scale avec la durée jusqu\'à un plafond',
+  electronMain.includes('Math.min(60, Math.max(24, Math.ceil(duration / 30)))'));
+check('Le contrôle de durée se fait avant collectFrames',
+  /duration\s*>\s*MAX_DURATION_SECONDS[\s\S]*?collectFrames/.test(electronMainCode));
 
 // ---------------------------------------------------------------------------
 // 6. Le repli audio réutilise le pipeline existant
@@ -122,16 +131,10 @@ check('La traduction lit bien startTime/endTime, les noms du moteur',
   && readText('src/pedagogie/audio-fallback.js').includes('c?.endTime'));
 
 // ---------------------------------------------------------------------------
-// 6 bis. Ce que DIT le professeur : transcription locale de la bande son
+// 6 bis. Transcription locale de la bande son (non affichée : alimente le Copilot)
 // ---------------------------------------------------------------------------
 
 const transcriber = readText('electron/transcriber.py');
-
-check('La carte « Ce que dit le professeur » existe',
-  html.includes('id="pedagogie-narration-card"'));
-check('Le texte transcrit a sa zone dédiée', html.includes('id="pedagogie-transcript"'));
-check('L\'état d\'indisponibilité a sa propre place, distincte du texte',
-  html.includes('id="pedagogie-narration-state"'));
 
 check('Le handler IPC pedagogie:transcribe-video existe',
   electronMain.includes("ipcMain.handle('pedagogie:transcribe-video'"));
@@ -162,12 +165,10 @@ check('Aucun texte n\'est simulé quand la dépendance manque (contrairement aux
 check('La transcription a son propre dossier de travail, pour ne pas purger celui de l\'analyse',
   electronMain.includes('createTranscribeDir'));
 
-// La couche IA reste facultative : le texte brut s'affiche sans clé.
-check('Le bouton IA n\'apparaît que si une clé est réellement configurée',
+// La couche IA reste facultative : le résumé automatique n'est tenté que si une clé est configurée.
+check('Le contrôleur détecte la présence d\'une clé IA',
   tabCode.includes('hasAIKey()') && tabCode.includes('getAIConfig'));
-check('L\'affichage du texte transcrit ne dépend pas de la clé IA',
-  /els\.transcript\.innerHTML\s*=\s*''/.test(tabCode));
-check('L\'approfondissement passe par la fonction dédiée de la couche IA',
+check('Le résumé automatique appelle explainNarration',
   tabCode.includes('explainNarration'));
 check('explainNarration suit le patron des autres appels IA (401/403 et 429 nommés)',
   readText('src/ai/ai-client.js').includes('fetchNarrationExplanation'));
@@ -176,7 +177,7 @@ check('Masterclass et Réharmonisation ne sont pas touchées',
   && readText('src/ai/ai-client.js').includes('export async function generateReharmonization'));
 
 // ---------------------------------------------------------------------------
-// 6 ter. Refonte Phase 1 — bibliothèque propre, vidéo principale, traduction
+// 6 ter. Refonte Phase 1 — bibliothèque propre, vidéo principale, résumé Copilot
 // ---------------------------------------------------------------------------
 
 const tutorialLib = readText('src/pedagogie/tutorial-library.js');
@@ -216,22 +217,75 @@ check('L\'URL blob est libérée avant chaque nouveau montage (pas de fuite)',
 check('La grille d\'accords est un accompagnement : bande compacte sous le lecteur',
   /max-height:\s*168px/.test(practiceCss) && html.indexOf('id="pedagogie-video-card"') < html.indexOf('id="pedagogie-grid"'));
 
-// Plus d'étiquette d'accord par ligne de transcription.
-check('Le rendu de transcription n\'affiche PLUS d\'étiquette d\'accord par ligne',
-  !tabCode.includes('pedagogie-line-chord') && !practiceCss.includes('pedagogie-line-chord'));
-// Bloc de règles CSS pour un sélecteur (les deux skins partagent le même bloc).
-function cssBlock(css, selector) {
-  const m = css.match(new RegExp(`#practice-view-pedagogie ${selector.replace('.', '\\.')} \\{[\\s\\S]*?\\}`));
-  return m ? m[0] : '';
-}
-check('La ligne de transcription ne touche plus la barre de défilement (marge à droite)',
-  cssBlock(practiceCss, '.pedagogie-transcript').includes('padding-right')
-  && cssBlock(practiceCss, '.pedagogie-line').includes('padding-right'),
-  'vérifier padding-right sur .pedagogie-line / .pedagogie-transcript');
-check('Cliquer une ligne de transcription fait sauter la vidéo à cet instant',
-  /pedagogie-line[\s\S]*seekVideo\(line\.start\)/.test(tabCode) || tabCode.includes('seekVideo(line.start)'));
+// La carte « Ce que dit le professeur » a été retirée : la transcription
+// alimente maintenant le Copilot IA, elle n'a plus sa propre carte.
+check('La carte « Ce que dit le professeur » est supprimée',
+  !html.includes('id="pedagogie-narration-card"'));
+check('Le badge « traduit automatiquement » est supprimé',
+  !html.includes('id="pedagogie-translation-badge"'));
+check('Le bouton « Approfondir avec l\'IA » est supprimé',
+  !html.includes('id="pedagogie-explain-btn"'));
+check('L\'ancien conteneur de transcription est supprimé',
+  !html.includes('id="pedagogie-transcript"'));
+check('Les styles de transcription ligne/ligne-time/badge sont supprimés',
+  !practiceCss.includes('.pedagogie-line')
+  && !practiceCss.includes('.pedagogie-line-time')
+  && !practiceCss.includes('.pedagogie-translation-badge'));
 
-// Panneau « Ce que l'application ne garantit pas » : dédupliqué, pas supprimé.
+// Vidéo différée : visible seulement à la lecture, pas à la sélection.
+check('Un état distinct playbackStarted est introduit',
+  tabCode.includes('let playbackStarted') && tabCode.includes('playbackStarted = true'));
+check('La vidéo ne s\'affiche que si playbackStarted est true',
+  /renderVideo\([^)]*\)[\s\S]*?selectedPath.*playbackStarted|if \(!selectedPath \|\| !playbackStarted\)/.test(tabCode));
+check('selectTrack() remet playbackStarted à false',
+  /function selectTrack\(path\)[\s\S]*?playbackStarted = false/.test(tabCode));
+check('chooseFolder() remet playbackStarted à false',
+  /async function chooseFolder\(\)[\s\S]*?playbackStarted = false/.test(tabCode));
+check('analyzeSelected() passe playbackStarted à true au début',
+  /async function analyzeSelected\(\)[\s\S]*?playbackStarted = true/.test(tabCode));
+
+// Raccourci Copilote IA visible pendant la lecture.
+check('Le bouton raccourci "Copilote IA" existe dans le HTML',
+  html.includes('id="pedagogie-copilot-shortcut"') && html.includes('Copilote IA'));
+check('Le contrôleur référence le bouton Copilote IA',
+  tabCode.includes('pedagogie-copilot-shortcut'));
+check('Le raccourci dispatche app-switch-training-view vers copilot',
+  /app-switch-training-view.*detail:.*view:\s*['"]copilot['"]/.test(tabCode));
+
+// Sélecteur de catégorie de tutoriel.
+check('Le sélecteur de catégorie existe dans le HTML',
+  html.includes('id="pedagogie-category-card"') && html.includes('id="pedagogie-category-grid"'));
+check('Les deux catégories (tutorial / cover) sont présentes dans le HTML',
+  html.includes('data-category="tutorial"') && html.includes('data-category="cover"'));
+check('Le contrôleur référence le sélecteur de catégorie',
+  tabCode.includes('pedagogie-category-card') && tabCode.includes('pedagogie-category-grid'));
+check('La persistance de catégorie est importée depuis tutorial-folder-pref.js',
+  tabCode.includes('getTutorialCategory') && tabCode.includes('saveTutorialCategory')
+  && tabCode.includes('TUTORIAL_CATEGORIES'));
+check('analyzeSelected() pose categoryPickerOpen quand aucune catégorie n\'est connue',
+  /async function analyzeSelected\(\)[\s\S]*?categoryPickerOpen = true/.test(tabCode));
+check('La grille d\'accords est masquée en mode tutoriel',
+  tabCode.includes('resultGridCard.style.display') && tabCode.includes('TUTORIAL_CATEGORIES.TUTORIAL'));
+check('La carte Copilot est affichée en mode tutoriel',
+  tabCode.includes('resultCopilotCard.style.display') && tabCode.includes('TUTORIAL_CATEGORIES.TUTORIAL'));
+check('L\'indicateur de catégorie permet de changer le choix',
+  tabCode.includes('categoryPickerOpen = true') && tabCode.includes('pedagogie-category-hint'));
+
+// Résumé automatique du sujet en mode tutoriel.
+check('La carte Copilot summary a un emplacement de texte dédié',
+  html.includes('id="pedagogie-copilot-summary-text"'));
+check('Le contrôleur référence l\'emplacement du résumé',
+  tabCode.includes('pedagogie-copilot-summary-text'));
+check('Le résumé automatique ne se déclenche qu\'en mode tutoriel',
+  tabCode.includes('TUTORIAL_CATEGORIES.TUTORIAL') && tabCode.includes('maybeAutoSummarize'));
+check('Le résumé automatique exige une clé IA',
+  /maybeAutoSummarize[\s\S]*?hasAIKey\(\)/.test(tabCode));
+check('L\'état "Génération du résumé…" est affiché pendant l\'appel',
+  tabCode.includes('Génération du résumé…'));
+check('Le résumé est affiché dans la carte Copilot summary une fois prêt',
+  tabCode.includes('copilotSummaryText.textContent = summary'));
+
+
 const audioOnlyJs = readText('src/pedagogie/video-analysis.js');
 check('Le panneau notes ne répète plus le badge de provenance (explainUnrecognised retiré du rendu notes)',
   !readText('src/pedagogie/video-analysis.js').includes('kind: \'format\'')
@@ -249,19 +303,18 @@ check('Le gros bouton "Choisir le dossier" est créé par le contrôleur quand a
 check('Le bouton d\'import est masqué quand aucun dossier n\'est configuré',
   tabCode.includes('els.importBtn.style.display = folder') || tabCode.includes("importBtn.style.display = folder"));
 
-// Traduction automatique, quand une clé est configurée.
-check('translateNarrationSegments existe dans la couche IA',
-  readText('src/ai/ai-client.js').includes('export async function translateNarrationSegments'));
-check('La traduction n\'est tentée QUE si une clé est configurée',
-  tabCode.includes('hasAIKey()') && /maybeTranslate/.test(tabCode));
-check('Un texte déjà en français n\'est pas traduit',
-  /startsWith\('fr'\)/.test(tabCode));
-check('Un badge « traduit automatiquement » distingue traduction et transcription originale',
-  html.includes('id="pedagogie-translation-badge"') && tabCode.includes('els.translationBadge'));
-check('Un échec de traduction replie sur le texte original avec un message discret',
-  html.includes('id="pedagogie-translation-failed"') && tabCode.includes('translationFailed'));
-check('La traduction ne compte pas comme parole exacte : lignes = passages, sinon rejet',
-  readText('src/ai/ai-client.js').includes('lines.length === list.length'));
+// Le résumé automatique n'est pas dupliqué par une traduction automatique : le
+// transcript est donné à explainNarration en langue source, le modèle répond en
+// français. translateNarrationSegments reste dans ai-client.js pour d'autres usages
+// futurs mais n'est plus appelé ici.
+check('translateNarrationSegments n\'est plus importée dans pedagogie-tab.js',
+  !tabCode.includes('translateNarrationSegments'));
+check('maybeTranslate n\'existe plus dans pedagogie-tab.js',
+  !tabCode.includes('maybeTranslate'));
+check('La traduction automatique n\'est plus tentée ici',
+  !tabCode.includes('translationFailed') && !tabCode.includes('translated ='));
+check('Le résumé automatique est la seule explication de narration lancée par le contrôleur',
+  tabCode.includes('maybeAutoSummarize'));
 
 // ---------------------------------------------------------------------------
 // 7. Garde-fous du projet
@@ -288,7 +341,7 @@ const v = (practiceCss.match(/:root\[data-skin='v2'\] #practice-view-pedagogie/g
 check('practice.css habille la vue en skin Global', g > 20, `${g} règles`);
 check('practice.css habille la vue en skin v2', v > 20, `${v} règles`);
 for (const sel of ['.pedagogie-layout', '.pedagogie-card', '.pedagogie-chip', '.pedagogie-track-item',
-  '.pedagogie-transcript', '.pedagogie-line', '.pedagogie-secondary-btn']) {
+  '.pedagogie-secondary-btn']) {
   check(`« ${sel} » est stylé dans les deux skins`,
     practiceCss.includes(`:root[data-skin='global'] #practice-view-pedagogie ${sel}`)
     && practiceCss.includes(`:root[data-skin='v2'] #practice-view-pedagogie ${sel}`));

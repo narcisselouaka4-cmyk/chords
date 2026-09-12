@@ -10,6 +10,13 @@
 // localStorage est injecté, jamais atteint directement.
 
 const STORAGE_KEY = 'piano-jazz-tutorial-folder';
+const CATEGORY_KEY = 'piano-jazz-tutorial-category';
+
+/** Catégories de tutoriel connues. */
+export const TUTORIAL_CATEGORIES = {
+  TUTORIAL: 'tutorial', // tutoriel avec explications (ex: Gospel Harmony Secrets)
+  COVER: 'cover',       // cover / interprétation (ex: Amazing Grace Gospel Piano)
+};
 
 /**
  * Lit le dossier configuré.
@@ -38,4 +45,47 @@ export function saveTutorialFolder(storage, folderPath) {
     else storage?.removeItem(STORAGE_KEY);
   } catch (_) { /* stockage indisponible : on rend la valeur quand même */ }
   return clean;
+}
+
+/**
+ * Lit la catégorie associée à un fichier vidéo.
+ *
+ * Le choix est lié au CHEMIN ABSOLU du fichier, pas à un identifiant interne :
+  * un fichier déplacé perd son réglage, et c'est le comportement attendu.
+ *
+ * @param {Storage|null} storage
+ * @param {string} filePath
+ * @returns {string|null} une valeur de TUTORIAL_CATEGORIES, ou null si non classé
+ */
+export function getTutorialCategory(storage, filePath) {
+  if (!filePath) return null;
+  try {
+    const raw = storage?.getItem(CATEGORY_KEY);
+    const all = raw ? JSON.parse(raw) : {};
+    const cat = all[filePath];
+    return Object.values(TUTORIAL_CATEGORIES).includes(cat) ? cat : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * Enregistre la catégorie d'un fichier vidéo.
+ *
+ * @param {Storage|null} storage
+ * @param {string} filePath
+ * @param {string|null} category - valeur de TUTORIAL_CATEGORIES, ou null pour effacer
+ * @returns {string|null}
+ */
+export function saveTutorialCategory(storage, filePath, category) {
+  if (!filePath) return null;
+  const cat = Object.values(TUTORIAL_CATEGORIES).includes(category) ? category : null;
+  try {
+    const raw = storage?.getItem(CATEGORY_KEY);
+    const all = raw ? JSON.parse(raw) : {};
+    if (cat) all[filePath] = cat;
+    else delete all[filePath];
+    storage?.setItem(CATEGORY_KEY, JSON.stringify(all));
+  } catch (_) { /* silencieux */ }
+  return cat;
 }

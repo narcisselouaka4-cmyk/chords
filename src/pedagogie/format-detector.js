@@ -22,6 +22,7 @@ import { detectKeyboardGeometry } from './keyboard-geometry.js';
 /** Formats connus de la taxonomie. */
 export const FORMATS = {
   PIANO_ROLL: 'piano-roll-keyboard',   // Format B
+  V2N: 'v2n',                          // transcription visuelle V2N (clavier réel)
   CHORD_TEXT: 'chord-text',            // Format A — non implémenté
   KEYBOARD_2D: 'keyboard-2d',          // Format C — non implémenté
   SCORE_TEXT: 'score-text',            // Format D — non implémenté
@@ -152,7 +153,8 @@ function dominantReason(probes) {
   const counts = new Map();
   for (const p of probes) {
     if (p.ok) continue;
-    counts.set(p.reason, (counts.get(p.reason) || 0) + 1);
+    const key = p.detail || p.reason;
+    counts.set(key, (counts.get(key) || 0) + 1);
   }
   let best = null;
   let bestN = -1;
@@ -169,7 +171,7 @@ function dominantReason(probes) {
  * @param {string} reason
  * @returns {string}
  */
-export function explainUnrecognised(reason) {
+export function explainUnrecognised(reason, detail) {
   switch (reason) {
     case 'NoFrames':
       return 'Aucune image n\'a pu être extraite de cette vidéo.';
@@ -182,6 +184,13 @@ export function explainUnrecognised(reason) {
     case 'InconsistentAnchor':
       return 'Un clavier a été entrevu mais sa lecture n\'est pas fiable (angle, incrustation, '
         + 'ou clavier partiellement masqué). L\'analyse repose uniquement sur le son.';
+    case 'AllStrategiesFailed':
+      if (detail) {
+        return 'Aucun clavier graphique n\'a pu être lu : ' + detail + '. L\'analyse repose '
+          + 'uniquement sur le son.';
+      }
+      return 'Aucun clavier graphique n\'a pu être lu à l\'image. L\'analyse repose uniquement '
+        + 'sur le son.';
     default:
       if (typeof reason === 'string' && reason.startsWith('UnstableGeometry')) {
         return 'Le clavier bouge d\'une image à l\'autre (plan qui change, zoom) : sa lecture '

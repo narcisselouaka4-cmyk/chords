@@ -6,7 +6,7 @@ import { parseChordSymbol, getEffectiveChord, resolveCanonicalChordDefinition } 
 import { NOTE_NAMES } from './chord-editor.js';
 import { miniKeyboardForNotes } from './mini-keyboard.js';
 import { playNote, releaseNote, resumeAudio } from '../audio/simple-synth.js';
-import { getAIConfig } from '../ai/openai-config.js';
+import { getAIConfig, callChatCompletions } from '../ai/openai-config.js';
 
 const A_PLAY_MS = 1400;
 const SILENCE_MS = 300;
@@ -458,10 +458,8 @@ async function askAIQuestion(container, question, concept, data, options) {
         content: `Fiche : ${FICHES[concept]?.title || concept}. Contexte : accord ${data.chord}${data.nextChord ? `, suivi de ${data.nextChord}` : ''}. Question : ${question}`,
       },
     ];
-    const res = await fetch(`${config.baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.apiKey}` },
-      body: JSON.stringify({ model: config.model, messages, max_tokens: 1536, temperature: 0.6, reasoning_effort: 'low' }),
+    const res = await callChatCompletions(config.baseUrl, config.apiKey, {
+      model: config.model, messages, max_tokens: 1536, temperature: 0.6, reasoning_effort: 'low',
     });
     if (!res.ok) throw new Error(`Erreur API ${res.status}`);
     const json = await res.json();

@@ -1,0 +1,88 @@
+/* ============================================================================
+   astra-bridge.css — cohabitation des feuilles Astra avec la coquille de Zic
+   ----------------------------------------------------------------------------
+   astra-training.css et astra-keyboard.css sont des copies quasi littérales de
+   la maquette (« Astra »). Ce fichier-ci porte les seules adaptations dont Zic
+   a besoin — ancrage en hauteur, isolation des onglets hors périmètre, clavier
+   dans le flux — pour qu'on puisse recopier une nouvelle version des deux
+   feuilles Astra sans perdre ces retouches.
+   ============================================================================ */
+
+/* La maquette calcule sa hauteur à partir d'une variable --midi-height que Zic
+   n'a pas : le clavier est dans le flux, en bas de #app. */
+#app.training-shell {
+  height: 100vh;
+  width: 100vw;
+  z-index: auto;
+  overflow: hidden;
+}
+
+/* Analyse et Studio sont hors périmètre : .training-shell étant posé sur #app,
+   sa typographie de base leur descendrait dessus. On leur rend celle de Zic. */
+#app.training-shell > #analysis-tab,
+#app.training-shell > #studio-tab,
+#app.training-shell > .app-footer,
+#app.training-shell > .modal-overlay,
+#app.training-shell > .library-drawer,
+#app.training-shell > .onboarding-overlay {
+  font-family: var(--r-font-body);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--r-text);
+}
+
+/* La coquille Astra ne fixe pas de largeur : #practice-tab reste la vue qui
+   grandit, les deux autres onglets gardent leur display géré par main.js. */
+#practice-tab.tr-workspace {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+  padding: 0;
+  gap: 0;
+  grid-template-columns: none;
+  grid-template-rows: none;
+}
+
+/* Le pied de page de Zic reste, mais discret sous la coquille Astra. */
+#app.training-shell > .app-footer {
+  flex-shrink: 0;
+}
+
+/* ---- Clavier ------------------------------------------------------------
+   .vk-root est en position:absolute dans la maquette (le clavier flotte
+   au-dessus de la scène). Chez Zic il est dans le flux, entre l'espace de
+   travail et le pied de page, et sa hauteur est pilotée par un style inline. */
+#keyboard-panel.vk-root {
+  position: relative;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  flex-shrink: 0;
+  min-height: 0;
+}
+
+/* Le lit des touches accueille le clavier SVG de Zic tel quel (interdit 2.1 :
+   on ne touche pas aux touches). .vk-bed ne fournit que le fond et la marge. */
+#keyboard-panel .vk-bed > .keyboard-container-wrap {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+}
+#keyboard-panel .vk-bed .keyboard-container,
+#keyboard-panel .vk-bed .keyboard-container > svg {
+  height: 100%;
+  width: 100%;
+}
+
+/* Les vues dédiées d'Entraînement sont pilotées en display par main.js
+   (applyView() met 'flex' ou 'none') : on ne leur impose rien ici. */
+#practice-view-midi-sessions,
+#practice-view-coach,
+#practice-view-pedagogie,
+#practice-view-copilot,
+#practice-view-exercices {
+  min-height: 0;
+  flex: 1;
+}
