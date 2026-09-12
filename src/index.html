@@ -407,53 +407,81 @@
              On accompagne une voix isolée (stem Demucs) et l'app mesure le
              placement — densité et espace laissé à la voix — sans jamais
              détecter d'accord. Toute la mesure vit dans src/coach/*. -->
-        <div class="practice-coach" id="practice-view-coach" style="display: none;">
-          <div class="coach-layout">
-            <aside class="coach-sidebar">
-              <div class="panel-title">Morceaux</div>
-              <div class="coach-track-list" id="coach-track-list"></div>
-            </aside>
+        <!-- [Refonte Astra 12/09] — Coach d'accompagnement, recopié de la
+             maquette. Tous les identifiants lus par coach-tab.js sont conservés
+             et restent des CONTENEURS que le module remplit lui-même
+             (#coach-style-row, #coach-phrase-setting, #coach-region-setting,
+             #coach-latency-line, #coach-report…). #coach-track-list a rejoint
+             le tiroir « Mes morceaux ». -->
+        <div class="tr-view practice-coach coach-main" id="practice-view-coach" style="display: none;">
+          <div class="tr-view-heading">
+            <div>
+              <div class="tr-page-title"><span class="tr-page-index">02</span><h1>Coach d'accompagnement</h1></div>
+              <p>Laissez la voix respirer. Trouvez votre place au piano.</p>
+            </div>
+            <div class="tr-heading-actions">
+              <button class="tr-button" type="button" data-astra-open="coach-library-drawer" data-astra-shortcut="m"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 6H3M16 12H3M13 18H3"/><path d="M21 6v12a2 2 0 0 1-2 2"/></svg>Mes morceaux</button>
+            </div>
+          </div>
 
-            <section class="coach-main">
-              <header class="coach-head">
-                <h3 class="coach-selected-name" id="coach-selected-name">Aucun morceau sélectionné</h3>
-                <p class="coach-intro">
-                  La voix seule est jouée ; vous accompagnez au piano. Rien n'est jugé pendant
-                  que vous jouez — le rapport arrive à la fin.
-                </p>
-              </header>
-
-              <div class="coach-setup">
-                <div class="coach-field">
-                  <span class="coach-field-label">Style annoncé</span>
-                  <div class="coach-style-row" id="coach-style-row"></div>
-                </div>
-
-                <div class="coach-field" id="coach-phrase-setting"></div>
-
-                <div class="coach-field" id="coach-region-setting"></div>
-
-                <div class="coach-field" id="coach-latency-line"></div>
-
-                <div class="coach-actions">
-                  <button class="coach-primary-btn" id="coach-start-btn" type="button">Démarrer la séance</button>
-                  <button class="coach-secondary-btn" id="coach-stop-btn" type="button" style="display: none;">Arrêter et analyser</button>
-                  <button class="coach-secondary-btn" id="coach-cancel-btn" type="button" style="display: none;">Annuler</button>
-                  <button class="coach-secondary-btn" id="coach-calibrate-btn" type="button" title="Mesurer le décalage entre votre clavier et le son entendu">Calibrer la latence</button>
-                  <span class="coach-timer" id="coach-timer" style="display: none;">0:00</span>
-                </div>
-
-                <p class="coach-live-notice" id="coach-live-notice" style="display: none;">
-                  Séance en cours — jouez. Aucune analyse n'est faite en direct.
-                </p>
-
-                <p class="coach-status" id="coach-status" style="display: none;"></p>
+          <section class="tr-coach-stage">
+            <div class="tr-coach-guidance">
+              <span class="tr-eyebrow">L'ART DE L'ESPACE</span>
+              <h2>Accompagner,<br />c'est aussi<br /><em>écouter.</em></h2>
+              <p>La voix seule est jouée ; vous accompagnez au piano. Rien n'est jugé
+                 pendant que vous jouez. Le rapport arrive à la fin.</p>
+              <div class="tr-coach-style">
+                <label>STYLE ANNONCÉ</label>
+                <div class="tr-style-options coach-style-row" id="coach-style-row"></div>
               </div>
+            </div>
 
-              <div class="coach-countdown" id="coach-countdown" style="display: none;"></div>
+            <div class="tr-listening-center" id="coach-listening-center">
+              <div class="tr-vinyl-halo" aria-hidden="true"></div>
+              <div class="tr-vinyl-disc" aria-hidden="true">
+                <div class="tr-vinyl-grooves"></div>
+                <div class="tr-vinyl-label"><span>PIANO JAZZ CHORDS</span><svg class="tr-i" width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg><b>THE LISTENING ROOM</b><i></i></div>
+              </div>
+              <div class="tr-record-track">
+                <span class="tr-eyebrow">VOTRE PROCHAINE SÉANCE</span>
+                <h3 class="coach-selected-name" id="coach-selected-name">Aucun morceau sélectionné</h3>
+                <p class="coach-countdown" id="coach-countdown" style="display: none;"></p>
+              </div>
+            </div>
 
-              <div class="coach-report" id="coach-report" style="display: none;"></div>
-            </section>
+            <div class="tr-coach-settings">
+              <div class="tr-coach-setting-title"><svg class="tr-i" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg><span>Votre espace de jeu</span></div>
+              <div class="coach-field" id="coach-phrase-setting"></div>
+              <div class="tr-passage-settings coach-field" id="coach-region-setting"></div>
+              <div class="coach-field" id="coach-latency-line"></div>
+              <button class="tr-text-button" id="coach-calibrate-btn" type="button" title="Mesurer le décalage entre votre clavier et le son entendu"><svg class="tr-i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.9 19.1A10 10 0 0 1 4.9 4.9M7.8 16.2a6 6 0 0 1 0-8.4M16.2 7.8a6 6 0 0 1 0 8.4M19.1 4.9a10 10 0 0 1 0 14.2"/><circle cx="12" cy="12" r="2"/></svg>Calibrer la latence</button>
+            </div>
+          </section>
+
+          <div class="tr-coach-footer">
+            <div class="tr-coach-device">
+              <span class="tr-status-dot"></span>
+              <span class="coach-live-notice" id="coach-live-notice" style="display: none;">Séance en cours — jouez. Aucune analyse n'est faite en direct.</span>
+              <span class="coach-status" id="coach-status" style="display: none;"></span>
+            </div>
+            <span class="tr-mono tr-coach-time coach-timer" id="coach-timer" style="display: none;">0:00</span>
+            <button class="tr-button coach-secondary-btn" id="coach-cancel-btn" type="button" style="display: none;"><svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>Annuler</button>
+            <button class="tr-button coach-secondary-btn" id="coach-stop-btn" type="button" style="display: none;"><svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1" fill="currentColor"/></svg>Arrêter et analyser</button>
+            <button class="tr-button tr-primary tr-coach-start coach-primary-btn" id="coach-start-btn" type="button"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 4 13 8-13 8z" fill="currentColor"/></svg><span class="coach-btn-label">Démarrer la séance</span></button>
+          </div>
+
+          <div class="coach-report" id="coach-report" style="display: none;"></div>
+
+          <!-- Tiroir « Mes morceaux » : la liste que coach-tab.js remplit. -->
+          <div class="tr-overlay tr-drawer-overlay" id="coach-library-drawer" hidden>
+            <div class="tr-dialog tr-dialog-wide tr-drawer" role="dialog" aria-modal="true" aria-label="Votre répertoire">
+              <div class="tr-dialog-title"><h2>Votre répertoire</h2>
+                <button class="tr-icon-button" type="button" data-astra-close aria-label="Fermer">✕</button></div>
+              <div class="tr-dialog-body">
+                <div class="tr-song-library coach-track-list" id="coach-track-list" data-astra-close-on-click></div>
+                <div class="tr-dialog-footnote">Importez une piste voix seule depuis le Studio. Aucune séparation de voix n'est simulée ici.</div>
+              </div>
+            </div>
           </div>
         </div>
 

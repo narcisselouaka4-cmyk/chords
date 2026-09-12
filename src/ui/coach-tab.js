@@ -671,7 +671,11 @@ function renderSetup() {
 
   if (els.startBtn) {
     els.startBtn.disabled = busy || !selectedTrackId;
-    els.startBtn.textContent = sessionState === 'report'
+    // [Refonte Astra 12/09] — le bouton porte désormais une icône SVG : on
+    // écrit dans son libellé, pas dans le bouton entier (textContent effacerait
+    // l'icône au premier changement d'état).
+    const startLabel = els.startBtn.querySelector('.coach-btn-label') || els.startBtn;
+    startLabel.textContent = sessionState === 'report'
       ? 'Rejouer une séance'
       : 'Démarrer la séance';
   }

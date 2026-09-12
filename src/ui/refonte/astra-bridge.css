@@ -309,3 +309,69 @@
   background: color-mix(in srgb, var(--tr-bg) 78%, transparent);
 }
 #midi-session-countdown-number { font: 700 84px var(--tr-mono); color: var(--tr-accent); }
+
+/* ============================================================================
+   Coach d'accompagnement
+   Les blocs de réglage sont remplis par coach-tab.js : on ne redessine pas son
+   contenu, on l'inscrit dans la grammaire d'Astra.
+   ============================================================================ */
+#practice-view-coach .coach-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--tr-secondary);
+  font-size: 11px;
+}
+#practice-view-coach .coach-field label,
+#practice-view-coach .coach-field-label {
+  color: var(--tr-muted);
+  font: 8px var(--tr-mono);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+#practice-view-coach .coach-field input[type="range"] { accent-color: var(--tr-accent); }
+#practice-view-coach .coach-field input[type="text"],
+#practice-view-coach .coach-field input[type="number"],
+#practice-view-coach .coach-field select {
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--tr-border);
+  border-radius: 6px;
+  background: var(--tr-inset);
+  color: var(--tr-text);
+  font-size: 11px;
+}
+#coach-style-row { display: flex; flex-wrap: wrap; gap: 6px; }
+#coach-style-row button {
+  height: 27px; padding: 0 11px;
+  border: 1px solid var(--tr-border); border-radius: 6px;
+  background: var(--tr-inset); color: var(--tr-secondary); font-size: 11px;
+}
+#coach-style-row button.active,
+#coach-style-row button.is-active,
+#coach-style-row button[aria-pressed="true"] {
+  border-color: var(--tr-accent); background: var(--tr-accent-soft); color: var(--tr-accent);
+}
+#coach-track-list { display: flex; flex-direction: column; gap: 4px; max-height: 52vh; overflow: auto; }
+#coach-track-list button,
+#coach-track-list .coach-track-item {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 10px 12px; text-align: left;
+  border: 1px solid transparent; border-radius: 7px;
+  background: transparent; color: var(--tr-text); font-size: 12px;
+}
+#coach-track-list button:hover,
+#coach-track-list .coach-track-item:hover { background: var(--tr-hover); }
+#coach-track-list .active,
+#coach-track-list .is-active,
+#coach-track-list .is-selected { background: var(--tr-accent-soft); border-color: var(--tr-accent); }
+#coach-report {
+  flex-shrink: 0;
+  padding: 16px 18px;
+  border: 1px solid var(--tr-border);
+  border-radius: 10px;
+  background: var(--tr-surface);
+  color: var(--tr-text);
+  font-size: 12px;
+}
+#coach-countdown { color: var(--tr-accent); font: 22px var(--tr-mono); }
