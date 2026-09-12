@@ -145,28 +145,48 @@ function renderCopilotWelcome() {
     el('br'),
     el('span', { text: 'De nouvelles possibilités.' }),
   ]);
+
+  // [Astra round 5] — L'objet IA en relief au-dessus du titre (trois plans
+  // décalés + étincelle), déjà stylé par .tr-ai-object dans astra-training.css.
+  const aiObject = el('div', { className: 'tr-ai-object' });
+  aiObject.setAttribute('aria-hidden', 'true');
+  aiObject.innerHTML = `<div></div><div></div><div></div>${ICON_SPARKLE_LG}`;
+
   const options = el('div', { className: 'tr-prompt-options' });
   const welcomeActions = [
-    { label: 'Enrichir mes voicings', icon: 'piano', message: 'Montre-moi un voicing intéressant pour cet accord.' },
-    { label: 'Comprendre un 2-5-1', icon: 'music2', message: 'Explique-moi l\'harmonie d\'un 2-5-1.' },
-    { label: 'Mieux accompagner', icon: 'sparkles', message: 'Comment mieux accompagner une mélodie ?' },
+    { label: 'Enrichir mes voicings', icon: ICON_PIANO_MD, message: 'Montre-moi un voicing intéressant pour cet accord.' },
+    { label: 'Comprendre un 2-5-1', icon: ICON_MUSIC2, message: 'Explique-moi l\'harmonie d\'un 2-5-1.' },
+    { label: 'Mieux accompagner', icon: ICON_SPARKLE_MD, message: 'Comment mieux accompagner une mélodie ?' },
   ];
   for (const action of welcomeActions) {
-    options.appendChild(el('button', {
+    // Icône à gauche, libellé, flèche à droite : c'est ce que la maquette
+    // dessine, et .tr-prompt-options > button les cible dans cet ordre.
+    const btn = el('button', {
       type: 'button',
-      text: action.label,
       title: action.message,
       onClick: () => {
         if (!els.input) return;
         els.input.value = action.message;
         sendUserMessage();
       },
-    }));
+    });
+    btn.innerHTML = action.icon;
+    btn.appendChild(el('span', { text: action.label }));
+    btn.insertAdjacentHTML('beforeend', ICON_ARROW_UP_RIGHT);
+    options.appendChild(btn);
   }
+
+  const intro = el('p', {}, [
+    document.createTextNode('Un voicing à explorer, une progression à comprendre.'),
+    el('br'),
+    document.createTextNode('Prenons le temps de l’écouter ensemble.'),
+  ]);
+
   return el('div', { className: 'tr-copilot-welcome' }, [
+    aiObject,
     el('span', { className: 'tr-eyebrow', text: 'VOTRE PARTENAIRE D’HARMONIE' }),
     heading,
-    el('p', { text: 'Un voicing à explorer, une progression à comprendre. Posez votre question ci-dessous.' }),
+    intro,
     options,
   ]);
 }
@@ -179,6 +199,11 @@ function autoGrowInput() {
 }
 
 const ICON_SPARKLE = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.29 1.29L3 12l5.81 1.9a2 2 0 0 1 1.29 1.29L12 21l1.9-5.81a2 2 0 0 1 1.29-1.29L21 12l-5.81-1.9a2 2 0 0 1-1.29-1.29z"/></svg>';
+const ICON_SPARKLE_LG = '<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.29 1.29L3 12l5.81 1.9a2 2 0 0 1 1.29 1.29L12 21l1.9-5.81a2 2 0 0 1 1.29-1.29L21 12l-5.81-1.9a2 2 0 0 1-1.29-1.29z"/><path d="M5 3v4M19 17v4M3 5h4M17 19h4"/></svg>';
+const ICON_SPARKLE_MD = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.29 1.29L3 12l5.81 1.9a2 2 0 0 1 1.29 1.29L12 21l1.9-5.81a2 2 0 0 1 1.29-1.29L21 12l-5.81-1.9a2 2 0 0 1-1.29-1.29z"/></svg>';
+const ICON_PIANO_MD = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 4v10M11 4v10M15 4v10M19 4v10M2 14h20"/></svg>';
+const ICON_MUSIC2 = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="18" r="4"/><path d="M12 18V2l7 4"/></svg>';
+const ICON_ARROW_UP_RIGHT = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>';
 const ICON_PIANO = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 4v10M11 4v10M15 4v10M19 4v10M2 14h20"/></svg>';
 
 function escapeHtml(value) {

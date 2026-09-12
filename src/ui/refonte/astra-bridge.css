@@ -1213,18 +1213,43 @@
    / .tr-thinking sont déjà définis par astra-training.css ; on n'y touche pas.
    Ce qui suit neutralise les anciennes règles .copilot-message de practice.css
    (bulle encadrée, alignement) et habille les deux cas propres à Zic. */
-#practice-view-copilot .copilot-message.tr-chat-message {
+/* [Astra round 5] — practice.css (L.1665) impose
+   « :root[data-skin='…'] #practice-view-copilot .copilot-message
+     { flex-direction: column; gap: 4px; max-width: 85% } »,
+   plus spécifique que la règle d'astra-training.css : l'avatar passait SOUS la
+   bulle côté « Vous » et AU-DESSUS du texte côté Copilot, au lieu d'être à côté.
+   Même préfixe ici pour repasser devant et rétablir la rangée d'Astra. */
+:root[data-skin='global'] #practice-view-copilot .copilot-message.tr-chat-message,
+:root[data-skin='v2'] #practice-view-copilot .copilot-message.tr-chat-message {
   display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 13px;
+  width: 100%;
+  max-width: none;
+  align-self: auto;
+  margin-bottom: 24px;
   padding: 0;
   border: 0;
   background: none;
   border-radius: 0;
-  max-width: none;
 }
-#practice-view-copilot .copilot-message.tr-chat-message.is-user {
+/* Côté « Vous » : la bulle d'abord, l'avatar à sa droite (order: 2 chez Astra),
+   le tout poussé à droite. */
+:root[data-skin='global'] #practice-view-copilot .copilot-message.tr-chat-message.is-user,
+:root[data-skin='v2'] #practice-view-copilot .copilot-message.tr-chat-message.is-user {
   margin-left: auto;
   width: fit-content;
   max-width: 83%;
+}
+:root[data-skin='global'] #practice-view-copilot .tr-chat-message.is-user .tr-message-avatar,
+:root[data-skin='v2'] #practice-view-copilot .tr-chat-message.is-user .tr-message-avatar {
+  order: 2;
+}
+/* Les avatars ne doivent jamais se comprimer quand la bulle est longue. */
+:root[data-skin='global'] #practice-view-copilot .tr-message-avatar,
+:root[data-skin='v2'] #practice-view-copilot .tr-message-avatar {
+  flex-shrink: 0;
 }
 #practice-view-copilot .copilot-message.is-system {
   display: block;
