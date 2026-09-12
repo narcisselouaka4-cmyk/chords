@@ -512,3 +512,71 @@
 #copilot-history-list .active,
 #copilot-history-list .is-active { background: var(--tr-accent-soft); border-color: var(--tr-accent); }
 #copilot-no-key { flex: 1; min-height: 0; }
+
+/* ============================================================================
+   Clavier MIDI — habillage Astra autour des touches de Zic
+   INTERDIT 2.1 : aucune règle ici ne touche au rendu des touches
+   (#keyboard-container et son SVG), seulement ce qui l'entoure.
+   ============================================================================ */
+/* main.js écrit .collapsed ; la maquette lit .is-collapsed. */
+#keyboard-panel.vk-root.collapsed {
+  height: 52px !important;
+  box-shadow: 0 -8px 22px -18px #000000aa, inset 0 1px 0 #ffffff0f;
+}
+#keyboard-panel.vk-root .vk-rail { display: none; }
+#keyboard-panel.vk-root.collapsed .vk-rail { display: flex; }
+#keyboard-panel.vk-root.collapsed .vk-body { display: none; }
+
+/* Hauteur par défaut du clavier déployé (la poignée l'ajuste et la mémorise). */
+#keyboard-panel.vk-root { height: 212px; }
+
+/* Interrupteurs : case à cocher masquée, apparence de bouton d'Astra. */
+.vk-switch {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 24px; padding: 0 9px;
+  border: 1px solid var(--vk-line-soft); border-radius: 12px;
+  background: #26272e; color: var(--vk-secondary);
+  font-size: 9.5px; white-space: nowrap; cursor: pointer;
+}
+.vk-switch:hover { color: var(--vk-text); border-color: #43454e; }
+.vk-switch > input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.vk-switch:has(> input:checked) {
+  color: #241c33; background: var(--vk-accent); border-color: var(--vk-accent); font-weight: 550;
+}
+.vk-switch.is-warn:has(> input:checked) {
+  color: #2d1a1f; background: #e0a3b0; border-color: #e0a3b0;
+}
+.vk-switch > input:focus-visible + span { outline: 2px solid var(--vk-accent); outline-offset: 3px; }
+
+/* Champs du pas à pas et champs courts de la barre d'outils. */
+.vk-stepper > input[type="number"] {
+  width: 38px; height: 20px; padding: 0 2px;
+  border: 1px solid var(--vk-line-soft); border-radius: 4px;
+  background: #26272e; color: var(--vk-text);
+  font: 11px var(--vk-mono); text-align: center; outline: none;
+}
+.vk-select.vk-field-narrow > input {
+  width: 52px; height: 22px; padding: 0 5px;
+  border: 1px solid var(--vk-line-soft); border-radius: 5px;
+  background: #26272e; color: var(--vk-text);
+  font: 10px var(--vk-mono); outline: none;
+}
+.vk-select.vk-field-narrow > input:focus-visible { border-color: var(--vk-accent); }
+
+/* La barre d'outils du clavier défile horizontalement plutôt que de comprimer
+   ses champs : Zic en a plus qu'Astra (Début, Fin, Tolérance). */
+#keyboard-panel .vk-toolbar { overflow-x: auto; scrollbar-width: thin; }
+#keyboard-panel .vk-controls { margin-left: auto; }
+
+/* Lit des touches : le SVG de Zic occupe toute la place disponible. */
+#keyboard-panel .vk-bed { min-height: 0; }
+#keyboard-panel .vk-bed::after { content: none; }
+
+/* Pied de page de l'application : il reste celui de Zic (couleurs des touches,
+   sélecteur MIDI, barre d'état), simplement accordé à la palette. */
+#app.training-shell > .app-footer {
+  background: var(--tr-header);
+  border-top: 1px solid var(--tr-border);
+  color: var(--tr-secondary);
+  font-size: 11px;
+}

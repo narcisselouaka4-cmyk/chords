@@ -1487,72 +1487,116 @@
         </aside>
       </main>
 
-      <section class="keyboard-panel global-keyboard-panel" id="keyboard-panel">
-        <!-- [Refonte 2026-09-02, rétabli le 2026-09-03] — Repli du clavier
-             virtuel. Le clavier et sa barre de réglages occupent près de 200 px
-             en permanence : c'est autant de moins pour la forme d'onde, le
-             lecteur et la grille d'accords, sur les trois onglets à la fois.
-             Il reste déployé par défaut — rien ne change tant qu'on ne clique
-             pas — et se réduit à une bande de rappel, comme sur les maquettes. -->
-        <button type="button" class="keyboard-collapse-btn" id="keyboard-collapse-btn"
-                aria-expanded="true" aria-controls="keyboard-container"
-                title="Réduire le clavier virtuel">
-          <span class="keyboard-collapse-label">🎹 Clavier virtuel MIDI</span>
-          <span class="keyboard-collapse-caret" aria-hidden="true">▾</span>
-        </button>
-        <div class="keyboard-container-wrap" id="keyboard-container-wrap">
-          <div id="keyboard-container" class="keyboard-container"></div>
-          <div class="keyboard-annotation-layer" id="keyboard-annotation-layer" aria-hidden="true"></div>
+      <!-- [Refonte Astra 12/09] — Habillage du clavier MIDI, recopié de la
+           maquette (classes vk-*). INTERDIT 2.1 RESPECTÉ : les touches ne sont
+           PAS touchées. #keyboard-container reste rendu par
+           src/virtual-keyboard.js / src/ui/keyboard-svg.js, tel quel ; on ne
+           reprend d'astra-keyboard.css que la barre d'outils, le lit, la barre
+           d'état, la poignée de hauteur et le rail replié — jamais .vk-white
+           ni .vk-black. -->
+      <section class="keyboard-panel global-keyboard-panel vk-root" id="keyboard-panel">
+        <!-- Rail de rappel, affiché quand le clavier est replié. -->
+        <div class="vk-rail">
+          <button type="button" class="vk-rail-title" data-astra-click="#keyboard-collapse-btn" aria-label="Déployer le clavier MIDI virtuel">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6.5h20v11H2z"/><path d="M6 6.5v6M10 6.5v6M14 6.5v6M18 6.5v6M2 12.5h20"/></svg><span>Clavier MIDI virtuel</span>
+          </button>
+          <div class="vk-rail-readout" id="keyboard-rail-readout"><span class="vk-rail-idle">Prêt · jouez au clavier</span></div>
+          <button type="button" class="vk-expand" data-astra-click="#keyboard-collapse-btn" aria-label="Déployer le clavier"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg></button>
         </div>
-        <div class="keyboard-controls">
-          <span class="keyboard-section-title" id="keyboard-section-title">Clavier</span>
-          <label>
-            Taille
-            <select id="keyboard-size">
-              <option value="custom">Personnalisé</option>
-              <option value="25">25 touches (C3–C5)</option>
-              <option value="49">49 touches (C2–C6)</option>
-              <option value="61">61 touches (C2–C7)</option>
-              <option value="76">76 touches (E1–G7)</option>
-              <option value="88">88 touches (A0–C8)</option>
-              <option value="midi" selected>Virtuel MIDI (C0–C9)</option>
-            </select>
-          </label>
-          <label>
-            Début
-            <input type="text" id="note-start" value="C0" />
-          </label>
-          <label>
-            Fin
-            <input type="text" id="note-end" value="C9" />
-          </label>
-          <label>
-            Transposition
-            <input type="number" id="transpose" value="0" min="-12" max="12" />
-          </label>
-          <label>
-            Tolérance (ms)
-            <input type="number" id="tolerance" value="200" min="50" max="500" step="10" />
-          </label>
-          <label>
-            Notation
-            <select id="notation-select">
-              <option value="latin">Latine (Do/Ré/Mi)</option>
-              <option value="english" selected>Anglaise (C/D/E)</option>
-            </select>
-          </label>
-          <label class="switch-label" title="Activer/désactiver le routage du clavier PC vers le clavier MIDI virtuel">
-            <input type="checkbox" id="pc-keyboard-midi" checked />
-            🎹 PC → MIDI
-          </label>
-          <label class="switch-label">
-            <input type="checkbox" id="silent-mode" />
-            Silencieux
-          </label>
-          <label class="switch-label">
-            <input type="checkbox" id="rhodes-mode" />
-            Rhodes
-          </label>
+
+        <div class="vk-body">
+          <div class="vk-toolbar">
+            <div class="vk-group vk-brand">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6.5h20v11H2z"/><path d="M6 6.5v6M10 6.5v6M14 6.5v6M18 6.5v6M2 12.5h20"/></svg>
+              <span class="vk-brand-name keyboard-section-title" id="keyboard-section-title">Clavier MIDI</span>
+              <span class="vk-range" id="keyboard-range-readout"></span>
+            </div>
+
+            <!-- Lecture d'accord en direct : miroir de la scène Temps réel,
+                 synchronisé par astra-shell.js (aucune seconde détection). -->
+            <div class="vk-group vk-readout" aria-live="polite">
+              <span class="vk-readout-label">Accord</span>
+              <strong id="keyboard-readout-chord">—</strong>
+              <span class="vk-readout-notes" id="keyboard-readout-notes">aucune note</span>
+            </div>
+
+            <div class="vk-group vk-controls">
+              <div class="vk-stepper" aria-label="Transposition">
+                <span>Transposition</span>
+                <button type="button" data-step-target="#transpose" data-step="-1" aria-label="Baisser la transposition"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg></button>
+                <input type="number" id="transpose" value="0" min="-12" max="12" />
+                <button type="button" data-step-target="#transpose" data-step="1" aria-label="Monter la transposition"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+              </div>
+
+              <label class="vk-select">
+                <span>Étendue</span>
+                <select id="keyboard-size">
+                  <option value="custom">Personnalisé</option>
+                  <option value="25">25 touches (C3–C5)</option>
+                  <option value="49">49 touches (C2–C6)</option>
+                  <option value="61">61 touches (C2–C7)</option>
+                  <option value="76">76 touches (E1–G7)</option>
+                  <option value="88">88 touches (A0–C8)</option>
+                  <option value="midi" selected>Virtuel MIDI (C0–C9)</option>
+                </select>
+              </label>
+
+              <label class="vk-select vk-field-narrow"><span>Début</span><input type="text" id="note-start" value="C0" /></label>
+              <label class="vk-select vk-field-narrow"><span>Fin</span><input type="text" id="note-end" value="C9" /></label>
+              <label class="vk-select vk-field-narrow"><span>Tolérance</span><input type="number" id="tolerance" value="200" min="50" max="500" step="10" /></label>
+
+              <label class="vk-select">
+                <span>Notation</span>
+                <select id="notation-select">
+                  <option value="latin">Latine (Do/Ré/Mi)</option>
+                  <option value="english" selected>Anglaise (C/D/E)</option>
+                </select>
+              </label>
+
+              <!-- Interrupteurs : l'apparence est celle d'Astra, la mécanique
+                   reste la case à cocher que main.js lit (.checked). -->
+              <div class="vk-switches">
+                <label class="vk-switch" title="Activer/désactiver le routage du clavier PC vers le clavier MIDI virtuel">
+                  <input type="checkbox" id="pc-keyboard-midi" checked /><span>PC → MIDI</span>
+                </label>
+                <label class="vk-switch is-warn" title="Couper le son du clavier virtuel">
+                  <input type="checkbox" id="silent-mode" /><span>Silencieux</span>
+                </label>
+                <label class="vk-switch" title="Timbre de piano électrique">
+                  <input type="checkbox" id="rhodes-mode" /><span>Rhodes</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="vk-group vk-right">
+              <button type="button" class="vk-collapse keyboard-collapse-btn" id="keyboard-collapse-btn"
+                      aria-expanded="true" aria-controls="keyboard-container"
+                      title="Réduire le clavier virtuel"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+            </div>
+          </div>
+
+          <!-- Lit des touches. Le SVG de Zic est inséré tel quel par
+               virtual-keyboard.js : on ne fournit que le fond et la marge. -->
+          <div class="vk-bed">
+            <div class="keyboard-container-wrap" id="keyboard-container-wrap">
+              <div id="keyboard-container" class="keyboard-container"></div>
+              <div class="keyboard-annotation-layer" id="keyboard-annotation-layer" aria-hidden="true"></div>
+            </div>
+          </div>
+
+          <div class="vk-status">
+            <div class="vk-legend">
+              <span><i class="vk-dot vk-dot-note"></i>Note</span>
+              <span><i class="vk-dot vk-dot-root"></i>Fondamentale</span>
+              <span class="vk-hint">Les couleurs des touches se règlent dans le pied de page</span>
+            </div>
+            <div class="vk-status-right">
+              <span class="vk-mono" id="keyboard-note-count">0 note</span>
+            </div>
+          </div>
+
+          <!-- Poignée de hauteur : astra-shell.js règle --keyboard-height. -->
+          <div class="vk-resize" id="keyboard-resize" role="separator" aria-label="Redimensionner le clavier" aria-orientation="horizontal"></div>
         </div>
       </section>
 

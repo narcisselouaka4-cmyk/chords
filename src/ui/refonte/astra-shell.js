@@ -112,8 +112,147 @@ function initAstraDialogs() {
   });
 }
 
+/**
+ * Relais génériques : un bouton [data-astra-click="<sélecteur>"] clique
+ * l'élément visé. Sert à offrir deux points d'entrée (ex. rail replié du
+ * clavier et barre d'outils) vers le SEUL bouton que main.js écoute, sans
+ * dupliquer sa logique ni son identifiant.
+ */
+function initAstraRelays() {
+  document.addEventListener('click', (e) => {
+    const relay = e.target.closest('[data-astra-click]');
+    if (!relay || relay.hasAttribute('data-astra-close')) return;
+    const target = document.querySelector(relay.dataset.astraClick);
+    if (target && target !== relay) target.click();
+  });
+}
+
+/**
+ * Pas à pas (« stepper ») d'Astra autour d'un champ numérique existant.
+ * On n'ajoute pas d'état : on modifie la valeur du champ que main.js lit déjà,
+ * puis on émet input + change pour que ses écouteurs réagissent normalement.
+ */
+function initAstraSteppers() {
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-step-target]');
+    if (!btn) return;
+    const field = document.querySelector(btn.dataset.stepTarget);
+    if (!field) return;
+    const step = Number(btn.dataset.step) || 1;
+    const min = field.min === '' ? -Infinity : Number(field.min);
+    const max = field.max === '' ? Infinity : Number(field.max);
+    const next = Math.max(min, Math.min(max, (Number(field.value) || 0) + step));
+    if (next === Number(field.value)) return;
+    field.value = String(next);
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+    field.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+}
+
+/**
+ * Habillage du clavier : lecture d'accord en direct et poignée de hauteur.
+ *
+ * La lecture d'accord est un MIROIR de la scène Temps réel (#chord-name et
+ * #notes-display) : aucune seconde détection n'est faite ici — le moteur
+ * d'accords de Zic reste la seule source (interdit 2.2).
+ */
+function initAstraKeyboardChrome() {
+  const panel = document.getElementById('keyboard-panel');
+  if (!panel) return;
+
+  const chordOut = document.getElementById('keyboard-readout-chord');
+  const notesOut = document.getElementById('keyboard-readout-notes');
+  const countOut = document.getElementById('keyboard-note-count');
+  const railOut = document.getElementById('keyboard-rail-readout');
+  const rangeOut = document.getElementById('keyboard-range-readout');
+  const chordName = document.getElementById('chord-name');
+  const notesDisplay = document.getElementById('notes-display');
+
+  const syncReadout = () => {
+    const chord = (chordName?.textContent || '').trim();
+    const pills = notesDisplay ? [...notesDisplay.querySelectorAll('.note-pill')] : [];
+    const notes = pills.length
+      ? pills.map((p) => p.textContent.trim()).join(' ')
+      : (notesDisplay?.textContent || '').trim();
+    if (chordOut) chordOut.textContent = chord || '—';
+    if (notesOut) notesOut.textContent = notes || 'aucune note';
+    if (countOut) countOut.textContent = `${pills.length} note${pills.length > 1 ? 's' : ''}`;
+    if (railOut) {
+      railOut.innerHTML = '';
+      if (chord) {
+        const strong = document.createElement('strong');
+        strong.textContent = chord;
+        const label = document.createElement('span');
+        label.textContent = 'accord';
+        railOut.append(strong, label);
+      } else if (notes) {
+        const strong = document.createElement('strong');
+        strong.textContent = notes;
+        const label = document.createElement('span');
+        label.textContent = 'notes';
+        railOut.append(strong, label);
+      } else {
+        const idle = document.createElement('span');
+        idle.className = 'vk-rail-idle';
+        idle.textContent = 'Prêt · jouez au clavier';
+        railOut.appendChild(idle);
+      }
+    }
+  };
+
+  if (chordName || notesDisplay) {
+    const observer = new MutationObserver(syncReadout);
+    if (chordName) observer.observe(chordName, { childList: true, characterData: true, subtree: true });
+    if (notesDisplay) observer.observe(notesDisplay, { childList: true, characterData: true, subtree: true });
+    syncReadout();
+  }
+
+  // Étendue affichée : reflet des champs Début / Fin du clavier.
+  const start = document.getElementById('note-start');
+  const end = document.getElementById('note-end');
+  const syncRange = () => {
+    if (rangeOut) rangeOut.textContent = `${start?.value || ''} – ${end?.value || ''}`;
+  };
+  start?.addEventListener('change', syncRange);
+  end?.addEventListener('change', syncRange);
+  document.getElementById('keyboard-size')?.addEventListener('change', () => setTimeout(syncRange, 0));
+  syncRange();
+
+  // Poignée de hauteur (fonctionnalité d'Astra). La hauteur est mémorisée et
+  // posée en style inline sur le panneau ; le clavier SVG se redessine sur
+  // l'évènement resize, comme lors du repli.
+  const handle = document.getElementById('keyboard-resize');
+  const MIN = 150;
+  const MAX = 470;
+  const STORAGE_KEY = 'keyboard-height';
+  let stored = 0;
+  try { stored = Number(localStorage.getItem(STORAGE_KEY)) || 0; } catch (_) { /* pas de persistance */ }
+  if (stored >= MIN && stored <= MAX) panel.style.height = `${stored}px`;
+
+  handle?.addEventListener('pointerdown', (event) => {
+    event.preventDefault();
+    const startY = event.clientY;
+    const startHeight = panel.getBoundingClientRect().height;
+    const move = (e) => {
+      const next = Math.round(Math.max(MIN, Math.min(MAX, startHeight - (e.clientY - startY))));
+      panel.style.height = `${next}px`;
+    };
+    const stop = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', stop);
+      try { localStorage.setItem(STORAGE_KEY, String(Math.round(panel.getBoundingClientRect().height))); } catch (_) { /* ignore */ }
+      window.dispatchEvent(new Event('resize'));
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', stop);
+  });
+}
+
 export function initAstraShell() {
   initAstraThemeSwitch();
   initAstraBrand();
   initAstraDialogs();
+  initAstraRelays();
+  initAstraSteppers();
+  initAstraKeyboardChrome();
 }

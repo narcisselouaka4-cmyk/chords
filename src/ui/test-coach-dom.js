@@ -60,7 +60,9 @@ function check(name, condition, detail = '') {
 // 1. La pilule est réelle, plus un placeholder
 // ---------------------------------------------------------------------------
 
-const pillMatch = html.match(/<button[^>]*>Coach d'accompagnement<\/button>/);
+// [Refonte Astra 12/09] — la pilule porte maintenant une icône SVG et son
+// libellé dans un <span> : on la reconnaît par son data-view, pas par son texte brut.
+const pillMatch = html.match(/<button[^>]*data-view="coach"[^>]*>[\s\S]*?<\/button>/);
 check('La pilule « Coach d\'accompagnement » existe', !!pillMatch);
 if (pillMatch) {
   const pill = pillMatch[0];
