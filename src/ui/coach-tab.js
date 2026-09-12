@@ -707,21 +707,13 @@ function renderLatencyLine() {
   let text;
   let tone;
   if (calibration?.status === 'ok') {
-    text = `Le délai entre votre frappe et le son entendu a été mesuré sur ce poste : `
-      + `${Math.round(calibration.offsetMs)} ms (±${Math.round(calibration.spreadMs)} ms, `
-      + `${calibration.usedTaps} frappes). Il est déjà compensé dans l'analyse : vous `
-      + `n'avez rien à faire.`;
+    text = `Latence mesurée : ${Math.round(calibration.offsetMs)} ms (±${Math.round(calibration.spreadMs)} ms, ${calibration.usedTaps} frappes). Déjà compensée dans l'analyse.`;
     tone = 'ok';
   } else if (latencyEstimate) {
-    text = `Le programme ne connaît pas encore précisément le petit délai entre le moment `
-      + `où vous appuyez sur une touche et le son que vous entendez : une valeur `
-      + `approximative (${Math.round(latencyEstimate.totalSec * 1000)} ms, mesurée sur la `
-      + `sortie audio seule) est utilisée pour l'instant. Cliquez sur « Calibrer la latence » `
-      + `pour l'affiner — c'est facultatif, mais ça rend le rapport plus précis.`;
+    text = `Latence estimée ~${Math.round(latencyEstimate.totalSec * 1000)} ms (sortie audio). Cliquez « Calibrer la latence » pour affiner — facultatif, mais plus précis.`;
     tone = 'warn';
   } else {
-    text = 'Le délai entre votre clavier et le son entendu n\'est pas encore estimé : '
-      + 'il sera mesuré à la première ouverture de l\'audio.';
+    text = 'Latence non estimée : sera mesurée à la première ouverture audio.';
     tone = 'warn';
   }
   els.latencyLine.appendChild(el('span', { className: `coach-latency ${tone}`, text }));
@@ -760,10 +752,7 @@ function renderPhraseSetting() {
   els.phraseSetting.appendChild(els.phraseValue);
   els.phraseSetting.appendChild(el('p', {
     className: 'coach-setting-hint',
-    text: 'Vous n\'avez normalement pas besoin d\'ajuster ce réglage : la valeur par '
-      + 'défaut convient à la plupart des morceaux. Si vous voulez comprendre : en dessous '
-      + 'de cette durée, un silence est considéré comme une articulation entre deux mots ; '
-      + 'au-dessus, comme une respiration où le piano a sa place.',
+    text: 'En dessous de cette durée, un silence est une articulation ; au-dessus, une respiration où le piano a sa place.',
   }));
 }
 
@@ -861,11 +850,7 @@ function renderRegionSetting() {
 
   els.regionSetting.appendChild(el('p', {
     className: 'coach-setting-hint',
-    text: 'Pour travailler un passage précis plutôt que tout le morceau, indiquez '
-      + 'ses bornes en mm:ss (ex. 1:12 → 1:48) — c\'est ce passage qui sera joué et '
-      + 'analysé. Laissez « Toute la piste » si vous n\'en avez pas besoin : ce '
-      + 'réglage ne change ni la mesure, ni le rapport, seulement la partie du '
-      + 'morceau sur laquelle ils portent.',
+    text: 'Bornes en mm:ss du passage à jouer et analyser ; laissez « Toute la piste » sinon.',
   }));
 }
 

@@ -128,9 +128,52 @@ function renderActionChips(actions) {
   return container;
 }
 
+/** [Refonte 12/09 — détails] Accueil affiché quand la conversation est vide
+ * mais que le Copilot est configuré (habillage repris d'Astra, classes déjà
+ * stylées par astra-training.css : .tr-copilot-welcome / .tr-prompt-options).
+ * Les suggestions utilisent les libellés exacts de la maquette Astra
+ * (CopilotView.tsx, .tr-prompt-options). */
+function renderCopilotWelcome() {
+  const heading = el('h2', {}, [
+    document.createTextNode('Une question.'),
+    el('br'),
+    el('span', { text: 'De nouvelles possibilités.' }),
+  ]);
+  const options = el('div', { className: 'tr-prompt-options' });
+  const welcomeActions = [
+    { label: 'Enrichir mes voicings', icon: 'piano', message: 'Montre-moi un voicing intéressant pour cet accord.' },
+    { label: 'Comprendre un 2-5-1', icon: 'music2', message: 'Explique-moi l\'harmonie d\'un 2-5-1.' },
+    { label: 'Mieux accompagner', icon: 'sparkles', message: 'Comment mieux accompagner une mélodie ?' },
+  ];
+  for (const action of welcomeActions) {
+    options.appendChild(el('button', {
+      type: 'button',
+      text: action.label,
+      title: action.message,
+      onClick: () => {
+        if (!els.input) return;
+        els.input.value = action.message;
+        sendUserMessage();
+      },
+    }));
+  }
+  return el('div', { className: 'tr-copilot-welcome' }, [
+    el('span', { className: 'tr-eyebrow', text: 'VOTRE PARTENAIRE D’HARMONIE' }),
+    heading,
+    el('p', { text: 'Un voicing à explorer, une progression à comprendre. Posez votre question ci-dessous.' }),
+    options,
+  ]);
+}
+
 /** Rendu de la liste des messages. */
 function renderMessages() {
   els.messages.innerHTML = '';
+  if (messages.length === 0) {
+    els.messages.classList.add('is-empty');
+    els.messages.appendChild(renderCopilotWelcome());
+    return;
+  }
+  els.messages.classList.remove('is-empty');
   for (const msg of messages) {
     const row = el('div', { className: `copilot-message ${msg.role}` });
     if (msg.isTyping) {

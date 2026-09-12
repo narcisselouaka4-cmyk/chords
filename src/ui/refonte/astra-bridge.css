@@ -172,13 +172,43 @@
   font: 11px var(--tr-mono);
   letter-spacing: .04em;
 }
-#practice-view-exercices .exercise-feedback {
+
+/* Zone de retour (bonne/mauvaise réponse) : spécificité alignée sur
+   l'ancienne règle de practice.css (lignes 335-349) pour gagner la cascade. */
+:root[data-skin='global'] #practice-tab .exercise-feedback,
+:root[data-skin='v2'] #practice-tab .exercise-feedback {
   margin-top: 3px;
-  color: var(--tr-secondary);
+  min-height: 0;
   font-size: 12px;
+  font-weight: 400;
+  color: var(--tr-secondary);
 }
-#practice-view-exercices .exercise-feedback.success { color: var(--tr-green); }
-#practice-view-exercices .exercise-feedback.error { color: var(--tr-red); }
+:root[data-skin='global'] #practice-tab .exercise-feedback.success,
+:root[data-skin='v2'] #practice-tab .exercise-feedback.success {
+  color: var(--tr-green);
+}
+:root[data-skin='global'] #practice-tab .exercise-feedback.error,
+:root[data-skin='v2'] #practice-tab .exercise-feedback.error {
+  color: var(--tr-red);
+}
+
+/* Bouton "Nouvel exercice" : neutraliser l'ancien style practice.css (lignes 319-333)
+   qui force width:100% et padding épais. Spécificité alignée (deux id) pour gagner. */
+:root[data-skin='global'] #practice-tab .tr-primary.panel-action#new-exercise-btn,
+:root[data-skin='v2'] #practice-tab .tr-primary.panel-action#new-exercise-btn {
+  width: auto;
+  padding: 0 13px;
+  border-radius: 7px;
+  background: var(--tr-button);
+  color: var(--tr-button-text);
+  font-weight: 600;
+}
+:root[data-skin='global'] #practice-tab .tr-primary.panel-action#new-exercise-btn:hover:not(:disabled),
+:root[data-skin='v2'] #practice-tab .tr-primary.panel-action#new-exercise-btn:hover:not(:disabled) {
+  filter: none;
+  background: var(--tr-accent-strong);
+}
+
 #practice-view-exercices .exercise-degree-badge {
   align-self: flex-start;
   margin-top: 4px;
@@ -195,8 +225,11 @@
    Sessions MIDI
    ============================================================================ */
 
-/* Hôte du paysage harmonique : le SVG est injecté par recording-tab.js. */
-#carnet-timeline {
+/* Hôte du paysage harmonique : le SVG est injecté par recording-tab.js.
+   Spécificité alignée sur l'ancienne règle de practice.css (lignes 2711-2721)
+   pour gagner la cascade. */
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-timeline,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-timeline {
   display: flex;
   flex: 1;
   min-height: 120px;
@@ -204,17 +237,44 @@
   margin: 0;
   background: none;
   border: 0;
+  border-radius: 0;
   overflow: visible;
 }
 
-/* Le bloc d'informations de session reste, en seconde ligne, discret. */
-#midi-session-info { margin-top: 5px; color: var(--tr-secondary); font-size: 11px; }
-#midi-session-info .info-row:first-child { display: none; } /* le nom est déjà dans le titre */
-#midi-session-info .detail-hint { color: var(--tr-muted); font-size: 11px; }
-#midi-session-info .info-tags { display: flex; gap: 6px; margin-top: 4px; }
-#midi-session-info .tag {
-  padding: 1px 6px; border-radius: 4px;
-  background: var(--tr-accent-soft); color: var(--tr-accent); font-size: 9px;
+/* Le bloc d'informations de session reste, en seconde ligne, discret.
+   Spécificité alignée sur l'ancienne règle de practice.css (lignes 694-720)
+   pour masquer les lignes redondantes (nom/notes/accords/durée/tonalité/BPM)
+   qui sont déjà dans #carnet-session-meta. On garde .detail-hint (commentaires)
+   et .info-tags (tags) visibles. */
+:root[data-skin='global'] #practice-view-midi-sessions .midi-session-info,
+:root[data-skin='v2'] #practice-view-midi-sessions .midi-session-info {
+  margin-top: 5px;
+  color: var(--tr-secondary);
+  font-size: 11px;
+}
+:root[data-skin='global'] #practice-view-midi-sessions .midi-session-info .info-row,
+:root[data-skin='v2'] #practice-view-midi-sessions .midi-session-info .info-row {
+  display: none;
+}
+:root[data-skin='global'] #practice-view-midi-sessions .midi-session-info .detail-hint,
+:root[data-skin='v2'] #practice-view-midi-sessions .midi-session-info .detail-hint {
+  display: block;
+  color: var(--tr-muted);
+  font-size: 11px;
+}
+:root[data-skin='global'] #practice-view-midi-sessions .midi-session-info .info-tags,
+:root[data-skin='v2'] #practice-view-midi-sessions .midi-session-info .info-tags {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+:root[data-skin='global'] #practice-view-midi-sessions .midi-session-info .tag,
+:root[data-skin='v2'] #practice-view-midi-sessions .midi-session-info .tag {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--tr-accent-soft);
+  color: var(--tr-accent);
+  font-size: 9px;
 }
 
 /* Bandeau d'enregistrement en cours, à droite de l'identité. */
@@ -512,6 +572,21 @@
 #copilot-history-list .active,
 #copilot-history-list .is-active { background: var(--tr-accent-soft); border-color: var(--tr-accent); }
 #copilot-no-key { flex: 1; min-height: 0; }
+
+/* Bouton "Nouvelle conversation" : doit avoir le fond coloré .tr-primary,
+   pas le fond neutre de l'ancienne règle practice.css (lignes 1889+).
+   Spécificité alignée sur l'ancienne règle pour gagner la cascade. */
+:root[data-skin='global'] #practice-view-copilot .tr-primary.copilot-secondary-btn,
+:root[data-skin='v2'] #practice-view-copilot .tr-primary.copilot-secondary-btn {
+  background: var(--tr-button);
+  color: var(--tr-button-text);
+  border-color: var(--tr-button);
+}
+:root[data-skin='global'] #practice-view-copilot .tr-primary.copilot-secondary-btn:hover:not(:disabled),
+:root[data-skin='v2'] #practice-view-copilot .tr-primary.copilot-secondary-btn:hover:not(:disabled) {
+  background: var(--tr-accent-strong);
+  border-color: var(--tr-accent-strong);
+}
 
 /* ============================================================================
    Clavier MIDI — habillage Astra autour des touches de Zic
@@ -935,3 +1010,49 @@
 #corriger-keyboard .corriger-keyboard-empty { color: var(--an-text-secondary); font: 11px var(--an-mono); }
 #corriger-keyboard svg { max-width: 340px; width: 100%; height: auto; }
 #corriger-editor .an-input-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+/* ---- Copilot IA : accueil quand la conversation est vide (clé configurée) --
+   #copilot-messages (.tr-chat-messages) n'est pas un conteneur flex par
+   défaut ; on l'active seulement quand il ne contient que l'accueil, pour que
+   .tr-copilot-welcome (flex:1, déjà stylée par astra-training.css, utilisée
+   telle quelle par #copilot-no-key) se centre comme prévu. */
+#copilot-messages.is-empty { display: flex; flex-direction: column; }
+
+/* ---- Exercices : habillage de la carte injectée par practice-exercise.js --
+   Le moteur d'exercice réel (non modifié) construit dynamiquement
+   .exercise-target-card avec ses propres classes, à l'intérieur de
+   .tr-target-chord (qui fournit déjà la mise en page/perspective d'Astra).
+   ATTENTION : practice.css (l'ancienne feuille, conservée) impose déjà ces
+   mêmes classes via `:root[data-skin='...'] #practice-tab .exercise-target-*`
+   (une carte encadrée, nom en 2rem/800/mono — le même piège de spécificité
+   que #pedagogie-main documenté par ailleurs). On reprend ici EXACTEMENT le
+   même sélecteur (id + attribut de thème) pour gagner la cascade par ordre
+   de chargement plutôt que par une spécificité plus élevée, et on neutralise
+   l'habillage « carte » pour retrouver le rendu plus épuré d'Astra. */
+:root[data-skin='global'] #practice-view-exercices .exercise-target-card,
+:root[data-skin='v2'] #practice-view-exercices .exercise-target-card {
+  display: flex; flex-direction: column; align-items: center; width: 100%; gap: 4px;
+  padding: 0; background: none; border: 0;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-target-name,
+:root[data-skin='v2'] #practice-view-exercices .exercise-target-name {
+  font-size: clamp(40px, 4.2vw, 64px); font-weight: 450; font-family: inherit;
+  line-height: 1.1; letter-spacing: -.06em; color: var(--tr-text);
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-target-keyboard,
+:root[data-skin='v2'] #practice-view-exercices .exercise-target-keyboard {
+  width: min(84%, 290px); margin: 10px 0 4px;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-target-keyboard svg,
+:root[data-skin='v2'] #practice-view-exercices .exercise-target-keyboard svg {
+  width: 100%; max-width: 100%; height: auto; max-height: none; display: block;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-target-notes,
+:root[data-skin='v2'] #practice-view-exercices .exercise-target-notes {
+  font-size: 9px; font-family: var(--tr-mono); color: var(--tr-accent); letter-spacing: .03em;
+}
+#practice-view-exercices .exercise-movement-header { width: 100%; text-align: center; margin-bottom: 10px; }
+#practice-view-exercices .exercise-movement-category { color: var(--tr-muted); font: 8px var(--tr-mono); letter-spacing: .06em; text-transform: uppercase; }
+#practice-view-exercices .exercise-movement-name { font-size: 13px; color: var(--tr-secondary); margin-top: 2px; }
+#practice-view-exercices .exercise-movement-description { color: var(--tr-muted); font-size: 10px; margin-top: 2px; }
+#practice-view-exercices .exercise-movement-progress { display: flex; justify-content: center; gap: 10px; margin-top: 8px; color: var(--tr-muted); font: 8px var(--tr-mono); }
