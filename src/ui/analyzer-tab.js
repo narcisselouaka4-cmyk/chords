@@ -70,6 +70,11 @@ import { playNote, releaseNote, resumeAudio } from '../audio/simple-synth.js';
 import { buildFileContextText } from './file-context.js';
 import { listTracks, loadMetadata, getOriginalPath, importToLibrary, renameTrack, deleteTrack } from './media-library.js';
 
+// [Refonte Astra Analyse 12/09] — icônes du transport (Lucide recopiées en SVG
+// inline : aucune dépendance ajoutée).
+const AN_PLAY_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 4 13 8-13 8z" fill="currentColor"/></svg>';
+const AN_PAUSE_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg>';
+
 const BASE_PIXELS_PER_SECOND = 80;
 const MIN_BLOCK_WIDTH = 4;
 const BLOCK_GAP = 4;
@@ -1838,7 +1843,10 @@ function seekBy(seconds) {
 function updatePlayButton() {
   if (!els.playBtn || !currentPlayer) return;
   const isPaused = currentPlayer.element?.paused !== false;
-  els.playBtn.textContent = isPaused ? '▶' : '⏸';
+  // [Refonte Astra Analyse 12/09] — le bouton porte une icône SVG : on écrit
+  // dans innerHTML, un textContent l'effacerait au premier changement d'état.
+  els.playBtn.innerHTML = isPaused ? AN_PLAY_SVG : AN_PAUSE_SVG;
+  els.playBtn.classList.toggle('is-playing', !isPaused);
   els.playBtn.title = isPaused ? 'Lecture' : 'Pause';
 }
 

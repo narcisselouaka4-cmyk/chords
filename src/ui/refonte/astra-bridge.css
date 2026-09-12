@@ -586,3 +586,33 @@
    le corps d'Entraînement est le cadre défilant .tr-workspace, on lui rend
    simplement sa hauteur — son contenu, lui, n'est pas touché. */
 #practice-body > .training-workspace { min-height: 100%; }
+
+/* ============================================================================
+   ONGLET ANALYSE — cohabitation d'astra-analysis.css avec la coquille de Zic
+   Même principe que pour Entraînement : la feuille copiée reste intacte, les
+   adaptations vivent ici.
+   ============================================================================ */
+
+/* La maquette calcule sa hauteur avec --midi-height, que Zic n'a pas : le
+   clavier est dans le flux, sous les onglets. main.js pilote l'affichage de
+   #analysis-tab (display retiré / none), on ne le force donc pas ici. */
+#analysis-tab.an-workspace-shell {
+  height: auto;
+  flex: 1;
+  min-height: 0;
+  z-index: auto;
+  background: var(--an-bg);
+  color: var(--an-text);
+}
+
+/* Le curseur de progression de Zic est un frère du remplissage (analyzer-tab.js
+   lui pose un style.left), là où la maquette l'imbrique dedans. */
+#analyzer-progress-track.an-progress-rail { position: relative; }
+#analyzer-progress-thumb.an-progress-thumb {
+  position: absolute;
+  top: 50%;
+  right: auto;
+  transform: translate(-50%, -50%);
+}
+/* Zoom : Zic exprime le facteur de 0,25 à 8 et affiche le pourcentage à part. */
+#analysis-tab .an-zoom-control label { cursor: pointer; }

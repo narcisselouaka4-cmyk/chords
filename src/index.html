@@ -50,6 +50,8 @@
          (classes tr-* et vk-*), plus un fichier-pont pour la cohabitation. -->
     <link rel="stylesheet" href="./ui/refonte/astra-training.css" />
     <link rel="stylesheet" href="./ui/refonte/astra-keyboard.css" />
+    <!-- [Refonte Astra Analyse 12/09] — feuille recopiée de la maquette (classes an-*). -->
+    <link rel="stylesheet" href="./ui/refonte/astra-analysis.css" />
     <link rel="stylesheet" href="./ui/refonte/astra-bridge.css" />
   </head>
   <body>
@@ -703,7 +705,7 @@
       </main>
 
       <!-- Onglet Analyse — reconstruction autour des maquettes officielles -->
-      <main class="analysis-tab" id="analysis-tab" style="display: none;">
+      <main class="analysis-tab an-workspace-shell" id="analysis-tab" style="display: none;">
         <section class="analyzer-workspace" id="analyzer-workspace">
           <!-- État 1 : Import source -->
           <div class="analyzer-state" id="analyzer-import-screen">
@@ -1085,36 +1087,47 @@
 
           <!-- Vue d'analyse active : lecteur + timeline + inspecteur + onglets -->
           <div class="analyzer-state analyzer-analysis-view" id="analyzer-results">
-            <div class="analyzer-analysis-header">
-              <div class="flex items-center gap-3 flex-1 min-w-0">
-                <button type="button" id="analyzer-back-to-import-btn" class="btn-secondary btn-sm" title="Nouvelle analyse">← Nouvelle analyse</button>
-                <h2 class="analyzer-song-title truncate" id="analyzer-song-title">Titre du morceau</h2>
-                <span class="analyzer-song-artist" id="analyzer-song-artist">Inconnu</span>
-                <span class="badge" id="analyzer-stem-badge" style="display:none"></span>
-                <span class="badge" id="analyzer-cached-badge" style="display:none" title="Résultat relu depuis le projet enregistré, sans nouveau calcul">↺ Analyse enregistrée</span>
+            <!-- [Refonte Astra Analyse 12/09] — Barre de projet et transport
+                 recopiées de la maquette (an-project-bar / an-scrub-bar). Tous
+                 les identifiants lus par analyzer-tab.js sont conservés ;
+                 seules les classes changent. -->
+            <div class="an-project-bar analyzer-analysis-header">
+              <div class="an-project-info">
+                <button type="button" id="analyzer-back-to-import-btn" class="an-btn-new-analysis" title="Nouvelle analyse"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>Nouvelle analyse</button>
+                <div class="an-project-titles">
+                  <h1 class="analyzer-song-title" id="analyzer-song-title">Titre du morceau</h1>
+                  <div class="an-project-tags">
+                    <span class="an-tag analyzer-song-artist" id="analyzer-song-artist">Inconnu</span>
+                    <span class="an-tag" id="analyzer-stem-badge" style="display:none"></span>
+                    <span class="an-tag is-saved" id="analyzer-cached-badge" style="display:none" title="Résultat relu depuis le projet enregistré, sans nouveau calcul"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Analyse enregistrée</span>
+                  </div>
+                </div>
               </div>
-              <div class="analyzer-media-context" id="analyzer-media-context" aria-live="polite">Fichier analysé : Aucun fichier analysé</div>
-              <div class="flex items-center gap-2">
-                <button type="button" id="analyzer-prev-btn" class="btn-secondary btn-sm" title="Revenir au début">⏮</button>
-                <button type="button" id="analyzer-skip-back-btn" class="btn-secondary btn-sm" title="Reculer de 10 secondes (flèche gauche)" aria-label="Reculer de 10 secondes">↩10s</button>
-                <button type="button" id="analyzer-play-btn" class="btn-primary btn-sm" title="Lecture / Pause">▶</button>
-                <button type="button" id="analyzer-skip-fwd-btn" class="btn-secondary btn-sm" title="Avancer de 10 secondes (flèche droite)" aria-label="Avancer de 10 secondes">10s↪</button>
-                <button type="button" id="analyzer-reanalyze-btn" class="btn-secondary btn-sm" title="Recalculer les accords depuis l'audio">↻ Relancer l'analyse</button>
-                <button type="button" id="analyzer-back-btn" class="btn-secondary btn-sm">Importer</button>
+
+              <div class="an-transport-controls">
+                <div class="an-file-indicator analyzer-media-context" id="analyzer-media-context" aria-live="polite" title="Fichier source analysé">Fichier analysé : Aucun fichier analysé</div>
+                <div class="an-transport-btns">
+                  <button type="button" id="analyzer-prev-btn" class="an-tr-btn" title="Revenir au début" aria-label="Revenir au début"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 20 9 12l10-8z"/><path d="M5 19V5"/></svg></button>
+                  <button type="button" id="analyzer-skip-back-btn" class="an-tr-btn" title="Reculer de 10 secondes (flèche gauche)" aria-label="Reculer de 10 secondes"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m11 19-9-7 9-7z"/><path d="m22 19-9-7 9-7z"/></svg><small>10s</small></button>
+                  <button type="button" id="analyzer-play-btn" class="an-tr-play-btn" title="Lecture / Pause" aria-label="Lecture / Pause"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 4 13 8-13 8z" fill="currentColor"/></svg></button>
+                  <button type="button" id="analyzer-skip-fwd-btn" class="an-tr-btn" title="Avancer de 10 secondes (flèche droite)" aria-label="Avancer de 10 secondes"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m13 19 9-7-9-7z"/><path d="m2 19 9-7-9-7z"/></svg><small>10s</small></button>
+                  <button type="button" id="analyzer-reanalyze-btn" class="an-tr-btn" title="Recalculer les accords depuis l'audio"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg><span>Relancer</span></button>
+                  <button type="button" id="analyzer-back-btn" class="an-tr-btn an-btn-accent" title="Importer un autre fichier"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg><span>Importer</span></button>
+                </div>
               </div>
             </div>
 
-            <div class="analyzer-transport-bar">
-              <span class="analyzer-time" id="analyzer-current-time">00:00</span>
-              <div class="analyzer-progress-track" id="analyzer-progress-track">
-                <div class="analyzer-progress-fill" id="analyzer-progress-fill" style="width:0%"></div>
-                <div class="analyzer-progress-thumb" id="analyzer-progress-thumb" style="left:0%"></div>
+            <div class="an-scrub-bar analyzer-transport-bar">
+              <span class="an-time-counter analyzer-time" id="analyzer-current-time">00:00</span>
+              <div class="an-progress-rail analyzer-progress-track" id="analyzer-progress-track">
+                <div class="an-progress-fill analyzer-progress-fill" id="analyzer-progress-fill" style="width:0%"></div>
+                <span class="an-progress-thumb analyzer-progress-thumb" id="analyzer-progress-thumb" style="left:0%"></span>
               </div>
-              <span class="analyzer-time" id="analyzer-duration">00:00</span>
-              <div class="analyzer-zoom-control">
-                <label for="analyzer-zoom">Zoom</label>
-                <input type="range" id="analyzer-zoom" min="0.25" max="8.0" step="0.1" value="1" />
-                <span id="analyzer-zoom-value">100%</span>
+              <span class="an-time-counter is-end analyzer-time" id="analyzer-duration">00:00</span>
+              <div class="an-zoom-control analyzer-zoom-control">
+                <span><label for="analyzer-zoom">Zoom</label></span>
+                <input type="range" class="an-zoom-slider" id="analyzer-zoom" min="0.25" max="8.0" step="0.1" value="1" />
+                <small id="analyzer-zoom-value">100%</small>
               </div>
             </div>
 
