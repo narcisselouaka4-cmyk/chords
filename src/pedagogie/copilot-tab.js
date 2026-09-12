@@ -339,6 +339,7 @@ async function switchToAutonomousMode() {
   updateHeaderForMode();
   updateModeToggle();
   if (!hasAIKey()) { showNoKeyState(); return; }
+  showChatArea();
   await startNewConversation(AUTONOMOUS_HISTORY_KEY);
   renderMessages();
   await renderHistoryList();
@@ -353,6 +354,7 @@ async function switchToTutorialMode(path) {
   updateHeaderForMode();
   updateModeToggle();
   if (!hasAIKey()) { showNoKeyState(); return; }
+  showChatArea();
   await startNewConversation(path);
   renderMessages();
   await renderHistoryList();
@@ -367,6 +369,7 @@ export async function switchToSessionMode(sessionContext) {
   updateHeaderForMode();
   updateModeToggle();
   if (!hasAIKey()) { showNoKeyState(); return; }
+  showChatArea();
   await startNewConversation(currentSessionId);
   renderMessages();
   await renderHistoryList();
@@ -521,6 +524,9 @@ export async function initCopilotTab() {
   // affiché (mode sans clé), on réactive le chat sans recharger la page.
   document.addEventListener('app-ai-config-saved', async () => {
     if (!hasAIKey()) return;
+    // Même oubli ici : sans showChatArea(), enregistrer une clé depuis l'écran
+    // « Assistant IA non configuré » n'affichait jamais le chat.
+    showChatArea();
     await startNewConversation(AUTONOMOUS_HISTORY_KEY);
     renderMessages();
     await renderHistoryList();
@@ -542,6 +548,12 @@ export async function initCopilotTab() {
   updateHeaderForMode();
   updateModeToggle();
   if (!hasAIKey()) { showNoKeyState(); return; }
+  // [Astra round 3] — showChatArea() manquait sur ce chemin : #copilot-chat-area
+  // part de style="display:none" dans index.html, et #copilot-no-key aussi.
+  // Résultat, avec une clé API configurée les DEUX blocs restaient masqués et
+  // le panneau Copilot s'affichait entièrement vide sous son en-tête, sans la
+  // moindre erreur en console.
+  showChatArea();
   await startNewConversation(AUTONOMOUS_HISTORY_KEY);
   renderMessages();
   await renderHistoryList();
