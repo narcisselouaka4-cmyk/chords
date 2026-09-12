@@ -689,8 +689,11 @@
                 </select>
               </div>
 
-              <div class="tr-composer copilot-input-bar">
-                <input type="text" class="copilot-input" id="copilot-input" placeholder="Quelle harmonie avez-vous en tête ?" aria-label="Message au Copilot" />
+              <!-- [Astra round 4] — Composer d'Astra : la zone de saisie est un
+                   <textarea> qui grandit, et la barre d'outils passe SOUS lui
+                   (.tr-composer est une colonne chez Astra, pas une rangée). -->
+              <div class="tr-composer">
+                <textarea class="copilot-input" id="copilot-input" rows="1" maxlength="2000" placeholder="Quelle harmonie avez-vous en tête ?" aria-label="Message au Copilot"></textarea>
                 <div class="tr-composer-tools">
                   <span><svg class="tr-i" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.29 1.29L3 12l5.81 1.9a2 2 0 0 1 1.29 1.29L12 21l1.9-5.81a2 2 0 0 1 1.29-1.29L21 12l-5.81-1.9a2 2 0 0 1-1.29-1.29z"/></svg>IA connectée</span>
                   <button class="copilot-send-btn" id="copilot-send-btn" type="button" title="Envoyer" aria-label="Envoyer la question"><svg class="tr-i" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>

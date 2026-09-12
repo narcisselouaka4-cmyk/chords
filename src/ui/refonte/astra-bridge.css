@@ -508,31 +508,49 @@
    ============================================================================ */
 #copilot-chat-area { flex: 1; min-height: 0; }
 #copilot-messages { flex: 1; min-height: 0; overflow: auto; }
-#practice-view-copilot .tr-composer.copilot-input-bar {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-}
-#copilot-input {
-  flex: 1;
-  min-width: 0;
-  height: 38px;
-  padding: 0 12px;
+/* [Astra round 4] — Plus d'override de mise en page ici : .tr-composer,
+   .tr-composer textarea et .tr-composer-tools d'astra-training.css font déjà
+   exactement ce qu'il faut (carte, textarea qui grandit, barre d'outils en
+   dessous avec le bouton rond à droite). L'ancienne règle transformait la carte
+   en rangée et posait le bouton à côté du champ — c'est ce qui différait de la
+   maquette. On ne garde que la remise à zéro des styles hérités de Zic sur le
+   champ et le bouton. */
+#practice-view-copilot #copilot-input.copilot-input {
+  display: block;
+  width: 100%;
+  min-height: 20px;
+  max-height: 110px;
+  padding: 0;
+  margin: 0;
   border: 0;
+  border-radius: 0;
   background: none;
   color: var(--tr-text);
-  font-size: 13px;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.6;
+  resize: none;
   outline: none;
 }
-#copilot-send-btn {
+#practice-view-copilot .tr-composer-tools > #copilot-send-btn.copilot-send-btn {
   display: grid;
   place-items: center;
-  width: 32px; height: 32px;
-  border: 0; border-radius: 6px;
+  width: 27px;
+  height: 27px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
   background: var(--tr-button);
   color: var(--tr-button-text);
 }
-#copilot-send-btn:disabled { opacity: .42; }
+#practice-view-copilot .tr-composer-tools > #copilot-send-btn.copilot-send-btn:hover:not(:disabled) {
+  background: var(--tr-accent-strong);
+}
+#practice-view-copilot .tr-composer-tools > #copilot-send-btn.copilot-send-btn:disabled {
+  background: var(--tr-raised);
+  color: var(--tr-muted);
+  opacity: 1;
+}
 #copilot-quick-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1187,5 +1205,62 @@
   margin-top: 12px;
   color: var(--tr-muted);
   font: 10px var(--tr-mono);
+  letter-spacing: .03em;
+}
+
+/* ---- Chat Copilot : compléments à la grammaire d'Astra ------------------
+   .tr-chat-message / .tr-message-avatar / .tr-message-content / .tr-chat-demos
+   / .tr-thinking sont déjà définis par astra-training.css ; on n'y touche pas.
+   Ce qui suit neutralise les anciennes règles .copilot-message de practice.css
+   (bulle encadrée, alignement) et habille les deux cas propres à Zic. */
+#practice-view-copilot .copilot-message.tr-chat-message {
+  display: flex;
+  padding: 0;
+  border: 0;
+  background: none;
+  border-radius: 0;
+  max-width: none;
+}
+#practice-view-copilot .copilot-message.tr-chat-message.is-user {
+  margin-left: auto;
+  width: fit-content;
+  max-width: 83%;
+}
+#practice-view-copilot .copilot-message.is-system {
+  display: block;
+  margin: 0 auto 18px;
+  padding: 6px 12px;
+  border: 1px solid var(--tr-border);
+  border-radius: 7px;
+  background: var(--tr-inset);
+  color: var(--tr-muted);
+  font-size: 10.5px;
+  text-align: center;
+  width: fit-content;
+  max-width: 80%;
+}
+#practice-view-copilot .tr-message-content > p > strong { color: var(--tr-text); font-weight: 650; }
+#practice-view-copilot .tr-message-content > p > code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--tr-inset);
+  color: var(--tr-accent);
+  font: 11px var(--tr-mono);
+}
+/* Rappel des notes réellement jouées : même forme que les chips, mais inerte. */
+#practice-view-copilot .copilot-played-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 11px;
+  border: 1px dashed var(--tr-border);
+  border-radius: 6px;
+  background: var(--tr-inset);
+  color: var(--tr-secondary);
+  font-size: 10.5px;
+}
+#practice-view-copilot .copilot-played-chip small {
+  color: var(--tr-muted);
+  font: 9px var(--tr-mono);
   letter-spacing: .03em;
 }

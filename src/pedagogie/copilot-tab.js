@@ -108,22 +108,28 @@ const STATIC_QUICK_ACTIONS = [
   { label: 'Lick', message: 'Fais-moi un lick adapté.' },
 ];
 
-/** Rendu d’une rangée de chips d’action. */
+/** [Astra round 4] Rangée de suggestions, dans la grammaire .tr-chat-demos de
+ * la maquette : icône, libellé, et une petite mention de ce que fait le clic.
+ * Ce sont de vraies actions (elles envoient la question au Copilot), pas des
+ * boutons d'écoute décoratifs. */
 function renderActionChips(actions) {
   if (!actions?.length) return null;
-  const container = el('div', { className: 'copilot-message-actions' });
+  const container = el('div', { className: 'tr-chat-demos copilot-message-actions' });
   for (const action of actions) {
-    container.appendChild(el('button', {
+    const btn = el('button', {
       className: 'copilot-chip',
       type: 'button',
-      text: action.label,
       title: action.message,
       onClick: () => {
         if (!els.input) return;
         els.input.value = action.message;
         sendUserMessage();
       },
-    }));
+    });
+    btn.innerHTML = ICON_SPARKLE;
+    btn.appendChild(el('span', { text: action.label }));
+    btn.appendChild(el('small', { text: 'Demander' }));
+    container.appendChild(btn);
   }
   return container;
 }
@@ -165,7 +171,42 @@ function renderCopilotWelcome() {
   ]);
 }
 
-/** Rendu de la liste des messages. */
+function autoGrowInput() {
+  const field = els.input;
+  if (!field || field.tagName !== 'TEXTAREA') return;
+  field.style.height = 'auto';
+  field.style.height = `${Math.min(110, field.scrollHeight)}px`;
+}
+
+const ICON_SPARKLE = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.29 1.29L3 12l5.81 1.9a2 2 0 0 1 1.29 1.29L12 21l1.9-5.81a2 2 0 0 1 1.29-1.29L21 12l-5.81-1.9a2 2 0 0 1-1.29-1.29z"/></svg>';
+const ICON_PIANO = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 4v10M11 4v10M15 4v10M19 4v10M2 14h20"/></svg>';
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/** [Astra round 4] Le modèle répond en markdown léger : sans traitement, les
+ * réponses affichaient « **ii-V-I** » avec ses astérisques, et tous les
+ * paragraphes collés en un seul pavé. Astra découpe le texte sur les retours à
+ * la ligne, un <p> par ligne ; on fait pareil, en rendant en plus le gras. */
+function renderMessageText(container, content) {
+  const lines = String(content || '').split('\n');
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    const p = document.createElement('p');
+    p.innerHTML = escapeHtml(line)
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>');
+    container.appendChild(p);
+  }
+  if (!container.childElementCount) container.appendChild(el('p', { text: String(content || '') }));
+}
+
+/** Rendu de la liste des messages, dans la structure d'Astra
+ * (.tr-chat-message / .tr-message-avatar / .tr-message-content). */
 function renderMessages() {
   els.messages.innerHTML = '';
   if (messages.length === 0) {
@@ -175,29 +216,57 @@ function renderMessages() {
   }
   els.messages.classList.remove('is-empty');
   for (const msg of messages) {
-    const row = el('div', { className: `copilot-message ${msg.role}` });
+    const isUser = msg.role === 'user';
+    const row = el('div', { className: `tr-chat-message copilot-message is-${msg.role} ${msg.role}` });
+
+    if (msg.role === 'system') {
+      row.className += ' is-system';
+      row.textContent = msg.content;
+      els.messages.appendChild(row);
+      continue;
+    }
+
+    const avatar = el('div', { className: 'tr-message-avatar' });
+    if (isUser) avatar.textContent = 'V';
+    else avatar.innerHTML = ICON_SPARKLE;
+    row.appendChild(avatar);
+
     if (msg.isTyping) {
       row.className += ' is-typing';
-      const bubble = el('div', { className: 'copilot-bubble', innerHTML: '<span class="copilot-typing-dots"><span></span><span></span><span></span></span>' });
-      row.appendChild(bubble);
-    } else if (msg.role === 'system') {
-      row.textContent = msg.content;
-      row.className += ' is-system';
-    } else {
-      const bubble = el('div', { className: 'copilot-bubble', text: msg.content });
-      row.appendChild(bubble);
+      row.appendChild(el('div', {
+        className: 'tr-thinking',
+        innerHTML: '<i></i><i></i><i></i>',
+      }));
+      els.messages.appendChild(row);
+      continue;
     }
+
+    const content = el('div', { className: 'tr-message-content' });
+    const author = el('div', { className: 'tr-message-author' }, [
+      el('strong', { text: isUser ? 'Vous' : 'Copilot' }),
+    ]);
+    if (!isUser) author.appendChild(el('span', { text: 'ASSISTANT IA' }));
+    content.appendChild(author);
+    renderMessageText(content, msg.content);
+
+    // Notes réellement jouées au clavier virtuel par l'outil du Copilot.
+    // Information, pas bouton : rien ne permet aujourd'hui de rejouer la démo.
     if (msg.toolResult?.played?.length) {
-      const played = el('div', { className: 'copilot-tool-note' }, [
-        el('span', { text: '🎹 Notes jouées : ' }),
-        el('span', { text: msg.toolResult.played.map((p) => p.name).join(', ') }),
-      ]);
-      row.appendChild(played);
+      const played = el('div', { className: 'tr-chat-demos copilot-tool-note is-static' });
+      const chip = el('span', { className: 'copilot-played-chip' });
+      chip.innerHTML = ICON_PIANO;
+      chip.appendChild(el('span', { text: 'Notes jouées' }));
+      chip.appendChild(el('small', { text: msg.toolResult.played.map((p) => p.name).join(' · ') }));
+      played.appendChild(chip);
+      content.appendChild(played);
     }
-    if (msg.role === 'assistant' && msg.suggestedActions?.length) {
+
+    if (!isUser && msg.suggestedActions?.length) {
       const chips = renderActionChips(msg.suggestedActions);
-      if (chips) row.appendChild(chips);
+      if (chips) content.appendChild(chips);
     }
+
+    row.appendChild(content);
     els.messages.appendChild(row);
   }
   // Auto-scroll vers le bas
@@ -388,6 +457,7 @@ async function sendUserMessage() {
   const text = els.input.value.trim();
   if (!text) return;
   els.input.value = '';
+  autoGrowInput();
   els.input.disabled = true;
   els.sendBtn.disabled = true;
 
@@ -459,6 +529,9 @@ export async function initCopilotTab() {
   els.newConvSidebarBtn = document.getElementById('copilot-new-conv-sidebar-btn');
 
   els.sendBtn?.addEventListener('click', sendUserMessage);
+  // [Astra round 4] — Le champ est un <textarea> qui grandit avec le texte,
+  // comme dans la maquette (max ~110px, puis défilement interne).
+  els.input?.addEventListener('input', autoGrowInput);
   els.input?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
