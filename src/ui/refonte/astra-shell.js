@@ -76,9 +76,32 @@ function initAstraDialogs() {
   document.addEventListener('click', (e) => {
     const trigger = e.target.closest('[data-astra-open]');
     if (trigger) { open(trigger.dataset.astraOpen, trigger); return; }
-    if (e.target.closest('[data-astra-close]')) { close(); return; }
+    const closer = e.target.closest('[data-astra-close]');
+    if (closer) {
+      close();
+      // Relais éventuel vers un bouton existant de Zic (ex. « Nouvelle
+      // session » depuis le tiroir), pour ne pas dupliquer sa logique.
+      const relay = closer.dataset.astraClick;
+      if (relay) document.querySelector(relay)?.click();
+      return;
+    }
+    // Un choix fait dans une liste ferme le tiroir qui la contient.
+    if (e.target.closest('[data-astra-close-on-click]') && e.target.closest('button, [role="button"], .midi-session-item')) { close(); return; }
     // Clic sur le fond de la fenêtre (et non sur le panneau).
     if (e.target.classList?.contains('tr-overlay')) close();
+  });
+
+  // Raccourcis clavier déclarés sur le bouton d'ouverture (ex. « B »).
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+    if (document.querySelector('.tr-overlay:not([hidden])')) return;
+    const key = e.key.toLowerCase();
+    const trigger = [...document.querySelectorAll('[data-astra-shortcut]')]
+      .find((btn) => btn.dataset.astraShortcut === key && btn.offsetParent !== null);
+    if (!trigger) return;
+    e.preventDefault();
+    open(trigger.dataset.astraOpen, trigger);
   });
 
   document.addEventListener('keydown', (e) => {

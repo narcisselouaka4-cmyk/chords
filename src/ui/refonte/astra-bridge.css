@@ -183,3 +183,122 @@
   font: 10px var(--tr-mono);
   letter-spacing: .06em;
 }
+
+/* ============================================================================
+   Sessions MIDI
+   ============================================================================ */
+
+/* Hôte du paysage harmonique : le SVG est injecté par recording-tab.js. */
+#carnet-timeline {
+  display: flex;
+  flex: 1;
+  min-height: 120px;
+  padding: 0;
+  margin: 0;
+  background: none;
+  border: 0;
+  overflow: visible;
+}
+
+/* Le bloc d'informations de session reste, en seconde ligne, discret. */
+#midi-session-info { margin-top: 5px; color: var(--tr-secondary); font-size: 11px; }
+#midi-session-info .info-row:first-child { display: none; } /* le nom est déjà dans le titre */
+#midi-session-info .detail-hint { color: var(--tr-muted); font-size: 11px; }
+#midi-session-info .info-tags { display: flex; gap: 6px; margin-top: 4px; }
+#midi-session-info .tag {
+  padding: 1px 6px; border-radius: 4px;
+  background: var(--tr-accent-soft); color: var(--tr-accent); font-size: 9px;
+}
+
+/* Bandeau d'enregistrement en cours, à droite de l'identité. */
+#midi-session-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+#midi-session-controls .tr-mono { color: var(--tr-secondary); font: 11px var(--tr-mono); }
+#midi-session-controls .midi-stop-btn { height: 29px; padding: 0 11px; }
+
+/* Carnet des moments : la liste produite par recording-tab.js reprend la
+   grammaire des tuiles d'Astra, en colonne (le nombre de moments est libre). */
+#midi-session-carnet .carnet-legend {
+  display: flex; gap: 14px; margin-top: 6px;
+  color: var(--tr-muted); font: 9px var(--tr-mono);
+}
+#midi-session-carnet .carnet-legend span { display: inline-flex; align-items: center; gap: 5px; }
+#midi-session-carnet .legend-dot { width: 6px; height: 6px; border-radius: 2px; background: var(--tr-accent); }
+#midi-session-carnet .legend-dot.melody { background: transparent; border: 1px solid var(--tr-muted); }
+#carnet-entries { display: flex; flex-direction: column; gap: 8px; }
+#carnet-entries .carnet-entry {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 14px;
+  border: 1px solid var(--tr-border);
+  border-radius: 8px;
+  background: var(--tr-surface);
+  color: var(--tr-text);
+}
+#carnet-entries .carnet-entry:hover {
+  border-color: color-mix(in srgb, var(--tr-accent) 50%, var(--tr-border));
+  background: color-mix(in srgb, var(--tr-accent-soft) 30%, var(--tr-surface));
+}
+#carnet-entries .carnet-entry.is-target { border-color: var(--tr-accent); background: var(--tr-accent-soft); }
+#carnet-entries .carnet-entry-time { color: var(--tr-muted); font: 10px var(--tr-mono); flex-shrink: 0; }
+#carnet-entries .carnet-entry-main { flex: 1; min-width: 0; }
+#carnet-entries .carnet-entry-label { font-size: 13px; font-weight: 550; letter-spacing: -.02em; }
+#carnet-entries .carnet-entry-detail { margin-top: 2px; color: var(--tr-secondary); font-size: 11px; }
+#carnet-entries .carnet-chip {
+  margin-left: 6px; padding: 1px 6px; border-radius: 3px;
+  background: var(--tr-raised); color: var(--tr-muted); font: 8px var(--tr-mono);
+  letter-spacing: .08em; text-transform: uppercase;
+}
+#carnet-entries .carnet-chip.chord-tag { background: var(--tr-accent-soft); color: var(--tr-accent); }
+#carnet-entries .carnet-play-btn,
+#carnet-entries .carnet-explore-btn {
+  flex-shrink: 0; height: 27px; padding: 0 10px;
+  border: 1px solid var(--tr-border); border-radius: 6px;
+  background: var(--tr-raised); color: var(--tr-secondary); font-size: 10px;
+}
+#carnet-entries .carnet-play-btn { width: 27px; padding: 0; }
+#carnet-entries .carnet-explore-btn:hover,
+#carnet-entries .carnet-play-btn:hover { color: var(--tr-text); border-color: var(--tr-border-strong, var(--tr-border)); }
+
+/* Bibliothèque de sessions : la liste que recording-tab.js remplit, dans le
+   tiroir d'Astra. */
+#midi-session-list { display: flex; flex-direction: column; gap: 4px; max-height: 52vh; overflow: auto; }
+#midi-session-list .midi-session-item,
+#midi-session-list > button,
+#midi-session-list > div {
+  color: var(--tr-text);
+}
+#midi-session-list .midi-session-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid transparent; border-radius: 7px;
+  background: transparent; text-align: left;
+}
+#midi-session-list .midi-session-item:hover { background: var(--tr-hover); }
+#midi-session-list .midi-session-item.active,
+#midi-session-list .midi-session-item.is-active {
+  background: var(--tr-accent-soft); border-color: var(--tr-accent);
+}
+
+/* Modales existantes de Sessions MIDI : elles gardent leur mécanique
+   (style.display piloté par recording-tab.js), pas la classe .tr-overlay —
+   sinon le raccourci Échap des fenêtres Astra les manipulerait à tort. */
+.astra-modal .modal-box {
+  background: var(--tr-surface);
+  border: 1px solid var(--tr-border);
+  border-radius: 10px;
+  color: var(--tr-text);
+  font-family: inherit;
+}
+.astra-modal .modal-box h3 { font-size: 16px; font-weight: 600; letter-spacing: -.03em; }
+.astra-modal .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+
+/* Compte à rebours : au-dessus de la console, centré. */
+#midi-session-countdown-overlay {
+  position: absolute; inset: 0; z-index: 20;
+  display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--tr-bg) 78%, transparent);
+}
+#midi-session-countdown-number { font: 700 84px var(--tr-mono); color: var(--tr-accent); }

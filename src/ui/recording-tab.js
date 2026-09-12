@@ -10,6 +10,12 @@ import { createRecorder } from '../recorder/recorder.js';
 import { createPlayer } from '../recorder/player.js';
 import { playNote, releaseNote, resumeAudio } from '../audio/simple-synth.js';
 import { segmentSessionEvents, nameChordSegments } from '../recorder/session-analysis.js';
+// [Refonte Astra 12/09] — Le paysage harmonique remplace l'ancienne frise de
+// blocs, qui forçait toute la session à tenir dans la largeur. buildNoteWindows
+// est la fonction déjà utilisée par l'analyse de session : on la réutilise, on
+// n'en écrit pas une seconde.
+import { buildNoteWindows } from '../recorder/session-analysis.js';
+import { renderHarmonicRoll, windowsToRollNotes } from './refonte/astra-harmonic-roll.js';
 // [Refonte 2026-09-03] — Plus d'import depuis analyzer-tab.js.
 //
 // Ce module visait une API qui n'existe plus : `renderAnalysis` et
@@ -27,6 +33,10 @@ let recorder = null;
 let player = null;
 let currentSession = null;
 let currentEvents = [];
+let harmonicRoll = null;      // instance du paysage harmonique
+let rollSpatial = true;       // Relief (true) ou 2D (false)
+let rollNotes = [];
+let rollDuration = 1;
 let currentMetadata = null;
 let onMidiEvent = null;
 let getCurrentChordFn = null;
@@ -108,6 +118,10 @@ export function initRecordingTab({
   bindCopilotButton();
   bindTransportBar();
   bindCarnetEvents();
+  bindProjectionSwitch();
+  // Paysage harmonique vide dès l'ouverture : la maquette montre la scène et
+  // son message d'attente, pas un cadre gris.
+  mountHarmonicRoll();
   refreshSessionList();
 
   switchToRecordingTab();
@@ -574,23 +588,57 @@ function renderCarnetHeader(segments, totalDuration) {
   els.carnetSessionMeta.textContent = `${durationStr} · ${currentSession.noteCount || 0} notes · ${chordCount} vrais moments d'accord · ${currentSession.key || 'tonalité non définie'}`;
 }
 
+// [Refonte Astra 12/09] — « Paysage harmonique ». L'ancienne frise plaçait un
+// bloc par segment, à l'échelle de la largeur disponible : au-delà d'une
+// vingtaine de moments, elle devenait un dégradé illisible. Le relief d'Astra
+// affiche les notes elles-mêmes — hauteur MIDI en profondeur, vélocité en
+// élévation — et se lit à n'importe quelle densité.
+//
+// Les segments restent l'entrée de la fonction (l'appelant n'a pas changé),
+// mais les notes viennent de buildNoteWindows(), sur les évènements bruts.
 function renderTimeline(segments, totalDuration) {
   if (!els.carnetTimeline) return;
-  els.carnetTimeline.innerHTML = '';
+  rollDuration = Math.max(1, Number(totalDuration) || 1);
+  rollNotes = windowsToRollNotes(buildNoteWindows(currentEvents || []));
+  mountHarmonicRoll();
+}
 
-  for (let i = 0; i < segments.length; i++) {
-    const seg = segments[i];
-    const segDuration = seg.end - seg.start;
-    const widthPercent = Math.max((segDuration / totalDuration) * 100, 1.2);
-    const segEl = document.createElement('div');
-    segEl.className = `tl-seg ${seg.type}`;
-    segEl.style.flex = `0 0 ${widthPercent}%`;
-    segEl.dataset.index = String(i);
-    segEl.title = seg.type === 'chord'
-      ? `${seg.chordName || 'Accord'} — ${formatTimeShort(seg.start)}`
-      : `Passage mélodique — ${formatTimeShort(seg.start)}–${formatTimeShort(seg.end)}`;
-    els.carnetTimeline.appendChild(segEl);
-  }
+function mountHarmonicRoll() {
+  if (!els.carnetTimeline) return;
+  const payload = {
+    notes: rollNotes,
+    duration: rollDuration,
+    position: player?.getCurrentTime?.() || 0,
+    spatial: rollSpatial,
+    recording: Boolean(recorder?.isRecording),
+    onSeek: (time) => {
+      player?.seek(time);
+      updateTransportUI();
+    },
+  };
+  if (harmonicRoll) harmonicRoll.update(payload);
+  else harmonicRoll = renderHarmonicRoll(els.carnetTimeline, payload);
+}
+
+function updateHarmonicRollPosition(position) {
+  harmonicRoll?.update({ position: Number(position) || 0 });
+}
+
+// Bascule 2D / Relief de la maquette.
+function bindProjectionSwitch() {
+  const group = document.getElementById('midi-roll-projection');
+  if (!group) return;
+  group.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-projection]');
+    if (!btn) return;
+    rollSpatial = btn.dataset.projection === 'spatial';
+    group.querySelectorAll('button[data-projection]').forEach((b) => {
+      const on = b === btn;
+      b.classList.toggle('is-active', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+    mountHarmonicRoll();
+  });
 }
 
 function renderCarnetEntries(segments) {
@@ -753,17 +801,9 @@ function openCopilotForSegment(seg) {
 function bindCarnetEvents() {
   if (!els.carnetTimeline || !els.carnetEntries) return;
 
-  els.carnetTimeline.addEventListener('click', (e) => {
-    const segEl = e.target.closest('.tl-seg');
-    if (!segEl) return;
-    const index = Number(segEl.dataset.index);
-    const entry = els.carnetEntries.querySelector(`.carnet-entry[data-index="${index}"]`);
-    if (entry) {
-      entry.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      entry.classList.add('is-target');
-      setTimeout(() => entry.classList.remove('is-target'), 1400);
-    }
-  });
+  // [Refonte Astra 12/09] — L'ancienne frise .tl-seg n'existe plus : le
+  // paysage harmonique est composé de notes, et un clic sur une note déplace
+  // directement la tête de lecture (rappel onSeek de mountHarmonicRoll()).
 
   const mainContainer = document.querySelector('.midi-sessions-main');
   if (mainContainer) {
@@ -852,6 +892,9 @@ function bindCopilotButton() {
 
 let transportRafId = null;
 
+const PLAY_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 4 13 8-13 8z" fill="currentColor"/></svg>';
+const PAUSE_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg>';
+
 function bindTransportBar() {
   if (!els.transportBar) return;
 
@@ -905,7 +948,9 @@ function startTransportLoop() {
 
 function updateTransportSliderOnly(cur, dur) {
   if (!els.transportBar || !els.transportSlider) return;
-  els.transportSlider.value = dur > 0 ? String((cur / dur) * 100) : '0';
+  const percent = dur > 0 ? (cur / dur) * 100 : 0;
+  els.transportSlider.value = String(percent);
+  els.transportSlider.style.setProperty('--progress', `${percent}%`);
 }
 
 function updateTransportUI() {
@@ -914,6 +959,10 @@ function updateTransportUI() {
   const cur = player?.getCurrentTime() || 0;
   updateTransportSliderOnly(cur, dur);
   if (els.transportPlay) {
-    els.transportPlay.textContent = player?.isPlaying ? '⏸' : '▶';
+    // innerHTML et non textContent : le bouton porte une icône SVG depuis la
+    // refonte, un textContent la supprimerait au premier changement d'état.
+    els.transportPlay.innerHTML = player?.isPlaying ? PAUSE_SVG : PLAY_SVG;
+    els.transportPlay.classList.toggle('is-playing', Boolean(player?.isPlaying));
   }
+  updateHarmonicRollPosition(cur);
 }

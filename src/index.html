@@ -261,62 +261,112 @@
              (els.sessionList, els.newSessionBtn, etc.). display:none reste le
              défaut au chargement pour éviter un flash avant que main.js ne
              bascule la vue via initPracticeSubnavViews()/app-switch-training-view. -->
-        <div class="practice-midi-sessions" id="practice-view-midi-sessions" style="display: none;">
-          <div class="midi-sessions-layout">
-            <aside class="midi-sessions-sidebar">
-              <div class="panel-title">Sessions enregistrées</div>
-              <button class="panel-action" id="midi-session-new-btn" type="button">+ Nouvelle session</button>
-              <input type="text" id="midi-session-search" class="midi-session-search" placeholder="Rechercher une session...">
-              <div class="midi-session-list" id="midi-session-list"></div>
-            </aside>
+        <!-- [Refonte Astra 12/09] — Sessions MIDI, recopiée de la maquette.
+             Tous les identifiants lus par recording-tab.js sont conservés :
+             #midi-session-list et #midi-session-search ont simplement rejoint le
+             tiroir « Bibliothèque » d'Astra, et #carnet-timeline n'est plus une
+             frise de blocs mais l'hôte du paysage harmonique (SVG en relief). -->
+        <div class="tr-view practice-midi-sessions midi-sessions-main" id="practice-view-midi-sessions" style="display: none;">
+          <div class="tr-view-heading">
+            <div>
+              <div class="tr-page-title"><span class="tr-page-index">01</span><h1>Sessions MIDI</h1></div>
+              <p>Retrouvez votre jeu. Explorez chaque nuance.</p>
+            </div>
+            <div class="tr-heading-actions">
+              <button class="tr-button tr-library-trigger" type="button" data-astra-open="midi-library-drawer" data-astra-shortcut="b"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 6H3M16 12H3M13 18H3"/><path d="M21 6v12a2 2 0 0 1-2 2"/></svg><span>Bibliothèque</span><kbd>B</kbd></button>
+              <button class="tr-button tr-primary panel-action" id="midi-session-new-btn" type="button"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Nouvelle session</button>
+            </div>
+          </div>
 
-            <section class="midi-sessions-main">
-              <div class="midi-session-info" id="midi-session-info">
-                <p class="detail-hint">Aucune session sélectionnée. Créez une nouvelle session ou choisissez-en une dans la liste.</p>
-              </div>
-
-              <div class="midi-session-transport" id="midi-session-transport" style="display: none;">
-                <button class="midi-transport-btn" id="midi-session-rewind" type="button" title="Revenir au début">⏮</button>
-                <button class="midi-transport-btn" id="midi-session-play" type="button" title="Lecture">▶</button>
-                <input type="range" id="midi-session-slider" class="midi-transport-slider" min="0" max="100" value="0">
-              </div>
-
-              <div class="midi-session-carnet" id="midi-session-carnet" style="display: none;">
-                <div class="carnet-sticky-head" id="carnet-sticky-head">
-                  <div class="carnet-session-header">
-                    <div class="carnet-session-title" id="carnet-session-title"></div>
-                    <div class="carnet-session-meta" id="carnet-session-meta"></div>
-                  </div>
-                  <button class="panel-action carnet-explore-all" id="carnet-explore-all" type="button" disabled>Explorer toute la session avec le Copilot</button>
-
-                  <div class="carnet-timeline" id="carnet-timeline" role="tablist" aria-label="Frise temporelle des moments marquants"></div>
-                  <div class="carnet-legend">
-                    <span><span class="legend-dot chord"></span>Vrai moment d'accord</span>
-                    <span><span class="legend-dot melody"></span>Passage mélodique</span>
+          <section class="tr-session-console" aria-label="Lecteur de session MIDI">
+            <div class="tr-console-header">
+              <div class="tr-session-identity">
+                <div class="tr-session-glyph"><svg class="tr-i" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 18v-3M11.5 18v-6M15 18v-4"/></svg></div>
+                <div>
+                  <h2 class="carnet-session-title" id="carnet-session-title">Aucune session sélectionnée</h2>
+                  <div class="tr-session-data carnet-session-meta" id="carnet-session-meta"></div>
+                  <div class="midi-session-info" id="midi-session-info">
+                    <p class="detail-hint">Aucune session sélectionnée. Créez une nouvelle session ou choisissez-en une dans la bibliothèque.</p>
                   </div>
                 </div>
-
-                <div class="carnet-title">Carnet des moments marquants <span class="carnet-hint">— généré automatiquement</span></div>
-
-                <div class="carnet-entries" id="carnet-entries"></div>
               </div>
-
-              <div class="midi-session-controls" id="midi-session-controls" style="display: none;">
-                <div class="midi-session-status" id="midi-session-status" data-state="recording">● Enregistrement en cours...</div>
-                <div class="midi-session-timer" id="midi-session-timer">00:00</div>
-                <div class="midi-session-stats" id="midi-session-stats">0 notes · 0 accords · Accord : —</div>
-                <button class="midi-stop-btn" id="midi-session-stop-btn" type="button">■ Arrêter</button>
+              <div class="tr-console-actions">
+                <div class="midi-session-controls" id="midi-session-controls" style="display: none;">
+                  <span class="tr-session-state is-live"><span></span><span class="midi-session-status" id="midi-session-status" data-state="recording">Enregistrement en cours</span></span>
+                  <span class="tr-mono midi-session-timer" id="midi-session-timer">00:00</span>
+                  <span class="tr-mono midi-session-stats" id="midi-session-stats">0 notes · 0 accords · Accord : —</span>
+                  <button class="tr-button midi-stop-btn" id="midi-session-stop-btn" type="button"><svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1" fill="currentColor"/></svg>Arrêter</button>
+                </div>
               </div>
+            </div>
 
-              <div class="midi-session-countdown" id="midi-session-countdown" style="display: none;">3</div>
-              <div class="midi-session-countdown-overlay" id="midi-session-countdown-overlay" style="display: none;">
-                <div class="midi-session-countdown-number" id="midi-session-countdown-number">3</div>
+            <div class="tr-roll-stage">
+              <div class="tr-roll-toolbar">
+                <span class="tr-eyebrow"><span class="tr-small-cross">+</span>PAYSAGE HARMONIQUE<span class="tr-roll-version">/ MIDI</span></span>
+                <div class="tr-projection-switch" id="midi-roll-projection" role="group" aria-label="Projection du paysage harmonique">
+                  <button type="button" data-projection="flat" aria-pressed="false"><svg class="tr-i" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12.83 2.18 8.58 3.91a1 1 0 0 1 0 1.82l-8.58 3.91a2 2 0 0 1-1.66 0L2.59 7.91a1 1 0 0 1 0-1.82l8.58-3.91a2 2 0 0 1 1.66 0Z"/><path d="m22 12.5-9.17 4.18a2 2 0 0 1-1.66 0L2 12.5"/></svg>2D</button>
+                  <button type="button" data-projection="spatial" class="is-active" aria-pressed="true"><svg class="tr-i" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>Relief</button>
+                </div>
               </div>
-            </section>
+              <!-- Hôte du paysage harmonique : recording-tab.js y injecte le SVG
+                   via src/ui/refonte/astra-harmonic-roll.js. Garde son id — la
+                   liaison de clic du carnet passe toujours par lui. -->
+              <div class="carnet-timeline" id="carnet-timeline" aria-label="Paysage harmonique de la session"></div>
+              <div class="tr-roll-caption">
+                <span><i class="tr-legend-note"></i>Notes jouées</span>
+                <span><i class="tr-legend-velocity"></i>Hauteur = vélocité</span>
+                <span class="tr-chart-hint">Cliquez sur une note pour vous y rendre</span>
+              </div>
+            </div>
+
+            <div class="tr-player-bar midi-session-transport" id="midi-session-transport" style="display: none;">
+              <div class="tr-player-controls">
+                <button class="tr-icon-button midi-transport-btn" id="midi-session-rewind" type="button" title="Revenir au début" aria-label="Revenir au début"><svg class="tr-i" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 20 9 12l10-8z"/><path d="M5 19V5"/></svg></button>
+                <button class="tr-main-play midi-transport-btn" id="midi-session-play" type="button" title="Lecture" aria-label="Lecture"><svg class="tr-i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 4 13 8-13 8z" fill="currentColor"/></svg></button>
+              </div>
+              <input type="range" id="midi-session-slider" class="tr-seek midi-transport-slider" min="0" max="100" value="0" aria-label="Position de lecture">
+              <div class="tr-player-copilot">
+                <button class="tr-text-button tr-accent-text carnet-explore-all" id="carnet-explore-all" type="button" disabled>Explorer toute la session avec le Copilot<svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></button>
+              </div>
+            </div>
+          </section>
+
+          <section class="tr-moments-section midi-session-carnet" id="midi-session-carnet" style="display: none;">
+            <div class="carnet-sticky-head" id="carnet-sticky-head">
+              <div class="tr-section-heading">
+                <h2>Carnet des moments marquants</h2>
+              </div>
+              <div class="carnet-legend">
+                <span><span class="legend-dot chord"></span>Vrai moment d'accord</span>
+                <span><span class="legend-dot melody"></span>Passage mélodique</span>
+              </div>
+            </div>
+            <div class="carnet-entries" id="carnet-entries"></div>
+          </section>
+
+          <div class="midi-session-countdown" id="midi-session-countdown" style="display: none;">3</div>
+          <div class="midi-session-countdown-overlay" id="midi-session-countdown-overlay" style="display: none;">
+            <div class="midi-session-countdown-number" id="midi-session-countdown-number">3</div>
+          </div>
+
+          <!-- Tiroir « Bibliothèque » (recopié de la maquette). Contient la liste
+               et la recherche que recording-tab.js pilote, inchangées. -->
+          <div class="tr-overlay tr-drawer-overlay" id="midi-library-drawer" hidden>
+            <div class="tr-dialog tr-dialog-wide tr-drawer" role="dialog" aria-modal="true" aria-label="Votre bibliothèque de sessions">
+              <div class="tr-dialog-title"><h2>Votre bibliothèque de sessions</h2>
+                <button class="tr-icon-button" type="button" data-astra-close aria-label="Fermer">✕</button></div>
+              <div class="tr-dialog-body">
+                <div class="tr-library-toolbar">
+                  <label class="tr-search"><svg class="tr-i" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input type="text" id="midi-session-search" class="midi-session-search" placeholder="Rechercher une session..." aria-label="Rechercher une session"><kbd>ESC</kbd></label>
+                  <button class="tr-button tr-primary" type="button" data-astra-close data-astra-click="#midi-session-new-btn"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Nouvelle session</button>
+                </div>
+                <div class="midi-session-list" id="midi-session-list" data-astra-close-on-click></div>
+              </div>
+            </div>
           </div>
 
           <!-- Modale de démarrage -->
-          <div class="modal-overlay" id="midi-session-init-modal" style="display: none;">
+          <div class="modal-overlay astra-modal" id="midi-session-init-modal" style="display: none;">
             <div class="modal-box">
               <h3>Nouvelle session MIDI</h3>
               <label class="midi-modal-field">
@@ -332,20 +382,20 @@
                 <input type="number" id="midi-session-bpm-input" value="90" min="40" max="240">
               </label>
               <div class="modal-actions">
-                <button class="primary" id="midi-session-start-btn" type="button">Démarrer (3…2…1…)</button>
+                <button class="tr-button tr-primary primary" id="midi-session-start-btn" type="button">Démarrer (3…2…1…)</button>
               </div>
             </div>
           </div>
 
           <!-- Modale de fin d'enregistrement -->
-          <div class="modal-overlay" id="midi-session-end-modal" style="display: none;">
+          <div class="modal-overlay astra-modal" id="midi-session-end-modal" style="display: none;">
             <div class="modal-box">
               <h3>Session terminée</h3>
               <div class="midi-modal-stats" id="midi-session-modal-stats"></div>
               <div class="modal-actions">
-                <button id="midi-session-delete" type="button">Supprimer</button>
-                <button id="midi-session-replay" type="button">Écouter</button>
-                <button class="primary" id="midi-session-keep" type="button">Garder</button>
+                <button class="tr-button" id="midi-session-delete" type="button">Supprimer</button>
+                <button class="tr-button" id="midi-session-replay" type="button">Écouter</button>
+                <button class="tr-button tr-primary primary" id="midi-session-keep" type="button">Garder</button>
               </div>
             </div>
           </div>

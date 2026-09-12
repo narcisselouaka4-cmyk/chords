@@ -13,7 +13,7 @@ function isMelodicRun(group) {
   return true;
 }
 
-function buildNoteWindows(events) {
+export function buildNoteWindows(events) {
   const noteOnMap = new Map();
   const sustainEvents = [];
   const noteWindows = [];
