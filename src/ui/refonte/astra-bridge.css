@@ -685,3 +685,65 @@
 #analysis-tab .an-subtab-btn.active svg { color: var(--an-accent); }
 #analysis-tab .an-stage-viewport { flex: 1; min-height: 0; overflow: auto; }
 #analysis-tab .an-stage-viewport > .analyzer-panel { height: 100%; min-height: 0; }
+
+/* ---- Accord sélectionné -------------------------------------------------
+   Les contenus sont écrits par analyzer-tab.js et voicing-preview.js : on ne
+   change pas leur markup, on l'inscrit dans les cartes d'Astra. */
+#analyzer-hero-notes.an-hero-notes-strip {
+  display: block;
+  color: var(--an-text-secondary);
+  font: 12px var(--an-mono);
+  letter-spacing: .02em;
+  white-space: pre-wrap;
+}
+#analyzer-hero-keyboard.an-piano-stage svg { width: 100%; height: auto; display: block; }
+
+/* Grille clé/valeur de l'inspecteur (spans .label / .value en paires). */
+#analyzer-inspector-details.an-meta-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 5px 14px;
+  align-items: baseline;
+  margin: 10px 0 12px;
+}
+#analyzer-inspector-details .label {
+  color: var(--an-text-muted);
+  font: 9px var(--an-mono);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+#analyzer-inspector-details .value {
+  color: var(--an-text);
+  font-size: 12px;
+  font-weight: 500;
+}
+#analyzer-inspector-empty.an-inspector-empty {
+  padding: 14px 0;
+  color: var(--an-text-muted);
+  font-size: 12px;
+}
+#analyzer-inspector-chord.an-degree-badge { font-size: 13px; font-weight: 650; }
+
+/* Aperçu du voicing alternatif (voicing-preview.js). */
+#analyzer-voicing-content .voicing-preview-title {
+  color: var(--an-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+#analyzer-voicing-content .voicing-preview-label {
+  color: var(--an-text-muted);
+  font: 9px var(--an-mono);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+#analyzer-voicing-content .voicing-preview-notes {
+  color: var(--an-accent-bright);
+  font: 13px var(--an-mono);
+  letter-spacing: .03em;
+}
+#analyzer-voicing-content .voicing-preview-reason,
+#analyzer-voicing-content .voicing-preview-status {
+  color: var(--an-text-secondary);
+  font-size: 11.5px;
+}
+#analyzer-voicing-style-selector .voicing-style-btn.active { color: var(--an-text); }

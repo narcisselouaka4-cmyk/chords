@@ -1170,35 +1170,67 @@
             </nav>
 
             <div class="an-stage-viewport analyzer-section-panels" id="analyzer-section-panels">
+              <!-- [Refonte Astra Analyse 12/09] — « Accord sélectionné », mise en
+                   page panoramique de la maquette.
+                   §2 APPLIQUÉ : les cartes « Position des mains » (main gauche /
+                   main droite en prose, doigté, astuce débutant), le commentaire
+                   émotionnel et le « secret du pianiste jazz » de la maquette ne
+                   sont PAS portés — aucun moteur de Zic ne produit ces textes, les
+                   afficher ferait mentir l'application sur le jeu de l'utilisateur.
+                   Ce qui est porté est alimenté par les vraies données :
+                   symbole, notes, mini-clavier, temps, degré, confiance, rôle,
+                   origine, et le voicing alternatif réel de voicing-preview.js. -->
               <div class="analyzer-panel" data-section="chords" role="tabpanel">
-                <div class="analyzer-chords-layout">
-                  <div class="analyzer-hero-card" id="analyzer-hero" style="display:none">
-                    <div class="analyzer-hero-name" id="analyzer-hero-name"></div>
-                    <div class="analyzer-hero-notes" id="analyzer-hero-notes"></div>
-                    <div class="analyzer-hero-keyboard" id="analyzer-hero-keyboard"></div>
-                  </div>
-                  <div class="analyzer-inspector-card" id="analyzer-chord-inspector">
-                    <div class="analyzer-inspector-title">Accord sélectionné</div>
-                    <div class="analyzer-inspector-empty" id="analyzer-inspector-empty">Sélectionnez un accord dans la timeline pour voir ses détails.</div>
-                    <div class="analyzer-inspector-content" id="analyzer-inspector-content" style="display:none">
-                      <div class="analyzer-inspector-chord" id="analyzer-inspector-chord">—</div>
-                      <div class="analyzer-inspector-times" id="analyzer-inspector-times">—</div>
-                      <div class="analyzer-inspector-details" id="analyzer-inspector-details"></div>
-                      <button type="button" class="btn-secondary btn-sm" id="analyzer-inspector-edit-btn">Modifier</button>
+                <div class="an-panoramic-container analyzer-chords-layout">
+
+                  <div class="an-card an-panoramic-card an-card-hero analyzer-hero-card" id="analyzer-hero" style="display:none">
+                    <div class="an-card-header">
+                      <span class="an-eyebrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="18" r="3"/><circle cx="18" cy="16" r="3"/><path d="M11 18V4l10-2v14"/></svg>ACCORD À L'ÉCOUTE</span>
+                    </div>
+                    <div class="an-chord-hero-block">
+                      <div class="an-hero-symbol-row">
+                        <h2 class="an-hero-symbol analyzer-hero-name" id="analyzer-hero-name"></h2>
+                      </div>
+                      <div class="an-hero-notes-strip analyzer-hero-notes" id="analyzer-hero-notes"></div>
+                    </div>
+                    <div class="an-piano-stage analyzer-hero-keyboard" id="analyzer-hero-keyboard"></div>
+                    <div class="an-card-actions">
+                      <button type="button" class="an-btn an-btn-primary" id="analyzer-hero-listen-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Écouter l'accord</button>
+                      <button type="button" class="an-btn an-btn-ghost" id="analyzer-hero-arpeggio-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="18" r="3"/><circle cx="18" cy="16" r="3"/><path d="M11 18V4l10-2v14"/></svg>Arpège</button>
                     </div>
                   </div>
-                  <section id="analyzer-voicing-preview" class="voicing-preview-panel" aria-label="Aperçu du voicing piano" style="display:none">
-                    <div
-                      id="analyzer-voicing-style-selector"
-                      class="voicing-style-selector"
-                      role="group"
-                      aria-label="Style de voicing"
-                    >
-                      <button type="button" class="voicing-style-btn" data-voicing-style="close" aria-pressed="true">Serré</button>
-                      <button type="button" class="voicing-style-btn" data-voicing-style="simple" aria-pressed="false">Simple</button>
+
+                  <div class="an-card an-panoramic-card an-card-anatomy analyzer-inspector-card" id="analyzer-chord-inspector">
+                    <div class="an-card-header">
+                      <span class="an-eyebrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m16.24 7.76-2.12 6.36-6.36 2.12 2.12-6.36z"/></svg>IDENTITÉ ET RÔLE DANS LE MORCEAU</span>
                     </div>
-                    <div id="analyzer-voicing-content"></div>
+                    <div class="an-inspector-empty analyzer-inspector-empty" id="analyzer-inspector-empty">Sélectionnez un accord dans la frise pour voir ses détails.</div>
+                    <div class="an-anatomy-body analyzer-inspector-content" id="analyzer-inspector-content" style="display:none">
+                      <div class="an-hero-pill">
+                        <span class="an-degree-badge analyzer-inspector-chord" id="analyzer-inspector-chord">—</span>
+                        <span class="an-hero-time analyzer-inspector-times" id="analyzer-inspector-times">—</span>
+                      </div>
+                      <div class="an-meta-grid analyzer-inspector-details" id="analyzer-inspector-details"></div>
+                      <button type="button" class="an-btn an-btn-ghost an-btn-mini" id="analyzer-inspector-edit-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Modifier</button>
+                    </div>
+                  </div>
+
+                  <section id="analyzer-voicing-preview" class="an-card an-panoramic-card an-card-jazz voicing-preview-panel" aria-label="Aperçu du voicing piano" style="display:none">
+                    <div class="an-card-header">
+                      <span class="an-eyebrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.29 1.29L3 12l5.81 1.9a2 2 0 0 1 1.29 1.29L12 21l1.9-5.81a2 2 0 0 1 1.29-1.29L21 12l-5.81-1.9a2 2 0 0 1-1.29-1.29z"/></svg>VOICING ALTERNATIF</span>
+                      <div
+                        id="analyzer-voicing-style-selector"
+                        class="an-style-switcher voicing-style-selector"
+                        role="group"
+                        aria-label="Style de voicing"
+                      >
+                        <button type="button" class="an-style-btn voicing-style-btn" data-voicing-style="close" aria-pressed="true">Serré</button>
+                        <button type="button" class="an-style-btn voicing-style-btn" data-voicing-style="simple" aria-pressed="false">Simple</button>
+                      </div>
+                    </div>
+                    <div class="an-jazz-body" id="analyzer-voicing-content"></div>
                   </section>
+
                 </div>
               </div>
               <div class="analyzer-panel" data-section="analysis" role="tabpanel" style="display:none">

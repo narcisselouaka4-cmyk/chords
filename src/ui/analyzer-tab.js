@@ -72,6 +72,7 @@ import { listTracks, loadMetadata, getOriginalPath, importToLibrary, renameTrack
 
 // [Refonte Astra Analyse 12/09] — icônes du transport (Lucide recopiées en SVG
 // inline : aucune dépendance ajoutée).
+let heroMidiNotes = [];
 const AN_PLAY_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 4 13 8-13 8z" fill="currentColor"/></svg>';
 const AN_PAUSE_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg>';
 
@@ -341,6 +342,7 @@ export function initAnalyzerTab() {
   bindHierarchyToggle();
   els.reanalyzeBtn?.addEventListener('click', () => { reanalyzeCurrentTrack(); });
   bindSectionTabs();
+  bindHeroAudition();
   bindExportMidiButton();
   bindExportJsonButton();
   bindCopyTextButton();
@@ -1711,9 +1713,14 @@ function renderHeroChord(chord) {
   const allPcs = display.allPcs;
   if (allPcs.length) {
     const midiNotes = allPcs.map((pc) => 60 + ((pc - (60 % 12) + 12) % 12));
+    // [Refonte Astra Analyse 12/09] — mémorisées pour les boutons d'écoute
+    // « Écouter l'accord » / « Arpège » de la carte, portés depuis la maquette.
+    // Ce sont les notes réellement détectées, aucune donnée inventée.
+    heroMidiNotes = midiNotes;
     const { svg } = miniKeyboardForNotes(midiNotes);
     els.heroKeyboard.innerHTML = svg;
   } else {
+    heroMidiNotes = [];
     els.heroKeyboard.innerHTML = '';
   }
 }
@@ -1983,6 +1990,29 @@ function activateSectionTab(section) {
       renderCorriger(els, getDisplayChords().find((s) => s.segmentId === selectedSegmentId) || null, currentAnalysis);
     }
   });
+}
+
+// [Refonte Astra Analyse 12/09] — Écoute de l'accord sélectionné, portée depuis
+// la maquette. Elle rejoue les notes RÉELLEMENT détectées (heroMidiNotes) avec
+// le même couple playNote/releaseNote que le reste de l'onglet ; rien n'est
+// synthétisé ni inventé.
+async function auditionHeroChord(arpeggio) {
+  if (!heroMidiNotes.length) return;
+  await resumeAudio();
+  const DURATION_MS = 1100;
+  const STEP_MS = arpeggio ? 110 : 0;
+  const notes = heroMidiNotes.slice().sort((a, b) => a - b);
+  notes.forEach((midi, i) => {
+    setTimeout(() => playNote(midi, 0.75), i * STEP_MS);
+    setTimeout(() => releaseNote(midi), DURATION_MS + i * STEP_MS);
+  });
+}
+
+function bindHeroAudition() {
+  document.getElementById('analyzer-hero-listen-btn')
+    ?.addEventListener('click', () => { void auditionHeroChord(false); });
+  document.getElementById('analyzer-hero-arpeggio-btn')
+    ?.addEventListener('click', () => { void auditionHeroChord(true); });
 }
 
 function bindExportMidiButton() {
