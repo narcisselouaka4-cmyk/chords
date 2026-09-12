@@ -1047,6 +1047,134 @@ function updateExerciseProgressUI(exState) {
       els.exerciseDegreeBadge.style.display = 'none';
     }
   }
+
+  renderExerciseBrief(exState);
+  renderExerciseProgressPanel(exState);
+}
+
+// [Astra round 3] — Les deux zones dédiées de la vue Exercices
+// (.tr-exercise-brief et .tr-exercise-progress) étaient des textes figés :
+// l'une annonçait « Un accord, puis le suivant », l'autre promettait un
+// avancement qui ne venait jamais. Elles affichent maintenant les données que
+// practice-exercise.js calcule déjà — rien n'est inventé, aucun libellé
+// pédagogique n'est ajouté.
+
+/** Panneau de gauche : ce qu'on travaille, selon le mode réellement actif. */
+function renderExerciseBrief(exState) {
+  const category = document.getElementById('exercise-brief-category');
+  const title = document.getElementById('exercise-brief-title');
+  const text = document.getElementById('exercise-brief-text');
+  const keyPill = document.getElementById('exercise-brief-key');
+  if (!category || !title || !text) return;
+
+  const target = exState.target;
+
+  if (exState.mode === 'movement' && target?.movementName) {
+    category.textContent = target.movementCategory || 'MOUVEMENT 12 TONS';
+    title.textContent = target.movementName;
+    text.textContent = target.movementDescription || '';
+    if (keyPill) {
+      // Affichage seul : practice-exercise.js n'expose aucun changement manuel
+      // de tonalité, on n'en invente pas un.
+      keyPill.textContent = target.keyLabel || '';
+      keyPill.style.display = target.keyLabel ? '' : 'none';
+    }
+    return;
+  }
+
+  if (exState.mode === 'progression' && exState.progression) {
+    category.textContent = 'PROGRESSION';
+    title.textContent = exState.progression.name || 'Progression';
+    text.textContent = 'Jouez les accords dans l\'ordre. Le degré attendu est indiqué en face de chaque étape.';
+    if (keyPill) keyPill.style.display = 'none';
+    return;
+  }
+
+  category.textContent = 'ACCORD CIBLE';
+  title.textContent = 'Un accord, puis le suivant.';
+  text.textContent = "Jouez les notes de l'accord affiché, ensemble ou une à une. La reconnaissance est celle du moteur d'accords de l'application : elle compare les notes reçues, pas votre doigté.";
+  if (keyPill) keyPill.style.display = 'none';
+}
+
+/** Panneau de droite : compteur, barre et étapes réelles de l'exercice. */
+function renderExerciseProgressPanel(exState) {
+  const eyebrow = document.getElementById('exercise-progress-eyebrow');
+  const counter = document.getElementById('exercise-progress-counter');
+  const track = document.getElementById('exercise-progress-track');
+  const path = document.getElementById('exercise-progress-path');
+  const quiet = document.getElementById('exercise-progress-quiet');
+  if (!counter || !track || !path || !quiet) return;
+
+  const bar = track.firstElementChild;
+  const showBar = (ratio) => {
+    track.style.display = '';
+    if (bar) bar.style.width = `${Math.max(0, Math.min(100, ratio * 100)).toFixed(1)}%`;
+  };
+  const setCounter = (current, total) => {
+    counter.style.display = '';
+    counter.innerHTML = '';
+    const strong = document.createElement('strong');
+    strong.textContent = String(current).padStart(2, '0');
+    const span = document.createElement('span');
+    span.textContent = `/ ${String(total).padStart(2, '0')}`;
+    counter.append(strong, span);
+  };
+  const renderSteps = (chords, activeIndex, withDegree) => {
+    path.innerHTML = '';
+    chords.forEach((chord, index) => {
+      const step = document.createElement('div');
+      step.className = index === activeIndex ? 'is-active' : index < activeIndex ? 'is-done' : '';
+      const mark = document.createElement('span');
+      mark.textContent = withDegree && chord.degree ? chord.degree : String(index + 1);
+      const body = document.createElement('div');
+      const name = document.createElement('strong');
+      name.textContent = chord.name || '—';
+      body.appendChild(name);
+      step.append(mark, body);
+      path.appendChild(step);
+    });
+  };
+
+  // Mode « Mouvement 12 tons » : deux échelles réelles, les tons et les accords.
+  if (exState.mode === 'movement' && exState.progression) {
+    const prog = exState.progression;
+    const perKey = prog.chords.length || 1;
+    const totalKeys = prog.totalKeys || 12;
+    const done = (prog.keyIndex || 0) * perKey + (prog.stepIndex || 0);
+    if (eyebrow) eyebrow.textContent = 'LE TOUR DES TONALITÉS';
+    setCounter((prog.keyIndex || 0) + 1, totalKeys);
+    showBar(done / (totalKeys * perKey));
+    renderSteps(prog.chords, prog.stepIndex || 0, false);
+    quiet.textContent = [exState.target?.keyProgress, exState.target?.stepProgress]
+      .filter(Boolean).join(' · ');
+    quiet.style.display = quiet.textContent ? '' : 'none';
+    return;
+  }
+
+  // Mode « Progression » : une seule échelle, les accords de la grille.
+  if (exState.mode === 'progression' && exState.progression) {
+    const chords = exState.progression.chords || [];
+    const total = chords.length || 1;
+    const step = exState.stepIndex || 0;
+    if (eyebrow) eyebrow.textContent = 'VOTRE PROGRESSION';
+    setCounter(Math.min(step + 1, total), total);
+    showBar(step / total);
+    renderSteps(chords, step, true);
+    quiet.textContent = exState.score > 0 ? `${exState.score} pts` : '';
+    quiet.style.display = quiet.textContent ? '' : 'none';
+    return;
+  }
+
+  // Mode « Accord cible » : pas de progression multi-étapes côté Zic. On
+  // n'invente pas d'échelle : on montre le score et les tentatives réels.
+  if (eyebrow) eyebrow.textContent = 'VOTRE SCORE';
+  counter.style.display = 'none';
+  track.style.display = 'none';
+  path.innerHTML = '';
+  const bits = [`${exState.score || 0} pt${(exState.score || 0) > 1 ? 's' : ''}`];
+  if (exState.attempts > 0) bits.push(`${exState.attempts} essai${exState.attempts > 1 ? 's' : ''} sur l'accord en cours`);
+  quiet.textContent = bits.join(' · ');
+  quiet.style.display = '';
 }
 
 function initPracticeExercise() {
@@ -1110,12 +1238,14 @@ function checkPracticeExercise(notes) {
     feedbackDiv.textContent = result.message;
     feedbackDiv.className = `exercise-feedback ${result.success ? 'success' : 'error'}`;
   }
+  const exState = practiceExercise.getState();
   if (result.success) {
     const targetDiv = document.getElementById('exercise-target');
-    const exState = practiceExercise.getState();
     targetDiv.innerHTML = renderExerciseTarget(exState.target);
-    updateExerciseProgressUI(exState);
   }
+  // [Astra round 3] — mise à jour aussi en cas d'échec : le compteur d'essais
+  // du panneau de droite reflète alors la tentative qui vient d'avoir lieu.
+  updateExerciseProgressUI(exState);
 }
 
 // [Claude] — 2026-07-04 — Initialisation du panneau de configuration API IA

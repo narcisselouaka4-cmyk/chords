@@ -201,12 +201,22 @@
           </div>
 
           <section class="tr-exercise-stage">
+            <!-- [Astra round 3] — Le guide et le panneau de progression ne sont
+                 plus des textes figés : main.js (updateExerciseProgressUI) les
+                 remplit avec les données réelles de practice-exercise.js, selon
+                 le mode actif. Les libellés fixes d'Astra (« GUIDE TONE LINE »,
+                 « 7 → 3 », « Préparer / Créer la tension / Résoudre ») ne sont
+                 pas repris : ils ne correspondent pas aux exercices de Zic. -->
             <div class="tr-exercise-brief">
-              <div class="tr-exercise-label"><svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg><span>GUIDE TONE LINE</span><span>7 → 3</span></div>
-              <h2>Un accord,<br />puis le suivant.</h2>
-              <p>Jouez les notes de l'accord affiché, ensemble ou une à une. La
+              <div class="tr-exercise-label" id="exercise-brief-label">
+                <svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                <span id="exercise-brief-category">EXERCICE</span>
+              </div>
+              <h2 id="exercise-brief-title">Un accord,<br />puis le suivant.</h2>
+              <p id="exercise-brief-text">Jouez les notes de l'accord affiché, ensemble ou une à une. La
                  reconnaissance est celle du moteur d'accords de l'application :
                  elle compare les notes reçues, pas votre doigté.</p>
+              <div class="exercise-key-pill" id="exercise-brief-key" style="display: none;"></div>
               <div class="exercise-degree-badge" id="exercise-degree-badge" style="display: none;"></div>
             </div>
 
@@ -220,9 +230,11 @@
             </div>
 
             <div class="tr-exercise-progress">
-              <span class="tr-eyebrow">VOTRE PROGRESSION</span>
-              <p class="tr-progress-quiet">L'avancement s'affiche à côté d'« Exercices »
-                 dans la sous-navigation, dès qu'un exercice est lancé.</p>
+              <span class="tr-eyebrow" id="exercise-progress-eyebrow">VOTRE PROGRESSION</span>
+              <div class="tr-key-counter" id="exercise-progress-counter" style="display: none;"></div>
+              <div class="tr-key-progress-track" id="exercise-progress-track" style="display: none;"><span></span></div>
+              <div class="tr-progression-path" id="exercise-progress-path"></div>
+              <p class="tr-progress-quiet" id="exercise-progress-quiet">Lancez un exercice : l'avancement s'affiche ici.</p>
             </div>
           </section>
 

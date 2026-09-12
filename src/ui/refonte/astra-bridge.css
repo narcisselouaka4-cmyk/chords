@@ -1051,8 +1051,141 @@
 :root[data-skin='v2'] #practice-view-exercices .exercise-target-notes {
   font-size: 9px; font-family: var(--tr-mono); color: var(--tr-accent); letter-spacing: .03em;
 }
-#practice-view-exercices .exercise-movement-header { width: 100%; text-align: center; margin-bottom: 10px; }
-#practice-view-exercices .exercise-movement-category { color: var(--tr-muted); font: 8px var(--tr-mono); letter-spacing: .06em; text-transform: uppercase; }
-#practice-view-exercices .exercise-movement-name { font-size: 13px; color: var(--tr-secondary); margin-top: 2px; }
-#practice-view-exercices .exercise-movement-description { color: var(--tr-muted); font-size: 10px; margin-top: 2px; }
-#practice-view-exercices .exercise-movement-progress { display: flex; justify-content: center; gap: 10px; margin-top: 8px; color: var(--tr-muted); font: 8px var(--tr-mono); }
+/* [Astra round 3] — 7e cas du piège de spécificité : practice.css (L.390-441)
+   cible « :root[data-skin='…'] #practice-tab .exercise-movement-* » et battait
+   ces règles, ce qui rendait le bloc en colonne encadrée au lieu d'un en-tête
+   discret. Même préfixe ici pour repasser devant.
+   Ces classes ne sont plus émises par renderExerciseTarget() (les données du
+   mouvement ont rejoint .tr-exercise-brief), les règles restent au cas où le
+   bloc reviendrait — elles ne stylent plus rien aujourd'hui. */
+:root[data-skin='global'] #practice-view-exercices .exercise-movement-header,
+:root[data-skin='v2'] #practice-view-exercices .exercise-movement-header {
+  width: 100%; text-align: center; margin-bottom: 10px; padding: 0; border: 0; flex-direction: row;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-movement-category,
+:root[data-skin='v2'] #practice-view-exercices .exercise-movement-category {
+  color: var(--tr-muted); font: 8px var(--tr-mono); letter-spacing: .06em; text-transform: uppercase;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-movement-name,
+:root[data-skin='v2'] #practice-view-exercices .exercise-movement-name {
+  font-size: 13px; color: var(--tr-secondary); margin-top: 2px;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-movement-description,
+:root[data-skin='v2'] #practice-view-exercices .exercise-movement-description {
+  color: var(--tr-muted); font-size: 10px; margin-top: 2px;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-movement-progress,
+:root[data-skin='v2'] #practice-view-exercices .exercise-movement-progress {
+  display: flex; justify-content: center; gap: 10px; margin-top: 8px; color: var(--tr-muted); font: 8px var(--tr-mono);
+}
+
+/* ---- Guide (gauche) et panneau de progression (droite) ------------------
+   Alimentés par updateExerciseProgressUI() dans main.js à partir de l'état
+   réel de practice-exercise.js. Mêmes préfixes de spécificité que le reste. */
+:root[data-skin='global'] #practice-view-exercices .exercise-key-pill,
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-pill {
+  align-self: flex-start;
+  margin-top: 12px;
+  padding: 5px 11px;
+  border: 1px solid var(--tr-border);
+  border-radius: 7px;
+  background: var(--tr-inset);
+  color: var(--tr-accent);
+  font: 11px var(--tr-mono);
+  letter-spacing: .04em;
+}
+:root[data-skin='global'] #practice-view-exercices .tr-key-counter,
+:root[data-skin='v2'] #practice-view-exercices .tr-key-counter {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 10px;
+}
+:root[data-skin='global'] #practice-view-exercices .tr-key-counter strong,
+:root[data-skin='v2'] #practice-view-exercices .tr-key-counter strong {
+  color: var(--tr-text);
+  font: 600 26px var(--tr-mono);
+  letter-spacing: -.04em;
+}
+:root[data-skin='global'] #practice-view-exercices .tr-key-counter span,
+:root[data-skin='v2'] #practice-view-exercices .tr-key-counter span {
+  color: var(--tr-muted);
+  font: 12px var(--tr-mono);
+}
+:root[data-skin='global'] #practice-view-exercices .tr-key-progress-track,
+:root[data-skin='v2'] #practice-view-exercices .tr-key-progress-track {
+  height: 4px;
+  margin-top: 10px;
+  border-radius: 3px;
+  background: var(--tr-inset);
+  overflow: hidden;
+}
+:root[data-skin='global'] #practice-view-exercices .tr-key-progress-track > span,
+:root[data-skin='v2'] #practice-view-exercices .tr-key-progress-track > span {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 3px;
+  background: var(--tr-accent);
+  transition: width .25s ease;
+}
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 14px;
+}
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > div,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 9px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--tr-secondary);
+}
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > div > span,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > div > span {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 5px;
+  background: var(--tr-inset);
+  color: var(--tr-muted);
+  font: 9px var(--tr-mono);
+}
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > div strong,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > div strong {
+  font-size: 12px;
+  font-weight: 550;
+}
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > div.is-done,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > div.is-done {
+  color: var(--tr-muted);
+}
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > div.is-done > span,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > div.is-done > span {
+  color: var(--tr-green);
+}
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > div.is-active,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > div.is-active {
+  border-color: var(--tr-accent);
+  background: var(--tr-accent-soft);
+  color: var(--tr-text);
+}
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > div.is-active > span,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > div.is-active > span {
+  background: var(--tr-accent);
+  color: var(--tr-button-text);
+}
+:root[data-skin='global'] #practice-view-exercices .tr-progress-quiet,
+:root[data-skin='v2'] #practice-view-exercices .tr-progress-quiet {
+  margin-top: 12px;
+  color: var(--tr-muted);
+  font: 10px var(--tr-mono);
+  letter-spacing: .03em;
+}

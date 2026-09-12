@@ -347,24 +347,13 @@ export function createPracticeExercise() {
 export function renderExerciseTarget(target) {
   if (!target) return '';
   const kb = miniKeyboardForNotes(target.notes || []);
-  let header = '';
-  if (target.movementName) {
-    header = `
-      <div class="exercise-movement-header">
-        <div class="exercise-movement-category">${escapeHtml(target.movementCategory || '')}</div>
-        <div class="exercise-movement-name">${escapeHtml(target.movementName)}</div>
-        <div class="exercise-movement-description">${escapeHtml(target.movementDescription || '')}</div>
-        <div class="exercise-movement-progress">
-          <span class="exercise-key-label">${escapeHtml(target.keyLabel || '')}</span>
-          <span class="exercise-key-progress">${escapeHtml(target.keyProgress || '')}</span>
-          <span class="exercise-step-progress">${escapeHtml(target.stepProgress || '')}</span>
-        </div>
-      </div>
-    `;
-  }
+  // [Astra round 3] — L'en-tête de mouvement (catégorie, nom, description,
+  // tonalité, avancement) n'est plus rendu DANS la carte : ces données vivent
+  // désormais dans les zones dédiées .tr-exercise-brief et
+  // .tr-exercise-progress, remplies par updateExerciseProgressUI() dans
+  // main.js. Elles ne sont donc pas dupliquées.
   return `
     <div class="exercise-target-card ${target.movementName ? 'has-movement' : ''}">
-      ${header}
       <div class="exercise-target-name">${escapeHtml(target.name)}</div>
       <div class="exercise-target-keyboard">${kb.svg}</div>
       <div class="exercise-target-notes">${escapeHtml(kb.noteNames.join(' — '))}</div>
