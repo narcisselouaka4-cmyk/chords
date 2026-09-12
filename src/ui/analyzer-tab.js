@@ -2322,97 +2322,111 @@ function renderOverview(analysis) {
   // Qualités
   const qualityRows = Object.entries(stats.qualityCounts)
     .sort((a, b) => b[1] - a[1])
-    .map(([q, count]) => `<div class="flex justify-between text-xs"><span>${q || 'majeur'}</span><span>${count}</span></div>`)
-    .join('') || '<div class="text-xs text-(--text-dim)">Aucune</div>';
+    .map(([q, count]) => `<div class="an-kv-row"><span>${escapeHtml(q || 'majeur')}</span><span>${count}</span></div>`)
+    .join('') || '<div class="an-kv-row is-empty"><span>Aucune</span></div>';
 
   // Accords les plus utilisés
   const topRows = stats.mostUsedChords
-    .map(({ symbol, count }) => `<div class="flex justify-between text-xs"><span>${escapeHtml(symbol)}</span><span>${count}</span></div>`)
-    .join('') || '<div class="text-xs text-(--text-dim)">Aucun</div>';
+    .map(({ symbol, count }) => `<div class="an-kv-row"><span>${escapeHtml(symbol)}</span><span>${count}</span></div>`)
+    .join('') || '<div class="an-kv-row is-empty"><span>Aucun</span></div>';
 
+  // [Refonte Astra Analyse 12/09] — Mise en page « Vue d'ensemble » recopiée de
+  // la maquette (classes an-*). Les DONNÉES sont inchangées : ce sont celles
+  // que computeProductStatistics() et l'analyse produisent réellement.
+  // §2 du brief : les blocs « Guide d'écoute pour débutant » et « Polarité
+  // tonale » de la maquette ne sont PAS portés — leurs textes sont écrits à la
+  // main dans la maquette, aucun moteur de Zic ne les produit.
   els.overviewContent.innerHTML = `
-    <div class="analyzer-overview-header">
-      ${headerItems.map(({ label, value }) => `
-        <div class="analyzer-overview-metric overview-header-metric">
-          <div class="value">${escapeHtml(value)}</div>
-          <div class="label">${escapeHtml(label)}</div>
-        </div>
-      `).join('')}
-    </div>
-
-    <div class="analyzer-overview-row">
-      <div class="analyzer-overview-block">
-        <h3>Score analyse</h3>
-        <div class="analyzer-overview-grid">
-          ${scoreRows.map(({ label, value }) => `
-            <div class="analyzer-overview-metric">
-              <div class="value">${escapeHtml(value)}</div>
-              <div class="label">${escapeHtml(label)}</div>
+    <div class="an-overview-container">
+      <div class="an-overview-hero-bar">
+        ${headerItems.map(({ label, value }) => `
+          <div class="an-metric-tile">
+            <span class="an-metric-label">${escapeHtml(label)}</span>
+            <div class="an-metric-val-row">
+              <strong class="an-metric-primary">${escapeHtml(value)}</strong>
             </div>
-          `).join('')}
+          </div>
+        `).join('')}
+      </div>
+
+      <div class="an-overview-grid">
+        <div class="an-card an-overview-card an-architecture-card">
+          <div class="an-card-header">
+            <div>
+              <span class="an-eyebrow">ARCHITECTURE HARMONIQUE DU MORCEAU</span>
+              <h3 class="an-card-title">Pattern harmonique</h3>
+            </div>
+            <span class="an-hint-tag">${progression.length} accord${progression.length > 1 ? 's' : ''} enchaînés</span>
+          </div>
+
+          <div class="an-chords-track">
+            ${progression.length > 0
+              ? progression.map((sym) => `<span class="an-flow-chord-pill"><strong class="an-flow-symbol">${escapeHtml(sym)}</strong></span>`).join('')
+              : '<span class="an-hint-tag">Aucun accord détecté.</span>'}
+          </div>
+
+          <div class="an-bassline-tray">
+            <div class="an-bassline-header">
+              <span class="an-eyebrow">LIGNE DE BASSE</span>
+            </div>
+            <div class="an-bass-nodes-row">
+              ${bassNotes.length > 0
+                ? bassNotes.map((n, i) => `<div class="an-bass-node-wrap"><span class="an-bass-node">${escapeHtml(n)}</span>${i < bassNotes.length - 1 ? '<span class="an-bass-arrow">→</span>' : ''}</div>`).join('')
+                : '<span class="an-hint-tag">Non disponible.</span>'}
+            </div>
+          </div>
+        </div>
+
+        <div class="an-card an-overview-card an-insights-card">
+          <div class="an-card-header">
+            <div>
+              <span class="an-eyebrow">CE QUE L'ANALYSE A MESURÉ</span>
+              <h3 class="an-card-title">Score et statistiques</h3>
+            </div>
+          </div>
+
+          <div class="an-overview-hero-bar an-inline-metrics">
+            ${scoreRows.map(({ label, value }) => `
+              <div class="an-metric-tile">
+                <span class="an-metric-label">${escapeHtml(label)}</span>
+                <div class="an-metric-val-row"><strong class="an-metric-primary">${escapeHtml(value)}</strong></div>
+              </div>
+            `).join('')}
+          </div>
+
+          <div class="an-stats-split">
+            <div class="an-stats-col">
+              <span class="an-section-mini-tag">Segments et corrections</span>
+              <div class="an-kv-row"><span>Segments</span><span>${stats.totalSegments}</span></div>
+              <div class="an-kv-row"><span>Durée totale</span><span>${formatTime(stats.totalDuration)}</span></div>
+              <div class="an-kv-row"><span>Corrections manuelles</span><span>${stats.manuallyEditedCount}</span></div>
+              <div class="an-kv-row"><span>Slash chords</span><span>${stats.slashChordCount}</span></div>
+            </div>
+            <div class="an-stats-col">
+              <span class="an-section-mini-tag">Qualités</span>
+              ${qualityRows}
+            </div>
+            <div class="an-stats-col">
+              <span class="an-section-mini-tag">Accords les plus utilisés</span>
+              ${topRows}
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="analyzer-overview-block">
-        <h3>Pattern harmonique</h3>
-        <div class="analyzer-bass-line">
-          ${progression.length > 0
-            ? progression.map((s) => `<span class="note-pill">${escapeHtml(s)}</span>`).join(' ')
-            : '<span class="text-xs text-(--text-dim)">Aucun accord détecté.</span>'}
-        </div>
-      </div>
-    </div>
-
-    <div class="analyzer-overview-row">
-      <div class="analyzer-overview-block">
-        <h3>Ligne de basse</h3>
-        <div class="analyzer-bass-line">
-          ${bassNotes.length > 0
-            ? bassNotes.map((n) => `<span class="note-pill">${escapeHtml(n)}</span>`).join('<span class="bass-arrow" aria-hidden="true">→</span>')
-            : '<span class="text-xs text-(--text-dim)">Non disponible.</span>'}
-        </div>
-      </div>
-
-      <div class="analyzer-overview-block">
-        <h3>Statistiques</h3>
-        <div class="analyzer-overview-grid">
-          <div class="analyzer-overview-metric">
-            <div class="value">${stats.totalSegments}</div>
-            <div class="label">Segments</div>
-          </div>
-          <div class="analyzer-overview-metric">
-            <div class="value">${formatTime(stats.totalDuration)}</div>
-            <div class="label">Durée totale</div>
-          </div>
-          <div class="analyzer-overview-metric">
-            <div class="value">${stats.manuallyEditedCount}</div>
-            <div class="label">Corrections</div>
-          </div>
-          <div class="analyzer-overview-metric">
-            <div class="value">${stats.slashChordCount}</div>
-            <div class="label">Slash chords</div>
+      <div class="an-card an-overview-card">
+        <div class="an-card-header">
+          <div>
+            <span class="an-eyebrow">EXPORT</span>
+            <h3 class="an-card-title">Emporter cette analyse</h3>
           </div>
         </div>
-        <div class="mt-3">
-          <div class="text-xs font-semibold text-(--text-dim) uppercase mb-1">Qualités</div>
-          ${qualityRows}
+        <div class="an-export-actions">
+          <button type="button" class="an-btn an-btn-ghost an-btn-mini" id="analyzer-overview-export-midi">Exporter en MIDI</button>
+          <button type="button" class="an-btn an-btn-ghost an-btn-mini" id="analyzer-overview-export-json">Exporter en JSON</button>
+          <button type="button" class="an-btn an-btn-primary an-btn-mini" id="analyzer-overview-copy-text">Copier la grille texte</button>
         </div>
-        <div class="mt-2">
-          <div class="text-xs font-semibold text-(--text-dim) uppercase mb-1">Accords les plus utilisés</div>
-          ${topRows}
-        </div>
-      </div>
-    </div>
-
-    <div class="analyzer-overview-row">
-      <div class="analyzer-overview-block">
-        <h3>Export / Actions</h3>
-        <div class="flex flex-wrap gap-2">
-          <button type="button" class="btn-secondary" id="analyzer-overview-export-midi">Exporter en MIDI</button>
-          <button type="button" class="btn-secondary" id="analyzer-overview-export-json">Exporter en JSON</button>
-          <button type="button" class="btn-secondary" id="analyzer-overview-copy-text">Copier la grille texte</button>
-        </div>
-        <p class="text-xs text-(--text-dim) mt-2">MIDI, JSON et texte reflètent les corrections manuelles. JSON conserve aussi la détection originale.</p>
+        <p class="an-hint-tag">MIDI, JSON et texte reflètent les corrections manuelles. JSON conserve aussi la détection originale.</p>
       </div>
     </div>
   `;

@@ -751,3 +751,26 @@
   font-size: 11.5px;
 }
 #analyzer-voicing-style-selector .voicing-style-btn.active { color: var(--an-text); }
+
+/* ---- Vue d'ensemble : compléments -------------------------------------- */
+#analyzer-overview-content { height: 100%; overflow: auto; }
+#analysis-tab .an-inline-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#analysis-tab .an-stats-split {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+#analysis-tab .an-stats-col { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+#analysis-tab .an-kv-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--an-border-soft);
+  color: var(--an-text-secondary);
+  font-size: 11.5px;
+}
+#analysis-tab .an-kv-row > span:last-child { color: var(--an-text); font-family: var(--an-mono); }
+#analysis-tab .an-kv-row.is-empty { color: var(--an-text-muted); border-bottom: 0; }
+#analysis-tab .an-export-actions { display: flex; flex-wrap: wrap; gap: 8px; }
