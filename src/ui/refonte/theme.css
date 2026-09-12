@@ -22,22 +22,22 @@
 
 :root {
   /* ---- Palette partagée (§1 du relais — variante sombre, seule maquettée) ---- */
-  --r-ground: #100c14;
-  --r-surface: #18131f;
-  --r-surface-raised: #1f1828;
-  --r-surface-chip: #241d2f;
-  --r-border: rgba(255, 255, 255, 0.09);
-  --r-border-strong: rgba(255, 255, 255, 0.22);
-  --r-text: #f1eef7;
-  --r-text-muted: #a79cc4;
-  --r-text-faint: #665a82;
-  --r-accent: #8b6cf5;
-  --r-accent-soft: rgba(139, 108, 245, 0.18);
+  --r-ground: #141416;
+  --r-surface: #1c1c20;
+  --r-surface-raised: #232327;
+  --r-surface-chip: #29292e;
+  --r-border: #303036;
+  --r-border-strong: #42424a;
+  --r-text: #f0eff3;
+  --r-text-muted: #a2a0aa;
+  --r-text-faint: #89848f;
+  --r-accent: #b8a0f3;
+  --r-accent-soft: #2a2538;
   --r-coral: #ff8a5c;
   --r-coral-soft: rgba(255, 138, 92, 0.18);
-  --r-good: #34d399;
-  --r-good-soft: rgba(52, 211, 153, 0.16);
-  --r-warn: #f0b866;
+  --r-good: #8ccdb7;
+  --r-good-soft: #20322c;
+  --r-warn: #e0be8a;
 
   /* Dégradé signature : violet monochrome. Le violet→corail façon Apple Music
      est explicitement écarté (§1) — ne pas le réintroduire. */
@@ -100,25 +100,25 @@
    ============================================================================ */
 
 :root[data-theme='light'] {
-  --r-ground: #f4f2f9;
+  --r-ground: #f5f4f7;
   --r-surface: #ffffff;
-  --r-surface-raised: #faf9fe;
-  --r-surface-chip: #f0edf8;
-  --r-border: rgba(28, 18, 51, 0.12);
-  --r-border-strong: rgba(28, 18, 51, 0.24);
-  --r-text: #1c1526;
-  --r-text-muted: #574f6b;
-  --r-text-faint: #8a819f;
+  --r-surface-raised: #ffffff;
+  --r-surface-chip: #f0eef4;
+  --r-border: #dfdce5;
+  --r-border-strong: #c9c4d3;
+  --r-text: #272330;
+  --r-text-muted: #6b6377;
+  --r-text-faint: #746c7e;
 
-  --r-accent: #6d47e0;
-  --r-accent-soft: rgba(109, 71, 224, 0.11);
+  --r-accent: #7954c5;
+  --r-accent-soft: #eee7fb;
   --r-accent-text: #4526ad;
   --r-grad: linear-gradient(90deg, #7c4dff, #5b3fd6);
 
   --r-coral: #cf5f33;
   --r-coral-soft: rgba(207, 95, 51, 0.13);
-  --r-good: #0f9d63;
-  --r-good-soft: rgba(15, 157, 99, 0.13);
+  --r-good: #3e8b74;
+  --r-good-soft: #e8f4ee;
   --r-warn: #a8730f;
   --r-error: #cf3f58;
 
@@ -143,22 +143,22 @@
 /* Le rayon « pilule » suit la grammaire du skin actif : arrondi complet en
    Scène (v2), angle sobre en Atelier (Global) — comme --r-radius-btn. */
 :root[data-skin='v2'] {
-  --r-radius-pill: 100px;
+  --r-radius-pill: 6px;
 }
 
 :root[data-skin='global'] {
-  --r-radius-pill: 7px;
+  --r-radius-pill: 6px;
 }
 
 /* ------------------------------------------------------------------ *
  *  Skin v2 — pilules arrondies à 100px, dégradés violets, .set-block  *
  * ------------------------------------------------------------------ */
 :root[data-skin='v2'] {
-  --r-radius-card: 16px;
-  --r-radius-inset: 12px;
-  --r-radius-chip: 100px;
-  --r-radius-btn: 100px;
-  --r-radius-field: 12px;
+  --r-radius-card: 12px;
+  --r-radius-inset: 8px;
+  --r-radius-chip: 6px;
+  --r-radius-btn: 7px;
+  --r-radius-field: 8px;
 
   /* Élément « actif » (accord courant, moment en cours, item sélectionné) */
   --r-active-bg: var(--r-grad);
@@ -199,7 +199,7 @@
 :root[data-skin='global'] {
   --r-radius-card: 12px;
   --r-radius-inset: 8px;
-  --r-radius-chip: 5px;
+  --r-radius-chip: 6px;
   --r-radius-btn: 7px;
   --r-radius-field: 8px;
 
