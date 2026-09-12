@@ -49,7 +49,9 @@ function check(name, condition, detail = '') {
 // 1. La pilule est réelle
 // ---------------------------------------------------------------------------
 
-const pill = html.match(/<button[^>]*>Pédagogie IA<\/button>/)?.[0];
+// [Refonte Astra 12/09] — la pilule porte maintenant une icône SVG et son
+// libellé dans un <span> : on la reconnaît par son data-view, pas par son texte brut.
+const pill = html.match(/<button[^>]*data-view="pedagogie"[^>]*>[\s\S]*?<\/button>/)?.[0];
 check('La pilule « Pédagogie IA » existe', !!pill);
 if (pill) {
   check('La pilule porte data-view="pedagogie"', pill.includes('data-view="pedagogie"'), pill);
@@ -293,8 +295,11 @@ check('Le panneau notes ne répète plus le badge de provenance (explainUnrecogn
 check('buildNotes garde ce qui n\'est dit nulle part ailleurs (octave, tierces, non résolus, glossaire)',
   audioOnlyJs.includes('anchorIsHeuristic') && audioOnlyJs.includes('thirdless')
   && audioOnlyJs.includes('unresolved') && audioOnlyJs.includes('missingConcepts'));
-check('Le panneau notes est repliable et se cache quand il n\'a rien à dire',
-  /<details[^>]*id="pedagogie-notes-card"/.test(html) && tabCode.includes('els.notesCard.style.display'));
+// [Refonte Astra 12/09] — Le panneau « Ce que l'application ne garantit pas »
+// a été retiré de l'écran sur demande de Narcisse (un seul onglet conservé,
+// « Résumé du cours »). L'assertion vérifie désormais son ABSENCE, DOM et JS.
+check('Le panneau notes a bien été retiré, markup et JS',
+  !html.includes('id="pedagogie-notes-card"') && !tabCode.includes('els.notesCard'));
 check('L\'écran dit clairement de choisir un dossier quand aucun n\'est configuré',
   html.includes('pedagogie-folder-hint') && tabCode.includes('Choisissez le dossier'));
 check('Le gros bouton "Choisir le dossier" est créé par le contrôleur quand aucun dossier n\'est configuré',
@@ -353,8 +358,8 @@ for (const sel of ['.pedagogie-layout', '.pedagogie-card', '.pedagogie-chip', '.
 
 check('L\'écran affiche la provenance du relevé (image ou son)',
   html.includes('id="pedagogie-format"') && tabCode.includes('is-audio'));
-check('L\'écran réserve une place à ce qui n\'est pas garanti',
-  html.includes('id="pedagogie-notes"'));
+check('Le bouton « Calibrer le clavier (V2N) » a été retiré, markup et JS',
+  !html.includes('id="pedagogie-calibrate-v2n-btn"') && !tabCode.includes('els.calibrateBtn'));
 check('Un accord non résolu est marqué, pas deviné',
   tabCode.includes('is-unresolved'));
 check('Un accord sans tierce est distingué visuellement',

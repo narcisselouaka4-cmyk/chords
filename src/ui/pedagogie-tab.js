@@ -929,22 +929,10 @@ function renderResult() {
     }));
   }
 
-  // Ce qui n'est pas garanti. DÉDUPLIQUÉ (retour d'usage du 06/09) : le badge
-  // de provenance image/son est déjà affiché en haut de l'écran, le panneau ne
-  // le répète plus. buildNotes() (video-analysis.js) ne produit QUE ce qui
-  // n'est dit nulle part ailleurs : octave heuristique, tierces absentes,
-  // passages non résolus, dette de glossaire.
-  if (!els.notesCard || !els.notes) return;
-  els.notes.innerHTML = '';
-  const notes = analysis.notes || [];
-  if (notes.length === 0) {
-    els.notesCard.style.display = 'none';
-    return;
-  }
-  els.notesCard.style.display = '';
-  for (const note of notes) {
-    els.notes.appendChild(el('li', { text: note.text }));
-  }
+  // [Refonte Astra 12/09] — Le panneau « Ce que l'application ne garantit pas »
+  // (#pedagogie-notes-card / #pedagogie-notes) a été retiré de l'écran sur
+  // demande de Narcisse : la maquette ne garde qu'un onglet, « Résumé du cours ».
+  // Le rendu qui l'alimentait est supprimé ici dans le même geste.
 }
 
 /** Fait sauter la lecture vidéo à un instant, si le lecteur est là. */
@@ -981,14 +969,11 @@ export function initPedagogieTab() {
   els.crosscheckCard = document.getElementById('pedagogie-crosscheck-card');
   els.crosscheck = document.getElementById('pedagogie-crosscheck');
   els.glossary = document.getElementById('pedagogie-glossary');
-  els.notesCard = document.getElementById('pedagogie-notes-card');
-  els.notes = document.getElementById('pedagogie-notes');
   els.selectionIdleCard = document.getElementById('pedagogie-selection-idle-card');
   els.selectionIdleName = document.getElementById('pedagogie-selection-idle-name');
   els.selectionIdleHint = document.getElementById('pedagogie-selection-idle-hint');
   els.copilotShortcutBtn = document.getElementById('pedagogie-copilot-shortcut');
   els.videoActions = document.getElementById('pedagogie-video-actions');
-  els.calibrateBtn = document.getElementById('pedagogie-calibrate-v2n-btn');
   els.categoryCard = document.getElementById('pedagogie-category-card');
   els.categoryGrid = document.getElementById('pedagogie-category-grid');
   els.resultGridCard = document.getElementById('pedagogie-grid-card');
@@ -1006,7 +991,10 @@ export function initPedagogieTab() {
   els.copilotSummaryBtn?.addEventListener('click', () => {
     document.dispatchEvent(new CustomEvent('app-switch-training-view', { detail: { view: 'copilot' } }));
   });
-  els.calibrateBtn?.addEventListener('click', () => { startCalibration(); });
+  // [Refonte Astra 12/09] — Le bouton « Calibrer le clavier (V2N) » a été
+  // retiré de l'écran (demande de Narcisse). startCalibration() reste dans le
+  // module — la calibration V2N stockée est toujours lue par l'analyse — mais
+  // plus aucun élément d'interface ne la déclenche.
   els.categoryHint?.addEventListener('click', () => {
     categoryPickerOpen = true;
     playbackStarted = false;
