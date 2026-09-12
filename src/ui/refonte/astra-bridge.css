@@ -15,7 +15,14 @@
   width: 100vw;
   z-index: auto;
   overflow: hidden;
+  /* Redit explicitement ce que .training-shell pose déjà : la coquille est
+     posée sur #app, et des règles de style.css ciblant #app la battaient en
+     spécificité — le fond restait sombre en thème clair. */
+  background: var(--tr-bg);
+  color: var(--tr-text);
 }
+:root[data-theme='light'] body,
+:root body { background: var(--r-ground); }
 
 /* Analyse et Studio sont hors périmètre : .training-shell étant posé sur #app,
    sa typographie de base leur descendrait dessus. On leur rend celle de Zic. */
