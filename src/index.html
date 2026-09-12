@@ -1091,13 +1091,13 @@
                  recopiées de la maquette (an-project-bar / an-scrub-bar). Tous
                  les identifiants lus par analyzer-tab.js sont conservés ;
                  seules les classes changent. -->
-            <div class="an-project-bar analyzer-analysis-header">
+            <div class="an-project-bar">
               <div class="an-project-info">
                 <button type="button" id="analyzer-back-to-import-btn" class="an-btn-new-analysis" title="Nouvelle analyse"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>Nouvelle analyse</button>
                 <div class="an-project-titles">
-                  <h1 class="analyzer-song-title" id="analyzer-song-title">Titre du morceau</h1>
+                  <h1 id="analyzer-song-title">Titre du morceau</h1>
                   <div class="an-project-tags">
-                    <span class="an-tag analyzer-song-artist" id="analyzer-song-artist">Inconnu</span>
+                    <span class="an-tag" id="analyzer-song-artist">Inconnu</span>
                     <span class="an-tag" id="analyzer-stem-badge" style="display:none"></span>
                     <span class="an-tag is-saved" id="analyzer-cached-badge" style="display:none" title="Résultat relu depuis le projet enregistré, sans nouveau calcul"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Analyse enregistrée</span>
                   </div>
@@ -1105,7 +1105,7 @@
               </div>
 
               <div class="an-transport-controls">
-                <div class="an-file-indicator analyzer-media-context" id="analyzer-media-context" aria-live="polite" title="Fichier source analysé">Fichier analysé : Aucun fichier analysé</div>
+                <div class="an-file-indicator" id="analyzer-media-context" aria-live="polite" title="Fichier source analysé">Fichier analysé : Aucun fichier analysé</div>
                 <div class="an-transport-btns">
                   <button type="button" id="analyzer-prev-btn" class="an-tr-btn" title="Revenir au début" aria-label="Revenir au début"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 20 9 12l10-8z"/><path d="M5 19V5"/></svg></button>
                   <button type="button" id="analyzer-skip-back-btn" class="an-tr-btn" title="Reculer de 10 secondes (flèche gauche)" aria-label="Reculer de 10 secondes"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m11 19-9-7 9-7z"/><path d="m22 19-9-7 9-7z"/></svg><small>10s</small></button>
@@ -1117,14 +1117,14 @@
               </div>
             </div>
 
-            <div class="an-scrub-bar analyzer-transport-bar">
-              <span class="an-time-counter analyzer-time" id="analyzer-current-time">00:00</span>
-              <div class="an-progress-rail analyzer-progress-track" id="analyzer-progress-track">
-                <div class="an-progress-fill analyzer-progress-fill" id="analyzer-progress-fill" style="width:0%"></div>
-                <span class="an-progress-thumb analyzer-progress-thumb" id="analyzer-progress-thumb" style="left:0%"></span>
+            <div class="an-scrub-bar">
+              <span class="an-time-counter" id="analyzer-current-time">00:00</span>
+              <div class="an-progress-rail" id="analyzer-progress-track">
+                <div class="an-progress-fill" id="analyzer-progress-fill" style="width:0%"></div>
+                <span class="an-progress-thumb" id="analyzer-progress-thumb" style="left:0%"></span>
               </div>
-              <span class="an-time-counter is-end analyzer-time" id="analyzer-duration">00:00</span>
-              <div class="an-zoom-control analyzer-zoom-control">
+              <span class="an-time-counter is-end" id="analyzer-duration">00:00</span>
+              <div class="an-zoom-control">
                 <span><label for="analyzer-zoom">Zoom</label></span>
                 <input type="range" class="an-zoom-slider" id="analyzer-zoom" min="0.25" max="8.0" step="0.1" value="1" />
                 <small id="analyzer-zoom-value">100%</small>
@@ -1137,7 +1137,7 @@
                  d'accords recopiées de la maquette. La frise reste celle de Zic
                  (blocs proportionnels à la durée réelle, pilotés par le zoom) :
                  seule son habillage devient celui du ruban d'Astra. -->
-            <div class="an-legend-strip analyzer-timeline-legend" id="analyzer-timeline-legend">
+            <div class="an-legend-strip" id="analyzer-timeline-legend">
               <div class="an-legend-items">
                 <span class="an-legend-pill is-structural"><i></i>Accord structurel</span>
                 <span class="an-legend-pill is-passing"><i></i>Accord de passage</span>
@@ -1149,19 +1149,19 @@
               </label>
             </div>
 
-            <div class="an-chord-progression-ribbon analyzer-timeline-wrapper" role="region" aria-label="Ligne des accords">
-              <button type="button" class="an-ribbon-nav-btn analyzer-timeline-scroll-btn left" id="analyzer-timeline-scroll-left" aria-label="Défiler à gauche" title="Accord précédent"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
-              <div class="an-ribbon-chords-track analyzer-timeline-scroll" id="analyzer-chord-timeline">
+            <div class="an-chord-progression-ribbon" role="region" aria-label="Ligne des accords">
+              <button type="button" class="an-ribbon-nav-btn" id="analyzer-timeline-scroll-left" aria-label="Défiler à gauche" title="Accord précédent"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+              <div class="an-ribbon-chords-track" id="analyzer-chord-timeline">
                 <div class="analyzer-timeline-inner" id="analyzer-chord-timeline-inner"></div>
               </div>
-              <button type="button" class="an-ribbon-nav-btn analyzer-timeline-scroll-btn right" id="analyzer-timeline-scroll-right" aria-label="Défiler à droite" title="Accord suivant"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+              <button type="button" class="an-ribbon-nav-btn" id="analyzer-timeline-scroll-right" aria-label="Défiler à droite" title="Accord suivant"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
             </div>
 
             <!-- [Refonte Astra Analyse 12/09] — Barre des cinq sous-onglets
                  recopiée de la maquette. Les data-section sont ceux que lit
                  activateSectionTab() dans analyzer-tab.js, et le module bascule
                  la classe .active (et non .is-active) : le pont fait l'alias. -->
-            <nav class="an-subtabs-nav analyzer-section-tabs" id="analyzer-section-tabs" role="tablist" aria-label="Sous-onglets Analyse">
+            <nav class="an-subtabs-nav" id="analyzer-section-tabs" role="tablist" aria-label="Sous-onglets Analyse">
               <button type="button" class="an-subtab-btn active" data-section="chords" role="tab" aria-selected="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><span>Accord sélectionné</span></button>
               <button type="button" class="an-subtab-btn" data-section="analysis" role="tab" aria-selected="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg><span>Vue d’ensemble</span></button>
               <button type="button" class="an-subtab-btn" data-section="reharm" role="tab" aria-selected="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12.83 2.18 8.58 3.91a1 1 0 0 1 0 1.82l-8.58 3.91a2 2 0 0 1-1.66 0L2.59 7.91a1 1 0 0 1 0-1.82l8.58-3.91a2 2 0 0 1 1.66 0Z"/><path d="m22 12.5-9.17 4.18a2 2 0 0 1-1.66 0L2 12.5"/><path d="m22 17.5-9.17 4.18a2 2 0 0 1-1.66 0L2 17.5"/></svg><span>Réharmonisation</span></button>
@@ -1169,7 +1169,7 @@
               <button type="button" class="an-subtab-btn" data-section="corriger" role="tab" aria-selected="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg><span>Corriger</span></button>
             </nav>
 
-            <div class="an-stage-viewport analyzer-section-panels" id="analyzer-section-panels">
+            <div class="an-stage-viewport" id="analyzer-section-panels">
               <!-- [Refonte Astra Analyse 12/09] — « Accord sélectionné », mise en
                    page panoramique de la maquette.
                    §2 APPLIQUÉ : les cartes « Position des mains » (main gauche /
@@ -1181,36 +1181,36 @@
                    symbole, notes, mini-clavier, temps, degré, confiance, rôle,
                    origine, et le voicing alternatif réel de voicing-preview.js. -->
               <div class="analyzer-panel" data-section="chords" role="tabpanel">
-                <div class="an-panoramic-container analyzer-chords-layout">
+                <div class="an-panoramic-container">
 
-                  <div class="an-card an-panoramic-card an-card-hero analyzer-hero-card" id="analyzer-hero" style="display:none">
+                  <div class="an-card an-panoramic-card an-card-hero" id="analyzer-hero" style="display:none">
                     <div class="an-card-header">
                       <span class="an-eyebrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="18" r="3"/><circle cx="18" cy="16" r="3"/><path d="M11 18V4l10-2v14"/></svg>ACCORD À L'ÉCOUTE</span>
                     </div>
                     <div class="an-chord-hero-block">
                       <div class="an-hero-symbol-row">
-                        <h2 class="an-hero-symbol analyzer-hero-name" id="analyzer-hero-name"></h2>
+                        <h2 class="an-hero-symbol" id="analyzer-hero-name"></h2>
                       </div>
-                      <div class="an-hero-notes-strip analyzer-hero-notes" id="analyzer-hero-notes"></div>
+                      <div class="an-hero-notes-strip" id="analyzer-hero-notes"></div>
                     </div>
-                    <div class="an-piano-stage analyzer-hero-keyboard" id="analyzer-hero-keyboard"></div>
+                    <div class="an-piano-stage" id="analyzer-hero-keyboard"></div>
                     <div class="an-card-actions">
                       <button type="button" class="an-btn an-btn-primary" id="analyzer-hero-listen-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Écouter l'accord</button>
                       <button type="button" class="an-btn an-btn-ghost" id="analyzer-hero-arpeggio-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="18" r="3"/><circle cx="18" cy="16" r="3"/><path d="M11 18V4l10-2v14"/></svg>Arpège</button>
                     </div>
                   </div>
 
-                  <div class="an-card an-panoramic-card an-card-anatomy analyzer-inspector-card" id="analyzer-chord-inspector">
+                  <div class="an-card an-panoramic-card an-card-anatomy" id="analyzer-chord-inspector">
                     <div class="an-card-header">
                       <span class="an-eyebrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m16.24 7.76-2.12 6.36-6.36 2.12 2.12-6.36z"/></svg>IDENTITÉ ET RÔLE DANS LE MORCEAU</span>
                     </div>
-                    <div class="an-inspector-empty analyzer-inspector-empty" id="analyzer-inspector-empty">Sélectionnez un accord dans la frise pour voir ses détails.</div>
-                    <div class="an-anatomy-body analyzer-inspector-content" id="analyzer-inspector-content" style="display:none">
+                    <div class="an-inspector-empty" id="analyzer-inspector-empty">Sélectionnez un accord dans la frise pour voir ses détails.</div>
+                    <div class="an-anatomy-body" id="analyzer-inspector-content" style="display:none">
                       <div class="an-hero-pill">
-                        <span class="an-degree-badge analyzer-inspector-chord" id="analyzer-inspector-chord">—</span>
-                        <span class="an-hero-time analyzer-inspector-times" id="analyzer-inspector-times">—</span>
+                        <span class="an-degree-badge" id="analyzer-inspector-chord">—</span>
+                        <span class="an-hero-time" id="analyzer-inspector-times">—</span>
                       </div>
-                      <div class="an-meta-grid analyzer-inspector-details" id="analyzer-inspector-details"></div>
+                      <div class="an-meta-grid" id="analyzer-inspector-details"></div>
                       <button type="button" class="an-btn an-btn-ghost an-btn-mini" id="analyzer-inspector-edit-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Modifier</button>
                     </div>
                   </div>

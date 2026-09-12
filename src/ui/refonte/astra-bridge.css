@@ -596,13 +596,17 @@
 /* La maquette calcule sa hauteur avec --midi-height, que Zic n'a pas : le
    clavier est dans le flux, sous les onglets. main.js pilote l'affichage de
    #analysis-tab (display retiré / none), on ne le force donc pas ici. */
-#analysis-tab.an-workspace-shell {
+/* Le sélecteur est délibérément lourd : analyse.css pose
+   « :root[data-skin='…'] #analysis-tab { background: var(--r-ground) } », qui
+   bat un simple #analysis-tab.an-workspace-shell en spécificité. */
+:root[data-theme] #analysis-tab.an-workspace-shell {
   height: auto;
   flex: 1;
   min-height: 0;
   z-index: auto;
   background: var(--an-bg);
   color: var(--an-text);
+  font-family: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 /* Le curseur de progression de Zic est un frère du remplissage (analyzer-tab.js
