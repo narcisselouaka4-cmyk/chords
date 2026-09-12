@@ -1133,31 +1133,28 @@
 
             <div id="analyzer-audio-container" style="display: none;"></div>
 
-            <div class="analyzer-timeline-legend" id="analyzer-timeline-legend">
-              <span class="analyzer-legend-item">
-                <span class="analyzer-legend-swatch role-structural" aria-hidden="true"></span>
-                Accord structurel
-              </span>
-              <span class="analyzer-legend-item">
-                <span class="analyzer-legend-swatch role-passing" aria-hidden="true"></span>
-                Accord de passage
-              </span>
-              <span class="analyzer-legend-item">
-                <span class="analyzer-legend-swatch role-uncertain" aria-hidden="true"></span>
-                Incertain
-              </span>
-              <label class="analyzer-legend-toggle">
+            <!-- [Refonte Astra Analyse 12/09] — Bande de légende et frise
+                 d'accords recopiées de la maquette. La frise reste celle de Zic
+                 (blocs proportionnels à la durée réelle, pilotés par le zoom) :
+                 seule son habillage devient celui du ruban d'Astra. -->
+            <div class="an-legend-strip analyzer-timeline-legend" id="analyzer-timeline-legend">
+              <div class="an-legend-items">
+                <span class="an-legend-pill is-structural"><i></i>Accord structurel</span>
+                <span class="an-legend-pill is-passing"><i></i>Accord de passage</span>
+                <span class="an-legend-pill is-uncertain"><i></i>Incertain</span>
+              </div>
+              <label class="an-hierarchize-toggle">
                 <input type="checkbox" id="analyzer-hierarchy-toggle" checked />
-                Hiérarchiser
+                <span>Hiérarchiser</span>
               </label>
             </div>
 
-            <div class="analyzer-timeline-wrapper">
-              <div class="analyzer-timeline-scroll" id="analyzer-chord-timeline">
+            <div class="an-chord-progression-ribbon analyzer-timeline-wrapper" role="region" aria-label="Ligne des accords">
+              <button type="button" class="an-ribbon-nav-btn analyzer-timeline-scroll-btn left" id="analyzer-timeline-scroll-left" aria-label="Défiler à gauche" title="Accord précédent"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+              <div class="an-ribbon-chords-track analyzer-timeline-scroll" id="analyzer-chord-timeline">
                 <div class="analyzer-timeline-inner" id="analyzer-chord-timeline-inner"></div>
               </div>
-              <button type="button" class="analyzer-timeline-scroll-btn left" id="analyzer-timeline-scroll-left" aria-label="Défiler à gauche">‹</button>
-              <button type="button" class="analyzer-timeline-scroll-btn right" id="analyzer-timeline-scroll-right" aria-label="Défiler à droite">›</button>
+              <button type="button" class="an-ribbon-nav-btn analyzer-timeline-scroll-btn right" id="analyzer-timeline-scroll-right" aria-label="Défiler à droite" title="Accord suivant"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
             </div>
 
             <div class="analyzer-section-tabs" id="analyzer-section-tabs" role="tablist">

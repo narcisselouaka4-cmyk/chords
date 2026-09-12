@@ -616,3 +616,61 @@
 }
 /* Zoom : Zic exprime le facteur de 0,25 à 8 et affiche le pourcentage à part. */
 #analysis-tab .an-zoom-control label { cursor: pointer; }
+
+/* ---- Frise d'accords ----------------------------------------------------
+   analyzer-tab.js fabrique des .analyzer-timeline-block dont la LARGEUR est
+   proportionnelle à la durée réelle du segment et suit le zoom. On ne touche
+   pas à ce mécanisme : on lui donne l'apparence des pastilles du ruban Astra. */
+#analysis-tab .an-ribbon-chords-track { overflow-x: auto; scrollbar-width: thin; }
+#analyzer-chord-timeline-inner { display: flex; align-items: stretch; gap: 4px; height: 100%; }
+#analysis-tab .analyzer-timeline-block {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 6px 4px;
+  border: 1px solid var(--an-border);
+  border-radius: 8px;
+  background: var(--an-surface-raised);
+  color: var(--an-text);
+  cursor: pointer;
+  transition: background-color .16s, border-color .16s, color .16s;
+}
+#analysis-tab .analyzer-timeline-block:hover {
+  background: var(--an-surface-hover);
+  border-color: var(--an-border-strong);
+}
+#analysis-tab .analyzer-timeline-block.selected,
+#analysis-tab .analyzer-timeline-block.current {
+  background: var(--an-accent-soft);
+  border-color: var(--an-accent);
+  color: var(--an-accent-bright);
+  box-shadow: 0 0 0 1px var(--an-accent-soft), 0 6px 18px -10px var(--an-accent-glow);
+}
+/* Rôles : mêmes trois couleurs que la légende d'Astra. */
+#analysis-tab .analyzer-timeline-block.role-structural { border-color: color-mix(in srgb, var(--an-accent) 55%, var(--an-border)); }
+#analysis-tab .analyzer-timeline-block.role-passing { border-color: color-mix(in srgb, var(--an-blue) 45%, var(--an-border)); }
+#analysis-tab .analyzer-timeline-block.role-uncertain {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--an-amber) 55%, var(--an-border));
+}
+#analysis-tab .analyzer-timeline-block.collapsed { padding: 6px 1px; }
+#analysis-tab .analyzer-timeline-label {
+  font-weight: 600;
+  letter-spacing: -.02em;
+  white-space: nowrap;
+}
+#analysis-tab .analyzer-timeline-block .override-icon {
+  position: absolute;
+  top: 2px;
+  right: 3px;
+  font-size: 9px;
+  color: var(--an-amber);
+}
+#analysis-tab .analyzer-timeline-empty {
+  padding: 12px;
+  color: var(--an-text-muted);
+  font-size: 12px;
+}
