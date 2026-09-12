@@ -774,3 +774,65 @@
 #analysis-tab .an-kv-row > span:last-child { color: var(--an-text); font-family: var(--an-mono); }
 #analysis-tab .an-kv-row.is-empty { color: var(--an-text-muted); border-bottom: 0; }
 #analysis-tab .an-export-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* ---- Réharmonisation ----------------------------------------------------
+   Les propositions sont injectées par reharmonization-view.js : on ne touche
+   pas à son markup, on l'inscrit dans les cartes d'Astra. */
+#reharm-panel.an-reharm-container { display: flex; flex-direction: column; gap: 14px; height: 100%; overflow: auto; padding: 2px; }
+#reharm-panel .an-reharm-criteria,
+#reharm-panel .an-reharm-melody,
+#reharm-panel .an-reharm-playstyle { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+#reharm-criteria-list { display: flex; flex-wrap: wrap; gap: 6px; }
+#reharm-criteria-list .reharm-criterion {
+  padding: 3px 9px;
+  border: 1px solid var(--an-border);
+  border-radius: 999px;
+  background: var(--an-surface-inset);
+  color: var(--an-text-secondary);
+  font-size: 10.5px;
+}
+#reharm-criteria-list .reharm-criterion.ok,
+#reharm-criteria-list .reharm-criterion.is-ok {
+  border-color: color-mix(in srgb, var(--an-green) 55%, var(--an-border));
+  color: var(--an-green);
+}
+#reharm-criteria-list .reharm-criterion.ko,
+#reharm-criteria-list .reharm-criterion.is-ko {
+  border-color: color-mix(in srgb, var(--an-red) 55%, var(--an-border));
+  color: var(--an-red);
+}
+#reharm-melody-strip { display: flex; flex-wrap: wrap; gap: 4px; }
+#reharm-melody-empty { color: var(--an-text-muted); font-size: 11.5px; }
+#reharm-results.an-reharm-cards-grid { display: block; }
+#reharm-results .reharm-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+#reharm-results .reharm-card,
+#reharm-results .reharm-empty,
+#reharm-results .reharm-error,
+#reharm-results .reharm-demo-banner {
+  padding: 14px 16px;
+  border: 1px solid var(--an-border);
+  border-radius: 12px;
+  background: var(--an-surface);
+  color: var(--an-text);
+}
+#reharm-results .reharm-card-recommended,
+#reharm-results .reharm-card-applied { border-color: var(--an-accent); background: var(--an-accent-soft); }
+#reharm-results .reharm-card-score,
+#reharm-results .reharm-card-badge {
+  color: var(--an-accent-bright);
+  font: 11px var(--an-mono);
+}
+#reharm-results .reharm-card-desc,
+#reharm-results .reharm-empty-text { color: var(--an-text-secondary); font-size: 11.5px; }
+#reharm-results .reharm-step-chord,
+#reharm-results .reharm-card-chord { color: var(--an-text); font-weight: 650; }
+#reharm-results .reharm-validation-ok { color: var(--an-green); }
+#reharm-results .reharm-validation-ko { color: var(--an-red); }
+#reharm-panel .an-reharm-applied { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+#reharm-panel .an-confirm-band {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 4px 10px; border-radius: 8px;
+  background: var(--an-green-soft); color: var(--an-green);
+  font-size: 11.5px;
+}
+#reharm-panel .an-reharm-applied-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }

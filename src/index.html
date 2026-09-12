@@ -1237,79 +1237,97 @@
                 <div class="analyzer-overview-scroll" id="analyzer-overview-content"></div>
               </div>
               <div class="analyzer-panel" data-section="reharm" role="tabpanel" style="display:none">
-                <div class="reharm-panel" id="reharm-panel">
-                  <div class="reharm-context-bar">
-                    <div class="reharm-context-item">
-                      <span class="reharm-context-label">Tonalité</span>
-                      <span class="reharm-context-value" id="reharm-context-key">—</span>
-                    </div>
-                    <div class="reharm-context-item">
-                      <span class="reharm-context-label">Source mélodie</span>
-                      <span class="reharm-context-value" id="reharm-context-source">—</span>
-                    </div>
-                    <div class="reharm-context-item">
-                      <span class="reharm-context-label">Plage</span>
-                      <span class="reharm-context-value" id="reharm-context-range">—</span>
-                    </div>
-                  </div>
+                <!-- [Refonte Astra Analyse 12/09] — « Réharmonisation », mise en
+                     page de la maquette (an-reharm-*). Tous les identifiants lus
+                     par analyzer-tab.js sont conservés.
+                     §2 APPLIQUÉ : le curseur « AUDACE HARMONIQUE » de la maquette
+                     n'est pas porté — le moteur de Zic n'a pas de paramètre
+                     d'intensité, un curseur sans effet mentirait. Les cartes
+                     « Pourquoi ça marche ? » / « Conseil débutant » de la maquette
+                     sont remplacées par les propositions RÉELLES que
+                     reharmonization-view.js injecte dans #reharm-results, qui
+                     portent déjà description, techniques et critères vérifiés. -->
+                <div class="an-reharm-container reharm-panel" id="reharm-panel">
 
-                  <div class="reharm-style-bar">
-                    <span class="reharm-style-label">Style de réharmonisation</span>
-                    <div class="reharm-style-selector segmented" id="reharm-style-selector" role="group" aria-label="Style de réharmonisation">
-                      <button type="button" data-style="worship">Worship</button>
-                      <button type="button" data-style="gospel">Gospel</button>
-                      <button type="button" data-style="jazz">Jazz</button>
-                      <button type="button" data-style="neoSoul">Neo Soul</button>
+                  <div class="an-overview-hero-bar reharm-context-bar">
+                    <div class="an-metric-tile">
+                      <span class="an-metric-label">Tonalité</span>
+                      <div class="an-metric-val-row"><strong class="an-metric-primary" id="reharm-context-key">—</strong></div>
                     </div>
-                  </div>
-
-                  <div class="reharm-criteria">
-                    <span class="reharm-criteria-title">Critères vérifiés sur chaque proposition</span>
-                    <div class="reharm-criteria-list" id="reharm-criteria-list" aria-label="Critères de validité">
-                      <span class="reharm-criterion" data-criterion="melody-audible">Mélodie audible</span>
-                      <span class="reharm-criterion" data-criterion="passage-resolution">Les tensions retombent juste</span>
-                      <span class="reharm-criterion" data-criterion="no-parallel-motion">Pas de quintes parallèles</span>
-                      <span class="reharm-criterion" data-criterion="traceability">Chaque accord justifié par une règle</span>
+                    <div class="an-metric-tile">
+                      <span class="an-metric-label">Source mélodie</span>
+                      <div class="an-metric-val-row"><strong class="an-metric-primary" id="reharm-context-source">—</strong></div>
+                    </div>
+                    <div class="an-metric-tile">
+                      <span class="an-metric-label">Plage</span>
+                      <div class="an-metric-val-row"><strong class="an-metric-primary" id="reharm-context-range">—</strong></div>
                     </div>
                   </div>
 
-                  <div class="reharm-melody" id="reharm-melody" aria-label="Mélodie capturée">
-                    <div class="reharm-melody-empty" id="reharm-melody-empty">Aucune mélodie capturée.</div>
-                    <div class="reharm-melody-strip" id="reharm-melody-strip"></div>
-                  </div>
-
-                  <div class="reharm-actions">
-                    <button type="button" class="btn-secondary" id="reharm-compare-btn">Comparer les propositions</button>
-                    <button type="button" class="btn-primary" id="reharm-run-btn">Réharmoniser mon morceau</button>
-                  </div>
-
-                  <div class="reharm-style-bar">
-                    <span class="reharm-style-label">Lecture</span>
-                    <div class="reharm-play-style-selector segmented" id="reharm-play-style-selector" role="group" aria-label="Style de lecture (bouton Écouter)">
-                      <button type="button" data-play-style="block" aria-pressed="true">Plaqué</button>
-                      <button type="button" data-play-style="arpeggio" aria-pressed="false">Arpégé</button>
+                  <div class="an-reharm-control-bar">
+                    <div class="an-style-switcher" id="reharm-style-selector" role="group" aria-label="Style de réharmonisation">
+                      <button type="button" class="an-style-btn" data-style="worship"><span class="an-style-btn-title">Worship</span></button>
+                      <button type="button" class="an-style-btn" data-style="gospel"><span class="an-style-btn-title">Gospel</span></button>
+                      <button type="button" class="an-style-btn" data-style="jazz"><span class="an-style-btn-title">Jazz</span></button>
+                      <button type="button" class="an-style-btn" data-style="neoSoul"><span class="an-style-btn-title">Neo Soul</span></button>
                     </div>
                   </div>
 
-                  <div class="reharm-results" id="reharm-results" role="region" aria-label="Propositions de réharmonisation"></div>
-
-                  <div class="reharm-post-apply" id="reharm-post-apply" style="display:none">
-                    <div class="reharm-applied-bar">
-                      <div class="reharm-version-toggle segmented" id="reharm-version-toggle" role="group" aria-label="Version affichée">
-                        <button type="button" data-version="original">Original</button>
-                        <button type="button" data-version="reharm">Réharmonisé</button>
+                  <div class="an-card an-ab-station">
+                    <div class="an-ab-header">
+                      <div>
+                        <span class="an-eyebrow"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>COMPARATEUR A / B</span>
+                        <h3 class="an-card-title">Écouter avant / après, puis choisir</h3>
                       </div>
-                      <div class="reharm-applied-context" id="reharm-applied-context">—</div>
+                      <div class="an-ab-buttons">
+                        <button type="button" class="an-btn an-btn-ghost" id="reharm-compare-btn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 4 13 8-13 8z" fill="currentColor"/></svg>Comparer les propositions</button>
+                        <button type="button" class="an-btn an-btn-primary" id="reharm-run-btn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.29 1.29L3 12l5.81 1.9a2 2 0 0 1 1.29 1.29L12 21l1.9-5.81a2 2 0 0 1 1.29-1.29L21 12l-5.81-1.9a2 2 0 0 1-1.29-1.29z"/></svg>Réharmoniser mon morceau</button>
+                      </div>
                     </div>
-                    <div class="reharm-confirm-band" id="reharm-confirm-band">
-                      <span class="reharm-confirm-icon">✓</span>
-                      <span class="reharm-confirm-text">Version appliquée</span>
-                      <span class="reharm-confirm-score" id="reharm-applied-score">—</span>
+
+                    <div class="an-reharm-criteria">
+                      <span class="an-section-mini-tag">Critères vérifiés sur chaque proposition</span>
+                      <div class="an-criteria-list reharm-criteria-list" id="reharm-criteria-list" aria-label="Critères de validité">
+                        <span class="reharm-criterion" data-criterion="melody-audible">Mélodie audible</span>
+                        <span class="reharm-criterion" data-criterion="passage-resolution">Les tensions retombent juste</span>
+                        <span class="reharm-criterion" data-criterion="no-parallel-motion">Pas de quintes parallèles</span>
+                        <span class="reharm-criterion" data-criterion="traceability">Chaque accord justifié par une règle</span>
+                      </div>
                     </div>
-                    <div class="reharm-applied-actions">
-                      <button type="button" class="btn-secondary" id="reharm-revert-btn">↩ Revenir à l'original</button>
-                      <button type="button" class="btn-secondary" id="reharm-relisten-btn">▶ Réécouter au piano</button>
-                      <button type="button" class="btn-primary" id="reharm-send-training-btn">Envoyer vers Entraînement</button>
+
+                    <div class="an-reharm-melody reharm-melody" id="reharm-melody" aria-label="Mélodie capturée">
+                      <span class="an-section-mini-tag">Mélodie capturée</span>
+                      <div class="reharm-melody-empty" id="reharm-melody-empty">Aucune mélodie capturée.</div>
+                      <div class="reharm-melody-strip" id="reharm-melody-strip"></div>
+                    </div>
+
+                    <div class="an-reharm-playstyle">
+                      <span class="an-section-mini-tag">Lecture</span>
+                      <div class="an-style-switcher reharm-play-style-selector" id="reharm-play-style-selector" role="group" aria-label="Style de lecture (bouton Écouter)">
+                        <button type="button" class="an-style-btn" data-play-style="block" aria-pressed="true"><span class="an-style-btn-title">Plaqué</span></button>
+                        <button type="button" class="an-style-btn" data-play-style="arpeggio" aria-pressed="false"><span class="an-style-btn-title">Arpégé</span></button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="an-reharm-cards-grid reharm-results" id="reharm-results" role="region" aria-label="Propositions de réharmonisation"></div>
+
+                  <div class="an-reharm-footer reharm-post-apply" id="reharm-post-apply" style="display:none">
+                    <div class="an-reharm-applied">
+                      <div class="an-style-switcher reharm-version-toggle" id="reharm-version-toggle" role="group" aria-label="Version affichée">
+                        <button type="button" class="an-style-btn" data-version="original"><span class="an-style-btn-title">Original</span></button>
+                        <button type="button" class="an-style-btn" data-version="reharm"><span class="an-style-btn-title">Réharmonisé</span></button>
+                      </div>
+                      <div class="an-footer-info" id="reharm-applied-context">—</div>
+                      <div class="an-confirm-band" id="reharm-confirm-band">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span>Version appliquée</span>
+                        <span class="an-confirm-score" id="reharm-applied-score">—</span>
+                      </div>
+                    </div>
+                    <div class="an-reharm-applied-actions">
+                      <button type="button" class="an-btn an-btn-ghost an-btn-mini" id="reharm-revert-btn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>Revenir à l'original</button>
+                      <button type="button" class="an-btn an-btn-ghost an-btn-mini" id="reharm-relisten-btn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 4 13 8-13 8z" fill="currentColor"/></svg>Réécouter au piano</button>
+                      <button type="button" class="an-btn an-btn-primary an-btn-mini" id="reharm-send-training-btn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12.83 2.18 8.58 3.91a1 1 0 0 1 0 1.82l-8.58 3.91a2 2 0 0 1-1.66 0L2.59 7.91a1 1 0 0 1 0-1.82l8.58-3.91a2 2 0 0 1 1.66 0Z"/><path d="m22 12.5-9.17 4.18a2 2 0 0 1-1.66 0L2 12.5"/></svg>Envoyer vers Entraînement</button>
                     </div>
                   </div>
                 </div>
