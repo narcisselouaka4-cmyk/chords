@@ -131,8 +131,11 @@ runTest('B. HTML — #analyzer-results contient la timeline', () => {
   const content = html.slice(startIdx, endIdx);
   assert(content.includes('analyzer-chord-timeline'), 'La timeline est dans #analyzer-results');
   assert(content.includes('analyzer-section-tabs'), 'Les onglets sont dans #analyzer-results');
-  assert(content.includes('analyzer-transport-bar'), 'La barre de transport est dans #analyzer-results');
-  assert(content.includes('analyzer-analysis-header'), 'Le header analyse est dans #analyzer-results');
+  // [Refonte Astra Analyse 12/09] — la barre de transport et l'en-tête portent
+  // désormais les classes de la maquette (an-scrub-bar / an-project-bar). Le
+  // contrôle reste le même : ils doivent vivre dans #analyzer-results.
+  assert(content.includes('an-scrub-bar'), 'La barre de transport est dans #analyzer-results');
+  assert(content.includes('an-project-bar'), 'Le header analyse est dans #analyzer-results');
 
   // L'overlay de traitement doit être HORS de #analyzer-results (masqué
   // pendant l'analyse, il y serait invisible) et DANS analyzer-workspace.

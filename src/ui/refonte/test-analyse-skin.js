@@ -30,7 +30,9 @@ const tabJs = read('src/ui/analyzer-tab.js');
 test('index.html — analyse.css chargée, « Corriger » remplace « Outils »', () => {
   assert(html.includes('href="./ui/refonte/analyse.css"'), 'lien vers analyse.css présent');
   assert(!/>Outils<\/button>/.test(html), 'plus de bouton « Outils »');
-  assert(/data-section="corriger"[^>]*>Corriger<\/button>/.test(html), 'bouton « Corriger » avec data-section="corriger"');
+  // [Refonte Astra Analyse 12/09] — le libellé du sous-onglet est désormais dans
+  // un <span>, précédé d'une icône SVG : on reconnaît le bouton à son data-section.
+  assert(/data-section="corriger"[\s\S]*?Corriger[\s\S]*?<\/button>/.test(html), 'bouton « Corriger » avec data-section="corriger"');
   assert(/analyzer-panel[^"]*"\s+data-section="corriger"/.test(html), 'panneau data-section="corriger" présent');
   assert(!/data-section="tools"/.test(html), 'plus aucune référence data-section="tools" dans le HTML');
 });
