@@ -375,3 +375,70 @@
   font-size: 12px;
 }
 #coach-countdown { color: var(--tr-accent); font: 22px var(--tr-mono); }
+
+/* ============================================================================
+   Pédagogie IA
+   ============================================================================ */
+/* La vidéo occupe toute la scène « cinéma » ; les surcouches (titre, bouton de
+   lecture, bandeau) se superposent comme dans la maquette. */
+#practice-view-pedagogie .tr-cinema-stage { position: relative; }
+#pedagogie-video-card {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: #0d0b12;
+  border-radius: inherit;
+  overflow: hidden;
+}
+#pedagogie-video-player { width: 100%; height: 100%; object-fit: contain; background: #0d0b12; }
+/* Dès que la vidéo est visible, les surcouches s'effacent : elles cacheraient
+   les contrôles natifs du lecteur. */
+#practice-view-pedagogie .tr-cinema-stage:has(#pedagogie-video-card:not([style*="none"])) .tr-video-title,
+#practice-view-pedagogie .tr-cinema-stage:has(#pedagogie-video-card:not([style*="none"])) .tr-cinema-play {
+  display: none;
+}
+#pedagogie-analyze-btn[disabled] { opacity: .4; }
+
+#practice-view-pedagogie .tr-notebook-content { display: flex; flex-direction: column; gap: 12px; }
+#practice-view-pedagogie .pedagogie-card {
+  padding: 13px 15px;
+  border: 1px solid var(--tr-border);
+  border-radius: 8px;
+  background: var(--tr-surface);
+}
+#practice-view-pedagogie .pedagogie-card-title {
+  margin: 0 0 6px;
+  color: var(--tr-text);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+#practice-view-pedagogie .pedagogie-intro { color: var(--tr-secondary); font-size: 11px; }
+#practice-view-pedagogie .pedagogie-category-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 8px; }
+#practice-view-pedagogie .pedagogie-category-card {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 12px; text-align: left;
+  border: 1px solid var(--tr-border); border-radius: 8px;
+  background: var(--tr-inset); color: var(--tr-text);
+}
+#practice-view-pedagogie .pedagogie-category-card:hover { border-color: var(--tr-accent); background: var(--tr-accent-soft); }
+#practice-view-pedagogie .pedagogie-category-icon { font-size: 20px; }
+#practice-view-pedagogie .pedagogie-category-title { font-size: 12px; font-weight: 600; }
+#practice-view-pedagogie .pedagogie-category-sub { color: var(--tr-secondary); font-size: 10.5px; }
+#practice-view-pedagogie .pedagogie-category-hint { color: var(--tr-muted); font: 9px var(--tr-mono); }
+#pedagogie-grid { display: flex; flex-wrap: wrap; gap: 5px; }
+#pedagogie-track-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; max-height: 56vh; overflow: auto; }
+#pedagogie-track-list button,
+#pedagogie-track-list .pedagogie-track-item {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 11px 12px; text-align: left;
+  border: 1px solid var(--tr-border); border-radius: 8px;
+  background: var(--tr-surface); color: var(--tr-text); font-size: 12px;
+}
+#pedagogie-track-list button:hover,
+#pedagogie-track-list .pedagogie-track-item:hover { border-color: var(--tr-accent); background: var(--tr-accent-soft); }
+#pedagogie-track-list .is-selected,
+#pedagogie-track-list .active { border-color: var(--tr-accent); background: var(--tr-accent-soft); }
+#pedagogie-folder-hint { color: var(--tr-muted); font: 10px var(--tr-mono); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
