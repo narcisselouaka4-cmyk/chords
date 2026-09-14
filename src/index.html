@@ -305,6 +305,7 @@
                 </div>
               </div>
               <div class="tr-console-actions">
+                <span class="tr-session-state session-loaded-state" id="midi-session-loaded-state" style="display: none;"><span></span>Session enregistrée</span>
                 <div class="midi-session-controls" id="midi-session-controls" style="display: none;">
                   <span class="tr-session-state is-live"><span></span><span class="midi-session-status" id="midi-session-status" data-state="recording">Enregistrement en cours</span></span>
                   <span class="tr-mono midi-session-timer" id="midi-session-timer">00:00</span>
@@ -338,9 +339,14 @@
                 <button class="tr-icon-button midi-transport-btn" id="midi-session-rewind" type="button" title="Revenir au début" aria-label="Revenir au début"><svg class="tr-i" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 20 9 12l10-8z"/><path d="M5 19V5"/></svg></button>
                 <button class="tr-main-play midi-transport-btn" id="midi-session-play" type="button" title="Lecture" aria-label="Lecture"><svg class="tr-i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 4 13 8-13 8z" fill="currentColor"/></svg></button>
               </div>
+              <div class="tr-timecode" id="midi-session-timecode" aria-live="off">
+                <strong id="midi-session-current-time">00:00</strong>
+                <span>/</span>
+                <span id="midi-session-total-time">00:00</span>
+              </div>
               <input type="range" id="midi-session-slider" class="tr-seek midi-transport-slider" min="0" max="100" value="0" aria-label="Position de lecture">
               <div class="tr-player-copilot">
-                <button class="tr-text-button tr-accent-text carnet-explore-all" id="carnet-explore-all" type="button" disabled>Explorer toute la session avec le Copilot<svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></button>
+                <button class="tr-text-button tr-accent-text carnet-explore-all" id="carnet-explore-all" type="button" disabled>Explorer avec le Copilot<svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></button>
               </div>
             </div>
           </section>
@@ -372,7 +378,14 @@
               <div class="tr-dialog-body">
                 <div class="tr-library-toolbar">
                   <label class="tr-search"><svg class="tr-i" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input type="text" id="midi-session-search" class="midi-session-search" placeholder="Rechercher une session..." aria-label="Rechercher une session"><kbd>ESC</kbd></label>
+                  <div class="tr-segment-control" id="midi-session-filters" role="group" aria-label="Filtrer les sessions">
+                    <button type="button" data-session-filter="all" class="is-active" aria-pressed="true">Toutes <span id="midi-session-count-all">0</span></button>
+                    <button type="button" data-session-filter="captures" aria-pressed="false">Mes captures</button>
+                  </div>
                   <button class="tr-button tr-primary" type="button" data-astra-close data-astra-click="#midi-session-new-btn"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Nouvelle session</button>
+                </div>
+                <div class="tr-library-table-head" aria-hidden="true">
+                  <span>SESSION</span><span>APERÇU MIDI</span><span>DURÉE</span><span>NOTES</span><span></span>
                 </div>
                 <div class="midi-session-list" id="midi-session-list" data-astra-close-on-click></div>
               </div>

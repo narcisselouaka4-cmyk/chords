@@ -31,6 +31,8 @@ import { renderHarmonicRoll, windowsToRollNotes } from './refonte/astra-harmonic
 let currentNotation = 'english';
 let recorder = null;
 let player = null;
+// Filtre actif de la bibliothèque : 'all' ou 'captures'.
+let sessionFilter = 'all';
 let currentSession = null;
 let currentEvents = [];
 let harmonicRoll = null;      // instance du paysage harmonique
@@ -76,6 +78,9 @@ const els = {
   transportRewind: document.getElementById('midi-session-rewind'),
   transportPlay: document.getElementById('midi-session-play'),
   transportSlider: document.getElementById('midi-session-slider'),
+  timecodeCurrent: document.getElementById('midi-session-current-time'),
+  timecodeTotal: document.getElementById('midi-session-total-time'),
+  loadedState: document.getElementById('midi-session-loaded-state'),
   sessionTitleInput: document.getElementById('midi-session-title-input'),
   sessionBpmInput: document.getElementById('midi-session-bpm-input'),
   bpmRow: document.getElementById('midi-session-bpm-row'),
@@ -246,6 +251,15 @@ function bindSessionSearch() {
   els.sessionSearch?.addEventListener('input', () => {
     refreshSessionList();
   });
+
+  // [Astra round 6] — Filtre « Toutes / Mes captures » de la bibliothèque.
+  document.getElementById('midi-session-filters')?.addEventListener('click', (e) => {
+    const button = e.target.closest('[data-session-filter]');
+    if (!button) return;
+    e.stopPropagation(); // sinon astra-shell referme le tiroir sur ce clic
+    sessionFilter = button.dataset.sessionFilter;
+    refreshSessionList();
+  });
 }
 
 async function startRecording() {
@@ -282,6 +296,7 @@ async function startRecording() {
     recorder.start();
 
     if (els.carnet) els.carnet.style.display = 'none';
+    if (els.loadedState) els.loadedState.style.display = 'none';
     stopCarnetLoop();
 
     startMetronome();
@@ -432,7 +447,9 @@ async function discardSession() {
   }
   if (els.transportBar) els.transportBar.style.display = 'none';
   if (els.carnet) els.carnet.style.display = 'none';
+  if (els.loadedState) els.loadedState.style.display = 'none';
   stopCarnetLoop();
+  resetSelectedSessionInfo();
   currentSession = null;
   currentEvents = [];
   currentMetadata = null;
@@ -474,8 +491,13 @@ async function refreshSessionList() {
   try {
     const sessions = await listSessions();
     const query = (els.sessionSearch?.value || '').trim().toLowerCase();
+
+    const scoped = sessionFilter === 'captures'
+      ? sessions.filter((s) => (s.sourceType || 'midi') === 'midi')
+      : sessions;
+
     const filtered = query
-      ? sessions.filter((s) => {
+      ? scoped.filter((s) => {
           try {
             return (
               (s.name || '').toLowerCase().includes(query) ||
@@ -484,62 +506,153 @@ async function refreshSessionList() {
             );
           } catch { return false; }
         })
-      : sessions;
-    renderSessionList(filtered);
+      : scoped;
+
+    syncSessionFilterUi(sessions.length);
+    renderSessionList(filtered, { total: sessions.length, query });
   } catch (err) {
     console.error('Failed to list sessions:', err);
-    els.sessionList.innerHTML = `<p class="detail-hint">Impossible de charger les sessions.</p>`;
+    els.sessionList.innerHTML = `<div class="tr-empty">${ICON_EMPTY_LIBRARY}<h3>Bibliothèque indisponible</h3><p>Les sessions enregistrées n'ont pas pu être lues. Rouvrez la bibliothèque pour réessayer.</p></div>`;
   }
 }
 
-function renderSessionList(sessions) {
+// Reflète le filtre actif et le nombre total de sessions dans la barre d'outils.
+function syncSessionFilterUi(total) {
+  const group = document.getElementById('midi-session-filters');
+  if (!group) return;
+  for (const button of group.querySelectorAll('[data-session-filter]')) {
+    const isActive = button.dataset.sessionFilter === sessionFilter;
+    button.classList.toggle('is-active', isActive);
+    button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  }
+  const count = document.getElementById('midi-session-count-all');
+  if (count) count.textContent = total;
+}
+
+// Libellé de provenance affiché sous le nom de la session.
+const SESSION_SOURCE_LABELS = {
+  midi: 'Capture locale',
+  import: 'Import MIDI',
+  example: 'Exemple',
+};
+
+function formatSessionDate(value) {
+  const date = new Date(value);
+  if (isNaN(date)) return '';
+  return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+// Aperçu MIDI : barres de densité de jeu, calculées par session-manager à
+// partir des vraies notes. Une session sans note affiche un repère plat plutôt
+// qu'un graphique inventé.
+function renderMiniWave(preview) {
+  const width = 110;
+  const height = 27;
+  if (!Array.isArray(preview) || preview.length === 0) {
+    return `<svg class="tr-mini-wave is-flat" viewBox="0 0 ${width} ${height}" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true"><path d="M0 ${height / 2}h${width}"/></svg>`;
+  }
+
+  const step = width / preview.length;
+  const barWidth = Math.max(1, step * 0.55);
+  const bars = preview.map((value, i) => {
+    const barHeight = Math.max(1.5, Math.min(1, Math.max(0, value)) * (height - 4));
+    const x = i * step + (step - barWidth) / 2;
+    const y = (height - barHeight) / 2;
+    return `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${barWidth.toFixed(2)}" height="${barHeight.toFixed(2)}" rx="${(barWidth / 2).toFixed(2)}"/>`;
+  }).join('');
+
+  return `<svg class="tr-mini-wave" viewBox="0 0 ${width} ${height}" fill="currentColor" aria-hidden="true">${bars}</svg>`;
+}
+
+const ICON_FILE_MUSIC = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><circle cx="9.5" cy="17" r="1.8"/><path d="M11.3 17v-4.6l4 1"/></svg>';
+const ICON_TRASH = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>';
+const ICON_OPEN = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>';
+const ICON_EMPTY_LIBRARY = '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
+
+function renderSessionList(sessions, { total = 0, query = '' } = {}) {
   if (!els.sessionList) return;
   els.sessionList.innerHTML = '';
 
   if (sessions.length === 0) {
-    els.sessionList.innerHTML = `<p class="detail-hint">Aucune session enregistrée.</p>`;
+    els.sessionList.innerHTML = total === 0
+      ? `<div class="tr-empty">${ICON_EMPTY_LIBRARY}<h3>Aucune session pour l'instant</h3><p>Installez-vous au clavier et lancez une nouvelle session : votre jeu sera enregistré ici, note par note.</p></div>`
+      : `<div class="tr-empty">${ICON_EMPTY_LIBRARY}<h3>Aucun résultat</h3><p>${query ? `Aucune session ne correspond à « ${escapeHtml(query)} ».` : 'Aucune session ne correspond à ce filtre.'}</p></div>`;
     return;
   }
 
   for (const session of sessions) {
     const item = document.createElement('div');
-    item.className = 'session-item';
-    const date = new Date(session.date).toLocaleString('fr-FR');
-    const duration = formatDuration(session.duration);
+    item.className = 'tr-library-row';
     const isSelected = currentSession && currentSession.id === session.id;
-    if (isSelected) item.classList.add('active');
+    if (isSelected) item.classList.add('is-selected');
+
+    const sourceLabel = SESSION_SOURCE_LABELS[session.sourceType] || SESSION_SOURCE_LABELS.midi;
+    const dateLabel = formatSessionDate(session.date);
+    const duration = formatDuration(session.duration);
+    const noteCount = session.noteCount || 0;
 
     item.innerHTML = `
-      <div class="session-name" contenteditable="false" title="${escapeHtml(session.name)}">${escapeHtml(session.name)}</div>
-      <div class="session-meta">${date} · ${duration} · ${session.noteCount || 0} notes · ${session.chordCount || 0} accords${session.key ? ` · ${session.key}` : ''}${session.tempo ? ` · ${session.tempo} BPM` : ''}</div>
-      <div class="session-actions">
-        <button class="session-action delete" data-id="${session.id}" title="Supprimer">🗑</button>
+      <button class="tr-library-select" type="button" aria-current="${isSelected ? 'true' : 'false'}">
+        <span class="tr-file-icon">${ICON_FILE_MUSIC}</span>
+        <span>
+          <strong class="session-name" title="${escapeHtml(session.name)}">${escapeHtml(session.name)}</strong>
+          <small>${escapeHtml(dateLabel)}${dateLabel ? ' · ' : ''}${sourceLabel}</small>
+        </span>
+      </button>
+      ${renderMiniWave(session.preview)}
+      <span class="tr-library-cell">${duration}</span>
+      <span class="tr-library-cell">${noteCount}</span>
+      <div class="tr-library-row-actions">
+        <button class="tr-icon-button tr-delete" type="button" data-action="delete" aria-label="Supprimer la session ${escapeHtml(session.name)}" title="Supprimer">${ICON_TRASH}</button>
+        <button class="tr-icon-button" type="button" data-action="open" aria-label="Ouvrir la session ${escapeHtml(session.name)}" title="Ouvrir">${ICON_OPEN}</button>
       </div>
     `;
 
+    // Renommage en place : double-clic sur le nom, comme avant la refonte.
     const nameEl = item.querySelector('.session-name');
-    nameEl.addEventListener('dblclick', () => {
+    nameEl.addEventListener('dblclick', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      item.dataset.editing = 'true';
       nameEl.contentEditable = 'true';
       nameEl.focus();
+      getSelection()?.selectAllChildren(nameEl);
+    });
+    // Pendant l'édition, aucun clic ne doit sélectionner la session ni fermer
+    // le tiroir (astra-shell écoute au niveau du document).
+    nameEl.addEventListener('click', (e) => {
+      if (item.dataset.editing === 'true') e.stopPropagation();
     });
     nameEl.addEventListener('blur', async () => {
+      if (item.dataset.editing !== 'true') return;
+      delete item.dataset.editing;
       nameEl.contentEditable = 'false';
-      await renameSession(session.id, nameEl.textContent.trim() || session.name);
+      const next = nameEl.textContent.trim();
+      if (next && next !== session.name) {
+        await renameSession(session.id, next);
+      }
       refreshSessionList();
     });
     nameEl.addEventListener('keydown', (e) => {
+      e.stopPropagation();
       if (e.key === 'Enter') {
         e.preventDefault();
+        nameEl.blur();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        nameEl.textContent = session.name;
         nameEl.blur();
       }
     });
 
     item.addEventListener('click', (e) => {
-      if (e.target.closest('.delete')) return;
+      if (item.dataset.editing === 'true') return;
+      if (e.target.closest('[data-action="delete"]')) return;
       loadAndPlaySession(session.id);
     });
-    item.querySelector('.delete')?.addEventListener('click', async (e) => {
-      e.stopPropagation();
+
+    item.querySelector('[data-action="delete"]')?.addEventListener('click', async (e) => {
+      e.stopPropagation(); // garde le tiroir ouvert après une suppression
       if (confirm(`Supprimer la session "${session.name}" ?`)) {
         await deleteSession(session.id);
         if (currentSession?.id === session.id) {
@@ -574,6 +687,8 @@ async function loadAndPlaySession(sessionId, autoPlay = false) {
     if (els.copilotSessionBtn) els.copilotSessionBtn.disabled = false;
     if (els.transportBar) els.transportBar.style.display = 'flex';
     if (els.carnet) els.carnet.style.display = 'flex';
+    if (els.recordingControls) els.recordingControls.style.display = 'none';
+    if (els.loadedState) els.loadedState.style.display = 'inline-flex';
     updateTransportUI();
     if (autoPlay) {
       player.play();
@@ -590,16 +705,18 @@ function renderSelectedSessionInfo() {
   const duration = formatDuration(currentSession.duration);
   els.selectedSessionInfo.innerHTML = `
     <div class="info-row"><strong>${escapeHtml(currentSession.name)}</strong></div>
-    <div class="info-row">${currentSession.noteCount || 0} notes · ${currentSession.chordCount || 0} accords · ${duration}</div>
-    <div class="info-row">${currentSession.key || 'Tonalité non définie'} · ${currentSession.tempo || '—'} BPM</div>
+    <div class="info-row">${currentSession.noteCount || 0} notes · ${currentSession.chordCount || 0} accords · ${currentSession.tempo || '—'} BPM · ${currentSession.key || 'Tonalité non définie'}</div>
     <div class="info-row">${escapeHtml(currentSession.comments || '')}</div>
     <div class="info-tags">${(currentSession.tags || []).map((t) => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>
   `;
 }
 
 function resetSelectedSessionInfo() {
-  if (!els.selectedSessionInfo) return;
-  els.selectedSessionInfo.innerHTML = `<p class="detail-hint">Aucune session sélectionnée. Créez une nouvelle session ou choisissez-en une dans la liste.</p>`;
+  if (els.selectedSessionInfo) {
+    els.selectedSessionInfo.innerHTML = `<p class="detail-hint">Aucune session sélectionnée. Créez une nouvelle session ou choisissez-en une dans la liste.</p>`;
+  }
+  if (els.carnetSessionTitle) els.carnetSessionTitle.textContent = 'Aucune session sélectionnée';
+  if (els.carnetSessionMeta) els.carnetSessionMeta.textContent = '';
 }
 
 function formatTimeShort(seconds) {
@@ -611,27 +728,30 @@ function formatTimeShort(seconds) {
 }
 
 function renderCarnet() {
-  if (!currentSession || !currentEvents.length) return;
+  if (!currentSession) return;
 
-  const segments = nameChordSegments(segmentSessionEvents(currentEvents));
-  if (!segments.length) return;
-
-  const totalDuration = currentSession.duration || segments[segments.length - 1].end || 1;
+  const segments = currentEvents.length
+    ? nameChordSegments(segmentSessionEvents(currentEvents))
+    : [];
+  const totalDuration = currentSession.duration || segments[segments.length - 1]?.end || 1;
 
   renderCarnetHeader(segments, totalDuration);
   renderTimeline(segments, totalDuration);
-  renderCarnetEntries(segments);
-  bindCarnetPlayButtons(segments);
-  bindCarnetExploreButtons(segments);
-  bindCarnetExploreAll(segments);
+  if (segments.length) {
+    renderCarnetEntries(segments);
+    bindCarnetPlayButtons(segments);
+    bindCarnetExploreButtons(segments);
+    bindCarnetExploreAll(segments);
+  } else {
+    if (els.carnetEntries) els.carnetEntries.innerHTML = '';
+  }
 }
 
 function renderCarnetHeader(segments, totalDuration) {
   if (!els.carnetSessionTitle || !els.carnetSessionMeta) return;
   const chordCount = segments.filter((s) => s.type === 'chord').length;
-  const durationStr = formatDuration(totalDuration);
   els.carnetSessionTitle.textContent = currentSession.name;
-  els.carnetSessionMeta.textContent = `${durationStr} · ${currentSession.noteCount || 0} notes · ${chordCount} vrais moments d'accord · ${currentSession.key || 'tonalité non définie'}`;
+  els.carnetSessionMeta.textContent = `${currentSession.noteCount || 0} notes · ${chordCount} accords · ${currentSession.tempo || '—'} BPM · ${currentSession.key || 'Tonalité non définie'}`;
 }
 
 // [Refonte Astra 12/09] — « Paysage harmonique ». L'ancienne frise plaçait un
@@ -1004,6 +1124,8 @@ function updateTransportUI() {
   const dur = player?.getDuration() || 0;
   const cur = player?.getCurrentTime() || 0;
   updateTransportSliderOnly(cur, dur);
+  if (els.timecodeCurrent) els.timecodeCurrent.textContent = formatDuration(cur);
+  if (els.timecodeTotal) els.timecodeTotal.textContent = formatDuration(dur);
   if (els.transportPlay) {
     // innerHTML et non textContent : le bouton porte une icône SVG depuis la
     // refonte, un textContent la supprimerait au premier changement d'état.

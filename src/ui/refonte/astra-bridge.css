@@ -286,6 +286,42 @@
 #midi-session-controls .tr-mono { color: var(--tr-secondary); font: 11px var(--tr-mono); }
 #midi-session-controls .midi-stop-btn { height: 29px; padding: 0 11px; }
 
+/* Badge "Session enregistrée" affiché quand une session chargée est prête à
+   être relue. Même grammaire visuelle que .tr-session-state, sans animation. */
+#midi-session-loaded-state {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  margin-right: 18px;
+  color: var(--tr-secondary);
+  font: 8.5px var(--tr-mono);
+  white-space: nowrap;
+}
+#midi-session-loaded-state > span {
+  width: 5px;
+  height: 5px;
+  background: var(--tr-green);
+  border-radius: 50%;
+}
+
+/* La barre de transport porte désormais un timecode ; on resserre légèrement
+   l'espacement pour garder le tout sur une ligne jusqu'à ~820 px. */
+.midi-session-transport .tr-timecode {
+  min-width: 100px;
+  margin-left: 0;
+}
+.midi-session-transport .tr-player-copilot button {
+  gap: 6px;
+}
+@media (max-width: 820px) {
+  .midi-session-transport .tr-timecode {
+    min-width: 86px;
+  }
+  #midi-session-loaded-state {
+    display: none !important;
+  }
+}
+
 /* Carnet des moments : la liste produite par recording-tab.js reprend la
    grammaire des tuiles d'Astra, en colonne (le nombre de moments est libre). */
 #midi-session-carnet .carnet-legend {
@@ -331,23 +367,11 @@
 
 /* Bibliothèque de sessions : la liste que recording-tab.js remplit, dans le
    tiroir d'Astra. */
-#midi-session-list { display: flex; flex-direction: column; gap: 4px; max-height: 52vh; overflow: auto; }
-#midi-session-list .midi-session-item,
-#midi-session-list > button,
-#midi-session-list > div {
-  color: var(--tr-text);
-}
-#midi-session-list .midi-session-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid transparent; border-radius: 7px;
-  background: transparent; text-align: left;
-}
-#midi-session-list .midi-session-item:hover { background: var(--tr-hover); }
-#midi-session-list .midi-session-item.active,
-#midi-session-list .midi-session-item.is-active {
-  background: var(--tr-accent-soft); border-color: var(--tr-accent);
-}
+/* Pas de max-height ici : .tr-dialog-body porte déjà l'ascenseur, et deux
+   ascenseurs imbriqués rendaient la liste pénible dès 13 sessions. */
+#midi-session-list { display: flex; flex-direction: column; color: var(--tr-text); }
+/* La dernière ligne ne porte pas de filet : le bord du panneau le fait déjà. */
+#midi-session-list > .tr-library-row:last-child { border-bottom: 0; }
 
 /* Modales existantes de Sessions MIDI : elles gardent leur mécanique
    (style.display piloté par recording-tab.js), pas la classe .tr-overlay —

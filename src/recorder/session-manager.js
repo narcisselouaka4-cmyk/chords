@@ -94,13 +94,41 @@ export async function loadSession(sessionId) {
   };
 }
 
+const PREVIEW_BUCKETS = 40;
+
+// [Astra round 6] — Aperçu MIDI de la bibliothèque : densité de jeu normalisée,
+// calculée à partir des vraies notes enregistrées. Les événements sont déjà lus
+// par loadSession() lors du listage, donc l'aperçu ne coûte aucune I/O
+// supplémentaire. Il n'est pas persisté : il est recalculé à chaque listage.
+export function buildEventsPreview(events, duration) {
+  const notes = (events || []).filter((e) => e.type === 'note_on' && (e.velocity ?? 0) > 0);
+  if (notes.length === 0) return [];
+
+  const span = Number(duration) > 0
+    ? Number(duration)
+    : Math.max(...notes.map((e) => Number(e.time) || 0)) || 1;
+
+  const buckets = new Array(PREVIEW_BUCKETS).fill(0);
+  for (const note of notes) {
+    const ratio = (Number(note.time) || 0) / span;
+    const index = Math.min(PREVIEW_BUCKETS - 1, Math.max(0, Math.floor(ratio * PREVIEW_BUCKETS)));
+    buckets[index] += (Number(note.velocity) || 0) / 127;
+  }
+
+  const peak = Math.max(...buckets);
+  return peak > 0 ? buckets.map((v) => v / peak) : buckets;
+}
+
 export async function listSessions() {
   const dirs = await listSessionDirs();
   const sessions = [];
   for (const dir of dirs) {
     try {
       const data = await loadSession(dir.id);
-      sessions.push(data.session);
+      sessions.push({
+        ...data.session,
+        preview: buildEventsPreview(data.events, data.session.duration),
+      });
     } catch (err) {
       console.warn('Failed to load session', dir.id, err);
     }
