@@ -226,3 +226,28 @@ On ne redemande validation que pour les choix architecturaux majeurs ou irréver
 10. Étape 3 → transposer +2 en cours de lecture → son transposé, pas de coupure, pas de lag vidéo.
 11. Revenir à 0 → pas de crash.
 12. Build Vite OK + tests Partie 1 + Partie 3 OK.
+
+---
+
+## 11. Outils de design (hors dépôt)
+
+Deux ensembles de skills Claude Code sont utilisés pour le travail d'interface.
+Ils vivent dans `.claude/skills/`, **volontairement non versionné** (13 Mo
+d'outils de développement). Pour les réinstaller :
+
+```bash
+git clone --depth 1 https://github.com/pbakaus/impeccable.git /tmp/impeccable \
+  && cp -r /tmp/impeccable/.claude/skills/impeccable .claude/skills/
+git clone --depth 1 https://github.com/nextlevelbuilder/ui-ux-pro-max-skill.git /tmp/uiux \
+  && cp -r /tmp/uiux/.claude/skills/. .claude/skills/
+```
+
+- `impeccable` — refonte et polish d'interface, avec un détecteur mécanique
+  d'anti-patterns : `.claude/skills/impeccable/scripts/impeccable detect --json <fichiers>`.
+  Le lanceur télécharge un binaire autonome au premier appel (réseau requis).
+- `ui-ux-pro-max` et ses satellites (`ui-styling`, `design`, `design-system`,
+  `brand`, `slides`, `banner-design`).
+
+Le serveur MCP **Magic UI** est déclaré dans `.mcp.json` (versionné). Il sert
+des composants React/Tailwind : hors stack ici, donc peu utile pour ce projet
+en vanilla JS — la maquette Astra reste l'autorité visuelle.

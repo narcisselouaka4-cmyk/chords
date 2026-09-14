@@ -23,3 +23,7 @@ tests/corpus/b2/*.wav
 tests/corpus/b3/*.wav
 tests/corpus/b4/*.wav
 tests/corpus/b5/*.wav
+
+# Skills Claude Code installés localement (ui-ux-pro-max, impeccable) :
+# outils de développement, réinstallables — voir CLAUDE.md § Outils de design.
+.claude/skills/
