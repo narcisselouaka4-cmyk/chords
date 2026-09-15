@@ -344,8 +344,8 @@
   }
 }
 
-/* Carnet des moments : disposition horizontale en bande. Chaque moment est une
-   tuile compacte qui se lit de gauche à droite, comme une frise chronologique. */
+/* Carnet des moments : bande horizontale scrollable. La sidebar devient une
+   frise unique que l'utilisateur parcourt vers la droite/gauche. */
 #midi-session-carnet .carnet-legend {
   display: flex; gap: 14px; margin-top: 6px;
   color: var(--tr-muted); font: 9px var(--tr-mono);
@@ -356,20 +356,29 @@
 #carnet-entries {
   display: flex;
   flex-direction: row;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
-  align-content: flex-start;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 10px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
 }
+#carnet-entries::-webkit-scrollbar { height: 8px; }
+#carnet-entries::-webkit-scrollbar-track { background: transparent; }
+#carnet-entries::-webkit-scrollbar-thumb { background: var(--tr-border); border-radius: 4px; }
 #carnet-entries .carnet-entry {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
   padding: 8px 12px;
   border: 1px solid var(--tr-border);
   border-radius: 8px;
   background: var(--tr-surface);
   color: var(--tr-text);
-  max-width: 100%;
+  scroll-snap-align: start;
+  scroll-margin-left: 4px;
 }
 #carnet-entries .carnet-entry:hover {
   border-color: color-mix(in srgb, var(--tr-accent) 50%, var(--tr-border));

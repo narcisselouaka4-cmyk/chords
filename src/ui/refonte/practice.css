@@ -2731,9 +2731,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--r-space-3);
-  flex: 1;
+  flex: 0 0 auto;
   min-height: 0;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 :root[data-skin='global'] #practice-view-midi-sessions .carnet-sticky-head,
@@ -2872,22 +2872,34 @@
 :root[data-skin='v2'] #practice-view-midi-sessions .carnet-entries {
   display: flex;
   flex-direction: row;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: var(--r-space-3);
   padding-top: var(--r-space-2);
-  align-content: flex-start;
+  padding-bottom: var(--r-space-3);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
 }
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-entries::-webkit-scrollbar,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-entries::-webkit-scrollbar { height: 8px; }
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-entries::-webkit-scrollbar-track,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-entries::-webkit-scrollbar-track { background: transparent; }
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-entries::-webkit-scrollbar-thumb,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-entries::-webkit-scrollbar-thumb { background: var(--r-border); border-radius: 4px; }
 
 :root[data-skin='global'] #practice-view-midi-sessions .carnet-entry,
 :root[data-skin='v2'] #practice-view-midi-sessions .carnet-entry {
   display: inline-flex;
   align-items: center;
   gap: var(--r-space-2);
+  flex-shrink: 0;
   padding: 8px 12px;
   border-radius: var(--r-radius-btn);
   background: var(--r-surface-raised);
   border: 1px solid var(--r-border-soft);
-  scroll-margin-top: 148px;
+  scroll-snap-align: start;
+  scroll-margin-left: 4px;
   transition: background 0.4s ease, border-color 0.4s ease;
 }
 
