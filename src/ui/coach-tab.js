@@ -230,29 +230,58 @@ async function refreshTrackList() {
     tracks = [];
   }
 
+  const countEl = document.getElementById('coach-library-count');
+  if (countEl) countEl.textContent = `${tracks.length} morceau${tracks.length > 1 ? 'x' : ''}`;
+
   if (tracks.length === 0) {
-    els.trackList.appendChild(el('p', {
-      className: 'coach-empty',
-      text: 'Aucun morceau importé. Importez-en un depuis l\'onglet Studio pour commencer.',
+    els.trackList.appendChild(el('div', {
+      className: 'tr-empty',
+      html: '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><h3>Aucun morceau pour l\'instant</h3><p>Importez une piste voix seule depuis l\'onglet Studio pour commencer une séance.</p>',
     }));
     return;
   }
 
   for (const track of tracks) {
-    const item = el('button', {
-      className: `coach-track-item${track.id === selectedTrackId ? ' active' : ''}`,
-      type: 'button',
+    const statusClass = track.hasVocals ? 'is-ready' : 'is-pending';
+    const statusText = track.hasVocals ? 'Voix prête' : 'À séparer';
+    const item = el('div', {
+      className: `tr-library-row coach-track-row ${track.id === selectedTrackId ? 'is-selected' : ''}`,
       title: track.hasVocals
-        ? null
-        : 'La voix doit d\'abord être isolée du reste du morceau — ça se fait '
-          + 'automatiquement quand vous démarrez la séance, et ça prend un peu de temps.',
-      onClick: () => selectTrack(track.id),
+        ? ''
+        : 'La voix doit d\'abord être isolée du reste du morceau — ça se fait automatiquement quand vous démarrez la séance.',
     }, [
-      el('span', { className: 'coach-track-name', text: track.name }),
-      el('span', {
-        className: `coach-track-badge${track.hasVocals ? ' ready' : ''}`,
-        text: track.hasVocals ? 'voix prête' : 'à séparer',
-      }),
+      el('button', {
+        className: 'tr-library-select',
+        type: 'button',
+        onClick: () => selectTrack(track.id),
+      }, [
+        el('span', { className: 'tr-file-icon' }, [
+          el('svg', { width: '19', height: '19', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.65', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' }, [
+            el('path', { d: 'M9 18V5l12-2v13' }),
+            el('circle', { cx: '6', cy: '18', r: '3' }),
+            el('circle', { cx: '18', cy: '16', r: '3' }),
+          ]),
+        ]),
+        el('span', {}, [
+          el('strong', { text: track.name }),
+          el('small', { text: track.metadata?.artist || 'Piste importée' }),
+        ]),
+      ]),
+      el('span', { className: `tr-library-cell coach-status ${statusClass}`, text: statusText }),
+      el('div', { className: 'tr-library-row-actions' }, [
+        el('button', {
+          className: 'tr-icon-button',
+          type: 'button',
+          title: 'Ouvrir ce morceau',
+          'aria-label': `Ouvrir ${track.name}`,
+          onClick: () => selectTrack(track.id),
+        }, [
+          el('svg', { width: '15', height: '15', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.65', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' }, [
+            el('path', { d: 'M7 17 17 7' }),
+            el('path', { d: 'M7 7h10v10' }),
+          ]),
+        ]),
+      ]),
     ]);
     els.trackList.appendChild(item);
   }

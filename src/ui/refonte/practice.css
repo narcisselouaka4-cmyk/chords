@@ -750,6 +750,15 @@
 :root[data-skin='v2'] #practice-view-midi-sessions .midi-transport-btn:hover {
   color: var(--r-text);
 }
+
+/* [Astra round 8] — État armé de la lecture en boucle. La règle vit ici et non
+   dans astra-training.css : ces sélecteurs de skin (0,3,1) l'emportent sur le
+   .tr-icon-button.is-active d'Astra, qui restait donc sans effet. */
+:root[data-skin='global'] #practice-view-midi-sessions .midi-transport-btn.is-active,
+:root[data-skin='v2'] #practice-view-midi-sessions .midi-transport-btn.is-active {
+  color: var(--r-accent);
+  background: var(--r-accent-soft);
+}
 :root[data-skin='global'] #practice-view-midi-sessions #midi-session-play,
 :root[data-skin='v2'] #practice-view-midi-sessions #midi-session-play {
   width: 28px;
@@ -2713,35 +2722,8 @@
   color: var(--r-text-muted);
 }
 
-:root[data-skin='global'] #practice-view-midi-sessions .carnet-explore-all,
-:root[data-skin='v2'] #practice-view-midi-sessions .carnet-explore-all {
-  align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 16px;
-  border-radius: var(--r-radius-btn);
-  background: var(--r-surface-chip);
-  border: 1px solid var(--r-border-strong);
-  color: var(--r-text);
-  font-weight: 700;
-  font-size: 0.8rem;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: border-color 0.15s, color 0.15s;
-}
 
-:root[data-skin='global'] #practice-view-midi-sessions .carnet-explore-all:hover:not(:disabled),
-:root[data-skin='v2'] #practice-view-midi-sessions .carnet-explore-all:hover:not(:disabled) {
-  border-color: var(--r-accent);
-  color: var(--r-text);
-}
 
-:root[data-skin='global'] #practice-view-midi-sessions .carnet-explore-all:disabled,
-:root[data-skin='v2'] #practice-view-midi-sessions .carnet-explore-all:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
 
 :root[data-skin='global'] #practice-view-midi-sessions .carnet-timeline,
 :root[data-skin='v2'] #practice-view-midi-sessions .carnet-timeline {

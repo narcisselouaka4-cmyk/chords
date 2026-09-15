@@ -66,6 +66,61 @@
   color-scheme: light;
 }
 
+/* Mêmes tokens rendus disponibles globalement pour les éléments hors de
+   .training-shell, comme la modale de clé API (#ai-settings-modal). */
+:root[data-skin='global'],
+:root[data-skin='v2'] {
+  --tr-bg: #141416;
+  --tr-header: #19191c;
+  --tr-surface: #1c1c20;
+  --tr-raised: #232327;
+  --tr-hover: #29292e;
+  --tr-inset: #17171a;
+  --tr-border: #303036;
+  --tr-border-soft: #29292f;
+  --tr-text: #f0eff3;
+  --tr-secondary: #a2a0aa;
+  --tr-muted: #89848f;
+  --tr-accent: #b8a0f3;
+  --tr-accent-strong: #c8b2ff;
+  --tr-accent-soft: #2a2538;
+  --tr-button: #bba2f4;
+  --tr-button-text: #221a32;
+  --tr-green: #8ccdb7;
+  --tr-green-soft: #20322c;
+  --tr-red: #e1a0ae;
+  --tr-grid-line: #37323e;
+  --tr-grid-fill: #33273f;
+  --tr-shadow: 0 10px 35px #0000000d;
+  --tr-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+:root[data-theme='light'][data-skin='global'],
+:root[data-theme='light'][data-skin='v2'] {
+  --tr-bg: #f5f4f7;
+  --tr-header: #fcfbfd;
+  --tr-surface: #ffffff;
+  --tr-raised: #f0eef4;
+  --tr-hover: #eae7f0;
+  --tr-inset: #f8f7fa;
+  --tr-border: #dfdce5;
+  --tr-border-soft: #eae7ef;
+  --tr-text: #272330;
+  --tr-secondary: #6b6377;
+  --tr-muted: #746c7e;
+  --tr-accent: #7954c5;
+  --tr-accent-strong: #6541b4;
+  --tr-accent-soft: #eee7fb;
+  --tr-button: #7853c7;
+  --tr-button-text: #ffffff;
+  --tr-green: #3e8b74;
+  --tr-green-soft: #e8f4ee;
+  --tr-red: #b95e74;
+  --tr-grid-line: #e2dcea;
+  --tr-grid-fill: #e5daf2;
+  --tr-shadow: 0 10px 35px #42335407;
+}
+
 .training-shell :where(button, input, textarea, select) { font-family: inherit; }
 .training-shell :where(button) { -webkit-tap-highlight-color: transparent; }
 .training-shell :where(button):disabled { cursor: not-allowed; opacity: .42; }
@@ -148,7 +203,7 @@
 .tr-realtime-preserved { height: 100%; padding: 14px; background: #0d0b12; color: #f7f4ff; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
 
 /* The player itself is the workspace; collections never reserve a sidebar. */
-.tr-session-console { flex: 1; display: flex; flex-direction: column; min-height: 254px; overflow: hidden; border: 1px solid var(--tr-border); border-radius: 10px; background: var(--tr-surface); box-shadow: var(--tr-shadow); }
+.tr-session-console { flex: 1; display: flex; flex-direction: column; min-height: 320px; overflow: hidden; border: 1px solid var(--tr-border); border-radius: 10px; background: var(--tr-surface); box-shadow: var(--tr-shadow); }
 .tr-console-header { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 20px; height: 60px; padding: 0 21px; border-bottom: 1px solid var(--tr-border-soft); }
 .tr-session-identity { display: flex; align-items: center; gap: 11px; min-width: 0; }
 .tr-session-glyph { height: 32px; width: 31px; flex-shrink: 0; display: grid; place-items: center; border-radius: 6px; color: var(--tr-accent); background: var(--tr-accent-soft); border: 1px solid color-mix(in srgb, var(--tr-accent) 13%, transparent); }
@@ -166,7 +221,7 @@
 .tr-popover { position: absolute; right: 0; top: 34px; z-index: 15; width: 196px; padding: 5px; border: 1px solid var(--tr-border); border-radius: 8px; background: var(--tr-raised); box-shadow: 0 12px 30px #00000024; }
 .tr-popover button { display: block; width: 100%; padding: 9px 10px; text-align: left; border: 0; background: none; color: var(--tr-secondary); font-size: 11px; border-radius: 4px; }
 .tr-popover button:hover { background: var(--tr-hover); color: var(--tr-text); }
-.tr-roll-stage { position: relative; display: flex; flex-direction: column; min-height: 138px; flex: 1; background: radial-gradient(ellipse at 53% 80%, color-mix(in srgb, var(--tr-accent) 5%, transparent), transparent 62%); }
+.tr-roll-stage { position: relative; display: flex; flex-direction: column; min-height: 200px; flex: 1; background: radial-gradient(ellipse at 53% 80%, color-mix(in srgb, var(--tr-accent) 5%, transparent), transparent 62%); }
 .tr-roll-toolbar { height: 35px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; }
 .tr-roll-toolbar > .tr-eyebrow { font-size: 8px; display: flex; align-items: center; gap: 7px; }
 .tr-small-cross { color: var(--tr-accent); font-size: 14px; font-weight: 300; }
@@ -204,7 +259,7 @@
 .tr-speed svg { pointer-events: none; position: absolute; right: 0; color: var(--tr-muted); }
 .tr-player-copilot { flex-shrink: 0; }
 .tr-player-copilot button { font-size: 10px; }
-.tr-moments-section { flex-shrink: 0; }
+.tr-moments-section { flex: 0 1 auto; min-height: 0; overflow: auto; }
 .tr-section-heading { height: 22px; display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
 .tr-section-heading h2 { display: flex; align-items: center; gap: 9px; font-size: 12px; font-weight: 550; letter-spacing: -.01em; }
 .tr-section-heading h2 > span { color: var(--tr-muted); font: 9px var(--tr-mono); }
@@ -869,7 +924,7 @@
   .tr-heading-actions { width: 100%; }
   .tr-heading-actions .tr-button { flex: 1; height: 33px; font-size: 10px; }
   .tr-heading-actions .tr-count { margin-left: 3px; }
-  .tr-session-console { min-height: 259px; overflow: visible; }
+  .tr-session-console { min-height: 300px; overflow: hidden; }
   .tr-console-header { height: 58px; padding: 0 11px; border-radius: 9px 9px 0 0; }
   .tr-session-glyph { width: 26px; height: 29px; }
   .tr-session-glyph svg { width: 18px; }
@@ -880,7 +935,7 @@
   .tr-console-actions .tr-icon-button { width: 25px; }
   .tr-roll-toolbar > .tr-eyebrow { font-size: 6px; gap: 5px; }
   .tr-roll-version { display: none; }
-  .tr-roll-stage { overflow: hidden; min-height: 146px; }
+  .tr-roll-stage { overflow: hidden; min-height: 180px; }
   .tr-harmonic-roll { width: 140%; margin-left: -20%; }
   .tr-roll-label { font-size: 13px; }
   .tr-projection-switch button { font-size: 7px; padding: 3px 5px; }

@@ -1455,248 +1455,34 @@
  *  §6 — RÉGLAGES › ASSISTANT IA                                                *
  *  [Refonte visuelle 2026-09-03] — Habillage du modal existant (fonctionnel   *
  *  depuis le 2026-07-04, id= et logique intacts dans main.js). Hors de        *
- *  #analysis-tab (modal global, ouvert depuis l'icône 🔑 de l'en-tête) : les  *
- *  jetons --r-* restent les mêmes (définis sur :root), donc pas besoin de     *
- *  reprendre la sélection par thème clair/sombre ici, seulement par skin.     *
+ *  #analysis-tab (modal global, ouvert depuis l'icône 🔑 de l'en-tête).        *
+ *  Refonte Astra : modale sobre, alignée sur .tr-dialog / .tr-form-field.     *
  * ========================================================================== */
-:root[data-skin='global'] #ai-settings-modal .ai-settings-box,
-:root[data-skin='v2'] #ai-settings-modal .ai-settings-box {
-  background: var(--r-surface-raised);
-  border: 1px solid var(--r-border);
-  border-radius: var(--r-radius-card);
-  padding: var(--r-space-5) var(--r-space-5) var(--r-space-4);
-  min-width: 420px;
-  max-width: 520px;
-  max-height: min(88vh, 720px);
-  overflow-y: auto;
-  font-family: var(--r-font-body);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
-}
-:root[data-skin='global'] #ai-settings-modal .ai-settings-box h3,
-:root[data-skin='v2'] #ai-settings-modal .ai-settings-box h3 {
-  font-family: var(--r-font-title);
-  font-size: 1.15rem;
-  font-weight: 800;
-  color: var(--r-text);
-  margin: 0;
-}
-:root[data-skin='global'] #ai-settings-modal .ai-settings-header,
-:root[data-skin='v2'] #ai-settings-modal .ai-settings-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--r-space-3);
-  margin-bottom: var(--r-space-2);
-}
-:root[data-skin='global'] #ai-settings-modal .ai-settings-badge-optional,
-:root[data-skin='v2'] #ai-settings-modal .ai-settings-badge-optional {
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: 3px 8px;
-  border-radius: var(--r-radius-chip);
-  border: 1px solid var(--r-good);
-  color: var(--r-good);
-  background: var(--r-good-soft);
-  white-space: nowrap;
-}
-:root[data-skin='global'] #ai-settings-modal .ai-settings-note,
-:root[data-skin='v2'] #ai-settings-modal .ai-settings-note {
-  font-size: 0.84rem;
-  line-height: 1.5;
-  color: var(--r-text-muted);
-  margin: 0 0 var(--r-space-4);
-}
-:root[data-skin='global'] #ai-settings-modal .ai-settings-note strong,
-:root[data-skin='v2'] #ai-settings-modal .ai-settings-note strong {
-  color: var(--r-text-muted);
-}
-:root[data-skin='global'] #ai-settings-modal .ai-settings-note-small,
-:root[data-skin='v2'] #ai-settings-modal .ai-settings-note-small {
-  font-size: 0.78rem;
-  margin-top: var(--r-space-2);
-  margin-bottom: 0;
-}
-:root[data-skin='global'] #ai-settings-modal .ai-settings-section,
-:root[data-skin='v2'] #ai-settings-modal .ai-settings-section {
-  padding: var(--r-space-4);
-  border-radius: var(--r-radius-card);
-  border: 1px solid var(--r-border);
-  background: var(--r-surface);
-  margin-bottom: var(--r-space-3);
-}
-:root[data-skin='global'] #ai-settings-modal .ai-settings-section-label,
-:root[data-skin='v2'] #ai-settings-modal .ai-settings-section-label {
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--r-text-faint);
-  font-family: var(--r-font-mono);
-  margin-bottom: var(--r-space-3);
-}
-:root[data-skin='global'] #ai-settings-modal .ai-field,
-:root[data-skin='v2'] #ai-settings-modal .ai-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--r-text-muted);
-  margin-bottom: var(--r-space-3);
-}
-:root[data-skin='global'] #ai-settings-modal .ai-field:last-child,
-:root[data-skin='v2'] #ai-settings-modal .ai-field:last-child {
-  margin-bottom: 0;
-}
-:root[data-skin='global'] #ai-settings-modal .ai-field input,
-:root[data-skin='global'] #ai-settings-modal .ai-field select,
-:root[data-skin='v2'] #ai-settings-modal .ai-field input,
-:root[data-skin='v2'] #ai-settings-modal .ai-field select {
-  padding: 8px 10px;
-  background: var(--r-surface-elevated);
-  color: var(--r-text);
-  border: 1px solid var(--r-border-strong);
-  border-radius: var(--r-radius-chip);
-  font-size: 0.86rem;
-  font-family: inherit;
-}
-:root[data-skin='global'] #ai-settings-modal .ai-field input::placeholder,
-:root[data-skin='v2'] #ai-settings-modal .ai-field input::placeholder {
-  color: var(--r-text-faint);
-}
-:root[data-skin='global'] #ai-settings-modal .ai-field input:focus,
-:root[data-skin='global'] #ai-settings-modal .ai-field select:focus,
-:root[data-skin='v2'] #ai-settings-modal .ai-field input:focus,
-:root[data-skin='v2'] #ai-settings-modal .ai-field select:focus {
-  outline: none;
-  border-color: var(--r-accent);
-}
-:root[data-skin='global'] #ai-settings-modal .ai-settings-grid,
-:root[data-skin='v2'] #ai-settings-modal .ai-settings-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0 var(--r-space-3);
-}
-:root[data-skin='global'] #ai-settings-modal .ai-field-wide,
-:root[data-skin='v2'] #ai-settings-modal .ai-field-wide {
-  grid-column: 1 / -1;
-}
-:root[data-skin='global'] #ai-settings-modal .ai-settings-test-row,
-:root[data-skin='v2'] #ai-settings-modal .ai-settings-test-row {
-  display: flex;
-  align-items: center;
-  gap: var(--r-space-3);
-  margin-top: var(--r-space-1);
-  flex-wrap: wrap;
-}
-:root[data-skin='global'] #ai-settings-modal .ai-test-result,
-:root[data-skin='v2'] #ai-settings-modal .ai-test-result {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--r-text-muted);
-}
-:root[data-skin='global'] #ai-settings-modal .ai-test-result.success,
-:root[data-skin='v2'] #ai-settings-modal .ai-test-result.success {
-  color: var(--r-good);
-}
-:root[data-skin='global'] #ai-settings-modal .ai-test-result.error,
-:root[data-skin='v2'] #ai-settings-modal .ai-test-result.error {
-  color: var(--r-error, #ef4444);
-}
-:root[data-skin='global'] #ai-settings-modal .ai-cap-row,
-:root[data-skin='v2'] #ai-settings-modal .ai-cap-row {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--r-space-3);
-  flex-wrap: wrap;
-  margin-bottom: 0;
-}
-:root[data-skin='global'] #ai-settings-modal .ai-cap-field,
-:root[data-skin='v2'] #ai-settings-modal .ai-cap-field {
-  flex: 1 1 200px;
-  margin-bottom: 0 !important;
-}
-:root[data-skin='global'] #ai-settings-modal .ai-cap-field input,
-:root[data-skin='v2'] #ai-settings-modal .ai-cap-field input {
-  width: 100%;
-}
-:root[data-skin='global'] #ai-settings-modal .ai-usage,
-:root[data-skin='v2'] #ai-settings-modal .ai-usage {
-  font-family: var(--r-font-mono);
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: var(--r-text);
-  white-space: nowrap;
-  padding-bottom: 8px;
-}
-:root[data-skin='global'] #ai-settings-modal .ai-settings-trust,
-:root[data-skin='v2'] #ai-settings-modal .ai-settings-trust {
-  background: var(--r-accent-soft);
-  border: 1px dashed var(--r-accent);
-}
-:root[data-skin='global'] #ai-settings-modal .ai-settings-trust-list,
-:root[data-skin='v2'] #ai-settings-modal .ai-settings-trust-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--r-space-2);
-}
-:root[data-skin='global'] #ai-settings-modal .ai-settings-trust-list li,
-:root[data-skin='v2'] #ai-settings-modal .ai-settings-trust-list li {
-  font-size: 0.8rem;
-  line-height: 1.5;
-  color: var(--r-text-muted);
-}
-:root[data-skin='global'] #ai-settings-modal .ai-settings-actions,
-:root[data-skin='v2'] #ai-settings-modal .ai-settings-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--r-space-3);
-  margin-top: var(--r-space-2);
-}
-:root[data-skin='global'] #ai-settings-modal .btn-primary,
-:root[data-skin='global'] #ai-settings-modal .btn-secondary,
-:root[data-skin='v2'] #ai-settings-modal .btn-primary,
-:root[data-skin='v2'] #ai-settings-modal .btn-secondary {
-  flex: none;
-  padding: 9px 18px;
-  font-size: 0.86rem;
-  font-weight: 700;
-  border-radius: var(--r-radius-chip);
-  border: 1px solid transparent;
-  cursor: pointer;
-  font-family: inherit;
-}
-:root[data-skin='global'] #ai-settings-modal .btn-secondary,
-:root[data-skin='v2'] #ai-settings-modal .btn-secondary {
-  background: transparent;
-  border-color: var(--r-border);
-  color: var(--r-text-muted);
-}
-:root[data-skin='global'] #ai-settings-modal .btn-primary,
-:root[data-skin='v2'] #ai-settings-modal .btn-primary {
-  background: var(--r-btn-primary-bg, var(--r-accent));
-  color: var(--r-btn-primary-fg, #fff);
-  border-color: var(--r-btn-primary-border, var(--r-accent));
-}
-:root[data-skin='v2'] #ai-settings-modal .btn-primary {
-  background: var(--r-grad);
-  border-color: transparent;
-  border-radius: 100px;
-}
-:root[data-skin='v2'] #ai-settings-modal .btn-secondary {
-  border-radius: 100px;
-}
+#ai-settings-modal { z-index: 90; }
+#ai-settings-modal .tr-dialog { width: min(100%, 540px); max-height: min(88vh, 760px); }
+#ai-settings-modal .ai-settings-body { display: flex; flex-direction: column; gap: 17px; }
+#ai-settings-modal .ai-settings-intro { margin: 0; color: var(--r-text-muted); font-size: 12.5px; line-height: 1.55; }
+#ai-settings-modal .ai-settings-intro strong { color: var(--r-text); }
+#ai-settings-modal .ai-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+#ai-settings-modal .ai-form-field { margin: 0; }
+#ai-settings-modal .ai-form-field input,
+#ai-settings-modal .ai-form-field select { width: 100%; }
+#ai-settings-modal .ai-form-test { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+#ai-settings-modal .ai-test-result { font: 12px var(--r-font-mono); color: var(--r-text-muted); }
+#ai-settings-modal .ai-test-result.success { color: var(--r-good); }
+#ai-settings-modal .ai-test-result.error { color: var(--r-error, #ef4444); }
+#ai-settings-modal .ai-form-section { display: flex; flex-direction: column; gap: 10px; padding: 14px; border: 1px solid var(--r-border); border-radius: var(--r-radius-card); background: var(--r-surface); }
+#ai-settings-modal .ai-cap-row { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
+#ai-settings-modal .ai-cap-field { flex: 1 1 180px; margin: 0; }
+#ai-settings-modal .ai-usage { font: 13px var(--r-font-mono); color: var(--r-text); white-space: nowrap; padding-bottom: 8px; }
+#ai-settings-modal .ai-form-hint { margin: 0; color: var(--r-text-muted); font-size: 11px; line-height: 1.5; }
+#ai-settings-modal .ai-form-trust { display: flex; flex-direction: column; gap: 10px; }
+#ai-settings-modal .ai-form-trust ul { margin: 0; padding-left: 18px; color: var(--r-text-muted); font-size: 11px; line-height: 1.55; }
+#ai-settings-modal .ai-form-trust li { margin-bottom: 6px; }
+#ai-settings-modal .ai-form-trust li:last-child { margin-bottom: 0; }
 
 @media (max-width: 560px) {
-  #ai-settings-modal .ai-settings-grid {
+  #ai-settings-modal .ai-form-grid {
     grid-template-columns: 1fr;
-  }
-  #ai-settings-modal .ai-field-wide {
-    grid-column: auto;
   }
 }

@@ -351,8 +351,15 @@ async function renderHistoryList() {
   if (!els.historyList) return;
   const items = await listAllConversations();
   els.historyList.innerHTML = '';
+
+  const countEl = document.getElementById('copilot-history-count');
+  if (countEl) countEl.textContent = `${items.length} conversation${items.length > 1 ? 's' : ''}`;
+
   if (items.length === 0) {
-    els.historyList.appendChild(el('div', { className: 'copilot-history-preview', text: 'Aucune conversation.' }));
+    els.historyList.appendChild(el('div', {
+      className: 'tr-empty',
+      innerHTML: '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><h3>Aucune conversation</h3><p>Lancez une nouvelle conversation : elle sera sauvegardée automatiquement.</p>',
+    }));
     return;
   }
   for (const item of items) {
@@ -360,19 +367,41 @@ async function renderHistoryList() {
     const isActive = item.conversationId === currentConversationId;
     const primary = item.preview || 'Conversation vide';
     const secondary = `${labelForConversationPath(item.tutorialPath)} · ${dateText || 'sans date'}`;
-    const row = el('div', { className: `copilot-history-item ${isActive ? 'active' : ''}` }, [
-      el('div', { className: 'copilot-history-info' }, [
-        el('div', { className: 'copilot-history-label', text: primary }),
-        el('div', { className: 'copilot-history-preview', text: secondary }),
-      ]),
+    const row = el('div', { className: `tr-library-row copilot-history-row ${isActive ? 'is-selected' : ''}` }, [
       el('button', {
-        className: 'copilot-history-delete',
-        text: '×',
-        title: 'Supprimer cette conversation',
-        onClick: (e) => { e.stopPropagation(); deleteHistoryItem(item.conversationId); },
-      }),
+        className: 'tr-library-select',
+        type: 'button',
+        onClick: () => loadHistoryItem(item.conversationId),
+      }, [
+        el('span', { className: 'tr-file-icon' }, [
+          el('svg', { width: '19', height: '19', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.65', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' }, [
+            el('path', { d: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z' }),
+          ]),
+        ]),
+        el('span', {}, [
+          el('strong', { text: primary }),
+          el('small', { text: secondary }),
+        ]),
+      ]),
+      el('span', { className: 'tr-library-cell', text: dateText || '—' }),
+      el('div', { className: 'tr-library-row-actions' }, [
+        el('button', {
+          className: 'tr-icon-button tr-delete',
+          type: 'button',
+          title: 'Supprimer cette conversation',
+          'aria-label': 'Supprimer cette conversation',
+          onClick: (e) => { e.stopPropagation(); deleteHistoryItem(item.conversationId); },
+        }, [
+          el('svg', { width: '15', height: '15', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.65', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' }, [
+            el('path', { d: 'M3 6h18' }),
+            el('path', { d: 'M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2' }),
+            el('path', { d: 'M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6' }),
+            el('path', { d: 'M10 11v6' }),
+            el('path', { d: 'M14 11v6' }),
+          ]),
+        ]),
+      ]),
     ]);
-    row.addEventListener('click', async () => { await loadHistoryItem(item.conversationId); });
     els.historyList.appendChild(row);
   }
 }

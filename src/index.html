@@ -345,6 +345,20 @@
                 <span id="midi-session-total-time">00:00</span>
               </div>
               <input type="range" id="midi-session-slider" class="tr-seek midi-transport-slider" min="0" max="100" value="0" aria-label="Position de lecture">
+              <div class="tr-player-options">
+                <button class="tr-icon-button midi-transport-btn" id="midi-session-loop" type="button" aria-pressed="false" title="Lire en boucle" aria-label="Lire en boucle"><svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg></button>
+                <label class="tr-speed">
+                  <select id="midi-session-speed" aria-label="Vitesse de lecture">
+                    <option value="0.5">0.5x</option>
+                    <option value="0.75">0.75x</option>
+                    <option value="1" selected>1x</option>
+                    <option value="1.25">1.25x</option>
+                    <option value="1.5">1.5x</option>
+                    <option value="2">2x</option>
+                  </select>
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                </label>
+              </div>
               <div class="tr-player-copilot">
                 <button class="tr-text-button tr-accent-text carnet-explore-all" id="carnet-explore-all" type="button" disabled>Explorer avec le Copilot<svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></button>
               </div>
@@ -519,6 +533,13 @@
               <div class="tr-dialog-title"><h2>Votre répertoire</h2>
                 <button class="tr-icon-button" type="button" data-astra-close aria-label="Fermer">✕</button></div>
               <div class="tr-dialog-body">
+                <div class="tr-library-toolbar">
+                  <span class="tr-secondary coach-library-count" id="coach-library-count"></span>
+                  <button class="tr-button tr-primary" type="button" data-astra-close data-astra-click="#coach-start-btn"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 4 13 8-13 8z" fill="currentColor"/></svg>Démarrer une séance</button>
+                </div>
+                <div class="tr-library-table-head" aria-hidden="true">
+                  <span>MORCEAU</span><span>STATUT</span><span></span>
+                </div>
                 <div class="tr-song-library coach-track-list" id="coach-track-list" data-astra-close-on-click></div>
                 <div class="tr-dialog-footnote">Importez une piste voix seule depuis le Studio. Aucune séparation de voix n'est simulée ici.</div>
               </div>
@@ -651,8 +672,8 @@
                 <button class="tr-icon-button" type="button" data-astra-close aria-label="Fermer">✕</button></div>
               <div class="tr-dialog-body">
                 <div class="tr-library-toolbar">
-                  <span class="pedagogie-folder-hint" id="pedagogie-folder-hint"></span>
-                  <button class="tr-button" type="button" data-astra-close data-astra-click="#pedagogie-import-btn"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>Importer depuis un dossier</button>
+                  <span class="tr-secondary pedagogie-folder-hint" id="pedagogie-folder-hint"></span>
+                  <button class="tr-button tr-primary" type="button" data-astra-close data-astra-click="#pedagogie-import-btn"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6M9 15l3-3 3 3"/></svg>Importer une vidéo</button>
                 </div>
                 <div class="tr-tutorial-collection pedagogie-track-list" id="pedagogie-track-list" data-astra-close-on-click></div>
               </div>
@@ -733,11 +754,15 @@
               <div class="tr-dialog-title"><h2>Vos conversations</h2>
                 <button class="tr-icon-button" type="button" data-astra-close aria-label="Fermer">✕</button></div>
               <div class="tr-dialog-body">
-                <div class="tr-history-tools">
-                  <span class="tr-secondary">Vos échanges restent sur votre appareil.</span>
+                <div class="tr-library-toolbar">
+                  <span class="tr-secondary copilot-history-count" id="copilot-history-count"></span>
                   <button class="tr-button tr-primary copilot-new-conv-sidebar-btn" id="copilot-new-conv-sidebar-btn" type="button" data-astra-close><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Nouvelle conversation</button>
                 </div>
-                <div class="tr-conversation-history copilot-history-list" id="copilot-history-list" data-astra-close-on-click></div>
+                <div class="tr-library-table-head" aria-hidden="true">
+                  <span>CONVERSATION</span><span>DATE</span><span></span>
+                </div>
+                <div class="copilot-history-list" id="copilot-history-list" data-astra-close-on-click></div>
+                <div class="tr-dialog-footnote">Vos échanges restent sur votre appareil.</div>
               </div>
             </div>
           </div>
@@ -1853,16 +1878,18 @@
            Claude/OpenAI/Ollama/Autre, le code réel propose Groq/OpenRouter/Google AI
            Studio/Personnalisé (fournisseurs gratuits) — liste réelle conservée telle
            quelle, voir decouverte-analyse-deja-construite.md. -->
-      <div class="modal-overlay" id="ai-settings-modal" style="display: none;">
-        <div class="modal-box ai-settings-box">
-          <div class="ai-settings-header">
-            <h3>Assistant IA</h3>
-            <span class="mc-badge ai-settings-badge-optional">Zic fonctionne sans clé</span>
+      <!-- [Refonte Astra 12/09] — Paramètres de clé API : modale sobre, alignée
+           sur le design Astra (.tr-dialog, .tr-form-field, .tr-button). Les IDs
+           des champs et boutons sont conservés pour main.js. -->
+      <div class="tr-overlay" id="ai-settings-modal" style="display: none;" aria-hidden="true">
+        <div class="tr-dialog" role="dialog" aria-modal="true" aria-label="Paramètres de l’assistant IA">
+          <div class="tr-dialog-title"><h2>Assistant IA</h2>
+            <button class="tr-icon-button" type="button" id="ai-cancel-btn" aria-label="Fermer">✕</button>
           </div>
-          <p class="ai-settings-note">Toutes les fiches de Masterclass sont rédigées à l’avance : elles s’affichent sans clé, sans connexion, et ne coûtent rien. Une clé API sert uniquement à aller plus loin — combler un concept sans fiche, approfondir une explication, poser une question libre. <strong>C’est ta clé, tu paies ta propre consommation.</strong></p>
+          <div class="tr-dialog-body ai-settings-body">
+            <p class="tr-dialog-description ai-settings-intro">Zic fonctionne sans clé. Une clé API sert uniquement à aller plus loin — poser une question libre, approfondir une explication ou combler un concept sans fiche. <strong>C’est votre clé, vous payez votre propre consommation.</strong></p>
 
-          <div class="ai-settings-section">
-            <label class="ai-field">
+            <label class="tr-form-field ai-form-field">
               <span>Préréglage</span>
               <select id="ai-preset">
                 <option value="" disabled selected>Choisir un fournisseur…</option>
@@ -1873,51 +1900,51 @@
               </select>
             </label>
 
-            <div class="ai-settings-grid">
-              <label class="ai-field">
+            <div class="ai-form-grid">
+              <label class="tr-form-field ai-form-field">
                 <span>Adresse de l’API</span>
                 <input type="url" id="ai-base-url" placeholder="https://api.groq.com/openai/v1" />
               </label>
-              <label class="ai-field">
+              <label class="tr-form-field ai-form-field">
                 <span>Modèle</span>
                 <input type="text" id="ai-model" placeholder="openai/gpt-oss-20b" />
               </label>
-              <label class="ai-field ai-field-wide">
-                <span>Clé API</span>
-                <input type="password" id="ai-api-key" placeholder="gsk_..." autocomplete="off" />
-              </label>
             </div>
 
-            <div class="ai-settings-test-row">
-              <button type="button" id="ai-test-btn" class="btn-secondary">Tester la connexion</button>
+            <label class="tr-form-field ai-form-field">
+              <span>Clé API</span>
+              <input type="password" id="ai-api-key" placeholder="gsk_..." autocomplete="off" />
+            </label>
+
+            <div class="ai-form-test">
+              <button type="button" id="ai-test-btn" class="tr-button">Tester la connexion</button>
               <span class="ai-test-result" id="ai-test-result"></span>
             </div>
-          </div>
 
-          <div class="ai-settings-section">
-            <div class="ai-settings-section-label">Utilisation ce mois-ci</div>
-            <div class="ai-cap-row">
-              <label class="ai-field ai-cap-field">
-                <span>Plafond d’appels par mois</span>
-                <input type="number" id="ai-monthly-cap" min="1" step="1" value="50" />
-              </label>
-              <span class="ai-usage" id="ai-usage">0 / 50 ce mois</span>
+            <div class="ai-form-section">
+              <span class="tr-eyebrow">Utilisation ce mois-ci</span>
+              <div class="ai-cap-row">
+                <label class="tr-form-field ai-form-field ai-cap-field">
+                  <span>Plafond d’appels par mois</span>
+                  <input type="number" id="ai-monthly-cap" min="1" step="1" value="50" />
+                </label>
+                <span class="ai-usage" id="ai-usage">0 / 50 ce mois</span>
+              </div>
+              <p class="ai-form-hint">Zic compte les appels qu’il déclenche lui-même. Ce compteur ne mesure pas un coût réel : pour un montant en euros, seul le tableau de bord de votre fournisseur fait foi.</p>
             </div>
-            <p class="ai-settings-note ai-settings-note-small">Zic compte les appels qu’il déclenche lui-même — c’est exact et ça ne dépend d’aucun fournisseur. Ce compteur ne mesure pas un coût : un appel court et un appel long ne valent pas le même prix. Pour un montant en euros, seul le tableau de bord de ton fournisseur fait foi.</p>
-          </div>
 
-          <div class="ai-settings-section ai-settings-trust">
-            <div class="ai-settings-section-label">Ce que Zic garantit</div>
-            <ul class="ai-settings-trust-list">
-              <li>🔒 Ta clé est chiffrée dans le trousseau de ton système d’exploitation quand il est disponible, et ne quitte jamais cet ordinateur — elle n’est envoyée qu’au fournisseur que tu as choisi.</li>
-              <li>↩ Si l’IA ne répond pas, répond mal, ou si le plafond mensuel est atteint, Zic retombe automatiquement sur les fiches préécrites. Aucun écran ne se retrouve vide.</li>
-              <li>⚠ Une explication générée par un modèle n’est pas vérifiée. Elle est signalée comme telle dans l’interface, à la différence des fiches du glossaire.</li>
-            </ul>
-          </div>
+            <div class="ai-form-trust">
+              <span class="tr-eyebrow">Ce que Zic garantit</span>
+              <ul>
+                <li>Votre clé est chiffrée dans le trousseau de votre système d’exploitation quand il est disponible, et ne quitte jamais cet ordinateur.</li>
+                <li>Si l’IA ne répond pas ou si le plafond mensuel est atteint, Zic retombe automatiquement sur les fiches préécrites.</li>
+                <li>Une explication générée par un modèle n’est pas vérifiée : elle est signalée comme telle dans l’interface.</li>
+              </ul>
+            </div>
 
-          <div class="modal-actions ai-settings-actions">
-            <button type="button" id="ai-cancel-btn" class="btn-secondary">Annuler</button>
-            <button type="button" id="ai-save-btn" class="btn-primary">Enregistrer</button>
+            <div class="tr-dialog-actions">
+              <button type="button" id="ai-save-btn" class="tr-button tr-primary">Enregistrer</button>
+            </div>
           </div>
         </div>
       </div>

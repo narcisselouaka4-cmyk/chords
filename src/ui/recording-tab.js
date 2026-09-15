@@ -79,6 +79,8 @@ const els = {
   transportPlay: document.getElementById('midi-session-play'),
   transportSlider: document.getElementById('midi-session-slider'),
   timecodeCurrent: document.getElementById('midi-session-current-time'),
+  transportLoop: document.getElementById('midi-session-loop'),
+  transportSpeed: document.getElementById('midi-session-speed'),
   timecodeTotal: document.getElementById('midi-session-total-time'),
   loadedState: document.getElementById('midi-session-loaded-state'),
   sessionTitleInput: document.getElementById('midi-session-title-input'),
@@ -1057,6 +1059,8 @@ function bindCopilotButton() {
 }
 
 let transportRafId = null;
+// Relance la session à la fin quand l'utilisateur travaille un passage.
+let transportLoopEnabled = false;
 
 const PLAY_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 4 13 8-13 8z" fill="currentColor"/></svg>';
 const PAUSE_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg>';
@@ -1096,12 +1100,33 @@ function bindTransportBar() {
     const val = Number(els.transportSlider.value);
     player?.seek((val / 100) * duration);
   });
+
+  els.transportLoop?.addEventListener('click', () => {
+    transportLoopEnabled = !transportLoopEnabled;
+    els.transportLoop.classList.toggle('is-active', transportLoopEnabled);
+    els.transportLoop.setAttribute('aria-pressed', transportLoopEnabled ? 'true' : 'false');
+  });
+
+  els.transportSpeed?.addEventListener('change', () => {
+    const speed = Number(els.transportSpeed.value);
+    if (speed > 0) player?.setSpeed(speed);
+  });
 }
 
 function startTransportLoop() {
   if (transportRafId) cancelAnimationFrame(transportRafId);
   function loop() {
     if (!player || !player.isPlaying) {
+      // Fin de session : on repart de zéro si la boucle est armée, sinon on
+      // rend la main (pause manuelle comprise).
+      const duration = player?.getDuration() || 0;
+      if (transportLoopEnabled && duration > 0 && player?.getCurrentTime() >= duration) {
+        player.seek(0);
+        player.play();
+        updateTransportUI();
+        transportRafId = requestAnimationFrame(loop);
+        return;
+      }
       updateTransportUI();
       transportRafId = null;
       return;
