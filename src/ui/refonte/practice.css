@@ -2871,18 +2871,20 @@
 :root[data-skin='global'] #practice-view-midi-sessions .carnet-entries,
 :root[data-skin='v2'] #practice-view-midi-sessions .carnet-entries {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  flex-wrap: wrap;
   gap: var(--r-space-3);
   padding-top: var(--r-space-2);
+  align-content: flex-start;
 }
 
 :root[data-skin='global'] #practice-view-midi-sessions .carnet-entry,
 :root[data-skin='v2'] #practice-view-midi-sessions .carnet-entry {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: var(--r-space-3);
-  padding: 12px 14px;
-  border-radius: var(--r-radius-card);
+  gap: var(--r-space-2);
+  padding: 8px 12px;
+  border-radius: var(--r-radius-btn);
   background: var(--r-surface-raised);
   border: 1px solid var(--r-border-soft);
   scroll-margin-top: 148px;
@@ -2891,12 +2893,14 @@
 
 :root[data-skin='global'] #practice-view-midi-sessions .carnet-entry.chord,
 :root[data-skin='v2'] #practice-view-midi-sessions .carnet-entry.chord {
-  border-left: 3px solid var(--r-accent);
+  outline: 1px solid var(--r-accent);
+  outline-offset: -1px;
 }
 
 :root[data-skin='global'] #practice-view-midi-sessions .carnet-entry.melody,
 :root[data-skin='v2'] #practice-view-midi-sessions .carnet-entry.melody {
-  border-left: 3px solid var(--r-text-faint);
+  outline: 1px solid var(--r-text-faint);
+  outline-offset: -1px;
 }
 
 :root[data-skin='global'] #practice-view-midi-sessions .carnet-entry.is-target,
@@ -2962,7 +2966,9 @@
 
 :root[data-skin='global'] #practice-view-midi-sessions .carnet-entry-main,
 :root[data-skin='v2'] #practice-view-midi-sessions .carnet-entry-main {
-  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -2970,27 +2976,33 @@
 :root[data-skin='v2'] #practice-view-midi-sessions .carnet-entry-label {
   font-family: var(--r-font-title);
   font-weight: 800;
-  font-size: 1rem;
+  font-size: 0.92rem;
   color: var(--r-text);
   display: flex;
   align-items: center;
   gap: 8px;
+  white-space: nowrap;
 }
 
 :root[data-skin='global'] #practice-view-midi-sessions .carnet-entry.melody .carnet-entry-label,
 :root[data-skin='v2'] #practice-view-midi-sessions .carnet-entry.melody .carnet-entry-label {
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   color: var(--r-text-muted);
   font-style: italic;
 }
 
 :root[data-skin='global'] #practice-view-midi-sessions .carnet-chip,
 :root[data-skin='v2'] #practice-view-midi-sessions .carnet-chip {
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   font-weight: 700;
-  padding: 2px 8px;
+  padding: 2px 7px;
   border-radius: var(--r-radius-pill);
+}
+
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-entry-detail,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-entry-detail {
+  display: none;
 }
 
 :root[data-skin='global'] #practice-view-midi-sessions .carnet-chip.chord-tag,

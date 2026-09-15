@@ -344,8 +344,8 @@
   }
 }
 
-/* Carnet des moments : la liste produite par recording-tab.js reprend la
-   grammaire des tuiles d'Astra, en colonne (le nombre de moments est libre). */
+/* Carnet des moments : disposition horizontale en bande. Chaque moment est une
+   tuile compacte qui se lit de gauche à droite, comme une frise chronologique. */
 #midi-session-carnet .carnet-legend {
   display: flex; gap: 14px; margin-top: 6px;
   color: var(--tr-muted); font: 9px var(--tr-mono);
@@ -353,37 +353,58 @@
 #midi-session-carnet .carnet-legend span { display: inline-flex; align-items: center; gap: 5px; }
 #midi-session-carnet .legend-dot { width: 6px; height: 6px; border-radius: 2px; background: var(--tr-accent); }
 #midi-session-carnet .legend-dot.melody { background: transparent; border: 1px solid var(--tr-muted); }
-#carnet-entries { display: flex; flex-direction: column; gap: 8px; }
+#carnet-entries {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-content: flex-start;
+}
 #carnet-entries .carnet-entry {
-  display: flex; align-items: center; gap: 12px;
-  padding: 11px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
   border: 1px solid var(--tr-border);
   border-radius: 8px;
   background: var(--tr-surface);
   color: var(--tr-text);
+  max-width: 100%;
 }
 #carnet-entries .carnet-entry:hover {
   border-color: color-mix(in srgb, var(--tr-accent) 50%, var(--tr-border));
   background: color-mix(in srgb, var(--tr-accent-soft) 30%, var(--tr-surface));
 }
-#carnet-entries .carnet-entry.is-target { border-color: var(--tr-accent); background: var(--tr-accent-soft); }
-#carnet-entries .carnet-entry-time { color: var(--tr-muted); font: 10px var(--tr-mono); flex-shrink: 0; }
-#carnet-entries .carnet-entry-main { flex: 1; min-width: 0; }
-#carnet-entries .carnet-entry-label { font-size: 13px; font-weight: 550; letter-spacing: -.02em; }
-#carnet-entries .carnet-entry-detail { margin-top: 2px; color: var(--tr-secondary); font-size: 11px; }
+#carnet-entries .carnet-entry.is-target { outline: 1px solid var(--tr-accent); outline-offset: -1px; background: var(--tr-accent-soft); }
+#carnet-entries .carnet-entry-time { color: var(--tr-muted); font: 9px var(--tr-mono); flex-shrink: 0; white-space: nowrap; }
+#carnet-entries .carnet-entry-main { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+#carnet-entries .carnet-entry-label { font-size: 12px; font-weight: 550; letter-spacing: -.02em; white-space: nowrap; }
+#carnet-entries .carnet-entry-detail { display: none; }
 #carnet-entries .carnet-chip {
-  margin-left: 6px; padding: 1px 6px; border-radius: 3px;
+  margin-left: 0; padding: 1px 6px; border-radius: 3px;
   background: var(--tr-raised); color: var(--tr-muted); font: 8px var(--tr-mono);
   letter-spacing: .08em; text-transform: uppercase;
 }
 #carnet-entries .carnet-chip.chord-tag { background: var(--tr-accent-soft); color: var(--tr-accent); }
 #carnet-entries .carnet-play-btn,
 #carnet-entries .carnet-explore-btn {
-  flex-shrink: 0; height: 27px; padding: 0 10px;
-  border: 1px solid var(--tr-border); border-radius: 6px;
-  background: var(--tr-raised); color: var(--tr-secondary); font-size: 10px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--tr-border);
+  border-radius: 6px;
+  background: var(--tr-raised);
+  color: var(--tr-secondary);
+  font-size: 10px;
 }
-#carnet-entries .carnet-play-btn { width: 27px; padding: 0; }
+#carnet-entries .carnet-explore-btn {
+  width: auto;
+  padding: 0 8px;
+  font-size: 9px;
+}
 #carnet-entries .carnet-explore-btn:hover,
 #carnet-entries .carnet-play-btn:hover { color: var(--tr-text); border-color: var(--tr-border-strong, var(--tr-border)); }
 

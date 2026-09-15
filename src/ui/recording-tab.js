@@ -830,20 +830,20 @@ function renderCarnetEntries(segments) {
         <button class="carnet-play-btn" data-index="${i}" title="Écouter ce moment en boucle">▶</button>
         <div class="carnet-entry-time">${timeStr}</div>
         <div class="carnet-entry-main">
-          <div class="carnet-entry-label">${escapeHtml(chordName)} <span class="carnet-chip chord-tag">accord</span></div>
-          <div class="carnet-entry-detail">${seg.notes?.length || 0} notes tenues ensemble · ${seg.chordName ? 'voicing main gauche + main droite' : 'accord non identifié'}</div>
+          <div class="carnet-entry-label">${escapeHtml(chordName)}</div>
+          <span class="carnet-chip chord-tag">accord</span>
         </div>
-        <button class="carnet-explore-btn" data-index="${i}">✨ Explorer ce moment</button>
+        <button class="carnet-explore-btn" data-index="${i}" title="Explorer avec le Copilot">✨</button>
       `;
     } else {
       entry.innerHTML = `
         <button class="carnet-play-btn" data-index="${i}" title="Écouter ce passage en boucle">▶</button>
         <div class="carnet-entry-time">${timeStr}</div>
         <div class="carnet-entry-main">
-          <div class="carnet-entry-label">Passage mélodique <span class="carnet-chip melody-tag">${seg.notes?.length || 0} notes</span></div>
-          <div class="carnet-entry-detail">${timeStr} → ${endTimeStr} · aucune note tenue simultanément — pas un accord</div>
+          <div class="carnet-entry-label">Passage mélodique</div>
+          <span class="carnet-chip melody-tag">${seg.notes?.length || 0} notes</span>
         </div>
-        <button class="carnet-explore-btn" data-index="${i}">✨ Explorer ce passage</button>
+        <button class="carnet-explore-btn" data-index="${i}" title="Explorer avec le Copilot">✨</button>
       `;
     }
     els.carnetEntries.appendChild(entry);

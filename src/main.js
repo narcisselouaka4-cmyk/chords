@@ -1277,22 +1277,29 @@ function initAISettings() {
     };
   }
 
-  els.aiSettingsToggle?.addEventListener('click', () => {
+  function openAIModal() {
     loadConfigIntoUI();
+    modal.hidden = false;
     modal.style.display = 'flex';
-  });
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('tr-dialog-open');
+  }
 
-  document.addEventListener('app-open-ai-settings', () => {
-    loadConfigIntoUI();
-    modal.style.display = 'flex';
-  });
-
-  els.aiCancelBtn?.addEventListener('click', () => {
+  function closeAIModal() {
+    modal.hidden = true;
     modal.style.display = 'none';
-  });
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('tr-dialog-open');
+  }
+
+  els.aiSettingsToggle?.addEventListener('click', openAIModal);
+
+  document.addEventListener('app-open-ai-settings', openAIModal);
+
+  els.aiCancelBtn?.addEventListener('click', closeAIModal);
 
   modal.addEventListener('click', (e) => {
-    if (e.target === modal) modal.style.display = 'none';
+    if (e.target === modal) closeAIModal();
   });
 
   els.aiPreset?.addEventListener('change', () => {
@@ -1329,7 +1336,7 @@ function initAISettings() {
     setMonthlyCap(gathered.monthlyCap);
     if (els.aiUsage) els.aiUsage.textContent = `${getMonthlyUsage()} / ${getMonthlyCap()} ce mois`;
     setStatus(`Paramètres IA enregistrés (${cfg.model})`);
-    modal.style.display = 'none';
+    closeAIModal();
   });
 }
 

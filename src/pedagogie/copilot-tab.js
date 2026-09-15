@@ -371,7 +371,11 @@ async function renderHistoryList() {
       el('button', {
         className: 'tr-library-select',
         type: 'button',
-        onClick: () => loadHistoryItem(item.conversationId),
+        onClick: () => {
+          loadHistoryItem(item.conversationId);
+          document.getElementById('copilot-history-drawer')?.setAttribute('hidden', 'true');
+          document.body.classList.remove('tr-dialog-open');
+        },
       }, [
         el('span', { className: 'tr-file-icon' }, [
           el('svg', { width: '19', height: '19', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.65', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' }, [
@@ -390,7 +394,11 @@ async function renderHistoryList() {
           type: 'button',
           title: 'Supprimer cette conversation',
           'aria-label': `Supprimer la conversation ${primary}`,
-          onClick: (e) => { e.stopPropagation(); deleteHistoryItem(item.conversationId, primary); },
+          onClick: (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            deleteHistoryItem(item.conversationId, primary, e.currentTarget);
+          },
         }, [
           el('svg', { width: '15', height: '15', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.65', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' }, [
             el('path', { d: 'M3 6h18' }),
@@ -406,10 +414,19 @@ async function renderHistoryList() {
   }
 }
 
-async function deleteHistoryItem(conversationId, label) {
+async function deleteHistoryItem(conversationId, label, btn) {
   const displayLabel = label || 'cette conversation';
   if (!confirm(`Supprimer ${displayLabel} ? Cette action est irréversible.`)) return;
+  if (btn) {
+    btn.disabled = true;
+    btn.dataset.originalHtml = btn.innerHTML;
+    btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h5"/></svg>';
+  }
   const ok = await deleteConversation(conversationId);
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = btn.dataset.originalHtml || btn.innerHTML;
+  }
   if (!ok) {
     console.warn('[Copilot] La suppression de la conversation a échoué :', conversationId);
     alert('La suppression a échoué. Vérifiez que le fichier n\'est pas ouvert ailleurs.');
