@@ -205,9 +205,13 @@ check('L\'import copie dans le dossier configuré (readBinary/writeBinary), sans
   tutorialLib.includes('readBinary') && tutorialLib.includes('writeBinary')
   && !tutorialLib.includes('importToLibrary'));
 
-// La vidéo est la fenêtre principale de l'écran.
+// La vidéo est la fenêtre principale de l'écran. L'attribut controls est
+// positionné dynamiquement par renderVideo() : pas de controls avant la lecture
+// (l'overlay d'aperçu remplace les contrôles natifs), controls activé ensuite.
 check('Le lecteur vidéo principal existe dans le HTML',
-  html.includes('id="pedagogie-video-player"') && /<video[^>]*id="pedagogie-video-player"[^>]*controls/.test(html));
+  html.includes('id="pedagogie-video-player"') && /<video[^>]*id="pedagogie-video-player"/.test(html));
+check('Les contrôles natifs sont activés dynamiquement à la lecture',
+  tabCode.includes('els.videoPlayer.controls = playbackStarted'));
 check('La vidéo est un SEUL élément natif avec le son (pas la paire muette + audio du Studio)',
   tabJs.includes("video/mp4") && !/video\.muted\s*=\s*true/.test(tabCode));
 check('Le montage vidéo passe par files.readBinary (CSP : jamais fetch(blob))',
@@ -234,11 +238,14 @@ check('Les styles de transcription ligne/ligne-time/badge sont supprimés',
   && !practiceCss.includes('.pedagogie-line-time')
   && !practiceCss.includes('.pedagogie-translation-badge'));
 
-// Vidéo différée : visible seulement à la lecture, pas à la sélection.
+// La vidéo est montée dès la sélection d'un tutoriel (aperçu de la première
+// frame) ; l'overlay de lecture disparaît quand playbackStarted passe à true.
 check('Un état distinct playbackStarted est introduit',
   tabCode.includes('let playbackStarted') && tabCode.includes('playbackStarted = true'));
-check('La vidéo ne s\'affiche que si playbackStarted est true',
-  /renderVideo\([^)]*\)[\s\S]*?selectedPath.*playbackStarted|if \(!selectedPath \|\| !playbackStarted\)/.test(tabCode));
+check('La vidéo est montée dès la sélection d\'un tutoriel',
+  /renderVideo\([^)]*\)[\s\S]*?if \(!selectedPath\)/.test(tabCode) && tabCode.includes('mountVideo(selectedPath)'));
+check('L\'overlay de lecture disparaît dès que la lecture commence',
+  tabCode.includes('els.videoOverlay') && /!playbackStarted/.test(tabCode));
 check('selectTrack() remet playbackStarted à false',
   /function selectTrack\(path\)[\s\S]*?playbackStarted = false/.test(tabCode));
 check('chooseFolder() remet playbackStarted à false',

@@ -82,7 +82,6 @@
           </div>
           <button class="theme-toggle" id="theme-toggle" title="Changer de thème" hidden>🌙</button>
           <span class="tr-tool-separator" aria-hidden="true"></span>
-          <button class="tr-icon-button library-toggle" id="library-toggle" title="Ma bibliothèque — morceaux importés" aria-label="Ouvrir ma bibliothèque"><svg class="tr-i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></button>
           <button class="tr-icon-button onboarding-help-toggle" id="onboarding-help-btn" title="Tutoriel — comment utiliser l'application" aria-label="Ouvrir le tutoriel" aria-haspopup="menu"><svg class="tr-i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></button>
           <button class="tr-icon-button settings-toggle" id="ai-settings-toggle" title="Clé API de l'assistant IA" aria-label="Clé API de l'assistant IA"><svg class="tr-i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.6 17.4A2 2 0 0 0 2 18.8V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.2a2 2 0 0 0 1.4-.6l.8-.8a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".6" fill="currentColor"/></svg></button>
           <button class="tr-icon-button app-settings-toggle" id="app-settings-toggle" title="Paramètres" aria-label="Ouvrir les paramètres"><svg class="tr-i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7h-9M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg></button>
@@ -337,6 +336,7 @@
             <div class="tr-player-bar midi-session-transport" id="midi-session-transport" style="display: none;">
               <div class="tr-player-controls">
                 <button class="tr-icon-button midi-transport-btn" id="midi-session-rewind" type="button" title="Revenir au début" aria-label="Revenir au début"><svg class="tr-i" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 20 9 12l10-8z"/><path d="M5 19V5"/></svg></button>
+                <button class="tr-icon-button midi-transport-btn" id="midi-session-stop" type="button" title="Arrêter" aria-label="Arrêter"><svg class="tr-i" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1" fill="currentColor"/></svg></button>
                 <button class="tr-main-play midi-transport-btn" id="midi-session-play" type="button" title="Lecture" aria-label="Lecture"><svg class="tr-i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 4 13 8-13 8z" fill="currentColor"/></svg></button>
               </div>
               <div class="tr-timecode" id="midi-session-timecode" aria-live="off">
@@ -580,7 +580,7 @@
           <section class="tr-cinema-shell" id="pedagogie-main" aria-label="Lecteur de tutoriel">
             <div class="tr-cinema-stage">
               <section class="pedagogie-card is-video" id="pedagogie-video-card" style="display: none;">
-                <video class="pedagogie-video-player" id="pedagogie-video-player" controls preload="metadata" playsinline></video>
+                <video class="pedagogie-video-player" id="pedagogie-video-player" preload="metadata" playsinline></video>
               </section>
 
               <div class="tr-video-topline">
@@ -588,7 +588,9 @@
                 <span class="pedagogie-format" id="pedagogie-format" style="display: none;"></span>
               </div>
 
-              <button class="tr-cinema-play pedagogie-primary-btn" id="pedagogie-analyze-btn" type="button" disabled aria-label="Lire ce tutoriel"><svg class="tr-i" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 4 13 8-13 8z" fill="currentColor"/></svg></button>
+              <div class="pedagogie-video-overlay" id="pedagogie-video-overlay" style="display: none;">
+                <button class="tr-cinema-play pedagogie-primary-btn" id="pedagogie-analyze-btn" type="button" disabled aria-label="Lire ce tutoriel"><svg class="tr-i" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 4 13 8-13 8z" fill="currentColor"/></svg><span>Lire ce tutoriel</span></button>
+              </div>
 
               <div class="tr-video-title">
                 <span class="tr-eyebrow">PIANO / HARMONIE</span>
@@ -611,12 +613,6 @@
             </div>
 
             <div class="tr-notebook-content" role="tabpanel">
-              <!-- Tutoriel sélectionné mais pas encore lu. -->
-              <section class="pedagogie-card" id="pedagogie-selection-idle-card" style="display: none;">
-                <h4 class="pedagogie-card-title" id="pedagogie-selection-idle-name"></h4>
-                <p id="pedagogie-selection-idle-hint" class="pedagogie-intro"></p>
-              </section>
-
               <!-- Question de catégorie posée avant la première analyse d'un fichier. -->
               <section class="pedagogie-card" id="pedagogie-category-card" style="display: none;">
                 <h4 class="pedagogie-card-title">Quelle est la nature de cette vidéo ?</h4>

@@ -76,6 +76,7 @@ const els = {
   modalReplayBtn: document.getElementById('midi-session-replay'),
   transportBar: document.getElementById('midi-session-transport'),
   transportRewind: document.getElementById('midi-session-rewind'),
+  transportStop: document.getElementById('midi-session-stop'),
   transportPlay: document.getElementById('midi-session-play'),
   transportSlider: document.getElementById('midi-session-slider'),
   timecodeCurrent: document.getElementById('midi-session-current-time'),
@@ -1070,6 +1071,15 @@ function bindTransportBar() {
 
   els.transportRewind?.addEventListener('click', () => {
     player?.stop();
+    updateTransportUI();
+  });
+
+  els.transportStop?.addEventListener('click', () => {
+    player?.stop();
+    if (transportRafId) {
+      cancelAnimationFrame(transportRafId);
+      transportRafId = null;
+    }
     updateTransportUI();
   });
 

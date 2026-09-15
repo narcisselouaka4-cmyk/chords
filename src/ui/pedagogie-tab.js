@@ -184,6 +184,8 @@ const ICON_OPEN = [
   el('path', { d: 'M7 17 17 7' }),
   el('path', { d: 'M7 7h10v10' }),
 ];
+const PLAY_ICON = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 4 13 8-13 8z" fill="currentColor"/></svg>';
+const REPLAY_ICON = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="m7 4 13 8-13 8z" fill="currentColor"/></svg>';
 
 async function refreshTrackList() {
   if (!els.trackList) return;
@@ -251,7 +253,10 @@ async function refreshTrackList() {
         el('small', { text: tut.path }),
       ]),
     ]));
-    row.appendChild(el('span', { className: 'tr-library-cell', text: categoryLabel(tut.path) }));
+    const typeLabel = categoryLabel(tut.path);
+    const typeCell = el('span', { className: 'tr-library-cell', text: typeLabel });
+    typeCell.dataset.type = typeLabel;
+    row.appendChild(typeCell);
     row.appendChild(el('div', { className: 'tr-library-row-actions' }, [
       el('button', {
         className: 'tr-icon-button',
@@ -317,10 +322,10 @@ function selectTrack(path) {
   analysis = null;
   comparison = null;
   resetNarration();
-  destroyVideo();
   categoryPickerOpen = false;
   refreshCategory();
   setStatus('');
+  mountVideo(path);
   render();
   refreshTrackList();
   // Notifier le Copilot IA du changement de tutoriel
@@ -773,8 +778,21 @@ function render() {
 
   if (els.analyzeBtn) {
     els.analyzeBtn.disabled = busy || !selectedPath || categoryPickerOpen;
-    els.analyzeBtn.textContent = analysis ? 'Relire ce tutoriel' : 'Lire ce tutoriel';
+    els.analyzeBtn.innerHTML = analysis ? REPLAY_ICON : PLAY_ICON;
+    if (analysis) {
+      const span = document.createElement('span');
+      span.textContent = 'Relire ce tutoriel';
+      els.analyzeBtn.appendChild(span);
+    } else {
+      const span = document.createElement('span');
+      span.textContent = 'Lire ce tutoriel';
+      els.analyzeBtn.appendChild(span);
+    }
     els.analyzeBtn.style.display = (!folder || !selectedPath || categoryPickerOpen) ? 'none' : '';
+  }
+  if (els.videoOverlay) {
+    const showOverlay = selectedPath && !playbackStarted && !busy && !categoryPickerOpen;
+    els.videoOverlay.style.display = showOverlay ? 'flex' : 'none';
   }
   if (els.importBtn) {
     els.importBtn.disabled = busy || !folder || categoryPickerOpen;
@@ -797,21 +815,20 @@ function render() {
   }
 
   renderVideo();
-  renderSelectionIdle();
   renderCategoryPicker();
   renderFormat();
   renderResult();
 }
 
 /**
- * La vidéo est la fenêtre principale, mais elle ne doit apparaître qu'au moment
- * de la LECTURE, pas dès qu'un tutoriel est sélectionné dans la liste.
+ * La vidéo est la fenêtre principale. Elle apparaît dès qu'un tutoriel est
+ * sélectionné, en mode aperçu (première frame) avec un overlay de lecture.
  * Le lecteur suit la sélection : changer de tutoriel recharge la source.
  * mountVideo détruit l'URL précédente, une seule vit à la fois.
  */
 function renderVideo() {
   if (!els.videoCard || !els.videoPlayer) return;
-  if (!selectedPath || !playbackStarted) {
+  if (!selectedPath) {
     els.videoCard.style.display = 'none';
     destroyVideo();
     return;
@@ -820,21 +837,11 @@ function renderVideo() {
   if (!videoBlobUrl || mountedVideoPath !== selectedPath) {
     mountVideo(selectedPath);
   }
+  // L'overlay de lecture masque les contrôles natifs tant que la lecture n'a pas
+  // commencé ; on laisse la vidéo visible en arrière-plan comme poster.
+  els.videoPlayer.controls = playbackStarted;
 }
 
-/** Quelques éléments simples pour que la page ne paraisse pas vide entre la
- * sélection d'un tutoriel et le clic sur « Lire ce tutoriel ».
- */
-function renderSelectionIdle() {
-  if (!els.selectionIdleCard) return;
-  const visible = selectedPath && !playbackStarted && !busy && !categoryPickerOpen;
-  els.selectionIdleCard.style.display = visible ? '' : 'none';
-  if (!visible) return;
-  const fileName = selectedPath.split('/').pop() || selectedPath;
-  els.selectionIdleName.textContent = tutorialDisplayName(fileName);
-  els.selectionIdleHint.textContent = 'Cliquez sur « Lire ce tutoriel » pour commencer l\'analyse.';
-  // Durée/poids : rien n'est chargé à ce stade, laissons ces champs muets.
-}
 
 /** Sélecteur de catégorie affiché avant la première analyse d'un fichier. */
 function renderCategoryPicker() {
@@ -1009,14 +1016,12 @@ export function initPedagogieTab() {
   els.format = document.getElementById('pedagogie-format');
   els.videoCard = document.getElementById('pedagogie-video-card');
   els.videoPlayer = document.getElementById('pedagogie-video-player');
+  els.videoOverlay = document.getElementById('pedagogie-video-overlay');
   els.result = document.getElementById('pedagogie-result');
   els.grid = document.getElementById('pedagogie-grid');
   els.crosscheckCard = document.getElementById('pedagogie-crosscheck-card');
   els.crosscheck = document.getElementById('pedagogie-crosscheck');
   els.glossary = document.getElementById('pedagogie-glossary');
-  els.selectionIdleCard = document.getElementById('pedagogie-selection-idle-card');
-  els.selectionIdleName = document.getElementById('pedagogie-selection-idle-name');
-  els.selectionIdleHint = document.getElementById('pedagogie-selection-idle-hint');
   els.copilotShortcutBtn = document.getElementById('pedagogie-copilot-shortcut');
   els.videoActions = document.getElementById('pedagogie-video-actions');
   els.categoryCard = document.getElementById('pedagogie-category-card');
@@ -1043,7 +1048,6 @@ export function initPedagogieTab() {
   els.categoryHint?.addEventListener('click', () => {
     categoryPickerOpen = true;
     playbackStarted = false;
-    destroyVideo();
     render();
   });
   els.videoPlayer?.addEventListener('click', onCalibrationClick);

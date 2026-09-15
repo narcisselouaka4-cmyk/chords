@@ -1282,6 +1282,11 @@ function initAISettings() {
     modal.style.display = 'flex';
   });
 
+  document.addEventListener('app-open-ai-settings', () => {
+    loadConfigIntoUI();
+    modal.style.display = 'flex';
+  });
+
   els.aiCancelBtn?.addEventListener('click', () => {
     modal.style.display = 'none';
   });

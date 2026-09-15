@@ -772,6 +772,37 @@
   color: #fff;
   filter: brightness(1.08);
 }
+:root[data-skin='global'] #practice-view-midi-sessions #midi-session-stop,
+:root[data-skin='v2'] #practice-view-midi-sessions #midi-session-stop {
+  color: var(--r-text);
+}
+
+/* Indicateur lumineux sur le bouton loop : un point qui s'allume quand la
+   lecture en boucle est armée, plus lisible qu'un simple changement de fond. */
+:root[data-skin='global'] #practice-view-midi-sessions #midi-session-loop,
+:root[data-skin='v2'] #practice-view-midi-sessions #midi-session-loop {
+  position: relative;
+}
+:root[data-skin='global'] #practice-view-midi-sessions #midi-session-loop::after,
+:root[data-skin='v2'] #practice-view-midi-sessions #midi-session-loop::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--r-accent);
+  box-shadow: 0 0 6px var(--r-accent);
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+:root[data-skin='global'] #practice-view-midi-sessions #midi-session-loop.is-active::after,
+:root[data-skin='v2'] #practice-view-midi-sessions #midi-session-loop.is-active::after {
+  opacity: 1;
+  transform: scale(1);
+}
 :root[data-skin='global'] #practice-view-midi-sessions .midi-transport-slider,
 :root[data-skin='v2'] #practice-view-midi-sessions .midi-transport-slider {
   flex: 1;
@@ -1003,69 +1034,62 @@
   border-radius: 4px;
 }
 
-:root[data-skin='global'] #practice-view-coach .coach-track-item,
-:root[data-skin='v2'] #practice-view-coach .coach-track-item {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  width: 100%;
+:root[data-skin='global'] #practice-view-coach .coach-track-row,
+:root[data-skin='v2'] #practice-view-coach .coach-track-row {
+  align-items: center;
   padding: 10px 12px;
-  cursor: pointer;
-  text-align: left;
   background: var(--r-surface);
   border: 1px solid var(--r-border);
-  color: var(--r-text);
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-:root[data-skin='global'] #practice-view-coach .coach-track-item:hover,
-:root[data-skin='v2'] #practice-view-coach .coach-track-item:hover {
-  background: var(--r-surface-chip);
-}
-:root[data-skin='global'] #practice-view-coach .coach-track-name,
-:root[data-skin='v2'] #practice-view-coach .coach-track-name {
-  font-weight: 700;
-  font-size: 0.86rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 100%;
-}
-:root[data-skin='global'] #practice-view-coach .coach-track-badge,
-:root[data-skin='v2'] #practice-view-coach .coach-track-badge {
-  font-size: 0.66rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--r-text-faint);
-}
-:root[data-skin='global'] #practice-view-coach .coach-track-badge.ready,
-:root[data-skin='v2'] #practice-view-coach .coach-track-badge.ready {
-  color: var(--r-good);
-}
-:root[data-skin='global'] #practice-view-coach .coach-empty,
-:root[data-skin='v2'] #practice-view-coach .coach-empty {
-  color: var(--r-text-muted);
-  font-size: 0.82rem;
-  line-height: 1.5;
-}
-
-/* Global : arêtes vives, sélection marquée par un filet d'accent en bordure. */
-:root[data-skin='global'] #practice-view-coach .coach-track-item {
-  border-radius: 0;
-  border-left: 2px solid transparent;
-}
-:root[data-skin='global'] #practice-view-coach .coach-track-item.active {
-  border-left-color: var(--r-accent);
-  background: var(--r-surface-chip);
-}
-/* v2 : coins arrondis, sélection par aplat teinté. */
-:root[data-skin='v2'] #practice-view-coach .coach-track-item {
   border-radius: var(--r-radius-btn);
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease, box-shadow 0.12s ease;
 }
-:root[data-skin='v2'] #practice-view-coach .coach-track-item.active {
+:root[data-skin='global'] #practice-view-coach .coach-track-row:hover,
+:root[data-skin='v2'] #practice-view-coach .coach-track-row:hover {
+  background: var(--r-surface-chip);
+  border-color: var(--r-border-strong);
+  transform: translateY(-1px);
+  box-shadow: var(--r-shadow-soft);
+}
+:root[data-skin='global'] #practice-view-coach .coach-track-row.is-selected,
+:root[data-skin='v2'] #practice-view-coach .coach-track-row.is-selected {
   background: var(--r-accent-soft);
-  border-color: var(--r-accent);
+  outline: 1px solid var(--r-accent);
+  outline-offset: -1px;
+}
+:root[data-skin='global'] #practice-view-coach .coach-track-row .tr-file-icon,
+:root[data-skin='v2'] #practice-view-coach .coach-track-row .tr-file-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--r-accent), var(--r-accent-2, var(--r-accent)));
+  color: #fff;
+}
+:root[data-skin='global'] #practice-view-coach .coach-track-row .tr-file-icon svg,
+:root[data-skin='v2'] #practice-view-coach .coach-track-row .tr-file-icon svg {
+  width: 20px;
+  height: 20px;
+}
+:root[data-skin='global'] #practice-view-coach .coach-track-row .coach-status,
+:root[data-skin='v2'] #practice-view-coach .coach-track-row .coach-status {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 999px;
+  text-align: right;
+}
+:root[data-skin='global'] #practice-view-coach .coach-track-row .coach-status.is-ready,
+:root[data-skin='v2'] #practice-view-coach .coach-track-row .coach-status.is-ready {
+  color: var(--r-good);
+  background: rgba(34, 197, 94, 0.1);
+}
+:root[data-skin='global'] #practice-view-coach .coach-track-row .coach-status.is-pending,
+:root[data-skin='v2'] #practice-view-coach .coach-track-row .coach-status.is-pending {
+  color: var(--r-text-muted);
+  background: var(--r-surface-chip);
 }
 
 /* ── Colonne principale ── */
@@ -2262,6 +2286,37 @@
   max-height: min(62vh, 560px);
   min-height: 220px;
   background: #000;
+  object-fit: cover;
+}
+
+/* Overlay d'aperçu avant lecture : la vidéo est visible en arrière-plan, le
+   bouton de lecture est centré comme un vrai player. */
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-video-overlay,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-video-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(2px);
+  z-index: 5;
+  pointer-events: auto;
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-video-overlay .pedagogie-primary-btn,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-video-overlay .pedagogie-primary-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 26px;
+  font-size: 1rem;
+  border-radius: var(--r-radius-btn);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-video-overlay .pedagogie-primary-btn svg,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-video-overlay .pedagogie-primary-btn svg {
+  width: 24px;
+  height: 24px;
 }
 
 /* Overlay de calibration V2N (positionné sur la vidéo, pointer-events none

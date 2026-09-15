@@ -483,7 +483,7 @@
    ============================================================================ */
 /* La vidéo occupe toute la scène « cinéma » ; les surcouches (titre, bouton de
    lecture, bandeau) se superposent comme dans la maquette. */
-#practice-view-pedagogie .tr-cinema-stage { position: relative; }
+#practice-view-pedagogie .tr-cinema-stage { position: relative; overflow: hidden; border-radius: inherit; }
 #pedagogie-video-card {
   position: absolute;
   inset: 0;
@@ -493,23 +493,91 @@
   background: #0d0b12;
   border-radius: inherit;
   overflow: hidden;
+  z-index: 1;
 }
-#pedagogie-video-player { width: 100%; height: 100%; object-fit: contain; background: #0d0b12; }
-/* Dès que la vidéo est visible, les surcouches s'effacent : elles cacheraient
-   les contrôles natifs du lecteur. */
-#practice-view-pedagogie .tr-cinema-stage:has(#pedagogie-video-card:not([style*="none"])) .tr-video-title,
-#practice-view-pedagogie .tr-cinema-stage:has(#pedagogie-video-card:not([style*="none"])) .tr-cinema-play {
-  display: none;
+#practice-view-pedagogie .tr-video-topline,
+#practice-view-pedagogie .tr-video-title,
+#practice-view-pedagogie .pedagogie-video-overlay {
+  position: relative;
+  z-index: 5;
 }
+#practice-view-pedagogie .tr-video-topline {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+}
+#practice-view-pedagogie .tr-video-title {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 16px 18px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.75), transparent);
+  color: #fff;
+}
+#pedagogie-video-player { width: 100%; height: 100%; object-fit: cover; background: #0d0b12; }
 #pedagogie-analyze-btn[disabled] { opacity: .4; }
 
 /* Bibliothèque de tutoriels : alignée sur le format .tr-library-row de
    Sessions MIDI et Coach, avec en-tête et lignes sur la même grille. */
 #pedagogie-library-drawer .tr-library-table-head,
 #pedagogie-track-list .pedagogie-track-row { grid-template-columns: minmax(220px, 2.7fr) 110px 64px; gap: 12px; }
-#pedagogie-track-list { display: flex; flex-direction: column; }
-#pedagogie-track-list .pedagogie-track-row { cursor: pointer; }
-#pedagogie-track-list .tr-library-cell { text-align: right; }
+#pedagogie-track-list { display: flex; flex-direction: column; gap: 6px; }
+#pedagogie-track-list .pedagogie-track-row {
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--tr-surface);
+  border: 1px solid var(--tr-border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease, box-shadow 0.12s ease;
+}
+#pedagogie-track-list .pedagogie-track-row:hover {
+  background: var(--tr-surface-chip, var(--tr-accent-soft));
+  border-color: var(--tr-border-strong, var(--tr-border));
+  transform: translateY(-1px);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+}
+#pedagogie-track-list .pedagogie-track-row.is-selected {
+  background: var(--tr-accent-soft);
+  outline: 1px solid var(--tr-accent);
+  outline-offset: -1px;
+}
+#pedagogie-track-list .pedagogie-track-row .tr-file-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--tr-accent), #7c3aed);
+  color: #fff;
+}
+#pedagogie-track-list .pedagogie-track-row .tr-file-icon svg {
+  width: 20px;
+  height: 20px;
+}
+#pedagogie-track-list .tr-library-cell {
+  text-align: right;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: var(--tr-muted);
+  background: var(--tr-surface-chip, rgba(0,0,0,0.04));
+  justify-self: end;
+}
+#pedagogie-track-list .tr-library-cell[data-type="Tutoriel"],
+#pedagogie-track-list .tr-library-cell[data-type="Cover"] {
+  color: var(--tr-accent);
+  background: var(--tr-accent-soft);
+}
 
 #practice-view-pedagogie .tr-notebook-content { display: flex; flex-direction: column; gap: 12px; }
 #practice-view-pedagogie .pedagogie-card {
@@ -623,6 +691,8 @@
 #copilot-history-list .copilot-history-row { grid-template-columns: minmax(220px, 2fr) 120px 64px; gap: 12px; }
 #copilot-history-list .tr-library-select strong { font-weight: 500; }
 #copilot-history-list .tr-library-select small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#copilot-history-list .copilot-history-delete { color: var(--tr-muted); }
+#copilot-history-list .copilot-history-delete:hover { color: var(--tr-red); background: rgba(239, 68, 68, 0.08); }
 #copilot-no-key { flex: 1; min-height: 0; }
 
 /* Bouton "Nouvelle conversation" : doit avoir le fond coloré .tr-primary,

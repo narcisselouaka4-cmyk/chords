@@ -386,11 +386,11 @@ async function renderHistoryList() {
       el('span', { className: 'tr-library-cell', text: dateText || '—' }),
       el('div', { className: 'tr-library-row-actions' }, [
         el('button', {
-          className: 'tr-icon-button tr-delete',
+          className: 'tr-icon-button tr-delete copilot-history-delete',
           type: 'button',
           title: 'Supprimer cette conversation',
-          'aria-label': 'Supprimer cette conversation',
-          onClick: (e) => { e.stopPropagation(); deleteHistoryItem(item.conversationId); },
+          'aria-label': `Supprimer la conversation ${primary}`,
+          onClick: (e) => { e.stopPropagation(); deleteHistoryItem(item.conversationId, primary); },
         }, [
           el('svg', { width: '15', height: '15', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.65', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' }, [
             el('path', { d: 'M3 6h18' }),
@@ -406,10 +406,13 @@ async function renderHistoryList() {
   }
 }
 
-async function deleteHistoryItem(conversationId) {
+async function deleteHistoryItem(conversationId, label) {
+  const displayLabel = label || 'cette conversation';
+  if (!confirm(`Supprimer ${displayLabel} ? Cette action est irréversible.`)) return;
   const ok = await deleteConversation(conversationId);
   if (!ok) {
     console.warn('[Copilot] La suppression de la conversation a échoué :', conversationId);
+    alert('La suppression a échoué. Vérifiez que le fichier n\'est pas ouvert ailleurs.');
     return;
   }
   if (conversationId === currentConversationId) {
@@ -447,7 +450,7 @@ function updateHeaderForMode() {
     if (els.introText) els.introText.textContent = 'Mode session : le Copilot analyse la session MIDI sélectionnée.';
   } else {
     if (els.selectedName) els.selectedName.textContent = 'Copilot IA';
-    if (els.introText) els.introText.textContent = 'Mode autonome : posez vos questions librement, le Copilot peut démontrer au clavier virtuel.';
+    if (els.introText) els.introText.textContent = '';
   }
 }
 
@@ -666,6 +669,12 @@ export async function initCopilotTab() {
   // Rafraîchit la liste d'historique quand une conversation est sauvegardée.
   document.addEventListener('copilot-history-saved', async () => {
     await renderHistoryList();
+  });
+
+  // Le bouton "Ouvrir les réglages" de l'écran "pas de clé" doit ouvrir la
+  // modale de configuration API, gérée par main.js.
+  document.getElementById('copilot-settings-btn')?.addEventListener('click', () => {
+    document.dispatchEvent(new CustomEvent('app-open-ai-settings'));
   });
 
   // Au chargement : prisme 1 (autonome) par défaut, qu'un tutoriel soit
