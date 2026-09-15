@@ -1459,30 +1459,85 @@
  *  Refonte Astra : modale sobre, alignée sur .tr-dialog / .tr-form-field.     *
  * ========================================================================== */
 #ai-settings-modal { z-index: 90; }
-#ai-settings-modal .tr-dialog { width: min(100%, 540px); max-height: min(88vh, 760px); }
-#ai-settings-modal .ai-settings-body { display: flex; flex-direction: column; gap: 17px; }
-#ai-settings-modal .ai-settings-intro { margin: 0; color: var(--r-text-muted); font-size: 12.5px; line-height: 1.55; }
+#ai-settings-modal .tr-dialog {
+  width: min(100%, 480px);
+  max-height: min(92vh, 720px);
+}
+#ai-settings-modal .ai-settings-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+#ai-settings-modal .ai-settings-intro {
+  margin: 0;
+  color: var(--r-text-muted);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
 #ai-settings-modal .ai-settings-intro strong { color: var(--r-text); }
-#ai-settings-modal .ai-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+/* Champs empilés : la grille deux colonnes débordait sur les petits écrans et
+   alourdissait la lecture. */
+#ai-settings-modal .ai-form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
 #ai-settings-modal .ai-form-field { margin: 0; }
 #ai-settings-modal .ai-form-field input,
 #ai-settings-modal .ai-form-field select { width: 100%; }
-#ai-settings-modal .ai-form-test { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+#ai-settings-modal .ai-form-test {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
 #ai-settings-modal .ai-test-result { font: 12px var(--r-font-mono); color: var(--r-text-muted); }
 #ai-settings-modal .ai-test-result.success { color: var(--r-good); }
 #ai-settings-modal .ai-test-result.error { color: var(--r-error, #ef4444); }
-#ai-settings-modal .ai-form-section { display: flex; flex-direction: column; gap: 10px; padding: 14px; border: 1px solid var(--r-border); border-radius: var(--r-radius-card); background: var(--r-surface); }
-#ai-settings-modal .ai-cap-row { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
-#ai-settings-modal .ai-cap-field { flex: 1 1 180px; margin: 0; }
-#ai-settings-modal .ai-usage { font: 13px var(--r-font-mono); color: var(--r-text); white-space: nowrap; padding-bottom: 8px; }
-#ai-settings-modal .ai-form-hint { margin: 0; color: var(--r-text-muted); font-size: 11px; line-height: 1.5; }
-#ai-settings-modal .ai-form-trust { display: flex; flex-direction: column; gap: 10px; }
-#ai-settings-modal .ai-form-trust ul { margin: 0; padding-left: 18px; color: var(--r-text-muted); font-size: 11px; line-height: 1.55; }
-#ai-settings-modal .ai-form-trust li { margin-bottom: 6px; }
-#ai-settings-modal .ai-form-trust li:last-child { margin-bottom: 0; }
-
-@media (max-width: 560px) {
-  #ai-settings-modal .ai-form-grid {
-    grid-template-columns: 1fr;
-  }
+#ai-settings-modal .ai-form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--r-border);
+  border-radius: var(--r-radius-card);
+  background: var(--r-surface);
 }
+#ai-settings-modal .ai-cap-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+#ai-settings-modal .ai-cap-field { flex: 1 1 180px; margin: 0; }
+#ai-settings-modal .ai-usage {
+  font: 13px var(--r-font-mono);
+  color: var(--r-text);
+  white-space: nowrap;
+  padding-bottom: 8px;
+}
+#ai-settings-modal .ai-form-hint {
+  margin: 0;
+  color: var(--r-text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+#ai-settings-modal .ai-form-trust {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-left: 2px solid var(--r-accent);
+  border-radius: 0 6px 6px 0;
+  background: var(--r-accent-soft);
+}
+#ai-settings-modal .ai-form-trust > span { color: var(--r-accent); }
+#ai-settings-modal .ai-form-trust ul {
+  margin: 0;
+  padding-left: 16px;
+  color: var(--r-text-muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+#ai-settings-modal .ai-form-trust li { margin-bottom: 4px; }
+#ai-settings-modal .ai-form-trust li:last-child { margin-bottom: 0; }

@@ -407,7 +407,11 @@ async function renderHistoryList() {
 }
 
 async function deleteHistoryItem(conversationId) {
-  await deleteConversation(conversationId);
+  const ok = await deleteConversation(conversationId);
+  if (!ok) {
+    console.warn('[Copilot] La suppression de la conversation a échoué :', conversationId);
+    return;
+  }
   if (conversationId === currentConversationId) {
     messages = [];
     currentConversationId = null;
@@ -666,7 +670,7 @@ export async function initCopilotTab() {
 
   // Au chargement : prisme 1 (autonome) par défaut, qu'un tutoriel soit
   // sélectionné ou non.
-  const currentPath = document.querySelector('#pedagogie-track-list .pedagogie-track-item.active')?.title;
+  const currentPath = document.querySelector('#pedagogie-track-list .pedagogie-track-row.is-selected')?.title;
   currentTutorialPath = currentPath || null;
   currentMode = 'autonomous';
   currentSessionId = null;

@@ -169,6 +169,22 @@ function folderProblemText(reason) {
   }
 }
 
+function categoryLabel(path) {
+  const cat = getTutorialCategory(typeof localStorage !== 'undefined' ? localStorage : null, path);
+  if (cat === 'tutorial') return 'Tutoriel';
+  if (cat === 'cover') return 'Cover';
+  return 'Vidéo';
+}
+
+const ICON_VIDEO = [
+  el('path', { d: 'M23 7l-7 5 7 5V7z' }),
+  el('rect', { x: '1', y: '5', width: '15', height: '14', rx: '2', ry: '2' }),
+];
+const ICON_OPEN = [
+  el('path', { d: 'M7 17 17 7' }),
+  el('path', { d: 'M7 7h10v10' }),
+];
+
 async function refreshTrackList() {
   if (!els.trackList) return;
   els.trackList.innerHTML = '';
@@ -214,14 +230,43 @@ async function refreshTrackList() {
   }
 
   for (const tut of tutorials) {
-    els.trackList.appendChild(el('button', {
-      className: `pedagogie-track-item${tut.path === selectedPath ? ' active' : ''}`,
-      type: 'button',
+    const isSelected = tut.path === selectedPath;
+    const row = el('div', {
+      className: `tr-library-row pedagogie-track-row ${isSelected ? 'is-selected' : ''}`,
       title: tut.path,
+    });
+    row.appendChild(el('button', {
+      className: 'tr-library-select',
+      type: 'button',
       onClick: () => selectTrack(tut.path),
     }, [
-      el('span', { className: 'pedagogie-track-name', text: tutorialDisplayName(tut.name) }),
+      el('span', { className: 'tr-file-icon' }, [
+        el('svg', {
+          width: '19', height: '19', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
+          'stroke-width': '1.65', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true',
+        }, ICON_VIDEO),
+      ]),
+      el('span', {}, [
+        el('strong', { text: tutorialDisplayName(tut.name) }),
+        el('small', { text: tut.path }),
+      ]),
     ]));
+    row.appendChild(el('span', { className: 'tr-library-cell', text: categoryLabel(tut.path) }));
+    row.appendChild(el('div', { className: 'tr-library-row-actions' }, [
+      el('button', {
+        className: 'tr-icon-button',
+        type: 'button',
+        title: 'Sélectionner ce tutoriel',
+        'aria-label': `Sélectionner ${tutorialDisplayName(tut.name)}`,
+        onClick: () => selectTrack(tut.path),
+      }, [
+        el('svg', {
+          width: '15', height: '15', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
+          'stroke-width': '1.65', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true',
+        }, ICON_OPEN),
+      ]),
+    ]));
+    els.trackList.appendChild(row);
   }
 }
 

@@ -225,6 +225,26 @@
    Sessions MIDI
    ============================================================================ */
 
+/* Le paysage harmonique doit rester lisible : les étiquettes d'octave et la
+   graduation temporelle ne doivent pas chevaucher les notes. On lui garantit
+   une hauteur minimum plus généreuse ; le carnet des moments marquants est
+   compressé en conséquence. */
+:root[data-skin='global'] #practice-view-midi-sessions .tr-roll-stage,
+:root[data-skin='v2'] #practice-view-midi-sessions .tr-roll-stage {
+  min-height: 260px;
+}
+
+/* La console doit pouvoir accueillir le header, le roll et la barre de lecteur
+   sans déborder de son cadre ; le carnet, quand il est visible, est plafonné
+   pour ne pas reprendre la place au paysage. */
+:root[data-skin='global'] #practice-view-midi-sessions .tr-session-console,
+:root[data-skin='v2'] #practice-view-midi-sessions .tr-session-console {
+  min-height: 390px;
+}
+#midi-session-carnet {
+  max-height: 170px;
+}
+
 /* Hôte du paysage harmonique : le SVG est injecté par recording-tab.js.
    Spécificité alignée sur l'ancienne règle de practice.css (lignes 2711-2721)
    pour gagner la cascade. */
@@ -483,6 +503,14 @@
 }
 #pedagogie-analyze-btn[disabled] { opacity: .4; }
 
+/* Bibliothèque de tutoriels : alignée sur le format .tr-library-row de
+   Sessions MIDI et Coach, avec en-tête et lignes sur la même grille. */
+#pedagogie-library-drawer .tr-library-table-head,
+#pedagogie-track-list .pedagogie-track-row { grid-template-columns: minmax(220px, 2.7fr) 110px 64px; gap: 12px; }
+#pedagogie-track-list { display: flex; flex-direction: column; }
+#pedagogie-track-list .pedagogie-track-row { cursor: pointer; }
+#pedagogie-track-list .tr-library-cell { text-align: right; }
+
 #practice-view-pedagogie .tr-notebook-content { display: flex; flex-direction: column; gap: 12px; }
 #practice-view-pedagogie .pedagogie-card {
   padding: 13px 15px;
@@ -511,18 +539,6 @@
 #practice-view-pedagogie .pedagogie-category-sub { color: var(--tr-secondary); font-size: 10.5px; }
 #practice-view-pedagogie .pedagogie-category-hint { color: var(--tr-muted); font: 9px var(--tr-mono); }
 #pedagogie-grid { display: flex; flex-wrap: wrap; gap: 5px; }
-#pedagogie-track-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; max-height: 56vh; overflow: auto; }
-#pedagogie-track-list button,
-#pedagogie-track-list .pedagogie-track-item {
-  display: flex; flex-direction: column; gap: 4px;
-  padding: 11px 12px; text-align: left;
-  border: 1px solid var(--tr-border); border-radius: 8px;
-  background: var(--tr-surface); color: var(--tr-text); font-size: 12px;
-}
-#pedagogie-track-list button:hover,
-#pedagogie-track-list .pedagogie-track-item:hover { border-color: var(--tr-accent); background: var(--tr-accent-soft); }
-#pedagogie-track-list .is-selected,
-#pedagogie-track-list .active { border-color: var(--tr-accent); background: var(--tr-accent-soft); }
 #pedagogie-folder-hint { font: 10px var(--tr-mono); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 #pedagogie-folder-hint:empty { display: none; }
 

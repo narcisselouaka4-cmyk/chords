@@ -2034,8 +2034,8 @@
   background: var(--r-border-strong);
   border-radius: 4px;
 }
-:root[data-skin='global'] #practice-view-pedagogie .pedagogie-track-item,
-:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-track-item {
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-track-row,
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-track-row {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -2053,18 +2053,18 @@
 :root[data-skin='v2'] #practice-view-pedagogie .pedagogie-track-item:hover {
   background: var(--r-surface-chip);
 }
-:root[data-skin='global'] #practice-view-pedagogie .pedagogie-track-item {
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-track-row {
   border-radius: 0;
   border-left: 2px solid transparent;
 }
-:root[data-skin='global'] #practice-view-pedagogie .pedagogie-track-item.active {
+:root[data-skin='global'] #practice-view-pedagogie .pedagogie-track-row.is-selected {
   border-left-color: var(--r-accent);
   background: var(--r-surface-chip);
 }
-:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-track-item {
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-track-row {
   border-radius: var(--r-radius-btn);
 }
-:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-track-item.active {
+:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-track-row.is-selected {
   background: var(--r-accent-soft);
   border-color: var(--r-accent);
 }

@@ -675,7 +675,10 @@
                   <span class="tr-secondary pedagogie-folder-hint" id="pedagogie-folder-hint"></span>
                   <button class="tr-button tr-primary" type="button" data-astra-close data-astra-click="#pedagogie-import-btn"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6M9 15l3-3 3 3"/></svg>Importer une vidéo</button>
                 </div>
-                <div class="tr-tutorial-collection pedagogie-track-list" id="pedagogie-track-list" data-astra-close-on-click></div>
+                <div class="tr-library-table-head" aria-hidden="true">
+                  <span>TUTORIEL</span><span>TYPE</span><span></span>
+                </div>
+                <div class="pedagogie-track-list" id="pedagogie-track-list" data-astra-close-on-click></div>
               </div>
             </div>
           </div>
@@ -1887,7 +1890,7 @@
             <button class="tr-icon-button" type="button" id="ai-cancel-btn" aria-label="Fermer">✕</button>
           </div>
           <div class="tr-dialog-body ai-settings-body">
-            <p class="tr-dialog-description ai-settings-intro">Zic fonctionne sans clé. Une clé API sert uniquement à aller plus loin — poser une question libre, approfondir une explication ou combler un concept sans fiche. <strong>C’est votre clé, vous payez votre propre consommation.</strong></p>
+            <p class="tr-dialog-description ai-settings-intro">Zic fonctionne sans clé. Une clé API personnelle permet d’aller plus loin : poser une question libre ou approfondir une explication. <strong>Vous payez votre propre consommation.</strong></p>
 
             <label class="tr-form-field ai-form-field">
               <span>Préréglage</span>
@@ -1934,11 +1937,10 @@
             </div>
 
             <div class="ai-form-trust">
-              <span class="tr-eyebrow">Ce que Zic garantit</span>
+              <span class="tr-eyebrow">Confidentialité</span>
               <ul>
-                <li>Votre clé est chiffrée dans le trousseau de votre système d’exploitation quand il est disponible, et ne quitte jamais cet ordinateur.</li>
-                <li>Si l’IA ne répond pas ou si le plafond mensuel est atteint, Zic retombe automatiquement sur les fiches préécrites.</li>
-                <li>Une explication générée par un modèle n’est pas vérifiée : elle est signalée comme telle dans l’interface.</li>
+                <li>Votre clé reste sur cet ordinateur et est chiffrée quand c’est possible.</li>
+                <li>Si l’IA ne répond pas ou si le plafond est atteint, Zic retombe sur ses fiches préécrites.</li>
               </ul>
             </div>
 

@@ -345,7 +345,7 @@ const g = (practiceCss.match(/:root\[data-skin='global'\] #practice-view-pedagog
 const v = (practiceCss.match(/:root\[data-skin='v2'\] #practice-view-pedagogie/g) || []).length;
 check('practice.css habille la vue en skin Global', g > 20, `${g} règles`);
 check('practice.css habille la vue en skin v2', v > 20, `${v} règles`);
-for (const sel of ['.pedagogie-layout', '.pedagogie-card', '.pedagogie-chip', '.pedagogie-track-item',
+for (const sel of ['.pedagogie-layout', '.pedagogie-card', '.pedagogie-chip', '.pedagogie-track-row',
   '.pedagogie-secondary-btn']) {
   check(`« ${sel} » est stylé dans les deux skins`,
     practiceCss.includes(`:root[data-skin='global'] #practice-view-pedagogie ${sel}`)
