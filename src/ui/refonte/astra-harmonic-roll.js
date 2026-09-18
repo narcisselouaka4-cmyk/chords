@@ -139,8 +139,14 @@ export function renderHarmonicRoll(host, options) {
       svg.appendChild(el('text', { transform: `translate(${p[0] - 29} ${p[1] + 3}) scale(1 ${labelScale})`, class: 'tr-roll-label' }, label));
     });
 
-    // Notes : les 220 dernières, comme dans la maquette.
-    const shown = notes.slice(-220);
+    // Notes : on affiche l'intégralité de la session. Sur les très longues
+    // sessions on échantillonne uniformément sur toute la durée pour conserver
+    // un SVG léger, mais jamais seulement les dernières notes — cela créait un
+    // vide artificiel en début de session (bug 220 notes).
+    const MAX_NOTES = 800;
+    const shown = notes.length <= MAX_NOTES
+      ? notes
+      : sampleNotesEvenly(notes, MAX_NOTES);
     shown.forEach((note, index) => {
       const velocity = normalizeVelocity(note.velocity);
       const x = (note.start / duration) * SPAN_X;
@@ -214,6 +220,21 @@ export function renderHarmonicRoll(host, options) {
     update(next) { state = { ...state, ...next }; draw(); },
     destroy() { observer?.disconnect(); host.innerHTML = ''; },
   };
+}
+
+/**
+ * Échantillonne `notes` de manière uniforme sur l'axe temporel. Garde la
+ * première et la dernière note, puis répartit les indices intermédiaires.
+ * Préserve l'ordre chronologique.
+ */
+function sampleNotesEvenly(notes, maxCount) {
+  if (notes.length <= maxCount) return notes;
+  const result = [];
+  const step = (notes.length - 1) / (maxCount - 1);
+  for (let i = 0; i < maxCount; i++) {
+    result.push(notes[Math.round(i * step)]);
+  }
+  return result;
 }
 
 /**
