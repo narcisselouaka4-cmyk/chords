@@ -27,3 +27,4 @@ tests/corpus/b5/*.wav
 # Skills Claude Code installés localement (ui-ux-pro-max, impeccable) :
 # outils de développement, réinstallables — voir CLAUDE.md § Outils de design.
 .claude/skills/
+apikeys
