@@ -63,10 +63,13 @@ function checkTechniqueSwitch() {
   ex.next();
   const firstTarget = ex.getState().target;
   const first = firstTarget.voicing.technique;
-  ex.setTechnique('rootless');
+  // 'rootless' a été retiré du sélecteur de l'onglet Exercices (n'a de sens
+  // que dans un contexte fonctionnel ii-V-I, cf. usage Copilot IA) — on
+  // vérifie le changement de technique avec 'quartal', qui reste proposé.
+  ex.setTechnique('quartal');
   const secondTarget = ex.getState().target;
   const second = secondTarget.voicing.technique;
-  check('setTechnique change la technique', second === 'rootless', `avant=${first} après=${second}`);
+  check('setTechnique change la technique', second === 'quartal', `avant=${first} après=${second}`);
   check('setTechnique conserve le même accord', secondTarget.rootPc === firstTarget.rootPc && secondTarget.symbol === firstTarget.symbol);
 }
 

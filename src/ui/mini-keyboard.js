@@ -124,27 +124,32 @@ export function generateMiniKeyboard(activeNotes = [], options = {}) {
 }
 
 export function miniKeyboardForNotes(activeNotes, options = {}) {
-  // Choisit une fenêtre de 2 octaves parmi C3–B4 (48–71) ou C4–B5 (60–83)
-  // selon la tessiture des notes, comme demandé par l'interface.
+  // Fenêtre dimensionnée sur l'étendue réelle des notes actives (avec une
+  // marge d'une touche de part et d'autre), et non plus une fenêtre fixe de
+  // 24 demi-tons : un voicing réel (main gauche + main droite) peut dépasser
+  // 2 octaves (ex. Sol#2 à Fa#5 = 34 demi-tons observés), et les notes hors
+  // fenêtre n'étaient tout simplement jamais dessinées. Le SVG s'élargit en
+  // conséquence ; le viewBox + preserveAspectRatio du côté CSS gèrent déjà la
+  // mise à l'échelle.
   // Le deuxième argument peut être un nombre (ancien centerMidi) ou un objet
-  // d'options { centerMidi, leftHand, rightHand }.
+  // d'options { centerMidi, leftHand, rightHand, startMidi, endMidi }.
   const opts = typeof options === 'number' ? { centerMidi: options } : options;
-  const startMidi = opts.startMidi ?? (opts.centerMidi != null && opts.centerMidi < 60 ? 48 : undefined);
+  const startMidiOverride = opts.startMidi ?? (opts.centerMidi != null && opts.centerMidi < 60 ? 48 : undefined);
   const kbOptions = {
-    startMidi,
-    endMidi: opts.endMidi,
     leftHand: opts.leftHand,
     rightHand: opts.rightHand,
   };
   if (!Array.isArray(activeNotes) || activeNotes.length === 0) {
+    const fallbackStart = startMidiOverride ?? 60;
     return {
-      svg: generateMiniKeyboard([], { startMidi: startMidi ?? 60, endMidi: (startMidi ?? 60) + 23 }).svg,
+      svg: generateMiniKeyboard([], { ...kbOptions, startMidi: fallbackStart, endMidi: opts.endMidi ?? fallbackStart + 23 }).svg,
       noteNames: [],
     };
   }
   const min = Math.min(...activeNotes);
   const max = Math.max(...activeNotes);
-  // Si au moins une note est en dessous de C4, on descend à C3–B4
-  const finalStart = startMidi ?? (min < 60 ? 48 : 60);
-  return generateMiniKeyboard(activeNotes, { ...kbOptions, startMidi: finalStart, endMidi: finalStart + 23 });
+  const MARGIN = 2;
+  const finalStart = startMidiOverride ?? Math.max(21, min - MARGIN);
+  const finalEnd = opts.endMidi ?? Math.max(finalStart + 23, Math.min(108, max + MARGIN));
+  return generateMiniKeyboard(activeNotes, { ...kbOptions, startMidi: finalStart, endMidi: finalEnd });
 }

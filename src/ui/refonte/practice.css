@@ -504,9 +504,9 @@
 :root[data-skin='v2'] #practice-tab .exercise-technique-selector {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: var(--r-space-2, 10px);
-  width: 100%;
+  margin-top: 18px;
 }
 :root[data-skin='global'] #practice-tab .exercise-technique-selector label,
 :root[data-skin='v2'] #practice-tab .exercise-technique-selector label {

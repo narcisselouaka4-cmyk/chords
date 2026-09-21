@@ -325,9 +325,19 @@ function pickNotesFromRange(candidates, min, max, count, maxSpan = RH_MAX_SPAN) 
   // groupe, plus éloignées l'une de l'autre que maxSpan (vu sur F#m7b5 en
   // technique 'rootless' : span réel de 18 demi-tons validé à tort).
   const picked = [];
+  const usedPcs = new Set();
   for (const note of sorted) {
+    const pc = ((note % 12) + 12) % 12;
+    // Ne jamais sélectionner deux fois la même classe de hauteur par défaut :
+    // le pool `candidates` contient chaque note de l'accord à plusieurs
+    // octaves, donc sans cette garde on pouvait doubler une note (ex. Ré#4 +
+    // Ré#5) au lieu d'aller chercher une tension distincte — ça gonfle
+    // l'écart entre les mains sans ajouter de substance harmonique (vu sur
+    // Sol#m7 : Ré#4·Fa#4·Ré#5·Fa#5 au lieu d'un voicing resserré).
+    if (usedPcs.has(pc)) continue;
     if (picked.length === 0) {
       picked.push(note);
+      usedPcs.add(pc);
       continue;
     }
     if (picked.length >= count) continue;
@@ -335,6 +345,7 @@ function pickNotesFromRange(candidates, min, max, count, maxSpan = RH_MAX_SPAN) 
     const candidateMax = Math.max(note, ...picked);
     if (candidateMax - candidateMin <= maxSpan) {
       picked.push(note);
+      usedPcs.add(pc);
     }
   }
   return picked.sort((a, b) => a - b);

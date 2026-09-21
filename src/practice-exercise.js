@@ -42,13 +42,12 @@ const MOVEMENT_QUALITY_ALIASES = {
   'maj7#11': 'maj7#11',
 };
 
-export const TECHNIQUES = ['auto', 'close', 'drop2', 'rootless', 'quartal'];
+export const TECHNIQUES = ['auto', 'close', 'drop2', 'quartal'];
 
 export const TECHNIQUE_LABELS = {
   auto: 'Auto',
   close: 'Close position',
   drop2: 'Drop 2',
-  rootless: 'Rootless',
   quartal: 'Quartal',
 };
 
@@ -84,7 +83,7 @@ function buildPlayableVoicing(chordSymbol, technique) {
     if (t !== 'auto') options.technique = t;
     const voicing = generateCopilotVoicing(chordSymbol, options);
     if (voicing.isPlayable) {
-      return { voicing, technique: t };
+      return { voicing, technique: voicing.technique };
     }
   }
   return { voicing: null, technique };

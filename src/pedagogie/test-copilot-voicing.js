@@ -30,7 +30,12 @@ function checkCmaj7Gospel() {
   const v = generateCopilotVoicing('Cmaj7', { styleId: 'gospel', context: 'accompaniment' });
   check('Cmaj7 gospel est jouable', v.isPlayable, v.diagnostics.join(' ; '));
   check('Cmaj7 gospel a une main gauche', v.leftHand.length > 0);
-  check('Cmaj7 gospel a une main droite', v.rightHand.length >= 3);
+  // Cmaj7 n'a que 4 tons (C E G B) ; LH prend déjà C et E (basse + tierce en
+  // drop2), il ne reste donc que G et B comme tons DISTINCTS pour la main
+  // droite. >= 3 supposait implicitement qu'on pouvait doubler une note à
+  // l'octave pour combler le compte — c'est exactement le défaut corrigé
+  // dans pickNotesFromRange() (voir correctif Sol#m7/dédoublonnage pitch class).
+  check('Cmaj7 gospel a une main droite', v.rightHand.length >= 2);
   check('Cmaj7 gospel technique = drop2', v.technique === 'drop2');
   check('Main gauche dans le grave', Math.max(...v.leftHand) <= 55);
   check('Main droite au-dessus de la main gauche', Math.min(...v.rightHand) > Math.max(...v.leftHand));
@@ -97,6 +102,21 @@ function checkComplexChords() {
   }
 }
 
+function checkNoPitchClassDuplicates() {
+  // Régression Narcisse : la RH ne doit jamais empiler deux fois la même
+  // classe de hauteur (ex. Ré#4 + Ré#5) quand assez de tons distincts de
+  // l'accord sont disponibles — dupliquer à l'octave gonflait l'écart entre
+  // les mains sans ajouter de substance harmonique.
+  const cases = ['G#m7', 'F7', 'Dmaj7', 'D#maj9', 'A#7', 'Amaj7'];
+  for (const symbol of cases) {
+    const v = generateCopilotVoicing(symbol, { styleId: 'gospel', context: 'accompaniment' });
+    const rhPcs = v.rightHand.map((n) => n % 12);
+    const lhPcs = v.leftHand.map((n) => n % 12);
+    check(`${symbol} : main droite sans doublon de pitch class`, new Set(rhPcs).size === rhPcs.length, `RH=${v.rightHand.join(',')}`);
+    check(`${symbol} : main gauche sans doublon de pitch class`, new Set(lhPcs).size === lhPcs.length, `LH=${v.leftHand.join(',')}`);
+  }
+}
+
 async function runTests() {
   checkStyles();
   checkCmaj7Gospel();
@@ -105,6 +125,7 @@ async function runTests() {
   checkChordSymbolToMidi();
   checkAutoFallback();
   checkComplexChords();
+  checkNoPitchClassDuplicates();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);
   process.exit(failed === 0 ? 0 : 1);
