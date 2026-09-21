@@ -994,6 +994,70 @@ async function testCorrectDegreeNotCorrected() {
   global.fetch = originalFetch;
 }
 
+async function testVoicingDescriptionMismatchRootlessTriggersRetry() {
+  const originalFetch = global.fetch;
+  let callCount = 0;
+  global.fetch = async () => {
+    callCount += 1;
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        choices: [{
+          message: {
+            role: 'assistant',
+            content: 'Voici un Cmaj7 rootless avec la fondamentale à la basse.',
+            tool_calls: [
+              { function: { name: 'play_voicing', arguments: JSON.stringify({ chordSymbol: 'Cmaj7', technique: 'rootless' }) } },
+            ],
+          },
+        }],
+      }),
+    };
+  };
+  global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
+
+  const res = await sendCopilotMessage({ message: 'Joue-moi un Cmaj7 rootless', messages: [], context: {} });
+
+  check('Voicing rootless + texte "fondamentale à la basse" → 2 appels API (retry)', callCount === 2, `callCount=${callCount}`);
+  check('toolResult expose le voicing généré', res.toolResult.voicing?.isPlayable === true, `voicing=${JSON.stringify(res.toolResult.voicing)}`);
+  check('Le voicing rootless n\'a pas la fondamentale à la main gauche', res.toolResult.voicing.leftHand.every((n) => n % 12 !== 0), `leftHand=${JSON.stringify(res.toolResult.voicing.leftHand)}`);
+
+  global.fetch = originalFetch;
+}
+
+async function testVoicingDescriptionDrop2CoherentNoRetry() {
+  const originalFetch = global.fetch;
+  let callCount = 0;
+  global.fetch = async () => {
+    callCount += 1;
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        choices: [{
+          message: {
+            role: 'assistant',
+            content: 'Voici un Cmaj7 en drop 2, la fondamentale est à la main gauche.',
+            tool_calls: [
+              { function: { name: 'play_voicing', arguments: JSON.stringify({ chordSymbol: 'Cmaj7', technique: 'drop2' }) } },
+            ],
+          },
+        }],
+      }),
+    };
+  };
+  global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
+
+  const res = await sendCopilotMessage({ message: 'Joue-moi un Cmaj7 drop 2', messages: [], context: {} });
+
+  check('Drop2 + description cohérente → 1 seul appel API', callCount === 1, `callCount=${callCount}`);
+  check('Texte inchangé quand description cohérente', res.content === 'Voici un Cmaj7 en drop 2, la fondamentale est à la main gauche.');
+  check('toolResult expose le voicing drop2', res.toolResult.voicing?.isPlayable === true && res.toolResult.voicing.technique === 'drop2', `voicing=${JSON.stringify(res.toolResult.voicing)}`);
+
+  global.fetch = originalFetch;
+}
+
 async function testFallbackWithoutToolsOn400() {
   const originalFetch = global.fetch;
   let callCount = 0;
@@ -1097,6 +1161,8 @@ async function runTests() {
   await testDegreeMismatchFallbackOnNetworkFailure();
   await testDegreeRetryAfterChordRetryNoThirdCallButNoDoubleFallback();
   await testCorrectDegreeNotCorrected();
+  await testVoicingDescriptionMismatchRootlessTriggersRetry();
+  await testVoicingDescriptionDrop2CoherentNoRetry();
   await testFallbackWithoutToolsOn400();
   await testParsePlayNoteFromText();
   testMetadataOnPlayedNotes();

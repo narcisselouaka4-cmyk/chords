@@ -13,6 +13,7 @@ import {
   checkDegreeKeyAgreement,
   extractAffirmedKeys,
   checkKeyAffirmation,
+  checkVoicingDescriptionAgreement,
 } from './copilot-validation.js';
 
 const GREEN = '\x1b[32m';
@@ -287,6 +288,57 @@ function testCheckKeyAffirmation() {
   check('Format anglais "Am" reconnu comme attendu', minor.length === 1 && minor[0].match === true);
 }
 
+function testCheckVoicingDescriptionAgreement() {
+  // Cmaj7 close : LH root + RH reste.
+  const closeC = { leftHand: [48, 52, 55], rightHand: [64, 67, 71, 74] };
+  const closeOk = checkVoicingDescriptionAgreement(
+    'J\'utilise un close voicing avec la fondamentale à la main gauche.',
+    closeC,
+    'Cmaj7'
+  );
+  check('Close : fondamentale à la main gauche → match', closeOk.length >= 1 && closeOk.every((c) => c.match === true));
+
+  // Cmaj7 rootless : LH shell 3+7, root absente.
+  const rootlessC = { leftHand: [52, 55], rightHand: [64, 67, 71, 74], technique: 'rootless' };
+  const rootlessOk = checkVoicingDescriptionAgreement(
+    'Voici un voicing rootless.',
+    rootlessC,
+    'Cmaj7'
+  );
+  check('Rootless : mention "rootless" cohérente → match', rootlessOk.length === 1 && rootlessOk[0].match === true);
+
+  const rootlessBad = checkVoicingDescriptionAgreement(
+    'J\'entends la fondamentale à la basse.',
+    rootlessC,
+    'Cmaj7'
+  );
+  check('Rootless : fondamentale à la basse détectée comme mismatch', rootlessBad.length >= 1 && rootlessBad.every((c) => c.match === false));
+  check('Correction mentionne fondamentale absente de la main gauche', rootlessBad[0].correction.includes('sans la fondamentale Do'));
+  check('Correction mentionne répartition réelle main gauche/droite', rootlessBad[0].correction.includes('main gauche') && rootlessBad[0].correction.includes('main droite'));
+
+  // Fondamentale à la main droite.
+  const rhRootC = { leftHand: [52, 55], rightHand: [48, 64, 67, 71] };
+  const rhOk = checkVoicingDescriptionAgreement(
+    'J\'ai mis la fondamentale à la main droite.',
+    rhRootC,
+    'Cmaj7'
+  );
+  check('Root en main droite : description correcte → match', rhOk.length >= 1 && rhOk.every((c) => c.match === true));
+
+  const rhBad = checkVoicingDescriptionAgreement(
+    'La fondamentale est à la main gauche.',
+    rhRootC,
+    'Cmaj7'
+  );
+  check('Root en main droite : affirmation main gauche détectée', rhBad.length >= 1 && rhBad.every((c) => c.match === false));
+
+  const noClaim = checkVoicingDescriptionAgreement('Voici une description neutre.', closeC, 'Cmaj7');
+  check('Aucune affirmation sur le voicing → résultat vide', noClaim.length === 0);
+
+  const badChord = checkVoicingDescriptionAgreement('La fondamentale est à la basse.', closeC, 'XYZ???');
+  check('Symbole d\'accord invalide → résultat vide', badChord.length === 0);
+}
+
 async function runTests() {
   testGroupNotesByTimeWindow();
   testExtractBoldChordNames();
@@ -300,6 +352,7 @@ async function runTests() {
   testCheckDegreeKeyAgreement();
   testExtractAffirmedKeys();
   testCheckKeyAffirmation();
+  testCheckVoicingDescriptionAgreement();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);
   process.exit(failed === 0 ? 0 : 1);
