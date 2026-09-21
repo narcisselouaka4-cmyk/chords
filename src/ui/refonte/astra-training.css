@@ -303,6 +303,7 @@
 .tr-dialog-footnote { display: flex; align-items: center; gap: 7px; padding-top: 15px; margin-top: 15px; border-top: 1px solid var(--tr-border-soft); color: var(--tr-muted); font-size: 10px; }
 .tr-dialog-footnote > span:last-child { margin-left: auto; }
 .tr-library-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 22px; }
+.tr-library-toolbar-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .tr-search { display: flex; align-items: center; gap: 9px; flex: 1; max-width: 410px; min-width: 120px; padding: 0 12px; height: 36px; border: 1px solid var(--tr-border); border-radius: 6px; color: var(--tr-muted); background: var(--tr-inset); }
 .tr-search input { width: 100%; min-width: 0; padding: 0; border: 0; outline: none; color: var(--tr-text); background: none; font-size: 11px; }
 .tr-search input:focus-visible { outline: none; }

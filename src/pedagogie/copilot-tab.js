@@ -8,6 +8,7 @@ import {
   loadHistory,
   saveHistory,
   deleteConversation,
+  deleteEmptyConversations,
   listAllConversations,
   labelForConversationPath,
   AUTONOMOUS_HISTORY_KEY as HISTORY_AUTONOMOUS_KEY,
@@ -400,12 +401,9 @@ async function renderHistoryList() {
             deleteHistoryItem(item.conversationId, primary, e.currentTarget);
           },
         }, [
-          el('svg', { width: '15', height: '15', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.65', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' }, [
-            el('path', { d: 'M3 6h18' }),
-            el('path', { d: 'M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2' }),
-            el('path', { d: 'M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6' }),
-            el('path', { d: 'M10 11v6' }),
-            el('path', { d: 'M14 11v6' }),
+          el('svg', { width: '15', height: '15', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.9', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' }, [
+            el('path', { d: 'M18 6 6 18' }),
+            el('path', { d: 'M6 6l12 12' }),
           ]),
         ]),
       ]),
@@ -438,6 +436,38 @@ async function deleteHistoryItem(conversationId, label, btn) {
     renderMessages();
   }
   await renderHistoryList();
+}
+
+async function onDeleteEmptyConversations() {
+  const all = await listAllConversations();
+  const emptyItems = [];
+  for (const item of all) {
+    const history = await loadHistory(item.conversationId);
+    const messages = history?.messages;
+    if (!messages || messages.length === 0) emptyItems.push(item);
+  }
+  if (emptyItems.length === 0) {
+    alert('Aucune conversation vide à supprimer.');
+    return;
+  }
+  const label = emptyItems.length === 1
+    ? '1 conversation vide'
+    : `${emptyItems.length} conversations vides`;
+  if (!confirm(`Supprimer ${label} ? Cette action est irréversible.`)) return;
+
+  // Si la conversation courante est vide, on la décharge avant suppression.
+  const currentIsEmpty = emptyItems.some((item) => item.conversationId === currentConversationId);
+  if (currentIsEmpty) {
+    messages = [];
+    currentConversationId = null;
+    renderMessages();
+  }
+
+  const removed = await deleteEmptyConversations();
+  await renderHistoryList();
+  if (removed === 0) {
+    alert('La suppression a échoué. Vérifiez que les fichiers ne sont pas ouverts ailleurs.');
+  }
 }
 
 async function loadHistoryItem(conversationId) {
@@ -605,6 +635,7 @@ export async function initCopilotTab() {
   els.introText = document.getElementById('copilot-intro');
   els.historyList = document.getElementById('copilot-history-list');
   els.newConvSidebarBtn = document.getElementById('copilot-new-conv-sidebar-btn');
+  els.deleteEmptyBtn = document.getElementById('copilot-delete-empty-btn');
 
   els.sendBtn?.addEventListener('click', sendUserMessage);
   // [Astra round 4] — Le champ est un <textarea> qui grandit avec le texte,
@@ -618,6 +649,7 @@ export async function initCopilotTab() {
   });
   els.newConvBtn?.addEventListener('click', onNewConversation);
   els.newConvSidebarBtn?.addEventListener('click', onNewConversation);
+  els.deleteEmptyBtn?.addEventListener('click', onDeleteEmptyConversations);
   els.modeToggleBtn?.addEventListener('click', onModeToggleClick);
 
   // Sélecteur de style pianistique.

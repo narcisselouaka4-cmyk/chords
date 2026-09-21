@@ -141,6 +141,26 @@ export async function saveHistory(conversationId, tutorialPath, messages) {
 }
 
 /**
+ * Supprime toutes les conversations dont la liste de messages est vide.
+ * Retourne le nombre de conversations supprimées.
+ *
+ * @returns {Promise<number>}
+ */
+export async function deleteEmptyConversations() {
+  const all = await listAllConversations();
+  let removed = 0;
+  for (const item of all) {
+    const history = await loadHistory(item.conversationId);
+    const messages = history?.messages;
+    if (!messages || messages.length === 0) {
+      const ok = await deleteConversation(item.conversationId);
+      if (ok) removed += 1;
+    }
+  }
+  return removed;
+}
+
+/**
  * Supprime une conversation par son ID.
  *
  * @param {string} conversationId
