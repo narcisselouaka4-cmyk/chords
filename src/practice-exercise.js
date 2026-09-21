@@ -1,11 +1,19 @@
 // [Claude] — 2026-07-07 — Exercices rapides pour l'onglet Entraînement.
 // Modes : accord cible, progression, mouvement dans les 12 tons.
+// [Claude] — 2026-09-21 — Les voicings affichés/joués sont désormais produits
+// par le moteur Copilot IA (copilot-voicing.js) : vrai split main gauche /
+// main droite, validation de tessiture, fallback guide tones. La détection
+// côté élève (check()) reste inchangée : elle compare les notes jouées au
+// rootPc/symbol cible, indépendamment de l'octave et de la répartition.
 
 import { detectChord } from './chord-engine/index.js';
-import { formatPc } from './chord-engine/naming.js';
+import { formatPc, noteName } from './chord-engine/naming.js';
 import { miniKeyboardForNotes } from './ui/mini-keyboard.js';
-import { deriveChordDisplay } from './chord-engine/chord-display.js';
 import movementsLibrary from './data/movements-library.json' with { type: 'json' };
+import {
+  generateCopilotVoicing,
+  voicingToNoteSequence,
+} from './pedagogie/copilot-voicing.js';
 
 const PRACTICE_SYMBOLS = ['', 'm', 'm7', '7', 'maj7', 'm9', '9', 'maj9', '7sus4', 'dim7'];
 
@@ -34,6 +42,18 @@ const MOVEMENT_QUALITY_ALIASES = {
   'maj7#11': 'maj7#11',
 };
 
+export const TECHNIQUES = ['auto', 'close', 'drop2', 'rootless', 'quartal'];
+
+export const TECHNIQUE_LABELS = {
+  auto: 'Auto',
+  close: 'Close position',
+  drop2: 'Drop 2',
+  rootless: 'Rootless',
+  quartal: 'Quartal',
+};
+
+const MAX_TARGET_ATTEMPTS = 10;
+
 function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
@@ -42,33 +62,60 @@ function pick(array) {
   return array[randomInt(0, array.length - 1)];
 }
 
-function chordNotesFromSymbol(symbol, centerOctave = 4) {
-  if (!symbol || symbol === 'N') return [];
-  const display = deriveChordDisplay(symbol);
-  const base = centerOctave * 12;
-  return display.allPcs.map((pc) => base + pc);
+function formatNoteNameWithOctave(midi) {
+  const pcName = noteName(midi);
+  const octave = Math.floor(midi / 12) - 1;
+  return `${pcName}${octave}`;
 }
 
-function chordNotes(rootPc, symbol) {
-  // Intervalles simplifiés pour l'entraînement (modes Accord / Progression)
-  const intervalMap = {
-    '': [0, 4, 7],
-    m: [0, 3, 7],
-    m7: [0, 3, 7, 10],
-    7: [0, 4, 7, 10],
-    maj7: [0, 4, 7, 11],
-    m9: [0, 3, 7, 10, 14],
-    9: [0, 4, 7, 10, 14],
-    maj9: [0, 4, 7, 11, 14],
-    '7sus4': [0, 5, 7, 10],
-    dim7: [0, 3, 6, 9],
-    madd9: [0, 3, 7, 14],
-    add9: [0, 4, 7, 14],
-    '6': [0, 4, 7, 9],
+/**
+ * Génère un voicing jouable pour un symbole complet, en essayant d'abord la
+ * technique demandée puis les autres en cascade si le moteur retourne
+ * isPlayable: false (cas rare, après fallback guide tones).
+ *
+ * @param {string} chordSymbol - ex. "G#m7", "C#7"
+ * @param {string} technique - 'auto' | 'close' | 'drop2' | 'rootless' | 'quartal'
+ * @returns {{voicing: object, technique: string}}
+ */
+function buildPlayableVoicing(chordSymbol, technique) {
+  const order = [technique, ...TECHNIQUES.filter((t) => t !== technique)];
+  for (const t of order) {
+    const options = { styleId: 'auto', context: 'accompaniment' };
+    if (t !== 'auto') options.technique = t;
+    const voicing = generateCopilotVoicing(chordSymbol, options);
+    if (voicing.isPlayable) {
+      return { voicing, technique: t };
+    }
+  }
+  return { voicing: null, technique };
+}
+
+/**
+ * Construit la cible complète d'un accord : nom, rootPc, symbol (qualité),
+ * notes fusionnées LH+RH pour la détection/affichage, et le voicing complet.
+ *
+ * @param {number} rootPc
+ * @param {string} symbol - qualité seule, ex. 'm7'
+ * @param {string} technique
+ * @returns {object|null}
+ */
+function buildChordTarget(rootPc, symbol, technique) {
+  const rootName = formatPc(rootPc, false);
+  const chordSymbol = symbol ? `${rootName}${symbol}` : rootName;
+  const { voicing, technique: usedTechnique } = buildPlayableVoicing(chordSymbol, technique);
+  if (!voicing) return null;
+  const notes = [...voicing.leftHand, ...voicing.rightHand];
+  return {
+    type: 'chord',
+    rootPc,
+    symbol,
+    name: chordSymbol,
+    notes,
+    voicing: {
+      ...voicing,
+      technique: usedTechnique,
+    },
   };
-  const intervals = intervalMap[symbol] || intervalMap[''];
-  const base = (4 + 1) * 12 + rootPc; // octave 4
-  return intervals.map((i) => base + i);
 }
 
 function parseMovementToken(token) {
@@ -87,20 +134,18 @@ function parseMovementToken(token) {
   return { degree, offset, quality };
 }
 
-function buildMovementChords(movement, keyPc) {
+function buildMovementChords(movement, keyPc, technique) {
   const tokens = movement.pattern.split('-');
   return tokens.map((token) => {
     const parsed = parseMovementToken(token);
     if (!parsed) return null;
     const rootPc = (keyPc + parsed.offset) % 12;
-    const rootName = formatPc(rootPc, false);
-    const symbol = parsed.quality ? `${rootName}${parsed.quality}` : rootName;
+    const target = buildChordTarget(rootPc, parsed.quality, technique);
+    if (!target) return null;
     return {
-      rootPc,
-      symbol: parsed.quality || 'maj',
-      name: symbol,
-      notes: chordNotesFromSymbol(symbol),
+      ...target,
       token,
+      degree: parsed.degree,
     };
   }).filter(Boolean);
 }
@@ -114,62 +159,97 @@ export function createPracticeExercise() {
     keyIndex: 0,
     score: 0,
     attempts: 0,
+    technique: 'auto',
   };
 
   function generateChordTarget() {
-    const rootPc = randomInt(0, 11);
-    const symbol = pick(PRACTICE_SYMBOLS);
-    return {
-      type: 'chord',
-      rootPc,
-      symbol,
-      notes: chordNotes(rootPc, symbol),
-      name: `${formatPc(rootPc, false)}${symbol}`,
-    };
+    for (let i = 0; i < MAX_TARGET_ATTEMPTS; i += 1) {
+      const rootPc = randomInt(0, 11);
+      const symbol = pick(PRACTICE_SYMBOLS);
+      const target = buildChordTarget(rootPc, symbol, state.technique);
+      if (target) return target;
+    }
+    // Repli ultime : Cmaj7 en close position est toujours jouable.
+    return buildChordTarget(0, 'maj7', 'close');
   }
 
   function generateProgressionTarget() {
-    const template = pick(PROGRESSION_TEMPLATES);
-    const keyPc = randomInt(0, 11);
-    const chords = template.degrees.map((deg, i) => {
-      const rootPc = (keyPc + deg) % 12;
-      const symbol = template.symbols[i];
-      return {
-        rootPc,
-        symbol,
-        notes: chordNotes(rootPc, symbol),
-        name: `${formatPc(rootPc, false)}${symbol}`,
-        degree: deg === 0 ? 'I' : deg === 2 ? 'II' : deg === 4 ? 'III' : deg === 5 ? 'IV' : deg === 7 ? 'V' : deg === 9 ? 'VI' : 'VII',
-      };
-    });
+    for (let i = 0; i < MAX_TARGET_ATTEMPTS; i += 1) {
+      const template = pick(PROGRESSION_TEMPLATES);
+      const keyPc = randomInt(0, 11);
+      const chords = template.degrees.map((deg, iDeg) => {
+        const rootPc = (keyPc + deg) % 12;
+        const symbol = template.symbols[iDeg];
+        const target = buildChordTarget(rootPc, symbol, state.technique);
+        if (!target) return null;
+        return {
+          ...target,
+          degree: deg === 0 ? 'I' : deg === 2 ? 'II' : deg === 4 ? 'III' : deg === 5 ? 'IV' : deg === 7 ? 'V' : deg === 9 ? 'VI' : 'VII',
+        };
+      });
+      if (chords.every(Boolean)) {
+        return {
+          type: 'progression',
+          name: template.name,
+          keyPc,
+          chords,
+        };
+      }
+    }
+    // Repli ultime : II-V-I majeur en Do.
     return {
       type: 'progression',
-      name: template.name,
-      keyPc,
-      chords,
+      name: 'II-V-I majeur',
+      keyPc: 0,
+      chords: ['m7', '7', 'maj7'].map((symbol, deg) => {
+        const rootPc = ([2, 7, 0][deg]);
+        const target = buildChordTarget(rootPc, symbol, state.technique);
+        return {
+          ...target,
+          degree: deg === 0 ? 'II' : deg === 1 ? 'V' : 'I',
+        };
+      }),
     };
   }
 
   function generateMovementTarget() {
-    const movement = pick(movementsLibrary.movements);
+    for (let i = 0; i < MAX_TARGET_ATTEMPTS; i += 1) {
+      const movement = pick(movementsLibrary.movements);
+      const startKey = randomInt(0, 11);
+      const chords = buildMovementChords(movement, startKey, state.technique);
+      if (chords.length === movement.pattern.split('-').length) {
+        return {
+          type: 'movement',
+          name: movement.name,
+          description: movement.description,
+          category: movement.category,
+          pattern: movement.pattern,
+          movement,
+          startKey,
+          currentKey: startKey,
+          totalKeys: 12,
+          keyIndex: 0,
+          stepIndex: 0,
+          chords,
+        };
+      }
+    }
+    // Repli ultime : mouvement II-V-I.
+    const fallback = movementsLibrary.movements.find((m) => m.pattern === '2m7-5-1maj7') || movementsLibrary.movements[0];
     const startKey = randomInt(0, 11);
-    const chords = buildMovementChords(movement, startKey);
     return {
       type: 'movement',
-      name: movement.name,
-      description: movement.description,
-      category: movement.category,
-      pattern: movement.pattern,
-      movement,
+      name: fallback.name,
+      description: fallback.description,
+      category: fallback.category,
+      pattern: fallback.pattern,
+      movement: fallback,
       startKey,
       currentKey: startKey,
       totalKeys: 12,
       keyIndex: 0,
-      // Sans ce champ, advanceMovement() fait stepIndex++ sur undefined (NaN)
-      // et chords[NaN] renvoie undefined : la carte affichait "undefined"
-      // après la première bonne réponse en mode "Mouvement 12 tons".
       stepIndex: 0,
-      chords,
+      chords: buildMovementChords(fallback, startKey, state.technique),
     };
   }
 
@@ -185,6 +265,20 @@ export function createPracticeExercise() {
       keyProgress: `${movementState.keyIndex + 1} / ${movementState.totalKeys} tons`,
       stepProgress: `${movementState.stepIndex + 1} / ${movementState.chords.length} accords`,
     };
+  }
+
+  /**
+   * Régénère le voicing de la cible courante avec la technique stockée dans
+   * l'état, sans changer l'accord (rootPc/symbol). Appelé quand l'utilisateur
+   * change de technique ou après un setTechnique.
+   */
+  function regenerateCurrentTarget() {
+    if (!state.target) return;
+    const { rootPc, symbol } = state.target;
+    const refreshed = buildChordTarget(rootPc, symbol, state.technique);
+    if (!refreshed) return;
+    // Conserver les métadonnées de contexte mouvement/progression.
+    state.target = { ...state.target, ...refreshed };
   }
 
   function next() {
@@ -209,6 +303,27 @@ export function createPracticeExercise() {
     return next();
   }
 
+  function setTechnique(technique) {
+    if (!TECHNIQUES.includes(technique)) return;
+    state.technique = technique;
+    regenerateCurrentTarget();
+    // En mode progression/mouvement, il faut aussi recalculer les autres accords
+    // de la grille pour qu'ils partagent la même technique.
+    if (state.progression && state.progression.chords) {
+      const isMovement = state.mode === 'movement';
+      const chords = state.progression.chords.map((chord) => {
+        const refreshed = buildChordTarget(chord.rootPc, chord.symbol, technique);
+        if (!refreshed) return chord;
+        const { notes, voicing } = refreshed;
+        return { ...chord, notes, voicing };
+      });
+      state.progression.chords = chords;
+      state.target = isMovement
+        ? attachMovementContext(chords[state.progression.stepIndex || 0], state.progression)
+        : chords[state.stepIndex || 0];
+    }
+  }
+
   function advanceMovement() {
     if (state.mode !== 'movement' || !state.progression) return null;
     const prog = state.progression;
@@ -220,7 +335,7 @@ export function createPracticeExercise() {
       }
       prog.stepIndex = 0;
       prog.currentKey = (prog.startKey + prog.keyIndex) % 12;
-      prog.chords = buildMovementChords(prog.movement, prog.currentKey);
+      prog.chords = buildMovementChords(prog.movement, prog.currentKey, state.technique);
     }
     state.stepIndex = prog.stepIndex;
     state.keyIndex = prog.keyIndex;
@@ -339,24 +454,56 @@ export function createPracticeExercise() {
   return {
     next,
     setMode,
+    setTechnique,
     check,
     getState,
   };
 }
 
+/**
+ * Convertit un voicing d'exercice en séquence MIDI temporisée, prête à être
+ * passée au mécanisme de lecture audio (playVirtualNote / releaseVirtualNote).
+ *
+ * @param {object} voicing
+ * @returns {{midi: number, startOffsetMs: number, durationMs: number}[]}
+ */
+export function exerciseVoicingToSequence(voicing) {
+  return voicingToNoteSequence(voicing, { pattern: 'block', durationMs: 1200 });
+}
+
 export function renderExerciseTarget(target) {
   if (!target) return '';
-  const kb = miniKeyboardForNotes(target.notes || []);
-  // [Astra round 3] — L'en-tête de mouvement (catégorie, nom, description,
-  // tonalité, avancement) n'est plus rendu DANS la carte : ces données vivent
-  // désormais dans les zones dédiées .tr-exercise-brief et
-  // .tr-exercise-progress, remplies par updateExerciseProgressUI() dans
-  // main.js. Elles ne sont donc pas dupliquées.
+  const voicing = target.voicing || null;
+  const notes = target.notes || [];
+  const leftHand = voicing?.leftHand || [];
+  const rightHand = voicing?.rightHand || [];
+  const technique = voicing?.technique || 'auto';
+  const techniqueLabel = TECHNIQUE_LABELS[technique] || technique;
+
+  const kb = miniKeyboardForNotes(notes, { leftHand, rightHand });
+
+  const lhNames = leftHand.map((n) => formatNoteNameWithOctave(n)).join(' · ');
+  const rhNames = rightHand.map((n) => formatNoteNameWithOctave(n)).join(' · ');
+
   return `
     <div class="exercise-target-card ${target.movementName ? 'has-movement' : ''}">
       <div class="exercise-target-name">${escapeHtml(target.name)}</div>
+      <div class="exercise-target-technique">${escapeHtml(techniqueLabel)}</div>
       <div class="exercise-target-keyboard">${kb.svg}</div>
-      <div class="exercise-target-notes">${escapeHtml(kb.noteNames.join(' — '))}</div>
+      <div class="exercise-target-hands">
+        <div class="exercise-hand exercise-hand-lh">
+          <span class="exercise-hand-label">Main gauche</span>
+          <span class="exercise-hand-notes">${escapeHtml(lhNames || '—')}</span>
+        </div>
+        <div class="exercise-hand exercise-hand-rh">
+          <span class="exercise-hand-label">Main droite</span>
+          <span class="exercise-hand-notes">${escapeHtml(rhNames || '—')}</span>
+        </div>
+      </div>
+      <button class="exercise-listen-btn" type="button" data-action="listen-exercise" aria-label="Écouter le voicing">
+        <svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+        Écouter
+      </button>
     </div>
   `;
 }

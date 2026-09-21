@@ -56,6 +56,7 @@ import {
   getMonthlyUsage,
 } from './ui/masterclass-panel.js';
 import { createPracticeExercise, renderExerciseTarget } from './practice-exercise.js';
+import { voicingToNoteSequence } from './pedagogie/copilot-voicing.js';
 import { applyTabVisibility } from './ui/tab-visibility.js';
 import { initAstraShell } from './ui/refonte/astra-shell.js';
 import { initOnboarding, notifyOnboarding } from './ui/onboarding.js';
@@ -158,6 +159,7 @@ const els = {
   practiceMidiStatusDot: document.getElementById('practice-midi-status-dot'),
   practiceMidiStatusText: document.getElementById('practice-midi-status-text'),
   practiceRecordBtn: document.getElementById('practice-record-btn'),
+  exerciseTechniqueSelect: document.getElementById('exercise-technique-select'),
   practiceViewMidiSessions: document.getElementById('practice-view-midi-sessions'),
   practiceViewCoach: document.getElementById('practice-view-coach'),
   practiceViewPedagogie: document.getElementById('practice-view-pedagogie'),
@@ -1177,6 +1179,39 @@ function renderExerciseProgressPanel(exState) {
   quiet.style.display = '';
 }
 
+// [Phase 1 voicing] — Timers de la démo audio de l'exercice, annulés avant
+// chaque nouvelle lecture pour éviter les notes superposées.
+let exerciseDemoTimers = new Set();
+
+function cancelExerciseDemo() {
+  for (const timer of exerciseDemoTimers) {
+    clearTimeout(timer);
+  }
+  exerciseDemoTimers.clear();
+}
+
+function playExerciseVoicing(voicing) {
+  if (!voicing || !voicing.isPlayable) return;
+  cancelExerciseDemo();
+  const sequence = voicingToNoteSequence(voicing, { pattern: 'block', durationMs: 1200 });
+  for (const note of sequence) {
+    try {
+      const startTimer = setTimeout(() => {
+        exerciseDemoTimers.delete(startTimer);
+        playVirtualNote(note.midi, note.velocity || 0.8);
+        const releaseTimer = setTimeout(() => {
+          exerciseDemoTimers.delete(releaseTimer);
+          releaseVirtualNote(note.midi);
+        }, note.durationMs);
+        exerciseDemoTimers.add(releaseTimer);
+      }, note.startOffsetMs);
+      exerciseDemoTimers.add(startTimer);
+    } catch (err) {
+      console.warn('[PracticeExercise] Échec du jeu de la note', note.midi, err);
+    }
+  }
+}
+
 function initPracticeExercise() {
   const panel = document.getElementById('practice-exercise-panel');
   if (!panel) return;
@@ -1185,6 +1220,7 @@ function initPracticeExercise() {
   const newBtn = document.getElementById('new-exercise-btn');
   const targetDiv = document.getElementById('exercise-target');
   const feedbackDiv = document.getElementById('exercise-feedback');
+  const techniqueSelect = els.exerciseTechniqueSelect;
 
   practiceExercise = createPracticeExercise();
 
@@ -1223,6 +1259,22 @@ function initPracticeExercise() {
     practiceExercise.next();
     feedbackDiv.textContent = '';
     render();
+  });
+
+  techniqueSelect?.addEventListener('change', () => {
+    const value = techniqueSelect.value;
+    practiceExercise.setTechnique(value);
+    render();
+  });
+
+  // Délégation d'événement pour le bouton "Écouter" recréé à chaque render.
+  targetDiv?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action="listen-exercise"]');
+    if (!btn) return;
+    const exState = practiceExercise.getState();
+    if (exState.target?.voicing) {
+      playExerciseVoicing(exState.target.voicing);
+    }
   });
 
   // Premier exercice au démarrage

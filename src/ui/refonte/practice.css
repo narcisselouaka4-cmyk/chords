@@ -388,6 +388,147 @@
   text-align: center;
 }
 
+/* [Phase 1 voicing] — Nouvelle pancarte : LH/RH, technique, écoute. */
+:root[data-skin='global'] #practice-tab .exercise-target-card,
+:root[data-skin='v2'] #practice-tab .exercise-target-card {
+  width: 100%;
+  max-width: 520px;
+  padding: var(--r-space-5, 28px);
+  gap: var(--r-space-4, 20px);
+}
+:root[data-skin='global'] #practice-tab .exercise-target-keyboard svg,
+:root[data-skin='v2'] #practice-tab .exercise-target-keyboard svg {
+  max-height: 150px;
+}
+:root[data-skin='global'] #practice-tab .exercise-target-technique,
+:root[data-skin='v2'] #practice-tab .exercise-target-technique {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--r-accent);
+  background: var(--r-accent-soft);
+  padding: 4px 10px;
+  border-radius: var(--r-radius-pill);
+}
+:root[data-skin='global'] #practice-tab .exercise-target-hands,
+:root[data-skin='v2'] #practice-tab .exercise-target-hands {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--r-space-3, 14px);
+  width: 100%;
+}
+:root[data-skin='global'] #practice-tab .exercise-hand,
+:root[data-skin='v2'] #practice-tab .exercise-hand {
+  display: flex;
+  flex-direction: column;
+  gap: var(--r-space-1, 6px);
+  padding: var(--r-space-3, 14px);
+  background: var(--r-surface-elevated);
+  border: 1px solid var(--r-border-soft);
+  border-radius: var(--r-radius-btn);
+  text-align: center;
+}
+:root[data-skin='global'] #practice-tab .exercise-hand-lh,
+:root[data-skin='v2'] #practice-tab .exercise-hand-lh {
+  border-left: 3px solid var(--mini-key-lh, #3b82f6);
+}
+:root[data-skin='global'] #practice-tab .exercise-hand-rh,
+:root[data-skin='v2'] #practice-tab .exercise-hand-rh {
+  border-left: 3px solid var(--mini-key-rh, #ef4444);
+}
+:root[data-skin='global'] #practice-tab .exercise-hand-label,
+:root[data-skin='v2'] #practice-tab .exercise-hand-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--r-text-faint);
+}
+:root[data-skin='global'] #practice-tab .exercise-hand-notes,
+:root[data-skin='v2'] #practice-tab .exercise-hand-notes {
+  font-family: var(--r-font-mono);
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--r-text);
+  line-height: 1.4;
+}
+:root[data-skin='global'] #practice-tab .exercise-listen-btn,
+:root[data-skin='v2'] #practice-tab .exercise-listen-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border: none;
+  border-radius: var(--r-radius-btn);
+  background: var(--r-accent);
+  color: var(--r-accent-contrast, #ffffff);
+  font-family: var(--r-font-title);
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.05s;
+}
+:root[data-skin='global'] #practice-tab .exercise-listen-btn:hover:not(:disabled),
+:root[data-skin='v2'] #practice-tab .exercise-listen-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+:root[data-skin='global'] #practice-tab .exercise-listen-btn:active:not(:disabled),
+:root[data-skin='v2'] #practice-tab .exercise-listen-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+:root[data-skin='v2'] #practice-tab .exercise-listen-btn {
+  background: var(--r-grad);
+}
+
+/* Touches du mini-clavier : deux couleurs selon la main. */
+:root[data-skin='global'] #practice-tab,
+:root[data-skin='v2'] #practice-tab {
+  --mini-key-lh: #3b82f6;
+  --mini-key-rh: #ef4444;
+}
+:root[data-skin='global'] #practice-tab .mini-keyboard rect.is-lh,
+:root[data-skin='v2'] #practice-tab .mini-keyboard rect.is-lh {
+  fill: var(--mini-key-lh);
+  stroke: #1d4ed8;
+}
+:root[data-skin='global'] #practice-tab .mini-keyboard rect.is-rh,
+:root[data-skin='v2'] #practice-tab .mini-keyboard rect.is-rh {
+  fill: var(--mini-key-rh);
+  stroke: #991b1b;
+}
+
+/* ── Sélecteur de technique ── */
+:root[data-skin='global'] #practice-tab .exercise-technique-selector,
+:root[data-skin='v2'] #practice-tab .exercise-technique-selector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--r-space-2, 10px);
+  width: 100%;
+}
+:root[data-skin='global'] #practice-tab .exercise-technique-selector label,
+:root[data-skin='v2'] #practice-tab .exercise-technique-selector label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--r-text-muted);
+}
+:root[data-skin='global'] #practice-tab .exercise-technique-selector select,
+:root[data-skin='v2'] #practice-tab .exercise-technique-selector select {
+  padding: 6px 10px;
+  border-radius: var(--r-radius-btn);
+  border: 1px solid var(--r-border-strong);
+  background: var(--r-surface);
+  color: var(--r-text);
+  font-family: var(--r-font-title);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 /* ── En-tête mouvement 12 tons ── */
 :root[data-skin='global'] #practice-tab .exercise-movement-header,
 :root[data-skin='v2'] #practice-tab .exercise-movement-header {
