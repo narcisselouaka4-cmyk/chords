@@ -186,6 +186,7 @@
             </div>
             <div class="tr-heading-actions">
               <button class="tr-button" type="button" data-astra-open="exercise-help-dialog"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>Comment jouer</button>
+              <button class="tr-button panel-action" type="button" id="prev-exercise-btn" style="display: none;" title="Revenir à l'accord précédent pour réexaminer son voicing"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Accord précédent</button>
               <button class="tr-button tr-primary panel-action" type="button" id="new-exercise-btn"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>Nouvel exercice</button>
             </div>
           </div>
@@ -224,6 +225,14 @@
                   <option value="close">Close position</option>
                   <option value="drop2">Drop 2</option>
                   <option value="quartal">Quartal</option>
+                </select>
+              </div>
+              <!-- Choix explicite de la progression / du mouvement : masqué en
+                   mode « accord cible », rempli par main.js selon le mode. -->
+              <div class="exercise-technique-selector" id="exercise-content-selector" style="display: none;">
+                <label for="exercise-content-select">Contenu</label>
+                <select id="exercise-content-select" aria-label="Progression ou mouvement travaillé">
+                  <option value="">Aléatoire</option>
                 </select>
               </div>
             </div>

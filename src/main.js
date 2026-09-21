@@ -55,7 +55,14 @@ import {
   setMonthlyCap,
   getMonthlyUsage,
 } from './ui/masterclass-panel.js';
-import { createPracticeExercise, renderExerciseTarget } from './practice-exercise.js';
+import {
+  createPracticeExercise,
+  renderExerciseTarget,
+  unavailableTechniquesFor,
+  listProgressionNames,
+  listMovementNames,
+  TECHNIQUE_LABELS,
+} from './practice-exercise.js';
 import { voicingToNoteSequence } from './pedagogie/copilot-voicing.js';
 import { applyTabVisibility } from './ui/tab-visibility.js';
 import { initAstraShell } from './ui/refonte/astra-shell.js';
@@ -93,6 +100,7 @@ const state = {
 let chordHistory = null;
 let noteGrouper = null;
 let practiceExercise = null;
+let renderPracticeExercise = null;
 
 // [Claude] — 2026-07-08 — Détection d'accord différée pour ne pas bloquer le thread
 // principal quand le clavier MIDI envoie beaucoup d'événements. Cela permet au
@@ -1224,14 +1232,79 @@ function initPracticeExercise() {
 
   practiceExercise = createPracticeExercise();
 
+  const prevBtn = document.getElementById('prev-exercise-btn');
+  const contentSelector = document.getElementById('exercise-content-selector');
+  const contentSelect = document.getElementById('exercise-content-select');
+
+  const escapeAttr = (str) => String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+  /**
+   * Grise les techniques inapplicables à l'accord courant (Drop 2 sur une
+   * triade, Quartal quand l'empilement de quartes sortirait de l'accord),
+   * recalculé à chaque nouvelle cible.
+   */
+  function refreshTechniqueAvailability(exState) {
+    if (!techniqueSelect || !exState.target?.name) return;
+    const unavailable = new Set(unavailableTechniquesFor(exState.target.name));
+    for (const option of techniqueSelect.options) {
+      const blocked = unavailable.has(option.value);
+      option.disabled = blocked;
+      const label = TECHNIQUE_LABELS[option.value] || option.value;
+      option.textContent = blocked ? `${label} — indisponible sur cet accord` : label;
+      option.title = blocked
+        ? `${label} ne s'applique pas à ${exState.target.name} (accord de 4 sons requis, ou empilement sortant de l'accord).`
+        : '';
+    }
+    // Si la technique demandée est indisponible, le moteur est retombé sur une
+    // autre : refléter la technique RÉELLEMENT utilisée plutôt que de laisser
+    // le menu afficher un choix qui n'a pas été appliqué.
+    const used = exState.target?.voicing?.technique;
+    if (used && [...techniqueSelect.options].some((o) => o.value === used)) {
+      techniqueSelect.value = unavailable.has(exState.technique) ? used : exState.technique;
+    }
+  }
+
+  /** Remplit le sélecteur de contenu selon le mode (progression / mouvement). */
+  function refreshContentSelector(exState) {
+    if (!contentSelector || !contentSelect) return;
+    if (exState.mode === 'chord') {
+      contentSelector.style.display = 'none';
+      return;
+    }
+    contentSelector.style.display = '';
+    const names = exState.mode === 'movement' ? listMovementNames() : listProgressionNames();
+    const chosen = exState.mode === 'movement' ? exState.movementChoice : exState.progressionChoice;
+    const signature = `${exState.mode}:${names.join('|')}`;
+    if (contentSelect.dataset.signature !== signature) {
+      contentSelect.innerHTML = '<option value="">Aléatoire</option>'
+        + names.map((n) => `<option value="${escapeAttr(n)}">${escapeAttr(n)}</option>`).join('');
+      contentSelect.dataset.signature = signature;
+    }
+    contentSelect.value = chosen || '';
+  }
+
   function render() {
     const exState = practiceExercise.getState();
     targetDiv.style.display = exState.target ? 'flex' : 'none';
     if (exState.target) {
       targetDiv.innerHTML = renderExerciseTarget(exState.target);
     }
+    refreshTechniqueAvailability(exState);
+    refreshContentSelector(exState);
+    if (prevBtn) {
+      prevBtn.style.display = practiceExercise.canGoPrevious() ? '' : 'none';
+    }
     updateExerciseProgressUI(exState);
   }
+
+  // Exposé au module pour que checkPracticeExercise() rafraîchisse aussi la
+  // disponibilité des techniques et le bouton « Accord précédent » après une
+  // réponse, et pas seulement la carte et le panneau de progression.
+  renderPracticeExercise = render;
 
   modeButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -1267,6 +1340,20 @@ function initPracticeExercise() {
     render();
   });
 
+  // Navigation arrière : réexaminer l'accord précédent (et éventuellement en
+  // changer la technique) sans consommer de tentative ni toucher au score.
+  prevBtn?.addEventListener('click', () => {
+    if (!practiceExercise.previous()) return;
+    feedbackDiv.textContent = '';
+    render();
+  });
+
+  contentSelect?.addEventListener('change', () => {
+    practiceExercise.setContentChoice(contentSelect.value || null);
+    feedbackDiv.textContent = '';
+    render();
+  });
+
   // Délégation d'événement pour le bouton "Écouter" recréé à chaque render.
   targetDiv?.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-action="listen-exercise"]');
@@ -1290,14 +1377,19 @@ function checkPracticeExercise(notes) {
     feedbackDiv.textContent = result.message;
     feedbackDiv.className = `exercise-feedback ${result.success ? 'success' : 'error'}`;
   }
-  const exState = practiceExercise.getState();
-  if (result.success) {
-    const targetDiv = document.getElementById('exercise-target');
-    targetDiv.innerHTML = renderExerciseTarget(exState.target);
-  }
   // [Astra round 3] — mise à jour aussi en cas d'échec : le compteur d'essais
   // du panneau de droite reflète alors la tentative qui vient d'avoir lieu.
-  updateExerciseProgressUI(exState);
+  // On repasse par le render complet pour que la disponibilité des techniques
+  // et le bouton « Accord précédent » suivent la nouvelle cible.
+  if (renderPracticeExercise) {
+    renderPracticeExercise();
+  } else {
+    const exState = practiceExercise.getState();
+    if (result.success) {
+      document.getElementById('exercise-target').innerHTML = renderExerciseTarget(exState.target);
+    }
+    updateExerciseProgressUI(exState);
+  }
 }
 
 // [Claude] — 2026-07-04 — Initialisation du panneau de configuration API IA

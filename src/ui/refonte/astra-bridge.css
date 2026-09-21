@@ -164,7 +164,7 @@
 }
 #practice-view-exercices .exercise-target-keyboard svg {
   width: 100%;
-  max-width: 320px;
+  max-width: 100%;
   height: auto;
 }
 #practice-view-exercices .exercise-target-notes {
@@ -1191,13 +1191,20 @@
   font-size: clamp(40px, 4.2vw, 64px); font-weight: 450; font-family: inherit;
   line-height: 1.1; letter-spacing: -.06em; color: var(--tr-text);
 }
+/* La fenêtre du clavier s'adapte désormais à l'étendue réelle du voicing : un
+   voicing large ajoute des touches, et les plafonds hérités (180px via
+   style.css, 290px ici) les rendaient illisibles. On prend toute la largeur
+   de la carte, `max-width` inclus pour neutraliser le plafond de style.css. */
 :root[data-skin='global'] #practice-view-exercices .exercise-target-keyboard,
 :root[data-skin='v2'] #practice-view-exercices .exercise-target-keyboard {
-  width: min(84%, 290px); margin: 10px 0 4px;
+  width: 100%; max-width: 430px; margin: 10px auto 4px;
 }
 :root[data-skin='global'] #practice-view-exercices .exercise-target-keyboard svg,
 :root[data-skin='v2'] #practice-view-exercices .exercise-target-keyboard svg {
-  width: 100%; max-width: 100%; height: auto; max-height: none; display: block;
+  /* Hauteur proportionnelle à la fenêtre : assez grande pour rester lisible
+     sur un écran normal, sans jamais repousser le bouton « Écouter » hors de
+     l'écran sur une fenêtre courte (correctif de visibilité de la Phase 1). */
+  width: 100%; max-width: 100%; height: auto; max-height: clamp(84px, 13vh, 165px); display: block;
 }
 :root[data-skin='global'] #practice-view-exercices .exercise-target-notes,
 :root[data-skin='v2'] #practice-view-exercices .exercise-target-notes {

@@ -53,6 +53,37 @@ export const TECHNIQUE_LABELS = {
 
 const MAX_TARGET_ATTEMPTS = 10;
 
+/**
+ * Techniques inapplicables à un accord donné, déterminées en interrogeant
+ * réellement le moteur plutôt qu'en codant en dur une liste de symboles :
+ * Drop 2 refuse les triades (4 sons minimum), Quartal refuse les accords dont
+ * l'empilement de quartes sortirait de l'accord.
+ *
+ * Sert à griser les options du sélecteur pour la cible courante.
+ *
+ * @param {string} chordSymbol - ex. "C#m", "Cm9"
+ * @returns {string[]} techniques à désactiver
+ */
+export function unavailableTechniquesFor(chordSymbol) {
+  const out = [];
+  for (const technique of TECHNIQUES) {
+    if (technique === 'auto') continue;
+    const voicing = generateCopilotVoicing(chordSymbol, { technique, context: 'accompaniment' });
+    if (!voicing.isPlayable) out.push(technique);
+  }
+  return out;
+}
+
+/** Noms des progressions proposables dans le sélecteur du mode progression. */
+export function listProgressionNames() {
+  return PROGRESSION_TEMPLATES.map((t) => t.name);
+}
+
+/** Noms des mouvements proposables dans le sélecteur du mode mouvement. */
+export function listMovementNames() {
+  return movementsLibrary.movements.map((m) => m.name);
+}
+
 function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
@@ -159,6 +190,10 @@ export function createPracticeExercise() {
     score: 0,
     attempts: 0,
     technique: 'auto',
+    // null = tirage aléatoire (comportement par défaut). Sinon, nom de la
+    // progression / du mouvement explicitement choisi par l'utilisateur.
+    progressionChoice: null,
+    movementChoice: null,
   };
 
   function generateChordTarget() {
@@ -173,8 +208,13 @@ export function createPracticeExercise() {
   }
 
   function generateProgressionTarget() {
+    // Progression explicitement choisie par l'utilisateur, sinon tirage au sort.
+    const chosen = state.progressionChoice
+      ? PROGRESSION_TEMPLATES.find((t) => t.name === state.progressionChoice)
+      : null;
     for (let i = 0; i < MAX_TARGET_ATTEMPTS; i += 1) {
-      const template = pick(PROGRESSION_TEMPLATES);
+      const template = chosen || pick(PROGRESSION_TEMPLATES);
+      // La tonalité de départ reste aléatoire même quand la progression est choisie.
       const keyPc = randomInt(0, 11);
       const chords = template.degrees.map((deg, iDeg) => {
         const rootPc = (keyPc + deg) % 12;
@@ -212,8 +252,12 @@ export function createPracticeExercise() {
   }
 
   function generateMovementTarget() {
+    // Mouvement explicitement choisi par l'utilisateur, sinon tirage au sort.
+    const chosen = state.movementChoice
+      ? movementsLibrary.movements.find((m) => m.name === state.movementChoice)
+      : null;
     for (let i = 0; i < MAX_TARGET_ATTEMPTS; i += 1) {
-      const movement = pick(movementsLibrary.movements);
+      const movement = chosen || pick(movementsLibrary.movements);
       const startKey = randomInt(0, 11);
       const chords = buildMovementChords(movement, startKey, state.technique);
       if (chords.length === movement.pattern.split('-').length) {
@@ -321,6 +365,61 @@ export function createPracticeExercise() {
         ? attachMovementContext(chords[state.progression.stepIndex || 0], state.progression)
         : chords[state.stepIndex || 0];
     }
+  }
+
+  /**
+   * Vrai si un accord précédent existe (modes progression et mouvement).
+   * Le tout premier accord du tout premier ton n'a pas de précédent.
+   */
+  function canGoPrevious() {
+    if (state.mode === 'chord' || !state.progression) return false;
+    if (state.mode === 'progression') return state.stepIndex > 0;
+    return state.progression.stepIndex > 0 || state.progression.keyIndex > 0;
+  }
+
+  /**
+   * Revient à l'accord précédent pour réexaminer son voicing (et par exemple
+   * changer de technique). Ne consomme aucune tentative et ne touche PAS au
+   * score : c'est une navigation, pas une réponse.
+   *
+   * @returns {{stepIndex: number, keyIndex: number}|null} null si déjà au début
+   */
+  function previous() {
+    if (!canGoPrevious()) return null;
+
+    if (state.mode === 'progression') {
+      state.stepIndex -= 1;
+      state.attempts = 0;
+      state.target = state.progression.chords[state.stepIndex];
+      return { stepIndex: state.stepIndex, keyIndex: state.keyIndex };
+    }
+
+    const prog = state.progression;
+    if (prog.stepIndex > 0) {
+      prog.stepIndex -= 1;
+    } else {
+      // Retour au dernier accord de la tonalité précédente.
+      prog.keyIndex -= 1;
+      prog.currentKey = (prog.startKey + prog.keyIndex + 12) % 12;
+      prog.chords = buildMovementChords(prog.movement, prog.currentKey, state.technique);
+      prog.stepIndex = Math.max(0, prog.chords.length - 1);
+    }
+    state.stepIndex = prog.stepIndex;
+    state.keyIndex = prog.keyIndex;
+    state.attempts = 0;
+    state.target = attachMovementContext(prog.chords[prog.stepIndex], prog);
+    return { stepIndex: prog.stepIndex, keyIndex: prog.keyIndex };
+  }
+
+  /**
+   * Fixe la progression (mode progression) ou le mouvement (mode mouvement)
+   * proposé. `null` rétablit le tirage aléatoire.
+   */
+  function setContentChoice(name) {
+    const value = name || null;
+    if (state.mode === 'movement') state.movementChoice = value;
+    else state.progressionChoice = value;
+    return next();
   }
 
   function advanceMovement() {
@@ -452,8 +551,11 @@ export function createPracticeExercise() {
 
   return {
     next,
+    previous,
+    canGoPrevious,
     setMode,
     setTechnique,
+    setContentChoice,
     check,
     getState,
   };

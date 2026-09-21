@@ -392,13 +392,20 @@
 :root[data-skin='global'] #practice-tab .exercise-target-card,
 :root[data-skin='v2'] #practice-tab .exercise-target-card {
   width: 100%;
-  max-width: 520px;
+  max-width: 640px;
   padding: var(--r-space-5, 28px);
   gap: var(--r-space-4, 20px);
 }
 :root[data-skin='global'] #practice-tab .exercise-target-keyboard svg,
 :root[data-skin='v2'] #practice-tab .exercise-target-keyboard svg {
-  max-height: 150px;
+  /* `width: 100%` est indispensable : sans largeur explicite, le SVG placé
+     dans un conteneur flex se réduisait à ~180px dans une carte de 470px, et
+     les touches tombaient à 13px de large. Depuis que la fenêtre du clavier
+     s'adapte à l'étendue réelle du voicing, un voicing large ajoute des
+     touches — il faut donc lui donner toute la largeur disponible pour
+     qu'elles restent lisibles. */
+  width: 100%;
+  max-height: 190px;
 }
 :root[data-skin='global'] #practice-tab .exercise-target-technique,
 :root[data-skin='v2'] #practice-tab .exercise-target-technique {
@@ -435,7 +442,7 @@
 }
 :root[data-skin='global'] #practice-tab .exercise-hand-rh,
 :root[data-skin='v2'] #practice-tab .exercise-hand-rh {
-  border-left: 3px solid var(--mini-key-rh, #ef4444);
+  border-left: 3px solid var(--mini-key-rh, #22c55e);
 }
 :root[data-skin='global'] #practice-tab .exercise-hand-label,
 :root[data-skin='v2'] #practice-tab .exercise-hand-label {
@@ -486,7 +493,10 @@
 :root[data-skin='global'] #practice-tab,
 :root[data-skin='v2'] #practice-tab {
   --mini-key-lh: #3b82f6;
-  --mini-key-rh: #ef4444;
+  /* Main droite en vert : le rouge se lisait comme une erreur à côté du
+     bandeau de retour ❌, alors qu'il ne marque qu'une main. Vert/bleu
+     restent nettement distincts sur fond clair comme sur fond sombre. */
+  --mini-key-rh: #22c55e;
 }
 :root[data-skin='global'] #practice-tab .mini-keyboard rect.is-lh,
 :root[data-skin='v2'] #practice-tab .mini-keyboard rect.is-lh {
@@ -496,7 +506,7 @@
 :root[data-skin='global'] #practice-tab .mini-keyboard rect.is-rh,
 :root[data-skin='v2'] #practice-tab .mini-keyboard rect.is-rh {
   fill: var(--mini-key-rh);
-  stroke: #991b1b;
+  stroke: #15803d;
 }
 
 /* ── Sélecteur de technique ── */

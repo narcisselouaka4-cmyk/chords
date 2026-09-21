@@ -1038,7 +1038,12 @@ async function testVoicingDescriptionDrop2CoherentNoRetry() {
         choices: [{
           message: {
             role: 'assistant',
-            content: 'Voici un Cmaj7 en drop 2, la fondamentale est à la main gauche.',
+            // Dans un VRAI drop 2, c'est la 2e voix depuis le haut (ici la
+            // quinte) qui descend à la main gauche : la fondamentale reste à
+            // la main droite. Une description affirmant « fondamentale à la
+            // main gauche » serait donc incohérente et déclencherait une
+            // relance — c'est bien ce que vérifie le test symétrique.
+            content: 'Voici un Cmaj7 en drop 2, la fondamentale est à la main droite.',
             tool_calls: [
               { function: { name: 'play_voicing', arguments: JSON.stringify({ chordSymbol: 'Cmaj7', technique: 'drop2' }) } },
             ],
@@ -1052,7 +1057,7 @@ async function testVoicingDescriptionDrop2CoherentNoRetry() {
   const res = await sendCopilotMessage({ message: 'Joue-moi un Cmaj7 drop 2', messages: [], context: {} });
 
   check('Drop2 + description cohérente → 1 seul appel API', callCount === 1, `callCount=${callCount}`);
-  check('Texte inchangé quand description cohérente', res.content === 'Voici un Cmaj7 en drop 2, la fondamentale est à la main gauche.');
+  check('Texte inchangé quand description cohérente', res.content === 'Voici un Cmaj7 en drop 2, la fondamentale est à la main droite.');
   check('toolResult expose le voicing drop2', res.toolResult.voicing?.isPlayable === true && res.toolResult.voicing.technique === 'drop2', `voicing=${JSON.stringify(res.toolResult.voicing)}`);
 
   global.fetch = originalFetch;

@@ -609,7 +609,7 @@
 .tr-exercise-mode .tr-segment-control > button { min-height: 27px; padding: 0 15px; }
 .tr-exercise-mode .tr-segment-control > button.is-active { color: var(--tr-accent); background: var(--tr-accent-soft); border-color: color-mix(in srgb, var(--tr-accent) 22%, var(--tr-border)); }
 .tr-local-detection { display: inline-flex; align-items: center; gap: 7px; color: var(--tr-muted); font: 8px var(--tr-mono); }
-.tr-exercise-stage { display: grid; grid-template-columns: .94fr 1.35fr .73fr; flex: 1; min-height: 440px; border: 1px solid var(--tr-border); border-radius: 10px; background: var(--tr-surface); box-shadow: var(--tr-shadow); transition: border-color .3s; overflow: hidden; }
+.tr-exercise-stage { display: grid; grid-template-columns: .82fr 1.7fr .68fr; flex: 1; min-height: 440px; border: 1px solid var(--tr-border); border-radius: 10px; background: var(--tr-surface); box-shadow: var(--tr-shadow); transition: border-color .3s; overflow: hidden; }
 .tr-exercise-stage.is-correct { border-color: color-mix(in srgb, var(--tr-green) 50%, var(--tr-border)); }
 .tr-exercise-brief { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; padding: 23px 27px; }
 .tr-exercise-label { display: flex; align-items: center; gap: 7px; color: var(--tr-accent); }
