@@ -6,6 +6,7 @@ import {
   unavailableTechniquesFor,
   listProgressionNames,
   listMovementNames,
+  TECHNIQUES,
 } from './practice-exercise.js';
 import { generateCopilotVoicing } from './pedagogie/copilot-voicing.js';
 import { parseChordSymbol } from './pedagogie/chord-parser-v2.js';
@@ -136,7 +137,6 @@ function checkDrop2Algorithm() {
   const cases = [
     { symbol: 'Cmaj7', stack: [60, 64, 67, 71] },
     { symbol: 'Cm7', stack: [60, 63, 67, 70] },
-    { symbol: 'C7#5#9', stack: [60, 64, 68, 70] },
   ];
   for (const { symbol, stack } of cases) {
     const v = generateCopilotVoicing(symbol, { technique: 'drop2', context: 'accompaniment' });
@@ -148,6 +148,23 @@ function checkDrop2Algorithm() {
       v.leftHand.length === 1 && v.leftHand[0] % 12 === expectedLhPc,
       `LH=${v.leftHand.join(',')} attendu pc=${expectedLhPc}`);
     check(`drop2 ${symbol} : les 3 autres voix à la main droite`,
+      JSON.stringify(actualRhPcs) === JSON.stringify(expectedRhPcs),
+      `RH pcs=${actualRhPcs.join(',')} attendu=${expectedRhPcs.join(',')}`);
+  }
+
+  // Accord à extension : l'empilement de référence inclut la 9e (Db) pour
+  // ne pas la perdre. La 2e voix depuis le haut est alors Ab (#5).
+  {
+    const symbol = 'C7#5#9';
+    const v = generateCopilotVoicing(symbol, { technique: 'drop2', context: 'accompaniment' });
+    const expectedLhPc = 8; // Ab
+    const actualRhPcs = v.rightHand.map((n) => n % 12).sort((a, b) => a - b);
+    const expectedRhPcs = [0, 3, 4, 10]; // C, D#(#9), E, Bb
+    check(`drop2 ${symbol} jouable`, v.isPlayable, v.diagnostics.join(' | '));
+    check(`drop2 ${symbol} : main gauche = 2e voix depuis le haut`,
+      v.leftHand.length === 1 && v.leftHand[0] % 12 === expectedLhPc,
+      `LH=${v.leftHand.join(',')} attendu pc=${expectedLhPc}`);
+    check(`drop2 ${symbol} : les autres voix à la main droite`,
       JSON.stringify(actualRhPcs) === JSON.stringify(expectedRhPcs),
       `RH pcs=${actualRhPcs.join(',')} attendu=${expectedRhPcs.join(',')}`);
   }
@@ -189,6 +206,10 @@ function checkTechniqueAvailability() {
 function checkPreviousNavigation() {
   const ex = createPracticeExercise();
   ex.setMode('progression');
+  // Technique close : fondamentale en bas, donc detectChord valide systématiquement
+  // l'accord et l'exercice peut avancer d'une étape.
+  ex.setTechnique('close');
+  ex.setContentChoice('II-V-I majeur'); // déterministe
   check('progression : pas de précédent au premier accord', ex.canGoPrevious() === false);
 
   const prog = ex.getState().progression;
@@ -203,7 +224,7 @@ function checkPreviousNavigation() {
     check('progression : previous() ne touche pas au score', back.score === scoreBefore);
     check('progression : previous() remet les tentatives à zéro', back.attempts === 0);
   } else {
-    check('progression : avancée préalable au test previous', false, "la validation du 1er accord n'a pas avancé");
+    check('progression : avancée préalable au test previous', false, `la validation du 1er accord n'a pas avancé — notes=${prog.chords[0].notes.join(',')}`);
   }
 
   const exChord = createPracticeExercise();
@@ -228,6 +249,59 @@ function checkContentChoice() {
   check('mouvement choisi respecté', exMv.getState().progression.name === movements[0], `obtenu=${exMv.getState().progression.name}`);
 }
 
+// ── Phase 3 : nouvelles familles de voicing ──
+
+function checkNewFamiliesInSelector() {
+  const expected = ['drop3', 'drop2_4', 'fourway_close', 'spread', 'open', 'block', 'so_what'];
+  for (const tech of expected) {
+    check(`${tech} listé dans TECHNIQUES`, TECHNIQUES.includes(tech));
+  }
+}
+
+function checkNewFamiliesPlayable() {
+  // On privilégie les accords que detectChord reconnaît exactement, pour
+  // éviter que le test ne rejette à tort une famille valide sur une ambiguïté
+  // du classificateur (ex. inversion ou extension non présente dans le
+  // dictionnaire de symboles).
+  const cases = [
+    { symbol: 'C9', techniques: ['drop2', 'drop3', 'drop2_4', 'fourway_close', 'spread', 'open', 'block', 'so_what'] },
+    { symbol: 'Cmaj7', techniques: ['drop2', 'drop2_4', 'fourway_close', 'spread', 'open', 'block'] },
+    { symbol: 'Cm7', techniques: ['drop2', 'drop2_4', 'fourway_close', 'spread', 'open', 'block'] },
+    { symbol: 'C7', techniques: ['drop2', 'drop3', 'drop2_4', 'fourway_close', 'spread', 'open', 'block'] },
+  ];
+  for (const { symbol, techniques } of cases) {
+    const parsed = parseChordSymbol(symbol);
+    const expectedSymbol = symbol.replace(/^[A-G][#b]?/, '');
+    for (const technique of techniques) {
+      const v = generateCopilotVoicing(symbol, { technique, context: 'accompaniment' });
+      check(`${technique} ${symbol} : voicing jouable`, v.isPlayable, v.diagnostics.join(' | '));
+      if (!v.isPlayable) continue;
+      const detected = detectChord([...v.leftHand, ...v.rightHand]);
+      const matches = detected && detected.rootPc === parsed.rootPc && detected.symbol === expectedSymbol;
+      check(`${technique} ${symbol} : detectChord retrouve l'accord`, matches,
+        `détecté=${detected ? formatPc(detected.rootPc, false) + detected.symbol : 'aucun'}`);
+      // Ces familles ne font que déplacer des octaves : pas de doublon de pitch
+      // class superflu dans une même main.
+      const rhPcs = v.rightHand.map((n) => n % 12);
+      check(`${technique} ${symbol} : main droite sans doublon de pitch class`, new Set(rhPcs).size === rhPcs.length, `RH=${v.rightHand.join(',')}`);
+    }
+  }
+}
+
+function checkFourWayCloseAcceptsEmptyLeftHand() {
+  const v = generateCopilotVoicing('Cmaj7', { technique: 'fourway_close', context: 'accompaniment' });
+  check('fourway_close : main gauche vide', v.leftHand.length === 0);
+  check('fourway_close : main droite non vide', v.rightHand.length >= 4);
+  check('fourway_close : jouable malgré LH vide', v.isPlayable, v.diagnostics.join(' | '));
+}
+
+function checkUnavailableTechniquesReflectDetection() {
+  // Drop 2 et So What sont grisés sur les accords où detectChord ne valide pas
+  // le résultat (triade pour drop2, accord sans 11e/#11 pour so_what).
+  check('drop2 grisé sur triade', unavailableTechniquesFor('C#m').includes('drop2'));
+  check('so_what grisé sur Cm7', unavailableTechniquesFor('Cm7').includes('so_what'));
+}
+
 function runTests() {
   checkChordTargetHasVoicing();
   checkSpecificChords();
@@ -241,6 +315,10 @@ function runTests() {
   checkTechniqueAvailability();
   checkPreviousNavigation();
   checkContentChoice();
+  checkNewFamiliesInSelector();
+  checkNewFamiliesPlayable();
+  checkFourWayCloseAcceptsEmptyLeftHand();
+  checkUnavailableTechniquesReflectDetection();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);
   process.exit(failed === 0 ? 0 : 1);

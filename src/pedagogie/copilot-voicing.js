@@ -46,9 +46,16 @@ const STYLE_TO_TECHNIQUE = {
 
 const LH_DEFAULT_ROLES = {
   close: ['bass', 'root'],
-  drop2: ['bass', 'fifth'],
+  drop2: ['fifth'],
   rootless: ['shell'],
-  quartal: ['bass', 'guide-tone'],
+  quartal: ['bass', 'third', 'seventh'],
+  drop3: ['third'],
+  drop2_4: ['bass', 'fifth'],
+  fourway_close: [],
+  spread: ['bass'],
+  open: ['bass', 'fifth'],
+  block: ['melody-doubling'],
+  so_what: ['bass', 'fourth', 'seventh'],
 };
 
 const RH_DEFAULT_ROLES = {
@@ -56,6 +63,30 @@ const RH_DEFAULT_ROLES = {
   drop2: ['third', 'seventh', 'ninth', 'fifth'],
   rootless: ['third', 'seventh', 'ninth', 'fifth'],
   quartal: ['quartal', 'tension'],
+  drop3: ['root', 'fifth', 'seventh'],
+  drop2_4: ['third', 'seventh'],
+  fourway_close: ['root', 'third', 'fifth', 'seventh'],
+  spread: ['third', 'seventh', 'tension'],
+  open: ['third', 'seventh', 'tension'],
+  block: ['root', 'third', 'fifth', 'melody'],
+  so_what: ['third', 'fifth'],
+};
+
+/**
+ * Familles dérivées mécaniquement de l'empilement fermé à 4 voix : elles ne
+ * font que déplacer des voix d'une octave, sans jamais ajouter ni retirer une
+ * classe de hauteur — la reconnaissance de l'accord est donc préservée.
+ */
+const DROP_FAMILIES = new Set(['drop2', 'drop3', 'drop2_4', 'fourway_close', 'spread', 'open', 'block']);
+
+const TECHNIQUE_DISPLAY_NAMES = {
+  drop2: 'Drop 2',
+  drop3: 'Drop 3',
+  drop2_4: 'Drop 2-4',
+  fourway_close: 'Four-Way Close',
+  spread: 'Spread',
+  open: 'Open',
+  block: 'Block',
 };
 
 /**
@@ -352,22 +383,146 @@ function placeMissingTone(pc, leftHand, rightHand) {
  * @returns {object|null} null si l'accord a moins de 4 tons distincts
  */
 function buildDropFamilyVoicing(parsed, family) {
-  const stack = buildClosePositionStack(parsed, null, 4);
+  // Spread et Open ne se déduisent pas de l'empilement à 4 voix : ils replient
+  // les tons de l'accord dans une seule octave et sacrifient la quinte juste
+  // dès qu'une extension occupe sa place (vérifié contre VoicingLab sur Cmaj9,
+  // dont les deux familles n'ont pas de Sol).
+  if (family === 'spread' || family === 'open') {
+    return buildSpreadFamilyVoicing(parsed, family);
+  }
+
+  // L'empilement de base reprend TOUS les tons de l'accord repliés dans une
+  // octave, pas seulement les 4 voix principales : se limiter à 1-3-5-7
+  // effacerait la 9e d'un Cmaj9, et le voicing ne serait plus reconnu comme
+  // tel (mesuré : Cmaj9 rendu « Cmaj7 »). Sur un accord de 4 sons, le
+  // résultat est identique à l'empilement classique — donc identique à
+  // VoicingLab, vérifié note à note sur Cmaj7.
+  const base = rootInReferenceOctave(parsed);
+  const stack = buildFoldedToneSet(parsed).map((t) => base + t.fold);
   if (stack.length < 4) return null;
-  const [v0, v1, v2, v3] = stack; // v3 = voix la plus aiguë
+
+  const top = stack.length - 1;
+  const nthFromTop = (n) => stack[top - n];      // 0 = voix la plus aiguë
+  const others = (dropped) => stack.filter((n) => !dropped.includes(n));
 
   let leftHand;
   let rightHand;
   switch (family) {
-    case 'drop2':
-      // 2e voix depuis le haut (v2) descendue d'une octave.
-      leftHand = [v2 - 12];
-      rightHand = [v0, v1, v3];
+    case 'drop2': {
+      // 2e voix depuis le haut descendue d'une octave.
+      const v = nthFromTop(1);
+      leftHand = [v - 12];
+      rightHand = others([v]);
+      break;
+    }
+    case 'drop3': {
+      // 3e voix depuis le haut descendue d'une octave.
+      const v = nthFromTop(2);
+      leftHand = [v - 12];
+      rightHand = others([v]);
+      break;
+    }
+    case 'drop2_4': {
+      // 2e voix depuis le haut ET voix la plus grave descendues d'une octave.
+      const v = nthFromTop(1);
+      const lowest = stack[0];
+      leftHand = [lowest - 12, v - 12];
+      rightHand = others([v, lowest]);
+      break;
+    }
+    case 'fourway_close':
+      // L'empilement fermé entier tenu par la seule main droite.
+      leftHand = [];
+      rightHand = [...stack];
+      break;
+    case 'block':
+      // Four-way close, dont la voix la plus aiguë est doublée une octave plus
+      // bas à la main gauche (technique « locked hands »).
+      leftHand = [stack[top] - 12];
+      rightHand = [...stack];
       break;
     default:
       return null;
   }
+  if (rightHand.length === 0) return null;
   return finalizeVoicing(parsed, leftHand, rightHand, family);
+}
+
+/**
+ * Tons de l'accord repliés dans une octave et triés du plus grave au plus
+ * aigu, base des familles Spread et Open.
+ *
+ * Écart assumé avec VoicingLab : sur un accord à extension, VoicingLab
+ * sacrifie la quinte juste (Cmaj9 spread = Do3 / Ré4-Mi4-Si4, sans Sol).
+ * Nous la conservons, car sans elle l'accord cesse d'être reconnaissable —
+ * mesuré : Do-Ré-Mi-Si est rendu « Mi5 » et non « Cmaj9 ». Ces familles ne
+ * doivent rien changer d'autre que la répartition en octaves.
+ */
+function buildFoldedToneSet(parsed) {
+  return chordToneList(parsed)
+    .map((t) => ({ ...t, fold: (((t.semitones % 12) + 12) % 12) }))
+    .sort((a, b) => a.fold - b.fold);
+}
+
+/**
+ * Spread : la fondamentale descend seule à la main gauche, les autres voix
+ * restent groupées à la main droite.
+ *
+ * Open : la main gauche prend la fondamentale ET la quinte, la main droite
+ * garde le reste.
+ *
+ * Écart assumé avec VoicingLab sur Open : sur un accord à quinte altérée,
+ * VoicingLab ajoute une quinte JUSTE à la main gauche en plus de la quinte
+ * altérée (vérifié sur C7#5#9 → Sol3 à côté du Lab, et sur Cm7b5 → Sol3 à
+ * côté du Fa#). Cela introduit une classe de hauteur étrangère à l'accord et
+ * casserait la reconnaissance, que ces familles doivent justement préserver.
+ * On utilise donc la quinte PROPRE de l'accord : résultat identique à
+ * VoicingLab sur les accords à quinte juste, fidèle sur les autres.
+ */
+function buildSpreadFamilyVoicing(parsed, family) {
+  const base = rootInReferenceOctave(parsed);
+  const folded = buildFoldedToneSet(parsed);
+  if (folded.length < 3) return null;
+
+  const rootTone = folded.find((t) => t.fold === 0);
+  if (!rootTone) return null;
+
+  if (family === 'spread') {
+    const rest = folded.filter((t) => t.fold !== 0).map((t) => base + t.fold);
+    return finalizeVoicing(parsed, [base - 12], rest, family);
+  }
+
+  // open : fondamentale + quinte (propre à l'accord) à la main gauche.
+  const fifth = chordToneList(parsed).find((t) => {
+    const semi = (((t.semitones % 12) + 12) % 12);
+    return semi === 7 || semi === 6 || semi === 8;
+  });
+  if (!fifth) return null;
+  const fifthFold = (((fifth.semitones % 12) + 12) % 12);
+  const leftHand = [base - 12, base - 12 + fifthFold];
+  const rightHand = folded
+    .filter((t) => t.fold !== 0 && t.fold !== fifthFold)
+    .map((t) => base + t.fold);
+  if (rightHand.length === 0) return null;
+  return finalizeVoicing(parsed, leftHand, rightHand, family);
+}
+
+/**
+ * So What : l'empilement de quartes emblématique de Kind of Blue — trois
+ * quartes justes surmontées d'une tierce majeure.
+ *
+ * Construit depuis la fondamentale (fondamentale, 4te, 7e, 3ce, 5te), forme
+ * réelle de ce voicing, vérifiée contre VoicingLab (Cm7 → Do3-Fa3-Sib3 /
+ * Mib4-Sol4). Il contient donc une 11e : comme pour Quartal, on ne le propose
+ * que si toutes ses notes appartiennent à l'accord — ce qui le réserve
+ * naturellement aux accords de 11e, son terrain modal d'origine.
+ */
+function buildSoWhatVoicing(parsed) {
+  const base = rootInReferenceOctave(parsed) - 12;
+  const notes = [base, base + 5, base + 10, base + 15, base + 19];
+  const chordPcs = new Set(chordToneList(parsed).map((t) => t.pc));
+  if (notes.some((n) => !chordPcs.has((((n % 12) + 12) % 12)))) return null;
+  return finalizeVoicing(parsed, notes.slice(0, 3), notes.slice(3), 'so_what');
 }
 
 function splitHands(parsed, candidates, technique, styleId, hand, context) {
@@ -408,15 +563,36 @@ function splitHands(parsed, candidates, technique, styleId, hand, context) {
   // réservé aux accords de 4 sons ou plus. Sur une triade il ne resterait
   // qu'une note à la main droite : ce n'est pas un drop 2, c'est un artefact.
   // On refuse explicitement plutôt que de produire un résultat dégradé.
-  if (technique === 'drop2' && hand !== 'right' && hand !== 'left') {
-    const dropped = buildDropFamilyVoicing(parsed, 'drop2');
-    if (dropped === null) {
+  // Familles structurelles : toutes dérivées de l'empilement fermé, elles ne
+  // déplacent que des octaves sans toucher aux classes de hauteur.
+  if (DROP_FAMILIES.has(technique) && hand !== 'right' && hand !== 'left') {
+    const built = buildDropFamilyVoicing(parsed, technique);
+    if (built === null) {
       return {
-        ...emptyVoicing(parsed.input, 'drop2', ['Drop 2 nécessite un accord de 4 sons minimum.']),
+        ...emptyVoicing(parsed.input, technique, [
+          `${TECHNIQUE_DISPLAY_NAMES[technique] || technique} nécessite un accord de 4 sons minimum.`,
+        ]),
         refused: true,
       };
     }
-    return dropped;
+    return built;
+  }
+
+  if (technique === 'so_what' && hand !== 'right' && hand !== 'left') {
+    // So What part de la même construction que Quartal (shell LH + empilement de
+    // quartes RH) et ajoute une tierce majeure au sommet de l'empilement. La
+    // détection est donc héritée de Quartal : l'accord doit contenir l'ensemble
+    // des notes produites, sans quoi le résultat devient ambigu.
+    const soWhat = buildQuartalVoicingHands(parsed, 'so_what', { soWhat: true });
+    if (soWhat === null) {
+      return {
+        ...emptyVoicing(parsed.input, 'so_what', [
+          "So What nécessite un accord dont l'empilement de quartes reste dans l'accord (9e, sus4 ou 11e).",
+        ]),
+        refused: true,
+      };
+    }
+    return soWhat;
   }
 
   if (hand === 'right') {
@@ -602,12 +778,19 @@ function pickPcNearCenter(pc, range) {
 function shiftVoicingIntoRange(leftHand, rightHand) {
   const lh = [...leftHand];
   const rh = [...rightHand];
-  const reference = lh.length ? Math.min(...lh) : (rh.length ? Math.min(...rh) : null);
-  if (reference === null) return { leftHand: lh, rightHand: rh };
+  const hand = lh.length ? lh : rh;
+  if (hand.length === 0) return { leftHand: lh, rightHand: rh };
   const range = lh.length ? LH_HARD_RANGE : RH_HARD_RANGE;
+  // Il faut caler la main ENTIÈRE, pas seulement sa note la plus grave : une
+  // famille qui descend deux voix (drop 2-4, open) produit une main gauche de
+  // plusieurs notes dont la plus aiguë peut dépasser la tessiture alors que la
+  // plus grave y tient — le voicing était alors rejeté puis remplacé par un
+  // repli guide tones, qui perdait la 9e (Dm9 rendu « Dm7 »).
+  const low = Math.min(...hand);
+  const high = Math.max(...hand);
   let shift = 0;
-  while (reference + shift > range.max) shift -= 12;
-  while (reference + shift < range.min) shift += 12;
+  while (high + shift > range.max) shift -= 12;
+  while (low + shift < range.min) shift += 12;
   return {
     leftHand: lh.map((n) => n + shift),
     rightHand: rh.map((n) => n + shift),

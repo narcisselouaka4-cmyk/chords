@@ -117,6 +117,42 @@ function checkNoPitchClassDuplicates() {
   }
 }
 
+function checkNewFamilies() {
+  const families = ['drop3', 'drop2_4', 'fourway_close', 'spread', 'open', 'block', 'so_what'];
+  for (const technique of families) {
+    for (const symbol of ['C7#5#9', 'Cm7', 'Cmaj7']) {
+      const v = generateCopilotVoicing(symbol, { technique, context: 'accompaniment' });
+      check(`${technique} ${symbol} : produit un voicing`, v.leftHand.length + v.rightHand.length > 0 || !v.isPlayable, v.diagnostics.join(' | '));
+      if (v.isPlayable) {
+        check(`${technique} ${symbol} : tessiture respectée`,
+          v.leftHand.every((n) => n >= 28 && n <= 55) && v.rightHand.every((n) => n >= 48 && n <= 84),
+          `LH=${v.leftHand.join(',')} RH=${v.rightHand.join(',')}`);
+      }
+    }
+  }
+
+  // Vérifications ciblées conformes aux transformations demandées.
+  const drop3 = generateCopilotVoicing('C7#5#9', { technique: 'drop3', context: 'accompaniment' });
+  check('drop3 C7#5#9 jouable', drop3.isPlayable, drop3.diagnostics.join(' | '));
+  check('drop3 C7#5#9 : une seule note en main gauche', drop3.leftHand.length === 1);
+  check('drop3 C7#5#9 : main droite au-dessus de la main gauche',
+    drop3.rightHand.length > 0 && Math.min(...drop3.rightHand) > Math.max(...drop3.leftHand));
+
+  const drop24 = generateCopilotVoicing('C7#5#9', { technique: 'drop2_4', context: 'accompaniment' });
+  check('drop2-4 C7#5#9 jouable', drop24.isPlayable, drop24.diagnostics.join(' | '));
+  check('drop2-4 C7#5#9 : deux notes en main gauche', drop24.leftHand.length === 2);
+  check('drop2-4 C7#5#9 : main droite au-dessus de la main gauche',
+    drop24.rightHand.length > 0 && Math.min(...drop24.rightHand) > Math.max(...drop24.leftHand));
+
+  const fourWay = generateCopilotVoicing('Cm7', { technique: 'fourway_close', context: 'accompaniment' });
+  check('fourway_close Cm7 jouable', fourWay.isPlayable, fourWay.diagnostics.join(' | '));
+  check('fourway_close Cm7 : main gauche vide', fourWay.leftHand.length === 0);
+  check('fourway_close Cm7 : 4 notes en main droite', fourWay.rightHand.length >= 4);
+
+  const soWhat = generateCopilotVoicing('Cmaj9#11', { technique: 'so_what', context: 'accompaniment' });
+  check('So What Cmaj9#11 jouable', soWhat.isPlayable, soWhat.diagnostics.join(' | '));
+}
+
 async function runTests() {
   checkStyles();
   checkCmaj7Gospel();
@@ -126,6 +162,7 @@ async function runTests() {
   checkAutoFallback();
   checkComplexChords();
   checkNoPitchClassDuplicates();
+  checkNewFamilies();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);
   process.exit(failed === 0 ? 0 : 1);

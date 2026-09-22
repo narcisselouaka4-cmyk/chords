@@ -14,6 +14,7 @@ import {
   generateCopilotVoicing,
   voicingToNoteSequence,
 } from './pedagogie/copilot-voicing.js';
+import { parseChordSymbol } from './pedagogie/chord-parser-v2.js';
 
 const PRACTICE_SYMBOLS = ['', 'm', 'm7', '7', 'maj7', 'm9', '9', 'maj9', '7sus4', 'dim7'];
 
@@ -42,13 +43,23 @@ const MOVEMENT_QUALITY_ALIASES = {
   'maj7#11': 'maj7#11',
 };
 
-export const TECHNIQUES = ['auto', 'close', 'drop2', 'quartal'];
+export const TECHNIQUES = [
+  'auto', 'close', 'drop2', 'drop3', 'drop2_4',
+  'fourway_close', 'spread', 'open', 'block', 'quartal', 'so_what',
+];
 
 export const TECHNIQUE_LABELS = {
   auto: 'Auto',
   close: 'Close position',
   drop2: 'Drop 2',
+  drop3: 'Drop 3',
+  drop2_4: 'Drop 2-4',
+  fourway_close: 'Four-Way Close',
+  spread: 'Spread',
+  open: 'Open',
+  block: 'Block (Locked Hands)',
   quartal: 'Quartal',
+  so_what: 'So What',
 };
 
 const MAX_TARGET_ATTEMPTS = 10;
@@ -65,11 +76,28 @@ const MAX_TARGET_ATTEMPTS = 10;
  * @returns {string[]} techniques à désactiver
  */
 export function unavailableTechniquesFor(chordSymbol) {
+  const parsed = parseChordSymbol(chordSymbol);
+  const expectedSymbol = parsed?.ok ? chordSymbol.replace(/^[A-G][#b]?/, '') : null;
   const out = [];
   for (const technique of TECHNIQUES) {
     if (technique === 'auto') continue;
     const voicing = generateCopilotVoicing(chordSymbol, { technique, context: 'accompaniment' });
-    if (!voicing.isPlayable) out.push(technique);
+    if (!voicing.isPlayable) {
+      out.push(technique);
+      continue;
+    }
+    // Garde propre à l'onglet Exercices : la réponse de l'élève est validée
+    // par detectChord(), donc un voicing affiché mais nommé autrement serait
+    // impossible à valider. C'est le cas d'inversions parfaitement correctes
+    // dont l'ensemble de notes est réellement ambigu (un Cm7 dont la tierce
+    // est à la basse s'entend aussi bien comme Mib6). Le moteur les produit
+    // toujours — le Copilot IA y a accès sans restriction —, on se contente de
+    // ne pas les proposer ici.
+    if (parsed?.ok) {
+      const detected = detectChord([...voicing.leftHand, ...voicing.rightHand]);
+      const matches = detected && detected.rootPc === parsed.rootPc && detected.symbol === expectedSymbol;
+      if (!matches) out.push(technique);
+    }
   }
   return out;
 }
