@@ -206,3 +206,8 @@ Compte des pitch classes uniques avec scope :
 4. [x] Ajouter des tests C couvrant toutes les familles et enrichissements.
 5. [x] Valider les 9 accords obligatoires après chaque implémentation.
 6. [x] Mettre à jour ce Vault après chaque changement significatif.
+
+### 2026-09-23 — L'onglet Exercice ne génère plus de voicings
+- L'Exercice lit `src/data/voicinglab-reference.json` (10 674 voicings VoicingLab réels, 12 tons) via `voicinglab-availability.js`. Les générateurs de `family-generators.js` ne servent plus qu'à l'onglet Analyse (`voicing-preview.js`).
+- `generateVoicingCatalog(input, { voicingLabStrict: true })` filtre toutes les familles par racine + qualité VoicingLab.
+- Décision complète : ADR-013 dans le vault externe.

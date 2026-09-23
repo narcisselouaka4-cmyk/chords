@@ -7,6 +7,8 @@ import { generateVoicingCatalogFromSymbol } from './generate-voicing-catalog.js'
 import { RH_MAX_SPAN } from './hand-ranges.js';
 import { resolveRoles } from './families/role-map.js';
 import REFERENCE from './fixtures/REFERENCE_VOICINGS.json' with { type: 'json' };
+import VL_REFERENCE from '../data/voicinglab-reference.json' with { type: 'json' };
+import { readFileSync, existsSync } from 'node:fs';
 
 const failures = [];
 let total = 0;
@@ -364,6 +366,42 @@ test('generateSingleVoicing conserve la compatibilite descendante', async () => 
   const result = generateSingleVoicing({ rootPc: 0, quality: 'maj7' });
   assertTrue(result.ok, result.diagnostics?.join('; '));
   assertEqual(result.selectedCandidate.metadata.familyId, 'close', 'famille par defaut attendue close');
+});
+
+console.log('\n=== Referentiel VoicingLab (12 tons) ===');
+
+test('Mode strict : Fmaj13#11 n a aucune famille (absent de VoicingLab)', () => {
+  const catalog = generateVoicingCatalogFromSymbol('Fmaj13#11', { voicingLabStrict: true });
+  const available = Object.values(catalog.families || {}).filter((e) => e.available);
+  assertEqual(available.length, 0, 'aucune famille attendue');
+});
+
+test('Mode strict : G13 sans quartal ni drop2 (absents de VoicingLab)', () => {
+  const catalog = generateVoicingCatalogFromSymbol('G13', { voicingLabStrict: true });
+  assertFalse(catalog.families.quartal?.available, 'quartal');
+  assertFalse(catalog.families.drop2?.available, 'drop2');
+});
+
+test('Referentiel : 12 tons x 39 qualites', () => {
+  assertEqual(Object.keys(VL_REFERENCE.chords).length, 468, 'nombre d accords');
+});
+
+test('Referentiel : notes identiques a l extraction brute VoicingLab', () => {
+  const rawPath = new URL('../../data/voicinglab/voicinglab-extraction-12-tons.json', import.meta.url);
+  if (!existsSync(rawPath)) return; // extraction brute non versionnee : test ignore
+  const raw = JSON.parse(readFileSync(rawPath, 'utf8'));
+  let checked = 0;
+  for (const c of raw.chords.filter((x) => x.exists)) {
+    const entry = VL_REFERENCE.chords[`${raw.roots.indexOf(c.pitchClassRoot)}|${c.quality}`];
+    for (const [style, list] of Object.entries(c.styles)) {
+      list.forEach((v, i) => {
+        const got = [...entry.styles[style][i].lh, ...entry.styles[style][i].rh].sort((a, b) => a - b);
+        assertArrayEqual(got, [...v.midi].sort((a, b) => a - b), `${c.symbol}/${style}#${i}: `);
+        checked += 1;
+      });
+    }
+  }
+  assertEqual(checked, 10674, 'voicings verifies');
 });
 
 console.log('\n=== Recapitulatif ===');

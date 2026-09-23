@@ -3,7 +3,7 @@
     {
       "id": "walk-up-gospel-1",
       "style": "worship",
-      "category": "Walk-up Gospel",
+      "category": "Cadences II-V-I",
       "name": "Passing 2-5-1 ouvert",
       "context": "Transition douce entre deux accords de tonalité majeure.",
       "pattern": "7-3-6-2-5",
@@ -14,7 +14,7 @@
     {
       "id": "diatonic-rise-worship-1",
       "style": "worship",
-      "category": "Montée diatonique Worship",
+      "category": "Progressions diatoniques",
       "name": "Montée diatonique en quartes",
       "context": "Montée émotionnelle avant un refrain.",
       "pattern": "1-4-6-5",
@@ -25,7 +25,7 @@
     {
       "id": "turnaround-gospel-1",
       "style": "gospel",
-      "category": "Turnaround Gospel",
+      "category": "Couleurs & chromatismes",
       "name": "Turnaround chromatique 3-6-2-5",
       "context": "Fin de couplet ou pont gospel.",
       "pattern": "3-6-2-5-1",
@@ -36,7 +36,7 @@
     {
       "id": "subdominant-minor-gospel-1",
       "style": "gospel",
-      "category": "Couleur Gospel moderne",
+      "category": "Couleurs & chromatismes",
       "name": "Subdominant mineur surprise",
       "context": "Couleur gospel moderne sur un accord majeur.",
       "pattern": "1-b3maj7-6-2-5",
@@ -47,7 +47,7 @@
     {
       "id": "tritone-jazz-1",
       "style": "jazz",
-      "category": "Substitution Jazz",
+      "category": "Dominantes & substitutions",
       "name": "Tritone substitution V7",
       "context": "Substitution de dominante pour créer une ligne de basse chromatique.",
       "pattern": "2-b2-1",
@@ -58,7 +58,7 @@
     {
       "id": "minor-ii-v-i-jazz-1",
       "style": "jazz",
-      "category": "II-V-I Jazz mineur",
+      "category": "Cadences II-V-I",
       "name": "II-V-I altéré en mineur",
       "context": "Modulation ou cadence en mineur.",
       "pattern": "2m7b5-b5alt-1m",
@@ -69,7 +69,7 @@
     {
       "id": "guide-tone-73-ii-v-i-jazz-1",
       "style": "jazz",
-      "category": "Guide tone line (7→3)",
+      "category": "Cadences II-V-I",
       "name": "Résolution 7 vers 3 sur ii-V-I",
       "context": "La ligne de conduite classique du jazz : la 7e de chaque accord descend d'un demi-ton pour devenir la 3ce de l'accord suivant.",
       "pattern": "2-5-1",
@@ -80,7 +80,7 @@
     {
       "id": "minor6-diminished-barry-harris-jazz-1",
       "style": "jazz",
-      "category": "Mouvement mineur 6 / diminué",
+      "category": "Couleurs & chromatismes",
       "name": "Alternance mineur 6 – diminué (Barry Harris)",
       "context": "La gamme « 6th diminished » de Barry Harris, simplifiée à son alternance de base.",
       "pattern": "1m6-7dim7-1m6-7dim7",
@@ -92,7 +92,7 @@
 {
   "id": "basic-ii-v-i-major-1",
   "style": "jazz",
-  "category": "II-V-I majeur",
+  "category": "Cadences II-V-I",
   "name": "Cadence II-V-I majeur",
   "context": "Cadence fondamentale en tonalité majeure.",
   "pattern": "2-5-1",
@@ -103,7 +103,7 @@
 {
   "id": "diatonic-iv-v-ii-v-1",
   "style": "worship",
-  "category": "Progression diatonique",
+  "category": "Progressions diatoniques",
   "name": "IV-V-iii-vi pop",
   "context": "Progression diatonique majeure simple.",
   "pattern": "4-5-6-2",
@@ -114,7 +114,7 @@
 {
   "id": "secondary-dominant-v-of-v-1",
   "style": "jazz",
-  "category": "Dominante secondaire",
+  "category": "Dominantes & substitutions",
   "name": "V/V vers I",
   "context": "Utilisation d'une dominante secondaire pour colorer un V.",
   "pattern": "1-2-5-1",
@@ -125,7 +125,7 @@
 {
   "id": "coltrane-changes-frag-1",
   "style": "jazz",
-  "category": "Cycles de tierces",
+  "category": "Dominantes & substitutions",
   "name": "Cycle de tierces majeures",
   "context": "Fragment du cycle de tierces typique du jazz moderne.",
   "pattern": "1maj7-3m7-6b7-2m7",

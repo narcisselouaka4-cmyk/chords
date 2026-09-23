@@ -7,6 +7,7 @@ import { FAMILY_GENERATORS } from './generators/family-generators.js';
 import { FAMILY_VALIDATORS } from './validators/family-validators.js';
 import { validateVoicing } from './validators/voicing-validator.js';
 import { createVoicingCatalog, createFamilyCatalogEntry, createEmptyVoicingCatalog } from './catalog-model.js';
+import { isFamilyConfirmedByVoicingLab, VOICINGLAB_GATED_FAMILIES } from './voicinglab-availability.js';
 import { measureSoftConstraintFeatures } from './constraints.js';
 
 /** @typedef {import('./data-model.js').VoicingCandidate} VoicingCandidate */
@@ -62,12 +63,20 @@ function computeDifficulty(candidate) {
  * @param {import('./families/specifications.js').VoicingFamilySpec} spec
  * @returns {import('./catalog-model.js').FamilyCatalogEntry}
  */
-function generateAndValidateFamily(input, spec) {
+function generateAndValidateFamily(input, spec, options = {}) {
   const generator = FAMILY_GENERATORS[spec.id];
   const validator = FAMILY_VALIDATORS[spec.id];
 
   if (!generator || !validator) {
     return createFamilyCatalogEntry(spec, null, false, `Famille ${spec.id} non implementee`);
+  }
+
+  // Mode strict : toutes les familles exigent une confirmation VoicingLab pour
+  // cette racine precise. Par defaut (onglet Analyse), seules les familles
+  // Phase 4 sont filtrees, pour ne pas retirer les voicings de triades.
+  const gated = options.voicingLabStrict || VOICINGLAB_GATED_FAMILIES.includes(spec.id);
+  if (gated && !isFamilyConfirmedByVoicingLab(spec.id, input.quality, input.rootPc)) {
+    return createFamilyCatalogEntry(spec, null, false, `Famille ${spec.id} non publiee par VoicingLab pour '${input.quality}' (racine ${input.rootPc})`);
   }
 
   const result = generator(input);
@@ -98,9 +107,11 @@ function generateAndValidateFamily(input, spec) {
 /**
  * Genere le catalogue de voicings pour un accord donne.
  * @param {{ rootPc: number, quality: string, bassPc?: number | null }} rawInput
+ * @param {{ voicingLabStrict?: boolean }} [options] - strict : toutes les familles
+ *   exigent un voicing VoicingLab publie pour cette racine et cette qualite
  * @returns {import('./catalog-model.js').VoicingCatalog}
  */
-export function generateVoicingCatalog(rawInput) {
+export function generateVoicingCatalog(rawInput, options = {}) {
   const input = normalizeVoicingInput(rawInput);
   if (!input.valid) {
     return createEmptyVoicingCatalog(input, input.errors);
@@ -111,7 +122,7 @@ export function generateVoicingCatalog(rawInput) {
     return createEmptyVoicingCatalog(input, ['Aucune famille applicable pour cet accord']);
   }
 
-  const entries = families.map((spec) => generateAndValidateFamily(input, spec));
+  const entries = families.map((spec) => generateAndValidateFamily(input, spec, options));
 
   // Famille par defaut : la premiere disponible, priorite Close puis Shell.
   const priorityOrder = ['close', 'shell', 'fourWayClose', 'drop2', 'rootlessA', 'rootlessB'];
@@ -134,15 +145,16 @@ export function generateVoicingCatalog(rawInput) {
 /**
  * Genere le catalogue a partir d'un symbole d'accord.
  * @param {string} chordSymbol
+ * @param {{ voicingLabStrict?: boolean }} [options]
  * @returns {import('./catalog-model.js').VoicingCatalog}
  */
-export function generateVoicingCatalogFromSymbol(chordSymbol) {
+export function generateVoicingCatalogFromSymbol(chordSymbol, options = {}) {
   const input = normalizeVoicingInputFromSymbol(chordSymbol);
   return generateVoicingCatalog({
     rootPc: input.rootPc,
     quality: input.quality,
     bassPc: input.bassPc,
-  });
+  }, options);
 }
 
 /**

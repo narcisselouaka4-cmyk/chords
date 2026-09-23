@@ -1084,81 +1084,22 @@
         "comment": "Drop 3"
       },
       "block": {
-        "available": true,
-        "lh": [
-          52,
-          54
-        ],
-        "rh": [
-          57,
-          58,
-          60
-        ],
-        "difficulty": 4,
-        "comment": "Block / Locked Hands"
+        "available": false
       },
       "stride": {
-        "available": true,
-        "lh": [
-          30
-        ],
-        "rh": [
-          58,
-          61,
-          64,
-          69
-        ],
-        "difficulty": 4,
-        "comment": "Stride"
+        "available": false
       },
       "open": {
-        "available": true,
-        "lh": [
-          42
-        ],
-        "rh": [
-          58,
-          64,
-          69,
-          73
-        ],
-        "difficulty": 4,
-        "comment": "Open"
+        "available": false
       },
       "spread": {
-        "available": true,
-        "lh": [
-          42
-        ],
-        "rh": [
-          58,
-          61,
-          76,
-          84
-        ],
-        "difficulty": 4,
-        "comment": "Spread"
+        "available": false
       },
       "quartal": {
-        "available": false,
-        "reason": "trop peu de voix: 3 < 4",
-        "lh": [],
-        "rh": [],
-        "difficulty": 0,
-        "comment": ""
+        "available": false
       },
       "upperStructure": {
-        "available": true,
-        "lh": [
-          42
-        ],
-        "rh": [
-          58,
-          61,
-          64
-        ],
-        "difficulty": 4,
-        "comment": "Upper Structure (diminuee)"
+        "available": false
       }
     },
     "Fmaj13#11": {
@@ -1261,84 +1202,22 @@
         "comment": "Drop 3"
       },
       "block": {
-        "available": true,
-        "lh": [
-          53,
-          55
-        ],
-        "rh": [
-          57,
-          59,
-          64
-        ],
-        "difficulty": 4,
-        "comment": "Block / Locked Hands"
+        "available": false
       },
       "stride": {
-        "available": true,
-        "lh": [
-          29
-        ],
-        "rh": [
-          57,
-          60,
-          64,
-          67
-        ],
-        "difficulty": 4,
-        "comment": "Stride"
+        "available": false
       },
       "open": {
-        "available": true,
-        "lh": [
-          41
-        ],
-        "rh": [
-          57,
-          62,
-          71
-        ],
-        "difficulty": 4,
-        "comment": "Open"
+        "available": false
       },
       "spread": {
-        "available": true,
-        "lh": [
-          41
-        ],
-        "rh": [
-          57,
-          60,
-          83
-        ],
-        "difficulty": 4,
-        "comment": "Spread"
+        "available": false
       },
       "quartal": {
-        "available": true,
-        "lh": [
-          41
-        ],
-        "rh": [
-          74,
-          79,
-          84
-        ],
-        "difficulty": 5,
-        "comment": "Quartal"
+        "available": false
       },
       "upperStructure": {
-        "available": true,
-        "lh": [
-          41
-        ],
-        "rh": [
-          60,
-          64,
-          67
-        ],
-        "difficulty": 4,
-        "comment": "Upper Structure (majeure)"
+        "available": false
       }
     }
   }

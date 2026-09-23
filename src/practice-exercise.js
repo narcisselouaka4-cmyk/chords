@@ -5,15 +5,15 @@
 // main droite, validation de tessiture, fallback guide tones. La détection
 // côté élève (check()) reste inchangée : elle compare les notes jouées au
 // rootPc/symbol cible, indépendamment de l'octave et de la répartition.
+// [Claude] — 2026-09-23 — Les voicings viennent désormais exclusivement du
+// référentiel VoicingLab extrait ton par ton (voicinglab-availability.js) :
+// notes réelles, variantes réelles (flèches), aucune génération mécanique.
 
 import { detectChord } from './chord-engine/index.js';
 import { formatPc, noteName } from './chord-engine/naming.js';
 import { miniKeyboardForNotes } from './ui/mini-keyboard.js';
 import movementsLibrary from './data/movements-library.json' with { type: 'json' };
-import {
-  generateVoicingCatalogFromSymbol,
-} from './voicing-engine/generate-voicing-catalog.js';
-import { FAMILY_SPECS } from './voicing-engine/families/specifications.js';
+import { getVoicingLabVoicings, isQualityOnVoicingLab } from './voicing-engine/voicinglab-availability.js';
 import { parseChordSymbol } from './pedagogie/chord-parser-v2.js';
 
 // Difficulté exprimée en étoiles (1–5). Le mode "Accord cible" est strict :
@@ -109,29 +109,6 @@ const TECHNIQUE_TO_FAMILY_ID = {
   rootless: 'rootlessA',
 };
 
-const FAMILY_ID_TO_TECHNIQUE = Object.fromEntries(
-  Object.entries(TECHNIQUE_TO_FAMILY_ID).map(([k, v]) => [v, k])
-);
-
-const CATALOG_CACHE = new Map();
-const MAX_CATALOG_CACHE_SIZE = 64;
-
-/**
- * Genere ou recupere le catalogue de voicings pour un symbole.
- * @param {string} chordSymbol
- * @returns {import('./voicing-engine/catalog-model.js').VoicingCatalog}
- */
-function getCatalogForSymbol(chordSymbol) {
-  if (CATALOG_CACHE.has(chordSymbol)) return CATALOG_CACHE.get(chordSymbol);
-  const catalog = generateVoicingCatalogFromSymbol(chordSymbol);
-  if (CATALOG_CACHE.size >= MAX_CATALOG_CACHE_SIZE) {
-    const firstKey = CATALOG_CACHE.keys().next().value;
-    CATALOG_CACHE.delete(firstKey);
-  }
-  CATALOG_CACHE.set(chordSymbol, catalog);
-  return catalog;
-}
-
 // Les progressions standards sont désormais définies par un motif de degrés
 // avec une qualité de base. L'application enrichit automatiquement ces qualités
 // en fonction de la difficulté choisie (via QUALITY_UPGRADE_PATHS). Cela permet
@@ -215,18 +192,23 @@ const MOVEMENT_QUALITY_ALIASES = {
 // Chaque index correspond au niveau 1–5 : on veut une qualité VISIBLEMENT
 // différente à chaque palier, sans sauter d'étapes. L'ancien système sautait
 // les niveaux 1 et 2 car la qualité de base était déjà au niveau 2.
+// Chaque palier aboutit UNIQUEMENT à une qualité présente dans le corpus
+// VoicingLab (voicinglab-C-5-familles-2026-09-23.csv). Retirés car absents
+// de VoicingLab : maj13#11, m13, 11.
 const QUALITY_UPGRADE_PATHS = {
-  '': ['', '6', 'maj7', 'maj9', 'maj7#11'],
-  '6': ['6', 'maj7', 'maj9', 'maj7#11', 'maj13#11'],
-  'm': ['m', 'm6', 'm7', 'm9', 'm11'],
+  // VoicingLab ne publie aucune triade majeure/mineure (vérifié sur les
+  // 12 tons) : le palier 1 part de 6 / m6, sans 7e mais réellement publiés.
+  '': ['6', 'maj7', 'maj9', 'maj13', 'maj7#11'],
+  '6': ['6', '6/9', 'maj7', 'maj9', 'maj13'],
+  'm': ['m6', 'm7', 'm9', 'm11', 'm11'],
   'm6': ['m6', 'm7', 'm9', 'm11', 'm11'],
   '7sus4': ['7sus4', '9sus4', '13sus4', '13sus4', '13sus4'],
   '9sus4': ['9sus4', '13sus4', '13sus4', '13sus4', '13sus4'],
   '7': ['7', '9', '13', '7#9', '7alt'],
   '9': ['9', '13', '7#9', '7alt', '7alt'],
   '13': ['13', '7#9', '7alt', '7alt', '7alt'],
-  'maj7': ['maj7', 'maj9', 'maj7#11', 'maj13', 'maj13#11'],
-  'maj9': ['maj9', 'maj7#11', 'maj13', 'maj13#11', 'maj13#11'],
+  'maj7': ['maj7', 'maj9', 'maj13', 'maj7#11', 'maj7#11'],
+  'maj9': ['maj9', 'maj13', 'maj7#11', 'maj7#11', 'maj7#11'],
   'm7': ['m7', 'm9', 'm11', 'm11', 'm11'],
   'm9': ['m9', 'm11', 'm11', 'm11', 'm11'],
   'm7b5': ['m7b5', 'm7b5', 'm7b5', 'm7b5', 'm7b5'],
@@ -389,19 +371,50 @@ export function difficultyOfVoicing(target) {
   return Math.min(5, Math.max(1, Math.round(base + bonus)));
 }
 
+// Une technique de l'UI peut regrouper plusieurs familles VoicingLab :
+// "Rootless" couvre les types A (départ sur la tierce) et B (départ sur la 7e).
+const TECHNIQUE_FAMILIES = {
+  rootless: ['rootlessA', 'rootlessB'],
+};
+
+function familiesForTechnique(technique) {
+  return TECHNIQUE_FAMILIES[technique] || [TECHNIQUE_TO_FAMILY_ID[technique]].filter(Boolean);
+}
+
+const ROOT_PCS = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+
+/**
+ * Sépare un symbole complet en racine (pitch class) et qualité : "Ebm7" -> {3, 'm7'}.
+ * @param {string} chordSymbol
+ * @returns {{rootPc: number, quality: string}|null}
+ */
+function splitChordSymbol(chordSymbol) {
+  const match = String(chordSymbol || '').match(/^([A-G])([b#]?)(.*)$/);
+  if (!match) return null;
+  const shift = match[2] === 'b' ? -1 : match[2] === '#' ? 1 : 0;
+  return { rootPc: (ROOT_PCS[match[1]] + shift + 12) % 12, quality: match[3] };
+}
+
+/**
+ * Voicings réels VoicingLab d'une technique pour un accord, dans l'ordre publié
+ * par le site. Aucun voicing n'est calculé ici : liste vide = technique indisponible.
+ */
+function voicingLabVariantsFor(rootPc, quality, technique) {
+  return familiesForTechnique(technique).flatMap((familyId) =>
+    getVoicingLabVoicings(rootPc, quality, familyId).map((v) => ({ ...v, familyId }))
+  );
+}
+
 /**
  * Retourne les techniques disponibles pour un symbole d'accord, avec le nombre
- * de variantes jouables pour chacune, en interrogeant le nouveau moteur de
- * catalogue par famille.
+ * de variantes réelles publiées par VoicingLab pour cette racine précise.
  * @param {string} chordSymbol
  * @returns {{id: string, label: string, count: number, playable: boolean}[]}
  */
 export function getAvailableTechniques(chordSymbol) {
-  const catalog = getCatalogForSymbol(chordSymbol);
+  const chord = splitChordSymbol(chordSymbol);
   return TECHNIQUES.filter((t) => t !== 'auto').map((t) => {
-    const familyId = TECHNIQUE_TO_FAMILY_ID[t];
-    const entry = familyId ? catalog.families[familyId] : null;
-    const count = entry?.available ? 1 : 0;
+    const count = chord ? voicingLabVariantsFor(chord.rootPc, chord.quality, t).length : 0;
     return {
       id: t,
       label: TECHNIQUE_LABELS[t] || t,
@@ -412,7 +425,8 @@ export function getAvailableTechniques(chordSymbol) {
 }
 
 /**
- * Techniques inapplicables à un accord donné, déterminées par le catalogue.
+ * Techniques inapplicables à un accord donné : celles pour lesquelles
+ * VoicingLab ne publie aucun voicing pour cette racine et cette qualité.
  * @param {string} chordSymbol
  * @param {string} [mode='chord']
  * @returns {string[]} techniques à désactiver
@@ -420,14 +434,9 @@ export function getAvailableTechniques(chordSymbol) {
 export function unavailableTechniquesFor(chordSymbol, mode = 'chord') {
   const allowed = mode === 'chord' ? TECHNIQUES : PROGRESSION_TECHNIQUES;
   const out = TECHNIQUES.filter((t) => !allowed.includes(t));
-  const catalog = getCatalogForSymbol(chordSymbol);
+  const available = new Set(getAvailableTechniques(chordSymbol).filter((c) => c.playable).map((c) => c.id));
   for (const technique of allowed) {
-    if (technique === 'auto') continue;
-    const familyId = TECHNIQUE_TO_FAMILY_ID[technique];
-    const entry = familyId ? catalog.families[familyId] : null;
-    if (!entry?.available) {
-      out.push(technique);
-    }
+    if (technique !== 'auto' && !available.has(technique)) out.push(technique);
   }
   return out;
 }
@@ -456,40 +465,85 @@ function formatNoteNameWithOctave(midi) {
   return `${pcName}${octave}`;
 }
 
+// Ordre pédagogique du mode Auto. À 1★ (Progression/Mouvement), on commence
+// par les voicings VoicingLab de difficulté 1 : two-note shell puis shell.
+const AUTO_ORDER = ['shell', 'two_note_shell', 'close', 'fourway_close', 'drop2', 'rootless'];
+const AUTO_ORDER_BEGINNER = ['two_note_shell', 'shell', 'rootless', 'close', 'drop2'];
+
+/** Libellé lisible d'une variante (note droppée, triade d'upper structure…). */
+function describeVariant(technique, v) {
+  const lh = v.lh.map((n) => formatNoteNameWithOctave(n)).join(' ');
+  const rhNames = v.rh.map((n) => formatNoteNameWithOctave(n)).join(' ');
+  const intervals = v.intervals.split(' ');
+  switch (technique) {
+    case 'drop2':
+    case 'drop3':
+    case 'drop2_4':
+      return `Voix descendue${v.lh.length > 1 ? 's' : ''} : ${lh} (${intervals.slice(0, v.lh.length).join(', ')})`;
+    case 'upper_structure': {
+      const triad = triadName(v.rh);
+      return triad ? `Triade ${triad} sur ${lh}` : `${rhNames} sur ${lh}`;
+    }
+    case 'rootless':
+      return v.familyId === 'rootlessB' ? 'Type B (départ sur la 7e)' : 'Type A (départ sur la tierce)';
+    default:
+      return `Basse ${formatNoteNameWithOctave(v.lh[0] ?? v.rh[0])} · ${intervals.join(' ')}`;
+  }
+}
+
+/** Nom de la triade formée par 3 notes (Db, Ebm, E°, Ab+), ou null. */
+function triadName(notes) {
+  if (notes.length !== 3) return null;
+  const pcs = [...new Set(notes.map((n) => ((n % 12) + 12) % 12))];
+  const kinds = [[4, 7, ''], [3, 7, 'm'], [3, 6, '°'], [4, 8, '+']];
+  for (const root of pcs) {
+    const set = new Set(pcs.map((pc) => (pc - root + 12) % 12));
+    const kind = kinds.find(([t, f]) => set.has(t) && set.has(f));
+    if (kind && set.size === 3) return `${formatPc(root, false)}${kind[2]}`;
+  }
+  return null;
+}
+
 /**
- * Génère un voicing jouable pour un symbole complet en utilisant le catalogue
- * par famille. En mode 'auto', on choisit la premiere famille disponible selon
- * un ordre pedagogique (Shell > Close > 4-Way Close > Drop 2 > Rootless).
+ * Choisit un voicing réel VoicingLab pour l'accord. En mode 'auto', on prend la
+ * première technique disponible dans l'ordre pédagogique ; sinon la technique
+ * demandée, puis les autres si VoicingLab ne la publie pas pour cet accord.
+ * `variant` sélectionne l'un des voicings publiés (modulo leur nombre).
  *
- * @param {string} chordSymbol - ex. "G#m7", "C#7"
+ * @param {number} rootPc
+ * @param {string} quality
  * @param {string} technique - 'auto' | technique de TECHNIQUES
  * @param {number} [variant]
- * @returns {{voicing: object, technique: string}}
+ * @param {number|null} [difficulty] - difficulté Progression/Mouvement (null en mode Accord)
+ * @returns {{voicing: object|null, technique: string}}
  */
-function buildPlayableVoicing(chordSymbol, technique, variant = 0) {
-  const catalog = getCatalogForSymbol(chordSymbol);
-  const order = technique === 'auto'
-    ? ['shell', 'two_note_shell', 'close', 'fourway_close', 'drop2', 'rootless']
-    : [technique, ...TECHNIQUES.filter((t) => t !== 'auto' && t !== technique)];
+function buildPlayableVoicing(rootPc, quality, technique, variant = 0, difficulty = null) {
+  const autoOrder = difficulty === 1 ? AUTO_ORDER_BEGINNER : AUTO_ORDER;
+  const first = technique === 'auto' ? autoOrder : [technique];
+  const order = [...first, ...TECHNIQUES.filter((t) => t !== 'auto' && !first.includes(t))];
 
   for (const t of order) {
-    const familyId = TECHNIQUE_TO_FAMILY_ID[t];
-    const entry = familyId ? catalog.families[familyId] : null;
-    if (entry?.available && entry.candidate) {
-      const candidate = entry.candidate;
-      const voicing = {
-        leftHand: [...candidate.lh.notes],
-        rightHand: [...candidate.rh.notes],
-        technique: t,
-        familyId,
-        difficulty: candidate.metadata.difficulty,
-        register: '',
-        isPlayable: true,
-        diagnostics: [],
-        fallback: false,
-      };
-      return { voicing, technique: t };
-    }
+    const variants = voicingLabVariantsFor(rootPc, quality, t);
+    if (variants.length === 0) continue;
+    const index = ((variant % variants.length) + variants.length) % variants.length;
+    const v = variants[index];
+    const voicing = {
+      leftHand: [...v.lh],
+      rightHand: [...v.rh],
+      technique: t,
+      familyId: v.familyId,
+      difficulty: Math.min(5, Math.max(1, v.difficulty)),
+      register: '',
+      isPlayable: true,
+      diagnostics: [],
+      fallback: false,
+      source: 'voicinglab',
+      voicingLabSymbol: v.symbol,
+      variantIndex: index,
+      variantCount: variants.length,
+      variantLabel: describeVariant(t, v),
+    };
+    return { voicing, technique: t };
   }
   return { voicing: null, technique };
 }
@@ -497,16 +551,19 @@ function buildPlayableVoicing(chordSymbol, technique, variant = 0) {
 /**
  * Construit la cible complète d'un accord : nom, rootPc, symbol (qualité),
  * notes fusionnées LH+RH pour la détection/affichage, et le voicing complet.
+ * Retourne null si VoicingLab ne publie aucun voicing pour cet accord.
  *
  * @param {number} rootPc
  * @param {string} symbol - qualité seule, ex. 'm7'
  * @param {string} technique
+ * @param {number} [variant]
+ * @param {number|null} [difficulty]
  * @returns {object|null}
  */
-function buildChordTarget(rootPc, symbol, technique, variant = 0) {
+function buildChordTarget(rootPc, symbol, technique, variant = 0, difficulty = null) {
   const rootName = formatPc(rootPc, false);
   const chordSymbol = symbol ? `${rootName}${symbol}` : rootName;
-  const { voicing, technique: usedTechnique } = buildPlayableVoicing(chordSymbol, technique, variant);
+  const { voicing, technique: usedTechnique } = buildPlayableVoicing(rootPc, symbol, technique, variant, difficulty);
   if (!voicing) return null;
   const notes = [...voicing.leftHand, ...voicing.rightHand];
   return {
@@ -569,7 +626,7 @@ function parseMovementToken(token) {
         ? parsed.quality
         : upgradeQualityForDifficulty(parsed.quality, difficulty);
       const rootPc = (keyPc + parsed.offset) % 12;
-      const target = buildChordTarget(rootPc, quality, technique, variant);
+      const target = buildChordTarget(rootPc, quality, technique, variant, difficulty);
       if (!target) return null;
       return {
         ...target,
@@ -581,6 +638,9 @@ function parseMovementToken(token) {
   }
 
 export function createPracticeExercise() {
+  // Difficulté prise en compte par le mode Auto (sélecteur masqué en mode Accord).
+  const autoDifficulty = () => (state.mode === 'chord' ? null : state.difficulty);
+
   let state = {
     mode: 'chord',
     target: null,
@@ -622,36 +682,42 @@ export function createPracticeExercise() {
     // Si un accord cible a été choisi explicitement, on le régénère avec la
     // technique courante plutôt que de tirer au hasard.
     if (state.targetChoice) {
-      const target = buildChordTarget(state.targetChoice.rootPc, state.targetChoice.symbol, state.technique, state.variant);
+      const target = buildChordTarget(state.targetChoice.rootPc, state.targetChoice.symbol, state.technique, state.variant, autoDifficulty());
       if (target) return target;
     }
     // En mode Accord cible, la difficulté n'est pas choisie par l'utilisateur :
     // elle est imposée par l'accord + la technique. On tire donc dans toute la
     // bibliothèque de symboles disponibles, en laissant le moteur de voicing
     // décider si la combinaison est jouable.
-    const allowedSymbols = state.mode === 'chord' ? ALL_PRACTICE_SYMBOLS : symbolsForDifficulty(state.difficulty, state.mode);
+    // Seules les qualités publiées par VoicingLab sont tirées au sort
+    // (les triades majeures/mineures, m13, 11… n'y existent pas).
+    const pool = state.mode === 'chord' ? ALL_PRACTICE_SYMBOLS : symbolsForDifficulty(state.difficulty, state.mode);
+    const onVoicingLab = pool.filter((q) => isQualityOnVoicingLab(q));
+    const allowedSymbols = onVoicingLab.length > 0 ? onVoicingLab : ['maj7'];
     for (let i = 0; i < MAX_TARGET_ATTEMPTS; i += 1) {
       const rootPc = randomInt(0, 11);
       const symbol = pick(allowedSymbols);
-      const target = buildChordTarget(rootPc, symbol, state.technique, state.variant);
+      const target = buildChordTarget(rootPc, symbol, state.technique, state.variant, autoDifficulty());
       if (target) return target;
     }
     // Repli ultime : un accord jouable au niveau demandé, sinon Cmaj7 close.
     for (const symbol of allowedSymbols) {
-      const target = buildChordTarget(0, symbol, 'close', state.variant);
+      const target = buildChordTarget(0, symbol, 'close', state.variant, autoDifficulty());
       if (target) return target;
     }
-    return buildChordTarget(0, 'maj7', 'close', state.variant);
+    return buildChordTarget(0, 'maj7', 'close', state.variant, autoDifficulty());
   }
 
   function buildProgressionFromTokens(tokens, keyPc, name) {
-    const symbols = tokens.map((token) =>
-      progressionQualityForDifficulty(token.quality || DEFAULT_QUALITY_FOR_DEGREE[token.degree] || '', state.difficulty)
-    );
-    const chords = tokens.map((token, iDeg) => {
+    const chords = tokens.map((token) => {
       const rootPc = (keyPc + token.offset) % 12;
-      const symbol = symbols[iDeg];
-      const target = buildChordTarget(rootPc, symbol, state.technique, state.variant);
+      const base = token.quality || DEFAULT_QUALITY_FOR_DEGREE[token.degree] || '';
+      // Palier demandé d'abord, puis paliers inférieurs si le moteur ne sait
+      // pas encore voicer la qualité enrichie (ex. maj7#11, 7alt).
+      let target = null;
+      for (let level = state.difficulty; level >= 1 && !target; level -= 1) {
+        target = buildChordTarget(rootPc, progressionQualityForDifficulty(base, level), state.technique, state.variant, autoDifficulty());
+      }
       if (!target) return null;
       return {
         ...target,
@@ -666,7 +732,7 @@ export function createPracticeExercise() {
     // (ex. "Dm7 G7 Cmaj7") : contrôle total sur les extensions.
     if (state.customProgression && state.customProgression.length > 0) {
       const chords = state.customProgression.map((parsed, iDeg) => {
-        const target = buildChordTarget(parsed.rootPc, parsed.symbol, state.technique, state.variant);
+        const target = buildChordTarget(parsed.rootPc, parsed.symbol, state.technique, state.variant, autoDifficulty());
         if (!target) return null;
         return { ...target, degree: null };
       }).filter(Boolean);
@@ -709,7 +775,7 @@ export function createPracticeExercise() {
       keyPc: 0,
       chords: ['m7', '7', 'maj7'].map((symbol, deg) => {
         const rootPc = ([2, 7, 0][deg]);
-        const target = buildChordTarget(rootPc, symbol, state.technique, state.variant);
+        const target = buildChordTarget(rootPc, symbol, state.technique, state.variant, autoDifficulty());
         return {
           ...target,
           degree: deg === 0 ? 'II' : deg === 1 ? 'V' : 'I',
@@ -797,7 +863,7 @@ export function createPracticeExercise() {
   function regenerateCurrentTarget() {
     if (!state.target) return;
     const { rootPc, symbol } = state.target;
-    const refreshed = buildChordTarget(rootPc, symbol, state.technique, state.variant);
+    const refreshed = buildChordTarget(rootPc, symbol, state.technique, state.variant, autoDifficulty());
     if (!refreshed) return;
     // Conserver les métadonnées de contexte mouvement/progression.
     state.target = { ...state.target, ...refreshed };
@@ -828,15 +894,15 @@ export function createPracticeExercise() {
   }
 
   function setVariant(delta) {
-    const categories = getAvailableTechniques(state.target?.name || '');
-    const active = categories.find((c) => c.id === state.technique) || categories[0];
-    const max = Math.max(1, active?.count || 1);
+    // En mode Auto, les flèches parcourent les variantes de la technique
+    // réellement jouée, pas celles de la première catégorie.
+    const max = Math.max(1, state.target?.voicing?.variantCount || 1);
     state.variant = ((state.variant + delta) % max + max) % max;
     regenerateCurrentTarget();
     if (state.progression && state.progression.chords) {
       const isMovement = state.mode === 'movement';
       const chords = state.progression.chords.map((chord) => {
-        const refreshed = buildChordTarget(chord.rootPc, chord.symbol, state.technique, state.variant);
+        const refreshed = buildChordTarget(chord.rootPc, chord.symbol, state.technique, state.variant, autoDifficulty());
         if (!refreshed) return chord;
         const { notes, voicing } = refreshed;
         return { ...chord, notes, voicing };
@@ -854,7 +920,7 @@ export function createPracticeExercise() {
     state.variant = 0;
     // En mode accord cible avec cible choisie, on la régénère directement.
     if (state.mode === 'chord' && state.targetChoice) {
-      state.target = buildChordTarget(state.targetChoice.rootPc, state.targetChoice.symbol, technique, state.variant);
+      state.target = buildChordTarget(state.targetChoice.rootPc, state.targetChoice.symbol, technique, state.variant, autoDifficulty());
       return;
     }
     regenerateCurrentTarget();
@@ -863,7 +929,7 @@ export function createPracticeExercise() {
     if (state.progression && state.progression.chords) {
       const isMovement = state.mode === 'movement';
       const chords = state.progression.chords.map((chord) => {
-        const refreshed = buildChordTarget(chord.rootPc, chord.symbol, technique, state.variant);
+        const refreshed = buildChordTarget(chord.rootPc, chord.symbol, technique, state.variant, autoDifficulty());
         if (!refreshed) return chord;
         const { notes, voicing } = refreshed;
         return { ...chord, notes, voicing };
@@ -905,7 +971,7 @@ export function createPracticeExercise() {
   function setTargetChoice(rootPc, symbol) {
     if (state.mode !== 'chord') return;
     state.targetChoice = { rootPc, symbol };
-    const target = buildChordTarget(rootPc, symbol, state.technique, state.variant);
+    const target = buildChordTarget(rootPc, symbol, state.technique, state.variant, autoDifficulty());
     if (target) {
       state.target = target;
     }
@@ -1047,8 +1113,9 @@ export function createPracticeExercise() {
       if (!p) return null;
       // parseProgressionToken remplit déjà la qualité par défaut du degré
       // (I=maj7, II=m7, etc.). On l'enrichit ensuite selon la difficulté.
-      const quality = progressionQualityForDifficulty(p.quality, state.difficulty);
-      return { degree: d.degree, accidental: d.accidental || '', quality, offset: p.offset };
+      // On conserve la qualité de BASE : buildProgressionFromTokens la
+      // ré-enrichit à chaque régénération selon la difficulté courante.
+      return { degree: d.degree, accidental: d.accidental || '', quality: p.quality, offset: p.offset };
     }).filter(Boolean);
     state.customProgressionDegrees = parsed.length > 0 ? parsed : null;
     state.customProgression = null;
@@ -1266,7 +1333,8 @@ export function renderExerciseTarget(target, options = {}) {
           ${renderStars(difficulty)}
         </div>
       </div>
-      ${renderVoicingCategories(categories, technique, variant)}
+      ${renderVoicingCategories(categories, technique, voicing?.variantIndex ?? variant, voicing?.variantLabel || '')}
+      ${voicing?.variantCount > 1 ? `<div class="exercise-variant-label">${escapeHtml(voicing.variantLabel)}</div>` : ''}
       <div class="exercise-target-keyboard">${kb.svg}</div>
       <div class="exercise-target-hands">
         ${splitDisplay ? renderHandSplit(leftHand, rightHand) : renderUnifiedHand(allNames)}
@@ -1287,7 +1355,7 @@ function renderStars(difficulty) {
   return fullStar.repeat(filled) + emptyStar.repeat(empty);
 }
 
-function renderVoicingCategories(categories, activeTechnique, variant = 0) {
+function renderVoicingCategories(categories, activeTechnique, variant = 0, variantLabel = '') {
   if (!categories || categories.length === 0) return '';
   const items = categories.map((cat) => {
     const active = cat.id === activeTechnique ? ' active' : '';
@@ -1296,7 +1364,7 @@ function renderVoicingCategories(categories, activeTechnique, variant = 0) {
     const arrows = (active && cat.count > 1)
       ? `<span class="exercise-variant-arrows">
            <button class="exercise-variant-btn" type="button" data-variant-delta="-1" aria-label="Variante précédente">‹</button>
-           <span class="exercise-variant-index">${variant + 1}/${cat.count}</span>
+           <span class="exercise-variant-index" title="${escapeHtml(variantLabel)}">${variant + 1}/${cat.count}</span>
            <button class="exercise-variant-btn" type="button" data-variant-delta="1" aria-label="Variante suivante">›</button>
          </span>`
       : '';

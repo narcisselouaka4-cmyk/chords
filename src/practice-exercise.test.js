@@ -4,6 +4,7 @@ import {
   createPracticeExercise,
   exerciseVoicingToSequence,
   unavailableTechniquesFor,
+  getAvailableTechniques,
   listProgressionNames,
   listMovementNames,
   TECHNIQUES,
@@ -213,9 +214,10 @@ function checkTechniqueAvailability() {
   check('drop2 listé indisponible sur une triade', unavailableTechniquesFor('C#m').includes('drop2'));
   check('drop2 listé disponible sur un accord 4 sons', !unavailableTechniquesFor('C#m7').includes('drop2'));
   check('quartal listé indisponible (non implémenté dans le catalogue actuel)', unavailableTechniquesFor('Cm9').includes('quartal'));
-  check('close jamais listée indisponible', !unavailableTechniquesFor('C#m').includes('close'));
-  // So What n'est pas encore implémenté dans le nouveau moteur catalogue.
-  check('so_what listé indisponible (non implémenté dans le catalogue actuel)', unavailableTechniquesFor('Cm7').includes('so_what'));
+  // VoicingLab ne publie aucune triade mineure : aucune technique, Close compris.
+  check('close indisponible sur une triade absente de VoicingLab', unavailableTechniquesFor('C#m').includes('close'));
+  // VoicingLab publie un So What pour Cm7 (C3 F3 Bb3 Eb4 G4).
+  check('so_what disponible sur Cm7 (publié par VoicingLab)', !unavailableTechniquesFor('Cm7').includes('so_what'));
   // Four-Way Close réservé au mode Accord cible.
   check('fourway_close disponible en mode chord', !unavailableTechniquesFor('Cmaj7', 'chord').includes('fourway_close'));
   check('fourway_close indisponible en mode progression', unavailableTechniquesFor('Cmaj7', 'progression').includes('fourway_close'));
@@ -332,9 +334,75 @@ function checkFourWayCloseAcceptsEmptyLeftHand() {
 
 function checkUnavailableTechniquesReflectDetection() {
   // Drop 2 est grisé sur les triades (technique structurellement impossible).
-  // So What est grisé : non implémenté dans le catalogue actuel.
   check('drop2 grisé sur triade', unavailableTechniquesFor('C#m').includes('drop2'));
-  check('so_what grisé sur Cm7 (non implémenté)', unavailableTechniquesFor('Cm7').includes('so_what'));
+  check('so_what grisé sur Cmaj7 (absent de VoicingLab)', unavailableTechniquesFor('Cmaj7').includes('so_what'));
+}
+
+// [Claude] — 2026-09-23 — Mission fiabilisation : difficulté sur progression
+// par degrés + blocage des familles non publiées par VoicingLab.
+function checkVoicingLabGateAndCustomDifficulty() {
+  console.log('\n=== Gate VoicingLab + difficulté progression par degrés ===');
+  const u = (s) => unavailableTechniquesFor(s);
+  check('G13 : quartal indisponible (absent de VoicingLab)', u('G13').includes('quartal'));
+  check('Fmaj13#11 : block indisponible', u('Fmaj13#11').includes('block'));
+  check('Fmaj13#11 : spread indisponible', u('Fmaj13#11').includes('spread'));
+
+  const ex = createPracticeExercise();
+  ex.setMode('progression');
+  ex.setCustomProgressionFromDegrees([4, 5, 3, 6, 2, 5, 1].map((degree) => ({ degree })));
+  const seqs = [1, 3, 5].map((d) => {
+    ex.setDifficulty(d);
+    const p = ex.getState().progression;
+    return { name: p.name, symbols: p.chords.map((c) => c.symbol).join(' ') };
+  });
+  check('Progression par degrés conservée à tous les niveaux', seqs.every((x) => x.name === 'Progression personnalisée' && x.symbols.split(' ').length === 7));
+  check('La difficulté change les qualités (1★ ≠ 3★)', seqs[0].symbols !== seqs[1].symbols, JSON.stringify(seqs));
+  check('Aucune qualité maj13#11 inventée', seqs.every((x) => !x.symbols.includes('maj13#11')));
+}
+
+// [Claude] — 2026-09-23 — Mission couverture VoicingLab 12 tons : variantes
+// réelles, filtre toutes familles, difficulté 1★.
+function checkVoicingLabCoverage() {
+  console.log('\n=== Couverture VoicingLab (12 tons, variantes) ===');
+  const count = (sym, t) => getAvailableTechniques(sym).find((c) => c.id === t)?.count ?? 0;
+  check('Fmaj13#11 : toutes les techniques indisponibles (Shell/Close/Drop2 compris)',
+    unavailableTechniquesFor('Fmaj13#11').length === TECHNIQUES.length - 1);
+  check('Cdim7 : 4 Drop 2 réels', count('Cdim7', 'drop2') === 4);
+  check('C7 : 6 Upper Structures réelles', count('C7', 'upper_structure') === 6);
+  check('G13 : pas de Drop 2 (absent de VoicingLab)', count('G13', 'drop2') === 0);
+  check('F#m7 trouvé (orthographe dièse VoicingLab)', count('F#m7', 'drop2') > 0);
+  check('Gbmaj7 trouvé (orthographe bémol VoicingLab)', count('Gbmaj7', 'drop2') > 0);
+
+  // Les flèches changent réellement le voicing (notes VoicingLab distinctes).
+  const cycle = (technique, rootPc, quality, n) => {
+    const ex = createPracticeExercise();
+    ex.setTechnique(technique);
+    ex.setTargetChoice(rootPc, quality);
+    const seen = new Set();
+    for (let i = 0; i < n; i += 1) {
+      seen.add(ex.getState().target.notes.join(','));
+      ex.setVariant(1);
+    }
+    return seen;
+  };
+  const drop2 = cycle('drop2', 0, 'dim7', 4);
+  check('Cdim7 Drop 2 : 4 voicings différents via les flèches', drop2.size === 4, [...drop2].join(' | '));
+  const us = cycle('upper_structure', 0, '7', 6);
+  check('C7 Upper Structure : 6 triades différentes via les flèches', us.size === 6, [...us].join(' | '));
+
+  // Toute note jouée vient de VoicingLab : on retrouve le voicing publié.
+  const reference = getAvailableTechniques('Ebm9');
+  check('Ebm9 : au moins une technique disponible', reference.some((c) => c.playable));
+
+  // Difficulté 1★ en Progression : voicings VoicingLab de difficulté 1 (2 notes).
+  const pr = createPracticeExercise();
+  pr.setMode('progression');
+  pr.setCustomProgressionFromDegrees([2, 5, 1].map((degree) => ({ degree })));
+  pr.setDifficulty(1);
+  const chords = pr.getState().progression.chords;
+  check('1★ : accords sans extension (m7 / 7 / maj7)', chords.map((c) => c.symbol).join(' ') === 'm7 7 maj7', chords.map((c) => c.symbol).join(' '));
+  check('1★ : two-note shell en Auto', chords.every((c) => c.voicing.technique === 'two_note_shell'));
+  check('1★ : 2 notes par accord', chords.every((c) => c.notes.length === 2));
 }
 
 function runTests() {
@@ -354,6 +422,8 @@ function runTests() {
   checkNewFamiliesPlayable();
   checkFourWayCloseAcceptsEmptyLeftHand();
   checkUnavailableTechniquesReflectDetection();
+  checkVoicingLabGateAndCustomDifficulty();
+  checkVoicingLabCoverage();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);
   process.exit(failed === 0 ? 0 : 1);
