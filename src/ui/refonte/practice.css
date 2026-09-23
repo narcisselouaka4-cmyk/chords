@@ -4021,6 +4021,87 @@
   color: var(--r-text-muted);
 }
 
+/* « Plus de filtres » : filtres secondaires repliés. Ouvert, le bloc prend
+   sa propre ligne, pleine largeur. */
+:root[data-skin='global'] #practice-tab .exercise-topnote-more,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-more {
+  display: inline-block;
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-more[open],
+:root[data-skin='v2'] #practice-tab .exercise-topnote-more[open] {
+  flex-basis: 100%;
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-more > summary,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-more > summary,
+:root[data-skin='global'] #practice-tab .exercise-topnote-reset,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: var(--r-radius-pill);
+  border: 1px solid var(--r-border-soft);
+  background: var(--r-surface-elevated);
+  color: var(--r-text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  list-style: none;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-more > summary::-webkit-details-marker,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-more > summary::-webkit-details-marker {
+  display: none;
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-more > summary::after,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-more > summary::after {
+  content: '▾';
+  font-size: 0.7rem;
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-more[open] > summary::after,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-more[open] > summary::after {
+  content: '▴';
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-more > summary:hover,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-more > summary:hover,
+:root[data-skin='global'] #practice-tab .exercise-topnote-reset:hover,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-reset:hover {
+  background: var(--r-surface);
+  color: var(--r-text);
+  border-color: var(--r-border-strong);
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-reset,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-reset {
+  border-color: transparent;
+  background: transparent;
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-reset[hidden],
+:root[data-skin='v2'] #practice-tab .exercise-topnote-reset[hidden] {
+  display: none;
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-more-count,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-more-count {
+  min-width: 16px;
+  padding: 0 5px;
+  border-radius: var(--r-radius-pill);
+  background: var(--r-accent);
+  color: var(--r-accent-contrast, #ffffff);
+  font-size: 0.64rem;
+  text-align: center;
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-more-count[hidden],
+:root[data-skin='v2'] #practice-tab .exercise-topnote-more-count[hidden] {
+  display: none;
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-more-body,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-more-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
 /* ── Navigateur : tous les accords ayant la note du dessus choisie ── */
 :root[data-skin='global'] #practice-tab .exercise-topnote-browser,
 :root[data-skin='v2'] #practice-tab .exercise-topnote-browser {

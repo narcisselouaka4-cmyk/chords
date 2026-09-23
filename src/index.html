@@ -304,33 +304,40 @@
                      visibles seulement quand une note du dessus est choisie. -->
                 <div class="exercise-topnote-filters" id="exercise-topnote-filters" hidden>
                   <span class="exercise-topnote-filters-label">Filtres</span>
-                  <!-- Tonalité et fondamentale : remplies par main.js (12 notes). -->
+                  <!-- Filtres principaux, toujours visibles. Tonalité remplie par main.js. -->
                   <select data-topnote-filter="key" aria-label="Tonalité : voicings dont toutes les notes sont dans la gamme"></select>
-                  <select data-topnote-filter="chordRoot" aria-label="Fondamentale des accords listés"></select>
                   <select data-topnote-filter="octave" aria-label="Octave de la note du dessus">
                     <option value="all">Toutes octaves</option>
                     <option value="4">Octave 4</option>
                     <option value="5">Octave 5</option>
                     <option value="6">Octave 6</option>
                   </select>
-                  <!-- Techniques : remplies par main.js depuis TOP_NOTE_FILTERS. -->
-                  <select data-topnote-filter="technique" aria-label="Technique de voicing"></select>
-                  <select data-topnote-filter="hands" aria-label="Répartition des mains">
-                    <option value="all">Une ou deux mains</option>
-                    <option value="one">Une main</option>
-                    <option value="two">Deux mains</option>
-                  </select>
-                  <select data-topnote-filter="size" aria-label="Nombre de notes">
-                    <option value="all">Toutes tailles</option>
-                    <option value="3">3 notes ou moins</option>
-                    <option value="4">4 notes</option>
-                    <option value="5">5 notes ou plus</option>
-                  </select>
-                  <select data-topnote-filter="root" aria-label="Fondamentale">
-                    <option value="all">Avec ou sans fondamentale</option>
-                    <option value="with">Avec fondamentale</option>
-                    <option value="without">Sans fondamentale</option>
-                  </select>
+                  <!-- Filtres secondaires repliés ; le compteur signale ceux qui sont actifs. -->
+                  <details class="exercise-topnote-more" id="exercise-topnote-more">
+                    <summary>Plus de filtres<span class="exercise-topnote-more-count" id="exercise-topnote-more-count" hidden></span></summary>
+                    <div class="exercise-topnote-more-body">
+                      <!-- Fondamentale et techniques : remplies par main.js. -->
+                      <select data-topnote-filter="chordRoot" aria-label="Fondamentale des accords listés"></select>
+                      <select data-topnote-filter="technique" aria-label="Technique de voicing"></select>
+                      <select data-topnote-filter="hands" aria-label="Répartition des mains">
+                        <option value="all">Une ou deux mains</option>
+                        <option value="one">Une main</option>
+                        <option value="two">Deux mains</option>
+                      </select>
+                      <select data-topnote-filter="size" aria-label="Nombre de notes">
+                        <option value="all">Toutes tailles</option>
+                        <option value="3">3 notes ou moins</option>
+                        <option value="4">4 notes</option>
+                        <option value="5">5 notes ou plus</option>
+                      </select>
+                      <select data-topnote-filter="root" aria-label="Fondamentale">
+                        <option value="all">Avec ou sans fondamentale</option>
+                        <option value="with">Avec fondamentale</option>
+                        <option value="without">Sans fondamentale</option>
+                      </select>
+                    </div>
+                  </details>
+                  <button type="button" class="exercise-topnote-reset" id="exercise-topnote-reset" hidden>Réinitialiser</button>
                 </div>
                 <!-- Tous les accords ayant la note du dessus choisie (rempli par main.js). -->
                 <div class="exercise-topnote-browser" id="exercise-topnote-browser" hidden></div>

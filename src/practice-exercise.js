@@ -1317,6 +1317,14 @@ export function createPracticeExercise() {
     if (state.mode === 'chord' && state.target) regenerateCurrentTarget();
   }
 
+  /** Remet tous les filtres de la note du dessus à « tous » (le niveau est conservé). */
+  function resetTopNoteFilters() {
+    const cleared = Object.fromEntries(Object.keys(TOP_NOTE_FILTERS).map((name) => [name, 'all']));
+    state.topNote = { ...state.topNote, ...cleared };
+    state.variant = 0;
+    if (state.mode === 'chord' && state.target) regenerateCurrentTarget();
+  }
+
   /** Sélection directe d'une suggestion (clic dans la liste). */
   function selectTopNoteSuggestion(index) {
     const count = state.target?.voicing?.topNoteSuggestions?.length || 0;
@@ -1626,6 +1634,7 @@ export function createPracticeExercise() {
     setTopNote,
     setTopNoteLevel,
     setTopNoteFilter,
+    resetTopNoteFilters,
     selectTopNoteSuggestion,
     setDoubling,
     setContentChoice,

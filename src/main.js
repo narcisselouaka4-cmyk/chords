@@ -185,6 +185,8 @@ const els = {
   exerciseDoubling: document.getElementById('exercise-doubling'),
   exerciseTopNoteBrowser: document.getElementById('exercise-topnote-browser'),
   exerciseTopNoteFilters: document.getElementById('exercise-topnote-filters'),
+  exerciseTopNoteMoreCount: document.getElementById('exercise-topnote-more-count'),
+  exerciseTopNoteReset: document.getElementById('exercise-topnote-reset'),
   exerciseRandomTargetBtn: document.getElementById('exercise-random-target-btn'),
   exerciseCustomProgressionSelector: document.getElementById('exercise-custom-progression-selector'),
   degreeBuilder: document.getElementById('degree-builder'),
@@ -1373,9 +1375,20 @@ function initPracticeExercise() {
       }
       if (els.exerciseTopNoteFilters) {
         els.exerciseTopNoteFilters.hidden = topPc == null;
+        let active = 0;
+        let activeHidden = 0;
         els.exerciseTopNoteFilters.querySelectorAll('[data-topnote-filter]').forEach((sel) => {
           sel.value = exState.topNote?.[sel.dataset.topnoteFilter] || 'all';
+          if (sel.value === 'all') return;
+          active += 1;
+          if (sel.closest('.exercise-topnote-more')) activeHidden += 1;
         });
+        // Compteur des filtres repliés actifs, et Réinitialiser seulement s'il y a de quoi.
+        if (els.exerciseTopNoteMoreCount) {
+          els.exerciseTopNoteMoreCount.hidden = activeHidden === 0;
+          els.exerciseTopNoteMoreCount.textContent = String(activeHidden);
+        }
+        if (els.exerciseTopNoteReset) els.exerciseTopNoteReset.hidden = active === 0;
       }
       refreshTopNoteBrowser(exState);
     } else {
@@ -1813,6 +1826,10 @@ function initPracticeExercise() {
       .map((t) => `<option value="${t}">${t === 'all' ? 'Toutes techniques' : TECHNIQUE_LABELS[t] || t}</option>`)
       .join('');
   }
+  els.exerciseTopNoteReset?.addEventListener('click', () => {
+    practiceExercise.resetTopNoteFilters();
+    render();
+  });
   els.exerciseTopNoteFilters?.addEventListener('change', (e) => {
     const sel = e.target.closest('[data-topnote-filter]');
     if (!sel) return;
