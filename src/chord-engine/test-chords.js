@@ -254,9 +254,9 @@ const TESTS = [
     expect: 'D#5',
   },
   {
-    name: 'Cmaj7 shell with 9th — not recognised yet (C E B D)',
+    name: 'Cmaj9 sans quinte (C E B D) — quinte omise acceptée',
     notes: ['C3', 'E3', 'B3', 'D4'].map(extractPc),
-    expect: 'E5/C',
+    expect: 'Cmaj9',
   },
   {
     name: 'C7 shell with 13th — not recognised yet (C E Bb A)',

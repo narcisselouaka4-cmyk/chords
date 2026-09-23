@@ -185,14 +185,30 @@ export function detectChord(activeNotes) {
   let bestMatch = null;
   let bestScore = -1;
 
+  // Une lecture complète et exacte (toutes racines) prime toujours sur une
+  // lecture « quinte omise » : G B C E reste Cmaj7/G, pas G6add11 sans quinte.
+  const exactReadingExists = uniquePcs.some((r) =>
+    CHORD_DEFINITIONS.some((def) => setEquals(buildPcSet(r, def.intervals), pcSet)));
+
   // [OpenCode] — 2026-07-03 — Standard chord detection first
   for (const rootPc of uniquePcs) {
     for (const def of CHORD_DEFINITIONS) {
-      const required = buildPcSet(rootPc, def.intervals);
-      if (!isSubset(required, pcSet)) continue;
+      let required = buildPcSet(rootPc, def.intervals);
+      // [Claude] — 2026-09-24 — Quinte juste omise (pratique jazz courante) :
+      // acceptée seulement fondamentale à la basse, accord d'au moins 4 notes,
+      // aucune lecture exacte possible, avec une pénalité. Sans ça,
+      // C2 Bb2 C#4 D4 E4 (C7b9 sans G) était lu A#dim.
+      let fifthOmitted = false;
+      if (!isSubset(required, pcSet)) {
+        if (exactReadingExists || rootPc !== bassPc || !def.intervals.includes(7) || def.intervals.length < 5) continue;
+        const withoutFifth = buildPcSet(rootPc, def.intervals.filter((i) => i !== 7));
+        if (!isSubset(withoutFifth, pcSet)) continue;
+        required = withoutFifth;
+        fifthOmitted = true;
+      }
 
       // Compute score: prefer larger definitions that match exactly, and prefer root = bass
-      let score = def.intervals.length * 10;
+      let score = def.intervals.length * 10 - (fifthOmitted ? 13 : 0);
       const exactMatch = setEquals(required, pcSet);
       if (exactMatch) score += 20; // exact match bonus
       if (exactMatch && rootPc === bassPc) score += 15; // strong bonus for exact rooted chord with root in bass
@@ -217,7 +233,7 @@ export function detectChord(activeNotes) {
         bassPc,
         inversion,
         isSlash: bassPc !== rootPc,
-        missing: [],
+        missing: fifthOmitted ? [7] : [],
         confidence,
         rootless: false,
         voicing,
