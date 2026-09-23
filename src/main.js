@@ -1295,6 +1295,7 @@ function initPracticeExercise() {
     }
     refreshContentSelector(exState);
     refreshTargetChoice(exState);
+    if (els.exerciseDoubling) els.exerciseDoubling.value = exState.doubling || 'none';
     // En mode Accord cible, la difficulté est imposée par l'accord/technique.
     if (difficultySelector) {
       difficultySelector.style.display = exState.mode === 'chord' ? 'none' : '';
@@ -1366,7 +1367,6 @@ function initPracticeExercise() {
         els.exerciseTopNoteLevel.value = exState.topNote?.level || 'all';
         els.exerciseTopNoteLevel.disabled = topPc == null;
       }
-      if (els.exerciseDoubling) els.exerciseDoubling.value = exState.doubling || 'none';
       refreshTopNoteBrowser(exState);
     } else {
       els.exerciseTargetChoice.style.display = 'none';

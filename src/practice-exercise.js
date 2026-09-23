@@ -729,13 +729,20 @@ function buildTopNoteVoicing(rootPc, quality, technique, variant, topNote) {
  * @param {number} [variant]
  * @param {number|null} [difficulty]
  * @param {{pc: number, level: string}|null} [topNote]
+ * @param {string} [doubling] - doublures d'octave : 'none' | 'bass' | 'melody' | 'full'
  * @returns {object|null}
  */
-function buildChordTarget(rootPc, symbol, technique, variant = 0, difficulty = null, topNote = null) {
+function buildChordTarget(rootPc, symbol, technique, variant = 0, difficulty = null, topNote = null, doubling = 'none') {
   const rootName = formatPc(rootPc, false);
   const chordSymbol = symbol ? `${rootName}${symbol}` : rootName;
   const { voicing, technique: usedTechnique } = buildPlayableVoicing(rootPc, symbol, technique, variant, difficulty, topNote);
   if (!voicing) return null;
+  // Doublures ajoutées après le choix VoicingLab : classes de hauteur et basse
+  // inchangées, donc l'accord détecté reste le même.
+  if (doubling !== 'none') {
+    const { leftHand, rightHand, doubled } = applyDoublings(voicing, rootPc, doubling);
+    Object.assign(voicing, { leftHand, rightHand, doubled });
+  }
   const notes = [...voicing.leftHand, ...voicing.rightHand];
   return {
     type: 'chord',
@@ -788,7 +795,7 @@ function parseMovementToken(token) {
     return tokenDifficultyLevel(token) <= difficulty;
   }
 
-  function buildMovementChords(movement, keyPc, technique, difficulty, variant = 0) {
+  function buildMovementChords(movement, keyPc, technique, difficulty, variant = 0, doubling = 'none') {
     const tokens = movement.pattern.split('-');
     return tokens.map((token) => {
       const parsed = parseMovementToken(token);
@@ -797,7 +804,7 @@ function parseMovementToken(token) {
         ? parsed.quality
         : upgradeQualityForDifficulty(parsed.quality, difficulty);
       const rootPc = (keyPc + parsed.offset) % 12;
-      const target = buildChordTarget(rootPc, quality, technique, variant, difficulty);
+      const target = buildChordTarget(rootPc, quality, technique, variant, difficulty, null, doubling);
       if (!target) return null;
       return {
         ...target,
@@ -822,24 +829,10 @@ export function createPracticeExercise() {
    */
   function chordModeTarget(rootPc, symbol, technique = state.technique) {
     const filter = topNoteFilter();
-    const target = buildChordTarget(rootPc, symbol, technique, state.variant, autoDifficulty(), filter);
-    if (target || !filter) return withDoublings(target);
-    const plain = buildChordTarget(rootPc, symbol, technique, state.variant, autoDifficulty());
-    return plain ? withDoublings({ ...plain, topNoteMiss: true }) : null;
-  }
-
-  /**
-   * Doublures d'octave optionnelles (mode Accord cible) : ajoutées après le
-   * choix du voicing VoicingLab, sans changer l'accord détecté.
-   */
-  function withDoublings(target) {
-    if (!target || state.mode !== 'chord' || state.doubling === 'none') return target;
-    const { leftHand, rightHand, doubled } = applyDoublings(target.voicing, target.rootPc, state.doubling);
-    return {
-      ...target,
-      notes: [...leftHand, ...rightHand],
-      voicing: { ...target.voicing, leftHand, rightHand, doubled },
-    };
+    const target = buildChordTarget(rootPc, symbol, technique, state.variant, autoDifficulty(), filter, state.doubling);
+    if (target || !filter) return target;
+    const plain = buildChordTarget(rootPc, symbol, technique, state.variant, autoDifficulty(), null, state.doubling);
+    return plain ? ({ ...plain, topNoteMiss: true }) : null;
   }
 
   let state = {
@@ -904,15 +897,15 @@ export function createPracticeExercise() {
     for (let i = 0; i < attempts; i += 1) {
       const rootPc = randomInt(0, 11);
       const symbol = pick(allowedSymbols);
-      const target = buildChordTarget(rootPc, symbol, state.technique, state.variant, autoDifficulty(), filter);
-      if (target) return withDoublings(target);
+      const target = buildChordTarget(rootPc, symbol, state.technique, state.variant, autoDifficulty(), filter, state.doubling);
+      if (target) return target;
     }
     // Repli ultime : un accord jouable au niveau demandé, sinon Cmaj7 close.
     for (const symbol of allowedSymbols) {
-      const target = buildChordTarget(0, symbol, 'close', state.variant, autoDifficulty());
-      if (target) return withDoublings(target);
+      const target = buildChordTarget(0, symbol, 'close', state.variant, autoDifficulty(), null, state.doubling);
+      if (target) return target;
     }
-    return withDoublings(buildChordTarget(0, 'maj7', 'close', state.variant, autoDifficulty()));
+    return buildChordTarget(0, 'maj7', 'close', state.variant, autoDifficulty(), null, state.doubling);
   }
 
   function buildProgressionFromTokens(tokens, keyPc, name) {
@@ -923,7 +916,7 @@ export function createPracticeExercise() {
       // pas encore voicer la qualité enrichie (ex. maj7#11, 7alt).
       let target = null;
       for (let level = state.difficulty; level >= 1 && !target; level -= 1) {
-        target = buildChordTarget(rootPc, progressionQualityForDifficulty(base, level), state.technique, state.variant, autoDifficulty());
+        target = buildChordTarget(rootPc, progressionQualityForDifficulty(base, level), state.technique, state.variant, autoDifficulty(), null, state.doubling);
       }
       if (!target) return null;
       return {
@@ -939,7 +932,7 @@ export function createPracticeExercise() {
     // (ex. "Dm7 G7 Cmaj7") : contrôle total sur les extensions.
     if (state.customProgression && state.customProgression.length > 0) {
       const chords = state.customProgression.map((parsed, iDeg) => {
-        const target = buildChordTarget(parsed.rootPc, parsed.symbol, state.technique, state.variant, autoDifficulty());
+        const target = buildChordTarget(parsed.rootPc, parsed.symbol, state.technique, state.variant, autoDifficulty(), null, state.doubling);
         if (!target) return null;
         return { ...target, degree: null };
       }).filter(Boolean);
@@ -982,7 +975,7 @@ export function createPracticeExercise() {
       keyPc: 0,
       chords: ['m7', '7', 'maj7'].map((symbol, deg) => {
         const rootPc = ([2, 7, 0][deg]);
-        const target = buildChordTarget(rootPc, symbol, state.technique, state.variant, autoDifficulty());
+        const target = buildChordTarget(rootPc, symbol, state.technique, state.variant, autoDifficulty(), null, state.doubling);
         return {
           ...target,
           degree: deg === 0 ? 'II' : deg === 1 ? 'V' : 'I',
@@ -1011,7 +1004,7 @@ export function createPracticeExercise() {
     for (let i = 0; i < MAX_TARGET_ATTEMPTS; i += 1) {
       const movement = chosen || (allowedMovements.length > 0 ? pick(allowedMovements) : pick(pool));
       const startKey = state.keyChoice ?? randomInt(0, 11);
-      const chords = buildMovementChords(movement, startKey, state.technique, state.difficulty, state.variant);
+      const chords = buildMovementChords(movement, startKey, state.technique, state.difficulty, state.variant, state.doubling);
       if (chords.length === movement.pattern.split('-').length) {
         return {
           type: 'movement',
@@ -1044,7 +1037,7 @@ export function createPracticeExercise() {
       totalKeys: 12,
       keyIndex: 0,
       stepIndex: 0,
-      chords: buildMovementChords(fallback, startKey, state.technique, state.difficulty, state.variant),
+      chords: buildMovementChords(fallback, startKey, state.technique, state.difficulty, state.variant, state.doubling),
     };
   }
 
@@ -1072,7 +1065,7 @@ export function createPracticeExercise() {
     const { rootPc, symbol } = state.target;
     const refreshed = state.mode === 'chord'
       ? chordModeTarget(rootPc, symbol)
-      : buildChordTarget(rootPc, symbol, state.technique, state.variant, autoDifficulty());
+      : buildChordTarget(rootPc, symbol, state.technique, state.variant, autoDifficulty(), null, state.doubling);
     if (!refreshed) return;
     // topNoteMiss est recalculé à chaque régénération.
     if (!refreshed.topNoteMiss) delete state.target.topNoteMiss;
@@ -1110,19 +1103,26 @@ export function createPracticeExercise() {
     const max = Math.max(1, state.target?.voicing?.variantCount || 1);
     state.variant = ((state.variant + delta) % max + max) % max;
     regenerateCurrentTarget();
-    if (state.progression && state.progression.chords) {
-      const isMovement = state.mode === 'movement';
-      const chords = state.progression.chords.map((chord) => {
-        const refreshed = buildChordTarget(chord.rootPc, chord.symbol, state.technique, state.variant, autoDifficulty());
-        if (!refreshed) return chord;
-        const { notes, voicing } = refreshed;
-        return { ...chord, notes, voicing };
-      });
-      state.progression.chords = chords;
-      state.target = isMovement
-        ? attachMovementContext(chords[state.progression.stepIndex || 0], state.progression)
-        : chords[state.stepIndex || 0];
-    }
+    refreshProgressionChords();
+  }
+
+  /**
+   * Recalcule les voicings de toute la grille (Progression/Mouvement) avec la
+   * technique, la variante et les doublures courantes, sans changer les accords.
+   */
+  function refreshProgressionChords() {
+    if (!state.progression || !state.progression.chords) return;
+    const isMovement = state.mode === 'movement';
+    const chords = state.progression.chords.map((chord) => {
+      const refreshed = buildChordTarget(chord.rootPc, chord.symbol, state.technique, state.variant, autoDifficulty(), null, state.doubling);
+      if (!refreshed) return chord;
+      const { notes, voicing } = refreshed;
+      return { ...chord, notes, voicing };
+    });
+    state.progression.chords = chords;
+    state.target = isMovement
+      ? attachMovementContext(chords[state.progression.stepIndex || 0], state.progression)
+      : chords[state.stepIndex || 0];
   }
 
   function setTechnique(technique) {
@@ -1137,19 +1137,7 @@ export function createPracticeExercise() {
     regenerateCurrentTarget();
     // En mode progression/mouvement, il faut aussi recalculer les autres accords
     // de la grille pour qu'ils partagent la même technique.
-    if (state.progression && state.progression.chords) {
-      const isMovement = state.mode === 'movement';
-      const chords = state.progression.chords.map((chord) => {
-        const refreshed = buildChordTarget(chord.rootPc, chord.symbol, technique, state.variant, autoDifficulty());
-        if (!refreshed) return chord;
-        const { notes, voicing } = refreshed;
-        return { ...chord, notes, voicing };
-      });
-      state.progression.chords = chords;
-      state.target = isMovement
-        ? attachMovementContext(chords[state.progression.stepIndex || 0], state.progression)
-        : chords[state.stepIndex || 0];
-    }
+    refreshProgressionChords();
   }
 
   function setDifficulty(difficulty) {
@@ -1207,11 +1195,12 @@ export function createPracticeExercise() {
     if (state.mode === 'chord' && state.target) regenerateCurrentTarget();
   }
 
-  /** Doublures d'octave (mode Accord cible). */
+  /** Doublures d'octave (tous modes) : la cible et toute la grille sont recalculées. */
   function setDoubling(mode) {
     if (!DOUBLING_MODES.includes(mode)) return;
     state.doubling = mode;
-    if (state.mode === 'chord' && state.target) regenerateCurrentTarget();
+    if (state.mode === 'chord') regenerateCurrentTarget();
+    else refreshProgressionChords();
   }
 
   /** Sélection directe d'une suggestion (clic dans la liste). */
@@ -1275,7 +1264,7 @@ export function createPracticeExercise() {
       // Retour au dernier accord de la tonalité précédente.
       prog.keyIndex -= 1;
       prog.currentKey = (prog.startKey + prog.keyIndex + 12) % 12;
-      prog.chords = buildMovementChords(prog.movement, prog.currentKey, state.technique, state.difficulty, state.variant);
+      prog.chords = buildMovementChords(prog.movement, prog.currentKey, state.technique, state.difficulty, state.variant, state.doubling);
       prog.stepIndex = Math.max(0, prog.chords.length - 1);
     } else {
       // Restauration depuis l'historique (ancien mouvement ou tonalité).
@@ -1378,7 +1367,7 @@ export function createPracticeExercise() {
       }
       prog.stepIndex = 0;
       prog.currentKey = (prog.startKey + prog.keyIndex) % 12;
-      prog.chords = buildMovementChords(prog.movement, prog.currentKey, state.technique, state.difficulty, state.variant);
+      prog.chords = buildMovementChords(prog.movement, prog.currentKey, state.technique, state.difficulty, state.variant, state.doubling);
     }
     state.stepIndex = prog.stepIndex;
     state.keyIndex = prog.keyIndex;

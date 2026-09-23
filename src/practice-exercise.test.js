@@ -590,6 +590,33 @@ function checkDoublings() {
   check('Doublures désactivées : rien d\'ajouté', !ex.getState().target.voicing.doubled);
 }
 
+// [Claude] — 2026-09-23 — Doublures étendues aux modes Progression et Mouvement.
+function checkDoublingsInSequences() {
+  console.log('\n=== Doublures : Progression et Mouvement ===');
+  for (const mode of ['progression', 'movement']) {
+    const ex = createPracticeExercise();
+    ex.setMode(mode);
+    ex.setTechnique('stride');
+    ex.setDoubling('full');
+    const grid = ex.getState().progression.chords;
+    check(`${mode} : doublures appliquées à toute la grille`, grid.some((c) => c.voicing.doubled?.length > 0),
+      grid.map((c) => c.name).join(' '));
+    ex.setDoubling('none');
+    check(`${mode} : doublures retirées de toute la grille`, ex.getState().progression.chords.every((c) => !c.voicing.doubled));
+    ex.setDoubling('full');
+    // Jouer les voicings doublés sur deux grilles complètes (Mouvement : passage au ton suivant compris).
+    let allValid = true; let doubledSeen = 0;
+    const steps = ex.getState().progression.chords.length * 2;
+    for (let i = 0; i < steps; i += 1) {
+      const target = ex.getState().target;
+      if (target.voicing.doubled?.length) doubledSeen += 1;
+      if (!ex.check(target.notes).success) { allValid = false; break; }
+    }
+    check(`${mode} : voicings doublés validés d'accord en accord`, allValid);
+    check(`${mode} : les doublures persistent après avancement`, doubledSeen > steps / 2, `${doubledSeen}/${steps}`);
+  }
+}
+
 // [Claude] — 2026-09-23 — Étiquette « Auto » : retour possible après un clic sur une technique.
 function checkAutoTag() {
   console.log('\n=== Étiquette Auto ===');
@@ -632,6 +659,7 @@ async function runTests() {
   checkTopNoteIgnoresCardTechnique();
   checkAutoTag();
   checkDoublings();
+  checkDoublingsInSequences();
   await checkAllVoicingLabReachable();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);
