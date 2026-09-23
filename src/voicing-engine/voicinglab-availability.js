@@ -43,6 +43,8 @@ export const VOICINGLAB_STYLE_BY_FAMILY = Object.freeze({
   quartal: 'quartal',
   soWhat: 'so_what',
   upperStructure: 'upper_structure',
+  // Pas de famille « cluster » dans le moteur : utilisé uniquement par l'Exercice.
+  cluster: 'cluster',
 });
 
 // Orthographe des qualités dans l'app -> orthographe VoicingLab.

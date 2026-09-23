@@ -109,6 +109,9 @@ const TECHNIQUE_TO_FAMILY_ID = {
   quartal: 'quartal',
   so_what: 'soWhat',
   upper_structure: 'upperStructure',
+  stride: 'stride',
+  // Cluster : style VoicingLab sans famille dans le moteur (servi par le référentiel).
+  cluster: 'cluster',
   shell: 'shell',
   two_note_shell: 'twoNoteShell',
   rootless: 'rootlessA',
@@ -301,6 +304,7 @@ export const TECHNIQUES = [
   'auto', 'shell', 'two_note_shell', 'rootless', 'close', 'fourway_close',
   'drop2', 'drop3', 'drop2_4',
   'spread', 'open', 'block', 'quartal', 'so_what', 'upper_structure',
+  'stride', 'cluster',
 ];
 
 const PROGRESSION_TECHNIQUES = TECHNIQUES.filter((t) => t !== 'fourway_close');
@@ -321,6 +325,8 @@ export const TECHNIQUE_LABELS = {
   quartal: 'Quartal',
   so_what: 'So What',
   upper_structure: 'Upper structure',
+  stride: 'Stride',
+  cluster: 'Cluster',
 };
 
 const MAX_TARGET_ATTEMPTS = 10;
@@ -480,7 +486,8 @@ export const TOP_NOTE_LEVELS = {
 };
 
 // Les shells n'ont que 2–3 notes à la main gauche : pas de vraie note du dessus.
-const TOP_NOTE_EXCLUDED_TECHNIQUES = new Set(['shell', 'two_note_shell']);
+// Stride : VoicingLab le publie en main gauche seule (basse + accord), même cas.
+const TOP_NOTE_EXCLUDED_TECHNIQUES = new Set(['shell', 'two_note_shell', 'stride']);
 
 /**
  * Voicings (VoicingLab réels et dérivés) d'un accord dont la note la plus haute
@@ -1496,7 +1503,7 @@ export function renderExerciseTarget(target, options = {}) {
       ${voicing?.derived ? `<div class="exercise-derived-note" title="Qualité absente de VoicingLab : voicing VoicingLab réel de ${escapeHtml(voicing.derivedFrom)} dont une note est déplacée">Voicing dérivé de ${escapeHtml(voicing.derivedFrom)} (absent de VoicingLab)</div>` : ''}
       <div class="exercise-target-keyboard">${kb.svg}</div>
       <div class="exercise-target-hands">
-        ${splitDisplay ? renderHandSplit(leftHand, rightHand) : renderUnifiedHand(allNames)}
+        ${splitDisplay ? renderHandSplit(leftHand, rightHand) : renderUnifiedHand(allNames, singleHandLabel(leftHand, rightHand))}
       </div>
       <button class="exercise-listen-btn" type="button" data-action="listen-exercise" aria-label="Écouter le voicing">
         <svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
@@ -1570,10 +1577,17 @@ function formatHandNotes(notes) {
   return notes.map((n) => formatNoteNameWithOctave(n)).join(' · ');
 }
 
-function renderUnifiedHand(allNames) {
+/** Libellé du bloc unique : une seule main quand VoicingLab n'en utilise qu'une. */
+function singleHandLabel(leftHand, rightHand) {
+  if (leftHand.length > 0 && rightHand.length === 0) return 'Main gauche';
+  if (rightHand.length > 0 && leftHand.length === 0) return 'Main droite';
+  return 'Les deux mains';
+}
+
+function renderUnifiedHand(allNames, label = 'Les deux mains') {
   return `
     <div class="exercise-hand exercise-hand-unified">
-      <span class="exercise-hand-label">Les deux mains</span>
+      <span class="exercise-hand-label">${escapeHtml(label)}</span>
       <span class="exercise-hand-notes">${escapeHtml(allNames || '—')}</span>
     </div>
   `;

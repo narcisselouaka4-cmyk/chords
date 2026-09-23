@@ -483,7 +483,26 @@ function checkTopNoteSearch() {
   check('Aléatoire avec note du dessus : accord tiré qui a Sol au sommet', !t.topNoteMiss && pcOf(Math.max(...t.notes)) === 7, t.name);
 }
 
-function runTests() {
+// [Claude] — 2026-09-23 — Les 10 674 voicings VoicingLab sont tous accessibles
+// depuis une technique de l'Exercice (Stride et Cluster compris).
+async function checkAllVoicingLabReachable() {
+  console.log('\n=== Couverture totale du référentiel VoicingLab ===');
+  const ref = (await import('./data/voicinglab-reference.json', { with: { type: 'json' } })).default;
+  const names = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+  const alias = { 69: '6/9', m69: 'm6/9' };
+  let total = 0;
+  for (const key of Object.keys(ref.chords)) {
+    const [pc, quality] = key.split('|');
+    for (const c of getAvailableTechniques(names[pc] + (alias[quality] ?? quality))) total += c.count;
+  }
+  check('10 674 voicings VoicingLab accessibles dans l\'Exercice', total === 10674, String(total));
+  check('Stride proposé (C7 : 2 voicings)', getAvailableTechniques('C7').find((c) => c.id === 'stride')?.count === 2);
+  check('Cluster proposé (D13 : 1 voicing)', getAvailableTechniques('D13').find((c) => c.id === 'cluster')?.count === 1);
+  check('Stride exclu de la note du dessus (main gauche seule)',
+    findVoicingsByTopNote(0, '7', 10, { technique: 'stride' }).length === 0);
+}
+
+async function runTests() {
   checkChordTargetHasVoicing();
   checkSpecificChords();
   checkTechniqueSwitch();
@@ -504,6 +523,7 @@ function runTests() {
   checkVoicingLabCoverage();
   checkDerivedQualities();
   checkTopNoteSearch();
+  await checkAllVoicingLabReachable();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);
   process.exit(failed === 0 ? 0 : 1);
