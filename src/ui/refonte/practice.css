@@ -241,10 +241,6 @@
 #practice-tab[data-training-view='exercise'] .exercise-target-keyboard svg {
   max-height: 170px;
 }
-#practice-tab[data-training-view='exercise'] .panel-action#new-exercise-btn {
-  padding: 13px 16px;
-  font-size: 0.95rem;
-}
 #practice-tab[data-training-view='exercise'] .exercise-feedback {
   font-size: 0.95rem;
   text-align: center;
@@ -316,22 +312,6 @@
   color: var(--r-accent-contrast, #ffffff);
   box-shadow: var(--r-shadow-sm);
 }
-:root[data-skin='global'] #practice-tab .panel-action#new-exercise-btn,
-:root[data-skin='v2'] #practice-tab .panel-action#new-exercise-btn {
-  width: 100%;
-  padding: 10px 16px;
-  border-radius: var(--r-radius-btn);
-  border: none;
-  background: var(--r-accent);
-  color: var(--r-accent-contrast, #ffffff);
-  font-weight: 700;
-  cursor: pointer;
-  transition: filter 0.15s, transform 0.05s;
-}
-:root[data-skin='global'] #practice-tab .panel-action#new-exercise-btn:hover,
-:root[data-skin='v2'] #practice-tab .panel-action#new-exercise-btn:hover {
-  filter: brightness(1.08);
-}
 :root[data-skin='global'] #practice-tab .exercise-feedback,
 :root[data-skin='v2'] #practice-tab .exercise-feedback {
   min-height: 1.4rem;
@@ -378,7 +358,7 @@
 :root[data-skin='v2'] #practice-tab .exercise-target-keyboard svg {
   max-width: 100%;
   height: auto;
-  max-height: 110px;
+  max-height: 140px;
 }
 :root[data-skin='global'] #practice-tab .exercise-target-notes,
 :root[data-skin='v2'] #practice-tab .exercise-target-notes {
@@ -388,13 +368,129 @@
   text-align: center;
 }
 
+/* ── En-tête de carte : nom + technique à gauche, étoiles à droite ── */
+:root[data-skin='global'] #practice-tab .exercise-target-header,
+:root[data-skin='v2'] #practice-tab .exercise-target-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--r-space-3, 14px);
+  width: 100%;
+}
+:root[data-skin='global'] #practice-tab .exercise-target-title,
+:root[data-skin='v2'] #practice-tab .exercise-target-title {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--r-space-1, 6px);
+}
+:root[data-skin='global'] #practice-tab .exercise-target-stars,
+:root[data-skin='v2'] #practice-tab .exercise-target-stars {
+  display: flex;
+  gap: 2px;
+  font-size: 1.1rem;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--r-accent, #f59e0b);
+  flex-shrink: 0;
+}
+:root[data-skin='global'] #practice-tab .exercise-target-stars .star.empty,
+:root[data-skin='v2'] #practice-tab .exercise-target-stars .star.empty {
+  color: var(--r-border-strong, #475569);
+  opacity: 0.6;
+}
+
+/* ── Grille de catégories de voicings (inspiré de VoicingLab) ── */
+:root[data-skin='global'] #practice-tab .exercise-voicing-categories,
+:root[data-skin='v2'] #practice-tab .exercise-voicing-categories {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-bottom: var(--r-space-1, 6px);
+}
+:root[data-skin='global'] #practice-tab .exercise-category-tag,
+:root[data-skin='v2'] #practice-tab .exercise-category-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  border-radius: var(--r-radius-pill);
+  border: 1px solid var(--r-border-soft);
+  background: var(--r-surface-elevated);
+  color: var(--r-text-muted);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+:root[data-skin='global'] #practice-tab .exercise-category-tag:hover:not(.disabled),
+:root[data-skin='v2'] #practice-tab .exercise-category-tag:hover:not(.disabled) {
+  background: var(--r-surface);
+  color: var(--r-text);
+  border-color: var(--r-border-strong);
+}
+:root[data-skin='global'] #practice-tab .exercise-category-tag.active,
+:root[data-skin='v2'] #practice-tab .exercise-category-tag.active {
+  background: var(--r-accent);
+  border-color: var(--r-accent);
+  color: var(--r-accent-contrast, #ffffff);
+}
+:root[data-skin='global'] #practice-tab .exercise-category-tag.disabled,
+:root[data-skin='v2'] #practice-tab .exercise-category-tag.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+:root[data-skin='global'] #practice-tab .exercise-variant-arrows,
+:root[data-skin='v2'] #practice-tab .exercise-variant-arrows {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 3px;
+  padding-left: 5px;
+  border-left: 1px solid currentColor;
+  opacity: 0.9;
+}
+:root[data-skin='global'] #practice-tab .exercise-variant-btn,
+:root[data-skin='v2'] #practice-tab .exercise-variant-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  color: inherit;
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+:root[data-skin='global'] #practice-tab .exercise-variant-btn:hover,
+:root[data-skin='v2'] #practice-tab .exercise-variant-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+:root[data-skin='global'] #practice-tab .exercise-variant-index,
+:root[data-skin='v2'] #practice-tab .exercise-variant-index {
+  font-size: 0.6rem;
+  font-weight: 700;
+  min-width: 1.4em;
+  text-align: center;
+}
+
 /* [Phase 1 voicing] — Nouvelle pancarte : LH/RH, technique, écoute. */
 :root[data-skin='global'] #practice-tab .exercise-target-card,
 :root[data-skin='v2'] #practice-tab .exercise-target-card {
   width: 100%;
-  max-width: 640px;
-  padding: var(--r-space-5, 28px);
-  gap: var(--r-space-4, 20px);
+  max-width: 720px;
+  padding: var(--r-space-4, 20px);
+  gap: var(--r-space-3, 14px);
 }
 :root[data-skin='global'] #practice-tab .exercise-target-keyboard svg,
 :root[data-skin='v2'] #practice-tab .exercise-target-keyboard svg {
@@ -435,6 +531,13 @@
   border: 1px solid var(--r-border-soft);
   border-radius: var(--r-radius-btn);
   text-align: center;
+}
+:root[data-skin='global'] #practice-tab .exercise-hand-unified,
+:root[data-skin='v2'] #practice-tab .exercise-hand-unified {
+  grid-column: 1 / -1;
+  max-width: 320px;
+  margin: 0 auto;
+  width: 100%;
 }
 :root[data-skin='global'] #practice-tab .exercise-hand-lh,
 :root[data-skin='v2'] #practice-tab .exercise-hand-lh {
@@ -537,6 +640,217 @@
   font-size: 0.82rem;
   font-weight: 700;
   cursor: pointer;
+}
+
+/* ── Sélecteur de tonalité (progression / mouvement) ── */
+:root[data-skin='global'] #practice-tab .exercise-key-selector,
+:root[data-skin='v2'] #practice-tab .exercise-key-selector {
+  display: flex;
+  align-items: center;
+  gap: var(--r-space-2, 10px);
+}
+:root[data-skin='global'] #practice-tab .exercise-key-selector label,
+:root[data-skin='v2'] #practice-tab .exercise-key-selector label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--r-text-muted);
+}
+:root[data-skin='global'] #practice-tab .exercise-key-selector select,
+:root[data-skin='v2'] #practice-tab .exercise-key-selector select {
+  padding: 6px 10px;
+  border-radius: var(--r-radius-btn);
+  border: 1px solid var(--r-border-strong);
+  background: var(--r-surface);
+  color: var(--r-text);
+  font-family: var(--r-font-title);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* ── Progression personnalisée : état actif / inactif ── */
+:root[data-skin='global'] #practice-tab .custom-progression-active,
+:root[data-skin='v2'] #practice-tab .custom-progression-active {
+  border-color: var(--r-accent) !important;
+  background: var(--r-surface) !important;
+  color: var(--r-text) !important;
+  opacity: 1 !important;
+}
+:root[data-skin='global'] #practice-tab .custom-progression-inactive,
+:root[data-skin='v2'] #practice-tab .custom-progression-inactive {
+  background: var(--r-surface-raised) !important;
+  color: var(--r-text-muted) !important;
+  opacity: 0.6;
+}
+:root[data-skin='global'] #practice-tab #exercise-custom-progression-input:disabled,
+:root[data-skin='v2'] #practice-tab #exercise-custom-progression-input:disabled {
+  cursor: not-allowed;
+}
+:root[data-skin='global'] #practice-tab #exercise-custom-progression-btn:disabled,
+:root[data-skin='v2'] #practice-tab #exercise-custom-progression-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+:root[data-skin='global'] #practice-tab .custom-progression-badge,
+:root[data-skin='v2'] #practice-tab .custom-progression-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: var(--r-radius-pill, 999px);
+  background: var(--r-accent);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ── Constructeur de progression par degrés ── */
+:root[data-skin='global'] #practice-tab .degree-builder,
+:root[data-skin='v2'] #practice-tab .degree-builder {
+  display: flex;
+  flex-direction: column;
+  gap: var(--r-space-2);
+}
+:root[data-skin='global'] #practice-tab .degree-builder-hidden,
+:root[data-skin='v2'] #practice-tab .degree-builder-hidden,
+:root[data-skin='global'] #practice-tab .degree-builder[hidden],
+:root[data-skin='v2'] #practice-tab .degree-builder[hidden] {
+  display: none;
+}
+:root[data-skin='global'] #practice-tab .degree-buttons,
+:root[data-skin='v2'] #practice-tab .degree-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--r-space-1);
+}
+:root[data-skin='global'] #practice-tab .degree-btn,
+:root[data-skin='v2'] #practice-tab .degree-btn {
+  min-width: 38px;
+  padding: 8px 10px;
+  border-radius: var(--r-radius-btn);
+  border: 1px solid var(--r-border-strong);
+  background: var(--r-surface);
+  color: var(--r-text);
+  font-family: var(--r-font-title);
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+:root[data-skin='global'] #practice-tab .degree-btn:hover,
+:root[data-skin='v2'] #practice-tab .degree-btn:hover,
+:root[data-skin='global'] #practice-tab .degree-btn:active,
+:root[data-skin='v2'] #practice-tab .degree-btn:active {
+  background: var(--r-accent);
+  border-color: var(--r-accent);
+  color: #fff;
+}
+:root[data-skin='global'] #practice-tab .degree-btn:disabled,
+:root[data-skin='v2'] #practice-tab .degree-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+:root[data-skin='global'] #practice-tab .degree-sequence,
+:root[data-skin='v2'] #practice-tab .degree-sequence {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--r-space-1);
+  min-height: 28px;
+  padding: 6px 8px;
+  border-radius: var(--r-radius-btn);
+  border: 1px dashed var(--r-border);
+  background: var(--r-surface-raised);
+}
+:root[data-skin='global'] #practice-tab .degree-sequence-empty,
+:root[data-skin='v2'] #practice-tab .degree-sequence-empty {
+  color: var(--r-text-muted);
+  font-size: 0.74rem;
+}
+:root[data-skin='global'] #practice-tab .degree-chip,
+:root[data-skin='v2'] #practice-tab .degree-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  border-radius: var(--r-radius-pill, 999px);
+  background: var(--r-accent);
+  color: #fff;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: default;
+}
+:root[data-skin='global'] #practice-tab .degree-chip button,
+:root[data-skin='v2'] #practice-tab .degree-chip button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.25);
+  color: #fff;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+:root[data-skin='global'] #practice-tab .degree-chip button:hover,
+:root[data-skin='v2'] #practice-tab .degree-chip button:hover {
+  background: rgba(255,255,255,0.4);
+}
+:root[data-skin='global'] #practice-tab .degree-actions,
+:root[data-skin='v2'] #practice-tab .degree-actions {
+  display: flex;
+  gap: var(--r-space-1);
+  flex-wrap: wrap;
+}
+:root[data-skin='global'] #practice-tab .degree-action,
+:root[data-skin='v2'] #practice-tab .degree-action {
+  padding: 6px 10px;
+  border-radius: var(--r-radius-btn);
+  border: 1px solid var(--r-accent);
+  background: var(--r-accent);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+:root[data-skin='global'] #practice-tab .degree-action.secondary,
+:root[data-skin='v2'] #practice-tab .degree-action.secondary {
+  background: transparent;
+  color: var(--r-text);
+  border-color: var(--r-border-strong);
+}
+:root[data-skin='global'] #practice-tab .degree-action:hover,
+:root[data-skin='v2'] #practice-tab .degree-action:hover {
+  filter: brightness(1.1);
+}
+:root[data-skin='global'] #practice-tab .degree-action:disabled,
+:root[data-skin='v2'] #practice-tab .degree-action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+:root[data-skin='global'] #practice-tab .degree-builder-disabled,
+:root[data-skin='v2'] #practice-tab .degree-builder-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+:root[data-skin='global'] #practice-tab .exercise-custom-progression,
+:root[data-skin='v2'] #practice-tab .exercise-custom-progression {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--r-space-2);
+}
+:root[data-skin='global'] #practice-tab .exercise-custom-progression-active,
+:root[data-skin='v2'] #practice-tab .exercise-custom-progression-active {
+  opacity: 1;
+}
+:root[data-skin='global'] #practice-tab .exercise-custom-progression:not(.exercise-custom-progression-active),
+:root[data-skin='v2'] #practice-tab .exercise-custom-progression:not(.exercise-custom-progression-active) {
+  opacity: 0.55;
 }
 
 /* ── En-tête mouvement 12 tons ── */
@@ -3217,4 +3531,341 @@
   color: var(--r-text-faint);
   text-align: center;
   padding: 6px 0 22px;
+}
+
+/* ========================================================================== *
+ *  BIBLIOTHÈQUE D'EXERCICES — panneau latéral                                *
+ *  Remplace le sélecteur « Contenu » par une exploration thématique.          *
+ * ========================================================================== */
+
+/* Ancien sélecteur de contenu masqué : la bibliothèque en est le remplaçant. */
+:root[data-skin='global'] #practice-tab #exercise-content-selector,
+:root[data-skin='v2'] #practice-tab #exercise-content-selector {
+  display: none !important;
+}
+
+/* Le constructeur degré est grisé quand un template standard est sélectionné. */
+:root[data-skin='global'] #practice-tab .degree-builder-disabled,
+:root[data-skin='v2'] #practice-tab .degree-builder-disabled {
+  opacity: 0.55;
+  pointer-events: none;
+  filter: grayscale(0.35);
+}
+
+/* Référence de position pour le panneau absolu. */
+:root[data-skin='global'] #practice-view-exercices,
+:root[data-skin='v2'] #practice-view-exercices {
+  position: relative;
+}
+
+:root[data-skin='global'] #practice-tab .exercise-library,
+:root[data-skin='v2'] #practice-tab .exercise-library {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: min(100%, 420px);
+  display: flex;
+  flex-direction: column;
+  z-index: 75;
+  background: var(--tr-surface, var(--r-surface-elevated));
+  border-left: 1px solid var(--tr-border, var(--r-border-soft));
+  box-shadow: -12px 0 40px color-mix(in srgb, #000 28%, transparent);
+  transform: translateX(100%);
+  opacity: 0;
+  transition: transform 0.25s ease, opacity 0.2s ease, box-shadow 0.2s ease;
+}
+
+:root[data-skin='global'] #practice-tab .exercise-library.is-open,
+:root[data-skin='v2'] #practice-tab .exercise-library.is-open {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+:root[data-skin='global'] #practice-tab .exercise-library-header,
+:root[data-skin='v2'] #practice-tab .exercise-library-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--r-space-3);
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--tr-border, var(--r-border-soft));
+  flex-shrink: 0;
+}
+
+:root[data-skin='global'] #practice-tab .exercise-library-header h3,
+:root[data-skin='v2'] #practice-tab .exercise-library-header h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--tr-text, var(--r-text));
+  letter-spacing: -0.02em;
+}
+
+:root[data-skin='global'] #practice-tab .exercise-library-close,
+:root[data-skin='v2'] #practice-tab .exercise-library-close {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--tr-border, var(--r-border-soft));
+  border-radius: var(--r-radius-btn);
+  background: transparent;
+  color: var(--tr-secondary, var(--r-text-muted));
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+:root[data-skin='global'] #practice-tab .exercise-library-close:hover,
+:root[data-skin='v2'] #practice-tab .exercise-library-close:hover {
+  background: var(--tr-hover, var(--r-surface));
+  color: var(--tr-text, var(--r-text));
+  border-color: var(--tr-muted, var(--r-border-strong));
+}
+
+:root[data-skin='global'] #practice-tab .exercise-library-tabs,
+:root[data-skin='v2'] #practice-tab .exercise-library-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 12px 20px 0;
+  border-bottom: 1px solid var(--tr-border, var(--r-border-soft));
+  flex-shrink: 0;
+}
+
+:root[data-skin='global'] #practice-tab .exercise-library-tabs button,
+:root[data-skin='v2'] #practice-tab .exercise-library-tabs button {
+  flex: 1;
+  padding: 8px 10px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--tr-secondary, var(--r-text-muted));
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+:root[data-skin='global'] #practice-tab .exercise-library-tabs button:hover,
+:root[data-skin='v2'] #practice-tab .exercise-library-tabs button:hover {
+  color: var(--tr-text, var(--r-text));
+}
+
+:root[data-skin='global'] #practice-tab .exercise-library-tabs button.active,
+:root[data-skin='v2'] #practice-tab .exercise-library-tabs button.active {
+  color: var(--tr-accent, var(--r-accent));
+  border-bottom-color: var(--tr-accent, var(--r-accent));
+}
+
+:root[data-skin='global'] #practice-tab .exercise-library-search,
+:root[data-skin='v2'] #practice-tab .exercise-library-search {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--tr-border, var(--r-border-soft));
+  flex-shrink: 0;
+}
+
+:root[data-skin='global'] #practice-tab .exercise-library-search input,
+:root[data-skin='v2'] #practice-tab .exercise-library-search input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--tr-border, var(--r-border-soft));
+  border-radius: var(--r-radius-btn);
+  background: var(--tr-raised, var(--r-surface));
+  color: var(--tr-text, var(--r-text));
+  font-size: 0.82rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+:root[data-skin='global'] #practice-tab .exercise-library-search input:focus,
+:root[data-skin='v2'] #practice-tab .exercise-library-search input:focus {
+  border-color: var(--tr-accent, var(--r-accent));
+}
+
+:root[data-skin='global'] #practice-tab .exercise-library-categories,
+:root[data-skin='v2'] #practice-tab .exercise-library-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--tr-border, var(--r-border-soft));
+  flex-shrink: 0;
+}
+
+:root[data-skin='global'] #practice-tab .exercise-library-chip,
+:root[data-skin='v2'] #practice-tab .exercise-library-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  border: 1px solid var(--tr-border, var(--r-border-soft));
+  border-radius: var(--r-radius-pill);
+  background: var(--tr-raised, var(--r-surface));
+  color: var(--tr-secondary, var(--r-text-muted));
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+:root[data-skin='global'] #practice-tab .exercise-library-chip:hover,
+:root[data-skin='v2'] #practice-tab .exercise-library-chip:hover {
+  background: var(--tr-hover, var(--r-surface));
+  color: var(--tr-text, var(--r-text));
+  border-color: var(--tr-muted, var(--r-border-strong));
+}
+
+:root[data-skin='global'] #practice-tab .exercise-library-chip.active,
+:root[data-skin='v2'] #practice-tab .exercise-library-chip.active {
+  background: var(--tr-accent, var(--r-accent));
+  border-color: var(--tr-accent, var(--r-accent));
+  color: var(--tr-button-text, var(--r-accent-contrast, #fff));
+}
+
+:root[data-skin='global'] #practice-tab .exercise-library-count,
+:root[data-skin='v2'] #practice-tab .exercise-library-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+:root[data-skin='global'] #practice-tab .exercise-library-grid,
+:root[data-skin='v2'] #practice-tab .exercise-library-grid {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--tr-border, var(--r-border-soft)) transparent;
+}
+
+:root[data-skin='global'] #practice-tab .exercise-library-empty,
+:root[data-skin='v2'] #practice-tab .exercise-library-empty {
+  color: var(--tr-muted, var(--r-text-muted));
+  font-size: 0.82rem;
+  text-align: center;
+  padding: 30px 10px;
+}
+
+:root[data-skin='global'] #practice-tab .exercise-library-card,
+:root[data-skin='v2'] #practice-tab .exercise-library-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--tr-border, var(--r-border-soft));
+  border-radius: var(--r-radius-card);
+  background: var(--tr-raised, var(--r-surface));
+  color: var(--tr-text, var(--r-text));
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.08s;
+}
+
+:root[data-skin='global'] #practice-tab .exercise-library-card:hover,
+:root[data-skin='v2'] #practice-tab .exercise-library-card:hover,
+:root[data-skin='global'] #practice-tab .exercise-library-card:focus-visible,
+:root[data-skin='v2'] #practice-tab .exercise-library-card:focus-visible {
+  border-color: var(--tr-accent, var(--r-accent));
+  background: color-mix(in srgb, var(--tr-accent-soft, var(--r-accent-soft)) 60%, var(--tr-raised, var(--r-surface)));
+  transform: translateY(-1px);
+  outline: none;
+}
+
+:root[data-skin='global'] #practice-tab .exercise-library-card-header,
+:root[data-skin='v2'] #practice-tab .exercise-library-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--r-space-2);
+}
+
+:root[data-skin='global'] #practice-tab .exercise-library-card-category,
+:root[data-skin='v2'] #practice-tab .exercise-library-card-category {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tr-accent, var(--r-accent));
+}
+
+:root[data-skin='global'] #practice-tab .exercise-library-card-stars,
+:root[data-skin='v2'] #practice-tab .exercise-library-card-stars {
+  display: flex;
+  gap: 1px;
+  font-size: 0.85rem;
+  color: var(--tr-accent, var(--r-accent));
+  flex-shrink: 0;
+}
+
+:root[data-skin='global'] #practice-tab .exercise-library-card-stars .star.empty,
+:root[data-skin='v2'] #practice-tab .exercise-library-card-stars .star.empty {
+  opacity: 0.5;
+}
+
+:root[data-skin='global'] #practice-tab .exercise-library-card h4,
+:root[data-skin='v2'] #practice-tab .exercise-library-card h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--tr-text, var(--r-text));
+  line-height: 1.25;
+}
+
+:root[data-skin='global'] #practice-tab .exercise-library-card p,
+:root[data-skin='v2'] #practice-tab .exercise-library-card p {
+  font-size: 0.76rem;
+  line-height: 1.55;
+  color: var(--tr-secondary, var(--r-text-muted));
+  margin: 0;
+}
+
+:root[data-skin='global'] #practice-tab .exercise-library-card-tags,
+:root[data-skin='v2'] #practice-tab .exercise-library-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+:root[data-skin='global'] #practice-tab .exercise-library-card-tags span,
+:root[data-skin='v2'] #practice-tab .exercise-library-card-tags span {
+  padding: 2px 6px;
+  border-radius: var(--r-radius-pill);
+  background: var(--tr-surface, var(--r-surface-raised));
+  border: 1px solid var(--tr-border, var(--r-border-soft));
+  color: var(--tr-muted, var(--r-text-faint));
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+@media (max-width: 640px) {
+  :root[data-skin='global'] #practice-tab .exercise-library,
+  :root[data-skin='v2'] #practice-tab .exercise-library {
+    width: 100%;
+    border-left: none;
+  }
+
+  :root[data-skin='global'] #practice-tab .exercise-library-header,
+  :root[data-skin='v2'] #practice-tab .exercise-library-header,
+  :root[data-skin='global'] #practice-tab .exercise-library-tabs,
+  :root[data-skin='v2'] #practice-tab .exercise-library-tabs,
+  :root[data-skin='global'] #practice-tab .exercise-library-search,
+  :root[data-skin='v2'] #practice-tab .exercise-library-search,
+  :root[data-skin='global'] #practice-tab .exercise-library-categories,
+  :root[data-skin='v2'] #practice-tab .exercise-library-categories,
+  :root[data-skin='global'] #practice-tab .exercise-library-grid,
+  :root[data-skin='v2'] #practice-tab .exercise-library-grid {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
 }

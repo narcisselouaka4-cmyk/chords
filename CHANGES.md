@@ -1385,3 +1385,38 @@ timeline horizontale, accord courant en hero).
 **Smoke test réel :** A vs C sur Amazing Grace, Autumn Leaves, Gospel, Worship — aucune régression manifeste. C est déjà en production par défaut (`downgrade_mode='hybrid'`).
 
 **Fichiers de diagnostic :** `tests/audio/diagnostic/prog*_diagnostic.json`
+
+---
+
+### 2026-09-22 — Claude (Onglet Exercices : alignement VoicingLab + difficulté impactante)
+
+**Bug corrigé :**
+- `src/main.js` : correction de l'erreur `ReferenceError: ui is not defined` dans `initPracticeExercise` (remplacement de `ui.` par `els.`).
+
+**Mode « Accord cible » :**
+- `src/practice-exercise.js`
+  - Retrait du filtrage par difficulté : tous les symboles sont tirables, la difficulté est imposée par l'accord + la technique.
+  - Ajout de `difficultyOfVoicing(target)` : symbole + bonus technique.
+  - Ajout de `getAvailableTechniques(chordSymbol)` : liste les techniques jouables avec leur nombre de variantes.
+  - Extension de `SYMBOL_DIFFICULTY` et `PRACTICE_SYMBOLS_BY_DIFFICULTY` avec les symboles manquants : `13`, `m13`, `maj13`, `aug`, `dim`, `m6`, `mMaj9`, `m7#11`, `6/9`, `9sus4`, `13sus4`, `7#5`, `7alt`, `sus2`, `sus4`, `add11`, `madd9`, `m7b5`, `maj7#5`, `7b5`.
+- `src/pedagogie/chord-parser-v2.js`
+  - Normalisation de `m7#11` vers `m7b5` (équivalence enharmonique).
+- `src/index.html`
+  - Ajout des nouvelles options dans le sélecteur de qualité d'accord.
+- `src/main.js`
+  - Masquage du sélecteur de difficulté en mode `chord`.
+  - Passage de la difficulté et des catégories à `renderExerciseTarget`.
+  - Gestion du clic sur une catégorie pour changer de technique.
+- `src/ui/refonte/practice.css`
+  - Styles pour `.exercise-target-header`, `.exercise-target-stars` et `.exercise-voicing-categories`.
+
+**Modes « Progression » et « Mouvement 12 tons » :**
+- `src/practice-exercise.js`
+  - Refonte de `PROGRESSION_TEMPLATES` : qualités variables par niveau de difficulté (1=triades, 2=7e, 3=9e, 4=tensions, 5=altérations).
+  - Ajout de progressions : Rhythm changes A, Blues, Autumn Leaves.
+  - Ajout de `upgradeQualityForDifficulty(quality, difficulty)` et enrichissement automatique des mouvements selon le niveau choisi.
+
+**Vérifications :**
+- `npm run build` OK.
+- `npm run test:chords` : 98/98 réussis.
+- Test moteur : les progressions et mouvements génèrent bien des accords plus riches en difficulté 5 qu'en difficulté 1.

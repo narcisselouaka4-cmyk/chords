@@ -5562,6 +5562,67 @@ body.studio-recording-cursor * {
   font-family: var(--font-mono);
 }
 
+/* ── Catalogue de voicings par famille ── */
+.voicing-catalog-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.voicing-catalog-family {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.voicing-catalog-family:last-child {
+  border-bottom: none;
+}
+
+.voicing-catalog-name {
+  font-weight: 600;
+  color: var(--text-dim, #a1a1aa);
+  min-width: 6.5rem;
+  text-align: left;
+  flex-shrink: 0;
+}
+
+.voicing-catalog-notes {
+  color: var(--text, #fafafa);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-align: right;
+  flex: 1 1 auto;
+}
+
+.voicing-catalog-unavailable {
+  color: var(--text-dim, #71717a);
+  font-weight: 400;
+  text-align: right;
+  flex: 1 1 auto;
+}
+
+.voicing-catalog-difficulty {
+  font-size: 0.75rem;
+  color: var(--accent, #fbbf24);
+  letter-spacing: 0.05em;
+  margin-left: 0.25rem;
+}
+
+.voicing-catalog-error {
+  font-size: 0.85rem;
+  color: var(--error, #fca5a5);
+  font-weight: 500;
+  text-align: center;
+  padding: 0.5rem 0;
+}
+
 /* ── Lot B : contexte fichier explicite (Studio / Analyse) ── */
 .studio-media-context {
   font-size: 0.75rem;

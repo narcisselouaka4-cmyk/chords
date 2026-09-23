@@ -11,6 +11,18 @@ metadata:
 
 ## Journal
 
+### 2026-09-23 — Répartition des mains corrigée pour les familles compactes
+
+- Bug signalé : C7 four-way close produisait LH C2 (36) et RH C4 E4 G4 Bb4 (60–70), écart de ~2 octaves entre les mains.
+- Cause : `generateClose` / `generateFourWayClose` centraient le RH dans sa tessiture douce mais la basse restait en LH soft basse, créant un trou musical.
+- Corrections :
+  - ajout de `buildBassBelow(input, referenceMidi)` dans `src/voicing-engine/generators/base-generator.js` : place la basse une octave sous le RH, contrainte à `LH_HARD_RANGE` ;
+  - `generateClose`, `generateFourWayClose`, `generateBlock` construisent le RH autour du centre doux (`defaultRhCenter() = 60`) puis placent la basse juste en dessous ;
+  - `generateDrop2` et `generateDrop3` itèrent sur tout le range RH dur, acceptent uniquement les positions où la basse ET la note descendue restent dans `LH_HARD_RANGE`, et privilégient l’écart LH/RH le plus compact ;
+  - `buildRightHandClose` impose désormais que la note la plus basse du RH soit dans `RH_SOFT_RANGE` (≥ 55) et pénalise les écarts LH/RH trop larges, évitant que shell/stride/open tombent une octave trop bas.
+- Mise à jour de `src/voicing-engine/fixtures/REFERENCE_VOICINGS.json` avec les nouvelles positions des 9 accords obligatoires.
+- Validation : tests catalogue **57/57**, exercices **237/237**, `npm run test:chords` **98/98**, `npm run build` OK.
+
 ### 2026-09-23 — Vault créé + retrait du catalogue d’Analyse
 
 - Création du Vault `.obsidian/voicing-engine-vault.md`.

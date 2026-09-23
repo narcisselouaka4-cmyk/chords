@@ -73,11 +73,14 @@ const RH_DEFAULT_ROLES = {
 };
 
 /**
- * Familles dérivées mécaniquement de l'empilement fermé à 4 voix : elles ne
- * font que déplacer des voix d'une octave, sans jamais ajouter ni retirer une
- * classe de hauteur — la reconnaissance de l'accord est donc préservée.
+ * Techniques produites comme des transformations mécaniques de l'empilement
+ * fermé : close, drop2/3/2-4, fourway_close, spread, open, block. Quartal et
+ * So What ont leur propre construction. Ces techniques peuvent produire des
+ * spans plus larges qu'un simple close position ; la validation accepte donc
+ * des écarts jusqu'à 24 demi-tons pour la main droite.
  */
-const DROP_FAMILIES = new Set(['drop2', 'drop3', 'drop2_4', 'fourway_close', 'spread', 'open', 'block']);
+const DROP_FAMILIES = new Set(['close', 'drop2', 'drop3', 'drop2_4', 'fourway_close', 'spread', 'open', 'block']);
+const STRUCTURAL_TECHNIQUES = new Set(['close', 'drop2', 'drop3', 'drop2_4', 'fourway_close', 'spread', 'open', 'block', 'quartal', 'so_what', 'upper_structure']);
 
 const TECHNIQUE_DISPLAY_NAMES = {
   drop2: 'Drop 2',
@@ -87,6 +90,7 @@ const TECHNIQUE_DISPLAY_NAMES = {
   spread: 'Spread',
   open: 'Open',
   block: 'Block',
+  upper_structure: 'Upper structure',
 };
 
 /**
@@ -161,20 +165,47 @@ export function generateCopilotVoicing(chordSymbol, options = {}) {
   }
 
   // 2. Répartition LH/RH selon la technique et le style.
-  const voicing = splitHands(parsed, candidates, technique, styleId, options.hand || 'both', options.context || 'accompaniment');
+  const voicing = splitHands(parsed, candidates, technique, styleId, options.hand || 'both', options.context || 'accompaniment', options);
 
-  // 2 bis. Refus explicite d'une technique inapplicable à cet accord (ex. drop 2
-  // sur une triade) : on renvoie l'échec tel quel, SANS repli guide tones — un
-  // repli silencieux masquerait la vraie raison et laisserait croire que la
-  // technique demandée a été appliquée.
+  // 2 bis. Refus explicite d'une technique structurellement impossible
+  // (ex. drop 2 sur une triade) : on renvoie l'échec tel quel.
   if (voicing.refused) {
     voicing.diagnostics = [...diagnostics, ...(voicing.diagnostics || [])];
     voicing.isPlayable = false;
     return voicing;
   }
 
-  // 3. Validation hard.
-  const validation = validateHandVoicing(voicing.leftHand, voicing.rightHand);
+  // 3. Validation hard. La reconnaissance exacte de l'accord n'est plus exigée
+  // ici : un voicing quartal sur Dm7 peut être interprété comme Dm11, ce qui
+  // est valide pour un pianiste. La validation porte sur la jouabilité.
+  //
+  // Pour les techniques structurelles, l'onglet Exercices fusionne LH+RH : on
+  // autorise un bloc de notes réparti sur les deux mains, avec un écart total
+  // max de 24 demi-tons (2 octaves) et chaque note dans l'union des tessitures
+  // main gauche + main droite (28–84).
+  const allNotes = [...voicing.leftHand, ...voicing.rightHand];
+  const isStructural = STRUCTURAL_TECHNIQUES.has(technique);
+  const unionRange = { min: Math.min(LH_HARD_RANGE.min, RH_HARD_RANGE.min), max: Math.max(LH_HARD_RANGE.max, RH_HARD_RANGE.max) };
+  const isOpenSpread = technique === 'open' || technique === 'spread';
+  // Validation main par main pour toutes les techniques : un pianiste n'a que
+  // 5 doigts par main. Pour les techniques structurelles affichées en un bloc,
+  // on relaxe les contraintes de tessiture, de chevauchement et d'écart total.
+  let validation = validateHandVoicing(voicing.leftHand, voicing.rightHand, {
+    maxLeftSpan: isOpenSpread ? 16 : (isStructural ? LH_MAX_SPAN : undefined),
+    maxRightSpan: isStructural ? RH_MAX_SPAN : undefined,
+    allowOverlap: isStructural,
+    leftRange: isStructural ? unionRange : undefined,
+    rightRange: isStructural ? unionRange : undefined,
+  });
+  if (isStructural && validation.valid && allNotes.length > 0) {
+    // L'affichage Exercices fusionne les deux mains : on vérifie que le bloc
+    // total reste jouable (aucun trou d'octave entre notes consécutives).
+    const fullValidation = validateStructuralVoicing(allNotes);
+    if (!fullValidation.valid) {
+      validation.valid = false;
+      validation.diagnostics.push(...fullValidation.diagnostics);
+    }
+  }
   diagnostics.push(...validation.diagnostics);
   voicing.diagnostics = diagnostics;
   voicing.isPlayable = validation.valid;
@@ -203,6 +234,38 @@ function emptyVoicing(chordSymbol, technique, diagnostics) {
     diagnostics,
     fallback: false,
   };
+}
+
+/**
+ * Retourne le nombre de variantes jouables pour un symbole et une technique.
+ * Pour les techniques ne supportant pas les variantes, retourne 1.
+ * Pour drop2/drop3, on compte uniquement les variantes qui restent jouables
+ * dans la technique demandée (sans fallback sur une autre famille) ; sinon
+ * l'UI proposerait des positions qui font disparaître l'étiquette active.
+ *
+ * @param {string} chordSymbol
+ * @param {string} technique
+ * @returns {number}
+ */
+export function countVoicingVariants(chordSymbol, technique) {
+  const parsed = parseChordSymbol(chordSymbol);
+  if (!parsed || !parsed.ok) return 0;
+  if (technique === 'upper_structure') {
+    return listCompatibleUpperStructures(parsed).length;
+  }
+  if (!['drop2', 'drop3'].includes(technique)) {
+    const v = generateCopilotVoicing(chordSymbol, { technique });
+    return v.isPlayable ? 1 : 0;
+  }
+  const stack = buildClosePositionStack(parsed);
+  if (stack.length < 4) return 0;
+  const maxPositions = technique === 'drop2' ? stack.length - 1 : stack.length - 2;
+  let playable = 0;
+  for (let variant = 0; variant < maxPositions; variant += 1) {
+    const voicing = generateCopilotVoicing(chordSymbol, { technique, variant });
+    if (voicing.isPlayable && voicing.technique === technique) playable += 1;
+  }
+  return playable;
 }
 
 /**
@@ -276,60 +339,60 @@ function buildLeftHandShell(parsed) {
 }
 
 /**
- * Quartal (et So What) : main gauche en shell, main droite en quartes.
+ * Quartal (et So What) : voicing en empilement de quartes.
  *
- * Main droite = 3 notes espacées de quartes justes, construites à partir de la
- * 9e quand l'accord en possède une (9e → 5te → fondamentale à l'octave), sinon
- * à partir de la fondamentale ([root, +5, +10]). Deux quartes et non trois :
- * un empilement de 3 quartes (15 demi-tons) est injouable d'une main.
+ * Contrairement à l'ancienne version, on ne rejette PLUS le voicing quand il
+ * produit un accord différent de l'accord demandé (ex. Dm7 quartal → Dm11) : la
+ * cible affichée dans l'onglet Exercices devient l'accord DÉTECTÉ sur ce
+ * voicing, et l'utilisateur le joue tel quel. C'est le comportement normal de
+ * VoicingLab.
  *
- * So What ajoute une tierce majeure au-dessus de la voix la plus aiguë — c'est
- * précisément ce qui le distingue d'un quartal ordinaire.
+ * Construction : empilement de quartes à partir de la 9e quand elle existe,
+ * sinon à partir de la fondamentale. L'écart entre notes consécutives est de 5
+ * demi-tons (quarte juste), et l'empilement ne dépasse pas 19 demi-tons au
+ * total (3 quartes + tierce pour So What), conformément aux données de
+ * VoicingLab sur Dm7 (50-55-60-65-69).
+ *
+ * So What ajoute une tierce majeure au-dessus de la voix la plus aiguë.
  */
 function buildQuartalVoicingHands(parsed, technique, options = {}) {
   const tones = chordToneList(parsed);
-  const chordPcs = new Set(tones.map((t) => t.pc));
 
+  // On cherche la 9e, la 4te (sus4) ou, à défaut, la fondamentale comme point
+  // de départ de l'empilement de quartes.
   const ninth = tones.find((t) => t.semitones >= 13 && t.semitones <= 15);
-  const startPc = ninth ? ninth.pc : parsed.rootPc;
-  const start = pickPcNearCenter(startPc, RH_SOFT_RANGE);
+  const fourth = tones.find((t) => t.semitones === 5 || t.semitones === 6);
+  const startPc = ninth ? ninth.pc : (fourth ? fourth.pc : parsed.rootPc);
+
+  // Point de départ placé dans la tessiture RH confortable, centrée autour de
+  // C4 (60). Pour Dm7, D3 (50) donne l'empilement D3-G3-C4-F4-A4.
+  let start = pickPcNearCenter(startPc, { min: 50, max: 67 });
+  if (start === null) start = pickPcNearCenter(startPc, RH_SOFT_RANGE);
   if (start === null) return null;
 
-  const rightHand = [start, start + 5, start + 10];
-  if (options.soWhat === true) {
-    rightHand.push(rightHand[rightHand.length - 1] + 4);
+  // Limite l'empilement à 3 quartes (15 demi-tons) + tierce majeure (19) pour
+  // So What. Sur Quartal, 3 quartes max (15) pour rester jouable.
+  const maxSemitones = options.soWhat === true ? 19 : 15;
+  const stack = [start];
+  while (stack.length < (options.soWhat === true ? 5 : 4)) {
+    const next = stack[stack.length - 1] + 5;
+    if (next - start > maxSemitones) break;
+    stack.push(next);
+  }
+  if (options.soWhat === true && stack.length === 4) {
+    stack.push(stack[stack.length - 1] + 4);
   }
 
-  // Garde de fidélité harmonique : l'empilement de quartes ne doit introduire
-  // AUCUNE classe de hauteur étrangère à l'accord.
-  //
-  // Sur un accord pourvu d'une 9e (ou un sus4), la pile 9e→5te→fondamentale ne
-  // contient que des tons de l'accord et reste parfaitement détectable. Sur un
-  // m7 ordinaire en revanche, la quarte ajoutée est une 11e étrangère, et le
-  // résultat devient littéralement ambigu : Cm11 et Mib6/9 ont exactement les
-  // mêmes notes, et `detectChord()` retourne l'un pour l'autre (mesuré :
-  // Cm7 → « F7sus4 », Do#m → « F#7sus4 »). Aucune tierce à la main gauche ne
-  // rattrape cela. On refuse donc explicitement plutôt que d'afficher à
-  // l'élève un voicing qu'il lui serait impossible de valider.
-  const foreign = rightHand.filter((n) => !chordPcs.has((((n % 12) + 12) % 12)));
-  if (foreign.length > 0) return null;
-
-  const leftHand = buildLeftHandShell(parsed);
-
-  // Complétude : un voicing auquel il manque un ton fondamental de l'accord
-  // redevient ambigu même sans note étrangère (C7sus4 réduit à Do-Fa-Sib se
-  // lit « Fasus4 » faute de Sol). On complète la main gauche avec les tons
-  // manquants du noyau 1-3-5-7.
-  const present = new Set([...leftHand, ...rightHand].map((n) => (((n % 12) + 12) % 12)));
-  for (const tone of chordToneList(parsed).slice(0, 4)) {
-    if (present.has(tone.pc)) continue;
-    if (!placeMissingTone(tone.pc, leftHand, rightHand)) return null;
-    present.add(tone.pc);
+  // Si l'empilement ne contient pas assez de notes pour être reconnaissable,
+  // on le complète avec la fondamentale en bas.
+  if (stack.length < 4) {
+    const root = pickPcNearCenter(parsed.rootPc, { min: start - 12, max: start - 5 });
+    if (root !== null) stack.unshift(root);
   }
 
-  if (span(leftHand) > LH_MAX_SPAN || span(rightHand) > RH_MAX_SPAN) return null;
+  if (stack.length < 3) return null;
 
-  return finalizeVoicing(parsed, leftHand, rightHand, technique);
+  return finalizeVoicing(parsed, [], stack, technique);
 }
 
 /**
@@ -374,56 +437,64 @@ function placeMissingTone(pc, leftHand, rightHand) {
 }
 
 /**
- * Familles « drop » : toutes partent du même empilement fermé à 4 voix et se
- * bornent à en descendre une ou deux d'une octave. Aucune classe de hauteur
- * n'est ajoutée ni retirée — `detectChord()` reconnaît donc toujours l'accord.
+ * Familles « drop » et apparentées : toutes partent de l'empilement fermé et
+ * déplacent une ou deux voix d'une octave. Le résultat est ensuite ajusté pour
+ * respecter la règle d'écart maximal d'une octave entre notes consécutives
+ * (dernière note autorisée à déborder légèrement).
  *
  * @param {object} parsed
  * @param {string} family
  * @returns {object|null} null si l'accord a moins de 4 tons distincts
  */
-function buildDropFamilyVoicing(parsed, family) {
-  // Spread et Open ne se déduisent pas de l'empilement à 4 voix : ils replient
-  // les tons de l'accord dans une seule octave et sacrifient la quinte juste
-  // dès qu'une extension occupe sa place (vérifié contre VoicingLab sur Cmaj9,
-  // dont les deux familles n'ont pas de Sol).
+function buildDropFamilyVoicing(parsed, family, options = {}) {
+  // Close position : empilement fermé complet, tenu par la main droite seule.
+  if (family === 'close') {
+    const stack = buildClosePositionStack(parsed);
+    if (stack.length === 0) return null;
+    return finalizeVoicing(parsed, [], stack, 'close');
+  }
+
+  // Spread et Open ont leur propre logique de plage.
   if (family === 'spread' || family === 'open') {
     return buildSpreadFamilyVoicing(parsed, family);
   }
 
-  // L'empilement de base reprend TOUS les tons de l'accord repliés dans une
-  // octave, pas seulement les 4 voix principales : se limiter à 1-3-5-7
-  // effacerait la 9e d'un Cmaj9, et le voicing ne serait plus reconnu comme
-  // tel (mesuré : Cmaj9 rendu « Cmaj7 »). Sur un accord de 4 sons, le
-  // résultat est identique à l'empilement classique — donc identique à
-  // VoicingLab, vérifié note à note sur Cmaj7.
   const base = rootInReferenceOctave(parsed);
   const stack = buildFoldedToneSet(parsed).map((t) => base + t.fold);
   if (stack.length < 4) return null;
 
   const top = stack.length - 1;
-  const nthFromTop = (n) => stack[top - n];      // 0 = voix la plus aiguë
+  const nthFromTop = (n) => stack[top - n];
   const others = (dropped) => stack.filter((n) => !dropped.includes(n));
+
+  // Pour drop2/drop3/drop2_4, on génère 4 positions en fonction de la
+  // variante demandée. La variante détermine quelle voix de l'empilement
+  // fermé est descendue d'une octave.
+  // Variantes Drop 2 : 4 positions (la 2e, 3e, 4e ou 5e voix depuis le haut
+  // descendue d'une octave). Variantes Drop 3 : 3 positions.
+  const variant = Number(options.variant || 0);
 
   let leftHand;
   let rightHand;
   switch (family) {
     case 'drop2': {
-      // 2e voix depuis le haut descendue d'une octave.
-      const v = nthFromTop(1);
+      // 4 positions possibles : 2e, 3e, 4e, 5e voix depuis le haut descendues.
+      const voiceIndex = variant % Math.max(1, stack.length - 1);
+      const v = nthFromTop(1 + voiceIndex);
       leftHand = [v - 12];
       rightHand = others([v]);
       break;
     }
     case 'drop3': {
-      // 3e voix depuis le haut descendue d'une octave.
-      const v = nthFromTop(2);
+      // 3 positions : 3e, 4e, 5e voix depuis le haut descendues.
+      const maxVariants = Math.max(1, stack.length - 2);
+      const voiceIndex = variant % maxVariants;
+      const v = nthFromTop(2 + voiceIndex);
       leftHand = [v - 12];
       rightHand = others([v]);
       break;
     }
     case 'drop2_4': {
-      // 2e voix depuis le haut ET voix la plus grave descendues d'une octave.
       const v = nthFromTop(1);
       const lowest = stack[0];
       leftHand = [lowest - 12, v - 12];
@@ -431,13 +502,12 @@ function buildDropFamilyVoicing(parsed, family) {
       break;
     }
     case 'fourway_close':
-      // L'empilement fermé entier tenu par la seule main droite.
+      // Empilement fermé complet, une seule main visuellement.
       leftHand = [];
       rightHand = [...stack];
       break;
     case 'block':
-      // Four-way close, dont la voix la plus aiguë est doublée une octave plus
-      // bas à la main gauche (technique « locked hands »).
+      // Voix la plus aiguë doublée une octave plus bas.
       leftHand = [stack[top] - 12];
       rightHand = [...stack];
       break;
@@ -445,12 +515,49 @@ function buildDropFamilyVoicing(parsed, family) {
       return null;
   }
   if (rightHand.length === 0) return null;
+
+  // Recompacte le voicing entier (LH+RH) pour éviter un trou d'octave entre
+  // notes consécutives, sauf pour la toute dernière note qui peut déborder.
+  // Block et drop2_4 peuvent produire un trou à la jonction LH/RH ; on le
+  // comble en remontant les notes de RH autour de la dernière note de LH.
+  const all = [...leftHand, ...rightHand].sort((a, b) => a - b);
+  const compacted = compactRightHand(all, 12, 3);
+  leftHand = compacted.slice(0, leftHand.length);
+  rightHand = compacted.slice(leftHand.length);
+
   return finalizeVoicing(parsed, leftHand, rightHand, family);
 }
 
 /**
- * Tons de l'accord repliés dans une octave et triés du plus grave au plus
- * aigu, base des familles Spread et Open.
+ * Recompacte un ensemble de notes de main droite : aucune note ne doit être
+ * à plus d'une octave (12 demi-tons) de la précédente, sauf la dernière qui
+ * peut déborder de 3 demi-tons maximum. Si une note est trop haute, elle est
+ * descendue d'octaves jusqu'à ce que la condition soit respectée.
+ *
+ * @param {number[]} notes
+ * @param {number} maxGap
+ * @param {number} lastOverflow
+ * @returns {number[]}
+ */
+function compactRightHand(notes, maxGap = 12, lastOverflow = 3) {
+  if (notes.length < 2) return [...notes];
+  const out = [notes[0]];
+  for (let i = 1; i < notes.length; i += 1) {
+    let note = notes[i];
+    const prev = out[i - 1];
+    const limit = i === notes.length - 1 ? maxGap + lastOverflow : maxGap;
+    while (note - prev > limit) {
+      note -= 12;
+    }
+    out.push(note);
+  }
+  return out;
+}
+
+/**
+ * Tons de l'accord repliés dans une octave au-dessus de la fondamentale et
+ * triés du plus grave au plus aigu. Le `fold` est l'intervalle en demi-tons
+ * par rapport à la fondamentale (0–11), pas la classe de hauteur absolue.
  *
  * Écart assumé avec VoicingLab : sur un accord à extension, VoicingLab
  * sacrifie la quinte juste (Cmaj9 spread = Do3 / Ré4-Mi4-Si4, sans Sol).
@@ -459,114 +566,232 @@ function buildDropFamilyVoicing(parsed, family) {
  * doivent rien changer d'autre que la répartition en octaves.
  */
 function buildFoldedToneSet(parsed) {
+  const rootPc = (((parsed.rootPc % 12) + 12) % 12);
   return chordToneList(parsed)
-    .map((t) => ({ ...t, fold: (((t.semitones % 12) + 12) % 12) }))
+    .map((t) => {
+      const fold = (((t.pc - rootPc) % 12) + 12) % 12;
+      return { ...t, fold };
+    })
     .sort((a, b) => a.fold - b.fold);
 }
 
 /**
  * Spread : la fondamentale descend seule à la main gauche, les autres voix
- * restent groupées à la main droite.
+ * restent groupées à la main droite au-dessus du close stack.
  *
- * Open : la main gauche prend la fondamentale ET la quinte, la main droite
- * garde le reste.
+ * Open : la main gauche prend la fondamentale (une octave sous le close stack)
+ * ET la quinte, la main droite garde le reste replié dans l'octave du close
+ * stack (entre la fondamentale et son octave supérieure).
  *
- * Écart assumé avec VoicingLab sur Open : sur un accord à quinte altérée,
- * VoicingLab ajoute une quinte JUSTE à la main gauche en plus de la quinte
- * altérée (vérifié sur C7#5#9 → Sol3 à côté du Lab, et sur Cm7b5 → Sol3 à
- * côté du Fa#). Cela introduit une classe de hauteur étrangère à l'accord et
- * casserait la reconnaissance, que ces familles doivent justement préserver.
- * On utilise donc la quinte PROPRE de l'accord : résultat identique à
- * VoicingLab sur les accords à quinte juste, fidèle sur les autres.
+ * Conformément aux données VoicingLab :
+ * - Dm7 spread = D3 C4 F4 A4  → [50, 60, 65, 69]
+ * - Dm7 open   = D3 A3 C4 F4  → [50, 57, 60, 65]
  */
 function buildSpreadFamilyVoicing(parsed, family) {
   const base = rootInReferenceOctave(parsed);
-  const folded = buildFoldedToneSet(parsed);
-  if (folded.length < 3) return null;
+  const stack = buildClosePositionStack(parsed);
+  if (stack.length < 3) return null;
 
-  const rootTone = folded.find((t) => t.fold === 0);
-  if (!rootTone) return null;
+  const tones = chordToneList(parsed);
+  const rootPc = parsed.rootPc;
+
+  // Trouve la première occurrence d'une classe de hauteur dans le close stack
+  // et retourne sa valeur MIDI la plus proche d'une octave de référence donnée.
+  const findToneMidi = (targetPc, refMidi) => {
+    const matches = stack.filter((n) => ((n % 12) + 12) % 12 === ((targetPc % 12) + 12) % 12);
+    if (matches.length === 0) return null;
+    return matches.reduce((best, n) =>
+      (Math.abs(n - refMidi) < Math.abs(best - refMidi) ? n : best), matches[0]);
+  };
+
+  const buildAbove = (lHand, sourceNotes, maxGap = 12, lastOverflow = 3) => {
+    const out = [];
+    let prev = lHand[lHand.length - 1];
+    for (const src of sourceNotes) {
+      let midi = src;
+      while (midi <= prev) midi += 12;
+      while (midi > prev + 12) midi -= 12;
+      out.push(midi);
+      prev = midi;
+    }
+    return compactRightHand(out, maxGap, lastOverflow);
+  };
 
   if (family === 'spread') {
-    const rest = folded.filter((t) => t.fold !== 0).map((t) => base + t.fold);
-    return finalizeVoicing(parsed, [base - 12], rest, family);
+    const leftHand = [base - 12];
+    const rightHand = buildAbove(leftHand, stack.slice(1), 12, 3);
+    return finalizeVoicing(parsed, leftHand, rightHand, family);
   }
 
-  // open : fondamentale + quinte (propre à l'accord) à la main gauche.
-  const fifth = chordToneList(parsed).find((t) => {
+  // Open : main gauche plus riche (fondamentale + quinte + septième/tierce)
+  // pour alléger la main droite et créer l'espacement gospel typique.
+  const fifth = tones.find((t) => {
     const semi = (((t.semitones % 12) + 12) % 12);
     return semi === 7 || semi === 6 || semi === 8;
   });
+  const seventh = tones.find((t) => {
+    const semi = (((t.semitones % 12) + 12) % 12);
+    return semi === 10 || semi === 11;
+  });
+  const third = tones.find((t) => {
+    const semi = (((t.semitones % 12) + 12) % 12);
+    return semi === 3 || semi === 4;
+  });
   if (!fifth) return null;
+
+  const lRoot = base - 12;
   const fifthFold = (((fifth.semitones % 12) + 12) % 12);
-  const leftHand = [base - 12, base - 12 + fifthFold];
-  const rightHand = folded
-    .filter((t) => t.fold !== 0 && t.fold !== fifthFold)
-    .map((t) => base + t.fold);
-  if (rightHand.length === 0) return null;
-  return finalizeVoicing(parsed, leftHand, rightHand, family);
+  const leftTones = [lRoot, lRoot + fifthFold];
+
+  // Ajoute une troisième note à la main gauche quand l'accord le permet :
+  // tierce d'abord (répartition gospel type Gm11 : G D Bb / C F Bb), sinon
+  // septième. On ne l'ajoute que s'il reste au moins 2 notes pour la main
+  // droite, pour éviter un voicing déséquilibré sur les accords de 4 sons.
+  const extraTone = third || seventh;
+  const wouldLeaveInRh = stack.length - leftTones.length - (extraTone ? 1 : 0);
+  if (extraTone && wouldLeaveInRh >= 2) {
+    let extraMidi = lRoot + extraTone.semitones;
+    const used = new Set(leftTones.map((n) => n % 12));
+    while (extraMidi <= lRoot) extraMidi += 12;
+    while (used.has(extraMidi % 12) && extraMidi <= lRoot + 12) extraMidi += 12;
+    if (!used.has(extraMidi % 12)) {
+      leftTones.push(extraMidi);
+    }
+  }
+
+  const usedPcs = new Set(leftTones.map((n) => (n % 12)));
+  const rest = stack.filter((n) => !usedPcs.has((n % 12)));
+
+  // L'open gospel aère la main droite : on permet des écarts jusqu'à 7
+  // demi-tons entre notes consécutives (sauf la dernière qui peut déborder).
+  const rightHand = buildAbove(leftTones, rest, 9, 3);
+  return finalizeVoicing(parsed, leftTones, rightHand, family);
 }
 
 /**
- * So What : l'empilement de quartes emblématique de Kind of Blue — trois
- * quartes justes surmontées d'une tierce majeure.
+ * So What : alias de buildQuartalVoicingHands avec l'option soWhat activée.
  *
- * Construit depuis la fondamentale (fondamentale, 4te, 7e, 3ce, 5te), forme
- * réelle de ce voicing, vérifiée contre VoicingLab (Cm7 → Do3-Fa3-Sib3 /
- * Mib4-Sol4). Il contient donc une 11e : comme pour Quartal, on ne le propose
- * que si toutes ses notes appartiennent à l'accord — ce qui le réserve
- * naturellement aux accords de 11e, son terrain modal d'origine.
+ * L'ancien code construisait une pile fixe et la rejetait quand elle sortait de
+ * l'accord. La nouvelle version accepte que le résultat soit interprété comme
+ * un accord riche (ex. Dm7 So What → Dm11 / Dm13) ; l'onglet Exercices affiche
+ * l'accord détecté.
  */
 function buildSoWhatVoicing(parsed) {
-  const base = rootInReferenceOctave(parsed) - 12;
-  const notes = [base, base + 5, base + 10, base + 15, base + 19];
-  const chordPcs = new Set(chordToneList(parsed).map((t) => t.pc));
-  if (notes.some((n) => !chordPcs.has((((n % 12) + 12) % 12)))) return null;
-  return finalizeVoicing(parsed, notes.slice(0, 3), notes.slice(3), 'so_what');
+  return buildQuartalVoicingHands(parsed, 'so_what', { soWhat: true });
 }
 
-function splitHands(parsed, candidates, technique, styleId, hand, context) {
-  const rootPc = parsed.rootPc;
-  const bassPc = parsed.bassPc !== null ? parsed.bassPc : rootPc;
+/**
+ * Construit un voicing « upper structure » pour les accords dominants :
+ * main gauche = fondamentale + tierce + septième (guide tones),
+ * main droite = triade supérieure (tensions caractéristiques).
+ *
+ * Les variantes proposent plusieurs triades classiques (ex. D maj sur C7,
+ * Eb min sur C7, A min sur C7…). Si aucune triade n'est compatible avec
+ * les tensions explicites de l'accord, la technique est refusée.
+ */
 
-  let leftHand = [];
-  let rightHand = [];
+const UPPER_STRUCTURE_TRIADS = [
+  { offset: 2, quality: 'major', label: 'Maj sur 9e' },   // 9, #11, 13
+  { offset: 1, quality: 'minor', label: 'min sur b9e' },  // b9, 3, b13
+  { offset: 1, quality: 'major', label: 'Maj sur b9e' },  // b9, 11, b13
+  { offset: 3, quality: 'minor', label: 'min sur #9e' },  // #9, #11, b7
+  { offset: 6, quality: 'major', label: 'Maj sur #11e' }, // #11, b7, b9
+  { offset: 9, quality: 'minor', label: 'min sur 13e' },  // 13, root, 9
+  { offset: 10, quality: 'major', label: 'Maj sur b7e' }, // b7, 9, 11
+];
 
-  // Sélection des notes importantes pour chaque main.
-  const rootNotes = candidates.filter((n) => n % 12 === rootPc);
-  const thirdPc = thirdPcOf(parsed);
-  const seventhPc = seventhPcOf(parsed);
-  const fifthPc = findIntervalPc(parsed, 7);
+function triadOffsets(quality) {
+  if (quality === 'major') return [0, 4, 7];
+  if (quality === 'minor') return [0, 3, 7];
+  if (quality === 'diminished') return [0, 3, 6];
+  if (quality === 'augmented') return [0, 4, 8];
+  return [0, 4, 7];
+}
 
-  // Quartal : main gauche en shell (fondamentale + tierce + 7e), main droite
-  // en empilement de quartes.
-  //
-  // L'ancienne construction plaçait la fondamentale SEULE à la main gauche et
-  // empilait 3 quartes à la main droite : la tierce n'apparaissait alors nulle
-  // part dans le voicing produit, et l'accord devenait indétectable (C#m rendu
-  // comme « F#7sus4/C# » en test réel). Garder la tierce à la main gauche
-  // préserve la couleur quartale à la main droite ET la qualité de l'accord.
-  if (technique === 'quartal' && hand !== 'right' && hand !== 'left') {
-    const quartal = buildQuartalVoicingHands(parsed, technique, { soWhat: false });
-    if (quartal === null) {
-      return {
-        ...emptyVoicing(parsed.input, 'quartal', [
-          "Quartal nécessite un accord dont l'empilement de quartes reste dans l'accord (9e ou sus4).",
-        ]),
-        refused: true,
-      };
-    }
-    return quartal;
+function listCompatibleUpperStructures(parsed) {
+  const intervals = parsed.intervals || [];
+  const semitones = intervals
+    .map((iv) => Interval.semitones(iv))
+    .filter((n) => Number.isFinite(n))
+    .map((n) => ((n % 12) + 12) % 12);
+  const explicit = new Set(semitones);
+  const hasMajor3 = explicit.has(4);
+  const hasMinor7 = explicit.has(10);
+  if (!hasMajor3 || !hasMinor7) return [];
+
+  const naturalTensions = new Set([2, 5, 9]); // 9, 11, 13
+  const alteredTensions = new Set([1, 3, 8]); // b9, #9, b13
+  const neutralTensions = new Set([6]);      // #11, considéré comme disponible
+  const hasExplicitNatural = [...naturalTensions].some((s) => explicit.has(s));
+  const hasExplicitAltered = [...alteredTensions].some((s) => explicit.has(s));
+  // Dominant nu : toutes les tensions classiques sont autorisées.
+  const isPlainDominant = [...explicit].every((s) => [0, 4, 7, 10].includes(s));
+
+  let allowedTensions = new Set([...naturalTensions, ...alteredTensions, ...neutralTensions]);
+  if (!isPlainDominant) {
+    if (hasExplicitNatural) allowedTensions = new Set([...naturalTensions, ...neutralTensions]);
+    else if (hasExplicitAltered) allowedTensions = new Set([...alteredTensions, ...neutralTensions]);
   }
 
-  // Drop 2 : vrai algorithme (2e voix depuis le haut descendue d'une octave),
-  // réservé aux accords de 4 sons ou plus. Sur une triade il ne resterait
-  // qu'une note à la main droite : ce n'est pas un drop 2, c'est un artefact.
-  // On refuse explicitement plutôt que de produire un résultat dégradé.
-  // Familles structurelles : toutes dérivées de l'empilement fermé, elles ne
-  // déplacent que des octaves sans toucher aux classes de hauteur.
+  return UPPER_STRUCTURE_TRIADS.filter((s) => {
+    const notes = triadOffsets(s.quality).map((off) => (s.offset + off) % 12);
+    // Chaque note de la triade doit être soit une note de l'accord explicite,
+    // soit une tension autorisée par la famille de l'accord.
+    return notes.every((n) => explicit.has(n) || allowedTensions.has(n));
+  });
+}
+
+function buildUpperStructureVoicing(parsed, options = {}) {
+  const compatible = listCompatibleUpperStructures(parsed);
+  if (compatible.length === 0) return null;
+
+  const variant = options.variant || 0;
+  const structure = compatible[variant % compatible.length];
+
+  // Guide tones en main gauche : fondamentale + tierce + septième.
+  const tones = chordToneList(parsed);
+  const thirdTone = tones.find((t) => t.semitones === 3 || t.semitones === 4);
+  const seventhTone = tones.find((t) => t.semitones === 10);
+  if (!thirdTone || !seventhTone) return null;
+
+  const rootPc = parsed.rootPc;
+  // Main gauche plus aiguë que la tessiture normale : l'upper structure a besoin
+  // de guide tones proches de la triade supérieure pour éviter un trou d'octave.
+  const upperLeftRange = { min: 36, max: 62 };
+  const rootMidi = pickPcNearCenter(rootPc, upperLeftRange);
+  const thirdMidi = rootMidi + thirdTone.semitones;
+  let seventhMidi = rootMidi + 10;
+  while (seventhMidi > upperLeftRange.max) seventhMidi -= 12;
+  while (seventhMidi < upperLeftRange.min) seventhMidi += 12;
+  const leftHand = [rootMidi, thirdMidi, seventhMidi].sort((a, b) => a - b);
+
+  // Triade supérieure en main droite.
+  const triadRootPc = (rootPc + structure.offset) % 12;
+  let triadRootMidi = pickPcNearCenter(triadRootPc, RH_HARD_RANGE);
+  const offsets = triadOffsets(structure.quality);
+  // S'assure que la triade reste au-dessus de la main gauche.
+  const lhMax = Math.max(...leftHand);
+  while (triadRootMidi + offsets[offsets.length - 1] <= lhMax) triadRootMidi += 12;
+  const rightHand = offsets.map((off) => triadRootMidi + off);
+
+  return finalizeVoicing(parsed, leftHand, rightHand, 'upper_structure');
+}
+
+function splitHands(parsed, candidates, technique, styleId, hand, context, options = {}) {
+  // L'ancien code rejetait le résultat quand detectChord() ne reconnaissait pas
+  // exactement l'accord demandé. On supprime ce rejet : le voicing produit est
+  // une réalisation pianistique réelle ; l'onglet Exercices affiche l'accord
+  // détecté sur ce voicing.
+  if (technique === 'quartal' && hand !== 'right' && hand !== 'left') {
+    return buildQuartalVoicingHands(parsed, technique, { soWhat: false });
+  }
+
+  if (technique === 'so_what' && hand !== 'right' && hand !== 'left') {
+    return buildSoWhatVoicing(parsed);
+  }
+
   if (DROP_FAMILIES.has(technique) && hand !== 'right' && hand !== 'left') {
-    const built = buildDropFamilyVoicing(parsed, technique);
+    const built = buildDropFamilyVoicing(parsed, technique, options);
     if (built === null) {
       return {
         ...emptyVoicing(parsed.input, technique, [
@@ -578,71 +803,59 @@ function splitHands(parsed, candidates, technique, styleId, hand, context) {
     return built;
   }
 
-  if (technique === 'so_what' && hand !== 'right' && hand !== 'left') {
-    // So What part de la même construction que Quartal (shell LH + empilement de
-    // quartes RH) et ajoute une tierce majeure au sommet de l'empilement. La
-    // détection est donc héritée de Quartal : l'accord doit contenir l'ensemble
-    // des notes produites, sans quoi le résultat devient ambigu.
-    const soWhat = buildQuartalVoicingHands(parsed, 'so_what', { soWhat: true });
-    if (soWhat === null) {
+  if (technique === 'upper_structure' && hand !== 'right' && hand !== 'left') {
+    const built = buildUpperStructureVoicing(parsed, options);
+    if (built === null) {
       return {
-        ...emptyVoicing(parsed.input, 'so_what', [
-          "So What nécessite un accord dont l'empilement de quartes reste dans l'accord (9e, sus4 ou 11e).",
+        ...emptyVoicing(parsed.input, technique, [
+          `${TECHNIQUE_DISPLAY_NAMES.upper_structure} n'est utilisable que sur un accord dominant (X7, X9, X13, X7alt…).`,
         ]),
         refused: true,
       };
     }
-    return soWhat;
+    return built;
   }
 
+  // --- Branche legacy pour rootless / main droite seule / main gauche seule ---
+  const rootPc = parsed.rootPc;
+  const thirdPc = thirdPcOf(parsed);
+  const seventhPc = seventhPcOf(parsed);
+
+  let leftHand = [];
+  let rightHand = [];
+
   if (hand === 'right') {
-    // Tout à la main droite, réparti autour de C4/C5.
     rightHand = pickNotesFromRange(candidates, RH_HARD_RANGE.min, RH_HARD_RANGE.max, Math.min(4, parsed.intervals.length));
   } else if (hand === 'left') {
     leftHand = pickNotesFromRange(candidates, LH_HARD_RANGE.min, LH_HARD_RANGE.max, Math.min(4, parsed.intervals.length), LH_MAX_SPAN);
   } else {
-    // LH : basse + une note structurante (5e ou guide tone).
+    const rootNotes = candidates.filter((n) => n % 12 === rootPc);
     const bassNote = rootNotes.find((n) => midiInRange(n, LH_HARD_RANGE));
     const bass = bassNote || fitInRange(rootNotes[0] || candidates[0], LH_HARD_RANGE);
     leftHand = [bass];
 
     if (technique === 'rootless') {
-      // Shell : 3e et 7e à la main gauche.
       const shell = [];
       if (thirdPc !== null) shell.push(...candidates.filter((n) => n % 12 === thirdPc).slice(0, 1));
       if (seventhPc !== null) shell.push(...candidates.filter((n) => n % 12 === seventhPc).slice(0, 1));
       if (shell.length >= 1) {
         leftHand = shell.map((n) => fitInRange(n, LH_HARD_RANGE));
       }
-    } else {
-      // close : basse + root (le root n'est ajouté que si la basse en diffère,
-      // c'est-à-dire sur un accord renversé / slash).
-      if (parsed.bassPc !== null && parsed.bassPc !== rootPc) {
-        const rootNote = candidates.find((n) => n % 12 === rootPc);
-        if (rootNote !== undefined) leftHand.push(fitInRange(rootNote, LH_HARD_RANGE));
-      }
+    } else if (parsed.bassPc !== null && parsed.bassPc !== rootPc) {
+      const rootNote = candidates.find((n) => n % 12 === rootPc);
+      if (rootNote !== undefined) leftHand.push(fitInRange(rootNote, LH_HARD_RANGE));
     }
 
-    // RH : complément des notes dans la tessiture aiguë, sans doublons avec LH.
     const lhPcs = new Set(leftHand.map((n) => n % 12));
     const rhCandidates = candidates.filter((n) => !lhPcs.has(n % 12) && midiInRange(n, RH_HARD_RANGE));
-    // On prend les notes proches du centre de la tessiture RH pour éviter les spans trop grands.
-    // Plage réduite : C4 (60) à G5 (79) maximum.
-    //
-    // Pour `close` spécifiquement, l'écart maximal de la main droite est
-    // ramené à une OCTAVE (12) au lieu du RH_MAX_SPAN générique (16) : une
-    // « position fermée » dont les notes s'étalent sur plus d'une octave n'est
-    // pas une position fermée. Les autres techniques gardent 16.
     const rhMaxSpan = technique === 'close' ? 12 : RH_MAX_SPAN;
     rightHand = pickNotesFromRange(rhCandidates, 60, 79, Math.min(5, parsed.intervals.length), rhMaxSpan);
 
-    // Si RH est vide (accord très petit ou notes très graves), on remplit avec les notes disponibles.
     if (rightHand.length === 0) {
       rightHand = pickNotesFromRange(candidates, RH_HARD_RANGE.min + 5, RH_HARD_RANGE.max - 5, Math.min(4, parsed.intervals.length));
     }
   }
 
-  // S'assurer que RH est au-dessus de LH.
   const adjusted = adjustRegister(leftHand, rightHand, context);
 
   return {
@@ -767,49 +980,106 @@ function pickPcNearCenter(pc, range) {
 }
 
 /**
- * Transpose un voicing entier (les deux mains ensemble) par octaves, jusqu'à
- * ce que la note la plus grave de la main gauche tombe dans sa tessiture.
+ * Ajuste chaque main indépendamment pour qu'elle tombe dans sa tessiture. Les
+ * techniques structurelles (drop, spread, open, block, quartal, so_what)
+ * produisent des répartitions précises qui ne doivent pas être transposées en
+ * bloc : seules les notes hors tessiture sont recalées par octaves. Comme
+ * l'onglet Exercices fusionne désormais LH et RH pour l'affichage, le
+ * chevauchement entre les deux mains n'est plus un problème.
  *
- * Transposer les DEUX mains du même nombre d'octaves préserve exactement la
- * structure intervallique produite par la transformation (drop, block…) —
- * contrairement à `adjustRegister`, qui recale chaque main indépendamment et
- * détruirait l'écart caractéristique de ces familles.
+ * Pour les techniques structurelles, chaque note peut occuper l'union des
+ * tessitures (28–84) afin de garder le bloc compact ; pour les autres, on
+ * applique les plages strictes.
  */
-function shiftVoicingIntoRange(leftHand, rightHand) {
-  const lh = [...leftHand];
-  const rh = [...rightHand];
-  const hand = lh.length ? lh : rh;
-  if (hand.length === 0) return { leftHand: lh, rightHand: rh };
-  const range = lh.length ? LH_HARD_RANGE : RH_HARD_RANGE;
-  // Il faut caler la main ENTIÈRE, pas seulement sa note la plus grave : une
-  // famille qui descend deux voix (drop 2-4, open) produit une main gauche de
-  // plusieurs notes dont la plus aiguë peut dépasser la tessiture alors que la
-  // plus grave y tient — le voicing était alors rejeté puis remplacé par un
-  // repli guide tones, qui perdait la 9e (Dm9 rendu « Dm7 »).
-  const low = Math.min(...hand);
-  const high = Math.max(...hand);
-  let shift = 0;
-  while (high + shift > range.max) shift -= 12;
-  while (low + shift < range.min) shift += 12;
+function shiftVoicingIntoRange(leftHand, rightHand, technique) {
+  const isStructural = STRUCTURAL_TECHNIQUES.has(technique);
+  const unionRange = { min: Math.min(LH_HARD_RANGE.min, RH_HARD_RANGE.min), max: Math.max(LH_HARD_RANGE.max, RH_HARD_RANGE.max) };
+  const clampToRange = (n, range) => {
+    if (n >= range.min && n <= range.max) return n;
+    if (n < range.min) return n + Math.ceil((range.min - n) / 12) * 12;
+    return n - Math.ceil((n - range.max) / 12) * 12;
+  };
   return {
-    leftHand: lh.map((n) => n + shift),
-    rightHand: rh.map((n) => n + shift),
+    leftHand: leftHand.map((n) => clampToRange(n, isStructural ? unionRange : LH_HARD_RANGE)),
+    rightHand: rightHand.map((n) => clampToRange(n, isStructural ? unionRange : RH_HARD_RANGE)),
   };
 }
 
 /**
  * Emballe un résultat de technique « structurelle » (drop, quartal, block…).
  *
- * Ces familles gèrent elles-mêmes leur registre via `shiftVoicingIntoRange` et
- * ne doivent PAS passer par `adjustRegister` : celui-ci remonte d'une octave
- * toute note de main droite située à moins de 3 demi-tons de la main gauche,
- * ce qui casserait par exemple le doublage à l'octave du voicing Block.
+ * Chaque main est recalée dans sa tessiture sans casser la structure
+ * intervallique au sein de la main. L'affichage Exercices fusionne LH+RH.
  */
+/**
+ * Rééquilibre les notes entre les deux mains pour qu'aucune main ne dépasse
+ * 5 doigts. Essaie d'abord de déplacer les notes excédentaires vers l'autre
+ * main, puis supprime les tensions les moins essentielles si nécessaire.
+ * L'ordre d'importance est : fondamentale, tierce, septième, quinte, tensions.
+ */
+function balanceHands(parsed, leftHand, rightHand, technique) {
+  const MAX_PER_HAND = 5;
+  const isStructural = STRUCTURAL_TECHNIQUES.has(technique);
+  const unionRange = { min: Math.min(LH_HARD_RANGE.min, RH_HARD_RANGE.min), max: Math.max(LH_HARD_RANGE.max, RH_HARD_RANGE.max) };
+  const maxLeftSpan = isStructural ? 16 : LH_MAX_SPAN;
+  const maxRightSpan = isStructural ? RH_MAX_SPAN + 4 : RH_MAX_SPAN;
+  const leftMaxNote = isStructural ? unionRange.max : LH_HARD_RANGE.max;
+  const importance = (midi) => {
+    const fold = (((midi % 12) - parsed.rootPc + 12) % 12);
+    if (fold === 0) return 0;
+    if (fold === 3 || fold === 4) return 1;
+    if (fold === 10 || fold === 11) return 2;
+    if (fold === 6 || fold === 7 || fold === 8) return 3;
+    return 4;
+  };
+
+  let lh = [...leftHand].sort((a, b) => a - b);
+  let rh = [...rightHand].sort((a, b) => a - b);
+
+  // Déplace les notes excédentaires de la main droite vers la main gauche.
+  while (rh.length > MAX_PER_HAND && lh.length < MAX_PER_HAND) {
+    const candidate = rh[0];
+    const newLh = [...lh, candidate].sort((a, b) => a - b);
+    if (span(newLh) <= maxLeftSpan && candidate >= LH_HARD_RANGE.min && candidate <= leftMaxNote) {
+      lh = newLh;
+      rh = rh.slice(1);
+    } else {
+      break;
+    }
+  }
+
+  // Supprime les notes les moins importantes de la main droite si elle reste
+  // surchargée.
+  while (rh.length > MAX_PER_HAND) {
+    rh.sort((a, b) => importance(b) - importance(a) || b - a);
+    rh.pop();
+  }
+
+  // Même chose pour la main gauche.
+  while (lh.length > MAX_PER_HAND && rh.length < MAX_PER_HAND) {
+    const candidate = lh[lh.length - 1];
+    const newRh = [...rh, candidate].sort((a, b) => a - b);
+    if (span(newRh) <= maxRightSpan && candidate <= RH_HARD_RANGE.max) {
+      rh = newRh;
+      lh = lh.slice(0, -1);
+    } else {
+      break;
+    }
+  }
+  while (lh.length > MAX_PER_HAND) {
+    lh.sort((a, b) => importance(b) - importance(a) || a - b);
+    lh.pop();
+  }
+
+  return { leftHand: lh, rightHand: rh };
+}
+
 function finalizeVoicing(parsed, leftHand, rightHand, technique) {
-  const placed = shiftVoicingIntoRange(leftHand, rightHand);
+  const placed = shiftVoicingIntoRange(leftHand, rightHand, technique);
+  const balanced = balanceHands(parsed, placed.leftHand, placed.rightHand, technique);
   const clamp = (n) => Math.max(21, Math.min(108, n));
-  const lh = dedupAndSort(placed.leftHand.map(clamp));
-  const rh = dedupAndSort(placed.rightHand.map(clamp));
+  const lh = dedupAndSort(balanced.leftHand.map(clamp));
+  const rh = dedupAndSort(balanced.rightHand.map(clamp));
   return {
     chordSymbol: parsed.input,
     leftHand: lh,
@@ -964,40 +1234,100 @@ function describeRegister(leftHand, rightHand) {
 }
 
 /**
- * Valide un double-voicing pour un pianiste réel.
+ * Valide un bloc de notes produit par une technique structurelle, où les deux
+ * mains sont affichées/jouées comme un tout. L'écart total est limité à 24
+ * demi-tons (2 octaves) pour rester confortable, et chaque note doit tenir dans
+ * l'union des tessitures (28–84).
+ *
+ * @param {number[]} notes
  * @returns {{valid: boolean, diagnostics: string[]}}
  */
-export function validateHandVoicing(leftHand, rightHand) {
+function validateStructuralVoicing(notes) {
   const diagnostics = [];
   let valid = true;
-
-  if (leftHand.length === 0 && rightHand.length === 0) {
+  if (notes.length === 0) {
     return { valid: false, diagnostics: ['Aucune note dans le voicing.'] };
   }
+  for (const n of notes) {
+    if (n < LH_HARD_RANGE.min || n > RH_HARD_RANGE.max) {
+      diagnostics.push(`Note ${chordName(n)} hors tessiture ${chordName(LH_HARD_RANGE.min)}–${chordName(RH_HARD_RANGE.max)}.`);
+      valid = false;
+    }
+  }
+  // Écart entre notes consécutives : max une octave (12) ; la dernière note
+  // peut déborder de 3 demi-tons (15). L'accord total peut s'étaler sur plus
+  // d'une octave quand il compte 5+ sons, du moment que chaque intervalle
+  // consécutif reste jouable.
+  const sorted = [...notes].sort((a, b) => a - b);
+  for (let i = 1; i < sorted.length; i += 1) {
+    const gap = sorted[i] - sorted[i - 1];
+    const limit = i === sorted.length - 1 ? 15 : 12;
+    if (gap > limit) {
+      diagnostics.push(`Écart entre ${chordName(sorted[i - 1])} et ${chordName(sorted[i])} trop grand (${gap} > ${limit}).`);
+      valid = false;
+    }
+  }
+  return { valid, diagnostics };
+}
 
+/**
+ * Valide un voicing pour un pianiste réel.
+ *
+ * @param {number[]} leftHand
+ * @param {number[]} rightHand
+ * @param {{maxLeftSpan?: number, maxRightSpan?: number, maxSpan?: number, allowOverlap?: boolean}} [options]
+ * @returns {{valid: boolean, diagnostics: string[]}}
+ */
+export function validateHandVoicing(leftHand, rightHand, options = {}) {
+  const diagnostics = [];
+  let valid = true;
+  const notes = [...leftHand, ...rightHand];
+
+  if (notes.length === 0) {
+    return { valid: false, diagnostics: ['Aucune note dans le voicing.'] };
+  }
+  if (leftHand.length > 5) {
+    diagnostics.push(`Main gauche : ${leftHand.length} notes, maximum 5.`);
+    valid = false;
+  }
+  if (rightHand.length > 5) {
+    diagnostics.push(`Main droite : ${rightHand.length} notes, maximum 5.`);
+    valid = false;
+  }
+
+  const leftRange = options.leftRange || LH_HARD_RANGE;
+  const rightRange = options.rightRange || RH_HARD_RANGE;
   for (const n of leftHand) {
-    if (!midiInRange(n, LH_HARD_RANGE)) {
-      diagnostics.push(`Main gauche : ${chordName(n)} hors tessiture ${chordName(LH_HARD_RANGE.min)}–${chordName(LH_HARD_RANGE.max)}.`);
+    if (!midiInRange(n, leftRange)) {
+      diagnostics.push(`Main gauche : ${chordName(n)} hors tessiture ${chordName(leftRange.min)}–${chordName(leftRange.max)}.`);
       valid = false;
     }
   }
   for (const n of rightHand) {
-    if (!midiInRange(n, RH_HARD_RANGE)) {
-      diagnostics.push(`Main droite : ${chordName(n)} hors tessiture ${chordName(RH_HARD_RANGE.min)}–${chordName(RH_HARD_RANGE.max)}.`);
+    if (!midiInRange(n, rightRange)) {
+      diagnostics.push(`Main droite : ${chordName(n)} hors tessiture ${chordName(rightRange.min)}–${chordName(rightRange.max)}.`);
       valid = false;
     }
   }
 
-  if (span(leftHand) > LH_MAX_SPAN) {
-    diagnostics.push(`Écart main gauche trop grand (${span(leftHand)} demi-tons > ${LH_MAX_SPAN}).`);
+  const maxLeftSpan = options.maxLeftSpan ?? LH_MAX_SPAN;
+  const maxRightSpan = options.maxRightSpan ?? RH_MAX_SPAN;
+  const maxSpan = options.maxSpan;
+
+  if (span(leftHand) > maxLeftSpan) {
+    diagnostics.push(`Écart main gauche trop grand (${span(leftHand)} demi-tons > ${maxLeftSpan}).`);
     valid = false;
   }
-  if (span(rightHand) > RH_MAX_SPAN) {
-    diagnostics.push(`Écart main droite trop grand (${span(rightHand)} demi-tons > ${RH_MAX_SPAN}).`);
+  if (span(rightHand) > maxRightSpan) {
+    diagnostics.push(`Écart main droite trop grand (${span(rightHand)} demi-tons > ${maxRightSpan}).`);
+    valid = false;
+  }
+  if (maxSpan !== undefined && span(notes) > maxSpan) {
+    diagnostics.push(`Écart total trop grand (${span(notes)} demi-tons > ${maxSpan}).`);
     valid = false;
   }
 
-  if (leftHand.length && rightHand.length) {
+  if (leftHand.length && rightHand.length && !options.allowOverlap) {
     const lhMax = Math.max(...leftHand);
     const rhMin = Math.min(...rightHand);
     if (rhMin < lhMax) {

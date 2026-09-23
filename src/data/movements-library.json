@@ -7,6 +7,7 @@
       "name": "Passing 2-5-1 ouvert",
       "context": "Transition douce entre deux accords de tonalité majeure.",
       "pattern": "7-3-6-2-5",
+      "level": 2,
       "exampleChords": ["Dm7", "G7", "Cmaj9"],
       "description": "Voicings aérés en drop 2 avec suspension sus4 sur le V."
     },
@@ -17,6 +18,7 @@
       "name": "Montée diatonique en quartes",
       "context": "Montée émotionnelle avant un refrain.",
       "pattern": "1-4-6-5",
+      "level": 1,
       "exampleChords": ["C", "F/A", "Am7", "G/B"],
       "description": "Basse montante par degrés conjoints, voicings amples en position close."
     },
@@ -27,6 +29,7 @@
       "name": "Turnaround chromatique 3-6-2-5",
       "context": "Fin de couplet ou pont gospel.",
       "pattern": "3-6-2-5-1",
+      "level": 2,
       "exampleChords": ["Em7", "A7(b9)", "Dm7", "G7(#5)", "Cmaj7"],
       "description": "Tensions altérées sur le V, block chords richement harmonisés."
     },
@@ -37,6 +40,7 @@
       "name": "Subdominant mineur surprise",
       "context": "Couleur gospel moderne sur un accord majeur.",
       "pattern": "1-b3maj7-6-2-5",
+      "level": 3,
       "exampleChords": ["C", "Ebmaj7", "Am7", "Dm7", "G13"],
       "description": "Utilisation du bIII maj7 comme couleur chromatique typique du gospel."
     },
@@ -47,6 +51,7 @@
       "name": "Tritone substitution V7",
       "context": "Substitution de dominante pour créer une ligne de basse chromatique.",
       "pattern": "2-b2-1",
+      "level": 4,
       "exampleChords": ["Dm7", "Db7(#11)", "Cmaj7"],
       "description": "Db7 remplace G7, voicings rootless avec 3e et 7e inversées."
     },
@@ -57,6 +62,7 @@
       "name": "II-V-I altéré en mineur",
       "context": "Modulation ou cadence en mineur.",
       "pattern": "2m7b5-b5alt-1m",
+      "level": 5,
       "exampleChords": ["Dm7(b5)", "G7(#9#5)", "Cm(maj7)"],
       "description": "Voicings de type diminished scale sur le V altéré."
     },
@@ -67,6 +73,7 @@
       "name": "Résolution 7 vers 3 sur ii-V-I",
       "context": "La ligne de conduite classique du jazz : la 7e de chaque accord descend d'un demi-ton pour devenir la 3ce de l'accord suivant.",
       "pattern": "2-5-1",
+      "level": 2,
       "exampleChords": ["Dm7", "G7", "Cmaj7"],
       "description": "Sur Dm7 → G7 → Cmaj7 : le Do (7e de Dm7) descend vers le Si (3ce de G7) ; le Fa (7e de G7) descend vers le Mi (3ce de Cmaj7). Concentre-toi sur cette ligne qui descend, pas sur le nom des accords."
     },
@@ -77,8 +84,54 @@
       "name": "Alternance mineur 6 – diminué (Barry Harris)",
       "context": "La gamme « 6th diminished » de Barry Harris, simplifiée à son alternance de base.",
       "pattern": "1m6-7dim7-1m6-7dim7",
+      "level": 3,
+      "preserveQualities": true,
       "exampleChords": ["Cm6", "Bdim7", "Cm6", "Bdim7"],
       "description": "Cm6 alterné avec Bdim7 — les deux accords partagent presque toutes leurs notes (Cm6 = mêmes notes qu'un Am7b5), donc ce mouvement fait travailler l'oreille sur leur proximité. Version simplifiée de la gamme complète à 8 notes ; à enrichir plus tard si utile."
-    }
+    },
+{
+  "id": "basic-ii-v-i-major-1",
+  "style": "jazz",
+  "category": "II-V-I majeur",
+  "name": "Cadence II-V-I majeur",
+  "context": "Cadence fondamentale en tonalité majeure.",
+  "pattern": "2-5-1",
+  "level": 1,
+  "exampleChords": ["Dm7", "G7", "Cmaj7"],
+  "description": "Cadence majeure de base pour pratiquer les positions close et drop 2."
+},
+{
+  "id": "diatonic-iv-v-ii-v-1",
+  "style": "worship",
+  "category": "Progression diatonique",
+  "name": "IV-V-iii-vi pop",
+  "context": "Progression diatonique majeure simple.",
+  "pattern": "4-5-6-2",
+  "level": 1,
+  "exampleChords": ["F", "G", "Am", "Dm"],
+  "description": "Progression en cercle de quintes inversé, idéale pour les débutants."
+},
+{
+  "id": "secondary-dominant-v-of-v-1",
+  "style": "jazz",
+  "category": "Dominante secondaire",
+  "name": "V/V vers I",
+  "context": "Utilisation d'une dominante secondaire pour colorer un V.",
+  "pattern": "1-2-5-1",
+  "level": 2,
+  "exampleChords": ["Cmaj7", "D7", "G7", "Cmaj7"],
+  "description": "D7 (V/V) précède G7 pour une cadence renforcée."
+},
+{
+  "id": "coltrane-changes-frag-1",
+  "style": "jazz",
+  "category": "Cycles de tierces",
+  "name": "Cycle de tierces majeures",
+  "context": "Fragment du cycle de tierces typique du jazz moderne.",
+  "pattern": "1maj7-3m7-6b7-2m7",
+  "level": 4,
+  "exampleChords": ["Cmaj7", "Em7", "Eb7", "Dm7"],
+  "description": "Déplacement par tierces majeures avec substitution de dominante."
+}
   ]
 }

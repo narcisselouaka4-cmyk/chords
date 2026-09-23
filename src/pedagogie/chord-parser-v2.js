@@ -26,8 +26,12 @@ export function parseChordSymbol(symbol) {
     if (!bassNote.empty) bassPc = bassNote.chroma;
   }
 
+  // Normalisation des notations utilisées par les musiciens mais non reconnues
+  // nativement par Tonal.js : parenthèses autour des altérations, minMaj, ø.
+  const normalizedChordPart = normalizeChordSymbol(chordPart);
+
   // Utilisation de Tonal.js pour le corps de l'accord.
-  const chord = Chord.get(chordPart);
+  const chord = Chord.get(normalizedChordPart);
   if (chord.empty || !chord.tonic) {
     return {
       input,
@@ -121,6 +125,41 @@ export function chordSymbolToPitchClasses(symbol) {
 }
 
 /**
+ * Normalise une chaîne de qualité d'accord en un alias compris par Tonal.js.
+ * @param {string} symbol
+ * @returns {string}
+ */
+function normalizeChordSymbol(symbol) {
+  if (!symbol) return '';
+  let normalized = symbol;
+
+  // Remplace la notation parenthesée des altérations par la notation compacte
+  // utilisée par Tonal.js : C7(b9) → C7b9, C7(#9) → C7#9, etc.
+  normalized = normalized
+    .replace(/\(\s*#\s*(\d+)\s*\)/g, '#$1')
+    .replace(/\(\s*b\s*(\d+)\s*\)/g, 'b$1')
+    .replace(/\(\s*\+\s*(\d+)\s*\)/g, '#$1')
+    .replace(/\(\s*-\s*(\d+)\s*\)/g, 'b$1');
+
+  // Variantes orthographiques du mineur-majeur 9.
+  if (/^([A-G][#b]?)minMaj9$/i.test(normalized)) {
+    normalized = normalized.replace(/minMaj9$/i, 'mMaj9');
+  }
+
+  // Variantes du demi-diminué : ø7 → m7b5.
+  if (/^([A-G][#b]?)ø7$/i.test(normalized)) {
+    normalized = normalized.replace(/ø7$/i, 'm7b5');
+  }
+
+  // m7#11 est enharmonique du demi-diminué (b5 = #11) : Cm7#11 = Cm7b5.
+  if (/^([A-G][#b]?)m7#11$/i.test(normalized)) {
+    normalized = normalized.replace(/m7#11$/i, 'm7b5');
+  }
+
+  return normalized;
+}
+
+/**
  * Détecte si un symbole est reconnu.
  * @param {string} symbol
  * @returns {boolean}
@@ -141,5 +180,8 @@ export function extractChordSymbol(text) {
   // Cherche un symbole entre espaces ou en fin de phrase.
   const match = trimmed.match(/\b([A-G][#b]?(?:m|maj|min|dim|aug|sus|7|9|11|13|alt|ø|add|\+|-|\()[^\s]*)/i);
   if (match && isChordSymbolRecognized(match[1])) return match[1];
+  // Cherche aussi une notation avec parenthèse (ex. C7(b9)).
+  const parenMatch = trimmed.match(/\b([A-G][#b]?(?:m|maj|min|dim|aug|sus|7|9|11|13|alt|add|\+|-|\()[^(\s]*\([^\)]*\))/i);
+  if (parenMatch && isChordSymbolRecognized(parenMatch[1])) return parenMatch[1];
   return null;
 }

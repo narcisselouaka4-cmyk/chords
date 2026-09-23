@@ -11,6 +11,8 @@ import {
 } from '../families/role-map.js';
 import {
   buildStandardLeftHand,
+  buildBassBelow,
+  defaultRhCenter,
   successResult,
   unavailableResult,
   buildCandidate,
@@ -58,18 +60,26 @@ function buildRightHandClose(pcs, bassMidi) {
     .filter((m) => m > bassMidi);
   if (candidates.length === 0) return null;
 
-  const center = (RH_HARD_RANGE.min + RH_HARD_RANGE.max) / 2;
+  const center = defaultRhCenter();
   let best = null;
-  let bestDistance = Infinity;
+  let bestScore = Infinity;
   for (const start of candidates) {
     const stack = buildCloseStack(pcs, start);
-    if (stack.every((n) => midiInRange(n, RH_HARD_RANGE)) && span(stack) <= 12) {
-      const avg = stack.reduce((a, b) => a + b, 0) / stack.length;
-      const distance = Math.abs(avg - center);
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        best = stack;
-      }
+    if (!stack.every((n) => midiInRange(n, RH_HARD_RANGE))) continue;
+    if (span(stack) > 12) continue;
+
+    const sorted = [...stack].sort((a, b) => a - b);
+    if (sorted[0] < RH_SOFT_RANGE.min) continue;
+
+    const avg = stack.reduce((a, b) => a + b, 0) / stack.length;
+    const distance = Math.abs(avg - center);
+    const gap = sorted[0] - bassMidi;
+    // Privilegie un voicing centre, avec un ecart LH/RH raisonnable (< 12 demi-tons).
+    const gapPenalty = gap > 12 ? (gap - 12) * 2 : 0;
+    const score = distance + gapPenalty;
+    if (score < bestScore) {
+      bestScore = score;
+      best = stack;
     }
   }
   return best;
@@ -318,21 +328,44 @@ export function generateClose(input) {
     return unavailableResult('Close: accord a moins de 3 notes');
   }
 
-  const { hand: lh, diagnostics: lhDiagnostics } = buildStandardLeftHand(input);
-  diagnostics.push(...lhDiagnostics);
-  if (!lh) {
-    return unavailableResult('Close: impossible de placer la basse', diagnostics);
+  const roleCandidates = generateCloseRoleCandidates(input);
+  const center = defaultRhCenter();
+  let best = null;
+  let bestDistance = Infinity;
+
+  for (const roleList of roleCandidates) {
+    const pcs = rolesToPcs(input, roleList);
+    if (pcs.length !== roleList.length) continue;
+    const startPc = pcs[0];
+    const instances = midiInstancesInRange(startPc, RH_SOFT_RANGE.min, RH_SOFT_RANGE.max);
+    for (const start of instances) {
+      const closeStack = buildCloseStack(pcs, start);
+      if (!closeStack.every((n) => midiInRange(n, RH_HARD_RANGE))) continue;
+      if (span(closeStack) > 12) continue;
+
+      const avg = closeStack.reduce((a, b) => a + b, 0) / closeStack.length;
+      const distance = Math.abs(avg - center);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = { notes: closeStack, roles: roleList };
+      }
+    }
   }
 
-  const roleCandidates = generateCloseRoleCandidates(input);
-  const best = buildBestCloseFromRoleCandidates(input, roleCandidates, Math.max(...lh.notes));
   if (!best) {
     return unavailableResult('Close: aucune position valide dans la tessiture', diagnostics);
   }
 
+  const { note: bassNote, diagnostics: bassDiagnostics } = buildBassBelow(input, best.notes[0]);
+  diagnostics.push(...bassDiagnostics);
+  if (bassNote == null) {
+    return unavailableResult('Close: impossible de placer la basse sous le RH', diagnostics);
+  }
+
+  const lh = createHandVoicing('LH', [bassNote], { source: 'close' });
   const rh = createHandVoicing('RH', best.notes, { source: 'close' });
   const candidate = buildCandidate(input, lh, rh, 'close', 'Close', {
-    generatorId: 'close-v2',
+    generatorId: 'close-v3',
     style: 'close',
   });
   return successResult(candidate, diagnostics);
@@ -349,12 +382,6 @@ export function generateFourWayClose(input) {
     return unavailableResult('4-Way Close: requiert au moins 4 notes avec tierce et septieme');
   }
 
-  const { hand: lh, diagnostics: lhDiagnostics } = buildStandardLeftHand(input);
-  diagnostics.push(...lhDiagnostics);
-  if (!lh) {
-    return unavailableResult('4-Way Close: impossible de placer la basse', diagnostics);
-  }
-
   const roles = resolveRoles(input);
   const roleCandidates = [];
   // Priorite : extensions caracteristiques d'abord.
@@ -363,14 +390,43 @@ export function generateFourWayClose(input) {
   }
   if (roles.fifth != null) roleCandidates.push(['root', 'third', 'fifth', 'seventh']);
 
-  const best = buildBestCloseFromRoleCandidates(input, roleCandidates, Math.max(...lh.notes));
-  if (!best) {
-    return unavailableResult('4-Way Close: aucune position valide', diagnostics);
+  const center = defaultRhCenter();
+  let best = null;
+  let bestDistance = Infinity;
+
+  for (const roleList of roleCandidates) {
+    const pcs = rolesToPcs(input, roleList);
+    if (pcs.length !== 4) continue;
+    const startPc = pcs[0];
+    const instances = midiInstancesInRange(startPc, RH_SOFT_RANGE.min, RH_SOFT_RANGE.max);
+    for (const start of instances) {
+      const closeStack = buildCloseStack(pcs, start);
+      if (!closeStack.every((n) => midiInRange(n, RH_HARD_RANGE))) continue;
+      if (span(closeStack) > 12) continue;
+
+      const avg = closeStack.reduce((a, b) => a + b, 0) / closeStack.length;
+      const distance = Math.abs(avg - center);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = { notes: closeStack, roles: roleList };
+      }
+    }
   }
 
+  if (!best) {
+    return unavailableResult('4-Way Close: aucune position valide dans la tessiture', diagnostics);
+  }
+
+  const { note: bassNote, diagnostics: bassDiagnostics } = buildBassBelow(input, best.notes[0]);
+  diagnostics.push(...bassDiagnostics);
+  if (bassNote == null) {
+    return unavailableResult('4-Way Close: impossible de placer la basse sous le RH', diagnostics);
+  }
+
+  const lh = createHandVoicing('LH', [bassNote], { source: 'fourWayClose' });
   const rh = createHandVoicing('RH', best.notes, { source: 'fourWayClose' });
   const candidate = buildCandidate(input, lh, rh, 'fourWayClose', '4-Way Close', {
-    generatorId: 'fourWayClose-v2',
+    generatorId: 'fourWayClose-v3',
     style: 'fourWayClose',
   });
   return successResult(candidate, diagnostics);
@@ -397,8 +453,9 @@ export function generateDrop2(input) {
   if (roles.fifth != null) roleCandidates.push(['root', 'third', 'fifth', 'seventh']);
 
   const targetPc = input.bassPc ?? input.rootPc;
+  const center = defaultRhCenter();
   let best = null;
-  let bestSpanLh = Infinity;
+  let bestScore = Infinity;
 
   for (const roleList of roleCandidates) {
     const pcs = rolesToPcs(input, roleList);
@@ -420,13 +477,15 @@ export function generateDrop2(input) {
       if (!midiInRange(bassNote, LH_HARD_RANGE)) continue;
       if (!midiInRange(droppedNote, LH_HARD_RANGE)) continue;
       if (droppedNote <= bassNote) continue;
-
-      // La note descendue doit rester sous la main droite (elle en fait partie apres drop).
       if (droppedNote >= Math.min(...closeStack)) continue;
 
-      const spanLh = droppedNote - bassNote;
-      if (spanLh < bestSpanLh) {
-        bestSpanLh = spanLh;
+      const avg = closeStack.reduce((a, b) => a + b, 0) / closeStack.length;
+      const distance = Math.abs(avg - center);
+      const gap = sortedClose[0] - Math.max(bassNote, droppedNote);
+      // Priorite aux voicings compacts (gap petit), puis centres.
+      const score = gap + distance / 2;
+      if (score < bestScore) {
+        bestScore = score;
         const rhNotes = closeStack.filter((n) => n !== secondFromTop).sort((a, b) => a - b);
         best = {
           lh: createHandVoicing('LH', [bassNote, droppedNote].sort((a, b) => a - b), { source: 'drop2' }),
@@ -441,7 +500,7 @@ export function generateDrop2(input) {
   }
 
   const candidate = buildCandidate(input, best.lh, best.rh, 'drop2', 'Drop 2', {
-    generatorId: 'drop2-v2',
+    generatorId: 'drop2-v3',
     style: 'drop2',
   });
   return successResult(candidate, diagnostics);
@@ -467,8 +526,9 @@ export function generateDrop3(input) {
   if (roles.fifth != null) roleCandidates.push(['root', 'third', 'fifth', 'seventh']);
 
   const targetPc = input.bassPc ?? input.rootPc;
+  const center = defaultRhCenter();
   let best = null;
-  let bestSpanLh = Infinity;
+  let bestScore = Infinity;
 
   for (const roleList of roleCandidates) {
     const pcs = rolesToPcs(input, roleList);
@@ -492,9 +552,12 @@ export function generateDrop3(input) {
       if (droppedNote <= bassNote) continue;
       if (droppedNote >= Math.min(...closeStack)) continue;
 
-      const spanLh = droppedNote - bassNote;
-      if (spanLh < bestSpanLh) {
-        bestSpanLh = spanLh;
+      const avg = closeStack.reduce((a, b) => a + b, 0) / closeStack.length;
+      const distance = Math.abs(avg - center);
+      const gap = sortedClose[0] - Math.max(bassNote, droppedNote);
+      const score = gap + distance / 2;
+      if (score < bestScore) {
+        bestScore = score;
         const rhNotes = closeStack.filter((n) => n !== secondFromBottom).sort((a, b) => a - b);
         best = {
           lh: createHandVoicing('LH', [bassNote, droppedNote].sort((a, b) => a - b), { source: 'drop3' }),
@@ -509,7 +572,7 @@ export function generateDrop3(input) {
   }
 
   const candidate = buildCandidate(input, best.lh, best.rh, 'drop3', 'Drop 3', {
-    generatorId: 'drop3-v1',
+    generatorId: 'drop3-v2',
     style: 'drop3',
   });
   return successResult(candidate, diagnostics);
@@ -559,7 +622,7 @@ export function generateBlock(input) {
   const baseStack = buildCloseStack(sortedPcs, sortedPcs[0]);
   const rotations = rotateCloseStack(baseStack);
 
-  const center = (RH_HARD_RANGE.min + RH_HARD_RANGE.max) / 2;
+  const center = defaultRhCenter();
   let best = null;
   let bestDistance = Infinity;
 

@@ -10,7 +10,7 @@ import {
   setPcKeyboardToMidiEnabled,
   isPcKeyboardToMidiEnabled,
 } from './virtual-keyboard.js';
-import { setSynthMode, setSustain, ensurePianoSamples } from './audio/simple-synth.js';
+import { setSynthMode, setSustain, ensurePianoSamples, resumeAudio } from './audio/simple-synth.js';
 
 import { initWebMidi, getWebMidiInputs, openWebMidiInput } from './midi-fallback.js';
 import { createChordHistory } from './chord-history.js';
@@ -58,11 +58,13 @@ import {
 import {
   createPracticeExercise,
   renderExerciseTarget,
-  unavailableTechniquesFor,
+  difficultyOfVoicing,
+  getAvailableTechniques,
   listProgressionNames,
   listMovementNames,
-  TECHNIQUE_LABELS,
+  PROGRESSION_TEMPLATES,
 } from './practice-exercise.js';
+import movementsLibrary from './data/movements-library.json' with { type: 'json' };
 import { voicingToNoteSequence } from './pedagogie/copilot-voicing.js';
 import { applyTabVisibility } from './ui/tab-visibility.js';
 import { initAstraShell } from './ui/refonte/astra-shell.js';
@@ -167,7 +169,27 @@ const els = {
   practiceMidiStatusDot: document.getElementById('practice-midi-status-dot'),
   practiceMidiStatusText: document.getElementById('practice-midi-status-text'),
   practiceRecordBtn: document.getElementById('practice-record-btn'),
-  exerciseTechniqueSelect: document.getElementById('exercise-technique-select'),
+  exerciseDifficultySelect: document.getElementById('exercise-difficulty-select'),
+  exerciseKeySelect: document.getElementById('exercise-key-select'),
+  exerciseTargetChoice: document.getElementById('exercise-target-choice'),
+  exerciseTargetRoot: document.getElementById('exercise-target-root'),
+  exerciseTargetQuality: document.getElementById('exercise-target-quality'),
+  exerciseRandomTargetBtn: document.getElementById('exercise-random-target-btn'),
+  exerciseCustomProgressionSelector: document.getElementById('exercise-custom-progression-selector'),
+  degreeBuilder: document.getElementById('degree-builder'),
+  degreeButtons: document.querySelectorAll('#degree-builder .degree-btn'),
+  degreeSequence: document.getElementById('degree-sequence'),
+  degreeApply: document.getElementById('degree-apply'),
+  degreeClear: document.getElementById('degree-clear'),
+  degreeRemoveLast: document.getElementById('degree-remove-last'),
+  customProgressionBadge: document.getElementById('custom-progression-badge'),
+  exerciseLibraryBtn: document.getElementById('exercise-library-btn'),
+  exerciseLibrary: document.getElementById('exercise-library'),
+  exerciseLibraryClose: document.getElementById('exercise-library-close'),
+  exerciseLibraryTabs: document.getElementById('exercise-library-tabs'),
+  exerciseLibrarySearch: document.getElementById('exercise-library-search'),
+  exerciseLibraryCategories: document.getElementById('exercise-library-categories'),
+  exerciseLibraryGrid: document.getElementById('exercise-library-grid'),
   practiceViewMidiSessions: document.getElementById('practice-view-midi-sessions'),
   practiceViewCoach: document.getElementById('practice-view-coach'),
   practiceViewPedagogie: document.getElementById('practice-view-pedagogie'),
@@ -1095,14 +1117,14 @@ function renderExerciseBrief(exState) {
   if (exState.mode === 'progression' && exState.progression) {
     category.textContent = 'PROGRESSION';
     title.textContent = exState.progression.name || 'Progression';
-    text.textContent = 'Jouez les accords dans l\'ordre. Le degré attendu est indiqué en face de chaque étape.';
+    text.textContent = '';
     if (keyPill) keyPill.style.display = 'none';
     return;
   }
 
   category.textContent = 'ACCORD CIBLE';
   title.textContent = 'Un accord, puis le suivant.';
-  text.textContent = "Jouez les notes de l'accord affiché, ensemble ou une à une. La reconnaissance est celle du moteur d'accords de l'application : elle compare les notes reçues, pas votre doigté.";
+  text.textContent = '';
   if (keyPill) keyPill.style.display = 'none';
 }
 
@@ -1198,15 +1220,24 @@ function cancelExerciseDemo() {
   exerciseDemoTimers.clear();
 }
 
-function playExerciseVoicing(voicing) {
+async function playExerciseVoicing(voicing) {
   if (!voicing || !voicing.isPlayable) return;
   cancelExerciseDemo();
+  // Réveille l'AudioContext si nécessaire avant de planifier les notes.
+  try {
+    await resumeAudio();
+  } catch (err) {
+    console.warn('[PracticeExercise] Impossible de réveiller l\'audio', err);
+    return;
+  }
   const sequence = voicingToNoteSequence(voicing, { pattern: 'block', durationMs: 1200 });
   for (const note of sequence) {
     try {
       const startTimer = setTimeout(() => {
         exerciseDemoTimers.delete(startTimer);
-        playVirtualNote(note.midi, note.velocity || 0.8);
+        playVirtualNote(note.midi, note.velocity || 0.8).catch((e) => {
+          console.warn('[PracticeExercise] Échec du jeu de la note', note.midi, e);
+        });
         const releaseTimer = setTimeout(() => {
           exerciseDemoTimers.delete(releaseTimer);
           releaseVirtualNote(note.midi);
@@ -1215,7 +1246,7 @@ function playExerciseVoicing(voicing) {
       }, note.startOffsetMs);
       exerciseDemoTimers.add(startTimer);
     } catch (err) {
-      console.warn('[PracticeExercise] Échec du jeu de la note', note.midi, err);
+      console.warn('[PracticeExercise] Échec du planification de la note', note.midi, err);
     }
   }
 }
@@ -1225,16 +1256,15 @@ function initPracticeExercise() {
   if (!panel) return;
 
   const modeButtons = panel.querySelectorAll('.exercise-mode-btn');
-  const newBtn = document.getElementById('new-exercise-btn');
   const targetDiv = document.getElementById('exercise-target');
   const feedbackDiv = document.getElementById('exercise-feedback');
-  const techniqueSelect = els.exerciseTechniqueSelect;
 
   practiceExercise = createPracticeExercise();
 
   const prevBtn = document.getElementById('prev-exercise-btn');
   const contentSelector = document.getElementById('exercise-content-selector');
   const contentSelect = document.getElementById('exercise-content-select');
+  const difficultySelector = document.getElementById('exercise-difficulty-selector');
 
   const escapeAttr = (str) => String(str)
     .replace(/&/g, '&amp;')
@@ -1242,101 +1272,108 @@ function initPracticeExercise() {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 
-  /**
-   * Grise les techniques inapplicables à l'accord courant (Drop 2 sur une
-   * triade, Quartal quand l'empilement de quartes sortirait de l'accord),
-   * recalculé à chaque nouvelle cible.
-   */
-  function refreshTechniqueAvailability(exState) {
-    if (!techniqueSelect || !exState.target?.name) return;
-    const unavailable = new Set(unavailableTechniquesFor(exState.target.name));
-    for (const option of techniqueSelect.options) {
-      const blocked = unavailable.has(option.value);
-      option.disabled = blocked;
-      const label = TECHNIQUE_LABELS[option.value] || option.value;
-      option.textContent = blocked ? `${label} — indisponible sur cet accord` : label;
-      option.title = blocked
-        ? `${label} ne s'applique pas à ${exState.target.name} (accord de 4 sons requis, ou empilement sortant de l'accord).`
-        : '';
-    }
-    // Si la technique demandée est indisponible, le moteur est retombé sur une
-    // autre : refléter la technique RÉELLEMENT utilisée plutôt que de laisser
-    // le menu afficher un choix qui n'a pas été appliqué.
-    const used = exState.target?.voicing?.technique;
-    if (used && [...techniqueSelect.options].some((o) => o.value === used)) {
-      techniqueSelect.value = unavailable.has(exState.technique) ? used : exState.technique;
-    }
-  }
-
-  /** Remplit le sélecteur de contenu selon le mode (progression / mouvement). */
+  /** Le sélecteur de contenu est remplacé par la bibliothèque latérale. */
   function refreshContentSelector(exState) {
-    if (!contentSelector || !contentSelect) return;
-    if (exState.mode === 'chord') {
-      contentSelector.style.display = 'none';
-      return;
-    }
-    contentSelector.style.display = '';
-    const names = exState.mode === 'movement' ? listMovementNames() : listProgressionNames();
-    const chosen = exState.mode === 'movement' ? exState.movementChoice : exState.progressionChoice;
-    const signature = `${exState.mode}:${names.join('|')}`;
-    if (contentSelect.dataset.signature !== signature) {
-      contentSelect.innerHTML = '<option value="">Aléatoire</option>'
-        + names.map((n) => `<option value="${escapeAttr(n)}">${escapeAttr(n)}</option>`).join('');
-      contentSelect.dataset.signature = signature;
-    }
-    contentSelect.value = chosen || '';
+    if (contentSelector) contentSelector.style.display = 'none';
   }
 
   function render() {
     const exState = practiceExercise.getState();
     targetDiv.style.display = exState.target ? 'flex' : 'none';
     if (exState.target) {
-      targetDiv.innerHTML = renderExerciseTarget(exState.target);
+      const categories = getAvailableTechniques(exState.target.name);
+      const difficulty = difficultyOfVoicing(exState.target);
+      targetDiv.innerHTML = renderExerciseTarget(exState.target, { categories, difficulty, variant: exState.variant });
     }
-    refreshTechniqueAvailability(exState);
     refreshContentSelector(exState);
+    refreshTargetChoice(exState);
+    // En mode Accord cible, la difficulté est imposée par l'accord/technique.
+    if (difficultySelector) {
+      difficultySelector.style.display = exState.mode === 'chord' ? 'none' : '';
+    }
     if (prevBtn) {
       prevBtn.style.display = practiceExercise.canGoPrevious() ? '' : 'none';
     }
     updateExerciseProgressUI(exState);
   }
 
-  // Exposé au module pour que checkPracticeExercise() rafraîchisse aussi la
-  // disponibilité des techniques et le bouton « Accord précédent » après une
-  // réponse, et pas seulement la carte et le panneau de progression.
+  /** Affiche ou masque le sélecteur d'accord cible selon le mode. */
+  function refreshTargetChoice(exState) {
+    if (!els.exerciseTargetChoice) return;
+    if (exState.mode === 'chord') {
+      els.exerciseTargetChoice.style.display = '';
+      const choice = exState.targetChoice;
+      if (els.exerciseTargetRoot) els.exerciseTargetRoot.value = String(choice ? choice.rootPc : exState.target?.rootPc ?? 0);
+      if (els.exerciseTargetQuality) els.exerciseTargetQuality.value = choice ? choice.symbol : (exState.target?.symbol ?? '');
+    } else {
+      els.exerciseTargetChoice.style.display = 'none';
+    }
+    if (els.exerciseCustomProgressionSelector) {
+      els.exerciseCustomProgressionSelector.style.display = (exState.mode === 'progression') ? '' : 'none';
+    }
+    const isCustomMode = exState.mode === 'progression' && !exState.progressionChoice;
+    if (els.exerciseCustomProgressionSelector) {
+      els.exerciseCustomProgressionSelector.style.display = (exState.mode === 'progression') ? '' : 'none';
+      els.exerciseCustomProgressionSelector.classList.toggle('exercise-custom-progression-active', isCustomMode);
+    }
+    if (els.degreeBuilder) {
+      els.degreeBuilder.hidden = false;
+      els.degreeBuilder.classList.toggle('degree-builder-disabled', !isCustomMode);
+      const buttons = els.degreeBuilder.querySelectorAll('button');
+      buttons.forEach((btn) => { btn.disabled = !isCustomMode; });
+    }
+    if (els.customProgressionBadge) els.customProgressionBadge.hidden = !exState.customProgressionDegrees;
+    // Sélecteur de tonalité : utile en progression et mouvement, inutile en
+    // accord cible (la fondamentale est déjà choisie séparément).
+    const keySelector = document.getElementById('exercise-key-selector');
+    if (keySelector) {
+      keySelector.style.display = exState.mode === 'chord' ? 'none' : '';
+    }
+    if (els.exerciseKeySelect) {
+      els.exerciseKeySelect.value = exState.keyChoice == null ? '' : String(exState.keyChoice);
+    }
+    updateDegreeSequenceUI(exState);
+  }
+
+  // Exposé au module pour que checkPracticeExercise() rafraîchisse aussi le
+  // bouton « Accord précédent » après une réponse, et pas seulement la carte
+  // et le panneau de progression.
   renderPracticeExercise = render;
+
+  function setModeButtonActive(mode) {
+    modeButtons.forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
+  }
+
+  function maybeConfirmReset() {
+    const cur = practiceExercise.getState();
+    if (cur.score > 0 || cur.attempts > 0) {
+      return confirm('Recommencer ? Votre progression sur cet exercice sera perdue.');
+    }
+    return true;
+  }
 
   modeButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
       // Ne pas perdre la progression en cours sur un clic accidentel :
       // si l'exercice courant a déjà été joué, demander confirmation.
-      const cur = practiceExercise.getState();
-      if (cur.score > 0 || cur.attempts > 0) {
-        if (!confirm('Recommencer ? Votre progression sur cet exercice sera perdue.')) return;
-      }
-      modeButtons.forEach((b) => b.classList.remove('active'));
-      btn.classList.add('active');
+      if (!maybeConfirmReset()) return;
+      setModeButtonActive(btn.dataset.mode);
       practiceExercise.setMode(btn.dataset.mode);
       feedbackDiv.textContent = '';
       render();
     });
   });
 
-  newBtn?.addEventListener('click', () => {
-    // Même protection pour "Nouvel exercice" : confirmation si l'exercice
-    // courant a déjà été tenté, bascule immédiate sinon.
-    const cur = practiceExercise.getState();
-    if (cur.attempts > 0) {
-      if (!confirm('Recommencer ? Votre progression sur cet exercice sera perdue.')) return;
-    }
-    practiceExercise.next();
-    feedbackDiv.textContent = '';
+  const difficultySelect = els.exerciseDifficultySelect;
+  difficultySelect?.addEventListener('change', () => {
+    const value = difficultySelect.value;
+    practiceExercise.setDifficulty(value);
     render();
   });
 
-  techniqueSelect?.addEventListener('change', () => {
-    const value = techniqueSelect.value;
-    practiceExercise.setTechnique(value);
+  els.exerciseKeySelect?.addEventListener('change', () => {
+    const value = els.exerciseKeySelect.value;
+    practiceExercise.setKeyChoice(value);
     render();
   });
 
@@ -1349,18 +1386,332 @@ function initPracticeExercise() {
   });
 
   contentSelect?.addEventListener('change', () => {
-    practiceExercise.setContentChoice(contentSelect.value || null);
+    const value = contentSelect.value;
+    if (value === '__custom__') {
+      practiceExercise.setContentChoice('');
+      feedbackDiv.textContent = '';
+      render();
+      return;
+    }
+    practiceExercise.setContentChoice(value || null);
     feedbackDiv.textContent = '';
     render();
   });
 
-  // Délégation d'événement pour le bouton "Écouter" recréé à chaque render.
+  // Construction de progression personnalisée par degrés.
+  let degreeSequence = [];
+
+  function updateDegreeSequenceUI(exState) {
+    const seq = exState?.customProgressionDegrees || degreeSequence;
+    if (!els.degreeSequence) return;
+    if (seq.length === 0) {
+      els.degreeSequence.innerHTML = '<span class="degree-sequence-empty">Cliquez les degrés pour composer la progression…</span>';
+    } else {
+      els.degreeSequence.innerHTML = seq.map((d, i) => {
+        const label = `${d.accidental || ''}${['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'][d.degree - 1]}`;
+        return `<span class="degree-chip" data-index="${i}" title="Supprimer">${label}<button type="button" aria-label="Supprimer ${label}">×</button></span>`;
+      }).join('');
+    }
+  }
+
+  els.degreeButtons?.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      degreeSequence.push({ degree: parseInt(btn.dataset.degree, 10), accidental: '' });
+      updateDegreeSequenceUI({ customProgressionDegrees: degreeSequence });
+    });
+  });
+
+  els.degreeApply?.addEventListener('click', () => {
+    if (degreeSequence.length === 0) return;
+    practiceExercise.setCustomProgressionFromDegrees([...degreeSequence]);
+    feedbackDiv.textContent = '';
+    render();
+  });
+
+  els.degreeClear?.addEventListener('click', () => {
+    degreeSequence = [];
+    updateDegreeSequenceUI({ customProgressionDegrees: degreeSequence });
+    practiceExercise.setCustomProgressionFromDegrees([]);
+    feedbackDiv.textContent = '';
+    render();
+  });
+
+  els.degreeRemoveLast?.addEventListener('click', () => {
+    degreeSequence.pop();
+    updateDegreeSequenceUI({ customProgressionDegrees: degreeSequence });
+  });
+
+  els.degreeSequence?.addEventListener('click', (e) => {
+    const chip = e.target.closest('.degree-chip');
+    if (!chip) return;
+    const index = parseInt(chip.dataset.index, 10);
+    if (Number.isFinite(index)) {
+      degreeSequence.splice(index, 1);
+      updateDegreeSequenceUI({ customProgressionDegrees: degreeSequence });
+    }
+  });
+
+  // ── Bibliothèque d'exercices (panneau latéral) ──
+  let libraryTab = 'progressions';
+  let libraryCategory = null;
+  let librarySearch = '';
+
+  const ROMAN_DEGREES = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function renderStarString(level) {
+    const filled = Math.min(5, Math.max(1, Number(level) || 1));
+    const empty = 5 - filled;
+    return '<span class="star filled" aria-hidden="true">★</span>'.repeat(filled)
+      + '<span class="star empty" aria-hidden="true">☆</span>'.repeat(empty);
+  }
+
+  function getLibraryItems(tab) {
+    if (tab === 'movements') {
+      return (movementsLibrary?.movements || []).map((m) => ({
+        id: m.id,
+        name: m.name,
+        category: m.category || 'Mouvements 12 tons',
+        level: m.level,
+        description: m.description || '',
+        tags: m.tags || [],
+        mode: 'movement',
+      }));
+    }
+    const items = PROGRESSION_TEMPLATES.map((t) => ({
+      id: `prog-${t.name}`,
+      name: t.name,
+      category: t.category || 'Progressions',
+      level: t.level,
+      description: t.description || '',
+      tags: t.tags || [],
+      mode: 'progression',
+    }));
+    items.unshift({
+      id: '__custom__',
+      name: 'Progression personnalisée',
+      category: 'Personnalisée',
+      level: 1,
+      description: 'Composez votre propre progression avec les degrés I–VII. L\'application choisit les qualités selon la difficulté.',
+      tags: ['custom'],
+      mode: 'custom',
+    });
+    return items;
+  }
+
+  function renderLibrary() {
+    const lib = els.exerciseLibrary;
+    if (!lib) return;
+
+    // Onglets actifs
+    els.exerciseLibraryTabs?.querySelectorAll('button').forEach((btn) => {
+      const active = btn.dataset.tab === libraryTab;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-selected', String(active));
+    });
+
+    let items = getLibraryItems(libraryTab);
+
+    // Filtrage recherche
+    const q = librarySearch.trim().toLowerCase();
+    if (q) {
+      items = items.filter((item) =>
+        item.name.toLowerCase().includes(q)
+        || item.category.toLowerCase().includes(q)
+        || (item.description || '').toLowerCase().includes(q)
+        || item.tags.some((tag) => tag.toLowerCase().includes(q))
+      );
+    }
+
+    // Catégories (avant filtre par catégorie pour avoir tous les choix)
+    const allCategories = [...new Set(getLibraryItems(libraryTab).map((i) => i.category))].sort((a, b) => a.localeCompare(b));
+    if (els.exerciseLibraryCategories) {
+      const chips = [`<button type="button" class="exercise-library-chip ${libraryCategory ? '' : 'active'}" data-category="">Tous<span class="exercise-library-count">${getLibraryItems(libraryTab).length}</span></button>`]
+        .concat(allCategories.map((cat) => {
+          const count = getLibraryItems(libraryTab).filter((i) => i.category === cat).length;
+          const active = libraryCategory === cat;
+          return `<button type="button" class="exercise-library-chip ${active ? 'active' : ''}" data-category="${escapeAttr(cat)}">${escapeHtml(cat)}<span class="exercise-library-count">${count}</span></button>`;
+        }));
+      els.exerciseLibraryCategories.innerHTML = chips.join('');
+    }
+
+    if (libraryCategory) {
+      items = items.filter((i) => i.category === libraryCategory);
+    }
+
+    // Tri par catégorie puis niveau puis nom
+    items.sort((a, b) => {
+      if (a.category !== b.category) return a.category.localeCompare(b.category);
+      if ((a.level || 0) !== (b.level || 0)) return (a.level || 0) - (b.level || 0);
+      return a.name.localeCompare(b.name);
+    });
+
+    if (els.exerciseLibraryGrid) {
+      if (items.length === 0) {
+        els.exerciseLibraryGrid.innerHTML = `<div class="exercise-library-empty">Aucun exercice ne correspond à votre recherche.</div>`;
+      } else {
+        els.exerciseLibraryGrid.innerHTML = items.map((item) => {
+          const stars = item.mode === 'custom' ? '' : `<span class="exercise-library-card-stars" aria-label="Niveau ${item.level} sur 5" title="Niveau ${item.level} sur 5">${renderStarString(item.level)}</span>`;
+          const tags = item.tags?.length
+            ? `<div class="exercise-library-card-tags">${item.tags.map((t) => `<span>${escapeHtml(t)}</span>`).join('')}</div>`
+            : '';
+          return `<article class="exercise-library-card" data-id="${escapeAttr(item.id)}" tabindex="0" role="button">
+            <div class="exercise-library-card-header">
+              <span class="exercise-library-card-category">${escapeHtml(item.category)}</span>
+              ${stars}
+            </div>
+            <h4>${escapeHtml(item.name)}</h4>
+            <p>${escapeHtml(item.description)}</p>
+            ${tags}
+          </article>`;
+        }).join('');
+      }
+    }
+  }
+
+  function openLibrary() {
+    const exState = practiceExercise.getState();
+    libraryTab = exState.mode === 'movement' ? 'movements' : 'progressions';
+    libraryCategory = null;
+    librarySearch = '';
+    if (els.exerciseLibrarySearch) els.exerciseLibrarySearch.value = '';
+    if (els.exerciseLibrary) {
+      els.exerciseLibrary.hidden = false;
+      els.exerciseLibrary.classList.add('is-open');
+    }
+    renderLibrary();
+    els.exerciseLibrarySearch?.focus();
+  }
+
+  function closeLibrary() {
+    if (els.exerciseLibrary) {
+      els.exerciseLibrary.hidden = true;
+      els.exerciseLibrary.classList.remove('is-open');
+    }
+  }
+
+  function toggleLibrary() {
+    if (els.exerciseLibrary?.hidden) openLibrary();
+    else closeLibrary();
+  }
+
+  function selectLibraryCard(item) {
+    if (item.mode === 'custom') {
+      const cur = practiceExercise.getState();
+      if (cur.mode !== 'progression') {
+        if (!maybeConfirmReset()) return;
+        practiceExercise.setMode('progression');
+        setModeButtonActive('progression');
+      }
+      practiceExercise.clearContentChoice();
+      closeLibrary();
+      feedbackDiv.textContent = '';
+      render();
+      return;
+    }
+
+    const cur = practiceExercise.getState();
+    if (cur.mode !== item.mode) {
+      if (!maybeConfirmReset()) return;
+      practiceExercise.setMode(item.mode);
+      setModeButtonActive(item.mode);
+    }
+    practiceExercise.setContentChoice(item.name);
+    closeLibrary();
+    feedbackDiv.textContent = '';
+    render();
+  }
+
+  els.exerciseLibraryBtn?.addEventListener('click', toggleLibrary);
+  els.exerciseLibraryClose?.addEventListener('click', closeLibrary);
+
+  els.exerciseLibraryTabs?.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-tab]');
+    if (!btn) return;
+    libraryTab = btn.dataset.tab;
+    libraryCategory = null;
+    renderLibrary();
+  });
+
+  els.exerciseLibrarySearch?.addEventListener('input', (e) => {
+    librarySearch = e.target.value;
+    renderLibrary();
+  });
+
+  els.exerciseLibraryCategories?.addEventListener('click', (e) => {
+    const chip = e.target.closest('button[data-category]');
+    if (!chip) return;
+    const cat = chip.dataset.category || null;
+    libraryCategory = libraryCategory === cat ? null : cat;
+    renderLibrary();
+  });
+
+  els.exerciseLibraryGrid?.addEventListener('click', (e) => {
+    const card = e.target.closest('.exercise-library-card');
+    if (!card) return;
+    const id = card.dataset.id;
+    const item = getLibraryItems(libraryTab).find((i) => i.id === id);
+    if (item) selectLibraryCard(item);
+  });
+
+  // Fermeture par Échap
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && els.exerciseLibrary && !els.exerciseLibrary.hidden) {
+      closeLibrary();
+    }
+  });
+
+  // Sélecteur d'accord cible (mode Accord cible uniquement).
+  els.exerciseTargetRoot?.addEventListener('change', () => {
+    const rootPc = parseInt(els.exerciseTargetRoot.value, 10);
+    const symbol = els.exerciseTargetQuality.value;
+    practiceExercise.setTargetChoice(rootPc, symbol);
+    render();
+  });
+
+  els.exerciseTargetQuality?.addEventListener('change', () => {
+    const rootPc = parseInt(els.exerciseTargetRoot.value, 10);
+    const symbol = els.exerciseTargetQuality.value;
+    practiceExercise.setTargetChoice(rootPc, symbol);
+    render();
+  });
+
+  els.exerciseRandomTargetBtn?.addEventListener('click', () => {
+    practiceExercise.clearTargetChoice();
+    render();
+  });
+
+  // Délégation d'événement pour le bouton "Écouter" et les étiquettes de
+  // catégories de voicings recréées à chaque render.
   targetDiv?.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-action="listen-exercise"]');
-    if (!btn) return;
-    const exState = practiceExercise.getState();
-    if (exState.target?.voicing) {
-      playExerciseVoicing(exState.target.voicing);
+    if (btn) {
+      const exState = practiceExercise.getState();
+      if (exState.target?.voicing) {
+        playExerciseVoicing(exState.target.voicing);
+      }
+      return;
+    }
+    const arrow = e.target.closest('[data-variant-delta]');
+    if (arrow) {
+      const delta = parseInt(arrow.dataset.variantDelta, 10);
+      practiceExercise.setVariant(delta);
+      render();
+      return;
+    }
+    const tag = e.target.closest('.exercise-category-tag[data-technique]');
+    if (tag && !tag.classList.contains('disabled')) {
+      const technique = tag.dataset.technique;
+      practiceExercise.setTechnique(technique);
+      render();
     }
   });
 
@@ -1379,14 +1730,16 @@ function checkPracticeExercise(notes) {
   }
   // [Astra round 3] — mise à jour aussi en cas d'échec : le compteur d'essais
   // du panneau de droite reflète alors la tentative qui vient d'avoir lieu.
-  // On repasse par le render complet pour que la disponibilité des techniques
-  // et le bouton « Accord précédent » suivent la nouvelle cible.
+  // On repasse par le render complet pour que le bouton « Accord précédent »
+  // suive la nouvelle cible.
   if (renderPracticeExercise) {
     renderPracticeExercise();
   } else {
     const exState = practiceExercise.getState();
     if (result.success) {
-      document.getElementById('exercise-target').innerHTML = renderExerciseTarget(exState.target);
+      const categories = getAvailableTechniques(exState.target.name);
+      const difficulty = difficultyOfVoicing(exState.target);
+      document.getElementById('exercise-target').innerHTML = renderExerciseTarget(exState.target, { categories, difficulty, variant: exState.variant });
     }
     updateExerciseProgressUI(exState);
   }
