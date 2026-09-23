@@ -6,6 +6,9 @@ import {
   unavailableTechniquesFor,
   getAvailableTechniques,
   findVoicingsByTopNote,
+  findChordsByTopNote,
+  renderTopNoteBrowser,
+  TARGET_QUALITY_GROUPS,
   listProgressionNames,
   listMovementNames,
   TECHNIQUES,
@@ -502,6 +505,34 @@ async function checkAllVoicingLabReachable() {
     findVoicingsByTopNote(0, '7', 10, { technique: 'stride' }).length === 0);
 }
 
+// [Claude] — 2026-09-23 — Navigateur : tous les accords ayant une note au sommet.
+function checkTopNoteBrowser() {
+  console.log('\n=== Navigateur par note du dessus ===');
+  const pcOf = (n) => ((n % 12) + 12) % 12;
+  const all = findChordsByTopNote(9);
+  check('La au sommet : plus de 200 accords', all.length > 200, String(all.length));
+  check('Fmaj7 présent avec 7 voicings', all.find((r) => r.name === 'Fmaj7')?.voicings.length === 7);
+  // L'index de chaque puce charge exactement ce voicing dans l'exercice.
+  let coherent = true;
+  for (const r of all.filter((_, i) => i % 17 === 0)) {
+    const ex = createPracticeExercise();
+    ex.setTopNote(9);
+    ex.setTargetChoice(r.rootPc, r.quality);
+    const v = r.voicings[r.voicings.length - 1];
+    ex.selectTopNoteSuggestion(v.index);
+    const t = ex.getState().target;
+    if (t.voicing.technique !== v.technique || pcOf(Math.max(...t.notes)) !== 9) coherent = false;
+  }
+  check('Clic sur une puce : accord + voicing chargés, La au sommet', coherent);
+  const simple = findChordsByTopNote(9, { level: 'simple' });
+  check('Niveau Simple : moins d\'accords, difficultés ≤ 2',
+    simple.length < all.length && simple.every((r) => r.voicings.every((v) => v.difficulty <= 2)));
+  const allQualities = TARGET_QUALITY_GROUPS.flatMap((g) => g.qualities);
+  check('48 qualités dans les familles', allQualities.length === 48 && new Set(allQualities).size === 48);
+  const html = renderTopNoteBrowser(all, { topPc: 9, family: 'minor' });
+  check('Filtre Mineurs : seule la famille Mineurs est listée', html.includes('>Mineurs</li>') && !html.includes('>Majeurs</li>'));
+}
+
 async function runTests() {
   checkChordTargetHasVoicing();
   checkSpecificChords();
@@ -523,6 +554,7 @@ async function runTests() {
   checkVoicingLabCoverage();
   checkDerivedQualities();
   checkTopNoteSearch();
+  checkTopNoteBrowser();
   await checkAllVoicingLabReachable();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);

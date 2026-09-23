@@ -63,6 +63,10 @@ import {
   listProgressionNames,
   listMovementNames,
   PROGRESSION_TEMPLATES,
+  TARGET_QUALITY_GROUPS,
+  isDerivedQuality,
+  findChordsByTopNote,
+  renderTopNoteBrowser,
 } from './practice-exercise.js';
 import movementsLibrary from './data/movements-library.json' with { type: 'json' };
 import { voicingToNoteSequence } from './pedagogie/copilot-voicing.js';
@@ -176,6 +180,7 @@ const els = {
   exerciseTargetQuality: document.getElementById('exercise-target-quality'),
   exerciseTopNote: document.getElementById('exercise-top-note'),
   exerciseTopNoteLevel: document.getElementById('exercise-top-note-level'),
+  exerciseTopNoteBrowser: document.getElementById('exercise-topnote-browser'),
   exerciseRandomTargetBtn: document.getElementById('exercise-random-target-btn'),
   exerciseCustomProgressionSelector: document.getElementById('exercise-custom-progression-selector'),
   degreeBuilder: document.getElementById('degree-builder'),
@@ -1299,6 +1304,51 @@ function initPracticeExercise() {
     updateExerciseProgressUI(exState);
   }
 
+  // Navigateur par note du dessus : famille filtrée (état d'UI) et clé du
+  // dernier rendu complet, pour ne pas reconstruire ~1 000 puces à chaque clic.
+  let topNoteBrowserFamily = 'all';
+  let topNoteBrowserKey = '';
+
+  function refreshTopNoteBrowser(exState) {
+    const box = els.exerciseTopNoteBrowser;
+    if (!box) return;
+    const topPc = exState.topNote?.pc;
+    if (exState.mode !== 'chord' || topPc == null) {
+      box.hidden = true;
+      topNoteBrowserKey = '';
+      return;
+    }
+    box.hidden = false;
+    const level = exState.topNote.level || 'all';
+    const selected = exState.target?.voicing?.topNoteSuggestions && !exState.target.topNoteMiss
+      ? { rootPc: exState.target.rootPc, quality: exState.target.symbol, index: exState.target.voicing.variantIndex }
+      : null;
+    const key = `${topPc}|${level}|${exState.technique}|${topNoteBrowserFamily}`;
+    if (key !== topNoteBrowserKey) {
+      const results = findChordsByTopNote(topPc, { level, technique: exState.technique });
+      box.innerHTML = renderTopNoteBrowser(results, { topPc, family: topNoteBrowserFamily, selected });
+      topNoteBrowserKey = key;
+      return;
+    }
+    // Même liste : on ne déplace que la surbrillance (le défilement est conservé).
+    box.querySelectorAll('.exercise-browser-voicing.active').forEach((b) => b.classList.remove('active'));
+    box.querySelectorAll('.exercise-browser-chord.selected').forEach((li) => li.classList.remove('selected'));
+    if (selected) {
+      const btn = box.querySelector(`[data-browse-root="${selected.rootPc}"][data-browse-quality="${CSS.escape(selected.quality)}"][data-browse-index="${selected.index}"]`);
+      btn?.classList.add('active');
+      const row = btn?.closest('.exercise-browser-chord');
+      row?.classList.add('selected');
+      // Garde la ligne sélectionnée visible dans la liste (sans faire défiler la page).
+      const list = box.querySelector('[data-browser-scroll]');
+      if (row && list) {
+        const top = row.offsetTop - list.offsetTop;
+        if (top < list.scrollTop || top + row.offsetHeight > list.scrollTop + list.clientHeight) {
+          list.scrollTop = Math.max(0, top - list.clientHeight / 3);
+        }
+      }
+    }
+  }
+
   /** Affiche ou masque le sélecteur d'accord cible selon le mode. */
   function refreshTargetChoice(exState) {
     if (!els.exerciseTargetChoice) return;
@@ -1313,8 +1363,10 @@ function initPracticeExercise() {
         els.exerciseTopNoteLevel.value = exState.topNote?.level || 'all';
         els.exerciseTopNoteLevel.disabled = topPc == null;
       }
+      refreshTopNoteBrowser(exState);
     } else {
       els.exerciseTargetChoice.style.display = 'none';
+      refreshTopNoteBrowser(exState);
     }
     if (els.exerciseCustomProgressionSelector) {
       els.exerciseCustomProgressionSelector.style.display = (exState.mode === 'progression') ? '' : 'none';
@@ -1674,6 +1726,31 @@ function initPracticeExercise() {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && els.exerciseLibrary && !els.exerciseLibrary.hidden) {
       closeLibrary();
+    }
+  });
+
+  // Menu des qualités : généré depuis la liste partagée avec le navigateur.
+  if (els.exerciseTargetQuality) {
+    els.exerciseTargetQuality.innerHTML = TARGET_QUALITY_GROUPS.map((group) => `
+      <optgroup label="${group.label}">${group.qualities.map((q) =>
+    `<option value="${q}">${q === '5' ? '5 (power chord)' : q}${isDerivedQuality(q) ? ' (dérivé)' : ''}</option>`).join('')}
+      </optgroup>`).join('');
+  }
+
+  // Navigateur « accords avec cette note au sommet » : filtre de famille et
+  // clic sur un voicing (charge l'accord puis la suggestion correspondante).
+  els.exerciseTopNoteBrowser?.addEventListener('click', (e) => {
+    const familyBtn = e.target.closest('[data-browse-family]');
+    if (familyBtn) {
+      topNoteBrowserFamily = familyBtn.dataset.browseFamily;
+      render();
+      return;
+    }
+    const voicingBtn = e.target.closest('[data-browse-root]');
+    if (voicingBtn) {
+      practiceExercise.setTargetChoice(parseInt(voicingBtn.dataset.browseRoot, 10), voicingBtn.dataset.browseQuality);
+      practiceExercise.selectTopNoteSuggestion(parseInt(voicingBtn.dataset.browseIndex, 10));
+      render();
     }
   });
 

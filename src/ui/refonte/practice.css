@@ -3990,3 +3990,135 @@
   font-style: italic;
   text-align: center;
 }
+
+/* ── Navigateur : tous les accords ayant la note du dessus choisie ── */
+:root[data-skin='global'] #practice-tab .exercise-topnote-browser,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-browser {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-browser[hidden],
+:root[data-skin='v2'] #practice-tab .exercise-topnote-browser[hidden] {
+  display: none;
+}
+:root[data-skin='global'] #practice-tab .exercise-browser-head,
+:root[data-skin='v2'] #practice-tab .exercise-browser-head {
+  font-size: 0.74rem;
+  color: var(--r-text-muted);
+}
+:root[data-skin='global'] #practice-tab .exercise-browser-head strong,
+:root[data-skin='v2'] #practice-tab .exercise-browser-head strong {
+  color: var(--r-text);
+}
+:root[data-skin='global'] #practice-tab .exercise-browser-families,
+:root[data-skin='v2'] #practice-tab .exercise-browser-families {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+:root[data-skin='global'] #practice-tab .exercise-browser-family,
+:root[data-skin='v2'] #practice-tab .exercise-browser-family,
+:root[data-skin='global'] #practice-tab .exercise-browser-voicing,
+:root[data-skin='v2'] #practice-tab .exercise-browser-voicing {
+  padding: 2px 7px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  border-radius: var(--r-radius-pill);
+  border: 1px solid var(--r-border-soft);
+  background: var(--r-surface-elevated);
+  color: var(--r-text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+:root[data-skin='global'] #practice-tab .exercise-browser-family span,
+:root[data-skin='v2'] #practice-tab .exercise-browser-family span {
+  opacity: 0.7;
+  font-weight: 500;
+}
+:root[data-skin='global'] #practice-tab .exercise-browser-family:hover,
+:root[data-skin='v2'] #practice-tab .exercise-browser-family:hover,
+:root[data-skin='global'] #practice-tab .exercise-browser-voicing:hover,
+:root[data-skin='v2'] #practice-tab .exercise-browser-voicing:hover {
+  background: var(--r-surface);
+  color: var(--r-text);
+  border-color: var(--r-border-strong);
+}
+:root[data-skin='global'] #practice-tab .exercise-browser-family.active,
+:root[data-skin='v2'] #practice-tab .exercise-browser-family.active,
+:root[data-skin='global'] #practice-tab .exercise-browser-voicing.active,
+:root[data-skin='v2'] #practice-tab .exercise-browser-voicing.active {
+  background: var(--r-accent);
+  border-color: var(--r-accent);
+  color: var(--r-accent-contrast, #ffffff);
+}
+:root[data-skin='global'] #practice-tab .exercise-browser-list,
+:root[data-skin='v2'] #practice-tab .exercise-browser-list {
+  margin: 0;
+  padding: 0 4px 0 0;
+  list-style: none;
+  max-height: 42vh;
+  overflow-y: auto;
+  border-top: 1px solid var(--r-border-soft);
+}
+:root[data-skin='global'] #practice-tab .exercise-browser-group,
+:root[data-skin='v2'] #practice-tab .exercise-browser-group {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 6px 0 4px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--r-text-faint);
+  background: var(--r-surface, #1b1920);
+}
+:root[data-skin='global'] #practice-tab .exercise-browser-chord,
+:root[data-skin='v2'] #practice-tab .exercise-browser-chord {
+  display: grid;
+  grid-template-columns: 4.6rem 1fr;
+  align-items: start;
+  gap: 6px;
+  padding: 5px 4px;
+  border-radius: 6px;
+}
+:root[data-skin='global'] #practice-tab .exercise-browser-chord.selected,
+:root[data-skin='v2'] #practice-tab .exercise-browser-chord.selected {
+  background: var(--r-surface-elevated);
+}
+:root[data-skin='global'] #practice-tab .exercise-browser-name,
+:root[data-skin='v2'] #practice-tab .exercise-browser-name {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--r-text);
+  padding-top: 1px;
+}
+:root[data-skin='global'] #practice-tab .exercise-browser-voicings,
+:root[data-skin='v2'] #practice-tab .exercise-browser-voicings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+:root[data-skin='global'] #practice-tab .exercise-browser-stars,
+:root[data-skin='v2'] #practice-tab .exercise-browser-stars {
+  letter-spacing: -0.08em;
+  opacity: 0.8;
+}
+:root[data-skin='global'] #practice-tab .exercise-browser-derived,
+:root[data-skin='v2'] #practice-tab .exercise-browser-derived {
+  margin-left: 1px;
+  color: var(--r-text-faint);
+}
+:root[data-skin='global'] #practice-tab .exercise-browser-empty,
+:root[data-skin='v2'] #practice-tab .exercise-browser-empty,
+:root[data-skin='global'] #practice-tab .exercise-browser-note,
+:root[data-skin='v2'] #practice-tab .exercise-browser-note {
+  margin: 0;
+  font-size: 0.66rem;
+  font-style: italic;
+  color: var(--r-text-faint);
+}

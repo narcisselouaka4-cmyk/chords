@@ -13,7 +13,7 @@ import { detectChord } from './chord-engine/index.js';
 import { formatPc, noteName } from './chord-engine/naming.js';
 import { miniKeyboardForNotes } from './ui/mini-keyboard.js';
 import movementsLibrary from './data/movements-library.json' with { type: 'json' };
-import { getVoicingLabVoicings, isQualityOnVoicingLab } from './voicing-engine/voicinglab-availability.js';
+import { getVoicingLabVoicings, isQualityOnVoicingLab, isDerivedQuality } from './voicing-engine/voicinglab-availability.js';
 import { parseChordSymbol } from './pedagogie/chord-parser-v2.js';
 
 // Difficulté exprimée en étoiles (1–5). Le mode "Accord cible" est strict :
@@ -476,6 +476,20 @@ function formatNoteNameWithOctave(midi) {
   return `${pcName}${octave}`;
 }
 
+// Qualités proposées en mode Accord cible, par famille : 39 publiées par
+// VoicingLab + 9 dérivées. Source unique du menu « Qualité » et du navigateur
+// d'accords par note du dessus.
+export const TARGET_QUALITY_GROUPS = [
+  { id: 'major', label: 'Majeurs', qualities: ['6', '6/9', 'add9', 'add11', '6add11', 'maj7', 'maj9', 'maj11', 'maj13', 'maj7#11', 'maj13#11', 'maj7#5'] },
+  { id: 'minor', label: 'Mineurs', qualities: ['m6', 'm6/9', 'madd9', 'm7', 'm9', 'm11', 'm13', 'm7#11', 'mMaj7', 'mMaj9'] },
+  { id: 'dominant', label: 'Dominantes', qualities: ['7', '9', '11', '13', '13#11', '7#11', '7b9', '7#9', '7b5', '7#5', '7b13', '7#9b13', '7b5b9', '7#5#9', '7alt'] },
+  { id: 'sus', label: 'Suspendus', qualities: ['sus2', 'sus4', '5', '7sus2', '7sus4', '9sus4', '13sus4'] },
+  { id: 'dimaug', label: 'Diminués / augmentés', qualities: ['m7b5', 'dim7', 'aug', 'augMaj7'] },
+];
+
+/** Qualité servie par des voicings dérivés (absente de VoicingLab) ? */
+export { isDerivedQuality };
+
 // Recherche par note du dessus (mode Accord cible). Niveaux exprimés sur la
 // difficulté VoicingLab des voicings (1 = close … 5 = cluster).
 export const TOP_NOTE_LEVELS = {
@@ -524,6 +538,52 @@ export function findVoicingsByTopNote(rootPc, quality, topPc, { level = 'all', t
   }
   return out.sort((a, b) => a.difficulty - b.difficulty
     || TECHNIQUES.indexOf(a.technique) - TECHNIQUES.indexOf(b.technique));
+}
+
+const TECHNIQUE_SHORT_LABELS = {
+  rootless: 'Rootless', close: 'Close', fourway_close: '4-way', drop2: 'Drop 2', drop3: 'Drop 3',
+  drop2_4: 'Drop 2-4', spread: 'Spread', open: 'Open', block: 'Block', quartal: 'Quartal',
+  so_what: 'So What', upper_structure: 'Upper str.', cluster: 'Cluster', stride: 'Stride',
+};
+
+/**
+ * Recherche inversée : tous les accords (12 racines × qualités de
+ * TARGET_QUALITY_GROUPS) qui ont au moins un voicing avec `topPc` au sommet.
+ * `index` de chaque voicing = sa position dans findVoicingsByTopNote pour cet
+ * accord (même niveau, même technique), donc sélectionnable directement.
+ *
+ * @param {number} topPc
+ * @param {{ level?: string, technique?: string }} [options]
+ * @returns {{group: string, groupLabel: string, rootPc: number, quality: string, name: string, derived: boolean,
+ *   voicings: {index: number, technique: string, shortLabel: string, difficulty: number, derived: boolean, description: string}[]}[]}
+ */
+export function findChordsByTopNote(topPc, options = {}) {
+  const out = [];
+  for (const group of TARGET_QUALITY_GROUPS) {
+    for (const quality of group.qualities) {
+      for (let rootPc = 0; rootPc < 12; rootPc += 1) {
+        const found = findVoicingsByTopNote(rootPc, quality, topPc, options);
+        if (found.length === 0) continue;
+        out.push({
+          group: group.id,
+          groupLabel: group.label,
+          rootPc,
+          quality,
+          name: `${formatPc(rootPc, false)}${quality}`,
+          derived: isDerivedQuality(quality),
+          voicings: found.map((v, index) => ({
+            index,
+            technique: v.technique,
+            shortLabel: TECHNIQUE_SHORT_LABELS[v.technique] || v.technique,
+            difficulty: v.difficulty,
+            derived: v.derived,
+            description: describeVariant(v.technique, v),
+          })),
+        });
+      }
+    }
+  }
+  return out;
 }
 
 // Ordre pédagogique du mode Auto. À 1★ (Progression/Mouvement), on commence
@@ -1544,6 +1604,46 @@ function renderTopNotePanel(voicing) {
       <ol class="exercise-topnote-list">${items}</ol>
       <div class="exercise-variant-label">${escapeHtml(voicing.variantLabel)}</div>
     </div>`;
+}
+
+/**
+ * Navigateur « accords avec cette note au sommet » (colonne de gauche) :
+ * filtres par famille, puis un accord par ligne avec ses voicings en puces.
+ *
+ * @param {ReturnType<typeof findChordsByTopNote>} results
+ * @param {{ topPc: number, family?: string, selected?: {rootPc: number, quality: string, index: number}|null }} options
+ */
+export function renderTopNoteBrowser(results, { topPc, family = 'all', selected = null } = {}) {
+  const topName = formatPc(topPc, false);
+  const families = [{ id: 'all', label: 'Tous' }, ...TARGET_QUALITY_GROUPS.map((g) => ({ id: g.id, label: g.label }))];
+  const countFor = (id) => results.filter((r) => id === 'all' || r.group === id).length;
+  const chips = families
+    .filter((f) => f.id === 'all' || countFor(f.id) > 0)
+    .map((f) => `<button type="button" class="exercise-browser-family${f.id === family ? ' active' : ''}" data-browse-family="${f.id}">${escapeHtml(f.label)} <span>${countFor(f.id)}</span></button>`)
+    .join('');
+  const shown = results.filter((r) => family === 'all' || r.group === family);
+  const total = shown.reduce((a, r) => a + r.voicings.length, 0);
+  let lastGroup = null;
+  const rows = shown.map((r) => {
+    const head = r.group !== lastGroup ? `<li class="exercise-browser-group">${escapeHtml(r.groupLabel)}</li>` : '';
+    lastGroup = r.group;
+    const isSelectedChord = selected && selected.rootPc === r.rootPc && selected.quality === r.quality;
+    const voicings = r.voicings.map((v) => {
+      const active = isSelectedChord && selected.index === v.index ? ' active' : '';
+      return `<button type="button" class="exercise-browser-voicing${active}" data-browse-root="${r.rootPc}" data-browse-quality="${escapeHtml(r.quality)}" data-browse-index="${v.index}" title="${escapeHtml(`${v.description}${v.derived ? ' — dérivé' : ''}`)}">${escapeHtml(v.shortLabel)} <span class="exercise-browser-stars">${'★'.repeat(v.difficulty)}</span></button>`;
+    }).join('');
+    return `${head}<li class="exercise-browser-chord${isSelectedChord ? ' selected' : ''}">
+        <span class="exercise-browser-name">${escapeHtml(r.name)}${r.derived ? '<span class="exercise-browser-derived" title="Qualité absente de VoicingLab : voicings dérivés">*</span>' : ''}</span>
+        <span class="exercise-browser-voicings">${voicings}</span>
+      </li>`;
+  }).join('');
+  return `
+    <div class="exercise-browser-head">Accords avec <strong>${escapeHtml(topName)}</strong> au sommet · ${shown.length} accords · ${total} voicings</div>
+    <div class="exercise-browser-families">${chips}</div>
+    ${shown.length === 0
+    ? '<p class="exercise-browser-empty">Aucun voicing à ce niveau.</p>'
+    : `<ul class="exercise-browser-list" data-browser-scroll>${rows}</ul>`}
+    <p class="exercise-browser-note">* qualité absente de VoicingLab (voicings dérivés)</p>`;
 }
 
 function renderStars(difficulty) {
