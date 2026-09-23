@@ -265,9 +265,8 @@
                 <!-- Qualités jouables : remplies par main.js depuis TARGET_QUALITY_GROUPS
                      (practice-exercise.js), source unique partagée avec le navigateur. -->
                 <select id="exercise-target-quality" aria-label="Qualité de l'accord cible"></select>
-                <button class="exercise-random-target-btn" type="button" id="exercise-random-target-btn" aria-label="Tirer un accord au hasard">
-                  Aléatoire
-                </button>
+                <!-- Tirage d'un accord au hasard : vrai bouton (icône dé), sur sa ligne. -->
+                <button class="tr-button exercise-random-target-btn" type="button" id="exercise-random-target-btn" title="Tire une racine et une qualité au hasard (en respectant la note du dessus si elle est choisie)"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="16" cy="8" r="1.1" fill="currentColor"/><circle cx="12" cy="12" r="1.1" fill="currentColor"/><circle cx="8" cy="16" r="1.1" fill="currentColor"/><circle cx="16" cy="16" r="1.1" fill="currentColor"/></svg>Accord au hasard</button>
                 <!-- Recherche de voicings par note du dessus (sans octave). -->
                 <label for="exercise-top-note">Note du dessus</label>
                 <select id="exercise-top-note" aria-label="Note la plus haute du voicing (toutes octaves)">

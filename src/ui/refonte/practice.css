@@ -4133,3 +4133,10 @@
 :root[data-skin='v2'] #practice-tab .exercise-category-tag.current .exercise-variant-btn {
   background: var(--r-surface);
 }
+
+/* Bouton « Accord au hasard » : sur sa propre ligne, pleine largeur de la colonne. */
+:root[data-skin='global'] #practice-tab .exercise-random-target-btn,
+:root[data-skin='v2'] #practice-tab .exercise-random-target-btn {
+  flex-basis: 100%;
+  cursor: pointer;
+}
