@@ -309,7 +309,7 @@ export const TECHNIQUE_LABELS = {
   auto: 'Auto',
   shell: 'Shell',
   two_note_shell: 'Two-note shell',
-  rootless: 'Rootless A',
+  rootless: 'Rootless (A/B)',
   close: 'Close position',
   drop2: 'Drop 2',
   drop3: 'Drop 3',
@@ -470,6 +470,55 @@ function formatNoteNameWithOctave(midi) {
   return `${pcName}${octave}`;
 }
 
+// Recherche par note du dessus (mode Accord cible). Niveaux exprimés sur la
+// difficulté VoicingLab des voicings (1 = close … 5 = cluster).
+export const TOP_NOTE_LEVELS = {
+  all: { label: 'Tous niveaux', min: 1, max: 5 },
+  simple: { label: 'Simple (★1–2)', min: 1, max: 2 },
+  intermediate: { label: 'Intermédiaire (★3)', min: 3, max: 3 },
+  advanced: { label: 'Avancé (★4–5)', min: 4, max: 5 },
+};
+
+// Les shells n'ont que 2–3 notes à la main gauche : pas de vraie note du dessus.
+const TOP_NOTE_EXCLUDED_TECHNIQUES = new Set(['shell', 'two_note_shell']);
+
+/**
+ * Voicings (VoicingLab réels et dérivés) d'un accord dont la note la plus haute
+ * est `topPc`, quelle que soit son octave : aucune note du voicing ne dépasse
+ * la note cible. Triés du plus simple au plus complexe ; un doublon exact
+ * (mêmes notes ET même répartition des mains) n'est gardé qu'une fois.
+ *
+ * @param {number} rootPc
+ * @param {string} quality
+ * @param {number} topPc - pitch class de la note du dessus (0–11)
+ * @param {{ level?: keyof TOP_NOTE_LEVELS, technique?: string }} [options]
+ *   technique : 'auto' = toutes les techniques, sinon uniquement celle-ci
+ */
+export function findVoicingsByTopNote(rootPc, quality, topPc, { level = 'all', technique = 'auto' } = {}) {
+  const range = TOP_NOTE_LEVELS[level] || TOP_NOTE_LEVELS.all;
+  const techniques = (technique === 'auto' ? TECHNIQUES.filter((t) => t !== 'auto') : [technique])
+    .filter((t) => !TOP_NOTE_EXCLUDED_TECHNIQUES.has(t));
+  const seen = new Set();
+  const out = [];
+  for (const t of techniques) {
+    for (const v of voicingLabVariantsFor(rootPc, quality, t)) {
+      const notes = [...v.lh, ...v.rh].sort((a, b) => a - b);
+      const top = notes[notes.length - 1];
+      const difficulty = Math.min(5, Math.max(1, v.difficulty));
+      if (((top % 12) + 12) % 12 !== topPc) continue;
+      if (difficulty < range.min || difficulty > range.max) continue;
+      // Mêmes notes mais mains différentes (ex. Spread F3 | C4 E4 A4 et Open
+      // F3 C4 | E4 A4) = deux façons de jouer : on garde les deux.
+      const key = `${v.lh.join(',')}|${v.rh.join(',')}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ ...v, technique: t, difficulty, topMidi: top });
+    }
+  }
+  return out.sort((a, b) => a.difficulty - b.difficulty
+    || TECHNIQUES.indexOf(a.technique) - TECHNIQUES.indexOf(b.technique));
+}
+
 // Ordre pédagogique du mode Auto. À 1★ (Progression/Mouvement), on commence
 // par les voicings VoicingLab de difficulté 1 : two-note shell puis shell.
 const AUTO_ORDER = ['shell', 'two_note_shell', 'close', 'fourway_close', 'drop2', 'rootless'];
@@ -491,8 +540,11 @@ function describeVariant(technique, v) {
     }
     case 'rootless':
       return v.familyId === 'rootlessB' ? 'Type B (départ sur la 7e)' : 'Type A (départ sur la tierce)';
-    default:
-      return `Basse ${formatNoteNameWithOctave(v.lh[0] ?? v.rh[0])} · ${intervals.join(' ')}`;
+    default: {
+      // Du grave à l'aigu : « basse » serait faux pour un voicing sans main gauche.
+      const all = [...v.lh, ...v.rh];
+      return `De ${formatNoteNameWithOctave(all[0])} à ${formatNoteNameWithOctave(all[all.length - 1])} · ${intervals.join(' ')}`;
+    }
   }
 }
 
@@ -520,9 +572,11 @@ function triadName(notes) {
  * @param {string} technique - 'auto' | technique de TECHNIQUES
  * @param {number} [variant]
  * @param {number|null} [difficulty] - difficulté Progression/Mouvement (null en mode Accord)
+ * @param {{pc: number, level: string}|null} [topNote] - recherche par note du dessus
  * @returns {{voicing: object|null, technique: string}}
  */
-function buildPlayableVoicing(rootPc, quality, technique, variant = 0, difficulty = null) {
+function buildPlayableVoicing(rootPc, quality, technique, variant = 0, difficulty = null, topNote = null) {
+  if (topNote) return buildTopNoteVoicing(rootPc, quality, technique, variant, topNote);
   const autoOrder = difficulty === 1 ? AUTO_ORDER_BEGINNER : AUTO_ORDER;
   const first = technique === 'auto' ? autoOrder : [technique];
   const order = [...first, ...TECHNIQUES.filter((t) => t !== 'auto' && !first.includes(t))];
@@ -556,6 +610,45 @@ function buildPlayableVoicing(rootPc, quality, technique, variant = 0, difficult
 }
 
 /**
+ * Variante « note du dessus » : `variant` parcourt les suggestions de
+ * findVoicingsByTopNote (toutes techniques confondues, du plus simple au plus
+ * complexe). La liste résumée est jointe au voicing pour l'affichage.
+ */
+function buildTopNoteVoicing(rootPc, quality, technique, variant, topNote) {
+  const suggestions = findVoicingsByTopNote(rootPc, quality, topNote.pc, { level: topNote.level, technique });
+  if (suggestions.length === 0) return { voicing: null, technique };
+  const index = ((variant % suggestions.length) + suggestions.length) % suggestions.length;
+  const v = suggestions[index];
+  const voicing = {
+    leftHand: [...v.lh],
+    rightHand: [...v.rh],
+    technique: v.technique,
+    familyId: v.familyId,
+    difficulty: v.difficulty,
+    register: '',
+    isPlayable: true,
+    diagnostics: [],
+    fallback: false,
+    source: 'voicinglab',
+    voicingLabSymbol: v.symbol,
+    variantIndex: index,
+    variantCount: suggestions.length,
+    variantLabel: describeVariant(v.technique, v),
+    derived: v.derived,
+    derivedFrom: v.derivedFrom,
+    topNote: { pc: topNote.pc, level: topNote.level, midi: v.topMidi },
+    topNoteSuggestions: suggestions.map((s) => ({
+      technique: s.technique,
+      label: TECHNIQUE_LABELS[s.technique] || s.technique,
+      difficulty: s.difficulty,
+      derived: s.derived,
+      description: describeVariant(s.technique, s),
+    })),
+  };
+  return { voicing, technique: v.technique };
+}
+
+/**
  * Construit la cible complète d'un accord : nom, rootPc, symbol (qualité),
  * notes fusionnées LH+RH pour la détection/affichage, et le voicing complet.
  * Retourne null si VoicingLab ne publie aucun voicing pour cet accord.
@@ -565,12 +658,13 @@ function buildPlayableVoicing(rootPc, quality, technique, variant = 0, difficult
  * @param {string} technique
  * @param {number} [variant]
  * @param {number|null} [difficulty]
+ * @param {{pc: number, level: string}|null} [topNote]
  * @returns {object|null}
  */
-function buildChordTarget(rootPc, symbol, technique, variant = 0, difficulty = null) {
+function buildChordTarget(rootPc, symbol, technique, variant = 0, difficulty = null, topNote = null) {
   const rootName = formatPc(rootPc, false);
   const chordSymbol = symbol ? `${rootName}${symbol}` : rootName;
-  const { voicing, technique: usedTechnique } = buildPlayableVoicing(rootPc, symbol, technique, variant, difficulty);
+  const { voicing, technique: usedTechnique } = buildPlayableVoicing(rootPc, symbol, technique, variant, difficulty, topNote);
   if (!voicing) return null;
   const notes = [...voicing.leftHand, ...voicing.rightHand];
   return {
@@ -648,6 +742,22 @@ export function createPracticeExercise() {
   // Difficulté prise en compte par le mode Auto (sélecteur masqué en mode Accord).
   const autoDifficulty = () => (state.mode === 'chord' ? null : state.difficulty);
 
+  // Recherche par note du dessus : active uniquement en mode Accord cible.
+  const topNoteFilter = () => (state.mode === 'chord' && state.topNote.pc != null ? state.topNote : null);
+
+  /**
+   * Cible du mode Accord cible, avec la note du dessus si elle est choisie.
+   * Si aucun voicing de l'accord n'a cette note au sommet (à ce niveau), on
+   * affiche le voicing standard marqué topNoteMiss pour le signaler à l'UI.
+   */
+  function chordModeTarget(rootPc, symbol, technique = state.technique) {
+    const filter = topNoteFilter();
+    const target = buildChordTarget(rootPc, symbol, technique, state.variant, autoDifficulty(), filter);
+    if (target || !filter) return target;
+    const plain = buildChordTarget(rootPc, symbol, technique, state.variant, autoDifficulty());
+    return plain ? { ...plain, topNoteMiss: true } : null;
+  }
+
   let state = {
     mode: 'chord',
     target: null,
@@ -659,6 +769,7 @@ export function createPracticeExercise() {
     technique: 'auto',
     difficulty: 3,
     variant: 0,
+    topNote: { pc: null, level: 'all' },
     history: [],
     customProgressionDegrees: null,
     customProgressionKeyPc: null,
@@ -689,7 +800,7 @@ export function createPracticeExercise() {
     // Si un accord cible a été choisi explicitement, on le régénère avec la
     // technique courante plutôt que de tirer au hasard.
     if (state.targetChoice) {
-      const target = buildChordTarget(state.targetChoice.rootPc, state.targetChoice.symbol, state.technique, state.variant, autoDifficulty());
+      const target = chordModeTarget(state.targetChoice.rootPc, state.targetChoice.symbol);
       if (target) return target;
     }
     // En mode Accord cible, la difficulté n'est pas choisie par l'utilisateur :
@@ -701,10 +812,13 @@ export function createPracticeExercise() {
     const pool = state.mode === 'chord' ? ALL_PRACTICE_SYMBOLS : symbolsForDifficulty(state.difficulty, state.mode);
     const onVoicingLab = pool.filter((q) => isQualityOnVoicingLab(q));
     const allowedSymbols = onVoicingLab.length > 0 ? onVoicingLab : ['maj7'];
-    for (let i = 0; i < MAX_TARGET_ATTEMPTS; i += 1) {
+    // Avec une note du dessus, on tire jusqu'à trouver un accord qui l'a au sommet.
+    const filter = topNoteFilter();
+    const attempts = filter ? MAX_TARGET_ATTEMPTS * 20 : MAX_TARGET_ATTEMPTS;
+    for (let i = 0; i < attempts; i += 1) {
       const rootPc = randomInt(0, 11);
       const symbol = pick(allowedSymbols);
-      const target = buildChordTarget(rootPc, symbol, state.technique, state.variant, autoDifficulty());
+      const target = buildChordTarget(rootPc, symbol, state.technique, state.variant, autoDifficulty(), filter);
       if (target) return target;
     }
     // Repli ultime : un accord jouable au niveau demandé, sinon Cmaj7 close.
@@ -870,8 +984,12 @@ export function createPracticeExercise() {
   function regenerateCurrentTarget() {
     if (!state.target) return;
     const { rootPc, symbol } = state.target;
-    const refreshed = buildChordTarget(rootPc, symbol, state.technique, state.variant, autoDifficulty());
+    const refreshed = state.mode === 'chord'
+      ? chordModeTarget(rootPc, symbol)
+      : buildChordTarget(rootPc, symbol, state.technique, state.variant, autoDifficulty());
     if (!refreshed) return;
+    // topNoteMiss est recalculé à chaque régénération.
+    if (!refreshed.topNoteMiss) delete state.target.topNoteMiss;
     // Conserver les métadonnées de contexte mouvement/progression.
     state.target = { ...state.target, ...refreshed };
   }
@@ -927,7 +1045,7 @@ export function createPracticeExercise() {
     state.variant = 0;
     // En mode accord cible avec cible choisie, on la régénère directement.
     if (state.mode === 'chord' && state.targetChoice) {
-      state.target = buildChordTarget(state.targetChoice.rootPc, state.targetChoice.symbol, technique, state.variant, autoDifficulty());
+      state.target = chordModeTarget(state.targetChoice.rootPc, state.targetChoice.symbol, technique);
       return;
     }
     regenerateCurrentTarget();
@@ -978,10 +1096,37 @@ export function createPracticeExercise() {
   function setTargetChoice(rootPc, symbol) {
     if (state.mode !== 'chord') return;
     state.targetChoice = { rootPc, symbol };
-    const target = buildChordTarget(rootPc, symbol, state.technique, state.variant, autoDifficulty());
+    state.variant = 0;
+    const target = chordModeTarget(rootPc, symbol);
     if (target) {
       state.target = target;
     }
+  }
+
+  /**
+   * Note du dessus recherchée (mode Accord cible). null = recherche désactivée.
+   * @param {number|null} pc - 0–11
+   */
+  function setTopNote(pc) {
+    state.topNote = { ...state.topNote, pc: pc == null || Number.isNaN(pc) ? null : ((pc % 12) + 12) % 12 };
+    state.variant = 0;
+    if (state.mode === 'chord' && state.target) regenerateCurrentTarget();
+  }
+
+  /** Niveau de difficulté des suggestions par note du dessus. */
+  function setTopNoteLevel(level) {
+    if (!TOP_NOTE_LEVELS[level]) return;
+    state.topNote = { ...state.topNote, level };
+    state.variant = 0;
+    if (state.mode === 'chord' && state.target) regenerateCurrentTarget();
+  }
+
+  /** Sélection directe d'une suggestion (clic dans la liste). */
+  function selectTopNoteSuggestion(index) {
+    const count = state.target?.voicing?.topNoteSuggestions?.length || 0;
+    if (count === 0) return;
+    state.variant = Math.max(0, Math.min(count - 1, index));
+    regenerateCurrentTarget();
   }
 
   function clearTargetChoice() {
@@ -1282,6 +1427,9 @@ export function createPracticeExercise() {
     setKeyChoice,
     setTargetChoice,
     clearTargetChoice,
+    setTopNote,
+    setTopNoteLevel,
+    selectTopNoteSuggestion,
     setContentChoice,
     clearContentChoice,
     setCustomProgression,
@@ -1340,8 +1488,11 @@ export function renderExerciseTarget(target, options = {}) {
           ${renderStars(difficulty)}
         </div>
       </div>
-      ${renderVoicingCategories(categories, technique, voicing?.variantIndex ?? variant, voicing?.variantLabel || '')}
-      ${voicing?.variantCount > 1 ? `<div class="exercise-variant-label">${escapeHtml(voicing.variantLabel)}</div>` : ''}
+      ${voicing?.topNoteSuggestions
+    ? renderTopNotePanel(voicing)
+    : `${renderVoicingCategories(categories, technique, voicing?.variantIndex ?? variant, voicing?.variantLabel || '')}
+      ${voicing?.variantCount > 1 ? `<div class="exercise-variant-label">${escapeHtml(voicing.variantLabel)}</div>` : ''}`}
+      ${target.topNoteMiss ? `<div class="exercise-topnote-miss">Aucun voicing de ${escapeHtml(target.name)} n'a cette note au sommet à ce niveau : voicing habituel affiché.</div>` : ''}
       ${voicing?.derived ? `<div class="exercise-derived-note" title="Qualité absente de VoicingLab : voicing VoicingLab réel de ${escapeHtml(voicing.derivedFrom)} dont une note est déplacée">Voicing dérivé de ${escapeHtml(voicing.derivedFrom)} (absent de VoicingLab)</div>` : ''}
       <div class="exercise-target-keyboard">${kb.svg}</div>
       <div class="exercise-target-hands">
@@ -1353,6 +1504,39 @@ export function renderExerciseTarget(target, options = {}) {
       </button>
     </div>
   `;
+}
+
+/**
+ * Panneau « note du dessus » : un seul voicing au clavier, la liste compacte
+ * des suggestions (du plus simple au plus complexe) et les flèches ‹ ›.
+ */
+function renderTopNotePanel(voicing) {
+  const { topNote, topNoteSuggestions: list, variantIndex } = voicing;
+  const topName = formatNoteNameWithOctave(topNote.midi);
+  const items = list.map((sug, i) => {
+    const active = i === variantIndex ? ' active' : '';
+    const derived = sug.derived ? ' <span class="exercise-topnote-derived" title="Voicing dérivé (qualité absente de VoicingLab)">dérivé</span>' : '';
+    return `<li><button type="button" class="exercise-topnote-item${active}" data-topnote-index="${i}" title="${escapeHtml(sug.description)}">
+        <span class="exercise-topnote-tech">${escapeHtml(sug.label)}</span>${derived}
+        <span class="exercise-topnote-stars" aria-label="Difficulté ${sug.difficulty} sur 5">${'★'.repeat(sug.difficulty)}</span>
+      </button></li>`;
+  }).join('');
+  const arrows = list.length > 1
+    ? `<span class="exercise-variant-arrows">
+         <button class="exercise-variant-btn" type="button" data-variant-delta="-1" aria-label="Suggestion précédente">‹</button>
+         <span class="exercise-variant-index">${variantIndex + 1}/${list.length}</span>
+         <button class="exercise-variant-btn" type="button" data-variant-delta="1" aria-label="Suggestion suivante">›</button>
+       </span>`
+    : '';
+  return `
+    <div class="exercise-topnote-panel">
+      <div class="exercise-topnote-head">
+        <span>Note du dessus : <strong>${escapeHtml(topName)}</strong> · ${list.length} voicing${list.length > 1 ? 's' : ''}</span>
+        ${arrows}
+      </div>
+      <ol class="exercise-topnote-list">${items}</ol>
+      <div class="exercise-variant-label">${escapeHtml(voicing.variantLabel)}</div>
+    </div>`;
 }
 
 function renderStars(difficulty) {

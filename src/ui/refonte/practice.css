@@ -3887,3 +3887,106 @@
     padding-right: 16px;
   }
 }
+
+/* ── Accord cible : recherche par note du dessus ── */
+:root[data-skin='global'] #practice-tab .exercise-target-choice,
+:root[data-skin='v2'] #practice-tab .exercise-target-choice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--r-space-2, 10px);
+}
+:root[data-skin='global'] #practice-tab .exercise-target-choice label,
+:root[data-skin='v2'] #practice-tab .exercise-target-choice label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--r-text-muted);
+}
+:root[data-skin='global'] #practice-tab .exercise-target-choice select:disabled,
+:root[data-skin='v2'] #practice-tab .exercise-target-choice select:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-panel,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin-bottom: var(--r-space-1, 6px);
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-head,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: var(--r-text-muted);
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-head strong,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-head strong {
+  color: var(--r-text);
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-list,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 7.5rem;
+  overflow-y: auto;
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-item,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  border-radius: var(--r-radius-pill);
+  border: 1px solid var(--r-border-soft);
+  background: var(--r-surface-elevated);
+  color: var(--r-text-muted);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-item:hover,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-item:hover {
+  background: var(--r-surface);
+  color: var(--r-text);
+  border-color: var(--r-border-strong);
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-item.active,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-item.active {
+  background: var(--r-accent);
+  border-color: var(--r-accent);
+  color: var(--r-accent-contrast, #ffffff);
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-stars,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-stars {
+  letter-spacing: -0.05em;
+  opacity: 0.85;
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-derived,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-derived {
+  font-style: italic;
+  text-transform: none;
+  font-weight: 500;
+  opacity: 0.8;
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-miss,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-miss {
+  font-size: 0.72rem;
+  color: var(--r-text-faint);
+  font-style: italic;
+  text-align: center;
+}

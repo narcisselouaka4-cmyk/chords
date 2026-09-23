@@ -262,46 +262,94 @@
                   <option value="10">A# / Bb</option>
                   <option value="11">B</option>
                 </select>
+                <!-- Qualités jouables : publiées par VoicingLab, ou « dérivé » =
+                     voicing VoicingLab réel dont une note est déplacée. -->
                 <select id="exercise-target-quality" aria-label="Qualité de l'accord cible">
-                  <option value="">Majeur</option>
-                  <option value="m">Mineur</option>
-                  <option value="sus2">sus2</option>
-                  <option value="sus4">sus4</option>
-                  <option value="dim">dim</option>
-                  <option value="aug">aug</option>
-                  <option value="6">6</option>
-                  <option value="m6">m6</option>
-                  <option value="6/9">6/9</option>
-                  <option value="add9">add9</option>
-                  <option value="madd9">madd9</option>
-                  <option value="m7">m7</option>
-                  <option value="7">7</option>
-                  <option value="maj7">maj7</option>
-                  <option value="m7b5">m7b5</option>
-                  <option value="dim7">dim7</option>
-                  <option value="m9">m9</option>
-                  <option value="9">9</option>
-                  <option value="maj9">maj9</option>
-                  <option value="7sus4">7sus4</option>
-                  <option value="9sus4">9sus4</option>
-                  <option value="11">11</option>
-                  <option value="m11">m11</option>
-                  <option value="13">13</option>
-                  <option value="m13">m13</option>
-                  <option value="maj13">maj13</option>
-                  <option value="13sus4">13sus4</option>
-                  <option value="7b9">7b9</option>
-                  <option value="7#9">7#9</option>
-                  <option value="maj7#11">maj7#11</option>
-                  <option value="7#5">7#5</option>
-                  <option value="7alt">7alt</option>
-                  <option value="mMaj7">mMaj7</option>
-                  <option value="mMaj9">mMaj9</option>
-                  <option value="m7#11">m7#11</option>
+                  <optgroup label="Majeurs">
+                    <option value="6">6</option>
+                    <option value="6/9">6/9</option>
+                    <option value="add9">add9</option>
+                    <option value="add11">add11 (dérivé)</option>
+                    <option value="6add11">6add11 (dérivé)</option>
+                    <option value="maj7" selected>maj7</option>
+                    <option value="maj9">maj9</option>
+                    <option value="maj11">maj11 (dérivé)</option>
+                    <option value="maj13">maj13</option>
+                    <option value="maj7#11">maj7#11</option>
+                    <option value="maj13#11">maj13#11 (dérivé)</option>
+                    <option value="maj7#5">maj7#5</option>
+                  </optgroup>
+                  <optgroup label="Mineurs">
+                    <option value="m6">m6</option>
+                    <option value="m6/9">m6/9</option>
+                    <option value="madd9">madd9 (dérivé)</option>
+                    <option value="m7">m7</option>
+                    <option value="m9">m9</option>
+                    <option value="m11">m11</option>
+                    <option value="m13">m13 (dérivé)</option>
+                    <option value="m7#11">m7#11</option>
+                    <option value="mMaj7">mMaj7</option>
+                    <option value="mMaj9">mMaj9</option>
+                  </optgroup>
+                  <optgroup label="Dominantes">
+                    <option value="7">7</option>
+                    <option value="9">9</option>
+                    <option value="11">11 (dérivé)</option>
+                    <option value="13">13</option>
+                    <option value="13#11">13#11 (dérivé)</option>
+                    <option value="7#11">7#11</option>
+                    <option value="7b9">7b9</option>
+                    <option value="7#9">7#9</option>
+                    <option value="7b5">7b5</option>
+                    <option value="7#5">7#5</option>
+                    <option value="7b13">7b13</option>
+                    <option value="7#9b13">7#9b13</option>
+                    <option value="7b5b9">7b5b9</option>
+                    <option value="7#5#9">7#5#9</option>
+                    <option value="7alt">7alt</option>
+                  </optgroup>
+                  <optgroup label="Suspendus">
+                    <option value="sus2">sus2</option>
+                    <option value="sus4">sus4</option>
+                    <option value="5">5 (power chord)</option>
+                    <option value="7sus2">7sus2 (dérivé)</option>
+                    <option value="7sus4">7sus4</option>
+                    <option value="9sus4">9sus4</option>
+                    <option value="13sus4">13sus4</option>
+                  </optgroup>
+                  <optgroup label="Diminués / augmentés">
+                    <option value="m7b5">m7b5</option>
+                    <option value="dim7">dim7</option>
+                    <option value="aug">aug</option>
+                    <option value="augMaj7">augMaj7</option>
+                  </optgroup>
                 </select>
                 <button class="exercise-random-target-btn" type="button" id="exercise-random-target-btn" aria-label="Tirer un accord au hasard">
                   Aléatoire
                 </button>
+                <!-- Recherche de voicings par note du dessus (sans octave). -->
+                <label for="exercise-top-note">Note du dessus</label>
+                <select id="exercise-top-note" aria-label="Note la plus haute du voicing (toutes octaves)">
+                  <option value="">Toutes</option>
+                  <option value="0">C</option>
+                  <option value="1">C# / Db</option>
+                  <option value="2">D</option>
+                  <option value="3">D# / Eb</option>
+                  <option value="4">E</option>
+                  <option value="5">F</option>
+                  <option value="6">F# / Gb</option>
+                  <option value="7">G</option>
+                  <option value="8">G# / Ab</option>
+                  <option value="9">A</option>
+                  <option value="10">A# / Bb</option>
+                  <option value="11">B</option>
+                </select>
+                <select id="exercise-top-note-level" aria-label="Niveau des voicings suggérés" disabled>
+                  <option value="all">Tous niveaux</option>
+                  <option value="simple">Simple (★1–2)</option>
+                  <option value="intermediate">Intermédiaire (★3)</option>
+                  <option value="advanced">Avancé (★4–5)</option>
+                </select>
               </div>
               <!-- Choix explicite de la progression / du mouvement : masqué en
                    mode « accord cible », rempli par main.js selon le mode. -->

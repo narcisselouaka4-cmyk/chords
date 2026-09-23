@@ -174,6 +174,8 @@ const els = {
   exerciseTargetChoice: document.getElementById('exercise-target-choice'),
   exerciseTargetRoot: document.getElementById('exercise-target-root'),
   exerciseTargetQuality: document.getElementById('exercise-target-quality'),
+  exerciseTopNote: document.getElementById('exercise-top-note'),
+  exerciseTopNoteLevel: document.getElementById('exercise-top-note-level'),
   exerciseRandomTargetBtn: document.getElementById('exercise-random-target-btn'),
   exerciseCustomProgressionSelector: document.getElementById('exercise-custom-progression-selector'),
   degreeBuilder: document.getElementById('degree-builder'),
@@ -1305,6 +1307,12 @@ function initPracticeExercise() {
       const choice = exState.targetChoice;
       if (els.exerciseTargetRoot) els.exerciseTargetRoot.value = String(choice ? choice.rootPc : exState.target?.rootPc ?? 0);
       if (els.exerciseTargetQuality) els.exerciseTargetQuality.value = choice ? choice.symbol : (exState.target?.symbol ?? '');
+      const topPc = exState.topNote?.pc;
+      if (els.exerciseTopNote) els.exerciseTopNote.value = topPc == null ? '' : String(topPc);
+      if (els.exerciseTopNoteLevel) {
+        els.exerciseTopNoteLevel.value = exState.topNote?.level || 'all';
+        els.exerciseTopNoteLevel.disabled = topPc == null;
+      }
     } else {
       els.exerciseTargetChoice.style.display = 'none';
     }
@@ -1684,6 +1692,18 @@ function initPracticeExercise() {
     render();
   });
 
+  // Recherche de voicings par note du dessus (mode Accord cible).
+  els.exerciseTopNote?.addEventListener('change', () => {
+    const value = els.exerciseTopNote.value;
+    practiceExercise.setTopNote(value === '' ? null : parseInt(value, 10));
+    render();
+  });
+
+  els.exerciseTopNoteLevel?.addEventListener('change', () => {
+    practiceExercise.setTopNoteLevel(els.exerciseTopNoteLevel.value);
+    render();
+  });
+
   els.exerciseRandomTargetBtn?.addEventListener('click', () => {
     practiceExercise.clearTargetChoice();
     render();
@@ -1698,6 +1718,12 @@ function initPracticeExercise() {
       if (exState.target?.voicing) {
         playExerciseVoicing(exState.target.voicing);
       }
+      return;
+    }
+    const suggestion = e.target.closest('[data-topnote-index]');
+    if (suggestion) {
+      practiceExercise.selectTopNoteSuggestion(parseInt(suggestion.dataset.topnoteIndex, 10));
+      render();
       return;
     }
     const arrow = e.target.closest('[data-variant-delta]');

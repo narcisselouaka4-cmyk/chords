@@ -5,6 +5,7 @@ import {
   exerciseVoicingToSequence,
   unavailableTechniquesFor,
   getAvailableTechniques,
+  findVoicingsByTopNote,
   listProgressionNames,
   listMovementNames,
   TECHNIQUES,
@@ -437,6 +438,51 @@ function checkDerivedQualities() {
   check('Cmaj7 : voicing VoicingLab réel (non dérivé)', !real.getState().target.voicing.derived);
 }
 
+// [Claude] — 2026-09-23 — Recherche de voicings par note du dessus (sans octave).
+function checkTopNoteSearch() {
+  console.log('\n=== Recherche par note du dessus ===');
+  const pcOf = (n) => ((n % 12) + 12) % 12;
+  const fmaj7A = findVoicingsByTopNote(5, 'maj7', 9);
+  check('Fmaj7 / La au sommet : plusieurs suggestions', fmaj7A.length >= 5, String(fmaj7A.length));
+  check('Toutes ont La comme note la plus haute (toute octave)',
+    fmaj7A.every((v) => pcOf(Math.max(...v.lh, ...v.rh)) === 9));
+  check('Aucun shell ni two-note shell', fmaj7A.every((v) => v.technique !== 'shell' && v.technique !== 'two_note_shell'));
+  check('Triées du plus simple au plus complexe',
+    fmaj7A.every((v, i) => i === 0 || fmaj7A[i - 1].difficulty <= v.difficulty));
+  check('Voicing de l\'exemple présent : MG F3 C4 / MD E4 A4',
+    fmaj7A.some((v) => v.lh.join() === '53,60' && v.rh.join() === '64,69'));
+  const adv = findVoicingsByTopNote(5, 'maj7', 9, { level: 'advanced' });
+  check('Filtre Avancé : difficultés 4–5 uniquement', adv.length > 0 && adv.every((v) => v.difficulty >= 4));
+  const drop2 = findVoicingsByTopNote(5, 'maj7', 9, { technique: 'drop2' });
+  check('Filtre technique : uniquement Drop 2', drop2.length > 0 && drop2.every((v) => v.technique === 'drop2'));
+  check('Technique shell demandée : aucune suggestion', findVoicingsByTopNote(5, 'maj7', 9, { technique: 'shell' }).length === 0);
+
+  const ex = createPracticeExercise();
+  ex.setTargetChoice(5, 'maj7');
+  ex.setTopNote(9);
+  const seen = new Set();
+  const n = ex.getState().target.voicing.variantCount;
+  for (let i = 0; i < n; i += 1) {
+    const t = ex.getState().target;
+    check(`Suggestion ${i + 1} : La au sommet`, pcOf(Math.max(...t.notes)) === 9);
+    seen.add(`${t.voicing.leftHand}|${t.voicing.rightHand}`);
+    ex.setVariant(1);
+  }
+  check('Les flèches parcourent toutes les suggestions', seen.size === n);
+  ex.selectTopNoteSuggestion(2);
+  check('Clic sur une suggestion : sélection directe', ex.getState().target.voicing.variantIndex === 2);
+  ex.setTopNote(1);
+  check('Note absente du sommet : voicing habituel signalé (topNoteMiss)', ex.getState().target.topNoteMiss === true);
+  ex.setTopNote(null);
+  check('Recherche désactivée : plus de suggestions', !ex.getState().target.voicing.topNoteSuggestions && !ex.getState().target.topNoteMiss);
+
+  const rnd = createPracticeExercise();
+  rnd.setTopNote(7);
+  rnd.clearTargetChoice();
+  const t = rnd.getState().target;
+  check('Aléatoire avec note du dessus : accord tiré qui a Sol au sommet', !t.topNoteMiss && pcOf(Math.max(...t.notes)) === 7, t.name);
+}
+
 function runTests() {
   checkChordTargetHasVoicing();
   checkSpecificChords();
@@ -457,6 +503,7 @@ function runTests() {
   checkVoicingLabGateAndCustomDifficulty();
   checkVoicingLabCoverage();
   checkDerivedQualities();
+  checkTopNoteSearch();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);
   process.exit(failed === 0 ? 0 : 1);
