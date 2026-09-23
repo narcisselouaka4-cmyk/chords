@@ -3999,6 +3999,28 @@
   text-align: center;
 }
 
+/* Filtres de la recherche par note du dessus : une rangée à part, pleine largeur. */
+:root[data-skin='global'] #practice-tab .exercise-topnote-filters,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-filters {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-filters[hidden],
+:root[data-skin='v2'] #practice-tab .exercise-topnote-filters[hidden] {
+  display: none;
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-filters-label,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-filters-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--r-text-muted);
+}
+
 /* ── Navigateur : tous les accords ayant la note du dessus choisie ── */
 :root[data-skin='global'] #practice-tab .exercise-topnote-browser,
 :root[data-skin='v2'] #practice-tab .exercise-topnote-browser {

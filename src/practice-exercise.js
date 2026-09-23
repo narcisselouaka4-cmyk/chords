@@ -529,6 +529,33 @@ export const TOP_NOTE_LEVELS = {
 // Stride : VoicingLab le publie en main gauche seule (basse + accord), même cas.
 const TOP_NOTE_EXCLUDED_TECHNIQUES = new Set(['shell', 'two_note_shell', 'stride']);
 
+// Filtres de la recherche par note du dessus : ils trient, ils ne choisissent
+// pas. 'all' = pas de filtre. Les mêmes filtres servent à la carte et au
+// navigateur, pour que l'index d'un voicing soit le même des deux côtés.
+export const TOP_NOTE_FILTERS = {
+  octave: ['all', '4', '5', '6'],
+  hands: ['all', 'one', 'two'],
+  size: ['all', '3', '4', '5'],
+  root: ['all', 'with', 'without'],
+  technique: ['all', ...TECHNIQUES.filter((t) => t !== 'auto' && !TOP_NOTE_EXCLUDED_TECHNIQUES.has(t))],
+};
+
+/** Vrai si le voicing passe les filtres (octave de la note du dessus, mains, nombre de notes, fondamentale). */
+function passesTopNoteFilters(v, rootPc, top, { octave = 'all', hands = 'all', size = 'all', root = 'all' } = {}) {
+  const all = [...v.lh, ...v.rh];
+  if (octave !== 'all' && Math.floor(top / 12) - 1 !== Number(octave)) return false;
+  if (hands !== 'all' && (v.lh.length > 0 && v.rh.length > 0 ? 'two' : 'one') !== hands) return false;
+  // '3' = 3 notes ou moins, '5' = 5 notes ou plus.
+  if (size === '3' && all.length > 3) return false;
+  if (size === '4' && all.length !== 4) return false;
+  if (size === '5' && all.length < 5) return false;
+  const hasRoot = all.some((n) => ((n % 12) + 12) % 12 === rootPc);
+  if (root === 'with' && !hasRoot) return false;
+  if (root === 'without' && hasRoot) return false;
+  return true;
+}
+
+
 /**
  * Voicings (VoicingLab réels et dérivés) d'un accord dont la note la plus haute
  * est `topPc`, quelle que soit son octave : aucune note du voicing ne dépasse
@@ -538,12 +565,14 @@ const TOP_NOTE_EXCLUDED_TECHNIQUES = new Set(['shell', 'two_note_shell', 'stride
  * @param {number} rootPc
  * @param {string} quality
  * @param {number} topPc - pitch class de la note du dessus (0–11)
- * @param {{ level?: keyof TOP_NOTE_LEVELS, technique?: string }} [options]
- *   technique : 'auto' = toutes les techniques, sinon uniquement celle-ci
+ * @param {{ level?: keyof TOP_NOTE_LEVELS, technique?: string, octave?: string, hands?: string, size?: string, root?: string }} [options]
+ *   technique : 'auto' ou 'all' = toutes les techniques, sinon uniquement celle-ci ;
+ *   octave / hands / size / root : voir TOP_NOTE_FILTERS
  */
-export function findVoicingsByTopNote(rootPc, quality, topPc, { level = 'all', technique = 'auto' } = {}) {
+export function findVoicingsByTopNote(rootPc, quality, topPc, { level = 'all', technique = 'auto', ...filters } = {}) {
   const range = TOP_NOTE_LEVELS[level] || TOP_NOTE_LEVELS.all;
-  const techniques = (technique === 'auto' ? TECHNIQUES.filter((t) => t !== 'auto') : [technique])
+  const anyTechnique = technique === 'auto' || technique === 'all';
+  const techniques = (anyTechnique ? TECHNIQUES.filter((t) => t !== 'auto') : [technique])
     .filter((t) => !TOP_NOTE_EXCLUDED_TECHNIQUES.has(t));
   const seen = new Set();
   const out = [];
@@ -554,6 +583,7 @@ export function findVoicingsByTopNote(rootPc, quality, topPc, { level = 'all', t
       const difficulty = Math.min(5, Math.max(1, v.difficulty));
       if (((top % 12) + 12) % 12 !== topPc) continue;
       if (difficulty < range.min || difficulty > range.max) continue;
+      if (!passesTopNoteFilters(v, rootPc, top, filters)) continue;
       // Mêmes notes mais mains différentes (ex. Spread F3 | C4 E4 A4 et Open
       // F3 C4 | E4 A4) = deux façons de jouer : on garde les deux.
       const key = `${v.lh.join(',')}|${v.rh.join(',')}`;
@@ -711,9 +741,11 @@ function buildPlayableVoicing(rootPc, quality, technique, variant = 0, difficult
  * complexe). La liste résumée est jointe au voicing pour l'affichage.
  */
 function buildTopNoteVoicing(rootPc, quality, technique, variant, topNote) {
-  // Toujours toutes les techniques : la technique cliquée sur la carte ne doit
-  // pas filtrer en silence la recherche (bug : Block seul → 0 en Simple/Intermédiaire).
-  const suggestions = findVoicingsByTopNote(rootPc, quality, topNote.pc, { level: topNote.level });
+  // La technique cliquée sur la carte ne filtre pas la recherche en silence
+  // (bug : Block seul → 0 en Simple/Intermédiaire) ; seul le filtre Technique,
+  // choisi explicitement, la restreint.
+  const { pc, ...options } = topNote;
+  const suggestions = findVoicingsByTopNote(rootPc, quality, pc, options);
   if (suggestions.length === 0) return { voicing: null, technique };
   const index = ((variant % suggestions.length) + suggestions.length) % suggestions.length;
   const v = suggestions[index];
@@ -875,7 +907,9 @@ export function createPracticeExercise() {
     technique: 'auto',
     difficulty: 3,
     variant: 0,
-    topNote: { pc: null, level: 'all' },
+    topNote: {
+      pc: null, level: 'all', octave: 'all', hands: 'all', size: 'all', root: 'all', technique: 'all',
+    },
     // Doublures d'octave : 'none' | 'bass' | 'melody' | 'full'.
     doubling: 'none',
     history: [],
@@ -1232,6 +1266,18 @@ export function createPracticeExercise() {
     else refreshProgressionChords();
   }
 
+  /**
+   * Filtre de la recherche par note du dessus.
+   * @param {keyof TOP_NOTE_FILTERS} name
+   * @param {string} value
+   */
+  function setTopNoteFilter(name, value) {
+    if (!TOP_NOTE_FILTERS[name]?.includes(value)) return;
+    state.topNote = { ...state.topNote, [name]: value };
+    state.variant = 0;
+    if (state.mode === 'chord' && state.target) regenerateCurrentTarget();
+  }
+
   /** Sélection directe d'une suggestion (clic dans la liste). */
   function selectTopNoteSuggestion(index) {
     const count = state.target?.voicing?.topNoteSuggestions?.length || 0;
@@ -1540,6 +1586,7 @@ export function createPracticeExercise() {
     clearTargetChoice,
     setTopNote,
     setTopNoteLevel,
+    setTopNoteFilter,
     selectTopNoteSuggestion,
     setDoubling,
     setContentChoice,
@@ -1606,7 +1653,7 @@ export function renderExerciseTarget(target, options = {}) {
     ? renderTopNotePanel(voicing)
     : `${renderVoicingCategories(categories, technique, voicing?.variantIndex ?? variant, voicing?.variantLabel || '', options.selectedTechnique ?? technique)}
       ${voicing?.variantCount > 1 ? `<div class="exercise-variant-label">${escapeHtml(voicing.variantLabel)}</div>` : ''}`}
-      ${target.topNoteMiss ? `<div class="exercise-topnote-miss">Aucun voicing de ${escapeHtml(target.name)} n'a cette note au sommet à ce niveau : voicing habituel affiché.</div>` : ''}
+      ${target.topNoteMiss ? `<div class="exercise-topnote-miss">Aucun voicing de ${escapeHtml(target.name)} n'a cette note au sommet avec ces filtres : voicing habituel affiché.</div>` : ''}
       ${voicing?.derived ? `<div class="exercise-derived-note" title="Qualité absente de VoicingLab : voicing VoicingLab réel de ${escapeHtml(voicing.derivedFrom)} dont une note est déplacée">Voicing dérivé de ${escapeHtml(voicing.derivedFrom)} (absent de VoicingLab)</div>` : ''}
       <div class="exercise-target-keyboard">${kb.svg}</div>
       ${addedLH.length > 0 ? `<div class="exercise-doubled-note" title="VoicingLab publie ce cluster pour la main droite seule : la main gauche porte l'accord">Main gauche ajoutée (fondamentale + septième) : ${escapeHtml(formatHandNotes(addedLH))}</div>` : ''}
@@ -1690,7 +1737,7 @@ export function renderTopNoteBrowser(results, { topPc, family = 'all', selected 
     <div class="exercise-browser-head">Accords avec <strong>${escapeHtml(topName)}</strong> au sommet · ${shown.length} accords · ${total} voicings</div>
     <div class="exercise-browser-families">${chips}</div>
     ${shown.length === 0
-    ? '<p class="exercise-browser-empty">Aucun voicing à ce niveau.</p>'
+    ? '<p class="exercise-browser-empty">Aucun voicing avec ces filtres.</p>'
     : `<ul class="exercise-browser-list" data-browser-scroll>${rows}</ul>`}
     <p class="exercise-browser-note">* qualité absente de VoicingLab (voicings dérivés)</p>`;
 }

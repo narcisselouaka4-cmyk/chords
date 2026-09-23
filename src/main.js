@@ -67,6 +67,8 @@ import {
   isDerivedQuality,
   findChordsByTopNote,
   renderTopNoteBrowser,
+  TOP_NOTE_FILTERS,
+  TECHNIQUE_LABELS,
 } from './practice-exercise.js';
 import movementsLibrary from './data/movements-library.json' with { type: 'json' };
 import { voicingToNoteSequence } from './pedagogie/copilot-voicing.js';
@@ -182,6 +184,7 @@ const els = {
   exerciseTopNoteLevel: document.getElementById('exercise-top-note-level'),
   exerciseDoubling: document.getElementById('exercise-doubling'),
   exerciseTopNoteBrowser: document.getElementById('exercise-topnote-browser'),
+  exerciseTopNoteFilters: document.getElementById('exercise-topnote-filters'),
   exerciseRandomTargetBtn: document.getElementById('exercise-random-target-btn'),
   exerciseCustomProgressionSelector: document.getElementById('exercise-custom-progression-selector'),
   degreeBuilder: document.getElementById('degree-builder'),
@@ -1321,15 +1324,16 @@ function initPracticeExercise() {
       return;
     }
     box.hidden = false;
-    const level = exState.topNote.level || 'all';
+    // Mêmes options que la carte (niveau + filtres) : les index concordent.
+    const { pc: _pc, ...searchOptions } = exState.topNote;
     const selected = exState.target?.voicing?.topNoteSuggestions && !exState.target.topNoteMiss
       ? { rootPc: exState.target.rootPc, quality: exState.target.symbol, index: exState.target.voicing.variantIndex }
       : null;
-    // Toutes les techniques, comme la carte : pas de filtre caché par la
-    // technique cliquée auparavant.
-    const key = `${topPc}|${level}|${topNoteBrowserFamily}`;
+    // Seul le filtre Technique restreint les techniques, jamais la technique
+    // cliquée auparavant sur la carte.
+    const key = `${JSON.stringify(exState.topNote)}|${topNoteBrowserFamily}`;
     if (key !== topNoteBrowserKey) {
-      const results = findChordsByTopNote(topPc, { level });
+      const results = findChordsByTopNote(topPc, searchOptions);
       box.innerHTML = renderTopNoteBrowser(results, { topPc, family: topNoteBrowserFamily, selected });
       topNoteBrowserKey = key;
       return;
@@ -1366,6 +1370,12 @@ function initPracticeExercise() {
       if (els.exerciseTopNoteLevel) {
         els.exerciseTopNoteLevel.value = exState.topNote?.level || 'all';
         els.exerciseTopNoteLevel.disabled = topPc == null;
+      }
+      if (els.exerciseTopNoteFilters) {
+        els.exerciseTopNoteFilters.hidden = topPc == null;
+        els.exerciseTopNoteFilters.querySelectorAll('[data-topnote-filter]').forEach((sel) => {
+          sel.value = exState.topNote?.[sel.dataset.topnoteFilter] || 'all';
+        });
       }
       refreshTopNoteBrowser(exState);
     } else {
@@ -1782,6 +1792,20 @@ function initPracticeExercise() {
 
   els.exerciseTopNoteLevel?.addEventListener('change', () => {
     practiceExercise.setTopNoteLevel(els.exerciseTopNoteLevel.value);
+    render();
+  });
+
+  // Filtres de la recherche par note du dessus (octave, technique, mains, taille, fondamentale).
+  const topNoteTechniqueFilter = els.exerciseTopNoteFilters?.querySelector('[data-topnote-filter="technique"]');
+  if (topNoteTechniqueFilter) {
+    topNoteTechniqueFilter.innerHTML = TOP_NOTE_FILTERS.technique
+      .map((t) => `<option value="${t}">${t === 'all' ? 'Toutes techniques' : TECHNIQUE_LABELS[t] || t}</option>`)
+      .join('');
+  }
+  els.exerciseTopNoteFilters?.addEventListener('change', (e) => {
+    const sel = e.target.closest('[data-topnote-filter]');
+    if (!sel) return;
+    practiceExercise.setTopNoteFilter(sel.dataset.topnoteFilter, sel.value);
     render();
   });
 

@@ -300,6 +300,35 @@
                   <option value="intermediate">Intermédiaire (★3)</option>
                   <option value="advanced">Avancé (★4–5)</option>
                 </select>
+                <!-- Filtres de la recherche par note du dessus : trient les voicings,
+                     visibles seulement quand une note du dessus est choisie. -->
+                <div class="exercise-topnote-filters" id="exercise-topnote-filters" hidden>
+                  <span class="exercise-topnote-filters-label">Filtres</span>
+                  <select data-topnote-filter="octave" aria-label="Octave de la note du dessus">
+                    <option value="all">Toutes octaves</option>
+                    <option value="4">Octave 4</option>
+                    <option value="5">Octave 5</option>
+                    <option value="6">Octave 6</option>
+                  </select>
+                  <!-- Techniques : remplies par main.js depuis TOP_NOTE_FILTERS. -->
+                  <select data-topnote-filter="technique" aria-label="Technique de voicing"></select>
+                  <select data-topnote-filter="hands" aria-label="Répartition des mains">
+                    <option value="all">Une ou deux mains</option>
+                    <option value="one">Une main</option>
+                    <option value="two">Deux mains</option>
+                  </select>
+                  <select data-topnote-filter="size" aria-label="Nombre de notes">
+                    <option value="all">Toutes tailles</option>
+                    <option value="3">3 notes ou moins</option>
+                    <option value="4">4 notes</option>
+                    <option value="5">5 notes ou plus</option>
+                  </select>
+                  <select data-topnote-filter="root" aria-label="Fondamentale">
+                    <option value="all">Avec ou sans fondamentale</option>
+                    <option value="with">Avec fondamentale</option>
+                    <option value="without">Sans fondamentale</option>
+                  </select>
+                </div>
                 <!-- Tous les accords ayant la note du dessus choisie (rempli par main.js). -->
                 <div class="exercise-topnote-browser" id="exercise-topnote-browser" hidden></div>
               </div>
