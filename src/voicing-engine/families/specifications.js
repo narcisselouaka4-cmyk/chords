@@ -56,13 +56,13 @@ export const FAMILY_SPECS = Object.freeze([
     id: 'twoNoteShell',
     displayName: 'Two-Note Shell',
     description:
-      'Version minimale du Shell : basse en main gauche, guide tones ' +
-      '(tierce + septieme) seuls en main droite.',
-    minVoices: 3,
-    maxVoices: 3,
+      'Version minimale du Shell : basse en main gauche, une seule guide tone ' +
+      '(tierce ou septieme) en main droite. Alignement VoicingLab.',
+    minVoices: 2,
+    maxVoices: 2,
     voiceCountScope: 'all',
-    requiredRoles: ['rootOrBass', 'third', 'seventh'],
-    optionalRoles: [],
+    requiredRoles: ['rootOrBass'],
+    optionalRoles: ['third', 'seventh'],
     allowsRootless: false,
     isApplicable(input) {
       return hasThirdAndSeventh(input);

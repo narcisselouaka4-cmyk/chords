@@ -142,7 +142,8 @@ export function validateShell(candidate, spec) {
 }
 
 /**
- * Validateur Two-Note Shell : LH basse, RH exactement tierce + septieme.
+ * Validateur Two-Note Shell : LH basse, RH exactement une guide tone
+ * (tierce ou septieme). Alignement VoicingLab.
  * @param {VoicingCandidate} candidate
  * @param {VoicingFamilySpec} spec
  * @returns {ValidationResult}
@@ -155,12 +156,17 @@ export function validateTwoNoteShell(candidate, spec) {
     errors.push(`Two-Note Shell: LH doit etre la basse pc ${expectedBassPc}`);
   }
 
-  if (candidate.rh.notes.length !== 2) {
-    errors.push(`Two-Note Shell: RH doit contenir exactement 2 notes`);
+  if (candidate.rh.notes.length !== 1) {
+    errors.push(`Two-Note Shell: RH doit contenir exactement 1 note`);
   }
 
-  const required = validateRequiredRolesPresent(candidate, spec.requiredRoles.filter((r) => r !== 'rootOrBass'));
-  errors.push(...required.errors);
+  const rhPc = candidate.rh.notes[0] % 12;
+  const roles = resolveRoles(candidate.input);
+  const hasThird = roles.third != null && rhPc === roles.third;
+  const hasSeventh = roles.seventh != null && rhPc === roles.seventh;
+  if (!hasThird && !hasSeventh) {
+    errors.push(`Two-Note Shell: RH doit etre la tierce ou la septieme`);
+  }
 
   return { ok: errors.length === 0, errors };
 }

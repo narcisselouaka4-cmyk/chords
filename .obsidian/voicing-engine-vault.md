@@ -11,6 +11,23 @@ metadata:
 
 ## Journal
 
+### 2026-09-23 — Alignement VoicingLab sur la catégorie C
+
+- Lecture du CSV `voicinglab-C-5-familles-2026-09-23.csv` (862 voicings C, 5 familles de base × extensions/altérations).
+- Script de comparaison créé dans `.claude/jobs/.../compare-voicinglab-c3.mjs` : regroupement par `(accord, famille)` et vérification que le moteur produit au moins un équivalent VoicingLab (classes de hauteur ou position exacte).
+- Premier constat : de nombreux écarts viennent de définitions différentes (ex. VoicingLab `close`/`block` tolèrent des spans > 12 ; notre moteur reste strict à une octave) ou de familles non implémentées (`cluster`, `drop2Plus4`).
+- Ajustements effectués :
+  - `buildBassBelow` : la basse est désormais l’instance de fondamentale **immédiatement inférieure** au RH, et non la plus proche d’une octave théorique. Cela corrige des basses à 2 octaves de distance dans `twoNoteShell`.
+  - `twoNoteShell` : alignement VoicingLab — root + une seule guide tone (3e ou 7e), choisie selon le meilleur centrage/compactage. Mise à jour de la spec (`minVoices: 2`, `maxVoices: 2`) et du validateur.
+  - `generateShell` : ordre des candidates inversé pour privilégier le shell minimal (3e + 7e) avant d’ajouter une extension.
+- Résultat de la comparaison sur 420 groupes (accord/famille) :
+  - exactMatch = 26, pcMatch = 52, noMatch = 100, engineUnavailable = 242.
+  - Correspondance exacte + classes de hauteur : 78/420 ≈ 18,5 % (limitée par les familles absentes et les définitions divergentes).
+  - `twoNoteShell` : 50 % de correspondance exacte (18/36 groupes).
+  - `shell` : 24 % (8/34 exacts).
+- Mise à jour de `REFERENCE_VOICINGS.json` et du test structurel `assertIsTwoNoteShell`.
+- Validation : tests catalogue **116/116**, exercices **237/237**, `npm run test:chords` **98/98**, `npm run build` OK.
+
 ### 2026-09-23 — Répartition des mains corrigée pour les familles compactes
 
 - Bug signalé : C7 four-way close produisait LH C2 (36) et RH C4 E4 G4 Bb4 (60–70), écart de ~2 octaves entre les mains.

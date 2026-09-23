@@ -61,16 +61,15 @@ export function buildStandardLeftHand(input) {
 export function buildBassBelow(input, referenceMidi) {
   const diagnostics = [];
   const targetPc = input.bassPc ?? input.rootPc;
-  const ideal = referenceMidi - 12;
   const instances = midiInstancesInRange(targetPc, LH_HARD_RANGE.min, LH_HARD_RANGE.max)
     .filter((n) => n < referenceMidi);
   if (instances.length === 0) {
     diagnostics.push(`LH: impossible de placer la basse pc ${targetPc} sous ${referenceMidi}`);
     return { note: null, diagnostics };
   }
-  const note = instances.reduce((best, n) =>
-    Math.abs(n - ideal) < Math.abs(best - ideal) ? n : best
-  );
+  // Choisit l'instance de basse immediatement inferieure au RH pour un ecart
+  // LH/RH musical et compact (pas de trou artificiel de plusieurs octaves).
+  const note = instances[instances.length - 1];
   diagnostics.push(`LH: ${note} (pc ${targetPc}, placee sous ${referenceMidi})`);
   return { note, diagnostics };
 }

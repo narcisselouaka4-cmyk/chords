@@ -121,12 +121,14 @@ export function generateShell(input) {
   }
 
   const roles = resolveRoles(input);
+  // Ordre VoicingLab : shell minimal (3e + 7e) d'abord, puis une extension
+  // si elle est disponible. On garde la quinte en dernier recours.
   const roleCandidates = [
+    ['third', 'seventh'],
     ['third', 'seventh', 'ninth'],
     ['third', 'seventh', 'thirteenth'],
     ['third', 'seventh', 'eleventh'],
     ['third', 'seventh', 'fifth'],
-    ['third', 'seventh'],
   ].filter((list) => list.every((r) => r === 'third' || r === 'seventh' || roles[r] != null));
 
   // On genere le RH centre autour de 60 sans contrainte de basse, puis on place
@@ -169,8 +171,10 @@ export function generateShell(input) {
 }
 
 /**
- * Genere un Two-Note Shell : basse en LH, guide tones seuls en RH.
- * La basse est placee juste sous le RH pour garder un ecart LH/RH compact.
+ * Genere un Two-Note Shell : basse en LH, une seule guide tone en RH.
+ * Contrairement a l'ancienne version (3e + 7e), on suit VoicingLab :
+ * la famille two-note shell est root + 3e OU root + 7e, selon la meilleure
+ * position centree et compacte.
  * @param {VoicingInput} input
  * @returns {import('./base-generator.js').GeneratorResult}
  */
@@ -180,21 +184,36 @@ export function generateTwoNoteShell(input) {
     return unavailableResult('Two-Note Shell: accord sans tierce ou sans septieme');
   }
 
-  const pcs = rolesToPcs(input, ['third', 'seventh']);
-  const rhNotes = buildRightHandClose(pcs, -Infinity);
-  if (!rhNotes) {
-    return unavailableResult('Two-Note Shell: impossible de placer la main droite', diagnostics);
-  }
-  const { note: bassNote, diagnostics: bassDiagnostics } = buildBassBelow(input, rhNotes[0]);
-  if (bassNote == null) {
-    return unavailableResult('Two-Note Shell: impossible de placer la basse', diagnostics);
-  }
-  diagnostics.push(...bassDiagnostics);
+  const roles = resolveRoles(input);
+  let best = null;
+  let bestScore = Infinity;
 
-  const lh = createHandVoicing('LH', [bassNote], { source: 'twoNoteShell' });
-  const rh = createHandVoicing('RH', rhNotes, { source: 'twoNoteShell' });
+  for (const guideRole of ['seventh', 'third']) {
+    const pc = roles[guideRole];
+    if (pc == null) continue;
+    const rhNotes = buildRightHandClose([pc], -Infinity);
+    if (!rhNotes || rhNotes.length !== 1) continue;
+    const { note: bassNote, diagnostics: bassDiagnostics } = buildBassBelow(input, rhNotes[0]);
+    if (bassNote == null) continue;
+    const gap = rhNotes[0] - bassNote;
+    const distance = Math.abs(rhNotes[0] - defaultRhCenter());
+    // Privilegie le RH centre, puis le gap LH/RH le plus compact.
+    const score = distance + gap / 4;
+    if (score < bestScore) {
+      bestScore = score;
+      best = { rhNotes, bassNote, bassDiagnostics };
+    }
+  }
+
+  if (!best) {
+    return unavailableResult('Two-Note Shell: impossible de placer la main droite ou la basse', diagnostics);
+  }
+
+  diagnostics.push(...best.bassDiagnostics);
+  const lh = createHandVoicing('LH', [best.bassNote], { source: 'twoNoteShell' });
+  const rh = createHandVoicing('RH', best.rhNotes, { source: 'twoNoteShell' });
   const candidate = buildCandidate(input, lh, rh, 'twoNoteShell', 'Two-Note Shell', {
-    generatorId: 'twoNoteShell-v2',
+    generatorId: 'twoNoteShell-v3',
     style: 'twoNoteShell',
   });
   return successResult(candidate, diagnostics);

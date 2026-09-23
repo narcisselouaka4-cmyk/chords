@@ -259,7 +259,12 @@ function assertIsShell(candidate, msg = '') {
 function assertIsTwoNoteShell(candidate, msg = '') {
   const expectedBassPc = candidate.input.bassPc ?? candidate.input.rootPc;
   assertTrue(candidate.lh.notes.length === 1 && candidate.lh.notes[0] % 12 === expectedBassPc, `${msg}Two-Note Shell: LH doit etre la basse`);
-  assertArrayEqual(pcSet(candidate.rh.notes).sort((a, b) => a - b), [resolveRoles(candidate.input).third, resolveRoles(candidate.input).seventh].sort((a, b) => a - b), `${msg}Two-Note Shell: RH doit etre exactement tierce+septieme`);
+  assertTrue(candidate.rh.notes.length === 1, `${msg}Two-Note Shell: RH doit contenir exactement 1 note`);
+  const rhPc = candidate.rh.notes[0] % 12;
+  const roles = resolveRoles(candidate.input);
+  const isThird = roles.third != null && rhPc === roles.third;
+  const isSeventh = roles.seventh != null && rhPc === roles.seventh;
+  assertTrue(isThird || isSeventh, `${msg}Two-Note Shell: RH doit etre la tierce ou la septieme`);
 }
 
 function assertIsRootlessA(candidate, msg = '') {

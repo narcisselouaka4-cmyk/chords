@@ -5,7 +5,7 @@
       "shell": {
         "available": true,
         "lh": [
-          43
+          55
         ],
         "rh": [
           59,
@@ -17,11 +17,10 @@
       "twoNoteShell": {
         "available": true,
         "lh": [
-          43
+          55
         ],
         "rh": [
-          59,
-          65
+          59
         ],
         "difficulty": 1,
         "comment": "Two-Note Shell"
@@ -161,7 +160,7 @@
       "shell": {
         "available": true,
         "lh": [
-          36
+          48
         ],
         "rh": [
           52,
@@ -173,10 +172,9 @@
       "twoNoteShell": {
         "available": true,
         "lh": [
-          36
+          48
         ],
         "rh": [
-          52,
           58
         ],
         "difficulty": 1,
@@ -294,7 +292,7 @@
       "shell": {
         "available": true,
         "lh": [
-          38
+          50
         ],
         "rh": [
           53,
@@ -306,10 +304,9 @@
       "twoNoteShell": {
         "available": true,
         "lh": [
-          38
+          50
         ],
         "rh": [
-          53,
           60
         ],
         "difficulty": 1,
@@ -422,7 +419,7 @@
       "shell": {
         "available": true,
         "lh": [
-          41
+          53
         ],
         "rh": [
           57,
@@ -434,11 +431,10 @@
       "twoNoteShell": {
         "available": true,
         "lh": [
-          41
+          53
         ],
         "rh": [
-          57,
-          64
+          57
         ],
         "difficulty": 1,
         "comment": "Two-Note Shell"
@@ -542,7 +538,7 @@
       "shell": {
         "available": true,
         "lh": [
-          36
+          48
         ],
         "rh": [
           51,
@@ -554,10 +550,9 @@
       "twoNoteShell": {
         "available": true,
         "lh": [
-          36
+          48
         ],
         "rh": [
-          51,
           58
         ],
         "difficulty": 1,
@@ -670,7 +665,7 @@
       "shell": {
         "available": true,
         "lh": [
-          43
+          55
         ],
         "rh": [
           59,
@@ -682,11 +677,10 @@
       "twoNoteShell": {
         "available": true,
         "lh": [
-          43
+          55
         ],
         "rh": [
-          59,
-          65
+          59
         ],
         "difficulty": 2,
         "comment": "Two-Note Shell"
@@ -839,7 +833,7 @@
       "shell": {
         "available": true,
         "lh": [
-          42
+          54
         ],
         "rh": [
           58,
@@ -851,11 +845,10 @@
       "twoNoteShell": {
         "available": true,
         "lh": [
-          42
+          54
         ],
         "rh": [
-          58,
-          64
+          58
         ],
         "difficulty": 2,
         "comment": "Two-Note Shell"
@@ -995,7 +988,7 @@
       "shell": {
         "available": true,
         "lh": [
-          42
+          54
         ],
         "rh": [
           58,
@@ -1007,11 +1000,10 @@
       "twoNoteShell": {
         "available": true,
         "lh": [
-          42
+          54
         ],
         "rh": [
-          58,
-          64
+          58
         ],
         "difficulty": 3,
         "comment": "Two-Note Shell"
@@ -1173,7 +1165,7 @@
       "shell": {
         "available": true,
         "lh": [
-          41
+          53
         ],
         "rh": [
           57,
@@ -1185,11 +1177,10 @@
       "twoNoteShell": {
         "available": true,
         "lh": [
-          41
+          53
         ],
         "rh": [
-          57,
-          64
+          57
         ],
         "difficulty": 2,
         "comment": "Two-Note Shell"
