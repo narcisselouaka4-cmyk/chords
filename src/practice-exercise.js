@@ -413,8 +413,33 @@ function splitChordSymbol(chordSymbol) {
  */
 function voicingLabVariantsFor(rootPc, quality, technique) {
   return familiesForTechnique(technique).flatMap((familyId) =>
-    getVoicingLabVoicings(rootPc, quality, familyId).map((v) => ({ ...v, familyId }))
+    getVoicingLabVoicings(rootPc, quality, familyId).map((v) => withClusterLeftHand({ ...v, familyId }, rootPc, quality))
   );
+}
+
+// Intervalles de la « septième » de l'accord, par ordre de préférence.
+const SHELL_SEVENTH_SEMITONES = { '7m': 10, '7M': 11, '7d': 9, '6M': 9 };
+
+/**
+ * Les clusters VoicingLab sont des couleurs de main droite seule (ex. G4 A4 Bb4
+ * pour Eb7#11 : 3, #11, 5), sans fondamentale ni septième : joués seuls, ils
+ * ne définissent pas l'accord. On ajoute la main gauche qui les porte :
+ * fondamentale + septième (C2–B2), marquée `addedLH` pour l'affichage.
+ * Les notes VoicingLab de la main droite ne sont pas touchées.
+ */
+function withClusterLeftHand(v, rootPc, quality) {
+  if (v.familyId !== 'cluster' || v.lh.length > 0 || v.rh.length === 0) return v;
+  const intervals = parseChordSymbol(`${formatPc(rootPc, false)}${quality}`)?.intervals || [];
+  const seventh = Object.keys(SHELL_SEVENTH_SEMITONES).find((i) => intervals.includes(i));
+  let root = 36 + rootPc; // C2–B2
+  let lh = seventh ? [root, root + SHELL_SEVENTH_SEMITONES[seventh]] : [root];
+  // La main gauche reste sous la main droite.
+  if (Math.max(...lh) >= Math.min(...v.rh) && root - 12 >= 28) {
+    root -= 12;
+    lh = lh.map((n) => n - 12);
+  }
+  if (Math.max(...lh) >= Math.min(...v.rh)) lh = [root];
+  return { ...v, lh, addedLH: [...lh] };
 }
 
 /**
@@ -606,6 +631,8 @@ function describeVariant(technique, v) {
       const triad = triadName(v.rh);
       return triad ? `Triade ${triad} sur ${lh}` : `${rhNames} sur ${lh}`;
     }
+    case 'cluster':
+      return v.addedLH ? `Cluster ${rhNames} sur ${lh}` : `Cluster ${rhNames}`;
     case 'rootless':
       return v.familyId === 'rootlessB' ? 'Type B (départ sur la 7e)' : 'Type A (départ sur la tierce)';
     default: {
@@ -671,6 +698,7 @@ function buildPlayableVoicing(rootPc, quality, technique, variant = 0, difficult
       variantLabel: describeVariant(t, v),
       derived: v.derived,
       derivedFrom: v.derivedFrom,
+      addedLH: v.addedLH,
     };
     return { voicing, technique: t };
   }
@@ -706,6 +734,7 @@ function buildTopNoteVoicing(rootPc, quality, technique, variant, topNote) {
     variantLabel: describeVariant(v.technique, v),
     derived: v.derived,
     derivedFrom: v.derivedFrom,
+    addedLH: v.addedLH,
     topNote: { pc: topNote.pc, level: topNote.level, midi: v.topMidi },
     topNoteSuggestions: suggestions.map((s) => ({
       technique: s.technique,
@@ -1548,7 +1577,8 @@ export function renderExerciseTarget(target, options = {}) {
   const technique = voicing?.technique || 'auto';
 
   const doubled = voicing?.doubled || [];
-  const kb = miniKeyboardForNotes(notes, { leftHand: [], rightHand: [], added: doubled });
+  const addedLH = voicing?.addedLH || [];
+  const kb = miniKeyboardForNotes(notes, { leftHand: [], rightHand: [], added: [...doubled, ...addedLH] });
 
   // Affichage des mains : si le moteur a produit un split LH/RH avec des
   // notes distinctes, on montre les deux blocs ; sinon un seul bloc.
@@ -1579,6 +1609,7 @@ export function renderExerciseTarget(target, options = {}) {
       ${target.topNoteMiss ? `<div class="exercise-topnote-miss">Aucun voicing de ${escapeHtml(target.name)} n'a cette note au sommet à ce niveau : voicing habituel affiché.</div>` : ''}
       ${voicing?.derived ? `<div class="exercise-derived-note" title="Qualité absente de VoicingLab : voicing VoicingLab réel de ${escapeHtml(voicing.derivedFrom)} dont une note est déplacée">Voicing dérivé de ${escapeHtml(voicing.derivedFrom)} (absent de VoicingLab)</div>` : ''}
       <div class="exercise-target-keyboard">${kb.svg}</div>
+      ${addedLH.length > 0 ? `<div class="exercise-doubled-note" title="VoicingLab publie ce cluster pour la main droite seule : la main gauche porte l'accord">Main gauche ajoutée (fondamentale + septième) : ${escapeHtml(formatHandNotes(addedLH))}</div>` : ''}
       ${doubled.length > 0 ? `<div class="exercise-doubled-note">Doublure${doubled.length > 1 ? 's' : ''} ajoutée${doubled.length > 1 ? 's' : ''} : ${escapeHtml(formatHandNotes(doubled))}</div>` : ''}
       <div class="exercise-target-hands">
         ${splitDisplay ? renderHandSplit(leftHand, rightHand) : renderUnifiedHand(allNames, singleHandLabel(leftHand, rightHand))}

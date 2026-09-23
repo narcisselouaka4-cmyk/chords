@@ -590,6 +590,32 @@ function checkDoublings() {
   check('Doublures désactivées : rien d\'ajouté', !ex.getState().target.voicing.doubled);
 }
 
+// [Claude] — 2026-09-24 — Clusters VoicingLab = main droite seule (ex. G4 A4 Bb4
+// pour Eb7#11, sans fondamentale ni septième) : main gauche ajoutée.
+function checkClusterLeftHand() {
+  console.log('\n=== Cluster : main gauche fondamentale + septième ===');
+  const ex = createPracticeExercise();
+  ex.setTechnique('cluster');
+  ex.setTargetChoice(3, '7#11');
+  const v = ex.getState().target.voicing;
+  check('Eb7#11 cluster : LH Eb2 Db3, RH VoicingLab intacte',
+    v.leftHand.join() === '39,49' && v.rightHand.join() === '67,69,70' && v.addedLH.join() === '39,49');
+  const d = detectChord(ex.getState().target.notes);
+  check('Eb7#11 cluster détecté avec la bonne fondamentale', d?.rootPc === 3, d?.symbol);
+  let total = 0; let rooted = 0;
+  for (let root = 0; root < 12; root += 1) {
+    for (const q of ['7', '9', '13', '7#11', '7b13', '7#9', '7sus4']) {
+      ex.setTargetChoice(root, q);
+      const t = ex.getState().target;
+      if (t?.voicing.technique !== 'cluster') continue;
+      total += 1;
+      if (t.voicing.leftHand.length > 0 && Math.max(...t.voicing.leftHand) < Math.min(...t.voicing.rightHand)
+        && detectChord(t.notes)?.rootPc === root) rooted += 1;
+    }
+  }
+  check('Clusters (dominantes courantes) : main gauche sous la main droite et fondamentale détectée', total > 0 && rooted === total, `${rooted}/${total}`);
+}
+
 // [Claude] — 2026-09-23 — Doublures étendues aux modes Progression et Mouvement.
 function checkDoublingsInSequences() {
   console.log('\n=== Doublures : Progression et Mouvement ===');
@@ -660,6 +686,7 @@ async function runTests() {
   checkAutoTag();
   checkDoublings();
   checkDoublingsInSequences();
+  checkClusterLeftHand();
   await checkAllVoicingLabReachable();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);
