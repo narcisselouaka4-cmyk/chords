@@ -176,18 +176,17 @@
              dedicatedViews de main.js a reçu l'entrée correspondante.
              Les identifiants que practice-exercise.js / main.js écrivent ou lisent
              ont suivi ici sans être renommés : #practice-exercise-panel,
-             .exercise-mode-btn[data-mode], #new-exercise-btn, #exercise-target,
+             .exercise-mode-btn[data-mode], #exercise-target,
              #exercise-feedback, #exercise-degree-badge. -->
         <div class="tr-view practice-exercices" id="practice-view-exercices" style="display: none;">
           <div class="tr-view-heading">
             <div>
               <div class="tr-page-title"><span class="tr-page-index">05</span><h1>Exercices</h1></div>
-              <p>Un mouvement à la fois. Jusqu'à ce qu'il devienne naturel.</p>
             </div>
             <div class="tr-heading-actions">
               <button class="tr-button" type="button" data-astra-open="exercise-help-dialog"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>Comment jouer</button>
               <button class="tr-button panel-action" type="button" id="prev-exercise-btn" style="display: none;" title="Revenir à l'accord précédent pour réexaminer son voicing"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Accord précédent</button>
-              <button class="tr-button tr-primary panel-action" type="button" id="new-exercise-btn"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>Nouvel exercice</button>
+              <button class="tr-button tr-primary panel-action" type="button" id="exercise-library-btn" aria-label="Ouvrir la bibliothèque d'exercices"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Bibliothèque</button>
             </div>
           </div>
 
@@ -213,26 +212,96 @@
                 <span id="exercise-brief-category">EXERCICE</span>
               </div>
               <h2 id="exercise-brief-title">Un accord,<br />puis le suivant.</h2>
-              <p id="exercise-brief-text">Jouez les notes de l'accord affiché, ensemble ou une à une. La
-                 reconnaissance est celle du moteur d'accords de l'application :
-                 elle compare les notes reçues, pas votre doigté.</p>
+              <p id="exercise-brief-text"></p>
               <div class="exercise-key-pill" id="exercise-brief-key" style="display: none;"></div>
               <div class="exercise-degree-badge" id="exercise-degree-badge" style="display: none;"></div>
-              <div class="exercise-technique-selector" id="exercise-technique-selector">
-                <label for="exercise-technique-select">Technique</label>
-                <select id="exercise-technique-select" aria-label="Technique de voicing">
-                  <option value="auto">Auto</option>
-                  <option value="close">Close position</option>
-                  <option value="drop2">Drop 2</option>
-                  <option value="drop3">Drop 3</option>
-                  <option value="drop2_4">Drop 2-4</option>
-                  <option value="fourway_close">Four-Way Close</option>
-                  <option value="spread">Spread</option>
-                  <option value="open">Open</option>
-                  <option value="block">Block (Locked Hands)</option>
-                  <option value="quartal">Quartal</option>
-                  <option value="so_what">So What</option>
+              <div class="exercise-controls-row">
+                <div class="exercise-difficulty-selector" id="exercise-difficulty-selector">
+                  <label for="exercise-difficulty-select">Difficulté</label>
+                  <select id="exercise-difficulty-select" aria-label="Difficulté de l'exercice">
+                    <option value="1">Débutant</option>
+                    <option value="2">Semi-intermédiaire</option>
+                    <option value="3">Intermédiaire</option>
+                    <option value="4">Semi-avancé</option>
+                    <option value="5" selected>Avancé</option>
+                  </select>
+                </div>
+                <div class="exercise-key-selector" id="exercise-key-selector" style="display: none;">
+                  <label for="exercise-key-select">Tonalité</label>
+                  <select id="exercise-key-select" aria-label="Tonalité de l'exercice">
+                    <option value="">Aléatoire</option>
+                    <option value="0">C</option>
+                    <option value="1">C# / Db</option>
+                    <option value="2">D</option>
+                    <option value="3">D# / Eb</option>
+                    <option value="4">E</option>
+                    <option value="5">F</option>
+                    <option value="6">F# / Gb</option>
+                    <option value="7">G</option>
+                    <option value="8">G# / Ab</option>
+                    <option value="9">A</option>
+                    <option value="10">A# / Bb</option>
+                    <option value="11">B</option>
+                  </select>
+                </div>
+              </div>
+              <!-- Sélecteur d'accord cible : visible uniquement en mode "Accord cible". -->
+              <div class="exercise-target-choice" id="exercise-target-choice" style="display: none;">
+                <label for="exercise-target-root">Accord</label>
+                <select id="exercise-target-root" aria-label="Fondamentale de l'accord cible">
+                  <option value="0">C</option>
+                  <option value="1">C# / Db</option>
+                  <option value="2">D</option>
+                  <option value="3">D# / Eb</option>
+                  <option value="4">E</option>
+                  <option value="5">F</option>
+                  <option value="6">F# / Gb</option>
+                  <option value="7">G</option>
+                  <option value="8">G# / Ab</option>
+                  <option value="9">A</option>
+                  <option value="10">A# / Bb</option>
+                  <option value="11">B</option>
                 </select>
+                <select id="exercise-target-quality" aria-label="Qualité de l'accord cible">
+                  <option value="">Majeur</option>
+                  <option value="m">Mineur</option>
+                  <option value="sus2">sus2</option>
+                  <option value="sus4">sus4</option>
+                  <option value="dim">dim</option>
+                  <option value="aug">aug</option>
+                  <option value="6">6</option>
+                  <option value="m6">m6</option>
+                  <option value="6/9">6/9</option>
+                  <option value="add9">add9</option>
+                  <option value="madd9">madd9</option>
+                  <option value="m7">m7</option>
+                  <option value="7">7</option>
+                  <option value="maj7">maj7</option>
+                  <option value="m7b5">m7b5</option>
+                  <option value="dim7">dim7</option>
+                  <option value="m9">m9</option>
+                  <option value="9">9</option>
+                  <option value="maj9">maj9</option>
+                  <option value="7sus4">7sus4</option>
+                  <option value="9sus4">9sus4</option>
+                  <option value="11">11</option>
+                  <option value="m11">m11</option>
+                  <option value="13">13</option>
+                  <option value="m13">m13</option>
+                  <option value="maj13">maj13</option>
+                  <option value="13sus4">13sus4</option>
+                  <option value="7b9">7b9</option>
+                  <option value="7#9">7#9</option>
+                  <option value="maj7#11">maj7#11</option>
+                  <option value="7#5">7#5</option>
+                  <option value="7alt">7alt</option>
+                  <option value="mMaj7">mMaj7</option>
+                  <option value="mMaj9">mMaj9</option>
+                  <option value="m7#11">m7#11</option>
+                </select>
+                <button class="exercise-random-target-btn" type="button" id="exercise-random-target-btn" aria-label="Tirer un accord au hasard">
+                  Aléatoire
+                </button>
               </div>
               <!-- Choix explicite de la progression / du mouvement : masqué en
                    mode « accord cible », rempli par main.js selon le mode. -->
@@ -242,6 +311,33 @@
                   <option value="">Aléatoire</option>
                 </select>
               </div>
+              <!-- Progression personnalisée : visible uniquement en mode progression.
+                   Construction par degrés romains (I–VII) ; l'application choisit
+                   la qualité automatiquement selon la difficulté. -->
+              <div class="exercise-technique-selector exercise-custom-progression" id="exercise-custom-progression-selector" style="display: none;">
+                <label>Votre progression</label>
+                <div class="degree-builder" id="degree-builder" hidden>
+                  <div class="degree-buttons">
+                    <button type="button" class="degree-btn" data-degree="1">I</button>
+                    <button type="button" class="degree-btn" data-degree="2">II</button>
+                    <button type="button" class="degree-btn" data-degree="3">III</button>
+                    <button type="button" class="degree-btn" data-degree="4">IV</button>
+                    <button type="button" class="degree-btn" data-degree="5">V</button>
+                    <button type="button" class="degree-btn" data-degree="6">VI</button>
+                    <button type="button" class="degree-btn" data-degree="7">VII</button>
+                  </div>
+                  <div class="degree-sequence" id="degree-sequence">
+                    <span class="degree-sequence-empty">Cliquez les degrés pour composer la progression…</span>
+                  </div>
+                  <div class="degree-actions">
+                    <button type="button" class="degree-action" id="degree-apply" aria-label="Appliquer la progression">Appliquer</button>
+                    <button type="button" class="degree-action secondary" id="degree-clear" aria-label="Effacer la progression">Effacer</button>
+                    <button type="button" class="degree-action secondary" id="degree-remove-last" aria-label="Supprimer le dernier degré">← Suppr.</button>
+                  </div>
+                </div>
+                <span class="custom-progression-badge" id="custom-progression-badge" hidden>Personnalisée</span>
+              </div>
+
             </div>
 
             <div class="tr-chord-arena">
@@ -271,6 +367,23 @@
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- Bibliothèque d'exercices (panneau latéral) -->
+        <div class="exercise-library" id="exercise-library" hidden aria-label="Bibliothèque d'exercices">
+          <div class="exercise-library-header">
+            <h3>Bibliothèque d'exercices</h3>
+            <button class="exercise-library-close" type="button" id="exercise-library-close" aria-label="Fermer la bibliothèque">✕</button>
+          </div>
+          <div class="exercise-library-tabs" id="exercise-library-tabs" role="tablist" aria-label="Thèmes d'exercices">
+            <button class="active" type="button" data-tab="progressions" role="tab" aria-selected="true">Progressions</button>
+            <button type="button" data-tab="movements" role="tab" aria-selected="false">Mouvements 12 tons</button>
+          </div>
+          <div class="exercise-library-search">
+            <input type="text" id="exercise-library-search" placeholder="Rechercher un exercice…" aria-label="Rechercher un exercice">
+          </div>
+          <div class="exercise-library-categories" id="exercise-library-categories"></div>
+          <div class="exercise-library-grid" id="exercise-library-grid"></div>
         </div>
 
         <!-- Fenêtre « Comment jouer » (recopiée de la maquette). -->
@@ -1311,22 +1424,6 @@
                       <button type="button" class="an-btn an-btn-ghost an-btn-mini" id="analyzer-inspector-edit-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Modifier</button>
                     </div>
                   </div>
-
-                  <section id="analyzer-voicing-preview" class="an-card an-panoramic-card an-card-jazz voicing-preview-panel" aria-label="Aperçu du voicing piano" style="display:none">
-                    <div class="an-card-header">
-                      <span class="an-eyebrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.29 1.29L3 12l5.81 1.9a2 2 0 0 1 1.29 1.29L12 21l1.9-5.81a2 2 0 0 1 1.29-1.29L21 12l-5.81-1.9a2 2 0 0 1-1.29-1.29z"/></svg>VOICING ALTERNATIF</span>
-                      <div
-                        id="analyzer-voicing-style-selector"
-                        class="an-style-switcher voicing-style-selector"
-                        role="group"
-                        aria-label="Style de voicing"
-                      >
-                        <button type="button" class="an-style-btn voicing-style-btn" data-voicing-style="close" aria-pressed="true">Serré</button>
-                        <button type="button" class="an-style-btn voicing-style-btn" data-voicing-style="simple" aria-pressed="false">Simple</button>
-                      </div>
-                    </div>
-                    <div class="an-jazz-body" id="analyzer-voicing-content"></div>
-                  </section>
 
                 </div>
               </div>

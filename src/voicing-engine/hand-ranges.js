@@ -50,3 +50,9 @@ export function span(midis) {
 export function isIntegerMidi(value) {
   return Number.isInteger(value);
 }
+
+/**
+ * Options de surcharge de span par main pour les familles qui l'autorisent
+ * (spread, open, quartal...).
+ * @typedef {{ left?: { maxSpan?: number }, right?: { maxSpan?: number } }} SpanOverrides
+ */
