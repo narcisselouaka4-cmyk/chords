@@ -7,6 +7,7 @@ import {
   getAvailableTechniques,
   findVoicingsByTopNote,
   findChordsByTopNote,
+  renderExerciseTarget,
   renderTopNoteBrowser,
   TARGET_QUALITY_GROUPS,
   listProgressionNames,
@@ -554,6 +555,23 @@ function checkTopNoteIgnoresCardTechnique() {
   }
 }
 
+// [Claude] — 2026-09-23 — Étiquette « Auto » : retour possible après un clic sur une technique.
+function checkAutoTag() {
+  console.log('\n=== Étiquette Auto ===');
+  const ex = createPracticeExercise();
+  ex.setTargetChoice(0, 'maj7');
+  const cats = () => getAvailableTechniques('Cmaj7');
+  let html = renderExerciseTarget(ex.getState().target, { categories: cats(), selectedTechnique: ex.getState().technique });
+  check('Auto affiché et actif par défaut', /exercise-category-auto active"[^>]*data-technique="auto"/.test(html));
+  check('En Auto : technique jouée marquée current', /exercise-category-tag current" data-technique="shell"/.test(html));
+  ex.setTechnique('block');
+  html = renderExerciseTarget(ex.getState().target, { categories: cats(), selectedTechnique: ex.getState().technique });
+  check('Block choisi : Block actif, Auto inactif',
+    /exercise-category-tag active" data-technique="block"/.test(html) && !/exercise-category-auto active/.test(html));
+  ex.setTechnique('auto');
+  check('Retour en Auto : technique auto et voicing shell', ex.getState().technique === 'auto' && ex.getState().target.voicing.technique === 'shell');
+}
+
 async function runTests() {
   checkChordTargetHasVoicing();
   checkSpecificChords();
@@ -577,6 +595,7 @@ async function runTests() {
   checkTopNoteSearch();
   checkTopNoteBrowser();
   checkTopNoteIgnoresCardTechnique();
+  checkAutoTag();
   await checkAllVoicingLabReachable();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);

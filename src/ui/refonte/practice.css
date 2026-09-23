@@ -4122,3 +4122,14 @@
   font-style: italic;
   color: var(--r-text-faint);
 }
+
+/* Technique jouée par le mode Auto : contour d'accent (l'étiquette Auto est active). */
+:root[data-skin='global'] #practice-tab .exercise-category-tag.current,
+:root[data-skin='v2'] #practice-tab .exercise-category-tag.current {
+  border-color: var(--r-accent);
+  color: var(--r-text);
+}
+:root[data-skin='global'] #practice-tab .exercise-category-tag.current .exercise-variant-btn,
+:root[data-skin='v2'] #practice-tab .exercise-category-tag.current .exercise-variant-btn {
+  background: var(--r-surface);
+}

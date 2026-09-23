@@ -1290,7 +1290,7 @@ function initPracticeExercise() {
     if (exState.target) {
       const categories = getAvailableTechniques(exState.target.name);
       const difficulty = difficultyOfVoicing(exState.target);
-      targetDiv.innerHTML = renderExerciseTarget(exState.target, { categories, difficulty, variant: exState.variant });
+      targetDiv.innerHTML = renderExerciseTarget(exState.target, { categories, difficulty, variant: exState.variant, selectedTechnique: exState.technique });
     }
     refreshContentSelector(exState);
     refreshTargetChoice(exState);
@@ -1844,7 +1844,7 @@ function checkPracticeExercise(notes) {
     if (result.success) {
       const categories = getAvailableTechniques(exState.target.name);
       const difficulty = difficultyOfVoicing(exState.target);
-      document.getElementById('exercise-target').innerHTML = renderExerciseTarget(exState.target, { categories, difficulty, variant: exState.variant });
+      document.getElementById('exercise-target').innerHTML = renderExerciseTarget(exState.target, { categories, difficulty, variant: exState.variant, selectedTechnique: exState.technique });
     }
     updateExerciseProgressUI(exState);
   }

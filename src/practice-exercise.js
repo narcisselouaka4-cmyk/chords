@@ -1559,7 +1559,7 @@ export function renderExerciseTarget(target, options = {}) {
       </div>
       ${voicing?.topNoteSuggestions
     ? renderTopNotePanel(voicing)
-    : `${renderVoicingCategories(categories, technique, voicing?.variantIndex ?? variant, voicing?.variantLabel || '')}
+    : `${renderVoicingCategories(categories, technique, voicing?.variantIndex ?? variant, voicing?.variantLabel || '', options.selectedTechnique ?? technique)}
       ${voicing?.variantCount > 1 ? `<div class="exercise-variant-label">${escapeHtml(voicing.variantLabel)}</div>` : ''}`}
       ${target.topNoteMiss ? `<div class="exercise-topnote-miss">Aucun voicing de ${escapeHtml(target.name)} n'a cette note au sommet à ce niveau : voicing habituel affiché.</div>` : ''}
       ${voicing?.derived ? `<div class="exercise-derived-note" title="Qualité absente de VoicingLab : voicing VoicingLab réel de ${escapeHtml(voicing.derivedFrom)} dont une note est déplacée">Voicing dérivé de ${escapeHtml(voicing.derivedFrom)} (absent de VoicingLab)</div>` : ''}
@@ -1656,22 +1656,31 @@ function renderStars(difficulty) {
   return fullStar.repeat(filled) + emptyStar.repeat(empty);
 }
 
-function renderVoicingCategories(categories, activeTechnique, variant = 0, variantLabel = '') {
+/**
+ * Étiquettes de techniques. `selectedTechnique` = choix de l'utilisateur
+ * ('auto' possible) ; `activeTechnique` = technique réellement jouée. En Auto,
+ * l'étiquette Auto est active et la technique jouée est marquée « current »
+ * (contour) avec ses flèches de variantes.
+ */
+function renderVoicingCategories(categories, activeTechnique, variant = 0, variantLabel = '', selectedTechnique = activeTechnique) {
   if (!categories || categories.length === 0) return '';
+  const isAuto = selectedTechnique === 'auto';
+  const autoTag = `<span class="exercise-category-tag exercise-category-auto${isAuto ? ' active' : ''}" data-technique="auto" title="L'application choisit la technique (ordre pédagogique)" aria-pressed="${isAuto}">${escapeHtml(TECHNIQUE_LABELS.auto)}</span>`;
   const items = categories.map((cat) => {
-    const active = cat.id === activeTechnique ? ' active' : '';
+    const playing = cat.id === activeTechnique;
+    const state = playing ? (isAuto ? ' current' : ' active') : '';
     const playable = cat.playable ? '' : ' disabled';
     const count = cat.count > 1 ? ` (${cat.count})` : '';
-    const arrows = (active && cat.count > 1)
+    const arrows = (playing && cat.count > 1)
       ? `<span class="exercise-variant-arrows">
            <button class="exercise-variant-btn" type="button" data-variant-delta="-1" aria-label="Variante précédente">‹</button>
            <span class="exercise-variant-index" title="${escapeHtml(variantLabel)}">${variant + 1}/${cat.count}</span>
            <button class="exercise-variant-btn" type="button" data-variant-delta="1" aria-label="Variante suivante">›</button>
          </span>`
       : '';
-    return `<span class="exercise-category-tag${active}${playable}" data-technique="${escapeHtml(cat.id)}" title="${cat.playable ? '' : 'Non applicable à cet accord'}" aria-disabled="${!cat.playable}">${escapeHtml(cat.label)}${count}${arrows}</span>`;
+    return `<span class="exercise-category-tag${state}${playable}" data-technique="${escapeHtml(cat.id)}" title="${cat.playable ? '' : 'Non applicable à cet accord'}" aria-disabled="${!cat.playable}">${escapeHtml(cat.label)}${count}${arrows}</span>`;
   }).join('');
-  return `<div class="exercise-voicing-categories">${items}</div>`;
+  return `<div class="exercise-voicing-categories">${autoTag}${items}</div>`;
 }
 
 function formatHandNotes(notes) {
