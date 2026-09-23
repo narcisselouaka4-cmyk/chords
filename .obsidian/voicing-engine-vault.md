@@ -23,6 +23,16 @@ metadata:
 - Mise à jour de `src/voicing-engine/fixtures/REFERENCE_VOICINGS.json` avec les nouvelles positions des 9 accords obligatoires.
 - Validation : tests catalogue **57/57**, exercices **237/237**, `npm run test:chords` **98/98**, `npm run build` OK.
 
+### 2026-09-23 — Généralisation de la répartition compacte à tous les accords
+
+- Extension de la règle « basse collée sous le RH » à `shell` et `twoNoteShell` : le RH est d’abord centré autour de 60, puis la basse est placée juste en dessous via `buildBassBelow`.
+- `buildRightHandClose` distingue deux modes :
+  - sans basse connue (`bassMidi = -Infinity`) : le RH peut descendre dans le hard range pour permettre une basse compacte ;
+  - avec une vraie basse (`bassMidi >= LH_HARD_RANGE.min`) : le RH reste dans `RH_SOFT_RANGE` pour garder un registre confortable.
+- `generateDrop2` / `generateDrop3` : recherche sur tout le range RH dur, accepte uniquement les positions où la basse et la note descendue tiennent dans `LH_HARD_RANGE`, privilégie le plus petit écart LH/RH.
+- Correction de la fixture `REFERENCE_VOICINGS.json` : la structure était devenue invalide (`accords[sym]` contenait le catalogue entier au lieu de `familyId -> { lh, rh, ... }`). Régénération propre avec la bonne structure.
+- Résultat : tests catalogue **116/116** (toutes les familles sont maintenant vérifiées note par note), exercices **237/237**, `npm run test:chords` **98/98**, `npm run build` OK.
+
 ### 2026-09-23 — Vault créé + retrait du catalogue d’Analyse
 
 - Création du Vault `.obsidian/voicing-engine-vault.md`.

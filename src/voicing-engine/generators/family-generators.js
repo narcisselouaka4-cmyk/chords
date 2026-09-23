@@ -69,13 +69,18 @@ function buildRightHandClose(pcs, bassMidi) {
     if (span(stack) > 12) continue;
 
     const sorted = [...stack].sort((a, b) => a - b);
-    if (sorted[0] < RH_SOFT_RANGE.min) continue;
+    // Avec une vraie basse deja placee, on garde le RH dans sa tessiture douce.
+    // En l'absence de basse (shell/twoNoteShell qui placent la basse apres),
+    // on laisse le RH descendre dans le hard range pour coller la basse juste en dessous.
+    const hasRealBass = Number.isFinite(bassMidi) && bassMidi >= LH_HARD_RANGE.min;
+    if (hasRealBass && sorted[0] < RH_SOFT_RANGE.min) continue;
 
     const avg = stack.reduce((a, b) => a + b, 0) / stack.length;
     const distance = Math.abs(avg - center);
-    const gap = sorted[0] - bassMidi;
-    // Privilegie un voicing centre, avec un ecart LH/RH raisonnable (< 12 demi-tons).
-    const gapPenalty = gap > 12 ? (gap - 12) * 2 : 0;
+    // Si bassMidi n'est pas une vraie basse (ex: -Infinity en shell avant placement),
+    // on ne penalise pas le gap : on choisit juste le RH le plus centre.
+    const gap = hasRealBass ? sorted[0] - bassMidi : 0;
+    const gapPenalty = hasRealBass && gap > 12 ? (gap - 12) * 2 : 0;
     const score = distance + gapPenalty;
     if (score < bestScore) {
       bestScore = score;
@@ -105,6 +110,7 @@ function buildBestCloseFromRoleCandidates(input, roleCandidates, bassMidi) {
 
 /**
  * Genere un voicing Shell : basse en LH, guide tones + extension en RH.
+ * La basse est placee juste sous le RH pour garder un ecart LH/RH compact.
  * @param {VoicingInput} input
  * @returns {import('./base-generator.js').GeneratorResult}
  */
@@ -112,12 +118,6 @@ export function generateShell(input) {
   const diagnostics = [];
   if (!hasThirdAndSeventh(input)) {
     return unavailableResult('Shell: accord sans tierce ou sans septieme');
-  }
-
-  const { hand: lh, diagnostics: lhDiagnostics } = buildStandardLeftHand(input);
-  diagnostics.push(...lhDiagnostics);
-  if (!lh) {
-    return unavailableResult('Shell: impossible de placer la basse', diagnostics);
   }
 
   const roles = resolveRoles(input);
@@ -129,15 +129,40 @@ export function generateShell(input) {
     ['third', 'seventh'],
   ].filter((list) => list.every((r) => r === 'third' || r === 'seventh' || roles[r] != null));
 
-  const best = buildBestCloseFromRoleCandidates(input, roleCandidates, Math.max(...lh.notes));
-  if (!best) {
-    return unavailableResult('Shell: impossible de placer la main droite', diagnostics);
+  // On genere le RH centre autour de 60 sans contrainte de basse, puis on place
+  // la basse juste en dessous. Cela garantit un ecart LH/RH compact pour tous les accords.
+  let bestRh = null;
+  let bestBass = null;
+  let bestScore = Infinity;
+  for (const roleList of roleCandidates) {
+    const pcs = rolesToPcs(input, roleList);
+    if (pcs.length !== roleList.length) continue;
+    const rhNotes = buildRightHandClose(pcs, -Infinity);
+    if (!rhNotes) continue;
+    const { note: bassNote, diagnostics: bassDiagnostics } = buildBassBelow(input, rhNotes[0]);
+    if (bassNote == null) continue;
+    const gap = rhNotes[0] - bassNote;
+    const avg = rhNotes.reduce((a, b) => a + b, 0) / rhNotes.length;
+    const distance = Math.abs(avg - defaultRhCenter());
+    // Priorite au gap compact, puis au centrage du RH.
+    const score = gap + distance / 2;
+    if (score < bestScore) {
+      bestScore = score;
+      bestRh = rhNotes;
+      bestBass = bassNote;
+      diagnostics.length = 0;
+      diagnostics.push(...bassDiagnostics);
+    }
   }
-  const rhNotes = best.notes;
 
-  const rh = createHandVoicing('RH', rhNotes, { source: 'shell' });
+  if (!bestRh || bestBass == null) {
+    return unavailableResult('Shell: impossible de placer la main droite ou la basse', diagnostics);
+  }
+
+  const lh = createHandVoicing('LH', [bestBass], { source: 'shell' });
+  const rh = createHandVoicing('RH', bestRh, { source: 'shell' });
   const candidate = buildCandidate(input, lh, rh, 'shell', 'Shell', {
-    generatorId: 'shell-v2',
+    generatorId: 'shell-v3',
     style: 'shell',
   });
   return successResult(candidate, diagnostics);
@@ -145,6 +170,7 @@ export function generateShell(input) {
 
 /**
  * Genere un Two-Note Shell : basse en LH, guide tones seuls en RH.
+ * La basse est placee juste sous le RH pour garder un ecart LH/RH compact.
  * @param {VoicingInput} input
  * @returns {import('./base-generator.js').GeneratorResult}
  */
@@ -154,21 +180,21 @@ export function generateTwoNoteShell(input) {
     return unavailableResult('Two-Note Shell: accord sans tierce ou sans septieme');
   }
 
-  const { hand: lh, diagnostics: lhDiagnostics } = buildStandardLeftHand(input);
-  diagnostics.push(...lhDiagnostics);
-  if (!lh) {
-    return unavailableResult('Two-Note Shell: impossible de placer la basse', diagnostics);
-  }
-
   const pcs = rolesToPcs(input, ['third', 'seventh']);
-  const rhNotes = buildRightHandClose(pcs, Math.max(...lh.notes));
+  const rhNotes = buildRightHandClose(pcs, -Infinity);
   if (!rhNotes) {
     return unavailableResult('Two-Note Shell: impossible de placer la main droite', diagnostics);
   }
+  const { note: bassNote, diagnostics: bassDiagnostics } = buildBassBelow(input, rhNotes[0]);
+  if (bassNote == null) {
+    return unavailableResult('Two-Note Shell: impossible de placer la basse', diagnostics);
+  }
+  diagnostics.push(...bassDiagnostics);
 
+  const lh = createHandVoicing('LH', [bassNote], { source: 'twoNoteShell' });
   const rh = createHandVoicing('RH', rhNotes, { source: 'twoNoteShell' });
   const candidate = buildCandidate(input, lh, rh, 'twoNoteShell', 'Two-Note Shell', {
-    generatorId: 'twoNoteShell-v1',
+    generatorId: 'twoNoteShell-v2',
     style: 'twoNoteShell',
   });
   return successResult(candidate, diagnostics);
