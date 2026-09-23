@@ -182,7 +182,6 @@ const els = {
   exerciseTargetQuality: document.getElementById('exercise-target-quality'),
   exerciseTopNote: document.getElementById('exercise-top-note'),
   exerciseTopNoteLevel: document.getElementById('exercise-top-note-level'),
-  exerciseDoubling: document.getElementById('exercise-doubling'),
   exerciseTopNoteBrowser: document.getElementById('exercise-topnote-browser'),
   exerciseTopNoteFilters: document.getElementById('exercise-topnote-filters'),
   exerciseTopNoteMoreCount: document.getElementById('exercise-topnote-more-count'),
@@ -1296,11 +1295,10 @@ function initPracticeExercise() {
     if (exState.target) {
       const categories = getAvailableTechniques(exState.target.name);
       const difficulty = difficultyOfVoicing(exState.target);
-      targetDiv.innerHTML = renderExerciseTarget(exState.target, { categories, difficulty, variant: exState.variant, selectedTechnique: exState.technique });
+      targetDiv.innerHTML = renderExerciseTarget(exState.target, { categories, difficulty, variant: exState.variant, selectedTechnique: exState.technique, doubling: exState.doubling });
     }
     refreshContentSelector(exState);
     refreshTargetChoice(exState);
-    if (els.exerciseDoubling) els.exerciseDoubling.value = exState.doubling || 'none';
     // En mode Accord cible, la difficulté est imposée par l'accord/technique.
     if (difficultySelector) {
       difficultySelector.style.display = exState.mode === 'chord' ? 'none' : '';
@@ -1311,9 +1309,8 @@ function initPracticeExercise() {
     updateExerciseProgressUI(exState);
   }
 
-  // Navigateur par note du dessus : famille filtrée (état d'UI) et clé du
-  // dernier rendu complet, pour ne pas reconstruire ~1 000 puces à chaque clic.
-  let topNoteBrowserFamily = 'all';
+  // Navigateur par note du dessus : clé du dernier rendu complet, pour ne pas
+  // reconstruire la liste (et perdre le défilement) à chaque clic.
   let topNoteBrowserKey = '';
 
   function refreshTopNoteBrowser(exState) {
@@ -1329,24 +1326,21 @@ function initPracticeExercise() {
     // Mêmes options que la carte (niveau + filtres) : les index concordent.
     const { pc: _pc, ...searchOptions } = exState.topNote;
     const selected = exState.target?.voicing?.topNoteSuggestions && !exState.target.topNoteMiss
-      ? { rootPc: exState.target.rootPc, quality: exState.target.symbol, index: exState.target.voicing.variantIndex }
+      ? { rootPc: exState.target.rootPc, quality: exState.target.symbol }
       : null;
     // Seul le filtre Technique restreint les techniques, jamais la technique
     // cliquée auparavant sur la carte.
-    const key = `${JSON.stringify(exState.topNote)}|${topNoteBrowserFamily}`;
+    const key = JSON.stringify(exState.topNote);
     if (key !== topNoteBrowserKey) {
       const results = findChordsByTopNote(topPc, searchOptions);
-      box.innerHTML = renderTopNoteBrowser(results, { topPc, family: topNoteBrowserFamily, selected });
+      box.innerHTML = renderTopNoteBrowser(results, { topPc, selected });
       topNoteBrowserKey = key;
       return;
     }
     // Même liste : on ne déplace que la surbrillance (le défilement est conservé).
-    box.querySelectorAll('.exercise-browser-voicing.active').forEach((b) => b.classList.remove('active'));
-    box.querySelectorAll('.exercise-browser-chord.selected').forEach((li) => li.classList.remove('selected'));
+    box.querySelectorAll('.exercise-browser-chord.selected').forEach((b) => b.classList.remove('selected'));
     if (selected) {
-      const btn = box.querySelector(`[data-browse-root="${selected.rootPc}"][data-browse-quality="${CSS.escape(selected.quality)}"][data-browse-index="${selected.index}"]`);
-      btn?.classList.add('active');
-      const row = btn?.closest('.exercise-browser-chord');
+      const row = box.querySelector(`[data-browse-root="${selected.rootPc}"][data-browse-quality="${CSS.escape(selected.quality)}"]`);
       row?.classList.add('selected');
       // Garde la ligne sélectionnée visible dans la liste (sans faire défiler la page).
       const list = box.querySelector('[data-browser-scroll]');
@@ -1377,8 +1371,8 @@ function initPracticeExercise() {
         els.exerciseTopNoteFilters.hidden = topPc == null;
         let active = 0;
         let activeHidden = 0;
-        els.exerciseTopNoteFilters.querySelectorAll('[data-topnote-filter]').forEach((sel) => {
-          sel.value = exState.topNote?.[sel.dataset.topnoteFilter] || 'all';
+        els.exerciseTopNoteFilters.querySelectorAll('[data-topnote-filter], #exercise-top-note-level').forEach((sel) => {
+          if (sel.dataset.topnoteFilter) sel.value = exState.topNote?.[sel.dataset.topnoteFilter] || 'all';
           if (sel.value === 'all') return;
           active += 1;
           if (sel.closest('.exercise-topnote-more')) activeHidden += 1;
@@ -1767,16 +1761,11 @@ function initPracticeExercise() {
   // Navigateur « accords avec cette note au sommet » : filtre de famille et
   // clic sur un voicing (charge l'accord puis la suggestion correspondante).
   els.exerciseTopNoteBrowser?.addEventListener('click', (e) => {
-    const familyBtn = e.target.closest('[data-browse-family]');
-    if (familyBtn) {
-      topNoteBrowserFamily = familyBtn.dataset.browseFamily;
-      render();
-      return;
-    }
-    const voicingBtn = e.target.closest('[data-browse-root]');
-    if (voicingBtn) {
-      practiceExercise.setTargetChoice(parseInt(voicingBtn.dataset.browseRoot, 10), voicingBtn.dataset.browseQuality);
-      practiceExercise.selectTopNoteSuggestion(parseInt(voicingBtn.dataset.browseIndex, 10));
+    // Clic sur un accord : il est chargé sur la carte (premier voicing) ;
+    // les flèches ‹ › de la carte parcourent ensuite ses voicings.
+    const chordBtn = e.target.closest('[data-browse-root]');
+    if (chordBtn) {
+      practiceExercise.setTargetChoice(parseInt(chordBtn.dataset.browseRoot, 10), chordBtn.dataset.browseQuality);
       render();
     }
   });
@@ -1820,6 +1809,11 @@ function initPracticeExercise() {
   // Tonalité majeure et son relatif mineur naturel (même gamme).
   fillNoteFilter('key', 'Toutes tonalités', (n, pc) => `Tonalité ${n} (${MINOR_NAMES[(pc + 9) % 12]})`);
   fillNoteFilter('chordRoot', 'Toutes fondamentales', (n) => `Accords de ${n}`);
+  const familyFilter = els.exerciseTopNoteFilters?.querySelector('[data-topnote-filter="family"]');
+  if (familyFilter) {
+    familyFilter.innerHTML = '<option value="all">Toutes familles</option>'
+      + TARGET_QUALITY_GROUPS.map((g) => `<option value="${g.id}">${g.label}</option>`).join('');
+  }
   const topNoteTechniqueFilter = els.exerciseTopNoteFilters?.querySelector('[data-topnote-filter="technique"]');
   if (topNoteTechniqueFilter) {
     topNoteTechniqueFilter.innerHTML = TOP_NOTE_FILTERS.technique
@@ -1837,11 +1831,6 @@ function initPracticeExercise() {
     render();
   });
 
-  els.exerciseDoubling?.addEventListener('change', () => {
-    practiceExercise.setDoubling(els.exerciseDoubling.value);
-    render();
-  });
-
   els.exerciseRandomTargetBtn?.addEventListener('click', () => {
     practiceExercise.clearTargetChoice();
     render();
@@ -1849,6 +1838,14 @@ function initPracticeExercise() {
 
   // Délégation d'événement pour le bouton "Écouter" et les étiquettes de
   // catégories de voicings recréées à chaque render.
+  // Doublures : menu rendu dans la carte (recréé à chaque rendu), donc délégué.
+  targetDiv?.addEventListener('change', (e) => {
+    const sel = e.target.closest('[data-exercise-doubling]');
+    if (!sel) return;
+    practiceExercise.setDoubling(sel.value);
+    render();
+  });
+
   targetDiv?.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-action="listen-exercise"]');
     if (btn) {

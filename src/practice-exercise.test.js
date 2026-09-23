@@ -531,8 +531,12 @@ function checkTopNoteBrowser() {
     simple.length < all.length && simple.every((r) => r.voicings.every((v) => v.difficulty <= 2)));
   const allQualities = TARGET_QUALITY_GROUPS.flatMap((g) => g.qualities);
   check('48 qualités dans les familles', allQualities.length === 48 && new Set(allQualities).size === 48);
-  const html = renderTopNoteBrowser(all, { topPc: 9, family: 'minor' });
-  check('Filtre Mineurs : seule la famille Mineurs est listée', html.includes('>Mineurs</li>') && !html.includes('>Majeurs</li>'));
+  const minor = findChordsByTopNote(9, { family: 'minor' });
+  const html = renderTopNoteBrowser(minor, { topPc: 9 });
+  check('Filtre Mineurs : seule la famille Mineurs est listée',
+    minor.length > 0 && minor.every((r) => r.group === 'minor') && html.includes('>Mineurs</li>') && !html.includes('>Majeurs</li>'));
+  check('Liste épurée : un bouton par accord, pas de puce par voicing',
+    (html.match(/data-browse-root=/g) || []).length === minor.length && !html.includes('data-browse-index'));
 }
 
 // [Claude] — 2026-09-23 — Régression signalée par Narcisse : après un clic sur

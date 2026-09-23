@@ -15,7 +15,7 @@ import { miniKeyboardForNotes } from './ui/mini-keyboard.js';
 import movementsLibrary from './data/movements-library.json' with { type: 'json' };
 import { getVoicingLabVoicings, isQualityOnVoicingLab, isDerivedQuality } from './voicing-engine/voicinglab-availability.js';
 import { parseChordSymbol } from './pedagogie/chord-parser-v2.js';
-import { applyDoublings, DOUBLING_MODES } from './voicing-engine/doublings.js';
+import { applyDoublings, DOUBLING_MODES, DOUBLING_LABELS } from './voicing-engine/doublings.js';
 
 // Difficulté exprimée en étoiles (1–5). Le mode "Accord cible" est strict :
 // 1★ = triades, 2★ = 7e, 3★ = 9e / couleurs, 4★ = tensions/altérations,
@@ -538,7 +538,8 @@ export const TOP_NOTE_FILTERS = {
   size: ['all', '3', '4', '5'],
   root: ['all', 'with', 'without'],
   technique: ['all', ...TECHNIQUES.filter((t) => t !== 'auto' && !TOP_NOTE_EXCLUDED_TECHNIQUES.has(t))],
-  // Navigateur seulement (la carte a déjà son accord) : fondamentale de l'accord.
+  // Navigateur seulement (la carte a déjà son accord) : famille et fondamentale de l'accord.
+  family: ['all', ...TARGET_QUALITY_GROUPS.map((g) => g.id)],
   chordRoot: ['all', ...Array.from({ length: 12 }, (_, i) => String(i))],
   // Tonalité majeure : voicings dont toutes les notes sont dans sa gamme.
   key: ['all', ...Array.from({ length: 12 }, (_, i) => String(i))],
@@ -650,9 +651,10 @@ const TECHNIQUE_SHORT_LABELS = {
  * @returns {{group: string, groupLabel: string, rootPc: number, quality: string, name: string, derived: boolean,
  *   voicings: {index: number, technique: string, shortLabel: string, difficulty: number, derived: boolean, description: string}[]}[]}
  */
-export function findChordsByTopNote(topPc, { chordRoot = 'all', ...options } = {}) {
+export function findChordsByTopNote(topPc, { chordRoot = 'all', family = 'all', ...options } = {}) {
   const out = [];
   for (const group of TARGET_QUALITY_GROUPS) {
+    if (family !== 'all' && group.id !== family) continue;
     for (const quality of group.qualities) {
       for (let rootPc = 0; rootPc < 12; rootPc += 1) {
         if (chordRoot !== 'all' && rootPc !== Number(chordRoot)) continue;
@@ -1317,10 +1319,10 @@ export function createPracticeExercise() {
     if (state.mode === 'chord' && state.target) regenerateCurrentTarget();
   }
 
-  /** Remet tous les filtres de la note du dessus à « tous » (le niveau est conservé). */
+  /** Remet tous les filtres de la note du dessus à « tous », niveau compris. */
   function resetTopNoteFilters() {
     const cleared = Object.fromEntries(Object.keys(TOP_NOTE_FILTERS).map((name) => [name, 'all']));
-    state.topNote = { ...state.topNote, ...cleared };
+    state.topNote = { ...state.topNote, ...cleared, level: 'all' };
     state.variant = 0;
     if (state.mode === 'chord' && state.target) regenerateCurrentTarget();
   }
@@ -1709,10 +1711,15 @@ export function renderExerciseTarget(target, options = {}) {
       <div class="exercise-target-hands">
         ${splitDisplay ? renderHandSplit(leftHand, rightHand) : renderUnifiedHand(allNames, singleHandLabel(leftHand, rightHand))}
       </div>
+      <div class="exercise-target-actions">
+      <select class="exercise-doubling-select" data-exercise-doubling aria-label="Doublures d'octave ajoutées au voicing">
+        ${Object.entries(DOUBLING_LABELS).map(([id, label]) => `<option value="${id}"${id === (options.doubling || 'none') ? ' selected' : ''}>${id === 'none' ? 'Sans doublure' : escapeHtml(label)}</option>`).join('')}
+      </select>
       <button class="exercise-listen-btn" type="button" data-action="listen-exercise" aria-label="Écouter le voicing">
         <svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
         Écouter
       </button>
+      </div>
     </div>
   `;
 }
@@ -1751,43 +1758,39 @@ function renderTopNotePanel(voicing) {
 }
 
 /**
- * Navigateur « accords avec cette note au sommet » (colonne de gauche) :
- * filtres par famille, puis un accord par ligne avec ses voicings en puces.
+ * Navigateur « accords avec cette note au sommet » : liste épurée, un bouton
+ * par accord (nom + nombre de voicings), groupés par famille. Un clic charge
+ * l'accord sur la carte, dont les flèches ‹ › parcourent les voicings.
  *
  * @param {ReturnType<typeof findChordsByTopNote>} results
- * @param {{ topPc: number, family?: string, selected?: {rootPc: number, quality: string, index: number}|null }} options
+ * @param {{ topPc: number, selected?: {rootPc: number, quality: string}|null }} options
  */
-export function renderTopNoteBrowser(results, { topPc, family = 'all', selected = null } = {}) {
+export function renderTopNoteBrowser(results, { topPc, selected = null } = {}) {
   const topName = formatPc(topPc, false);
-  const families = [{ id: 'all', label: 'Tous' }, ...TARGET_QUALITY_GROUPS.map((g) => ({ id: g.id, label: g.label }))];
-  const countFor = (id) => results.filter((r) => id === 'all' || r.group === id).length;
-  const chips = families
-    .filter((f) => f.id === 'all' || countFor(f.id) > 0)
-    .map((f) => `<button type="button" class="exercise-browser-family${f.id === family ? ' active' : ''}" data-browse-family="${f.id}">${escapeHtml(f.label)} <span>${countFor(f.id)}</span></button>`)
-    .join('');
-  const shown = results.filter((r) => family === 'all' || r.group === family);
-  const total = shown.reduce((a, r) => a + r.voicings.length, 0);
-  let lastGroup = null;
-  const rows = shown.map((r) => {
-    const head = r.group !== lastGroup ? `<li class="exercise-browser-group">${escapeHtml(r.groupLabel)}</li>` : '';
-    lastGroup = r.group;
-    const isSelectedChord = selected && selected.rootPc === r.rootPc && selected.quality === r.quality;
-    const voicings = r.voicings.map((v) => {
-      const active = isSelectedChord && selected.index === v.index ? ' active' : '';
-      return `<button type="button" class="exercise-browser-voicing${active}" data-browse-root="${r.rootPc}" data-browse-quality="${escapeHtml(r.quality)}" data-browse-index="${v.index}" title="${escapeHtml(`${v.description}${v.derived ? ' — dérivé' : ''}`)}">${escapeHtml(v.shortLabel)} <span class="exercise-browser-stars">${'★'.repeat(v.difficulty)}</span></button>`;
+  const groups = [];
+  for (const r of results) {
+    if (groups.length === 0 || groups[groups.length - 1].id !== r.group) groups.push({ id: r.group, label: r.groupLabel, chords: [] });
+    groups[groups.length - 1].chords.push(r);
+  }
+  const rows = groups.map((g) => {
+    const chords = g.chords.map((r) => {
+      const isSelected = selected && selected.rootPc === r.rootPc && selected.quality === r.quality;
+      const techniques = [...new Set(r.voicings.map((v) => v.shortLabel))].join(', ');
+      const count = r.voicings.length;
+      const title = `${count} voicing${count > 1 ? 's' : ''} : ${techniques}${r.derived ? ' — qualité dérivée' : ''}`;
+      return `<button type="button" class="exercise-browser-chord${isSelected ? ' selected' : ''}" data-browse-root="${r.rootPc}" data-browse-quality="${escapeHtml(r.quality)}" title="${escapeHtml(title)}">`
+        + `<span class="exercise-browser-name">${escapeHtml(r.name)}${r.derived ? '*' : ''}</span>`
+        + `<span class="exercise-browser-count">${count}</span></button>`;
     }).join('');
-    return `${head}<li class="exercise-browser-chord${isSelectedChord ? ' selected' : ''}">
-        <span class="exercise-browser-name">${escapeHtml(r.name)}${r.derived ? '<span class="exercise-browser-derived" title="Qualité absente de VoicingLab : voicings dérivés">*</span>' : ''}</span>
-        <span class="exercise-browser-voicings">${voicings}</span>
-      </li>`;
+    return `<li class="exercise-browser-group">${escapeHtml(g.label)}</li><li class="exercise-browser-grid">${chords}</li>`;
   }).join('');
+  const anyDerived = results.some((r) => r.derived);
   return `
-    <div class="exercise-browser-head">Accords avec <strong>${escapeHtml(topName)}</strong> au sommet · ${shown.length} accords · ${total} voicings</div>
-    <div class="exercise-browser-families">${chips}</div>
-    ${shown.length === 0
+    <div class="exercise-browser-head"><strong>${escapeHtml(topName)}</strong> au sommet · ${results.length} accord${results.length > 1 ? 's' : ''}</div>
+    ${results.length === 0
     ? '<p class="exercise-browser-empty">Aucun voicing avec ces filtres.</p>'
     : `<ul class="exercise-browser-list" data-browser-scroll>${rows}</ul>`}
-    <p class="exercise-browser-note">* qualité absente de VoicingLab (voicings dérivés)</p>`;
+    ${anyDerived ? '<p class="exercise-browser-note">* qualité absente de VoicingLab (voicings dérivés)</p>' : ''}`;
 }
 
 function renderStars(difficulty) {

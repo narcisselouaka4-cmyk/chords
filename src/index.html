@@ -244,16 +244,6 @@
                     <option value="11">B</option>
                   </select>
                 </div>
-                <!-- Doublures d'octave ajoutées au voicing (fondamentale grave, mélodie), tous modes. -->
-                <div class="exercise-key-selector exercise-doubling-selector" id="exercise-doubling-selector">
-                  <label for="exercise-doubling">Doublures</label>
-                  <select id="exercise-doubling" aria-label="Doublures d'octave ajoutées au voicing">
-                    <option value="none">Aucune</option>
-                    <option value="bass">Octave de basse</option>
-                    <option value="melody">Mélodie doublée</option>
-                    <option value="full">Les deux</option>
-                  </select>
-                </div>
               </div>
               <!-- Sélecteur d'accord cible : visible uniquement en mode "Accord cible". -->
               <div class="exercise-target-choice" id="exercise-target-choice" style="display: none;">
@@ -294,12 +284,6 @@
                   <option value="10">A# / Bb</option>
                   <option value="11">B</option>
                 </select>
-                <select id="exercise-top-note-level" aria-label="Niveau des voicings suggérés" disabled>
-                  <option value="all">Tous niveaux</option>
-                  <option value="simple">Simple (★1–2)</option>
-                  <option value="intermediate">Intermédiaire (★3)</option>
-                  <option value="advanced">Avancé (★4–5)</option>
-                </select>
                 <!-- Filtres de la recherche par note du dessus : trient les voicings,
                      visibles seulement quand une note du dessus est choisie. -->
                 <div class="exercise-topnote-filters" id="exercise-topnote-filters" hidden>
@@ -316,7 +300,14 @@
                   <details class="exercise-topnote-more" id="exercise-topnote-more">
                     <summary>Plus de filtres<span class="exercise-topnote-more-count" id="exercise-topnote-more-count" hidden></span></summary>
                     <div class="exercise-topnote-more-body">
-                      <!-- Fondamentale et techniques : remplies par main.js. -->
+                      <select id="exercise-top-note-level" aria-label="Niveau des voicings suggérés" disabled>
+                        <option value="all">Tous niveaux</option>
+                        <option value="simple">Simple (★1–2)</option>
+                        <option value="intermediate">Intermédiaire (★3)</option>
+                        <option value="advanced">Avancé (★4–5)</option>
+                      </select>
+                      <!-- Famille, fondamentale et techniques : remplies par main.js. -->
+                      <select data-topnote-filter="family" aria-label="Famille d'accords listée"></select>
                       <select data-topnote-filter="chordRoot" aria-label="Fondamentale des accords listés"></select>
                       <select data-topnote-filter="technique" aria-label="Technique de voicing"></select>
                       <select data-topnote-filter="hands" aria-label="Répartition des mains">

@@ -4124,48 +4124,6 @@
 :root[data-skin='v2'] #practice-tab .exercise-browser-head strong {
   color: var(--r-text);
 }
-:root[data-skin='global'] #practice-tab .exercise-browser-families,
-:root[data-skin='v2'] #practice-tab .exercise-browser-families {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-:root[data-skin='global'] #practice-tab .exercise-browser-family,
-:root[data-skin='v2'] #practice-tab .exercise-browser-family,
-:root[data-skin='global'] #practice-tab .exercise-browser-voicing,
-:root[data-skin='v2'] #practice-tab .exercise-browser-voicing {
-  padding: 2px 7px;
-  font-size: 0.64rem;
-  font-weight: 700;
-  border-radius: var(--r-radius-pill);
-  border: 1px solid var(--r-border-soft);
-  background: var(--r-surface-elevated);
-  color: var(--r-text-muted);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background 0.12s, color 0.12s, border-color 0.12s;
-}
-:root[data-skin='global'] #practice-tab .exercise-browser-family span,
-:root[data-skin='v2'] #practice-tab .exercise-browser-family span {
-  opacity: 0.7;
-  font-weight: 500;
-}
-:root[data-skin='global'] #practice-tab .exercise-browser-family:hover,
-:root[data-skin='v2'] #practice-tab .exercise-browser-family:hover,
-:root[data-skin='global'] #practice-tab .exercise-browser-voicing:hover,
-:root[data-skin='v2'] #practice-tab .exercise-browser-voicing:hover {
-  background: var(--r-surface);
-  color: var(--r-text);
-  border-color: var(--r-border-strong);
-}
-:root[data-skin='global'] #practice-tab .exercise-browser-family.active,
-:root[data-skin='v2'] #practice-tab .exercise-browser-family.active,
-:root[data-skin='global'] #practice-tab .exercise-browser-voicing.active,
-:root[data-skin='v2'] #practice-tab .exercise-browser-voicing.active {
-  background: var(--r-accent);
-  border-color: var(--r-accent);
-  color: var(--r-accent-contrast, #ffffff);
-}
 :root[data-skin='global'] #practice-tab .exercise-browser-list,
 :root[data-skin='v2'] #practice-tab .exercise-browser-list {
   margin: 0;
@@ -4188,41 +4146,50 @@
   color: var(--r-text-faint);
   background: var(--r-surface, #1b1920);
 }
+/* Liste épurée : une grille de boutons « nom + nombre de voicings » par famille. */
+:root[data-skin='global'] #practice-tab .exercise-browser-grid,
+:root[data-skin='v2'] #practice-tab .exercise-browser-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 4px;
+  padding: 2px 0 8px;
+}
 :root[data-skin='global'] #practice-tab .exercise-browser-chord,
 :root[data-skin='v2'] #practice-tab .exercise-browser-chord {
-  display: grid;
-  grid-template-columns: 4.6rem 1fr;
-  align-items: start;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
   gap: 6px;
-  padding: 5px 4px;
+  padding: 4px 8px;
   border-radius: 6px;
+  border: 1px solid var(--r-border-soft);
+  background: transparent;
+  color: var(--r-text);
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+:root[data-skin='global'] #practice-tab .exercise-browser-chord:hover,
+:root[data-skin='v2'] #practice-tab .exercise-browser-chord:hover {
+  background: var(--r-surface-elevated);
+  border-color: var(--r-border-strong);
 }
 :root[data-skin='global'] #practice-tab .exercise-browser-chord.selected,
 :root[data-skin='v2'] #practice-tab .exercise-browser-chord.selected {
-  background: var(--r-surface-elevated);
+  background: var(--r-accent);
+  border-color: var(--r-accent);
+  color: var(--r-accent-contrast, #ffffff);
 }
 :root[data-skin='global'] #practice-tab .exercise-browser-name,
 :root[data-skin='v2'] #practice-tab .exercise-browser-name {
   font-size: 0.8rem;
   font-weight: 700;
-  color: var(--r-text);
-  padding-top: 1px;
+  white-space: nowrap;
 }
-:root[data-skin='global'] #practice-tab .exercise-browser-voicings,
-:root[data-skin='v2'] #practice-tab .exercise-browser-voicings {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
-}
-:root[data-skin='global'] #practice-tab .exercise-browser-stars,
-:root[data-skin='v2'] #practice-tab .exercise-browser-stars {
-  letter-spacing: -0.08em;
-  opacity: 0.8;
-}
-:root[data-skin='global'] #practice-tab .exercise-browser-derived,
-:root[data-skin='v2'] #practice-tab .exercise-browser-derived {
-  margin-left: 1px;
-  color: var(--r-text-faint);
+:root[data-skin='global'] #practice-tab .exercise-browser-count,
+:root[data-skin='v2'] #practice-tab .exercise-browser-count {
+  font-size: 0.66rem;
+  opacity: 0.6;
 }
 :root[data-skin='global'] #practice-tab .exercise-browser-empty,
 :root[data-skin='v2'] #practice-tab .exercise-browser-empty,
