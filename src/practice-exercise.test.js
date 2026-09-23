@@ -365,8 +365,10 @@ function checkVoicingLabGateAndCustomDifficulty() {
 function checkVoicingLabCoverage() {
   console.log('\n=== Couverture VoicingLab (12 tons, variantes) ===');
   const count = (sym, t) => getAvailableTechniques(sym).find((c) => c.id === t)?.count ?? 0;
-  check('Fmaj13#11 : toutes les techniques indisponibles (Shell/Close/Drop2 compris)',
-    unavailableTechniquesFor('Fmaj13#11').length === TECHNIQUES.length - 1);
+  // Fmaj13#11 n'existe pas sur VoicingLab : seules les variantes dérivées
+  // validées (rootless, open) restent, jamais Block/Spread/Shell/Drop 2.
+  check('Fmaj13#11 : ni Shell, ni Close, ni Drop 2, ni Block, ni Spread',
+    ['shell', 'close', 'drop2', 'block', 'spread'].every((t) => unavailableTechniquesFor('Fmaj13#11').includes(t)));
   check('Cdim7 : 4 Drop 2 réels', count('Cdim7', 'drop2') === 4);
   check('C7 : 6 Upper Structures réelles', count('C7', 'upper_structure') === 6);
   check('G13 : pas de Drop 2 (absent de VoicingLab)', count('G13', 'drop2') === 0);
@@ -405,6 +407,36 @@ function checkVoicingLabCoverage() {
   check('1★ : 2 notes par accord', chords.every((c) => c.notes.length === 2));
 }
 
+// [Claude] — 2026-09-23 — Qualités absentes de VoicingLab servies par des
+// voicings dérivés (une note déplacée depuis un voicing VoicingLab réel).
+function checkDerivedQualities() {
+  console.log('\n=== Voicings dérivés (qualités absentes de VoicingLab) ===');
+  const tones = {
+    'm13': [0, 2, 3, 5, 7, 9, 10], '11': [0, 2, 4, 5, 7, 10], 'maj11': [0, 2, 4, 5, 7, 11],
+    '13#11': [0, 2, 4, 6, 7, 9, 10], 'maj13#11': [0, 2, 4, 6, 7, 9, 11], '7sus2': [0, 2, 7, 10],
+    'madd9': [0, 2, 3, 7], 'add11': [0, 4, 5, 7], '6add11': [0, 4, 5, 7, 9],
+  };
+  for (const [quality, allowed] of Object.entries(tones)) {
+    for (let rootPc = 0; rootPc < 12; rootPc += 1) {
+      const ex = createPracticeExercise();
+      ex.setTargetChoice(rootPc, quality);
+      const t = ex.getState().target;
+      const ok = t && t.voicing.derived === true
+        && t.notes.every((n) => allowed.includes((((n - rootPc) % 12) + 12) % 12));
+      if (!ok) { check(`${quality} sur ${rootPc} : voicing dérivé aux notes de l'accord`, false, JSON.stringify(t?.notes)); return; }
+    }
+    check(`${quality} : 12 tons jouables, notes toutes dans l'accord, marqué dérivé`, true);
+  }
+  // Pas de 11 juste dans maj13#11 (cause du bug « toutes touches blanches »).
+  const ex = createPracticeExercise();
+  ex.setTargetChoice(5, 'maj13#11');
+  check('Fmaj13#11 dérivé sans Bb (11 juste)', !ex.getState().target.notes.some((n) => n % 12 === 10));
+  // Une qualité réelle VoicingLab n'est jamais marquée dérivée.
+  const real = createPracticeExercise();
+  real.setTargetChoice(0, 'maj7');
+  check('Cmaj7 : voicing VoicingLab réel (non dérivé)', !real.getState().target.voicing.derived);
+}
+
 function runTests() {
   checkChordTargetHasVoicing();
   checkSpecificChords();
@@ -424,6 +456,7 @@ function runTests() {
   checkUnavailableTechniquesReflectDetection();
   checkVoicingLabGateAndCustomDifficulty();
   checkVoicingLabCoverage();
+  checkDerivedQualities();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);
   process.exit(failed === 0 ? 0 : 1);

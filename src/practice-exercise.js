@@ -35,6 +35,7 @@ const SYMBOL_DIFFICULTY = {
   'add9': 2,
   'madd9': 2,
   'add11': 2,
+  '6add11': 2,
   'dim': 2,
   // 7e de base (2★)
   'm7': 2,
@@ -46,6 +47,7 @@ const SYMBOL_DIFFICULTY = {
   'aug': 3,
   '7sus4': 3,
   '9sus4': 3,
+  '7sus2': 3,
   'm9': 3,
   '9': 3,
   'maj9': 3,
@@ -55,6 +57,7 @@ const SYMBOL_DIFFICULTY = {
   '13': 4,
   'm13': 4,
   'maj13': 4,
+  'maj11': 4,
   '13sus4': 4,
   'maj7#11': 4,
   '7b5': 4,
@@ -68,14 +71,16 @@ const SYMBOL_DIFFICULTY = {
   'mMaj7': 5,
   'mMaj9': 5,
   'm7#11': 5, // normalisé en m7b5 par le parser, mais conservé comme symbole avancé
+  '13#11': 5,
+  'maj13#11': 5,
 };
 
 const PRACTICE_SYMBOLS_BY_DIFFICULTY = {
   1: ['', 'm', 'sus4', 'sus2', '5'],
-  2: ['6', 'm6', '6/9', 'add9', 'madd9', 'add11', 'dim', 'm7', '7', 'maj7'],
-  3: ['m7b5', 'dim7', 'aug', '7sus4', '9sus4', 'm9', '9', 'maj9'],
-  4: ['11', 'm11', '13', 'm13', 'maj13', '13sus4', 'maj7#11', '7b5', '7b9', '7#9'],
-  5: ['7#5', '7alt', '7#9b13', '7b9b13', 'mMaj7', 'mMaj9', 'm7#11'],
+  2: ['6', 'm6', '6/9', 'add9', 'madd9', 'add11', '6add11', 'dim', 'm7', '7', 'maj7'],
+  3: ['m7b5', 'dim7', 'aug', '7sus4', '9sus4', '7sus2', 'm9', '9', 'maj9'],
+  4: ['11', 'm11', '13', 'm13', 'maj13', 'maj11', '13sus4', 'maj7#11', '7b5', '7b9', '7#9'],
+  5: ['7#5', '7alt', '7#9b13', '7b9b13', 'mMaj7', 'mMaj9', 'm7#11', '13#11', 'maj13#11'],
 };
 
 const ALL_PRACTICE_SYMBOLS = Object.values(PRACTICE_SYMBOLS_BY_DIFFICULTY).flat();
@@ -542,6 +547,8 @@ function buildPlayableVoicing(rootPc, quality, technique, variant = 0, difficult
       variantIndex: index,
       variantCount: variants.length,
       variantLabel: describeVariant(t, v),
+      derived: v.derived,
+      derivedFrom: v.derivedFrom,
     };
     return { voicing, technique: t };
   }
@@ -1335,6 +1342,7 @@ export function renderExerciseTarget(target, options = {}) {
       </div>
       ${renderVoicingCategories(categories, technique, voicing?.variantIndex ?? variant, voicing?.variantLabel || '')}
       ${voicing?.variantCount > 1 ? `<div class="exercise-variant-label">${escapeHtml(voicing.variantLabel)}</div>` : ''}
+      ${voicing?.derived ? `<div class="exercise-derived-note" title="Qualité absente de VoicingLab : voicing VoicingLab réel de ${escapeHtml(voicing.derivedFrom)} dont une note est déplacée">Voicing dérivé de ${escapeHtml(voicing.derivedFrom)} (absent de VoicingLab)</div>` : ''}
       <div class="exercise-target-keyboard">${kb.svg}</div>
       <div class="exercise-target-hands">
         ${splitDisplay ? renderHandSplit(leftHand, rightHand) : renderUnifiedHand(allNames)}
