@@ -304,6 +304,9 @@
                      visibles seulement quand une note du dessus est choisie. -->
                 <div class="exercise-topnote-filters" id="exercise-topnote-filters" hidden>
                   <span class="exercise-topnote-filters-label">Filtres</span>
+                  <!-- Tonalité et fondamentale : remplies par main.js (12 notes). -->
+                  <select data-topnote-filter="key" aria-label="Tonalité : voicings dont toutes les notes sont dans la gamme"></select>
+                  <select data-topnote-filter="chordRoot" aria-label="Fondamentale des accords listés"></select>
                   <select data-topnote-filter="octave" aria-label="Octave de la note du dessus">
                     <option value="all">Toutes octaves</option>
                     <option value="4">Octave 4</option>

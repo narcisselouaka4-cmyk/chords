@@ -646,6 +646,15 @@ function checkTopNoteFilters() {
     browsed && browsed.voicings.length === target.voicing.topNoteSuggestions.length, `${browsed?.voicings.length} / ${target.voicing.topNoteSuggestions.length}`);
   check('Carte filtrée : voicing affiché conforme aux filtres',
     Math.floor(target.voicing.topNote.midi / 12) - 1 === 5 && target.voicing.leftHand.length > 0 && target.voicing.rightHand.length > 0);
+  const inC = findChordsByTopNote(9, { key: '0' }).map((r) => r.name);
+  check('Tonalité C : G13, Dm11, Fmaj7#11 présents ; G7b9, Bm11, Ebmaj7#11 exclus',
+    ['G13', 'Dm11', 'Fmaj7#11'].every((n) => inC.includes(n)) && !['G7b9', 'Bm11', 'D#maj7#11'].some((n) => inC.includes(n)), inC.join(' '));
+  const cScale = new Set([0, 2, 4, 5, 7, 9, 11]);
+  check('Tonalité C : toutes les notes des voicings listés sont dans la gamme',
+    findChordsByTopNote(4, { key: '0' }).every((r) => findVoicingsByTopNote(r.rootPc, r.quality, 4, { key: '0' })
+      .every((v) => [...v.lh, ...v.rh].every((n) => cScale.has(n % 12)))));
+  const ofC = findChordsByTopNote(9, { chordRoot: '0' });
+  check('Accords de C : seulement des fondamentales C', ofC.length > 0 && ofC.every((r) => r.rootPc === 0));
   ex.setTopNoteFilter('octave', 'bogus');
   check('Valeur de filtre invalide ignorée', ex.getState().topNote.octave === '5');
 }

@@ -1796,6 +1796,17 @@ function initPracticeExercise() {
   });
 
   // Filtres de la recherche par note du dessus (octave, technique, mains, taille, fondamentale).
+  const NOTE_OPTIONS = ['C', 'C# / Db', 'D', 'D# / Eb', 'E', 'F', 'F# / Gb', 'G', 'G# / Ab', 'A', 'A# / Bb', 'B'];
+  const MINOR_NAMES = ['Cm', 'C#m', 'Dm', 'Ebm', 'Em', 'Fm', 'F#m', 'Gm', 'G#m', 'Am', 'Bbm', 'Bm'];
+  const fillNoteFilter = (name, allLabel, label) => {
+    const sel = els.exerciseTopNoteFilters?.querySelector(`[data-topnote-filter="${name}"]`);
+    if (!sel) return;
+    sel.innerHTML = `<option value="all">${allLabel}</option>`
+      + NOTE_OPTIONS.map((n, pc) => `<option value="${pc}">${label(n, pc)}</option>`).join('');
+  };
+  // Tonalité majeure et son relatif mineur naturel (même gamme).
+  fillNoteFilter('key', 'Toutes tonalités', (n, pc) => `Tonalité ${n} (${MINOR_NAMES[(pc + 9) % 12]})`);
+  fillNoteFilter('chordRoot', 'Toutes fondamentales', (n) => `Accords de ${n}`);
   const topNoteTechniqueFilter = els.exerciseTopNoteFilters?.querySelector('[data-topnote-filter="technique"]');
   if (topNoteTechniqueFilter) {
     topNoteTechniqueFilter.innerHTML = TOP_NOTE_FILTERS.technique
