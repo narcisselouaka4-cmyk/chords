@@ -15,6 +15,7 @@ import { miniKeyboardForNotes } from './ui/mini-keyboard.js';
 import movementsLibrary from './data/movements-library.json' with { type: 'json' };
 import { getVoicingLabVoicings, isQualityOnVoicingLab, isDerivedQuality } from './voicing-engine/voicinglab-availability.js';
 import { parseChordSymbol } from './pedagogie/chord-parser-v2.js';
+import { applyDoublings, DOUBLING_MODES } from './voicing-engine/doublings.js';
 
 // Difficulté exprimée en étoiles (1–5). Le mode "Accord cible" est strict :
 // 1★ = triades, 2★ = 7e, 3★ = 9e / couleurs, 4★ = tensions/altérations,
@@ -822,9 +823,23 @@ export function createPracticeExercise() {
   function chordModeTarget(rootPc, symbol, technique = state.technique) {
     const filter = topNoteFilter();
     const target = buildChordTarget(rootPc, symbol, technique, state.variant, autoDifficulty(), filter);
-    if (target || !filter) return target;
+    if (target || !filter) return withDoublings(target);
     const plain = buildChordTarget(rootPc, symbol, technique, state.variant, autoDifficulty());
-    return plain ? { ...plain, topNoteMiss: true } : null;
+    return plain ? withDoublings({ ...plain, topNoteMiss: true }) : null;
+  }
+
+  /**
+   * Doublures d'octave optionnelles (mode Accord cible) : ajoutées après le
+   * choix du voicing VoicingLab, sans changer l'accord détecté.
+   */
+  function withDoublings(target) {
+    if (!target || state.mode !== 'chord' || state.doubling === 'none') return target;
+    const { leftHand, rightHand, doubled } = applyDoublings(target.voicing, target.rootPc, state.doubling);
+    return {
+      ...target,
+      notes: [...leftHand, ...rightHand],
+      voicing: { ...target.voicing, leftHand, rightHand, doubled },
+    };
   }
 
   let state = {
@@ -839,6 +854,8 @@ export function createPracticeExercise() {
     difficulty: 3,
     variant: 0,
     topNote: { pc: null, level: 'all' },
+    // Doublures d'octave : 'none' | 'bass' | 'melody' | 'full'.
+    doubling: 'none',
     history: [],
     customProgressionDegrees: null,
     customProgressionKeyPc: null,
@@ -888,14 +905,14 @@ export function createPracticeExercise() {
       const rootPc = randomInt(0, 11);
       const symbol = pick(allowedSymbols);
       const target = buildChordTarget(rootPc, symbol, state.technique, state.variant, autoDifficulty(), filter);
-      if (target) return target;
+      if (target) return withDoublings(target);
     }
     // Repli ultime : un accord jouable au niveau demandé, sinon Cmaj7 close.
     for (const symbol of allowedSymbols) {
       const target = buildChordTarget(0, symbol, 'close', state.variant, autoDifficulty());
-      if (target) return target;
+      if (target) return withDoublings(target);
     }
-    return buildChordTarget(0, 'maj7', 'close', state.variant, autoDifficulty());
+    return withDoublings(buildChordTarget(0, 'maj7', 'close', state.variant, autoDifficulty()));
   }
 
   function buildProgressionFromTokens(tokens, keyPc, name) {
@@ -1187,6 +1204,13 @@ export function createPracticeExercise() {
     if (!TOP_NOTE_LEVELS[level]) return;
     state.topNote = { ...state.topNote, level };
     state.variant = 0;
+    if (state.mode === 'chord' && state.target) regenerateCurrentTarget();
+  }
+
+  /** Doublures d'octave (mode Accord cible). */
+  function setDoubling(mode) {
+    if (!DOUBLING_MODES.includes(mode)) return;
+    state.doubling = mode;
     if (state.mode === 'chord' && state.target) regenerateCurrentTarget();
   }
 
@@ -1499,6 +1523,7 @@ export function createPracticeExercise() {
     setTopNote,
     setTopNoteLevel,
     selectTopNoteSuggestion,
+    setDoubling,
     setContentChoice,
     clearContentChoice,
     setCustomProgression,
@@ -1533,7 +1558,8 @@ export function renderExerciseTarget(target, options = {}) {
   const notes = [...new Set([...(voicing?.leftHand || []), ...(voicing?.rightHand || []), ...(target.notes || [])])].sort((a, b) => a - b);
   const technique = voicing?.technique || 'auto';
 
-  const kb = miniKeyboardForNotes(notes, { leftHand: [], rightHand: [] });
+  const doubled = voicing?.doubled || [];
+  const kb = miniKeyboardForNotes(notes, { leftHand: [], rightHand: [], added: doubled });
 
   // Affichage des mains : si le moteur a produit un split LH/RH avec des
   // notes distinctes, on montre les deux blocs ; sinon un seul bloc.
@@ -1564,6 +1590,7 @@ export function renderExerciseTarget(target, options = {}) {
       ${target.topNoteMiss ? `<div class="exercise-topnote-miss">Aucun voicing de ${escapeHtml(target.name)} n'a cette note au sommet à ce niveau : voicing habituel affiché.</div>` : ''}
       ${voicing?.derived ? `<div class="exercise-derived-note" title="Qualité absente de VoicingLab : voicing VoicingLab réel de ${escapeHtml(voicing.derivedFrom)} dont une note est déplacée">Voicing dérivé de ${escapeHtml(voicing.derivedFrom)} (absent de VoicingLab)</div>` : ''}
       <div class="exercise-target-keyboard">${kb.svg}</div>
+      ${doubled.length > 0 ? `<div class="exercise-doubled-note">Doublure${doubled.length > 1 ? 's' : ''} ajoutée${doubled.length > 1 ? 's' : ''} : ${escapeHtml(formatHandNotes(doubled))}</div>` : ''}
       <div class="exercise-target-hands">
         ${splitDisplay ? renderHandSplit(leftHand, rightHand) : renderUnifiedHand(allNames, singleHandLabel(leftHand, rightHand))}
       </div>

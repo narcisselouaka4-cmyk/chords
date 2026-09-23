@@ -3991,6 +3991,14 @@
   text-align: center;
 }
 
+/* Doublures d'octave : notes ajoutées, même couleur ambre que sur le clavier. */
+:root[data-skin='global'] #practice-tab .exercise-doubled-note,
+:root[data-skin='v2'] #practice-tab .exercise-doubled-note {
+  font-size: 0.72rem;
+  color: var(--mini-key-added, #f59e0b);
+  text-align: center;
+}
+
 /* ── Navigateur : tous les accords ayant la note du dessus choisie ── */
 :root[data-skin='global'] #practice-tab .exercise-topnote-browser,
 :root[data-skin='v2'] #practice-tab .exercise-topnote-browser {

@@ -18,6 +18,7 @@ import { generateCopilotVoicing } from './pedagogie/copilot-voicing.js';
 import { parseChordSymbol } from './pedagogie/chord-parser-v2.js';
 import { detectChord } from './chord-engine/index.js';
 import { formatPc } from './chord-engine/naming.js';
+import { applyDoublings } from './voicing-engine/doublings.js';
 
 const GREEN = '\x1b[32m';
 const RED = '\x1b[31m';
@@ -555,6 +556,40 @@ function checkTopNoteIgnoresCardTechnique() {
   }
 }
 
+// [Claude] — 2026-09-23 — Doublures d'octave (idée de Narcisse : F2+F3 à la main gauche).
+function checkDoublings() {
+  console.log('\n=== Doublures d\'octave ===');
+  const d = applyDoublings({ leftHand: [53, 57, 64], rightHand: [] }, 5, 'bass');
+  check('Fmaj7 une main : F2+F3 à la main gauche, le reste à droite',
+    d.leftHand.join() === '41,53' && d.rightHand.join() === '57,64' && d.doubled.join() === '41');
+  const rootless = applyDoublings({ leftHand: [52, 57], rightHand: [62, 67] }, 5, 'bass');
+  check('Voicing rootless : aucune basse inventée', rootless.doubled.length === 0);
+  const c6 = applyDoublings({ leftHand: [], rightHand: [60, 64, 67, 69] }, 0, 'melody');
+  check('Mélodie doublée jamais sous la basse (C6 ≠ Am7)', c6.doubled.length === 0);
+  const ex = createPracticeExercise();
+  let total = 0; let changed = 0; let stable = true; let validated = true;
+  for (const [root, sym] of [[5, 'maj7'], [0, '7'], [2, 'm7'], [7, '13'], [9, 'm7b5'], [4, '7b9'], [0, '6']]) {
+    for (const tech of ['auto', 'close', 'drop2', 'stride', 'block', 'open']) {
+      ex.setTechnique(tech); ex.setDoubling('none'); ex.setTargetChoice(root, sym);
+      const plain = ex.getState().target;
+      if (!plain) continue;
+      ex.setDoubling('full');
+      const t = ex.getState().target;
+      total += 1;
+      if (t.voicing.doubled?.length) changed += 1;
+      const a = detectChord(plain.notes); const b = detectChord(t.notes);
+      if (a?.rootPc !== b?.rootPc || a?.symbol !== b?.symbol) stable = false;
+      if (new Set(plain.notes.map((n) => n % 12)).size !== new Set(t.notes.map((n) => n % 12)).size) stable = false;
+      if (!ex.check(t.notes).success) validated = false;
+    }
+  }
+  check('Doublures appliquées à une majorité de voicings', changed > total / 2, `${changed}/${total}`);
+  check('Doublures : accord détecté et classes de hauteur inchangés', stable);
+  check('Doublures : le voicing enrichi est validé par check()', validated);
+  ex.setDoubling('none');
+  check('Doublures désactivées : rien d\'ajouté', !ex.getState().target.voicing.doubled);
+}
+
 // [Claude] — 2026-09-23 — Étiquette « Auto » : retour possible après un clic sur une technique.
 function checkAutoTag() {
   console.log('\n=== Étiquette Auto ===');
@@ -596,6 +631,7 @@ async function runTests() {
   checkTopNoteBrowser();
   checkTopNoteIgnoresCardTechnique();
   checkAutoTag();
+  checkDoublings();
   await checkAllVoicingLabReachable();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);

@@ -58,6 +58,8 @@ export function generateMiniKeyboard(activeNotes = [], options = {}) {
   const activeSet = new Set(activeNotes.map((n) => (typeof n === 'number' ? n : null)).filter(Boolean));
   const leftHandSet = new Set((options.leftHand || []).map((n) => (typeof n === 'number' ? n : null)).filter(Boolean));
   const rightHandSet = new Set((options.rightHand || []).map((n) => (typeof n === 'number' ? n : null)).filter(Boolean));
+  // Notes ajoutées (doublures d'octave) : couleur distincte.
+  const addedSet = new Set((options.added || []).filter((n) => typeof n === 'number'));
 
   // S'assurer que start est une note blanche pour l'alignement
   let firstWhite = start;
@@ -80,7 +82,8 @@ export function generateMiniKeyboard(activeNotes = [], options = {}) {
     const classes = ['mini-key'];
     if (activeSet.has(midi)) {
       classes.push('is-active');
-      if (leftHandSet.has(midi)) classes.push('is-lh');
+      if (addedSet.has(midi)) classes.push('is-added');
+      else if (leftHandSet.has(midi)) classes.push('is-lh');
       else if (rightHandSet.has(midi)) classes.push('is-rh');
     }
     return classes.join(' ');
@@ -88,6 +91,7 @@ export function generateMiniKeyboard(activeNotes = [], options = {}) {
 
   function activeFill(midi) {
     if (!activeSet.has(midi)) return isBlackKey(midi) ? '#1f2937' : '#ffffff';
+    if (addedSet.has(midi)) return 'var(--mini-key-added, #f59e0b)';
     if (leftHandSet.has(midi)) return 'var(--mini-key-lh, #3b82f6)';
     if (rightHandSet.has(midi)) return 'var(--mini-key-rh, #22c55e)';
     return 'var(--mini-key-active, #ef4444)';
@@ -98,7 +102,7 @@ export function generateMiniKeyboard(activeNotes = [], options = {}) {
     const x = index * WHITE_WIDTH;
     const active = activeSet.has(midi);
     const fill = activeFill(midi);
-    const stroke = active ? (leftHandSet.has(midi) ? '#1d4ed8' : rightHandSet.has(midi) ? '#15803d' : '#991b1b') : '#9ca3af';
+    const stroke = active ? (addedSet.has(midi) ? '#b45309' : leftHandSet.has(midi) ? '#1d4ed8' : rightHandSet.has(midi) ? '#15803d' : '#991b1b') : '#9ca3af';
     const title = active ? ` title="${midiToNoteName(midi, true, false)}"` : '';
     markup += `<rect class="${activeClasses(midi)}" data-midi="${midi}" x="${x}" y="0" width="${WHITE_WIDTH}" height="${WHITE_HEIGHT}" rx="${WHITE_RADIUS}" fill="${fill}" stroke="${stroke}" stroke-width="${active ? 1.5 : 0.5}"${title}/>`;
   });
@@ -110,7 +114,7 @@ export function generateMiniKeyboard(activeNotes = [], options = {}) {
     if (x < 0 || x + BLACK_WIDTH > width) continue;
     const active = activeSet.has(midi);
     const fill = activeFill(midi);
-    const stroke = active ? (leftHandSet.has(midi) ? '#1d4ed8' : rightHandSet.has(midi) ? '#4ade80' : '#f87171') : '#000000';
+    const stroke = active ? (addedSet.has(midi) ? '#fbbf24' : leftHandSet.has(midi) ? '#1d4ed8' : rightHandSet.has(midi) ? '#4ade80' : '#f87171') : '#000000';
     const title = active ? ` title="${midiToNoteName(midi, true, false)}"` : '';
     markup += `<rect class="${activeClasses(midi)}" data-midi="${midi}" x="${x}" y="0" width="${BLACK_WIDTH}" height="${BLACK_HEIGHT}" rx="${BLACK_RADIUS}" fill="${fill}" stroke="${stroke}" stroke-width="${active ? 1.5 : 0.5}"${title}/>`;
   }
@@ -138,6 +142,7 @@ export function miniKeyboardForNotes(activeNotes, options = {}) {
   const kbOptions = {
     leftHand: opts.leftHand,
     rightHand: opts.rightHand,
+    added: opts.added,
   };
   if (!Array.isArray(activeNotes) || activeNotes.length === 0) {
     const fallbackStart = startMidiOverride ?? 60;

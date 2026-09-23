@@ -180,6 +180,7 @@ const els = {
   exerciseTargetQuality: document.getElementById('exercise-target-quality'),
   exerciseTopNote: document.getElementById('exercise-top-note'),
   exerciseTopNoteLevel: document.getElementById('exercise-top-note-level'),
+  exerciseDoubling: document.getElementById('exercise-doubling'),
   exerciseTopNoteBrowser: document.getElementById('exercise-topnote-browser'),
   exerciseRandomTargetBtn: document.getElementById('exercise-random-target-btn'),
   exerciseCustomProgressionSelector: document.getElementById('exercise-custom-progression-selector'),
@@ -1365,6 +1366,7 @@ function initPracticeExercise() {
         els.exerciseTopNoteLevel.value = exState.topNote?.level || 'all';
         els.exerciseTopNoteLevel.disabled = topPc == null;
       }
+      if (els.exerciseDoubling) els.exerciseDoubling.value = exState.doubling || 'none';
       refreshTopNoteBrowser(exState);
     } else {
       els.exerciseTargetChoice.style.display = 'none';
@@ -1780,6 +1782,11 @@ function initPracticeExercise() {
 
   els.exerciseTopNoteLevel?.addEventListener('change', () => {
     practiceExercise.setTopNoteLevel(els.exerciseTopNoteLevel.value);
+    render();
+  });
+
+  els.exerciseDoubling?.addEventListener('change', () => {
+    practiceExercise.setDoubling(els.exerciseDoubling.value);
     render();
   });
 
