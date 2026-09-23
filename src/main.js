@@ -1323,9 +1323,11 @@ function initPracticeExercise() {
     const selected = exState.target?.voicing?.topNoteSuggestions && !exState.target.topNoteMiss
       ? { rootPc: exState.target.rootPc, quality: exState.target.symbol, index: exState.target.voicing.variantIndex }
       : null;
-    const key = `${topPc}|${level}|${exState.technique}|${topNoteBrowserFamily}`;
+    // Toutes les techniques, comme la carte : pas de filtre caché par la
+    // technique cliquée auparavant.
+    const key = `${topPc}|${level}|${topNoteBrowserFamily}`;
     if (key !== topNoteBrowserKey) {
-      const results = findChordsByTopNote(topPc, { level, technique: exState.technique });
+      const results = findChordsByTopNote(topPc, { level });
       box.innerHTML = renderTopNoteBrowser(results, { topPc, family: topNoteBrowserFamily, selected });
       topNoteBrowserKey = key;
       return;

@@ -682,7 +682,9 @@ function buildPlayableVoicing(rootPc, quality, technique, variant = 0, difficult
  * complexe). La liste résumée est jointe au voicing pour l'affichage.
  */
 function buildTopNoteVoicing(rootPc, quality, technique, variant, topNote) {
-  const suggestions = findVoicingsByTopNote(rootPc, quality, topNote.pc, { level: topNote.level, technique });
+  // Toujours toutes les techniques : la technique cliquée sur la carte ne doit
+  // pas filtrer en silence la recherche (bug : Block seul → 0 en Simple/Intermédiaire).
+  const suggestions = findVoicingsByTopNote(rootPc, quality, topNote.pc, { level: topNote.level });
   if (suggestions.length === 0) return { voicing: null, technique };
   const index = ((variant % suggestions.length) + suggestions.length) % suggestions.length;
   const v = suggestions[index];

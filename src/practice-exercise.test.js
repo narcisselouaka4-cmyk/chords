@@ -533,6 +533,27 @@ function checkTopNoteBrowser() {
   check('Filtre Mineurs : seule la famille Mineurs est listée', html.includes('>Mineurs</li>') && !html.includes('>Majeurs</li>'));
 }
 
+// [Claude] — 2026-09-23 — Régression signalée par Narcisse : après un clic sur
+// « Block », la note du dessus ne proposait plus que des Block (0 en Simple).
+function checkTopNoteIgnoresCardTechnique() {
+  console.log('\n=== Note du dessus : indépendante de la technique cliquée ===');
+  const ex = createPracticeExercise();
+  ex.setTechnique('block');
+  ex.setTargetChoice(5, 'maj7');
+  ex.setTopNote(9);
+  const techniques = new Set(ex.getState().target.voicing.topNoteSuggestions.map((s) => s.technique));
+  check('Technique Block cliquée : suggestions de plusieurs techniques', techniques.size > 1, [...techniques].join(','));
+  ex.setTopNoteLevel('simple');
+  const simple = ex.getState().target;
+  check('Niveau Simple toujours servi après un clic sur Block (accord ou repli signalé)',
+    simple.topNoteMiss === true || simple.voicing.topNoteSuggestions.length > 0);
+  for (const level of ['simple', 'intermediate', 'advanced']) {
+    const found = findChordsByTopNote(0, { level });
+    const techs = new Set(found.flatMap((r) => r.voicings.map((v) => v.technique)));
+    check(`Navigateur ${level} (Do au sommet) : accords trouvés, plusieurs techniques`, found.length > 50 && techs.size > 1, `${found.length} / ${[...techs].join(',')}`);
+  }
+}
+
 async function runTests() {
   checkChordTargetHasVoicing();
   checkSpecificChords();
@@ -555,6 +576,7 @@ async function runTests() {
   checkDerivedQualities();
   checkTopNoteSearch();
   checkTopNoteBrowser();
+  checkTopNoteIgnoresCardTechnique();
   await checkAllVoicingLabReachable();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);
