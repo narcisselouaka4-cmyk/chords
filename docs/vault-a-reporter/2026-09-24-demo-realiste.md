@@ -20,6 +20,9 @@
 - Diminués de passage aussi en Ballade (`ea78e58`) ; carte : basse et doublure ajoutées par la
   démo visibles sur le mini-clavier + légende, « Écouter » les joue ; Ma grille par sélection
   (fondamentale + qualité, pastilles) au lieu d'un champ texte (`22c00d1`).
+- Option « Main gauche » par style sur la carte (Main droite seule / + main gauche Gospel /
+  Ballade / Swing), gardée par les favoris et rouverte en Accord cible (`51c832d`). Origine :
+  la main gauche de la démo gospel plaisait à Narcisse mais disparaissait du favori.
 ```
 
 ## `experiments/` — relevé des deux vidéos (à créer : `experiments/2026-09-24-videos-jeu-reel.md`)
@@ -73,6 +76,12 @@ puis D#dim7 (drop 2) → Cdim7 (drop 2) → Gm11.
     (basse de la main gauche, note doublée en Gospel), avec une légende (« Démo Gospel / worship :
     basse D2 · A2 à la main gauche, C4 doublé à la main droite ») ; les cases des mains restent le
     voicing de l'exercice ; « Écouter » joue aussi la basse. Rien en Plaqué (`demoCardHands`).
+- **Option « Main gauche »** (carte, Accord cible et Mouvement) : « Main droite seule » (« Voicing
+  seul » si le voicing a déjà une main gauche) ou « + main gauche » Gospel / worship, Ballade,
+  Comping swing — les mains de la démo du style, sans le rythme (`styleLeftHand`). La main
+  gauche fait partie du voicing (cases des mains, notes ajoutées en ambre, légende, Écouter,
+  démo, validation) ; un rootless passe à la main droite, une octave plus haut s'il est trop
+  grave. Favoris : notes + style gardés, rouverts tels quels, option reprise.
 - **Ma grille** : accords choisis (fondamentale + qualité, qualités de l'Accord cible),
   « Ajouter », pastilles retirables, « Tout effacer », « Jouer ma grille » (16 au plus) ; plus de
   champ texte. Le moteur reçoit les mêmes symboles qu'avant (`setCustomGrid`).
@@ -92,6 +101,9 @@ puis D#dim7 (drop 2) → Cdim7 (drop 2) → Gm11.
 4 ter. Carte en Close position : basse D2 A2 (et C4 en Gospel) en ambre sur le mini-clavier, légende
    dessous ; « Écouter » la joue ; style Plaqué : plus rien d'ajouté.
 4 quater. Bibliothèque → Ma grille : choisir D + m11, G + 13, C + maj13 → « Jouer ma grille ».
+4 quinquies. Mouvement, Close : menu « + main gauche Gospel / worship » → ☆ → Accord cible →
+   ouvrir le favori : main gauche D2 A2 toujours là, menu sur Gospel ; changer d'accord : l'option
+   reste ; « Main droite seule » la retire.
 5. Rejouer la démo à la main sans pédale : tout doit tenir sous les doigts.
 
 ## `state/next-actions.md` — à ajouter

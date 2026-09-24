@@ -264,6 +264,7 @@ Compte des pitch classes uniques avec scope :
 12. 7alt : 9e altérée ET quinte altérée, sans 5, 9, 11, 13 naturelles ; les variantes VoicingLab en 7b5 sont reconstruites (`altRels`).
 13. Démo (`practice-demo.js`) : deux mains, jamais de pédale ; basse ajoutée seulement à une main gauche libre ou qui la tient ; style Gospel / worship d'après le jeu de Narcisse et un tutoriel gospel (cadre d'octave, main gauche à l'octave 2, diminués de passage, montée finale) — procédés seulement.
 14. Diminués de passage en Gospel / worship et en Ballade, listés à droite (`demoPassingChords`) ; ce que la démo ajoute à la carte (basse, doublure) s'affiche sur le mini-clavier (`demoCardHands`). « Ma grille » se compose par sélection (fondamentale + qualité).
+15. Option « Main gauche » par style (`state.leftHandStyle`, `setLeftHandStyle`, `styleLeftHand`) : la main gauche Gospel / Ballade / Swing fait partie du voicing de la carte (`styleAdded`, `leftHandStyle`), les favoris la gardent.
 
 ## Fichiers clés
 
