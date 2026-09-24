@@ -11,6 +11,15 @@ metadata:
 
 ## Journal
 
+### 2026-09-24 (nuit, suite) — Styles de démo Ballade, Comping swing, Plaqué
+
+- Demande de Narcisse. `src/practice-demo.js` : `DEMO_STYLES` (label, tempo, mesure, générateur), `buildDemo(chords, style)`, `defaultDemoStyle(style du mouvement)`. Tous les styles jouent les voicings de l'exercice.
+  - **Ballade** (60) : basse seule au 1er temps (`bassNote` : fondamentale entre Mi1 et Si2, au moins une tierce mineure sous le voicing ; aucune si le voicing l'a déjà au grave), voicing arpégé du grave à l'aigu en doubles croches à partir du « et » du 1er temps, deux notes du dessus reprises au 3e temps, pédale à chaque accord ; dernier accord arpégé plus lentement.
+  - **Comping swing** (132) : « Charleston » — accord court au 1er temps et au « et » du 2e (croche swinguée, aux 2/3 du temps) —, basse au 1er temps, sans pédale ; dernier accord tenu.
+  - **Plaqué** (72) : le voicing seul, tenu toute la mesure, ni basse ni pédale.
+- Style par défaut « Selon le mouvement » : jazz → Comping swing, gospel / worship → Gospel, « Ma grille » → Ballade. Menus « Style » (sous « Écouter le mouvement », le libellé annonce le style obtenu) et « Style des aperçus » (bibliothèque), synchronisés, mémorisés (localStorage `exercise-demo-style`) ; changer de style arrête la démo.
+- Validation : démo 39/39 (dont 12 mouvements × 4 techniques × 4 styles : voicing entier dans chaque mesure, notes Mi1–Mi7, tout relâché), exercices 445/445, build OK ; Chromium : tempo mesuré 3,9 s / accord en Ballade, 1,8 s en Swing, 3,3 s en Plaqué et Gospel, sans erreur.
+
 ### 2026-09-24 (nuit) — Démo des mouvements, voicings enchaînés, sortie MIDI
 
 - **Demande de Narcisse** : un bouton Play pour avoir un avant-goût des mouvements, joué avec nos voicings, « comme si c'était nous qui jouions », et sur son VST. Choix : voicings enchaînés partout (démo = exercice), style Gospel / worship pour la v1, sortie MIDI dès maintenant.
