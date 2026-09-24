@@ -11,6 +11,24 @@ metadata:
 
 ## Journal
 
+### 2026-09-24 (soir) — Voicings 11e / 13e / altérés contrôlés d'après les manuels, Mouvement 12 tons refait
+
+- **Doute de Narcisse** : « Bmaj13 en close position = MG B3 D#4, MD A#4 G#5 ? ». C'est bien ce que l'app affichait (close VoicingLab B4 D#5 A#5 G#6, descendu d'une octave), mais ce n'est **pas** une close position : 21 demi-tons, alors qu'une close tient dans une octave (définition recoupée : The Jazz Piano Site, Learn Jazz Standards, piano.org, PianoGroove, Piano With Jonny, Wikipedia — lus via la recherche web, l'accès direct aux sites étant bloqué dans la session cloud).
+- **Audit** (périmètre fixé par Narcisse : 11e, 13e et tous les altérés #11 / b9 / #9 / b13 / #5 / b5 / alt) : 3 643 voicings servis, ~1 100 non conformes. VoicingLab empile 1-3-7-13 dans l'ordre des tierces : Close, Drop 3 et Block de toutes les 11e / 13e / 7#11 / 7b9 / 7#9 faux ; upper structures de 13, 7b9 et alt avec la 11 juste contre la tierce (D13 = triade de Sol sur D7) ; Open de 7#5 / 7b13 avec quinte juste + #5 (9e mineure) ; voicings sous les limites graves de Levine (dont certains créés par mon recentrage de registre).
+- **Décision de Narcisse : reconstruire.** Nouveau module `src/voicing-engine/textbook-voicings.js` : définitions des familles (close, drop 2/3/2-4, four-way close, block, rootless A/B, spread, open, So What, upper structure), limites d'intervalle grave (Levine), 9e mineure interdite (sauf b9 sur la fondamentale d'un accord b9), 11 juste + tierce majeure interdite, échelles d'accord des dominantes. `practice-exercise.js` (`conformOrRebuild`) garde les voicings VoicingLab conformes et reconstruit les autres **sur les mêmes notes** (upper structures : triades II, bIII, bV, bVI, VI, bVII, IV dans l'échelle de l'accord). Marqués « Reconstruit d'après les manuels (VoicingLab : …) » sur la carte.
+  - Bmaj13 close → B3 D#4 G#4 A#4 ; Dm11 close → D4 F4 G4 C5 ; C7b9 upper structure → triades Gb et A ; C7alt → Gb et Ab ; Bmaj13 drop 2-4 désormais proposé (VoicingLab : 13e à la basse).
+  - Upper structure barré pour les 13 simples (aucune triade du manuel sans b9 ni #11).
+  - Registre : la descente d'octave s'arrête avant de passer sous une limite grave, un voicing publié trop grave remonte ; main gauche des clusters entre Fa2 et Mi3. Hors périmètre, seuls changent des voicings que mon recentrage rendait boueux.
+  - Hors périmètre (7e, 9e, 6, add, m7b5, dim7) : inchangé, « on verra plus tard ».
+- **Mouvement 12 tons** (demandes de Narcisse) :
+  - Bug de niveau : `upgradeQualityForDifficulty` lisait la difficulté d'un palier comme un jeton de mouvement (« m9 » → illisible → 5★) : seul le niveau 5 enrichissait les accords. Le menu affichait « Avancé » mais le moteur était au niveau 3 → 7e simples. Corrigé (palier du chemin = niveau) ; défaut **Intermédiaire** (11e / 13e) ; chaque niveau change les qualités (7e, 9e, 11e/13e, #9/#11, alt).
+  - Saut direct : clic sur un accord de la liste (`goToStep`) ou sur une tonalité de la frise (`goToKey`), sans essai ni point.
+  - Tonalité en cours en tête du panneau de droite (et au-dessus de l'accord) ; réglages du tour à gauche en grille étiquette / contrôle : Niveau, Tonalités (12 bascules), Ordre (chromatique, quartes, quintes), Départ.
+  - Bibliothèque : fenêtre Astra centrée (comme Sessions MIDI / Coach / Pédagogie), cartes en grille.
+  - Textes des 12 mouvements réécrits en degrés (justes dans toute tonalité et tout niveau) ; noms faux corrigés : « IV-V-vi-ii pop » (jouait vi-ii), « Turnaround III-VI-II-V-I » (rien de chromatique), « Emprunt bIIImaj7 » (bIII n'est pas un sous-dominant mineur). Barry Harris : « les deux accords partagent presque toutes leurs notes » était faux (aucune note commune).
+- **Mode Progression retiré** (décision de Narcisse : il choisissait seul extensions et altérations). « Ma grille » (bibliothèque) : accords tapés en symboles, joués comme un mouvement dans les tonalités choisies, qualités gardées telles quelles ; tonalité de lecture déduite (dernier accord si tonique mineure, sinon gamme majeure qui contient le plus de fondamentales) ; accords impossibles ignorés et annoncés.
+- Validation : exercices **438/438**, parseur 51/51, Copilot 126/126, test:chords 98/98, Parties 1 et 3 OK, D2 10/10, test-training-dom 11 échecs voulus, build OK, essai Chromium (sombre et clair) sans erreur. Échecs préexistants inchangés : test-coach-dom (2), test-load-session (window), test-voicing-preview (1), test-skin-manager (2).
+
 ### 2026-09-24 (suite) — Registre étendu à toutes les familles, parseur 6/9, tests UI
 
 - **Registre** (demande de Narcisse : « étends la règle aux autres familles ») : même principe que Drop 3 (le voicing entier descend d'une octave tant que son milieu dépasse un plafond), plafond par famille, choisi sur les données des 12 tons :
@@ -217,6 +235,8 @@ Compte des pitch classes uniques avec scope :
 5. Les familles stride/open/spread utilisent des rôles non-fondamentaux incluant la quinte pour atteindre le nombre de voix requis sans doublon de fondamentale inter-main.
 6. Registre (2026-09-24) : toutes les familles sont recentrées dans l'Exercice (`withPlayableRegister`, plafond du milieu par famille : Do4 Shell / Two-note shell / Stride, Mi4 Rootless, Mi5 4-way close, Do5 pour le reste). Le référentiel VoicingLab n'est pas modifié ; `voicing.octaveShift` et l'info-bulle signalent le décalage.
 7. Exercice : la cible d'une réponse est toujours l'accord ANNONCÉ. `detectChord` nomme ce qui est joué (message « Vous avez joué … ») et n'accepte une réponse que s'il nomme exactement cet accord ; il ne lit plus jamais le voicing affiché pour fixer la cible.
+8. Accords de 11e, de 13e et altérés : chaque voicing servi respecte la définition de sa famille et les règles des manuels (`textbook-voicings.js`) ; les voicings VoicingLab non conformes sont reconstruits sur les mêmes notes (`voicing.rebuilt`, `rebuiltFrom`). Les autres qualités restent 100 % VoicingLab.
+9. Mouvement 12 tons : seul mode à grille (Progression retiré) ; « Ma grille » garde les qualités tapées ; tonalités du tour choisies (`keySet`, `keyOrder`, `keyChoice`).
 
 ## Fichiers clés
 
