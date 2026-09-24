@@ -267,6 +267,7 @@ Compte des pitch classes uniques avec scope :
 15. Option « Main gauche » par style (`state.leftHandStyle`, `setLeftHandStyle`, `styleLeftHand`) : la main gauche Gospel / Ballade / Swing fait partie du voicing de la carte (`styleAdded`, `leftHandStyle`), les favoris la gardent.
 16. Voice leading de l'utilisateur (2026-09-24, soir) : note du dessus imposée par accord (`prog.topIntervals`, intervalle depuis la fondamentale → transposée ton par ton ; `setStepTopNote`). `chainVoicings(…, tops)` prend le voicing qui la porte au moindre coût (mouvement depuis l'accord précédent + pénalité : autre technique +3, technique de couleur +6, dessus sous Mi4 ou au-dessus de La5, moins de 3 notes) ; faute de voicing, dessus libre et `topMissed`. Les flèches d'un accord libèrent sa note. La démo ne brode pas et ne monte pas au-dessus d'une note choisie. Grilles enregistrées : `practice-grids.js` (localStorage `piano-jazz-exercise-grids`), catégorie « Perso » de la bibliothèque.
 17. Tensions en passage (2026-09-24, nuit, règle de Narcisse) : accords principaux sans tension (`isTensionQuality` : dominantes altérées, diminués, augmentés ; maj7#11, m7b5, m(maj7) permis), dominantes à la 13e au plus, 7e simple devant un accord mineur. Passages par niveau (`planPassingChord` : 3 diminués, 4 7b9 / 7#5 / 7b5, 5 7alt / 7#9) ou écrits (`movement.passing`), rangés sur l'accord qu'ils suivent (`passingChord`), enchaînés avec leurs voisins, étapes à jouer (`prog.onPassing`). Bibliothèque : 61 mouvements, 9 catégories.
+18. Copilote et sessions (2026-09-24, soir) : les exemples du Copilote sont voicés par l'Exercice (`copilot-demo.js`, `buildExampleChords`) — par défaut main droite en rootless enchaînés au-dessus de la basse (pas le mode Auto, qui commence par les shells), rootless trop grave remonté d'une octave ; triades, accords sur basse et accords sans voicing à deux mains voicés à part (`voiceChord` : triade serrée au plus petit mouvement, basse écrite en octave) ; `isGridChordPlayable` dit ce que l'Exercice sait jouer. Sessions : nom des accords joués `midi-chord-namer.js`, analyse du jeu `session-performance.js` (limites graves de Levine et 9e mineures reprises du moteur, `LOW_INTERVAL_LIMITS`, `minorNinthClashes`).
 
 ## Fichiers clés
 
@@ -277,6 +278,8 @@ Compte des pitch classes uniques avec scope :
 - `src/voicing-engine/generate-voicing-catalog.js` — orchestrateur et difficulté.
 - `src/voicing-engine/fixtures/REFERENCE_VOICINGS.json` — oracle des 9 accords obligatoires.
 - `src/practice-exercise.js` — intégration dans Entraînement → Exercices.
+- `src/pedagogie/copilot-demo.js` — exemples du Copilote (voicings de l'Exercice, triades et accords sur basse).
+- `src/recorder/midi-chord-namer.js`, `src/recorder/session-performance.js` — accords et analyse du jeu des sessions MIDI.
 
 ## Prochaines étapes
 
