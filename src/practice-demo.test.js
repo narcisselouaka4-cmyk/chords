@@ -9,7 +9,7 @@
 import { createPracticeExercise, listMovementNames } from './practice-exercise.js';
 import {
   buildDemo, buildGospelDemo, cardHands, demoHands, freeBass, topNeighbour, finalRun, strideSplit,
-  octaveFrame, passingDiminished, passingName, demoPassingChords, demoCardHands, DEMO_STYLES, DEMO_STYLE_IDS, defaultDemoStyle,
+  octaveFrame, demoPassingChords, demoCardHands, DEMO_STYLES, DEMO_STYLE_IDS, defaultDemoStyle,
 } from './practice-demo.js';
 import { createDemoPlayer } from './exercise-demo-player.js';
 
@@ -76,6 +76,13 @@ function playabilityProblems(demo, grid, beatsPerChord = 4) {
     const { lh, rh } = cardHands(c);
     const played = new Set(demo.events.filter((e) => e.type === 'noteOn' && e.time >= i * beatsPerChord && e.time < (i + 1) * beatsPerChord).map((e) => e.note));
     if (![...lh, ...rh].every((n) => played.has(n))) out.push(`carte de ${c.name} incomplète`);
+    // Accord de passage (celui de l'exercice) : joué en entier au 4e temps, annoncé.
+    if (!c.passingChord) return;
+    const beat = i * beatsPerChord + beatsPerChord - 1;
+    const onBeat = new Set(demo.events.filter((e) => e.type === 'noteOn' && e.time >= beat && e.time < beat + 1).map((e) => e.note));
+    const card = cardHands(c.passingChord);
+    if (![...card.lh, ...card.rh].every((n) => onBeat.has(n))) out.push(`passage ${c.passingChord.name} incomplet`);
+    if (!demo.events.some((e) => e.type === 'passing' && e.passing === i && e.time === beat)) out.push(`passage ${c.passingChord.name} non annoncé`);
   });
   return out;
 }
@@ -92,14 +99,6 @@ check('Dominante : fondamentale + 7e (G13 → G2 F3, comme le tutoriel gospel)',
 check('7e trop grave sous Fa2 (Levine) : une octave plus haut (C13 → C3 Bb3)', freeBass(chordOf(0, '13', [], [64, 69, 70, 72]), 'fifth', 64).join() === '48,58');
 check('Cadre d\'octave : le dessus doublé plus bas (D4 F4 G4 C5 → C4 D4 F4 G4 C5)', octaveFrame([62, 65, 67, 72]).join() === '60,62,65,67,72');
 check('Cadre d\'octave refusé s\'il crée une seconde mineure (C4 E4 A4 B4 : B3 contre C4)', octaveFrame([60, 64, 69, 71]).join() === '60,64,69,71');
-const toDm = passingDiminished(chordOf(0, '', [], [60, 64, 67, 72]), chordOf(2, 'm7', [], [62, 65, 69, 72]),
-  { lh: [36, 43], rh: [60, 64, 67, 72] }, { lh: [38, 45], rh: [62, 65, 69, 72] });
-check('Diminué de passage C → C#°7 → Dm : basse C#2, voix à un demi-ton au plus', toDm?.lh.join() === '37' && toDm?.rh.join() === '61,64,67,73', toDm && `${toDm.lh} | ${toDm.rh}`);
-const toG = passingDiminished(chordOf(2, 'm11', [], [60, 62, 65, 67, 72]), chordOf(7, '13', [], [59, 64, 65, 67]),
-  { lh: [38, 45], rh: [60, 62, 65, 67, 72] }, { lh: [43, 53], rh: [59, 64, 65, 67] });
-check('Dm11 → F#°7 → G13 : basse F#2, sensible de la basse suivante', toG?.lh.join() === '42' && toG.rh.every((n) => [6, 9, 0, 3].includes(n % 12)), toG && `${toG.lh} | ${toG.rh}`);
-check('Pas de diminué quand la basse ne monte ni d\'un ton ni d\'une quarte (C → Am)',
-  passingDiminished(chordOf(0, '', [], [60, 64, 67]), chordOf(9, 'm7', [], [60, 64, 67]), { lh: [36, 43], rh: [60, 64, 67] }) === null);
 // Le cas de Narcisse : Drop 2-4 de Gm11, G3 C4 | Bb4 F5 — plus de G1 G2 dessous.
 const gm11 = demoHands(chordOf(7, 'm11', [55, 60], [70, 77], 'drop2_4'), 'fifth');
 check('Drop 2-4 de Gm11 : pas de troisième main (G2 ne tient pas avec C4)', gm11.lh.join() === '55,60' && gm11.bass.length === 0, gm11.lh.join());
@@ -151,11 +150,16 @@ check('Accords tenus, pas rejoués : une attaque par note jusqu\'au 4e temps', c
   const { lh, rh } = demoHands(c, 'fifth');
   return [...lh, ...rh].every((n) => onsets({ events }, i * 4, i * 4 + 3).filter((e) => e.note === n).length === 1);
 }));
-// II-V-I en Do : F#°7 vers G13 au 4e temps (basse chromatique) ; rien après G13, dominante.
+// [Claude] — 2026-09-24 (nuit) — Passages de l'exercice (règle de Narcisse : tensions
+// en passage seulement) : II-V-I en Do, niveau 3 → F#dim7 après Dm11, rien après G13.
 const passingBass = [3, 7].map((beat) => onsets({ events }, beat, beat + 0.01, 'lh').map((e) => e.note).join());
-check('Diminué de passage au 4e temps (F#2 vers G2), pas après la dominante', passingBass.join('|') === '42|', passingBass.join('|'));
-check('Pas de diminué après une dominante (G7 → C)', passingDiminished(chordOf(7, '7', [], [59, 65, 67]), chordOf(0, 'maj7', [], [59, 64, 67]),
-  { lh: [43, 53], rh: [59, 65, 67] }, { lh: [36, 43], rh: [59, 64, 67] }) === null);
+check('Passage de l\'exercice au 4e temps (F#dim7, main gauche comprise), rien après la dominante',
+  chords[0].passingChord?.name === 'F#dim7' && !chords[1].passingChord && passingBass[0] !== '' && passingBass[1] === '', passingBass.join('|'));
+check('Le passage joué est celui de la carte (voicing enchaîné de l\'exercice)', (() => {
+  const card = cardHands(chords[0].passingChord);
+  const played = onsets({ events }, 3, 4).map((e) => e.note);
+  return [...card.lh, ...card.rh].every((n) => played.includes(n));
+})());
 check('Pas de cadre d\'octave sous Fa3 (rootless F3 G3 A3 C4 : pas de C3)', onsets({ events }, 0, 1, 'rh').map((e) => e.note).join() === '53,55,57,60',
   onsets({ events }, 0, 1, 'rh').map((e) => e.note).join());
 const closeGrid = movement('Cadence II-V-I majeur', { technique: 'close' });
@@ -169,9 +173,6 @@ check('Montée finale ascendante après le dernier accord', lastBar.length >= 4 
 // [Claude] — 2026-09-24 — Accords de passage affichés à droite (Narcisse : « ajoute
 // ces accords à droite ») : la liste vient du même plan que la démo.
 console.log('\n=== Démo : accords de passage (liste de droite) ===');
-check('Nom du diminué épelé sur la sensible de l\'accord suivant (Ddim7 avant Eb, C#dim7 avant Dm, Bdim7 avant C)',
-  passingName({ name: 'Ebmaj7#11' }, 2) === 'Ddim7' && passingName({ name: 'Dm11' }, 1) === 'C#dim7' && passingName({ name: 'Cmaj13' }, 11) === 'Bdim7'
-  && passingName({ name: 'Bmaj13' }, 10) === 'A#dim7');
 const turnaround = movement('Turnaround III-VI-II-V-I', { technique: 'auto' });
 const turnaroundPassing = demoPassingChords(turnaround, 'gospel');
 check('Turnaround en Do : G#dim7 après Em11, C#dim7 après Am11, F#dim7 après Dm11, rien après G13',
@@ -194,8 +195,17 @@ check('Ballade : la liste donne les notes jouées au 4e temps', balladePassing.e
   const played = onsets(balladeTurnaround, p.after * 4 + 3, p.after * 4 + 4).map((e) => e.note).sort((a, b) => a - b).join();
   return played === [...p.lh, ...p.rh].sort((a, b) => a - b).join();
 }));
-check('Aucun accord de passage en Comping swing ni en Plaqué (ni dans leur démo)', ['swing', 'plaque'].every((style) =>
-  demoPassingChords(turnaround, style).length === 0 && !buildDemo(turnaround, style).events.some((e) => e.type === 'passing')));
+// [Claude] — 2026-09-24 (nuit) — Les passages font partie de l'exercice : tous les styles les jouent.
+check('Comping swing et Plaqué jouent aussi les passages au 4e temps', ['swing', 'plaque'].every((style) =>
+  demoPassingChords(turnaround, style).map((p) => p.name).join() === 'G#dim7,C#dim7,F#dim7'
+  && buildDemo(turnaround, style).events.filter((e) => e.type === 'passing').map((e) => `${e.passing}@${e.time}`).join() === '0@3,1@7,2@11'));
+const advanced = movement('Turnaround III-VI-II-V-I', { technique: 'auto', difficulty: 5 });
+check('Niveau Avancé : la démo joue les passages altérés (E7alt, A7#9, D7alt, G7#9)',
+  demoPassingChords(advanced, 'gospel').map((p) => p.name).join() === 'E7alt,A7#9,D7alt,G7#9', demoPassingChords(advanced, 'gospel').map((p) => p.name).join());
+const beginner = movement('Turnaround III-VI-II-V-I', { technique: 'auto', difficulty: 1 });
+check('Niveau Débutant : aucun passage, dans aucun style', DEMO_STYLE_IDS.every((style) => !buildDemo(beginner, style).events.some((e) => e.type === 'passing')));
+const passingCard = demoCardHands(advanced, 0, 'gospel', { passing: true });
+check('Carte d\'un passage : ce que la démo y ajoute (basse de la main gauche)', passingCard === null || passingCard.lh.length > 0);
 
 // [Claude] — 2026-09-24 — Notes que la démo ajoute à la carte (Narcisse : « la démo
 // ajoute aussi des basses quand le mini-key ne l'affiche pas, je le veux aussi »).
@@ -244,13 +254,13 @@ check('Ballade : main gauche tenue jusqu\'au diminué de passage (4e temps) ou j
 const swing = buildDemo(chords, 'swing');
 check('Swing : Charleston — main droite au 1er temps et au « et » du 2e (croche swinguée)',
   cardRh.every((n) => onsets(swing, 0, 0.1, 'rh').some((e) => e.note === n) && onsets(swing, 1.6, 1.8, 'rh').some((e) => e.note === n)));
-const swingLh = onsets(swing, 0, 4, 'lh');
+const swingLh = onsets(swing, 0, 3, 'lh');
 check('Swing : main gauche au 1er et au 3e temps (fondamentale, puis quinte au-dessus ou en dessous)', swingLh.length === 2 && swingLh[0].time === 0 && swingLh[1].time === 2
   && [7, -5].includes(swingLh[1].note - swingLh[0].note), swingLh.map((e) => `${e.note}@${e.time}`).join(' '));
 
 const plaque = buildDemo(chords, 'plaque');
 check('Plaqué : la carte seule, une fois par mesure, tenue', chords.every((c, i) => {
-  const bar = onsets(plaque, i * 4, i * 4 + 4);
+  const bar = onsets(plaque, i * 4, i * 4 + 1);
   return bar.length === new Set(c.notes).size && bar.every((e) => e.time < i * 4 + 0.1 && c.notes.includes(e.note));
 }));
 
@@ -267,13 +277,15 @@ console.log('\n=== Démo : toute la bibliothèque, tous les styles ===');
 const problems = [];
 for (const name of listMovementNames()) {
   for (const technique of ['auto', 'rootless', 'drop2', 'drop2_4', 'spread', 'stride']) {
-    const grid = movement(name, { technique, key: 7 });
-    for (const style of DEMO_STYLE_IDS) {
-      playabilityProblems(buildDemo(grid, style), grid).forEach((p) => problems.push(`${name} ${technique} ${style} : ${p}`));
+    for (const difficulty of [1, 3, 5]) {
+      const grid = movement(name, { technique, key: 7, difficulty });
+      for (const style of DEMO_STYLE_IDS) {
+        playabilityProblems(buildDemo(grid, style), grid).forEach((p) => problems.push(`${name} ${technique} niveau ${difficulty} ${style} : ${p}`));
+      }
     }
   }
 }
-check('Tous les mouvements × 6 techniques × 4 styles : deux mains, sans pédale, carte entière', problems.length === 0, problems.slice(0, 3).join(' ; '));
+check('Tous les mouvements × 6 techniques × 3 niveaux × 4 styles : deux mains, sans pédale, carte et passages entiers', problems.length === 0, problems.slice(0, 3).join(' ; '));
 
 console.log('\n=== Lecteur de démo ===');
 {

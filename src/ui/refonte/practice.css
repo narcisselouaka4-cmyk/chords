@@ -3387,6 +3387,16 @@
   text-align: center;
 }
 
+/* [Claude] — 2026-09-24 (nuit) — Carte d'un accord de passage (étape de l'exercice). */
+:root[data-skin='global'] #practice-tab .exercise-target-passing,
+:root[data-skin='v2'] #practice-tab .exercise-target-passing {
+  margin-top: 2px;
+  color: var(--tr-muted, #9ca3af);
+  font-size: 0.72rem;
+  letter-spacing: .02em;
+  text-align: center;
+}
+
 /* Note du dessus gardée dans la grille Perso en cours. */
 :root[data-skin='global'] #practice-tab .exercise-top-saved,
 :root[data-skin='v2'] #practice-tab .exercise-top-saved {

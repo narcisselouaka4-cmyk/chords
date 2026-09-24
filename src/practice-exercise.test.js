@@ -23,6 +23,9 @@ import {
   topNoteChoices,
   spellChordTone,
   renderTopNoteSelect,
+  isTensionQuality,
+  planPassingChord,
+  PASSING_QUALITIES_BY_LEVEL,
 } from './practice-exercise.js';
 import { loadGrids, saveGrids, upsertGrid, removeGrid } from './practice-grids.js';
 import {
@@ -265,14 +268,14 @@ function checkPreviousNavigation() {
   check('mouvement : pas de précédent au premier accord', ex.canGoPrevious() === false);
 
   const prog = ex.getState().progression;
-  ex.check([...prog.chords[0].notes]); // valide le 1er accord → avance d'une étape
+  ex.check([...prog.chords[0].notes]); // valide le 1er accord → avance d'une étape (son passage, F#dim7)
   const afterAdvance = ex.getState();
-  if (afterAdvance.stepIndex > 0) {
+  if (afterAdvance.stepIndex > 0 || afterAdvance.progression.onPassing) {
     const scoreBefore = afterAdvance.score;
     check('mouvement : précédent disponible après avancée', ex.canGoPrevious() === true);
     const moved = ex.previous();
     const back = ex.getState();
-    check("mouvement : previous() recule d'une étape", moved !== null && back.stepIndex === afterAdvance.stepIndex - 1);
+    check("mouvement : previous() recule d'une étape (du passage à son accord)", moved !== null && back.stepIndex === 0 && !back.progression.onPassing && back.target.name === prog.chords[0].name);
     check('mouvement : previous() ne touche pas au score', back.score === scoreBefore);
     check('mouvement : previous() remet les tentatives à zéro', back.attempts === 0);
   } else {
@@ -906,14 +909,16 @@ function checkMovementLibraryComplete() {
   }
   check('Chaque mouvement choisi est construit tel quel (aucun remplacement)', failures.length === 0, failures.slice(0, 3).join(' ; '));
 
+  // [Claude] — 2026-09-24 (nuit) — Règle de Narcisse : l'altération du V se joue en passage.
   const minor = movementChords('II-V-I altéré en mineur', { difficulty: 2 });
-  check('II-V-I altéré en mineur (Do) : Dm7b5 G7#9b13 CmMaj7', minor.chords.map((c) => c.name).join(' ') === 'Dm7b5 G7#9b13 CmMaj7',
-    minor.chords.map((c) => c.name).join(' '));
+  check('II-V-I altéré en mineur (Do) : Dm7b5 G7 CmMaj7, G7alt en passage', minor.chords.map((c) => c.name).join(' ') === 'Dm7b5 G7 CmMaj7'
+    && minor.chords[1].passingChord?.name === 'G7alt', minor.chords.map((c) => c.name + (c.passingChord ? ` (${c.passingChord.name})` : '')).join(' '));
   check('II-V-I altéré en mineur : V sur Sol (pas Solb), tonalité C mineur',
     minor.chords[1].rootPc === 7 && minor.minor === true, `V=${minor.chords[1].rootPc}`);
   const minor5 = movementChords('II-V-I altéré en mineur', { difficulty: 5, key: 9 });
-  check('II-V-I altéré en mineur (La, niveau 5) : Bm7b5 E7#9b13 AmMaj7', minor5.chords.map((c) => c.name).join(' ') === 'Bm7b5 E7#9b13 AmMaj7',
-    minor5.chords.map((c) => c.name).join(' '));
+  check('II-V-I altéré en mineur (La, niveau 5) : Bm7b5 (B7alt) E7 (E7alt) AmMaj7',
+    minor5.chords.map((c) => c.name + (c.passingChord ? ` (${c.passingChord.name})` : '')).join(' ') === 'Bm7b5 (B7alt) E7 (E7alt) AmMaj7',
+    minor5.chords.map((c) => c.name + (c.passingChord ? ` (${c.passingChord.name})` : '')).join(' '));
   // Niveau 1 : structure de base du motif (le niveau 3 l'enrichit en 13e).
   const coltrane = movementChords('Cycle de tierces majeures', { difficulty: 1 });
   check('Cycle de tierces majeures (Do) : Cmaj7 Eb7 Abmaj7 B7 Emaj7 G7 Cmaj7',
@@ -921,8 +926,13 @@ function checkMovementLibraryComplete() {
   const coltrane3 = movementChords('Cycle de tierces majeures');
   check('Intermédiaire (niveau 3) enrichi : Cmaj13 Eb13 Abmaj13 B13 Emaj13 G13 Cmaj13',
     coltrane3.chords.map((c) => c.name).join(' ') === 'Cmaj13 Eb13 Abmaj13 B13 Emaj13 G13 Cmaj13', coltrane3.chords.map((c) => c.name).join(' '));
-  const levels = [1, 2, 3, 4, 5].map((difficulty) => movementChords('Cadence II-V-I majeur', { difficulty }).chords.map((c) => c.symbol).join(' '));
-  check('Chaque niveau change les qualités (II-V-I : 7e, 9e, 11e/13e, #9/#11, alt)', new Set(levels).size === 5, levels.join(' | '));
+  // [Claude] — 2026-09-24 (nuit) — Le niveau se lit surtout aux passages (Narcisse) :
+  // accords principaux 7e → 9e → 11e / 13e (#11 sur le majeur), passages diminués,
+  // puis 7b9 / 7#5 / 7b5, puis altérés.
+  const levels = [1, 2, 3, 4, 5].map((difficulty) => movementChords('Cadence II-V-I majeur', { difficulty }).chords
+    .map((c) => c.symbol + (c.passingChord ? ` (${c.passingChord.symbol})` : '')).join(' '));
+  check('Chaque niveau change la grille (II-V-I : 7e, 9e, 13e + diminué, 7b9 / 7#5, altérés)',
+    levels.join(' | ') === 'm7 7 maj7 | m9 9 maj9 | m11 (dim7) 13 maj13 | m11 (7b9) 13 (7#5) maj7#11 | m11 (7alt) 13 (7#9) maj7#11', levels.join(' | '));
   const tritone = movementChords('Tritone substitution V7', { difficulty: 1 });
   check('Tritone substitution V7 (Do) : Dm7 Db7 Cmaj7', tritone.chords.map((c) => c.name).join(' ') === 'Dm7 Db7 Cmaj7',
     tritone.chords.map((c) => c.name).join(' '));
@@ -1217,16 +1227,18 @@ function checkTypedCustomGrid() {
     && prog.name === CUSTOM_GRID_NAME && names(prog) === 'Dm7:m7 G7:7 Cmaj7:maj7' && prog.currentKey === 0 && !prog.notice,
     `${prog.name} ${names(prog)} ton ${prog.currentKey}`);
   check('Ma grille : Ré Fa La Do validé sur Dm7', basic.check([50, 53, 57, 60]).success);
+  // [Claude] — 2026-09-24 (nuit) — Règle de Narcisse : un accord de tension se joue en passage.
+  const withPassing = (prog) => prog.chords.map((c) => `${c.name}:${c.symbol}${c.passingChord ? ` (${c.passingChord.name}:${c.passingChord.symbol})` : ''}`).join(' ');
   const rich = typed('Dm11 G7#9b13 Cmaj13').getState().progression;
-  check('Extensions et altérations gardées (Dm11 G7#9b13 Cmaj13)', names(rich) === 'Dm11:m11 G7#9b13:7#9b13 Cmaj13:maj13', names(rich));
+  check('Extensions gardées ; G7#9b13 joué en passage entre Dm11 et Cmaj13', withPassing(rich) === 'Dm11:m11 (G7#9b13:7#9b13) Cmaj13:maj13', withPassing(rich));
   const alt = typed('Dm7b5 G7alt CmMaj7').getState().progression;
-  check('Grille mineure : lue en Do mineur, G7alt reste 7alt', alt.minor === true && names(alt) === 'Dm7b5:m7b5 G7alt:7alt CmMaj7:mMaj7', `${alt.minor} ${names(alt)}`);
+  check('Grille mineure : lue en Do mineur, G7alt reste 7alt (en passage)', alt.minor === true && withPassing(alt) === 'Dm7b5:m7b5 (G7alt:7alt) CmMaj7:mMaj7', `${alt.minor} ${withPassing(alt)}`);
   const turn = typed('Cmaj7 Am7 Dm7 G7').getState().progression;
   check('« Cmaj7 Am7 Dm7 G7 » lue en Do majeur (pas en Sol)', turn.currentKey === 0 && turn.description.includes('C majeur'), turn.description);
   const notations = typed('Bbmaj7 F#m7b5 CM7 C-7 Cø7 C°7 CmM7 C69').getState().progression;
-  check('Notations reconnues (Bbmaj7 F#m7b5 CM7 C-7 Cø7 C°7 CmM7 C69)',
-    notations.chords.map((c) => c.symbol).join(' ') === 'maj7 m7b5 maj7 m7 m7b5 dim7 mMaj7 6/9' && !notations.notice,
-    notations.chords.map((c) => c.symbol).join(' '));
+  check('Notations reconnues (Bbmaj7 F#m7b5 CM7 C-7 Cø7 C°7 CmM7 C69), C°7 en passage',
+    notations.chords.map((c) => c.symbol + (c.passingChord ? `(${c.passingChord.symbol})` : '')).join(' ') === 'maj7 m7b5 maj7 m7 m7b5(dim7) mMaj7 6/9' && !notations.notice,
+    notations.chords.map((c) => c.symbol + (c.passingChord ? `(${c.passingChord.symbol})` : '')).join(' '));
   const partial = typed('Dm7 C Xyz G7/B G7').getState().progression;
   check('Accords impossibles ignorés, pas en silence (triade, inconnu, basse séparée)',
     partial.chords.map((c) => c.name).join(' ') === 'Dm7 G7' && ['C,', 'Xyz', 'G7/B'].every((s) => partial.notice?.includes(s)), partial.notice);
@@ -1253,12 +1265,14 @@ function checkMovementNavigationAndKeys() {
   ex.setKeyChoice(7);
   ex.setContentChoice('Cycle de tierces majeures');
   const cycle = ex.getState().progression;
-  check('Cycle de tierces majeures en Avancé (Sol) : Gmaj7#11 Bb7alt …', cycle.chords.map((c) => c.name).join(' ') === 'Gmaj7#11 Bb7alt Ebmaj7#11 F#7alt Bmaj7#11 D7alt Gmaj7#11',
-    cycle.chords.map((c) => c.name).join(' '));
+  // Avancé : accords principaux sans tension, les altérations dans les passages.
+  check('Cycle de tierces majeures en Avancé (Sol) : Gmaj7#11 Bb13 … et les altérés en passage',
+    cycle.chords.map((c) => c.name).join(' ') === 'Gmaj7#11 Bb13 Ebmaj7#11 F#13 Bmaj7#11 D13 Gmaj7#11'
+    && cycle.chords.slice(0, -1).every((c) => /7(alt|#9)$/.test(c.passingChord?.name || '')), cycle.chords.map((c) => c.name + (c.passingChord ? ` (${c.passingChord.name})` : '')).join(' '));
   const score = ex.getState().score;
   ex.goToStep(5);
   let st = ex.getState();
-  check('Saut direct au 6e accord (D7alt) sans jouer les précédents', st.stepIndex === 5 && st.target.name === 'D7alt' && st.score === score, st.target.name);
+  check('Saut direct au 6e accord (D13) sans jouer les précédents', st.stepIndex === 5 && st.target.name === 'D13' && st.score === score, st.target.name);
   check('Saut direct : l\'accord attendu est bien le 6e', ex.isCorrect(st.target.notes) && !ex.isCorrect(cycle.chords[0].notes));
   ex.goToStep(99);
   check('Saut direct borné au dernier accord', ex.getState().stepIndex === cycle.chords.length - 1);
@@ -1528,6 +1542,138 @@ function checkMelodyAndGrids() {
   check('Grille sans nom ou sans accord refusée', upsertGrid([], { name: ' ', chords: [{ name: 'C7' }] }).grid === null && upsertGrid([], { name: 'X', chords: [] }).grid === null);
 }
 
+// [Claude] — 2026-09-24 (nuit) — Règle de Narcisse : « les accords altérés ne
+// seront utilisés que dans les accords de passage » ; le niveau se lit « surtout
+// avec les accords de passage » (diminué : intermédiaire ; 7b9, 7#5, 7b5 :
+// semi-avancé ; altérés, #9 : avancé). Les passages sont des étapes à jouer.
+function checkTensionRule() {
+  console.log('\n=== Tensions réservées aux accords de passage ===');
+  const tension = ['dim7', 'aug', '7b9', '7#9', '7b5', '7#5', '7b13', '7alt', '7#9b13', '7#11', '13#11', '7b5b9', '7#5#9'];
+  const calm = ['maj7#11', 'maj13#11', 'm7b5', 'mMaj7', 'm6', 'm11', '13', '9', '7', '7sus4', '13sus4', '6/9', 'maj9'];
+  check('Tensions : dominantes altérées, diminués, augmentés', tension.every(isTensionQuality), tension.filter((q) => !isTensionQuality(q)).join());
+  check('Pas des tensions : maj7#11 (« ça sonne bien »), m7b5, m(maj7), sus, 9, 13…', calm.every((q) => !isTensionQuality(q)), calm.filter(isTensionQuality).join());
+
+  const chordOf = (rootPc, quality, name) => ({ rootPc, quality, name });
+  const dm = chordOf(2, 'm7', 'Dm7');
+  const g7 = chordOf(7, '7', 'G7');
+  const c = chordOf(0, 'maj7', 'Cmaj7');
+  const em = chordOf(4, 'm7', 'Em7');
+  check('Niveaux 1 et 2 : aucun passage', planPassingChord(c, dm, 1) === null && planPassingChord(c, dm, 2) === null);
+  check('Niveau 3 : diminué sur la sensible (C → C#dim7 → Dm, Dm → F#dim7 → G)',
+    planPassingChord(c, dm, 3)?.name === 'C#dim7' && planPassingChord(dm, g7, 3)?.name === 'F#dim7');
+  check('Niveau 3 : diminué descendant quand la basse descend d\'un ton (Em → Ebdim7 → Dm)', planPassingChord(em, dm, 3)?.name === 'Ebdim7');
+  check('Niveau 3 : rien après une dominante qui mène déjà à l\'accord (G7 → C)', planPassingChord(g7, c, 3) === null);
+  check('Niveau 4 : dominante secondaire 7b9 / 7#5 / 7b5 (C → A7b9 → Dm, Dm → D7#5 → G)',
+    planPassingChord(c, dm, 4, { rotation: 0 })?.name === 'A7b9' && planPassingChord(dm, g7, 4, { rotation: 1 })?.name === 'D7#5'
+    && planPassingChord(g7, c, 4, { rotation: 2 })?.name === 'G7b5');
+  check('Niveau 5 : altérés (G7 → G7alt → C, C → A7#9 → Dm)',
+    planPassingChord(g7, c, 5, { rotation: 0 })?.name === 'G7alt' && planPassingChord(c, dm, 5, { rotation: 1 })?.name === 'A7#9');
+  check('Pas de passage quand la basse bouge d\'un demi-ton (Dm7 → Db7) ni sur G7sus4 → G7',
+    planPassingChord(dm, chordOf(1, '7', 'Db7'), 5) === null && planPassingChord(chordOf(7, '7sus4', 'G7sus4'), g7, 5) === null);
+  check('Qualités de passage par niveau : toutes des tensions', Object.values(PASSING_QUALITIES_BY_LEVEL).flat().every(isTensionQuality));
+
+  // Toute la bibliothèque, 12 tons × 5 niveaux : accords principaux sans tension,
+  // passages en tension, passages ajoutés selon le niveau.
+  const structural = [];
+  const passingNotTension = [];
+  const byLevel = { 1: new Set(), 2: new Set(), 3: new Set(), 4: new Set(), 5: new Set() };
+  for (const movement of movementsLibrary.movements) {
+    for (let difficulty = 1; difficulty <= 5; difficulty += 1) {
+      for (const key of [0, 3, 6, 9]) {
+        const prog = movementChords(movement.name, { key, difficulty });
+        prog.chords.forEach((chord, i) => {
+          if (isTensionQuality(chord.symbol)) structural.push(`${movement.name} ${chord.name}`);
+          const p = chord.passingChord;
+          if (!p) return;
+          if (!isTensionQuality(p.symbol)) passingNotTension.push(`${movement.name} ${p.name}`);
+          if (!movement.passing?.[i]) byLevel[difficulty].add(p.symbol);
+        });
+      }
+    }
+  }
+  check('Bibliothèque : aucun accord principal de tension (61 mouvements, 5 niveaux)', structural.length === 0, structural.slice(0, 3).join(' ; '));
+  check('Bibliothèque : chaque passage est un accord de tension', passingNotTension.length === 0, passingNotTension.slice(0, 3).join(' ; '));
+  const levelSets = [1, 2, 3, 4, 5].map((l) => [...byLevel[l]].sort().join('/'));
+  check('Passages ajoutés par le niveau : rien, rien, diminués, 7b9 / 7#5 / 7b5, altérés',
+    levelSets.join(' | ') === ' |  | dim7 | 7#5/7b5/7b9 | 7#9/7alt', levelSets.join(' | '));
+  check('Bibliothèque enrichie : au moins 60 mouvements, 9 catégories', movementsLibrary.movements.length >= 60
+    && new Set(movementsLibrary.movements.map((m) => m.category)).size === 9, `${movementsLibrary.movements.length} / ${[...new Set(movementsLibrary.movements.map((m) => m.category))].join(', ')}`);
+  const barry = movementChords('Alternance mineur 6 – diminué (Barry Harris)', { difficulty: 1 });
+  check('Passages écrits par le mouvement, dès le niveau 1 (Barry Harris : Cm6, Bdim7 entre chaque position)',
+    barry.chords.map((c) => c.name + (c.passingChord ? `(${c.passingChord.name})` : '')).join(' ') === 'Cm6(Bdim7) Cm6(Bdim7) Cm6(Bdim7) Cm6');
+  check('Barry Harris : les quatre positions de Cm6 (dessus C, Eb, G, A)',
+    barry.chords.map((c) => Math.max(...c.notes) % 12).join() === '0,3,7,9', barry.chords.map((c) => Math.max(...c.notes) % 12).join());
+
+  console.log('\n=== Accords de passage : étapes à jouer ===');
+  const ex = createPracticeExercise();
+  ex.setMode('movement');
+  ex.setTechnique('drop2');
+  ex.setDifficulty(4);
+  ex.setKeyChoice(0);
+  ex.setContentChoice('Cadence II-V-I majeur');
+  let st = ex.getState();
+  const [dm11, g13] = st.progression.chords;
+  check('Passage d\'un Drop 2 sans 7b9 publié : voicing d\'une autre technique, enchaîné', dm11.passingChord?.name === 'D7b9'
+    && dm11.passingChord.voicing.technique !== 'drop2' && dm11.passingChord.notes.length >= 3, `${dm11.passingChord?.name} ${dm11.passingChord?.voicing.technique}`);
+  let chainedCost = 0;
+  let firstCost = 0;
+  let passages = 0;
+  for (const name of listMovementNames()) {
+    for (const technique of ['drop2', 'rootless']) {
+      const prog = movementChords(name, { key: 5, difficulty: 5, technique });
+      for (const chord of prog.chords) {
+        const p = chord.passingChord;
+        if (!p) continue;
+        const v = exerciseVoicingsFor(p.rootPc, p.symbol, p.voicing.technique)[0];
+        chainedCost += voiceLeadingCost(chord.notes, p.notes);
+        firstCost += voiceLeadingCost(chord.notes, [...v.lh, ...v.rh]);
+        passages += 1;
+      }
+    }
+  }
+  check('Passages enchaînés : au moins 30 % de mouvement en moins qu\'une variante fixe', passages > 100 && chainedCost < firstCost * 0.7,
+    `${(chainedCost / passages).toFixed(1)} contre ${(firstCost / passages).toFixed(1)} demi-tons sur ${passages} passages`);
+  check('Étapes de la tonalité : 3 accords + 2 passages', st.target.stepProgress === '1 / 5 accords', st.target.stepProgress);
+  check('Accord joué → étape suivante = son passage (D7b9)', ex.check(dm11.notes).success && ex.getState().progression.onPassing && ex.getState().target.name === 'D7b9');
+  check('Passage attendu : les notes de Dm11 ne suffisent plus', !ex.isCorrect(dm11.notes) && ex.isCorrect(dm11.passingChord.notes));
+  check('Passage joué → accord suivant (G13)', ex.check(dm11.passingChord.notes).success && !ex.getState().progression.onPassing && ex.getState().target.name === g13.name);
+  ex.previous();
+  st = ex.getState();
+  check('Précédent depuis G13 : retour au passage D7b9', st.progression.onPassing && st.stepIndex === 0 && st.target.name === 'D7b9');
+  ex.goToStep(2);
+  ex.goToPassing(1);
+  st = ex.getState();
+  check('Saut direct au passage qui suit G13 (G7#5), compteur 4 / 5', st.progression.onPassing && st.target.name === 'G7#5' && st.target.stepProgress === '4 / 5 accords', `${st.target.name} ${st.target.stepProgress}`);
+  const before = st.target.notes.join();
+  ex.setVariant(1);
+  st = ex.getState();
+  check('Flèches sur un passage : sa variante change, il reste l\'étape affichée', st.progression.onPassing && st.target.name === 'G7#5' && (st.target.notes.join() !== before || st.target.voicing.variantCount === 1)
+    && st.progression.passingAnchors[1]?.technique === st.target.voicing.technique);
+  ex.setStepTopNote(1, 4, { passing: true });
+  st = ex.getState();
+  check('Note du dessus d\'un passage (G7#5, dessus B)', Math.max(...st.target.notes) % 12 === 11 && st.progression.passingTopIntervals[1] === 4, st.target.notes.join());
+  const bars = st.progression.chords.map((c) => c.name + (c.passingChord ? `(${c.passingChord.name})` : '')).join(' ');
+  ex.goToStep(2);
+  ex.check(ex.getState().target.notes);
+  st = ex.getState();
+  check('Dernier accord joué : tonalité suivante, sur son premier accord', st.progression.keyIndex === 1 && st.stepIndex === 0 && !st.progression.onPassing, bars);
+
+  const grid = createPracticeExercise();
+  grid.setCustomGrid([{ name: 'Cmaj7' }, { name: 'A7b9', top: 1 }, { name: 'Dm7' }, { name: 'G7' }]);
+  st = grid.getState();
+  check('Ma grille : A7b9 joué en passage entre Cmaj7 et Dm7, aucun passage ajouté par le niveau',
+    st.progression.chords.map((c) => c.name + (c.passingChord ? `(${c.passingChord.name})` : '')).join(' ') === 'Cmaj7(A7b9) Dm7 G7');
+  check('Ma grille : note du dessus du passage gardée (A7b9, dessus Bb)', Math.max(...st.progression.chords[0].passingChord.notes) % 12 === 10);
+  grid.goToPassing(0);
+  grid.setStepTopNote(0, 4, { passing: true });
+  check('Ma grille : dessus du passage changé sur la carte → gardé dans la grille', grid.getState().customGrid[1].top === 4 && grid.getState().customGrid[0].top == null);
+  const lead = createPracticeExercise();
+  lead.setCustomGrid('C7#9 Fmaj7 Bb7alt Eb7b9 Abmaj7');
+  check('Ma grille ancienne : tension en tête ou deux de suite → reste un accord principal',
+    lead.getState().progression.chords.map((c) => c.name + (c.passingChord ? `(${c.passingChord.name})` : '')).join(' ') === 'C7#9 Fmaj7(Bb7alt) Eb7b9 Abmaj7',
+    lead.getState().progression.chords.map((c) => c.name + (c.passingChord ? `(${c.passingChord.name})` : '')).join(' '));
+}
+
 function checkChainedVoicings() {
   console.log('\n=== Mouvement : voicings enchaînés ===');
   let chained = 0; let fixed = 0; let pairs = 0;
@@ -1612,6 +1758,7 @@ async function runTests() {
   checkMovementNavigationAndKeys();
   checkChainedVoicings();
   checkMelodyAndGrids();
+  checkTensionRule();
   checkLeftHandStyles();
   checkCardDemoAdditions();
   checkPianistRealism();

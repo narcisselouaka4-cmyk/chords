@@ -71,6 +71,7 @@ import {
   TECHNIQUE_LABELS,
   topNoteChoices,
   spellChordTone,
+  isTensionQuality,
 } from './practice-exercise.js';
 import { loadGrids, saveGrids, upsertGrid, removeGrid } from './practice-grids.js';
 import movementsLibrary from './data/movements-library.json' with { type: 'json' };
@@ -85,7 +86,7 @@ import {
   restoreFavorites,
 } from './practice-favorites.js';
 import { voicingToNoteSequence } from './pedagogie/copilot-voicing.js';
-import { buildDemo, DEMO_STYLES, DEMO_STYLE_IDS, defaultDemoStyle, demoPassingChords, demoCardHands } from './practice-demo.js';
+import { buildDemo, DEMO_STYLES, DEMO_STYLE_IDS, defaultDemoStyle, demoCardHands } from './practice-demo.js';
 import { createDemoPlayer } from './exercise-demo-player.js';
 import {
   listMidiOutputs, openMidiOutput, savedMidiOutputName, isMidiOutputActive, currentMidiOutput, sendMidi,
@@ -620,10 +621,9 @@ function cachedTopNoteChoices(rootPc, quality) {
 }
 
 // Rappels posés par initPracticeExercise (accord suivi, accord de passage, fin
-// de démo) ; passingChords : accords de passage que la démo jouera (liste de
-// droite) ; cardExtras : notes que la démo ajoute à la carte affichée ;
-// playingPassing : rang de l'accord suivi par celui qui sonne.
-const demoHooks = { onStep: null, onPassing: null, onEnd: null, passingChords: null, cardExtras: null, playingPassing: null };
+// de démo) ; cardExtras : notes que la démo ajoute à la carte affichée ;
+// playingPassing : rang de l'accord suivi par le passage qui sonne.
+const demoHooks = { onStep: null, onPassing: null, onEnd: null, cardExtras: null, playingPassing: null };
 const demoPlayer = createDemoPlayer({
   send: feedDemoEvent,
   onStep: (step) => demoHooks.onStep?.(step),
@@ -1309,25 +1309,32 @@ function renderExerciseProgressPanel(exState) {
   if (els.exerciseCurrentKey) els.exerciseCurrentKey.hidden = !prog;
   if (els.exerciseKeyStrip) els.exerciseKeyStrip.hidden = !prog;
   if (els.exerciseChordsEyebrow) els.exerciseChordsEyebrow.hidden = !prog;
+  // [Claude] — 2026-09-24 (nuit) — Accords de passage = étapes à jouer (règle de
+  // Narcisse : les tensions ne se jouent qu'en passage ; le niveau se lit aux passages).
+  const steps = prog ? prog.chords.reduce((n, c) => n + (c.passingChord ? 2 : 1), 0) : 0;
+  const stepNumber = prog
+    ? prog.chords.slice(0, prog.stepIndex || 0).reduce((n, c) => n + (c.passingChord ? 2 : 1), 0) + (prog.onPassing ? 1 : 0)
+    : 0;
   if (els.exerciseArenaEyebrow) {
     els.exerciseArenaEyebrow.textContent = prog && exState.target?.keyName
-      ? `À VOUS DE JOUER · ${exState.target.keyName.toUpperCase()} · ACCORD ${(prog.stepIndex || 0) + 1} / ${prog.chords.length}`
+      ? `À VOUS DE JOUER · ${exState.target.keyName.toUpperCase()} · ACCORD ${stepNumber + 1} / ${steps}${prog.onPassing ? ' · PASSAGE' : ''}`
       : 'À VOUS DE JOUER';
   }
 
   if (prog) {
     const keys = prog.keys || [];
-    const perKey = prog.chords.length || 1;
+    const perKey = steps || 1;
     const totalKeys = prog.totalKeys || keys.length || 1;
     const keyIndex = prog.keyIndex || 0;
     const stepIndex = prog.stepIndex || 0;
+    const onPassing = Boolean(prog.onPassing);
     const minor = Boolean(prog.minor);
     if (eyebrow) eyebrow.textContent = 'LE TOUR DES TONALITÉS';
     if (els.exerciseCurrentKey) els.exerciseCurrentKey.textContent = exState.target?.keyName || keyLabel(prog.currentKey, minor);
     counter.style.display = '';
     counter.innerHTML = `<span>Tonalité</span><strong>${String(keyIndex + 1).padStart(2, '0')}</strong><span>/ ${String(totalKeys).padStart(2, '0')}</span>`;
     track.style.display = '';
-    if (bar) bar.style.width = `${Math.max(0, Math.min(100, ((keyIndex * perKey + stepIndex) / (totalKeys * perKey)) * 100)).toFixed(1)}%`;
+    if (bar) bar.style.width = `${Math.max(0, Math.min(100, ((keyIndex * perKey + stepNumber) / (totalKeys * perKey)) * 100)).toFixed(1)}%`;
     if (els.exerciseKeyStrip) {
       els.exerciseKeyStrip.innerHTML = keys.map((pc, i) => {
         const state = i === keyIndex ? ' is-current' : i < keyIndex ? ' is-done' : '';
@@ -1335,24 +1342,28 @@ function renderExerciseProgressPanel(exState) {
         return `<button type="button" class="exercise-key-chip${state}" data-key-index="${i}" title="Aller en ${keyLabel(pc, minor)}"${i === keyIndex ? ' aria-current="true"' : ''}>${name}</button>`;
       }).join('');
     }
-    // [Claude] — 2026-09-24 — Accords de passage de la démo (Narcisse : « ajoute
-    // ces accords à droite ») : entre deux accords, cliquables pour les écouter,
-    // allumés quand la démo les joue. Ce ne sont pas des étapes de l'exercice.
-    const passing = demoHooks.passingChords?.(exState) || [];
-    path.innerHTML = prog.chords.map((chord, i) => {
-      const state = i === stepIndex ? 'is-active' : i < stepIndex ? 'is-done' : '';
-      // Voice leading : note du dessus choisie pour cet accord (⚠ si aucun voicing ne l'a au sommet).
+    // Voice leading : note du dessus choisie pour l'accord (⚠ si aucun voicing ne l'a au sommet).
+    const topTag = (chord) => {
       const rootName = /^[A-G][#b]*/.exec(chord.name || '')?.[0];
       const topName = chord.topInterval != null ? spellChordTone(rootName, chord.topInterval, chord.quality) : null;
-      const topTag = topName
+      return topName
         ? `<small class="exercise-path-top${chord.topMissed ? ' is-missed' : ''}" title="${chord.topMissed ? `Aucun voicing n'a ${topName} au sommet : dessus libre joué` : `Dessus : ${topName}`}">♪ ${topName}${chord.topMissed ? ' ⚠' : ''}</small>`
         : '';
-      const row = `<button type="button" class="${state}" data-step="${i}" title="Afficher ${chord.name}"${i === stepIndex ? ' aria-current="step"' : ''}><span>${i + 1}</span><div><strong>${chord.name || '—'}</strong>${topTag}</div></button>`;
-      const p = passing.find((item) => item.after === i);
+    };
+    const notes = (list) => list.map((n) => `${noteName(((n % 12) + 12) % 12)}${Math.floor(n / 12) - 1}`).join(' ');
+    // Accords de passage (entre deux accords) : des étapes comme les autres,
+    // cliquables, allumés aussi quand la démo les joue.
+    path.innerHTML = prog.chords.map((chord, i) => {
+      const current = i === stepIndex && !onPassing;
+      const state = current ? 'is-active' : i < stepIndex || (i === stepIndex && onPassing) ? 'is-done' : '';
+      const row = `<button type="button" class="${state}" data-step="${i}" title="Afficher ${chord.name}"${current ? ' aria-current="step"' : ''}><span>${i + 1}</span><div><strong>${chord.name || '—'}</strong>${topTag(chord)}</div></button>`;
+      const p = chord.passingChord;
       if (!p) return row;
-      const notes = (list) => list.map((n) => `${noteName(((n % 12) + 12) % 12)}${Math.floor(n / 12) - 1}`).join(' ');
+      const onIt = onPassing && i === stepIndex;
+      const passingState = onIt ? ' is-active' : i < stepIndex ? ' is-done' : '';
       const playing = demoHooks.playingPassing === i ? ' is-playing' : '';
-      return `${row}<button type="button" class="exercise-passing-chord${playing}" data-passing="${i}" title="Accord de passage joué par la démo — main gauche ${notes(p.lh)}, main droite ${notes(p.rh)}. Cliquez pour l'écouter."><span aria-hidden="true">↳</span><div><strong>${p.name}</strong><small>passage</small></div></button>`;
+      const hands = `main gauche ${notes(p.voicing?.leftHand || [])}, main droite ${notes(p.voicing?.rightHand || [])}`;
+      return `${row}<button type="button" class="exercise-passing-chord${passingState}${playing}" data-passing="${i}" title="Accord de passage (tension) — ${hands}. Cliquez pour le travailler."${onIt ? ' aria-current="step"' : ''}><span aria-hidden="true">↳</span><div><strong>${p.name}</strong><small>passage</small>${topTag(p)}</div></button>`;
     }).join('');
     quiet.textContent = 'Cliquez une tonalité ou un accord pour y aller directement.';
     quiet.style.display = '';
@@ -1391,25 +1402,6 @@ async function playExerciseVoicing(voicing) {
   demoPlayer.play({ events, beats: Math.max(...events.map((e) => e.time)) }, { tempo: 60 });
 }
 
-// [Claude] — 2026-09-24 — Écoute d'un accord de passage de la liste : ses notes
-// telles que la démo les joue, main gauche puis main droite égrenée.
-async function playPassingChord(passing) {
-  if (!passing) return;
-  try {
-    await resumeAudio();
-  } catch (err) {
-    console.warn('[PracticeExercise] Impossible de réveiller l\'audio', err);
-    return;
-  }
-  const notes = [...passing.lh, ...passing.rh].sort((a, b) => a - b);
-  // Tempo 60 : un temps = une seconde.
-  const events = notes.flatMap((note, k) => [
-    { time: k * 0.03, type: 'noteOn', note, velocity: 0.62 },
-    { time: 1.4, type: 'noteOff', note },
-  ]).sort((a, b) => a.time - b.time || (a.type === 'noteOff' ? -1 : 1));
-  demoPlayer.play({ events, beats: 1.5 }, { tempo: 60 });
-}
-
 function initPracticeExercise() {
   const panel = document.getElementById('practice-exercise-panel');
   if (!panel) return;
@@ -1444,10 +1436,12 @@ function initPracticeExercise() {
       const spelling = exState.mode === 'movement' && prog ? { keyPc: prog.currentKey, minor: Boolean(prog.minor) } : null;
       // Voice leading : note du dessus de l'accord affiché (Mouvement).
       let topNote = null;
-      const step = prog?.chords?.[prog.stepIndex || 0];
+      const mainChord = prog?.chords?.[prog.stepIndex || 0];
+      const step = prog?.onPassing ? mainChord?.passingChord : mainChord;
       if (exState.mode === 'movement' && step) {
         const rootName = /^[A-G][#b]*/.exec(step.name)?.[0];
-        if (topSavedNotice && (topSavedNotice.step !== (prog.stepIndex || 0) || topSavedNotice.name !== exState.customGridName)) topSavedNotice = null;
+        if (topSavedNotice && (topSavedNotice.step !== (prog.stepIndex || 0) || topSavedNotice.passing !== Boolean(prog.onPassing)
+          || topSavedNotice.name !== exState.customGridName)) topSavedNotice = null;
         topNote = {
           choices: cachedTopNoteChoices(step.rootPc, step.quality).map((c) => ({ ...c, name: spellChordTone(rootName, c.interval, step.quality) })),
           selected: step.topInterval ?? null,
@@ -1461,6 +1455,8 @@ function initPracticeExercise() {
         doubling: exState.doubling, isFavorite, layout: exState.mode === 'chord' ? 'chord' : 'default', spelling,
         leftHandStyle: exState.leftHandStyle,
         topNote,
+        // Accord de passage : l'accord vers lequel il mène (le premier de la grille pour un retour).
+        passingTo: prog?.onPassing ? (prog.chords[(prog.stepIndex || 0) + 1] || prog.chords[0])?.name : null,
         demo: demoHooks.cardExtras?.(exState) || null,
       });
     }
@@ -1736,10 +1732,11 @@ function initPracticeExercise() {
   document.getElementById('exercise-progress-path')?.addEventListener('click', (e) => {
     const passingRow = e.target.closest('[data-passing]');
     if (passingRow) {
-      // Accord de passage : on l'écoute (ce n'est pas une étape de l'exercice).
-      const exState = practiceExercise.getState();
-      const found = (demoHooks.passingChords?.(exState) || []).find((p) => p.after === Number(passingRow.dataset.passing));
-      if (found) playPassingChord(found);
+      // Accord de passage : une étape de l'exercice, comme les autres.
+      if (practiceExercise.getState().mode !== 'movement') return;
+      practiceExercise.goToPassing(Number(passingRow.dataset.passing));
+      feedbackDiv.textContent = '';
+      render();
       return;
     }
     const step = e.target.closest('[data-step]');
@@ -1789,12 +1786,16 @@ function initPracticeExercise() {
   // [Claude] — 2026-09-24 — Catégorie Perso : grilles enregistrées depuis « Ma
   // grille » (Narcisse : « une nouvelle catégorie Perso pour y stocker toutes nos grilles »).
   const PERSO_CATEGORY = 'Perso';
-  /** Résumé d'une grille enregistrée : accords et notes du dessus (« Dm11 ♪ C → G13 »). */
-  const gridSummary = (grid) => grid.chords.map((c) => {
-    const chord = gridChordFrom(c.name, c.top);
-    const top = chord ? gridTopLabel(chord) : '';
-    return top ? `${c.name} ♪ ${top}` : c.name;
-  }).join(' → ');
+  /** Résumé d'une grille enregistrée : accords, passages entre parenthèses, notes du dessus (« Dm11 ♪ C → (D7b9) → G13 »). */
+  const gridSummary = (grid) => {
+    const chords = grid.chords.map((c) => gridChordFrom(c.name, c.top));
+    const roles = gridRoles(chords.map((c) => c || { quality: '' }));
+    return grid.chords.map((c, i) => {
+      const top = chords[i] ? gridTopLabel(chords[i]) : '';
+      const label = top ? `${c.name} ♪ ${top}` : c.name;
+      return roles[i] === 'passing' ? `(${label})` : label;
+    }).join(' → ');
+  };
 
   function getLibraryItems() {
     const movements = (movementsLibrary?.movements || []).map((m) => ({
@@ -1939,6 +1940,42 @@ function initPracticeExercise() {
   };
   const gridTopLabel = (c) => (c.top == null ? '' : spellChordTone(c.root, c.top, c.quality));
 
+  // [Claude] — 2026-09-24 (nuit) — Règle de Narcisse : un accord de tension (7b9,
+  // 7alt, dim7…) ne se joue qu'en passage, entre deux accords principaux. Rôle de
+  // chaque accord de la grille, comme le moteur le lira (splitGridPassing) : un
+  // accord de tension qui suit un accord principal est son passage ; en tête ou
+  // après un autre passage, il reste principal.
+  function gridRoles(chords) {
+    let mainSeen = false;
+    let passingTaken = true;
+    return chords.map((c) => {
+      if (isTensionQuality(c.quality) && mainSeen && !passingTaken) {
+        passingTaken = true;
+        return 'passing';
+      }
+      mainSeen = true;
+      passingTaken = false;
+      return 'main';
+    });
+  }
+
+  /** Refus d'un accord de tension à la place `index` (null = il peut s'y jouer en passage). */
+  function passingRefusal(chord, index, chords) {
+    if (!isTensionQuality(chord.quality)) return null;
+    const before = chords[index - 1];
+    const after = chords[index + 1];
+    if (!before) return `${gridChordName(chord)} est un accord de tension : il se joue en passage, après un accord principal. Ajoutez d'abord l'accord qu'il suit.`;
+    if (isTensionQuality(before.quality) || (after && isTensionQuality(after.quality))) return 'Un seul accord de passage entre deux accords principaux.';
+    return null;
+  }
+
+  /** Libellé du bouton d'ajout : « Ajouter en passage » pour un accord de tension. */
+  function refreshGridAddLabel() {
+    if (!els.exerciseGridAdd) return;
+    const tension = isTensionQuality(els.exerciseGridQuality?.value ?? '');
+    els.exerciseGridAdd.textContent = gridEditing != null ? `Modifier l'accord ${gridEditing + 1}` : tension ? 'Ajouter en passage' : 'Ajouter';
+  }
+
   /** Menu « Dessus » : notes de l'accord choisi, grisées si aucun voicing ne les met au sommet. */
   function renderGridTopOptions(selected = null) {
     if (!els.exerciseGridTop || !els.exerciseGridRoot || !els.exerciseGridQuality) return;
@@ -1955,18 +1992,22 @@ function initPracticeExercise() {
 
   function renderGridChips() {
     if (!els.exerciseGridChips) return;
+    const roles = gridRoles(gridChords);
     els.exerciseGridChips.innerHTML = gridChords.length
       ? gridChords.map((c, i) => {
         const name = gridChordName(c);
         const top = gridTopLabel(c);
-        return `<li class="${i === gridEditing ? 'is-editing' : ''}"><button type="button" class="exercise-grid-chip" data-grid-edit="${i}" title="Modifier cet accord" aria-label="Modifier l'accord ${i + 1} : ${escapeAttr(name)}${top ? `, dessus ${escapeAttr(top)}` : ''}">${escapeAttr(name)}${top ? `<small>♪ ${escapeAttr(top)}</small>` : ''}</button><button type="button" data-grid-remove="${i}" aria-label="Retirer ${escapeAttr(name)}" title="Retirer">×</button></li>`;
+        const passing = roles[i] === 'passing';
+        // Accord de tension resté principal (grille d'avant la règle) : signalé.
+        const stray = !passing && isTensionQuality(c.quality);
+        const title = passing ? 'Accord de passage (tension) — cliquer pour le modifier'
+          : stray ? 'Accord de tension joué comme accord principal : placez-le après un accord principal' : 'Modifier cet accord';
+        return `<li class="${[i === gridEditing ? 'is-editing' : '', passing ? 'is-passing' : '', stray ? 'is-stray' : ''].filter(Boolean).join(' ')}"><button type="button" class="exercise-grid-chip" data-grid-edit="${i}" title="${title}" aria-label="Modifier l'accord ${i + 1} : ${escapeAttr(name)}${passing ? ', accord de passage' : ''}${top ? `, dessus ${escapeAttr(top)}` : ''}">${passing ? '<span aria-hidden="true">↳</span>' : ''}${escapeAttr(name)}${top ? `<small>♪ ${escapeAttr(top)}</small>` : ''}</button><button type="button" data-grid-remove="${i}" aria-label="Retirer ${escapeAttr(name)}" title="Retirer">×</button></li>`;
       }).join('')
       : '<li class="exercise-grid-empty">Aucun accord pour l\'instant : choisissez une fondamentale et une qualité, puis « Ajouter ».</li>';
     const editing = gridEditing != null;
-    if (els.exerciseGridAdd) {
-      els.exerciseGridAdd.textContent = editing ? `Modifier l'accord ${gridEditing + 1}` : 'Ajouter';
-      els.exerciseGridAdd.disabled = !editing && gridChords.length >= GRID_MAX;
-    }
+    if (els.exerciseGridAdd) els.exerciseGridAdd.disabled = !editing && gridChords.length >= GRID_MAX;
+    refreshGridAddLabel();
     if (els.exerciseGridCancel) els.exerciseGridCancel.hidden = !editing;
   }
 
@@ -1974,9 +2015,9 @@ function initPracticeExercise() {
    * Grille Perso en cours : la note du dessus choisie sur la carte est gardée
    * dans la grille enregistrée (même nom), comme si elle avait été modifiée
    * dans « Ma grille ». Les flèches (variantes) ne touchent pas la grille.
-   * @returns {{name: string, step: number}|null}
+   * @returns {{name: string, step: number, passing: boolean}|null}
    */
-  function keepCardTopInPerso(step) {
+  function keepCardTopInPerso(step, passing = false) {
     const exState = practiceExercise.getState();
     const name = String(exState.customGridName || '').trim().toLowerCase();
     const saved = name ? customGrids.find((g) => g.name.trim().toLowerCase() === name) : null;
@@ -1989,7 +2030,7 @@ function initPracticeExercise() {
     if (!grid) return null;
     customGrids = grids;
     saveGrids(window.localStorage, customGrids);
-    return { name: exState.customGridName, step };
+    return { name: exState.customGridName, step, passing };
   }
 
   function gridStatus(message) {
@@ -2005,7 +2046,10 @@ function initPracticeExercise() {
   }
 
   els.exerciseGridRoot?.addEventListener('change', () => renderGridTopOptions(els.exerciseGridTop?.value === '' ? null : Number(els.exerciseGridTop?.value)));
-  els.exerciseGridQuality?.addEventListener('change', () => renderGridTopOptions(els.exerciseGridTop?.value === '' ? null : Number(els.exerciseGridTop?.value)));
+  els.exerciseGridQuality?.addEventListener('change', () => {
+    renderGridTopOptions(els.exerciseGridTop?.value === '' ? null : Number(els.exerciseGridTop?.value));
+    refreshGridAddLabel();
+  });
   els.exerciseGridAdd?.addEventListener('click', () => {
     const root = els.exerciseGridRoot?.value;
     const quality = els.exerciseGridQuality?.value ?? '';
@@ -2014,12 +2058,23 @@ function initPracticeExercise() {
     const chord = { root, quality, top: topValue === '' ? null : Number(topValue) };
     if (gridEditing != null) {
       // Modification d'un accord précis : les autres restent tels quels.
+      const refusal = passingRefusal(chord, gridEditing, gridChords);
+      if (refusal) {
+        gridStatus(refusal);
+        return;
+      }
       gridChords[gridEditing] = chord;
       gridStatus(`Accord ${gridEditing + 1} modifié : ${gridChordName(chord)}${chord.top != null ? ` (dessus ${gridTopLabel(chord)})` : ''}.`);
       gridEditing = null;
     } else {
       if (gridChords.length >= GRID_MAX) return;
+      const refusal = passingRefusal(chord, gridChords.length, gridChords);
+      if (refusal) {
+        gridStatus(refusal);
+        return;
+      }
       gridChords.push(chord);
+      if (isTensionQuality(quality)) gridStatus(`${gridChordName(chord)} ajouté en passage, au dernier temps de ${gridChordName(gridChords[gridChords.length - 2])}.`);
     }
     renderGridChips();
   });
@@ -2164,7 +2219,7 @@ function initPracticeExercise() {
   // sortie MIDI si elle est choisie. Style choisi par l'utilisateur, ou selon le
   // mouvement (jazz → Comping swing, gospel / worship → Gospel, « Ma grille » →
   // Ballade) ; chaque style a son tempo.
-  // demoContext : { kind: 'movement', stepBefore } | { kind: 'preview', previewId } | null
+  // demoContext : { kind: 'movement', stepBefore, passingBefore } | { kind: 'preview', previewId } | null
   let demoContext = null;
   let previewId = null;
 
@@ -2220,7 +2275,7 @@ function initPracticeExercise() {
     }
     const exState = practiceExercise.getState();
     if (exState.mode !== 'movement' || !exState.progression) return;
-    startDemo(exState.progression.chords, { kind: 'movement', stepBefore: exState.progression.stepIndex || 0 }, exState.progression.movement?.style);
+    startDemo(exState.progression.chords, { kind: 'movement', stepBefore: exState.progression.stepIndex || 0, passingBefore: Boolean(exState.progression.onPassing) }, exState.progression.movement?.style);
   }
 
   function togglePreview(id) {
@@ -2239,16 +2294,12 @@ function initPracticeExercise() {
     if (chords) startDemo(chords, { kind: 'preview', previewId: id }, item.style);
   }
 
-  // Accords de passage que la démo jouera pour le mouvement affiché, dans le style choisi.
-  demoHooks.passingChords = (exState) => (exState.mode === 'movement' && exState.progression
-    ? demoPassingChords(exState.progression.chords, resolveDemoStyle(exState.progression.movement?.style))
-    : []);
   // Notes que la démo ajoute à l'accord affiché (basse, doublure), pour la carte.
   demoHooks.cardExtras = (exState) => {
     const prog = exState.mode === 'movement' ? exState.progression : null;
     if (!prog?.chords?.length) return null;
     const styleId = resolveDemoStyle(prog.movement?.style);
-    const extras = demoCardHands(prog.chords, prog.stepIndex || 0, styleId);
+    const extras = demoCardHands(prog.chords, prog.stepIndex || 0, styleId, { passing: Boolean(prog.onPassing) });
     return extras ? { ...extras, styleId, styleLabel: DEMO_STYLES[styleId]?.label } : null;
   };
   demoHooks.onStep = (step) => {
@@ -2259,10 +2310,11 @@ function initPracticeExercise() {
     render();
   };
   demoHooks.onPassing = (after) => {
-    // L'accord de passage s'allume dans la liste ; la carte reste sur l'accord joué avant.
+    // L'accord de passage s'allume dans la liste et la carte le montre.
     if (demoContext?.kind !== 'movement') return;
     demoHooks.playingPassing = after;
-    renderExerciseProgressPanel(practiceExercise.getState());
+    practiceExercise.goToPassing(after);
+    render();
   };
   demoHooks.onEnd = () => {
     const context = demoContext;
@@ -2270,7 +2322,7 @@ function initPracticeExercise() {
     previewId = null;
     demoHooks.playingPassing = null;
     if (context?.kind === 'movement' && practiceExercise.getState().mode === 'movement') {
-      practiceExercise.goToStep(context.stepBefore);
+      practiceExercise.goToStep(context.stepBefore, { passing: context.passingBefore });
       render();
     } else {
       refreshDemoButtons(practiceExercise.getState());
@@ -2405,9 +2457,11 @@ function initPracticeExercise() {
     // [Claude] — 2026-09-24 — Voice leading : note du dessus de l'accord affiché.
     const top = e.target.closest('[data-exercise-top]');
     if (top) {
-      const step = practiceExercise.getState().progression?.stepIndex || 0;
-      practiceExercise.setStepTopNote(step, top.value === '' ? null : Number(top.value));
-      topSavedNotice = keepCardTopInPerso(step);
+      const prog = practiceExercise.getState().progression;
+      const step = prog?.stepIndex || 0;
+      const passing = Boolean(prog?.onPassing);
+      practiceExercise.setStepTopNote(step, top.value === '' ? null : Number(top.value), { passing });
+      topSavedNotice = keepCardTopInPerso(step, passing);
       render();
       return;
     }

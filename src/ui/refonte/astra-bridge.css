@@ -1357,7 +1357,9 @@
 }
 /* [Claude] — 2026-09-24 — Accords de passage de la démo (Narcisse : « ajoute ces
    accords à droite ») : entre deux accords, en retrait et plus discrets ; allumés
-   quand la démo les joue. Ce ne sont pas des étapes de l'exercice. */
+   quand la démo les joue.
+   [Claude] — 2026-09-24 (nuit) — Ce sont désormais des étapes de l'exercice (les
+   tensions ne se jouent qu'en passage) : en cours et faits, comme les accords. */
 :root[data-skin='global'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord,
 :root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord {
   width: calc(100% - 18px);
@@ -1400,10 +1402,21 @@
   color: var(--tr-secondary);
 }
 :root[data-skin='global'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord.is-playing,
-:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord.is-playing {
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord.is-playing,
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord.is-active,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord.is-active {
+  border-style: solid;
   border-color: var(--tr-accent);
   background: var(--tr-accent-soft);
   color: var(--tr-text);
+}
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord.is-active > span,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord.is-active > span {
+  color: var(--tr-accent);
+}
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord.is-done > span,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord.is-done > span {
+  color: var(--tr-green);
 }
 :root[data-skin='global'] #practice-view-exercices .tr-progress-quiet,
 :root[data-skin='v2'] #practice-view-exercices .tr-progress-quiet {
@@ -1778,6 +1791,12 @@
 }
 #exercise-library .exercise-grid-chips > li > .exercise-grid-chip small { color: var(--tr-accent); font-size: 10.5px; }
 #exercise-library .exercise-grid-chips > li.is-editing { border-color: var(--tr-accent); background: var(--tr-accent-soft); }
+/* [Claude] — 2026-09-24 (nuit) — Accord de tension = accord de passage (règle de
+   Narcisse) : pastille en pointillés, précédée de ↳ ; resté principal = signalé. */
+#exercise-library .exercise-grid-chips > li.is-passing { border-style: dashed; background: none; }
+#exercise-library .exercise-grid-chips > li.is-passing > .exercise-grid-chip { color: var(--tr-secondary); }
+#exercise-library .exercise-grid-chips > li.is-passing > .exercise-grid-chip > span { color: var(--tr-muted); }
+#exercise-library .exercise-grid-chips > li.is-stray { border-color: var(--mini-key-added, #f59e0b); }
 #exercise-library .exercise-grid-chips > li > button:not(.exercise-grid-chip) {
   display: grid;
   place-items: center;

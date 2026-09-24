@@ -152,6 +152,11 @@ const MOVEMENT_QUALITY_ALIASES = {
 // Chaque palier aboutit UNIQUEMENT à une qualité présente dans le corpus
 // VoicingLab (voicinglab-C-5-familles-2026-09-23.csv). Retirés car absents
 // de VoicingLab : maj13#11, m13, 11.
+// [Claude] — 2026-09-24 (nuit) — Règle de Narcisse : « dans les accords
+// principaux, il n'y aura aucune altération » ; les tensions ne sont jouées
+// qu'en passage (voir PASSING_QUALITIES_BY_LEVEL). Les dominantes s'arrêtent
+// donc à la 13e ; maj7#11 reste (« ça sonne bien, ça peut être un accord
+// structurel »).
 const QUALITY_UPGRADE_PATHS = {
   // VoicingLab ne publie aucune triade majeure/mineure (vérifié sur les
   // 12 tons) : le palier 1 part de 6 / m6, sans 7e mais réellement publiés.
@@ -161,16 +166,104 @@ const QUALITY_UPGRADE_PATHS = {
   'm6': ['m6', 'm7', 'm9', 'm11', 'm11'],
   '7sus4': ['7sus4', '9sus4', '13sus4', '13sus4', '13sus4'],
   '9sus4': ['9sus4', '13sus4', '13sus4', '13sus4', '13sus4'],
-  '7': ['7', '9', '13', '7#9', '7alt'],
-  '9': ['9', '13', '7#9', '7alt', '7alt'],
-  '13': ['13', '7#9', '7alt', '7alt', '7alt'],
+  '7': ['7', '9', '13', '13', '13'],
+  '9': ['9', '13', '13', '13', '13'],
+  '13': ['13', '13', '13', '13', '13'],
   'maj7': ['maj7', 'maj9', 'maj13', 'maj7#11', 'maj7#11'],
   'maj9': ['maj9', 'maj13', 'maj7#11', 'maj7#11', 'maj7#11'],
   'm7': ['m7', 'm9', 'm11', 'm11', 'm11'],
   'm9': ['m9', 'm11', 'm11', 'm11', 'm11'],
   'm7b5': ['m7b5', 'm7b5', 'm7b5', 'm7b5', 'm7b5'],
-  'alt': ['alt', 'alt', 'alt', '7#9b13', '7#9b13'],
 };
+
+// Accords de tension (Narcisse : « tous les accords considérés comme des
+// accords de tension ne doivent pas figurer dans les accords structurels ») :
+// dominantes altérées (b9, #9, b5, #5, b13, #11, alt), diminués, augmentés.
+// Ne sont PAS des tensions : maj7#11, m7b5 (II du mineur), m(maj7) (tonique
+// mineure), sus, 9, 11, 13.
+const TENSION_QUALITIES = new Set(['dim', 'dim7', 'aug', 'augMaj7', 'maj7#5', 'alt']);
+
+/** Vrai pour un accord de tension, réservé aux accords de passage. */
+export function isTensionQuality(quality) {
+  const q = String(quality ?? '');
+  if (TENSION_QUALITIES.has(q) || /dim|aug/.test(q)) return true;
+  return /^(7|9|11|13)/.test(q) && /b9|#9|b5|#5|b13|#11|alt/.test(q);
+}
+
+// Accords de passage selon le niveau (Narcisse : « comment est-ce qu'on saura
+// si le niveau est avancé ? […] surtout avec les accords de passage » ; « un Mi
+// diminué 7 classique : intermédiaire ; un Fa#7b9 : intermédiaire ou
+// semi-avancé, tout comme un Fa7#5 ou b5 » ; « les Fa 7 altérés, les #9 »).
+// Niveaux 1 et 2 : aucun passage.
+export const PASSING_QUALITIES_BY_LEVEL = {
+  1: [],
+  2: [],
+  3: ['dim7'],
+  4: ['7b9', '7#5', '7b5'],
+  5: ['7alt', '7#9'],
+};
+
+/** Accord de dominante (7e mineure et tierce majeure, ou sus) : 7, 9, 13, 7sus4… */
+const isDominantQuality = (quality) => /^(7|9|11|13)/.test(String(quality ?? ''));
+
+const PASSING_LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+const PASSING_LETTER_PCS = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+
+/**
+ * Fondamentale d'un accord de passage écrite sur la lettre qui convient :
+ * `letterShift` lettres au-dessus de celle de l'accord visé (sensible : -1 →
+ * C#dim7 avant Dm ; diminué descendant : +1 → Ebdim7 avant Dm ; dominante
+ * secondaire : +4 → A7b9 avant Dm). Au-delà d'un dièse / bémol, l'orthographe
+ * de la tonalité.
+ */
+function spellPassingRoot(targetName, rootPc, letterShift, keyPc, minor) {
+  const letter = /^([A-G])/.exec(String(targetName || ''))?.[1];
+  if (!letter) return spellPcInKey(rootPc, keyPc, minor);
+  const written = PASSING_LETTERS[(PASSING_LETTERS.indexOf(letter) + letterShift + 7) % 7];
+  const shift = ((rootPc - PASSING_LETTER_PCS[written]) % 12 + 18) % 12 - 6;
+  const name = `${written}${shift > 0 ? '#' : shift < 0 ? 'b' : ''}`;
+  // Cb, Fb, E#, B# : illisibles pour un nom d'accord, on garde l'enharmonique courant.
+  if (Math.abs(shift) > 1 || ['Cb', 'Fb', 'E#', 'B#'].includes(name)) return spellPcInKey(rootPc, keyPc, minor);
+  return name;
+}
+
+/**
+ * Accord de passage joué entre deux accords principaux au niveau demandé, ou
+ * null (niveaux 1–2, basse qui bouge d'un demi-ton, dominante prolongée ou
+ * résolue sur place, diminué après une dominante qui mène déjà à l'accord
+ * suivant).
+ *   - niveau 3, diminués : sur la sensible de l'accord suivant (C → C#°7 → Dm,
+ *     Dm → F#°7 → G, F → G#°7 → Am), ou en descendant quand la basse descend
+ *     d'un ton (Em → Eb°7 → Dm) ;
+ *   - niveaux 4 et 5, dominantes de tension : la dominante de l'accord suivant
+ *     (C → A7b9 → Dm, F → E7#5 → Am) ; sur la même fondamentale quand l'accord
+ *     en cours est déjà sur la dominante (Dm7 → D7b9 → G7, G13 → G7alt → C).
+ *     Les qualités du niveau alternent d'un passage à l'autre (`rotation`).
+ * @returns {{rootPc: number, quality: string, name: string, kind: string}|null}
+ */
+export function planPassingChord(from, to, level, { rotation = 0, keyPc = 0, minor = false } = {}) {
+  const qualities = PASSING_QUALITIES_BY_LEVEL[level] || [];
+  if (!qualities.length || !from || !to) return null;
+  const move = (to.rootPc - from.rootPc + 12) % 12;
+  if (move === 1 || move === 11) return null;
+  // Même fondamentale sur une dominante (G7sus4 → G7, C7 → C7 du blues) : la
+  // suspension se résout, l'accord se prolonge, sans passage entre les deux.
+  if (move === 0 && isDominantQuality(from.quality)) return null;
+  const dominantRoot = (to.rootPc + 7) % 12;
+  const onDominant = from.rootPc === dominantRoot;
+  if (qualities.includes('dim7')) {
+    if (onDominant && isDominantQuality(from.quality)) return null;
+    const descending = move === 10;
+    const rootPc = descending ? (to.rootPc + 1) % 12 : (to.rootPc + 11) % 12;
+    const root = spellPassingRoot(to.name, rootPc, descending ? 1 : -1, keyPc, minor);
+    return { rootPc, quality: 'dim7', name: `${root}dim7`, kind: descending ? 'dim-descending' : 'dim-leading' };
+  }
+  const quality = qualities[rotation % qualities.length];
+  const root = onDominant
+    ? (/^([A-G][#b]*)/.exec(String(from.name || ''))?.[1] || spellPcInKey(dominantRoot, keyPc, minor))
+    : spellPassingRoot(to.name, dominantRoot, 4, keyPc, minor);
+  return { rootPc: dominantRoot, quality, name: `${root}${quality}`, kind: onDominant ? 'dominant-tension' : 'secondary-dominant' };
+}
 
 /**
  * Parse un token de progression sous la forme "<degré>:<qualité>" ou
@@ -214,8 +307,9 @@ function parseProgressionToken(token) {
 
 /**
  * Qualité d'un accord de mouvement au niveau demandé : le palier du chemin
- * d'enrichissement (niveau 1 = qualité de base … niveau 5 = altérée). Une
- * qualité hors chemin (m7b5, mMaj7, 7#9b13…) est fixée par le mouvement.
+ * d'enrichissement (niveau 1 = qualité de base … niveau 5 = la plus riche, sans
+ * tension : les altérations sont réservées aux passages). Une qualité hors
+ * chemin (m7b5, mMaj7…) est fixée par le mouvement.
  * [Claude] — 2026-09-24 — Corrige le niveau (Narcisse : « en Avancé, ce qui
  * s'affiche ne fait pas avancé ») : la difficulté d'un palier était lue comme
  * celle d'un jeton de mouvement (« m9 » → illisible → 5★), si bien que seul le
@@ -384,7 +478,18 @@ function parseTypedChord(name) {
  * Voicings réels VoicingLab d'une technique pour un accord, dans l'ordre publié
  * par le site. Aucun voicing n'est calculé ici : liste vide = technique indisponible.
  */
+const variantsCache = new Map();
+
 function voicingLabVariantsFor(rootPc, quality, technique) {
+  // Mêmes données, même résultat : gardé en mémoire (les enchaînements de
+  // passages essaient plusieurs techniques pour chaque accord). Copie de la
+  // liste : les variantes elles-mêmes ne sont jamais modifiées.
+  const key = `${rootPc}|${quality}|${technique}`;
+  if (!variantsCache.has(key)) variantsCache.set(key, computeVoicingLabVariants(rootPc, quality, technique));
+  return variantsCache.get(key).slice();
+}
+
+function computeVoicingLabVariants(rootPc, quality, technique) {
   // Registre d'abord : la main gauche ajoutée aux clusters se cale ensuite sous
   // la main droite, là où elle a été placée.
   const placed = familiesForTechnique(technique).flatMap((familyId) =>
@@ -1373,19 +1478,63 @@ export function topNoteChoices(rootPc, quality) {
 }
 
 /**
+ * Voicings d'un accord de passage quand la technique jouée ne le publie pas
+ * (7b9 en Drop 2, diminué en Rootless…) : toutes les techniques qui l'ont, à
+ * l'octave près ; les techniques de couleur en dernier recours. L'enchaînement
+ * garde celle qui bouge le moins entre les deux accords principaux.
+ */
+function passingCandidates(chord) {
+  const out = [];
+  for (const t of TECHNIQUES) {
+    if (t === 'auto') continue;
+    const variants = voicingLabVariantsFor(chord.rootPc, chord.quality, t);
+    const penalty = COLOR_TECHNIQUES.has(t) ? 4 : 1;
+    variants.forEach((v, index) => {
+      for (const shift of [0, -12, 12]) {
+        const candidate = shift ? shiftVariant(v, shift) : v;
+        if (shift && !chainRegisterOk(candidate)) continue;
+        out.push({ technique: t, count: variants.length, variant: candidate, index, penalty: penalty + (shift ? 0.5 : 0) });
+      }
+    });
+  }
+  return out;
+}
+
+/**
  * Voicings enchaînés d'une suite d'accords.
  * @param {{rootPc: number, quality: string}[]} chords
  * @param {string} technique
  * @param {number|null} difficulty
- * @param {Record<number, number>} anchors - rang de l'accord → variante imposée
+ * @param {Record<number, number|{technique: string, index: number}>} anchors - rang de l'accord → variante
+ *   imposée (dans la technique jouée, ou { technique, index } pour un accord de passage)
  * @param {Record<number, number>} [tops] - rang de l'accord → note du dessus imposée (classe de hauteur)
+ * @param {Set<number>} [passing] - rangs des accords de passage : si la technique jouée ne les publie
+ *   pas, ils prennent la technique qui s'enchaîne le mieux (voir passingCandidates)
  * @returns {({technique: string, variant: object, index: number, count: number, topMissed?: boolean}|null)[]}
  */
-export function chainVoicings(chords, technique, difficulty = null, anchors = {}, tops = {}) {
+export function chainVoicings(chords, technique, difficulty = null, anchors = {}, tops = {}, passing = new Set()) {
   let previous = null;
   return chords.map((chord, i) => {
-    const resolved = resolveVariants(chord.rootPc, chord.quality, technique, difficulty);
+    // Variante d'un passage fixée par les flèches : sa technique et son rang.
+    const pinned = anchors[i] != null && typeof anchors[i] === 'object' ? anchors[i] : null;
+    const pinnedVariants = pinned ? voicingLabVariantsFor(chord.rootPc, chord.quality, pinned.technique) : [];
+    const resolved = pinnedVariants.length
+      ? { technique: pinned.technique, variants: pinnedVariants }
+      : resolveVariants(chord.rootPc, chord.quality, technique, difficulty);
     if (!resolved) return null;
+    // Passage absent de la technique jouée (hors Auto) : la technique qui s'enchaîne le mieux.
+    const fallback = passing.has(i) && !pinned && technique !== 'auto' && resolved.technique !== technique && tops[i] == null;
+    if (fallback) {
+      let best = null;
+      for (const c of passingCandidates(chord)) {
+        const cost = (previous ? voiceLeadingCost(previous, sortedNotes(c.variant)) : 0) + c.penalty;
+        if (!best || cost < best.cost) best = { ...c, cost };
+      }
+      if (best) {
+        previous = sortedNotes(best.variant);
+        return { technique: best.technique, variant: best.variant, index: best.index, count: best.count };
+      }
+    }
     if (tops[i] != null) {
       let best = null;
       for (const c of topNoteCandidates(chord, technique, difficulty, tops[i])) {
@@ -1400,7 +1549,8 @@ export function chainVoicings(chords, technique, difficulty = null, anchors = {}
     }
     const { technique: t, variants } = resolved;
     const count = variants.length;
-    const anchor = anchors[i] != null ? ((anchors[i] % count) + count) % count : (previous ? null : 0);
+    const anchorIndex = pinned ? pinned.index : anchors[i];
+    const anchor = anchorIndex != null ? ((anchorIndex % count) + count) % count : (previous ? null : 0);
     let best = null;
     variants.forEach((v, index) => {
       if (anchor != null && index !== anchor) return;
@@ -1578,17 +1728,29 @@ function parseMovementToken(token) {
    * Accords d'un mouvement dans une tonalité. Un jeton illisible ou un accord
    * sans voicing est omis ; `failures` (facultatif) reçoit alors son nom, pour
    * le signaler à l'écran au lieu de changer de mouvement en silence.
+   * [Claude] — 2026-09-24 (nuit) — Accords de passage (tensions seulement) :
+   * ceux écrits par le mouvement (`movement.passing`, rang du jeton → jeton),
+   * sinon ceux du niveau (planPassingChord), sauf pour une grille perso
+   * (`noAutoPassing` : ses passages sont ceux de l'utilisateur). Chacun est
+   * rangé sur l'accord qu'il suit (`passingChord`) et s'enchaîne avec ses deux
+   * voisins. `passing` = { anchors, tops } des passages, par rang d'accord.
    */
-  function buildMovementChords(movement, keyPc, technique, difficulty, anchors = {}, doubling = 'none', failures = null, leftHandStyle = 'none', topIntervals = {}) {
+  function buildMovementChords(movement, keyPc, technique, difficulty, anchors = {}, doubling = 'none', failures = null, leftHandStyle = 'none', topIntervals = {}, passing = {}) {
     const tokens = movement.pattern.split('-');
     const minor = isMinorMovement(movement);
-    const skeleton = tokens.map((token) => {
-      const parsed = parseMovementToken(token);
+    const parsedTokens = tokens.map((token) => parseMovementToken(token));
+    const skeleton = tokens.map((token, tokenIndex) => {
+      const parsed = parsedTokens[tokenIndex];
       if (!parsed) {
         failures?.push(`« ${token} » (jeton illisible)`);
         return null;
       }
-      const quality = movement.preserveQualities
+      // Une dominante qui mène à un accord mineur reste une 7e : ses 9e / 13e
+      // naturelles heurteraient l'accord suivant (E13 → Am), et ses tensions
+      // (b9, b13) ne se jouent qu'en passage.
+      const next = parsedTokens[tokenIndex + 1];
+      const beforeMinor = Boolean(next && /^m(?!aj)/.test(next.quality) && isDominantQuality(parsed.quality));
+      const quality = movement.preserveQualities || beforeMinor
         ? parsed.quality
         : upgradeQualityForDifficulty(parsed.quality, difficulty);
       const rootPc = (keyPc + parsed.offset) % 12;
@@ -1597,27 +1759,73 @@ function parseMovementToken(token) {
         failures?.push(name);
         return null;
       }
-      return { rootPc, quality, name, token, degree: parsed.degree };
+      return { rootPc, quality, name, token, degree: parsed.degree, tokenIndex };
     }).filter(Boolean);
+    // Accords de passage : entre deux accords principaux, jamais après le dernier.
+    const written = movement.passing || {};
+    let rotation = 0;
+    const passingChords = skeleton.map((chord, i) => {
+      const next = skeleton[i + 1];
+      const token = written[chord.tokenIndex];
+      // Après le dernier accord, seul un passage écrit (retour au début d'une grille perso).
+      if (!next && !token) return null;
+      let planned = null;
+      if (token) {
+        const parsed = parseMovementToken(token);
+        if (parsed) {
+          const rootPc = (keyPc + parsed.offset) % 12;
+          planned = { rootPc, quality: parsed.quality, name: `${spellDegreeInKey(rootPc, parsed.degree, keyPc, minor)}${parsed.quality}`, kind: 'written', token };
+        }
+      } else if (!movement.noAutoPassing) {
+        planned = planPassingChord(chord, next, difficulty, { rotation, keyPc, minor });
+        if (planned) rotation += 1;
+      }
+      // Un passage sans aucun voicing est simplement omis.
+      return planned && resolveVariants(planned.rootPc, planned.quality, technique, difficulty) ? planned : null;
+    });
+    // Suite jouée : accords principaux et passages intercalés, enchaînés ensemble.
+    const sequence = [];
+    const mainAt = [];
+    const passingAt = [];
+    skeleton.forEach((chord, i) => {
+      mainAt[i] = sequence.push(chord) - 1;
+      if (passingChords[i]) passingAt[i] = sequence.push(passingChords[i]) - 1;
+    });
     // Notes du dessus imposées (voice leading) : intervalle depuis la
     // fondamentale, donc transposées avec la tonalité.
-    const tops = {};
+    const passingAnchors = passing.anchors || {};
+    const passingTops = passing.tops || {};
+    const chainAnchors = {};
+    const chainTops = {};
+    const passingSet = new Set();
     skeleton.forEach((chord, i) => {
-      if (topIntervals[i] != null) tops[i] = (chord.rootPc + topIntervals[i]) % 12;
+      if (anchors[i] != null) chainAnchors[mainAt[i]] = anchors[i];
+      if (topIntervals[i] != null) chainTops[mainAt[i]] = (chord.rootPc + topIntervals[i]) % 12;
+      if (passingAt[i] == null) return;
+      passingSet.add(passingAt[i]);
+      if (passingAnchors[i] != null) chainAnchors[passingAt[i]] = passingAnchors[i];
+      if (passingTops[i] != null) chainTops[passingAt[i]] = (passingChords[i].rootPc + passingTops[i]) % 12;
     });
     // Voicings enchaînés d'un accord à l'autre (voir chainVoicings).
-    const chained = chainVoicings(skeleton, technique, difficulty, anchors, tops);
-    return skeleton.map((chord, i) => {
-      const { technique: used, variant, index, count, topMissed } = chained[i];
+    const chained = chainVoicings(sequence, technique, difficulty, chainAnchors, chainTops, passingSet);
+    const targetAt = (chord, at, topInterval) => {
+      const { technique: used, variant, index, count, topMissed } = chained[at];
       const target = targetFromVoicing(chord.rootPc, chord.quality, voicingFromVariant(used, variant, index, count), used, doubling, leftHandStyle);
       return {
         ...target,
         name: chord.name,
+        quality: chord.quality,
+        topInterval: topInterval ?? null,
+        topMissed: Boolean(topMissed),
+      };
+    };
+    return skeleton.map((chord, i) => {
+      const p = passingChords[i];
+      return {
+        ...targetAt(chord, mainAt[i], topIntervals[i]),
         token: chord.token,
         degree: chord.degree,
-        quality: chord.quality,
-        topInterval: topIntervals[i] ?? null,
-        topMissed: Boolean(topMissed),
+        passingChord: p ? { ...targetAt(p, passingAt[i], passingTops[i]), passing: true, after: i, kind: p.kind } : null,
       };
     });
   }
@@ -1686,15 +1894,27 @@ const unplayableNames = (names) => `${names.join(', ')} (aucun voicing : accord$
  * @param {{name: string, rootPc: number|null, symbol: string|null}[]} typed
  */
 function customGridMovement(typed, name = null) {
-  const { chords } = splitCustomGrid(typed);
-  if (chords.length === 0) return null;
-  const { keyPc, minor } = customGridKey(chords);
-  const pattern = chords.map((c) => `${OFFSET_TOKENS[(c.rootPc - keyPc + 12) % 12]}:${c.symbol}`).join('-');
+  const { main, passing, source } = splitGridPassing(typed);
+  if (main.length === 0) return null;
+  const { keyPc, minor } = customGridKey(main);
+  const tokenOf = (c) => `${OFFSET_TOKENS[(c.rootPc - keyPc + 12) % 12]}:${c.symbol}`;
+  const pattern = main.map(tokenOf).join('-');
   // Notes du dessus choisies accord par accord (voice leading), rangées sur les
-  // accords jouables.
+  // accords jouables ; celles des passages sur l'accord qu'ils suivent.
   const topIntervals = {};
-  chords.forEach((c, i) => {
+  main.forEach((c, i) => {
     if (c.top != null) topIntervals[i] = c.top;
+  });
+  const passingTokens = {};
+  const passingTopIntervals = {};
+  Object.entries(passing).forEach(([i, c]) => {
+    passingTokens[i] = tokenOf(c);
+    if (c.top != null) passingTopIntervals[i] = c.top;
+  });
+  const names = [];
+  main.forEach((c, i) => {
+    names.push(c.name);
+    if (passing[i]) names.push(`(${passing[i].name})`);
   });
   return {
     id: 'custom-grid',
@@ -1702,11 +1922,43 @@ function customGridMovement(typed, name = null) {
     category: name ? 'Perso' : 'Ma grille',
     level: 1,
     preserveQualities: true,
+    // Les passages d'une grille perso sont ceux de l'utilisateur, aucun n'est ajouté.
+    noAutoPassing: true,
     pattern,
+    passing: passingTokens,
     writtenKey: keyPc,
     topIntervals,
-    description: `${chords.map((c) => c.name).join(' → ')} : lue en ${keyLabel(keyPc, minor)}, puis transposée ton par ton, extensions et altérations comprises.`,
+    passingTopIntervals,
+    // Rang de chaque accord dans la grille saisie (note du dessus changée sur la carte).
+    gridSource: source,
+    description: `${names.join(' → ')} : lue en ${keyLabel(keyPc, minor)}, puis transposée ton par ton, extensions et altérations comprises.`,
   };
+}
+
+/**
+ * Accords jouables d'une grille perso répartis en accords principaux et
+ * passages (règle de Narcisse : les tensions ne se jouent qu'en passage). Un
+ * accord de tension qui suit un accord principal devient son passage (un seul
+ * par accord) ; en tête de grille ou juste après un autre passage, il reste
+ * principal (grilles écrites avant la règle).
+ * @returns {{main: object[], passing: Record<number, object>, source: {main: number[], passing: Record<number, number>}}}
+ */
+function splitGridPassing(typed) {
+  const main = [];
+  const passing = {};
+  const source = { main: [], passing: {} };
+  typed.forEach((c, typedIndex) => {
+    if (c.symbol == null || !isQualityOnVoicingLab(c.symbol, c.rootPc)) return;
+    const last = main.length - 1;
+    if (isTensionQuality(c.symbol) && last >= 0 && passing[last] == null) {
+      passing[last] = c;
+      source.passing[last] = typedIndex;
+      return;
+    }
+    main.push(c);
+    source.main.push(typedIndex);
+  });
+  return { main, passing, source };
 }
 
 /**
@@ -1857,7 +2109,7 @@ export function createPracticeExercise() {
       if (movement.id !== 'custom-grid') return null;
       return ignored.length > 0 ? `Ignoré${ignored.length > 1 ? 's' : ''} : ${unplayableNames(ignored)}.` : null;
     };
-    const build = (movement, startKey, failures = null) => buildMovementChords(movement, startKey, state.technique, state.difficulty, {}, state.doubling, failures, state.leftHandStyle, movement.topIntervals || {});
+    const build = (movement, startKey, failures = null) => buildMovementChords(movement, startKey, state.technique, state.difficulty, {}, state.doubling, failures, state.leftHandStyle, movement.topIntervals || {}, { tops: movement.passingTopIntervals || {} });
     const isComplete = (movement, chords) => chords.length === movement.pattern.split('-').length;
     // Accords introuvables du mouvement choisi, pour l'expliquer à l'écran.
     let failures = [];
@@ -1917,14 +2169,37 @@ export function createPracticeExercise() {
       // Notes du dessus imposées (rang de l'accord → intervalle depuis sa
       // fondamentale), gardées d'une tonalité à l'autre.
       topIntervals: { ...(movement.topIntervals || {}) },
+      // Accords de passage (rangés sur l'accord qu'ils suivent) : variantes
+      // fixées ({ technique, index }) et notes du dessus.
+      passingAnchors: {},
+      passingTopIntervals: { ...(movement.passingTopIntervals || {}) },
       stepIndex: 0,
+      // Vrai quand l'étape en cours est le passage qui suit l'accord `stepIndex`.
+      onPassing: false,
       chords,
       notice,
     };
   }
 
+  /** Étape en cours d'un mouvement : l'accord principal, ou le passage qui le suit. */
+  function stepTarget(prog) {
+    const chord = prog?.chords?.[prog.stepIndex || 0] || null;
+    return prog?.onPassing && chord?.passingChord ? chord.passingChord : chord;
+  }
+
+  /** Nombre d'étapes d'une tonalité (accords principaux et passages) et rang de l'étape en cours. */
+  function stepCounts(prog) {
+    const total = prog.chords.reduce((n, c) => n + (c.passingChord ? 2 : 1), 0);
+    const before = prog.chords.slice(0, prog.stepIndex || 0).reduce((n, c) => n + (c.passingChord ? 2 : 1), 0);
+    return { total, index: before + (prog.onPassing ? 1 : 0) };
+  }
+
+  /** Passages de la tonalité en cours pour buildMovementChords. */
+  const passingOptions = (prog) => ({ anchors: prog.passingAnchors || {}, tops: prog.passingTopIntervals || {} });
+
   function attachMovementContext(chord, movementState) {
-    if (!movementState || movementState.type !== 'movement') return chord;
+    if (!movementState || movementState.type !== 'movement' || !chord) return chord;
+    const { total, index } = stepCounts(movementState);
     return {
       ...chord,
       movementName: movementState.name,
@@ -1933,7 +2208,7 @@ export function createPracticeExercise() {
       keyLabel: `Tonalité ${keyLabel(movementState.currentKey, isMinorMovement(movementState.movement))}`,
       keyName: keyLabel(movementState.currentKey, isMinorMovement(movementState.movement)),
       keyProgress: `${movementState.keyIndex + 1} / ${movementState.totalKeys} tons`,
-      stepProgress: `${movementState.stepIndex + 1} / ${movementState.chords.length} accords`,
+      stepProgress: `${index + 1} / ${total} accords`,
     };
   }
 
@@ -1993,11 +2268,22 @@ export function createPracticeExercise() {
       // Mouvement : la variante choisie est fixée sur l'accord affiché, les
       // accords suivants s'enchaînent à partir d'elle.
       const prog = state.progression;
+      const step = prog.stepIndex || 0;
       const current = state.target?.voicing?.variantIndex || 0;
-      prog.anchors = { ...prog.anchors, [prog.stepIndex || 0]: ((current + delta) % max + max) % max };
-      if (prog.topIntervals?.[prog.stepIndex || 0] != null) {
-        prog.topIntervals = { ...prog.topIntervals };
-        delete prog.topIntervals[prog.stepIndex || 0];
+      const index = ((current + delta) % max + max) % max;
+      if (prog.onPassing) {
+        // Passage : sa technique peut différer de celle de la grille, elle est fixée avec la variante.
+        prog.passingAnchors = { ...prog.passingAnchors, [step]: { technique: state.target?.voicing?.technique || state.technique, index } };
+        if (prog.passingTopIntervals?.[step] != null) {
+          prog.passingTopIntervals = { ...prog.passingTopIntervals };
+          delete prog.passingTopIntervals[step];
+        }
+      } else {
+        prog.anchors = { ...prog.anchors, [step]: index };
+        if (prog.topIntervals?.[step] != null) {
+          prog.topIntervals = { ...prog.topIntervals };
+          delete prog.topIntervals[step];
+        }
       }
       refreshProgressionChords();
       return;
@@ -2013,9 +2299,10 @@ export function createPracticeExercise() {
   function refreshProgressionChords() {
     const prog = state.progression;
     if (state.mode !== 'movement' || !prog?.chords) return;
-    prog.chords = buildMovementChords(prog.movement, prog.currentKey, state.technique, state.difficulty, prog.anchors, state.doubling, null, state.leftHandStyle, prog.topIntervals);
-    const step = Math.min(prog.stepIndex || 0, prog.chords.length - 1);
-    state.target = attachMovementContext(prog.chords[step], prog);
+    prog.chords = buildMovementChords(prog.movement, prog.currentKey, state.technique, state.difficulty, prog.anchors, state.doubling, null, state.leftHandStyle, prog.topIntervals, passingOptions(prog));
+    prog.stepIndex = Math.min(prog.stepIndex || 0, prog.chords.length - 1);
+    if (!prog.chords[prog.stepIndex]?.passingChord) prog.onPassing = false;
+    state.target = attachMovementContext(stepTarget(prog), prog);
     state.variant = state.target?.voicing?.variantIndex || 0;
   }
 
@@ -2024,7 +2311,10 @@ export function createPracticeExercise() {
     state.technique = technique;
     state.variant = 0;
     // Les variantes fixées n'ont de sens que dans la technique où elles l'ont été.
-    if (state.progression) state.progression.anchors = {};
+    if (state.progression) {
+      state.progression.anchors = {};
+      state.progression.passingAnchors = {};
+    }
     // En mode accord cible avec cible choisie, on la régénère directement.
     if (state.mode === 'chord' && state.targetChoice) {
       state.target = chordModeTarget(state.targetChoice.rootPc, state.targetChoice.symbol, technique);
@@ -2083,15 +2373,21 @@ export function createPracticeExercise() {
    * besoin de jouer les précédents. Ne compte ni essai ni point.
    * @param {number} stepIndex
    */
-  function goToStep(stepIndex) {
+  function goToStep(stepIndex, { passing = false } = {}) {
     const prog = state.progression;
     if (state.mode !== 'movement' || !prog?.chords?.length) return state;
     const index = Math.max(0, Math.min(prog.chords.length - 1, Number(stepIndex) || 0));
     prog.stepIndex = index;
+    prog.onPassing = Boolean(passing && prog.chords[index].passingChord);
     state.stepIndex = index;
     state.attempts = 0;
-    state.target = attachMovementContext(prog.chords[index], prog);
+    state.target = attachMovementContext(stepTarget(prog), prog);
     return state;
+  }
+
+  /** Saut direct à l'accord de passage qui suit l'accord `stepIndex` (clic dans la liste). */
+  function goToPassing(stepIndex) {
+    return goToStep(stepIndex, { passing: true });
   }
 
   /**
@@ -2115,9 +2411,10 @@ export function createPracticeExercise() {
   function loadMovementKey(prog, keyIndex) {
     prog.keyIndex = keyIndex;
     prog.stepIndex = 0;
+    prog.onPassing = false;
     prog.currentKey = prog.keys[keyIndex];
     const missing = [];
-    prog.chords = buildMovementChords(prog.movement, prog.currentKey, state.technique, state.difficulty, prog.anchors, state.doubling, missing, state.leftHandStyle, prog.topIntervals);
+    prog.chords = buildMovementChords(prog.movement, prog.currentKey, state.technique, state.difficulty, prog.anchors, state.doubling, missing, state.leftHandStyle, prog.topIntervals, passingOptions(prog));
     prog.notice = missing.length > 0
       ? `${missing.join(', ')} : aucun voicing en ${keyLabel(prog.currentKey, isMinorMovement(prog.movement))}, accord sauté.`
       : null;
@@ -2169,21 +2466,27 @@ export function createPracticeExercise() {
    * depuis sa fondamentale, 0–11) ; null la libère. Remplace la variante fixée
    * par les flèches sur cet accord ; la grille est réenchaînée.
    */
-  function setStepTopNote(step, interval) {
+  function setStepTopNote(step, interval, { passing = false } = {}) {
     const prog = state.progression;
     if (state.mode !== 'movement' || !prog?.chords?.[step]) return;
-    const tops = { ...(prog.topIntervals || {}) };
+    if (passing && !prog.chords[step].passingChord) return;
+    const topsKey = passing ? 'passingTopIntervals' : 'topIntervals';
+    const anchorsKey = passing ? 'passingAnchors' : 'anchors';
+    const tops = { ...(prog[topsKey] || {}) };
     if (interval == null || Number.isNaN(Number(interval))) delete tops[step];
     else tops[step] = ((Number(interval) % 12) + 12) % 12;
-    prog.topIntervals = tops;
-    const anchors = { ...(prog.anchors || {}) };
+    prog[topsKey] = tops;
+    const anchors = { ...(prog[anchorsKey] || {}) };
     delete anchors[step];
-    prog.anchors = anchors;
+    prog[anchorsKey] = anchors;
     // Grille perso : la note choisie devient celle de la grille (bibliothèque,
     // enregistrement dans Perso, reconstruction après un changement de réglage).
-    if (prog.movement?.id === 'custom-grid' && state.customGrid) {
-      const entry = splitCustomGrid(state.customGrid).chords[step];
-      if (entry) state.customGrid = state.customGrid.map((c) => (c === entry ? { ...c, top: tops[step] ?? null } : c));
+    const source = prog.movement?.gridSource;
+    if (prog.movement?.id === 'custom-grid' && state.customGrid && source) {
+      const typedIndex = passing ? source.passing[step] : source.main[step];
+      if (typedIndex != null && state.customGrid[typedIndex]) {
+        state.customGrid = state.customGrid.map((c, k) => (k === typedIndex ? { ...c, top: tops[step] ?? null } : c));
+      }
     }
     refreshProgressionChords();
   }
@@ -2276,7 +2579,7 @@ export function createPracticeExercise() {
   function canGoPrevious() {
     if (state.mode === 'chord') return state.history.length > 0;
     if (!state.progression) return false;
-    return state.progression.stepIndex > 0 || state.progression.keyIndex > 0 || state.history.length > 0;
+    return state.progression.stepIndex > 0 || state.progression.onPassing || state.progression.keyIndex > 0 || state.history.length > 0;
   }
 
   /**
@@ -2299,12 +2602,18 @@ export function createPracticeExercise() {
     }
 
     const prog = state.progression;
-    if (prog.stepIndex > 0) {
+    if (prog.onPassing) {
+      // Du passage à l'accord qu'il suit.
+      prog.onPassing = false;
+    } else if (prog.stepIndex > 0) {
       prog.stepIndex -= 1;
+      // L'étape d'avant est le passage de l'accord précédent, s'il en a un.
+      prog.onPassing = Boolean(prog.chords[prog.stepIndex]?.passingChord);
     } else if (prog.keyIndex > 0) {
-      // Retour au dernier accord de la tonalité précédente.
+      // Retour à la dernière étape de la tonalité précédente.
       loadMovementKey(prog, prog.keyIndex - 1);
       prog.stepIndex = Math.max(0, prog.chords.length - 1);
+      prog.onPassing = Boolean(prog.chords[prog.stepIndex]?.passingChord);
     } else {
       // Restauration depuis l'historique (ancien mouvement ou tonalité).
       const prev = popHistory();
@@ -2317,7 +2626,7 @@ export function createPracticeExercise() {
     state.stepIndex = prog.stepIndex;
     state.keyIndex = prog.keyIndex;
     state.attempts = 0;
-    state.target = attachMovementContext(prog.chords[prog.stepIndex], prog);
+    state.target = attachMovementContext(stepTarget(prog), prog);
     return { stepIndex: prog.stepIndex, keyIndex: prog.keyIndex };
   }
 
@@ -2336,7 +2645,7 @@ export function createPracticeExercise() {
   function previewMovement(name, keyPc = 0) {
     const movement = findMovement(name);
     if (!movement) return null;
-    const chords = buildMovementChords(movement, keyPc, state.technique, state.difficulty, {}, state.doubling, null, state.leftHandStyle, movement.topIntervals || {});
+    const chords = buildMovementChords(movement, keyPc, state.technique, state.difficulty, {}, state.doubling, null, state.leftHandStyle, movement.topIntervals || {}, { tops: movement.passingTopIntervals || {} });
     return chords.length > 0 ? chords : null;
   }
 
@@ -2373,13 +2682,21 @@ export function createPracticeExercise() {
   function previewGrid(input, name = null) {
     const movement = customGridMovement(typedGrid(input), name);
     if (!movement) return null;
-    const chords = buildMovementChords(movement, movement.writtenKey, state.technique, state.difficulty, {}, state.doubling, null, state.leftHandStyle, movement.topIntervals);
+    const chords = buildMovementChords(movement, movement.writtenKey, state.technique, state.difficulty, {}, state.doubling, null, state.leftHandStyle, movement.topIntervals, { tops: movement.passingTopIntervals || {} });
     return chords.length > 0 ? chords : null;
   }
 
   function advanceMovement() {
     if (state.mode !== 'movement' || !state.progression) return null;
     const prog = state.progression;
+    // Un accord principal suivi d'un passage : le passage est l'étape suivante.
+    if (!prog.onPassing && prog.chords[prog.stepIndex]?.passingChord) {
+      prog.onPassing = true;
+      state.stepIndex = prog.stepIndex;
+      state.keyIndex = prog.keyIndex;
+      return { completed: false };
+    }
+    prog.onPassing = false;
     prog.stepIndex++;
     if (prog.stepIndex >= prog.chords.length) {
       prog.keyIndex++;
@@ -2395,7 +2712,7 @@ export function createPracticeExercise() {
 
   /** Accord attendu maintenant : la cible (Accord cible) ou l'étape de la grille. */
   function expectedChord() {
-    return state.mode === 'chord' ? state.target : state.progression?.chords?.[state.stepIndex] || null;
+    return state.mode === 'chord' ? state.target : stepTarget(state.progression);
   }
 
   /** Vrai si `notes` est une bonne réponse, sans compter d'essai (voir judgeAnswer). */
@@ -2435,11 +2752,12 @@ export function createPracticeExercise() {
     }
 
     // Mode mouvement dans les 12 tons
-    const expected = state.progression.chords[state.stepIndex];
+    const expected = stepTarget(state.progression);
     if (success) {
-      const justCompletedKey = state.stepIndex + 1 >= state.progression.chords.length;
+      const { total, index } = stepCounts(state.progression);
+      const justCompletedKey = index + 1 >= total;
       const doneKeyName = state.target?.keyName;
-      pushHistory(state.progression.chords[state.stepIndex]);
+      pushHistory(expected);
       const advance = advanceMovement();
       if (!advance) {
         return { success: false, message: "Erreur interne de l'exercice." };
@@ -2459,7 +2777,7 @@ export function createPracticeExercise() {
           completed: true,
         };
       }
-      state.target = attachMovementContext(state.progression.chords[state.progression.stepIndex], state.progression);
+      state.target = attachMovementContext(stepTarget(state.progression), state.progression);
       state.stepIndex = state.progression.stepIndex;
       state.keyIndex = state.progression.keyIndex;
       if (justCompletedKey) {
@@ -2506,6 +2824,7 @@ export function createPracticeExercise() {
     setLeftHandStyle,
     setStepTopNote,
     previewGrid,
+    goToPassing,
     setContentChoice,
     clearContentChoice,
     setCustomGrid,
@@ -2580,6 +2899,7 @@ export function renderExerciseTarget(target, options = {}) {
       <div class="exercise-target-header">
         <div class="exercise-target-title">
           <div class="exercise-target-name">${escapeHtml(target.name)}</div>
+          ${target.passing ? `<div class="exercise-target-passing">↳ Accord de passage${options.passingTo ? `, vers ${escapeHtml(options.passingTo)}` : ''}</div>` : ''}
         </div>
         <div class="exercise-target-stars" aria-label="Difficulté ${difficulty} sur 5" title="Difficulté ${difficulty} sur 5">
           ${renderStars(difficulty)}

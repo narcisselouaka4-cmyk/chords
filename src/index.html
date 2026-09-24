@@ -268,12 +268,14 @@
                 <span class="tr-eyebrow exercise-settings-eyebrow">RÉGLAGES DU TOUR</span>
                 <div class="exercise-setting" id="exercise-difficulty-selector">
                   <label for="exercise-difficulty-select">Niveau</label>
-                  <select id="exercise-difficulty-select" aria-label="Niveau des accords (extensions et altérations)">
-                    <option value="1">Débutant · 7e</option>
-                    <option value="2">Semi-intermédiaire · 9e</option>
-                    <option value="3" selected>Intermédiaire · 11e / 13e</option>
-                    <option value="4">Semi-avancé · #9 / #11</option>
-                    <option value="5">Avancé · altérés</option>
+                  <!-- [Claude] — 2026-09-24 (nuit) — Règle de Narcisse : aucune tension dans les
+                       accords principaux ; le niveau se lit surtout aux accords de passage. -->
+                  <select id="exercise-difficulty-select" aria-label="Niveau : extensions des accords et accords de passage (tensions)">
+                    <option value="1">Débutant · 7e, sans passage</option>
+                    <option value="2">Semi-intermédiaire · 9e, sans passage</option>
+                    <option value="3" selected>Intermédiaire · 13e, passages diminués</option>
+                    <option value="4">Semi-avancé · passages 7b9, 7#5, 7b5</option>
+                    <option value="5">Avancé · passages altérés (alt, #9)</option>
                   </select>
                 </div>
                 <div class="exercise-setting exercise-setting-keys">
@@ -380,7 +382,7 @@
               <form class="exercise-grid-entry" id="exercise-grid-form" autocomplete="off">
                 <div class="exercise-grid-entry-text">
                   <span class="tr-eyebrow">MA GRILLE</span>
-                  <p>Choisissez vos accords un par un, extensions et altérations comprises, et si vous voulez la note du dessus de chacun (votre mélodie) : ils seront joués tels quels, ton après ton. Cliquez un accord pour le modifier.</p>
+                  <p>Choisissez vos accords un par un, extensions comprises, et si vous voulez la note du dessus de chacun (votre mélodie) : ils seront joués tels quels, ton après ton. Un accord de tension (7b9, 7alt, dim7…) s'ajoute en passage, après l'accord qu'il suit. Cliquez un accord pour le modifier.</p>
                 </div>
                 <div class="exercise-grid-builder">
                   <div class="exercise-grid-picker">

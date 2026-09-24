@@ -33,19 +33,25 @@
 //     (C → C#°7 → Dm, Dm → F#°7 → G). Procédés seulement : aucun arrangement
 //     n'est repris.
 //
+// [Claude] — 2026-09-24 (nuit) — Règle de Narcisse : les tensions ne se jouent
+// qu'en accord de passage, et le niveau se lit aux passages. Les passages sont
+// désormais ceux de l'exercice (practice-exercise.js : diminués au niveau 3,
+// 7b9 / 7#5 / 7b5 au 4, altérés au 5, ou écrits par le mouvement), voicings
+// enchaînés compris ; tous les styles les jouent au 4e temps.
+//
 // Quatre styles, une mesure de 4 temps par accord :
 //   - Gospel / worship (76) : main gauche fondamentale + quinte à l'octave 2
 //     (7e sur une dominante), main droite en cadre d'octave, accord égrené et
 //     tenu ; au 3e temps, la voix du dessus glisse vers une note voisine de
-//     l'accord ; au 4e, un diminué de passage quand la basse monte d'un ton ou
-//     d'une quarte ; accord final suivi d'une montée 1-2-5.
+//     l'accord ; au 4e, l'accord de passage ; accord final suivi d'une montée
+//     1-2-5.
 //   - Ballade (60) : main gauche tenue, main droite arpégée du grave à l'aigu
 //     (chaque doigt reste posé), deux notes du dessus reprises au 3e temps ;
-//     diminué de passage au 4e, comme en Gospel / worship.
+//     passage au 4e, arpégé doucement.
 //   - Comping swing (132) : rythme « Charleston » (1er temps, puis « et » du 2e
 //     en croche swinguée) ; main gauche libre : fondamentale au 1er temps, quinte
-//     au 3e (jeu « en deux »).
-//   - Plaqué (72) : la carte seule, tenue toute la mesure.
+//     au 3e (jeu « en deux ») ; passage au 4e.
+//   - Plaqué (72) : la carte seule, tenue toute la mesure ; passage au 4e.
 // Les temps sont exprimés en temps (noires) ; le lecteur les convertit selon le tempo.
 
 import { respectsLowIntervalLimits } from './voicing-engine/textbook-voicings.js';
@@ -189,54 +195,6 @@ export function octaveFrame(rh, lhTop = -Infinity) {
 }
 
 /**
- * Accord de passage du 4e temps (tutoriel gospel, vidéo de Narcisse) : un
- * diminué qui mène à l'accord suivant, basse chromatique.
- *   - la basse monte d'un ton (C → Dm) : diminué sur le demi-ton entre les deux (C#°7) ;
- *   - la basse monte d'une quarte (Em → Am, Dm → G) : diminué sur la sensible de
- *     l'accord suivant (G#°7, F#°7) ;
- *   - rien après une dominante, qui mène déjà à l'accord suivant.
- * Ses notes sont les plus proches de celles de l'accord en cours (chaque voix
- * bouge d'un ou deux demi-tons) ; la basse est prise à côté de la basse actuelle.
- * @returns {{lh: number[], rh: number[], rootPc: number}|null}
- */
-export function passingDiminished(chord, next, hands, nextHands = null) {
-  if (!next || chord.rootPc == null || next.rootPc == null || !hands.rh.length || !hands.lh.length) return null;
-  if (/dim/.test(String(chord.symbol ?? '')) || /dim/.test(String(next.symbol ?? ''))) return null;
-  // Une dominante mène déjà à l'accord suivant : pas de diminué en plus (G7 → B°7 → C).
-  if (isDominant(chord)) return null;
-  const move = pcOf(next.rootPc - chord.rootPc);
-  let rootPc;
-  if (move === 2) rootPc = pcOf(chord.rootPc + 1);
-  else if (move === 5) rootPc = pcOf(next.rootPc - 1);
-  else return null;
-  const tones = [0, 3, 6, 9].map((i) => pcOf(rootPc + i));
-  const nearest = (n, taken) => {
-    let best = null;
-    for (let d = 0; d <= 3 && best == null; d += 1) {
-      for (const m of [n - d, n + d]) {
-        if (best == null && tones.includes(pcOf(m)) && !taken.includes(m)) best = m;
-      }
-    }
-    return best;
-  };
-  const rh = [];
-  hands.rh.forEach((n) => {
-    const m = nearest(n, rh);
-    if (m != null) rh.push(m);
-  });
-  // Basse chromatique : un demi-ton sous la basse suivante (sensible), sinon
-  // un demi-ton au-dessus de la basse actuelle (C2 → C#2 → D2).
-  const bass = hands.lh[0];
-  const nextBass = nextHands?.lh?.length ? nextHands.lh[0] : null;
-  const bassNote = [nextBass != null ? nextBass - 1 : null, bass + 1, bass - 1]
-    .find((m) => m != null && m >= LOWEST_BASS && pcOf(m) === rootPc)
-    ?? bass + ((rootPc - pcOf(bass) + 18) % 12) - 6;
-  const sorted = sortedUnique(rh);
-  if (sorted.length < 3 || sorted[0] <= bassNote + 2 || sorted[sorted.length - 1] - sorted[0] > 14) return null;
-  return { lh: [bassNote], rh: sorted, rootPc };
-}
-
-/**
  * Mains de la démo : la carte, plus la basse du style quand la main gauche est
  * libre, ou la fondamentale quand la main gauche la tient avec ses notes (une
  * octave au plus). Jamais de troisième main : un Drop 2-4 de Gm11 (G3 C4 |
@@ -319,30 +277,36 @@ export function finalRun(chord, rh, lh = []) {
   return run.length >= 4 ? run : [];
 }
 
-const LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
-const LETTER_PC = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
-const SHARP_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-
 /**
- * Nom d'un diminué de passage : sa fondamentale est la sensible de l'accord
- * suivant, écrite sur la lettre du dessous (Ddim7 avant Eb, C#dim7 avant Dm,
- * Bdim7 avant C).
+ * Accord de passage joué au 4e temps après chaque accord (ou null) : celui de
+ * l'exercice (`passingChord`, voicing enchaîné), avec les mains du style —
+ * `bassKind` comme pour les accords (basse ajoutée à une main gauche libre) ;
+ * 'none' = la carte seule (Plaqué).
  */
-export function passingName(next, rootPc) {
-  const letter = /^([A-G])/.exec(String(next?.name ?? ''))?.[1];
-  if (!letter) return `${SHARP_NAMES[pcOf(rootPc)]}dim7`;
-  const below = LETTERS[(LETTERS.indexOf(letter) + 6) % 7];
-  const shift = ((rootPc - LETTER_PC[below]) % 12 + 18) % 12 - 6;
-  return `${below}${shift > 0 ? '#'.repeat(shift) : 'b'.repeat(-shift)}dim7`;
+function planPassing(chords, beatsPerChord, bassKind) {
+  return chords.map((chord) => {
+    const p = chord.passingChord;
+    if (!p || beatsPerChord < 4) return null;
+    const card = cardHands(p);
+    const hands = bassKind === 'none' ? { ...card, stride: strideSplit(p, card.lh) } : demoHands(p, bassKind);
+    return { lh: hands.lh, rh: hands.rh, stride: hands.stride || null, name: p.name, rootPc: p.rootPc, symbol: p.symbol };
+  });
 }
 
-/** Diminué de passage joué après chaque accord (ou null), d'après les mains de la démo. */
-function planPassing(chords, bars, beatsPerChord) {
-  return chords.map((chord, i) => {
-    if (i === chords.length - 1 || bars[i].stride || beatsPerChord < 4) return null;
-    const found = passingDiminished(chord, chords[i + 1], bars[i], bars[i + 1]);
-    return found ? { ...found, name: passingName(chords[i + 1], found.rootPc) } : null;
-  });
+/**
+ * Accord de passage au temps `time`, relevé à `release` : les deux mains
+ * ensemble, la droite à peine égrenée ; une main gauche de stride fait sa basse
+ * puis son accord (une main ne tient pas les deux).
+ */
+function playPassing(score, passing, time, release, velocity, { roll = 0.03 } = {}) {
+  if (passing.stride) {
+    const half = time + (release - time) / 2;
+    score.hand(time, passing.stride.bass, velocity, half - 0.02, { hand: 'lh' });
+    score.hand(half, passing.stride.chord, velocity - 0.04, release, { roll: 0.01, hand: 'lh' });
+  } else {
+    score.hand(time, passing.lh, velocity, release, { hand: 'lh' });
+  }
+  score.hand(time + (passing.lh.length ? 0.03 : 0), passing.rh, velocity - 0.06, release, { roll, accentTop: 0.06 });
 }
 
 /** Mains gospel / worship d'un accord : basse de la démo, main droite en cadre d'octave. */
@@ -355,32 +319,45 @@ function gospelHands(chord) {
 
 /**
  * Plan du jeu gospel / worship : mains de chaque accord (main droite en cadre
- * d'octave) et diminués de passage.
+ * d'octave) et accords de passage.
  */
 function planGospel(chords, beatsPerChord = 4) {
   const bars = chords.map(gospelHands);
-  return { bars, passing: planPassing(chords, bars, beatsPerChord) };
+  return { bars, passing: planPassing(chords, beatsPerChord, 'fifth') };
 }
 
-/** Plan de la ballade : mains de la démo (sans cadre d'octave) et diminués de passage. */
+/** Plan de la ballade : mains de la démo (sans cadre d'octave) et accords de passage. */
 function planBallade(chords, beatsPerChord = 4) {
   const bars = chords.map((chord) => demoHands(chord, 'fifth'));
-  return { bars, passing: planPassing(chords, bars, beatsPerChord) };
+  return { bars, passing: planPassing(chords, beatsPerChord, 'fifth') };
 }
 
-// Styles qui jouent des diminués de passage (Narcisse : « ajoute aussi des
-// accords de passage en ballade »).
-const PASSING_PLANS = { gospel: planGospel, ballade: planBallade };
+/** Plan du comping swing : basse seule à la main gauche libre, accords de passage. */
+function planSwing(chords, beatsPerChord = 4) {
+  const bars = chords.map((chord) => demoHands(chord, 'root'));
+  return { bars, passing: planPassing(chords, beatsPerChord, 'root') };
+}
+
+/** Plan du jeu plaqué : la carte seule, passages compris. */
+function planPlaque(chords, beatsPerChord = 4) {
+  const bars = chords.map((chord) => {
+    const card = cardHands(chord);
+    return { ...card, stride: strideSplit(chord, card.lh) };
+  });
+  return { bars, passing: planPassing(chords, beatsPerChord, 'none') };
+}
+
+const PASSING_PLANS = { gospel: planGospel, ballade: planBallade, swing: planSwing, plaque: planPlaque };
 
 /**
- * Accords de passage que la démo joue dans ce style (Gospel / worship et
- * Ballade ; un style inconnu vaut Gospel, comme buildDemo), pour les montrer
- * dans la liste des accords : `after` = rang de l'accord qu'ils suivent.
+ * Accords de passage que la démo joue dans ce style (un style inconnu vaut
+ * Gospel, comme buildDemo) : ceux de l'exercice, avec les mains du style.
+ * `after` = rang de l'accord qu'ils suivent.
  * @returns {{after: number, name: string, rootPc: number, lh: number[], rh: number[]}[]}
  */
 export function demoPassingChords(chords, styleId) {
   const id = DEMO_STYLES[styleId] ? styleId : 'gospel';
-  if (!chords?.length || !PASSING_PLANS[id]) return [];
+  if (!chords?.length) return [];
   const { passing } = PASSING_PLANS[id](chords, DEMO_STYLES[id].beatsPerChord);
   return passing.flatMap((found, after) => (found ? [{ after, ...found }] : []));
 }
@@ -444,8 +421,8 @@ export function styleLeftHand(chord, style, { lift = true } = {}) {
  * carte telle quelle (Plaqué, voicing déjà complet).
  * @returns {{lh: number[], rh: number[], bass: number[], doubled: number[], movedToRight: boolean}|null}
  */
-export function demoCardHands(chords, index, styleId) {
-  const chord = chords?.[index];
+export function demoCardHands(chords, index, styleId, { passing = false } = {}) {
+  const chord = passing ? chords?.[index]?.passingChord : chords?.[index];
   if (!chord) return null;
   // Ce que la démo joue vraiment : pas de remontée d'octave (lift) ici.
   const hands = styleLeftHand(chord, DEMO_STYLES[styleId] ? styleId : 'gospel', { lift: false });
@@ -535,7 +512,8 @@ export function buildGospelDemo(chords, { beatsPerChord = 4 } = {}) {
     const roll = i === 0 ? 0.12 : 0.05;
     const rhStart = t + (lh.length ? roll : 0);
     score.step(t, i);
-    if (last) {
+    const passing = passingChords[i];
+    if (last && !passing) {
       const release = t + beatsPerChord - LIFT;
       // Mélodie choisie sur le dernier accord : elle finit la démo, pas de montée par-dessus.
       const run = hands.stride || chord.topInterval != null ? [] : finalRun(chord, rh, lh);
@@ -552,8 +530,7 @@ export function buildGospelDemo(chords, { beatsPerChord = 4 } = {}) {
       if (run.length) end = hold + LIFT;
       return;
     }
-    // Accord de passage au 4e temps : diminué vers l'accord suivant.
-    const passing = passingChords[i];
+    // Accord de passage au 4e temps (celui de l'exercice), vers l'accord suivant.
     const held = passing ? beatsPerChord - 1 : beatsPerChord;
     const release = t + held - LIFT;
     playLeftHand(score, t, hands, score.shade(i, 0.6), release, { roll, beatsPerChord: held });
@@ -574,8 +551,7 @@ export function buildGospelDemo(chords, { beatsPerChord = 4 } = {}) {
     if (passing) {
       const p = t + beatsPerChord - 1;
       score.passing(p, i);
-      score.hand(p, passing.lh, score.shade(i, 0.54), t + beatsPerChord - LIFT, { hand: 'lh' });
-      score.hand(p + 0.03, passing.rh, score.shade(i, 0.46), t + beatsPerChord - LIFT, { roll: 0.03, accentTop: 0.06 });
+      playPassing(score, passing, p, t + beatsPerChord - LIFT, score.shade(i, 0.54));
     }
   });
   return score.finish(end);
@@ -616,8 +592,7 @@ export function buildBalladeDemo(chords, { beatsPerChord = 4 } = {}) {
     if (passing) {
       const p = t + beatsPerChord - 1;
       score.passing(p, i);
-      score.hand(p, passing.lh, score.shade(i, 0.5), t + beatsPerChord - LIFT, { hand: 'lh' });
-      score.hand(p + 0.08, passing.rh, score.shade(i, 0.42), t + beatsPerChord - LIFT, { roll: 0.08, accentTop: 0.04 });
+      playPassing(score, passing, p, t + beatsPerChord - LIFT, score.shade(i, 0.5), { roll: 0.08 });
     }
   });
   return score.finish(chords.length * beatsPerChord);
@@ -631,13 +606,17 @@ export function buildBalladeDemo(chords, { beatsPerChord = 4 } = {}) {
  */
 export function buildSwingDemo(chords, { beatsPerChord = 4 } = {}) {
   const score = createScore();
+  const { bars, passing: passingChords } = planSwing(chords, beatsPerChord);
   chords.forEach((chord, i) => {
     const t = i * beatsPerChord;
-    const hands = demoHands(chord, 'root');
+    const hands = bars[i];
     const { lh, rh } = hands;
     const free = Boolean(hands.freeLeft);
-    const last = i === chords.length - 1;
+    const passing = passingChords[i];
+    const last = i === chords.length - 1 && !passing;
     const offbeat = t + 1 + SWING_OFFBEAT;
+    // Avec un passage au 4e temps, l'anticipation du 2e temps est relevée avant lui.
+    const offRelease = passing ? Math.min(offbeat + 0.9, t + beatsPerChord - 1 - LIFT) : offbeat + 0.9;
     score.step(t, i);
     if (last) {
       playLeftHand(score, t, hands, score.shade(i, 0.6), t + beatsPerChord - 1, { roll: 0.02, beatsPerChord: beatsPerChord - 1 });
@@ -651,14 +630,20 @@ export function buildSwingDemo(chords, { beatsPerChord = 4 } = {}) {
       score.note(t, root, score.shade(i, 0.62), 0.9, 'lh');
       score.note(t + 2, swingSecondBass(chord, root, rh), score.shade(i, 0.56), 0.9, 'lh');
     } else if (hands.stride) {
-      playLeftHand(score, t, hands, score.shade(i, 0.58), t + beatsPerChord - LIFT, { roll: 0.02, beatsPerChord });
+      const held = passing ? beatsPerChord - 1 : beatsPerChord;
+      playLeftHand(score, t, hands, score.shade(i, 0.58), t + held - LIFT, { roll: 0.02, beatsPerChord: held });
     } else {
       score.hand(t, lh, score.shade(i, 0.56), t + 0.55, { roll: 0.01, hand: 'lh' });
-      score.hand(offbeat, lh, score.shade(i, 0.62), offbeat + 0.9, { roll: 0.01, hand: 'lh' });
+      score.hand(offbeat, lh, score.shade(i, 0.62), offRelease, { roll: 0.01, hand: 'lh' });
     }
     score.hand(t, rh, score.shade(i, 0.56), t + 0.55, { roll: 0.01, accentTop: 0.05 });
     // Anticipation du 2e temps, accentuée.
-    score.hand(offbeat, rh, score.shade(i, 0.64), offbeat + 0.9, { roll: 0.01, accentTop: 0.05 });
+    score.hand(offbeat, rh, score.shade(i, 0.64), offRelease, { roll: 0.01, accentTop: 0.05 });
+    if (passing) {
+      const p = t + beatsPerChord - 1;
+      score.passing(p, i);
+      playPassing(score, passing, p, t + beatsPerChord - LIFT, score.shade(i, 0.6), { roll: 0.01 });
+    }
   });
   return score.finish(chords.length * beatsPerChord);
 }
@@ -666,11 +651,12 @@ export function buildSwingDemo(chords, { beatsPerChord = 4 } = {}) {
 /** Démo plaquée : la carte seule (les deux mains), tenue toute la mesure. */
 export function buildPlaqueDemo(chords, { beatsPerChord = 4 } = {}) {
   const score = createScore();
+  const { bars, passing: passingChords } = planPlaque(chords, beatsPerChord);
   chords.forEach((chord, i) => {
     const t = i * beatsPerChord;
-    const { lh, rh } = cardHands(chord);
-    const stride = strideSplit(chord, lh);
-    const release = t + beatsPerChord - 0.08;
+    const { lh, rh, stride } = bars[i];
+    const passing = passingChords[i];
+    const release = t + (passing ? beatsPerChord - 1 : beatsPerChord) - 0.08;
     score.step(t, i);
     if (stride) {
       // Stride : la basse au 1er temps, puis l'accord tenu (une main ne tient pas les deux).
@@ -680,6 +666,11 @@ export function buildPlaqueDemo(chords, { beatsPerChord = 4 } = {}) {
       score.hand(t, lh, score.shade(i, 0.56), release, { roll: 0.01, hand: 'lh' });
     }
     score.hand(t + (lh.length ? 0.01 : 0), rh, score.shade(i, 0.56), release, { roll: 0.01, accentTop: 0.04 });
+    if (passing) {
+      const p = t + beatsPerChord - 1;
+      score.passing(p, i);
+      playPassing(score, passing, p, t + beatsPerChord - 0.08, score.shade(i, 0.54), { roll: 0.01 });
+    }
   });
   return score.finish(chords.length * beatsPerChord);
 }

@@ -25,7 +25,7 @@
     {
       "id": "turnaround-gospel-1",
       "style": "gospel",
-      "category": "Couleurs & chromatismes",
+      "category": "Turnarounds",
       "name": "Turnaround III-VI-II-V-I",
       "context": "Fin de couplet ou pont gospel.",
       "pattern": "3-6-2-5-1",
@@ -51,20 +51,22 @@
       "name": "Tritone substitution V7",
       "context": "Substitution de dominante pour créer une ligne de basse chromatique.",
       "pattern": "2-b2:7-1",
-      "level": 4,
+      "level": 3,
       "exampleChords": ["Dm7", "Db7(#11)", "Cmaj7"],
       "description": "IIm7 → bII7 → Imaj7 : le bII7 remplace le V7 (substitution tritonique). Les deux dominantes partagent le même triton, tierce et septième échangées, et la basse descend par demi-tons (II → bII → I)."
     },
     {
       "id": "minor-ii-v-i-jazz-1",
       "style": "jazz",
-      "category": "Cadences II-V-I",
+      "category": "Mineur",
       "name": "II-V-I altéré en mineur",
-      "context": "Modulation ou cadence en mineur.",
-      "pattern": "2m7b5-5alt-1mMaj7",
+      "context": "Cadence en mineur dont la dominante s'altère en passage avant la résolution.",
+      "pattern": "2m7b5-5:7-1mMaj7",
       "level": 5,
+      "preserveQualities": true,
+      "passing": {"1": "5:7alt"},
       "exampleChords": ["Dm7(b5)", "G7(#9#5)", "Cm(maj7)"],
-      "description": "La cadence mineure : IIm7b5 → V7alt → ImMaj7. Le V altéré (b9, #9, b13) tire fort vers la tonique mineure, et la 7e majeure de l'accord final garde la sensible de la tonalité."
+      "description": "IIø7 → V7 → Im(maj7), et sur le dernier temps du V, le V7alt en accord de passage (b9, #9, b13) : la tension arrive juste avant la tonique mineure. Les accords principaux restent sans altération ; l'altération est le passage."
     },
     {
       "id": "guide-tone-73-ii-v-i-jazz-1",
@@ -83,55 +85,560 @@
       "category": "Couleurs & chromatismes",
       "name": "Alternance mineur 6 – diminué (Barry Harris)",
       "context": "La gamme « 6th diminished » de Barry Harris, simplifiée à son alternance de base.",
-      "pattern": "1m6-7dim7-1m6-7dim7",
+      "pattern": "1m6-1m6-1m6-1m6",
       "level": 3,
       "preserveQualities": true,
+      "passing": {"0": "7dim7", "1": "7dim7", "2": "7dim7"},
+      "topIntervals": {"0": 0, "1": 3, "2": 7, "3": 9},
       "exampleChords": ["Cm6", "Bdim7", "Cm6", "Bdim7"],
-      "description": "Im6 alterne avec l'accord diminué de la sensible (VII°7). Ils n'ont aucune note commune, mais chaque note de l'un est à un ton ou un demi-ton d'une note de l'autre : c'est le mouvement de la gamme « 6th diminished » de Barry Harris (les 4 notes de Im6 plus les 4 de VII°7), ici réduit à ses deux accords."
+      "description": "Im6 dans ses quatre positions (Do, Mib, Sol puis La au dessus), reliées par le diminué de la sensible (VII°7) joué en passage. Chaque note de l'un est à un ton ou un demi-ton d'une note de l'autre : c'est le mouvement de la gamme « 6th diminished » de Barry Harris."
     },
-{
-  "id": "basic-ii-v-i-major-1",
-  "style": "jazz",
-  "category": "Cadences II-V-I",
-  "name": "Cadence II-V-I majeur",
-  "context": "Cadence fondamentale en tonalité majeure.",
-  "pattern": "2-5-1",
-  "level": 1,
-  "exampleChords": ["Dm7", "G7", "Cmaj7"],
-  "description": "La cadence de base, IIm7 → V7 → Imaj7, à faire tourner dans les tonalités choisies. Commence en close et en drop 2, puis essaie les autres familles de voicings."
-},
-{
-  "id": "diatonic-iv-v-ii-v-1",
-  "style": "worship",
-  "category": "Progressions diatoniques",
-  "name": "IV-V-vi-ii pop",
-  "context": "Progression diatonique majeure simple.",
-  "pattern": "4-5-6-2",
-  "level": 1,
-  "exampleChords": ["F", "G", "Am", "Dm"],
-  "description": "IV → V → VIm → IIm, tout dans la gamme majeure, sans jamais poser le I. Le V qui monte vers le VIm (cadence rompue) évite la résolution attendue et relance la boucle."
-},
-{
-  "id": "secondary-dominant-v-of-v-1",
-  "style": "jazz",
-  "category": "Dominantes & substitutions",
-  "name": "V/V vers I",
-  "context": "Utilisation d'une dominante secondaire pour colorer un V.",
-  "pattern": "1-2:7-5-1",
-  "level": 2,
-  "exampleChords": ["Cmaj7", "D7", "G7", "Cmaj7"],
-  "description": "Imaj7 → II7 → V7 → Imaj7 : le II devient dominante (V/V, dominante secondaire) grâce à sa tierce haussée, qui monte vers la fondamentale du V et renforce son arrivée."
-},
-{
-  "id": "coltrane-changes-frag-1",
-  "style": "jazz",
-  "category": "Dominantes & substitutions",
-  "name": "Cycle de tierces majeures",
-  "context": "Fragment du cycle de tierces typique du jazz moderne.",
-  "pattern": "1:maj7-b3:7-b6:maj7-7:7-3:maj7-5:7-1:maj7",
-  "level": 4,
-  "exampleChords": ["Cmaj7", "Eb7", "Abmaj7", "B7", "Emaj7", "G7", "Cmaj7"],
-  "description": "Trois centres tonaux à une tierce majeure d'écart, I, bVI et III, qui partagent l'octave en trois parts égales. Chacun est amené par sa propre dominante : bIII7 → bVImaj7, VII7 → IIImaj7, V7 → Imaj7. C'est la mécanique des « Coltrane changes » (Giant Steps, Countdown)."
-}
+    {
+      "id": "basic-ii-v-i-major-1",
+      "style": "jazz",
+      "category": "Cadences II-V-I",
+      "name": "Cadence II-V-I majeur",
+      "context": "Cadence fondamentale en tonalité majeure.",
+      "pattern": "2-5-1",
+      "level": 1,
+      "exampleChords": ["Dm7", "G7", "Cmaj7"],
+      "description": "La cadence de base, IIm7 → V7 → Imaj7, à faire tourner dans les tonalités choisies. Commence en close et en drop 2, puis essaie les autres familles de voicings."
+    },
+    {
+      "id": "diatonic-iv-v-ii-v-1",
+      "style": "worship",
+      "category": "Progressions diatoniques",
+      "name": "IV-V-vi-ii pop",
+      "context": "Progression diatonique majeure simple.",
+      "pattern": "4-5-6-2",
+      "level": 1,
+      "exampleChords": ["F", "G", "Am", "Dm"],
+      "description": "IV → V → VIm → IIm, tout dans la gamme majeure, sans jamais poser le I. Le V qui monte vers le VIm (cadence rompue) évite la résolution attendue et relance la boucle."
+    },
+    {
+      "id": "secondary-dominant-v-of-v-1",
+      "style": "jazz",
+      "category": "Dominantes & substitutions",
+      "name": "V/V vers I",
+      "context": "Utilisation d'une dominante secondaire pour colorer un V.",
+      "pattern": "1-2:7-5-1",
+      "level": 2,
+      "exampleChords": ["Cmaj7", "D7", "G7", "Cmaj7"],
+      "description": "Imaj7 → II7 → V7 → Imaj7 : le II devient dominante (V/V, dominante secondaire) grâce à sa tierce haussée, qui monte vers la fondamentale du V et renforce son arrivée."
+    },
+    {
+      "id": "coltrane-changes-frag-1",
+      "style": "jazz",
+      "category": "Dominantes & substitutions",
+      "name": "Cycle de tierces majeures",
+      "context": "Fragment du cycle de tierces typique du jazz moderne.",
+      "pattern": "1:maj7-b3:7-b6:maj7-7:7-3:maj7-5:7-1:maj7",
+      "level": 4,
+      "exampleChords": ["Cmaj7", "Eb7", "Abmaj7", "B7", "Emaj7", "G7", "Cmaj7"],
+      "description": "Trois centres tonaux à une tierce majeure d'écart, I, bVI et III, qui partagent l'octave en trois parts égales. Chacun est amené par sa propre dominante : bIII7 → bVImaj7, VII7 → IIImaj7, V7 → Imaj7. C'est la mécanique des « Coltrane changes » (Giant Steps, Countdown)."
+    },
+    {
+      "id": "ii-v-i-sus-1",
+      "style": "jazz",
+      "category": "Cadences II-V-I",
+      "name": "II-V-I avec V suspendu",
+      "context": "Préparer la dominante par sa suspension.",
+      "pattern": "2-5:7sus4-5-1",
+      "level": 2,
+      "description": "IIm7 → V7sus4 → V7 → Imaj7 : la quarte du V suspendu (Do sur G7sus4) descend sur la tierce (Si) avant la tonique. Une façon douce de faire durer la dominante."
+    },
+    {
+      "id": "ii-v-i-whole-step-down-1",
+      "style": "jazz",
+      "category": "Cadences II-V-I",
+      "name": "II-V-I puis un ton plus bas",
+      "context": "Enchaîner deux tonalités à un ton d’écart.",
+      "pattern": "2-5-1-1:m7-4:7-b7:maj7",
+      "level": 3,
+      "description": "Dm7 → G7 → Cmaj7, puis la tonique devient mineure (Cm7) et sert de II à Sib : Cm7 → F7 → Bbmaj7. Deux II-V-I à un ton d'écart, reliés par le I qui passe de majeur à mineur."
+    },
+    {
+      "id": "ii-v-to-iv-1",
+      "style": "gospel",
+      "category": "Cadences II-V-I",
+      "name": "II-V vers le IV",
+      "context": "Lancer le IV par son propre II-V.",
+      "pattern": "1-5:m7-1:7-4",
+      "level": 2,
+      "description": "Imaj7 → Vm7 → I7 → IVmaj7 : le I devient la dominante du IV grâce à son II (Gm7 → C7 → Fmaj7 en Do). Très courant en gospel pour ouvrir un refrain sur le IV."
+    },
+    {
+      "id": "ii-v-i-relative-minor-1",
+      "style": "jazz",
+      "category": "Cadences II-V-I",
+      "name": "II-V-i vers le relatif mineur",
+      "context": "Passer de la tonique majeure à son relatif mineur.",
+      "pattern": "1-7m7b5-3:7-6m7",
+      "level": 3,
+      "description": "Imaj7 → VIIø7 → III7 → VIm7 : un II-V-i mineur vers le VI (Bm7b5 → E7 → Am7 en Do). La dominante reste une 7e simple : ses tensions (b9, b13) se jouent en passage."
+    },
+    {
+      "id": "long-cadence-1",
+      "style": "worship",
+      "category": "Cadences II-V-I",
+      "name": "Cadence longue IV-II-V-I",
+      "context": "Préparer la cadence par la sous-dominante.",
+      "pattern": "4-2-5-1",
+      "level": 1,
+      "description": "IVmaj7 → IIm7 → V7 → Imaj7 : le IV et le II partagent trois notes (Fa, La, Do) ; la basse descend d'une tierce puis enchaîne les quintes du II-V-I."
+    },
+    {
+      "id": "turnaround-i-vi-ii-v-1",
+      "style": "jazz",
+      "category": "Turnarounds",
+      "name": "Turnaround I-VI-II-V",
+      "context": "Boucle de fin de grille, pour revenir au début.",
+      "pattern": "1-6-2-5",
+      "level": 1,
+      "description": "Imaj7 → VIm7 → IIm7 → V7 : la basse descend d'une tierce puis enchaîne deux quintes ; le V7 ramène au I du début. Le turnaround le plus joué."
+    },
+    {
+      "id": "turnaround-i-vi7-ii-v-i-1",
+      "style": "jazz",
+      "category": "Turnarounds",
+      "name": "Turnaround I-VI7-II-V-I",
+      "context": "Le VI devient la dominante du II.",
+      "pattern": "1-6:7-2-5-1",
+      "level": 2,
+      "description": "Imaj7 → VI7 → IIm7 → V7 → Imaj7 : A7 en Do amène Dm7 comme une dominante (Do# sensible de Ré). Le VI7 reste une 7e simple : ses tensions se jouent en passage."
+    },
+    {
+      "id": "turnaround-dominants-1",
+      "style": "gospel",
+      "category": "Turnarounds",
+      "name": "Turnaround en dominantes (III7-VI7-II7-V7-I)",
+      "context": "Chaîne de dominantes jusqu’à la tonique.",
+      "pattern": "3:7-6:7-2:7-5:7-1",
+      "level": 3,
+      "description": "III7 → VI7 → II7 → V7 → Imaj7 : chaque dominante amène la suivante une quinte plus bas (E7 → A7 → D7 → G7 → Cmaj7). La 7e de chaque accord descend sur la tierce du suivant."
+    },
+    {
+      "id": "turnaround-biii-bvi-bii-1",
+      "style": "jazz",
+      "category": "Turnarounds",
+      "name": "Turnaround I-bIII7-bVI7-bII7",
+      "context": "Turnaround coloré par des dominantes chromatiques.",
+      "pattern": "1-b3:7-b6:7-b2:7-1",
+      "level": 4,
+      "description": "Imaj7 → bIII7 → bVI7 → bII7 → Imaj7 : les substituts tritoniques de VI7, II7 et V7 (Eb7, Ab7, Db7 en Do). La basse descend par quartes puis glisse d'un demi-ton vers le I."
+    },
+    {
+      "id": "turnaround-maj7-chromatic-1",
+      "style": "jazz",
+      "category": "Turnarounds",
+      "name": "Turnaround I-bIIImaj7-bVImaj7-bIImaj7",
+      "context": "La même basse, des accords majeurs 7.",
+      "pattern": "1-b3maj7-b6maj7-b2maj7-1",
+      "level": 4,
+      "description": "Imaj7 → bIIImaj7 → bVImaj7 → bIImaj7 → Imaj7 : la basse du turnaround chromatique, mais chaque accord est un majeur 7 (Ebmaj7, Abmaj7, Dbmaj7 en Do). Couleur lumineuse, sans dominante."
+    },
+    {
+      "id": "turnaround-chromatic-descent-1",
+      "style": "jazz",
+      "category": "Turnarounds",
+      "name": "Turnaround chromatique III-bIII7-II-bII7",
+      "context": "Descente chromatique de la basse jusqu’à la tonique.",
+      "pattern": "3-b3:7-2-b2:7-1",
+      "level": 3,
+      "description": "IIIm7 → bIII7 → IIm7 → bII7 → Imaj7 : les dominantes sont remplacées par leurs substituts tritoniques (Eb7 pour A7, Db7 pour G7) ; la basse descend de Mi à Do par demi-tons."
+    },
+    {
+      "id": "turnaround-gospel-long-1",
+      "style": "gospel",
+      "category": "Turnarounds",
+      "name": "Turnaround gospel I-IV-III-VI-II-V",
+      "context": "Longue boucle gospel avant la reprise.",
+      "pattern": "1-4-3-6-2-5",
+      "level": 2,
+      "description": "Imaj7 → IVmaj7 → IIIm7 → VIm7 → IIm7 → V7 : le IV ouvre, puis la basse enchaîne les quintes (Mi, La, Ré, Sol) jusqu'au V qui relance le I."
+    },
+    {
+      "id": "axis-i-v-vi-iv-1",
+      "style": "worship",
+      "category": "Progressions diatoniques",
+      "name": "I-V-vi-IV (pop / worship)",
+      "context": "La progression la plus chantée en worship.",
+      "pattern": "1-5-6-4",
+      "level": 1,
+      "description": "Imaj7 → V7 → VIm7 → IVmaj7 : la basse monte de la quinte au VI puis retombe sur le IV. Le V reste une 7e simple devant le VI mineur."
+    },
+    {
+      "id": "vi-iv-i-v-1",
+      "style": "worship",
+      "category": "Progressions diatoniques",
+      "name": "vi-IV-I-V",
+      "context": "La même couleur, commencée sur le relatif mineur.",
+      "pattern": "6-4-1-5",
+      "level": 1,
+      "description": "VIm7 → IVmaj7 → Imaj7 → V7 : les accords de la I-V-vi-IV, dans l'ordre qui part du VI. Le V7 final ramène au VI."
+    },
+    {
+      "id": "perfect-cadence-1",
+      "style": "worship",
+      "category": "Progressions diatoniques",
+      "name": "Cadence parfaite I-IV-V-I",
+      "context": "Les trois fonctions de la tonalité.",
+      "pattern": "1-4-5-1",
+      "level": 1,
+      "description": "Imaj7 → IVmaj7 → V7 → Imaj7 : tonique, sous-dominante, dominante, tonique. La base de la musique tonale, à connaître dans les 12 tons."
+    },
+    {
+      "id": "diatonic-circle-1",
+      "style": "jazz",
+      "category": "Progressions diatoniques",
+      "name": "Cycle diatonique des quintes",
+      "context": "Tous les degrés de la gamme, par quintes descendantes.",
+      "pattern": "1-4-7m7b5-3-6-2-5-1",
+      "level": 3,
+      "description": "Imaj7 → IVmaj7 → VIIø7 → IIIm7 → VIm7 → IIm7 → V7 → Imaj7 : chaque basse descend d'une quinte (ou monte d'une quarte) en restant dans la gamme ; la 7e de chaque accord descend sur la tierce du suivant."
+    },
+    {
+      "id": "diatonic-walk-up-1",
+      "style": "gospel",
+      "category": "Progressions diatoniques",
+      "name": "Montée diatonique I-II-III-IV",
+      "context": "La basse monte par degrés.",
+      "pattern": "1-2-3-4",
+      "level": 1,
+      "description": "Imaj7 → IIm7 → IIIm7 → IVmaj7 : la basse monte la gamme de Do à Fa, les voix bougent en mouvement parallèle. Aux niveaux avancés, un accord de passage se glisse entre chaque marche."
+    },
+    {
+      "id": "doo-wop-1",
+      "style": "worship",
+      "category": "Progressions diatoniques",
+      "name": "I-vi-IV-V (doo-wop)",
+      "context": "La boucle des ballades des années 50, toujours chantée en louange.",
+      "pattern": "1-6-4-5",
+      "level": 1,
+      "description": "Imaj7 → VIm7 → IVmaj7 → V7 : la basse descend d'une tierce deux fois puis remonte sur le V."
+    },
+    {
+      "id": "canon-descent-1",
+      "style": "worship",
+      "category": "Progressions diatoniques",
+      "name": "Descente « Canon » (I-V-vi-iii-IV-I-IV-V)",
+      "context": "La grande descente de basse du Canon.",
+      "pattern": "1-5-6-3-4-1-4-5",
+      "level": 2,
+      "description": "Imaj7 → V7 → VIm7 → IIIm7 → IVmaj7 → Imaj7 → IVmaj7 → V7 : la basse descend par quartes et remonte d'un ton, deux fois, avant le V final."
+    },
+    {
+      "id": "amen-plagal-1",
+      "style": "gospel",
+      "category": "Gospel & worship",
+      "name": "Cadence plagale « Amen » (I-IV-I)",
+      "context": "La cadence de l’« Amen », sans dominante.",
+      "pattern": "1-4-1",
+      "level": 1,
+      "description": "Imaj7 → IVmaj7 → Imaj7 : le IV revient au I en gardant la tonique commune (Do). Aux niveaux avancés, un passage relie les deux."
+    },
+    {
+      "id": "plagal-minor-iv-1",
+      "style": "gospel",
+      "category": "Gospel & worship",
+      "name": "IV-iv-I (plagale mineure)",
+      "context": "Le IV qui passe au mineur avant de revenir.",
+      "pattern": "1-4-4m6-1",
+      "level": 2,
+      "description": "Imaj7 → IVmaj7 → IVm6 → Imaj7 : le La du IV descend sur Lab (IV mineur, emprunté au mineur) puis sur Sol de la tonique. La couleur « église » par excellence."
+    },
+    {
+      "id": "gospel-descent-4321-1",
+      "style": "gospel",
+      "category": "Gospel & worship",
+      "name": "Descente gospel IV-III-II-I",
+      "context": "La basse descend par degrés jusqu’à la tonique.",
+      "pattern": "4-3-2-1",
+      "level": 1,
+      "description": "IVmaj7 → IIIm7 → IIm7 → Imaj7 : Fa, Mi, Ré, Do à la basse. Aux niveaux avancés, des diminués descendants se glissent entre les marches (Mi → Mib°7 → Ré)."
+    },
+    {
+      "id": "gospel-2514-1",
+      "style": "gospel",
+      "category": "Gospel & worship",
+      "name": "2-5-1-4 gospel",
+      "context": "Le II-V-I qui s’ouvre sur le IV.",
+      "pattern": "2-5-1-4",
+      "level": 1,
+      "description": "IIm7 → V7 → Imaj7 → IVmaj7 : la cadence, puis le IV qui relance la phrase. Une boucle courante des chants de louange."
+    },
+    {
+      "id": "gospel-1625-dominants-1",
+      "style": "gospel",
+      "category": "Gospel & worship",
+      "name": "1-6-2-5 en dominantes (I-VI7-II7-V7)",
+      "context": "La boucle 1-6-2-5, chaque accord devenu dominante.",
+      "pattern": "1-6:7-2:7-5:7",
+      "level": 2,
+      "description": "Imaj7 → VI7 → II7 → V7 : A7, D7 et G7 en Do, chacun dominante du suivant. Plus tendu que le I-VI-II-V diatonique, sans altération dans les accords principaux."
+    },
+    {
+      "id": "gospel-i-i7-iv-iv-1",
+      "style": "gospel",
+      "category": "Gospel & worship",
+      "name": "I-I7-IV-iv-I",
+      "context": "La tonique devient dominante du IV, puis le IV passe au mineur.",
+      "pattern": "1-1:7-4-4m6-1",
+      "level": 2,
+      "description": "Imaj7 → I7 → IVmaj7 → IVm6 → Imaj7 : le Si de Cmaj7 descend sur Sib (C7), puis sur La (Fmaj7) et Lab (Fm6) avant Sol. Une ligne chromatique cachée dans les voix."
+    },
+    {
+      "id": "worship-bvii-iv-i-1",
+      "style": "worship",
+      "category": "Gospel & worship",
+      "name": "bVII-IV-I (mixolydien)",
+      "context": "Une cadence sans sensible, très worship.",
+      "pattern": "b7maj7-4-1",
+      "level": 2,
+      "description": "bVIImaj7 → IVmaj7 → Imaj7 : Sib, Fa, Do en Do. La basse descend par quartes, sans dominante : c'est la couleur mixolydienne."
+    },
+    {
+      "id": "worship-4-5-6-1",
+      "style": "worship",
+      "category": "Gospel & worship",
+      "name": "Montée IV-V-vi (worship)",
+      "context": "La montée qui mène au sommet du refrain.",
+      "pattern": "4-5-6",
+      "level": 1,
+      "description": "IVmaj7 → V7 → VIm7 : la basse monte Fa, Sol, La ; la cadence évite la tonique (cadence rompue) et s'arrête sur le VI mineur."
+    },
+    {
+      "id": "gospel-dim-walkup-1",
+      "style": "gospel",
+      "category": "Gospel & worship",
+      "name": "Montée avec diminués (I-#I°7-II-#II°7-III)",
+      "context": "La montée gospel classique, diminués compris.",
+      "pattern": "1-2-3",
+      "level": 3,
+      "passing": {"0": "#1dim7", "1": "#2dim7"},
+      "description": "Imaj7 → #I°7 → IIm7 → #II°7 → IIIm7 : entre chaque marche, un diminué sur le demi-ton intermédiaire (C#°7, D#°7) fait monter la basse chromatiquement."
+    },
+    {
+      "id": "gospel-iv-sharp-iv-dim-1",
+      "style": "gospel",
+      "category": "Gospel & worship",
+      "name": "IV-#IV°7-I (diminué gospel)",
+      "context": "Le diminué qui relie le IV à la tonique.",
+      "pattern": "4-1",
+      "level": 3,
+      "passing": {"0": "#4dim7"},
+      "description": "IVmaj7 → #IV°7 → Imaj7 : F → F#°7 → C en Do. La basse monte d'un demi-ton, les voix glissent vers la tonique."
+    },
+    {
+      "id": "gospel-altered-ii-v-i-1",
+      "style": "gospel",
+      "category": "Gospel & worship",
+      "name": "II-V-I gospel avec dominantes altérées",
+      "context": "Les dominantes altérées jouées en passage.",
+      "pattern": "1-2-5-1",
+      "level": 5,
+      "passing": {"0": "6:7alt", "2": "5:7#9"},
+      "description": "Imaj7 → (VI7alt) → IIm7 → V7 → (V7#9) → Imaj7 : A7alt mène à Dm7, G7#9 à Cmaj7. Les accords principaux restent consonants ; toute la tension est dans les passages."
+    },
+    {
+      "id": "gospel-7b9-cycle-1",
+      "style": "gospel",
+      "category": "Gospel & worship",
+      "name": "vi-ii-V-I avec dominantes 7b9",
+      "context": "Chaque accord mineur devient dominante 7b9 avant le suivant.",
+      "pattern": "6-2-5-1",
+      "level": 4,
+      "passing": {"0": "6:7b9", "1": "2:7b9", "2": "5:7#5"},
+      "description": "VIm7 → (VI7b9) → IIm7 → (II7b9) → V7 → (V7#5) → Imaj7 : Am7 → A7b9 → Dm7 → D7b9 → G7 → G7#5 → Cmaj7. Sur le dernier temps, la tierce mineure monte d'un demi-ton et la b9 tire vers l'accord suivant."
+    },
+    {
+      "id": "minor-i-iv-v-i-1",
+      "style": "jazz",
+      "category": "Mineur",
+      "name": "Cadence mineure i-iv-V-i",
+      "context": "Les trois fonctions en mineur.",
+      "pattern": "1m7-4m7-5:7-1m7",
+      "level": 1,
+      "preserveQualities": true,
+      "description": "Im7 → IVm7 → V7 → Im7 : la dominante reste majeure (Si bécarre, sensible de Do mineur) ; ses tensions b9 / b13 se jouent en passage."
+    },
+    {
+      "id": "andalusian-1",
+      "style": "jazz",
+      "category": "Mineur",
+      "name": "Cadence andalouse (i-bVII-bVI-V)",
+      "context": "La descente flamenco, du I mineur à la dominante.",
+      "pattern": "1m7-b7:7-b6maj7-5:7",
+      "level": 2,
+      "preserveQualities": true,
+      "description": "Im7 → bVII7 → bVImaj7 → V7 : Do, Sib, Lab, Sol à la basse (en Do mineur). La dominante finale relance la boucle."
+    },
+    {
+      "id": "minor-line-cliche-1",
+      "style": "jazz",
+      "category": "Mineur",
+      "name": "Ligne chromatique mineure (line cliché)",
+      "context": "Une voix qui descend d’un demi-ton sur l’accord mineur.",
+      "pattern": "1madd9-1mMaj7-1m7-1m6",
+      "level": 3,
+      "preserveQualities": true,
+      "noAutoPassing": true,
+      "topIntervals": {"0": 0, "1": 11, "2": 10, "3": 9},
+      "description": "Im(add9) → Im(maj7) → Im7 → Im6 : la note du dessus descend Do, Si, Sib, La pendant que l'accord mineur reste en place. Le cliché des ballades mineures."
+    },
+    {
+      "id": "minor-to-relative-major-1",
+      "style": "jazz",
+      "category": "Mineur",
+      "name": "Du mineur au relatif majeur",
+      "context": "Un II-V-i mineur puis un II-V-I vers le relatif majeur.",
+      "pattern": "2m7b5-5:7-1m7-4m7-b7:7-b3maj7",
+      "level": 3,
+      "preserveQualities": true,
+      "description": "IIø7 → V7 → Im7, puis IVm7 → bVII7 → bIIImaj7 (en Do mineur : Dm7b5 G7 Cm7, puis Fm7 Bb7 Ebmaj7). Le IV mineur devient le II de Mib majeur."
+    },
+    {
+      "id": "minor-turnaround-1",
+      "style": "jazz",
+      "category": "Mineur",
+      "name": "Turnaround mineur i-VI-iiø-V",
+      "context": "La boucle de fin de grille en mineur.",
+      "pattern": "1m7-b6maj7-2m7b5-5:7",
+      "level": 3,
+      "preserveQualities": true,
+      "description": "Im7 → bVImaj7 → IIø7 → V7 (Cm7 Abmaj7 Dm7b5 G7) : le VI majeur de la tonalité mineure remplace le VI mineur du turnaround majeur."
+    },
+    {
+      "id": "minor-circle-1",
+      "style": "jazz",
+      "category": "Mineur",
+      "name": "Cycle des quintes en mineur",
+      "context": "Tous les degrés du mineur, par quintes.",
+      "pattern": "1m7-4m7-b7:7-b3maj7-b6maj7-2m7b5-5:7-1m7",
+      "level": 3,
+      "preserveQualities": true,
+      "description": "Im7 → IVm7 → bVII7 → bIIImaj7 → bVImaj7 → IIø7 → V7 → Im7 : un II-V-I vers le relatif majeur, puis un II-V-i vers la tonique mineure. La grille de nombreux standards."
+    },
+    {
+      "id": "jazz-blues-1",
+      "style": "jazz",
+      "category": "Blues",
+      "name": "Blues jazz 12 mesures",
+      "context": "La grille de blues du jazz, une mesure par accord.",
+      "pattern": "1:7-4:7-1:7-1:7-4:7-4:7-1:7-6:7-2-5:7-1:7-5:7",
+      "level": 3,
+      "description": "I7 IV7 I7 I7 | IV7 IV7 I7 VI7 | IIm7 V7 I7 V7 : le blues en dominantes, avec un II-V vers la fin et un VI7 qui amène le II."
+    },
+    {
+      "id": "minor-blues-1",
+      "style": "jazz",
+      "category": "Blues",
+      "name": "Blues mineur 12 mesures",
+      "context": "Le blues en mineur.",
+      "pattern": "1m7-1m7-1m7-1m7-4m7-4m7-1m7-1m7-b6:7-5:7-1m7-5:7",
+      "level": 3,
+      "preserveQualities": true,
+      "description": "Im7 ×4 | IVm7 ×2, Im7 ×2 | bVI7 V7 Im7 V7 : le bVI7 glisse d'un demi-ton sur le V7. Aux niveaux avancés, des passages animent les accords répétés."
+    },
+    {
+      "id": "blues-short-1",
+      "style": "jazz",
+      "category": "Blues",
+      "name": "Blues : I7-IV7-I7-V7",
+      "context": "Les trois dominantes du blues.",
+      "pattern": "1:7-4:7-1:7-5:7",
+      "level": 1,
+      "description": "I7 → IV7 → I7 → V7 : toutes des dominantes, qui ne se résolvent pas. La couleur blues tient à la 7e mineure sur chaque degré."
+    },
+    {
+      "id": "chromatic-dominants-1",
+      "style": "jazz",
+      "category": "Dominantes & substitutions",
+      "name": "Dominantes chromatiques (III7-bIII7-II7-bII7-I)",
+      "context": "Une chaîne de dominantes qui descend par demi-tons.",
+      "pattern": "3:7-b3:7-2:7-b2:7-1",
+      "level": 4,
+      "description": "III7 → bIII7 → II7 → bII7 → Imaj7 : une dominante sur deux est le substitut tritonique de la précédente ; la basse descend chromatiquement de Mi à Do."
+    },
+    {
+      "id": "backdoor-1",
+      "style": "jazz",
+      "category": "Dominantes & substitutions",
+      "name": "Backdoor (iv-bVII7-I)",
+      "context": "Arriver à la tonique « par la porte de derrière ».",
+      "pattern": "1-4m7-b7:7-1",
+      "level": 3,
+      "description": "Imaj7 → IVm7 → bVII7 → Imaj7 : Fm7 → Bb7 → Cmaj7 en Do. Le bVII7 remplace le V7 : la résolution se fait par un ton au-dessous plutôt que par la sensible."
+    },
+    {
+      "id": "secondary-v-of-vi-1",
+      "style": "jazz",
+      "category": "Dominantes & substitutions",
+      "name": "V/vi vers vi (I-III7-vi)",
+      "context": "La dominante du relatif mineur.",
+      "pattern": "1-3:7-6",
+      "level": 2,
+      "description": "Imaj7 → III7 → VIm7 : E7 → Am7 en Do. Le Sol# de E7 est la sensible de La ; la 7e (Ré) descend sur Do."
+    },
+    {
+      "id": "aeolian-cadence-1",
+      "style": "worship",
+      "category": "Couleurs & chromatismes",
+      "name": "Cadence éolienne bVI-bVII-I",
+      "context": "Arriver au I majeur par les degrés du mineur.",
+      "pattern": "1-b6maj7-b7:7-1",
+      "level": 2,
+      "description": "Imaj7 → bVImaj7 → bVII7 → Imaj7 : Abmaj7 → Bb7 → Cmaj7 en Do. Deux accords empruntés au mineur montent vers la tonique majeure."
+    },
+    {
+      "id": "neapolitan-1",
+      "style": "jazz",
+      "category": "Couleurs & chromatismes",
+      "name": "Napolitain (bIImaj7-V-I)",
+      "context": "Le IIe degré abaissé avant la dominante.",
+      "pattern": "1-b2maj7-5-1",
+      "level": 3,
+      "description": "Imaj7 → bIImaj7 → V7 → Imaj7 : Dbmaj7 remplace le II avant G7. Couleur sombre, puis la dominante ramène la lumière."
+    },
+    {
+      "id": "dorian-half-step-1",
+      "style": "jazz",
+      "category": "Modal & sus",
+      "name": "Dorien, puis un demi-ton plus haut",
+      "context": "Le même mode transposé d’un demi-ton.",
+      "pattern": "1m7-b2m7",
+      "level": 2,
+      "description": "Im7 → bIIm7 : Dm7 → Ebm7 en Ré. Deux zones modales doriennes à un demi-ton d'écart : le principe des grilles modales."
+    },
+    {
+      "id": "dorian-vamp-1",
+      "style": "jazz",
+      "category": "Modal & sus",
+      "name": "Vamp dorien i-IV7",
+      "context": "Deux accords du mode dorien en boucle.",
+      "pattern": "1m7-4:7",
+      "level": 1,
+      "description": "Im7 → IV7 : Dm7 → G7 en Ré dorien. Le Si bécarre de G7 est la sixte majeure du mode, qui le distingue du mineur naturel."
+    },
+    {
+      "id": "sus-vamp-1",
+      "style": "gospel",
+      "category": "Modal & sus",
+      "name": "Vamp suspendu (V9sus4-I)",
+      "context": "La dominante suspendue qui se pose sur la tonique.",
+      "pattern": "5:9sus4-1",
+      "level": 2,
+      "description": "V9sus4 → Imaj7 : G9sus4 contient déjà Fa, La, Do (un IV sur la basse du V), d'où sa couleur ouverte. Très présent en gospel et en néo-soul."
+    },
+    {
+      "id": "sus-resolution-1",
+      "style": "jazz",
+      "category": "Modal & sus",
+      "name": "V7sus4-V7-I",
+      "context": "Suspendre, résoudre, conclure.",
+      "pattern": "5:7sus4-5:7-1",
+      "level": 2,
+      "description": "V7sus4 → V7 → Imaj7 : la quarte (Do) descend sur la tierce (Si), puis la dominante se résout. L'enchaînement le plus simple pour entendre la suspension."
+    }
   ]
 }
