@@ -222,7 +222,7 @@
                      (practice-exercise.js), source unique partagée avec le navigateur. -->
                 <select id="exercise-target-quality" aria-label="Qualité de l'accord cible"></select>
                 <!-- Tirage d'un accord au hasard : vrai bouton (icône dé), dans la bande du haut. -->
-                <button class="tr-button exercise-random-target-btn" type="button" id="exercise-random-target-btn" title="Tire une racine et une qualité au hasard (en respectant la note du dessus si elle est choisie)"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="16" cy="8" r="1.1" fill="currentColor"/><circle cx="12" cy="12" r="1.1" fill="currentColor"/><circle cx="8" cy="16" r="1.1" fill="currentColor"/><circle cx="16" cy="16" r="1.1" fill="currentColor"/></svg>Accord au hasard</button>
+                <button class="tr-button exercise-random-target-btn" type="button" id="exercise-random-target-btn" title="Tire une racine et une qualité au hasard (en respectant la top note si elle est choisie)"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="16" cy="8" r="1.1" fill="currentColor"/><circle cx="12" cy="12" r="1.1" fill="currentColor"/><circle cx="8" cy="16" r="1.1" fill="currentColor"/><circle cx="16" cy="16" r="1.1" fill="currentColor"/></svg>Accord au hasard</button>
               </div>
             </div>
             <!-- [Astra round 3] — Le guide et le panneau de progression ne sont
@@ -273,7 +273,7 @@
               <!-- Sélecteur d'accord cible : visible uniquement en mode "Accord cible". -->
               <div class="exercise-target-choice" id="exercise-target-choice" style="display: none;">
                 <!-- Recherche de voicings par note du dessus (sans octave). -->
-                <label for="exercise-top-note">Note du dessus</label>
+                <label for="exercise-top-note">Top note</label>
                 <select id="exercise-top-note" aria-label="Note la plus haute du voicing (toutes octaves)">
                   <option value="">Toutes</option>
                   <option value="0">C</option>
@@ -349,11 +349,11 @@
                    et les favoris. Les autres modes gardent leur avancement. -->
               <div class="exercise-chord-side" id="exercise-chord-side" hidden>
                 <span class="tr-eyebrow">FILTRES</span>
-                <p class="exercise-side-hint" id="exercise-topnote-filters-hint">Choisissez une note du dessus pour filtrer les voicings.</p>
+                <p class="exercise-side-hint" id="exercise-topnote-filters-hint">Choisissez une top note pour filtrer les voicings.</p>
                 <div class="exercise-topnote-filters" id="exercise-topnote-filters" hidden>
                   <!-- Tonalité, famille, fondamentale et techniques : remplies par main.js. -->
                   <select data-topnote-filter="key" aria-label="Tonalité : voicings dont toutes les notes sont dans la gamme"></select>
-                  <select data-topnote-filter="octave" aria-label="Octave de la note du dessus">
+                  <select data-topnote-filter="octave" aria-label="Octave de la top note">
                     <option value="all">Toutes octaves</option>
                     <option value="4">Octave 4</option>
                     <option value="5">Octave 5</option>

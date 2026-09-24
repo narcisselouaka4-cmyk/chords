@@ -1785,7 +1785,7 @@ function renderTopNotePanel(voicing) {
   return `
     <div class="exercise-topnote-panel">
       <div class="exercise-topnote-head">
-        <span>Note du dessus : <strong>${escapeHtml(topName)}</strong> · ${list.length} voicing${list.length > 1 ? 's' : ''}</span>
+        <span>Top note : <strong>${escapeHtml(topName)}</strong> · ${list.length} voicing${list.length > 1 ? 's' : ''}</span>
         ${arrows}
       </div>
       <ol class="exercise-topnote-list">${items}</ol>
