@@ -60,9 +60,8 @@ import {
   renderExerciseTarget,
   difficultyOfVoicing,
   getAvailableTechniques,
-  listProgressionNames,
   listMovementNames,
-  PROGRESSION_TEMPLATES,
+  KEY_ORDERS,
   TARGET_QUALITY_GROUPS,
   isDerivedQuality,
   findChordsByTopNote,
@@ -182,12 +181,20 @@ const els = {
   practiceMidiHint: document.getElementById('practice-midi-hint'),
   practiceLayout: document.getElementById('practice-tab'),
   exerciseCollapsedProgress: document.getElementById('exercise-collapsed-progress'),
-  exerciseDegreeBadge: document.getElementById('exercise-degree-badge'),
   practiceMidiStatusDot: document.getElementById('practice-midi-status-dot'),
   practiceMidiStatusText: document.getElementById('practice-midi-status-text'),
   practiceRecordBtn: document.getElementById('practice-record-btn'),
   exerciseDifficultySelect: document.getElementById('exercise-difficulty-select'),
   exerciseKeySelect: document.getElementById('exercise-key-select'),
+  exerciseMovementSettings: document.getElementById('exercise-movement-settings'),
+  exerciseKeyGrid: document.getElementById('exercise-key-grid'),
+  exerciseKeyOrder: document.getElementById('exercise-key-order'),
+  exerciseCurrentKey: document.getElementById('exercise-current-key'),
+  exerciseKeyStrip: document.getElementById('exercise-key-strip'),
+  exerciseChordsEyebrow: document.getElementById('exercise-chords-eyebrow'),
+  exerciseArenaEyebrow: document.getElementById('exercise-arena-eyebrow'),
+  exerciseGridForm: document.getElementById('exercise-grid-form'),
+  exerciseGridInput: document.getElementById('exercise-grid-input'),
   exerciseTargetChoice: document.getElementById('exercise-target-choice'),
   exerciseTargetRoot: document.getElementById('exercise-target-root'),
   exerciseTargetQuality: document.getElementById('exercise-target-quality'),
@@ -206,18 +213,8 @@ const els = {
   exerciseDoublingFilter: document.getElementById('exercise-doubling-filter'),
   exerciseTopNoteReset: document.getElementById('exercise-topnote-reset'),
   exerciseRandomTargetBtn: document.getElementById('exercise-random-target-btn'),
-  exerciseCustomProgressionSelector: document.getElementById('exercise-custom-progression-selector'),
-  degreeBuilder: document.getElementById('degree-builder'),
-  degreeButtons: document.querySelectorAll('#degree-builder .degree-btn'),
-  degreeSequence: document.getElementById('degree-sequence'),
-  degreeApply: document.getElementById('degree-apply'),
-  degreeClear: document.getElementById('degree-clear'),
-  degreeRemoveLast: document.getElementById('degree-remove-last'),
-  customProgressionBadge: document.getElementById('custom-progression-badge'),
   exerciseLibraryBtn: document.getElementById('exercise-library-btn'),
   exerciseLibrary: document.getElementById('exercise-library'),
-  exerciseLibraryClose: document.getElementById('exercise-library-close'),
-  exerciseLibraryTabs: document.getElementById('exercise-library-tabs'),
   exerciseLibrarySearch: document.getElementById('exercise-library-search'),
   exerciseLibraryCategories: document.getElementById('exercise-library-categories'),
   exerciseLibraryGrid: document.getElementById('exercise-library-grid'),
@@ -1111,17 +1108,6 @@ function updateExerciseProgressUI(exState) {
     els.exerciseCollapsedProgress.textContent = '';
     els.exerciseCollapsedProgress.style.display = 'none';
   }
-
-  if (els.exerciseDegreeBadge) {
-    const degree = exState.mode === 'progression' ? exState.target?.degree : null;
-    if (degree) {
-      els.exerciseDegreeBadge.textContent = degree;
-      els.exerciseDegreeBadge.style.display = '';
-    } else {
-      els.exerciseDegreeBadge.style.display = 'none';
-    }
-  }
-
   renderExerciseBrief(exState);
   renderExerciseProgressPanel(exState);
 }
@@ -1132,52 +1118,69 @@ function updateExerciseProgressUI(exState) {
 // avancement qui ne venait jamais. Elles affichent maintenant les données que
 // practice-exercise.js calcule déjà — rien n'est inventé, aucun libellé
 // pédagogique n'est ajouté.
+// [Claude] — 2026-09-24 — Mode Progression retiré ; en Mouvement, la colonne de
+// gauche porte les réglages du tour (niveau, tonalités, ordre, départ) et celle
+// de droite la tonalité en cours, la frise des tonalités et les accords, tous
+// cliquables (Narcisse : tonalité active mal placée, réglages « posés à la
+// va-vite », pas de saut direct à un accord, tonalités non choisies).
 
-/** Panneau de gauche : ce qu'on travaille, selon le mode réellement actif. */
+const KEY_NAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+
+/** Panneau de gauche : ce qu'on travaille, et les réglages du tour en Mouvement. */
 function renderExerciseBrief(exState) {
   const category = document.getElementById('exercise-brief-category');
   const title = document.getElementById('exercise-brief-title');
   const text = document.getElementById('exercise-brief-text');
-  const keyPill = document.getElementById('exercise-brief-key');
   if (!category || !title || !text) return;
 
   const target = exState.target;
+  const isMovement = exState.mode === 'movement' && Boolean(target?.movementName);
+  if (els.exerciseMovementSettings) els.exerciseMovementSettings.hidden = !isMovement;
 
-  if (exState.mode === 'movement' && target?.movementName) {
+  if (isMovement) {
     category.textContent = target.movementCategory || 'MOUVEMENT 12 TONS';
     title.textContent = target.movementName;
     text.textContent = target.movementDescription || '';
-    if (keyPill) {
-      // Affichage seul : practice-exercise.js n'expose aucun changement manuel
-      // de tonalité, on n'en invente pas un.
-      keyPill.textContent = target.keyLabel || '';
-      keyPill.style.display = target.keyLabel ? '' : 'none';
-    }
-    return;
-  }
-
-  if (exState.mode === 'progression' && exState.progression) {
-    category.textContent = 'PROGRESSION';
-    title.textContent = exState.progression.name || 'Progression';
-    text.textContent = '';
-    if (keyPill) {
-      // Tonalité réelle de la grille (y compris tirée au hasard) ; pas de
-      // tonalité pour une progression saisie accord par accord.
-      const prog = exState.progression;
-      const showKey = !prog.typed && Number.isInteger(prog.keyPc);
-      keyPill.textContent = showKey ? `Tonalité ${keyLabel(prog.keyPc, Boolean(prog.minor))}` : '';
-      keyPill.style.display = showKey ? '' : 'none';
-    }
+    renderMovementSettings(exState);
     return;
   }
 
   category.textContent = 'ACCORD CIBLE';
   title.textContent = 'Un accord, puis le suivant.';
   text.textContent = '';
-  if (keyPill) keyPill.style.display = 'none';
 }
 
-/** Panneau de droite : compteur, barre et étapes réelles de l'exercice. */
+/** Réglages du tour : niveau, tonalités retenues, ordre et départ, lus dans l'état. */
+function renderMovementSettings(exState) {
+  if (els.exerciseDifficultySelect) {
+    els.exerciseDifficultySelect.value = String(exState.difficulty);
+    // Mouvement aux accords fixés (Barry Harris, « Ma grille ») : le niveau ne change pas ses qualités.
+    const fixed = Boolean(exState.progression?.movement?.preserveQualities);
+    els.exerciseDifficultySelect.disabled = fixed;
+    els.exerciseDifficultySelect.title = fixed ? 'Les accords de ce mouvement sont fixés : le niveau ne les change pas.' : '';
+  }
+  const keySet = new Set(exState.keySet || []);
+  if (els.exerciseKeyGrid) {
+    els.exerciseKeyGrid.innerHTML = KEY_NAMES.map((name, pc) => {
+      const on = keySet.has(pc);
+      const alone = on && keySet.size === 1;
+      return `<button type="button" class="exercise-key-toggle${on ? ' is-on' : ''}" data-key-toggle="${pc}" aria-pressed="${on}"${alone ? ' disabled title="Au moins une tonalité"' : ''}>${name}</button>`;
+    }).join('') + `<button type="button" class="exercise-key-all" data-key-all${keySet.size === 12 ? ' hidden' : ''}>Toutes les tonalités</button>`;
+  }
+  if (els.exerciseKeyOrder) {
+    if (!els.exerciseKeyOrder.options.length) {
+      els.exerciseKeyOrder.innerHTML = Object.entries(KEY_ORDERS).map(([id, o]) => `<option value="${id}">${o.label}</option>`).join('');
+    }
+    els.exerciseKeyOrder.value = exState.keyOrder || 'chromatic';
+  }
+  if (els.exerciseKeySelect) {
+    els.exerciseKeySelect.innerHTML = '<option value="">Au hasard</option>'
+      + KEY_NAMES.map((name, pc) => (keySet.has(pc) ? `<option value="${pc}">${name}</option>` : '')).join('');
+    els.exerciseKeySelect.value = exState.keyChoice == null ? '' : String(exState.keyChoice);
+  }
+}
+
+/** Panneau de droite : tonalité en cours, frise des tonalités, accords (cliquables). */
 function renderExerciseProgressPanel(exState) {
   const eyebrow = document.getElementById('exercise-progress-eyebrow');
   const counter = document.getElementById('exercise-progress-counter');
@@ -1187,62 +1190,42 @@ function renderExerciseProgressPanel(exState) {
   if (!counter || !track || !path || !quiet) return;
 
   const bar = track.firstElementChild;
-  const showBar = (ratio) => {
-    track.style.display = '';
-    if (bar) bar.style.width = `${Math.max(0, Math.min(100, ratio * 100)).toFixed(1)}%`;
-  };
-  const setCounter = (current, total) => {
-    counter.style.display = '';
-    counter.innerHTML = '';
-    const strong = document.createElement('strong');
-    strong.textContent = String(current).padStart(2, '0');
-    const span = document.createElement('span');
-    span.textContent = `/ ${String(total).padStart(2, '0')}`;
-    counter.append(strong, span);
-  };
-  const renderSteps = (chords, activeIndex, withDegree) => {
-    path.innerHTML = '';
-    chords.forEach((chord, index) => {
-      const step = document.createElement('div');
-      step.className = index === activeIndex ? 'is-active' : index < activeIndex ? 'is-done' : '';
-      const mark = document.createElement('span');
-      mark.textContent = withDegree && chord.degree ? chord.degree : String(index + 1);
-      const body = document.createElement('div');
-      const name = document.createElement('strong');
-      name.textContent = chord.name || '—';
-      body.appendChild(name);
-      step.append(mark, body);
-      path.appendChild(step);
-    });
-  };
-
-  // Mode « Mouvement 12 tons » : deux échelles réelles, les tons et les accords.
-  if (exState.mode === 'movement' && exState.progression) {
-    const prog = exState.progression;
-    const perKey = prog.chords.length || 1;
-    const totalKeys = prog.totalKeys || 12;
-    const done = (prog.keyIndex || 0) * perKey + (prog.stepIndex || 0);
-    if (eyebrow) eyebrow.textContent = 'LE TOUR DES TONALITÉS';
-    setCounter((prog.keyIndex || 0) + 1, totalKeys);
-    showBar(done / (totalKeys * perKey));
-    renderSteps(prog.chords, prog.stepIndex || 0, false);
-    quiet.textContent = [exState.target?.keyProgress, exState.target?.stepProgress]
-      .filter(Boolean).join(' · ');
-    quiet.style.display = quiet.textContent ? '' : 'none';
-    return;
+  const prog = exState.mode === 'movement' ? exState.progression : null;
+  if (els.exerciseCurrentKey) els.exerciseCurrentKey.hidden = !prog;
+  if (els.exerciseKeyStrip) els.exerciseKeyStrip.hidden = !prog;
+  if (els.exerciseChordsEyebrow) els.exerciseChordsEyebrow.hidden = !prog;
+  if (els.exerciseArenaEyebrow) {
+    els.exerciseArenaEyebrow.textContent = prog && exState.target?.keyName
+      ? `À VOUS DE JOUER · ${exState.target.keyName.toUpperCase()} · ACCORD ${(prog.stepIndex || 0) + 1} / ${prog.chords.length}`
+      : 'À VOUS DE JOUER';
   }
 
-  // Mode « Progression » : une seule échelle, les accords de la grille.
-  if (exState.mode === 'progression' && exState.progression) {
-    const chords = exState.progression.chords || [];
-    const total = chords.length || 1;
-    const step = exState.stepIndex || 0;
-    if (eyebrow) eyebrow.textContent = 'VOTRE PROGRESSION';
-    setCounter(Math.min(step + 1, total), total);
-    showBar(step / total);
-    renderSteps(chords, step, true);
-    quiet.textContent = exState.score > 0 ? `${exState.score} pts` : '';
-    quiet.style.display = quiet.textContent ? '' : 'none';
+  if (prog) {
+    const keys = prog.keys || [];
+    const perKey = prog.chords.length || 1;
+    const totalKeys = prog.totalKeys || keys.length || 1;
+    const keyIndex = prog.keyIndex || 0;
+    const stepIndex = prog.stepIndex || 0;
+    const minor = Boolean(prog.minor);
+    if (eyebrow) eyebrow.textContent = 'LE TOUR DES TONALITÉS';
+    if (els.exerciseCurrentKey) els.exerciseCurrentKey.textContent = exState.target?.keyName || keyLabel(prog.currentKey, minor);
+    counter.style.display = '';
+    counter.innerHTML = `<span>Tonalité</span><strong>${String(keyIndex + 1).padStart(2, '0')}</strong><span>/ ${String(totalKeys).padStart(2, '0')}</span>`;
+    track.style.display = '';
+    if (bar) bar.style.width = `${Math.max(0, Math.min(100, ((keyIndex * perKey + stepIndex) / (totalKeys * perKey)) * 100)).toFixed(1)}%`;
+    if (els.exerciseKeyStrip) {
+      els.exerciseKeyStrip.innerHTML = keys.map((pc, i) => {
+        const state = i === keyIndex ? ' is-current' : i < keyIndex ? ' is-done' : '';
+        const name = keyLabel(pc, minor).split(' ')[0];
+        return `<button type="button" class="exercise-key-chip${state}" data-key-index="${i}" title="Aller en ${keyLabel(pc, minor)}"${i === keyIndex ? ' aria-current="true"' : ''}>${name}</button>`;
+      }).join('');
+    }
+    path.innerHTML = prog.chords.map((chord, i) => {
+      const state = i === stepIndex ? 'is-active' : i < stepIndex ? 'is-done' : '';
+      return `<button type="button" class="${state}" data-step="${i}" title="Afficher ${chord.name}"${i === stepIndex ? ' aria-current="step"' : ''}><span>${i + 1}</span><div><strong>${chord.name || '—'}</strong></div></button>`;
+    }).join('');
+    quiet.textContent = 'Cliquez une tonalité ou un accord pour y aller directement.';
+    quiet.style.display = '';
     return;
   }
 
@@ -1311,20 +1294,12 @@ function initPracticeExercise() {
   practiceExercise = createPracticeExercise();
 
   const prevBtn = document.getElementById('prev-exercise-btn');
-  const contentSelector = document.getElementById('exercise-content-selector');
-  const contentSelect = document.getElementById('exercise-content-select');
-  const difficultySelector = document.getElementById('exercise-difficulty-selector');
 
   const escapeAttr = (str) => String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
-
-  /** Le sélecteur de contenu est remplacé par la bibliothèque latérale. */
-  function refreshContentSelector(exState) {
-    if (contentSelector) contentSelector.style.display = 'none';
-  }
 
   function render() {
     const exState = practiceExercise.getState();
@@ -1333,23 +1308,16 @@ function initPracticeExercise() {
       const categories = getAvailableTechniques(exState.target.name);
       const difficulty = difficultyOfVoicing(exState.target);
       const isFavorite = exerciseFavorites.some((f) => f.key === favoriteFromTarget(exState.target)?.key);
-      // Orthographe des notes selon la tonalité (Progression / Mouvement).
+      // Orthographe des notes selon la tonalité (Mouvement).
       const prog = exState.progression;
-      const spelling = exState.mode === 'progression' && prog && !prog.typed ? { keyPc: prog.keyPc, minor: Boolean(prog.minor) }
-        : exState.mode === 'movement' && prog ? { keyPc: prog.currentKey, minor: Boolean(prog.minor) }
-          : null;
+      const spelling = exState.mode === 'movement' && prog ? { keyPc: prog.currentKey, minor: Boolean(prog.minor) } : null;
       targetDiv.innerHTML = renderExerciseTarget(exState.target, {
         categories, difficulty, variant: exState.variant, selectedTechnique: exState.technique,
         doubling: exState.doubling, isFavorite, layout: exState.mode === 'chord' ? 'chord' : 'default', spelling,
       });
     }
-    refreshContentSelector(exState);
     refreshTargetChoice(exState);
     refreshChordSide(exState);
-    // En mode Accord cible, la difficulté est imposée par l'accord/technique.
-    if (difficultySelector) {
-      difficultySelector.style.display = exState.mode === 'chord' ? 'none' : '';
-    }
     if (prevBtn) {
       prevBtn.style.display = practiceExercise.canGoPrevious() ? '' : 'none';
     }
@@ -1537,31 +1505,6 @@ function initPracticeExercise() {
       els.exerciseTargetChoice.style.display = 'none';
       refreshTopNoteBrowser(exState);
     }
-    if (els.exerciseCustomProgressionSelector) {
-      els.exerciseCustomProgressionSelector.style.display = (exState.mode === 'progression') ? '' : 'none';
-    }
-    const isCustomMode = exState.mode === 'progression' && !exState.progressionChoice;
-    if (els.exerciseCustomProgressionSelector) {
-      els.exerciseCustomProgressionSelector.style.display = (exState.mode === 'progression') ? '' : 'none';
-      els.exerciseCustomProgressionSelector.classList.toggle('exercise-custom-progression-active', isCustomMode);
-    }
-    if (els.degreeBuilder) {
-      els.degreeBuilder.hidden = false;
-      els.degreeBuilder.classList.toggle('degree-builder-disabled', !isCustomMode);
-      const buttons = els.degreeBuilder.querySelectorAll('button');
-      buttons.forEach((btn) => { btn.disabled = !isCustomMode; });
-    }
-    if (els.customProgressionBadge) els.customProgressionBadge.hidden = !exState.customProgressionDegrees;
-    // Sélecteur de tonalité : utile en progression et mouvement, inutile en
-    // accord cible (la fondamentale est déjà choisie séparément).
-    const keySelector = document.getElementById('exercise-key-selector');
-    if (keySelector) {
-      keySelector.style.display = exState.mode === 'chord' ? 'none' : '';
-    }
-    if (els.exerciseKeySelect) {
-      els.exerciseKeySelect.value = exState.keyChoice == null ? '' : String(exState.keyChoice);
-    }
-    updateDegreeSequenceUI(exState);
   }
 
   // Exposé au module pour que checkPracticeExercise() rafraîchisse aussi le
@@ -1606,6 +1549,46 @@ function initPracticeExercise() {
     render();
   });
 
+  // Tonalités du tour : bascule d'une tonalité, « Toutes », ordre de parcours.
+  els.exerciseKeyGrid?.addEventListener('click', (e) => {
+    const exState = practiceExercise.getState();
+    const toggle = e.target.closest('[data-key-toggle]');
+    if (toggle) {
+      const pc = Number(toggle.dataset.keyToggle);
+      const set = new Set(exState.keySet);
+      if (set.has(pc)) set.delete(pc);
+      else set.add(pc);
+      if (set.size === 0) return;
+      practiceExercise.setKeySet([...set]);
+      render();
+      return;
+    }
+    if (e.target.closest('[data-key-all]')) {
+      practiceExercise.setKeySet(Array.from({ length: 12 }, (_, pc) => pc));
+      render();
+    }
+  });
+  els.exerciseKeyOrder?.addEventListener('change', () => {
+    practiceExercise.setKeyOrder(els.exerciseKeyOrder.value);
+    render();
+  });
+
+  // Saut direct : une tonalité de la frise, un accord de la liste.
+  els.exerciseKeyStrip?.addEventListener('click', (e) => {
+    const chip = e.target.closest('[data-key-index]');
+    if (!chip) return;
+    practiceExercise.goToKey(Number(chip.dataset.keyIndex));
+    feedbackDiv.textContent = '';
+    render();
+  });
+  document.getElementById('exercise-progress-path')?.addEventListener('click', (e) => {
+    const step = e.target.closest('[data-step]');
+    if (!step || practiceExercise.getState().mode !== 'movement') return;
+    practiceExercise.goToStep(Number(step.dataset.step));
+    feedbackDiv.textContent = '';
+    render();
+  });
+
   // Navigation arrière : réexaminer l'accord précédent (et éventuellement en
   // changer la technique) sans consommer de tentative ni toucher au score.
   prevBtn?.addEventListener('click', () => {
@@ -1614,78 +1597,11 @@ function initPracticeExercise() {
     render();
   });
 
-  contentSelect?.addEventListener('change', () => {
-    const value = contentSelect.value;
-    if (value === '__custom__') {
-      practiceExercise.setContentChoice('');
-      feedbackDiv.textContent = '';
-      render();
-      return;
-    }
-    practiceExercise.setContentChoice(value || null);
-    feedbackDiv.textContent = '';
-    render();
-  });
-
-  // Construction de progression personnalisée par degrés.
-  let degreeSequence = [];
-
-  function updateDegreeSequenceUI(exState) {
-    const seq = exState?.customProgressionDegrees || degreeSequence;
-    if (!els.degreeSequence) return;
-    if (seq.length === 0) {
-      els.degreeSequence.innerHTML = '<span class="degree-sequence-empty">Cliquez les degrés pour composer la progression…</span>';
-    } else {
-      els.degreeSequence.innerHTML = seq.map((d, i) => {
-        const label = `${d.accidental || ''}${['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'][d.degree - 1]}`;
-        return `<span class="degree-chip" data-index="${i}" title="Supprimer">${label}<button type="button" aria-label="Supprimer ${label}">×</button></span>`;
-      }).join('');
-    }
-  }
-
-  els.degreeButtons?.forEach((btn) => {
-    btn.addEventListener('click', () => {
-      degreeSequence.push({ degree: parseInt(btn.dataset.degree, 10), accidental: '' });
-      updateDegreeSequenceUI({ customProgressionDegrees: degreeSequence });
-    });
-  });
-
-  els.degreeApply?.addEventListener('click', () => {
-    if (degreeSequence.length === 0) return;
-    practiceExercise.setCustomProgressionFromDegrees([...degreeSequence]);
-    feedbackDiv.textContent = '';
-    render();
-  });
-
-  els.degreeClear?.addEventListener('click', () => {
-    degreeSequence = [];
-    updateDegreeSequenceUI({ customProgressionDegrees: degreeSequence });
-    practiceExercise.setCustomProgressionFromDegrees([]);
-    feedbackDiv.textContent = '';
-    render();
-  });
-
-  els.degreeRemoveLast?.addEventListener('click', () => {
-    degreeSequence.pop();
-    updateDegreeSequenceUI({ customProgressionDegrees: degreeSequence });
-  });
-
-  els.degreeSequence?.addEventListener('click', (e) => {
-    const chip = e.target.closest('.degree-chip');
-    if (!chip) return;
-    const index = parseInt(chip.dataset.index, 10);
-    if (Number.isFinite(index)) {
-      degreeSequence.splice(index, 1);
-      updateDegreeSequenceUI({ customProgressionDegrees: degreeSequence });
-    }
-  });
-
-  // ── Bibliothèque d'exercices (panneau latéral) ──
-  let libraryTab = 'progressions';
+  // ── Bibliothèque des mouvements (fenêtre Astra) ──
+  // [Claude] — 2026-09-24 — Fenêtre centrée (.tr-overlay, ouverte et fermée par
+  // astra-shell.js : fond, Échap, ✕) ; onglet Progressions retiré avec le mode.
   let libraryCategory = null;
   let librarySearch = '';
-
-  const ROMAN_DEGREES = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
 
   function escapeHtml(str) {
     return String(str)
@@ -1703,171 +1619,102 @@ function initPracticeExercise() {
       + '<span class="star empty" aria-hidden="true">☆</span>'.repeat(empty);
   }
 
-  function getLibraryItems(tab) {
-    if (tab === 'movements') {
-      return (movementsLibrary?.movements || []).map((m) => ({
-        id: m.id,
-        name: m.name,
-        category: m.category || 'Mouvements 12 tons',
-        level: m.level,
-        description: m.description || '',
-        tags: m.tags || [],
-        mode: 'movement',
-      }));
-    }
-    const items = PROGRESSION_TEMPLATES.map((t) => ({
-      id: `prog-${t.name}`,
-      name: t.name,
-      category: t.category || 'Progressions',
-      level: t.level,
-      description: t.description || '',
-      tags: t.tags || [],
-      mode: 'progression',
+  function getLibraryItems() {
+    return (movementsLibrary?.movements || []).map((m) => ({
+      id: m.id,
+      name: m.name,
+      category: m.category || 'Mouvements 12 tons',
+      level: m.level,
+      description: m.description || '',
+      tags: m.tags || [],
     }));
-    items.unshift({
-      id: '__custom__',
-      name: 'Progression personnalisée',
-      category: 'Personnalisée',
-      level: 1,
-      description: 'Composez votre propre progression avec les degrés I–VII. L\'application choisit les qualités selon la difficulté.',
-      tags: ['custom'],
-      mode: 'custom',
-    });
-    return items;
   }
 
   function renderLibrary() {
-    const lib = els.exerciseLibrary;
-    if (!lib) return;
-
-    // Onglets actifs
-    els.exerciseLibraryTabs?.querySelectorAll('button').forEach((btn) => {
-      const active = btn.dataset.tab === libraryTab;
-      btn.classList.toggle('active', active);
-      btn.setAttribute('aria-selected', String(active));
-    });
-
-    let items = getLibraryItems(libraryTab);
-
-    // Filtrage recherche
+    const all = getLibraryItems();
+    let items = all;
     const q = librarySearch.trim().toLowerCase();
     if (q) {
       items = items.filter((item) =>
         item.name.toLowerCase().includes(q)
         || item.category.toLowerCase().includes(q)
-        || (item.description || '').toLowerCase().includes(q)
-        || item.tags.some((tag) => tag.toLowerCase().includes(q))
-      );
+        || item.description.toLowerCase().includes(q)
+        || item.tags.some((tag) => tag.toLowerCase().includes(q)));
     }
-
-    // Catégories (avant filtre par catégorie pour avoir tous les choix)
-    const allCategories = [...new Set(getLibraryItems(libraryTab).map((i) => i.category))].sort((a, b) => a.localeCompare(b));
+    const categories = [...new Set(all.map((i) => i.category))].sort((a, b) => a.localeCompare(b));
     if (els.exerciseLibraryCategories) {
-      const chips = [`<button type="button" class="exercise-library-chip ${libraryCategory ? '' : 'active'}" data-category="">Tous<span class="exercise-library-count">${getLibraryItems(libraryTab).length}</span></button>`]
-        .concat(allCategories.map((cat) => {
-          const count = getLibraryItems(libraryTab).filter((i) => i.category === cat).length;
+      els.exerciseLibraryCategories.innerHTML = [`<button type="button" class="exercise-library-chip ${libraryCategory ? '' : 'active'}" data-category="" aria-pressed="${!libraryCategory}">Tous<span class="exercise-library-count">${all.length}</span></button>`]
+        .concat(categories.map((cat) => {
+          const count = all.filter((i) => i.category === cat).length;
           const active = libraryCategory === cat;
-          return `<button type="button" class="exercise-library-chip ${active ? 'active' : ''}" data-category="${escapeAttr(cat)}">${escapeHtml(cat)}<span class="exercise-library-count">${count}</span></button>`;
-        }));
-      els.exerciseLibraryCategories.innerHTML = chips.join('');
+          return `<button type="button" class="exercise-library-chip ${active ? 'active' : ''}" data-category="${escapeAttr(cat)}" aria-pressed="${active}">${escapeHtml(cat)}<span class="exercise-library-count">${count}</span></button>`;
+        })).join('');
     }
-
-    if (libraryCategory) {
-      items = items.filter((i) => i.category === libraryCategory);
-    }
-
-    // Tri par catégorie puis niveau puis nom
-    items.sort((a, b) => {
-      if (a.category !== b.category) return a.category.localeCompare(b.category);
-      if ((a.level || 0) !== (b.level || 0)) return (a.level || 0) - (b.level || 0);
-      return a.name.localeCompare(b.name);
-    });
-
-    if (els.exerciseLibraryGrid) {
-      if (items.length === 0) {
-        els.exerciseLibraryGrid.innerHTML = `<div class="exercise-library-empty">Aucun exercice ne correspond à votre recherche.</div>`;
-      } else {
-        els.exerciseLibraryGrid.innerHTML = items.map((item) => {
-          const stars = item.mode === 'custom' ? '' : `<span class="exercise-library-card-stars" aria-label="Niveau ${item.level} sur 5" title="Niveau ${item.level} sur 5">${renderStarString(item.level)}</span>`;
-          const tags = item.tags?.length
-            ? `<div class="exercise-library-card-tags">${item.tags.map((t) => `<span>${escapeHtml(t)}</span>`).join('')}</div>`
-            : '';
-          return `<article class="exercise-library-card" data-id="${escapeAttr(item.id)}" tabindex="0" role="button">
+    if (libraryCategory) items = items.filter((i) => i.category === libraryCategory);
+    items.sort((a, b) => a.category.localeCompare(b.category) || (a.level || 0) - (b.level || 0) || a.name.localeCompare(b.name));
+    if (!els.exerciseLibraryGrid) return;
+    const current = practiceExercise.getState().progression?.name;
+    els.exerciseLibraryGrid.innerHTML = items.length === 0
+      ? '<div class="exercise-library-empty">Aucun mouvement ne correspond à votre recherche.</div>'
+      : items.map((item) => `<article class="exercise-library-card${item.name === current ? ' is-current' : ''}" data-id="${escapeAttr(item.id)}" tabindex="0" role="button" aria-label="${escapeAttr(`${item.name}, niveau ${item.level} sur 5`)}">
             <div class="exercise-library-card-header">
               <span class="exercise-library-card-category">${escapeHtml(item.category)}</span>
-              ${stars}
+              <span class="exercise-library-card-stars" title="Niveau ${item.level} sur 5">${renderStarString(item.level)}</span>
             </div>
-            <h4>${escapeHtml(item.name)}</h4>
+            <h4>${escapeHtml(item.name)}${item.name === current ? '<span class="exercise-library-current">En cours</span>' : ''}</h4>
             <p>${escapeHtml(item.description)}</p>
-            ${tags}
-          </article>`;
-        }).join('');
-      }
-    }
+          </article>`).join('');
   }
 
+  /** Prépare le contenu ; l'ouverture elle-même est faite par astra-shell.js (data-astra-open). */
   function openLibrary() {
-    const exState = practiceExercise.getState();
-    libraryTab = exState.mode === 'movement' ? 'movements' : 'progressions';
     libraryCategory = null;
     librarySearch = '';
     if (els.exerciseLibrarySearch) els.exerciseLibrarySearch.value = '';
-    if (els.exerciseLibrary) {
-      els.exerciseLibrary.hidden = false;
-      els.exerciseLibrary.classList.add('is-open');
-    }
+    const grid = practiceExercise.getState().customGrid;
+    if (els.exerciseGridInput && grid) els.exerciseGridInput.value = grid.map((t) => t.name).join(' ');
     renderLibrary();
-    els.exerciseLibrarySearch?.focus();
   }
 
   function closeLibrary() {
-    if (els.exerciseLibrary) {
-      els.exerciseLibrary.hidden = true;
-      els.exerciseLibrary.classList.remove('is-open');
-    }
+    if (!els.exerciseLibrary || els.exerciseLibrary.hidden) return;
+    els.exerciseLibrary.hidden = true;
+    document.body.classList.remove('tr-dialog-open');
   }
 
-  function toggleLibrary() {
-    if (els.exerciseLibrary?.hidden) openLibrary();
-    else closeLibrary();
+  /** Passe en mode Mouvement si besoin (après confirmation si un exercice est en cours). */
+  function ensureMovementMode() {
+    if (practiceExercise.getState().mode === 'movement') return true;
+    if (!maybeConfirmReset()) return false;
+    practiceExercise.setMode('movement');
+    setModeButtonActive('movement');
+    return true;
   }
 
   function selectLibraryCard(item) {
-    if (item.mode === 'custom') {
-      const cur = practiceExercise.getState();
-      if (cur.mode !== 'progression') {
-        if (!maybeConfirmReset()) return;
-        practiceExercise.setMode('progression');
-        setModeButtonActive('progression');
-      }
-      practiceExercise.clearContentChoice();
-      closeLibrary();
-      feedbackDiv.textContent = '';
-      render();
-      return;
-    }
-
-    const cur = practiceExercise.getState();
-    if (cur.mode !== item.mode) {
-      if (!maybeConfirmReset()) return;
-      practiceExercise.setMode(item.mode);
-      setModeButtonActive(item.mode);
-    }
+    if (!ensureMovementMode()) return;
     practiceExercise.setContentChoice(item.name);
     closeLibrary();
     feedbackDiv.textContent = '';
     render();
   }
 
-  els.exerciseLibraryBtn?.addEventListener('click', toggleLibrary);
-  els.exerciseLibraryClose?.addEventListener('click', closeLibrary);
+  els.exerciseLibraryBtn?.setAttribute('data-astra-open', 'exercise-library');
+  els.exerciseLibraryBtn?.addEventListener('click', openLibrary);
 
-  els.exerciseLibraryTabs?.addEventListener('click', (e) => {
-    const btn = e.target.closest('button[data-tab]');
-    if (!btn) return;
-    libraryTab = btn.dataset.tab;
-    libraryCategory = null;
-    renderLibrary();
+  els.exerciseGridForm?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const value = els.exerciseGridInput?.value.trim() || '';
+    if (!value) {
+      els.exerciseGridInput?.focus();
+      return;
+    }
+    if (practiceExercise.getState().mode !== 'movement' && !maybeConfirmReset()) return;
+    practiceExercise.setCustomGrid(value);
+    setModeButtonActive('movement');
+    closeLibrary();
+    feedbackDiv.textContent = '';
+    render();
   });
 
   els.exerciseLibrarySearch?.addEventListener('input', (e) => {
@@ -1883,19 +1730,19 @@ function initPracticeExercise() {
     renderLibrary();
   });
 
+  const pickLibraryCard = (card) => {
+    const item = getLibraryItems().find((i) => i.id === card.dataset.id);
+    if (item) selectLibraryCard(item);
+  };
   els.exerciseLibraryGrid?.addEventListener('click', (e) => {
     const card = e.target.closest('.exercise-library-card');
-    if (!card) return;
-    const id = card.dataset.id;
-    const item = getLibraryItems(libraryTab).find((i) => i.id === id);
-    if (item) selectLibraryCard(item);
+    if (card) pickLibraryCard(card);
   });
-
-  // Fermeture par Échap
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && els.exerciseLibrary && !els.exerciseLibrary.hidden) {
-      closeLibrary();
-    }
+  els.exerciseLibraryGrid?.addEventListener('keydown', (e) => {
+    const card = e.target.closest('.exercise-library-card');
+    if (!card || (e.key !== 'Enter' && e.key !== ' ')) return;
+    e.preventDefault();
+    pickLibraryCard(card);
   });
 
   // Menu des qualités : généré depuis la liste partagée avec le navigateur.

@@ -98,16 +98,6 @@ const PRACTICE_SYMBOLS_BY_DIFFICULTY = {
 
 const ALL_PRACTICE_SYMBOLS = Object.values(PRACTICE_SYMBOLS_BY_DIFFICULTY).flat();
 
-function symbolsForDifficulty(difficulty, mode) {
-  const level = Math.min(Math.max(Number(difficulty) || 5, 1), 5);
-  if (mode === 'chord') {
-    return PRACTICE_SYMBOLS_BY_DIFFICULTY[level] || PRACTICE_SYMBOLS_BY_DIFFICULTY[5];
-  }
-  // Progression / mouvement : cumulatif.
-  const levels = DIFFICULTY_LEVELS.filter((d) => d <= level);
-  return levels.flatMap((d) => PRACTICE_SYMBOLS_BY_DIFFICULTY[d]);
-}
-
 // Mapping entre les techniques de l'onglet Exercices et les familyId du
 // nouveau moteur de catalogue de voicings.
 const TECHNIQUE_TO_FAMILY_ID = {
@@ -130,66 +120,10 @@ const TECHNIQUE_TO_FAMILY_ID = {
   rootless: 'rootlessA',
 };
 
-// Les progressions standards sont désormais définies par un motif de degrés
-// avec une qualité de base. L'application enrichit automatiquement ces qualités
-// en fonction de la difficulté choisie (via QUALITY_UPGRADE_PATHS). Cela permet
-// à une même progression de s'adapter du débutant à l'avancé sans maintenir
-// 5 tableaux de symboles par progression.
-export const PROGRESSION_TEMPLATES = [
-  {
-    name: 'II-V-I majeur',
-    category: 'Cadences',
-    level: 2,
-    tags: ['jazz', 'gospel', 'cadence'],
-    tokens: ['2:m7', '5:7', '1:maj7'],
-    description: 'La cadence fondamentale du jazz et du gospel.',
-  },
-  {
-    name: 'I-VI-II-V jazz',
-    category: 'Cadences',
-    level: 3,
-    tags: ['jazz', 'turnaround'],
-    tokens: ['1:maj7', '6:m7', '2:m7', '5:7'],
-    description: 'Turnaround majeur jazz classique.',
-  },
-  {
-    name: 'III-VI-II-V turnaround',
-    category: 'Turnarounds',
-    level: 3,
-    tags: ['jazz', 'gospel', 'turnaround'],
-    tokens: ['3:m7', '6:m7', '2:m7', '5:7'],
-    description: 'Turnaround mineur vers la tonique.',
-  },
-  {
-    name: 'I-V-vi-IV pop',
-    category: 'Pop / Worship',
-    level: 1,
-    tags: ['pop', 'worship', 'diatonique'],
-    tokens: ['1:', '5:', '6:m', '4:'],
-    description: 'La progression pop la plus célèbre.',
-  },
-  {
-    name: 'Rhythm changes A',
-    category: 'Jazz standard',
-    level: 4,
-    tags: ['jazz', 'swing'],
-    tokens: ['1:', '1:', '4:', '4:', '1:', '1:', '2:m7', '5:7'],
-    description: 'Structure A des Rhythm Changes.',
-  },
-];
-
-function getTemplateTokens(template) {
-  return template.tokens.map((t) => parseProgressionToken(t)).filter(Boolean);
-}
-
-function getTemplateSymbols(template, difficulty) {
-  const parsed = getTemplateTokens(template);
-  return parsed.map((p) => progressionQualityForDifficulty(p.quality, difficulty));
-}
-
-function getTemplateDegrees(template) {
-  return getTemplateTokens(template).map((p) => p.offset);
-}
+// [Claude] — 2026-09-24 — Mode Progression retiré (décision de Narcisse : il
+// choisissait seul extensions et altérations, sans contexte). Les mouvements
+// gardent la même syntaxe de jetons (parseProgressionToken) ; une grille tapée
+// en symboles se joue désormais comme un mouvement (« Ma grille »).
 
 const DEGREE_SEMITONES = {
   1: 0, 2: 2, 3: 4, 4: 5, 5: 7, 6: 9, 7: 11,
@@ -199,9 +133,10 @@ const DEFAULT_QUALITY_FOR_DEGREE = {
   1: 'maj7', 2: 'm7', 3: 'm7', 4: 'maj7', 5: '7', 6: 'm7', 7: '7',
 };
 
+// « alt » seul (jeton « 5alt » de la bibliothèque) = 7#9b13 ; « 7alt » écrit en
+// toutes lettres (grille tapée) reste 7alt, publié par VoicingLab.
 const MOVEMENT_QUALITY_ALIASES = {
   alt: '7#9b13',
-  '7alt': '7#9b13',
   m: 'm',
   'm(maj7)': 'mMaj7',
   'maj7#11': 'maj7#11',
@@ -275,36 +210,20 @@ function parseProgressionToken(token) {
 }
 
 /**
- * Enrichit une qualité de progression pour la difficulté demandée.
- * Contrairement à upgradeQualityForDifficulty (préserve le niveau courant),
- * cette fonction choisit explicitement la qualité correspondant au niveau.
+ * Qualité d'un accord de mouvement au niveau demandé : le palier du chemin
+ * d'enrichissement (niveau 1 = qualité de base … niveau 5 = altérée). Une
+ * qualité hors chemin (m7b5, mMaj7, 7#9b13…) est fixée par le mouvement.
+ * [Claude] — 2026-09-24 — Corrige le niveau (Narcisse : « en Avancé, ce qui
+ * s'affiche ne fait pas avancé ») : la difficulté d'un palier était lue comme
+ * celle d'un jeton de mouvement (« m9 » → illisible → 5★), si bien que seul le
+ * niveau 5 enrichissait les accords ; les niveaux 2 à 4 restaient en 7e simples.
  */
-function progressionQualityForDifficulty(quality, difficulty) {
-  const clean = MOVEMENT_QUALITY_ALIASES[quality] || quality;
-  const path = QUALITY_UPGRADE_PATHS[clean] || [clean];
-  // L'index direct (0..4) donne la qualité du niveau 1..5, ce qui garantit
-  // un changement visible à chaque palier quand le chemin est bien calibré.
-  const index = Math.min(Math.max(Number(difficulty) || 1, 1), path.length) - 1;
-  return path[index];
-}
-
 function upgradeQualityForDifficulty(quality, difficulty) {
   const clean = MOVEMENT_QUALITY_ALIASES[quality] || quality;
-  const path = QUALITY_UPGRADE_PATHS[clean] || [clean];
-  const targetIndex = Math.min(difficulty, path.length) - 1;
-  // On ne downgrade jamais : si la qualité actuelle est déjà avancée,
-  // on la conserve.
-  const currentLevel = tokenDifficultyLevel(clean);
-  let chosen = clean;
-  for (let i = path.length - 1; i >= targetIndex; i -= 1) {
-    const candidate = path[i];
-    if (tokenDifficultyLevel(candidate) <= difficulty) {
-      chosen = candidate;
-      break;
-    }
-  }
-  if (tokenDifficultyLevel(chosen) < currentLevel) return clean;
-  return chosen;
+  const path = QUALITY_UPGRADE_PATHS[clean];
+  if (!path) return clean;
+  const index = Math.min(Math.max(Number(difficulty) || 1, 1), path.length) - 1;
+  return path[index];
 }
 
 // Techniques proposées dans l'onglet Exercices. Four-Way Close est réservé au
@@ -318,7 +237,7 @@ export const TECHNIQUES = [
   'stride', 'cluster',
 ];
 
-const PROGRESSION_TECHNIQUES = TECHNIQUES.filter((t) => t !== 'fourway_close');
+const MOVEMENT_TECHNIQUES = TECHNIQUES.filter((t) => t !== 'fourway_close');
 
 export const TECHNIQUE_LABELS = {
   auto: 'Auto',
@@ -854,18 +773,13 @@ export function getAvailableTechniques(chordSymbol) {
  * @returns {string[]} techniques à désactiver
  */
 export function unavailableTechniquesFor(chordSymbol, mode = 'chord') {
-  const allowed = mode === 'chord' ? TECHNIQUES : PROGRESSION_TECHNIQUES;
+  const allowed = mode === 'chord' ? TECHNIQUES : MOVEMENT_TECHNIQUES;
   const out = TECHNIQUES.filter((t) => !allowed.includes(t));
   const available = new Set(getAvailableTechniques(chordSymbol).filter((c) => c.playable).map((c) => c.id));
   for (const technique of allowed) {
     if (technique !== 'auto' && !available.has(technique)) out.push(technique);
   }
   return out;
-}
-
-/** Noms des progressions proposables dans le sélecteur du mode progression. */
-export function listProgressionNames() {
-  return PROGRESSION_TEMPLATES.map((t) => t.name);
 }
 
 /** Noms des mouvements proposables dans le sélecteur du mode mouvement. */
@@ -1323,6 +1237,86 @@ function parseMovementToken(token) {
     }).filter(Boolean);
   }
 
+// [Claude] — 2026-09-24 — Choix des tonalités du tour (Narcisse : « on ne peut
+// pas choisir ses tonalités ») : tonalités retenues, ordre de parcours, départ.
+export const KEY_ORDERS = {
+  chromatic: { label: 'Chromatique', step: 1 },
+  fourths: { label: 'Cycle des quartes', step: 5 },
+  fifths: { label: 'Cycle des quintes', step: 7 },
+};
+const ALL_KEYS = Array.from({ length: 12 }, (_, pc) => pc);
+
+/** Tonalités du tour, dans l'ordre, en partant de `startKey`. */
+export function keySequence(startKey, keySet = ALL_KEYS, order = 'chromatic') {
+  const step = KEY_ORDERS[order]?.step ?? 1;
+  const wanted = new Set(keySet);
+  const keys = [];
+  for (let i = 0; i < 12; i += 1) {
+    const key = (startKey + i * step) % 12;
+    if (wanted.has(key)) keys.push(key);
+  }
+  return keys;
+}
+
+// « Ma grille » : accords tapés en symboles, joués comme un mouvement dans les
+// tonalités choisies. Les qualités sont gardées telles quelles : c'est
+// l'utilisateur qui fixe extensions et altérations (le contexte est le sien).
+export const CUSTOM_GRID_NAME = 'Ma grille';
+const OFFSET_TOKENS = ['1', 'b2', '2', 'b3', '3', '4', '#4', '5', 'b6', '6', 'b7', '7'];
+const MAJOR_TONIC_QUALITY = /^(maj|6|add9)/;
+const MINOR_TONIC_QUALITY = /^m(?!aj|7b5)/;
+
+/**
+ * Tonalité dans laquelle se lit la grille : le dernier accord s'il est une
+ * tonique mineure ; sinon la gamme majeure qui contient le plus de
+ * fondamentales, de préférence celle d'un accord de tonique majeur de la grille
+ * (Dm7 G7 Cmaj7 et Cmaj7 Am7 Dm7 G7 → Do majeur), puis celle du dernier accord.
+ */
+function customGridKey(chords) {
+  const last = chords[chords.length - 1];
+  if (MINOR_TONIC_QUALITY.test(last.symbol)) return { keyPc: last.rootPc, minor: true };
+  const inScale = (key) => chords.filter((c) => MAJOR_SCALE.includes((c.rootPc - key + 12) % 12)).length;
+  const best = Math.max(...ALL_KEYS.map(inScale));
+  const candidates = ALL_KEYS.filter((key) => inScale(key) === best);
+  const tonics = chords.filter((c) => MAJOR_TONIC_QUALITY.test(c.symbol)).map((c) => c.rootPc).reverse();
+  const keyPc = tonics.find((pc) => candidates.includes(pc))
+    ?? (candidates.includes(last.rootPc) ? last.rootPc : candidates[0]);
+  return { keyPc, minor: false };
+}
+
+/**
+ * Accords jouables d'une grille tapée, et ceux qu'on ignore : inconnus, avec
+ * basse séparée ou sans aucun voicing (triades : VoicingLab n'en publie pas).
+ */
+function splitCustomGrid(typed) {
+  const playable = (t) => t.symbol != null && isQualityOnVoicingLab(t.symbol, t.rootPc);
+  return { chords: typed.filter(playable), ignored: typed.filter((t) => !playable(t)).map((t) => t.name) };
+}
+
+const unplayableNames = (names) => `${names.join(', ')} (${names.length > 1 ? 'inconnus ou absents' : 'inconnu ou absent'} de VoicingLab, qui ne publie ni triades ni accords avec basse)`;
+
+/**
+ * Mouvement construit sur une grille tapée : jetons « degré:qualité » relatifs à
+ * sa tonalité de lecture. null si aucun accord n'est jouable.
+ * @param {{name: string, rootPc: number|null, symbol: string|null}[]} typed
+ */
+function customGridMovement(typed) {
+  const { chords } = splitCustomGrid(typed);
+  if (chords.length === 0) return null;
+  const { keyPc, minor } = customGridKey(chords);
+  const pattern = chords.map((c) => `${OFFSET_TOKENS[(c.rootPc - keyPc + 12) % 12]}:${c.symbol}`).join('-');
+  return {
+    id: 'custom-grid',
+    name: CUSTOM_GRID_NAME,
+    category: 'Ma grille',
+    level: 1,
+    preserveQualities: true,
+    pattern,
+    writtenKey: keyPc,
+    description: `${chords.map((c) => c.name).join(' → ')} : lue en ${keyLabel(keyPc, minor)}, puis transposée ton par ton, extensions et altérations comprises.`,
+  };
+}
+
 export function createPracticeExercise() {
   // Difficulté prise en compte par le mode Auto (sélecteur masqué en mode Accord).
   const autoDifficulty = () => (state.mode === 'chord' ? null : state.difficulty);
@@ -1361,19 +1355,18 @@ export function createPracticeExercise() {
     // Doublures d'octave : 'none' | 'bass' | 'melody' | 'full'.
     doubling: 'none',
     history: [],
-    customProgressionDegrees: null,
-    customProgressionKeyPc: null,
     // Mode Accord cible : accord explicitement choisi par l'utilisateur.
     targetChoice: null,
-    // null = tirage aléatoire (comportement par défaut). Sinon, nom de la
-    // progression / du mouvement explicitement choisi par l'utilisateur.
-    progressionChoice: null,
+    // null = tirage aléatoire (comportement par défaut). Sinon, nom du
+    // mouvement explicitement choisi par l'utilisateur.
     movementChoice: null,
-    // Mode Progression / Mouvement : tonalité explicitement choisie.
-    // null = aléatoire.
+    // Tonalité de départ du tour (null = au hasard parmi les tonalités retenues),
+    // tonalités retenues et ordre de parcours.
     keyChoice: null,
-    // Mode Progression : progression personnalisée saisie par l'utilisateur.
-    customProgression: null,
+    keySet: [...ALL_KEYS],
+    keyOrder: 'chromatic',
+    // « Ma grille » : accords tapés ({name, rootPc, symbol}, symbol null = inconnu).
+    customGrid: null,
   };
 
   function pushHistory(target) {
@@ -1399,8 +1392,7 @@ export function createPracticeExercise() {
     // décider si la combinaison est jouable.
     // Seules les qualités publiées par VoicingLab sont tirées au sort
     // (les triades majeures/mineures, m13, 11… n'y existent pas).
-    const pool = state.mode === 'chord' ? ALL_PRACTICE_SYMBOLS : symbolsForDifficulty(state.difficulty, state.mode);
-    const onVoicingLab = pool.filter((q) => isQualityOnVoicingLab(q));
+    const onVoicingLab = ALL_PRACTICE_SYMBOLS.filter((q) => isQualityOnVoicingLab(q));
     const allowedSymbols = onVoicingLab.length > 0 ? onVoicingLab : ['maj7'];
     // Avec une note du dessus, on tire jusqu'à trouver un accord qui l'a au sommet.
     const filter = topNoteFilter();
@@ -1419,113 +1411,23 @@ export function createPracticeExercise() {
     return buildChordTarget(0, 'maj7', 'close', state.variant, autoDifficulty(), null, state.doubling);
   }
 
-  /** `failures` (facultatif) reçoit le nom des accords sans voicing. */
-  function buildProgressionFromTokens(tokens, keyPc, name, failures = null) {
-    const minor = isMinorProgression(tokens);
-    const chords = tokens.map((token) => {
-      const rootPc = (keyPc + token.offset) % 12;
-      const base = token.quality || DEFAULT_QUALITY_FOR_DEGREE[token.degree] || '';
-      // Palier demandé d'abord, puis paliers inférieurs si le moteur ne sait
-      // pas encore voicer la qualité enrichie (ex. maj7#11, 7alt).
-      let target = null;
-      for (let level = state.difficulty; level >= 1 && !target; level -= 1) {
-        target = buildChordTarget(rootPc, progressionQualityForDifficulty(base, level), state.technique, state.variant, autoDifficulty(), null, state.doubling);
-      }
-      if (!target) {
-        failures?.push(`${spellDegreeInKey(rootPc, token.degree, keyPc, minor)}${base}`);
-        return null;
-      }
-      return {
-        ...target,
-        // Nom épelé selon la tonalité (IV de Fa = Bbmaj7, pas A#maj7).
-        name: `${spellDegreeInKey(rootPc, token.degree, keyPc, minor)}${target.symbol}`,
-        degree: token.degree === 1 ? 'I' : token.degree === 2 ? 'II' : token.degree === 3 ? 'III' : token.degree === 4 ? 'IV' : token.degree === 5 ? 'V' : token.degree === 6 ? 'VI' : 'VII',
-      };
-    });
-    return chords.every(Boolean) ? { type: 'progression', name, keyPc, minor, chords } : null;
+  /** Départ du tour : la tonalité choisie si elle est retenue, sinon au hasard parmi les retenues. */
+  function chooseStartKey(preferred = null) {
+    if (state.keyChoice != null && state.keySet.includes(state.keyChoice)) return state.keyChoice;
+    if (preferred != null && state.keySet.includes(preferred)) return preferred;
+    return pick(state.keySet);
   }
 
-  function generateProgressionTarget() {
-    // [Claude] — 2026-09-24 — Une progression choisie ou saisie impossible à
-    // construire n'est plus remplacée en silence : `notice` le dit à l'écran.
-    let reason = null;
-    const announced = (prog) => (reason ? { ...prog, notice: `${reason} Progression proposée à la place : « ${prog.name} ».` } : prog);
-    const unplayable = (names) => `${names.join(', ')} (${names.length > 1 ? 'inconnus ou absents' : 'inconnu ou absent'} de VoicingLab, qui ne publie ni triades ni accords avec basse)`;
-
-    // Progression personnalisée saisie par l'utilisateur en symboles complets
-    // (ex. "Dm7 G7 Cmaj7") : contrôle total sur les extensions. Un accord
-    // inconnu ou sans voicing est ignoré, et l'écran le dit.
-    if (state.customProgression && state.customProgression.length > 0) {
-      const ignored = [];
-      const chords = [];
-      for (const typed of state.customProgression) {
-        const target = typed.symbol == null ? null
-          : buildChordTarget(typed.rootPc, typed.symbol, state.technique, state.variant, autoDifficulty(), null, state.doubling);
-        if (target) chords.push({ ...target, name: typed.name, degree: null });
-        else ignored.push(typed.name);
-      }
-      if (chords.length > 0) {
-        return {
-          type: 'progression',
-          name: 'Progression personnalisée',
-          keyPc: chords[0].rootPc,
-          // Accords saisis tels quels : pas de tonalité à afficher.
-          typed: true,
-          chords,
-          notice: ignored.length > 0 ? `Ignoré${ignored.length > 1 ? 's' : ''} : ${unplayable(ignored)}.` : null,
-        };
-      }
-      reason = `Progression personnalisée impossible : ${unplayable(ignored)}.`;
-    }
-
-    // Progression personnalisée saisie par degrés : l'application choisit les
-    // qualités automatiquement selon la difficulté.
-    if (state.customProgressionDegrees && state.customProgressionDegrees.length > 0) {
-      const keyPc = state.customProgressionKeyPc ?? state.keyChoice ?? randomInt(0, 11);
-      const failures = [];
-      const built = buildProgressionFromTokens(state.customProgressionDegrees, keyPc, 'Progression personnalisée', failures);
-      if (built) return announced(built);
-      if (!reason) reason = `Progression personnalisée impossible : ${unplayable(failures)}.`;
-    }
-
-    // Progression explicitement choisie par l'utilisateur, sinon tirage au sort.
-    const chosen = state.progressionChoice
-      ? PROGRESSION_TEMPLATES.find((t) => t.name === state.progressionChoice)
-      : null;
-    // Toutes les progressions standards sont désormais valides à tous les niveaux
-    // car leurs qualités s'enrichissent automatiquement.
-    const pool = chosen ? [chosen] : PROGRESSION_TEMPLATES;
-    const failures = [];
-    for (let i = 0; i < MAX_TARGET_ATTEMPTS; i += 1) {
-      const template = pick(pool);
-      const keyPc = state.keyChoice ?? randomInt(0, 11);
-      const tokens = getTemplateTokens(template);
-      const built = buildProgressionFromTokens(tokens, keyPc, template.name, failures);
-      if (built) return announced(built);
-    }
-    if (chosen && !reason) reason = `« ${chosen.name} » impossible : ${unplayable([...new Set(failures)])}.`;
-    // Repli ultime : II-V-I majeur en Do.
-    return announced({
-      type: 'progression',
-      name: 'II-V-I majeur',
-      keyPc: 0,
-      minor: false,
-      chords: ['m7', '7', 'maj7'].map((symbol, deg) => {
-        const rootPc = ([2, 7, 0][deg]);
-        const target = buildChordTarget(rootPc, symbol, state.technique, state.variant, autoDifficulty(), null, state.doubling);
-        return {
-          ...target,
-          degree: deg === 0 ? 'II' : deg === 1 ? 'V' : 'I',
-        };
-      }),
-    });
+  /** Mouvement nommé : bibliothèque, ou « Ma grille » construite sur les accords tapés. */
+  function findMovement(name) {
+    if (!name) return null;
+    if (name === CUSTOM_GRID_NAME) return state.customGrid ? customGridMovement(state.customGrid) : null;
+    return movementsLibrary.movements.find((m) => m.name === name) || null;
   }
 
   function generateMovementTarget() {
     // Mouvement explicitement choisi par l'utilisateur, sinon tirage au sort.
-    const chosen = state.movementChoice
-      ? movementsLibrary.movements.find((m) => m.name === state.movementChoice)
-      : null;
+    const chosen = findMovement(state.movementChoice);
     // Filtre par niveau intrinsèque du mouvement si défini, sinon par analyse
     // des symboles de son pattern.
     const allowedMovements = movementsLibrary.movements.filter((m) => {
@@ -1538,6 +1440,15 @@ export function createPracticeExercise() {
     const pool = chosen
       ? [chosen]
       : (allowedMovements.length > 0 ? allowedMovements : movementsLibrary.movements);
+    // Grille tapée jouable : ses accords impossibles sont ignorés, et l'écran le dit.
+    // Grille tapée sans aucun accord jouable : un autre mouvement, annoncé.
+    const gridImpossible = !chosen && state.movementChoice === CUSTOM_GRID_NAME;
+    const ignoredNotice = (movement) => {
+      const { ignored } = splitCustomGrid(state.customGrid || []);
+      if (gridImpossible) return `« ${CUSTOM_GRID_NAME} » impossible : ${unplayableNames(ignored)}. Mouvement proposé à la place : « ${movement.name} ».`;
+      if (movement.name !== CUSTOM_GRID_NAME) return null;
+      return ignored.length > 0 ? `Ignoré${ignored.length > 1 ? 's' : ''} : ${unplayableNames(ignored)}.` : null;
+    };
     const build = (movement, startKey, failures = null) => buildMovementChords(movement, startKey, state.technique, state.difficulty, state.variant, state.doubling, failures);
     const isComplete = (movement, chords) => chords.length === movement.pattern.split('-').length;
     // Accords introuvables du mouvement choisi, pour l'expliquer à l'écran.
@@ -1545,10 +1456,11 @@ export function createPracticeExercise() {
     let failedKey = null;
     for (let i = 0; i < MAX_TARGET_ATTEMPTS; i += 1) {
       const movement = pick(pool);
-      const startKey = state.keyChoice ?? randomInt(0, 11);
+      // « Ma grille » commence dans le ton où elle a été écrite.
+      const startKey = chooseStartKey(movement.writtenKey);
       const missing = [];
       const chords = build(movement, startKey, missing);
-      if (isComplete(movement, chords)) return movementTarget(movement, startKey, chords);
+      if (isComplete(movement, chords)) return movementTarget(movement, startKey, chords, ignoredNotice(movement));
       if (movement === chosen) {
         failures = missing;
         failedKey = startKey;
@@ -1558,9 +1470,10 @@ export function createPracticeExercise() {
     // se construit en entier (niveau adapté d'abord). Un mouvement CHOISI n'est
     // plus remplacé en silence (bug « II-V-I altéré en mineur » et « Cycle de
     // tierces majeures ») : `notice` dit à l'écran lequel et pourquoi.
-    const startKey = state.keyChoice ?? randomInt(0, 11);
+    const startKey = chooseStartKey();
     const candidates = [...allowedMovements, ...movementsLibrary.movements].filter((m) => m !== chosen);
     const noticeFor = (replacement) => {
+      if (gridImpossible) return ignoredNotice(replacement);
       if (!chosen) return null;
       const reason = `« ${chosen.name} » ne peut pas être construit en ${keyLabel(failedKey, isMinorMovement(chosen))} (${[...new Set(failures)].join(', ')} : aucun voicing VoicingLab).`;
       return replacement === chosen ? reason : `${reason} Mouvement proposé à la place : « ${replacement.name} ».`;
@@ -1576,6 +1489,7 @@ export function createPracticeExercise() {
 
   /** État d'un mouvement dans sa première tonalité ; `notice` = message à afficher. */
   function movementTarget(movement, startKey, chords, notice = null) {
+    const keys = keySequence(startKey, state.keySet, state.keyOrder);
     return {
       type: 'movement',
       name: movement.name,
@@ -1586,7 +1500,8 @@ export function createPracticeExercise() {
       movement,
       startKey,
       currentKey: startKey,
-      totalKeys: 12,
+      keys,
+      totalKeys: keys.length,
       keyIndex: 0,
       stepIndex: 0,
       chords,
@@ -1602,6 +1517,7 @@ export function createPracticeExercise() {
       movementDescription: movementState.description,
       movementCategory: movementState.category,
       keyLabel: `Tonalité ${keyLabel(movementState.currentKey, isMinorMovement(movementState.movement))}`,
+      keyName: keyLabel(movementState.currentKey, isMinorMovement(movementState.movement)),
       keyProgress: `${movementState.keyIndex + 1} / ${movementState.totalKeys} tons`,
       stepProgress: `${movementState.stepIndex + 1} / ${movementState.chords.length} accords`,
     };
@@ -1637,9 +1553,6 @@ export function createPracticeExercise() {
     if (state.mode === 'chord') {
       state.target = generateChordTarget();
       state.progression = null;
-    } else if (state.mode === 'progression') {
-      state.progression = generateProgressionTarget();
-      state.target = state.progression.chords[0];
     } else {
       state.progression = generateMovementTarget();
       state.target = attachMovementContext(state.progression.chords[0], state.progression);
@@ -1648,6 +1561,7 @@ export function createPracticeExercise() {
   }
 
   function setMode(mode) {
+    if (mode !== 'chord' && mode !== 'movement') return state;
     state.mode = mode;
     return next();
   }
@@ -1706,15 +1620,82 @@ export function createPracticeExercise() {
   }
 
   /**
-   * Choix explicite de la tonalité pour les modes Progression et Mouvement.
-   * `null` ou une valeur invalide rétablit le tirage aléatoire.
+   * Tonalité de départ du tour (mode Mouvement). `null` ou une valeur invalide
+   * rétablit le tirage au hasard parmi les tonalités retenues ; une tonalité non
+   * retenue est ajoutée au tour.
    * @param {number|string|null} keyPc - 0-11 ou null
    */
   function setKeyChoice(keyPc) {
     const pc = keyPc === '' || keyPc == null ? null : Number(keyPc);
-    if (pc != null && (!Number.isFinite(pc) || pc < 0 || pc > 11)) return;
+    if (pc != null && (!Number.isInteger(pc) || pc < 0 || pc > 11)) return;
     state.keyChoice = pc;
+    if (pc != null && !state.keySet.includes(pc)) state.keySet = [...state.keySet, pc].sort((a, b) => a - b);
     return next();
+  }
+
+  /**
+   * Tonalités retenues pour le tour (au moins une). Le départ choisi qui n'en
+   * fait plus partie repasse au hasard.
+   * @param {number[]} keys - classes de hauteur 0–11
+   */
+  function setKeySet(keys) {
+    const set = [...new Set((keys || []).map(Number).filter((k) => Number.isInteger(k) && k >= 0 && k < 12))].sort((a, b) => a - b);
+    if (set.length === 0) return state;
+    state.keySet = set;
+    if (state.keyChoice != null && !set.includes(state.keyChoice)) state.keyChoice = null;
+    return next();
+  }
+
+  /** Ordre de parcours des tonalités : 'chromatic' | 'fourths' | 'fifths'. */
+  function setKeyOrder(order) {
+    if (!KEY_ORDERS[order]) return state;
+    state.keyOrder = order;
+    return next();
+  }
+
+  /**
+   * Saut direct à un accord de la tonalité en cours (clic dans la liste) : pas
+   * besoin de jouer les précédents. Ne compte ni essai ni point.
+   * @param {number} stepIndex
+   */
+  function goToStep(stepIndex) {
+    const prog = state.progression;
+    if (state.mode !== 'movement' || !prog?.chords?.length) return state;
+    const index = Math.max(0, Math.min(prog.chords.length - 1, Number(stepIndex) || 0));
+    prog.stepIndex = index;
+    state.stepIndex = index;
+    state.attempts = 0;
+    state.target = attachMovementContext(prog.chords[index], prog);
+    return state;
+  }
+
+  /**
+   * Saut direct à une tonalité du tour (clic sur la frise des tonalités), sur son
+   * premier accord.
+   * @param {number} keyIndex - rang dans le tour
+   */
+  function goToKey(keyIndex) {
+    const prog = state.progression;
+    if (state.mode !== 'movement' || !prog?.keys?.length) return state;
+    const index = Math.max(0, Math.min(prog.keys.length - 1, Number(keyIndex) || 0));
+    loadMovementKey(prog, index);
+    state.stepIndex = 0;
+    state.keyIndex = index;
+    state.attempts = 0;
+    state.target = attachMovementContext(prog.chords[0], prog);
+    return state;
+  }
+
+  /** Accords de la tonalité de rang `keyIndex` ; un accord sans voicing est sauté, et l'écran le dit. */
+  function loadMovementKey(prog, keyIndex) {
+    prog.keyIndex = keyIndex;
+    prog.stepIndex = 0;
+    prog.currentKey = prog.keys[keyIndex];
+    const missing = [];
+    prog.chords = buildMovementChords(prog.movement, prog.currentKey, state.technique, state.difficulty, state.variant, state.doubling, missing);
+    prog.notice = missing.length > 0
+      ? `${missing.join(', ')} : aucun voicing VoicingLab en ${keyLabel(prog.currentKey, isMinorMovement(prog.movement))}, accord sauté.`
+      : null;
   }
 
   /**
@@ -1833,7 +1814,6 @@ export function createPracticeExercise() {
   function canGoPrevious() {
     if (state.mode === 'chord') return state.history.length > 0;
     if (!state.progression) return false;
-    if (state.mode === 'progression') return state.stepIndex > 0;
     return state.progression.stepIndex > 0 || state.progression.keyIndex > 0 || state.history.length > 0;
   }
 
@@ -1856,24 +1836,12 @@ export function createPracticeExercise() {
       return { stepIndex: 0, keyIndex: 0 };
     }
 
-    if (state.mode === 'progression') {
-      if (state.stepIndex > 0) {
-        state.stepIndex -= 1;
-        state.attempts = 0;
-        state.target = state.progression.chords[state.stepIndex];
-        return { stepIndex: state.stepIndex, keyIndex: state.keyIndex };
-      }
-      return null;
-    }
-
     const prog = state.progression;
     if (prog.stepIndex > 0) {
       prog.stepIndex -= 1;
     } else if (prog.keyIndex > 0) {
       // Retour au dernier accord de la tonalité précédente.
-      prog.keyIndex -= 1;
-      prog.currentKey = (prog.startKey + prog.keyIndex + 12) % 12;
-      prog.chords = buildMovementChords(prog.movement, prog.currentKey, state.technique, state.difficulty, state.variant, state.doubling);
+      loadMovementKey(prog, prog.keyIndex - 1);
       prog.stepIndex = Math.max(0, prog.chords.length - 1);
     } else {
       // Restauration depuis l'historique (ancien mouvement ou tonalité).
@@ -1891,70 +1859,30 @@ export function createPracticeExercise() {
     return { stepIndex: prog.stepIndex, keyIndex: prog.keyIndex };
   }
 
-  /**
-   * Fixe la progression (mode progression) ou le mouvement (mode mouvement)
-   * proposé. `null` rétablit le tirage aléatoire.
-   */
+  /** Fixe le mouvement proposé (mode Mouvement). `null` rétablit le tirage au sort. */
   function setContentChoice(name) {
-    const value = name || null;
-    if (state.mode === 'movement') state.movementChoice = value;
-    else {
-      state.progressionChoice = value;
-      // Choisir un template standard désactive la progression personnalisée,
-      // sinon le champ personnalisé masquerait le template sélectionné.
-      state.customProgression = null;
-      state.customProgressionDegrees = null;
-      state.customProgressionKeyPc = null;
-    }
+    state.movementChoice = name || null;
     return next();
   }
 
-  /**
-   * Désélectionne le template/mouvement courant sans toucher à une progression
-   * personnalisée déjà saisie. Utilisé par la bibliothèque pour l'entrée
-   * « Progression personnalisée ».
-   */
+  /** Revient au tirage au sort des mouvements. */
   function clearContentChoice() {
-    if (state.mode === 'movement') state.movementChoice = null;
-    else state.progressionChoice = null;
+    state.movementChoice = null;
     return next();
   }
 
   /**
-   * Définit une progression personnalisée à partir de symboles d'accords
-   * (ex. "Dm7 G7 Cmaj7"). Chaque accord est parsé et stocké pour génération.
+   * « Ma grille » : accords tapés en symboles (ex. « Dm11 G7#9b13 Cmaj13 »),
+   * joués comme un mouvement dans les tonalités choisies, qualités gardées
+   * telles quelles. Les accords inconnus sont gardés (symbol null) pour être
+   * signalés à l'écran, pas écartés en silence. Vide = retour au tirage au sort.
    * @param {string} input
    */
-  function setCustomProgression(input) {
+  function setCustomGrid(input) {
     const symbols = String(input || '').trim().split(/\s+/).filter(Boolean);
-    // Les accords inconnus sont gardés (symbol null) pour être signalés à
-    // l'écran, pas écartés en silence.
-    state.customProgression = symbols.length > 0 ? symbols.map(parseTypedChord) : null;
-    return next();
-  }
-
-  /**
-   * Définit une progression personnalisée à partir d'une liste de degrés.
-   * L'application choisit la qualité automatiquement selon la difficulté.
-   * @param {{degree: number, accidental: string, quality?: string}[]} degrees
-   */
-  function setCustomProgressionFromDegrees(degrees) {
-    if (!degrees || degrees.length === 0) {
-      state.customProgression = null;
-      return next();
-    }
-    const parsed = degrees.map((d) => {
-      const token = `${d.accidental || ''}${d.degree}${d.quality ? `:${d.quality}` : ''}`;
-      const p = parseProgressionToken(token);
-      if (!p) return null;
-      // parseProgressionToken remplit déjà la qualité par défaut du degré
-      // (I=maj7, II=m7, etc.). On l'enrichit ensuite selon la difficulté.
-      // On conserve la qualité de BASE : buildProgressionFromTokens la
-      // ré-enrichit à chaque régénération selon la difficulté courante.
-      return { degree: d.degree, accidental: d.accidental || '', quality: p.quality, offset: p.offset };
-    }).filter(Boolean);
-    state.customProgressionDegrees = parsed.length > 0 ? parsed : null;
-    state.customProgression = null;
+    state.customGrid = symbols.length > 0 ? symbols.map(parseTypedChord) : null;
+    state.movementChoice = state.customGrid ? CUSTOM_GRID_NAME : null;
+    if (state.mode !== 'movement') state.mode = 'movement';
     return next();
   }
 
@@ -1967,14 +1895,7 @@ export function createPracticeExercise() {
       if (prog.keyIndex >= prog.totalKeys) {
         return { completed: true };
       }
-      prog.stepIndex = 0;
-      prog.currentKey = (prog.startKey + prog.keyIndex) % 12;
-      const missing = [];
-      prog.chords = buildMovementChords(prog.movement, prog.currentKey, state.technique, state.difficulty, state.variant, state.doubling, missing);
-      // Un accord sans voicing dans ce ton est sauté : l'écran le dit.
-      prog.notice = missing.length > 0
-        ? `${missing.join(', ')} : aucun voicing VoicingLab en ${keyLabel(prog.currentKey, isMinorMovement(prog.movement))}, accord sauté.`
-        : null;
+      loadMovementKey(prog, prog.keyIndex);
     }
     state.stepIndex = prog.stepIndex;
     state.keyIndex = prog.keyIndex;
@@ -2022,42 +1943,11 @@ export function createPracticeExercise() {
       };
     }
 
-    if (state.mode === 'progression') {
-      const expected = state.progression.chords[state.stepIndex];
-      if (success) {
-        state.stepIndex++;
-        pushHistory(state.progression.chords[state.stepIndex - 1]);
-        if (state.stepIndex >= state.progression.chords.length) {
-          state.score += 10;
-          const completedName = state.progression.name;
-          state.progression = generateProgressionTarget();
-          state.target = state.progression.chords[0];
-          state.stepIndex = 0;
-          return {
-            success: true,
-            message: `✅ Progression ${completedName} terminée ! Suivante : ${state.progression.name}`,
-            completed: true,
-          };
-        }
-        state.target = state.progression.chords[state.stepIndex];
-        return {
-          success: true,
-          message: `✅ ${expected.name} correct. Suivant : ${state.target.name}`,
-          stepIndex: state.stepIndex,
-        };
-      }
-      const playedName = detected ? `${spellPcInKey(detected.rootPc, state.progression.keyPc, state.progression.minor)}${detected.symbol}` : 'inconnu';
-      return {
-        success: false,
-        message: `❌ Attendu ${expected.name} (degré ${expected.degree}), joué ${playedName}.`,
-        hint: expected.notes,
-      };
-    }
-
     // Mode mouvement dans les 12 tons
     const expected = state.progression.chords[state.stepIndex];
     if (success) {
       const justCompletedKey = state.stepIndex + 1 >= state.progression.chords.length;
+      const doneKeyName = state.target?.keyName;
       pushHistory(state.progression.chords[state.stepIndex]);
       const advance = advanceMovement();
       if (!advance) {
@@ -2066,6 +1956,7 @@ export function createPracticeExercise() {
       if (advance.completed) {
         state.score += 50;
         const completedName = state.progression.name;
+        const totalKeys = state.progression.totalKeys;
         state.progression = generateMovementTarget();
         state.target = attachMovementContext(state.progression.chords[0], state.progression);
         state.stepIndex = 0;
@@ -2073,7 +1964,7 @@ export function createPracticeExercise() {
         state.attempts = 0;
         return {
           success: true,
-          message: `✅ ${completedName} parcouru en 12 tons ! Suivant : ${state.progression.name}`,
+          message: `✅ ${completedName} parcouru dans ${totalKeys} ton${totalKeys > 1 ? 's' : ''} ! Suivant : ${state.progression.name}`,
           completed: true,
         };
       }
@@ -2083,7 +1974,7 @@ export function createPracticeExercise() {
       if (justCompletedKey) {
         return {
           success: true,
-          message: `✅ Tonalité ${formatPc(state.progression.currentKey, false)} validée. Prochain ton : ${state.target.keyLabel}`,
+          message: `✅ ${doneKeyName} validé. Prochain ton : ${state.target.keyName}`,
         };
       }
       return {
@@ -2123,8 +2014,11 @@ export function createPracticeExercise() {
     setDoubling,
     setContentChoice,
     clearContentChoice,
-    setCustomProgression,
-    setCustomProgressionFromDegrees,
+    setCustomGrid,
+    setKeySet,
+    setKeyOrder,
+    goToStep,
+    goToKey,
     check,
     isCorrect,
     getState,

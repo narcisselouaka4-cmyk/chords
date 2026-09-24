@@ -212,18 +212,6 @@
   background: var(--tr-accent-strong);
 }
 
-#practice-view-exercices .exercise-degree-badge {
-  align-self: flex-start;
-  margin-top: 4px;
-  padding: 3px 8px;
-  border: 1px solid var(--tr-border);
-  border-radius: 5px;
-  background: var(--tr-accent-soft);
-  color: var(--tr-accent);
-  font: 10px var(--tr-mono);
-  letter-spacing: .06em;
-}
-
 /* ============================================================================
    Sessions MIDI
    ============================================================================ */
@@ -1253,18 +1241,6 @@
 /* ---- Guide (gauche) et panneau de progression (droite) ------------------
    Alimentés par updateExerciseProgressUI() dans main.js à partir de l'état
    réel de practice-exercise.js. Mêmes préfixes de spécificité que le reste. */
-:root[data-skin='global'] #practice-view-exercices .exercise-key-pill,
-:root[data-skin='v2'] #practice-view-exercices .exercise-key-pill {
-  align-self: flex-start;
-  margin-top: 12px;
-  padding: 5px 11px;
-  border: 1px solid var(--tr-border);
-  border-radius: 7px;
-  background: var(--tr-inset);
-  color: var(--tr-accent);
-  font: 11px var(--tr-mono);
-  letter-spacing: .04em;
-}
 :root[data-skin='global'] #practice-view-exercices .tr-key-counter,
 :root[data-skin='v2'] #practice-view-exercices .tr-key-counter {
   display: flex;
@@ -1275,8 +1251,8 @@
 :root[data-skin='global'] #practice-view-exercices .tr-key-counter strong,
 :root[data-skin='v2'] #practice-view-exercices .tr-key-counter strong {
   color: var(--tr-text);
-  font: 600 26px var(--tr-mono);
-  letter-spacing: -.04em;
+  font: 600 15px var(--tr-mono);
+  letter-spacing: -.02em;
 }
 :root[data-skin='global'] #practice-view-exercices .tr-key-counter span,
 :root[data-skin='v2'] #practice-view-exercices .tr-key-counter span {
@@ -1307,18 +1283,34 @@
   gap: 4px;
   margin-top: 14px;
 }
-:root[data-skin='global'] #practice-view-exercices .tr-progression-path > div,
-:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > div {
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button {
   display: flex;
   align-items: center;
   gap: 9px;
+  width: 100%;
   padding: 6px 9px;
   border: 1px solid transparent;
   border-radius: 7px;
+  background: none;
   color: var(--tr-secondary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
 }
-:root[data-skin='global'] #practice-view-exercices .tr-progression-path > div > span,
-:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > div > span {
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button:hover,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button:hover {
+  background: var(--tr-hover, var(--tr-inset));
+  border-color: var(--tr-border);
+}
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button:focus-visible,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button:focus-visible {
+  outline: 2px solid var(--tr-accent);
+  outline-offset: 1px;
+}
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button > span,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button > span {
   display: grid;
   place-items: center;
   width: 20px;
@@ -1329,27 +1321,27 @@
   color: var(--tr-muted);
   font: 9px var(--tr-mono);
 }
-:root[data-skin='global'] #practice-view-exercices .tr-progression-path > div strong,
-:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > div strong {
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button strong,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button strong {
   font-size: 12px;
   font-weight: 550;
 }
-:root[data-skin='global'] #practice-view-exercices .tr-progression-path > div.is-done,
-:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > div.is-done {
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button.is-done,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button.is-done {
   color: var(--tr-muted);
 }
-:root[data-skin='global'] #practice-view-exercices .tr-progression-path > div.is-done > span,
-:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > div.is-done > span {
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button.is-done > span,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button.is-done > span {
   color: var(--tr-green);
 }
-:root[data-skin='global'] #practice-view-exercices .tr-progression-path > div.is-active,
-:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > div.is-active {
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button.is-active,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button.is-active {
   border-color: var(--tr-accent);
   background: var(--tr-accent-soft);
   color: var(--tr-text);
 }
-:root[data-skin='global'] #practice-view-exercices .tr-progression-path > div.is-active > span,
-:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > div.is-active > span {
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button.is-active > span,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button.is-active > span {
   background: var(--tr-accent);
   color: var(--tr-button-text);
 }
@@ -1359,6 +1351,305 @@
   color: var(--tr-muted);
   font: 10px var(--tr-mono);
   letter-spacing: .03em;
+}
+
+/* ---- Mouvement 12 tons : réglages, tonalité en cours, frise ---------------
+   [Claude] — 2026-09-24 — Narcisse : tonalité active « pas au bon endroit »,
+   réglages de difficulté et de tonalité « posés à la va-vite », pas de choix
+   des tonalités ni de saut direct. Réglages en grille étiquette / contrôle à
+   gauche ; à droite, la tonalité en cours en titre, puis la frise des
+   tonalités et les accords, cliquables. */
+:root[data-skin='global'] #practice-view-exercices .exercise-settings,
+:root[data-skin='v2'] #practice-view-exercices .exercise-settings {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px 12px;
+  width: 100%;
+  max-width: 320px;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--tr-border-soft, var(--tr-border));
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-settings[hidden],
+:root[data-skin='v2'] #practice-view-exercices .exercise-settings[hidden] {
+  display: none;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-settings-eyebrow,
+:root[data-skin='v2'] #practice-view-exercices .exercise-settings-eyebrow {
+  grid-column: 1 / -1;
+  color: var(--tr-muted);
+  font: 8px var(--tr-mono);
+  letter-spacing: .08em;
+}
+/* Chaque réglage occupe une ligne de la grille : étiquette, puis contrôle. */
+:root[data-skin='global'] #practice-view-exercices .exercise-setting,
+:root[data-skin='v2'] #practice-view-exercices .exercise-setting {
+  display: contents;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-setting > label,
+:root[data-skin='v2'] #practice-view-exercices .exercise-setting > label,
+:root[data-skin='global'] #practice-view-exercices .exercise-setting-label,
+:root[data-skin='v2'] #practice-view-exercices .exercise-setting-label {
+  color: var(--tr-secondary);
+  font-size: 11px;
+  font-weight: 550;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-setting-keys > .exercise-setting-label,
+:root[data-skin='v2'] #practice-view-exercices .exercise-setting-keys > .exercise-setting-label {
+  align-self: start;
+  padding-top: 6px;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-setting > select,
+:root[data-skin='v2'] #practice-view-exercices .exercise-setting > select {
+  width: 100%;
+  height: 30px;
+  padding: 0 28px 0 10px;
+  border: 1px solid var(--tr-border);
+  border-radius: 7px;
+  background-color: var(--tr-inset);
+  color: var(--tr-text);
+  font-size: 11px;
+  font-weight: 550;
+  cursor: pointer;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-setting > select:focus-visible,
+:root[data-skin='v2'] #practice-view-exercices .exercise-setting > select:focus-visible {
+  outline: 2px solid var(--tr-accent);
+  outline-offset: 1px;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-key-grid,
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-key-toggle,
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-toggle,
+:root[data-skin='global'] #practice-view-exercices .exercise-key-all,
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-all {
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--tr-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tr-muted);
+  font: 10px var(--tr-mono);
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-key-toggle:not(.is-on),
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-toggle:not(.is-on) {
+  border-style: dashed;
+  opacity: .6;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-key-toggle.is-on,
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-toggle.is-on {
+  border-color: color-mix(in srgb, var(--tr-accent) 45%, var(--tr-border));
+  background: var(--tr-accent-soft);
+  color: var(--tr-text);
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-key-toggle:hover:not(:disabled),
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-toggle:hover:not(:disabled),
+:root[data-skin='global'] #practice-view-exercices .exercise-key-all:hover:not(:disabled),
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-all:hover:not(:disabled) {
+  border-color: var(--tr-accent);
+  color: var(--tr-text);
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-key-toggle:disabled,
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-toggle:disabled {
+  cursor: not-allowed;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-key-all,
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-all {
+  grid-column: 1 / -1;
+  font-family: inherit;
+  font-size: 10px;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-key-all[hidden],
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-all[hidden] {
+  display: none;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-setting > select:disabled,
+:root[data-skin='v2'] #practice-view-exercices .exercise-setting > select:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+/* Colonnes du Mouvement calées en haut : les réglages restent au-dessus du
+   clavier MIDI déplié au lieu d'être centrés sous un grand vide. */
+:root[data-skin='global'] #practice-view-exercices .tr-exercise-stage:not(.is-chord-mode) .tr-exercise-brief,
+:root[data-skin='v2'] #practice-view-exercices .tr-exercise-stage:not(.is-chord-mode) .tr-exercise-brief,
+:root[data-skin='global'] #practice-view-exercices .tr-exercise-stage:not(.is-chord-mode) .tr-exercise-progress,
+:root[data-skin='v2'] #practice-view-exercices .tr-exercise-stage:not(.is-chord-mode) .tr-exercise-progress {
+  justify-content: flex-start;
+  padding-top: 34px;
+}
+
+:root[data-skin='global'] #practice-view-exercices .exercise-current-key,
+:root[data-skin='v2'] #practice-view-exercices .exercise-current-key {
+  margin-top: 8px;
+  color: var(--tr-accent);
+  font-size: 22px;
+  font-weight: 550;
+  letter-spacing: -.03em;
+  line-height: 1.15;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-current-key[hidden],
+:root[data-skin='v2'] #practice-view-exercices .exercise-current-key[hidden],
+:root[data-skin='global'] #practice-view-exercices .exercise-key-strip[hidden],
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-strip[hidden],
+:root[data-skin='global'] #practice-view-exercices .exercise-chords-eyebrow[hidden],
+:root[data-skin='v2'] #practice-view-exercices .exercise-chords-eyebrow[hidden] {
+  display: none;
+}
+:root[data-skin='global'] #practice-view-exercices .tr-key-counter > span:first-child,
+:root[data-skin='v2'] #practice-view-exercices .tr-key-counter > span:first-child {
+  color: var(--tr-secondary);
+  font-family: inherit;
+  font-size: 11px;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-key-strip,
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-strip {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px;
+  margin-top: 12px;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-key-chip,
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-chip {
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--tr-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tr-muted);
+  font: 10px var(--tr-mono);
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-key-chip:hover,
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-chip:hover {
+  border-color: var(--tr-accent);
+  color: var(--tr-text);
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-key-chip.is-done,
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-chip.is-done {
+  border-color: transparent;
+  background: var(--tr-green-soft, var(--tr-inset));
+  color: var(--tr-green, var(--tr-secondary));
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-key-chip.is-current,
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-chip.is-current {
+  border-color: var(--tr-accent);
+  background: var(--tr-accent);
+  color: var(--tr-button-text);
+  font-weight: 700;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-chords-eyebrow,
+:root[data-skin='v2'] #practice-view-exercices .exercise-chords-eyebrow {
+  margin-top: 18px;
+  color: var(--tr-muted);
+  font: 8px var(--tr-mono);
+  letter-spacing: .08em;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-chords-eyebrow + .tr-progression-path,
+:root[data-skin='v2'] #practice-view-exercices .exercise-chords-eyebrow + .tr-progression-path {
+  margin-top: 6px;
+}
+
+/* ---- Bibliothèque des mouvements : fenêtre Astra --------------------------
+   Même grammaire que les bibliothèques de Sessions MIDI, du Coach et de
+   Pédagogie IA (.tr-overlay > .tr-dialog.tr-drawer) : fond flouté, fenêtre
+   centrée, cartes en grille. */
+#exercise-library .exercise-library { width: min(100%, 1080px); max-height: min(100%, 760px); }
+#exercise-library .tr-dialog-title { align-items: flex-start; }
+#exercise-library .exercise-library-heading h2 { margin: 0; }
+#exercise-library .exercise-library-heading p { margin: 5px 0 0; color: var(--tr-secondary); font-size: 12px; }
+#exercise-library .exercise-library-body { display: flex; flex-direction: column; gap: 18px; }
+#exercise-library .exercise-grid-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+  align-items: center;
+  gap: 12px 24px;
+  padding: 16px 18px;
+  border: 1px solid color-mix(in srgb, var(--tr-accent) 30%, var(--tr-border));
+  border-radius: 10px;
+  background: var(--tr-accent-soft);
+}
+#exercise-library .exercise-grid-entry-text .tr-eyebrow { color: var(--tr-accent); font: 8px var(--tr-mono); letter-spacing: .08em; }
+#exercise-library .exercise-grid-entry-text p { margin: 5px 0 0; color: var(--tr-secondary); font-size: 11.5px; line-height: 1.55; }
+#exercise-library .exercise-grid-entry-field { display: flex; gap: 8px; }
+#exercise-library .exercise-grid-entry-field input {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--tr-border);
+  border-radius: 8px;
+  background: var(--tr-surface);
+  color: var(--tr-text);
+  font: 13px var(--tr-mono);
+}
+#exercise-library .exercise-grid-entry-field input:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 0; border-color: transparent; }
+#exercise-library .exercise-grid-entry-field .tr-button { height: 36px; white-space: nowrap; }
+#exercise-library .exercise-library-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; }
+#exercise-library .exercise-library-search { flex: 0 1 300px; }
+#exercise-library .exercise-library-search input { height: auto; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+#exercise-library .exercise-library-categories { display: flex; flex-wrap: wrap; gap: 6px; }
+#exercise-library .exercise-library-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 11px;
+  border: 1px solid var(--tr-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--tr-secondary);
+  font-size: 11px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+#exercise-library .exercise-library-chip:hover { border-color: var(--tr-accent); color: var(--tr-text); }
+#exercise-library .exercise-library-chip.active { border-color: var(--tr-accent); background: var(--tr-accent-soft); color: var(--tr-text); }
+#exercise-library .exercise-library-count { color: var(--tr-muted); font: 9px var(--tr-mono); }
+#exercise-library .exercise-library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 12px;
+  min-height: 0;
+}
+#exercise-library .exercise-library-empty { grid-column: 1 / -1; padding: 30px 10px; color: var(--tr-muted); font-size: 12px; text-align: center; }
+#exercise-library .exercise-library-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 15px 16px 16px;
+  border: 1px solid var(--tr-border);
+  border-radius: 10px;
+  background: var(--tr-raised, var(--tr-surface));
+  color: var(--tr-text);
+  cursor: pointer;
+  transition: border-color .15s, background .15s, transform .12s;
+}
+#exercise-library .exercise-library-card:hover,
+#exercise-library .exercise-library-card:focus-visible {
+  border-color: var(--tr-accent);
+  transform: translateY(-1px);
+  outline: none;
+}
+#exercise-library .exercise-library-card.is-current { border-color: color-mix(in srgb, var(--tr-accent) 55%, var(--tr-border)); }
+#exercise-library .exercise-library-card-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+#exercise-library .exercise-library-card-category { color: var(--tr-muted); font: 8px var(--tr-mono); letter-spacing: .07em; text-transform: uppercase; }
+#exercise-library .exercise-library-card-stars { display: flex; gap: 1px; color: var(--tr-accent); font-size: 11px; }
+#exercise-library .exercise-library-card-stars .star.empty { opacity: .35; }
+#exercise-library .exercise-library-card h4 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; font-weight: 550; letter-spacing: -.02em; line-height: 1.3; }
+#exercise-library .exercise-library-current { flex-shrink: 0; white-space: nowrap; padding: 2px 7px; border-radius: 999px; background: var(--tr-accent-soft); color: var(--tr-accent); font: 8.5px var(--tr-mono); letter-spacing: .04em; }
+#exercise-library .exercise-library-card p { margin: 0; color: var(--tr-secondary); font-size: 11.5px; line-height: 1.6; }
+@media (max-width: 820px) {
+  #exercise-library .exercise-grid-entry { grid-template-columns: 1fr; }
+  #exercise-library .exercise-library-search { flex-basis: 100%; }
 }
 
 /* ---- Chat Copilot : compléments à la grammaire d'Astra ------------------

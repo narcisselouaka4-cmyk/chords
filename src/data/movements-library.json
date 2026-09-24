@@ -9,7 +9,7 @@
       "pattern": "7-3-6-2-5",
       "level": 2,
       "exampleChords": ["Dm7", "G7", "Cmaj9"],
-      "description": "Voicings aérés en drop 2 avec suspension sus4 sur le V."
+      "description": "Quintes descendantes VII7 → IIIm7 → VIm7 → IIm7 → V7 : chaque basse descend d'une quinte jusqu'au II-V de la tonalité. La 7e de chaque accord descend d'un ton ou d'un demi-ton vers la tierce de l'accord suivant."
     },
     {
       "id": "diatonic-rise-worship-1",
@@ -20,29 +20,29 @@
       "pattern": "1-4-6-5",
       "level": 1,
       "exampleChords": ["C", "F/A", "Am7", "G/B"],
-      "description": "Basse montante par degrés conjoints, voicings amples en position close."
+      "description": "I → IV → VIm → V, tout dans la gamme : la couleur passe du majeur (I, IV) au relatif mineur (VIm), puis la dominante relance vers le I. Enchaînement typique des montées de refrain en worship."
     },
     {
       "id": "turnaround-gospel-1",
       "style": "gospel",
       "category": "Couleurs & chromatismes",
-      "name": "Turnaround chromatique 3-6-2-5",
+      "name": "Turnaround III-VI-II-V-I",
       "context": "Fin de couplet ou pont gospel.",
       "pattern": "3-6-2-5-1",
       "level": 2,
       "exampleChords": ["Em7", "A7(b9)", "Dm7", "G7(#5)", "Cmaj7"],
-      "description": "Tensions altérées sur le V, block chords richement harmonisés."
+      "description": "IIIm7 → VIm7 → IIm7 → V7 → Imaj7 : quatre accords en quintes descendantes qui ramènent à la tonique. Aux niveaux avancés, le V prend des tensions altérées qui tirent davantage vers le I."
     },
     {
       "id": "subdominant-minor-gospel-1",
       "style": "gospel",
       "category": "Couleurs & chromatismes",
-      "name": "Subdominant mineur surprise",
+      "name": "Emprunt bIIImaj7",
       "context": "Couleur gospel moderne sur un accord majeur.",
       "pattern": "1-b3maj7-6-2-5",
       "level": 3,
       "exampleChords": ["C", "Ebmaj7", "Am7", "Dm7", "G13"],
-      "description": "Utilisation du bIII maj7 comme couleur chromatique typique du gospel."
+      "description": "Après le I, le bIIImaj7 est emprunté à la tonalité mineure homonyme (bIII de Do = Mib) : c'est lui qui surprend. VIm7 → IIm7 → V7 ramène ensuite à la tonalité. Couleur fréquente dans le gospel moderne."
     },
     {
       "id": "tritone-jazz-1",
@@ -53,7 +53,7 @@
       "pattern": "2-b2:7-1",
       "level": 4,
       "exampleChords": ["Dm7", "Db7(#11)", "Cmaj7"],
-      "description": "Db7 remplace G7, voicings rootless avec 3e et 7e inversées."
+      "description": "IIm7 → bII7 → Imaj7 : le bII7 remplace le V7 (substitution tritonique). Les deux dominantes partagent le même triton, tierce et septième échangées, et la basse descend par demi-tons (II → bII → I)."
     },
     {
       "id": "minor-ii-v-i-jazz-1",
@@ -64,7 +64,7 @@
       "pattern": "2m7b5-5alt-1mMaj7",
       "level": 5,
       "exampleChords": ["Dm7(b5)", "G7(#9#5)", "Cm(maj7)"],
-      "description": "Voicings de type diminished scale sur le V altéré."
+      "description": "La cadence mineure : IIm7b5 → V7alt → ImMaj7. Le V altéré (b9, #9, b13) tire fort vers la tonique mineure, et la 7e majeure de l'accord final garde la sensible de la tonalité."
     },
     {
       "id": "guide-tone-73-ii-v-i-jazz-1",
@@ -75,7 +75,7 @@
       "pattern": "2-5-1",
       "level": 2,
       "exampleChords": ["Dm7", "G7", "Cmaj7"],
-      "description": "Sur Dm7 → G7 → Cmaj7 : le Do (7e de Dm7) descend vers le Si (3ce de G7) ; le Fa (7e de G7) descend vers le Mi (3ce de Cmaj7). Concentre-toi sur cette ligne qui descend, pas sur le nom des accords."
+      "description": "La 7e de IIm7 descend d'un demi-ton vers la tierce de V7, puis la 7e de V7 descend d'un demi-ton vers la tierce de Imaj7. Écoute cette ligne qui descend plus que le nom des accords."
     },
     {
       "id": "minor6-diminished-barry-harris-jazz-1",
@@ -87,7 +87,7 @@
       "level": 3,
       "preserveQualities": true,
       "exampleChords": ["Cm6", "Bdim7", "Cm6", "Bdim7"],
-      "description": "Cm6 alterné avec Bdim7 — les deux accords partagent presque toutes leurs notes (Cm6 = mêmes notes qu'un Am7b5), donc ce mouvement fait travailler l'oreille sur leur proximité. Version simplifiée de la gamme complète à 8 notes ; à enrichir plus tard si utile."
+      "description": "Im6 alterne avec l'accord diminué de la sensible (VII°7). Ils n'ont aucune note commune, mais chaque note de l'un est à un ton ou un demi-ton d'une note de l'autre : c'est le mouvement de la gamme « 6th diminished » de Barry Harris (les 4 notes de Im6 plus les 4 de VII°7), ici réduit à ses deux accords."
     },
 {
   "id": "basic-ii-v-i-major-1",
@@ -98,18 +98,18 @@
   "pattern": "2-5-1",
   "level": 1,
   "exampleChords": ["Dm7", "G7", "Cmaj7"],
-  "description": "Cadence majeure de base pour pratiquer les positions close et drop 2."
+  "description": "La cadence de base, IIm7 → V7 → Imaj7, à faire tourner dans les tonalités choisies. Commence en close et en drop 2, puis essaie les autres familles de voicings."
 },
 {
   "id": "diatonic-iv-v-ii-v-1",
   "style": "worship",
   "category": "Progressions diatoniques",
-  "name": "IV-V-iii-vi pop",
+  "name": "IV-V-vi-ii pop",
   "context": "Progression diatonique majeure simple.",
   "pattern": "4-5-6-2",
   "level": 1,
   "exampleChords": ["F", "G", "Am", "Dm"],
-  "description": "Progression en cercle de quintes inversé, idéale pour les débutants."
+  "description": "IV → V → VIm → IIm, tout dans la gamme majeure, sans jamais poser le I. Le V qui monte vers le VIm (cadence rompue) évite la résolution attendue et relance la boucle."
 },
 {
   "id": "secondary-dominant-v-of-v-1",
@@ -120,7 +120,7 @@
   "pattern": "1-2:7-5-1",
   "level": 2,
   "exampleChords": ["Cmaj7", "D7", "G7", "Cmaj7"],
-  "description": "D7 (V/V) précède G7 pour une cadence renforcée."
+  "description": "Imaj7 → II7 → V7 → Imaj7 : le II devient dominante (V/V, dominante secondaire) grâce à sa tierce haussée, qui monte vers la fondamentale du V et renforce son arrivée."
 },
 {
   "id": "coltrane-changes-frag-1",
@@ -131,7 +131,7 @@
   "pattern": "1:maj7-b3:7-b6:maj7-7:7-3:maj7-5:7-1:maj7",
   "level": 4,
   "exampleChords": ["Cmaj7", "Eb7", "Abmaj7", "B7", "Emaj7", "G7", "Cmaj7"],
-  "description": "Coltrane changes : Do, Lab et Mi, trois tonalités à une tierce majeure d'écart, chacune amenée par sa dominante (Eb7 → Abmaj7, B7 → Emaj7, G7 → Cmaj7)."
+  "description": "Trois centres tonaux à une tierce majeure d'écart, I, bVI et III, qui partagent l'octave en trois parts égales. Chacun est amené par sa propre dominante : bIII7 → bVImaj7, VII7 → IIImaj7, V7 → Imaj7. C'est la mécanique des « Coltrane changes » (Giant Steps, Countdown)."
 }
   ]
 }

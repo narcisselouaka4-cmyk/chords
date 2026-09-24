@@ -11,7 +11,8 @@ import {
   renderExerciseTarget,
   renderTopNoteBrowser,
   TARGET_QUALITY_GROUPS,
-  listProgressionNames,
+  keySequence,
+  CUSTOM_GRID_NAME,
   listMovementNames,
   TECHNIQUES,
   judgeAnswer,
@@ -120,12 +121,13 @@ function checkTechniqueSwitch() {
   check('setTechnique conserve le même accord', secondTarget.rootPc === firstTarget.rootPc && secondTarget.symbol === firstTarget.symbol);
 }
 
-function checkProgressionVoicings() {
+// [Claude] — 2026-09-24 — Mode Progression retiré (décision de Narcisse) : il
+// choisissait seul extensions et altérations, sans contexte.
+function checkProgressionModeRemoved() {
   const ex = createPracticeExercise();
   ex.setMode('progression');
-  const state = ex.getState();
-  check('Progression a des accords', state.progression.chords.length > 0);
-  check('Tous les accords de progression ont un voicing jouable', state.progression.chords.every((c) => c.voicing?.isPlayable));
+  check('Mode Progression retiré : setMode(\'progression\') sans effet', ex.getState().mode === 'chord');
+  check('API Progression retirée', ex.setCustomProgressionFromDegrees === undefined && ex.setCustomProgression === undefined);
 }
 
 function checkDemoSequence() {
@@ -246,32 +248,30 @@ function checkTechniqueAvailability() {
   check('so_what disponible sur Cm7 (publié par VoicingLab)', !unavailableTechniquesFor('Cm7').includes('so_what'));
   // Four-Way Close réservé au mode Accord cible.
   check('fourway_close disponible en mode chord', !unavailableTechniquesFor('Cmaj7', 'chord').includes('fourway_close'));
-  check('fourway_close indisponible en mode progression', unavailableTechniquesFor('Cmaj7', 'progression').includes('fourway_close'));
   check('fourway_close indisponible en mode movement', unavailableTechniquesFor('Cmaj7', 'movement').includes('fourway_close'));
 }
 
 function checkPreviousNavigation() {
   const ex = createPracticeExercise();
-  ex.setMode('progression');
-  // Technique close : fondamentale en bas, donc detectChord valide systématiquement
-  // l'accord et l'exercice peut avancer d'une étape.
+  ex.setMode('movement');
   ex.setTechnique('close');
-  ex.setContentChoice('II-V-I majeur'); // déterministe
-  check('progression : pas de précédent au premier accord', ex.canGoPrevious() === false);
+  ex.setKeyChoice(0);
+  ex.setContentChoice('Cadence II-V-I majeur'); // déterministe
+  check('mouvement : pas de précédent au premier accord', ex.canGoPrevious() === false);
 
   const prog = ex.getState().progression;
   ex.check([...prog.chords[0].notes]); // valide le 1er accord → avance d'une étape
   const afterAdvance = ex.getState();
   if (afterAdvance.stepIndex > 0) {
     const scoreBefore = afterAdvance.score;
-    check('progression : précédent disponible après avancée', ex.canGoPrevious() === true);
+    check('mouvement : précédent disponible après avancée', ex.canGoPrevious() === true);
     const moved = ex.previous();
     const back = ex.getState();
-    check("progression : previous() recule d'une étape", moved !== null && back.stepIndex === afterAdvance.stepIndex - 1);
-    check('progression : previous() ne touche pas au score', back.score === scoreBefore);
-    check('progression : previous() remet les tentatives à zéro', back.attempts === 0);
+    check("mouvement : previous() recule d'une étape", moved !== null && back.stepIndex === afterAdvance.stepIndex - 1);
+    check('mouvement : previous() ne touche pas au score', back.score === scoreBefore);
+    check('mouvement : previous() remet les tentatives à zéro', back.attempts === 0);
   } else {
-    check('progression : avancée préalable au test previous', false, `la validation du 1er accord n'a pas avancé — notes=${prog.chords[0].notes.join(',')}`);
+    check('mouvement : avancée préalable au test previous', false, `la validation du 1er accord n'a pas avancé — notes=${prog.chords[0].notes.join(',')}`);
   }
 
   const exChord = createPracticeExercise();
@@ -279,16 +279,6 @@ function checkPreviousNavigation() {
 }
 
 function checkContentChoice() {
-  const names = listProgressionNames();
-  check('liste des progressions non vide', names.length > 0);
-  const chosenName = names.find((n) => n.includes('II-V-I')) || names[1];
-  const ex = createPracticeExercise();
-  ex.setMode('progression');
-  ex.setContentChoice(chosenName);
-  check('progression choisie respectée', ex.getState().progression.name === chosenName, `obtenu=${ex.getState().progression.name}`);
-  ex.setContentChoice(null);
-  check('retour au tirage aléatoire', ex.getState().progressionChoice === null);
-
   const movements = listMovementNames();
   check('liste des mouvements non vide', movements.length > 0);
   const exMv = createPracticeExercise();
@@ -296,14 +286,15 @@ function checkContentChoice() {
   exMv.setContentChoice(movements[0]);
   check('mouvement choisi respecté', exMv.getState().progression.name === movements[0], `obtenu=${exMv.getState().progression.name}`);
 
-  // Si une progression personnalisée est active, choisir un template doit la
-  // désactiver pour que le template s'affiche réellement.
+  exMv.setContentChoice(null);
+  check('retour au tirage aléatoire', exMv.getState().movementChoice === null);
+
+  // « Ma grille » active, choisir un mouvement de la bibliothèque l'affiche bien.
   const exCustom = createPracticeExercise();
-  exCustom.setMode('progression');
-  exCustom.setCustomProgression('D F G A');
-  exCustom.setContentChoice('II-V-I majeur');
-  check('template efface la progression personnalisée', exCustom.getState().progression.name === 'II-V-I majeur');
-  check('customProgression réinitialisée', exCustom.getState().customProgression === null);
+  exCustom.setCustomGrid('Dm7 G7 Cmaj7');
+  check('Ma grille choisie', exCustom.getState().progression.name === CUSTOM_GRID_NAME);
+  exCustom.setContentChoice('Cadence II-V-I majeur');
+  check('mouvement choisi après Ma grille', exCustom.getState().progression.name === 'Cadence II-V-I majeur');
 }
 
 // ── Phase 3 : nouvelles familles de voicing ──
@@ -374,14 +365,14 @@ function checkVoicingLabGateAndCustomDifficulty() {
   check('Fmaj13#11 : spread indisponible', u('Fmaj13#11').includes('spread'));
 
   const ex = createPracticeExercise();
-  ex.setMode('progression');
-  ex.setCustomProgressionFromDegrees([4, 5, 3, 6, 2, 5, 1].map((degree) => ({ degree })));
+  ex.setMode('movement');
+  ex.setContentChoice('Turnaround III-VI-II-V-I');
   const seqs = [1, 3, 5].map((d) => {
     ex.setDifficulty(d);
     const p = ex.getState().progression;
     return { name: p.name, symbols: p.chords.map((c) => c.symbol).join(' ') };
   });
-  check('Progression par degrés conservée à tous les niveaux', seqs.every((x) => x.name === 'Progression personnalisée' && x.symbols.split(' ').length === 7));
+  check('Mouvement conservé à tous les niveaux', seqs.every((x) => x.name === 'Turnaround III-VI-II-V-I' && x.symbols.split(' ').length === 5));
   check('La difficulté change les qualités (1★ ≠ 3★)', seqs[0].symbols !== seqs[1].symbols, JSON.stringify(seqs));
   check('Aucune qualité maj13#11 inventée', seqs.every((x) => !x.symbols.includes('maj13#11')));
 }
@@ -422,10 +413,10 @@ function checkVoicingLabCoverage() {
   const reference = getAvailableTechniques('Ebm9');
   check('Ebm9 : au moins une technique disponible', reference.some((c) => c.playable));
 
-  // Difficulté 1★ en Progression : voicings VoicingLab de difficulté 1 (2 notes).
+  // Difficulté 1★ en Mouvement : voicings VoicingLab de difficulté 1 (2 notes).
   const pr = createPracticeExercise();
-  pr.setMode('progression');
-  pr.setCustomProgressionFromDegrees([2, 5, 1].map((degree) => ({ degree })));
+  pr.setMode('movement');
+  pr.setContentChoice('Cadence II-V-I majeur');
   pr.setDifficulty(1);
   const chords = pr.getState().progression.chords;
   check('1★ : accords sans extension (m7 / 7 / maj7)', chords.map((c) => c.symbol).join(' ') === 'm7 7 maj7', chords.map((c) => c.symbol).join(' '));
@@ -568,14 +559,14 @@ function checkKeySpelling() {
   check('Accord joué épelé selon l\'armure (A# → Bb en Fa, A# en Ré)', spellPcInKey(10, 5) === 'Bb' && spellPcInKey(10, 2) === 'A#');
 
   const ex = createPracticeExercise();
-  ex.setMode('progression');
+  ex.setMode('movement');
   ex.setDifficulty(1);
   ex.setKeyChoice(5);
-  ex.setCustomProgressionFromDegrees([4, 5, 3, 6, 2, 5, 1].map((degree) => ({ degree, accidental: '' })));
+  ex.setContentChoice('IV-V-vi-ii pop');
   const prog = ex.getState().progression;
-  check('Progression en Fa : Bbmaj7 C7 Am7 Dm7 Gm7 C7 Fmaj7', prog.chords.map((c) => c.name).join(' ') === 'Bbmaj7 C7 Am7 Dm7 Gm7 C7 Fmaj7',
+  check('Mouvement en Fa : Bbmaj7 C7 Dm7 Gm7', prog.chords.map((c) => c.name).join(' ') === 'Bbmaj7 C7 Dm7 Gm7',
     prog.chords.map((c) => c.name).join(' '));
-  check('Tonalité connue de la progression (F majeur)', prog.keyPc === 5 && prog.minor === false);
+  check('Tonalité connue du mouvement (F majeur)', prog.currentKey === 5 && prog.minor === false);
   ex.setTechnique('drop2');
   ex.setVariant(1);
   check('Nom épelé conservé après changement de technique et de variante', ex.getState().target.name === 'Bbmaj7');
@@ -826,10 +817,10 @@ function checkFavorites() {
   check('Bandeau : « 2 favoris retirés »', renderFavoritesList(l2, { removed: [many[0], many[2]] }).includes('2 favoris retirés'));
 }
 
-// [Claude] — 2026-09-23 — Doublures étendues aux modes Progression et Mouvement.
+// [Claude] — 2026-09-23 — Doublures étendues au mode Mouvement.
 function checkDoublingsInSequences() {
-  console.log('\n=== Doublures : Progression et Mouvement ===');
-  for (const mode of ['progression', 'movement']) {
+  console.log('\n=== Doublures : Mouvement ===');
+  for (const mode of ['movement']) {
     const ex = createPracticeExercise();
     ex.setMode(mode);
     ex.setTechnique('stride');
@@ -906,13 +897,19 @@ function checkMovementLibraryComplete() {
   const minor5 = movementChords('II-V-I altéré en mineur', { difficulty: 5, key: 9 });
   check('II-V-I altéré en mineur (La, niveau 5) : Bm7b5 E7#9b13 AmMaj7', minor5.chords.map((c) => c.name).join(' ') === 'Bm7b5 E7#9b13 AmMaj7',
     minor5.chords.map((c) => c.name).join(' '));
-  const coltrane = movementChords('Cycle de tierces majeures');
+  // Niveau 1 : structure de base du motif (le niveau 3 l'enrichit en 13e).
+  const coltrane = movementChords('Cycle de tierces majeures', { difficulty: 1 });
   check('Cycle de tierces majeures (Do) : Cmaj7 Eb7 Abmaj7 B7 Emaj7 G7 Cmaj7',
     coltrane.chords.map((c) => c.name).join(' ') === 'Cmaj7 Eb7 Abmaj7 B7 Emaj7 G7 Cmaj7', coltrane.chords.map((c) => c.name).join(' '));
-  const tritone = movementChords('Tritone substitution V7');
+  const coltrane3 = movementChords('Cycle de tierces majeures');
+  check('Intermédiaire (niveau 3) enrichi : Cmaj13 Eb13 Abmaj13 B13 Emaj13 G13 Cmaj13',
+    coltrane3.chords.map((c) => c.name).join(' ') === 'Cmaj13 Eb13 Abmaj13 B13 Emaj13 G13 Cmaj13', coltrane3.chords.map((c) => c.name).join(' '));
+  const levels = [1, 2, 3, 4, 5].map((difficulty) => movementChords('Cadence II-V-I majeur', { difficulty }).chords.map((c) => c.symbol).join(' '));
+  check('Chaque niveau change les qualités (II-V-I : 7e, 9e, 11e/13e, #9/#11, alt)', new Set(levels).size === 5, levels.join(' | '));
+  const tritone = movementChords('Tritone substitution V7', { difficulty: 1 });
   check('Tritone substitution V7 (Do) : Dm7 Db7 Cmaj7', tritone.chords.map((c) => c.name).join(' ') === 'Dm7 Db7 Cmaj7',
     tritone.chords.map((c) => c.name).join(' '));
-  const secondary = movementChords('V/V vers I');
+  const secondary = movementChords('V/V vers I', { difficulty: 1 });
   check('V/V vers I (Do) : Cmaj7 D7 G7 Cmaj7', secondary.chords.map((c) => c.name).join(' ') === 'Cmaj7 D7 G7 Cmaj7',
     secondary.chords.map((c) => c.name).join(' '));
 }
@@ -1156,35 +1153,42 @@ function checkValidationAgainstAnnouncedChord() {
   check('realizesChord : G7alt accepte b9 et b13', realizesChord([43, 47, 53, 56, 63], 7, '7alt'));
   check('judgeAnswer : cible absente → refus', judgeAnswer([60, 64, 67], null).success === false);
 
-  // Progression : même principe à chaque étape (II-V-I en Do, voicings rootless).
-  const prog = createPracticeExercise();
-  prog.setMode('progression');
-  prog.setDifficulty(1);
-  prog.setKeyChoice(0);
-  prog.setContentChoice('II-V-I majeur');
-  prog.setTechnique('rootless');
-  const shownDm7 = prog.getState().target;
-  check('Progression : Dm7 rootless affiché sans Ré', shownDm7.name === 'Dm7' && !shownDm7.notes.some((n) => n % 12 === 2), shownDm7.notes.join());
-  check('Progression : Ré Fa La Do accepté pour Dm7', prog.check([50, 53, 57, 60]).success);
-  check('Progression : étape suivante G7, Sol Si Ré Fa accepté', prog.getState().target.name === 'G7' && prog.isCorrect([55, 59, 62, 65]));
+  // Mouvement : même principe à chaque étape (II-V-I en Do, voicings rootless).
+  const mv = createPracticeExercise();
+  mv.setMode('movement');
+  mv.setDifficulty(1);
+  mv.setKeyChoice(0);
+  mv.setContentChoice('Cadence II-V-I majeur');
+  mv.setTechnique('rootless');
+  const shownDm7 = mv.getState().target;
+  check('Mouvement : Dm7 rootless affiché sans Ré', shownDm7.name === 'Dm7' && !shownDm7.notes.some((n) => n % 12 === 2), shownDm7.notes.join());
+  check('Mouvement : Ré Fa La Do accepté pour Dm7', mv.check([50, 53, 57, 60]).success);
+  check('Mouvement : étape suivante G7, Sol Si Ré Fa accepté', mv.getState().target.name === 'G7' && mv.isCorrect([55, 59, 62, 65]));
 }
 
-// [Claude] — 2026-09-24 — Progression tapée en symboles : la qualité venait du
-// nom Tonal (« major seventh ») → aucun voicing → progression remplacée en silence.
-function checkTypedCustomProgression() {
-  console.log('\n=== Progression personnalisée tapée en symboles ===');
+// [Claude] — 2026-09-24 — « Ma grille » : accords tapés en symboles, joués comme
+// un mouvement dans les tonalités choisies, qualités gardées telles quelles
+// (remplace la progression personnalisée du mode Progression, retiré).
+function checkTypedCustomGrid() {
+  console.log('\n=== Ma grille : accords tapés en symboles ===');
   const typed = (input) => {
     const ex = createPracticeExercise();
-    ex.setMode('progression');
-    ex.setCustomProgression(input);
+    ex.setCustomGrid(input);
     return ex;
   };
+  const names = (prog) => prog.chords.map((c) => `${c.name}:${c.symbol}`).join(' ');
   const basic = typed('Dm7 G7 Cmaj7');
   const prog = basic.getState().progression;
-  check('« Dm7 G7 Cmaj7 » construite telle quelle', prog.name === 'Progression personnalisée'
-    && prog.chords.map((c) => `${c.name}:${c.symbol}`).join(' ') === 'Dm7:m7 G7:7 Cmaj7:maj7' && !prog.notice,
-    `${prog.name} ${prog.chords.map((c) => `${c.name}:${c.symbol}`).join(' ')}`);
-  check('Progression tapée : Ré Fa La Do validé sur Dm7', basic.check([50, 53, 57, 60]).success);
+  check('« Dm7 G7 Cmaj7 » construite telle quelle, lue en Do majeur, départ en Do', basic.getState().mode === 'movement'
+    && prog.name === CUSTOM_GRID_NAME && names(prog) === 'Dm7:m7 G7:7 Cmaj7:maj7' && prog.currentKey === 0 && !prog.notice,
+    `${prog.name} ${names(prog)} ton ${prog.currentKey}`);
+  check('Ma grille : Ré Fa La Do validé sur Dm7', basic.check([50, 53, 57, 60]).success);
+  const rich = typed('Dm11 G7#9b13 Cmaj13').getState().progression;
+  check('Extensions et altérations gardées (Dm11 G7#9b13 Cmaj13)', names(rich) === 'Dm11:m11 G7#9b13:7#9b13 Cmaj13:maj13', names(rich));
+  const alt = typed('Dm7b5 G7alt CmMaj7').getState().progression;
+  check('Grille mineure : lue en Do mineur, G7alt reste 7alt', alt.minor === true && names(alt) === 'Dm7b5:m7b5 G7alt:7alt CmMaj7:mMaj7', `${alt.minor} ${names(alt)}`);
+  const turn = typed('Cmaj7 Am7 Dm7 G7').getState().progression;
+  check('« Cmaj7 Am7 Dm7 G7 » lue en Do majeur (pas en Sol)', turn.currentKey === 0 && turn.description.includes('C majeur'), turn.description);
   const notations = typed('Bbmaj7 F#m7b5 CM7 C-7 Cø7 C°7 CmM7 C69').getState().progression;
   check('Notations reconnues (Bbmaj7 F#m7b5 CM7 C-7 Cø7 C°7 CmM7 C69)',
     notations.chords.map((c) => c.symbol).join(' ') === 'maj7 m7b5 maj7 m7 m7b5 dim7 mMaj7 6/9' && !notations.notice,
@@ -1193,15 +1197,60 @@ function checkTypedCustomProgression() {
   check('Accords impossibles ignorés, pas en silence (triade, inconnu, basse séparée)',
     partial.chords.map((c) => c.name).join(' ') === 'Dm7 G7' && ['C,', 'Xyz', 'G7/B'].every((s) => partial.notice?.includes(s)), partial.notice);
   const none = typed('D F G A').getState().progression;
-  check('Aucun accord jouable : autre progression proposée ET annoncée',
-    none.name !== 'Progression personnalisée' && none.notice?.includes('Progression personnalisée impossible') && none.notice.includes(`« ${none.name} »`), none.notice);
+  check('Aucun accord jouable : autre mouvement proposé ET annoncé',
+    none.name !== CUSTOM_GRID_NAME && none.notice?.includes(`« ${CUSTOM_GRID_NAME} »`) && none.notice.includes(`« ${none.name} »`), none.notice);
+  const second = typed('Dm7 G7 Cmaj7');
+  second.check([50, 53, 57, 60]);
+  second.check([55, 59, 62, 65]);
+  second.check([48, 52, 55, 59]);
+  const k2 = second.getState();
+  check('Ma grille : 2e tonalité = même grille transposée (Db : Ebm7 Ab7 Dbmaj7)', k2.progression.keyIndex === 1
+    && k2.progression.chords.map((c) => c.name).join(' ') === 'Ebm7 Ab7 Dbmaj7', k2.progression.chords.map((c) => c.name).join(' '));
+}
+
+// [Claude] — 2026-09-24 — Mouvement 12 tons (Narcisse) : difficulté par défaut
+// Intermédiaire, saut direct à un accord de la liste, choix des tonalités.
+function checkMovementNavigationAndKeys() {
+  console.log('\n=== Mouvement : niveau par défaut, saut direct, tonalités ===');
+  const ex = createPracticeExercise();
+  check('Difficulté par défaut : Intermédiaire (3)', ex.getState().difficulty === 3);
+  ex.setMode('movement');
+  ex.setDifficulty(5);
+  ex.setKeyChoice(7);
+  ex.setContentChoice('Cycle de tierces majeures');
+  const cycle = ex.getState().progression;
+  check('Cycle de tierces majeures en Avancé (Sol) : Gmaj7#11 Bb7alt …', cycle.chords.map((c) => c.name).join(' ') === 'Gmaj7#11 Bb7alt Ebmaj7#11 F#7alt Bmaj7#11 D7alt Gmaj7#11',
+    cycle.chords.map((c) => c.name).join(' '));
+  const score = ex.getState().score;
+  ex.goToStep(5);
+  let st = ex.getState();
+  check('Saut direct au 6e accord (D7alt) sans jouer les précédents', st.stepIndex === 5 && st.target.name === 'D7alt' && st.score === score, st.target.name);
+  check('Saut direct : l\'accord attendu est bien le 6e', ex.isCorrect(st.target.notes) && !ex.isCorrect(cycle.chords[0].notes));
+  ex.goToStep(99);
+  check('Saut direct borné au dernier accord', ex.getState().stepIndex === cycle.chords.length - 1);
+
+  check('Ordre chromatique depuis Sol : G G# A …', keySequence(7).slice(0, 3).join() === '7,8,9');
+  check('Cycle des quartes depuis Do : C F Bb Eb …', keySequence(0, undefined, 'fourths').slice(0, 4).join() === '0,5,10,3');
+  check('Cycle des quintes depuis Do : C G D A …', keySequence(0, undefined, 'fifths').slice(0, 4).join() === '0,7,2,9');
+  ex.setKeyOrder('fourths');
+  ex.setKeySet([0, 5, 7, 10]);
+  ex.setKeyChoice(0);
+  st = ex.getState();
+  check('4 tonalités retenues, en quartes depuis Do : C F Bb G', st.progression.keys.join() === '0,5,10,7' && st.progression.totalKeys === 4, st.progression.keys.join());
+  ex.goToKey(2);
+  st = ex.getState();
+  check('Saut direct à une tonalité (Bb majeur, 1er accord)', st.target.keyName === 'Bb majeur' && st.stepIndex === 0 && st.target.name === 'Bbmaj7#11', `${st.target.keyName} ${st.target.name}`);
+  ex.setKeySet([]);
+  check('Aucune tonalité : refusé, le tour garde les siennes', ex.getState().keySet.join() === '0,5,7,10');
+  ex.setKeySet([2, 9]);
+  check('Départ hors des tonalités retenues : repasse au hasard', ex.getState().keyChoice === null && [2, 9].includes(ex.getState().progression.startKey));
 }
 
 async function runTests() {
   checkChordTargetHasVoicing();
   checkSpecificChords();
   checkTechniqueSwitch();
-  checkProgressionVoicings();
+  checkProgressionModeRemoved();
   checkDemoSequence();
   checkMovementVoicings();
   checkCloseIsReallyClose();
@@ -1234,7 +1283,8 @@ async function runTests() {
   checkRegisterAllFamilies();
   checkTextbookVoicings();
   checkValidationAgainstAnnouncedChord();
-  checkTypedCustomProgression();
+  checkTypedCustomGrid();
+  checkMovementNavigationAndKeys();
   await checkAllVoicingLabReachable();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);

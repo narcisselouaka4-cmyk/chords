@@ -177,13 +177,12 @@
              Les identifiants que practice-exercise.js / main.js écrivent ou lisent
              ont suivi ici sans être renommés : #practice-exercise-panel,
              .exercise-mode-btn[data-mode], #exercise-target,
-             #exercise-feedback, #exercise-degree-badge. -->
+             #exercise-feedback. -->
         <div class="tr-view practice-exercices" id="practice-view-exercices" style="display: none;">
 
           <div class="tr-exercise-mode" id="practice-exercise-panel">
             <div class="tr-segment-control exercise-mode-selector" role="tablist" aria-label="Type d'exercice">
               <button class="exercise-mode-btn active is-active" data-mode="chord" role="tab" aria-selected="true" type="button">Accord cible</button>
-              <button class="exercise-mode-btn" data-mode="progression" role="tab" aria-selected="false" type="button">Progression</button>
               <button class="exercise-mode-btn" data-mode="movement" role="tab" aria-selected="false" type="button">Mouvement 12 tons</button>
             </div>
             <!-- [Claude] — 2026-09-24 — Titre « Exercices » et « Reconnaissance locale »
@@ -259,35 +258,36 @@
               </div>
               <h2 id="exercise-brief-title">Un accord,<br />puis le suivant.</h2>
               <p id="exercise-brief-text"></p>
-              <div class="exercise-key-pill" id="exercise-brief-key" style="display: none;"></div>
-              <div class="exercise-degree-badge" id="exercise-degree-badge" style="display: none;"></div>
-              <div class="exercise-controls-row">
-                <div class="exercise-difficulty-selector" id="exercise-difficulty-selector">
-                  <label for="exercise-difficulty-select">Difficulté</label>
-                  <select id="exercise-difficulty-select" aria-label="Difficulté de l'exercice">
-                    <option value="1">Débutant</option>
-                    <option value="2">Semi-intermédiaire</option>
-                    <option value="3">Intermédiaire</option>
-                    <option value="4">Semi-avancé</option>
-                    <option value="5" selected>Avancé</option>
+              <!-- [Claude] — 2026-09-24 — Réglages du tour (Mouvement 12 tons), en
+                   grille étiquette / contrôle. La tonalité active a quitté cette
+                   colonne pour le panneau de droite (Narcisse : « pas au bon
+                   endroit »). Mode Progression retiré (degrés, sélecteur de contenu,
+                   badge de degré) : les grilles tapées passent par la bibliothèque
+                   (« Ma grille »). -->
+              <div class="exercise-settings" id="exercise-movement-settings" hidden>
+                <span class="tr-eyebrow exercise-settings-eyebrow">RÉGLAGES DU TOUR</span>
+                <div class="exercise-setting" id="exercise-difficulty-selector">
+                  <label for="exercise-difficulty-select">Niveau</label>
+                  <select id="exercise-difficulty-select" aria-label="Niveau des accords (extensions et altérations)">
+                    <option value="1">Débutant · 7e</option>
+                    <option value="2">Semi-intermédiaire · 9e</option>
+                    <option value="3" selected>Intermédiaire · 11e / 13e</option>
+                    <option value="4">Semi-avancé · #9 / #11</option>
+                    <option value="5">Avancé · altérés</option>
                   </select>
                 </div>
-                <div class="exercise-key-selector" id="exercise-key-selector" style="display: none;">
-                  <label for="exercise-key-select">Tonalité</label>
-                  <select id="exercise-key-select" aria-label="Tonalité de l'exercice">
-                    <option value="">Aléatoire</option>
-                    <option value="0">C</option>
-                    <option value="1">C# / Db</option>
-                    <option value="2">D</option>
-                    <option value="3">D# / Eb</option>
-                    <option value="4">E</option>
-                    <option value="5">F</option>
-                    <option value="6">F# / Gb</option>
-                    <option value="7">G</option>
-                    <option value="8">G# / Ab</option>
-                    <option value="9">A</option>
-                    <option value="10">A# / Bb</option>
-                    <option value="11">B</option>
+                <div class="exercise-setting exercise-setting-keys">
+                  <span class="exercise-setting-label" id="exercise-key-grid-label">Tonalités</span>
+                  <div class="exercise-key-grid" id="exercise-key-grid" role="group" aria-labelledby="exercise-key-grid-label"></div>
+                </div>
+                <div class="exercise-setting">
+                  <label for="exercise-key-order">Ordre</label>
+                  <select id="exercise-key-order" aria-label="Ordre de parcours des tonalités"></select>
+                </div>
+                <div class="exercise-setting" id="exercise-key-selector">
+                  <label for="exercise-key-select">Départ</label>
+                  <select id="exercise-key-select" aria-label="Tonalité de départ du tour">
+                    <option value="">Au hasard</option>
                   </select>
                 </div>
               </div>
@@ -297,40 +297,6 @@
                 <p class="exercise-side-hint exercise-browser-hint" id="exercise-topnote-browser-hint">Choisissez une top note : les accords qui l'ont au sommet s'affichent ici.</p>
                 <div class="exercise-topnote-browser" id="exercise-topnote-browser" hidden></div>
               </div>
-              <!-- Choix explicite de la progression / du mouvement : masqué en
-                   mode « accord cible », rempli par main.js selon le mode. -->
-              <div class="exercise-technique-selector" id="exercise-content-selector" style="display: none;">
-                <label for="exercise-content-select">Contenu</label>
-                <select id="exercise-content-select" aria-label="Progression ou mouvement travaillé">
-                  <option value="">Aléatoire</option>
-                </select>
-              </div>
-              <!-- Progression personnalisée : visible uniquement en mode progression.
-                   Construction par degrés romains (I–VII) ; l'application choisit
-                   la qualité automatiquement selon la difficulté. -->
-              <div class="exercise-technique-selector exercise-custom-progression" id="exercise-custom-progression-selector" style="display: none;">
-                <label>Votre progression</label>
-                <div class="degree-builder" id="degree-builder" hidden>
-                  <div class="degree-buttons">
-                    <button type="button" class="degree-btn" data-degree="1">I</button>
-                    <button type="button" class="degree-btn" data-degree="2">II</button>
-                    <button type="button" class="degree-btn" data-degree="3">III</button>
-                    <button type="button" class="degree-btn" data-degree="4">IV</button>
-                    <button type="button" class="degree-btn" data-degree="5">V</button>
-                    <button type="button" class="degree-btn" data-degree="6">VI</button>
-                    <button type="button" class="degree-btn" data-degree="7">VII</button>
-                  </div>
-                  <div class="degree-sequence" id="degree-sequence">
-                    <span class="degree-sequence-empty">Cliquez les degrés pour composer la progression…</span>
-                  </div>
-                  <div class="degree-actions">
-                    <button type="button" class="degree-action" id="degree-apply" aria-label="Appliquer la progression">Appliquer</button>
-                    <button type="button" class="degree-action secondary" id="degree-clear" aria-label="Effacer la progression">Effacer</button>
-                    <button type="button" class="degree-action secondary" id="degree-remove-last" aria-label="Supprimer le dernier degré">← Suppr.</button>
-                  </div>
-                </div>
-                <span class="custom-progression-badge" id="custom-progression-badge" hidden>Personnalisée</span>
-              </div>
 
             </div>
 
@@ -338,15 +304,21 @@
               <div class="tr-arena-ellipse" aria-hidden="true"></div>
               <div class="tr-arena-ellipse tr-ellipse-outer" aria-hidden="true"></div>
               <div class="tr-target-chord">
-                <span class="tr-eyebrow">À VOUS DE JOUER</span>
+                <span class="tr-eyebrow" id="exercise-arena-eyebrow">À VOUS DE JOUER</span>
                 <div class="exercise-target" id="exercise-target" style="display:none;"></div>
               </div>
             </div>
 
             <div class="tr-exercise-progress">
               <span class="tr-eyebrow" id="exercise-progress-eyebrow">VOTRE PROGRESSION</span>
+              <!-- [Claude] — 2026-09-24 — Tonalité en cours, bien en vue en tête du
+                   panneau, puis la frise des tonalités du tour et les accords :
+                   un clic sur une tonalité ou un accord y va directement. -->
+              <div class="exercise-current-key" id="exercise-current-key" hidden></div>
               <div class="tr-key-counter" id="exercise-progress-counter" style="display: none;"></div>
               <div class="tr-key-progress-track" id="exercise-progress-track" style="display: none;"><span></span></div>
+              <div class="exercise-key-strip" id="exercise-key-strip" role="group" aria-label="Tonalités du tour" hidden></div>
+              <span class="tr-eyebrow exercise-chords-eyebrow" id="exercise-chords-eyebrow" hidden>ACCORDS</span>
               <div class="tr-progression-path" id="exercise-progress-path"></div>
               <p class="tr-progress-quiet" id="exercise-progress-quiet">Lancez un exercice : l'avancement s'affiche ici.</p>
               <!-- [Claude] — 2026-09-24 — Mode Accord cible : la colonne de droite
@@ -369,21 +341,38 @@
                désormais en bulle flottante en haut de la carte. -->
         </div>
 
-        <!-- Bibliothèque d'exercices (panneau latéral) -->
-        <div class="exercise-library" id="exercise-library" hidden aria-label="Bibliothèque d'exercices">
-          <div class="exercise-library-header">
-            <h3>Bibliothèque d'exercices</h3>
-            <button class="exercise-library-close" type="button" id="exercise-library-close" aria-label="Fermer la bibliothèque">✕</button>
+        <!-- [Claude] — 2026-09-24 — Bibliothèque : grande fenêtre Astra centrée,
+             comme celles de Sessions MIDI, du Coach et de Pédagogie IA (Narcisse :
+             « visuellement ça ne rend pas très bien »), au lieu d'un panneau
+             collé au bord. Onglet Progressions retiré avec le mode ; « Ma grille »
+             joue des accords tapés en symboles dans les tonalités choisies. -->
+        <div class="tr-overlay tr-drawer-overlay" id="exercise-library" hidden>
+          <div class="tr-dialog tr-dialog-wide tr-drawer exercise-library" role="dialog" aria-modal="true" aria-label="Bibliothèque des mouvements">
+            <div class="tr-dialog-title">
+              <div class="exercise-library-heading">
+                <h2>Bibliothèque des mouvements</h2>
+                <p>Un enchaînement à faire tourner dans les tonalités choisies, au niveau choisi.</p>
+              </div>
+              <button class="tr-icon-button" type="button" id="exercise-library-close" data-astra-close aria-label="Fermer la bibliothèque">✕</button>
+            </div>
+            <div class="tr-dialog-body exercise-library-body">
+              <form class="exercise-grid-entry" id="exercise-grid-form" autocomplete="off">
+                <div class="exercise-grid-entry-text">
+                  <span class="tr-eyebrow">MA GRILLE</span>
+                  <p>Tapez vos accords, extensions et altérations comprises : ils seront joués tels quels, ton après ton.</p>
+                </div>
+                <div class="exercise-grid-entry-field">
+                  <input type="text" id="exercise-grid-input" placeholder="Dm11 G7#9b13 Cmaj13" aria-label="Accords de votre grille, séparés par des espaces" spellcheck="false">
+                  <button class="tr-button tr-primary" type="submit" id="exercise-grid-play">Jouer ma grille</button>
+                </div>
+              </form>
+              <div class="tr-library-toolbar exercise-library-toolbar">
+                <label class="tr-search exercise-library-search"><svg class="tr-i" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input type="text" id="exercise-library-search" placeholder="Rechercher un mouvement…" aria-label="Rechercher un mouvement"></label>
+                <div class="exercise-library-categories" id="exercise-library-categories" role="group" aria-label="Catégories"></div>
+              </div>
+              <div class="exercise-library-grid" id="exercise-library-grid"></div>
+            </div>
           </div>
-          <div class="exercise-library-tabs" id="exercise-library-tabs" role="tablist" aria-label="Thèmes d'exercices">
-            <button class="active" type="button" data-tab="progressions" role="tab" aria-selected="true">Progressions</button>
-            <button type="button" data-tab="movements" role="tab" aria-selected="false">Mouvements 12 tons</button>
-          </div>
-          <div class="exercise-library-search">
-            <input type="text" id="exercise-library-search" placeholder="Rechercher un exercice…" aria-label="Rechercher un exercice">
-          </div>
-          <div class="exercise-library-categories" id="exercise-library-categories"></div>
-          <div class="exercise-library-grid" id="exercise-library-grid"></div>
         </div>
 
         <!-- Fenêtre « Comment jouer » (recopiée de la maquette). -->
