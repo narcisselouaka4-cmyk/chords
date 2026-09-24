@@ -265,6 +265,7 @@ Compte des pitch classes uniques avec scope :
 13. Démo (`practice-demo.js`) : deux mains, jamais de pédale ; basse ajoutée seulement à une main gauche libre ou qui la tient ; style Gospel / worship d'après le jeu de Narcisse et un tutoriel gospel (cadre d'octave, main gauche à l'octave 2, diminués de passage, montée finale) — procédés seulement.
 14. Diminués de passage en Gospel / worship et en Ballade, listés à droite (`demoPassingChords`) ; ce que la démo ajoute à la carte (basse, doublure) s'affiche sur le mini-clavier (`demoCardHands`). « Ma grille » se compose par sélection (fondamentale + qualité).
 15. Option « Main gauche » par style (`state.leftHandStyle`, `setLeftHandStyle`, `styleLeftHand`) : la main gauche Gospel / Ballade / Swing fait partie du voicing de la carte (`styleAdded`, `leftHandStyle`), les favoris la gardent.
+16. Voice leading de l'utilisateur (2026-09-24, soir) : note du dessus imposée par accord (`prog.topIntervals`, intervalle depuis la fondamentale → transposée ton par ton ; `setStepTopNote`). `chainVoicings(…, tops)` prend le voicing qui la porte au moindre coût (mouvement depuis l'accord précédent + pénalité : autre technique +3, technique de couleur +6, dessus sous Mi4 ou au-dessus de La5, moins de 3 notes) ; faute de voicing, dessus libre et `topMissed`. Les flèches d'un accord libèrent sa note. La démo ne brode pas et ne monte pas au-dessus d'une note choisie. Grilles enregistrées : `practice-grids.js` (localStorage `piano-jazz-exercise-grids`), catégorie « Perso » de la bibliothèque.
 
 ## Fichiers clés
 

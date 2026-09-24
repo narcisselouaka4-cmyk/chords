@@ -23,6 +23,10 @@
 - Option « Main gauche » par style sur la carte (Main droite seule / + main gauche Gospel /
   Ballade / Swing), gardée par les favoris et rouverte en Accord cible (`51c832d`). Origine :
   la main gauche de la démo gospel plaisait à Narcisse mais disparaissait du favori.
+- Dernières demandes pour clore le sous-onglet Exercice (`0ae2219`) : note du dessus par accord
+  (voice leading, « sur le do, il faut tel voice leading »), accord précis modifiable dans
+  Ma grille (« sans tout recommencer »), grilles enregistrées sous un nom dans une nouvelle
+  catégorie « Perso » de la bibliothèque.
 ```
 
 ## `experiments/` — relevé des deux vidéos (à créer : `experiments/2026-09-24-videos-jeu-reel.md`)
@@ -85,6 +89,25 @@ puis D#dim7 (drop 2) → Cdim7 (drop 2) → Gm11.
 - **Ma grille** : accords choisis (fondamentale + qualité, qualités de l'Accord cible),
   « Ajouter », pastilles retirables, « Tout effacer », « Jouer ma grille » (16 au plus) ; plus de
   champ texte. Le moteur reçoit les mêmes symboles qu'avant (`setCustomGrid`).
+  - Menu « Dessus » par accord (notes de l'accord épelées sur leur degré : « Dessus B (7) » ;
+    grisées si aucun voicing ne les a au sommet). La pastille montre la note (« Dm7 ♪ C »).
+  - Clic sur une pastille : l'accord revient dans les menus, le bouton devient « Modifier
+    l'accord N » (« Annuler » à côté) ; seul cet accord change.
+  - Nom + « Enregistrer » : grille rangée dans **Perso** (même nom = mise à jour, 100 grilles au
+    plus, localStorage `piano-jazz-exercise-grids`, `practice-grids.js`).
+- **Voice leading (note du dessus imposée)** : gardée en intervalle depuis la fondamentale, donc
+  transposée ton par ton (Cmaj7 ♪B → Dbmaj7 ♪C). L'enchaînement prend le voicing qui la porte
+  (technique jouée d'abord, puis les autres, les techniques de couleur en dernier ; mélodie au
+  moins à Mi4, 3 notes au moins) ; faute de voicing, dessus libre + ⚠ (« Aucun voicing de … n'a …
+  au sommet »). Carte (Mouvement) : menu « Dessus » pour changer la note d'un accord précis ;
+  les flèches libèrent la note de cet accord. Liste ACCORDS : « ♪ C » sous chaque accord.
+  Démo : aucune broderie sur une note choisie, pas de montée finale au-dessus.
+- **Bibliothèque, catégorie Perso** (toujours présente, en dernier) : cartes « N accords »,
+  résumé « Cmaj7 ♪ B → Dm7 ♪ C… », Écouter (dans le ton d'écriture), clic = jouer la grille,
+  « Modifier » (recharge Ma grille avec son nom), « Supprimer » (second clic « Confirmer »).
+  Une note du dessus changée sur la carte d'une grille Perso est gardée dans la grille
+  (« Note du dessus gardée dans « … » (Perso) »), sauf si la grille jouée a été changée sans être
+  enregistrée.
 
 ## `state/current-work.md` — à vérifier sur le PC
 
@@ -104,6 +127,12 @@ puis D#dim7 (drop 2) → Cdim7 (drop 2) → Gm11.
 4 quinquies. Mouvement, Close : menu « + main gauche Gospel / worship » → ☆ → Accord cible →
    ouvrir le favori : main gauche D2 A2 toujours là, menu sur Gospel ; changer d'accord : l'option
    reste ; « Main droite seule » la retire.
+4 sexies. Bibliothèque → Ma grille : C maj7 « Dessus B », D m11 « Dessus C », G 7 « Dessus F »,
+   C maj7 « Dessus E » → cliquer la pastille Dm11 → qualité m7 → « Modifier l'accord 2 » : seul cet
+   accord change. Nom « Ma louange » → « Enregistrer » → chip Perso : la carte y est.
+4 septies. Jouer « Ma louange » : liste ♪ B / ♪ C / ♪ F / ♪ E ; sur G7, menu « Dessus B (3) » →
+   main droite D4 F4 G4 B4, « Note du dessus gardée… » ; tonalité suivante : ♪ C / ♪ Db / ♪ C / ♪ F.
+   Démo Gospel : la mélodie reste au-dessus, pas de montée finale. Supprimer : deux clics.
 5. Rejouer la démo à la main sans pédale : tout doit tenir sous les doigts.
 
 ## `state/next-actions.md` — à ajouter
@@ -112,3 +141,7 @@ puis D#dim7 (drop 2) → Cdim7 (drop 2) → Gm11.
 - Basse qui avance par degrés (renversements : C/E, F/A) comme dans la vidéo de Narcisse.
 - Réglage du tempo de la démo.
 - Question en suspens : garder ou non les noms de mouvements renommés le 24/09.
+- Sous-onglet Exercice considéré comme clos par Narcisse après les grilles Perso (24/09 soir).
+- Idées si besoin plus tard : exporter / importer les grilles Perso (fichier), note du dessus
+  aussi sur les mouvements de la bibliothèque (aujourd'hui : Ma grille et Perso seulement pour
+  l'enregistrer ; la carte la permet sur tout mouvement, le temps de la séance).
