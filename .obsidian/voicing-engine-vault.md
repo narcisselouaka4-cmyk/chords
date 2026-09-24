@@ -11,6 +11,18 @@ metadata:
 
 ## Journal
 
+### 2026-09-24 (nuit) — Démo des mouvements, voicings enchaînés, sortie MIDI
+
+- **Demande de Narcisse** : un bouton Play pour avoir un avant-goût des mouvements, joué avec nos voicings, « comme si c'était nous qui jouions », et sur son VST. Choix : voicings enchaînés partout (démo = exercice), style Gospel / worship pour la v1, sortie MIDI dès maintenant.
+- **Voicings enchaînés** (`chainVoicings`, `voiceLeadingCost` dans `practice-exercise.js`) : dans une grille, chaque accord prend, parmi les variantes de sa technique (à l'octave près, registre : milieu ≤ plafond et ≥ plafond − 19, limites de Levine), celle qui bouge le moins depuis l'accord précédent (distance au plus proche dans les deux sens + mouvement de la voix du dessus). Premier accord : variante 0 ; flèches ‹ › = variante fixée sur l'accord affiché (`progression.anchors`, gardées d'une tonalité à l'autre, oubliées au changement de technique). Mesure : écart moyen 15,7 → 9,7 demi-tons, voix du dessus 5,2 → 2,8.
+- **Démo** (`src/practice-demo.js`) : gospel / worship, une mesure par accord à 72 à la noire ; basse en octaves au 1er temps (au moins une tierce mineure sous le voicing, pas sous Mi1), voicing de l'exercice au 1er temps puis sur 2 et 4, pédale changée à chaque accord, au 4e temps « et » approche chromatique de la basse suivante et mouvement interne (la voix la plus proche anticipe sa note : 7 → 3 sur II-V-I), dernier accord arpégé. Écrite d'après des procédés courants : rien n'est repris d'un enregistrement.
+- **Lecteur** (`src/exercise-demo-player.js`) : notes superposées comptées, arrêt propre (notes et pédale). Évènements passés par `feedDemoEvent` (main.js) : même chemin qu'un vrai clavier (touches, accord détecté), transposition compensée, jamais enregistrés ni jugés.
+- **Interface** : « Écouter le mouvement » sous la tonalité en cours (la carte suit l'accord joué, puis revient) ; « Écouter » sur chaque carte de la bibliothèque (aperçu dans la tonalité en cours) ; « Écouter » de la carte passe par le même lecteur. Jouer soi-même, cliquer un réglage, changer de vue ou fermer la bibliothèque arrête la démo.
+- **Sortie MIDI** (`src/midi-output.js`, IPC `midi:get-outputs` / `midi:open-output` / `midi:send`) : menu « Sortie » du pied de page (mémorisé par nom) ; ports RtMidi + port virtuel « Piano Jazz Chords » hors Windows ; repli Web MIDI. Sortie choisie → piano intégré muet pour la démo et « Écouter » ; le jeu de l'utilisateur n'est pas renvoyé (son VST le reçoit déjà de son clavier).
+- **Bugs corrigés au passage** : (1) la détection d'accord est différée de 80 ms, `state.isPlayback` était retombé : une relecture de Session MIDI (et la démo) pouvait valider l'exercice → `state.playbackNotes` ; (2) une touche relâchée pédale enfoncée restait dans `activeNotes` après le relevé (touche allumée, comptée dans l'accord) — depuis le premier commit.
+- **Crédits** : `assets/piano-samples/CREDITS.md` (Salamander Grand Piano, Alexander Holm, CC BY 3.0) — à garder dans les paquets.
+- Validation : exercices 445/445, démo 26/26, parseur 51/51, Copilot 126/126, test:chords 98/98, Parties 1 et 3 OK, D2 10/10, build OK, essai Chromium (aperçu, démo, carte qui suit, exercice non validé, touches éteintes à la fin) sans erreur. Non vérifiable ici : la sortie MIDI réelle vers un VST (Electron + port MIDI).
+
 ### 2026-09-24 (soir) — Voicings 11e / 13e / altérés contrôlés d'après les manuels, Mouvement 12 tons refait
 
 - **Doute de Narcisse** : « Bmaj13 en close position = MG B3 D#4, MD A#4 G#5 ? ». C'est bien ce que l'app affichait (close VoicingLab B4 D#5 A#5 G#6, descendu d'une octave), mais ce n'est **pas** une close position : 21 demi-tons, alors qu'une close tient dans une octave (définition recoupée : The Jazz Piano Site, Learn Jazz Standards, piano.org, PianoGroove, Piano With Jonny, Wikipedia — lus via la recherche web, l'accès direct aux sites étant bloqué dans la session cloud).
@@ -238,6 +250,7 @@ Compte des pitch classes uniques avec scope :
 7. Exercice : la cible d'une réponse est toujours l'accord ANNONCÉ. `detectChord` nomme ce qui est joué (message « Vous avez joué … ») et n'accepte une réponse que s'il nomme exactement cet accord ; il ne lit plus jamais le voicing affiché pour fixer la cible.
 8. Accords de 11e, de 13e et altérés : chaque voicing servi respecte la définition de sa famille et les règles des manuels (`textbook-voicings.js`) ; les voicings VoicingLab non conformes sont reconstruits sur les mêmes notes (`voicing.rebuilt`, `rebuiltFrom`). Les autres qualités restent 100 % VoicingLab. Rien de cette provenance n'est affiché à l'utilisateur (ni VoicingLab, ni dérivé, ni reconstruit).
 9. Mouvement 12 tons : seul mode à grille (Progression retiré) ; « Ma grille » garde les qualités tapées ; tonalités du tour choisies (`keySet`, `keyOrder`, `keyChoice`).
+10. Mouvement 12 tons : voicings enchaînés d'un accord à l'autre (`chainVoicings`) ; la démo joue exactement ces voicings. Les notes de démo / relecture ne jugent jamais l'exercice (`state.playbackNotes`).
 
 ## Fichiers clés
 
