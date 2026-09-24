@@ -980,13 +980,12 @@ const AUTO_ORDER_BEGINNER = ['two_note_shell', 'shell', 'rootless', 'close', 'dr
  * Libellé lisible d'une variante (note droppée, triade d'upper structure…),
  * avec le registre quand il a été abaissé (withPlayableRegister).
  */
+// [Claude] — 2026-09-24 — Rien sur la provenance à l'écran (Narcisse : « nous on
+// le sait mais les users n'ont pas besoin de savoir ça ») : ni source, ni voicing
+// dérivé, reconstruit, déplacé d'octave ou main gauche ajoutée. Ces informations
+// restent dans le voicing (derived, rebuilt, octaveShift, addedLH) pour le code.
 function describeVariant(technique, v) {
-  const octaves = Math.abs(v.octaveShift || 0) / 12;
-  const moved = v.octaveShift
-    ? ` · ${octaves === 1 ? 'une octave' : `${octaves} octaves`} plus ${v.octaveShift < 0 ? 'bas' : 'haut'} que VoicingLab`
-    : '';
-  const rebuilt = v.rebuilt ? ' · reconstruit d\'après les manuels' : '';
-  return `${variantShape(technique, v)}${moved}${rebuilt}`;
+  return variantShape(technique, v);
 }
 
 function variantShape(technique, v) {
@@ -1293,7 +1292,7 @@ function splitCustomGrid(typed) {
   return { chords: typed.filter(playable), ignored: typed.filter((t) => !playable(t)).map((t) => t.name) };
 }
 
-const unplayableNames = (names) => `${names.join(', ')} (${names.length > 1 ? 'inconnus ou absents' : 'inconnu ou absent'} de VoicingLab, qui ne publie ni triades ni accords avec basse)`;
+const unplayableNames = (names) => `${names.join(', ')} (aucun voicing : accord${names.length > 1 ? 's' : ''} inconnu${names.length > 1 ? 's' : ''}, triade${names.length > 1 ? 's' : ''} ou basse séparée)`;
 
 /**
  * Mouvement construit sur une grille tapée : jetons « degré:qualité » relatifs à
@@ -1475,7 +1474,7 @@ export function createPracticeExercise() {
     const noticeFor = (replacement) => {
       if (gridImpossible) return ignoredNotice(replacement);
       if (!chosen) return null;
-      const reason = `« ${chosen.name} » ne peut pas être construit en ${keyLabel(failedKey, isMinorMovement(chosen))} (${[...new Set(failures)].join(', ')} : aucun voicing VoicingLab).`;
+      const reason = `« ${chosen.name} » ne peut pas être construit en ${keyLabel(failedKey, isMinorMovement(chosen))} (${[...new Set(failures)].join(', ')} : aucun voicing).`;
       return replacement === chosen ? reason : `${reason} Mouvement proposé à la place : « ${replacement.name} ».`;
     };
     for (const movement of candidates) {
@@ -1694,7 +1693,7 @@ export function createPracticeExercise() {
     const missing = [];
     prog.chords = buildMovementChords(prog.movement, prog.currentKey, state.technique, state.difficulty, state.variant, state.doubling, missing);
     prog.notice = missing.length > 0
-      ? `${missing.join(', ')} : aucun voicing VoicingLab en ${keyLabel(prog.currentKey, isMinorMovement(prog.movement))}, accord sauté.`
+      ? `${missing.join(', ')} : aucun voicing en ${keyLabel(prog.currentKey, isMinorMovement(prog.movement))}, accord sauté.`
       : null;
   }
 
@@ -2049,9 +2048,9 @@ export function renderExerciseTarget(target, options = {}) {
   // Le clavier reste unifié : toutes les notes actives, sans distinction LH/RH.
   const notes = [...new Set([...(voicing?.leftHand || []), ...(voicing?.rightHand || []), ...(target.notes || [])])].sort((a, b) => a - b);
 
+  // Seules les doublures (option choisie par l'utilisateur) sont colorées à part.
   const doubled = voicing?.doubled || [];
-  const addedLH = voicing?.addedLH || [];
-  const kb = miniKeyboardForNotes(notes, { leftHand: [], rightHand: [], added: [...doubled, ...addedLH] });
+  const kb = miniKeyboardForNotes(notes, { leftHand: [], rightHand: [], added: doubled });
 
   // Affichage des mains : si le moteur a produit un split LH/RH avec des
   // notes distinctes, on montre les deux blocs ; sinon un seul bloc.
@@ -2083,10 +2082,7 @@ export function renderExerciseTarget(target, options = {}) {
       </div>
       ${compact ? '' : renderVoicingChoices(target, options)}
       ${target.topNoteMiss ? `<div class="exercise-topnote-miss">Aucun voicing de ${escapeHtml(target.name)} n'a cette note au sommet avec ces filtres : voicing habituel affiché.</div>` : ''}
-      ${voicing?.derived ? `<div class="exercise-derived-note" title="Qualité absente de VoicingLab : voicing VoicingLab réel de ${escapeHtml(voicing.derivedFrom)} dont une note est déplacée">Voicing dérivé de ${escapeHtml(voicing.derivedFrom)} (absent de VoicingLab)</div>` : ''}
-      ${voicing?.rebuilt ? `<div class="exercise-derived-note" title="Le voicing publié par VoicingLab (${escapeHtml(voicing.rebuiltFrom || '')}) ne respecte pas la définition de sa famille ou une règle de voicing des manuels : il est remplacé par la disposition du manuel">Reconstruit d'après les manuels (VoicingLab : ${escapeHtml(voicing.rebuiltFrom || '—')})</div>` : ''}
       <div class="exercise-target-keyboard">${kb.svg}</div>
-      ${addedLH.length > 0 ? `<div class="exercise-doubled-note" title="VoicingLab publie ce cluster pour la main droite seule : la main gauche porte l'accord">Main gauche ajoutée (fondamentale + septième) : ${escapeHtml(formatHandNotes(addedLH, noteLabel))}</div>` : ''}
       ${doubled.length > 0 ? `<div class="exercise-doubled-note">Doublure${doubled.length > 1 ? 's' : ''} ajoutée${doubled.length > 1 ? 's' : ''} : ${escapeHtml(formatHandNotes(doubled, noteLabel))}</div>` : ''}
       <div class="exercise-target-hands">
         ${splitDisplay ? renderHandSplit(leftHand, rightHand, noteLabel) : renderUnifiedHand(allNames, singleHandLabel(leftHand, rightHand))}
@@ -2131,9 +2127,8 @@ function renderTopNotePanel(voicing) {
   const { topNoteSuggestions: list, variantIndex } = voicing;
   const items = list.map((sug, i) => {
     const active = i === variantIndex ? ' active' : '';
-    const derived = sug.derived ? ' <span class="exercise-topnote-derived" title="Voicing dérivé (qualité absente de VoicingLab)">dérivé</span>' : '';
     return `<li><button type="button" class="exercise-topnote-item${active}" data-topnote-index="${i}" title="${escapeHtml(sug.description)}">
-        <span class="exercise-topnote-tech">${escapeHtml(sug.label)}</span>${derived}
+        <span class="exercise-topnote-tech">${escapeHtml(sug.label)}</span>
         <span class="exercise-topnote-stars" aria-label="Difficulté ${sug.difficulty} sur 5">${'★'.repeat(sug.difficulty)}</span>
       </button></li>`;
   }).join('');
@@ -2163,20 +2158,18 @@ export function renderTopNoteBrowser(results, { topPc, selected = null } = {}) {
       const isSelected = selected && selected.rootPc === r.rootPc && selected.quality === r.quality;
       const techniques = [...new Set(r.voicings.map((v) => v.shortLabel))].join(', ');
       const count = r.voicings.length;
-      const title = `${count} voicing${count > 1 ? 's' : ''} : ${techniques}${r.derived ? ' — qualité dérivée' : ''}`;
+      const title = `${count} voicing${count > 1 ? 's' : ''} : ${techniques}`;
       return `<button type="button" class="exercise-browser-chord${isSelected ? ' selected' : ''}" data-browse-root="${r.rootPc}" data-browse-quality="${escapeHtml(r.quality)}" title="${escapeHtml(title)}">`
-        + `<span class="exercise-browser-name">${escapeHtml(r.name)}${r.derived ? '*' : ''}</span>`
+        + `<span class="exercise-browser-name">${escapeHtml(r.name)}</span>`
         + `<span class="exercise-browser-count">${count}</span></button>`;
     }).join('');
     return `<li class="exercise-browser-group">${escapeHtml(g.label)}</li><li class="exercise-browser-grid">${chords}</li>`;
   }).join('');
-  const anyDerived = results.some((r) => r.derived);
   return `
     <div class="exercise-browser-head"><strong>${escapeHtml(topName)}</strong> au sommet · ${results.length} accord${results.length > 1 ? 's' : ''}</div>
     ${results.length === 0
     ? '<p class="exercise-browser-empty">Aucun voicing avec ces filtres.</p>'
-    : `<ul class="exercise-browser-list" data-browser-scroll>${rows}</ul>`}
-    ${anyDerived ? '<p class="exercise-browser-note">* qualité absente de VoicingLab (voicings dérivés)</p>' : ''}`;
+    : `<ul class="exercise-browser-list" data-browser-scroll>${rows}</ul>`}`;
 }
 
 function renderStars(difficulty) {

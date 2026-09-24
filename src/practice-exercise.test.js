@@ -967,7 +967,8 @@ function checkDrop3Register() {
   const b = ex.getState().target.voicing;
   check('Bmaj7 Drop 3 : B3 | A#4 D#5 F#5 (au lieu de B4 | A#5 D#6 F#6)', b.leftHand.join() === '59' && b.rightHand.join() === '70,75,78',
     `${b.leftHand} | ${b.rightHand}`);
-  check('Info-bulle de la variante : « une octave plus bas que VoicingLab »', b.variantLabel.includes('une octave plus bas que VoicingLab'), b.variantLabel);
+  // [Claude] — 2026-09-24 — Rien sur la provenance à l'écran (décision de Narcisse).
+  check('Info-bulle de la variante : décalage d\'octave gardé dans l\'état, pas affiché', b.octaveShift === -12 && !/VoicingLab|octave plus/.test(b.variantLabel), b.variantLabel);
   ex.setTargetChoice(0, '9');
   ex.setVariant(1);
   const c9 = ex.getState().target.voicing;
@@ -1036,7 +1037,7 @@ function checkRegisterAllFamilies() {
   check('Bmaj7 Drop 2 : D#4 | A#4 B4 F#5 (au lieu de D#5 | A#5 B5 F#6)', bMaj7.leftHand.join() === '63' && bMaj7.rightHand.join() === '70,71,78', `${bMaj7.leftHand} | ${bMaj7.rightHand}`);
   const shellB7 = shown(11, '7', 'shell');
   check('Shell de B7 : B2 D#3 A3 (au lieu de B3 D#4 A4)', shellB7.leftHand.join() === '47,51,57', shellB7.leftHand.join());
-  check('Info-bulle : « une octave plus bas que VoicingLab » (Shell)', shellB7.variantLabel.includes('une octave plus bas que VoicingLab'), shellB7.variantLabel);
+  check('Info-bulle (Shell) : décalage d\'octave non affiché', shellB7.octaveShift === -12 && !/VoicingLab|octave plus/.test(shellB7.variantLabel), shellB7.variantLabel);
   const rootlessG = shown(7, 'maj7', 'rootless');
   check('Rootless de Gmaj7 inchangé : B3 D4 F#4 A4', rootlessG.leftHand.join() === '59,62,66,69' && !rootlessG.octaveShift, rootlessG.leftHand.join());
   const strideC = shown(0, 'maj7', 'stride', 1);
@@ -1091,7 +1092,20 @@ function checkTextbookVoicings() {
   check('Bmaj13 close : B3 D#4 G#4 A#4 dans une octave (VoicingLab : B D# A# G# sur 21 demi-tons)',
     bClose.technique === 'close' && [...bClose.leftHand, ...bClose.rightHand].join() === '59,63,68,70',
     `${bClose.leftHand} | ${bClose.rightHand}`);
-  check('Bmaj13 close : signalé « reconstruit d\'après les manuels »', bClose.rebuilt && bClose.variantLabel.includes('reconstruit d\'après les manuels'), bClose.variantLabel);
+  // Reconstruction connue du code (rebuilt), jamais affichée (décision de Narcisse).
+  check('Bmaj13 close : reconstruit (état), sans mention à l\'écran', bClose.rebuilt && !/manuels|VoicingLab|reconstruit/i.test(bClose.variantLabel), bClose.variantLabel);
+  // Aucun mot de provenance à l'écran : carte d'un voicing reconstruit, d'une
+  // qualité dérivée (Cm13), d'un cluster à main gauche ajoutée, navigateur.
+  const provenance = /VoicingLab|dériv|reconstruit|manuels|ajoutée \(fondamentale/i;
+  const cards = [[11, 'maj13', 'close'], [0, 'm13', 'auto'], [3, '7#11', 'cluster']].map(([root, quality, technique]) => {
+    const ex = createPracticeExercise();
+    ex.setTechnique(technique);
+    ex.setTargetChoice(root, quality);
+    return renderExerciseTarget(ex.getState().target, { categories: getAvailableTechniques(ex.getState().target.name) });
+  });
+  const browser = renderTopNoteBrowser(findChordsByTopNote(9), { topPc: 9 });
+  check('Aucune mention de provenance (VoicingLab, dérivé, reconstruit, main gauche ajoutée)',
+    cards.every((html) => !provenance.test(html)) && !provenance.test(browser) && !browser.includes('*</span>'));
   const dm11 = shown(2, 'm11', 'close');
   check('Dm11 close : D4 F4 G4 C5', [...dm11.leftHand, ...dm11.rightHand].join() === '62,65,67,72', `${dm11.leftHand} | ${dm11.rightHand}`);
   const cmaj7 = shown(0, 'maj7', 'close');

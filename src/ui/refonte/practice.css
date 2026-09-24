@@ -498,20 +498,6 @@
    mention des voicings dérivés (qualité absente de VoicingLab). */
 :root[data-skin='global'] #practice-tab .exercise-variant-label,
 :root[data-skin='v2'] #practice-tab .exercise-variant-label,
-:root[data-skin='global'] #practice-tab .exercise-derived-note,
-:root[data-skin='v2'] #practice-tab .exercise-derived-note {
-  font-size: 0.72rem;
-  color: var(--r-text-muted);
-  text-align: center;
-  margin-top: 0.25rem;
-}
-
-:root[data-skin='global'] #practice-tab .exercise-derived-note,
-:root[data-skin='v2'] #practice-tab .exercise-derived-note {
-  font-style: italic;
-  color: var(--r-text-faint);
-}
-
 /* [Phase 1 voicing] — Nouvelle pancarte : LH/RH, technique, écoute. */
 :root[data-skin='global'] #practice-tab .exercise-target-card,
 :root[data-skin='v2'] #practice-tab .exercise-target-card {
@@ -3385,13 +3371,6 @@
   letter-spacing: -0.05em;
   opacity: 0.85;
 }
-:root[data-skin='global'] #practice-tab .exercise-topnote-derived,
-:root[data-skin='v2'] #practice-tab .exercise-topnote-derived {
-  font-style: italic;
-  text-transform: none;
-  font-weight: 500;
-  opacity: 0.8;
-}
 :root[data-skin='global'] #practice-tab .exercise-topnote-miss,
 :root[data-skin='v2'] #practice-tab .exercise-topnote-miss {
   font-size: 0.72rem;
@@ -4006,14 +3985,6 @@
 }
 :root[data-skin='global'] #practice-tab .exercise-browser-empty,
 :root[data-skin='v2'] #practice-tab .exercise-browser-empty,
-:root[data-skin='global'] #practice-tab .exercise-browser-note,
-:root[data-skin='v2'] #practice-tab .exercise-browser-note {
-  margin: 0;
-  font-size: 0.66rem;
-  font-style: italic;
-  color: var(--r-text-faint);
-}
-
 /* Technique jouée par le mode Auto : contour d'accent (l'étiquette Auto est active). */
 :root[data-skin='global'] #practice-tab .exercise-category-tag.current,
 :root[data-skin='v2'] #practice-tab .exercise-category-tag.current {

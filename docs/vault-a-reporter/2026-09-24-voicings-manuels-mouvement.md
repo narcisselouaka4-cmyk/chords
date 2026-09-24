@@ -36,8 +36,10 @@
   - limites d'intervalle grave (Levine) ; pas de 9e mineure entre deux voix (sauf b9 sur la
     fondamentale d'un accord b9) ; pas de 11 juste avec une tierce majeure.
   - `practice-exercise.js` (`conformOrRebuild`) garde les voicings VoicingLab conformes et
-    reconstruit les autres sur les mêmes notes ; carte : « Reconstruit d'après les manuels
-    (VoicingLab : …) ». Upper structure barré pour les 13 simples.
+    reconstruit les autres sur les mêmes notes. Upper structure barré pour les 13 simples.
+  - **Aucune provenance à l'écran** (Narcisse : « nous on le sait mais les users n'ont pas
+    besoin de savoir ça ») : ni VoicingLab, ni dérivé, ni reconstruit, ni octave déplacée, ni
+    main gauche ajoutée. Ces informations restent dans l'état du voicing, pour le code.
   - Les autres qualités (7e, 9e, 6, add, m7b5, dim7) restent 100 % VoicingLab.
 - **Registre** : la descente d'octave s'arrête avant une limite grave ; un voicing publié trop
   grave remonte ; main gauche des clusters entre Fa2 et Mi3.
@@ -51,8 +53,8 @@
 - Fait (soir du 24/09) : audit + reconstruction des voicings 11e / 13e / altérés ; Mouvement 12
   tons refait ; mode Progression retiré.
 - À vérifier dans l'app (après `git pull origin fix/exercices-voicing-correctifs`) :
-  1. Bmaj13, Close position : B3 D#4 G#4 A#4 (une main, dans l'octave), mention « Reconstruit
-     d'après les manuels (VoicingLab : B4 Eb5 Bb5 Ab6) ».
+  1. Bmaj13, Close position : B3 D#4 G#4 A#4 (une main, dans l'octave), sans aucune mention
+     de provenance ; plus de « (dérivé) » dans le menu des qualités de l'Accord cible.
   2. Mouvement 12 tons s'ouvre en Intermédiaire ; le Cycle de tierces majeures donne des maj13 /
      13 ; en Avancé, maj7#11 / 7alt.
   3. Clic sur le 6e accord de la liste → il s'affiche directement ; clic sur une tonalité de la
@@ -83,7 +85,8 @@
   des Open.
 - **Options présentées** : reconstruire (retenue) ; retirer seulement ; renommer seulement.
 - **Décision** : garder les voicings VoicingLab conformes, reconstruire les autres d'après les
-  formules des manuels, avec les mêmes notes ; les signaler à l'écran.
+  formules des manuels, avec les mêmes notes. Pas de signalement à l'écran : la provenance
+  (VoicingLab, dérivé, reconstruit) ne regarde pas l'utilisateur (Narcisse, 24/09).
 - **Conséquence** : l'ADR « l'Exercice ne génère plus de voicings » (ADR-013) connaît une
   exception pour ce périmètre.
 

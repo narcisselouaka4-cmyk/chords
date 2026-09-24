@@ -63,7 +63,6 @@ import {
   listMovementNames,
   KEY_ORDERS,
   TARGET_QUALITY_GROUPS,
-  isDerivedQuality,
   findChordsByTopNote,
   renderTopNoteBrowser,
   renderVoicingChoices,
@@ -1749,7 +1748,7 @@ function initPracticeExercise() {
   if (els.exerciseTargetQuality) {
     els.exerciseTargetQuality.innerHTML = TARGET_QUALITY_GROUPS.map((group) => `
       <optgroup label="${group.label}">${group.qualities.map((q) =>
-    `<option value="${q}">${q === '5' ? '5 (power chord)' : q}${isDerivedQuality(q) ? ' (dérivé)' : ''}</option>`).join('')}
+    `<option value="${q}">${q === '5' ? '5 (power chord)' : q}</option>`).join('')}
       </optgroup>`).join('');
   }
 
