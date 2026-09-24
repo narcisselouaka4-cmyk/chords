@@ -19,6 +19,7 @@ import {
   realizesChord,
   isTextbookScope,
   exerciseVoicingsFor,
+  voiceLeadingCost,
 } from './practice-exercise.js';
 import {
   respectsLowIntervalLimits, respectsFamilyDefinition, minorNinthClashes, hasEleventhAgainstMajorThird,
@@ -832,15 +833,21 @@ function checkDoublingsInSequences() {
     check(`${mode} : doublures retirées de toute la grille`, ex.getState().progression.chords.every((c) => !c.voicing.doubled));
     ex.setDoubling('full');
     // Jouer les voicings doublés sur deux grilles complètes (Mouvement : passage au ton suivant compris).
-    let allValid = true; let doubledSeen = 0;
+    // [Claude] — 2026-09-24 — Voicings enchaînés : selon la variante choisie, une
+    // doublure n'est pas toujours possible (stride à basse sur la quinte). On
+    // vérifie qu'elle est appliquée partout où elle l'est.
+    let allValid = true; let missed = 0; let doubledSeen = 0;
     const steps = ex.getState().progression.chords.length * 2;
     for (let i = 0; i < steps; i += 1) {
       const target = ex.getState().target;
+      const plain = { ...target.voicing, leftHand: target.voicing.leftHand.filter((n) => !target.voicing.doubled?.includes(n)), rightHand: target.voicing.rightHand.filter((n) => !target.voicing.doubled?.includes(n)) };
+      const possible = applyDoublings(plain, target.rootPc, 'full').doubled.length;
       if (target.voicing.doubled?.length) doubledSeen += 1;
+      else if (possible) missed += 1;
       if (!ex.check(target.notes).success) { allValid = false; break; }
     }
     check(`${mode} : voicings doublés validés d'accord en accord`, allValid);
-    check(`${mode} : les doublures persistent après avancement`, doubledSeen > steps / 2, `${doubledSeen}/${steps}`);
+    check(`${mode} : les doublures persistent après avancement (partout où elles sont possibles)`, missed === 0 && doubledSeen > 0, `${doubledSeen}/${steps}, manquées ${missed}`);
   }
 }
 
@@ -1260,6 +1267,51 @@ function checkMovementNavigationAndKeys() {
   check('Départ hors des tonalités retenues : repasse au hasard', ex.getState().keyChoice === null && [2, 9].includes(ex.getState().progression.startKey));
 }
 
+// [Claude] — 2026-09-24 — Voicings enchaînés (décision de Narcisse : démo et
+// exercice partagent les mêmes voicings, adaptés au mouvement).
+function checkChainedVoicings() {
+  console.log('\n=== Mouvement : voicings enchaînés ===');
+  let chained = 0; let fixed = 0; let pairs = 0;
+  for (const technique of ['auto', 'drop2', 'rootless', 'close']) {
+    for (const name of listMovementNames()) {
+      const ex = createPracticeExercise();
+      ex.setMode('movement');
+      ex.setTechnique(technique);
+      ex.setKeyChoice(5);
+      ex.setContentChoice(name);
+      const chords = ex.getState().progression.chords;
+      for (let i = 1; i < chords.length; i += 1) {
+        const first = (c) => { const v = exerciseVoicingsFor(c.rootPc, c.symbol, c.voicing.technique)[0]; return [...v.lh, ...v.rh]; };
+        chained += voiceLeadingCost(chords[i - 1].notes, chords[i].notes);
+        fixed += voiceLeadingCost(first(chords[i - 1]), first(chords[i]));
+        pairs += 1;
+      }
+    }
+  }
+  check('Enchaînement plus fluide qu\'une variante fixe (coût moyen au moins 25 % plus bas)', chained < fixed * 0.75,
+    `${(chained / pairs).toFixed(1)} contre ${(fixed / pairs).toFixed(1)} demi-tons`);
+
+  const ex = createPracticeExercise();
+  ex.setMode('movement');
+  ex.setTechnique('rootless');
+  ex.setKeyChoice(0);
+  ex.setContentChoice('Turnaround III-VI-II-V-I');
+  const before = ex.getState().progression.chords.map((c) => c.notes.join());
+  check('Premier accord : première variante', ex.getState().target.voicing.variantIndex === 0);
+  ex.goToStep(2);
+  ex.setVariant(1);
+  const after = ex.getState().progression.chords;
+  check('Flèche sur le 3e accord : sa variante change, les deux premiers restent',
+    after[2].voicing.variantIndex === 1 && after[0].notes.join() === before[0] && after[1].notes.join() === before[1] && ex.getState().target.name === after[2].name,
+    after.map((c) => `${c.name}:${c.voicing.variantIndex}`).join(' '));
+  const target = ex.getState().target;
+  check('La cible affichée est le voicing enchaîné de la grille', target.notes.join() === after[2].notes.join());
+  ex.check(target.notes);
+  check('Variante fixée gardée en avançant', ex.getState().progression.chords[2].voicing.variantIndex === 1);
+  ex.setTechnique('drop2');
+  check('Changement de technique : variantes fixées oubliées', Object.keys(ex.getState().progression.anchors).length === 0);
+}
+
 async function runTests() {
   checkChordTargetHasVoicing();
   checkSpecificChords();
@@ -1299,6 +1351,7 @@ async function runTests() {
   checkValidationAgainstAnnouncedChord();
   checkTypedCustomGrid();
   checkMovementNavigationAndKeys();
+  checkChainedVoicings();
   await checkAllVoicingLabReachable();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);

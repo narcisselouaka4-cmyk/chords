@@ -1042,40 +1042,127 @@ function triadName(notes) {
  */
 function buildPlayableVoicing(rootPc, quality, technique, variant = 0, difficulty = null, topNote = null) {
   if (topNote) return buildTopNoteVoicing(rootPc, quality, technique, variant, topNote);
+  const resolved = resolveVariants(rootPc, quality, technique, difficulty);
+  if (!resolved) return { voicing: null, technique };
+  const { technique: t, variants } = resolved;
+  const index = ((variant % variants.length) + variants.length) % variants.length;
+  return { voicing: voicingFromVariant(t, variants[index], index, variants.length), technique: t };
+}
+
+/**
+ * Technique réellement jouée et ses variantes : la technique demandée, sinon
+ * (Auto ou indisponible) la première disponible dans l'ordre pédagogique.
+ * @returns {{technique: string, variants: object[]}|null}
+ */
+function resolveVariants(rootPc, quality, technique, difficulty = null) {
   const autoOrder = difficulty === 1 ? AUTO_ORDER_BEGINNER : AUTO_ORDER;
   const first = technique === 'auto' ? autoOrder : [technique];
   const order = [...first, ...TECHNIQUES.filter((t) => t !== 'auto' && !first.includes(t))];
-
   for (const t of order) {
     const variants = voicingLabVariantsFor(rootPc, quality, t);
-    if (variants.length === 0) continue;
-    const index = ((variant % variants.length) + variants.length) % variants.length;
-    const v = variants[index];
-    const voicing = {
-      leftHand: [...v.lh],
-      rightHand: [...v.rh],
-      technique: t,
-      familyId: v.familyId,
-      difficulty: Math.min(5, Math.max(1, v.difficulty)),
-      register: '',
-      isPlayable: true,
-      diagnostics: [],
-      fallback: false,
-      source: 'voicinglab',
-      voicingLabSymbol: v.symbol,
-      variantIndex: index,
-      variantCount: variants.length,
-      variantLabel: describeVariant(t, v),
-      derived: v.derived,
-      derivedFrom: v.derivedFrom,
-      addedLH: v.addedLH,
-      octaveShift: v.octaveShift,
-      rebuilt: Boolean(v.rebuilt),
-      rebuiltFrom: v.rebuiltFrom,
-    };
-    return { voicing, technique: t };
+    if (variants.length > 0) return { technique: t, variants };
   }
-  return { voicing: null, technique };
+  return null;
+}
+
+/** Voicing de l'Exercice pour la variante `index` (sur `count`) de la technique `t`. */
+function voicingFromVariant(t, v, index, count) {
+  return {
+    leftHand: [...v.lh],
+    rightHand: [...v.rh],
+    technique: t,
+    familyId: v.familyId,
+    difficulty: Math.min(5, Math.max(1, v.difficulty)),
+    register: '',
+    isPlayable: true,
+    diagnostics: [],
+    fallback: false,
+    source: 'voicinglab',
+    voicingLabSymbol: v.symbol,
+    variantIndex: index,
+    variantCount: count,
+    variantLabel: describeVariant(t, v),
+    derived: v.derived,
+    derivedFrom: v.derivedFrom,
+    addedLH: v.addedLH,
+    octaveShift: v.octaveShift,
+    rebuilt: Boolean(v.rebuilt),
+    rebuiltFrom: v.rebuiltFrom,
+  };
+}
+
+// [Claude] — 2026-09-24 — Voicings enchaînés (Narcisse : la démo et l'exercice
+// partagent les mêmes voicings ; « des voicings adaptés en fonction des
+// mouvements »). Dans une grille, chaque accord prend, parmi les variantes de sa
+// technique (à l'octave près), celle qui bouge le moins depuis l'accord
+// précédent, la voix du dessus comptant double. Le premier accord prend la
+// variante choisie par les flèches ; une variante fixée sur un autre accord
+// relance l'enchaînement à partir de lui.
+
+const sortedNotes = (v) => [...v.lh, ...v.rh].sort((a, b) => a - b);
+
+/**
+ * Coût d'enchaînement de deux voicings (demi-tons) : chaque note va vers la
+ * plus proche de l'autre accord (dans les deux sens, moyenne), plus le
+ * mouvement de la voix du dessus.
+ * @param {number[]} from
+ * @param {number[]} to
+ */
+export function voiceLeadingCost(from, to) {
+  if (!from?.length || !to?.length) return 0;
+  const nearest = (n, list) => Math.min(...list.map((m) => Math.abs(m - n)));
+  const spread = (to.reduce((sum, n) => sum + nearest(n, from), 0) + from.reduce((sum, n) => sum + nearest(n, to), 0)) / 2;
+  return spread + Math.abs(Math.max(...to) - Math.max(...from));
+}
+
+/** Registre admis pour un voicing déplacé d'octave dans un enchaînement. */
+function chainRegisterOk(v) {
+  const all = sortedNotes(v);
+  if (all[0] < 28 || all[all.length - 1] > 100) return false;
+  const ceiling = REGISTER_CEILINGS[v.familyId] ?? DEFAULT_REGISTER_CEILING;
+  const midpoint = (all[0] + all[all.length - 1]) / 2;
+  return midpoint <= ceiling && midpoint >= ceiling - 19
+    && respectsLowIntervalLimits(all, { skipBass: v.familyId === 'stride' });
+}
+
+const shiftVariant = (v, shift) => ({
+  ...v,
+  lh: v.lh.map((n) => n + shift),
+  rh: v.rh.map((n) => n + shift),
+  addedLH: v.addedLH?.map((n) => n + shift),
+  octaveShift: (v.octaveShift || 0) + shift,
+});
+
+/**
+ * Voicings enchaînés d'une suite d'accords.
+ * @param {{rootPc: number, quality: string}[]} chords
+ * @param {string} technique
+ * @param {number|null} difficulty
+ * @param {Record<number, number>} anchors - rang de l'accord → variante imposée
+ * @returns {({technique: string, variant: object, index: number, count: number}|null)[]}
+ */
+export function chainVoicings(chords, technique, difficulty = null, anchors = {}) {
+  let previous = null;
+  return chords.map((chord, i) => {
+    const resolved = resolveVariants(chord.rootPc, chord.quality, technique, difficulty);
+    if (!resolved) return null;
+    const { technique: t, variants } = resolved;
+    const count = variants.length;
+    const anchor = anchors[i] != null ? ((anchors[i] % count) + count) % count : (previous ? null : 0);
+    let best = null;
+    variants.forEach((v, index) => {
+      if (anchor != null && index !== anchor) return;
+      for (const shift of previous ? [0, -12, 12] : [0]) {
+        const candidate = shift ? shiftVariant(v, shift) : v;
+        if (shift && !chainRegisterOk(candidate)) continue;
+        // Léger avantage au registre d'origine à coût égal.
+        const cost = previous ? voiceLeadingCost(previous, sortedNotes(candidate)) + (shift ? 0.5 : 0) : 0;
+        if (!best || cost < best.cost) best = { variant: candidate, index, cost };
+      }
+    });
+    previous = sortedNotes(best.variant);
+    return { technique: t, variant: best.variant, index: best.index, count };
+  });
 }
 
 /**
@@ -1140,10 +1227,15 @@ function buildTopNoteVoicing(rootPc, quality, technique, variant, topNote) {
  * @returns {object|null}
  */
 function buildChordTarget(rootPc, symbol, technique, variant = 0, difficulty = null, topNote = null, doubling = 'none') {
-  const rootName = formatPc(rootPc, false);
-  const chordSymbol = symbol ? `${rootName}${symbol}` : rootName;
   const { voicing, technique: usedTechnique } = buildPlayableVoicing(rootPc, symbol, technique, variant, difficulty, topNote);
   if (!voicing) return null;
+  return targetFromVoicing(rootPc, symbol, voicing, usedTechnique, doubling);
+}
+
+/** Cible d'un accord à partir de son voicing (doublures ajoutées ensuite). */
+function targetFromVoicing(rootPc, symbol, voicing, usedTechnique, doubling = 'none') {
+  const rootName = formatPc(rootPc, false);
+  const chordSymbol = symbol ? `${rootName}${symbol}` : rootName;
   // Doublures ajoutées après le choix VoicingLab : classes de hauteur et basse
   // inchangées, donc l'accord détecté reste le même.
   if (doubling !== 'none') {
@@ -1208,10 +1300,10 @@ function parseMovementToken(token) {
    * sans voicing est omis ; `failures` (facultatif) reçoit alors son nom, pour
    * le signaler à l'écran au lieu de changer de mouvement en silence.
    */
-  function buildMovementChords(movement, keyPc, technique, difficulty, variant = 0, doubling = 'none', failures = null) {
+  function buildMovementChords(movement, keyPc, technique, difficulty, anchors = {}, doubling = 'none', failures = null) {
     const tokens = movement.pattern.split('-');
     const minor = isMinorMovement(movement);
-    return tokens.map((token) => {
+    const skeleton = tokens.map((token) => {
       const parsed = parseMovementToken(token);
       if (!parsed) {
         failures?.push(`« ${token} » (jeton illisible)`);
@@ -1221,19 +1313,20 @@ function parseMovementToken(token) {
         ? parsed.quality
         : upgradeQualityForDifficulty(parsed.quality, difficulty);
       const rootPc = (keyPc + parsed.offset) % 12;
-      const target = buildChordTarget(rootPc, quality, technique, variant, difficulty, null, doubling);
-      if (!target) {
-        failures?.push(`${spellDegreeInKey(rootPc, parsed.degree, keyPc, minor)}${quality}`);
+      const name = `${spellDegreeInKey(rootPc, parsed.degree, keyPc, minor)}${quality}`;
+      if (!resolveVariants(rootPc, quality, technique, difficulty)) {
+        failures?.push(name);
         return null;
       }
-      return {
-        ...target,
-        name: `${spellDegreeInKey(rootPc, parsed.degree, keyPc, minor)}${target.symbol}`,
-        token,
-        degree: parsed.degree,
-        quality,
-      };
+      return { rootPc, quality, name, token, degree: parsed.degree };
     }).filter(Boolean);
+    // Voicings enchaînés d'un accord à l'autre (voir chainVoicings).
+    const chained = chainVoicings(skeleton, technique, difficulty, anchors);
+    return skeleton.map((chord, i) => {
+      const { technique: used, variant, index, count } = chained[i];
+      const target = targetFromVoicing(chord.rootPc, chord.quality, voicingFromVariant(used, variant, index, count), used, doubling);
+      return { ...target, name: chord.name, token: chord.token, degree: chord.degree, quality: chord.quality };
+    });
   }
 
 // [Claude] — 2026-09-24 — Choix des tonalités du tour (Narcisse : « on ne peut
@@ -1448,7 +1541,7 @@ export function createPracticeExercise() {
       if (movement.name !== CUSTOM_GRID_NAME) return null;
       return ignored.length > 0 ? `Ignoré${ignored.length > 1 ? 's' : ''} : ${unplayableNames(ignored)}.` : null;
     };
-    const build = (movement, startKey, failures = null) => buildMovementChords(movement, startKey, state.technique, state.difficulty, state.variant, state.doubling, failures);
+    const build = (movement, startKey, failures = null) => buildMovementChords(movement, startKey, state.technique, state.difficulty, {}, state.doubling, failures);
     const isComplete = (movement, chords) => chords.length === movement.pattern.split('-').length;
     // Accords introuvables du mouvement choisi, pour l'expliquer à l'écran.
     let failures = [];
@@ -1502,6 +1595,9 @@ export function createPracticeExercise() {
       keys,
       totalKeys: keys.length,
       keyIndex: 0,
+      // Variantes fixées par les flèches (rang de l'accord → variante), gardées
+      // d'une tonalité à l'autre ; les autres accords s'enchaînent.
+      anchors: {},
       stepIndex: 0,
       chords,
       notice,
@@ -1529,6 +1625,11 @@ export function createPracticeExercise() {
    */
   function regenerateCurrentTarget() {
     if (!state.target) return;
+    // Mouvement : toute la grille est réenchaînée (voir refreshProgressionChords).
+    if (state.mode === 'movement') {
+      refreshProgressionChords();
+      return;
+    }
     const { rootPc, symbol } = state.target;
     const refreshed = state.mode === 'chord'
       ? chordModeTarget(rootPc, symbol)
@@ -1569,43 +1670,45 @@ export function createPracticeExercise() {
     // En mode Auto, les flèches parcourent les variantes de la technique
     // réellement jouée, pas celles de la première catégorie.
     const max = Math.max(1, state.target?.voicing?.variantCount || 1);
+    if (state.mode === 'movement' && state.progression) {
+      // Mouvement : la variante choisie est fixée sur l'accord affiché, les
+      // accords suivants s'enchaînent à partir d'elle.
+      const prog = state.progression;
+      const current = state.target?.voicing?.variantIndex || 0;
+      prog.anchors = { ...prog.anchors, [prog.stepIndex || 0]: ((current + delta) % max + max) % max };
+      refreshProgressionChords();
+      return;
+    }
     state.variant = ((state.variant + delta) % max + max) % max;
     regenerateCurrentTarget();
-    refreshProgressionChords();
   }
 
   /**
-   * Recalcule les voicings de toute la grille (Progression/Mouvement) avec la
-   * technique, la variante et les doublures courantes, sans changer les accords.
+   * Mouvement : réenchaîne les voicings de la tonalité en cours (technique,
+   * variantes fixées, doublures courantes), sans changer les accords.
    */
   function refreshProgressionChords() {
-    if (!state.progression || !state.progression.chords) return;
-    const isMovement = state.mode === 'movement';
-    const chords = state.progression.chords.map((chord) => {
-      const refreshed = buildChordTarget(chord.rootPc, chord.symbol, state.technique, state.variant, autoDifficulty(), null, state.doubling);
-      if (!refreshed) return chord;
-      const { notes, voicing } = refreshed;
-      return { ...chord, notes, voicing };
-    });
-    state.progression.chords = chords;
-    state.target = isMovement
-      ? attachMovementContext(chords[state.progression.stepIndex || 0], state.progression)
-      : chords[state.stepIndex || 0];
+    const prog = state.progression;
+    if (state.mode !== 'movement' || !prog?.chords) return;
+    prog.chords = buildMovementChords(prog.movement, prog.currentKey, state.technique, state.difficulty, prog.anchors, state.doubling);
+    const step = Math.min(prog.stepIndex || 0, prog.chords.length - 1);
+    state.target = attachMovementContext(prog.chords[step], prog);
+    state.variant = state.target?.voicing?.variantIndex || 0;
   }
 
   function setTechnique(technique) {
     if (!TECHNIQUES.includes(technique)) return;
     state.technique = technique;
     state.variant = 0;
+    // Les variantes fixées n'ont de sens que dans la technique où elles l'ont été.
+    if (state.progression) state.progression.anchors = {};
     // En mode accord cible avec cible choisie, on la régénère directement.
     if (state.mode === 'chord' && state.targetChoice) {
       state.target = chordModeTarget(state.targetChoice.rootPc, state.targetChoice.symbol, technique);
       return;
     }
+    // Mouvement : toute la grille est réenchaînée dans la nouvelle technique.
     regenerateCurrentTarget();
-    // En mode progression/mouvement, il faut aussi recalculer les autres accords
-    // de la grille pour qu'ils partagent la même technique.
-    refreshProgressionChords();
   }
 
   function setDifficulty(difficulty) {
@@ -1691,7 +1794,7 @@ export function createPracticeExercise() {
     prog.stepIndex = 0;
     prog.currentKey = prog.keys[keyIndex];
     const missing = [];
-    prog.chords = buildMovementChords(prog.movement, prog.currentKey, state.technique, state.difficulty, state.variant, state.doubling, missing);
+    prog.chords = buildMovementChords(prog.movement, prog.currentKey, state.technique, state.difficulty, prog.anchors, state.doubling, missing);
     prog.notice = missing.length > 0
       ? `${missing.join(', ')} : aucun voicing en ${keyLabel(prog.currentKey, isMinorMovement(prog.movement))}, accord sauté.`
       : null;
