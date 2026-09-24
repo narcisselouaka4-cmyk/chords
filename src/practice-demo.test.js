@@ -9,7 +9,7 @@
 import { createPracticeExercise, listMovementNames } from './practice-exercise.js';
 import {
   buildDemo, buildGospelDemo, cardHands, demoHands, freeBass, topNeighbour, finalRun, strideSplit,
-  octaveFrame, passingDiminished, passingName, demoPassingChords, DEMO_STYLES, DEMO_STYLE_IDS, defaultDemoStyle,
+  octaveFrame, passingDiminished, passingName, demoPassingChords, demoCardHands, DEMO_STYLES, DEMO_STYLE_IDS, defaultDemoStyle,
 } from './practice-demo.js';
 import { createDemoPlayer } from './exercise-demo-player.js';
 
@@ -162,8 +162,37 @@ check('Liste = notes jouées par la démo au 4e temps', turnaroundPassing.every(
   const played = onsets(turnaroundDemo, p.after * 4 + 3, p.after * 4 + 4).map((e) => e.note).sort((a, b) => a - b).join();
   return played === [...p.lh, ...p.rh].sort((a, b) => a - b).join();
 }));
-check('Aucun accord de passage en Ballade, Comping swing ou Plaqué (ni dans leur démo)', ['ballade', 'swing', 'plaque'].every((style) =>
+// [Claude] — 2026-09-24 — Narcisse : « ajoute aussi des accords de passage en ballade ».
+const balladePassing = demoPassingChords(turnaround, 'ballade');
+const balladeTurnaround = buildDemo(turnaround, 'ballade');
+check('Ballade : mêmes diminués de passage (G#dim7, C#dim7, F#dim7), annoncés au 4e temps',
+  balladePassing.map((p) => `${p.after}:${p.name}`).join() === '0:G#dim7,1:C#dim7,2:F#dim7'
+  && balladeTurnaround.events.filter((e) => e.type === 'passing').map((e) => `${e.passing}@${e.time}`).join() === '0@3,1@7,2@11',
+  balladePassing.map((p) => `${p.after}:${p.name}`).join());
+check('Ballade : la liste donne les notes jouées au 4e temps', balladePassing.every((p) => {
+  const played = onsets(balladeTurnaround, p.after * 4 + 3, p.after * 4 + 4).map((e) => e.note).sort((a, b) => a - b).join();
+  return played === [...p.lh, ...p.rh].sort((a, b) => a - b).join();
+}));
+check('Aucun accord de passage en Comping swing ni en Plaqué (ni dans leur démo)', ['swing', 'plaque'].every((style) =>
   demoPassingChords(turnaround, style).length === 0 && !buildDemo(turnaround, style).events.some((e) => e.type === 'passing')));
+
+// [Claude] — 2026-09-24 — Notes que la démo ajoute à la carte (Narcisse : « la démo
+// ajoute aussi des basses quand le mini-key ne l'affiche pas, je le veux aussi »).
+console.log('\n=== Démo : notes ajoutées à la carte ===');
+const closeCadence = movement('Cadence II-V-I majeur', { technique: 'close' });
+const dmCard = demoCardHands(closeCadence, 0, 'gospel');
+check('Close (main gauche libre) : la démo ajoute la basse D2 A2 et le Do doublé (cadre d\'octave)',
+  dmCard?.bass.join() === '38,45' && dmCard?.doubled.join() === '60' && !dmCard.movedToRight, dmCard && `${dmCard.bass} | ${dmCard.doubled}`);
+const dmBallade = demoCardHands(closeCadence, 0, 'ballade');
+check('Ballade : la basse seule (pas de cadre d\'octave)', dmBallade?.bass.join() === '38,45' && dmBallade.doubled.length === 0);
+const dmSwing = demoCardHands(closeCadence, 0, 'swing');
+check('Swing : fondamentale et quinte du jeu « en deux »', dmSwing?.bass.length === 2 && dmSwing.bass.every((n) => [2, 9].includes(n % 12)), dmSwing && dmSwing.bass.join());
+check('Plaqué : rien d\'ajouté (la carte seule)', demoCardHands(closeCadence, 0, 'plaque') === null);
+const rootlessCadence = movement('Cadence II-V-I majeur', { technique: 'rootless' });
+const rootlessCard = demoCardHands(rootlessCadence, 0, 'gospel');
+check('Rootless : voicing joué à la main droite, basse ajoutée à la main gauche', rootlessCard?.movedToRight === true && rootlessCard.bass.length > 0);
+const gm11Card = demoCardHands(movement('Montée diatonique en quartes', { key: 10, technique: 'drop2_4', difficulty: 5 }), 2, 'ballade');
+check('Drop 2-4 de Gm11 en Ballade : rien d\'ajouté (la main gauche ne tient pas G2)', gm11Card === null);
 
 // [Claude] — 2026-09-24 — Styles Ballade, Comping swing et Plaqué (demande de Narcisse).
 console.log('\n=== Démo : styles ===');
@@ -188,7 +217,8 @@ check('Ballade : main droite arpégée du grave à l\'aigu, après la main gauch
   && arpeggio.every((e, k) => k === 0 || (e.time > arpeggio[k - 1].time && e.note > arpeggio[k - 1].note)) && arpeggio[0].time > 0,
   arpeggio.map((e) => `${e.note}@${e.time}`).join(' '));
 check('Ballade : les deux notes du dessus reprises au 3e temps', cardRh.slice(-2).every((n) => onsets(ballade, 2, 2.1, 'rh').some((e) => e.note === n)));
-check('Ballade : main gauche tenue toute la mesure', ballade.events.filter((e) => e.type === 'noteOff' && e.hand === 'lh' && e.time < 4).every((e) => e.time >= 3.9));
+check('Ballade : main gauche tenue jusqu\'au diminué de passage (4e temps) ou jusqu\'au bout de la mesure',
+  ballade.events.filter((e) => e.type === 'noteOff' && e.hand === 'lh' && e.time < 4).every((e) => e.time >= 2.9));
 
 const swing = buildDemo(chords, 'swing');
 check('Swing : Charleston — main droite au 1er temps et au « et » du 2e (croche swinguée)',
