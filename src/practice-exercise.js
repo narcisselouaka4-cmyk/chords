@@ -2300,12 +2300,19 @@ export function exerciseVoicingToSequence(voicing) {
 export function renderExerciseTarget(target, options = {}) {
   if (!target) return '';
   const voicing = target.voicing || null;
+  // [Claude] — 2026-09-24 — Notes que la démo ajoute à la carte (Mouvement :
+  // basse de la main gauche, note doublée ; Narcisse : « la démo ajoute aussi des
+  // basses quand le mini-key ne l'affiche pas, je le veux aussi »).
+  const demo = options.demo || null;
+  const demoAdded = demo ? [...demo.bass, ...demo.doubled] : [];
+  // Notes de l'exercice (cases des mains) ; le clavier y ajoute celles de la démo.
+  const cardNotes = [...new Set([...(voicing?.leftHand || []), ...(voicing?.rightHand || []), ...(target.notes || [])])].sort((a, b) => a - b);
   // Le clavier reste unifié : toutes les notes actives, sans distinction LH/RH.
-  const notes = [...new Set([...(voicing?.leftHand || []), ...(voicing?.rightHand || []), ...(target.notes || [])])].sort((a, b) => a - b);
+  const notes = [...new Set([...cardNotes, ...demoAdded])].sort((a, b) => a - b);
 
-  // Seules les doublures (option choisie par l'utilisateur) sont colorées à part.
+  // Doublures (option choisie par l'utilisateur) et notes ajoutées par la démo : colorées à part.
   const doubled = voicing?.doubled || [];
-  const kb = miniKeyboardForNotes(notes, { leftHand: [], rightHand: [], added: doubled });
+  const kb = miniKeyboardForNotes(notes, { leftHand: [], rightHand: [], added: [...doubled, ...demoAdded] });
 
   // Affichage des mains : si le moteur a produit un split LH/RH avec des
   // notes distinctes, on montre les deux blocs ; sinon un seul bloc.
@@ -2318,7 +2325,7 @@ export function renderExerciseTarget(target, options = {}) {
   const noteLabel = options.spelling
     ? (n) => `${spellPcInKey(n, options.spelling.keyPc, options.spelling.minor)}${Math.floor(n / 12) - 1}`
     : formatNoteNameWithOctave;
-  const allNames = notes.map((n) => noteLabel(n)).join(' · ');
+  const allNames = cardNotes.map((n) => noteLabel(n)).join(' · ');
   const difficulty = options.difficulty ?? difficultyOfVoicing(target);
   // Accord cible : le choix du voicing et les doublures quittent la carte
   // (colonne de droite et fenêtre Filtres) ; la carte garde l'essentiel.
@@ -2339,6 +2346,7 @@ export function renderExerciseTarget(target, options = {}) {
       ${target.topNoteMiss ? `<div class="exercise-topnote-miss">Aucun voicing de ${escapeHtml(target.name)} n'a cette note au sommet avec ces filtres : voicing habituel affiché.</div>` : ''}
       <div class="exercise-target-keyboard">${kb.svg}</div>
       ${doubled.length > 0 ? `<div class="exercise-doubled-note">Doublure${doubled.length > 1 ? 's' : ''} ajoutée${doubled.length > 1 ? 's' : ''} : ${escapeHtml(formatHandNotes(doubled, noteLabel))}</div>` : ''}
+      ${demo ? `<div class="exercise-doubled-note exercise-demo-added">${escapeHtml(describeDemoAdditions(demo, noteLabel))}</div>` : ''}
       <div class="exercise-target-hands">
         ${splitDisplay ? renderHandSplit(leftHand, rightHand, noteLabel) : renderUnifiedHand(allNames, singleHandLabel(leftHand, rightHand))}
       </div>
@@ -2351,6 +2359,19 @@ export function renderExerciseTarget(target, options = {}) {
       </div>
     </div>
   `;
+}
+
+/**
+ * Phrase décrivant ce que la démo ajoute à la carte : « Démo Gospel / worship :
+ * basse D2 · A2 à la main gauche, C4 doublé à la main droite ».
+ * @param {{bass: number[], doubled: number[], movedToRight: boolean, styleLabel?: string}} demo
+ */
+function describeDemoAdditions(demo, noteLabel = formatNoteNameWithOctave) {
+  const parts = [];
+  if (demo.bass.length) parts.push(`basse ${formatHandNotes(demo.bass, noteLabel)} à la main gauche`);
+  if (demo.movedToRight) parts.push('voicing joué à la main droite');
+  if (demo.doubled.length) parts.push(`${formatHandNotes(demo.doubled, noteLabel)} doublé${demo.doubled.length > 1 ? 's' : ''} à la main droite`);
+  return `Démo${demo.styleLabel ? ` ${demo.styleLabel}` : ''} : ${parts.join(', ')}`;
 }
 
 /** Menu des doublures d'octave (carte des modes Progression / Mouvement, fenêtre Filtres). */

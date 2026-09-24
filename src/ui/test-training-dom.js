@@ -124,6 +124,12 @@ function testDomContract() {
   check(chordSide.includes('id="exercise-voicing-choices"') && !chordSide.includes('exercise-favorites'),
     'DOM — colonne de droite (#exercise-chord-side) : voicings seuls, sans favoris');
 
+  // [Claude] — 2026-09-24 — Ma grille : accords choisis (fondamentale + qualité),
+  // plus de saisie au clavier (Narcisse : « pas pratique d'écrire »).
+  check(['exercise-grid-root', 'exercise-grid-quality', 'exercise-grid-add', 'exercise-grid-chips', 'exercise-grid-clear', 'exercise-grid-play']
+    .every((id) => html.includes(`id="${id}"`)) && !html.includes('id="exercise-grid-input"'),
+    'DOM — Ma grille : sélecteur fondamentale + qualité, pastilles, plus de champ texte');
+
   // CSS : panneaux jamais branchés (voir plus haut) + navigation réelle. Les
   // styles du rail et des tiroirs (.app-rail, .rail-btn, .domain-drawer,
   // .drawer-*, .practice-toolbar, .training-back-btn) appartenaient à la refonte

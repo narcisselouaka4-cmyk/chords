@@ -1361,6 +1361,29 @@ function checkPianistRealism() {
     ['quartal', 'so_what', 'cluster', 'stride', 'shell', 'two_note_shell'].every((t) => getAvailableTechniques(`${names[0]}7alt`).find((c) => c.id === t)?.count === 0));
 }
 
+// [Claude] — 2026-09-24 — Carte : notes ajoutées par la démo (Narcisse : « la démo
+// ajoute aussi des basses quand le mini-key ne l'affiche pas, je le veux aussi »).
+function checkCardDemoAdditions() {
+  console.log('\n=== Carte : notes ajoutées par la démo ===');
+  const ex = createPracticeExercise();
+  ex.setMode('movement');
+  ex.setTechnique('close');
+  ex.setKeyChoice(0);
+  ex.setContentChoice('Cadence II-V-I majeur');
+  const target = ex.getState().target;
+  const demo = { lh: [38, 45], rh: [60, 62, 65, 67, 72], bass: [38, 45], doubled: [60], movedToRight: false, styleLabel: 'Gospel / worship' };
+  const html = renderExerciseTarget(target, { demo });
+  check('Légende : basse et doublure de la démo, avec le style', html.includes('Démo Gospel / worship : basse D2 · A2 à la main gauche, C4 doublé à la main droite'),
+    (html.match(/exercise-demo-added">([^<]*)</) || [])[1]);
+  const hands = (html.match(/exercise-hand-notes">([^<]*)</g) || []).join(' ');
+  check('Cases des mains : le voicing de l\'exercice seul (pas la basse de la démo)', hands.length > 0 && !hands.includes('D2') && !hands.includes('A2'), hands);
+  const plain = renderExerciseTarget(target, {});
+  check('Sans démo : pas de légende, clavier inchangé', !plain.includes('exercise-demo-added') && plain.split('<rect').length < html.split('<rect').length,
+    `${plain.split('<rect').length} / ${html.split('<rect').length}`);
+  const moved = renderExerciseTarget(target, { demo: { ...demo, doubled: [], movedToRight: true, styleLabel: 'Ballade' } });
+  check('Rootless passé à la main droite : annoncé dans la légende', moved.includes('Démo Ballade : basse D2 · A2 à la main gauche, voicing joué à la main droite'));
+}
+
 function checkChainedVoicings() {
   console.log('\n=== Mouvement : voicings enchaînés ===');
   let chained = 0; let fixed = 0; let pairs = 0;
@@ -1444,6 +1467,7 @@ async function runTests() {
   checkTypedCustomGrid();
   checkMovementNavigationAndKeys();
   checkChainedVoicings();
+  checkCardDemoAdditions();
   checkPianistRealism();
   await checkAllVoicingLabReachable();
 

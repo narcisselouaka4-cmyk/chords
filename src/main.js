@@ -82,7 +82,7 @@ import {
   restoreFavorites,
 } from './practice-favorites.js';
 import { voicingToNoteSequence } from './pedagogie/copilot-voicing.js';
-import { buildDemo, DEMO_STYLES, DEMO_STYLE_IDS, defaultDemoStyle, demoPassingChords } from './practice-demo.js';
+import { buildDemo, DEMO_STYLES, DEMO_STYLE_IDS, defaultDemoStyle, demoPassingChords, demoCardHands } from './practice-demo.js';
 import { createDemoPlayer } from './exercise-demo-player.js';
 import {
   listMidiOutputs, openMidiOutput, savedMidiOutputName, isMidiOutputActive, currentMidiOutput, sendMidi,
@@ -203,7 +203,11 @@ const els = {
   exerciseChordsEyebrow: document.getElementById('exercise-chords-eyebrow'),
   exerciseArenaEyebrow: document.getElementById('exercise-arena-eyebrow'),
   exerciseGridForm: document.getElementById('exercise-grid-form'),
-  exerciseGridInput: document.getElementById('exercise-grid-input'),
+  exerciseGridRoot: document.getElementById('exercise-grid-root'),
+  exerciseGridQuality: document.getElementById('exercise-grid-quality'),
+  exerciseGridAdd: document.getElementById('exercise-grid-add'),
+  exerciseGridChips: document.getElementById('exercise-grid-chips'),
+  exerciseGridClear: document.getElementById('exercise-grid-clear'),
   exerciseTargetChoice: document.getElementById('exercise-target-choice'),
   exerciseTargetRoot: document.getElementById('exercise-target-root'),
   exerciseTargetQuality: document.getElementById('exercise-target-quality'),
@@ -600,8 +604,9 @@ function feedDemoEvent(type, a, b) {
 
 // Rappels posés par initPracticeExercise (accord suivi, accord de passage, fin
 // de démo) ; passingChords : accords de passage que la démo jouera (liste de
-// droite) ; playingPassing : rang de l'accord suivi par celui qui sonne.
-const demoHooks = { onStep: null, onPassing: null, onEnd: null, passingChords: null, playingPassing: null };
+// droite) ; cardExtras : notes que la démo ajoute à la carte affichée ;
+// playingPassing : rang de l'accord suivi par celui qui sonne.
+const demoHooks = { onStep: null, onPassing: null, onEnd: null, passingChords: null, cardExtras: null, playingPassing: null };
 const demoPlayer = createDemoPlayer({
   send: feedDemoEvent,
   onStep: (step) => demoHooks.onStep?.(step),
@@ -1413,6 +1418,7 @@ function initPracticeExercise() {
       targetDiv.innerHTML = renderExerciseTarget(exState.target, {
         categories, difficulty, variant: exState.variant, selectedTechnique: exState.technique,
         doubling: exState.doubling, isFavorite, layout: exState.mode === 'chord' ? 'chord' : 'default', spelling,
+        demo: demoHooks.cardExtras?.(exState) || null,
       });
     }
     refreshTargetChoice(exState);
@@ -1712,6 +1718,8 @@ function initPracticeExercise() {
   // [Claude] — 2026-09-24 — Fenêtre centrée (.tr-overlay, ouverte et fermée par
   // astra-shell.js : fond, Échap, ✕) ; onglet Progressions retiré avec le mode.
   let libraryCategory = null;
+  // Ma grille : noms des accords choisis, dans l'ordre (« Dm11 », « G7#9b13 »…).
+  let gridChords = [];
   let librarySearch = '';
 
   function escapeHtml(str) {
@@ -1785,7 +1793,8 @@ function initPracticeExercise() {
     librarySearch = '';
     if (els.exerciseLibrarySearch) els.exerciseLibrarySearch.value = '';
     const grid = practiceExercise.getState().customGrid;
-    if (els.exerciseGridInput && grid) els.exerciseGridInput.value = grid.map((t) => t.name).join(' ');
+    if (grid) gridChords = grid.map((t) => t.name);
+    renderGridChips();
     renderLibrary();
   }
 
@@ -1816,13 +1825,57 @@ function initPracticeExercise() {
   els.exerciseLibraryBtn?.setAttribute('data-astra-open', 'exercise-library');
   els.exerciseLibraryBtn?.addEventListener('click', openLibrary);
 
+  // ── Ma grille : accords choisis un par un (fondamentale + qualité) ──
+  // [Claude] — 2026-09-24 — Narcisse : « pas pratique d'écrire, mieux de
+  // sélectionner ». La grille reste transmise au moteur comme avant (symboles
+  // séparés par des espaces, setCustomGrid).
+  const GRID_ROOTS = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+  const GRID_MAX = 16;
+  if (els.exerciseGridRoot) {
+    els.exerciseGridRoot.innerHTML = GRID_ROOTS.map((name) => `<option value="${name}">${name}</option>`).join('');
+  }
+  if (els.exerciseGridQuality) {
+    els.exerciseGridQuality.innerHTML = TARGET_QUALITY_GROUPS.map((group) => `
+      <optgroup label="${group.label}">${group.qualities.map((q) =>
+    `<option value="${escapeAttr(q)}">${q === '5' ? '5 (power chord)' : escapeAttr(q)}</option>`).join('')}
+      </optgroup>`).join('');
+    els.exerciseGridQuality.value = 'm7';
+  }
+
+  function renderGridChips() {
+    if (!els.exerciseGridChips) return;
+    els.exerciseGridChips.innerHTML = gridChords.length
+      ? gridChords.map((name, i) => `<li><span>${escapeAttr(name)}</span><button type="button" data-grid-remove="${i}" aria-label="Retirer ${escapeAttr(name)}" title="Retirer">×</button></li>`).join('')
+      : '<li class="exercise-grid-empty">Aucun accord pour l\'instant : choisissez une fondamentale et une qualité, puis « Ajouter ».</li>';
+    if (els.exerciseGridAdd) els.exerciseGridAdd.disabled = gridChords.length >= GRID_MAX;
+  }
+
+  els.exerciseGridAdd?.addEventListener('click', () => {
+    const root = els.exerciseGridRoot?.value;
+    const quality = els.exerciseGridQuality?.value ?? '';
+    if (!root || gridChords.length >= GRID_MAX) return;
+    gridChords.push(`${root}${quality}`);
+    renderGridChips();
+  });
+  els.exerciseGridChips?.addEventListener('click', (e) => {
+    const remove = e.target.closest('[data-grid-remove]');
+    if (!remove) return;
+    gridChords.splice(Number(remove.dataset.gridRemove), 1);
+    renderGridChips();
+  });
+  els.exerciseGridClear?.addEventListener('click', () => {
+    gridChords = [];
+    renderGridChips();
+  });
+  renderGridChips();
+
   els.exerciseGridForm?.addEventListener('submit', (e) => {
     e.preventDefault();
-    const value = els.exerciseGridInput?.value.trim() || '';
-    if (!value) {
-      els.exerciseGridInput?.focus();
+    if (gridChords.length === 0) {
+      els.exerciseGridRoot?.focus();
       return;
     }
+    const value = gridChords.join(' ');
     if (practiceExercise.getState().mode !== 'movement' && !maybeConfirmReset()) return;
     practiceExercise.setCustomGrid(value);
     setModeButtonActive('movement');
@@ -1901,8 +1954,8 @@ function initPracticeExercise() {
       }
       demoStyleSelects.forEach((other) => { other.value = demoStyle; });
       demoPlayer.stop();
-      refreshDemoButtons(practiceExercise.getState());
-      renderExerciseProgressPanel(practiceExercise.getState());
+      // Carte (notes ajoutées par la démo) et liste (accords de passage) suivent le style.
+      render();
     });
   });
 
@@ -1948,6 +2001,14 @@ function initPracticeExercise() {
   demoHooks.passingChords = (exState) => (exState.mode === 'movement' && exState.progression
     ? demoPassingChords(exState.progression.chords, resolveDemoStyle(exState.progression.movement?.style))
     : []);
+  // Notes que la démo ajoute à l'accord affiché (basse, doublure), pour la carte.
+  demoHooks.cardExtras = (exState) => {
+    const prog = exState.mode === 'movement' ? exState.progression : null;
+    if (!prog?.chords?.length) return null;
+    const styleId = resolveDemoStyle(prog.movement?.style);
+    const extras = demoCardHands(prog.chords, prog.stepIndex || 0, styleId);
+    return extras ? { ...extras, styleLabel: DEMO_STYLES[styleId]?.label } : null;
+  };
   demoHooks.onStep = (step) => {
     // La carte d'exercice suit l'accord joué par la démo du mouvement.
     if (demoContext?.kind !== 'movement') return;
@@ -2117,7 +2178,9 @@ function initPracticeExercise() {
     if (btn) {
       const exState = practiceExercise.getState();
       if (exState.target?.voicing) {
-        playExerciseVoicing(exState.target.voicing);
+        // En Mouvement, on entend aussi ce que la démo ajoute (basse, doublure), comme affiché.
+        const extras = demoHooks.cardExtras?.(exState);
+        playExerciseVoicing(extras ? { ...exState.target.voicing, leftHand: extras.lh, rightHand: extras.rh } : exState.target.voicing);
       }
       return;
     }
