@@ -80,6 +80,7 @@ import {
   removeFavorite,
   favoriteFromTarget,
   renderFavoritesList,
+  restoreFavorite,
 } from './practice-favorites.js';
 import { voicingToNoteSequence } from './pedagogie/copilot-voicing.js';
 import { applyTabVisibility } from './ui/tab-visibility.js';
@@ -197,6 +198,7 @@ const els = {
   exerciseChordSide: document.getElementById('exercise-chord-side'),
   exerciseChordHead: document.getElementById('exercise-chord-head'),
   exerciseFavorites: document.getElementById('exercise-favorites'),
+  exerciseFavoritesSearch: document.getElementById('exercise-favorites-search'),
   exerciseVoicingChoices: document.getElementById('exercise-voicing-choices'),
   exerciseFiltersDialog: document.getElementById('exercise-filters-dialog'),
   exerciseFiltersCount: document.getElementById('exercise-filters-count'),
@@ -1339,6 +1341,11 @@ function initPracticeExercise() {
 
   // Voicings favoris (mode Accord cible), persistés dans localStorage.
   let exerciseFavorites = loadFavorites(window.localStorage);
+  // Dernier favori retiré (bandeau « Annuler » pendant 10 s) et recherche.
+  let removedFavorite = null;
+  let removedFavoriteTimer = null;
+  let favoritesQuery = '';
+  const FAVORITES_SEARCH_MIN = 8;
 
   /**
    * Disposition du mode Accord cible : bande du haut (choix de l'accord),
@@ -1375,7 +1382,14 @@ function initPracticeExercise() {
     }
     if (!els.exerciseFavorites) return;
     const activeKey = exState.target?.voicing?.source === 'favori' ? favoriteFromTarget(exState.target)?.key : null;
-    els.exerciseFavorites.innerHTML = renderFavoritesList(exerciseFavorites, { techniqueLabels: TECHNIQUE_LABELS, activeKey });
+    // Recherche seulement quand la liste devient longue (place limitée) ; en
+    // dessous, le regroupement par accord suffit. Une recherche en cours reste visible.
+    if (els.exerciseFavoritesSearch) {
+      els.exerciseFavoritesSearch.hidden = exerciseFavorites.length < FAVORITES_SEARCH_MIN && !favoritesQuery;
+    }
+    els.exerciseFavorites.innerHTML = renderFavoritesList(exerciseFavorites, {
+      techniqueLabels: TECHNIQUE_LABELS, activeKey, query: favoritesQuery, removed: removedFavorite?.fav || null,
+    });
   }
 
   els.exerciseFavorites?.addEventListener('click', (e) => {
@@ -1388,10 +1402,27 @@ function initPracticeExercise() {
     }
     const remove = e.target.closest('[data-favorite-remove]');
     if (remove) {
+      const index = exerciseFavorites.findIndex((f) => f.key === remove.dataset.favoriteRemove);
+      if (index < 0) return;
+      removedFavorite = { fav: exerciseFavorites[index], index };
       exerciseFavorites = removeFavorite(exerciseFavorites, remove.dataset.favoriteRemove);
       saveFavorites(window.localStorage, exerciseFavorites);
+      clearTimeout(removedFavoriteTimer);
+      removedFavoriteTimer = setTimeout(() => { removedFavorite = null; render(); }, 10000);
+      render();
+      return;
+    }
+    if (e.target.closest('[data-favorite-undo]') && removedFavorite) {
+      exerciseFavorites = restoreFavorite(exerciseFavorites, removedFavorite.fav, removedFavorite.index);
+      saveFavorites(window.localStorage, exerciseFavorites);
+      removedFavorite = null;
+      clearTimeout(removedFavoriteTimer);
       render();
     }
+  });
+  els.exerciseFavoritesSearch?.addEventListener('input', () => {
+    favoritesQuery = els.exerciseFavoritesSearch.value;
+    render();
   });
 
   // Navigateur par note du dessus : clé du dernier rendu complet, pour ne pas

@@ -22,6 +22,7 @@ import { formatPc } from './chord-engine/naming.js';
 import { applyDoublings } from './voicing-engine/doublings.js';
 import {
   favoriteFromTarget, toggleFavorite, loadFavorites, saveFavorites, renderFavoritesList,
+  removeFavorite, restoreFavorite, groupFavorites, favoriteMatches,
 } from './practice-favorites.js';
 
 const GREEN = '\x1b[32m';
@@ -690,6 +691,18 @@ function checkFavorites() {
   check('Stockage corrompu : liste vide sans erreur', loadFavorites({ getItem: () => '{pas du json' }).length === 0);
   check('Liste des favoris : bouton d\'ouverture et de retrait', renderFavoritesList(reloaded).includes('data-favorite-open')
     && renderFavoritesList(reloaded).includes('data-favorite-remove'));
+
+  // Beaucoup de favoris : regroupés par accord, recherche (bémols), annulation.
+  const mk = (rootPc, quality, name, rh, technique) => ({ rootPc, quality, name, lh: [], rh, technique, key: `${rootPc}|${quality}|${rh}` });
+  const many = [mk(10, 'm7b5', 'A#m7b5', [70, 73], 'close'), mk(2, 'm9', 'Dm9', [65, 69], 'drop2'), mk(2, 'm9', 'Dm9', [64, 69], 'close')];
+  const groups = groupFavorites(many);
+  check('Favoris groupés par accord, dans l\'ordre des notes', groups.map((g) => `${g.name}:${g.items.length}`).join(' ') === 'Dm9:2 A#m7b5:1');
+  check('Recherche : « bb » trouve A#m7b5, « drop 2 » la technique', favoriteMatches(many[0], 'bb')
+    && favoriteMatches(many[1], 'drop 2', { drop2: 'Drop 2' }) && !favoriteMatches(many[1], 'bb'));
+  const after = removeFavorite(many, many[1].key);
+  const undone = restoreFavorite(after, many[1], 1);
+  check('Annuler une suppression : le favori revient à sa place', undone.map((f) => f.key).join() === many.map((f) => f.key).join());
+  check('Bandeau « Annuler » affiché après suppression', renderFavoritesList(after, { removed: many[1] }).includes('data-favorite-undo'));
 }
 
 // [Claude] — 2026-09-23 — Doublures étendues aux modes Progression et Mouvement.

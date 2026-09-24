@@ -93,25 +93,72 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+/** Remet un favori retiré à sa place d'origine (Annuler). */
+export function restoreFavorite(favorites, fav, index = 0) {
+  if (!fav || favorites.some((f) => f.key === fav.key)) return favorites;
+  const at = Math.max(0, Math.min(index, favorites.length));
+  return [...favorites.slice(0, at), fav, ...favorites.slice(at)].slice(0, MAX_FAVORITES);
+}
+
+// Noms en bémols : « Bb » doit trouver A#m7b5, « Eb » D#maj7…
+const FLAT_ROOTS = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+
+/** Vrai si le favori correspond à la recherche (nom en dièses ou bémols, technique). */
+export function favoriteMatches(f, query, techniqueLabels = {}) {
+  const q = String(query || '').trim().toLowerCase();
+  if (!q) return true;
+  const technique = techniqueLabels[f.technique] || f.technique || '';
+  const haystack = [f.name, `${FLAT_ROOTS[f.rootPc] || ''}${f.quality}`, technique].join(' ').toLowerCase();
+  return q.split(/\s+/).every((word) => haystack.includes(word));
+}
+
 /**
- * Liste des favoris : nom + technique, puis les notes main gauche | main droite.
- * @param {object[]} favorites
- * @param {{ techniqueLabels?: Record<string, string>, activeKey?: string|null }} [options]
+ * Favoris regroupés par accord, dans l'ordre des notes (C, C#, D…) puis des
+ * qualités ; dans un groupe, du plus récent au plus ancien.
  */
-export function renderFavoritesList(favorites, { techniqueLabels = {}, activeKey = null } = {}) {
-  if (favorites.length === 0) {
-    return '<p class="exercise-favorites-empty">Aucun favori. Ajoutez le voicing affiché avec ☆ sur la carte.</p>';
+export function groupFavorites(favorites) {
+  const groups = new Map();
+  for (const f of favorites) {
+    const id = `${f.rootPc}|${f.quality}`;
+    if (!groups.has(id)) groups.set(id, { rootPc: f.rootPc, quality: f.quality, name: f.name, items: [] });
+    groups.get(id).items.push(f);
   }
-  const items = favorites.map((f) => {
-    const hands = [f.lh, f.rh].filter((h) => h.length > 0).map((h) => h.map(noteWithOctave).join(' ')).join(' | ');
-    const technique = techniqueLabels[f.technique] || f.technique;
-    return `<li class="exercise-favorite${f.key === activeKey ? ' active' : ''}">
+  return [...groups.values()].sort((a, b) => a.rootPc - b.rootPc || a.quality.localeCompare(b.quality));
+}
+
+/**
+ * Liste des favoris groupés par accord : technique puis notes main gauche |
+ * main droite. `removed` affiche le bandeau « … retiré — Annuler ».
+ * @param {object[]} favorites
+ * @param {{ techniqueLabels?: Record<string, string>, activeKey?: string|null, query?: string, removed?: object|null }} [options]
+ */
+export function renderFavoritesList(favorites, { techniqueLabels = {}, activeKey = null, query = '', removed = null } = {}) {
+  const undo = removed
+    ? `<div class="exercise-favorites-undo" role="status">${escapeHtml(removed.name)} retiré des favoris <button type="button" data-favorite-undo>Annuler</button></div>`
+    : '';
+  if (favorites.length === 0) {
+    return `${undo}<p class="exercise-favorites-empty">Aucun favori. Ajoutez le voicing affiché avec ☆ sur la carte.</p>`;
+  }
+  const shown = favorites.filter((f) => favoriteMatches(f, query, techniqueLabels));
+  if (shown.length === 0) {
+    return `${undo}<p class="exercise-favorites-empty">Aucun favori ne correspond à « ${escapeHtml(query.trim())} ».</p>`;
+  }
+  const groups = groupFavorites(shown).map((g) => {
+    const items = g.items.map((f) => {
+      const hands = [f.lh, f.rh].filter((h) => h.length > 0).map((h) => h.map(noteWithOctave).join(' ')).join(' | ');
+      const technique = techniqueLabels[f.technique] || f.technique || 'Voicing';
+      return `<li class="exercise-favorite${f.key === activeKey ? ' active' : ''}">
         <button type="button" class="exercise-favorite-open" data-favorite-open="${escapeHtml(f.key)}" title="Afficher ce voicing">
-          <span class="exercise-favorite-name">${escapeHtml(f.name)}${technique ? ` <span class="exercise-favorite-technique">${escapeHtml(technique)}</span>` : ''}</span>
+          <span class="exercise-favorite-technique">${escapeHtml(technique)}</span>
           <span class="exercise-favorite-notes">${escapeHtml(hands)}</span>
         </button>
-        <button type="button" class="exercise-favorite-remove" data-favorite-remove="${escapeHtml(f.key)}" aria-label="Retirer ${escapeHtml(f.name)} des favoris" title="Retirer des favoris">✕</button>
+        <button type="button" class="exercise-favorite-remove" data-favorite-remove="${escapeHtml(f.key)}" aria-label="Retirer ${escapeHtml(f.name)} (${escapeHtml(technique)}) des favoris" title="Retirer des favoris">✕</button>
+      </li>`;
+    }).join('');
+    return `<li class="exercise-favorites-group">
+        <span class="exercise-favorites-group-name">${escapeHtml(g.name)} <span>${g.items.length}</span></span>
+        <ul class="exercise-favorites-list">${items}</ul>
       </li>`;
   }).join('');
-  return `<ul class="exercise-favorites-list">${items}</ul>`;
+  return `${undo}<ul class="exercise-favorites-groups">${groups}</ul>`;
 }
