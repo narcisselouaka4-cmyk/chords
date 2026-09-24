@@ -85,6 +85,25 @@ function checkSlashBass() {
   check('C/G contient G', cOverG.includes(7));
 }
 
+// [Claude] — 2026-09-24 — « 6/9 » n'est pas une basse séparée : le « / » coupait
+// l'accord en C6 et la neuvième (Ré) disparaissait.
+function checkSixNine() {
+  const pcs = (s) => JSON.stringify(chordSymbolToPitchClasses(s));
+  check('C6/9 = C E G A D (9e présente)', pcs('C6/9') === '[0,2,4,7,9]', pcs('C6/9'));
+  check('Cm6/9 = C Eb G A D (9e présente)', pcs('Cm6/9') === '[0,2,3,7,9]', pcs('Cm6/9'));
+  check('C69 = C E G A D', pcs('C69') === '[0,2,4,7,9]', pcs('C69'));
+  check('Cm69 = C Eb G A D', pcs('Cm69') === '[0,2,3,7,9]', pcs('Cm69'));
+  check('C6/9 sans basse séparée, lu « sixth added ninth »',
+    parseChordSymbol('C6/9').bassPc === null && parseChordSymbol('C6/9').qualityId === 'sixth added ninth');
+  check('Bb6/9 transposé : Bb D F G C', pcs('Bb6/9') === '[0,2,5,7,10]', pcs('Bb6/9'));
+  const cOverE = parseChordSymbol('C/E');
+  check('C/E reste un accord avec basse Mi', cOverE.ok && cOverE.bassPc === 4 && pcs('C/E') === '[0,4,7]');
+  const sixNineOverE = parseChordSymbol('C6/9/E');
+  check('C6/9/E : 6/9 avec basse Mi', sixNineOverE.ok && sixNineOverE.bassPc === 4 && pcs('C6/9/E') === '[0,2,4,7,9]');
+  check('C/X : suffixe illisible ignoré comme avant (C majeur)', pcs('C/X') === '[0,4,7]');
+  check('C6 inchangé (sans 9e)', pcs('C6') === '[0,4,7,9]');
+}
+
 function checkEnharmonics() {
   check('C# = Db', Note.get('C#').chroma === Note.get('Db').chroma);
   check('F# = Gb', Note.get('F#').chroma === Note.get('Gb').chroma);
@@ -106,6 +125,7 @@ async function runTests() {
   checkTensionsAndAlterations();
   checkComplexSymbols();
   checkSlashBass();
+  checkSixNine();
   checkEnharmonics();
   checkMidiConversion();
 
