@@ -2984,9 +2984,12 @@ body.studio-recording-cursor * {
   height: 80px;
   max-width: 100%;
   display: block;
-  background: var(--bg);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--panel-border);
+  /* Cadre du mini-clavier Astra (.tr-mini-keyboard) : fond nacré, liseré et
+     petite ombre portée, identiques en thème sombre et clair. */
+  background: #e5e2e9;
+  border-radius: 5px;
+  border: 1px solid #b5b0bf;
+  box-shadow: 0 3px 0 #b8b3c1, 0 6px 14px #0000002e;
 }
 
 .detail-notes,
@@ -3388,7 +3391,7 @@ body.studio-recording-cursor * {
 }
 
 :root {
-  --mini-key-active: #3b82f6;
+  --mini-key-active: #a583e2;
 }
 
 .panel-title {

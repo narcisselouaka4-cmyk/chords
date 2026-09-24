@@ -623,21 +623,12 @@
 /* Touches du mini-clavier : deux couleurs selon la main. */
 :root[data-skin='global'] #practice-tab,
 :root[data-skin='v2'] #practice-tab {
-  --mini-key-lh: #3b82f6;
-  /* Main droite en vert : le rouge se lisait comme une erreur à côté du
-     bandeau de retour ❌, alors qu'il ne marque qu'une main. Vert/bleu
-     restent nettement distincts sur fond clair comme sur fond sombre. */
-  --mini-key-rh: #22c55e;
-}
-:root[data-skin='global'] #practice-tab .mini-keyboard rect.is-lh,
-:root[data-skin='v2'] #practice-tab .mini-keyboard rect.is-lh {
-  fill: var(--mini-key-lh);
-  stroke: #1d4ed8;
-}
-:root[data-skin='global'] #practice-tab .mini-keyboard rect.is-rh,
-:root[data-skin='v2'] #practice-tab .mini-keyboard rect.is-rh {
-  fill: var(--mini-key-rh);
-  stroke: #15803d;
+  /* Couleurs du mini-clavier (dessinées dans mini-keyboard.js), reprises ici
+     pour les blocs de mains et les notes ajoutées : violet d'accent pour la
+     main gauche, vert sauge (--tr-green) pour la main droite. */
+  --mini-key-lh: #a583e2;
+  --mini-key-rh: #8ccdb7;
+  --mini-key-added: #e8b86a;
 }
 
 /* ── Sélecteur de technique ── */
