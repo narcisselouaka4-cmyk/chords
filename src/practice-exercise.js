@@ -11,12 +11,20 @@
 // [Claude] — 2026-09-24 — check() juge la réponse sur l'accord ANNONCÉ
 // (judgeAnswer), plus sur la lecture du voicing affiché par detectChord ; les
 // voicings trop aigus, toutes familles, descendent d'octave (withPlayableRegister).
+// [Claude] — 2026-09-24 — Accords de 11e, de 13e et altérés : les voicings
+// VoicingLab qui ne respectent pas la définition de leur famille ou une règle
+// de voicing des manuels sont reconstruits (textbook-voicings.js) ; aucun
+// voicing ne descend sous les limites d'intervalle grave de Levine.
 
 import { detectChord } from './chord-engine/index.js';
 import { formatPc, noteName } from './chord-engine/naming.js';
 import { miniKeyboardForNotes } from './ui/mini-keyboard.js';
 import movementsLibrary from './data/movements-library.json' with { type: 'json' };
 import { getVoicingLabVoicings, isQualityOnVoicingLab, isDerivedQuality } from './voicing-engine/voicinglab-availability.js';
+import {
+  respectsLowIntervalLimits, minorNinthClashes, hasEleventhAgainstMajorThird, respectsFamilyDefinition,
+  rebuildFromNotes, upperStructureCandidates, dominantScalesFor, fitsChordScale,
+} from './voicing-engine/textbook-voicings.js';
 import { parseChordSymbol, chordSymbolToPitchClasses } from './pedagogie/chord-parser-v2.js';
 import { applyDoublings, DOUBLING_MODES, DOUBLING_LABELS } from './voicing-engine/doublings.js';
 import { spellDegreeInKey, spellPcInKey, keyLabel, isMinorProgression } from './practice-key-spelling.js';
@@ -457,9 +465,122 @@ function parseTypedChord(name) {
 function voicingLabVariantsFor(rootPc, quality, technique) {
   // Registre d'abord : la main gauche ajoutée aux clusters se cale ensuite sous
   // la main droite, là où elle a été placée.
-  return familiesForTechnique(technique).flatMap((familyId) =>
+  const placed = familiesForTechnique(technique).flatMap((familyId) =>
     getVoicingLabVoicings(rootPc, quality, familyId).map((v) => withClusterLeftHand(withPlayableRegister({ ...v, familyId }), rootPc, quality))
-  ).filter((v) => isFaithfulVariant(v, rootPc, quality, technique));
+  );
+  if (isTextbookScope(quality)) return conformOrRebuild(placed, rootPc, quality, technique);
+  return placed.filter((v) => isFaithfulVariant(v, rootPc, quality, technique));
+}
+
+// [Claude] — 2026-09-24 — Contrôle « manuels » (Narcisse : « j'ai un doute sur la
+// fiabilité des voicings […] regarder aussi sur d'autres sites », limité pour
+// l'instant aux enrichissements 11e / 13e et à tous les accords altérés). Une
+// variante VoicingLab qui respecte la définition de sa famille et les règles de
+// voicing est gardée telle quelle ; les autres sont remplacées par les voicings
+// du manuel construits sur les mêmes notes (upper structure : triades standard).
+// Détails et sources : src/voicing-engine/textbook-voicings.js.
+
+/**
+ * Accord de 11e ou de 13e, ou accord altéré (#11, b9, #9, b13, #5, b5, alt) ?
+ * Hors périmètre : add11 / 6add11 (accords ajoutés, la 11 y sonne avec la tierce
+ * par définition), demi-diminué et diminués.
+ */
+export function isTextbookScope(quality) {
+  const q = String(quality || '');
+  if (q === 'm7b5' || q.startsWith('dim') || q.includes('add')) return false;
+  return /11|13|[#b](?:5|9)|alt|^aug/.test(q);
+}
+
+/** Tierces (ou quarte des accords sus / 11) et septièmes (ou sixte) de la qualité. */
+function guideTones(quality) {
+  const q = String(quality || '');
+  const core = chordCoreIntervals(q);
+  let thirds;
+  if (q.includes('sus4') || q === '11' || q === 'maj11') thirds = [5];
+  else if (q.includes('sus2')) thirds = [2];
+  else thirds = core.filter((i) => i === 3 || i === 4);
+  return {
+    thirds,
+    sevenths: core.filter((i) => i >= 9),
+    alteredFifth: /#5|b13|b5|alt|^aug/.test(q),
+  };
+}
+
+/** Vrai si la variante respecte la définition de sa famille et les règles de voicing. */
+function meetsTextbook(technique, v, rootPc, quality) {
+  const notes = [...v.lh, ...v.rh];
+  if (!respectsFamilyDefinition(technique, v, rootPc, guideTones(quality))) return false;
+  if (!respectsLowIntervalLimits(notes, { skipBass: technique === 'stride' })) return false;
+  if (minorNinthClashes(notes, rootPc, { flatNineChord: /b9|alt/.test(quality) }).length > 0) return false;
+  if (hasEleventhAgainstMajorThird(notes, rootPc)) return false;
+  return technique !== 'upper_structure' || fitsChordScale(notes, rootPc, dominantScalesFor(quality));
+}
+
+/** Nom d'intervalle (notation VoicingLab : 1P, 3M, 13m…) d'une classe de hauteur. */
+function intervalLabel(i, quality) {
+  const q = String(quality || '');
+  const names = {
+    0: '1P', 1: '9m', 2: '9M', 3: /#9|alt/.test(q) ? '9A' : '3m', 4: '3M',
+    5: /sus4/.test(q) ? '4P' : '11P', 6: /b5|alt/.test(q) ? '5d' : '11A', 7: '5P',
+    8: /#5|^aug/.test(q) ? '5A' : '13m', 9: /^m?6/.test(q) ? '6M' : '13M', 10: '7m', 11: '7M',
+  };
+  return names[i];
+}
+
+/**
+ * Garde les variantes fidèles et conformes au manuel, remplace les autres par
+ * leurs reconstructions sur les mêmes notes (sans doublon), dans l'ordre publié
+ * par VoicingLab. Une variante infidèle par sa seule basse (Drop 2-4 de Bmaj13
+ * avec la 13e à la basse) redonne ainsi un voicing juste ; une variante à qui il
+ * manque une couleur du nom n'en redonne aucun.
+ */
+function conformOrRebuild(placed, rootPc, quality, technique) {
+  const guide = guideTones(quality);
+  const out = [];
+  const seen = new Set();
+  // Un même voicing à une autre octave n'est pas une variante de plus (les
+  // reconstructions de deux variantes VoicingLab peuvent coïncider à l'octave).
+  const push = (v) => {
+    const all = [...v.lh, ...v.rh];
+    const low = Math.min(...all);
+    const key = `${low % 12}:${v.lh.map((n) => n - low).join(',')}|${v.rh.map((n) => n - low).join(',')}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(v);
+    }
+  };
+  for (const v of placed) {
+    if (isFaithfulVariant(v, rootPc, quality, technique) && meetsTextbook(technique, v, rootPc, quality)) {
+      push(v);
+      continue;
+    }
+    const notes = [...v.lh, ...v.rh];
+    const rels = new Set(notes.map((n) => pcRelativeTo(n, rootPc)));
+    const midpoint = (Math.min(...notes) + Math.max(...notes)) / 2;
+    const shapes = technique === 'upper_structure'
+      ? upperStructureCandidates(rootPc, guide)
+      : rebuildFromNotes(technique, rels, rootPc, guide, midpoint);
+    for (const shape of shapes) {
+      const all = [...shape.lh, ...shape.rh];
+      let familyId = v.familyId;
+      if (technique === 'rootless') familyId = guide.sevenths.includes(pcRelativeTo(all[0], rootPc)) ? 'rootlessB' : 'rootlessA';
+      const placedShape = withPlayableRegister({ lh: shape.lh, rh: shape.rh, familyId });
+      const rebuilt = {
+        ...v,
+        lh: placedShape.lh,
+        rh: placedShape.rh,
+        familyId,
+        names: [...placedShape.lh, ...placedShape.rh].map((n) => formatNoteNameWithOctave(n)).join(' '),
+        intervals: [...placedShape.lh, ...placedShape.rh].map((n) => intervalLabel(pcRelativeTo(n, rootPc), quality)).join(' '),
+        octaveShift: undefined,
+        addedLH: undefined,
+        rebuilt: true,
+        rebuiltFrom: v.names,
+      };
+      if (isFaithfulVariant(rebuilt, rootPc, quality, technique) && meetsTextbook(technique, rebuilt, rootPc, quality)) push(rebuilt);
+    }
+  }
+  return out;
 }
 
 // [Claude] — 2026-09-24 — Registre des voicings (Narcisse : « registre trop aigu
@@ -492,13 +613,21 @@ const REGISTER_CEILINGS = {
 // aigus d'accords enrichis (Drop 3 de C9 : C5 D5 | E6 A#6 → C4 D4 | E5 A#5).
 const DEFAULT_REGISTER_CEILING = 72;
 
+// [Claude] — 2026-09-24 — Plancher : la descente s'arrête avant qu'un intervalle
+// passe sous sa limite grave (Levine), et un voicing publié trop grave remonte
+// (Rootless de C7alt publié A#2 C#3 E3 F#3 : tierce mineure sous Do3). Sans ce
+// plancher, la règle du plafond donnait des voicings boueux (Stride de Cmaj11
+// C3 D3 F3 B3, Shell de Gmaj11 G2 C3 F#3). Stride : la basse, jouée seule, ne
+// compte pas.
 function withPlayableRegister(v) {
   const all = [...v.lh, ...v.rh];
   if (all.length === 0) return v;
   const ceiling = REGISTER_CEILINGS[v.familyId] ?? DEFAULT_REGISTER_CEILING;
   const midpoint = (Math.min(...all) + Math.max(...all)) / 2;
+  const clear = (shift) => respectsLowIntervalLimits(all.map((n) => n + shift), { skipBass: v.familyId === 'stride' });
   let shift = 0;
-  while (midpoint + shift > ceiling) shift -= 12;
+  while (midpoint + shift > ceiling && clear(shift - 12)) shift -= 12;
+  while (!clear(shift) && shift < 36) shift += 12;
   if (shift === 0) return v;
   return { ...v, lh: v.lh.map((n) => n + shift), rh: v.rh.map((n) => n + shift), octaveShift: shift };
 }
@@ -684,14 +813,17 @@ function withClusterLeftHand(v, rootPc, quality) {
   if (v.familyId !== 'cluster' || v.lh.length > 0 || v.rh.length === 0) return v;
   const intervals = parseChordSymbol(`${formatPc(rootPc, false)}${quality}`)?.intervals || [];
   const seventh = Object.keys(SHELL_SEVENTH_SEMITONES).find((i) => intervals.includes(i));
-  let root = 36 + rootPc; // C2–B2
+  // [Claude] — 2026-09-24 — Fondamentale entre Fa2 et Mi3 : la septième posée
+  // sur Do2 passait sous la limite grave de Levine (7e mineure : Fa2).
+  let root = 41 + ((rootPc - 5 + 12) % 12); // F2–E3
   let lh = seventh ? [root, root + SHELL_SEVENTH_SEMITONES[seventh]] : [root];
-  // La main gauche reste sous la main droite.
-  if (Math.max(...lh) >= Math.min(...v.rh) && root - 12 >= 28) {
-    root -= 12;
-    lh = lh.map((n) => n - 12);
-  }
+  // La main gauche reste sous la main droite ; faute de place, la fondamentale
+  // seule, une octave plus bas si besoin.
   if (Math.max(...lh) >= Math.min(...v.rh)) lh = [root];
+  if (root >= Math.min(...v.rh)) {
+    root -= 12;
+    lh = [root];
+  }
   return { ...v, lh, addedLH: [...lh] };
 }
 
@@ -768,6 +900,9 @@ export const TARGET_QUALITY_GROUPS = [
 
 /** Qualité servie par des voicings dérivés (absente de VoicingLab) ? */
 export { isDerivedQuality };
+
+/** Voicings servis par l'Exercice pour une technique (registre et main gauche des clusters appliqués). */
+export { voicingLabVariantsFor as exerciseVoicingsFor };
 
 // Recherche par note du dessus (mode Accord cible). Niveaux exprimés sur la
 // difficulté VoicingLab des voicings (1 = close … 5 = cluster).
@@ -932,8 +1067,12 @@ const AUTO_ORDER_BEGINNER = ['two_note_shell', 'shell', 'rootless', 'close', 'dr
  * avec le registre quand il a été abaissé (withPlayableRegister).
  */
 function describeVariant(technique, v) {
-  const lowered = v.octaveShift ? ` · ${v.octaveShift === -12 ? 'une octave' : `${-v.octaveShift / 12} octaves`} plus bas que VoicingLab` : '';
-  return `${variantShape(technique, v)}${lowered}`;
+  const octaves = Math.abs(v.octaveShift || 0) / 12;
+  const moved = v.octaveShift
+    ? ` · ${octaves === 1 ? 'une octave' : `${octaves} octaves`} plus ${v.octaveShift < 0 ? 'bas' : 'haut'} que VoicingLab`
+    : '';
+  const rebuilt = v.rebuilt ? ' · reconstruit d\'après les manuels' : '';
+  return `${variantShape(technique, v)}${moved}${rebuilt}`;
 }
 
 function variantShape(technique, v) {
@@ -1018,6 +1157,8 @@ function buildPlayableVoicing(rootPc, quality, technique, variant = 0, difficult
       derivedFrom: v.derivedFrom,
       addedLH: v.addedLH,
       octaveShift: v.octaveShift,
+      rebuilt: Boolean(v.rebuilt),
+      rebuiltFrom: v.rebuiltFrom,
     };
     return { voicing, technique: t };
   }
@@ -1057,6 +1198,8 @@ function buildTopNoteVoicing(rootPc, quality, technique, variant, topNote) {
     derivedFrom: v.derivedFrom,
     addedLH: v.addedLH,
     octaveShift: v.octaveShift,
+    rebuilt: Boolean(v.rebuilt),
+    rebuiltFrom: v.rebuiltFrom,
     topNote: { pc: topNote.pc, level: topNote.level, midi: v.topMidi },
     topNoteSuggestions: suggestions.map((s) => ({
       technique: s.technique,
@@ -2047,6 +2190,7 @@ export function renderExerciseTarget(target, options = {}) {
       ${compact ? '' : renderVoicingChoices(target, options)}
       ${target.topNoteMiss ? `<div class="exercise-topnote-miss">Aucun voicing de ${escapeHtml(target.name)} n'a cette note au sommet avec ces filtres : voicing habituel affiché.</div>` : ''}
       ${voicing?.derived ? `<div class="exercise-derived-note" title="Qualité absente de VoicingLab : voicing VoicingLab réel de ${escapeHtml(voicing.derivedFrom)} dont une note est déplacée">Voicing dérivé de ${escapeHtml(voicing.derivedFrom)} (absent de VoicingLab)</div>` : ''}
+      ${voicing?.rebuilt ? `<div class="exercise-derived-note" title="Le voicing publié par VoicingLab (${escapeHtml(voicing.rebuiltFrom || '')}) ne respecte pas la définition de sa famille ou une règle de voicing des manuels : il est remplacé par la disposition du manuel">Reconstruit d'après les manuels (VoicingLab : ${escapeHtml(voicing.rebuiltFrom || '—')})</div>` : ''}
       <div class="exercise-target-keyboard">${kb.svg}</div>
       ${addedLH.length > 0 ? `<div class="exercise-doubled-note" title="VoicingLab publie ce cluster pour la main droite seule : la main gauche porte l'accord">Main gauche ajoutée (fondamentale + septième) : ${escapeHtml(formatHandNotes(addedLH, noteLabel))}</div>` : ''}
       ${doubled.length > 0 ? `<div class="exercise-doubled-note">Doublure${doubled.length > 1 ? 's' : ''} ajoutée${doubled.length > 1 ? 's' : ''} : ${escapeHtml(formatHandNotes(doubled, noteLabel))}</div>` : ''}

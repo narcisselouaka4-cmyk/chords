@@ -16,7 +16,12 @@ import {
   TECHNIQUES,
   judgeAnswer,
   realizesChord,
+  isTextbookScope,
+  exerciseVoicingsFor,
 } from './practice-exercise.js';
+import {
+  respectsLowIntervalLimits, respectsFamilyDefinition, minorNinthClashes, hasEleventhAgainstMajorThird,
+} from './voicing-engine/textbook-voicings.js';
 import movementsLibrary from './data/movements-library.json' with { type: 'json' };
 import { getVoicingLabVoicings } from './voicing-engine/voicinglab-availability.js';
 import { generateCopilotVoicing } from './pedagogie/copilot-voicing.js';
@@ -530,7 +535,19 @@ async function checkAllVoicingLabReachable() {
       + getVoicingLabVoicings(Number(pc), alias[quality] ?? quality, 'rootlessB').length;
   }
   check('Référentiel VoicingLab lu en entier (10 674 voicings)', raw === 10674, String(raw));
-  check('Voicings accessibles = voicings fidèles au nom (6 894)', total === 6894, String(total));
+  // [Claude] — 2026-09-24 — Accords de 11e, de 13e et altérés : les variantes non
+  // conformes au manuel sont reconstruites (souvent en plusieurs renversements :
+  // Block en 4), d'où 3 180 → 3 658 voicings ; hors de ce périmètre, rien ne change.
+  const inScope = (q) => isTextbookScope(q);
+  let scoped = 0;
+  for (const key of Object.keys(ref.chords)) {
+    const [pc, quality] = key.split('|');
+    const q = alias[quality] ?? quality;
+    if (!inScope(q)) continue;
+    for (const c of getAvailableTechniques(names[pc] + q)) scoped += c.count;
+  }
+  check('Voicings accessibles hors 11e / 13e / altérés = voicings fidèles au nom (3 714)', total - scoped === 3714, String(total - scoped));
+  check('Voicings accessibles des 11e / 13e / altérés, reconstructions comprises (3 658)', scoped === 3658, String(scoped));
   check('Stride proposé (C7 : 2 voicings)', getAvailableTechniques('C7').find((c) => c.id === 'stride')?.count === 2);
   check('Cluster barré pour D13 (sans 13e), proposé pour D7#11',
     getAvailableTechniques('D13').find((c) => c.id === 'cluster')?.count === 0
@@ -700,8 +717,10 @@ function checkClusterLeftHand() {
   ex.setTechnique('cluster');
   ex.setTargetChoice(3, '7#11');
   const v = ex.getState().target.voicing;
-  check('Eb7#11 cluster : LH Eb2 Db3, RH VoicingLab intacte',
-    v.leftHand.join() === '39,49' && v.rightHand.join() === '67,69,70' && v.addedLH.join() === '39,49');
+  // [Claude] — 2026-09-24 — Main gauche entre Fa2 et Mi3 : Eb2 Db3 (7e mineure
+  // sous Fa2) passait sous la limite grave de Levine.
+  check('Eb7#11 cluster : LH Eb3 Db4, RH VoicingLab intacte',
+    v.leftHand.join() === '51,61' && v.rightHand.join() === '67,69,70' && v.addedLH.join() === '51,61');
   const d = detectChord(ex.getState().target.notes);
   check('Eb7#11 cluster détecté avec la bonne fondamentale', d?.rootPc === 3, d?.symbol);
   let total = 0; let rooted = 0;
@@ -930,18 +949,20 @@ function checkDrop3Register() {
           const v = ex.getState().target.voicing;
           const all = [...v.leftHand, ...v.rightHand];
           total += 1;
-          if ((Math.min(...all) + Math.max(...all)) / 2 > 72) tooHigh += 1;
-          // Même voicing VoicingLab à l'octave près : écarts identiques, décalage multiple de 12.
+          // Plus haut que Do5 seulement si l'octave du dessous passe sous les limites graves.
+          if ((Math.min(...all) + Math.max(...all)) / 2 > 72 && respectsLowIntervalLimits(all.map((n) => n - 12))) tooHigh += 1;
+          // Même voicing VoicingLab à l'octave près : écarts identiques, décalage
+          // multiple de 12 (les voicings reconstruits d'après les manuels mis à part).
           const shift = v.octaveShift ?? 0;
           const back = `${v.leftHand.map((n) => n - shift)}|${v.rightHand.map((n) => n - shift)}`;
-          if (shift % 12 !== 0 || !raw.some((r) => `${r.lh}|${r.rh}` === back)) notOctave += 1;
+          if (!v.rebuilt && (shift % 12 !== 0 || !raw.some((r) => `${r.lh}|${r.rh}` === back))) notOctave += 1;
           if (root === 0 && ['maj7', 'm7', '7', 'm7b5', 'dim7', 'mMaj7', '6', 'm6'].includes(quality) && shift !== 0) movedInC += 1;
           ex.setVariant(1);
         }
       }
     }
   }
-  check('Drop 3 : milieu du voicing au plus Do5 (C5)', total > 1000 && tooHigh === 0, `${tooHigh}/${total}`);
+  check('Drop 3 : milieu du voicing au plus Do5 (C5), sauf limite grave', total > 1000 && tooHigh === 0, `${tooHigh}/${total}`);
   check('Drop 3 : même voicing VoicingLab, seule l\'octave change', notOctave === 0, `${notOctave}/${total}`);
   check('Drop 3 : accords de 4 sons en Do inchangés (registre de référence VoicingLab)', movedInC === 0, `${movedInC}`);
   ex.setTargetChoice(11, 'maj7');
@@ -970,7 +991,7 @@ function checkRegisterAllFamilies() {
   console.log('\n=== Registre : toutes les familles ===');
   const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
   const ex = createPracticeExercise();
-  let total = 0; let tooHigh = 0; let notOctave = 0; let overlap = 0; const movedInC = new Set();
+  let total = 0; let tooHigh = 0; let notOctave = 0; let overlap = 0; let muddy = 0; const movedInC = new Set();
   for (const technique of TECHNIQUES.filter((t) => t !== 'auto')) {
     const ceiling = REGISTER_CEILING_BY_TECHNIQUE[technique] ?? 72;
     ex.setTechnique(technique);
@@ -986,19 +1007,26 @@ function checkRegisterAllFamilies() {
           total += 1;
           // Cluster : on juge le registre de la main droite VoicingLab, avant l'ajout de la main gauche.
           const own = v.addedLH ? v.rightHand : [...v.leftHand, ...v.rightHand];
-          if ((Math.min(...own) + Math.max(...own)) / 2 > ceiling) tooHigh += 1;
+          const all = [...v.leftHand, ...v.rightHand];
+          const skipBass = technique === 'stride';
+          // Au-dessus du plafond seulement si l'octave du dessous est boueuse (Levine).
+          if ((Math.min(...own) + Math.max(...own)) / 2 > ceiling
+            && respectsLowIntervalLimits(all.map((n) => n - 12), { skipBass })) tooHigh += 1;
+          if (!respectsLowIntervalLimits(all, { skipBass })) muddy += 1;
           if (v.leftHand.length && v.rightHand.length && Math.max(...v.leftHand) >= Math.min(...v.rightHand)) overlap += 1;
           const shift = v.octaveShift ?? 0;
-          if (shift % 12 !== 0 || shift > 0) notOctave += 1;
-          if (root === 0 && shift !== 0) movedInC.add(technique);
+          // Octaves entières ; montée seulement pour un voicing publié trop grave.
+          if (shift % 12 !== 0 || (shift > 0 && respectsLowIntervalLimits(all.map((n) => n - shift), { skipBass }))) notOctave += 1;
+          if (root === 0 && shift < 0) movedInC.add(technique);
         }
       }
     }
   }
-  check('Toutes familles : milieu sous le plafond de la technique', total > 7000 && tooHigh === 0, `${tooHigh}/${total}`);
-  check('Toutes familles : descente par octaves entières uniquement', notOctave === 0, String(notOctave));
+  check('Toutes familles : milieu sous le plafond de la technique, sauf limite grave', total > 7000 && tooHigh === 0, `${tooHigh}/${total}`);
+  check('Toutes familles : aucun intervalle sous sa limite grave (Levine)', muddy === 0, `${muddy}/${total}`);
+  check('Toutes familles : octaves entières, montée seulement si le voicing publié est boueux', notOctave === 0, String(notOctave));
   check('Toutes familles : main gauche toujours sous la main droite', overlap === 0, String(overlap));
-  check('En Do, seuls Drop 3 (accords enrichis) et Stride (basse sur la quinte) bougent',
+  check('En Do, seuls Drop 3 (accords enrichis) et Stride (basse sur la quinte) descendent',
     [...movedInC].every((t) => t === 'drop3' || t === 'stride'), [...movedInC].join(' '));
 
   const shown = (root, quality, technique, variant = 0) => {
@@ -1021,6 +1049,73 @@ function checkRegisterAllFamilies() {
   const clusterB7 = shown(11, '7', 'cluster');
   check('Cluster de B7 : main droite descendue, main gauche ajoutée dessous',
     clusterB7.rightHand.join() === '63,65,66,67' && clusterB7.leftHand.join() === '47,57', `${clusterB7.leftHand} | ${clusterB7.rightHand}`);
+}
+
+// [Claude] — 2026-09-24 — Voicings des accords de 11e, de 13e et altérés contrôlés
+// d'après les manuels (Narcisse : « Bmaj13 en close position : main gauche B3 D#4,
+// main droite A#4 G#5 ? ») ; les non conformes sont reconstruits sur les mêmes notes.
+function checkTextbookVoicings() {
+  console.log('\n=== Voicings 11e / 13e / altérés : définitions des manuels ===');
+  const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  const scope = TARGET_QUALITY_GROUPS.flatMap((g) => g.qualities).filter((q) => isTextbookScope(q));
+  check('Périmètre : 11e, 13e et altérés, sans add11 / m7b5 / dim7',
+    ['maj13', 'm11', '13', '7b9', '7alt', 'maj7#11', '7#5'].every((q) => scope.includes(q))
+    && !['add11', '6add11', 'm7b5', 'dim7', 'maj7', '9', '7'].some((q) => scope.includes(q)), scope.join(' '));
+  const thirdsOf = (q) => (q.includes('sus4') || q === '11' || q === 'maj11') ? [5] : [/^m(?!aj)/.test(q) ? 3 : 4];
+  const seventhsOf = (q) => [/maj|Maj/.test(q) ? 11 : (/^m?6/.test(q) ? 9 : 10)];
+  let total = 0; let failures = 0; const bad = [];
+  for (const q of scope) {
+    for (let root = 0; root < 12; root += 1) {
+      for (const technique of TECHNIQUES.filter((t) => t !== 'auto')) {
+        for (const v of exerciseVoicingsFor(root, q, technique)) {
+          total += 1;
+          const notes = [...v.lh, ...v.rh];
+          const ok = respectsFamilyDefinition(technique, v, root, { thirds: thirdsOf(q), sevenths: seventhsOf(q) })
+            && respectsLowIntervalLimits(notes, { skipBass: technique === 'stride' })
+            && minorNinthClashes(notes, root, { flatNineChord: /b9|alt/.test(q) }).length === 0
+            && !hasEleventhAgainstMajorThird(notes, root);
+          if (!ok) failures += 1;
+          if (!ok && bad.length < 5) bad.push(`${names[root]}${q} ${technique} ${notes.join(',')}`);
+        }
+      }
+    }
+  }
+  check('Tous les voicings servis respectent leur famille et les règles (Levine, 9e mineure, 11 contre tierce)',
+    total > 3500 && failures === 0, `${failures}/${total} ; ${bad.join(' / ')}`);
+
+  const shown = (root, quality, technique, variant = 0) => {
+    const ex = createPracticeExercise();
+    ex.setTechnique(technique);
+    ex.setTargetChoice(root, quality);
+    for (let i = 0; i < variant; i += 1) ex.setVariant(1);
+    return ex.getState().target?.voicing;
+  };
+  const bClose = shown(11, 'maj13', 'close');
+  check('Bmaj13 close : B3 D#4 G#4 A#4 dans une octave (VoicingLab : B D# A# G# sur 21 demi-tons)',
+    bClose.technique === 'close' && [...bClose.leftHand, ...bClose.rightHand].join() === '59,63,68,70',
+    `${bClose.leftHand} | ${bClose.rightHand}`);
+  check('Bmaj13 close : signalé « reconstruit d\'après les manuels »', bClose.rebuilt && bClose.variantLabel.includes('reconstruit d\'après les manuels'), bClose.variantLabel);
+  const dm11 = shown(2, 'm11', 'close');
+  check('Dm11 close : D4 F4 G4 C5', [...dm11.leftHand, ...dm11.rightHand].join() === '62,65,67,72', `${dm11.leftHand} | ${dm11.rightHand}`);
+  const cmaj7 = shown(0, 'maj7', 'close');
+  check('Hors périmètre inchangé : Cmaj7 close C4 E4 G4 B4, VoicingLab', [...cmaj7.leftHand, ...cmaj7.rightHand].join() === '60,64,67,71' && !cmaj7.rebuilt);
+
+  // Upper structures : triades du manuel sur la tierce et la septième.
+  const triadRoots = (root, q) => new Set(exerciseVoicingsFor(root, q, 'upper_structure').map((v) => {
+    const pcs = [...new Set(v.rh.map((n) => n % 12))];
+    return pcs.find((r) => pcs.every((p) => [0, 4, 7].includes((p - r + 12) % 12)));
+  }));
+  check('C7b9 upper structure : triades bV (Gb) et VI (A) seulement', [...triadRoots(0, '7b9')].sort().join() === '6,9', [...triadRoots(0, '7b9')].join());
+  check('C7alt upper structure : triades bV (Gb) et bVI (Ab) seulement', [...triadRoots(0, '7alt')].sort().join() === '6,8', [...triadRoots(0, '7alt')].join());
+  check('D13 upper structure barré (triade de Sol = 11 juste contre la tierce, aucune triade du manuel sans b9 ni #11)',
+    exerciseVoicingsFor(2, '13', 'upper_structure').length === 0);
+  const open7s5 = exerciseVoicingsFor(0, '7#5', 'open');
+  check('C7#5 open : plus de quinte juste à côté de la #5', open7s5.length > 0
+    && open7s5.every((v) => ![...v.lh, ...v.rh].some((n) => n % 12 === 7)), open7s5.map((v) => `${v.lh}|${v.rh}`).join(' / '));
+  const bDrop24 = shown(11, 'maj13', 'drop2_4');
+  check('Bmaj13 drop 2-4 proposé (VoicingLab : 13e à la basse, écarté) : B3 G#4 | D#5 A#5',
+    bDrop24?.technique === 'drop2_4' && [...bDrop24.leftHand, ...bDrop24.rightHand].join() === '59,68,75,82',
+    bDrop24 && `${bDrop24.leftHand} | ${bDrop24.rightHand}`);
 }
 
 // [Claude] — 2026-09-24 — Réponse jugée sur l'accord annoncé, pas sur la lecture
@@ -1137,6 +1232,7 @@ async function runTests() {
   checkMovementReplacementNotice();
   checkDrop3Register();
   checkRegisterAllFamilies();
+  checkTextbookVoicings();
   checkValidationAgainstAnnouncedChord();
   checkTypedCustomProgression();
   await checkAllVoicingLabReachable();
