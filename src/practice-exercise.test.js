@@ -22,7 +22,7 @@ import { formatPc } from './chord-engine/naming.js';
 import { applyDoublings } from './voicing-engine/doublings.js';
 import {
   favoriteFromTarget, toggleFavorite, loadFavorites, saveFavorites, renderFavoritesList,
-  removeFavorite, restoreFavorite, groupFavorites, favoriteMatches,
+  removeFavorite, restoreFavorite, restoreFavorites, groupFavorites, favoriteMatches,
 } from './practice-favorites.js';
 
 const GREEN = '\x1b[32m';
@@ -703,6 +703,13 @@ function checkFavorites() {
   const undone = restoreFavorite(after, many[1], 1);
   check('Annuler une suppression : le favori revient à sa place', undone.map((f) => f.key).join() === many.map((f) => f.key).join());
   check('Bandeau « Annuler » affiché après suppression', renderFavoritesList(after, { removed: many[1] }).includes('data-favorite-undo'));
+  // Plusieurs retraits d'affilée : tous annulés d'un coup, chacun à sa place.
+  const r1 = { fav: many[0], index: 0 };
+  const l1 = removeFavorite(many, many[0].key);
+  const r2 = { fav: many[2], index: 1 };
+  const l2 = removeFavorite(l1, many[2].key);
+  check('Deux retraits annulés d\'un coup : ordre d\'origine rétabli', restoreFavorites(l2, [r1, r2]).map((f) => f.key).join() === many.map((f) => f.key).join());
+  check('Bandeau : « 2 favoris retirés »', renderFavoritesList(l2, { removed: [many[0], many[2]] }).includes('2 favoris retirés'));
 }
 
 // [Claude] — 2026-09-23 — Doublures étendues aux modes Progression et Mouvement.

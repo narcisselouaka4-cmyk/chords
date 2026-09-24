@@ -80,7 +80,7 @@ import {
   removeFavorite,
   favoriteFromTarget,
   renderFavoritesList,
-  restoreFavorite,
+  restoreFavorites,
 } from './practice-favorites.js';
 import { voicingToNoteSequence } from './pedagogie/copilot-voicing.js';
 import { applyTabVisibility } from './ui/tab-visibility.js';
@@ -1341,8 +1341,9 @@ function initPracticeExercise() {
 
   // Voicings favoris (mode Accord cible), persistés dans localStorage.
   let exerciseFavorites = loadFavorites(window.localStorage);
-  // Dernier favori retiré (bandeau « Annuler » pendant 10 s) et recherche.
-  let removedFavorite = null;
+  // Favoris retirés récemment : ils s'accumulent tant que le bandeau
+  // « Annuler » est affiché (10 s après le dernier retrait), puis sont oubliés.
+  let removedFavorites = [];
   let removedFavoriteTimer = null;
   let favoritesQuery = '';
   const FAVORITES_SEARCH_MIN = 8;
@@ -1388,7 +1389,7 @@ function initPracticeExercise() {
       els.exerciseFavoritesSearch.hidden = exerciseFavorites.length < FAVORITES_SEARCH_MIN && !favoritesQuery;
     }
     els.exerciseFavorites.innerHTML = renderFavoritesList(exerciseFavorites, {
-      techniqueLabels: TECHNIQUE_LABELS, activeKey, query: favoritesQuery, removed: removedFavorite?.fav || null,
+      techniqueLabels: TECHNIQUE_LABELS, activeKey, query: favoritesQuery, removed: removedFavorites.map((r) => r.fav),
     });
   }
 
@@ -1404,18 +1405,18 @@ function initPracticeExercise() {
     if (remove) {
       const index = exerciseFavorites.findIndex((f) => f.key === remove.dataset.favoriteRemove);
       if (index < 0) return;
-      removedFavorite = { fav: exerciseFavorites[index], index };
+      removedFavorites.push({ fav: exerciseFavorites[index], index });
       exerciseFavorites = removeFavorite(exerciseFavorites, remove.dataset.favoriteRemove);
       saveFavorites(window.localStorage, exerciseFavorites);
       clearTimeout(removedFavoriteTimer);
-      removedFavoriteTimer = setTimeout(() => { removedFavorite = null; render(); }, 10000);
+      removedFavoriteTimer = setTimeout(() => { removedFavorites = []; render(); }, 10000);
       render();
       return;
     }
-    if (e.target.closest('[data-favorite-undo]') && removedFavorite) {
-      exerciseFavorites = restoreFavorite(exerciseFavorites, removedFavorite.fav, removedFavorite.index);
+    if (e.target.closest('[data-favorite-undo]') && removedFavorites.length > 0) {
+      exerciseFavorites = restoreFavorites(exerciseFavorites, removedFavorites);
       saveFavorites(window.localStorage, exerciseFavorites);
-      removedFavorite = null;
+      removedFavorites = [];
       clearTimeout(removedFavoriteTimer);
       render();
     }

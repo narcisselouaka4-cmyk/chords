@@ -100,6 +100,15 @@ export function restoreFavorite(favorites, fav, index = 0) {
   return [...favorites.slice(0, at), fav, ...favorites.slice(at)].slice(0, MAX_FAVORITES);
 }
 
+/**
+ * Annule plusieurs retraits successifs : du plus récent au plus ancien, chaque
+ * favori reprend l'index qu'il avait au moment de son retrait.
+ * @param {{fav: object, index: number}[]} removals - dans l'ordre des retraits
+ */
+export function restoreFavorites(favorites, removals) {
+  return [...removals].reverse().reduce((list, r) => restoreFavorite(list, r.fav, r.index), favorites);
+}
+
 // Noms en bémols : « Bb » doit trouver A#m7b5, « Eb » D#maj7…
 const FLAT_ROOTS = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
 
@@ -128,13 +137,16 @@ export function groupFavorites(favorites) {
 
 /**
  * Liste des favoris groupés par accord : technique puis notes main gauche |
- * main droite. `removed` affiche le bandeau « … retiré — Annuler ».
+ * main droite. `removed` (liste) affiche le bandeau « … retiré(s) — Annuler ».
  * @param {object[]} favorites
  * @param {{ techniqueLabels?: Record<string, string>, activeKey?: string|null, query?: string, removed?: object|null }} [options]
  */
-export function renderFavoritesList(favorites, { techniqueLabels = {}, activeKey = null, query = '', removed = null } = {}) {
-  const undo = removed
-    ? `<div class="exercise-favorites-undo" role="status">${escapeHtml(removed.name)} retiré des favoris <button type="button" data-favorite-undo>Annuler</button></div>`
+export function renderFavoritesList(favorites, { techniqueLabels = {}, activeKey = null, query = '', removed = [] } = {}) {
+  // `removed` : favoris retirés récemment (un ou plusieurs), annulables d'un coup.
+  const list = Array.isArray(removed) ? removed : (removed ? [removed] : []);
+  const label = list.length === 1 ? `${escapeHtml(list[0].name)} retiré des favoris` : `${list.length} favoris retirés`;
+  const undo = list.length > 0
+    ? `<div class="exercise-favorites-undo" role="status">${label} <button type="button" data-favorite-undo>Annuler</button></div>`
     : '';
   if (favorites.length === 0) {
     return `${undo}<p class="exercise-favorites-empty">Aucun favori. Ajoutez le voicing affiché avec ☆ sur la carte.</p>`;
