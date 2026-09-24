@@ -3999,107 +3999,176 @@
   text-align: center;
 }
 
-/* Filtres de la recherche par note du dessus : une rangée à part, pleine largeur. */
-:root[data-skin='global'] #practice-tab .exercise-topnote-filters,
-:root[data-skin='v2'] #practice-tab .exercise-topnote-filters {
-  flex-basis: 100%;
+:root[data-skin='global'] #practice-tab .exercise-target-actions,
+:root[data-skin='v2'] #practice-tab .exercise-target-actions {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   gap: 8px;
 }
-:root[data-skin='global'] #practice-tab .exercise-topnote-filters[hidden],
-:root[data-skin='v2'] #practice-tab .exercise-topnote-filters[hidden] {
-  display: none;
-}
-:root[data-skin='global'] #practice-tab .exercise-topnote-filters-label,
-:root[data-skin='v2'] #practice-tab .exercise-topnote-filters-label {
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--r-text-muted);
-}
 
-/* « Plus de filtres » : filtres secondaires repliés. Ouvert, le bloc prend
-   sa propre ligne, pleine largeur. */
-:root[data-skin='global'] #practice-tab .exercise-topnote-more,
-:root[data-skin='v2'] #practice-tab .exercise-topnote-more {
-  display: inline-block;
+/* ── Mode Accord cible : colonne de droite = filtres + favoris (le score n'y sert pas) ── */
+:root[data-skin='global'] #practice-tab .tr-exercise-progress.is-chord-side,
+:root[data-skin='v2'] #practice-tab .tr-exercise-progress.is-chord-side {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 10px;
+  overflow-y: auto;
 }
-:root[data-skin='global'] #practice-tab .exercise-topnote-more[open],
-:root[data-skin='v2'] #practice-tab .exercise-topnote-more[open] {
-  flex-basis: 100%;
+:root[data-skin='global'] #practice-tab .tr-exercise-progress.is-chord-side > :not(.exercise-chord-side),
+:root[data-skin='v2'] #practice-tab .tr-exercise-progress.is-chord-side > :not(.exercise-chord-side) {
+  display: none !important;
 }
-:root[data-skin='global'] #practice-tab .exercise-topnote-more > summary,
-:root[data-skin='v2'] #practice-tab .exercise-topnote-more > summary,
-:root[data-skin='global'] #practice-tab .exercise-topnote-reset,
-:root[data-skin='v2'] #practice-tab .exercise-topnote-reset {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  border-radius: var(--r-radius-pill);
-  border: 1px solid var(--r-border-soft);
-  background: var(--r-surface-elevated);
-  color: var(--r-text-muted);
-  cursor: pointer;
-  white-space: nowrap;
-  list-style: none;
-  transition: background 0.12s, color 0.12s, border-color 0.12s;
+:root[data-skin='global'] #practice-tab .exercise-chord-side,
+:root[data-skin='v2'] #practice-tab .exercise-chord-side {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
 }
-:root[data-skin='global'] #practice-tab .exercise-topnote-more > summary::-webkit-details-marker,
-:root[data-skin='v2'] #practice-tab .exercise-topnote-more > summary::-webkit-details-marker {
-  display: none;
-}
-:root[data-skin='global'] #practice-tab .exercise-topnote-more > summary::after,
-:root[data-skin='v2'] #practice-tab .exercise-topnote-more > summary::after {
-  content: '▾';
-  font-size: 0.7rem;
-}
-:root[data-skin='global'] #practice-tab .exercise-topnote-more[open] > summary::after,
-:root[data-skin='v2'] #practice-tab .exercise-topnote-more[open] > summary::after {
-  content: '▴';
-}
-:root[data-skin='global'] #practice-tab .exercise-topnote-more > summary:hover,
-:root[data-skin='v2'] #practice-tab .exercise-topnote-more > summary:hover,
-:root[data-skin='global'] #practice-tab .exercise-topnote-reset:hover,
-:root[data-skin='v2'] #practice-tab .exercise-topnote-reset:hover {
-  background: var(--r-surface);
-  color: var(--r-text);
-  border-color: var(--r-border-strong);
-}
-:root[data-skin='global'] #practice-tab .exercise-topnote-reset,
-:root[data-skin='v2'] #practice-tab .exercise-topnote-reset {
-  border-color: transparent;
-  background: transparent;
-}
+:root[data-skin='global'] #practice-tab .exercise-chord-side[hidden],
+:root[data-skin='global'] #practice-tab .exercise-topnote-filters[hidden],
+:root[data-skin='global'] #practice-tab .exercise-side-hint[hidden],
 :root[data-skin='global'] #practice-tab .exercise-topnote-reset[hidden],
+:root[data-skin='v2'] #practice-tab .exercise-chord-side[hidden],
+:root[data-skin='v2'] #practice-tab .exercise-topnote-filters[hidden],
+:root[data-skin='v2'] #practice-tab .exercise-side-hint[hidden],
 :root[data-skin='v2'] #practice-tab .exercise-topnote-reset[hidden] {
   display: none;
 }
-:root[data-skin='global'] #practice-tab .exercise-topnote-more-count,
-:root[data-skin='v2'] #practice-tab .exercise-topnote-more-count {
-  min-width: 16px;
-  padding: 0 5px;
-  border-radius: var(--r-radius-pill);
-  background: var(--r-accent);
-  color: var(--r-accent-contrast, #ffffff);
-  font-size: 0.64rem;
-  text-align: center;
+:root[data-skin='global'] #practice-tab .exercise-side-hint,
+:root[data-skin='global'] #practice-tab .exercise-favorites-empty,
+:root[data-skin='v2'] #practice-tab .exercise-side-hint,
+:root[data-skin='v2'] #practice-tab .exercise-favorites-empty {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--r-text-faint);
 }
-:root[data-skin='global'] #practice-tab .exercise-topnote-more-count[hidden],
-:root[data-skin='v2'] #practice-tab .exercise-topnote-more-count[hidden] {
-  display: none;
-}
-:root[data-skin='global'] #practice-tab .exercise-topnote-more-body,
-:root[data-skin='v2'] #practice-tab .exercise-topnote-more-body {
+:root[data-skin='global'] #practice-tab .exercise-topnote-filters,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-filters {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
+  flex-direction: column;
+  gap: 6px;
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-filters select,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-filters select {
+  width: 100%;
+  min-width: 0;
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-filters select:disabled,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-filters select:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-filters select.is-active,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-filters select.is-active {
+  border-color: var(--r-accent);
+  color: var(--r-text);
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-reset,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-reset {
+  align-self: flex-start;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--r-accent);
+  cursor: pointer;
+}
+:root[data-skin='global'] #practice-tab .exercise-favorites-eyebrow,
+:root[data-skin='v2'] #practice-tab .exercise-favorites-eyebrow {
+  margin-top: 10px;
+}
+:root[data-skin='global'] #practice-tab .exercise-favorites-list,
+:root[data-skin='v2'] #practice-tab .exercise-favorites-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+:root[data-skin='global'] #practice-tab .exercise-favorite,
+:root[data-skin='v2'] #practice-tab .exercise-favorite {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--r-border-soft);
+  border-radius: 6px;
+  overflow: hidden;
+}
+:root[data-skin='global'] #practice-tab .exercise-favorite.active,
+:root[data-skin='v2'] #practice-tab .exercise-favorite.active {
+  border-color: var(--r-accent);
+}
+:root[data-skin='global'] #practice-tab .exercise-favorite-open,
+:root[data-skin='v2'] #practice-tab .exercise-favorite-open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 5px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--r-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+:root[data-skin='global'] #practice-tab .exercise-favorite-open:hover,
+:root[data-skin='global'] #practice-tab .exercise-favorite-remove:hover,
+:root[data-skin='v2'] #practice-tab .exercise-favorite-open:hover,
+:root[data-skin='v2'] #practice-tab .exercise-favorite-remove:hover {
+  background: var(--r-surface-elevated);
+}
+:root[data-skin='global'] #practice-tab .exercise-favorite-name,
+:root[data-skin='v2'] #practice-tab .exercise-favorite-name {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+:root[data-skin='global'] #practice-tab .exercise-favorite-technique,
+:root[data-skin='v2'] #practice-tab .exercise-favorite-technique {
+  font-size: 0.66rem;
+  font-weight: 500;
+  color: var(--r-text-muted);
+}
+:root[data-skin='global'] #practice-tab .exercise-favorite-notes,
+:root[data-skin='v2'] #practice-tab .exercise-favorite-notes {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.66rem;
+  color: var(--r-text-faint);
+}
+:root[data-skin='global'] #practice-tab .exercise-favorite-remove,
+:root[data-skin='v2'] #practice-tab .exercise-favorite-remove {
+  padding: 0 8px;
+  border: 0;
+  background: transparent;
+  color: var(--r-text-faint);
+  cursor: pointer;
+}
+:root[data-skin='global'] #practice-tab .exercise-favorite-toggle,
+:root[data-skin='v2'] #practice-tab .exercise-favorite-toggle {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--r-border-soft);
+  background: transparent;
+  color: var(--r-text-muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+:root[data-skin='global'] #practice-tab .exercise-favorite-toggle.active,
+:root[data-skin='v2'] #practice-tab .exercise-favorite-toggle.active {
+  border-color: var(--r-accent);
+  color: var(--r-accent);
 }
 
 /* ── Navigateur : tous les accords ayant la note du dessus choisie ── */

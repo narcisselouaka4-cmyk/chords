@@ -71,6 +71,14 @@ import {
   TECHNIQUE_LABELS,
 } from './practice-exercise.js';
 import movementsLibrary from './data/movements-library.json' with { type: 'json' };
+import {
+  loadFavorites,
+  saveFavorites,
+  toggleFavorite,
+  removeFavorite,
+  favoriteFromTarget,
+  renderFavoritesList,
+} from './practice-favorites.js';
 import { voicingToNoteSequence } from './pedagogie/copilot-voicing.js';
 import { applyTabVisibility } from './ui/tab-visibility.js';
 import { initAstraShell } from './ui/refonte/astra-shell.js';
@@ -184,7 +192,9 @@ const els = {
   exerciseTopNoteLevel: document.getElementById('exercise-top-note-level'),
   exerciseTopNoteBrowser: document.getElementById('exercise-topnote-browser'),
   exerciseTopNoteFilters: document.getElementById('exercise-topnote-filters'),
-  exerciseTopNoteMoreCount: document.getElementById('exercise-topnote-more-count'),
+  exerciseTopNoteFiltersHint: document.getElementById('exercise-topnote-filters-hint'),
+  exerciseChordSide: document.getElementById('exercise-chord-side'),
+  exerciseFavorites: document.getElementById('exercise-favorites'),
   exerciseTopNoteReset: document.getElementById('exercise-topnote-reset'),
   exerciseRandomTargetBtn: document.getElementById('exercise-random-target-btn'),
   exerciseCustomProgressionSelector: document.getElementById('exercise-custom-progression-selector'),
@@ -1076,7 +1086,7 @@ function updateExerciseProgressUI(exState) {
       const total = exState.progression.chords.length;
       progressText = `${exState.progression.name} · ${exState.stepIndex + 1}/${total}`;
     } else if (exState.target) {
-      progressText = exState.score > 0 ? `Accord cible · ${exState.score} pts` : 'Accord cible';
+      progressText = 'Accord cible';
     }
     els.exerciseCollapsedProgress.textContent = progressText;
     els.exerciseCollapsedProgress.style.display = progressText ? '' : 'none';
@@ -1295,10 +1305,12 @@ function initPracticeExercise() {
     if (exState.target) {
       const categories = getAvailableTechniques(exState.target.name);
       const difficulty = difficultyOfVoicing(exState.target);
-      targetDiv.innerHTML = renderExerciseTarget(exState.target, { categories, difficulty, variant: exState.variant, selectedTechnique: exState.technique, doubling: exState.doubling });
+      const isFavorite = exerciseFavorites.some((f) => f.key === favoriteFromTarget(exState.target)?.key);
+      targetDiv.innerHTML = renderExerciseTarget(exState.target, { categories, difficulty, variant: exState.variant, selectedTechnique: exState.technique, doubling: exState.doubling, isFavorite });
     }
     refreshContentSelector(exState);
     refreshTargetChoice(exState);
+    refreshChordSide(exState);
     // En mode Accord cible, la difficulté est imposée par l'accord/technique.
     if (difficultySelector) {
       difficultySelector.style.display = exState.mode === 'chord' ? 'none' : '';
@@ -1308,6 +1320,38 @@ function initPracticeExercise() {
     }
     updateExerciseProgressUI(exState);
   }
+
+  // Voicings favoris (mode Accord cible), persistés dans localStorage.
+  let exerciseFavorites = loadFavorites(window.localStorage);
+
+  /**
+   * Colonne de droite : en mode Accord cible, filtres + favoris à la place du
+   * score ; dans les autres modes, l'avancement habituel.
+   */
+  function refreshChordSide(exState) {
+    const isChord = exState.mode === 'chord';
+    els.exerciseChordSide?.closest('.tr-exercise-progress')?.classList.toggle('is-chord-side', isChord);
+    if (els.exerciseChordSide) els.exerciseChordSide.hidden = !isChord;
+    if (!isChord || !els.exerciseFavorites) return;
+    const activeKey = exState.target?.voicing?.source === 'favori' ? favoriteFromTarget(exState.target)?.key : null;
+    els.exerciseFavorites.innerHTML = renderFavoritesList(exerciseFavorites, { techniqueLabels: TECHNIQUE_LABELS, activeKey });
+  }
+
+  els.exerciseFavorites?.addEventListener('click', (e) => {
+    const open = e.target.closest('[data-favorite-open]');
+    if (open) {
+      const fav = exerciseFavorites.find((f) => f.key === open.dataset.favoriteOpen);
+      if (fav) practiceExercise.showFavorite(fav);
+      render();
+      return;
+    }
+    const remove = e.target.closest('[data-favorite-remove]');
+    if (remove) {
+      exerciseFavorites = removeFavorite(exerciseFavorites, remove.dataset.favoriteRemove);
+      saveFavorites(window.localStorage, exerciseFavorites);
+      render();
+    }
+  });
 
   // Navigateur par note du dessus : clé du dernier rendu complet, pour ne pas
   // reconstruire la liste (et perdre le défilement) à chaque clic.
@@ -1369,19 +1413,15 @@ function initPracticeExercise() {
       }
       if (els.exerciseTopNoteFilters) {
         els.exerciseTopNoteFilters.hidden = topPc == null;
+        if (els.exerciseTopNoteFiltersHint) els.exerciseTopNoteFiltersHint.hidden = topPc != null;
         let active = 0;
-        let activeHidden = 0;
         els.exerciseTopNoteFilters.querySelectorAll('[data-topnote-filter], #exercise-top-note-level').forEach((sel) => {
           if (sel.dataset.topnoteFilter) sel.value = exState.topNote?.[sel.dataset.topnoteFilter] || 'all';
-          if (sel.value === 'all') return;
-          active += 1;
-          if (sel.closest('.exercise-topnote-more')) activeHidden += 1;
+          // Filtre actif mis en évidence : on voit d'un coup d'œil ce qui restreint la liste.
+          sel.classList.toggle('is-active', sel.value !== 'all');
+          if (sel.value !== 'all') active += 1;
         });
-        // Compteur des filtres repliés actifs, et Réinitialiser seulement s'il y a de quoi.
-        if (els.exerciseTopNoteMoreCount) {
-          els.exerciseTopNoteMoreCount.hidden = activeHidden === 0;
-          els.exerciseTopNoteMoreCount.textContent = String(activeHidden);
-        }
+        // Réinitialiser seulement s'il y a de quoi.
         if (els.exerciseTopNoteReset) els.exerciseTopNoteReset.hidden = active === 0;
       }
       refreshTopNoteBrowser(exState);
@@ -1847,6 +1887,12 @@ function initPracticeExercise() {
   });
 
   targetDiv?.addEventListener('click', (e) => {
+    if (e.target.closest('[data-action="toggle-favorite"]')) {
+      exerciseFavorites = toggleFavorite(exerciseFavorites, favoriteFromTarget(practiceExercise.getState().target));
+      saveFavorites(window.localStorage, exerciseFavorites);
+      render();
+      return;
+    }
     const btn = e.target.closest('[data-action="listen-exercise"]');
     if (btn) {
       const exState = practiceExercise.getState();

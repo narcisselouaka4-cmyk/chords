@@ -19,6 +19,9 @@ import { parseChordSymbol } from './pedagogie/chord-parser-v2.js';
 import { detectChord } from './chord-engine/index.js';
 import { formatPc } from './chord-engine/naming.js';
 import { applyDoublings } from './voicing-engine/doublings.js';
+import {
+  favoriteFromTarget, toggleFavorite, loadFavorites, saveFavorites, renderFavoritesList,
+} from './practice-favorites.js';
 
 const GREEN = '\x1b[32m';
 const RED = '\x1b[31m';
@@ -663,6 +666,40 @@ function checkTopNoteFilters() {
   check('Valeur de filtre invalide ignorée', ex.getState().topNote.octave === '5');
 }
 
+// [Claude] — 2026-09-24 — Favoris : le voicing exact revient sans refaire les filtres.
+function checkFavorites() {
+  console.log('\n=== Favoris ===');
+  const memory = new Map();
+  const storage = { getItem: (k) => memory.get(k) ?? null, setItem: (k, v) => memory.set(k, String(v)) };
+  const ex = createPracticeExercise();
+  ex.setTopNote(9);
+  ex.setTopNoteFilter('octave', '5');
+  ex.setTargetChoice(5, 'maj7');
+  ex.setDoubling('bass');
+  const shown = ex.getState().target;
+  const fav = favoriteFromTarget(shown);
+  let list = toggleFavorite([], fav);
+  saveFavorites(storage, list);
+  const reloaded = loadFavorites(storage);
+  check('Favori enregistré puis relu à l\'identique', reloaded.length === 1 && reloaded[0].key === fav.key
+    && reloaded[0].lh.join() === shown.voicing.leftHand.join() && reloaded[0].rh.join() === shown.voicing.rightHand.join());
+  check('Deuxième clic sur l\'étoile : favori retiré', toggleFavorite(list, fav).length === 0);
+
+  // Autre session : filtres et accord différents, puis retour au favori.
+  const ex2 = createPracticeExercise();
+  ex2.setTargetChoice(0, '7');
+  ex2.showFavorite(reloaded[0]);
+  const back = ex2.getState().target;
+  check('Favori réaffiché : même accord, mêmes mains, doublure conservée',
+    back.name === shown.name && back.voicing.leftHand.join() === shown.voicing.leftHand.join()
+    && back.voicing.rightHand.join() === shown.voicing.rightHand.join()
+    && (back.voicing.doubled || []).join() === (shown.voicing.doubled || []).join());
+  check('Favori réaffiché : validé en jouant ses notes', ex2.check(back.notes).success);
+  check('Stockage corrompu : liste vide sans erreur', loadFavorites({ getItem: () => '{pas du json' }).length === 0);
+  check('Liste des favoris : bouton d\'ouverture et de retrait', renderFavoritesList(reloaded).includes('data-favorite-open')
+    && renderFavoritesList(reloaded).includes('data-favorite-remove'));
+}
+
 // [Claude] — 2026-09-23 — Doublures étendues aux modes Progression et Mouvement.
 function checkDoublingsInSequences() {
   console.log('\n=== Doublures : Progression et Mouvement ===');
@@ -735,6 +772,7 @@ async function runTests() {
   checkDoublingsInSequences();
   checkClusterLeftHand();
   checkTopNoteFilters();
+  checkFavorites();
   await checkAllVoicingLabReachable();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);

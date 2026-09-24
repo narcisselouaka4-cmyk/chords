@@ -1319,6 +1319,40 @@ export function createPracticeExercise() {
     if (state.mode === 'chord' && state.target) regenerateCurrentTarget();
   }
 
+  /**
+   * Affiche un voicing favori tel qu'il a été enregistré (mode Accord cible).
+   * L'accord devient l'accord choisi : changer de technique ou de variante
+   * repart ensuite des voicings VoicingLab de cet accord.
+   * @param {{rootPc: number, quality: string, name: string, lh: number[], rh: number[], technique: string, difficulty?: number, doubled?: number[], addedLH?: number[]}} fav
+   */
+  function showFavorite(fav) {
+    if (state.mode !== 'chord' || !fav) return;
+    state.targetChoice = { rootPc: fav.rootPc, symbol: fav.quality };
+    state.variant = 0;
+    state.target = {
+      type: 'chord',
+      rootPc: fav.rootPc,
+      symbol: fav.quality,
+      name: fav.name,
+      notes: [...fav.lh, ...fav.rh],
+      voicing: {
+        leftHand: [...fav.lh],
+        rightHand: [...fav.rh],
+        technique: fav.technique,
+        difficulty: fav.difficulty,
+        isPlayable: true,
+        diagnostics: [],
+        fallback: false,
+        source: 'favori',
+        variantIndex: 0,
+        variantCount: 1,
+        variantLabel: 'Favori',
+        doubled: fav.doubled?.length ? [...fav.doubled] : undefined,
+        addedLH: fav.addedLH?.length ? [...fav.addedLH] : undefined,
+      },
+    };
+  }
+
   /** Remet tous les filtres de la note du dessus à « tous », niveau compris. */
   function resetTopNoteFilters() {
     const cleared = Object.fromEntries(Object.keys(TOP_NOTE_FILTERS).map((name) => [name, 'all']));
@@ -1637,6 +1671,7 @@ export function createPracticeExercise() {
     setTopNoteLevel,
     setTopNoteFilter,
     resetTopNoteFilters,
+    showFavorite,
     selectTopNoteSuggestion,
     setDoubling,
     setContentChoice,
@@ -1712,6 +1747,7 @@ export function renderExerciseTarget(target, options = {}) {
         ${splitDisplay ? renderHandSplit(leftHand, rightHand) : renderUnifiedHand(allNames, singleHandLabel(leftHand, rightHand))}
       </div>
       <div class="exercise-target-actions">
+      <button class="exercise-favorite-toggle${options.isFavorite ? ' active' : ''}" type="button" data-action="toggle-favorite" aria-pressed="${options.isFavorite ? 'true' : 'false'}" title="${options.isFavorite ? 'Retirer des favoris' : 'Ajouter ce voicing aux favoris'}">${options.isFavorite ? '★' : '☆'}</button>
       <select class="exercise-doubling-select" data-exercise-doubling aria-label="Doublures d'octave ajoutées au voicing">
         ${Object.entries(DOUBLING_LABELS).map(([id, label]) => `<option value="${id}"${id === (options.doubling || 'none') ? ' selected' : ''}>${id === 'none' ? 'Sans doublure' : escapeHtml(label)}</option>`).join('')}
       </select>
