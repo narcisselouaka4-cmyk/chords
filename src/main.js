@@ -387,7 +387,11 @@ function refreshChord() {
   // Vérification de l'exercice rapide si un accord valide est détecté.
   // [Refonte 03/09] — Jamais pendant une relecture Sessions MIDI : rejouer une
   // session ne doit pas faire progresser un exercice en cours.
-  if (!state.isPlayback && result && result.notes.length >= 3 && result.symbol !== '?') {
+  // [Claude] — 2026-09-24 — La réponse est jugée sur l'accord annoncé : un
+  // voicing juste que le détecteur ne sait pas nommer (« ? ») est validé aussi,
+  // mais un « ? » faux (accord en cours de formation) ne compte pas d'essai.
+  if (!state.isPlayback && result && result.notes.length >= 3
+    && (result.symbol !== '?' || practiceExercise?.isCorrect(result.notes))) {
     checkPracticeExercise(result.notes);
   }
 }
@@ -1350,6 +1354,22 @@ function initPracticeExercise() {
       prevBtn.style.display = practiceExercise.canGoPrevious() ? '' : 'none';
     }
     updateExerciseProgressUI(exState);
+    showExerciseNotice(exState);
+  }
+
+  // [Claude] — 2026-09-24 — Mouvement ou progression impossible à construire,
+  // accord ignoré ou sauté : practice-exercise.js le signale dans `notice` au
+  // lieu de remplacer en silence ; on l'affiche une fois dans la bulle.
+  let lastExerciseNotice = null;
+  function showExerciseNotice(exState) {
+    const notice = exState.progression?.notice || null;
+    if (notice && notice !== lastExerciseNotice && feedbackDiv) {
+      feedbackDiv.textContent = notice;
+      feedbackDiv.className = 'exercise-feedback error';
+      clearTimeout(feedbackHideTimer);
+      feedbackHideTimer = setTimeout(() => { feedbackDiv.textContent = ''; }, 10000);
+    }
+    lastExerciseNotice = notice;
   }
 
   // Voicings favoris (mode Accord cible), persistés dans localStorage.

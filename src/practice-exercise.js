@@ -8,13 +8,16 @@
 // [Claude] — 2026-09-23 — Les voicings viennent désormais exclusivement du
 // référentiel VoicingLab extrait ton par ton (voicinglab-availability.js) :
 // notes réelles, variantes réelles (flèches), aucune génération mécanique.
+// [Claude] — 2026-09-24 — check() juge la réponse sur l'accord ANNONCÉ
+// (judgeAnswer), plus sur la lecture du voicing affiché par detectChord ; les
+// Drop 3 trop aigus sont descendus d'octave (withPlayableRegister).
 
 import { detectChord } from './chord-engine/index.js';
 import { formatPc, noteName } from './chord-engine/naming.js';
 import { miniKeyboardForNotes } from './ui/mini-keyboard.js';
 import movementsLibrary from './data/movements-library.json' with { type: 'json' };
 import { getVoicingLabVoicings, isQualityOnVoicingLab, isDerivedQuality } from './voicing-engine/voicinglab-availability.js';
-import { parseChordSymbol } from './pedagogie/chord-parser-v2.js';
+import { parseChordSymbol, chordSymbolToPitchClasses } from './pedagogie/chord-parser-v2.js';
 import { applyDoublings, DOUBLING_MODES, DOUBLING_LABELS } from './voicing-engine/doublings.js';
 import { spellDegreeInKey, spellPcInKey, keyLabel, isMinorProgression } from './practice-key-spelling.js';
 
@@ -191,8 +194,6 @@ const DEFAULT_QUALITY_FOR_DEGREE = {
 const MOVEMENT_QUALITY_ALIASES = {
   alt: '7#9b13',
   '7alt': '7#9b13',
-  'b5alt': '7#9b13',
-  '5alt': '7#9b13',
   m: 'm',
   'm(maj7)': 'mMaj7',
   'maj7#11': 'maj7#11',
@@ -408,14 +409,75 @@ function splitChordSymbol(chordSymbol) {
   return { rootPc: (ROOT_PCS[match[1]] + shift + 12) % 12, quality: match[3] };
 }
 
+// [Claude] — 2026-09-24 — Accords tapés d'une progression personnalisée
+// (« Dm7 G7 Cmaj7 »). La qualité venait de parseChordSymbol().qualityId, qui est
+// le nom Tonal (« major seventh ») et non la qualité de l'app (« maj7 ») : aucun
+// voicing VoicingLab, et la progression était remplacée en silence par une
+// autre. On garde la qualité tapée quand l'app la connaît, sinon on convertit le
+// nom Tonal (CM7, C-7, Cø7, C°7, CmM7…).
+const TYPED_QUALITY_ALIASES = { 69: '6/9', m69: 'm6/9', 'Δ': 'maj7', 'Δ7': 'maj7', 'Δ9': 'maj9', 'm(maj7)': 'mMaj7', 'mΔ7': 'mMaj7', alt: '7alt' };
+
+let typedQualityTables = null;
+
+/** Qualités de l'app, et qualité de l'app pour chaque nom Tonal (la plus simple d'abord). */
+function appQualityTables() {
+  if (!typedQualityTables) {
+    const known = new Set(['', 'm', ...ALL_PRACTICE_SYMBOLS, ...TARGET_QUALITY_GROUPS.flatMap((g) => g.qualities)]);
+    const byTonalName = new Map();
+    for (const quality of known) {
+      const tonalName = parseChordSymbol(`C${quality}`)?.qualityId;
+      if (tonalName && !byTonalName.has(tonalName)) byTonalName.set(tonalName, quality);
+    }
+    typedQualityTables = { known, byTonalName };
+  }
+  return typedQualityTables;
+}
+
+/**
+ * Accord tapé → { name, rootPc, symbol }, `symbol` étant la qualité de l'app
+ * (celle de VoicingLab) ; null si l'accord est inconnu ou a une basse séparée
+ * (Dm7/G : VoicingLab n'en publie pas).
+ * @param {string} name - ex. « Bbmaj7 », « F#m7b5 », « C-7 »
+ */
+function parseTypedChord(name) {
+  const { known, byTonalName } = appQualityTables();
+  const split = splitChordSymbol(name);
+  const typed = split ? (TYPED_QUALITY_ALIASES[split.quality] ?? split.quality) : null;
+  if (split && known.has(typed)) return { name, rootPc: split.rootPc, symbol: typed };
+  const parsed = parseChordSymbol(name);
+  if (!parsed?.ok || (parsed.bassPc != null && parsed.bassPc !== parsed.rootPc)) return { name, rootPc: null, symbol: null };
+  const quality = known.has(parsed.qualityId) ? parsed.qualityId : byTonalName.get(parsed.qualityId);
+  return { name, rootPc: parsed.rootPc, symbol: quality ?? null };
+}
+
 /**
  * Voicings réels VoicingLab d'une technique pour un accord, dans l'ordre publié
  * par le site. Aucun voicing n'est calculé ici : liste vide = technique indisponible.
  */
 function voicingLabVariantsFor(rootPc, quality, technique) {
   return familiesForTechnique(technique).flatMap((familyId) =>
-    getVoicingLabVoicings(rootPc, quality, familyId).map((v) => withClusterLeftHand({ ...v, familyId }, rootPc, quality))
+    getVoicingLabVoicings(rootPc, quality, familyId).map((v) => withPlayableRegister(withClusterLeftHand({ ...v, familyId }, rootPc, quality)))
   ).filter((v) => isFaithfulVariant(v, rootPc, quality, technique));
+}
+
+// [Claude] — 2026-09-24 — Registre des Drop 3 (Narcisse : « registre trop aigu
+// de certains Drop 3 »). VoicingLab publie chaque ton en transposant Do vers le
+// haut (jusqu'à +11 demi-tons), et ses Drop 3 d'accords enrichis sont déjà très
+// aigus en Do (C9 : main gauche C5 D5, main droite E6 A#6). Le voicing entier
+// descend d'une octave tant que son milieu (entre la note la plus grave et la
+// plus aiguë) dépasse Do5 : classes de hauteur, écarts et mains inchangés, seul
+// le registre bouge. Les Drop 3 d'accords de 4 sons en Do, registre de référence
+// de VoicingLab, ne bougent pas.
+const DROP3_MAX_MIDPOINT = 72; // Do5
+
+function withPlayableRegister(v) {
+  const all = [...v.lh, ...v.rh];
+  if (v.familyId !== 'drop3' || all.length === 0) return v;
+  const midpoint = (Math.min(...all) + Math.max(...all)) / 2;
+  let shift = 0;
+  while (midpoint + shift > DROP3_MAX_MIDPOINT) shift -= 12;
+  if (shift === 0) return v;
+  return { ...v, lh: v.lh.map((n) => n + shift), rh: v.rh.map((n) => n + shift), octaveShift: shift };
 }
 
 // [Claude] — 2026-09-24 — Variantes fidèles au nom de l'accord (Narcisse :
@@ -430,6 +492,12 @@ const BASS_RULE_EXEMPT = new Set(['rootless', 'two_note_shell', 'upper_structure
 
 const colorGroupsCache = new Map();
 
+/** Morceaux d'une qualité : « maj13#11 » → maj, 13, #11. */
+function qualityTokens(quality) {
+  const q = String(quality || '').replace(/^(m?)69/, '$16/9');
+  return q.match(/sus[24]|add(?:9|11)|[#b](?:5|9|11|13)|\/9|alt|maj|Maj|dim|aug|m|\d+/g) || [];
+}
+
 /**
  * Couleurs exigées par le nom de la qualité (demi-tons depuis la fondamentale).
  * Chaque groupe doit être représenté par au moins une de ses notes.
@@ -438,8 +506,7 @@ const colorGroupsCache = new Map();
 export function requiredColorGroups(quality) {
   const key = String(quality || '');
   if (colorGroupsCache.has(key)) return colorGroupsCache.get(key);
-  const q = key.replace(/^(m?)69/, '$16/9');
-  const tokens = q.match(/sus[24]|add(?:9|11)|[#b](?:5|9|11|13)|\/9|alt|maj|Maj|dim|aug|m|\d+/g) || [];
+  const tokens = qualityTokens(key);
   const groups = [];
   let sizeSeen = false;
   for (const t of tokens) {
@@ -470,26 +537,114 @@ function allowedBassIntervals(quality) {
   return new Set(core.filter((i) => [0, 3, 4, 6, 7, 8].includes(i)));
 }
 
+/**
+ * Vrai si les notes (demi-tons depuis la fondamentale) contiennent ce qui définit
+ * l'accord : son noyau et chaque couleur de son nom. Fondamentale et quinte juste
+ * peuvent manquer (rootless, quinte omise). La tierce majeure est facultative
+ * sous une 11e juste (maj11 : elle frotterait, on l'omet comme pour l'accord
+ * « 11 »). `withCore: false` n'exige que les couleurs.
+ */
+function hasDefiningNotes(rel, quality, { withCore = true } = {}) {
+  const colors = requiredColorGroups(quality);
+  const optional = new Set([0, 7]);
+  if (colors.some((g) => g.length === 1 && g[0] === 5)) optional.add(4);
+  if (withCore && !chordCoreIntervals(quality).every((i) => optional.has(i) || rel.has(i))) return false;
+  return colors.every((g) => g.some((i) => rel.has(i)));
+}
+
 /** Vrai si la variante porte l'accord annoncé (voir plus haut). */
 export function isFaithfulVariant(v, rootPc, quality, technique) {
   const notes = [...v.lh, ...v.rh];
   if (notes.length === 0) return false;
   const rel = new Set(notes.map((n) => (((n - rootPc) % 12) + 12) % 12));
-  const colors = requiredColorGroups(quality);
-  // Fondamentale et quinte juste peuvent manquer (rootless, quinte omise). La
-  // tierce majeure est facultative sous une 11e juste (maj11 : elle frotterait,
-  // on l'omet comme pour l'accord « 11 »). Le two-note shell (fondamentale +
-  // tierce ou septième) est une simplification voulue : pas d'exigence de noyau.
-  const optional = new Set([0, 7]);
-  if (colors.some((g) => g.length === 1 && g[0] === 5)) optional.add(4);
-  if (technique !== 'two_note_shell'
-    && !chordCoreIntervals(quality).every((i) => optional.has(i) || rel.has(i))) return false;
-  if (!colors.every((g) => g.some((i) => rel.has(i)))) return false;
+  // Le two-note shell (fondamentale + tierce ou septième) est une
+  // simplification voulue : pas d'exigence de noyau.
+  if (!hasDefiningNotes(rel, quality, { withCore: technique !== 'two_note_shell' })) return false;
   if (!BASS_RULE_EXEMPT.has(technique)) {
     const bass = (((Math.min(...notes) - rootPc) % 12) + 12) % 12;
     if (!allowedBassIntervals(quality).has(bass)) return false;
   }
   return true;
+}
+
+// [Claude] — 2026-09-24 — Validation contre l'accord ANNONCÉ (Narcisse : « la
+// validation se base sur la lecture du voicing affiché »). check() comparait le
+// jeu à ce que detectChord lisait dans le voicing affiché. Or 61 % des voicings
+// affichés sont lus comme un autre accord (Shell de C6 = Do Mi La lu « Am »,
+// rootless de Cmaj7 lu « Em7 ») : un vrai C6 était refusé et un La mineur
+// accepté comme « C6 ». Une réponse est désormais juste si elle rejoue le
+// voicing affiché, si le détecteur nomme exactement l'accord annoncé, ou si
+// elle réalise l'accord annoncé (realizesChord).
+
+const pcRelativeTo = (n, rootPc) => (((n - rootPc) % 12) + 12) % 12;
+
+/**
+ * Notes qui appartiennent à l'accord annoncé (demi-tons depuis la fondamentale) :
+ * définition du parseur, noyau, couleurs du nom, et la 9e sous-entendue par un
+ * accord de 11e ou de 13e (Cmaj11 = C E G B D F).
+ */
+function chordToneIntervals(quality) {
+  const tones = new Set([
+    ...(chordSymbolToPitchClasses(`C${quality}`) || []),
+    ...chordCoreIntervals(quality),
+    ...requiredColorGroups(quality).flat(),
+  ]);
+  const size = qualityTokens(quality).find((t) => /^\d+$/.test(t));
+  if (size === '11' || size === '13') tones.add(2);
+  return tones;
+}
+
+/**
+ * Vrai si les notes jouées réalisent l'accord annoncé, quel que soit le voicing :
+ * - aucune note étrangère à l'accord ni au voicing affiché (ses tensions font
+ *   partie de la consigne : un « C7 » affiché avec une 9e accepte la 9e) ;
+ * - toutes les notes qui le définissent (hasDefiningNotes) ;
+ * - au moins 3 notes différentes avec la fondamentale, 4 sans (rootless A/B :
+ *   Mi Sol Si seul reste un Mi mineur, pas un Cmaj7) ;
+ * - fondamentale jouée : basse = fondamentale, tierce ou quinte (Do Mi La avec
+ *   La à la basse = Am, pas C6).
+ * @param {number[]} notes - MIDI joués
+ * @param {number} rootPc
+ * @param {string} quality - ex. 'm7'
+ * @param {number[]} [shownNotes] - MIDI du voicing affiché
+ */
+export function realizesChord(notes, rootPc, quality, shownNotes = []) {
+  if (!notes?.length) return false;
+  const played = new Set(notes.map((n) => pcRelativeTo(n, rootPc)));
+  const hasRoot = played.has(0);
+  if (played.size < (hasRoot ? 3 : 4)) return false;
+  const allowed = chordToneIntervals(quality);
+  shownNotes.forEach((n) => allowed.add(pcRelativeTo(n, rootPc)));
+  if (![...played].every((i) => allowed.has(i))) return false;
+  if (!hasDefiningNotes(played, quality)) return false;
+  return !hasRoot || allowedBassIntervals(quality).has(pcRelativeTo(Math.min(...notes), rootPc));
+}
+
+/** Vrai si le jeu reprend le voicing affiché : mêmes classes de hauteur, même basse, à n'importe quelle octave. */
+function replaysShownVoicing(notes, shownNotes) {
+  if (!notes?.length || !shownNotes?.length) return false;
+  const pcs = (list) => new Set(list.map((n) => pcRelativeTo(n, 0)));
+  const played = pcs(notes);
+  const shown = pcs(shownNotes);
+  return played.size === shown.size && [...played].every((pc) => shown.has(pc))
+    && pcRelativeTo(Math.min(...notes), 0) === pcRelativeTo(Math.min(...shownNotes), 0);
+}
+
+/**
+ * Verdict d'une réponse pour l'accord attendu ({rootPc, symbol, notes}) : juste
+ * si elle rejoue le voicing affiché, si detectChord nomme exactement l'accord
+ * annoncé, ou si elle le réalise (realizesChord). Jamais d'après la lecture du
+ * voicing affiché par le détecteur.
+ * @returns {{success: boolean, detected: object|null}}
+ */
+export function judgeAnswer(notes, target) {
+  const detected = notes?.length ? detectChord(notes) : null;
+  if (!target) return { success: false, detected };
+  const shown = target.notes || [];
+  const success = replaysShownVoicing(notes, shown)
+    || Boolean(detected && detected.rootPc === target.rootPc && detected.symbol === target.symbol)
+    || realizesChord(notes, target.rootPc, target.symbol, shown);
+  return { success, detected };
 }
 
 // Intervalles de la « septième » de l'accord, par ordre de préférence.
@@ -757,8 +912,10 @@ function describeVariant(technique, v) {
   switch (technique) {
     case 'drop2':
     case 'drop3':
-    case 'drop2_4':
-      return `Voix descendue${v.lh.length > 1 ? 's' : ''} : ${lh} (${intervals.slice(0, v.lh.length).join(', ')})`;
+    case 'drop2_4': {
+      const lowered = v.octaveShift ? ` · ${v.octaveShift === -12 ? 'une octave' : `${-v.octaveShift / 12} octaves`} plus bas que VoicingLab` : '';
+      return `Voix descendue${v.lh.length > 1 ? 's' : ''} : ${lh} (${intervals.slice(0, v.lh.length).join(', ')})${lowered}`;
+    }
     case 'upper_structure': {
       const triad = triadName(v.rh);
       return triad ? `Triade ${triad} sur ${lh}` : `${rhNames} sur ${lh}`;
@@ -831,6 +988,7 @@ function buildPlayableVoicing(rootPc, quality, technique, variant = 0, difficult
       derived: v.derived,
       derivedFrom: v.derivedFrom,
       addedLH: v.addedLH,
+      octaveShift: v.octaveShift,
     };
     return { voicing, technique: t };
   }
@@ -869,6 +1027,7 @@ function buildTopNoteVoicing(rootPc, quality, technique, variant, topNote) {
     derived: v.derived,
     derivedFrom: v.derivedFrom,
     addedLH: v.addedLH,
+    octaveShift: v.octaveShift,
     topNote: { pc: topNote.pc, level: topNote.level, midi: v.topMidi },
     topNoteSuggestions: suggestions.map((s) => ({
       technique: s.technique,
@@ -925,20 +1084,16 @@ function isMinorMovement(movement) {
   return isMinorProgression(String(movement?.pattern || '').split('-').map((t) => parseMovementToken(t)));
 }
 
+/**
+ * Jeton de mouvement = degré (1–7, b/# optionnel) puis qualité. Le b/# altère
+ * le DEGRÉ : « b5alt » = accord altéré sur bV (Gb7alt en Do), le V altéré
+ * s'écrit « 5alt ». Formats : compact (« 7 », « b3maj7 », « 2m7b5 », « 5alt »,
+ * « 1mMaj7 ») ou « degré:qualité » quand la qualité commence par un chiffre
+ * (« b3:7 » = bIII7 ; « b37 » serait lu degré 37). Même syntaxe que les
+ * progressions (parseProgressionToken).
+ */
 function parseMovementToken(token) {
-  // Formats acceptés : "7", "b3maj7", "2m7b5", "b5alt", "1m"
-  const match = String(token).match(/^([b#]?)(\d+)(.*)$/);
-  if (!match) return null;
-  const accidental = match[1];
-  const degree = parseInt(match[2], 10);
-  let quality = (match[3] || '').trim();
-  let offset = DEGREE_SEMITONES[degree];
-  if (offset == null) return null;
-  if (accidental === 'b') offset = (offset - 1 + 12) % 12;
-  if (accidental === '#') offset = (offset + 1) % 12;
-  if (!quality) quality = DEFAULT_QUALITY_FOR_DEGREE[degree] || '';
-  quality = MOVEMENT_QUALITY_ALIASES[quality] || quality;
-  return { degree, offset, quality };
+  return parseProgressionToken(token);
 }
 
   function tokenDifficultyLevel(token) {
@@ -963,18 +1118,29 @@ function parseMovementToken(token) {
     return tokenDifficultyLevel(token) <= difficulty;
   }
 
-  function buildMovementChords(movement, keyPc, technique, difficulty, variant = 0, doubling = 'none') {
+  /**
+   * Accords d'un mouvement dans une tonalité. Un jeton illisible ou un accord
+   * sans voicing est omis ; `failures` (facultatif) reçoit alors son nom, pour
+   * le signaler à l'écran au lieu de changer de mouvement en silence.
+   */
+  function buildMovementChords(movement, keyPc, technique, difficulty, variant = 0, doubling = 'none', failures = null) {
     const tokens = movement.pattern.split('-');
     const minor = isMinorMovement(movement);
     return tokens.map((token) => {
       const parsed = parseMovementToken(token);
-      if (!parsed) return null;
+      if (!parsed) {
+        failures?.push(`« ${token} » (jeton illisible)`);
+        return null;
+      }
       const quality = movement.preserveQualities
         ? parsed.quality
         : upgradeQualityForDifficulty(parsed.quality, difficulty);
       const rootPc = (keyPc + parsed.offset) % 12;
       const target = buildChordTarget(rootPc, quality, technique, variant, difficulty, null, doubling);
-      if (!target) return null;
+      if (!target) {
+        failures?.push(`${spellDegreeInKey(rootPc, parsed.degree, keyPc, minor)}${quality}`);
+        return null;
+      }
       return {
         ...target,
         name: `${spellDegreeInKey(rootPc, parsed.degree, keyPc, minor)}${target.symbol}`,
@@ -1081,7 +1247,8 @@ export function createPracticeExercise() {
     return buildChordTarget(0, 'maj7', 'close', state.variant, autoDifficulty(), null, state.doubling);
   }
 
-  function buildProgressionFromTokens(tokens, keyPc, name) {
+  /** `failures` (facultatif) reçoit le nom des accords sans voicing. */
+  function buildProgressionFromTokens(tokens, keyPc, name, failures = null) {
     const minor = isMinorProgression(tokens);
     const chords = tokens.map((token) => {
       const rootPc = (keyPc + token.offset) % 12;
@@ -1092,7 +1259,10 @@ export function createPracticeExercise() {
       for (let level = state.difficulty; level >= 1 && !target; level -= 1) {
         target = buildChordTarget(rootPc, progressionQualityForDifficulty(base, level), state.technique, state.variant, autoDifficulty(), null, state.doubling);
       }
-      if (!target) return null;
+      if (!target) {
+        failures?.push(`${spellDegreeInKey(rootPc, token.degree, keyPc, minor)}${base}`);
+        return null;
+      }
       return {
         ...target,
         // Nom épelé selon la tonalité (IV de Fa = Bbmaj7, pas A#maj7).
@@ -1104,32 +1274,46 @@ export function createPracticeExercise() {
   }
 
   function generateProgressionTarget() {
+    // [Claude] — 2026-09-24 — Une progression choisie ou saisie impossible à
+    // construire n'est plus remplacée en silence : `notice` le dit à l'écran.
+    let reason = null;
+    const announced = (prog) => (reason ? { ...prog, notice: `${reason} Progression proposée à la place : « ${prog.name} ».` } : prog);
+    const unplayable = (names) => `${names.join(', ')} (${names.length > 1 ? 'inconnus ou absents' : 'inconnu ou absent'} de VoicingLab, qui ne publie ni triades ni accords avec basse)`;
+
     // Progression personnalisée saisie par l'utilisateur en symboles complets
-    // (ex. "Dm7 G7 Cmaj7") : contrôle total sur les extensions.
+    // (ex. "Dm7 G7 Cmaj7") : contrôle total sur les extensions. Un accord
+    // inconnu ou sans voicing est ignoré, et l'écran le dit.
     if (state.customProgression && state.customProgression.length > 0) {
-      const chords = state.customProgression.map((parsed, iDeg) => {
-        const target = buildChordTarget(parsed.rootPc, parsed.symbol, state.technique, state.variant, autoDifficulty(), null, state.doubling);
-        if (!target) return null;
-        return { ...target, name: parsed.name || target.name, degree: null };
-      }).filter(Boolean);
-      if (chords.length === state.customProgression.length) {
+      const ignored = [];
+      const chords = [];
+      for (const typed of state.customProgression) {
+        const target = typed.symbol == null ? null
+          : buildChordTarget(typed.rootPc, typed.symbol, state.technique, state.variant, autoDifficulty(), null, state.doubling);
+        if (target) chords.push({ ...target, name: typed.name, degree: null });
+        else ignored.push(typed.name);
+      }
+      if (chords.length > 0) {
         return {
           type: 'progression',
           name: 'Progression personnalisée',
-          keyPc: state.customProgression[0].rootPc,
+          keyPc: chords[0].rootPc,
           // Accords saisis tels quels : pas de tonalité à afficher.
           typed: true,
           chords,
+          notice: ignored.length > 0 ? `Ignoré${ignored.length > 1 ? 's' : ''} : ${unplayable(ignored)}.` : null,
         };
       }
+      reason = `Progression personnalisée impossible : ${unplayable(ignored)}.`;
     }
 
     // Progression personnalisée saisie par degrés : l'application choisit les
     // qualités automatiquement selon la difficulté.
     if (state.customProgressionDegrees && state.customProgressionDegrees.length > 0) {
       const keyPc = state.customProgressionKeyPc ?? state.keyChoice ?? randomInt(0, 11);
-      const built = buildProgressionFromTokens(state.customProgressionDegrees, keyPc, 'Progression personnalisée');
-      if (built) return built;
+      const failures = [];
+      const built = buildProgressionFromTokens(state.customProgressionDegrees, keyPc, 'Progression personnalisée', failures);
+      if (built) return announced(built);
+      if (!reason) reason = `Progression personnalisée impossible : ${unplayable(failures)}.`;
     }
 
     // Progression explicitement choisie par l'utilisateur, sinon tirage au sort.
@@ -1139,15 +1323,17 @@ export function createPracticeExercise() {
     // Toutes les progressions standards sont désormais valides à tous les niveaux
     // car leurs qualités s'enrichissent automatiquement.
     const pool = chosen ? [chosen] : PROGRESSION_TEMPLATES;
+    const failures = [];
     for (let i = 0; i < MAX_TARGET_ATTEMPTS; i += 1) {
       const template = pick(pool);
       const keyPc = state.keyChoice ?? randomInt(0, 11);
       const tokens = getTemplateTokens(template);
-      const built = buildProgressionFromTokens(tokens, keyPc, template.name);
-      if (built) return built;
+      const built = buildProgressionFromTokens(tokens, keyPc, template.name, failures);
+      if (built) return announced(built);
     }
+    if (chosen && !reason) reason = `« ${chosen.name} » impossible : ${unplayable([...new Set(failures)])}.`;
     // Repli ultime : II-V-I majeur en Do.
-    return {
+    return announced({
       type: 'progression',
       name: 'II-V-I majeur',
       keyPc: 0,
@@ -1160,7 +1346,7 @@ export function createPracticeExercise() {
           degree: deg === 0 ? 'II' : deg === 1 ? 'V' : 'I',
         };
       }),
-    };
+    });
   }
 
   function generateMovementTarget() {
@@ -1180,45 +1366,59 @@ export function createPracticeExercise() {
     const pool = chosen
       ? [chosen]
       : (allowedMovements.length > 0 ? allowedMovements : movementsLibrary.movements);
+    const build = (movement, startKey, failures = null) => buildMovementChords(movement, startKey, state.technique, state.difficulty, state.variant, state.doubling, failures);
+    const isComplete = (movement, chords) => chords.length === movement.pattern.split('-').length;
+    // Accords introuvables du mouvement choisi, pour l'expliquer à l'écran.
+    let failures = [];
+    let failedKey = null;
     for (let i = 0; i < MAX_TARGET_ATTEMPTS; i += 1) {
-      const movement = chosen || (allowedMovements.length > 0 ? pick(allowedMovements) : pick(pool));
+      const movement = pick(pool);
       const startKey = state.keyChoice ?? randomInt(0, 11);
-      const chords = buildMovementChords(movement, startKey, state.technique, state.difficulty, state.variant, state.doubling);
-      if (chords.length === movement.pattern.split('-').length) {
-        return {
-          type: 'movement',
-          name: movement.name,
-          minor: isMinorMovement(movement),
-          description: movement.description,
-          category: movement.category,
-          pattern: movement.pattern,
-          movement,
-          startKey,
-          currentKey: startKey,
-          totalKeys: 12,
-          keyIndex: 0,
-          stepIndex: 0,
-          chords,
-        };
+      const missing = [];
+      const chords = build(movement, startKey, missing);
+      if (isComplete(movement, chords)) return movementTarget(movement, startKey, chords);
+      if (movement === chosen) {
+        failures = missing;
+        failedKey = startKey;
       }
     }
-    // Repli ultime : mouvement le plus facile autorisé, sinon le premier.
-    const fallback = allowedMovements[0] || movementsLibrary.movements[0];
+    // [Claude] — 2026-09-24 — Repli : premier mouvement de la bibliothèque qui
+    // se construit en entier (niveau adapté d'abord). Un mouvement CHOISI n'est
+    // plus remplacé en silence (bug « II-V-I altéré en mineur » et « Cycle de
+    // tierces majeures ») : `notice` dit à l'écran lequel et pourquoi.
     const startKey = state.keyChoice ?? randomInt(0, 11);
+    const candidates = [...allowedMovements, ...movementsLibrary.movements].filter((m) => m !== chosen);
+    const noticeFor = (replacement) => {
+      if (!chosen) return null;
+      const reason = `« ${chosen.name} » ne peut pas être construit en ${keyLabel(failedKey, isMinorMovement(chosen))} (${[...new Set(failures)].join(', ')} : aucun voicing VoicingLab).`;
+      return replacement === chosen ? reason : `${reason} Mouvement proposé à la place : « ${replacement.name} ».`;
+    };
+    for (const movement of candidates) {
+      const chords = build(movement, startKey);
+      if (isComplete(movement, chords)) return movementTarget(movement, startKey, chords, noticeFor(movement));
+    }
+    // Bibliothèque entière inconstructible : ne doit pas arriver (test 12 tons × 5 niveaux).
+    const fallback = chosen || allowedMovements[0] || movementsLibrary.movements[0];
+    return movementTarget(fallback, startKey, build(fallback, startKey), noticeFor(fallback));
+  }
+
+  /** État d'un mouvement dans sa première tonalité ; `notice` = message à afficher. */
+  function movementTarget(movement, startKey, chords, notice = null) {
     return {
       type: 'movement',
-      name: fallback.name,
-      minor: isMinorMovement(fallback),
-      description: fallback.description,
-      category: fallback.category,
-      pattern: fallback.pattern,
-      movement: fallback,
+      name: movement.name,
+      minor: isMinorMovement(movement),
+      description: movement.description,
+      category: movement.category,
+      pattern: movement.pattern,
+      movement,
       startKey,
       currentKey: startKey,
       totalKeys: 12,
       keyIndex: 0,
       stepIndex: 0,
-      chords: buildMovementChords(fallback, startKey, state.technique, state.difficulty, state.variant, state.doubling),
+      chords,
+      notice,
     };
   }
 
@@ -1555,16 +1755,9 @@ export function createPracticeExercise() {
    */
   function setCustomProgression(input) {
     const symbols = String(input || '').trim().split(/\s+/).filter(Boolean);
-    if (symbols.length === 0) {
-      state.customProgression = null;
-      return next();
-    }
-    const parsed = symbols.map((sym) => {
-      const p = parseChordSymbol(sym);
-      if (!p || !p.ok) return null;
-      return { rootPc: p.rootPc, symbol: p.qualityId || '', name: sym };
-    }).filter(Boolean);
-    state.customProgression = parsed.length > 0 ? parsed : null;
+    // Les accords inconnus sont gardés (symbol null) pour être signalés à
+    // l'écran, pas écartés en silence.
+    state.customProgression = symbols.length > 0 ? symbols.map(parseTypedChord) : null;
     return next();
   }
 
@@ -1604,27 +1797,38 @@ export function createPracticeExercise() {
       }
       prog.stepIndex = 0;
       prog.currentKey = (prog.startKey + prog.keyIndex) % 12;
-      prog.chords = buildMovementChords(prog.movement, prog.currentKey, state.technique, state.difficulty, state.variant, state.doubling);
+      const missing = [];
+      prog.chords = buildMovementChords(prog.movement, prog.currentKey, state.technique, state.difficulty, state.variant, state.doubling, missing);
+      // Un accord sans voicing dans ce ton est sauté : l'écran le dit.
+      prog.notice = missing.length > 0
+        ? `${missing.join(', ')} : aucun voicing VoicingLab en ${keyLabel(prog.currentKey, isMinorMovement(prog.movement))}, accord sauté.`
+        : null;
     }
     state.stepIndex = prog.stepIndex;
     state.keyIndex = prog.keyIndex;
     return { completed: false };
   }
 
+  /** Accord attendu maintenant : la cible (Accord cible) ou l'étape de la grille. */
+  function expectedChord() {
+    return state.mode === 'chord' ? state.target : state.progression?.chords?.[state.stepIndex] || null;
+  }
+
+  /** Vrai si `notes` est une bonne réponse, sans compter d'essai (voir judgeAnswer). */
+  function isCorrect(notes) {
+    return judgeAnswer(notes, expectedChord()).success;
+  }
+
   function check(notes) {
     if (!state.target) return { success: false, message: 'Aucun exercice actif.' };
 
-    const detected = detectChord(notes);
+    // Réponse jugée sur l'accord ANNONCÉ, pas sur la lecture par detectChord
+    // du voicing affiché (voir judgeAnswer) : rejouer le voicing affiché reste
+    // juste (quartal, rootless, clusters), un autre voicing de l'accord aussi.
+    const { success, detected } = judgeAnswer(notes, expectedChord());
     state.attempts++;
 
     if (state.mode === 'chord') {
-      // La cible affichée devient l'accord DÉTECTÉ du voicing proposé, et la
-      // réponse de l'élève est comparée à cette cible détectée. Cela permet de
-      // valider des voicings riches (quartal → Dm11) sans les rejeter.
-      const targetDetected = detectChord(state.target.notes) || state.target;
-      const success = detected
-        && detected.rootPc === targetDetected.rootPc
-        && detected.symbol === targetDetected.symbol;
       if (success) {
         state.score += Math.max(1, 4 - state.attempts + 1);
         const old = state.target;
@@ -1648,10 +1852,6 @@ export function createPracticeExercise() {
 
     if (state.mode === 'progression') {
       const expected = state.progression.chords[state.stepIndex];
-      const expectedDetected = detectChord(expected.notes) || expected;
-      const success = detected
-        && detected.rootPc === expectedDetected.rootPc
-        && detected.symbol === expectedDetected.symbol;
       if (success) {
         state.stepIndex++;
         pushHistory(state.progression.chords[state.stepIndex - 1]);
@@ -1684,10 +1884,6 @@ export function createPracticeExercise() {
 
     // Mode mouvement dans les 12 tons
     const expected = state.progression.chords[state.stepIndex];
-    const expectedDetected = detectChord(expected.notes) || expected;
-    const success = detected
-      && detected.rootPc === expectedDetected.rootPc
-      && detected.symbol === expectedDetected.symbol;
     if (success) {
       const justCompletedKey = state.stepIndex + 1 >= state.progression.chords.length;
       pushHistory(state.progression.chords[state.stepIndex]);
@@ -1758,6 +1954,7 @@ export function createPracticeExercise() {
     setCustomProgression,
     setCustomProgressionFromDegrees,
     check,
+    isCorrect,
     getState,
   };
 }

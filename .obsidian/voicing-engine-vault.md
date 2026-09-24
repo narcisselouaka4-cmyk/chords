@@ -11,6 +11,19 @@ metadata:
 
 ## Journal
 
+### 2026-09-24 — Mouvements réparés, Drop 3 recentrés, validation sur l'accord annoncé
+
+- **Mouvements remplacés en silence** (signalés par Narcisse) :
+  - « II-V-I altéré en mineur » : motif `2m7b5-b5alt-1m` → `2m7b5-5alt-1mMaj7`. Le `b` de `b5alt` altère le DEGRÉ (Gb7alt en Do) ; `1m` = triade mineure, absente de VoicingLab → mouvement impossible sauf au niveau 5. Désormais Dm7b5 → G7#9b13 → CmMaj7 (= accords d'exemple du mouvement), 12 tons × 5 niveaux.
+  - « Cycle de tierces majeures » : `6b7` donnait la qualité inconnue « b7 » → impossible partout. Reconstruit en vrai cycle de Coltrane : Cmaj7 Eb7 Abmaj7 B7 Emaj7 G7 Cmaj7 (nom, id `coltrane-changes-frag-1` et contexte le promettaient ; les anciens exemples Cmaj7 Em7 Eb7 Dm7 ne formaient pas un cycle de tierces).
+  - Même défaut de jeton, sans remplacement visible : « Tritone substitution V7 » jouait Dbm7 (→ Db7) et « V/V vers I » Dm7 (→ D7).
+  - Syntaxe : les jetons de mouvement acceptent `degré:qualité` (comme les progressions) quand la qualité commence par un chiffre (`b3:7`, `7:7`).
+  - Plus de remplacement silencieux : mouvement ou progression impossible → `notice` affichée dans la bulle de retour (nom, accord fautif, remplaçant). Test : toute la bibliothèque se construit dans les 12 tons × 5 niveaux.
+- **Drop 3 trop aigus** : VoicingLab publie chaque ton en transposant Do vers le haut (+0 à +11), et ses Drop 3 d'accords enrichis sont déjà très aigus en Do (C9 : MG C5 D5, MD E6 A#6). Dans l'Exercice, un Drop 3 descend d'une octave tant que son milieu (grave + aigu) / 2 dépasse Do5 (`withPlayableRegister`, `octaveShift` sur le voicing, info-bulle « une octave plus bas que VoicingLab »). Notes, écarts et mains inchangés ; les Drop 3 d'accords de 4 sons en Do ne bougent pas. Dessus max C7 → D#6, voicings au-dessus de C6 : 435 → 15, MG max B5 → A#4. Le référentiel `voicinglab-reference.json` n'est pas modifié.
+- **Validation** : `check()` comparait le jeu à `detectChord(voicing affiché)`. 61 % des voicings affichés (4 859 / 7 969) sont lus comme un autre accord : un vrai C6 était refusé (« Vous avez joué C6. Cible : C6 ») et un La mineur accepté comme C6. Désormais `judgeAnswer` : juste si le jeu rejoue le voicing affiché (mêmes classes de hauteur, même basse), si le détecteur nomme exactement l'accord annoncé, ou si `realizesChord` (notes définissantes présentes, aucune note étrangère à l'accord ni au voicing affiché, ≥ 3 notes avec fondamentale / ≥ 4 sans, basse = 1, 3 ou 5 si la fondamentale est jouée). `main.js` : un accord que le détecteur ne sait pas nommer (« ? ») est validé s'il est juste.
+- **Progression tapée en symboles** (`setCustomProgression`, API sans champ dans l'UI) : la qualité venait du nom Tonal (« major seventh ») → aucun voicing → remplacée en silence. Qualité tapée gardée si l'app la connaît, sinon conversion du nom Tonal (CM7, C-7, Cø7, C°7, CmM7, C69) ; accords impossibles ignorés et annoncés.
+- Validation : exercices **404/404**, catalogue 120 ✓, `npm run test:chords` **98/98**, Parties 1 et 3 OK, Copilot (voicing 126/126, client 90/90, validation 78/78…) OK, `npm run build` OK ; essai réel Chromium de l'onglet Exercices (mouvements choisis affichés tels quels). Échecs préexistants et inchangés : `src/ui/test-training-dom.js` (47) et `tests/ui/test-workspace-navigation-d2.js` (8/10).
+
 ### 2026-09-23 — Alignement VoicingLab sur la catégorie C
 
 - Lecture du CSV `voicinglab-C-5-familles-2026-09-23.csv` (862 voicings C, 5 familles de base × extensions/altérations).
@@ -187,6 +200,8 @@ Compte des pitch classes uniques avec scope :
 3. `drop2Plus4` reste volontairement non implémenté (doublon LH).
 4. Le calcul de difficulté est symbolique, pas basé sur l’étendue physique réelle.
 5. Les familles stride/open/spread utilisent des rôles non-fondamentaux incluant la quinte pour atteindre le nombre de voix requis sans doublon de fondamentale inter-main.
+6. Registre (2026-09-24) : seul Drop 3 est recentré dans l'Exercice. Les autres familles VoicingLab gardent la transposition « Do vers le haut » : Drop 2 (148 voicings au-dessus de C6, MG jusqu'à D#5), Drop 2-4, Close, Block, 4-way close, Upper structure ; Shell / Rootless / Stride ont une main gauche jusqu'à E5–G#5 dans les tons aigus. À décider avec Narcisse avant d'étendre la règle.
+7. Exercice : la cible d'une réponse est toujours l'accord ANNONCÉ. `detectChord` nomme ce qui est joué (message « Vous avez joué … ») et n'accepte une réponse que s'il nomme exactement cet accord ; il ne lit plus jamais le voicing affiché pour fixer la cible.
 
 ## Fichiers clés
 

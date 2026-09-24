@@ -14,7 +14,11 @@ import {
   listProgressionNames,
   listMovementNames,
   TECHNIQUES,
+  judgeAnswer,
+  realizesChord,
 } from './practice-exercise.js';
+import movementsLibrary from './data/movements-library.json' with { type: 'json' };
+import { getVoicingLabVoicings } from './voicing-engine/voicinglab-availability.js';
 import { generateCopilotVoicing } from './pedagogie/copilot-voicing.js';
 import { parseChordSymbol } from './pedagogie/chord-parser-v2.js';
 import { detectChord } from './chord-engine/index.js';
@@ -838,6 +842,193 @@ function checkAutoTag() {
   check('Retour en Auto : technique auto et voicing shell', ex.getState().technique === 'auto' && ex.getState().target.voicing.technique === 'shell');
 }
 
+// [Claude] — 2026-09-24 — Mouvements : « II-V-I altéré en mineur » et « Cycle de
+// tierces majeures » étaient remplacés en silence par un autre mouvement.
+function movementChords(name, { key = 0, difficulty = 3, technique = 'auto' } = {}) {
+  const ex = createPracticeExercise();
+  ex.setMode('movement');
+  ex.setTechnique(technique);
+  ex.setDifficulty(difficulty);
+  ex.setKeyChoice(key);
+  ex.setContentChoice(name);
+  return ex.getState().progression;
+}
+
+function checkMovementLibraryComplete() {
+  console.log('\n=== Mouvements : bibliothèque complète, 12 tons × 5 niveaux ===');
+  const failures = [];
+  for (const movement of movementsLibrary.movements) {
+    const size = movement.pattern.split('-').length;
+    for (let difficulty = 1; difficulty <= 5; difficulty += 1) {
+      for (let key = 0; key < 12; key += 1) {
+        const prog = movementChords(movement.name, { key, difficulty });
+        if (prog.name !== movement.name || prog.chords.length !== size || prog.notice) {
+          failures.push(`${movement.name} niveau ${difficulty} ton ${key} → ${prog.name} (${prog.chords.length}/${size})`);
+        }
+      }
+    }
+  }
+  check('Chaque mouvement choisi est construit tel quel (aucun remplacement)', failures.length === 0, failures.slice(0, 3).join(' ; '));
+
+  const minor = movementChords('II-V-I altéré en mineur', { difficulty: 2 });
+  check('II-V-I altéré en mineur (Do) : Dm7b5 G7#9b13 CmMaj7', minor.chords.map((c) => c.name).join(' ') === 'Dm7b5 G7#9b13 CmMaj7',
+    minor.chords.map((c) => c.name).join(' '));
+  check('II-V-I altéré en mineur : V sur Sol (pas Solb), tonalité C mineur',
+    minor.chords[1].rootPc === 7 && minor.minor === true, `V=${minor.chords[1].rootPc}`);
+  const minor5 = movementChords('II-V-I altéré en mineur', { difficulty: 5, key: 9 });
+  check('II-V-I altéré en mineur (La, niveau 5) : Bm7b5 E7#9b13 AmMaj7', minor5.chords.map((c) => c.name).join(' ') === 'Bm7b5 E7#9b13 AmMaj7',
+    minor5.chords.map((c) => c.name).join(' '));
+  const coltrane = movementChords('Cycle de tierces majeures');
+  check('Cycle de tierces majeures (Do) : Cmaj7 Eb7 Abmaj7 B7 Emaj7 G7 Cmaj7',
+    coltrane.chords.map((c) => c.name).join(' ') === 'Cmaj7 Eb7 Abmaj7 B7 Emaj7 G7 Cmaj7', coltrane.chords.map((c) => c.name).join(' '));
+  const tritone = movementChords('Tritone substitution V7');
+  check('Tritone substitution V7 (Do) : Dm7 Db7 Cmaj7', tritone.chords.map((c) => c.name).join(' ') === 'Dm7 Db7 Cmaj7',
+    tritone.chords.map((c) => c.name).join(' '));
+  const secondary = movementChords('V/V vers I');
+  check('V/V vers I (Do) : Cmaj7 D7 G7 Cmaj7', secondary.chords.map((c) => c.name).join(' ') === 'Cmaj7 D7 G7 Cmaj7',
+    secondary.chords.map((c) => c.name).join(' '));
+}
+
+function checkMovementReplacementNotice() {
+  console.log('\n=== Mouvement impossible : remplacement annoncé ===');
+  const broken = { id: 'test-broken', category: 'Test', name: 'Mouvement de test impossible', pattern: '2-5-1b7', level: 1, description: '' };
+  movementsLibrary.movements.push(broken);
+  try {
+    const prog = movementChords(broken.name, { key: 0, difficulty: 1 });
+    check('Mouvement impossible : un autre mouvement complet est proposé',
+      prog.name !== broken.name && prog.chords.length === prog.pattern.split('-').length, prog.name);
+    check('Mouvement impossible : le remplacement est annoncé (nom, accord fautif, remplaçant)',
+      Boolean(prog.notice) && prog.notice.includes(broken.name) && prog.notice.includes('Cb7') && prog.notice.includes(prog.name), prog.notice);
+  } finally {
+    movementsLibrary.movements.splice(movementsLibrary.movements.indexOf(broken), 1);
+  }
+  check('Mouvement constructible : aucun avertissement', movementChords('Cadence II-V-I majeur').notice === null);
+}
+
+// [Claude] — 2026-09-24 — Drop 3 trop aigus (VoicingLab transpose Do vers le haut).
+function checkDrop3Register() {
+  console.log('\n=== Drop 3 : registre jouable ===');
+  const ex = createPracticeExercise();
+  ex.setTechnique('drop3');
+  let total = 0; let tooHigh = 0; let notOctave = 0; let movedInC = 0;
+  for (const group of TARGET_QUALITY_GROUPS) {
+    for (const quality of group.qualities) {
+      for (let root = 0; root < 12; root += 1) {
+        const raw = getVoicingLabVoicings(root, quality, 'drop3');
+        ex.setTargetChoice(root, quality);
+        const count = ex.getState().target?.voicing?.technique === 'drop3' ? ex.getState().target.voicing.variantCount : 0;
+        for (let i = 0; i < count; i += 1) {
+          const v = ex.getState().target.voicing;
+          const all = [...v.leftHand, ...v.rightHand];
+          total += 1;
+          if ((Math.min(...all) + Math.max(...all)) / 2 > 72) tooHigh += 1;
+          // Même voicing VoicingLab à l'octave près : écarts identiques, décalage multiple de 12.
+          const shift = v.octaveShift ?? 0;
+          const back = `${v.leftHand.map((n) => n - shift)}|${v.rightHand.map((n) => n - shift)}`;
+          if (shift % 12 !== 0 || !raw.some((r) => `${r.lh}|${r.rh}` === back)) notOctave += 1;
+          if (root === 0 && ['maj7', 'm7', '7', 'm7b5', 'dim7', 'mMaj7', '6', 'm6'].includes(quality) && shift !== 0) movedInC += 1;
+          ex.setVariant(1);
+        }
+      }
+    }
+  }
+  check('Drop 3 : milieu du voicing au plus Do5 (C5)', total > 1000 && tooHigh === 0, `${tooHigh}/${total}`);
+  check('Drop 3 : même voicing VoicingLab, seule l\'octave change', notOctave === 0, `${notOctave}/${total}`);
+  check('Drop 3 : accords de 4 sons en Do inchangés (registre de référence VoicingLab)', movedInC === 0, `${movedInC}`);
+  ex.setTargetChoice(11, 'maj7');
+  ex.setVariant(2);
+  const b = ex.getState().target.voicing;
+  check('Bmaj7 Drop 3 : B3 | A#4 D#5 F#5 (au lieu de B4 | A#5 D#6 F#6)', b.leftHand.join() === '59' && b.rightHand.join() === '70,75,78',
+    `${b.leftHand} | ${b.rightHand}`);
+  check('Info-bulle de la variante : « une octave plus bas que VoicingLab »', b.variantLabel.includes('une octave plus bas que VoicingLab'), b.variantLabel);
+  ex.setTargetChoice(0, '9');
+  ex.setVariant(1);
+  const c9 = ex.getState().target.voicing;
+  check('C9 Drop 3 : C4 D4 | E5 A#5 (au lieu de C5 D5 | E6 A#6)', c9.leftHand.join() === '60,62' && c9.rightHand.join() === '76,82',
+    `${c9.leftHand} | ${c9.rightHand}`);
+  ex.setTargetChoice(0, 'maj7');
+  check('Cmaj7 Drop 3 : E3 | C4 G4 B4 inchangé', ex.getState().target.voicing.leftHand.join() === '52' && !ex.getState().target.voicing.octaveShift);
+}
+
+// [Claude] — 2026-09-24 — Réponse jugée sur l'accord annoncé, pas sur la lecture
+// du voicing affiché (Shell de C6 = Do Mi La, lu « Am » par detectChord).
+function checkValidationAgainstAnnouncedChord() {
+  console.log('\n=== Validation : accord annoncé, pas lecture du voicing affiché ===');
+  const ex = createPracticeExercise();
+  ex.setTechnique('shell');
+  ex.setTargetChoice(0, '6');
+  const c6 = ex.getState().target;
+  const attempts = ex.getState().attempts;
+  check('C6 shell affiché C3 E3 A3 (lu « Am » par le détecteur)', c6.notes.join() === '48,52,57' && detectChord(c6.notes).symbol === 'm');
+  check('C6 : Do Mi Sol La (vrai C6) accepté', ex.isCorrect([48, 52, 55, 57]));
+  check('C6 : le voicing affiché accepté', ex.isCorrect([60, 64, 69]));
+  check('C6 : La Do Mi (La mineur) refusé', !ex.isCorrect([57, 60, 64]));
+  check('isCorrect ne compte pas d\'essai', ex.getState().attempts === attempts);
+  const wrong = ex.check([57, 60, 64]);
+  check('C6 : message « Vous avez joué Am. Cible : C6 »', !wrong.success && wrong.message.includes('Am') && wrong.message.includes('C6'), wrong.message);
+
+  ex.setTechnique('rootless');
+  ex.setTargetChoice(0, 'maj7');
+  check('Cmaj7 rootless affiché E3 G3 B3 D4 (lu « Em7 »)', ex.getState().target.notes.join() === '52,55,59,62');
+  check('Cmaj7 : Do Mi Sol Si accepté', ex.isCorrect([48, 52, 55, 59]));
+  check('Cmaj7 : Mi Sol Si (Mi mineur, 3 notes sans fondamentale) refusé', !ex.isCorrect([52, 55, 59]));
+  check('Cmaj7 : Mi Sol Si Ré à une autre octave accepté', ex.isCorrect([64, 67, 71, 74]));
+
+  ex.setTechnique('close');
+  ex.setTargetChoice(0, '7');
+  check('C7 close sans 9e : C9 refusé (9e étrangère)', !ex.isCorrect([48, 52, 55, 58, 62]));
+  check('C7 : shell Do Mi Sib accepté', ex.isCorrect([48, 52, 58]));
+  check('C7 : premier renversement (Mi à la basse) accepté', ex.isCorrect([52, 55, 58, 60]));
+  check('C7 : Do Mi Sol La (C6) refusé', !ex.isCorrect([48, 52, 55, 57]));
+  ex.setTargetChoice(0, '9');
+  check('C9 : C7 sans 9e refusé', !ex.isCorrect([48, 52, 55, 58]));
+  check('C9 : rootless Mi Sib Ré Sol accepté', ex.isCorrect([52, 58, 62, 67]));
+
+  check('realizesChord : Fmaj7#11 exige la #11', realizesChord([53, 57, 60, 64, 71], 5, 'maj7#11') && !realizesChord([53, 57, 60, 64], 5, 'maj7#11'));
+  check('realizesChord : G7alt accepte b9 et b13', realizesChord([43, 47, 53, 56, 63], 7, '7alt'));
+  check('judgeAnswer : cible absente → refus', judgeAnswer([60, 64, 67], null).success === false);
+
+  // Progression : même principe à chaque étape (II-V-I en Do, voicings rootless).
+  const prog = createPracticeExercise();
+  prog.setMode('progression');
+  prog.setDifficulty(1);
+  prog.setKeyChoice(0);
+  prog.setContentChoice('II-V-I majeur');
+  prog.setTechnique('rootless');
+  const shownDm7 = prog.getState().target;
+  check('Progression : Dm7 rootless affiché sans Ré', shownDm7.name === 'Dm7' && !shownDm7.notes.some((n) => n % 12 === 2), shownDm7.notes.join());
+  check('Progression : Ré Fa La Do accepté pour Dm7', prog.check([50, 53, 57, 60]).success);
+  check('Progression : étape suivante G7, Sol Si Ré Fa accepté', prog.getState().target.name === 'G7' && prog.isCorrect([55, 59, 62, 65]));
+}
+
+// [Claude] — 2026-09-24 — Progression tapée en symboles : la qualité venait du
+// nom Tonal (« major seventh ») → aucun voicing → progression remplacée en silence.
+function checkTypedCustomProgression() {
+  console.log('\n=== Progression personnalisée tapée en symboles ===');
+  const typed = (input) => {
+    const ex = createPracticeExercise();
+    ex.setMode('progression');
+    ex.setCustomProgression(input);
+    return ex;
+  };
+  const basic = typed('Dm7 G7 Cmaj7');
+  const prog = basic.getState().progression;
+  check('« Dm7 G7 Cmaj7 » construite telle quelle', prog.name === 'Progression personnalisée'
+    && prog.chords.map((c) => `${c.name}:${c.symbol}`).join(' ') === 'Dm7:m7 G7:7 Cmaj7:maj7' && !prog.notice,
+    `${prog.name} ${prog.chords.map((c) => `${c.name}:${c.symbol}`).join(' ')}`);
+  check('Progression tapée : Ré Fa La Do validé sur Dm7', basic.check([50, 53, 57, 60]).success);
+  const notations = typed('Bbmaj7 F#m7b5 CM7 C-7 Cø7 C°7 CmM7 C69').getState().progression;
+  check('Notations reconnues (Bbmaj7 F#m7b5 CM7 C-7 Cø7 C°7 CmM7 C69)',
+    notations.chords.map((c) => c.symbol).join(' ') === 'maj7 m7b5 maj7 m7 m7b5 dim7 mMaj7 6/9' && !notations.notice,
+    notations.chords.map((c) => c.symbol).join(' '));
+  const partial = typed('Dm7 C Xyz G7/B G7').getState().progression;
+  check('Accords impossibles ignorés, pas en silence (triade, inconnu, basse séparée)',
+    partial.chords.map((c) => c.name).join(' ') === 'Dm7 G7' && ['C,', 'Xyz', 'G7/B'].every((s) => partial.notice?.includes(s)), partial.notice);
+  const none = typed('D F G A').getState().progression;
+  check('Aucun accord jouable : autre progression proposée ET annoncée',
+    none.name !== 'Progression personnalisée' && none.notice?.includes('Progression personnalisée impossible') && none.notice.includes(`« ${none.name} »`), none.notice);
+}
+
 async function runTests() {
   checkChordTargetHasVoicing();
   checkSpecificChords();
@@ -869,6 +1060,11 @@ async function runTests() {
   checkFavorites();
   checkFaithfulTechniques();
   checkKeySpelling();
+  checkMovementLibraryComplete();
+  checkMovementReplacementNotice();
+  checkDrop3Register();
+  checkValidationAgainstAnnouncedChord();
+  checkTypedCustomProgression();
   await checkAllVoicingLabReachable();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);
