@@ -35,22 +35,35 @@ function getNoteProps(midi, latin = false) {
   return { midi, name, octave, alt: isBlackKey(midi) };
 }
 
-function whiteKeyTemplate(props, posX, color) {
+function whiteKeyTemplate(props, posX, color, whiteHeight = NOTE_WHITE_HEIGHT) {
   const name = `${props.name}${props.octave}`;
   return `\
 <g id="note-${props.midi}" class="note white" data-midi="${props.midi}" transform="translate(${posX},0)" style="color: ${color};">
-  <rect class="piano-key" width="${NOTE_WHITE_WIDTH}" height="${NOTE_WHITE_HEIGHT + NOTE_RADIUS}" x="0" y="${-NOTE_RADIUS}" rx="${NOTE_RADIUS}" ry="${NOTE_RADIUS}"></rect>
-  <circle class="piano-tonic" cx="${NOTE_WHITE_WIDTH / 2}" cy="${NOTE_WHITE_HEIGHT - NOTE_TONIC_BOTTOM_OFFSET}" r="${NOTE_TONIC_RADIUS}"></circle>
-  <text class="piano-key-name" x="${NOTE_WHITE_WIDTH / 2}" y="${NOTE_WHITE_HEIGHT - NOTE_NAME_BOTTOM_OFFSET}" text-anchor="middle">${name}</text>
+  <rect class="piano-key" width="${NOTE_WHITE_WIDTH}" height="${whiteHeight + NOTE_RADIUS}" x="0" y="${-NOTE_RADIUS}" rx="${NOTE_RADIUS}" ry="${NOTE_RADIUS}"></rect>
+  <circle class="piano-tonic" cx="${NOTE_WHITE_WIDTH / 2}" cy="${whiteHeight - NOTE_TONIC_BOTTOM_OFFSET}" r="${NOTE_TONIC_RADIUS}"></circle>
+  <text class="piano-key-name" x="${NOTE_WHITE_WIDTH / 2}" y="${whiteHeight - NOTE_NAME_BOTTOM_OFFSET}" text-anchor="middle">${name}</text>
 </g>`;
 }
 
-function blackKeyTemplate(props, posX, color) {
+function blackKeyTemplate(props, posX, color, blackHeight = NOTE_BLACK_HEIGHT) {
   return `\
 <g id="note-${props.midi}" class="note black" data-midi="${props.midi}" transform="translate(${posX - NOTE_BLACK_WIDTH / 2},0)" style="color: ${color};">
-  <rect class="piano-key" width="${NOTE_BLACK_WIDTH}" height="${NOTE_BLACK_HEIGHT + NOTE_RADIUS}" x="0" y="${-NOTE_RADIUS}" rx="${NOTE_RADIUS}" ry="${NOTE_RADIUS}"></rect>
-  <circle class="piano-tonic" cx="${NOTE_BLACK_WIDTH / 2}" cy="${NOTE_BLACK_HEIGHT - NOTE_TONIC_BOTTOM_OFFSET}" r="${NOTE_TONIC_RADIUS}"></circle>
+  <rect class="piano-key" width="${NOTE_BLACK_WIDTH}" height="${blackHeight + NOTE_RADIUS}" x="0" y="${-NOTE_RADIUS}" rx="${NOTE_RADIUS}" ry="${NOTE_RADIUS}"></rect>
+  <circle class="piano-tonic" cx="${NOTE_BLACK_WIDTH / 2}" cy="${blackHeight - NOTE_TONIC_BOTTOM_OFFSET}" r="${NOTE_TONIC_RADIUS}"></circle>
 </g>`;
+}
+
+// Hauteur des touches blanches (unités du viewBox) : on épouse le rapport
+// largeur / hauteur de la zone pour que le clavier la remplisse entièrement.
+// Avant, la hauteur fixe (150) laissait un vide au-dessus d'un clavier agrandi
+// et faisait rétrécir en largeur un clavier réduit. Seule borne : un minimum,
+// pour que le nom de note et la pastille restent lisibles ; la hauteur maximale
+// est celle que l'utilisateur choisit avec la poignée.
+const MIN_WHITE_HEIGHT = 30;
+
+export function fittedWhiteKeyHeight(viewBoxWidth, containerWidth, containerHeight) {
+  if (!(containerWidth > 0) || !(containerHeight > 0)) return NOTE_WHITE_HEIGHT;
+  return Math.max(MIN_WHITE_HEIGHT, Math.round(viewBoxWidth * (containerHeight / containerWidth)));
 }
 
 function range(start, end) {
@@ -81,6 +94,10 @@ export function generateKeyboard(
   const start = Math.min(startMidi, endMidi);
   const end = Math.max(startMidi, endMidi);
 
+  const whiteCount = range(start, end).filter((midi) => !isBlackKey(midi)).length;
+  const whiteHeight = fittedWhiteKeyHeight(whiteCount * NOTE_WHITE_WIDTH, containerWidth, containerHeight);
+  const blackHeight = Math.round(whiteHeight * (NOTE_BLACK_HEIGHT / NOTE_WHITE_HEIGHT));
+
   const keyboardNotes = range(start, end).reduce(
     (keyboard, midi) => {
       const props = getNoteProps(midi, latin);
@@ -88,16 +105,16 @@ export function generateKeyboard(
         return {
           width: keyboard.width,
           height: keyboard.height,
-          markup: keyboard.markup + blackKeyTemplate(props, keyboard.width, colorNoteBlack),
+          markup: keyboard.markup + blackKeyTemplate(props, keyboard.width, colorNoteBlack, blackHeight),
         };
       }
       return {
         width: keyboard.width + NOTE_WHITE_WIDTH,
         height: keyboard.height,
-        markup: whiteKeyTemplate(props, keyboard.width, colorNoteWhite) + keyboard.markup,
+        markup: whiteKeyTemplate(props, keyboard.width, colorNoteWhite, whiteHeight) + keyboard.markup,
       };
     },
-    { width: 0, height: NOTE_WHITE_HEIGHT, markup: '' },
+    { width: 0, height: whiteHeight, markup: '' },
   );
 
   return `\

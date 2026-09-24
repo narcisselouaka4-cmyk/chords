@@ -258,7 +258,9 @@ let keyboardResizeObserver = null;
 function renderKeyboardAtCurrentSize() {
   const rect = els.keyboard.getBoundingClientRect();
   const width = Math.max(rect.width, 100);
-  const height = Math.max(rect.height, 60);
+  // Pas de plancher ici : generateKeyboard borne déjà la hauteur des touches.
+  // L'ancien plancher (60 px) faisait rétrécir en largeur un clavier réduit.
+  const height = Math.max(rect.height, 1);
 
   els.keyboard.innerHTML = generateKeyboard(
     state.noteStart,
@@ -1081,16 +1083,11 @@ function initHistory() {
 // nouvelle : en mode « Accord cible » ou hors exercice, pas de degré à
 // afficher, donc le badge reste masqué plutôt que rempli d'une valeur inventée.
 function updateExerciseProgressUI(exState) {
+  // Rien à côté du titre du sous-onglet « Exercices » (demande de Narcisse) :
+  // le mode et l'avancement sont déjà affichés dans la vue.
   if (els.exerciseCollapsedProgress) {
-    let progressText = '';
-    if (exState.mode === 'progression' && exState.progression) {
-      const total = exState.progression.chords.length;
-      progressText = `${exState.progression.name} · ${exState.stepIndex + 1}/${total}`;
-    } else if (exState.target) {
-      progressText = 'Accord cible';
-    }
-    els.exerciseCollapsedProgress.textContent = progressText;
-    els.exerciseCollapsedProgress.style.display = progressText ? '' : 'none';
+    els.exerciseCollapsedProgress.textContent = '';
+    els.exerciseCollapsedProgress.style.display = 'none';
   }
 
   if (els.exerciseDegreeBadge) {
