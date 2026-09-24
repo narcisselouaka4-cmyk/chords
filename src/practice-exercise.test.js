@@ -7,6 +7,7 @@ import {
   getAvailableTechniques,
   findVoicingsByTopNote,
   findChordsByTopNote,
+  TOP_NOTE_FILTERS,
   renderExerciseTarget,
   renderTopNoteBrowser,
   TARGET_QUALITY_GROUPS,
@@ -534,12 +535,10 @@ function checkTopNoteBrowser() {
     simple.length < all.length && simple.every((r) => r.voicings.every((v) => v.difficulty <= 2)));
   const allQualities = TARGET_QUALITY_GROUPS.flatMap((g) => g.qualities);
   check('48 qualités dans les familles', allQualities.length === 48 && new Set(allQualities).size === 48);
-  const minor = findChordsByTopNote(9, { family: 'minor' });
-  const html = renderTopNoteBrowser(minor, { topPc: 9 });
-  check('Filtre Mineurs : seule la famille Mineurs est listée',
-    minor.length > 0 && minor.every((r) => r.group === 'minor') && html.includes('>Mineurs</li>') && !html.includes('>Majeurs</li>'));
+  const html = renderTopNoteBrowser(all, { topPc: 9 });
+  check('Liste groupée par famille', html.includes('>Mineurs</li>') && html.includes('>Majeurs</li>'));
   check('Liste épurée : un bouton par accord, pas de puce par voicing',
-    (html.match(/data-browse-root=/g) || []).length === minor.length && !html.includes('data-browse-index'));
+    (html.match(/data-browse-root=/g) || []).length === all.length && !html.includes('data-browse-index'));
 }
 
 // [Claude] — 2026-09-23 — Régression signalée par Narcisse : après un clic sur
@@ -627,24 +626,15 @@ function checkClusterLeftHand() {
 // Narcisse : trier les voicings, pas choisir à sa place).
 function checkTopNoteFilters() {
   console.log('\n=== Note du dessus : filtres ===');
-  const all = findVoicingsByTopNote(5, 'maj7', 9);
-  const oct5 = findVoicingsByTopNote(5, 'maj7', 9, { octave: '5' });
-  check('Octave 5 : sous-ensemble, note du dessus en octave 5',
-    oct5.length > 0 && oct5.length < all.length && oct5.every((v) => Math.floor(v.topMidi / 12) - 1 === 5));
   const two = findVoicingsByTopNote(5, 'maj7', 9, { hands: 'two' });
   check('Deux mains : main gauche et main droite non vides', two.length > 0 && two.every((v) => v.lh.length && v.rh.length));
-  const rootless = findVoicingsByTopNote(0, '7', 4, { root: 'without' });
-  check('Sans fondamentale : aucun C dans le voicing', rootless.length > 0 && rootless.every((v) => [...v.lh, ...v.rh].every((n) => n % 12 !== 0)));
   const drop2 = findVoicingsByTopNote(5, 'maj7', 9, { technique: 'drop2' });
   check('Technique Drop 2 seule', drop2.length > 0 && drop2.every((v) => v.technique === 'drop2'));
-  const big = findVoicingsByTopNote(0, '13', 9, { size: '5' });
-  check('5 notes ou plus', big.every((v) => v.lh.length + v.rh.length >= 5));
 
   // La carte et le navigateur appliquent les mêmes filtres : même index.
   const ex = createPracticeExercise();
   ex.setTargetChoice(5, 'maj7');
   ex.setTopNote(9);
-  ex.setTopNoteFilter('octave', '5');
   ex.setTopNoteFilter('hands', 'two');
   const target = ex.getState().target;
   const browsed = findChordsByTopNote(9, { ...ex.getState().topNote })
@@ -652,7 +642,7 @@ function checkTopNoteFilters() {
   check('Carte et navigateur : mêmes voicings filtrés',
     browsed && browsed.voicings.length === target.voicing.topNoteSuggestions.length, `${browsed?.voicings.length} / ${target.voicing.topNoteSuggestions.length}`);
   check('Carte filtrée : voicing affiché conforme aux filtres',
-    Math.floor(target.voicing.topNote.midi / 12) - 1 === 5 && target.voicing.leftHand.length > 0 && target.voicing.rightHand.length > 0);
+    target.voicing.leftHand.length > 0 && target.voicing.rightHand.length > 0);
   const inC = findChordsByTopNote(9, { key: '0' }).map((r) => r.name);
   check('Tonalité C : G13, Dm11, Fmaj7#11 présents ; G7b9, Bm11, Ebmaj7#11 exclus',
     ['G13', 'Dm11', 'Fmaj7#11'].every((n) => inC.includes(n)) && !['G7b9', 'Bm11', 'D#maj7#11'].some((n) => inC.includes(n)), inC.join(' '));
@@ -662,8 +652,10 @@ function checkTopNoteFilters() {
       .every((v) => [...v.lh, ...v.rh].every((n) => cScale.has(n % 12)))));
   const ofC = findChordsByTopNote(9, { chordRoot: '0' });
   check('Accords de C : seulement des fondamentales C', ofC.length > 0 && ofC.every((r) => r.rootPc === 0));
-  ex.setTopNoteFilter('octave', 'bogus');
-  check('Valeur de filtre invalide ignorée', ex.getState().topNote.octave === '5');
+  ex.setTopNoteFilter('hands', 'bogus');
+  check('Valeur de filtre invalide ignorée', ex.getState().topNote.hands === 'two');
+  ex.setTopNoteFilter('octave', '5');
+  check('Filtres retirés (octave, famille, taille, fondamentale) refusés', !('octave' in ex.getState().topNote) && !TOP_NOTE_FILTERS.size && !TOP_NOTE_FILTERS.family && !TOP_NOTE_FILTERS.root);
 }
 
 // [Claude] — 2026-09-24 — Favoris : le voicing exact revient sans refaire les filtres.
@@ -673,7 +665,7 @@ function checkFavorites() {
   const storage = { getItem: (k) => memory.get(k) ?? null, setItem: (k, v) => memory.set(k, String(v)) };
   const ex = createPracticeExercise();
   ex.setTopNote(9);
-  ex.setTopNoteFilter('octave', '5');
+  ex.setTopNoteFilter('hands', 'two');
   ex.setTargetChoice(5, 'maj7');
   ex.setDoubling('bass');
   const shown = ex.getState().target;

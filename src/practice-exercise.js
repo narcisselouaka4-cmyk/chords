@@ -533,13 +533,9 @@ const TOP_NOTE_EXCLUDED_TECHNIQUES = new Set(['shell', 'two_note_shell', 'stride
 // pas. 'all' = pas de filtre. Les mêmes filtres servent à la carte et au
 // navigateur, pour que l'index d'un voicing soit le même des deux côtés.
 export const TOP_NOTE_FILTERS = {
-  octave: ['all', '4', '5', '6'],
   hands: ['all', 'one', 'two'],
-  size: ['all', '3', '4', '5'],
-  root: ['all', 'with', 'without'],
   technique: ['all', ...TECHNIQUES.filter((t) => t !== 'auto' && !TOP_NOTE_EXCLUDED_TECHNIQUES.has(t))],
-  // Navigateur seulement (la carte a déjà son accord) : famille et fondamentale de l'accord.
-  family: ['all', ...TARGET_QUALITY_GROUPS.map((g) => g.id)],
+  // Navigateur seulement (la carte a déjà son accord) : fondamentale de l'accord.
   chordRoot: ['all', ...Array.from({ length: 12 }, (_, i) => String(i))],
   // Tonalité majeure : voicings dont toutes les notes sont dans sa gamme.
   key: ['all', ...Array.from({ length: 12 }, (_, i) => String(i))],
@@ -569,8 +565,8 @@ export function chordCoreIntervals(quality) {
   return out;
 }
 
-/** Vrai si le voicing passe les filtres (octave de la note du dessus, mains, nombre de notes, fondamentale, tonalité). */
-function passesTopNoteFilters(v, rootPc, quality, top, { octave = 'all', hands = 'all', size = 'all', root = 'all', key = 'all' } = {}) {
+/** Vrai si le voicing passe les filtres (mains, tonalité). */
+function passesTopNoteFilters(v, rootPc, quality, { hands = 'all', key = 'all' } = {}) {
   const all = [...v.lh, ...v.rh];
   if (key !== 'all') {
     // Voicing par voicing : un cluster ♯11/♭13 de G13 sort de Do majeur, pas G13 entier.
@@ -581,15 +577,7 @@ function passesTopNoteFilters(v, rootPc, quality, top, { octave = 'all', hands =
     if (!core.every((pc) => scale.has(pc))) return false;
     if (!all.every((n) => scale.has(((n % 12) + 12) % 12))) return false;
   }
-  if (octave !== 'all' && Math.floor(top / 12) - 1 !== Number(octave)) return false;
   if (hands !== 'all' && (v.lh.length > 0 && v.rh.length > 0 ? 'two' : 'one') !== hands) return false;
-  // '3' = 3 notes ou moins, '5' = 5 notes ou plus.
-  if (size === '3' && all.length > 3) return false;
-  if (size === '4' && all.length !== 4) return false;
-  if (size === '5' && all.length < 5) return false;
-  const hasRoot = all.some((n) => ((n % 12) + 12) % 12 === rootPc);
-  if (root === 'with' && !hasRoot) return false;
-  if (root === 'without' && hasRoot) return false;
   return true;
 }
 
@@ -603,9 +591,9 @@ function passesTopNoteFilters(v, rootPc, quality, top, { octave = 'all', hands =
  * @param {number} rootPc
  * @param {string} quality
  * @param {number} topPc - pitch class de la note du dessus (0–11)
- * @param {{ level?: keyof TOP_NOTE_LEVELS, technique?: string, octave?: string, hands?: string, size?: string, root?: string }} [options]
+ * @param {{ level?: keyof TOP_NOTE_LEVELS, technique?: string, hands?: string, key?: string }} [options]
  *   technique : 'auto' ou 'all' = toutes les techniques, sinon uniquement celle-ci ;
- *   octave / hands / size / root : voir TOP_NOTE_FILTERS
+ *   hands / key : voir TOP_NOTE_FILTERS
  */
 export function findVoicingsByTopNote(rootPc, quality, topPc, { level = 'all', technique = 'auto', ...filters } = {}) {
   const range = TOP_NOTE_LEVELS[level] || TOP_NOTE_LEVELS.all;
@@ -621,7 +609,7 @@ export function findVoicingsByTopNote(rootPc, quality, topPc, { level = 'all', t
       const difficulty = Math.min(5, Math.max(1, v.difficulty));
       if (((top % 12) + 12) % 12 !== topPc) continue;
       if (difficulty < range.min || difficulty > range.max) continue;
-      if (!passesTopNoteFilters(v, rootPc, quality, top, filters)) continue;
+      if (!passesTopNoteFilters(v, rootPc, quality, filters)) continue;
       // Mêmes notes mais mains différentes (ex. Spread F3 | C4 E4 A4 et Open
       // F3 C4 | E4 A4) = deux façons de jouer : on garde les deux.
       const key = `${v.lh.join(',')}|${v.rh.join(',')}`;
@@ -651,10 +639,9 @@ const TECHNIQUE_SHORT_LABELS = {
  * @returns {{group: string, groupLabel: string, rootPc: number, quality: string, name: string, derived: boolean,
  *   voicings: {index: number, technique: string, shortLabel: string, difficulty: number, derived: boolean, description: string}[]}[]}
  */
-export function findChordsByTopNote(topPc, { chordRoot = 'all', family = 'all', ...options } = {}) {
+export function findChordsByTopNote(topPc, { chordRoot = 'all', ...options } = {}) {
   const out = [];
   for (const group of TARGET_QUALITY_GROUPS) {
-    if (family !== 'all' && group.id !== family) continue;
     for (const quality of group.qualities) {
       for (let rootPc = 0; rootPc < 12; rootPc += 1) {
         if (chordRoot !== 'all' && rootPc !== Number(chordRoot)) continue;
@@ -948,7 +935,7 @@ export function createPracticeExercise() {
     difficulty: 3,
     variant: 0,
     topNote: {
-      pc: null, level: 'all', octave: 'all', hands: 'all', size: 'all', root: 'all', technique: 'all',
+      pc: null, level: 'all', hands: 'all', technique: 'all',
       chordRoot: 'all', key: 'all',
     },
     // Doublures d'octave : 'none' | 'bass' | 'melody' | 'full'.

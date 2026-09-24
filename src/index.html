@@ -351,38 +351,20 @@
                 <span class="tr-eyebrow">FILTRES</span>
                 <p class="exercise-side-hint" id="exercise-topnote-filters-hint">Choisissez une top note pour filtrer les voicings.</p>
                 <div class="exercise-topnote-filters" id="exercise-topnote-filters" hidden>
-                  <!-- Tonalité, famille, fondamentale et techniques : remplies par main.js. -->
+                  <!-- Tonalité, fondamentale et techniques : remplies par main.js. -->
                   <select data-topnote-filter="key" aria-label="Tonalité : voicings dont toutes les notes sont dans la gamme"></select>
-                  <select data-topnote-filter="octave" aria-label="Octave de la top note">
-                    <option value="all">Toutes octaves</option>
-                    <option value="4">Octave 4</option>
-                    <option value="5">Octave 5</option>
-                    <option value="6">Octave 6</option>
-                  </select>
                   <select id="exercise-top-note-level" aria-label="Niveau des voicings suggérés" disabled>
                     <option value="all">Tous niveaux</option>
                     <option value="simple">Simple (★1–2)</option>
                     <option value="intermediate">Intermédiaire (★3)</option>
                     <option value="advanced">Avancé (★4–5)</option>
                   </select>
-                  <select data-topnote-filter="family" aria-label="Famille d'accords listée"></select>
                   <select data-topnote-filter="chordRoot" aria-label="Fondamentale des accords listés"></select>
                   <select data-topnote-filter="technique" aria-label="Technique de voicing"></select>
                   <select data-topnote-filter="hands" aria-label="Répartition des mains">
                     <option value="all">Une ou deux mains</option>
                     <option value="one">Une main</option>
                     <option value="two">Deux mains</option>
-                  </select>
-                  <select data-topnote-filter="size" aria-label="Nombre de notes">
-                    <option value="all">Toutes tailles</option>
-                    <option value="3">3 notes ou moins</option>
-                    <option value="4">4 notes</option>
-                    <option value="5">5 notes ou plus</option>
-                  </select>
-                  <select data-topnote-filter="root" aria-label="Fondamentale">
-                    <option value="all">Avec ou sans fondamentale</option>
-                    <option value="with">Avec fondamentale</option>
-                    <option value="without">Sans fondamentale</option>
                   </select>
                   <button type="button" class="exercise-topnote-reset" id="exercise-topnote-reset" hidden>Réinitialiser les filtres</button>
                 </div>

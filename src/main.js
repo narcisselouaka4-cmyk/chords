@@ -1853,11 +1853,6 @@ function initPracticeExercise() {
   // Tonalité majeure et son relatif mineur naturel (même gamme).
   fillNoteFilter('key', 'Toutes tonalités', (n, pc) => `Tonalité ${n} (${MINOR_NAMES[(pc + 9) % 12]})`);
   fillNoteFilter('chordRoot', 'Toutes fondamentales', (n) => `Accords de ${n}`);
-  const familyFilter = els.exerciseTopNoteFilters?.querySelector('[data-topnote-filter="family"]');
-  if (familyFilter) {
-    familyFilter.innerHTML = '<option value="all">Toutes familles</option>'
-      + TARGET_QUALITY_GROUPS.map((g) => `<option value="${g.id}">${g.label}</option>`).join('');
-  }
   const topNoteTechniqueFilter = els.exerciseTopNoteFilters?.querySelector('[data-topnote-filter="technique"]');
   if (topNoteTechniqueFilter) {
     topNoteTechniqueFilter.innerHTML = TOP_NOTE_FILTERS.technique
