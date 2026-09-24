@@ -10,7 +10,7 @@
 // notes réelles, variantes réelles (flèches), aucune génération mécanique.
 // [Claude] — 2026-09-24 — check() juge la réponse sur l'accord ANNONCÉ
 // (judgeAnswer), plus sur la lecture du voicing affiché par detectChord ; les
-// Drop 3 trop aigus sont descendus d'octave (withPlayableRegister).
+// voicings trop aigus, toutes familles, descendent d'octave (withPlayableRegister).
 
 import { detectChord } from './chord-engine/index.js';
 import { formatPc, noteName } from './chord-engine/naming.js';
@@ -455,27 +455,50 @@ function parseTypedChord(name) {
  * par le site. Aucun voicing n'est calculé ici : liste vide = technique indisponible.
  */
 function voicingLabVariantsFor(rootPc, quality, technique) {
+  // Registre d'abord : la main gauche ajoutée aux clusters se cale ensuite sous
+  // la main droite, là où elle a été placée.
   return familiesForTechnique(technique).flatMap((familyId) =>
-    getVoicingLabVoicings(rootPc, quality, familyId).map((v) => withPlayableRegister(withClusterLeftHand({ ...v, familyId }, rootPc, quality)))
+    getVoicingLabVoicings(rootPc, quality, familyId).map((v) => withClusterLeftHand(withPlayableRegister({ ...v, familyId }), rootPc, quality))
   ).filter((v) => isFaithfulVariant(v, rootPc, quality, technique));
 }
 
-// [Claude] — 2026-09-24 — Registre des Drop 3 (Narcisse : « registre trop aigu
-// de certains Drop 3 »). VoicingLab publie chaque ton en transposant Do vers le
-// haut (jusqu'à +11 demi-tons), et ses Drop 3 d'accords enrichis sont déjà très
-// aigus en Do (C9 : main gauche C5 D5, main droite E6 A#6). Le voicing entier
-// descend d'une octave tant que son milieu (entre la note la plus grave et la
-// plus aiguë) dépasse Do5 : classes de hauteur, écarts et mains inchangés, seul
-// le registre bouge. Les Drop 3 d'accords de 4 sons en Do, registre de référence
-// de VoicingLab, ne bougent pas.
-const DROP3_MAX_MIDPOINT = 72; // Do5
+// [Claude] — 2026-09-24 — Registre des voicings (Narcisse : « registre trop aigu
+// de certains Drop 3 », puis « étends la règle aux autres familles »). VoicingLab
+// publie chaque ton en transposant Do vers le haut (jusqu'à +11 demi-tons) : en
+// Si, un Drop 2 avait sa main gauche à D#5 et un Shell sa basse à B3 ; les Drop 3
+// d'accords enrichis sont même aigus en Do (C9 : main gauche C5 D5, main droite
+// E6 A#6). Le voicing entier descend d'une octave tant que son milieu (entre la
+// note la plus grave et la plus aiguë) dépasse le plafond de sa famille :
+// classes de hauteur, écarts et mains inchangés, seul le registre bouge.
+const REGISTER_CEILINGS = {
+  // Main gauche seule avec la basse (VoicingLab : hand = left) : milieu ≤ Do4,
+  // basse autour de Do2–Do3 (Shell de Gmaj7 : G2 B2 F#3, pas G3 B3 F#4). Les
+  // Stride publiés en Do avec la quinte à la basse descendent aussi
+  // (Cmaj7 : G3 E4 G4 B4 → G2 E3 G3 B3).
+  shell: 60,
+  twoNoteShell: 60,
+  stride: 60,
+  // Rootless, main gauche sans fondamentale : milieu ≤ Mi4, autour du Do central
+  // (Gmaj7 reste B3 D4 F#4 A4 ; à Do4 il tomberait à B2, trop grave).
+  rootlessA: 64,
+  rootlessB: 64,
+  // 4-way close : mélodie en main droite, que VoicingLab monte jusqu'à G#5 en Do
+  // (renversements B4 C5 E5 G5) : milieu ≤ Mi5 pour ne pas descendre ce registre.
+  fourWayClose: 76,
+};
+// Deux mains ou main droite (Drop 2/3/2-4, Close, Block, Spread, Open, Quartal,
+// So What, Upper structure, Cluster avant ajout de sa main gauche) : milieu
+// ≤ Do5. Parmi les voicings publiés en Do, seuls bougent des renversements trop
+// aigus d'accords enrichis (Drop 3 de C9 : C5 D5 | E6 A#6 → C4 D4 | E5 A#5).
+const DEFAULT_REGISTER_CEILING = 72;
 
 function withPlayableRegister(v) {
   const all = [...v.lh, ...v.rh];
-  if (v.familyId !== 'drop3' || all.length === 0) return v;
+  if (all.length === 0) return v;
+  const ceiling = REGISTER_CEILINGS[v.familyId] ?? DEFAULT_REGISTER_CEILING;
   const midpoint = (Math.min(...all) + Math.max(...all)) / 2;
   let shift = 0;
-  while (midpoint + shift > DROP3_MAX_MIDPOINT) shift -= 12;
+  while (midpoint + shift > ceiling) shift -= 12;
   if (shift === 0) return v;
   return { ...v, lh: v.lh.map((n) => n + shift), rh: v.rh.map((n) => n + shift), octaveShift: shift };
 }
@@ -904,18 +927,24 @@ export function findChordsByTopNote(topPc, { chordRoot = 'all', ...options } = {
 const AUTO_ORDER = ['shell', 'two_note_shell', 'close', 'fourway_close', 'drop2', 'rootless'];
 const AUTO_ORDER_BEGINNER = ['two_note_shell', 'shell', 'rootless', 'close', 'drop2'];
 
-/** Libellé lisible d'une variante (note droppée, triade d'upper structure…). */
+/**
+ * Libellé lisible d'une variante (note droppée, triade d'upper structure…),
+ * avec le registre quand il a été abaissé (withPlayableRegister).
+ */
 function describeVariant(technique, v) {
+  const lowered = v.octaveShift ? ` · ${v.octaveShift === -12 ? 'une octave' : `${-v.octaveShift / 12} octaves`} plus bas que VoicingLab` : '';
+  return `${variantShape(technique, v)}${lowered}`;
+}
+
+function variantShape(technique, v) {
   const lh = v.lh.map((n) => formatNoteNameWithOctave(n)).join(' ');
   const rhNames = v.rh.map((n) => formatNoteNameWithOctave(n)).join(' ');
   const intervals = v.intervals.split(' ');
   switch (technique) {
     case 'drop2':
     case 'drop3':
-    case 'drop2_4': {
-      const lowered = v.octaveShift ? ` · ${v.octaveShift === -12 ? 'une octave' : `${-v.octaveShift / 12} octaves`} plus bas que VoicingLab` : '';
-      return `Voix descendue${v.lh.length > 1 ? 's' : ''} : ${lh} (${intervals.slice(0, v.lh.length).join(', ')})${lowered}`;
-    }
+    case 'drop2_4':
+      return `Voix descendue${v.lh.length > 1 ? 's' : ''} : ${lh} (${intervals.slice(0, v.lh.length).join(', ')})`;
     case 'upper_structure': {
       const triad = triadName(v.rh);
       return triad ? `Triade ${triad} sur ${lh}` : `${rhNames} sur ${lh}`;

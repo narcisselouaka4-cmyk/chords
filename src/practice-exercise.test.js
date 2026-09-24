@@ -96,6 +96,11 @@ function checkSpecificChords() {
 function checkTechniqueSwitch() {
   const ex = createPracticeExercise();
   ex.next();
+  // [Claude] — 2026-09-24 — Depuis que les techniques infidèles sont barrées,
+  // 7#9b13, 13#11 et maj13#11 n'ont plus de Close (36 tirages sur 492) : le test
+  // échouait au hasard. On retire au sort jusqu'à un accord qui a un Close.
+  const hasClose = (t) => getAvailableTechniques(t.name).some((c) => c.id === 'close' && c.playable);
+  for (let i = 0; i < 50 && !hasClose(ex.getState().target); i += 1) ex.next();
   const firstTarget = ex.getState().target;
   const first = firstTarget.voicing.technique;
   // 'rootless' a été retiré du sélecteur de l'onglet Exercices (n'a de sens
@@ -604,7 +609,11 @@ function checkTopNoteBrowser() {
   const pcOf = (n) => ((n % 12) + 12) % 12;
   const all = findChordsByTopNote(9);
   check('La au sommet : plus de 150 accords', all.length > 150, String(all.length));
-  check('Fmaj7 présent avec 6 voicings fidèles', all.find((r) => r.name === 'Fmaj7')?.voicings.length === 6);
+  // 5 et non plus 6 depuis le recentrage de registre (2026-09-24) : le Drop 2
+  // F4 | C5 E5 A5 descend à F3 | C4 E4 A4, identique note pour note (et main
+  // pour main) à un Spread déjà listé, donc gardé une seule fois.
+  check('Fmaj7 présent avec 5 voicings fidèles', all.find((r) => r.name === 'Fmaj7')?.voicings.length === 5,
+    String(all.find((r) => r.name === 'Fmaj7')?.voicings.length));
   // L'index de chaque puce charge exactement ce voicing dans l'exercice.
   let coherent = true;
   for (const r of all.filter((_, i) => i % 17 === 0)) {
@@ -950,6 +959,70 @@ function checkDrop3Register() {
   check('Cmaj7 Drop 3 : E3 | C4 G4 B4 inchangé', ex.getState().target.voicing.leftHand.join() === '52' && !ex.getState().target.voicing.octaveShift);
 }
 
+// [Claude] — 2026-09-24 — Registre étendu à toutes les familles (VoicingLab
+// transpose Do vers le haut : en Si, Drop 2 avec la main gauche à D#5, Shell avec
+// la basse à B3). Plafond du milieu par technique, octaves seulement.
+const REGISTER_CEILING_BY_TECHNIQUE = {
+  shell: 60, two_note_shell: 60, stride: 60, rootless: 64, fourway_close: 76,
+};
+
+function checkRegisterAllFamilies() {
+  console.log('\n=== Registre : toutes les familles ===');
+  const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  const ex = createPracticeExercise();
+  let total = 0; let tooHigh = 0; let notOctave = 0; let overlap = 0; const movedInC = new Set();
+  for (const technique of TECHNIQUES.filter((t) => t !== 'auto')) {
+    const ceiling = REGISTER_CEILING_BY_TECHNIQUE[technique] ?? 72;
+    ex.setTechnique(technique);
+    for (const quality of TARGET_QUALITY_GROUPS.flatMap((g) => g.qualities)) {
+      for (let root = 0; root < 12; root += 1) {
+        const count = getAvailableTechniques(`${names[root]}${quality}`).find((c) => c.id === technique)?.count ?? 0;
+        if (count === 0) continue;
+        ex.setTargetChoice(root, quality);
+        for (let i = 0; i < count; i += 1) {
+          const v = ex.getState().target.voicing;
+          ex.setVariant(1);
+          if (v.technique !== technique) continue;
+          total += 1;
+          // Cluster : on juge le registre de la main droite VoicingLab, avant l'ajout de la main gauche.
+          const own = v.addedLH ? v.rightHand : [...v.leftHand, ...v.rightHand];
+          if ((Math.min(...own) + Math.max(...own)) / 2 > ceiling) tooHigh += 1;
+          if (v.leftHand.length && v.rightHand.length && Math.max(...v.leftHand) >= Math.min(...v.rightHand)) overlap += 1;
+          const shift = v.octaveShift ?? 0;
+          if (shift % 12 !== 0 || shift > 0) notOctave += 1;
+          if (root === 0 && shift !== 0) movedInC.add(technique);
+        }
+      }
+    }
+  }
+  check('Toutes familles : milieu sous le plafond de la technique', total > 7000 && tooHigh === 0, `${tooHigh}/${total}`);
+  check('Toutes familles : descente par octaves entières uniquement', notOctave === 0, String(notOctave));
+  check('Toutes familles : main gauche toujours sous la main droite', overlap === 0, String(overlap));
+  check('En Do, seuls Drop 3 (accords enrichis) et Stride (basse sur la quinte) bougent',
+    [...movedInC].every((t) => t === 'drop3' || t === 'stride'), [...movedInC].join(' '));
+
+  const shown = (root, quality, technique, variant = 0) => {
+    ex.setTechnique(technique);
+    ex.setTargetChoice(root, quality);
+    for (let i = 0; i < variant; i += 1) ex.setVariant(1);
+    return ex.getState().target.voicing;
+  };
+  const bMaj7 = shown(11, 'maj7', 'drop2', 2);
+  check('Bmaj7 Drop 2 : D#4 | A#4 B4 F#5 (au lieu de D#5 | A#5 B5 F#6)', bMaj7.leftHand.join() === '63' && bMaj7.rightHand.join() === '70,71,78', `${bMaj7.leftHand} | ${bMaj7.rightHand}`);
+  const shellB7 = shown(11, '7', 'shell');
+  check('Shell de B7 : B2 D#3 A3 (au lieu de B3 D#4 A4)', shellB7.leftHand.join() === '47,51,57', shellB7.leftHand.join());
+  check('Info-bulle : « une octave plus bas que VoicingLab » (Shell)', shellB7.variantLabel.includes('une octave plus bas que VoicingLab'), shellB7.variantLabel);
+  const rootlessG = shown(7, 'maj7', 'rootless');
+  check('Rootless de Gmaj7 inchangé : B3 D4 F#4 A4', rootlessG.leftHand.join() === '59,62,66,69' && !rootlessG.octaveShift, rootlessG.leftHand.join());
+  const strideC = shown(0, 'maj7', 'stride', 1);
+  check('Stride de Cmaj7 (quinte à la basse) : G2 E3 G3 B3', strideC.leftHand.join() === '43,52,55,59', strideC.leftHand.join());
+  const fourWayC = shown(0, 'maj7', 'fourway_close', 2);
+  check('4-way close de Cmaj7 inchangé : G4 B4 C5 E5', fourWayC.rightHand.join() === '67,71,72,76' && !fourWayC.octaveShift, fourWayC.rightHand.join());
+  const clusterB7 = shown(11, '7', 'cluster');
+  check('Cluster de B7 : main droite descendue, main gauche ajoutée dessous',
+    clusterB7.rightHand.join() === '63,65,66,67' && clusterB7.leftHand.join() === '47,57', `${clusterB7.leftHand} | ${clusterB7.rightHand}`);
+}
+
 // [Claude] — 2026-09-24 — Réponse jugée sur l'accord annoncé, pas sur la lecture
 // du voicing affiché (Shell de C6 = Do Mi La, lu « Am » par detectChord).
 function checkValidationAgainstAnnouncedChord() {
@@ -1063,6 +1136,7 @@ async function runTests() {
   checkMovementLibraryComplete();
   checkMovementReplacementNotice();
   checkDrop3Register();
+  checkRegisterAllFamilies();
   checkValidationAgainstAnnouncedChord();
   checkTypedCustomProgression();
   await checkAllVoicingLabReachable();
