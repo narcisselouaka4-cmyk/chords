@@ -317,6 +317,9 @@
               <div class="exercise-current-key" id="exercise-current-key" hidden></div>
               <div class="tr-key-counter" id="exercise-progress-counter" style="display: none;"></div>
               <div class="tr-key-progress-track" id="exercise-progress-track" style="display: none;"><span></span></div>
+              <!-- [Claude] — 2026-09-24 — Démo du mouvement (gospel / worship) dans la
+                   tonalité en cours, avec les voicings de l'exercice. -->
+              <button class="tr-button exercise-demo-btn" type="button" id="exercise-demo-btn" hidden title="Démo gospel / worship dans la tonalité en cours, avec les voicings de l'exercice"><svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg><span>Écouter le mouvement</span></button>
               <div class="exercise-key-strip" id="exercise-key-strip" role="group" aria-label="Tonalités du tour" hidden></div>
               <span class="tr-eyebrow exercise-chords-eyebrow" id="exercise-chords-eyebrow" hidden>ACCORDS</span>
               <div class="tr-progression-path" id="exercise-progress-path"></div>
@@ -1955,6 +1958,15 @@
           <span id="midi-status-text">Aucun</span>
           <span id="midi-port-count">(0)</span>
           <button id="midi-refresh" title="Rafraîchir les périphériques MIDI">↻</button>
+        </div>
+
+        <!-- [Claude] — 2026-09-24 — Sortie MIDI : la démo et « Écouter » jouent sur
+             le port choisi (VST), le piano intégré se tait. -->
+        <div class="footer-midi-out">
+          <label for="midi-output-select">Sortie :</label>
+          <select id="midi-output-select" title="Où jouent la démo et « Écouter » : piano intégré, ou un port MIDI (ton VST)">
+            <option value="">Piano intégré</option>
+          </select>
         </div>
 
         <div class="footer-right" id="status-bar"></div>

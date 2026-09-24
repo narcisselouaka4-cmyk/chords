@@ -144,6 +144,67 @@ function sendMidiLog(type, data) {
 
 let midiInputEnumerator = null;
 
+// [Claude] — 2026-09-24 — Sortie MIDI (voir midi:open-output).
+const VIRTUAL_OUTPUT_ID = 'virtual';
+const VIRTUAL_OUTPUT_NAME = 'Piano Jazz Chords';
+let midiOutput = null;
+
+function getMidiOutputs() {
+  if (nativeMidiFailed) return [];
+  let enumerator = null;
+  try {
+    enumerator = new midi.Output();
+    const outputs = [];
+    for (let i = 0; i < enumerator.getPortCount(); i += 1) {
+      const name = enumerator.getPortName(i);
+      // Notre propre port virtuel ne doit pas se proposer à lui-même.
+      if (!name.includes(VIRTUAL_OUTPUT_NAME)) outputs.push({ id: String(i), name });
+    }
+    if (process.platform !== 'win32') outputs.push({ id: VIRTUAL_OUTPUT_ID, name: `Port virtuel « ${VIRTUAL_OUTPUT_NAME} »`, virtual: true });
+    return outputs;
+  } catch (err) {
+    console.error('[MIDI] sorties indisponibles :', err.message);
+    return [];
+  } finally {
+    try { enumerator?.closePort(); } catch (e) { /* rien d'ouvert */ }
+  }
+}
+
+/** Relâche tout sur la sortie (notes, pédale) puis la ferme. */
+function closeMidiOutput() {
+  if (!midiOutput) return;
+  try {
+    for (let channel = 0; channel < 16; channel += 1) {
+      midiOutput.sendMessage([0xb0 + channel, 64, 0]);
+      midiOutput.sendMessage([0xb0 + channel, 123, 0]);
+    }
+    midiOutput.closePort();
+  } catch (e) {
+    // Port déjà disparu : rien à relâcher.
+  }
+  midiOutput = null;
+}
+
+/** Ouvre la sortie `outputId` (index de port ou « virtual ») ; null ferme. */
+function openMidiOutput(outputId) {
+  closeMidiOutput();
+  if (outputId == null || outputId === '') return { ok: true, id: null, name: null };
+  try {
+    midiOutput = new midi.Output();
+    if (outputId === VIRTUAL_OUTPUT_ID) {
+      midiOutput.openVirtualPort(VIRTUAL_OUTPUT_NAME);
+      return { ok: true, id: outputId, name: `Port virtuel « ${VIRTUAL_OUTPUT_NAME} »` };
+    }
+    const index = Number(outputId);
+    const name = midiOutput.getPortName(index);
+    midiOutput.openPort(index);
+    return { ok: true, id: outputId, name };
+  } catch (err) {
+    midiOutput = null;
+    return { ok: false, id: null, error: err.message };
+  }
+}
+
 let nativeMidiFailed = false;
 
 // [OpenCode] — 2026-07-04 — Heuristic to skip internal/virtual ALSA ports when auto-connecting.
@@ -1929,6 +1990,21 @@ app.whenReady().then(() => {
     return true;
   });
 
+  // [Claude] — 2026-09-24 — Sortie MIDI : la démo des mouvements et « Écouter »
+  // jouent sur le VST de l'utilisateur (Narcisse : « le rendu serait bien
+  // meilleur »). Ports existants, plus un port virtuel hors Windows (RtMidi) :
+  // l'hôte du VST s'y branche sans câble MIDI virtuel à installer.
+  ipcMain.handle('midi:get-outputs', () => getMidiOutputs());
+  ipcMain.handle('midi:open-output', (event, outputId) => openMidiOutput(outputId));
+  ipcMain.on('midi:send', (event, bytes) => {
+    if (!midiOutput || !Array.isArray(bytes)) return;
+    try {
+      midiOutput.sendMessage(bytes);
+    } catch (err) {
+      console.warn('[MIDI] envoi impossible :', err.message);
+    }
+  });
+
   ipcMain.handle('system:audio-groups', () => {
     return userAudioGroups();
   });
@@ -1958,6 +2034,7 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   closeMidiInput();
   closeMidiInputEnumerator();
+  closeMidiOutput();
   if (process.platform !== 'darwin') app.quit();
 });
 

@@ -1967,6 +1967,19 @@ export function createPracticeExercise() {
     return next();
   }
 
+  /**
+   * Aperçu d'un mouvement (démo de la bibliothèque) sans rien changer à
+   * l'exercice : ses accords dans la tonalité `keyPc`, avec la technique, le
+   * niveau et les doublures courants, voicings enchaînés comme à l'exercice.
+   * @returns {object[]|null}
+   */
+  function previewMovement(name, keyPc = 0) {
+    const movement = findMovement(name);
+    if (!movement) return null;
+    const chords = buildMovementChords(movement, keyPc, state.technique, state.difficulty, {}, state.doubling);
+    return chords.length > 0 ? chords : null;
+  }
+
   /** Revient au tirage au sort des mouvements. */
   function clearContentChoice() {
     state.movementChoice = null;
@@ -2117,6 +2130,7 @@ export function createPracticeExercise() {
     setContentChoice,
     clearContentChoice,
     setCustomGrid,
+    previewMovement,
     setKeySet,
     setKeyOrder,
     goToStep,

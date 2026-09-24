@@ -82,6 +82,11 @@ import {
   restoreFavorites,
 } from './practice-favorites.js';
 import { voicingToNoteSequence } from './pedagogie/copilot-voicing.js';
+import { buildGospelDemo, DEMO_STYLES } from './practice-demo.js';
+import { createDemoPlayer } from './exercise-demo-player.js';
+import {
+  listMidiOutputs, openMidiOutput, savedMidiOutputName, isMidiOutputActive, currentMidiOutput, sendMidi,
+} from './midi-output.js';
 import { applyTabVisibility } from './ui/tab-visibility.js';
 import { initAstraShell } from './ui/refonte/astra-shell.js';
 import { initOnboarding, notifyOnboarding } from './ui/onboarding.js';
@@ -95,6 +100,11 @@ import {
 const state = {
   activeNotes: new Map(), // midi -> velocity
   sustainedNotes: new Set(), // midi sustained while pedal down
+  // [Claude] — 2026-09-24 — Notes venues d'une relecture (Sessions MIDI, démo) :
+  // la détection d'accord est différée (80 ms), state.isPlayback est déjà
+  // retombé quand elle tourne ; c'est cet ensemble qui l'empêche alors de
+  // juger l'exercice (une démo qui joue le voicing attendu ne le valide pas).
+  playbackNotes: new Set(),
   sustain: false,
   currentPitch: 0,
   currentMod: 0,
@@ -386,7 +396,8 @@ function refreshChord() {
   // [Claude] — 2026-09-24 — La réponse est jugée sur l'accord annoncé : un
   // voicing juste que le détecteur ne sait pas nommer (« ? ») est validé aussi,
   // mais un « ? » faux (accord en cours de formation) ne compte pas d'essai.
-  if (!state.isPlayback && result && result.notes.length >= 3
+  const fromPlayback = notes.some((n) => state.playbackNotes.has(n));
+  if (!state.isPlayback && !fromPlayback && result && result.notes.length >= 3
     && (result.symbol !== '?' || practiceExercise?.isCorrect(result.notes))) {
     checkPracticeExercise(result.notes);
   }
@@ -442,6 +453,8 @@ function handleNoteOn(note, velocity = 0.8, virtual = false, audible = true) {
     console.warn('[Main] noteOn transposée invalide ignorée:', transposed);
     return;
   }
+  // [Claude] — 2026-09-24 — Jouer soi-même arrête la démo en cours.
+  if (!state.isPlayback && demoPlayer.isPlaying()) demoPlayer.stop();
   // Auto-clear suggestion notes when user plays real MIDI
   if (!state.isPlayback && state.suggestionNotes.size > 0) {
     for (const n of state.suggestionNotes) {
@@ -453,6 +466,8 @@ function handleNoteOn(note, velocity = 0.8, virtual = false, audible = true) {
   const safeVelocity = Number.isFinite(velocity) && velocity >= 0 && velocity <= 1 ? velocity : 0.8;
   if (audible && !state.silentMode) playVirtualNote(transposed, safeVelocity);
   state.activeNotes.set(transposed, safeVelocity);
+  if (state.isPlayback) state.playbackNotes.add(transposed);
+  else state.playbackNotes.delete(transposed);
   highlightKey(transposed, 'active');
   noteGrouper?.noteOn(transposed, velocity);
   // [OpenCode] — 2026-08-24 — Publier la note brute vers le bus MIDI live pour
@@ -486,12 +501,18 @@ function handleNoteOff(note, virtual = false, audible = true) {
   // pendant une relecture, note brute.
   if (!state.isPlayback) feedRecorderNoteOff(note);
   if (state.sustain) {
+    // [Claude] — 2026-09-24 — Touche relâchée : elle quitte les notes tenues et
+    // ne sonne plus que par la pédale (sustainedNotes). Restée dans activeNotes,
+    // elle survivait au relevé de la pédale (touche allumée et comptée dans
+    // l'accord détecté jusqu'au prochain appui).
+    state.activeNotes.delete(transposed);
     state.sustainedNotes.add(transposed);
     noteGrouper?.noteOff(transposed, { sustained: true });
     if (hasLiveMidiSubscribers()) publishLiveNoteOff(note, 0);
     return;
   }
   state.activeNotes.delete(transposed);
+  state.playbackNotes.delete(transposed);
   unhighlightKey(transposed, 'active');
   noteGrouper?.noteOff(transposed, { sustained: false });
   if (hasLiveMidiSubscribers()) publishLiveNoteOff(note, 0);
@@ -509,6 +530,7 @@ function handleSustain(value) {
     for (const note of state.sustainedNotes) {
       if (!state.activeNotes.has(note)) {
         unhighlightKey(note, 'active');
+        state.playbackNotes.delete(note);
       }
     }
     state.sustainedNotes.clear();
@@ -551,6 +573,38 @@ function feedMidiEvent(type, a, b) {
     state.isPlayback = false;
   }
 }
+
+// [Claude] — 2026-09-24 — Démo des mouvements et « Écouter » (Narcisse : « comme
+// si c'était nous qui jouions alors que c'est l'application qui joue ») : même
+// chemin qu'un évènement de clavier (touches allumées, accord détecté, bus
+// live), jamais enregistré ni jugé par l'exercice (state.isPlayback et
+// state.playbackNotes). Notes à leur hauteur écrite : la transposition
+// d'affichage est compensée. Sortie MIDI choisie : les notes partent vers le
+// VST et le piano intégré se tait.
+function feedDemoEvent(type, a, b) {
+  const toOutput = isMidiOutputActive();
+  if (toOutput) {
+    if (type === 'noteOn') sendMidi([0x90, a, Math.max(1, Math.min(127, Math.round((b ?? 0.8) * 127)))]);
+    else if (type === 'noteOff') sendMidi([0x80, a, 0]);
+    else if (type === 'sustain') sendMidi([0xb0, 64, a ? 127 : 0]);
+  }
+  state.isPlayback = true;
+  try {
+    if (type === 'noteOn') handleNoteOn(a - state.transpose, b, true, !toOutput);
+    else if (type === 'noteOff') handleNoteOff(a - state.transpose, true, !toOutput);
+    else if (type === 'sustain') handleSustain(Boolean(a));
+  } finally {
+    state.isPlayback = false;
+  }
+}
+
+// Rappels posés par initPracticeExercise (accord suivi, fin de démo).
+const demoHooks = { onStep: null, onEnd: null };
+const demoPlayer = createDemoPlayer({
+  send: feedDemoEvent,
+  onStep: (step) => demoHooks.onStep?.(step),
+  onEnd: (reason) => demoHooks.onEnd?.(reason),
+});
 
 function logMidiEvent(event) {
   if (!els.midiLog) return;
@@ -687,6 +741,41 @@ async function tryOpenMidi(portId, inputs) {
     setStatus(`Échec connexion MIDI : ${result?.error || 'inconnu'}`);
   }
   return result;
+}
+
+// [Claude] — 2026-09-24 — Menu « Sortie » du pied de page : piano intégré ou port
+// MIDI (VST). Le dernier choix est rouvert au lancement, par son nom.
+async function initMidiOutput() {
+  const select = document.getElementById('midi-output-select');
+  if (!select) return;
+  const fill = async () => {
+    const outputs = await listMidiOutputs().catch(() => []);
+    const current = currentMidiOutput();
+    select.innerHTML = '<option value="">Piano intégré</option>'
+      + outputs.map((o) => `<option value="${String(o.id).replace(/"/g, '&quot;')}">${String(o.name).replace(/</g, '&lt;')}</option>`).join('');
+    select.value = current ? String(current.id) : '';
+    return outputs;
+  };
+  const outputs = await fill();
+  const saved = savedMidiOutputName();
+  const match = saved && outputs.find((o) => o.name === saved);
+  if (match) {
+    await openMidiOutput(match.id, match.name);
+    select.value = String(match.id);
+  }
+  // Nouveaux ports (hôte de VST lancé après l'application) : liste relue à l'ouverture du menu.
+  select.addEventListener('focus', fill);
+  select.addEventListener('change', async () => {
+    demoPlayer.stop();
+    const option = select.selectedOptions[0];
+    const opened = await openMidiOutput(select.value || null, option?.textContent || null);
+    if (select.value && !opened) {
+      setStatus('Sortie MIDI impossible à ouvrir : retour au piano intégré');
+      select.value = '';
+    } else {
+      setStatus(opened ? `Démo et « Écouter » joués sur ${opened.name}` : 'Démo et « Écouter » joués sur le piano intégré');
+    }
+  });
 }
 
 async function initMidi() {
@@ -1124,6 +1213,8 @@ function updateExerciseProgressUI(exState) {
 // va-vite », pas de saut direct à un accord, tonalités non choisies).
 
 const KEY_NAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+const DEMO_PLAY_ICON = '<svg class="tr-i" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>';
+const DEMO_STOP_ICON = '<svg class="tr-i" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="1.5"/></svg>';
 
 /** Panneau de gauche : ce qu'on travaille, et les réglages du tour en Mouvement. */
 function renderExerciseBrief(exState) {
@@ -1240,20 +1331,10 @@ function renderExerciseProgressPanel(exState) {
   quiet.style.display = '';
 }
 
-// [Phase 1 voicing] — Timers de la démo audio de l'exercice, annulés avant
-// chaque nouvelle lecture pour éviter les notes superposées.
-let exerciseDemoTimers = new Set();
-
-function cancelExerciseDemo() {
-  for (const timer of exerciseDemoTimers) {
-    clearTimeout(timer);
-  }
-  exerciseDemoTimers.clear();
-}
-
+// [Claude] — 2026-09-24 — « Écouter » passe par le lecteur de démo : touches
+// allumées comme au clavier, sortie MIDI vers le VST si elle est choisie.
 async function playExerciseVoicing(voicing) {
   if (!voicing || !voicing.isPlayable) return;
-  cancelExerciseDemo();
   // Réveille l'AudioContext si nécessaire avant de planifier les notes.
   try {
     await resumeAudio();
@@ -1262,24 +1343,12 @@ async function playExerciseVoicing(voicing) {
     return;
   }
   const sequence = voicingToNoteSequence(voicing, { pattern: 'block', durationMs: 1200 });
-  for (const note of sequence) {
-    try {
-      const startTimer = setTimeout(() => {
-        exerciseDemoTimers.delete(startTimer);
-        playVirtualNote(note.midi, note.velocity || 0.8).catch((e) => {
-          console.warn('[PracticeExercise] Échec du jeu de la note', note.midi, e);
-        });
-        const releaseTimer = setTimeout(() => {
-          exerciseDemoTimers.delete(releaseTimer);
-          releaseVirtualNote(note.midi);
-        }, note.durationMs);
-        exerciseDemoTimers.add(releaseTimer);
-      }, note.startOffsetMs);
-      exerciseDemoTimers.add(startTimer);
-    } catch (err) {
-      console.warn('[PracticeExercise] Échec du planification de la note', note.midi, err);
-    }
-  }
+  // Tempo 60 : un temps = une seconde.
+  const events = sequence.flatMap((n) => [
+    { time: n.startOffsetMs / 1000, type: 'noteOn', note: n.midi, velocity: n.velocity || 0.8 },
+    { time: (n.startOffsetMs + n.durationMs) / 1000, type: 'noteOff', note: n.midi },
+  ]).sort((a, b) => a.time - b.time || (a.type === 'noteOff' ? -1 : 1));
+  demoPlayer.play({ events, beats: Math.max(...events.map((e) => e.time)) }, { tempo: 60 });
 }
 
 function initPracticeExercise() {
@@ -1317,6 +1386,7 @@ function initPracticeExercise() {
     }
     refreshTargetChoice(exState);
     refreshChordSide(exState);
+    refreshDemoButtons(exState);
     if (prevBtn) {
       prevBtn.style.display = practiceExercise.canGoPrevious() ? '' : 'none';
     }
@@ -1662,6 +1732,7 @@ function initPracticeExercise() {
             </div>
             <h4>${escapeHtml(item.name)}${item.name === current ? '<span class="exercise-library-current">En cours</span>' : ''}</h4>
             <p>${escapeHtml(item.description)}</p>
+            <button type="button" class="exercise-library-play${previewId === item.id ? ' is-playing' : ''}" data-preview="${escapeAttr(item.id)}" aria-label="${escapeAttr(`${previewId === item.id ? 'Arrêter' : 'Écouter'} : ${item.name}`)}">${previewId === item.id ? DEMO_STOP_ICON : DEMO_PLAY_ICON}<span>${previewId === item.id ? 'Arrêter' : 'Écouter'}</span></button>
           </article>`).join('');
   }
 
@@ -1691,6 +1762,7 @@ function initPracticeExercise() {
   }
 
   function selectLibraryCard(item) {
+    demoPlayer.stop();
     if (!ensureMovementMode()) return;
     practiceExercise.setContentChoice(item.name);
     closeLibrary();
@@ -1734,15 +1806,116 @@ function initPracticeExercise() {
     if (item) selectLibraryCard(item);
   };
   els.exerciseLibraryGrid?.addEventListener('click', (e) => {
+    const play = e.target.closest('[data-preview]');
+    if (play) {
+      togglePreview(play.dataset.preview);
+      return;
+    }
     const card = e.target.closest('.exercise-library-card');
     if (card) pickLibraryCard(card);
   });
   els.exerciseLibraryGrid?.addEventListener('keydown', (e) => {
+    if (e.target.closest('[data-preview]')) return;
     const card = e.target.closest('.exercise-library-card');
     if (!card || (e.key !== 'Enter' && e.key !== ' ')) return;
     e.preventDefault();
     pickLibraryCard(card);
   });
+
+  // ── Démo des mouvements ──
+  // [Claude] — 2026-09-24 — « Écouter le mouvement » (vue Mouvement : la carte
+  // suit l'accord joué, puis revient où l'on était) et « Écouter » sur chaque
+  // carte de la bibliothèque (aperçu sans rien choisir). Style gospel / worship,
+  // voicings de l'exercice, sortie MIDI si elle est choisie.
+  // demoContext : { kind: 'movement', stepBefore } | { kind: 'preview', previewId } | null
+  let demoContext = null;
+  let previewId = null;
+
+  async function startDemo(chords, context) {
+    if (!chords?.length) return;
+    try {
+      await resumeAudio();
+    } catch (err) {
+      console.warn('[Démo] Audio indisponible', err);
+    }
+    demoPlayer.play(buildGospelDemo(chords), { tempo: DEMO_STYLES.gospel.tempo });
+    demoContext = context;
+    previewId = context.kind === 'preview' ? context.previewId : null;
+    refreshDemoButtons(practiceExercise.getState());
+    if (context.kind === 'preview') renderLibrary();
+  }
+
+  function toggleMovementDemo() {
+    if (demoContext?.kind === 'movement') {
+      demoPlayer.stop();
+      return;
+    }
+    const exState = practiceExercise.getState();
+    if (exState.mode !== 'movement' || !exState.progression) return;
+    startDemo(exState.progression.chords, { kind: 'movement', stepBefore: exState.progression.stepIndex || 0 });
+  }
+
+  function togglePreview(id) {
+    if (previewId === id) {
+      demoPlayer.stop();
+      return;
+    }
+    const item = getLibraryItems().find((i) => i.id === id);
+    const exState = practiceExercise.getState();
+    // Aperçu dans la tonalité en cours (sinon le départ choisi, sinon Do).
+    const key = exState.mode === 'movement' && exState.progression ? exState.progression.currentKey : (exState.keyChoice ?? 0);
+    const chords = item ? practiceExercise.previewMovement(item.name, key) : null;
+    if (chords) startDemo(chords, { kind: 'preview', previewId: id });
+  }
+
+  demoHooks.onStep = (step) => {
+    // La carte d'exercice suit l'accord joué par la démo du mouvement.
+    if (demoContext?.kind !== 'movement') return;
+    practiceExercise.goToStep(step);
+    render();
+  };
+  demoHooks.onEnd = () => {
+    const context = demoContext;
+    demoContext = null;
+    previewId = null;
+    if (context?.kind === 'movement' && practiceExercise.getState().mode === 'movement') {
+      practiceExercise.goToStep(context.stepBefore);
+      render();
+    } else {
+      refreshDemoButtons(practiceExercise.getState());
+    }
+    if (context?.kind === 'preview') renderLibrary();
+  };
+
+  function refreshDemoButtons(exState) {
+    const btn = document.getElementById('exercise-demo-btn');
+    if (!btn) return;
+    btn.hidden = exState.mode !== 'movement' || !exState.progression;
+    const playing = demoContext?.kind === 'movement';
+    btn.classList.toggle('is-playing', playing);
+    btn.innerHTML = `${playing ? DEMO_STOP_ICON : DEMO_PLAY_ICON}<span>${playing ? 'Arrêter la démo' : 'Écouter le mouvement'}</span>`;
+    btn.closest('.tr-exercise-progress')?.classList.toggle('is-demo-playing', playing);
+  }
+
+  document.getElementById('exercise-demo-btn')?.addEventListener('click', toggleMovementDemo);
+
+  // Toute autre action de l'utilisateur dans la vue Exercices (réglage, clic
+  // sur un accord, une tonalité, une technique…) arrête la démo d'abord.
+  const exercisesView = document.getElementById('practice-view-exercices');
+  const interruptDemo = (e) => {
+    if (!demoPlayer.isPlaying() || e.target.closest('#exercise-demo-btn, [data-preview], #exercise-library')) return;
+    if (e.type === 'change' || e.target.closest('button, select, input, [data-step], [data-key-index], [role="button"]')) demoPlayer.stop();
+  };
+  exercisesView?.addEventListener('click', interruptDemo, true);
+  exercisesView?.addEventListener('change', interruptDemo, true);
+  // Changer de vue ou d'onglet, ou fermer la bibliothèque pendant un aperçu, arrête aussi.
+  document.addEventListener('app-switch-training-view', () => demoPlayer.stop());
+  document.querySelectorAll('.tab-btn').forEach((tab) => tab.addEventListener('click', () => demoPlayer.stop()));
+  if (els.exerciseLibrary && typeof MutationObserver !== 'undefined') {
+    new MutationObserver(() => {
+      if (els.exerciseLibrary.hidden && demoContext?.kind === 'preview') demoPlayer.stop();
+    }).observe(els.exerciseLibrary, { attributes: true, attributeFilter: ['hidden'] });
+  }
 
   // Menu des qualités : généré depuis la liste partagée avec le navigateur.
   if (els.exerciseTargetQuality) {
@@ -2095,6 +2268,7 @@ async function init() {
   // soit déjà câblé quand le commutateur le clique.
   safeInit('initAstraShell', initAstraShell);
   safeInit('initMidi', () => initMidi());
+  safeInit('initMidiOutput', () => initMidiOutput());
 
   // [Claude] — 2026-09-05 — Précharge les échantillons de piano du sampler en
   // arrière-plan, pour que la première vraie note n'attende pas le décodage.
