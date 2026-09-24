@@ -11,6 +11,21 @@ metadata:
 
 ## Journal
 
+### 2026-09-24 (suite) — Registre étendu à toutes les familles, parseur 6/9, tests UI
+
+- **Registre** (demande de Narcisse : « étends la règle aux autres familles ») : même principe que Drop 3 (le voicing entier descend d'une octave tant que son milieu dépasse un plafond), plafond par famille, choisi sur les données des 12 tons :
+  - Do4 (60) : Shell, Two-note shell, Stride — main gauche seule avec la basse (Shell de Gmaj7 : G3 B3 F#4 → G2 B2 F#3 ; Stride de Cmaj7 en Do : G3 E4 G4 B4 → G2 E3 G3 B3).
+  - Mi4 (64) : Rootless A/B — sans fondamentale, autour du Do central (Gmaj7 reste B3 D4 F#4 A4 ; à Do4 il tomberait à B2).
+  - Mi5 (76) : 4-way close — les renversements publiés en Do avec la mélodie à G5 ne bougent pas.
+  - Do5 (72) : toutes les autres familles à deux mains ou main droite (Drop 2/3/2-4, Close, Block, Spread, Open, Quartal, So What, Upper structure, Cluster avant ajout de sa main gauche).
+  - Résultat : plus aucun dessus au-delà de D#6, aucune main gauche au-dessus de C#5, jamais de chevauchement des mains ; en Do seuls bougent des Drop 3 d'accords enrichis (20) et des Stride à basse sur la quinte (30). Bmaj7 Drop 2 : D#5 | A#5 B5 F#6 → D#4 | A#4 B4 F#5.
+  - Règles écartées (mesures) : ±6 demi-tons autour de la version en Do (dessus jusqu'à D#6), plafond = plus aigu publié en Do (rootless B jusqu'à B1), bande d'une octave depuis le plus grave en Do (Close / Block jusqu'à C#6).
+  - Effet de bord voulu : un Drop 2 de Fmaj7 devient identique à un Spread (F3 | C4 E4 A4) ; la recherche par top note ne garde qu'une fois un doublon exact (5 voicings avec La au sommet au lieu de 6).
+- **Parseur** (`chord-parser-v2.js`) : « C6/9 » était coupé au « / » en C6 + basse « 9 » (illisible) → la 9e disparaissait (Copilot IA compris). Seul un nom de note fait une basse ; « 6/9 » et « m6/9 » normalisés en « 69 » / « m69 » (Tonal). C/E, Dm7/G, C6/9/E corrects ; « C/X » garde l'ancien repli (C).
+- **Tests UI** : `test-workspace-navigation-d2.js` 10/10 (« Nouvel exercice » remplacé par « Bibliothèque » le 23/09 ; enveloppe Astra `#practice-body` entre la scène et l'onglet). `test-training-dom.js` décrivait une refonte rail + tiroirs jamais committée (révoquée le 02/09, JOURNAL-REFONTE.md) : assertions retirées ou remplacées par l'interface réelle (onglets, sous-navigation, vues dédiées Astra, panneau Techniques repliable, pédale testée par son comportement). Restent 11 échecs voulus : panneau Suggestions et affichage de l'historique des accords, jamais branchés — décision de Narcisse attendue.
+- Test instable corrigé : `checkTechniqueSwitch` tirait parfois un accord sans Close fidèle (7#9b13, 13#11, maj13#11 : 36 tirages sur 492).
+- Validation : exercices **414/414**, parseur **51/51**, Copilot OK, catalogue 120 ✓, test:chords 98/98, Parties 1 et 3 OK, build OK, essai Chromium sans erreur.
+
 ### 2026-09-24 — Mouvements réparés, Drop 3 recentrés, validation sur l'accord annoncé
 
 - **Mouvements remplacés en silence** (signalés par Narcisse) :
@@ -200,7 +215,7 @@ Compte des pitch classes uniques avec scope :
 3. `drop2Plus4` reste volontairement non implémenté (doublon LH).
 4. Le calcul de difficulté est symbolique, pas basé sur l’étendue physique réelle.
 5. Les familles stride/open/spread utilisent des rôles non-fondamentaux incluant la quinte pour atteindre le nombre de voix requis sans doublon de fondamentale inter-main.
-6. Registre (2026-09-24) : seul Drop 3 est recentré dans l'Exercice. Les autres familles VoicingLab gardent la transposition « Do vers le haut » : Drop 2 (148 voicings au-dessus de C6, MG jusqu'à D#5), Drop 2-4, Close, Block, 4-way close, Upper structure ; Shell / Rootless / Stride ont une main gauche jusqu'à E5–G#5 dans les tons aigus. À décider avec Narcisse avant d'étendre la règle.
+6. Registre (2026-09-24) : toutes les familles sont recentrées dans l'Exercice (`withPlayableRegister`, plafond du milieu par famille : Do4 Shell / Two-note shell / Stride, Mi4 Rootless, Mi5 4-way close, Do5 pour le reste). Le référentiel VoicingLab n'est pas modifié ; `voicing.octaveShift` et l'info-bulle signalent le décalage.
 7. Exercice : la cible d'une réponse est toujours l'accord ANNONCÉ. `detectChord` nomme ce qui est joué (message « Vous avez joué … ») et n'accepte une réponse que s'il nomme exactement cet accord ; il ne lit plus jamais le voicing affiché pour fixer la cible.
 
 ## Fichiers clés
