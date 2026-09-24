@@ -260,6 +260,9 @@ Compte des pitch classes uniques avec scope :
 8. Accords de 11e, de 13e et altérés : chaque voicing servi respecte la définition de sa famille et les règles des manuels (`textbook-voicings.js`) ; les voicings VoicingLab non conformes sont reconstruits sur les mêmes notes (`voicing.rebuilt`, `rebuiltFrom`). Les autres qualités restent 100 % VoicingLab. Rien de cette provenance n'est affiché à l'utilisateur (ni VoicingLab, ni dérivé, ni reconstruit).
 9. Mouvement 12 tons : seul mode à grille (Progression retiré) ; « Ma grille » garde les qualités tapées ; tonalités du tour choisies (`keySet`, `keyOrder`, `keyChoice`).
 10. Mouvement 12 tons : voicings enchaînés d'un accord à l'autre (`chainVoicings`) ; la démo joue exactement ces voicings. Les notes de démo / relecture ne jugent jamais l'exercice (`state.playbackNotes`).
+11. Registre de pianiste (2026-09-24, soir) : en plus du plafond du milieu, dessus ≤ Sol5 (Do6 pour 4-way close / block), basse d'un Spread / Open sous Mi3, close de main droite pas sous Fa3 ; aucune main au-delà d'une 10e (stride excepté), main gauche seule sous La4 (`isHandPlayable`). La close position a ses renversements (basse 1, 3 ou 5).
+12. 7alt : 9e altérée ET quinte altérée, sans 5, 9, 11, 13 naturelles ; les variantes VoicingLab en 7b5 sont reconstruites (`altRels`).
+13. Démo (`practice-demo.js`) : deux mains, jamais de pédale ; basse ajoutée seulement à une main gauche libre ou qui la tient ; style Gospel / worship d'après le jeu de Narcisse et un tutoriel gospel (cadre d'octave, main gauche à l'octave 2, diminués de passage, montée finale) — procédés seulement.
 
 ## Fichiers clés
 
