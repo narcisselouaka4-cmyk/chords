@@ -194,6 +194,7 @@ const els = {
   exerciseTopNoteFilters: document.getElementById('exercise-topnote-filters'),
   exerciseTopNoteFiltersHint: document.getElementById('exercise-topnote-filters-hint'),
   exerciseChordSide: document.getElementById('exercise-chord-side'),
+  exerciseChordHead: document.getElementById('exercise-chord-head'),
   exerciseFavorites: document.getElementById('exercise-favorites'),
   exerciseTopNoteReset: document.getElementById('exercise-topnote-reset'),
   exerciseRandomTargetBtn: document.getElementById('exercise-random-target-btn'),
@@ -1325,11 +1326,14 @@ function initPracticeExercise() {
   let exerciseFavorites = loadFavorites(window.localStorage);
 
   /**
-   * Colonne de droite : en mode Accord cible, filtres + favoris à la place du
-   * score ; dans les autres modes, l'avancement habituel.
+   * Disposition du mode Accord cible : bande du haut (choix de l'accord),
+   * colonne gauche réduite à la note du dessus + résultats, colonne droite =
+   * filtres + favoris à la place du score. Les autres modes gardent la leur.
    */
   function refreshChordSide(exState) {
     const isChord = exState.mode === 'chord';
+    els.exerciseChordHead?.closest('.tr-exercise-stage')?.classList.toggle('is-chord-mode', isChord);
+    if (els.exerciseChordHead) els.exerciseChordHead.hidden = !isChord;
     els.exerciseChordSide?.closest('.tr-exercise-progress')?.classList.toggle('is-chord-side', isChord);
     if (els.exerciseChordSide) els.exerciseChordSide.hidden = !isChord;
     if (!isChord || !els.exerciseFavorites) return;

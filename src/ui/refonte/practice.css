@@ -4007,6 +4007,73 @@
   gap: 8px;
 }
 
+/* ── Mode Accord cible : bande du haut (choix de l'accord) au-dessus de la carte ;
+   colonnes gauche (note du dessus) et droite (filtres, favoris) centrées sur elle. ── */
+:root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode,
+:root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode {
+  grid-template-rows: auto 1fr;
+  /* Pas de hauteur minimale d'écran : la carte suit directement la bande du haut. */
+  min-height: 0;
+}
+/* Les trois colonnes partent du même haut, juste sous la bande : pas de vide
+   au-dessus de la carte quand la liste de gauche est longue. */
+:root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode .tr-chord-arena,
+:root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode .tr-chord-arena {
+  justify-content: flex-start;
+  min-height: 0;
+  padding-top: 8px;
+}
+:root[data-skin='global'] #practice-tab .exercise-chord-head,
+:root[data-skin='v2'] #practice-tab .exercise-chord-head {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 24px 6px;
+}
+:root[data-skin='global'] #practice-tab .exercise-chord-head[hidden],
+:root[data-skin='v2'] #practice-tab .exercise-chord-head[hidden] {
+  display: none;
+}
+:root[data-skin='global'] #practice-tab .exercise-chord-head-title,
+:root[data-skin='v2'] #practice-tab .exercise-chord-head-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 450;
+  letter-spacing: -0.02em;
+  color: var(--r-text);
+}
+:root[data-skin='global'] #practice-tab .exercise-chord-head-controls,
+:root[data-skin='v2'] #practice-tab .exercise-chord-head-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--r-space-2, 10px);
+}
+:root[data-skin='global'] #practice-tab .exercise-chord-head-controls label,
+:root[data-skin='v2'] #practice-tab .exercise-chord-head-controls label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--r-text-muted);
+}
+:root[data-skin='global'] #practice-tab .exercise-chord-head .exercise-random-target-btn,
+:root[data-skin='v2'] #practice-tab .exercise-chord-head .exercise-random-target-btn {
+  flex-basis: auto;
+}
+:root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode .tr-exercise-brief > :not(#exercise-target-choice),
+:root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode .tr-exercise-brief > :not(#exercise-target-choice) {
+  display: none !important;
+}
+:root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode .tr-exercise-brief,
+:root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode .tr-exercise-brief {
+  justify-content: flex-start;
+  padding-top: 12px;
+}
+
 /* ── Mode Accord cible : colonne de droite = filtres + favoris (le score n'y sert pas) ── */
 :root[data-skin='global'] #practice-tab .tr-exercise-progress.is-chord-side,
 :root[data-skin='v2'] #practice-tab .tr-exercise-progress.is-chord-side {

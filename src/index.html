@@ -179,16 +179,6 @@
              .exercise-mode-btn[data-mode], #exercise-target,
              #exercise-feedback, #exercise-degree-badge. -->
         <div class="tr-view practice-exercices" id="practice-view-exercices" style="display: none;">
-          <div class="tr-view-heading">
-            <div>
-              <div class="tr-page-title"><span class="tr-page-index">05</span><h1>Exercices</h1></div>
-            </div>
-            <div class="tr-heading-actions">
-              <button class="tr-button" type="button" data-astra-open="exercise-help-dialog"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>Comment jouer</button>
-              <button class="tr-button panel-action" type="button" id="prev-exercise-btn" style="display: none;" title="Revenir à l'accord précédent pour réexaminer son voicing"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Accord précédent</button>
-              <button class="tr-button tr-primary panel-action" type="button" id="exercise-library-btn" aria-label="Ouvrir la bibliothèque d'exercices"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Bibliothèque</button>
-            </div>
-          </div>
 
           <div class="tr-exercise-mode" id="practice-exercise-panel">
             <div class="tr-segment-control exercise-mode-selector" role="tablist" aria-label="Type d'exercice">
@@ -196,10 +186,45 @@
               <button class="exercise-mode-btn" data-mode="progression" role="tab" aria-selected="false" type="button">Progression</button>
               <button class="exercise-mode-btn" data-mode="movement" role="tab" aria-selected="false" type="button">Mouvement 12 tons</button>
             </div>
-            <span class="tr-local-detection"><span class="tr-status-dot"></span>Reconnaissance locale</span>
+            <!-- [Claude] — 2026-09-24 — Titre « Exercices » et « Reconnaissance locale »
+                 retirés (Narcisse) : le sous-onglet nomme déjà la vue. Les actions
+                 remontent sur la ligne du sélecteur de mode. -->
+            <div class="tr-heading-actions">
+              <button class="tr-button" type="button" data-astra-open="exercise-help-dialog"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>Comment jouer</button>
+              <button class="tr-button panel-action" type="button" id="prev-exercise-btn" style="display: none;" title="Revenir à l'accord précédent pour réexaminer son voicing"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Accord précédent</button>
+              <button class="tr-button tr-primary panel-action" type="button" id="exercise-library-btn" aria-label="Ouvrir la bibliothèque d'exercices"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Bibliothèque</button>
+            </div>
           </div>
 
           <section class="tr-exercise-stage">
+            <!-- [Claude] — 2026-09-24 — Mode Accord cible : bande du haut (choix de
+                 l'accord), au-dessus de la carte ; les colonnes gauche (note du
+                 dessus + résultats) et droite (filtres + favoris) s'alignent sur elle. -->
+            <div class="exercise-chord-head" id="exercise-chord-head" hidden>
+              <h2 class="exercise-chord-head-title">Un accord, puis le suivant.</h2>
+              <div class="exercise-chord-head-controls">
+                <label for="exercise-target-root">Accord</label>
+                <select id="exercise-target-root" aria-label="Fondamentale de l'accord cible">
+                  <option value="0">C</option>
+                  <option value="1">C# / Db</option>
+                  <option value="2">D</option>
+                  <option value="3">D# / Eb</option>
+                  <option value="4">E</option>
+                  <option value="5">F</option>
+                  <option value="6">F# / Gb</option>
+                  <option value="7">G</option>
+                  <option value="8">G# / Ab</option>
+                  <option value="9">A</option>
+                  <option value="10">A# / Bb</option>
+                  <option value="11">B</option>
+                </select>
+                <!-- Qualités jouables : remplies par main.js depuis TARGET_QUALITY_GROUPS
+                     (practice-exercise.js), source unique partagée avec le navigateur. -->
+                <select id="exercise-target-quality" aria-label="Qualité de l'accord cible"></select>
+                <!-- Tirage d'un accord au hasard : vrai bouton (icône dé), dans la bande du haut. -->
+                <button class="tr-button exercise-random-target-btn" type="button" id="exercise-random-target-btn" title="Tire une racine et une qualité au hasard (en respectant la note du dessus si elle est choisie)"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="16" cy="8" r="1.1" fill="currentColor"/><circle cx="12" cy="12" r="1.1" fill="currentColor"/><circle cx="8" cy="16" r="1.1" fill="currentColor"/><circle cx="16" cy="16" r="1.1" fill="currentColor"/></svg>Accord au hasard</button>
+              </div>
+            </div>
             <!-- [Astra round 3] — Le guide et le panneau de progression ne sont
                  plus des textes figés : main.js (updateExerciseProgressUI) les
                  remplit avec les données réelles de practice-exercise.js, selon
@@ -247,26 +272,6 @@
               </div>
               <!-- Sélecteur d'accord cible : visible uniquement en mode "Accord cible". -->
               <div class="exercise-target-choice" id="exercise-target-choice" style="display: none;">
-                <label for="exercise-target-root">Accord</label>
-                <select id="exercise-target-root" aria-label="Fondamentale de l'accord cible">
-                  <option value="0">C</option>
-                  <option value="1">C# / Db</option>
-                  <option value="2">D</option>
-                  <option value="3">D# / Eb</option>
-                  <option value="4">E</option>
-                  <option value="5">F</option>
-                  <option value="6">F# / Gb</option>
-                  <option value="7">G</option>
-                  <option value="8">G# / Ab</option>
-                  <option value="9">A</option>
-                  <option value="10">A# / Bb</option>
-                  <option value="11">B</option>
-                </select>
-                <!-- Qualités jouables : remplies par main.js depuis TARGET_QUALITY_GROUPS
-                     (practice-exercise.js), source unique partagée avec le navigateur. -->
-                <select id="exercise-target-quality" aria-label="Qualité de l'accord cible"></select>
-                <!-- Tirage d'un accord au hasard : vrai bouton (icône dé), sur sa ligne. -->
-                <button class="tr-button exercise-random-target-btn" type="button" id="exercise-random-target-btn" title="Tire une racine et une qualité au hasard (en respectant la note du dessus si elle est choisie)"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="16" cy="8" r="1.1" fill="currentColor"/><circle cx="12" cy="12" r="1.1" fill="currentColor"/><circle cx="8" cy="16" r="1.1" fill="currentColor"/><circle cx="16" cy="16" r="1.1" fill="currentColor"/></svg>Accord au hasard</button>
                 <!-- Recherche de voicings par note du dessus (sans octave). -->
                 <label for="exercise-top-note">Note du dessus</label>
                 <select id="exercise-top-note" aria-label="Note la plus haute du voicing (toutes octaves)">
