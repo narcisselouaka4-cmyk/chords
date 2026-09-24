@@ -291,11 +291,23 @@
                   </select>
                 </div>
               </div>
-              <!-- Sélecteur d'accord cible : visible uniquement en mode "Accord cible". -->
+              <!-- Sélecteur d'accord cible : visible uniquement en mode "Accord cible".
+                   [Claude] — 2026-09-24 — Colonne de gauche = les accords à charger sur
+                   la carte : recherche par top note, puis favoris (Narcisse : favoris
+                   « ailleurs qu'à droite »). La droite garde les voicings affichés. -->
               <div class="exercise-target-choice" id="exercise-target-choice" style="display: none;">
-                <!-- Tous les accords ayant la note du dessus choisie (rempli par main.js). -->
-                <p class="exercise-side-hint exercise-browser-hint" id="exercise-topnote-browser-hint">Choisissez une top note : les accords qui l'ont au sommet s'affichent ici.</p>
-                <div class="exercise-topnote-browser" id="exercise-topnote-browser" hidden></div>
+                <section class="exercise-choice-section exercise-topnote-section" aria-label="Accords par top note">
+                  <span class="tr-eyebrow">TOP NOTE</span>
+                  <!-- Tous les accords ayant la note du dessus choisie (rempli par main.js). -->
+                  <p class="exercise-side-hint exercise-browser-hint" id="exercise-topnote-browser-hint">Choisissez une top note : les accords qui l'ont au sommet s'affichent ici.</p>
+                  <div class="exercise-topnote-browser" id="exercise-topnote-browser" hidden></div>
+                </section>
+                <section class="exercise-choice-section exercise-favorites-section" aria-label="Favoris">
+                  <span class="tr-eyebrow">FAVORIS</span>
+                  <!-- Recherche dans les favoris (hors du rendu de la liste : garde le focus). -->
+                  <input type="search" class="exercise-favorites-search" id="exercise-favorites-search" placeholder="Rechercher : Dm9, Bb, drop 2…" aria-label="Rechercher un favori" hidden>
+                  <div class="exercise-favorites" id="exercise-favorites"></div>
+                </section>
               </div>
 
             </div>
@@ -330,16 +342,13 @@
               <div class="tr-progression-path" id="exercise-progress-path"></div>
               <p class="tr-progress-quiet" id="exercise-progress-quiet">Lancez un exercice : l'avancement s'affiche ici.</p>
               <!-- [Claude] — 2026-09-24 — Mode Accord cible : la colonne de droite
-                   (score inutile ici) accueille les filtres de la note du dessus
-                   et les favoris. Les autres modes gardent leur avancement. -->
+                   (score inutile ici) accueille les voicings de l'accord affiché ;
+                   les favoris sont passés à gauche. Les autres modes gardent leur
+                   avancement. -->
               <div class="exercise-chord-side" id="exercise-chord-side" hidden>
                 <span class="tr-eyebrow">VOICINGS</span>
                 <!-- Voicings disponibles pour l'accord affiché : rempli par main.js. -->
                 <div class="exercise-voicing-choices" id="exercise-voicing-choices"></div>
-                <span class="tr-eyebrow exercise-favorites-eyebrow">FAVORIS</span>
-                <!-- Recherche dans les favoris (hors du rendu de la liste : garde le focus). -->
-                <input type="search" class="exercise-favorites-search" id="exercise-favorites-search" placeholder="Rechercher : Dm9, Bb, drop 2…" aria-label="Rechercher un favori" hidden>
-                <div class="exercise-favorites" id="exercise-favorites"></div>
               </div>
             </div>
           </section>

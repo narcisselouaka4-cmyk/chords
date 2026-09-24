@@ -1570,6 +1570,9 @@ function initPracticeExercise() {
         if (els.exerciseTopNoteReset) els.exerciseTopNoteReset.hidden = active === 0;
       }
       refreshTopNoteBrowser(exState);
+      // Liste de la top note affichée : elle prend la hauteur, les favoris
+      // (dessous) gardent une part bornée de la colonne.
+      els.exerciseTargetChoice.classList.toggle('has-browser', !els.exerciseTopNoteBrowser?.hidden);
     } else {
       els.exerciseTargetChoice.style.display = 'none';
       refreshTopNoteBrowser(exState);

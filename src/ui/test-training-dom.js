@@ -102,6 +102,28 @@ function testDomContract() {
     check(!html.includes(gone), `DOM — ${gone} retiré (plus de double navigation/repli/Hub)`);
   }
 
+  // [Claude] — 2026-09-24 — Accord cible : les favoris vivent dans la colonne de
+  // gauche (#exercise-target-choice, sous la top note), plus à droite (Narcisse).
+  const block = (id) => {
+    const start = html.indexOf(`id="${id}"`);
+    const open = html.lastIndexOf('<div', start);
+    // Fin du bloc : on compte les <div> ouvrants / fermants depuis l'ouverture.
+    let depth = 0;
+    const tags = /<div\b|<\/div>/g;
+    tags.lastIndex = open;
+    for (let m = tags.exec(html); m; m = tags.exec(html)) {
+      depth += m[0] === '</div>' ? -1 : 1;
+      if (depth === 0) return html.slice(open, m.index);
+    }
+    return '';
+  };
+  const targetChoice = block('exercise-target-choice');
+  const chordSide = block('exercise-chord-side');
+  check(targetChoice.includes('id="exercise-favorites"') && targetChoice.includes('id="exercise-favorites-search"'),
+    'DOM — favoris dans la colonne de gauche (#exercise-target-choice)');
+  check(chordSide.includes('id="exercise-voicing-choices"') && !chordSide.includes('exercise-favorites'),
+    'DOM — colonne de droite (#exercise-chord-side) : voicings seuls, sans favoris');
+
   // CSS : panneaux jamais branchés (voir plus haut) + navigation réelle. Les
   // styles du rail et des tiroirs (.app-rail, .rail-btn, .domain-drawer,
   // .drawer-*, .practice-toolbar, .training-back-btn) appartenaient à la refonte
