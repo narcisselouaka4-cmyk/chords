@@ -1,11 +1,15 @@
 // [Claude] — 2026-09-24 — Tests de la démo des mouvements (Gospel / worship,
 // Ballade, Comping swing, Plaqué) et de son lecteur.
+// [Claude] — 2026-09-24 (soir) — Démo jouable comme au clavier (Narcisse : « ça
+// sonne pas réaliste », « j'ai pas de pédale de sustain », vidéo de son jeu) :
+// deux mains, aucune pédale, basse ajoutée seulement à une main gauche qui la
+// tient, voix du dessus qui bouge, montée finale.
 // Exécution : node src/practice-demo.test.js
 
 import { createPracticeExercise, listMovementNames } from './practice-exercise.js';
 import {
-  buildGospelDemo, buildDemo, bassOctave, bassNote, bassApproach, innerMovement,
-  DEMO_STYLES, DEMO_STYLE_IDS, defaultDemoStyle,
+  buildDemo, buildGospelDemo, cardHands, demoHands, freeBass, topNeighbour, finalRun, strideSplit,
+  octaveFrame, passingDiminished, DEMO_STYLES, DEMO_STYLE_IDS, defaultDemoStyle,
 } from './practice-demo.js';
 import { createDemoPlayer } from './exercise-demo-player.js';
 
@@ -32,39 +36,114 @@ function movement(name, { key = 0, technique = 'drop2', difficulty = 3, doubling
   return ex.getState().progression.chords;
 }
 
-console.log('\n=== Démo : briques ===');
-check('Basse en octaves sous le voicing (Dm11 F3 G3 A3 C4 → D2 D3)', bassOctave(2, [53, 55, 57, 60]).join() === '38,50');
-check('Basse seule quand l\'octave ne tient pas (voicing grave)', bassOctave(0, [45, 52, 55]).join() === '36');
-check('Pas de basse sous un voicing déjà au plus grave', bassOctave(4, [28, 40]).length === 0);
-check('Approche chromatique : par-dessous en montant, par-dessus en descendant', bassApproach(43, 48) === 47 && bassApproach(50, 43) === 44);
-check('Pas d\'approche quand la basse ne change pas', bassApproach(43, 43) === null);
-check('Mouvement interne 7 → 3 : Do de Dm7 vers Si de G7', JSON.stringify(innerMovement([53, 55, 57, 60], [53, 57, 59, 64])) === JSON.stringify({ from: 60, to: 59 }));
-check('Pas de mouvement interne quand tout saute', innerMovement([60, 64, 67], [70, 74, 77]) === null);
+/** Accord de test : fondamentale, qualité, mains de la carte. */
+const chordOf = (rootPc, symbol, lh, rh, technique = 'close') => ({
+  rootPc, symbol, name: symbol, notes: [...lh, ...rh], voicing: { leftHand: lh, rightHand: rh, technique },
+});
+
+/**
+ * Problèmes de jeu d'une démo : pédale, plus de deux mains (5 doigts, une 10e
+ * par main, mains croisées), appuis / relâchements, notes de la carte absentes.
+ */
+function playabilityProblems(demo, grid, beatsPerChord = 4) {
+  const out = [];
+  if (demo.events.some((e) => e.type === 'sustain')) out.push('pédale');
+  if (demo.events.some((e, k) => k > 0 && demo.events[k - 1].time > e.time)) out.push('ordre');
+  const held = new Map();
+  for (const t of [...new Set(demo.events.map((e) => e.time))]) {
+    for (const e of demo.events.filter((x) => x.time === t)) {
+      const key = `${e.hand}:${e.note}`;
+      if (e.type === 'noteOff') {
+        if (!held.has(key)) out.push(`relâchement sans appui ${e.note}@${t}`);
+        held.delete(key);
+      }
+      if (e.type === 'noteOn') {
+        if (!['lh', 'rh'].includes(e.hand)) out.push(`main inconnue ${e.note}@${t}`);
+        if (held.has(key)) out.push(`double appui ${e.note}@${t}`);
+        if (e.note < 28 || e.note > 96 || e.velocity < 0.3 || e.velocity > 1) out.push(`note / nuance ${e.note}@${t}`);
+        held.set(key, e.note);
+      }
+    }
+    const lh = [...held.entries()].filter(([k]) => k.startsWith('lh')).map(([, n]) => n);
+    const rh = [...held.entries()].filter(([k]) => k.startsWith('rh')).map(([, n]) => n);
+    const span = (a) => (a.length ? Math.max(...a) - Math.min(...a) : 0);
+    if (lh.length > 5 || rh.length > 5 || span(lh) > 16 || span(rh) > 16) out.push(`main trop chargée @${t}`);
+    if (lh.length && rh.length && Math.max(...lh) >= Math.min(...rh)) out.push(`mains croisées @${t}`);
+  }
+  if (held.size) out.push('notes jamais relâchées');
+  if (demo.events.filter((e) => e.type === 'step').length !== grid.length) out.push('repères');
+  grid.forEach((c, i) => {
+    const { lh, rh } = cardHands(c);
+    const played = new Set(demo.events.filter((e) => e.type === 'noteOn' && e.time >= i * beatsPerChord && e.time < (i + 1) * beatsPerChord).map((e) => e.note));
+    if (![...lh, ...rh].every((n) => played.has(n))) out.push(`carte de ${c.name} incomplète`);
+  });
+  return out;
+}
+
+console.log('\n=== Démo : mains ===');
+check('Carte lue main par main', JSON.stringify(cardHands(chordOf(7, 'm11', [55, 60], [70, 77]))) === JSON.stringify({ lh: [55, 60], rh: [70, 77] }));
+check('Sans mains : tout à la main droite', JSON.stringify(cardHands({ rootPc: 0, notes: [64, 60, 67] })) === JSON.stringify({ lh: [], rh: [60, 64, 67] }));
+check('Main gauche libre : fondamentale + quinte, comme G2 D3 dans la vidéo (Gm11)', freeBass(chordOf(7, 'm11', [], [58, 60, 65, 70]), 'fifth', 58).join() === '43,50');
+check('Quinte altérée : fondamentale + septième (F7alt → F2 Eb3)', freeBass(chordOf(5, '7alt', [], [57, 59, 63, 68]), 'fifth', 57).join() === '41,51');
+check('Main droite basse : la basse descend d\'une octave (C, main droite à D3 → C2 G2)', freeBass(chordOf(0, 'maj7', [], [50, 55, 59]), 'fifth', 50).join() === '36,43');
+check('Fondamentale seule en swing, à l\'octave 2 (D2)', freeBass(chordOf(2, 'm7', [], [60, 65, 69]), 'root', 60).join() === '38');
+// [Claude] — 2026-09-24 — Procédés du tutoriel gospel envoyé par Narcisse.
+check('Dominante : fondamentale + 7e (G13 → G2 F3, comme le tutoriel gospel)', freeBass(chordOf(7, '13', [], [59, 64, 65, 67]), 'fifth', 59).join() === '43,53');
+check('7e trop grave sous Fa2 (Levine) : une octave plus haut (C13 → C3 Bb3)', freeBass(chordOf(0, '13', [], [64, 69, 70, 72]), 'fifth', 64).join() === '48,58');
+check('Cadre d\'octave : le dessus doublé plus bas (D4 F4 G4 C5 → C4 D4 F4 G4 C5)', octaveFrame([62, 65, 67, 72]).join() === '60,62,65,67,72');
+check('Cadre d\'octave refusé s\'il crée une seconde mineure (C4 E4 A4 B4 : B3 contre C4)', octaveFrame([60, 64, 69, 71]).join() === '60,64,69,71');
+const toDm = passingDiminished(chordOf(0, '', [], [60, 64, 67, 72]), chordOf(2, 'm7', [], [62, 65, 69, 72]),
+  { lh: [36, 43], rh: [60, 64, 67, 72] }, { lh: [38, 45], rh: [62, 65, 69, 72] });
+check('Diminué de passage C → C#°7 → Dm : basse C#2, voix à un demi-ton au plus', toDm?.lh.join() === '37' && toDm?.rh.join() === '61,64,67,73', toDm && `${toDm.lh} | ${toDm.rh}`);
+const toG = passingDiminished(chordOf(2, 'm11', [], [60, 62, 65, 67, 72]), chordOf(7, '13', [], [59, 64, 65, 67]),
+  { lh: [38, 45], rh: [60, 62, 65, 67, 72] }, { lh: [43, 53], rh: [59, 64, 65, 67] });
+check('Dm11 → F#°7 → G13 : basse F#2, sensible de la basse suivante', toG?.lh.join() === '42' && toG.rh.every((n) => [6, 9, 0, 3].includes(n % 12)), toG && `${toG.lh} | ${toG.rh}`);
+check('Pas de diminué quand la basse ne monte ni d\'un ton ni d\'une quarte (C → Am)',
+  passingDiminished(chordOf(0, '', [], [60, 64, 67]), chordOf(9, 'm7', [], [60, 64, 67]), { lh: [36, 43], rh: [60, 64, 67] }) === null);
+// Le cas de Narcisse : Drop 2-4 de Gm11, G3 C4 | Bb4 F5 — plus de G1 G2 dessous.
+const gm11 = demoHands(chordOf(7, 'm11', [55, 60], [70, 77], 'drop2_4'), 'fifth');
+check('Drop 2-4 de Gm11 : pas de troisième main (G2 ne tient pas avec C4)', gm11.lh.join() === '55,60' && gm11.bass.length === 0, gm11.lh.join());
+const cDrop2 = demoHands(chordOf(0, 'maj7', [55], [60, 64, 71], 'drop2'), 'fifth');
+check('Drop 2 de Cmaj7 (G3 | C4 E4 B4) : la main gauche prend C3 avec G3', cDrop2.lh.join() === '48,55', cDrop2.lh.join());
+const spreadBb = demoHands(chordOf(10, 'maj7#11', [46], [62, 64, 69], 'spread'), 'fifth');
+check('Spread (basse déjà à la main gauche) : rien d\'ajouté', spreadBb.lh.join() === '46');
+const stride = strideSplit(chordOf(0, 'maj7', [43, 52, 55, 59], [], 'stride'), [43, 52, 55, 59]);
+check('Stride : basse puis accord (G2 | E3 G3 B3)', stride?.bass.join() === '43' && stride?.chord.join() === '52,55,59');
+check('Voix du dessus : Bb4 → A4 sur Gm11 (la 9e, comme dans la vidéo)', topNeighbour(chordOf(7, 'm11', [43, 50], [58, 60, 65, 70]), [43, 50], [58, 60, 65, 70], 69) === 69);
+check('Voix du dessus : jamais une note hors de l\'accord (F, A4 vers G4 → rien)', topNeighbour(chordOf(5, '', [41, 48], [60, 65, 69]), [41, 48], [60, 65, 69], 67) === null);
+check('Voix du dessus : immobile si le dessus suivant est le même', topNeighbour(chordOf(7, 'm11', [43, 50], [58, 60, 65, 70]), [43, 50], [58, 60, 65, 70], 70) === null);
+const run = finalRun(chordOf(5, 'maj9', [41, 48], [57, 60, 64, 67]), [57, 60, 64, 67], [41, 48]);
+check('Montée finale 1-2-5 : F4 G4 C5 F5 G5 C6 F6 (deux octaves, terminée sur la fondamentale)', run.join() === '65,67,72,77,79,84,89', run.join());
+check('Pas de montée sur un accord altéré', finalRun(chordOf(5, '7alt', [41, 51], [57, 59, 63, 68]), [57, 59, 63, 68]).length === 0);
 
 console.log('\n=== Démo : grille complète ===');
 const chords = movement('Cadence II-V-I majeur');
 const { events, beats } = buildGospelDemo(chords);
-check('Une mesure de 4 temps par accord', beats === chords.length * 4);
+check('Une mesure de 4 temps par accord (+ un temps pour la montée finale)', beats >= chords.length * 4 && beats <= chords.length * 4 + 1.1, String(beats));
 const steps = events.filter((e) => e.type === 'step');
 check('Un repère par accord, dans l\'ordre, sur le 1er temps', steps.map((e) => `${e.step}@${e.time}`).join() === chords.map((_, i) => `${i}@${i * 4}`).join());
-const ons = events.filter((e) => e.type === 'noteOn');
-const offs = events.filter((e) => e.type === 'noteOff');
-check('Chaque note enfoncée est relâchée', ons.length === offs.length);
-check('Évènements triés dans le temps', events.every((e, i) => i === 0 || events[i - 1].time <= e.time));
-check('Vélocités entre 0,3 et 1', ons.every((e) => e.velocity >= 0.3 && e.velocity <= 1));
-const pedal = events.filter((e) => e.type === 'sustain');
-check('Pédale reprise à chaque accord et relevée à la fin', pedal.filter((e) => e.value).length === chords.length && pedal[pedal.length - 1].value === false);
-
-// Les voicings de la démo sont ceux de l'exercice (voicings enchaînés).
-chords.forEach((chord, i) => {
-  const onBeat1 = new Set(ons.filter((e) => e.time === i * 4 || (i === chords.length - 1 && e.time >= i * 4 && e.time < i * 4 + 1)).map((e) => e.note));
-  check(`${chord.name} : le voicing de l'exercice est joué tel quel au 1er temps`, chord.notes.every((n) => onBeat1.has(n)));
-});
-const onBeat = (beat) => new Set(ons.filter((e) => e.time === beat).map((e) => e.note));
-check('Accords rejoués sur les temps 2 et 4', chords[0].notes.every((n) => onBeat(1).has(n) && onBeat(3).has(n)));
-const bassDm = bassOctave(chords[0].rootPc, chords[0].notes);
-check('Basse en octaves sur le 1er temps (Dm11 : D2 D3)', bassDm.join() === '38,50' && bassDm.every((n) => onBeat(0).has(n)), bassDm.join());
-check('4e temps « et » : approche de la basse (Ab2 vers G) et 7e de Dm11 → 3ce de G13 (C4 → B3)', onBeat(3.5).has(44) && onBeat(3.5).has(59), [...onBeat(3.5)].join());
+check('Gospel / worship : jouable à deux mains, sans pédale, la carte entière', playabilityProblems({ events, beats }, chords).length === 0, playabilityProblems({ events, beats }, chords).slice(0, 3).join(' ; '));
+const onsets = (demo, from, to, hand) => demo.events.filter((e) => e.type === 'noteOn' && e.time >= from && e.time < to && (!hand || e.hand === hand));
+const spreadOf = (list) => Math.max(...list.map((e) => e.time)) - Math.min(...list.map((e) => e.time));
+check('Accords égrenés du grave à l\'aigu, le premier plus lentement', spreadOf(onsets({ events }, 0, 1)) > spreadOf(onsets({ events }, 4, 5)) && spreadOf(onsets({ events }, 4, 5)) > 0);
+check('Accords tenus, pas rejoués : une attaque par note jusqu\'au 4e temps', chords.slice(0, -1).every((c, i) => {
+  const { lh, rh } = demoHands(c, 'fifth');
+  return [...lh, ...rh].every((n) => onsets({ events }, i * 4, i * 4 + 3).filter((e) => e.note === n).length === 1);
+}));
+// II-V-I en Do : F#°7 vers G13 au 4e temps (basse chromatique) ; rien après G13, dominante.
+const passingBass = [3, 7].map((beat) => onsets({ events }, beat, beat + 0.01, 'lh').map((e) => e.note).join());
+check('Diminué de passage au 4e temps (F#2 vers G2), pas après la dominante', passingBass.join('|') === '42|', passingBass.join('|'));
+check('Pas de diminué après une dominante (G7 → C)', passingDiminished(chordOf(7, '7', [], [59, 65, 67]), chordOf(0, 'maj7', [], [59, 64, 67]),
+  { lh: [43, 53], rh: [59, 65, 67] }, { lh: [36, 43], rh: [59, 64, 67] }) === null);
+check('Pas de cadre d\'octave sous Fa3 (rootless F3 G3 A3 C4 : pas de C3)', onsets({ events }, 0, 1, 'rh').map((e) => e.note).join() === '53,55,57,60',
+  onsets({ events }, 0, 1, 'rh').map((e) => e.note).join());
+const closeGrid = movement('Cadence II-V-I majeur', { technique: 'close' });
+const closeDemo = buildGospelDemo(closeGrid);
+check('Main droite en cadre d\'octave sur Dm11 en close (C4 D4 F4 G4 C5)', onsets(closeDemo, 0, 1, 'rh').map((e) => e.note).join() === '60,62,65,67,72',
+  onsets(closeDemo, 0, 1, 'rh').map((e) => e.note).join());
+check('Voix du dessus qui bouge au 3e temps (au moins un accord)', chords.some((c, i) => onsets({ events }, i * 4 + 2, i * 4 + 2.01, 'rh').length === 1));
+const lastBar = onsets({ events }, (chords.length - 1) * 4 + 1.5, beats, 'rh');
+check('Montée finale ascendante après le dernier accord', lastBar.length >= 4 && lastBar.every((e, k) => k === 0 || e.note > lastBar[k - 1].note), lastBar.map((e) => e.note).join());
 
 // [Claude] — 2026-09-24 — Styles Ballade, Comping swing et Plaqué (demande de Narcisse).
 console.log('\n=== Démo : styles ===');
@@ -73,69 +152,57 @@ check('Quatre styles, chacun avec son tempo', DEMO_STYLE_IDS.join() === 'gospel,
 check('Style par défaut selon le mouvement : jazz → swing, gospel / worship → gospel, sans style → ballade',
   defaultDemoStyle('jazz') === 'swing' && defaultDemoStyle('gospel') === 'gospel' && defaultDemoStyle('worship') === 'gospel' && defaultDemoStyle(undefined) === 'ballade');
 check('Style inconnu : Gospel / worship', JSON.stringify(buildDemo(chords, 'inconnu')) === JSON.stringify(buildGospelDemo(chords)));
-check('Basse seule sous le voicing, dans le grave (Dm11 F3 G3 A3 C4 → D2)', bassNote(2, [53, 55, 57, 60]) === 38);
-check('Pas de basse seule si le voicing a déjà sa fondamentale au grave (shell C2 E2 Bb2)', bassNote(0, [36, 40, 46]) === null);
-
-const attacks = (demo, from, to) => demo.events.filter((e) => e.type === 'noteOn' && e.time >= from && e.time < to);
-const durations = (demo) => {
-  const open = new Map(); const out = [];
-  for (const e of demo.events) {
-    if (e.type === 'noteOn') open.set(`${e.note}@${e.time}`, e);
-    if (e.type === 'noteOff') {
-      const key = [...open.keys()].find((k) => k.startsWith(`${e.note}@`));
-      if (key) { out.push({ note: e.note, start: open.get(key).time, length: e.time - open.get(key).time }); open.delete(key); }
-    }
-  }
-  return out;
-};
+for (const style of DEMO_STYLE_IDS) {
+  const problems = playabilityProblems(buildDemo(chords, style), chords);
+  check(`${DEMO_STYLES[style].label} : deux mains, sans pédale, la carte entière`, problems.length === 0, problems.slice(0, 3).join(' ; '));
+}
 
 const ballade = buildDemo(chords, 'ballade');
-const balladeBar = attacks(ballade, 0, 4);
-const arpeggio = balladeBar.filter((e) => chords[0].notes.includes(e.note) && e.time < 2);
-check('Ballade : basse seule au 1er temps (D2)', balladeBar.some((e) => e.time === 0 && e.note === 38) && !balladeBar.some((e) => e.time === 0 && e.note === 50));
-check('Ballade : voicing arpégé du grave à l\'aigu, après la basse', arpeggio.length === chords[0].notes.length
+// Main droite de la démo (le rootless de la carte passe à la main droite, au-dessus de la basse).
+const cardRh = demoHands(chords[0], 'fifth').rh;
+check('Rootless à une main : joué à la main droite, la main gauche prend la basse (Dm11 : D2 A2 | F3 G3 A3 C4)',
+  cardHands(chords[0]).rh.length === 0 && cardRh.join() === cardHands(chords[0]).lh.join() && demoHands(chords[0], 'fifth').lh.join() === '38,45',
+  `${demoHands(chords[0], 'fifth').lh} | ${cardRh}`);
+const arpeggio = onsets(ballade, 0, 2, 'rh');
+check('Ballade : main droite arpégée du grave à l\'aigu, après la main gauche', arpeggio.length === cardRh.length
   && arpeggio.every((e, k) => k === 0 || (e.time > arpeggio[k - 1].time && e.note > arpeggio[k - 1].note)) && arpeggio[0].time > 0,
   arpeggio.map((e) => `${e.note}@${e.time}`).join(' '));
-const top2 = [...chords[0].notes].sort((a, b) => a - b).slice(-2);
-check('Ballade : les deux notes du dessus reprises au 3e temps', top2.every((n) => balladeBar.some((e) => e.time === 2 && e.note === n)));
-check('Ballade : pédale changée à chaque accord', ballade.events.filter((e) => e.type === 'sustain' && e.value).length === chords.length);
+check('Ballade : les deux notes du dessus reprises au 3e temps', cardRh.slice(-2).every((n) => onsets(ballade, 2, 2.1, 'rh').some((e) => e.note === n)));
+check('Ballade : main gauche tenue toute la mesure', ballade.events.filter((e) => e.type === 'noteOff' && e.hand === 'lh' && e.time < 4).every((e) => e.time >= 3.9));
 
 const swing = buildDemo(chords, 'swing');
-const swingBar = attacks(swing, 0, 4);
-check('Swing : Charleston — accord au 1er temps et au « et » du 2e (croche swinguée)',
-  chords[0].notes.every((n) => swingBar.some((e) => e.time === 0 && e.note === n) && swingBar.some((e) => Math.abs(e.time - (1 + 2 / 3)) < 1e-9 && e.note === n)));
-check('Swing : basse au 1er temps, sans pédale', swingBar.some((e) => e.time === 0 && e.note === 38) && !swing.events.some((e) => e.type === 'sustain'));
-check('Swing : accords courts (≤ un demi-temps et demi), sauf le dernier',
-  durations(swing).filter((d) => d.start < (chords.length - 1) * 4 && chords.some((c) => c.notes.includes(d.note))).every((d) => d.length <= 0.55 + 1e-9));
+check('Swing : Charleston — main droite au 1er temps et au « et » du 2e (croche swinguée)',
+  cardRh.every((n) => onsets(swing, 0, 0.1, 'rh').some((e) => e.note === n) && onsets(swing, 1.6, 1.8, 'rh').some((e) => e.note === n)));
+const swingLh = onsets(swing, 0, 4, 'lh');
+check('Swing : main gauche au 1er et au 3e temps (fondamentale, puis quinte au-dessus ou en dessous)', swingLh.length === 2 && swingLh[0].time === 0 && swingLh[1].time === 2
+  && [7, -5].includes(swingLh[1].note - swingLh[0].note), swingLh.map((e) => `${e.note}@${e.time}`).join(' '));
 
 const plaque = buildDemo(chords, 'plaque');
-check('Plaqué : le voicing seul, une fois par mesure, tenu', chords.every((c, i) => {
-  const bar = attacks(plaque, i * 4, i * 4 + 4);
-  return bar.length === c.notes.length && bar.every((e) => e.time === i * 4 && c.notes.includes(e.note));
-}) && !plaque.events.some((e) => e.type === 'sustain') && durations(plaque).every((d) => d.length >= 3.9));
+check('Plaqué : la carte seule, une fois par mesure, tenue', chords.every((c, i) => {
+  const bar = onsets(plaque, i * 4, i * 4 + 4);
+  return bar.length === new Set(c.notes).size && bar.every((e) => e.time < i * 4 + 0.1 && c.notes.includes(e.note));
+}));
+
+// [Claude] — 2026-09-24 — Le cas de Narcisse : Montée diatonique en quartes, en
+// Sib, niveau Avancé, Drop 2-4 (capture du 24/09 : G1 G2 G3 C4 Bb4 F5 sur Gm11).
+console.log('\n=== Démo : le cas signalé (Montée diatonique en Sib, Drop 2-4) ===');
+const rise = movement('Montée diatonique en quartes', { key: 10, technique: 'drop2_4', difficulty: 5 });
+const riseDemo = buildDemo(rise, 'gospel');
+const gm11Bar = onsets(riseDemo, 8, 12).map((e) => e.note);
+check('Gm11 : plus de G1 ni de G2 sous le voicing à deux mains', rise[2].name === 'Gm11' && !gm11Bar.includes(31) && !gm11Bar.includes(43), gm11Bar.join());
+check('Toute la grille : deux mains, sans pédale', playabilityProblems(riseDemo, rise).length === 0, playabilityProblems(riseDemo, rise).slice(0, 3).join(' ; '));
 
 console.log('\n=== Démo : toute la bibliothèque, tous les styles ===');
-let problems = [];
+const problems = [];
 for (const name of listMovementNames()) {
-  for (const technique of ['auto', 'rootless', 'drop2', 'spread']) {
+  for (const technique of ['auto', 'rootless', 'drop2', 'drop2_4', 'spread', 'stride']) {
     const grid = movement(name, { technique, key: 7 });
     for (const style of DEMO_STYLE_IDS) {
-      const demo = buildDemo(grid, style);
-      const ons = demo.events.filter((e) => e.type === 'noteOn');
-      if (ons.some((e) => e.note < 28 || e.note > 100)) problems.push(`${name} ${technique} ${style} : note hors clavier`);
-      if (ons.some((e) => e.velocity < 0.3 || e.velocity > 1)) problems.push(`${name} ${technique} ${style} : vélocité`);
-      if (ons.length !== demo.events.filter((e) => e.type === 'noteOff').length) problems.push(`${name} ${technique} ${style} : notes non relâchées`);
-      if (demo.events.filter((e) => e.type === 'step').length !== grid.length) problems.push(`${name} ${technique} ${style} : repères`);
-      // Le voicing de l'exercice est joué en entier dans la mesure de chaque accord.
-      grid.forEach((c, i) => {
-        const played = new Set(ons.filter((e) => e.time >= i * 4 && e.time < i * 4 + 4).map((e) => e.note));
-        if (!c.notes.every((n) => played.has(n))) problems.push(`${name} ${technique} ${style} : voicing de ${c.name} incomplet`);
-      });
-      if (demo.events.some((e, k) => k > 0 && demo.events[k - 1].time > e.time)) problems.push(`${name} ${technique} ${style} : ordre`);
+      playabilityProblems(buildDemo(grid, style), grid).forEach((p) => problems.push(`${name} ${technique} ${style} : ${p}`));
     }
   }
 }
-check('12 mouvements × 4 techniques × 4 styles : démo jouable (Mi1–Mi7, voicing entier, un repère par accord)', problems.length === 0, problems.slice(0, 3).join(' ; '));
+check('Tous les mouvements × 6 techniques × 4 styles : deux mains, sans pédale, carte entière', problems.length === 0, problems.slice(0, 3).join(' ; '));
 
 console.log('\n=== Lecteur de démo ===');
 {
