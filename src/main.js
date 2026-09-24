@@ -73,6 +73,7 @@ import {
   TECHNIQUE_LABELS,
 } from './practice-exercise.js';
 import movementsLibrary from './data/movements-library.json' with { type: 'json' };
+import { keyLabel } from './practice-key-spelling.js';
 import {
   loadFavorites,
   saveFavorites,
@@ -1155,7 +1156,14 @@ function renderExerciseBrief(exState) {
     category.textContent = 'PROGRESSION';
     title.textContent = exState.progression.name || 'Progression';
     text.textContent = '';
-    if (keyPill) keyPill.style.display = 'none';
+    if (keyPill) {
+      // Tonalité réelle de la grille (y compris tirée au hasard) ; pas de
+      // tonalité pour une progression saisie accord par accord.
+      const prog = exState.progression;
+      const showKey = !prog.typed && Number.isInteger(prog.keyPc);
+      keyPill.textContent = showKey ? `Tonalité ${keyLabel(prog.keyPc, Boolean(prog.minor))}` : '';
+      keyPill.style.display = showKey ? '' : 'none';
+    }
     return;
   }
 
@@ -1321,9 +1329,14 @@ function initPracticeExercise() {
       const categories = getAvailableTechniques(exState.target.name);
       const difficulty = difficultyOfVoicing(exState.target);
       const isFavorite = exerciseFavorites.some((f) => f.key === favoriteFromTarget(exState.target)?.key);
+      // Orthographe des notes selon la tonalité (Progression / Mouvement).
+      const prog = exState.progression;
+      const spelling = exState.mode === 'progression' && prog && !prog.typed ? { keyPc: prog.keyPc, minor: Boolean(prog.minor) }
+        : exState.mode === 'movement' && prog ? { keyPc: prog.currentKey, minor: Boolean(prog.minor) }
+          : null;
       targetDiv.innerHTML = renderExerciseTarget(exState.target, {
         categories, difficulty, variant: exState.variant, selectedTechnique: exState.technique,
-        doubling: exState.doubling, isFavorite, layout: exState.mode === 'chord' ? 'chord' : 'default',
+        doubling: exState.doubling, isFavorite, layout: exState.mode === 'chord' ? 'chord' : 'default', spelling,
       });
     }
     refreshContentSelector(exState);

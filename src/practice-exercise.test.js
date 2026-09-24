@@ -20,6 +20,7 @@ import { parseChordSymbol } from './pedagogie/chord-parser-v2.js';
 import { detectChord } from './chord-engine/index.js';
 import { formatPc } from './chord-engine/naming.js';
 import { applyDoublings } from './voicing-engine/doublings.js';
+import { spellDegreeInKey, spellPcInKey, keyLabel } from './practice-key-spelling.js';
 import {
   favoriteFromTarget, toggleFavorite, loadFavorites, saveFavorites, renderFavoritesList,
   removeFavorite, restoreFavorite, restoreFavorites, groupFavorites, favoriteMatches,
@@ -505,11 +506,92 @@ async function checkAllVoicingLabReachable() {
     const [pc, quality] = key.split('|');
     for (const c of getAvailableTechniques(names[pc] + (alias[quality] ?? quality))) total += c.count;
   }
-  check('10 674 voicings VoicingLab accessibles dans l\'Exercice', total === 10674, String(total));
+  // [Claude] — 2026-09-24 — Seules les variantes fidèles au nom sont accessibles
+  // (couleurs et notes définissantes présentes, basse = 1, 3 ou 5) : le reste
+  // du référentiel est lu mais écarté, et la technique barrée si plus rien.
+  const { VOICINGLAB_STYLE_BY_FAMILY, getVoicingLabVoicings } = await import('./voicing-engine/voicinglab-availability.js');
+  let raw = 0;
+  for (const key of Object.keys(ref.chords)) {
+    const [pc, quality] = key.split('|');
+    for (const family of Object.keys(VOICINGLAB_STYLE_BY_FAMILY)) {
+      if (family === 'rootlessA' || family === 'rootlessB') continue;
+      raw += getVoicingLabVoicings(Number(pc), alias[quality] ?? quality, family).length;
+    }
+    raw += getVoicingLabVoicings(Number(pc), alias[quality] ?? quality, 'rootlessA').length
+      + getVoicingLabVoicings(Number(pc), alias[quality] ?? quality, 'rootlessB').length;
+  }
+  check('Référentiel VoicingLab lu en entier (10 674 voicings)', raw === 10674, String(raw));
+  check('Voicings accessibles = voicings fidèles au nom (6 894)', total === 6894, String(total));
   check('Stride proposé (C7 : 2 voicings)', getAvailableTechniques('C7').find((c) => c.id === 'stride')?.count === 2);
-  check('Cluster proposé (D13 : 1 voicing)', getAvailableTechniques('D13').find((c) => c.id === 'cluster')?.count === 1);
+  check('Cluster barré pour D13 (sans 13e), proposé pour D7#11',
+    getAvailableTechniques('D13').find((c) => c.id === 'cluster')?.count === 0
+    && getAvailableTechniques('D7#11').find((c) => c.id === 'cluster')?.count === 1);
   check('Stride exclu de la note du dessus (main gauche seule)',
     findVoicingsByTopNote(0, '7', 10, { technique: 'stride' }).length === 0);
+}
+
+// [Claude] — 2026-09-24 — Accords épelés selon la tonalité (capture de Narcisse :
+// « A#maj7 » comme IV de Fa) et tonalité affichée en mode Progression.
+function checkKeySpelling() {
+  console.log('\n=== Orthographe selon la tonalité ===');
+  const spell = (key, list) => list.map(([deg, off]) => spellDegreeInKey((key + off) % 12, deg, key)).join(' ');
+  check('Fa majeur : IV V III VI II V I = Bb C A D G C F', spell(5, [[4, 5], [5, 7], [3, 4], [6, 9], [2, 2], [5, 7], [1, 0]]) === 'Bb C A D G C F');
+  check('Do majeur : bII bIII #IV bVI bVII = Db Eb F# Ab Bb', spell(0, [[2, 1], [3, 3], [4, 6], [6, 8], [7, 10]]) === 'Db Eb F# Ab Bb');
+  check('Gb majeur : IV = B (pas Cb)', spellDegreeInKey(11, 4, 6) === 'B');
+  check('Libellés : Bb majeur, C# mineur', keyLabel(10) === 'Bb majeur' && keyLabel(1, true) === 'C# mineur');
+  check('Accord joué épelé selon l\'armure (A# → Bb en Fa, A# en Ré)', spellPcInKey(10, 5) === 'Bb' && spellPcInKey(10, 2) === 'A#');
+
+  const ex = createPracticeExercise();
+  ex.setMode('progression');
+  ex.setDifficulty(1);
+  ex.setKeyChoice(5);
+  ex.setCustomProgressionFromDegrees([4, 5, 3, 6, 2, 5, 1].map((degree) => ({ degree, accidental: '' })));
+  const prog = ex.getState().progression;
+  check('Progression en Fa : Bbmaj7 C7 Am7 Dm7 Gm7 C7 Fmaj7', prog.chords.map((c) => c.name).join(' ') === 'Bbmaj7 C7 Am7 Dm7 Gm7 C7 Fmaj7',
+    prog.chords.map((c) => c.name).join(' '));
+  check('Tonalité connue de la progression (F majeur)', prog.keyPc === 5 && prog.minor === false);
+  ex.setTechnique('drop2');
+  ex.setVariant(1);
+  check('Nom épelé conservé après changement de technique et de variante', ex.getState().target.name === 'Bbmaj7');
+  const wrong = ex.check([60, 64, 67]);
+  check('Message d\'erreur : accord attendu épelé en bémols', wrong.message.includes('Bbmaj7'), wrong.message);
+  const mv = createPracticeExercise();
+  mv.setMode('movement');
+  mv.setKeyChoice(1);
+  mv.setContentChoice('Alternance mineur 6 – diminué (Barry Harris)');
+  const target = mv.getState().target;
+  check('Mouvement mineur : « Tonalité C# mineur », C#m6', target.keyLabel === 'Tonalité C# mineur' && target.name === 'C#m6', `${target.keyLabel} ${target.name}`);
+}
+
+// [Claude] — 2026-09-24 — Techniques barrées quand elles trahissent l'accord
+// (captures de Narcisse : Shell de Fmaj7#11 sans #11, Drop 3 de Fmaj13 avec la
+// 7e majeure à la basse, lu « Dmadd9 »).
+function checkFaithfulTechniques() {
+  console.log('\n=== Techniques fidèles au nom de l\'accord ===');
+  const count = (symbol, id) => getAvailableTechniques(symbol).find((c) => c.id === id)?.count ?? 0;
+  check('Shell barré pour Fmaj7#11, G7alt, Dm11 ; gardé pour Fmaj7, G7, Dm7',
+    ['Fmaj7#11', 'G7alt', 'Dm11'].every((s) => count(s, 'shell') === 0) && ['Fmaj7', 'G7', 'Dm7'].every((s) => count(s, 'shell') > 0));
+  check('Two-note shell gardé pour les accords simples (maj7, 7, m7)', ['Cmaj7', 'C7', 'Cm7'].every((s) => count(s, 'two_note_shell') > 0));
+  let bassOk = true;
+  for (let v = 0; v < 8; v += 1) {
+    const ex = createPracticeExercise();
+    ex.setTechnique('drop3');
+    ex.setTargetChoice(5, 'maj13');
+    for (let i = 0; i < v; i += 1) ex.setVariant(1);
+    const t = ex.getState().target;
+    if (t.voicing.technique === 'drop3' && Math.min(...t.notes) % 12 === 4) bassOk = false;
+  }
+  check('Drop 3 de Fmaj13 : jamais la 7e majeure (E) à la basse', bassOk);
+  const rootless = findVoicingsByTopNote(7, '13', 4, { technique: 'rootless' });
+  check('Rootless non soumis à la règle de basse (G13, top E)', rootless.length > 0);
+  let empty = [];
+  for (const q of TARGET_QUALITY_GROUPS.flatMap((g) => g.qualities)) {
+    for (let root = 0; root < 12; root += 1) {
+      const name = `${['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'][root]}${q}`;
+      if (!getAvailableTechniques(name).some((c) => c.playable)) empty.push(name);
+    }
+  }
+  check('Aucune des 48 qualités sans voicing, sur les 12 fondamentales', empty.length === 0, empty.slice(0, 5).join(' '));
 }
 
 // [Claude] — 2026-09-23 — Navigateur : tous les accords ayant une note au sommet.
@@ -517,8 +599,8 @@ function checkTopNoteBrowser() {
   console.log('\n=== Navigateur par note du dessus ===');
   const pcOf = (n) => ((n % 12) + 12) % 12;
   const all = findChordsByTopNote(9);
-  check('La au sommet : plus de 200 accords', all.length > 200, String(all.length));
-  check('Fmaj7 présent avec 7 voicings', all.find((r) => r.name === 'Fmaj7')?.voicings.length === 7);
+  check('La au sommet : plus de 150 accords', all.length > 150, String(all.length));
+  check('Fmaj7 présent avec 6 voicings fidèles', all.find((r) => r.name === 'Fmaj7')?.voicings.length === 6);
   // L'index de chaque puce charge exactement ce voicing dans l'exercice.
   let coherent = true;
   for (const r of all.filter((_, i) => i % 17 === 0)) {
@@ -785,6 +867,8 @@ async function runTests() {
   checkClusterLeftHand();
   checkTopNoteFilters();
   checkFavorites();
+  checkFaithfulTechniques();
+  checkKeySpelling();
   await checkAllVoicingLabReachable();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);

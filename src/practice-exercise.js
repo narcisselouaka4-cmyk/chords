@@ -16,6 +16,7 @@ import movementsLibrary from './data/movements-library.json' with { type: 'json'
 import { getVoicingLabVoicings, isQualityOnVoicingLab, isDerivedQuality } from './voicing-engine/voicinglab-availability.js';
 import { parseChordSymbol } from './pedagogie/chord-parser-v2.js';
 import { applyDoublings, DOUBLING_MODES, DOUBLING_LABELS } from './voicing-engine/doublings.js';
+import { spellDegreeInKey, spellPcInKey, keyLabel, isMinorProgression } from './practice-key-spelling.js';
 
 // Difficulté exprimée en étoiles (1–5). Le mode "Accord cible" est strict :
 // 1★ = triades, 2★ = 7e, 3★ = 9e / couleurs, 4★ = tensions/altérations,
@@ -414,7 +415,81 @@ function splitChordSymbol(chordSymbol) {
 function voicingLabVariantsFor(rootPc, quality, technique) {
   return familiesForTechnique(technique).flatMap((familyId) =>
     getVoicingLabVoicings(rootPc, quality, familyId).map((v) => withClusterLeftHand({ ...v, familyId }, rootPc, quality))
-  );
+  ).filter((v) => isFaithfulVariant(v, rootPc, quality, technique));
+}
+
+// [Claude] — 2026-09-24 — Variantes fidèles au nom de l'accord (Narcisse :
+// « barrer » les techniques qui trahissent l'accord). Une variante VoicingLab
+// est écartée s'il lui manque une couleur du nom (Shell de G7alt = G7, Shell de
+// Dm11 = Dm7, cluster « 13 » sans 13e) ou une note qui définit l'accord
+// (tierce, septième / sixte, quinte altérée), ou si sa basse n'est ni la
+// fondamentale, ni la tierce, ni la quinte (Drop 3 de Fmaj13 avec la 7e majeure
+// à la basse, lu « Dmadd9 »). Les techniques sans fondamentale par nature
+// échappent à la règle de basse. Une technique sans variante fidèle est barrée.
+const BASS_RULE_EXEMPT = new Set(['rootless', 'two_note_shell', 'upper_structure', 'quartal', 'so_what', 'block']);
+
+const colorGroupsCache = new Map();
+
+/**
+ * Couleurs exigées par le nom de la qualité (demi-tons depuis la fondamentale).
+ * Chaque groupe doit être représenté par au moins une de ses notes.
+ * @returns {number[][]}
+ */
+export function requiredColorGroups(quality) {
+  const key = String(quality || '');
+  if (colorGroupsCache.has(key)) return colorGroupsCache.get(key);
+  const q = key.replace(/^(m?)69/, '$16/9');
+  const tokens = q.match(/sus[24]|add(?:9|11)|[#b](?:5|9|11|13)|\/9|alt|maj|Maj|dim|aug|m|\d+/g) || [];
+  const groups = [];
+  let sizeSeen = false;
+  for (const t of tokens) {
+    if (t === 'sus2') groups.push([2]);
+    else if (t === 'sus4') groups.push([5]);
+    else if (t === 'add9' || t === '/9') groups.push([2]);
+    else if (t === 'add11') groups.push([5]);
+    else if (t === 'b9') groups.push([1]);
+    else if (t === '#9') groups.push([3]);
+    else if (t === '#11' || t === 'b5') groups.push([6]);
+    else if (t === 'b13' || t === '#5') groups.push([8]);
+    else if (t === 'alt') groups.push([1, 3, 6, 8]);
+    else if (/^\d+$/.test(t) && !sizeSeen) {
+      // Chiffre principal : 6 → sixte, 9 → neuvième, 11 → onzième, 13 → treizième.
+      sizeSeen = true;
+      const color = { 6: 9, 9: 2, 11: 5, 13: 9 }[Number(t)];
+      if (color != null) groups.push([color]);
+    }
+  }
+  colorGroupsCache.set(key, groups);
+  return groups;
+}
+
+/** Notes admises à la basse : fondamentale, tierce, quinte (toutes pour dim7 / aug, symétriques). */
+function allowedBassIntervals(quality) {
+  const core = chordCoreIntervals(quality);
+  if (/^(dim7|aug)/.test(quality || '')) return new Set(core);
+  return new Set(core.filter((i) => [0, 3, 4, 6, 7, 8].includes(i)));
+}
+
+/** Vrai si la variante porte l'accord annoncé (voir plus haut). */
+export function isFaithfulVariant(v, rootPc, quality, technique) {
+  const notes = [...v.lh, ...v.rh];
+  if (notes.length === 0) return false;
+  const rel = new Set(notes.map((n) => (((n - rootPc) % 12) + 12) % 12));
+  const colors = requiredColorGroups(quality);
+  // Fondamentale et quinte juste peuvent manquer (rootless, quinte omise). La
+  // tierce majeure est facultative sous une 11e juste (maj11 : elle frotterait,
+  // on l'omet comme pour l'accord « 11 »). Le two-note shell (fondamentale +
+  // tierce ou septième) est une simplification voulue : pas d'exigence de noyau.
+  const optional = new Set([0, 7]);
+  if (colors.some((g) => g.length === 1 && g[0] === 5)) optional.add(4);
+  if (technique !== 'two_note_shell'
+    && !chordCoreIntervals(quality).every((i) => optional.has(i) || rel.has(i))) return false;
+  if (!colors.every((g) => g.some((i) => rel.has(i)))) return false;
+  if (!BASS_RULE_EXEMPT.has(technique)) {
+    const bass = (((Math.min(...notes) - rootPc) % 12) + 12) % 12;
+    if (!allowedBassIntervals(quality).has(bass)) return false;
+  }
+  return true;
 }
 
 // Intervalles de la « septième » de l'accord, par ordre de préférence.
@@ -845,6 +920,11 @@ function buildChordTarget(rootPc, symbol, technique, variant = 0, difficulty = n
   };
 }
 
+/** Vrai si le mouvement est en mineur (son accord de degré I est mineur). */
+function isMinorMovement(movement) {
+  return isMinorProgression(String(movement?.pattern || '').split('-').map((t) => parseMovementToken(t)));
+}
+
 function parseMovementToken(token) {
   // Formats acceptés : "7", "b3maj7", "2m7b5", "b5alt", "1m"
   const match = String(token).match(/^([b#]?)(\d+)(.*)$/);
@@ -885,6 +965,7 @@ function parseMovementToken(token) {
 
   function buildMovementChords(movement, keyPc, technique, difficulty, variant = 0, doubling = 'none') {
     const tokens = movement.pattern.split('-');
+    const minor = isMinorMovement(movement);
     return tokens.map((token) => {
       const parsed = parseMovementToken(token);
       if (!parsed) return null;
@@ -896,6 +977,7 @@ function parseMovementToken(token) {
       if (!target) return null;
       return {
         ...target,
+        name: `${spellDegreeInKey(rootPc, parsed.degree, keyPc, minor)}${target.symbol}`,
         token,
         degree: parsed.degree,
         quality,
@@ -1000,6 +1082,7 @@ export function createPracticeExercise() {
   }
 
   function buildProgressionFromTokens(tokens, keyPc, name) {
+    const minor = isMinorProgression(tokens);
     const chords = tokens.map((token) => {
       const rootPc = (keyPc + token.offset) % 12;
       const base = token.quality || DEFAULT_QUALITY_FOR_DEGREE[token.degree] || '';
@@ -1012,10 +1095,12 @@ export function createPracticeExercise() {
       if (!target) return null;
       return {
         ...target,
+        // Nom épelé selon la tonalité (IV de Fa = Bbmaj7, pas A#maj7).
+        name: `${spellDegreeInKey(rootPc, token.degree, keyPc, minor)}${target.symbol}`,
         degree: token.degree === 1 ? 'I' : token.degree === 2 ? 'II' : token.degree === 3 ? 'III' : token.degree === 4 ? 'IV' : token.degree === 5 ? 'V' : token.degree === 6 ? 'VI' : 'VII',
       };
     });
-    return chords.every(Boolean) ? { type: 'progression', name, keyPc, chords } : null;
+    return chords.every(Boolean) ? { type: 'progression', name, keyPc, minor, chords } : null;
   }
 
   function generateProgressionTarget() {
@@ -1025,13 +1110,15 @@ export function createPracticeExercise() {
       const chords = state.customProgression.map((parsed, iDeg) => {
         const target = buildChordTarget(parsed.rootPc, parsed.symbol, state.technique, state.variant, autoDifficulty(), null, state.doubling);
         if (!target) return null;
-        return { ...target, degree: null };
+        return { ...target, name: parsed.name || target.name, degree: null };
       }).filter(Boolean);
       if (chords.length === state.customProgression.length) {
         return {
           type: 'progression',
           name: 'Progression personnalisée',
           keyPc: state.customProgression[0].rootPc,
+          // Accords saisis tels quels : pas de tonalité à afficher.
+          typed: true,
           chords,
         };
       }
@@ -1064,6 +1151,7 @@ export function createPracticeExercise() {
       type: 'progression',
       name: 'II-V-I majeur',
       keyPc: 0,
+      minor: false,
       chords: ['m7', '7', 'maj7'].map((symbol, deg) => {
         const rootPc = ([2, 7, 0][deg]);
         const target = buildChordTarget(rootPc, symbol, state.technique, state.variant, autoDifficulty(), null, state.doubling);
@@ -1100,6 +1188,7 @@ export function createPracticeExercise() {
         return {
           type: 'movement',
           name: movement.name,
+          minor: isMinorMovement(movement),
           description: movement.description,
           category: movement.category,
           pattern: movement.pattern,
@@ -1119,6 +1208,7 @@ export function createPracticeExercise() {
     return {
       type: 'movement',
       name: fallback.name,
+      minor: isMinorMovement(fallback),
       description: fallback.description,
       category: fallback.category,
       pattern: fallback.pattern,
@@ -1134,13 +1224,12 @@ export function createPracticeExercise() {
 
   function attachMovementContext(chord, movementState) {
     if (!movementState || movementState.type !== 'movement') return chord;
-    const keyName = formatPc(movementState.currentKey, false);
     return {
       ...chord,
       movementName: movementState.name,
       movementDescription: movementState.description,
       movementCategory: movementState.category,
-      keyLabel: `Tonalité ${keyName}`,
+      keyLabel: `Tonalité ${keyLabel(movementState.currentKey, isMinorMovement(movementState.movement))}`,
       keyProgress: `${movementState.keyIndex + 1} / ${movementState.totalKeys} tons`,
       stepProgress: `${movementState.stepIndex + 1} / ${movementState.chords.length} accords`,
     };
@@ -1160,8 +1249,11 @@ export function createPracticeExercise() {
     if (!refreshed) return;
     // topNoteMiss est recalculé à chaque régénération.
     if (!refreshed.topNoteMiss) delete state.target.topNoteMiss;
-    // Conserver les métadonnées de contexte mouvement/progression.
-    state.target = { ...state.target, ...refreshed };
+    // Conserver les métadonnées de contexte mouvement/progression, dont le nom
+    // épelé selon la tonalité (buildChordTarget écrit toujours en dièses).
+    state.target = state.mode === 'chord'
+      ? { ...state.target, ...refreshed }
+      : { ...state.target, ...refreshed, name: state.target.name };
   }
 
   function next(forceRegenerate = false) {
@@ -1582,7 +1674,7 @@ export function createPracticeExercise() {
           stepIndex: state.stepIndex,
         };
       }
-      const playedName = detected ? `${formatPc(detected.rootPc, false)}${detected.symbol}` : 'inconnu';
+      const playedName = detected ? `${spellPcInKey(detected.rootPc, state.progression.keyPc, state.progression.minor)}${detected.symbol}` : 'inconnu';
       return {
         success: false,
         message: `❌ Attendu ${expected.name} (degré ${expected.degree}), joué ${playedName}.`,
@@ -1631,7 +1723,7 @@ export function createPracticeExercise() {
         message: `✅ ${expected.name} correct. Suivant : ${state.target.name}`,
       };
     }
-    const playedName = detected ? `${formatPc(detected.rootPc, false)}${detected.symbol}` : 'inconnu';
+    const playedName = detected ? `${spellPcInKey(detected.rootPc, state.progression.currentKey, isMinorMovement(state.progression.movement))}${detected.symbol}` : 'inconnu';
     return {
       success: false,
       message: `❌ Attendu ${expected.name} (${state.target.keyLabel}), joué ${playedName}.`,
@@ -1705,7 +1797,11 @@ export function renderExerciseTarget(target, options = {}) {
   const splitDisplay = leftHand.length > 0 && rightHand.length > 0
     && leftHand.some((n) => !rightHand.includes(n));
 
-  const allNames = notes.map((n) => formatNoteNameWithOctave(n)).join(' · ');
+  // Notes épelées selon la tonalité en Progression / Mouvement (Bb4 en Fa, pas A#4).
+  const noteLabel = options.spelling
+    ? (n) => `${spellPcInKey(n, options.spelling.keyPc, options.spelling.minor)}${Math.floor(n / 12) - 1}`
+    : formatNoteNameWithOctave;
+  const allNames = notes.map((n) => noteLabel(n)).join(' · ');
   const difficulty = options.difficulty ?? difficultyOfVoicing(target);
   // Accord cible : le choix du voicing et les doublures quittent la carte
   // (colonne de droite et fenêtre Filtres) ; la carte garde l'essentiel.
@@ -1726,10 +1822,10 @@ export function renderExerciseTarget(target, options = {}) {
       ${target.topNoteMiss ? `<div class="exercise-topnote-miss">Aucun voicing de ${escapeHtml(target.name)} n'a cette note au sommet avec ces filtres : voicing habituel affiché.</div>` : ''}
       ${voicing?.derived ? `<div class="exercise-derived-note" title="Qualité absente de VoicingLab : voicing VoicingLab réel de ${escapeHtml(voicing.derivedFrom)} dont une note est déplacée">Voicing dérivé de ${escapeHtml(voicing.derivedFrom)} (absent de VoicingLab)</div>` : ''}
       <div class="exercise-target-keyboard">${kb.svg}</div>
-      ${addedLH.length > 0 ? `<div class="exercise-doubled-note" title="VoicingLab publie ce cluster pour la main droite seule : la main gauche porte l'accord">Main gauche ajoutée (fondamentale + septième) : ${escapeHtml(formatHandNotes(addedLH))}</div>` : ''}
-      ${doubled.length > 0 ? `<div class="exercise-doubled-note">Doublure${doubled.length > 1 ? 's' : ''} ajoutée${doubled.length > 1 ? 's' : ''} : ${escapeHtml(formatHandNotes(doubled))}</div>` : ''}
+      ${addedLH.length > 0 ? `<div class="exercise-doubled-note" title="VoicingLab publie ce cluster pour la main droite seule : la main gauche porte l'accord">Main gauche ajoutée (fondamentale + septième) : ${escapeHtml(formatHandNotes(addedLH, noteLabel))}</div>` : ''}
+      ${doubled.length > 0 ? `<div class="exercise-doubled-note">Doublure${doubled.length > 1 ? 's' : ''} ajoutée${doubled.length > 1 ? 's' : ''} : ${escapeHtml(formatHandNotes(doubled, noteLabel))}</div>` : ''}
       <div class="exercise-target-hands">
-        ${splitDisplay ? renderHandSplit(leftHand, rightHand) : renderUnifiedHand(allNames, singleHandLabel(leftHand, rightHand))}
+        ${splitDisplay ? renderHandSplit(leftHand, rightHand, noteLabel) : renderUnifiedHand(allNames, singleHandLabel(leftHand, rightHand))}
       </div>
       <div class="exercise-target-actions">
       ${compact ? '' : renderDoublingSelect(options.doubling)}
@@ -1854,9 +1950,9 @@ function renderVoicingCategories(categories, activeTechnique, variant = 0, varia
   return `<div class="exercise-voicing-categories">${autoTag}${items}</div>`;
 }
 
-function formatHandNotes(notes) {
+function formatHandNotes(notes, noteLabel = formatNoteNameWithOctave) {
   if (!notes || notes.length === 0) return '—';
-  return notes.map((n) => formatNoteNameWithOctave(n)).join(' · ');
+  return notes.map((n) => noteLabel(n)).join(' · ');
 }
 
 /** Libellé du bloc unique : une seule main quand VoicingLab n'en utilise qu'une. */
@@ -1875,15 +1971,15 @@ function renderUnifiedHand(allNames, label = 'Les deux mains') {
   `;
 }
 
-function renderHandSplit(leftHand, rightHand) {
+function renderHandSplit(leftHand, rightHand, noteLabel = formatNoteNameWithOctave) {
   return `
     <div class="exercise-hand exercise-hand-lh">
       <span class="exercise-hand-label">Main gauche</span>
-      <span class="exercise-hand-notes">${escapeHtml(formatHandNotes(leftHand))}</span>
+      <span class="exercise-hand-notes">${escapeHtml(formatHandNotes(leftHand, noteLabel))}</span>
     </div>
     <div class="exercise-hand exercise-hand-rh">
       <span class="exercise-hand-label">Main droite</span>
-      <span class="exercise-hand-notes">${escapeHtml(formatHandNotes(rightHand))}</span>
+      <span class="exercise-hand-notes">${escapeHtml(formatHandNotes(rightHand, noteLabel))}</span>
     </div>
   `;
 }
