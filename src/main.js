@@ -67,6 +67,8 @@ import {
   isDerivedQuality,
   findChordsByTopNote,
   renderTopNoteBrowser,
+  renderVoicingChoices,
+  renderDoublingSelect,
   TOP_NOTE_FILTERS,
   TECHNIQUE_LABELS,
 } from './practice-exercise.js';
@@ -196,6 +198,10 @@ const els = {
   exerciseChordSide: document.getElementById('exercise-chord-side'),
   exerciseChordHead: document.getElementById('exercise-chord-head'),
   exerciseFavorites: document.getElementById('exercise-favorites'),
+  exerciseVoicingChoices: document.getElementById('exercise-voicing-choices'),
+  exerciseFiltersDialog: document.getElementById('exercise-filters-dialog'),
+  exerciseFiltersCount: document.getElementById('exercise-filters-count'),
+  exerciseDoublingFilter: document.getElementById('exercise-doubling-filter'),
   exerciseTopNoteReset: document.getElementById('exercise-topnote-reset'),
   exerciseRandomTargetBtn: document.getElementById('exercise-random-target-btn'),
   exerciseCustomProgressionSelector: document.getElementById('exercise-custom-progression-selector'),
@@ -1307,7 +1313,10 @@ function initPracticeExercise() {
       const categories = getAvailableTechniques(exState.target.name);
       const difficulty = difficultyOfVoicing(exState.target);
       const isFavorite = exerciseFavorites.some((f) => f.key === favoriteFromTarget(exState.target)?.key);
-      targetDiv.innerHTML = renderExerciseTarget(exState.target, { categories, difficulty, variant: exState.variant, selectedTechnique: exState.technique, doubling: exState.doubling, isFavorite });
+      targetDiv.innerHTML = renderExerciseTarget(exState.target, {
+        categories, difficulty, variant: exState.variant, selectedTechnique: exState.technique,
+        doubling: exState.doubling, isFavorite, layout: exState.mode === 'chord' ? 'chord' : 'default',
+      });
     }
     refreshContentSelector(exState);
     refreshTargetChoice(exState);
@@ -1342,7 +1351,23 @@ function initPracticeExercise() {
     if (feedback && feedbackHome && feedback.parentElement !== feedbackHome) feedbackHome.prepend(feedback);
     els.exerciseChordSide?.closest('.tr-exercise-progress')?.classList.toggle('is-chord-side', isChord);
     if (els.exerciseChordSide) els.exerciseChordSide.hidden = !isChord;
-    if (!isChord || !els.exerciseFavorites) return;
+    if (!isChord) return;
+    // Voicings disponibles de l'accord affiché (hors de la carte en Accord cible).
+    if (els.exerciseVoicingChoices) {
+      els.exerciseVoicingChoices.innerHTML = exState.target
+        ? renderVoicingChoices(exState.target, { variant: exState.variant, selectedTechnique: exState.technique })
+        : '';
+    }
+    // Fenêtre Filtres : doublures, et nombre de réglages actifs sur le bouton.
+    if (els.exerciseDoublingFilter) els.exerciseDoublingFilter.innerHTML = renderDoublingSelect(exState.doubling);
+    if (els.exerciseFiltersCount) {
+      const topNoteActive = exState.topNote?.pc == null ? 0
+        : [...Object.keys(TOP_NOTE_FILTERS), 'level'].filter((k) => (exState.topNote[k] || 'all') !== 'all').length;
+      const active = topNoteActive + (exState.doubling && exState.doubling !== 'none' ? 1 : 0);
+      els.exerciseFiltersCount.hidden = active === 0;
+      els.exerciseFiltersCount.textContent = String(active);
+    }
+    if (!els.exerciseFavorites) return;
     const activeKey = exState.target?.voicing?.source === 'favori' ? favoriteFromTarget(exState.target)?.key : null;
     els.exerciseFavorites.innerHTML = renderFavoritesList(exerciseFavorites, { techniqueLabels: TECHNIQUE_LABELS, activeKey });
   }
@@ -1891,7 +1916,8 @@ function initPracticeExercise() {
     render();
   });
 
-  targetDiv?.addEventListener('click', (e) => {
+  /** Clics sur la carte et sur les voicings de la colonne de droite. */
+  function handleVoicingClick(e) {
     if (e.target.closest('[data-action="toggle-favorite"]')) {
       exerciseFavorites = toggleFavorite(exerciseFavorites, favoriteFromTarget(practiceExercise.getState().target));
       saveFavorites(window.localStorage, exerciseFavorites);
@@ -1925,6 +1951,16 @@ function initPracticeExercise() {
       practiceExercise.setTechnique(technique);
       render();
     }
+  }
+  targetDiv?.addEventListener('click', handleVoicingClick);
+  els.exerciseVoicingChoices?.addEventListener('click', handleVoicingClick);
+
+  // Doublures choisies dans la fenêtre Filtres.
+  els.exerciseFiltersDialog?.addEventListener('change', (e) => {
+    const sel = e.target.closest('[data-exercise-doubling]');
+    if (!sel) return;
+    practiceExercise.setDoubling(sel.value);
+    render();
   });
 
   // Premier exercice au démarrage

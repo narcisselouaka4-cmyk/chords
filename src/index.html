@@ -226,6 +226,8 @@
                 <select id="exercise-target-quality" aria-label="Qualité de l'accord cible"></select>
                 <!-- Tirage d'un accord au hasard : vrai bouton (icône dé), dans la bande du haut. -->
                 <button class="tr-button exercise-random-target-btn" type="button" id="exercise-random-target-btn" title="Tire une racine et une qualité au hasard (en respectant la top note si elle est choisie)"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="16" cy="8" r="1.1" fill="currentColor"/><circle cx="12" cy="12" r="1.1" fill="currentColor"/><circle cx="8" cy="16" r="1.1" fill="currentColor"/><circle cx="16" cy="16" r="1.1" fill="currentColor"/></svg>Accord au hasard</button>
+                <!-- Filtres de la top note et doublures : fenêtre temporaire (fermée par défaut). -->
+                <button class="tr-button exercise-filters-btn" type="button" id="exercise-filters-btn" data-astra-open="exercise-filters-dialog"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18M6 12h12M10 19h4"/></svg>Filtres<span class="exercise-filters-count" id="exercise-filters-count" hidden></span></button>
               </div>
             </div>
             <!-- [Astra round 3] — Le guide et le panneau de progression ne sont
@@ -351,26 +353,9 @@
                    (score inutile ici) accueille les filtres de la note du dessus
                    et les favoris. Les autres modes gardent leur avancement. -->
               <div class="exercise-chord-side" id="exercise-chord-side" hidden>
-                <span class="tr-eyebrow">FILTRES</span>
-                <p class="exercise-side-hint" id="exercise-topnote-filters-hint">Choisissez une top note pour filtrer les voicings.</p>
-                <div class="exercise-topnote-filters" id="exercise-topnote-filters" hidden>
-                  <!-- Tonalité, fondamentale et techniques : remplies par main.js. -->
-                  <select data-topnote-filter="key" aria-label="Tonalité : voicings dont toutes les notes sont dans la gamme"></select>
-                  <select id="exercise-top-note-level" aria-label="Niveau des voicings suggérés" disabled>
-                    <option value="all">Tous niveaux</option>
-                    <option value="simple">Simple (★1–2)</option>
-                    <option value="intermediate">Intermédiaire (★3)</option>
-                    <option value="advanced">Avancé (★4–5)</option>
-                  </select>
-                  <select data-topnote-filter="chordRoot" aria-label="Fondamentale des accords listés"></select>
-                  <select data-topnote-filter="technique" aria-label="Technique de voicing"></select>
-                  <select data-topnote-filter="hands" aria-label="Répartition des mains">
-                    <option value="all">Une ou deux mains</option>
-                    <option value="one">Une main</option>
-                    <option value="two">Deux mains</option>
-                  </select>
-                  <button type="button" class="exercise-topnote-reset" id="exercise-topnote-reset" hidden>Réinitialiser les filtres</button>
-                </div>
+                <span class="tr-eyebrow">VOICINGS</span>
+                <!-- Voicings disponibles pour l'accord affiché : rempli par main.js. -->
+                <div class="exercise-voicing-choices" id="exercise-voicing-choices"></div>
                 <span class="tr-eyebrow exercise-favorites-eyebrow">FAVORIS</span>
                 <div class="exercise-favorites" id="exercise-favorites"></div>
               </div>
@@ -400,6 +385,44 @@
         </div>
 
         <!-- Fenêtre « Comment jouer » (recopiée de la maquette). -->
+        <!-- [Claude] — 2026-09-24 — Fenêtre temporaire des filtres (Accord cible) :
+             filtres de la top note et doublures, hors de la page. -->
+        <div class="tr-overlay" id="exercise-filters-dialog" hidden>
+          <div class="tr-dialog exercise-filters-dialog" role="dialog" aria-modal="true" aria-label="Filtres">
+            <div class="tr-dialog-title"><h2>Filtres</h2>
+              <button class="tr-icon-button" type="button" data-astra-close aria-label="Fermer">✕</button></div>
+            <div class="tr-dialog-body exercise-filters-body">
+              <section class="exercise-filters-section">
+                <span class="tr-eyebrow">TOP NOTE</span>
+                <p class="exercise-side-hint" id="exercise-topnote-filters-hint">Choisissez une top note pour filtrer les voicings.</p>
+                <div class="exercise-topnote-filters" id="exercise-topnote-filters" hidden>
+                  <!-- Tonalité, fondamentale et techniques : remplies par main.js. -->
+                  <select data-topnote-filter="key" aria-label="Tonalité : voicings dont toutes les notes sont dans la gamme"></select>
+                  <select id="exercise-top-note-level" aria-label="Niveau des voicings suggérés" disabled>
+                    <option value="all">Tous niveaux</option>
+                    <option value="simple">Simple (★1–2)</option>
+                    <option value="intermediate">Intermédiaire (★3)</option>
+                    <option value="advanced">Avancé (★4–5)</option>
+                  </select>
+                  <select data-topnote-filter="chordRoot" aria-label="Fondamentale des accords listés"></select>
+                  <select data-topnote-filter="technique" aria-label="Technique de voicing"></select>
+                  <select data-topnote-filter="hands" aria-label="Répartition des mains">
+                    <option value="all">Une ou deux mains</option>
+                    <option value="one">Une main</option>
+                    <option value="two">Deux mains</option>
+                  </select>
+                  <button type="button" class="exercise-topnote-reset" id="exercise-topnote-reset" hidden>Réinitialiser les filtres</button>
+                </div>
+              </section>
+              <section class="exercise-filters-section">
+                <span class="tr-eyebrow">DOUBLURES</span>
+                <div id="exercise-doubling-filter"></div>
+              </section>
+              <button class="tr-button tr-primary" type="button" data-astra-close>Voir les voicings</button>
+            </div>
+          </div>
+        </div>
+
         <div class="tr-overlay" id="exercise-help-dialog" hidden>
           <div class="tr-dialog" role="dialog" aria-modal="true" aria-label="Votre clavier, votre terrain de jeu">
             <div class="tr-dialog-title"><h2>Votre clavier, votre terrain de jeu</h2>

@@ -4227,6 +4227,62 @@
   padding-top: 12px;
 }
 
+/* ── Accord cible allégé : voicings à droite, filtres + doublures en fenêtre ── */
+:root[data-skin='global'] #practice-tab .exercise-target-card > .exercise-favorite-toggle,
+:root[data-skin='v2'] #practice-tab .exercise-target-card > .exercise-favorite-toggle {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  z-index: 1;
+}
+:root[data-skin='global'] #practice-tab .exercise-voicing-choices .exercise-voicing-categories,
+:root[data-skin='global'] #practice-tab .exercise-voicing-choices .exercise-topnote-list,
+:root[data-skin='v2'] #practice-tab .exercise-voicing-choices .exercise-voicing-categories,
+:root[data-skin='v2'] #practice-tab .exercise-voicing-choices .exercise-topnote-list {
+  justify-content: flex-start;
+  max-height: none;
+}
+:root[data-skin='global'] #practice-tab .exercise-voicing-choices .exercise-topnote-panel,
+:root[data-skin='v2'] #practice-tab .exercise-voicing-choices .exercise-topnote-panel {
+  align-items: stretch;
+}
+:root[data-skin='global'] #practice-tab .exercise-filters-count,
+:root[data-skin='v2'] #practice-tab .exercise-filters-count {
+  min-width: 16px;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: var(--r-radius-pill, 999px);
+  background: var(--r-accent);
+  color: var(--r-accent-contrast, #ffffff);
+  font-size: 0.64rem;
+  line-height: 16px;
+  text-align: center;
+}
+:root[data-skin='global'] #practice-tab .exercise-filters-count[hidden],
+:root[data-skin='v2'] #practice-tab .exercise-filters-count[hidden] {
+  display: none;
+}
+:root[data-skin='global'] #practice-tab .exercise-filters-dialog,
+:root[data-skin='v2'] #practice-tab .exercise-filters-dialog {
+  width: min(380px, calc(100vw - 32px));
+}
+:root[data-skin='global'] #practice-tab .exercise-filters-body,
+:root[data-skin='v2'] #practice-tab .exercise-filters-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+:root[data-skin='global'] #practice-tab .exercise-filters-section,
+:root[data-skin='v2'] #practice-tab .exercise-filters-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+:root[data-skin='global'] #practice-tab .exercise-filters-section select,
+:root[data-skin='v2'] #practice-tab .exercise-filters-section select {
+  width: 100%;
+}
+
 /* ── Mode Accord cible : colonne de droite = filtres + favoris (le score n'y sert pas) ── */
 :root[data-skin='global'] #practice-tab .tr-exercise-progress.is-chord-side,
 :root[data-skin='v2'] #practice-tab .tr-exercise-progress.is-chord-side {

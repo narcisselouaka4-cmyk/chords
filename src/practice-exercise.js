@@ -1693,7 +1693,6 @@ export function renderExerciseTarget(target, options = {}) {
   const voicing = target.voicing || null;
   // Le clavier reste unifié : toutes les notes actives, sans distinction LH/RH.
   const notes = [...new Set([...(voicing?.leftHand || []), ...(voicing?.rightHand || []), ...(target.notes || [])])].sort((a, b) => a - b);
-  const technique = voicing?.technique || 'auto';
 
   const doubled = voicing?.doubled || [];
   const addedLH = voicing?.addedLH || [];
@@ -1708,11 +1707,13 @@ export function renderExerciseTarget(target, options = {}) {
 
   const allNames = notes.map((n) => formatNoteNameWithOctave(n)).join(' · ');
   const difficulty = options.difficulty ?? difficultyOfVoicing(target);
-  const categories = options.categories ?? getAvailableTechniques(target.name);
-  const variant = options.variant ?? 0;
+  // Accord cible : le choix du voicing et les doublures quittent la carte
+  // (colonne de droite et fenêtre Filtres) ; la carte garde l'essentiel.
+  const compact = options.layout === 'chord';
 
   return `
     <div class="exercise-target-card ${target.movementName ? 'has-movement' : ''}">
+      <button class="exercise-favorite-toggle${options.isFavorite ? ' active' : ''}" type="button" data-action="toggle-favorite" aria-pressed="${options.isFavorite ? 'true' : 'false'}" title="${options.isFavorite ? 'Retirer des favoris' : 'Ajouter ce voicing aux favoris'}">${options.isFavorite ? '★' : '☆'}</button>
       <div class="exercise-target-header">
         <div class="exercise-target-title">
           <div class="exercise-target-name">${escapeHtml(target.name)}</div>
@@ -1721,10 +1722,7 @@ export function renderExerciseTarget(target, options = {}) {
           ${renderStars(difficulty)}
         </div>
       </div>
-      ${voicing?.topNoteSuggestions
-    ? renderTopNotePanel(voicing)
-    : `${renderVoicingCategories(categories, technique, voicing?.variantIndex ?? variant, voicing?.variantLabel || '', options.selectedTechnique ?? technique)}
-      ${voicing?.variantCount > 1 ? `<div class="exercise-variant-label">${escapeHtml(voicing.variantLabel)}</div>` : ''}`}
+      ${compact ? '' : renderVoicingChoices(target, options)}
       ${target.topNoteMiss ? `<div class="exercise-topnote-miss">Aucun voicing de ${escapeHtml(target.name)} n'a cette note au sommet avec ces filtres : voicing habituel affiché.</div>` : ''}
       ${voicing?.derived ? `<div class="exercise-derived-note" title="Qualité absente de VoicingLab : voicing VoicingLab réel de ${escapeHtml(voicing.derivedFrom)} dont une note est déplacée">Voicing dérivé de ${escapeHtml(voicing.derivedFrom)} (absent de VoicingLab)</div>` : ''}
       <div class="exercise-target-keyboard">${kb.svg}</div>
@@ -1734,10 +1732,7 @@ export function renderExerciseTarget(target, options = {}) {
         ${splitDisplay ? renderHandSplit(leftHand, rightHand) : renderUnifiedHand(allNames, singleHandLabel(leftHand, rightHand))}
       </div>
       <div class="exercise-target-actions">
-      <button class="exercise-favorite-toggle${options.isFavorite ? ' active' : ''}" type="button" data-action="toggle-favorite" aria-pressed="${options.isFavorite ? 'true' : 'false'}" title="${options.isFavorite ? 'Retirer des favoris' : 'Ajouter ce voicing aux favoris'}">${options.isFavorite ? '★' : '☆'}</button>
-      <select class="exercise-doubling-select" data-exercise-doubling aria-label="Doublures d'octave ajoutées au voicing">
-        ${Object.entries(DOUBLING_LABELS).map(([id, label]) => `<option value="${id}"${id === (options.doubling || 'none') ? ' selected' : ''}>${id === 'none' ? 'Sans doublure' : escapeHtml(label)}</option>`).join('')}
-      </select>
+      ${compact ? '' : renderDoublingSelect(options.doubling)}
       <button class="exercise-listen-btn" type="button" data-action="listen-exercise" aria-label="Écouter le voicing">
         <svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
         Écouter
@@ -1747,13 +1742,33 @@ export function renderExerciseTarget(target, options = {}) {
   `;
 }
 
+/** Menu des doublures d'octave (carte des modes Progression / Mouvement, fenêtre Filtres). */
+export function renderDoublingSelect(doubling = 'none') {
+  return `<select class="exercise-doubling-select" data-exercise-doubling aria-label="Doublures d'octave ajoutées au voicing">
+        ${Object.entries(DOUBLING_LABELS).map(([id, label]) => `<option value="${id}"${id === doubling ? ' selected' : ''}>${id === 'none' ? 'Sans doublure' : escapeHtml(label)}</option>`).join('')}
+      </select>`;
+}
+
 /**
- * Panneau « note du dessus » : un seul voicing au clavier, la liste compacte
- * des suggestions (du plus simple au plus complexe) et les flèches ‹ ›.
+ * Voicings disponibles pour la cible : étiquettes de technique (flèches sur la
+ * technique jouée) ou, avec une top note, la liste des voicings trouvés.
+ * Dans la carte (Progression / Mouvement) ou dans la colonne de droite (Accord cible).
+ */
+export function renderVoicingChoices(target, options = {}) {
+  const voicing = target?.voicing;
+  if (!voicing) return '';
+  if (voicing.topNoteSuggestions) return renderTopNotePanel(voicing);
+  const technique = voicing.technique || 'auto';
+  const categories = options.categories ?? getAvailableTechniques(target.name);
+  return renderVoicingCategories(categories, technique, voicing.variantIndex ?? options.variant ?? 0, voicing.variantLabel || '', options.selectedTechnique ?? technique);
+}
+
+/**
+ * Liste des voicings trouvés pour la top note, du plus simple au plus
+ * complexe ; la description de chaque voicing reste en info-bulle.
  */
 function renderTopNotePanel(voicing) {
-  const { topNote, topNoteSuggestions: list, variantIndex } = voicing;
-  const topName = formatNoteNameWithOctave(topNote.midi);
+  const { topNoteSuggestions: list, variantIndex } = voicing;
   const items = list.map((sug, i) => {
     const active = i === variantIndex ? ' active' : '';
     const derived = sug.derived ? ' <span class="exercise-topnote-derived" title="Voicing dérivé (qualité absente de VoicingLab)">dérivé</span>' : '';
@@ -1762,21 +1777,9 @@ function renderTopNotePanel(voicing) {
         <span class="exercise-topnote-stars" aria-label="Difficulté ${sug.difficulty} sur 5">${'★'.repeat(sug.difficulty)}</span>
       </button></li>`;
   }).join('');
-  const arrows = list.length > 1
-    ? `<span class="exercise-variant-arrows">
-         <button class="exercise-variant-btn" type="button" data-variant-delta="-1" aria-label="Suggestion précédente">‹</button>
-         <span class="exercise-variant-index">${variantIndex + 1}/${list.length}</span>
-         <button class="exercise-variant-btn" type="button" data-variant-delta="1" aria-label="Suggestion suivante">›</button>
-       </span>`
-    : '';
   return `
     <div class="exercise-topnote-panel">
-      <div class="exercise-topnote-head">
-        <span>Top note : <strong>${escapeHtml(topName)}</strong> · ${list.length} voicing${list.length > 1 ? 's' : ''}</span>
-        ${arrows}
-      </div>
       <ol class="exercise-topnote-list">${items}</ol>
-      <div class="exercise-variant-label">${escapeHtml(voicing.variantLabel)}</div>
     </div>`;
 }
 
