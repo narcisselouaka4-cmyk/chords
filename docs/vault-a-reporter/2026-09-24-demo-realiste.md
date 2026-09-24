@@ -15,6 +15,8 @@
   sans renversements (sauts parallèles) ; familles à deux mains trop aiguës ; 7alt = 7b5.
 - Moteur : registre de pianiste, mains jouables, close renversée, vrais 7alt.
 - Démo : deux mains, aucune pédale, jeu gospel d'après les vidéos (procédés seulement).
+- Accords de passage de la démo affichés dans la liste ACCORDS (« ↳ G#dim7 · passage »),
+  allumés pendant la démo, cliquables pour les écouter (commit `65d5e77`).
 ```
 
 ## `experiments/` — relevé des deux vidéos (à créer : `experiments/2026-09-24-videos-jeu-reel.md`)
@@ -59,6 +61,10 @@ puis D#dim7 (drop 2) → Cdim7 (drop 2) → Gm11.
     au 3e temps, diminué de passage au 4e (basse qui monte d'un ton ou d'une quarte, jamais après
     une dominante), montée finale 1-2-5 ;
   - Ballade (60), Comping swing (132), Plaqué (72) : mêmes règles de mains, sans pédale.
+  - Liste ACCORDS (vue Mouvement) : les diminués de passage du style Gospel / worship
+    s'intercalent entre les accords (nom épelé sur la sensible de l'accord suivant : Ddim7 avant
+    Eb), s'allument au 4e temps pendant la démo, se font entendre au clic ; ce ne sont pas des
+    étapes de l'exercice. Rien en Ballade, Swing ou Plaqué. Même plan que la démo (`planGospel`).
 
 ## `state/current-work.md` — à vérifier sur le PC
 
@@ -70,6 +76,8 @@ puis D#dim7 (drop 2) → Cdim7 (drop 2) → Gm11.
 3. Turnaround III-VI-II-V-I en Do, niveau Intermédiaire : G#°7, C#°7, F#°7 de passage, montée
    finale sur Cmaj13.
 4. Accord cible : favoris sous la top note, à gauche.
+4 bis. Turnaround en Do, style « Selon le mouvement » : G#dim7, C#dim7, F#dim7 dans la liste de
+   droite ; ils s'allument pendant la démo ; clic = écoute ; style Ballade = plus de lignes de passage.
 5. Rejouer la démo à la main sans pédale : tout doit tenir sous les doigts.
 
 ## `state/next-actions.md` — à ajouter
