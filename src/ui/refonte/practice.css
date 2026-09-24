@@ -4012,8 +4012,68 @@
 :root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode,
 :root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode {
   grid-template-rows: auto 1fr;
-  /* Pas de hauteur minimale d'écran : la carte suit directement la bande du haut. */
+  /* Pas de hauteur minimale d'écran : la carte suit directement la bande du haut.
+     La zone remplit la place disponible mais ne rétrécit jamais sous son
+     contenu : rien n'est coupé (bug 1920×1080 : ★ / Doublures / Écouter
+     invisibles), la vue défile si une carte est très haute. */
   min-height: 0;
+  flex: 1 0 auto;
+}
+:root[data-skin='global'] #practice-tab #practice-view-exercices,
+:root[data-skin='v2'] #practice-tab #practice-view-exercices {
+  overflow-y: auto;
+}
+/* Colonnes latérales : c'est la carte qui fixe la hauteur de la ligne ; la
+   liste de gauche et les filtres / favoris de droite défilent à l'intérieur
+   au lieu d'allonger la page. Sous 820 px, la colonne de droite passe sous la
+   carte (astra-training.css) : on garde alors le flux normal. */
+@media (min-width: 821px) {
+  :root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode .tr-exercise-brief,
+  :root[data-skin='global'] #practice-tab .tr-exercise-progress.is-chord-side,
+  :root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode .tr-exercise-brief,
+  :root[data-skin='v2'] #practice-tab .tr-exercise-progress.is-chord-side {
+    position: relative;
+  }
+  :root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode #exercise-target-choice,
+  :root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode #exercise-target-choice {
+    position: absolute;
+    inset: 12px 27px 16px;
+    display: grid;
+    grid-template-columns: auto auto;
+    grid-template-rows: auto minmax(0, 1fr);
+    justify-content: start;
+    align-items: center;
+    gap: 10px;
+  }
+  :root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode #exercise-target-choice .exercise-topnote-browser,
+  :root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode #exercise-target-choice .exercise-topnote-browser {
+    grid-column: 1 / -1;
+    align-self: stretch;
+    min-height: 0;
+  }
+  :root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode .exercise-browser-list,
+  :root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode .exercise-browser-list {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+  }
+  :root[data-skin='global'] #practice-tab .tr-exercise-progress.is-chord-side,
+  :root[data-skin='v2'] #practice-tab .tr-exercise-progress.is-chord-side {
+    padding: 0;
+    overflow: visible;
+  }
+  :root[data-skin='global'] #practice-tab .tr-exercise-progress.is-chord-side > .exercise-chord-side,
+  :root[data-skin='v2'] #practice-tab .tr-exercise-progress.is-chord-side > .exercise-chord-side {
+    position: absolute;
+    inset: 20px 22px;
+    overflow-y: auto;
+  }
+}
+
+/* « À vous de jouer » fait doublon avec le titre de la bande du haut. */
+:root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode .tr-target-chord > .tr-eyebrow,
+:root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode .tr-target-chord > .tr-eyebrow {
+  display: none;
 }
 /* Les trois colonnes partent du même haut, juste sous la bande : pas de vide
    au-dessus de la carte quand la liste de gauche est longue. */
@@ -4021,7 +4081,14 @@
 :root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode .tr-chord-arena {
   justify-content: flex-start;
   min-height: 0;
-  padding-top: 8px;
+  padding: 4px 12px 8px;
+}
+/* Marges autour de la carte resserrées : elle tient sous la bande du haut en 1920×1080. */
+:root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode #exercise-target,
+:root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode #exercise-target {
+  margin-top: 0;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 :root[data-skin='global'] #practice-tab .exercise-chord-head,
 :root[data-skin='v2'] #practice-tab .exercise-chord-head {
@@ -4029,8 +4096,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  padding: 18px 24px 6px;
+  gap: 6px;
+  padding: 12px 24px 2px;
 }
 :root[data-skin='global'] #practice-tab .exercise-chord-head[hidden],
 :root[data-skin='v2'] #practice-tab .exercise-chord-head[hidden] {
