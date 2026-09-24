@@ -15,7 +15,7 @@
   par famille : Do4 Shell / Two-note shell / Stride, Mi4 Rootless, Mi5 4-way close, Do5 le reste).
 - Parseur : C6/9 et Cm6/9 gardent leur 9e (le « / » était pris pour une basse).
 - Tests UI : D2 10/10 ; test-training-dom remis sur l'interface réelle, 11 échecs voulus
-  (Suggestions + historique des accords jamais branchés : décision attendue).
+  (Suggestions + historique des accords jamais branchés ; décidé : Temps réel n'est pas touché, échecs laissés volontairement).
 - Test instable corrigé (checkTechniqueSwitch). Exercices 414/414, parseur 51/51, build OK.
 ```
 
@@ -53,7 +53,7 @@
 
 ## `state/next-actions.md` — à ajouter
 
-- **Décision à prendre : panneau Suggestions et historique des accords.** Jamais branchés dans cette
+- **Décidé (24/09) : panneau Suggestions et historique des accords NON ajoutés à Temps réel** (Narcisse : « on n'y touche pas »). Les 11 échecs de `src/ui/test-training-dom.js` restent volontairement, en attendant une autre place pour ces panneaux. Contexte : Jamais branchés dans cette
   application : `src/ui/suggestions.js` (4 catégories : avant le 6e degré, voicing top notes,
   mouvements internes, rôle de la basse) n'est importé nulle part ; `chord-history.js` est alimenté à
   chaque accord détecté mais jamais affiché (depuis le premier commit ; VISION.md le prévoit au

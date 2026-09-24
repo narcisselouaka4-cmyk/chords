@@ -39,11 +39,13 @@ function check(cond, label) {
 function testDomContract() {
   const html = readText('src/index.html');
 
-  // Fonctionnalités jamais branchées dans cette application (décision de
-  // Narcisse attendue, NE PAS retirer sans elle) : le panneau Suggestions
+  // Fonctionnalités jamais branchées dans cette application : le panneau Suggestions
   // (src/ui/suggestions.js existe mais n'est importé nulle part) et l'affichage
   // de l'historique des accords (chord-history.js est alimenté mais jamais
   // rendu, depuis le premier commit ; VISION.md le prévoit au Module 1).
+  // Décision de Narcisse (24/09) : Temps réel n'est pas modifié, et ces
+  // vérifications restent VOLONTAIREMENT en échec, en attendant que les deux
+  // panneaux trouvent leur place ailleurs. Ne pas les retirer.
   check(html.includes('id="suggestions-panel"'), 'DOM — #suggestions-panel présent');
   check(html.includes('id="suggestions-content"'), 'DOM — #suggestions-content présent');
   check(html.includes('id="suggestions-history-count"'), 'DOM — #suggestions-history-count présent');
@@ -117,7 +119,7 @@ function testDomContract() {
 function testMainWiring() {
   const main = readText('src/main.js');
 
-  // Fonctionnalités jamais branchées (voir testDomContract) : décision attendue.
+  // Fonctionnalités jamais branchées (voir testDomContract) : échec voulu.
   check(main.includes('createSuggestionsPanel'), 'main.js — createSuggestionsPanel importé/utilisé');
   check(main.includes('setRenderContainer'), 'main.js — historique rendu dans son container');
   check(main.includes('initRecordingTab'), 'main.js — initRecordingTab appelé');
