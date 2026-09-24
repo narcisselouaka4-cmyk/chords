@@ -82,6 +82,9 @@
   height: 100%;
   width: 100%;
 }
+/* Petites étendues : la largeur des touches est plafonnée (keyboard-svg.js),
+   le clavier est alors centré ; sa largeur est posée en style inline. */
+#keyboard-panel .vk-bed .keyboard-container { justify-content: center; }
 
 /* Les vues dédiées d'Entraînement sont pilotées en display par main.js
    (applyView() met 'flex' ou 'none') : on ne leur impose rien ici. */

@@ -53,21 +53,37 @@ function blackKeyTemplate(props, posX, color, blackHeight = NOTE_BLACK_HEIGHT) {
 </g>`;
 }
 
-// Hauteur des touches blanches (unités du viewBox) : on épouse le rapport
-// largeur / hauteur de la zone pour que le clavier la remplisse entièrement.
-// Avant, la hauteur fixe (150) laissait un vide au-dessus d'un clavier agrandi
-// et faisait rétrécir en largeur un clavier réduit. Seule borne : un minimum,
-// pour que le nom de note et la pastille restent lisibles ; la hauteur maximale
-// est celle que l'utilisateur choisit avec la poignée.
-const MIN_WHITE_HEIGHT = 30;
-
-export function fittedWhiteKeyHeight(viewBoxWidth, containerWidth, containerHeight) {
-  if (!(containerWidth > 0) || !(containerHeight > 0)) return NOTE_WHITE_HEIGHT;
-  return Math.max(MIN_WHITE_HEIGHT, Math.round(viewBoxWidth * (containerHeight / containerWidth)));
-}
-
 function range(start, end) {
   return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+}
+
+// [Claude] — 2026-09-24 — Hauteur décidée par l'application, plus par une
+// poignée (proportions absurdes : touches écrasées ou démesurées). Touches aux
+// proportions d'un piano (hauteur = 3,75 × largeur, soit 150 / 40), largeur de
+// touche plafonnée pour les petites étendues (clavier alors centré), hauteur
+// bornée pour les très grandes.
+const MAX_WHITE_KEY_PX = 44;
+const KEY_HEIGHT_RATIO = NOTE_WHITE_HEIGHT / NOTE_WHITE_WIDTH;
+const MIN_KEYS_HEIGHT_PX = 70;
+const MAX_KEYS_HEIGHT_PX = 180;
+
+function midiRange(noteStart, noteEnd) {
+  const a = noteNameToMidi(noteStart, 4);
+  const b = noteNameToMidi(noteEnd, 4);
+  if (a === null || b === null) return null;
+  return [Math.min(a, b), Math.max(a, b)];
+}
+
+/**
+ * Disposition du clavier pour une largeur donnée : nombre de touches blanches,
+ * largeur d'une touche (px) et hauteur idéale de la zone des touches (px).
+ */
+export function keyboardLayout(noteStart, noteEnd, containerWidth) {
+  const r = midiRange(noteStart, noteEnd);
+  const whiteCount = r ? range(r[0], r[1]).filter((m) => !isBlackKey(m)).length : 1;
+  const keyPx = Math.min(Math.max(containerWidth, 1) / Math.max(whiteCount, 1), MAX_WHITE_KEY_PX);
+  const keysHeightPx = Math.round(Math.max(MIN_KEYS_HEIGHT_PX, Math.min(MAX_KEYS_HEIGHT_PX, keyPx * KEY_HEIGHT_RATIO)));
+  return { whiteCount, keyPx, keysHeightPx };
 }
 
 // [Claude] — 2026-07-03 — Génération SVG avec proportions fixes (40×150 blanches, 22×90 noires), gradients chord-display et positionnement réaliste des touches noires
@@ -94,8 +110,11 @@ export function generateKeyboard(
   const start = Math.min(startMidi, endMidi);
   const end = Math.max(startMidi, endMidi);
 
-  const whiteCount = range(start, end).filter((midi) => !isBlackKey(midi)).length;
-  const whiteHeight = fittedWhiteKeyHeight(whiteCount * NOTE_WHITE_WIDTH, containerWidth, containerHeight);
+  // Largeur réelle du clavier (px) et hauteur des touches (unités du viewBox)
+  // pour remplir exactement la hauteur de la zone, sans vide ni déformation.
+  const { whiteCount, keyPx } = keyboardLayout(noteStart, noteEnd, containerWidth);
+  const svgWidthPx = Math.round(keyPx * whiteCount);
+  const whiteHeight = Math.max(30, Math.round(NOTE_WHITE_WIDTH * (Math.max(containerHeight, 1) / keyPx)));
   const blackHeight = Math.round(whiteHeight * (NOTE_BLACK_HEIGHT / NOTE_WHITE_HEIGHT));
 
   const keyboardNotes = range(start, end).reduce(
@@ -118,7 +137,7 @@ export function generateKeyboard(
   );
 
   return `\
-<svg width="100%" height="100%" viewBox="0 0 ${keyboardNotes.width} ${keyboardNotes.height}" preserveAspectRatio="xMidYMax meet" xmlns="http://www.w3.org/2000/svg">
+<svg width="${svgWidthPx}" height="100%" style="width: ${svgWidthPx}px" viewBox="0 0 ${keyboardNotes.width} ${keyboardNotes.height}" preserveAspectRatio="xMidYMax meet" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <filter id="insetKey">
       <feOffset dx="0" dy="-7"/>

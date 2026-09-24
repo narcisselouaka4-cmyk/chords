@@ -1,4 +1,4 @@
-import { generateKeyboard, setPitchWheel, setModWheel } from './ui/keyboard-svg.js';
+import { generateKeyboard, keyboardLayout, setPitchWheel, setModWheel } from './ui/keyboard-svg.js';
 import { updateDisplay, clearDisplay } from './ui/display.js';
 import { detectChord } from './chord-engine/index.js';
 import { noteName, formatPc } from './chord-engine/naming.js';
@@ -272,10 +272,25 @@ function renderKeyboardAtCurrentSize() {
     state.notation === 'latin',
   );
   applyActiveNotes();
+  fitKeyboardPanelHeight(width);
   initVirtualKeyboard({
     onNoteOn: (note, velocity = 0.8) => handleNoteOn(note, velocity, true, true),
     onNoteOff: (note) => handleNoteOff(note, true, true),
   });
+}
+
+/**
+ * Hauteur du clavier virtuel décidée par l'application : la zone des touches
+ * prend la hauteur idéale de keyboardLayout (proportions de piano). Le panneau
+ * est ajusté du même écart ; le ResizeObserver redessine ensuite les touches.
+ */
+function fitKeyboardPanelHeight(width) {
+  const panel = document.getElementById('keyboard-panel');
+  if (!panel || panel.classList.contains('collapsed')) return;
+  const { keysHeightPx } = keyboardLayout(state.noteStart, state.noteEnd, width);
+  const current = els.keyboard.getBoundingClientRect().height;
+  if (current <= 0 || Math.abs(keysHeightPx - current) < 1) return;
+  panel.style.height = `${Math.round(panel.getBoundingClientRect().height + keysHeightPx - current)}px`;
 }
 
 function refreshKeyboard() {
