@@ -387,8 +387,11 @@ function voicingLabVariantsFor(rootPc, quality, technique) {
   const placed = familiesForTechnique(technique).flatMap((familyId) =>
     getVoicingLabVoicings(rootPc, quality, familyId).map((v) => withClusterLeftHand(withPlayableRegister({ ...v, familyId }), rootPc, quality))
   );
-  if (isTextbookScope(quality)) return conformOrRebuild(placed, rootPc, quality, technique);
-  return placed.filter((v) => isFaithfulVariant(v, rootPc, quality, technique));
+  const variants = isTextbookScope(quality)
+    ? conformOrRebuild(placed, rootPc, quality, technique)
+    : placed.filter((v) => isFaithfulVariant(v, rootPc, quality, technique));
+  const playable = variants.filter(isHandPlayable);
+  return technique === 'close' ? withCloseInversions(playable, rootPc, quality) : playable;
 }
 
 // [Claude] — 2026-09-24 — Contrôle « manuels » (Narcisse : « j'ai un doute sur la
@@ -425,10 +428,49 @@ function guideTones(quality) {
   };
 }
 
+// [Claude] — 2026-09-24 — 7alt (Narcisse : voicings « absurdes » de la démo en
+// Sib, F7alt joué F A B Eb). « alt » = gamme altérée : 9e altérée (b9 ou #9) ET
+// quinte altérée (b5 ou #5 / b13), sans quinte juste, 9e, 11e ni 13e naturelles
+// (Levine, The Jazz Theory Book). VoicingLab publie ses 7alt à 4 sons en 7b5
+// (1 3 b5 b7, sans 9e altérée) et son Open avec la quinte juste (F C Eb A B).
+const ALT_NINTHS = [1, 3];
+const ALT_FIFTHS = [6, 8];
+const ALT_FORBIDDEN = [2, 5, 7, 9];
+const isAltQuality = (quality) => /alt/.test(String(quality || ''));
+
+function isTrueAlt(notes, rootPc) {
+  const rels = new Set(notes.map((n) => pcRelativeTo(n, rootPc)));
+  return ALT_NINTHS.some((i) => rels.has(i)) && ALT_FIFTHS.some((i) => rels.has(i))
+    && !ALT_FORBIDDEN.some((i) => rels.has(i));
+}
+
+/**
+ * Notes d'un 7alt à reconstruire depuis une variante qui n'en est pas un : on
+ * retire les notes étrangères à la gamme altérée, on ajoute la #9 et / ou la b13
+ * manquantes, et les familles à 4 voix (Drop, 4-way close, Block) laissent la
+ * fondamentale à la basse / main gauche (3 b7 #9 b13 et leurs cousins).
+ */
+function altRels(rels, technique) {
+  const out = new Set([...rels].filter((i) => !ALT_FORBIDDEN.includes(i)));
+  if (!ALT_NINTHS.some((i) => out.has(i))) out.add(3);
+  if (!ALT_FIFTHS.some((i) => out.has(i))) out.add(8);
+  if (technique === 'rootless') out.delete(0);
+  if (['drop2', 'drop3', 'drop2_4', 'fourway_close', 'block'].includes(technique)) {
+    for (const extra of [0, 6, 1]) {
+      if (out.size <= 4) break;
+      if (extra === 6 && !out.has(8)) continue;
+      if (extra === 1 && !out.has(3)) continue;
+      out.delete(extra);
+    }
+  }
+  return out;
+}
+
 /** Vrai si la variante respecte la définition de sa famille et les règles de voicing. */
 function meetsTextbook(technique, v, rootPc, quality) {
   const notes = [...v.lh, ...v.rh];
   if (!respectsFamilyDefinition(technique, v, rootPc, guideTones(quality))) return false;
+  if (isAltQuality(quality) && !isTrueAlt(notes, rootPc)) return false;
   if (!respectsLowIntervalLimits(notes, { skipBass: technique === 'stride' })) return false;
   if (minorNinthClashes(notes, rootPc, { flatNineChord: /b9|alt/.test(quality) }).length > 0) return false;
   if (hasEleventhAgainstMajorThird(notes, rootPc)) return false;
@@ -474,7 +516,8 @@ function conformOrRebuild(placed, rootPc, quality, technique) {
       continue;
     }
     const notes = [...v.lh, ...v.rh];
-    const rels = new Set(notes.map((n) => pcRelativeTo(n, rootPc)));
+    const own = new Set(notes.map((n) => pcRelativeTo(n, rootPc)));
+    const rels = isAltQuality(quality) ? altRels(own, technique) : own;
     const midpoint = (Math.min(...notes) + Math.max(...notes)) / 2;
     const shapes = technique === 'upper_structure'
       ? upperStructureCandidates(rootPc, guide)
@@ -538,17 +581,102 @@ const DEFAULT_REGISTER_CEILING = 72;
 // plancher, la règle du plafond donnait des voicings boueux (Stride de Cmaj11
 // C3 D3 F3 B3, Shell de Gmaj11 G2 C3 F#3). Stride : la basse, jouée seule, ne
 // compte pas.
+// [Claude] — 2026-09-24 — Registre de pianiste (Narcisse : « les voicings
+// proposés sont absurdes », démo de la Montée diatonique en Sib). Le milieu seul
+// laissait passer des voicings joués ainsi par personne : Spread de Bbmaj7#11 à
+// Bb3 | D5 E5 A5 (basse au-dessus de Sol3, dessus à La5), dessus jusqu'à Mib6 en
+// Spread, Si6 en Drop 3, rootless de main gauche montant jusqu'à Do5, close de
+// main droite commencé à Mi3. En plus du plafond du milieu :
+//   - le dessus ne dépasse pas Sol5 (Do6 pour les familles qui portent une
+//     mélodie : 4-way close, block) ;
+//   - la basse d'un Spread ou d'un Open (fondamentale seule à la main gauche,
+//     le reste au-dessus) descend sous Mi3, tant que la main droite reste au
+//     milieu du clavier (dessus ≥ Mi4) ;
+//   - un close à une main (main droite) ne commence pas sous Fa3 : il monte
+//     d'une octave si son dessus reste sous Sol5.
+// Toujours à l'octave près et jamais sous les limites graves de Levine.
+const TOP_CEILING = 79; // Sol5
+const MELODY_TOP_CEILING = 84; // Do6
+const MELODY_FAMILIES = new Set(['fourWayClose', 'block']);
+const BASS_CEILING = 52; // Mi3
+const BASS_FAMILY_TOP_FLOOR = 64; // Mi4
+const BASS_FAMILIES = new Set(['spread', 'open']);
+const RIGHT_HAND_FLOOR = 53; // Fa3
+const RIGHT_HAND_FAMILIES = new Set(['close', 'fourWayClose']);
+
 function withPlayableRegister(v) {
   const all = [...v.lh, ...v.rh];
   if (all.length === 0) return v;
   const ceiling = REGISTER_CEILINGS[v.familyId] ?? DEFAULT_REGISTER_CEILING;
-  const midpoint = (Math.min(...all) + Math.max(...all)) / 2;
+  const low = Math.min(...all);
+  const top = Math.max(...all);
+  const midpoint = (low + top) / 2;
+  const topCeiling = MELODY_FAMILIES.has(v.familyId) ? MELODY_TOP_CEILING : TOP_CEILING;
   const clear = (shift) => respectsLowIntervalLimits(all.map((n) => n + shift), { skipBass: v.familyId === 'stride' });
   let shift = 0;
   while (midpoint + shift > ceiling && clear(shift - 12)) shift -= 12;
+  while (top + shift > topCeiling && clear(shift - 12)) shift -= 12;
+  if (BASS_FAMILIES.has(v.familyId)) {
+    while (low + shift > BASS_CEILING && top + shift - 12 >= BASS_FAMILY_TOP_FLOOR && clear(shift - 12)) shift -= 12;
+  }
+  if (RIGHT_HAND_FAMILIES.has(v.familyId) && v.lh.length === 0) {
+    while (low + shift < RIGHT_HAND_FLOOR && top + shift + 12 <= topCeiling) shift += 12;
+  }
   while (!clear(shift) && shift < 36) shift += 12;
   if (shift === 0) return v;
   return { ...v, lh: v.lh.map((n) => n + shift), rh: v.rh.map((n) => n + shift), octaveShift: shift };
+}
+
+// [Claude] — 2026-09-24 — Mains jouables : une main ne tient pas plus d'une 10e
+// (Shell d'add11 C3 E3 F4 : une 11e), et une main gauche seule reste sous La4
+// (rootless A de Bbmaj7#11 à D4 E4 A4 C5 : sa seconde grave interdit l'octave du
+// dessous). Stride : la basse est jouée seule, avant l'accord.
+const HAND_SPAN = 16;
+const LEFT_HAND_FAMILIES = new Set(['shell', 'twoNoteShell', 'rootlessA', 'rootlessB']);
+const LEFT_HAND_TOP = 69; // La4
+
+function isHandPlayable(v) {
+  const span = (hand) => (hand.length ? Math.max(...hand) - Math.min(...hand) : 0);
+  if (v.familyId !== 'stride' && span(v.lh) > HAND_SPAN) return false;
+  if (span(v.rh) > HAND_SPAN) return false;
+  return !(LEFT_HAND_FAMILIES.has(v.familyId) && v.rh.length === 0 && Math.max(...v.lh) > LEFT_HAND_TOP);
+}
+
+// [Claude] — 2026-09-24 — Renversements de la Close position (Narcisse : la démo
+// « sonne pas réaliste »). VoicingLab ne publie la close position qu'en position
+// fondamentale : dans une grille, la main droite ne pouvait que sauter d'une
+// quarte ou d'une quinte en bloc (Dm11 D4 F4 G4 C5 → G13 G4 B4 E5 F5). Une close
+// renversée reste une close (toutes les notes dans l'octave) : ses renversements
+// s'ajoutent, basse sur la fondamentale, la tierce ou la quinte (règle de basse
+// des variantes), placés dans le même registre que les autres voicings.
+const closeKey = (notes) => [...notes].sort((a, b) => a - b).map((n) => pcRelativeTo(n, 0)).join(',');
+
+function withCloseInversions(variants, rootPc, quality) {
+  const out = [...variants];
+  const seen = new Set(variants.map((v) => closeKey([...v.lh, ...v.rh])));
+  for (const v of variants) {
+    const notes = [...v.rh].sort((a, b) => a - b);
+    if (v.lh.length > 0 || notes.length < 3 || notes[notes.length - 1] - notes[0] >= 12) continue;
+    for (let k = 1; k < notes.length; k += 1) {
+      const rotated = [...notes.slice(k), ...notes.slice(0, k).map((n) => n + 12)];
+      const placed = withPlayableRegister({ lh: [], rh: rotated, familyId: v.familyId });
+      const inversion = {
+        ...v,
+        lh: [],
+        rh: placed.rh,
+        names: placed.rh.map((n) => formatNoteNameWithOctave(n)).join(' '),
+        intervals: placed.rh.map((n) => intervalLabel(pcRelativeTo(n, rootPc), quality)).join(' '),
+        octaveShift: undefined,
+        inversion: k,
+      };
+      const key = closeKey(inversion.rh);
+      if (seen.has(key) || !isHandPlayable(inversion) || !isFaithfulVariant(inversion, rootPc, quality, 'close')) continue;
+      if (isTextbookScope(quality) && !meetsTextbook('close', inversion, rootPc, quality)) continue;
+      seen.add(key);
+      out.push(inversion);
+    }
+  }
+  return out;
 }
 
 // [Claude] — 2026-09-24 — Variantes fidèles au nom de l'accord (Narcisse :
@@ -654,7 +782,7 @@ const pcRelativeTo = (n, rootPc) => (((n - rootPc) % 12) + 12) % 12;
  * définition du parseur, noyau, couleurs du nom, et la 9e sous-entendue par un
  * accord de 11e ou de 13e (Cmaj11 = C E G B D F).
  */
-function chordToneIntervals(quality) {
+export function chordToneIntervals(quality) {
   const tones = new Set([
     ...(chordSymbolToPitchClasses(`C${quality}`) || []),
     ...chordCoreIntervals(quality),
@@ -1115,14 +1243,24 @@ export function voiceLeadingCost(from, to) {
   return spread + Math.abs(Math.max(...to) - Math.max(...from));
 }
 
-/** Registre admis pour un voicing déplacé d'octave dans un enchaînement. */
+/**
+ * Registre admis pour un voicing déplacé d'octave dans un enchaînement : mêmes
+ * règles que le placement (withPlayableRegister) — milieu, dessus sous Sol5 (Do6
+ * pour les familles à mélodie), close de main droite au-dessus de Fa3, basse
+ * d'un Spread / Open au plus Sol3, mains jouables, limites graves de Levine.
+ */
 function chainRegisterOk(v) {
   const all = sortedNotes(v);
-  if (all[0] < 28 || all[all.length - 1] > 100) return false;
+  const low = all[0];
+  const top = all[all.length - 1];
+  if (low < 28) return false;
   const ceiling = REGISTER_CEILINGS[v.familyId] ?? DEFAULT_REGISTER_CEILING;
-  const midpoint = (all[0] + all[all.length - 1]) / 2;
-  return midpoint <= ceiling && midpoint >= ceiling - 19
-    && respectsLowIntervalLimits(all, { skipBass: v.familyId === 'stride' });
+  const midpoint = (low + top) / 2;
+  if (midpoint > ceiling || midpoint < ceiling - 19) return false;
+  if (top > (MELODY_FAMILIES.has(v.familyId) ? MELODY_TOP_CEILING : TOP_CEILING)) return false;
+  if (RIGHT_HAND_FAMILIES.has(v.familyId) && v.lh.length === 0 && low < RIGHT_HAND_FLOOR) return false;
+  if (BASS_FAMILIES.has(v.familyId) && low > BASS_CEILING + 3) return false;
+  return isHandPlayable(v) && respectsLowIntervalLimits(all, { skipBass: v.familyId === 'stride' });
 }
 
 const shiftVariant = (v, shift) => ({
