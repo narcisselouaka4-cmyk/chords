@@ -33,8 +33,23 @@ export function favoriteFromTarget(target) {
     difficulty: v.difficulty ?? null,
     doubled: [...(v.doubled || [])],
     addedLH: [...(v.addedLH || [])],
+    // [Claude] — 2026-09-24 — Main gauche d'un style ajoutée au voicing (option de
+    // la carte) : gardée avec ses notes, rouverte telle quelle en Accord cible.
+    styleAdded: [...(v.styleAdded || [])],
+    leftHandStyle: v.leftHandStyle || '',
+    baseHasLeftHand: Boolean(v.baseHasLeftHand),
   };
   return { ...fav, key: favoriteKey(fav) };
+}
+
+/** Libellés des mains gauches de style (option « Main gauche » de la carte). */
+const LEFT_HAND_STYLE_LABELS = { gospel: 'Gospel / worship', ballade: 'Ballade', swing: 'Comping swing' };
+
+/** Technique affichée d'un favori, main gauche du style comprise. */
+function favoriteTechniqueLabel(f, techniqueLabels = {}) {
+  const technique = techniqueLabels[f.technique] || f.technique || 'Voicing';
+  const style = LEFT_HAND_STYLE_LABELS[f.leftHandStyle];
+  return style ? `${technique} + main gauche ${style}` : technique;
 }
 
 /** Favori valide : champs indispensables présents et bien typés. */
@@ -116,7 +131,7 @@ const FLAT_ROOTS = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 
 export function favoriteMatches(f, query, techniqueLabels = {}) {
   const q = String(query || '').trim().toLowerCase();
   if (!q) return true;
-  const technique = techniqueLabels[f.technique] || f.technique || '';
+  const technique = favoriteTechniqueLabel(f, techniqueLabels);
   const haystack = [f.name, `${FLAT_ROOTS[f.rootPc] || ''}${f.quality}`, technique].join(' ').toLowerCase();
   return q.split(/\s+/).every((word) => haystack.includes(word));
 }
@@ -158,7 +173,7 @@ export function renderFavoritesList(favorites, { techniqueLabels = {}, activeKey
   const groups = groupFavorites(shown).map((g) => {
     const items = g.items.map((f) => {
       const hands = [f.lh, f.rh].filter((h) => h.length > 0).map((h) => h.map(noteWithOctave).join(' ')).join(' | ');
-      const technique = techniqueLabels[f.technique] || f.technique || 'Voicing';
+      const technique = favoriteTechniqueLabel(f, techniqueLabels);
       return `<li class="exercise-favorite${f.key === activeKey ? ' active' : ''}">
         <button type="button" class="exercise-favorite-open" data-favorite-open="${escapeHtml(f.key)}" title="Afficher ce voicing">
           <span class="exercise-favorite-technique">${escapeHtml(technique)}</span>

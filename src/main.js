@@ -1418,6 +1418,7 @@ function initPracticeExercise() {
       targetDiv.innerHTML = renderExerciseTarget(exState.target, {
         categories, difficulty, variant: exState.variant, selectedTechnique: exState.technique,
         doubling: exState.doubling, isFavorite, layout: exState.mode === 'chord' ? 'chord' : 'default', spelling,
+        leftHandStyle: exState.leftHandStyle,
         demo: demoHooks.cardExtras?.(exState) || null,
       });
     }
@@ -2007,7 +2008,7 @@ function initPracticeExercise() {
     if (!prog?.chords?.length) return null;
     const styleId = resolveDemoStyle(prog.movement?.style);
     const extras = demoCardHands(prog.chords, prog.stepIndex || 0, styleId);
-    return extras ? { ...extras, styleLabel: DEMO_STYLES[styleId]?.label } : null;
+    return extras ? { ...extras, styleId, styleLabel: DEMO_STYLES[styleId]?.label } : null;
   };
   demoHooks.onStep = (step) => {
     // La carte d'exercice suit l'accord joué par la démo du mouvement.
@@ -2160,6 +2161,13 @@ function initPracticeExercise() {
   // catégories de voicings recréées à chaque render.
   // Doublures : menu rendu dans la carte (recréé à chaque rendu), donc délégué.
   targetDiv?.addEventListener('change', (e) => {
+    // [Claude] — 2026-09-24 — Main gauche d'un style ajoutée au voicing (menu de la carte).
+    const leftHand = e.target.closest('[data-exercise-left-hand]');
+    if (leftHand) {
+      practiceExercise.setLeftHandStyle(leftHand.value);
+      render();
+      return;
+    }
     const sel = e.target.closest('[data-exercise-doubling]');
     if (!sel) return;
     practiceExercise.setDoubling(sel.value);

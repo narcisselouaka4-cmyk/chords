@@ -1384,6 +1384,80 @@ function checkCardDemoAdditions() {
   check('Rootless passé à la main droite : annoncé dans la légende', moved.includes('Démo Ballade : basse D2 · A2 à la main gauche, voicing joué à la main droite'));
 }
 
+// [Claude] — 2026-09-24 — Option « Main gauche » par style (Narcisse : la main
+// gauche ajoutée par la démo gospel lui plaisait, mais le favori ne gardait que la
+// main droite ; « une option avec seulement la main droite, une option avec la
+// main gauche […] déclinée en fonction du style »).
+function checkLeftHandStyles() {
+  console.log('\n=== Option « Main gauche » par style ===');
+  const ex = createPracticeExercise();
+  ex.setMode('chord');
+  ex.setTechnique('close');
+  ex.setTargetChoice(2, 'm11');
+  const hands = () => {
+    const v = ex.getState().target.voicing;
+    return `${v.leftHand.join(',')}|${v.rightHand.join(',')}`;
+  };
+  const base = hands();
+  check('Par défaut : voicing seul (main droite seule pour un close)', ex.getState().leftHandStyle === 'none' && base.startsWith('|'), base);
+  ex.setLeftHandStyle('gospel');
+  let v = ex.getState().target.voicing;
+  check('Gospel / worship : basse D2 A2 + main droite en cadre d\'octave (C4 … C5)', hands() === '38,45|60,62,65,67,72'
+    && v.styleAdded.join() === '38,45,60' && v.leftHandStyle === 'gospel', hands());
+  check('La cible (notes à jouer) comprend la main gauche du style', ex.getState().target.notes.includes(38) && ex.getState().target.notes.includes(45));
+  ex.setLeftHandStyle('ballade');
+  check('Ballade : même basse, main droite telle quelle', hands() === '38,45|62,65,67,72', hands());
+  ex.setLeftHandStyle('swing');
+  check('Comping swing : fondamentale et quinte du jeu « en deux »', hands() === '38,45|62,65,67,72', hands());
+  ex.setLeftHandStyle('xyz');
+  check('Style inconnu ignoré', ex.getState().leftHandStyle === 'swing');
+  ex.setLeftHandStyle('gospel');
+  ex.setTargetChoice(7, '13');
+  // Main droite de G13 à G3 : la 7e F3 la heurterait, la basse prend G2 seul.
+  check('L\'option reste pour l\'accord suivant (G13 : basse G2)', ex.getState().leftHandStyle === 'gospel' && ex.getState().target.voicing.leftHand.join() === '43', hands());
+
+  // Le cas de Narcisse : le favori garde la main gauche et la rouvre en Accord cible.
+  ex.setTargetChoice(2, 'm11');
+  const fav = favoriteFromTarget(ex.getState().target);
+  check('Favori : main gauche du style gardée (notes et style)', fav.lh.join() === '38,45' && fav.leftHandStyle === 'gospel' && fav.styleAdded.join() === '38,45,60');
+  ex.setLeftHandStyle('none');
+  ex.setTargetChoice(0, 'maj7');
+  ex.showFavorite(fav);
+  v = ex.getState().target.voicing;
+  check('Favori rouvert : main gauche D2 A2, notes ajoutées et option Gospel reprises', v.leftHand.join() === '38,45' && v.styleAdded.join() === '38,45,60'
+    && ex.getState().leftHandStyle === 'gospel', `${v.leftHand} | ${ex.getState().leftHandStyle}`);
+  const listHtml = renderFavoritesList([fav], { techniqueLabels: { close: 'Close position' } });
+  check('Liste des favoris : « Close position + main gauche Gospel / worship »', listHtml.includes('Close position + main gauche Gospel / worship'));
+  check('Voicing seul et voicing avec main gauche : deux favoris distincts', fav.key !== favoriteFromTarget({ ...ex.getState().target, voicing: { ...v, leftHand: [], rightHand: [62, 65, 67, 72] } }).key);
+
+  // Carte : menu, légende, cases des mains.
+  const html = renderExerciseTarget(ex.getState().target, { leftHandStyle: 'gospel', layout: 'chord' });
+  check('Carte (Accord cible compris) : menu « Main gauche » avec Gospel choisi', /data-exercise-left-hand[\s\S]*value="gospel" selected/.test(html)
+    && html.includes('Main droite seule') && html.includes('+ main gauche Ballade') && html.includes('+ main gauche Comping swing'));
+  check('Carte : légende de la main gauche du style', html.includes('Main gauche Gospel / worship : basse D2 · A2, C4 doublé à la main droite'));
+  check('Carte : main gauche du style dans les cases des mains', /Main gauche<\/span>\s*<span class="exercise-hand-notes">D2 · A2/.test(html));
+
+  // Rootless : « Voicing seul », main droite remontée au-dessus de la basse.
+  ex.setTechnique('rootless');
+  ex.setLeftHandStyle('ballade');
+  ex.setTargetChoice(10, '7#9b13');
+  v = ex.getState().target.voicing;
+  check('Rootless grave passé à la main droite : une octave plus haut, basse dessous (Bb2 Ab3 | D4 Gb4 Ab4 Db5)',
+    v.leftHand.join() === '46,56' && v.rightHand.join() === '62,66,68,73' && v.styleMovedToRight === true, `${v.leftHand} | ${v.rightHand}`);
+  check('Rootless : le menu dit « Voicing seul » (le voicing de base a sa main gauche)', renderExerciseTarget(ex.getState().target, {}).includes('>Voicing seul<'));
+
+  // Mouvement : la grille et la démo reprennent la main gauche du style.
+  const mv = createPracticeExercise();
+  mv.setMode('movement');
+  mv.setTechnique('close');
+  mv.setKeyChoice(0);
+  mv.setContentChoice('Cadence II-V-I majeur');
+  mv.setLeftHandStyle('gospel');
+  const chords = mv.getState().progression.chords;
+  check('Mouvement : chaque accord de la grille a sa main gauche Gospel', chords.every((c) => c.voicing.leftHand.length > 0 && c.voicing.leftHandStyle === 'gospel'),
+    chords.map((c) => c.voicing.leftHand.join()).join(' / '));
+}
+
 function checkChainedVoicings() {
   console.log('\n=== Mouvement : voicings enchaînés ===');
   let chained = 0; let fixed = 0; let pairs = 0;
@@ -1467,6 +1541,7 @@ async function runTests() {
   checkTypedCustomGrid();
   checkMovementNavigationAndKeys();
   checkChainedVoicings();
+  checkLeftHandStyles();
   checkCardDemoAdditions();
   checkPianistRealism();
   await checkAllVoicingLabReachable();

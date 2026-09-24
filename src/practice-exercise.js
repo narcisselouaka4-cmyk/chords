@@ -27,6 +27,9 @@ import {
 } from './voicing-engine/textbook-voicings.js';
 import { parseChordSymbol, chordSymbolToPitchClasses } from './pedagogie/chord-parser-v2.js';
 import { applyDoublings, DOUBLING_MODES, DOUBLING_LABELS } from './voicing-engine/doublings.js';
+// Main gauche d'un style (option de la carte) : mêmes mains que la démo. Import
+// circulaire sans risque : practice-demo.js n'appelle ce module qu'à l'usage.
+import { styleLeftHand, LEFT_HAND_STYLES } from './practice-demo.js';
 import { spellDegreeInKey, spellPcInKey, keyLabel, isMinorProgression } from './practice-key-spelling.js';
 
 // Difficulté exprimée en étoiles (1–5). Le mode "Accord cible" est strict :
@@ -1364,14 +1367,40 @@ function buildTopNoteVoicing(rootPc, quality, technique, variant, topNote) {
  * @param {string} [doubling] - doublures d'octave : 'none' | 'bass' | 'melody' | 'full'
  * @returns {object|null}
  */
-function buildChordTarget(rootPc, symbol, technique, variant = 0, difficulty = null, topNote = null, doubling = 'none') {
+function buildChordTarget(rootPc, symbol, technique, variant = 0, difficulty = null, topNote = null, doubling = 'none', leftHandStyle = 'none') {
   const { voicing, technique: usedTechnique } = buildPlayableVoicing(rootPc, symbol, technique, variant, difficulty, topNote);
   if (!voicing) return null;
-  return targetFromVoicing(rootPc, symbol, voicing, usedTechnique, doubling);
+  return targetFromVoicing(rootPc, symbol, voicing, usedTechnique, doubling, leftHandStyle);
 }
 
-/** Cible d'un accord à partir de son voicing (doublures ajoutées ensuite). */
-function targetFromVoicing(rootPc, symbol, voicing, usedTechnique, doubling = 'none') {
+// [Claude] — 2026-09-24 — Option « Main gauche » (Narcisse : la main gauche que
+// la démo gospel ajoutait lui plaisait, mais elle disparaissait du favori ; « une
+// option avec seulement la main droite, une option avec la main gauche […]
+// déclinée en fonction du style »). La main gauche du style fait partie du
+// voicing de la carte : affichée, jouée par « Écouter » et la démo, gardée par
+// les favoris. `styleAdded` = notes ajoutées au voicing de base (en couleur).
+export const LEFT_HAND_LABELS = { gospel: 'Gospel / worship', ballade: 'Ballade', swing: 'Comping swing' };
+
+function withLeftHandStyle(rootPc, symbol, voicing, usedTechnique, leftHandStyle) {
+  if (!LEFT_HAND_STYLES.includes(leftHandStyle)) return;
+  const styled = styleLeftHand({
+    rootPc,
+    symbol,
+    voicing: { leftHand: voicing.leftHand, rightHand: voicing.rightHand, technique: usedTechnique, familyId: voicing.familyId },
+  }, leftHandStyle);
+  if (!styled) return;
+  Object.assign(voicing, {
+    leftHand: styled.lh,
+    rightHand: styled.rh,
+    styleAdded: styled.added,
+    styleMovedToRight: styled.movedToRight,
+    baseHasLeftHand: (voicing.leftHand || []).length > 0,
+    leftHandStyle,
+  });
+}
+
+/** Cible d'un accord à partir de son voicing (doublures, puis main gauche du style, ajoutées ensuite). */
+function targetFromVoicing(rootPc, symbol, voicing, usedTechnique, doubling = 'none', leftHandStyle = 'none') {
   const rootName = formatPc(rootPc, false);
   const chordSymbol = symbol ? `${rootName}${symbol}` : rootName;
   // Doublures ajoutées après le choix VoicingLab : classes de hauteur et basse
@@ -1380,6 +1409,7 @@ function targetFromVoicing(rootPc, symbol, voicing, usedTechnique, doubling = 'n
     const { leftHand, rightHand, doubled } = applyDoublings(voicing, rootPc, doubling);
     Object.assign(voicing, { leftHand, rightHand, doubled });
   }
+  withLeftHandStyle(rootPc, symbol, voicing, usedTechnique, leftHandStyle);
   const notes = [...voicing.leftHand, ...voicing.rightHand];
   return {
     type: 'chord',
@@ -1438,7 +1468,7 @@ function parseMovementToken(token) {
    * sans voicing est omis ; `failures` (facultatif) reçoit alors son nom, pour
    * le signaler à l'écran au lieu de changer de mouvement en silence.
    */
-  function buildMovementChords(movement, keyPc, technique, difficulty, anchors = {}, doubling = 'none', failures = null) {
+  function buildMovementChords(movement, keyPc, technique, difficulty, anchors = {}, doubling = 'none', failures = null, leftHandStyle = 'none') {
     const tokens = movement.pattern.split('-');
     const minor = isMinorMovement(movement);
     const skeleton = tokens.map((token) => {
@@ -1462,7 +1492,7 @@ function parseMovementToken(token) {
     const chained = chainVoicings(skeleton, technique, difficulty, anchors);
     return skeleton.map((chord, i) => {
       const { technique: used, variant, index, count } = chained[i];
-      const target = targetFromVoicing(chord.rootPc, chord.quality, voicingFromVariant(used, variant, index, count), used, doubling);
+      const target = targetFromVoicing(chord.rootPc, chord.quality, voicingFromVariant(used, variant, index, count), used, doubling, leftHandStyle);
       return { ...target, name: chord.name, token: chord.token, degree: chord.degree, quality: chord.quality };
     });
   }
@@ -1561,9 +1591,9 @@ export function createPracticeExercise() {
    */
   function chordModeTarget(rootPc, symbol, technique = state.technique) {
     const filter = topNoteFilter();
-    const target = buildChordTarget(rootPc, symbol, technique, state.variant, autoDifficulty(), filter, state.doubling);
+    const target = buildChordTarget(rootPc, symbol, technique, state.variant, autoDifficulty(), filter, state.doubling, state.leftHandStyle);
     if (target || !filter) return target;
-    const plain = buildChordTarget(rootPc, symbol, technique, state.variant, autoDifficulty(), null, state.doubling);
+    const plain = buildChordTarget(rootPc, symbol, technique, state.variant, autoDifficulty(), null, state.doubling, state.leftHandStyle);
     return plain ? ({ ...plain, topNoteMiss: true }) : null;
   }
 
@@ -1584,6 +1614,8 @@ export function createPracticeExercise() {
     },
     // Doublures d'octave : 'none' | 'bass' | 'melody' | 'full'.
     doubling: 'none',
+    // Main gauche d'un style ajoutée au voicing : 'none' | 'gospel' | 'ballade' | 'swing'.
+    leftHandStyle: 'none',
     history: [],
     // Mode Accord cible : accord explicitement choisi par l'utilisateur.
     targetChoice: null,
@@ -1630,15 +1662,15 @@ export function createPracticeExercise() {
     for (let i = 0; i < attempts; i += 1) {
       const rootPc = randomInt(0, 11);
       const symbol = pick(allowedSymbols);
-      const target = buildChordTarget(rootPc, symbol, state.technique, state.variant, autoDifficulty(), filter, state.doubling);
+      const target = buildChordTarget(rootPc, symbol, state.technique, state.variant, autoDifficulty(), filter, state.doubling, state.leftHandStyle);
       if (target) return target;
     }
     // Repli ultime : un accord jouable au niveau demandé, sinon Cmaj7 close.
     for (const symbol of allowedSymbols) {
-      const target = buildChordTarget(0, symbol, 'close', state.variant, autoDifficulty(), null, state.doubling);
+      const target = buildChordTarget(0, symbol, 'close', state.variant, autoDifficulty(), null, state.doubling, state.leftHandStyle);
       if (target) return target;
     }
-    return buildChordTarget(0, 'maj7', 'close', state.variant, autoDifficulty(), null, state.doubling);
+    return buildChordTarget(0, 'maj7', 'close', state.variant, autoDifficulty(), null, state.doubling, state.leftHandStyle);
   }
 
   /** Départ du tour : la tonalité choisie si elle est retenue, sinon au hasard parmi les retenues. */
@@ -1679,7 +1711,7 @@ export function createPracticeExercise() {
       if (movement.name !== CUSTOM_GRID_NAME) return null;
       return ignored.length > 0 ? `Ignoré${ignored.length > 1 ? 's' : ''} : ${unplayableNames(ignored)}.` : null;
     };
-    const build = (movement, startKey, failures = null) => buildMovementChords(movement, startKey, state.technique, state.difficulty, {}, state.doubling, failures);
+    const build = (movement, startKey, failures = null) => buildMovementChords(movement, startKey, state.technique, state.difficulty, {}, state.doubling, failures, state.leftHandStyle);
     const isComplete = (movement, chords) => chords.length === movement.pattern.split('-').length;
     // Accords introuvables du mouvement choisi, pour l'expliquer à l'écran.
     let failures = [];
@@ -1771,7 +1803,7 @@ export function createPracticeExercise() {
     const { rootPc, symbol } = state.target;
     const refreshed = state.mode === 'chord'
       ? chordModeTarget(rootPc, symbol)
-      : buildChordTarget(rootPc, symbol, state.technique, state.variant, autoDifficulty(), null, state.doubling);
+      : buildChordTarget(rootPc, symbol, state.technique, state.variant, autoDifficulty(), null, state.doubling, state.leftHandStyle);
     if (!refreshed) return;
     // topNoteMiss est recalculé à chaque régénération.
     if (!refreshed.topNoteMiss) delete state.target.topNoteMiss;
@@ -1828,7 +1860,7 @@ export function createPracticeExercise() {
   function refreshProgressionChords() {
     const prog = state.progression;
     if (state.mode !== 'movement' || !prog?.chords) return;
-    prog.chords = buildMovementChords(prog.movement, prog.currentKey, state.technique, state.difficulty, prog.anchors, state.doubling);
+    prog.chords = buildMovementChords(prog.movement, prog.currentKey, state.technique, state.difficulty, prog.anchors, state.doubling, null, state.leftHandStyle);
     const step = Math.min(prog.stepIndex || 0, prog.chords.length - 1);
     state.target = attachMovementContext(prog.chords[step], prog);
     state.variant = state.target?.voicing?.variantIndex || 0;
@@ -1932,7 +1964,7 @@ export function createPracticeExercise() {
     prog.stepIndex = 0;
     prog.currentKey = prog.keys[keyIndex];
     const missing = [];
-    prog.chords = buildMovementChords(prog.movement, prog.currentKey, state.technique, state.difficulty, prog.anchors, state.doubling, missing);
+    prog.chords = buildMovementChords(prog.movement, prog.currentKey, state.technique, state.difficulty, prog.anchors, state.doubling, missing, state.leftHandStyle);
     prog.notice = missing.length > 0
       ? `${missing.join(', ')} : aucun voicing en ${keyLabel(prog.currentKey, isMinorMovement(prog.movement))}, accord sauté.`
       : null;
@@ -1979,6 +2011,14 @@ export function createPracticeExercise() {
     else refreshProgressionChords();
   }
 
+  /** Main gauche d'un style (tous modes, 'none' = voicing seul) : cible et grille recalculées. */
+  function setLeftHandStyle(style) {
+    if (style !== 'none' && !LEFT_HAND_STYLES.includes(style)) return;
+    state.leftHandStyle = style;
+    if (state.mode === 'chord') regenerateCurrentTarget();
+    else refreshProgressionChords();
+  }
+
   /**
    * Filtre de la recherche par note du dessus.
    * @param {keyof TOP_NOTE_FILTERS} name
@@ -2021,8 +2061,13 @@ export function createPracticeExercise() {
         variantLabel: 'Favori',
         doubled: fav.doubled?.length ? [...fav.doubled] : undefined,
         addedLH: fav.addedLH?.length ? [...fav.addedLH] : undefined,
+        styleAdded: fav.styleAdded?.length ? [...fav.styleAdded] : undefined,
+        leftHandStyle: fav.leftHandStyle || undefined,
+        baseHasLeftHand: Boolean(fav.baseHasLeftHand),
       },
     };
+    // L'option « Main gauche » reprend celle du favori (les accords suivants la gardent).
+    state.leftHandStyle = LEFT_HAND_STYLES.includes(fav.leftHandStyle) ? fav.leftHandStyle : 'none';
   }
 
   /** Remet tous les filtres de la note du dessus à « tous », niveau compris. */
@@ -2114,7 +2159,7 @@ export function createPracticeExercise() {
   function previewMovement(name, keyPc = 0) {
     const movement = findMovement(name);
     if (!movement) return null;
-    const chords = buildMovementChords(movement, keyPc, state.technique, state.difficulty, {}, state.doubling);
+    const chords = buildMovementChords(movement, keyPc, state.technique, state.difficulty, {}, state.doubling, null, state.leftHandStyle);
     return chords.length > 0 ? chords : null;
   }
 
@@ -2265,6 +2310,7 @@ export function createPracticeExercise() {
     showFavorite,
     selectTopNoteSuggestion,
     setDoubling,
+    setLeftHandStyle,
     setContentChoice,
     clearContentChoice,
     setCustomGrid,
@@ -2310,9 +2356,11 @@ export function renderExerciseTarget(target, options = {}) {
   // Le clavier reste unifié : toutes les notes actives, sans distinction LH/RH.
   const notes = [...new Set([...cardNotes, ...demoAdded])].sort((a, b) => a - b);
 
-  // Doublures (option choisie par l'utilisateur) et notes ajoutées par la démo : colorées à part.
+  // Doublures et main gauche du style (options de l'utilisateur), notes ajoutées
+  // par la démo : colorées à part.
   const doubled = voicing?.doubled || [];
-  const kb = miniKeyboardForNotes(notes, { leftHand: [], rightHand: [], added: [...doubled, ...demoAdded] });
+  const styleAdded = voicing?.styleAdded || [];
+  const kb = miniKeyboardForNotes(notes, { leftHand: [], rightHand: [], added: [...doubled, ...styleAdded, ...demoAdded] });
 
   // Affichage des mains : si le moteur a produit un split LH/RH avec des
   // notes distinctes, on montre les deux blocs ; sinon un seul bloc.
@@ -2346,12 +2394,14 @@ export function renderExerciseTarget(target, options = {}) {
       ${target.topNoteMiss ? `<div class="exercise-topnote-miss">Aucun voicing de ${escapeHtml(target.name)} n'a cette note au sommet avec ces filtres : voicing habituel affiché.</div>` : ''}
       <div class="exercise-target-keyboard">${kb.svg}</div>
       ${doubled.length > 0 ? `<div class="exercise-doubled-note">Doublure${doubled.length > 1 ? 's' : ''} ajoutée${doubled.length > 1 ? 's' : ''} : ${escapeHtml(formatHandNotes(doubled, noteLabel))}</div>` : ''}
+      ${voicing?.leftHandStyle ? `<div class="exercise-doubled-note exercise-style-added">${escapeHtml(describeLeftHandStyle(voicing, noteLabel))}</div>` : ''}
       ${demo ? `<div class="exercise-doubled-note exercise-demo-added">${escapeHtml(describeDemoAdditions(demo, noteLabel))}</div>` : ''}
       <div class="exercise-target-hands">
         ${splitDisplay ? renderHandSplit(leftHand, rightHand, noteLabel) : renderUnifiedHand(allNames, singleHandLabel(leftHand, rightHand))}
       </div>
       <div class="exercise-target-actions">
       ${compact ? '' : renderDoublingSelect(options.doubling)}
+      ${renderLeftHandSelect(options.leftHandStyle ?? voicing?.leftHandStyle ?? 'none', baseHasLeftHand(voicing))}
       <button class="exercise-listen-btn" type="button" data-action="listen-exercise" aria-label="Écouter le voicing">
         <svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
         Écouter
@@ -2359,6 +2409,43 @@ export function renderExerciseTarget(target, options = {}) {
       </div>
     </div>
   `;
+}
+
+/** Vrai si le voicing de base (avant la main gauche du style) a une main gauche. */
+function baseHasLeftHand(voicing) {
+  if (!voicing) return false;
+  return voicing.leftHandStyle ? Boolean(voicing.baseHasLeftHand) : (voicing.leftHand || []).length > 0;
+}
+
+/**
+ * Menu « Main gauche » de la carte : le voicing seul (« Main droite seule » s'il
+ * n'a pas de main gauche), ou avec la main gauche d'un style.
+ * @param {string} style - 'none' | 'gospel' | 'ballade' | 'swing'
+ * @param {boolean} hasOwnLeftHand - le voicing de base a déjà une main gauche
+ */
+export function renderLeftHandSelect(style = 'none', hasOwnLeftHand = false) {
+  const options = [['none', hasOwnLeftHand ? 'Voicing seul' : 'Main droite seule'],
+    ...Object.entries(LEFT_HAND_LABELS).map(([id, label]) => [id, `+ main gauche ${label}`])];
+  return `<select class="exercise-left-hand-select" data-exercise-left-hand aria-label="Main gauche ajoutée au voicing, selon le style" title="Main gauche ajoutée au voicing, selon le style">
+        ${options.map(([id, label]) => `<option value="${id}"${id === style ? ' selected' : ''}>${escapeHtml(label)}</option>`).join('')}
+      </select>`;
+}
+
+/**
+ * Phrase décrivant la main gauche du style ajoutée au voicing : « Main gauche
+ * Gospel / worship : basse D2 · A2, C4 doublé à la main droite ».
+ */
+function describeLeftHandStyle(voicing, noteLabel = formatNoteNameWithOctave) {
+  const label = LEFT_HAND_LABELS[voicing.leftHandStyle] || voicing.leftHandStyle;
+  const added = new Set(voicing.styleAdded || []);
+  const bass = (voicing.leftHand || []).filter((n) => added.has(n));
+  const doubled = (voicing.rightHand || []).filter((n) => added.has(n));
+  const parts = [];
+  if (bass.length) parts.push(`basse ${formatHandNotes(bass, noteLabel)}`);
+  if (voicing.styleMovedToRight) parts.push('voicing à la main droite');
+  if (doubled.length) parts.push(`${formatHandNotes(doubled, noteLabel)} doublé${doubled.length > 1 ? 's' : ''} à la main droite`);
+  if (!parts.length) return `Main gauche ${label} : rien à ajouter, ce voicing a déjà sa main gauche`;
+  return `Main gauche ${label} : ${parts.join(', ')}`;
 }
 
 /**
@@ -2371,7 +2458,10 @@ function describeDemoAdditions(demo, noteLabel = formatNoteNameWithOctave) {
   if (demo.bass.length) parts.push(`basse ${formatHandNotes(demo.bass, noteLabel)} à la main gauche`);
   if (demo.movedToRight) parts.push('voicing joué à la main droite');
   if (demo.doubled.length) parts.push(`${formatHandNotes(demo.doubled, noteLabel)} doublé${demo.doubled.length > 1 ? 's' : ''} à la main droite`);
-  return `Démo${demo.styleLabel ? ` ${demo.styleLabel}` : ''} : ${parts.join(', ')}`;
+  const keep = demo.styleId && LEFT_HAND_LABELS[demo.styleId]
+    ? ` — pour la garder (favoris compris) : « + main gauche ${LEFT_HAND_LABELS[demo.styleId]} »`
+    : '';
+  return `Démo${demo.styleLabel ? ` ${demo.styleLabel}` : ''} : ${parts.join(', ')}${keep}`;
 }
 
 /** Menu des doublures d'octave (carte des modes Progression / Mouvement, fenêtre Filtres). */

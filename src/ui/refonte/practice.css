@@ -3390,6 +3390,7 @@
 :root[data-skin='global'] #practice-tab .exercise-target-actions,
 :root[data-skin='v2'] #practice-tab .exercise-target-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   gap: 8px;

@@ -345,17 +345,20 @@ function planPassing(chords, bars, beatsPerChord) {
   });
 }
 
+/** Mains gospel / worship d'un accord : basse de la démo, main droite en cadre d'octave. */
+function gospelHands(chord) {
+  const hands = demoHands(chord, 'fifth');
+  if (hands.stride) return hands;
+  const lhTop = hands.lh.length ? hands.lh[hands.lh.length - 1] : -Infinity;
+  return { ...hands, rh: octaveFrame(hands.rh, lhTop) };
+}
+
 /**
  * Plan du jeu gospel / worship : mains de chaque accord (main droite en cadre
  * d'octave) et diminués de passage.
  */
 function planGospel(chords, beatsPerChord = 4) {
-  const bars = chords.map((chord) => {
-    const hands = demoHands(chord, 'fifth');
-    if (hands.stride) return hands;
-    const lhTop = hands.lh.length ? hands.lh[hands.lh.length - 1] : -Infinity;
-    return { ...hands, rh: octaveFrame(hands.rh, lhTop) };
-  });
+  const bars = chords.map(gospelHands);
   return { bars, passing: planPassing(chords, bars, beatsPerChord) };
 }
 
@@ -389,6 +392,50 @@ function swingSecondBass(chord, root, rh) {
   return second >= LOWEST_BASS ? second : root;
 }
 
+// [Claude] — 2026-09-24 — Main gauche d'un style comme option de l'exercice
+// (Narcisse : la main gauche ajoutée par la démo gospel lui plaisait, mais le
+// favori ne gardait que la main droite ; « des options […] décliné en fonction
+// du style, pas seulement en fonction des démos »).
+/** Styles qui donnent une main gauche à la carte (option « Main gauche » de l'exercice). */
+export const LEFT_HAND_STYLES = ['gospel', 'ballade', 'swing'];
+
+/**
+ * Mains d'un style pour un accord de la carte — celles de la démo, sans le
+ * rythme : Gospel / worship = fondamentale + quinte à l'octave 2 (7e sur une
+ * dominante) et main droite en cadre d'octave ; Ballade = même basse, main
+ * droite telle quelle ; Comping swing = fondamentale et quinte du jeu « en
+ * deux ». `added` = notes absentes de la carte ; `movedToRight` = rootless à une
+ * main joué à la main droite au-dessus de la basse.
+ * @returns {{lh: number[], rh: number[], added: number[], movedToRight: boolean}|null}
+ */
+export function styleLeftHand(chord, style, { lift = true } = {}) {
+  if (!LEFT_HAND_STYLES.includes(style)) return null;
+  const kind = style === 'swing' ? 'root' : 'fifth';
+  const card = cardHands(chord);
+  let hands = demoHands(chord, kind);
+  const movedToRight = card.lh.length > 0 && card.rh.length === 0 && hands.rh.length > 0;
+  // Option de la carte (`lift`) : un rootless passé à la main droite mais resté
+  // en registre de main gauche (sous Mi3 : D3 F#3 G#3 C#4 sur Bb2) monte d'une
+  // octave, la basse suit. La démo, elle, joue les notes de la carte telles quelles.
+  if (lift && movedToRight && hands.rh[0] < 52 && hands.rh[hands.rh.length - 1] + 12 <= 79) {
+    const rh = hands.rh.map((n) => n + 12);
+    const lh = freeBass(chord, kind, rh[0]);
+    if (lh.length) hands = { ...hands, lh, rh, bass: lh };
+  }
+  if (style === 'gospel' && !hands.stride) {
+    hands = { ...hands, rh: octaveFrame(hands.rh, hands.lh.length ? hands.lh[hands.lh.length - 1] : -Infinity) };
+  } else if (style === 'swing' && hands.freeLeft && hands.lh.length) {
+    hands = { ...hands, lh: sortedUnique([...hands.lh, swingSecondBass(chord, hands.lh[0], hands.rh)]) };
+  }
+  const onCard = new Set([...card.lh, ...card.rh]);
+  return {
+    lh: hands.lh,
+    rh: hands.rh,
+    added: [...hands.lh, ...hands.rh].filter((n) => !onCard.has(n)),
+    movedToRight,
+  };
+}
+
 /**
  * Ce que la démo joue pour l'accord `index` en plus de la carte (Narcisse : « la
  * démo ajoute aussi des basses quand le mini-key ne l'affiche pas forcément, je
@@ -400,21 +447,13 @@ function swingSecondBass(chord, root, rh) {
 export function demoCardHands(chords, index, styleId) {
   const chord = chords?.[index];
   if (!chord) return null;
-  const id = DEMO_STYLES[styleId] ? styleId : 'gospel';
-  let hands;
-  if (id === 'gospel') hands = planGospel(chords, DEMO_STYLES.gospel.beatsPerChord).bars[index];
-  else if (id === 'ballade') hands = demoHands(chord, 'fifth');
-  else if (id === 'swing') {
-    hands = demoHands(chord, 'root');
-    if (hands.freeLeft && hands.lh.length) hands = { ...hands, lh: sortedUnique([...hands.lh, swingSecondBass(chord, hands.lh[0], hands.rh)]) };
-  } else return null;
-  const card = cardHands(chord);
-  const onCard = new Set([...card.lh, ...card.rh]);
-  const bass = hands.lh.filter((n) => !onCard.has(n));
-  const doubled = hands.rh.filter((n) => !onCard.has(n));
-  const movedToRight = card.lh.length > 0 && card.rh.length === 0 && hands.rh.length > 0;
-  if (!bass.length && !doubled.length && !movedToRight) return null;
-  return { lh: hands.lh, rh: hands.rh, bass, doubled, movedToRight };
+  // Ce que la démo joue vraiment : pas de remontée d'octave (lift) ici.
+  const hands = styleLeftHand(chord, DEMO_STYLES[styleId] ? styleId : 'gospel', { lift: false });
+  if (!hands) return null;
+  const bass = hands.lh.filter((n) => hands.added.includes(n));
+  const doubled = hands.rh.filter((n) => hands.added.includes(n));
+  if (!bass.length && !doubled.length && !hands.movedToRight) return null;
+  return { lh: hands.lh, rh: hands.rh, bass, doubled, movedToRight: hands.movedToRight };
 }
 
 /**
