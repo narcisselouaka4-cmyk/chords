@@ -82,7 +82,7 @@ import {
   restoreFavorites,
 } from './practice-favorites.js';
 import { voicingToNoteSequence } from './pedagogie/copilot-voicing.js';
-import { buildGospelDemo, DEMO_STYLES } from './practice-demo.js';
+import { buildDemo, DEMO_STYLES, DEMO_STYLE_IDS, defaultDemoStyle } from './practice-demo.js';
 import { createDemoPlayer } from './exercise-demo-player.js';
 import {
   listMidiOutputs, openMidiOutput, savedMidiOutputName, isMidiOutputActive, currentMidiOutput, sendMidi,
@@ -1696,6 +1696,7 @@ function initPracticeExercise() {
       level: m.level,
       description: m.description || '',
       tags: m.tags || [],
+      style: m.style,
     }));
   }
 
@@ -1825,20 +1826,52 @@ function initPracticeExercise() {
   // ── Démo des mouvements ──
   // [Claude] — 2026-09-24 — « Écouter le mouvement » (vue Mouvement : la carte
   // suit l'accord joué, puis revient où l'on était) et « Écouter » sur chaque
-  // carte de la bibliothèque (aperçu sans rien choisir). Style gospel / worship,
-  // voicings de l'exercice, sortie MIDI si elle est choisie.
+  // carte de la bibliothèque (aperçu sans rien choisir). Voicings de l'exercice,
+  // sortie MIDI si elle est choisie. Style choisi par l'utilisateur, ou selon le
+  // mouvement (jazz → Comping swing, gospel / worship → Gospel, « Ma grille » →
+  // Ballade) ; chaque style a son tempo.
   // demoContext : { kind: 'movement', stepBefore } | { kind: 'preview', previewId } | null
   let demoContext = null;
   let previewId = null;
 
-  async function startDemo(chords, context) {
+  const DEMO_STYLE_STORAGE = 'exercise-demo-style';
+  let demoStyle = 'auto';
+  try {
+    const saved = window.localStorage?.getItem(DEMO_STYLE_STORAGE);
+    if (saved && (saved === 'auto' || DEMO_STYLES[saved])) demoStyle = saved;
+  } catch (e) {
+    // Stockage indisponible : « Selon le mouvement ».
+  }
+  const resolveDemoStyle = (movementStyle) => (demoStyle === 'auto' ? defaultDemoStyle(movementStyle) : demoStyle);
+  const demoStyleSelects = [...document.querySelectorAll('[data-demo-style]')];
+  // Options posées une fois (un menu reconstruit à chaque rendu se refermerait
+  // pendant la démo) ; seul le libellé « Selon le mouvement » suit le mouvement.
+  demoStyleSelects.forEach((select) => {
+    select.innerHTML = '<option value="auto">Selon le mouvement</option>'
+      + DEMO_STYLE_IDS.map((id) => `<option value="${id}">${DEMO_STYLES[id].label} · ${DEMO_STYLES[id].tempo}</option>`).join('');
+    select.value = demoStyle;
+    select.addEventListener('change', () => {
+      demoStyle = select.value;
+      try {
+        window.localStorage?.setItem(DEMO_STYLE_STORAGE, demoStyle);
+      } catch (e) {
+        // Choix gardé pour cette séance seulement.
+      }
+      demoStyleSelects.forEach((other) => { other.value = demoStyle; });
+      demoPlayer.stop();
+      refreshDemoButtons(practiceExercise.getState());
+    });
+  });
+
+  async function startDemo(chords, context, movementStyle) {
     if (!chords?.length) return;
     try {
       await resumeAudio();
     } catch (err) {
       console.warn('[Démo] Audio indisponible', err);
     }
-    demoPlayer.play(buildGospelDemo(chords), { tempo: DEMO_STYLES.gospel.tempo });
+    const styleId = resolveDemoStyle(movementStyle);
+    demoPlayer.play(buildDemo(chords, styleId), { tempo: DEMO_STYLES[styleId].tempo });
     demoContext = context;
     previewId = context.kind === 'preview' ? context.previewId : null;
     refreshDemoButtons(practiceExercise.getState());
@@ -1852,7 +1885,7 @@ function initPracticeExercise() {
     }
     const exState = practiceExercise.getState();
     if (exState.mode !== 'movement' || !exState.progression) return;
-    startDemo(exState.progression.chords, { kind: 'movement', stepBefore: exState.progression.stepIndex || 0 });
+    startDemo(exState.progression.chords, { kind: 'movement', stepBefore: exState.progression.stepIndex || 0 }, exState.progression.movement?.style);
   }
 
   function togglePreview(id) {
@@ -1865,7 +1898,7 @@ function initPracticeExercise() {
     // Aperçu dans la tonalité en cours (sinon le départ choisi, sinon Do).
     const key = exState.mode === 'movement' && exState.progression ? exState.progression.currentKey : (exState.keyChoice ?? 0);
     const chords = item ? practiceExercise.previewMovement(item.name, key) : null;
-    if (chords) startDemo(chords, { kind: 'preview', previewId: id });
+    if (chords) startDemo(chords, { kind: 'preview', previewId: id }, item.style);
   }
 
   demoHooks.onStep = (step) => {
@@ -1891,6 +1924,15 @@ function initPracticeExercise() {
     const btn = document.getElementById('exercise-demo-btn');
     if (!btn) return;
     btn.hidden = exState.mode !== 'movement' || !exState.progression;
+    const styleRow = document.getElementById('exercise-demo-style-row');
+    if (styleRow) styleRow.hidden = btn.hidden;
+    // « Selon le mouvement » annonce le style qu'il donnera pour le mouvement affiché.
+    const movementStyle = exState.progression?.movement?.style;
+    const autoStyle = DEMO_STYLES[defaultDemoStyle(movementStyle)];
+    const autoOption = document.querySelector('#exercise-demo-style option[value="auto"]');
+    if (autoOption) autoOption.textContent = `Selon le mouvement · ${autoStyle.label}`;
+    const style = DEMO_STYLES[resolveDemoStyle(movementStyle)];
+    btn.title = `Démo ${style.label} (${style.tempo} à la noire) dans la tonalité en cours, avec les voicings de l'exercice`;
     const playing = demoContext?.kind === 'movement';
     btn.classList.toggle('is-playing', playing);
     btn.innerHTML = `${playing ? DEMO_STOP_ICON : DEMO_PLAY_ICON}<span>${playing ? 'Arrêter la démo' : 'Écouter le mouvement'}</span>`;

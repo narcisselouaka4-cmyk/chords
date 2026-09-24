@@ -1,8 +1,12 @@
-// [Claude] — 2026-09-24 — Tests de la démo gospel / worship des mouvements.
+// [Claude] — 2026-09-24 — Tests de la démo des mouvements (Gospel / worship,
+// Ballade, Comping swing, Plaqué) et de son lecteur.
 // Exécution : node src/practice-demo.test.js
 
 import { createPracticeExercise, listMovementNames } from './practice-exercise.js';
-import { buildGospelDemo, bassOctave, bassApproach, innerMovement } from './practice-demo.js';
+import {
+  buildGospelDemo, buildDemo, bassOctave, bassNote, bassApproach, innerMovement,
+  DEMO_STYLES, DEMO_STYLE_IDS, defaultDemoStyle,
+} from './practice-demo.js';
 import { createDemoPlayer } from './exercise-demo-player.js';
 
 let passed = 0;
@@ -62,18 +66,76 @@ const bassDm = bassOctave(chords[0].rootPc, chords[0].notes);
 check('Basse en octaves sur le 1er temps (Dm11 : D2 D3)', bassDm.join() === '38,50' && bassDm.every((n) => onBeat(0).has(n)), bassDm.join());
 check('4e temps « et » : approche de la basse (Ab2 vers G) et 7e de Dm11 → 3ce de G13 (C4 → B3)', onBeat(3.5).has(44) && onBeat(3.5).has(59), [...onBeat(3.5)].join());
 
-console.log('\n=== Démo : toute la bibliothèque ===');
+// [Claude] — 2026-09-24 — Styles Ballade, Comping swing et Plaqué (demande de Narcisse).
+console.log('\n=== Démo : styles ===');
+check('Quatre styles, chacun avec son tempo', DEMO_STYLE_IDS.join() === 'gospel,ballade,swing,plaque'
+  && DEMO_STYLE_IDS.every((id) => DEMO_STYLES[id].label && DEMO_STYLES[id].tempo >= 50 && DEMO_STYLES[id].tempo <= 160));
+check('Style par défaut selon le mouvement : jazz → swing, gospel / worship → gospel, sans style → ballade',
+  defaultDemoStyle('jazz') === 'swing' && defaultDemoStyle('gospel') === 'gospel' && defaultDemoStyle('worship') === 'gospel' && defaultDemoStyle(undefined) === 'ballade');
+check('Style inconnu : Gospel / worship', JSON.stringify(buildDemo(chords, 'inconnu')) === JSON.stringify(buildGospelDemo(chords)));
+check('Basse seule sous le voicing, dans le grave (Dm11 F3 G3 A3 C4 → D2)', bassNote(2, [53, 55, 57, 60]) === 38);
+check('Pas de basse seule si le voicing a déjà sa fondamentale au grave (shell C2 E2 Bb2)', bassNote(0, [36, 40, 46]) === null);
+
+const attacks = (demo, from, to) => demo.events.filter((e) => e.type === 'noteOn' && e.time >= from && e.time < to);
+const durations = (demo) => {
+  const open = new Map(); const out = [];
+  for (const e of demo.events) {
+    if (e.type === 'noteOn') open.set(`${e.note}@${e.time}`, e);
+    if (e.type === 'noteOff') {
+      const key = [...open.keys()].find((k) => k.startsWith(`${e.note}@`));
+      if (key) { out.push({ note: e.note, start: open.get(key).time, length: e.time - open.get(key).time }); open.delete(key); }
+    }
+  }
+  return out;
+};
+
+const ballade = buildDemo(chords, 'ballade');
+const balladeBar = attacks(ballade, 0, 4);
+const arpeggio = balladeBar.filter((e) => chords[0].notes.includes(e.note) && e.time < 2);
+check('Ballade : basse seule au 1er temps (D2)', balladeBar.some((e) => e.time === 0 && e.note === 38) && !balladeBar.some((e) => e.time === 0 && e.note === 50));
+check('Ballade : voicing arpégé du grave à l\'aigu, après la basse', arpeggio.length === chords[0].notes.length
+  && arpeggio.every((e, k) => k === 0 || (e.time > arpeggio[k - 1].time && e.note > arpeggio[k - 1].note)) && arpeggio[0].time > 0,
+  arpeggio.map((e) => `${e.note}@${e.time}`).join(' '));
+const top2 = [...chords[0].notes].sort((a, b) => a - b).slice(-2);
+check('Ballade : les deux notes du dessus reprises au 3e temps', top2.every((n) => balladeBar.some((e) => e.time === 2 && e.note === n)));
+check('Ballade : pédale changée à chaque accord', ballade.events.filter((e) => e.type === 'sustain' && e.value).length === chords.length);
+
+const swing = buildDemo(chords, 'swing');
+const swingBar = attacks(swing, 0, 4);
+check('Swing : Charleston — accord au 1er temps et au « et » du 2e (croche swinguée)',
+  chords[0].notes.every((n) => swingBar.some((e) => e.time === 0 && e.note === n) && swingBar.some((e) => Math.abs(e.time - (1 + 2 / 3)) < 1e-9 && e.note === n)));
+check('Swing : basse au 1er temps, sans pédale', swingBar.some((e) => e.time === 0 && e.note === 38) && !swing.events.some((e) => e.type === 'sustain'));
+check('Swing : accords courts (≤ un demi-temps et demi), sauf le dernier',
+  durations(swing).filter((d) => d.start < (chords.length - 1) * 4 && chords.some((c) => c.notes.includes(d.note))).every((d) => d.length <= 0.55 + 1e-9));
+
+const plaque = buildDemo(chords, 'plaque');
+check('Plaqué : le voicing seul, une fois par mesure, tenu', chords.every((c, i) => {
+  const bar = attacks(plaque, i * 4, i * 4 + 4);
+  return bar.length === c.notes.length && bar.every((e) => e.time === i * 4 && c.notes.includes(e.note));
+}) && !plaque.events.some((e) => e.type === 'sustain') && durations(plaque).every((d) => d.length >= 3.9));
+
+console.log('\n=== Démo : toute la bibliothèque, tous les styles ===');
 let problems = [];
 for (const name of listMovementNames()) {
   for (const technique of ['auto', 'rootless', 'drop2', 'spread']) {
     const grid = movement(name, { technique, key: 7 });
-    const demo = buildGospelDemo(grid);
-    const notes = demo.events.filter((e) => e.type === 'noteOn').map((e) => e.note);
-    if (notes.some((n) => n < 28 || n > 100)) problems.push(`${name} ${technique} : note hors clavier`);
-    if (demo.events.filter((e) => e.type === 'step').length !== grid.length) problems.push(`${name} ${technique} : repères`);
+    for (const style of DEMO_STYLE_IDS) {
+      const demo = buildDemo(grid, style);
+      const ons = demo.events.filter((e) => e.type === 'noteOn');
+      if (ons.some((e) => e.note < 28 || e.note > 100)) problems.push(`${name} ${technique} ${style} : note hors clavier`);
+      if (ons.some((e) => e.velocity < 0.3 || e.velocity > 1)) problems.push(`${name} ${technique} ${style} : vélocité`);
+      if (ons.length !== demo.events.filter((e) => e.type === 'noteOff').length) problems.push(`${name} ${technique} ${style} : notes non relâchées`);
+      if (demo.events.filter((e) => e.type === 'step').length !== grid.length) problems.push(`${name} ${technique} ${style} : repères`);
+      // Le voicing de l'exercice est joué en entier dans la mesure de chaque accord.
+      grid.forEach((c, i) => {
+        const played = new Set(ons.filter((e) => e.time >= i * 4 && e.time < i * 4 + 4).map((e) => e.note));
+        if (!c.notes.every((n) => played.has(n))) problems.push(`${name} ${technique} ${style} : voicing de ${c.name} incomplet`);
+      });
+      if (demo.events.some((e, k) => k > 0 && demo.events[k - 1].time > e.time)) problems.push(`${name} ${technique} ${style} : ordre`);
+    }
   }
 }
-check('12 mouvements × 4 techniques : démo jouable (Mi1–Mi7, un repère par accord)', problems.length === 0, problems.slice(0, 3).join(' ; '));
+check('12 mouvements × 4 techniques × 4 styles : démo jouable (Mi1–Mi7, voicing entier, un repère par accord)', problems.length === 0, problems.slice(0, 3).join(' ; '));
 
 console.log('\n=== Lecteur de démo ===');
 {

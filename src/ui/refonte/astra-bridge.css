@@ -1596,6 +1596,42 @@
 :root[data-skin='v2'] #practice-view-exercices .tr-exercise-progress.is-demo-playing .tr-progression-path > button.is-active {
   animation: exercise-demo-pulse 1.6s ease-in-out infinite;
 }
+:root[data-skin='global'] #practice-view-exercices .exercise-demo-style,
+:root[data-skin='v2'] #practice-view-exercices .exercise-demo-style {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-demo-style[hidden],
+:root[data-skin='v2'] #practice-view-exercices .exercise-demo-style[hidden] {
+  display: none;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-demo-style label,
+:root[data-skin='v2'] #practice-view-exercices .exercise-demo-style label {
+  color: var(--tr-secondary);
+  font-size: 11px;
+  font-weight: 550;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-demo-style select,
+:root[data-skin='v2'] #practice-view-exercices .exercise-demo-style select {
+  width: 100%;
+  height: 28px;
+  padding: 0 26px 0 9px;
+  border: 1px solid var(--tr-border);
+  border-radius: 7px;
+  background-color: var(--tr-inset);
+  color: var(--tr-text);
+  font-size: 11px;
+  font-weight: 550;
+  cursor: pointer;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-demo-style select:focus-visible,
+:root[data-skin='v2'] #practice-view-exercices .exercise-demo-style select:focus-visible {
+  outline: 2px solid var(--tr-accent);
+  outline-offset: 1px;
+}
 @keyframes exercise-demo-pulse {
   50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--tr-accent) 30%, transparent); }
 }
@@ -1645,6 +1681,19 @@
 #exercise-library .exercise-library-search { flex: 0 1 300px; }
 #exercise-library .exercise-library-search input { height: auto; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
 #exercise-library .exercise-library-categories { display: flex; flex-wrap: wrap; gap: 6px; }
+#exercise-library .exercise-library-style { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; color: var(--tr-secondary); font-size: 11px; font-weight: 550; }
+#exercise-library .exercise-library-style select {
+  height: 30px;
+  padding: 0 26px 0 10px;
+  border: 1px solid var(--tr-border);
+  border-radius: 7px;
+  background-color: var(--tr-inset);
+  color: var(--tr-text);
+  font-size: 11px;
+  font-weight: 550;
+  cursor: pointer;
+}
+#exercise-library .exercise-library-style select:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 1px; }
 #exercise-library .exercise-library-chip {
   display: inline-flex;
   align-items: center;

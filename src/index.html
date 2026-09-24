@@ -320,6 +320,11 @@
               <!-- [Claude] — 2026-09-24 — Démo du mouvement (gospel / worship) dans la
                    tonalité en cours, avec les voicings de l'exercice. -->
               <button class="tr-button exercise-demo-btn" type="button" id="exercise-demo-btn" hidden title="Démo gospel / worship dans la tonalité en cours, avec les voicings de l'exercice"><svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg><span>Écouter le mouvement</span></button>
+              <!-- Style de la démo (rempli par main.js) : selon le mouvement, ou imposé. -->
+              <div class="exercise-demo-style" id="exercise-demo-style-row" hidden>
+                <label for="exercise-demo-style">Style</label>
+                <select id="exercise-demo-style" data-demo-style aria-label="Style de la démo"></select>
+              </div>
               <div class="exercise-key-strip" id="exercise-key-strip" role="group" aria-label="Tonalités du tour" hidden></div>
               <span class="tr-eyebrow exercise-chords-eyebrow" id="exercise-chords-eyebrow" hidden>ACCORDS</span>
               <div class="tr-progression-path" id="exercise-progress-path"></div>
@@ -372,6 +377,7 @@
               <div class="tr-library-toolbar exercise-library-toolbar">
                 <label class="tr-search exercise-library-search"><svg class="tr-i" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input type="text" id="exercise-library-search" placeholder="Rechercher un mouvement…" aria-label="Rechercher un mouvement"></label>
                 <div class="exercise-library-categories" id="exercise-library-categories" role="group" aria-label="Catégories"></div>
+                <label class="exercise-library-style"><span>Style des aperçus</span><select id="exercise-library-style" data-demo-style aria-label="Style des aperçus"></select></label>
               </div>
               <div class="exercise-library-grid" id="exercise-library-grid"></div>
             </div>
