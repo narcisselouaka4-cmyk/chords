@@ -9,7 +9,7 @@
 import { createPracticeExercise, listMovementNames } from './practice-exercise.js';
 import {
   buildDemo, buildGospelDemo, cardHands, demoHands, freeBass, topNeighbour, finalRun, strideSplit,
-  octaveFrame, passingDiminished, DEMO_STYLES, DEMO_STYLE_IDS, defaultDemoStyle,
+  octaveFrame, passingDiminished, passingName, demoPassingChords, DEMO_STYLES, DEMO_STYLE_IDS, defaultDemoStyle,
 } from './practice-demo.js';
 import { createDemoPlayer } from './exercise-demo-player.js';
 
@@ -145,6 +145,26 @@ check('Voix du dessus qui bouge au 3e temps (au moins un accord)', chords.some((
 const lastBar = onsets({ events }, (chords.length - 1) * 4 + 1.5, beats, 'rh');
 check('Montée finale ascendante après le dernier accord', lastBar.length >= 4 && lastBar.every((e, k) => k === 0 || e.note > lastBar[k - 1].note), lastBar.map((e) => e.note).join());
 
+// [Claude] — 2026-09-24 — Accords de passage affichés à droite (Narcisse : « ajoute
+// ces accords à droite ») : la liste vient du même plan que la démo.
+console.log('\n=== Démo : accords de passage (liste de droite) ===');
+check('Nom du diminué épelé sur la sensible de l\'accord suivant (Ddim7 avant Eb, C#dim7 avant Dm, Bdim7 avant C)',
+  passingName({ name: 'Ebmaj7#11' }, 2) === 'Ddim7' && passingName({ name: 'Dm11' }, 1) === 'C#dim7' && passingName({ name: 'Cmaj13' }, 11) === 'Bdim7'
+  && passingName({ name: 'Bmaj13' }, 10) === 'A#dim7');
+const turnaround = movement('Turnaround III-VI-II-V-I', { technique: 'auto' });
+const turnaroundPassing = demoPassingChords(turnaround, 'gospel');
+check('Turnaround en Do : G#dim7 après Em11, C#dim7 après Am11, F#dim7 après Dm11, rien après G13',
+  turnaroundPassing.map((p) => `${p.after}:${p.name}`).join() === '0:G#dim7,1:C#dim7,2:F#dim7', turnaroundPassing.map((p) => `${p.after}:${p.name}`).join());
+const turnaroundDemo = buildDemo(turnaround, 'gospel');
+check('La démo annonce chaque accord de passage au 4e temps (repère « passing »)',
+  turnaroundDemo.events.filter((e) => e.type === 'passing').map((e) => `${e.passing}@${e.time}`).join() === '0@3,1@7,2@11');
+check('Liste = notes jouées par la démo au 4e temps', turnaroundPassing.every((p) => {
+  const played = onsets(turnaroundDemo, p.after * 4 + 3, p.after * 4 + 4).map((e) => e.note).sort((a, b) => a - b).join();
+  return played === [...p.lh, ...p.rh].sort((a, b) => a - b).join();
+}));
+check('Aucun accord de passage en Ballade, Comping swing ou Plaqué (ni dans leur démo)', ['ballade', 'swing', 'plaque'].every((style) =>
+  demoPassingChords(turnaround, style).length === 0 && !buildDemo(turnaround, style).events.some((e) => e.type === 'passing')));
+
 // [Claude] — 2026-09-24 — Styles Ballade, Comping swing et Plaqué (demande de Narcisse).
 console.log('\n=== Démo : styles ===');
 check('Quatre styles, chacun avec son tempo', DEMO_STYLE_IDS.join() === 'gospel,ballade,swing,plaque'
@@ -217,10 +237,12 @@ console.log('\n=== Lecteur de démo ===');
   };
   const sent = [];
   const steps = [];
+  const passings = [];
   const ends = [];
   const player = createDemoPlayer({
     send: (type, a, b) => sent.push([type, a, b]),
     onStep: (i) => steps.push(i),
+    onPassing: (after) => passings.push(after),
     onEnd: (reason) => ends.push(reason),
     setTimer,
     clearTimer,
@@ -233,6 +255,7 @@ console.log('\n=== Lecteur de démo ===');
     { time: 1, type: 'noteOn', note: 60, velocity: 0.5 },
     { time: 2, type: 'noteOff', note: 60 },
     { time: 3, type: 'noteOff', note: 60 },
+    { time: 3, type: 'passing', passing: 0 },
   ];
   player.play({ events, beats: 4 }, { tempo: 60 });
   check('Lecture en cours', player.isPlaying());
@@ -242,6 +265,7 @@ console.log('\n=== Lecteur de démo ===');
   runUntil(10000);
   check('Relâchée au dernier relâchement ; repère et fin annoncés', sent.filter(([t, n]) => t === 'noteOff' && n === 60).length === 2
     && steps.join() === '0' && ends.join() === 'finished' && !player.isPlaying(), JSON.stringify(sent));
+  check('Accord de passage annoncé (onPassing)', passings.join() === '0', passings.join());
   check('Pédale relevée à la fin', sent[sent.length - 1][0] === 'sustain' && sent[sent.length - 1][1] === false);
 
   sent.length = 0; ends.length = 0;

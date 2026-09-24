@@ -13,12 +13,13 @@ const START_DELAY_MS = 80;
  * @param {{
  *   send: (type: 'noteOn'|'noteOff'|'sustain', a: number|boolean, b?: number) => void,
  *   onStep?: (step: number) => void,
+ *   onPassing?: (after: number) => void, // accord de passage joué après l'accord `after`
  *   onEnd?: (reason: 'finished'|'stopped') => void,
  *   setTimer?: (fn: Function, ms: number) => any,
  *   clearTimer?: (id: any) => void,
  * }} options
  */
-export function createDemoPlayer({ send, onStep, onEnd, setTimer = setTimeout, clearTimer = clearTimeout }) {
+export function createDemoPlayer({ send, onStep, onPassing, onEnd, setTimer = setTimeout, clearTimer = clearTimeout }) {
   let timers = [];
   const held = new Map(); // note → nombre d'appuis en cours
   let pedal = false;
@@ -51,6 +52,9 @@ export function createDemoPlayer({ send, onStep, onEnd, setTimer = setTimeout, c
         break;
       case 'step':
         onStep?.(event.step);
+        break;
+      case 'passing':
+        onPassing?.(event.passing);
         break;
       default:
         break;

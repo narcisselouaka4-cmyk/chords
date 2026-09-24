@@ -319,6 +319,54 @@ export function finalRun(chord, rh, lh = []) {
   return run.length >= 4 ? run : [];
 }
 
+const LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+const LETTER_PC = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+const SHARP_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+/**
+ * Nom d'un diminué de passage : sa fondamentale est la sensible de l'accord
+ * suivant, écrite sur la lettre du dessous (Ddim7 avant Eb, C#dim7 avant Dm,
+ * Bdim7 avant C).
+ */
+export function passingName(next, rootPc) {
+  const letter = /^([A-G])/.exec(String(next?.name ?? ''))?.[1];
+  if (!letter) return `${SHARP_NAMES[pcOf(rootPc)]}dim7`;
+  const below = LETTERS[(LETTERS.indexOf(letter) + 6) % 7];
+  const shift = ((rootPc - LETTER_PC[below]) % 12 + 18) % 12 - 6;
+  return `${below}${shift > 0 ? '#'.repeat(shift) : 'b'.repeat(-shift)}dim7`;
+}
+
+/**
+ * Plan du jeu gospel / worship : mains de chaque accord (main droite en cadre
+ * d'octave) et diminué de passage joué après chaque accord (ou null).
+ */
+function planGospel(chords, beatsPerChord = 4) {
+  const bars = chords.map((chord) => {
+    const hands = demoHands(chord, 'fifth');
+    if (hands.stride) return hands;
+    const lhTop = hands.lh.length ? hands.lh[hands.lh.length - 1] : -Infinity;
+    return { ...hands, rh: octaveFrame(hands.rh, lhTop) };
+  });
+  const passing = chords.map((chord, i) => {
+    if (i === chords.length - 1 || bars[i].stride || beatsPerChord < 4) return null;
+    const found = passingDiminished(chord, chords[i + 1], bars[i], bars[i + 1]);
+    return found ? { ...found, name: passingName(chords[i + 1], found.rootPc) } : null;
+  });
+  return { bars, passing };
+}
+
+/**
+ * Accords de passage que la démo joue dans ce style (Gospel / worship
+ * seulement, comme buildDemo pour un style inconnu), pour les montrer dans la
+ * liste des accords : `after` = rang de l'accord qu'ils suivent.
+ * @returns {{after: number, name: string, rootPc: number, lh: number[], rh: number[]}[]}
+ */
+export function demoPassingChords(chords, styleId) {
+  if (!chords?.length || (DEMO_STYLES[styleId] && styleId !== 'gospel')) return [];
+  const { passing } = planGospel(chords, DEMO_STYLES.gospel.beatsPerChord);
+  return passing.flatMap((found, after) => (found ? [{ after, ...found }] : []));
+}
+
 /**
  * Partition en cours d'écriture : appuis par main (égrenés du grave à l'aigu),
  * repères d'accord, triés à la fin. La nuance varie légèrement d'un accord à
@@ -346,6 +394,10 @@ function createScore() {
     },
     step(time, i) {
       events.push({ time: round(time), type: 'step', step: i });
+    },
+    // Accord de passage joué après l'accord `after` (repère pour la liste des accords).
+    passing(time, after) {
+      events.push({ time: round(time), type: 'passing', passing: after });
     },
     shade(i, base) {
       return base + ((i % 3) - 1) * 0.03;
@@ -378,17 +430,12 @@ function playLeftHand(score, t, hands, velocity, release, { roll = 0, beatsPerCh
  * Démo gospel / worship d'une grille (voir l'en-tête).
  * @param {{name: string, rootPc: number, symbol?: string, notes: number[], voicing?: {leftHand: number[], rightHand: number[]}}[]} chords - accords de l'exercice
  * @param {{beatsPerChord?: number}} [options]
- * @returns {{events: {time: number, type: 'noteOn'|'noteOff'|'step', note?: number, velocity?: number, hand?: 'lh'|'rh', step?: number}[], beats: number}}
+ * @returns {{events: {time: number, type: 'noteOn'|'noteOff'|'step'|'passing', note?: number, velocity?: number, hand?: 'lh'|'rh', step?: number, passing?: number}[], beats: number}}
  */
 export function buildGospelDemo(chords, { beatsPerChord = 4 } = {}) {
   const score = createScore();
-  // Main droite en cadre d'octave (la note du dessus doublée plus bas).
-  const bars = chords.map((chord) => {
-    const hands = demoHands(chord, 'fifth');
-    if (hands.stride) return hands;
-    const lhTop = hands.lh.length ? hands.lh[hands.lh.length - 1] : -Infinity;
-    return { ...hands, rh: octaveFrame(hands.rh, lhTop) };
-  });
+  // Main droite en cadre d'octave, diminués de passage (voir planGospel).
+  const { bars, passing: passingChords } = planGospel(chords, beatsPerChord);
   let end = chords.length * beatsPerChord;
   chords.forEach((chord, i) => {
     const t = i * beatsPerChord;
@@ -416,7 +463,7 @@ export function buildGospelDemo(chords, { beatsPerChord = 4 } = {}) {
       return;
     }
     // Accord de passage au 4e temps : diminué vers l'accord suivant.
-    const passing = hands.stride || beatsPerChord < 4 ? null : passingDiminished(chord, chords[i + 1], hands, bars[i + 1]);
+    const passing = passingChords[i];
     const held = passing ? beatsPerChord - 1 : beatsPerChord;
     const release = t + held - LIFT;
     playLeftHand(score, t, hands, score.shade(i, 0.6), release, { roll, beatsPerChord: held });
@@ -435,6 +482,7 @@ export function buildGospelDemo(chords, { beatsPerChord = 4 } = {}) {
     }
     if (passing) {
       const p = t + beatsPerChord - 1;
+      score.passing(p, i);
       score.hand(p, passing.lh, score.shade(i, 0.54), t + beatsPerChord - LIFT, { hand: 'lh' });
       score.hand(p + 0.03, passing.rh, score.shade(i, 0.46), t + beatsPerChord - LIFT, { roll: 0.03, accentTop: 0.06 });
     }
@@ -540,6 +588,6 @@ export function buildPlaqueDemo(chords, { beatsPerChord = 4 } = {}) {
 // À temps égal : relâcher avant de rejouer, repère d'accord avant ses notes.
 function order(e) {
   if (e.type === 'noteOff') return 0;
-  if (e.type === 'step') return 1;
+  if (e.type === 'step' || e.type === 'passing') return 1;
   return 2;
 }

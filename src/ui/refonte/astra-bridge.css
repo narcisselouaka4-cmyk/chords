@@ -1345,6 +1345,56 @@
   background: var(--tr-accent);
   color: var(--tr-button-text);
 }
+/* [Claude] — 2026-09-24 — Accords de passage de la démo (Narcisse : « ajoute ces
+   accords à droite ») : entre deux accords, en retrait et plus discrets ; allumés
+   quand la démo les joue. Ce ne sont pas des étapes de l'exercice. */
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord {
+  width: calc(100% - 18px);
+  margin-left: 18px;
+  padding: 3px 9px;
+  border-style: dashed;
+  border-color: transparent;
+  color: var(--tr-muted);
+}
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord > span,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord > span {
+  width: auto;
+  height: auto;
+  border: 0;
+  background: none;
+  font: 12px var(--tr-mono);
+}
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord > div,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord > div {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 7px;
+}
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord strong,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord strong {
+  font-size: 11px;
+  font-weight: 500;
+}
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord small,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord small {
+  font: 9px var(--tr-mono);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--tr-muted);
+}
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord:hover,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord:hover {
+  border-color: var(--tr-border);
+  color: var(--tr-secondary);
+}
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord.is-playing,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord.is-playing {
+  border-color: var(--tr-accent);
+  background: var(--tr-accent-soft);
+  color: var(--tr-text);
+}
 :root[data-skin='global'] #practice-view-exercices .tr-progress-quiet,
 :root[data-skin='v2'] #practice-view-exercices .tr-progress-quiet {
   margin-top: 12px;

@@ -82,7 +82,7 @@ import {
   restoreFavorites,
 } from './practice-favorites.js';
 import { voicingToNoteSequence } from './pedagogie/copilot-voicing.js';
-import { buildDemo, DEMO_STYLES, DEMO_STYLE_IDS, defaultDemoStyle } from './practice-demo.js';
+import { buildDemo, DEMO_STYLES, DEMO_STYLE_IDS, defaultDemoStyle, demoPassingChords } from './practice-demo.js';
 import { createDemoPlayer } from './exercise-demo-player.js';
 import {
   listMidiOutputs, openMidiOutput, savedMidiOutputName, isMidiOutputActive, currentMidiOutput, sendMidi,
@@ -598,11 +598,14 @@ function feedDemoEvent(type, a, b) {
   }
 }
 
-// Rappels posés par initPracticeExercise (accord suivi, fin de démo).
-const demoHooks = { onStep: null, onEnd: null };
+// Rappels posés par initPracticeExercise (accord suivi, accord de passage, fin
+// de démo) ; passingChords : accords de passage que la démo jouera (liste de
+// droite) ; playingPassing : rang de l'accord suivi par celui qui sonne.
+const demoHooks = { onStep: null, onPassing: null, onEnd: null, passingChords: null, playingPassing: null };
 const demoPlayer = createDemoPlayer({
   send: feedDemoEvent,
   onStep: (step) => demoHooks.onStep?.(step),
+  onPassing: (after) => demoHooks.onPassing?.(after),
   onEnd: (reason) => demoHooks.onEnd?.(reason),
 });
 
@@ -1310,9 +1313,18 @@ function renderExerciseProgressPanel(exState) {
         return `<button type="button" class="exercise-key-chip${state}" data-key-index="${i}" title="Aller en ${keyLabel(pc, minor)}"${i === keyIndex ? ' aria-current="true"' : ''}>${name}</button>`;
       }).join('');
     }
+    // [Claude] — 2026-09-24 — Accords de passage de la démo (Narcisse : « ajoute
+    // ces accords à droite ») : entre deux accords, cliquables pour les écouter,
+    // allumés quand la démo les joue. Ce ne sont pas des étapes de l'exercice.
+    const passing = demoHooks.passingChords?.(exState) || [];
     path.innerHTML = prog.chords.map((chord, i) => {
       const state = i === stepIndex ? 'is-active' : i < stepIndex ? 'is-done' : '';
-      return `<button type="button" class="${state}" data-step="${i}" title="Afficher ${chord.name}"${i === stepIndex ? ' aria-current="step"' : ''}><span>${i + 1}</span><div><strong>${chord.name || '—'}</strong></div></button>`;
+      const row = `<button type="button" class="${state}" data-step="${i}" title="Afficher ${chord.name}"${i === stepIndex ? ' aria-current="step"' : ''}><span>${i + 1}</span><div><strong>${chord.name || '—'}</strong></div></button>`;
+      const p = passing.find((item) => item.after === i);
+      if (!p) return row;
+      const notes = (list) => list.map((n) => `${noteName(((n % 12) + 12) % 12)}${Math.floor(n / 12) - 1}`).join(' ');
+      const playing = demoHooks.playingPassing === i ? ' is-playing' : '';
+      return `${row}<button type="button" class="exercise-passing-chord${playing}" data-passing="${i}" title="Accord de passage joué par la démo — main gauche ${notes(p.lh)}, main droite ${notes(p.rh)}. Cliquez pour l'écouter."><span aria-hidden="true">↳</span><div><strong>${p.name}</strong><small>passage</small></div></button>`;
     }).join('');
     quiet.textContent = 'Cliquez une tonalité ou un accord pour y aller directement.';
     quiet.style.display = '';
@@ -1349,6 +1361,25 @@ async function playExerciseVoicing(voicing) {
     { time: (n.startOffsetMs + n.durationMs) / 1000, type: 'noteOff', note: n.midi },
   ]).sort((a, b) => a.time - b.time || (a.type === 'noteOff' ? -1 : 1));
   demoPlayer.play({ events, beats: Math.max(...events.map((e) => e.time)) }, { tempo: 60 });
+}
+
+// [Claude] — 2026-09-24 — Écoute d'un accord de passage de la liste : ses notes
+// telles que la démo les joue, main gauche puis main droite égrenée.
+async function playPassingChord(passing) {
+  if (!passing) return;
+  try {
+    await resumeAudio();
+  } catch (err) {
+    console.warn('[PracticeExercise] Impossible de réveiller l\'audio', err);
+    return;
+  }
+  const notes = [...passing.lh, ...passing.rh].sort((a, b) => a - b);
+  // Tempo 60 : un temps = une seconde.
+  const events = notes.flatMap((note, k) => [
+    { time: k * 0.03, type: 'noteOn', note, velocity: 0.62 },
+    { time: 1.4, type: 'noteOff', note },
+  ]).sort((a, b) => a.time - b.time || (a.type === 'noteOff' ? -1 : 1));
+  demoPlayer.play({ events, beats: 1.5 }, { tempo: 60 });
 }
 
 function initPracticeExercise() {
@@ -1654,6 +1685,14 @@ function initPracticeExercise() {
     render();
   });
   document.getElementById('exercise-progress-path')?.addEventListener('click', (e) => {
+    const passingRow = e.target.closest('[data-passing]');
+    if (passingRow) {
+      // Accord de passage : on l'écoute (ce n'est pas une étape de l'exercice).
+      const exState = practiceExercise.getState();
+      const found = (demoHooks.passingChords?.(exState) || []).find((p) => p.after === Number(passingRow.dataset.passing));
+      if (found) playPassingChord(found);
+      return;
+    }
     const step = e.target.closest('[data-step]');
     if (!step || practiceExercise.getState().mode !== 'movement') return;
     practiceExercise.goToStep(Number(step.dataset.step));
@@ -1863,6 +1902,7 @@ function initPracticeExercise() {
       demoStyleSelects.forEach((other) => { other.value = demoStyle; });
       demoPlayer.stop();
       refreshDemoButtons(practiceExercise.getState());
+      renderExerciseProgressPanel(practiceExercise.getState());
     });
   });
 
@@ -1904,16 +1944,28 @@ function initPracticeExercise() {
     if (chords) startDemo(chords, { kind: 'preview', previewId: id }, item.style);
   }
 
+  // Accords de passage que la démo jouera pour le mouvement affiché, dans le style choisi.
+  demoHooks.passingChords = (exState) => (exState.mode === 'movement' && exState.progression
+    ? demoPassingChords(exState.progression.chords, resolveDemoStyle(exState.progression.movement?.style))
+    : []);
   demoHooks.onStep = (step) => {
     // La carte d'exercice suit l'accord joué par la démo du mouvement.
     if (demoContext?.kind !== 'movement') return;
+    demoHooks.playingPassing = null;
     practiceExercise.goToStep(step);
     render();
+  };
+  demoHooks.onPassing = (after) => {
+    // L'accord de passage s'allume dans la liste ; la carte reste sur l'accord joué avant.
+    if (demoContext?.kind !== 'movement') return;
+    demoHooks.playingPassing = after;
+    renderExerciseProgressPanel(practiceExercise.getState());
   };
   demoHooks.onEnd = () => {
     const context = demoContext;
     demoContext = null;
     previewId = null;
+    demoHooks.playingPassing = null;
     if (context?.kind === 'movement' && practiceExercise.getState().mode === 'movement') {
       practiceExercise.goToStep(context.stepBefore);
       render();
