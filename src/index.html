@@ -197,6 +197,9 @@
           </div>
 
           <section class="tr-exercise-stage">
+            <!-- Retour de jeu (bonne / mauvaise réponse) : bulle flottante en haut de la
+                 zone, sans place réservée (visible même clavier MIDI déplié). -->
+            <div class="exercise-feedback" id="exercise-feedback" role="status" aria-live="polite"></div>
             <!-- [Claude] — 2026-09-24 — Mode Accord cible : bande du haut (choix de
                  l'accord), au-dessus de la carte ; les colonnes gauche (note du
                  dessus + résultats) et droite (filtres + favoris) s'alignent sur elle. -->
@@ -374,15 +377,9 @@
             </div>
           </section>
 
-          <div class="tr-exercise-response">
-            <div class="tr-response-content">
-              <div class="tr-input-indicator" aria-hidden="true"><i></i><i></i><i></i></div>
-              <div>
-                <strong>À votre rythme. Le clavier vous attend.</strong>
-                <div class="exercise-feedback" id="exercise-feedback"></div>
-              </div>
-            </div>
-          </div>
+          <!-- [Claude] — 2026-09-24 — Case « À votre rythme » retirée : masquée par le
+               clavier MIDI déplié. Le retour de jeu (#exercise-feedback) s'affiche
+               désormais en bulle flottante en haut de la carte. -->
         </div>
 
         <!-- Bibliothèque d'exercices (panneau latéral) -->

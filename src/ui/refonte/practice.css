@@ -368,21 +368,32 @@
   text-align: center;
 }
 
-/* ── En-tête de carte : nom + technique à gauche, étoiles à droite ── */
+/* ── En-tête de carte : nom de l'accord centré, étoiles à droite ──
+   Grille à 3 colonnes (vide | nom | étoiles) : le nom reste au milieu de la
+   carte quelle que soit la largeur des étoiles. */
 :root[data-skin='global'] #practice-tab .exercise-target-header,
 :root[data-skin='v2'] #practice-tab .exercise-target-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: flex-start;
-  justify-content: space-between;
   gap: var(--r-space-3, 14px);
   width: 100%;
+}
+:root[data-skin='global'] #practice-tab .exercise-target-header::before,
+:root[data-skin='v2'] #practice-tab .exercise-target-header::before {
+  content: '';
 }
 :root[data-skin='global'] #practice-tab .exercise-target-title,
 :root[data-skin='v2'] #practice-tab .exercise-target-title {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--r-space-1, 6px);
+  text-align: center;
+}
+:root[data-skin='global'] #practice-tab .exercise-target-header > .exercise-target-stars,
+:root[data-skin='v2'] #practice-tab .exercise-target-header > .exercise-target-stars {
+  justify-self: end;
 }
 :root[data-skin='global'] #practice-tab .exercise-target-stars,
 :root[data-skin='v2'] #practice-tab .exercise-target-stars {
@@ -4068,6 +4079,45 @@
     inset: 20px 22px;
     overflow-y: auto;
   }
+}
+
+/* Retour de jeu en bulle flottante en haut de la zone principale : toujours
+   visible, même clavier MIDI déplié, sans place réservée dans la page. En
+   Accord cible elle recouvre le titre de la bande du haut, pas l'accord. */
+:root[data-skin='global'] #practice-tab .tr-exercise-stage,
+:root[data-skin='v2'] #practice-tab .tr-exercise-stage {
+  position: relative;
+}
+:root[data-skin='global'] #practice-tab .tr-exercise-stage > .exercise-feedback,
+:root[data-skin='v2'] #practice-tab .tr-exercise-stage > .exercise-feedback {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  z-index: 5;
+  transform: translateX(-50%);
+  max-width: calc(100% - 32px);
+  margin: 0;
+  padding: 7px 14px;
+  border-radius: var(--r-radius-pill, 999px);
+  border: 1px solid var(--r-border-soft);
+  background: var(--r-surface-elevated);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.35);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: center;
+  pointer-events: none;
+}
+:root[data-skin='global'] #practice-tab .tr-exercise-stage > .exercise-feedback:empty,
+:root[data-skin='v2'] #practice-tab .tr-exercise-stage > .exercise-feedback:empty {
+  display: none;
+}
+:root[data-skin='global'] #practice-tab .tr-exercise-stage > .exercise-feedback.success,
+:root[data-skin='v2'] #practice-tab .tr-exercise-stage > .exercise-feedback.success {
+  border-color: var(--tr-green, #10b981);
+}
+:root[data-skin='global'] #practice-tab .tr-exercise-stage > .exercise-feedback.error,
+:root[data-skin='v2'] #practice-tab .tr-exercise-stage > .exercise-feedback.error {
+  border-color: var(--tr-red, #ef4444);
 }
 
 /* « À vous de jouer » fait doublon avec le titre de la bande du haut. */

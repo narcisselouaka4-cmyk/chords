@@ -1926,6 +1926,8 @@ function initPracticeExercise() {
   render();
 }
 
+let feedbackHideTimer = null;
+
 function checkPracticeExercise(notes) {
   if (!practiceExercise) return;
   const result = practiceExercise.check(notes);
@@ -1933,6 +1935,9 @@ function checkPracticeExercise(notes) {
   if (feedbackDiv) {
     feedbackDiv.textContent = result.message;
     feedbackDiv.className = `exercise-feedback ${result.success ? 'success' : 'error'}`;
+    // Bulle flottante : elle s'efface seule après quelques secondes.
+    clearTimeout(feedbackHideTimer);
+    feedbackHideTimer = setTimeout(() => { feedbackDiv.textContent = ''; }, 5000);
   }
   // [Astra round 3] — mise à jour aussi en cas d'échec : le compteur d'essais
   // du panneau de droite reflète alors la tentative qui vient d'avoir lieu.
