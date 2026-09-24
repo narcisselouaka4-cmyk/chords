@@ -17,6 +17,9 @@
 - Démo : deux mains, aucune pédale, jeu gospel d'après les vidéos (procédés seulement).
 - Accords de passage de la démo affichés dans la liste ACCORDS (« ↳ G#dim7 · passage »),
   allumés pendant la démo, cliquables pour les écouter (commit `65d5e77`).
+- Diminués de passage aussi en Ballade (`ea78e58`) ; carte : basse et doublure ajoutées par la
+  démo visibles sur le mini-clavier + légende, « Écouter » les joue ; Ma grille par sélection
+  (fondamentale + qualité, pastilles) au lieu d'un champ texte (`22c00d1`).
 ```
 
 ## `experiments/` — relevé des deux vidéos (à créer : `experiments/2026-09-24-videos-jeu-reel.md`)
@@ -61,10 +64,18 @@ puis D#dim7 (drop 2) → Cdim7 (drop 2) → Gm11.
     au 3e temps, diminué de passage au 4e (basse qui monte d'un ton ou d'une quarte, jamais après
     une dominante), montée finale 1-2-5 ;
   - Ballade (60), Comping swing (132), Plaqué (72) : mêmes règles de mains, sans pédale.
-  - Liste ACCORDS (vue Mouvement) : les diminués de passage du style Gospel / worship
+  - Liste ACCORDS (vue Mouvement) : les diminués de passage (Gospel / worship et Ballade)
     s'intercalent entre les accords (nom épelé sur la sensible de l'accord suivant : Ddim7 avant
     Eb), s'allument au 4e temps pendant la démo, se font entendre au clic ; ce ne sont pas des
-    étapes de l'exercice. Rien en Ballade, Swing ou Plaqué. Même plan que la démo (`planGospel`).
+    étapes de l'exercice. Rien en Swing ni en Plaqué. Même plan que la démo (`planGospel`,
+    `planBallade`).
+  - Carte (Mouvement) : le mini-clavier montre en couleur « ajoutée » ce que la démo joue en plus
+    (basse de la main gauche, note doublée en Gospel), avec une légende (« Démo Gospel / worship :
+    basse D2 · A2 à la main gauche, C4 doublé à la main droite ») ; les cases des mains restent le
+    voicing de l'exercice ; « Écouter » joue aussi la basse. Rien en Plaqué (`demoCardHands`).
+- **Ma grille** : accords choisis (fondamentale + qualité, qualités de l'Accord cible),
+  « Ajouter », pastilles retirables, « Tout effacer », « Jouer ma grille » (16 au plus) ; plus de
+  champ texte. Le moteur reçoit les mêmes symboles qu'avant (`setCustomGrid`).
 
 ## `state/current-work.md` — à vérifier sur le PC
 
@@ -77,7 +88,10 @@ puis D#dim7 (drop 2) → Cdim7 (drop 2) → Gm11.
    finale sur Cmaj13.
 4. Accord cible : favoris sous la top note, à gauche.
 4 bis. Turnaround en Do, style « Selon le mouvement » : G#dim7, C#dim7, F#dim7 dans la liste de
-   droite ; ils s'allument pendant la démo ; clic = écoute ; style Ballade = plus de lignes de passage.
+   droite ; ils s'allument pendant la démo ; clic = écoute ; en Ballade aussi ; en Swing / Plaqué, rien.
+4 ter. Carte en Close position : basse D2 A2 (et C4 en Gospel) en ambre sur le mini-clavier, légende
+   dessous ; « Écouter » la joue ; style Plaqué : plus rien d'ajouté.
+4 quater. Bibliothèque → Ma grille : choisir D + m11, G + 13, C + maj13 → « Jouer ma grille ».
 5. Rejouer la démo à la main sans pédale : tout doit tenir sous les doigts.
 
 ## `state/next-actions.md` — à ajouter

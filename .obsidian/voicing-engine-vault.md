@@ -263,6 +263,7 @@ Compte des pitch classes uniques avec scope :
 11. Registre de pianiste (2026-09-24, soir) : en plus du plafond du milieu, dessus ≤ Sol5 (Do6 pour 4-way close / block), basse d'un Spread / Open sous Mi3, close de main droite pas sous Fa3 ; aucune main au-delà d'une 10e (stride excepté), main gauche seule sous La4 (`isHandPlayable`). La close position a ses renversements (basse 1, 3 ou 5).
 12. 7alt : 9e altérée ET quinte altérée, sans 5, 9, 11, 13 naturelles ; les variantes VoicingLab en 7b5 sont reconstruites (`altRels`).
 13. Démo (`practice-demo.js`) : deux mains, jamais de pédale ; basse ajoutée seulement à une main gauche libre ou qui la tient ; style Gospel / worship d'après le jeu de Narcisse et un tutoriel gospel (cadre d'octave, main gauche à l'octave 2, diminués de passage, montée finale) — procédés seulement.
+14. Diminués de passage en Gospel / worship et en Ballade, listés à droite (`demoPassingChords`) ; ce que la démo ajoute à la carte (basse, doublure) s'affiche sur le mini-clavier (`demoCardHands`). « Ma grille » se compose par sélection (fondamentale + qualité).
 
 ## Fichiers clés
 
