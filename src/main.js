@@ -1332,8 +1332,14 @@ function initPracticeExercise() {
    */
   function refreshChordSide(exState) {
     const isChord = exState.mode === 'chord';
-    els.exerciseChordHead?.closest('.tr-exercise-stage')?.classList.toggle('is-chord-mode', isChord);
+    const stage = els.exerciseChordHead?.closest('.tr-exercise-stage');
+    stage?.classList.toggle('is-chord-mode', isChord);
     if (els.exerciseChordHead) els.exerciseChordHead.hidden = !isChord;
+    // Retour de jeu : en Accord cible, il prend la place du titre de la bande
+    // du haut (sans recouvrir le choix de l'accord) ; ailleurs, bulle flottante.
+    const feedback = document.getElementById('exercise-feedback');
+    const feedbackHome = isChord ? els.exerciseChordHead : stage;
+    if (feedback && feedbackHome && feedback.parentElement !== feedbackHome) feedbackHome.prepend(feedback);
     els.exerciseChordSide?.closest('.tr-exercise-progress')?.classList.toggle('is-chord-side', isChord);
     if (els.exerciseChordSide) els.exerciseChordSide.hidden = !isChord;
     if (!isChord || !els.exerciseFavorites) return;
