@@ -169,3 +169,59 @@
   .vk-root, .vk-white, .vk-black { transition: none; }
   .vk-spin { animation-duration: .01ms; }
 }
+
+/* --- Thème clair ----------------------------------------------------------
+   [Claude] — 2026-09-24 — À la demande de Narcisse, le clavier suit le thème de
+   l'application : en clair, coque, barres et contrôles reprennent la palette
+   claire d'Astra (astra-training.css). Les touches gardent leur aspect
+   d'instrument (ivoire / anthracite, notes allumées en violet). */
+:root[data-theme='light'] .vk-root {
+  --vk-shell: #fcfbfd;
+  --vk-shell-2: #f5f4f7;
+  --vk-line: #dfdce5;
+  --vk-line-soft: #eae7ef;
+  --vk-text: #272330;
+  --vk-secondary: #6b6377;
+  --vk-muted: #746c7e;
+  --vk-accent: #7954c5;
+  --vk-accent-deep: #6541b4;
+  --vk-root-note: #3e8b74;
+  background: linear-gradient(#fcfbfd, #f5f4f7 42%, #f0eef4);
+  border-top: 1px solid #dfdce5;
+  box-shadow: 0 -14px 30px -24px #4233543d, inset 0 1px 0 #ffffffcc;
+}
+:root[data-theme='light'] .vk-root.is-collapsed { box-shadow: 0 -8px 20px -18px #42335440, inset 0 1px 0 #ffffffcc; }
+:root[data-theme='light'] .vk-toolbar,
+:root[data-theme='light'] .vk-rail { background: linear-gradient(#fcfbfd, #f5f4f7); }
+:root[data-theme='light'] .vk-status { background: #f5f4f7; }
+:root[data-theme='light'] .vk-stepper > button { background: #f0eef4; }
+:root[data-theme='light'] .vk-stepper > button:hover { background: #eae7f0; }
+:root[data-theme='light'] .vk-select select,
+:root[data-theme='light'] .vk-switches > button,
+:root[data-theme='light'] .vk-device,
+:root[data-theme='light'] .vk-collapse,
+:root[data-theme='light'] .vk-device-pill,
+:root[data-theme='light'] .vk-expand,
+:root[data-theme='light'] .vk-status-right > button { background: #ffffff; }
+:root[data-theme='light'] .vk-select select:hover,
+:root[data-theme='light'] .vk-switches > button:hover,
+:root[data-theme='light'] .vk-device:hover,
+:root[data-theme='light'] .vk-status-right > button:hover { border-color: #cfcad8; }
+:root[data-theme='light'] .vk-collapse:hover,
+:root[data-theme='light'] .vk-expand:hover { background: #f0eef4; border-color: #cfcad8; }
+:root[data-theme='light'] .vk-switches > button.is-on { color: #ffffff; }
+:root[data-theme='light'] .vk-status-right > button.is-on { color: var(--vk-accent); border-color: #d6c9f2; background: #eee7fb; }
+:root[data-theme='light'] .vk-volume input { background: linear-gradient(to right, var(--vk-accent) var(--vk-fill, 55%), #dfdce5 var(--vk-fill, 55%)); }
+:root[data-theme='light'] .vk-device.is-live,
+:root[data-theme='light'] .vk-device-pill.is-live { border-color: #b7dccd; }
+:root[data-theme='light'] .vk-device-pill > i { background: #b3aebb; }
+:root[data-theme='light'] .vk-notice { color: #8a4b5c; background: #fbeef1; border-bottom-color: #f1dde2; }
+:root[data-theme='light'] .vk-bed { background: linear-gradient(#e9e6ee, #dedae4); }
+:root[data-theme='light'] .vk-bed::after { background: linear-gradient(#cfcad8, #e2dee8); box-shadow: 0 2px 4px #00000026; }
+:root[data-theme='light'] .vk-resize::after { background: #cfcad8; }
+:root[data-theme='light'] .vk-switch,
+:root[data-theme='light'] .vk-stepper > input[type="number"],
+:root[data-theme='light'] .vk-select.vk-field-narrow > input { background: #ffffff; }
+:root[data-theme='light'] .vk-switch:hover { border-color: #cfcad8; }
+:root[data-theme='light'] .vk-switch:has(> input:checked) { color: #ffffff; background: var(--vk-accent); border-color: var(--vk-accent); }
+:root[data-theme='light'] .vk-switch.is-warn:has(> input:checked) { color: #2d1a1f; background: #e0a3b0; border-color: #e0a3b0; }

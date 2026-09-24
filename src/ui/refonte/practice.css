@@ -4040,11 +4040,9 @@
     position: absolute;
     inset: 12px 27px 16px;
     display: grid;
-    grid-template-columns: auto auto;
-    grid-template-rows: auto minmax(0, 1fr);
-    justify-content: start;
-    align-items: center;
-    gap: 10px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    align-content: start;
   }
   :root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode #exercise-target-choice .exercise-topnote-browser,
   :root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode #exercise-target-choice .exercise-topnote-browser {
@@ -4110,9 +4108,20 @@
   border-color: var(--tr-red, #ef4444);
 }
 
-/* Accord cible : le retour de jeu remplace le titre de la bande du haut. */
+/* Accord cible : le retour de jeu s'affiche en bulle à gauche de la bande du
+   haut, sans décaler ni recouvrir les réglages centrés. */
+:root[data-skin='global'] #practice-tab .exercise-chord-head,
+:root[data-skin='v2'] #practice-tab .exercise-chord-head {
+  position: relative;
+}
 :root[data-skin='global'] #practice-tab .exercise-chord-head > .exercise-feedback,
 :root[data-skin='v2'] #practice-tab .exercise-chord-head > .exercise-feedback {
+  position: absolute;
+  left: 24px;
+  top: 50%;
+  z-index: 3;
+  transform: translateY(-50%);
+  max-width: 30%;
   margin: 0;
   padding: 4px 12px;
   border-radius: var(--r-radius-pill, 999px);
@@ -4132,10 +4141,6 @@
 :root[data-skin='global'] #practice-tab .exercise-chord-head > .exercise-feedback.error,
 :root[data-skin='v2'] #practice-tab .exercise-chord-head > .exercise-feedback.error {
   border-color: var(--tr-red, #ef4444);
-}
-:root[data-skin='global'] #practice-tab .exercise-chord-head:has(> .exercise-feedback:not(:empty)) > .exercise-chord-head-title,
-:root[data-skin='v2'] #practice-tab .exercise-chord-head:has(> .exercise-feedback:not(:empty)) > .exercise-chord-head-title {
-  display: none;
 }
 
 /* Nom de l'accord un peu réduit en Accord cible : la carte tient sous la bande
@@ -4179,14 +4184,6 @@
 :root[data-skin='global'] #practice-tab .exercise-chord-head[hidden],
 :root[data-skin='v2'] #practice-tab .exercise-chord-head[hidden] {
   display: none;
-}
-:root[data-skin='global'] #practice-tab .exercise-chord-head-title,
-:root[data-skin='v2'] #practice-tab .exercise-chord-head-title {
-  margin: 0;
-  font-size: 1.15rem;
-  font-weight: 450;
-  letter-spacing: -0.02em;
-  color: var(--r-text);
 }
 :root[data-skin='global'] #practice-tab .exercise-chord-head-controls,
 :root[data-skin='v2'] #practice-tab .exercise-chord-head-controls {

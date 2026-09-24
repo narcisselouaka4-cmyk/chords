@@ -10,7 +10,7 @@ import {
   setPcKeyboardToMidiEnabled,
   isPcKeyboardToMidiEnabled,
 } from './virtual-keyboard.js';
-import { setSynthMode, setSustain, ensurePianoSamples, resumeAudio } from './audio/simple-synth.js';
+import { setSustain, ensurePianoSamples, resumeAudio } from './audio/simple-synth.js';
 
 import { initWebMidi, getWebMidiInputs, openWebMidiInput } from './midi-fallback.js';
 import { createChordHistory } from './chord-history.js';
@@ -103,7 +103,6 @@ const state = {
   notation: 'english',
   transpose: 0,
   silentMode: false,
-  rhodesMode: false,
   pcKeyboardToMidi: true,
   // [Claude] — 2026-07-03 — Couleur active par défaut alignée sur chord-display (#bf3a2b)
   colorNote: '#2563eb',
@@ -229,7 +228,6 @@ const els = {
   transposeInput: document.getElementById('transpose'),
   toleranceInput: document.getElementById('tolerance'),
   silentMode: document.getElementById('silent-mode'),
-  rhodesMode: document.getElementById('rhodes-mode'),
   pcKeyboardMidi: document.getElementById('pc-keyboard-midi'),
   midiDiagnosticPanel: document.getElementById('midi-diagnostic-panel'),
   midiDiagnosticToggle: document.getElementById('midi-diagnostic-toggle'),
@@ -837,11 +835,11 @@ function initSettings() {
   els.colorNote.value = state.colorNote;
   els.colorTonic.value = state.colorTonic;
   els.transposeInput.value = state.transpose;
-  // [Claude] — 2026-07-07 — Forcer le checkbox Silencieux à décoché au démarrage
-  // pour éviter que le clavier MIDI virtuel soit muet par défaut.
-  state.silentMode = false;
-  els.silentMode.checked = false;
-  els.rhodesMode.checked = state.rhodesMode;
+  // [Claude] — 2026-09-24 — Silencieux coché à l'ouverture (demande de Narcisse) :
+  // le clavier joué ne sonne pas par défaut ; « Écouter » de l'Exercice n'est
+  // pas concerné (il appelle directement playVirtualNote).
+  state.silentMode = true;
+  els.silentMode.checked = true;
   state.pcKeyboardToMidi = true;
   if (els.pcKeyboardMidi) els.pcKeyboardMidi.checked = true;
 
@@ -896,10 +894,6 @@ function initSettings() {
   els.toleranceInput?.addEventListener('change', update);
   els.silentMode.addEventListener('change', update);
   els.pcKeyboardMidi?.addEventListener('change', update);
-  els.rhodesMode.addEventListener('change', () => {
-    state.rhodesMode = els.rhodesMode.checked;
-    setSynthMode(state.rhodesMode ? 'rhodes' : 'piano');
-  });
   els.colorNote.addEventListener('input', update);
   els.colorTonic.addEventListener('input', update);
 
@@ -1344,8 +1338,8 @@ function initPracticeExercise() {
     const stage = els.exerciseChordHead?.closest('.tr-exercise-stage');
     stage?.classList.toggle('is-chord-mode', isChord);
     if (els.exerciseChordHead) els.exerciseChordHead.hidden = !isChord;
-    // Retour de jeu : en Accord cible, il prend la place du titre de la bande
-    // du haut (sans recouvrir le choix de l'accord) ; ailleurs, bulle flottante.
+    // Retour de jeu : en Accord cible, bulle à gauche de la bande du haut (sans
+    // recouvrir les réglages) ; ailleurs, bulle flottante en haut de la zone.
     const feedback = document.getElementById('exercise-feedback');
     const feedbackHome = isChord ? els.exerciseChordHead : stage;
     if (feedback && feedbackHome && feedback.parentElement !== feedbackHome) feedbackHome.prepend(feedback);
@@ -1396,6 +1390,8 @@ function initPracticeExercise() {
     const box = els.exerciseTopNoteBrowser;
     if (!box) return;
     const topPc = exState.topNote?.pc;
+    const hint = document.getElementById('exercise-topnote-browser-hint');
+    if (hint) hint.hidden = topPc != null;
     if (exState.mode !== 'chord' || topPc == null) {
       box.hidden = true;
       topNoteBrowserKey = '';

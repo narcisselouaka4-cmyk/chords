@@ -204,8 +204,24 @@
                  l'accord), au-dessus de la carte ; les colonnes gauche (note du
                  dessus + résultats) et droite (filtres + favoris) s'alignent sur elle. -->
             <div class="exercise-chord-head" id="exercise-chord-head" hidden>
-              <h2 class="exercise-chord-head-title">Un accord, puis le suivant.</h2>
               <div class="exercise-chord-head-controls">
+                <!-- Recherche de voicings par top note (sans octave), à la place du sous-titre. -->
+                <label for="exercise-top-note">Top note</label>
+                <select id="exercise-top-note" aria-label="Note la plus haute du voicing (toutes octaves)">
+                  <option value="">Toutes</option>
+                  <option value="0">C</option>
+                  <option value="1">C# / Db</option>
+                  <option value="2">D</option>
+                  <option value="3">D# / Eb</option>
+                  <option value="4">E</option>
+                  <option value="5">F</option>
+                  <option value="6">F# / Gb</option>
+                  <option value="7">G</option>
+                  <option value="8">G# / Ab</option>
+                  <option value="9">A</option>
+                  <option value="10">A# / Bb</option>
+                  <option value="11">B</option>
+                </select>
                 <label for="exercise-target-root">Accord</label>
                 <select id="exercise-target-root" aria-label="Fondamentale de l'accord cible">
                   <option value="0">C</option>
@@ -277,24 +293,8 @@
               </div>
               <!-- Sélecteur d'accord cible : visible uniquement en mode "Accord cible". -->
               <div class="exercise-target-choice" id="exercise-target-choice" style="display: none;">
-                <!-- Recherche de voicings par note du dessus (sans octave). -->
-                <label for="exercise-top-note">Top note</label>
-                <select id="exercise-top-note" aria-label="Note la plus haute du voicing (toutes octaves)">
-                  <option value="">Toutes</option>
-                  <option value="0">C</option>
-                  <option value="1">C# / Db</option>
-                  <option value="2">D</option>
-                  <option value="3">D# / Eb</option>
-                  <option value="4">E</option>
-                  <option value="5">F</option>
-                  <option value="6">F# / Gb</option>
-                  <option value="7">G</option>
-                  <option value="8">G# / Ab</option>
-                  <option value="9">A</option>
-                  <option value="10">A# / Bb</option>
-                  <option value="11">B</option>
-                </select>
                 <!-- Tous les accords ayant la note du dessus choisie (rempli par main.js). -->
+                <p class="exercise-side-hint exercise-browser-hint" id="exercise-topnote-browser-hint">Choisissez une top note : les accords qui l'ont au sommet s'affichent ici.</p>
                 <div class="exercise-topnote-browser" id="exercise-topnote-browser" hidden></div>
               </div>
               <!-- Choix explicite de la progression / du mouvement : masqué en
@@ -1910,9 +1910,6 @@
                 </label>
                 <label class="vk-switch is-warn" title="Couper le son du clavier virtuel">
                   <input type="checkbox" id="silent-mode" /><span>Silencieux</span>
-                </label>
-                <label class="vk-switch" title="Timbre de piano électrique">
-                  <input type="checkbox" id="rhodes-mode" /><span>Rhodes</span>
                 </label>
               </div>
             </div>
