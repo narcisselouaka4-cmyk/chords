@@ -10,6 +10,7 @@ import { createRecorder } from '../recorder/recorder.js';
 import { createPlayer } from '../recorder/player.js';
 import { playNote, releaseNote, resumeAudio } from '../audio/simple-synth.js';
 import { segmentSessionEvents, nameChordSegments } from '../recorder/session-analysis.js';
+import { analyzeSessionPerformance, formatPerformanceFindings } from '../recorder/session-performance.js';
 // [Refonte Astra 12/09] — Le paysage harmonique remplace l'ancienne frise de
 // blocs, qui forçait toute la session à tenir dans la largeur. buildNoteWindows
 // est la fonction déjà utilisée par l'analyse de session : on la réutilise, on
@@ -69,6 +70,7 @@ const els = {
   carnetExploreAll: document.getElementById('carnet-explore-all'),
   carnetTimeline: document.getElementById('carnet-timeline'),
   carnetEntries: document.getElementById('carnet-entries'),
+  carnetFindings: document.getElementById('carnet-findings'),
   modalOverlay: document.getElementById('midi-session-end-modal'),
   modalStats: document.getElementById('midi-session-modal-stats'),
   modalKeepBtn: document.getElementById('midi-session-keep'),
@@ -427,7 +429,10 @@ function hideEndModal() {
 async function keepSession() {
   hideEndModal();
   try {
-    const stats = { ...recorder.getStats(), chordCount: chordCountDuringRecording };
+    // Nombre d'accords : celui du carnet (découpage de la session), pas le
+    // compteur approximatif de l'enregistrement en direct.
+    const chordCount = segmentSessionEvents(currentEvents).filter((seg) => seg.type === 'chord').length;
+    const stats = { ...recorder.getStats(), chordCount };
     await saveSessionEvents(currentSession.id, currentEvents, stats);
     currentSession = { ...currentSession, ...stats };
     setRecordingStatus('Session sauvegardée.', 'saved');
@@ -471,23 +476,91 @@ async function replaySession() {
 
 export function feedRecorderNoteOn(note, velocity) {
   recorder?.noteOn(note, velocity);
+  studioTake?.recorder.noteOn(note, velocity);
 }
 
 export function feedRecorderNoteOff(note) {
   recorder?.noteOff(note);
+  studioTake?.recorder.noteOff(note);
 }
 
 export function feedRecorderSustain(value) {
   recorder?.sustain(value);
+  studioTake?.recorder.sustain(value);
 }
 
 export function feedRecorderPitchWheel(value) {
   recorder?.pitchWheel(value);
+  studioTake?.recorder.pitchWheel(value);
 }
 
 export function feedRecorderModWheel(value) {
   recorder?.modWheel(value);
+  studioTake?.recorder.modWheel(value);
 }
+
+// ── Prises du Studio ──
+// [Claude] — 2026-09-24 — Narcisse : « quand j'enregistre mon jeu dans le Studio,
+// que la prise soit automatiquement enregistrée dans le sous-onglet Session »,
+// pour la retrouver dès l'arrêt, la réécouter seule (sans les pistes audio) et
+// l'analyser. Le Studio annonce le début et la fin de son enregistrement
+// (évènements « studio-take-start » / « studio-take-stop ») ; pendant ce temps,
+// un second enregistreur reçoit les mêmes notes que celui des sessions.
+let studioTake = null; // { recorder, meta: { trackName, position } }
+
+function startStudioTake(meta = {}) {
+  studioTake = { recorder: createRecorder(), meta };
+  studioTake.recorder.start();
+}
+
+/**
+ * Fin de prise : si des notes ont été jouées, une session « Prise du Studio »
+ * est créée et sauvegardée, puis sélectionnée dans la liste.
+ * @returns {Promise<object|null>} la session créée
+ */
+async function stopStudioTake() {
+  const take = studioTake;
+  studioTake = null;
+  if (!take) return null;
+  const events = take.recorder.stop();
+  const notes = events.filter((e) => e.type === 'note_on' && e.velocity > 0);
+  const notify = (detail) => document.dispatchEvent(new CustomEvent('studio-take-saved', { detail }));
+  if (notes.length === 0) {
+    notify({ empty: true });
+    return null;
+  }
+  try {
+    if (!window.electronAPI?.files) throw new Error('enregistrement des sessions indisponible hors de l\'application');
+    const now = new Date();
+    const when = `${now.toLocaleDateString('fr-FR')} ${now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+    const trackName = String(take.meta.trackName || '').trim();
+    const name = `Studio · ${trackName || 'prise'} · ${when}`;
+    const position = Number(take.meta.position);
+    const session = await createSession({
+      name,
+      // Le Studio ne connaît pas le tempo du morceau : aucun tempo inventé.
+      tempo: Number(take.meta.tempo) || null,
+      tags: ['studio'],
+      sourceType: 'studio',
+      comments: `Prise enregistrée dans le Studio${trackName ? ` sur « ${trackName} »` : ''}${Number.isFinite(position) && position > 0 ? `, à partir de ${formatTimeShort(position)} du morceau` : ''}.`,
+    });
+    const chordCount = segmentSessionEvents(events).filter((seg) => seg.type === 'chord').length;
+    const stats = { ...take.recorder.getStats(), chordCount };
+    await saveSessionEvents(session.id, events, stats);
+    await refreshSessionList();
+    // Pas de prise en cours dans l'onglet Session : la nouvelle prise y est sélectionnée.
+    if (!recorder?.isRecording) await loadAndPlaySession(session.id);
+    notify({ sessionId: session.id, name, noteCount: notes.length, chordCount });
+    return session;
+  } catch (err) {
+    console.error('[Session] Prise du Studio non sauvegardée :', err);
+    notify({ error: err.message || String(err) });
+    return null;
+  }
+}
+
+document.addEventListener('studio-take-start', (e) => startStudioTake(e.detail || {}));
+document.addEventListener('studio-take-stop', () => { stopStudioTake(); });
 
 async function refreshSessionList() {
   if (!els.sessionList) return;
@@ -496,7 +569,7 @@ async function refreshSessionList() {
     const query = (els.sessionSearch?.value || '').trim().toLowerCase();
 
     const scoped = sessionFilter === 'captures'
-      ? sessions.filter((s) => (s.sourceType || 'midi') === 'midi')
+      ? sessions.filter((s) => ['midi', 'studio'].includes(s.sourceType || 'midi'))
       : sessions;
 
     const filtered = query
@@ -535,6 +608,7 @@ function syncSessionFilterUi(total) {
 // Libellé de provenance affiché sous le nom de la session.
 const SESSION_SOURCE_LABELS = {
   midi: 'Capture locale',
+  studio: 'Prise du Studio',
   import: 'Import MIDI',
   example: 'Exemple',
 };
@@ -734,12 +808,13 @@ function renderCarnet() {
   if (!currentSession) return;
 
   const segments = currentEvents.length
-    ? nameChordSegments(segmentSessionEvents(currentEvents))
+    ? nameChordSegments(segmentSessionEvents(currentEvents), { latin: currentNotation === 'latin' })
     : [];
   const totalDuration = currentSession.duration || segments[segments.length - 1]?.end || 1;
 
   renderCarnetHeader(segments, totalDuration);
   renderTimeline(segments, totalDuration);
+  renderCarnetFindings(sessionAnalysis());
   if (segments.length) {
     renderCarnetEntries(segments);
     bindCarnetPlayButtons(segments);
@@ -747,6 +822,73 @@ function renderCarnet() {
     bindCarnetExploreAll(segments);
   } else {
     if (els.carnetEntries) els.carnetEntries.innerHTML = '';
+  }
+}
+
+// [Claude] — 2026-09-24 — Analyse du jeu de la session affichée (pédale, grave
+// boueux, voix du dessus, régularité, nuances… : session-performance.js), gardée
+// tant que la session et la notation ne changent pas ; le Copilote reçoit la même.
+let analysisCache = { events: null, notation: null, analysis: null };
+
+function sessionAnalysis() {
+  if (analysisCache.events === currentEvents && analysisCache.notation === currentNotation) return analysisCache.analysis;
+  const analysis = currentEvents?.length
+    ? analyzeSessionPerformance(currentEvents, { tempo: currentSession?.tempo || null, latin: currentNotation === 'latin' })
+    : null;
+  analysisCache = { events: currentEvents, notation: currentNotation, analysis };
+  return analysis;
+}
+
+/** Rangée « Analyse du jeu » du carnet : un constat par pastille, ses moments cliquables. */
+function renderCarnetFindings(analysis) {
+  const host = els.carnetFindings;
+  if (!host) return;
+  host.innerHTML = '';
+  const items = analysis
+    ? [...analysis.issues.map((f) => ({ ...f, kind: 'issue' })), ...analysis.strengths.map((f) => ({ ...f, kind: 'strength' }))]
+    : [];
+  host.hidden = items.length === 0;
+  if (!items.length) return;
+  const label = document.createElement('span');
+  label.className = 'carnet-findings-label';
+  label.textContent = 'Analyse du jeu';
+  host.appendChild(label);
+  for (const f of items) {
+    const pill = document.createElement('div');
+    pill.className = `carnet-finding is-${f.kind}${f.severity >= 3 ? ' is-major' : ''}`;
+    pill.setAttribute('role', 'listitem');
+    pill.title = f.text;
+    const dot = document.createElement('span');
+    dot.className = 'carnet-finding-dot';
+    dot.setAttribute('aria-hidden', 'true');
+    const title = document.createElement('span');
+    title.className = 'carnet-finding-title';
+    title.textContent = f.title;
+    // Le détail (lu par les lecteurs d'écran ; à l'écran, au survol).
+    const detail = document.createElement('span');
+    detail.className = 'carnet-finding-detail';
+    detail.textContent = `${f.kind === 'issue' ? 'À travailler' : 'Point fort'} : ${f.text}`;
+    pill.append(dot, title, detail);
+    for (const t of (f.times || []).slice(0, 3)) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'carnet-finding-time';
+      btn.textContent = formatTimeShort(t);
+      btn.title = `Aller à ${formatTimeShort(t)}`;
+      btn.addEventListener('click', () => {
+        // Un peu avant le moment, pour l'entendre arriver.
+        player?.seek(Math.max(0, t - 0.5));
+        updateTransportUI();
+      });
+      pill.appendChild(btn);
+    }
+    if ((f.times || []).length > 3) {
+      const more = document.createElement('span');
+      more.className = 'carnet-finding-more';
+      more.textContent = `+${f.times.length - 3}`;
+      pill.appendChild(more);
+    }
+    host.appendChild(pill);
   }
 }
 
@@ -933,6 +1075,11 @@ function bindCarnetExploreButtons(segments) {
   });
 }
 
+// [Claude] — 2026-09-24 — Narcisse : « transférer une session MIDI vers le
+// Copilote IA pour qu'il analyse le jeu, donne des conseils et pointe ce qui ne
+// va pas ».
+const SESSION_COACHING_REQUEST = 'Analyse mon jeu sur cette session : ce qui est réussi, ce qui ne va pas (avec les moments), et comment progresser.';
+
 function bindCarnetExploreAll(segments) {
   if (!els.carnetExploreAll) return;
   els.carnetExploreAll.disabled = false;
@@ -942,7 +1089,7 @@ function bindCarnetExploreAll(segments) {
     if (!context) return;
     document.dispatchEvent(new CustomEvent('app-switch-training-view', { detail: { view: 'copilot' } }));
     document.dispatchEvent(new CustomEvent('copilot-switch-to-session', { detail: context }));
-    const starter = 'Que peux-tu me dire sur cette session ?';
+    const starter = SESSION_COACHING_REQUEST;
     setTimeout(() => {
       document.dispatchEvent(new CustomEvent('copilot-send-message', { detail: { message: starter } }));
     }, 50);
@@ -1017,7 +1164,7 @@ function buildSessionContext() {
   // jamais existé) — on rejoue la session à travers la même analyse fraîche
   // que le carnet (segmentSessionEvents + nameChordSegments), qui est déjà
   // la source de vérité affichée à l'écran.
-  const segments = nameChordSegments(segmentSessionEvents(currentEvents || []));
+  const segments = nameChordSegments(segmentSessionEvents(currentEvents || []), { latin: currentNotation === 'latin' });
   const chordSegments = segments.filter((s) => s.type === 'chord');
 
   // Liste chronologique des vrais moments d'accord. Pas de déduplication par
@@ -1027,10 +1174,15 @@ function buildSessionContext() {
     .filter((s) => s.chordName)
     .map((s) => ({ start: s.start, label: s.chordName }));
 
+  // [Claude] — 2026-09-24 — Constats mesurés sur le jeu (pédale, grave boueux,
+  // voix du dessus, régularité, nuances…) : le Copilote les commente en coach.
+  const performance = sessionAnalysis();
+
   return {
     type: 'session',
     sessionId: currentSession.id,
     name: currentSession.name,
+    source: SESSION_SOURCE_LABELS[currentSession.sourceType] || null,
     duration: Number.isFinite(currentSession.duration) ? currentSession.duration : 0,
     tempo: currentSession.tempo || null,
     key: currentSession.key || null,
@@ -1041,6 +1193,7 @@ function buildSessionContext() {
     chordCount: chordSegments.length,
     comments: currentSession.comments || '',
     chords: chordMoments,
+    performance: performance ? { lines: formatPerformanceFindings(performance) } : null,
   };
 }
 
@@ -1052,7 +1205,7 @@ function bindCopilotButton() {
     if (!context) return;
     document.dispatchEvent(new CustomEvent('app-switch-training-view', { detail: { view: 'copilot' } }));
     document.dispatchEvent(new CustomEvent('copilot-switch-to-session', { detail: context }));
-    const starter = 'Que peux-tu me dire sur cette session ?';
+    const starter = SESSION_COACHING_REQUEST;
     setTimeout(() => {
       document.dispatchEvent(new CustomEvent('copilot-send-message', { detail: { message: starter } }));
     }, 50);

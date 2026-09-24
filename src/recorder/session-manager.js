@@ -28,7 +28,8 @@ export async function createSession(metadata) {
     date: now,
     duration: 0,
     key: metadata.key || '',
-    tempo: metadata.tempo || 120,
+    // null : tempo inconnu (prise du Studio), affiché « — BPM » plutôt qu'inventé.
+    tempo: metadata.tempo === null ? null : metadata.tempo || 120,
     comments: metadata.comments || '',
     tags: Array.isArray(metadata.tags) ? metadata.tags : [],
     sourceType: metadata.sourceType || 'midi',

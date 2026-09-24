@@ -20,6 +20,8 @@ const els = {};
 let currentTutorialPath = null;
 let messages = [];
 let currentConversationId = null;
+// Exemple du Copilote en cours de lecture (identifiant du message), ou null.
+let playingExampleId = null;
 
 export const AUTONOMOUS_HISTORY_KEY = HISTORY_AUTONOMOUS_KEY;
 let currentMode = 'autonomous';
@@ -231,6 +233,78 @@ function renderMessageText(container, content) {
   if (!container.childElementCount) container.appendChild(el('p', { text: String(content || '') }));
 }
 
+const FRENCH_NOTES = ['Do', 'Réb', 'Ré', 'Mib', 'Mi', 'Fa', 'Fa#', 'Sol', 'Lab', 'La', 'Sib', 'Si'];
+const frenchNote = (midi) => `${FRENCH_NOTES[((midi % 12) + 12) % 12]}${Math.floor(midi / 12) - 1}`;
+const ICON_PLAY = '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>';
+const ICON_STOP = '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="1.5"/></svg>';
+
+/** Identifiant stable de l'exemple d'un message (pour le bouton Écouter / Arrêter). */
+function exampleIdOf(msg) {
+  if (!msg.exampleId) msg.exampleId = `ex-${msg.timestamp || Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  return msg.exampleId;
+}
+
+/**
+ * Carte « Écouter l'exemple » : titre (accords), style, et ce que fait chaque
+ * main pour chaque accord (quatre accords au plus), sous l'explication.
+ */
+function renderExampleCard(msg) {
+  const example = msg.toolResult.example;
+  const id = exampleIdOf(msg);
+  const playing = playingExampleId === id;
+  const card = el('div', { className: `tr-chat-demos copilot-example${playing ? ' is-playing' : ''}`, 'data-example-id': id });
+  const button = el('button', {
+    className: 'copilot-example-play',
+    type: 'button',
+    'aria-pressed': playing ? 'true' : 'false',
+    onClick: () => toggleExample(msg),
+  });
+  button.innerHTML = playing ? ICON_STOP : ICON_PLAY;
+  button.appendChild(el('span', { text: playing ? 'Arrêter' : 'Écouter l\'exemple' }));
+  card.appendChild(button);
+  const text = el('div', { className: 'copilot-example-text' }, [
+    el('strong', { text: example.title || 'Exemple' }),
+    example.subtitle ? el('small', { text: example.subtitle }) : null,
+  ]);
+  const hands = (example.chords || []).slice(0, 4).filter((c) => c.leftHand?.length || c.rightHand?.length);
+  if (hands.length) {
+    const list = el('ul', { className: 'copilot-example-hands' });
+    for (const c of hands) {
+      const parts = [];
+      if (c.leftHand?.length) parts.push(`main gauche ${c.leftHand.map(frenchNote).join(' ')}`);
+      if (c.rightHand?.length) parts.push(`main droite ${c.rightHand.map(frenchNote).join(' ')}`);
+      list.appendChild(el('li', {}, [el('b', { text: c.name }), document.createTextNode(` — ${parts.join(' · ')}`)]));
+    }
+    text.appendChild(list);
+  }
+  card.appendChild(text);
+  return card;
+}
+
+/** Lecture / arrêt de l'exemple d'un message (même lecteur que les démos, voir main.js). */
+function toggleExample(msg) {
+  const id = exampleIdOf(msg);
+  if (playingExampleId === id) {
+    document.dispatchEvent(new CustomEvent('copilot-stop-example'));
+    return;
+  }
+  document.dispatchEvent(new CustomEvent('copilot-play-example', { detail: { id, example: msg.toolResult.example } }));
+}
+
+/** Met à jour le bouton de la carte qui joue (ou vient de s'arrêter), sans tout redessiner. */
+function refreshExampleCards() {
+  if (!els.messages) return;
+  els.messages.querySelectorAll('.copilot-example').forEach((card) => {
+    const playing = card.dataset.exampleId === playingExampleId;
+    card.classList.toggle('is-playing', playing);
+    const button = card.querySelector('.copilot-example-play');
+    if (!button) return;
+    button.setAttribute('aria-pressed', playing ? 'true' : 'false');
+    button.innerHTML = playing ? ICON_STOP : ICON_PLAY;
+    button.appendChild(el('span', { text: playing ? 'Arrêter' : 'Écouter l\'exemple' }));
+  });
+}
+
 /** Rendu de la liste des messages, dans la structure d'Astra
  * (.tr-chat-message / .tr-message-avatar / .tr-message-content). */
 function renderMessages() {
@@ -275,9 +349,12 @@ function renderMessages() {
     content.appendChild(author);
     renderMessageText(content, msg.content);
 
-    // Notes réellement jouées au clavier virtuel par l'outil du Copilot.
-    // Information, pas bouton : rien ne permet aujourd'hui de rejouer la démo.
-    if (msg.toolResult?.played?.length) {
+    // [Claude] — 2026-09-24 — L'exemple à écouter vient APRÈS l'explication
+    // (Narcisse : « il va directement me le jouer au lieu d'expliquer d'abord »).
+    if (msg.toolResult?.example) {
+      content.appendChild(renderExampleCard(msg));
+    } else if (msg.toolResult?.played?.length) {
+      // Anciennes conversations : notes jouées à l'époque, pour mémoire.
       const played = el('div', { className: 'tr-chat-demos copilot-tool-note is-static' });
       const chip = el('span', { className: 'copilot-played-chip' });
       chip.innerHTML = ICON_PIANO;
@@ -578,14 +655,19 @@ async function sendUserMessage() {
   const res = await sendCopilotMessage({ message: text, messages, context, copilotStyleId });
 
   removeTypingIndicator();
+  let autoplayMessage = null;
   if (res.ok) {
-    messages.push({
+    const reply = {
       role: 'assistant',
       content: res.content,
       toolResult: res.toolResult,
       suggestedActions: res.suggestedActions,
       timestamp: new Date().toISOString(),
-    });
+    };
+    if (res.toolResult?.example) exampleIdOf(reply);
+    messages.push(reply);
+    // Demande d'écoute (« joue-moi… ») : l'exemple démarre une fois la réponse affichée.
+    if (res.autoplay && res.toolResult?.example) autoplayMessage = reply;
     const key =
       currentMode === 'tutorial' && currentTutorialPath
         ? currentTutorialPath
@@ -601,6 +683,7 @@ async function sendUserMessage() {
   }
 
   renderMessages();
+  if (autoplayMessage) setTimeout(() => toggleExample(autoplayMessage), 700);
   await renderHistoryList();
   els.input.disabled = false;
   els.sendBtn.disabled = false;
@@ -694,6 +777,14 @@ export async function initCopilotTab() {
     const sessionContext = e.detail;
     if (!sessionContext?.sessionId) return;
     await switchToSessionMode(sessionContext);
+  });
+
+  // Lecture d'un exemple commencée / finie (main.js).
+  document.addEventListener('copilot-example-state', (e) => {
+    const { id, playing } = e.detail || {};
+    if (playing) playingExampleId = id;
+    else if (playingExampleId === id) playingExampleId = null;
+    refreshExampleCards();
   });
 
   document.addEventListener('copilot-send-message', async (e) => {

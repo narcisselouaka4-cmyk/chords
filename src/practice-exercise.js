@@ -1893,8 +1893,10 @@ const unplayableNames = (names) => `${names.join(', ')} (aucun voicing : accord$
  * sa tonalité de lecture. null si aucun accord n'est jouable.
  * @param {{name: string, rootPc: number|null, symbol: string|null}[]} typed
  */
-function customGridMovement(typed, name = null) {
-  const { main, passing, source } = splitGridPassing(typed);
+function customGridMovement(typed, name = null, { keepTensions = false } = {}) {
+  // `keepTensions` : chaque accord garde sa mesure, tensions comprises (exemples
+  // du Copilote : « Dm7 G7alt Cmaj7 » demandé tel quel).
+  const { main, passing, source } = keepTensions ? keepAllMain(typed) : splitGridPassing(typed);
   if (main.length === 0) return null;
   const { keyPc, minor } = customGridKey(main);
   const tokenOf = (c) => `${OFFSET_TOKENS[(c.rootPc - keyPc + 12) % 12]}:${c.symbol}`;
@@ -1935,6 +1937,18 @@ function customGridMovement(typed, name = null) {
   };
 }
 
+/** Tous les accords jouables en accords principaux (aucun passage). */
+function keepAllMain(typed) {
+  const main = [];
+  const source = { main: [], passing: {} };
+  typed.forEach((c, typedIndex) => {
+    if (c.symbol == null || !isQualityOnVoicingLab(c.symbol, c.rootPc)) return;
+    main.push(c);
+    source.main.push(typedIndex);
+  });
+  return { main, passing: {}, source };
+}
+
 /**
  * Accords jouables d'une grille perso répartis en accords principaux et
  * passages (règle de Narcisse : les tensions ne se jouent qu'en passage). Un
@@ -1959,6 +1973,18 @@ function splitGridPassing(typed) {
     source.main.push(typedIndex);
   });
   return { main, passing, source };
+}
+
+/**
+ * [Claude] — 2026-09-24 — Vrai si l'Exercice a des voicings pour cet accord
+ * (« Dm7 », « G7alt ») : les triades (F, Am) et les accords avec basse (C/E)
+ * n'en ont pas et sont écartés d'une grille. Les exemples du Copilote les
+ * voicent eux-mêmes (copilot-demo.js).
+ * @param {string} name
+ */
+export function isGridChordPlayable(name) {
+  const c = parseTypedChord(String(name || ''));
+  return c.symbol != null && isQualityOnVoicingLab(c.symbol, c.rootPc);
 }
 
 /**
@@ -2679,8 +2705,8 @@ export function createPracticeExercise() {
    * l'exercice, dans le ton où elle a été écrite.
    * @returns {object[]|null}
    */
-  function previewGrid(input, name = null) {
-    const movement = customGridMovement(typedGrid(input), name);
+  function previewGrid(input, name = null, { keepTensions = false } = {}) {
+    const movement = customGridMovement(typedGrid(input), name, { keepTensions });
     if (!movement) return null;
     const chords = buildMovementChords(movement, movement.writtenKey, state.technique, state.difficulty, {}, state.doubling, null, state.leftHandStyle, movement.topIntervals, { tops: movement.passingTopIntervals || {} });
     return chords.length > 0 ? chords : null;

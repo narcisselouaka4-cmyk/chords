@@ -2321,6 +2321,10 @@ function initPracticeExercise() {
     demoContext = null;
     previewId = null;
     demoHooks.playingPassing = null;
+    if (context?.kind === 'copilot') {
+      document.dispatchEvent(new CustomEvent('copilot-example-state', { detail: { id: context.id, playing: false } }));
+      return;
+    }
     if (context?.kind === 'movement' && practiceExercise.getState().mode === 'movement') {
       practiceExercise.goToStep(context.stepBefore, { passing: context.passingBefore });
       render();
@@ -2329,6 +2333,27 @@ function initPracticeExercise() {
     }
     if (context?.kind === 'preview') renderLibrary();
   };
+
+  // [Claude] — 2026-09-24 — Exemples du Copilote IA : même lecteur que les démos des
+  // exercices (touches allumées, son de l'application ou sortie MIDI vers le VST).
+  // L'onglet Copilote demande la lecture ; il est prévenu de la fin.
+  document.addEventListener('copilot-play-example', async (e) => {
+    const { id, example } = e.detail || {};
+    if (!example?.events?.length) return;
+    // Une démo en cours s'arrête d'abord proprement (son contexte est rendu).
+    if (demoPlayer.isPlaying()) demoPlayer.stop();
+    try {
+      await resumeAudio();
+    } catch (err) {
+      console.warn('[Copilot] Audio indisponible', err);
+    }
+    demoPlayer.play({ events: example.events, beats: example.beats }, { tempo: example.tempo || 60 });
+    demoContext = { kind: 'copilot', id };
+    document.dispatchEvent(new CustomEvent('copilot-example-state', { detail: { id, playing: true } }));
+  });
+  document.addEventListener('copilot-stop-example', () => {
+    if (demoContext?.kind === 'copilot') demoPlayer.stop();
+  });
 
   function refreshDemoButtons(exState) {
     const btn = document.getElementById('exercise-demo-btn');

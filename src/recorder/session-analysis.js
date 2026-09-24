@@ -1,5 +1,31 @@
-import { DEFAULT_TOLERANCE_MS, MAX_SPAN_SEMITONES, MIN_SIMULTANEOUS, CONJUNCT_INTERVAL_SEMITONES } from '../note-grouper.js';
-import { detectChord } from '../chord-engine/index.js';
+// [Claude] — 2026-09-24 — Découpage harmonique refait (Narcisse : « les accords
+// détectés et affichés ne sont pas toujours les bons […] il faut vraiment
+// corriger cette détection »). L'ancien découpage ne formait un accord qu'avec
+// des notes attaquées ensemble, sur deux octaves au plus : un accord à deux
+// mains (C2 G2 | E4 G4 B4 D5) passait pour de la mélodie, une basse tenue
+// pendant que la main droite changeait d'accord était oubliée, une note de
+// mélodie jouée juste après l'accord y était avalée ; et le nom affiché venait
+// du `fullName` du moteur, sans fondamentale (« Major 9 »).
+//
+// Désormais, à chaque attaque (notes à moins de 90 ms l'une de l'autre, accord
+// roulé compris), l'accord est lu sur ce qui sonne : les touches tenues, plus la
+// basse gardée par la pédale (frappée pendant la pression en cours, sous tout le
+// reste). Une note seule attaquée au-dessus de tout (mélodie) ne change pas
+// l'accord ; une nouvelle basse ou une voix intérieure, si. Un même accord
+// rejoué prolonge son segment ; un arpège lent complète l'accord qu'il forme.
+// Nom : nameMidiChord (fondamentale, qualité de l'application, basse).
+
+import { MIN_SIMULTANEOUS, CONJUNCT_INTERVAL_SEMITONES } from '../note-grouper.js';
+import { nameMidiChord } from './midi-chord-namer.js';
+
+// Écart maximal entre deux attaques d'un même accord (s), accord roulé compris.
+const CLUSTER_GAP = 0.09;
+// Lecture de ce qui sonne juste après la dernière attaque (s).
+const HOLD_EPSILON = 0.03;
+// Un arpège lent complète son accord pendant ce délai après sa dernière note (s).
+const ARPEGGIO_WINDOW = 0.6;
+// Une note frappée sous Do3 est une nouvelle basse : elle remplace celle que garde la pédale.
+const NEW_BASS_BELOW = 48;
 
 // Garde-fou "gamme sous pédale" — même logique que note-grouper.js (voir son commentaire) :
 // un vrai accord n'a jamais TOUTES ses notes voisines d'un ton/demi-ton une fois triées par
@@ -74,6 +100,8 @@ export function buildNoteWindows(events) {
   }
 
   for (const window of noteWindows) {
+    // Relâchement de la touche, avant la pédale : c'est lui qui dit ce que la main tient.
+    window.keyOffTime = window.offTime;
     if (window.offTime !== null && isFinite(window.offTime)) {
       for (const si of sustainIntervals) {
         if (si.channel === window.channel && window.offTime >= si.start && window.offTime <= si.end) {
@@ -88,61 +116,8 @@ export function buildNoteWindows(events) {
   return noteWindows;
 }
 
-function groupNotesByAttack(noteWindows) {
-  const groups = [];
-  let currentGroup = [];
-
-  for (const w of noteWindows) {
-    if (currentGroup.length === 0) {
-      currentGroup.push(w);
-    } else {
-      const lastOnTime = currentGroup[currentGroup.length - 1].onTime;
-      if (w.onTime - lastOnTime < DEFAULT_TOLERANCE_MS / 1000) {
-        currentGroup.push(w);
-      } else {
-        if (currentGroup.length > 0) {
-          groups.push(currentGroup);
-        }
-        currentGroup = [w];
-      }
-    }
-  }
-  if (currentGroup.length > 0) {
-    groups.push(currentGroup);
-  }
-  return groups;
-}
-
-function calculateMaxConcurrency(group) {
-  const events = [];
-  for (const w of group) {
-    events.push({ time: w.onTime, delta: 1 });
-    events.push({ time: w.offTime, delta: -1 });
-  }
-  events.sort((a, b) => a.time - b.time);
-  let concurrent = 0;
-  let maxConcurrent = 0;
-  for (const e of events) {
-    concurrent += e.delta;
-    if (concurrent > maxConcurrent) maxConcurrent = concurrent;
-  }
-  return maxConcurrent;
-}
-
-function calculateSpan(group) {
-  const notes = group.map((w) => w.note);
-  return Math.max(...notes) - Math.min(...notes);
-}
-
-function createMelodySegments(noteWindows, chordSegments) {
-  const chordTimes = new Set();
-  for (const cs of chordSegments) {
-    for (const w of cs.group) {
-      chordTimes.add(`${w.channel}:${w.note}:${w.onTime}`);
-    }
-  }
-
-  const melodyNotes = noteWindows.filter((w) => !chordTimes.has(`${w.channel}:${w.note}:${w.onTime}`));
+function createMelodySegments(noteWindows, chordWindows) {
+  const melodyNotes = noteWindows.filter((w) => !chordWindows.has(w));
   if (melodyNotes.length === 0) return [];
 
   const segments = [];
@@ -177,41 +152,138 @@ function createMelodySegments(noteWindows, chordSegments) {
   return segments;
 }
 
+/** Attaques rapprochées (moins de CLUSTER_GAP entre deux notes) : un accord, même roulé. */
+export function clusterAttacks(windows) {
+  const clusters = [];
+  for (const w of windows) {
+    const last = clusters[clusters.length - 1];
+    if (last && w.onTime - last[last.length - 1].onTime <= CLUSTER_GAP) last.push(w);
+    else clusters.push([w]);
+  }
+  return clusters;
+}
+
+/** Instants où la pédale est enfoncée (valeur ≥ 64 après un relâchement). */
+function pedalPresses(events) {
+  const presses = [];
+  let down = false;
+  for (const ev of events) {
+    if (ev.type !== 'control' || ev.controller !== 64) continue;
+    const on = ev.value >= 64;
+    if (on && !down) presses.push(ev.time);
+    down = on;
+  }
+  return presses;
+}
+
+/**
+ * Découpe une session en accords et passages mélodiques (voir l'en-tête).
+ * @returns {{type: 'chord'|'melody', start: number, end: number, notes: number[], chordName?: string, rootPc?: number, symbol?: string, bassPc?: number}[]}
+ */
 export function segmentSessionEvents(events) {
   if (!events || events.length === 0) return [];
 
   const sortedEvents = [...events].sort((a, b) => a.time - b.time);
-  const noteWindows = buildNoteWindows(sortedEvents);
-  const candidateGroups = groupNotesByAttack(noteWindows);
-
+  const windows = buildNoteWindows(sortedEvents);
+  const presses = pedalPresses(sortedEvents);
+  // Pression de pédale en cours à l'instant t (la dernière avant t), ou null.
+  const pressBefore = (t) => {
+    let found = null;
+    for (const p of presses) if (p <= t) found = p;
+    return found;
+  };
+  const chordWindows = new Set();
   const chordSegments = [];
-  for (const group of candidateGroups) {
-    const span = calculateSpan(group);
-    const maxConcurrent = calculateMaxConcurrency(group);
+  let current = null;
 
-    if (span <= MAX_SPAN_SEMITONES && maxConcurrent >= MIN_SIMULTANEOUS && !isMelodicRun(group)) {
-      chordSegments.push({
-        type: 'chord',
-        start: group[0].onTime,
-        end: Math.max(...group.map((w) => w.offTime)),
-        notes: group.map((w) => w.note),
-        group,
-      });
+  for (const cluster of clusterAttacks(windows)) {
+    const start = cluster[0].onTime;
+    const t = cluster[cluster.length - 1].onTime + HOLD_EPSILON;
+    // Ce que la main tient : touches enfoncées (et les notes qu'on vient d'attaquer).
+    const held = windows.filter((w) => w.onTime <= t && (cluster.includes(w) || w.keyOffTime > t));
+    const lowestHeld = Math.min(...held.map((w) => w.note));
+    // La basse gardée par la pédale : frappée pendant la pression en cours, sous
+    // tout le reste. Sauf si la main gauche frappe elle-même une nouvelle basse
+    // (sous Do3) : l'ancienne ne fait que traîner sous la pédale (Dm9 → G13
+    // pédale tenue : Ré2 sonne encore, mais l'accord joué est G13, pas G13/D).
+    const press = pressBefore(t);
+    const newBass = cluster.some((w) => w.note < NEW_BASS_BELOW);
+    const pedalBass = press == null || newBass ? null : windows
+      .filter((w) => !held.includes(w) && w.onTime >= press && w.onTime < start && w.offTime > t && w.note < lowestHeld)
+      .sort((a, b) => a.note - b.note)[0] || null;
+    const sounding = pedalBass ? [pedalBass, ...held] : held;
+    const top = Math.max(...sounding.map((w) => w.note));
+    // Une note seule au-dessus de tout, pendant un accord plaqué : c'est la mélodie.
+    const single = cluster.length === 1;
+    const arpeggioGrows = current?.arpeggio && single && start - current.lastAttack <= ARPEGGIO_WINDOW
+      && current.windows.every((w) => sounding.includes(w));
+    if (current && single && cluster[0].note === top && !arpeggioGrows) continue;
+    if (cluster.length >= MIN_SIMULTANEOUS && isMelodicRun(cluster)) continue;
+    const named = nameMidiChord(sounding.map((w) => w.note));
+    if (!named) continue;
+    // Notes de l'accord attaquées depuis le précédent (début d'un arpège, basse
+    // gardée par la pédale) : elles lui appartiennent, pas à une mélodie.
+    const since = current ? current.lastAttack : -Infinity;
+    const own = sounding.filter((w) => w.onTime > since || cluster.includes(w));
+    own.forEach((w) => chordWindows.add(w));
+    if (arpeggioGrows || (current && current.name === named.name)) {
+      // Arpège qui complète son accord, ou même accord rejoué : un seul segment.
+      if (arpeggioGrows) Object.assign(current, { name: named.name, named, windows: sounding, attackNotes: sounding.map((w) => w.note) });
+      current.lastAttack = start;
+      current.notes = [...new Set([...current.notes, ...sounding.map((w) => w.note)])];
+      current.end = Math.max(current.end, ...sounding.map((w) => w.offTime));
+      continue;
     }
+    current = {
+      // Un accord né d'un arpège commence à sa première note.
+      start: Math.min(start, ...own.map((w) => w.onTime)),
+      end: Math.max(...sounding.map((w) => w.offTime)),
+      name: named.name,
+      named,
+      windows: sounding,
+      notes: sounding.map((w) => w.note),
+      attackNotes: sounding.map((w) => w.note),
+      lastAttack: start,
+      // Accord né d'une note seule (troisième note d'un arpège) : il peut encore se compléter.
+      arpeggio: single,
+    };
+    chordSegments.push(current);
   }
 
-  const melodySegments = createMelodySegments(noteWindows, chordSegments);
+  // Un accord s'arrête quand le suivant commence.
+  const chords = chordSegments.map((seg, i) => {
+    const next = chordSegments[i + 1];
+    return {
+      type: 'chord',
+      start: seg.start,
+      end: next ? Math.min(seg.end, next.start) : seg.end,
+      notes: [...seg.notes].sort((a, b) => a - b),
+      chordName: seg.name,
+      rootPc: seg.named.rootPc,
+      symbol: seg.named.symbol,
+      bassPc: seg.named.bassPc,
+      // Faux si aucun accord connu n'explique toutes les notes (note étrangère ?).
+      matched: seg.named.matched !== false,
+      // Notes attaquées ou tenues au début de l'accord (voicing joué), sans ce qui s'y ajoute ensuite.
+      attackNotes: [...new Set(seg.attackNotes)].sort((a, b) => a - b),
+    };
+  });
 
-  const allSegments = [...chordSegments, ...melodySegments].sort((a, b) => a.start - b.start);
-  return allSegments.map(({ group, ...rest }) => rest);
+  const melodySegments = createMelodySegments(windows, chordWindows);
+  return [...chords, ...melodySegments].sort((a, b) => a.start - b.start);
 }
 
-export function nameChordSegments(segments) {
+/**
+ * Nom des accords (déjà posé par segmentSessionEvents) ; `latin` = Do, Ré, Mi.
+ * @param {object[]} segments
+ * @param {{latin?: boolean}} [options]
+ */
+export function nameChordSegments(segments, { latin = false } = {}) {
   for (const seg of segments) {
-    if (seg.type === 'chord' && seg.notes && seg.notes.length > 0) {
-      const result = detectChord(seg.notes);
-      seg.chordName = result?.fullName || null;
-    }
+    if (seg.type !== 'chord' || !seg.notes?.length) continue;
+    if (seg.chordName && !latin) continue;
+    const named = nameMidiChord(seg.notes, { latin });
+    seg.chordName = named?.name || seg.chordName || null;
   }
   return segments;
 }

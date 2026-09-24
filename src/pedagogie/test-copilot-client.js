@@ -120,7 +120,7 @@ global.document = {
 };
 
 // 2. Import dynamique APRÈS le setup de window
-const { sendCopilotMessage, executeToolCalls } = await import('./copilot-client.js');
+const { sendCopilotMessage, executeToolCalls, wantsToHear } = await import('./copilot-client.js');
 
 const GREEN = '\x1b[32m';
 const RED = '\x1b[31m';
@@ -373,18 +373,18 @@ function testSequenceScheduling() {
   ]);
 
   const playedSorted = [...result.played].sort((a, b) => a.startOffsetMs - b.startOffsetMs);
-  check('Une séquence de 3 notes est programmée', result.played.length === 3);
+  check('Une séquence de 3 notes est préparée', result.played.length === 3);
   check('Les notes sont retournées dans l\'ordre croissant des startOffsetMs', playedSorted.every((p, i) => p.startOffsetMs === [0, 200, 400][i]));
-  check('Les délais setTimeout reflètent les startOffsetMs', scheduled.some((s) => s.delay === 0) && scheduled.some((s) => s.delay === 200) && scheduled.some((s) => s.delay === 400));
-
-  // Exécuter les callbacks dans l'ordre de leurs délais pour simuler le temps.
-  for (const { fn } of scheduled.slice().sort((a, b) => a.delay - b.delay)) fn();
+  // [Claude] — 2026-09-24 — Rien ne joue pendant la réponse (Narcisse : « il va
+  // directement me le jouer au lieu d'expliquer d'abord ») : un exemple est préparé.
+  check('Rien n\'est joué pendant la réponse (aucune minuterie, aucune note envoyée)', scheduled.length === 0
+    && capturedEvents.filter((e) => e.type === 'copilot-note-on').length === 0);
+  const onsets = result.example?.events.filter((e) => e.type === 'noteOn').map((e) => `${e.note}@${e.time}`).join();
+  check('Exemple prêt à écouter : les 3 notes aux bons instants (0 ; 0,2 ; 0,4 s)', onsets === '60@0,64@0.2,67@0.4', onsets);
 
   document.dispatchEvent = originalDispatchEvent;
   global.document.dispatchEvent = originalDispatchEvent;
   global.setTimeout = originalSetTimeout;
-
-  check('Les événements copilot-note-on sont dispatchés au démarrage de chaque note', capturedEvents.filter((e) => e.type === 'copilot-note-on').length === 3);
 }
 
 function testKeyboardCollapsed() {
@@ -395,8 +395,21 @@ function testKeyboardCollapsed() {
   const result = executeToolCalls([
     { function: { name: 'play_note', arguments: JSON.stringify({ midi: 60 }) } },
   ]);
-  check('Une note ne joue pas si le clavier est masqué', result.played.length === 0);
+  // L'exemple s'entend même clavier masqué ; le drapeau reste pour le signaler.
+  check('Clavier masqué : l\'exemple est préparé quand même', result.played.length === 1 && Boolean(result.example));
   check('Le flag keyboardCollapsed est renvoyé', result.keyboardCollapsed === true);
+}
+
+// [Claude] — 2026-09-24 — L'exemple ne démarre seul que si l'élève demande à
+// l'entendre ; une question d'explication attend son clic.
+function testWantsToHear() {
+  const hear = ['Joue-moi un 2-5-1 en Do', 'Je veux écouter un 2-5-1', 'Écoute ce Dm7', 'Je veux entendre un 2-5-1',
+    'fais-moi écouter Cmaj9', 'Montre-moi un voicing de Dm9', 'Peux-tu me faire une démo ?', 'Peux-tu me jouer un Cmaj9 ?',
+    'Fais-moi un arpège lent.', 'Fais-moi un lick adapté.', 'Rejoue-le plus lentement'];
+  const explain = ['Explique-moi l\'harmonie d\'un 2-5-1.', 'Comment jouer un 2-5-1 ?', 'Qu\'est-ce qu\'un accord plaqué ?',
+    'Je joue Dm7 G7 Cmaj7, c\'est juste ?', 'Qu\'est-ce que la main gauche peut jouer ici ?'];
+  check('Demandes d\'écoute reconnues (accents compris)', hear.every(wantsToHear), hear.filter((m) => !wantsToHear(m)).join(' | '));
+  check('Questions d\'explication : pas de lecture automatique', explain.every((m) => !wantsToHear(m)), explain.filter(wantsToHear).join(' | '));
 }
 
 function testAnnotation() {
@@ -571,6 +584,76 @@ async function testNoRetryWithoutAnnouncement() {
   global.fetch = originalFetch;
 }
 
+// [Claude] — 2026-09-24 — « Explique-moi un 2-5-1 » : l'explication, puis un
+// exemple prêt sous le texte (sans lecture automatique ni relance du modèle),
+// avec les accords que la réponse écrit.
+async function testExplanationGetsExampleCard() {
+  const originalFetch = global.fetch;
+  global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
+  const ask = async (message, reply) => {
+    let calls = 0;
+    global.fetch = async () => {
+      calls += 1;
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { role: 'assistant', content: reply } }] }) };
+    };
+    const res = await sendCopilotMessage({ message, messages: [], context: {} });
+    return { res, calls };
+  };
+  let { res, calls } = await ask("Explique-moi l'harmonie d'un 2-5-1.", 'Le II-V-I en Do : **Dm7** (II), **G7** (V), **Cmaj7** (I). La 7e de Dm7 descend sur la tierce de G7.');
+  check('Explication : un seul appel au modèle (pas de relance)', calls === 1, `appels : ${calls}`);
+  check('Explication : exemple prêt sous le texte', res.toolResult?.example?.title === 'Dm7 → G7 → Cmaj7', res.toolResult?.example?.title);
+  check('Explication : pas de lecture automatique', res.autoplay === false);
+  check('Explication : texte inchangé (pas de remarque d\'échec)', !/n'ai pas réussi/.test(res.content));
+  ({ res } = await ask('Explique-moi un 2-5-1', 'En Do, avec des couleurs : **Dm9 → G13 → Cmaj9**.'));
+  check('Exemple = accords écrits dans la réponse (Dm9 G13 Cmaj9)', res.toolResult?.example?.title === 'Dm9 → G13 → Cmaj9', res.toolResult?.example?.title);
+  ({ res } = await ask('Explique-moi un II-V-I en Fa', 'En Fa : **Gm7 → C7 → Fmaj7**.'));
+  check('Tonalité française comprise (« en Fa » → Gm7 C7 Fmaj7)', res.toolResult?.example?.title === 'Gm7 → C7 → Fmaj7', res.toolResult?.example?.title);
+  ({ res } = await ask('Joue-moi un 2-5-1 en Sib', 'Voici un II-V-I en Sib.'));
+  check('« Joue-moi… en Sib » : Cm7 F7 Bbmaj7, lecture automatique', res.toolResult?.example?.title === 'Cm7 → F7 → Bbmaj7' && res.autoplay === true, `${res.toolResult?.example?.title} autoplay=${res.autoplay}`);
+  global.fetch = originalFetch;
+}
+
+// [Claude] — 2026-09-24 — Session envoyée au Copilote : les constats de
+// l'analyse du jeu et l'origine (prise du Studio) sont dans le contexte.
+async function testSessionFindingsInPrompt() {
+  const originalFetch = global.fetch;
+  let system = '';
+  global.fetch = async (url, options) => {
+    system = JSON.parse(options.body).messages[0].content;
+    return { ok: true, status: 200, json: async () => ({ choices: [{ message: { role: 'assistant', content: 'Analyse.' } }] }) };
+  };
+  global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
+  const context = {
+    type: 'session', name: 'Studio · Oceans', source: 'Prise du Studio', duration: 12, tempo: 60, noteCount: 34, chordCount: 6,
+    chords: [{ start: 0, label: 'Dm9' }, { start: 2, label: 'G13' }],
+    performance: { lines: ['Points forts :', '- Harmonies colorées.', 'À travailler (du plus important au moins important) :', '- Pédale gardée pendant 5 changements d\'accord sur 5 (0:02 Dm9 → G13 : Ré2, Do4).'] },
+  };
+  const res = await sendCopilotMessage({ message: 'Analyse mon jeu sur cette session : ce qui est réussi, ce qui ne va pas (avec les moments), et comment progresser.', messages: [], context });
+  check('Session : constats de l\'analyse du jeu dans le contexte', /## Constats de l'analyse du jeu/.test(system) && /Pédale gardée pendant 5 changements/.test(system));
+  check('Session : origine « Prise du Studio » dans le contexte', /Origine : Prise du Studio/.test(system));
+  check('Session : demande d\'analyse sans exemple ni lecture', res.ok && !res.toolResult?.example && res.autoplay === false);
+  global.fetch = originalFetch;
+}
+
+// [Claude] — 2026-09-24 — Clavier masqué : l'explication reste, une note dit
+// comment voir les touches (l'exemple s'entend quand même).
+async function testCollapsedKeyboardKeepsExplanation() {
+  const originalFetch = global.fetch;
+  global.fetch = async () => ({ ok: true, status: 200, json: async () => ({ choices: [{ message: {
+    role: 'assistant',
+    content: 'Le II-V-I en Do : **Dm7 → G7 → Cmaj7**. Écoute l\'exemple ci-dessous.',
+    tool_calls: [{ id: 'c1', type: 'function', function: { name: 'play_progression', arguments: JSON.stringify({ chords: ['Dm7', 'G7', 'Cmaj7'] }) } }],
+  } }] }) });
+  global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
+  document.resetMock();
+  document.setPanel(true);
+  const res = await sendCopilotMessage({ message: 'Fais-moi une démo d\'un 2-5-1', messages: [], context: {} });
+  check('Clavier masqué : l\'explication est gardée', /Le II-V-I en Do/.test(res.content), res.content);
+  check('Clavier masqué : note pour voir les touches, exemple prêt', /affiche-le pour voir les touches/.test(res.content) && Boolean(res.toolResult?.example));
+  document.setPanel(false);
+  global.fetch = originalFetch;
+}
+
 function testMetadataOnPlayedNotes() {
   const result = executeToolCalls([
     { function: { name: 'play_note', arguments: JSON.stringify({ midi: 60, impliedChordName: 'Cmaj7', impliedRomanNumeral: 'I', impliedKey: 'Do majeur' }) } },
@@ -626,7 +709,9 @@ async function testCorrectsAnnouncedChordMismatchOnRetry() {
 
   check('Accord faux → relance utilisée (2 appels API)', callCount === 2);
   check('Texte final = texte de la seconde réponse', res.content === "Précision : c'est en réalité un **Fm**.");
-  check('toolResult vidé par la seconde réponse', res.toolResult.played.length === 0);
+  // [Claude] — 2026-09-24 — Les exemples ne jouent plus d'eux-mêmes : celui de la première
+  // réponse reste à écouter sous le texte corrigé (ce sont les notes que ce texte décrit).
+  check('Exemple de la première réponse gardé sous le texte corrigé', Boolean(res.toolResult.example) && res.toolResult.played.length > 0);
 
   global.fetch = originalFetch;
 }
@@ -858,7 +943,9 @@ async function testCorrectsAnnouncedDegreeMismatchOnRetry() {
 
   check('Désaccord degré/tonalité → relance (2 appels API)', callCount === 2);
   check('Texte final = texte de la seconde réponse', res.content === "Précision : c'est plutôt un accord de Do majeur.");
-  check('toolResult vidé par la seconde réponse', res.toolResult.played.length === 0);
+  // [Claude] — 2026-09-24 — Les exemples ne jouent plus d'eux-mêmes : celui de la première
+  // réponse reste à écouter sous le texte corrigé (ce sont les notes que ce texte décrit).
+  check('Exemple de la première réponse gardé sous le texte corrigé', Boolean(res.toolResult.example) && res.toolResult.played.length > 0);
 
   global.fetch = originalFetch;
 }
@@ -1170,11 +1257,15 @@ async function runTests() {
   await testVoicingDescriptionDrop2CoherentNoRetry();
   await testFallbackWithoutToolsOn400();
   await testParsePlayNoteFromText();
+  await testExplanationGetsExampleCard();
+  await testSessionFindingsInPrompt();
+  await testCollapsedKeyboardKeepsExplanation();
   testMetadataOnPlayedNotes();
   testToolParsing();
   testSequenceScheduling();
   testKeyboardCollapsed();
   testAnnotation();
+  testWantsToHear();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);
   process.exit(failed === 0 ? 0 : 1);

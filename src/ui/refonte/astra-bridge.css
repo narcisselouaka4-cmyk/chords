@@ -235,6 +235,9 @@
 #midi-session-carnet {
   max-height: 170px;
 }
+#midi-session-carnet:has(.carnet-findings:not([hidden])) {
+  max-height: 230px;
+}
 
 /* Hôte du paysage harmonique : le SVG est injecté par recording-tab.js.
    Spécificité alignée sur l'ancienne règle de practice.css (lignes 2711-2721)
@@ -341,9 +344,84 @@
   display: flex; gap: 14px; margin-top: 6px;
   color: var(--tr-muted); font: 9px var(--tr-mono);
 }
+/* [Claude] — 2026-09-24 — En-tête du carnet sur une ligne (titre puis légende) :
+   la rangée « Analyse du jeu » prend la place gagnée, et les moments restent
+   visibles au-dessus du clavier. Même préfixe que practice.css pour passer devant. */
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-sticky-head,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-sticky-head {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 24px;
+  row-gap: 4px;
+  padding: 10px 0 4px;
+}
+#midi-session-carnet .carnet-sticky-head .tr-section-heading { margin-bottom: 0; }
+#midi-session-carnet .carnet-sticky-head .carnet-legend { margin-top: 0; }
 #midi-session-carnet .carnet-legend span { display: inline-flex; align-items: center; gap: 5px; }
 #midi-session-carnet .legend-dot { width: 6px; height: 6px; border-radius: 2px; background: var(--tr-accent); }
 #midi-session-carnet .legend-dot.melody { background: transparent; border: 1px solid var(--tr-muted); }
+/* [Claude] — 2026-09-24 — Analyse du jeu (session-performance.js) : une pastille
+   par constat — point à travailler (rouge Astra), point fort (vert) — avec ses
+   moments cliquables ; le détail s'affiche au survol et reste lu par les
+   lecteurs d'écran. */
+#midi-session-carnet .carnet-findings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 4px;
+}
+#midi-session-carnet .carnet-findings[hidden] { display: none; }
+#midi-session-carnet .carnet-findings-label {
+  margin-right: 4px;
+  color: var(--tr-muted);
+  font: 9px var(--tr-mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+#midi-session-carnet .carnet-finding {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 5px 3px 9px;
+  border: 1px solid var(--tr-border);
+  border-radius: 6px;
+  background: var(--tr-surface);
+  color: var(--tr-text);
+  font-size: 11px;
+  cursor: help;
+}
+#midi-session-carnet .carnet-finding-dot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--tr-red);
+}
+#midi-session-carnet .carnet-finding.is-strength .carnet-finding-dot { background: var(--tr-green); }
+#midi-session-carnet .carnet-finding.is-major { border-color: color-mix(in srgb, var(--tr-red) 55%, var(--tr-border)); }
+#midi-session-carnet .carnet-finding-title { font-weight: 550; white-space: nowrap; }
+#midi-session-carnet .carnet-finding-detail {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+#midi-session-carnet .carnet-finding-time {
+  padding: 1px 5px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--tr-raised);
+  color: var(--tr-secondary);
+  font: 9px var(--tr-mono);
+  cursor: pointer;
+}
+#midi-session-carnet .carnet-finding-time:hover { background: var(--tr-accent-soft); color: var(--tr-accent); }
+#midi-session-carnet .carnet-finding-time:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 1px; }
+#midi-session-carnet .carnet-finding-more { color: var(--tr-muted); font: 9px var(--tr-mono); padding-right: 3px; }
 #carnet-entries {
   display: flex;
   flex-direction: row;
@@ -2016,4 +2094,64 @@
   color: var(--tr-muted);
   font: 9px var(--tr-mono);
   letter-spacing: .03em;
+}
+/* [Claude] — 2026-09-24 — Exemple à écouter, SOUS l'explication (Narcisse :
+   « il va directement me le jouer au lieu d'expliquer d'abord »). Un bouton
+   Écouter / Arrêter, le titre (accords), le style, et ce que fait chaque main. */
+#practice-view-copilot .tr-chat-demos.copilot-example {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 11px 13px;
+  border: 1px solid var(--tr-border);
+  border-radius: 8px;
+  background: var(--tr-inset);
+  transition: border-color .2s;
+}
+#practice-view-copilot .copilot-example.is-playing { border-color: var(--tr-accent); }
+#practice-view-copilot .copilot-example > .copilot-example-play {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border: 1px solid var(--tr-accent);
+  border-radius: 6px;
+  background: var(--tr-surface);
+  color: var(--tr-accent);
+  font-size: 11px;
+  font-weight: 550;
+  white-space: nowrap;
+  cursor: pointer;
+}
+#practice-view-copilot .copilot-example > .copilot-example-play:hover { background: var(--tr-accent-soft); }
+#practice-view-copilot .copilot-example > .copilot-example-play:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 2px; }
+#practice-view-copilot .copilot-example.is-playing > .copilot-example-play {
+  background: var(--tr-button);
+  border-color: var(--tr-button);
+  color: var(--tr-button-text);
+}
+#practice-view-copilot .copilot-example-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding-top: 1px;
+}
+#practice-view-copilot .copilot-example-text > strong { color: var(--tr-text); font-size: 11.5px; font-weight: 650; }
+#practice-view-copilot .copilot-example-text > small { color: var(--tr-muted); font-size: 9.5px; }
+#practice-view-copilot .copilot-example-hands {
+  margin: 5px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--tr-secondary);
+  font: 9.5px/1.5 var(--tr-mono);
+}
+#practice-view-copilot .copilot-example-hands b { color: var(--tr-accent); font-weight: 600; }
+@media (max-width: 640px) {
+  #practice-view-copilot .tr-chat-demos.copilot-example { flex-direction: column; }
 }
