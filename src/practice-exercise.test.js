@@ -20,7 +20,11 @@ import {
   isTextbookScope,
   exerciseVoicingsFor,
   voiceLeadingCost,
+  topNoteChoices,
+  spellChordTone,
+  renderTopNoteSelect,
 } from './practice-exercise.js';
+import { loadGrids, saveGrids, upsertGrid, removeGrid } from './practice-grids.js';
 import {
   respectsLowIntervalLimits, respectsFamilyDefinition, minorNinthClashes, hasEleventhAgainstMajorThird,
 } from './voicing-engine/textbook-voicings.js';
@@ -1458,6 +1462,72 @@ function checkLeftHandStyles() {
     chords.map((c) => c.voicing.leftHand.join()).join(' / '));
 }
 
+// [Claude] — 2026-09-24 — Voice leading, grille modifiable, grilles Perso (Narcisse :
+// « sur le do, il faut tel voice leading (si, ré…) », « modifier cet accord précis
+// sans tout recommencer », « enregistrer la grille […] catégorie Perso »).
+function checkMelodyAndGrids() {
+  console.log('\n=== Voice leading : note du dessus par accord ===');
+  const top = (chord) => Math.max(...chord.notes) % 12;
+  check('Notes possibles au dessus de Cmaj7 : C, E, G, B', topNoteChoices(0, 'maj7').map((c) => `${c.pc}:${c.degree}:${c.available}`).join() === '0:1:true,4:3:true,7:5:true,11:7:true',
+    topNoteChoices(0, 'maj7').map((c) => `${c.pc}:${c.degree}:${c.available}`).join());
+  check('Dessus épelé sur le degré (7e de Bbmaj7 = A, b7 de G7 = F, #9 de C7#9 = D#)',
+    spellChordTone('Bb', 11, 'maj7') === 'A' && spellChordTone('G', 10, '7') === 'F' && spellChordTone('C', 3, '7#9') === 'D#');
+
+  const ex = createPracticeExercise();
+  ex.setTechnique('auto');
+  ex.setKeyChoice(0);
+  ex.setCustomGrid([{ name: 'Cmaj7', top: 11 }, { name: 'Dm7', top: 10 }, { name: 'G7', top: 10 }, { name: 'Cmaj7', top: 4 }], { name: 'Ma louange' });
+  let prog = ex.getState().progression;
+  check('Grille nommée : jouée sous son nom, catégorie Perso', prog.name === 'Ma louange' && prog.category === 'Perso' && ex.getState().customGridName === 'Ma louange');
+  check('Mélodie B → C → F → E au dessus des accords', prog.chords.map(top).join() === '11,0,5,4', prog.chords.map(top).join());
+  check('Mélodie dans son registre (dessus au moins Mi4, voicings de 3 notes et plus)', prog.chords.every((c) => Math.max(...c.notes) >= 64 && c.notes.length >= 3),
+    prog.chords.map((c) => c.notes.join(' ')).join(' / '));
+  check('Accords marqués avec leur note du dessus (intervalle), rien de manqué', prog.chords.map((c) => c.topInterval).join() === '11,10,10,4' && prog.chords.every((c) => !c.topMissed));
+  ex.setStepTopNote(2, 4);
+  prog = ex.getState().progression;
+  check('Modifier la note du dessus d\'un accord précis (G7 : F → B) sans toucher aux autres', prog.chords.map(top).join() === '11,0,11,4', prog.chords.map(top).join());
+  check('La grille garde la note choisie sur la carte (bibliothèque, enregistrement)', ex.getState().customGrid.map((c) => c.top).join() === '11,10,4,4',
+    ex.getState().customGrid.map((c) => c.top).join());
+  ex.goToKey(1);
+  prog = ex.getState().progression;
+  check('Tonalité suivante (Réb) : la mélodie est transposée (C, Db, C, F)', prog.currentKey === 1 && prog.chords.map(top).join() === '0,1,0,5', prog.chords.map(top).join());
+  ex.goToStep(1);
+  ex.setVariant(1);
+  check('Flèches sur un accord : sa note du dessus imposée est libérée', ex.getState().progression.chords[1].topInterval == null && ex.getState().progression.chords[0].topInterval === 11);
+  check('Flèches : la grille garde sa note (exploration, pas une modification)', ex.getState().customGrid[1].top === 10);
+  ex.setStepTopNote(0, null);
+  check('Dessus libre : note du dessus retirée', ex.getState().progression.chords[0].topInterval == null);
+  ex.setDifficulty(3);
+  check('Changement de niveau (grille reconstruite) : les notes choisies sur la carte restent',
+    ex.getState().progression.chords.map((c) => c.topInterval ?? '-').join() === '-,10,4,4', ex.getState().progression.chords.map((c) => c.topInterval ?? '-').join());
+
+  const mv = createPracticeExercise();
+  mv.setKeyChoice(0);
+  mv.setCustomGrid([{ name: 'Dm11', top: 2 }]);
+  check('Dessus impossible (Dm11 avec la 9e au sommet) : signalé, dessus libre joué', mv.getState().progression.chords[0].topMissed === true);
+  const html = renderTopNoteSelect({ choices: [{ interval: 11, name: 'B', degree: '7', available: true }, { interval: 2, name: 'D', degree: '9', available: false }], selected: 11 });
+  check('Menu de la carte : dessus choisi, notes impossibles grisées', /value="11" selected/.test(html) && /value="2" disabled/.test(html) && html.includes('Dessus libre'));
+  const preview = mv.previewGrid([{ name: 'Cmaj7', top: 4 }, { name: 'Fmaj7', top: 4 }], 'Aperçu');
+  check('Aperçu d\'une grille Perso : dans son ton, mélodie comprise', preview?.length === 2 && preview.map(top).join() === '4,9', preview && preview.map(top).join());
+  check('Grille tapée à l\'ancienne (texte) : toujours acceptée', (() => { const t = createPracticeExercise(); t.setCustomGrid('Dm7 G7 Cmaj7'); return t.getState().progression.chords.length === 3; })());
+
+  console.log('\n=== Grilles Perso (enregistrées) ===');
+  const store = { data: {}, getItem(k) { return this.data[k] ?? null; }, setItem(k, v) { this.data[k] = v; } };
+  let ids = 0;
+  const makeId = () => `g${++ids}`;
+  let { grids, grid } = upsertGrid([], { name: 'Ma louange', chords: [{ name: 'Cmaj7', top: 11 }, { name: 'Dm7', top: null }] }, makeId);
+  check('Enregistrer une grille : nom, accords et notes du dessus gardés', grid.id === 'g1' && grids.length === 1 && grid.chords[0].top === 11 && grid.chords[1].top === null);
+  ({ grids } = upsertGrid(grids, { name: 'Autre', chords: [{ name: 'G7' }] }, makeId));
+  ({ grids, grid } = upsertGrid(grids, { name: 'ma louange ', chords: [{ name: 'Cmaj9', top: 2 }] }, makeId));
+  check('Même nom : mise à jour (même identifiant, en tête), pas de doublon', grids.length === 2 && grids[0].id === 'g1' && grids[0].chords[0].name === 'Cmaj9');
+  saveGrids(store, grids);
+  check('Rechargées depuis le stockage', loadGrids(store).map((g) => g.name).join() === 'ma louange,Autre');
+  check('Supprimer une grille', removeGrid(loadGrids(store), 'g1').map((g) => g.id).join() === 'g2');
+  store.data['piano-jazz-exercise-grids'] = '{abîmé';
+  check('Stockage illisible : aucune grille, pas d\'erreur', loadGrids(store).length === 0);
+  check('Grille sans nom ou sans accord refusée', upsertGrid([], { name: ' ', chords: [{ name: 'C7' }] }).grid === null && upsertGrid([], { name: 'X', chords: [] }).grid === null);
+}
+
 function checkChainedVoicings() {
   console.log('\n=== Mouvement : voicings enchaînés ===');
   let chained = 0; let fixed = 0; let pairs = 0;
@@ -1541,6 +1611,7 @@ async function runTests() {
   checkTypedCustomGrid();
   checkMovementNavigationAndKeys();
   checkChainedVoicings();
+  checkMelodyAndGrids();
   checkLeftHandStyles();
   checkCardDemoAdditions();
   checkPianistRealism();

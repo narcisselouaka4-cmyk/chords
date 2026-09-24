@@ -1345,6 +1345,16 @@
   background: var(--tr-accent);
   color: var(--tr-button-text);
 }
+/* [Claude] — 2026-09-24 — Voice leading : note du dessus choisie pour l'accord. */
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path .exercise-path-top,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path .exercise-path-top {
+  color: var(--tr-accent);
+  font: 10px var(--tr-mono);
+}
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path .exercise-path-top.is-missed,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path .exercise-path-top.is-missed {
+  color: var(--mini-key-added, #f59e0b);
+}
 /* [Claude] — 2026-09-24 — Accords de passage de la démo (Narcisse : « ajoute ces
    accords à droite ») : entre deux accords, en retrait et plus discrets ; allumés
    quand la démo les joue. Ce ne sont pas des étapes de l'exercice. */
@@ -1716,7 +1726,7 @@
 /* [Claude] — 2026-09-24 — Ma grille : accords choisis (fondamentale + qualité),
    en pastilles retirables, au lieu d'une saisie au clavier. */
 #exercise-library .exercise-grid-builder { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-#exercise-library .exercise-grid-picker { display: flex; gap: 8px; }
+#exercise-library .exercise-grid-picker { display: flex; flex-wrap: wrap; gap: 8px; }
 #exercise-library .exercise-grid-picker select {
   height: 36px;
   min-width: 0;
@@ -1729,7 +1739,9 @@
   cursor: pointer;
 }
 #exercise-library #exercise-grid-root { flex: 0 0 76px; }
-#exercise-library #exercise-grid-quality { flex: 1; }
+#exercise-library #exercise-grid-quality { flex: 1 1 110px; }
+#exercise-library #exercise-grid-top { flex: 1 1 130px; }
+#exercise-library .exercise-grid-picker select option:disabled { color: var(--tr-muted); }
 #exercise-library .exercise-grid-picker select:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 0; border-color: transparent; }
 #exercise-library .exercise-grid-builder .tr-button { height: 36px; white-space: nowrap; }
 #exercise-library .exercise-grid-chips {
@@ -1745,14 +1757,28 @@
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  padding: 3px 4px 3px 10px;
+  padding: 2px 4px 2px 2px;
   border: 1px solid var(--tr-border);
   border-radius: 999px;
   background: var(--tr-surface);
   color: var(--tr-text);
   font: 12px var(--tr-mono);
 }
-#exercise-library .exercise-grid-chips > li > button {
+/* Accord cliquable : on le modifie sans toucher aux autres. */
+#exercise-library .exercise-grid-chips > li > .exercise-grid-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  width: auto;
+  height: auto;
+  padding: 2px 6px 2px 8px;
+  border-radius: 999px;
+  color: var(--tr-text);
+  font: 12px var(--tr-mono);
+}
+#exercise-library .exercise-grid-chips > li > .exercise-grid-chip small { color: var(--tr-accent); font-size: 10.5px; }
+#exercise-library .exercise-grid-chips > li.is-editing { border-color: var(--tr-accent); background: var(--tr-accent-soft); }
+#exercise-library .exercise-grid-chips > li > button:not(.exercise-grid-chip) {
   display: grid;
   place-items: center;
   width: 20px;
@@ -1768,7 +1794,21 @@
 #exercise-library .exercise-grid-chips > li > button:hover { background: var(--tr-inset); color: var(--tr-text); }
 #exercise-library .exercise-grid-chips > li > button:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 0; }
 #exercise-library .exercise-grid-empty { color: var(--tr-muted); font-size: 11.5px; line-height: 30px; }
-#exercise-library .exercise-grid-actions { display: flex; justify-content: flex-end; gap: 8px; }
+#exercise-library .exercise-grid-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+#exercise-library #exercise-grid-name {
+  flex: 1 1 160px;
+  min-width: 0;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--tr-border);
+  border-radius: 8px;
+  background: var(--tr-surface);
+  color: var(--tr-text);
+  font: 12.5px inherit;
+}
+#exercise-library #exercise-grid-name:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 0; border-color: transparent; }
+#exercise-library .exercise-grid-status { min-height: 16px; margin: 0; color: var(--tr-accent); font-size: 11.5px; }
+#exercise-library .exercise-grid-status:empty { display: none; }
 #exercise-library .exercise-library-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; }
 #exercise-library .exercise-library-search { flex: 0 1 300px; }
 #exercise-library .exercise-library-search input { height: auto; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
@@ -1837,13 +1877,28 @@
 #exercise-library .exercise-library-card h4 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; font-weight: 550; letter-spacing: -.02em; line-height: 1.3; }
 #exercise-library .exercise-library-current { flex-shrink: 0; white-space: nowrap; padding: 2px 7px; border-radius: 999px; background: var(--tr-accent-soft); color: var(--tr-accent); font: 8.5px var(--tr-mono); letter-spacing: .04em; }
 #exercise-library .exercise-library-card p { margin: 0; color: var(--tr-secondary); font-size: 11.5px; line-height: 1.6; }
+#exercise-library .exercise-library-card-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: auto; }
+#exercise-library .exercise-library-card-count { color: var(--tr-muted); font: 9px var(--tr-mono); letter-spacing: .04em; text-transform: uppercase; }
+#exercise-library .exercise-library-grid-action {
+  height: 28px;
+  padding: 0 11px;
+  border: 1px solid var(--tr-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--tr-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+#exercise-library .exercise-library-grid-action:hover { border-color: var(--tr-accent); color: var(--tr-text); }
+#exercise-library .exercise-library-grid-action:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 1px; }
+#exercise-library .exercise-library-grid-action.is-danger.is-armed { border-color: var(--tr-red, #e5484d); background: var(--tr-red, #e5484d); color: #fff; }
 #exercise-library .exercise-library-play {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   align-self: flex-start;
   height: 28px;
-  margin-top: auto;
   padding: 0 11px;
   border: 1px solid var(--tr-border);
   border-radius: 999px;

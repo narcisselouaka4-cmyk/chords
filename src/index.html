@@ -374,23 +374,30 @@
             </div>
             <div class="tr-dialog-body exercise-library-body">
               <!-- [Claude] — 2026-09-24 — Ma grille : les accords se choisissent (fondamentale
-                   + qualité), plus de saisie au clavier (Narcisse : « pas pratique d'écrire »). -->
+                   + qualité), plus de saisie au clavier (Narcisse : « pas pratique d'écrire »).
+                   Puis : note du dessus par accord (voice leading), un accord précis se
+                   modifie d'un clic, la grille s'enregistre dans la catégorie Perso. -->
               <form class="exercise-grid-entry" id="exercise-grid-form" autocomplete="off">
                 <div class="exercise-grid-entry-text">
                   <span class="tr-eyebrow">MA GRILLE</span>
-                  <p>Choisissez vos accords un par un, extensions et altérations comprises : ils seront joués tels quels, ton après ton.</p>
+                  <p>Choisissez vos accords un par un, extensions et altérations comprises, et si vous voulez la note du dessus de chacun (votre mélodie) : ils seront joués tels quels, ton après ton. Cliquez un accord pour le modifier.</p>
                 </div>
                 <div class="exercise-grid-builder">
                   <div class="exercise-grid-picker">
-                    <select id="exercise-grid-root" aria-label="Fondamentale de l'accord à ajouter"></select>
-                    <select id="exercise-grid-quality" aria-label="Qualité de l'accord à ajouter"></select>
+                    <select id="exercise-grid-root" aria-label="Fondamentale de l'accord"></select>
+                    <select id="exercise-grid-quality" aria-label="Qualité de l'accord"></select>
+                    <select id="exercise-grid-top" aria-label="Note du dessus de l'accord (voice leading)" title="Voice leading : note jouée au sommet de l'accord"></select>
                     <button class="tr-button" type="button" id="exercise-grid-add">Ajouter</button>
+                    <button class="tr-button" type="button" id="exercise-grid-cancel" hidden>Annuler</button>
                   </div>
                   <ol class="exercise-grid-chips" id="exercise-grid-chips" aria-label="Accords de votre grille"></ol>
                   <div class="exercise-grid-actions">
+                    <input type="text" id="exercise-grid-name" placeholder="Nom de la grille" aria-label="Nom de la grille, pour l'enregistrer dans Perso" maxlength="60">
+                    <button class="tr-button" type="button" id="exercise-grid-save">Enregistrer</button>
                     <button class="tr-button" type="button" id="exercise-grid-clear">Tout effacer</button>
                     <button class="tr-button tr-primary" type="submit" id="exercise-grid-play">Jouer ma grille</button>
                   </div>
+                  <p class="exercise-grid-status" id="exercise-grid-status" role="status" aria-live="polite"></p>
                 </div>
               </form>
               <div class="tr-library-toolbar exercise-library-toolbar">

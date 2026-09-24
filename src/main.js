@@ -69,7 +69,10 @@ import {
   renderDoublingSelect,
   TOP_NOTE_FILTERS,
   TECHNIQUE_LABELS,
+  topNoteChoices,
+  spellChordTone,
 } from './practice-exercise.js';
+import { loadGrids, saveGrids, upsertGrid, removeGrid } from './practice-grids.js';
 import movementsLibrary from './data/movements-library.json' with { type: 'json' };
 import { keyLabel } from './practice-key-spelling.js';
 import {
@@ -208,6 +211,11 @@ const els = {
   exerciseGridAdd: document.getElementById('exercise-grid-add'),
   exerciseGridChips: document.getElementById('exercise-grid-chips'),
   exerciseGridClear: document.getElementById('exercise-grid-clear'),
+  exerciseGridTop: document.getElementById('exercise-grid-top'),
+  exerciseGridCancel: document.getElementById('exercise-grid-cancel'),
+  exerciseGridName: document.getElementById('exercise-grid-name'),
+  exerciseGridSave: document.getElementById('exercise-grid-save'),
+  exerciseGridStatus: document.getElementById('exercise-grid-status'),
   exerciseTargetChoice: document.getElementById('exercise-target-choice'),
   exerciseTargetRoot: document.getElementById('exercise-target-root'),
   exerciseTargetQuality: document.getElementById('exercise-target-quality'),
@@ -600,6 +608,15 @@ function feedDemoEvent(type, a, b) {
   } finally {
     state.isPlayback = false;
   }
+}
+
+// Notes possibles au dessus d'un accord (voice leading), mises en cache : le
+// calcul parcourt toutes les techniques.
+const topNoteChoicesCache = new Map();
+function cachedTopNoteChoices(rootPc, quality) {
+  const key = `${rootPc}|${quality}`;
+  if (!topNoteChoicesCache.has(key)) topNoteChoicesCache.set(key, topNoteChoices(rootPc, quality));
+  return topNoteChoicesCache.get(key);
 }
 
 // Rappels posés par initPracticeExercise (accord suivi, accord de passage, fin
@@ -1324,7 +1341,13 @@ function renderExerciseProgressPanel(exState) {
     const passing = demoHooks.passingChords?.(exState) || [];
     path.innerHTML = prog.chords.map((chord, i) => {
       const state = i === stepIndex ? 'is-active' : i < stepIndex ? 'is-done' : '';
-      const row = `<button type="button" class="${state}" data-step="${i}" title="Afficher ${chord.name}"${i === stepIndex ? ' aria-current="step"' : ''}><span>${i + 1}</span><div><strong>${chord.name || '—'}</strong></div></button>`;
+      // Voice leading : note du dessus choisie pour cet accord (⚠ si aucun voicing ne l'a au sommet).
+      const rootName = /^[A-G][#b]*/.exec(chord.name || '')?.[0];
+      const topName = chord.topInterval != null ? spellChordTone(rootName, chord.topInterval, chord.quality) : null;
+      const topTag = topName
+        ? `<small class="exercise-path-top${chord.topMissed ? ' is-missed' : ''}" title="${chord.topMissed ? `Aucun voicing n'a ${topName} au sommet : dessus libre joué` : `Dessus : ${topName}`}">♪ ${topName}${chord.topMissed ? ' ⚠' : ''}</small>`
+        : '';
+      const row = `<button type="button" class="${state}" data-step="${i}" title="Afficher ${chord.name}"${i === stepIndex ? ' aria-current="step"' : ''}><span>${i + 1}</span><div><strong>${chord.name || '—'}</strong>${topTag}</div></button>`;
       const p = passing.find((item) => item.after === i);
       if (!p) return row;
       const notes = (list) => list.map((n) => `${noteName(((n % 12) + 12) % 12)}${Math.floor(n / 12) - 1}`).join(' ');
@@ -1405,6 +1428,10 @@ function initPracticeExercise() {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 
+  // Note du dessus changée sur la carte d'une grille Perso, gardée dans la
+  // grille enregistrée ({ name, step }) : signalé sous la carte de cet accord.
+  let topSavedNotice = null;
+
   function render() {
     const exState = practiceExercise.getState();
     targetDiv.style.display = exState.target ? 'flex' : 'none';
@@ -1415,10 +1442,25 @@ function initPracticeExercise() {
       // Orthographe des notes selon la tonalité (Mouvement).
       const prog = exState.progression;
       const spelling = exState.mode === 'movement' && prog ? { keyPc: prog.currentKey, minor: Boolean(prog.minor) } : null;
+      // Voice leading : note du dessus de l'accord affiché (Mouvement).
+      let topNote = null;
+      const step = prog?.chords?.[prog.stepIndex || 0];
+      if (exState.mode === 'movement' && step) {
+        const rootName = /^[A-G][#b]*/.exec(step.name)?.[0];
+        if (topSavedNotice && (topSavedNotice.step !== (prog.stepIndex || 0) || topSavedNotice.name !== exState.customGridName)) topSavedNotice = null;
+        topNote = {
+          choices: cachedTopNoteChoices(step.rootPc, step.quality).map((c) => ({ ...c, name: spellChordTone(rootName, c.interval, step.quality) })),
+          selected: step.topInterval ?? null,
+          missed: Boolean(step.topMissed),
+          missedName: step.topInterval != null ? spellChordTone(rootName, step.topInterval, step.quality) : null,
+          savedIn: topSavedNotice?.name || null,
+        };
+      }
       targetDiv.innerHTML = renderExerciseTarget(exState.target, {
         categories, difficulty, variant: exState.variant, selectedTechnique: exState.technique,
         doubling: exState.doubling, isFavorite, layout: exState.mode === 'chord' ? 'chord' : 'default', spelling,
         leftHandStyle: exState.leftHandStyle,
+        topNote,
         demo: demoHooks.cardExtras?.(exState) || null,
       });
     }
@@ -1719,8 +1761,13 @@ function initPracticeExercise() {
   // [Claude] — 2026-09-24 — Fenêtre centrée (.tr-overlay, ouverte et fermée par
   // astra-shell.js : fond, Échap, ✕) ; onglet Progressions retiré avec le mode.
   let libraryCategory = null;
-  // Ma grille : noms des accords choisis, dans l'ordre (« Dm11 », « G7#9b13 »…).
+  // Ma grille : accords choisis, dans l'ordre ({ root, quality, top }).
   let gridChords = [];
+  // Grilles enregistrées (catégorie Perso de la bibliothèque).
+  let customGrids = loadGrids(window.localStorage);
+  // Grille dont la suppression attend confirmation (second clic).
+  let gridDeleteArmed = null;
+  let gridDeleteTimer = null;
   let librarySearch = '';
 
   function escapeHtml(str) {
@@ -1739,8 +1786,18 @@ function initPracticeExercise() {
       + '<span class="star empty" aria-hidden="true">☆</span>'.repeat(empty);
   }
 
+  // [Claude] — 2026-09-24 — Catégorie Perso : grilles enregistrées depuis « Ma
+  // grille » (Narcisse : « une nouvelle catégorie Perso pour y stocker toutes nos grilles »).
+  const PERSO_CATEGORY = 'Perso';
+  /** Résumé d'une grille enregistrée : accords et notes du dessus (« Dm11 ♪ C → G13 »). */
+  const gridSummary = (grid) => grid.chords.map((c) => {
+    const chord = gridChordFrom(c.name, c.top);
+    const top = chord ? gridTopLabel(chord) : '';
+    return top ? `${c.name} ♪ ${top}` : c.name;
+  }).join(' → ');
+
   function getLibraryItems() {
-    return (movementsLibrary?.movements || []).map((m) => ({
+    const movements = (movementsLibrary?.movements || []).map((m) => ({
       id: m.id,
       name: m.name,
       category: m.category || 'Mouvements 12 tons',
@@ -1749,6 +1806,17 @@ function initPracticeExercise() {
       tags: m.tags || [],
       style: m.style,
     }));
+    const perso = customGrids.map((g) => ({
+      id: g.id,
+      name: g.name,
+      category: PERSO_CATEGORY,
+      level: 0,
+      description: gridSummary(g),
+      tags: [],
+      style: undefined,
+      grid: g,
+    }));
+    return [...movements, ...perso];
   }
 
   function renderLibrary() {
@@ -1762,7 +1830,9 @@ function initPracticeExercise() {
         || item.description.toLowerCase().includes(q)
         || item.tags.some((tag) => tag.toLowerCase().includes(q)));
     }
-    const categories = [...new Set(all.map((i) => i.category))].sort((a, b) => a.localeCompare(b));
+    // Catégories de la bibliothèque par ordre alphabétique, Perso (vos grilles) en dernier.
+    const categories = [...new Set(all.map((i) => i.category))].filter((c) => c !== PERSO_CATEGORY)
+      .sort((a, b) => a.localeCompare(b)).concat(PERSO_CATEGORY);
     if (els.exerciseLibraryCategories) {
       els.exerciseLibraryCategories.innerHTML = [`<button type="button" class="exercise-library-chip ${libraryCategory ? '' : 'active'}" data-category="" aria-pressed="${!libraryCategory}">Tous<span class="exercise-library-count">${all.length}</span></button>`]
         .concat(categories.map((cat) => {
@@ -1772,19 +1842,29 @@ function initPracticeExercise() {
         })).join('');
     }
     if (libraryCategory) items = items.filter((i) => i.category === libraryCategory);
-    items.sort((a, b) => a.category.localeCompare(b.category) || (a.level || 0) - (b.level || 0) || a.name.localeCompare(b.name));
+    const persoLast = (item) => (item.category === PERSO_CATEGORY ? 1 : 0);
+    items.sort((a, b) => persoLast(a) - persoLast(b) || a.category.localeCompare(b.category) || (a.level || 0) - (b.level || 0) || a.name.localeCompare(b.name));
     if (!els.exerciseLibraryGrid) return;
     const current = practiceExercise.getState().progression?.name;
+    const empty = libraryCategory === PERSO_CATEGORY && !q
+      ? 'Aucune grille perso pour l\'instant : composez une grille dans « Ma grille », donnez-lui un nom puis « Enregistrer ».'
+      : 'Aucun mouvement ne correspond à votre recherche.';
     els.exerciseLibraryGrid.innerHTML = items.length === 0
-      ? '<div class="exercise-library-empty">Aucun mouvement ne correspond à votre recherche.</div>'
-      : items.map((item) => `<article class="exercise-library-card${item.name === current ? ' is-current' : ''}" data-id="${escapeAttr(item.id)}" tabindex="0" role="button" aria-label="${escapeAttr(`${item.name}, niveau ${item.level} sur 5`)}">
+      ? `<div class="exercise-library-empty">${empty}</div>`
+      : items.map((item) => `<article class="exercise-library-card${item.name === current ? ' is-current' : ''}${item.grid ? ' is-perso' : ''}" data-id="${escapeAttr(item.id)}" tabindex="0" role="button" aria-label="${escapeAttr(item.grid ? `${item.name}, grille perso` : `${item.name}, niveau ${item.level} sur 5`)}">
             <div class="exercise-library-card-header">
               <span class="exercise-library-card-category">${escapeHtml(item.category)}</span>
-              <span class="exercise-library-card-stars" title="Niveau ${item.level} sur 5">${renderStarString(item.level)}</span>
+              ${item.grid
+    ? `<span class="exercise-library-card-count">${item.grid.chords.length} accord${item.grid.chords.length > 1 ? 's' : ''}</span>`
+    : `<span class="exercise-library-card-stars" title="Niveau ${item.level} sur 5">${renderStarString(item.level)}</span>`}
             </div>
             <h4>${escapeHtml(item.name)}${item.name === current ? '<span class="exercise-library-current">En cours</span>' : ''}</h4>
             <p>${escapeHtml(item.description)}</p>
-            <button type="button" class="exercise-library-play${previewId === item.id ? ' is-playing' : ''}" data-preview="${escapeAttr(item.id)}" aria-label="${escapeAttr(`${previewId === item.id ? 'Arrêter' : 'Écouter'} : ${item.name}`)}">${previewId === item.id ? DEMO_STOP_ICON : DEMO_PLAY_ICON}<span>${previewId === item.id ? 'Arrêter' : 'Écouter'}</span></button>
+            <div class="exercise-library-card-actions">
+              <button type="button" class="exercise-library-play${previewId === item.id ? ' is-playing' : ''}" data-preview="${escapeAttr(item.id)}" aria-label="${escapeAttr(`${previewId === item.id ? 'Arrêter' : 'Écouter'} : ${item.name}`)}">${previewId === item.id ? DEMO_STOP_ICON : DEMO_PLAY_ICON}<span>${previewId === item.id ? 'Arrêter' : 'Écouter'}</span></button>
+              ${item.grid ? `<button type="button" class="exercise-library-grid-action" data-grid-load="${escapeAttr(item.id)}" aria-label="${escapeAttr(`Modifier la grille ${item.name}`)}">Modifier</button>
+              <button type="button" class="exercise-library-grid-action is-danger${gridDeleteArmed === item.id ? ' is-armed' : ''}" data-grid-delete="${escapeAttr(item.id)}" aria-label="${escapeAttr(`Supprimer la grille ${item.name}`)}">${gridDeleteArmed === item.id ? 'Confirmer' : 'Supprimer'}</button>` : ''}
+            </div>
           </article>`).join('');
   }
 
@@ -1793,8 +1873,12 @@ function initPracticeExercise() {
     libraryCategory = null;
     librarySearch = '';
     if (els.exerciseLibrarySearch) els.exerciseLibrarySearch.value = '';
-    const grid = practiceExercise.getState().customGrid;
-    if (grid) gridChords = grid.map((t) => t.name);
+    const exState = practiceExercise.getState();
+    if (exState.customGrid) {
+      gridChords = exState.customGrid.map((t) => gridChordFrom(t.name, t.top)).filter(Boolean);
+      if (els.exerciseGridName) els.exerciseGridName.value = exState.customGridName || '';
+    }
+    gridEditing = null;
     renderGridChips();
     renderLibrary();
   }
@@ -1817,7 +1901,8 @@ function initPracticeExercise() {
   function selectLibraryCard(item) {
     demoPlayer.stop();
     if (!ensureMovementMode()) return;
-    practiceExercise.setContentChoice(item.name);
+    if (item.grid) practiceExercise.setCustomGrid(item.grid.chords, { name: item.grid.name });
+    else practiceExercise.setContentChoice(item.name);
     closeLibrary();
     feedbackDiv.textContent = '';
     render();
@@ -1828,10 +1913,13 @@ function initPracticeExercise() {
 
   // ── Ma grille : accords choisis un par un (fondamentale + qualité) ──
   // [Claude] — 2026-09-24 — Narcisse : « pas pratique d'écrire, mieux de
-  // sélectionner ». La grille reste transmise au moteur comme avant (symboles
-  // séparés par des espaces, setCustomGrid).
+  // sélectionner ». Puis : note du dessus par accord (voice leading), un accord
+  // précis se modifie d'un clic (« sans tout recommencer »), la grille
+  // s'enregistre sous un nom dans la catégorie Perso de la bibliothèque.
+  // gridChords : { root: 'D', quality: 'm11', top: intervalle | null }.
   const GRID_ROOTS = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
   const GRID_MAX = 16;
+  let gridEditing = null; // rang de l'accord en cours de modification
   if (els.exerciseGridRoot) {
     els.exerciseGridRoot.innerHTML = GRID_ROOTS.map((name) => `<option value="${name}">${name}</option>`).join('');
   }
@@ -1843,31 +1931,148 @@ function initPracticeExercise() {
     els.exerciseGridQuality.value = 'm7';
   }
 
+  const gridChordName = (c) => `${c.root}${c.quality}`;
+  /** Accord de grille depuis son nom (« Dm11 ») et sa note du dessus. */
+  const gridChordFrom = (name, top = null) => {
+    const match = /^([A-G][#b]?)(.*)$/.exec(String(name || ''));
+    return match ? { root: match[1], quality: match[2], top: Number.isInteger(top) ? top : null } : null;
+  };
+  const gridTopLabel = (c) => (c.top == null ? '' : spellChordTone(c.root, c.top, c.quality));
+
+  /** Menu « Dessus » : notes de l'accord choisi, grisées si aucun voicing ne les met au sommet. */
+  function renderGridTopOptions(selected = null) {
+    if (!els.exerciseGridTop || !els.exerciseGridRoot || !els.exerciseGridQuality) return;
+    const root = els.exerciseGridRoot.value;
+    const quality = els.exerciseGridQuality.value;
+    const rootPc = GRID_ROOTS.indexOf(root);
+    const choices = rootPc >= 0 ? cachedTopNoteChoices(rootPc, quality) : [];
+    els.exerciseGridTop.innerHTML = ['<option value="">Dessus libre</option>']
+      .concat(choices.map((c) => `<option value="${c.interval}"${c.available ? '' : ' disabled'}>Dessus ${escapeAttr(spellChordTone(root, c.interval, quality))} (${escapeAttr(c.degree)})</option>`))
+      .join('');
+    const keep = choices.find((c) => c.interval === selected && c.available);
+    els.exerciseGridTop.value = keep ? String(selected) : '';
+  }
+
   function renderGridChips() {
     if (!els.exerciseGridChips) return;
     els.exerciseGridChips.innerHTML = gridChords.length
-      ? gridChords.map((name, i) => `<li><span>${escapeAttr(name)}</span><button type="button" data-grid-remove="${i}" aria-label="Retirer ${escapeAttr(name)}" title="Retirer">×</button></li>`).join('')
+      ? gridChords.map((c, i) => {
+        const name = gridChordName(c);
+        const top = gridTopLabel(c);
+        return `<li class="${i === gridEditing ? 'is-editing' : ''}"><button type="button" class="exercise-grid-chip" data-grid-edit="${i}" title="Modifier cet accord" aria-label="Modifier l'accord ${i + 1} : ${escapeAttr(name)}${top ? `, dessus ${escapeAttr(top)}` : ''}">${escapeAttr(name)}${top ? `<small>♪ ${escapeAttr(top)}</small>` : ''}</button><button type="button" data-grid-remove="${i}" aria-label="Retirer ${escapeAttr(name)}" title="Retirer">×</button></li>`;
+      }).join('')
       : '<li class="exercise-grid-empty">Aucun accord pour l\'instant : choisissez une fondamentale et une qualité, puis « Ajouter ».</li>';
-    if (els.exerciseGridAdd) els.exerciseGridAdd.disabled = gridChords.length >= GRID_MAX;
+    const editing = gridEditing != null;
+    if (els.exerciseGridAdd) {
+      els.exerciseGridAdd.textContent = editing ? `Modifier l'accord ${gridEditing + 1}` : 'Ajouter';
+      els.exerciseGridAdd.disabled = !editing && gridChords.length >= GRID_MAX;
+    }
+    if (els.exerciseGridCancel) els.exerciseGridCancel.hidden = !editing;
   }
 
+  /**
+   * Grille Perso en cours : la note du dessus choisie sur la carte est gardée
+   * dans la grille enregistrée (même nom), comme si elle avait été modifiée
+   * dans « Ma grille ». Les flèches (variantes) ne touchent pas la grille.
+   * @returns {{name: string, step: number}|null}
+   */
+  function keepCardTopInPerso(step) {
+    const exState = practiceExercise.getState();
+    const name = String(exState.customGridName || '').trim().toLowerCase();
+    const saved = name ? customGrids.find((g) => g.name.trim().toLowerCase() === name) : null;
+    if (!saved || !exState.customGrid) return null;
+    // Grille jouée sous ce nom mais changée sans être enregistrée : on n'écrase rien.
+    const sameChords = saved.chords.length === exState.customGrid.length
+      && saved.chords.every((c, i) => c.name === exState.customGrid[i].name);
+    if (!sameChords) return null;
+    const { grids, grid } = upsertGrid(customGrids, { name: saved.name, chords: exState.customGrid.map((c) => ({ name: c.name, top: c.top })) });
+    if (!grid) return null;
+    customGrids = grids;
+    saveGrids(window.localStorage, customGrids);
+    return { name: exState.customGridName, step };
+  }
+
+  function gridStatus(message) {
+    if (!els.exerciseGridStatus) return;
+    els.exerciseGridStatus.textContent = message;
+    clearTimeout(gridStatus.timer);
+    gridStatus.timer = setTimeout(() => { els.exerciseGridStatus.textContent = ''; }, 4000);
+  }
+
+  function stopGridEditing() {
+    gridEditing = null;
+    renderGridChips();
+  }
+
+  els.exerciseGridRoot?.addEventListener('change', () => renderGridTopOptions(els.exerciseGridTop?.value === '' ? null : Number(els.exerciseGridTop?.value)));
+  els.exerciseGridQuality?.addEventListener('change', () => renderGridTopOptions(els.exerciseGridTop?.value === '' ? null : Number(els.exerciseGridTop?.value)));
   els.exerciseGridAdd?.addEventListener('click', () => {
     const root = els.exerciseGridRoot?.value;
     const quality = els.exerciseGridQuality?.value ?? '';
-    if (!root || gridChords.length >= GRID_MAX) return;
-    gridChords.push(`${root}${quality}`);
+    if (!root) return;
+    const topValue = els.exerciseGridTop?.value ?? '';
+    const chord = { root, quality, top: topValue === '' ? null : Number(topValue) };
+    if (gridEditing != null) {
+      // Modification d'un accord précis : les autres restent tels quels.
+      gridChords[gridEditing] = chord;
+      gridStatus(`Accord ${gridEditing + 1} modifié : ${gridChordName(chord)}${chord.top != null ? ` (dessus ${gridTopLabel(chord)})` : ''}.`);
+      gridEditing = null;
+    } else {
+      if (gridChords.length >= GRID_MAX) return;
+      gridChords.push(chord);
+    }
     renderGridChips();
   });
+  els.exerciseGridCancel?.addEventListener('click', stopGridEditing);
   els.exerciseGridChips?.addEventListener('click', (e) => {
     const remove = e.target.closest('[data-grid-remove]');
-    if (!remove) return;
-    gridChords.splice(Number(remove.dataset.gridRemove), 1);
+    if (remove) {
+      const index = Number(remove.dataset.gridRemove);
+      gridChords.splice(index, 1);
+      if (gridEditing === index) gridEditing = null;
+      else if (gridEditing != null && gridEditing > index) gridEditing -= 1;
+      renderGridChips();
+      return;
+    }
+    const edit = e.target.closest('[data-grid-edit]');
+    if (!edit) return;
+    // Un clic sur un accord le charge dans les menus pour le modifier.
+    const index = Number(edit.dataset.gridEdit);
+    const chord = gridChords[index];
+    if (!chord) return;
+    gridEditing = index;
+    if (els.exerciseGridRoot) els.exerciseGridRoot.value = GRID_ROOTS.includes(chord.root) ? chord.root : 'C';
+    if (els.exerciseGridQuality) els.exerciseGridQuality.value = chord.quality;
+    renderGridTopOptions(chord.top);
     renderGridChips();
   });
   els.exerciseGridClear?.addEventListener('click', () => {
     gridChords = [];
+    gridEditing = null;
+    if (els.exerciseGridName) els.exerciseGridName.value = '';
     renderGridChips();
   });
+  // Enregistrer : catégorie Perso de la bibliothèque (même nom = mise à jour).
+  els.exerciseGridSave?.addEventListener('click', () => {
+    if (gridChords.length === 0) {
+      els.exerciseGridRoot?.focus();
+      gridStatus('Ajoutez au moins un accord avant d\'enregistrer.');
+      return;
+    }
+    const name = els.exerciseGridName?.value.trim() || '';
+    if (!name) {
+      els.exerciseGridName?.focus();
+      gridStatus('Donnez un nom à la grille pour l\'enregistrer.');
+      return;
+    }
+    const { grids, grid } = upsertGrid(customGrids, { name, chords: gridChords.map((c) => ({ name: gridChordName(c), top: c.top })) });
+    if (!grid) return;
+    customGrids = grids;
+    saveGrids(window.localStorage, customGrids);
+    gridStatus(`« ${grid.name} » enregistrée dans Perso.`);
+    renderLibrary();
+  });
+  renderGridTopOptions();
   renderGridChips();
 
   els.exerciseGridForm?.addEventListener('submit', (e) => {
@@ -1876,9 +2081,9 @@ function initPracticeExercise() {
       els.exerciseGridRoot?.focus();
       return;
     }
-    const value = gridChords.join(' ');
     if (practiceExercise.getState().mode !== 'movement' && !maybeConfirmReset()) return;
-    practiceExercise.setCustomGrid(value);
+    const name = els.exerciseGridName?.value.trim() || null;
+    practiceExercise.setCustomGrid(gridChords.map((c) => ({ name: gridChordName(c), top: c.top })), { name });
     setModeButtonActive('movement');
     closeLibrary();
     feedbackDiv.textContent = '';
@@ -1908,11 +2113,44 @@ function initPracticeExercise() {
       togglePreview(play.dataset.preview);
       return;
     }
+    // Grille Perso : « Modifier » la charge dans « Ma grille » (même nom = mise à jour).
+    const load = e.target.closest('[data-grid-load]');
+    if (load) {
+      const grid = customGrids.find((g) => g.id === load.dataset.gridLoad);
+      if (!grid) return;
+      gridChords = grid.chords.map((c) => gridChordFrom(c.name, c.top)).filter(Boolean);
+      gridEditing = null;
+      if (els.exerciseGridName) els.exerciseGridName.value = grid.name;
+      renderGridChips();
+      gridStatus(`« ${grid.name} » chargée : cliquez un accord pour le modifier, puis « Enregistrer ».`);
+      els.exerciseGridForm?.scrollIntoView({ block: 'nearest' });
+      return;
+    }
+    // « Supprimer » demande une confirmation (second clic dans les 3 s).
+    const del = e.target.closest('[data-grid-delete]');
+    if (del) {
+      const id = del.dataset.gridDelete;
+      if (gridDeleteArmed !== id) {
+        gridDeleteArmed = id;
+        clearTimeout(gridDeleteTimer);
+        gridDeleteTimer = setTimeout(() => { gridDeleteArmed = null; renderLibrary(); }, 3000);
+        renderLibrary();
+        return;
+      }
+      const grid = customGrids.find((g) => g.id === id);
+      customGrids = removeGrid(customGrids, id);
+      saveGrids(window.localStorage, customGrids);
+      gridDeleteArmed = null;
+      clearTimeout(gridDeleteTimer);
+      if (grid) gridStatus(`« ${grid.name} » supprimée de Perso.`);
+      renderLibrary();
+      return;
+    }
     const card = e.target.closest('.exercise-library-card');
     if (card) pickLibraryCard(card);
   });
   els.exerciseLibraryGrid?.addEventListener('keydown', (e) => {
-    if (e.target.closest('[data-preview]')) return;
+    if (e.target.closest('[data-preview], [data-grid-load], [data-grid-delete]')) return;
     const card = e.target.closest('.exercise-library-card');
     if (!card || (e.key !== 'Enter' && e.key !== ' ')) return;
     e.preventDefault();
@@ -1992,9 +2230,12 @@ function initPracticeExercise() {
     }
     const item = getLibraryItems().find((i) => i.id === id);
     const exState = practiceExercise.getState();
-    // Aperçu dans la tonalité en cours (sinon le départ choisi, sinon Do).
+    // Aperçu dans la tonalité en cours (sinon le départ choisi, sinon Do) ; une
+    // grille Perso, dans le ton où elle a été écrite.
     const key = exState.mode === 'movement' && exState.progression ? exState.progression.currentKey : (exState.keyChoice ?? 0);
-    const chords = item ? practiceExercise.previewMovement(item.name, key) : null;
+    const chords = !item ? null : item.grid
+      ? practiceExercise.previewGrid(item.grid.chords, item.grid.name)
+      : practiceExercise.previewMovement(item.name, key);
     if (chords) startDemo(chords, { kind: 'preview', previewId: id }, item.style);
   }
 
@@ -2161,6 +2402,15 @@ function initPracticeExercise() {
   // catégories de voicings recréées à chaque render.
   // Doublures : menu rendu dans la carte (recréé à chaque rendu), donc délégué.
   targetDiv?.addEventListener('change', (e) => {
+    // [Claude] — 2026-09-24 — Voice leading : note du dessus de l'accord affiché.
+    const top = e.target.closest('[data-exercise-top]');
+    if (top) {
+      const step = practiceExercise.getState().progression?.stepIndex || 0;
+      practiceExercise.setStepTopNote(step, top.value === '' ? null : Number(top.value));
+      topSavedNotice = keepCardTopInPerso(step);
+      render();
+      return;
+    }
     // [Claude] — 2026-09-24 — Main gauche d'un style ajoutée au voicing (menu de la carte).
     const leftHand = e.target.closest('[data-exercise-left-hand]');
     if (leftHand) {

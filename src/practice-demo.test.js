@@ -116,6 +116,27 @@ const run = finalRun(chordOf(5, 'maj9', [41, 48], [57, 60, 64, 67]), [57, 60, 64
 check('Montée finale 1-2-5 : F4 G4 C5 F5 G5 C6 F6 (deux octaves, terminée sur la fondamentale)', run.join() === '65,67,72,77,79,84,89', run.join());
 check('Pas de montée sur un accord altéré', finalRun(chordOf(5, '7alt', [41, 51], [57, 59, 63, 68]), [57, 59, 63, 68]).length === 0);
 
+// [Claude] — 2026-09-24 — Voice leading choisi (Narcisse : « sur le do, il faut tel
+// voice leading (si, ré…) ») : la démo garde la mélodie telle quelle.
+console.log('\n=== Démo : mélodie choisie ===');
+{
+  const ex = createPracticeExercise();
+  ex.setTechnique('auto');
+  ex.setKeyChoice(0);
+  ex.setCustomGrid([{ name: 'Cmaj7', top: 11 }, { name: 'Dm7', top: 10 }, { name: 'G7', top: 10 }, { name: 'Cmaj7', top: 4 }]);
+  const grid = ex.getState().progression.chords;
+  for (const style of DEMO_STYLE_IDS) {
+    const demo = buildDemo(grid, style);
+    // Dessus de la main droite dans chaque mesure, hors accord de passage (4e temps).
+    const tops = grid.map((c, i) => {
+      const bar = demo.events.filter((e) => e.type === 'noteOn' && e.hand === 'rh' && e.time >= i * 4 && e.time < (i === grid.length - 1 ? Infinity : i * 4 + 3));
+      return bar.length ? Math.max(...bar.map((e) => e.note)) % 12 : null;
+    });
+    check(`${DEMO_STYLES[style].label} : mélodie B → C → F → E jouée telle quelle (ni broderie, ni montée finale)`, tops.join() === '11,0,5,4', tops.join());
+    check(`${DEMO_STYLES[style].label} : grille à mélodie jouable à deux mains, sans pédale`, playabilityProblems(demo, grid).length === 0, playabilityProblems(demo, grid).slice(0, 3).join(' ; '));
+  }
+}
+
 console.log('\n=== Démo : grille complète ===');
 const chords = movement('Cadence II-V-I majeur');
 const { events, beats } = buildGospelDemo(chords);

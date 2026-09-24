@@ -537,7 +537,8 @@ export function buildGospelDemo(chords, { beatsPerChord = 4 } = {}) {
     score.step(t, i);
     if (last) {
       const release = t + beatsPerChord - LIFT;
-      const run = hands.stride ? [] : finalRun(chord, rh, lh);
+      // Mélodie choisie sur le dernier accord : elle finit la démo, pas de montée par-dessus.
+      const run = hands.stride || chord.topInterval != null ? [] : finalRun(chord, rh, lh);
       const runStart = t + 1.5;
       const hold = t + beatsPerChord + 1;
       playLeftHand(score, t, hands, score.shade(i, 0.6), run.length ? hold : release, { roll, beatsPerChord });
@@ -557,7 +558,8 @@ export function buildGospelDemo(chords, { beatsPerChord = 4 } = {}) {
     const release = t + held - LIFT;
     playLeftHand(score, t, hands, score.shade(i, 0.6), release, { roll, beatsPerChord: held });
     const followTop = passing ? passing.rh : bars[i + 1].rh;
-    const neighbour = topNeighbour(chord, lh, rh, followTop.length ? followTop[followTop.length - 1] : null);
+    // Note du dessus choisie par l'utilisateur (voice leading) : pas de broderie, la mélodie est la sienne.
+    const neighbour = chord.topInterval != null ? null : topNeighbour(chord, lh, rh, followTop.length ? followTop[followTop.length - 1] : null);
     if (neighbour == null) {
       score.hand(rhStart, rh, score.shade(i, 0.52), release, { roll, accentTop: 0.08 });
     } else {

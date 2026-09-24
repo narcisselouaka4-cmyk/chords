@@ -129,6 +129,11 @@ function testDomContract() {
   check(['exercise-grid-root', 'exercise-grid-quality', 'exercise-grid-add', 'exercise-grid-chips', 'exercise-grid-clear', 'exercise-grid-play']
     .every((id) => html.includes(`id="${id}"`)) && !html.includes('id="exercise-grid-input"'),
     'DOM — Ma grille : sélecteur fondamentale + qualité, pastilles, plus de champ texte');
+  // [Claude] — 2026-09-24 — Note du dessus par accord, accord modifiable, grille
+  // enregistrée sous un nom (catégorie Perso de la bibliothèque).
+  check(['exercise-grid-top', 'exercise-grid-cancel', 'exercise-grid-name', 'exercise-grid-save', 'exercise-grid-status']
+    .every((id) => html.includes(`id="${id}"`)),
+    'DOM — Ma grille : note du dessus, modification d\'un accord, enregistrement nommé');
 
   // CSS : panneaux jamais branchés (voir plus haut) + navigation réelle. Les
   // styles du rail et des tiroirs (.app-rail, .rail-btn, .domain-drawer,
