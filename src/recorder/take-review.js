@@ -259,18 +259,28 @@ function describeRhythm(windows, lines) {
 
 // ── Comparaison à la demande ──
 
-function compareToQuestion(question, chords, lines) {
+function compareToQuestion(question, chords, lines, expect = null) {
   const out = { asked: [], issues: [], strengths: [], expected: null, key: null, scale: null };
   const text = String(question || '').trim();
-  if (!text) return out;
-  const intent = classifyIntent(text);
-  const params = intent.params || {};
-  const key = extractKey(text);
+  // [Claude] — 2026-09-25 — Attentes explicites (l'exercice en cours) : elles passent
+  // avant la lecture de la question ; un accord de l'exercice non joué n'est pas
+  // signalé (on peut ne jouer que l'accord en cours), sauf si aucun n'est entendu.
+  const fromExercise = Boolean(expect?.chords?.length);
+  if (!text && !fromExercise) return out;
+  const intent = text ? classifyIntent(text) : { params: {} };
+  const params = { ...(intent.params || {}) };
+  if (fromExercise) {
+    params.chords = expect.chords;
+    params.chordSymbol = null;
+    if (expect.technique) params.technique = expect.technique;
+    out.asked.push(`exercice : ${expect.label || expect.chords.join(' → ')}`);
+  }
+  const key = fromExercise && Number.isInteger(expect.keyPc) ? { rootPc: expect.keyPc, minor: Boolean(expect.minor), fromExercise: true } : extractKey(text);
   if (key) out.key = key;
 
   // Accords voulus (une grille, un II-V-I, un accord seul) ; pour une question sur
   // une ligne (« mon lick sur G7 »), l'accord nommé est celui sous la ligne.
-  const aboutLine = LINE_QUESTION.test(text) && lines.length > 0;
+  const aboutLine = !fromExercise && LINE_QUESTION.test(text) && lines.length > 0;
   if (aboutLine && params.chordSymbol) out.contextChord = params.chordSymbol;
   const expected = aboutLine ? [] : params.chords?.length ? params.chords : params.chordSymbol ? [params.chordSymbol] : [];
   if (expected.length && chords.length) {
@@ -316,13 +326,18 @@ function compareToQuestion(question, chords, lines) {
       const missing = guides.filter((i) => !played.notes.some((n) => pcOf(n - want.rootPc) === i));
       return { name, status, played, problemNotes, missing: missing.map((i) => pcOf(want.rootPc + i)) };
     }).filter(Boolean);
-    const bad = rows.filter((r) => r.status === 'missing' || r.status === 'wrong-quality');
-    if (bad.length === 0) {
+    // Exercice : seuls les accords joués comptent (sauf si aucun n'est entendu).
+    const heardAny = rows.some((r) => r.status !== 'missing');
+    const considered = fromExercise && heardAny ? rows.filter((r) => r.status !== 'missing') : rows;
+    const bad = considered.filter((r) => r.status === 'missing' || r.status === 'wrong-quality');
+    if (fromExercise && !heardAny) {
+      out.issues.push({ id: 'intent-missing', title: 'Accords de l\'exercice pas entendus', at: null, chord: null, notes: [], problemNotes: [], missing: [], text: `Je n'entends pas les accords de l'exercice (${expected.join(' → ')}) dans ce passage : rejoue l'accord en cours (ou le mouvement) si tu veux que je l'écoute.` });
+    } else if (bad.length === 0) {
       const variants = rows.filter((r) => r.status === 'variant').map((r) => `${r.played.name} pour ${r.name}`);
       const rootlessRows = rows.filter((r) => r.status === 'rootless').map((r) => `${r.played.notes.map((n) => frenchNote(n)).join(' ')} = ${r.name} sans fondamentale`);
-      out.strengths.push({ id: 'intent-chords', text: `Les accords voulus sont là : ${rows.map((r) => (r.status === 'rootless' ? r.name : r.played.name)).join(' → ')}${variants.length ? ` (${variants.join(', ')} : même fonction, couleurs en plus)` : ''}${rootlessRows.length ? ` (${rootlessRows.join(' ; ')} : voicing rootless, la basse ou la main gauche prend la fondamentale)` : ''}.` });
+      out.strengths.push({ id: 'intent-chords', text: `Les accords voulus sont là : ${considered.map((r) => (r.status === 'rootless' ? r.name : r.played.name)).join(' → ')}${variants.length ? ` (${variants.join(', ')} : même fonction, couleurs en plus)` : ''}${rootlessRows.length ? ` (${rootlessRows.join(' ; ')} : voicing rootless, la basse ou la main gauche prend la fondamentale)` : ''}.` });
     }
-    for (const r of bad) {
+    for (const r of fromExercise && !heardAny ? [] : bad) {
       if (r.status === 'missing') {
         out.issues.push({ id: 'intent-missing', title: `${r.name} pas entendu`, at: null, chord: r.name, notes: [], problemNotes: [], missing: [], text: `Je n'entends pas ${r.name} dans ce passage : rejoue-le si tu veux que je l'écoute.` });
       } else {
@@ -332,14 +347,13 @@ function compareToQuestion(question, chords, lines) {
         const swaps = r.problemNotes.map((from) => ({ from, to: nearestFitting(from, { chord: want, prefer: r.missing }) })).filter((x) => x.to != null);
         const covered = new Set(swaps.map((x) => pcOf(x.to)));
         const adds = r.missing.filter((pc) => !covered.has(pc));
-        const ideas = [
-          ...swaps.map((x) => `${noteWithRole(x.to, want)} à la place de ${frenchNote(x.from)}`),
-          ...(adds.length ? [`ajoute ${adds.map((pc) => `${frenchPitchName(pc, want)} (${degreeWord(noteRoles(want, [pc + 60])[0]?.degree || '')})`).join(', ')}`] : []),
-        ];
+        const swapText = swaps.map((x) => `${noteWithRole(x.to, want)} à la place de ${frenchNote(x.from)}`).join(', ');
+        const addText = adds.map((pc) => `${frenchPitchName(pc, want)} (${degreeWord(noteRoles(want, [pc + 60])[0]?.degree || '')})`).join(', ');
+        const idea = swapText ? `essaie ${swapText}${addText ? ` et ajoute ${addText}` : ''}` : addText ? `ajoute ${addText}` : '';
         out.issues.push({
           id: 'intent-chord', title: `Pour retrouver ${r.name}`, at: r.played.at, chord: r.played.name, notes: r.played.notes,
           problemNotes: r.problemNotes, missing: r.missing, fixChord: r.name,
-          text: `${takeMoment(r.played.at)} : pour ${r.name}, j'entends ${r.played.name} (${names(r.played.notes)})${ideas.length ? ` ; essaie ${ideas.join(', ')}` : ''}.`,
+          text: `${takeMoment(r.played.at)} : pour ${r.name}, j'entends ${r.played.name} (${names(r.played.notes)})${idea ? ` ; ${idea}` : ''}.`,
         });
       }
     }
@@ -404,10 +418,11 @@ function compareToQuestion(question, chords, lines) {
 /**
  * Portrait d'un passage joué (voir l'en-tête).
  * @param {object[]} events - évènements au format de l'enregistreur, temps en secondes depuis le début du passage
- * @param {{question?: string}} [options] - question de l'élève (ce qu'il voulait jouer)
+ * @param {{question?: string, expect?: {chords: string[], technique?: string|null, keyPc?: number|null, minor?: boolean, label?: string}|null}} [options]
+ *   question du pianiste (ce qu'il voulait jouer) ; expect : attentes explicites (l'exercice en cours)
  * @returns {object|null}
  */
-export function reviewTake(events, { question = '' } = {}) {
+export function reviewTake(events, { question = '', expect = null } = {}) {
   const sorted = [...(events || [])].filter((e) => Number.isFinite(e?.time)).sort((a, b) => a.time - b.time);
   const windows = buildNoteWindows(sorted);
   if (windows.length === 0) return null;
@@ -423,13 +438,13 @@ export function reviewTake(events, { question = '' } = {}) {
   const perf = analyzeSessionPerformance(sorted);
   const cadences = findCadences(chords);
   const lineNoteCount = lines.reduce((n, l) => n + l.notes.length, 0);
-  const intent = compareToQuestion(question, chords, lines);
+  const intent = compareToQuestion(question, chords, lines, expect);
   // Tonalité : celle que la question annonce (« un 2-5-1 en Fa »), sinon celle
   // que l'application entend (assez de matière : trois accords ou huit notes).
   let key = null;
   if (intent.key) {
     const mode = intent.key.minor ? 'minor' : 'major';
-    key = { pc: intent.key.rootPc, mode, label: `${ROOTS_FR[intent.key.rootPc]} ${mode === 'minor' ? 'mineur' : 'majeur'}`, confidence: 1, source: 'question' };
+    key = { pc: intent.key.rootPc, mode, label: `${ROOTS_FR[intent.key.rootPc]} ${mode === 'minor' ? 'mineur' : 'majeur'}`, confidence: 1, source: intent.key.fromExercise ? 'exercice' : 'question' };
   } else if (chords.length >= 3 || lineNoteCount >= 8) {
     const found = detectKey(sorted, chords.map((c) => ({ rootPc: c.rootPc, symbol: c.symbol, duration: Math.max(0.2, c.end - c.at) })));
     if (found) key = { pc: found.pc, mode: found.mode, label: `${ROOTS_FR[found.pc]} ${found.mode === 'minor' ? 'mineur' : 'majeur'}`, confidence: found.confidence, source: 'jeu' };
@@ -437,7 +452,7 @@ export function reviewTake(events, { question = '' } = {}) {
   // Un II-V-I entendu dit la tonalité mieux que le profil des notes (qui prend
   // volontiers la dominante pour la tonique) : sa tonique l'emporte.
   const cadenceKey = cadences.find((c) => c.type === 'ii-v-i');
-  if (cadenceKey && key?.source !== 'question') {
+  if (cadenceKey && key?.source !== 'question' && key?.source !== 'exercice') {
     const tonic = chords.find((c) => c.name === cadenceKey.chords[2]);
     if (tonic) {
       const mode = /mineur$/.test(cadenceKey.label) ? 'minor' : 'major';
@@ -511,6 +526,8 @@ export function takeVerdict(review) {
     const cadence = cadences.find((c) => c.type === 'ii-v-i');
     const label = intent.expected.length === 3 && cadence ? cadence.label : intent.expected.join(' → ');
     const played = chords.slice(0, 6).map((c) => (c.readAs ? `${c.readAs} rootless` : c.name)).join(' → ');
+    // Exercice dont aucun accord n'est entendu.
+    if (intent.issues.some((i) => i.id === 'intent-missing' && !i.chord)) return `${label} : je n'entends pas ces accords (${played || 'aucun accord'})`;
     return `${label} : ${wrong ? `une piste pour ${wrong} accord${wrong > 1 ? 's' : ''}` : 'les accords voulus sont là'} (${played})${count > wrong ? ` · ${count - wrong} autre${count - wrong > 1 ? 's' : ''} suggestion${count - wrong > 1 ? 's' : ''}` : ''}`;
   }
   if (intent.contextChord && lines.length) {
@@ -549,7 +566,7 @@ export function takeContextLines(review, { title = '## Passage joué au clavier 
   const velocity = perf?.stats?.velocity ? `vélocité ${perf.stats.velocity.low} à ${perf.stats.velocity.high} sur 127` : 'vélocité constante (clavier virtuel ou sans nuances)';
   out.push(`Durée : ${takeMoment(review.duration)} · ${review.noteCount} notes · pédale ${pedal} % du temps · ${velocity}`);
   if (isTake) out.push(`Question du pianiste : « ${question || 'Qu\'en penses-tu de ce que je viens de jouer ?'} »`);
-  if (intent.asked.length) out.push(`Ce qu'il voulait jouer (d'après sa question) : ${intent.asked.join(' ; ')}`);
+  if (intent.asked.length) out.push(`Ce qu'il voulait jouer : ${intent.asked.join(' ; ')}`);
   if (chords.length) {
     out.push('');
     out.push('### Accords (moment · nom [degré] · main gauche | main droite · voicing reconnu · rôles · conduite des voix vers le suivant)');
@@ -576,7 +593,8 @@ export function takeContextLines(review, { title = '## Passage joué au clavier 
   }
   const harmony = [];
   if (key) {
-    harmony.push(key.source === 'question' ? `tonalité annoncée par le pianiste : ${key.label}`
+    harmony.push(key.source === 'exercice' ? `tonalité de l'exercice : ${key.label}`
+      : key.source === 'question' ? `tonalité annoncée par le pianiste : ${key.label}`
       : key.source === 'cadence' ? `tonalité ${key.label} (d'après le II-V-I)`
         : `tonalité probable ${key.label} (confiance ${Math.round(key.confidence * 100)} %)`);
   }

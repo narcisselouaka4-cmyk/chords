@@ -96,6 +96,8 @@ import { initAstraShell } from './ui/refonte/astra-shell.js';
 import { initOnboarding, notifyOnboarding } from './ui/onboarding.js';
 import { applyKeyboardMarks, clearKeyboardMarks, initKeyboardMarks } from './ui/keyboard-marks.js';
 import { liveTake } from './recorder/live-take.js';
+import { registerCopilotContext } from './pedagogie/copilot-context.js';
+import { exerciseContext } from './pedagogie/exercise-context.js';
 import {
   publishLiveNoteOn,
   publishLiveNoteOff,
@@ -133,6 +135,9 @@ const state = {
 let chordHistory = null;
 let noteGrouper = null;
 let practiceExercise = null;
+// [Claude] — 2026-09-25 — Derniers essais pas encore retenus (notes, accord entendu) :
+// le Copilote les reçoit avec l'exercice (« Demander au Copilote », « Qu'en penses-tu ? »).
+const exerciseAttempts = [];
 let renderPracticeExercise = null;
 
 // [Claude] — 2026-07-08 — Détection d'accord différée pour ne pas bloquer le thread
@@ -1435,6 +1440,12 @@ function initPracticeExercise() {
   const feedbackDiv = document.getElementById('exercise-feedback');
 
   practiceExercise = createPracticeExercise();
+  registerCopilotContext('exercise', () => (practiceExercise ? exerciseContext(practiceExercise.getState(), exerciseAttempts) : null));
+  // [Claude] — 2026-09-25 — « Demander au Copilote » : l'assistant reçoit l'exercice affiché.
+  document.getElementById('exercise-copilot-btn')?.addEventListener('click', () => {
+    document.dispatchEvent(new CustomEvent('app-switch-training-view', { detail: { view: 'copilot' } }));
+    document.dispatchEvent(new CustomEvent('copilot-open-exercise'));
+  });
 
   const prevBtn = document.getElementById('prev-exercise-btn');
 
@@ -2599,6 +2610,15 @@ let feedbackHideTimer = null;
 function checkPracticeExercise(notes) {
   if (!practiceExercise) return;
   const result = practiceExercise.check(notes);
+  if (result.expectedName) {
+    // Un accord réussi efface ses essais ; un essai pas encore retenu est gardé (dix au plus).
+    if (result.success) {
+      for (let i = exerciseAttempts.length - 1; i >= 0; i -= 1) if (exerciseAttempts[i].expected === result.expectedName) exerciseAttempts.splice(i, 1);
+    } else {
+      exerciseAttempts.push({ expected: result.expectedName, notes: [...notes], heard: result.heard || null, at: Date.now() });
+      if (exerciseAttempts.length > 10) exerciseAttempts.shift();
+    }
+  }
   const feedbackDiv = document.getElementById('exercise-feedback');
   if (feedbackDiv) {
     feedbackDiv.textContent = result.message;
@@ -2769,7 +2789,8 @@ async function init() {
     // « Qu'en penses-tu ? » depuis la barre du clavier (tous les onglets) : le
     // Copilote analyse le dernier passage joué.
     document.getElementById('keyboard-review-btn')?.addEventListener('click', () => {
-      document.dispatchEvent(new CustomEvent('copilot-review-take', { detail: { question: '' } }));
+      // La vue d'origine : depuis Exercices, l'avis compare le jeu à l'exercice en cours.
+      document.dispatchEvent(new CustomEvent('copilot-review-take', { detail: { question: '', fromView: els.practiceLayout?.dataset.trainingView || null } }));
     });
   });
   safeInit('initSettings', initSettings);

@@ -1320,6 +1320,57 @@ async function testTutorialContextInPrompt() {
   global.fetch = originalFetch;
 }
 
+// [Claude] — 2026-09-25 — Exercice : le Copilote reçoit l'exercice affiché et
+// fait entendre les voicings EXACTS de la carte (play_exercise).
+const EXERCISE = {
+  type: 'exercise', mode: 'movement', id: 'mouvement:II-V-I:5', title: 'Mouvement 12 tons — II-V-I majeur en F majeur', name: 'II-V-I majeur',
+  description: '', key: 'F majeur', keyProgress: '1 / 12 tons', stepProgress: '2 / 3 accords', technique: 'Auto', level: 3,
+  chords: [
+    { name: 'Gm9', rootPc: 7, quality: 'm9', degree: '2', passing: false, technique: 'rootless', lh: [43], rh: [58, 62, 65, 69], roles: ['1', 'b3', '5', 'b7', '9'], current: false },
+    { name: 'C13', rootPc: 0, quality: '13', degree: '5', passing: false, technique: 'rootless', lh: [48], rh: [58, 64, 69], roles: ['1', 'b7', '3', '13'], current: true },
+    { name: 'Fmaj9', rootPc: 5, quality: 'maj9', degree: '1', passing: false, technique: 'rootless', lh: [41], rh: [57, 60, 64, 67], roles: ['1', '3', '5', '7', '9'], current: false },
+  ],
+  attempts: [{ expected: 'C13', notes: [48, 58, 63, 69], heard: 'Cm13' }],
+  expect: { chords: ['Gm9', 'C13', 'Fmaj9'], technique: null, keyPc: 5, minor: false },
+};
+
+function testExerciseTool() {
+  document.resetMock();
+  document.setPanel(false);
+  const call = (args) => ({ function: { name: 'play_exercise', arguments: JSON.stringify(args) } });
+  const ons = (ex) => (ex?.events || []).filter((e) => e.type === 'noteOn').map((e) => e.note).join(',');
+  const current = executeToolCalls([call({})], 'Voici C13.', { exercise: EXERCISE });
+  check('play_exercise : l\'accord en cours avec le voicing EXACT de la carte', ons(current.example) === '48,58,64,69' && current.example.kind === 'exercise', ons(current.example));
+  const all = executeToolCalls([call({ chords: 'all', title: 'Le II-V-I de la carte' })], '', { exercise: EXERCISE });
+  const at = (ex, t) => (ex?.events || []).filter((e) => e.type === 'noteOn' && Math.abs(e.time - t) < 1e-6).map((e) => e.note).join(',');
+  check('play_exercise « all » : les trois accords enchaînés (un toutes les 1,6 s)', at(all.example, 0) === '43,58,62,65,69' && at(all.example, 1.6) === '48,58,64,69' && at(all.example, 3.2) === '41,57,60,64,67' && all.example.title === 'Le II-V-I de la carte', `${at(all.example, 0)} | ${at(all.example, 1.6)} | ${at(all.example, 3.2)}`);
+  check('play_exercise : chaque étape porte le nom de son accord (pas à pas)', (all.example.steps || []).length === 3 && /Gm9/.test(all.example.steps[0].caption), JSON.stringify((all.example.steps || []).map((x) => x.caption)));
+  const named = executeToolCalls([call({ chords: 'Fmaj9 Gm9' })], '', { exercise: EXERCISE });
+  check('play_exercise par noms : dans l\'ordre demandé', at(named.example, 0) === '41,57,60,64,67' && at(named.example, 1.6) === '43,58,62,65,69');
+  const none = executeToolCalls([call({})], 'Voici.', { exercise: null });
+  check('play_exercise sans exercice : pas d\'exemple, message honnête', !none.example && /Aucun exercice n'est affiché/.test(none.content || ''), none.content);
+  const both = executeToolCalls([call({}), { function: { name: 'play_progression', arguments: JSON.stringify({ chords: ['Gm7', 'C7', 'Fmaj7'] }) } }], '', { exercise: EXERCISE });
+  check('play_exercise l\'emporte sur play_progression (voicings de la carte)', ons(both.example) === '48,58,64,69' && both.ignored === 1, `${ons(both.example)} ignored=${both.ignored}`);
+}
+
+async function testExerciseContextInPrompt() {
+  const originalFetch = global.fetch;
+  let body = null;
+  global.fetch = async (url, options) => {
+    if (!body) body = JSON.parse(options.body);
+    return { ok: true, status: 200, json: async () => ({ choices: [{ message: { role: 'assistant', content: 'Réponse.' } }] }) };
+  };
+  global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
+  await sendCopilotMessage({ message: 'Explique-moi le voicing de la carte.', messages: [], context: EXERCISE });
+  const system = body?.messages?.[0]?.content || '';
+  const tools = (body?.tools || []).map((t) => t.function?.name);
+  check('Exercice : titre, accord en cours et voicings exacts dans le contexte',
+    /## Exercice en cours : Mouvement 12 tons — II-V-I majeur en F majeur/.test(system) && /- ▶ C13 \[5\] : Do3 \| Sib3 Mi4 La4/.test(system), system.slice(system.indexOf('## Exercice'), system.indexOf('## Exercice') + 500));
+  check('Exercice : derniers essais pas encore retenus dans le contexte', /pour C13 : Do3 Sib3 Ré#4 La4 \(entendu : Cm13\)|pour C13 : Do3 Sib3 Mib4 La4 \(entendu : Cm13\)/.test(system), (system.match(/pour C13 :[^\n]*/) || [''])[0]);
+  check('Exercice : outil play_exercise proposé ; paragraphe du prompt présent', tools.includes('play_exercise') && /Exercice en cours \(quand le contexte décrit un exercice/.test(system), tools.join(','));
+  global.fetch = originalFetch;
+}
+
 async function runTests() {
   testToolCalls();
   await testNoKey();
@@ -1357,6 +1408,8 @@ async function runTests() {
   testTutorialPassageTool();
   testTutorialMomentTool();
   await testTutorialContextInPrompt();
+  testExerciseTool();
+  await testExerciseContextInPrompt();
   testWantsToHear();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);

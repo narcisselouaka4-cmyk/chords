@@ -121,6 +121,13 @@ function testToggleButtonState() {
     'Libellé "Revenir au mode autonome" en mode session',
     session.label === 'Revenir au mode autonome'
   );
+
+  // [Claude] — 2026-09-25 — Mode exercice (« Demander au Copilote » dans Exercices).
+  const exercise = toggleButtonState('exercise', null);
+  check(
+    'Mode exercice : bouton « Revenir au mode autonome » visible',
+    exercise.visible === true && exercise.label === 'Revenir au mode autonome'
+  );
 }
 
 async function runTests() {

@@ -243,6 +243,8 @@ export async function listAllConversations() {
 export function labelForConversationPath(tutorialPath) {
   if (!tutorialPath) return 'Conversation';
   if (tutorialPath === AUTONOMOUS_HISTORY_KEY) return 'Mode autonome';
+  // [Claude] — 2026-09-25 — Conversation d'un exercice (« exercice:<titre> ») : le titre tel quel (C6/9 garde sa barre).
+  if (tutorialPath.startsWith('exercice:')) return tutorialPath.slice('exercice:'.length) || 'Exercice';
   const name = tutorialPath.split('/').pop();
   return name || 'Tutoriel';
 }

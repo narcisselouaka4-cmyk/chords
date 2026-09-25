@@ -180,6 +180,23 @@ function testKeyFromCadence() {
   check('Portrait de session : titre et 60 accords au plus', /## Portrait/.test(takeContextLines(r, { title: '## Portrait de la session', maxChords: 60 })[0]));
 }
 
+// [Claude] — 2026-09-25 — « Qu'en penses-tu ? » depuis Exercices : comparé à l'exercice.
+function testExerciseExpect() {
+  const expect = { chords: ['Gm9', 'C13', 'Fmaj9'], technique: null, keyPc: 5, minor: false, label: 'Mouvement 12 tons — II-V-I majeur en F majeur' };
+  const two = take().chord(0, [43, 58, 62, 65, 69]).chord(2, [48, 63, 69, 70]);
+  const r = reviewTake(two.events, { question: '', expect });
+  const issue = r.issues.find((i) => i.id === 'intent-chord');
+  check('Exercice : sans question, comparé aux accords de l\'exercice (C13 attendu, Cm13 entendu)', issue && /pour C13, j'entends Cm13/.test(issue.text) && /ajoute Mi \(3ce\)/.test(issue.text), issue?.text);
+  check('Exercice : tonalité de l\'exercice, degrés', r.key?.source === 'exercice' && r.key.label === 'Fa majeur' && r.chords[0].degree === 'II' && /tonalité de l'exercice : Fa majeur/.test(r.contextLines.join('\n')), `${r.key?.label} ${r.chords.map((c) => c.degree).join(' ')}`);
+  check('Exercice : ce qu\'il voulait jouer = l\'exercice', /Ce qu'il voulait jouer : exercice : Mouvement 12 tons — II-V-I majeur en F majeur/.test(r.contextLines.join('\n')));
+  const one = take().chord(0, [43, 58, 62, 65, 69]);
+  const r1 = reviewTake(one.events, { expect });
+  check('Exercice : l\'accord en cours seul → rien à suggérer (les autres ne sont pas réclamés)', r1.issues.length === 0 && /les accords voulus sont là \(Gm9\)/.test(r1.verdict), `${r1.verdict} ${r1.issues.map((i) => i.id)}`);
+  const none = take().chord(0, [40, 47, 52, 56]);
+  const r0 = reviewTake(none.events, { expect });
+  check('Exercice : aucun de ses accords → « je n\'entends pas ces accords »', /je n'entends pas ces accords/.test(r0.verdict) && r0.issues.length === 1, r0.verdict);
+}
+
 function testEmpty() {
   check('Passage vide : null', reviewTake([]) === null);
 }
@@ -190,6 +207,7 @@ testScales();
 testChordsReview();
 testLinesReview();
 testKeyFromCadence();
+testExerciseExpect();
 testEmpty();
 
 console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);

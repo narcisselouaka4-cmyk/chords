@@ -2827,6 +2827,7 @@ export function createPracticeExercise() {
           message: `✅ ${old.name} correct ! Prochain : ${state.target.name}`,
           previousName: old.name,
           nextName: state.target.name,
+          expectedName: old.name,
         };
       }
       // [Claude] — 2026-09-25 — Une suggestion, pas un verdict (« assistant, pas coach »).
@@ -2836,6 +2837,9 @@ export function createPracticeExercise() {
         success: false,
         message: `${heard}Pour ${state.target.name}, ${idea || 'essayez les notes de la carte'}.`,
         hint: state.target.notes,
+        // [Claude] — 2026-09-25 — Pour le Copilote : l'accord voulu et ce qui a été entendu.
+        expectedName: state.target.name,
+        heard: detected ? `${formatPc(detected.rootPc, false)}${detected.symbol}` : null,
       };
     }
 
@@ -2863,6 +2867,7 @@ export function createPracticeExercise() {
           success: true,
           message: `✅ ${completedName} parcouru dans ${totalKeys} ton${totalKeys > 1 ? 's' : ''} ! Suivant : ${state.progression.name}`,
           completed: true,
+          expectedName: expected.name,
         };
       }
       state.target = attachMovementContext(stepTarget(state.progression), state.progression);
@@ -2872,11 +2877,13 @@ export function createPracticeExercise() {
         return {
           success: true,
           message: `✅ ${doneKeyName} validé. Prochain ton : ${state.target.keyName}`,
+          expectedName: expected.name,
         };
       }
       return {
         success: true,
         message: `✅ ${expected.name} correct. Suivant : ${state.target.name}`,
+        expectedName: expected.name,
       };
     }
     const heard = detected ? `J'entends ${spellPcInKey(detected.rootPc, state.progression.currentKey, isMinorMovement(state.progression.movement))}${detected.symbol}. ` : '';
@@ -2885,6 +2892,8 @@ export function createPracticeExercise() {
       success: false,
       message: `${heard}Pour ${expected.name} (${state.target.keyLabel}), ${idea || 'essayez les notes de la carte'}.`,
       hint: expected.notes,
+      expectedName: expected.name,
+      heard: detected ? `${spellPcInKey(detected.rootPc, state.progression.currentKey, isMinorMovement(state.progression.movement))}${detected.symbol}` : null,
     };
   }
 

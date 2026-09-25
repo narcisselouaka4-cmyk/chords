@@ -42,6 +42,10 @@ export const AUTONOMOUS_HISTORY_KEY = HISTORY_AUTONOMOUS_KEY;
 let currentMode = 'autonomous';
 let currentSessionId = null;
 let currentSessionContext = null;
+// [Claude] — 2026-09-25 — Mode exercice : le Copilote parle de l'exercice affiché
+// (Narcisse : relier le Copilote et l'onglet Exercices).
+let currentExerciseId = null;
+let currentExerciseTitle = null;
 
 /**
  * Nouveau mode à adopter quand la sélection de tutoriel ou de session change.
@@ -58,7 +62,7 @@ export function nextModeOnSelectionChange(currentMode, newTutorialPath, newSessi
 
 /** État du bouton de bascule (visibilité + libellé) selon mode + sélection. */
 export function toggleButtonState(mode, tutorialPath) {
-  if (mode === 'tutorial' || mode === 'session') {
+  if (mode === 'tutorial' || mode === 'session' || mode === 'exercise') {
     return { visible: true, label: 'Revenir au mode autonome' };
   }
   return { visible: Boolean(tutorialPath), label: 'Mode tutoriel' };
@@ -107,6 +111,42 @@ function getTutorialContext() {
 function getSessionContext() {
   if (currentMode !== 'session' || !currentSessionContext) return null;
   return currentSessionContext;
+}
+
+/** Exercice affiché (relu à chaque question : étape, tonalité et essais à jour). */
+function getExerciseContext() {
+  if (currentMode !== 'exercise') return null;
+  return readCopilotContext('exercise');
+}
+
+/** Clé de l'historique de la conversation selon le mode (tutoriel, session, exercice, autonome). */
+function historyKeyForMode() {
+  if (currentMode === 'tutorial' && currentTutorialPath) return currentTutorialPath;
+  if (currentMode === 'session' && currentSessionId) return currentSessionId;
+  if (currentMode === 'exercise' && currentExerciseTitle) return `exercice:${currentExerciseTitle}`;
+  return AUTONOMOUS_HISTORY_KEY;
+}
+
+// Propositions du mode exercice (envoyées d'un clic, comme les autres).
+const EXERCISE_QUICK_ACTIONS = [
+  { label: 'Ce voicing', message: 'Explique-moi le voicing de la carte : le rôle de chaque note et pourquoi il marche.' },
+  { label: 'Comment le jouer', message: 'Comment je joue l\'accord en cours à deux mains ?' },
+  { label: 'Enchaînement', message: 'Comment enchaîner les accords de l\'exercice : quelles voix bougent ?' },
+  { label: 'Fais-moi entendre', message: 'Fais-moi entendre les accords de la carte.' },
+];
+let defaultQuickActions = null;
+
+/** Propositions sous la conversation : celles de l'exercice en mode exercice, sinon celles de la page. */
+function renderQuickActionsForMode() {
+  if (!els.quickActions) return;
+  if (!defaultQuickActions) defaultQuickActions = [...els.quickActions.querySelectorAll('.copilot-chip')].map((b) => ({ label: b.textContent, message: b.dataset.message }));
+  const list = currentMode === 'exercise' ? EXERCISE_QUICK_ACTIONS : defaultQuickActions;
+  els.quickActions.querySelectorAll('.copilot-chip').forEach((b) => b.remove());
+  // Juste après « Continuer : » (le sélecteur de style reste au bout de la rangée).
+  const chips = list.map((a) => el('button', { type: 'button', className: 'copilot-chip', 'data-message': a.message, text: a.label }));
+  const label = els.quickActions.querySelector('.copilot-quick-actions-label');
+  if (label) label.after(...chips);
+  else els.quickActions.prepend(...chips);
 }
 
 const STATIC_QUICK_ACTIONS = [
@@ -636,7 +676,7 @@ function takeAttachment(review, passage) {
  * (n'importe laquelle), ou à « Qu'en penses-tu de ce que je viens de jouer ? ».
  * Sans clé d'IA, le verdict de l'application s'affiche au clavier.
  */
-export async function reviewLastPassage({ question = '', fromKeyboard = false } = {}) {
+export async function reviewLastPassage({ question = '', fromKeyboard = false, fromView = null } = {}) {
   const passage = liveTake.lastPassage();
   if (!passage) {
     setKeyboardMarks([], {
@@ -646,7 +686,10 @@ export async function reviewLastPassage({ question = '', fromKeyboard = false } 
     return null;
   }
   const asked = String(question || '').trim();
-  const review = reviewTake(passage.events, { question: asked });
+  // [Claude] — 2026-09-25 — Depuis Exercices (ou en mode exercice) : l'avis compare
+  // le jeu aux accords de l'exercice en cours, sans qu'il faille les taper.
+  const exercise = fromView === 'exercise' || currentMode === 'exercise' ? readCopilotContext('exercise') : null;
+  const review = reviewTake(passage.events, { question: asked, expect: exercise ? { ...exercise.expect, label: exercise.title } : null });
   if (!review) return null;
   const view = takeMarks(review, review.moments[0] || null);
   if (!hasAIKey() || !els.input) {
@@ -657,11 +700,14 @@ export async function reviewLastPassage({ question = '', fromKeyboard = false } 
     document.dispatchEvent(new CustomEvent('app-switch-tab', { detail: { tab: 'practice' } }));
     document.dispatchEvent(new CustomEvent('app-switch-training-view', { detail: { view: 'copilot' } }));
   }
+  // La conversation de l'exercice (le Copilote reçoit aussi ses voicings et les essais).
+  if (exercise && currentMode !== 'exercise') await switchToExerciseMode();
   // Après la bascule (qui efface le clavier) : le verdict, ou la première suggestion.
   setKeyboardMarks(view.marks, { caption: view.caption, tone: view.tone });
   els.input.value = '';
   autoGrowInput();
-  await runCopilotTurn(asked || DEFAULT_REVIEW_QUESTION, { take: takeAttachment(review, passage), review: true, takeContext: review.contextLines });
+  const defaultQuestion = exercise ? `Qu'en penses-tu de ce que je viens de jouer sur l'exercice (${exercise.title}) ?` : DEFAULT_REVIEW_QUESTION;
+  await runCopilotTurn(asked || defaultQuestion, { take: takeAttachment(review, passage), review: true, takeContext: review.contextLines });
   return review;
 }
 
@@ -773,13 +819,7 @@ async function startNewConversation(tutorialPath) {
 
 async function ensureCurrentConversation() {
   if (currentConversationId) return currentConversationId;
-  const key =
-    currentMode === 'tutorial' && currentTutorialPath
-      ? currentTutorialPath
-      : currentMode === 'session' && currentSessionId
-        ? currentSessionId
-        : AUTONOMOUS_HISTORY_KEY;
-  return startNewConversation(key);
+  return startNewConversation(historyKeyForMode());
 }
 
 function formatHistoryDate(isoString) {
@@ -923,6 +963,8 @@ async function loadHistoryItem(conversationId) {
   currentSessionId = null;
   currentSessionContext = null;
   currentTutorialPath = null;
+  currentExerciseId = null;
+  currentExerciseTitle = null;
   updateHeaderForMode();
   updateModeToggle();
   showChatArea();
@@ -949,6 +991,9 @@ function updateHeaderForMode() {
     const name = currentSessionContext.name || currentSessionId;
     if (els.selectedName) els.selectedName.textContent = `Copilot IA — Session : ${name}`;
     if (els.introText) els.introText.textContent = 'Mode session : le Copilot analyse la session MIDI sélectionnée.';
+  } else if (currentMode === 'exercise' && currentExerciseTitle) {
+    if (els.selectedName) els.selectedName.textContent = `Copilot IA — ${currentExerciseTitle}`;
+    if (els.introText) els.introText.textContent = 'Le Copilot connaît l\'exercice affiché : accords et voicings de la carte, tonalité, étape et tes derniers essais. Demande-lui d\'expliquer un voicing ou de le faire entendre ; après avoir joué, « Qu\'en penses-tu ? » compare ton jeu à l\'exercice.';
   } else {
     if (els.selectedName) els.selectedName.textContent = 'Copilot IA';
     if (els.introText) els.introText.textContent = '';
@@ -956,6 +1001,7 @@ function updateHeaderForMode() {
 }
 
 function updateModeToggle() {
+  renderQuickActionsForMode();
   if (!els.modeToggleBtn) return;
   const state = toggleButtonState(currentMode, currentTutorialPath);
   els.modeToggleBtn.style.display = state.visible ? '' : 'none';
@@ -967,6 +1013,8 @@ async function switchToAutonomousMode() {
   currentSessionId = null;
   currentSessionContext = null;
   currentTutorialPath = null;
+  currentExerciseId = null;
+  currentExerciseTitle = null;
   updateHeaderForMode();
   updateModeToggle();
   if (!hasAIKey()) { showNoKeyState(); return; }
@@ -981,6 +1029,8 @@ async function switchToTutorialMode(path) {
   currentMode = 'tutorial';
   currentSessionId = null;
   currentSessionContext = null;
+  currentExerciseId = null;
+  currentExerciseTitle = null;
   currentTutorialPath = path;
   updateHeaderForMode();
   updateModeToggle();
@@ -997,6 +1047,8 @@ export async function switchToSessionMode(sessionContext) {
   currentSessionId = sessionContext.sessionId;
   currentSessionContext = sessionContext;
   currentTutorialPath = null;
+  currentExerciseId = null;
+  currentExerciseTitle = null;
   updateHeaderForMode();
   updateModeToggle();
   if (!hasAIKey()) { showNoKeyState(); return; }
@@ -1006,8 +1058,34 @@ export async function switchToSessionMode(sessionContext) {
   await renderHistoryList();
 }
 
+/**
+ * [Claude] — 2026-09-25 — Mode exercice (« Demander au Copilote » dans Exercices,
+ * ou « Qu'en penses-tu ? » lancé depuis Exercices). Même exercice : la
+ * conversation continue ; autre exercice : une nouvelle conversation.
+ * @returns {Promise<boolean>} faux si aucun exercice n'est affiché
+ */
+export async function switchToExerciseMode() {
+  const ctx = readCopilotContext('exercise');
+  if (!ctx) return false;
+  const same = currentMode === 'exercise' && currentExerciseId === ctx.id && currentConversationId;
+  currentMode = 'exercise';
+  currentExerciseId = ctx.id;
+  currentExerciseTitle = ctx.title;
+  currentSessionId = null;
+  currentSessionContext = null;
+  currentTutorialPath = null;
+  updateHeaderForMode();
+  updateModeToggle();
+  if (!hasAIKey()) { showNoKeyState(); return true; }
+  showChatArea();
+  if (!same) await startNewConversation(historyKeyForMode());
+  renderMessages();
+  await renderHistoryList();
+  return true;
+}
+
 async function onModeToggleClick() {
-  if (currentMode === 'tutorial' || currentMode === 'session') {
+  if (currentMode === 'tutorial' || currentMode === 'session' || currentMode === 'exercise') {
     await switchToAutonomousMode();
   } else if (currentTutorialPath) {
     await switchToTutorialMode(currentTutorialPath);
@@ -1043,7 +1121,7 @@ async function runCopilotTurn(text, { take = null, review = false, takeContext =
   messages.push(userMessage);
   addTypingIndicator();
 
-  const base = getTutorialContext() || getSessionContext();
+  const base = getTutorialContext() || getSessionContext() || getExerciseContext();
   // Le dernier passage joué reste connu pour les questions de suivi.
   const context = lastTakeContext ? { ...(base || { type: 'autonomous' }), take: lastTakeContext } : base;
   const copilotStyleId = els.styleSelect?.value || 'auto';
@@ -1063,13 +1141,7 @@ async function runCopilotTurn(text, { take = null, review = false, takeContext =
     messages.push(reply);
     // Demande d'écoute (« joue-moi… ») : l'exemple démarre une fois la réponse affichée.
     if (res.autoplay && res.toolResult?.example) autoplayMessage = reply;
-    const key =
-      currentMode === 'tutorial' && currentTutorialPath
-        ? currentTutorialPath
-        : currentMode === 'session' && currentSessionId
-          ? currentSessionId
-          : AUTONOMOUS_HISTORY_KEY;
-    await saveHistory(currentConversationId, key, messages);
+    await saveHistory(currentConversationId, historyKeyForMode(), messages);
   } else {
     const errorMsg = res.error === 'AI_API_KEY_INVALID'
       ? 'La clé API a été refusée. Vérifiez-la dans Réglages › Assistant IA.'
@@ -1088,13 +1160,7 @@ async function runCopilotTurn(text, { take = null, review = false, takeContext =
 
 /** Reset de la conversation. */
 async function onNewConversation() {
-  const key =
-    currentMode === 'tutorial' && currentTutorialPath
-      ? currentTutorialPath
-      : currentMode === 'session' && currentSessionId
-        ? currentSessionId
-        : AUTONOMOUS_HISTORY_KEY;
-  await startNewConversation(key);
+  await startNewConversation(historyKeyForMode());
   renderMessages();
   await renderHistoryList();
 }
@@ -1124,7 +1190,9 @@ export async function initCopilotTab() {
   });
   // [Claude] — 2026-09-25 — « Qu'en penses-tu ? » : le passage joué + la question tapée.
   els.reviewBtn?.addEventListener('click', () => reviewLastPassage({ question: els.input?.value || '' }));
-  document.addEventListener('copilot-review-take', (e) => reviewLastPassage({ question: e.detail?.question || '', fromKeyboard: true }));
+  document.addEventListener('copilot-review-take', (e) => reviewLastPassage({ question: e.detail?.question || '', fromKeyboard: true, fromView: e.detail?.fromView || null }));
+  // « Demander au Copilote » depuis Exercices.
+  document.addEventListener('copilot-open-exercise', () => switchToExerciseMode());
   // [Claude] — 2026-09-25 — Pas à pas : notes jouées, et fin (croix de la légende, autre vue).
   document.addEventListener('app-live-input', (e) => onLiveInput(e.detail));
   document.addEventListener('keyboard-marks-cleared', () => stopStepper({ clear: false }));

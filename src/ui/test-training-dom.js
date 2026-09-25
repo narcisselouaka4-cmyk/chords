@@ -133,6 +133,11 @@ function testDomContract() {
 
   // [Claude] — 2026-09-25 — « Qu'en penses-tu ? » (barre du Copilote et du clavier)
   // et légende des marques posées sur les touches.
+  // [Claude] — 2026-09-25 — « Demander au Copilote » dans les actions de l'exercice.
+  {
+    const panel = html.slice(html.indexOf('id="practice-exercise-panel"'), html.indexOf('<section class="tr-exercise-stage">'));
+    check(panel.includes('id="exercise-copilot-btn"') && /Demander au Copilote/.test(panel), 'DOM — « Demander au Copilote » dans les actions de l\'exercice');
+  }
   check(html.includes('id="copilot-review-btn"') && html.includes('id="keyboard-review-btn"'),
     'DOM — boutons « Qu\'en penses-tu ? » (Copilote et barre du clavier)');
   check(/id="keyboard-mark-caption"[^>]*hidden/.test(html) && html.includes('vk-mark-caption-close'),
