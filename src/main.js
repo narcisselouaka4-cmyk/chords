@@ -1636,13 +1636,15 @@ function initPracticeExercise() {
     }
     box.hidden = false;
     // Mêmes options que la carte (niveau + filtres) : les index concordent.
-    const { pc: _pc, ...searchOptions } = exState.topNote;
+    // [Claude] — 2026-09-25 — Étoiles comptées avec la main gauche du style, comme sur la carte.
+    const { pc: _pc, ...topOptions } = exState.topNote;
+    const searchOptions = { ...topOptions, leftHandStyle: exState.leftHandStyle };
     const selected = exState.target?.voicing?.topNoteSuggestions && !exState.target.topNoteMiss
       ? { rootPc: exState.target.rootPc, quality: exState.target.symbol }
       : null;
     // Seul le filtre Technique restreint les techniques, jamais la technique
     // cliquée auparavant sur la carte.
-    const key = JSON.stringify(exState.topNote);
+    const key = JSON.stringify(searchOptions) + topPc;
     if (key !== topNoteBrowserKey) {
       const results = findChordsByTopNote(topPc, searchOptions);
       box.innerHTML = renderTopNoteBrowser(results, { topPc, selected });

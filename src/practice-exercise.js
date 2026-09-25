@@ -31,10 +31,11 @@ import { applyDoublings, DOUBLING_MODES, DOUBLING_LABELS } from './voicing-engin
 // circulaire sans risque : practice-demo.js n'appelle ce module qu'à l'usage.
 import { styleLeftHand, LEFT_HAND_STYLES } from './practice-demo.js';
 import { spellDegreeInKey, spellPcInKey, keyLabel, isMinorProgression } from './practice-key-spelling.js';
+import { playingDifficulty, difficultyReasonText } from './voicing-engine/playing-difficulty.js';
 
-// Difficulté exprimée en étoiles (1–5). Le mode "Accord cible" est strict :
-// 1★ = triades, 2★ = 7e, 3★ = 9e / couleurs, 4★ = tensions/altérations,
-// 5★ = tout. Les modes Progression et Mouvement sont cumulatifs.
+// Niveaux du Mouvement 12 tons (1–5 : qualités des accords, accords de passage).
+// [Claude] — 2026-09-25 — Les étoiles d'un VOICING sont une autre notion : la
+// difficulté de jouer ses notes (voicing-engine/playing-difficulty.js).
 export const DIFFICULTY_LEVELS = [1, 2, 3, 4, 5];
 
 const SYMBOL_DIFFICULTY = {
@@ -394,19 +395,49 @@ function techniqueDifficultyBonus(target) {
 }
 
 /**
- * Difficulté affichée d'un voicing généré.
- * Si le voicing vient du nouveau catalogue, on utilise sa difficulte normalisee.
- * Sinon on retombe sur le calcul historique (symbole + bonus technique).
- * @param {{symbol: string, voicing: {technique: string, difficulty?: number}}} target
- * @returns {number} 1–5 étoiles
+ * [Claude] — 2026-09-25 — Étoiles d'un voicing : la difficulté de jouer les notes
+ * AFFICHÉES (main gauche du style et doublures comprises), plus une valeur fixe
+ * par technique posée avant la main gauche (Narcisse : « les étoiles sont mal
+ * distribuées […] surtout quand la main gauche est ajoutée »). Sans notes, le
+ * calcul historique (symbole + technique) sert de repli.
+ * @param {{rootPc?: number, symbol: string, voicing: {technique: string, leftHand?: number[], rightHand?: number[]}}} target
+ * @returns {{stars: number, reasons: string[]}}
  */
-export function difficultyOfVoicing(target) {
-  if (target?.voicing?.difficulty != null) {
-    return target.voicing.difficulty;
+export function difficultyDetailsOfVoicing(target) {
+  const voicing = target?.voicing;
+  const hasNotes = (voicing?.leftHand?.length || 0) + (voicing?.rightHand?.length || 0) > 0;
+  if (hasNotes) {
+    const chord = Number.isFinite(target?.rootPc) ? { rootPc: target.rootPc, quality: target.symbol || '' } : null;
+    return playingDifficulty({ leftHand: voicing.leftHand, rightHand: voicing.rightHand, chord });
   }
   const base = difficultyOfSymbol(target?.symbol || '');
   const bonus = techniqueDifficultyBonus(target);
-  return Math.min(5, Math.max(1, Math.round(base + bonus)));
+  return { stars: Math.min(5, Math.max(1, Math.round(base + bonus))), reasons: [] };
+}
+
+/**
+ * Difficulté affichée d'un voicing (1–5 étoiles) : voir difficultyDetailsOfVoicing.
+ * @returns {number}
+ */
+export function difficultyOfVoicing(target) {
+  return difficultyDetailsOfVoicing(target).stars;
+}
+
+/**
+ * Étoiles d'un voicing de la bibliothèque tel qu'il sera affiché : avec la main
+ * gauche du style choisi.
+ */
+function displayedStars(rootPc, quality, v, technique, leftHandStyle = 'none') {
+  let lh = v.lh;
+  let rh = v.rh;
+  if (LEFT_HAND_STYLES.includes(leftHandStyle)) {
+    const styled = styleLeftHand({ rootPc, symbol: quality, voicing: { leftHand: v.lh, rightHand: v.rh, technique, familyId: v.familyId } }, leftHandStyle);
+    if (styled) {
+      lh = styled.lh;
+      rh = styled.rh;
+    }
+  }
+  return playingDifficulty({ leftHand: lh, rightHand: rh, chord: { rootPc, quality } }).stars;
 }
 
 // Une technique de l'UI peut regrouper plusieurs familles VoicingLab :
@@ -1114,13 +1145,15 @@ export { isDerivedQuality };
 /** Voicings servis par l'Exercice pour une technique (registre et main gauche des clusters appliqués). */
 export { voicingLabVariantsFor as exerciseVoicingsFor };
 
-// Recherche par note du dessus (mode Accord cible). Niveaux exprimés sur la
-// difficulté VoicingLab des voicings (1 = close … 5 = cluster).
+// Recherche par note du dessus (mode Accord cible). Niveaux exprimés en étoiles,
+// calculées sur les notes jouées (main gauche du style comprise).
 export const TOP_NOTE_LEVELS = {
   all: { label: 'Tous niveaux', min: 1, max: 5 },
-  simple: { label: 'Simple (★1–2)', min: 1, max: 2 },
-  intermediate: { label: 'Intermédiaire (★3)', min: 3, max: 3 },
-  advanced: { label: 'Avancé (★4–5)', min: 4, max: 5 },
+  // [Claude] — 2026-09-25 — Recalés sur les étoiles calculées (une main seule
+  // dépasse rarement ★3 : les ★4–5 viennent de la main gauche ajoutée).
+  simple: { label: 'Simple (★1)', min: 1, max: 1 },
+  intermediate: { label: 'Intermédiaire (★2)', min: 2, max: 2 },
+  advanced: { label: 'Avancé (★3–5)', min: 3, max: 5 },
 };
 
 // Les shells n'ont que 2–3 notes à la main gauche : pas de vraie note du dessus.
@@ -1189,11 +1222,12 @@ function passesTopNoteFilters(v, rootPc, quality, { hands = 'all', key = 'all' }
  * @param {number} rootPc
  * @param {string} quality
  * @param {number} topPc - pitch class de la note du dessus (0–11)
- * @param {{ level?: keyof TOP_NOTE_LEVELS, technique?: string, hands?: string, key?: string }} [options]
+ * @param {{ level?: keyof TOP_NOTE_LEVELS, technique?: string, hands?: string, key?: string, leftHandStyle?: string }} [options]
  *   technique : 'auto' ou 'all' = toutes les techniques, sinon uniquement celle-ci ;
- *   hands / key : voir TOP_NOTE_FILTERS
+ *   hands / key : voir TOP_NOTE_FILTERS ; leftHandStyle : main gauche du style,
+ *   comptée dans les étoiles (comme sur la carte)
  */
-export function findVoicingsByTopNote(rootPc, quality, topPc, { level = 'all', technique = 'auto', ...filters } = {}) {
+export function findVoicingsByTopNote(rootPc, quality, topPc, { level = 'all', technique = 'auto', leftHandStyle = 'none', ...filters } = {}) {
   const range = TOP_NOTE_LEVELS[level] || TOP_NOTE_LEVELS.all;
   const anyTechnique = technique === 'auto' || technique === 'all';
   const techniques = (anyTechnique ? TECHNIQUES.filter((t) => t !== 'auto') : [technique])
@@ -1204,8 +1238,8 @@ export function findVoicingsByTopNote(rootPc, quality, topPc, { level = 'all', t
     for (const v of voicingLabVariantsFor(rootPc, quality, t)) {
       const notes = [...v.lh, ...v.rh].sort((a, b) => a - b);
       const top = notes[notes.length - 1];
-      const difficulty = Math.min(5, Math.max(1, v.difficulty));
       if (((top % 12) + 12) % 12 !== topPc) continue;
+      const difficulty = displayedStars(rootPc, quality, v, t, leftHandStyle);
       if (difficulty < range.min || difficulty > range.max) continue;
       if (!passesTopNoteFilters(v, rootPc, quality, filters)) continue;
       // Mêmes notes mais mains différentes (ex. Spread F3 | C4 E4 A4 et Open
@@ -1637,7 +1671,17 @@ function buildTopNoteVoicing(rootPc, quality, technique, variant, topNote) {
   // (bug : Block seul → 0 en Simple/Intermédiaire) ; seul le filtre Technique,
   // choisi explicitement, la restreint.
   const { pc, ...options } = topNote;
-  const suggestions = findVoicingsByTopNote(rootPc, quality, pc, options);
+  let suggestions = findVoicingsByTopNote(rootPc, quality, pc, options);
+  // [Claude] — 2026-09-25 — Niveau sans voicing pour cet accord (les étoiles se
+  // calculent maintenant sur les notes : un C6 n'a pas de voicing « Avancé ») :
+  // les voicings du niveau le plus proche plutôt qu'une carte vide.
+  const range = TOP_NOTE_LEVELS[options.level];
+  if (suggestions.length === 0 && range && options.level !== 'all') {
+    const distance = (d) => (d < range.min ? range.min - d : d > range.max ? d - range.max : 0);
+    const all = findVoicingsByTopNote(rootPc, quality, pc, { ...options, level: 'all' });
+    const nearest = Math.min(...all.map((v) => distance(v.difficulty)));
+    suggestions = all.filter((v) => distance(v.difficulty) === nearest);
+  }
   if (suggestions.length === 0) return { voicing: null, technique };
   const index = ((variant % suggestions.length) + suggestions.length) % suggestions.length;
   const v = suggestions[index];
@@ -1689,7 +1733,9 @@ function buildTopNoteVoicing(rootPc, quality, technique, variant, topNote) {
  * @returns {object|null}
  */
 function buildChordTarget(rootPc, symbol, technique, variant = 0, difficulty = null, topNote = null, doubling = 'none', leftHandStyle = 'none') {
-  const { voicing, technique: usedTechnique } = buildPlayableVoicing(rootPc, symbol, technique, variant, difficulty, topNote);
+  // [Claude] — 2026-09-25 — Les étoiles des voicings proposés comptent la main gauche du style.
+  const search = topNote ? { ...topNote, leftHandStyle } : null;
+  const { voicing, technique: usedTechnique } = buildPlayableVoicing(rootPc, symbol, technique, variant, difficulty, search);
   if (!voicing) return null;
   return targetFromVoicing(rootPc, symbol, voicing, usedTechnique, doubling, leftHandStyle);
 }
@@ -2986,7 +3032,9 @@ export function renderExerciseTarget(target, options = {}) {
     ? (n) => `${spellPcInKey(n, options.spelling.keyPc, options.spelling.minor)}${Math.floor(n / 12) - 1}`
     : formatNoteNameWithOctave;
   const allNames = cardNotes.map((n) => noteLabel(n)).join(' · ');
-  const difficulty = options.difficulty ?? difficultyOfVoicing(target);
+  const difficultyInfo = difficultyDetailsOfVoicing(target);
+  const difficulty = options.difficulty ?? difficultyInfo.stars;
+  const difficultyWhy = difficultyReasonText(difficultyInfo);
   // Accord cible : le choix du voicing et les doublures quittent la carte
   // (colonne de droite et fenêtre Filtres) ; la carte garde l'essentiel.
   const compact = options.layout === 'chord';
@@ -2999,7 +3047,7 @@ export function renderExerciseTarget(target, options = {}) {
           <div class="exercise-target-name">${escapeHtml(target.name)}</div>
           ${target.passing ? `<div class="exercise-target-passing">↳ Accord de passage${options.passingTo ? `, vers ${escapeHtml(options.passingTo)}` : ''}</div>` : ''}
         </div>
-        <div class="exercise-target-stars" aria-label="Difficulté ${difficulty} sur 5" title="Difficulté ${difficulty} sur 5">
+        <div class="exercise-target-stars" aria-label="Difficulté ${difficulty} sur 5" title="Difficulté ${difficulty} sur 5${difficultyWhy ? ` — ${escapeHtml(difficultyWhy)}` : ''}">
           ${renderStars(difficulty)}
         </div>
       </div>

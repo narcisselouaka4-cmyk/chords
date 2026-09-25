@@ -476,8 +476,13 @@ function checkTopNoteSearch() {
     fmaj7A.every((v, i) => i === 0 || fmaj7A[i - 1].difficulty <= v.difficulty));
   check('Voicing de l\'exemple présent : MG F3 C4 / MD E4 A4',
     fmaj7A.some((v) => v.lh.join() === '53,60' && v.rh.join() === '64,69'));
-  const adv = findVoicingsByTopNote(5, 'maj7', 9, { level: 'advanced' });
-  check('Filtre Avancé : difficultés 4–5 uniquement', adv.length > 0 && adv.every((v) => v.difficulty >= 4));
+  // [Claude] — 2026-09-25 — Étoiles calculées sur les notes : Avancé = ★3 à ★5
+  // (G7alt, Fa au sommet : plusieurs voicings denses).
+  const adv = findVoicingsByTopNote(7, '7alt', 5, { level: 'advanced' });
+  check('Filtre Avancé : 3 étoiles ou plus uniquement', adv.length > 0 && adv.every((v) => v.difficulty >= 3), adv.map((v) => v.difficulty).join(','));
+  const fmajAdv = findVoicingsByTopNote(5, 'maj7', 9, { level: 'advanced', leftHandStyle: 'gospel' });
+  check('La main gauche du style compte dans les étoiles (Fmaj7 / La : un voicing Avancé avec la main gauche Gospel)',
+    findVoicingsByTopNote(5, 'maj7', 9, { level: 'advanced' }).length === 0 && fmajAdv.length > 0 && fmajAdv.every((v) => v.difficulty >= 3));
   const drop2 = findVoicingsByTopNote(5, 'maj7', 9, { technique: 'drop2' });
   check('Filtre technique : uniquement Drop 2', drop2.length > 0 && drop2.every((v) => v.technique === 'drop2'));
   check('Technique shell demandée : aucune suggestion', findVoicingsByTopNote(5, 'maj7', 9, { technique: 'shell' }).length === 0);
@@ -650,8 +655,8 @@ function checkTopNoteBrowser() {
   }
   check('Clic sur une puce : accord + voicing chargés, La au sommet', coherent);
   const simple = findChordsByTopNote(9, { level: 'simple' });
-  check('Niveau Simple : moins d\'accords, difficultés ≤ 2',
-    simple.length < all.length && simple.every((r) => r.voicings.every((v) => v.difficulty <= 2)));
+  check('Niveau Simple : moins d\'accords, une étoile',
+    simple.length < all.length && simple.every((r) => r.voicings.every((v) => v.difficulty === 1)));
   const allQualities = TARGET_QUALITY_GROUPS.flatMap((g) => g.qualities);
   check('48 qualités dans les familles', allQualities.length === 48 && new Set(allQualities).size === 48);
   const html = renderTopNoteBrowser(all, { topPc: 9 });
@@ -677,7 +682,7 @@ function checkTopNoteIgnoresCardTechnique() {
   for (const level of ['simple', 'intermediate', 'advanced']) {
     const found = findChordsByTopNote(0, { level });
     const techs = new Set(found.flatMap((r) => r.voicings.map((v) => v.technique)));
-    check(`Navigateur ${level} (Do au sommet) : accords trouvés, plusieurs techniques`, found.length > 50 && techs.size > 1, `${found.length} / ${[...techs].join(',')}`);
+    check(`Navigateur ${level} (Do au sommet) : accords trouvés, plusieurs techniques`, found.length > 30 && techs.size > 1, `${found.length} / ${[...techs].join(',')}`);
   }
 }
 
