@@ -1973,7 +1973,6 @@
           <div class="vk-bed">
             <div class="keyboard-container-wrap" id="keyboard-container-wrap">
               <div id="keyboard-container" class="keyboard-container"></div>
-              <div class="keyboard-annotation-layer" id="keyboard-annotation-layer" aria-hidden="true"></div>
             </div>
           </div>
 
@@ -1982,6 +1981,15 @@
               <span><i class="vk-dot vk-dot-note"></i>Note</span>
               <span><i class="vk-dot vk-dot-root"></i>Fondamentale</span>
               <span class="vk-hint">Les couleurs des touches se règlent dans le pied de page</span>
+            </div>
+            <!-- [Claude] — 2026-09-25 — Légende des marques posées sur les touches
+                 (tuto interactif du Copilote, pas à pas, erreurs) : remplace la
+                 légende des couleurs tant que des marques sont affichées
+                 (src/ui/keyboard-marks.js). -->
+            <div class="vk-mark-caption" id="keyboard-mark-caption" hidden>
+              <span class="vk-mark-caption-text"></span>
+              <span class="vk-mark-caption-legend"></span>
+              <button type="button" class="vk-mark-caption-close" aria-label="Effacer les repères du clavier" title="Effacer les repères">✕</button>
             </div>
             <div class="vk-status-right">
               <span class="vk-mono" id="keyboard-note-count">0 note</span>

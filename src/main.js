@@ -94,6 +94,7 @@ import {
 import { applyTabVisibility } from './ui/tab-visibility.js';
 import { initAstraShell } from './ui/refonte/astra-shell.js';
 import { initOnboarding, notifyOnboarding } from './ui/onboarding.js';
+import { applyKeyboardMarks, clearKeyboardMarks, initKeyboardMarks } from './ui/keyboard-marks.js';
 import {
   publishLiveNoteOn,
   publishLiveNoteOff,
@@ -296,6 +297,9 @@ function renderKeyboardAtCurrentSize() {
     state.notation === 'latin',
   );
   applyActiveNotes();
+  // [Claude] — 2026-09-25 — Marques du tuto interactif (rôles, erreurs…) : le
+  // nouveau SVG les a perdues, on les repose sur les touches.
+  applyKeyboardMarks();
   fitKeyboardPanelHeight(width);
   initVirtualKeyboard({
     onNoteOn: (note, velocity = 0.8) => handleNoteOn(note, velocity, true, true),
@@ -2729,6 +2733,15 @@ async function init() {
   safeInit('initKeyboardCollapse', initKeyboardCollapse);
   safeInit('initPanelToggles', initPanelToggles);
   safeInit('refreshKeyboard', refreshKeyboard);
+  // [Claude] — 2026-09-25 — Marques posées sur les touches (tuto interactif) :
+  // effacées à chaque changement de vue ou d'onglet (le module qui les pose
+  // les remet après la bascule s'il en a besoin).
+  safeInit('initKeyboardMarks', () => {
+    initKeyboardMarks();
+    document.addEventListener('app-switch-training-view', () => clearKeyboardMarks());
+    document.addEventListener('app-switch-tab', () => clearKeyboardMarks());
+    document.querySelectorAll('.tab-btn').forEach((tab) => tab.addEventListener('click', () => clearKeyboardMarks()));
+  });
   safeInit('initSettings', initSettings);
   safeInit('initNoteGrouper', initNoteGrouper);
   safeInit('initHistory', initHistory);

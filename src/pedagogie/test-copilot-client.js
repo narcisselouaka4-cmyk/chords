@@ -121,6 +121,7 @@ global.document = {
 
 // 2. Import dynamique APRÈS le setup de window
 const { sendCopilotMessage, executeToolCalls, wantsToHear } = await import('./copilot-client.js');
+const { getKeyboardMarks } = await import('../ui/keyboard-marks.js');
 
 const GREEN = '\x1b[32m';
 const RED = '\x1b[31m';
@@ -413,34 +414,30 @@ function testWantsToHear() {
 }
 
 function testAnnotation() {
-  // Simuler un clavier SVG minimal
+  // [Claude] — 2026-09-25 — annotate_keyboard pose des marques sur les touches
+  // (keyboard-marks.js) : rôle de chaque note si l'accord est donné, légende.
   document.resetMock();
   document.setPanel(false);
-  document.setSvg(200, 150);
-  document.setKey(60, 0, 0, 40, 150);
-  document.setLayer();
 
   const result = executeToolCalls([
     { function: { name: 'annotate_keyboard', arguments: JSON.stringify({ notes: [{ midi: 60, label: 'Do' }] }) } },
   ]);
   check('annotate_keyboard est exécuté sur le clavier visible', result.annotated.length === 1);
-  check('Le marqueur est posé dans le DOM', document.querySelectorAll('#keyboard-annotation-layer .keyboard-annotation-marker').length === 1);
   check('Le bon data-midi est annoté', result.annotated[0].midi === 60);
+  const first = getKeyboardMarks();
+  check('Une marque posée sur la touche (étiquette courte gardée)', first.marks.length === 1 && first.marks[0].midi === 60 && first.marks[0].label === 'Do', JSON.stringify(first));
 
-  // Nouvelle annotation : l'ancienne est effacée
-  document._els['keyboard-annotation-layer'] = {
-    innerHTML: '<marker>old</marker>',
-    appendChild(child) {
-      this.innerHTML = child._html;
-      global.document._markers = [child];
-    },
-  };
+  // Accord donné : couleur et degré de chaque touche ; l'ancienne marque est remplacée.
   executeToolCalls([
-    { function: { name: 'annotate_keyboard', arguments: JSON.stringify({ notes: [{ midi: 60 }] }) } },
+    { function: { name: 'annotate_keyboard', arguments: JSON.stringify({ chord: 'Dm9', caption: 'Le rootless de Dm9', notes: [{ midi: 53 }, { midi: 57 }, { midi: 60 }, { midi: 64, label: 'neuvième' }] }) } },
   ]);
-  const layer = document.getElementById('keyboard-annotation-layer');
-  check('L\'annotation précédente est effacée avant la nouvelle', !layer.innerHTML.includes('old'));
-  check('La nouvelle annotation est présente', layer.innerHTML.length > 0 && layer.innerHTML.includes('keyboard-annotation'));
+  const marks = getKeyboardMarks();
+  const byMidi = Object.fromEntries(marks.marks.map((m) => [m.midi, m]));
+  check('L\'annotation précédente est remplacée', !byMidi[60] || byMidi[60].label !== 'Do');
+  check('Rôles : Fa = b3 (guide), La = 5, Do = b7 (guide), Mi = 9 (couleur)',
+    byMidi[53]?.kind === 'guide' && byMidi[53]?.label === 'b3' && byMidi[57]?.label === '5' && byMidi[60]?.label === 'b7' && byMidi[64]?.kind === 'color' && byMidi[64]?.label === '9',
+    JSON.stringify(marks.marks));
+  check('Légende : la phrase du Copilote et l\'étiquette trop longue pour la pastille', /Le rootless de Dm9/.test(marks.caption) && /E4 : neuvième/.test(marks.caption), marks.caption);
 }
 
 async function testRetryWhenDemoAnnouncedButNoToolCalls() {

@@ -5768,39 +5768,73 @@ body.studio-recording-cursor * {
   transform: rotate(180deg);
 }
 
-/* Annotation visuelle posée par le Copilot IA sur le clavier virtuel */
-.keyboard-annotation-layer {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+/* [Claude] — 2026-09-25 — Marques posées sur les touches (src/ui/keyboard-marks.js) :
+   pastille + étiquette DANS le SVG de la touche (plus de flèches posées
+   par-dessus, qui se décalaient au redimensionnement). La couleur dit le rôle. */
+:root {
+  --kb-mark-target: #d9ccff;
+  --kb-mark-root: #6fd0bf;
+  --kb-mark-guide: #f4c152;
+  --kb-mark-fifth: #cfd5e2;
+  --kb-mark-color: #bb9cff;
+  --kb-mark-bass: #8cc2f2;
+  --kb-mark-passing: #9fe0e8;
+  --kb-mark-outside: #ff9f6b;
+  --kb-mark-ok: #74d99a;
+  --kb-mark-wrong: #ff6f6f;
+  --kb-mark-missing: #f4c152;
+  --kb-mark-ghost: #a3a3a3;
+}
+
+.kb-mark-dot {
+  fill: var(--kb-mark-target);
+  stroke: rgba(10, 10, 16, 0.55);
+  stroke-width: 1.5;
+}
+
+.kb-mark-label {
+  fill: #15151b;
+  font-family: "DM Sans", system-ui, sans-serif;
+  font-weight: 700;
   pointer-events: none;
-  z-index: 10;
 }
 
-.keyboard-annotation-marker {
-  position: absolute;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  color: var(--accent, #bf3a2b);
-  font-weight: 800;
-  font-size: 0.72rem;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-  animation: keyboard-annotation-pop 0.25s ease-out;
+.kb-mark-root .kb-mark-dot { fill: var(--kb-mark-root); }
+.kb-mark-guide .kb-mark-dot { fill: var(--kb-mark-guide); }
+.kb-mark-fifth .kb-mark-dot { fill: var(--kb-mark-fifth); }
+.kb-mark-color .kb-mark-dot { fill: var(--kb-mark-color); }
+.kb-mark-bass .kb-mark-dot { fill: var(--kb-mark-bass); }
+.kb-mark-passing .kb-mark-dot { fill: var(--kb-mark-passing); }
+.kb-mark-outside .kb-mark-dot { fill: var(--kb-mark-outside); }
+.kb-mark-ok .kb-mark-dot { fill: var(--kb-mark-ok); }
+.kb-mark-wrong .kb-mark-dot { fill: var(--kb-mark-wrong); }
+
+/* Note manquante : pastille creuse en pointillé (« à jouer, pas jouée »). */
+.kb-mark-missing .kb-mark-dot {
+  fill: rgba(244, 193, 82, 0.2);
+  stroke: var(--kb-mark-missing);
+  stroke-width: 2.5;
+  stroke-dasharray: 4 3;
+}
+.note.black .kb-mark-missing .kb-mark-label { fill: var(--kb-mark-missing); }
+
+/* Note qui traîne sous la pédale : grisée. */
+.kb-mark-ghost { opacity: 0.6; }
+.kb-mark-ghost .kb-mark-dot { fill: var(--kb-mark-ghost); }
+
+/* Voix qui va bouger vers l'accord suivant : anneau qui pulse. */
+.kb-mark-ring {
+  fill: none;
+  stroke: var(--kb-mark-guide);
+  stroke-width: 3;
+  animation: kb-mark-pulse 1s ease-in-out infinite alternate;
 }
 
-.keyboard-annotation-arrow {
-  font-size: 1.3rem;
-  line-height: 1;
+@keyframes kb-mark-pulse {
+  from { stroke-opacity: 1; }
+  to { stroke-opacity: 0.15; }
 }
 
-.keyboard-annotation-label {
-  white-space: nowrap;
-}
-
-@keyframes keyboard-annotation-pop {
-  0% { transform: translate(-50%, -8px); opacity: 0; }
-  100% { transform: translate(-50%, 0); opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .kb-mark-ring { animation: none; }
 }
