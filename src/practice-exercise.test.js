@@ -16,6 +16,7 @@ import {
   listMovementNames,
   TECHNIQUES,
   judgeAnswer,
+  exerciseSuggestion,
   realizesChord,
   isTextbookScope,
   exerciseVoicingsFor,
@@ -585,7 +586,7 @@ function checkKeySpelling() {
   ex.setVariant(1);
   check('Nom épelé conservé après changement de technique et de variante', ex.getState().target.name === 'Bbmaj7');
   const wrong = ex.check([60, 64, 67]);
-  check('Message d\'erreur : accord attendu épelé en bémols', wrong.message.includes('Bbmaj7'), wrong.message);
+  check('Suggestion : accord attendu épelé en bémols', wrong.message.includes('Bbmaj7'), wrong.message);
   const mv = createPracticeExercise();
   mv.setMode('movement');
   mv.setKeyChoice(1);
@@ -1174,7 +1175,13 @@ function checkValidationAgainstAnnouncedChord() {
   check('C6 : La Do Mi (La mineur) refusé', !ex.isCorrect([57, 60, 64]));
   check('isCorrect ne compte pas d\'essai', ex.getState().attempts === attempts);
   const wrong = ex.check([57, 60, 64]);
-  check('C6 : message « Vous avez joué Am. Cible : C6 »', !wrong.success && wrong.message.includes('Am') && wrong.message.includes('C6'), wrong.message);
+  check('C6 : suggestion « J\'entends Am. Pour C6, mettez C à la basse. »', !wrong.success && wrong.message === 'J\'entends Am. Pour C6, mettez C à la basse.', wrong.message);
+  // [Claude] — 2026-09-25 — Des suggestions, jamais « ❌ » ni « Vous avez joué » (assistant, pas coach).
+  check('Suggestion : remplacer la 7e majeure par la 6te (C E G B pour C6)', exerciseSuggestion([48, 52, 55, 59], c6) === 'remplacez B par A (6te)', exerciseSuggestion([48, 52, 55, 59], c6));
+  check('Suggestion : ajouter la 7e qui manque (C E G pour Cmaj7)', exerciseSuggestion([48, 52, 55], { rootPc: 0, symbol: 'maj7', name: 'Cmaj7', notes: [48, 52, 55, 59] }) === 'ajoutez B (7e majeure)');
+  check('Suggestion : la 7e de Dm7 épelée sur l\'accord (C, pas B#)', exerciseSuggestion([50, 53, 57, 61], { rootPc: 2, symbol: 'm7', name: 'Dm7', notes: [50, 53, 57, 60] }) === 'remplacez C# par C (7e)');
+  check('Suggestion : note étrangère sans voisine qui manque → « essayez sans »', exerciseSuggestion([43, 53, 54, 59], { rootPc: 7, symbol: '7', name: 'G7', notes: [43, 53, 59] }) === 'essayez sans F#');
+  check('Suggestion : jamais de verdict dans le message', !/❌|Vous avez joué|Cible :|erreur|faux/i.test(wrong.message), wrong.message);
 
   ex.setTechnique('rootless');
   ex.setTargetChoice(0, 'maj7');

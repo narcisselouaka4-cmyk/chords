@@ -119,6 +119,8 @@
 .vk-mark-caption-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--vk-text); font-size: 12px; font-weight: 550; }
 .vk-mark-caption[data-tone='ok'] .vk-mark-caption-text { color: #74d99a; }
 .vk-mark-caption[data-tone='warn'] .vk-mark-caption-text { color: #f4c152; }
+/* [Claude] — 2026-09-25 — Une suggestion : couleur douce de l'accent, pas une alerte. */
+.vk-mark-caption[data-tone='tip'] .vk-mark-caption-text { color: #d9ccff; }
 .vk-mark-caption[data-tone='error'] .vk-mark-caption-text { color: #ff8a8a; }
 .vk-mark-caption-legend { display: flex; flex-shrink: 0; align-items: center; gap: 11px; }
 .vk-mark-caption-legend > span { display: inline-flex; align-items: center; gap: 5px; color: var(--vk-secondary); font: 9px var(--vk-mono); white-space: nowrap; }
@@ -131,8 +133,8 @@
 .kb-legend-passing { background: var(--kb-mark-passing); }
 .kb-legend-outside { background: var(--kb-mark-outside); }
 .kb-legend-ok { background: var(--kb-mark-ok); }
-.kb-legend-wrong { background: var(--kb-mark-wrong); }
-.kb-legend-missing { background: transparent; border: 1.5px dashed var(--kb-mark-missing); }
+.kb-legend-swap { background: var(--kb-mark-swap); }
+.kb-legend-suggest { background: transparent; border: 1.5px dashed var(--kb-mark-suggest); }
 .kb-legend-ghost { background: var(--kb-mark-ghost); opacity: .6; }
 .kb-legend-moving { background: transparent; border: 2px solid var(--kb-mark-guide); }
 .vk-mark-caption-close { display: grid; flex-shrink: 0; place-items: center; width: 21px; height: 21px; margin-left: auto; padding: 0; color: var(--vk-muted); background: #22232a; border: 1px solid var(--vk-line-soft); border-radius: 10px; font-size: 10px; cursor: pointer; }
@@ -225,6 +227,7 @@
 :root[data-theme='light'] .vk-review { background: #eee7fb; border-color: #d6c9f2; }
 :root[data-theme='light'] .vk-mark-caption[data-tone='ok'] .vk-mark-caption-text { color: #2f8a57; }
 :root[data-theme='light'] .vk-mark-caption[data-tone='warn'] .vk-mark-caption-text { color: #9a6a0c; }
+:root[data-theme='light'] .vk-mark-caption[data-tone='tip'] .vk-mark-caption-text { color: #5b3fc4; }
 :root[data-theme='light'] .vk-mark-caption[data-tone='error'] .vk-mark-caption-text { color: #b8323a; }
 :root[data-theme='light'] .vk-stepper > button { background: #f0eef4; }
 :root[data-theme='light'] .vk-stepper > button:hover { background: #eae7f0; }

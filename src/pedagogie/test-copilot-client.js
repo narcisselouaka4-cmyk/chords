@@ -638,7 +638,7 @@ async function testSessionFindingsInPrompt() {
     chords: [{ start: 0, label: 'Dm9' }, { start: 2, label: 'G13' }],
     performance: { lines: ['Points forts :', '- Harmonies colorées.', 'À travailler (du plus important au moins important) :', '- Pédale gardée pendant 5 changements d\'accord sur 5 (0:02 Dm9 → G13 : Ré2, Do4).'] },
   };
-  const res = await sendCopilotMessage({ message: 'Analyse mon jeu sur cette session : ce qui est réussi, ce qui ne va pas (avec les moments), et comment progresser.', messages: [], context });
+  const res = await sendCopilotMessage({ message: 'Que penses-tu de ma session ? Ce qui marche, et tes suggestions (avec les moments) pour aller plus loin.', messages: [], context });
   check('Session : constats de l\'analyse du jeu dans le contexte', /## Constats de l'analyse du jeu/.test(system) && /Pédale gardée pendant 5 changements/.test(system));
   check('Session : origine « Prise du Studio » dans le contexte', /Origine : Prise du Studio/.test(system));
   check('Session : demande d\'analyse sans exemple ni lecture', res.ok && !res.toolResult?.example && res.autoplay === false);

@@ -121,8 +121,8 @@ function testScales() {
 function testChordsReview() {
   const good = take().chord(0, [38, 53, 57, 60, 64]).chord(2, [43, 53, 57, 59, 64]).chord(4, [36, 52, 55, 59, 62], { hold: 2.5 });
   const r = reviewTake(good.events, { question: "Je joue un 2-5-1 en Do, c'est bon ?" });
-  check('2-5-1 juste : verdict', r.verdict === 'II-V-I en Do majeur : les bons accords (Dm9 → G13 → Cmaj9)', r.verdict);
-  check('2-5-1 juste : aucun point à revoir', r.issues.length === 0, r.issues.map((i) => i.id).join(','));
+  check('2-5-1 juste : verdict', r.verdict === 'II-V-I en Do majeur : les accords voulus sont là (Dm9 → G13 → Cmaj9)', r.verdict);
+  check('2-5-1 juste : aucune suggestion', r.issues.length === 0, r.issues.map((i) => i.id).join(','));
   check('2-5-1 juste : degrés dans la tonalité annoncée', r.chords.map((c) => c.degree).join(' ') === 'II V I');
   const text = r.contextLines.join('\n');
   check('Portrait : notes exactes par main, voicing, rôles, conduite des voix', /0:00,0 Dm9 \[II\] · Ré2 \| Fa3 La3 Do4 Mi4 · Rootless \(type A/.test(text) && /1 b3 5 b7 9 · → Do \(7e\) descend sur Si, la 3ce de G13/.test(text), text);
@@ -134,8 +134,8 @@ function testChordsReview() {
   const issue = w.issues.find((i) => i.id === 'intent-chord');
   check('Fa# au lieu de Fa sur G7 : l\'accord en cause, la note fausse, la note manquante', issue && issue.chord === 'Gmaj13' && issue.problemNotes.join(',') === '54' && issue.missing.join(',') === '5', JSON.stringify(issue));
   const marks = takeMarks(w, w.moments[0]);
-  check('Clavier : Fa#3 en faute, Fa manquant (b7), les autres notes avec leur rôle',
-    marks.marks.some((m) => m.midi === 54 && m.kind === 'wrong') && marks.marks.some((m) => m.kind === 'missing' && m.label === 'b7') && marks.marks.some((m) => m.midi === 59 && m.label === '3'),
+  check('Clavier : Fa#3 à remplacer, Fa3 suggéré juste à côté (b7), les autres notes avec leur rôle',
+    marks.marks.some((m) => m.midi === 54 && m.kind === 'swap') && marks.marks.some((m) => m.midi === 53 && m.kind === 'suggest' && m.label === 'b7') && marks.marks.some((m) => m.midi === 59 && m.label === '3') && marks.tone === 'tip',
     JSON.stringify(marks.marks));
 
   const rootless = take().chord(0, [53, 57, 60, 64], { hold: 2 });
@@ -146,15 +146,15 @@ function testChordsReview() {
   const pedal = take().pedal(0, true).chord(0, [36, 43, 52, 55, 59], { hold: 1 }).chord(2, [41, 48, 57, 60, 64], { hold: 1 }).chord(4, [43, 50, 53, 59, 65], { hold: 1 }).pedal(5.5, false);
   const p = reviewTake(pedal.events);
   const blur = takeMarks(p, p.moments[0]);
-  check('Pédale gardée : notes qui traînent marquées « pédale »', blur.marks.filter((m) => m.kind === 'ghost').map((m) => m.midi).join(',') === '43,55,59' && blur.tone === 'warn', JSON.stringify(blur));
+  check('Pédale gardée : notes qui traînent marquées « pédale »', blur.marks.filter((m) => m.kind === 'ghost').map((m) => m.midi).join(',') === '43,55,59' && blur.tone === 'tip', JSON.stringify(blur));
 }
 
 function testLinesReview() {
   const scale = take().line(0, [62, 64, 65, 67, 69, 71, 72, 74, 72, 71, 70, 67, 65, 64, 62], 0.3);
   const s = reviewTake(scale.events, { question: "J'ai joué la gamme de Ré dorien, c'est juste ?" });
-  check('Ré dorien : verdict une note hors gamme', s.verdict === 'Ré dorien : 1 note hors gamme', s.verdict);
+  check('Ré dorien : verdict une note à rapprocher de la gamme', s.verdict === 'Ré dorien : 1 note à rapprocher de la gamme', s.verdict);
   const outside = s.issues.find((i) => i.id === 'intent-scale');
-  check('Ré dorien : le Sib4 et son moment', outside?.problemNotes.join(',') === '70' && /0:03,0 Sib4/.test(outside.text), outside?.text);
+  check('Ré dorien : le Sib4, son moment et la note voisine à essayer', outside?.problemNotes.join(',') === '70' && /0:03,0 La4 à la place de Sib4/.test(outside.text), outside?.text);
   check('Rythme : écart entre attaques, sans tempo inventé', s.rhythm.every > 0.29 && s.rhythm.every < 0.31 && /une attaque toutes les 0,3 s/.test(s.contextLines.join('\n')));
 
   const lick = take().chord(0, [43, 53, 59], { hold: 3 }).line(0.3, [74, 75, 76, 79, 77, 76, 74], 0.33, { hold: 0.3 }).line(2.7, [71], 0.3, { hold: 0.8 });

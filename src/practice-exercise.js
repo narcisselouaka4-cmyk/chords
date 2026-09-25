@@ -954,6 +954,66 @@ export function judgeAnswer(notes, target) {
   return { success, detected };
 }
 
+// [Claude] — 2026-09-25 — Degrés en mots, pour les suggestions de l'exercice.
+const DEGREE_WORDS_FR = {
+  1: 'fondamentale', b3: '3ce', 3: '3ce', 4: 'quarte', 5: 'quinte', b5: 'quinte diminuée', '#5': 'quinte augmentée',
+  6: '6te', b7: '7e', 7: '7e majeure', b9: 'b9', 9: '9e', '#9': '#9', 11: '11e', '#11': '#11', b13: 'b13', 13: '13e',
+};
+
+/**
+ * [Claude] — 2026-09-25 — Suggestion quand l'accord joué n'est pas encore celui de
+ * la carte (Narcisse : « on reste un assistant, pas un coach […] l'assistant
+ * devrait plutôt lui conseiller de faire ci ou ça ») : quelle note remplacer par
+ * laquelle, laquelle ajouter. Même règle que judgeAnswer : l'accord ANNONCÉ, ses
+ * notes et celles du voicing affiché, fondamentale et quinte facultatives.
+ * @param {number[]} notes - MIDI joués
+ * @param {{rootPc: number, symbol: string, name?: string, notes?: number[]}} target
+ * @returns {string} « ajoutez G (quinte) », « remplacez B par A (6te) »… ; '' si rien à proposer
+ */
+export function exerciseSuggestion(notes, target) {
+  if (!target || !notes?.length || target.rootPc == null) return '';
+  const { rootPc } = target;
+  const quality = target.symbol || '';
+  const rootName = /^[A-G][#b]?/.exec(String(target.name || ''))?.[0] || formatPc(rootPc, false);
+  const shown = target.notes || [];
+  const played = new Set(notes.map((n) => pcRelativeTo(n, rootPc)));
+  const allowed = chordToneIntervals(quality);
+  shown.forEach((n) => allowed.add(pcRelativeTo(n, rootPc)));
+  const foreign = [...new Set(notes.map((n) => pcRelativeTo(n, rootPc)).filter((i) => !allowed.has(i)))];
+  // Ce qui définit l'accord (voir hasDefiningNotes) : le noyau, sauf fondamentale et
+  // quinte, et une note de chaque couleur du nom (celle du voicing affiché d'abord).
+  const colors = requiredColorGroups(quality);
+  const optional = new Set([0, 7]);
+  if (colors.some((g) => g.length === 1 && g[0] === 5)) optional.add(4);
+  const shownRel = new Set(shown.map((n) => pcRelativeTo(n, rootPc)));
+  const missing = chordCoreIntervals(quality).filter((i) => !optional.has(i) && !played.has(i));
+  for (const g of colors) if (!g.some((i) => played.has(i))) missing.push(g.find((i) => shownRel.has(i)) ?? g[0]);
+  const name = (i) => spellChordTone(rootName, i, quality);
+  const word = (i) => DEGREE_WORDS_FR[degreeName(i, quality)] || degreeName(i, quality);
+  const ideas = [];
+  const open = [...new Set(missing)];
+  for (const f of foreign) {
+    // La note étrangère la plus proche d'une note qui manque (deux demi-tons au plus) : on propose l'échange.
+    const near = open.find((i) => Math.min(pcRelativeTo(i - f, 0), pcRelativeTo(f - i, 0)) <= 2);
+    const from = formatPc(pcRelativeTo(rootPc + f, 0), false);
+    if (near != null) {
+      open.splice(open.indexOf(near), 1);
+      ideas.push(`remplacez ${from} par ${name(near)} (${word(near)})`);
+    } else {
+      ideas.push(`essayez sans ${from}`);
+    }
+  }
+  if (open.length) ideas.push(`ajoutez ${open.map((i) => `${name(i)} (${word(i)})`).join(', ')}`);
+  // Assez de notes (3 avec la fondamentale, 4 sans) et une basse admise, comme realizesChord.
+  if (!ideas.length && played.size < (played.has(0) ? 3 : 4)) {
+    ideas.push(played.has(0) ? 'ajoutez une autre note de l\'accord' : `ajoutez la fondamentale ${name(0)}`);
+  }
+  if (!ideas.length && played.has(0) && !allowedBassIntervals(quality).has(pcRelativeTo(Math.min(...notes), rootPc))) {
+    ideas.push(`mettez ${name(0)} à la basse`);
+  }
+  return ideas.slice(0, 2).join(', puis ');
+}
+
 // Intervalles de la « septième » de l'accord, par ordre de préférence.
 const SHELL_SEVENTH_SEMITONES = { '7m': 10, '7M': 11, '7d': 9, '6M': 9 };
 
@@ -2769,10 +2829,12 @@ export function createPracticeExercise() {
           nextName: state.target.name,
         };
       }
-      const playedName = detected ? `${formatPc(detected.rootPc, false)}${detected.symbol}` : 'inconnu';
+      // [Claude] — 2026-09-25 — Une suggestion, pas un verdict (« assistant, pas coach »).
+      const heard = detected ? `J'entends ${formatPc(detected.rootPc, false)}${detected.symbol}. ` : '';
+      const idea = exerciseSuggestion(notes, state.target);
       return {
         success: false,
-        message: `❌ Vous avez joué ${playedName}. Cible : ${state.target.name}`,
+        message: `${heard}Pour ${state.target.name}, ${idea || 'essayez les notes de la carte'}.`,
         hint: state.target.notes,
       };
     }
@@ -2817,10 +2879,11 @@ export function createPracticeExercise() {
         message: `✅ ${expected.name} correct. Suivant : ${state.target.name}`,
       };
     }
-    const playedName = detected ? `${spellPcInKey(detected.rootPc, state.progression.currentKey, isMinorMovement(state.progression.movement))}${detected.symbol}` : 'inconnu';
+    const heard = detected ? `J'entends ${spellPcInKey(detected.rootPc, state.progression.currentKey, isMinorMovement(state.progression.movement))}${detected.symbol}. ` : '';
+    const idea = exerciseSuggestion(notes, expected);
     return {
       success: false,
-      message: `❌ Attendu ${expected.name} (${state.target.keyLabel}), joué ${playedName}.`,
+      message: `${heard}Pour ${expected.name} (${state.target.keyLabel}), ${idea || 'essayez les notes de la carte'}.`,
       hint: expected.notes,
     };
   }

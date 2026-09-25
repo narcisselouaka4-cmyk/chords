@@ -5781,8 +5781,10 @@ body.studio-recording-cursor * {
   --kb-mark-passing: #9fe0e8;
   --kb-mark-outside: #ff9f6b;
   --kb-mark-ok: #74d99a;
-  --kb-mark-wrong: #ff6f6f;
-  --kb-mark-missing: #f4c152;
+  /* [Claude] — 2026-09-25 — Suggestions (plus de rouge « faux ») : note à remplacer
+     en orange doux, note à essayer en pointillé vert. */
+  --kb-mark-swap: #ffb36b;
+  --kb-mark-suggest: #74d99a;
   --kb-mark-ghost: #a3a3a3;
 }
 
@@ -5807,18 +5809,18 @@ body.studio-recording-cursor * {
 .kb-mark-passing .kb-mark-dot { fill: var(--kb-mark-passing); }
 .kb-mark-outside .kb-mark-dot { fill: var(--kb-mark-outside); }
 .kb-mark-ok .kb-mark-dot { fill: var(--kb-mark-ok); }
-.kb-mark-wrong .kb-mark-dot { fill: var(--kb-mark-wrong); }
+.kb-mark-swap .kb-mark-dot { fill: var(--kb-mark-swap); }
 
-/* Note manquante : pastille creuse en pointillé (« à jouer, pas jouée »). */
-.kb-mark-missing .kb-mark-dot {
-  fill: rgba(244, 193, 82, 0.2);
-  stroke: var(--kb-mark-missing);
+/* Note suggérée : pastille creuse en pointillé (« à essayer »). */
+.kb-mark-suggest .kb-mark-dot {
+  fill: rgba(116, 217, 154, 0.2);
+  stroke: var(--kb-mark-suggest);
   stroke-width: 2.5;
   stroke-dasharray: 4 3;
 }
-.note.black .kb-mark-missing .kb-mark-label { fill: var(--kb-mark-missing); }
+.note.black .kb-mark-suggest .kb-mark-label { fill: var(--kb-mark-suggest); }
 
-/* Note qui traîne sous la pédale : grisée. */
+/* Note qui sonne encore sous la pédale : grisée. */
 .kb-mark-ghost { opacity: 0.6; }
 .kb-mark-ghost .kb-mark-dot { fill: var(--kb-mark-ghost); }
 

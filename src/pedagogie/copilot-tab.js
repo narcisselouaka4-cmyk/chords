@@ -34,7 +34,7 @@ let playingExample = null;
 // gardé pour les questions de suivi de la même conversation.
 let lastTakeContext = null;
 const DEFAULT_REVIEW_QUESTION = 'Qu\'en penses-tu de ce que je viens de jouer ?';
-// [Claude] — 2026-09-25 — Pas à pas au clavier (exemple ou erreurs d'un passage) :
+// [Claude] — 2026-09-25 — Pas à pas au clavier (exemple ou suggestions d'un passage) :
 // { id, title, steps, index, played, fresh, timer, finished }, ou null.
 let stepper = null;
 
@@ -359,7 +359,7 @@ function refreshExampleCards() {
  * [Claude] — 2026-09-25 — Carte « Ton passage » sous la question d'un « Qu'en
  * penses-tu ? » : ce que l'application a reconnu (accords et mains, voicing,
  * lignes et gamme), Réécouter (touches allumées, rôles au clavier), et les
- * moments à revoir, qu'un clic montre au clavier.
+ * suggestions, qu'un clic montre au clavier (ton « assistant, pas coach »).
  */
 function renderTakeCard(msg) {
   const take = msg.take;
@@ -375,11 +375,11 @@ function renderTakeCard(msg) {
   }
   if (take.moments?.length) {
     buttons.appendChild(el('button', {
-      className: 'copilot-example-steps', type: 'button', title: 'Chaque moment à revoir au clavier ; rejoue-le juste quand la correction est connue',
-      onClick: () => startStepper(id, stepsFromMoments(take.moments, { marksOf: (m) => takeMarks(null, m) }), 'Tes erreurs', {
-        doneText: 'Bravo : tu as rejoué juste chaque moment à revoir ! (Recommencer ou Quitter)',
+      className: 'copilot-example-steps', type: 'button', title: 'Chaque suggestion au clavier, une par une ; essaie la note proposée quand elle est connue',
+      onClick: () => startStepper(id, stepsFromMoments(take.moments, { marksOf: (m) => takeMarks(null, m) }), 'Suggestions', {
+        doneText: 'Tu as essayé chaque suggestion. (Recommencer ou Quitter)',
       }),
-      text: 'Voir mes erreurs',
+      text: 'Essayer les suggestions',
     }));
   }
   if (buttons.children.length) card.appendChild(buttons);
@@ -438,14 +438,14 @@ function showStep() {
     : { status: 'idle', missing: step.notes, extra: [], good: [] });
   const hint = step.kind === 'show' ? fb.caption
     : step.kind === 'sequence' ? `${step.caption} — joue les notes dans l'ordre`
-      : step.correction ? `${step.caption} — rejoue-le juste (touches en pointillé)` : `${step.caption} — à toi !`;
-  // Une erreur se montre d'abord telle quelle (note fausse en rouge, juste en pointillé).
+      : step.correction ? `${step.caption} — essaie avec la note en pointillé` : `${step.caption} — à toi !`;
+  // Une suggestion se montre d'abord telle quelle (note à remplacer en orange, note à essayer en pointillé).
   const marks = step.correction ? step.marks : fb.marks;
-  setKeyboardMarks(marks, { caption: stepCaption(hint), tone: step.kind === 'show' || step.correction ? 'warn' : '' });
+  setKeyboardMarks(marks, { caption: stepCaption(hint), tone: step.kind === 'show' || step.correction ? 'tip' : '' });
   refreshStepperBar();
 }
 
-/** Démarre le pas à pas d'une carte (exemple ou erreurs d'un passage). */
+/** Démarre le pas à pas d'une carte (exemple ou suggestions d'un passage). */
 function startStepper(id, steps, title, { doneText = null } = {}) {
   if (!steps?.length) return;
   document.dispatchEvent(new CustomEvent('copilot-stop-example'));
@@ -486,7 +486,7 @@ function onLiveInput(detail) {
   } else {
     if (detail.type !== 'on') return;
     judge = judgeSequenceStep(stepper.played, step);
-    // Une fausse note ne compte pas : on reprend à la note attendue.
+    // Une note hors de la suite ne compte pas : on reprend à la note attendue.
     if (judge.status === 'wrong') stepper.played = stepper.played.slice(0, judge.matched);
   }
   const fb = stepFeedback(step, judge);
@@ -657,7 +657,7 @@ export async function reviewLastPassage({ question = '', fromKeyboard = false } 
     document.dispatchEvent(new CustomEvent('app-switch-tab', { detail: { tab: 'practice' } }));
     document.dispatchEvent(new CustomEvent('app-switch-training-view', { detail: { view: 'copilot' } }));
   }
-  // Après la bascule (qui efface le clavier) : le verdict, ou le premier moment à revoir.
+  // Après la bascule (qui efface le clavier) : le verdict, ou la première suggestion.
   setKeyboardMarks(view.marks, { caption: view.caption, tone: view.tone });
   els.input.value = '';
   autoGrowInput();

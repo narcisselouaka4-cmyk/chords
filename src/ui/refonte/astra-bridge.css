@@ -392,15 +392,17 @@
   font-size: 11px;
   cursor: help;
 }
+/* [Claude] — 2026-09-25 — Suggestions (plus de rouge « défaut ») : point couleur
+   d'accent ; la plus utile a un contour d'accent. */
 #midi-session-carnet .carnet-finding-dot {
   flex-shrink: 0;
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--tr-red);
+  background: var(--tr-accent);
 }
 #midi-session-carnet .carnet-finding.is-strength .carnet-finding-dot { background: var(--tr-green); }
-#midi-session-carnet .carnet-finding.is-major { border-color: color-mix(in srgb, var(--tr-red) 55%, var(--tr-border)); }
+#midi-session-carnet .carnet-finding.is-major { border-color: color-mix(in srgb, var(--tr-accent) 55%, var(--tr-border)); }
 #midi-session-carnet .carnet-finding-title { font-weight: 550; white-space: nowrap; }
 #midi-session-carnet .carnet-finding-detail {
   position: absolute;

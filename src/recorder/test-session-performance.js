@@ -62,12 +62,12 @@ function cleanSession() {
 
 function testCleanPlaying() {
   const a = analyzeSessionPerformance(cleanSession(), { tempo: 60 });
-  check('Jeu propre : aucun point à travailler', a.issues.length === 0, ids(a.issues).join(', '));
+  check('Jeu propre : aucune suggestion', a.issues.length === 0, ids(a.issues).join(', '));
   check('Jeu propre : pédale propre', ids(a.strengths).includes('pedal-clean'), ids(a.strengths).join(', '));
   check('Jeu propre : voix du dessus bien enchaînée', ids(a.strengths).includes('top-smooth'), ids(a.strengths).join(', '));
   check('Jeu propre : changements réguliers', a.stats.changeEvery != null && Math.abs(a.stats.changeEvery - 2) < 0.05, String(a.stats.changeEvery));
   const text = formatPerformanceFindings(a).join('\n');
-  check('Texte pour le Copilote : points forts, à travailler, repères', /Points forts :/.test(text) && /À travailler/.test(text) && /Repères : \d+ notes · 9 accords/.test(text), text);
+  check('Texte pour le Copilote : ce qui marche, suggestions, repères', /Ce qui marche :/.test(text) && /Suggestions/.test(text) && /Repères : \d+ notes · 9 accords/.test(text), text);
 }
 
 function testPedalBlur() {
@@ -171,7 +171,7 @@ function testDetails() {
   const d = blur?.details?.[0];
   check('Détail pédale : moment, accords, notes qui traînent', d?.at === 2 && d.from === 'Cmaj7' && d.chord === 'Fmaj7' && d.problemNotes.join(',') === '43,55,59', JSON.stringify(d));
   check('Détail pédale : notes jouées sur le nouvel accord', d?.notes.join(',') === '41,48,57,60,64', JSON.stringify(d?.notes));
-  check('Détail pédale : phrase courte', /Sol2, Sol3, Si3 de Cmaj7 traînent sous Fmaj7/.test(d?.text || ''), d?.text);
+  check('Détail pédale : phrase courte, avec le conseil', /Sol2, Sol3, Si3 de Cmaj7 sonnent encore sous Fmaj7 : relève la pédale au changement/.test(d?.text || ''), d?.text);
 
   const r = session();
   r.chord(0, [36, 40, 43, 64, 67], { hold: 1.5 });

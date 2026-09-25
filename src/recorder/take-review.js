@@ -19,13 +19,22 @@
 //   - comparaison à la question quand elle dit ce qui était voulu (accords,
 //     tonalité, technique, gamme, arpège).
 // Le Copilote reçoit ce portrait (contextLines) et répond à la question posée
-// sans inventer de défaut ; sans clé d'IA, le verdict local s'affiche au clavier.
+// sans rien inventer ; sans clé d'IA, le verdict local s'affiche au clavier.
+//
+// [Claude] — 2026-09-25 — Ton : l'application est un assistant, pas un coach
+// (Narcisse : « ce serait pas très bien vu de simplement dire à l'utilisateur
+// qu'il a fait des erreurs […] l'assistant devrait plutôt lui conseiller de
+// faire ci ou ça »). Chaque point est une SUGGESTION : ce qui est entendu (moment,
+// notes exactes), ce qu'on peut essayer (quelle note à la place de laquelle),
+// et pourquoi. Jamais « erreur », « faux », « ne va pas », « à revoir ».
 
 import { buildNoteWindows, segmentSessionEvents, nameChordSegments, clusterAttacks } from './session-analysis.js';
 import { analyzeSessionPerformance, frenchNote } from './session-performance.js';
 import { classifyVoicing } from '../voicing-engine/voicing-classifier.js';
-import { noteRoles, parseChordName, availableTensions } from '../pedagogie/note-roles.js';
-import { describeVoiceLeading, lineNoteRole, frenchPitchName } from '../pedagogie/example-guide.js';
+import { noteRoles, parseChordName, availableTensions, nearestFitting } from '../pedagogie/note-roles.js';
+
+export { nearestFitting };
+import { describeVoiceLeading, lineNoteRole, frenchPitchName, degreeWord } from '../pedagogie/example-guide.js';
 import { fitScales, extractScaleRequest, scalePitchClasses } from '../pedagogie/scales.js';
 import { classifyIntent, extractKey } from '../pedagogie/intent-classifier.js';
 import { detectKey } from '../analyzer/key-detector.js';
@@ -35,6 +44,18 @@ import { chordToneIntervals } from '../practice-exercise.js';
 const pcOf = (n) => ((n % 12) + 12) % 12;
 const ROOTS_FR = ['Do', 'Réb', 'Ré', 'Mib', 'Mi', 'Fa', 'Fa#', 'Sol', 'Lab', 'La', 'Sib', 'Si'];
 const TECHNIQUE_WORDS = { drop2: 'drop 2', drop3: 'drop 3', rootless: 'rootless', quartal: 'voicings en quartes', close: 'position serrée' };
+// Comment obtenir la technique demandée (conventions de la règle 7 du Copilote).
+const TECHNIQUE_TITLES = {
+  drop2: 'Pour un vrai drop 2', drop3: 'Pour un vrai drop 3', rootless: 'Pour un voicing rootless',
+  quartal: 'Pour des voicings en quartes', close: 'Pour une position serrée',
+};
+const TECHNIQUE_HINTS = {
+  drop2: 'pars de l\'accord serré et descends d\'une octave la 2e note en partant du haut',
+  drop3: 'pars de l\'accord serré et descends d\'une octave la 3e note en partant du haut',
+  rootless: 'laisse la fondamentale à la basse (ou à la main gauche) et garde 3ce, 7e et une couleur (9e ou 13e)',
+  quartal: 'empile des quartes justes à partir d\'une note de l\'accord',
+  close: 'resserre les notes de l\'accord dans une octave, à la main droite',
+};
 const median = (xs) => {
   if (!xs.length) return 0;
   const s = [...xs].sort((a, b) => a - b);
@@ -54,6 +75,12 @@ export function takeMoment(seconds) {
 }
 
 const names = (notes) => notes.map((n) => frenchNote(n)).join(' ');
+
+/** « Fa3 (7e) » : une note avec son rôle dans l'accord. */
+function noteWithRole(midi, chord) {
+  const role = chord ? noteRoles(chord, [midi])[0] : null;
+  return `${frenchNote(midi)}${role?.degree ? ` (${degreeWord(role.degree)})` : ''}`;
+}
 
 /** Texte d'un moment sans son horodatage de tête (l'affichage le remet devant). */
 export function momentText(moment) {
@@ -142,8 +169,8 @@ export function findCadences(chords) {
 /**
  * Cadences presque justes : les fondamentales font un II-V-I (quartes
  * ascendantes, repos à la fin) mais le II n'est pas mineur ou le V n'est pas une
- * dominante — la faute classique (Fa# dans le G7 d'un II-V-I en Do, Fa# dans le
- * Dm7). La note en cause et celle qui manque sont données.
+ * dominante (Fa# dans le G7 d'un II-V-I en Do, Fa# dans le Dm7). La suggestion
+ * dit quelle note essayer à la place de laquelle (si c'est voulu, on la garde).
  */
 export function cadenceSlips(chords) {
   const slips = [];
@@ -159,15 +186,17 @@ export function cadenceSlips(chords) {
     const vOk = ['dominant', 'sus'].includes(famB);
     if (iiOk && !vOk && famB === 'major') {
       const wrong = b.notes.filter((n) => pcOf(n - b.rootPc) === 11);
+      const swaps = wrong.map((n) => `${frenchNote(n - 1)} (7e) à la place de ${frenchNote(n)}`);
       slips.push({
-        id: 'cadence-v', title: 'Le V n\'est pas une dominante', at: b.at, chord: b.name, notes: b.notes, problemNotes: wrong, missing: [pcOf(b.rootPc + 10)],
-        text: `${takeMoment(b.at)} : entre ${a.name} et ${c.name}, les fondamentales font un II-V-I, mais ${b.name} a une 7e majeure (${wrong.map(frenchNote).join(', ') || '7e majeure'}) : le V d'un II-V-I est une dominante (${ROOTS_FR[b.rootPc]}7, avec ${ROOTS_FR[pcOf(b.rootPc + 10)]}).`,
+        id: 'cadence-v', title: 'Pour une vraie dominante', at: b.at, chord: b.name, notes: b.notes, problemNotes: wrong, missing: [pcOf(b.rootPc + 10)],
+        text: `${takeMoment(b.at)} : ${a.name} → ${b.name} → ${c.name} dessine un II-V-I. Pour que ${ROOTS_FR[b.rootPc]} sonne en dominante (${ROOTS_FR[b.rootPc]}7) et tire vers ${c.name}, essaie ${swaps.join(', ') || `${ROOTS_FR[pcOf(b.rootPc + 10)]} (7e)`} ; si la 7e majeure est voulue, garde-la.`,
       });
     } else if (!iiOk && vOk && famA === 'major') {
       const wrong = a.notes.filter((n) => pcOf(n - a.rootPc) === 4);
+      const swaps = wrong.map((n) => `${frenchNote(n - 1)} (3ce mineure) à la place de ${frenchNote(n)}`);
       slips.push({
-        id: 'cadence-ii', title: 'Le II n\'est pas mineur', at: a.at, chord: a.name, notes: a.notes, problemNotes: wrong, missing: [pcOf(a.rootPc + 3)],
-        text: `${takeMoment(a.at)} : ${a.name} → ${b.name} → ${c.name} fait un II-V-I, mais ${a.name} a une tierce majeure (${wrong.map(frenchNote).join(', ') || 'tierce majeure'}) : le II est mineur (${ROOTS_FR[a.rootPc]}m7, avec ${ROOTS_FR[pcOf(a.rootPc + 3)]}).`,
+        id: 'cadence-ii', title: 'Pour un II mineur', at: a.at, chord: a.name, notes: a.notes, problemNotes: wrong, missing: [pcOf(a.rootPc + 3)],
+        text: `${takeMoment(a.at)} : ${a.name} → ${b.name} → ${c.name} dessine un II-V-I. Pour un II mineur (${ROOTS_FR[a.rootPc]}m7) qui prépare ${b.name}, essaie ${swaps.join(', ') || `${ROOTS_FR[pcOf(a.rootPc + 3)]} (3ce mineure)`} ; si la tierce majeure est voulue, garde-la.`,
       });
     }
   }
@@ -295,14 +324,22 @@ function compareToQuestion(question, chords, lines) {
     }
     for (const r of bad) {
       if (r.status === 'missing') {
-        out.issues.push({ id: 'intent-missing', title: 'Accord attendu absent', at: null, chord: r.name, notes: [], problemNotes: [], missing: [], text: `${r.name} attendu : je ne l'entends pas dans le passage.` });
+        out.issues.push({ id: 'intent-missing', title: `${r.name} pas entendu`, at: null, chord: r.name, notes: [], problemNotes: [], missing: [], text: `Je n'entends pas ${r.name} dans ce passage : rejoue-le si tu veux que je l'écoute.` });
       } else {
         const want = parseChordName(r.name);
-        const missingNames = r.missing.map((pc) => frenchPitchName(pc, want)).join(', ');
+        // Chaque note étrangère à l'accord voulu → la note la plus proche qui y entre
+        // (une note guide qui manque d'abord) ; les notes guides encore absentes s'ajoutent.
+        const swaps = r.problemNotes.map((from) => ({ from, to: nearestFitting(from, { chord: want, prefer: r.missing }) })).filter((x) => x.to != null);
+        const covered = new Set(swaps.map((x) => pcOf(x.to)));
+        const adds = r.missing.filter((pc) => !covered.has(pc));
+        const ideas = [
+          ...swaps.map((x) => `${noteWithRole(x.to, want)} à la place de ${frenchNote(x.from)}`),
+          ...(adds.length ? [`ajoute ${adds.map((pc) => `${frenchPitchName(pc, want)} (${degreeWord(noteRoles(want, [pc + 60])[0]?.degree || '')})`).join(', ')}`] : []),
+        ];
         out.issues.push({
-          id: 'intent-chord', title: 'Accord différent de celui voulu', at: r.played.at, chord: r.played.name, notes: r.played.notes,
-          problemNotes: r.problemNotes, missing: r.missing,
-          text: `${takeMoment(r.played.at)} : ${r.name} voulu, ${r.played.name} joué (${names(r.played.notes)})${r.problemNotes.length ? ` — ${names(r.problemNotes)} ${r.problemNotes.length > 1 ? 'ne vont' : 'ne va'} pas dans ${r.name}` : ''}${missingNames ? ` — il manque ${missingNames}` : ''}.`,
+          id: 'intent-chord', title: `Pour retrouver ${r.name}`, at: r.played.at, chord: r.played.name, notes: r.played.notes,
+          problemNotes: r.problemNotes, missing: r.missing, fixChord: r.name,
+          text: `${takeMoment(r.played.at)} : pour ${r.name}, j'entends ${r.played.name} (${names(r.played.notes)})${ideas.length ? ` ; essaie ${ideas.join(', ')}` : ''}.`,
         });
       }
     }
@@ -317,9 +354,10 @@ function compareToQuestion(question, chords, lines) {
       out.strengths.push({ id: 'intent-technique', text: `${word} bien réalisé${chords.length > 1 ? ' sur chaque accord' : ''}.` });
     } else {
       const other = chords.filter((c) => c.voicing.technique !== params.technique);
+      const hint = TECHNIQUE_HINTS[params.technique];
       out.issues.push({
-        id: 'intent-technique', title: `Pas tout à fait du ${word}`, at: other[0].at, chord: other[0].name, notes: other[0].notes, problemNotes: [], missing: [],
-        text: `${word} demandé : ${other.slice(0, 3).map((c) => `${takeMoment(c.at)} ${c.name} se lit ${c.voicing.label}${c.voicing.detail ? ` (${c.voicing.detail})` : ''}`).join(' ; ')}.`,
+        id: 'intent-technique', title: TECHNIQUE_TITLES[params.technique] || `Pour du ${word}`, at: other[0].at, chord: other[0].name, notes: other[0].notes, problemNotes: [], missing: [],
+        text: `${other.slice(0, 3).map((c) => `${takeMoment(c.at)} ${c.name} se lit en ${c.voicing.label}${c.voicing.detail ? ` (${c.voicing.detail})` : ''}`).join(' ; ')}${hint ? ` ; pour du ${word}, ${hint}` : ''}.`,
       });
     }
   }
@@ -346,9 +384,14 @@ function compareToQuestion(question, chords, lines) {
       if (outside.length === 0) {
         out.strengths.push({ id: 'intent-scale', text: `${label} : toutes les notes y sont (${pool.length} notes).` });
       } else {
+        const swaps = outside.slice(0, 4).map((n) => {
+          const to = nearestFitting(n.midi, { pcs: allowed });
+          return `${takeMoment(n.at)} ${to != null ? `${frenchNote(to)} à la place de ${frenchNote(n.midi)}` : frenchNote(n.midi)}`;
+        });
         out.issues.push({
-          id: 'intent-scale', title: `Notes hors ${label}`, at: outside[0].at, chord: null, notes: [...new Set(pool.map((n) => n.midi))], problemNotes: [...new Set(outside.map((n) => n.midi))], missing: [],
-          text: `${outside.length} note${outside.length > 1 ? 's' : ''} hors ${label} : ${outside.slice(0, 4).map((n) => `${takeMoment(n.at)} ${frenchNote(n.midi)}`).join(', ')}.`,
+          id: 'intent-scale', title: `Pour rester dans ${label}`, at: outside[0].at, chord: null, notes: [...new Set(pool.map((n) => n.midi))], problemNotes: [...new Set(outside.map((n) => n.midi))], missing: [],
+          suggestions: outside.map((n) => ({ from: n.midi, to: nearestFitting(n.midi, { pcs: allowed }) })),
+          text: `${outside.length} note${outside.length > 1 ? 's' : ''} sort${outside.length > 1 ? 'ent' : ''} de ${label} ; si ce n'est pas un passage voulu, essaie ${swaps.join(', ')}.`,
         });
       }
     }
@@ -411,16 +454,20 @@ export function reviewTake(events, { question = '' } = {}) {
     const long = median(line.notes.map((n) => n.dur)) * 1.8;
     const leaned = line.roles.filter((r) => r.kind === 'outside' && r.dur >= Math.max(0.35, long) && r.chord);
     if (leaned.length) {
+      const ideas = leaned.slice(0, 3).map((r) => {
+        const to = nearestFitting(r.midi, { chord: r.chord });
+        return `${takeMoment(r.at)} ${frenchNote(r.midi)} tenue sur ${r.chord}${to != null ? ` → glisse vers ${noteWithRole(to, r.chord)}` : ''}`;
+      });
       lineIssues.push({
-        id: 'line-outside', title: 'Note étrangère appuyée', at: leaned[0].at, chord: leaned[0].chord,
+        id: 'line-outside', title: 'Faire résoudre une note tenue', at: leaned[0].at, chord: leaned[0].chord,
         notes: [...new Set(line.notes.map((n) => n.midi))], problemNotes: [...new Set(leaned.map((r) => r.midi))], missing: [],
-        text: `${leaned.slice(0, 3).map((r) => `${takeMoment(r.at)} ${frenchNote(r.midi)} tenue sur ${r.chord} (${r.text.split(' : ')[1]})`).join(' ; ')} : une note étrangère tenue sonne comme une fausse note ; fais-la résoudre d'un demi-ton ou d'un ton vers une note de l'accord.`,
+        text: `${ideas.join(' ; ')} : une note hors de l'accord, tenue, crée une tension ; si elle est voulue, garde-la, sinon fais-la glisser d'un demi-ton ou d'un ton vers la note de l'accord indiquée.`,
       });
     }
   }
 
-  // Constats : la demande d'abord, puis l'harmonie, le son (avec leurs cas), les lignes.
-  // Une cadence presque juste n'est signalée que si la question n'a pas déjà dit
+  // Suggestions : la demande d'abord, puis l'harmonie, le son (avec leurs cas), les lignes.
+  // Une cadence presque juste n'est proposée que si la question n'a pas déjà dit
   // quels accords étaient voulus (la comparaison le fait alors, plus précisément).
   const slips = intent.expected?.length ? [] : cadenceSlips(chords);
   const perfIssues = (perf?.issues || []).map((f) => ({ ...f, moments: f.details || [] }));
@@ -440,7 +487,7 @@ export function reviewTake(events, { question = '' } = {}) {
     strengths.push({ id: 'line-scale', text: `Ligne cohérente : ${scaleLine.notes.length} notes toutes dans ${scaleLine.scale.label}.` });
   }
 
-  // Moments à montrer au clavier (erreurs), dans l'ordre du passage.
+  // Moments à montrer au clavier (suggestions), dans l'ordre du passage.
   const moments = issues.flatMap((i) => i.moments.map((m) => ({ ...m, title: i.title, issueId: i.id })))
     .filter((m) => Number.isFinite(m.at))
     .sort((a, b) => a.at - b.at);
@@ -458,13 +505,13 @@ export function reviewTake(events, { question = '' } = {}) {
 export function takeVerdict(review) {
   const { chords, lines, cadences, intent, issues } = review;
   const count = issues.length;
-  const tail = count ? ` · ${count} point${count > 1 ? 's' : ''} à revoir` : ' · rien à redire';
+  const tail = count ? ` · ${count} suggestion${count > 1 ? 's' : ''}` : ' · rien à suggérer';
   if (intent.expected?.length) {
     const wrong = intent.issues.filter((i) => i.id === 'intent-chord' || i.id === 'intent-missing').length;
     const cadence = cadences.find((c) => c.type === 'ii-v-i');
     const label = intent.expected.length === 3 && cadence ? cadence.label : intent.expected.join(' → ');
     const played = chords.slice(0, 6).map((c) => (c.readAs ? `${c.readAs} rootless` : c.name)).join(' → ');
-    return `${label} : ${wrong ? `${wrong} accord${wrong > 1 ? 's' : ''} à revoir` : 'les bons accords'} (${played})${count > wrong ? ` · ${count - wrong} autre${count - wrong > 1 ? 's' : ''} point${count - wrong > 1 ? 's' : ''}` : ''}`;
+    return `${label} : ${wrong ? `une piste pour ${wrong} accord${wrong > 1 ? 's' : ''}` : 'les accords voulus sont là'} (${played})${count > wrong ? ` · ${count - wrong} autre${count - wrong > 1 ? 's' : ''} suggestion${count - wrong > 1 ? 's' : ''}` : ''}`;
   }
   if (intent.contextChord && lines.length) {
     const roles = lines.flatMap((l) => l.roles);
@@ -475,7 +522,7 @@ export function takeVerdict(review) {
   }
   if (intent.scale) {
     const scaleIssue = intent.issues.find((i) => i.id === 'intent-scale');
-    return `${intent.scale.label} : ${scaleIssue ? `${scaleIssue.problemNotes.length} note${scaleIssue.problemNotes.length > 1 ? 's' : ''} hors gamme` : 'toutes les notes y sont'}`;
+    return `${intent.scale.label} : ${scaleIssue ? `${scaleIssue.problemNotes.length} note${scaleIssue.problemNotes.length > 1 ? 's' : ''} à rapprocher de la gamme` : 'toutes les notes y sont'}`;
   }
   if (chords.length === 1 && !lines.length) {
     const c = chords[0];
@@ -501,7 +548,7 @@ export function takeContextLines(review, { title = '## Passage joué au clavier 
   const pedal = perf?.stats ? Math.round(perf.stats.pedalRatio * 100) : 0;
   const velocity = perf?.stats?.velocity ? `vélocité ${perf.stats.velocity.low} à ${perf.stats.velocity.high} sur 127` : 'vélocité constante (clavier virtuel ou sans nuances)';
   out.push(`Durée : ${takeMoment(review.duration)} · ${review.noteCount} notes · pédale ${pedal} % du temps · ${velocity}`);
-  if (isTake) out.push(`Question de l'élève : « ${question || 'Qu\'en penses-tu de ce que je viens de jouer ?'} »`);
+  if (isTake) out.push(`Question du pianiste : « ${question || 'Qu\'en penses-tu de ce que je viens de jouer ?'} »`);
   if (intent.asked.length) out.push(`Ce qu'il voulait jouer (d'après sa question) : ${intent.asked.join(' ; ')}`);
   if (chords.length) {
     out.push('');
@@ -529,7 +576,7 @@ export function takeContextLines(review, { title = '## Passage joué au clavier 
   }
   const harmony = [];
   if (key) {
-    harmony.push(key.source === 'question' ? `tonalité annoncée par l'élève : ${key.label}`
+    harmony.push(key.source === 'question' ? `tonalité annoncée par le pianiste : ${key.label}`
       : key.source === 'cadence' ? `tonalité ${key.label} (d'après le II-V-I)`
         : `tonalité probable ${key.label} (confiance ${Math.round(key.confidence * 100)} %)`);
   }
@@ -547,11 +594,11 @@ export function takeContextLines(review, { title = '## Passage joué au clavier 
     out.push(`### Rythme : ${rhythmParts.join(' · ')}`);
   }
   out.push('');
-  out.push('### Constats de l\'application (seule source des défauts ; moments m:ss,d)');
-  out.push('Points forts :');
+  out.push('### Observations de l\'application (seule source des suggestions ; moments m:ss,d)');
+  out.push('Ce qui marche :');
   if (review.strengths.length) review.strengths.slice(0, 5).forEach((s) => out.push(`- ${s.text}`));
-  else out.push('- (aucun point fort mesurable)');
-  out.push('À revoir :');
+  else out.push('- (rien de mesurable à souligner)');
+  out.push('Suggestions (à proposer comme des conseils) :');
   if (review.issues.length) {
     review.issues.slice(0, 6).forEach((i) => {
       out.push(`- ${i.title} : ${i.text}`);
@@ -561,21 +608,22 @@ export function takeContextLines(review, { title = '## Passage joué au clavier 
       });
     });
   } else {
-    out.push('- (aucun problème mesuré)');
+    out.push('- (aucune : rien de mesurable à changer)');
   }
   return out;
 }
 
 /**
  * Marques du clavier pour un moment du passage : notes jouées avec leur rôle,
- * notes en cause (fausses, ou qui traînent sous la pédale), notes guides qui
- * manquent. Sans moment : le dernier accord, ou la forme de la ligne.
+ * notes qu'on propose de remplacer (ou qui sonnent encore sous la pédale), notes
+ * suggérées. Sans moment : le dernier accord, ou la forme de la ligne.
  * @returns {{marks: object[], caption: string, tone: string}}
  */
 export function takeMarks(review, moment = null) {
   if (moment) {
     const chordName = moment.chord || null;
-    const c = chordName ? parseChordName(chordName) : null;
+    // Rôles par rapport à l'accord voulu quand la suggestion le connaît (Dm9 voulu, D7 entendu).
+    const c = moment.fixChord ? parseChordName(moment.fixChord) : chordName ? parseChordName(chordName) : null;
     const roleOf = new Map(c ? noteRoles(c, moment.notes || []).map((r) => [r.midi, r]) : []);
     const problems = new Set(moment.problemNotes || []);
     const ghost = moment.issueId === 'pedal-blur';
@@ -583,19 +631,33 @@ export function takeMarks(review, moment = null) {
       const r = roleOf.get(midi);
       return { midi, kind: r ? r.kind : 'target', label: r ? r.degree : '' };
     });
-    for (const midi of problems) marks.push({ midi, kind: ghost ? 'ghost' : 'wrong', label: ghost ? 'péd' : '✗' });
+    for (const midi of problems) marks.push({ midi, kind: ghost ? 'ghost' : 'swap', label: ghost ? 'péd' : '↔' });
+    // La note suggérée, près de celle qu'elle remplace (même registre) ; sinon au milieu de l'accord.
+    const target = c;
+    const placed = new Set();
     for (const pc of moment.missing || []) {
-      const around = (moment.notes || []).length ? Math.round(mean(moment.notes)) : 60;
-      let midi = around - 6;
-      while (pcOf(midi) !== pc) midi += 1;
-      marks.push({ midi, kind: 'missing', label: c ? degreeWordShort(pcOf(pc - c.rootPc), c.quality) : '?' });
+      const near = [...problems].find((n) => Math.abs(pcOf(n - pc + 6) - 6) <= 2);
+      let midi;
+      if (near != null) {
+        midi = near - 2;
+        while (pcOf(midi) !== pc) midi += 1;
+      } else {
+        const around = (moment.notes || []).length ? Math.round(mean(moment.notes)) : 60;
+        midi = around - 6;
+        while (pcOf(midi) !== pc) midi += 1;
+      }
+      placed.add(midi);
+      marks.push({ midi, kind: 'suggest', label: target ? degreeWordShort(pcOf(pc - target.rootPc), target.quality) : '?' });
     }
-    return { marks, caption: `${takeMoment(moment.at)}${chordName ? ` ${chordName}` : ''} : ${momentText(moment)}`, tone: ghost ? 'warn' : 'error' };
+    for (const sug of moment.suggestions || []) {
+      if (sug.to != null && !placed.has(sug.to)) marks.push({ midi: sug.to, kind: 'suggest', label: '→' });
+    }
+    return { marks, caption: `${takeMoment(moment.at)}${chordName ? ` ${chordName}` : ''} : ${momentText(moment)}`, tone: 'tip' };
   }
   const last = review.chords[review.chords.length - 1];
   const showLine = review.lines.length && (review.kind === 'line' || review.intent.contextChord || review.intent.scale);
   if (last && !showLine) {
-    return { marks: last.roles.map((r) => ({ midi: r.midi, kind: r.kind, label: r.degree })), caption: review.verdict, tone: review.issues.length ? 'warn' : 'ok' };
+    return { marks: last.roles.map((r) => ({ midi: r.midi, kind: r.kind, label: r.degree })), caption: review.verdict, tone: review.issues.length ? 'tip' : 'ok' };
   }
   const line = review.lines.find((l) => l.scale) || review.lines[0];
   const seen = new Set();
@@ -605,7 +667,7 @@ export function takeMarks(review, moment = null) {
     seen.add(r.midi);
     marks.push({ midi: r.midi, kind: r.chord ? r.kind : 'target', label: r.chord ? r.label : frenchPitchName(r.midi) });
   }
-  return { marks, caption: review.verdict, tone: review.issues.length ? 'warn' : 'ok' };
+  return { marks, caption: review.verdict, tone: review.issues.length ? 'tip' : 'ok' };
 }
 
 function degreeWordShort(interval, quality) {

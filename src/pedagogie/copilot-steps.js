@@ -5,12 +5,14 @@
 // « Montrer tes erreurs ». Valable pour tout exemple du Copilote : un accord =
 // une étape (notes ensemble) ; une gamme, un lick, un run, un arpège = des
 // étapes de quelques notes à jouer dans l'ordre. Et pour le passage joué
-// (« Voir mes erreurs ») : une étape par moment à revoir, avec la version
-// corrigée à rejouer quand l'application la connaît.
+// (« Essayer les suggestions ») : une étape par suggestion, avec la version
+// proposée à rejouer quand l'application la connaît.
 //
 // Le jugement se fait à la classe de hauteur (une autre octave est acceptée et
-// signalée) ; une note de l'accord ou une tension disponible jouée en plus n'est
-// pas une faute pour un accord ; une note étrangère, si.
+// signalée) ; une note de l'accord ou une tension disponible jouée en plus est
+// acceptée pour un accord ; une note étrangère ne l'est pas.
+// [Claude] — 2026-09-25 — Ton « assistant, pas coach » : le retour propose
+// (« Ajoute Do (7e) », « Essaie Fa à la place de Fa# »), il ne juge pas.
 
 import { noteRoles, parseChordName } from './note-roles.js';
 import { frenchPitchName, degreeWord } from './example-guide.js';
@@ -83,9 +85,9 @@ export function stepsFromExample(example) {
 }
 
 /**
- * Étapes « Voir mes erreurs » d'un passage joué : un moment à revoir = une
- * étape. Quand l'application connaît la correction (note fausse → note juste),
- * l'étape demande de rejouer l'accord corrigé ; sinon elle montre seulement.
+ * Étapes « Essayer les suggestions » d'un passage joué : une suggestion = une
+ * étape. Quand l'application sait quelle note essayer (Fa# → Fa), l'étape
+ * propose de rejouer l'accord avec elle ; sinon elle montre seulement.
  * @param {object[]} moments - review.moments (take-review.js)
  */
 export function stepsFromMoments(moments, { marksOf } = {}) {
@@ -94,10 +96,15 @@ export function stepsFromMoments(moments, { marksOf } = {}) {
     const played = m.notes || [];
     const problems = new Set(m.problemNotes || []);
     let corrected = null;
-    if (played.length && ((m.missing || []).length || problems.size) && m.issueId !== 'pedal-blur' && m.issueId !== 'gaps') {
+    const swaps = (m.suggestions || []).filter((x) => Number.isFinite(x?.from) && Number.isFinite(x?.to));
+    if (played.length && swaps.length && !['pedal-blur', 'gaps', 'intent-scale'].includes(m.issueId)) {
+      // Notes à essayer connues (accord que l'application ne sait pas nommer) : chacune à sa place.
+      const swapOf = new Map(swaps.map((x) => [x.from, x.to]));
+      corrected = [...new Set(played.map((n) => swapOf.get(n) ?? n))].sort((a, b) => a - b);
+    } else if (played.length && ((m.missing || []).length || problems.size) && !['pedal-blur', 'gaps', 'intent-scale'].includes(m.issueId)) {
       const kept = played.filter((n) => !problems.has(n));
       const added = (m.missing || []).map((pc) => {
-        // La note juste à la place de la fausse (même registre), sinon au milieu de l'accord.
+        // La note suggérée à la place de celle qu'elle remplace (même registre), sinon au milieu de l'accord.
         const anchor = [...problems][0] ?? Math.round(played.reduce((a, b) => a + b, 0) / played.length);
         let best = null;
         for (let n = anchor - 6; n <= anchor + 6; n += 1) if (pcOf(n) === pc && (best == null || Math.abs(n - anchor) < Math.abs(best - anchor))) best = n;
@@ -165,36 +172,49 @@ export function judgeSequenceStep(played, step) {
 }
 
 /**
- * Marques d'une étape pendant que l'élève joue : notes justes en vert, en trop en
- * rouge, manquantes en pointillé ; pour une suite, la prochaine note à jouer
- * pulse. Et la phrase de la légende.
+ * Marques d'une étape pendant qu'on joue : notes justes en vert, note à
+ * remplacer en orange (↔), note à essayer en pointillé ; pour une suite, la
+ * prochaine note à jouer pulse. Et la phrase de la légende, toujours une
+ * suggestion (« Ajoute Do (7e) », « Essaie Do à la place de Réb »).
  */
 export function stepFeedback(step, judge) {
-  if (step.kind === 'show') return { marks: step.marks, caption: step.caption, tone: 'warn' };
+  if (step.kind === 'show') return { marks: step.marks, caption: step.caption, tone: 'tip' };
   if (step.kind === 'chord') {
     const marks = [];
     const roleOf = new Map(step.marks.map((m) => [m.midi, m]));
     const goodPcs = new Set((judge.good || []).map(pcOf));
     for (const n of step.notes) {
       const base = roleOf.get(n) || { kind: 'target', label: '' };
-      marks.push(goodPcs.has(pcOf(n)) ? { midi: n, kind: 'ok', label: base.label } : { ...base, midi: n, kind: judge.status === 'idle' ? base.kind : 'missing' });
+      marks.push(goodPcs.has(pcOf(n)) ? { midi: n, kind: 'ok', label: base.label } : { ...base, midi: n, kind: judge.status === 'idle' ? base.kind : 'suggest' });
     }
-    for (const n of judge.extra || []) marks.push({ midi: n, kind: 'wrong', label: '✗' });
+    for (const n of judge.extra || []) marks.push({ midi: n, kind: 'swap', label: '↔' });
+    const named = (n) => {
+      const role = roleOf.get(n);
+      return `${frenchPitchName(n, step.name)}${role?.label && role.kind !== 'target' ? ` (${degreeWord(role.label)})` : ''}`;
+    };
     let caption = step.caption;
     let tone = '';
     if (judge.status === 'ok') {
       caption = `Juste !${judge.exact ? '' : ' (même accord, autre position)'}`;
       tone = 'ok';
     } else if (judge.status === 'wrong') {
-      caption = `${judge.extra.map((n) => frenchPitchName(n)).join(', ')} ne ${judge.extra.length > 1 ? 'vont' : 'va'} pas dans ${step.name || 'cet accord'}`;
-      tone = 'error';
-    } else if (judge.status === 'partial') {
-      const names = judge.missing.map((n) => {
-        const role = roleOf.get(n);
-        return `${frenchPitchName(n, step.name)}${role?.label && role.kind !== 'target' ? ` (${degreeWord(role.label)})` : ''}`;
+      // Chaque note en plus → la note de l'étape la plus proche qui reste à jouer.
+      const open = [...(judge.missing || [])];
+      const pairs = judge.extra.map((n) => {
+        const near = open.filter((m) => Math.abs(m - n) <= 2).sort((a, b) => Math.abs(a - n) - Math.abs(b - n))[0];
+        if (near != null) open.splice(open.indexOf(near), 1);
+        return { from: n, to: near ?? null };
       });
-      caption = `Il manque ${names.join(', ')}`;
-      tone = 'warn';
+      const swaps = pairs.filter((p) => p.to != null).map((p) => `${named(p.to)} à la place de ${frenchPitchName(p.from)}`);
+      const without = pairs.filter((p) => p.to == null).map((p) => frenchPitchName(p.from));
+      caption = [
+        swaps.length ? `Essaie ${swaps.join(', ')}` : '',
+        without.length ? `${swaps.length ? 'et ' : 'Essaie '}sans ${without.join(', ')}` : '',
+      ].filter(Boolean).join(' ');
+      tone = 'tip';
+    } else if (judge.status === 'partial') {
+      caption = `Ajoute ${judge.missing.map(named).join(', ')}`;
+      tone = 'tip';
     }
     return { marks, caption, tone };
   }
@@ -209,11 +229,11 @@ export function stepFeedback(step, judge) {
     caption = 'Juste !';
     tone = 'ok';
   } else if (judge.status === 'wrong') {
-    marks.push({ midi: judge.wrongNote, kind: 'wrong', label: '✗' });
+    marks.push({ midi: judge.wrongNote, kind: 'swap', label: '↔' });
     caption = judge.wrongOrder
-      ? `Pas encore : ${frenchPitchName(judge.wrongNote)} vient plus tard, joue d'abord ${frenchPitchName(judge.expected)}`
-      : `${frenchPitchName(judge.wrongNote)} n'est pas dans la suite : joue ${frenchPitchName(judge.expected)}`;
-    tone = 'error';
+      ? `D'abord ${frenchPitchName(judge.expected)} : ${frenchPitchName(judge.wrongNote)} vient plus tard`
+      : `La suite continue sur ${frenchPitchName(judge.expected)}`;
+    tone = 'tip';
   } else if (judge.status === 'partial') {
     caption = `${judge.matched} / ${step.notes.length} — ensuite ${frenchPitchName(judge.expected)}`;
   }

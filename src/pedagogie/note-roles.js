@@ -126,3 +126,34 @@ export function noteRoles(chord, notes) {
     return { midi, pc: pcOf(midi), interval, degree, kind, inChord: inChord || isBass, tension };
   });
 }
+
+/**
+ * [Claude] — 2026-09-25 — La note à essayer à la place d'une note jouée : la plus
+ * proche qui entre dans l'accord (ses notes ou ses tensions) ou dans la gamme.
+ * À deux demi-tons au plus, une note guide qui manque passe d'abord (Fa#3 dans un
+ * G7 → Fa3, la 7e), puis les notes de l'accord, puis les tensions.
+ * @param {number} midi - note jouée
+ * @param {{chord?: object|string|null, pcs?: number[]|null, prefer?: number[]}} options
+ * @returns {number|null} la note (MIDI) à essayer, ou null
+ */
+export function nearestFitting(midi, { chord = null, pcs = null, prefer = [] } = {}) {
+  const c = typeof chord === 'string' ? parseChordName(chord) : chord;
+  const tones = c ? new Set([...chordToneIntervals(c.quality)].map((i) => pcOf(c.rootPc + i))) : null;
+  const tensions = c ? new Set([...availableTensions(c.quality)].map((i) => pcOf(c.rootPc + i))) : null;
+  const allowed = pcs ? new Set(pcs.map(pcOf)) : new Set([...(tones || []), ...(tensions || [])]);
+  if (!allowed.size || !Number.isFinite(midi)) return null;
+  const preferred = new Set((prefer || []).map(pcOf));
+  const guide = c ? new Set([...chordToneIntervals(c.quality)].filter((i) => [3, 4, 10, 11].includes(i)).map((i) => pcOf(c.rootPc + i))) : new Set();
+  const rank = (pc) => (preferred.has(pc) ? 0 : guide.has(pc) ? 1 : tones?.has(pc) || pcs ? 2 : 3);
+  let best = null;
+  for (let d = 1; d <= 6; d += 1) {
+    for (const cand of [midi - d, midi + d]) {
+      const pc = pcOf(cand);
+      if (!allowed.has(pc) || pcOf(midi) === pc) continue;
+      // Tout près (deux demi-tons) : le rôle d'abord ; plus loin : la distance.
+      const score = d <= 2 ? rank(pc) * 10 + d : 100 + d * 10 + rank(pc);
+      if (!best || score < best.score) best = { midi: cand, score };
+    }
+  }
+  return best ? best.midi : null;
+}

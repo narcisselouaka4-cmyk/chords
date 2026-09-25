@@ -9,8 +9,12 @@
 // Une marque = une pastille colorée + une étiquette courte (« b7 », « 9 », « ✓ »)
 // posées DANS le SVG de la touche (<g id="note-…">) : alignées à toute taille,
 // sans calcul de position à l'écran. Le genre donne la couleur (fondamentale,
-// notes guides, couleurs, voix qui va bouger, juste, fausse, manquante, note qui
-// traîne sous la pédale…). Une légende d'une ligne s'affiche sous les touches.
+// notes guides, couleurs, voix qui va bouger, juste, note à remplacer, note
+// suggérée, note qui sonne encore sous la pédale…). Une légende d'une ligne
+// s'affiche sous les touches.
+// [Claude] — 2026-09-25 — Ton « assistant, pas coach » : plus de touche rouge
+// « faux » ; la note jouée qu'on propose de changer est orange (↔), la note à
+// essayer est en pointillé vert.
 // Un nouveau rendu du clavier (redimensionnement) remplace le SVG : main.js
 // rappelle applyKeyboardMarks() juste après avoir rallumé les touches jouées.
 //
@@ -30,9 +34,9 @@ export const MARK_KINDS = {
   passing: 'Passage',
   outside: 'Hors accord',
   ok: 'Juste',
-  wrong: 'Faux / en trop',
-  missing: 'Manquante',
-  ghost: 'Traîne (pédale)',
+  swap: 'À remplacer',
+  suggest: 'Suggérée',
+  ghost: 'Sonne encore (pédale)',
 };
 
 let marks = [];
@@ -44,7 +48,7 @@ const isMidi = (n) => Number.isInteger(n) && n >= 0 && n <= 127;
 /**
  * Remplace les marques du clavier.
  * @param {{midi: number, kind?: string, label?: string, moving?: boolean}[]} list
- * @param {{caption?: string, tone?: ''|'ok'|'warn'|'error'}} [options] - légende sous les touches
+ * @param {{caption?: string, tone?: ''|'ok'|'tip'|'warn'}} [options] - légende sous les touches (tip : une suggestion)
  */
 export function setKeyboardMarks(list, { caption: text = '', tone = '' } = {}) {
   const byMidi = new Map();

@@ -327,6 +327,11 @@
 :root[data-skin='v2'] #practice-tab .exercise-feedback.error {
   color: var(--r-error, #ef4444);
 }
+/* [Claude] — 2026-09-25 — Suggestion (accord pas encore celui de la carte) : ton neutre. */
+:root[data-skin='global'] #practice-tab .exercise-feedback.hint,
+:root[data-skin='v2'] #practice-tab .exercise-feedback.hint {
+  color: var(--r-text, inherit);
+}
 
 /* ── Carte cible ── */
 :root[data-skin='global'] #practice-tab .exercise-target-card,
@@ -3528,6 +3533,10 @@
 :root[data-skin='v2'] #practice-tab .tr-exercise-stage > .exercise-feedback.error {
   border-color: var(--tr-red, #ef4444);
 }
+:root[data-skin='global'] #practice-tab .tr-exercise-stage > .exercise-feedback.hint,
+:root[data-skin='v2'] #practice-tab .tr-exercise-stage > .exercise-feedback.hint {
+  border-color: var(--tr-accent, #b69cff);
+}
 
 /* Accord cible : le retour de jeu s'affiche en bulle à gauche de la bande du
    haut, sans décaler ni recouvrir les réglages centrés. */
@@ -3562,6 +3571,10 @@
 :root[data-skin='global'] #practice-tab .exercise-chord-head > .exercise-feedback.error,
 :root[data-skin='v2'] #practice-tab .exercise-chord-head > .exercise-feedback.error {
   border-color: var(--tr-red, #ef4444);
+}
+:root[data-skin='global'] #practice-tab .exercise-chord-head > .exercise-feedback.hint,
+:root[data-skin='v2'] #practice-tab .exercise-chord-head > .exercise-feedback.hint {
+  border-color: var(--tr-accent, #b69cff);
 }
 
 /* Nom de l'accord un peu réduit en Accord cible : la carte tient sous la bande

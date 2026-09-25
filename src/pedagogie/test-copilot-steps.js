@@ -43,14 +43,16 @@ function testJudgeChord() {
   const partial = judgeChordStep([38, 53, 57, 64], step);
   check('Accord : il manque Do4 → à compléter', partial.status === 'partial' && partial.missing.join(',') === '60', JSON.stringify(partial));
   const wrong = judgeChordStep([38, 53, 57, 61, 64], step);
-  check('Accord : Réb au lieu de Do → faux (note en trop signalée)', wrong.status === 'wrong' && wrong.extra.join(',') === '61', JSON.stringify(wrong));
+  check('Accord : Réb au lieu de Do → pas encore (note en trop repérée)', wrong.status === 'wrong' && wrong.extra.join(',') === '61', JSON.stringify(wrong));
   const tension = judgeChordStep([38, 53, 57, 60, 64, 67], step);
   check('Accord : une 11e (Sol) en plus sur Dm9 → toujours juste', tension.status === 'ok', JSON.stringify(tension));
   check('Accord : rien joué → en attente', judgeChordStep([], step).status === 'idle');
   const fb = stepFeedback({ ...step, marks: [{ midi: 60, kind: 'guide', label: 'b7' }], caption: 'Dm9' }, partial);
-  check('Retour : « Il manque Do (7e) », Do en pointillé', /Il manque Do \(7e\)/.test(fb.caption) && fb.marks.some((m) => m.midi === 60 && m.kind === 'missing'), fb.caption);
-  const fbWrong = stepFeedback({ ...step, marks: [], caption: 'Dm9' }, wrong);
-  check('Retour : note fausse en rouge', fbWrong.tone === 'error' && fbWrong.marks.some((m) => m.midi === 61 && m.kind === 'wrong'));
+  check('Retour : « Ajoute Do (7e) », Do suggéré en pointillé', /^Ajoute Do \(7e\)$/.test(fb.caption) && fb.marks.some((m) => m.midi === 60 && m.kind === 'suggest') && fb.tone === 'tip', fb.caption);
+  const fbWrong = stepFeedback({ ...step, marks: [{ midi: 60, kind: 'guide', label: 'b7' }], caption: 'Dm9' }, wrong);
+  check('Retour : « Essaie Do (7e) à la place de Réb », Réb à remplacer (orange), jamais en rouge', /^Essaie Do \(7e\) à la place de Réb$/.test(fbWrong.caption) && fbWrong.tone === 'tip' && fbWrong.marks.some((m) => m.midi === 61 && m.kind === 'swap'), fbWrong.caption);
+  const far = stepFeedback({ ...step, marks: [], caption: 'Dm9' }, judgeChordStep([38, 53, 57, 60, 61, 64], step));
+  check('Retour : note en plus, rien à jouer à côté → « Essaie sans Réb »', /^Essaie sans Réb$/.test(far.caption), far.caption);
 }
 
 function testJudgeSequence() {
@@ -64,7 +66,8 @@ function testJudgeSequence() {
   const wrong = judgeSequenceStep([62, 66], step);
   check('Suite : Fa# absent de la suite → fausse note', wrong.status === 'wrong' && !wrong.wrongOrder && wrong.wrongNote === 66);
   const fb = stepFeedback(step, order);
-  check('Retour : « Mi vient plus tard, joue d\'abord Mib »', /vient plus tard/.test(fb.caption) && fb.marks.some((m) => m.kind === 'wrong'), fb.caption);
+  check('Retour : « D\'abord Ré#, Mi vient plus tard »', /^D'abord .+ : Mi vient plus tard$/.test(fb.caption) && fb.marks.some((m) => m.kind === 'swap'), fb.caption);
+  check('Retour : note hors de la suite → « La suite continue sur … »', /^La suite continue sur /.test(stepFeedback(step, wrong).caption), stepFeedback(step, wrong).caption);
   const next = stepFeedback(step, partial);
   check('Retour : la prochaine note pulse', next.marks.find((m) => m.midi === 64)?.moving === true);
 }

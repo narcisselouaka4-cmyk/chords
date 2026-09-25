@@ -2602,7 +2602,8 @@ function checkPracticeExercise(notes) {
   const feedbackDiv = document.getElementById('exercise-feedback');
   if (feedbackDiv) {
     feedbackDiv.textContent = result.message;
-    feedbackDiv.className = `exercise-feedback ${result.success ? 'success' : 'error'}`;
+    // [Claude] — 2026-09-25 — Pas encore juste : une suggestion (bulle neutre), pas une erreur en rouge.
+    feedbackDiv.className = `exercise-feedback ${result.success ? 'success' : 'hint'}`;
     // Bulle flottante : elle s'efface seule après quelques secondes.
     clearTimeout(feedbackHideTimer);
     feedbackHideTimer = setTimeout(() => { feedbackDiv.textContent = ''; }, 5000);

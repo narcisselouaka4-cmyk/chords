@@ -896,7 +896,7 @@ async function playMomentLoop(start, end) {
 }
 
 /**
- * « Écouter corrigé » (pédale gardée) : le même passage, pédale relevée à
+ * « Écouter la suggestion » (pédale gardée) : le même passage, pédale relevée à
  * chaque nouvel accord et reprise juste après (pédale syncopée) — avant / après.
  */
 function playPedalFixed(detail) {
@@ -953,7 +953,7 @@ function renderCarnetFindings(analysis) {
     // Le détail (lu par les lecteurs d'écran ; à l'écran, au survol).
     const detail = document.createElement('span');
     detail.className = 'carnet-finding-detail';
-    detail.textContent = `${f.kind === 'issue' ? 'À travailler' : 'Point fort'} : ${f.text}`;
+    detail.textContent = `${f.kind === 'issue' ? 'Suggestion' : 'Ce qui marche'} : ${f.text}`;
     pill.append(dot, title, detail);
     (f.times || []).slice(0, 3).forEach((t, i) => {
       const detailCase = f.details?.[i] || null;
@@ -962,7 +962,7 @@ function renderCarnetFindings(analysis) {
       btn.className = 'carnet-finding-time';
       btn.textContent = formatTimeShort(t);
       btn.title = detailCase ? `${formatTimeShort(t)} — ${detailCase.text} (écouter en boucle, voir au clavier)` : `Écouter ${formatTimeShort(t)} en boucle`;
-      // [Claude] — 2026-09-25 — Le moment en boucle courte, et au clavier ce qui ne va pas.
+      // [Claude] — 2026-09-25 — Le moment en boucle courte, et au clavier la suggestion.
       btn.addEventListener('click', () => showSessionMoment(t, detailCase, f.id));
       pill.appendChild(btn);
     });
@@ -970,7 +970,7 @@ function renderCarnetFindings(analysis) {
       const fixed = document.createElement('button');
       fixed.type = 'button';
       fixed.className = 'carnet-finding-time carnet-finding-fix';
-      fixed.textContent = 'Écouter corrigé';
+      fixed.textContent = 'Écouter la suggestion';
       fixed.title = 'Le même passage, pédale relevée à chaque nouvel accord (à comparer avec le moment tel quel)';
       fixed.addEventListener('click', () => playPedalFixed(f.details[0]));
       pill.appendChild(fixed);
@@ -1173,7 +1173,9 @@ function bindCarnetExploreButtons(segments) {
 // [Claude] — 2026-09-24 — Narcisse : « transférer une session MIDI vers le
 // Copilote IA pour qu'il analyse le jeu, donne des conseils et pointe ce qui ne
 // va pas ».
-const SESSION_COACHING_REQUEST = 'Analyse mon jeu sur cette session : ce qui est réussi, ce qui ne va pas (avec les moments), et comment progresser.';
+// [Claude] — 2026-09-25 — Ton « assistant, pas coach » : des suggestions, pas des défauts.
+// (Pas « écoute » : ce mot fait démarrer un exemple sonore, voir wantsToHear.)
+const SESSION_COACHING_REQUEST = 'Que penses-tu de ma session ? Ce qui marche, et tes suggestions (avec les moments) pour aller plus loin.';
 
 function bindCarnetExploreAll(segments) {
   if (!els.carnetExploreAll) return;
