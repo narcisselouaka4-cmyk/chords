@@ -915,19 +915,76 @@ async function transcriberInstalled() {
 // electron/v2n-deps/v2n_pianovam.safetensors. On vérifie les deux.
 const V2N_MODEL_PATH = path.join(__dirname, 'v2n-deps', 'v2n_pianovam.safetensors');
 
-async function v2nInstalled() {
-  try {
-    fsSync.accessSync(V2N_MODEL_PATH);
-  } catch {
-    return false;
-  }
+// [Claude] — 2026-09-25 — Narcisse : « l'application ne peut pas analyser l'image, et je
+// ne sais pas pourquoi ; pourtant j'ai installé ce qu'il fallait ». La raison
+// n'était jamais dite. Diagnostic précis : poids absents, poids restés à l'état
+// de pointeur Git LFS (134 octets au lieu de 113 Mo : `git lfs pull`), paquets
+// Python manquants (nommés, avec la commande d'installation).
+const V2N_PACKAGES = { torch: 'torch', torchvision: 'torchvision', cv2: 'opencv-python-headless', numpy: 'numpy', safetensors: 'safetensors', scipy: 'scipy' };
+
+function missingPythonModules(modules) {
+  const script = `import importlib.util, json; print(json.dumps([m for m in ${JSON.stringify(modules)} if importlib.util.find_spec(m) is None]))`;
   return new Promise((resolve) => {
-    const proc = spawn(getPythonCommand(), [
-      '-c',
-      'import torch, torchvision, cv2, numpy, safetensors, scipy',
-    ], { shell: false });
-    proc.on('error', () => resolve(false));
-    proc.on('exit', (code) => resolve(code === 0));
+    let out = '';
+    const proc = spawn(getPythonCommand(), ['-c', script], { shell: false });
+    proc.stdout.on('data', (d) => { out += d.toString(); });
+    proc.on('error', () => resolve({ python: false, missing: modules }));
+    proc.on('exit', () => {
+      try { resolve({ python: true, missing: JSON.parse(out.trim().split('\n').pop() || '[]') }); } catch { resolve({ python: true, missing: modules }); }
+    });
+  });
+}
+
+async function v2nStatus() {
+  let size = 0;
+  try {
+    size = fsSync.statSync(V2N_MODEL_PATH).size;
+  } catch {
+    return { available: false, reason: 'model-missing', detail: V2N_MODEL_PATH };
+  }
+  if (size < 1024 * 1024) {
+    let head = '';
+    try { head = fsSync.readFileSync(V2N_MODEL_PATH, 'utf8').slice(0, 60); } catch { /* lecture impossible */ }
+    if (/git-lfs/.test(head)) return { available: false, reason: 'model-lfs-pointer', detail: `${size} octets` };
+    return { available: false, reason: 'model-missing', detail: `${size} octets` };
+  }
+  const { python, missing } = await missingPythonModules(Object.keys(V2N_PACKAGES));
+  if (!python) return { available: false, reason: 'python-missing', detail: getPythonCommand() };
+  if (missing.length) {
+    const packages = missing.map((m) => V2N_PACKAGES[m] || m);
+    return { available: false, reason: 'missing-packages', detail: packages.join(', '), packages };
+  }
+  return { available: true };
+}
+
+async function v2nInstalled() {
+  return (await v2nStatus()).available;
+}
+
+/**
+ * [Claude] — 2026-09-25 — Lance un script Python de electron/ et lit le JSON de la
+ * dernière ligne de stdout (même contrat que piano-vision.py et transcriber.py).
+ */
+function runPythonJson(script, args) {
+  return new Promise((resolve, reject) => {
+    const proc = trackChild(spawn(getPythonCommand(), [path.join(__dirname, script), ...args], { shell: false }));
+    let stdout = '';
+    let stderr = '';
+    proc.stdout.on('data', (d) => { stdout += d.toString(); });
+    proc.stderr.on('data', (d) => { stderr += d.toString(); });
+    proc.on('error', (err) => reject(err));
+    proc.on('exit', (code) => {
+      const line = stdout.trim().split('\n').filter(Boolean).pop();
+      if (!line) {
+        reject(new Error(stderr || `${script} exited with code ${code}`));
+        return;
+      }
+      try {
+        resolve(JSON.parse(line));
+      } catch (err) {
+        reject(new Error(`${script} : JSON invalide — ${err.message}`));
+      }
+    });
   });
 }
 
@@ -1400,11 +1457,19 @@ function setupStudioIPC() {
     const sampleFps = Number(options.sampleFps) || 4;
 
     const dims = await probeVideoDimensions(filePath);
+    if (dims?.toolsMissing) {
+      return {
+        ok: false,
+        reason: 'ToolsMissing',
+        message: 'ffmpeg est introuvable sur cette machine (ni celui du système, ni celui du paquet Python imageio-ffmpeg) : '
+          + 'l\'image ne peut pas être lue, le relevé se fera au son. Installez ffmpeg, ou lancez « .venv/bin/pip install imageio-ffmpeg ».',
+      };
+    }
     if (!dims) {
       return {
         ok: false,
         reason: 'NoVideoStream',
-        message: 'Ce fichier ne contient pas de piste vidéo exploitable.',
+        message: 'Ce fichier ne contient pas de piste vidéo exploitable : le relevé se fera au son.',
       };
     }
     const { width, height, duration } = dims;
@@ -1532,9 +1597,36 @@ function setupStudioIPC() {
     }
   });
 
+  // [Claude] — 2026-09-25 — Pédagogie IA : notes d'un pianiste filmé de côté ou de face
+  // (l'image ne montre pas le clavier), transcrites depuis le son par
+  // electron/piano-transcriber.py (piano-transcription-inference, licence MIT).
+  // Même contrat honnête que la parole : si le paquet manque, on le dit.
+  ipcMain.handle('pedagogie:transcribe-piano', async (event, filePath) => {
+    const { python, missing } = await missingPythonModules(['piano_transcription_inference', 'torch', 'librosa']);
+    if (!python || missing.length) {
+      return { available: false, reason: 'dependency-missing', detail: python ? missing.join(', ') : getPythonCommand() };
+    }
+    let workDir = null;
+    try {
+      workDir = await createTranscribeDir();
+      const wavPath = path.join(workDir, 'piano.wav');
+      await extractTrackAudio(filePath, wavPath);
+      const raw = await runPythonJson('piano-transcriber.py', ['transcribe', wavPath]);
+      if (!raw?.ok) {
+        return { available: false, reason: raw?.reason === 'MissingDependency' ? 'dependency-missing' : 'failed', detail: raw?.message || null };
+      }
+      return { available: true, notes: raw.notes || [], pedals: raw.pedals || [], duration: raw.duration ?? null };
+    } catch (err) {
+      console.error('[Pedagogie] transcription piano échouée :', err);
+      return { available: false, reason: 'failed', detail: err.message };
+    } finally {
+      if (workDir) await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
+    }
+  });
+
   // [OpenCode] — 2026-09-07 — Pédagogie IA V2N : disponibilité du modèle.
   ipcMain.handle('pedagogie:check-v2n', async () => {
-    return { available: await v2nInstalled(), modelPath: V2N_MODEL_PATH };
+    return { ...(await v2nStatus()), modelPath: V2N_MODEL_PATH };
   });
 
   // [OpenCode] — 2026-09-07 — Pédagogie IA V2N : transcription visuelle d'une
@@ -1542,8 +1634,9 @@ function setupStudioIPC() {
   // renderer. Même contrat honnête que la transcription vocale : si V2N manque,
   // on le dit, on n'invente pas une grille d'accords.
   ipcMain.handle('pedagogie:analyze-video-vision', async (event, filePath, options = {}) => {
-    if (!(await v2nInstalled())) {
-      return { available: false, reason: 'dependency-missing' };
+    const status = await v2nStatus();
+    if (!status.available) {
+      return { available: false, reason: status.reason, detail: status.detail || null };
     }
 
     const corners = options.corners;
@@ -1600,8 +1693,63 @@ function setupStudioIPC() {
     return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
   });
 
+  // [Claude] — 2026-09-25 — Binaire ffmpeg : celui du système, sinon celui
+  // d'imageio-ffmpeg (paquet Python déjà requis pour l'audio). Sans ffprobe, la
+  // sonde passe par ffmpeg ; sans aucun des deux, l'écran le dit et se rabat sur
+  // le son (avant : « pas de piste vidéo » et arrêt).
+  let ffmpegBinaryPromise = null;
+  function resolveFfmpeg() {
+    if (!ffmpegBinaryPromise) {
+      ffmpegBinaryPromise = new Promise((resolve) => {
+        const fromImageio = () => {
+          let out = '';
+          const py = spawn(getPythonCommand(), ['-c', 'import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())'], { shell: false });
+          py.stdout.on('data', (d) => { out += d.toString(); });
+          py.on('error', () => resolve(null));
+          py.on('exit', (code) => resolve(code === 0 && out.trim() ? out.trim().split('\n').pop() : null));
+        };
+        const probe = spawn('ffmpeg', ['-version'], { shell: false });
+        let settled = false;
+        probe.on('error', () => { if (!settled) { settled = true; fromImageio(); } });
+        probe.on('exit', (code) => {
+          if (settled) return;
+          settled = true;
+          if (code === 0) resolve('ffmpeg');
+          else fromImageio();
+        });
+      });
+    }
+    return ffmpegBinaryPromise;
+  }
+
+  /** Sonde de secours sans ffprobe : ffmpeg -i écrit les dimensions et la durée. */
+  async function probeWithFfmpeg(filePath) {
+    const ffmpeg = await resolveFfmpeg();
+    if (!ffmpeg) return { toolsMissing: true };
+    return new Promise((resolve) => {
+      let err = '';
+      const proc = spawn(ffmpeg, ['-hide_banner', '-i', filePath], { shell: false });
+      proc.stderr.on('data', (d) => { err += d.toString(); });
+      proc.on('error', () => resolve({ toolsMissing: true }));
+      proc.on('exit', () => {
+        const size = /Stream #[^\n]*Video:[^\n]*?(\d{2,5})x(\d{2,5})/.exec(err);
+        if (!size) { resolve(null); return; }
+        const d = /Duration:\s*(\d+):(\d{2}):(\d{2}(?:\.\d+)?)/.exec(err);
+        const duration = d ? Number(d[1]) * 3600 + Number(d[2]) * 60 + Number(d[3]) : 0;
+        resolve({ width: Number(size[1]), height: Number(size[2]), duration });
+      });
+    });
+  }
+
   /** Dimensions et durée de la piste vidéo, via ffprobe (compagnon de ffmpeg). */
-  function probeVideoDimensions(filePath) {
+  async function probeVideoDimensions(filePath) {
+    const viaFfprobe = await probeWithFfprobe(filePath);
+    if (viaFfprobe && !viaFfprobe.unavailable) return viaFfprobe;
+    // ffprobe absent (ou en échec) : ffmpeg donne les mêmes informations.
+    return probeWithFfmpeg(filePath);
+  }
+
+  function probeWithFfprobe(filePath) {
     return new Promise((resolve) => {
       const proc = spawn('ffprobe', [
         '-v', 'error',
@@ -1613,9 +1761,9 @@ function setupStudioIPC() {
       ], { shell: false });
       let out = '';
       proc.stdout.on('data', (d) => { out += d.toString(); });
-      proc.on('error', () => resolve(null));
+      proc.on('error', () => resolve({ unavailable: true }));
       proc.on('exit', (code) => {
-        if (code !== 0) { resolve(null); return; }
+        if (code !== 0) { resolve({ unavailable: true }); return; }
         try {
           const json = JSON.parse(out);
           const stream = json.streams?.[0];
@@ -1631,9 +1779,10 @@ function setupStudioIPC() {
   }
 
   /** Diffuse les images décodées, une par une, sans jamais toutes les garder. */
-  function streamFrames(filePath, fps, frameBytes, onFrame) {
+  async function streamFrames(filePath, fps, frameBytes, onFrame) {
+    const ffmpeg = (await resolveFfmpeg()) || 'ffmpeg';
     return new Promise((resolve, reject) => {
-      const proc = trackChild(spawn('ffmpeg', [
+      const proc = trackChild(spawn(ffmpeg, [
         '-v', 'error',
         '-i', filePath,
         '-vf', `fps=${fps}`,

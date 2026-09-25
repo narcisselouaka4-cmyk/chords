@@ -20,6 +20,7 @@ import { chordExampleSteps } from './example-guide.js';
 import { liveTake } from '../recorder/live-take.js';
 import { reviewTake, takeMarks, takeMoment, passageToExample, momentText } from '../recorder/take-review.js';
 import { stepsFromExample, stepsFromMoments, judgeChordStep, judgeSequenceStep, stepFeedback } from './copilot-steps.js';
+import { readCopilotContext } from './copilot-context.js';
 
 const els = {};
 let currentTutorialPath = null;
@@ -87,26 +88,18 @@ function formatTime(seconds) {
 }
 
 /** Renvoie un résumé du tutoriel pour le contexte IA. */
+// [Claude] — 2026-09-25 — Le contexte vient de l'écran Pédagogie (grille, parole,
+// résumé, notes du professeur). Avant, il lisait window.__pedagogieAnalysis, que
+// rien n'affectait : le Copilote ne recevait que le chemin du fichier.
 function getTutorialContext() {
   if (currentMode !== 'tutorial' || !currentTutorialPath) return null;
-  const analysis = window.__pedagogieAnalysis;
-  if (!analysis) return { type: 'tutorial', path: currentTutorialPath };
-
-  const chords = analysis.segments
-    .filter((s) => s.chord?.resolved)
-    .map((s) => ({ start: s.start, end: s.end, label: s.chord.label }));
-
-  const transcript = analysis.narrationView
-    ? analysis.narrationView.map((n) => ({ start: n.start, text: n.text }))
-    : [];
-
+  const context = readCopilotContext('tutorial');
+  if (context && context.path === currentTutorialPath) return context;
   return {
     type: 'tutorial',
     path: currentTutorialPath,
     name: currentTutorialPath.split('/').pop(),
-    key: analysis.key,
-    chords,
-    transcript,
+    notesUnavailable: 'le tutoriel n\'a pas encore été lu dans Pédagogie IA (bouton « Lire ce tutoriel »)',
   };
 }
 
@@ -293,6 +286,14 @@ function renderExampleCard(msg) {
     onClick: () => startStepper(id, stepsFromExample(example), example.title || 'Exemple'),
     text: 'Pas à pas',
   }));
+  // [Claude] — 2026-09-25 — Passage tiré du tutoriel : retrouver ce moment dans la vidéo.
+  if (Number.isFinite(example.tutorialStart)) {
+    buttons.appendChild(el('button', {
+      className: 'copilot-example-steps', type: 'button', title: 'Ouvre la vidéo du tutoriel à ce moment',
+      onClick: () => document.dispatchEvent(new CustomEvent('pedagogie-seek', { detail: { time: example.tutorialStart } })),
+      text: 'Voir dans la vidéo',
+    }));
+  }
   card.appendChild(buttons);
   const text = el('div', { className: 'copilot-example-text' }, [
     el('strong', { text: example.title || 'Exemple' }),
@@ -933,7 +934,17 @@ function updateHeaderForMode() {
   if (currentMode === 'tutorial' && currentTutorialPath) {
     const name = currentTutorialPath.split('/').pop();
     if (els.selectedName) els.selectedName.textContent = `Copilot IA — ${name}`;
-    if (els.introText) els.introText.textContent = 'Mode accompagnement : le Copilot connaît la grille, la transcription et la tonalité de ce tutoriel.';
+    // [Claude] — 2026-09-25 — Ce que le Copilote sait VRAIMENT de ce tutoriel.
+    const context = getTutorialContext();
+    let intro;
+    if (!context?.chords) {
+      intro = 'Lancez d\'abord « Lire ce tutoriel » dans Pédagogie IA : le Copilot connaîtra alors sa grille, la parole du professeur et les notes jouées.';
+    } else if (context.noteEvents?.length) {
+      intro = `Le Copilot connaît ce tutoriel : grille, parole du professeur${context.summary ? ', résumé du cours' : ''} et notes jouées (${context.sourceLabel}). Demandez-lui de rejouer un lick ou un voicing de la vidéo, ou de l'appliquer dans une autre tonalité.`;
+    } else {
+      intro = `Le Copilot connaît la grille et la parole du professeur ; les notes exactes ne sont pas disponibles (${context.notesUnavailable}).`;
+    }
+    if (els.introText) els.introText.textContent = intro;
   } else if (currentMode === 'session' && currentSessionContext) {
     const name = currentSessionContext.name || currentSessionId;
     if (els.selectedName) els.selectedName.textContent = `Copilot IA — Session : ${name}`;
@@ -1169,6 +1180,18 @@ export async function initCopilotTab() {
     } else {
       updateModeToggle(); // mode autonome inchangé : juste (dés)afficher le bouton bascule
     }
+  });
+
+  // [Claude] — 2026-09-25 — « Copilote IA » depuis Pédagogie : mode tutoriel, avec son contexte
+  // (la conversation en cours est gardée si c'est déjà ce tutoriel).
+  document.addEventListener('copilot-open-tutorial', async (e) => {
+    const path = e.detail?.path;
+    if (!path) return;
+    if (currentMode === 'tutorial' && currentTutorialPath === path) {
+      updateHeaderForMode();
+      return;
+    }
+    await switchToTutorialMode(path);
   });
 
   document.addEventListener('copilot-switch-to-session', async (e) => {

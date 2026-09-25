@@ -1242,6 +1242,84 @@ async function testParsePlayNoteFromText() {
   global.setTimeout = originalSetTimeout;
 }
 
+// [Claude] — 2026-09-25 — Tutoriel : rejouer les notes EXACTES du professeur
+// (play_tutorial_passage), transposées au besoin, ou les montrer au clavier
+// (show_tutorial_moment) ; message honnête quand l'application n'a pas lu ses notes.
+const TUTORIAL = {
+  key: 'C',
+  segments: [{ start: 0, end: 2, label: 'Dm9' }, { start: 2, end: 4, label: 'G13' }],
+  noteEvents: [
+    { midi: 38, start: 0, end: 1.9, hand: 'lh' }, { midi: 53, start: 0, end: 1.9, hand: 'rh' }, { midi: 57, start: 0, end: 1.9, hand: 'rh' },
+    { midi: 60, start: 0, end: 1.9, hand: 'rh' }, { midi: 64, start: 0, end: 1.9, hand: 'rh' },
+    { midi: 74, start: 2, end: 2.2, hand: 'rh' }, { midi: 75, start: 2.25, end: 2.45, hand: 'rh' }, { midi: 76, start: 2.5, end: 3, hand: 'rh' },
+  ],
+};
+
+function testTutorialPassageTool() {
+  document.resetMock();
+  document.setPanel(false);
+  const call = (args) => ({ function: { name: 'play_tutorial_passage', arguments: JSON.stringify(args) } });
+  const lick = executeToolCalls([call({ start: 2, end: 3, title: 'Le lick de 0:02' })], 'Voici le lick.', { tutorial: TUTORIAL });
+  const ons = (ex) => (ex?.events || []).filter((e) => e.type === 'noteOn').map((e) => e.note).join(',');
+  check('play_tutorial_passage : les notes exactes du professeur', ons(lick.example) === '74,75,76' && lick.example.title === 'Le lick de 0:02', ons(lick.example));
+  check('play_tutorial_passage : « Voir dans la vidéo » connaît le moment', lick.example.tutorialStart === 2 && lick.example.tutorialEnd === 3);
+  const inF = executeToolCalls([call({ start: 2, end: 3, transposeTo: 'F' })], 'En Fa.', { tutorial: TUTORIAL });
+  check('play_tutorial_passage : transposé de Do en Fa (+5)', ons(inF.example) === '79,80,81' && inF.example.steps.some((x) => /C13/.test(x.caption)), `${ons(inF.example)} ${inF.example?.steps?.map((x) => x.caption).join(' | ')}`);
+  const lh = executeToolCalls([call({ start: 0, end: 2, hand: 'LH' })], '', { tutorial: TUTORIAL });
+  check('play_tutorial_passage : main gauche seule', ons(lh.example) === '38');
+  const none = executeToolCalls([call({ start: 2, end: 3 })], 'Voici le lick.', { tutorial: null });
+  check('Sans notes du professeur : pas d\'exemple, message honnête', !none.example && /pas les notes exactes jouées par le professeur/.test(none.content || ''), none.content);
+  const empty = executeToolCalls([call({ start: 30, end: 32 })], '', { tutorial: TUTORIAL });
+  check('Aucune note lue entre deux instants : dit tel quel', !empty.example && /Aucune note du professeur/.test(empty.content || ''), empty.content);
+}
+
+function testTutorialMomentTool() {
+  document.resetMock();
+  document.setPanel(false);
+  const res = executeToolCalls([{ function: { name: 'show_tutorial_moment', arguments: JSON.stringify({ time: 1 }) } }], '', { tutorial: TUTORIAL });
+  const marks = getKeyboardMarks();
+  const byMidi = Object.fromEntries(marks.marks.map((m) => [m.midi, m]));
+  check('show_tutorial_moment : les cinq notes tenues à 1 s', res.annotated.length === 5 && marks.marks.length === 5, JSON.stringify(marks.marks));
+  check('show_tutorial_moment : rôles dans Dm9 (Ré = 1, Do = b7, Mi = 9)', byMidi[38]?.label === '1' && byMidi[60]?.label === 'b7' && byMidi[64]?.label === '9', JSON.stringify(marks.marks));
+  check('show_tutorial_moment : légende avec le moment et l\'accord', /0:01 Dm9/.test(marks.caption), marks.caption);
+}
+
+async function testTutorialContextInPrompt() {
+  const originalFetch = global.fetch;
+  // Premier appel de chaque question (une relance peut suivre : elle garde les mêmes outils).
+  let body = null;
+  const bodies = [];
+  global.fetch = async (url, options) => {
+    bodies.push(JSON.parse(options.body));
+    if (!body) body = bodies[bodies.length - 1];
+    return { ok: true, status: 200, json: async () => ({ choices: [{ message: { role: 'assistant', content: 'Réponse.' } }] }) };
+  };
+  global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
+  const context = {
+    type: 'tutorial', path: '/t/cours.mp4', name: 'Cours de gospel', key: 'C', sourceLabel: 'lu à l\'image (clavier dessiné)',
+    summary: 'Le professeur enchaîne Dm9 et G13 puis joue un lick chromatique.',
+    chords: TUTORIAL.segments, transcript: [{ start: 1, text: 'On pose le Dm9.' }],
+    notesTimeline: ['- 0:00 Dm9 : Ré2 | Fa3 La3 Do4 Mi4', '- 0:02 G13 : — | Ré5 · puis Ré#5 Mi5'],
+    noteEvents: TUTORIAL.noteEvents,
+  };
+  await sendCopilotMessage({ message: 'Joue-moi le lick de 0:02 en Fa', messages: [], context });
+  const system = body?.messages?.[0]?.content || '';
+  const tools = (body?.tools || []).map((t) => t.function?.name);
+  check('Tutoriel : relevé, résumé du cours et frise des notes dans le contexte',
+    /Relevé : lu à l'image \(clavier dessiné\)/.test(system) && /## Résumé du cours/.test(system) && /- 0:02 G13 : — \| Ré5 · puis Ré#5 Mi5/.test(system), system.slice(-900));
+  check('Tutoriel avec notes : outils play_tutorial_passage et show_tutorial_moment proposés', tools.includes('play_tutorial_passage') && tools.includes('show_tutorial_moment'), tools.join(','));
+  check('Tutoriel : la relance (exemple annoncé sans outil) garde les outils du tutoriel',
+    bodies.length === 2 && (bodies[1].tools || []).some((t) => t.function?.name === 'play_tutorial_passage'), `appels=${bodies.length}`);
+  body = null;
+  bodies.length = 0;
+  await sendCopilotMessage({ message: 'Joue-moi le lick de 0:02', messages: [], context: { ...context, notesTimeline: [], noteEvents: [], notesUnavailable: 'le clavier n\'est pas lisible à l\'image' } });
+  const system2 = body?.messages?.[0]?.content || '';
+  const tools2 = (body?.tools || []).map((t) => t.function?.name);
+  check('Tutoriel sans notes : la raison est dite au modèle, pas d\'outil de passage',
+    /non disponibles \(le clavier n'est pas lisible à l'image\)/.test(system2) && !tools2.includes('play_tutorial_passage'), `${tools2.join(',')}`);
+  global.fetch = originalFetch;
+}
+
 async function runTests() {
   testToolCalls();
   await testNoKey();
@@ -1276,6 +1354,9 @@ async function runTests() {
   testKeyboardCollapsed();
   testAnnotation();
   testStepCaptions();
+  testTutorialPassageTool();
+  testTutorialMomentTool();
+  await testTutorialContextInPrompt();
   testWantsToHear();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);

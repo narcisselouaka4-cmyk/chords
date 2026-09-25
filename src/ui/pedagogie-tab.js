@@ -41,6 +41,26 @@ import {
 } from '../pedagogie/tutorial-folder-pref.js';
 import { explainNarration } from '../ai/ai-client.js';
 import { getAIConfig } from '../ai/openai-config.js';
+import { samplesToNoteEvents, eventsFromTranscription, compactTimeline } from '../pedagogie/teacher-notes.js';
+import { registerCopilotContext } from '../pedagogie/copilot-context.js';
+
+// [Claude] — 2026-09-25 — Pourquoi l'image n'a pas été lue (Narcisse : « l'application
+// ne peut pas analyser l'image, et je ne sais pas pourquoi ») : dit en clair.
+const V2N_REASONS = {
+  'model-missing': 'Le modèle qui lit un vrai clavier filmé (V2N) est absent : electron/v2n-deps/v2n_pianovam.safetensors.',
+  'model-lfs-pointer': 'Le modèle V2N n\'est qu\'un pointeur Git LFS (quelques octets au lieu de 113 Mo). Dans le dossier du projet : « git lfs install » puis « git lfs pull ».',
+  'missing-packages': 'Paquets Python manquants pour lire un vrai clavier filmé : {detail}. Commande : « .venv/bin/pip install -r requirements.txt ».',
+  'python-missing': 'Python est introuvable ({detail}) : la lecture d\'un vrai clavier filmé est impossible.',
+  'dependency-missing': 'Paquets Python manquants pour lire un vrai clavier filmé{detail}. Commande : « .venv/bin/pip install -r requirements.txt ».',
+  'invalid-corners': 'La calibration du clavier est incomplète : recliquez les 4 coins.',
+  failed: 'La lecture du vrai clavier (V2N) a échoué : {detail}',
+};
+
+function v2nReasonText(state) {
+  const template = V2N_REASONS[state?.reason] || V2N_REASONS.failed;
+  const detail = state?.detail ? String(state.detail).split('\n')[0].slice(0, 160) : 'raison inconnue';
+  return template.replace('{detail}', state?.reason === 'dependency-missing' ? (state?.detail ? ` : ${detail}` : '') : detail);
+}
 
 // [OpenCode] — 2026-09-07 — V2N : calibration persistante par chemin de vidéo.
 const V2N_CORNERS_KEY = 'v2n-corners';
@@ -83,6 +103,10 @@ let comparison = null;
 // mais conserve horodatages et textes affichés.
 let narrationView = [];
 let detectedKey = null;
+// [Claude] — 2026-09-25 — État de V2N (disponible, sinon pourquoi) et raison pour
+// laquelle les notes du professeur manquent, s'il en manque.
+let v2nState = null;
+let notesUnavailable = null;
 // Résumé automatique du sujet en mode "Tutoriel avec explications".
 let summary = null;
 let summarizing = false;
@@ -369,7 +393,9 @@ function confirmCalibration() {
   if (calibrationPoints.length !== 4) return;
   saveV2nCorners(selectedPath, calibrationPoints);
   cancelCalibration();
-  setStatus('Calibration enregistrée. Relancez l\'analyse pour utiliser V2N.', 'ok');
+  // [Claude] — 2026-09-25 — La lecture repart d'elle-même avec la calibration.
+  setStatus('Calibration enregistrée : lecture des touches à l\'image…', 'ok');
+  analyzeSelected();
 }
 
 function onCalibrationClick(evt) {
@@ -584,29 +610,49 @@ async function analyzeSelected() {
     // d'assembler le résultat.
     const transcriptionPromise = runTranscription(selectedPath);
 
-    const result = await api.pedagogie.analyzeVideo(selectedPath, { sampleFps: 4 });
+    // [Claude] — 2026-09-25 — 8 images/s (au lieu de 4) : les notes brèves d'un lick
+    // tiennent au moins une image et sont gardées (notes du professeur).
+    let result = await api.pedagogie.analyzeVideo(selectedPath, { sampleFps: 8 });
 
     if (!result?.ok) {
-      setStatus(result?.message || 'La vidéo n\'a pas pu être lue.', 'error');
-      return;
+      // Outils de lecture absents ou pas de piste image : on le dit, puis le son.
+      if (result?.reason === 'ToolsMissing' || result?.reason === 'NoVideoStream') {
+        setStatus(result.message, 'error');
+        result = { ok: true, implemented: false, reason: result.reason };
+      } else {
+        setStatus(result?.message || 'La vidéo n\'a pas pu être lue.', 'error');
+        return;
+      }
     }
 
     // [OpenCode] — 2026-09-07 — V2N : si le format B n'est pas reconnu et que
     // l'utilisateur a calibré un clavier réel, tenter la transcription visuelle.
     let v2nResult = null;
+    const messages = [];
+    if (!result.implemented && result.reason !== 'ToolsMissing' && result.reason !== 'NoVideoStream') {
+      // Pourquoi le clavier dessiné n'a pas été reconnu (format-detector).
+      const why = explainUnrecognised(result.reason);
+      if (why) messages.push(`Pas de clavier dessiné à l'image : ${why}`);
+    }
     if (!result.implemented && api?.pedagogie?.checkV2n && api?.pedagogie?.analyzeVideoVision) {
-      const v2nState = await api.pedagogie.checkV2n();
+      v2nState = await api.pedagogie.checkV2n();
       const corners = getV2nCorners(selectedPath);
       if (v2nState?.available && corners) {
-        setProgress('Clavier réel détecté — transcription visuelle V2N…');
+        setProgress('Clavier réel filmé — lecture des touches à l\'image (V2N)… (plusieurs minutes)');
         v2nResult = await api.pedagogie.analyzeVideoVision(selectedPath, {
           corners,
           onsetThreshold: 0.5,
           frameThreshold: 0.5,
           bottomMargin: 0,
         });
+        if (!v2nResult?.available) messages.push(v2nReasonText(v2nResult));
+      } else if (v2nState?.available) {
+        messages.push('Vrai clavier filmé du dessus ? Cliquez « Calibrer le clavier », puis les 4 coins du clavier sur la vidéo : l\'application lira les touches à l\'image.');
+      } else if (v2nState) {
+        messages.push(v2nReasonText(v2nState));
       }
     }
+    if (messages.length) setStatus(messages.join(' '), 'error');
 
     if (!result.implemented && (!v2nResult || !v2nResult.available)) {
       // L'image n'a rien donné : on le dit, puis on tente le son.
@@ -622,6 +668,20 @@ async function analyzeSelected() {
         narration,
       });
       narrationView = alignNarration(narration.segments, analysis.segments);
+      // [Claude] — 2026-09-25 — Pianiste filmé de côté : les notes elles-mêmes,
+      // transcrites depuis le son (piano-transcriber.py), si le paquet est là.
+      if (api?.pedagogie?.transcribePiano) {
+        setProgress('Transcription des notes jouées (son)…');
+        const piano = await api.pedagogie.transcribePiano(selectedPath).catch((err) => ({ available: false, reason: 'failed', detail: err.message }));
+        if (piano?.available && piano.notes?.length) {
+          analysis.noteEvents = eventsFromTranscription(piano.notes);
+          analysis.notesSource = 'son';
+        } else {
+          notesUnavailable = piano?.reason === 'dependency-missing'
+            ? `transcription des notes au son non installée (${piano.detail || 'piano-transcription-inference'} : « .venv/bin/pip install -r requirements.txt »)`
+            : `transcription des notes au son impossible${piano?.detail ? ` : ${String(piano.detail).split('\n')[0]}` : ''}`;
+        }
+      }
       maybeAutoSummarize();
       return;
     }
@@ -636,6 +696,8 @@ async function analyzeSelected() {
         v2nDuration: v2nResult.duration,
         narration,
       });
+      analysis.noteEvents = eventsFromTranscription(v2nResult.notes);
+      analysis.notesSource = 'image (V2N)';
     } else {
       analysis = buildVideoAnalysis({
         samples: result.samples,
@@ -643,9 +705,11 @@ async function analyzeSelected() {
         sampleInterval: result.sampleInterval,
         narration,
       });
+      // Touches allumées → notes, la main d'après la couleur.
+      analysis.noteEvents = samplesToNoteEvents(result.samples, result.sampleInterval);
+      analysis.notesSource = 'image (clavier dessiné)';
     }
     narrationView = alignNarration(narration.segments, analysis.segments);
-    maybeAutoSummarize();
 
     // Recoupement : le son est une seconde lecture indépendante de la même
     // vidéo. Un désaccord est consigné, jamais arbitré.
@@ -661,6 +725,8 @@ async function analyzeSelected() {
         step: 0.5,
       });
     }
+    // Le résumé du cours part une fois la tonalité connue (il la cite).
+    maybeAutoSummarize();
   } catch (err) {
     console.error('[Pedagogie] analyse échouée :', err);
     setStatus(`Analyse impossible : ${err.message}`, 'error');
@@ -696,6 +762,7 @@ function resetNarration() {
   detectedKey = null;
   summary = null;
   summarizing = false;
+  notesUnavailable = null;
 }
 
 /**
@@ -801,6 +868,10 @@ function render() {
 
   if (els.videoActions) {
     els.videoActions.style.display = (selectedPath && playbackStarted && !categoryPickerOpen) ? '' : 'none';
+  }
+  if (els.calibrateBtn) {
+    const needsKeyboard = analysis && analysis.source !== 'video';
+    els.calibrateBtn.hidden = !(v2nState?.available && selectedPath && (needsKeyboard || getV2nCorners(selectedPath))) || busy;
   }
 
   if (els.categoryHint) {
@@ -987,6 +1058,46 @@ function renderResult() {
   // Le rendu qui l'alimentait est supprimé ici dans le même geste.
 }
 
+/**
+ * [Claude] — 2026-09-25 — Tout ce que le Copilote doit savoir du tutoriel analysé :
+ * nom, tonalité, grille datée, parole du professeur, résumé du cours, d'où
+ * vient le relevé, frise compacte des notes jouées (et les notes elles-mêmes,
+ * pour ses outils : rejouer un passage, le montrer au clavier). Avant, le
+ * Copilote ne recevait que le chemin du fichier.
+ * @returns {object|null}
+ */
+export function getPedagogieCopilotContext() {
+  if (!selectedPath || !analysis) return null;
+  const chords = analysis.segments
+    .filter((s) => s.chord?.resolved)
+    .map((s) => ({ start: s.start, end: s.end, label: s.chord.label }));
+  const noteEvents = Array.isArray(analysis.noteEvents) ? analysis.noteEvents : [];
+  const sourceLabel = analysis.source === 'v2n' ? 'lu à l\'image (vrai clavier filmé, V2N)'
+    : analysis.source === 'video' ? 'lu à l\'image (clavier dessiné)'
+      : `lu au son (accords)${analysis.notesSource === 'son' ? ' ; notes transcrites depuis le son' : ''}`;
+  return {
+    type: 'tutorial',
+    path: selectedPath,
+    name: tutorialDisplayName(selectedPath.split('/').pop() || selectedPath),
+    key: detectedKey,
+    chords,
+    transcript: narrationView.map((n) => ({ start: n.start, text: n.text })),
+    summary: summary && !summarizing ? summary : null,
+    sourceLabel,
+    notesTimeline: compactTimeline(noteEvents, chords),
+    noteEvents,
+    notesUnavailable: noteEvents.length ? null : (notesUnavailable || (analysis.source === 'audio'
+      ? 'le clavier n\'est pas lisible à l\'image (pianiste filmé de côté ?) et la transcription des notes au son n\'a rien donné'
+      : 'aucune note lue')),
+  };
+}
+
+/** Ouvre le Copilote sur ce tutoriel (mode tutoriel, avec tout son contexte). */
+function openCopilotForTutorial() {
+  document.dispatchEvent(new CustomEvent('app-switch-training-view', { detail: { view: 'copilot' } }));
+  if (selectedPath) document.dispatchEvent(new CustomEvent('copilot-open-tutorial', { detail: { path: selectedPath } }));
+}
+
 /** Fait sauter la lecture vidéo à un instant, si le lecteur est là. */
 function seekVideo(seconds) {
   if (!els.videoPlayer || !Number.isFinite(seconds)) return;
@@ -1004,6 +1115,8 @@ function seekVideo(seconds) {
 export function initPedagogieTab() {
   els.root = document.getElementById('practice-view-pedagogie');
   if (!els.root) return;
+  // [Claude] — 2026-09-25 — Le Copilote lit le tutoriel par le registre (sans importer cet écran).
+  registerCopilotContext('tutorial', getPedagogieCopilotContext);
 
   els.trackList = document.getElementById('pedagogie-track-list');
   els.importBtn = document.getElementById('pedagogie-import-btn');
@@ -1035,16 +1148,24 @@ export function initPedagogieTab() {
 
   els.importBtn?.addEventListener('click', () => { importVideo(); });
   els.analyzeBtn?.addEventListener('click', () => { analyzeSelected(); });
-  els.copilotShortcutBtn?.addEventListener('click', () => {
-    document.dispatchEvent(new CustomEvent('app-switch-training-view', { detail: { view: 'copilot' } }));
+  // [Claude] — 2026-09-25 — Le Copilote s'ouvre en mode tutoriel, avec le contexte.
+  els.copilotShortcutBtn?.addEventListener('click', openCopilotForTutorial);
+  els.copilotSummaryBtn?.addEventListener('click', openCopilotForTutorial);
+  // [Refonte Astra 12/09] — Le bouton « Calibrer le clavier (V2N) » avait été
+  // retiré de l'écran. [Claude] — 2026-09-25 — Il revient, mais seulement quand
+  // il sert : V2N installé et un vrai clavier à lire (pas de clavier dessiné
+  // reconnu), ou une calibration déjà faite à reprendre.
+  els.calibrateBtn = document.getElementById('pedagogie-calibrate-btn');
+  els.calibrateBtn?.addEventListener('click', () => { startCalibration(); });
+  // « Voir dans la vidéo » (exemple du Copilote tiré du tutoriel).
+  document.addEventListener('pedagogie-seek', (e) => {
+    const time = Number(e.detail?.time);
+    if (!Number.isFinite(time)) return;
+    document.dispatchEvent(new CustomEvent('app-switch-training-view', { detail: { view: 'pedagogie' } }));
+    playbackStarted = true;
+    render();
+    seekVideo(time);
   });
-  els.copilotSummaryBtn?.addEventListener('click', () => {
-    document.dispatchEvent(new CustomEvent('app-switch-training-view', { detail: { view: 'copilot' } }));
-  });
-  // [Refonte Astra 12/09] — Le bouton « Calibrer le clavier (V2N) » a été
-  // retiré de l'écran (demande de Narcisse). startCalibration() reste dans le
-  // module — la calibration V2N stockée est toujours lue par l'analyse — mais
-  // plus aucun élément d'interface ne la déclenche.
   els.categoryHint?.addEventListener('click', () => {
     categoryPickerOpen = true;
     playbackStarted = false;

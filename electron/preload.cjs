@@ -66,6 +66,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // [OpenCode] — 2026-09-07 — V2N visual transcription : calibration + analyse.
     checkV2n: () => ipcRenderer.invoke('pedagogie:check-v2n'),
     analyzeVideoVision: (filePath, options = {}) => ipcRenderer.invoke('pedagogie:analyze-video-vision', filePath, options),
+    // [Claude] — 2026-09-25 — Notes d'un pianiste filmé de côté, transcrites depuis le son.
+    transcribePiano: (filePath) => ipcRenderer.invoke('pedagogie:transcribe-piano', filePath),
     // [Claude 06/09, refonte Phase 1] — Sélecteur du dossier des tutoriels.
     selectTutorialFolder: () => ipcRenderer.invoke('pedagogie:select-tutorial-folder'),
   },

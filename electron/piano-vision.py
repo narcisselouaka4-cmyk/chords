@@ -30,6 +30,7 @@ rendre le script autonome et compatible avec le runtime Piano Jazz Chords.
 
 import argparse
 import json
+import math
 import sys
 import time
 from pathlib import Path
@@ -117,52 +118,52 @@ def get_perspective_transform(corners, target_width=TARGET_WIDTH, target_height=
     return cv2.getPerspectiveTransform(src_pts, dst_pts)
 
 
-def load_video_grayscale(video_path, target_fps=FPS, target_width=TARGET_WIDTH,
-                         target_height=TARGET_HEIGHT, M=None, bottom_margin=0):
-    """Charge une vidéo, redresse si M est fourni, retourne (frames, fps_in, duration)."""
+class VideoReadError(RuntimeError):
+    """La vidéo ne se lit pas (fichier, images) : distinct d'une erreur du modèle."""
+
+
+def frames_per_input(index_in, ratio):
+    """Nombre d'images de sortie (à target_fps) que donne l'image d'entrée
+    index_in : 0 ou 1 quand on descend (30 → 25 i/s), 1 ou 2 quand on monte
+    (24 → 25 i/s : une image répétée de temps en temps)."""
+    return math.ceil((index_in + 1) * ratio - 1e-9) - math.ceil(index_in * ratio - 1e-9)
+
+
+def iter_video_frames(video_path, target_fps=FPS, target_width=TARGET_WIDTH,
+                      target_height=TARGET_HEIGHT, M=None):
+    """[Claude] — 2026-09-25 — Images redressées en niveaux de gris, à target_fps,
+    une à une (rien n'est gardé : une vidéo de 10 min ne pèse plus 1,7 Go en
+    mémoire). Une vidéo à 24 i/s est acceptée : l'image la plus proche est
+    répétée pour tenir 25 i/s (elle était refusée)."""
     cap = cv2.VideoCapture(str(video_path))
     if not cap.isOpened():
-        raise RuntimeError(f"Cannot open video: {video_path}")
-
+        raise VideoReadError(f"Cannot open video: {video_path}")
     try:
         fps_in = float(cap.get(cv2.CAP_PROP_FPS))
         if not np.isfinite(fps_in) or fps_in <= 0:
-            raise RuntimeError(f"Invalid input FPS: {fps_in}")
-        if fps_in + 1e-6 < float(target_fps):
-            raise RuntimeError(
-                f"Input FPS ({fps_in}) < target FPS ({target_fps}); only downsampling supported"
-            )
-
-        frames = []
+            raise VideoReadError(f"Invalid input FPS: {fps_in}")
+        ratio = float(target_fps) / fps_in
         index_in = -1
-        index_out = -1
         while True:
             ok = cap.grab()
             if not ok:
                 break
             index_in += 1
-            out_due = int(index_in / fps_in * target_fps)
-            if out_due <= index_out:
+            count = frames_per_input(index_in, ratio)
+            if count <= 0:
                 continue
             ok, frame = cap.retrieve()
             if not ok or frame is None:
-                raise RuntimeError(f"Failed to retrieve frame {index_in}")
-            index_out += 1
+                raise VideoReadError(f"Failed to retrieve frame {index_in}")
             if M is not None:
                 frame = cv2.warpPerspective(frame, M, (target_width, target_height))
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             if gray.shape[1] != target_width or gray.shape[0] != target_height:
                 gray = cv2.resize(gray, (target_width, target_height))
-            frames.append(gray)
+            for _ in range(count):
+                yield gray
     finally:
         cap.release()
-
-    if not frames:
-        raise RuntimeError("No frames extracted")
-
-    frames = np.stack(frames, axis=0)
-    duration = frames.shape[0] / target_fps
-    return frames, fps_in, duration
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -607,6 +608,62 @@ def run_inference(model, device, frames, window_size=WINDOW_SIZE, stride=STRIDE)
     return merged
 
 
+def run_inference_streaming(model, device, frames_iter, window_size=WINDOW_SIZE, stride=STRIDE):
+    """[Claude] — 2026-09-25 — Mêmes fenêtres que make_windows + run_inference
+    (départs tous les `stride`, fenêtres de fin complétées par la dernière
+    image), calculées au fil de la lecture : seules les images de la fenêtre en
+    cours sont en mémoire, plus les sorties du modèle."""
+    buffer = []
+    buf_start = 0
+    next_start = 0
+    total = 0
+    window_logits = []
+
+    def infer(fs, chunk_frames, real_len):
+        chunk = np.stack(chunk_frames, axis=0)
+        tensor = torch.from_numpy(chunk).unsqueeze(0).float() / 255.0
+        with torch.no_grad():
+            out = model(tensor.to(device))
+        window_logits.append((fs, fs + real_len, {k: v[0, :real_len].cpu() for k, v in out.items()}))
+
+    def forget_before(start):
+        nonlocal buf_start
+        drop = start - buf_start
+        if drop > 0:
+            del buffer[:drop]
+            buf_start = start
+
+    for frame in frames_iter:
+        buffer.append(frame)
+        total += 1
+        while next_start + window_size <= total:
+            local = next_start - buf_start
+            infer(next_start, buffer[local:local + window_size], window_size)
+            next_start += stride
+            forget_before(min(next_start, total))
+
+    while next_start < total:
+        local = next_start - buf_start
+        chunk = buffer[local:]
+        real = len(chunk)
+        chunk = chunk + [chunk[-1]] * (window_size - real)
+        infer(next_start, chunk, real)
+        next_start += stride
+        forget_before(min(next_start, total))
+
+    if total == 0:
+        raise VideoReadError("No frames extracted")
+    merged, covered_start, covered_end = stitch_center(window_logits)
+    if covered_end < total:
+        for k in merged:
+            tail = merged[k][-1:].repeat(total - covered_end, 1)
+            merged[k] = torch.cat([merged[k], tail], dim=0)
+    elif covered_end > total:
+        for k in merged:
+            merged[k] = merged[k][:total]
+    return merged, total
+
+
 def notes_to_json(note_events, fps=FPS, min_midi=MIN_MIDI, duration=None):
     pitches = note_events["pitches"]
     intervals = note_events["intervals"]
@@ -658,13 +715,12 @@ def main():
     except Exception as e:
         fail("InvalidCorners", f"Transformation perspective impossible : {e}")
 
-    try:
-        frames, fps_in, duration = load_video_grayscale(args.video, M=M, bottom_margin=args.bottom_margin)
-    except Exception as e:
-        fail("NoVideoStream", f"Lecture vidéo impossible : {e}")
-
-    if frames.shape[0] < WINDOW_SIZE:
-        fail("VideoTooShort", f"La vidéo n'a que {frames.shape[0]} frames (minimum {WINDOW_SIZE})")
+    # [Claude] — 2026-09-25 — Le modèle d'abord : les images sont ensuite lues et
+    # transcrites au fil de l'eau (run_inference_streaming).
+    cap = cv2.VideoCapture(str(args.video))
+    if not cap.isOpened():
+        fail("NoVideoStream", f"Lecture vidéo impossible : {args.video}")
+    cap.release()
 
     try:
         device = args.device
@@ -680,12 +736,19 @@ def main():
 
     try:
         t0 = time.time()
-        merged = run_inference(model, device, frames)
+        frames_iter = iter_video_frames(args.video, M=M)
+        merged, total = run_inference_streaming(model, device, frames_iter)
+        duration = total / FPS
         if args.verbose:
             print(json.dumps({"info": f"Inférence terminée en {round(time.time() - t0, 2)}s"}), file=sys.stderr)
+    except VideoReadError as e:
+        fail("NoVideoStream", f"Lecture vidéo impossible : {e}")
     except Exception as e:
         import traceback
         fail("InferenceError", f"Erreur pendant l'inférence : {e}\n{traceback.format_exc()}")
+
+    if total < WINDOW_SIZE:
+        fail("VideoTooShort", f"La vidéo n'a que {total} images (minimum {WINDOW_SIZE})")
 
     try:
         decoder = _NoteDecoder(
