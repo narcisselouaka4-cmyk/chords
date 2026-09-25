@@ -1,7 +1,8 @@
 # À reporter dans le vault — 2026-09-25 : Copilote interactif, ton « assistant », Exercices, Sessions, Pédagogie IA
 
 > Premier fichier du 25/09, après `2026-09-24-copilote-session-studio.md`. Branche
-> `fix/exercices-voicing-correctifs`. Dix lots, un commit chacun (de `2a5ef75` à `fe5bc33`).
+> `fix/exercices-voicing-correctifs`. Dix lots, un commit chacun (de `2a5ef75` à `fe5bc33`),
+> puis `7b33c0c` : les vrais tutoriels de Narcisse sont lus (section en fin de fichier).
 
 ## `log.md` — entrée à ajouter
 
@@ -172,3 +173,79 @@
   `test-coach-dom` (28/30), `test-load-session` (window absent), `test-training-dom` (11
   anciens contrôles de panneaux retirés), `test-voicing-preview`,
   `tests/ui/test-analysis-workspace` (5/10).
+
+---
+
+## Suite du 25/09 — Pédagogie IA sur les vrais tutoriels (commit `7b33c0c`)
+
+### `log.md` — entrée à ajouter
+
+```markdown
+## 2026-09-25 (suite) — Les tutoriels de Narcisse sont lus
+- Narcisse envoie « Amazing Grace — Gospel Jazz Chords Piano Tutorial » et « comment
+  harmoniser rapidement » : « il faut que l'app réussisse avec ce genre de vidéo ». Les deux
+  sortaient « non reconnue ».
+- Fait : stratégie « bande de clavier » (clavier dessiné n'importe où dans l'image), grille
+  des blanches robuste (traits gris clair, touches allumées, largeur calée « en peigne »),
+  noires complétées ou écartées, consensus des images de sondage, image de couverture des
+  MP4 ignorée, noms d'accords en texte simple, frise du Copilote écrite d'après l'accord.
+- Résultat : Amazing Grace, 88 touches, notes identiques aux lettres affichées (0:05, 4:00,
+  6:40), 184 accords ; « comment harmoniser », 24 images de sondage sur 24, 134 accords.
+```
+
+### `decisions/` — ADR : « Trouver le clavier dessiné n'importe où dans l'image »
+
+- **Contexte** : les deux stratégies existantes supposaient une ligne de frappe rouge
+  (Synthesia) ou un clavier dans la moitié basse. Dans ses tutoriels, le clavier dessiné est
+  au milieu : portée et nom d'accord (Amazing Grace) ou titre et professeur (« comment
+  harmoniser ») au-dessus, vrai piano filmé en dessous (Amazing Grace).
+- **Décision** : troisième stratégie `detectKeyboardBandGeometry`, essayée après les deux
+  autres (inchangées) :
+  - bande = rangées consécutives où au moins 8 noires forment un motif 2/3 valide ; la plus
+    haute × la plus fournie l'emporte (le piano filmé, caché par les mains, perd) ;
+  - zone des blanches juste dessous, rangée floue de transition sautée ;
+  - traits entre blanches seuillés sur la luminosité réelle des blanches (gris clair) ;
+    touches allumées écartées des traits ; largeur calée « en peigne » sur toutes les
+    séparations vues ;
+  - noires allumées au moment du sondage complétées d'après la grille ; une noire sans ses
+    deux blanches voisines est écartée (le « Ré8 » fantôme) ;
+  - format : la géométrie retenue est celle sur laquelle s'accordent le plus d'images de
+    sondage ; une image mal lue n'annule plus la vidéo.
+- **Limites connues** :
+  - une image où une noire allumée est au milieu du clavier casse le motif : elle est
+    ignorée au sondage (5 sur 24 dans Amazing Grace) ; il en faut au moins 2 bonnes ;
+  - l'octave reste déduite (clavier centré sur le Do central) quand le clavier n'est pas
+    complet ; pour un 88 touches, elle est exacte ;
+  - bandes noires sur les côtés (vidéo 4:3 dans un cadre 16:9) avec un clavier qui commence
+    par La : non traité ;
+  - un tutoriel sans clavier dessiné (piano filmé seul) passe par V2N ou par le son, pas par
+    cette stratégie.
+
+### `state/current-state.md` — à fusionner
+
+- Pédagogie IA, lecture à l'image : trois stratégies (Synthesia, clavier statique en bas,
+  bande n'importe où), consensus des images de sondage ; `plainText` pour les noms
+  d'accords ; frise du Copilote écrite d'après l'accord (Fa# dans D9, plus « Solb »).
+
+### `state/current-work.md` — à vérifier sur le PC
+
+1. Pédagogie IA : importer les MP4 du dossier « Piano Jazz Chords/tuto ». La vidéo est lue
+   (plus « non reconnue ») ; la grille montre C7, D9, G9sus4… sans code HTML ; un clic sur
+   un accord place la vidéo.
+2. Copilote, mode tutoriel : « joue-moi le passage de 0:40 à 0:52 » → Do2 Sol2 Mi3 Sol3 Do4,
+   puis Am, puis D9 ; « … en Ré » → transposé d'un ton.
+3. Transcription de la voix (faster-whisper) et recoupement par le son : pas testables ici.
+
+### `state/next-actions.md` — à ajouter
+
+- Demandes de Narcisse du 25/09 en attente, à confirmer avant de commencer :
+  - couleur des notes jouées par le Copilote (bleu = toi, jaune ou vert = Copilote) au lieu
+    des étiquettes ;
+  - retirer les boutons et les étiquettes ajoutés ;
+  - top note (mélodie) reconnue dans les Sessions et rejouée à l'identique ;
+  - melody chords : top note = mélodie, basse indépendante (cycle de quintes ou de
+    tierces), accord comblé entre les deux.
+- Pédagogie, plus tard :
+  - lire le nom d'accord affiché à l'écran (Amazing Grace l'écrit en gros) pour recouper ;
+  - témoin « Sustain » ;
+  - noires allumées au milieu du clavier au sondage.
