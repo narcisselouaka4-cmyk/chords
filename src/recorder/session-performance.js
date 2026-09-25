@@ -19,8 +19,13 @@
 //   - accords attaqués ensemble ou en ordre dispersé ;
 //   - vocabulaire : triades, 7e, couleurs (9e, 11e, 13e), accords de tension.
 // Chaque constat garde ses moments (secondes) pour le carnet et le Copilote.
+// [Claude] — 2026-09-25 — … et ses cas (`details`) : moment, accord, notes jouées,
+// notes en cause (celles qui traînent, qui frottent, qui sautent), phrase
+// courte. Le carnet les montre au clavier ; le Copilote les reçoit en notes
+// exactes (Narcisse : « je n'arrive pas à situer exactement où […] et pourquoi »).
 
 import { buildNoteWindows, segmentSessionEvents, nameChordSegments, clusterAttacks } from './session-analysis.js';
+import { noteRoles } from '../pedagogie/note-roles.js';
 import { LOW_INTERVAL_LIMITS, minorNinthClashes } from '../voicing-engine/textbook-voicings.js';
 import { isTensionQuality } from '../practice-exercise.js';
 
@@ -99,6 +104,16 @@ function chordFamily(symbol) {
   return 'triad';
 }
 
+/**
+ * Fausse note probable d'un accord non reconnu : les notes étrangères à
+ * l'accord qu'on lit malgré elles (ni note de l'accord, ni tension disponible).
+ */
+function foreignNotes(chord) {
+  if (chord.rootPc == null) return [];
+  return noteRoles({ rootPc: chord.rootPc, quality: chord.symbol || '', bassPc: chord.bassPc ?? null }, chord.attackNotes)
+    .filter((r) => r.kind === 'outside').map((r) => r.midi).slice(0, 2);
+}
+
 /** Moments (m:ss) d'une liste de cas, trois au plus. */
 const moments = (cases, describe) => cases.slice(0, 3).map(describe).join(' ; ');
 
@@ -107,7 +122,8 @@ const moments = (cases, describe) => cases.slice(0, 3).map(describe).join(' ; ')
  * @param {object[]} events - évènements MIDI de la session ({type, time, note, velocity, controller, value})
  * @param {{tempo?: number|null, latin?: boolean}} [options] - latin : noms d'accords Do, Ré, Mi (comme le carnet)
  * @returns {{stats: object, strengths: object[], issues: object[]}|null}
- *   constat = { id, title, text, times: number[], severity? (1 à 3, pour les points à travailler) }
+ *   constat = { id, title, text, times: number[], severity? (1 à 3, pour les points à travailler),
+ *     details?: {at: number, chord: string|null, from?: string, notes: number[], problemNotes: number[], text: string}[] }
  */
 export function analyzeSessionPerformance(events, { tempo = null, latin = false } = {}) {
   const sorted = [...(events || [])].filter((e) => Number.isFinite(e?.time)).sort((a, b) => a.time - b.time);
@@ -131,7 +147,7 @@ export function analyzeSessionPerformance(events, { tempo = null, latin = false 
     if (!pedal.some((p) => p.start < t - 0.05 && p.end > t + 0.4)) continue;
     const nextPcs = new Set(chords[i].notes.map(pcOf));
     const ghosts = windows.filter((w) => w.onTime < t && w.keyOffTime <= t + 0.02 && w.offTime > t + 0.4 && !nextPcs.has(pcOf(w.note)));
-    if (ghosts.length) blur.push({ at: t, from: chords[i - 1].chordName, to: chords[i].chordName, ghosts: sortedUnique(ghosts.map((w) => w.note)) });
+    if (ghosts.length) blur.push({ at: t, from: chords[i - 1].chordName, to: chords[i].chordName, ghosts: sortedUnique(ghosts.map((w) => w.note)), notes: chords[i].attackNotes });
   }
   if (blur.length) {
     const ratio = blur.length / Math.max(1, changes);
@@ -141,13 +157,17 @@ export function analyzeSessionPerformance(events, { tempo = null, latin = false 
       severity: ratio >= 0.5 ? 3 : ratio >= 0.2 ? 2 : 1,
       times: blur.map((c) => c.at),
       text: `Pédale gardée pendant ${plural(blur.length, 'changement', 'changements')} d'accord sur ${changes} : des notes de l'accord précédent sonnent encore sur le suivant (${moments(blur, (c) => `${formatMoment(c.at)} ${c.from} → ${c.to} : ${c.ghosts.slice(0, 3).map(frenchNote).join(', ')}`)}).`,
+      details: blur.map((c) => ({
+        at: c.at, chord: c.to, from: c.from, notes: c.notes, problemNotes: c.ghosts,
+        text: `${c.ghosts.map(frenchNote).join(', ')} de ${c.from} ${c.ghosts.length > 1 ? 'traînent' : 'traîne'} sous ${c.to} (pédale pas relevée)`,
+      })),
     });
   } else if (changes >= 3 && pedalTime > 0.2 * duration) {
     strengths.push({ id: 'pedal-clean', title: 'Pédale propre', times: [], text: 'Pédale relevée à chaque changement d\'accord : les harmonies ne se mélangent pas.' });
   }
 
   // ── Voicings boueux dans le grave ──
-  const mud = chords.map((c) => ({ at: c.start, chord: c.chordName, pair: muddyPair(c.attackNotes) })).filter((c) => c.pair);
+  const mud = chords.map((c) => ({ at: c.start, chord: c.chordName, pair: muddyPair(c.attackNotes), notes: c.attackNotes })).filter((c) => c.pair);
   if (mud.length) {
     issues.push({
       id: 'low-mud',
@@ -155,6 +175,10 @@ export function analyzeSessionPerformance(events, { tempo = null, latin = false 
       severity: mud.length >= 3 || mud.length / chords.length >= 0.3 ? 2 : 1,
       times: mud.map((c) => c.at),
       text: `Intervalles trop serrés dans le grave (${plural(mud.length, 'accord', 'accords')}) : ${moments(mud, (c) => `${formatMoment(c.at)} ${c.chord}, ${INTERVALS[c.pair.high - c.pair.low]} ${frenchNote(c.pair.low)}–${frenchNote(c.pair.high)} (pas sous ${frenchNote(c.pair.limit)})`)}. En dessous de ces limites, l'intervalle sonne boueux : écarte la main gauche (fondamentale + quinte ou septième).`,
+      details: mud.map((c) => ({
+        at: c.at, chord: c.chord, notes: c.notes, problemNotes: [c.pair.low, c.pair.high],
+        text: `${INTERVALS[c.pair.high - c.pair.low]} ${frenchNote(c.pair.low)}–${frenchNote(c.pair.high)} trop grave (pas sous ${frenchNote(c.pair.limit)})`,
+      })),
     });
   } else if (chords.length >= 4 && chords.some((c) => c.attackNotes[0] < 48)) {
     strengths.push({ id: 'low-clear', title: 'Grave clair', times: [], text: 'Main gauche claire : aucun intervalle boueux dans le grave.' });
@@ -162,7 +186,7 @@ export function analyzeSessionPerformance(events, { tempo = null, latin = false 
 
   // ── Frottements de 9e mineure ──
   const rubs = chords
-    .map((c) => ({ at: c.start, chord: c.chordName, pairs: minorNinthClashes(c.attackNotes, c.rootPc, { flatNineChord: /b9|alt/.test(String(c.symbol)) }) }))
+    .map((c) => ({ at: c.start, chord: c.chordName, notes: c.attackNotes, pairs: minorNinthClashes(c.attackNotes, c.rootPc, { flatNineChord: /b9|alt/.test(String(c.symbol)) }) }))
     .filter((c) => c.pairs.length);
   if (rubs.length) {
     issues.push({
@@ -171,6 +195,10 @@ export function analyzeSessionPerformance(events, { tempo = null, latin = false 
       severity: rubs.length >= 2 ? 2 : 1,
       times: rubs.map((c) => c.at),
       text: `9e mineure entre deux voix (${plural(rubs.length, 'accord', 'accords')}) : ${moments(rubs, (c) => `${formatMoment(c.at)} ${c.chord}, ${frenchNote(c.pairs[0][0])} sous ${frenchNote(c.pairs[0][1])}`)}. Hors b9 d'une dominante, cet écart frotte : déplace l'une des deux notes.`,
+      details: rubs.map((c) => ({
+        at: c.at, chord: c.chord, notes: c.notes, problemNotes: sortedUnique(c.pairs.flat()),
+        text: `${frenchNote(c.pairs[0][0])} sous ${frenchNote(c.pairs[0][1])} : 9e mineure qui frotte`,
+      })),
     });
   }
 
@@ -183,6 +211,13 @@ export function analyzeSessionPerformance(events, { tempo = null, latin = false 
       severity: 1,
       times: unknown.map((c) => c.start),
       text: `Accords qu'aucun modèle n'explique entièrement (${unknown.length}) : ${moments(unknown, (c) => `${formatMoment(c.start)} ${c.attackNotes.map(frenchNote).join(' ')}`)} — note étrangère (fausse note ?) ou voicing très rare, à réécouter.`,
+      details: unknown.map((c) => {
+        const suspects = foreignNotes(c);
+        return {
+          at: c.start, chord: c.chordName || null, notes: c.attackNotes, problemNotes: suspects,
+          text: suspects.length ? `${suspects.map(frenchNote).join(' et ')} ne va pas dans ${c.chordName} (fausse note ?)` : 'accord non reconnu',
+        };
+      }),
     });
   }
 
@@ -194,7 +229,7 @@ export function analyzeSessionPerformance(events, { tempo = null, latin = false 
     const a = Math.max(...chords[i - 1].attackNotes);
     const b = Math.max(...chords[i].attackNotes);
     moves.push(Math.abs(b - a));
-    if (Math.abs(b - a) >= 9) leaps.push({ at: chords[i].start, from: chords[i - 1].chordName, to: chords[i].chordName, a, b });
+    if (Math.abs(b - a) >= 9) leaps.push({ at: chords[i].start, from: chords[i - 1].chordName, to: chords[i].chordName, a, b, notes: chords[i].attackNotes });
   }
   if (leaps.length >= 2 && leaps.length / moves.length >= 0.25) {
     issues.push({
@@ -203,6 +238,10 @@ export function analyzeSessionPerformance(events, { tempo = null, latin = false 
       severity: leaps.length / moves.length >= 0.5 ? 2 : 1,
       times: leaps.map((c) => c.at),
       text: `La note du dessus saute d'une sixte ou plus dans ${leaps.length} changements sur ${moves.length} : ${moments(leaps, (c) => `${formatMoment(c.at)} ${c.from} → ${c.to}, ${frenchNote(c.a)} → ${frenchNote(c.b)}`)}. Le renversement le plus proche garde une ligne chantante.`,
+      details: leaps.map((c) => ({
+        at: c.at, chord: c.to, from: c.from, notes: c.notes, problemNotes: [c.b],
+        text: `le dessus saute de ${frenchNote(c.a)} à ${frenchNote(c.b)}`,
+      })),
     });
   } else if (moves.length >= 3 && mean(moves) <= 3) {
     strengths.push({ id: 'top-smooth', title: 'Voix du dessus bien enchaînée', times: [], text: `Voix du dessus bien conduite : elle bouge en moyenne de ${(Math.round(mean(moves) * 10) / 10).toString().replace('.', ',')} demi-ton(s) d'un accord à l'autre.` });
@@ -281,6 +320,7 @@ export function analyzeSessionPerformance(events, { tempo = null, latin = false 
       severity: 1,
       times: gaps.map((g) => g.at),
       text: `Arrêts de plus de deux secondes (${gaps.length}) : ${moments(gaps, (g) => `${formatMoment(g.at)} (${seconds1(g.length)})`)} — hésitation, ou respiration voulue ?`,
+      details: gaps.map((g) => ({ at: g.at, chord: null, notes: [], problemNotes: [], text: `arrêt de ${seconds1(g.length)}` })),
     });
   }
 
@@ -305,6 +345,10 @@ export function analyzeSessionPerformance(events, { tempo = null, latin = false 
           severity: off.length >= 3 || cv > 0.2 ? 2 : 1,
           times: off.map((x) => x.at),
           text: `Tu changes d'accord toutes les ${seconds1(m)} environ, mais ${off.length ? `${moments(off, (x) => `à ${formatMoment(x.at)} ${x.kind} (${seconds1(x.d)})`)}` : `l'écart varie de ${Math.round(cv * 100)} %`} : travaille ces enchaînements au métronome, lentement.`,
+          details: off.map((x) => {
+            const chord = chords.find((c) => Math.abs(c.start - x.at) < 1e-6);
+            return { at: x.at, chord: chord?.chordName || null, notes: chord?.attackNotes || [], problemNotes: [], text: `changement ${x.kind} (${seconds1(x.d)} au lieu de ${seconds1(m)})` };
+          }),
         });
       } else if (cv < 0.08) {
         strengths.push({ id: 'timing-steady', title: 'Changements réguliers', times: [], text: `Changements d'accords réguliers : toutes les ${seconds1(m)}, à ${Math.max(1, Math.round(cv * 100))} % près.` });
@@ -330,6 +374,10 @@ export function analyzeSessionPerformance(events, { tempo = null, latin = false 
         severity: 1,
         times: ragged.map((c) => c[0].onTime),
         text: `Dans ${ragged.length} accords sur ${attackClusters.length}, les notes partent en ordre dispersé (${moments(ragged, (c) => formatMoment(c[0].onTime))}) : les deux mains ne tombent pas ensemble.`,
+        details: ragged.map((c) => ({
+          at: c[0].onTime, chord: null, notes: sortedUnique(c.map((w) => w.note)), problemNotes: [],
+          text: `notes étalées sur ${Math.round((c[c.length - 1].onTime - c[0].onTime) * 1000)} ms (${c.map((w) => frenchNote(w.note)).join(' → ')})`,
+        })),
       });
     } else if (attackClusters.filter((c) => c[c.length - 1].onTime - c[0].onTime < 0.03).length / attackClusters.length >= 0.8) {
       strengths.push({ id: 'together', title: 'Accords bien ensemble', times: [], text: 'Accords attaqués bien ensemble : les notes tombent en moins de 30 ms.' });

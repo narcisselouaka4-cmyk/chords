@@ -99,6 +99,9 @@ function checkClassifier() {
   expectChords('Explique-moi un II-V-I en Fa', ['Gm7', 'C7', 'Fmaj7']);
   expectChords('Joue un 2-5-1 en Sib majeur', ['Cm7', 'F7', 'Bbmaj7']);
   expectChords('Un 2-5-1 en la mineur', ['Bm7b5', 'E7', 'Am7']);
+  // [Claude] — 2026-09-25 — Le mode écrit juste après la cadence.
+  expectChords('Un II-V-I mineur en la', ['Bm7b5', 'E7', 'Am7']);
+  expectChords('Un 2-5-1 mineur', ['Dm7b5', 'G7', 'Cm7']);
   expectChords('joue un 2-5-1 en ré', ['Em7', 'A7', 'Dmaj7']);
   expectChords('joue un 2-5-1 en la jouant lentement', ['Dm7', 'G7', 'Cmaj7']);
   expectChords('Joue Rém7 Sol7 Domaj7', ['Dm7', 'G7', 'Cmaj7']);

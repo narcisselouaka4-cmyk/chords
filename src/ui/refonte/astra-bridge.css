@@ -757,6 +757,32 @@
   color: var(--tr-muted);
   opacity: 1;
 }
+/* [Claude] — 2026-09-25 — « Qu'en penses-tu ? » : à gauche du bouton Envoyer. */
+#practice-view-copilot .tr-composer-tools > #copilot-review-btn.copilot-review-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  height: 27px;
+  margin-left: auto;
+  margin-right: 8px;
+  padding: 0 11px;
+  border: 1px solid var(--tr-accent);
+  border-radius: 14px;
+  background: var(--tr-surface);
+  color: var(--tr-accent);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+#practice-view-copilot .tr-composer-tools > #copilot-review-btn.copilot-review-btn:hover:not(:disabled) {
+  background: var(--tr-accent-soft);
+}
+#practice-view-copilot .tr-composer-tools > #copilot-review-btn.copilot-review-btn:disabled {
+  opacity: .5;
+  cursor: default;
+}
 #copilot-quick-actions {
   display: flex;
   flex-wrap: wrap;
@@ -2152,6 +2178,26 @@
   font: 9.5px/1.5 var(--tr-mono);
 }
 #practice-view-copilot .copilot-example-hands b { color: var(--tr-accent); font-weight: 600; }
+/* [Claude] — 2026-09-25 — Carte « Ton passage » (question « Qu'en penses-tu ? ») :
+   ce qui a été reconnu, Réécouter, et les moments à revoir (un clic : au clavier). */
+#practice-view-copilot .copilot-take { margin-top: 8px; max-width: 560px; text-align: left; }
+#practice-view-copilot .copilot-take-moments {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 7px;
+}
+#practice-view-copilot .copilot-take-moment {
+  padding: 4px 8px;
+  border: 1px solid var(--tr-border);
+  border-radius: 5px;
+  background: var(--tr-surface);
+  color: var(--tr-secondary);
+  font: 9.5px/1.45 var(--tr-mono);
+  text-align: left;
+  cursor: pointer;
+}
+#practice-view-copilot .copilot-take-moment:hover { border-color: var(--tr-accent); color: var(--tr-text); }
 @media (max-width: 640px) {
   #practice-view-copilot .tr-chat-demos.copilot-example { flex-direction: column; }
 }

@@ -17,6 +17,8 @@ import { sendCopilotMessage } from './copilot-client.js';
 import { hasAIKey } from '../ai/openai-config.js';
 import { setKeyboardMarks, clearKeyboardMarks } from '../ui/keyboard-marks.js';
 import { chordExampleSteps } from './example-guide.js';
+import { liveTake } from '../recorder/live-take.js';
+import { reviewTake, takeMarks, takeMoment, passageToExample, momentText } from '../recorder/take-review.js';
 
 const els = {};
 let currentTutorialPath = null;
@@ -26,6 +28,10 @@ let currentConversationId = null;
 let playingExampleId = null;
 // [Claude] — 2026-09-25 — Exemple en cours de lecture (pour ses moments au clavier).
 let playingExample = null;
+// [Claude] — 2026-09-25 — Portrait du dernier passage joué (« Qu'en penses-tu ? »),
+// gardé pour les questions de suivi de la même conversation.
+let lastTakeContext = null;
+const DEFAULT_REVIEW_QUESTION = 'Qu\'en penses-tu de ce que je viens de jouer ?';
 
 export const AUTONOMOUS_HISTORY_KEY = HISTORY_AUTONOMOUS_KEY;
 let currentMode = 'autonomous';
@@ -321,8 +327,124 @@ function refreshExampleCards() {
     if (!button) return;
     button.setAttribute('aria-pressed', playing ? 'true' : 'false');
     button.innerHTML = playing ? ICON_STOP : ICON_PLAY;
-    button.appendChild(el('span', { text: playing ? 'Arrêter' : 'Écouter l\'exemple' }));
+    button.appendChild(el('span', { text: playing ? 'Arrêter' : card.dataset.playLabel || 'Écouter l\'exemple' }));
   });
+}
+
+/**
+ * [Claude] — 2026-09-25 — Carte « Ton passage » sous la question d'un « Qu'en
+ * penses-tu ? » : ce que l'application a reconnu (accords et mains, voicing,
+ * lignes et gamme), Réécouter (touches allumées, rôles au clavier), et les
+ * moments à revoir, qu'un clic montre au clavier.
+ */
+function renderTakeCard(msg) {
+  const take = msg.take;
+  const id = exampleIdOf(msg);
+  const playing = playingExampleId === id;
+  const card = el('div', { className: `tr-chat-demos copilot-example copilot-take${playing ? ' is-playing' : ''}`, 'data-example-id': id, 'data-play-label': 'Réécouter' });
+  if (take.example) {
+    const button = el('button', { className: 'copilot-example-play', type: 'button', 'aria-pressed': playing ? 'true' : 'false', onClick: () => toggleTakeReplay(msg) });
+    button.innerHTML = playing ? ICON_STOP : ICON_PLAY;
+    button.appendChild(el('span', { text: playing ? 'Arrêter' : 'Réécouter' }));
+    card.appendChild(button);
+  }
+  const text = el('div', { className: 'copilot-example-text' }, [
+    el('strong', { text: `Ton passage · ${takeMoment(take.duration)} · ${take.noteCount} note${take.noteCount > 1 ? 's' : ''}` }),
+    el('small', { text: take.verdict }),
+  ]);
+  const rows = [
+    ...(take.chords || []).slice(0, 5).map((c) => {
+      const hands = c.oneHand ? `une main ${[...c.left, ...c.right].map(frenchNote).join(' ')}`
+        : `main gauche ${c.left.map(frenchNote).join(' ')} · main droite ${c.right.map(frenchNote).join(' ')}`;
+      return el('li', {}, [el('b', { text: `${takeMoment(c.at)} ${c.name}` }), document.createTextNode(` — ${hands} · ${c.voicing}`)]);
+    }),
+    ...(take.lines || []).slice(0, 3).map((l) => el('li', {}, [
+      el('b', { text: `${takeMoment(l.start)} ligne` }),
+      document.createTextNode(` — ${l.count} notes${l.scale ? ` · ${l.scale}` : ''}${l.over?.length ? ` · sur ${l.over.join(', ')}` : ''}`),
+    ])),
+  ];
+  if (rows.length) text.appendChild(el('ul', { className: 'copilot-example-hands' }, rows));
+  if (take.moments?.length) {
+    const list = el('div', { className: 'copilot-take-moments' });
+    for (const m of take.moments.slice(0, 8)) {
+      list.appendChild(el('button', {
+        className: 'copilot-take-moment', type: 'button', title: 'Montrer ce moment au clavier',
+        onClick: () => {
+          const view = takeMarks(null, m);
+          setKeyboardMarks(view.marks, { caption: view.caption, tone: view.tone });
+        },
+        text: `${takeMoment(m.at)}${m.chord ? ` ${m.chord}` : ''} — ${m.text}`,
+      }));
+    }
+    text.appendChild(list);
+  }
+  card.appendChild(text);
+  return card;
+}
+
+/** Réécoute du passage joué (même lecteur que les exemples, rôles au clavier). */
+function toggleTakeReplay(msg) {
+  const id = exampleIdOf(msg);
+  if (playingExampleId === id) {
+    document.dispatchEvent(new CustomEvent('copilot-stop-example'));
+    return;
+  }
+  playingExample = { id, example: msg.take.example };
+  document.dispatchEvent(new CustomEvent('copilot-play-example', { detail: { id, example: msg.take.example } }));
+}
+
+/** Pièce jointe d'une question « Qu'en penses-tu ? » (gardée dans l'historique). */
+function takeAttachment(review, passage) {
+  return {
+    verdict: review.verdict,
+    duration: review.duration,
+    noteCount: review.noteCount,
+    chords: review.chords.slice(0, 8).map((c) => ({
+      at: c.at, name: c.readAs ? `${c.readAs} (rootless)` : c.name, left: c.hands.left, right: c.hands.right, oneHand: c.hands.oneHand,
+      voicing: `${c.voicing.label}${c.voicing.detail ? ` (${c.voicing.detail})` : ''}`,
+    })),
+    lines: review.lines.slice(0, 4).map((l) => ({ start: l.start, count: l.notes.length, scale: l.scale?.label || null, over: l.over })),
+    moments: review.moments.slice(0, 12).map((m) => ({
+      at: m.at, chord: m.chord || null, notes: m.notes || [], problemNotes: m.problemNotes || [], missing: m.missing || [],
+      text: momentText(m), title: m.title, issueId: m.issueId,
+    })),
+    example: passageToExample(passage.events, review),
+  };
+}
+
+/**
+ * « Qu'en penses-tu ? » : le dernier passage joué (depuis la dernière pause) est
+ * analysé par l'application, montré au clavier, et joint à la question tapée
+ * (n'importe laquelle), ou à « Qu'en penses-tu de ce que je viens de jouer ? ».
+ * Sans clé d'IA, le verdict de l'application s'affiche au clavier.
+ */
+export async function reviewLastPassage({ question = '', fromKeyboard = false } = {}) {
+  const passage = liveTake.lastPassage();
+  if (!passage) {
+    setKeyboardMarks([], {
+      caption: 'Rien à écouter : joue d\'abord au clavier (MIDI, virtuel ou clavier d\'ordinateur), puis clique sur « Qu\'en penses-tu ? ».',
+      tone: 'warn',
+    });
+    return null;
+  }
+  const asked = String(question || '').trim();
+  const review = reviewTake(passage.events, { question: asked });
+  if (!review) return null;
+  const view = takeMarks(review, review.moments[0] || null);
+  if (!hasAIKey() || !els.input) {
+    setKeyboardMarks(view.marks, { caption: view.caption, tone: view.tone });
+    return review;
+  }
+  if (fromKeyboard) {
+    document.dispatchEvent(new CustomEvent('app-switch-tab', { detail: { tab: 'practice' } }));
+    document.dispatchEvent(new CustomEvent('app-switch-training-view', { detail: { view: 'copilot' } }));
+  }
+  // Après la bascule (qui efface le clavier) : le verdict, ou le premier moment à revoir.
+  setKeyboardMarks(view.marks, { caption: view.caption, tone: view.tone });
+  els.input.value = '';
+  autoGrowInput();
+  await runCopilotTurn(asked || DEFAULT_REVIEW_QUESTION, { take: takeAttachment(review, passage), review: true, takeContext: review.contextLines });
+  return review;
 }
 
 /** Rendu de la liste des messages, dans la structure d'Astra
@@ -368,6 +490,7 @@ function renderMessages() {
     if (!isUser) author.appendChild(el('span', { text: 'ASSISTANT IA' }));
     content.appendChild(author);
     renderMessageText(content, msg.content);
+    if (isUser && msg.take) content.appendChild(renderTakeCard(msg));
 
     // [Claude] — 2026-09-24 — L'exemple à écouter vient APRÈS l'explication
     // (Narcisse : « il va directement me le jouer au lieu d'expliquer d'abord »).
@@ -417,6 +540,7 @@ function showChatArea() {
 }
 
 async function startNewConversation(tutorialPath) {
+  lastTakeContext = null;
   const id = await createConversation(tutorialPath || AUTONOMOUS_HISTORY_KEY);
   if (!id) return null;
   currentConversationId = id;
@@ -663,16 +787,33 @@ async function sendUserMessage() {
   if (!text) return;
   els.input.value = '';
   autoGrowInput();
+  await runCopilotTurn(text);
+}
+
+/**
+ * Un tour de conversation : la question (et, pour « Qu'en penses-tu ? », le
+ * passage joué), l'appel au modèle, la réponse.
+ * @param {string} text
+ * @param {{take?: object, review?: boolean, takeContext?: string[]}} [options]
+ */
+async function runCopilotTurn(text, { take = null, review = false, takeContext = null } = {}) {
   els.input.disabled = true;
   els.sendBtn.disabled = true;
+  if (els.reviewBtn) els.reviewBtn.disabled = true;
 
   await ensureCurrentConversation();
-  messages.push({ role: 'user', content: text, timestamp: new Date().toISOString() });
+  // Après la création éventuelle de la conversation (qui oublie l'ancien passage).
+  if (takeContext) lastTakeContext = takeContext;
+  const userMessage = { role: 'user', content: text, timestamp: new Date().toISOString() };
+  if (take) userMessage.take = take;
+  messages.push(userMessage);
   addTypingIndicator();
 
-  const context = getTutorialContext() || getSessionContext();
+  const base = getTutorialContext() || getSessionContext();
+  // Le dernier passage joué reste connu pour les questions de suivi.
+  const context = lastTakeContext ? { ...(base || { type: 'autonomous' }), take: lastTakeContext } : base;
   const copilotStyleId = els.styleSelect?.value || 'auto';
-  const res = await sendCopilotMessage({ message: text, messages, context, copilotStyleId });
+  const res = await sendCopilotMessage({ message: text, messages, context, copilotStyleId, review });
 
   removeTypingIndicator();
   let autoplayMessage = null;
@@ -707,6 +848,7 @@ async function sendUserMessage() {
   await renderHistoryList();
   els.input.disabled = false;
   els.sendBtn.disabled = false;
+  if (els.reviewBtn) els.reviewBtn.disabled = false;
   els.input.focus();
 }
 
@@ -732,6 +874,7 @@ export async function initCopilotTab() {
   els.messages = document.getElementById('copilot-messages');
   els.input = document.getElementById('copilot-input');
   els.sendBtn = document.getElementById('copilot-send-btn');
+  els.reviewBtn = document.getElementById('copilot-review-btn');
   els.newConvBtn = document.getElementById('copilot-new-conv-btn');
   els.modeToggleBtn = document.getElementById('copilot-mode-toggle-btn');
   els.selectedName = document.getElementById('copilot-selected-name');
@@ -741,6 +884,9 @@ export async function initCopilotTab() {
   els.deleteEmptyBtn = document.getElementById('copilot-delete-empty-btn');
 
   els.sendBtn?.addEventListener('click', sendUserMessage);
+  // [Claude] — 2026-09-25 — « Qu'en penses-tu ? » : le passage joué + la question tapée.
+  els.reviewBtn?.addEventListener('click', () => reviewLastPassage({ question: els.input?.value || '' }));
+  document.addEventListener('copilot-review-take', (e) => reviewLastPassage({ question: e.detail?.question || '', fromKeyboard: true }));
   // [Astra round 4] — Le champ est un <textarea> qui grandit avec le texte,
   // comme dans la maquette (max ~110px, puis défilement interne).
   els.input?.addEventListener('input', autoGrowInput);

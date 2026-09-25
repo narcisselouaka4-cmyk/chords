@@ -173,7 +173,10 @@ function extractParams(text) {
       // Tonalité par défaut : Do majeur si aucune mention.
       const key = extractKey(text);
       if (key) params.key = key;
-      const minor = Boolean(key?.minor);
+      // [Claude] — 2026-09-25 — « II-V-I mineur en la », « 2-5-1 mineur » : le mode
+      // écrit juste après la cadence compte aussi (avant, seul « en la mineur » le donnait).
+      const minor = Boolean(key?.minor)
+        || /(?:ii\s*-?\s*v\s*-?\s*i|2\s*-?\s*5\s*-?\s*1)\s+(?:mineur|minor)/.test(lower);
       const romanMap = minor
         ? { I: 'm7', II: 'm7b5', III: 'maj7', IV: 'm7', V: '7', VI: 'maj7', VII: '7' }
         : { I: 'maj7', II: 'm7', III: 'm7', IV: 'maj7', V: '7', VI: 'm7', VII: 'm7b5' };

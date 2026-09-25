@@ -95,6 +95,7 @@ import { applyTabVisibility } from './ui/tab-visibility.js';
 import { initAstraShell } from './ui/refonte/astra-shell.js';
 import { initOnboarding, notifyOnboarding } from './ui/onboarding.js';
 import { applyKeyboardMarks, clearKeyboardMarks, initKeyboardMarks } from './ui/keyboard-marks.js';
+import { liveTake } from './recorder/live-take.js';
 import {
   publishLiveNoteOn,
   publishLiveNoteOff,
@@ -498,7 +499,12 @@ function handleNoteOn(note, velocity = 0.8, virtual = false, audible = true) {
   // une relecture (state.isPlayback), pour ne pas ré-enregistrer ce qu'on est
   // en train de rejouer. Note brute, comme pour le bus live ci-dessus : la
   // transposition est un offset d'affichage, pas une altération enregistrée.
-  if (!state.isPlayback) feedRecorderNoteOn(note, safeVelocity);
+  if (!state.isPlayback) {
+    feedRecorderNoteOn(note, safeVelocity);
+    // [Claude] — 2026-09-25 — Mémoire du jeu récent (« Qu'en penses-tu ? ») : la
+    // note entendue (transposition comprise), jamais une démo ni une relecture.
+    liveTake.noteOn(transposed, safeVelocity);
+  }
   // La détection est différée pour ne pas bloquer le thread principal
   // (lecture audio / défilement de l'onglet Analyse).
   scheduleRefreshChord();
@@ -518,7 +524,10 @@ function handleNoteOff(note, virtual = false, audible = true) {
   if (audible) releaseVirtualNote(transposed);
   // [Refonte 03/09] — Voir handleNoteOn : même pont vers Sessions MIDI, jamais
   // pendant une relecture, note brute.
-  if (!state.isPlayback) feedRecorderNoteOff(note);
+  if (!state.isPlayback) {
+    feedRecorderNoteOff(note);
+    liveTake.noteOff(transposed);
+  }
   if (state.sustain) {
     // [Claude] — 2026-09-24 — Touche relâchée : elle quitte les notes tenues et
     // ne sonne plus que par la pédale (sustainedNotes). Restée dans activeNotes,
@@ -544,7 +553,10 @@ function handleSustain(value) {
   // relâchées pédale enfoncée continuent de sonner et s'éteignent à la remontée.
   setSustain(value);
   if (hasLiveMidiSubscribers()) publishLiveSustain(value, 0);
-  if (!state.isPlayback) feedRecorderSustain(value);
+  if (!state.isPlayback) {
+    feedRecorderSustain(value);
+    liveTake.sustain(Boolean(value));
+  }
   if (!value) {
     for (const note of state.sustainedNotes) {
       if (!state.activeNotes.has(note)) {
@@ -2747,6 +2759,11 @@ async function init() {
     document.addEventListener('app-switch-training-view', () => clearKeyboardMarks());
     document.addEventListener('app-switch-tab', () => clearKeyboardMarks());
     document.querySelectorAll('.tab-btn').forEach((tab) => tab.addEventListener('click', () => clearKeyboardMarks()));
+    // « Qu'en penses-tu ? » depuis la barre du clavier (tous les onglets) : le
+    // Copilote analyse le dernier passage joué.
+    document.getElementById('keyboard-review-btn')?.addEventListener('click', () => {
+      document.dispatchEvent(new CustomEvent('copilot-review-take', { detail: { question: '' } }));
+    });
   });
   safeInit('initSettings', initSettings);
   safeInit('initNoteGrouper', initNoteGrouper);

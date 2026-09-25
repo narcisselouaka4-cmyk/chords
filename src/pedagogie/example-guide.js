@@ -183,12 +183,21 @@ export function chordExampleSteps(chords) {
  * sonne, en tenant compte de la note suivante (approche, passage).
  * @returns {{kind: string, label: string, text: string}}
  */
-function lineNoteRole(midi, chord, prev, next) {
+export function lineNoteRole(midi, chord, prev, next) {
   const c = chord ? parseChordName(chord) : null;
   const name = frenchPitchName(midi, c);
   if (!c) return { kind: 'target', label: name, text: frenchNoteName(midi) };
   const role = noteRoles(c, [midi])[0];
   if (role.inChord && role.kind !== 'outside') return { kind: role.kind, label: role.degree, text: `${name} : ${degreeWord(role.degree)} de ${c.name}` };
+  // Entre deux notes à un demi-ton, dans le même sens : passage chromatique,
+  // même si la note est aussi une tension (Mib entre Ré et Mi sur G7).
+  if (Number.isFinite(prev) && Number.isFinite(next) && Math.abs(next - midi) === 1 && Math.abs(midi - prev) === 1
+    && Math.sign(next - midi) === Math.sign(midi - prev)) {
+    const spelled = (next > midi ? SHARP_NAMES : FLAT_NAMES)[pcOf(midi)];
+    const target = noteRoles(c, [next])[0];
+    const arrival = target && (target.inChord || target.tension) && target.kind !== 'outside' ? `, la ${degreeWord(target.degree)} de ${c.name}` : '';
+    return { kind: 'passing', label: next > midi ? '↗' : '↘', text: `${spelled} : passage chromatique de ${frenchPitchName(prev, c)} vers ${frenchPitchName(next, c)}${arrival}` };
+  }
   if (role.tension) return { kind: 'color', label: role.degree, text: `${name} : ${degreeWord(role.degree)}, couleur de ${c.name}` };
   const nextRole = Number.isFinite(next) ? noteRoles(c, [next])[0] : null;
   const nextIsChordTone = nextRole && (nextRole.inChord || nextRole.tension);

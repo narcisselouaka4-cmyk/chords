@@ -158,6 +158,38 @@ function testVocabulary() {
   check('Rootless (9e, 13e) : vocabulaire coloré', ids(rich.strengths).includes('vocabulary') || rich.stats.vocabulary.color >= 3, JSON.stringify(rich.stats.vocabulary));
 }
 
+// [Claude] — 2026-09-25 — Chaque cas garde ses notes exactes (carnet, clavier, Copilote).
+function testDetails() {
+  const s = session();
+  s.pedal(0, true);
+  s.chord(0, [36, 43, 52, 55, 59], { hold: 1.0 });
+  s.chord(2, [41, 48, 57, 60, 64], { hold: 1.0 });
+  s.chord(4, [43, 50, 53, 59, 65], { hold: 1.0 });
+  s.chord(6, [36, 43, 52, 55, 59], { hold: 1.0 });
+  s.pedal(7.5, false);
+  const blur = analyzeSessionPerformance(s.events).issues.find((x) => x.id === 'pedal-blur');
+  const d = blur?.details?.[0];
+  check('Détail pédale : moment, accords, notes qui traînent', d?.at === 2 && d.from === 'Cmaj7' && d.chord === 'Fmaj7' && d.problemNotes.join(',') === '43,55,59', JSON.stringify(d));
+  check('Détail pédale : notes jouées sur le nouvel accord', d?.notes.join(',') === '41,48,57,60,64', JSON.stringify(d?.notes));
+  check('Détail pédale : phrase courte', /Sol2, Sol3, Si3 de Cmaj7 traînent sous Fmaj7/.test(d?.text || ''), d?.text);
+
+  const r = session();
+  r.chord(0, [36, 40, 43, 64, 67], { hold: 1.5 });
+  r.chord(2, [47, 60, 64, 67], { hold: 1.5 });
+  r.chord(4, [41, 48, 57, 64], { hold: 1.5 });
+  const a = analyzeSessionPerformance(r.events);
+  const mud = a.issues.find((x) => x.id === 'low-mud')?.details?.[0];
+  check('Détail grave boueux : la paire en cause (Do2–Mi2)', mud?.problemNotes.join(',') === '36,40' && mud.at === 0, JSON.stringify(mud));
+  const rub = a.issues.find((x) => x.id === 'minor-ninth')?.details?.[0];
+  check('Détail 9e mineure : Si2 et Do4', rub?.problemNotes.join(',') === '47,60' && rub.at === 2, JSON.stringify(rub));
+
+  const u = session();
+  u.chord(0, [48, 52, 55, 61], { hold: 1.5 });
+  u.chord(2, [41, 53, 57, 60], { hold: 1.5 });
+  const unknown = analyzeSessionPerformance(u.events).issues.find((x) => x.id === 'unknown-chord')?.details?.[0];
+  check('Détail accord non reconnu : la fausse note probable (Réb4)', unknown?.problemNotes.includes(61), JSON.stringify(unknown));
+}
+
 function testEmpty() {
   check('Session vide : null', analyzeSessionPerformance([]) === null);
   check('Texte d\'une analyse absente : aucune ligne', formatPerformanceFindings(null).length === 0);
@@ -171,6 +203,7 @@ testTiming();
 testDynamics();
 testUnknownChordAndGaps();
 testVocabulary();
+testDetails();
 testEmpty();
 
 console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);

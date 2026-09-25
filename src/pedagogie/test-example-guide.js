@@ -59,7 +59,7 @@ function testLineSteps() {
   const ex = buildNotesExample(lick, { kind: 'lick', title: 'Lick', chord: 'C' });
   check('Lick : un moment par note', ex.steps.length === 4 && ex.events.filter((e) => e.type === 'step').length === 4);
   check('Lick : Ré = 9e (couleur)', ex.steps[0].caption === 'Ré : 9e, couleur de C', ex.steps[0].caption);
-  check('Lick : Ré# = approche chromatique de Mi (écrit en dièse)', ex.steps[1].caption === 'Ré# : approche chromatique de Mi, la 3ce de C', ex.steps[1].caption);
+  check('Lick : Ré# = passage chromatique vers Mi, la 3ce (écrit en dièse)', ex.steps[1].caption === 'Ré# : passage chromatique de Ré vers Mi, la 3ce de C', ex.steps[1].caption);
   const shape = ex.steps[0].marks.map((m) => `${m.midi}:${m.kind}`).join(' ');
   check('Lick : toute la forme montrée dès la première note', shape === '62:color 63:passing 64:guide 67:fifth', shape);
   const at = (i) => ex.events.findIndex((e) => e.type === 'step' && e.step === i);

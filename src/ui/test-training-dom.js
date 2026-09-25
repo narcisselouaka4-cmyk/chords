@@ -131,6 +131,13 @@ function testDomContract() {
   check(/id="exercise-filters-btn"[^]*?<\/button>\s*(<!--[^]*?-->\s*)?<button[^>]*id="exercise-favorites-btn"[^>]*data-astra-open="exercise-favorites-dialog"/.test(headControls),
     'DOM — bouton Favoris juste après Filtres, qui ouvre la fenêtre des favoris');
 
+  // [Claude] — 2026-09-25 — « Qu'en penses-tu ? » (barre du Copilote et du clavier)
+  // et légende des marques posées sur les touches.
+  check(html.includes('id="copilot-review-btn"') && html.includes('id="keyboard-review-btn"'),
+    'DOM — boutons « Qu\'en penses-tu ? » (Copilote et barre du clavier)');
+  check(/id="keyboard-mark-caption"[^>]*hidden/.test(html) && html.includes('vk-mark-caption-close'),
+    'DOM — légende des marques du clavier (cachée par défaut, avec sa croix)');
+
   // [Claude] — 2026-09-24 — Ma grille : accords choisis (fondamentale + qualité),
   // plus de saisie au clavier (Narcisse : « pas pratique d'écrire »).
   check(['exercise-grid-root', 'exercise-grid-quality', 'exercise-grid-add', 'exercise-grid-chips', 'exercise-grid-clear', 'exercise-grid-play']
