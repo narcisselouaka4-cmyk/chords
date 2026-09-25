@@ -2316,6 +2316,12 @@ function initPracticeExercise() {
     return extras ? { ...extras, styleId, styleLabel: DEMO_STYLES[styleId]?.label } : null;
   };
   demoHooks.onStep = (step) => {
+    // [Claude] — 2026-09-25 — Exemple du Copilote : la position est relayée à
+    // l'onglet, qui montre au clavier les rôles et la voix qui va bouger.
+    if (demoContext?.kind === 'copilot') {
+      document.dispatchEvent(new CustomEvent('copilot-example-step', { detail: { id: demoContext.id, step } }));
+      return;
+    }
     // La carte d'exercice suit l'accord joué par la démo du mouvement.
     if (demoContext?.kind !== 'movement') return;
     demoHooks.playingPassing = null;

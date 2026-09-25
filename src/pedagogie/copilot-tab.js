@@ -15,6 +15,8 @@ import {
 } from './copilot-history.js';
 import { sendCopilotMessage } from './copilot-client.js';
 import { hasAIKey } from '../ai/openai-config.js';
+import { setKeyboardMarks, clearKeyboardMarks } from '../ui/keyboard-marks.js';
+import { chordExampleSteps } from './example-guide.js';
 
 const els = {};
 let currentTutorialPath = null;
@@ -22,6 +24,8 @@ let messages = [];
 let currentConversationId = null;
 // Exemple du Copilote en cours de lecture (identifiant du message), ou null.
 let playingExampleId = null;
+// [Claude] — 2026-09-25 — Exemple en cours de lecture (pour ses moments au clavier).
+let playingExample = null;
 
 export const AUTONOMOUS_HISTORY_KEY = HISTORY_AUTONOMOUS_KEY;
 let currentMode = 'autonomous';
@@ -288,7 +292,23 @@ function toggleExample(msg) {
     document.dispatchEvent(new CustomEvent('copilot-stop-example'));
     return;
   }
-  document.dispatchEvent(new CustomEvent('copilot-play-example', { detail: { id, example: msg.toolResult.example } }));
+  const example = msg.toolResult.example;
+  // Exemple d'une conversation enregistrée avant le 25/09 : ses moments sont
+  // recalculés depuis les accords (les exemples de notes restent sans marques).
+  if (!example.steps && example.chords?.length) example.steps = chordExampleSteps(example.chords);
+  playingExample = { id, example };
+  document.dispatchEvent(new CustomEvent('copilot-play-example', { detail: { id, example } }));
+}
+
+/**
+ * [Claude] — 2026-09-25 — Moment joué par l'exemple (main.js relaie la position du
+ * lecteur) : le clavier montre le rôle de chaque note, la voix qui va bouger, et
+ * la légende dit pourquoi (« Do (7e) descend sur Si, la 3ce de G7 »).
+ */
+function showExampleStep(id, step) {
+  if (!playingExample || playingExample.id !== id) return;
+  const moment = playingExample.example.steps?.[step];
+  if (moment) setKeyboardMarks(moment.marks, { caption: moment.caption });
 }
 
 /** Met à jour le bouton de la carte qui joue (ou vient de s'arrêter), sans tout redessiner. */
@@ -779,13 +799,21 @@ export async function initCopilotTab() {
     await switchToSessionMode(sessionContext);
   });
 
-  // Lecture d'un exemple commencée / finie (main.js).
+  // Lecture d'un exemple commencée / finie (main.js). À la fin, les marques de
+  // l'exemple s'effacent du clavier.
   document.addEventListener('copilot-example-state', (e) => {
     const { id, playing } = e.detail || {};
     if (playing) playingExampleId = id;
-    else if (playingExampleId === id) playingExampleId = null;
+    else if (playingExampleId === id) {
+      playingExampleId = null;
+      if (playingExample?.id === id) {
+        playingExample = null;
+        clearKeyboardMarks();
+      }
+    }
     refreshExampleCards();
   });
+  document.addEventListener('copilot-example-step', (e) => showExampleStep(e.detail?.id, e.detail?.step));
 
   document.addEventListener('copilot-send-message', async (e) => {
     const message = e.detail?.message;

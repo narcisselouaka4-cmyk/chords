@@ -609,7 +609,7 @@ export function executeToolCalls(toolCalls, assistantContent = '', { styleId = '
         continue;
       }
       example = buildNotesExample(voicingToNoteSequence(voicing, { pattern: 'rolled', startOffsetMs: 0, durationMs: 2600 }), {
-        kind: 'voicing', title: chordSymbol, subtitle: 'Voicing à deux mains',
+        kind: 'voicing', title: chordSymbol, subtitle: 'Voicing à deux mains', chord: chordSymbol,
       });
     } else if (fn === 'play_lick') {
       if (example) { ignored += 1; continue; }
@@ -628,7 +628,7 @@ export function executeToolCalls(toolCalls, assistantContent = '', { styleId = '
         unplayable(target, lick.diagnostics.join(' ; '));
         continue;
       }
-      example = buildNotesExample(lick.notes, { kind: 'lick', title: `Lick sur ${target}`, subtitle: 'Phrase générée pour l\'accord' });
+      example = buildNotesExample(lick.notes, { kind: 'lick', title: `Lick sur ${target}`, subtitle: 'Phrase générée pour l\'accord', chord: target });
     } else if (fn === 'play_progression') {
       if (example) { ignored += 1; continue; }
       const args = parseArgs(call);
@@ -660,7 +660,9 @@ export function executeToolCalls(toolCalls, assistantContent = '', { styleId = '
   }
 
   if (!example && noteCalls.length > 0) {
-    example = buildNotesExample(noteCalls, { kind: 'notes', title: noteCalls.length === 1 ? 'Une note' : `${noteCalls.length} notes`, subtitle: 'Notes demandées au clavier' });
+    // L'accord sous-entendu d'une note (impliedChordName) donne son rôle au clavier.
+    const withChords = noteCalls.map((n) => (n.impliedChordName ? { ...n, chord: n.impliedChordName } : n));
+    example = buildNotesExample(withChords, { kind: 'notes', title: noteCalls.length === 1 ? 'Une note' : `${noteCalls.length} notes`, subtitle: 'Notes demandées au clavier' });
     // Notes jouées telles quelles, métadonnées comprises (contrôles de cohérence).
     played = noteCalls.map((n) => ({ ...n, name: midiToName(n.midi) }));
   } else if (example) {

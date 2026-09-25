@@ -30,6 +30,7 @@
 import { createPracticeExercise, TECHNIQUES, TECHNIQUE_LABELS, isGridChordPlayable } from '../practice-exercise.js';
 import { buildDemo, demoHands, DEMO_STYLES } from '../practice-demo.js';
 import { parseChordSymbol, chordSymbolToPitchClasses } from './chord-parser-v2.js';
+import { chordExampleSteps, notesExampleSteps } from './example-guide.js';
 
 // Style du Copilote → style de démo. « Auto » : la Ballade, posée et claire.
 const STYLE_TO_DEMO = { auto: 'ballade', worship: 'gospel', gospel: 'gospel', jazz: 'swing', neoSoul: 'ballade' };
@@ -247,7 +248,9 @@ function playedHands(chord, demoStyle) {
 /**
  * Exemple d'une progression (ou d'un seul accord) joué comme la démo des
  * exercices.
- * @returns {{kind: string, title: string, subtitle: string, style: string, tempo: number, events: object[], beats: number, chords: object[]}|null}
+ * [Claude] — 2026-09-25 — `steps` : pour chaque accord (évènement « step » de la
+ * démo), les marques du clavier et la légende (rôles, voix qui va bouger).
+ * @returns {{kind: string, title: string, subtitle: string, style: string, tempo: number, events: object[], beats: number, chords: object[], steps: object[]}|null}
  */
 export function buildChordExample(symbols, { styleId = 'auto', technique = 'auto', pattern } = {}) {
   const chords = buildExampleChords(symbols, { technique });
@@ -272,6 +275,7 @@ export function buildChordExample(symbols, { styleId = 'auto', technique = 'auto
   } else if (techniques.length === 1 && TECHNIQUE_TEXT[techniques[0]]) {
     handsText = `main droite en ${TECHNIQUE_TEXT[techniques[0]]}`;
   }
+  const played = chords.map((c) => ({ name: c.name, technique: c.voicing?.technique, ...playedHands(c, style) }));
   return {
     kind: single ? 'voicing' : 'progression',
     title: chords.map((c) => c.name).join(' → '),
@@ -280,16 +284,21 @@ export function buildChordExample(symbols, { styleId = 'auto', technique = 'auto
     tempo: EXAMPLE_TEMPO[style] || DEMO_STYLES[style].tempo,
     events,
     beats,
-    chords: chords.map((c) => ({ name: c.name, technique: c.voicing?.technique, ...playedHands(c, style) })),
+    chords: played,
+    steps: chordExampleSteps(played),
   };
 }
 
 /**
  * Exemple à partir de notes datées en millisecondes (guide tones, lick, notes
  * isolées) : même lecteur, même carte.
- * @param {{midi: number, startOffsetMs: number, durationMs: number, velocity?: number, hand?: string}[]} notes
+ * [Claude] — 2026-09-25 — Un évènement « step » par attaque et, dans `steps`, les
+ * marques et la légende de chaque moment (rôle de la note sur l'accord : `chord`
+ * de la note, sinon celui de toute la ligne).
+ * @param {{midi: number, startOffsetMs: number, durationMs: number, velocity?: number, hand?: string, chord?: string}[]} notes
+ * @param {{kind?: string, title?: string, subtitle?: string, chord?: string}} [options]
  */
-export function buildNotesExample(notes, { kind = 'notes', title = 'Notes', subtitle = '' } = {}) {
+export function buildNotesExample(notes, { kind = 'notes', title = 'Notes', subtitle = '', chord = '' } = {}) {
   const list = (notes || []).filter((n) => Number.isFinite(n.midi) && n.midi >= 21 && n.midi <= 108);
   if (list.length === 0) return null;
   // Tempo 60 : un temps = une seconde, les millisecondes se lisent directement.
@@ -301,7 +310,11 @@ export function buildNotesExample(notes, { kind = 'notes', title = 'Notes', subt
     events.push({ time: start, type: 'noteOn', note: n.midi, velocity: Math.min(1, Math.max(0.3, n.velocity ?? 0.7)), hand });
     events.push({ time: start + duration, type: 'noteOff', note: n.midi, hand });
   }
-  events.sort((a, b) => a.time - b.time || (a.type === 'noteOff' ? -1 : 1));
+  const guide = notesExampleSteps(list, { chord });
+  guide.forEach((step, i) => events.push({ time: Math.max(0, step.time) / 1000, type: 'step', step: i }));
+  // À temps égal : relâchements, puis le moment (légende), puis les attaques.
+  const order = { noteOff: 0, step: 1, noteOn: 2 };
+  events.sort((a, b) => a.time - b.time || order[a.type] - order[b.type]);
   const beats = Math.max(...events.map((e) => e.time));
-  return { kind, title, subtitle, style: null, tempo: 60, events, beats, chords: [] };
+  return { kind, title, subtitle, style: null, tempo: 60, events, beats, chords: [], steps: guide.map(({ marks, caption }) => ({ marks, caption })) };
 }
