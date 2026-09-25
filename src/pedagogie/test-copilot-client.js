@@ -440,6 +440,19 @@ function testAnnotation() {
   check('Légende : la phrase du Copilote et l\'étiquette trop longue pour la pastille', /Le rootless de Dm9/.test(marks.caption) && /E4 : neuvième/.test(marks.caption), marks.caption);
 }
 
+// [Claude] — 2026-09-25 — Légendes d'étapes écrites par le Copilote (paramètre `steps`).
+function testStepCaptions() {
+  document.resetMock();
+  document.setPanel(false);
+  const result = executeToolCalls([
+    { function: { name: 'play_progression', arguments: JSON.stringify({ chords: ['Dm7', 'G7', 'Cmaj7'], steps: ['Dm7 : écoute le Do du dessus', 'G7 : le Do est descendu sur Si'] }) } },
+  ]);
+  const steps = result.example?.steps || [];
+  check('steps du Copilote : légendes des deux premiers accords remplacées', steps[0]?.caption === 'Dm7 : écoute le Do du dessus' && steps[1]?.caption === 'G7 : le Do est descendu sur Si', JSON.stringify(steps.map((x) => x.caption)));
+  check('steps du Copilote : le troisième garde la légende calculée', /Cmaj7/.test(steps[2]?.caption || ''), steps[2]?.caption);
+  check('steps du Copilote : les marques restent celles de l\'application', steps[0]?.marks?.length >= 4);
+}
+
 async function testRetryWhenDemoAnnouncedButNoToolCalls() {
   const originalFetch = global.fetch;
   let callCount = 0;
@@ -1262,6 +1275,7 @@ async function runTests() {
   testSequenceScheduling();
   testKeyboardCollapsed();
   testAnnotation();
+  testStepCaptions();
   testWantsToHear();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);

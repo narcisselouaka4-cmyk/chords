@@ -504,6 +504,8 @@ function handleNoteOn(note, velocity = 0.8, virtual = false, audible = true) {
     // [Claude] — 2026-09-25 — Mémoire du jeu récent (« Qu'en penses-tu ? ») : la
     // note entendue (transposition comprise), jamais une démo ni une relecture.
     liveTake.noteOn(transposed, safeVelocity);
+    // [Claude] — 2026-09-25 — Pas à pas du Copilote : chaque note jouée (entendue).
+    document.dispatchEvent(new CustomEvent('app-live-input', { detail: { type: 'on', midi: transposed, held: getAllActivePcs() } }));
   }
   // La détection est différée pour ne pas bloquer le thread principal
   // (lecture audio / défilement de l'onglet Analyse).
@@ -537,6 +539,7 @@ function handleNoteOff(note, virtual = false, audible = true) {
     state.sustainedNotes.add(transposed);
     noteGrouper?.noteOff(transposed, { sustained: true });
     if (hasLiveMidiSubscribers()) publishLiveNoteOff(note, 0);
+    if (!state.isPlayback) document.dispatchEvent(new CustomEvent('app-live-input', { detail: { type: 'off', midi: transposed, held: getAllActivePcs() } }));
     return;
   }
   state.activeNotes.delete(transposed);
@@ -544,6 +547,7 @@ function handleNoteOff(note, virtual = false, audible = true) {
   unhighlightKey(transposed, 'active');
   noteGrouper?.noteOff(transposed, { sustained: false });
   if (hasLiveMidiSubscribers()) publishLiveNoteOff(note, 0);
+  if (!state.isPlayback) document.dispatchEvent(new CustomEvent('app-live-input', { detail: { type: 'off', midi: transposed, held: getAllActivePcs() } }));
   scheduleRefreshChord();
 }
 

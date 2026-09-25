@@ -2136,7 +2136,8 @@
   transition: border-color .2s;
 }
 #practice-view-copilot .copilot-example.is-playing { border-color: var(--tr-accent); }
-#practice-view-copilot .copilot-example > .copilot-example-play {
+#practice-view-copilot .copilot-example .copilot-example-play,
+#practice-view-copilot .copilot-example .copilot-example-steps {
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -2151,9 +2152,11 @@
   white-space: nowrap;
   cursor: pointer;
 }
-#practice-view-copilot .copilot-example > .copilot-example-play:hover { background: var(--tr-accent-soft); }
-#practice-view-copilot .copilot-example > .copilot-example-play:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 2px; }
-#practice-view-copilot .copilot-example.is-playing > .copilot-example-play {
+#practice-view-copilot .copilot-example .copilot-example-play:hover,
+#practice-view-copilot .copilot-example .copilot-example-steps:hover { background: var(--tr-accent-soft); }
+#practice-view-copilot .copilot-example .copilot-example-play:focus-visible,
+#practice-view-copilot .copilot-example .copilot-example-steps:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 2px; }
+#practice-view-copilot .copilot-example.is-playing .copilot-example-play {
   background: var(--tr-button);
   border-color: var(--tr-button);
   color: var(--tr-button-text);
@@ -2178,6 +2181,48 @@
   font: 9.5px/1.5 var(--tr-mono);
 }
 #practice-view-copilot .copilot-example-hands b { color: var(--tr-accent); font-weight: 600; }
+/* [Claude] — 2026-09-25 — Boutons de la carte (Écouter, Pas à pas / Voir mes erreurs)
+   et barre du pas à pas (étape, Précédent, Écouter l'étape, Suivant, Quitter). */
+#practice-view-copilot .tr-chat-demos.copilot-example { flex-wrap: wrap; }
+#practice-view-copilot .copilot-example-text { flex: 1; }
+#practice-view-copilot .copilot-example-buttons {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 6px;
+}
+#practice-view-copilot .copilot-example .copilot-example-steps {
+  justify-content: center;
+  border-style: dashed;
+  background: transparent;
+}
+#practice-view-copilot .copilot-stepper {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin-top: 4px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--tr-surface);
+  border: 1px solid var(--tr-accent);
+}
+#practice-view-copilot .copilot-stepper-title { color: var(--tr-accent); font-size: 10.5px; font-weight: 650; }
+#practice-view-copilot .copilot-stepper-step { flex: 1; min-width: 160px; color: var(--tr-secondary); font-size: 10.5px; }
+#practice-view-copilot .copilot-stepper-actions { display: flex; flex-wrap: wrap; gap: 5px; }
+#practice-view-copilot .copilot-stepper-actions > button {
+  padding: 4px 9px;
+  border: 1px solid var(--tr-border);
+  border-radius: 5px;
+  background: var(--tr-inset);
+  color: var(--tr-text);
+  font-size: 10.5px;
+  cursor: pointer;
+}
+#practice-view-copilot .copilot-stepper-actions > button:hover:not(:disabled) { border-color: var(--tr-accent); }
+#practice-view-copilot .copilot-stepper-actions > button:disabled { opacity: .45; cursor: default; }
+
 /* [Claude] — 2026-09-25 — Carte « Ton passage » (question « Qu'en penses-tu ? ») :
    ce qui a été reconnu, Réécouter, et les moments à revoir (un clic : au clavier). */
 #practice-view-copilot .copilot-take { margin-top: 8px; max-width: 560px; text-align: left; }

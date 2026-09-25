@@ -225,6 +225,11 @@ const PLAY_VOICING_TOOL = {
           type: 'string',
           description: 'Tonalité de référence, si applicable.',
         },
+        steps: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Optionnel : légendes courtes du pas à pas au clavier, une par accord (ou par note pour une ligne), dans l\'ordre (ex. « Dm9 : la 7e Do va descendre sur Si »). 90 caractères au plus chacune.',
+        },
       },
       required: ['chordSymbol'],
     },
@@ -263,6 +268,11 @@ const PLAY_LICK_TOOL = {
         startOffsetMs: {
           type: 'integer',
           description: 'Délai avant le début du lick dans une démonstration, entre 0 et 8000.',
+        },
+        steps: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Optionnel : légendes courtes du pas à pas au clavier, une par accord (ou par note pour une ligne), dans l\'ordre (ex. « Dm9 : la 7e Do va descendre sur Si »). 90 caractères au plus chacune.',
         },
       },
       required: ['target'],
@@ -303,6 +313,11 @@ const PLAY_PROGRESSION_TOOL = {
         startOffsetMs: {
           type: 'integer',
           description: 'Délai avant le début de la progression dans une démonstration, entre 0 et 8000.',
+        },
+        steps: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Optionnel : légendes courtes du pas à pas au clavier, une par accord (ou par note pour une ligne), dans l\'ordre (ex. « Dm9 : la 7e Do va descendre sur Si »). 90 caractères au plus chacune.',
         },
       },
       required: ['chords'],
@@ -529,6 +544,7 @@ export function executeToolCalls(toolCalls, assistantContent = '', { styleId = '
   let example = null;
   let content = assistantContent;
   const noteCalls = [];
+  let stepCaptions = null;
   if (!Array.isArray(toolCalls)) return { played, ignored, annotated, suggestions, voicing: capturedVoicing, example };
 
   const audioPriorities = { play_progression: 0, play_voicing: 1, play_lick: 2, play_note: 3 };
@@ -592,6 +608,7 @@ export function executeToolCalls(toolCalls, assistantContent = '', { styleId = '
       const args = parseArgs(call);
       const chordSymbol = String(args?.chordSymbol || '').trim();
       if (!chordSymbol) { ignored += 1; continue; }
+      if (Array.isArray(args.steps)) stepCaptions = args.steps;
       const technique = TECHNIQUE_TO_EXERCISE[String(args.technique || '').toLowerCase()] || 'auto';
       // Rootless demandé : le voicing tel quel, plaqué, sans la basse que la démo lui ajouterait.
       const pattern = technique === 'rootless' ? 'block' : args.pattern;
@@ -617,6 +634,7 @@ export function executeToolCalls(toolCalls, assistantContent = '', { styleId = '
       const args = parseArgs(call);
       const target = String(args?.target || '').trim();
       if (!target) { ignored += 1; continue; }
+      if (Array.isArray(args.steps)) stepCaptions = args.steps;
       const lick = generateCopilotLick(target, {
         styleId: args.styleId || styleId || 'auto',
         hand: ['RH', 'LH', 'both'].includes(args.hand) ? args.hand : 'RH',
@@ -635,6 +653,7 @@ export function executeToolCalls(toolCalls, assistantContent = '', { styleId = '
       const args = parseArgs(call);
       const chords = Array.isArray(args?.chords) ? args.chords.filter((c) => typeof c === 'string' && c.trim()) : [];
       if (chords.length === 0) { ignored += 1; continue; }
+      if (Array.isArray(args.steps)) stepCaptions = args.steps;
       const focus = ['7-to-3', '3-to-7', 'guide-tones-only', 'full'].includes(args.focus) ? args.focus : 'full';
       const chosenStyle = args.styleId && args.styleId !== 'auto' ? args.styleId : styleId;
       if (focus === 'full') {
@@ -670,6 +689,13 @@ export function executeToolCalls(toolCalls, assistantContent = '', { styleId = '
     played = eventsToPlayed(example.events, example.tempo);
   }
 
+  // [Claude] — 2026-09-25 — Légendes d'étapes écrites par le Copilote (outil audio,
+  // paramètre `steps`) : elles remplacent celles que l'application a calculées.
+  if (example?.steps?.length && Array.isArray(stepCaptions) && stepCaptions.length) {
+    stepCaptions.slice(0, example.steps.length).forEach((text, i) => {
+      if (typeof text === 'string' && text.trim()) example.steps[i] = { ...example.steps[i], caption: text.trim().slice(0, 140) };
+    });
+  }
   const result = { played, ignored, annotated, suggestions, voicing: capturedVoicing, example };
   if (content !== assistantContent) result.content = content;
   if (collapsed && toolCalls.length > 0) result.keyboardCollapsed = true;

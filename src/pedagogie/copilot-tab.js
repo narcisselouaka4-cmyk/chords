@@ -19,6 +19,7 @@ import { setKeyboardMarks, clearKeyboardMarks } from '../ui/keyboard-marks.js';
 import { chordExampleSteps } from './example-guide.js';
 import { liveTake } from '../recorder/live-take.js';
 import { reviewTake, takeMarks, takeMoment, passageToExample, momentText } from '../recorder/take-review.js';
+import { stepsFromExample, stepsFromMoments, judgeChordStep, judgeSequenceStep, stepFeedback } from './copilot-steps.js';
 
 const els = {};
 let currentTutorialPath = null;
@@ -32,6 +33,9 @@ let playingExample = null;
 // gardé pour les questions de suivi de la même conversation.
 let lastTakeContext = null;
 const DEFAULT_REVIEW_QUESTION = 'Qu\'en penses-tu de ce que je viens de jouer ?';
+// [Claude] — 2026-09-25 — Pas à pas au clavier (exemple ou erreurs d'un passage) :
+// { id, title, steps, index, played, fresh, timer, finished }, ou null.
+let stepper = null;
 
 export const AUTONOMOUS_HISTORY_KEY = HISTORY_AUTONOMOUS_KEY;
 let currentMode = 'autonomous';
@@ -271,7 +275,14 @@ function renderExampleCard(msg) {
   });
   button.innerHTML = playing ? ICON_STOP : ICON_PLAY;
   button.appendChild(el('span', { text: playing ? 'Arrêter' : 'Écouter l\'exemple' }));
-  card.appendChild(button);
+  const buttons = el('div', { className: 'copilot-example-buttons' }, [button]);
+  // [Claude] — 2026-09-25 — Pas à pas : l'élève joue chaque accord (ou chaque groupe de notes) à son rythme.
+  buttons.appendChild(el('button', {
+    className: 'copilot-example-steps', type: 'button', title: 'Joue l\'exemple toi-même, étape par étape : le clavier montre quoi jouer et vérifie',
+    onClick: () => startStepper(id, stepsFromExample(example), example.title || 'Exemple'),
+    text: 'Pas à pas',
+  }));
+  card.appendChild(buttons);
   const text = el('div', { className: 'copilot-example-text' }, [
     el('strong', { text: example.title || 'Exemple' }),
     example.subtitle ? el('small', { text: example.subtitle }) : null,
@@ -288,6 +299,7 @@ function renderExampleCard(msg) {
     text.appendChild(list);
   }
   card.appendChild(text);
+  if (stepper?.id === id) card.appendChild(renderStepperBar());
   return card;
 }
 
@@ -342,12 +354,23 @@ function renderTakeCard(msg) {
   const id = exampleIdOf(msg);
   const playing = playingExampleId === id;
   const card = el('div', { className: `tr-chat-demos copilot-example copilot-take${playing ? ' is-playing' : ''}`, 'data-example-id': id, 'data-play-label': 'Réécouter' });
+  const buttons = el('div', { className: 'copilot-example-buttons' });
   if (take.example) {
     const button = el('button', { className: 'copilot-example-play', type: 'button', 'aria-pressed': playing ? 'true' : 'false', onClick: () => toggleTakeReplay(msg) });
     button.innerHTML = playing ? ICON_STOP : ICON_PLAY;
     button.appendChild(el('span', { text: playing ? 'Arrêter' : 'Réécouter' }));
-    card.appendChild(button);
+    buttons.appendChild(button);
   }
+  if (take.moments?.length) {
+    buttons.appendChild(el('button', {
+      className: 'copilot-example-steps', type: 'button', title: 'Chaque moment à revoir au clavier ; rejoue-le juste quand la correction est connue',
+      onClick: () => startStepper(id, stepsFromMoments(take.moments, { marksOf: (m) => takeMarks(null, m) }), 'Tes erreurs', {
+        doneText: 'Bravo : tu as rejoué juste chaque moment à revoir ! (Recommencer ou Quitter)',
+      }),
+      text: 'Voir mes erreurs',
+    }));
+  }
+  if (buttons.children.length) card.appendChild(buttons);
   const text = el('div', { className: 'copilot-example-text' }, [
     el('strong', { text: `Ton passage · ${takeMoment(take.duration)} · ${take.noteCount} note${take.noteCount > 1 ? 's' : ''}` }),
     el('small', { text: take.verdict }),
@@ -379,7 +402,149 @@ function renderTakeCard(msg) {
     text.appendChild(list);
   }
   card.appendChild(text);
+  if (stepper?.id === id) card.appendChild(renderStepperBar());
   return card;
+}
+
+// ── Pas à pas ──
+
+function stepCaption(text = '') {
+  const step = stepper.steps[stepper.index];
+  return `Étape ${stepper.index + 1} / ${stepper.steps.length} — ${text || step.caption}`;
+}
+
+/** Montre l'étape en cours au clavier (rien de joué encore). */
+function showStep() {
+  if (!stepper) return;
+  clearTimeout(stepper.timer);
+  stepper.played = [];
+  stepper.fresh = new Set();
+  stepper.finished = false;
+  const step = stepper.steps[stepper.index];
+  const fb = stepFeedback(step, step.kind === 'sequence'
+    ? { status: 'idle', matched: 0, expected: step.notes[0] }
+    : { status: 'idle', missing: step.notes, extra: [], good: [] });
+  const hint = step.kind === 'show' ? fb.caption
+    : step.kind === 'sequence' ? `${step.caption} — joue les notes dans l'ordre`
+      : step.correction ? `${step.caption} — rejoue-le juste (touches en pointillé)` : `${step.caption} — à toi !`;
+  // Une erreur se montre d'abord telle quelle (note fausse en rouge, juste en pointillé).
+  const marks = step.correction ? step.marks : fb.marks;
+  setKeyboardMarks(marks, { caption: stepCaption(hint), tone: step.kind === 'show' || step.correction ? 'warn' : '' });
+  refreshStepperBar();
+}
+
+/** Démarre le pas à pas d'une carte (exemple ou erreurs d'un passage). */
+function startStepper(id, steps, title, { doneText = null } = {}) {
+  if (!steps?.length) return;
+  document.dispatchEvent(new CustomEvent('copilot-stop-example'));
+  stopStepper({ clear: false });
+  stepper = { id, title, steps, index: 0, played: [], fresh: new Set(), timer: null, finished: false, doneText: doneText || `Bravo : ${title} joué en entier ! (Recommencer ou Quitter)` };
+  renderMessages();
+  showStep();
+}
+
+function stopStepper({ clear = true } = {}) {
+  if (!stepper) return;
+  clearTimeout(stepper.timer);
+  stepper = null;
+  if (clear) clearKeyboardMarks();
+  els.messages?.querySelectorAll('.copilot-stepper').forEach((bar) => bar.remove());
+}
+
+function goToStep(index) {
+  if (!stepper) return;
+  stepper.index = Math.max(0, Math.min(stepper.steps.length - 1, index));
+  showStep();
+}
+
+/** Note jouée (main.js) : l'étape est jugée ; juste → étape suivante. */
+function onLiveInput(detail) {
+  if (!stepper || stepper.finished || !detail) return;
+  const step = stepper.steps[stepper.index];
+  if (step.kind === 'show') return;
+  if (detail.type === 'on') {
+    stepper.fresh.add(detail.midi);
+    stepper.played.push(detail.midi);
+  }
+  let judge;
+  if (step.kind === 'chord') {
+    // Seulement les touches jouées depuis le début de l'étape (pas l'accord d'avant encore tenu).
+    judge = judgeChordStep((detail.held || []).filter((n) => stepper.fresh.has(n)), step);
+    if (judge.status === 'idle') return;
+  } else {
+    if (detail.type !== 'on') return;
+    judge = judgeSequenceStep(stepper.played, step);
+    // Une fausse note ne compte pas : on reprend à la note attendue.
+    if (judge.status === 'wrong') stepper.played = stepper.played.slice(0, judge.matched);
+  }
+  const fb = stepFeedback(step, judge);
+  setKeyboardMarks(fb.marks, { caption: stepCaption(fb.caption), tone: fb.tone });
+  if (judge.status === 'ok') {
+    clearTimeout(stepper.timer);
+    stepper.timer = setTimeout(() => {
+      if (!stepper) return;
+      if (stepper.index < stepper.steps.length - 1) goToStep(stepper.index + 1);
+      else {
+        stepper.finished = true;
+        setKeyboardMarks(fb.marks, { caption: stepper.doneText, tone: 'ok' });
+        refreshStepperBar();
+      }
+    }, 900);
+  }
+}
+
+/** Joue seulement l'étape en cours (accord plaqué, ou notes posément). */
+function playCurrentStep() {
+  if (!stepper) return;
+  const step = stepper.steps[stepper.index];
+  const events = [];
+  if (step.kind === 'sequence') {
+    step.notes.forEach((n, i) => {
+      events.push({ time: i * 0.5, type: 'noteOn', note: n, velocity: 0.7 });
+      events.push({ time: i * 0.5 + 0.45, type: 'noteOff', note: n });
+    });
+  } else {
+    step.notes.forEach((n) => {
+      events.push({ time: 0, type: 'noteOn', note: n, velocity: 0.7 });
+      events.push({ time: 1.6, type: 'noteOff', note: n });
+    });
+  }
+  events.sort((a, b) => a.time - b.time || (a.type === 'noteOff' ? -1 : 1));
+  const beats = Math.max(...events.map((e) => e.time));
+  document.dispatchEvent(new CustomEvent('copilot-play-example', { detail: { id: `step-${stepper.id}`, example: { events, beats, tempo: 60 } } }));
+}
+
+function renderStepperBar() {
+  const bar = el('div', { className: 'copilot-stepper', 'data-stepper-for': stepper.id });
+  fillStepperBar(bar);
+  return bar;
+}
+
+function fillStepperBar(bar) {
+  bar.innerHTML = '';
+  const step = stepper.steps[stepper.index];
+  bar.appendChild(el('span', { className: 'copilot-stepper-title', text: `${stepper.title} · étape ${stepper.index + 1} / ${stepper.steps.length}` }));
+  bar.appendChild(el('span', { className: 'copilot-stepper-step', text: step.caption }));
+  const button = (text, onClick, disabled = false) => {
+    const b = el('button', { type: 'button', text, onClick });
+    if (disabled) b.disabled = true;
+    return b;
+  };
+  bar.appendChild(el('div', { className: 'copilot-stepper-actions' }, [
+    button('◀ Précédent', () => goToStep(stepper.index - 1), stepper.index === 0),
+    step.kind !== 'show' ? button('Écouter l\'étape', playCurrentStep) : null,
+    stepper.finished
+      ? button('Recommencer', () => goToStep(0))
+      : button('Suivant ▶', () => goToStep(stepper.index + 1), stepper.index >= stepper.steps.length - 1),
+    button('Quitter', () => stopStepper()),
+  ]));
+}
+
+/** Met la barre du pas à pas à jour sans tout redessiner. */
+function refreshStepperBar() {
+  if (!els.messages || !stepper) return;
+  const bar = els.messages.querySelector(`.copilot-stepper[data-stepper-for="${stepper.id}"]`);
+  if (bar) fillStepperBar(bar);
 }
 
 /** Réécoute du passage joué (même lecteur que les exemples, rôles au clavier). */
@@ -797,6 +962,7 @@ async function sendUserMessage() {
  * @param {{take?: object, review?: boolean, takeContext?: string[]}} [options]
  */
 async function runCopilotTurn(text, { take = null, review = false, takeContext = null } = {}) {
+  stopStepper({ clear: false });
   els.input.disabled = true;
   els.sendBtn.disabled = true;
   if (els.reviewBtn) els.reviewBtn.disabled = true;
@@ -887,6 +1053,11 @@ export async function initCopilotTab() {
   // [Claude] — 2026-09-25 — « Qu'en penses-tu ? » : le passage joué + la question tapée.
   els.reviewBtn?.addEventListener('click', () => reviewLastPassage({ question: els.input?.value || '' }));
   document.addEventListener('copilot-review-take', (e) => reviewLastPassage({ question: e.detail?.question || '', fromKeyboard: true }));
+  // [Claude] — 2026-09-25 — Pas à pas : notes jouées, et fin (croix de la légende, autre vue).
+  document.addEventListener('app-live-input', (e) => onLiveInput(e.detail));
+  document.addEventListener('keyboard-marks-cleared', () => stopStepper({ clear: false }));
+  document.addEventListener('app-switch-training-view', (e) => { if (e.detail?.view !== 'copilot') stopStepper({ clear: false }); });
+  document.addEventListener('app-switch-tab', (e) => { if (e.detail?.tab !== 'practice') stopStepper({ clear: false }); });
   // [Astra round 4] — Le champ est un <textarea> qui grandit avec le texte,
   // comme dans la maquette (max ~110px, puis défilement interne).
   els.input?.addEventListener('input', autoGrowInput);
