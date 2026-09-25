@@ -52,6 +52,18 @@ function testSlashChords() {
   check('Nom inconnu : aucun rôle', noteRoles('Xyz', [60]).length === 0 && parseChordName('Xyz') === null);
 }
 
+// [Claude] — 2026-09-25 — Noms lus dans un tutoriel (« comment harmoniser
+// rapidement ») : altérations typographiques et balises d'affichage.
+function testTypographicNames() {
+  const f = parseChordName('F#7♭13');
+  check('F#7♭13 : Fa#, qualité 7b13', f?.rootPc === 6 && f.quality === '7b13' && f.bassPc === null, JSON.stringify(f));
+  const e = parseChordName('E7♯9♭13');
+  check('E7♯9♭13 : Mi, qualité 7#9b13', e?.rootPc === 4 && e.quality === '7#9b13', JSON.stringify(e));
+  const b = parseChordName('B<span class="flat">♭</span>7');
+  check('B♭7 écrit en HTML : Sib, qualité 7', b?.rootPc === 10 && b.quality === '7', JSON.stringify(b));
+  check('F#7♭13 : le Ré (♭13) est une note de l\'accord', noteRoles('F#7♭13', [42, 62]).every((r) => r.inChord));
+}
+
 function testMarksState() {
   setKeyboardMarks([
     { midi: 60, kind: 'root', label: '1' },
@@ -76,6 +88,7 @@ function testMarksState() {
 testChordRoles();
 testTensionsAndOutside();
 testSlashChords();
+testTypographicNames();
 testMarksState();
 
 console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);

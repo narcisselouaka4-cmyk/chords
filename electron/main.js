@@ -1732,7 +1732,9 @@ function setupStudioIPC() {
       proc.stderr.on('data', (d) => { err += d.toString(); });
       proc.on('error', () => resolve({ toolsMissing: true }));
       proc.on('exit', () => {
-        const size = /Stream #[^\n]*Video:[^\n]*?(\d{2,5})x(\d{2,5})/.exec(err);
+        // [Claude] — 2026-09-25 — Les vidéos YouTube portent souvent une image de
+        // couverture (« attached pic ») déclarée comme piste vidéo : on l'ignore.
+        const size = /Stream #[^\n]*Video:(?![^\n]*attached pic)[^\n]*?(\d{2,5})x(\d{2,5})/.exec(err);
         if (!size) { resolve(null); return; }
         const d = /Duration:\s*(\d+):(\d{2}):(\d{2}(?:\.\d+)?)/.exec(err);
         const duration = d ? Number(d[1]) * 3600 + Number(d[2]) * 60 + Number(d[3]) : 0;
@@ -1753,7 +1755,7 @@ function setupStudioIPC() {
     return new Promise((resolve) => {
       const proc = spawn('ffprobe', [
         '-v', 'error',
-        '-select_streams', 'v:0',
+        '-select_streams', 'V:0', // V : pistes vidéo hors image de couverture
         '-show_entries', 'stream=width,height',
         '-show_entries', 'format=duration',
         '-of', 'json',
@@ -1785,6 +1787,8 @@ function setupStudioIPC() {
       const proc = trackChild(spawn(ffmpeg, [
         '-v', 'error',
         '-i', filePath,
+        // [Claude] — 2026-09-25 — La vraie vidéo, jamais l'image de couverture.
+        '-map', '0:V:0',
         '-vf', `fps=${fps}`,
         '-f', 'rawvideo',
         '-pix_fmt', 'rgb24',

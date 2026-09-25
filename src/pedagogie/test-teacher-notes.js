@@ -86,6 +86,9 @@ function testRangeAndTimeline() {
   const many = compactTimeline(Array.from({ length: 50 }, (_, i) => ({ midi: 60, start: i * 2, end: i * 2 + 1 })), Array.from({ length: 50 }, (_, i) => ({ start: i * 2, end: i * 2 + 2, label: 'C' })), { maxLines: 5 });
   check('Frise bornée : 5 lignes puis « suite non détaillée »', many.length === 6 && /non détaillée/.test(many[5]));
   check('Frise vide sans notes', compactTimeline([], GRID).length === 0);
+  // Amazing Grace, 0:47 : le Fa# d'un D9 s'écrit Fa#, pas Solb.
+  const d9 = compactTimeline([38, 54, 57, 60, 64].map((midi) => ({ midi, start: 47, end: 49 })), [{ start: 47, end: 50, label: 'D9' }]);
+  check('Frise : notes écrites d\'après l\'accord (D9 : Fa#3)', d9[0] === '- 0:47 D9 : Ré2 | Fa#3 La3 Do4 Mi4', d9[0]);
 }
 
 function testTranspose() {

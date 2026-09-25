@@ -125,10 +125,12 @@ export function compactTimeline(notes, segments = [], { maxLines = 80 } = {}) {
   const list = guessHands(notes || []);
   if (!list.length) return [];
   const out = [];
-  const name = (n) => frenchNoteName(n.midi);
-  const hands = (group) => {
-    const lh = group.filter((n) => n.hand === 'lh').map(name);
-    const rh = group.filter((n) => n.hand !== 'lh').map(name);
+  // [Claude] — 2026-09-25 — Notes écrites d'après l'accord de la grille : le
+  // Fa# d'un D9 s'écrivait « Solb3 » (tutoriel Amazing Grace, 0:47).
+  const name = (n, label = null) => frenchNoteName(n.midi, label);
+  const hands = (group, label = null) => {
+    const lh = group.filter((n) => n.hand === 'lh').map((n) => name(n, label));
+    const rh = group.filter((n) => n.hand !== 'lh').map((n) => name(n, label));
     return `${lh.join(' ') || '—'} | ${rh.join(' ') || '—'}`;
   };
   const segs = (segments || []).filter((s) => Number.isFinite(s.start)).sort((a, b) => a.start - b.start);
@@ -140,7 +142,8 @@ export function compactTimeline(notes, segments = [], { maxLines = 80 } = {}) {
       const first = inSeg[0].start;
       const chord = inSeg.filter((n) => n.start - first < 0.06);
       const line = inSeg.filter((n) => n.start - first >= 0.06);
-      out.push(`- ${clock(seg.start)} ${seg.label || '?'} : ${hands(chord)}${line.length ? ` · puis ${line.slice(0, 16).map((n) => `${name(n)}${n.hand === 'lh' ? '(g)' : ''}`).join(' ')}${line.length > 16 ? ' …' : ''}` : ''}`);
+      const label = seg.label || null;
+      out.push(`- ${clock(seg.start)} ${label || '?'} : ${hands(chord, label)}${line.length ? ` · puis ${line.slice(0, 16).map((n) => `${name(n, label)}${n.hand === 'lh' ? '(g)' : ''}`).join(' ')}${line.length > 16 ? ' …' : ''}` : ''}`);
       if (out.length >= maxLines) break;
     }
   } else {

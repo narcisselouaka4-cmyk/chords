@@ -20,7 +20,9 @@ const pcOf = (n) => ((n % 12) + 12) % 12;
  * @returns {{name: string, rootPc: number, quality: string, bassPc: number|null}|null}
  */
 export function parseChordName(name) {
-  const text = String(name || '').trim();
+  // [Claude] — 2026-09-25 — Altérations typographiques (« F#7♭13 », « E7♯9 ») et
+  // balises d'affichage acceptées : ramenées à b et #.
+  const text = String(name || '').replace(/<[^>]*>/g, '').replace(/♭/g, 'b').replace(/♯/g, '#').trim();
   const match = /^([A-G](?:#|b)?)(.*)$/.exec(text);
   if (!match) return null;
   const parsed = parseChordSymbol(text);

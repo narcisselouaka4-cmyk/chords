@@ -13,7 +13,7 @@ import { createBlankFrame, createFrame, fillRect, getPixel, getLuma, sampleMedia
 import {
   detectKeyboardGeometry, findStrikeLine, findBlackKeys, groupBlackKeys,
   classifyBlackGroups, findWhiteGrid, detectStaticKeyboardGeometry,
-  detectSynthesiaGeometry, DETECTION_STRATEGIES,
+  detectSynthesiaGeometry, DETECTION_STRATEGIES, detectKeyboardBandGeometry,
 } from './keyboard-geometry.js';
 import { readLitKeys, classifyTint, toMidiList, splitHands } from './key-detection.js';
 import { denoiseSamples, bassLine, groupSegments } from './note-grouping.js';
@@ -904,6 +904,227 @@ runTest('T74 — V2N absent ou vide retombe sur le pipeline video classique', ()
   const noV2n = buildVideoAnalysis({ samples: [], geometry: {}, sampleInterval: 0.25 });
   assertEqual(noV2n.source, 'video', 'sans notes V2N, source video :');
   assertEqual(noV2n.format, FORMATS.PIANO_ROLL, 'format piano-roll :');
+});
+
+// ===========================================================================
+// [Claude] — 2026-09-25 — Tutoriels réels : clavier au milieu de l'image
+// ===========================================================================
+//
+// Les tutoriels de Narcisse (« Amazing Grace — Gospel Jazz Chords », « comment
+// harmoniser rapidement ») sortaient « non reconnus » : le clavier dessiné est
+// au MILIEU de l'image (portée et nom d'accord au-dessus, vrai piano filmé ou
+// professeur en dessous), sans ligne de frappe, avec des séparations gris clair
+// et une largeur de touche non entière. Cette fabrique en reproduit les pièges.
+
+/** Position d'une blanche comptée depuis le do MIDI 0. */
+const WHITE_POS = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6];
+const whitePos = (midi) => Math.floor(midi / 12) * 7 + WHITE_POS[((midi % 12) + 12) % 12];
+const isBlackPc = (midi) => [1, 3, 6, 8, 10].includes(((midi % 12) + 12) % 12);
+
+/**
+ * Peint une image « tutoriel » à la Amazing Grace : panneau blanc (portée, nom
+ * d'accord) en haut, clavier dessiné sur toute la largeur, et juste en dessous
+ * le vrai piano filmé — un second clavier, en partie caché par les mains.
+ *
+ * @param {object} [options]
+ * @param {number} [options.lowestMidi] - 21 = La0 (clavier 88 touches)
+ * @param {number} [options.highestMidi] - 108 = Do8
+ * @param {number} [options.whiteW] - largeur de blanche, non entière
+ * @param {Object.<number, number[]>} [options.lit] - touches allumées
+ * @param {number[]} [options.separator] - couleur des traits entre blanches
+ * @param {boolean} [options.filmedPiano] - vrai piano filmé sous le clavier
+ * @param {number} [options.marginRight] - fond sombre à droite du clavier
+ * @param {boolean} [options.blurredEdge] - rangée floue sous les noires (compression)
+ */
+function makeTutorialFrame({
+  lowestMidi = 21, highestMidi = 108, whiteW = 16.25, lit = {},
+  separator = [200, 200, 200], filmedPiano = true, marginRight = 0, blurredEdge = true,
+} = {}) {
+  const whites = [];
+  for (let m = lowestMidi; m <= highestMidi; m++) if (!isBlackPc(m)) whites.push(m);
+  const width = Math.ceil(whites.length * whiteW + marginRight);
+  const height = 480;
+  const kbTop = 300;
+  const blackBottom = 347;
+  const kbBottom = 369;
+  const frame = createBlankFrame(width, height, [16, 16, 18]);
+
+  // Panneau blanc au-dessus : portée (traits sombres continus) et nom d'accord.
+  fillRect(frame, 0, 0, width, kbTop, [250, 250, 250]);
+  for (let i = 0; i < 5; i++) fillRect(frame, 60, 60 + i * 12, 200, 1, [30, 30, 30]);
+  for (let i = 0; i < 5; i++) fillRect(frame, 345 + i * 30, 75, 18, 34, [25, 25, 25]);
+
+  // Blanches, trait de séparation à droite de chacune.
+  const base = whitePos(lowestMidi);
+  const xOf = (index) => index * whiteW;
+  whites.forEach((m, i) => {
+    const left = Math.round(xOf(i));
+    const right = Math.round(xOf(i + 1));
+    fillRect(frame, left, kbTop, right - left - 1, kbBottom - kbTop, [244, 244, 244]);
+    // Une blanche allumée ne se colore que sous les noires (rendu d'Amazing Grace).
+    if (lit[m]) fillRect(frame, left, blackBottom + 1, right - left - 1, kbBottom - blackBottom - 1, lit[m]);
+    fillRect(frame, right - 1, kbTop, 1, kbBottom - kbTop, separator);
+  });
+
+  // Noires, placées comme sur un vrai clavier (BLACK_OFFSETS depuis le do).
+  const blackW = Math.round(whiteW * 0.58);
+  const blackCenters = {};
+  for (let m = lowestMidi + 1; m < highestMidi; m++) {
+    if (!isBlackPc(m)) continue;
+    const cx = xOf(Math.floor(m / 12) * 7 - base + BLACK_OFFSETS[m % 12]);
+    const x = Math.round(cx - blackW / 2);
+    blackCenters[m] = x + (blackW - 1) / 2;
+    fillRect(frame, x, kbTop, blackW, blackBottom - kbTop, lit[m] || [18, 18, 18]);
+    // Bas des noires flou : une rangée ni noire ni blanche, qui déborde d'un
+    // pixel de chaque côté (compression).
+    if (blurredEdge && !lit[m]) fillRect(frame, x - 1, blackBottom, blackW + 2, 1, [120, 120, 120]);
+  }
+
+  // Dessous : le vrai piano filmé, touches plus larges (4 octaves visibles),
+  // caché en partie par les mains.
+  if (filmedPiano) {
+    const top = kbBottom + 1;
+    const fw = width / 29;
+    fillRect(frame, 0, top, width, height - top, [232, 232, 232]);
+    for (let i = 1; i < 29; i++) fillRect(frame, Math.round(i * fw), top, 2, height - top, [70, 70, 70]);
+    const fBlackW = Math.round(fw * 0.58);
+    for (let oct = 0; oct < 4; oct++) {
+      for (const off of Object.values(BLACK_OFFSETS)) {
+        fillRect(frame, Math.round((oct * 7 + off) * fw - fBlackW / 2), top, fBlackW, 70, [24, 24, 24]);
+      }
+    }
+    fillRect(frame, Math.round(width * 0.27), top + 25, Math.round(width * 0.09), height - top - 25, [190, 140, 110]);
+    fillRect(frame, Math.round(width * 0.52), top + 15, Math.round(width * 0.1), height - top - 15, [180, 130, 100]);
+  }
+  return { frame, whites, whiteW, blackCenters, kbTop, blackBottom, kbBottom };
+}
+
+runTest('T75 — Tutoriel : le clavier dessiné est trouvé entre la portée et le piano filmé', () => {
+  const { frame } = makeTutorialFrame();
+  const g = detectKeyboardBandGeometry(frame);
+  assertTrue(g.ok, `détection : ${g.reason} ${g.detail || ''}`);
+  assertEqual(g.strategy, 'keyboardBand', 'stratégie :');
+  assertEqual(g.lowestMidi, 21, 'La0 :');
+  assertEqual(g.highestMidi, 108, 'Do8 :');
+  assertEqual(g.whiteKeys.length, 52, 'blanches :');
+  assertEqual(g.blackKeys.length, 36, 'noires :');
+  assertTrue(g.blackKeys.every((k) => !k.synthesized), 'aucune noire complétée au repos');
+  assertTrue(g.blackRow >= 300 && g.blackRow < 347, `rangée des noires dans le clavier dessiné : ${g.blackRow}`);
+  assertTrue(g.sampleRow > 347 && g.sampleRow < 369, `rangée des blanches sous les noires : ${g.sampleRow}`);
+  // La cascade complète aboutit au même clavier, pas au piano filmé.
+  const any = detectKeyboardGeometry(frame);
+  assertTrue(any.ok, `la cascade reconnaît l'image : ${any.detail || any.reason}`);
+  assertEqual(any.lowestMidi, 21, 'cascade, La0 :');
+  assertEqual(any.highestMidi, 108, 'cascade, Do8 :');
+  assertTrue(any.blackRow >= 300 && any.blackRow < 347, `cascade, clavier dessiné : ${any.blackRow}`);
+});
+
+runTest('T76 — Tutoriel : séparations gris clair, les stratégies d\'avant échouent, la bande réussit', () => {
+  const { frame } = makeTutorialFrame({ separator: [205, 205, 205] });
+  assertTrue(!detectSynthesiaGeometry(frame).ok, 'pas de ligne de frappe');
+  const g = detectKeyboardGeometry(frame);
+  assertTrue(g.ok, `détection : ${g.detail || g.reason}`);
+  assertEqual(g.strategy, 'keyboardBand', 'stratégie :');
+  assertEqual(g.whiteKeys.length, 52, 'blanches :');
+});
+
+runTest('T77 — Tutoriel : rangée floue sous les noires, la zone des blanches est quand même trouvée', () => {
+  // « comment harmoniser rapidement » : 13 images de sondage sur 24 échouaient
+  // (NoWhiteZone) à cause de cette seule rangée de transition.
+  const sharp = detectKeyboardBandGeometry(makeTutorialFrame({ blurredEdge: false }).frame);
+  const blurred = detectKeyboardBandGeometry(makeTutorialFrame({ blurredEdge: true }).frame);
+  assertTrue(sharp.ok, `net : ${sharp.reason}`);
+  assertTrue(blurred.ok, `flou : ${blurred.reason}`);
+  assertEqual(blurred.lowestMidi, sharp.lowestMidi, 'même clavier :');
+  assertTrue(blurred.sampleRow > 348 && blurred.sampleRow < 369, `échantillon dans les blanches : ${blurred.sampleRow}`);
+});
+
+runTest('T78 — Tutoriel : des blanches allumées ne décalent pas la grille, et sont lues', () => {
+  // La mineur 7 (Amazing Grace, 4:00) : La2 Mi3 Sol3 Do4 Mi4 La4 Do5…
+  const chord = [45, 52, 55, 60, 64, 69, 72];
+  const one = makeTutorialFrame({ lit: Object.fromEntries(chord.map((m) => [m, BLUE])) }).frame;
+  const g1 = detectKeyboardGeometry(one);
+  assertTrue(g1.ok, `détection : ${g1.detail || g1.reason}`);
+  assertDeep(toMidiList(readLitKeys(one, g1)), chord, 'notes lues :');
+  // … et pédale enfoncée : Fa2 Do3 La3 Mi5 Sol5 de l'accord d'avant restent
+  // allumées. Une touche allumée sur deux traits passerait pour un trait de plus.
+  const held = [...chord, 41, 48, 57, 76, 79].sort((a, b) => a - b);
+  const pedal = makeTutorialFrame({ lit: Object.fromEntries(held.map((m) => [m, BLUE])) }).frame;
+  const g2 = detectKeyboardGeometry(pedal);
+  assertTrue(g2.ok, `détection avec la pédale : ${g2.detail || g2.reason}`);
+  assertEqual(g2.lowestMidi, 21, 'La0 :');
+  assertEqual(g2.whiteKeys.length, 52, 'blanches :');
+  assertDeep(toMidiList(readLitKeys(pedal, g2)), held, 'notes lues avec la pédale :');
+});
+
+runTest('T79 — Tutoriel : largeur non entière, chaque touche calée à moins d\'un pixel', () => {
+  const { frame, whites, whiteW, blackCenters } = makeTutorialFrame({ whiteW: 16.25 });
+  const g = detectKeyboardBandGeometry(frame);
+  assertTrue(g.ok, `détection : ${g.detail || g.reason}`);
+  assertClose(g.whiteWidth, 16.25, 0.05, 'largeur :');
+  const white = new Map(g.whiteKeys.map((k) => [k.midi, k]));
+  whites.forEach((m, i) => {
+    // Centre peint : entre le trait de gauche et celui de droite.
+    const painted = (Math.round(i * whiteW) + Math.round((i + 1) * whiteW)) / 2 - 1;
+    assertClose(white.get(m)?.center, painted, 1, `centre de la blanche ${m} :`);
+  });
+  const black = new Map(g.blackKeys.map((k) => [k.midi, k]));
+  for (const [m, cx] of Object.entries(blackCenters)) assertClose(black.get(Number(m))?.center, cx, 1, `centre de la noire ${m} :`);
+});
+
+runTest('T80 — Tutoriel : noires allumées au bord au sondage, complétées puis lues', () => {
+  // Au sondage, La#0 (seule de son groupe) et La#7 (fin du dernier groupe)
+  // sont allumées : ce ne sont plus des noires, le motif reste valide.
+  const probe = makeTutorialFrame({ lit: { 22: BLUE, 106: BLUE } });
+  const g = detectKeyboardBandGeometry(probe.frame);
+  assertTrue(g.ok, `détection : ${g.detail || g.reason}`);
+  assertEqual(g.blackKeys.length, 36, 'les 36 noires, trous comblés :');
+  const added = new Set(g.blackKeys.filter((k) => k.synthesized).map((k) => k.midi));
+  assertTrue(added.has(22) && added.has(106), `La#0 et La#7 complétées : ${[...added]}`);
+  for (const k of g.blackKeys) assertClose(k.center, probe.blackCenters[k.midi], 1.5, `noire ${k.midi} à sa place :`);
+  // Plus tard : Sib0, Sib3 Ré4 Fa4, Sib7 — les noires complétées sont lues.
+  const later = makeTutorialFrame({ lit: { 22: BLUE, 58: BLUE, 62: BLUE, 65: BLUE, 106: BLUE } }).frame;
+  assertDeep(toMidiList(readLitKeys(later, g)), [22, 58, 62, 65, 106], 'notes lues :');
+});
+
+runTest('T81 — Tutoriel : pas de noire fantôme au-delà de la dernière blanche', () => {
+  // Fond sombre après le Do8 : il passe pour une noire (le « Ré8 » d'Amazing Grace).
+  const { frame } = makeTutorialFrame({ marginRight: 14 });
+  const g = detectKeyboardGeometry(frame);
+  assertTrue(g.ok, `détection : ${g.detail || g.reason}`);
+  assertEqual(g.highestMidi, 108, 'Do8 :');
+  assertEqual(g.blackKeys.length, 36, 'noires :');
+  const whiteMidis = new Set(g.whiteKeys.map((k) => k.midi));
+  assertTrue(g.blackKeys.every((k) => whiteMidis.has(k.midi - 1) && whiteMidis.has(k.midi + 1)), 'chaque noire a ses deux blanches voisines');
+});
+
+runTest('T82 — Format : la géométrie retenue est celle sur laquelle les images s\'accordent', () => {
+  const good = () => makeTutorialFrame().frame;
+  // Une image mal lue, qui voit un autre clavier.
+  const odd = makeKeyboard({ octaves: 3, lowestMidi: 48, withStrikeLine: false }).frame;
+  const oddLow = detectKeyboardGeometry(odd).lowestMidi;
+  assertTrue(Math.abs(oddLow - 21) > 2, `l'image décalée donne un autre calage : ${oddLow}`);
+  const r = detectVideoFormat([good(), good(), odd, good(), good()]);
+  assertTrue(r.implemented, `reconnu malgré une image décalée : ${r.reason}`);
+  assertEqual(r.geometry.lowestMidi, 21, 'calage de la majorité :');
+  assertClose(r.confidence, 0.8, 1e-9, 'confiance = part des images qui s\'accordent :');
+  // Quatre images, quatre claviers différents : pas de majorité, refus honnête.
+  const frames = [good(), odd, makeKeyboard({ octaves: 2, lowestMidi: 60, withStrikeLine: false, whiteW: 30 }).frame, makeTutorialFrame({ lowestMidi: 28, highestMidi: 103 }).frame];
+  const lows = frames.map((f) => detectKeyboardGeometry(f).lowestMidi);
+  assertTrue(lows.every((a, i) => lows.every((b, j) => i === j || Math.abs(a - b) > 2)), `calages tous différents : ${lows}`);
+  const none = detectVideoFormat(frames);
+  assertTrue(!none.implemented, 'pas de clavier retenu');
+  assertTrue(String(none.reason).startsWith('UnstableGeometry'), `motif : ${none.reason}`);
+});
+
+runTest('T83 — Noms d\'accords en texte simple (pas de balise dans la grille)', () => {
+  // « comment harmoniser rapidement » : E7♯9♭13, A7/C#, F#7♭9.
+  for (const notes of [[52, 56, 62, 67, 72], [49, 57, 64, 67], [42, 46, 49, 52, 55]]) {
+    const r = labelNotes(notes);
+    assertTrue(r.resolved, `accord résolu : ${notes}`);
+    assertTrue(!/[<>]/.test(r.label), `pas de balise : ${r.label}`);
+  }
+  assertEqual(labelNotes([52, 56, 62, 67, 72]).label, 'E7♯9♭13', 'altérations en caractères :');
 });
 
 console.log(`\n=== Résultat : ${passed}/${total} tests passés ===`);
