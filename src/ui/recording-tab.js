@@ -11,6 +11,8 @@ import { createPlayer } from '../recorder/player.js';
 import { playNote, releaseNote, resumeAudio } from '../audio/simple-synth.js';
 import { segmentSessionEvents, nameChordSegments } from '../recorder/session-analysis.js';
 import { analyzeSessionPerformance, formatPerformanceFindings } from '../recorder/session-performance.js';
+import { reviewTake, takeMarks, takeContextLines, takeMoment } from '../recorder/take-review.js';
+import { setKeyboardMarks } from './keyboard-marks.js';
 // [Refonte Astra 12/09] — Le paysage harmonique remplace l'ancienne frise de
 // blocs, qui forçait toute la session à tenir dans la largeur. buildNoteWindows
 // est la fonction déjà utilisée par l'analyse de session : on la réutilise, on
@@ -115,10 +117,14 @@ export function initRecordingTab({
   // moment, l'onglet Sessions MIDI n'est pas forcément affiché. On initialise
   // le player sans branchement au clavier principal : le câblage MIDI live
   // reste dans main.js. Le player sert uniquement à la relecture des sessions.
+  // [Claude] — 2026-09-25 — Relecture par le pont de main.js (feedMidiEvent) : touches
+  // allumées, accord lu, pédale rejouée, jamais réenregistré ni jugé par un exercice
+  // (Narcisse : « il ne peut pas reproduire exactement mon jeu »). Sans pont
+  // (tests), le synthé directement, comme avant.
   player = createPlayer({
-    onNoteOn: (note, velocity) => playNote(note, velocity),
-    onNoteOff: (note) => releaseNote(note),
-    onSustain: () => {},
+    onNoteOn: (note, velocity) => (onMidiEvent ? onMidiEvent('noteOn', note, velocity) : playNote(note, velocity)),
+    onNoteOff: (note) => (onMidiEvent ? onMidiEvent('noteOff', note) : releaseNote(note)),
+    onSustain: (down) => onMidiEvent?.('sustain', Boolean(down)),
     onPitchWheel: () => {},
     onModWheel: () => {},
   });
@@ -839,6 +845,86 @@ function sessionAnalysis() {
   return analysis;
 }
 
+// [Claude] — 2026-09-25 — Portrait complet de la session (accords exacts main gauche |
+// main droite, voicing reconnu, rôles, lignes et gammes, rythme, constats détaillés) :
+// le même que « Qu'en penses-tu ? ». Le Copilote le reçoit ; ses moments m:ss
+// sont cliquables (session-show-moment).
+let reviewCache = { events: null, review: null };
+
+function sessionReview() {
+  if (reviewCache.events === currentEvents) return reviewCache.review;
+  const review = currentEvents?.length ? reviewTake(currentEvents) : null;
+  reviewCache = { events: currentEvents, review };
+  return review;
+}
+
+/**
+ * Montre un moment de la session : boucle courte autour de lui (on l'entend
+ * arriver) et, au clavier, l'accord joué avec le rôle de chaque note et les
+ * notes en cause (celles qui traînent sous la pédale, qui frottent, qui sautent).
+ */
+function showSessionMoment(at, detail = null, issueId = null) {
+  if (!player) return;
+  const review = sessionReview();
+  const chord = review?.chords.find((c) => c.at - 0.05 <= at && at < c.end + 0.05) || null;
+  let view = null;
+  if (detail) view = takeMarks(null, { ...detail, issueId });
+  else if (chord) {
+    view = {
+      marks: chord.roles.map((r) => ({ midi: r.midi, kind: r.kind, label: r.degree })),
+      caption: `${takeMoment(chord.at)} ${chord.name} : ${chord.voicing.label}${chord.voicing.detail ? ` (${chord.voicing.detail})` : ''}`,
+      tone: '',
+    };
+  }
+  const start = Math.max(0, at - 0.4);
+  const end = Math.min(player.getDuration(), Math.max(at + 2.2, chord ? Math.min(chord.end, at + 4) : at + 2.2));
+  playMomentLoop(start, end);
+  if (view) setKeyboardMarks(view.marks, { caption: view.caption, tone: view.tone });
+}
+
+/** Boucle courte sur [start, end] (même mécanique que les boucles du carnet). */
+async function playMomentLoop(start, end) {
+  stopCarnetLoop();
+  carnetLoopSegment = { start, end, moment: true };
+  carnetLoopStart = start;
+  carnetLoopEnd = end;
+  player.seek(start);
+  await resumeAudio();
+  player.play();
+  startCarnetLoop();
+  startTransportLoop();
+}
+
+/**
+ * « Écouter corrigé » (pédale gardée) : le même passage, pédale relevée à
+ * chaque nouvel accord et reprise juste après (pédale syncopée) — avant / après.
+ */
+function playPedalFixed(detail) {
+  const review = sessionReview();
+  if (!review || !detail) return;
+  const from = Math.max(0, detail.at - 2);
+  const to = detail.at + 2.5;
+  const starts = review.chords.map((c) => c.at).filter((t) => t > from && t < to);
+  const events = [];
+  for (const e of currentEvents) {
+    if (e.time < from || e.time > to) continue;
+    if (e.type === 'control' && e.controller === 64) continue;
+    if (e.type === 'note_on' && e.velocity > 0) events.push({ time: e.time - from, type: 'noteOn', note: e.note, velocity: e.velocity > 1 ? e.velocity / 127 : e.velocity });
+    else if (e.type === 'note_off' || e.type === 'note_on') events.push({ time: e.time - from, type: 'noteOff', note: e.note });
+  }
+  events.push({ time: 0, type: 'sustain', value: true });
+  for (const t of starts) {
+    events.push({ time: Math.max(0, t - from - 0.02), type: 'sustain', value: false });
+    events.push({ time: t - from + 0.12, type: 'sustain', value: true });
+  }
+  events.push({ time: to - from, type: 'sustain', value: false });
+  const order = { noteOff: 0, sustain: 1, noteOn: 2 };
+  events.sort((a, b) => a.time - b.time || order[a.type] - order[b.type]);
+  stopCarnetLoop();
+  document.dispatchEvent(new CustomEvent('copilot-play-example', { detail: { id: 'session-pedal-fixed', example: { events, beats: to - from, tempo: 60 } } }));
+  setKeyboardMarks([], { caption: `Corrigé : pédale relevée à chaque accord (${takeMoment(detail.at)} ${detail.chord || ''}) — compare avec « Écouter tel quel »`, tone: 'ok' });
+}
+
 /** Rangée « Analyse du jeu » du carnet : un constat par pastille, ses moments cliquables. */
 function renderCarnetFindings(analysis) {
   const host = els.carnetFindings;
@@ -869,18 +955,25 @@ function renderCarnetFindings(analysis) {
     detail.className = 'carnet-finding-detail';
     detail.textContent = `${f.kind === 'issue' ? 'À travailler' : 'Point fort'} : ${f.text}`;
     pill.append(dot, title, detail);
-    for (const t of (f.times || []).slice(0, 3)) {
+    (f.times || []).slice(0, 3).forEach((t, i) => {
+      const detailCase = f.details?.[i] || null;
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'carnet-finding-time';
       btn.textContent = formatTimeShort(t);
-      btn.title = `Aller à ${formatTimeShort(t)}`;
-      btn.addEventListener('click', () => {
-        // Un peu avant le moment, pour l'entendre arriver.
-        player?.seek(Math.max(0, t - 0.5));
-        updateTransportUI();
-      });
+      btn.title = detailCase ? `${formatTimeShort(t)} — ${detailCase.text} (écouter en boucle, voir au clavier)` : `Écouter ${formatTimeShort(t)} en boucle`;
+      // [Claude] — 2026-09-25 — Le moment en boucle courte, et au clavier ce qui ne va pas.
+      btn.addEventListener('click', () => showSessionMoment(t, detailCase, f.id));
       pill.appendChild(btn);
+    });
+    if (f.id === 'pedal-blur' && f.details?.length) {
+      const fixed = document.createElement('button');
+      fixed.type = 'button';
+      fixed.className = 'carnet-finding-time carnet-finding-fix';
+      fixed.textContent = 'Écouter corrigé';
+      fixed.title = 'Le même passage, pédale relevée à chaque nouvel accord (à comparer avec le moment tel quel)';
+      fixed.addEventListener('click', () => playPedalFixed(f.details[0]));
+      pill.appendChild(fixed);
     }
     if ((f.times || []).length > 3) {
       const more = document.createElement('span');
@@ -1026,6 +1119,8 @@ async function toggleCarnetLoop(seg, btn, segments) {
     await resumeAudio();
     player.play();
     startCarnetLoop();
+    // [Claude] — 2026-09-25 — Tête de lecture et temps à jour pendant la boucle.
+    startTransportLoop();
   }
 }
 
@@ -1115,6 +1210,14 @@ function openCopilotForSegment(seg) {
 }
 
 function bindCarnetEvents() {
+  // [Claude] — 2026-09-25 — Un moment (m:ss) cliqué dans une réponse du Copilote.
+  document.addEventListener('session-show-moment', (e) => {
+    const at = Number(e.detail?.time);
+    if (!Number.isFinite(at) || !currentSession) return;
+    const review = sessionReview();
+    const moment = review?.moments.find((m) => Math.abs(m.at - at) < 0.6) || null;
+    showSessionMoment(at, moment, moment?.issueId || null);
+  });
   if (!els.carnetTimeline || !els.carnetEntries) return;
 
   // [Refonte Astra 12/09] — L'ancienne frise .tl-seg n'existe plus : le
@@ -1194,6 +1297,11 @@ function buildSessionContext() {
     comments: currentSession.comments || '',
     chords: chordMoments,
     performance: performance ? { lines: formatPerformanceFindings(performance) } : null,
+    // [Claude] — 2026-09-25 — Notes exactes : voicings datés, types, rôles, lignes, constats détaillés.
+    portrait: (() => {
+      const review = sessionReview();
+      return review ? takeContextLines(review, { title: '## Portrait de la session (notes exactes, moments m:ss,d)', maxChords: 60 }) : null;
+    })(),
   };
 }
 

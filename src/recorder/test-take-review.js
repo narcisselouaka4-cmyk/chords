@@ -5,7 +5,7 @@
 // Lancer : node src/recorder/test-take-review.js
 
 import { createLiveTake, extractLastPassage } from './live-take.js';
-import { reviewTake, takeMarks, findCadences } from './take-review.js';
+import { reviewTake, takeMarks, findCadences, takeContextLines } from './take-review.js';
 import { classifyVoicing, splitHands } from '../voicing-engine/voicing-classifier.js';
 import { extractScaleRequest, fitScales } from '../pedagogie/scales.js';
 
@@ -170,6 +170,16 @@ function testLinesReview() {
   check('Ligne seule : rôles par rapport à l\'accord de la question', a.lines[0].roles.map((r) => r.label).join(' ') === '3 5 b7 13', a.lines[0].roles.map((r) => r.label).join(' '));
 }
 
+// [Claude] — 2026-09-25 — Tonalité d'une session sans question : le II-V-I entendu la donne.
+function testKeyFromCadence() {
+  const s = take();
+  [[38, 45, 53, 57, 60, 64], [43, 53, 57, 59, 64], [36, 40, 43, 64, 67, 71], [38, 45, 65, 69, 72, 76], [43, 53, 57, 59, 64], [36, 43, 52, 55, 59, 62]]
+    .forEach((n, i) => s.chord(i * 2, n, { hold: 1.2 }));
+  const r = reviewTake(s.events);
+  check('Sans question : tonalité d\'après le II-V-I (Do majeur), degrés II V I', r.key?.label === 'Do majeur' && r.key.source === 'cadence' && r.chords.map((c) => c.degree).join(' ') === 'II V I II V I', `${r.key?.label} ${r.chords.map((c) => c.degree).join(' ')}`);
+  check('Portrait de session : titre et 60 accords au plus', /## Portrait/.test(takeContextLines(r, { title: '## Portrait de la session', maxChords: 60 })[0]));
+}
+
 function testEmpty() {
   check('Passage vide : null', reviewTake([]) === null);
 }
@@ -179,6 +189,7 @@ testVoicingClassifier();
 testScales();
 testChordsReview();
 testLinesReview();
+testKeyFromCadence();
 testEmpty();
 
 console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);

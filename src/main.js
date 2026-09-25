@@ -408,7 +408,9 @@ function refreshChord() {
   const result = detectChord(notes);
   state.currentChord = result;
   updateDisplay(els, result, notes, state.notation === 'latin');
-  addToHistory(result);
+  // [Claude] — 2026-09-25 — Une relecture (session, démo, exemple) s'affiche mais
+  // n'entre pas dans l'historique de ce que l'élève a joué.
+  if (!notes.some((n) => state.playbackNotes.has(n))) addToHistory(result);
 
   // Vérification de l'exercice rapide si un accord valide est détecté.
   // [Refonte 03/09] — Jamais pendant une relecture Sessions MIDI : rejouer une

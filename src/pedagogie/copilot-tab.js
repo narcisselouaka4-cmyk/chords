@@ -234,14 +234,25 @@ function escapeHtml(value) {
  * réponses affichaient « **ii-V-I** » avec ses astérisques, et tous les
  * paragraphes collés en un seul pavé. Astra découpe le texte sur les retours à
  * la ligne, un <p> par ligne ; on fait pareil, en rendant en plus le gras. */
-function renderMessageText(container, content) {
+// [Claude] — 2026-09-25 — Un moment écrit par le Copilote (« 0:12 », « 0:12,4 ») :
+// un lien qui le rejoue et le montre au clavier (session, ou passage joué).
+const MOMENT_PATTERN = /(^|[^\d:])(\d{1,2}):([0-5]\d)(?:,(\d))?(?![\d:])/g;
+
+function renderMessageText(container, content, { momentLinks = false } = {}) {
   const lines = String(content || '').split('\n');
   for (const line of lines) {
     if (!line.trim()) continue;
     const p = document.createElement('p');
-    p.innerHTML = escapeHtml(line)
+    let html = escapeHtml(line)
       .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
       .replace(/`([^`]+)`/g, '<code>$1</code>');
+    if (momentLinks) {
+      html = html.replace(MOMENT_PATTERN, (all, before, m, sec, tenth) => {
+        const time = Number(m) * 60 + Number(sec) + (tenth ? Number(tenth) / 10 : 0);
+        return `${before}<button type="button" class="copilot-moment-link" data-moment="${time}" title="Réécouter ce moment et le voir au clavier">${m}:${sec}${tenth ? `,${tenth}` : ''}</button>`;
+      });
+    }
+    p.innerHTML = html;
     container.appendChild(p);
   }
   if (!container.childElementCount) container.appendChild(el('p', { text: String(content || '') }));
@@ -547,6 +558,47 @@ function refreshStepperBar() {
   if (bar) fillStepperBar(bar);
 }
 
+/**
+ * Moment cliqué dans une réponse : pour une session, l'onglet Session le rejoue en
+ * boucle et le montre au clavier ; pour un passage joué, l'extrait autour de ce
+ * moment est rejoué et ce qui s'y passe est montré au clavier.
+ */
+function onMomentLink(button) {
+  const time = Number(button.dataset.moment);
+  if (!Number.isFinite(time)) return;
+  const takeFor = button.closest('[data-take-for]')?.dataset.takeFor;
+  const takeMsg = takeFor ? messages.find((m) => m.take && m.exampleId === takeFor) : null;
+  if (!takeMsg) {
+    document.dispatchEvent(new CustomEvent('session-show-moment', { detail: { time } }));
+    return;
+  }
+  const take = takeMsg.take;
+  const moment = (take.moments || []).find((m) => Math.abs(m.at - time) < 0.6);
+  const chord = (take.chords || []).find((c, i, all) => c.at - 0.05 <= time && time < (all[i + 1]?.at ?? Infinity));
+  if (moment) {
+    const view = takeMarks(null, moment);
+    setKeyboardMarks(view.marks, { caption: view.caption, tone: view.tone });
+  } else if (chord) {
+    setKeyboardMarks([...chord.left, ...chord.right].map((midi) => ({ midi, kind: 'target', label: '' })), { caption: `${takeMoment(chord.at)} ${chord.name} : ${chord.voicing}` });
+  }
+  // Extrait du passage autour du moment (un peu avant, pour l'entendre arriver).
+  const events = take.example?.events || [];
+  const from = Math.max(0, time - 0.4);
+  const to = time + 2.4;
+  const excerpt = events.filter((e) => e.type !== 'step' && e.time >= from && e.time <= to).map((e) => ({ ...e, time: e.time - from }));
+  const held = new Map();
+  for (const e of events) {
+    if (e.time >= from) break;
+    if (e.type === 'noteOn') held.set(e.note, e);
+    else if (e.type === 'noteOff') held.delete(e.note);
+  }
+  held.forEach((e) => excerpt.unshift({ ...e, time: 0 }));
+  excerpt.push(...[...new Set(excerpt.filter((e) => e.type === 'noteOn').map((e) => e.note))].map((note) => ({ time: to - from, type: 'noteOff', note })));
+  if (excerpt.some((e) => e.type === 'noteOn')) {
+    document.dispatchEvent(new CustomEvent('copilot-play-example', { detail: { id: `moment-${takeFor}`, example: { events: excerpt.sort((a, b) => a.time - b.time), beats: to - from, tempo: 60 } } }));
+  }
+}
+
 /** Réécoute du passage joué (même lecteur que les exemples, rôles au clavier). */
 function toggleTakeReplay(msg) {
   const id = exampleIdOf(msg);
@@ -654,7 +706,12 @@ function renderMessages() {
     ]);
     if (!isUser) author.appendChild(el('span', { text: 'ASSISTANT IA' }));
     content.appendChild(author);
-    renderMessageText(content, msg.content);
+    // Moments cliquables : réponse sur une session, ou sur un passage joué (question précédente).
+    const index = messages.indexOf(msg);
+    const takeBefore = !isUser ? [...messages.slice(0, index)].reverse().find((m) => m.role === 'user') : null;
+    const momentLinks = !isUser && (currentMode === 'session' || Boolean(takeBefore?.take));
+    renderMessageText(content, msg.content, { momentLinks });
+    if (momentLinks && takeBefore?.take) content.dataset.takeFor = exampleIdOf(takeBefore);
     if (isUser && msg.take) content.appendChild(renderTakeCard(msg));
 
     // [Claude] — 2026-09-24 — L'exemple à écouter vient APRÈS l'explication
@@ -1050,6 +1107,10 @@ export async function initCopilotTab() {
   els.deleteEmptyBtn = document.getElementById('copilot-delete-empty-btn');
 
   els.sendBtn?.addEventListener('click', sendUserMessage);
+  els.messages?.addEventListener('click', (e) => {
+    const link = e.target.closest('.copilot-moment-link');
+    if (link) onMomentLink(link);
+  });
   // [Claude] — 2026-09-25 — « Qu'en penses-tu ? » : le passage joué + la question tapée.
   els.reviewBtn?.addEventListener('click', () => reviewLastPassage({ question: els.input?.value || '' }));
   document.addEventListener('copilot-review-take', (e) => reviewLastPassage({ question: e.detail?.question || '', fromKeyboard: true }));

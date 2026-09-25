@@ -421,6 +421,8 @@
 }
 #midi-session-carnet .carnet-finding-time:hover { background: var(--tr-accent-soft); color: var(--tr-accent); }
 #midi-session-carnet .carnet-finding-time:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 1px; }
+/* [Claude] — 2026-09-25 — « Écouter corrigé » (pédale reprise à chaque accord). */
+#midi-session-carnet .carnet-finding-time.carnet-finding-fix { border: 1px dashed var(--tr-accent); color: var(--tr-accent); }
 #midi-session-carnet .carnet-finding-more { color: var(--tr-muted); font: 9px var(--tr-mono); padding-right: 3px; }
 #carnet-entries {
   display: flex;
@@ -2222,6 +2224,21 @@
 }
 #practice-view-copilot .copilot-stepper-actions > button:hover:not(:disabled) { border-color: var(--tr-accent); }
 #practice-view-copilot .copilot-stepper-actions > button:disabled { opacity: .45; cursor: default; }
+
+/* [Claude] — 2026-09-25 — Moment écrit par le Copilote : lien qui le rejoue et le montre au clavier. */
+#practice-view-copilot .copilot-moment-link {
+  display: inline;
+  padding: 0 3px;
+  border: 0;
+  border-bottom: 1px dashed var(--tr-accent);
+  border-radius: 3px;
+  background: var(--tr-accent-soft);
+  color: var(--tr-accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+#practice-view-copilot .copilot-moment-link:hover { background: var(--tr-accent); color: var(--tr-button-text); }
 
 /* [Claude] — 2026-09-25 — Carte « Ton passage » (question « Qu'en penses-tu ? ») :
    ce qui a été reconnu, Réécouter, et les moments à revoir (un clic : au clavier). */

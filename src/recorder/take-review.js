@@ -391,6 +391,16 @@ export function reviewTake(events, { question = '' } = {}) {
     const found = detectKey(sorted, chords.map((c) => ({ rootPc: c.rootPc, symbol: c.symbol, duration: Math.max(0.2, c.end - c.at) })));
     if (found) key = { pc: found.pc, mode: found.mode, label: `${ROOTS_FR[found.pc]} ${found.mode === 'minor' ? 'mineur' : 'majeur'}`, confidence: found.confidence, source: 'jeu' };
   }
+  // Un II-V-I entendu dit la tonalité mieux que le profil des notes (qui prend
+  // volontiers la dominante pour la tonique) : sa tonique l'emporte.
+  const cadenceKey = cadences.find((c) => c.type === 'ii-v-i');
+  if (cadenceKey && key?.source !== 'question') {
+    const tonic = chords.find((c) => c.name === cadenceKey.chords[2]);
+    if (tonic) {
+      const mode = /mineur$/.test(cadenceKey.label) ? 'minor' : 'major';
+      key = { pc: tonic.rootPc, mode, label: `${ROOTS_FR[tonic.rootPc]} ${mode === 'minor' ? 'mineur' : 'majeur'}`, confidence: Math.max(0.8, key?.confidence || 0), source: 'cadence' };
+    }
+  }
   // Degrés seulement dans une tonalité sûre (annoncée, ou entendue à 60 % au moins).
   if (key && key.confidence >= 0.6) chords.forEach((c) => { c.degree = romanOf(c.readAs ? parseChordName(c.readAs).rootPc : c.rootPc, key); });
   const kind = chords.length && lineNoteCount >= 4 ? 'mixed' : chords.length ? (chords.length === 1 ? 'chord' : 'chords') : 'line';
@@ -479,26 +489,34 @@ export function takeVerdict(review) {
   return `${line.notes.length} notes${line.scale ? ` · ${line.scale.label}` : ''}${tail}`;
 }
 
-/** Portrait en texte compact pour le Copilote (notes exactes, moments précis). */
-export function takeContextLines(review) {
+/**
+ * Portrait en texte compact pour le Copilote (notes exactes, moments précis).
+ * @param {{title?: string, maxChords?: number}} [options] - une session : titre à elle, 60 accords détaillés
+ */
+export function takeContextLines(review, { title = '## Passage joué au clavier (« Qu\'en penses-tu ? »)', maxChords = 40 } = {}) {
   const { chords, lines, key, cadences, rhythm, perf, intent, question } = review;
+  const isTake = /Qu'en penses-tu/.test(title);
   const out = [];
-  out.push('## Passage joué au clavier (« Qu\'en penses-tu ? »)');
+  out.push(title);
   const pedal = perf?.stats ? Math.round(perf.stats.pedalRatio * 100) : 0;
   const velocity = perf?.stats?.velocity ? `vélocité ${perf.stats.velocity.low} à ${perf.stats.velocity.high} sur 127` : 'vélocité constante (clavier virtuel ou sans nuances)';
   out.push(`Durée : ${takeMoment(review.duration)} · ${review.noteCount} notes · pédale ${pedal} % du temps · ${velocity}`);
-  out.push(`Question de l'élève : « ${question || 'Qu\'en penses-tu de ce que je viens de jouer ?'} »`);
+  if (isTake) out.push(`Question de l'élève : « ${question || 'Qu\'en penses-tu de ce que je viens de jouer ?'} »`);
   if (intent.asked.length) out.push(`Ce qu'il voulait jouer (d'après sa question) : ${intent.asked.join(' ; ')}`);
   if (chords.length) {
     out.push('');
     out.push('### Accords (moment · nom [degré] · main gauche | main droite · voicing reconnu · rôles · conduite des voix vers le suivant)');
-    for (const c of chords.slice(0, 40)) {
+    for (const c of chords.slice(0, maxChords)) {
       const hands = c.hands.oneHand ? `une main : ${names([...c.hands.left, ...c.hands.right])}` : `${names(c.hands.left)} | ${names(c.hands.right)}`;
       const roles = c.roles.map((r) => (r.kind === 'outside' ? `${r.degree}!` : r.degree)).join(' ');
       const voicing = `${c.voicing.label}${c.voicing.detail ? ` (${c.voicing.detail})` : ''}, ${c.voicing.inversion}`;
       out.push(`- ${takeMoment(c.at)} ${c.name}${c.asked ? ` (= ${c.asked})` : ''}${c.degree ? ` [${c.degree}]` : ''}${c.matched ? '' : ' (non reconnu)'} · ${hands} · ${voicing} · ${roles}${c.leading?.text ? ` · → ${c.leading.text}` : ''}`);
     }
-    if (chords.length > 40) out.push(`- … ${chords.length - 40} accords de plus`);
+    if (chords.length > maxChords) {
+      // Au-delà : la grille seule (moments et noms), pour garder le contexte borné.
+      const rest = chords.slice(maxChords);
+      out.push(`- … puis ${rest.length} accords (grille seule) : ${rest.slice(0, 80).map((c) => `${takeMoment(c.at)} ${c.name}`).join(' · ')}${rest.length > 80 ? ' …' : ''}`);
+    }
   }
   if (lines.length) {
     out.push('');
@@ -510,7 +528,11 @@ export function takeContextLines(review) {
     }
   }
   const harmony = [];
-  if (key) harmony.push(key.source === 'question' ? `tonalité annoncée par l'élève : ${key.label}` : `tonalité probable ${key.label} (confiance ${Math.round(key.confidence * 100)} %)`);
+  if (key) {
+    harmony.push(key.source === 'question' ? `tonalité annoncée par l'élève : ${key.label}`
+      : key.source === 'cadence' ? `tonalité ${key.label} (d'après le II-V-I)`
+        : `tonalité probable ${key.label} (confiance ${Math.round(key.confidence * 100)} %)`);
+  }
   if (cadences.length) harmony.push(cadences.map((c) => `${c.label} à ${takeMoment(c.at)} (${c.chords.join(' → ')})`).join(' ; '));
   if (harmony.length) {
     out.push('');
