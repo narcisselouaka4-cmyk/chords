@@ -3439,10 +3439,10 @@
 :root[data-skin='v2'] #practice-tab #practice-view-exercices {
   overflow-y: auto;
 }
-/* Colonnes latérales : c'est la carte qui fixe la hauteur de la ligne ; les
-   listes de gauche (top note, favoris) et les voicings de droite défilent à
-   l'intérieur au lieu d'allonger la page. Sous 820 px, la colonne de droite
-   passe sous la carte (astra-training.css) : on garde alors le flux normal. */
+/* Colonnes latérales : c'est la carte qui fixe la hauteur de la ligne ; la
+   liste de gauche (top note) et les voicings de droite défilent à l'intérieur
+   au lieu d'allonger la page. Sous 820 px, la colonne de droite passe sous la
+   carte (astra-training.css) : on garde alors le flux normal. */
 @media (min-width: 821px) {
   :root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode .tr-exercise-brief,
   :root[data-skin='global'] #practice-tab .tr-exercise-progress.is-chord-side,
@@ -3459,41 +3459,17 @@
     align-items: stretch;
     gap: 18px;
   }
-  /* Sans top note : la section du haut se réduit à sa consigne, les favoris
-     prennent le reste. Avec la liste : elle prend la hauteur et les favoris
-     gardent au plus 45 % de la colonne (ils défilent au-delà). */
-  :root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode #exercise-target-choice .exercise-choice-section,
-  :root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode #exercise-target-choice .exercise-choice-section {
-    min-height: 0;
-  }
+  /* La section de la top note prend toute la colonne (consigne en haut, liste
+     des accords qui défile) : les favoris sont dans leur fenêtre (25/09). */
   :root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode #exercise-target-choice .exercise-topnote-section,
   :root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode #exercise-target-choice .exercise-topnote-section {
-    flex: 0 0 auto;
-  }
-  :root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode #exercise-target-choice.has-browser .exercise-topnote-section,
-  :root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode #exercise-target-choice.has-browser .exercise-topnote-section {
     flex: 1 1 0;
-  }
-  :root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode #exercise-target-choice .exercise-favorites-section,
-  :root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode #exercise-target-choice .exercise-favorites-section {
-    flex: 1 1 0;
-  }
-  :root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode #exercise-target-choice.has-browser .exercise-favorites-section,
-  :root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode #exercise-target-choice.has-browser .exercise-favorites-section {
-    flex: 0 0 auto;
-    max-height: 45%;
+    min-height: 0;
   }
   :root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode #exercise-target-choice .exercise-topnote-browser,
   :root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode #exercise-target-choice .exercise-topnote-browser {
     flex: 1 1 auto;
     min-height: 0;
-  }
-  :root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode #exercise-target-choice .exercise-favorites,
-  :root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode #exercise-target-choice .exercise-favorites {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-    padding-right: 4px;
   }
   :root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode .exercise-browser-list,
   :root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode .exercise-browser-list {
@@ -3695,6 +3671,35 @@
 :root[data-skin='v2'] #practice-tab .exercise-filters-count[hidden] {
   display: none;
 }
+/* [Claude] — 2026-09-25 — Bouton Favoris (à côté de Filtres) : nombre de favoris
+   en pastille neutre (information, pas un réglage actif comme sur Filtres). */
+:root[data-skin='global'] #practice-tab .exercise-favorites-count,
+:root[data-skin='v2'] #practice-tab .exercise-favorites-count {
+  min-width: 16px;
+  margin-left: 6px;
+  padding: 0 5px;
+  border: 1px solid var(--r-border-soft);
+  border-radius: var(--r-radius-pill, 999px);
+  color: var(--r-text-muted);
+  font-size: 0.64rem;
+  line-height: 14px;
+  text-align: center;
+}
+:root[data-skin='global'] #practice-tab .exercise-favorites-count[hidden],
+:root[data-skin='v2'] #practice-tab .exercise-favorites-count[hidden] {
+  display: none;
+}
+/* Fenêtre des favoris : consigne, recherche, puis la liste (le corps défile). */
+:root[data-skin='global'] #practice-tab .exercise-favorites-dialog,
+:root[data-skin='v2'] #practice-tab .exercise-favorites-dialog {
+  width: min(420px, calc(100vw - 32px));
+}
+:root[data-skin='global'] #practice-tab .exercise-favorites-body,
+:root[data-skin='v2'] #practice-tab .exercise-favorites-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
 :root[data-skin='global'] #practice-tab .exercise-filters-dialog,
 :root[data-skin='v2'] #practice-tab .exercise-filters-dialog {
   width: min(380px, calc(100vw - 32px));
@@ -3789,7 +3794,7 @@
 }
 
 /* ── Mode Accord cible : colonne de droite = voicings de l'accord affiché (le score
-   n'y sert pas) ; les favoris sont dans la colonne de gauche, sous la top note. ── */
+   n'y sert pas) ; les favoris sont dans leur fenêtre (bouton à côté de Filtres). ── */
 :root[data-skin='global'] #practice-tab .tr-exercise-progress.is-chord-side,
 :root[data-skin='v2'] #practice-tab .tr-exercise-progress.is-chord-side {
   display: flex;
@@ -3860,7 +3865,7 @@
   color: var(--r-accent);
   cursor: pointer;
 }
-/* Sections de la colonne de gauche (top note, favoris) : titre puis contenu. */
+/* Section de la colonne de gauche (top note) : titre puis contenu. */
 :root[data-skin='global'] #practice-tab .exercise-choice-section,
 :root[data-skin='v2'] #practice-tab .exercise-choice-section {
   flex-basis: 100%;

@@ -102,8 +102,8 @@ function testDomContract() {
     check(!html.includes(gone), `DOM — ${gone} retiré (plus de double navigation/repli/Hub)`);
   }
 
-  // [Claude] — 2026-09-24 — Accord cible : les favoris vivent dans la colonne de
-  // gauche (#exercise-target-choice, sous la top note), plus à droite (Narcisse).
+  // [Claude] — 2026-09-25 — Accord cible : les favoris vivent dans une fenêtre
+  // temporaire, ouverte par un bouton placé juste après « Filtres » (Narcisse).
   const block = (id) => {
     const start = html.indexOf(`id="${id}"`);
     const open = html.lastIndexOf('<div', start);
@@ -119,10 +119,17 @@ function testDomContract() {
   };
   const targetChoice = block('exercise-target-choice');
   const chordSide = block('exercise-chord-side');
-  check(targetChoice.includes('id="exercise-favorites"') && targetChoice.includes('id="exercise-favorites-search"'),
-    'DOM — favoris dans la colonne de gauche (#exercise-target-choice)');
-  check(chordSide.includes('id="exercise-voicing-choices"') && !chordSide.includes('exercise-favorites'),
-    'DOM — colonne de droite (#exercise-chord-side) : voicings seuls, sans favoris');
+  const favoritesDialog = block('exercise-favorites-dialog');
+  check(favoritesDialog.includes('class="tr-overlay"') && favoritesDialog.includes('id="exercise-favorites"')
+    && favoritesDialog.includes('id="exercise-favorites-search"') && favoritesDialog.includes('data-astra-close'),
+    'DOM — favoris dans leur fenêtre (#exercise-favorites-dialog, avec la recherche et une croix)');
+  check(!targetChoice.includes('exercise-favorites') && !chordSide.includes('exercise-favorites'),
+    'DOM — plus de favoris dans les colonnes (gauche : top note ; droite : voicings)');
+  check(chordSide.includes('id="exercise-voicing-choices"'), 'DOM — colonne de droite (#exercise-chord-side) : voicings');
+  const headControls = html.slice(html.indexOf('id="exercise-filters-btn"'), html.indexOf('id="exercise-chord-head"') > 0
+    ? html.indexOf('</div>', html.indexOf('id="exercise-filters-btn"')) : 0);
+  check(/id="exercise-filters-btn"[^]*?<\/button>\s*(<!--[^]*?-->\s*)?<button[^>]*id="exercise-favorites-btn"[^>]*data-astra-open="exercise-favorites-dialog"/.test(headControls),
+    'DOM — bouton Favoris juste après Filtres, qui ouvre la fenêtre des favoris');
 
   // [Claude] — 2026-09-24 — Ma grille : accords choisis (fondamentale + qualité),
   // plus de saisie au clavier (Narcisse : « pas pratique d'écrire »).

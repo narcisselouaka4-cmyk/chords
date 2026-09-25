@@ -229,6 +229,8 @@ const els = {
   exerciseChordHead: document.getElementById('exercise-chord-head'),
   exerciseFavorites: document.getElementById('exercise-favorites'),
   exerciseFavoritesSearch: document.getElementById('exercise-favorites-search'),
+  exerciseFavoritesDialog: document.getElementById('exercise-favorites-dialog'),
+  exerciseFavoritesCount: document.getElementById('exercise-favorites-count'),
   exerciseVoicingChoices: document.getElementById('exercise-voicing-choices'),
   exerciseFiltersDialog: document.getElementById('exercise-filters-dialog'),
   exerciseFiltersCount: document.getElementById('exercise-filters-count'),
@@ -1495,9 +1497,10 @@ function initPracticeExercise() {
   const FAVORITES_SEARCH_MIN = 8;
 
   /**
-   * Disposition du mode Accord cible : bande du haut (choix de l'accord),
-   * colonne gauche réduite à la note du dessus + résultats, colonne droite =
-   * filtres + favoris à la place du score. Les autres modes gardent la leur.
+   * Disposition du mode Accord cible : bande du haut (choix de l'accord,
+   * boutons des fenêtres Filtres et Favoris), colonne gauche réduite à la note
+   * du dessus + résultats, colonne droite = voicings de l'accord à la place du
+   * score. Les autres modes gardent la leur.
    */
   function refreshChordSide(exState) {
     const isChord = exState.mode === 'chord';
@@ -1527,6 +1530,11 @@ function initPracticeExercise() {
       els.exerciseFiltersCount.hidden = active === 0;
       els.exerciseFiltersCount.textContent = String(active);
     }
+    // Bouton Favoris : nombre de favoris enregistrés (rien quand la liste est vide).
+    if (els.exerciseFavoritesCount) {
+      els.exerciseFavoritesCount.hidden = exerciseFavorites.length === 0;
+      els.exerciseFavoritesCount.textContent = String(exerciseFavorites.length);
+    }
     if (!els.exerciseFavorites) return;
     const activeKey = exState.target?.voicing?.source === 'favori' ? favoriteFromTarget(exState.target)?.key : null;
     // Recherche seulement quand la liste devient longue (place limitée) ; en
@@ -1544,6 +1552,10 @@ function initPracticeExercise() {
     if (open) {
       const fav = exerciseFavorites.find((f) => f.key === open.dataset.favoriteOpen);
       if (fav) practiceExercise.showFavorite(fav);
+      // [Claude] — 2026-09-25 — Favori choisi : la fenêtre se ferme sur la carte.
+      // Fermée ici (par sa croix, qui rend le focus au bouton Favoris) : render()
+      // réécrit la liste, le clic ne remonte donc plus jusqu'à la fenêtre.
+      if (fav) els.exerciseFavoritesDialog?.querySelector('[data-astra-close]')?.click();
       render();
       return;
     }
@@ -1646,9 +1658,6 @@ function initPracticeExercise() {
         if (els.exerciseTopNoteReset) els.exerciseTopNoteReset.hidden = active === 0;
       }
       refreshTopNoteBrowser(exState);
-      // Liste de la top note affichée : elle prend la hauteur, les favoris
-      // (dessous) gardent une part bornée de la colonne.
-      els.exerciseTargetChoice.classList.toggle('has-browser', !els.exerciseTopNoteBrowser?.hidden);
     } else {
       els.exerciseTargetChoice.style.display = 'none';
       refreshTopNoteBrowser(exState);

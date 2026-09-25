@@ -201,7 +201,8 @@
             <div class="exercise-feedback" id="exercise-feedback" role="status" aria-live="polite"></div>
             <!-- [Claude] — 2026-09-24 — Mode Accord cible : bande du haut (choix de
                  l'accord), au-dessus de la carte ; les colonnes gauche (note du
-                 dessus + résultats) et droite (filtres + favoris) s'alignent sur elle. -->
+                 dessus + résultats) et droite (voicings) s'alignent sur elle.
+                 Filtres et Favoris s'ouvrent en fenêtres depuis cette bande. -->
             <div class="exercise-chord-head" id="exercise-chord-head" hidden>
               <div class="exercise-chord-head-controls">
                 <!-- Recherche de voicings par top note (sans octave), à la place du sous-titre. -->
@@ -243,6 +244,9 @@
                 <button class="tr-button exercise-random-target-btn" type="button" id="exercise-random-target-btn" title="Tire une racine et une qualité au hasard (en respectant la top note si elle est choisie)"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="16" cy="8" r="1.1" fill="currentColor"/><circle cx="12" cy="12" r="1.1" fill="currentColor"/><circle cx="8" cy="16" r="1.1" fill="currentColor"/><circle cx="16" cy="16" r="1.1" fill="currentColor"/></svg>Accord au hasard</button>
                 <!-- Filtres de la top note et doublures : fenêtre temporaire (fermée par défaut). -->
                 <button class="tr-button exercise-filters-btn" type="button" id="exercise-filters-btn" data-astra-open="exercise-filters-dialog"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18M6 12h12M10 19h4"/></svg>Filtres<span class="exercise-filters-count" id="exercise-filters-count" hidden></span></button>
+                <!-- [Claude] — 2026-09-25 — Favoris : fenêtre temporaire ouverte à côté des
+                     Filtres (Narcisse : « une fenêtre temporaire pour Favoris »). -->
+                <button class="tr-button exercise-favorites-btn" type="button" id="exercise-favorites-btn" data-astra-open="exercise-favorites-dialog"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg>Favoris<span class="exercise-favorites-count" id="exercise-favorites-count" hidden></span></button>
               </div>
             </div>
             <!-- [Astra round 3] — Le guide et le panneau de progression ne sont
@@ -295,20 +299,15 @@
               </div>
               <!-- Sélecteur d'accord cible : visible uniquement en mode "Accord cible".
                    [Claude] — 2026-09-24 — Colonne de gauche = les accords à charger sur
-                   la carte : recherche par top note, puis favoris (Narcisse : favoris
-                   « ailleurs qu'à droite »). La droite garde les voicings affichés. -->
+                   la carte (recherche par top note). La droite garde les voicings
+                   affichés. [Claude] — 2026-09-25 — Les favoris ont quitté la colonne
+                   pour leur fenêtre (#exercise-favorites-dialog). -->
               <div class="exercise-target-choice" id="exercise-target-choice" style="display: none;">
                 <section class="exercise-choice-section exercise-topnote-section" aria-label="Accords par top note">
                   <span class="tr-eyebrow">TOP NOTE</span>
                   <!-- Tous les accords ayant la note du dessus choisie (rempli par main.js). -->
                   <p class="exercise-side-hint exercise-browser-hint" id="exercise-topnote-browser-hint">Choisissez une top note : les accords qui l'ont au sommet s'affichent ici.</p>
                   <div class="exercise-topnote-browser" id="exercise-topnote-browser" hidden></div>
-                </section>
-                <section class="exercise-choice-section exercise-favorites-section" aria-label="Favoris">
-                  <span class="tr-eyebrow">FAVORIS</span>
-                  <!-- Recherche dans les favoris (hors du rendu de la liste : garde le focus). -->
-                  <input type="search" class="exercise-favorites-search" id="exercise-favorites-search" placeholder="Rechercher : Dm9, Bb, drop 2…" aria-label="Rechercher un favori" hidden>
-                  <div class="exercise-favorites" id="exercise-favorites"></div>
                 </section>
               </div>
 
@@ -447,6 +446,23 @@
                 <div id="exercise-doubling-filter"></div>
               </section>
               <button class="tr-button tr-primary" type="button" data-astra-close>Voir les voicings</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- [Claude] — 2026-09-25 — Fenêtre temporaire des favoris (Accord cible), ouverte
+             par le bouton « Favoris » à côté de « Filtres ». Mêmes ids qu'avant
+             (#exercise-favorites, #exercise-favorites-search) : main.js remplit la liste.
+             Un clic sur un favori le charge sur la carte et ferme la fenêtre. -->
+        <div class="tr-overlay" id="exercise-favorites-dialog" hidden>
+          <div class="tr-dialog exercise-favorites-dialog" role="dialog" aria-modal="true" aria-label="Favoris">
+            <div class="tr-dialog-title"><h2>Favoris</h2>
+              <button class="tr-icon-button" type="button" data-astra-close aria-label="Fermer">✕</button></div>
+            <div class="tr-dialog-body exercise-favorites-body">
+              <p class="exercise-side-hint">Cliquez sur un favori pour l'afficher sur la carte.</p>
+              <!-- Recherche dans les favoris (hors du rendu de la liste : garde le focus). -->
+              <input type="search" class="exercise-favorites-search" id="exercise-favorites-search" placeholder="Rechercher : Dm9, Bb, drop 2…" aria-label="Rechercher un favori" hidden>
+              <div class="exercise-favorites" id="exercise-favorites"></div>
             </div>
           </div>
         </div>
