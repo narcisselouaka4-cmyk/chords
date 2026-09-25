@@ -17,7 +17,7 @@ import { sendCopilotMessage } from './copilot-client.js';
 import { hasAIKey } from '../ai/openai-config.js';
 import { setKeyboardMarks, clearKeyboardMarks } from '../ui/keyboard-marks.js';
 import { chordExampleSteps } from './example-guide.js';
-import { liveTake } from '../recorder/live-take.js';
+import { liveTake, passageShift, exampleToSessionEvents } from '../recorder/live-take.js';
 import { reviewTake, takeMarks, takeMoment, passageToExample, momentText } from '../recorder/take-review.js';
 import { stepsFromExample, stepsFromMoments, judgeChordStep, judgeSequenceStep, stepFeedback } from './copilot-steps.js';
 import { readCopilotContext } from './copilot-context.js';
@@ -422,6 +422,17 @@ function renderTakeCard(msg) {
       text: 'Essayer les suggestions',
     }));
   }
+  // [Claude] — 2026-09-25 — Sessions = journal : le passage se garde d'un clic.
+  if (take.example) {
+    const saved = take.savedSessionId;
+    buttons.appendChild(el('button', {
+      className: 'copilot-example-steps copilot-take-keep', type: 'button',
+      title: saved ? 'Ouvrir ce passage dans Sessions MIDI' : 'Garder ce passage dans Sessions MIDI (le journal de tes enregistrements)',
+      disabled: take.saving ? 'disabled' : null,
+      onClick: () => (saved ? openSavedSession(saved) : keepTakeInSessions(msg)),
+      text: saved ? 'Gardé · Ouvrir' : take.saving ? 'Enregistrement…' : 'Garder dans mes sessions',
+    }));
+  }
   if (buttons.children.length) card.appendChild(buttons);
   const text = el('div', { className: 'copilot-example-text' }, [
     el('strong', { text: `Ton passage · ${takeMoment(take.duration)} · ${take.noteCount} note${take.noteCount > 1 ? 's' : ''}` }),
@@ -652,6 +663,23 @@ function toggleTakeReplay(msg) {
 }
 
 /** Pièce jointe d'une question « Qu'en penses-tu ? » (gardée dans l'historique). */
+/** Garde le passage dans Sessions MIDI (recording-tab.js crée la session). */
+function keepTakeInSessions(msg) {
+  const take = msg.take;
+  if (!take?.example || take.saving) return;
+  take.saving = true;
+  renderMessages();
+  document.dispatchEvent(new CustomEvent('session-keep-passage', {
+    detail: { id: exampleIdOf(msg), events: exampleToSessionEvents(take.example, take.shift || 0), verdict: take.verdict, question: msg.content || '' },
+  }));
+}
+
+/** Ouvre une session gardée (vue Sessions MIDI). */
+function openSavedSession(sessionId) {
+  document.dispatchEvent(new CustomEvent('app-switch-training-view', { detail: { view: 'midi-sessions' } }));
+  document.dispatchEvent(new CustomEvent('session-open', { detail: { sessionId } }));
+}
+
 function takeAttachment(review, passage) {
   return {
     verdict: review.verdict,
@@ -665,8 +693,12 @@ function takeAttachment(review, passage) {
     moments: review.moments.slice(0, 12).map((m) => ({
       at: m.at, chord: m.chord || null, notes: m.notes || [], problemNotes: m.problemNotes || [], missing: m.missing || [],
       text: momentText(m), title: m.title, issueId: m.issueId,
+      ...(m.fixChord ? { fixChord: m.fixChord } : {}),
+      ...(m.suggestions?.length ? { suggestions: m.suggestions } : {}),
     })),
     example: passageToExample(passage.events, review),
+    // Note entendue − touche : « Garder dans mes sessions » retrouve les touches.
+    shift: passageShift(passage.events),
   };
 }
 
@@ -1193,6 +1225,17 @@ export async function initCopilotTab() {
   document.addEventListener('copilot-review-take', (e) => reviewLastPassage({ question: e.detail?.question || '', fromKeyboard: true, fromView: e.detail?.fromView || null }));
   // « Demander au Copilote » depuis Exercices.
   document.addEventListener('copilot-open-exercise', () => switchToExerciseMode());
+  // Passage gardé (ou non) par Sessions MIDI : la carte le dit, l'historique le garde.
+  document.addEventListener('session-passage-saved', async (e) => {
+    const { id, sessionId, error } = e.detail || {};
+    const msg = messages.find((m) => m.take && exampleIdOf(m) === id);
+    if (!msg) return;
+    msg.take.saving = false;
+    if (sessionId) msg.take.savedSessionId = sessionId;
+    renderMessages();
+    if (error) setKeyboardMarks([], { caption: `Passage non gardé : ${error}`, tone: 'warn' });
+    else if (currentConversationId) await saveHistory(currentConversationId, historyKeyForMode(), messages);
+  });
   // [Claude] — 2026-09-25 — Pas à pas : notes jouées, et fin (croix de la légende, autre vue).
   document.addEventListener('app-live-input', (e) => onLiveInput(e.detail));
   document.addEventListener('keyboard-marks-cleared', () => stopStepper({ clear: false }));

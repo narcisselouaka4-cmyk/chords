@@ -510,7 +510,7 @@ function handleNoteOn(note, velocity = 0.8, virtual = false, audible = true) {
     feedRecorderNoteOn(note, safeVelocity);
     // [Claude] — 2026-09-25 — Mémoire du jeu récent (« Qu'en penses-tu ? ») : la
     // note entendue (transposition comprise), jamais une démo ni une relecture.
-    liveTake.noteOn(transposed, safeVelocity);
+    liveTake.noteOn(transposed, safeVelocity, undefined, note);
     // [Claude] — 2026-09-25 — Pas à pas du Copilote : chaque note jouée (entendue).
     document.dispatchEvent(new CustomEvent('app-live-input', { detail: { type: 'on', midi: transposed, held: getAllActivePcs() } }));
   }
@@ -535,7 +535,7 @@ function handleNoteOff(note, virtual = false, audible = true) {
   // pendant une relecture, note brute.
   if (!state.isPlayback) {
     feedRecorderNoteOff(note);
-    liveTake.noteOff(transposed);
+    liveTake.noteOff(transposed, undefined, note);
   }
   if (state.sustain) {
     // [Claude] — 2026-09-24 — Touche relâchée : elle quitte les notes tenues et

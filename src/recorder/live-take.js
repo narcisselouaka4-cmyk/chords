@@ -36,11 +36,13 @@ export function createLiveTake({ keepSeconds = DEFAULT_KEEP, now = defaultNow } 
   }
 
   return {
-    noteOn(note, velocity = 0.8, time = now()) {
-      push({ type: 'note_on', note, velocity, channel: 0, time });
+    // [Claude] — 2026-09-25 — `raw` : la touche enfoncée, avant transposition (les
+    // sessions gardent les notes brutes ; « Garder dans mes sessions »).
+    noteOn(note, velocity = 0.8, time = now(), raw = note) {
+      push({ type: 'note_on', note, velocity, channel: 0, time, ...(raw !== note && Number.isFinite(raw) ? { raw } : {}) });
     },
-    noteOff(note, time = now()) {
-      push({ type: 'note_off', note, velocity: 0, channel: 0, time });
+    noteOff(note, time = now(), raw = note) {
+      push({ type: 'note_off', note, velocity: 0, channel: 0, time, ...(raw !== note && Number.isFinite(raw) ? { raw } : {}) });
     },
     sustain(down, time = now()) {
       push({ type: 'control', controller: 64, value: down ? 127 : 0, channel: 0, time });
@@ -122,20 +124,73 @@ export function extractLastPassage(all, { pause = 2.5, max = 60, at = null } = {
   const out = [];
   if (pedalAtStart) out.push({ type: 'control', controller: 64, value: 127, channel: 0, time: 0 });
   const open = new Set();
+  const rawOf = new Map();
   let pedalDown = pedalAtStart;
   for (const e of list) {
     if (e.time < start) continue;
     if (e.type === 'note_off' && !open.has(e.note)) continue; // attaquée avant le passage
     const copy = { ...e, time: Math.max(0, e.time - start) };
-    if (e.type === 'note_on') open.add(e.note);
+    if (e.type === 'note_on') {
+      open.add(e.note);
+      if (e.raw != null) rawOf.set(e.note, e.raw);
+    }
     else if (e.type === 'note_off') open.delete(e.note);
     else if (e.type === 'control' && e.controller === 64) pedalDown = e.value >= 64;
     out.push(copy);
   }
   // Ce qui est encore tenu au moment du clic est relâché à cet instant.
   const close = Math.max(0, end - start);
-  for (const note of open) out.push({ type: 'note_off', note, velocity: 0, channel: 0, time: close });
+  for (const note of open) out.push({ type: 'note_off', note, velocity: 0, channel: 0, time: close, ...(rawOf.has(note) ? { raw: rawOf.get(note) } : {}) });
   if (pedalDown) out.push({ type: 'control', controller: 64, value: 0, channel: 0, time: close });
   const noteCount = out.filter((e) => e.type === 'note_on').length;
   return { events: out, duration: close, noteCount, startedAt: start, endedAt: end };
+}
+
+// ── « Garder dans mes sessions » ──
+// [Claude] — 2026-09-25 — Narcisse garde les Sessions MIDI comme journal : un
+// passage commenté par le Copilote s'y garde d'un clic. Les sessions stockent la
+// touche enfoncée (la transposition se rejoue à la relecture, comme pour
+// l'enregistreur) ; le passage, lui, est entendu transposé.
+
+/** Écart transposition comprise (note entendue − touche) au début du passage. */
+export function passageShift(events) {
+  const first = (events || []).find((e) => e?.type === 'note_on' && Number.isFinite(e.raw));
+  return first ? first.note - first.raw : 0;
+}
+
+/**
+ * Exemple réécoutable d'un passage (take-review.js, tempo 60 : un temps = une
+ * seconde) → évènements de session au format de l'enregistreur, touches brutes.
+ * @param {{events: object[]}} example
+ * @param {number} [shift] - passageShift(events)
+ * @returns {object[]}
+ */
+export function exampleToSessionEvents(example, shift = 0) {
+  const out = [];
+  for (const e of example?.events || []) {
+    if (!Number.isFinite(e?.time)) continue;
+    if (e.type === 'noteOn') out.push({ type: 'note_on', note: e.note - shift, velocity: e.velocity ?? 0.8, channel: 0, time: e.time });
+    else if (e.type === 'noteOff') out.push({ type: 'note_off', note: e.note - shift, velocity: 0, channel: 0, time: e.time });
+    else if (e.type === 'sustain') out.push({ type: 'control', controller: 64, value: e.value ? 127 : 0, channel: 0, time: e.time });
+  }
+  return out.sort((a, b) => a.time - b.time);
+}
+
+/**
+ * Nom et métadonnées d'une session « passage gardé » : les accords (ou la ligne)
+ * reconnus, la date ; la question et le verdict en commentaire.
+ * @param {{verdict?: string, question?: string, now?: Date}} options
+ */
+export function passageSessionMeta({ verdict = '', question = '', now = new Date() } = {}) {
+  const summary = String(verdict || '').split(/ : | · /)[0].trim().slice(0, 48) || 'passage';
+  const when = `${now.toLocaleDateString('fr-FR')} ${now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+  const asked = String(question || '').trim();
+  return {
+    name: `Passage · ${summary} · ${when}`,
+    // Le tempo d'un passage n'est pas connu : aucun tempo inventé.
+    tempo: null,
+    tags: ['passage'],
+    sourceType: 'passage',
+    comments: `Passage gardé depuis « Qu'en penses-tu ? »${asked ? ` (question : « ${asked} »)` : ''}${verdict ? ` — ${verdict}` : ''}.`,
+  };
 }

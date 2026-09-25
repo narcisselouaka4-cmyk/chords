@@ -4,7 +4,7 @@
 //
 // Lancer : node src/recorder/test-take-review.js
 
-import { createLiveTake, extractLastPassage } from './live-take.js';
+import { createLiveTake, extractLastPassage, passageShift, exampleToSessionEvents, passageSessionMeta } from './live-take.js';
 import { reviewTake, takeMarks, findCadences, takeContextLines } from './take-review.js';
 import { classifyVoicing, splitHands } from '../voicing-engine/voicing-classifier.js';
 import { extractScaleRequest, fitScales } from '../pedagogie/scales.js';
@@ -197,6 +197,28 @@ function testExerciseExpect() {
   check('Exercice : aucun de ses accords → « je n\'entends pas ces accords »', /je n'entends pas ces accords/.test(r0.verdict) && r0.issues.length === 1, r0.verdict);
 }
 
+// [Claude] — 2026-09-25 — « Garder dans mes sessions » : touches brutes, nom, commentaire.
+function testKeepPassage() {
+  let now = 10;
+  const live = createLiveTake({ now: () => now });
+  // Transposition +2 : on enfonce Do (60), on entend Ré (62).
+  live.noteOn(62, 0.7, 10, 60); live.noteOn(66, 0.7, 10, 64);
+  live.noteOff(62, 11, 60);
+  now = 12;
+  const p = live.lastPassage();
+  check('Passage : la touche brute est gardée à côté de la note entendue', p.events[0].note === 62 && p.events[0].raw === 60 && p.events.filter((e) => e.type === 'note_off').every((e) => e.raw != null), JSON.stringify(p.events));
+  check('Passage : écart de transposition (+2)', passageShift(p.events) === 2);
+  const example = { events: [
+    { time: 0, type: 'sustain', value: true }, { time: 0, type: 'step', step: 0 },
+    { time: 0, type: 'noteOn', note: 62, velocity: 0.7 }, { time: 1, type: 'noteOff', note: 62 },
+  ] };
+  const events = exampleToSessionEvents(example, 2);
+  check('Session : évènements de l\'enregistreur, touches brutes, pédale, sans les étapes', events.length === 3 && events.some((e) => e.type === 'note_on' && e.note === 60 && e.velocity === 0.7) && events.some((e) => e.type === 'control' && e.value === 127) && !events.some((e) => e.type === 'step'), JSON.stringify(events));
+  const meta = passageSessionMeta({ verdict: 'II-V-I en Do majeur : les accords voulus sont là (Dm9 → G13 → Cmaj9)', question: 'mon 2-5-1 est bon ?', now: new Date(2026, 8, 25, 14, 32) });
+  check('Session « passage » : nom avec les accords et la date, tag, pas de tempo inventé', meta.name === 'Passage · II-V-I en Do majeur · 25/09/2026 14:32' && meta.sourceType === 'passage' && meta.tags.join() === 'passage' && meta.tempo === null, meta.name);
+  check('Session « passage » : la question et le verdict en commentaire', /question : « mon 2-5-1 est bon \? »/.test(meta.comments) && /Dm9 → G13 → Cmaj9/.test(meta.comments), meta.comments);
+}
+
 function testEmpty() {
   check('Passage vide : null', reviewTake([]) === null);
 }
@@ -208,6 +230,7 @@ testChordsReview();
 testLinesReview();
 testKeyFromCadence();
 testExerciseExpect();
+testKeepPassage();
 testEmpty();
 
 console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);

@@ -13,6 +13,7 @@ import { segmentSessionEvents, nameChordSegments } from '../recorder/session-ana
 import { analyzeSessionPerformance, formatPerformanceFindings } from '../recorder/session-performance.js';
 import { reviewTake, takeMarks, takeContextLines, takeMoment } from '../recorder/take-review.js';
 import { setKeyboardMarks } from './keyboard-marks.js';
+import { passageSessionMeta } from '../recorder/live-take.js';
 // [Refonte Astra 12/09] — Le paysage harmonique remplace l'ancienne frise de
 // blocs, qui forçait toute la session à tenir dans la largeur. buildNoteWindows
 // est la fonction déjà utilisée par l'analyse de session : on la réutilise, on
@@ -566,6 +567,43 @@ async function stopStudioTake() {
 }
 
 document.addEventListener('studio-take-start', (e) => startStudioTake(e.detail || {}));
+
+/**
+ * [Claude] — 2026-09-25 — Sessions = journal (choix de Narcisse) : un passage
+ * commenté par « Qu'en penses-tu ? » se garde ici d'un clic, comme une prise du
+ * Studio (session « passage », notes brutes, sans tempo inventé).
+ */
+async function keepPassage({ id = null, events = [], verdict = '', question = '' } = {}) {
+  const notify = (detail) => document.dispatchEvent(new CustomEvent('session-passage-saved', { detail: { id, ...detail } }));
+  const list = (events || []).filter((e) => Number.isFinite(e?.time)).sort((a, b) => a.time - b.time);
+  const notes = list.filter((e) => e.type === 'note_on');
+  if (notes.length === 0) {
+    notify({ error: 'passage vide' });
+    return null;
+  }
+  try {
+    if (!window.electronAPI?.files) throw new Error('enregistrement des sessions indisponible hors de l\'application');
+    const meta = passageSessionMeta({ verdict, question, now: new Date() });
+    const session = await createSession(meta);
+    const chordCount = segmentSessionEvents(list).filter((seg) => seg.type === 'chord').length;
+    const duration = Math.max(...list.map((e) => e.time));
+    await saveSessionEvents(session.id, list, { duration, noteCount: notes.length, chordCount });
+    await refreshSessionList();
+    notify({ sessionId: session.id, name: meta.name });
+    return session;
+  } catch (err) {
+    console.error('[Session] Passage non gardé :', err);
+    notify({ error: err.message || String(err) });
+    return null;
+  }
+}
+
+document.addEventListener('session-keep-passage', (e) => keepPassage(e.detail || {}));
+// Ouvrir une session depuis ailleurs (carte d'un passage gardé dans le Copilote).
+document.addEventListener('session-open', (e) => {
+  const sessionId = e.detail?.sessionId;
+  if (sessionId && !recorder?.isRecording) loadAndPlaySession(sessionId);
+});
 document.addEventListener('studio-take-stop', () => { stopStudioTake(); });
 
 async function refreshSessionList() {
@@ -575,7 +613,7 @@ async function refreshSessionList() {
     const query = (els.sessionSearch?.value || '').trim().toLowerCase();
 
     const scoped = sessionFilter === 'captures'
-      ? sessions.filter((s) => ['midi', 'studio'].includes(s.sourceType || 'midi'))
+      ? sessions.filter((s) => ['midi', 'studio', 'passage'].includes(s.sourceType || 'midi'))
       : sessions;
 
     const filtered = query
@@ -796,7 +834,7 @@ function renderSelectedSessionInfo() {
 
 function resetSelectedSessionInfo() {
   if (els.selectedSessionInfo) {
-    els.selectedSessionInfo.innerHTML = `<p class="detail-hint">Aucune session sélectionnée. Créez une nouvelle session ou choisissez-en une dans la liste.</p>`;
+    els.selectedSessionInfo.innerHTML = `<p class="detail-hint">Aucune session sélectionnée. Créez une nouvelle session ou choisissez-en une dans la liste. Pour un avis rapide sur ce que vous venez de jouer : « Qu'en penses-tu ? », dans la barre du clavier.</p>`;
   }
   if (els.carnetSessionTitle) els.carnetSessionTitle.textContent = 'Aucune session sélectionnée';
   if (els.carnetSessionMeta) els.carnetSessionMeta.textContent = '';
