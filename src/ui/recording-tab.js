@@ -12,7 +12,6 @@ import { playNote, releaseNote, resumeAudio } from '../audio/simple-synth.js';
 import { segmentSessionEvents, nameChordSegments } from '../recorder/session-analysis.js';
 import { analyzeSessionPerformance, formatPerformanceFindings } from '../recorder/session-performance.js';
 import { reviewTake, takeContextLines, takeMoment } from '../recorder/take-review.js';
-import { passageSessionMeta } from '../recorder/live-take.js';
 // [Refonte Astra 12/09] — Le paysage harmonique remplace l'ancienne frise de
 // blocs, qui forçait toute la session à tenir dans la largeur. buildNoteWindows
 // est la fonction déjà utilisée par l'analyse de session : on la réutilise, on
@@ -567,42 +566,6 @@ async function stopStudioTake() {
 
 document.addEventListener('studio-take-start', (e) => startStudioTake(e.detail || {}));
 
-/**
- * [Claude] — 2026-09-25 — Sessions = journal (choix de Narcisse) : un passage
- * commenté par « Qu'en penses-tu ? » se garde ici d'un clic, comme une prise du
- * Studio (session « passage », notes brutes, sans tempo inventé).
- */
-async function keepPassage({ id = null, events = [], verdict = '', question = '' } = {}) {
-  const notify = (detail) => document.dispatchEvent(new CustomEvent('session-passage-saved', { detail: { id, ...detail } }));
-  const list = (events || []).filter((e) => Number.isFinite(e?.time)).sort((a, b) => a.time - b.time);
-  const notes = list.filter((e) => e.type === 'note_on');
-  if (notes.length === 0) {
-    notify({ error: 'passage vide' });
-    return null;
-  }
-  try {
-    if (!window.electronAPI?.files) throw new Error('enregistrement des sessions indisponible hors de l\'application');
-    const meta = passageSessionMeta({ verdict, question, now: new Date() });
-    const session = await createSession(meta);
-    const chordCount = segmentSessionEvents(list).filter((seg) => seg.type === 'chord').length;
-    const duration = Math.max(...list.map((e) => e.time));
-    await saveSessionEvents(session.id, list, { duration, noteCount: notes.length, chordCount });
-    await refreshSessionList();
-    notify({ sessionId: session.id, name: meta.name });
-    return session;
-  } catch (err) {
-    console.error('[Session] Passage non gardé :', err);
-    notify({ error: err.message || String(err) });
-    return null;
-  }
-}
-
-document.addEventListener('session-keep-passage', (e) => keepPassage(e.detail || {}));
-// Ouvrir une session depuis ailleurs (carte d'un passage gardé dans le Copilote).
-document.addEventListener('session-open', (e) => {
-  const sessionId = e.detail?.sessionId;
-  if (sessionId && !recorder?.isRecording) loadAndPlaySession(sessionId);
-});
 document.addEventListener('studio-take-stop', () => { stopStudioTake(); });
 
 async function refreshSessionList() {
@@ -884,8 +847,7 @@ function sessionAnalysis() {
 
 // [Claude] — 2026-09-25 — Portrait complet de la session (accords exacts main gauche |
 // main droite, voicing reconnu, rôles, lignes et gammes, rythme, constats détaillés) :
-// le même que « Qu'en penses-tu ? ». Le Copilote le reçoit ; ses moments m:ss
-// sont cliquables (session-show-moment).
+// le même que « Qu'en penses-tu ? ». Le Copilote le reçoit.
 let reviewCache = { events: null, review: null };
 
 function sessionReview() {
@@ -919,35 +881,6 @@ async function playMomentLoop(start, end) {
   player.play();
   startCarnetLoop();
   startTransportLoop();
-}
-
-/**
- * « Écouter la suggestion » (pédale gardée) : le même passage, pédale relevée à
- * chaque nouvel accord et reprise juste après (pédale syncopée) — avant / après.
- */
-function playPedalFixed(detail) {
-  const review = sessionReview();
-  if (!review || !detail) return;
-  const from = Math.max(0, detail.at - 2);
-  const to = detail.at + 2.5;
-  const starts = review.chords.map((c) => c.at).filter((t) => t > from && t < to);
-  const events = [];
-  for (const e of currentEvents) {
-    if (e.time < from || e.time > to) continue;
-    if (e.type === 'control' && e.controller === 64) continue;
-    if (e.type === 'note_on' && e.velocity > 0) events.push({ time: e.time - from, type: 'noteOn', note: e.note, velocity: e.velocity > 1 ? e.velocity / 127 : e.velocity });
-    else if (e.type === 'note_off' || e.type === 'note_on') events.push({ time: e.time - from, type: 'noteOff', note: e.note });
-  }
-  events.push({ time: 0, type: 'sustain', value: true });
-  for (const t of starts) {
-    events.push({ time: Math.max(0, t - from - 0.02), type: 'sustain', value: false });
-    events.push({ time: t - from + 0.12, type: 'sustain', value: true });
-  }
-  events.push({ time: to - from, type: 'sustain', value: false });
-  const order = { noteOff: 0, sustain: 1, noteOn: 2 };
-  events.sort((a, b) => a.time - b.time || order[a.type] - order[b.type]);
-  stopCarnetLoop();
-  document.dispatchEvent(new CustomEvent('copilot-play-example', { detail: { id: 'session-pedal-fixed', example: { events, beats: to - from, tempo: 60 } } }));
 }
 
 /** Rangée « Analyse du jeu » du carnet : un constat par pastille, ses moments cliquables. */
@@ -991,15 +924,6 @@ function renderCarnetFindings(analysis) {
       btn.addEventListener('click', () => showSessionMoment(t));
       pill.appendChild(btn);
     });
-    if (f.id === 'pedal-blur' && f.details?.length) {
-      const fixed = document.createElement('button');
-      fixed.type = 'button';
-      fixed.className = 'carnet-finding-time carnet-finding-fix';
-      fixed.textContent = 'Écouter la suggestion';
-      fixed.title = 'Le même passage, pédale relevée à chaque nouvel accord (à comparer avec le moment tel quel)';
-      fixed.addEventListener('click', () => playPedalFixed(f.details[0]));
-      pill.appendChild(fixed);
-    }
     if ((f.times || []).length > 3) {
       const more = document.createElement('span');
       more.className = 'carnet-finding-more';
@@ -1237,12 +1161,6 @@ function openCopilotForSegment(seg) {
 }
 
 function bindCarnetEvents() {
-  // [Claude] — 2026-09-25 — Un moment (m:ss) cliqué dans une réponse du Copilote.
-  document.addEventListener('session-show-moment', (e) => {
-    const at = Number(e.detail?.time);
-    if (!Number.isFinite(at) || !currentSession) return;
-    showSessionMoment(at);
-  });
   if (!els.carnetTimeline || !els.carnetEntries) return;
 
   // [Refonte Astra 12/09] — L'ancienne frise .tl-seg n'existe plus : le

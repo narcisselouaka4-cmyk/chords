@@ -505,7 +505,7 @@
             <div>
               <div class="tr-page-title"><span class="tr-page-index">01</span><h1>Sessions MIDI</h1></div>
               <!-- [Claude] — 2026-09-25 — Le journal de vos enregistrements (choix de Narcisse). -->
-              <p>Le journal de votre jeu : un morceau, une séance, une prise du Studio, un passage gardé.</p>
+              <p>Le journal de votre jeu : un morceau, une séance, une prise du Studio.</p>
             </div>
             <div class="tr-heading-actions">
               <button class="tr-button tr-library-trigger" type="button" data-astra-open="midi-library-drawer" data-astra-shortcut="b"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 6H3M16 12H3M13 18H3"/><path d="M21 6v12a2 2 0 0 1-2 2"/></svg><span>Bibliothèque</span><kbd>B</kbd></button>
@@ -957,9 +957,6 @@
                 <textarea class="copilot-input" id="copilot-input" rows="1" maxlength="2000" placeholder="Quelle harmonie avez-vous en tête ?" aria-label="Message au Copilot"></textarea>
                 <div class="tr-composer-tools">
                   <span><svg class="tr-i" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.29 1.29L3 12l5.81 1.9a2 2 0 0 1 1.29 1.29L12 21l1.9-5.81a2 2 0 0 1 1.29-1.29L21 12l-5.81-1.9a2 2 0 0 1-1.29-1.29z"/></svg>IA connectée</span>
-                  <!-- [Claude] — 2026-09-25 — « Qu'en penses-tu ? » : joint le dernier passage
-                       joué au clavier (depuis la dernière pause) à la question tapée. -->
-                  <button class="copilot-review-btn" id="copilot-review-btn" type="button" title="Analyse ce que tu viens de jouer au clavier (depuis ta dernière pause) et réponds à ta question — ou donne ton avis si la barre est vide"><svg class="tr-i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><path d="M21 15a2 2 0 0 1-2 2h-1v-5h1a2 2 0 0 1 2 2zM3 15a2 2 0 0 0 2 2h1v-5H5a2 2 0 0 0-2 2z"/></svg>Qu'en penses-tu ?</button>
                   <button class="copilot-send-btn" id="copilot-send-btn" type="button" title="Envoyer" aria-label="Envoyer la question"><svg class="tr-i" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
                 </div>
               </div>
@@ -1975,7 +1972,7 @@
               <!-- [Claude] — 2026-09-25 — « Qu'en penses-tu ? » depuis n'importe quel onglet :
                    le Copilote analyse ce qui vient d'être joué (sans clé d'IA, l'avis de
                    l'application s'affiche dans la ligne d'état). -->
-              <button type="button" class="vk-review" id="keyboard-review-btn" title="Qu'en penses-tu ? — le Copilote analyse ce que tu viens de jouer (depuis ta dernière pause)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><path d="M21 15a2 2 0 0 1-2 2h-1v-5h1a2 2 0 0 1 2 2zM3 15a2 2 0 0 0 2 2h1v-5H5a2 2 0 0 0-2 2z"/></svg><span>Qu'en penses-tu ?</span></button>
+              <button type="button" class="vk-review" id="keyboard-review-btn" title="Qu'en penses-tu ? — le Copilote analyse ce que tu viens de jouer (depuis ta dernière pause) ; une question tapée dans le Copilote part avec"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><path d="M21 15a2 2 0 0 1-2 2h-1v-5h1a2 2 0 0 1 2 2zM3 15a2 2 0 0 0 2 2h1v-5H5a2 2 0 0 0-2 2z"/></svg><span>Qu'en penses-tu ?</span></button>
               <button type="button" class="vk-collapse keyboard-collapse-btn" id="keyboard-collapse-btn"
                       aria-expanded="true" aria-controls="keyboard-container"
                       title="Réduire le clavier virtuel"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>

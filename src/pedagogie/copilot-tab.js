@@ -15,8 +15,8 @@ import {
 } from './copilot-history.js';
 import { sendCopilotMessage } from './copilot-client.js';
 import { hasAIKey } from '../ai/openai-config.js';
-import { liveTake, passageShift, exampleToSessionEvents } from '../recorder/live-take.js';
-import { reviewTake, takeMoment, passageToExample, momentText } from '../recorder/take-review.js';
+import { liveTake } from '../recorder/live-take.js';
+import { reviewTake, takeMoment, momentText } from '../recorder/take-review.js';
 import { readCopilotContext } from './copilot-context.js';
 
 const els = {};
@@ -259,24 +259,14 @@ function escapeHtml(value) {
  * réponses affichaient « **ii-V-I** » avec ses astérisques, et tous les
  * paragraphes collés en un seul pavé. Astra découpe le texte sur les retours à
  * la ligne, un <p> par ligne ; on fait pareil, en rendant en plus le gras. */
-// [Claude] — 2026-09-25 — Un moment écrit par le Copilote (« 0:12 », « 0:12,4 ») :
-// un lien qui le rejoue et le montre au clavier (session, ou passage joué).
-const MOMENT_PATTERN = /(^|[^\d:])(\d{1,2}):([0-5]\d)(?:,(\d))?(?![\d:])/g;
-
-function renderMessageText(container, content, { momentLinks = false } = {}) {
+function renderMessageText(container, content) {
   const lines = String(content || '').split('\n');
   for (const line of lines) {
     if (!line.trim()) continue;
     const p = document.createElement('p');
-    let html = escapeHtml(line)
+    const html = escapeHtml(line)
       .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
       .replace(/`([^`]+)`/g, '<code>$1</code>');
-    if (momentLinks) {
-      html = html.replace(MOMENT_PATTERN, (all, before, m, sec, tenth) => {
-        const time = Number(m) * 60 + Number(sec) + (tenth ? Number(tenth) / 10 : 0);
-        return `${before}<button type="button" class="copilot-moment-link" data-moment="${time}" title="Réécouter ce moment et le voir au clavier">${m}:${sec}${tenth ? `,${tenth}` : ''}</button>`;
-      });
-    }
     p.innerHTML = html;
     container.appendChild(p);
   }
@@ -357,139 +347,6 @@ function refreshExampleCards() {
 }
 
 /**
- * [Claude] — 2026-09-25 — Carte « Ton passage » sous la question d'un « Qu'en
- * penses-tu ? » : ce que l'application a reconnu (accords et mains, voicing,
- * lignes et gamme), Réécouter (touches allumées, rôles au clavier), et les
- * suggestions, qu'un clic montre au clavier (ton « assistant, pas coach »).
- */
-function renderTakeCard(msg) {
-  const take = msg.take;
-  const id = exampleIdOf(msg);
-  const playing = playingExampleId === id;
-  const card = el('div', { className: `tr-chat-demos copilot-example copilot-take${playing ? ' is-playing' : ''}`, 'data-example-id': id, 'data-play-label': 'Réécouter' });
-  const buttons = el('div', { className: 'copilot-example-buttons' });
-  if (take.example) {
-    const button = el('button', { className: 'copilot-example-play', type: 'button', 'aria-pressed': playing ? 'true' : 'false', onClick: () => toggleTakeReplay(msg) });
-    button.innerHTML = playing ? ICON_STOP : ICON_PLAY;
-    button.appendChild(el('span', { text: playing ? 'Arrêter' : 'Réécouter' }));
-    buttons.appendChild(button);
-  }
-  // [Claude] — 2026-09-25 — Sessions = journal : le passage se garde d'un clic.
-  if (take.example) {
-    const saved = take.savedSessionId;
-    buttons.appendChild(el('button', {
-      className: 'copilot-example-steps copilot-take-keep', type: 'button',
-      title: saved ? 'Ouvrir ce passage dans Sessions MIDI' : 'Garder ce passage dans Sessions MIDI (le journal de tes enregistrements)',
-      disabled: take.saving ? 'disabled' : null,
-      onClick: () => (saved ? openSavedSession(saved) : keepTakeInSessions(msg)),
-      text: saved ? 'Gardé · Ouvrir' : take.saving ? 'Enregistrement…' : 'Garder dans mes sessions',
-    }));
-  }
-  if (buttons.children.length) card.appendChild(buttons);
-  const text = el('div', { className: 'copilot-example-text' }, [
-    el('strong', { text: `Ton passage · ${takeMoment(take.duration)} · ${take.noteCount} note${take.noteCount > 1 ? 's' : ''}` }),
-    el('small', { text: take.verdict }),
-  ]);
-  const rows = [
-    ...(take.chords || []).slice(0, 5).map((c) => {
-      const hands = c.oneHand ? `une main ${[...c.left, ...c.right].map(frenchNote).join(' ')}`
-        : `main gauche ${c.left.map(frenchNote).join(' ')} · main droite ${c.right.map(frenchNote).join(' ')}`;
-      return el('li', {}, [el('b', { text: `${takeMoment(c.at)} ${c.name}` }), document.createTextNode(` — ${hands} · ${c.voicing}`)]);
-    }),
-    ...(take.lines || []).slice(0, 3).map((l) => el('li', {}, [
-      el('b', { text: `${takeMoment(l.start)} ligne` }),
-      document.createTextNode(` — ${l.count} notes${l.scale ? ` · ${l.scale}` : ''}${l.over?.length ? ` · sur ${l.over.join(', ')}` : ''}`),
-    ])),
-  ];
-  if (rows.length) text.appendChild(el('ul', { className: 'copilot-example-hands' }, rows));
-  card.appendChild(text);
-  return card;
-}
-
-/**
- * Moment cliqué dans une réponse : pour une session, l'onglet Session le rejoue en
- * boucle ; pour un passage joué, l'extrait autour de ce moment est rejoué (touches
- * en jaune).
- */
-function onMomentLink(button) {
-  const time = Number(button.dataset.moment);
-  if (!Number.isFinite(time)) return;
-  const takeFor = button.closest('[data-take-for]')?.dataset.takeFor;
-  const takeMsg = takeFor ? messages.find((m) => m.take && m.exampleId === takeFor) : null;
-  if (!takeMsg) {
-    document.dispatchEvent(new CustomEvent('session-show-moment', { detail: { time } }));
-    return;
-  }
-  const take = takeMsg.take;
-  // Extrait du passage autour du moment (un peu avant, pour l'entendre arriver).
-  const events = take.example?.events || [];
-  const from = Math.max(0, time - 0.4);
-  const to = time + 2.4;
-  const excerpt = events.filter((e) => e.type !== 'step' && e.time >= from && e.time <= to).map((e) => ({ ...e, time: e.time - from }));
-  const held = new Map();
-  for (const e of events) {
-    if (e.time >= from) break;
-    if (e.type === 'noteOn') held.set(e.note, e);
-    else if (e.type === 'noteOff') held.delete(e.note);
-  }
-  held.forEach((e) => excerpt.unshift({ ...e, time: 0 }));
-  excerpt.push(...[...new Set(excerpt.filter((e) => e.type === 'noteOn').map((e) => e.note))].map((note) => ({ time: to - from, type: 'noteOff', note })));
-  if (excerpt.some((e) => e.type === 'noteOn')) {
-    document.dispatchEvent(new CustomEvent('copilot-play-example', { detail: { id: `moment-${takeFor}`, example: { events: excerpt.sort((a, b) => a.time - b.time), beats: to - from, tempo: 60 } } }));
-  }
-}
-
-/** Réécoute du passage joué (même lecteur que les exemples, touches en jaune). */
-function toggleTakeReplay(msg) {
-  const id = exampleIdOf(msg);
-  if (playingExampleId === id) {
-    document.dispatchEvent(new CustomEvent('copilot-stop-example'));
-    return;
-  }
-  document.dispatchEvent(new CustomEvent('copilot-play-example', { detail: { id, example: msg.take.example } }));
-}
-
-/** Pièce jointe d'une question « Qu'en penses-tu ? » (gardée dans l'historique). */
-/** Garde le passage dans Sessions MIDI (recording-tab.js crée la session). */
-function keepTakeInSessions(msg) {
-  const take = msg.take;
-  if (!take?.example || take.saving) return;
-  take.saving = true;
-  renderMessages();
-  document.dispatchEvent(new CustomEvent('session-keep-passage', {
-    detail: { id: exampleIdOf(msg), events: exampleToSessionEvents(take.example, take.shift || 0), verdict: take.verdict, question: msg.content || '' },
-  }));
-}
-
-/** Ouvre une session gardée (vue Sessions MIDI). */
-function openSavedSession(sessionId) {
-  document.dispatchEvent(new CustomEvent('app-switch-training-view', { detail: { view: 'midi-sessions' } }));
-  document.dispatchEvent(new CustomEvent('session-open', { detail: { sessionId } }));
-}
-
-function takeAttachment(review, passage) {
-  return {
-    verdict: review.verdict,
-    duration: review.duration,
-    noteCount: review.noteCount,
-    chords: review.chords.slice(0, 8).map((c) => ({
-      at: c.at, name: c.readAs ? `${c.readAs} (rootless)` : c.name, left: c.hands.left, right: c.hands.right, oneHand: c.hands.oneHand,
-      voicing: `${c.voicing.label}${c.voicing.detail ? ` (${c.voicing.detail})` : ''}`,
-    })),
-    lines: review.lines.slice(0, 4).map((l) => ({ start: l.start, count: l.notes.length, scale: l.scale?.label || null, over: l.over })),
-    moments: review.moments.slice(0, 12).map((m) => ({
-      at: m.at, chord: m.chord || null, notes: m.notes || [], problemNotes: m.problemNotes || [], missing: m.missing || [],
-      text: momentText(m), title: m.title, issueId: m.issueId,
-      ...(m.fixChord ? { fixChord: m.fixChord } : {}),
-      ...(m.suggestions?.length ? { suggestions: m.suggestions } : {}),
-    })),
-    example: passageToExample(passage.events, review),
-    // Note entendue − touche : « Garder dans mes sessions » retrouve les touches.
-    shift: passageShift(passage.events),
-  };
-}
-
-/**
  * [Claude] — 2026-09-25 — Message court dans la ligne d'état de la fenêtre
  * (main.js) : plus de légende sous le clavier.
  */
@@ -516,7 +373,9 @@ export async function reviewLastPassage({ question = '', fromKeyboard = false, f
     showStatus('Rien à écouter : joue d\'abord au clavier (MIDI, virtuel ou clavier d\'ordinateur), puis clique sur « Qu\'en penses-tu ? ».');
     return null;
   }
-  const asked = String(question || '').trim();
+  // [Claude] — 2026-09-25 — Un seul bouton (sous le clavier) : la question tapée
+  // dans le Copilote, s'il y en a une, part avec le passage.
+  const asked = String(question || els.input?.value || '').trim();
   // [Claude] — 2026-09-25 — Depuis Exercices (ou en mode exercice) : l'avis compare
   // le jeu aux accords de l'exercice en cours, sans qu'il faille les taper.
   const exercise = fromView === 'exercise' || currentMode === 'exercise' ? readCopilotContext('exercise') : null;
@@ -535,7 +394,7 @@ export async function reviewLastPassage({ question = '', fromKeyboard = false, f
   els.input.value = '';
   autoGrowInput();
   const defaultQuestion = exercise ? `Qu'en penses-tu de ce que je viens de jouer sur l'exercice (${exercise.title}) ?` : DEFAULT_REVIEW_QUESTION;
-  await runCopilotTurn(asked || defaultQuestion, { take: takeAttachment(review, passage), review: true, takeContext: review.contextLines });
+  await runCopilotTurn(asked || defaultQuestion, { review: true, takeContext: review.contextLines });
   return review;
 }
 
@@ -581,13 +440,7 @@ function renderMessages() {
     ]);
     if (!isUser) author.appendChild(el('span', { text: 'ASSISTANT IA' }));
     content.appendChild(author);
-    // Moments cliquables : réponse sur une session, ou sur un passage joué (question précédente).
-    const index = messages.indexOf(msg);
-    const takeBefore = !isUser ? [...messages.slice(0, index)].reverse().find((m) => m.role === 'user') : null;
-    const momentLinks = !isUser && (currentMode === 'session' || Boolean(takeBefore?.take));
-    renderMessageText(content, msg.content, { momentLinks });
-    if (momentLinks && takeBefore?.take) content.dataset.takeFor = exampleIdOf(takeBefore);
-    if (isUser && msg.take) content.appendChild(renderTakeCard(msg));
+    renderMessageText(content, msg.content);
 
     // [Claude] — 2026-09-24 — L'exemple à écouter vient APRÈS l'explication
     // (Narcisse : « il va directement me le jouer au lieu d'expliquer d'abord »).
@@ -931,21 +784,18 @@ async function sendUserMessage() {
 
 /**
  * Un tour de conversation : la question (et, pour « Qu'en penses-tu ? », le
- * passage joué), l'appel au modèle, la réponse.
+ * portrait du passage joué), l'appel au modèle, la réponse.
  * @param {string} text
- * @param {{take?: object, review?: boolean, takeContext?: string[]}} [options]
+ * @param {{review?: boolean, takeContext?: string[]}} [options]
  */
-async function runCopilotTurn(text, { take = null, review = false, takeContext = null } = {}) {
+async function runCopilotTurn(text, { review = false, takeContext = null } = {}) {
   els.input.disabled = true;
   els.sendBtn.disabled = true;
-  if (els.reviewBtn) els.reviewBtn.disabled = true;
 
   await ensureCurrentConversation();
   // Après la création éventuelle de la conversation (qui oublie l'ancien passage).
   if (takeContext) lastTakeContext = takeContext;
-  const userMessage = { role: 'user', content: text, timestamp: new Date().toISOString() };
-  if (take) userMessage.take = take;
-  messages.push(userMessage);
+  messages.push({ role: 'user', content: text, timestamp: new Date().toISOString() });
   addTypingIndicator();
 
   const base = getTutorialContext() || getSessionContext() || getExerciseContext();
@@ -981,7 +831,6 @@ async function runCopilotTurn(text, { take = null, review = false, takeContext =
   await renderHistoryList();
   els.input.disabled = false;
   els.sendBtn.disabled = false;
-  if (els.reviewBtn) els.reviewBtn.disabled = false;
   els.input.focus();
 }
 
@@ -1001,7 +850,6 @@ export async function initCopilotTab() {
   els.messages = document.getElementById('copilot-messages');
   els.input = document.getElementById('copilot-input');
   els.sendBtn = document.getElementById('copilot-send-btn');
-  els.reviewBtn = document.getElementById('copilot-review-btn');
   els.newConvBtn = document.getElementById('copilot-new-conv-btn');
   els.modeToggleBtn = document.getElementById('copilot-mode-toggle-btn');
   els.selectedName = document.getElementById('copilot-selected-name');
@@ -1011,26 +859,10 @@ export async function initCopilotTab() {
   els.deleteEmptyBtn = document.getElementById('copilot-delete-empty-btn');
 
   els.sendBtn?.addEventListener('click', sendUserMessage);
-  els.messages?.addEventListener('click', (e) => {
-    const link = e.target.closest('.copilot-moment-link');
-    if (link) onMomentLink(link);
-  });
-  // [Claude] — 2026-09-25 — « Qu'en penses-tu ? » : le passage joué + la question tapée.
-  els.reviewBtn?.addEventListener('click', () => reviewLastPassage({ question: els.input?.value || '' }));
+  // [Claude] — 2026-09-25 — « Qu'en penses-tu ? » (bouton unique, sous le clavier).
   document.addEventListener('copilot-review-take', (e) => reviewLastPassage({ question: e.detail?.question || '', fromKeyboard: true, fromView: e.detail?.fromView || null }));
   // « Demander au Copilote » depuis Exercices.
   document.addEventListener('copilot-open-exercise', () => switchToExerciseMode());
-  // Passage gardé (ou non) par Sessions MIDI : la carte le dit, l'historique le garde.
-  document.addEventListener('session-passage-saved', async (e) => {
-    const { id, sessionId, error } = e.detail || {};
-    const msg = messages.find((m) => m.take && exampleIdOf(m) === id);
-    if (!msg) return;
-    msg.take.saving = false;
-    if (sessionId) msg.take.savedSessionId = sessionId;
-    renderMessages();
-    if (error) showStatus(`Passage non gardé : ${error}`);
-    else if (currentConversationId) await saveHistory(currentConversationId, historyKeyForMode(), messages);
-  });
   // [Astra round 4] — Le champ est un <textarea> qui grandit avec le texte,
   // comme dans la maquette (max ~110px, puis défilement interne).
   els.input?.addEventListener('input', autoGrowInput);

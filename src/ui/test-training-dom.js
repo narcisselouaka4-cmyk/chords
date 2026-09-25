@@ -131,15 +131,17 @@ function testDomContract() {
   check(/id="exercise-filters-btn"[^]*?<\/button>\s*(<!--[^]*?-->\s*)?<button[^>]*id="exercise-favorites-btn"[^>]*data-astra-open="exercise-favorites-dialog"/.test(headControls),
     'DOM — bouton Favoris juste après Filtres, qui ouvre la fenêtre des favoris');
 
-  // [Claude] — 2026-09-25 — « Qu'en penses-tu ? » (barre du Copilote et du clavier)
-  // et légende des marques posées sur les touches.
+  // [Claude] — 2026-09-25 — « Qu'en penses-tu ? » (barre du clavier) et légende des couleurs.
   // [Claude] — 2026-09-25 — « Demander au Copilote » dans les actions de l'exercice.
   {
     const panel = html.slice(html.indexOf('id="practice-exercise-panel"'), html.indexOf('<section class="tr-exercise-stage">'));
     check(panel.includes('id="exercise-copilot-btn"') && /Demander au Copilote/.test(panel), 'DOM — « Demander au Copilote » dans les actions de l\'exercice');
   }
-  check(html.includes('id="copilot-review-btn"') && html.includes('id="keyboard-review-btn"'),
-    'DOM — boutons « Qu\'en penses-tu ? » (Copilote et barre du clavier)');
+  // [Claude] — 2026-09-25 — Un seul « Qu'en penses-tu ? », sous le clavier (Narcisse :
+  // moins de boutons) ; plus de « Garder dans mes sessions » ni « Écouter la suggestion ».
+  check(!html.includes('id="copilot-review-btn"') && html.includes('id="keyboard-review-btn"'),
+    'DOM — un seul bouton « Qu\'en penses-tu ? » (barre du clavier)');
+  check(!/un passage gardé/.test(html), 'DOM — Sessions : plus de « passage gardé »');
   // [Claude] — 2026-09-25 — Plus d'étiquettes sur les touches : la légende dit
   // seulement qui joue (bleu : toi ; jaune : l'app).
   check(!html.includes('keyboard-mark-caption') && /vk-dot-you[^<]*<\/i>Toi/.test(html) && /vk-dot-app[^<]*<\/i>L'app/.test(html),
