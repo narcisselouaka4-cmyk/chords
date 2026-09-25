@@ -125,7 +125,7 @@ function testChordsReview() {
   check('2-5-1 juste : aucune suggestion', r.issues.length === 0, r.issues.map((i) => i.id).join(','));
   check('2-5-1 juste : degrés dans la tonalité annoncée', r.chords.map((c) => c.degree).join(' ') === 'II V I');
   const text = r.contextLines.join('\n');
-  check('Portrait : notes exactes par main, voicing, rôles, conduite des voix', /0:00,0 Dm9 \[II\] · Ré2 \| Fa3 La3 Do4 Mi4 · Rootless \(type A/.test(text) && /1 b3 5 b7 9 · → Do \(7e\) descend sur Si, la 3ce de G13/.test(text), text);
+  check('Portrait : notes exactes par main, dessus, voicing, rôles, conduite des voix', /0:00,0 Dm9 \[II\] · Ré2 \| Fa3 La3 Do4 Mi4 · dessus Mi4 · Rootless \(type A/.test(text) && /1 b3 5 b7 9 · → Do \(7e\) descend sur Si, la 3ce de G13/.test(text), text);
   check('Portrait : points forts (accords voulus, 7e → 3ce)', /Les accords voulus sont là/.test(text) && /la 7e descend sur la 3ce/.test(text));
   check('Cadences : II-V-I en Do majeur', findCadences(r.chords)[0]?.label === 'II-V-I en Do majeur');
 
@@ -211,10 +211,20 @@ function testEmpty() {
   check('Passage vide : null', reviewTake([]) === null);
 }
 
+function testMelodyInPortrait() {
+  // [Claude] — 2026-09-25 — Mélodie jouée sur les accords (La4 attaqué avec Dm9, puis Sol4 Fa4 ; Mi5 avec G13).
+  const t = take().chord(0, [38, 53, 57, 60, 64]).chord(0, [69], { hold: 0.9 }).line(1, [67, 65], 0.4, { hold: 0.35 }).chord(2, [43, 53, 57, 59, 64, 76], { hold: 1.5 });
+  const r = reviewTake(t.events);
+  const text = r.contextLines.join('\n');
+  check('Portrait : la note de mélodie attaquée avec l\'accord est son dessus', /0:00,0 Dm9[^\n]* · dessus La4 · /.test(text) && /0:02,0 G13[^\n]* · dessus Mi5 · /.test(text), text);
+  check('Portrait : la mélodie (voix du dessus), groupée par accord', /### Mélodie/.test(text) && /- 0:00,0 Dm9 : La4 Sol4 Fa4/.test(text) && /- 0:02,0 G13 : Mi5/.test(text), text);
+}
+
 testLiveTake();
 testVoicingClassifier();
 testScales();
 testChordsReview();
+testMelodyInPortrait();
 testLinesReview();
 testKeyFromCadence();
 testExerciseExpect();

@@ -25,9 +25,10 @@ let messages = [];
 let currentConversationId = null;
 // Exemple du Copilote en cours de lecture (identifiant du message), ou null.
 let playingExampleId = null;
-// [Claude] — 2026-09-25 — Portrait du dernier passage joué (« Qu'en penses-tu ? »),
-// gardé pour les questions de suivi de la même conversation.
-let lastTakeContext = null;
+// [Claude] — 2026-09-25 — Dernier passage joué (« Qu'en penses-tu ? ») : son
+// portrait (lines), ses notes exactes (events, pour le rejouer) et sa tonalité,
+// gardés pour les questions de suivi de la même conversation.
+let lastTake = null;
 const DEFAULT_REVIEW_QUESTION = 'Qu\'en penses-tu de ce que je viens de jouer ?';
 
 export const AUTONOMOUS_HISTORY_KEY = HISTORY_AUTONOMOUS_KEY;
@@ -394,7 +395,7 @@ export async function reviewLastPassage({ question = '', fromKeyboard = false, f
   els.input.value = '';
   autoGrowInput();
   const defaultQuestion = exercise ? `Qu'en penses-tu de ce que je viens de jouer sur l'exercice (${exercise.title}) ?` : DEFAULT_REVIEW_QUESTION;
-  await runCopilotTurn(asked || defaultQuestion, { review: true, takeContext: review.contextLines });
+  await runCopilotTurn(asked || defaultQuestion, { review: true, take: { lines: review.contextLines, events: passage.events, key: review.key?.label || null } });
   return review;
 }
 
@@ -490,7 +491,7 @@ function showChatArea() {
 }
 
 async function startNewConversation(tutorialPath) {
-  lastTakeContext = null;
+  lastTake = null;
   const id = await createConversation(tutorialPath || AUTONOMOUS_HISTORY_KEY);
   if (!id) return null;
   currentConversationId = id;
@@ -783,24 +784,45 @@ async function sendUserMessage() {
 }
 
 /**
- * Un tour de conversation : la question (et, pour « Qu'en penses-tu ? », le
- * portrait du passage joué), l'appel au modèle, la réponse.
- * @param {string} text
- * @param {{review?: boolean, takeContext?: string[]}} [options]
+ * [Claude] — 2026-09-25 — Jeu du pianiste que le Copilote peut rejouer à
+ * l'identique (play_my_playing) : la session confiée (touches brutes, plus la
+ * transposition du clavier, comme sa relecture) et le dernier passage de
+ * « Qu'en penses-tu ? » (notes entendues).
  */
-async function runCopilotTurn(text, { review = false, takeContext = null } = {}) {
+function playingSources() {
+  const out = {};
+  const session = getSessionContext();
+  if (session?.events?.length) {
+    out.session = { events: session.events, key: session.key || session.heardKey || null, offset: Number(readCopilotContext('keyboard')?.transpose) || 0 };
+  }
+  if (lastTake?.events?.length) out.passage = { events: lastTake.events, key: lastTake.key || null };
+  return out.session || out.passage ? out : null;
+}
+
+/**
+ * Un tour de conversation : la question (et, pour « Qu'en penses-tu ? », le
+ * passage joué), l'appel au modèle, la réponse.
+ * @param {string} text
+ * @param {{review?: boolean, take?: {lines: string[], events: object[], key: string|null}}} [options]
+ */
+async function runCopilotTurn(text, { review = false, take = null } = {}) {
   els.input.disabled = true;
   els.sendBtn.disabled = true;
 
   await ensureCurrentConversation();
   // Après la création éventuelle de la conversation (qui oublie l'ancien passage).
-  if (takeContext) lastTakeContext = takeContext;
+  if (take) lastTake = take;
   messages.push({ role: 'user', content: text, timestamp: new Date().toISOString() });
   addTypingIndicator();
 
   const base = getTutorialContext() || getSessionContext() || getExerciseContext();
-  // Le dernier passage joué reste connu pour les questions de suivi.
-  const context = lastTakeContext ? { ...(base || { type: 'autonomous' }), take: lastTakeContext } : base;
+  // Le dernier passage joué reste connu pour les questions de suivi ; le jeu
+  // (session, passage) reste rejouable.
+  const playing = playingSources();
+  let context = base;
+  if (lastTake || playing) context = { ...(base || { type: 'autonomous' }) };
+  if (lastTake?.lines?.length) context.take = lastTake.lines;
+  if (playing) context.playing = playing;
   const copilotStyleId = els.styleSelect?.value || 'auto';
   const res = await sendCopilotMessage({ message: text, messages, context, copilotStyleId, review });
 

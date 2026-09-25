@@ -1223,6 +1223,7 @@ function buildSessionContext() {
   // [Claude] — 2026-09-24 — Constats mesurés sur le jeu (pédale, grave boueux,
   // voix du dessus, régularité, nuances…) : le Copilote les commente en coach.
   const performance = sessionAnalysis();
+  const review = sessionReview();
 
   return {
     type: 'session',
@@ -1240,11 +1241,13 @@ function buildSessionContext() {
     comments: currentSession.comments || '',
     chords: chordMoments,
     performance: performance ? { lines: formatPerformanceFindings(performance) } : null,
-    // [Claude] — 2026-09-25 — Notes exactes : voicings datés, types, rôles, lignes, constats détaillés.
-    portrait: (() => {
-      const review = sessionReview();
-      return review ? takeContextLines(review, { title: '## Portrait de la session (notes exactes, moments m:ss,d)', maxChords: 60 }) : null;
-    })(),
+    // [Claude] — 2026-09-25 — Notes exactes : voicings datés, types, rôles, mélodie,
+    // lignes, constats détaillés.
+    portrait: review ? takeContextLines(review, { title: '## Portrait de la session (notes exactes, moments m:ss,d)', maxChords: 60 }) : null,
+    // [Claude] — 2026-09-25 — Les évènements exacts, pour que le Copilote rejoue le
+    // jeu à l'identique (play_my_playing) ; jamais envoyés en texte au modèle.
+    events: currentEvents || [],
+    heardKey: review?.key?.label || null,
   };
 }
 

@@ -120,7 +120,7 @@ global.document = {
 };
 
 // 2. Import dynamique APRÈS le setup de window
-const { sendCopilotMessage, executeToolCalls, wantsToHear } = await import('./copilot-client.js');
+const { sendCopilotMessage, executeToolCalls, wantsToHear, myPlayingRequest } = await import('./copilot-client.js');
 
 const GREEN = '\x1b[32m';
 const RED = '\x1b[31m';
@@ -405,7 +405,7 @@ function testKeyboardCollapsed() {
 function testWantsToHear() {
   const hear = ['Joue-moi un 2-5-1 en Do', 'Je veux écouter un 2-5-1', 'Écoute ce Dm7', 'Je veux entendre un 2-5-1',
     'fais-moi écouter Cmaj9', 'Montre-moi un voicing de Dm9', 'Peux-tu me faire une démo ?', 'Peux-tu me jouer un Cmaj9 ?',
-    'Fais-moi un arpège lent.', 'Fais-moi un lick adapté.', 'Rejoue-le plus lentement'];
+    'Fais-moi un arpège lent.', 'Fais-moi un lick adapté.', 'Rejoue-le plus lentement', 'Fais-moi réécouter ma main gauche'];
   const explain = ['Explique-moi l\'harmonie d\'un 2-5-1.', 'Comment jouer un 2-5-1 ?', 'Qu\'est-ce qu\'un accord plaqué ?',
     'Je joue Dm7 G7 Cmaj7, c\'est juste ?', 'Qu\'est-ce que la main gauche peut jouer ici ?'];
   check('Demandes d\'écoute reconnues (accents compris)', hear.every(wantsToHear), hear.filter((m) => !wantsToHear(m)).join(' | '));
@@ -1336,6 +1336,111 @@ async function testExerciseContextInPrompt() {
   global.fetch = originalFetch;
 }
 
+// [Claude] — 2026-09-25 — Rejouer le jeu EXACT du pianiste (play_my_playing).
+// Session : Dm9 (Ré2 La2 | Do4 Mi4 Fa4, La4 dessus) puis Sol4 Fa4 ; G13 (Sol2 Fa3 | La4 Si4, Mi5 dessus).
+function sessionEvents() {
+  const events = [];
+  const note = (at, midi, hold, velocity = 0.7) => {
+    events.push({ type: 'note_on', note: midi, velocity, channel: 0, time: at });
+    events.push({ type: 'note_off', note: midi, velocity: 0, channel: 0, time: at + hold });
+  };
+  [38, 45].forEach((m) => note(0, m, 1.9, 0.55));
+  [60, 64, 65].forEach((m) => note(0, m, 0.9, 0.55));
+  note(0, 69, 0.9, 0.8);
+  note(1, 67, 0.45); note(1.5, 65, 0.45);
+  [43, 53].forEach((m) => note(2, m, 1.9, 0.5));
+  [69, 71].forEach((m) => note(2, m, 1.8, 0.5));
+  note(2, 76, 1.8, 0.85);
+  events.push({ type: 'control', controller: 64, value: 127, channel: 0, time: 0.1 });
+  events.push({ type: 'control', controller: 64, value: 0, channel: 0, time: 1.95 });
+  return events.sort((a, b) => a.time - b.time);
+}
+const PASSAGE_EVENTS = [
+  { type: 'note_on', note: 72, velocity: 0.7, channel: 0, time: 0 }, { type: 'note_off', note: 72, velocity: 0, channel: 0, time: 0.4 },
+  { type: 'note_on', note: 74, velocity: 0.7, channel: 0, time: 0.5 }, { type: 'note_off', note: 74, velocity: 0, channel: 0, time: 0.9 },
+];
+
+function testMyPlayingTool() {
+  document.resetMock();
+  document.setPanel(false);
+  const call = (args) => ({ function: { name: 'play_my_playing', arguments: JSON.stringify(args) } });
+  const ons = (ex) => (ex?.events || []).filter((e) => e.type === 'noteOn').map((e) => e.note).join(',');
+  const playing = { session: { events: sessionEvents(), key: 'Do majeur', offset: 0 } };
+  const all = executeToolCalls([call({ start: 0, end: 4 })], 'Voici ta session.', { playing });
+  check('play_my_playing : les notes EXACTES de la session, pédale comprise', ons(all.example) === '38,45,60,64,65,69,67,65,43,53,69,71,76' && all.example.kind === 'playing' && all.example.events.some((e) => e.type === 'sustain'), ons(all.example));
+  const melody = executeToolCalls([call({ part: 'melodie' })], '', { playing });
+  check('play_my_playing « melodie » : la voix du dessus (notes jouées avec les accords comprises)', ons(melody.example) === '69,67,65,76', ons(melody.example));
+  const left = executeToolCalls([call({ part: 'main_gauche' })], '', { playing });
+  check('play_my_playing « main_gauche » : Ré2 La2 puis Sol2 Fa3', ons(left.example) === '38,45,43,53', ons(left.example));
+  const heard = executeToolCalls([call({ part: 'melodie' })], '', { playing: { session: { ...playing.session, offset: 2 } } });
+  check('Session : même hauteur que sa relecture (transposition du clavier +2)', ons(heard.example) === '71,69,67,78', ons(heard.example));
+  const inF = executeToolCalls([call({ part: 'melodie', transposeTo: 'F' })], '', { playing });
+  check('play_my_playing transposé de Do en Fa (+5)', ons(inF.example) === '74,72,70,81' && /\+5 demi-tons/.test(inF.example.subtitle), `${ons(inF.example)} ${inF.example?.subtitle}`);
+  const both = { ...playing, passage: { events: PASSAGE_EVENTS, key: null } };
+  check('Passage de « Qu\'en penses-tu ? » présent : rejoué par défaut', ons(executeToolCalls([call({})], '', { playing: both }).example) === '72,74');
+  check('source « session » : la session, même avec un passage', ons(executeToolCalls([call({ source: 'session', part: 'melodie' })], '', { playing: both }).example) === '69,67,65,76');
+  const wins = executeToolCalls([call({ part: 'melodie' }), { function: { name: 'play_progression', arguments: JSON.stringify({ chords: ['Dm7', 'G7'] }) } }], '', { playing });
+  check('play_my_playing l\'emporte sur un exemple recomposé (play_progression)', ons(wins.example) === '69,67,65,76' && wins.ignored === 1, `${ons(wins.example)} ignored=${wins.ignored}`);
+  const none = executeToolCalls([call({ part: 'melodie' })], 'Voici.', { playing: null });
+  check('Jeu pas confié : pas d\'exemple, il est dit comment le confier', !none.example && /Analyser mon jeu avec le Copilot/.test(none.content || '') && /Qu'en penses-tu/.test(none.content || ''), none.content);
+  const empty = executeToolCalls([call({ start: 30, end: 40 })], '', { playing });
+  check('Rien joué entre deux moments : dit tel quel', !empty.example && /Je ne trouve rien de joué entre 0:30 et 0:40/.test(empty.content || ''), empty.content);
+}
+
+function testMyPlayingRequest() {
+  const r1 = myPlayingRequest('Rejoue ma mélodie');
+  check('« Rejoue ma mélodie » → son jeu, la mélodie', r1?.part === 'melodie', JSON.stringify(r1));
+  const r2 = myPlayingRequest('Fais-moi réécouter ma main gauche de 0:30 à 0:45');
+  check('« réécouter ma main gauche de 0:30 à 0:45 » → main gauche, 30 à 45 s', r2?.part === 'main_gauche' && r2.start === 30 && r2.end === 45, JSON.stringify(r2));
+  const r3 = myPlayingRequest('Tu peux rejouer ce que j\'ai joué à 1:12,5 ?');
+  check('« ce que j\'ai joué à 1:12,5 » → tout, autour de ce moment', r3?.part === 'tout' && Math.abs(r3.start - 72.2) < 1e-9 && Math.abs(r3.end - 82.5) < 1e-9, JSON.stringify(r3));
+  check('« Rejoue 0:30 » : son jeu quand une session est confiée, sinon non', myPlayingRequest('Rejoue 0:30', { session: true })?.start === 29.7 && myPlayingRequest('Rejoue 0:30') === null);
+  const r5 = myPlayingRequest('Rejoue ma session transposée en Fa');
+  check('« ma session transposée en Fa » → transposeTo F', r5?.transposeTo === 'F', JSON.stringify(r5));
+  check('Un lick, un 2-5-1 : pas son jeu', myPlayingRequest('Joue-moi un lick sur G7') === null && myPlayingRequest('Explique-moi un 2-5-1 en Do') === null && myPlayingRequest('Joue la mélodie de Autumn Leaves') === null);
+  const questions = ['Est-ce que ce que je joue est juste ?', 'Je joue ma mélodie trop vite ?', 'Comment améliorer ma main gauche ?', 'Ma session est-elle en Do ?', 'J\'ai joué ma mélodie à 0:30, c\'est bien ?'];
+  check('Questions sur son jeu (sans demande d\'écoute) : pas de relecture imposée', questions.every((m) => myPlayingRequest(m, { session: true }) === null), questions.filter((m) => myPlayingRequest(m, { session: true })).join(' | '));
+  const asks = ['Joue ma mélodie', 'Peux-tu rejouer ce que j\'ai joué à 1:12 ?', 'Je veux réentendre ma session', 'Fais-moi entendre mes accords', 'Rejoue le passage de 0:30', 'Joue-moi ma main droite'];
+  check('Demandes d\'écoute de son jeu reconnues', asks.every((m) => myPlayingRequest(m, { session: true })), asks.filter((m) => !myPlayingRequest(m, { session: true })).join(' | '));
+}
+
+async function testMyPlayingInSend() {
+  const originalFetch = global.fetch;
+  global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
+  let body = null;
+  // Le modèle répond sans appeler d'outil.
+  global.fetch = async (url, options) => {
+    if (!body) body = JSON.parse(options.body);
+    return { ok: true, status: 200, json: async () => ({ choices: [{ message: { role: 'assistant', content: 'Voici ta mélodie : La4 Sol4 Fa4, puis Mi5 sur G13.' } }] }) };
+  };
+  const context = {
+    type: 'session', sessionId: 's1', name: 'Ma session', duration: 4, noteCount: 13, chordCount: 2,
+    portrait: ['## Portrait de la session (notes exactes, moments m:ss,d)', '### Mélodie (voix du dessus)', '- 0:00,0 Dm9 : La4 Sol4 Fa4'],
+    events: sessionEvents(),
+    playing: { session: { events: sessionEvents(), key: null, offset: 0 } },
+  };
+  const res = await sendCopilotMessage({ message: 'Rejoue ma mélodie', messages: [], context });
+  const system = body?.messages?.[0]?.content || '';
+  const tools = (body?.tools || []).map((t) => t.function?.name);
+  check('Session confiée : outil play_my_playing proposé, paragraphe du prompt présent', tools.includes('play_my_playing') && /Ne recompose jamais son jeu/.test(system) && /play_my_playing \(source « session »\)/.test(system), tools.join(','));
+  check('Les évènements exacts ne partent jamais dans le texte envoyé', !/note_on|"velocity"/.test(system) && system.length < 60000, String(system.length));
+  const ons = (res.toolResult?.example?.events || []).filter((e) => e.type === 'noteOn').map((e) => e.note).join(',');
+  check('« Rejoue ma mélodie » sans outil appelé : sa mélodie rejouée à l\'identique, jamais un lick', res.ok && res.toolResult?.example?.kind === 'playing' && ons === '69,67,65,76', `${res.toolResult?.example?.kind} ${ons}`);
+  check('« Rejoue ma mélodie » : l\'exemple démarre tout seul', res.autoplay === true);
+
+  body = null;
+  const offset = await sendCopilotMessage({ message: 'Que penses-tu de ma session ?', messages: [], context: { ...context, playing: { session: { ...context.playing.session, offset: -3 } } } });
+  const system2 = body?.messages?.[0]?.content || '';
+  check('Transposition du clavier dite au modèle', offset.ok && /Transposition du clavier en cours : -3 demi-tons \(la relecture et play_my_playing sonnent 3 demi-tons plus bas/.test(system2), (system2.match(/Transposition du clavier[^\n]*/) || [''])[0]);
+
+  body = null;
+  const alone = await sendCopilotMessage({ message: 'Rejoue ma mélodie', messages: [], context: null });
+  const tools3 = (body?.tools || []).map((t) => t.function?.name);
+  check('Rien de confié : pas d\'outil play_my_playing, pas d\'exemple inventé, comment le confier',
+    !tools3.includes('play_my_playing') && !alone.toolResult?.example && /Analyser mon jeu avec le Copilot/.test(alone.content || ''), `${tools3.join(',')} | ${alone.content}`);
+  global.fetch = originalFetch;
+}
+
 async function runTests() {
   testToolCalls();
   await testNoKey();
@@ -1373,6 +1478,9 @@ async function runTests() {
   await testTutorialContextInPrompt();
   testExerciseTool();
   await testExerciseContextInPrompt();
+  testMyPlayingTool();
+  testMyPlayingRequest();
+  await testMyPlayingInSend();
   testWantsToHear();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);

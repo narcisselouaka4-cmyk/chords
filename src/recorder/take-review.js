@@ -34,12 +34,13 @@ import { classifyVoicing } from '../voicing-engine/voicing-classifier.js';
 import { noteRoles, parseChordName, availableTensions, nearestFitting } from '../pedagogie/note-roles.js';
 
 export { nearestFitting };
-import { describeVoiceLeading, lineNoteRole, frenchPitchName, degreeWord } from '../pedagogie/example-guide.js';
+import { describeVoiceLeading, lineNoteRole, frenchPitchName, frenchNoteName, degreeWord } from '../pedagogie/example-guide.js';
 import { fitScales, extractScaleRequest, scalePitchClasses } from '../pedagogie/scales.js';
 import { classifyIntent, extractKey } from '../pedagogie/intent-classifier.js';
 import { detectKey } from '../analyzer/key-detector.js';
 import { isMinorSymbol, isDominantSymbol } from '../analyzer/harmonic-utils.js';
 import { chordToneIntervals } from '../practice-exercise.js';
+import { extractMelody, melodyWithChords, formatMelodyLines } from './melody-line.js';
 
 const pcOf = (n) => ((n % 12) + 12) % 12;
 const ROOTS_FR = ['Do', 'Réb', 'Ré', 'Mib', 'Mi', 'Fa', 'Fa#', 'Sol', 'Lab', 'La', 'Sib', 'Si'];
@@ -507,9 +508,13 @@ export function reviewTake(events, { question = '', expect = null } = {}) {
     .filter((m) => Number.isFinite(m.at))
     .sort((a, b) => a.at - b.at);
 
+  // [Claude] — 2026-09-25 — La voix du dessus (Narcisse : « il ne reconnaît même
+  // pas les notes mélodiques, les top notes, dans mes accords »).
+  const melody = melodyWithChords(extractMelody(sorted), segments);
+
   const review = {
     duration, noteCount: windows.length, kind, question: String(question || '').trim(),
-    chords, lines, key, cadences, rhythm, perf, intent, issues, strengths, moments,
+    chords, lines, key, cadences, rhythm, perf, intent, issues, strengths, moments, melody,
   };
   review.verdict = takeVerdict(review);
   review.contextLines = takeContextLines(review);
@@ -553,6 +558,16 @@ export function takeVerdict(review) {
   return `${line.notes.length} notes${line.scale ? ` · ${line.scale.label}` : ''}${tail}`;
 }
 
+/** Note de mélodie qui sonne à l'instant t (ou attaquée dans les 100 ms qui suivent). */
+function melodyAt(melody, t) {
+  let found = null;
+  for (const n of melody || []) {
+    if (n.start > t + 0.1) break;
+    if (n.end > t) found = n;
+  }
+  return found;
+}
+
 /**
  * Portrait en texte compact pour le Copilote (notes exactes, moments précis).
  * @param {{title?: string, maxChords?: number}} [options] - une session : titre à elle, 60 accords détaillés
@@ -569,12 +584,13 @@ export function takeContextLines(review, { title = '## Passage joué au clavier 
   if (intent.asked.length) out.push(`Ce qu'il voulait jouer : ${intent.asked.join(' ; ')}`);
   if (chords.length) {
     out.push('');
-    out.push('### Accords (moment · nom [degré] · main gauche | main droite · voicing reconnu · rôles · conduite des voix vers le suivant)');
+    out.push('### Accords (moment · nom [degré] · main gauche | main droite · dessus = note de mélodie · voicing reconnu · rôles · conduite des voix vers le suivant)');
     for (const c of chords.slice(0, maxChords)) {
       const hands = c.hands.oneHand ? `une main : ${names([...c.hands.left, ...c.hands.right])}` : `${names(c.hands.left)} | ${names(c.hands.right)}`;
       const roles = c.roles.map((r) => (r.kind === 'outside' ? `${r.degree}!` : r.degree)).join(' ');
       const voicing = `${c.voicing.label}${c.voicing.detail ? ` (${c.voicing.detail})` : ''}, ${c.voicing.inversion}`;
-      out.push(`- ${takeMoment(c.at)} ${c.name}${c.asked ? ` (= ${c.asked})` : ''}${c.degree ? ` [${c.degree}]` : ''}${c.matched ? '' : ' (non reconnu)'} · ${hands} · ${voicing} · ${roles}${c.leading?.text ? ` · → ${c.leading.text}` : ''}`);
+      const top = melodyAt(review.melody, c.at);
+      out.push(`- ${takeMoment(c.at)} ${c.name}${c.asked ? ` (= ${c.asked})` : ''}${c.degree ? ` [${c.degree}]` : ''}${c.matched ? '' : ' (non reconnu)'} · ${hands}${top ? ` · dessus ${frenchNoteName(top.midi, c.name)}` : ''} · ${voicing} · ${roles}${c.leading?.text ? ` · → ${c.leading.text}` : ''}`);
     }
     if (chords.length > maxChords) {
       // Au-delà : la grille seule (moments et noms), pour garder le contexte borné.
@@ -582,13 +598,20 @@ export function takeContextLines(review, { title = '## Passage joué au clavier 
       out.push(`- … puis ${rest.length} accords (grille seule) : ${rest.slice(0, 80).map((c) => `${takeMoment(c.at)} ${c.name}`).join(' · ')}${rest.length > 80 ? ' …' : ''}`);
     }
   }
+  // [Claude] — 2026-09-25 — La voix du dessus, notes attaquées avec les accords comprises.
+  const melodyText = formatMelodyLines(review.melody, { max: isTake ? 60 : 120 });
+  if (melodyText.length) {
+    out.push('');
+    out.push('### Mélodie (voix du dessus : la note la plus haute de chaque attaque, notes attaquées avec les accords comprises ; moment, accord qui sonne : notes dans l\'ordre)');
+    out.push(...melodyText.map((l) => `- ${l}`));
+  }
   if (lines.length) {
     out.push('');
     out.push('### Lignes (mélodie, gamme, lick, run, arpège : notes dans l\'ordre, rôle sur l\'accord qui sonne)');
     for (const l of lines.slice(0, 10)) {
       const notes = l.roles.slice(0, 32).map((r) => `${frenchNote(r.midi)}${r.chord ? `(${r.kind === 'passing' ? 'passage' : r.kind === 'outside' ? `${r.label}!` : r.label})` : ''}`).join(' ');
       const scale = l.scale ? ` · gamme reconnue : ${l.scale.label}${l.scale.outside.length ? ` (${l.scale.outside.length} note(s) hors gamme)` : ''}${l.alternatives.length ? ` [ou ${l.alternatives.map((a) => a.label).join(', ')}]` : ''}` : '';
-      out.push(`- ${takeMoment(l.start)} : ${notes}${l.notes.length > 32 ? ' …' : ''} (${l.notes.length} notes)${l.over.length ? ` sur ${l.over.join(', ')}` : ''}${scale}`);
+      out.push(`- ${takeMoment(l.start)} : ${notes}${l.notes.length > 32 ? ' …' : ''} (${l.notes.length} note${l.notes.length > 1 ? 's' : ''})${l.over.length ? ` sur ${l.over.join(', ')}` : ''}${scale}`);
     }
   }
   const harmony = [];
@@ -629,26 +652,4 @@ export function takeContextLines(review, { title = '## Passage joué au clavier 
     out.push('- (aucune : rien de mesurable à changer)');
   }
   return out;
-}
-
-/**
- * Le passage en exemple réécoutable (même lecteur que les exemples du Copilote :
- * touches allumées en jaune, pédale rejouée).
- * @param {object[]} events - évènements du passage (secondes)
- * @param {object} review - reviewTake(events)
- * @returns {object|null} exemple ({kind: 'take', events en temps (tempo 60 : un temps = une seconde), beats})
- */
-export function passageToExample(events, review, { maxEvents = 1500 } = {}) {
-  const list = (events || []).filter((e) => Number.isFinite(e?.time));
-  if (!list.length || list.length > maxEvents || !review) return null;
-  const out = [];
-  for (const e of list) {
-    if (e.type === 'note_on' && e.velocity > 0) out.push({ time: e.time, type: 'noteOn', note: e.note, velocity: e.velocity > 1 ? e.velocity / 127 : e.velocity });
-    else if (e.type === 'note_off' || (e.type === 'note_on' && !(e.velocity > 0))) out.push({ time: e.time, type: 'noteOff', note: e.note });
-    else if (e.type === 'control' && e.controller === 64) out.push({ time: e.time, type: 'sustain', value: e.value >= 64 });
-  }
-  const order = { noteOff: 0, sustain: 1, noteOn: 2 };
-  out.sort((a, b) => a.time - b.time || order[a.type] - order[b.type]);
-  const beats = Math.max(0, ...out.map((e) => e.time));
-  return { kind: 'take', title: 'Ton passage', subtitle: review.verdict, style: null, tempo: 60, events: out, beats, chords: [] };
 }

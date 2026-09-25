@@ -463,6 +463,10 @@ function transposeNote(note) {
   return note + state.transpose;
 }
 
+// [Claude] — 2026-09-25 — Le Copilote rejoue une session à la hauteur de sa
+// relecture (touches brutes + transposition en cours) : il lit la transposition ici.
+registerCopilotContext('keyboard', () => ({ transpose: state.transpose }));
+
 function isPlayableMidi(note) {
   return Number.isFinite(note) && Number.isInteger(note) && note >= 0 && note <= 127;
 }
