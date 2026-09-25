@@ -2185,8 +2185,7 @@
   font: 9.5px/1.5 var(--tr-mono);
 }
 #practice-view-copilot .copilot-example-hands b { color: var(--tr-accent); font-weight: 600; }
-/* [Claude] — 2026-09-25 — Boutons de la carte (Écouter, Pas à pas / Voir mes erreurs)
-   et barre du pas à pas (étape, Précédent, Écouter l'étape, Suivant, Quitter). */
+/* [Claude] — 2026-09-25 — Boutons de la carte, en colonne. */
 #practice-view-copilot .tr-chat-demos.copilot-example { flex-wrap: wrap; }
 #practice-view-copilot .copilot-example-text { flex: 1; }
 #practice-view-copilot .copilot-example-buttons {
@@ -2200,34 +2199,7 @@
   border-style: dashed;
   background: transparent;
 }
-#practice-view-copilot .copilot-stepper {
-  flex-basis: 100%;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 12px;
-  margin-top: 4px;
-  padding: 8px 10px;
-  border-radius: 6px;
-  background: var(--tr-surface);
-  border: 1px solid var(--tr-accent);
-}
-#practice-view-copilot .copilot-stepper-title { color: var(--tr-accent); font-size: 10.5px; font-weight: 650; }
-#practice-view-copilot .copilot-stepper-step { flex: 1; min-width: 160px; color: var(--tr-secondary); font-size: 10.5px; }
-#practice-view-copilot .copilot-stepper-actions { display: flex; flex-wrap: wrap; gap: 5px; }
-#practice-view-copilot .copilot-stepper-actions > button {
-  padding: 4px 9px;
-  border: 1px solid var(--tr-border);
-  border-radius: 5px;
-  background: var(--tr-inset);
-  color: var(--tr-text);
-  font-size: 10.5px;
-  cursor: pointer;
-}
-#practice-view-copilot .copilot-stepper-actions > button:hover:not(:disabled) { border-color: var(--tr-accent); }
-#practice-view-copilot .copilot-stepper-actions > button:disabled { opacity: .45; cursor: default; }
-
-/* [Claude] — 2026-09-25 — Moment écrit par le Copilote : lien qui le rejoue et le montre au clavier. */
+/* [Claude] — 2026-09-25 — Moment écrit par le Copilote : lien qui le rejoue. */
 #practice-view-copilot .copilot-moment-link {
   display: inline;
   padding: 0 3px;
@@ -2243,25 +2215,8 @@
 #practice-view-copilot .copilot-moment-link:hover { background: var(--tr-accent); color: var(--tr-button-text); }
 
 /* [Claude] — 2026-09-25 — Carte « Ton passage » (question « Qu'en penses-tu ? ») :
-   ce qui a été reconnu, Réécouter, et les moments à revoir (un clic : au clavier). */
+   ce qui a été reconnu, et Réécouter. */
 #practice-view-copilot .copilot-take { margin-top: 8px; max-width: 560px; text-align: left; }
-#practice-view-copilot .copilot-take-moments {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 7px;
-}
-#practice-view-copilot .copilot-take-moment {
-  padding: 4px 8px;
-  border: 1px solid var(--tr-border);
-  border-radius: 5px;
-  background: var(--tr-surface);
-  color: var(--tr-secondary);
-  font: 9.5px/1.45 var(--tr-mono);
-  text-align: left;
-  cursor: pointer;
-}
-#practice-view-copilot .copilot-take-moment:hover { border-color: var(--tr-accent); color: var(--tr-text); }
 @media (max-width: 640px) {
   #practice-view-copilot .tr-chat-demos.copilot-example { flex-direction: column; }
 }

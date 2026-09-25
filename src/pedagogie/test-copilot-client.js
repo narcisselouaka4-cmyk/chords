@@ -121,7 +121,6 @@ global.document = {
 
 // 2. Import dynamique APRÈS le setup de window
 const { sendCopilotMessage, executeToolCalls, wantsToHear } = await import('./copilot-client.js');
-const { getKeyboardMarks } = await import('../ui/keyboard-marks.js');
 
 const GREEN = '\x1b[32m';
 const RED = '\x1b[31m';
@@ -413,44 +412,20 @@ function testWantsToHear() {
   check('Questions d\'explication : pas de lecture automatique', explain.every((m) => !wantsToHear(m)), explain.filter(wantsToHear).join(' | '));
 }
 
-function testAnnotation() {
-  // [Claude] — 2026-09-25 — annotate_keyboard pose des marques sur les touches
-  // (keyboard-marks.js) : rôle de chaque note si l'accord est donné, légende.
+// [Claude] — 2026-09-25 — Narcisse : « j'aime pas les étiquettes pour indiquer la
+// fonction de chaque note ». Plus d'annotate_keyboard, plus de légendes d'étapes :
+// un appel résiduel (vieux modèle, historique) est ignoré sans rien casser.
+function testNoKeyboardLabels() {
   document.resetMock();
   document.setPanel(false);
-
   const result = executeToolCalls([
     { function: { name: 'annotate_keyboard', arguments: JSON.stringify({ notes: [{ midi: 60, label: 'Do' }] }) } },
   ]);
-  check('annotate_keyboard est exécuté sur le clavier visible', result.annotated.length === 1);
-  check('Le bon data-midi est annoté', result.annotated[0].midi === 60);
-  const first = getKeyboardMarks();
-  check('Une marque posée sur la touche (étiquette courte gardée)', first.marks.length === 1 && first.marks[0].midi === 60 && first.marks[0].label === 'Do', JSON.stringify(first));
-
-  // Accord donné : couleur et degré de chaque touche ; l'ancienne marque est remplacée.
-  executeToolCalls([
-    { function: { name: 'annotate_keyboard', arguments: JSON.stringify({ chord: 'Dm9', caption: 'Le rootless de Dm9', notes: [{ midi: 53 }, { midi: 57 }, { midi: 60 }, { midi: 64, label: 'neuvième' }] }) } },
+  check('annotate_keyboard : ignoré (plus d\'étiquettes au clavier)', result.ignored === 1 && !result.example && result.annotated === undefined, JSON.stringify(result));
+  const prog = executeToolCalls([
+    { function: { name: 'play_progression', arguments: JSON.stringify({ chords: ['Dm7', 'G7', 'Cmaj7'], steps: ['Dm7 : écoute le Do du dessus'] }) } },
   ]);
-  const marks = getKeyboardMarks();
-  const byMidi = Object.fromEntries(marks.marks.map((m) => [m.midi, m]));
-  check('L\'annotation précédente est remplacée', !byMidi[60] || byMidi[60].label !== 'Do');
-  check('Rôles : Fa = b3 (guide), La = 5, Do = b7 (guide), Mi = 9 (couleur)',
-    byMidi[53]?.kind === 'guide' && byMidi[53]?.label === 'b3' && byMidi[57]?.label === '5' && byMidi[60]?.label === 'b7' && byMidi[64]?.kind === 'color' && byMidi[64]?.label === '9',
-    JSON.stringify(marks.marks));
-  check('Légende : la phrase du Copilote et l\'étiquette trop longue pour la pastille', /Le rootless de Dm9/.test(marks.caption) && /E4 : neuvième/.test(marks.caption), marks.caption);
-}
-
-// [Claude] — 2026-09-25 — Légendes d'étapes écrites par le Copilote (paramètre `steps`).
-function testStepCaptions() {
-  document.resetMock();
-  document.setPanel(false);
-  const result = executeToolCalls([
-    { function: { name: 'play_progression', arguments: JSON.stringify({ chords: ['Dm7', 'G7', 'Cmaj7'], steps: ['Dm7 : écoute le Do du dessus', 'G7 : le Do est descendu sur Si'] }) } },
-  ]);
-  const steps = result.example?.steps || [];
-  check('steps du Copilote : légendes des deux premiers accords remplacées', steps[0]?.caption === 'Dm7 : écoute le Do du dessus' && steps[1]?.caption === 'G7 : le Do est descendu sur Si', JSON.stringify(steps.map((x) => x.caption)));
-  check('steps du Copilote : le troisième garde la légende calculée', /Cmaj7/.test(steps[2]?.caption || ''), steps[2]?.caption);
-  check('steps du Copilote : les marques restent celles de l\'application', steps[0]?.marks?.length >= 4);
+  check('Exemple de progression : joué, sans étapes à marquer', prog.example && prog.example.steps === undefined && prog.example.chords.length === 3);
 }
 
 async function testRetryWhenDemoAnnouncedButNoToolCalls() {
@@ -1243,8 +1218,8 @@ async function testParsePlayNoteFromText() {
 }
 
 // [Claude] — 2026-09-25 — Tutoriel : rejouer les notes EXACTES du professeur
-// (play_tutorial_passage), transposées au besoin, ou les montrer au clavier
-// (show_tutorial_moment) ; message honnête quand l'application n'a pas lu ses notes.
+// (play_tutorial_passage), transposées au besoin ; message honnête quand
+// l'application n'a pas lu ses notes.
 const TUTORIAL = {
   key: 'C',
   segments: [{ start: 0, end: 2, label: 'Dm9' }, { start: 2, end: 4, label: 'G13' }],
@@ -1262,26 +1237,15 @@ function testTutorialPassageTool() {
   const lick = executeToolCalls([call({ start: 2, end: 3, title: 'Le lick de 0:02' })], 'Voici le lick.', { tutorial: TUTORIAL });
   const ons = (ex) => (ex?.events || []).filter((e) => e.type === 'noteOn').map((e) => e.note).join(',');
   check('play_tutorial_passage : les notes exactes du professeur', ons(lick.example) === '74,75,76' && lick.example.title === 'Le lick de 0:02', ons(lick.example));
-  check('play_tutorial_passage : « Voir dans la vidéo » connaît le moment', lick.example.tutorialStart === 2 && lick.example.tutorialEnd === 3);
+  check('play_tutorial_passage : l\'exemple garde le moment de la vidéo', lick.example.tutorialStart === 2 && lick.example.tutorialEnd === 3);
   const inF = executeToolCalls([call({ start: 2, end: 3, transposeTo: 'F' })], 'En Fa.', { tutorial: TUTORIAL });
-  check('play_tutorial_passage : transposé de Do en Fa (+5)', ons(inF.example) === '79,80,81' && inF.example.steps.some((x) => /C13/.test(x.caption)), `${ons(inF.example)} ${inF.example?.steps?.map((x) => x.caption).join(' | ')}`);
+  check('play_tutorial_passage : transposé de Do en Fa (+5)', ons(inF.example) === '79,80,81', ons(inF.example));
   const lh = executeToolCalls([call({ start: 0, end: 2, hand: 'LH' })], '', { tutorial: TUTORIAL });
   check('play_tutorial_passage : main gauche seule', ons(lh.example) === '38');
   const none = executeToolCalls([call({ start: 2, end: 3 })], 'Voici le lick.', { tutorial: null });
   check('Sans notes du professeur : pas d\'exemple, message honnête', !none.example && /pas les notes exactes jouées par le professeur/.test(none.content || ''), none.content);
   const empty = executeToolCalls([call({ start: 30, end: 32 })], '', { tutorial: TUTORIAL });
   check('Aucune note lue entre deux instants : dit tel quel', !empty.example && /Aucune note du professeur/.test(empty.content || ''), empty.content);
-}
-
-function testTutorialMomentTool() {
-  document.resetMock();
-  document.setPanel(false);
-  const res = executeToolCalls([{ function: { name: 'show_tutorial_moment', arguments: JSON.stringify({ time: 1 }) } }], '', { tutorial: TUTORIAL });
-  const marks = getKeyboardMarks();
-  const byMidi = Object.fromEntries(marks.marks.map((m) => [m.midi, m]));
-  check('show_tutorial_moment : les cinq notes tenues à 1 s', res.annotated.length === 5 && marks.marks.length === 5, JSON.stringify(marks.marks));
-  check('show_tutorial_moment : rôles dans Dm9 (Ré = 1, Do = b7, Mi = 9)', byMidi[38]?.label === '1' && byMidi[60]?.label === 'b7' && byMidi[64]?.label === '9', JSON.stringify(marks.marks));
-  check('show_tutorial_moment : légende avec le moment et l\'accord', /0:01 Dm9/.test(marks.caption), marks.caption);
 }
 
 async function testTutorialContextInPrompt() {
@@ -1307,7 +1271,7 @@ async function testTutorialContextInPrompt() {
   const tools = (body?.tools || []).map((t) => t.function?.name);
   check('Tutoriel : relevé, résumé du cours et frise des notes dans le contexte',
     /Relevé : lu à l'image \(clavier dessiné\)/.test(system) && /## Résumé du cours/.test(system) && /- 0:02 G13 : — \| Ré5 · puis Ré#5 Mi5/.test(system), system.slice(-900));
-  check('Tutoriel avec notes : outils play_tutorial_passage et show_tutorial_moment proposés', tools.includes('play_tutorial_passage') && tools.includes('show_tutorial_moment'), tools.join(','));
+  check('Tutoriel avec notes : outil play_tutorial_passage proposé (plus de show_tutorial_moment ni d\'annotate_keyboard)', tools.includes('play_tutorial_passage') && !tools.includes('show_tutorial_moment') && !tools.includes('annotate_keyboard'), tools.join(','));
   check('Tutoriel : la relance (exemple annoncé sans outil) garde les outils du tutoriel',
     bodies.length === 2 && (bodies[1].tools || []).some((t) => t.function?.name === 'play_tutorial_passage'), `appels=${bodies.length}`);
   body = null;
@@ -1344,7 +1308,8 @@ function testExerciseTool() {
   const all = executeToolCalls([call({ chords: 'all', title: 'Le II-V-I de la carte' })], '', { exercise: EXERCISE });
   const at = (ex, t) => (ex?.events || []).filter((e) => e.type === 'noteOn' && Math.abs(e.time - t) < 1e-6).map((e) => e.note).join(',');
   check('play_exercise « all » : les trois accords enchaînés (un toutes les 1,6 s)', at(all.example, 0) === '43,58,62,65,69' && at(all.example, 1.6) === '48,58,64,69' && at(all.example, 3.2) === '41,57,60,64,67' && all.example.title === 'Le II-V-I de la carte', `${at(all.example, 0)} | ${at(all.example, 1.6)} | ${at(all.example, 3.2)}`);
-  check('play_exercise : chaque étape porte le nom de son accord (pas à pas)', (all.example.steps || []).length === 3 && /Gm9/.test(all.example.steps[0].caption), JSON.stringify((all.example.steps || []).map((x) => x.caption)));
+  const bass = (all.example.events || []).find((e) => e.type === 'noteOn' && e.note === 43);
+  check('play_exercise : la main gauche de la carte reste à la main gauche', bass?.hand === 'lh' && all.example.steps === undefined, JSON.stringify(bass));
   const named = executeToolCalls([call({ chords: 'Fmaj9 Gm9' })], '', { exercise: EXERCISE });
   check('play_exercise par noms : dans l\'ordre demandé', at(named.example, 0) === '41,57,60,64,67' && at(named.example, 1.6) === '43,58,62,65,69');
   const none = executeToolCalls([call({})], 'Voici.', { exercise: null });
@@ -1403,10 +1368,8 @@ async function runTests() {
   testToolParsing();
   testSequenceScheduling();
   testKeyboardCollapsed();
-  testAnnotation();
-  testStepCaptions();
+  testNoKeyboardLabels();
   testTutorialPassageTool();
-  testTutorialMomentTool();
   await testTutorialContextInPrompt();
   testExerciseTool();
   await testExerciseContextInPrompt();

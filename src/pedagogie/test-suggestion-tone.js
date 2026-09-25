@@ -3,18 +3,17 @@
 // Narcisse : « ce serait pas très bien vu de simplement dire à l'utilisateur qu'il
 // a fait des erreurs […] on reste un assistant, pas un coach. L'assistant
 // devrait plutôt lui conseiller de faire ci ou ça. » Ce test fait produire à
-// l'application ses textes sur des jeux variés (passage joué, session, pas à pas,
-// exercice, légendes du clavier) et vérifie :
+// l'application ses textes sur des jeux variés (passage joué, session, exercice,
+// avis sans clé d'IA dans la ligne d'état) et vérifie :
 //   - qu'aucun ne juge (« erreur », « faux », « ne va pas », « à revoir »…) ;
 //   - que chaque suggestion propose une action (essaie, ajoute, relève…).
 //
 // Lancer : node src/pedagogie/test-suggestion-tone.js
 
-import { reviewTake, takeMarks, takeVerdict } from '../recorder/take-review.js';
+import { reviewTake, takeVerdict } from '../recorder/take-review.js';
 import { analyzeSessionPerformance, formatPerformanceFindings } from '../recorder/session-performance.js';
-import { judgeChordStep, judgeSequenceStep, stepFeedback, stepsFromMoments } from './copilot-steps.js';
-import { MARK_KINDS } from '../ui/keyboard-marks.js';
 import { createPracticeExercise } from '../practice-exercise.js';
+import { localReviewText } from './copilot-tab.js';
 
 let passed = 0;
 let failed = 0;
@@ -78,16 +77,12 @@ function testTakeReviews() {
       review.verdict, takeVerdict(review),
       ...review.issues.flatMap((i) => [i.title, i.text, ...(i.moments || []).map((m) => m.text)]),
       ...review.contextLines,
-      ...review.moments.map((m) => takeMarks(review, m).caption),
-      takeMarks(review).caption,
-      ...stepsFromMoments(review.moments, { marksOf: (m) => takeMarks(null, m) }).map((s) => s.caption),
+      localReviewText(review),
     ];
     const bad = judging(texts);
     check(`Passage (${p.what}) : aucun mot qui juge`, bad.length === 0, bad.join(' | '));
     const noAction = review.issues.filter((i) => !ACTION.test(i.text));
     check(`Passage (${p.what}) : chaque suggestion propose une action`, noAction.length === 0, noAction.map((i) => i.text).join(' | '));
-    const red = review.moments.map((m) => takeMarks(review, m)).filter((v) => v.tone === 'error' || v.marks.some((mk) => mk.kind === 'wrong' || mk.kind === 'missing'));
-    check(`Passage (${p.what}) : pas de rouge au clavier`, red.length === 0, JSON.stringify(red[0] || ''));
   }
 }
 
@@ -121,23 +116,6 @@ function testSession() {
   check('Session : portrait envoyé au Copilote sans mot qui juge', bad2.length === 0, bad2.join(' | '));
 }
 
-// ── Pas à pas ──
-function testSteps() {
-  const chord = { kind: 'chord', name: 'Dm9', notes: [38, 53, 57, 60, 64], marks: [{ midi: 60, kind: 'guide', label: 'b7' }], caption: 'Dm9' };
-  const seq = { kind: 'sequence', notes: [62, 63, 64, 67], caption: 'Ré Ré# Mi Sol' };
-  const feedbacks = [
-    stepFeedback(chord, judgeChordStep([38, 53, 57, 64], chord)),
-    stepFeedback(chord, judgeChordStep([38, 53, 57, 61, 64], chord)),
-    stepFeedback(chord, judgeChordStep([38, 53, 57, 60, 61, 64], chord)),
-    stepFeedback(seq, judgeSequenceStep([62, 64], seq)),
-    stepFeedback(seq, judgeSequenceStep([62, 66], seq)),
-    stepFeedback(seq, judgeSequenceStep([62, 63], seq)),
-  ];
-  const bad = judging(feedbacks.map((f) => f.caption));
-  check('Pas à pas : aucun mot qui juge', bad.length === 0, bad.join(' | '));
-  check('Pas à pas : jamais de rouge (ton ni touche)', feedbacks.every((f) => f.tone !== 'error' && !f.marks.some((m) => m.kind === 'wrong' || m.kind === 'missing')), JSON.stringify(feedbacks.map((f) => f.tone)));
-}
-
 // ── Exercices ──
 function testExercise() {
   const ex = createPracticeExercise();
@@ -152,18 +130,9 @@ function testExercise() {
   check('Exercices : chaque message propose une action', messages.every((m) => ACTION.test(m) || /essayez les notes de la carte/.test(m)), messages.join(' | '));
 }
 
-// ── Légende du clavier ──
-function testLegend() {
-  const labels = Object.values(MARK_KINDS);
-  check('Légende du clavier : aucun libellé qui juge', judging(labels).length === 0, judging(labels).join(' | '));
-  check('Légende du clavier : « À remplacer » et « Suggérée »', MARK_KINDS.swap === 'À remplacer' && MARK_KINDS.suggest === 'Suggérée' && !MARK_KINDS.wrong && !MARK_KINDS.missing);
-}
-
 testTakeReviews();
 testSession();
-testSteps();
 testExercise();
-testLegend();
 
 console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);
 process.exit(failed === 0 ? 0 : 1);

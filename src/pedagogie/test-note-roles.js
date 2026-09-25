@@ -1,10 +1,8 @@
-// [Claude] — 2026-09-25 — Tests du rôle des notes (note-roles.js) et des
-// marques du clavier (keyboard-marks.js, partie sans DOM).
+// [Claude] — 2026-09-25 — Tests du rôle des notes (note-roles.js).
 //
 // Lancer : node src/pedagogie/test-note-roles.js
 
 import { noteRoles, parseChordName, availableTensions } from './note-roles.js';
-import { setKeyboardMarks, clearKeyboardMarks, getKeyboardMarks } from '../ui/keyboard-marks.js';
 
 let passed = 0;
 let failed = 0;
@@ -64,32 +62,10 @@ function testTypographicNames() {
   check('F#7♭13 : le Ré (♭13) est une note de l\'accord', noteRoles('F#7♭13', [42, 62]).every((r) => r.inChord));
 }
 
-function testMarksState() {
-  setKeyboardMarks([
-    { midi: 60, kind: 'root', label: '1' },
-    { midi: 64, kind: 'nimportequoi', label: 'trop long' },
-    { midi: 60, kind: 'guide', label: 'b7' },
-    { midi: 200, kind: 'root' },
-    { midi: 67, kind: 'guide', label: '3', moving: true },
-  ], { caption: 'Dm9 → G13', tone: 'ok' });
-  const state = getKeyboardMarks();
-  check('Marques : une par touche, MIDI invalide ignoré', state.marks.length === 3, JSON.stringify(state.marks));
-  const m60 = state.marks.find((m) => m.midi === 60);
-  check('Marques : la dernière donnée l\'emporte sur une touche', m60?.kind === 'guide' && m60.label === 'b7');
-  const m64 = state.marks.find((m) => m.midi === 64);
-  check('Marques : genre inconnu → « à jouer », étiquette coupée à 4 caractères', m64?.kind === 'target' && m64.label === 'trop', JSON.stringify(m64));
-  check('Marques : voix qui bouge gardée', state.marks.find((m) => m.midi === 67)?.moving === true);
-  check('Marques : légende et ton', state.caption === 'Dm9 → G13' && state.tone === 'ok');
-  clearKeyboardMarks();
-  const cleared = getKeyboardMarks();
-  check('Effacer : plus de marque ni de légende', cleared.marks.length === 0 && cleared.caption === '');
-}
-
 testChordRoles();
 testTensionsAndOutside();
 testSlashChords();
 testTypographicNames();
-testMarksState();
 
 console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);
 process.exit(failed === 0 ? 0 : 1);

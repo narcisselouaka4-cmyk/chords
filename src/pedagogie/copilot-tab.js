@@ -15,11 +15,8 @@ import {
 } from './copilot-history.js';
 import { sendCopilotMessage } from './copilot-client.js';
 import { hasAIKey } from '../ai/openai-config.js';
-import { setKeyboardMarks, clearKeyboardMarks } from '../ui/keyboard-marks.js';
-import { chordExampleSteps } from './example-guide.js';
 import { liveTake, passageShift, exampleToSessionEvents } from '../recorder/live-take.js';
-import { reviewTake, takeMarks, takeMoment, passageToExample, momentText } from '../recorder/take-review.js';
-import { stepsFromExample, stepsFromMoments, judgeChordStep, judgeSequenceStep, stepFeedback } from './copilot-steps.js';
+import { reviewTake, takeMoment, passageToExample, momentText } from '../recorder/take-review.js';
 import { readCopilotContext } from './copilot-context.js';
 
 const els = {};
@@ -28,15 +25,10 @@ let messages = [];
 let currentConversationId = null;
 // Exemple du Copilote en cours de lecture (identifiant du message), ou null.
 let playingExampleId = null;
-// [Claude] — 2026-09-25 — Exemple en cours de lecture (pour ses moments au clavier).
-let playingExample = null;
 // [Claude] — 2026-09-25 — Portrait du dernier passage joué (« Qu'en penses-tu ? »),
 // gardé pour les questions de suivi de la même conversation.
 let lastTakeContext = null;
 const DEFAULT_REVIEW_QUESTION = 'Qu\'en penses-tu de ce que je viens de jouer ?';
-// [Claude] — 2026-09-25 — Pas à pas au clavier (exemple ou suggestions d'un passage) :
-// { id, title, steps, index, played, fresh, timer, finished }, ou null.
-let stepper = null;
 
 export const AUTONOMOUS_HISTORY_KEY = HISTORY_AUTONOMOUS_KEY;
 let currentMode = 'autonomous';
@@ -319,22 +311,7 @@ function renderExampleCard(msg) {
   });
   button.innerHTML = playing ? ICON_STOP : ICON_PLAY;
   button.appendChild(el('span', { text: playing ? 'Arrêter' : 'Écouter l\'exemple' }));
-  const buttons = el('div', { className: 'copilot-example-buttons' }, [button]);
-  // [Claude] — 2026-09-25 — Pas à pas : l'élève joue chaque accord (ou chaque groupe de notes) à son rythme.
-  buttons.appendChild(el('button', {
-    className: 'copilot-example-steps', type: 'button', title: 'Joue l\'exemple toi-même, étape par étape : le clavier montre quoi jouer et vérifie',
-    onClick: () => startStepper(id, stepsFromExample(example), example.title || 'Exemple'),
-    text: 'Pas à pas',
-  }));
-  // [Claude] — 2026-09-25 — Passage tiré du tutoriel : retrouver ce moment dans la vidéo.
-  if (Number.isFinite(example.tutorialStart)) {
-    buttons.appendChild(el('button', {
-      className: 'copilot-example-steps', type: 'button', title: 'Ouvre la vidéo du tutoriel à ce moment',
-      onClick: () => document.dispatchEvent(new CustomEvent('pedagogie-seek', { detail: { time: example.tutorialStart } })),
-      text: 'Voir dans la vidéo',
-    }));
-  }
-  card.appendChild(buttons);
+  card.appendChild(el('div', { className: 'copilot-example-buttons' }, [button]));
   const text = el('div', { className: 'copilot-example-text' }, [
     el('strong', { text: example.title || 'Exemple' }),
     example.subtitle ? el('small', { text: example.subtitle }) : null,
@@ -351,7 +328,6 @@ function renderExampleCard(msg) {
     text.appendChild(list);
   }
   card.appendChild(text);
-  if (stepper?.id === id) card.appendChild(renderStepperBar());
   return card;
 }
 
@@ -363,22 +339,7 @@ function toggleExample(msg) {
     return;
   }
   const example = msg.toolResult.example;
-  // Exemple d'une conversation enregistrée avant le 25/09 : ses moments sont
-  // recalculés depuis les accords (les exemples de notes restent sans marques).
-  if (!example.steps && example.chords?.length) example.steps = chordExampleSteps(example.chords);
-  playingExample = { id, example };
   document.dispatchEvent(new CustomEvent('copilot-play-example', { detail: { id, example } }));
-}
-
-/**
- * [Claude] — 2026-09-25 — Moment joué par l'exemple (main.js relaie la position du
- * lecteur) : le clavier montre le rôle de chaque note, la voix qui va bouger, et
- * la légende dit pourquoi (« Do (7e) descend sur Si, la 3ce de G7 »).
- */
-function showExampleStep(id, step) {
-  if (!playingExample || playingExample.id !== id) return;
-  const moment = playingExample.example.steps?.[step];
-  if (moment) setKeyboardMarks(moment.marks, { caption: moment.caption });
 }
 
 /** Met à jour le bouton de la carte qui joue (ou vient de s'arrêter), sans tout redessiner. */
@@ -413,15 +374,6 @@ function renderTakeCard(msg) {
     button.appendChild(el('span', { text: playing ? 'Arrêter' : 'Réécouter' }));
     buttons.appendChild(button);
   }
-  if (take.moments?.length) {
-    buttons.appendChild(el('button', {
-      className: 'copilot-example-steps', type: 'button', title: 'Chaque suggestion au clavier, une par une ; essaie la note proposée quand elle est connue',
-      onClick: () => startStepper(id, stepsFromMoments(take.moments, { marksOf: (m) => takeMarks(null, m) }), 'Suggestions', {
-        doneText: 'Tu as essayé chaque suggestion. (Recommencer ou Quitter)',
-      }),
-      text: 'Essayer les suggestions',
-    }));
-  }
   // [Claude] — 2026-09-25 — Sessions = journal : le passage se garde d'un clic.
   if (take.example) {
     const saved = take.savedSessionId;
@@ -450,170 +402,14 @@ function renderTakeCard(msg) {
     ])),
   ];
   if (rows.length) text.appendChild(el('ul', { className: 'copilot-example-hands' }, rows));
-  if (take.moments?.length) {
-    const list = el('div', { className: 'copilot-take-moments' });
-    for (const m of take.moments.slice(0, 8)) {
-      list.appendChild(el('button', {
-        className: 'copilot-take-moment', type: 'button', title: 'Montrer ce moment au clavier',
-        onClick: () => {
-          const view = takeMarks(null, m);
-          setKeyboardMarks(view.marks, { caption: view.caption, tone: view.tone });
-        },
-        text: `${takeMoment(m.at)}${m.chord ? ` ${m.chord}` : ''} — ${m.text}`,
-      }));
-    }
-    text.appendChild(list);
-  }
   card.appendChild(text);
-  if (stepper?.id === id) card.appendChild(renderStepperBar());
   return card;
-}
-
-// ── Pas à pas ──
-
-function stepCaption(text = '') {
-  const step = stepper.steps[stepper.index];
-  return `Étape ${stepper.index + 1} / ${stepper.steps.length} — ${text || step.caption}`;
-}
-
-/** Montre l'étape en cours au clavier (rien de joué encore). */
-function showStep() {
-  if (!stepper) return;
-  clearTimeout(stepper.timer);
-  stepper.played = [];
-  stepper.fresh = new Set();
-  stepper.finished = false;
-  const step = stepper.steps[stepper.index];
-  const fb = stepFeedback(step, step.kind === 'sequence'
-    ? { status: 'idle', matched: 0, expected: step.notes[0] }
-    : { status: 'idle', missing: step.notes, extra: [], good: [] });
-  const hint = step.kind === 'show' ? fb.caption
-    : step.kind === 'sequence' ? `${step.caption} — joue les notes dans l'ordre`
-      : step.correction ? `${step.caption} — essaie avec la note en pointillé` : `${step.caption} — à toi !`;
-  // Une suggestion se montre d'abord telle quelle (note à remplacer en orange, note à essayer en pointillé).
-  const marks = step.correction ? step.marks : fb.marks;
-  setKeyboardMarks(marks, { caption: stepCaption(hint), tone: step.kind === 'show' || step.correction ? 'tip' : '' });
-  refreshStepperBar();
-}
-
-/** Démarre le pas à pas d'une carte (exemple ou suggestions d'un passage). */
-function startStepper(id, steps, title, { doneText = null } = {}) {
-  if (!steps?.length) return;
-  document.dispatchEvent(new CustomEvent('copilot-stop-example'));
-  stopStepper({ clear: false });
-  stepper = { id, title, steps, index: 0, played: [], fresh: new Set(), timer: null, finished: false, doneText: doneText || `Bravo : ${title} joué en entier ! (Recommencer ou Quitter)` };
-  renderMessages();
-  showStep();
-}
-
-function stopStepper({ clear = true } = {}) {
-  if (!stepper) return;
-  clearTimeout(stepper.timer);
-  stepper = null;
-  if (clear) clearKeyboardMarks();
-  els.messages?.querySelectorAll('.copilot-stepper').forEach((bar) => bar.remove());
-}
-
-function goToStep(index) {
-  if (!stepper) return;
-  stepper.index = Math.max(0, Math.min(stepper.steps.length - 1, index));
-  showStep();
-}
-
-/** Note jouée (main.js) : l'étape est jugée ; juste → étape suivante. */
-function onLiveInput(detail) {
-  if (!stepper || stepper.finished || !detail) return;
-  const step = stepper.steps[stepper.index];
-  if (step.kind === 'show') return;
-  if (detail.type === 'on') {
-    stepper.fresh.add(detail.midi);
-    stepper.played.push(detail.midi);
-  }
-  let judge;
-  if (step.kind === 'chord') {
-    // Seulement les touches jouées depuis le début de l'étape (pas l'accord d'avant encore tenu).
-    judge = judgeChordStep((detail.held || []).filter((n) => stepper.fresh.has(n)), step);
-    if (judge.status === 'idle') return;
-  } else {
-    if (detail.type !== 'on') return;
-    judge = judgeSequenceStep(stepper.played, step);
-    // Une note hors de la suite ne compte pas : on reprend à la note attendue.
-    if (judge.status === 'wrong') stepper.played = stepper.played.slice(0, judge.matched);
-  }
-  const fb = stepFeedback(step, judge);
-  setKeyboardMarks(fb.marks, { caption: stepCaption(fb.caption), tone: fb.tone });
-  if (judge.status === 'ok') {
-    clearTimeout(stepper.timer);
-    stepper.timer = setTimeout(() => {
-      if (!stepper) return;
-      if (stepper.index < stepper.steps.length - 1) goToStep(stepper.index + 1);
-      else {
-        stepper.finished = true;
-        setKeyboardMarks(fb.marks, { caption: stepper.doneText, tone: 'ok' });
-        refreshStepperBar();
-      }
-    }, 900);
-  }
-}
-
-/** Joue seulement l'étape en cours (accord plaqué, ou notes posément). */
-function playCurrentStep() {
-  if (!stepper) return;
-  const step = stepper.steps[stepper.index];
-  const events = [];
-  if (step.kind === 'sequence') {
-    step.notes.forEach((n, i) => {
-      events.push({ time: i * 0.5, type: 'noteOn', note: n, velocity: 0.7 });
-      events.push({ time: i * 0.5 + 0.45, type: 'noteOff', note: n });
-    });
-  } else {
-    step.notes.forEach((n) => {
-      events.push({ time: 0, type: 'noteOn', note: n, velocity: 0.7 });
-      events.push({ time: 1.6, type: 'noteOff', note: n });
-    });
-  }
-  events.sort((a, b) => a.time - b.time || (a.type === 'noteOff' ? -1 : 1));
-  const beats = Math.max(...events.map((e) => e.time));
-  document.dispatchEvent(new CustomEvent('copilot-play-example', { detail: { id: `step-${stepper.id}`, example: { events, beats, tempo: 60 } } }));
-}
-
-function renderStepperBar() {
-  const bar = el('div', { className: 'copilot-stepper', 'data-stepper-for': stepper.id });
-  fillStepperBar(bar);
-  return bar;
-}
-
-function fillStepperBar(bar) {
-  bar.innerHTML = '';
-  const step = stepper.steps[stepper.index];
-  bar.appendChild(el('span', { className: 'copilot-stepper-title', text: `${stepper.title} · étape ${stepper.index + 1} / ${stepper.steps.length}` }));
-  bar.appendChild(el('span', { className: 'copilot-stepper-step', text: step.caption }));
-  const button = (text, onClick, disabled = false) => {
-    const b = el('button', { type: 'button', text, onClick });
-    if (disabled) b.disabled = true;
-    return b;
-  };
-  bar.appendChild(el('div', { className: 'copilot-stepper-actions' }, [
-    button('◀ Précédent', () => goToStep(stepper.index - 1), stepper.index === 0),
-    step.kind !== 'show' ? button('Écouter l\'étape', playCurrentStep) : null,
-    stepper.finished
-      ? button('Recommencer', () => goToStep(0))
-      : button('Suivant ▶', () => goToStep(stepper.index + 1), stepper.index >= stepper.steps.length - 1),
-    button('Quitter', () => stopStepper()),
-  ]));
-}
-
-/** Met la barre du pas à pas à jour sans tout redessiner. */
-function refreshStepperBar() {
-  if (!els.messages || !stepper) return;
-  const bar = els.messages.querySelector(`.copilot-stepper[data-stepper-for="${stepper.id}"]`);
-  if (bar) fillStepperBar(bar);
 }
 
 /**
  * Moment cliqué dans une réponse : pour une session, l'onglet Session le rejoue en
- * boucle et le montre au clavier ; pour un passage joué, l'extrait autour de ce
- * moment est rejoué et ce qui s'y passe est montré au clavier.
+ * boucle ; pour un passage joué, l'extrait autour de ce moment est rejoué (touches
+ * en jaune).
  */
 function onMomentLink(button) {
   const time = Number(button.dataset.moment);
@@ -625,14 +421,6 @@ function onMomentLink(button) {
     return;
   }
   const take = takeMsg.take;
-  const moment = (take.moments || []).find((m) => Math.abs(m.at - time) < 0.6);
-  const chord = (take.chords || []).find((c, i, all) => c.at - 0.05 <= time && time < (all[i + 1]?.at ?? Infinity));
-  if (moment) {
-    const view = takeMarks(null, moment);
-    setKeyboardMarks(view.marks, { caption: view.caption, tone: view.tone });
-  } else if (chord) {
-    setKeyboardMarks([...chord.left, ...chord.right].map((midi) => ({ midi, kind: 'target', label: '' })), { caption: `${takeMoment(chord.at)} ${chord.name} : ${chord.voicing}` });
-  }
   // Extrait du passage autour du moment (un peu avant, pour l'entendre arriver).
   const events = take.example?.events || [];
   const from = Math.max(0, time - 0.4);
@@ -651,14 +439,13 @@ function onMomentLink(button) {
   }
 }
 
-/** Réécoute du passage joué (même lecteur que les exemples, rôles au clavier). */
+/** Réécoute du passage joué (même lecteur que les exemples, touches en jaune). */
 function toggleTakeReplay(msg) {
   const id = exampleIdOf(msg);
   if (playingExampleId === id) {
     document.dispatchEvent(new CustomEvent('copilot-stop-example'));
     return;
   }
-  playingExample = { id, example: msg.take.example };
   document.dispatchEvent(new CustomEvent('copilot-play-example', { detail: { id, example: msg.take.example } }));
 }
 
@@ -703,18 +490,30 @@ function takeAttachment(review, passage) {
 }
 
 /**
+ * [Claude] — 2026-09-25 — Message court dans la ligne d'état de la fenêtre
+ * (main.js) : plus de légende sous le clavier.
+ */
+function showStatus(text) {
+  document.dispatchEvent(new CustomEvent('app-status', { detail: { text: String(text || '') } }));
+}
+
+/** Avis de l'application sans IA : le verdict et la première suggestion, en une ligne. */
+export function localReviewText(review) {
+  const first = review?.moments?.[0];
+  const idea = first ? ` — ${takeMoment(first.at)}${first.chord ? ` ${first.chord}` : ''} : ${momentText(first)}` : '';
+  return `${review?.verdict || ''}${idea}`;
+}
+
+/**
  * « Qu'en penses-tu ? » : le dernier passage joué (depuis la dernière pause) est
- * analysé par l'application, montré au clavier, et joint à la question tapée
- * (n'importe laquelle), ou à « Qu'en penses-tu de ce que je viens de jouer ? ».
- * Sans clé d'IA, le verdict de l'application s'affiche au clavier.
+ * analysé par l'application et joint à la question tapée (n'importe laquelle), ou
+ * à « Qu'en penses-tu de ce que je viens de jouer ? ».
+ * Sans clé d'IA, l'avis de l'application s'affiche dans la ligne d'état.
  */
 export async function reviewLastPassage({ question = '', fromKeyboard = false, fromView = null } = {}) {
   const passage = liveTake.lastPassage();
   if (!passage) {
-    setKeyboardMarks([], {
-      caption: 'Rien à écouter : joue d\'abord au clavier (MIDI, virtuel ou clavier d\'ordinateur), puis clique sur « Qu\'en penses-tu ? ».',
-      tone: 'warn',
-    });
+    showStatus('Rien à écouter : joue d\'abord au clavier (MIDI, virtuel ou clavier d\'ordinateur), puis clique sur « Qu\'en penses-tu ? ».');
     return null;
   }
   const asked = String(question || '').trim();
@@ -723,9 +522,8 @@ export async function reviewLastPassage({ question = '', fromKeyboard = false, f
   const exercise = fromView === 'exercise' || currentMode === 'exercise' ? readCopilotContext('exercise') : null;
   const review = reviewTake(passage.events, { question: asked, expect: exercise ? { ...exercise.expect, label: exercise.title } : null });
   if (!review) return null;
-  const view = takeMarks(review, review.moments[0] || null);
   if (!hasAIKey() || !els.input) {
-    setKeyboardMarks(view.marks, { caption: view.caption, tone: view.tone });
+    showStatus(localReviewText(review));
     return review;
   }
   if (fromKeyboard) {
@@ -734,8 +532,6 @@ export async function reviewLastPassage({ question = '', fromKeyboard = false, f
   }
   // La conversation de l'exercice (le Copilote reçoit aussi ses voicings et les essais).
   if (exercise && currentMode !== 'exercise') await switchToExerciseMode();
-  // Après la bascule (qui efface le clavier) : le verdict, ou la première suggestion.
-  setKeyboardMarks(view.marks, { caption: view.caption, tone: view.tone });
   els.input.value = '';
   autoGrowInput();
   const defaultQuestion = exercise ? `Qu'en penses-tu de ce que je viens de jouer sur l'exercice (${exercise.title}) ?` : DEFAULT_REVIEW_QUESTION;
@@ -1140,7 +936,6 @@ async function sendUserMessage() {
  * @param {{take?: object, review?: boolean, takeContext?: string[]}} [options]
  */
 async function runCopilotTurn(text, { take = null, review = false, takeContext = null } = {}) {
-  stopStepper({ clear: false });
   els.input.disabled = true;
   els.sendBtn.disabled = true;
   if (els.reviewBtn) els.reviewBtn.disabled = true;
@@ -1233,14 +1028,9 @@ export async function initCopilotTab() {
     msg.take.saving = false;
     if (sessionId) msg.take.savedSessionId = sessionId;
     renderMessages();
-    if (error) setKeyboardMarks([], { caption: `Passage non gardé : ${error}`, tone: 'warn' });
+    if (error) showStatus(`Passage non gardé : ${error}`);
     else if (currentConversationId) await saveHistory(currentConversationId, historyKeyForMode(), messages);
   });
-  // [Claude] — 2026-09-25 — Pas à pas : notes jouées, et fin (croix de la légende, autre vue).
-  document.addEventListener('app-live-input', (e) => onLiveInput(e.detail));
-  document.addEventListener('keyboard-marks-cleared', () => stopStepper({ clear: false }));
-  document.addEventListener('app-switch-training-view', (e) => { if (e.detail?.view !== 'copilot') stopStepper({ clear: false }); });
-  document.addEventListener('app-switch-tab', (e) => { if (e.detail?.tab !== 'practice') stopStepper({ clear: false }); });
   // [Astra round 4] — Le champ est un <textarea> qui grandit avec le texte,
   // comme dans la maquette (max ~110px, puis défilement interne).
   els.input?.addEventListener('input', autoGrowInput);
@@ -1311,21 +1101,13 @@ export async function initCopilotTab() {
     await switchToSessionMode(sessionContext);
   });
 
-  // Lecture d'un exemple commencée / finie (main.js). À la fin, les marques de
-  // l'exemple s'effacent du clavier.
+  // Lecture d'un exemple commencée / finie (main.js).
   document.addEventListener('copilot-example-state', (e) => {
     const { id, playing } = e.detail || {};
     if (playing) playingExampleId = id;
-    else if (playingExampleId === id) {
-      playingExampleId = null;
-      if (playingExample?.id === id) {
-        playingExample = null;
-        clearKeyboardMarks();
-      }
-    }
+    else if (playingExampleId === id) playingExampleId = null;
     refreshExampleCards();
   });
-  document.addEventListener('copilot-example-step', (e) => showExampleStep(e.detail?.id, e.detail?.step));
 
   document.addEventListener('copilot-send-message', async (e) => {
     const message = e.detail?.message;

@@ -1,14 +1,13 @@
-// [Claude] — 2026-09-25 — Ce que le clavier montre pendant un exemple du Copilote.
+// [Claude] — 2026-09-25 — Les notes en mots, pour les textes de l'application.
 //
-// Narcisse veut que le clavier « mette en surbrillance ce qu'elle fait, comme
-// une sorte de tuto interactif ». Pour chaque moment d'un exemple (un accord
-// d'une progression, une note d'un lick, d'une gamme, d'un arpège, d'un run),
-// ce module prépare les marques des touches (rôle de chaque note, voix qui va
-// bouger) et une phrase de légende :
-//   « Dm9 → G13 : Do (7e) descend sur Si, la 3ce de G13 ; Fa reste (3ce → 7e) »
-//   « Ré# : approche chromatique de Mi, la 3ce de C »
-// Tout est calculé depuis les notes réellement jouées par l'exemple ; rien
-// n'est demandé au modèle.
+// Noms français écrits d'après l'accord (la 3ce de G7 est Si, la 7e de Bbmaj7
+// est La), rôle d'une note d'une ligne (approche, passage, couleur) et conduite
+// des voix d'un accord au suivant (« Do (7e) descend sur Si, la 3ce de G13 »).
+// Ces phrases nourrissent les portraits envoyés au Copilote ; le clavier, lui,
+// n'affiche plus d'étiquettes (Narcisse, 25/09 : « j'aime pas les étiquettes
+// pour indiquer la fonction de chaque note »).
+// Tout est calculé depuis les notes réellement jouées ; rien n'est demandé au
+// modèle.
 
 import { noteRoles, parseChordName, degreeOf } from './note-roles.js';
 import { spellChordTone } from '../practice-exercise.js';
@@ -134,50 +133,6 @@ export function describeVoiceLeading(a, b) {
   return { moves, text: parts.join(' ; ') };
 }
 
-/** « Ré (fondamentale) | Fa (3ce) La (quinte) Do (7e) Mi (9e) » : les deux mains d'un accord. */
-function handsSummary(chord, c) {
-  const roleOf = new Map(noteRoles(c, [...(chord.leftHand || []), ...(chord.rightHand || [])]).map((r) => [r.midi, r.degree]));
-  const side = (notes) => [...notes].sort((x, y) => x - y)
-    .map((n) => `${frenchPitchName(n, c)} (${degreeWord(roleOf.get(n))})`).join(' ');
-  const lh = side(chord.leftHand || []);
-  const rh = side(chord.rightHand || []);
-  return [lh, rh].filter(Boolean).join(' | ');
-}
-
-/**
- * Marques et légende de chaque accord d'un exemple (un accord = un moment) :
- * rôle de chaque note, voix qui va bouger vers l'accord suivant (anneau), et la
- * phrase qui dit pourquoi.
- * @param {{name: string, leftHand?: number[], rightHand?: number[]}[]} chords
- * @returns {{marks: object[], caption: string}[]}
- */
-export function chordExampleSteps(chords) {
-  const list = chords || [];
-  const leadings = list.map((c, i) => (list[i + 1] ? describeVoiceLeading(c, list[i + 1]) : null));
-  return list.map((chord, i) => {
-    const c = parseChordName(chord.name);
-    const notes = [...(chord.leftHand || []), ...(chord.rightHand || [])];
-    if (!c || notes.length === 0) return { marks: notes.map((midi) => ({ midi, kind: 'target', label: '' })), caption: chord.name || '' };
-    const leading = leadings[i];
-    const moving = new Set((leading?.moves || []).filter((m) => m.kind !== 'common').map((m) => m.from));
-    const marks = noteRoles(c, notes).map((r) => ({ midi: r.midi, kind: r.kind, label: r.degree, moving: moving.has(r.midi) }));
-    let caption;
-    if (list.length === 1) {
-      caption = `${chord.name} : ${handsSummary(chord, c)}`;
-    } else if (leading) {
-      caption = `${chord.name} → ${list[i + 1].name}${leading.text ? ` : ${leading.text}` : ''}`;
-    } else {
-      // Dernier accord : où la voix qui a bougé est arrivée.
-      const previous = leadings[i - 1];
-      const resolution = previous?.moves.find((m) => m.kind === 'resolution');
-      caption = resolution
-        ? `${chord.name} : la 7e de ${list[i - 1].name} (${frenchPitchName(resolution.from, list[i - 1].name)}) est arrivée sur ${frenchPitchName(resolution.to, c)}, la ${degreeWord(resolution.toDegree)}`
-        : `${chord.name} : ${handsSummary(chord, c)}`;
-    }
-    return { marks, caption };
-  });
-}
-
 /**
  * Rôle d'une note d'une ligne (lick, gamme, arpège, run) sur l'accord qui
  * sonne, en tenant compte de la note suivante (approche, passage).
@@ -212,69 +167,4 @@ export function lineNoteRole(midi, chord, prev, next) {
     return { kind: 'passing', label: '·', text: `${name} : note de passage (de ${frenchPitchName(prev, c)} à ${frenchPitchName(next, c)})` };
   }
   return { kind: 'outside', label: degreeOf(role.interval, c.quality), text: `${name} : note étrangère à ${c.name}` };
-}
-
-/**
- * Moments d'un exemple fait de notes (lick, gamme, arpège, run, notes isolées,
- * lignes de guide tones) : un moment par attaque (notes attaquées ensemble =
- * un moment). Les marques montrent toute la forme sous l'accord en cours (les
- * notes à venir comprises, avec leur rôle) ; la légende dit le rôle de la note
- * jouée. Des notes attaquées ensemble et portant un accord sont lues comme cet
- * accord (conduite des voix comprise).
- * @param {{midi: number, startOffsetMs: number, hand?: string, chord?: string}[]} notes
- * @param {{chord?: string}} [options] - accord de toute la ligne (lick sur G7)
- * @returns {{time: number, marks: object[], caption: string}[]} time en millisecondes
- */
-export function notesExampleSteps(notes, { chord = '' } = {}) {
-  const list = [...(notes || [])].filter((n) => Number.isFinite(n.midi))
-    .sort((a, b) => (a.startOffsetMs || 0) - (b.startOffsetMs || 0) || a.midi - b.midi);
-  if (list.length === 0) return [];
-  const chordOf = (n) => (n.chord && parseChordName(n.chord) ? n.chord : chord && parseChordName(chord) ? chord : '');
-  // Attaques groupées (±30 ms).
-  const groups = [];
-  for (const n of list) {
-    const t = n.startOffsetMs || 0;
-    const last = groups[groups.length - 1];
-    if (last && t - last.time <= 30 && chordOf(n) === last.chord) last.notes.push(n);
-    else groups.push({ time: t, chord: chordOf(n), notes: [n] });
-  }
-  // Groupes de plusieurs notes portant un accord : ce sont des accords.
-  const blocks = groups.every((g) => g.notes.length >= 2 && g.chord);
-  if (blocks) {
-    const chords = groups.map((g) => ({
-      name: g.chord,
-      leftHand: g.notes.filter((n) => String(n.hand).toUpperCase() === 'LH').map((n) => n.midi),
-      rightHand: g.notes.filter((n) => String(n.hand).toUpperCase() !== 'LH').map((n) => n.midi),
-    }));
-    return chordExampleSteps(chords).map((s, i) => ({ ...s, time: groups[i].time }));
-  }
-  // Forme de chaque accord : toutes les notes jouées sous lui, avec leur rôle.
-  const flat = groups.flatMap((g) => g.notes.map((n) => ({ midi: n.midi, chord: g.chord })));
-  const roleCache = new Map();
-  const roleAt = (i) => {
-    if (!roleCache.has(i)) roleCache.set(i, lineNoteRole(flat[i].midi, flat[i].chord, flat[i - 1]?.midi, flat[i + 1]?.midi));
-    return roleCache.get(i);
-  };
-  const shapeMarks = (chordName) => {
-    const marks = [];
-    flat.forEach((n, i) => {
-      if (n.chord !== chordName || marks.some((m) => m.midi === n.midi)) return;
-      const r = roleAt(i);
-      marks.push({ midi: n.midi, kind: r.kind, label: r.label });
-    });
-    return marks;
-  };
-  let index = 0;
-  return groups.map((g) => {
-    const first = index;
-    index += g.notes.length;
-    let caption;
-    if (g.notes.length === 1) {
-      caption = roleAt(first).text;
-    } else {
-      const names = g.notes.map((n, k) => roleAt(first + k).text.split(' : ')[0]).join(' ');
-      caption = g.chord ? `${g.chord} : ${names}` : g.notes.map((n) => frenchNoteName(n.midi)).join(' ');
-    }
-    return { time: g.time, marks: shapeMarks(g.chord), caption };
-  });
 }

@@ -203,30 +203,24 @@ export function transposeChordLabel(label, semitones) {
 
 /**
  * Passage du professeur en exemple (mêmes notes, mêmes durées), une main au
- * choix, transposable (« joue-moi ce lick en Fa »). Avec la grille datée, chaque
- * note porte l'accord qui sonne sous elle : les légendes de l'exemple et le pas
- * à pas disent alors le rôle de chaque note (9e, approche…).
+ * choix, transposable (« joue-moi ce lick en Fa »). Ses touches s'allument en
+ * jaune pendant l'écoute.
  * @param {object[]} notes - notes du professeur
- * @param {{start: number, end: number, hand?: string|null, semitones?: number, title?: string, segments?: {start: number, end: number, label?: string}[]}} options
+ * @param {{start: number, end: number, hand?: string|null, semitones?: number, title?: string}} options
  * @returns {object|null} exemple (copilot-demo.js) avec `tutorialStart`
  */
-export function passageExample(notes, { start, end, hand = null, semitones = 0, title = '', segments = [] } = {}) {
+export function passageExample(notes, { start, end, hand = null, semitones = 0, title = '' } = {}) {
   const from = Math.max(0, Number(start) || 0);
   const to = Math.max(from + 0.5, Number(end) || from + 4);
   const picked = guessHands(notesInRange(notes, from, Math.min(to, from + 30), { hand }));
   if (!picked.length) return null;
   const shift = Math.max(-12, Math.min(12, Math.round(semitones || 0)));
-  const chordAt = (t) => {
-    const seg = (segments || []).find((s) => s.label && s.start <= t + 0.05 && t < s.end);
-    return seg ? transposeChordLabel(seg.label, shift) : '';
-  };
   const example = buildNotesExample(picked.map((n) => ({
     midi: n.midi + shift,
     startOffsetMs: Math.round((n.start - from) * 1000),
     durationMs: Math.round(Math.max(0.12, Math.min(n.end, to + 1) - n.start) * 1000),
     velocity: n.velocity ?? 0.72,
     hand: n.hand === 'lh' ? 'LH' : 'RH',
-    ...(chordAt(n.start) ? { chord: chordAt(n.start) } : {}),
   })), {
     kind: 'tutorial',
     title: title || `Passage du tutoriel ${clock(from)}–${clock(to)}`,

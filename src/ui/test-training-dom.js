@@ -140,8 +140,10 @@ function testDomContract() {
   }
   check(html.includes('id="copilot-review-btn"') && html.includes('id="keyboard-review-btn"'),
     'DOM — boutons « Qu\'en penses-tu ? » (Copilote et barre du clavier)');
-  check(/id="keyboard-mark-caption"[^>]*hidden/.test(html) && html.includes('vk-mark-caption-close'),
-    'DOM — légende des marques du clavier (cachée par défaut, avec sa croix)');
+  // [Claude] — 2026-09-25 — Plus d'étiquettes sur les touches : la légende dit
+  // seulement qui joue (bleu : toi ; jaune : l'app).
+  check(!html.includes('keyboard-mark-caption') && /vk-dot-you[^<]*<\/i>Toi/.test(html) && /vk-dot-app[^<]*<\/i>L'app/.test(html),
+    'DOM — légende du clavier : « Toi » et « L\'app », plus de légende de marques');
 
   // [Claude] — 2026-09-24 — Ma grille : accords choisis (fondamentale + qualité),
   // plus de saisie au clavier (Narcisse : « pas pratique d'écrire »).

@@ -632,75 +632,11 @@ export function takeContextLines(review, { title = '## Passage joué au clavier 
 }
 
 /**
- * Marques du clavier pour un moment du passage : notes jouées avec leur rôle,
- * notes qu'on propose de remplacer (ou qui sonnent encore sous la pédale), notes
- * suggérées. Sans moment : le dernier accord, ou la forme de la ligne.
- * @returns {{marks: object[], caption: string, tone: string}}
- */
-export function takeMarks(review, moment = null) {
-  if (moment) {
-    const chordName = moment.chord || null;
-    // Rôles par rapport à l'accord voulu quand la suggestion le connaît (Dm9 voulu, D7 entendu).
-    const c = moment.fixChord ? parseChordName(moment.fixChord) : chordName ? parseChordName(chordName) : null;
-    const roleOf = new Map(c ? noteRoles(c, moment.notes || []).map((r) => [r.midi, r]) : []);
-    const problems = new Set(moment.problemNotes || []);
-    const ghost = moment.issueId === 'pedal-blur';
-    const marks = (moment.notes || []).filter((n) => !problems.has(n)).map((midi) => {
-      const r = roleOf.get(midi);
-      return { midi, kind: r ? r.kind : 'target', label: r ? r.degree : '' };
-    });
-    for (const midi of problems) marks.push({ midi, kind: ghost ? 'ghost' : 'swap', label: ghost ? 'péd' : '↔' });
-    // La note suggérée, près de celle qu'elle remplace (même registre) ; sinon au milieu de l'accord.
-    const target = c;
-    const placed = new Set();
-    for (const pc of moment.missing || []) {
-      const near = [...problems].find((n) => Math.abs(pcOf(n - pc + 6) - 6) <= 2);
-      let midi;
-      if (near != null) {
-        midi = near - 2;
-        while (pcOf(midi) !== pc) midi += 1;
-      } else {
-        const around = (moment.notes || []).length ? Math.round(mean(moment.notes)) : 60;
-        midi = around - 6;
-        while (pcOf(midi) !== pc) midi += 1;
-      }
-      placed.add(midi);
-      marks.push({ midi, kind: 'suggest', label: target ? degreeWordShort(pcOf(pc - target.rootPc), target.quality) : '?' });
-    }
-    for (const sug of moment.suggestions || []) {
-      if (sug.to != null && !placed.has(sug.to)) marks.push({ midi: sug.to, kind: 'suggest', label: '→' });
-    }
-    return { marks, caption: `${takeMoment(moment.at)}${chordName ? ` ${chordName}` : ''} : ${momentText(moment)}`, tone: 'tip' };
-  }
-  const last = review.chords[review.chords.length - 1];
-  const showLine = review.lines.length && (review.kind === 'line' || review.intent.contextChord || review.intent.scale);
-  if (last && !showLine) {
-    return { marks: last.roles.map((r) => ({ midi: r.midi, kind: r.kind, label: r.degree })), caption: review.verdict, tone: review.issues.length ? 'tip' : 'ok' };
-  }
-  const line = review.lines.find((l) => l.scale) || review.lines[0];
-  const seen = new Set();
-  const marks = [];
-  for (const r of line?.roles || []) {
-    if (seen.has(r.midi)) continue;
-    seen.add(r.midi);
-    marks.push({ midi: r.midi, kind: r.chord ? r.kind : 'target', label: r.chord ? r.label : frenchPitchName(r.midi) });
-  }
-  return { marks, caption: review.verdict, tone: review.issues.length ? 'tip' : 'ok' };
-}
-
-function degreeWordShort(interval, quality) {
-  const r = noteRoles({ rootPc: 0, quality, bassPc: null }, [interval])[0];
-  return r ? r.degree : '?';
-}
-
-
-/**
  * Le passage en exemple réécoutable (même lecteur que les exemples du Copilote :
- * touches allumées, pédale rejouée) ; chaque accord et chaque note d'une ligne
- * est un moment, avec ses marques au clavier (rôles) et sa légende.
+ * touches allumées en jaune, pédale rejouée).
  * @param {object[]} events - évènements du passage (secondes)
  * @param {object} review - reviewTake(events)
- * @returns {object|null} exemple ({kind: 'take', events en temps (tempo 60 : un temps = une seconde), beats, steps})
+ * @returns {object|null} exemple ({kind: 'take', events en temps (tempo 60 : un temps = une seconde), beats})
  */
 export function passageToExample(events, review, { maxEvents = 1500 } = {}) {
   const list = (events || []).filter((e) => Number.isFinite(e?.time));
@@ -711,25 +647,8 @@ export function passageToExample(events, review, { maxEvents = 1500 } = {}) {
     else if (e.type === 'note_off' || (e.type === 'note_on' && !(e.velocity > 0))) out.push({ time: e.time, type: 'noteOff', note: e.note });
     else if (e.type === 'control' && e.controller === 64) out.push({ time: e.time, type: 'sustain', value: e.value >= 64 });
   }
-  const moments = [
-    ...review.chords.map((c) => ({
-      time: c.at,
-      marks: c.roles.map((r) => ({ midi: r.midi, kind: r.kind, label: r.degree, moving: Boolean(c.leading?.moves.some((m) => m.from === r.midi && m.kind !== 'common')) })),
-      caption: `${takeMoment(c.at)} ${c.readAs ? `${c.readAs} (rootless)` : c.name} : ${c.voicing.label}${c.voicing.detail ? ` (${c.voicing.detail})` : ''}${c.leading?.text ? ` — ${c.leading.text}` : ''}`,
-    })),
-    ...review.lines.flatMap((l) => l.roles.map((r) => ({
-      time: r.at,
-      marks: l.roles.filter((x, i, all) => all.findIndex((y) => y.midi === x.midi) === i)
-        .map((x) => ({ midi: x.midi, kind: x.chord ? x.kind : 'target', label: x.chord ? x.label : frenchPitchName(x.midi) })),
-      caption: `${takeMoment(r.at)} ${r.text}`,
-    }))),
-  ].sort((a, b) => a.time - b.time);
-  moments.forEach((m, i) => out.push({ time: m.time, type: 'step', step: i }));
-  const order = { noteOff: 0, sustain: 1, step: 2, noteOn: 3 };
+  const order = { noteOff: 0, sustain: 1, noteOn: 2 };
   out.sort((a, b) => a.time - b.time || order[a.type] - order[b.type]);
   const beats = Math.max(0, ...out.map((e) => e.time));
-  return {
-    kind: 'take', title: 'Ton passage', subtitle: review.verdict, style: null, tempo: 60, events: out, beats, chords: [],
-    steps: moments.map(({ marks, caption }) => ({ marks, caption })),
-  };
+  return { kind: 'take', title: 'Ton passage', subtitle: review.verdict, style: null, tempo: 60, events: out, beats, chords: [] };
 }

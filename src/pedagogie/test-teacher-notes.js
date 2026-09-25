@@ -101,14 +101,14 @@ function testTranspose() {
 }
 
 function testPassageExample() {
-  const ex = passageExample(TEACHER, { start: 0, end: 3, segments: GRID, title: 'Le passage de 0:00' });
+  const ex = passageExample(TEACHER, { start: 0, end: 3, title: 'Le passage de 0:00' });
   const ons = ex.events.filter((e) => e.type === 'noteOn');
   check('Passage en exemple : les notes exactes du professeur', ons.map((e) => e.note).join(',') === '38,53,57,60,64,74,75,76', ons.map((e) => e.note).join(','));
   check('Passage en exemple : moments gardés (lick à 2 s), mains gardées', ons.find((e) => e.note === 74).time === 2 && ons.find((e) => e.note === 38).hand === 'lh');
-  check('Passage en exemple : « Voir dans la vidéo » connaît le moment', ex.kind === 'tutorial' && ex.tutorialStart === 0 && ex.tutorialEnd === 3 && ex.title === 'Le passage de 0:00');
-  check('Passage en exemple : légendes d\'après la grille (13e de G13)', ex.steps.some((s) => /13e de G13/.test(s.caption)), ex.steps.map((s) => s.caption).join(' | '));
-  const up = passageExample(TEACHER, { start: 2, end: 3, semitones: 3, segments: GRID });
-  check('Passage transposé de +3 : notes et accord transposés', up.events.filter((e) => e.type === 'noteOn').map((e) => e.note).join(',') === '77,78,79' && up.steps.some((s) => /Bb13/.test(s.caption)), up.steps.map((s) => s.caption).join(' | '));
+  check('Passage en exemple : le moment de la vidéo est gardé', ex.kind === 'tutorial' && ex.tutorialStart === 0 && ex.tutorialEnd === 3 && ex.title === 'Le passage de 0:00');
+  check('Passage en exemple : rien à marquer au clavier (touches en jaune)', ex.steps === undefined && ex.events.every((e) => e.type === 'noteOn' || e.type === 'noteOff'));
+  const up = passageExample(TEACHER, { start: 2, end: 3, semitones: 3 });
+  check('Passage transposé de +3 : notes transposées', up.events.filter((e) => e.type === 'noteOn').map((e) => e.note).join(',') === '77,78,79', up.events.filter((e) => e.type === 'noteOn').map((e) => e.note).join(','));
   check('Passage transposé : dit dans le sous-titre', /transposées de \+3 demi-tons/.test(up.subtitle), up.subtitle);
   check('Main gauche seule', passageExample(TEACHER, { start: 0, end: 3, hand: 'LH' }).events.filter((e) => e.type === 'noteOn').length === 1);
   check('Rien entre deux instants → pas d\'exemple', passageExample(TEACHER, { start: 10, end: 12 }) === null);

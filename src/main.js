@@ -94,7 +94,7 @@ import {
 import { applyTabVisibility } from './ui/tab-visibility.js';
 import { initAstraShell } from './ui/refonte/astra-shell.js';
 import { initOnboarding, notifyOnboarding } from './ui/onboarding.js';
-import { applyKeyboardMarks, clearKeyboardMarks, initKeyboardMarks } from './ui/keyboard-marks.js';
+import { lightKeyElement, unlightKeyElement } from './ui/key-colors.js';
 import { liveTake } from './recorder/live-take.js';
 import { registerCopilotContext } from './pedagogie/copilot-context.js';
 import { exerciseContext } from './pedagogie/exercise-context.js';
@@ -303,9 +303,6 @@ function renderKeyboardAtCurrentSize() {
     state.notation === 'latin',
   );
   applyActiveNotes();
-  // [Claude] — 2026-09-25 — Marques du tuto interactif (rôles, erreurs…) : le
-  // nouveau SVG les a perdues, on les repose sur les touches.
-  applyKeyboardMarks();
   fitKeyboardPanelHeight(width);
   initVirtualKeyboard({
     onNoteOn: (note, velocity = 0.8) => handleNoteOn(note, velocity, true, true),
@@ -339,14 +336,15 @@ function refreshKeyboard() {
 }
 
 function applyActiveNotes() {
+  // [Claude] — 2026-09-25 — Bleu : tes doigts ; jaune : l'application (voir key-colors.js).
   for (const midi of state.activeNotes.keys()) {
-    highlightKey(midi, 'active');
+    lightKey(midi, state.playbackNotes.has(midi));
   }
   for (const midi of state.sustainedNotes) {
-    highlightKey(midi, 'active');
+    lightKey(midi, state.playbackNotes.has(midi));
   }
   for (const midi of state.suggestionNotes) {
-    highlightKey(midi, 'active');
+    lightKey(midi, true);
   }
 }
 
@@ -359,7 +357,7 @@ function handleSuggestionPlay(action, notes, name) {
       suggestionReleaseTimer = null;
     }
     for (const n of state.suggestionNotes) {
-      unhighlightKey(n, 'active');
+      unlightKey(n);
       releaseVirtualNote(n);
     }
     state.suggestionNotes.clear();
@@ -367,7 +365,7 @@ function handleSuggestionPlay(action, notes, name) {
   if (action === 'play' && notes && notes.length > 0) {
     for (const note of notes) {
       playVirtualNote(note, 0.78);
-      highlightKey(note, 'active');
+      lightKey(note, true);
     }
     state.suggestionNotes = new Set(notes);
     if (name && els.chordName) els.chordName.textContent = name;
@@ -387,14 +385,13 @@ function handleSuggestionPlay(action, notes, name) {
   }
 }
 
-function highlightKey(midi, className) {
-  const key = document.getElementById(`note-${midi}`);
-  if (key) key.classList.add(className);
+/** Allume une touche : en jaune si c'est l'application qui la joue (key-colors.js). */
+function lightKey(midi, fromApp = false) {
+  lightKeyElement(document.getElementById(`note-${midi}`), fromApp);
 }
 
-function unhighlightKey(midi, className = 'active') {
-  const key = document.getElementById(`note-${midi}`);
-  if (key) key.classList.remove(className);
+function unlightKey(midi) {
+  unlightKeyElement(document.getElementById(`note-${midi}`));
 }
 
 function getAllActivePcs() {
@@ -485,7 +482,7 @@ function handleNoteOn(note, velocity = 0.8, virtual = false, audible = true) {
   // Auto-clear suggestion notes when user plays real MIDI
   if (!state.isPlayback && state.suggestionNotes.size > 0) {
     for (const n of state.suggestionNotes) {
-      unhighlightKey(n, 'active');
+      unlightKey(n);
       releaseVirtualNote(n);
     }
     state.suggestionNotes.clear();
@@ -495,7 +492,8 @@ function handleNoteOn(note, velocity = 0.8, virtual = false, audible = true) {
   state.activeNotes.set(transposed, safeVelocity);
   if (state.isPlayback) state.playbackNotes.add(transposed);
   else state.playbackNotes.delete(transposed);
-  highlightKey(transposed, 'active');
+  // [Claude] — 2026-09-25 — Jaune quand l'application joue (démo, exemple, relecture).
+  lightKey(transposed, state.isPlayback);
   noteGrouper?.noteOn(transposed, velocity);
   // [OpenCode] — 2026-08-24 — Publier la note brute vers le bus MIDI live pour
   // la réharmonisation (note non transposée : la transposition est un offset
@@ -511,8 +509,6 @@ function handleNoteOn(note, velocity = 0.8, virtual = false, audible = true) {
     // [Claude] — 2026-09-25 — Mémoire du jeu récent (« Qu'en penses-tu ? ») : la
     // note entendue (transposition comprise), jamais une démo ni une relecture.
     liveTake.noteOn(transposed, safeVelocity, undefined, note);
-    // [Claude] — 2026-09-25 — Pas à pas du Copilote : chaque note jouée (entendue).
-    document.dispatchEvent(new CustomEvent('app-live-input', { detail: { type: 'on', midi: transposed, held: getAllActivePcs() } }));
   }
   // La détection est différée pour ne pas bloquer le thread principal
   // (lecture audio / défilement de l'onglet Analyse).
@@ -546,15 +542,13 @@ function handleNoteOff(note, virtual = false, audible = true) {
     state.sustainedNotes.add(transposed);
     noteGrouper?.noteOff(transposed, { sustained: true });
     if (hasLiveMidiSubscribers()) publishLiveNoteOff(note, 0);
-    if (!state.isPlayback) document.dispatchEvent(new CustomEvent('app-live-input', { detail: { type: 'off', midi: transposed, held: getAllActivePcs() } }));
     return;
   }
   state.activeNotes.delete(transposed);
   state.playbackNotes.delete(transposed);
-  unhighlightKey(transposed, 'active');
+  unlightKey(transposed);
   noteGrouper?.noteOff(transposed, { sustained: false });
   if (hasLiveMidiSubscribers()) publishLiveNoteOff(note, 0);
-  if (!state.isPlayback) document.dispatchEvent(new CustomEvent('app-live-input', { detail: { type: 'off', midi: transposed, held: getAllActivePcs() } }));
   scheduleRefreshChord();
 }
 
@@ -571,7 +565,7 @@ function handleSustain(value) {
   if (!value) {
     for (const note of state.sustainedNotes) {
       if (!state.activeNotes.has(note)) {
-        unhighlightKey(note, 'active');
+        unlightKey(note);
         state.playbackNotes.delete(note);
       }
     }
@@ -990,6 +984,12 @@ function applyKeyboardPreset(size) {
   refreshKeyboard();
 }
 
+// [Claude] — 2026-09-25 — La pastille « Toi » de la légende du clavier suit la
+// couleur des notes réglée dans le pied de page (bleue par défaut).
+function applyYouColor() {
+  document.documentElement.style.setProperty('--kb-you', state.colorNote);
+}
+
 function initSettings() {
   els.noteStart.value = state.noteStart;
   els.noteEnd.value = state.noteEnd;
@@ -997,6 +997,7 @@ function initSettings() {
   els.notation.value = state.notation || 'english';
   els.colorNote.value = state.colorNote;
   els.colorTonic.value = state.colorTonic;
+  applyYouColor();
   els.transposeInput.value = state.transpose;
   // [Claude] — 2026-09-24 — Silencieux coché à l'ouverture (demande de Narcisse) :
   // le clavier joué ne sonne pas par défaut ; « Écouter » de l'Exercice n'est
@@ -1017,6 +1018,7 @@ function initSettings() {
     setPcKeyboardToMidiEnabled(state.pcKeyboardToMidi);
     state.colorNote = els.colorNote.value;
     state.colorTonic = els.colorTonic.value;
+    applyYouColor();
 
     // [Claude] — 2026-07-03 — Retransposer les notes actives quand le réglage de transposition change
     const transposeDelta = state.transpose - previousTranspose;
@@ -2345,12 +2347,9 @@ function initPracticeExercise() {
     return extras ? { ...extras, styleId, styleLabel: DEMO_STYLES[styleId]?.label } : null;
   };
   demoHooks.onStep = (step) => {
-    // [Claude] — 2026-09-25 — Exemple du Copilote : la position est relayée à
-    // l'onglet, qui montre au clavier les rôles et la voix qui va bouger.
-    if (demoContext?.kind === 'copilot') {
-      document.dispatchEvent(new CustomEvent('copilot-example-step', { detail: { id: demoContext.id, step } }));
-      return;
-    }
+    // [Claude] — 2026-09-25 — Exemple du Copilote : rien à suivre (plus de marques
+    // au clavier, les touches s'allument en jaune).
+    if (demoContext?.kind === 'copilot') return;
     // La carte d'exercice suit l'accord joué par la démo du mouvement.
     if (demoContext?.kind !== 'movement') return;
     demoHooks.playingPassing = null;
@@ -2778,14 +2777,10 @@ async function init() {
   safeInit('initKeyboardCollapse', initKeyboardCollapse);
   safeInit('initPanelToggles', initPanelToggles);
   safeInit('refreshKeyboard', refreshKeyboard);
-  // [Claude] — 2026-09-25 — Marques posées sur les touches (tuto interactif) :
-  // effacées à chaque changement de vue ou d'onglet (le module qui les pose
-  // les remet après la bascule s'il en a besoin).
-  safeInit('initKeyboardMarks', () => {
-    initKeyboardMarks();
-    document.addEventListener('app-switch-training-view', () => clearKeyboardMarks());
-    document.addEventListener('app-switch-tab', () => clearKeyboardMarks());
-    document.querySelectorAll('.tab-btn').forEach((tab) => tab.addEventListener('click', () => clearKeyboardMarks()));
+  safeInit('initKeyboardReview', () => {
+    // [Claude] — 2026-09-25 — Messages courts de l'application (avis sans clé d'IA,
+    // « rien à écouter »…) dans la ligne d'état de la fenêtre.
+    document.addEventListener('app-status', (e) => setStatus(e.detail?.text || ''));
     // « Qu'en penses-tu ? » depuis la barre du clavier (tous les onglets) : le
     // Copilote analyse le dernier passage joué.
     document.getElementById('keyboard-review-btn')?.addEventListener('click', () => {
@@ -2888,11 +2883,11 @@ function initLibraryModal() {
 function initCopilotKeyboardEvents() {
   document.addEventListener('copilot-note-on', (e) => {
     const midi = Number(e.detail?.midi);
-    if (Number.isFinite(midi)) highlightKey(midi, 'active');
+    if (Number.isFinite(midi)) lightKey(midi, true);
   });
   document.addEventListener('copilot-note-off', (e) => {
     const midi = Number(e.detail?.midi);
-    if (Number.isFinite(midi)) unhighlightKey(midi, 'active');
+    if (Number.isFinite(midi)) unlightKey(midi);
   });
 }
 
@@ -2980,7 +2975,7 @@ function initTabNavigation() {
     if (e.detail?.tab) {
       if (e.detail.tab !== 'analysis' && state.suggestionNotes.size > 0) {
         for (const n of state.suggestionNotes) {
-          unhighlightKey(n, 'active');
+          unlightKey(n);
           releaseVirtualNote(n);
         }
         state.suggestionNotes.clear();

@@ -1973,7 +1973,8 @@
 
             <div class="vk-group vk-right">
               <!-- [Claude] — 2026-09-25 — « Qu'en penses-tu ? » depuis n'importe quel onglet :
-                   le Copilote analyse ce qui vient d'être joué (verdict au clavier sans clé d'IA). -->
+                   le Copilote analyse ce qui vient d'être joué (sans clé d'IA, l'avis de
+                   l'application s'affiche dans la ligne d'état). -->
               <button type="button" class="vk-review" id="keyboard-review-btn" title="Qu'en penses-tu ? — le Copilote analyse ce que tu viens de jouer (depuis ta dernière pause)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><path d="M21 15a2 2 0 0 1-2 2h-1v-5h1a2 2 0 0 1 2 2zM3 15a2 2 0 0 0 2 2h1v-5H5a2 2 0 0 0-2 2z"/></svg><span>Qu'en penses-tu ?</span></button>
               <button type="button" class="vk-collapse keyboard-collapse-btn" id="keyboard-collapse-btn"
                       aria-expanded="true" aria-controls="keyboard-container"
@@ -1990,19 +1991,11 @@
           </div>
 
           <div class="vk-status">
+            <!-- [Claude] — 2026-09-25 — Qui joue ? Bleu : toi ; jaune : l'application
+                 (Copilote, démos, relecture). Plus d'étiquettes sur les touches. -->
             <div class="vk-legend">
-              <span><i class="vk-dot vk-dot-note"></i>Note</span>
-              <span><i class="vk-dot vk-dot-root"></i>Fondamentale</span>
-              <span class="vk-hint">Les couleurs des touches se règlent dans le pied de page</span>
-            </div>
-            <!-- [Claude] — 2026-09-25 — Légende des marques posées sur les touches
-                 (tuto interactif du Copilote, pas à pas, erreurs) : remplace la
-                 légende des couleurs tant que des marques sont affichées
-                 (src/ui/keyboard-marks.js). -->
-            <div class="vk-mark-caption" id="keyboard-mark-caption" hidden>
-              <span class="vk-mark-caption-text"></span>
-              <span class="vk-mark-caption-legend"></span>
-              <button type="button" class="vk-mark-caption-close" aria-label="Effacer les repères du clavier" title="Effacer les repères">✕</button>
+              <span><i class="vk-dot vk-dot-you"></i>Toi</span>
+              <span><i class="vk-dot vk-dot-app"></i>L'app</span>
             </div>
             <div class="vk-status-right">
               <span class="vk-mono" id="keyboard-note-count">0 note</span>

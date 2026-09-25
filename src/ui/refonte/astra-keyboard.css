@@ -104,41 +104,13 @@
 .vk-legend { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .vk-legend > span { display: inline-flex; align-items: center; gap: 6px; color: var(--vk-secondary); font: 9px var(--vk-mono); white-space: nowrap; }
 .vk-dot { width: 9px; height: 9px; border-radius: 50%; }
-.vk-dot-note { background: linear-gradient(#c0a8f2, #8f6fe0); }
-.vk-dot-root { background: linear-gradient(#a2dcd2, #56b3a5); }
-.vk-hint { overflow: hidden; text-overflow: ellipsis; color: var(--vk-muted) !important; font-family: "DM Sans", sans-serif !important; font-size: 9px !important; }
+.vk-dot-you { background: var(--kb-you, #2563eb); }
+/* [Claude] — 2026-09-25 — Jaune : ce que joue l'application (style.css, --kb-app). */
+.vk-dot-app { background: var(--kb-app, #f2b705); }
 .vk-status-right { display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
 .vk-status-right > button { height: 21px; padding: 0 8px; color: var(--vk-muted); background: #22232a; border: 1px solid var(--vk-line-soft); border-radius: 10px; font-size: 9px; white-space: nowrap; }
 .vk-status-right > button:hover { color: var(--vk-text); border-color: #45474f; }
 .vk-status-right > button.is-on { color: var(--vk-accent); border-color: #4b3f68; background: #2b2438; }
-/* [Claude] — 2026-09-25 — Légende des marques posées sur les touches (tuto
-   interactif) : remplace la légende des couleurs tant qu'elle est affichée. */
-.vk-status.has-mark-caption .vk-legend { display: none; }
-.vk-mark-caption { display: flex; flex: 1; align-items: center; gap: 14px; min-width: 0; }
-.vk-mark-caption[hidden] { display: none; }
-.vk-mark-caption-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--vk-text); font-size: 12px; font-weight: 550; }
-.vk-mark-caption[data-tone='ok'] .vk-mark-caption-text { color: #74d99a; }
-.vk-mark-caption[data-tone='warn'] .vk-mark-caption-text { color: #f4c152; }
-/* [Claude] — 2026-09-25 — Une suggestion : couleur douce de l'accent, pas une alerte. */
-.vk-mark-caption[data-tone='tip'] .vk-mark-caption-text { color: #d9ccff; }
-.vk-mark-caption[data-tone='error'] .vk-mark-caption-text { color: #ff8a8a; }
-.vk-mark-caption-legend { display: flex; flex-shrink: 0; align-items: center; gap: 11px; }
-.vk-mark-caption-legend > span { display: inline-flex; align-items: center; gap: 5px; color: var(--vk-secondary); font: 9px var(--vk-mono); white-space: nowrap; }
-.kb-legend-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--kb-mark-target); }
-.kb-legend-root { background: var(--kb-mark-root); }
-.kb-legend-guide { background: var(--kb-mark-guide); }
-.kb-legend-fifth { background: var(--kb-mark-fifth); }
-.kb-legend-color { background: var(--kb-mark-color); }
-.kb-legend-bass { background: var(--kb-mark-bass); }
-.kb-legend-passing { background: var(--kb-mark-passing); }
-.kb-legend-outside { background: var(--kb-mark-outside); }
-.kb-legend-ok { background: var(--kb-mark-ok); }
-.kb-legend-swap { background: var(--kb-mark-swap); }
-.kb-legend-suggest { background: transparent; border: 1.5px dashed var(--kb-mark-suggest); }
-.kb-legend-ghost { background: var(--kb-mark-ghost); opacity: .6; }
-.kb-legend-moving { background: transparent; border: 2px solid var(--kb-mark-guide); }
-.vk-mark-caption-close { display: grid; flex-shrink: 0; place-items: center; width: 21px; height: 21px; margin-left: auto; padding: 0; color: var(--vk-muted); background: #22232a; border: 1px solid var(--vk-line-soft); border-radius: 10px; font-size: 10px; cursor: pointer; }
-.vk-mark-caption-close:hover { color: var(--vk-text); border-color: #45474f; }
 .vk-mono { color: var(--vk-muted); font: 9px var(--vk-mono); white-space: nowrap; }
 
 
@@ -159,8 +131,7 @@
 .vk-expand:hover { color: var(--vk-text); background: #33343c; border-color: #4a4c55; }
 
 /* --- Responsive --------------------------------------------------------- */
-@media (max-width: 1500px) { .vk-hint { display: none; } }
-@media (max-width: 1150px) { .vk-mark-caption-legend { display: none; } .vk-review > span { display: none; } }
+@media (max-width: 1150px) { .vk-review > span { display: none; } }
 @media (max-width: 1320px) {
   .vk-controls { gap: 9px; }
   .vk-select select { max-width: 106px; }
@@ -223,12 +194,7 @@
 :root[data-theme='light'] .vk-toolbar,
 :root[data-theme='light'] .vk-rail { background: linear-gradient(#fcfbfd, #f5f4f7); }
 :root[data-theme='light'] .vk-status { background: #f5f4f7; }
-:root[data-theme='light'] .vk-mark-caption-close { background: #ffffff; }
 :root[data-theme='light'] .vk-review { background: #eee7fb; border-color: #d6c9f2; }
-:root[data-theme='light'] .vk-mark-caption[data-tone='ok'] .vk-mark-caption-text { color: #2f8a57; }
-:root[data-theme='light'] .vk-mark-caption[data-tone='warn'] .vk-mark-caption-text { color: #9a6a0c; }
-:root[data-theme='light'] .vk-mark-caption[data-tone='tip'] .vk-mark-caption-text { color: #5b3fc4; }
-:root[data-theme='light'] .vk-mark-caption[data-tone='error'] .vk-mark-caption-text { color: #b8323a; }
 :root[data-theme='light'] .vk-stepper > button { background: #f0eef4; }
 :root[data-theme='light'] .vk-stepper > button:hover { background: #eae7f0; }
 :root[data-theme='light'] .vk-select select,

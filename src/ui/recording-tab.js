@@ -11,8 +11,7 @@ import { createPlayer } from '../recorder/player.js';
 import { playNote, releaseNote, resumeAudio } from '../audio/simple-synth.js';
 import { segmentSessionEvents, nameChordSegments } from '../recorder/session-analysis.js';
 import { analyzeSessionPerformance, formatPerformanceFindings } from '../recorder/session-performance.js';
-import { reviewTake, takeMarks, takeContextLines, takeMoment } from '../recorder/take-review.js';
-import { setKeyboardMarks } from './keyboard-marks.js';
+import { reviewTake, takeContextLines, takeMoment } from '../recorder/take-review.js';
 import { passageSessionMeta } from '../recorder/live-take.js';
 // [Refonte Astra 12/09] — Le paysage harmonique remplace l'ancienne frise de
 // blocs, qui forçait toute la session à tenir dans la largeur. buildNoteWindows
@@ -897,27 +896,16 @@ function sessionReview() {
 }
 
 /**
- * Montre un moment de la session : boucle courte autour de lui (on l'entend
- * arriver) et, au clavier, l'accord joué avec le rôle de chaque note et les
- * notes en cause (celles qui traînent sous la pédale, qui frottent, qui sautent).
+ * Fait réécouter un moment de la session : boucle courte autour de lui (on
+ * l'entend arriver) ; les touches s'allument en jaune, sans étiquette.
  */
-function showSessionMoment(at, detail = null, issueId = null) {
+function showSessionMoment(at) {
   if (!player) return;
   const review = sessionReview();
   const chord = review?.chords.find((c) => c.at - 0.05 <= at && at < c.end + 0.05) || null;
-  let view = null;
-  if (detail) view = takeMarks(null, { ...detail, issueId });
-  else if (chord) {
-    view = {
-      marks: chord.roles.map((r) => ({ midi: r.midi, kind: r.kind, label: r.degree })),
-      caption: `${takeMoment(chord.at)} ${chord.name} : ${chord.voicing.label}${chord.voicing.detail ? ` (${chord.voicing.detail})` : ''}`,
-      tone: '',
-    };
-  }
   const start = Math.max(0, at - 0.4);
   const end = Math.min(player.getDuration(), Math.max(at + 2.2, chord ? Math.min(chord.end, at + 4) : at + 2.2));
   playMomentLoop(start, end);
-  if (view) setKeyboardMarks(view.marks, { caption: view.caption, tone: view.tone });
 }
 
 /** Boucle courte sur [start, end] (même mécanique que les boucles du carnet). */
@@ -960,7 +948,6 @@ function playPedalFixed(detail) {
   events.sort((a, b) => a.time - b.time || order[a.type] - order[b.type]);
   stopCarnetLoop();
   document.dispatchEvent(new CustomEvent('copilot-play-example', { detail: { id: 'session-pedal-fixed', example: { events, beats: to - from, tempo: 60 } } }));
-  setKeyboardMarks([], { caption: `Corrigé : pédale relevée à chaque accord (${takeMoment(detail.at)} ${detail.chord || ''}) — compare avec « Écouter tel quel »`, tone: 'ok' });
 }
 
 /** Rangée « Analyse du jeu » du carnet : un constat par pastille, ses moments cliquables. */
@@ -999,9 +986,9 @@ function renderCarnetFindings(analysis) {
       btn.type = 'button';
       btn.className = 'carnet-finding-time';
       btn.textContent = formatTimeShort(t);
-      btn.title = detailCase ? `${formatTimeShort(t)} — ${detailCase.text} (écouter en boucle, voir au clavier)` : `Écouter ${formatTimeShort(t)} en boucle`;
-      // [Claude] — 2026-09-25 — Le moment en boucle courte, et au clavier la suggestion.
-      btn.addEventListener('click', () => showSessionMoment(t, detailCase, f.id));
+      btn.title = detailCase ? `${formatTimeShort(t)} — ${detailCase.text} (écouter en boucle)` : `Écouter ${formatTimeShort(t)} en boucle`;
+      // [Claude] — 2026-09-25 — Le moment en boucle courte (touches en jaune).
+      btn.addEventListener('click', () => showSessionMoment(t));
       pill.appendChild(btn);
     });
     if (f.id === 'pedal-blur' && f.details?.length) {
@@ -1254,9 +1241,7 @@ function bindCarnetEvents() {
   document.addEventListener('session-show-moment', (e) => {
     const at = Number(e.detail?.time);
     if (!Number.isFinite(at) || !currentSession) return;
-    const review = sessionReview();
-    const moment = review?.moments.find((m) => Math.abs(m.at - at) < 0.6) || null;
-    showSessionMoment(at, moment, moment?.issueId || null);
+    showSessionMoment(at);
   });
   if (!els.carnetTimeline || !els.carnetEntries) return;
 

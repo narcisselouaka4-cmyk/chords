@@ -1157,15 +1157,6 @@ export function initPedagogieTab() {
   // reconnu), ou une calibration déjà faite à reprendre.
   els.calibrateBtn = document.getElementById('pedagogie-calibrate-btn');
   els.calibrateBtn?.addEventListener('click', () => { startCalibration(); });
-  // « Voir dans la vidéo » (exemple du Copilote tiré du tutoriel).
-  document.addEventListener('pedagogie-seek', (e) => {
-    const time = Number(e.detail?.time);
-    if (!Number.isFinite(time)) return;
-    document.dispatchEvent(new CustomEvent('app-switch-training-view', { detail: { view: 'pedagogie' } }));
-    playbackStarted = true;
-    render();
-    seekVideo(time);
-  });
   els.categoryHint?.addEventListener('click', () => {
     categoryPickerOpen = true;
     playbackStarted = false;

@@ -5,7 +5,7 @@
 // Lancer : node src/recorder/test-take-review.js
 
 import { createLiveTake, extractLastPassage, passageShift, exampleToSessionEvents, passageSessionMeta } from './live-take.js';
-import { reviewTake, takeMarks, findCadences, takeContextLines } from './take-review.js';
+import { reviewTake, findCadences, takeContextLines, momentText } from './take-review.js';
 import { classifyVoicing, splitHands } from '../voicing-engine/voicing-classifier.js';
 import { extractScaleRequest, fitScales } from '../pedagogie/scales.js';
 
@@ -133,10 +133,9 @@ function testChordsReview() {
   const w = reviewTake(wrong.events, { question: "Je joue un 2-5-1 en Do, c'est bon ?" });
   const issue = w.issues.find((i) => i.id === 'intent-chord');
   check('Fa# au lieu de Fa sur G7 : l\'accord en cause, la note fausse, la note manquante', issue && issue.chord === 'Gmaj13' && issue.problemNotes.join(',') === '54' && issue.missing.join(',') === '5', JSON.stringify(issue));
-  const marks = takeMarks(w, w.moments[0]);
-  check('Clavier : Fa#3 à remplacer, Fa3 suggéré juste à côté (b7), les autres notes avec leur rôle',
-    marks.marks.some((m) => m.midi === 54 && m.kind === 'swap') && marks.marks.some((m) => m.midi === 53 && m.kind === 'suggest' && m.label === 'b7') && marks.marks.some((m) => m.midi === 59 && m.label === '3') && marks.tone === 'tip',
-    JSON.stringify(marks.marks));
+  // [Claude] — 2026-09-25 — Plus de marques au clavier : la suggestion est dite en mots.
+  check('Suggestion : Fa3 (7e) à la place de Fa#3, en mots',
+    /essaie Fa3 \(7e\) à la place de Fa#3/.test(momentText(w.moments[0])), momentText(w.moments[0]));
 
   const rootless = take().chord(0, [53, 57, 60, 64], { hold: 2 });
   const d = reviewTake(rootless.events, { question: 'mon voicing de Dm9 est bon ?' });
@@ -145,8 +144,7 @@ function testChordsReview() {
 
   const pedal = take().pedal(0, true).chord(0, [36, 43, 52, 55, 59], { hold: 1 }).chord(2, [41, 48, 57, 60, 64], { hold: 1 }).chord(4, [43, 50, 53, 59, 65], { hold: 1 }).pedal(5.5, false);
   const p = reviewTake(pedal.events);
-  const blur = takeMarks(p, p.moments[0]);
-  check('Pédale gardée : notes qui traînent marquées « pédale »', blur.marks.filter((m) => m.kind === 'ghost').map((m) => m.midi).join(',') === '43,55,59' && blur.tone === 'tip', JSON.stringify(blur));
+  check('Pédale gardée : les notes qui traînent sont repérées', p.moments[0]?.issueId === 'pedal-blur' && [...(p.moments[0].problemNotes || [])].sort((a, b) => a - b).join(',') === '43,55,59', JSON.stringify(p.moments[0]));
 }
 
 function testLinesReview() {
@@ -162,8 +160,8 @@ function testLinesReview() {
   check('Lick sur G7 : jugé comme une ligne, pas comme un accord à jouer', /^Ligne sur G7 : 8 notes/.test(l.verdict) && !l.issues.some((i) => i.id.startsWith('intent-chord')), l.verdict);
   const roles = l.lines[0].roles.map((r) => r.kind);
   check('Lick : Mib entre Ré et Mi = passage chromatique', roles[1] === 'passing', roles.join(' '));
-  const shape = takeMarks(l);
-  check('Lick : le clavier montre la forme de la ligne', shape.marks.some((m) => m.midi === 75 && m.kind === 'passing') && shape.marks.length === 6, JSON.stringify(shape.marks));
+  const distinct = new Set(l.lines[0].roles.map((r) => r.midi));
+  check('Lick : la forme de la ligne (6 notes différentes, Mib de passage)', distinct.size === 6 && l.lines[0].roles.some((r) => r.midi === 75 && r.kind === 'passing'), [...distinct].join(','));
   // Ligne jouée seule, accord seulement dans la question.
   const alone = take().line(0, [71, 74, 77, 76], 0.4);
   const a = reviewTake(alone.events, { question: 'ma phrase sur G7 est bonne ?' });

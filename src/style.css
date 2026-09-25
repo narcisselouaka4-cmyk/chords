@@ -455,6 +455,22 @@ body {
   filter: url(#insetKey);
 }
 
+/* [Claude] — 2026-09-25 — Qui joue ? Bleu (couleur du pied de page) : tes doigts ;
+   jaune : l'application (exemples du Copilote, démos des Exercices, relecture des
+   sessions). Classe posée par src/ui/key-colors.js. */
+:root {
+  --kb-app: #f2b705;
+  --kb-app-light: #ffd966;
+}
+
+.note.white.active.is-app .piano-key {
+  fill: var(--kb-app-light);
+}
+
+.note.black.active.is-app .piano-key {
+  fill: var(--kb-app);
+}
+
 .piano-key-name {
   font-size: 14px;
   fill: rgba(0, 0, 0, 0.2);
@@ -5766,77 +5782,4 @@ body.studio-recording-cursor * {
 
 .keyboard-panel.collapsed .keyboard-collapse-caret {
   transform: rotate(180deg);
-}
-
-/* [Claude] — 2026-09-25 — Marques posées sur les touches (src/ui/keyboard-marks.js) :
-   pastille + étiquette DANS le SVG de la touche (plus de flèches posées
-   par-dessus, qui se décalaient au redimensionnement). La couleur dit le rôle. */
-:root {
-  --kb-mark-target: #d9ccff;
-  --kb-mark-root: #6fd0bf;
-  --kb-mark-guide: #f4c152;
-  --kb-mark-fifth: #cfd5e2;
-  --kb-mark-color: #bb9cff;
-  --kb-mark-bass: #8cc2f2;
-  --kb-mark-passing: #9fe0e8;
-  --kb-mark-outside: #ff9f6b;
-  --kb-mark-ok: #74d99a;
-  /* [Claude] — 2026-09-25 — Suggestions (plus de rouge « faux ») : note à remplacer
-     en orange doux, note à essayer en pointillé vert. */
-  --kb-mark-swap: #ffb36b;
-  --kb-mark-suggest: #74d99a;
-  --kb-mark-ghost: #a3a3a3;
-}
-
-.kb-mark-dot {
-  fill: var(--kb-mark-target);
-  stroke: rgba(10, 10, 16, 0.55);
-  stroke-width: 1.5;
-}
-
-.kb-mark-label {
-  fill: #15151b;
-  font-family: "DM Sans", system-ui, sans-serif;
-  font-weight: 700;
-  pointer-events: none;
-}
-
-.kb-mark-root .kb-mark-dot { fill: var(--kb-mark-root); }
-.kb-mark-guide .kb-mark-dot { fill: var(--kb-mark-guide); }
-.kb-mark-fifth .kb-mark-dot { fill: var(--kb-mark-fifth); }
-.kb-mark-color .kb-mark-dot { fill: var(--kb-mark-color); }
-.kb-mark-bass .kb-mark-dot { fill: var(--kb-mark-bass); }
-.kb-mark-passing .kb-mark-dot { fill: var(--kb-mark-passing); }
-.kb-mark-outside .kb-mark-dot { fill: var(--kb-mark-outside); }
-.kb-mark-ok .kb-mark-dot { fill: var(--kb-mark-ok); }
-.kb-mark-swap .kb-mark-dot { fill: var(--kb-mark-swap); }
-
-/* Note suggérée : pastille creuse en pointillé (« à essayer »). */
-.kb-mark-suggest .kb-mark-dot {
-  fill: rgba(116, 217, 154, 0.2);
-  stroke: var(--kb-mark-suggest);
-  stroke-width: 2.5;
-  stroke-dasharray: 4 3;
-}
-.note.black .kb-mark-suggest .kb-mark-label { fill: var(--kb-mark-suggest); }
-
-/* Note qui sonne encore sous la pédale : grisée. */
-.kb-mark-ghost { opacity: 0.6; }
-.kb-mark-ghost .kb-mark-dot { fill: var(--kb-mark-ghost); }
-
-/* Voix qui va bouger vers l'accord suivant : anneau qui pulse. */
-.kb-mark-ring {
-  fill: none;
-  stroke: var(--kb-mark-guide);
-  stroke-width: 3;
-  animation: kb-mark-pulse 1s ease-in-out infinite alternate;
-}
-
-@keyframes kb-mark-pulse {
-  from { stroke-opacity: 1; }
-  to { stroke-opacity: 0.15; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .kb-mark-ring { animation: none; }
 }
