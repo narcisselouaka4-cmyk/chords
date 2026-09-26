@@ -120,7 +120,7 @@ global.document = {
 };
 
 // 2. Import dynamique APRÈS le setup de window
-const { sendCopilotMessage, executeToolCalls, wantsToHear, myPlayingRequest } = await import('./copilot-client.js');
+const { sendCopilotMessage, executeToolCalls, wantsToHear, myPlayingRequest, melodyChordsRequest, wantsMelodyChords } = await import('./copilot-client.js');
 
 const GREEN = '\x1b[32m';
 const RED = '\x1b[31m';
@@ -1441,6 +1441,82 @@ async function testMyPlayingInSend() {
   global.fetch = originalFetch;
 }
 
+// [Claude] — 2026-09-26 — Melody chords : la mélodie sur le dessus, les accords de l'application.
+// Dessus de chaque attaque de l'exemple (la note la plus haute à chaque instant).
+function topsOf(example) {
+  const at = new Map();
+  for (const e of example?.events || []) {
+    if (e.type !== 'noteOn') continue;
+    at.set(e.time, Math.max(at.get(e.time) ?? 0, e.note));
+  }
+  return [...at.entries()].sort((a, b) => a[0] - b[0]).map(([, n]) => n).join(',');
+}
+
+function testMelodyChordsTool() {
+  document.resetMock();
+  document.setPanel(false);
+  const call = (args) => ({ function: { name: 'play_melody_chords', arguments: JSON.stringify(args) } });
+  const typed = executeToolCalls([call({ melody: 'Mi4 Ré4 Do4:2' })], 'Le principe : la mélodie reste au-dessus.', {});
+  check('play_melody_chords : dessus = la mélodie tapée (Mi4 Ré4 Do4)', typed.example?.kind === 'melody-chords' && topsOf(typed.example) === '64,62,60', `${typed.example?.kind} ${topsOf(typed.example)}`);
+  check('play_melody_chords : les accords de l\'application sur la carte (mains)', (typed.example?.chords || []).map((c) => c.name).join(' ') === 'Dm9 G9 Cmaj7' && typed.example.chords.every((c) => c.leftHand.length && c.rightHand.length));
+  check('play_melody_chords : l\'harmonisation écrite sous la réponse, par l\'application',
+    (typed.content || '').endsWith('**Melody chords** (basse en quintes · Do majeur, devinée) : Mi4 sur **Dm9** (9e) → Ré4 sur **G9** (quinte) → Do4 sur **Cmaj7** (fondamentale).') && /^Le principe/.test(typed.content), typed.content);
+  const thirds = executeToolCalls([call({ melody: 'Do5 Si4 La4 Sol4 Fa4 Mi4 Ré4 Do4:2', bass: 'tierces' })], '', {});
+  check('play_melody_chords : basse en tierces demandée', /basse en tierces/.test(thirds.example?.subtitle || '') && (thirds.example?.chords || []).map((c) => c.name[0]).join('') === 'CAFDBGEC', `${thirds.example?.subtitle} ${(thirds.example?.chords || []).map((c) => c.name).join(' ')}`);
+  const playing = { session: { events: sessionEvents(), key: 'C', offset: 2 } };
+  const fromSession = executeToolCalls([call({ from: 'ma_session' })], '', { playing });
+  check('play_melody_chords « ma_session » : la voix du dessus de la session, à la hauteur de sa relecture (+2)', topsOf(fromSession.example) === '71,69,67,78' && /Ta mélodie au-dessus/.test(fromSession.example?.subtitle || ''), `${topsOf(fromSession.example)} ${fromSession.example?.subtitle}`);
+  const none = executeToolCalls([call({ from: 'ma_session' })], 'Voici.', { playing: null });
+  check('play_melody_chords sans jeu confié : pas d\'exemple, comment faire', !none.example && /écris ses notes avec leur octave/.test(none.content || '') && /Analyser mon jeu avec le Copilot/.test(none.content || ''), none.content);
+  const empty = executeToolCalls([call({ melody: 'une belle mélodie' })], '', {});
+  check('Mélodie illisible : pas d\'exemple, un exemple d\'écriture', !empty.example && /« Mi4 Ré4 Do4:2 »/.test(empty.content || ''));
+  const wins = executeToolCalls([call({ melody: 'Mi4 Ré4 Do4:2' }), { function: { name: 'play_progression', arguments: JSON.stringify({ chords: ['Dm7', 'G7', 'Cmaj7'] }) } }], '', {});
+  check('play_melody_chords l\'emporte sur une progression générée', topsOf(wins.example) === '64,62,60' && wins.ignored === 1, `${topsOf(wins.example)} ignored=${wins.ignored}`);
+}
+
+function testMelodyChordsRequest() {
+  const r1 = melodyChordsRequest('Harmonise Mi4 Ré4 Do4:2 en melody chords, basse en tierces');
+  check('« Harmonise Mi4 Ré4 Do4:2 …, basse en tierces » → mélodie tapée, tierces', r1?.melody === 'Mi4 Ré4 Do4:2' && r1.bass === 'tierces' && !r1.from, JSON.stringify(r1));
+  const r2 = melodyChordsRequest('Mets des accords sous la mélodie Sol4 La4 Si4');
+  check('« Mets des accords sous la mélodie Sol4 La4 Si4 » → trois notes (« la » seul n\'est pas une note)', r2?.melody === 'Sol4 La4 Si4', JSON.stringify(r2));
+  const session = { session: { events: sessionEvents() } };
+  const both = { ...session, passage: { events: PASSAGE_EVENTS } };
+  check('« Harmonise ma mélodie » : la session confiée', melodyChordsRequest('Harmonise ma mélodie', { playing: session })?.from === 'ma_session');
+  check('« Harmonise ma mélodie » avec un passage joué : le passage ; « ma session » : la session',
+    melodyChordsRequest('Harmonise ma mélodie', { playing: both })?.from === 'mon_passage' && melodyChordsRequest('Melody chords sur ma session', { playing: both })?.from === 'ma_session');
+  check('Sans mélodie ni jeu confié : pas de routage (le Copilote demande la mélodie)', melodyChordsRequest('Harmonise ma mélodie') === null);
+  check('Tonalité lue : « … en La mineur »', melodyChordsRequest('Harmonise Mi5 Ré5 Do5 Si4 La4 en La mineur')?.key === 'Am');
+  check('« L\'harmonie d\'un 2-5-1 », « joue un lick » : pas des melody chords', melodyChordsRequest('Explique-moi l\'harmonie d\'un 2-5-1') === null && melodyChordsRequest('Joue-moi un lick sur G7', { playing: session }) === null);
+  check('« L\'harmonisation d\'un 2-5-1 » : pas des melody chords, même avec une session', !wantsMelodyChords('Explique-moi l\'harmonisation de Dm7 G7 Cmaj7') && melodyChordsRequest('Explique-moi l\'harmonisation de Dm7 G7 Cmaj7', { playing: session }) === null);
+  check('« Comment harmoniser une mélodie ? » : le sujet, mais pas SA mélodie imposée', wantsMelodyChords('Comment harmoniser une mélodie ?') && melodyChordsRequest('Comment harmoniser une mélodie ?', { playing: session }) === null);
+}
+
+async function testMelodyChordsInSend() {
+  const originalFetch = global.fetch;
+  global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
+  let calls = 0;
+  let body = null;
+  global.fetch = async (url, options) => {
+    calls += 1;
+    if (!body) body = JSON.parse(options.body);
+    return { ok: true, status: 200, json: async () => ({ choices: [{ message: { role: 'assistant', content: 'Chaque note de ta mélodie devient le dessus d\'un accord ; la basse descend par quintes.' } }] }) };
+  };
+  const context = { type: 'session', sessionId: 's1', name: 'Ma session', key: 'C', playing: { session: { events: sessionEvents(), key: 'C', offset: 0 } } };
+  const res = await sendCopilotMessage({ message: 'Harmonise ma mélodie en melody chords', messages: [], context });
+  const system = body?.messages?.[0]?.content || '';
+  const tools = (body?.tools || []).map((t) => t.function?.name);
+  check('Melody chords : outil toujours proposé, paragraphe du prompt présent', tools.includes('play_melody_chords') && /Melody chords \(harmoniser une mélodie/.test(system), tools.join(','));
+  check('« Harmonise ma mélodie » sans outil appelé : les accords de l\'application sur sa mélodie, un seul appel',
+    res.ok && res.toolResult?.example?.kind === 'melody-chords' && topsOf(res.toolResult.example) === '69,67,65,76' && /\*\*Melody chords\*\*/.test(res.content) && calls === 1, `${res.toolResult?.example?.kind} ${topsOf(res.toolResult?.example)} calls=${calls}`);
+  calls = 0;
+  body = null;
+  const both = await sendCopilotMessage({ message: 'Joue-moi ma mélodie en melody chords', messages: [], context });
+  check('« Joue-moi ma mélodie en melody chords » : des accords, pas la relecture', both.toolResult?.example?.kind === 'melody-chords' && calls === 1, `${both.toolResult?.example?.kind} calls=${calls}`);
+  const progression = await sendCopilotMessage({ message: 'Explique-moi l\'harmonisation de Dm7 G7 Cmaj7', messages: [], context });
+  check('« L\'harmonisation de Dm7 G7 Cmaj7 » en session : l\'exemple de la progression, pas sa mélodie', progression.toolResult?.example && progression.toolResult.example.kind !== 'melody-chords', progression.toolResult?.example?.kind);
+  global.fetch = originalFetch;
+}
+
 async function runTests() {
   testToolCalls();
   await testNoKey();
@@ -1481,6 +1557,9 @@ async function runTests() {
   testMyPlayingTool();
   testMyPlayingRequest();
   await testMyPlayingInSend();
+  testMelodyChordsTool();
+  testMelodyChordsRequest();
+  await testMelodyChordsInSend();
   testWantsToHear();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);
