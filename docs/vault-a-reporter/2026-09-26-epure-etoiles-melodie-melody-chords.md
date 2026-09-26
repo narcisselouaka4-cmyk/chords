@@ -195,3 +195,39 @@
    clavier MIDI, cliquer Stop : la réponse ne parle que du passage réussi.
 3. Mode exercice (« Demander au Copilote ») : « Qu'en penses-tu ? » compare le jeu à
    l'exercice.
+
+---
+
+## Suite du 26/09 — La case du Copilote ne se bloque plus
+
+### `log.md` — entrée à ajouter
+
+```markdown
+## 2026-09-26 (suite) — Copilote : la conversation ne se bloque plus
+- Narcisse : « on ne peut plus converser avec l'IA : la case de conversation ne réagit
+  plus ; je voulais écrire, rien ne s'affiche, même en forçant le rechargement ».
+- Non reproduit ici (taper, envoyer, répondre : tout marche, stockage Electron simulé).
+  Faiblesse trouvée : la case était désactivée pendant chaque échange et ne se réactivait
+  qu'à la fin d'un échange réussi ; l'appel à l'IA n'avait AUCUN délai maximal (Electron :
+  `ai:chat-completion` sans `timeoutMs`). Une réponse qui n'arrive pas, ou une erreur en
+  route, laissaient la case bloquée.
+- Fait : la case reste toujours libre (on écrit la question suivante pendant l'attente,
+  seul l'envoi attend) ; délai de 90 s sur tout l'échange, navigateur et Electron ;
+  quoi qu'il arrive, la réponse ou la raison s'affiche en clair (délai dépassé, service en
+  panne, demande refusée, clé refusée, erreur technique à recopier) ; l'historique
+  (fichiers) ne peut plus empêcher une réponse ; un message ancien qu'on ne sait plus
+  afficher s'affiche en texte simple.
+```
+
+### `decisions/` — ADR : « Le Copilote ne bloque jamais la saisie »
+
+- Un échange avec l'IA a toujours une fin : réponse, ou message d'échec en français au bout
+  de 90 secondes au plus (`setCopilotTimeout`, `copilotErrorText`).
+- La case de conversation n'est jamais désactivée ; seul l'envoi attend la fin de l'échange
+  en cours (`turnBusy`).
+- L'enregistrement de l'historique passe après l'affichage et n'est jamais bloquant.
+
+### `state/current-work.md` — à vérifier sur le PC
+
+- Copilote : taper, envoyer, obtenir une réponse. Si ça coince encore, lire le message qui
+  s'affiche dans la conversation et le transmettre tel quel.

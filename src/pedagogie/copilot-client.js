@@ -1133,23 +1133,51 @@ function isOllamaCloudUrl(baseUrl = '') {
   return /api\.ollama\.ai|ollama\.ai\/v1/i.test(baseUrl);
 }
 
+// [Claude] — 2026-09-26 — Délai de réponse du service d'IA. Narcisse : « on ne peut
+// plus converser avec l'IA, la case ne réagit plus, même en rechargeant ». Sans
+// délai, une réponse qui n'arrivait jamais laissait le Copilote attendre sans fin.
+let copilotTimeoutMs = 90000;
+/** Délai de réponse (ms) ; les tests le raccourcissent. */
+export function setCopilotTimeout(ms) {
+  copilotTimeoutMs = Number.isFinite(ms) && ms > 0 ? ms : 90000;
+}
+
 async function callChatCompletionOnce(config, body) {
-  const response = await callChatCompletions(config.baseUrl, config.apiKey, body);
-
-  if (!response.ok) {
-    const text = await response.text().catch(() => '');
-    if (response.status === 401 || response.status === 403) {
-      return { ok: false, error: 'AI_API_KEY_INVALID', responseText: text };
+  // Une seule minuterie pour tout l'échange (envoi, attente, lecture de la
+  // réponse), quel que soit le chemin : fetch (navigateur) ou processus principal
+  // (Electron, qui reçoit aussi le délai pour arrêter sa propre requête).
+  const controller = typeof AbortController === 'function' ? new AbortController() : null;
+  let timer = null;
+  const expired = new Promise((resolve) => {
+    timer = setTimeout(() => {
+      controller?.abort();
+      resolve({ ok: false, error: 'AI_TIMEOUT' });
+    }, copilotTimeoutMs);
+  });
+  const exchange = (async () => {
+    const response = await callChatCompletions(config.baseUrl, config.apiKey, body, { timeoutMs: copilotTimeoutMs, signal: controller?.signal });
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      if (response.status === 401 || response.status === 403) {
+        return { ok: false, error: 'AI_API_KEY_INVALID', responseText: text };
+      }
+      return { ok: false, error: `AI_API_ERROR_${response.status}`, responseText: text, status: response.status };
     }
-    return { ok: false, error: `AI_API_ERROR_${response.status}`, responseText: text, status: response.status };
+    const data = await response.json();
+    const choice = data.choices?.[0]?.message;
+    if (!choice) return { ok: false, error: 'Réponse vide du modèle.' };
+    return { ok: true, choice };
+  })().catch((err) => {
+    if (controller?.signal.aborted || err?.name === 'AbortError' || /timeout/i.test(err?.message || '')) {
+      return { ok: false, error: 'AI_TIMEOUT' };
+    }
+    throw err;
+  });
+  try {
+    return await Promise.race([exchange, expired]);
+  } finally {
+    clearTimeout(timer);
   }
-
-  const data = await response.json();
-  const choice = data.choices?.[0]?.message;
-  if (!choice) {
-    return { ok: false, error: 'Réponse vide du modèle.' };
-  }
-  return { ok: true, choice };
 }
 
 function normalizePayloadMessages(messages) {
