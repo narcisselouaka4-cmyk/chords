@@ -72,6 +72,9 @@
 .vk-device.is-live { color: var(--vk-root-note); border-color: #35514c; }
 .vk-device.is-live > span { color: var(--vk-root-note); }
 .vk-collapse { display: grid; place-items: center; width: 30px; height: 26px; padding: 0; color: var(--vk-secondary); background: #26272e; border: 1px solid var(--vk-line-soft); border-radius: 5px; }
+/* [Claude] — 2026-09-25 — « Qu'en penses-tu ? » dans la barre du clavier. */
+.vk-review { display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; color: var(--vk-accent); background: #2b2438; border: 1px solid #4b3f68; border-radius: 13px; font-size: 10.5px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.vk-review:hover { color: var(--vk-text); border-color: var(--vk-accent); }
 .vk-collapse:hover { color: var(--vk-text); background: #33343c; border-color: #4a4c55; }
 
 .vk-notice { flex-shrink: 0; margin: 0; padding: 7px 16px; color: #c9a6b1; background: #2a2029; border-bottom: 1px solid #3a2f38; font-size: 10px; line-height: 1.5; }
@@ -101,18 +104,15 @@
 .vk-legend { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .vk-legend > span { display: inline-flex; align-items: center; gap: 6px; color: var(--vk-secondary); font: 9px var(--vk-mono); white-space: nowrap; }
 .vk-dot { width: 9px; height: 9px; border-radius: 50%; }
-.vk-dot-note { background: linear-gradient(#c0a8f2, #8f6fe0); }
-.vk-dot-root { background: linear-gradient(#a2dcd2, #56b3a5); }
-.vk-hint { overflow: hidden; text-overflow: ellipsis; color: var(--vk-muted) !important; font-family: "DM Sans", sans-serif !important; font-size: 9px !important; }
+.vk-dot-you { background: var(--kb-you, #2563eb); }
+/* [Claude] — 2026-09-25 — Jaune : ce que joue l'application (style.css, --kb-app). */
+.vk-dot-app { background: var(--kb-app, #f2b705); }
 .vk-status-right { display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
 .vk-status-right > button { height: 21px; padding: 0 8px; color: var(--vk-muted); background: #22232a; border: 1px solid var(--vk-line-soft); border-radius: 10px; font-size: 9px; white-space: nowrap; }
 .vk-status-right > button:hover { color: var(--vk-text); border-color: #45474f; }
 .vk-status-right > button.is-on { color: var(--vk-accent); border-color: #4b3f68; background: #2b2438; }
 .vk-mono { color: var(--vk-muted); font: 9px var(--vk-mono); white-space: nowrap; }
 
-.vk-resize { position: absolute; top: -3px; left: 50%; width: 130px; height: 7px; margin-left: -65px; z-index: 3; cursor: ns-resize; }
-.vk-resize::after { content: ""; position: absolute; left: 50%; top: 2px; width: 42px; height: 3px; margin-left: -21px; border-radius: 3px; background: #4a4c56; transition: background .2s, width .2s; }
-.vk-resize:hover::after { background: var(--vk-accent); width: 64px; margin-left: -32px; }
 
 /* --- Collapsed rail ----------------------------------------------------- */
 .vk-rail { display: flex; align-items: center; gap: 16px; height: 100%; padding: 0 9px 0 13px; background: linear-gradient(#22232a, #1a1b20); }
@@ -131,7 +131,7 @@
 .vk-expand:hover { color: var(--vk-text); background: #33343c; border-color: #4a4c55; }
 
 /* --- Responsive --------------------------------------------------------- */
-@media (max-width: 1500px) { .vk-hint { display: none; } }
+@media (max-width: 1150px) { .vk-review > span { display: none; } }
 @media (max-width: 1320px) {
   .vk-controls { gap: 9px; }
   .vk-select select { max-width: 106px; }
@@ -169,3 +169,59 @@
   .vk-root, .vk-white, .vk-black { transition: none; }
   .vk-spin { animation-duration: .01ms; }
 }
+
+/* --- Thème clair ----------------------------------------------------------
+   [Claude] — 2026-09-24 — À la demande de Narcisse, le clavier suit le thème de
+   l'application : en clair, coque, barres et contrôles reprennent la palette
+   claire d'Astra (astra-training.css). Les touches gardent leur aspect
+   d'instrument (ivoire / anthracite, notes allumées en violet). */
+:root[data-theme='light'] .vk-root {
+  --vk-shell: #fcfbfd;
+  --vk-shell-2: #f5f4f7;
+  --vk-line: #dfdce5;
+  --vk-line-soft: #eae7ef;
+  --vk-text: #272330;
+  --vk-secondary: #6b6377;
+  --vk-muted: #746c7e;
+  --vk-accent: #7954c5;
+  --vk-accent-deep: #6541b4;
+  --vk-root-note: #3e8b74;
+  background: linear-gradient(#fcfbfd, #f5f4f7 42%, #f0eef4);
+  border-top: 1px solid #dfdce5;
+  box-shadow: 0 -14px 30px -24px #4233543d, inset 0 1px 0 #ffffffcc;
+}
+:root[data-theme='light'] .vk-root.is-collapsed { box-shadow: 0 -8px 20px -18px #42335440, inset 0 1px 0 #ffffffcc; }
+:root[data-theme='light'] .vk-toolbar,
+:root[data-theme='light'] .vk-rail { background: linear-gradient(#fcfbfd, #f5f4f7); }
+:root[data-theme='light'] .vk-status { background: #f5f4f7; }
+:root[data-theme='light'] .vk-review { background: #eee7fb; border-color: #d6c9f2; }
+:root[data-theme='light'] .vk-stepper > button { background: #f0eef4; }
+:root[data-theme='light'] .vk-stepper > button:hover { background: #eae7f0; }
+:root[data-theme='light'] .vk-select select,
+:root[data-theme='light'] .vk-switches > button,
+:root[data-theme='light'] .vk-device,
+:root[data-theme='light'] .vk-collapse,
+:root[data-theme='light'] .vk-device-pill,
+:root[data-theme='light'] .vk-expand,
+:root[data-theme='light'] .vk-status-right > button { background: #ffffff; }
+:root[data-theme='light'] .vk-select select:hover,
+:root[data-theme='light'] .vk-switches > button:hover,
+:root[data-theme='light'] .vk-device:hover,
+:root[data-theme='light'] .vk-status-right > button:hover { border-color: #cfcad8; }
+:root[data-theme='light'] .vk-collapse:hover,
+:root[data-theme='light'] .vk-expand:hover { background: #f0eef4; border-color: #cfcad8; }
+:root[data-theme='light'] .vk-switches > button.is-on { color: #ffffff; }
+:root[data-theme='light'] .vk-status-right > button.is-on { color: var(--vk-accent); border-color: #d6c9f2; background: #eee7fb; }
+:root[data-theme='light'] .vk-volume input { background: linear-gradient(to right, var(--vk-accent) var(--vk-fill, 55%), #dfdce5 var(--vk-fill, 55%)); }
+:root[data-theme='light'] .vk-device.is-live,
+:root[data-theme='light'] .vk-device-pill.is-live { border-color: #b7dccd; }
+:root[data-theme='light'] .vk-device-pill > i { background: #b3aebb; }
+:root[data-theme='light'] .vk-notice { color: #8a4b5c; background: #fbeef1; border-bottom-color: #f1dde2; }
+:root[data-theme='light'] .vk-bed { background: linear-gradient(#e9e6ee, #dedae4); }
+:root[data-theme='light'] .vk-bed::after { background: linear-gradient(#cfcad8, #e2dee8); box-shadow: 0 2px 4px #00000026; }
+:root[data-theme='light'] .vk-switch,
+:root[data-theme='light'] .vk-stepper > input[type="number"],
+:root[data-theme='light'] .vk-select.vk-field-narrow > input { background: #ffffff; }
+:root[data-theme='light'] .vk-switch:hover { border-color: #cfcad8; }
+:root[data-theme='light'] .vk-switch:has(> input:checked) { color: #ffffff; background: var(--vk-accent); border-color: var(--vk-accent); }
+:root[data-theme='light'] .vk-switch.is-warn:has(> input:checked) { color: #2d1a1f; background: #e0a3b0; border-color: #e0a3b0; }

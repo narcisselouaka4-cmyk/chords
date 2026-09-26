@@ -100,7 +100,7 @@
             <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="coach" title="Accompagner une voix isolée et faire analyser votre placement"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/></svg><span>Coach d'accompagnement</span><span class="tr-active-underline" aria-hidden="true"></span></button>
             <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="pedagogie" title="Lire un tutoriel vidéo et en extraire la grille d'accords"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.42 10.92a1 1 0 0 0-.02-1.84L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.83l8.57 3.91a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg><span>Pédagogie IA</span><span class="tr-active-underline" aria-hidden="true"></span></button>
             <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="copilot" title="Assistant IA conversationnel pour le tutoriel en cours"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.29 1.29L3 12l5.81 1.9a2 2 0 0 1 1.29 1.29L12 21l1.9-5.81a2 2 0 0 1 1.29-1.29L21 12l-5.81-1.9a2 2 0 0 1-1.29-1.29z"/><path d="M5 3v4M19 17v4M3 5h4M17 19h4"/></svg><span>Copilot IA</span><span class="tr-active-underline" aria-hidden="true"></span></button>
-            <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="exercise" title="Ouvrir Exercices"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg><span>Exercices</span><span class="practice-exercise-progress tr-points" id="exercise-collapsed-progress"></span><span class="tr-active-underline" aria-hidden="true"></span></button>
+            <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="exercise" title="Ouvrir Exercices"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg><span>Exercices</span><span class="practice-exercise-progress tr-points" id="exercise-collapsed-progress" style="display: none;"></span><span class="tr-active-underline" aria-hidden="true"></span></button>
           </nav>
           <div class="tr-session-tools practice-subnav-actions">
             <button class="tr-midi-connection practice-midi-status" id="practice-midi-status" type="button" title="État du clavier MIDI">
@@ -176,30 +176,82 @@
              dedicatedViews de main.js a reçu l'entrée correspondante.
              Les identifiants que practice-exercise.js / main.js écrivent ou lisent
              ont suivi ici sans être renommés : #practice-exercise-panel,
-             .exercise-mode-btn[data-mode], #new-exercise-btn, #exercise-target,
-             #exercise-feedback, #exercise-degree-badge. -->
+             .exercise-mode-btn[data-mode], #exercise-target,
+             #exercise-feedback. -->
         <div class="tr-view practice-exercices" id="practice-view-exercices" style="display: none;">
-          <div class="tr-view-heading">
-            <div>
-              <div class="tr-page-title"><span class="tr-page-index">05</span><h1>Exercices</h1></div>
-              <p>Un mouvement à la fois. Jusqu'à ce qu'il devienne naturel.</p>
-            </div>
-            <div class="tr-heading-actions">
-              <button class="tr-button" type="button" data-astra-open="exercise-help-dialog"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>Comment jouer</button>
-              <button class="tr-button tr-primary panel-action" type="button" id="new-exercise-btn"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>Nouvel exercice</button>
-            </div>
-          </div>
 
           <div class="tr-exercise-mode" id="practice-exercise-panel">
             <div class="tr-segment-control exercise-mode-selector" role="tablist" aria-label="Type d'exercice">
               <button class="exercise-mode-btn active is-active" data-mode="chord" role="tab" aria-selected="true" type="button">Accord cible</button>
-              <button class="exercise-mode-btn" data-mode="progression" role="tab" aria-selected="false" type="button">Progression</button>
               <button class="exercise-mode-btn" data-mode="movement" role="tab" aria-selected="false" type="button">Mouvement 12 tons</button>
             </div>
-            <span class="tr-local-detection"><span class="tr-status-dot"></span>Reconnaissance locale</span>
+            <!-- [Claude] — 2026-09-24 — Titre « Exercices » et « Reconnaissance locale »
+                 retirés (Narcisse) : le sous-onglet nomme déjà la vue. Les actions
+                 remontent sur la ligne du sélecteur de mode. -->
+            <div class="tr-heading-actions">
+              <!-- [Claude] — 2026-09-25 — « Demander au Copilote » : l'assistant reçoit l'exercice
+                   affiché (accord, voicing de la carte, mouvement, tonalité, derniers essais). -->
+              <button class="tr-button exercise-copilot-btn" type="button" id="exercise-copilot-btn" title="Le Copilot reçoit l'exercice affiché : il explique le voicing, le fait entendre et propose des pistes"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.29 1.29L3 12l5.81 1.9a2 2 0 0 1 1.29 1.29L12 21l1.9-5.81a2 2 0 0 1 1.29-1.29L21 12l-5.81-1.9a2 2 0 0 1-1.29-1.29z"/></svg>Demander au Copilote</button>
+              <button class="tr-button" type="button" data-astra-open="exercise-help-dialog"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>Comment jouer</button>
+              <button class="tr-button panel-action" type="button" id="prev-exercise-btn" style="display: none;" title="Revenir à l'accord précédent pour réexaminer son voicing"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Accord précédent</button>
+              <button class="tr-button tr-primary panel-action" type="button" id="exercise-library-btn" aria-label="Ouvrir la bibliothèque d'exercices"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Bibliothèque</button>
+            </div>
           </div>
 
           <section class="tr-exercise-stage">
+            <!-- Retour de jeu (bonne / mauvaise réponse) : bulle flottante en haut de la
+                 zone, sans place réservée (visible même clavier MIDI déplié). -->
+            <div class="exercise-feedback" id="exercise-feedback" role="status" aria-live="polite"></div>
+            <!-- [Claude] — 2026-09-24 — Mode Accord cible : bande du haut (choix de
+                 l'accord), au-dessus de la carte ; les colonnes gauche (note du
+                 dessus + résultats) et droite (voicings) s'alignent sur elle.
+                 Filtres et Favoris s'ouvrent en fenêtres depuis cette bande. -->
+            <div class="exercise-chord-head" id="exercise-chord-head" hidden>
+              <div class="exercise-chord-head-controls">
+                <!-- Recherche de voicings par top note (sans octave), à la place du sous-titre. -->
+                <label for="exercise-top-note">Top note</label>
+                <select id="exercise-top-note" aria-label="Note la plus haute du voicing (toutes octaves)">
+                  <option value="">Toutes</option>
+                  <option value="0">C</option>
+                  <option value="1">C# / Db</option>
+                  <option value="2">D</option>
+                  <option value="3">D# / Eb</option>
+                  <option value="4">E</option>
+                  <option value="5">F</option>
+                  <option value="6">F# / Gb</option>
+                  <option value="7">G</option>
+                  <option value="8">G# / Ab</option>
+                  <option value="9">A</option>
+                  <option value="10">A# / Bb</option>
+                  <option value="11">B</option>
+                </select>
+                <label for="exercise-target-root">Accord</label>
+                <select id="exercise-target-root" aria-label="Fondamentale de l'accord cible">
+                  <option value="0">C</option>
+                  <option value="1">C# / Db</option>
+                  <option value="2">D</option>
+                  <option value="3">D# / Eb</option>
+                  <option value="4">E</option>
+                  <option value="5">F</option>
+                  <option value="6">F# / Gb</option>
+                  <option value="7">G</option>
+                  <option value="8">G# / Ab</option>
+                  <option value="9">A</option>
+                  <option value="10">A# / Bb</option>
+                  <option value="11">B</option>
+                </select>
+                <!-- Qualités jouables : remplies par main.js depuis TARGET_QUALITY_GROUPS
+                     (practice-exercise.js), source unique partagée avec le navigateur. -->
+                <select id="exercise-target-quality" aria-label="Qualité de l'accord cible"></select>
+                <!-- Tirage d'un accord au hasard : vrai bouton (icône dé), dans la bande du haut. -->
+                <button class="tr-button exercise-random-target-btn" type="button" id="exercise-random-target-btn" title="Tire une racine et une qualité au hasard (en respectant la top note si elle est choisie)"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="16" cy="8" r="1.1" fill="currentColor"/><circle cx="12" cy="12" r="1.1" fill="currentColor"/><circle cx="8" cy="16" r="1.1" fill="currentColor"/><circle cx="16" cy="16" r="1.1" fill="currentColor"/></svg>Accord au hasard</button>
+                <!-- Filtres de la top note et doublures : fenêtre temporaire (fermée par défaut). -->
+                <button class="tr-button exercise-filters-btn" type="button" id="exercise-filters-btn" data-astra-open="exercise-filters-dialog"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18M6 12h12M10 19h4"/></svg>Filtres<span class="exercise-filters-count" id="exercise-filters-count" hidden></span></button>
+                <!-- [Claude] — 2026-09-25 — Favoris : fenêtre temporaire ouverte à côté des
+                     Filtres (Narcisse : « une fenêtre temporaire pour Favoris »). -->
+                <button class="tr-button exercise-favorites-btn" type="button" id="exercise-favorites-btn" data-astra-open="exercise-favorites-dialog"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg>Favoris<span class="exercise-favorites-count" id="exercise-favorites-count" hidden></span></button>
+              </div>
+            </div>
             <!-- [Astra round 3] — Le guide et le panneau de progression ne sont
                  plus des textes figés : main.js (updateExerciseProgressUI) les
                  remplit avec les données réelles de practice-exercise.js, selon
@@ -212,43 +264,212 @@
                 <span id="exercise-brief-category">EXERCICE</span>
               </div>
               <h2 id="exercise-brief-title">Un accord,<br />puis le suivant.</h2>
-              <p id="exercise-brief-text">Jouez les notes de l'accord affiché, ensemble ou une à une. La
-                 reconnaissance est celle du moteur d'accords de l'application :
-                 elle compare les notes reçues, pas votre doigté.</p>
-              <div class="exercise-key-pill" id="exercise-brief-key" style="display: none;"></div>
-              <div class="exercise-degree-badge" id="exercise-degree-badge" style="display: none;"></div>
+              <p id="exercise-brief-text"></p>
+              <!-- [Claude] — 2026-09-24 — Réglages du tour (Mouvement 12 tons), en
+                   grille étiquette / contrôle. La tonalité active a quitté cette
+                   colonne pour le panneau de droite (Narcisse : « pas au bon
+                   endroit »). Mode Progression retiré (degrés, sélecteur de contenu,
+                   badge de degré) : les grilles tapées passent par la bibliothèque
+                   (« Ma grille »). -->
+              <div class="exercise-settings" id="exercise-movement-settings" hidden>
+                <span class="tr-eyebrow exercise-settings-eyebrow">RÉGLAGES DU TOUR</span>
+                <div class="exercise-setting" id="exercise-difficulty-selector">
+                  <label for="exercise-difficulty-select">Niveau</label>
+                  <!-- [Claude] — 2026-09-24 (nuit) — Règle de Narcisse : aucune tension dans les
+                       accords principaux ; le niveau se lit surtout aux accords de passage. -->
+                  <select id="exercise-difficulty-select" aria-label="Niveau : extensions des accords et accords de passage (tensions)">
+                    <option value="1">Débutant · 7e, sans passage</option>
+                    <option value="2">Semi-intermédiaire · 9e, sans passage</option>
+                    <option value="3" selected>Intermédiaire · 13e, passages diminués</option>
+                    <option value="4">Semi-avancé · passages 7b9, 7#5, 7b5</option>
+                    <option value="5">Avancé · passages altérés (alt, #9)</option>
+                  </select>
+                </div>
+                <div class="exercise-setting exercise-setting-keys">
+                  <span class="exercise-setting-label" id="exercise-key-grid-label">Tonalités</span>
+                  <div class="exercise-key-grid" id="exercise-key-grid" role="group" aria-labelledby="exercise-key-grid-label"></div>
+                </div>
+                <div class="exercise-setting">
+                  <label for="exercise-key-order">Ordre</label>
+                  <select id="exercise-key-order" aria-label="Ordre de parcours des tonalités"></select>
+                </div>
+                <div class="exercise-setting" id="exercise-key-selector">
+                  <label for="exercise-key-select">Départ</label>
+                  <select id="exercise-key-select" aria-label="Tonalité de départ du tour">
+                    <option value="">Au hasard</option>
+                  </select>
+                </div>
+              </div>
+              <!-- Sélecteur d'accord cible : visible uniquement en mode "Accord cible".
+                   [Claude] — 2026-09-24 — Colonne de gauche = les accords à charger sur
+                   la carte (recherche par top note). La droite garde les voicings
+                   affichés. [Claude] — 2026-09-25 — Les favoris ont quitté la colonne
+                   pour leur fenêtre (#exercise-favorites-dialog). -->
+              <div class="exercise-target-choice" id="exercise-target-choice" style="display: none;">
+                <section class="exercise-choice-section exercise-topnote-section" aria-label="Accords par top note">
+                  <span class="tr-eyebrow">TOP NOTE</span>
+                  <!-- Tous les accords ayant la note du dessus choisie (rempli par main.js). -->
+                  <p class="exercise-side-hint exercise-browser-hint" id="exercise-topnote-browser-hint">Choisissez une top note : les accords qui l'ont au sommet s'affichent ici.</p>
+                  <div class="exercise-topnote-browser" id="exercise-topnote-browser" hidden></div>
+                </section>
+              </div>
+
             </div>
 
             <div class="tr-chord-arena">
               <div class="tr-arena-ellipse" aria-hidden="true"></div>
               <div class="tr-arena-ellipse tr-ellipse-outer" aria-hidden="true"></div>
               <div class="tr-target-chord">
-                <span class="tr-eyebrow">À VOUS DE JOUER</span>
+                <span class="tr-eyebrow" id="exercise-arena-eyebrow">À VOUS DE JOUER</span>
                 <div class="exercise-target" id="exercise-target" style="display:none;"></div>
               </div>
             </div>
 
             <div class="tr-exercise-progress">
               <span class="tr-eyebrow" id="exercise-progress-eyebrow">VOTRE PROGRESSION</span>
+              <!-- [Claude] — 2026-09-24 — Tonalité en cours, bien en vue en tête du
+                   panneau, puis la frise des tonalités du tour et les accords :
+                   un clic sur une tonalité ou un accord y va directement. -->
+              <div class="exercise-current-key" id="exercise-current-key" hidden></div>
               <div class="tr-key-counter" id="exercise-progress-counter" style="display: none;"></div>
               <div class="tr-key-progress-track" id="exercise-progress-track" style="display: none;"><span></span></div>
+              <!-- [Claude] — 2026-09-24 — Démo du mouvement (gospel / worship) dans la
+                   tonalité en cours, avec les voicings de l'exercice. -->
+              <button class="tr-button exercise-demo-btn" type="button" id="exercise-demo-btn" hidden title="Démo gospel / worship dans la tonalité en cours, avec les voicings de l'exercice"><svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg><span>Écouter le mouvement</span></button>
+              <!-- Style de la démo (rempli par main.js) : selon le mouvement, ou imposé. -->
+              <div class="exercise-demo-style" id="exercise-demo-style-row" hidden>
+                <label for="exercise-demo-style">Style</label>
+                <select id="exercise-demo-style" data-demo-style aria-label="Style de la démo"></select>
+              </div>
+              <div class="exercise-key-strip" id="exercise-key-strip" role="group" aria-label="Tonalités du tour" hidden></div>
+              <span class="tr-eyebrow exercise-chords-eyebrow" id="exercise-chords-eyebrow" hidden>ACCORDS</span>
               <div class="tr-progression-path" id="exercise-progress-path"></div>
               <p class="tr-progress-quiet" id="exercise-progress-quiet">Lancez un exercice : l'avancement s'affiche ici.</p>
+              <!-- [Claude] — 2026-09-24 — Mode Accord cible : la colonne de droite
+                   (score inutile ici) accueille les voicings de l'accord affiché ;
+                   les favoris sont passés à gauche. Les autres modes gardent leur
+                   avancement. -->
+              <div class="exercise-chord-side" id="exercise-chord-side" hidden>
+                <span class="tr-eyebrow">VOICINGS</span>
+                <!-- Voicings disponibles pour l'accord affiché : rempli par main.js. -->
+                <div class="exercise-voicing-choices" id="exercise-voicing-choices"></div>
+              </div>
             </div>
           </section>
 
-          <div class="tr-exercise-response">
-            <div class="tr-response-content">
-              <div class="tr-input-indicator" aria-hidden="true"><i></i><i></i><i></i></div>
-              <div>
-                <strong>À votre rythme. Le clavier vous attend.</strong>
-                <div class="exercise-feedback" id="exercise-feedback"></div>
+          <!-- [Claude] — 2026-09-24 — Case « À votre rythme » retirée : masquée par le
+               clavier MIDI déplié. Le retour de jeu (#exercise-feedback) s'affiche
+               désormais en bulle flottante en haut de la carte. -->
+        </div>
+
+        <!-- [Claude] — 2026-09-24 — Bibliothèque : grande fenêtre Astra centrée,
+             comme celles de Sessions MIDI, du Coach et de Pédagogie IA (Narcisse :
+             « visuellement ça ne rend pas très bien »), au lieu d'un panneau
+             collé au bord. Onglet Progressions retiré avec le mode ; « Ma grille »
+             joue des accords tapés en symboles dans les tonalités choisies. -->
+        <div class="tr-overlay tr-drawer-overlay" id="exercise-library" hidden>
+          <div class="tr-dialog tr-dialog-wide tr-drawer exercise-library" role="dialog" aria-modal="true" aria-label="Bibliothèque des mouvements">
+            <div class="tr-dialog-title">
+              <div class="exercise-library-heading">
+                <h2>Bibliothèque des mouvements</h2>
+                <p>Un enchaînement à faire tourner dans les tonalités choisies, au niveau choisi.</p>
               </div>
+              <button class="tr-icon-button" type="button" id="exercise-library-close" data-astra-close aria-label="Fermer la bibliothèque">✕</button>
+            </div>
+            <div class="tr-dialog-body exercise-library-body">
+              <!-- [Claude] — 2026-09-24 — Ma grille : les accords se choisissent (fondamentale
+                   + qualité), plus de saisie au clavier (Narcisse : « pas pratique d'écrire »).
+                   Puis : note du dessus par accord (voice leading), un accord précis se
+                   modifie d'un clic, la grille s'enregistre dans la catégorie Perso. -->
+              <form class="exercise-grid-entry" id="exercise-grid-form" autocomplete="off">
+                <div class="exercise-grid-entry-text">
+                  <span class="tr-eyebrow">MA GRILLE</span>
+                  <p>Choisissez vos accords un par un, extensions comprises, et si vous voulez la note du dessus de chacun (votre mélodie) : ils seront joués tels quels, ton après ton. Un accord de tension (7b9, 7alt, dim7…) s'ajoute en passage, après l'accord qu'il suit. Cliquez un accord pour le modifier.</p>
+                </div>
+                <div class="exercise-grid-builder">
+                  <div class="exercise-grid-picker">
+                    <select id="exercise-grid-root" aria-label="Fondamentale de l'accord"></select>
+                    <select id="exercise-grid-quality" aria-label="Qualité de l'accord"></select>
+                    <select id="exercise-grid-top" aria-label="Note du dessus de l'accord (voice leading)" title="Voice leading : note jouée au sommet de l'accord"></select>
+                    <button class="tr-button" type="button" id="exercise-grid-add">Ajouter</button>
+                    <button class="tr-button" type="button" id="exercise-grid-cancel" hidden>Annuler</button>
+                  </div>
+                  <ol class="exercise-grid-chips" id="exercise-grid-chips" aria-label="Accords de votre grille"></ol>
+                  <div class="exercise-grid-actions">
+                    <input type="text" id="exercise-grid-name" placeholder="Nom de la grille" aria-label="Nom de la grille, pour l'enregistrer dans Perso" maxlength="60">
+                    <button class="tr-button" type="button" id="exercise-grid-save">Enregistrer</button>
+                    <button class="tr-button" type="button" id="exercise-grid-clear">Tout effacer</button>
+                    <button class="tr-button tr-primary" type="submit" id="exercise-grid-play">Jouer ma grille</button>
+                  </div>
+                  <p class="exercise-grid-status" id="exercise-grid-status" role="status" aria-live="polite"></p>
+                </div>
+              </form>
+              <div class="tr-library-toolbar exercise-library-toolbar">
+                <label class="tr-search exercise-library-search"><svg class="tr-i" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input type="text" id="exercise-library-search" placeholder="Rechercher un mouvement…" aria-label="Rechercher un mouvement"></label>
+                <div class="exercise-library-categories" id="exercise-library-categories" role="group" aria-label="Catégories"></div>
+                <label class="exercise-library-style"><span>Style des aperçus</span><select id="exercise-library-style" data-demo-style aria-label="Style des aperçus"></select></label>
+              </div>
+              <div class="exercise-library-grid" id="exercise-library-grid"></div>
             </div>
           </div>
         </div>
 
         <!-- Fenêtre « Comment jouer » (recopiée de la maquette). -->
+        <!-- [Claude] — 2026-09-24 — Fenêtre temporaire des filtres (Accord cible) :
+             filtres de la top note et doublures, hors de la page. -->
+        <div class="tr-overlay" id="exercise-filters-dialog" hidden>
+          <div class="tr-dialog exercise-filters-dialog" role="dialog" aria-modal="true" aria-label="Filtres">
+            <div class="tr-dialog-title"><h2>Filtres</h2>
+              <button class="tr-icon-button" type="button" data-astra-close aria-label="Fermer">✕</button></div>
+            <div class="tr-dialog-body exercise-filters-body">
+              <section class="exercise-filters-section">
+                <span class="tr-eyebrow">TOP NOTE</span>
+                <p class="exercise-side-hint" id="exercise-topnote-filters-hint">Choisissez une top note pour filtrer les voicings.</p>
+                <div class="exercise-topnote-filters" id="exercise-topnote-filters" hidden>
+                  <!-- Tonalité, fondamentale et techniques : remplies par main.js. -->
+                  <select data-topnote-filter="key" aria-label="Tonalité : voicings dont toutes les notes sont dans la gamme"></select>
+                  <select id="exercise-top-note-level" aria-label="Niveau des voicings suggérés" disabled>
+                    <option value="all">Tous niveaux</option>
+                    <option value="simple">Simple (★1)</option>
+                    <option value="intermediate">Intermédiaire (★2)</option>
+                    <option value="advanced">Avancé (★3–5)</option>
+                  </select>
+                  <select data-topnote-filter="chordRoot" aria-label="Fondamentale des accords listés"></select>
+                  <select data-topnote-filter="technique" aria-label="Technique de voicing"></select>
+                  <select data-topnote-filter="hands" aria-label="Répartition des mains">
+                    <option value="all">Une ou deux mains</option>
+                    <option value="one">Une main</option>
+                    <option value="two">Deux mains</option>
+                  </select>
+                  <button type="button" class="exercise-topnote-reset" id="exercise-topnote-reset" hidden>Réinitialiser les filtres</button>
+                </div>
+              </section>
+              <section class="exercise-filters-section">
+                <span class="tr-eyebrow">DOUBLURES</span>
+                <div id="exercise-doubling-filter"></div>
+              </section>
+              <button class="tr-button tr-primary" type="button" data-astra-close>Voir les voicings</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- [Claude] — 2026-09-25 — Fenêtre temporaire des favoris (Accord cible), ouverte
+             par le bouton « Favoris » à côté de « Filtres ». Mêmes ids qu'avant
+             (#exercise-favorites, #exercise-favorites-search) : main.js remplit la liste.
+             Un clic sur un favori le charge sur la carte et ferme la fenêtre. -->
+        <div class="tr-overlay" id="exercise-favorites-dialog" hidden>
+          <div class="tr-dialog exercise-favorites-dialog" role="dialog" aria-modal="true" aria-label="Favoris">
+            <div class="tr-dialog-title"><h2>Favoris</h2>
+              <button class="tr-icon-button" type="button" data-astra-close aria-label="Fermer">✕</button></div>
+            <div class="tr-dialog-body exercise-favorites-body">
+              <p class="exercise-side-hint">Cliquez sur un favori pour l'afficher sur la carte.</p>
+              <!-- Recherche dans les favoris (hors du rendu de la liste : garde le focus). -->
+              <input type="search" class="exercise-favorites-search" id="exercise-favorites-search" placeholder="Rechercher : Dm9, Bb, drop 2…" aria-label="Rechercher un favori" hidden>
+              <div class="exercise-favorites" id="exercise-favorites"></div>
+            </div>
+          </div>
+        </div>
+
         <div class="tr-overlay" id="exercise-help-dialog" hidden>
           <div class="tr-dialog" role="dialog" aria-modal="true" aria-label="Votre clavier, votre terrain de jeu">
             <div class="tr-dialog-title"><h2>Votre clavier, votre terrain de jeu</h2>
@@ -283,7 +504,8 @@
           <div class="tr-view-heading">
             <div>
               <div class="tr-page-title"><span class="tr-page-index">01</span><h1>Sessions MIDI</h1></div>
-              <p>Retrouvez votre jeu. Explorez chaque nuance.</p>
+              <!-- [Claude] — 2026-09-25 — Le journal de vos enregistrements (choix de Narcisse). -->
+              <p>Le journal de votre jeu : un morceau, une séance, une prise du Studio.</p>
             </div>
             <div class="tr-heading-actions">
               <button class="tr-button tr-library-trigger" type="button" data-astra-open="midi-library-drawer" data-astra-shortcut="b"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 6H3M16 12H3M13 18H3"/><path d="M21 6v12a2 2 0 0 1-2 2"/></svg><span>Bibliothèque</span><kbd>B</kbd></button>
@@ -299,7 +521,7 @@
                   <h2 class="carnet-session-title" id="carnet-session-title">Aucune session sélectionnée</h2>
                   <div class="tr-session-data carnet-session-meta" id="carnet-session-meta"></div>
                   <div class="midi-session-info" id="midi-session-info">
-                    <p class="detail-hint">Aucune session sélectionnée. Créez une nouvelle session ou choisissez-en une dans la bibliothèque.</p>
+                    <p class="detail-hint">Aucune session sélectionnée. Créez une nouvelle session ou choisissez-en une dans la bibliothèque. Pour un avis rapide sur ce que vous venez de jouer : « Qu'en penses-tu ? », dans la barre du clavier.</p>
                   </div>
                 </div>
               </div>
@@ -360,7 +582,7 @@
                 </label>
               </div>
               <div class="tr-player-copilot">
-                <button class="tr-text-button tr-accent-text carnet-explore-all" id="carnet-explore-all" type="button" disabled>Explorer avec le Copilot<svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></button>
+                <button class="tr-text-button tr-accent-text carnet-explore-all" id="carnet-explore-all" type="button" disabled title="Envoie la session au Copilot : il dit ce qui marche et propose des pistes, moment par moment">Analyser mon jeu avec le Copilot<svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></button>
               </div>
             </div>
           </section>
@@ -375,6 +597,9 @@
                 <span><span class="legend-dot melody"></span>Passage mélodique</span>
               </div>
             </div>
+            <!-- [Claude] 2026-09-24 — Analyse du jeu (session-performance.js) :
+                 ce qui marche, suggestions, moments cliquables. -->
+            <div class="carnet-findings" id="carnet-findings" role="list" aria-label="Analyse du jeu" hidden></div>
             <div class="carnet-entries" id="carnet-entries"></div>
           </section>
 
@@ -608,6 +833,9 @@
                 <button type="button" role="tab" aria-selected="true" class="is-active">Résumé du cours</button>
               </div>
               <div class="tr-notebook-actions pedagogie-video-actions" id="pedagogie-video-actions" style="display: none;">
+                <!-- [Claude] — 2026-09-25 — Calibration d'un vrai clavier filmé (V2N) : visible
+                     seulement quand elle sert (V2N installé, pas de clavier dessiné reconnu). -->
+                <button type="button" class="tr-text-button pedagogie-secondary-btn" id="pedagogie-calibrate-btn" hidden title="Cliquez ensuite les 4 coins du clavier sur la vidéo : l'application lira les touches à l'image">Calibrer le clavier</button>
                 <button type="button" class="tr-text-button tr-accent-text pedagogie-secondary-btn" id="pedagogie-copilot-shortcut"><svg class="tr-i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.29 1.29L3 12l5.81 1.9a2 2 0 0 1 1.29 1.29L12 21l1.9-5.81a2 2 0 0 1 1.29-1.29L21 12l-5.81-1.9a2 2 0 0 1-1.29-1.29z"/></svg>Copilote IA<svg class="tr-i" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></button>
               </div>
             </div>
@@ -755,7 +983,13 @@
               <div class="tr-dialog-body">
                 <div class="tr-library-toolbar">
                   <span class="tr-secondary copilot-history-count" id="copilot-history-count"></span>
-                  <button class="tr-button tr-primary copilot-new-conv-sidebar-btn" id="copilot-new-conv-sidebar-btn" type="button" data-astra-close><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Nouvelle conversation</button>
+                  <div class="tr-library-toolbar-actions">
+                    <button class="tr-text-button copilot-delete-empty-btn" id="copilot-delete-empty-btn" type="button" data-astra-close>
+                      <svg class="tr-i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                      Supprimer les vides
+                    </button>
+                    <button class="tr-button tr-primary copilot-new-conv-sidebar-btn" id="copilot-new-conv-sidebar-btn" type="button" data-astra-close><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Nouvelle conversation</button>
+                  </div>
                 </div>
                 <div class="tr-library-table-head" aria-hidden="true">
                   <span>CONVERSATION</span><span>DATE</span><span></span>
@@ -1281,22 +1515,6 @@
                     </div>
                   </div>
 
-                  <section id="analyzer-voicing-preview" class="an-card an-panoramic-card an-card-jazz voicing-preview-panel" aria-label="Aperçu du voicing piano" style="display:none">
-                    <div class="an-card-header">
-                      <span class="an-eyebrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.29 1.29L3 12l5.81 1.9a2 2 0 0 1 1.29 1.29L12 21l1.9-5.81a2 2 0 0 1 1.29-1.29L21 12l-5.81-1.9a2 2 0 0 1-1.29-1.29z"/></svg>VOICING ALTERNATIF</span>
-                      <div
-                        id="analyzer-voicing-style-selector"
-                        class="an-style-switcher voicing-style-selector"
-                        role="group"
-                        aria-label="Style de voicing"
-                      >
-                        <button type="button" class="an-style-btn voicing-style-btn" data-voicing-style="close" aria-pressed="true">Serré</button>
-                        <button type="button" class="an-style-btn voicing-style-btn" data-voicing-style="simple" aria-pressed="false">Simple</button>
-                      </div>
-                    </div>
-                    <div class="an-jazz-body" id="analyzer-voicing-content"></div>
-                  </section>
-
                 </div>
               </div>
               <div class="analyzer-panel" data-section="analysis" role="tabpanel" style="display:none">
@@ -1747,13 +1965,14 @@
                 <label class="vk-switch is-warn" title="Couper le son du clavier virtuel">
                   <input type="checkbox" id="silent-mode" /><span>Silencieux</span>
                 </label>
-                <label class="vk-switch" title="Timbre de piano électrique">
-                  <input type="checkbox" id="rhodes-mode" /><span>Rhodes</span>
-                </label>
               </div>
             </div>
 
             <div class="vk-group vk-right">
+              <!-- [Claude] — 2026-09-25 — « Qu'en penses-tu ? » depuis n'importe quel onglet :
+                   le Copilote analyse ce qui vient d'être joué (sans clé d'IA, l'avis de
+                   l'application s'affiche dans la ligne d'état). -->
+              <button type="button" class="vk-review" id="keyboard-review-btn" title="Qu'en penses-tu ? — le Copilote analyse ce que tu viens de jouer (depuis ta dernière pause) ; une question tapée dans le Copilote part avec"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><path d="M21 15a2 2 0 0 1-2 2h-1v-5h1a2 2 0 0 1 2 2zM3 15a2 2 0 0 0 2 2h1v-5H5a2 2 0 0 0-2 2z"/></svg><span>Qu'en penses-tu ?</span></button>
               <button type="button" class="vk-collapse keyboard-collapse-btn" id="keyboard-collapse-btn"
                       aria-expanded="true" aria-controls="keyboard-container"
                       title="Réduire le clavier virtuel"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
@@ -1765,23 +1984,23 @@
           <div class="vk-bed">
             <div class="keyboard-container-wrap" id="keyboard-container-wrap">
               <div id="keyboard-container" class="keyboard-container"></div>
-              <div class="keyboard-annotation-layer" id="keyboard-annotation-layer" aria-hidden="true"></div>
             </div>
           </div>
 
           <div class="vk-status">
+            <!-- [Claude] — 2026-09-25 — Qui joue ? Bleu : toi ; jaune : l'application
+                 (Copilote, démos, relecture). Plus d'étiquettes sur les touches. -->
             <div class="vk-legend">
-              <span><i class="vk-dot vk-dot-note"></i>Note</span>
-              <span><i class="vk-dot vk-dot-root"></i>Fondamentale</span>
-              <span class="vk-hint">Les couleurs des touches se règlent dans le pied de page</span>
+              <span><i class="vk-dot vk-dot-you"></i>Toi</span>
+              <span><i class="vk-dot vk-dot-app"></i>L'app</span>
             </div>
             <div class="vk-status-right">
               <span class="vk-mono" id="keyboard-note-count">0 note</span>
             </div>
           </div>
 
-          <!-- Poignée de hauteur : astra-shell.js règle --keyboard-height. -->
-          <div class="vk-resize" id="keyboard-resize" role="separator" aria-label="Redimensionner le clavier" aria-orientation="horizontal"></div>
+          <!-- Pas de poignée de hauteur : l'application décide de la hauteur du
+               clavier selon la largeur et l'étendue (fitKeyboardPanelHeight). -->
         </div>
       </section>
 
@@ -1803,6 +2022,15 @@
           <span id="midi-status-text">Aucun</span>
           <span id="midi-port-count">(0)</span>
           <button id="midi-refresh" title="Rafraîchir les périphériques MIDI">↻</button>
+        </div>
+
+        <!-- [Claude] — 2026-09-24 — Sortie MIDI : la démo et « Écouter » jouent sur
+             le port choisi (VST), le piano intégré se tait. -->
+        <div class="footer-midi-out">
+          <label for="midi-output-select">Sortie :</label>
+          <select id="midi-output-select" title="Où jouent la démo et « Écouter » : piano intégré, ou un port MIDI (ton VST)">
+            <option value="">Piano intégré</option>
+          </select>
         </div>
 
         <div class="footer-right" id="status-bar"></div>

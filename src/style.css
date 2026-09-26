@@ -188,7 +188,8 @@ body {
 .progression-box button,
 .history-actions button,
 .footer-midi button,
-.footer-midi select {
+.footer-midi select,
+.footer-midi-out select {
   background: var(--bg);
   color: var(--text);
   border: 1px solid var(--panel-border);
@@ -452,6 +453,22 @@ body {
 .note.active .piano-key {
   fill: currentColor;
   filter: url(#insetKey);
+}
+
+/* [Claude] — 2026-09-25 — Qui joue ? Bleu (couleur du pied de page) : tes doigts ;
+   jaune : l'application (exemples du Copilote, démos des Exercices, relecture des
+   sessions). Classe posée par src/ui/key-colors.js. */
+:root {
+  --kb-app: #f2b705;
+  --kb-app-light: #ffd966;
+}
+
+.note.white.active.is-app .piano-key {
+  fill: var(--kb-app-light);
+}
+
+.note.black.active.is-app .piano-key {
+  fill: var(--kb-app);
 }
 
 .piano-key-name {
@@ -1075,6 +1092,7 @@ body {
 
 .footer-left,
 .footer-midi,
+.footer-midi-out,
 .footer-right {
   display: flex;
   gap: 12px;
@@ -1082,7 +1100,8 @@ body {
 }
 
 .footer-left label,
-.footer-midi label {
+.footer-midi label,
+.footer-midi-out label {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -2984,9 +3003,12 @@ body.studio-recording-cursor * {
   height: 80px;
   max-width: 100%;
   display: block;
-  background: var(--bg);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--panel-border);
+  /* Cadre du mini-clavier Astra (.tr-mini-keyboard) : fond nacré, liseré et
+     petite ombre portée, identiques en thème sombre et clair. */
+  background: #e5e2e9;
+  border-radius: 5px;
+  border: 1px solid #b5b0bf;
+  box-shadow: 0 3px 0 #b8b3c1, 0 6px 14px #0000002e;
 }
 
 .detail-notes,
@@ -3388,7 +3410,7 @@ body.studio-recording-cursor * {
 }
 
 :root {
-  --mini-key-active: #3b82f6;
+  --mini-key-active: #a583e2;
 }
 
 .panel-title {
@@ -5562,6 +5584,67 @@ body.studio-recording-cursor * {
   font-family: var(--font-mono);
 }
 
+/* ── Catalogue de voicings par famille ── */
+.voicing-catalog-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.voicing-catalog-family {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.voicing-catalog-family:last-child {
+  border-bottom: none;
+}
+
+.voicing-catalog-name {
+  font-weight: 600;
+  color: var(--text-dim, #a1a1aa);
+  min-width: 6.5rem;
+  text-align: left;
+  flex-shrink: 0;
+}
+
+.voicing-catalog-notes {
+  color: var(--text, #fafafa);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-align: right;
+  flex: 1 1 auto;
+}
+
+.voicing-catalog-unavailable {
+  color: var(--text-dim, #71717a);
+  font-weight: 400;
+  text-align: right;
+  flex: 1 1 auto;
+}
+
+.voicing-catalog-difficulty {
+  font-size: 0.75rem;
+  color: var(--accent, #fbbf24);
+  letter-spacing: 0.05em;
+  margin-left: 0.25rem;
+}
+
+.voicing-catalog-error {
+  font-size: 0.85rem;
+  color: var(--error, #fca5a5);
+  font-weight: 500;
+  text-align: center;
+  padding: 0.5rem 0;
+}
+
 /* ── Lot B : contexte fichier explicite (Studio / Analyse) ── */
 .studio-media-context {
   font-size: 0.75rem;
@@ -5699,41 +5782,4 @@ body.studio-recording-cursor * {
 
 .keyboard-panel.collapsed .keyboard-collapse-caret {
   transform: rotate(180deg);
-}
-
-/* Annotation visuelle posée par le Copilot IA sur le clavier virtuel */
-.keyboard-annotation-layer {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 10;
-}
-
-.keyboard-annotation-marker {
-  position: absolute;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  color: var(--accent, #bf3a2b);
-  font-weight: 800;
-  font-size: 0.72rem;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-  animation: keyboard-annotation-pop 0.25s ease-out;
-}
-
-.keyboard-annotation-arrow {
-  font-size: 1.3rem;
-  line-height: 1;
-}
-
-.keyboard-annotation-label {
-  white-space: nowrap;
-}
-
-@keyframes keyboard-annotation-pop {
-  0% { transform: translate(-50%, -8px); opacity: 0; }
-  100% { transform: translate(-50%, 0); opacity: 1; }
 }

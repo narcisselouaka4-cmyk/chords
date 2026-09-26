@@ -365,8 +365,13 @@ for (const sel of ['.pedagogie-layout', '.pedagogie-card', '.pedagogie-chip', '.
 
 check('L\'écran affiche la provenance du relevé (image ou son)',
   html.includes('id="pedagogie-format"') && tabCode.includes('is-audio'));
-check('Le bouton « Calibrer le clavier (V2N) » a été retiré, markup et JS',
-  !html.includes('id="pedagogie-calibrate-v2n-btn"') && !tabCode.includes('els.calibrateBtn'));
+// [Claude] — 2026-09-25 — « Calibrer le clavier » revient (retiré à la refonte
+// Astra), mais caché tant qu'il ne sert à rien : V2N ne lit un vrai clavier filmé
+// qu'après les 4 coins. Il n'apparaît que si V2N est prêt sur cette machine.
+check('« Calibrer le clavier » : caché par défaut, montré seulement si V2N peut lire l\'image',
+  /id="pedagogie-calibrate-btn"[^>]*hidden|hidden[^>]*id="pedagogie-calibrate-btn"/.test(html)
+    && /calibrateBtn\.hidden = !\(v2nState\?\.available/.test(tabCode)
+    && !html.includes('id="pedagogie-calibrate-v2n-btn"'));
 check('Un accord non résolu est marqué, pas deviné',
   tabCode.includes('is-unresolved'));
 check('Un accord sans tierce est distingué visuellement',

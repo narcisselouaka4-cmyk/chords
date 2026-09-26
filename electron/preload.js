@@ -17,6 +17,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     refreshInputs: () => ipcRenderer.invoke('midi:refresh-inputs'),
     openInput: (portId) => ipcRenderer.invoke('midi:open-input', portId),
     closeInput: () => ipcRenderer.invoke('midi:close-input'),
+    // [Claude] — 2026-09-24 — Sortie MIDI (démo des mouvements vers un VST).
+    getOutputs: () => ipcRenderer.invoke('midi:get-outputs'),
+    openOutput: (outputId) => ipcRenderer.invoke('midi:open-output', outputId),
+    send: (bytes) => ipcRenderer.send('midi:send', bytes),
     onNoteOn: (callback) => ipcRenderer.on('midi-note-on', (event, data) => callback(data)),
     onNoteOff: (callback) => ipcRenderer.on('midi-note-off', (event, data) => callback(data)),
     onSustain: (callback) => ipcRenderer.on('midi-sustain', (event, data) => callback(data)),

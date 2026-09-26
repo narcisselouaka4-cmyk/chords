@@ -7,6 +7,15 @@ let keyboardKeyupHandler = null;
 
 let pcKeyboardToMidiEnabled = true;
 let pcKeyboardEnabledCallback = null;
+// Notes tenues au clavier d'ordinateur. Au niveau du module : la désactivation
+// de « PC → MIDI » les relâche (elle levait une ReferenceError quand ce Set
+// était local à initVirtualKeyboard).
+const pressed = new Set();
+
+// Champs où l'on tape du texte : le clavier d'ordinateur n'y joue pas de notes.
+// Une case à cocher (ex. l'interrupteur « PC → MIDI » qui garde le focus après
+// un clic) ou un bouton ne bloquent pas le jeu.
+const NON_TEXT_INPUT_TYPES = new Set(['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color', 'file', 'image']);
 
 export function setPcKeyboardToMidiEnabled(enabled) {
   pcKeyboardToMidiEnabled = Boolean(enabled);
@@ -45,7 +54,8 @@ function shouldHandleKeyboardShortcuts() {
   const active = document.activeElement;
   if (!active) return true;
   const tag = active.tagName;
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return false;
+  if (tag === 'INPUT' && !NON_TEXT_INPUT_TYPES.has((active.type || '').toLowerCase())) return false;
+  if (tag === 'TEXTAREA' || tag === 'SELECT') return false;
   if (active.isContentEditable) return false;
 
   return true;
@@ -101,7 +111,7 @@ export function initVirtualKeyboard({ onNoteOn, onNoteOff }) {
     k: 72, o: 73, l: 74, p: 75,
   };
 
-  const pressed = new Set();
+  pressed.clear();
 
   keyboardKeydownHandler = (e) => {
     if (e.code === 'Space') return; // Espace réservé au Play/Pause du lecteur.

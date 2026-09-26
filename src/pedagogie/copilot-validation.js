@@ -6,7 +6,7 @@
 
 import { detectChord } from '../chord-engine/index.js';
 import { formatPc } from '../chord-engine/naming.js';
-import { noteNameToPc, latinNoteNameToPc, NOTE_NAMES } from '../chord-engine/intervals.js';
+import { noteNameToPc, latinNoteNameToPc, NOTE_NAMES, formatNote } from '../chord-engine/intervals.js';
 import { Key } from 'tonal';
 
 /**
@@ -187,6 +187,16 @@ export function parseImpliedKey(impliedKey) {
     }
   }
 
+  // Abréviation anglo-saxonne collée : Am, Dm, Gm (tonique + m terminal).
+  if (!mode) {
+    const m = lower.match(/^(do|ré|re|mi|fa|sol|la|si|[a-g])(?:#|♯|b|♭)?m$/);
+    if (m) {
+      mode = 'minor';
+      modeIndex = lower.length - 1;
+      modeWordLength = 1;
+    }
+  }
+
   if (!mode) return null;
 
   // La fondamentale est dans le texte AVANT le mot de mode.
@@ -295,6 +305,177 @@ export function checkDegreeKeyAgreement(groups) {
       detected,
       match,
     });
+  }
+
+  return results;
+}
+
+const KEY_NAME = "(?:Do|Ré|Re|Mi|Fa|Sol|La|Si|[A-Ga-g])(?:#|♯|b|♭)?\\s*(?:majeur|mineur|major|minor|m)?";
+const KEY_AFFIRMATION_PATTERNS = [
+  // "la tonalité est X", "la tonalité de ce morceau : X", "tonalité : X"
+  new RegExp(`(?:tonalit[ée]s?|cl[ée]|key)\\s*(?:est|était|serait|sont|étaient|seraient)?\\s*[:\\-]?\\s*(?:de|en|d['’])?\\s*(${KEY_NAME})`, 'gi'),
+  // "on est en X", "c'est en X", "joué en X", "composé en X"
+  new RegExp(`\\b(?:est|sont|jou[eé]|compos[ée]|travaill[ée]|on\\s+est|c'est)\\s+(?:écrit\\s+)?en\\s*(${KEY_NAME})`, 'gi'),
+  // "en X majeur/mineur" (catch-all en fin, après les motifs plus spécifiques)
+  new RegExp(`\\ben\\s+(${KEY_NAME})`, 'gi'),
+];
+
+/**
+ * Extrait les tonalités affirmées dans un texte de réponse du modèle.
+ * Retourne un tableau d'objets { keyName, pc, mode } uniques.
+ *
+ * @param {string} text
+ * @returns {{keyName: string, pc: number, mode: 'major'|'minor'}[]}
+ */
+export function extractAffirmedKeys(text) {
+  if (!text || typeof text !== 'string') return [];
+  const found = new Map();
+
+  for (const re of KEY_AFFIRMATION_PATTERNS) {
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      const raw = String(m[1] || '').trim();
+      const parsed = parseImpliedKey(raw);
+      if (!parsed) continue;
+      const pc = noteNameToPc(parsed.tonicName);
+      const keyName = formatNote(pc, true, true);
+      const uid = `${parsed.tonicName}-${parsed.mode}`;
+      if (!found.has(uid)) {
+        found.set(uid, { keyName, pc, mode: parsed.mode });
+      }
+    }
+  }
+
+  return Array.from(found.values());
+}
+
+/**
+ * Vérifie que les tonalités affirmées dans la réponse du modèle ne contredisent
+ * pas la tonalité déjà calculée par l'application. Retourne les désaccords avec
+ * une suggestion de correction textuelle.
+ *
+ * @param {string} text - contenu de la réponse du modèle
+ * @param {string} expectedKey - tonalité attendue (ex. "Do majeur", "C major", "Dm")
+ * @returns {{match: boolean, affirmedKey: string, expectedKey: string, correction: string}[]}
+ */
+export function checkKeyAffirmation(text, expectedKey) {
+  const parsedExpected = parseImpliedKey(expectedKey);
+  if (!parsedExpected) return [];
+
+  const affirmed = extractAffirmedKeys(text);
+  if (affirmed.length === 0) return [];
+
+  const expectedPc = noteNameToPc(parsedExpected.tonicName);
+  const expectedName = `${formatNote(expectedPc, true, true)}${parsedExpected.mode === 'minor' ? 'm' : ''}`;
+  const results = [];
+
+  for (const item of affirmed) {
+    const match = item.pc === expectedPc && item.mode === parsedExpected.mode;
+    const correction = match
+      ? ''
+      : `La tonalité détectée par l'application est **${expectedName}**, pas **${item.keyName}**. Si tu veux explorer l'hypothèse ${item.keyName}, précise que c'est un 'raisonnement comme si', sans remettre en cause l'analyse initiale.`;
+    results.push({
+      match,
+      affirmedKey: item.keyName,
+      expectedKey: expectedName,
+      correction,
+    });
+  }
+
+  return results;
+}
+
+const LH_ROOT_PATTERNS = [
+  /fondamentale\s+(?:à la basse|en main gauche|à la main gauche|à gauche|en bas)/gi,
+  /(?:la|une)?\s*fondamentale\s+(?:est\s+)?(?:à la basse|en main gauche|à la main gauche|à gauche)/gi,
+];
+
+const RH_ROOT_PATTERNS = [
+  /fondamentale\s+(?:en main droite|à la main droite|à droite|en haut)/gi,
+];
+
+const ROOTLESS_PATTERNS = [
+  /\brootless\b/gi,
+  /sans\s+fondamentale/gi,
+  /fondamentale\s+absente/gi,
+];
+
+/**
+ * Compare les affirmations textuelles sur la répartition main gauche/main droite
+ * d'un voicing avec la réalité calculée par le moteur.
+ *
+ * @param {string} text - contenu de la réponse du modèle
+ * @param {object} voicing - voicing réel généré ({ leftHand: number[], rightHand: number[], technique: string })
+ * @param {string} chordSymbol - symbole d'accord (ex. "Cmaj7")
+ * @returns {{match: boolean, claim: string, expected: string, actual: string, correction: string}[]}
+ */
+export function checkVoicingDescriptionAgreement(text, voicing, chordSymbol) {
+  if (!text || typeof text !== 'string' || !voicing || !chordSymbol) return [];
+  const rootPc = extractChordRootPc(chordSymbol);
+  if (rootPc === null) return [];
+
+  const lhPcs = new Set((voicing.leftHand || []).map((n) => n % 12));
+  const rhPcs = new Set((voicing.rightHand || []).map((n) => n % 12));
+  const rootInLh = lhPcs.has(rootPc);
+  const rootInRh = rhPcs.has(rootPc);
+
+  const formatHand = (hand) => (hand || []).map((n) => formatNote(n % 12, true, true)).join(', ') || '—';
+  const rootName = formatNote(rootPc, true, true);
+  const lhText = formatHand(voicing.leftHand);
+  const rhText = formatHand(voicing.rightHand);
+
+  const results = [];
+
+  for (const re of LH_ROOT_PATTERNS) {
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      const claim = m[0];
+      const match = rootInLh;
+      results.push({
+        match,
+        claim,
+        expected: `${rootName} à la main gauche`,
+        actual: rootInLh ? `${rootName} à la main gauche` : `${rootName} absente de la main gauche (LH: ${lhText})`,
+        correction: match
+          ? ''
+          : `Précision : dans ce voicing, la main gauche joue réellement [${lhText}], sans la fondamentale ${rootName}. La main droite joue [${rhText}]. Adapte ta description en conséquence.`,
+      });
+    }
+  }
+
+  for (const re of RH_ROOT_PATTERNS) {
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      const claim = m[0];
+      const match = rootInRh;
+      results.push({
+        match,
+        claim,
+        expected: `${rootName} à la main droite`,
+        actual: rootInRh ? `${rootName} à la main droite` : `${rootName} absente de la main droite (RH: ${rhText})`,
+        correction: match
+          ? ''
+          : `Précision : dans ce voicing, la main droite joue réellement [${rhText}], sans la fondamentale ${rootName}. La main gauche joue [${lhText}]. Adapte ta description en conséquence.`,
+      });
+    }
+  }
+
+  for (const re of ROOTLESS_PATTERNS) {
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      const claim = m[0];
+      // Un voicing rootless ne doit PAS avoir la fondamentale à la basse (main gauche).
+      const match = !rootInLh;
+      results.push({
+        match,
+        claim,
+        expected: 'fondamentale absente de la main gauche',
+        actual: rootInLh ? `fondamentale ${rootName} présente à la main gauche (LH: ${lhText})` : 'fondamentale absente de la main gauche',
+        correction: match
+          ? ''
+          : `Précision : ce n'est pas un voicing rootless car la main gauche joue la fondamentale ${rootName} ([${lhText}]). La répartition réelle est LH [${lhText}], RH [${rhText}]. Adapte ta description en conséquence.`,
+      });
+    }
   }
 
   return results;

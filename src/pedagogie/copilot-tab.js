@@ -8,22 +8,37 @@ import {
   loadHistory,
   saveHistory,
   deleteConversation,
+  deleteEmptyConversations,
   listAllConversations,
   labelForConversationPath,
   AUTONOMOUS_HISTORY_KEY as HISTORY_AUTONOMOUS_KEY,
 } from './copilot-history.js';
 import { sendCopilotMessage } from './copilot-client.js';
 import { hasAIKey } from '../ai/openai-config.js';
+import { liveTake } from '../recorder/live-take.js';
+import { reviewTake, takeMoment, momentText } from '../recorder/take-review.js';
+import { readCopilotContext } from './copilot-context.js';
 
 const els = {};
 let currentTutorialPath = null;
 let messages = [];
 let currentConversationId = null;
+// Exemple du Copilote en cours de lecture (identifiant du message), ou null.
+let playingExampleId = null;
+// [Claude] — 2026-09-25 — Dernier passage joué (« Qu'en penses-tu ? ») : son
+// portrait (lines), ses notes exactes (events, pour le rejouer) et sa tonalité,
+// gardés pour les questions de suivi de la même conversation.
+let lastTake = null;
+const DEFAULT_REVIEW_QUESTION = 'Qu\'en penses-tu de ce que je viens de jouer ?';
 
 export const AUTONOMOUS_HISTORY_KEY = HISTORY_AUTONOMOUS_KEY;
 let currentMode = 'autonomous';
 let currentSessionId = null;
 let currentSessionContext = null;
+// [Claude] — 2026-09-25 — Mode exercice : le Copilote parle de l'exercice affiché
+// (Narcisse : relier le Copilote et l'onglet Exercices).
+let currentExerciseId = null;
+let currentExerciseTitle = null;
 
 /**
  * Nouveau mode à adopter quand la sélection de tutoriel ou de session change.
@@ -40,7 +55,7 @@ export function nextModeOnSelectionChange(currentMode, newTutorialPath, newSessi
 
 /** État du bouton de bascule (visibilité + libellé) selon mode + sélection. */
 export function toggleButtonState(mode, tutorialPath) {
-  if (mode === 'tutorial' || mode === 'session') {
+  if (mode === 'tutorial' || mode === 'session' || mode === 'exercise') {
     return { visible: true, label: 'Revenir au mode autonome' };
   }
   return { visible: Boolean(tutorialPath), label: 'Mode tutoriel' };
@@ -70,26 +85,18 @@ function formatTime(seconds) {
 }
 
 /** Renvoie un résumé du tutoriel pour le contexte IA. */
+// [Claude] — 2026-09-25 — Le contexte vient de l'écran Pédagogie (grille, parole,
+// résumé, notes du professeur). Avant, il lisait window.__pedagogieAnalysis, que
+// rien n'affectait : le Copilote ne recevait que le chemin du fichier.
 function getTutorialContext() {
   if (currentMode !== 'tutorial' || !currentTutorialPath) return null;
-  const analysis = window.__pedagogieAnalysis;
-  if (!analysis) return { type: 'tutorial', path: currentTutorialPath };
-
-  const chords = analysis.segments
-    .filter((s) => s.chord?.resolved)
-    .map((s) => ({ start: s.start, end: s.end, label: s.chord.label }));
-
-  const transcript = analysis.narrationView
-    ? analysis.narrationView.map((n) => ({ start: n.start, text: n.text }))
-    : [];
-
+  const context = readCopilotContext('tutorial');
+  if (context && context.path === currentTutorialPath) return context;
   return {
     type: 'tutorial',
     path: currentTutorialPath,
     name: currentTutorialPath.split('/').pop(),
-    key: analysis.key,
-    chords,
-    transcript,
+    notesUnavailable: 'le tutoriel n\'a pas encore été lu dans Pédagogie IA (bouton « Lire ce tutoriel »)',
   };
 }
 
@@ -97,6 +104,42 @@ function getTutorialContext() {
 function getSessionContext() {
   if (currentMode !== 'session' || !currentSessionContext) return null;
   return currentSessionContext;
+}
+
+/** Exercice affiché (relu à chaque question : étape, tonalité et essais à jour). */
+function getExerciseContext() {
+  if (currentMode !== 'exercise') return null;
+  return readCopilotContext('exercise');
+}
+
+/** Clé de l'historique de la conversation selon le mode (tutoriel, session, exercice, autonome). */
+function historyKeyForMode() {
+  if (currentMode === 'tutorial' && currentTutorialPath) return currentTutorialPath;
+  if (currentMode === 'session' && currentSessionId) return currentSessionId;
+  if (currentMode === 'exercise' && currentExerciseTitle) return `exercice:${currentExerciseTitle}`;
+  return AUTONOMOUS_HISTORY_KEY;
+}
+
+// Propositions du mode exercice (envoyées d'un clic, comme les autres).
+const EXERCISE_QUICK_ACTIONS = [
+  { label: 'Ce voicing', message: 'Explique-moi le voicing de la carte : le rôle de chaque note et pourquoi il marche.' },
+  { label: 'Comment le jouer', message: 'Comment je joue l\'accord en cours à deux mains ?' },
+  { label: 'Enchaînement', message: 'Comment enchaîner les accords de l\'exercice : quelles voix bougent ?' },
+  { label: 'Fais-moi entendre', message: 'Fais-moi entendre les accords de la carte.' },
+];
+let defaultQuickActions = null;
+
+/** Propositions sous la conversation : celles de l'exercice en mode exercice, sinon celles de la page. */
+function renderQuickActionsForMode() {
+  if (!els.quickActions) return;
+  if (!defaultQuickActions) defaultQuickActions = [...els.quickActions.querySelectorAll('.copilot-chip')].map((b) => ({ label: b.textContent, message: b.dataset.message }));
+  const list = currentMode === 'exercise' ? EXERCISE_QUICK_ACTIONS : defaultQuickActions;
+  els.quickActions.querySelectorAll('.copilot-chip').forEach((b) => b.remove());
+  // Juste après « Continuer : » (le sélecteur de style reste au bout de la rangée).
+  const chips = list.map((a) => el('button', { type: 'button', className: 'copilot-chip', 'data-message': a.message, text: a.label }));
+  const label = els.quickActions.querySelector('.copilot-quick-actions-label');
+  if (label) label.after(...chips);
+  else els.quickActions.prepend(...chips);
 }
 
 const STATIC_QUICK_ACTIONS = [
@@ -222,12 +265,138 @@ function renderMessageText(container, content) {
   for (const line of lines) {
     if (!line.trim()) continue;
     const p = document.createElement('p');
-    p.innerHTML = escapeHtml(line)
+    const html = escapeHtml(line)
       .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
       .replace(/`([^`]+)`/g, '<code>$1</code>');
+    p.innerHTML = html;
     container.appendChild(p);
   }
   if (!container.childElementCount) container.appendChild(el('p', { text: String(content || '') }));
+}
+
+const FRENCH_NOTES = ['Do', 'Réb', 'Ré', 'Mib', 'Mi', 'Fa', 'Fa#', 'Sol', 'Lab', 'La', 'Sib', 'Si'];
+const frenchNote = (midi) => `${FRENCH_NOTES[((midi % 12) + 12) % 12]}${Math.floor(midi / 12) - 1}`;
+const ICON_PLAY = '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>';
+const ICON_STOP = '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="1.5"/></svg>';
+
+/** Identifiant stable de l'exemple d'un message (pour le bouton Écouter / Arrêter). */
+function exampleIdOf(msg) {
+  if (!msg.exampleId) msg.exampleId = `ex-${msg.timestamp || Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  return msg.exampleId;
+}
+
+/**
+ * Carte « Écouter l'exemple » : titre (accords), style, et ce que fait chaque
+ * main pour chaque accord (quatre accords au plus), sous l'explication.
+ */
+function renderExampleCard(msg) {
+  const example = msg.toolResult.example;
+  const id = exampleIdOf(msg);
+  const playing = playingExampleId === id;
+  const card = el('div', { className: `tr-chat-demos copilot-example${playing ? ' is-playing' : ''}`, 'data-example-id': id });
+  const button = el('button', {
+    className: 'copilot-example-play',
+    type: 'button',
+    'aria-pressed': playing ? 'true' : 'false',
+    onClick: () => toggleExample(msg),
+  });
+  button.innerHTML = playing ? ICON_STOP : ICON_PLAY;
+  button.appendChild(el('span', { text: playing ? 'Arrêter' : 'Écouter l\'exemple' }));
+  card.appendChild(el('div', { className: 'copilot-example-buttons' }, [button]));
+  const text = el('div', { className: 'copilot-example-text' }, [
+    el('strong', { text: example.title || 'Exemple' }),
+    example.subtitle ? el('small', { text: example.subtitle }) : null,
+  ]);
+  const hands = (example.chords || []).slice(0, 4).filter((c) => c.leftHand?.length || c.rightHand?.length);
+  if (hands.length) {
+    const list = el('ul', { className: 'copilot-example-hands' });
+    for (const c of hands) {
+      const parts = [];
+      if (c.leftHand?.length) parts.push(`main gauche ${c.leftHand.map(frenchNote).join(' ')}`);
+      if (c.rightHand?.length) parts.push(`main droite ${c.rightHand.map(frenchNote).join(' ')}`);
+      list.appendChild(el('li', {}, [el('b', { text: c.name }), document.createTextNode(` — ${parts.join(' · ')}`)]));
+    }
+    text.appendChild(list);
+  }
+  card.appendChild(text);
+  return card;
+}
+
+/** Lecture / arrêt de l'exemple d'un message (même lecteur que les démos, voir main.js). */
+function toggleExample(msg) {
+  const id = exampleIdOf(msg);
+  if (playingExampleId === id) {
+    document.dispatchEvent(new CustomEvent('copilot-stop-example'));
+    return;
+  }
+  const example = msg.toolResult.example;
+  document.dispatchEvent(new CustomEvent('copilot-play-example', { detail: { id, example } }));
+}
+
+/** Met à jour le bouton de la carte qui joue (ou vient de s'arrêter), sans tout redessiner. */
+function refreshExampleCards() {
+  if (!els.messages) return;
+  els.messages.querySelectorAll('.copilot-example').forEach((card) => {
+    const playing = card.dataset.exampleId === playingExampleId;
+    card.classList.toggle('is-playing', playing);
+    const button = card.querySelector('.copilot-example-play');
+    if (!button) return;
+    button.setAttribute('aria-pressed', playing ? 'true' : 'false');
+    button.innerHTML = playing ? ICON_STOP : ICON_PLAY;
+    button.appendChild(el('span', { text: playing ? 'Arrêter' : card.dataset.playLabel || 'Écouter l\'exemple' }));
+  });
+}
+
+/**
+ * [Claude] — 2026-09-25 — Message court dans la ligne d'état de la fenêtre
+ * (main.js) : plus de légende sous le clavier.
+ */
+function showStatus(text) {
+  document.dispatchEvent(new CustomEvent('app-status', { detail: { text: String(text || '') } }));
+}
+
+/** Avis de l'application sans IA : le verdict et la première suggestion, en une ligne. */
+export function localReviewText(review) {
+  const first = review?.moments?.[0];
+  const idea = first ? ` — ${takeMoment(first.at)}${first.chord ? ` ${first.chord}` : ''} : ${momentText(first)}` : '';
+  return `${review?.verdict || ''}${idea}`;
+}
+
+/**
+ * « Qu'en penses-tu ? » : le dernier passage joué (depuis la dernière pause) est
+ * analysé par l'application et joint à la question tapée (n'importe laquelle), ou
+ * à « Qu'en penses-tu de ce que je viens de jouer ? ».
+ * Sans clé d'IA, l'avis de l'application s'affiche dans la ligne d'état.
+ */
+export async function reviewLastPassage({ question = '', fromKeyboard = false, fromView = null } = {}) {
+  const passage = liveTake.lastPassage();
+  if (!passage) {
+    showStatus('Rien à écouter : joue d\'abord au clavier (MIDI, virtuel ou clavier d\'ordinateur), puis clique sur « Qu\'en penses-tu ? ».');
+    return null;
+  }
+  // [Claude] — 2026-09-25 — Un seul bouton (sous le clavier) : la question tapée
+  // dans le Copilote, s'il y en a une, part avec le passage.
+  const asked = String(question || els.input?.value || '').trim();
+  // [Claude] — 2026-09-25 — Depuis Exercices (ou en mode exercice) : l'avis compare
+  // le jeu aux accords de l'exercice en cours, sans qu'il faille les taper.
+  const exercise = fromView === 'exercise' || currentMode === 'exercise' ? readCopilotContext('exercise') : null;
+  const review = reviewTake(passage.events, { question: asked, expect: exercise ? { ...exercise.expect, label: exercise.title } : null });
+  if (!review) return null;
+  if (!hasAIKey() || !els.input) {
+    showStatus(localReviewText(review));
+    return review;
+  }
+  if (fromKeyboard) {
+    document.dispatchEvent(new CustomEvent('app-switch-tab', { detail: { tab: 'practice' } }));
+    document.dispatchEvent(new CustomEvent('app-switch-training-view', { detail: { view: 'copilot' } }));
+  }
+  // La conversation de l'exercice (le Copilote reçoit aussi ses voicings et les essais).
+  if (exercise && currentMode !== 'exercise') await switchToExerciseMode();
+  els.input.value = '';
+  autoGrowInput();
+  const defaultQuestion = exercise ? `Qu'en penses-tu de ce que je viens de jouer sur l'exercice (${exercise.title}) ?` : DEFAULT_REVIEW_QUESTION;
+  await runCopilotTurn(asked || defaultQuestion, { review: true, take: { lines: review.contextLines, events: passage.events, key: review.key?.label || null } });
+  return review;
 }
 
 /** Rendu de la liste des messages, dans la structure d'Astra
@@ -274,9 +443,12 @@ function renderMessages() {
     content.appendChild(author);
     renderMessageText(content, msg.content);
 
-    // Notes réellement jouées au clavier virtuel par l'outil du Copilot.
-    // Information, pas bouton : rien ne permet aujourd'hui de rejouer la démo.
-    if (msg.toolResult?.played?.length) {
+    // [Claude] — 2026-09-24 — L'exemple à écouter vient APRÈS l'explication
+    // (Narcisse : « il va directement me le jouer au lieu d'expliquer d'abord »).
+    if (msg.toolResult?.example) {
+      content.appendChild(renderExampleCard(msg));
+    } else if (msg.toolResult?.played?.length) {
+      // Anciennes conversations : notes jouées à l'époque, pour mémoire.
       const played = el('div', { className: 'tr-chat-demos copilot-tool-note is-static' });
       const chip = el('span', { className: 'copilot-played-chip' });
       chip.innerHTML = ICON_PIANO;
@@ -319,6 +491,7 @@ function showChatArea() {
 }
 
 async function startNewConversation(tutorialPath) {
+  lastTake = null;
   const id = await createConversation(tutorialPath || AUTONOMOUS_HISTORY_KEY);
   if (!id) return null;
   currentConversationId = id;
@@ -328,13 +501,7 @@ async function startNewConversation(tutorialPath) {
 
 async function ensureCurrentConversation() {
   if (currentConversationId) return currentConversationId;
-  const key =
-    currentMode === 'tutorial' && currentTutorialPath
-      ? currentTutorialPath
-      : currentMode === 'session' && currentSessionId
-        ? currentSessionId
-        : AUTONOMOUS_HISTORY_KEY;
-  return startNewConversation(key);
+  return startNewConversation(historyKeyForMode());
 }
 
 function formatHistoryDate(isoString) {
@@ -400,12 +567,9 @@ async function renderHistoryList() {
             deleteHistoryItem(item.conversationId, primary, e.currentTarget);
           },
         }, [
-          el('svg', { width: '15', height: '15', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.65', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' }, [
-            el('path', { d: 'M3 6h18' }),
-            el('path', { d: 'M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2' }),
-            el('path', { d: 'M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6' }),
-            el('path', { d: 'M10 11v6' }),
-            el('path', { d: 'M14 11v6' }),
+          el('svg', { width: '15', height: '15', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.9', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' }, [
+            el('path', { d: 'M18 6 6 18' }),
+            el('path', { d: 'M6 6l12 12' }),
           ]),
         ]),
       ]),
@@ -440,6 +604,38 @@ async function deleteHistoryItem(conversationId, label, btn) {
   await renderHistoryList();
 }
 
+async function onDeleteEmptyConversations() {
+  const all = await listAllConversations();
+  const emptyItems = [];
+  for (const item of all) {
+    const history = await loadHistory(item.conversationId);
+    const messages = history?.messages;
+    if (!messages || messages.length === 0) emptyItems.push(item);
+  }
+  if (emptyItems.length === 0) {
+    alert('Aucune conversation vide à supprimer.');
+    return;
+  }
+  const label = emptyItems.length === 1
+    ? '1 conversation vide'
+    : `${emptyItems.length} conversations vides`;
+  if (!confirm(`Supprimer ${label} ? Cette action est irréversible.`)) return;
+
+  // Si la conversation courante est vide, on la décharge avant suppression.
+  const currentIsEmpty = emptyItems.some((item) => item.conversationId === currentConversationId);
+  if (currentIsEmpty) {
+    messages = [];
+    currentConversationId = null;
+    renderMessages();
+  }
+
+  const removed = await deleteEmptyConversations();
+  await renderHistoryList();
+  if (removed === 0) {
+    alert('La suppression a échoué. Vérifiez que les fichiers ne sont pas ouverts ailleurs.');
+  }
+}
+
 async function loadHistoryItem(conversationId) {
   const history = await loadHistory(conversationId);
   if (!history) return;
@@ -449,6 +645,8 @@ async function loadHistoryItem(conversationId) {
   currentSessionId = null;
   currentSessionContext = null;
   currentTutorialPath = null;
+  currentExerciseId = null;
+  currentExerciseTitle = null;
   updateHeaderForMode();
   updateModeToggle();
   showChatArea();
@@ -460,11 +658,24 @@ function updateHeaderForMode() {
   if (currentMode === 'tutorial' && currentTutorialPath) {
     const name = currentTutorialPath.split('/').pop();
     if (els.selectedName) els.selectedName.textContent = `Copilot IA — ${name}`;
-    if (els.introText) els.introText.textContent = 'Mode accompagnement : le Copilot connaît la grille, la transcription et la tonalité de ce tutoriel.';
+    // [Claude] — 2026-09-25 — Ce que le Copilote sait VRAIMENT de ce tutoriel.
+    const context = getTutorialContext();
+    let intro;
+    if (!context?.chords) {
+      intro = 'Lancez d\'abord « Lire ce tutoriel » dans Pédagogie IA : le Copilot connaîtra alors sa grille, la parole du professeur et les notes jouées.';
+    } else if (context.noteEvents?.length) {
+      intro = `Le Copilot connaît ce tutoriel : grille, parole du professeur${context.summary ? ', résumé du cours' : ''} et notes jouées (${context.sourceLabel}). Demandez-lui de rejouer un lick ou un voicing de la vidéo, ou de l'appliquer dans une autre tonalité.`;
+    } else {
+      intro = `Le Copilot connaît la grille et la parole du professeur ; les notes exactes ne sont pas disponibles (${context.notesUnavailable}).`;
+    }
+    if (els.introText) els.introText.textContent = intro;
   } else if (currentMode === 'session' && currentSessionContext) {
     const name = currentSessionContext.name || currentSessionId;
     if (els.selectedName) els.selectedName.textContent = `Copilot IA — Session : ${name}`;
     if (els.introText) els.introText.textContent = 'Mode session : le Copilot analyse la session MIDI sélectionnée.';
+  } else if (currentMode === 'exercise' && currentExerciseTitle) {
+    if (els.selectedName) els.selectedName.textContent = `Copilot IA — ${currentExerciseTitle}`;
+    if (els.introText) els.introText.textContent = 'Le Copilot connaît l\'exercice affiché : accords et voicings de la carte, tonalité, étape et tes derniers essais. Demande-lui d\'expliquer un voicing ou de le faire entendre ; après avoir joué, « Qu\'en penses-tu ? » compare ton jeu à l\'exercice.';
   } else {
     if (els.selectedName) els.selectedName.textContent = 'Copilot IA';
     if (els.introText) els.introText.textContent = '';
@@ -472,6 +683,7 @@ function updateHeaderForMode() {
 }
 
 function updateModeToggle() {
+  renderQuickActionsForMode();
   if (!els.modeToggleBtn) return;
   const state = toggleButtonState(currentMode, currentTutorialPath);
   els.modeToggleBtn.style.display = state.visible ? '' : 'none';
@@ -483,6 +695,8 @@ async function switchToAutonomousMode() {
   currentSessionId = null;
   currentSessionContext = null;
   currentTutorialPath = null;
+  currentExerciseId = null;
+  currentExerciseTitle = null;
   updateHeaderForMode();
   updateModeToggle();
   if (!hasAIKey()) { showNoKeyState(); return; }
@@ -497,6 +711,8 @@ async function switchToTutorialMode(path) {
   currentMode = 'tutorial';
   currentSessionId = null;
   currentSessionContext = null;
+  currentExerciseId = null;
+  currentExerciseTitle = null;
   currentTutorialPath = path;
   updateHeaderForMode();
   updateModeToggle();
@@ -513,6 +729,8 @@ export async function switchToSessionMode(sessionContext) {
   currentSessionId = sessionContext.sessionId;
   currentSessionContext = sessionContext;
   currentTutorialPath = null;
+  currentExerciseId = null;
+  currentExerciseTitle = null;
   updateHeaderForMode();
   updateModeToggle();
   if (!hasAIKey()) { showNoKeyState(); return; }
@@ -522,8 +740,34 @@ export async function switchToSessionMode(sessionContext) {
   await renderHistoryList();
 }
 
+/**
+ * [Claude] — 2026-09-25 — Mode exercice (« Demander au Copilote » dans Exercices,
+ * ou « Qu'en penses-tu ? » lancé depuis Exercices). Même exercice : la
+ * conversation continue ; autre exercice : une nouvelle conversation.
+ * @returns {Promise<boolean>} faux si aucun exercice n'est affiché
+ */
+export async function switchToExerciseMode() {
+  const ctx = readCopilotContext('exercise');
+  if (!ctx) return false;
+  const same = currentMode === 'exercise' && currentExerciseId === ctx.id && currentConversationId;
+  currentMode = 'exercise';
+  currentExerciseId = ctx.id;
+  currentExerciseTitle = ctx.title;
+  currentSessionId = null;
+  currentSessionContext = null;
+  currentTutorialPath = null;
+  updateHeaderForMode();
+  updateModeToggle();
+  if (!hasAIKey()) { showNoKeyState(); return true; }
+  showChatArea();
+  if (!same) await startNewConversation(historyKeyForMode());
+  renderMessages();
+  await renderHistoryList();
+  return true;
+}
+
 async function onModeToggleClick() {
-  if (currentMode === 'tutorial' || currentMode === 'session') {
+  if (currentMode === 'tutorial' || currentMode === 'session' || currentMode === 'exercise') {
     await switchToAutonomousMode();
   } else if (currentTutorialPath) {
     await switchToTutorialMode(currentTutorialPath);
@@ -536,33 +780,67 @@ async function sendUserMessage() {
   if (!text) return;
   els.input.value = '';
   autoGrowInput();
+  await runCopilotTurn(text);
+}
+
+/**
+ * [Claude] — 2026-09-25 — Jeu du pianiste que le Copilote peut rejouer à
+ * l'identique (play_my_playing) : la session confiée (touches brutes, plus la
+ * transposition du clavier, comme sa relecture) et le dernier passage de
+ * « Qu'en penses-tu ? » (notes entendues).
+ */
+function playingSources() {
+  const out = {};
+  const session = getSessionContext();
+  if (session?.events?.length) {
+    out.session = { events: session.events, key: session.key || session.heardKey || null, offset: Number(readCopilotContext('keyboard')?.transpose) || 0 };
+  }
+  if (lastTake?.events?.length) out.passage = { events: lastTake.events, key: lastTake.key || null };
+  return out.session || out.passage ? out : null;
+}
+
+/**
+ * Un tour de conversation : la question (et, pour « Qu'en penses-tu ? », le
+ * passage joué), l'appel au modèle, la réponse.
+ * @param {string} text
+ * @param {{review?: boolean, take?: {lines: string[], events: object[], key: string|null}}} [options]
+ */
+async function runCopilotTurn(text, { review = false, take = null } = {}) {
   els.input.disabled = true;
   els.sendBtn.disabled = true;
 
   await ensureCurrentConversation();
+  // Après la création éventuelle de la conversation (qui oublie l'ancien passage).
+  if (take) lastTake = take;
   messages.push({ role: 'user', content: text, timestamp: new Date().toISOString() });
   addTypingIndicator();
 
-  const context = getTutorialContext() || getSessionContext();
+  const base = getTutorialContext() || getSessionContext() || getExerciseContext();
+  // Le dernier passage joué reste connu pour les questions de suivi ; le jeu
+  // (session, passage) reste rejouable.
+  const playing = playingSources();
+  let context = base;
+  if (lastTake || playing) context = { ...(base || { type: 'autonomous' }) };
+  if (lastTake?.lines?.length) context.take = lastTake.lines;
+  if (playing) context.playing = playing;
   const copilotStyleId = els.styleSelect?.value || 'auto';
-  const res = await sendCopilotMessage({ message: text, messages, context, copilotStyleId });
+  const res = await sendCopilotMessage({ message: text, messages, context, copilotStyleId, review });
 
   removeTypingIndicator();
+  let autoplayMessage = null;
   if (res.ok) {
-    messages.push({
+    const reply = {
       role: 'assistant',
       content: res.content,
       toolResult: res.toolResult,
       suggestedActions: res.suggestedActions,
       timestamp: new Date().toISOString(),
-    });
-    const key =
-      currentMode === 'tutorial' && currentTutorialPath
-        ? currentTutorialPath
-        : currentMode === 'session' && currentSessionId
-          ? currentSessionId
-          : AUTONOMOUS_HISTORY_KEY;
-    await saveHistory(currentConversationId, key, messages);
+    };
+    if (res.toolResult?.example) exampleIdOf(reply);
+    messages.push(reply);
+    // Demande d'écoute (« joue-moi… ») : l'exemple démarre une fois la réponse affichée.
+    if (res.autoplay && res.toolResult?.example) autoplayMessage = reply;
+    await saveHistory(currentConversationId, historyKeyForMode(), messages);
   } else {
     const errorMsg = res.error === 'AI_API_KEY_INVALID'
       ? 'La clé API a été refusée. Vérifiez-la dans Réglages › Assistant IA.'
@@ -571,6 +849,7 @@ async function sendUserMessage() {
   }
 
   renderMessages();
+  if (autoplayMessage) setTimeout(() => toggleExample(autoplayMessage), 700);
   await renderHistoryList();
   els.input.disabled = false;
   els.sendBtn.disabled = false;
@@ -579,13 +858,7 @@ async function sendUserMessage() {
 
 /** Reset de la conversation. */
 async function onNewConversation() {
-  const key =
-    currentMode === 'tutorial' && currentTutorialPath
-      ? currentTutorialPath
-      : currentMode === 'session' && currentSessionId
-        ? currentSessionId
-        : AUTONOMOUS_HISTORY_KEY;
-  await startNewConversation(key);
+  await startNewConversation(historyKeyForMode());
   renderMessages();
   await renderHistoryList();
 }
@@ -605,8 +878,13 @@ export async function initCopilotTab() {
   els.introText = document.getElementById('copilot-intro');
   els.historyList = document.getElementById('copilot-history-list');
   els.newConvSidebarBtn = document.getElementById('copilot-new-conv-sidebar-btn');
+  els.deleteEmptyBtn = document.getElementById('copilot-delete-empty-btn');
 
   els.sendBtn?.addEventListener('click', sendUserMessage);
+  // [Claude] — 2026-09-25 — « Qu'en penses-tu ? » (bouton unique, sous le clavier).
+  document.addEventListener('copilot-review-take', (e) => reviewLastPassage({ question: e.detail?.question || '', fromKeyboard: true, fromView: e.detail?.fromView || null }));
+  // « Demander au Copilote » depuis Exercices.
+  document.addEventListener('copilot-open-exercise', () => switchToExerciseMode());
   // [Astra round 4] — Le champ est un <textarea> qui grandit avec le texte,
   // comme dans la maquette (max ~110px, puis défilement interne).
   els.input?.addEventListener('input', autoGrowInput);
@@ -618,6 +896,7 @@ export async function initCopilotTab() {
   });
   els.newConvBtn?.addEventListener('click', onNewConversation);
   els.newConvSidebarBtn?.addEventListener('click', onNewConversation);
+  els.deleteEmptyBtn?.addEventListener('click', onDeleteEmptyConversations);
   els.modeToggleBtn?.addEventListener('click', onModeToggleClick);
 
   // Sélecteur de style pianistique.
@@ -658,10 +937,30 @@ export async function initCopilotTab() {
     }
   });
 
+  // [Claude] — 2026-09-25 — « Copilote IA » depuis Pédagogie : mode tutoriel, avec son contexte
+  // (la conversation en cours est gardée si c'est déjà ce tutoriel).
+  document.addEventListener('copilot-open-tutorial', async (e) => {
+    const path = e.detail?.path;
+    if (!path) return;
+    if (currentMode === 'tutorial' && currentTutorialPath === path) {
+      updateHeaderForMode();
+      return;
+    }
+    await switchToTutorialMode(path);
+  });
+
   document.addEventListener('copilot-switch-to-session', async (e) => {
     const sessionContext = e.detail;
     if (!sessionContext?.sessionId) return;
     await switchToSessionMode(sessionContext);
+  });
+
+  // Lecture d'un exemple commencée / finie (main.js).
+  document.addEventListener('copilot-example-state', (e) => {
+    const { id, playing } = e.detail || {};
+    if (playing) playingExampleId = id;
+    else if (playingExampleId === id) playingExampleId = null;
+    refreshExampleCards();
   });
 
   document.addEventListener('copilot-send-message', async (e) => {

@@ -40,6 +40,11 @@ export const DEFAULT_GEOMETRY_OPTIONS = {
   // ordre » (à l'intérieur d'un groupe) ou non (entre deux groupes).
   groupGapRatio: 1.22,
   minWhiteKeys: 12,
+  // [Claude] — 2026-09-25 — Stratégie « bande » : une rangée compte si elle
+  // croise au moins ce nombre de noires au motif 2/3 valide, et la bande des
+  // noires doit faire au moins cette hauteur (un clavier dessiné, pas un trait).
+  minBandBlackKeys: 8,
+  minBandHeight: 6,
 };
 
 /**
@@ -187,13 +192,23 @@ export function pickBlackRow(frame, range, options = {}) {
  */
 export function findWhiteGrid(frame, row, options = {}) {
   const opts = { ...DEFAULT_GEOMETRY_OPTIONS, ...options };
-  const separators = [];
+  const runs = [];
   let start = null;
+  // Seuil des traits : fixe par défaut ; la stratégie « bande » le règle sur la
+  // luminosité réelle des blanches (traits gris clair sur certains rendus).
+  const separatorLuma = Number.isFinite(opts.separatorLuma) ? opts.separatorLuma : opts.whiteLuma - 40;
   for (let x = 0; x <= frame.width; x++) {
-    const dark = x < frame.width && getLuma(frame, x, row) < opts.whiteLuma - 40;
+    const dark = x < frame.width && getLuma(frame, x, row) < separatorLuma;
     if (dark && start === null) start = x;
-    else if (!dark && start !== null) { separators.push((start + x - 1) / 2); start = null; }
+    else if (!dark && start !== null) { runs.push({ center: (start + x - 1) / 2, width: x - start }); start = null; }
   }
+  // [Claude] — 2026-09-25 — Une touche blanche allumée (bleue, verte…) peut être
+  // assez sombre pour passer pour un trait de séparation ; elle est bien plus
+  // large qu'un trait : on l'écarte, sinon la grille se décale d'une demi-touche
+  // (tutoriels de Narcisse : Amazing Grace, « comment harmoniser rapidement »).
+  const widths = runs.map((r) => r.width).sort((a, b) => a - b);
+  const typical = widths[Math.floor(widths.length / 2)] || 1;
+  const separators = runs.filter((r) => r.width <= Math.max(4, typical * 3)).map((r) => r.center);
   if (separators.length < 4) return null;
 
   const gaps = [];
@@ -218,6 +233,35 @@ export function findWhiteGrid(frame, row, options = {}) {
   // le pas dérive de près d'une touche entière sur trente.
   let w = width;
   let origin = separators[0];
+  // [Claude] — 2026-09-25 — Ajustement « en peigne » avant les moindres carrés :
+  // la largeur retenue est celle qui aligne le mieux TOUTES les séparations vues
+  // (longueur résultante de leurs phases), sans les arrondir d'abord à un rang.
+  // Quand beaucoup de traits manquent (touches allumées, texte), l'arrondi d'une
+  // séparation lointaine sur une largeur approchée tombait sur le mauvais rang et
+  // tirait la grille (Amazing Grace : 15,8 px trouvés pour 16,3 réels, une
+  // touche de décalage d'un bout à l'autre).
+  {
+    let bestR = -1;
+    for (let cand = width * 0.93; cand <= width * 1.07; cand += width * 0.001) {
+      let cx = 0;
+      let sy = 0;
+      for (const sep of separators) {
+        const a = (2 * Math.PI * sep) / cand;
+        cx += Math.cos(a);
+        sy += Math.sin(a);
+      }
+      const r = Math.hypot(cx, sy) / separators.length;
+      if (r > bestR + 1e-9) {
+        bestR = r;
+        w = cand;
+        const phase = Math.atan2(sy, cx) / (2 * Math.PI);
+        origin = ((phase % 1) + 1) % 1 * cand;
+      }
+    }
+    // Origine ramenée près de la première séparation vue.
+    while (origin + w <= separators[0] + w / 2) origin += w;
+    while (origin > separators[0] + w / 2) origin -= w;
+  }
   for (let iter = 0; iter < 4; iter++) {
     const ks = separators.map((sep) => Math.round((sep - origin) / w));
     const n = ks.length;
@@ -501,6 +545,12 @@ function buildGeometry(frame, rows, picked, grid, options = {}) {
   // blackRow est toujours dans le clavier, y compris en statique.
   const sampleRow = Math.round(picked.row + (rows.bottom - picked.row) * 0.78);
 
+  // [Claude] — 2026-09-25 — Une noire est toujours entre deux blanches : un bord
+  // sombre de l'image pris pour une noire au-delà de la dernière blanche (« Ré8 »
+  // fantôme sur Amazing Grace) est écarté, quelle que soit la stratégie.
+  const whiteMidis = new Set(whiteKeys.map((k) => k.midi));
+  const realBlackKeys = blackKeys.filter((k) => whiteMidis.has(k.midi - 1) && whiteMidis.has(k.midi + 1));
+
   return {
     ok: true,
     whiteRow: rows.whiteRow,
@@ -509,7 +559,7 @@ function buildGeometry(frame, rows, picked, grid, options = {}) {
     sampleRow,
     whiteWidth: grid.width,
     whiteKeys,
-    blackKeys,
+    blackKeys: realBlackKeys,
     lowestMidi: whiteKeys[0].midi,
     highestMidi: whiteKeys[whiteKeys.length - 1].midi,
     anchorIsHeuristic,
@@ -586,6 +636,151 @@ export function detectStaticKeyboardGeometry(frame, options = {}) {
 }
 
 /**
+ * [Claude] — 2026-09-25 — Bande des touches noires : le groupe de rangées
+ * consécutives où le motif 2/3 est valide, le plus haut et le plus fourni. On
+ * la cherche dans TOUTE l'image : le clavier dessiné n'est pas toujours en bas
+ * (Amazing Grace : portée et nom d'accord au-dessus, vrai piano filmé en
+ * dessous ; « comment harmoniser » : titre et professeur au-dessus).
+ *
+ * @param {import('./frame.js').PixelFrame} frame
+ * @param {object} [options]
+ * @returns {{ top: number, bottom: number, rows: object[], score: number } | null}
+ */
+export function findKeyboardBand(frame, options = {}) {
+  const opts = { ...DEFAULT_GEOMETRY_OPTIONS, ...options };
+  const bands = [];
+  for (let y = 0; y < frame.height; y++) {
+    const keys = findBlackKeys(frame, y, opts);
+    if (keys.length < opts.minBandBlackKeys) continue;
+    const grouping = groupBlackKeys(keys, opts);
+    if (!grouping.valid) continue;
+    const row = { y, count: keys.length, keys, grouping };
+    const last = bands[bands.length - 1];
+    // Même bande : rangées voisines, à peu près le même nombre de noires
+    // (une noire allumée peut manquer sur une rangée, pas dix).
+    if (last && y - last.bottom <= 2 && Math.abs(row.count - last.count) <= 2) {
+      last.bottom = y;
+      last.rows.push(row);
+    } else {
+      bands.push({ top: y, bottom: y, count: row.count, rows: [row] });
+    }
+  }
+  const scored = bands
+    .filter((b) => b.bottom - b.top + 1 >= opts.minBandHeight)
+    .map((b) => ({ ...b, score: (b.bottom - b.top + 1) * Math.max(...b.rows.map((r) => r.count)) }))
+    .sort((a, b) => b.score - a.score);
+  return scored[0] || null;
+}
+
+/**
+ * [Claude] — 2026-09-25 — Complète les touches noires manquantes : une noire
+ * allumée au moment du sondage n'est plus sombre et disparaît du relevé ; elle
+ * ne pourrait alors jamais être lue. Sa place se déduit de la grille des
+ * blanches et du décalage mesuré sur les noires de même nom.
+ */
+function completeBlackKeys(geometry, grid) {
+  const whiteByMidi = new Map(geometry.whiteKeys.map((k) => [k.midi, k]));
+  const known = new Set(geometry.blackKeys.map((k) => k.midi));
+  const offsets = new Map();
+  const widths = [];
+  for (const k of geometry.blackKeys) {
+    const below = whiteByMidi.get(k.midi - 1);
+    if (!below) continue;
+    const boundary = grid.origin + (below.whiteIndex + 1) * grid.width;
+    const pc = ((k.midi % 12) + 12) % 12;
+    (offsets.get(pc) || offsets.set(pc, []).get(pc)).push(k.center - boundary);
+    widths.push(k.right - k.left);
+  }
+  if (!widths.length) return;
+  const med = (xs) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)];
+  const all = [...offsets.values()].flat();
+  const width = med(widths);
+  for (const white of geometry.whiteKeys) {
+    const midi = white.midi + 1;
+    const pc = ((midi % 12) + 12) % 12;
+    if (![1, 3, 6, 8, 10].includes(pc) || known.has(midi) || !whiteByMidi.has(midi + 1)) continue;
+    const center = grid.origin + (white.whiteIndex + 1) * grid.width + med(offsets.get(pc) || all);
+    geometry.blackKeys.push({ midi, center, left: center - width / 2, right: center + width / 2, synthesized: true });
+  }
+  geometry.blackKeys.sort((a, b) => a.midi - b.midi);
+}
+
+/**
+ * [Claude] — 2026-09-25 — Stratégie 3 : clavier dessiné n'importe où dans
+ * l'image (bande des noires, puis zone des blanches juste en dessous). Les
+ * tutoriels réels de Narcisse échouaient sur les deux autres : pas de ligne de
+ * frappe, et un panneau blanc ou un visage au-dessus du clavier.
+ *
+ * @param {import('./frame.js').PixelFrame} frame
+ * @param {object} [options]
+ * @returns {object} `{ ok: true, ... }` ou `{ ok: false, reason, detail? }`
+ */
+export function detectKeyboardBandGeometry(frame, options = {}) {
+  const opts = { ...DEFAULT_GEOMETRY_OPTIONS, ...options };
+  const band = findKeyboardBand(frame, opts);
+  if (!band) return { ok: false, reason: 'NoKeyboardBand' };
+
+  // Rangée des noires : celle qui en montre le plus, au milieu de la bande.
+  const most = Math.max(...band.rows.map((r) => r.count));
+  const best = band.rows.filter((r) => r.count === most);
+  const pickedRow = best[Math.floor(best.length / 2)];
+  const picked = { row: pickedRow.y, keys: pickedRow.keys, grouping: pickedRow.grouping };
+
+  // Luminance des blanches : entre les noires, sur la rangée retenue.
+  const x0 = Math.max(0, Math.floor(picked.keys[0].left));
+  const x1 = Math.min(frame.width - 1, Math.ceil(picked.keys[picked.keys.length - 1].right));
+  const bright = [];
+  for (let x = x0; x <= x1; x++) {
+    const l = getLuma(frame, x, picked.row);
+    if (l >= opts.blackLuma) bright.push(l);
+  }
+  bright.sort((a, b) => a - b);
+  const whiteRef = bright.length ? bright[Math.floor(bright.length * 0.75)] : opts.whiteLuma;
+
+  // Zone des blanches seules, sous les noires : claire (ou colorée : touche
+  // allumée) sur toute la largeur du clavier.
+  const isKeyPixel = (x, y) => {
+    const [r, g, b] = getPixel(frame, x, y);
+    const l = 0.299 * r + 0.587 * g + 0.114 * b;
+    return l >= whiteRef * 0.72 || Math.max(r, g, b) - Math.min(r, g, b) >= 40;
+  };
+  const isKeyRow = (y) => {
+    let ok = 0;
+    let n = 0;
+    for (let x = x0; x <= x1; x += 2) { n++; if (isKeyPixel(x, y)) ok++; }
+    return ok / n >= 0.6;
+  };
+  // [Claude] — 2026-09-25 — Le bas des noires est flou (compression) : une ou
+  // deux rangées de transition, ni noires ni blanches, précèdent la zone des
+  // blanches. Sur « comment harmoniser rapidement », cette seule rangée faisait
+  // échouer 13 images de sondage sur 24. On la saute avant de mesurer.
+  let zoneTop = band.bottom + 1;
+  while (zoneTop <= band.bottom + 3 && zoneTop < frame.height && !isKeyRow(zoneTop)) zoneTop++;
+  let bottom = zoneTop - 1;
+  for (let y = zoneTop; y < frame.height && y <= band.bottom + (band.bottom - band.top + 1) * 2; y++) {
+    if (!isKeyRow(y)) break;
+    bottom = y;
+  }
+  if (bottom - zoneTop + 1 < 3) return { ok: false, reason: 'NoWhiteZone' };
+  const zoneHeight = bottom - zoneTop + 1;
+
+  const whiteRow = zoneTop + Math.round(zoneHeight * 0.35);
+  const grid = findWhiteGrid(frame, whiteRow, { ...opts, whiteLuma: Math.min(opts.whiteLuma, whiteRef * 0.85), separatorLuma: whiteRef - 25 });
+  if (!grid) return { ok: false, reason: 'NoWhiteGrid' };
+
+  const geometry = buildGeometry(frame, { whiteRow, bottom: bottom + 1 }, picked, grid, opts);
+  if (!geometry.ok) return geometry;
+  completeBlackKeys(geometry, grid);
+  // Couleur des blanches lue juste sous les noires : au-dessus des étiquettes
+  // éventuelles (« C1 »… « C8 ») posées tout en bas des touches.
+  geometry.sampleRow = zoneTop + Math.round(zoneHeight * 0.45);
+  geometry.blackTop = band.top;
+  geometry.blackBottom = band.bottom;
+  geometry.strategy = 'keyboardBand';
+  return geometry;
+}
+
+/**
  * Liste ordonnée des stratégies de détection. Chaque stratégie a le même
  * contrat : `(frame, options) => { ok: true, ... } | { ok: false, reason }`.
  * Ajouter un format se résume à écrire une nouvelle fonction et l'insérer ici.
@@ -593,6 +788,7 @@ export function detectStaticKeyboardGeometry(frame, options = {}) {
 export const DETECTION_STRATEGIES = [
   detectSynthesiaGeometry,
   detectStaticKeyboardGeometry,
+  detectKeyboardBandGeometry,
 ];
 
 /**

@@ -241,10 +241,6 @@
 #practice-tab[data-training-view='exercise'] .exercise-target-keyboard svg {
   max-height: 170px;
 }
-#practice-tab[data-training-view='exercise'] .panel-action#new-exercise-btn {
-  padding: 13px 16px;
-  font-size: 0.95rem;
-}
 #practice-tab[data-training-view='exercise'] .exercise-feedback {
   font-size: 0.95rem;
   text-align: center;
@@ -316,22 +312,6 @@
   color: var(--r-accent-contrast, #ffffff);
   box-shadow: var(--r-shadow-sm);
 }
-:root[data-skin='global'] #practice-tab .panel-action#new-exercise-btn,
-:root[data-skin='v2'] #practice-tab .panel-action#new-exercise-btn {
-  width: 100%;
-  padding: 10px 16px;
-  border-radius: var(--r-radius-btn);
-  border: none;
-  background: var(--r-accent);
-  color: var(--r-accent-contrast, #ffffff);
-  font-weight: 700;
-  cursor: pointer;
-  transition: filter 0.15s, transform 0.05s;
-}
-:root[data-skin='global'] #practice-tab .panel-action#new-exercise-btn:hover,
-:root[data-skin='v2'] #practice-tab .panel-action#new-exercise-btn:hover {
-  filter: brightness(1.08);
-}
 :root[data-skin='global'] #practice-tab .exercise-feedback,
 :root[data-skin='v2'] #practice-tab .exercise-feedback {
   min-height: 1.4rem;
@@ -346,6 +326,11 @@
 :root[data-skin='global'] #practice-tab .exercise-feedback.error,
 :root[data-skin='v2'] #practice-tab .exercise-feedback.error {
   color: var(--r-error, #ef4444);
+}
+/* [Claude] — 2026-09-25 — Suggestion (accord pas encore celui de la carte) : ton neutre. */
+:root[data-skin='global'] #practice-tab .exercise-feedback.hint,
+:root[data-skin='v2'] #practice-tab .exercise-feedback.hint {
+  color: var(--r-text, inherit);
 }
 
 /* ── Carte cible ── */
@@ -378,7 +363,7 @@
 :root[data-skin='v2'] #practice-tab .exercise-target-keyboard svg {
   max-width: 100%;
   height: auto;
-  max-height: 110px;
+  max-height: 140px;
 }
 :root[data-skin='global'] #practice-tab .exercise-target-notes,
 :root[data-skin='v2'] #practice-tab .exercise-target-notes {
@@ -387,6 +372,259 @@
   font-family: var(--r-font-mono);
   text-align: center;
 }
+
+/* ── En-tête de carte : nom de l'accord centré ; étoiles en haut à droite du
+   cadre visible (#exercise-target), pas de la carte intérieure plus étroite. */
+:root[data-skin='global'] #practice-tab .exercise-target-header,
+:root[data-skin='v2'] #practice-tab .exercise-target-header {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+:root[data-skin='global'] #practice-tab #exercise-target,
+:root[data-skin='v2'] #practice-tab #exercise-target {
+  position: relative;
+}
+:root[data-skin='global'] #practice-tab .exercise-target-title,
+:root[data-skin='v2'] #practice-tab .exercise-target-title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--r-space-1, 6px);
+  text-align: center;
+}
+:root[data-skin='global'] #practice-tab .exercise-target-header > .exercise-target-stars,
+:root[data-skin='v2'] #practice-tab .exercise-target-header > .exercise-target-stars {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+}
+:root[data-skin='global'] #practice-tab .exercise-target-stars,
+:root[data-skin='v2'] #practice-tab .exercise-target-stars {
+  display: flex;
+  gap: 2px;
+  font-size: 1.1rem;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--r-accent, #f59e0b);
+  flex-shrink: 0;
+}
+:root[data-skin='global'] #practice-tab .exercise-target-stars .star.empty,
+:root[data-skin='v2'] #practice-tab .exercise-target-stars .star.empty {
+  color: var(--r-border-strong, #475569);
+  opacity: 0.6;
+}
+
+/* ── Grille de catégories de voicings (inspiré de VoicingLab) ── */
+:root[data-skin='global'] #practice-tab .exercise-voicing-categories,
+:root[data-skin='v2'] #practice-tab .exercise-voicing-categories {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-bottom: var(--r-space-1, 6px);
+}
+:root[data-skin='global'] #practice-tab .exercise-category-tag,
+:root[data-skin='v2'] #practice-tab .exercise-category-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  border-radius: var(--r-radius-pill);
+  border: 1px solid var(--r-border-soft);
+  background: var(--r-surface-elevated);
+  color: var(--r-text-muted);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+:root[data-skin='global'] #practice-tab .exercise-category-tag:hover:not(.disabled),
+:root[data-skin='v2'] #practice-tab .exercise-category-tag:hover:not(.disabled) {
+  background: var(--r-surface);
+  color: var(--r-text);
+  border-color: var(--r-border-strong);
+}
+:root[data-skin='global'] #practice-tab .exercise-category-tag.active,
+:root[data-skin='v2'] #practice-tab .exercise-category-tag.active {
+  background: var(--r-accent);
+  border-color: var(--r-accent);
+  color: var(--r-accent-contrast, #ffffff);
+}
+:root[data-skin='global'] #practice-tab .exercise-category-tag.disabled,
+:root[data-skin='v2'] #practice-tab .exercise-category-tag.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+:root[data-skin='global'] #practice-tab .exercise-variant-arrows,
+:root[data-skin='v2'] #practice-tab .exercise-variant-arrows {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 3px;
+  padding-left: 5px;
+  border-left: 1px solid currentColor;
+  opacity: 0.9;
+}
+:root[data-skin='global'] #practice-tab .exercise-variant-btn,
+:root[data-skin='v2'] #practice-tab .exercise-variant-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  color: inherit;
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+:root[data-skin='global'] #practice-tab .exercise-variant-btn:hover,
+:root[data-skin='v2'] #practice-tab .exercise-variant-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+:root[data-skin='global'] #practice-tab .exercise-variant-index,
+:root[data-skin='v2'] #practice-tab .exercise-variant-index {
+  font-size: 0.6rem;
+  font-weight: 700;
+  min-width: 1.4em;
+  text-align: center;
+}
+
+/* Libellé de la variante VoicingLab affichée (note droppée, triade…) et
+   mention des voicings dérivés (qualité absente de VoicingLab). */
+:root[data-skin='global'] #practice-tab .exercise-variant-label,
+:root[data-skin='v2'] #practice-tab .exercise-variant-label,
+/* [Phase 1 voicing] — Nouvelle pancarte : LH/RH, technique, écoute. */
+:root[data-skin='global'] #practice-tab .exercise-target-card,
+:root[data-skin='v2'] #practice-tab .exercise-target-card {
+  width: 100%;
+  max-width: 720px;
+  padding: var(--r-space-4, 20px);
+  gap: var(--r-space-3, 14px);
+}
+:root[data-skin='global'] #practice-tab .exercise-target-keyboard svg,
+:root[data-skin='v2'] #practice-tab .exercise-target-keyboard svg {
+  /* `width: 100%` est indispensable : sans largeur explicite, le SVG placé
+     dans un conteneur flex se réduisait à ~180px dans une carte de 470px, et
+     les touches tombaient à 13px de large. Depuis que la fenêtre du clavier
+     s'adapte à l'étendue réelle du voicing, un voicing large ajoute des
+     touches — il faut donc lui donner toute la largeur disponible pour
+     qu'elles restent lisibles. */
+  width: 100%;
+  max-height: 190px;
+}
+:root[data-skin='global'] #practice-tab .exercise-target-technique,
+:root[data-skin='v2'] #practice-tab .exercise-target-technique {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--r-accent);
+  background: var(--r-accent-soft);
+  padding: 4px 10px;
+  border-radius: var(--r-radius-pill);
+}
+:root[data-skin='global'] #practice-tab .exercise-target-hands,
+:root[data-skin='v2'] #practice-tab .exercise-target-hands {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--r-space-3, 14px);
+  width: 100%;
+}
+:root[data-skin='global'] #practice-tab .exercise-hand,
+:root[data-skin='v2'] #practice-tab .exercise-hand {
+  display: flex;
+  flex-direction: column;
+  gap: var(--r-space-1, 6px);
+  padding: var(--r-space-3, 14px);
+  background: var(--r-surface-elevated);
+  border: 1px solid var(--r-border-soft);
+  border-radius: var(--r-radius-btn);
+  text-align: center;
+}
+:root[data-skin='global'] #practice-tab .exercise-hand-unified,
+:root[data-skin='v2'] #practice-tab .exercise-hand-unified {
+  grid-column: 1 / -1;
+  max-width: 320px;
+  margin: 0 auto;
+  width: 100%;
+}
+:root[data-skin='global'] #practice-tab .exercise-hand-lh,
+:root[data-skin='v2'] #practice-tab .exercise-hand-lh {
+  border-left: 3px solid var(--mini-key-lh, #3b82f6);
+}
+:root[data-skin='global'] #practice-tab .exercise-hand-rh,
+:root[data-skin='v2'] #practice-tab .exercise-hand-rh {
+  border-left: 3px solid var(--mini-key-rh, #22c55e);
+}
+:root[data-skin='global'] #practice-tab .exercise-hand-label,
+:root[data-skin='v2'] #practice-tab .exercise-hand-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--r-text-faint);
+}
+:root[data-skin='global'] #practice-tab .exercise-hand-notes,
+:root[data-skin='v2'] #practice-tab .exercise-hand-notes {
+  font-family: var(--r-font-mono);
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--r-text);
+  line-height: 1.4;
+}
+:root[data-skin='global'] #practice-tab .exercise-listen-btn,
+:root[data-skin='v2'] #practice-tab .exercise-listen-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border: none;
+  border-radius: var(--r-radius-btn);
+  background: var(--r-accent);
+  color: var(--r-accent-contrast, #ffffff);
+  font-family: var(--r-font-title);
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.05s;
+}
+:root[data-skin='global'] #practice-tab .exercise-listen-btn:hover:not(:disabled),
+:root[data-skin='v2'] #practice-tab .exercise-listen-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+:root[data-skin='global'] #practice-tab .exercise-listen-btn:active:not(:disabled),
+:root[data-skin='v2'] #practice-tab .exercise-listen-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+:root[data-skin='v2'] #practice-tab .exercise-listen-btn {
+  background: var(--r-grad);
+}
+
+/* Touches du mini-clavier : deux couleurs selon la main. */
+:root[data-skin='global'] #practice-tab,
+:root[data-skin='v2'] #practice-tab {
+  /* Couleurs du mini-clavier (dessinées dans mini-keyboard.js), reprises ici
+     pour les blocs de mains et les notes ajoutées : violet d'accent pour la
+     main gauche, vert sauge (--tr-green) pour la main droite. */
+  --mini-key-lh: #a583e2;
+  --mini-key-rh: #8ccdb7;
+  --mini-key-added: #e8b86a;
+}
+
+/* [Claude] — 2026-09-24 — Sélecteurs de contenu / tonalité en ligne et
+   constructeur de progression par degrés retirés avec le mode Progression ; les
+   réglages du tour Mouvement sont stylés dans astra-bridge.css. */
 
 /* ── En-tête mouvement 12 tons ── */
 :root[data-skin='global'] #practice-tab .exercise-movement-header,
@@ -498,29 +736,6 @@
   font-size: 1.3rem;
   font-weight: 800;
   color: var(--r-text);
-}
-
-/* ── Badge de degré/fonction (« ♭II — emprunt modal » dans la maquette ;
-   ici seul le degré est affiché — le libellé d'emprunt suppose un contexte
-   tonal non calculé en jeu libre, voir note dans index.html) ── */
-:root[data-skin='global'] #practice-tab .exercise-degree-badge,
-:root[data-skin='v2'] #practice-tab .exercise-degree-badge {
-  font-family: var(--r-font-mono);
-  font-weight: 700;
-  font-size: 0.82rem;
-}
-:root[data-skin='global'] #practice-tab .exercise-degree-badge {
-  padding: 4px 12px;
-  border-radius: 6px;
-  background: var(--r-accent-soft);
-  color: var(--r-text);
-  border: 1px solid rgba(139, 108, 245, 0.4);
-}
-:root[data-skin='v2'] #practice-tab .exercise-degree-badge {
-  padding: 5px 16px;
-  border-radius: var(--r-radius-pill);
-  background: var(--r-grad);
-  color: #fff;
 }
 
 /* ── Compagnon Techniques — retiré (décision du 01/09) ──
@@ -3066,4 +3281,806 @@
   color: var(--r-text-faint);
   text-align: center;
   padding: 6px 0 22px;
+}
+
+/* [Claude] — 2026-09-24 — L'ancien panneau latéral de la bibliothèque (et le
+   sélecteur de contenu / constructeur de degrés du mode Progression, retiré)
+   n'existe plus : la bibliothèque est une fenêtre Astra, stylée dans
+   astra-bridge.css. */
+
+/* ── Accord cible : recherche par note du dessus ── */
+:root[data-skin='global'] #practice-tab .exercise-target-choice,
+:root[data-skin='v2'] #practice-tab .exercise-target-choice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--r-space-2, 10px);
+}
+:root[data-skin='global'] #practice-tab .exercise-target-choice label,
+:root[data-skin='v2'] #practice-tab .exercise-target-choice label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--r-text-muted);
+}
+:root[data-skin='global'] #practice-tab .exercise-target-choice select:disabled,
+:root[data-skin='v2'] #practice-tab .exercise-target-choice select:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-panel,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin-bottom: var(--r-space-1, 6px);
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-head,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: var(--r-text-muted);
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-head strong,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-head strong {
+  color: var(--r-text);
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-list,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 7.5rem;
+  overflow-y: auto;
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-item,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  border-radius: var(--r-radius-pill);
+  border: 1px solid var(--r-border-soft);
+  background: var(--r-surface-elevated);
+  color: var(--r-text-muted);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-item:hover,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-item:hover {
+  background: var(--r-surface);
+  color: var(--r-text);
+  border-color: var(--r-border-strong);
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-item.active,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-item.active {
+  background: var(--r-accent);
+  border-color: var(--r-accent);
+  color: var(--r-accent-contrast, #ffffff);
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-stars,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-stars {
+  letter-spacing: -0.05em;
+  opacity: 0.85;
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-miss,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-miss {
+  font-size: 0.72rem;
+  color: var(--r-text-faint);
+  font-style: italic;
+  text-align: center;
+}
+
+/* Voice leading : aucun voicing n'a la note du dessus demandée. */
+:root[data-skin='global'] #practice-tab .exercise-top-missed,
+:root[data-skin='v2'] #practice-tab .exercise-top-missed {
+  font-size: 0.72rem;
+  color: var(--mini-key-added, #f59e0b);
+  text-align: center;
+}
+
+/* [Claude] — 2026-09-24 (nuit) — Carte d'un accord de passage (étape de l'exercice). */
+:root[data-skin='global'] #practice-tab .exercise-target-passing,
+:root[data-skin='v2'] #practice-tab .exercise-target-passing {
+  margin-top: 2px;
+  color: var(--tr-muted, #9ca3af);
+  font-size: 0.72rem;
+  letter-spacing: .02em;
+  text-align: center;
+}
+
+/* Note du dessus gardée dans la grille Perso en cours. */
+:root[data-skin='global'] #practice-tab .exercise-top-saved,
+:root[data-skin='v2'] #practice-tab .exercise-top-saved {
+  font-size: 0.72rem;
+  color: var(--tr-muted, #9ca3af);
+  text-align: center;
+}
+
+/* Doublures d'octave : notes ajoutées, même couleur ambre que sur le clavier. */
+:root[data-skin='global'] #practice-tab .exercise-doubled-note,
+:root[data-skin='v2'] #practice-tab .exercise-doubled-note {
+  font-size: 0.72rem;
+  color: var(--mini-key-added, #f59e0b);
+  text-align: center;
+}
+
+:root[data-skin='global'] #practice-tab .exercise-target-actions,
+:root[data-skin='v2'] #practice-tab .exercise-target-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* ── Mode Accord cible : bande du haut (choix de l'accord) au-dessus de la carte ;
+   colonnes gauche (accords par note du dessus, puis favoris) et droite
+   (voicings de l'accord affiché) centrées sur elle. ── */
+:root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode,
+:root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode {
+  grid-template-rows: auto 1fr;
+  /* Pas de hauteur minimale d'écran : la carte suit directement la bande du haut.
+     La zone remplit la place disponible mais ne rétrécit jamais sous son
+     contenu : rien n'est coupé (bug 1920×1080 : ★ / Doublures / Écouter
+     invisibles), la vue défile si une carte est très haute. */
+  min-height: 0;
+  flex: 1 0 auto;
+}
+:root[data-skin='global'] #practice-tab #practice-view-exercices,
+:root[data-skin='v2'] #practice-tab #practice-view-exercices {
+  overflow-y: auto;
+}
+/* Colonnes latérales : c'est la carte qui fixe la hauteur de la ligne ; la
+   liste de gauche (top note) et les voicings de droite défilent à l'intérieur
+   au lieu d'allonger la page. Sous 820 px, la colonne de droite passe sous la
+   carte (astra-training.css) : on garde alors le flux normal. */
+@media (min-width: 821px) {
+  :root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode .tr-exercise-brief,
+  :root[data-skin='global'] #practice-tab .tr-exercise-progress.is-chord-side,
+  :root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode .tr-exercise-brief,
+  :root[data-skin='v2'] #practice-tab .tr-exercise-progress.is-chord-side {
+    position: relative;
+  }
+  :root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode #exercise-target-choice,
+  :root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode #exercise-target-choice {
+    position: absolute;
+    inset: 12px 27px 16px;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 18px;
+  }
+  /* La section de la top note prend toute la colonne (consigne en haut, liste
+     des accords qui défile) : les favoris sont dans leur fenêtre (25/09). */
+  :root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode #exercise-target-choice .exercise-topnote-section,
+  :root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode #exercise-target-choice .exercise-topnote-section {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+  :root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode #exercise-target-choice .exercise-topnote-browser,
+  :root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode #exercise-target-choice .exercise-topnote-browser {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  :root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode .exercise-browser-list,
+  :root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode .exercise-browser-list {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+  }
+  :root[data-skin='global'] #practice-tab .tr-exercise-progress.is-chord-side,
+  :root[data-skin='v2'] #practice-tab .tr-exercise-progress.is-chord-side {
+    padding: 0;
+    overflow: visible;
+  }
+  :root[data-skin='global'] #practice-tab .tr-exercise-progress.is-chord-side > .exercise-chord-side,
+  :root[data-skin='v2'] #practice-tab .tr-exercise-progress.is-chord-side > .exercise-chord-side {
+    position: absolute;
+    inset: 20px 22px;
+    overflow-y: auto;
+  }
+}
+
+/* Retour de jeu en bulle flottante en haut de la zone principale : toujours
+   visible, même clavier MIDI déplié, sans place réservée dans la page. En
+   Accord cible elle recouvre le titre de la bande du haut, pas l'accord. */
+:root[data-skin='global'] #practice-tab .tr-exercise-stage,
+:root[data-skin='v2'] #practice-tab .tr-exercise-stage {
+  position: relative;
+}
+:root[data-skin='global'] #practice-tab .tr-exercise-stage > .exercise-feedback,
+:root[data-skin='v2'] #practice-tab .tr-exercise-stage > .exercise-feedback {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  z-index: 5;
+  transform: translateX(-50%);
+  max-width: calc(100% - 32px);
+  margin: 0;
+  padding: 7px 14px;
+  border-radius: var(--r-radius-pill, 999px);
+  border: 1px solid var(--r-border-soft);
+  background: var(--r-surface-elevated);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.35);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: center;
+  pointer-events: none;
+}
+:root[data-skin='global'] #practice-tab .tr-exercise-stage > .exercise-feedback:empty,
+:root[data-skin='v2'] #practice-tab .tr-exercise-stage > .exercise-feedback:empty {
+  display: none;
+}
+:root[data-skin='global'] #practice-tab .tr-exercise-stage > .exercise-feedback.success,
+:root[data-skin='v2'] #practice-tab .tr-exercise-stage > .exercise-feedback.success {
+  border-color: var(--tr-green, #10b981);
+}
+:root[data-skin='global'] #practice-tab .tr-exercise-stage > .exercise-feedback.error,
+:root[data-skin='v2'] #practice-tab .tr-exercise-stage > .exercise-feedback.error {
+  border-color: var(--tr-red, #ef4444);
+}
+:root[data-skin='global'] #practice-tab .tr-exercise-stage > .exercise-feedback.hint,
+:root[data-skin='v2'] #practice-tab .tr-exercise-stage > .exercise-feedback.hint {
+  border-color: var(--tr-accent, #b69cff);
+}
+
+/* Accord cible : le retour de jeu s'affiche en bulle à gauche de la bande du
+   haut, sans décaler ni recouvrir les réglages centrés. */
+:root[data-skin='global'] #practice-tab .exercise-chord-head,
+:root[data-skin='v2'] #practice-tab .exercise-chord-head {
+  position: relative;
+}
+:root[data-skin='global'] #practice-tab .exercise-chord-head > .exercise-feedback,
+:root[data-skin='v2'] #practice-tab .exercise-chord-head > .exercise-feedback {
+  position: absolute;
+  left: 24px;
+  top: 50%;
+  z-index: 3;
+  transform: translateY(-50%);
+  max-width: 30%;
+  margin: 0;
+  padding: 4px 12px;
+  border-radius: var(--r-radius-pill, 999px);
+  border: 1px solid var(--r-border-soft);
+  background: var(--r-surface-elevated);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+:root[data-skin='global'] #practice-tab .exercise-chord-head > .exercise-feedback:empty,
+:root[data-skin='v2'] #practice-tab .exercise-chord-head > .exercise-feedback:empty {
+  display: none;
+}
+:root[data-skin='global'] #practice-tab .exercise-chord-head > .exercise-feedback.success,
+:root[data-skin='v2'] #practice-tab .exercise-chord-head > .exercise-feedback.success {
+  border-color: var(--tr-green, #10b981);
+}
+:root[data-skin='global'] #practice-tab .exercise-chord-head > .exercise-feedback.error,
+:root[data-skin='v2'] #practice-tab .exercise-chord-head > .exercise-feedback.error {
+  border-color: var(--tr-red, #ef4444);
+}
+:root[data-skin='global'] #practice-tab .exercise-chord-head > .exercise-feedback.hint,
+:root[data-skin='v2'] #practice-tab .exercise-chord-head > .exercise-feedback.hint {
+  border-color: var(--tr-accent, #b69cff);
+}
+
+/* Nom de l'accord un peu réduit en Accord cible : la carte tient sous la bande
+   du haut même clavier MIDI déplié (1920×1080). */
+:root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode .exercise-target-name,
+:root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode .exercise-target-name {
+  font-size: 56px;
+}
+
+/* « À vous de jouer » fait doublon avec le titre de la bande du haut. */
+:root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode .tr-target-chord > .tr-eyebrow,
+:root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode .tr-target-chord > .tr-eyebrow {
+  display: none;
+}
+/* Les trois colonnes partent du même haut, juste sous la bande : pas de vide
+   au-dessus de la carte quand la liste de gauche est longue. */
+:root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode .tr-chord-arena,
+:root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode .tr-chord-arena {
+  justify-content: flex-start;
+  min-height: 0;
+  padding: 4px 12px 8px;
+}
+/* Marges autour de la carte resserrées : elle tient sous la bande du haut en 1920×1080. */
+:root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode #exercise-target,
+:root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode #exercise-target {
+  margin-top: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+:root[data-skin='global'] #practice-tab .exercise-chord-head,
+:root[data-skin='v2'] #practice-tab .exercise-chord-head {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px 18px;
+  padding: 12px 24px 4px;
+}
+:root[data-skin='global'] #practice-tab .exercise-chord-head[hidden],
+:root[data-skin='v2'] #practice-tab .exercise-chord-head[hidden] {
+  display: none;
+}
+:root[data-skin='global'] #practice-tab .exercise-chord-head-controls,
+:root[data-skin='v2'] #practice-tab .exercise-chord-head-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--r-space-2, 10px);
+}
+:root[data-skin='global'] #practice-tab .exercise-chord-head-controls label,
+:root[data-skin='v2'] #practice-tab .exercise-chord-head-controls label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--r-text-muted);
+}
+:root[data-skin='global'] #practice-tab .exercise-chord-head .exercise-random-target-btn,
+:root[data-skin='v2'] #practice-tab .exercise-chord-head .exercise-random-target-btn {
+  flex-basis: auto;
+}
+:root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode .tr-exercise-brief > :not(#exercise-target-choice),
+:root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode .tr-exercise-brief > :not(#exercise-target-choice) {
+  display: none !important;
+}
+:root[data-skin='global'] #practice-tab .tr-exercise-stage.is-chord-mode .tr-exercise-brief,
+:root[data-skin='v2'] #practice-tab .tr-exercise-stage.is-chord-mode .tr-exercise-brief {
+  justify-content: flex-start;
+  padding-top: 12px;
+}
+
+/* ── Accord cible allégé : voicings à droite, filtres + doublures en fenêtre ── */
+:root[data-skin='global'] #practice-tab .exercise-target-card > .exercise-favorite-toggle,
+:root[data-skin='v2'] #practice-tab .exercise-target-card > .exercise-favorite-toggle {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  z-index: 1;
+}
+:root[data-skin='global'] #practice-tab .exercise-voicing-choices .exercise-voicing-categories,
+:root[data-skin='global'] #practice-tab .exercise-voicing-choices .exercise-topnote-list,
+:root[data-skin='v2'] #practice-tab .exercise-voicing-choices .exercise-voicing-categories,
+:root[data-skin='v2'] #practice-tab .exercise-voicing-choices .exercise-topnote-list {
+  justify-content: flex-start;
+  max-height: none;
+}
+:root[data-skin='global'] #practice-tab .exercise-voicing-choices .exercise-topnote-panel,
+:root[data-skin='v2'] #practice-tab .exercise-voicing-choices .exercise-topnote-panel {
+  align-items: stretch;
+}
+:root[data-skin='global'] #practice-tab .exercise-filters-count,
+:root[data-skin='v2'] #practice-tab .exercise-filters-count {
+  min-width: 16px;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: var(--r-radius-pill, 999px);
+  background: var(--r-accent);
+  color: var(--r-accent-contrast, #ffffff);
+  font-size: 0.64rem;
+  line-height: 16px;
+  text-align: center;
+}
+:root[data-skin='global'] #practice-tab .exercise-filters-count[hidden],
+:root[data-skin='v2'] #practice-tab .exercise-filters-count[hidden] {
+  display: none;
+}
+/* [Claude] — 2026-09-25 — Bouton Favoris (à côté de Filtres) : nombre de favoris
+   en pastille neutre (information, pas un réglage actif comme sur Filtres). */
+:root[data-skin='global'] #practice-tab .exercise-favorites-count,
+:root[data-skin='v2'] #practice-tab .exercise-favorites-count {
+  min-width: 16px;
+  margin-left: 6px;
+  padding: 0 5px;
+  border: 1px solid var(--r-border-soft);
+  border-radius: var(--r-radius-pill, 999px);
+  color: var(--r-text-muted);
+  font-size: 0.64rem;
+  line-height: 14px;
+  text-align: center;
+}
+:root[data-skin='global'] #practice-tab .exercise-favorites-count[hidden],
+:root[data-skin='v2'] #practice-tab .exercise-favorites-count[hidden] {
+  display: none;
+}
+/* Fenêtre des favoris : consigne, recherche, puis la liste (le corps défile). */
+:root[data-skin='global'] #practice-tab .exercise-favorites-dialog,
+:root[data-skin='v2'] #practice-tab .exercise-favorites-dialog {
+  width: min(420px, calc(100vw - 32px));
+}
+:root[data-skin='global'] #practice-tab .exercise-favorites-body,
+:root[data-skin='v2'] #practice-tab .exercise-favorites-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+:root[data-skin='global'] #practice-tab .exercise-filters-dialog,
+:root[data-skin='v2'] #practice-tab .exercise-filters-dialog {
+  width: min(380px, calc(100vw - 32px));
+}
+:root[data-skin='global'] #practice-tab .exercise-filters-body,
+:root[data-skin='v2'] #practice-tab .exercise-filters-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+:root[data-skin='global'] #practice-tab .exercise-filters-section,
+:root[data-skin='v2'] #practice-tab .exercise-filters-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+:root[data-skin='global'] #practice-tab .exercise-filters-section select,
+:root[data-skin='v2'] #practice-tab .exercise-filters-section select {
+  width: 100%;
+}
+
+/* Favoris : recherche, groupes par accord, bandeau « Annuler ». */
+:root[data-skin='global'] #practice-tab .exercise-favorite-open > .exercise-favorite-technique,
+:root[data-skin='v2'] #practice-tab .exercise-favorite-open > .exercise-favorite-technique {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--r-text);
+}
+:root[data-skin='global'] #practice-tab .exercise-favorites-search,
+:root[data-skin='v2'] #practice-tab .exercise-favorites-search {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--r-border-soft);
+  border-radius: 6px;
+  background: var(--r-surface-elevated);
+  color: var(--r-text);
+  font: inherit;
+  font-size: 0.75rem;
+}
+:root[data-skin='global'] #practice-tab .exercise-favorites-search[hidden],
+:root[data-skin='v2'] #practice-tab .exercise-favorites-search[hidden] {
+  display: none;
+}
+:root[data-skin='global'] #practice-tab .exercise-favorites-groups,
+:root[data-skin='v2'] #practice-tab .exercise-favorites-groups {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+:root[data-skin='global'] #practice-tab .exercise-favorites-group,
+:root[data-skin='v2'] #practice-tab .exercise-favorites-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+:root[data-skin='global'] #practice-tab .exercise-favorites-group-name,
+:root[data-skin='v2'] #practice-tab .exercise-favorites-group-name {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--r-text);
+}
+:root[data-skin='global'] #practice-tab .exercise-favorites-group-name > span,
+:root[data-skin='v2'] #practice-tab .exercise-favorites-group-name > span {
+  margin-left: 4px;
+  font-size: 0.66rem;
+  font-weight: 500;
+  color: var(--r-text-faint);
+}
+:root[data-skin='global'] #practice-tab .exercise-favorites-undo,
+:root[data-skin='v2'] #practice-tab .exercise-favorites-undo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--r-surface-elevated);
+  font-size: 0.72rem;
+  color: var(--r-text-muted);
+}
+:root[data-skin='global'] #practice-tab .exercise-favorites-undo > button,
+:root[data-skin='v2'] #practice-tab .exercise-favorites-undo > button {
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 700;
+  color: var(--r-accent);
+  cursor: pointer;
+}
+
+/* ── Mode Accord cible : colonne de droite = voicings de l'accord affiché (le score
+   n'y sert pas) ; les favoris sont dans leur fenêtre (bouton à côté de Filtres). ── */
+:root[data-skin='global'] #practice-tab .tr-exercise-progress.is-chord-side,
+:root[data-skin='v2'] #practice-tab .tr-exercise-progress.is-chord-side {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 10px;
+  overflow-y: auto;
+}
+:root[data-skin='global'] #practice-tab .tr-exercise-progress.is-chord-side > :not(.exercise-chord-side),
+:root[data-skin='v2'] #practice-tab .tr-exercise-progress.is-chord-side > :not(.exercise-chord-side) {
+  display: none !important;
+}
+:root[data-skin='global'] #practice-tab .exercise-chord-side,
+:root[data-skin='v2'] #practice-tab .exercise-chord-side {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+:root[data-skin='global'] #practice-tab .exercise-chord-side[hidden],
+:root[data-skin='global'] #practice-tab .exercise-topnote-filters[hidden],
+:root[data-skin='global'] #practice-tab .exercise-side-hint[hidden],
+:root[data-skin='global'] #practice-tab .exercise-topnote-reset[hidden],
+:root[data-skin='v2'] #practice-tab .exercise-chord-side[hidden],
+:root[data-skin='v2'] #practice-tab .exercise-topnote-filters[hidden],
+:root[data-skin='v2'] #practice-tab .exercise-side-hint[hidden],
+:root[data-skin='v2'] #practice-tab .exercise-topnote-reset[hidden] {
+  display: none;
+}
+:root[data-skin='global'] #practice-tab .exercise-side-hint,
+:root[data-skin='global'] #practice-tab .exercise-favorites-empty,
+:root[data-skin='v2'] #practice-tab .exercise-side-hint,
+:root[data-skin='v2'] #practice-tab .exercise-favorites-empty {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--r-text-faint);
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-filters,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-filters select,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-filters select {
+  width: 100%;
+  min-width: 0;
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-filters select:disabled,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-filters select:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-filters select.is-active,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-filters select.is-active {
+  border-color: var(--r-accent);
+  color: var(--r-text);
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-reset,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-reset {
+  align-self: flex-start;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--r-accent);
+  cursor: pointer;
+}
+/* Section de la colonne de gauche (top note) : titre puis contenu. */
+:root[data-skin='global'] #practice-tab .exercise-choice-section,
+:root[data-skin='v2'] #practice-tab .exercise-choice-section {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+:root[data-skin='global'] #practice-tab .exercise-favorites-list,
+:root[data-skin='v2'] #practice-tab .exercise-favorites-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+:root[data-skin='global'] #practice-tab .exercise-favorite,
+:root[data-skin='v2'] #practice-tab .exercise-favorite {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--r-border-soft);
+  border-radius: 6px;
+  overflow: hidden;
+}
+:root[data-skin='global'] #practice-tab .exercise-favorite.active,
+:root[data-skin='v2'] #practice-tab .exercise-favorite.active {
+  border-color: var(--r-accent);
+}
+:root[data-skin='global'] #practice-tab .exercise-favorite-open,
+:root[data-skin='v2'] #practice-tab .exercise-favorite-open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 5px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--r-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+:root[data-skin='global'] #practice-tab .exercise-favorite-open:hover,
+:root[data-skin='global'] #practice-tab .exercise-favorite-remove:hover,
+:root[data-skin='v2'] #practice-tab .exercise-favorite-open:hover,
+:root[data-skin='v2'] #practice-tab .exercise-favorite-remove:hover {
+  background: var(--r-surface-elevated);
+}
+:root[data-skin='global'] #practice-tab .exercise-favorite-name,
+:root[data-skin='v2'] #practice-tab .exercise-favorite-name {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+:root[data-skin='global'] #practice-tab .exercise-favorite-technique,
+:root[data-skin='v2'] #practice-tab .exercise-favorite-technique {
+  font-size: 0.66rem;
+  font-weight: 500;
+  color: var(--r-text-muted);
+}
+:root[data-skin='global'] #practice-tab .exercise-favorite-notes,
+:root[data-skin='v2'] #practice-tab .exercise-favorite-notes {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.66rem;
+  color: var(--r-text-faint);
+}
+:root[data-skin='global'] #practice-tab .exercise-favorite-remove,
+:root[data-skin='v2'] #practice-tab .exercise-favorite-remove {
+  padding: 0 8px;
+  border: 0;
+  background: transparent;
+  color: var(--r-text-faint);
+  cursor: pointer;
+}
+:root[data-skin='global'] #practice-tab .exercise-favorite-toggle,
+:root[data-skin='v2'] #practice-tab .exercise-favorite-toggle {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--r-border-soft);
+  background: transparent;
+  color: var(--r-text-muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+:root[data-skin='global'] #practice-tab .exercise-favorite-toggle.active,
+:root[data-skin='v2'] #practice-tab .exercise-favorite-toggle.active {
+  border-color: var(--r-accent);
+  color: var(--r-accent);
+}
+
+/* ── Navigateur : tous les accords ayant la note du dessus choisie ── */
+:root[data-skin='global'] #practice-tab .exercise-topnote-browser,
+:root[data-skin='v2'] #practice-tab .exercise-topnote-browser {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+:root[data-skin='global'] #practice-tab .exercise-topnote-browser[hidden],
+:root[data-skin='v2'] #practice-tab .exercise-topnote-browser[hidden] {
+  display: none;
+}
+:root[data-skin='global'] #practice-tab .exercise-browser-head,
+:root[data-skin='v2'] #practice-tab .exercise-browser-head {
+  font-size: 0.74rem;
+  color: var(--r-text-muted);
+}
+:root[data-skin='global'] #practice-tab .exercise-browser-head strong,
+:root[data-skin='v2'] #practice-tab .exercise-browser-head strong {
+  color: var(--r-text);
+}
+:root[data-skin='global'] #practice-tab .exercise-browser-list,
+:root[data-skin='v2'] #practice-tab .exercise-browser-list {
+  margin: 0;
+  padding: 0 4px 0 0;
+  list-style: none;
+  max-height: 42vh;
+  overflow-y: auto;
+  border-top: 1px solid var(--r-border-soft);
+}
+:root[data-skin='global'] #practice-tab .exercise-browser-group,
+:root[data-skin='v2'] #practice-tab .exercise-browser-group {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 6px 0 4px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--r-text-faint);
+  background: var(--r-surface, #1b1920);
+}
+/* Liste épurée : une grille de boutons « nom + nombre de voicings » par famille. */
+:root[data-skin='global'] #practice-tab .exercise-browser-grid,
+:root[data-skin='v2'] #practice-tab .exercise-browser-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 4px;
+  padding: 2px 0 8px;
+}
+:root[data-skin='global'] #practice-tab .exercise-browser-chord,
+:root[data-skin='v2'] #practice-tab .exercise-browser-chord {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--r-border-soft);
+  background: transparent;
+  color: var(--r-text);
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+:root[data-skin='global'] #practice-tab .exercise-browser-chord:hover,
+:root[data-skin='v2'] #practice-tab .exercise-browser-chord:hover {
+  background: var(--r-surface-elevated);
+  border-color: var(--r-border-strong);
+}
+:root[data-skin='global'] #practice-tab .exercise-browser-chord.selected,
+:root[data-skin='v2'] #practice-tab .exercise-browser-chord.selected {
+  background: var(--r-accent);
+  border-color: var(--r-accent);
+  color: var(--r-accent-contrast, #ffffff);
+}
+:root[data-skin='global'] #practice-tab .exercise-browser-name,
+:root[data-skin='v2'] #practice-tab .exercise-browser-name {
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+:root[data-skin='global'] #practice-tab .exercise-browser-count,
+:root[data-skin='v2'] #practice-tab .exercise-browser-count {
+  font-size: 0.66rem;
+  opacity: 0.6;
+}
+:root[data-skin='global'] #practice-tab .exercise-browser-empty,
+:root[data-skin='v2'] #practice-tab .exercise-browser-empty,
+/* Technique jouée par le mode Auto : contour d'accent (l'étiquette Auto est active). */
+:root[data-skin='global'] #practice-tab .exercise-category-tag.current,
+:root[data-skin='v2'] #practice-tab .exercise-category-tag.current {
+  border-color: var(--r-accent);
+  color: var(--r-text);
+}
+:root[data-skin='global'] #practice-tab .exercise-category-tag.current .exercise-variant-btn,
+:root[data-skin='v2'] #practice-tab .exercise-category-tag.current .exercise-variant-btn {
+  background: var(--r-surface);
+}
+
+/* Bouton « Accord au hasard » : sur sa propre ligne, pleine largeur de la colonne. */
+:root[data-skin='global'] #practice-tab .exercise-random-target-btn,
+:root[data-skin='v2'] #practice-tab .exercise-random-target-btn {
+  flex-basis: 100%;
+  cursor: pointer;
 }

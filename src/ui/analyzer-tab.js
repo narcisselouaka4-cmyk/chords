@@ -10,15 +10,6 @@ import {
 } from '../analyzer/analysis-export.js';
 import { resolveAnalysisState, inferSourceType } from './analyzer-workflow.js';
 import { miniKeyboardForNotes } from './mini-keyboard.js';
-import {
-  updateVoicingPreviewForChord,
-  clearVoicingTextPreview,
-  initVoicingStyle,
-  getVoicingStyle,
-  selectVoicingStyle,
-  setRerenderActiveVoicing,
-  renderVoicingStyleSelector,
-} from './voicing-preview.js';
 import { CHORD_DEFINITIONS } from '../chord-engine/chord-defs.js';
 import { noteNameToPc } from '../chord-engine/intervals.js';
 import { ChordEditor, makeSegmentId, NOTE_NAMES } from './chord-editor.js';
@@ -248,8 +239,6 @@ let currentSourceType = null; // 'audio' | 'video' | 'midi'
 let currentVideoType = null; // 'tutorial' | 'cover' | 'song' | 'demo'
 let isDraggingProgress = false;
 let lastAutoScrollIndex = -1;
-let lastRenderedVoicingChord = null;
-let lastRenderedVoicingStyle = null;
 let selectedSegmentId = null; // segmentId sélectionné dans la timeline
 
 // Hiérarchie visuelle structurel / passage. Le moteur qualifie chaque segment
@@ -1059,18 +1048,6 @@ async function showResults(analysis) {
   resetUndoRedo();
   chordEditor?.close();
   resetZoom();
-  lastRenderedVoicingChord = null;
-  lastRenderedVoicingStyle = null;
-
-  initVoicingStyle();
-  setRerenderActiveVoicing(() => {
-    lastRenderedVoicingChord = null;
-    lastRenderedVoicingStyle = null;
-    if (currentPlayer) {
-      updatePlaybackPosition(currentPlayer.element?.currentTime ?? 0);
-    }
-  });
-
   renderHeader(analysis);
   addSaveIndicator();
   await loadProjectIfExists();
@@ -1148,11 +1125,8 @@ export function resetAnalysisSession() {
   resetProjectState();
   resetUndoRedo();
   chordEditor?.close();
-  lastRenderedVoicingChord = null;
-  lastRenderedVoicingStyle = null;
   els.chordTimelineInner.innerHTML = '';
   if (els.hero) els.hero.style.display = 'none';
-  clearVoicingTextPreview();
   if (els.overviewContent) els.overviewContent.innerHTML = '';
   els.stemBadge.textContent = '';
   els.stemBadge.classList.remove('visible');
@@ -1753,19 +1727,6 @@ function updatePlaybackPosition(currentTime) {
   // Hero chord
   const activeChord = activeIndex >= 0 ? chords[activeIndex] : null;
   renderHeroChord(activeChord);
-
-  // Phase 1.5A + 2B : read-only close/simple voicing text preview
-  const effectiveChord = activeChord ? getEffectiveChord(activeChord) : null;
-  const currentStyle = getVoicingStyle();
-  if (effectiveChord !== lastRenderedVoicingChord || currentStyle !== lastRenderedVoicingStyle) {
-    lastRenderedVoicingChord = effectiveChord;
-    lastRenderedVoicingStyle = currentStyle;
-    if (effectiveChord) {
-      updateVoicingPreviewForChord(effectiveChord, { style: currentStyle });
-    } else {
-      clearVoicingTextPreview();
-    }
-  }
 
   // Auto-scroll horizontal : défiler uniquement quand le segment approche du bord.
   if (activeIndex >= 0 && activeIndex !== lastAutoScrollIndex && blocks[activeIndex]) {

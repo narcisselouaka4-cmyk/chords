@@ -90,9 +90,34 @@ function computeKrumhanslCandidates(hist, options = {}) {
   return candidates;
 }
 
-function detectByKrumhansl(hist) {
-  const candidates = computeKrumhanslCandidates(hist);
-  return candidates[0] || null;
+/**
+ * Vérifie que la tonique du candidat est réellement présente dans
+ * l'histogramme. Le profil Krumhansl-Kessler peut donner un meilleur score à
+ * une tonalité dont la fondamentale n'a jamais été jouée (cas fréquent sur des
+ * extraits courts ou des voicings sans basse). Le seuil est relatif au poids
+ * maximum de l'histogramme pour rester invariant d'échelle.
+ *
+ * @param {Array<number>} hist
+ * @param {{pc:number, mode:string, score:number}} candidate
+ * @param {number} minWeight — seuil relatif du poids de la tonique (0–1)
+ */
+function isTonicPlausible(hist, candidate, minWeight = 0.001) {
+  if (!candidate || candidate.pc == null) return false;
+  const max = Math.max(...hist, 0);
+  if (max <= 0) return false;
+  return (hist[candidate.pc] || 0) / max >= minWeight;
+}
+
+function detectByKrumhansl(hist, options = {}) {
+  const { minTonicWeight = 0.001 } = options;
+  const candidates = computeKrumhanslCandidates(hist, options);
+  // Filtre en aval de la corrélation : la tonique doit être physiquement
+  // présente dans les notes analysées. Sinon on prend le meilleur candidat
+  // suivant qui l'est, ou null si aucun n'est plausible.
+  for (const candidate of candidates) {
+    if (isTonicPlausible(hist, candidate, minTonicWeight)) return candidate;
+  }
+  return null;
 }
 
 function chordRootPc(chord) {
@@ -184,7 +209,7 @@ export function computeKeyFromRawNotes(events, options = {}) {
 
   if (histTotal <= 0) return null;
 
-  const krumhanslResult = detectByKrumhansl(hist);
+  const krumhanslResult = detectByKrumhansl(hist, options);
   if (!krumhanslResult) return null;
 
   return {
@@ -222,7 +247,7 @@ export function detectKey(events, chords, options = {}) {
 
   let krumhanslResult = null;
   if (histTotal > 0) {
-    krumhanslResult = detectByKrumhansl(hist);
+    krumhanslResult = detectByKrumhansl(hist, options);
   }
 
   // Si peu de données ou histogramme plat, on se base sur les accords.

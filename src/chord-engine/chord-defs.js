@@ -14,6 +14,8 @@ export const CHORD_DEFINITIONS = [
     identityIntervals: [3, 10, 21], optionalIntervals: [7, 14, 17], supportedOmissions: [7, 14, 17], extensionIntervals: [2], suspensionIntervals: [5] },
   { name: 'Dominant 13 #11', symbol: '13#11', intervals: [0, 4, 7, 10, 14, 18, 21],
     identityIntervals: [4, 10, 18, 21], optionalIntervals: [7, 14], supportedOmissions: [7, 14], extensionIntervals: [2], suspensionIntervals: [5] },
+  { name: 'Major 13 #11', symbol: 'maj13#11', intervals: [0, 4, 7, 11, 14, 18, 21],
+    identityIntervals: [4, 11, 18, 21], optionalIntervals: [7, 14], supportedOmissions: [7, 14], extensionIntervals: [2], suspensionIntervals: [5] },
   { name: 'Dominant 7 b13', symbol: '7b13', intervals: [0, 4, 7, 10, 14, 20],
     identityIntervals: [4, 10, 20], optionalIntervals: [7, 14], supportedOmissions: [7, 14], extensionIntervals: [2, 9, 17], suspensionIntervals: [5] },
   { name: 'Dominant 7 #9 b13', symbol: '7#9b13', intervals: [0, 4, 7, 10, 15, 20],
@@ -30,6 +32,8 @@ export const CHORD_DEFINITIONS = [
     identityIntervals: [3, 10, 17], optionalIntervals: [7, 14], supportedOmissions: [7, 14], extensionIntervals: [2, 9, 21], suspensionIntervals: [5] },
   { name: 'Dominant 7 #11', symbol: '7#11', intervals: [0, 4, 7, 10, 18],
     identityIntervals: [4, 10, 18], optionalIntervals: [7], supportedOmissions: [7], extensionIntervals: [2, 9, 14, 17, 20, 21], suspensionIntervals: [5] },
+  { name: 'Dominant 7 #9 #11', symbol: '7#9#11', intervals: [0, 4, 7, 10, 15, 18],
+    identityIntervals: [4, 10, 15, 18], optionalIntervals: [7], supportedOmissions: [7], extensionIntervals: [9, 14, 17, 20, 21], suspensionIntervals: [5] },
 
   // 9th chords
   { name: 'Dominant 9 sus4', symbol: '9sus4', intervals: [0, 5, 7, 10, 14],

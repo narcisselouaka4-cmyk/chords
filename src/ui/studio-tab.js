@@ -540,6 +540,7 @@ async function startCapture() {
     els.recordBtn?.classList.add('recording');
     if (els.recordingIndicator) els.recordingIndicator.style.display = 'flex';
     setStatus('Enregistrement vidéo en cours... (R pour arrêter)');
+    startMidiTake();
   } catch (err) {
     console.error('[Studio] startCapture failed:', err);
     setStatus(`Erreur de capture : ${err.message}`);
@@ -574,8 +575,39 @@ async function finalizeRecording() {
   }
 }
 
+// [Claude] — 2026-09-24 — Le jeu MIDI enregistré avec la vidéo devient une session
+// (Narcisse : « que la prise soit automatiquement enregistrée dans le sous-onglet
+// Session » : la retrouver à l'arrêt, la réécouter seule, l'analyser). La prise
+// elle-même est tenue par recording-tab.js, qui reçoit déjà toutes les notes.
+let midiTakeActive = false;
+
+function startMidiTake() {
+  midiTakeActive = true;
+  document.dispatchEvent(new CustomEvent('studio-take-start', {
+    detail: { trackName: currentTrack?.metadata?.name || '', position: getStudioCurrentTime() },
+  }));
+}
+
+function stopMidiTake() {
+  if (!midiTakeActive) return;
+  midiTakeActive = false;
+  document.dispatchEvent(new CustomEvent('studio-take-stop'));
+}
+
+// Prise sauvegardée (ou vide) : on le dit sous le message de la vidéo.
+document.addEventListener('studio-take-saved', (e) => {
+  const detail = e.detail || {};
+  let message = '';
+  if (detail.sessionId) message = `Jeu MIDI enregistré dans Session MIDI : « ${detail.name} » (${detail.noteCount} notes, ${detail.chordCount} accords).`;
+  else if (detail.error) message = `Jeu MIDI non enregistré : ${detail.error}`;
+  if (!message) return;
+  const previous = els.studioStatus?.textContent || '';
+  setStatus(previous && !previous.startsWith('Jeu MIDI') ? `${previous} — ${message}` : message);
+});
+
 function cleanupRecording() {
   isRecording = false;
+  stopMidiTake();
   if (screenRecordRecorder?.state !== 'inactive') {
     try { screenRecordRecorder?.stop(); } catch (_) {}
   }

@@ -1,5 +1,10 @@
 // [OpenCode] — 2026-07-04 — Lecteur de sessions MIDI.
 // Rejoue les événements enregistrés en les réinjectant dans le moteur de détection existant.
+// [Claude] — 2026-09-25 — Relecture exacte (Narcisse : « il ne peut pas reproduire
+// exactement mon jeu ») : la note posée pile au début d'un moment est jouée
+// (elle était sautée : comparaison stricte), la pédale est rejouée, et en
+// partant du milieu d'un passage, ce qui sonnait à cet instant (touches
+// tenues, pédale enfoncée) est remis en place.
 
 export function createPlayer({ onNoteOn, onNoteOff, onSustain, onPitchWheel, onModWheel, onProgramChange } = {}) {
   let events = [];
@@ -9,14 +14,47 @@ export function createPlayer({ onNoteOn, onNoteOff, onSustain, onPitchWheel, onM
   let currentTime = 0;
   let rafId = null;
   let scheduledUntil = 0;
+  // Le prochain envoi inclut les évènements pile à scheduledUntil (début de lecture, saut).
+  let inclusive = true;
   let activeNotes = new Set();
+  let pedalDown = false;
 
   function allNotesOff() {
-    if (activeNotes.size === 0) return;
     for (const note of activeNotes) {
       onNoteOff?.(note);
     }
     activeNotes.clear();
+    if (pedalDown) {
+      pedalDown = false;
+      onSustain?.(false);
+    }
+  }
+
+  /** Ce qui sonne à l'instant t : touches tenues (avec leur vélocité) et pédale. */
+  function soundingAt(t) {
+    const held = new Map();
+    let pedal = false;
+    for (const e of events) {
+      if (e.time >= t) break;
+      if (e.type === 'note_on' && (e.velocity ?? 1) > 0) held.set(e.note, e);
+      else if (e.type === 'note_off' || (e.type === 'note_on' && !(e.velocity > 0))) held.delete(e.note);
+      else if (e.type === 'control' && e.controller === 64) pedal = e.value >= 64;
+    }
+    return { held: [...held.values()], pedal };
+  }
+
+  /** Remet en place ce qui sonnait à currentTime (lecture reprise au milieu d'un passage). */
+  function restoreAt(t) {
+    if (t <= 0) return;
+    const { held, pedal } = soundingAt(t);
+    if (pedal) {
+      pedalDown = true;
+      onSustain?.(true);
+    }
+    for (const e of held) {
+      activeNotes.add(e.note);
+      onNoteOn?.(e.note, e.velocity ?? 0.8, e.channel);
+    }
   }
 
   function load(eventsData) {
@@ -38,6 +76,8 @@ export function createPlayer({ onNoteOn, onNoteOff, onSustain, onPitchWheel, onM
 
     state = 'playing';
     scheduledUntil = currentTime;
+    inclusive = true;
+    restoreAt(currentTime);
     scheduleLoop();
   }
 
@@ -68,8 +108,10 @@ export function createPlayer({ onNoteOn, onNoteOff, onSustain, onPitchWheel, onM
     const wasPlaying = state === 'playing';
     currentTime = Math.max(0, Math.min(time, getDuration()));
     scheduledUntil = currentTime;
+    inclusive = true;
     if (wasPlaying) {
       startTime = performance.now() - (currentTime * 1000) / speed;
+      restoreAt(currentTime);
     }
   }
 
@@ -103,7 +145,9 @@ export function createPlayer({ onNoteOn, onNoteOff, onSustain, onPitchWheel, onM
     // Dispatch events that should already have happened
     while (scheduledUntil < now + lookahead && scheduledUntil < getDuration()) {
       const sliceEnd = Math.min(now + lookahead, getDuration());
-      const slice = events.filter((e) => e.time > scheduledUntil && e.time <= sliceEnd);
+      const from = scheduledUntil;
+      const slice = events.filter((e) => (inclusive ? e.time >= from : e.time > from) && e.time <= sliceEnd);
+      inclusive = false;
       for (const event of slice) {
         dispatchEvent(event);
       }
@@ -146,7 +190,10 @@ export function createPlayer({ onNoteOn, onNoteOff, onSustain, onPitchWheel, onM
         onNoteOff?.(event.note, event.channel);
         break;
       case 'control':
-        if (event.controller === 64) onSustain?.(event.value >= 64, event.channel);
+        if (event.controller === 64) {
+          pedalDown = event.value >= 64;
+          onSustain?.(pedalDown, event.channel);
+        }
         else if (event.controller === 1) onModWheel?.(event.value / 127, event.channel);
         else onModWheel?.(event.value / 127, event.channel);
         break;

@@ -469,7 +469,8 @@
 }
 
 :root[data-skin] .footer-left,
-:root[data-skin] .footer-midi {
+:root[data-skin] .footer-midi,
+:root[data-skin] .footer-midi-out {
   display: flex;
   align-items: center;
   gap: 14px;
