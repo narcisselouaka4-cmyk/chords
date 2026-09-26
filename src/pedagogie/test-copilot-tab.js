@@ -39,6 +39,7 @@ const {
   AUTONOMOUS_HISTORY_KEY,
   nextModeOnSelectionChange,
   toggleButtonState,
+  reviewButtonState,
 } = await import('./copilot-tab.js');
 
 const GREEN = '\x1b[32m';
@@ -130,9 +131,19 @@ function testToggleButtonState() {
   );
 }
 
+// [Claude] — 2026-09-26 — « Qu'en penses-tu ? » : un clic, le Copilote écoute ; Stop, ça part.
+function testReviewButtonState() {
+  const idle = reviewButtonState();
+  check('« Qu\'en penses-tu ? » au repos', idle.label === 'Qu\'en penses-tu ?' && idle.pressed === false && idle.hint === '');
+  const listening = reviewButtonState({ capturing: true, seconds: 12.7 });
+  check('Pendant l\'écoute : « Stop · 0:12 », bouton enfoncé, aide « J\'écoute… »', listening.label === 'Stop · 0:12' && listening.pressed === true && /J'écoute ton jeu/.test(listening.hint), JSON.stringify(listening));
+  check('Compteur au-delà d\'une minute : « Stop · 1:05 »', reviewButtonState({ capturing: true, seconds: 65 }).label === 'Stop · 1:05');
+}
+
 async function runTests() {
   testNextModeOnSelectionChange();
   testToggleButtonState();
+  testReviewButtonState();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);
   process.exit(failed === 0 ? 0 : 1);

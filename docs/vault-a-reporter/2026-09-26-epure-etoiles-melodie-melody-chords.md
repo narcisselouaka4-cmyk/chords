@@ -147,3 +147,51 @@
 - Six suites de tests échouaient déjà avant ce travail, à l'identique : `test-skin-manager`,
   `test-coach-dom` (28/30), `test-load-session` (window absent), `test-training-dom` (11
   anciens contrôles), `test-voicing-preview`, `tests/ui/test-analysis-workspace` (5/10).
+
+---
+
+## Suite du 26/09 — « Qu'en penses-tu ? » dans le Copilote, avec Démarrer / Stop
+
+### `log.md` — entrée à ajouter
+
+```markdown
+## 2026-09-26 (suite) — « Qu'en penses-tu ? » : Démarrer / Stop, dans le Copilote
+- Narcisse : déplacer « Qu'en penses-tu ? » de la bordure du clavier virtuel vers le
+  Copilote, à la place de « IA connectée » (sous la case « Quelle harmonie avez-vous en
+  tête ? ») ; « j'ai raté une mélodie, j'ai recommencé juste après et je l'ai réussie ;
+  « Qu'en penses-tu ? » a pris à la fois la mélodie ratée et la mélodie réussie » → un clic
+  pour que le Copilote écoute, un clic pour arrêter, et ça part aussitôt.
+- Fait : bouton dans la case de conversation ; « ● Stop · 0:12 » pendant l'écoute ; au
+  Stop, seul ce qui a été joué entre les deux clics part au Copilote (avec la question
+  tapée, s'il y en a une) ; « Rien entendu » si rien n'a été joué ; arrêt et envoi
+  automatiques à 5 minutes.
+```
+
+### `decisions/` — ADR : « Qu'en penses-tu ? » = Démarrer / Stop (remplace « depuis la dernière pause »)
+
+- **Contexte** : le passage analysé était « ce qui suit la dernière pause de 2,5 s » ; un
+  essai repris aussitôt s'ajoutait au précédent.
+- **Décision** : `src/recorder/live-take.js` n'enregistre plus en continu : `startCapture()`
+  au premier clic, `stopCapture()` au second (notes et pédale tenues relâchées, pédale
+  enfoncée au clic gardée, touche enfoncée avant le clic ignorée, temps à partir de la
+  première note). Le bouton `#copilot-review-btn` est dans `.tr-composer-tools` de la case
+  du Copilote (`copilot-tab.js` : `toggleReviewCapture`, `reviewPassage`,
+  `reviewButtonState`). Plus de bouton dans la barre du clavier, plus d'avis sans clé d'IA
+  (la case du Copilote n'existe qu'avec une clé).
+- **Conséquences** : pour comparer le jeu à un exercice, « Demander au Copilote » (mode
+  exercice), puis « Qu'en penses-tu ? ».
+
+### `experiments/` — « Passage depuis la dernière pause » (25/09 → 26/09) : rejeté
+
+- Coupure automatique à la dernière pause (2,5 s, le double pédale enfoncée, 60 s au plus).
+  Rejetée par Narcisse : on reprend souvent un essai raté sans s'arrêter. C'est le
+  pianiste qui dit où commence et où finit ce qu'il fait écouter.
+
+### `state/current-work.md` — à vérifier sur le PC
+
+1. Copilote : « Qu'en penses-tu ? » sous la case, plus de « IA connectée », plus de bouton
+   sur le clavier.
+2. Rater un passage, cliquer « Qu'en penses-tu ? », rejouer le passage réussi au vrai
+   clavier MIDI, cliquer Stop : la réponse ne parle que du passage réussi.
+3. Mode exercice (« Demander au Copilote ») : « Qu'en penses-tu ? » compare le jeu à
+   l'exercice.

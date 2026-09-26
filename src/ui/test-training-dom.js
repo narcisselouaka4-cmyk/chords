@@ -137,10 +137,13 @@ function testDomContract() {
     const panel = html.slice(html.indexOf('id="practice-exercise-panel"'), html.indexOf('<section class="tr-exercise-stage">'));
     check(panel.includes('id="exercise-copilot-btn"') && /Demander au Copilote/.test(panel), 'DOM — « Demander au Copilote » dans les actions de l\'exercice');
   }
-  // [Claude] — 2026-09-25 — Un seul « Qu'en penses-tu ? », sous le clavier (Narcisse :
-  // moins de boutons) ; plus de « Garder dans mes sessions » ni « Écouter la suggestion ».
-  check(!html.includes('id="copilot-review-btn"') && html.includes('id="keyboard-review-btn"'),
-    'DOM — un seul bouton « Qu\'en penses-tu ? » (barre du clavier)');
+  // [Claude] — 2026-09-26 — « Qu'en penses-tu ? » dans la case du Copilote, à la place
+  // de « IA connectée » (Narcisse) ; plus dans la barre du clavier.
+  {
+    const composer = html.slice(html.indexOf('<div class="tr-composer-tools">'), html.indexOf('<div class="tr-composer-footnote">')).replace(/<!--[^]*?-->/g, '');
+    check(!html.includes('id="keyboard-review-btn"') && composer.includes('id="copilot-review-btn"') && !/IA connectée/.test(composer) && (html.match(/id="copilot-review-btn"/g) || []).length === 1,
+      'DOM — un seul « Qu\'en penses-tu ? », dans la case du Copilote, à la place de « IA connectée »');
+  }
   check(!/un passage gardé/.test(html), 'DOM — Sessions : plus de « passage gardé »');
   // [Claude] — 2026-09-25 — Plus d'étiquettes sur les touches : la légende dit
   // seulement qui joue (bleu : toi ; jaune : l'app).

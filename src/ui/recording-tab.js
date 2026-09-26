@@ -796,7 +796,7 @@ function renderSelectedSessionInfo() {
 
 function resetSelectedSessionInfo() {
   if (els.selectedSessionInfo) {
-    els.selectedSessionInfo.innerHTML = `<p class="detail-hint">Aucune session sélectionnée. Créez une nouvelle session ou choisissez-en une dans la liste. Pour un avis rapide sur ce que vous venez de jouer : « Qu'en penses-tu ? », dans la barre du clavier.</p>`;
+    els.selectedSessionInfo.innerHTML = `<p class="detail-hint">Aucune session sélectionnée. Créez une nouvelle session ou choisissez-en une dans la liste. Pour un avis rapide sur un passage : « Qu'en penses-tu ? », dans le Copilote.</p>`;
   }
   if (els.carnetSessionTitle) els.carnetSessionTitle.textContent = 'Aucune session sélectionnée';
   if (els.carnetSessionMeta) els.carnetSessionMeta.textContent = '';

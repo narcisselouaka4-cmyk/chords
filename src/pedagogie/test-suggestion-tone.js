@@ -3,8 +3,8 @@
 // Narcisse : « ce serait pas très bien vu de simplement dire à l'utilisateur qu'il
 // a fait des erreurs […] on reste un assistant, pas un coach. L'assistant
 // devrait plutôt lui conseiller de faire ci ou ça. » Ce test fait produire à
-// l'application ses textes sur des jeux variés (passage joué, session, exercice,
-// avis sans clé d'IA dans la ligne d'état) et vérifie :
+// l'application ses textes sur des jeux variés (passage joué, session, exercice)
+// et vérifie :
 //   - qu'aucun ne juge (« erreur », « faux », « ne va pas », « à revoir »…) ;
 //   - que chaque suggestion propose une action (essaie, ajoute, relève…).
 //
@@ -13,7 +13,6 @@
 import { reviewTake, takeVerdict } from '../recorder/take-review.js';
 import { analyzeSessionPerformance, formatPerformanceFindings } from '../recorder/session-performance.js';
 import { createPracticeExercise } from '../practice-exercise.js';
-import { localReviewText } from './copilot-tab.js';
 
 let passed = 0;
 let failed = 0;
@@ -77,7 +76,6 @@ function testTakeReviews() {
       review.verdict, takeVerdict(review),
       ...review.issues.flatMap((i) => [i.title, i.text, ...(i.moments || []).map((m) => m.text)]),
       ...review.contextLines,
-      localReviewText(review),
     ];
     const bad = judging(texts);
     check(`Passage (${p.what}) : aucun mot qui juge`, bad.length === 0, bad.join(' | '));

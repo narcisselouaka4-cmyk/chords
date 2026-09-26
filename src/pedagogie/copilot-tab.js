@@ -16,7 +16,7 @@ import {
 import { sendCopilotMessage } from './copilot-client.js';
 import { hasAIKey } from '../ai/openai-config.js';
 import { liveTake } from '../recorder/live-take.js';
-import { reviewTake, takeMoment, momentText } from '../recorder/take-review.js';
+import { reviewTake } from '../recorder/take-review.js';
 import { readCopilotContext } from './copilot-context.js';
 
 const els = {};
@@ -29,6 +29,11 @@ let playingExampleId = null;
 // portrait (lines), ses notes exactes (events, pour le rejouer) et sa tonalité,
 // gardés pour les questions de suivi de la même conversation.
 let lastTake = null;
+// [Claude] — 2026-09-26 — Écoute de « Qu'en penses-tu ? » : début (ms) et minuterie
+// du compteur ; arrêt et envoi automatiques au bout de 5 minutes.
+const REVIEW_MAX_SECONDS = 300;
+let reviewStartedAt = 0;
+let reviewTimer = null;
 const DEFAULT_REVIEW_QUESTION = 'Qu\'en penses-tu de ce que je viens de jouer ?';
 
 export const AUTONOMOUS_HISTORY_KEY = HISTORY_AUTONOMOUS_KEY;
@@ -347,51 +352,81 @@ function refreshExampleCards() {
   });
 }
 
-/**
- * [Claude] — 2026-09-25 — Message court dans la ligne d'état de la fenêtre
- * (main.js) : plus de légende sous le clavier.
- */
-function showStatus(text) {
-  document.dispatchEvent(new CustomEvent('app-status', { detail: { text: String(text || '') } }));
-}
-
-/** Avis de l'application sans IA : le verdict et la première suggestion, en une ligne. */
-export function localReviewText(review) {
-  const first = review?.moments?.[0];
-  const idea = first ? ` — ${takeMoment(first.at)}${first.chord ? ` ${first.chord}` : ''} : ${momentText(first)}` : '';
-  return `${review?.verdict || ''}${idea}`;
-}
+const ICON_HEADPHONES = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><path d="M21 15a2 2 0 0 1-2 2h-1v-5h1a2 2 0 0 1 2 2zM3 15a2 2 0 0 0 2 2h1v-5H5a2 2 0 0 0-2 2z"/></svg>';
+const REVIEW_LISTENING_HINT = 'J\'écoute ton jeu… joue, puis clique sur Stop.';
+const REVIEW_NOTHING_HINT = 'Rien entendu : clique, joue au clavier, puis clique sur Stop.';
 
 /**
- * « Qu'en penses-tu ? » : le dernier passage joué (depuis la dernière pause) est
- * analysé par l'application et joint à la question tapée (n'importe laquelle), ou
- * à « Qu'en penses-tu de ce que je viens de jouer ? ».
- * Sans clé d'IA, l'avis de l'application s'affiche dans la ligne d'état.
+ * [Claude] — 2026-09-26 — Libellé du bouton « Qu'en penses-tu ? » : au repos, ou
+ * pendant l'écoute (« Stop · 0:12 »).
+ * @param {{capturing?: boolean, seconds?: number}} state
+ * @returns {{label: string, pressed: boolean, hint: string}}
  */
-export async function reviewLastPassage({ question = '', fromKeyboard = false, fromView = null } = {}) {
-  const passage = liveTake.lastPassage();
-  if (!passage) {
-    showStatus('Rien à écouter : joue d\'abord au clavier (MIDI, virtuel ou clavier d\'ordinateur), puis clique sur « Qu\'en penses-tu ? ».');
+export function reviewButtonState({ capturing = false, seconds = 0 } = {}) {
+  if (!capturing) return { label: 'Qu\'en penses-tu ?', pressed: false, hint: '' };
+  const s = Math.max(0, Math.floor(seconds || 0));
+  return { label: `Stop · ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`, pressed: true, hint: REVIEW_LISTENING_HINT };
+}
+
+function renderReviewButton(hint = null) {
+  if (!els.reviewBtn) return;
+  const capturing = liveTake.isCapturing();
+  const state = reviewButtonState({ capturing, seconds: capturing ? (Date.now() - reviewStartedAt) / 1000 : 0 });
+  els.reviewBtn.classList.toggle('is-listening', capturing);
+  els.reviewBtn.setAttribute('aria-pressed', String(state.pressed));
+  els.reviewBtn.innerHTML = capturing ? '<i class="copilot-review-dot" aria-hidden="true"></i>' : ICON_HEADPHONES;
+  els.reviewBtn.appendChild(el('span', { text: state.label }));
+  if (els.reviewHint) els.reviewHint.textContent = hint ?? state.hint;
+}
+
+/**
+ * [Claude] — 2026-09-26 — « Qu'en penses-tu ? » (dans la case du Copilote, à la place
+ * de « IA connectée ») : premier clic, le Copilote écoute ; second clic (Stop), ce
+ * qui a été joué entre les deux part aussitôt. Narcisse : un essai raté juste avant
+ * se mêlait à l'essai réussi quand le passage était « depuis la dernière pause ».
+ * @returns {Promise<object|null>} l'avis de l'application, une fois envoyé
+ */
+export async function toggleReviewCapture() {
+  if (!liveTake.isCapturing()) {
+    liveTake.startCapture();
+    reviewStartedAt = Date.now();
+    clearInterval(reviewTimer);
+    reviewTimer = setInterval(() => {
+      if ((Date.now() - reviewStartedAt) / 1000 >= REVIEW_MAX_SECONDS) toggleReviewCapture();
+      else renderReviewButton();
+    }, 1000);
+    renderReviewButton();
     return null;
   }
-  // [Claude] — 2026-09-25 — Un seul bouton (sous le clavier) : la question tapée
-  // dans le Copilote, s'il y en a une, part avec le passage.
-  const asked = String(question || els.input?.value || '').trim();
-  // [Claude] — 2026-09-25 — Depuis Exercices (ou en mode exercice) : l'avis compare
-  // le jeu aux accords de l'exercice en cours, sans qu'il faille les taper.
-  const exercise = fromView === 'exercise' || currentMode === 'exercise' ? readCopilotContext('exercise') : null;
+  clearInterval(reviewTimer);
+  reviewTimer = null;
+  const passage = liveTake.stopCapture();
+  if (!passage) {
+    renderReviewButton(REVIEW_NOTHING_HINT);
+    return null;
+  }
+  renderReviewButton();
+  return reviewPassage(passage);
+}
+
+/**
+ * Le passage joué est analysé par l'application et part au Copilote avec la
+ * question tapée (n'importe laquelle), ou « Qu'en penses-tu de ce que je viens de
+ * jouer ? ». En mode exercice (« Demander au Copilote »), le jeu est comparé aux
+ * accords de l'exercice, sans qu'il faille les taper.
+ * @param {{events: object[], duration: number, noteCount: number}} passage
+ */
+export async function reviewPassage(passage, { question = '' } = {}) {
+  if (!passage?.events?.length || !els.input) return null;
+  const asked = String(question || els.input.value || '').trim();
+  const exercise = currentMode === 'exercise' ? readCopilotContext('exercise') : null;
   const review = reviewTake(passage.events, { question: asked, expect: exercise ? { ...exercise.expect, label: exercise.title } : null });
   if (!review) return null;
-  if (!hasAIKey() || !els.input) {
-    showStatus(localReviewText(review));
-    return review;
+  // Stop pendant que le Copilote répond encore : l'envoi attend la fin de la réponse
+  // (le bouton d'envoi est désactivé pendant un tour ; une minute au plus).
+  for (let waited = 0; els.sendBtn?.disabled && waited < 60000; waited += 200) {
+    await new Promise((resolve) => setTimeout(resolve, 200));
   }
-  if (fromKeyboard) {
-    document.dispatchEvent(new CustomEvent('app-switch-tab', { detail: { tab: 'practice' } }));
-    document.dispatchEvent(new CustomEvent('app-switch-training-view', { detail: { view: 'copilot' } }));
-  }
-  // La conversation de l'exercice (le Copilote reçoit aussi ses voicings et les essais).
-  if (exercise && currentMode !== 'exercise') await switchToExerciseMode();
   els.input.value = '';
   autoGrowInput();
   const defaultQuestion = exercise ? `Qu'en penses-tu de ce que je viens de jouer sur l'exercice (${exercise.title}) ?` : DEFAULT_REVIEW_QUESTION;
@@ -741,8 +776,8 @@ export async function switchToSessionMode(sessionContext) {
 }
 
 /**
- * [Claude] — 2026-09-25 — Mode exercice (« Demander au Copilote » dans Exercices,
- * ou « Qu'en penses-tu ? » lancé depuis Exercices). Même exercice : la
+ * [Claude] — 2026-09-25 — Mode exercice (« Demander au Copilote » dans Exercices ;
+ * « Qu'en penses-tu ? » y compare le jeu à l'exercice). Même exercice : la
  * conversation continue ; autre exercice : une nouvelle conversation.
  * @returns {Promise<boolean>} faux si aucun exercice n'est affiché
  */
@@ -881,8 +916,10 @@ export async function initCopilotTab() {
   els.deleteEmptyBtn = document.getElementById('copilot-delete-empty-btn');
 
   els.sendBtn?.addEventListener('click', sendUserMessage);
-  // [Claude] — 2026-09-25 — « Qu'en penses-tu ? » (bouton unique, sous le clavier).
-  document.addEventListener('copilot-review-take', (e) => reviewLastPassage({ question: e.detail?.question || '', fromKeyboard: true, fromView: e.detail?.fromView || null }));
+  // [Claude] — 2026-09-26 — « Qu'en penses-tu ? » : dans la case, à la place de « IA connectée ».
+  els.reviewBtn = document.getElementById('copilot-review-btn');
+  els.reviewHint = document.getElementById('copilot-review-hint');
+  els.reviewBtn?.addEventListener('click', () => toggleReviewCapture());
   // « Demander au Copilote » depuis Exercices.
   document.addEventListener('copilot-open-exercise', () => switchToExerciseMode());
   // [Astra round 4] — Le champ est un <textarea> qui grandit avec le texte,

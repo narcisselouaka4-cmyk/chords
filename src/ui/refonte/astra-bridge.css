@@ -759,6 +759,38 @@
   color: var(--tr-muted);
   opacity: 1;
 }
+/* [Claude] — 2026-09-26 — « Qu'en penses-tu ? » à la place de « IA connectée » : une
+   pastille ; pendant l'écoute, « ● Stop · 0:12 » en rouge, le point qui pulse. */
+#practice-view-copilot .copilot-review { display: flex; align-items: center; gap: 9px; min-width: 0; }
+#practice-view-copilot .copilot-review-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 11px;
+  border: 1px solid color-mix(in srgb, var(--tr-accent) 38%, var(--tr-border));
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--tr-accent) 12%, var(--tr-surface));
+  color: var(--tr-accent);
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+#practice-view-copilot .copilot-review-btn:hover { border-color: var(--tr-accent); }
+#practice-view-copilot .copilot-review-btn.is-listening {
+  border-color: var(--tr-red);
+  background: color-mix(in srgb, var(--tr-red) 16%, var(--tr-surface));
+  color: var(--tr-red);
+  font-variant-numeric: tabular-nums;
+}
+#practice-view-copilot .copilot-review-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; animation: copilot-review-pulse 1.2s ease-in-out infinite; }
+@keyframes copilot-review-pulse { 50% { opacity: 0.3; } }
+#practice-view-copilot .copilot-review-hint { overflow: hidden; color: var(--tr-muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) {
+  #practice-view-copilot .copilot-review-dot { animation: none; }
+}
 #copilot-quick-actions {
   display: flex;
   flex-wrap: wrap;

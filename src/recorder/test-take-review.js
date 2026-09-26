@@ -4,7 +4,7 @@
 //
 // Lancer : node src/recorder/test-take-review.js
 
-import { createLiveTake, extractLastPassage } from './live-take.js';
+import { createLiveTake } from './live-take.js';
 import { reviewTake, findCadences, takeContextLines, momentText } from './take-review.js';
 import { classifyVoicing, splitHands } from '../voicing-engine/voicing-classifier.js';
 import { extractScaleRequest, fitScales } from '../pedagogie/scales.js';
@@ -48,46 +48,36 @@ function take() {
   return api;
 }
 
+// [Claude] — 2026-09-26 — Démarrer / Stop : seul ce qui est joué entre les deux clics
+// (Narcisse : l'essai raté juste avant se mélangeait à l'essai réussi).
 function testLiveTake() {
   let now = 100;
   const live = createLiveTake({ now: () => now });
-  // Premier essai, puis 4 s de silence, puis le passage qui compte.
-  live.noteOn(60, 0.7, 100); live.noteOff(60, 100.5);
-  live.noteOn(62, 0.7, 104.5); live.noteOn(65, 0.7, 104.5); live.noteOff(62, 105.5);
-  live.sustain(true, 105.6);
-  live.noteOn(67, 0.7, 106);
-  now = 107;
-  const p = live.lastPassage();
-  check('Passage : commence après la dernière pause (recalé à 0)', p && p.events[0].time === 0 && p.events[0].note === 62, JSON.stringify(p?.events[0]));
-  check('Passage : 3 attaques, la note d\'avant la pause exclue', p?.noteCount === 3 && !p.events.some((e) => e.note === 60));
-  const closing = p.events.filter((e) => Math.abs(e.time - 2.5) < 1e-9);
-  check('Passage : notes et pédale encore tenues relâchées au moment du clic', closing.some((e) => e.type === 'note_off' && e.note === 65) && closing.some((e) => e.type === 'note_off' && e.note === 67) && closing.some((e) => e.type === 'control' && e.value === 0), JSON.stringify(closing));
-  check('Passage : durée jusqu\'au clic', Math.abs(p.duration - 2.5) < 1e-9);
-
-  // Pause courte (1 s) : même passage.
-  const short = extractLastPassage([
-    { type: 'note_on', note: 60, velocity: 0.7, time: 0 }, { type: 'note_off', note: 60, time: 0.5 },
-    { type: 'note_on', note: 64, velocity: 0.7, time: 1.5 }, { type: 'note_off', note: 64, time: 2 },
-  ]);
-  check('Pause d\'une seconde : le passage continue', short.noteCount === 2);
-  // Pédale enfoncée pendant le silence : il faut deux fois plus long.
-  const pedalled = extractLastPassage([
-    { type: 'control', controller: 64, value: 127, time: 0 },
-    { type: 'note_on', note: 60, velocity: 0.7, time: 0.1 }, { type: 'note_off', note: 60, time: 0.5 },
-    { type: 'note_on', note: 64, velocity: 0.7, time: 4 }, { type: 'note_off', note: 64, time: 4.5 },
-  ]);
-  check('Pédale tenue pendant 3,5 s de silence : un seul passage', pedalled.noteCount === 2 && pedalled.events[0].type === 'control', JSON.stringify(pedalled.events[0]));
-  // Plus de 60 s sans pause : les 60 dernières secondes.
-  const long = [];
-  for (let t = 0; t < 90; t += 0.5) long.push({ type: 'note_on', note: 60 + (t % 5), velocity: 0.7, time: t }, { type: 'note_off', note: 60 + (t % 5), time: t + 0.4 });
-  const cut = extractLastPassage(long, { max: 60, at: 90 });
-  check('Jeu continu de 90 s : 60 s gardées', cut.duration <= 60.01 && cut.duration > 59, String(cut.duration));
-  check('Aucune note : pas de passage', extractLastPassage([]) === null);
-  // Mémoire tournante : 90 s.
-  const rolling = createLiveTake({ keepSeconds: 90, now: () => 300 });
-  rolling.noteOn(60, 0.7, 10); rolling.noteOff(60, 11);
-  rolling.noteOn(62, 0.7, 250); rolling.noteOff(62, 251);
-  check('Mémoire : au-delà de 90 s, oublié', rolling.events().every((e) => e.time >= 160));
+  // Essai raté AVANT le clic : Do Ré Fa ; Fa encore tenu au clic ; pédale enfoncée.
+  live.noteOn(60, 0.7, 100); live.noteOff(60, 100.4);
+  live.noteOn(62, 0.7, 100.5); live.noteOff(62, 100.9);
+  live.noteOn(65, 0.7, 101);
+  live.sustain(true, 102);
+  check('Avant le clic : rien n\'est gardé', live.isCapturing() === false && live.stopCapture() === null);
+  live.startCapture(103);
+  check('Clic : le Copilote écoute', live.isCapturing() === true);
+  live.noteOff(65, 103.2); // enfoncé avant le clic
+  // L'essai réussi : Do Ré Mi ; Mi encore tenu au clic d'arrêt.
+  live.noteOn(60, 0.7, 104); live.noteOff(60, 104.4);
+  live.noteOn(62, 0.7, 104.5); live.noteOff(62, 104.9);
+  live.noteOn(64, 0.7, 105);
+  const p = live.stopCapture(106);
+  const ons = (p?.events || []).filter((e) => e.type === 'note_on');
+  check('Stop : seul l\'essai joué après le clic (Do Ré Mi), pas l\'essai raté', ons.map((e) => e.note).join(',') === '60,62,64' && p.noteCount === 3, ons.map((e) => e.note).join(','));
+  check('Touche enfoncée avant le clic : ni attaque ni relâché gardés', !p.events.some((e) => e.note === 65));
+  check('Temps : la première note à 0', ons[0].time === 0 && Math.abs(ons[1].time - 0.5) < 1e-9, JSON.stringify(ons.map((e) => e.time)));
+  check('Pédale enfoncée au clic de départ : gardée au début', p.events[0].type === 'control' && p.events[0].value === 127 && p.events[0].time === 0, JSON.stringify(p.events[0]));
+  const closing = p.events.filter((e) => Math.abs(e.time - 2) < 1e-9);
+  check('Stop : notes et pédale encore tenues relâchées à cet instant', closing.some((e) => e.type === 'note_off' && e.note === 64) && closing.some((e) => e.type === 'control' && e.value === 0), JSON.stringify(closing));
+  check('Durée : de la première note au clic d\'arrêt', Math.abs(p.duration - 2) < 1e-9, String(p.duration));
+  check('Après Stop : plus rien n\'est gardé', live.isCapturing() === false && (live.noteOn(67, 0.7, 107), live.stopCapture(108)) === null);
+  live.startCapture(110);
+  check('Clic puis Stop sans rien jouer : rien à envoyer', live.stopCapture(112) === null);
 }
 
 function testVoicingClassifier() {
@@ -197,13 +187,12 @@ function testExerciseExpect() {
 
 // [Claude] — 2026-09-25 — Le passage garde la touche enfoncée à côté de la note entendue.
 function testRawKeys() {
-  let now = 10;
-  const live = createLiveTake({ now: () => now });
+  const live = createLiveTake({ now: () => 10 });
+  live.startCapture(9);
   // Transposition +2 : on enfonce Do (60), on entend Ré (62).
   live.noteOn(62, 0.7, 10, 60); live.noteOn(66, 0.7, 10, 64);
   live.noteOff(62, 11, 60);
-  now = 12;
-  const p = live.lastPassage();
+  const p = live.stopCapture(12);
   check('Passage : la touche brute est gardée à côté de la note entendue', p.events[0].note === 62 && p.events[0].raw === 60 && p.events.filter((e) => e.type === 'note_off').every((e) => e.raw != null), JSON.stringify(p.events));
 }
 

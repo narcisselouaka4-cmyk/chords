@@ -510,8 +510,9 @@ function handleNoteOn(note, velocity = 0.8, virtual = false, audible = true) {
   // transposition est un offset d'affichage, pas une altération enregistrée.
   if (!state.isPlayback) {
     feedRecorderNoteOn(note, safeVelocity);
-    // [Claude] — 2026-09-25 — Mémoire du jeu récent (« Qu'en penses-tu ? ») : la
-    // note entendue (transposition comprise), jamais une démo ni une relecture.
+    // [Claude] — 2026-09-25 — Le jeu pour « Qu'en penses-tu ? » (gardé seulement
+    // pendant l'écoute, entre ses deux clics) : la note entendue (transposition
+    // comprise), jamais une démo ni une relecture.
     liveTake.noteOn(transposed, safeVelocity, undefined, note);
   }
   // La détection est différée pour ne pas bloquer le thread principal
@@ -2783,17 +2784,6 @@ async function init() {
   safeInit('initKeyboardCollapse', initKeyboardCollapse);
   safeInit('initPanelToggles', initPanelToggles);
   safeInit('refreshKeyboard', refreshKeyboard);
-  safeInit('initKeyboardReview', () => {
-    // [Claude] — 2026-09-25 — Messages courts de l'application (avis sans clé d'IA,
-    // « rien à écouter »…) dans la ligne d'état de la fenêtre.
-    document.addEventListener('app-status', (e) => setStatus(e.detail?.text || ''));
-    // « Qu'en penses-tu ? » depuis la barre du clavier (tous les onglets) : le
-    // Copilote analyse le dernier passage joué.
-    document.getElementById('keyboard-review-btn')?.addEventListener('click', () => {
-      // La vue d'origine : depuis Exercices, l'avis compare le jeu à l'exercice en cours.
-      document.dispatchEvent(new CustomEvent('copilot-review-take', { detail: { question: '', fromView: els.practiceLayout?.dataset.trainingView || null } }));
-    });
-  });
   safeInit('initSettings', initSettings);
   safeInit('initNoteGrouper', initNoteGrouper);
   safeInit('initHistory', initHistory);

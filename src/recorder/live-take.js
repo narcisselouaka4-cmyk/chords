@@ -1,147 +1,94 @@
-// [Claude] — 2026-09-25 — Mémoire du jeu récent, pour « Qu'en penses-tu ? ».
+// [Claude] — 2026-09-25 — Le jeu du pianiste, pour « Qu'en penses-tu ? ».
 //
-// Narcisse : « avec une sorte de bouton, je lui demande si ce que je joue est
-// bon ». Rien ne gardait les notes jouées hors d'un enregistrement de session.
-// Cette mémoire tournante garde les 90 dernières secondes au format de
-// l'enregistreur ({type: 'note_on'|'note_off'|'control', note, velocity,
+// [Claude] — 2026-09-26 — Démarrer / Stop. Narcisse : « j'ai raté une mélodie,
+// j'ai recommencé juste après et je l'ai réussie ; « Qu'en penses-tu ? » a pris à
+// la fois la mélodie ratée et la mélodie réussie ». Le passage était « ce qui suit
+// la dernière pause de 2,5 s » : un essai repris aussitôt s'y ajoutait. Désormais
+// le pianiste dit lui-même où commence et où finit ce qu'il fait écouter : un clic
+// pour que le Copilote écoute (startCapture), un clic pour arrêter (stopCapture) ;
+// seul ce qui est joué entre les deux est gardé.
+//
+// Format de l'enregistreur ({type: 'note_on'|'note_off'|'control', note, velocity,
 // controller, value, channel, time}) ; main.js l'alimente au même endroit que
 // l'enregistreur, jamais pendant une démo ni une relecture. Les notes sont à la
-// hauteur ENTENDUE (transposition du clavier comprise), comme l'accord affiché.
-//
-// lastPassage() rend le passage qui suit la dernière pause : un silence d'au
-// moins `pause` secondes (touches relâchées, pédale levée ; le double si la
-// pédale reste enfoncée), borné aux `max` dernières secondes. Le passage est
-// recalé à 0 et les notes (ou la pédale) encore tenues au moment du clic sont
-// relâchées à cet instant.
+// hauteur ENTENDUE (transposition du clavier comprise), la touche enfoncée à côté
+// (`raw`) quand elle diffère.
+// Au clic de départ, la pédale déjà enfoncée est gardée (elle tient ce qu'on va
+// jouer) ; une touche enfoncée avant le clic ne compte pas. À l'arrêt, les notes et
+// la pédale encore tenues sont relâchées. Les temps partent de la première note.
 
-const DEFAULT_KEEP = 90;
+// Garde-fou mémoire (le Copilote arrête l'écoute bien avant : 5 minutes).
+const MAX_EVENTS = 20000;
 
 /**
- * @param {{keepSeconds?: number, now?: () => number}} [options] - now() en secondes
+ * @param {{now?: () => number}} [options] - now() en secondes
  */
-export function createLiveTake({ keepSeconds = DEFAULT_KEEP, now = defaultNow } = {}) {
-  let events = [];
+export function createLiveTake({ now = defaultNow } = {}) {
+  let capture = null; // {start, events, open: Map(note → touche brute)}
+  let pedal = false; // suivie même sans écoute : enfoncée avant le clic, elle compte
 
-  function trim(t) {
-    const limit = t - keepSeconds;
-    if (events.length && events[0].time < limit) {
-      const first = events.findIndex((e) => e.time >= limit);
-      events = first < 0 ? [] : events.slice(first);
-    }
-  }
-
+  const withRaw = (note, raw) => (raw !== note && Number.isFinite(raw) ? { raw } : {});
   function push(event) {
-    events.push(event);
-    trim(event.time);
+    if (capture.events.length < MAX_EVENTS) capture.events.push(event);
   }
 
   return {
-    // [Claude] — 2026-09-25 — `raw` : la touche enfoncée, avant transposition (les
-    // sessions gardent les notes brutes ; « Garder dans mes sessions »).
     noteOn(note, velocity = 0.8, time = now(), raw = note) {
-      push({ type: 'note_on', note, velocity, channel: 0, time, ...(raw !== note && Number.isFinite(raw) ? { raw } : {}) });
+      if (!capture) return;
+      capture.open.set(note, raw);
+      push({ type: 'note_on', note, velocity, channel: 0, time, ...withRaw(note, raw) });
     },
     noteOff(note, time = now(), raw = note) {
-      push({ type: 'note_off', note, velocity: 0, channel: 0, time, ...(raw !== note && Number.isFinite(raw) ? { raw } : {}) });
+      // Touche enfoncée avant le clic : son relâché ne compte pas non plus.
+      if (!capture || !capture.open.has(note)) return;
+      capture.open.delete(note);
+      push({ type: 'note_off', note, velocity: 0, channel: 0, time, ...withRaw(note, raw) });
     },
     sustain(down, time = now()) {
-      push({ type: 'control', controller: 64, value: down ? 127 : 0, channel: 0, time });
+      pedal = Boolean(down);
+      if (capture) push({ type: 'control', controller: 64, value: down ? 127 : 0, channel: 0, time });
+    },
+    /** Clic de départ : le Copilote écoute. */
+    startCapture(at = now()) {
+      capture = { start: at, events: [], open: new Map(), pedalAtStart: pedal };
+    },
+    isCapturing: () => Boolean(capture),
+    /**
+     * Clic d'arrêt : ce qui a été joué depuis le départ, ou null si aucune note.
+     * @returns {{events: object[], duration: number, noteCount: number}|null}
+     */
+    stopCapture(at = now()) {
+      if (!capture) return null;
+      const { events, open, pedalAtStart } = capture;
+      capture = null;
+      const firstOn = events.find((e) => e.type === 'note_on');
+      if (!firstOn) return null;
+      const t0 = firstOn.time;
+      const close = Math.max(0, at - t0);
+      const out = [];
+      if (pedalAtStart) out.push({ type: 'control', controller: 64, value: 127, channel: 0, time: 0 });
+      for (const e of events) out.push({ ...e, time: Math.min(close, Math.max(0, e.time - t0)) });
+      // Ce qui est encore tenu au clic d'arrêt est relâché à cet instant.
+      for (const [note, raw] of open) out.push({ type: 'note_off', note, velocity: 0, channel: 0, time: close, ...withRaw(note, raw) });
+      let down = false;
+      for (const e of out) if (e.type === 'control' && e.controller === 64) down = e.value >= 64;
+      if (down) out.push({ type: 'control', controller: 64, value: 0, channel: 0, time: close });
+      const noteCount = out.filter((e) => e.type === 'note_on').length;
+      return { events: out, duration: close, noteCount };
     },
     clear() {
-      events = [];
-    },
-    /** Évènements gardés (copie), temps absolus. */
-    events: () => events.slice(),
-    /**
-     * Dernier passage joué (voir l'en-tête), ou null si aucune note.
-     * @param {{pause?: number, max?: number, at?: number}} [options]
-     * @returns {{events: object[], duration: number, noteCount: number, startedAt: number, endedAt: number}|null}
-     */
-    lastPassage({ pause = 2.5, max = 60, at = now() } = {}) {
-      return extractLastPassage(events, { pause, max, at });
+      capture = null;
     },
   };
 }
 
 /**
- * Mémoire de l'application (une seule) : main.js l'alimente, « Qu'en penses-tu ? »
- * (copilot-tab.js) la lit.
+ * Le jeu de l'application (un seul) : main.js l'alimente, « Qu'en penses-tu ? »
+ * (copilot-tab.js) démarre et arrête l'écoute.
  */
 export const liveTake = createLiveTake();
 
 function defaultNow() {
   const perf = globalThis.performance;
   return (perf?.now ? perf.now() : Date.now()) / 1000;
-}
-
-/**
- * Passage qui suit la dernière pause (fonction pure, voir createLiveTake).
- * @param {object[]} all - évènements au format de l'enregistreur, temps croissants
- */
-export function extractLastPassage(all, { pause = 2.5, max = 60, at = null } = {}) {
-  const list = (all || []).filter((e) => Number.isFinite(e?.time)).sort((a, b) => a.time - b.time);
-  if (!list.some((e) => e.type === 'note_on')) return null;
-  const end = Number.isFinite(at) ? Math.max(at, list[list.length - 1].time) : list[list.length - 1].time;
-
-  // Silences : instants où plus aucune touche n'est tenue, jusqu'à la note suivante.
-  const held = new Set();
-  let pedal = false;
-  let silentSince = null;
-  let silentPedal = false;
-  let start = list.find((e) => e.type === 'note_on').time;
-  for (const e of list) {
-    if (e.type === 'note_on') {
-      if (held.size === 0 && silentSince != null) {
-        const gap = e.time - silentSince;
-        // Pédale enfoncée pendant tout le silence : les notes sonnent encore, il faut plus long.
-        if (gap >= (silentPedal ? pause * 2 : pause)) start = e.time;
-      }
-      held.add(e.note);
-      silentSince = null;
-    } else if (e.type === 'note_off') {
-      held.delete(e.note);
-      if (held.size === 0) {
-        silentSince = e.time;
-        silentPedal = pedal;
-      }
-    } else if (e.type === 'control' && e.controller === 64) {
-      pedal = e.value >= 64;
-      if (pedal && silentSince != null) silentPedal = true;
-    }
-  }
-  // Plus de `max` secondes sans pause : les dernières secondes seulement,
-  // à partir de la première attaque de la fenêtre.
-  if (end - start > max) {
-    start = list.find((e) => e.type === 'note_on' && e.time >= end - max)?.time ?? start;
-  }
-
-  // Pédale enfoncée au début du passage : on la garde (elle tient ce qu'on joue).
-  let pedalAtStart = false;
-  for (const e of list) {
-    if (e.time >= start) break;
-    if (e.type === 'control' && e.controller === 64) pedalAtStart = e.value >= 64;
-  }
-  const out = [];
-  if (pedalAtStart) out.push({ type: 'control', controller: 64, value: 127, channel: 0, time: 0 });
-  const open = new Set();
-  const rawOf = new Map();
-  let pedalDown = pedalAtStart;
-  for (const e of list) {
-    if (e.time < start) continue;
-    if (e.type === 'note_off' && !open.has(e.note)) continue; // attaquée avant le passage
-    const copy = { ...e, time: Math.max(0, e.time - start) };
-    if (e.type === 'note_on') {
-      open.add(e.note);
-      if (e.raw != null) rawOf.set(e.note, e.raw);
-    }
-    else if (e.type === 'note_off') open.delete(e.note);
-    else if (e.type === 'control' && e.controller === 64) pedalDown = e.value >= 64;
-    out.push(copy);
-  }
-  // Ce qui est encore tenu au moment du clic est relâché à cet instant.
-  const close = Math.max(0, end - start);
-  for (const note of open) out.push({ type: 'note_off', note, velocity: 0, channel: 0, time: close, ...(rawOf.has(note) ? { raw: rawOf.get(note) } : {}) });
-  if (pedalDown) out.push({ type: 'control', controller: 64, value: 0, channel: 0, time: close });
-  const noteCount = out.filter((e) => e.type === 'note_on').length;
-  return { events: out, duration: close, noteCount, startedAt: start, endedAt: end };
 }
