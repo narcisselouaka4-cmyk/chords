@@ -15,6 +15,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   midi: {
     getInputs: () => ipcRenderer.invoke('midi:get-inputs'),
     refreshInputs: () => ipcRenderer.invoke('midi:refresh-inputs'),
+    // [Claude] — 2026-10-02 — État réel de l'entrée (le main décide seul des connexions).
+    getStatus: () => ipcRenderer.invoke('midi:get-status'),
     openInput: (portId) => ipcRenderer.invoke('midi:open-input', portId),
     closeInput: () => ipcRenderer.invoke('midi:close-input'),
     // [Claude] — 2026-09-24 — Sortie MIDI (démo des mouvements vers un VST).

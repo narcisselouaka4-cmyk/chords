@@ -109,7 +109,8 @@
             <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="exercise" title="Ouvrir Exercices"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg><span>Exercices</span><span class="practice-exercise-progress tr-points" id="exercise-collapsed-progress" style="display: none;"></span><span class="tr-active-underline" aria-hidden="true"></span></button>
           </nav>
           <div class="tr-session-tools practice-subnav-actions">
-            <button class="tr-midi-connection practice-midi-status" id="practice-midi-status" type="button" title="État du clavier MIDI">
+            <!-- [Claude] — 2026-10-02 — Un clic reconnecte le clavier (comme le débrancher et le rebrancher). -->
+            <button class="tr-midi-connection practice-midi-status" id="practice-midi-status" type="button" title="Cliquer pour reconnecter le clavier MIDI">
               <span class="tr-status-dot practice-midi-status-dot" id="practice-midi-status-dot"></span>
               <span id="practice-midi-status-text">Clavier MIDI non détecté</span>
             </button>

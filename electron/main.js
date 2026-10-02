@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, session, dialog, desktopCapturer, safeStorage } from 'electron';
+import { app, BrowserWindow, ipcMain, session, dialog, desktopCapturer, safeStorage, powerMonitor } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import midi from '@julusian/midi';
@@ -14,6 +14,8 @@ import { pathToFileURL } from 'url';
 import { createFrame } from '../src/pedagogie/frame.js';
 import { detectVideoFormat } from '../src/pedagogie/format-detector.js';
 import { readLitKeys } from '../src/pedagogie/key-detection.js';
+// [Claude] — 2026-10-02 — Suivi des entrées MIDI par NOM (pur, testé : src/midi-ports.test.js).
+import { createInputWatcher, OWN_PORT_NAME } from '../src/midi-ports.js';
 
 // [OpenCode] — 2026-07-04 — Charge .env s'il existe (sans dépendance dotenv)
 try {
@@ -48,9 +50,7 @@ let analysisInFlight = null;
 // analyse ne continue à consommer le CPU après la fermeture de la fenêtre.
 const liveChildren = new Set();
 let midiPollTimer = null;
-let midiInput = null;
-let currentInputId = null; // currently opened input port id
-let currentInputName = null; // name used to reconnect after hot-plug
+let midiInput = null; // l'entrée ouverte ; son nom et sa place sont suivis par inputWatcher
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -146,7 +146,8 @@ let midiInputEnumerator = null;
 
 // [Claude] — 2026-09-24 — Sortie MIDI (voir midi:open-output).
 const VIRTUAL_OUTPUT_ID = 'virtual';
-const VIRTUAL_OUTPUT_NAME = 'Piano Jazz Chords';
+// Même nom que celui que src/midi-ports.js écarte des entrées (on ne s'écoute pas soi-même).
+const VIRTUAL_OUTPUT_NAME = OWN_PORT_NAME;
 let midiOutput = null;
 
 function getMidiOutputs() {
@@ -207,13 +208,6 @@ function openMidiOutput(outputId) {
 
 let nativeMidiFailed = false;
 
-// [OpenCode] — 2026-07-04 — Heuristic to skip internal/virtual ALSA ports when auto-connecting.
-const VIRTUAL_PORT_NAMES = ['midi through', 'through', 'virmidi', 'client-', 'timidity', 'fluidsynth', 'pipewire'];
-function isLikelyHardware(name) {
-  const lower = name.toLowerCase();
-  return !VIRTUAL_PORT_NAMES.some((v) => lower.includes(v));
-}
-
 function getMidiInputEnumerator() {
   if (nativeMidiFailed) return null;
   if (!midiInputEnumerator) {
@@ -269,8 +263,6 @@ function closeMidiInput() {
       // ignore
     }
     midiInput = null;
-    currentInputId = null;
-    currentInputName = null;
   }
 }
 
@@ -325,46 +317,39 @@ function openMidiInput(portId) {
       mainWindow.webContents.send('midi-pitch-wheel', { value: bend });
     }
   });
-  currentInputId = portId;
-  currentInputName = name;
   sendMidiLog('open', { portId, name });
   return { success: true, portId, name };
 }
 
-// [OpenCode] — 2026-07-04 — Auto-connect to a real hardware input if none is open yet.
-function autoOpenHardwareInput(inputs) {
-  if (midiInput) return null; // already connected
-  const hardware = inputs.filter((i) => isLikelyHardware(i.name));
-  const preferred = hardware.find((i) =>
-    /usb|piano|keyboard|mpk|midi|key|synth|controller/i.test(i.name),
-  ) || hardware[0];
-  if (preferred) {
-    console.log('[MIDI] auto-connecting to', preferred.id, preferred.name);
-    const result = openMidiInput(preferred.id);
-    if (result.success) {
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('midi-device-connected', { portId: preferred.id, name: preferred.name });
-      }
-      return result;
-    }
-  }
-  return null;
+// [Claude] — 2026-10-02 — Un seul décideur pour les entrées MIDI : le surveillant de
+// src/midi-ports.js. Il remplace l'auto-connexion « premier port matériel » et la
+// reconnexion par nom exact, qui suivaient le port par sa POSITION dans la liste :
+// un synthé ré-énuméré (veille, synthé rallumé) gardait sa place sous un autre
+// numéro ALSA, la connexion était morte et l'app affichait « Connecté » ; notre
+// port virtuel « Piano Jazz Chords » (son nom contient « piano ») pouvait même être
+// pris pour le clavier. Le rendu ne décide plus rien : il affiche l'état.
+function sendToWindow(channel, data) {
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, data);
 }
 
-// [OpenCode] — 2026-07-04 — When the current port disappears, try to reconnect to a port with the same name.
-function reconnectByName(inputs) {
-  if (!currentInputName || midiInput) return null;
-  const match = inputs.find((i) => i.name === currentInputName && i.id !== currentInputId);
-  if (match) {
-    console.log('[MIDI] reconnecting by name to', match.id, match.name);
-    const result = openMidiInput(match.id);
-    if (result.success && mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('midi-device-connected', { portId: match.id, name: match.name });
+const inputWatcher = createInputWatcher({
+  listPorts: () => getMidiInputs(true),
+  openPort: (portId) => openMidiInput(portId),
+  closePort: () => closeMidiInput(),
+  resetScanner: () => closeMidiInputEnumerator(),
+  notify: (type, data) => {
+    if (type === 'connected') {
+      console.log('[MIDI] connecté :', data.name, `(${data.reason})`);
+      sendToWindow('midi-device-connected', data);
+    } else if (type === 'lost') {
+      console.log('[MIDI] port perdu :', data.previousName);
+      sendToWindow('midi-port-lost', data);
+    } else if (type === 'devices') {
+      console.log('[MIDI] ports :', data.map((i) => i.name).join(', ') || 'aucun');
+      sendToWindow('midi-devices-changed', data);
     }
-    return result;
-  }
-  return null;
-}
+  },
+});
 
 function userAudioGroups() {
   const userInfo = os.userInfo();
@@ -391,16 +376,6 @@ function requestMidiPermission() {
   session.defaultSession.setPermissionCheckHandler((webContents, permission) => {
     return permission === 'midi' || permission === 'midiSysex';
   });
-}
-
-let lastSeenInputs = [];
-
-function inputsChanged(a, b) {
-  if (a.length !== b.length) return true;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i].name !== b[i].name) return true;
-  }
-  return false;
 }
 
 // [Claude] — 2026-07-03 — API système de fichiers pour le Module 2 (sessions d'enregistrement)
@@ -2076,70 +2051,51 @@ app.whenReady().then(() => {
   purgeLegacyTempDirs().catch(() => {});
 
   // Poll native MIDI ports so hot-plugged keyboards/synths are detected automatically.
-  // [OpenCode] — 2026-07-04 — Even when a port is open we still scan to detect hot-unplug.
-  midiPollTimer = setInterval(() => {
+  // [Claude] — 2026-10-02 — Le scan est confié au surveillant (src/midi-ports.js) :
+  // port suivi par son nom, rouvert s'il revient sous un autre numéro, jamais notre
+  // propre port virtuel. Premier passage tout de suite : la fenêtre lit l'état par
+  // midi:get-status au chargement, plus besoin qu'elle ouvre un port elle-même.
+  const scanMidi = (reason) => {
     if (nativeMidiFailed) return;
-    const inputs = getMidiInputs(true);
-
-    // [Claude] — 2026-07-03 — Hot-plug handling : if the currently opened port disappeared, close it and notify renderer.
-    if (currentInputId !== null) {
-      const stillAvailable = inputs.some((input) => input.id === currentInputId);
-      if (!stillAvailable) {
-        console.log('[MIDI] current port lost, closing input');
-        closeMidiInput();
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('midi-port-lost', { previousId: currentInputId, previousName: currentInputName });
-        }
-      }
+    try {
+      if (reason === 'resume') inputWatcher.reconnect(reason);
+      else inputWatcher.tick(reason);
+    } catch (err) {
+      // Un port qui refuse de s'ouvrir ne doit pas arrêter les scans suivants.
+      console.error('[MIDI] scan impossible :', err.message);
     }
+  };
+  scanMidi('startup');
+  midiPollTimer = setInterval(() => scanMidi('poll'), 2000);
 
-    // [OpenCode] — 2026-07-04 — If current port vanished but same name came back with a new id, reconnect.
-    if (!midiInput && currentInputName) {
-      reconnectByName(inputs);
-    }
-
-    if (inputsChanged(inputs, lastSeenInputs)) {
-      console.log('[MIDI] ports changed:', inputs.map((i) => i.name).join(', ') || 'none');
-      lastSeenInputs = inputs;
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('midi-devices-changed', inputs);
-      }
-    }
-
-    // [OpenCode] — 2026-07-04 — Auto-connect a hardware device if nothing is open yet.
-    if (!midiInput && inputs.length > 0) {
-      autoOpenHardwareInput(inputs);
-    }
-  }, 2000);
+  // [Claude] — 2026-10-02 — Réveil de veille : l'USB est ré-énuméré. Sous Linux le
+  // numéro ALSA change (le scan le voit) ; sous Windows et macOS, ni le nom ni la
+  // place ne changent — rien ne trahirait une connexion morte. On rouvre donc le
+  // clavier après un court délai, le temps que l'USB revienne.
+  powerMonitor.on('resume', () => {
+    setTimeout(() => scanMidi('resume'), 1500);
+  });
 
   ipcMain.handle('midi:get-inputs', () => {
     return getMidiInputs();
   });
 
+  // [Claude] — 2026-10-02 — État réel de l'entrée, pour l'affichage (« Connecté »).
+  ipcMain.handle('midi:get-status', () => inputWatcher.status());
+
+  // Rafraîchir = reconnecter (bouton du pied de page, pastille « Reconnecter » de la
+  // sous-navigation) : fermer, rescanner, rouvrir — l'équivalent d'un débranchement.
   ipcMain.handle('midi:refresh-inputs', () => {
-    // Close the active input before re-enumerating to avoid ALSA 'port in use' issues
-    closeMidiInput();
-    closeMidiInputEnumerator();
-    const inputs = getMidiInputs();
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('midi-devices-changed', inputs);
-    }
-    // [OpenCode] — 2026-07-04 — After a manual refresh, try to auto-connect a hardware device.
-    const auto = autoOpenHardwareInput(inputs);
-    if (auto) {
-      inputs.forEach((input) => sendMidiLog('port', { id: input.id, name: input.name }));
-    }
-    return inputs;
+    if (nativeMidiFailed) return [];
+    inputWatcher.reconnect('reconnect');
+    return getMidiInputs();
   });
 
-  // [Claude] — 2026-07-03 — Return the actually opened port id so the renderer can track the current input
-  ipcMain.handle('midi:open-input', (event, portId) => {
-    const result = openMidiInput(portId);
-    return result;
-  });
+  // Choix à la main dans le menu : ce port devient celui qu'on veut garder.
+  ipcMain.handle('midi:open-input', (event, portId) => inputWatcher.choose(portId));
 
   ipcMain.handle('midi:close-input', () => {
-    closeMidiInput();
+    inputWatcher.close();
     return true;
   });
 

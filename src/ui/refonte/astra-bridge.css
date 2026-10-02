@@ -150,6 +150,15 @@
    fond et une bordure sur .practice-subnav. */
 .tr-subnavigation.practice-subnav { box-shadow: none; }
 .tr-midi-connection.practice-midi-status::before { content: none; }
+/* [Claude] — 2026-10-02 — La pastille d'état MIDI reconnecte d'un clic (le synthé
+   affiché « Connecté » mais muet, sans avoir à le débrancher). */
+#practice-midi-status { cursor: pointer; border-radius: 6px; padding: 4px 6px; margin: -4px -6px; transition: color .15s, background .15s; }
+#practice-midi-status:hover { color: var(--tr-text); background: var(--tr-hover); }
+#practice-midi-status:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 2px; }
+#practice-midi-status.is-busy .practice-midi-status-dot { animation: tr-record-pulse .9s infinite; }
+@media (prefers-reduced-motion: reduce) {
+  #practice-midi-status.is-busy .practice-midi-status-dot { animation: none; }
+}
 
 /* ---- Fenêtres et tiroirs ------------------------------------------------
    Sans framework, les .tr-overlay vivent dans le DOM et se masquent par

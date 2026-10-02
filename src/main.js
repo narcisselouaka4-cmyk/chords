@@ -13,6 +13,8 @@ import {
 import { setSustain, ensurePianoSamples, resumeAudio } from './audio/simple-synth.js';
 
 import { initWebMidi, getWebMidiInputs, openWebMidiInput } from './midi-fallback.js';
+// [Claude] — 2026-10-02 — Qui est un vrai clavier (jamais notre propre port virtuel).
+import { pickPreferredInput } from './midi-ports.js';
 import { createChordHistory } from './chord-history.js';
 import { initCopilotTab } from './pedagogie/copilot-tab.js';
 
@@ -201,6 +203,7 @@ const els = {
   practiceMidiHint: document.getElementById('practice-midi-hint'),
   practiceLayout: document.getElementById('practice-tab'),
   exerciseCollapsedProgress: document.getElementById('exercise-collapsed-progress'),
+  practiceMidiStatus: document.getElementById('practice-midi-status'),
   practiceMidiStatusDot: document.getElementById('practice-midi-status-dot'),
   practiceMidiStatusText: document.getElementById('practice-midi-status-text'),
   exerciseDifficultySelect: document.getElementById('exercise-difficulty-select'),
@@ -718,28 +721,83 @@ function updatePracticeMidiHint() {
   if (els.practiceMidiStatusDot) {
     els.practiceMidiStatusDot.classList.toggle('connected', Boolean(currentMidiName));
   }
+  if (midiReconnecting) return;
   if (els.practiceMidiStatusText) {
     els.practiceMidiStatusText.textContent = currentMidiName
       ? `Clavier MIDI connecté`
       : 'Clavier MIDI non détecté';
   }
-}
-
-const PREFERRED_MIDI_KEYWORDS = ['usb', 'piano', 'keyboard', 'mpk', 'midi', 'key', 'synth', 'controller'];
-const VIRTUAL_PORT_NAMES = ['midi through', 'through', 'virmidi', 'timidity', 'fluidsynth', 'pipewire'];
-
-function isHardwareInput(input) {
-  const lower = input.name.toLowerCase();
-  return !VIRTUAL_PORT_NAMES.some((v) => lower.includes(v));
-}
-
-function findPreferredInput(inputs) {
-  const hardware = inputs.filter(isHardwareInput);
-  for (const keyword of PREFERRED_MIDI_KEYWORDS) {
-    const found = hardware.find((i) => i.name.toLowerCase().includes(keyword));
-    if (found) return found;
+  // [Claude] — 2026-10-02 — La pastille reconnecte d'un clic (voir reconnectMidi).
+  if (els.practiceMidiStatus) {
+    els.practiceMidiStatus.title = currentMidiName
+      ? `${currentMidiName} — cliquer pour reconnecter le clavier`
+      : 'Aucun clavier MIDI — cliquer pour chercher à nouveau';
   }
-  return hardware[0] || inputs[0] || null;
+}
+
+// [Claude] — 2026-10-02 — Le choix du clavier se fait dans electron/main.js (un seul
+// décideur, src/midi-ports.js) : la fenêtre affiche l'état réel et n'ouvre plus de
+// port d'elle-même. Avant, elle rouvrait en parallèle du scan du main, avec une
+// autre heuristique qui pouvait prendre notre port virtuel « Piano Jazz Chords »
+// pour le clavier (son nom contient « piano »).
+let midiReconnecting = false;
+
+/** Lit l'état réel de l'entrée dans le main et l'affiche. */
+async function syncMidiStatus() {
+  let status = null;
+  try {
+    status = await window.electronAPI?.midi?.getStatus?.();
+  } catch (err) {
+    console.warn('[MIDI] état illisible :', err?.message || err);
+  }
+  if (!status) return null;
+  currentMidiName = status.connected ? status.name : null;
+  if (status.connected) {
+    els.midiStatus.textContent = 'Connecté';
+    if (status.portId !== null && status.portId !== undefined) els.midiSelect.value = String(status.portId);
+  } else {
+    els.midiStatus.textContent = els.midiSelect.options.length && !els.midiSelect.options[0].disabled ? 'Non connecté' : 'Aucun périphérique';
+  }
+  updatePracticeMidiHint();
+  return status;
+}
+
+/**
+ * Connexion perdue ou reprise : les touches tenues à cet instant n'enverront jamais
+ * leur relâchement. On les relâche ici, sinon l'accord affiché et les touches
+ * allumées restaient figés.
+ */
+function releaseStuckMidiNotes() {
+  for (const transposed of [...state.activeNotes.keys()]) {
+    if (state.playbackNotes.has(transposed)) continue;
+    handleNoteOff(transposed - state.transpose, false, true);
+  }
+  if (state.sustain) handleSustain(false);
+}
+
+/**
+ * « Reconnecter » (pastille de la sous-navigation, bouton du pied de page) :
+ * l'équivalent logiciel d'un débranchement / rebranchement.
+ */
+async function reconnectMidi() {
+  if (midiReconnecting || !window.electronAPI?.midi?.refreshInputs) return;
+  midiReconnecting = true;
+  els.practiceMidiStatus?.classList.add('is-busy');
+  if (els.practiceMidiStatusText) els.practiceMidiStatusText.textContent = 'Reconnexion…';
+  try {
+    const inputs = await window.electronAPI.midi.refreshInputs();
+    populateMidiSelect(inputs || [], async (portId) => {
+      await tryOpenMidi(portId, inputs || []);
+    });
+    releaseStuckMidiNotes();
+  } catch (err) {
+    console.warn('[MIDI] reconnexion impossible :', err?.message || err);
+  } finally {
+    midiReconnecting = false;
+    els.practiceMidiStatus?.classList.remove('is-busy');
+  }
+  await syncMidiStatus();
+  setStatus(currentMidiName ? `MIDI reconnecté : ${currentMidiName}` : 'Aucun clavier MIDI trouvé');
 }
 
 function populateMidiSelect(inputs, onChange) {
@@ -781,16 +839,22 @@ function populateMidiSelect(inputs, onChange) {
 async function tryOpenMidi(portId, inputs) {
   const input = inputs.find((i) => i.id === portId);
   const name = input?.name || '';
-  const result = await window.electronAPI.midi.openInput(portId);
+  let result = null;
+  try {
+    result = await window.electronAPI.midi.openInput(portId);
+  } catch (err) {
+    result = { success: false, error: err?.message || String(err) };
+  }
   if (result?.success) {
     currentMidiName = result.name || name;
     updatePracticeMidiHint();
     els.midiStatus.textContent = 'Connecté';
-    els.midiSelect.value = String(result.portId || portId);
+    els.midiSelect.value = String(result.portId ?? portId);
     setStatus(`MIDI connecté : ${currentMidiName}`);
   } else {
     console.error('[MIDI] openInput failed:', result?.error || result);
     setStatus(`Échec connexion MIDI : ${result?.error || 'inconnu'}`);
+    await syncMidiStatus();
   }
   return result;
 }
@@ -867,70 +931,56 @@ async function initMidi() {
     if (els.midiSelect.value !== String(event.portId)) {
       els.midiSelect.value = String(event.portId);
     }
-    setStatus(`MIDI connecté : ${event.name}`);
+    // [Claude] — 2026-10-02 — Connexion (re)prise : rien n'est tenu à cet instant.
+    releaseStuckMidiNotes();
+    setStatus(event.reason === 'reopen' || event.reason === 'resume' || event.reason === 'reconnect'
+      ? `MIDI reconnecté : ${event.name}`
+      : `MIDI connecté : ${event.name}`);
     logMidiEvent({ type: 'connected', data: event, time: Date.now() });
   });
 
   window.electronAPI.midi.onPortLost?.((event) => {
     currentMidiName = null;
     updatePracticeMidiHint();
+    releaseStuckMidiNotes();
     logMidiEvent({ type: 'port-lost', data: event, time: Date.now() });
     els.midiStatus.textContent = 'Périphérique perdu';
     setStatus('Périphérique MIDI débranché');
   });
 
+  // [Claude] — 2026-10-02 — Liste changée : on la montre, et c'est tout. Le main a
+  // déjà décidé (et prévenu par midi-device-connected / midi-port-lost) ; ouvrir un
+  // port d'ici refaisait une connexion concurrente de la sienne.
   window.electronAPI.midi.onDevicesChanged?.((inputs) => {
     logMidiEvent({ type: 'scan', data: { count: inputs.length }, time: Date.now() });
     inputs.forEach((input) => logMidiEvent({ type: 'port', data: { id: input.id, name: input.name }, time: Date.now() }));
-
     populateMidiSelect(inputs, async (portId) => {
       await tryOpenMidi(portId, inputs);
     });
-
-    const wasEmpty = els.midiSelect.dataset.lastCount === '0';
-    els.midiSelect.dataset.lastCount = String(inputs.length);
-
-    const previousValue = els.midiSelect.value;
-    const previousStillAvailable = inputs.some((i) => String(i.id) === previousValue);
-
-    if ((!previousStillAvailable || wasEmpty) && inputs.length > 0) {
-      const preferred = findPreferredInput(inputs);
-      if (preferred) {
-        tryOpenMidi(preferred.id, inputs);
-      }
-    }
+    syncMidiStatus();
   });
 
-  els.midiSelect.addEventListener('change', async () => {
-    const portId = Number(els.midiSelect.value);
-    const inputs = await window.electronAPI.midi.getInputs();
-    await tryOpenMidi(portId, inputs);
-  });
+  // Choix à la main : populateMidiSelect() pose déjà `onchange` sur le menu (un
+  // second écouteur `change` ouvrait le port deux fois).
+  els.midiRefresh?.addEventListener('click', () => reconnectMidi());
+  // [Claude] — 2026-10-02 — La pastille « Clavier MIDI connecté » de la
+  // sous-navigation reconnecte d'un clic, sans débrancher le synthé.
+  els.practiceMidiStatus?.addEventListener('click', () => reconnectMidi());
 
-  els.midiRefresh?.addEventListener('click', async () => {
-    const refreshed = await window.electronAPI.midi.refreshInputs();
-    populateMidiSelect(refreshed, async (portId) => {
-      await tryOpenMidi(portId, refreshed);
-    });
-    const preferred = findPreferredInput(refreshed);
-    if (preferred) {
-      await tryOpenMidi(preferred.id, refreshed);
-    }
-  });
-
-  const inputs = await window.electronAPI.midi.getInputs();
-  els.midiSelect.dataset.lastCount = String(inputs.length);
+  let inputs = [];
+  try {
+    inputs = await window.electronAPI.midi.getInputs();
+  } catch (err) {
+    console.warn('[MIDI] liste des ports illisible :', err?.message || err);
+  }
   logMidiEvent({ type: 'scan', data: { count: inputs.length }, time: Date.now() });
   inputs.forEach((input) => logMidiEvent({ type: 'port', data: { id: input.id, name: input.name }, time: Date.now() }));
 
   populateMidiSelect(inputs, async (portId) => {
     await tryOpenMidi(portId, inputs);
   });
-
-  const preferred = findPreferredInput(inputs);
-  if (preferred) {
-    await tryOpenMidi(preferred.id, inputs);
-  }
+  // Le main s'est déjà connecté au démarrage : on affiche son état.
+  await syncMidiStatus();
 }
 
 function handleWebMidiStateChange(inputs) {
@@ -957,7 +1007,7 @@ function updateMidiList(inputs, callbacks, isWeb) {
     setStatus(`MIDI connecté : ${name}`);
   });
 
-  const preferred = findPreferredInput(inputs);
+  const preferred = pickPreferredInput(inputs);
   if (preferred) {
     els.midiSelect.value = preferred.id;
     openWebMidiInput(preferred.id, callbacks);
