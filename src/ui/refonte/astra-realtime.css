@@ -298,6 +298,75 @@
 .live-stage .live-replay:not(:disabled):hover { background: color-mix(in srgb, var(--tr-accent) 22%, transparent); }
 .live-stage .live-replay:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 2px; }
 
+/* ---- La portée (en bas à gauche) ----------------------------------------- */
+/* Encre = couleur du texte, lignes un ton plus doux, fondamentale en menthe comme
+   sur la roue : le conservatoire, dans la palette de l'application. Sans cadre. Elle
+   est calée en bas de sa colonne : quand le clavier se replie, la scène grandit, la
+   portée descend et grandit avec elle. */
+.live-stage .live-staff {
+  grid-area: left;
+  align-self: end;
+  justify-self: start;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-height: 0;
+  max-height: 100%;
+}
+.live-stage .live-staff-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--tr-muted);
+  font: 9px var(--tr-mono);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.live-stage .live-staff-clefs {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--tr-border-soft);
+  border-radius: 7px;
+}
+.live-stage .live-staff-clefs button {
+  padding: 3px 7px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--tr-muted);
+  font: 600 10px var(--tr-mono);
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+  transition: color .15s ease, background .15s ease;
+}
+.live-stage .live-staff-clefs button:hover { color: var(--tr-text); }
+.live-stage .live-staff-clefs button[aria-pressed='true'] { background: var(--tr-raised); color: var(--tr-text); }
+.live-stage .live-staff-clefs button:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 1px; }
+.live-stage .live-staff-svg {
+  display: block;
+  height: clamp(150px, 64cqh, 400px);
+  width: auto;
+  max-width: 100%;
+  overflow: visible;
+}
+.live-staff-svg .staff-line { stroke: color-mix(in srgb, var(--tr-text) 55%, transparent); }
+.live-staff-svg .staff-ledger { stroke: color-mix(in srgb, var(--tr-text) 75%, transparent); }
+.live-staff-svg .staff-glyph { fill: var(--tr-text); }
+.live-staff-svg .staff-clef,
+.live-staff-svg .staff-brace { fill: color-mix(in srgb, var(--tr-text) 82%, transparent); }
+.live-staff-svg .staff-head.is-root {
+  fill: var(--tr-green);
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--tr-green) 55%, transparent));
+}
+.live-staff-svg .staff-ottava {
+  fill: var(--tr-secondary);
+  font: italic 9px Georgia, 'Times New Roman', serif;
+}
+
 /* ---- Ce qui reste dans le DOM sans se montrer ------------------------------- */
 /* Les notes en pastilles : lues par le miroir du clavier, montrées par la roue. */
 .live-stage > .notes-display {

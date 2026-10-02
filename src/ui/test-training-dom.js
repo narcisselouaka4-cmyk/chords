@@ -369,6 +369,13 @@ function testLectureEnDirect() {
   check(html.includes('href="./ui/refonte/astra-realtime.css"'), 'Temps réel — feuille astra-realtime.css chargée');
   const main = readText('src/main.js');
   check(main.includes("safeInit('initLiveReading'") && main.includes('replayLiveChord'), 'Temps réel — Lecture en direct initialisée, « Réécouter » branché');
+  // La portée (3e notation) : en bas à gauche, clé au choix, jamais mémorisée.
+  check(['live-staff', 'live-staff-clefs', 'live-staff-svg'].every((id) => stage.includes(`id="${id}"`)),
+    'Temps réel — portée et sélecteur de clé dans la scène');
+  const staffJs = readText('src/ui/live-staff.js').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  check(!/localStorage|sessionStorage/.test(staffJs), 'Temps réel — le choix de clé n\'est pas mémorisé (demande de Narcisse)');
+  check(main.includes("safeInit('initLiveStaff'"), 'Temps réel — portée initialisée');
+  check(readText('src/ui/staff/BRAVURA-OFL.txt').includes('SIL OPEN FONT LICENSE'), 'Temps réel — licence OFL de Bravura jointe aux glyphes');
 }
 
 testDomContract();

@@ -2,6 +2,8 @@ import { generateKeyboard, keyboardLayout, setPitchWheel, setModWheel } from './
 import { updateDisplay, clearDisplay } from './ui/display.js';
 // [Claude] — 2026-10-02 — Temps réel : « Lecture en direct » (roue, lectures, Réécouter).
 import { initLiveReading } from './ui/live-reading.js';
+// [Claude] — 2026-10-02 — Temps réel : la portée (3e notation), clé au choix non mémorisée.
+import { initLiveStaff } from './ui/live-staff.js';
 import { detectChord } from './chord-engine/index.js';
 import { noteName, formatPc } from './chord-engine/naming.js';
 
@@ -2876,6 +2878,7 @@ async function init() {
   safeInit('initAISettings', initAISettings);
   // [Claude] — 2026-10-02 — Lecture en direct du Temps réel (roue au repos, « Réécouter »).
   safeInit('initLiveReading', () => initLiveReading({ onReplay: replayLiveChord }));
+  safeInit('initLiveStaff', initLiveStaff);
   // [Refonte 02/10] — Écran d'attente commun : on remplit les emplacements
   // `data-chroma-stage` (Analyse, Studio) depuis une source unique.
   safeInit('mountChromaStages', () => mountChromaStages());

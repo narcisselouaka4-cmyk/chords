@@ -1,6 +1,7 @@
 import { formatNoteList, inversionName, jazzChordName } from '../chord-engine/naming.js';
 import { getVoicingLabel } from '../chord-engine/voicing.js';
 import { renderLiveReading, clearLiveReading } from './live-reading.js';
+import { renderLiveStaff, clearLiveStaff } from './live-staff.js';
 
 // [Claude] — 2026-10-02 — Temps réel : la « Lecture en direct » (roue des 12 notes,
 // lectures à droite ; src/ui/live-reading.js) remplace l'affichage d'avant. Les
@@ -18,6 +19,8 @@ export function updateDisplay(els, result, notes, latin = false) {
 
   const { rootPc, voicing } = result;
   const view = renderLiveReading(notes, result, latin);
+  // [Claude] — 2026-10-02 — La portée (3e notation) suit les mêmes notes.
+  renderLiveStaff(notes, result);
   const displayName = view.titleIsChord ? jazzChordName(result, latin) : escapeHtml(view.title);
 
   els.chordName.innerHTML = displayName || '—';
@@ -127,6 +130,7 @@ function findTonicMidi(notes, rootPc) {
 export function clearDisplay(els, latin = false) {
   // [OpenCode] — 2026-08-05 — État vide : pas de faux titre, pas de barre noire.
   clearLiveReading(latin);
+  clearLiveStaff();
   els.chordName.innerHTML = '';
   els.chordName.classList.add('chord-name-empty');
   els.chordName.classList.remove('is-label');

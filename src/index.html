@@ -180,6 +180,18 @@
               </button>
             </div>
 
+            <!-- [Claude] — 2026-10-02 — La portée, 3e notation (Narcisse : façon manuscrit de
+                 conservatoire, comme Chordie ; clés de sol, d'ut et de fa ; en bas à gauche,
+                 elle descend quand le clavier est masqué). Rendu : src/ui/live-staff.js.
+                 Le choix de clé n'est pas mémorisé : chaque lancement repart sur Sol + Fa. -->
+            <figure class="live-staff" id="live-staff">
+              <figcaption class="live-staff-head">
+                <span class="live-staff-title">Portée</span>
+                <span class="live-staff-clefs" id="live-staff-clefs" role="group" aria-label="Clé de la portée"></span>
+              </figcaption>
+              <svg class="live-staff-svg" id="live-staff-svg" viewBox="0 0 151 258" role="img" aria-label="Portée"></svg>
+            </figure>
+
             <div class="notes-display" id="notes-display" aria-hidden="true"></div>
 
             <!-- [Refonte] — Panneau Techniques : compagnon retiré (décision du
