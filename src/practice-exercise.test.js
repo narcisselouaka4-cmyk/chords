@@ -1174,7 +1174,9 @@ function checkValidationAgainstAnnouncedChord() {
   ex.setTargetChoice(0, '6');
   const c6 = ex.getState().target;
   const attempts = ex.getState().attempts;
-  check('C6 shell affiché C3 E3 A3 (lu « Am » par le détecteur)', c6.notes.join() === '48,52,57' && detectChord(c6.notes).symbol === 'm');
+  // [Claude] — 2026-10-02 — Bibliothèque revue : quinte facultative, Do Mi La est lu C6
+  // (et non plus « Am ») ; la validation, elle, reste jugée sur l'accord annoncé.
+  check('C6 shell affiché C3 E3 A3 (lu « C6 » par le détecteur)', c6.notes.join() === '48,52,57' && detectChord(c6.notes).symbol === '6');
   check('C6 : Do Mi Sol La (vrai C6) accepté', ex.isCorrect([48, 52, 55, 57]));
   check('C6 : le voicing affiché accepté', ex.isCorrect([60, 64, 69]));
   check('C6 : La Do Mi (La mineur) refusé', !ex.isCorrect([57, 60, 64]));

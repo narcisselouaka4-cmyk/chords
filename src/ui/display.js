@@ -1,5 +1,17 @@
-import { chordName, slashName, formatNoteList, inversionName } from '../chord-engine/naming.js';
-import { getVoicingLabel, getAlias } from '../chord-engine/voicing.js';
+import { formatNoteList, inversionName, jazzChordName } from '../chord-engine/naming.js';
+import { getVoicingLabel } from '../chord-engine/voicing.js';
+import { chordReadings } from '../chord-engine/index.js';
+import { chordRootName, slashBassName, displayNoteName } from '../chord-engine/spelling.js';
+
+// [Claude] — 2026-10-02 — Bibliothèque revue : nom à la manière jazz (B♭7 et non A♯7,
+// D/F♯), et « aussi » = une vraie autre lecture des mêmes notes (C6 → Am7/C) au lieu
+// des alias figés de voicing.js (« maj7alt », « sus4 7 »…).
+function readingName(reading, latin) {
+  const root = displayNoteName(chordRootName(reading.rootPc, reading.symbol), { latin });
+  const name = `${root}${reading.symbol.replace(/#/g, '♯').replace(/b(?=\d)/g, '♭')}`;
+  if (reading.rootless) return `${name} sans fondamentale`;
+  return reading.isSlash ? `${name}/${displayNoteName(slashBassName(reading.bassPc, reading.rootPc, reading.symbol), { latin })}` : name;
+}
 
 export function updateDisplay(els, result, notes, latin = false) {
   if (!result) {
@@ -7,12 +19,8 @@ export function updateDisplay(els, result, notes, latin = false) {
     return;
   }
 
-  const { rootPc, symbol, fullName, bassPc, isSlash, inversion, confidence, rootless, voicing } = result;
-  const displayName = rootless
-    ? chordName(rootPc, symbol, latin)
-    : isSlash
-      ? slashName(rootPc, symbol, bassPc, latin)
-      : chordName(rootPc, symbol, latin);
+  const { rootPc, symbol, fullName, inversion, voicing } = result;
+  const displayName = jazzChordName(result, latin);
 
   els.chordName.innerHTML = displayName || '—';
   els.chordName.classList.remove('chord-name-empty');
@@ -39,7 +47,8 @@ export function updateDisplay(els, result, notes, latin = false) {
     voicingLabel.style.display = label ? 'inline-flex' : 'none';
   }
   if (aliasLabel) {
-    const alias = getAlias(symbol);
+    const other = chordReadings(notes).find((r) => !(r.rootPc === rootPc && r.symbol === symbol));
+    const alias = other ? readingName(other, latin) : '';
     aliasLabel.textContent = alias ? `aussi : ${alias}` : '';
     aliasLabel.style.display = alias ? 'inline-flex' : 'none';
   }
@@ -57,10 +66,7 @@ function buildTechniquesHtml(result, notes, latin) {
     return '<p>Jouez des notes pour voir les techniques...</p>';
   }
 
-  const { rootPc, symbol, fullName, inversion, bassPc, isSlash, voicing } = result;
-  const name = isSlash
-    ? slashName(rootPc, symbol, bassPc, latin)
-    : chordName(rootPc, symbol, latin);
+  const { inversion, voicing } = result;
 
   const sections = [];
 
