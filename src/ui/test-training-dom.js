@@ -362,13 +362,17 @@ function testLectureEnDirect() {
   const html = readText('src/index.html');
   const stage = html.slice(html.indexOf('id="practice-center"'), html.indexOf('id="pedagogy-panel"'));
   check(/class="main-training-stage live-stage" id="practice-center"/.test(html), 'Temps réel — la scène porte la Lecture en direct');
-  check(['live-wheel', 'live-readouts', 'live-replay', 'live-also', 'live-count'].every((id) => stage.includes(`id="${id}"`)),
-    'Temps réel — roue, lectures, Réécouter, « Aussi », compte');
-  check(['chord-display', 'chord-name', 'chord-detail', 'notes-display', 'voicing-label', 'alias-label', 'practice-empty-hint', 'practice-midi-hint']
+  check(['live-wheel', 'live-readouts', 'live-also', 'live-root', 'live-bass', 'live-quality', 'live-position', 'live-intervals', 'live-voicing']
+    .every((id) => stage.includes(`id="${id}"`)), 'Temps réel — roue, « Aussi » et les six lectures');
+  // 02/10 (Narcisse) : plus de bandeau ni de compteur, de « Réécouter », de MIDI /
+  // Fréquence, ni de « MIDI connecté » et d'explication sous l'invitation.
+  check(['live-replay', 'live-count', 'live-midi', 'live-frequency', 'practice-midi-hint'].every((id) => !stage.includes(`id="${id}"`))
+    && !stage.includes('reconnues automatiquement') && !stage.includes('live-head'), 'Temps réel — éléments retirés le 02/10 absents');
+  check(['chord-display', 'chord-name', 'chord-detail', 'notes-display', 'voicing-label', 'alias-label', 'practice-empty-hint']
     .every((id) => stage.includes(`id="${id}"`)), 'Temps réel — identifiants d\'avant gardés (main.js, miroir du clavier)');
   check(html.includes('href="./ui/refonte/astra-realtime.css"'), 'Temps réel — feuille astra-realtime.css chargée');
   const main = readText('src/main.js');
-  check(main.includes("safeInit('initLiveReading'") && main.includes('replayLiveChord'), 'Temps réel — Lecture en direct initialisée, « Réécouter » branché');
+  check(main.includes("safeInit('initLiveReading'") && !main.includes('replayLiveChord'), 'Temps réel — Lecture en direct initialisée, sans « Réécouter »');
   // La portée (3e notation) : en bas à gauche, clé au choix, jamais mémorisée.
   check(['live-staff', 'live-staff-clefs', 'live-staff-svg'].every((id) => stage.includes(`id="${id}"`)),
     'Temps réel — portée et sélecteur de clé dans la scène');

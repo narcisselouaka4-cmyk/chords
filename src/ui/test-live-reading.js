@@ -48,7 +48,7 @@ v = view([60, 61, 62]);
 check('amas : les notes, « non identifié »', v.title === 'C · D♭ · D' && v.quality === 'non identifié');
 v = view([46, 50, 53, 56]);
 check('B♭7 : fondamentale B♭, basse B♭2, position fondamentale', v.titleIsChord && v.root === 'B♭' && v.bass === 'B♭2' && v.position === 'position fondamentale', JSON.stringify(v));
-check('B♭7 : MIDI et fréquence de la basse', v.midi === '46 · 50 · 53 · 56' && v.frequency === '116.5 Hz');
+check('B♭7 : plus de lignes MIDI ni Fréquence (retirées le 02/10)', !('midi' in v) && !('frequency' in v));
 check('B♭7 : la roue marque la fondamentale et la basse', v.wheel.rootPc === 10 && v.wheel.bassPc === 10 && v.wheel.active.size === 4);
 v = view([46, 50, 53, 56], true);
 check('latin : Si♭, Si♭2', v.root === 'Si♭' && v.bass === 'Si♭2');

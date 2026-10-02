@@ -3,8 +3,9 @@
    [Claude] — 2026-10-02 — « Lecture en direct » de la maquette de Narcisse
    (designtempsréel.zip : section rv-hero, roue PitchWheel, règles .rv-* de
    education.css), intégrée à même la scène — pas de fenêtre, pas de carte.
-   Trois colonnes : la portée en bas à gauche (3e notation), le nom de l'accord et
-   la roue au centre, les lectures à droite. Tailles en unités de conteneur : la
+   Trois colonnes : la portée en haut à gauche (3e notation), le nom de l'accord et
+   la roue au centre, les lectures en haut à droite (02/10 : plus de bandeau
+   « Lecture en direct » ni de compteur de notes — ces deux coins les remplacent). Tailles en unités de conteneur : la
    scène grandit quand le clavier virtuel se replie, tout grandit avec elle.
    Couleurs Astra : --tr-accent pour les notes jouées, --tr-green (la menthe de la
    maquette) pour la fondamentale.
@@ -15,14 +16,11 @@
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  grid-template-rows: auto minmax(0, 1fr);
-  grid-template-areas:
-    "head head head"
-    "left center side";
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: "left center side";
   align-items: center;
   column-gap: 32px;
-  row-gap: 4px;
-  padding: 10px 26px 16px;
+  padding: 12px 26px 16px;
   background: transparent;
   border: 0;
   border-radius: 0;
@@ -31,24 +29,6 @@
   text-align: center;
   container: live / size;
 }
-
-/* ---- Bandeau ------------------------------------------------------------- */
-.live-stage .live-head {
-  grid-area: head;
-  justify-self: stretch;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  color: var(--tr-muted);
-  font: 9.5px var(--tr-mono);
-  letter-spacing: .12em;
-  text-transform: uppercase;
-}
-.live-stage .live-eyebrow { display: inline-flex; align-items: center; gap: 7px; }
-.live-stage .live-eyebrow svg { color: var(--tr-accent); }
-.live-stage.has-notes .live-eyebrow svg { animation: live-spin 2.4s linear infinite; }
-.live-stage .live-count { font-variant-numeric: tabular-nums; }
 
 /* ---- Centre : nom de l'accord, « Aussi », roue ---------------------------- */
 .live-stage .live-center {
@@ -134,16 +114,6 @@
   font-size: clamp(1rem, 3.6cqh, 1.4rem);
   font-weight: 600;
   letter-spacing: -0.02em;
-}
-#practice-tab #practice-center .practice-empty-hint-sub {
-  margin: 0;
-  color: var(--tr-accent);
-  font: 10px var(--tr-mono);
-}
-#practice-tab #practice-center .practice-empty-hint-detail {
-  margin: 0;
-  color: var(--tr-muted);
-  font-size: 11px;
 }
 
 /* ---- La roue --------------------------------------------------------------- */
@@ -237,12 +207,12 @@
   font: 12px var(--tr-mono);
 }
 
-/* ---- Lectures (à droite) --------------------------------------------------- */
+/* ---- Lectures (en haut à droite) ------------------------------------------ */
 .live-stage .live-side {
   grid-area: side;
-  justify-self: start;
-  align-self: center;
-  width: min(100%, 300px);
+  justify-self: end;
+  align-self: start;
+  width: min(100%, 280px);
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -254,7 +224,7 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 14px;
-  padding: 7px 0;
+  padding: 5px 0;
   border-bottom: 1px solid var(--tr-border-soft);
 }
 .live-stage .live-readouts > div:first-child { border-top: 1px solid var(--tr-border-soft); }
@@ -279,33 +249,15 @@
   font: 400 10px var(--tr-mono);
 }
 .live-stage .live-readouts dd small:empty { display: none; }
-.live-stage .live-replay {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  height: 34px;
-  border: 1px solid color-mix(in srgb, var(--tr-accent) 42%, transparent);
-  border-radius: 8px;
-  background: var(--tr-accent-soft);
-  color: var(--tr-accent);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background .15s ease;
-}
-.live-stage .live-replay:disabled { opacity: .4; cursor: not-allowed; }
-.live-stage .live-replay:not(:disabled):hover { background: color-mix(in srgb, var(--tr-accent) 22%, transparent); }
-.live-stage .live-replay:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 2px; }
 
-/* ---- La portée (en bas à gauche) ----------------------------------------- */
+/* ---- La portée (en haut à gauche) ----------------------------------------- */
 /* Encre = couleur du texte, lignes un ton plus doux, fondamentale en menthe comme
    sur la roue : le conservatoire, dans la palette de l'application. Sans cadre. Elle
-   est calée en bas de sa colonne : quand le clavier se replie, la scène grandit, la
-   portée descend et grandit avec elle. */
+   est calée en haut de sa colonne (02/10) ; quand le clavier se replie, la scène
+   grandit et la portée avec elle. */
 .live-stage .live-staff {
   grid-area: left;
-  align-self: end;
+  align-self: start;
   justify-self: start;
   margin: 0;
   display: flex;
@@ -398,10 +350,8 @@
   from { stroke-dashoffset: 1; fill-opacity: 0; }
   to { stroke-dashoffset: 0; fill-opacity: 1; }
 }
-@keyframes live-spin { to { transform: rotate(360deg); } }
 
 @media (prefers-reduced-motion: reduce) {
   .live-wheel-shape { animation: none; }
-  .live-stage.has-notes .live-eyebrow svg { animation: none; }
   .live-wheel-dot, .live-wheel-labels .live-wheel-label, .live-stage .live-wheel-wrap::before { transition: none; }
 }

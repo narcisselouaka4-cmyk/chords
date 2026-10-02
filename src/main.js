@@ -1,6 +1,6 @@
 import { generateKeyboard, keyboardLayout, setPitchWheel, setModWheel } from './ui/keyboard-svg.js';
 import { updateDisplay, clearDisplay } from './ui/display.js';
-// [Claude] — 2026-10-02 — Temps réel : « Lecture en direct » (roue, lectures, Réécouter).
+// [Claude] — 2026-10-02 — Temps réel : « Lecture en direct » (roue, lectures).
 import { initLiveReading } from './ui/live-reading.js';
 // [Claude] — 2026-10-02 — Temps réel : la portée (3e notation), clé au choix non mémorisée.
 import { initLiveStaff } from './ui/live-staff.js';
@@ -22,7 +22,7 @@ import { pickPreferredInput } from './midi-ports.js';
 import { createChordHistory } from './chord-history.js';
 import { initCopilotTab } from './pedagogie/copilot-tab.js';
 
-import { createNoteGrouper } from './note-grouper.js';
+import { createNoteGrouper, isGraceNote } from './note-grouper.js';
 import { initAnalyzerTab } from './ui/analyzer-tab.js';
 import { mountChromaStages } from './ui/components/loader-chroma.js';
 import { initStudioTab } from './ui/studio-tab.js';
@@ -114,6 +114,10 @@ import {
 const state = {
   activeNotes: new Map(), // midi -> velocity
   sustainedNotes: new Set(), // midi sustained while pedal down
+  // [Claude] — 2026-10-02 — Appui et relevé de chaque touche (note transposée ->
+  // { note, onTime, keyOffTime }) : sous la pédale, une grace note (le Ré frotté vers
+  // le Mi) ne doit pas rester comptée dans l'accord (voir dropGraceNotes).
+  keyTimes: new Map(),
   // [Claude] — 2026-09-24 — Notes venues d'une relecture (Sessions MIDI, démo) :
   // la détection d'accord est différée (80 ms), state.isPlayback est déjà
   // retombé quand elle tourne ; c'est cet ensemble qui l'empêche alors de
@@ -204,7 +208,6 @@ const els = {
   pedagogyContent: document.getElementById('pedagogy-content'),
   pedagogyPanelTab: document.getElementById('pedagogy-panel-tab'),
   exercisePanel: document.getElementById('practice-exercise-panel'),
-  practiceMidiHint: document.getElementById('practice-midi-hint'),
   practiceLayout: document.getElementById('practice-tab'),
   exerciseCollapsedProgress: document.getElementById('exercise-collapsed-progress'),
   practiceMidiStatus: document.getElementById('practice-midi-status'),
@@ -477,6 +480,24 @@ function isPlayableMidi(note) {
   return Number.isFinite(note) && Number.isInteger(note) && note >= 0 && note <= 127;
 }
 
+// [Claude] — 2026-10-02 — Grace notes sous la pédale : la touche est relevée, la note
+// sonne encore (le synthé la garde), mais elle sort de l'accord affiché. Même seuil que
+// le regroupement temporel (isGraceNote, src/note-grouper.js). Sans pédale, la note
+// relâchée quitte déjà activeNotes. Retourne true si une note a été retirée.
+function dropGraceNotes() {
+  let dropped = false;
+  for (const midi of [...state.sustainedNotes]) {
+    if (state.activeNotes.has(midi)) continue;
+    if (!isGraceNote(state.keyTimes.get(midi), state.keyTimes.values())) continue;
+    state.sustainedNotes.delete(midi);
+    state.playbackNotes.delete(midi);
+    state.keyTimes.delete(midi);
+    unlightKey(midi);
+    dropped = true;
+  }
+  return dropped;
+}
+
 function handleNoteOn(note, velocity = 0.8, virtual = false, audible = true) {
   if (!isPlayableMidi(note)) {
     console.warn('[Main] noteOn MIDI invalide ignorée:', note);
@@ -500,6 +521,8 @@ function handleNoteOn(note, velocity = 0.8, virtual = false, audible = true) {
   const safeVelocity = Number.isFinite(velocity) && velocity >= 0 && velocity <= 1 ? velocity : 0.8;
   if (audible && !state.silentMode) playVirtualNote(transposed, safeVelocity);
   state.activeNotes.set(transposed, safeVelocity);
+  state.keyTimes.set(transposed, { note: transposed, onTime: performance.now(), keyOffTime: null });
+  if (state.sustain) dropGraceNotes();
   if (state.isPlayback) state.playbackNotes.add(transposed);
   else state.playbackNotes.delete(transposed);
   // [Claude] — 2026-09-25 — Jaune quand l'application joue (démo, exemple, relecture).
@@ -551,11 +574,15 @@ function handleNoteOff(note, virtual = false, audible = true) {
     // l'accord détecté jusqu'au prochain appui).
     state.activeNotes.delete(transposed);
     state.sustainedNotes.add(transposed);
+    const times = state.keyTimes.get(transposed);
+    if (times) times.keyOffTime = performance.now();
     noteGrouper?.noteOff(transposed, { sustained: true });
     if (hasLiveMidiSubscribers()) publishLiveNoteOff(note, 0);
+    if (dropGraceNotes()) scheduleRefreshChord();
     return;
   }
   state.activeNotes.delete(transposed);
+  state.keyTimes.delete(transposed);
   state.playbackNotes.delete(transposed);
   unlightKey(transposed);
   noteGrouper?.noteOff(transposed, { sustained: false });
@@ -578,6 +605,7 @@ function handleSustain(value) {
       if (!state.activeNotes.has(note)) {
         unlightKey(note);
         state.playbackNotes.delete(note);
+        state.keyTimes.delete(note);
       }
     }
     state.sustainedNotes.clear();
@@ -716,9 +744,8 @@ async function loadSystemInfo() {
 let currentMidiName = null;
 
 function updatePracticeMidiHint() {
-  if (els.practiceMidiHint) {
-    els.practiceMidiHint.textContent = currentMidiName ? `MIDI connecté : ${currentMidiName}` : '';
-  }
+  // [Claude] — 2026-10-02 — Plus de « MIDI connecté : … » au-dessus de la roue du
+  // Temps réel (Narcisse) : l'état ne se lit plus que dans la sous-navigation.
   // [Refonte 02/09] — Même état, affiché aussi dans la sous-navigation
   // d'Entraînement (point + texte, maquettes 15/16) — pas une détection
   // supplémentaire, juste une seconde lecture de currentMidiName.
@@ -1092,6 +1119,7 @@ function initSettings() {
         newSustainedNotes.add(midi + transposeDelta);
       }
       state.sustainedNotes = newSustainedNotes;
+      state.keyTimes.clear(); // horodatages des grace notes : plus valables
     }
 
     // [Claude] — 2026-07-03 — Mise à jour dynamique de la tolérance de groupement
@@ -1468,20 +1496,6 @@ function renderExerciseProgressPanel(exState) {
 
 // [Claude] — 2026-09-24 — « Écouter » passe par le lecteur de démo : touches
 // allumées comme au clavier, sortie MIDI vers le VST si elle est choisie.
-// [Claude] — 2026-10-02 — « Réécouter » de la Lecture en direct : l'application rejoue
-// le dernier accord entendu (touches jaunes, sortie MIDI vers le VST si elle est
-// choisie), sans l'enregistrer ni le compter dans un exercice : feedDemoEvent pose
-// state.isPlayback, comme pour « Écouter ».
-function replayLiveChord(notes) {
-  if (!Array.isArray(notes) || notes.length === 0) return;
-  resumeAudio().catch(() => {});
-  const events = notes.flatMap((note) => [
-    { time: 0, type: 'noteOn', note, velocity: 0.75 },
-    { time: 1.6, type: 'noteOff', note },
-  ]).sort((a, b) => a.time - b.time || (a.type === 'noteOff' ? -1 : 1));
-  demoPlayer.play({ events, beats: 1.6 }, { tempo: 60 });
-}
-
 async function playExerciseVoicing(voicing) {
   if (!voicing || !voicing.isPlayable) return;
   // Réveille l'AudioContext si nécessaire avant de planifier les notes.
@@ -2876,8 +2890,8 @@ async function init() {
   // n'allumer / n'éteindre que visuellement la touche concernée.
   safeInit('initCopilotKeyboardEvents', initCopilotKeyboardEvents);
   safeInit('initAISettings', initAISettings);
-  // [Claude] — 2026-10-02 — Lecture en direct du Temps réel (roue au repos, « Réécouter »).
-  safeInit('initLiveReading', () => initLiveReading({ onReplay: replayLiveChord }));
+  // [Claude] — 2026-10-02 — Lecture en direct du Temps réel (roue au repos).
+  safeInit('initLiveReading', initLiveReading);
   safeInit('initLiveStaff', initLiveStaff);
   // [Refonte 02/10] — Écran d'attente commun : on remplit les emplacements
   // `data-chroma-stage` (Analyse, Studio) depuis une source unique.

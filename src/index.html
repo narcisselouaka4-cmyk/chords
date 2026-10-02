@@ -129,16 +129,13 @@
         <div class="training-workspace">
           <!-- [Claude] — 2026-10-02 — « Lecture en direct » (maquette designtempsréel de
                Narcisse, fenêtre rv-hero + roue PitchWheel), intégrée à même la scène,
-               sans carte : nom de l'accord et roue des 12 notes au centre, lectures à
-               droite ; la portée (3e notation) en bas à gauche. Rendu :
+               sans carte : nom de l'accord et roue des 12 notes au centre, lectures en
+               haut à droite, la portée (3e notation) en haut à gauche (Narcisse, 02/10 :
+               plus de bandeau « Lecture en direct », de compteur de notes, de
+               « Réécouter », ni de lignes MIDI / Fréquence). Rendu :
                src/ui/live-reading.js, appelé par display.js. Les identifiants d'avant
                sont gardés (main.js, miroir du clavier, tests). -->
           <section class="main-training-stage live-stage" id="practice-center">
-            <header class="live-head">
-              <span class="live-eyebrow"><svg class="tr-i" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M6 12a6 6 0 0 1 6-6"/><circle cx="12" cy="12" r="2"/></svg>Lecture en direct</span>
-              <span class="live-count" id="live-count">0 note</span>
-            </header>
-
             <div class="live-center">
               <div class="chord-display" id="chord-display">
                 <div class="chord-name chord-name-empty" id="chord-name" aria-live="polite"></div>
@@ -155,8 +152,6 @@
 
               <div class="practice-empty-hint" id="practice-empty-hint">
                 <p class="practice-empty-hint-title">Jouez un accord sur votre clavier MIDI</p>
-                <p class="practice-empty-hint-sub" id="practice-midi-hint"></p>
-                <p class="practice-empty-hint-detail">Les notes jouées seront reconnues automatiquement.</p>
               </div>
 
               <div class="live-wheel-wrap">
@@ -172,17 +167,12 @@
                 <div><dt>Position</dt><dd id="live-position">—</dd></div>
                 <div><dt>Intervalles</dt><dd id="live-intervals">—</dd></div>
                 <div><dt>Voicing</dt><dd><span id="live-voicing">—</span><small id="live-voicing-detail"></small></dd></div>
-                <div><dt>MIDI</dt><dd id="live-midi">—</dd></div>
-                <div><dt>Fréquence</dt><dd id="live-frequency">—</dd></div>
               </dl>
-              <button class="live-replay" id="live-replay" type="button" disabled>
-                <svg class="tr-i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>Réécouter
-              </button>
             </div>
 
             <!-- [Claude] — 2026-10-02 — La portée, 3e notation (Narcisse : façon manuscrit de
-                 conservatoire, comme Chordie ; clés de sol, d'ut et de fa ; en bas à gauche,
-                 elle descend quand le clavier est masqué). Rendu : src/ui/live-staff.js.
+                 conservatoire, comme Chordie ; clés de sol, d'ut et de fa ; montée en haut
+                 à gauche le 02/10, à la place du bandeau « Lecture en direct »). Rendu : src/ui/live-staff.js.
                  Le choix de clé n'est pas mémorisé : chaque lancement repart sur Sol + Fa. -->
             <figure class="live-staff" id="live-staff">
               <figcaption class="live-staff-head">

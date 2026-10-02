@@ -7,7 +7,8 @@
 // scène, pas en fenêtre ni en carte, au centre, à la place de l'affichage d'avant.
 // Le nom de l'accord au-dessus de la roue, « Aussi » (autres lectures), et à droite
 // les lectures : fondamentale, basse jouée, qualité, position, intervalles,
-// voicing, MIDI, fréquence, puis « Réécouter ».
+// voicing. Le 02/10, Narcisse a retiré MIDI, Fréquence, « Réécouter » (inutile en
+// temps réel) et le compteur de notes ; les lectures sont montées en haut à droite.
 //
 // Une seule source : display.js appelle renderLiveReading / clearLiveReading avec
 // le résultat de detectChord (aucune seconde détection). Les aides pures sont
@@ -142,14 +143,12 @@ export function describeLiveReading(notes, result, latin = false) {
     title: '',
     titleIsChord: false,
     root: '—', bass: '—', quality: 'en attente', position: '—', intervals: '—',
-    voicing: '—', voicingDetail: '', midi: '—', frequency: '—', also: [],
+    voicing: '—', voicingDetail: '', also: [],
     wheel: { active: new Set(pcs), rootPc: null, bassPc: sorted.length ? pcOf(sorted[0]) : null, names: nameOfPc },
   };
   if (!sorted.length) return out;
 
   out.bass = noteWithOctave(spelled[0], latin);
-  out.midi = sorted.join(' · ');
-  out.frequency = `${(440 * 2 ** ((sorted[0] - 69) / 12)).toFixed(1)} Hz`;
 
   if (pcs.length === 1) {
     out.title = sorted.length > 1 ? `${displayNoteName(spelled[0].name, { latin })} (octaves)` : noteWithOctave(spelled[0], latin);
@@ -300,16 +299,6 @@ function updateWheel(svg, wheel, latin) {
 }
 
 const byId = (id) => document.getElementById(id);
-let lastChord = null; // dernier accord entendu (pour « Réécouter »)
-// Notes du geste en cours, entre deux silences : relâcher les touches une à une ne
-// doit pas réduire l'accord à réécouter à la dernière note tenue.
-let gesture = null;
-
-function remember(notes) {
-  const sorted = [...new Set(notes)].sort((a, b) => a - b);
-  if (!gesture || sorted.some((n) => !gesture.includes(n))) gesture = sorted;
-  lastChord = gesture;
-}
 
 function setText(id, value) {
   const el = byId(id);
@@ -331,7 +320,6 @@ function renderAlso(names) {
 }
 
 function renderReadouts(view) {
-  setText('live-count', `${view.count} note${view.count > 1 ? 's' : ''}`);
   setText('live-root', view.root);
   setText('live-bass', view.bass);
   setText('live-quality', view.quality);
@@ -339,18 +327,9 @@ function renderReadouts(view) {
   setText('live-intervals', view.intervals);
   setText('live-voicing', view.voicing);
   setText('live-voicing-detail', view.voicingDetail);
-  setText('live-midi', view.midi);
-  setText('live-frequency', view.frequency);
   renderAlso(view.also);
   const stage = byId('practice-center');
   stage?.classList.toggle('has-notes', view.count > 0);
-}
-
-function updateReplay() {
-  const button = byId('live-replay');
-  if (!button) return;
-  button.disabled = !lastChord;
-  button.title = lastChord ? 'Réécouter le dernier accord joué' : 'Jouez un accord pour pouvoir le réécouter';
 }
 
 /**
@@ -361,27 +340,17 @@ export function renderLiveReading(notes, result, latin = false) {
   const view = describeLiveReading(notes, result, latin);
   updateWheel(byId('live-wheel'), view.wheel, latin);
   renderReadouts(view);
-  if (view.count >= 1) {
-    remember(notes);
-    updateReplay();
-  }
   return view;
 }
 
-/** Rien n'est joué : roue au repos ; « Réécouter » garde le dernier accord. */
+/** Rien n'est joué : roue au repos. */
 export function clearLiveReading(latin = false) {
-  gesture = null;
   const view = describeLiveReading([], null, latin);
   updateWheel(byId('live-wheel'), view.wheel, latin);
   renderReadouts(view);
-  updateReplay();
 }
 
-/** @param {{onReplay?: (notes: number[]) => void}} hooks */
-export function initLiveReading({ onReplay } = {}) {
+/** La roue au repos, au lancement. */
+export function initLiveReading() {
   updateWheel(byId('live-wheel'), describeLiveReading([], null).wheel, false);
-  updateReplay();
-  byId('live-replay')?.addEventListener('click', () => {
-    if (lastChord && onReplay) onReplay([...lastChord]);
-  });
 }
