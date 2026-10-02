@@ -380,6 +380,13 @@ function testLectureEnDirect() {
   check(!/localStorage|sessionStorage/.test(staffJs), 'Temps réel — le choix de clé n\'est pas mémorisé (demande de Narcisse)');
   check(main.includes("safeInit('initLiveStaff'"), 'Temps réel — portée initialisée');
   check(readText('src/ui/staff/BRAVURA-OFL.txt').includes('SIL OPEN FONT LICENSE'), 'Temps réel — licence OFL de Bravura jointe aux glyphes');
+  // [Claude] — 2026-10-02 — Mode clair (Narcisse : en sombre « que rien ne bouge ») :
+  // le sombre garde ses halos ; le clair a ses propres règles, sans halo, et le fond
+  // gris lavande d'Entraînement.
+  const realtimeCss = readText('src/ui/refonte/astra-realtime.css');
+  check(/\.live-wheel-shape \{[^}]*drop-shadow\(0 0 4px/.test(realtimeCss), 'Temps réel — en sombre, la roue garde ses halos');
+  check(/:root\[data-theme='light'\] \.live-wheel-shape \{[^}]*filter: none/.test(realtimeCss), 'Temps réel — en clair, la roue est dessinée sans halo');
+  check(/:root\[data-theme='light'\] #practice-tab \{[^}]*--tr-bg:/.test(readText('src/ui/refonte/astra-bridge.css')), 'Entraînement — fond gris lavande en clair');
 }
 
 testDomContract();

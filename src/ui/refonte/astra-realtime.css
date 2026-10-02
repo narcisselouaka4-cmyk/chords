@@ -319,6 +319,67 @@
   font: italic 9px Georgia, 'Times New Roman', serif;
 }
 
+/* ---- Mode clair : de « néon » à « encre » --------------------------------- */
+/* [Claude] — 2026-10-02 — Narcisse : en sombre « c'est même parfait (que rien ne
+   bouge) », mais en clair la roue « donne l'impression qu'elle passe uniquement en
+   mode sombre ». Les halos, faits pour luire sur du noir, deviennent des taches
+   floues sur fond clair, et l'anneau en --tr-border disparaît. En clair, donc : un
+   cadran posé sur le fond (relief au lieu de lueur), des traits d'encre nets, des
+   pastilles cerclées comme des épingles. Toutes ces règles sont sous
+   :root[data-theme='light'] ; aucune règle du sombre n'est touchée. Le fond gris
+   lavande d'Entraînement est posé dans astra-bridge.css. */
+:root[data-theme='light'] .live-stage {
+  --live-face: color-mix(in srgb, var(--tr-surface) 60%, var(--tr-bg));
+  --live-ink-line: color-mix(in srgb, var(--tr-text) 12%, transparent);
+}
+:root[data-theme='light'] .live-stage .chord-name { text-shadow: none; }
+
+/* Le cadran : un disque un peu plus clair que le fond, qui couvre l'anneau et ses
+   graduations ; les noms des notes restent autour. Il passe sous la roue
+   (isolation + z-index négatif) : opaque, il la masquerait. */
+:root[data-theme='light'] .live-stage .live-wheel-wrap { isolation: isolate; }
+:root[data-theme='light'] .live-stage .live-wheel-wrap::before {
+  z-index: -1;
+  inset: 11%;
+  background: var(--live-face);
+  border: 1px solid color-mix(in srgb, var(--tr-text) 9%, transparent);
+  box-shadow: inset 0 1px 0 #ffffffb3, 0 1px 2px #2723300f, 0 22px 44px -26px #42335459;
+  opacity: 1;
+}
+:root[data-theme='light'] .live-wheel-ring { stroke: color-mix(in srgb, var(--tr-text) 28%, transparent); }
+:root[data-theme='light'] .live-wheel-ring-inner { stroke: color-mix(in srgb, var(--tr-text) 16%, transparent); }
+:root[data-theme='light'] .live-wheel-ticks line { stroke: color-mix(in srgb, var(--tr-text) 20%, transparent); }
+:root[data-theme='light'] .live-wheel-spoke { stroke: color-mix(in srgb, var(--tr-accent) 38%, transparent); }
+:root[data-theme='light'] .live-wheel-shape {
+  fill: color-mix(in srgb, var(--tr-accent) 13%, transparent);
+  stroke: var(--tr-accent-strong);
+  stroke-width: 1.4;
+  filter: none;
+}
+:root[data-theme='light'] .live-wheel-dot {
+  fill: var(--live-face);
+  stroke: color-mix(in srgb, var(--tr-text) 32%, transparent);
+}
+:root[data-theme='light'] .live-wheel-node.is-active .live-wheel-dot,
+:root[data-theme='light'] .live-wheel-node.is-root .live-wheel-dot {
+  stroke: var(--live-face);
+  stroke-width: 1.6;
+  filter: drop-shadow(0 .6px .6px #2723304d);
+}
+:root[data-theme='light'] .live-wheel-node.is-active .live-wheel-dot { fill: var(--tr-accent); }
+:root[data-theme='light'] .live-wheel-node.is-root .live-wheel-dot { fill: var(--tr-green); }
+/* Vert de la fondamentale en texte : un ton plus foncé, 5:1 sur le fond (3,2:1 sinon). */
+:root[data-theme='light'] .live-wheel-labels .live-wheel-label.is-root { color: #2b6a57; }
+
+/* Lectures et sélecteur de clé : --tr-border-soft disparaît sur le lavande. */
+:root[data-theme='light'] .live-stage .live-readouts > div { border-color: var(--live-ink-line); }
+:root[data-theme='light'] .live-stage .live-staff-clefs { border-color: var(--live-ink-line); }
+:root[data-theme='light'] .live-stage .live-staff-clefs button[aria-pressed='true'] {
+  background: var(--live-face);
+  box-shadow: 0 1px 2px #27233014;
+}
+:root[data-theme='light'] .live-staff-svg .staff-head.is-root { filter: none; }
+
 /* ---- Ce qui reste dans le DOM sans se montrer ------------------------------- */
 /* Les notes en pastilles : lues par le miroir du clavier, montrées par la roue. */
 .live-stage > .notes-display {

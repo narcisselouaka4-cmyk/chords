@@ -145,6 +145,19 @@
 #practice-tab > .tr-subnavigation { flex-shrink: 0; }
 #practice-body.tr-workspace { flex: 1; min-height: 0; }
 
+/* [Claude] — 2026-10-02 — Mode clair d'Entraînement : fond gris lavande au lieu du
+   quasi-blanc (Narcisse : « j'aime pas le fond blanc utilisé » ; teinte et étendue
+   choisies par lui : gris lavande, tout Entraînement, Analyse et Studio inchangés).
+   En-tête, sous-navigation, clavier et pied de page restent clairs : ce sont les
+   barres de l'interface, le lavande se lit entre elles. Gris secondaires un cran plus
+   foncés pour garder 4,5:1 sur ce fond. Le mode sombre n'est pas concerné. */
+:root[data-theme='light'] #practice-tab {
+  --tr-bg: #e6e2ee;
+  --tr-muted: #655d70;
+  --tr-secondary: #5c546a;
+  background: var(--tr-bg);
+}
+
 /* L'ancien habillage de la sous-navigation de Zic ne doit plus peser :
    les classes d'Astra sont chargées après, mais practice.css place encore un
    fond et une bordure sur .practice-subnav. */
