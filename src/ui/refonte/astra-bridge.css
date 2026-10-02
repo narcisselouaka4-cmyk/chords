@@ -929,13 +929,42 @@
 #analysis-tab .an-zoom-control label { cursor: pointer; }
 
 /* ---- Frise d'accords ----------------------------------------------------
-   analyzer-tab.js fabrique des .analyzer-timeline-block dont la LARGEUR est
-   proportionnelle à la durée réelle du segment et suit le zoom. On ne touche
-   pas à ce mécanisme : on lui donne l'apparence des pastilles du ruban Astra. */
-#analysis-tab .an-ribbon-chords-track { overflow-x: auto; scrollbar-width: thin; }
-#analyzer-chord-timeline-inner { display: flex; align-items: stretch; gap: 4px; height: 100%; }
-#analysis-tab .analyzer-timeline-block {
+   analyzer-tab.js fabrique des .analyzer-timeline-block dont la POSITION et la
+   LARGEUR sont calculées en pixels à partir du temps réel du segment et du
+   zoom (style.left / style.width). La piste est donc un plan de coordonnées,
+   pas un flux : elle est en position:relative et les blocs en position:absolute.
+
+   [Correctif 02/10] — ce pont posait ici `display:flex` sur la piste et
+   `position:relative` sur les blocs. Les deux mécanismes s'additionnaient : un
+   bloc prenait sa place dans le flux PUIS se décalait encore de son `left`.
+   Le douzième accord d'une grille se retrouvait à 2116 px au lieu de 1080 —
+   la frise ne disait plus où tombaient les accords, et les boutons de
+   défilement visaient à côté. La hauteur est fixée ici (50 px de piste, dont
+   6 px de gouttière pour la barre horizontale) pour qu'aucune barre verticale
+   ne vienne rogner les pastilles. */
+#analysis-tab .an-ribbon-chords-track {
+  height: 50px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--an-border-strong) transparent;
+}
+#analysis-tab .an-ribbon-chords-track::-webkit-scrollbar { height: 6px; }
+#analysis-tab .an-ribbon-chords-track::-webkit-scrollbar-track { background: transparent; }
+#analysis-tab .an-ribbon-chords-track::-webkit-scrollbar-thumb {
+  background: var(--an-border-strong);
+  border-radius: 100px;
+}
+#analyzer-chord-timeline-inner {
   position: relative;
+  display: block;
+  height: 100%;
+  min-width: 100%;
+}
+#analysis-tab .analyzer-timeline-block {
+  position: absolute;
+  top: 0;
+  bottom: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -988,14 +1017,34 @@
 
 /* ---- Sous-onglets Analyse -----------------------------------------------
    analyzer-tab.js écrit .active ; la maquette lit .is-active. */
+/* L'onglet courant doit se lire d'un coup d'œil. Un simple fond « raised » le
+   distinguait à peine de ses voisins au survol : on garde la teinte d'accent,
+   mais sur le texte et une réglette basse plutôt qu'en aplat plein — du blanc
+   sur --an-accent ne passe pas 4,5:1 à 12 px. */
 #analysis-tab .an-subtab-btn.active {
-  color: var(--an-text);
-  background: var(--an-surface-raised);
-  border-color: var(--an-border-strong);
+  position: relative;
+  color: var(--an-accent-bright);
+  background: var(--an-accent-soft);
+  border-color: var(--an-accent);
 }
-#analysis-tab .an-subtab-btn.active svg { color: var(--an-accent); }
-#analysis-tab .an-stage-viewport { flex: 1; min-height: 0; overflow: auto; }
-#analysis-tab .an-stage-viewport > .analyzer-panel { height: 100%; min-height: 0; }
+#analysis-tab .an-subtab-btn.active::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: -7px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--an-accent);
+}
+#analysis-tab .an-subtab-btn.active svg { color: var(--an-accent-bright); }
+/* [Correctif 02/10] — un seul conteneur de défilement. La scène portait
+   `overflow:auto` ET chaque .analyzer-panel portait `height:100%;
+   overflow-y:auto` : deux ascenseurs verticaux superposés, plus un ascenseur
+   horizontal parasite, et un double rembourrage (24 px de la scène + 16 px du
+   panneau) qui décalait tout le contenu de 40 px du bord. La scène garde le
+   défilement, le panneau redevient un simple bloc qui remplit la scène. */
+/* (la règle de base vit désormais dans analyzer-workspace.css) */
 
 /* ---- Accord sélectionné -------------------------------------------------
    Les contenus sont écrits par analyzer-tab.js et voicing-preview.js : on ne
@@ -1192,13 +1241,26 @@
 
 /* ---- Corriger -----------------------------------------------------------
    Flux et inspecteur remplis par corriger-panel.js (classes corriger-*). */
-#analysis-tab .corriger-panel { height: 100%; }
-#analysis-tab .an-correction-container { display: flex; flex-direction: column; gap: 14px; height: 100%; min-height: 0; }
+/* [Correctif 02/10] — « Corriger » restait le dernier sous-onglet à se
+   contraindre à la hauteur de la scène. Résultat sur une vraie analyse de 68
+   accords : la liste des segments gardait son max-height de 380 px de la
+   maquette à l'intérieur d'une carte réduite à 297 px par le partage de
+   hauteur, et `overflow:hidden` de .an-card coupait 83 px de liste SANS
+   ascenseur pour les atteindre. L'inspecteur, lui, scrollait sous son propre
+   en-tête, d'où l'en-tête tronqué en haut de la carte.
+   Comme partout ailleurs maintenant : les cartes prennent la hauteur de leur
+   contenu, et c'est la scène qui défile. */
+#analysis-tab .corriger-panel { height: auto; }
+#analysis-tab .an-correction-container { display: flex; flex-direction: column; gap: 14px; min-height: 100%; }
 #corriger-header.an-stats-counters { display: flex; flex-wrap: wrap; gap: 18px; }
 #corriger-header .corriger-stat { display: flex; flex-direction: column; gap: 2px; }
 #corriger-header .corriger-stat-value { color: var(--an-text); font-size: 20px; font-weight: 700; letter-spacing: -.03em; }
 #corriger-header .corriger-stat-label { color: var(--an-text-muted); font: 8.5px var(--an-mono); letter-spacing: .12em; text-transform: uppercase; }
-#analysis-tab .an-correction-workbench { flex: 1; min-height: 0; }
+/* align-items:start : chaque carte fait la hauteur de son contenu au lieu de
+   s'étirer sur la plus haute des deux. */
+#analysis-tab .an-correction-workbench { align-items: start; }
+/* L'inspecteur ne doit jamais rogner son en-tête : il grandit, la scène défile. */
+#analysis-tab #corriger-editor { overflow: visible; }
 #corriger-list.an-segments-list { display: flex; flex-direction: column; gap: 4px; overflow: auto; min-height: 0; }
 #corriger-list .corriger-segment,
 #corriger-list > button {

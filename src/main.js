@@ -18,6 +18,7 @@ import { initCopilotTab } from './pedagogie/copilot-tab.js';
 
 import { createNoteGrouper } from './note-grouper.js';
 import { initAnalyzerTab } from './ui/analyzer-tab.js';
+import { mountChromaStages } from './ui/components/loader-chroma.js';
 import { initStudioTab } from './ui/studio-tab.js';
 // [Claude 05/09] — Coach d'accompagnement au chant : vue sœur de Sessions MIDI
 // dans la sous-navigation d'Entraînement. Reste un flux séparé, sans pont de
@@ -2824,6 +2825,9 @@ async function init() {
   // n'allumer / n'éteindre que visuellement la touche concernée.
   safeInit('initCopilotKeyboardEvents', initCopilotKeyboardEvents);
   safeInit('initAISettings', initAISettings);
+  // [Refonte 02/10] — Écran d'attente commun : on remplit les emplacements
+  // `data-chroma-stage` (Analyse, Studio) depuis une source unique.
+  safeInit('mountChromaStages', () => mountChromaStages());
   // [Claude] — 2026-07-08 — Initialisation de l'onglet Analyse simplifié (import → analyse → grille).
   safeInit('initAnalyzerTab', initAnalyzerTab);
 

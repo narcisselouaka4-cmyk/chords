@@ -15,7 +15,9 @@
   --an-border-strong: rgba(186, 163, 255, 0.35);
   --an-text: #f5f2ff;
   --an-text-secondary: #aba1c5;
-  --an-text-muted: #7f749b;
+  /* Mesuré à 4,07:1 sur --an-bg en 9-10 px : sous le seuil. Éclairci
+     jusqu'à tenir 4,8:1 sur la plus claire des surfaces sombres. */
+  --an-text-muted: #968cb2;
   --an-accent: #9d77f8;
   --an-accent-bright: #b795ff;
   --an-accent-deep: #5935aa;
@@ -30,7 +32,10 @@
   --an-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
   --an-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
 
-  height: calc(100dvh - var(--midi-height));
+  /* [Correctif 02/10] — la maquette calculait `height: calc(100dvh -
+     var(--midi-height))`. Zic ne définit nulle part --midi-height : la
+     déclaration était invalide, donc ignorée. La hauteur vient du flux flex de
+     #app, qui réserve déjà sa place au clavier MIDI. */
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -61,7 +66,9 @@
   --an-border-strong: rgba(135, 106, 219, 0.45);
   --an-text: #241d33;
   --an-text-secondary: #6e6485;
-  --an-text-muted: #8d83a5;
+  /* Mesuré à 3,33:1 sur blanc : le nom du fichier analysé et les
+     libellés de fiche n'étaient pas lisibles en mode clair. */
+  --an-text-muted: #736b8a;
   --an-accent: #7b52db;
   --an-accent-bright: #683ecf;
   --an-accent-deep: #512aa8;
@@ -682,16 +689,50 @@
 /* =========================================================================
    SUB-TABS NAVIGATION
    ========================================================================= */
+/* La rangée des sous-onglets accueille aussi, à son extrémité droite, la
+   légende des rôles et l'interrupteur « Hiérarchiser » : ils décrivent la
+   frise juste au-dessus, et leur bande séparée coûtait 29 px de hauteur sur
+   une zone de travail qui n'en a que 400. */
+.an-subtabs-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 20px;
+  min-height: 44px;
+  background: var(--an-header);
+  border-bottom: 1px solid var(--an-border);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
 .an-subtabs-nav {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 0 24px;
-  height: 44px;
-  background: var(--an-header);
-  border-bottom: 1px solid var(--an-border);
-  flex-shrink: 0;
-  overflow-x: auto;
+  min-height: 44px;
+  /* flex-grow à 0 : la barre d'onglets prend la largeur de ses cinq boutons,
+     pas toute la rangée. Avec `flex: 1`, elle poussait la légende à la ligne
+     dès 1280 px alors que les deux tenaient côte à côte. */
+  flex: 0 1 auto;
+}
+
+.an-subtabs-bar .an-legend-strip {
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  gap: 16px;
+}
+
+/* Sous 1500 px, les cinq onglets et la légende ne tiennent plus qu'à quelques
+   pixels près sur une rangée. Plutôt que de laisser la légende tomber à la
+   ligne — 33 px pris sur une zone de travail qui en a 400 — on resserre son
+   propre rythme : elle reste entière, simplement plus compacte. */
+@media (max-width: 1500px) {
+  .an-subtabs-bar { gap: 10px; padding: 0 14px; }
+  .an-subtabs-bar .an-legend-strip { gap: 10px; }
+  .an-legend-items { gap: 10px; }
+  .an-legend-pill { font-size: 10px; }
 }
 
 .an-subtab-btn {
@@ -731,27 +772,49 @@
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 18px 24px;
+  /* Seul niveau de rembourrage de la scène : les .analyzer-panel qu'elle
+     contient n'en ajoutent plus (voir astra-bridge.css). */
+  padding: 16px 20px 20px;
   scrollbar-width: thin;
-  scrollbar-color: var(--an-border) transparent;
+  scrollbar-color: var(--an-border-strong) transparent;
+}
+
+.an-stage-viewport::-webkit-scrollbar { width: 8px; }
+.an-stage-viewport::-webkit-scrollbar-track { background: transparent; }
+.an-stage-viewport::-webkit-scrollbar-thumb {
+  background: var(--an-border-strong);
+  border-radius: 100px;
 }
 
 /* =========================================================================
    1. SOUS-ONGLET: ACCORD SÉLECTIONNÉ (HORIZONTALE PANORAMIQUE)
    ========================================================================= */
+/* [Correctif 02/10] — la maquette alignait QUATRE cartes ; deux seulement ont
+   été portées (les deux autres auraient affiché des textes qu'aucun moteur ne
+   produit). La grille, elle, était restée en quatre colonnes : deux colonnes
+   vides occupaient la moitié droite de l'écran. Un flux flexible remplace la
+   grille fixe — il répartit ce qui est réellement là, et quand la carte
+   « accord à l'écoute » est masquée (aucun accord sélectionné), la fiche
+   d'identité prend toute la largeur au lieu de laisser un trou. */
 .an-panoramic-container {
-  display: grid;
-  grid-template-columns: 1.35fr 1.1fr 1fr 1.15fr;
+  display: flex;
+  flex-wrap: wrap;
   gap: 16px;
   align-items: stretch;
-  min-height: 100%;
+  flex: 1;
+  min-height: 0;
 }
 
 .an-panoramic-card {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1 1 380px;
+  min-width: 0;
 }
+
+/* L'accord à l'écoute porte le clavier : il mérite un peu plus de largeur que
+   sa fiche d'identité, sans écraser celle-ci. */
+.an-panoramic-card.an-card-hero { flex-grow: 1.15; }
 
 /* CARD 1: HERO & 3D PIANO */
 .an-card-hero {
@@ -1096,7 +1159,8 @@
 
 .an-meta-label {
   font-family: var(--an-mono);
-  font-size: 9px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
   color: var(--an-text-muted);
   text-transform: uppercase;
 }
@@ -1946,6 +2010,8 @@
 
 .an-ai-avatar-wrap {
   position: relative;
+  flex-shrink: 0;
+  line-height: 0;
 }
 
 .an-ai-avatar-core {
@@ -2778,10 +2844,6 @@
    RESPONSIVE LAYOUTS
    ========================================================================= */
 @media (max-width: 1250px) {
-  .an-panoramic-container {
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto auto;
-  }
   .an-overview-grid {
     grid-template-columns: 1fr;
   }
@@ -2794,8 +2856,10 @@
 }
 
 @media (max-width: 900px) {
-  .an-panoramic-container {
-    grid-template-columns: 1fr;
+  /* Sous 900 px les deux cartes s'empilent : flex-basis au-delà de la
+     largeur disponible force le passage à la ligne. */
+  .an-panoramic-card {
+    flex-basis: 100%;
   }
   .an-overview-hero-bar {
     grid-template-columns: 1fr 1fr;
@@ -2806,4 +2870,168 @@
   .an-modal-options-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* L'écran d'attente de l'Analyse n'est plus défini ici : c'est le composant
+   commun ui/components/loader-chroma.{js,css}, partagé avec le Studio. */
+
+/* =========================================================================
+   STRUCTURE DU MORCEAU — « Vue d'ensemble »
+   [Refonte Analyse 02/10]
+
+   La carte montre la FORME du morceau, pas sa grille : une bande dont chaque
+   segment occupe la largeur de sa durée réelle, puis une ligne par partie
+   distincte. Deux parties bâties sur les mêmes accords portent la même lettre,
+   donc la bande se lit « A · B · B » et l'on voit tout de suite ce qui revient.
+   ========================================================================= */
+.an-form-band {
+  display: flex;
+  gap: 3px;
+  height: 46px;
+  margin-bottom: 14px;
+}
+
+.an-form-seg {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 0 10px;
+  border: 1px solid var(--an-border);
+  border-radius: 8px;
+  background: var(--an-surface-inset);
+  color: var(--an-text);
+  cursor: pointer;
+  overflow: hidden;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+}
+
+.an-form-seg:hover {
+  background: var(--an-surface-hover);
+  border-color: var(--an-accent);
+  transform: translateY(-1px);
+}
+
+.an-form-seg:focus-visible {
+  outline: 2px solid var(--an-accent);
+  outline-offset: 2px;
+}
+
+/* Chaque lettre a sa teinte : c'est elle qui fait voir la reprise d'un bout à
+   l'autre de la bande, avant même qu'on lise les lettres. */
+.an-form-seg[data-letter='A'] { background: color-mix(in srgb, var(--an-accent) 26%, var(--an-surface-inset)); }
+.an-form-seg[data-letter='B'] { background: color-mix(in srgb, var(--an-blue) 22%, var(--an-surface-inset)); }
+.an-form-seg[data-letter='C'] { background: color-mix(in srgb, var(--an-green) 22%, var(--an-surface-inset)); }
+.an-form-seg[data-letter='D'] { background: color-mix(in srgb, var(--an-amber) 22%, var(--an-surface-inset)); }
+.an-form-seg[data-letter='E'] { background: color-mix(in srgb, var(--an-red) 20%, var(--an-surface-inset)); }
+
+.an-form-seg-letter {
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+
+.an-form-seg-time {
+  font-family: var(--an-mono);
+  font-size: 9.5px;
+  color: var(--an-text-secondary);
+  white-space: nowrap;
+}
+
+/* Une partie très courte n'a pas la place de ses deux lignes : on garde la
+   lettre, qui suffit à situer le passage, et l'heure part dans l'infobulle. */
+.an-form-seg { container-type: inline-size; }
+
+@container (max-width: 54px) {
+  .an-form-seg { align-items: center; padding: 0 4px; }
+  .an-form-seg-time { display: none; }
+}
+
+/* ---- Une ligne par partie distincte ---- */
+.an-form-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.an-form-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--an-border-soft);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--an-text);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.an-form-row:hover {
+  background: var(--an-surface-raised);
+  border-color: var(--an-border);
+}
+
+.an-form-row:focus-visible {
+  outline: 2px solid var(--an-accent);
+  outline-offset: 2px;
+}
+
+.an-form-row-letter {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  background: var(--an-accent-soft);
+  color: var(--an-accent-bright);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.an-form-row-when {
+  min-width: 15ch;
+  font-family: var(--an-mono);
+  font-size: 10.5px;
+  color: var(--an-text-secondary);
+}
+
+.an-form-row-chords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+}
+
+.an-form-chord {
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: var(--an-surface-inset);
+  border: 1px solid var(--an-border-soft);
+  font-size: 11.5px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.an-form-row-changes {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 10.5px;
+  color: var(--an-text-muted);
+  white-space: nowrap;
+}
+
+.an-song-parts-note {
+  margin: 12px 0 0;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--an-text-muted);
 }

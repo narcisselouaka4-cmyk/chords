@@ -58,7 +58,13 @@ Le module Studio suit **obligatoirement** un workflow de 4 étapes.
 
 ### Étape 0 : Arrivée sur l'onglet
 - Aucun morceau sélectionné.
-- L'écran affiche **uniquement** la liste "Morceaux importés" centrée en grand.
+- L'écran affiche l'**accueil du Studio** (`.studio-empty-hero`) : ce que
+  l'onglet sait faire, et deux actions — importer un fichier, ou reprendre un
+  morceau déjà importé. *(changé le 02/10/2026 : auparavant, la liste
+  « Morceaux importés » occupait seule le centre de l'écran en grand ; elle
+  demandait de choisir avant d'avoir dit à quoi sert l'onglet.)*
+- La liste reste à un clic, dans le tiroir « Musiques importées » ouvert depuis
+  la barre du haut (classe `.library-open` sur `#studio-tab`).
 - Vidéo, waveform, contrôles, stems sont masqués.
 
 ### Étape 1 : Ciblage
@@ -177,6 +183,13 @@ La boucle `requestAnimationFrame` qui modifiait `video.playbackRate` causait un 
 - Les overlays plein écran avec `pointer-events:none` peuvent quand même flouter et décourager l'utilisateur. Préférer un message flottant compact.
 - Le bouton **Confirmer la région** doit être visible dès l'Étape 1, mais désactivé tant qu'aucune région n'est tracée.
 - L'écran de chargement doit être `position: absolute` dans `.studio-tab` pour ne bloquer que l'onglet Studio, et la lecture doit être mise en pause automatiquement.
+- **L'écran d'attente est un composant commun** : `src/ui/components/loader-chroma.{js,css}`.
+  Poser `<div data-chroma-stage></div>` dans le markup ; `mountChromaStages()`
+  (appelé une fois depuis `main.js`) le remplit. Ne pas réécrire de spinner.
+- L'étape 0 du Studio repose sur une grille à deux rangées
+  (`:root[data-skin] #studio-tab.stage-0 { grid-template-rows: auto minmax(0,1fr) }`) :
+  le bloc de skin plus haut dans `studio.css` impose `minmax(0,1fr)` avec une
+  spécificité supérieure, d'où le `:root[data-skin]` en préfixe.
 - L'Étape 0 affiche uniquement la liste des morceaux importés, centrée en grand.
 
 
@@ -214,7 +227,9 @@ On ne redemande validation que pour les choix architecturaux majeurs ou irréver
 ## 10. Checklist manuelle Studio
 
 À valider après chaque modification audio majeure :
-1. Arriver dans l'onglet Studio sans track → seule la liste des morceaux apparaît, centrée.
+1. Arriver dans l'onglet Studio sans track → l'accueil apparaît (disque, titre,
+   deux actions, quatre repères) ; « Musiques importées » ouvre le tiroir de la
+   liste et un clic en dehors le referme.
 2. Cliquer un morceau → déploiement de l'interface (vidéo, waveform, contrôles).
 3. Importer un MP3 → Étape 1 → Play → son sort.
 4. Importer un MP4/M4A → image + son synchronisés, pas de freeze à 2s, pas de bruit sourd.

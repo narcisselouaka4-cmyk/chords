@@ -39,6 +39,8 @@
     <link rel="stylesheet" href="./style.css" />
     <link rel="stylesheet" href="./ui/components/design-system.css" />
     <link rel="stylesheet" href="./ui/components/analyzer-workspace.css" />
+    <!-- Écran d'attente commun (Analyse, Studio) — voir ui/components/loader-chroma.js -->
+    <link rel="stylesheet" href="./ui/components/loader-chroma.css" />
     <!-- [Refonte v2/Global] — système de thème v2/Global. Chargé en <link>
          (et non via import JS) pour rester non-layered, au même niveau de
          cascade que style.css : la spécificité tranche, pas l'ordre d'injection. -->
@@ -1008,46 +1010,47 @@
       <main class="analysis-tab an-workspace-shell" id="analysis-tab" style="display: none;">
         <section class="analyzer-workspace" id="analyzer-workspace">
           <!-- État 1 : Import source -->
+          <!-- [Refonte Analyse 02/10] — l'écran d'accueil ne propose plus que
+               ce que l'onglet Analyse sait faire de mieux : prendre un fichier
+               audio et en sortir une grille d'accords.
+               · La carte « Vidéo (MP4) » est retirée — le même geste existe,
+                 mieux outillé, dans Pédagogie IA.
+               · La carte « Enregistrer au clavier MIDI » est retirée — les
+                 Sessions MIDI de l'onglet Entraînement font déjà la capture.
+               Trois portes d'entrée pour un seul but, c'était trois décisions
+               à prendre avant d'avoir commencé. -->
           <div class="analyzer-state" id="analyzer-import-screen">
             <div class="analyzer-import-hero">
-              <div class="analyzer-import-icon">📤</div>
-              <h2>Importer un fichier</h2>
-              <p>Importez un fichier audio ou vidéo pour lancer l'analyse et détecter les accords utilisés.</p>
-              <div class="analyzer-import-cards">
-                <button type="button" class="analyzer-import-card" id="analyzer-import-audio-btn" aria-label="Importer un fichier audio">
-                  <span class="analyzer-import-card-icon audio" aria-hidden="true">🎵</span>
-                  <div>
-                    <div class="analyzer-import-card-title">Audio (MP3, WAV)</div>
-                    <div class="analyzer-import-card-sub">Importez un fichier audio pour analyser les accords.</div>
-                  </div>
-                  <span class="analyzer-import-card-arrow" aria-hidden="true">›</span>
-                </button>
-                <button type="button" class="analyzer-import-card" id="analyzer-import-video-btn" aria-label="Importer une vidéo">
-                  <span class="analyzer-import-card-icon video" aria-hidden="true">🎬</span>
-                  <div>
-                    <div class="analyzer-import-card-title">Vidéo (MP4)</div>
-                    <div class="analyzer-import-card-sub">Importez une vidéo (le son sera analysé).</div>
-                  </div>
-                  <span class="analyzer-import-card-arrow" aria-hidden="true">›</span>
-                </button>
-              </div>
-              <div class="analyzer-import-separator"><span>OU</span></div>
-              <button type="button" class="analyzer-import-card midi" id="analyzer-import-midi-btn" aria-label="Enregistrer au clavier MIDI">
-                <span class="analyzer-import-card-icon midi" aria-hidden="true">🎹</span>
+              <span class="analyzer-import-icon" aria-hidden="true">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+              </span>
+              <h2>Analyser un morceau</h2>
+              <p>Choisissez un fichier audio : l'application en détecte les accords, la tonalité et le tempo, puis vous laisse les parcourir au clavier.</p>
+
+              <button type="button" class="analyzer-import-card is-lead" id="analyzer-import-audio-btn" aria-label="Choisir un fichier audio à analyser">
+                <span class="analyzer-import-card-icon audio" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M17 8l-5-5-5 5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
+                </span>
                 <div>
-                  <div class="analyzer-import-card-title">Enregistrer au clavier MIDI</div>
-                  <div class="analyzer-import-card-sub">Jouez des notes en temps réel pour capturer et analyser les accords.</div>
+                  <div class="analyzer-import-card-title">Choisir un fichier audio</div>
+                  <div class="analyzer-import-card-sub">MP3, WAV ou M4A. Votre fichier n'est jamais modifié.</div>
                 </div>
-                <span class="analyzer-import-card-arrow" aria-hidden="true">›</span>
+                <span class="analyzer-import-card-arrow" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                </span>
               </button>
+
               <!-- [Refonte] — La bibliothèque n'est plus listée ici : elle a sa
                    propre fenêtre, ouverte depuis l'en-tête (🎵) et donc
                    atteignable aussi bien depuis le Studio que depuis l'Analyse.
                    Il reste ce raccourci pour ne pas perdre le chemin d'accès
                    depuis l'écran d'import. -->
               <button type="button" class="analyzer-library-open" id="analyzer-library-open">
-                🎵 Reprendre un morceau de ma bibliothèque
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5v14"/><path d="M8 5v14"/><path d="m13 6 7 2-4 13-7-2z"/></svg>
+                Reprendre un morceau déjà importé
               </button>
+              <p class="analyzer-import-footnote">Un morceau déjà analysé se rouvre instantanément : ses accords sont enregistrés, rien n'est recalculé.</p>
+
               <!-- Bouton historique conservé pour compatibilité initiale -->
               <button type="button" id="analyzer-import-btn" class="analyzer-import-legacy" style="display:none">Importer un nouveau fichier</button>
             </div>
@@ -1155,117 +1158,22 @@
             </div>
           </div>
 
-          <!-- État 4 : Enregistrement MIDI -->
-          <div class="analyzer-state" id="analyzer-state-midi-record">
-            <aside class="analyzer-midi-sidebar left">
-              <div class="analyzer-panel-title">Paramètres de session</div>
-              <label class="analyzer-field">
-                <span>Nom de la session</span>
-                <input type="text" id="analyzer-midi-session-name" value="Impro MIDI" />
-              </label>
-              <div class="analyzer-midi-source">
-                <div class="analyzer-field-label">Source MIDI</div>
-                <div class="analyzer-midi-source-name" id="analyzer-midi-source-name">—</div>
-                <div class="analyzer-midi-source-status" id="analyzer-midi-source-status">Connecté</div>
-              </div>
-              <label class="analyzer-field">
-                <span>Compte à rebours</span>
-                <select id="analyzer-midi-countdown">
-                  <option value="0">Aucun</option>
-                  <option value="1">1 mesure</option>
-                  <option value="2" selected>2 mesures (en 4/4)</option>
-                  <option value="4">4 mesures</option>
-                </select>
-              </label>
-              <label class="analyzer-field">
-                <span>Quantification</span>
-                <select id="analyzer-midi-quantization">
-                  <option value="none">Désactivée</option>
-                  <option value="1/16" selected>1/16</option>
-                  <option value="1/8">1/8</option>
-                  <option value="1/4">1/4</option>
-                </select>
-              </label>
-              <label class="analyzer-field switch">
-                <span>Conserver la mélodie</span>
-                <input type="checkbox" id="analyzer-midi-keep-melody" checked />
-              </label>
-              <button type="button" class="btn-secondary analyzer-reset-btn" id="analyzer-midi-reset">↺ Réinitialiser la session</button>
-            </aside>
-
-            <div class="analyzer-midi-center">
-              <button type="button" id="analyzer-midi-back-btn" class="btn-secondary btn-sm" title="Nouvelle analyse" style="align-self: flex-start; margin-bottom: 12px;">← Nouvelle analyse</button>
-              <div class="analyzer-midi-status">
-                <div class="analyzer-midi-rec-dot" id="analyzer-midi-rec-dot"></div>
-                <div class="analyzer-midi-status-text" id="analyzer-midi-status-text">SESSION MIDI EN COURS</div>
-              </div>
-              <div class="analyzer-midi-timer" id="analyzer-midi-timer">00:00</div>
-              <div class="analyzer-midi-bpm" id="analyzer-midi-bpm">4/4 • 120 BPM</div>
-              <div class="analyzer-midi-controls">
-                <button type="button" class="analyzer-midi-record-btn" id="analyzer-midi-record-btn">● Enregistrer</button>
-                <button type="button" class="btn-secondary" id="analyzer-midi-pause-btn">⏸ Pause</button>
-                <button type="button" class="btn-secondary" id="analyzer-midi-stop-btn">■ Arrêter</button>
-              </div>
-              <div class="analyzer-pianoroll" id="analyzer-pianoroll" aria-label="Piano-roll temps réel">
-                <div class="analyzer-pianoroll-placeholder">Piano-roll temps réel</div>
-              </div>
-              <div class="analyzer-midi-bottom">
-                <div class="analyzer-midi-topnotes">
-                  <div class="analyzer-midi-section-title">Top notes détectées</div>
-                  <div class="analyzer-topnotes-list" id="analyzer-topnotes-list">—</div>
-                  <div class="analyzer-topnotes-hint" id="analyzer-topnotes-hint">Basé sur les dernières notes reçues</div>
-                </div>
-                <div class="analyzer-midi-segments">
-                  <div class="analyzer-midi-section-title">Segments capturés</div>
-                  <div class="analyzer-segments-list" id="analyzer-segments-list">
-                    <span class="analyzer-segment-placeholder">Aucun segment</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <aside class="analyzer-midi-sidebar right">
-              <div class="analyzer-panel-title">État de la session</div>
-              <div class="analyzer-midi-status-grid">
-                <div class="analyzer-midi-status-row">
-                  <span class="analyzer-midi-status-label">Source MIDI</span>
-                  <span class="analyzer-midi-status-badge connected" id="analyzer-midi-source-badge">Connectée</span>
-                </div>
-                <div class="analyzer-midi-status-row">
-                  <span class="analyzer-midi-status-label">Enregistrement</span>
-                  <span class="analyzer-midi-status-badge" id="analyzer-midi-rec-badge">Inactif</span>
-                </div>
-                <div class="analyzer-midi-status-row">
-                  <span class="analyzer-midi-status-label">Durée</span>
-                  <span class="analyzer-midi-status-value" id="analyzer-midi-duration-stat">00:00</span>
-                </div>
-                <div class="analyzer-midi-status-row">
-                  <span class="analyzer-midi-status-label">Segments</span>
-                  <span class="analyzer-midi-status-value" id="analyzer-midi-segments-stat">0</span>
-                </div>
-                <div class="analyzer-midi-status-row">
-                  <span class="analyzer-midi-status-label">Notes capturées</span>
-                  <span class="analyzer-midi-status-value" id="analyzer-midi-notes-stat">0</span>
-                </div>
-                <div class="analyzer-midi-status-row">
-                  <span class="analyzer-midi-status-label">Statut</span>
-                  <span class="analyzer-midi-status-badge ready" id="analyzer-midi-status-badge">Prêt</span>
-                </div>
-              </div>
-              <div class="analyzer-tip">
-                <div class="analyzer-tip-title">💡 Conseil</div>
-                <div class="analyzer-tip-text">Jouez librement sur votre synthé. Nous capturons à la fois la mélodie et l'harmonie.</div>
-              </div>
-             </aside>
-           </div>
-
           <!-- [Refonte 2026-09-02, rétabli le 2026-09-03] — overlay de
                traitement : FRÈRE des analyzer-states dans analyzer-workspace,
                pas enfant de #analyzer-results (masqué pendant l'analyse,
                l'overlay y serait invisible — bug refonte, corrigé le 03/09). -->
           <div class="analyzer-processing-overlay" id="analyzer-processing" style="display: none;">
             <div class="analyzer-processing-box">
-              <div class="analyzer-processing-spinner"></div>
+              <!-- [Refonte Analyse 02/10] — l'attente dure souvent plusieurs
+                   minutes ; un rond qui tourne n'y dit rien de ce qui se passe.
+                   Ce qui se passe, c'est que le moteur lit l'énergie des douze
+                   demi-tons image par image : c'est exactement ce que montre
+                   cette scène. Les douze colonnes sont rangées comme une
+                   octave de piano — les cinq « touches noires » plus étroites
+                   et plus sombres — et la ligne qui balaye est la tête de
+                   lecture qui avance dans le morceau. Décor pur : aucune des
+                   valeurs affichées ne prétend venir de l'analyse en cours. -->
+              <div data-chroma-stage></div>
               <p class="analyzer-processing-text" id="analyzer-processing-text">Analyse en cours…</p>
               <!-- Compteur de temps écoulé : une analyse dure souvent plus
                    d'une minute ; sans lui, l'écran d'attente est
@@ -1273,116 +1181,6 @@
               <p class="analyzer-processing-elapsed" id="analyzer-processing-elapsed" aria-live="polite"></p>
               <p class="analyzer-processing-hint">Vous pouvez continuer à utiliser les onglets Entraînement et Studio.</p>
             </div>
-          </div>
-
-          <!-- État 5 : Résultats / Réharmonisation -->
-          <div class="analyzer-state" id="analyzer-state-results">
-            <aside class="analyzer-results-sidebar left">
-              <div class="analyzer-panel-title">Détails de la session</div>
-              <div class="analyzer-detail-row">
-                <span class="analyzer-detail-icon" aria-hidden="true">🎵</span>
-                <div>
-                  <div class="analyzer-detail-label">Tonalité détectée</div>
-                  <div class="analyzer-detail-value" id="analyzer-result-key">—</div>
-                </div>
-              </div>
-              <div class="analyzer-detail-row">
-                <span class="analyzer-detail-icon" aria-hidden="true">🎷</span>
-                <div>
-                  <div class="analyzer-detail-label">Style détecté</div>
-                  <div class="analyzer-detail-value" id="analyzer-result-style">—</div>
-                </div>
-              </div>
-              <div class="analyzer-detail-row">
-                <span class="analyzer-detail-icon" aria-hidden="true">🎹</span>
-                <div>
-                  <div class="analyzer-detail-label">Source</div>
-                  <div class="analyzer-detail-value" id="analyzer-result-source">—</div>
-                </div>
-              </div>
-              <div class="analyzer-detail-row">
-                <span class="analyzer-detail-icon" aria-hidden="true">⏱</span>
-                <div>
-                  <div class="analyzer-detail-label">Durée</div>
-                  <div class="analyzer-detail-value" id="analyzer-result-duration">—</div>
-                </div>
-              </div>
-              <div class="analyzer-detail-row constraints">
-                <span class="analyzer-detail-icon" aria-hidden="true">📋</span>
-                <div>
-                  <div class="analyzer-detail-label">Contraintes</div>
-                  <ul id="analyzer-result-constraints">
-                    <li>Conserver la mélodie</li>
-                    <li>Voicings jouables</li>
-                    <li>Éviter les quintes parallèles</li>
-                    <li>Préférer les tensions douces</li>
-                  </ul>
-                </div>
-              </div>
-              <button type="button" class="btn-secondary w-full" id="analyzer-result-view-capture">🎹 Voir la capture MIDI</button>
-            </aside>
-
-            <div class="analyzer-results-center">
-              <div class="analyzer-result-section">
-                <div class="analyzer-section-title">Mélodie capturée</div>
-                <div class="analyzer-melody-staff" id="analyzer-melody-staff">
-                  <div class="analyzer-melody-placeholder">Portée musicale (données MIDI requises)</div>
-                </div>
-              </div>
-              <div class="analyzer-result-section">
-                <div class="analyzer-section-title">Notes repères</div>
-                <div class="analyzer-anchor-notes" id="analyzer-anchor-notes">—</div>
-              </div>
-              <div class="analyzer-result-section">
-                <div class="analyzer-section-header">
-                  <div class="analyzer-section-title">Propositions de réharmonisation</div>
-                  <div class="analyzer-sort">
-                    <label>Trier par</label>
-                    <select id="analyzer-reharm-sort">
-                      <option value="relevance">Pertinence</option>
-                      <option value="coherence">Cohérence</option>
-                      <option value="tension">Tension</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="analyzer-reharm-grid" id="analyzer-reharm-grid"></div>
-                <button type="button" class="btn-secondary analyzer-more-btn" id="analyzer-reharm-more">Afficher plus de variantes</button>
-              </div>
-            </div>
-
-            <aside class="analyzer-results-sidebar right">
-              <div class="analyzer-panel-title">Résumé</div>
-              <div class="analyzer-detail-row">
-                <span class="analyzer-detail-icon" aria-hidden="true">🎵</span>
-                <div>
-                  <div class="analyzer-detail-label">Contrainte mélodique</div>
-                  <div class="analyzer-detail-value" id="analyzer-summary-melody">La mélodie sera conservée.</div>
-                </div>
-              </div>
-              <div class="analyzer-detail-row">
-                <span class="analyzer-detail-icon" aria-hidden="true">🎼</span>
-                <div>
-                  <div class="analyzer-detail-label">Tonalité détectée</div>
-                  <div class="analyzer-detail-value" id="analyzer-summary-key">—</div>
-                </div>
-              </div>
-              <div class="analyzer-detail-row">
-                <span class="analyzer-detail-icon" aria-hidden="true">📊</span>
-                <div>
-                  <div class="analyzer-detail-label">Analyse</div>
-                  <div class="analyzer-detail-value" id="analyzer-summary-analysis">—</div>
-                </div>
-              </div>
-              <div class="analyzer-detail-row">
-                <span class="analyzer-detail-icon" aria-hidden="true">⏩</span>
-                <div>
-                  <div class="analyzer-detail-label">Action suivante</div>
-                  <div class="analyzer-detail-value" id="analyzer-summary-next">Comparez les propositions pour écouter et choisir la version qui convient le mieux à votre morceau.</div>
-                </div>
-              </div>
-              <button type="button" class="btn-primary w-full" id="analyzer-compare-btn" disabled>⚖ Comparer les propositions</button>
-              <button type="button" class="btn-secondary w-full" id="analyzer-apply-recommended-btn" disabled>✨ Appliquer la version recommandée</button>
-            </aside>
           </div>
 
           <!-- Vue d'analyse active : lecteur + timeline + inspecteur + onglets -->
@@ -1437,18 +1235,6 @@
                  d'accords recopiées de la maquette. La frise reste celle de Zic
                  (blocs proportionnels à la durée réelle, pilotés par le zoom) :
                  seule son habillage devient celui du ruban d'Astra. -->
-            <div class="an-legend-strip" id="analyzer-timeline-legend">
-              <div class="an-legend-items">
-                <span class="an-legend-pill is-structural"><i></i>Accord structurel</span>
-                <span class="an-legend-pill is-passing"><i></i>Accord de passage</span>
-                <span class="an-legend-pill is-uncertain"><i></i>Incertain</span>
-              </div>
-              <label class="an-hierarchize-toggle">
-                <input type="checkbox" id="analyzer-hierarchy-toggle" checked />
-                <span>Hiérarchiser</span>
-              </label>
-            </div>
-
             <div class="an-chord-progression-ribbon" role="region" aria-label="Ligne des accords">
               <button type="button" class="an-ribbon-nav-btn" id="analyzer-timeline-scroll-left" aria-label="Défiler à gauche" title="Accord précédent"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
               <div class="an-ribbon-chords-track" id="analyzer-chord-timeline">
@@ -1461,13 +1247,30 @@
                  recopiée de la maquette. Les data-section sont ceux que lit
                  activateSectionTab() dans analyzer-tab.js, et le module bascule
                  la classe .active (et non .is-active) : le pont fait l'alias. -->
-            <nav class="an-subtabs-nav" id="analyzer-section-tabs" role="tablist" aria-label="Sous-onglets Analyse">
-              <button type="button" class="an-subtab-btn active" data-section="chords" role="tab" aria-selected="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><span>Accord sélectionné</span></button>
-              <button type="button" class="an-subtab-btn" data-section="analysis" role="tab" aria-selected="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg><span>Vue d’ensemble</span></button>
-              <button type="button" class="an-subtab-btn" data-section="reharm" role="tab" aria-selected="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12.83 2.18 8.58 3.91a1 1 0 0 1 0 1.82l-8.58 3.91a2 2 0 0 1-1.66 0L2.59 7.91a1 1 0 0 1 0-1.82l8.58-3.91a2 2 0 0 1 1.66 0Z"/><path d="m22 12.5-9.17 4.18a2 2 0 0 1-1.66 0L2 12.5"/><path d="m22 17.5-9.17 4.18a2 2 0 0 1-1.66 0L2 17.5"/></svg><span>Réharmonisation</span></button>
-              <button type="button" class="an-subtab-btn" data-section="masterclass" role="tab" aria-selected="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.42 10.92a1 1 0 0 0-.02-1.84L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.83l8.57 3.91a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg><span>Masterclass</span></button>
-              <button type="button" class="an-subtab-btn" data-section="corriger" role="tab" aria-selected="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg><span>Corriger</span></button>
-            </nav>
+            <div class="an-subtabs-bar">
+              <nav class="an-subtabs-nav" id="analyzer-section-tabs" role="tablist" aria-label="Sous-onglets Analyse">
+                <button type="button" class="an-subtab-btn active" data-section="chords" role="tab" aria-selected="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><span>Accord sélectionné</span></button>
+                <button type="button" class="an-subtab-btn" data-section="analysis" role="tab" aria-selected="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg><span>Vue d’ensemble</span></button>
+                <button type="button" class="an-subtab-btn" data-section="reharm" role="tab" aria-selected="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12.83 2.18 8.58 3.91a1 1 0 0 1 0 1.82l-8.58 3.91a2 2 0 0 1-1.66 0L2.59 7.91a1 1 0 0 1 0-1.82l8.58-3.91a2 2 0 0 1 1.66 0Z"/><path d="m22 12.5-9.17 4.18a2 2 0 0 1-1.66 0L2 12.5"/><path d="m22 17.5-9.17 4.18a2 2 0 0 1-1.66 0L2 17.5"/></svg><span>Réharmonisation</span></button>
+                <button type="button" class="an-subtab-btn" data-section="masterclass" role="tab" aria-selected="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.42 10.92a1 1 0 0 0-.02-1.84L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.83l8.57 3.91a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg><span>Masterclass</span></button>
+                <button type="button" class="an-subtab-btn" data-section="corriger" role="tab" aria-selected="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg><span>Corriger</span></button>
+              </nav>
+
+              <!-- La légende des rôles et l'interrupteur « Hiérarchiser »
+                   décrivent la frise ci-dessus : ils tiennent au bout de la
+                   rangée d'onglets plutôt que dans une bande à eux. -->
+              <div class="an-legend-strip" id="analyzer-timeline-legend">
+                <div class="an-legend-items">
+                  <span class="an-legend-pill is-structural"><i></i>Accord structurel</span>
+                  <span class="an-legend-pill is-passing"><i></i>Accord de passage</span>
+                  <span class="an-legend-pill is-uncertain"><i></i>Incertain</span>
+                </div>
+                <label class="an-hierarchize-toggle">
+                  <input type="checkbox" id="analyzer-hierarchy-toggle" checked />
+                  <span>Hiérarchiser</span>
+                </label>
+              </div>
+            </div>
 
             <div class="an-stage-viewport" id="analyzer-section-panels">
               <!-- [Refonte Astra Analyse 12/09] — « Accord sélectionné », mise en
@@ -1729,7 +1532,7 @@
 
         <div id="studio-processing-overlay" class="studio-processing-overlay" style="display: none;">
           <div class="studio-processing-box">
-            <div class="studio-processing-spinner"></div>
+            <div data-chroma-stage></div>
             <h3>Préparation du morceau</h3>
             <p id="studio-processing-label">Extraction audio en cours...</p>
             <div class="studio-processing-bar-wrap">
@@ -1751,6 +1554,56 @@
           <span class="studio-recording-dot"></span>
           <span>REC</span>
         </div>
+
+        <!-- [Refonte Studio 02/10] — Écran d'accueil du Studio, repris de la
+             maquette Astra. Il remplace la grande liste centrée : celle-ci
+             demandait de choisir un morceau avant d'avoir dit à quoi sert cet
+             onglet. La liste reste à un clic, dans le tiroir « Musiques
+             importées ».
+             Les quatre repères du bas décrivent ce que le Studio de Zic fait
+             RÉELLEMENT — la maquette annonçait une console 3 bandes M/S et un
+             export WAV, que cette application n'a pas (les boutons d'export
+             sont encore désactivés). -->
+        <div class="studio-home-bar" id="studio-home-bar">
+          <button type="button" class="studio-home-btn" id="studio-home-library-btn" aria-expanded="false" aria-controls="studio-sidebar-left">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5v14"/><path d="M8 5v14"/><path d="m13 6 7 2-4 13-7-2z"/></svg>
+            <span>Musiques importées</span>
+            <span class="studio-home-count" id="studio-home-count">0</span>
+          </button>
+          <button type="button" class="studio-home-btn is-primary" id="studio-home-import-btn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M17 8l-5-5-5 5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
+            <span>Importer un fichier</span>
+          </button>
+          <span class="studio-home-privacy">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
+            Tout le traitement se fait sur votre ordinateur
+          </span>
+        </div>
+
+        <section class="studio-empty-hero" id="studio-empty-hero">
+          <span class="studio-empty-vinyl" aria-hidden="true">
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>
+          </span>
+          <span class="studio-empty-eyebrow">Votre table de mixage personnelle</span>
+          <h1 class="studio-empty-title">Un morceau. Votre console.<br /><em>Sculptez le son.</em></h1>
+          <p class="studio-empty-text">Importez un titre, isolez le piano, la basse ou la voix, reprenez une région au casque et transposez sans couper le son.</p>
+          <div class="studio-empty-actions">
+            <button type="button" class="studio-home-btn is-primary is-lg" id="studio-hero-import-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M17 8l-5-5-5 5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
+              Importer un fichier audio ou vidéo
+            </button>
+            <button type="button" class="studio-home-btn is-lg" id="studio-hero-library-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5v14"/><path d="M8 5v14"/><path d="m13 6 7 2-4 13-7-2z"/></svg>
+              Reprendre un morceau importé
+            </button>
+          </div>
+          <div class="studio-empty-features">
+            <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12h2M6 8v8M10 4v16M14 7v10M18 10v4M22 12h-2"/></svg>Forme d'onde et région de travail</span>
+            <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>Séparation des instruments</span>
+            <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Mute, solo et volume par piste</span>
+            <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6.5h20v11H2z"/><path d="M6 6.5v6M10 6.5v6M14 6.5v6M18 6.5v6M2 12.5h20"/></svg>Transposition &#177;12 demi-tons</span>
+          </div>
+        </section>
 
         <aside class="studio-sidebar left" id="studio-sidebar-left">
           <div class="panel studio-tracks-panel" id="studio-tracks-panel">
