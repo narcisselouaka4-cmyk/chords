@@ -120,7 +120,7 @@ global.document = {
 };
 
 // 2. Import dynamique APRÈS le setup de window
-const { sendCopilotMessage, executeToolCalls, wantsToHear, myPlayingRequest, melodyChordsRequest, wantsMelodyChords } = await import('./copilot-client.js');
+const { sendCopilotMessage, executeToolCalls, wantsToHear, myPlayingRequest, melodyChordsRequest, wantsMelodyChords, setCopilotTimeout } = await import('./copilot-client.js');
 
 const GREEN = '\x1b[32m';
 const RED = '\x1b[31m';
@@ -1517,6 +1517,34 @@ async function testMelodyChordsInSend() {
   global.fetch = originalFetch;
 }
 
+// [Claude] — 2026-09-26 — Narcisse : « on ne peut plus converser avec l'IA, la case ne
+// réagit plus ». Un service d'IA qui ne répond pas ne bloque plus le Copilote.
+async function testTimeout() {
+  const originalFetch = global.fetch;
+  global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
+  setCopilotTimeout(60);
+  // Navigateur : la requête est interrompue au bout du délai.
+  global.fetch = (url, options) => new Promise((resolve, reject) => {
+    options?.signal?.addEventListener('abort', () => reject(Object.assign(new Error('The operation was aborted.'), { name: 'AbortError' })));
+  });
+  let t0 = Date.now();
+  const aborted = await sendCopilotMessage({ message: 'Bonjour', messages: [], context: null });
+  check('Service d\'IA muet (navigateur) : « AI_TIMEOUT » au bout du délai, sans attendre sans fin', aborted.ok === false && aborted.error === 'AI_TIMEOUT' && Date.now() - t0 < 2000, `${JSON.stringify(aborted)} en ${Date.now() - t0} ms`);
+  // Une requête qui ne répond jamais et ignore l'interruption : le délai s'applique quand même.
+  global.fetch = () => new Promise(() => {});
+  t0 = Date.now();
+  const stuck = await sendCopilotMessage({ message: 'Bonjour', messages: [], context: null });
+  check('Requête qui ne rend jamais la main : « AI_TIMEOUT » quand même', stuck.ok === false && stuck.error === 'AI_TIMEOUT' && Date.now() - t0 < 2000, JSON.stringify(stuck));
+  // Electron : le processus principal applique le délai reçu et le signale.
+  let received = null;
+  global.window.electronAPI = { ai: { chatCompletion: async (baseUrl, apiKey, body, timeoutMs) => { received = timeoutMs; throw new Error(`Request timeout after ${timeoutMs}ms`); } } };
+  const electron = await sendCopilotMessage({ message: 'Bonjour', messages: [], context: null });
+  check('Electron : le délai est transmis au processus principal, son dépassement donne « AI_TIMEOUT »', received === 60 && electron.error === 'AI_TIMEOUT', `${received} ${JSON.stringify(electron)}`);
+  delete global.window.electronAPI;
+  setCopilotTimeout(90000);
+  global.fetch = originalFetch;
+}
+
 async function runTests() {
   testToolCalls();
   await testNoKey();
@@ -1560,6 +1588,7 @@ async function runTests() {
   testMelodyChordsTool();
   testMelodyChordsRequest();
   await testMelodyChordsInSend();
+  await testTimeout();
   testWantsToHear();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);

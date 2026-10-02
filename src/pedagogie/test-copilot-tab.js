@@ -39,6 +39,8 @@ const {
   AUTONOMOUS_HISTORY_KEY,
   nextModeOnSelectionChange,
   toggleButtonState,
+  reviewButtonState,
+  copilotErrorText,
 } = await import('./copilot-tab.js');
 
 const GREEN = '\x1b[32m';
@@ -130,9 +132,29 @@ function testToggleButtonState() {
   );
 }
 
+// [Claude] — 2026-09-26 — « Qu'en penses-tu ? » : un clic, le Copilote écoute ; Stop, ça part.
+function testReviewButtonState() {
+  const idle = reviewButtonState();
+  check('« Qu\'en penses-tu ? » au repos', idle.label === 'Qu\'en penses-tu ?' && idle.pressed === false && idle.hint === '');
+  const listening = reviewButtonState({ capturing: true, seconds: 12.7 });
+  check('Pendant l\'écoute : « Stop · 0:12 », bouton enfoncé, aide « J\'écoute… »', listening.label === 'Stop · 0:12' && listening.pressed === true && /J'écoute ton jeu/.test(listening.hint), JSON.stringify(listening));
+  check('Compteur au-delà d\'une minute : « Stop · 1:05 »', reviewButtonState({ capturing: true, seconds: 65 }).label === 'Stop · 1:05');
+}
+
+// [Claude] — 2026-09-26 — Quand le Copilote n'a pas pu répondre : la raison, en clair.
+function testCopilotErrorText() {
+  check('Délai dépassé : dit en clair, avec quoi faire', /n'a pas répondu à temps \(90 secondes\)/.test(copilotErrorText('AI_TIMEOUT')) && /Réglages › Assistant IA/.test(copilotErrorText('AI_TIMEOUT')));
+  check('Clé refusée : message de la clé', /clé API a été refusée/.test(copilotErrorText('AI_API_KEY_INVALID')));
+  check('Trop long / trop de demandes (413, 429) : dit en clair', /refuse la demande pour l'instant/.test(copilotErrorText('AI_API_ERROR_429')) && /refuse la demande/.test(copilotErrorText('AI_API_ERROR_413')));
+  check('Panne du service (5xx) : dit en clair', /problème de son côté/.test(copilotErrorText('AI_API_ERROR_503')));
+  check('Autre erreur : la raison technique, à recopier', /Je n'ai pas pu répondre \(Unexpected token\)/.test(copilotErrorText('Unexpected token')));
+}
+
 async function runTests() {
   testNextModeOnSelectionChange();
   testToggleButtonState();
+  testReviewButtonState();
+  testCopilotErrorText();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);
   process.exit(failed === 0 ? 0 : 1);

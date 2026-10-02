@@ -16,7 +16,7 @@ import {
 import { sendCopilotMessage } from './copilot-client.js';
 import { hasAIKey } from '../ai/openai-config.js';
 import { liveTake } from '../recorder/live-take.js';
-import { reviewTake, takeMoment, momentText } from '../recorder/take-review.js';
+import { reviewTake } from '../recorder/take-review.js';
 import { readCopilotContext } from './copilot-context.js';
 
 const els = {};
@@ -29,6 +29,13 @@ let playingExampleId = null;
 // portrait (lines), ses notes exactes (events, pour le rejouer) et sa tonalité,
 // gardés pour les questions de suivi de la même conversation.
 let lastTake = null;
+// [Claude] — 2026-09-26 — Écoute de « Qu'en penses-tu ? » : début (ms) et minuterie
+// du compteur ; arrêt et envoi automatiques au bout de 5 minutes.
+const REVIEW_MAX_SECONDS = 300;
+let reviewStartedAt = 0;
+let reviewTimer = null;
+// [Claude] — 2026-09-26 — Un tour de conversation est en cours (réponse attendue).
+let turnBusy = false;
 const DEFAULT_REVIEW_QUESTION = 'Qu\'en penses-tu de ce que je viens de jouer ?';
 
 export const AUTONOMOUS_HISTORY_KEY = HISTORY_AUTONOMOUS_KEY;
@@ -347,51 +354,81 @@ function refreshExampleCards() {
   });
 }
 
-/**
- * [Claude] — 2026-09-25 — Message court dans la ligne d'état de la fenêtre
- * (main.js) : plus de légende sous le clavier.
- */
-function showStatus(text) {
-  document.dispatchEvent(new CustomEvent('app-status', { detail: { text: String(text || '') } }));
-}
-
-/** Avis de l'application sans IA : le verdict et la première suggestion, en une ligne. */
-export function localReviewText(review) {
-  const first = review?.moments?.[0];
-  const idea = first ? ` — ${takeMoment(first.at)}${first.chord ? ` ${first.chord}` : ''} : ${momentText(first)}` : '';
-  return `${review?.verdict || ''}${idea}`;
-}
+const ICON_HEADPHONES = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><path d="M21 15a2 2 0 0 1-2 2h-1v-5h1a2 2 0 0 1 2 2zM3 15a2 2 0 0 0 2 2h1v-5H5a2 2 0 0 0-2 2z"/></svg>';
+const REVIEW_LISTENING_HINT = 'J\'écoute ton jeu… joue, puis clique sur Stop.';
+const REVIEW_NOTHING_HINT = 'Rien entendu : clique, joue au clavier, puis clique sur Stop.';
 
 /**
- * « Qu'en penses-tu ? » : le dernier passage joué (depuis la dernière pause) est
- * analysé par l'application et joint à la question tapée (n'importe laquelle), ou
- * à « Qu'en penses-tu de ce que je viens de jouer ? ».
- * Sans clé d'IA, l'avis de l'application s'affiche dans la ligne d'état.
+ * [Claude] — 2026-09-26 — Libellé du bouton « Qu'en penses-tu ? » : au repos, ou
+ * pendant l'écoute (« Stop · 0:12 »).
+ * @param {{capturing?: boolean, seconds?: number}} state
+ * @returns {{label: string, pressed: boolean, hint: string}}
  */
-export async function reviewLastPassage({ question = '', fromKeyboard = false, fromView = null } = {}) {
-  const passage = liveTake.lastPassage();
-  if (!passage) {
-    showStatus('Rien à écouter : joue d\'abord au clavier (MIDI, virtuel ou clavier d\'ordinateur), puis clique sur « Qu\'en penses-tu ? ».');
+export function reviewButtonState({ capturing = false, seconds = 0 } = {}) {
+  if (!capturing) return { label: 'Qu\'en penses-tu ?', pressed: false, hint: '' };
+  const s = Math.max(0, Math.floor(seconds || 0));
+  return { label: `Stop · ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`, pressed: true, hint: REVIEW_LISTENING_HINT };
+}
+
+function renderReviewButton(hint = null) {
+  if (!els.reviewBtn) return;
+  const capturing = liveTake.isCapturing();
+  const state = reviewButtonState({ capturing, seconds: capturing ? (Date.now() - reviewStartedAt) / 1000 : 0 });
+  els.reviewBtn.classList.toggle('is-listening', capturing);
+  els.reviewBtn.setAttribute('aria-pressed', String(state.pressed));
+  els.reviewBtn.innerHTML = capturing ? '<i class="copilot-review-dot" aria-hidden="true"></i>' : ICON_HEADPHONES;
+  els.reviewBtn.appendChild(el('span', { text: state.label }));
+  if (els.reviewHint) els.reviewHint.textContent = hint ?? state.hint;
+}
+
+/**
+ * [Claude] — 2026-09-26 — « Qu'en penses-tu ? » (dans la case du Copilote, à la place
+ * de « IA connectée ») : premier clic, le Copilote écoute ; second clic (Stop), ce
+ * qui a été joué entre les deux part aussitôt. Narcisse : un essai raté juste avant
+ * se mêlait à l'essai réussi quand le passage était « depuis la dernière pause ».
+ * @returns {Promise<object|null>} l'avis de l'application, une fois envoyé
+ */
+export async function toggleReviewCapture() {
+  if (!liveTake.isCapturing()) {
+    liveTake.startCapture();
+    reviewStartedAt = Date.now();
+    clearInterval(reviewTimer);
+    reviewTimer = setInterval(() => {
+      if ((Date.now() - reviewStartedAt) / 1000 >= REVIEW_MAX_SECONDS) toggleReviewCapture();
+      else renderReviewButton();
+    }, 1000);
+    renderReviewButton();
     return null;
   }
-  // [Claude] — 2026-09-25 — Un seul bouton (sous le clavier) : la question tapée
-  // dans le Copilote, s'il y en a une, part avec le passage.
-  const asked = String(question || els.input?.value || '').trim();
-  // [Claude] — 2026-09-25 — Depuis Exercices (ou en mode exercice) : l'avis compare
-  // le jeu aux accords de l'exercice en cours, sans qu'il faille les taper.
-  const exercise = fromView === 'exercise' || currentMode === 'exercise' ? readCopilotContext('exercise') : null;
+  clearInterval(reviewTimer);
+  reviewTimer = null;
+  const passage = liveTake.stopCapture();
+  if (!passage) {
+    renderReviewButton(REVIEW_NOTHING_HINT);
+    return null;
+  }
+  renderReviewButton();
+  return reviewPassage(passage);
+}
+
+/**
+ * Le passage joué est analysé par l'application et part au Copilote avec la
+ * question tapée (n'importe laquelle), ou « Qu'en penses-tu de ce que je viens de
+ * jouer ? ». En mode exercice (« Demander au Copilote »), le jeu est comparé aux
+ * accords de l'exercice, sans qu'il faille les taper.
+ * @param {{events: object[], duration: number, noteCount: number}} passage
+ */
+export async function reviewPassage(passage, { question = '' } = {}) {
+  if (!passage?.events?.length || !els.input) return null;
+  const asked = String(question || els.input.value || '').trim();
+  const exercise = currentMode === 'exercise' ? readCopilotContext('exercise') : null;
   const review = reviewTake(passage.events, { question: asked, expect: exercise ? { ...exercise.expect, label: exercise.title } : null });
   if (!review) return null;
-  if (!hasAIKey() || !els.input) {
-    showStatus(localReviewText(review));
-    return review;
+  // Stop pendant que le Copilote répond encore : l'envoi attend la fin de la réponse
+  // (deux minutes au plus : le service d'IA a 90 secondes pour répondre).
+  for (let waited = 0; turnBusy && waited < 120000; waited += 200) {
+    await new Promise((resolve) => setTimeout(resolve, 200));
   }
-  if (fromKeyboard) {
-    document.dispatchEvent(new CustomEvent('app-switch-tab', { detail: { tab: 'practice' } }));
-    document.dispatchEvent(new CustomEvent('app-switch-training-view', { detail: { view: 'copilot' } }));
-  }
-  // La conversation de l'exercice (le Copilote reçoit aussi ses voicings et les essais).
-  if (exercise && currentMode !== 'exercise') await switchToExerciseMode();
   els.input.value = '';
   autoGrowInput();
   const defaultQuestion = exercise ? `Qu'en penses-tu de ce que je viens de jouer sur l'exercice (${exercise.title}) ?` : DEFAULT_REVIEW_QUESTION;
@@ -410,64 +447,76 @@ function renderMessages() {
   }
   els.messages.classList.remove('is-empty');
   for (const msg of messages) {
-    const isUser = msg.role === 'user';
-    const row = el('div', { className: `tr-chat-message copilot-message is-${msg.role} ${msg.role}` });
-
-    if (msg.role === 'system') {
-      row.className += ' is-system';
-      row.textContent = msg.content;
-      els.messages.appendChild(row);
-      continue;
+    // [Claude] — 2026-09-26 — Un message qu'on ne sait plus afficher (ancien format
+    // gardé dans l'historique) s'affiche en texte simple, sans bloquer les autres.
+    try {
+      renderOneMessage(msg);
+    } catch (err) {
+      console.warn('[Copilot] Message affiché en texte simple :', err);
+      els.messages.appendChild(el('div', { className: `tr-chat-message copilot-message is-${msg.role === 'user' ? 'user' : 'assistant'}`, text: String(msg.content || '') }));
     }
-
-    const avatar = el('div', { className: 'tr-message-avatar' });
-    if (isUser) avatar.textContent = 'V';
-    else avatar.innerHTML = ICON_SPARKLE;
-    row.appendChild(avatar);
-
-    if (msg.isTyping) {
-      row.className += ' is-typing';
-      row.appendChild(el('div', {
-        className: 'tr-thinking',
-        innerHTML: '<i></i><i></i><i></i>',
-      }));
-      els.messages.appendChild(row);
-      continue;
-    }
-
-    const content = el('div', { className: 'tr-message-content' });
-    const author = el('div', { className: 'tr-message-author' }, [
-      el('strong', { text: isUser ? 'Vous' : 'Copilot' }),
-    ]);
-    if (!isUser) author.appendChild(el('span', { text: 'ASSISTANT IA' }));
-    content.appendChild(author);
-    renderMessageText(content, msg.content);
-
-    // [Claude] — 2026-09-24 — L'exemple à écouter vient APRÈS l'explication
-    // (Narcisse : « il va directement me le jouer au lieu d'expliquer d'abord »).
-    if (msg.toolResult?.example) {
-      content.appendChild(renderExampleCard(msg));
-    } else if (msg.toolResult?.played?.length) {
-      // Anciennes conversations : notes jouées à l'époque, pour mémoire.
-      const played = el('div', { className: 'tr-chat-demos copilot-tool-note is-static' });
-      const chip = el('span', { className: 'copilot-played-chip' });
-      chip.innerHTML = ICON_PIANO;
-      chip.appendChild(el('span', { text: 'Notes jouées' }));
-      chip.appendChild(el('small', { text: msg.toolResult.played.map((p) => p.name).join(' · ') }));
-      played.appendChild(chip);
-      content.appendChild(played);
-    }
-
-    if (!isUser && msg.suggestedActions?.length) {
-      const chips = renderActionChips(msg.suggestedActions);
-      if (chips) content.appendChild(chips);
-    }
-
-    row.appendChild(content);
-    els.messages.appendChild(row);
   }
   // Auto-scroll vers le bas
   els.messages.scrollTop = els.messages.scrollHeight;
+}
+
+/** Un message de la conversation (voir renderMessages). */
+function renderOneMessage(msg) {
+  const isUser = msg.role === 'user';
+  const row = el('div', { className: `tr-chat-message copilot-message is-${msg.role} ${msg.role}` });
+
+  if (msg.role === 'system') {
+    row.className += ' is-system';
+    row.textContent = msg.content;
+    els.messages.appendChild(row);
+    return;
+  }
+
+  const avatar = el('div', { className: 'tr-message-avatar' });
+  if (isUser) avatar.textContent = 'V';
+  else avatar.innerHTML = ICON_SPARKLE;
+  row.appendChild(avatar);
+
+  if (msg.isTyping) {
+    row.className += ' is-typing';
+    row.appendChild(el('div', {
+      className: 'tr-thinking',
+      innerHTML: '<i></i><i></i><i></i>',
+    }));
+    els.messages.appendChild(row);
+    return;
+  }
+
+  const content = el('div', { className: 'tr-message-content' });
+  const author = el('div', { className: 'tr-message-author' }, [
+    el('strong', { text: isUser ? 'Vous' : 'Copilot' }),
+  ]);
+  if (!isUser) author.appendChild(el('span', { text: 'ASSISTANT IA' }));
+  content.appendChild(author);
+  renderMessageText(content, msg.content);
+
+  // [Claude] — 2026-09-24 — L'exemple à écouter vient APRÈS l'explication
+  // (Narcisse : « il va directement me le jouer au lieu d'expliquer d'abord »).
+  if (msg.toolResult?.example) {
+    content.appendChild(renderExampleCard(msg));
+  } else if (msg.toolResult?.played?.length) {
+    // Anciennes conversations : notes jouées à l'époque, pour mémoire.
+    const played = el('div', { className: 'tr-chat-demos copilot-tool-note is-static' });
+    const chip = el('span', { className: 'copilot-played-chip' });
+    chip.innerHTML = ICON_PIANO;
+    chip.appendChild(el('span', { text: 'Notes jouées' }));
+    chip.appendChild(el('small', { text: msg.toolResult.played.map((p) => p.name).join(' · ') }));
+    played.appendChild(chip);
+    content.appendChild(played);
+  }
+
+  if (!isUser && msg.suggestedActions?.length) {
+    const chips = renderActionChips(msg.suggestedActions);
+    if (chips) content.appendChild(chips);
+  }
+
+  row.appendChild(content);
+  els.messages.appendChild(row);
 }
 
 function addTypingIndicator() {
@@ -741,8 +790,8 @@ export async function switchToSessionMode(sessionContext) {
 }
 
 /**
- * [Claude] — 2026-09-25 — Mode exercice (« Demander au Copilote » dans Exercices,
- * ou « Qu'en penses-tu ? » lancé depuis Exercices). Même exercice : la
+ * [Claude] — 2026-09-25 — Mode exercice (« Demander au Copilote » dans Exercices ;
+ * « Qu'en penses-tu ? » y compare le jeu à l'exercice). Même exercice : la
  * conversation continue ; autre exercice : une nouvelle conversation.
  * @returns {Promise<boolean>} faux si aucun exercice n'est affiché
  */
@@ -776,11 +825,26 @@ async function onModeToggleClick() {
 
 /** Envoie un message utilisateur. */
 async function sendUserMessage() {
+  // Réponse en cours : le texte reste dans la case, il partira ensuite.
+  if (turnBusy) return;
   const text = els.input.value.trim();
   if (!text) return;
   els.input.value = '';
   autoGrowInput();
   await runCopilotTurn(text);
+}
+
+/**
+ * [Claude] — 2026-09-26 — Ce que le pianiste lit quand le Copilote n'a pas pu
+ * répondre : la raison, en clair, et quoi faire.
+ */
+export function copilotErrorText(error) {
+  const code = String(error || '');
+  if (code === 'AI_API_KEY_INVALID') return 'La clé API a été refusée. Vérifiez-la dans Réglages › Assistant IA.';
+  if (code === 'AI_TIMEOUT') return 'Le service d\'IA n\'a pas répondu à temps (90 secondes). Réessaie ; s\'il est souvent aussi lent, choisis un autre modèle dans Réglages › Assistant IA.';
+  if (/^AI_API_ERROR_(413|429)$/.test(code)) return 'Le service d\'IA refuse la demande pour l\'instant (trop longue, ou trop de demandes rapprochées pour ce modèle). Réessaie dans une minute, ou choisis un autre modèle dans Réglages › Assistant IA.';
+  if (/^AI_API_ERROR_5\d\d$/.test(code)) return 'Le service d\'IA a un problème de son côté. Réessaie dans un moment.';
+  return `Je n'ai pas pu répondre (${code || 'erreur inconnue'}). Réessaie ; si ça se répète, recopie-moi ce message.`;
 }
 
 /**
@@ -806,54 +870,69 @@ function playingSources() {
  * @param {{review?: boolean, take?: {lines: string[], events: object[], key: string|null}}} [options]
  */
 async function runCopilotTurn(text, { review = false, take = null } = {}) {
-  els.input.disabled = true;
+  // [Claude] — 2026-09-26 — Narcisse : « on ne peut plus converser avec l'IA, la case
+  // ne réagit plus, même en rechargeant ». La case était désactivée pendant chaque
+  // tour et ne se réactivait qu'à la fin d'un tour réussi : une réponse qui
+  // n'arrivait pas, ou une erreur en route, la laissaient bloquée. Désormais la
+  // case reste libre (on peut écrire la question suivante) ; seul l'envoi attend ;
+  // quoi qu'il arrive, la réponse ou la raison de l'échec s'affiche.
+  turnBusy = true;
   els.sendBtn.disabled = true;
-
-  await ensureCurrentConversation();
-  // Après la création éventuelle de la conversation (qui oublie l'ancien passage).
-  if (take) lastTake = take;
-  messages.push({ role: 'user', content: text, timestamp: new Date().toISOString() });
-  addTypingIndicator();
-
-  const base = getTutorialContext() || getSessionContext() || getExerciseContext();
-  // Le dernier passage joué reste connu pour les questions de suivi ; le jeu
-  // (session, passage) reste rejouable.
-  const playing = playingSources();
-  let context = base;
-  if (lastTake || playing) context = { ...(base || { type: 'autonomous' }) };
-  if (lastTake?.lines?.length) context.take = lastTake.lines;
-  if (playing) context.playing = playing;
-  const copilotStyleId = els.styleSelect?.value || 'auto';
-  const res = await sendCopilotMessage({ message: text, messages, context, copilotStyleId, review });
-
-  removeTypingIndicator();
   let autoplayMessage = null;
-  if (res.ok) {
-    const reply = {
-      role: 'assistant',
-      content: res.content,
-      toolResult: res.toolResult,
-      suggestedActions: res.suggestedActions,
-      timestamp: new Date().toISOString(),
-    };
-    if (res.toolResult?.example) exampleIdOf(reply);
-    messages.push(reply);
-    // Demande d'écoute (« joue-moi… ») : l'exemple démarre une fois la réponse affichée.
-    if (res.autoplay && res.toolResult?.example) autoplayMessage = reply;
-    await saveHistory(currentConversationId, historyKeyForMode(), messages);
-  } else {
-    const errorMsg = res.error === 'AI_API_KEY_INVALID'
-      ? 'La clé API a été refusée. Vérifiez-la dans Réglages › Assistant IA.'
-      : `Erreur : ${res.error}`;
-    messages.push({ role: 'assistant', content: errorMsg, timestamp: new Date().toISOString() });
-  }
+  try {
+    // L'historique (fichiers) ne doit jamais empêcher de répondre.
+    await ensureCurrentConversation().catch((err) => console.warn('[Copilot] Conversation non enregistrée :', err));
+    // Après la création éventuelle de la conversation (qui oublie l'ancien passage).
+    if (take) lastTake = take;
+    messages.push({ role: 'user', content: text, timestamp: new Date().toISOString() });
+    addTypingIndicator();
 
+    const base = getTutorialContext() || getSessionContext() || getExerciseContext();
+    // Le dernier passage joué reste connu pour les questions de suivi ; le jeu
+    // (session, passage) reste rejouable.
+    const playing = playingSources();
+    let context = base;
+    if (lastTake || playing) context = { ...(base || { type: 'autonomous' }) };
+    if (lastTake?.lines?.length) context.take = lastTake.lines;
+    if (playing) context.playing = playing;
+    const copilotStyleId = els.styleSelect?.value || 'auto';
+    const res = await sendCopilotMessage({ message: text, messages, context, copilotStyleId, review });
+
+    removeTypingIndicator();
+    if (res.ok) {
+      const reply = {
+        role: 'assistant',
+        content: res.content,
+        toolResult: res.toolResult,
+        suggestedActions: res.suggestedActions,
+        timestamp: new Date().toISOString(),
+      };
+      if (res.toolResult?.example) exampleIdOf(reply);
+      messages.push(reply);
+      // Demande d'écoute (« joue-moi… ») : l'exemple démarre une fois la réponse affichée.
+      if (res.autoplay && res.toolResult?.example) autoplayMessage = reply;
+    } else {
+      messages.push({ role: 'assistant', content: copilotErrorText(res.error), timestamp: new Date().toISOString() });
+    }
+  } catch (err) {
+    console.warn('[Copilot] Tour interrompu :', err);
+    removeTypingIndicator();
+    messages.push({ role: 'assistant', content: copilotErrorText(err?.message || err), timestamp: new Date().toISOString() });
+  } finally {
+    turnBusy = false;
+    els.sendBtn.disabled = false;
+    els.input.disabled = false;
+  }
   renderMessages();
   if (autoplayMessage) setTimeout(() => toggleExample(autoplayMessage), 700);
-  await renderHistoryList();
-  els.input.disabled = false;
-  els.sendBtn.disabled = false;
   els.input.focus();
+  // Enregistrement et liste des conversations : après, sans jamais bloquer la case.
+  try {
+    await saveHistory(currentConversationId, historyKeyForMode(), messages.filter((m) => !m.isTyping));
+    await renderHistoryList();
+  } catch (err) {
+    console.warn('[Copilot] Historique non mis à jour :', err);
+  }
 }
 
 /** Reset de la conversation. */
@@ -881,8 +960,10 @@ export async function initCopilotTab() {
   els.deleteEmptyBtn = document.getElementById('copilot-delete-empty-btn');
 
   els.sendBtn?.addEventListener('click', sendUserMessage);
-  // [Claude] — 2026-09-25 — « Qu'en penses-tu ? » (bouton unique, sous le clavier).
-  document.addEventListener('copilot-review-take', (e) => reviewLastPassage({ question: e.detail?.question || '', fromKeyboard: true, fromView: e.detail?.fromView || null }));
+  // [Claude] — 2026-09-26 — « Qu'en penses-tu ? » : dans la case, à la place de « IA connectée ».
+  els.reviewBtn = document.getElementById('copilot-review-btn');
+  els.reviewHint = document.getElementById('copilot-review-hint');
+  els.reviewBtn?.addEventListener('click', () => toggleReviewCapture());
   // « Demander au Copilote » depuis Exercices.
   document.addEventListener('copilot-open-exercise', () => switchToExerciseMode());
   // [Astra round 4] — Le champ est un <textarea> qui grandit avec le texte,
@@ -1010,7 +1091,9 @@ export async function initCopilotTab() {
   // le panneau Copilot s'affichait entièrement vide sous son en-tête, sans la
   // moindre erreur en console.
   showChatArea();
-  await startNewConversation(AUTONOMOUS_HISTORY_KEY);
+  // [Claude] — 2026-09-26 — L'historique (fichiers) ne doit jamais empêcher la
+  // conversation de s'afficher.
+  await startNewConversation(AUTONOMOUS_HISTORY_KEY).catch((err) => console.warn('[Copilot] Conversation non enregistrée :', err));
   renderMessages();
-  await renderHistoryList();
+  await renderHistoryList().catch((err) => console.warn('[Copilot] Liste des conversations indisponible :', err));
 }
