@@ -1,5 +1,7 @@
 import { generateKeyboard, keyboardLayout, setPitchWheel, setModWheel } from './ui/keyboard-svg.js';
 import { updateDisplay, clearDisplay } from './ui/display.js';
+// [Claude] — 2026-10-02 — Temps réel : « Lecture en direct » (roue, lectures, Réécouter).
+import { initLiveReading } from './ui/live-reading.js';
 import { detectChord } from './chord-engine/index.js';
 import { noteName, formatPc } from './chord-engine/naming.js';
 
@@ -404,7 +406,7 @@ function getAllActivePcs() {
 function refreshChord() {
   const notes = getAllActivePcs();
   if (notes.length === 0) {
-    clearDisplay(els);
+    clearDisplay(els, state.notation === 'latin');
     state.currentChord = null;
     return;
   }
@@ -1464,6 +1466,20 @@ function renderExerciseProgressPanel(exState) {
 
 // [Claude] — 2026-09-24 — « Écouter » passe par le lecteur de démo : touches
 // allumées comme au clavier, sortie MIDI vers le VST si elle est choisie.
+// [Claude] — 2026-10-02 — « Réécouter » de la Lecture en direct : l'application rejoue
+// le dernier accord entendu (touches jaunes, sortie MIDI vers le VST si elle est
+// choisie), sans l'enregistrer ni le compter dans un exercice : feedDemoEvent pose
+// state.isPlayback, comme pour « Écouter ».
+function replayLiveChord(notes) {
+  if (!Array.isArray(notes) || notes.length === 0) return;
+  resumeAudio().catch(() => {});
+  const events = notes.flatMap((note) => [
+    { time: 0, type: 'noteOn', note, velocity: 0.75 },
+    { time: 1.6, type: 'noteOff', note },
+  ]).sort((a, b) => a.time - b.time || (a.type === 'noteOff' ? -1 : 1));
+  demoPlayer.play({ events, beats: 1.6 }, { tempo: 60 });
+}
+
 async function playExerciseVoicing(voicing) {
   if (!voicing || !voicing.isPlayable) return;
   // Réveille l'AudioContext si nécessaire avant de planifier les notes.
@@ -2858,6 +2874,8 @@ async function init() {
   // n'allumer / n'éteindre que visuellement la touche concernée.
   safeInit('initCopilotKeyboardEvents', initCopilotKeyboardEvents);
   safeInit('initAISettings', initAISettings);
+  // [Claude] — 2026-10-02 — Lecture en direct du Temps réel (roue au repos, « Réécouter »).
+  safeInit('initLiveReading', () => initLiveReading({ onReplay: replayLiveChord }));
   // [Refonte 02/10] — Écran d'attente commun : on remplit les emplacements
   // `data-chroma-stage` (Analyse, Studio) depuis une source unique.
   safeInit('mountChromaStages', () => mountChromaStages());

@@ -356,9 +356,25 @@ function testNavigationEntrainement() {
     'Navigation — une pilule hidden reste cachée malgré le display d\'Astra');
 }
 
+// [Claude] — 2026-10-02 — Temps réel : « Lecture en direct » (maquette de Narcisse)
+// intégrée à la scène, sans carte ; les identifiants d'avant restent.
+function testLectureEnDirect() {
+  const html = readText('src/index.html');
+  const stage = html.slice(html.indexOf('id="practice-center"'), html.indexOf('id="pedagogy-panel"'));
+  check(/class="main-training-stage live-stage" id="practice-center"/.test(html), 'Temps réel — la scène porte la Lecture en direct');
+  check(['live-wheel', 'live-readouts', 'live-replay', 'live-also', 'live-count'].every((id) => stage.includes(`id="${id}"`)),
+    'Temps réel — roue, lectures, Réécouter, « Aussi », compte');
+  check(['chord-display', 'chord-name', 'chord-detail', 'notes-display', 'voicing-label', 'alias-label', 'practice-empty-hint', 'practice-midi-hint']
+    .every((id) => stage.includes(`id="${id}"`)), 'Temps réel — identifiants d\'avant gardés (main.js, miroir du clavier)');
+  check(html.includes('href="./ui/refonte/astra-realtime.css"'), 'Temps réel — feuille astra-realtime.css chargée');
+  const main = readText('src/main.js');
+  check(main.includes("safeInit('initLiveReading'") && main.includes('replayLiveChord'), 'Temps réel — Lecture en direct initialisée, « Réécouter » branché');
+}
+
 testDomContract();
 testMainWiring();
 testNavigationEntrainement();
+testLectureEnDirect();
 await testNoteGrouper();
 await testSuggestionsContract();
 

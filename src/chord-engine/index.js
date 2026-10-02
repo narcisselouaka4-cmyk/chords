@@ -210,8 +210,9 @@ function scoreReading(rootPc, def, pcSet, bassPc) {
   // Onzte juste qui sonne avec une tierce majeure : la « note à éviter » du jazz.
   // Une telle lecture est rarement la bonne : Sol Si Do Mi est Cmaj7/G, pas
   // G6add11 sans quinte (règle qui remplace l'exception codée en dur d'avant).
-  if (pcSet.has((rootPc + 4) % 12) && pcSet.has((rootPc + 5) % 12) && def.intervals.some((i) => i % 12 === 5)) score -= 12;
-  return { rootPc, def, score, exact, present, omitted, extras };
+  const avoid = pcSet.has((rootPc + 4) % 12) && pcSet.has((rootPc + 5) % 12) && def.intervals.some((i) => i % 12 === 5);
+  if (avoid) score -= 12;
+  return { rootPc, def, score, exact, present, omitted, extras, avoid };
 }
 
 /** Toutes les lectures possibles, de la meilleure à la moins bonne. */
@@ -384,11 +385,12 @@ export function chordReadings(activeNotes) {
     seen.add(key);
     out.push({ rootPc, symbol, bassPc, isSlash: bassPc !== rootPc, rootless });
   };
-  // Lectures exactes à une note omise au plus : « Gmaj13/C » (sans Ré ni La) pour
-  // Cmaj7♯11 n'aide personne. Sans fondamentale : à partir de quatre notes (une
+  // Lectures exactes à une note omise au plus, sans 11te juste sur tierce majeure :
+  // « Gmaj13/C » (sans Ré ni La) pour Cmaj7♯11 ou « G6add11/C » pour Cmaj7
+  // n'aident personne. Sans fondamentale : à partir de quatre notes (une
   // triade de Ré n'est pas « Bm7 sans fondamentale »).
   for (const reading of rankReadings(pcSet, uniquePcs, bassPc, MATCH_DEFINITIONS)) {
-    if (reading.exact && reading.omitted <= 1) push(reading.rootPc, reading.def.symbol, false);
+    if (reading.exact && reading.omitted <= 1 && !reading.avoid) push(reading.rootPc, reading.def.symbol, false);
   }
   if (uniquePcs.length >= 4) {
     for (const match of findRootlessMatches(pcSet, uniquePcs, bassPc)) push(match.rootPc, match.def.symbol, true);

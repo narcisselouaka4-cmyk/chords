@@ -101,6 +101,7 @@ check('Fa La Si Mi → aussi G13 sans fondamentale', also([53, 57, 59, 64]).incl
 check('la lecture retenue est en tête', also([48, 52, 55, 57])[0] === '0:6');
 check('deux notes : pas d\'autres lectures', chordReadings([60, 64]).length === 0);
 check('Cmaj7♯11 : pas de « Gmaj13/C » (deux notes omises)', !also([48, 52, 55, 59, 66]).includes('7:maj13'), JSON.stringify(also([48, 52, 55, 59, 66])));
+check('Cmaj7 : pas de « G6add11/C » (note à éviter)', !also([48, 52, 55, 59]).includes('7:6add11'), JSON.stringify(also([48, 52, 55, 59])));
 check('triade de Ré : pas de « Bm7 sans fondamentale »', !also([54, 57, 62]).some((k) => k.includes('sans fond.')), JSON.stringify(also([54, 57, 62])));
 
 console.log(`\nRésultat : ${passed}/${passed + failed} contrôles passés`);

@@ -55,6 +55,8 @@
     <!-- [Refonte Astra Analyse 12/09] — feuille recopiée de la maquette (classes an-*). -->
     <link rel="stylesheet" href="./ui/refonte/astra-analysis.css" />
     <link rel="stylesheet" href="./ui/refonte/astra-bridge.css" />
+    <!-- [Claude] — 2026-10-02 — Temps réel : Lecture en direct et portée. -->
+    <link rel="stylesheet" href="./ui/refonte/astra-realtime.css" />
   </head>
   <body>
     <div id="app" class="app training-shell">
@@ -125,23 +127,60 @@
         <div class="tr-workspace" id="practice-body">
 
         <div class="training-workspace">
-          <section class="main-training-stage" id="practice-center">
-            <div class="chord-display" id="chord-display">
-              <div class="chord-name chord-name-empty" id="chord-name"></div>
-              <div class="chord-meta" id="chord-meta">
-                <span class="voicing-label" id="voicing-label" style="display: none;"></span>
-                <span class="alias-label" id="alias-label" style="display: none;"></span>
+          <!-- [Claude] — 2026-10-02 — « Lecture en direct » (maquette designtempsréel de
+               Narcisse, fenêtre rv-hero + roue PitchWheel), intégrée à même la scène,
+               sans carte : nom de l'accord et roue des 12 notes au centre, lectures à
+               droite ; la portée (3e notation) en bas à gauche. Rendu :
+               src/ui/live-reading.js, appelé par display.js. Les identifiants d'avant
+               sont gardés (main.js, miroir du clavier, tests). -->
+          <section class="main-training-stage live-stage" id="practice-center">
+            <header class="live-head">
+              <span class="live-eyebrow"><svg class="tr-i" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M6 12a6 6 0 0 1 6-6"/><circle cx="12" cy="12" r="2"/></svg>Lecture en direct</span>
+              <span class="live-count" id="live-count">0 note</span>
+            </header>
+
+            <div class="live-center">
+              <div class="chord-display" id="chord-display">
+                <div class="chord-name chord-name-empty" id="chord-name" aria-live="polite"></div>
+                <div class="chord-meta" id="chord-meta">
+                  <span class="voicing-label" id="voicing-label" style="display: none;"></span>
+                  <span class="alias-label" id="alias-label" style="display: none;"></span>
+                </div>
+                <div class="live-also" id="live-also" hidden>
+                  <span class="live-also-label">Aussi</span>
+                  <span class="live-also-chips" id="live-also-chips"></span>
+                </div>
+                <div class="chord-detail" id="chord-detail"></div>
               </div>
-              <div class="chord-detail" id="chord-detail"></div>
+
+              <div class="practice-empty-hint" id="practice-empty-hint">
+                <p class="practice-empty-hint-title">Jouez un accord sur votre clavier MIDI</p>
+                <p class="practice-empty-hint-sub" id="practice-midi-hint"></p>
+                <p class="practice-empty-hint-detail">Les notes jouées seront reconnues automatiquement.</p>
+              </div>
+
+              <div class="live-wheel-wrap">
+                <svg class="live-wheel" id="live-wheel" viewBox="0 0 200 200" role="img" aria-label="Roue des 12 notes : les notes jouées et leurs liaisons"></svg>
+              </div>
             </div>
 
-            <div class="notes-display" id="notes-display"></div>
-
-            <div class="practice-empty-hint" id="practice-empty-hint">
-              <p class="practice-empty-hint-title">Jouez un accord sur votre clavier MIDI</p>
-              <p class="practice-empty-hint-sub" id="practice-midi-hint"></p>
-              <p class="practice-empty-hint-detail">Les notes jouées seront reconnues automatiquement.</p>
+            <div class="live-side">
+              <dl class="live-readouts" id="live-readouts">
+                <div><dt>Fondamentale</dt><dd id="live-root">—</dd></div>
+                <div><dt>Basse jouée</dt><dd id="live-bass">—</dd></div>
+                <div><dt>Qualité</dt><dd id="live-quality">en attente</dd></div>
+                <div><dt>Position</dt><dd id="live-position">—</dd></div>
+                <div><dt>Intervalles</dt><dd id="live-intervals">—</dd></div>
+                <div><dt>Voicing</dt><dd><span id="live-voicing">—</span><small id="live-voicing-detail"></small></dd></div>
+                <div><dt>MIDI</dt><dd id="live-midi">—</dd></div>
+                <div><dt>Fréquence</dt><dd id="live-frequency">—</dd></div>
+              </dl>
+              <button class="live-replay" id="live-replay" type="button" disabled>
+                <svg class="tr-i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>Réécouter
+              </button>
             </div>
+
+            <div class="notes-display" id="notes-display" aria-hidden="true"></div>
 
             <!-- [Refonte] — Panneau Techniques : compagnon retiré (décision du
                  01/09, « jugé sans utilité par Narcisse »). Gardé dans le DOM

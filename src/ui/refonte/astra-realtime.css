@@ -1,0 +1,338 @@
+/* ============================================================================
+   astra-realtime.css — Entraînement › Temps réel
+   [Claude] — 2026-10-02 — « Lecture en direct » de la maquette de Narcisse
+   (designtempsréel.zip : section rv-hero, roue PitchWheel, règles .rv-* de
+   education.css), intégrée à même la scène — pas de fenêtre, pas de carte.
+   Trois colonnes : la portée en bas à gauche (3e notation), le nom de l'accord et
+   la roue au centre, les lectures à droite. Tailles en unités de conteneur : la
+   scène grandit quand le clavier virtuel se replie, tout grandit avec elle.
+   Couleurs Astra : --tr-accent pour les notes jouées, --tr-green (la menthe de la
+   maquette) pour la fondamentale.
+   ============================================================================ */
+
+/* ---- La scène : plus de cadre, une grille ------------------------------- */
+#practice-tab #practice-center.live-stage {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas:
+    "head head head"
+    "left center side";
+  align-items: center;
+  column-gap: 32px;
+  row-gap: 4px;
+  padding: 10px 26px 16px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: hidden;
+  text-align: center;
+  container: live / size;
+}
+
+/* ---- Bandeau ------------------------------------------------------------- */
+.live-stage .live-head {
+  grid-area: head;
+  justify-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--tr-muted);
+  font: 9.5px var(--tr-mono);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.live-stage .live-eyebrow { display: inline-flex; align-items: center; gap: 7px; }
+.live-stage .live-eyebrow svg { color: var(--tr-accent); }
+.live-stage.has-notes .live-eyebrow svg { animation: live-spin 2.4s linear infinite; }
+.live-stage .live-count { font-variant-numeric: tabular-nums; }
+
+/* ---- Centre : nom de l'accord, « Aussi », roue ---------------------------- */
+.live-stage .live-center {
+  grid-area: center;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(4px, 1.6cqh, 14px);
+  min-height: 0;
+}
+.live-stage .chord-display,
+#practice-tab #practice-center .practice-empty-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-height: clamp(44px, 16cqh, 128px);
+}
+.live-stage .chord-display.is-empty { display: none; }
+.live-stage .chord-name {
+  margin: 0;
+  min-height: 0;
+  color: var(--tr-text);
+  font-size: clamp(2.2rem, min(11.5cqh, 6.4cqw), 5.2rem);
+  font-weight: 600;
+  letter-spacing: -0.045em;
+  line-height: 1.02;
+  text-shadow: 0 6px 26px color-mix(in srgb, var(--tr-accent) 30%, transparent);
+  white-space: nowrap;
+}
+.live-stage .chord-name.is-label {
+  color: var(--tr-secondary);
+  font-size: clamp(1.4rem, min(7cqh, 3.6cqw), 2.7rem);
+  letter-spacing: -0.02em;
+  text-shadow: none;
+}
+.live-stage .chord-name .sharp,
+.live-stage .chord-name .flat { color: inherit; font-weight: 500; }
+.live-stage .chord-meta,
+.live-stage .chord-detail { display: none !important; }
+
+.live-stage .live-also {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.live-stage .live-also[hidden] { display: none; }
+.live-stage .live-also-label {
+  color: var(--tr-muted);
+  font: 8.5px var(--tr-mono);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.live-stage .live-also-chips { display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.live-stage .live-also-chip {
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--tr-accent) 30%, transparent);
+  background: var(--tr-accent-soft);
+  color: var(--tr-accent);
+  font: 600 11px var(--tr-mono);
+}
+
+/* Rien de joué : l'invitation tient la place du nom, au-dessus de la roue. */
+#practice-tab #practice-center .practice-empty-hint {
+  position: static;
+  inset: auto;
+  padding: 0;
+  opacity: 1;
+  pointer-events: none;
+}
+/* Une note jouée : l'invitation s'efface (même règle que style.css, plus forte que
+   le display posé ci-dessus). */
+#practice-tab #practice-center:has(.notes-display:not(:empty)) .practice-empty-hint { display: none; }
+#practice-tab #practice-center .practice-empty-hint-title {
+  margin: 0;
+  color: var(--tr-secondary);
+  font-size: clamp(1rem, 3.6cqh, 1.4rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+#practice-tab #practice-center .practice-empty-hint-sub {
+  margin: 0;
+  color: var(--tr-accent);
+  font: 10px var(--tr-mono);
+}
+#practice-tab #practice-center .practice-empty-hint-detail {
+  margin: 0;
+  color: var(--tr-muted);
+  font-size: 11px;
+}
+
+/* ---- La roue --------------------------------------------------------------- */
+.live-stage .live-wheel-wrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+.live-stage .live-wheel-wrap::before {
+  content: '';
+  position: absolute;
+  inset: 6%;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--tr-accent) 9%, transparent) 0%, transparent 64%);
+  opacity: .55;
+  transition: opacity .3s ease;
+  pointer-events: none;
+}
+.live-stage.has-notes .live-wheel-wrap::before { opacity: 1; }
+.live-stage .live-wheel {
+  display: block;
+  width: clamp(170px, min(58cqh, 34cqw), 440px);
+  height: auto;
+  aspect-ratio: 1;
+  overflow: visible;
+}
+.live-wheel-ring { fill: none; stroke: var(--tr-border); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.live-wheel-ring-inner { stroke: var(--tr-border-soft); stroke-dasharray: 2 3; }
+.live-wheel-ticks line { stroke: var(--tr-border-soft); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.live-wheel-spoke {
+  stroke: color-mix(in srgb, var(--tr-accent) 40%, transparent);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.live-wheel-shape {
+  fill: color-mix(in srgb, var(--tr-accent) 14%, transparent);
+  stroke: var(--tr-accent);
+  stroke-width: 1.3;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--tr-accent) 60%, transparent));
+  animation: live-draw .34s cubic-bezier(.22, 1, .36, 1);
+}
+.live-wheel-dot {
+  r: 2.4px;
+  fill: var(--tr-raised);
+  stroke: var(--tr-border);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  transition: r .18s ease, fill .18s ease, stroke .18s ease;
+}
+.live-wheel-node.is-active .live-wheel-dot {
+  r: 5.4px;
+  fill: var(--tr-accent);
+  stroke: var(--tr-accent);
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--tr-accent) 70%, transparent));
+}
+.live-wheel-node.is-root .live-wheel-dot {
+  r: 7.2px;
+  fill: var(--tr-green);
+  stroke: var(--tr-green);
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--tr-green) 70%, transparent));
+}
+.live-wheel-bass-ring { fill: none; stroke: transparent; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.live-wheel-node.is-bass .live-wheel-bass-ring {
+  stroke: color-mix(in srgb, var(--tr-text) 55%, transparent);
+  stroke-dasharray: 2 2;
+}
+/* Noms des notes et compte : texte HTML sur la roue, à taille fixe (lisible même
+   quand la roue rapetisse). */
+.live-wheel-labels { position: absolute; inset: 0; pointer-events: none; }
+.live-wheel-labels .live-wheel-label {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  color: var(--tr-muted);
+  font: 11px var(--tr-mono);
+  line-height: 1;
+  white-space: nowrap;
+  transition: color .18s ease;
+}
+.live-wheel-labels .live-wheel-label.is-active { color: var(--tr-text); font-weight: 700; }
+.live-wheel-labels .live-wheel-label.is-root { color: var(--tr-green); }
+.live-wheel-labels .live-wheel-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--tr-muted);
+  font: 12px var(--tr-mono);
+}
+
+/* ---- Lectures (à droite) --------------------------------------------------- */
+.live-stage .live-side {
+  grid-area: side;
+  justify-self: start;
+  align-self: center;
+  width: min(100%, 300px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  text-align: left;
+}
+.live-stage .live-readouts { margin: 0; display: grid; }
+.live-stage .live-readouts > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--tr-border-soft);
+}
+.live-stage .live-readouts > div:first-child { border-top: 1px solid var(--tr-border-soft); }
+.live-stage .live-readouts dt {
+  color: var(--tr-muted);
+  font: 9px var(--tr-mono);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.live-stage .live-readouts dd {
+  margin: 0;
+  color: var(--tr-text);
+  font: 600 12px var(--tr-mono);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.live-stage .live-readouts dd small {
+  display: block;
+  margin-top: 2px;
+  color: var(--tr-muted);
+  font: 400 10px var(--tr-mono);
+}
+.live-stage .live-readouts dd small:empty { display: none; }
+.live-stage .live-replay {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 34px;
+  border: 1px solid color-mix(in srgb, var(--tr-accent) 42%, transparent);
+  border-radius: 8px;
+  background: var(--tr-accent-soft);
+  color: var(--tr-accent);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s ease;
+}
+.live-stage .live-replay:disabled { opacity: .4; cursor: not-allowed; }
+.live-stage .live-replay:not(:disabled):hover { background: color-mix(in srgb, var(--tr-accent) 22%, transparent); }
+.live-stage .live-replay:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 2px; }
+
+/* ---- Ce qui reste dans le DOM sans se montrer ------------------------------- */
+/* Les notes en pastilles : lues par le miroir du clavier, montrées par la roue. */
+.live-stage > .notes-display {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+#practice-center > #midi-diagnostic-panel {
+  position: absolute;
+  top: 36px;
+  right: 16px;
+  z-index: 4;
+  max-width: 380px;
+}
+
+/* ---- Scène étroite ou basse ---------------------------------------------- */
+@container live (max-height: 340px) {
+  .live-stage .live-also { display: none; }
+  .live-stage .live-readouts > div { padding: 4px 0; }
+}
+@container live (max-width: 1000px) {
+  .live-stage .live-readouts dd { font-size: 11px; }
+}
+
+@keyframes live-draw {
+  from { stroke-dashoffset: 1; fill-opacity: 0; }
+  to { stroke-dashoffset: 0; fill-opacity: 1; }
+}
+@keyframes live-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .live-wheel-shape { animation: none; }
+  .live-stage.has-notes .live-eyebrow svg { animation: none; }
+  .live-wheel-dot, .live-wheel-labels .live-wheel-label, .live-stage .live-wheel-wrap::before { transition: none; }
+}
