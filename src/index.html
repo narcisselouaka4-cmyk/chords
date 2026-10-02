@@ -99,7 +99,11 @@
           <nav class="tr-subnav-tabs practice-mode-tabs" role="tablist" aria-label="Sous-onglets Entraînement">
             <button class="practice-mode-btn active" type="button" role="tab" aria-selected="true" data-view="realtime" title="Jeu libre : les accords joués sont reconnus en direct"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-2.5a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0L6.41 10.54A2 2 0 0 1 4.49 12H2"/></svg><span>Temps réel</span><span class="tr-active-underline" aria-hidden="true"></span></button>
             <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="midi-sessions" title="Enregistrer et rejouer vos sessions MIDI"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 10v3M6 6v11M10 3v18M14 8v7M18 5v13M22 10v3"/></svg><span>Sessions MIDI</span><span class="tr-active-underline" aria-hidden="true"></span></button>
-            <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="coach" title="Accompagner une voix isolée et faire analyser votre placement"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/></svg><span>Coach d'accompagnement</span><span class="tr-active-underline" aria-hidden="true"></span></button>
+            <!-- [Claude] — 2026-10-02 — « Coach d'accompagnement » masqué (Narcisse : garder
+                 Temps réel, Sessions MIDI, Pédagogie IA, Copilote IA, Exercices). La vue
+                 #practice-view-coach et coach-tab.js restent intacts : retirer `hidden`
+                 suffit à le faire revenir. -->
+            <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="coach" hidden title="Accompagner une voix isolée et faire analyser votre placement"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/></svg><span>Coach d'accompagnement</span><span class="tr-active-underline" aria-hidden="true"></span></button>
             <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="pedagogie" title="Lire un tutoriel vidéo et en extraire la grille d'accords"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.42 10.92a1 1 0 0 0-.02-1.84L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.83l8.57 3.91a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg><span>Pédagogie IA</span><span class="tr-active-underline" aria-hidden="true"></span></button>
             <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="copilot" title="Assistant IA conversationnel pour le tutoriel en cours"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.29 1.29L3 12l5.81 1.9a2 2 0 0 1 1.29 1.29L12 21l1.9-5.81a2 2 0 0 1 1.29-1.29L21 12l-5.81-1.9a2 2 0 0 1-1.29-1.29z"/><path d="M5 3v4M19 17v4M3 5h4M17 19h4"/></svg><span>Copilot IA</span><span class="tr-active-underline" aria-hidden="true"></span></button>
             <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="exercise" title="Ouvrir Exercices"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg><span>Exercices</span><span class="practice-exercise-progress tr-points" id="exercise-collapsed-progress" style="display: none;"></span><span class="tr-active-underline" aria-hidden="true"></span></button>
@@ -109,9 +113,9 @@
               <span class="tr-status-dot practice-midi-status-dot" id="practice-midi-status-dot"></span>
               <span id="practice-midi-status-text">Clavier MIDI non détecté</span>
             </button>
-            <button class="tr-record-button practice-record-btn" id="practice-record-btn" type="button" title="Démarrer une nouvelle session MIDI">
-              <span class="practice-record-dot" aria-hidden="true"></span>Enregistrer
-            </button>
+            <!-- [Claude] — 2026-10-02 — « Enregistrer » ne sert qu'aux Sessions MIDI : il a
+                 quitté cette barre, visible de tout Entraînement, pour devenir le bouton
+                 principal de Sessions MIDI (#midi-session-new-btn). -->
           </div>
         </div>
 
@@ -511,7 +515,9 @@
             </div>
             <div class="tr-heading-actions">
               <button class="tr-button tr-library-trigger" type="button" data-astra-open="midi-library-drawer" data-astra-shortcut="b"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 6H3M16 12H3M13 18H3"/><path d="M21 6v12a2 2 0 0 1-2 2"/></svg><span>Bibliothèque</span><kbd>B</kbd></button>
-              <button class="tr-button tr-primary panel-action" id="midi-session-new-btn" type="button"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Nouvelle session</button>
+              <!-- [Claude] — 2026-10-02 — Ancien « + Nouvelle session » : c'est désormais LE bouton
+                   « Enregistrer » d'Entraînement (il ouvre la fenêtre de la nouvelle session). -->
+              <button class="tr-button tr-primary panel-action midi-record-btn" id="midi-session-new-btn" type="button" title="Enregistrer une nouvelle session MIDI"><span class="midi-record-dot" aria-hidden="true"></span>Enregistrer</button>
             </div>
           </div>
 
@@ -523,7 +529,7 @@
                   <h2 class="carnet-session-title" id="carnet-session-title">Aucune session sélectionnée</h2>
                   <div class="tr-session-data carnet-session-meta" id="carnet-session-meta"></div>
                   <div class="midi-session-info" id="midi-session-info">
-                    <p class="detail-hint">Aucune session sélectionnée. Créez une nouvelle session ou choisissez-en une dans la bibliothèque. Pour un avis rapide sur un passage : « Qu'en penses-tu ? », dans le Copilote.</p>
+                    <p class="detail-hint">Aucune session sélectionnée. Cliquez sur « Enregistrer » ou choisissez une session dans la bibliothèque. Pour un avis rapide sur un passage : « Qu'en penses-tu ? », dans le Copilote.</p>
                   </div>
                 </div>
               </div>
@@ -623,7 +629,7 @@
                     <button type="button" data-session-filter="all" class="is-active" aria-pressed="true">Toutes <span id="midi-session-count-all">0</span></button>
                     <button type="button" data-session-filter="captures" aria-pressed="false">Mes captures</button>
                   </div>
-                  <button class="tr-button tr-primary" type="button" data-astra-close data-astra-click="#midi-session-new-btn"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Nouvelle session</button>
+                  <button class="tr-button tr-primary midi-record-btn" type="button" data-astra-close data-astra-click="#midi-session-new-btn"><span class="midi-record-dot" aria-hidden="true"></span>Enregistrer</button>
                 </div>
                 <div class="tr-library-table-head" aria-hidden="true">
                   <span>SESSION</span><span>APERÇU MIDI</span><span>DURÉE</span><span>NOTES</span><span></span>

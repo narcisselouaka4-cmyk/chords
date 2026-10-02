@@ -333,8 +333,32 @@ async function testSuggestionsContract() {
   check(html.includes('Cmaj7'), 'Suggestions — rendu alimenté par l\'historique');
 }
 
+// [Claude] — 2026-10-02 — Navigation d'Entraînement (demande de Narcisse) :
+// « Enregistrer » vit dans Sessions MIDI et nulle part ailleurs ; « Coach
+// d'accompagnement » est masqué ; restent Temps réel, Sessions MIDI, Pédagogie IA,
+// Copilote IA et Exercices.
+function testNavigationEntrainement() {
+  const html = readText('src/index.html');
+  const main = readText('src/main.js');
+  check(!html.includes('id="practice-record-btn"') && !main.includes('practice-record-btn'),
+    'Navigation — plus de bouton « Enregistrer » dans la sous-navigation');
+  const sessions = html.slice(html.indexOf('id="practice-view-midi-sessions"'));
+  const newBtn = sessions.match(/<button[^>]*id="midi-session-new-btn"[^>]*>([\s\S]*?)<\/button>/);
+  check(Boolean(newBtn) && /Enregistrer/.test(newBtn[1]) && !/Nouvelle session/.test(newBtn[1]),
+    'Navigation — Sessions MIDI : « Enregistrer » remplace « Nouvelle session »');
+  const pills = [...html.matchAll(/<button[^>]*class="practice-mode-btn[^"]*"[^>]*>/g)].map((m) => m[0]);
+  const visible = pills.filter((tag) => !/\shidden[\s>]/.test(tag)).map((tag) => tag.match(/data-view="([^"]+)"/)?.[1]);
+  check(JSON.stringify(visible) === JSON.stringify(['realtime', 'midi-sessions', 'pedagogie', 'copilot', 'exercise']),
+    `Navigation — 5 sous-onglets visibles (${visible.join(', ')})`);
+  check(pills.some((tag) => tag.includes('data-view="coach"') && /\shidden[\s>]/.test(tag)),
+    'Navigation — « Coach d\'accompagnement » présent mais masqué (hidden)');
+  check(readText('src/ui/refonte/astra-bridge.css').includes('.tr-subnav-tabs > button[hidden]'),
+    'Navigation — une pilule hidden reste cachée malgré le display d\'Astra');
+}
+
 testDomContract();
 testMainWiring();
+testNavigationEntrainement();
 await testNoteGrouper();
 await testSuggestionsContract();
 

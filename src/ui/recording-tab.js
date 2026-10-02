@@ -658,7 +658,7 @@ function renderSessionList(sessions, { total = 0, query = '' } = {}) {
 
   if (sessions.length === 0) {
     els.sessionList.innerHTML = total === 0
-      ? `<div class="tr-empty">${ICON_EMPTY_LIBRARY}<h3>Aucune session pour l'instant</h3><p>Installez-vous au clavier et lancez une nouvelle session : votre jeu sera enregistré ici, note par note.</p></div>`
+      ? `<div class="tr-empty">${ICON_EMPTY_LIBRARY}<h3>Aucune session pour l'instant</h3><p>Installez-vous au clavier et cliquez sur « Enregistrer » : votre jeu sera enregistré ici, note par note.</p></div>`
       : `<div class="tr-empty">${ICON_EMPTY_LIBRARY}<h3>Aucun résultat</h3><p>${query ? `Aucune session ne correspond à « ${escapeHtml(query)} ».` : 'Aucune session ne correspond à ce filtre.'}</p></div>`;
     return;
   }
@@ -796,7 +796,7 @@ function renderSelectedSessionInfo() {
 
 function resetSelectedSessionInfo() {
   if (els.selectedSessionInfo) {
-    els.selectedSessionInfo.innerHTML = `<p class="detail-hint">Aucune session sélectionnée. Créez une nouvelle session ou choisissez-en une dans la liste. Pour un avis rapide sur un passage : « Qu'en penses-tu ? », dans le Copilote.</p>`;
+    els.selectedSessionInfo.innerHTML = `<p class="detail-hint">Aucune session sélectionnée. Cliquez sur « Enregistrer » ou choisissez une session dans la liste. Pour un avis rapide sur un passage : « Qu'en penses-tu ? », dans le Copilote.</p>`;
   }
   if (els.carnetSessionTitle) els.carnetSessionTitle.textContent = 'Aucune session sélectionnée';
   if (els.carnetSessionMeta) els.carnetSessionMeta.textContent = '';

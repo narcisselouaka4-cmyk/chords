@@ -114,6 +114,22 @@
 .tr-subnav-tabs > button > .tr-active-underline { display: none; }
 .tr-subnav-tabs > button.active > .tr-active-underline { display: block; }
 .tr-subnav-tabs > button .practice-exercise-progress:empty { display: none; }
+/* [Claude] — 2026-10-02 — Une pilule cachée (« Coach d'accompagnement ») le reste :
+   la règle d'Astra pose un display sur les boutons, qui battrait l'attribut hidden. */
+.tr-subnav-tabs > button[hidden] { display: none !important; }
+
+/* [Claude] — 2026-10-02 — Sessions MIDI : « ● Enregistrer » remplace « + Nouvelle
+   session ». La pastille rouge est cerclée de la couleur du texte du bouton pour
+   rester lisible sur le violet, en thème sombre comme en clair. */
+.midi-record-btn { gap: 8px; }
+.midi-record-dot {
+  width: 9px;
+  height: 9px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--tr-red);
+  box-shadow: 0 0 0 2px var(--tr-button-text);
+}
 
 /* ---- Onglet Entraînement : colonne sous-navigation + corps défilant ---- */
 #practice-tab.practice-layout {
@@ -133,7 +149,6 @@
    les classes d'Astra sont chargées après, mais practice.css place encore un
    fond et une bordure sur .practice-subnav. */
 .tr-subnavigation.practice-subnav { box-shadow: none; }
-.tr-record-button.practice-record-btn::before,
 .tr-midi-connection.practice-midi-status::before { content: none; }
 
 /* ---- Fenêtres et tiroirs ------------------------------------------------

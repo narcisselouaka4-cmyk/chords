@@ -98,7 +98,7 @@
   color: #fff;
 }
 
-/* ── Enregistrer + statut MIDI (droite de la sous-nav) ── */
+/* ── Statut MIDI (droite de la sous-nav) ── */
 :root[data-skin='global'] #practice-tab .practice-subnav-actions,
 :root[data-skin='v2'] #practice-tab .practice-subnav-actions {
   display: flex;
@@ -106,42 +106,8 @@
   gap: var(--r-space-3);
 }
 
-:root[data-skin='global'] #practice-tab .practice-record-btn,
-:root[data-skin='v2'] #practice-tab .practice-record-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: var(--r-text-muted);
-  background: var(--r-surface);
-  border: 1px solid var(--r-border-soft);
-  border-radius: var(--r-radius-btn);
-  padding: 6px 12px;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-}
-:root[data-skin='global'] #practice-tab .practice-record-btn:hover:not(:disabled),
-:root[data-skin='v2'] #practice-tab .practice-record-btn:hover:not(:disabled) {
-  color: var(--r-text);
-  border-color: var(--r-accent);
-}
-:root[data-skin='global'] #practice-tab .practice-record-btn:disabled,
-:root[data-skin='v2'] #practice-tab .practice-record-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.62;
-}
-:root[data-skin='v2'] #practice-tab .practice-record-btn {
-  border-radius: var(--r-radius-pill);
-}
-:root[data-skin='global'] #practice-tab .practice-record-dot,
-:root[data-skin='v2'] #practice-tab .practice-record-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--r-error, #ef4444);
-  opacity: 0.6;
-}
+/* [Claude] — 2026-10-02 — Le bouton « Enregistrer » a quitté la sous-navigation
+   (il est devenu le bouton principal de Sessions MIDI) : ses règles sont retirées. */
 
 :root[data-skin='global'] #practice-tab .practice-midi-status,
 :root[data-skin='v2'] #practice-tab .practice-midi-status {

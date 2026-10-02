@@ -32,7 +32,6 @@ import { initPedagogieTab } from './ui/pedagogie-tab.js';
 // d'accompagnement, cf. spec-coach-accompagnement-chant.md).
 import {
   initRecordingTab,
-  switchToRecordingTab,
   feedRecorderNoteOn,
   feedRecorderNoteOff,
   feedRecorderSustain,
@@ -204,7 +203,6 @@ const els = {
   exerciseCollapsedProgress: document.getElementById('exercise-collapsed-progress'),
   practiceMidiStatusDot: document.getElementById('practice-midi-status-dot'),
   practiceMidiStatusText: document.getElementById('practice-midi-status-text'),
-  practiceRecordBtn: document.getElementById('practice-record-btn'),
   exerciseDifficultySelect: document.getElementById('exercise-difficulty-select'),
   exerciseKeySelect: document.getElementById('exercise-key-select'),
   exerciseMovementSettings: document.getElementById('exercise-movement-settings'),
@@ -1191,13 +1189,8 @@ function initPracticeSubnavViews() {
   // style.css) apparaîtrait à côté de la scène avant tout clic.
   applyView('realtime');
 
-  // Raccourci « Enregistrer » depuis Temps réel : bascule vers Sessions MIDI
-  // et ouvre directement la modale de nouvelle session, comme un clic sur la
-  // pilule suivi d'un clic sur « + Nouvelle session ».
-  els.practiceRecordBtn?.addEventListener('click', () => {
-    switchToRecordingTab();
-    document.getElementById('midi-session-new-btn')?.click();
-  });
+  // [Claude] — 2026-10-02 — Le raccourci « Enregistrer » de la sous-navigation
+  // n'existe plus : « Enregistrer » est le bouton principal de Sessions MIDI.
 }
 
 function initTheme() {
