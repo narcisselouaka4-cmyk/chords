@@ -100,6 +100,13 @@ check('Les 4 accords plaqués pendant qu\'il parle sont gardés (20 notes)', cho
 check('Les petites notes isolées de la voix sont écartées', voiceKept === 0, `${voiceKept}`);
 check('Le moment est « il joue en parlant »', talkPlay.spans.some((s) => s.kind === ACTIVITY.BOTH), JSON.stringify(talkPlay.spans));
 
+// Un lick joué doucement pendant qu'il parle (6 notes, par degrés, 0,2 s, courtes) : son jeu.
+const lick = [74, 72, 71, 69, 66, 67].map((midi, i) => ({ midi, start: 50 + i * 0.2, end: 50.16 + i * 0.2, velocity: 0.3 }));
+const lickTalk = teacherActivity({ notes: lick, speech: [{ start: 49, end: 53, text: 'Listen to this little run.' }], start: 49, end: 53, source: 'son' });
+check('Un lick joué doucement en parlant est gardé (notes courtes, par degrés)', lickTalk.played.length === 6, `${lickTalk.played.length}`);
+const unknown = [{ midi: 60, start: 50, end: 50.5 }, { midi: 67, start: 51.2, end: 51.6 }];
+check('Une note dont la force est inconnue n\'est pas écartée', teacherActivity({ notes: unknown, speech: [{ start: 49, end: 53, text: 'x' }], source: 'son' }).played.length === 2);
+
 console.log('\n5. Il joue sans parler : tout reste, même doux');
 const soft = [60, 62, 64, 65, 67, 69, 71, 72].map((midi, i) => ({ midi, start: 40 + i * 0.5, end: 40.45 + i * 0.5, velocity: 0.22 }));
 const playOnly = teacherActivity({ notes: soft, speech, start: 40, end: 44.5, source: 'son' });

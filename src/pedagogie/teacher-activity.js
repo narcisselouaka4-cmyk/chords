@@ -55,6 +55,12 @@ export const SPEECH_BRIDGE = 1;
 /** Dans un accord attaqué pendant qu'il parle, une note bien plus faible que les autres
  * (moins de 60 % de leur force) est un reste de la voix. */
 const CHORD_RELATIVE = 0.6;
+/** Une ligne jouée (lick, run) : 4 notes au moins, à moins de 0,35 s l'une de l'autre, par
+ * intervalles de 4 demi-tons au plus, courtes (0,6 s au plus en médiane). */
+export const LINE_NOTES = 4;
+export const LINE_GAP = 0.35;
+export const LINE_STEP = 4;
+export const LINE_DURATION = 0.6;
 /** Pas de temps du découpage, et trou le plus long qui ne coupe pas un moment. */
 export const BIN_SECONDS = 0.5;
 export const BRIDGE_SECONDS = 1.5;
@@ -164,6 +170,34 @@ export function talkingRegions(lines) {
   return out;
 }
 
+/**
+ * Les notes d'une ligne jouée (lick, run, gamme) : au moins LINE_NOTES notes isolées qui se
+ * suivent à moins de LINE_GAP s, les trois quarts par intervalles de LINE_STEP demi-tons au
+ * plus, et courtes (durée médiane de LINE_DURATION s au plus).
+ * @param {object[]} notes - triées
+ * @param {Set<object>} chordNotes - notes d'accords (exclues)
+ * @returns {Set<object>}
+ */
+export function lineNotes(notes, chordNotes = new Set()) {
+  const singles = (notes || []).filter((n) => !chordNotes.has(n));
+  const kept = new Set();
+  const close = (run) => {
+    if (run.length < LINE_NOTES) return;
+    let small = 0;
+    for (let i = 1; i < run.length; i += 1) if (Math.abs(run[i].midi - run[i - 1].midi) <= LINE_STEP) small += 1;
+    const durations = run.map((n) => n.end - n.start).sort((a, b) => a - b);
+    const median = durations[Math.floor(durations.length / 2)];
+    if (small / (run.length - 1) >= 0.75 && median <= LINE_DURATION) for (const n of run) kept.add(n);
+  };
+  let run = [];
+  for (const n of singles) {
+    if (run.length && n.start - run[run.length - 1].start > LINE_GAP) { close(run); run = []; }
+    run.push(n);
+  }
+  close(run);
+  return kept;
+}
+
 /** Part de [a, b] couverte par les phrases. */
 function speechCover(speech, a, b) {
   let covered = 0;
@@ -218,9 +252,15 @@ export function teacherActivity({ notes = [], speech = [], start = null, end = n
     const members = g.filter((n) => middle === null || !finite(n.velocity) || n.velocity >= middle * CHORD_RELATIVE);
     if (members.length >= SPEECH_CHORD_NOTES) for (const n of members) inChord.add(n);
   }
+  // Un lick joué doucement en parlant reste son jeu : une suite de notes courtes et
+  // rapprochées, par petits intervalles. Sa voix, elle, donne des notes longues (voyelles
+  // tenues) aux sauts irréguliers.
+  const inLine = lineNotes(cleaned, inChord);
   const played = cleaned.filter((n) => {
     if (!sound || !talking(n.start)) return true;
-    return inChord.has(n) || (finite(n.velocity) && n.velocity >= speechFloor);
+    // Force inconnue : rien ne permet de l'écarter.
+    if (!finite(n.velocity)) return true;
+    return inChord.has(n) || inLine.has(n) || n.velocity >= speechFloor;
   });
 
   // Pas de temps : joue (une note jouée y sonne), parle (une phrase le couvre), les deux, rien.
