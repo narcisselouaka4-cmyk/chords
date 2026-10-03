@@ -766,7 +766,7 @@ function tutorialTransferExample(tutorial, args = {}) {
   }
   const targets = transferTargets(args.chords, args.key || tutorial.key || 'C');
   const result = applyTutorialPassage({
-    notes, chords: tutorial.chords || [], start, end, what: args.what, targets, title: args.title ? String(args.title) : '',
+    notes, chords: tutorial.chords || [], start, end, what: args.what, targets, title: args.title ? String(args.title) : '', key: tutorial.key || null,
   });
   if (!result.example) return { example: null, note: `_(${result.error || 'Je n\'ai pas pu reprendre ce passage du prof.'})_` };
   return { example: result.example, text: result.text };

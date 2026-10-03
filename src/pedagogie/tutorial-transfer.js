@@ -21,8 +21,9 @@
 import { parseChordName, availableTensions } from './note-roles.js';
 import { chordToneIntervals } from '../practice-exercise.js';
 import { guessHands } from './teacher-notes.js';
-import { buildNotesExample } from './copilot-demo.js';
+import { buildNotesExample, buildChordExample } from './copilot-demo.js';
 import { normalizeDegrees } from './tutorial-questions.js';
+import { LOW_INTERVAL_LIMITS } from '../voicing-engine/textbook-voicings.js';
 
 const pcOf = (n) => ((n % 12) + 12) % 12;
 const DIM7 = /dim7|°7|^o7/;
@@ -35,6 +36,37 @@ const FRENCH_SHARPS = ['Do', 'Do♯', 'Ré', 'Ré♯', 'Mi', 'Fa', 'Fa♯', 'Sol
 /** « Mi♭4 » (ou « Ré♯4 » dans une tonalité à dièses) : nom français et octave (Do4 = 60). */
 export function noteLabel(midi, { sharps = false } = {}) {
   return `${(sharps ? FRENCH_SHARPS : FRENCH)[pcOf(midi)]}${Math.floor(midi / 12) - 1}`;
+}
+
+const FRENCH_LETTERS = { C: 'Do', D: 'Ré', E: 'Mi', F: 'Fa', G: 'Sol', A: 'La', B: 'Si' };
+const LETTER_ORDER = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+const NATURAL_PCS = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+// Intervalle depuis la fondamentale → lettres au-dessus d'elle : b9 et 9 sur la 2e lettre,
+// b3 et 3 sur la 3e, 11 et #11 sur la 4e, 5 sur la 5e, b13 et 13 sur la 6e, b7 et 7 sur la 7e.
+const CHORD_LETTER_STEPS = [0, 1, 1, 2, 2, 3, 3, 4, 5, 5, 6, 6];
+
+/**
+ * [Claude] — 2026-10-03 — Nom français d'une note dans un accord, sur la lettre de son
+ * rôle : Sol♭ (b7) dans Ab7, Ré♯ (3) dans Bmaj7, Si♭♭ évité. Sans orthographe lisible
+ * (Mi♯, Do♭, double altération), les dièses ou bémols de la fondamentale de l'accord.
+ */
+export function spellInChord(midi, chordName, { sharps = false } = {}) {
+  const chord = parseChordName(chordName);
+  const rootAccidental = /^[A-G]([#b]?)/.exec(String(chord?.name || ''))?.[1] || '';
+  const plain = noteLabel(midi, { sharps: rootAccidental === '#' ? true : rootAccidental === 'b' ? false : sharps });
+  if (!chord) return plain;
+  const letter = chord.name[0];
+  const q = chord.quality;
+  const interval = pcOf(midi - chord.rootPc);
+  let steps = CHORD_LETTER_STEPS[interval];
+  if (interval === 3 && chordToneIntervals(q).has(4)) steps = 1; // #9 d'une dominante
+  if (interval === 6 && (DIMINISHED.test(q) || /b5/.test(q))) steps = 4; // b5
+  if (interval === 8 && AUGMENTED.test(q) && !/b13/.test(q)) steps = 4; // #5
+  if (interval === 9 && DIM7.test(q)) steps = 6; // bb7
+  const written = LETTER_ORDER[(LETTER_ORDER.indexOf(letter) + steps) % 7];
+  const shift = ((pcOf(midi) - NATURAL_PCS[written]) % 12 + 18) % 12 - 6;
+  if (Math.abs(shift) > 1 || ['Cb', 'Fb', 'E#', 'B#'].includes(`${written}${shift > 0 ? '#' : shift < 0 ? 'b' : ''}`)) return plain;
+  return `${FRENCH_LETTERS[written]}${shift > 0 ? '♯' : shift < 0 ? '♭' : ''}${Math.floor(midi / 12) - 1}`;
 }
 
 /** Vrai si la progression s'écrit plutôt en dièses (F#maj7, C#7) qu'en bémols. */
@@ -114,8 +146,9 @@ export function roleOfInterval(interval, quality = '', heard = new Set()) {
   }
 }
 
-/** Nom d'un rôle tel qu'on le lit (« 1 », « b3 », « 7 », « #9 »…). */
-export function roleLabel({ role, alt }) {
+/** Nom d'un rôle tel qu'on le lit (« 1 », « b3 », « 7 », « #9 », « bb7 » d'un diminué…). */
+export function roleLabel({ role, alt }, quality = '') {
+  if (role === '7' && alt === 9 && DIM7.test(String(quality))) return 'bb7';
   const names = {
     R: { 0: '1' },
     3: { 2: '2', 3: 'b3', 4: '3', 5: '4' },
@@ -234,7 +267,7 @@ export function voicingShapes(notes, chords, { start, end }) {
 
 /** Description d'un gabarit : « main gauche 1 · b7 | main droite 3 · 13 · 9 ». */
 export function describeShape(shape) {
-  const part = (list) => list.map(roleLabel).join(' · ') || '—';
+  const part = (list) => list.map((slot) => roleLabel(slot, shape.quality)).join(' · ') || '—';
   return `main gauche ${part(shape.hands.lh)} | main droite ${part(shape.hands.rh)}`;
 }
 
@@ -289,32 +322,50 @@ function handShape(slots, chord, bassPc = null) {
 }
 
 /**
- * L'octave d'une main : la note du bas dans le registre du prof ; d'abord sans
- * dépasser le plafond (ni passer sous la main gauche, pour la droite), puis au plus
- * près de l'accord précédent, puis au plus grave.
+ * Boue dans le grave : de combien de demi-tons les intervalles entre voix voisines
+ * passent sous leur limite grave (Levine, textbook-voicings.js). Do2 Si2 : 5 ; Sol1 Fa2 : 10.
+ */
+function muddiness(notes) {
+  const sorted = [...notes].sort((a, b) => a - b);
+  let total = 0;
+  for (let i = 1; i < sorted.length; i += 1) {
+    const limit = LOW_INTERVAL_LIMITS[sorted[i] - sorted[i - 1]];
+    if (limit != null && sorted[i - 1] < limit) total += limit - sorted[i - 1];
+  }
+  return total;
+}
+
+/**
+ * L'octave d'une main : la note du bas dans le registre du prof ; d'abord sans dépasser
+ * le plafond, sans être plus boueuse dans le grave que la main du prof (`sourceMud`), ni
+ * passer sous la main gauche (pour la droite) ; puis au plus près de l'accord précédent,
+ * puis du registre du prof, puis au plus grave. Une octave de plus de chaque côté si le
+ * registre du prof ne suffit pas.
  * @param {{firstPc: number, offsets: number[]}} shape
- * @param {{source: number, ceiling: number, anchor: number, above?: number}} options
+ * @param {{source: number, ceiling: number, anchor: number, above?: number, sourceMud?: number}} options
  * @returns {number[]}
  */
-function placeHand({ firstPc, offsets }, { source, ceiling, anchor, above = -Infinity }) {
+function placeHand({ firstPc, offsets }, { source, ceiling, anchor, above = -Infinity, sourceMud = 0 }) {
   const span = offsets[offsets.length - 1] || 0;
   let best = null;
+  const better = (a, b) => {
+    for (let k = 0; k < a.length; k += 1) if (a[k] !== b[k]) return a[k] < b[k];
+    return false;
+  };
   const consider = (lo, hi) => {
     for (let first = Math.max(21, lo); first <= Math.min(108 - span, hi); first += 1) {
       if (pcOf(first) !== firstPc) continue;
-      const top = first + span;
-      const excess = Math.max(0, top - ceiling) + (first <= above ? 24 : 0);
-      const score = [excess, Math.abs(first - anchor), first];
-      if (!best || score[0] < best.score[0] || (score[0] === best.score[0] && (score[1] < best.score[1] || (score[1] === best.score[1] && score[2] < best.score[2])))) {
-        best = { first, score };
-      }
+      const notes = offsets.map((o) => first + o);
+      const excess = Math.max(0, first + span - ceiling) + Math.max(0, muddiness(notes) - sourceMud) + (first <= above ? 24 : 0);
+      const score = [excess, Math.abs(first - anchor), Math.abs(first - source), first];
+      if (!best || better(score, best.score)) best = { first, score };
     }
   };
   consider(source - REGISTER_SPAN, source + REGISTER_SPAN);
-  // Trop haut dans le registre du prof (forme large, accord aigu) : une octave plus bas.
-  if (best && best.score[0] > 0 && best.first > above) consider(source - REGISTER_SPAN - 12, source - REGISTER_SPAN - 1);
-  // La main droite passe au-dessus de la gauche, une octave plus haut s'il le faut.
-  if (best && best.first <= above) consider(source + REGISTER_SPAN + 1, source + REGISTER_SPAN + 12);
+  if (best && best.score[0] > 0) {
+    consider(source - REGISTER_SPAN - 12, source - REGISTER_SPAN - 1);
+    consider(source + REGISTER_SPAN + 1, source + REGISTER_SPAN + 12);
+  }
   return best ? offsets.map((o) => best.first + o) : [];
 }
 
@@ -323,17 +374,25 @@ function placeHand({ firstPc, offsets }, { source, ceiling, anchor, above = -Inf
  * gabarit de sa famille ; chaque main reste dans le registre où le prof l'a jouée,
  * au plus près de l'accord précédent ; la main droite reste au-dessus de la gauche.
  * @param {object[]} shapes - voicingShapes()
- * @param {string[]} targets - accords cibles (« Fmaj7 », « G7 »…)
+ * @param {(string|{name: string, prefer?: string})[]} targets - accords cibles (« Fmaj7 »,
+ *   « G7 »…) ; un objet garde ses champs (durée, accord de passage) dans le résultat ;
+ *   `prefer` : l'accord du prof dont prendre la forme (un accord de passage garde la sienne)
+ * @param {{exclude?: Set<string>}} [options] - formes à ne prendre qu'en dernier recours
+ *   (celles de ses accords de passage, pour les accords principaux)
  * @returns {{name: string, leftHand: number[], rightHand: number[], from: string}[]}
  */
-export function applyVoicings(shapes, targets) {
+export function applyVoicings(shapes, targets, { exclude = new Set() } = {}) {
   if (!shapes?.length) return [];
   const result = [];
   const prevLow = { lh: null, rh: null };
-  for (const name of targets || []) {
-    const chord = parseChordName(name);
+  const mainShapes = shapes.filter((sh) => !exclude.has(sh.label));
+  for (const target of targets || []) {
+    const item = typeof target === 'string' ? { name: target } : (target || {});
+    const chord = parseChordName(item.name);
     if (!chord) continue;
-    const shape = pickShape(shapes, chordFamily(chord.quality));
+    const family = chordFamily(chord.quality);
+    const preferred = item.prefer ? shapes.find((sh) => sh.label === item.prefer) : null;
+    const shape = preferred || pickShape(mainShapes.length ? mainShapes : shapes, family);
     if (!shape) continue;
     const hands = { lh: [], rh: [] };
     for (const side of ['lh', 'rh']) {
@@ -348,27 +407,32 @@ export function applyVoicings(shapes, targets) {
         ceiling: Math.max(TOP_CEILING[side], sourceTop),
         anchor: prevLow[side] ?? source,
         above: side === 'rh' && hands.lh.length ? Math.max(...hands.lh) : -Infinity,
+        sourceMud: muddiness(slots.map((slot) => slot.midi)),
       });
     }
     if (hands.lh.length) prevLow.lh = hands.lh[0];
     if (hands.rh.length) prevLow.rh = hands.rh[0];
-    result.push({ name: chord.name, leftHand: hands.lh, rightHand: hands.rh, from: shape.label });
+    result.push({ ...item, name: chord.name, leftHand: hands.lh, rightHand: hands.rh, from: shape.label });
   }
   return result;
 }
 
 /**
  * Les accords réalisés en exemple à écouter (plaqués, un accord toutes les
- * `seconds` secondes), avec leurs mains pour la carte du Copilote.
+ * `seconds` secondes, ou la durée propre de l'accord : `c.seconds`), avec leurs mains
+ * pour la carte du Copilote.
  */
 export function chordsExample(realized, { title = '', subtitle = '', seconds = 1.6 } = {}) {
   const notes = [];
-  realized.forEach((c, i) => {
+  let at = 0;
+  realized.forEach((c) => {
+    const length = Number.isFinite(c.seconds) && c.seconds > 0 ? c.seconds : seconds;
     for (const [list, hand] of [[c.leftHand, 'LH'], [c.rightHand, 'RH']]) {
       for (const midi of list) {
-        notes.push({ midi, startOffsetMs: Math.round(i * seconds * 1000), durationMs: Math.round(seconds * 920), velocity: 0.72, hand });
+        notes.push({ midi, startOffsetMs: Math.round(at * 1000), durationMs: Math.round(length * 920), velocity: 0.72, hand });
       }
     }
+    at += length;
   });
   const example = buildNotesExample(notes, { kind: 'tutorial-transfer', title, subtitle });
   if (example) example.chords = realized.map((c) => ({ name: c.name, leftHand: c.leftHand, rightHand: c.rightHand }));
@@ -377,11 +441,11 @@ export function chordsExample(realized, { title = '', subtitle = '', seconds = 1
 
 /** Ligne de texte d'un accord réalisé : « **Fmaj7** : main gauche Fa2 Mi3 · main droite La3 Ré4 Sol4 ». */
 export function realizedLine(c, { sharps = false } = {}) {
-  const name = (m) => noteLabel(m, { sharps });
+  const name = (m) => spellInChord(m, c.name, { sharps });
   const parts = [];
   if (c.leftHand.length) parts.push(`main gauche ${c.leftHand.map(name).join(' ')}`);
   if (c.rightHand.length) parts.push(`main droite ${c.rightHand.map(name).join(' ')}`);
-  return `- **${c.name}** : ${parts.join(' · ')}`;
+  return c.passing ? `- _${c.name}_ (passage) : ${parts.join(' · ')}` : `- **${c.name}** : ${parts.join(' · ')}`;
 }
 
 // ── Progressions données en degrés ─────────────────────────────────────────────
@@ -449,7 +513,328 @@ export function progressionFromDegrees(degreesText, keyText = 'C') {
   });
 }
 
+// ── Enchaînements : les accords de passage du prof ─────────────────────────────
+// [Claude] — 2026-10-03 — Lot 3. Entre deux accords principaux, chaque accord de
+// passage du prof est décrit par rapport à l'accord qui le SUIT (l'accord d'arrivée) :
+// C#dim7 avant Dm7 = diminué un demi-ton sous l'arrivée ; Db7 avant Cmaj7 = dominante
+// un demi-ton au-dessus (substitution tritonique) ; Em7b5 A7 avant Dm7 = II-V de
+// l'arrivée ; C/E avant F = la basse qui monte vers l'arrivée. La même relation est
+// glissée devant les accords de la progression demandée, avec sa durée relative, et
+// le tout est joué avec ses voicings (gabarits ci-dessus). Les garde-fous sont ceux
+// des accords de passage des Exercices (planPassingChord, practice-exercise.js).
+
+const LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+const LETTER_PCS = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+// Demi-tons au-dessus de l'arrivée → lettres au-dessus : Db sur C, C# sous D (sensible),
+// G sur C (dominante), Bb sous C…
+const LETTER_STEPS = [0, 1, 1, 2, 2, 3, 3, 4, 5, 5, 6, 6];
+
+/** Fondamentale à `interval` demi-tons au-dessus de l'arrivée, écrite sur la bonne lettre (C#dim7 avant Dm7, Db7 avant C). */
+function spellFromArrival(arrival, interval, sharps = false) {
+  const pc = pcOf(arrival.rootPc + interval);
+  const fallback = (sharps ? SHARP_NAMES : FLAT_NAMES)[pc];
+  const letter = /^([A-G])/.exec(String(arrival.name || ''))?.[1];
+  if (!letter) return fallback;
+  const written = LETTERS[(LETTERS.indexOf(letter) + LETTER_STEPS[pcOf(interval)]) % 7];
+  const shift = ((pc - LETTER_PCS[written]) % 12 + 18) % 12 - 6;
+  if (Math.abs(shift) > 1) return fallback;
+  const name = `${written}${shift > 0 ? '#' : shift < 0 ? 'b' : ''}`;
+  return ['Cb', 'Fb', 'E#', 'B#'].includes(name) ? fallback : name;
+}
+
+const DIATONIC_FAMILIES = {
+  major: ['major', 'minor', 'minor', 'major', 'dominant', 'minor', 'halfdim'],
+  minor: ['minor', 'halfdim', 'major', 'minor', 'dominant', 'major', 'dominant'],
+};
+
+/** Degré (0 à 6) d'une fondamentale dans la tonalité ; -1 hors de la gamme. */
+function degreeInKey(key, rootPc) {
+  return (key.minor ? SCALES.minor : SCALES.major).steps.indexOf(pcOf(rootPc - key.rootPc));
+}
+
+/** Vrai si l'accord appartient à la tonalité : fondamentale de la gamme, famille de son degré. */
+function isDiatonic(key, rootPc, family, quality = '') {
+  if (!key) return false;
+  const d = degreeInKey(key, rootPc);
+  if (d < 0) return false;
+  const want = DIATONIC_FAMILIES[key.minor ? 'minor' : 'major'][d];
+  if (family === want) return true;
+  // Triades : Sol sur le V, Si diminué (sans la 7e diminuée) sur le VII.
+  if (want === 'dominant' && family === 'major' && !chordToneIntervals(quality).has(11)) return true;
+  return want === 'halfdim' && family === 'dim' && !DIM7.test(String(quality));
+}
+
+const INTERVAL_WORDS = {
+  0: 'sur la même fondamentale', 1: 'un demi-ton au-dessus', 2: 'un ton au-dessus', 3: 'une tierce mineure au-dessus',
+  4: 'une tierce majeure au-dessus', 5: 'une quarte au-dessus', 6: 'à un triton', 7: 'une quinte au-dessus',
+  8: 'une tierce majeure en dessous', 9: 'une tierce mineure en dessous', 10: 'un ton en dessous', 11: 'un demi-ton en dessous',
+};
+const FAMILY_WORDS = {
+  major: 'accord majeur', minor: 'accord mineur', dominant: 'dominante', halfdim: 'demi-diminué', dim: 'diminué', sus: 'accord suspendu', other: 'accord',
+};
+
+/**
+ * Ce que fait un accord de passage par rapport à l'accord d'arrivée, en mots.
+ * @param {{interval: number, family: string, bassInterval?: number|null}} step
+ * @param {string} arrivalFamily
+ * @param {{chainLength?: number, index?: number}} [position] - place dans une suite de passages
+ */
+export function relationLabel(step, arrivalFamily, { chainLength = 1, index = 0 } = {}) {
+  const { interval, family, bassInterval = null } = step;
+  if (bassInterval != null && bassInterval !== interval && [1, 2, 10, 11].includes(bassInterval)) {
+    return `${FAMILY_WORDS[family] || 'accord'} avec la basse ${INTERVAL_WORDS[bassInterval]} de l'arrivée (la basse marche vers elle)`;
+  }
+  if (family === 'dim') {
+    if (interval === 11) return 'diminué un demi-ton sous l\'accord d\'arrivée (sur sa sensible)';
+    if (interval === 1) return 'diminué un demi-ton au-dessus de l\'arrivée (en descendant)';
+    if (interval === 0) return 'diminué sur la fondamentale de l\'arrivée (note commune)';
+  }
+  if (family === 'dominant' || family === 'sus') {
+    if (interval === 7) return chainLength > 1 && index > 0 ? 'V du II-V de l\'accord d\'arrivée' : 'dominante de l\'accord d\'arrivée';
+    if (interval === 1) return 'dominante un demi-ton au-dessus de l\'arrivée (substitution tritonique)';
+    if (interval === 10) return 'dominante un ton sous l\'arrivée (« backdoor »)';
+    if (interval === 11) return 'dominante un demi-ton sous l\'arrivée';
+  }
+  if ((family === 'minor' || family === 'halfdim') && interval === 2 && chainLength > 1 && index === 0) return 'II du II-V de l\'accord d\'arrivée';
+  if (family === 'minor' && interval === 5 && arrivalFamily === 'major') return 'IV mineur avant l\'arrivée (cadence plagale mineure)';
+  if (family === arrivalFamily && (interval === 1 || interval === 11)) return `même accord ${INTERVAL_WORDS[interval]} (glissement chromatique)`;
+  return `${FAMILY_WORDS[family] || 'accord'} ${INTERVAL_WORDS[interval]} de l'arrivée`;
+}
+
+/** Relation connue, qui fait d'un accord hors tonalité un accord de passage même s'il dure. */
+function knownRelation(c, next) {
+  const interval = pcOf(c.rootPc - next.rootPc);
+  if (c.family === 'dim') return [11, 1, 0].includes(interval);
+  if (c.family === 'dominant' || c.family === 'sus') return [7, 1, 10, 11].includes(interval);
+  if (c.family === 'minor' && interval === 5 && next.family === 'major') return true;
+  return c.family === next.family && (interval === 1 || interval === 11);
+}
+
+/**
+ * Les enchaînements du prof : la grille du passage et, entre deux accords principaux,
+ * ses accords de passage, chacun décrit par rapport à l'accord qui le suit.
+ * Un accord est « de passage » s'il mène à un autre accord et qu'il est bref (au plus
+ * 60 % de l'accord suivant ou du précédent), ou hors de la tonalité dans une relation
+ * connue (diminué sur la sensible, dominante, substitution tritonique, IV mineur…).
+ * @param {{start: number, end: number, label: string}[]} chords - grille relevée
+ * @param {{start: number, end: number, key?: string|null}} window - passage, tonalité du tuto
+ * @returns {{chords: object[], moves: {from: object|null, to: object, motion: number|null, time: number, chain: object[]}[]}}
+ */
+export function passingMoves(chords, { start = 0, end = Infinity, key = null } = {}) {
+  const teacherKey = key ? parseKey(key) : null;
+  // Toute la grille (l'accord d'arrivée peut tomber juste après le passage), sans doublons.
+  const all = [];
+  for (const c of [...(chords || [])].filter((x) => Number.isFinite(x?.start)).sort((a, b) => a.start - b.start)) {
+    const parsed = parseChordName(c.label || c.name);
+    if (!parsed) continue;
+    const last = all[all.length - 1];
+    if (last && last.name === parsed.name) {
+      last.end = Math.max(last.end, Number.isFinite(c.end) ? c.end : c.start);
+      continue;
+    }
+    all.push({ ...parsed, start: c.start, end: Number.isFinite(c.end) ? c.end : c.start, family: chordFamily(parsed.quality) });
+  }
+  // Durée d'un accord : jusqu'à l'accord suivant (son rythme harmonique).
+  all.forEach((c, i) => { c.dur = Math.max(0.05, (all[i + 1] ? all[i + 1].start : c.end) - c.start); });
+  const inWindow = (c) => c.start < end && c.start + c.dur > start;
+  const passing = all.map((c, i) => {
+    const next = all[i + 1];
+    const prev = all[i - 1];
+    if (!next || !inWindow(c)) return false;
+    if (pcOf(c.rootPc - next.rootPc) === 0 && c.family === next.family) return false;
+    const short = c.dur <= 0.6 * next.dur || Boolean(prev && c.dur <= 0.6 * prev.dur);
+    const outside = teacherKey ? !isDiatonic(teacherKey, c.rootPc, c.family, c.quality) : false;
+    return short || (outside && knownRelation(c, next));
+  });
+  const moves = [];
+  for (let i = 0; i < all.length; i += 1) {
+    if (!passing[i] || (i > 0 && passing[i - 1])) continue;
+    let j = i;
+    while (passing[j + 1]) j += 1;
+    const to = all[j + 1];
+    if (!to) continue;
+    const from = i > 0 ? all[i - 1] : null;
+    const run = all.slice(i, j + 1);
+    const base = (from ? from.dur : to.dur) + run.reduce((sum, c) => sum + c.dur, 0);
+    const chain = run.map((c, k) => {
+      const step = {
+        name: c.name,
+        quality: c.quality,
+        family: c.family,
+        interval: pcOf(c.rootPc - to.rootPc),
+        bassInterval: c.bassPc != null ? pcOf(c.bassPc - to.rootPc) : null,
+        share: c.dur / base,
+        time: c.start,
+      };
+      step.relation = relationLabel(step, to.family, { chainLength: run.length, index: k });
+      return step;
+    });
+    moves.push({
+      from: from ? { name: from.name, rootPc: from.rootPc, family: from.family } : null,
+      to: { name: to.name, rootPc: to.rootPc, family: to.family },
+      motion: from ? pcOf(to.rootPc - from.rootPc) : null,
+      time: run[0].start,
+      chain,
+    });
+  }
+  return { chords: all.filter(inWindow), moves };
+}
+
+/**
+ * Les accords de passage à glisser entre `prev` et `target` : ceux que le prof met devant
+ * le même genre d'accord, arrivant par le même mouvement de basse si possible, avec la
+ * même qualité à la même distance de l'arrivée ; null si aucun ne convient (même
+ * fondamentale, basse au demi-ton, doublon de l'accord précédent, diminué après la
+ * dominante qui mène déjà à l'accord).
+ */
+function chainBefore(moves, prev, target, { sharps = false, anywhere = false } = {}) {
+  const motion = pcOf(target.rootPc - prev.rootPc);
+  if (motion === 0) return null;
+  const family = chordFamily(target.quality);
+  const order = FAMILY_FALLBACK[family] || FAMILY_FALLBACK.other;
+  const rank = (m) => {
+    if (m.to.family === family && m.motion === motion) return 0;
+    if (m.to.family === family) return 1;
+    if (m.motion === motion) return 2;
+    const f = order.indexOf(m.to.family);
+    return 3 + (f < 0 ? order.length : f);
+  };
+  const move = [...moves].sort((a, b) => rank(a) - rank(b) || a.time - b.time)[0];
+  if (!move) return null;
+  // Là où il s'en sert : devant le même genre d'accord, ou par le même mouvement de basse.
+  if (!anywhere && rank(move) > 2) return null;
+  // Basse qui avance d'un demi-ton : pas de passage, sauf si le prof en mettait un là.
+  if ((motion === 1 || motion === 11) && move.motion !== motion) return null;
+  const steps = move.chain.map((step) => {
+    const rootPc = pcOf(target.rootPc + step.interval);
+    const { quality } = step;
+    const bass = step.bassInterval != null ? `/${spellFromArrival(target, step.bassInterval, sharps)}` : '';
+    return {
+      name: `${spellFromArrival(target, step.interval, sharps)}${quality}${bass}`,
+      rootPc,
+      family: chordFamily(quality),
+      passing: true,
+      share: step.share,
+      relation: step.relation,
+      teacher: step.name,
+      prefer: step.name,
+    };
+  });
+  const prevFamily = chordFamily(prev.quality);
+  if (steps.some((st) => st.rootPc === prev.rootPc && st.family === prevFamily)) return null;
+  if (steps[0].family === 'dim' && pcOf(prev.rootPc - target.rootPc) === 7 && prevFamily === 'dominant') return null;
+  return steps;
+}
+
+/** Durée d'un accord principal suivi de passages dans l'exemple (secondes). */
+const PASSING_SLOT = 2;
+
+/**
+ * La progression demandée avec les accords de passage du prof, là où il s'en sert :
+ * devant le même genre d'accord que dans la vidéo, ou quand la basse fait le même
+ * mouvement (sa substitution tritonique de V → I va sur chaque quinte descendante, son
+ * diminué sur la sensible devant chaque accord mineur). Si la progression n'en offre
+ * aucune place, devant chaque accord (`everywhere`). Chaque passage prend sur l'accord
+ * qui le précède la part qu'il avait chez le prof.
+ * @param {object[]} moves - passingMoves().moves
+ * @param {string[]} targets - accords de la progression
+ * @param {{sharps?: boolean}} [options] - noms en dièses (sinon en bémols, hors lettre évidente)
+ * @returns {{sequence: {name: string, passing: boolean, seconds: number, relation?: string, teacher?: string}[], everywhere: boolean}}
+ */
+export function applyPassingMoves(moves, targets, { sharps = false } = {}) {
+  const parsed = (targets || []).map((t) => parseChordName(t)).filter(Boolean);
+  const build = (anywhere) => {
+    const list = [];
+    parsed.forEach((t, i) => {
+      const chain = i > 0 && moves?.length ? chainBefore(moves, parsed[i - 1], t, { sharps, anywhere }) : null;
+      if (chain) list.push(...chain);
+      list.push({ name: t.name, passing: false });
+    });
+    return list;
+  };
+  let sequence = build(false);
+  let everywhere = false;
+  if (!sequence.some((c) => c.passing)) {
+    const loose = build(true);
+    if (loose.some((c) => c.passing)) { sequence = loose; everywhere = true; }
+  }
+  // Durées : un passage prend sur l'accord principal qui le précède (60 % au plus).
+  for (let i = 0; i < sequence.length; i += 1) {
+    if (sequence[i].passing) continue;
+    let j = i + 1;
+    let shares = 0;
+    while (sequence[j]?.passing) { shares += sequence[j].share; j += 1; }
+    const total = Math.min(0.6, shares);
+    sequence[i].seconds = Math.round(PASSING_SLOT * (1 - total) * 100) / 100;
+    for (let k = i + 1; k < j; k += 1) {
+      sequence[k].seconds = Math.max(0.35, Math.round(PASSING_SLOT * sequence[k].share * (total / shares) * 100) / 100);
+    }
+  }
+  return { sequence, everywhere };
+}
+
 // ── L'outil, de bout en bout ────────────────────────────────────────────────────
+
+/** Les gabarits du prof réellement employés, dans l'ordre où il les joue. */
+function usedShapes(realized, shapes) {
+  return [...new Map(realized.map((c) => [c.from, shapes.find((sh) => sh.label === c.from)])).values()].filter(Boolean)
+    .sort((a, b) => a.time - b.time);
+}
+
+const describeUsed = (used) => used.map((sh) => `${clock(sh.time)} ${sh.label} : ${describeShape(sh)}`).join(' ; ');
+
+/** Cas 1 : ses voicings sur la progression. */
+function transferVoicings({ notes, chords, from, to, list, title, sharps }) {
+  const shapes = voicingShapes(notes, chords, { start: from, end: to });
+  if (!shapes.length) return { example: null, text: '', error: `Je n'ai pas trouvé d'accord du prof assez net entre ${clock(from)} et ${clock(to)} pour en reprendre le voicing.` };
+  const realized = applyVoicings(shapes, list);
+  const head = `_Voicings repris du prof (${describeUsed(usedShapes(realized, shapes))}) :_`;
+  const example = chordsExample(realized, {
+    title: title || `Ses voicings sur ${list.join(' → ')}`,
+    subtitle: `Repris de ${clock(from)}–${clock(to)} · ${realized.length} accords`,
+  });
+  return { example, text: [head, ...realized.map((c) => realizedLine(c, { sharps }))].join('\n') };
+}
+
+/** Cas 2 : ses accords de passage, glissés dans la progression, avec ses voicings. */
+function transferPassingChords({ notes, chords, from, to, list, title, sharps, key, found = null }) {
+  const { chords: played, moves } = found || passingMoves(chords, { start: from, end: to, key });
+  const withVoicings = (why) => {
+    const fallback = transferVoicings({ notes, chords, from, to, list, title, sharps });
+    const note = `_(${why} Voici ses voicings sur ta progression.)_`;
+    return fallback.example ? { ...fallback, text: `${note}\n${fallback.text}` } : { ...fallback, error: `${why}` };
+  };
+  if (!moves.length) {
+    const grid = played.map((c) => c.name).join(' → ') || 'aucun accord relevé';
+    return withVoicings(`Pas d'accord de passage entre ${clock(from)} et ${clock(to)} : il enchaîne directement ${grid}.`);
+  }
+  const { sequence, everywhere } = applyPassingMoves(moves, list, { sharps });
+  if (!sequence.some((c) => c.passing)) {
+    return withVoicings('Ses accords de passage ne trouvent pas de place dans cette progression (même fondamentale ou basse au demi-ton d\'un accord à l\'autre).');
+  }
+  const where = everywhere ? ' (ta progression ne fait nulle part son mouvement : glissé devant chaque accord)' : '';
+  const head = `_Enchaînement repris du prof (${moves.map((m) => `${clock(m.time)} : ${[m.from?.name, ...m.chain.map((c) => c.name), m.to.name].filter(Boolean).join(' → ')}, ${m.chain.map((c) => c.relation).join(', puis ')}`).join(' ; ')})${where} :_`;
+  const subtitle = `Repris de ${clock(from)}–${clock(to)} · ${sequence.filter((c) => c.passing).length} accords de passage`;
+  const exampleTitle = title || `Ses accords de passage sur ${list.join(' → ')}`;
+  const shapes = voicingShapes(notes, chords, { start: from, end: to });
+  const passingLabels = new Set(moves.flatMap((m) => m.chain.map((c) => c.name)));
+  const realized = shapes.length ? applyVoicings(shapes, sequence, { exclude: passingLabels }) : [];
+  if (realized.length === sequence.length) {
+    const voicings = `_Joués avec ses voicings (${describeUsed(usedShapes(realized, shapes))}) :_`;
+    const example = chordsExample(realized, { title: exampleTitle, subtitle });
+    return { example, text: [head, voicings, ...realized.map((c) => realizedLine(c, { sharps }))].join('\n') };
+  }
+  // Ses voicings illisibles dans ce passage : ceux de l'application, enchaînés.
+  const example = buildChordExample(sequence.map((c) => c.name), { styleId: 'auto' });
+  if (!example) return { example: null, text: '', error: 'Je n\'ai pas pu faire jouer cette progression avec ses accords de passage.' };
+  example.kind = 'tutorial-transfer';
+  example.title = exampleTitle;
+  example.subtitle = subtitle;
+  const lines = (example.chords || []).map((c, i) => (c.leftHand || c.rightHand
+    ? realizedLine({ name: c.name, leftHand: c.leftHand || [], rightHand: c.rightHand || [], passing: sequence[i]?.passing }, { sharps })
+    : `- ${sequence[i]?.passing ? `_${c.name}_ (passage)` : `**${c.name}**`}`));
+  return { example, text: [head, '_Ses voicings n\'ont pas pu être lus dans ce passage : voicings de l\'application._', ...lines].join('\n') };
+}
 
 /**
  * Ce que l'outil apply_tutorial_passage rend : l'exemple à écouter, et le texte qui
@@ -459,29 +844,28 @@ export function progressionFromDegrees(degreesText, keyText = 'C') {
  * @param {object[]} input.chords - grille relevée
  * @param {number} input.start
  * @param {number} input.end
- * @param {'voicing'|'enchainement'|'lick'} [input.what]
+ * @param {'voicing'|'enchainement'|'lick'|'auto'} [input.what] - auto : ses accords de passage
+ *   s'il y en a dans le passage, sinon ses voicings
  * @param {string[]} input.targets - accords cibles
  * @param {string} [input.title]
+ * @param {string|null} [input.key] - tonalité du tuto : un accord hors tonalité dans une
+ *   relation connue (diminué, dominante…) est un accord de passage même s'il dure
  * @returns {{example: object|null, text: string, error?: string}}
  */
-export function applyTutorialPassage({ notes = [], chords = [], start, end, what = 'voicing', targets = [], title = '' } = {}) {
+export function applyTutorialPassage({ notes = [], chords = [], start, end, what = 'voicing', targets = [], title = '', key = null } = {}) {
   const from = Math.max(0, Number(start) || 0);
   const to = Math.min(Number(end) || from + 20, from + 30);
   const list = (targets || []).map((t) => String(t || '').trim()).filter((t) => parseChordName(t));
   if (!list.length) return { example: null, text: '', error: 'Aucun accord cible reconnu.' };
-  if (what === 'voicing' || what === 'auto' || !what) {
-    const shapes = voicingShapes(notes, chords, { start: from, end: to });
-    if (!shapes.length) return { example: null, text: '', error: `Je n'ai pas trouvé d'accord du prof assez net entre ${clock(from)} et ${clock(to)} pour en reprendre le voicing.` };
-    const realized = applyVoicings(shapes, list);
-    const used = [...new Map(realized.map((c) => [c.from, shapes.find((s) => s.label === c.from)])).values()].filter(Boolean)
-      .sort((a, b) => a.time - b.time);
-    const sharps = prefersSharps(list);
-    const head = `_Voicings repris du prof (${used.map((s) => `${clock(s.time)} ${s.label} : ${describeShape(s)}`).join(' ; ')}) :_`;
-    const example = chordsExample(realized, {
-      title: title || `Ses voicings sur ${list.join(' → ')}`,
-      subtitle: `Repris de ${clock(from)}–${clock(to)} · ${realized.length} accords`,
-    });
-    return { example, text: [head, ...realized.map((c) => realizedLine(c, { sharps }))].join('\n') };
+  const sharps = prefersSharps(list);
+  const input = { notes, chords, from, to, list, title, sharps, key };
+  let kind = what || 'auto';
+  if (kind === 'auto') {
+    const found = passingMoves(chords, { start: from, end: to, key });
+    if (found.moves.length) return transferPassingChords({ ...input, found });
+    kind = 'voicing';
   }
+  if (kind === 'voicing') return transferVoicings(input);
+  if (kind === 'enchainement') return transferPassingChords(input);
   return { example: null, text: '', error: `« ${what} » : pas encore disponible.` };
 }

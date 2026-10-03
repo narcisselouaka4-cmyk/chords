@@ -4,6 +4,7 @@
 import {
   noteLabel, chordFamily, roleOfInterval, intervalForRole, voicingShapes, describeShape,
   applyVoicings, progressionFromDegrees, parseKey, applyTutorialPassage, prefersSharps,
+  spellInChord, passingMoves, applyPassingMoves, relationLabel,
 } from './tutorial-transfer.js';
 
 let passed = 0;
@@ -63,18 +64,19 @@ const expected = {
   // Sol2 Fa3 | Si3 Ré4 La4 : la 7e devient la 7e mineure de G7.
   G7: '43,53 | 59,62,69',
   Em7: '40,50 | 55,59,66',
-  Am7: '33,43 | 48,52,59',
+  // La2 Sol3 | Do4 Mi4 Si4 : La1 Sol2 serait plus boueux dans le grave que Do2 Si2 du prof.
+  Am7: '45,55 | 60,64,71',
   Dm7: '38,48 | 53,57,64',
   Cmaj7: '36,47 | 52,55,62',
 };
 check('Fmaj7 : Fa2 Mi3 | La3 Do4 Sol4', hands(realized[0]) === expected.Fmaj7, hands(realized[0]));
 check('G7 : Sol2 Fa3 | Si3 Ré4 La4', hands(realized[1]) === expected.G7, hands(realized[1]));
 check('Em7 : Mi2 Ré3 | Sol3 Si3 Fa♯4', hands(realized[2]) === expected.Em7, hands(realized[2]));
-check('Am7 : La1 Sol2 | Do3 Mi3 Si3', hands(realized[3]) === expected.Am7, hands(realized[3]));
+check('Am7 : La2 Sol3 | Do4 Mi4 Si4 (pas plus boueux que le prof)', hands(realized[3]) === expected.Am7, hands(realized[3]));
 check('Dm7 : Ré2 Do3 | Fa3 La3 Mi4', hands(realized[4]) === expected.Dm7, hands(realized[4]));
 check('le Cmaj7 final retombe sur le voicing du prof', hands(realized[6]) === expected.Cmaj7, hands(realized[6]));
-check('les mains restent dans le registre du prof (pas de montée d\'accord en accord)',
-  realized.every((c) => Math.abs(c.leftHand[0] - 36) <= 7 && Math.abs(c.rightHand[0] - 52) <= 12), realized.map(hands).join(' / '));
+check('les mains restent dans le registre du prof, à l\'octave près (pas de montée d\'accord en accord)',
+  realized.every((c) => Math.abs(c.leftHand[0] - 36) <= 12 && Math.abs(c.rightHand[0] - 52) <= 12), realized.map(hands).join(' / '));
 check('la main droite reste au-dessus de la gauche', realized.every((c) => Math.min(...c.rightHand) > Math.max(...c.leftHand)));
 
 console.log('Un gabarit par famille d\'accord');
@@ -145,12 +147,86 @@ check('l\'exemple joue ces notes, un accord après l\'autre, mains comprises', o
   && ons.filter((e) => e.hand === 'lh').length === 14, `${ons.length}`);
 check('titre et sous-titre de l\'exemple', tool.example.title === 'Ses voicings sur Fmaj7 → G7 → Em7 → Am7 → Dm7 → G7 → Cmaj7' && tool.example.subtitle === 'Repris de 0:00–0:05 · 7 accords', tool.example.subtitle);
 const sharp = applyTutorialPassage({ notes: CMAJ7_NOTES, chords: CMAJ7_GRID, start: 0, end: 5, targets: progressionFromDegrees('2-5-1', 'F#') });
-// (Le prof joue grave, basse Do2 : G#m7 reste dans ce registre.)
-check('en Fa♯ : les notes s\'écrivent en dièses', sharp.text.split('\n')[1] === '- **G#m7** : main gauche Sol♯1 Fa♯2 · main droite Si2 Ré♯3 La♯3', sharp.text.split('\n')[1]);
+check('en Fa♯ : les notes s\'écrivent en dièses', sharp.text.split('\n')[1] === '- **G#m7** : main gauche Sol♯2 Fa♯3 · main droite Si3 Ré♯4 La♯4', sharp.text.split('\n')[1]);
 check('« auto » : les voicings', applyTutorialPassage({ notes: CMAJ7_NOTES, chords: CMAJ7_GRID, start: 0, end: 5, what: 'auto', targets: ['Fmaj7'] }).example !== null);
 const noShape = applyTutorialPassage({ notes: CMAJ7_NOTES, chords: CMAJ7_GRID, start: 20, end: 30, targets: ['Fmaj7'] });
 check('passage sans accord net : dit simplement', !noShape.example && /pas trouvé d'accord du prof assez net entre 0:20 et 0:30/.test(noShape.error), noShape.error);
 check('aucun accord cible reconnu : dit simplement', /Aucun accord cible/.test(applyTutorialPassage({ notes: CMAJ7_NOTES, chords: CMAJ7_GRID, start: 0, end: 5, targets: ['xyz'] }).error));
+
+console.log('Orthographe dans l\'accord');
+check('Sol♭ dans Ab7, Ré♯ dans Bmaj7, Si♭ (bb7) dans C#dim7, Do♯ (3) dans A7#9', spellInChord(66, 'Ab7') === 'Sol♭4' && spellInChord(63, 'Bmaj7') === 'Ré♯4'
+  && spellInChord(58, 'C#dim7') === 'Si♭3' && spellInChord(61, 'A7#9') === 'Do♯4');
+check('orthographe illisible (Mi♯, Si♯) : le nom courant', spellInChord(65, 'C#7') === 'Fa4' && spellInChord(60, 'A7#9') === 'Do4' && spellInChord(70, 'Gb7') === 'Si♭4');
+
+// ── Lot 3 : ses enchaînements ──────────────────────────────────────────────────
+console.log('Ses accords de passage');
+// Le prof, en Do : Cmaj7 (2 s) → C#dim7 (0,5 s) → Dm7 (2 s) → Db7 (0,5 s) → Cmaj7 (2 s).
+const PASS_GRID = [
+  { start: 0, end: 2, label: 'Cmaj7' }, { start: 2, end: 2.5, label: 'C#dim7' }, { start: 2.5, end: 4.5, label: 'Dm7' },
+  { start: 4.5, end: 5, label: 'Db7' }, { start: 5, end: 7, label: 'Cmaj7' },
+];
+const block = (t, d, lh, rh) => [...lh.map((midi) => ({ midi, start: t, end: t + d - 0.05, hand: 'lh' })), ...rh.map((midi) => ({ midi, start: t + 0.01, end: t + d - 0.05, hand: 'rh' }))];
+const PASS_NOTES = [
+  ...block(0, 2, [36, 47], [52, 55, 62]), ...block(2, 0.5, [37], [52, 55, 58]), ...block(2.5, 2, [38, 48], [53, 57, 64]),
+  ...block(4.5, 0.5, [37, 47], [53, 56, 63]), ...block(5, 2, [36, 47], [52, 55, 62]),
+];
+const found = passingMoves(PASS_GRID, { start: 0, end: 7, key: 'C' });
+check('deux enchaînements relevés, décrits par rapport à l\'accord d\'arrivée', found.moves.length === 2
+  && found.moves[0].chain[0].name === 'C#dim7' && found.moves[0].chain[0].interval === 11 && found.moves[0].to.name === 'Dm7' && found.moves[0].motion === 2
+  && found.moves[1].chain[0].name === 'Db7' && found.moves[1].chain[0].interval === 1 && found.moves[1].to.name === 'Cmaj7',
+  JSON.stringify(found.moves.map((m) => [m.chain.map((c) => c.name), m.to.name])));
+check('sa durée relative (0,5 s sur 2,5 s)', Math.abs(found.moves[0].chain[0].share - 0.2) < 1e-9);
+check('relations en mots', /diminué un demi-ton sous l'accord d'arrivée/.test(found.moves[0].chain[0].relation) && /substitution tritonique/.test(found.moves[1].chain[0].relation));
+check('relations : dominante, backdoor, IV mineur, glissement', relationLabel({ interval: 7, family: 'dominant' }, 'minor') === 'dominante de l\'accord d\'arrivée'
+  && /backdoor/.test(relationLabel({ interval: 10, family: 'dominant' }, 'major')) && /IV mineur/.test(relationLabel({ interval: 5, family: 'minor' }, 'major'))
+  && /glissement/.test(relationLabel({ interval: 1, family: 'minor' }, 'minor')));
+check('accords de même durée, dans la tonalité : pas de passage', passingMoves([{ start: 0, end: 2, label: 'Dm7' }, { start: 2, end: 4, label: 'G7' }, { start: 4, end: 6, label: 'Cmaj7' }], { start: 0, end: 6, key: 'C' }).moves.length === 0);
+check('accord hors tonalité dans une relation connue : passage même s\'il dure (IV mineur)',
+  passingMoves([{ start: 0, end: 2, label: 'F' }, { start: 2, end: 4, label: 'Fm6' }, { start: 4, end: 6, label: 'C' }], { start: 0, end: 6, key: 'C' }).moves[0]?.chain[0]?.name === 'Fm6');
+
+const prog7 = progressionFromDegrees('4-5-3-6-2-5-1', 'C');
+const placed = applyPassingMoves(found.moves, prog7);
+const seq = placed.sequence;
+const seqText = seq.map((c) => (c.passing ? `(${c.name})` : c.name)).join(' ');
+const show = (r) => r.sequence.map((c) => (c.passing ? `(${c.name})` : c.name)).join(' ');
+// Diminué sur la sensible devant chaque accord mineur (et entre Fa et Sol : même montée
+// d'un ton que Cmaj7 → Dm7) ; substitution tritonique devant le I ; rien devant G7 après Dm7.
+check('4-5-3-6-2-5-1 : ses passages là où il s\'en sert (même genre d\'accord, ou même mouvement de basse)',
+  seqText === 'Fmaj7 (F#dim7) G7 (D#dim7) Em7 (G#dim7) Am7 (C#dim7) Dm7 G7 (Db7) Cmaj7' && !placed.everywhere, seqText);
+check('durées : le passage prend sa part sur l\'accord qui le précède', seq[0].seconds === 1.6 && seq[1].seconds === 0.4 && seq[seq.length - 1].seconds === 2);
+// Garde-fous (ceux des Exercices) : pas de doublon de l'accord précédent, pas de
+// diminué après la dominante qui mène déjà à l'accord, rien quand la basse avance d'un demi-ton.
+const v7 = passingMoves([{ start: 0, end: 2, label: 'Fmaj7' }, { start: 2, end: 2.5, label: 'D7' }, { start: 2.5, end: 4.5, label: 'Gm7' }], { start: 0, end: 5, key: 'F' });
+check('dominante de l\'arrivée : pas de G7 glissé après G7 (Dm7 G7 → C)', show(applyPassingMoves(v7.moves, ['Dm7', 'G7', 'Cmaj7'])) === 'Dm7 (D7) G7 Cmaj7', show(applyPassingMoves(v7.moves, ['Dm7', 'G7', 'Cmaj7'])));
+check('… et dit qu\'il a fallu le glisser ailleurs que là où le prof s\'en sert', applyPassingMoves(v7.moves, ['Dm7', 'G7', 'Cmaj7']).everywhere === true);
+check('pas de diminué après la dominante qui mène déjà à l\'accord (G7 → C)', !applyPassingMoves(found.moves.slice(0, 1), ['G7', 'Cmaj7']).sequence.some((c) => c.passing));
+check('basse qui avance d\'un demi-ton : pas de passage (B7 → Cmaj7)', !applyPassingMoves(found.moves, ['Bm7', 'Cmaj7']).sequence.some((c) => c.passing));
+// Sa substitution tritonique de V → I (G13 → Db9 → Cmaj9) : sur chaque quinte descendante.
+const tritone = passingMoves([{ start: 0, end: 2, label: 'G13' }, { start: 2, end: 2.5, label: 'Db9' }, { start: 2.5, end: 4.5, label: 'Cmaj9' }], { start: 0, end: 5, key: 'C' });
+check('substitution tritonique : sur chaque quinte descendante (chromatisme à la basse)', show(applyPassingMoves(tritone.moves, prog7)) === 'Fmaj7 G7 Em7 (Bb9) Am7 (Eb9) Dm7 (Ab9) G7 (Db9) Cmaj7', show(applyPassingMoves(tritone.moves, prog7)));
+
+// II-V vers l'arrivée et marche de basse.
+const iiV = passingMoves([{ start: 0, end: 2, label: 'Cmaj7' }, { start: 2, end: 2.5, label: 'Em7b5' }, { start: 2.5, end: 3, label: 'A7' }, { start: 3, end: 5, label: 'Dm7' }], { start: 0, end: 5, key: 'C' });
+check('II-V vers l\'arrivée : deux passages, décrits comme tels', iiV.moves[0]?.chain.map((c) => c.relation).join(' / ') === 'II du II-V de l\'accord d\'arrivée / V du II-V de l\'accord d\'arrivée');
+check('… glissé devant G7 : Am7b5 D7', applyPassingMoves(iiV.moves, ['Fmaj7', 'G7']).sequence.map((c) => c.name).join(' ') === 'Fmaj7 Am7b5 D7 G7');
+const walk = passingMoves([{ start: 0, end: 2, label: 'C' }, { start: 2, end: 2.5, label: 'C/E' }, { start: 2.5, end: 4.5, label: 'F' }], { start: 0, end: 5, key: 'C' });
+check('basse qui monte vers l\'arrivée (C/E → F) : D/F# devant G', /la basse marche vers elle/.test(walk.moves[0]?.chain[0]?.relation || '')
+  && applyPassingMoves(walk.moves, ['F', 'G']).sequence.map((c) => c.name).join(' ') === 'F D/F# G', applyPassingMoves(walk.moves, ['F', 'G']).sequence.map((c) => c.name).join(' '));
+
+console.log('L\'outil, pour ses enchaînements');
+const ench = applyTutorialPassage({ notes: PASS_NOTES, chords: PASS_GRID, start: 0, end: 7, what: 'enchainement', targets: prog7, key: 'C' });
+const enchLines = ench.text.split('\n');
+check('le texte dit ses enchaînements, puis ses voicings', /^_Enchaînement repris du prof \(0:02 : Cmaj7 → C#dim7 → Dm7, diminué un demi-ton sous l'accord d'arrivée/.test(enchLines[0])
+  && /^_Joués avec ses voicings \(0:00 Cmaj7 : main gauche 1 · 7 \| main droite 3 · 5 · 9 ; 0:02 C#dim7 : main gauche 1 \| main droite b3 · b5 · bb7/.test(enchLines[1]), enchLines.slice(0, 2).join(' / '));
+check('les accords de passage en italique, avec leurs notes et leurs mains, chacun avec SA forme', enchLines[3] === '- _F#dim7_ (passage) : main gauche Fa♯2 · main droite La3 Do4 Mi♭4'
+  && enchLines[12] === '- _Db7_ (passage) : main gauche Ré♭2 Si2 · main droite Fa3 La♭3 Mi♭4' && enchLines.length === 14, enchLines.slice(3, 14).join(' / '));
+const onsAt = (ex, t) => (ex?.events || []).filter((e) => e.type === 'noteOn' && Math.abs(e.time - t) < 1e-6).map((e) => e.note).sort((a, b) => a - b).join(',');
+check('l\'exemple : le passage arrive à 1,6 s, l\'accord suivant à 2 s', onsAt(ench.example, 1.6) === '42,57,60,63' && onsAt(ench.example, 2) === '43,53,59,62,69', `${onsAt(ench.example, 1.6)} | ${onsAt(ench.example, 2)}`);
+const auto = applyTutorialPassage({ notes: PASS_NOTES, chords: PASS_GRID, start: 0, end: 7, what: 'auto', targets: ['Dm7', 'G7', 'Cmaj7'], key: 'C' });
+check('« auto » : ses accords de passage quand le passage en a', /^_Enchaînement repris du prof/.test(auto.text));
+const none = applyTutorialPassage({ notes: CMAJ7_NOTES, chords: CMAJ7_GRID, start: 0, end: 5, what: 'enchainement', targets: ['Dm7', 'G7'], key: 'C' });
+check('pas d\'accord de passage : dit tel quel, et ses voicings à la place', /Pas d'accord de passage entre 0:00 et 0:05 : il enchaîne directement Cmaj7\. Voici ses voicings sur ta progression\./.test(none.text) && none.example, none.text.split('\n')[0]);
+check('« auto » sans accord de passage : ses voicings', /^_Voicings repris du prof/.test(applyTutorialPassage({ notes: CMAJ7_NOTES, chords: CMAJ7_GRID, start: 0, end: 5, what: 'auto', targets: ['Dm7'] }).text));
 
 console.log(`\n=== Résultat : ${passed}/${passed + failed} contrôles passés ===`);
 if (failed) process.exit(1);

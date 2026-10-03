@@ -1333,6 +1333,17 @@ function testApplyTutorialPassageTool() {
   check('apply_tutorial_passage sans notes du prof : pas d\'exemple, message honnête', !none.example && /pas les notes exactes jouées par le professeur/.test(none.content || ''), none.content);
   const far = executeToolCalls([call({ start: 30, end: 40, what: 'voicing', chords: ['Fmaj7'] })], '', { tutorial: TEACHER });
   check('apply_tutorial_passage sur un passage sans accord net : dit simplement', !far.example && /pas trouvé d'accord du prof assez net/.test(far.content || ''), far.content);
+
+  // Lot 3 : son enchaînement. Le prof glisse Db9 (0,5 s) entre G13 et Cmaj9.
+  const passingGrid = [{ start: 0, end: 2, label: 'Dm9' }, { start: 2, end: 3.5, label: 'G13' }, { start: 3.5, end: 4, label: 'Db9' }, { start: 4, end: 6, label: 'Cmaj9' }];
+  const passingNotes = [...TEACHER_NOTES.filter((n) => n.start < 2 || n.start >= 4),
+    ...[43, 53, 59, 64].map((midi) => ({ midi, start: 2, end: 3.45, hand: midi < 50 ? 'lh' : 'rh' })),
+    ...[37, 53, 59, 63].map((midi) => ({ midi, start: 3.5, end: 3.95, hand: midi < 50 ? 'lh' : 'rh' }))];
+  const passingTutorial = { key: 'C', noteEvents: passingNotes, chords: passingGrid, moment: { ...TEACHER_MOMENT, chords: passingGrid } };
+  const ench = executeToolCalls([call({ start: 0, end: 6, what: 'enchainement', chords: ['Dm7', 'G7', 'Cmaj7', 'Fmaj7'] })], 'Il glisse une dominante un demi-ton au-dessus.', { tutorial: passingTutorial });
+  check('apply_tutorial_passage, son enchaînement : sa substitution tritonique glissée devant chaque accord qui s\'y prête',
+    names(ench) === 'Dm7 Ab9 G7 Db9 Cmaj7 Gb9 Fmaj7' && /Enchaînement repris du prof \(0:03 : G13 → Db9 → Cmaj9, dominante un demi-ton au-dessus de l'arrivée \(substitution tritonique\)\)/.test(ench.content || ''),
+    `${names(ench)} | ${(ench.content || '').split('\n')[2]}`);
 }
 
 function testTutorialRouting() {
