@@ -75,8 +75,9 @@ check('La vue est cachée par défaut',
 
 const ids = [...tabJs.matchAll(/getElementById\('([^']+)'\)/g)].map((m) => m[1]);
 check('pedagogie-tab.js référence des identifiants', ids.length > 0);
-// pedagogie-calibration-overlay est créé dynamiquement, pas dans le HTML statique.
-const missing = ids.filter((id) => id !== 'pedagogie-calibration-overlay' && !html.includes(`id="${id}"`));
+// pedagogie-calibration-overlay et pedagogie-ready-toast (le message « prêt », posé sur
+// <body>) sont créés dynamiquement, pas dans le HTML statique.
+const missing = ids.filter((id) => !['pedagogie-calibration-overlay', 'pedagogie-ready-toast'].includes(id) && !html.includes(`id="${id}"`));
 check('Tous les identifiants lus par pedagogie-tab.js existent dans index.html',
   missing.length === 0, missing.join(', '));
 
@@ -243,8 +244,11 @@ check('Un état distinct playbackStarted est introduit',
   tabCode.includes('let playbackStarted') && tabCode.includes('playbackStarted = true'));
 check('La vidéo est montée dès la sélection d\'un tutoriel',
   /renderVideo\([^)]*\)[\s\S]*?if \(!selectedPath\)/.test(tabCode) && tabCode.includes('mountVideo(selectedPath)'));
-check('L\'overlay de lecture disparaît dès que la lecture commence',
-  tabCode.includes('els.videoOverlay') && /!playbackStarted/.test(tabCode));
+// [Claude] — 2026-10-03 — Plus de bouton « Lire ce tutoriel » : la vidéo est prête dès que le
+// tuto est analysé ; avant, l'écran d'attente la couvre.
+check('Plus de bouton « Lire ce tutoriel » : la vidéo est prête une fois le tuto analysé',
+  !html.includes('id="pedagogie-analyze-btn"') && !html.includes('id="pedagogie-video-overlay"')
+  && /function applyReading\(job\) \{\s*playbackStarted = true;/.test(tabCode));
 check('selectTrack() remet playbackStarted à false',
   /function selectTrack\(path\) \{[\s\S]*?resetTutorialView\(\);/.test(tabCode)
   && /function resetTutorialView\(\) \{\s*playbackStarted = false;/.test(tabCode));
@@ -378,21 +382,40 @@ check('Un accord sans tierce est distingué visuellement',
 
 const pedagoCss = readText('src/ui/refonte/astra-pedagogie.css');
 check('Le relevé est gardé après une lecture réussie, et rouvert sans relire la vidéo',
-  tabCode.includes('createTutorialMemory') && /if \(succeeded && job\.analysis\) await saveReading\(job\)/.test(tabCode)
+  tabCode.includes('createTutorialMemory') && /if \(succeeded && job\.analysis\) \{\s*await saveReading\(job\);/.test(tabCode)
   && /restoreFromMemory\(path\)/.test(tabCode) && tabCode.includes('loadAnalysis(path, await fileStat(path))'));
-check('« Lire ce tutoriel » : un tuto déjà lu démarre sans nouveau relevé ; « Refaire le relevé » relit tout',
-  /function onPlayClick\(\) \{\s*if \(analysis \|\| isReadingHere\(\)/.test(tabCode)
-  && /id="pedagogie-redo-btn"[^>]*hidden/.test(html) && /redoBtn\?\.addEventListener\('click', \(\) => \{ analyzeSelected\(\); \}\)/.test(tabCode));
+check('Un tuto déjà analysé s\'ouvre sans nouvelle analyse ; « Refaire l\'analyse » relit tout',
+  /if \(!analysis && !isReadingHere\(\) && !waitingPaths\.has\(path\) && !isTooLong\(path\)\) analyzeSelected\(\);/.test(tabCode)
+  && /id="pedagogie-redo-btn"[^>]*hidden[^>]*>Refaire l'analyse</.test(html) && /redoBtn\?\.addEventListener\('click', \(\) => \{ analyzeSelected\(\); \}\)/.test(tabCode));
 check('Accueil en cartes : vignette, durée, « Déjà lu »',
   html.includes('id="pedagogie-home-grid"') && tabCode.includes("className: 'pedago-card-thumb'") && tabCode.includes('cardDuration(card.duration)')
-  && tabCode.includes("'Déjà lu · relevé gardé'") && pedagoCss.includes('#practice-view-pedagogie .pedago-card {'));
+  && tabCode.includes('`Prêt · analysé le ${day}`') && pedagoCss.includes('#practice-view-pedagogie .pedago-card {'));
 check('Vignette : même ffmpeg et même sonde que la lecture des images (IPC pedagogie:thumbnail)',
   electronMain.includes("ipcMain.handle('pedagogie:thumbnail'") && /probeVideoDimensions\(filePath\)[\s\S]{0,400}resolveFfmpeg\(\)[\s\S]{0,600}thumbnailArgs\(filePath, at, width\)/.test(electronMainCode)
   && preload.includes("ipcRenderer.invoke('pedagogie:thumbnail'") && tabCode.includes('api.thumbnail(tut.path'));
 check('Sans ffmpeg : la vignette est prise sur la vidéo pendant la lecture',
   /addEventListener\('timeupdate', captureThumbnailFromPlayer\)/.test(tabCode) && tabCode.includes("toDataURL('image/jpeg'"));
-check('Une carte dit « Relevé en cours… » quand on est revenu aux cartes pendant un relevé',
-  tabCode.includes("busyHere ? 'Relevé en cours…'") && /refreshCard\(path\);/.test(tabCode));
+check('Une carte dit « Analyse en cours… » quand on est revenu aux cartes pendant une analyse',
+  tabCode.includes("reading: 'Analyse en cours…'") && /refreshCard\(path\);/.test(tabCode));
+
+// ---------------------------------------------------------------------------
+// 10 ter. [Claude] — 2026-10-03 — Analyse à l'import, Copilote fermé tant que ce n'est pas
+// prêt (Narcisse : « un temps de chargement, comme dans l'onglet Analyse et l'onglet Studio »)
+// ---------------------------------------------------------------------------
+check('Écran d\'attente de l\'analyse : la scène commune, l\'étape, le temps écoulé, « tu peux aller ailleurs »',
+  /id="pedagogie-reading"[^>]*hidden[\s\S]*?<div data-chroma-stage><\/div>[\s\S]*?id="pedagogie-reading-step"[\s\S]*?id="pedagogie-reading-elapsed"/.test(html)
+  && tabCode.includes('Tu peux aller dans les autres onglets') && /readingTicker = setInterval\(renderReading, 1000\)/.test(tabCode));
+check('Le Copilote ne s\'ouvre que sur un tuto analysé',
+  /const ready = Boolean\(selectedPath && analysis && !isReadingHere\(\)\);/.test(tabCode) && /if \(viewActive && ready && els\.copilotSlot\)/.test(tabCode));
+check('Importer : la durée est lue avant la copie, 30 min au plus ; le tuto s\'ouvre et son analyse démarre',
+  /const MAX_TUTORIAL_SECONDS = 30 \* 60;/.test(tabCode) && /api\.pedagogie\.thumbnail\(filePath, \{ width: 360 \}\)/.test(tabCode)
+  && /duration > MAX_TUTORIAL_SECONDS[\s\S]{0,300}30 minutes au plus/.test(tabCode) && /importNotice\(''\);\s*selectTrack\(path\);/.test(tabCode));
+check('Prêt : un message, depuis n\'importe quel onglet, ouvre le tuto',
+  /if \(!\(here\(\) && isViewVisible\(\)\)\) showReadyToast\(path\);/.test(tabCode) && tabCode.includes("id: 'pedagogie-ready-toast'")
+  && /function openTutorialAnywhere\(path\)/.test(tabCode));
+check('Un tuto trop long, ou une analyse qui n\'aboutit pas, est dit (et « Relancer l\'analyse »)',
+  tabCode.includes("title = 'Tutoriel trop long'") && tabCode.includes("title = 'L\\'analyse n\\'a pas abouti'")
+  && /els\.readingRetry\?\.addEventListener\('click', \(\) => \{ analyzeSelected\(\); \}\)/.test(tabCode));
 
 // ---------------------------------------------------------------------------
 // 10 bis. [Claude] — 2026-10-03 — Retour aux cartes (Narcisse : « une fois qu'on a choisi

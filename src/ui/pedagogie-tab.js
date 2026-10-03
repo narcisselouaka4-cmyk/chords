@@ -110,10 +110,19 @@ const els = {};
 // Un tutoriel est identifié par son CHEMIN de fichier, pas par un Track_ID.
 let tutorials = [];
 let selectedPath = null;
-// Distingue la SÉLECTION d'un tutoriel (aperçu, bouton « Lire ce tutoriel ») de la
-// LECTURE (contrôles du lecteur, analyse lancée). Passe à true au début de
-// analyzeSelected().
+// La vidéo est prête à lire (contrôles du lecteur) : une fois le tuto analysé.
+// [Claude] — 2026-10-03 — Avant, elle démarrait avec « Lire ce tutoriel », pendant le relevé.
 let playbackStarted = false;
+// [Claude] — 2026-10-03 — Durée la plus longue qu'on analyse (Narcisse : « il faut absolument
+// qu'on impose une durée maximale de vidéo traitée ») : 30 min, le plafond de
+// pedagogie:analyze-video, dit dès l'import.
+const MAX_TUTORIAL_SECONDS = 30 * 60;
+// La mémoire du tuto ouvert a été consultée (l'écran d'attente ne s'affiche pas avant).
+let memoryChecked = false;
+// Dernière analyse qui n'a pas abouti : son tuto et la raison.
+let lastFailure = null;
+// Le compteur de temps écoulé de l'écran d'attente.
+let readingTicker = null;
 // [Claude] — 2026-10-03 — Le relevé en cours (un seul à la fois) : son tuto et l'étape où il
 // en est. Les relevés demandés pendant ce temps attendent leur tour (readingQueue).
 let reading = null;
@@ -208,10 +217,9 @@ function setStatus(message, tone = 'info', details = '') {
   }
 }
 
+/** L'étape de l'analyse en cours, sur l'écran d'attente du tuto. */
 function setProgress(message) {
-  if (!els.progress) return;
-  els.progress.textContent = message || '';
-  els.progress.style.display = message ? '' : 'none';
+  if (els.readingStep && reading?.path === selectedPath) els.readingStep.textContent = message || '';
 }
 
 // ---------------------------------------------------------------------------
@@ -237,7 +245,6 @@ function folderProblemText(reason) {
   }
 }
 
-const PLAY_ICON = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 4 13 8-13 8z" fill="currentColor"/></svg>';
 
 /**
  * Les tutos du dossier, en cartes sur l'accueil. [Claude] — 2026-10-03 — Le tiroir « Mes
@@ -314,15 +321,38 @@ function selectTrack(path) {
   // (runReading), sous son tuto.
   selectedPath = path;
   resetTutorialView();
-  // Son relevé tourne encore : la vidéo se regarde pendant ce temps.
-  if (reading?.path === path || waitingPaths.has(path)) {
-    playbackStarted = true;
-    setProgress(reading?.path === path ? reading.step : 'Relevé en attente : un autre tuto passe avant.');
-  }
+  memoryChecked = false;
   mountVideo(path);
   render();
-  // [Claude] — 2026-10-03 — Déjà lu : le relevé revient de la mémoire, sans relire la vidéo.
-  restoreFromMemory(path);
+  // [Claude] — 2026-10-03 — Déjà analysé : l'analyse revient de la mémoire, sans relire la
+  // vidéo. Sinon elle démarre (Narcisse : « un temps de chargement, comme dans l'onglet
+  // Analyse et l'onglet Studio ») ; l'écran d'attente le dit, et le Copilote attend.
+  restoreFromMemory(path).catch(() => false).then(() => {
+    if (selectedPath !== path) return;
+    memoryChecked = true;
+    if (!analysis && !isReadingHere() && !waitingPaths.has(path) && !isTooLong(path)) analyzeSelected();
+    else render();
+  });
+}
+
+/**
+ * [Claude] — 2026-10-03 — Où en est un tuto : « ready » (analysé), « reading » (analyse en
+ * cours), « waiting » (un autre passe avant), « tooLong » (plus de 30 min), « todo ».
+ */
+function tutorialStatus(path) {
+  if (!path) return 'none';
+  if (reading?.path === path) return 'reading';
+  if (waitingPaths.has(path)) return 'waiting';
+  if (path === selectedPath ? Boolean(analysis) : Boolean(cards[path]?.analyzedAt)) return 'ready';
+  if (isTooLong(path)) return 'tooLong';
+  return 'todo';
+}
+
+/** Plus long que ce que Pédagogie IA analyse (30 min, comme pedagogie:analyze-video). */
+function isTooLong(path) {
+  const known = Number(cards[path]?.duration);
+  const playing = path === selectedPath ? Number(els.videoPlayer?.duration) : NaN;
+  return (Number.isFinite(known) && known > MAX_TUTORIAL_SECONDS) || (Number.isFinite(playing) && playing > MAX_TUTORIAL_SECONDS);
 }
 
 /**
@@ -370,11 +400,12 @@ async function fileStat(path) {
 /** Un tuto déjà lu : son relevé revient de la mémoire, sans relire la vidéo. */
 async function restoreFromMemory(path) {
   const mem = await getMemory();
-  if (!mem) return;
+  if (!mem) return false;
   const saved = await mem.loadAnalysis(path, await fileStat(path));
   // Un relevé de ce tuto tourne (ou attend) : c'est lui qui s'affichera, pas l'ancien.
-  if (!saved || selectedPath !== path || isReadingHere() || waitingPaths.has(path) || analysis) return;
+  if (!saved || selectedPath !== path || isReadingHere() || waitingPaths.has(path) || analysis) return false;
   analysis = saved.analysis;
+  playbackStarted = true;
   comparison = saved.comparison;
   narrationView = Array.isArray(saved.narration) ? saved.narration : [];
   detectedKey = saved.key ?? null;
@@ -384,6 +415,7 @@ async function restoreFromMemory(path) {
   // Le Copilote est réannoncé : son en-tête dit maintenant ce qu'il sait du tuto.
   announcedPath = null;
   render();
+  return true;
 }
 
 /**
@@ -436,13 +468,18 @@ function buildCard(tut) {
   }
   const duration = cardDuration(card.duration);
   if (duration) thumb.appendChild(el('span', { className: 'pedago-card-duration', text: duration }));
-  const read = Boolean(card.analyzedAt);
-  // [Claude] — 2026-10-03 — Revenu aux cartes pendant un relevé : il continue, la carte le dit.
-  const busyHere = reading?.path === tut.path;
-  const waiting = waitingPaths.has(tut.path);
-  const meta = busyHere ? 'Relevé en cours…' : waiting ? 'Relevé en attente…' : read ? 'Déjà lu · relevé gardé' : 'Pas encore lu';
+  // [Claude] — 2026-10-03 — Où en est son analyse : elle continue si l'on revient aux cartes.
+  const status = tutorialStatus(tut.path);
+  const day = card.analyzedAt ? new Date(card.analyzedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) : '';
+  const meta = {
+    reading: 'Analyse en cours…',
+    waiting: 'Analyse en attente…',
+    ready: day ? `Prêt · analysé le ${day}` : 'Prêt',
+    tooLong: 'Trop long : 30 min au plus',
+    todo: 'Pas encore analysé',
+  }[status] || '';
   return el('button', {
-    className: `pedago-card${read && !busyHere ? ' is-read' : ''}${busyHere || waiting ? ' is-reading' : ''}`,
+    className: `pedago-card${status === 'ready' ? ' is-read' : ''}${status === 'reading' || status === 'waiting' ? ' is-reading' : ''}${status === 'tooLong' ? ' is-too-long' : ''}`,
     type: 'button',
     title: tut.path,
     'data-path': tut.path,
@@ -526,20 +563,8 @@ function rememberDuration() {
   if (selectedPath && memory && Number.isFinite(video?.duration) && video.duration > 0 && !cards[selectedPath]?.duration) {
     updateCard(selectedPath, { duration: video.duration });
   }
-}
-
-/**
- * « Lire ce tutoriel » : un tuto déjà lu (ou dont le relevé tourne déjà) démarre tout de
- * suite ; sinon la lecture lance le relevé.
- */
-function onPlayClick() {
-  if (analysis || isReadingHere() || waitingPaths.has(selectedPath)) {
-    playbackStarted = true;
-    render();
-    try { els.videoPlayer?.play?.()?.catch?.(() => {}); } catch (_) { /* lecture bloquée */ }
-    return;
-  }
-  analyzeSelected();
+  // [Claude] — 2026-10-03 — Plus de 30 min : l'écran d'attente dit pourquoi il ne sera pas analysé.
+  if (selectedPath && !analysis && isTooLong(selectedPath)) render();
 }
 
 // ---------------------------------------------------------------------------
@@ -775,39 +800,59 @@ async function importVideo() {
   const api = window.electronAPI;
   const folder = configuredFolder();
   if (!folder) {
-    setStatus('Choisissez d\'abord un dossier de tutoriels.', 'error');
+    importNotice('Choisis d\'abord le dossier de tes tutoriels.', 'error');
     return;
   }
   if (!api?.studio?.selectVideoFile) {
-    setStatus('L\'import de vidéo n\'est pas disponible.', 'error');
+    importNotice('L\'import de vidéo n\'est pas disponible.', 'error');
     return;
   }
   const picked = await api.studio.selectVideoFile();
   const filePath = typeof picked === 'string' ? picked : picked?.filePath || picked?.path;
   if (!filePath) return;
   if (!isMp4Name(filePath)) {
-    setStatus('Seuls les fichiers .mp4 peuvent être importés.', 'error');
+    importNotice('Seuls les fichiers .mp4 peuvent être importés.', 'error');
     return;
   }
-
-  setStatus('Copie dans le dossier des tutoriels…', 'busy');
+  // [Claude] — 2026-10-03 — 30 min au plus : la durée est lue avant la copie (la vignette la
+  // donne), pour ne pas copier une vidéo qui ne serait pas analysée.
+  importNotice('Lecture de la vidéo…', 'busy');
+  const probe = api.pedagogie?.thumbnail ? await api.pedagogie.thumbnail(filePath, { width: 360 }).catch(() => null) : null;
+  const duration = Number(probe?.duration);
+  if (Number.isFinite(duration) && duration > MAX_TUTORIAL_SECONDS) {
+    importNotice(`Cette vidéo dure ${cardDuration(duration)} : Pédagogie IA analyse les tutos de 30 minutes au plus. Garde le passage qui t'intéresse (avec un éditeur vidéo), puis importe-le.`, 'error');
+    return;
+  }
+  importNotice('Copie dans le dossier des tutoriels…', 'busy');
   try {
     const result = await copyTutorialIntoFolder(filePath, folder);
     if (!result.ok) {
-      setStatus(result.error || 'Import impossible.', 'error');
+      importNotice(result.error || 'Import impossible.', 'error');
       return;
     }
-    await refreshTutorials();
-    if (result.alreadyThere) {
-      setStatus('Cette vidéo est déjà dans le dossier des tutoriels.', 'ok');
-      selectTrack(`${folder.replace(/\/+$/, '')}/${result.fileName}`);
-    } else {
-      setStatus('Vidéo copiée dans le dossier des tutoriels.', 'ok');
-      selectTrack(`${folder.replace(/\/+$/, '')}/${result.fileName}`);
+    const path = `${folder.replace(/\/+$/, '')}/${result.fileName}`;
+    // Sa fiche tout de suite (vignette, durée) ; puis il s'ouvre, et son analyse démarre
+    // (Narcisse : « un temps de chargement, comme dans l'onglet Analyse et l'onglet Studio »).
+    const patch = {};
+    if (probe?.ok && String(probe.dataUrl || '').startsWith('data:image/')) patch.thumb = probe.dataUrl;
+    if (Number.isFinite(duration) && duration > 0) patch.duration = duration;
+    if (Object.keys(patch).length) {
+      thumbTried.add(path);
+      await updateCard(path, patch);
     }
+    await refreshTutorials();
+    importNotice('');
+    selectTrack(path);
   } catch (err) {
-    setStatus('Import impossible.', 'error', err.message);
+    console.warn('[Pedagogie] import impossible :', err);
+    importNotice('Import impossible.', 'error');
   }
+}
+
+/** Ce que devient l'import : sur l'accueil, ou sous la vidéo si un tuto est ouvert. */
+function importNotice(message, tone = 'info') {
+  homeNotice(selectedPath ? '' : message, tone);
+  if (selectedPath) setStatus(message, tone === 'busy' ? 'info' : tone);
 }
 
 // ---------------------------------------------------------------------------
@@ -882,27 +927,27 @@ function readingStatus(technical, { fromSound = false, calibrateHint = false } =
 }
 
 /**
- * Lance le relevé du tuto affiché. [Claude] — 2026-10-03 — Un relevé est un travail rangé à
- * part (runReading) : un seul tourne à la fois, les suivants attendent leur tour.
+ * Lance l'analyse du tuto affiché. [Claude] — 2026-10-03 — Une analyse est un travail rangé
+ * à part (runReading) : un seul tourne à la fois, les suivants attendent leur tour. Pendant
+ * ce temps, l'écran d'attente couvre le tuto (pas de Copilote) ; on peut aller ailleurs.
  */
 async function analyzeSelected() {
   const path = selectedPath;
   if (!path || reading?.path === path || waitingPaths.has(path)) return;
   const api = window.electronAPI;
   if (!api?.pedagogie?.analyzeVideo) {
-    setStatus('L\'analyse vidéo n\'est pas disponible dans cet environnement.', 'error');
+    lastFailure = { path, status: { message: 'L\'analyse vidéo n\'est pas disponible dans cet environnement.', tone: 'error', details: '' } };
+    render();
     return;
   }
-  // [Claude] — 2026-10-03 — La vidéo démarre tout de suite : le relevé avance pendant
-  // qu'on la regarde.
+  // La vidéo attend la fin de l'analyse (Narcisse : « une fois que c'est fini, on revient
+  // et on fait ce qu'on veut »).
+  pauseVideo();
   resetTutorialView();
-  playbackStarted = true;
-  if (reading) {
-    waitingPaths.add(path);
-    setProgress('Relevé en attente : un autre tuto passe avant.');
-  }
+  if (lastFailure?.path === path) lastFailure = null;
+  if (reading) waitingPaths.add(path);
   render();
-  try { els.videoPlayer?.play?.()?.catch?.(() => {}); } catch (_) { /* lecture bloquée */ }
+  refreshCard(path);
   readingQueue = readingQueue.then(() => {
     waitingPaths.delete(path);
     return runReading(path);
@@ -921,6 +966,7 @@ async function runReading(path) {
   const api = window.electronAPI;
   const job = {
     path,
+    startedAt: Date.now(),
     step: '',
     analysis: null,
     comparison: null,
@@ -930,10 +976,14 @@ async function runReading(path) {
     status: null,
   };
   reading = job;
+  // Le compteur de temps écoulé de l'écran d'attente.
+  clearInterval(readingTicker);
+  readingTicker = setInterval(renderReading, 1000);
   const here = () => selectedPath === path;
   const step = (message) => {
     job.step = message;
     if (here()) setProgress(message);
+    refreshCard(path);
   };
   const note = (status) => {
     job.status = status;
@@ -962,7 +1012,10 @@ async function runReading(path) {
         technical.push(result.message || result.reason);
         result = { ok: true, implemented: false, reason: result.reason };
       } else {
-        note({ message: 'La vidéo n\'a pas pu être lue.', tone: 'error', details: result?.message || '' });
+        // [Claude] — 2026-10-03 — Plus de 30 min : le message de l'analyse le dit tel quel.
+        note(result?.reason === 'VideoTooLong'
+          ? { message: result.message || 'Cette vidéo est trop longue pour être analysée.', tone: 'error', details: '' }
+          : { message: 'La vidéo n\'a pas pu être lue.', tone: 'error', details: result?.message || '' });
         return;
       }
     }
@@ -1082,21 +1135,36 @@ async function runReading(path) {
     note({ message: 'L\'analyse n\'a pas abouti.', tone: 'error', details: err.message });
   } finally {
     reading = null;
+    clearInterval(readingTicker);
+    readingTicker = null;
+    if (!(succeeded && job.analysis)) lastFailure = { path, status: job.status || { message: 'L\'analyse n\'a pas abouti.', tone: 'error', details: '' } };
     if (here()) {
-      setProgress('');
       if (succeeded && job.analysis) applyReading(job);
       // Le Copilote réannonce le tuto : son en-tête dit maintenant ce qu'il en sait.
       announcedPath = null;
       render();
     }
     refreshCard(path);
-    // [Claude] — 2026-10-03 — Le relevé est gardé : rouvrir ce tuto sera instantané.
-    if (succeeded && job.analysis) await saveReading(job);
+    // [Claude] — 2026-10-03 — L'analyse est gardée : rouvrir ce tuto sera instantané.
+    if (succeeded && job.analysis) {
+      await saveReading(job);
+      // Prêt : on le dit, où que soit le pianiste (sauf s'il le regarde déjà).
+      if (!(here() && isViewVisible())) showReadyToast(path);
+    }
   }
 }
 
-/** Le relevé fini s'affiche sur le tuto ouvert. */
+/**
+ * La vue Pédagogie IA est-elle sous les yeux du pianiste ? `viewActive` ne suit que les
+ * sous-onglets d'Entraînement : aller dans le Studio ou l'Analyse la cache aussi.
+ */
+function isViewVisible() {
+  return viewActive && Boolean(els.root?.getClientRects?.().length);
+}
+
+/** Le relevé fini s'affiche sur le tuto ouvert : la vidéo est prête, le Copilote s'ouvre. */
 function applyReading(job) {
+  playbackStarted = true;
   analysis = job.analysis;
   comparison = job.comparison;
   narrationView = job.narrationView;
@@ -1163,42 +1231,18 @@ function render() {
   // [Claude] — 2026-10-03 — « ← Mes tutoriels » : seulement quand un tuto est ouvert.
   if (els.backBtn) els.backBtn.hidden = !hasTutorial;
   renderHome(folder);
-
-  if (els.selectedName) {
-    els.selectedName.textContent = hasTutorial ? tutorialDisplayName(selectedPath.split('/').pop() || selectedPath) : '';
-  }
-  if (els.intro) {
-    const when = restoredAt ? ` le ${new Date(restoredAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}` : '';
-    els.intro.textContent = analysis
-      ? `Déjà lu${when} : le relevé est gardé, la vidéo démarre tout de suite et le Copilote sait ce que joue le prof.`
-      : 'Lance la lecture : l\'application relève ce que joue le prof pendant que tu regardes, puis le Copilote, à droite, t\'explique chaque passage.';
-  }
-  // Le titre posé sur la vidéo disparaît à la lecture : il cacherait le bas de
-  // l'image, là où les tutoriels montrent souvent le clavier.
-  if (els.videoTitle) els.videoTitle.hidden = !hasTutorial || playbackStarted;
+  // [Claude] — 2026-10-03 — Tant que le tuto n'est pas analysé, l'écran d'attente le couvre
+  // (pas de Copilote) ; analysé, la vidéo est prête et le Copilote s'ouvre.
+  const ready = hasTutorial && Boolean(analysis) && !isReadingHere();
   els.main?.classList.toggle('is-playing', playbackStarted);
-
-  if (els.analyzeBtn) {
-    els.analyzeBtn.disabled = !selectedPath;
-    els.analyzeBtn.innerHTML = PLAY_ICON;
-    const span = document.createElement('span');
-    span.textContent = 'Lire ce tutoriel';
-    els.analyzeBtn.appendChild(span);
-    els.analyzeBtn.style.display = (!folder || !selectedPath) ? 'none' : '';
-  }
-  // [Claude] — 2026-10-03 — Relire la vidéo et refaire le relevé (il est gardé sinon).
-  if (els.redoBtn) els.redoBtn.hidden = !analysis || isReadingHere();
-  if (els.videoOverlay) {
-    const showOverlay = selectedPath && !playbackStarted && !isReadingHere();
-    els.videoOverlay.style.display = showOverlay ? 'flex' : 'none';
-  }
+  renderReading();
+  // Refaire l'analyse (elle est gardée sinon).
+  if (els.redoBtn) els.redoBtn.hidden = !ready;
   if (els.importBtn) {
     els.importBtn.disabled = !folder;
     els.importBtn.style.display = folder ? '' : 'none';
   }
-  if (els.videoActions) {
-    els.videoActions.style.display = (selectedPath && playbackStarted) ? '' : 'none';
-  }
+  if (els.videoActions) els.videoActions.style.display = ready ? '' : 'none';
   if (els.calibrateBtn) {
     const needsKeyboard = analysis && analysis.source !== 'video';
     els.calibrateBtn.hidden = !(v2nState?.available && selectedPath && (needsKeyboard || getV2nCorners(selectedPath))) || isReadingHere();
@@ -1344,21 +1388,124 @@ function renderCopilotPanel() {
   if (!els.copilotPanel) return;
   const name = selectedPath ? tutorialDisplayName(selectedPath.split('/').pop() || selectedPath) : '';
   if (els.copilotName) els.copilotName.textContent = name;
+  // [Claude] — 2026-10-03 — Le Copilote ne s'ouvre que sur un tuto analysé (Narcisse : « tant
+  // que l'analyse […] n'a pas été faite, je ne peux pas lui demander de reproduire ce que le
+  // pianiste joue ») : avant, l'écran d'attente couvre le tuto et le dit.
+  const ready = Boolean(selectedPath && analysis && !isReadingHere());
   let notice = '';
-  if (selectedPath && (isReadingHere() || waitingPaths.has(selectedPath)) && !analysis) notice = 'Relevé en cours : le Copilote saura bientôt ce que joue le prof. Tu peux déjà regarder la vidéo.';
-  else if (selectedPath && !analysis) notice = 'Lance « Lire ce tutoriel » : le Copilote saura alors ce que joue le prof, passage par passage.';
-  else if (analysis && !analysis.noteEvents?.length) notice = 'Le clavier n\'a pas pu être lu à l\'image : le Copilote connaît les accords (lus au son), pas les notes exactes du prof.';
+  if (ready && !analysis.noteEvents?.length) notice = 'Le clavier n\'a pas pu être lu à l\'image : le Copilote connaît les accords (lus au son), pas les notes exactes du prof.';
   if (els.copilotNotice) {
     els.copilotNotice.textContent = notice;
     els.copilotNotice.hidden = !notice;
   }
-  if (viewActive && selectedPath && els.copilotSlot) {
+  if (viewActive && ready && els.copilotSlot) {
     dockCopilot(els.copilotSlot);
     if (announcedPath !== selectedPath) {
       announcedPath = selectedPath;
       document.dispatchEvent(new CustomEvent('copilot-open-tutorial', { detail: { path: selectedPath } }));
     }
   }
+}
+
+/** « 2 min 05 s » écoulées. */
+function elapsedText(ms) {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const m = Math.floor(total / 60);
+  return m ? `${m} min ${String(total % 60).padStart(2, '0')} s` : `${total} s`;
+}
+
+/**
+ * [Claude] — 2026-10-03 — L'écran d'attente du tuto ouvert, comme celui du Studio et de
+ * l'Analyse : ce qui se fait (étape), depuis combien de temps, et qu'on peut aller ailleurs.
+ * Il dit aussi pourquoi un tuto ne sera pas analysé (trop long) ou ne l'a pas été (erreur).
+ */
+function renderReading() {
+  const box = els.reading;
+  if (!box) return;
+  const path = selectedPath;
+  const status = tutorialStatus(path);
+  const failed = lastFailure?.path === path && !analysis && status !== 'reading' && status !== 'waiting';
+  const show = Boolean(path) && status !== 'ready' && (memoryChecked || status === 'reading' || status === 'waiting');
+  box.hidden = !show;
+  if (!show) return;
+  const name = tutorialDisplayName(path.split('/').pop() || path);
+  let title = 'Analyse du tutoriel';
+  let step = '';
+  let elapsed = '';
+  let hint = 'Tu peux aller dans les autres onglets, ou revenir à tes tutoriels : l\'analyse continue. Le Copilote s\'ouvrira quand elle sera finie.';
+  let still = false;
+  if (status === 'reading') {
+    step = reading.step || 'Préparation…';
+    elapsed = `Depuis ${elapsedText(Date.now() - reading.startedAt)}`;
+  } else if (status === 'waiting') {
+    title = 'Analyse en attente';
+    const other = reading ? tutorialDisplayName(reading.path.split('/').pop() || reading.path) : '';
+    step = other ? `« ${other} » est en cours d'analyse : celui-ci passera juste après.` : 'Un autre tuto passe avant.';
+  } else if (failed) {
+    title = 'L\'analyse n\'a pas abouti';
+    step = lastFailure.status?.message || '';
+    hint = lastFailure.status?.details || '';
+    still = true;
+  } else if (status === 'tooLong') {
+    title = 'Tutoriel trop long';
+    const d = Number(cards[path]?.duration) || Number(els.videoPlayer?.duration);
+    step = `Ce tuto dure ${cardDuration(d)}. Pédagogie IA analyse les tutos de 30 minutes au plus : garde le passage qui t'intéresse (avec un éditeur vidéo), puis importe-le.`;
+    hint = '';
+    still = true;
+  } else {
+    step = 'Ouverture…';
+  }
+  box.classList.toggle('is-still', still);
+  if (els.readingTitle) els.readingTitle.textContent = title;
+  if (els.readingName) els.readingName.textContent = name;
+  if (els.readingStep) els.readingStep.textContent = step;
+  if (els.readingElapsed) els.readingElapsed.textContent = elapsed;
+  if (els.readingHint) {
+    els.readingHint.textContent = hint;
+    els.readingHint.hidden = !hint;
+  }
+  if (els.readingRetry) els.readingRetry.hidden = !failed;
+}
+
+/**
+ * [Claude] — 2026-10-03 — « « Amazing Grace » est prêt » : visible depuis n'importe quel
+ * onglet (on a pu aller ailleurs pendant l'analyse) ; un clic ouvre le tuto.
+ */
+let toastTimer = null;
+function showReadyToast(path) {
+  if (typeof document === 'undefined' || !document.body) return;
+  let toast = document.getElementById('pedagogie-ready-toast');
+  if (!toast) {
+    toast = el('button', { id: 'pedagogie-ready-toast', className: 'pedago-ready-toast', type: 'button' });
+    document.body.appendChild(toast);
+  }
+  const name = tutorialDisplayName(path.split('/').pop() || path);
+  toast.textContent = '';
+  toast.appendChild(el('strong', { text: `« ${name} » est prêt` }));
+  toast.appendChild(el('span', { text: 'Pédagogie IA · ouvrir' }));
+  toast.onclick = () => {
+    toast.hidden = true;
+    openTutorialAnywhere(path);
+  };
+  toast.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { toast.hidden = true; }, 15000);
+}
+
+/** Ouvre un tuto depuis n'importe quel onglet (Entraînement › Pédagogie IA). */
+function openTutorialAnywhere(path) {
+  const practiceTab = document.querySelector('.tab-btn[data-tab="practice"]');
+  if (practiceTab && !practiceTab.classList.contains('active')) practiceTab.click();
+  if (!viewActive) document.dispatchEvent(new CustomEvent('app-switch-training-view', { detail: { view: 'pedagogie' } }));
+  if (selectedPath !== path) selectTrack(path);
+}
+
+/** Message de l'accueil (import d'une vidéo). */
+function homeNotice(message, tone = 'info') {
+  if (!els.homeNotice) return;
+  els.homeNotice.textContent = message || '';
+  els.homeNotice.dataset.tone = tone;
+  els.homeNotice.hidden = !message;
 }
 
 /** Le passage dont parle le pianiste, d'après l'instant de la vidéo. */
@@ -1513,17 +1660,20 @@ export function initPedagogieTab() {
   els.loop = document.getElementById('pedagogie-loop');
   els.redoBtn = document.getElementById('pedagogie-redo-btn');
   els.split = document.getElementById('pedagogie-split');
-  els.selectedName = document.getElementById('pedagogie-selected-name');
-  els.intro = document.getElementById('pedagogie-intro');
-  els.videoTitle = document.getElementById('pedagogie-video-title');
   els.main = document.getElementById('pedagogie-main');
-  els.analyzeBtn = document.getElementById('pedagogie-analyze-btn');
-  els.progress = document.getElementById('pedagogie-progress');
+  // [Claude] — 2026-10-03 — L'écran d'attente de l'analyse, et le message de l'accueil.
+  els.reading = document.getElementById('pedagogie-reading');
+  els.readingTitle = document.getElementById('pedagogie-reading-title');
+  els.readingName = document.getElementById('pedagogie-reading-name');
+  els.readingStep = document.getElementById('pedagogie-reading-step');
+  els.readingElapsed = document.getElementById('pedagogie-reading-elapsed');
+  els.readingHint = document.getElementById('pedagogie-reading-hint');
+  els.readingRetry = document.getElementById('pedagogie-reading-retry');
+  els.homeNotice = document.getElementById('pedagogie-home-notice');
   els.status = document.getElementById('pedagogie-status');
   els.format = document.getElementById('pedagogie-format');
   els.videoCard = document.getElementById('pedagogie-video-card');
   els.videoPlayer = document.getElementById('pedagogie-video-player');
-  els.videoOverlay = document.getElementById('pedagogie-video-overlay');
   els.strip = document.getElementById('pedagogie-strip');
   els.grid = document.getElementById('pedagogie-grid');
   els.videoActions = document.getElementById('pedagogie-video-actions');
@@ -1539,7 +1689,7 @@ export function initPedagogieTab() {
   els.importBtn?.addEventListener('click', () => { importVideo(); });
   els.backBtn?.addEventListener('click', () => { closeTutorial(); });
   els.homeFolderBtn?.addEventListener('click', () => { chooseFolder(); });
-  els.analyzeBtn?.addEventListener('click', () => { onPlayClick(); });
+  els.readingRetry?.addEventListener('click', () => { analyzeSelected(); });
   els.redoBtn?.addEventListener('click', () => { analyzeSelected(); });
   // [Refonte Astra 12/09] — Le bouton « Calibrer le clavier (V2N) » avait été
   // retiré de l'écran. [Claude] — 2026-09-25 — Il revient, mais seulement quand

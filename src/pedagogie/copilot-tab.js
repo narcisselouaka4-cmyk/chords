@@ -109,7 +109,7 @@ function getTutorialContext() {
     type: 'tutorial',
     path: currentTutorialPath,
     name: currentTutorialPath.split('/').pop(),
-    notesUnavailable: 'le tutoriel n\'a pas encore été lu dans Pédagogie IA (bouton « Lire ce tutoriel »)',
+    notesUnavailable: 'le tutoriel n\'a pas encore été analysé dans Pédagogie IA (son analyse démarre quand on l\'importe ou qu\'on l\'ouvre)',
   };
 }
 
@@ -923,7 +923,7 @@ function updateHeaderForMode() {
     const context = getTutorialContext();
     let intro;
     if (!context?.chords) {
-      intro = 'Lancez d\'abord « Lire ce tutoriel » dans Pédagogie IA : le Copilot connaîtra alors sa grille, la parole du professeur et les notes jouées.';
+      intro = 'Ce tutoriel n\'est pas encore analysé : ouvrez-le dans Pédagogie IA, son analyse démarre. Le Copilot connaîtra alors sa grille, la parole du professeur et les notes jouées.';
     } else if (context.noteEvents?.length) {
       intro = `Le Copilot connaît ce tutoriel : grille, parole du professeur${context.summary ? ', résumé du cours' : ''} et notes jouées (${context.sourceLabel}). Demandez-lui de rejouer un lick ou un voicing de la vidéo, ou de l'appliquer dans une autre tonalité.`;
     } else {
