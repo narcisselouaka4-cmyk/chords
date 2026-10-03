@@ -538,5 +538,24 @@ check('La barre n\'est montrée que sous l\'exemple qui joue, et ses styles vale
   && bridgeCss.includes(':is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example-transport {')
   && bridgeCss.includes('.copilot-transport-range::-webkit-slider-thumb'));
 
+// ---------------------------------------------------------------------------
+// 15. [Claude] — 2026-10-03 — Agrandir le Copilote (Narcisse : « la fenêtre est trop petite […]
+// si on l'agrandit, la fenêtre vidéo sera forcément impactée […] il faut trouver un moyen »)
+// ---------------------------------------------------------------------------
+check('Une poignée entre la vidéo et le Copilote (séparateur réglable au clavier)',
+  /class="pedago-stage"[\s\S]*?<div class="pedago-resizer" id="pedagogie-resizer" role="separator" aria-orientation="vertical"[\s\S]*?tabindex="0"[\s\S]*?<aside class="pedago-copilot" id="pedagogie-copilot-panel"/.test(html));
+check('La grille partage la largeur : la vidéo prend le reste, le Copilote sa part (300 px au moins, la vidéo 380 px)',
+  pedagoCss.includes('grid-template-columns: minmax(0, 1fr) 16px clamp(300px, var(--pedago-copilot-share, 38%), calc(100% - 396px));')
+  && /els\.split\?\.style\.setProperty\('--pedago-copilot-share'/.test(tabCode));
+check('Tirer la poignée, les flèches, Entrée, le double-clic',
+  /handle\.setPointerCapture\(e\.pointerId\)/.test(tabCode) && /setCopilotShare\(shareAt\(e\.clientX, els\.split\.getBoundingClientRect\(\)\), \{ save: false \}\)/.test(tabCode)
+  && /handle\.addEventListener\('dblclick', \(\) => setCopilotShare\(DEFAULT_SHARE\)\)/.test(tabCode) && /shareForKey\(copilotShare, e\.key\)/.test(tabCode));
+check('Le bouton « Agrandir » / « Réduire » dans l\'en-tête du Copilote, la largeur retenue',
+  /<button type="button" class="pedago-copilot-size" id="pedagogie-copilot-size" aria-pressed="false"/.test(html)
+  && /els\.sizeBtn\?\.addEventListener\('click', \(\) => setCopilotShare\(toggledShare\(copilotShare\)\)\)/.test(tabCode)
+  && /localStorage\.setItem\(COPILOT_WIDTH_KEY, String\(copilotShare\)\)/.test(tabCode) && /setCopilotShare\(storedShare\(savedShare\), \{ save: false \}\)/.test(tabCode));
+check('Fenêtre étroite (l\'un sous l\'autre) : ni poignée ni bouton',
+  /@media \(max-width: 1100px\)[\s\S]*?#practice-view-pedagogie \.pedago-resizer,\s*#pedagogie-copilot-panel \.pedago-copilot-size \{ display: none; \}/.test(pedagoCss));
+
 console.log(`\n=== Résultat : ${passed}/${total} contrôles passés ===`);
 if (passed < total) process.exitCode = 1;

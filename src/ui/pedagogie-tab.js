@@ -60,6 +60,7 @@ import { registerCopilotContext } from '../pedagogie/copilot-context.js';
 import { dockCopilot, undockCopilot } from '../pedagogie/copilot-dock.js';
 import { momentContext, passageWindow, clock } from '../pedagogie/tutorial-moment.js';
 import { FOLLOW_SECONDS, MAX_PASSAGE_SECONDS, splitTime, joinTime, timeOptions, setRangeBound, rangeLength } from '../pedagogie/passage-range.js';
+import { DEFAULT_SHARE, shareAt, isWide, toggledShare, shareForKey, storedShare, clampShare } from '../pedagogie/copilot-width.js';
 import { createTutorialMemory, cardDuration } from '../pedagogie/tutorial-memory.js';
 import { teacherActivity, chordsWhilePlaying, activitySummary, isPlaying, ACTIVITY } from '../pedagogie/teacher-activity.js';
 
@@ -165,6 +166,9 @@ let passageBuiltFor = null;
 // La frise des accords, repliée par défaut (choix retenu dans le navigateur).
 const STRIP_KEY = 'pedagogie-strip-open';
 let stripOpen = false;
+// [Claude] — 2026-10-03 — La part du Copilote dans la largeur (poignée, « Agrandir »), retenue.
+const COPILOT_WIDTH_KEY = 'pedagogie-copilot-width';
+let copilotShare = DEFAULT_SHARE;
 // [Claude] — 2026-10-03 — Lot 5 : mémoire des tutos (créée au premier besoin), fiches de
 // l'accueil (vignette, durée, « lu »), date du relevé rouvert depuis la mémoire.
 let memory = null;
@@ -837,6 +841,68 @@ function followVideo() {
   lastLoopTime = null;
   renderPassageBar();
   updateMoment();
+}
+
+// ---------------------------------------------------------------------------
+// La largeur du Copilote : la poignée et le bouton « Agrandir » (copilot-width.js)
+// ---------------------------------------------------------------------------
+
+/**
+ * [Claude] — 2026-10-03 — Narcisse : « la fenêtre [du Copilote] est trop petite […] si on
+ * l'agrandit, la fenêtre vidéo sera forcément impactée ». La part du Copilote passe à la
+ * grille (--pedago-copilot-share) : la vidéo prend le reste. Le bouton dit « Agrandir » ou
+ * « Réduire » selon la part ; la poignée dit sa valeur aux lecteurs d'écran.
+ */
+function setCopilotShare(share, { save = true } = {}) {
+  copilotShare = clampShare(share);
+  const percent = Math.round(copilotShare * 100);
+  els.split?.style.setProperty('--pedago-copilot-share', `${(copilotShare * 100).toFixed(1)}%`);
+  if (els.resizer) {
+    els.resizer.setAttribute('aria-valuenow', String(percent));
+    els.resizer.setAttribute('aria-valuetext', `Copilote : ${percent} % de la largeur`);
+  }
+  if (els.sizeBtn) {
+    const wide = isWide(copilotShare);
+    els.sizeBtn.setAttribute('aria-pressed', String(wide));
+    els.sizeBtn.title = wide ? 'Réduire le Copilote (la vidéo grandit)' : 'Agrandir le Copilote (la vidéo rétrécit)';
+    if (els.sizeLabel) els.sizeLabel.textContent = wide ? 'Réduire' : 'Agrandir';
+  }
+  if (save) {
+    try { localStorage.setItem(COPILOT_WIDTH_KEY, String(copilotShare)); } catch (_) { /* stockage indisponible */ }
+  }
+}
+
+/** La poignée : tirer (le pointeur reste à elle), flèches, Entrée, double-clic. */
+function bindResizer() {
+  const handle = els.resizer;
+  if (!handle || !els.split) return;
+  let dragging = null;
+  handle.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    dragging = e.pointerId;
+    try { handle.setPointerCapture(e.pointerId); } catch (_) { /* pointeur déjà relâché */ }
+    els.split.classList.add('is-resizing');
+  });
+  handle.addEventListener('pointermove', (e) => {
+    if (dragging !== e.pointerId) return;
+    setCopilotShare(shareAt(e.clientX, els.split.getBoundingClientRect()), { save: false });
+  });
+  const stop = (e) => {
+    if (dragging !== e.pointerId) return;
+    dragging = null;
+    els.split.classList.remove('is-resizing');
+    setCopilotShare(copilotShare);
+  };
+  handle.addEventListener('pointerup', stop);
+  handle.addEventListener('pointercancel', stop);
+  handle.addEventListener('dblclick', () => setCopilotShare(DEFAULT_SHARE));
+  handle.addEventListener('keydown', (e) => {
+    const next = e.key === 'Enter' || e.key === ' ' ? toggledShare(copilotShare) : shareForKey(copilotShare, e.key);
+    if (next === null) return;
+    e.preventDefault();
+    setCopilotShare(next);
+  });
 }
 
 /** La frise des accords : repliée par défaut, dépliée à la demande (choix retenu). */
@@ -1911,6 +1977,15 @@ export function initPedagogieTab() {
   els.passageFollow?.addEventListener('click', () => { followVideo(); });
   els.stripToggle?.addEventListener('click', () => { setStripOpen(!stripOpen); });
   try { stripOpen = localStorage.getItem(STRIP_KEY) === '1'; } catch (_) { stripOpen = false; }
+  // La largeur du Copilote : la poignée, le bouton, et la part retenue.
+  els.resizer = document.getElementById('pedagogie-resizer');
+  els.sizeBtn = document.getElementById('pedagogie-copilot-size');
+  els.sizeLabel = els.sizeBtn?.querySelector('.pedago-copilot-size-label') || null;
+  bindResizer();
+  els.sizeBtn?.addEventListener('click', () => setCopilotShare(toggledShare(copilotShare)));
+  let savedShare = null;
+  try { savedShare = localStorage.getItem(COPILOT_WIDTH_KEY); } catch (_) { savedShare = null; }
+  setCopilotShare(storedShare(savedShare), { save: false });
 
   // Poser une question au Copilote met la vidéo en pause : le passage ne bouge plus
   // pendant qu'on écrit.

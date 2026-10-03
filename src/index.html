@@ -955,6 +955,15 @@
               <div class="pedagogie-status" id="pedagogie-status" style="display: none;"></div>
             </div>
 
+            <!-- [Claude] — 2026-10-03 — Narcisse : « la fenêtre [du Copilote] est trop petite […]
+                 si on l'agrandit, la fenêtre vidéo sera forcément impactée […] il faut trouver un
+                 moyen » : une poignée entre les deux (tirer : l'un grandit, l'autre rétrécit ;
+                 flèches du clavier ; double-clic : largeur normale). -->
+            <div class="pedago-resizer" id="pedagogie-resizer" role="separator" aria-orientation="vertical"
+                 aria-controls="pedagogie-copilot-panel" aria-label="Largeur du Copilote (tirer, ou flèches gauche et droite)"
+                 aria-valuemin="25" aria-valuemax="72" aria-valuenow="38" tabindex="0"
+                 title="Tirer pour agrandir le Copilote ou la vidéo · double-clic : largeur normale"></div>
+
             <aside class="pedago-copilot" id="pedagogie-copilot-panel" aria-label="Copilote du tutoriel">
               <header class="pedago-copilot-head">
                 <div class="pedago-copilot-title"><svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.29 1.29L3 12l5.81 1.9a2 2 0 0 1 1.29 1.29L12 21l1.9-5.81a2 2 0 0 1 1.29-1.29L21 12l-5.81-1.9a2 2 0 0 1-1.29-1.29z"/></svg><span>Copilote</span><small id="pedagogie-copilot-name"></small></div>
@@ -962,6 +971,13 @@
                   <span class="pedago-moment-label">Passage</span>
                   <strong class="pedago-moment-range" id="pedagogie-moment-range"></strong>
                 </div>
+                <!-- [Claude] — 2026-10-03 — Agrandir / Réduire d'un clic (la poignée fait de même). -->
+                <button type="button" class="pedago-copilot-size" id="pedagogie-copilot-size" aria-pressed="false" aria-controls="pedagogie-copilot-panel"
+                        title="Agrandir le Copilote (la vidéo rétrécit)">
+                  <svg class="tr-i is-grow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
+                  <svg class="tr-i is-shrink" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14h6v6"/><path d="M20 10h-6V4"/><path d="M14 10l7-7"/><path d="M3 21l7-7"/></svg>
+                  <span class="pedago-copilot-size-label">Agrandir</span>
+                </button>
               </header>
               <p class="pedago-copilot-notice" id="pedagogie-copilot-notice" hidden></p>
               <div class="pedago-copilot-slot" id="pedagogie-copilot-slot"></div>
