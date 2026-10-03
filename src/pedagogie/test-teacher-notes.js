@@ -106,12 +106,60 @@ function testPassageExample() {
   check('Passage en exemple : les notes exactes du professeur', ons.map((e) => e.note).join(',') === '38,53,57,60,64,74,75,76', ons.map((e) => e.note).join(','));
   check('Passage en exemple : moments gardés (lick à 2 s), mains gardées', ons.find((e) => e.note === 74).time === 2 && ons.find((e) => e.note === 38).hand === 'lh');
   check('Passage en exemple : le moment de la vidéo est gardé', ex.kind === 'tutorial' && ex.tutorialStart === 0 && ex.tutorialEnd === 3 && ex.title === 'Le passage de 0:00');
-  check('Passage en exemple : rien à marquer au clavier (touches en jaune)', ex.steps === undefined && ex.events.every((e) => e.type === 'noteOn' || e.type === 'noteOff'));
+  check('Passage en exemple : rien à marquer au clavier (touches en jaune), seulement notes et pédale', ex.steps === undefined && ex.events.every((e) => ['noteOn', 'noteOff', 'sustain'].includes(e.type)));
   const up = passageExample(TEACHER, { start: 2, end: 3, semitones: 3 });
   check('Passage transposé de +3 : notes transposées', up.events.filter((e) => e.type === 'noteOn').map((e) => e.note).join(',') === '77,78,79', up.events.filter((e) => e.type === 'noteOn').map((e) => e.note).join(','));
   check('Passage transposé : dit dans le sous-titre', /transposées de \+3 demi-tons/.test(up.subtitle), up.subtitle);
   check('Main gauche seule', passageExample(TEACHER, { start: 0, end: 3, hand: 'LH' }).events.filter((e) => e.type === 'noteOn').length === 1);
   check('Rien entre deux instants → pas d\'exemple', passageExample(TEACHER, { start: 10, end: 12 }) === null);
+
+  // [Claude] — 2026-10-03 — La « vrille » (vidéo de Narcisse) : les notes duraient jusqu'à la
+  // fin du passage et s'empilaient.
+  const pile = Array.from({ length: 30 }, (_, i) => ({ midi: 40 + i * 2, start: 4 + i * 0.6, end: 24 }));
+  const piled = passageExample(pile, { start: 4, end: 24 });
+  let now = 0;
+  let max = 0;
+  for (const e of piled.events) { now += e.type === 'noteOn' ? 1 : -1; max = Math.max(max, now); }
+  check('Rejeu : jamais plus de 10 notes ensemble', max <= 10, `max ${max}`);
+  const durations = [];
+  const on = new Map();
+  for (const e of piled.events) {
+    if (e.type === 'noteOn') on.set(e.note, e.time);
+    else if (e.type === 'noteOff') durations.push(e.time - on.get(e.note));
+  }
+  check('Rejeu : une note dure 2,5 s au plus', durations.every((d) => d <= 2.5 + 1e-9), Math.max(...durations).toFixed(2));
+
+  // [Claude] — 2026-10-03 — Amazing Grace, 9:57 → 10:57 : « il joue comme s'il n'avait pas de
+  // pédale, le jeu devient saccadé ». Pédale à chaque accord (nouvelle basse de main gauche).
+  const pedalOf = (ex) => ex.events.filter((e) => e.type === 'sustain').map((e) => `${e.value ? '↓' : '↑'}${e.time}`).join(' ');
+  const twoChords = [
+    { midi: 36, start: 0, end: 0.5, hand: 'lh' }, ...[60, 64, 67].map((midi) => ({ midi, start: 0.01, end: 0.4, hand: 'rh' })),
+    { midi: 41, start: 2, end: 2.5, hand: 'lh' }, ...[65, 69, 72].map((midi) => ({ midi, start: 2.01, end: 2.4, hand: 'rh' })),
+  ];
+  const harmonic = passageExample(twoChords, { start: 0, end: 3 });
+  check('Rejeu : pédale enfoncée après chaque accord, relevée juste avant le suivant', pedalOf(harmonic) === '↓0.04 ↑1.98 ↓2.04 ↑2.8', pedalOf(harmonic));
+  check('Rejeu : le sous-titre le dit (« pédale à chaque accord »)', /pédale à chaque accord/.test(harmonic.subtitle), harmonic.subtitle);
+  const heard = passageExample(twoChords, { start: 0, end: 3, pedals: [{ start: 0.1, end: 1.9 }] });
+  check('Rejeu : la vraie pédale, quand le son l\'a relevée, remplace la pédale par accord', pedalOf(heard) === '↓0.1 ↑1.9' && /avec sa pédale/.test(heard.subtitle), `${pedalOf(heard)} — ${heard.subtitle}`);
+
+  // Il joue Do, s'arrête pour expliquer (11 s), puis joue Mi : la pause est ramenée à 2 s,
+  // signalée, et la pédale est relevée pendant ce temps.
+  const talk = [{ start: 1.2, end: 11.5, kind: 'parle' }];
+  const gap = passageExample([{ midi: 60, start: 0, end: 1 }, { midi: 64, start: 12, end: 13 }], { start: 0, end: 14, speech: talk });
+  const second = gap.events.find((e) => e.type === 'noteOn' && e.note === 64).time;
+  check('Rejeu : une explication de 11 s est ramenée à 2 s', Math.abs(second - 3) < 0.01, `${second}`);
+  check('Rejeu : la pause est signalée (« le prof explique », avec ses instants dans la vidéo)',
+    JSON.stringify(gap.markers) === JSON.stringify([{ at: 1, until: 3, videoStart: 1, videoEnd: 12, kind: 'parle' }]) && /explications raccourcies à 2 s/.test(gap.subtitle),
+    `${JSON.stringify(gap.markers)} — ${gap.subtitle}`);
+  check('Rejeu : la pédale est relevée pendant l\'explication', pedalOf(gap) === '↓0.04 ↑1.3 ↓3 ↑4.3', pedalOf(gap));
+  check('Rejeu : temps de l\'exemple → temps de la vidéo (pour la barre de lecture)', JSON.stringify(gap.timeMap) === JSON.stringify([[0, 0], [1, 1], [3, 12], [4, 13]]), JSON.stringify(gap.timeMap));
+  const silent = passageExample([{ midi: 60, start: 0, end: 1 }, { midi: 64, start: 12, end: 13 }], { start: 0, end: 14 });
+  check('Rejeu : une pause sans parole est aussi ramenée à 2 s, notée « pause »', silent.markers.length === 1 && silent.markers[0].kind === 'pause');
+  const leading = passageExample([{ midi: 60, start: 20, end: 21 }], { start: 4, end: 24, speech: [{ start: 4, end: 19.5, kind: 'parle' }] });
+  check('Rejeu : il parle d\'abord (0:04 → 0:20) : 2 s signalées, puis ses notes',
+    leading.events.find((e) => e.type === 'noteOn').time === 2 && leading.markers[0]?.kind === 'parle', JSON.stringify(leading.markers));
+  const quiet = passageExample([{ midi: 60, start: 20, end: 21 }], { start: 4, end: 24 });
+  check('Rejeu : un silence en tête, sans parole, est sauté', quiet.events.find((e) => e.type === 'noteOn').time <= 0.3 && !quiet.markers.length);
 }
 
 testSamples();

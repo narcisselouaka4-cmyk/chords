@@ -1249,6 +1249,38 @@ function testTutorialPassageTool() {
   check('Aucune note lue entre deux instants : dit tel quel', !empty.example && /Aucune note du professeur/.test(empty.content || ''), empty.content);
 }
 
+// [Claude] — 2026-10-03 — Vidéo de Narcisse (tuto GHM) : de 0:04 à 0:24 le prof PARLE. Le
+// Copilote rejouait sa voix transcrite (la « vrille »), et disait « l'application n'a pas pu
+// lire son clavier » ; il a aussi rejoué 0:00 → 0:24 alors que le passage était 0:00 → 0:04.
+function testSpeechAndReplay() {
+  document.resetMock();
+  document.setPanel(false);
+  const call = (args) => ({ function: { name: 'play_tutorial_passage', arguments: JSON.stringify(args) } });
+  const talking = { ...TUTORIAL, activity: [{ start: 0, end: 4, kind: 'joue' }, { start: 4, end: 24, kind: 'parle' }] };
+  const speech = executeToolCalls([call({ start: 4, end: 24 })], 'Voici.', { tutorial: talking });
+  check('Passage où il parle : rien n\'est rejoué, et le Copilote le dit', !speech.example && /Entre 0:04 et 0:24, le prof parle : il ne joue pas/.test(speech.content || ''), speech.content);
+  check('… sans le message « n\'a pas pu lire son clavier »', !/pas pu lire son clavier/.test(speech.content || ''));
+  const reason = executeToolCalls([call({ start: 0, end: 2 })], '', { tutorial: { ...TUTORIAL, noteEvents: [], notesUnavailable: 'transcription des notes au son non installée' } });
+  check('Notes vraiment absentes : la raison est dite', /transcription des notes au son non installée/.test(reason.content || ''), reason.content);
+  const apply = executeToolCalls([{ function: { name: 'apply_tutorial_passage', arguments: JSON.stringify({ start: 4, end: 24, what: 'voicing', chords: ['Fmaj7', 'G7', 'Cmaj7'] }) } }], '', { tutorial: { ...talking, chords: TUTORIAL.segments } });
+  check('Appliquer un passage où il parle : on le dit, sans exemple', !apply.example && /le prof parle/.test(apply.content || ''), apply.content);
+  const withPedal = executeToolCalls([call({ start: 0, end: 4 })], '', { tutorial: { ...TUTORIAL, pedals: [{ start: 0.05, end: 1.95 }] } });
+  const pedal = (withPedal.example?.events || []).filter((e) => e.type === 'sustain').map((e) => `${e.value ? '↓' : '↑'}${e.time}`).join(' ');
+  check('Rejeu : la pédale relevée au son est reprise', pedal.startsWith('↓0.05 ↑1.95') && /avec sa pédale/.test(withPedal.example?.subtitle || ''), `${pedal} — ${withPedal.example?.subtitle}`);
+
+  const moment = { start: 0, end: 4, now: 4 };
+  const tutorial = { moment, chords: TUTORIAL.segments, key: 'C' };
+  const model = [{ function: { name: 'play_tutorial_passage', arguments: JSON.stringify({ start: 0, end: 24, transposeTo: 'C' }) } }];
+  const forced = tutorialToolCalls(parseTutorialRequest('peut tu reproduire ce que je vient d\'entendre là ?'), model, tutorial);
+  const args = JSON.parse(forced?.[0]?.function?.arguments || '{}');
+  check('« Reproduis ce que je viens d\'entendre » : le passage affiché (0:00 → 0:04), pas la plage du modèle (0:00 → 0:24)',
+    forced?.[0]?.function?.name === 'play_tutorial_passage' && args.start === 0 && args.end === 4 && !args.transposeTo, JSON.stringify(args));
+  check('… le choix du modèle est gardé quand c\'est bien ce passage',
+    tutorialToolCalls(parseTutorialRequest('Reproduis ce qu\'il a joué'), [call({ start: 0.2, end: 4, hand: 'RH' })], tutorial) === null);
+  check('… et imposé quand le modèle n\'appelle aucun outil', tutorialToolCalls(parseTutorialRequest('Rejoue ce passage'), undefined, tutorial)?.[0]?.function?.name === 'play_tutorial_passage');
+  check('« Rejoue ma mélodie » parle de son jeu à lui, pas du prof', parseTutorialRequest('Rejoue ma mélodie') === null && parseTutorialRequest('rejoue-moi ma main gauche') === null);
+}
+
 async function testTutorialContextInPrompt() {
   const originalFetch = global.fetch;
   // Premier appel de chaque question (une relance peut suivre : elle garde les mêmes outils).
@@ -1290,6 +1322,18 @@ async function testTutorialContextInPrompt() {
   const tools2 = (body?.tools || []).map((t) => t.function?.name);
   check('Tutoriel sans notes : la raison est dite au modèle, pas d\'outil de passage',
     /non disponibles \(le clavier n'est pas lisible à l'image\)/.test(system2) && !tools2.includes('play_tutorial_passage'), `${tools2.join(',')}`);
+  // [Claude] — 2026-10-03 — Quand il joue, quand il parle : dit au modèle ; « ici, il parle ».
+  body = null;
+  bodies.length = 0;
+  await sendCopilotMessage({ message: 'Qu\'a-t-il voulu dire ?', messages: [], context: {
+    ...context,
+    activitySummary: 'il joue 0:00–0:04 · il parle 0:04–0:24',
+    moment: { now: 24, start: 4, end: 24, chords: [], timeline: [], transcript: [{ start: 4.2, text: 'Welcome back.' }], activity: [{ start: 4, end: 24, kind: 'parle' }], spokenOnly: true },
+  } });
+  const system3 = body?.messages?.[0]?.content || '';
+  check('Prompt : « Ce que fait le prof » (il joue, il parle) et « Ici, le prof ne joue pas »',
+    /## Ce que fait le prof/.test(system3) && /il parle 0:04–0:24/.test(system3) && /Dans ce passage : il parle 0:04–0:24\./.test(system3) && /Ici, le prof ne joue pas : il parle/.test(system3), system3.slice(-1200));
+  check('Règle 19 : là où il parle sans jouer, il explique ce qu\'il dit', /là où il parle sans jouer, explique ce qu'il dit/.test(system3));
   global.fetch = originalFetch;
 }
 
@@ -1723,6 +1767,7 @@ async function runTests() {
   testKeyboardCollapsed();
   testNoKeyboardLabels();
   testTutorialPassageTool();
+  testSpeechAndReplay();
   await testTutorialContextInPrompt();
   testApplyTutorialPassageTool();
   testTutorialRouting();

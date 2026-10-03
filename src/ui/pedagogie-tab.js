@@ -60,6 +60,7 @@ import { registerCopilotContext } from '../pedagogie/copilot-context.js';
 import { dockCopilot, undockCopilot } from '../pedagogie/copilot-dock.js';
 import { momentContext, passageWindow, clock, DEFAULT_PASSAGE_SECONDS } from '../pedagogie/tutorial-moment.js';
 import { createTutorialMemory, cardDuration } from '../pedagogie/tutorial-memory.js';
+import { teacherActivity, chordsWhilePlaying, activitySummary, isPlaying, ACTIVITY } from '../pedagogie/teacher-activity.js';
 
 // [Claude] — 2026-09-25 — Pourquoi l'image n'a pas été lue (Narcisse : « l'application
 // ne peut pas analyser l'image, et je ne sais pas pourquoi ») : dit en clair.
@@ -1016,6 +1017,10 @@ async function runReading(path) {
         if (piano?.available && piano.notes?.length) {
           built.noteEvents = eventsFromTranscription(piano.notes);
           built.notesSource = 'son';
+          // [Claude] — 2026-10-03 — Sa pédale, entendue au son : le rejeu la reprend.
+          built.pedals = (piano.pedals || [])
+            .filter((p) => Number.isFinite(p?.onset) && Number.isFinite(p?.offset) && p.offset > p.onset)
+            .map((p) => ({ start: p.onset, end: p.offset }));
         } else {
           job.notesUnavailable = piano?.reason === 'dependency-missing'
             ? `transcription des notes au son non installée (${piano.detail || 'piano-transcription-inference'} : « .venv/bin/pip install -r requirements.txt »)`
@@ -1278,9 +1283,35 @@ function renderFormat() {
 function renderResult() {
   if (!els.grid || !els.strip) return;
   els.grid.innerHTML = '';
-  const segments = analysis?.segments || [];
-  els.strip.hidden = segments.length === 0;
-  for (const seg of segments) {
+  // [Claude] — 2026-10-03 — Les accords des moments où il joue ; « Il explique » là où il
+  // parle sans jouer (un clic place la vidéo sur l'explication).
+  const view = teacherView();
+  let segments = analysis?.segments || [];
+  if (view?.filterChords) {
+    segments = segments.filter((seg) => view.spans.some((sp) => isPlaying(sp.kind) && seg.start < sp.end && seg.end > sp.start));
+  }
+  const talks = (view?.spans || []).filter((sp) => sp.kind === ACTIVITY.SPEAKS && sp.end - sp.start >= 2);
+  const items = [
+    ...segments.map((seg) => ({ at: seg.start, seg })),
+    ...talks.map((talk) => ({ at: talk.start, talk })),
+  ].sort((a, b) => a.at - b.at);
+  els.strip.hidden = items.length === 0;
+  for (const { seg, talk } of items) {
+    if (talk) {
+      els.grid.appendChild(el('button', {
+        type: 'button',
+        role: 'listitem',
+        className: 'pedagogie-chip is-speech',
+        title: `Le prof explique, sans jouer (${formatTime(talk.start)} → ${formatTime(talk.end)}) : un clic place la vidéo`,
+        'data-start': talk.start,
+        'data-end': talk.end,
+        onClick: (e) => { if (e.shiftKey) loopSegment(talk.start, talk.end); else seekVideo(talk.start); },
+      }, [
+        el('span', { className: 'pedagogie-chip-time', text: formatTime(talk.start) }),
+        el('span', { className: 'pedagogie-chip-label', text: 'Il explique' }),
+      ]));
+      continue;
+    }
     const chip = el('button', {
       type: 'button',
       role: 'listitem',
@@ -1376,6 +1407,27 @@ function markStrip(win) {
 }
 
 /**
+ * [Claude] — 2026-10-03 — Ce que fait le prof, moment par moment (teacher-activity.js) : il
+ * joue, il parle, les deux. Ses notes jouées, sans celles que sa voix fait naître quand il
+ * parle (vidéo de Narcisse : 150 « notes » transcrites de sa voix, rejouées en vrille).
+ * Calculé à la lecture, une fois par relevé affiché : les relevés déjà gardés en profitent
+ * sans être refaits.
+ * @returns {{spans: object[], played: object[], cleaned: object[], filterChords: boolean}|null}
+ */
+let activityCache = null;
+function teacherView() {
+  if (!analysis) return null;
+  if (activityCache && activityCache.analysis === analysis && activityCache.narration === narrationView) return activityCache.view;
+  const notes = Array.isArray(analysis.noteEvents) ? analysis.noteEvents : [];
+  const source = analysis.notesSource || (analysis.source === 'audio' ? 'son' : 'image');
+  const view = teacherActivity({ notes, speech: narrationView, source, start: 0 });
+  // Sans notes du prof, rien ne dit quand il joue : les accords restent tous.
+  view.filterChords = view.cleaned.length > 0;
+  activityCache = { analysis, narration: narrationView, view };
+  return view;
+}
+
+/**
  * [Claude] — 2026-09-25 — Tout ce que le Copilote doit savoir du tutoriel analysé :
  * nom, tonalité, grille datée, parole du professeur, d'où vient le relevé, frise
  * compacte des notes jouées (et les notes elles-mêmes, pour ses outils : rejouer un
@@ -1385,10 +1437,14 @@ function markStrip(win) {
  */
 export function getPedagogieCopilotContext() {
   if (!selectedPath || !analysis) return null;
-  const chords = analysis.segments
+  const view = teacherView();
+  const allChords = analysis.segments
     .filter((s) => s.chord?.resolved)
     .map((s) => ({ start: s.start, end: s.end, label: s.chord.label }));
-  const noteEvents = Array.isArray(analysis.noteEvents) ? analysis.noteEvents : [];
+  // [Claude] — 2026-10-03 — Ses notes jouées, et les accords des moments où il joue.
+  const chords = view.filterChords ? chordsWhilePlaying(allChords, view.spans) : allChords;
+  const noteEvents = view.played;
+  const rawNotes = Array.isArray(analysis.noteEvents) ? analysis.noteEvents.length : 0;
   const sourceLabel = analysis.source === 'v2n' ? 'lu à l\'image (vrai clavier filmé, V2N)'
     : analysis.source === 'video' ? 'lu à l\'image (clavier dessiné)'
       : `lu au son (accords)${analysis.notesSource === 'son' ? ' ; notes transcrites depuis le son' : ''}`;
@@ -1404,7 +1460,10 @@ export function getPedagogieCopilotContext() {
     sourceLabel,
     notesTimeline: compactTimeline(noteEvents, chords),
     noteEvents,
-    notesUnavailable: noteEvents.length ? null : (notesUnavailable || (analysis.source === 'audio'
+    pedals: Array.isArray(analysis.pedals) && analysis.pedals.length ? analysis.pedals : null,
+    activity: view.spans,
+    activitySummary: activitySummary(view.spans, { max: 40 }),
+    notesUnavailable: rawNotes ? null : (notesUnavailable || (analysis.source === 'audio'
       ? 'le clavier n\'est pas lisible à l\'image (pianiste filmé de côté ?) et la transcription des notes au son n\'a rien donné'
       : 'aucune note lue')),
     duration: Number.isFinite(video?.duration) ? video.duration : null,
@@ -1416,6 +1475,7 @@ export function getPedagogieCopilotContext() {
       chords,
       noteEvents,
       transcript,
+      activity: view.spans,
     }),
   };
 }

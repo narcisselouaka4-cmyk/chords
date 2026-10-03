@@ -368,6 +368,9 @@
 :root[data-skin] #practice-view-pedagogie .pedagogie-chip.is-current .pedagogie-chip-label { color: var(--tr-accent); }
 :root[data-skin] #practice-view-pedagogie .pedagogie-chip.is-partial { border-style: dashed; }
 :root[data-skin] #practice-view-pedagogie .pedagogie-chip.is-unresolved .pedagogie-chip-label { color: var(--tr-muted); }
+/* [Claude] — 2026-10-03 — « Il explique » : un moment où le prof parle sans jouer. */
+:root[data-skin] #practice-view-pedagogie .pedagogie-chip.is-speech { background: transparent; border-style: dashed; }
+:root[data-skin] #practice-view-pedagogie .pedagogie-chip.is-speech .pedagogie-chip-label { color: var(--tr-secondary); font-style: italic; font-weight: 500; }
 
 /* ---- Outils sous la vidéo (vitesse, boucle, calibration) ------------------- */
 #practice-view-pedagogie .pedago-tools {

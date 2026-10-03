@@ -436,5 +436,18 @@ check('Sous un exemple du Copilote : « Ajouter à Ma grille » et « Ajouter au
   && mainJs.includes("document.addEventListener('exercise-save-grid'") && mainJs.includes("document.addEventListener('exercise-add-favorites'")
   && mainJs.includes("document.addEventListener('exercise-open-grid'"));
 
+// ---------------------------------------------------------------------------
+// 12. [Claude] — 2026-10-03 — Ne rejouer que ce que le prof joue (vidéo de Narcisse : sa voix
+// transcrite comme un piano, rejouée en « vrille » ; Amazing Grace : rejeu sans pédale)
+// ---------------------------------------------------------------------------
+check('Le Copilote reçoit les notes JOUÉES (sans celles de sa voix), et les moments joue / parle',
+  /const view = teacherView\(\);/.test(tabCode) && /const noteEvents = view\.played;/.test(tabCode)
+  && /activity: view\.spans,/.test(tabCode) && /chordsWhilePlaying\(allChords, view\.spans\)/.test(tabCode));
+check('La frise : « Il explique » là où il parle sans jouer, les accords seulement là où il joue',
+  tabCode.includes("className: 'pedagogie-chip is-speech'") && tabCode.includes("text: 'Il explique'")
+  && /isPlaying\(sp\.kind\) && seg\.start < sp\.end && seg\.end > sp\.start/.test(tabCode));
+check('Sa pédale, entendue au son, est gardée avec le relevé et passée au Copilote',
+  /built\.pedals = \(piano\.pedals \|\| \[\]\)/.test(tabCode) && /pedals: Array\.isArray\(analysis\.pedals\)/.test(tabCode));
+
 console.log(`\n=== Résultat : ${passed}/${total} contrôles passés ===`);
 if (passed < total) process.exitCode = 1;

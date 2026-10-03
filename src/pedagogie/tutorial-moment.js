@@ -69,13 +69,21 @@ export function linesInWindow(lines, start, end) {
  * @param {{start: number, end: number, label: string}[]} [input.chords]
  * @param {{midi: number, start: number, end: number, hand?: string}[]} [input.noteEvents]
  * @param {{start: number, text: string}[]} [input.transcript]
+ * @param {{start: number, end: number, kind: string}[]} [input.activity] - teacherActivity().spans
  * @returns {object|null}
  */
-export function momentContext({ now, length = DEFAULT_PASSAGE_SECONDS, loop = null, duration = Infinity, chords = [], noteEvents = [], transcript = [] } = {}) {
+export function momentContext({ now, length = DEFAULT_PASSAGE_SECONDS, loop = null, duration = Infinity, chords = [], noteEvents = [], transcript = [], activity = [] } = {}) {
   const win = passageWindow(now, { length, loop, duration });
   if (!win) return null;
   const inChords = chordsInWindow(chords, win.start, win.end);
   const inNotes = (noteEvents || []).filter((n) => Number.isFinite(n?.start) && n.start >= win.start - 0.05 && n.start < win.end);
+  // [Claude] — 2026-10-03 — Ce que fait le prof dans le passage (teacher-activity.js) :
+  // il joue, il parle, les deux. « parle » seul : il n'y a rien à rejouer.
+  const spans = (activity || [])
+    .filter((s) => s.start < win.end && s.end > win.start)
+    .map((s) => ({ start: Math.max(s.start, win.start), end: Math.min(s.end, win.end), kind: s.kind }))
+    .filter((s) => s.end - s.start > 0.05);
+  const playing = spans.some((s) => s.kind === 'joue' || s.kind === 'joue-et-parle');
   return {
     now: win.now,
     start: win.start,
@@ -85,6 +93,8 @@ export function momentContext({ now, length = DEFAULT_PASSAGE_SECONDS, loop = nu
     noteCount: inNotes.length,
     timeline: inNotes.length ? compactTimeline(inNotes, inChords, { maxLines: 30 }) : [],
     transcript: linesInWindow(transcript, win.start, win.end).map((l) => ({ start: l.start, text: l.text })),
+    activity: spans,
+    spokenOnly: !playing && !inNotes.length && spans.some((s) => s.kind === 'parle'),
   };
 }
 
