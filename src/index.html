@@ -57,6 +57,7 @@
     <link rel="stylesheet" href="./ui/refonte/astra-bridge.css" />
     <!-- [Claude] — 2026-10-02 — Temps réel : Lecture en direct et portée. -->
     <link rel="stylesheet" href="./ui/refonte/astra-realtime.css" />
+    <link rel="stylesheet" href="./ui/refonte/astra-pedagogie.css" />
   </head>
   <body>
     <div id="app" class="app training-shell">
@@ -844,7 +845,7 @@
           <div class="tr-view-heading">
             <div>
               <div class="tr-page-title"><span class="tr-page-index">03</span><h1>Pédagogie IA</h1></div>
-              <p>Regardez. Comprenez. Passez au clavier.</p>
+              <p>La vidéo du prof, et le Copilote pour comprendre et appliquer ce qu'il joue.</p>
             </div>
             <div class="tr-heading-actions">
               <button class="tr-button" type="button" data-astra-open="pedagogie-library-drawer" data-astra-shortcut="t"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Mes tutoriels</button>
@@ -852,92 +853,89 @@
             </div>
           </div>
 
-          <section class="tr-cinema-shell" id="pedagogie-main" aria-label="Lecteur de tutoriel">
-            <div class="tr-cinema-stage">
-              <section class="pedagogie-card is-video" id="pedagogie-video-card" style="display: none;">
-                <video class="pedagogie-video-player" id="pedagogie-video-player" preload="metadata" playsinline></video>
-              </section>
-
-              <div class="tr-video-topline">
-                <span><svg class="tr-i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.42 10.92a1 1 0 0 0-.02-1.84L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.83l8.57 3.91a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg>TUTORIEL</span>
-                <span class="pedagogie-format" id="pedagogie-format" style="display: none;"></span>
-              </div>
-
-              <div class="pedagogie-video-overlay" id="pedagogie-video-overlay" style="display: none;">
-                <button class="tr-cinema-play pedagogie-primary-btn" id="pedagogie-analyze-btn" type="button" disabled aria-label="Lire ce tutoriel"><svg class="tr-i" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 4 13 8-13 8z" fill="currentColor"/></svg><span>Lire ce tutoriel</span></button>
-              </div>
-
-              <div class="tr-video-title">
-                <span class="tr-eyebrow">PIANO / HARMONIE</span>
-                <h2 class="pedagogie-selected-name" id="pedagogie-selected-name">Bienvenue dans Pédagogie IA</h2>
-                <p class="pedagogie-intro" id="pedagogie-intro">Choisissez le dossier qui contient vos tutoriels vidéo (.mp4) dans « Mes tutoriels ». La vidéo et l'analyse apparaîtront ici.</p>
-                <p class="pedagogie-status" id="pedagogie-status" style="display: none;"></p>
-                <span class="pedagogie-progress" id="pedagogie-progress" style="display: none;"></span>
+          <!-- [Claude] — 2026-10-03 — Pédagogie IA refaite avec Narcisse : la vidéo du prof à
+               gauche, le Copilote à droite (« pourquoi ne pas intégrer directement Copilot IA
+               au sein de Pédagogie IA, plutôt que d'être redirigé vers un onglet séparé ? »).
+               La conversation est CELLE du Copilote, déplacée ici (src/pedagogie/copilot-dock.js).
+               Il sait où en est la vidéo : « ici », « ce qu'il vient de faire » = le passage
+               affiché en haut du panneau. Retirés à sa demande : « Résumé du cours » (« trop
+               court »), les fiches du glossaire, la question « Tutoriel ou Cover ? », la
+               transcription (« souvent mal traduite »). -->
+          <section class="pedago-home" id="pedagogie-home" aria-label="Vos tutoriels">
+            <div class="pedago-home-empty" id="pedagogie-home-empty">
+              <div class="pedago-home-icon" aria-hidden="true"><svg class="tr-i" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></div>
+              <h2 id="pedagogie-home-title">Choisis un tutoriel</h2>
+              <p id="pedagogie-home-text">Ouvre un tuto : la vidéo du prof s'affiche à gauche, et le Copilote à droite répond à tes questions sur ce qu'il vient de jouer.</p>
+              <div class="pedago-home-actions">
+                <button class="tr-button tr-primary" type="button" id="pedagogie-home-folder-btn">Choisir le dossier des tutoriels</button>
+                <button class="tr-button" type="button" id="pedagogie-home-library-btn" data-astra-open="pedagogie-library-drawer">Mes tutoriels</button>
               </div>
             </div>
+            <div class="pedago-home-grid" id="pedagogie-home-grid" role="list" aria-label="Vos tutoriels"></div>
           </section>
 
-          <section class="tr-lesson-notebook">
-            <div class="tr-notebook-header">
-              <div class="tr-underlined-tabs" role="tablist" aria-label="Notes du tutoriel">
-                <button type="button" role="tab" aria-selected="true" class="is-active">Résumé du cours</button>
+          <div class="pedago-split" id="pedagogie-split" hidden>
+            <div class="pedago-stage">
+              <section class="tr-cinema-shell" id="pedagogie-main" aria-label="Lecteur de tutoriel">
+                <div class="tr-cinema-stage">
+                  <section class="pedagogie-card is-video" id="pedagogie-video-card" style="display: none;">
+                    <video class="pedagogie-video-player" id="pedagogie-video-player" preload="metadata" playsinline></video>
+                  </section>
+
+                  <div class="tr-video-topline">
+                    <span><svg class="tr-i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.42 10.92a1 1 0 0 0-.02-1.84L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.83l8.57 3.91a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg>TUTORIEL</span>
+                    <span class="pedagogie-format" id="pedagogie-format" style="display: none;"></span>
+                  </div>
+
+                  <div class="pedagogie-video-overlay" id="pedagogie-video-overlay" style="display: none;">
+                    <button class="tr-cinema-play pedagogie-primary-btn" id="pedagogie-analyze-btn" type="button" disabled aria-label="Lire ce tutoriel"><svg class="tr-i" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 4 13 8-13 8z" fill="currentColor"/></svg><span>Lire ce tutoriel</span></button>
+                  </div>
+
+                  <div class="tr-video-title" id="pedagogie-video-title">
+                    <span class="tr-eyebrow">PIANO / HARMONIE</span>
+                    <h2 class="pedagogie-selected-name" id="pedagogie-selected-name">Aucun tutoriel sélectionné</h2>
+                    <p class="pedagogie-intro" id="pedagogie-intro"></p>
+                  </div>
+                </div>
+              </section>
+
+              <p class="pedagogie-progress" id="pedagogie-progress" style="display: none;"></p>
+
+              <div class="pedago-strip" id="pedagogie-strip" hidden>
+                <span class="pedago-strip-label">Accords</span>
+                <div class="pedagogie-grid" id="pedagogie-grid" role="list" aria-label="Accords relevés : un clic place la vidéo"></div>
               </div>
-              <div class="tr-notebook-actions pedagogie-video-actions" id="pedagogie-video-actions" style="display: none;">
+
+              <div class="pedago-tools pedagogie-video-actions" id="pedagogie-video-actions" style="display: none;">
+                <div class="pedago-speed" id="pedagogie-speed" role="group" aria-label="Vitesse de la vidéo"></div>
+                <div class="pedago-loop" id="pedagogie-loop"></div>
+                <span class="pedago-tools-spacer"></span>
                 <!-- [Claude] — 2026-09-25 — Calibration d'un vrai clavier filmé (V2N) : visible
                      seulement quand elle sert (V2N installé, pas de clavier dessiné reconnu). -->
                 <button type="button" class="tr-text-button pedagogie-secondary-btn" id="pedagogie-calibrate-btn" hidden title="Cliquez ensuite les 4 coins du clavier sur la vidéo : l'application lira les touches à l'image">Calibrer le clavier</button>
-                <button type="button" class="tr-text-button tr-accent-text pedagogie-secondary-btn" id="pedagogie-copilot-shortcut"><svg class="tr-i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.29 1.29L3 12l5.81 1.9a2 2 0 0 1 1.29 1.29L12 21l1.9-5.81a2 2 0 0 1 1.29-1.29L21 12l-5.81-1.9a2 2 0 0 1-1.29-1.29z"/></svg>Copilote IA<svg class="tr-i" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></button>
               </div>
+
+              <div class="pedagogie-status" id="pedagogie-status" style="display: none;"></div>
             </div>
 
-            <div class="tr-notebook-content" role="tabpanel">
-              <!-- Question de catégorie posée avant la première analyse d'un fichier. -->
-              <section class="pedagogie-card" id="pedagogie-category-card" style="display: none;">
-                <h4 class="pedagogie-card-title">Quelle est la nature de cette vidéo ?</h4>
-                <p class="pedagogie-intro">Le classement adapte ce qui est mis en avant pendant la lecture.</p>
-                <div class="pedagogie-category-grid" id="pedagogie-category-grid">
-                  <button type="button" class="pedagogie-category-card" data-category="tutorial">
-                    <span class="pedagogie-category-icon">🎓</span>
-                    <span class="pedagogie-category-title">Tutoriel avec explications</span>
-                    <span class="pedagogie-category-sub">Le professeur explique des accords, progressions ou concepts.</span>
-                  </button>
-                  <button type="button" class="pedagogie-category-card" data-category="cover">
-                    <span class="pedagogie-category-icon">🎹</span>
-                    <span class="pedagogie-category-title">Cover / interprétation</span>
-                    <span class="pedagogie-category-sub">Le but est de reproduire ce qui est joué dans la vidéo.</span>
-                  </button>
+            <aside class="pedago-copilot" id="pedagogie-copilot-panel" aria-label="Copilote du tutoriel">
+              <header class="pedago-copilot-head">
+                <div class="pedago-copilot-title"><svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.29 1.29L3 12l5.81 1.9a2 2 0 0 1 1.29 1.29L12 21l1.9-5.81a2 2 0 0 1 1.29-1.29L21 12l-5.81-1.9a2 2 0 0 1-1.29-1.29z"/></svg><span>Copilote</span><small id="pedagogie-copilot-name"></small></div>
+                <div class="pedago-moment" id="pedagogie-moment" hidden>
+                  <span class="pedago-moment-label">Passage</span>
+                  <strong class="pedago-moment-range" id="pedagogie-moment-range"></strong>
+                  <select class="pedago-moment-length" id="pedagogie-moment-length" aria-label="Durée du passage dont tu parles au Copilote" title="« Ici », « ce qu'il vient de faire » : les secondes qui précèdent l'instant de la vidéo">
+                    <option value="10">10 s</option>
+                    <option value="20" selected>20 s</option>
+                    <option value="30">30 s</option>
+                    <option value="60">1 min</option>
+                  </select>
                 </div>
-                <p class="pedagogie-category-hint">Vous pourrez modifier ce choix plus tard.</p>
-              </section>
-
-              <p class="pedagogie-category-hint" id="pedagogie-category-hint" style="display: none;">
-                <span id="pedagogie-category-hint-text"></span>
-              </p>
-
-              <div class="pedagogie-result" id="pedagogie-result" style="display: none;">
-                <section class="pedagogie-card is-copilot-summary" id="pedagogie-copilot-summary-card" style="display: none;">
-                  <h4 class="pedagogie-card-title">Résumé du cours</h4>
-                  <p class="pedagogie-copilot-summary-text" id="pedagogie-copilot-summary-text"></p>
-                  <button type="button" class="tr-text-button tr-accent-text pedagogie-secondary-btn" id="pedagogie-copilot-summary-btn">Ouvrir le Copilote IA<svg class="tr-i" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></button>
-                </section>
-
-                <section class="pedagogie-card" id="pedagogie-grid-card">
-                  <h4 class="pedagogie-card-title">Grille relevée</h4>
-                  <div class="pedagogie-grid" id="pedagogie-grid"></div>
-                </section>
-
-                <section class="pedagogie-card" id="pedagogie-crosscheck-card" style="display: none;">
-                  <h4 class="pedagogie-card-title">Recoupement image / son</h4>
-                  <div id="pedagogie-crosscheck"></div>
-                </section>
-
-                <section class="pedagogie-card">
-                  <h4 class="pedagogie-card-title">Ce qu'il y a à comprendre</h4>
-                  <div class="pedagogie-glossary" id="pedagogie-glossary"></div>
-                </section>
-              </div>
-            </div>
-          </section>
+              </header>
+              <p class="pedago-copilot-notice" id="pedagogie-copilot-notice" hidden></p>
+              <div class="pedago-copilot-slot" id="pedagogie-copilot-slot"></div>
+            </aside>
+          </div>
 
           <!-- Tiroir « Mes tutoriels ». -->
           <div class="tr-overlay tr-drawer-overlay" id="pedagogie-library-drawer" hidden>

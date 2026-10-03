@@ -760,7 +760,7 @@
    en rangée et posait le bouton à côté du champ — c'est ce qui différait de la
    maquette. On ne garde que la remise à zéro des styles hérités de Zic sur le
    champ et le bouton. */
-#practice-view-copilot #copilot-input.copilot-input {
+:is(#practice-view-copilot, #pedagogie-copilot-panel) #copilot-input.copilot-input {
   display: block;
   width: 100%;
   min-height: 20px;
@@ -777,7 +777,7 @@
   resize: none;
   outline: none;
 }
-#practice-view-copilot .tr-composer-tools > #copilot-send-btn.copilot-send-btn {
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-composer-tools > #copilot-send-btn.copilot-send-btn {
   display: grid;
   place-items: center;
   width: 27px;
@@ -788,18 +788,18 @@
   background: var(--tr-button);
   color: var(--tr-button-text);
 }
-#practice-view-copilot .tr-composer-tools > #copilot-send-btn.copilot-send-btn:hover:not(:disabled) {
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-composer-tools > #copilot-send-btn.copilot-send-btn:hover:not(:disabled) {
   background: var(--tr-accent-strong);
 }
-#practice-view-copilot .tr-composer-tools > #copilot-send-btn.copilot-send-btn:disabled {
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-composer-tools > #copilot-send-btn.copilot-send-btn:disabled {
   background: var(--tr-raised);
   color: var(--tr-muted);
   opacity: 1;
 }
 /* [Claude] — 2026-09-26 — « Qu'en penses-tu ? » à la place de « IA connectée » : une
    pastille ; pendant l'écoute, « ● Stop · 0:12 » en rouge, le point qui pulse. */
-#practice-view-copilot .copilot-review { display: flex; align-items: center; gap: 9px; min-width: 0; }
-#practice-view-copilot .copilot-review-btn {
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-review { display: flex; align-items: center; gap: 9px; min-width: 0; }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-review-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -815,18 +815,18 @@
   white-space: nowrap;
   cursor: pointer;
 }
-#practice-view-copilot .copilot-review-btn:hover { border-color: var(--tr-accent); }
-#practice-view-copilot .copilot-review-btn.is-listening {
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-review-btn:hover { border-color: var(--tr-accent); }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-review-btn.is-listening {
   border-color: var(--tr-red);
   background: color-mix(in srgb, var(--tr-red) 16%, var(--tr-surface));
   color: var(--tr-red);
   font-variant-numeric: tabular-nums;
 }
-#practice-view-copilot .copilot-review-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; animation: copilot-review-pulse 1.2s ease-in-out infinite; }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-review-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; animation: copilot-review-pulse 1.2s ease-in-out infinite; }
 @keyframes copilot-review-pulse { 50% { opacity: 0.3; } }
-#practice-view-copilot .copilot-review-hint { overflow: hidden; color: var(--tr-muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-review-hint { overflow: hidden; color: var(--tr-muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) {
-  #practice-view-copilot .copilot-review-dot { animation: none; }
+  :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-review-dot { animation: none; }
 }
 #copilot-quick-actions {
   display: flex;
@@ -868,14 +868,14 @@
 /* Bouton "Nouvelle conversation" : doit avoir le fond coloré .tr-primary,
    pas le fond neutre de l'ancienne règle practice.css (lignes 1889+).
    Spécificité alignée sur l'ancienne règle pour gagner la cascade. */
-:root[data-skin='global'] #practice-view-copilot .tr-primary.copilot-secondary-btn,
-:root[data-skin='v2'] #practice-view-copilot .tr-primary.copilot-secondary-btn {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-primary.copilot-secondary-btn,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-primary.copilot-secondary-btn {
   background: var(--tr-button);
   color: var(--tr-button-text);
   border-color: var(--tr-button);
 }
-:root[data-skin='global'] #practice-view-copilot .tr-primary.copilot-secondary-btn:hover:not(:disabled),
-:root[data-skin='v2'] #practice-view-copilot .tr-primary.copilot-secondary-btn:hover:not(:disabled) {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-primary.copilot-secondary-btn:hover:not(:disabled),
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-primary.copilot-secondary-btn:hover:not(:disabled) {
   background: var(--tr-accent-strong);
   border-color: var(--tr-accent-strong);
 }
@@ -2153,13 +2153,13 @@
    Ce qui suit neutralise les anciennes règles .copilot-message de practice.css
    (bulle encadrée, alignement) et habille les deux cas propres à Zic. */
 /* [Astra round 5] — practice.css (L.1665) impose
-   « :root[data-skin='…'] #practice-view-copilot .copilot-message
+   « :root[data-skin='…'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-message
      { flex-direction: column; gap: 4px; max-width: 85% } »,
    plus spécifique que la règle d'astra-training.css : l'avatar passait SOUS la
    bulle côté « Vous » et AU-DESSUS du texte côté Copilot, au lieu d'être à côté.
    Même préfixe ici pour repasser devant et rétablir la rangée d'Astra. */
-:root[data-skin='global'] #practice-view-copilot .copilot-message.tr-chat-message,
-:root[data-skin='v2'] #practice-view-copilot .copilot-message.tr-chat-message {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-message.tr-chat-message,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-message.tr-chat-message {
   display: flex;
   flex-direction: row;
   align-items: flex-start;
@@ -2175,22 +2175,22 @@
 }
 /* Côté « Vous » : la bulle d'abord, l'avatar à sa droite (order: 2 chez Astra),
    le tout poussé à droite. */
-:root[data-skin='global'] #practice-view-copilot .copilot-message.tr-chat-message.is-user,
-:root[data-skin='v2'] #practice-view-copilot .copilot-message.tr-chat-message.is-user {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-message.tr-chat-message.is-user,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-message.tr-chat-message.is-user {
   margin-left: auto;
   width: fit-content;
   max-width: 83%;
 }
-:root[data-skin='global'] #practice-view-copilot .tr-chat-message.is-user .tr-message-avatar,
-:root[data-skin='v2'] #practice-view-copilot .tr-chat-message.is-user .tr-message-avatar {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-chat-message.is-user .tr-message-avatar,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-chat-message.is-user .tr-message-avatar {
   order: 2;
 }
 /* Les avatars ne doivent jamais se comprimer quand la bulle est longue. */
-:root[data-skin='global'] #practice-view-copilot .tr-message-avatar,
-:root[data-skin='v2'] #practice-view-copilot .tr-message-avatar {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-message-avatar,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-message-avatar {
   flex-shrink: 0;
 }
-#practice-view-copilot .copilot-message.is-system {
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-message.is-system {
   display: block;
   margin: 0 auto 18px;
   padding: 6px 12px;
@@ -2203,8 +2203,8 @@
   width: fit-content;
   max-width: 80%;
 }
-#practice-view-copilot .tr-message-content > p > strong { color: var(--tr-text); font-weight: 650; }
-#practice-view-copilot .tr-message-content > p > code {
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-message-content > p > strong { color: var(--tr-text); font-weight: 650; }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-message-content > p > code {
   padding: 1px 5px;
   border-radius: 4px;
   background: var(--tr-inset);
@@ -2212,7 +2212,7 @@
   font: 11px var(--tr-mono);
 }
 /* Rappel des notes réellement jouées : même forme que les chips, mais inerte. */
-#practice-view-copilot .copilot-played-chip {
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-played-chip {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -2223,7 +2223,7 @@
   color: var(--tr-secondary);
   font-size: 10.5px;
 }
-#practice-view-copilot .copilot-played-chip small {
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-played-chip small {
   color: var(--tr-muted);
   font: 9px var(--tr-mono);
   letter-spacing: .03em;
@@ -2231,7 +2231,7 @@
 /* [Claude] — 2026-09-24 — Exemple à écouter, SOUS l'explication (Narcisse :
    « il va directement me le jouer au lieu d'expliquer d'abord »). Un bouton
    Écouter / Arrêter, le titre (accords), le style, et ce que fait chaque main. */
-#practice-view-copilot .tr-chat-demos.copilot-example {
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-chat-demos.copilot-example {
   display: flex;
   flex-wrap: nowrap;
   align-items: flex-start;
@@ -2242,8 +2242,8 @@
   background: var(--tr-inset);
   transition: border-color .2s;
 }
-#practice-view-copilot .copilot-example.is-playing { border-color: var(--tr-accent); }
-#practice-view-copilot .copilot-example .copilot-example-play {
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example.is-playing { border-color: var(--tr-accent); }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example .copilot-example-play {
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -2258,23 +2258,23 @@
   white-space: nowrap;
   cursor: pointer;
 }
-#practice-view-copilot .copilot-example .copilot-example-play:hover { background: var(--tr-accent-soft); }
-#practice-view-copilot .copilot-example .copilot-example-play:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 2px; }
-#practice-view-copilot .copilot-example.is-playing .copilot-example-play {
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example .copilot-example-play:hover { background: var(--tr-accent-soft); }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example .copilot-example-play:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 2px; }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example.is-playing .copilot-example-play {
   background: var(--tr-button);
   border-color: var(--tr-button);
   color: var(--tr-button-text);
 }
-#practice-view-copilot .copilot-example-text {
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example-text {
   display: flex;
   flex-direction: column;
   gap: 3px;
   min-width: 0;
   padding-top: 1px;
 }
-#practice-view-copilot .copilot-example-text > strong { color: var(--tr-text); font-size: 11.5px; font-weight: 650; }
-#practice-view-copilot .copilot-example-text > small { color: var(--tr-muted); font-size: 9.5px; }
-#practice-view-copilot .copilot-example-hands {
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example-text > strong { color: var(--tr-text); font-size: 11.5px; font-weight: 650; }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example-text > small { color: var(--tr-muted); font-size: 9.5px; }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example-hands {
   margin: 5px 0 0;
   padding: 0;
   list-style: none;
@@ -2284,16 +2284,16 @@
   color: var(--tr-secondary);
   font: 9.5px/1.5 var(--tr-mono);
 }
-#practice-view-copilot .copilot-example-hands b { color: var(--tr-accent); font-weight: 600; }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example-hands b { color: var(--tr-accent); font-weight: 600; }
 /* [Claude] — 2026-09-25 — Boutons de la carte, en colonne. */
-#practice-view-copilot .tr-chat-demos.copilot-example { flex-wrap: wrap; }
-#practice-view-copilot .copilot-example-text { flex: 1; }
-#practice-view-copilot .copilot-example-buttons {
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-chat-demos.copilot-example { flex-wrap: wrap; }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example-text { flex: 1; }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example-buttons {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
   gap: 6px;
 }
 @media (max-width: 640px) {
-  #practice-view-copilot .tr-chat-demos.copilot-example { flex-direction: column; }
+  :is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-chat-demos.copilot-example { flex-direction: column; }
 }

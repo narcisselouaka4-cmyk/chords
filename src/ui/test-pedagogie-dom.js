@@ -167,11 +167,10 @@ check('Aucun texte n\'est simulé quand la dépendance manque (contrairement aux
 check('La transcription a son propre dossier de travail, pour ne pas purger celui de l\'analyse',
   electronMain.includes('createTranscribeDir'));
 
-// La couche IA reste facultative : le résumé automatique n'est tenté que si une clé est configurée.
-check('Le contrôleur détecte la présence d\'une clé IA',
-  tabCode.includes('hasAIKey()') && tabCode.includes('getAIConfig'));
-check('Le résumé automatique appelle explainNarration',
-  tabCode.includes('explainNarration'));
+// [Claude] — 2026-10-03 — Plus de résumé automatique (Narcisse : « un résumé est trop
+// court et manque d'explications ») : le Copilote, intégré à l'écran, explique à la demande.
+check('Plus de résumé automatique : aucun appel à explainNarration depuis l\'écran',
+  !tabCode.includes('explainNarration') && !tabCode.includes('maybeAutoSummarize'));
 check('explainNarration suit le patron des autres appels IA (401/403 et 429 nommés)',
   readText('src/ai/ai-client.js').includes('fetchNarrationExplanation'));
 check('Masterclass et Réharmonisation ne sont pas touchées',
@@ -253,47 +252,41 @@ check('chooseFolder() remet playbackStarted à false',
 check('analyzeSelected() passe playbackStarted à true au début',
   /async function analyzeSelected\(\)[\s\S]*?playbackStarted = true/.test(tabCode));
 
-// Raccourci Copilote IA visible pendant la lecture.
-check('Le bouton raccourci "Copilote IA" existe dans le HTML',
-  html.includes('id="pedagogie-copilot-shortcut"') && html.includes('Copilote IA'));
-check('Le contrôleur référence le bouton Copilote IA',
-  tabCode.includes('pedagogie-copilot-shortcut'));
-check('Le raccourci dispatche app-switch-training-view vers copilot',
-  /app-switch-training-view.*detail:.*view:\s*['"]copilot['"]/.test(tabCode));
+// [Claude] — 2026-10-03 — Le Copilote est INTÉGRÉ à Pédagogie IA (Narcisse : « pourquoi
+// ne pas intégrer directement Copilot IA au sein de Pédagogie IA, plutôt que d'être
+// redirigé vers un onglet séparé ? ») : sa conversation est déplacée dans le panneau.
+const dockCode = readText('src/pedagogie/copilot-dock.js');
+check('Le panneau du Copilote est dans l\'écran, à droite de la vidéo',
+  html.includes('id="pedagogie-copilot-panel"') && html.includes('id="pedagogie-copilot-slot"')
+  && html.indexOf('id="pedagogie-video-card"') < html.indexOf('id="pedagogie-copilot-panel"'));
+check('La conversation du Copilote est déplacée (un seul moteur), puis remise dans son onglet',
+  tabCode.includes('dockCopilot(') && tabCode.includes('undockCopilot()')
+  && dockCode.includes("'copilot-chat-area'") && dockCode.includes('homeMarker.after('));
+check('Le Copilote passe en mode tutoriel sur le tuto ouvert',
+  tabCode.includes("'copilot-open-tutorial'"));
+check('Plus de raccourci vers l\'onglet Copilote',
+  !html.includes('id="pedagogie-copilot-shortcut"') && !/detail:\s*\{\s*view:\s*['"]copilot['"]/.test(tabCode));
+check('Les styles du Copilote valent aussi dans le panneau (même spécificité)',
+  practiceCss.includes(':is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-input')
+  && readText('src/ui/refonte/astra-bridge.css').includes(':is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example-text'));
+check('Le Copilote sait où en est la vidéo (le passage « ici »)',
+  tabCode.includes('momentContext(') && html.includes('id="pedagogie-moment-range"') && html.includes('id="pedagogie-moment-length"'));
+check('Poser une question met la vidéo en pause ; un moment cité place la vidéo',
+  tabCode.includes("'copilot-input') pauseVideo()") && tabCode.includes("'pedagogie-seek'")
+  && readText('src/pedagogie/copilot-tab.js').includes("'pedagogie-seek'"));
 
-// Sélecteur de catégorie de tutoriel.
-check('Le sélecteur de catégorie existe dans le HTML',
-  html.includes('id="pedagogie-category-card"') && html.includes('id="pedagogie-category-grid"'));
-check('Les deux catégories (tutorial / cover) sont présentes dans le HTML',
-  html.includes('data-category="tutorial"') && html.includes('data-category="cover"'));
-check('Le contrôleur référence le sélecteur de catégorie',
-  tabCode.includes('pedagogie-category-card') && tabCode.includes('pedagogie-category-grid'));
-check('La persistance de catégorie est importée depuis tutorial-folder-pref.js',
-  tabCode.includes('getTutorialCategory') && tabCode.includes('saveTutorialCategory')
-  && tabCode.includes('TUTORIAL_CATEGORIES'));
-check('analyzeSelected() pose categoryPickerOpen quand aucune catégorie n\'est connue',
-  /async function analyzeSelected\(\)[\s\S]*?categoryPickerOpen = true/.test(tabCode));
-check('La grille d\'accords est masquée en mode tutoriel',
-  tabCode.includes('resultGridCard.style.display') && tabCode.includes('TUTORIAL_CATEGORIES.TUTORIAL'));
-check('La carte Copilot est affichée en mode tutoriel',
-  tabCode.includes('resultCopilotCard.style.display') && tabCode.includes('TUTORIAL_CATEGORIES.TUTORIAL'));
-check('L\'indicateur de catégorie permet de changer le choix',
-  tabCode.includes('categoryPickerOpen = true') && tabCode.includes('pedagogie-category-hint'));
-
-// Résumé automatique du sujet en mode tutoriel.
-check('La carte Copilot summary a un emplacement de texte dédié',
-  html.includes('id="pedagogie-copilot-summary-text"'));
-check('Le contrôleur référence l\'emplacement du résumé',
-  tabCode.includes('pedagogie-copilot-summary-text'));
-check('Le résumé automatique ne se déclenche qu\'en mode tutoriel',
-  tabCode.includes('TUTORIAL_CATEGORIES.TUTORIAL') && tabCode.includes('maybeAutoSummarize'));
-check('Le résumé automatique exige une clé IA',
-  /maybeAutoSummarize[\s\S]*?hasAIKey\(\)/.test(tabCode));
-check('L\'état "Génération du résumé…" est affiché pendant l\'appel',
-  tabCode.includes('Génération du résumé…'));
-check('Le résumé est affiché dans la carte Copilot summary une fois prêt',
-  tabCode.includes('copilotSummaryText.textContent = summary'));
-
+// Plus de question « Tutoriel ou Cover ? » ni de résumé du cours (choix de Narcisse).
+// Le balisage de la vue seule, sans ses commentaires.
+const pedagogieView = html.slice(html.indexOf('id="practice-view-pedagogie"'), html.indexOf('id="practice-view-copilot"'))
+  .replace(/<!--[\s\S]*?-->/g, '');
+check('Plus de question « Tutoriel ou Cover ? »',
+  !pedagogieView.includes('pedagogie-category-card') && !tabCode.includes('categoryPickerOpen') && !pedagogieView.includes('🎓'));
+check('Plus de carte « Résumé du cours »',
+  !pedagogieView.includes('pedagogie-copilot-summary-text') && !pedagogieView.includes('Résumé du cours') && !tabCode.includes('Génération du résumé'));
+check('Plus de fiches du glossaire à l\'écran',
+  !html.includes('id="pedagogie-glossary"'));
+check('Les détails techniques (V2N, pip, git lfs) sont repliés, le message reste en clair',
+  tabCode.includes("'Détails techniques'") && tabCode.includes('showReadingStatus('));
 
 const audioOnlyJs = readText('src/pedagogie/video-analysis.js');
 check('Le panneau notes ne répète plus le badge de provenance (explainUnrecognised retiré du rendu notes)',
@@ -325,8 +318,8 @@ check('maybeTranslate n\'existe plus dans pedagogie-tab.js',
   !tabCode.includes('maybeTranslate'));
 check('La traduction automatique n\'est plus tentée ici',
   !tabCode.includes('translationFailed') && !tabCode.includes('translated ='));
-check('Le résumé automatique est la seule explication de narration lancée par le contrôleur',
-  tabCode.includes('maybeAutoSummarize'));
+check('Aucune explication automatique de la parole : le Copilote explique à la demande',
+  !tabCode.includes('maybeAutoSummarize'));
 
 // ---------------------------------------------------------------------------
 // 7. Garde-fous du projet

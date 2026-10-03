@@ -1696,8 +1696,8 @@
   padding: 14px;
 }
 
-:root[data-skin='global'] #practice-view-copilot .copilot-layout,
-:root[data-skin='v2'] #practice-view-copilot .copilot-layout {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-layout,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-layout {
   display: flex;
   flex-direction: row;
   gap: 14px;
@@ -1706,8 +1706,8 @@
 }
 
 /* ── Colonne latérale ── */
-:root[data-skin='global'] #practice-view-copilot .copilot-sidebar,
-:root[data-skin='v2'] #practice-view-copilot .copilot-sidebar {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-sidebar,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-sidebar {
   display: flex;
   flex-direction: column;
   gap: var(--r-space-3);
@@ -1720,13 +1720,13 @@
   box-shadow: var(--r-shadow-card);
   overflow: hidden;
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-sidebar .panel-title,
-:root[data-skin='v2'] #practice-view-copilot .copilot-sidebar .panel-title {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-sidebar .panel-title,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-sidebar .panel-title {
   font-weight: 800;
   color: var(--r-text);
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-history,
-:root[data-skin='v2'] #practice-view-copilot .copilot-history {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-history,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-history {
   display: flex;
   flex-direction: column;
   gap: var(--r-space-3);
@@ -1734,8 +1734,8 @@
   min-height: 0;
   overflow: hidden;
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-new-conv-sidebar-btn,
-:root[data-skin='v2'] #practice-view-copilot .copilot-new-conv-sidebar-btn {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-new-conv-sidebar-btn,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-new-conv-sidebar-btn {
   padding: 8px 12px;
   border: 1px solid var(--r-border);
   border-radius: var(--r-radius-btn);
@@ -1748,20 +1748,20 @@
   transition: filter 0.15s;
   text-align: left;
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-new-conv-sidebar-btn:hover,
-:root[data-skin='v2'] #practice-view-copilot .copilot-new-conv-sidebar-btn:hover {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-new-conv-sidebar-btn:hover,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-new-conv-sidebar-btn:hover {
   filter: brightness(1.12);
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-history-list,
-:root[data-skin='v2'] #practice-view-copilot .copilot-history-list {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-history-list,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-history-list {
   flex: 1;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: var(--r-space-2);
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-history-item,
-:root[data-skin='v2'] #practice-view-copilot .copilot-history-item {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-history-item,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-history-item {
   display: flex;
   align-items: flex-start;
   gap: var(--r-space-2);
@@ -1773,39 +1773,39 @@
   transition: background 0.15s;
   text-align: left;
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-history-item:hover,
-:root[data-skin='v2'] #practice-view-copilot .copilot-history-item:hover {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-history-item:hover,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-history-item:hover {
   background: var(--r-surface-hover, var(--r-surface-chip));
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-history-item.active,
-:root[data-skin='v2'] #practice-view-copilot .copilot-history-item.active {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-history-item.active,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-history-item.active {
   border-color: var(--r-accent);
   background: var(--r-accent-subtle, rgba(191, 58, 43, 0.12));
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-history-info,
-:root[data-skin='v2'] #practice-view-copilot .copilot-history-info {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-history-info,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-history-info {
   display: flex;
   flex-direction: column;
   gap: 2px;
   flex: 1;
   min-width: 0;
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-history-label,
-:root[data-skin='v2'] #practice-view-copilot .copilot-history-label {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-history-label,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-history-label {
   font-weight: 700;
   font-size: 0.82rem;
   color: var(--r-text);
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-history-preview,
-:root[data-skin='v2'] #practice-view-copilot .copilot-history-preview {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-history-preview,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-history-preview {
   font-size: 0.75rem;
   color: var(--r-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-history-delete,
-:root[data-skin='v2'] #practice-view-copilot .copilot-history-delete {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-history-delete,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-history-delete {
   padding: 2px 6px;
   border: none;
   background: transparent;
@@ -1815,8 +1815,8 @@
   font-size: 0.9rem;
   line-height: 1;
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-history-delete:hover,
-:root[data-skin='v2'] #practice-view-copilot .copilot-history-delete:hover {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-history-delete:hover,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-history-delete:hover {
   background: var(--r-warn);
   color: var(--r-warn-contrast, #fff);
 }
@@ -1824,8 +1824,8 @@
 /* Bulle « en train d'écrire » */
 
 /* ── Colonne principale ── */
-:root[data-skin='global'] #practice-view-copilot .copilot-main,
-:root[data-skin='v2'] #practice-view-copilot .copilot-main {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-main,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-main {
   position: relative;
   flex: 1;
   min-width: 0;
@@ -1840,16 +1840,16 @@
   border-radius: var(--r-radius-card);
   box-shadow: var(--r-shadow-card);
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-selected-name,
-:root[data-skin='v2'] #practice-view-copilot .copilot-selected-name {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-selected-name,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-selected-name {
   margin: 0 0 4px;
   font-family: var(--r-font-title);
   font-size: 1.05rem;
   font-weight: 800;
   color: var(--r-text);
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-intro,
-:root[data-skin='v2'] #practice-view-copilot .copilot-intro {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-intro,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-intro {
   margin: 0;
   font-size: 0.84rem;
   line-height: 1.5;
@@ -1858,16 +1858,16 @@
 }
 
 /* ── Zone de chat ── */
-:root[data-skin='global'] #practice-view-copilot .copilot-chat-area,
-:root[data-skin='v2'] #practice-view-copilot .copilot-chat-area {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-chat-area,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-chat-area {
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
   gap: var(--r-space-3);
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-messages,
-:root[data-skin='v2'] #practice-view-copilot .copilot-messages {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-messages,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-messages {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -1876,43 +1876,43 @@
   gap: var(--r-space-2);
   padding-right: var(--r-space-2);
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-message,
-:root[data-skin='v2'] #practice-view-copilot .copilot-message {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-message,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-message {
   display: flex;
   flex-direction: column;
   gap: var(--r-space-1);
   max-width: 85%;
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-message.user,
-:root[data-skin='v2'] #practice-view-copilot .copilot-message.user {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-message.user,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-message.user {
   align-self: flex-end;
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-message.assistant,
-:root[data-skin='v2'] #practice-view-copilot .copilot-message.assistant {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-message.assistant,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-message.assistant {
   align-self: flex-start;
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-bubble,
-:root[data-skin='v2'] #practice-view-copilot .copilot-bubble {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-bubble,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-bubble {
   padding: 10px 14px;
   border-radius: var(--r-radius-btn);
   line-height: 1.55;
   white-space: pre-wrap;
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-message.user .copilot-bubble,
-:root[data-skin='v2'] #practice-view-copilot .copilot-message.user .copilot-bubble {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-message.user .copilot-bubble,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-message.user .copilot-bubble {
   background: var(--r-accent);
   color: var(--r-accent-contrast, #fff);
   border-bottom-right-radius: 4px;
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-message.assistant .copilot-bubble,
-:root[data-skin='v2'] #practice-view-copilot .copilot-message.assistant .copilot-bubble {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-message.assistant .copilot-bubble,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-message.assistant .copilot-bubble {
   background: var(--r-surface-chip);
   color: var(--r-text);
   border: 1px solid var(--r-border);
   border-bottom-left-radius: 4px;
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-message.is-system .copilot-bubble,
-:root[data-skin='v2'] #practice-view-copilot .copilot-message.is-system .copilot-bubble {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-message.is-system .copilot-bubble,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-message.is-system .copilot-bubble {
   background: var(--r-warn);
   color: var(--r-warn-contrast, #000);
   font-size: 0.78rem;
@@ -1923,19 +1923,19 @@
 }
 
 /* Bulle « en train d'écrire » */
-:root[data-skin='global'] #practice-view-copilot .copilot-message.is-typing,
-:root[data-skin='v2'] #practice-view-copilot .copilot-message.is-typing {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-message.is-typing,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-message.is-typing {
   align-self: flex-start;
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-typing-dots,
-:root[data-skin='v2'] #practice-view-copilot .copilot-typing-dots {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-typing-dots,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-typing-dots {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   height: 1.2em;
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-typing-dots span,
-:root[data-skin='v2'] #practice-view-copilot .copilot-typing-dots span {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-typing-dots span,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-typing-dots span {
   width: 6px;
   height: 6px;
   border-radius: 50%;
@@ -1943,20 +1943,20 @@
   opacity: 0.4;
   animation: copilotTyping 1.2s infinite ease-in-out;
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-typing-dots span:nth-child(2),
-:root[data-skin='v2'] #practice-view-copilot .copilot-typing-dots span:nth-child(2) {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-typing-dots span:nth-child(2),
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-typing-dots span:nth-child(2) {
   animation-delay: 0.15s;
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-typing-dots span:nth-child(3),
-:root[data-skin='v2'] #practice-view-copilot .copilot-typing-dots span:nth-child(3) {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-typing-dots span:nth-child(3),
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-typing-dots span:nth-child(3) {
   animation-delay: 0.3s;
 }
 @keyframes copilotTyping {
   0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
   40% { transform: scale(1); opacity: 1; }
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-tool-note,
-:root[data-skin='v2'] #practice-view-copilot .copilot-tool-note {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-tool-note,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-tool-note {
   margin-top: var(--r-space-1);
   font-size: 0.72rem;
   color: var(--r-accent);
@@ -1964,8 +1964,8 @@
 }
 
 /* ── Suggestions rapides (chips) ── */
-:root[data-skin='global'] #practice-view-copilot .copilot-quick-actions,
-:root[data-skin='v2'] #practice-view-copilot .copilot-quick-actions {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-quick-actions,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-quick-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1975,12 +1975,12 @@
   font-size: 0.78rem;
   color: var(--r-text-secondary);
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-quick-actions-label,
-:root[data-skin='v2'] #practice-view-copilot .copilot-quick-actions-label {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-quick-actions-label,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-quick-actions-label {
   flex-shrink: 0;
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-chip,
-:root[data-skin='v2'] #practice-view-copilot .copilot-chip {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-chip,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-chip {
   display: inline-flex;
   align-items: center;
   padding: 4px 10px;
@@ -1992,23 +1992,23 @@
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-chip:hover,
-:root[data-skin='v2'] #practice-view-copilot .copilot-chip:hover {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-chip:hover,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-chip:hover {
   background: var(--r-accent);
   border-color: var(--r-accent);
   color: var(--r-accent-contrast, #fff);
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-style-spacer,
-:root[data-skin='v2'] #practice-view-copilot .copilot-style-spacer {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-style-spacer,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-style-spacer {
   flex: 1;
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-style-label,
-:root[data-skin='v2'] #practice-view-copilot .copilot-style-label {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-style-label,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-style-label {
   font-size: 0.72rem;
   color: var(--r-text-muted);
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-style-select,
-:root[data-skin='v2'] #practice-view-copilot .copilot-style-select {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-style-select,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-style-select {
   padding: 4px 8px;
   border: 1px solid var(--r-border);
   border-radius: var(--r-radius-btn);
@@ -2016,8 +2016,8 @@
   color: var(--r-text);
   font-size: 0.75rem;
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-message-actions,
-:root[data-skin='v2'] #practice-view-copilot .copilot-message-actions {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-message-actions,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-message-actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--r-space-2);
@@ -2025,14 +2025,14 @@
 }
 
 /* ── Barre de saisie ── */
-:root[data-skin='global'] #practice-view-copilot .copilot-input-bar,
-:root[data-skin='v2'] #practice-view-copilot .copilot-input-bar {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-input-bar,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-input-bar {
   display: flex;
   gap: var(--r-space-2);
   flex-shrink: 0;
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-input,
-:root[data-skin='v2'] #practice-view-copilot .copilot-input {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-input,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-input {
   flex: 1;
   padding: 10px 14px;
   border: 1px solid var(--r-border);
@@ -2042,13 +2042,13 @@
   font-size: 0.86rem;
   font-family: var(--r-font-body);
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-input:focus,
-:root[data-skin='v2'] #practice-view-copilot .copilot-input:focus {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-input:focus,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-input:focus {
   outline: none;
   border-color: var(--r-accent);
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-send-btn,
-:root[data-skin='v2'] #practice-view-copilot .copilot-send-btn {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-send-btn,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-send-btn {
   flex-shrink: 0;
   width: 44px;
   height: 44px;
@@ -2063,20 +2063,20 @@
   justify-content: center;
   transition: filter 0.15s;
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-send-btn:hover:not(:disabled),
-:root[data-skin='v2'] #practice-view-copilot .copilot-send-btn:hover:not(:disabled) {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-send-btn:hover:not(:disabled),
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-send-btn:hover:not(:disabled) {
   filter: brightness(1.12);
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-send-btn:disabled,
-:root[data-skin='v2'] #practice-view-copilot .copilot-send-btn:disabled {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-send-btn:disabled,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-send-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   filter: none;
 }
 
 /* ── État sans clé ── */
-:root[data-skin='global'] #practice-view-copilot .copilot-no-key,
-:root[data-skin='v2'] #practice-view-copilot .copilot-no-key {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-no-key,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-no-key {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2087,29 +2087,29 @@
   padding: var(--r-space-6);
   text-align: center;
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-locked-icon,
-:root[data-skin='v2'] #practice-view-copilot .copilot-locked-icon {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-locked-icon,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-locked-icon {
   font-size: 3rem;
   line-height: 1;
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-no-key h4,
-:root[data-skin='v2'] #practice-view-copilot .copilot-no-key h4 {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-no-key h4,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-no-key h4 {
   margin: 0;
   font-family: var(--r-font-title);
   font-size: 1.1rem;
   font-weight: 800;
   color: var(--r-text);
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-no-key p,
-:root[data-skin='v2'] #practice-view-copilot .copilot-no-key p {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-no-key p,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-no-key p {
   margin: 0;
   font-size: 0.86rem;
   line-height: 1.5;
   color: var(--r-text-muted);
   max-width: 50ch;
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-settings-btn,
-:root[data-skin='v2'] #practice-view-copilot .copilot-settings-btn {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-settings-btn,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-settings-btn {
   margin-top: var(--r-space-2);
   padding: 10px 18px;
   border: none;
@@ -2122,21 +2122,21 @@
   cursor: pointer;
   transition: filter 0.15s;
 }
-:root[data-sskin='global'] #practice-view-copilot .copilot-settings-btn:hover,
-:root[data-skin='v2'] #practice-view-copilot .copilot-settings-btn:hover {
+:root[data-sskin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-settings-btn:hover,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-settings-btn:hover {
   filter: brightness(1.12);
 }
 
 /* ── Actions ── */
-:root[data-skin='global'] #practice-view-copilot .copilot-actions,
-:root[data-skin='v2'] #practice-view-copilot .copilot-actions {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-actions,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-actions {
   display: flex;
   justify-content: flex-end;
   padding-top: var(--r-space-3);
   border-top: 1px solid var(--r-border-soft);
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-secondary-btn,
-:root[data-skin='v2'] #practice-view-copilot .copilot-secondary-btn {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-secondary-btn,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-secondary-btn {
   padding: 8px 14px;
   border: 1px solid var(--r-border);
   border-radius: var(--r-radius-btn);
@@ -2148,19 +2148,19 @@
   color: var(--r-text);
   transition: filter 0.15s;
 }
-:root[data-skin='global'] #practice-view-copilot .copilot-secondary-btn:hover:not(:disabled),
-:root[data-skin='v2'] #practice-view-copilot .copilot-secondary-btn:hover:not(:disabled) {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-secondary-btn:hover:not(:disabled),
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-secondary-btn:hover:not(:disabled) {
   filter: brightness(1.12);
 }
 
 /* ── Réactivité ── */
 @media (max-width: 860px) {
-  :root[data-skin='global'] #practice-view-copilot .copilot-layout,
-  :root[data-skin='v2'] #practice-view-copilot .copilot-layout {
+  :root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-layout,
+  :root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-layout {
     flex-direction: column;
   }
-  :root[data-skin='global'] #practice-view-copilot .copilot-sidebar,
-  :root[data-skin='v2'] #practice-view-copilot .copilot-sidebar {
+  :root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-sidebar,
+  :root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-sidebar {
     width: 100%;
     max-height: 30vh;
   }

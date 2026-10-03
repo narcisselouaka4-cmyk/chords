@@ -1,0 +1,106 @@
+// [Claude] — 2026-10-03 — Pédagogie IA : « le moment » de la vidéo dont parle le pianiste.
+//
+// Narcisse veut questionner le Copilote à côté de la vidéo du prof : « Qu'est-ce qu'il a
+// voulu dire à ce moment-là ? », « Comment appliquerait-on ce qu'il vient de faire dans
+// une progression 4-5-3-6-2-5-1 ? ». « Ce moment », « ici », « ce qu'il vient de faire » =
+// le passage qui vient de se jouer : les N dernières secondes avant l'instant de la
+// vidéo (20 par défaut, réglable), ou la boucle A-B quand elle est posée.
+//
+// Fonctions pures, testées dans test-tutorial-moment.js. L'écran (src/ui/pedagogie-tab.js)
+// les appelle ; le Copilote reçoit le résultat dans son contexte (copilot-client.js).
+
+import { compactTimeline } from './teacher-notes.js';
+
+/** Durées de passage proposées au pianiste (secondes). */
+export const PASSAGE_LENGTHS = [10, 20, 30, 60];
+export const DEFAULT_PASSAGE_SECONDS = 20;
+/** Avant cet instant, la vidéo n'a encore rien montré : pas de « moment ». */
+const MIN_NOW = 0.5;
+
+/** « 1:05 » (minutes:secondes), comme partout dans l'application. */
+export function clock(seconds) {
+  const s = Math.max(0, Number(seconds) || 0);
+  return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+}
+
+/**
+ * Le passage désigné par « ici » : les `length` secondes qui précèdent `now`, ou la
+ * boucle A-B si elle est posée (elle l'emporte : c'est un passage choisi exprès).
+ * @param {number} now - instant de la vidéo (s)
+ * @param {{length?: number, loop?: {start: number, end: number}|null, duration?: number}} [options]
+ * @returns {{start: number, end: number, now: number, fromLoop: boolean}|null}
+ */
+export function passageWindow(now, { length = DEFAULT_PASSAGE_SECONDS, loop = null, duration = Infinity } = {}) {
+  const limit = Number.isFinite(duration) && duration > 0 ? duration : Infinity;
+  if (loop && Number.isFinite(loop.start) && Number.isFinite(loop.end) && loop.end - loop.start >= 0.5) {
+    const start = Math.max(0, loop.start);
+    const end = Math.min(limit, loop.end);
+    return { start, end, now: Number.isFinite(now) ? Math.min(Math.max(now, start), end) : end, fromLoop: true };
+  }
+  if (!Number.isFinite(now) || now < MIN_NOW) return null;
+  const span = Number.isFinite(length) && length > 0 ? Math.min(120, length) : DEFAULT_PASSAGE_SECONDS;
+  const end = Math.min(now, limit);
+  return { start: Math.max(0, end - span), end, now: end, fromLoop: false };
+}
+
+/** Accords de la grille qui sonnent pendant le passage (même partiellement). */
+export function chordsInWindow(chords, start, end) {
+  return (chords || []).filter((c) => {
+    if (!Number.isFinite(c?.start)) return false;
+    const until = Number.isFinite(c.end) ? c.end : c.start + 0.01;
+    return c.start < end && until > start;
+  });
+}
+
+/** Phrases de la parole commencées pendant le passage (ou juste avant). */
+export function linesInWindow(lines, start, end) {
+  return (lines || []).filter((l) => Number.isFinite(l?.start) && l.start >= start - 2 && l.start < end);
+}
+
+/**
+ * Tout ce que le Copilote reçoit du moment : l'instant, les bornes du passage, ses
+ * accords, les notes du professeur qui y sont attaquées (frise main gauche | main
+ * droite, comme la frise générale) et ce qui y est dit.
+ * @param {object} input
+ * @param {number} input.now
+ * @param {number} [input.length]
+ * @param {{start: number, end: number}|null} [input.loop]
+ * @param {number} [input.duration]
+ * @param {{start: number, end: number, label: string}[]} [input.chords]
+ * @param {{midi: number, start: number, end: number, hand?: string}[]} [input.noteEvents]
+ * @param {{start: number, text: string}[]} [input.transcript]
+ * @returns {object|null}
+ */
+export function momentContext({ now, length = DEFAULT_PASSAGE_SECONDS, loop = null, duration = Infinity, chords = [], noteEvents = [], transcript = [] } = {}) {
+  const win = passageWindow(now, { length, loop, duration });
+  if (!win) return null;
+  const inChords = chordsInWindow(chords, win.start, win.end);
+  const inNotes = (noteEvents || []).filter((n) => Number.isFinite(n?.start) && n.start >= win.start - 0.05 && n.start < win.end);
+  return {
+    now: win.now,
+    start: win.start,
+    end: win.end,
+    fromLoop: win.fromLoop,
+    chords: inChords.map((c) => ({ start: c.start, end: c.end, label: c.label })),
+    noteCount: inNotes.length,
+    timeline: inNotes.length ? compactTimeline(inNotes, inChords, { maxLines: 30 }) : [],
+    transcript: linesInWindow(transcript, win.start, win.end).map((l) => ({ start: l.start, text: l.text })),
+  };
+}
+
+/**
+ * Rend cliquables les moments « m:ss » (ou « m:ss,d ») d'une réponse du Copilote, sur
+ * du texte DÉJÀ échappé : chacun devient un bouton qui place la vidéo à cet instant.
+ * Un moment au-delà de la fin de la vidéo reste du texte.
+ * @param {string} html
+ * @param {{maxSeconds?: number}} [options]
+ * @returns {string}
+ */
+export function linkClockTimes(html, { maxSeconds = Infinity } = {}) {
+  return String(html || '').replace(/(^|[^\d:,.])(\d{1,2}):([0-5]\d)(?:,(\d))?(?![\d:])/g, (match, before, mm, ss, tenth) => {
+    const seconds = Number(mm) * 60 + Number(ss) + (tenth ? Number(tenth) / 10 : 0);
+    if (seconds > maxSeconds + 1) return match;
+    const text = `${mm}:${ss}${tenth ? `,${tenth}` : ''}`;
+    return `${before}<button type="button" class="copilot-time" data-seconds="${seconds}" title="Aller à ${text} dans la vidéo">${text}</button>`;
+  });
+}

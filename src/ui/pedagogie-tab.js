@@ -19,33 +19,39 @@
 //     avec le son, monté depuis un blob (même technique que le Studio, mais
 //     un seul élément : pas de stems ici, la complexité à deux éléments du
 //     Studio serait de la sur-ingénierie pour ce sous-onglet).
-//   - La grille d'accords est un accompagnement de la vidéo, plus la pièce
-//     maîtresse de l'écran.
-//   - La transcription n'affiche PLUS d'étiquette d'accord par ligne : ce
-//     jugement par ligne manquait de fiabilité (intro musicale où l'accord au
-//     plus long recouvrement est visuellement loin de la phrase).
-//   - Le texte parlé est traduit automatiquement quand une clé IA est
-//     configurée et que la langue détectée n'est pas déjà le français ; un
-//     badge le dit, une traduction ne se fait jamais passer pour la parole
-//     exacte du professeur.
+//
+// [Claude] — 2026-10-03 — Refonte avec Narcisse. Le besoin : « la clarté des
+// professeurs sur YouTube : parfois je ne comprends pas tout ce que dit le pianiste
+// (langue, explications floues) ; Pédagogie IA doit m'aider à comprendre les
+// concepts de la vidéo pour les appliquer à mon jeu ». Sa réponse : « pourquoi ne pas
+// intégrer directement Copilot IA au sein de Pédagogie IA ? ».
+//   - La vidéo du prof à gauche, le Copilote à droite : la conversation est celle du
+//     Copilote (copilot-tab.js), déplacée ici quand la vue s'ouvre (copilot-dock.js).
+//   - Le Copilote sait où en est la vidéo : « ici », « ce qu'il vient de faire » = le
+//     passage affiché en haut du panneau (tutorial-moment.js), les 20 dernières
+//     secondes par défaut, ou la boucle A-B. Écrire au Copilote met la vidéo en pause ;
+//     les moments qu'il cite placent la vidéo (évènement « pedagogie-seek »).
+//   - Retirés à sa demande : le « Résumé du cours » (« trop court »), les fiches du
+//     glossaire, la question « Tutoriel ou Cover ? », la transcription affichée
+//     (« souvent mal traduite » : la parole reste un indice pour le Copilote, jamais
+//     montrée). Les messages techniques (V2N, pip, git lfs) sont repliés dans
+//     « Détails techniques ».
 
 import { buildVideoAnalysis, buildAudioOnlyAnalysis } from '../pedagogie/video-analysis.js';
 import { explainUnrecognised } from '../pedagogie/format-detector.js';
-import { crossCheck, DIVERGENCE } from '../pedagogie/cross-check.js';
+import { crossCheck } from '../pedagogie/cross-check.js';
 import { normalizeAnalyzerChords } from '../pedagogie/audio-fallback.js';
-import { normalizeTranscription, alignNarration, joinNarrationText } from '../pedagogie/transcription.js';
+import { normalizeTranscription, alignNarration } from '../pedagogie/transcription.js';
 import { listTutorialFiles, copyTutorialIntoFolder, tutorialDisplayName, isMp4Name } from '../pedagogie/tutorial-library.js';
-import {
-  getTutorialFolder, saveTutorialFolder,
-  getTutorialCategory, saveTutorialCategory, TUTORIAL_CATEGORIES,
-} from '../pedagogie/tutorial-folder-pref.js';
-import { explainNarration } from '../ai/ai-client.js';
-import { getAIConfig } from '../ai/openai-config.js';
+import { getTutorialFolder, saveTutorialFolder } from '../pedagogie/tutorial-folder-pref.js';
 import { samplesToNoteEvents, eventsFromTranscription, compactTimeline } from '../pedagogie/teacher-notes.js';
 import { registerCopilotContext } from '../pedagogie/copilot-context.js';
+import { dockCopilot, undockCopilot } from '../pedagogie/copilot-dock.js';
+import { momentContext, passageWindow, clock, DEFAULT_PASSAGE_SECONDS } from '../pedagogie/tutorial-moment.js';
 
 // [Claude] — 2026-09-25 — Pourquoi l'image n'a pas été lue (Narcisse : « l'application
 // ne peut pas analyser l'image, et je ne sais pas pourquoi ») : dit en clair.
+// [Claude] — 2026-10-03 — Ces raisons vont dans « Détails techniques » (repliés).
 const V2N_REASONS = {
   'model-missing': 'Le modèle qui lit un vrai clavier filmé (V2N) est absent : electron/v2n-deps/v2n_pianovam.safetensors.',
   'model-lfs-pointer': 'Le modèle V2N n\'est qu\'un pointeur Git LFS (quelques octets au lieu de 113 Mo). Dans le dossier du projet : « git lfs install » puis « git lfs pull ».',
@@ -91,36 +97,36 @@ const els = {};
 // Un tutoriel est identifié par son CHEMIN de fichier, pas par un Track_ID.
 let tutorials = [];
 let selectedPath = null;
-// Distingue la SÉLECTION d'un tutoriel (la vidéo reste cachée) de la LECTURE
-// (la vidéo est affichée). selectedPath est mis à jour au clic dans la liste ;
-// playbackStarted passe à true au tout début de analyzeSelected().
+// Distingue la SÉLECTION d'un tutoriel (aperçu, bouton « Lire ce tutoriel ») de la
+// LECTURE (contrôles du lecteur, analyse lancée). Passe à true au début de
+// analyzeSelected().
 let playbackStarted = false;
 let busy = false;
 let analysis = null;
 let comparison = null;
-// Passages parlés déjà rapprochés des accords (voir transcription.js). Le
-// rapprochement ne sert plus au RENDU (plus d'étiquette d'accord par ligne),
-// mais conserve horodatages et textes affichés.
+// Passages parlés rapprochés des accords (voir transcription.js) : jamais affichés,
+// ils servent d'indice au Copilote.
 let narrationView = [];
 let detectedKey = null;
 // [Claude] — 2026-09-25 — État de V2N (disponible, sinon pourquoi) et raison pour
 // laquelle les notes du professeur manquent, s'il en manque.
 let v2nState = null;
 let notesUnavailable = null;
-// Résumé automatique du sujet en mode "Tutoriel avec explications".
-let summary = null;
-let summarizing = false;
-// Lecteur vidéo blob : une seule URL vitive à la fois.
+// Lecteur vidéo blob : une seule URL vivante à la fois.
 let videoBlobUrl = null;
 // Chemin dont l'URL blob courante est issue : suivre la sélection, pas seulement
 // la première apparition du lecteur.
 let mountedVideoPath = null;
-// Catégorie du tutoriel sélectionné : 'tutorial' ou 'cover'. Persistée par
-// chemin de fichier. null signifie "non classé / comportement par défaut".
-let tutorialCategory = null;
-// Le sélecteur de catégorie est-il ouvert ? Pour éviter de lancer l'analyse
-// si l'utilisateur ferme la fenêtre sans répondre.
-let categoryPickerOpen = false;
+// [Claude] — 2026-10-03 — La vue Pédagogie est affichée : la conversation du Copilote
+// y est alors amarrée.
+let viewActive = false;
+// Tutoriel déjà annoncé au Copilote (sa bascule en mode tutoriel n'est pas relancée à
+// chaque rendu ; remis à zéro à chaque ouverture de la vue).
+let announcedPath = null;
+// Durée du passage dont parle le pianiste (« ici »), en secondes.
+let passageSeconds = DEFAULT_PASSAGE_SECONDS;
+// Boucle A-B : quand elle est posée, c'est elle « le passage ».
+let loop = null;
 
 // ---------------------------------------------------------------------------
 // Utilitaires
@@ -147,27 +153,31 @@ function formatTime(seconds) {
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
 }
 
-function setStatus(message, tone = 'info') {
+/**
+ * Message sous la vidéo, en clair. [Claude] — 2026-10-03 — Le détail technique (V2N,
+ * pip, git lfs, ffmpeg) n'est plus montré d'office : il est replié dans « Détails
+ * techniques ».
+ */
+function setStatus(message, tone = 'info', details = '') {
   if (!els.status) return;
-  els.status.textContent = message || '';
+  els.status.textContent = '';
   els.status.dataset.tone = tone;
   els.status.style.display = message ? '' : 'none';
+  if (!message) return;
+  els.status.appendChild(el('p', { text: message }));
+  const extra = String(details || '').trim();
+  if (extra) {
+    els.status.appendChild(el('details', { className: 'pedagogie-status-details' }, [
+      el('summary', { text: 'Détails techniques' }),
+      el('p', { text: extra }),
+    ]));
+  }
 }
 
 function setProgress(message) {
   if (!els.progress) return;
   els.progress.textContent = message || '';
   els.progress.style.display = message ? '' : 'none';
-}
-
-/** Une clé IA personnelle est-elle configurée ? Même contrôle que masterclass-panel.js. */
-function hasAIKey() {
-  try {
-    const cfg = getAIConfig();
-    return Boolean(cfg && cfg.apiKey);
-  } catch (_) {
-    return false;
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -193,13 +203,6 @@ function folderProblemText(reason) {
   }
 }
 
-function categoryLabel(path) {
-  const cat = getTutorialCategory(typeof localStorage !== 'undefined' ? localStorage : null, path);
-  if (cat === 'tutorial') return 'Tutoriel';
-  if (cat === 'cover') return 'Cover';
-  return 'Vidéo';
-}
-
 const ICON_VIDEO = [
   el('path', { d: 'M23 7l-7 5 7 5V7z' }),
   el('rect', { x: '1', y: '5', width: '15', height: '14', rx: '2', ry: '2' }),
@@ -219,9 +222,6 @@ async function refreshTrackList() {
   renderFolderHint(folder);
 
   if (!folder) {
-    // [Refonte Phase 1] — Le choix du dossier est la PREMIÈRE action : sans
-    // dossier, rien d'autre n'est possible. On la rend proéminente dans la
-    // liste, pas comme un petit lien gris.
     els.trackList.appendChild(el('p', {
       className: 'pedagogie-empty',
       text: 'Choisissez d\'abord le dossier qui contient vos tutoriels vidéo (.mp4).',
@@ -277,9 +277,8 @@ async function refreshTrackList() {
         el('small', { text: tut.path }),
       ]),
     ]));
-    const typeLabel = categoryLabel(tut.path);
-    const typeCell = el('span', { className: 'tr-library-cell', text: typeLabel });
-    typeCell.dataset.type = typeLabel;
+    const typeCell = el('span', { className: 'tr-library-cell', text: 'Vidéo' });
+    typeCell.dataset.type = 'Vidéo';
     row.appendChild(typeCell);
     row.appendChild(el('div', { className: 'tr-library-row-actions' }, [
       el('button', {
@@ -330,13 +329,14 @@ async function chooseFolder() {
   playbackStarted = false;
   analysis = null;
   comparison = null;
+  loop = null;
   resetNarration();
   destroyVideo();
-  categoryPickerOpen = false;
-  tutorialCategory = null;
   setStatus('');
   render();
   refreshTrackList();
+  // Plus de tutoriel : le Copilote quitte le mode tutoriel s'il y était.
+  document.dispatchEvent(new CustomEvent('pedagogie-selection-change', { detail: { path: null } }));
 }
 
 function selectTrack(path) {
@@ -345,15 +345,15 @@ function selectTrack(path) {
   playbackStarted = false;
   analysis = null;
   comparison = null;
+  loop = null;
   resetNarration();
-  categoryPickerOpen = false;
-  refreshCategory();
   setStatus('');
   mountVideo(path);
   render();
-  refreshTrackList();
-  // Notifier le Copilot IA du changement de tutoriel
-  document.dispatchEvent(new CustomEvent('pedagogie-selection-change', { detail: { path } }));
+  // [Claude] — 2026-10-03 — Liste redessinée APRÈS le clic : redessinée tout de suite,
+  // le bouton cliqué quittait la page avant que le tiroir « Mes tutoriels » ne voie le
+  // clic, et le tiroir restait ouvert par-dessus le tuto choisi.
+  setTimeout(refreshTrackList, 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -511,19 +511,8 @@ async function importVideo() {
       selectTrack(`${folder.replace(/\/+$/, '')}/${result.fileName}`);
     }
   } catch (err) {
-    setStatus(`Import impossible : ${err.message}`, 'error');
+    setStatus('Import impossible.', 'error', err.message);
   }
-}
-
-function refreshCategory() {
-  tutorialCategory = getTutorialCategory(typeof localStorage !== 'undefined' ? localStorage : null, selectedPath);
-}
-
-function setCategory(category) {
-  const cat = saveTutorialCategory(typeof localStorage !== 'undefined' ? localStorage : null, selectedPath, category);
-  tutorialCategory = cat;
-  categoryPickerOpen = false;
-  render();
 }
 
 // ---------------------------------------------------------------------------
@@ -555,7 +544,7 @@ async function mountVideo(path) {
     els.videoPlayer.load();
   } catch (err) {
     console.warn('[Pedagogie] montage vidéo échoué :', err);
-    setStatus('La vidéo n\'a pas pu être chargée.', 'error');
+    setStatus('La vidéo n\'a pas pu être chargée.', 'error', err.message);
   }
 }
 
@@ -572,9 +561,28 @@ function destroyVideo() {
   }
 }
 
+/** Met la vidéo en pause (le pianiste pose une question, ou quitte la vue). */
+function pauseVideo() {
+  try { els.videoPlayer?.pause?.(); } catch (_) { /* lecteur absent */ }
+}
+
 // ---------------------------------------------------------------------------
 // Analyse
 // ---------------------------------------------------------------------------
+
+/**
+ * Ce que l'écran dit de la lecture du clavier, en clair ; le détail technique est
+ * replié (« Détails techniques »).
+ * @param {string[]} technical - raisons techniques (format, V2N, outils)
+ * @param {{fromSound?: boolean, calibrateHint?: boolean}} what
+ */
+function showReadingStatus(technical, { fromSound = false, calibrateHint = false } = {}) {
+  const parts = [];
+  if (fromSound) parts.push('Je n\'ai pas pu lire le clavier à l\'image : j\'ai écouté le son à la place (les accords, pas toujours les notes exactes du prof).');
+  if (calibrateHint) parts.push('Si le prof joue sur un vrai clavier filmé du dessus : « Calibrer le clavier », puis clique ses 4 coins sur la vidéo.');
+  if (!parts.length && !technical.length) return;
+  setStatus(parts.join(' ') || 'Lecture du clavier incomplète.', 'info', technical.join('\n'));
+}
 
 async function analyzeSelected() {
   if (busy || !selectedPath) return;
@@ -584,23 +592,15 @@ async function analyzeSelected() {
     return;
   }
 
-  // Demander la catégorie si elle n'est pas encore connue pour ce fichier.
-  // Si l'utilisateur ferme le sélecteur sans répondre, on continue avec le
-  // comportement par défaut (grille en avant, comme avant ce chantier).
-  if (!categoryPickerOpen && !getTutorialCategory(typeof localStorage !== 'undefined' ? localStorage : null, selectedPath)) {
-    categoryPickerOpen = true;
-    render();
-    return;
-  }
-
-  // C'est AU DÉBUT de la lecture que la vidéo doit apparaître, pas à la sélection.
   playbackStarted = true;
-  categoryPickerOpen = false;
   busy = true;
   analysis = null;
   comparison = null;
   resetNarration();
   render();
+  // [Claude] — 2026-10-03 — La vidéo démarre tout de suite : le relevé avance pendant
+  // qu'on la regarde.
+  try { els.videoPlayer?.play?.()?.catch?.(() => {}); } catch (_) { /* lecture bloquée */ }
   setProgress('Lecture des images…');
   setStatus('');
 
@@ -613,14 +613,15 @@ async function analyzeSelected() {
     // [Claude] — 2026-09-25 — 8 images/s (au lieu de 4) : les notes brèves d'un lick
     // tiennent au moins une image et sont gardées (notes du professeur).
     let result = await api.pedagogie.analyzeVideo(selectedPath, { sampleFps: 8 });
+    const technical = [];
 
     if (!result?.ok) {
       // Outils de lecture absents ou pas de piste image : on le dit, puis le son.
       if (result?.reason === 'ToolsMissing' || result?.reason === 'NoVideoStream') {
-        setStatus(result.message, 'error');
+        technical.push(result.message || result.reason);
         result = { ok: true, implemented: false, reason: result.reason };
       } else {
-        setStatus(result?.message || 'La vidéo n\'a pas pu être lue.', 'error');
+        setStatus('La vidéo n\'a pas pu être lue.', 'error', result?.message || '');
         return;
       }
     }
@@ -628,38 +629,37 @@ async function analyzeSelected() {
     // [OpenCode] — 2026-09-07 — V2N : si le format B n'est pas reconnu et que
     // l'utilisateur a calibré un clavier réel, tenter la transcription visuelle.
     let v2nResult = null;
-    const messages = [];
+    let calibrateHint = false;
     if (!result.implemented && result.reason !== 'ToolsMissing' && result.reason !== 'NoVideoStream') {
       // Pourquoi le clavier dessiné n'a pas été reconnu (format-detector).
       const why = explainUnrecognised(result.reason);
-      if (why) messages.push(`Pas de clavier dessiné à l'image : ${why}`);
+      if (why) technical.push(`Pas de clavier dessiné à l'image : ${why}`);
     }
     if (!result.implemented && api?.pedagogie?.checkV2n && api?.pedagogie?.analyzeVideoVision) {
       v2nState = await api.pedagogie.checkV2n();
       const corners = getV2nCorners(selectedPath);
       if (v2nState?.available && corners) {
-        setProgress('Clavier réel filmé — lecture des touches à l\'image (V2N)… (plusieurs minutes)');
+        setProgress('Vrai clavier filmé : lecture des touches à l\'image (plusieurs minutes)…');
         v2nResult = await api.pedagogie.analyzeVideoVision(selectedPath, {
           corners,
           onsetThreshold: 0.5,
           frameThreshold: 0.5,
           bottomMargin: 0,
         });
-        if (!v2nResult?.available) messages.push(v2nReasonText(v2nResult));
+        if (!v2nResult?.available) technical.push(v2nReasonText(v2nResult));
       } else if (v2nState?.available) {
-        messages.push('Vrai clavier filmé du dessus ? Cliquez « Calibrer le clavier », puis les 4 coins du clavier sur la vidéo : l\'application lira les touches à l\'image.');
+        calibrateHint = true;
       } else if (v2nState) {
-        messages.push(v2nReasonText(v2nState));
+        technical.push(v2nReasonText(v2nState));
       }
     }
-    if (messages.length) setStatus(messages.join(' '), 'error');
 
     if (!result.implemented && (!v2nResult || !v2nResult.available)) {
       // L'image n'a rien donné : on le dit, puis on tente le son.
-      setProgress('L\'image n\'a rien donné — analyse du son…');
+      setProgress('Le clavier n\'a pas pu être lu à l\'image : écoute du son…');
       const audioSegments = await runAudioFallback(selectedPath);
       detectedKey = audioSegments.key ?? null;
-      setProgress('Transcription de la parole…');
+      setProgress('Écoute de ce que dit le prof…');
       const narration = normalizeTranscription(await transcriptionPromise);
       analysis = buildAudioOnlyAnalysis({
         reason: result.reason,
@@ -671,7 +671,7 @@ async function analyzeSelected() {
       // [Claude] — 2026-09-25 — Pianiste filmé de côté : les notes elles-mêmes,
       // transcrites depuis le son (piano-transcriber.py), si le paquet est là.
       if (api?.pedagogie?.transcribePiano) {
-        setProgress('Transcription des notes jouées (son)…');
+        setProgress('Relevé des notes jouées (au son)…');
         const piano = await api.pedagogie.transcribePiano(selectedPath).catch((err) => ({ available: false, reason: 'failed', detail: err.message }));
         if (piano?.available && piano.notes?.length) {
           analysis.noteEvents = eventsFromTranscription(piano.notes);
@@ -680,13 +680,14 @@ async function analyzeSelected() {
           notesUnavailable = piano?.reason === 'dependency-missing'
             ? `transcription des notes au son non installée (${piano.detail || 'piano-transcription-inference'} : « .venv/bin/pip install -r requirements.txt »)`
             : `transcription des notes au son impossible${piano?.detail ? ` : ${String(piano.detail).split('\n')[0]}` : ''}`;
+          technical.push(`Notes du prof : ${notesUnavailable}.`);
         }
       }
-      maybeAutoSummarize();
+      showReadingStatus(technical, { fromSound: true, calibrateHint });
       return;
     }
 
-    setProgress('Transcription de la parole…');
+    setProgress('Écoute de ce que dit le prof…');
     const narration = normalizeTranscription(await transcriptionPromise);
 
     setProgress('Relevé des accords…');
@@ -725,14 +726,15 @@ async function analyzeSelected() {
         step: 0.5,
       });
     }
-    // Le résumé du cours part une fois la tonalité connue (il la cite).
-    maybeAutoSummarize();
+    if (technical.length || calibrateHint) showReadingStatus(technical, { calibrateHint });
   } catch (err) {
     console.error('[Pedagogie] analyse échouée :', err);
-    setStatus(`Analyse impossible : ${err.message}`, 'error');
+    setStatus('L\'analyse n\'a pas abouti.', 'error', err.message);
   } finally {
     busy = false;
     setProgress('');
+    // Le Copilote réannonce le tuto : son en-tête dit maintenant ce qu'il en sait.
+    announcedPath = null;
     render();
   }
 }
@@ -756,12 +758,10 @@ async function runAudioFallback(originalPath) {
   return { segments: normalizeAnalyzerChords(result), key: result?.key ?? null };
 }
 
-/** Remet à zéro tout ce qui concerne la parole et le résumé. Appelé à chaque nouveau relevé. */
+/** Remet à zéro tout ce qui concerne la parole. Appelé à chaque nouveau relevé. */
 function resetNarration() {
   narrationView = [];
   detectedKey = null;
-  summary = null;
-  summarizing = false;
   notesUnavailable = null;
 }
 
@@ -785,110 +785,73 @@ async function runTranscription(originalPath) {
   }
 }
 
-/**
- * Résumé automatique du sujet en mode "Tutoriel avec explications".
- * Déclenché sans action de l'utilisateur, mais uniquement quand une clé IA
- * est configurée. Le rendu principal continue immédiatement ; la carte
- * Copilot affiche l'état de génération puis le résultat quand il arrive.
- */
-async function maybeAutoSummarize() {
-  if (!hasAIKey() || tutorialCategory !== TUTORIAL_CATEGORIES.TUTORIAL || !analysis) return;
-  if (summarizing || summary !== null) return;
-  summarizing = true;
-  summary = null;
-  renderResult();
-
-  try {
-    const text = joinNarrationText(narrationView);
-    if (!text.trim()) {
-      summary = 'Aucune parole transcrite pour résumer le sujet.';
-      return;
-    }
-    const result = await explainNarration(text, {
-      key: detectedKey,
-      chords: analysis.segments.filter((s) => s.chord.resolved).map((s) => s.chord.label),
-      source: analysis.source,
-    });
-    summary = result || 'L\'assistant n\'a rien renvoyé.';
-  } catch (err) {
-    summary = err.message === 'AI_API_KEY_INVALID'
-      ? 'La clé API a été refusée. Vérifiez-la dans Réglages › Assistant IA.'
-      : `Résumé automatique impossible : ${err.message}`;
-  } finally {
-    summarizing = false;
-    renderResult();
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Rendu
 // ---------------------------------------------------------------------------
 
 function render() {
   const folder = configuredFolder();
+  const hasTutorial = Boolean(selectedPath);
+  if (els.home) els.home.hidden = hasTutorial;
+  if (els.split) els.split.hidden = !hasTutorial;
+  renderHome(folder);
 
   if (els.selectedName) {
-    els.selectedName.textContent = !folder
-      ? 'Bienvenue dans Pédagogie IA'
-      : (selectedPath
-        ? tutorialDisplayName(selectedPath.split('/').pop() || selectedPath)
-        : 'Aucun tutoriel sélectionné');
+    els.selectedName.textContent = hasTutorial ? tutorialDisplayName(selectedPath.split('/').pop() || selectedPath) : '';
   }
   if (els.intro) {
-    els.intro.textContent = !folder
-      ? 'Choisissez le dossier qui contient vos tutoriels vidéo (.mp4) dans la barre latérale. '
-        + 'La vidéo et l\'analyse apparaîtront ici.'
-      : 'La vidéo du tutoriel s\'affiche ici en grand. L\'application relève '
-        + 'ce qui est joué au clavier et ce que dit le professeur ; quand '
-        + 'l\'image ne permet rien de lire, elle le dit et se rabat sur le son.';
+    els.intro.textContent = analysis
+      ? 'Relire le tutoriel : la vidéo repart du début et le relevé est refait.'
+      : 'Lance la lecture : l\'application relève ce que joue le prof pendant que tu regardes, puis le Copilote, à droite, t\'explique chaque passage.';
   }
+  // Le titre posé sur la vidéo disparaît à la lecture : il cacherait le bas de
+  // l'image, là où les tutoriels montrent souvent le clavier.
+  if (els.videoTitle) els.videoTitle.hidden = !hasTutorial || playbackStarted;
+  els.main?.classList.toggle('is-playing', playbackStarted);
 
   if (els.analyzeBtn) {
-    els.analyzeBtn.disabled = busy || !selectedPath || categoryPickerOpen;
+    els.analyzeBtn.disabled = busy || !selectedPath;
     els.analyzeBtn.innerHTML = analysis ? REPLAY_ICON : PLAY_ICON;
-    if (analysis) {
-      const span = document.createElement('span');
-      span.textContent = 'Relire ce tutoriel';
-      els.analyzeBtn.appendChild(span);
-    } else {
-      const span = document.createElement('span');
-      span.textContent = 'Lire ce tutoriel';
-      els.analyzeBtn.appendChild(span);
-    }
-    els.analyzeBtn.style.display = (!folder || !selectedPath || categoryPickerOpen) ? 'none' : '';
+    const span = document.createElement('span');
+    span.textContent = analysis ? 'Relire ce tutoriel' : 'Lire ce tutoriel';
+    els.analyzeBtn.appendChild(span);
+    els.analyzeBtn.style.display = (!folder || !selectedPath) ? 'none' : '';
   }
   if (els.videoOverlay) {
-    const showOverlay = selectedPath && !playbackStarted && !busy && !categoryPickerOpen;
+    const showOverlay = selectedPath && !playbackStarted && !busy;
     els.videoOverlay.style.display = showOverlay ? 'flex' : 'none';
   }
   if (els.importBtn) {
-    els.importBtn.disabled = busy || !folder || categoryPickerOpen;
+    els.importBtn.disabled = busy || !folder;
     els.importBtn.style.display = folder ? '' : 'none';
   }
-
   if (els.videoActions) {
-    els.videoActions.style.display = (selectedPath && playbackStarted && !categoryPickerOpen) ? '' : 'none';
+    els.videoActions.style.display = (selectedPath && playbackStarted) ? '' : 'none';
   }
   if (els.calibrateBtn) {
     const needsKeyboard = analysis && analysis.source !== 'video';
     els.calibrateBtn.hidden = !(v2nState?.available && selectedPath && (needsKeyboard || getV2nCorners(selectedPath))) || busy;
   }
 
-  if (els.categoryHint) {
-    els.categoryHint.style.display = (selectedPath && playbackStarted && !categoryPickerOpen) ? '' : 'none';
-    if (els.categoryHintText) {
-      const name = selectedPath ? tutorialDisplayName(selectedPath.split('/').pop() || selectedPath) : '';
-      const label = tutorialCategory === TUTORIAL_CATEGORIES.TUTORIAL
-        ? 'Tutoriel avec explications'
-        : (tutorialCategory === TUTORIAL_CATEGORIES.COVER ? 'Cover / interprétation' : '');
-      els.categoryHintText.textContent = label ? `${name} — ${label} (cliquez pour changer)` : '';
-    }
-  }
-
   renderVideo();
-  renderCategoryPicker();
   renderFormat();
   renderResult();
+  renderCopilotPanel();
+  updateMoment();
+}
+
+/** Accueil (aucun tutoriel ouvert) : choisir le dossier, puis un tutoriel. */
+function renderHome(folder) {
+  if (!els.homeTitle) return;
+  if (!folder) {
+    els.homeTitle.textContent = 'Choisis le dossier de tes tutoriels';
+    els.homeText.textContent = 'Les vidéos .mp4 de ce dossier seront listées ici. Ouvre un tuto : la vidéo du prof s\'affiche à gauche, et le Copilote à droite répond à tes questions sur ce qu\'il vient de jouer.';
+  } else {
+    els.homeTitle.textContent = 'Choisis un tutoriel';
+    els.homeText.textContent = 'Ouvre un tuto : la vidéo du prof s\'affiche à gauche, et le Copilote à droite répond à tes questions sur ce qu\'il vient de jouer.';
+  }
+  if (els.homeFolderBtn) els.homeFolderBtn.hidden = Boolean(folder);
+  if (els.homeLibraryBtn) els.homeLibraryBtn.hidden = !folder;
 }
 
 /**
@@ -913,34 +876,6 @@ function renderVideo() {
   els.videoPlayer.controls = playbackStarted;
 }
 
-
-/** Sélecteur de catégorie affiché avant la première analyse d'un fichier. */
-function renderCategoryPicker() {
-  if (!els.categoryCard) return;
-  const visible = selectedPath && categoryPickerOpen && !busy;
-  els.categoryCard.style.display = visible ? '' : 'none';
-  if (!visible) return;
-  els.categoryGrid.innerHTML = '';
-  for (const [key, icon, title, sub] of [
-    [TUTORIAL_CATEGORIES.TUTORIAL, '🎓', 'Tutoriel avec explications',
-      'Le professeur explique des accords, progressions ou concepts.'],
-    [TUTORIAL_CATEGORIES.COVER, '🎹', 'Cover / interprétation',
-      'Le but est de reproduire ce qui est joué dans la vidéo.'],
-  ]) {
-    const selected = tutorialCategory === key;
-    els.categoryGrid.appendChild(el('button', {
-      type: 'button',
-      className: `pedagogie-category-card${selected ? ' is-selected' : ''}`,
-      'data-category': key,
-      onClick: () => { setCategory(key); analyzeSelected(); },
-    }, [
-      el('span', { className: 'pedagogie-category-icon', text: icon }),
-      el('span', { className: 'pedagogie-category-title', text: title }),
-      el('span', { className: 'pedagogie-category-sub', text: sub }),
-    ]));
-  }
-}
-
 function renderFormat() {
   if (!els.format) return;
   els.format.innerHTML = '';
@@ -953,70 +888,34 @@ function renderFormat() {
     className: `pedagogie-badge ${fromImage ? 'is-image' : 'is-audio'}`,
     text: fromV2n ? 'Lu à l\'image (V2N)' : (fromImage ? 'Lu à l\'image' : 'Lu au son'),
   }));
-  // En mode tutoriel, le nombre d'accords n'est pas la métrique affichée en
-  // badge (la grille reste secondaire). En mode cover, la formulation actuelle
-  // garde le décompte.
-  const isTutorialMode = tutorialCategory === TUTORIAL_CATEGORIES.TUTORIAL;
-  const badgeSuffix = fromV2n
-    ? (isTutorialMode
-      ? ` sur ${formatTime(analysis.stats.duration)}.`
-      : ` — ${analysis.stats.segmentCount} accords relevés sur ${formatTime(analysis.stats.duration)}.`)
-    : (fromImage
-      ? (isTutorialMode
-        ? ` sur ${formatTime(analysis.stats.duration)}.`
-        : ` — ${analysis.stats.segmentCount} accords relevés sur ${formatTime(analysis.stats.duration)}.`)
-      : 'Aucun clavier lisible à l\'image ; le relevé vient de l\'analyse du son.');
   els.format.appendChild(el('span', {
     className: 'pedagogie-format-text',
-    text: fromV2n ? 'Clavier réel transcrit par V2N' + badgeSuffix : (fromImage ? 'Clavier graphique reconnu' + badgeSuffix : badgeSuffix),
+    text: fromImage
+      ? `${analysis.stats.segmentCount} accords relevés sur ${formatTime(analysis.stats.duration)}.`
+      : 'Aucun clavier lisible à l\'image ; le relevé vient du son.',
   }));
 }
 
+/**
+ * Frise des accords relevés, sous la vidéo : un clic place la vidéo à l'accord ;
+ * l'accord en cours et ceux du passage dont parle le Copilote sont marqués.
+ */
 function renderResult() {
-  if (!els.result) return;
-  if (!analysis) { els.result.style.display = 'none'; return; }
-  els.result.style.display = '';
-
-  // Mode « tutoriel avec explications » : la grille est calculée en interne
-  // (le Copilot en a besoin) mais n'est pas la surface principale. On la
-  // réduit visuellement et on met en avant le raccourci Copilot.
-  const isTutorialMode = tutorialCategory === TUTORIAL_CATEGORIES.TUTORIAL;
-
-  // Grille d'accords : un accompagnement compact SOUS le lecteur, plus la
-  // pièce maîtresse de l'écran. En mode tutoriel, elle est secondaire.
-  if (els.resultGridCard) {
-    els.resultGridCard.style.display = isTutorialMode ? 'none' : '';
-  }
-  if (els.resultCopilotCard) {
-    els.resultCopilotCard.style.display = isTutorialMode ? '' : 'none';
-  }
-  if (els.copilotSummaryText) {
-    if (!isTutorialMode || !hasAIKey()) {
-      // Mode cover ou pas de clé : texte générique, pas de résumé automatique.
-      els.copilotSummaryText.textContent = 'Posez une question sur ce qui est expliqué dans la vidéo ou demandez une démonstration sur le clavier virtuel.';
-      els.copilotSummaryText.classList.remove('is-busy');
-    } else if (summarizing) {
-      els.copilotSummaryText.textContent = 'Génération du résumé…';
-      els.copilotSummaryText.classList.add('is-busy');
-    } else if (summary) {
-      els.copilotSummaryText.textContent = summary;
-      els.copilotSummaryText.classList.remove('is-busy');
-    } else {
-      // Tutoriel avec clé, mais le résumé n'a pas encore démarré (cas théorique).
-      els.copilotSummaryText.textContent = 'Posez une question sur ce qui est expliqué dans la vidéo ou demandez une démonstration sur le clavier virtuel.';
-      els.copilotSummaryText.classList.remove('is-busy');
-    }
-  }
+  if (!els.grid || !els.strip) return;
   els.grid.innerHTML = '';
-  for (const seg of analysis.segments) {
-    const chip = el('div', {
+  const segments = analysis?.segments || [];
+  els.strip.hidden = segments.length === 0;
+  for (const seg of segments) {
+    const chip = el('button', {
+      type: 'button',
+      role: 'listitem',
       className: `pedagogie-chip${seg.chord.thirdMissing ? ' is-partial' : ''}`
         + `${seg.chord.resolved ? '' : ' is-unresolved'}`,
       title: seg.chord.note || (seg.chord.noteNames.length
         ? `Notes lues : ${seg.chord.noteNames.join(' ')}`
         : ''),
-      // Bonus naturel de la vidéo en fenêtre principale : un clic sur un
-      // accord y fait sauter la lecture.
+      'data-start': seg.start,
+      'data-end': seg.end,
       onClick: () => { seekVideo(seg.start); },
     }, [
       el('span', { className: 'pedagogie-chip-time', text: formatTime(seg.start) }),
@@ -1027,43 +926,85 @@ function renderResult() {
     ]);
     els.grid.appendChild(chip);
   }
+}
 
-  // Recoupement. Le calcul est conservé pour un usage futur, mais le rapport
-  // brut n'est pas affiché à l'utilisateur final dans cette version.
-  if (els.crosscheckCard) {
-    els.crosscheckCard.style.display = 'none';
+/**
+ * Panneau du Copilote : la conversation y est amarrée quand la vue est affichée, et
+ * le Copilote passe en mode tutoriel sur ce tuto. Une ligne dit ce qu'il sait (ou
+ * pas encore) de la vidéo.
+ */
+function renderCopilotPanel() {
+  if (!els.copilotPanel) return;
+  const name = selectedPath ? tutorialDisplayName(selectedPath.split('/').pop() || selectedPath) : '';
+  if (els.copilotName) els.copilotName.textContent = name;
+  let notice = '';
+  if (selectedPath && busy && !analysis) notice = 'Relevé en cours : le Copilote saura bientôt ce que joue le prof. Tu peux déjà regarder la vidéo.';
+  else if (selectedPath && !analysis) notice = 'Lance « Lire ce tutoriel » : le Copilote saura alors ce que joue le prof, passage par passage.';
+  else if (analysis && !analysis.noteEvents?.length) notice = 'Le clavier n\'a pas pu être lu à l\'image : le Copilote connaît les accords (lus au son), pas les notes exactes du prof.';
+  if (els.copilotNotice) {
+    els.copilotNotice.textContent = notice;
+    els.copilotNotice.hidden = !notice;
   }
+  if (viewActive && selectedPath && els.copilotSlot) {
+    dockCopilot(els.copilotSlot);
+    if (announcedPath !== selectedPath) {
+      announcedPath = selectedPath;
+      document.dispatchEvent(new CustomEvent('copilot-open-tutorial', { detail: { path: selectedPath } }));
+    }
+  }
+}
 
-  // Glossaire. L'état de la narration a désormais sa propre carte : le
-  // glossaire redevient ce qu'il est, une liste de fiches.
-  els.glossary.innerHTML = '';
-  for (const concept of analysis.concepts) {
-    if (!concept.entry) continue;
-    els.glossary.appendChild(el('div', { className: 'pedagogie-entry' }, [
-      el('div', { className: 'pedagogie-entry-title', text: concept.entry.title }),
-      el('div', { className: 'pedagogie-entry-body', text: concept.entry.body }),
-      el('div', { className: 'pedagogie-entry-why', text: `Proposé parce que ${concept.because}.` }),
-    ]));
-  }
-  if (analysis.concepts.filter((c) => c.entry).length === 0) {
-    els.glossary.appendChild(el('p', {
-      className: 'pedagogie-empty',
-      text: 'Aucun concept du glossaire n\'a été reconnu dans ce relevé.',
-    }));
-  }
+/** Le passage dont parle le pianiste, d'après l'instant de la vidéo. */
+function currentWindow() {
+  const video = els.videoPlayer;
+  return passageWindow(video?.currentTime, { length: passageSeconds, loop, duration: video?.duration });
+}
 
-  // [Refonte Astra 12/09] — Le panneau « Ce que l'application ne garantit pas »
-  // (#pedagogie-notes-card / #pedagogie-notes) a été retiré de l'écran sur
-  // demande de Narcisse : la maquette ne garde qu'un onglet, « Résumé du cours ».
-  // Le rendu qui l'alimentait est supprimé ici dans le même geste.
+/** « Passage : 1:22 → 1:42 » en haut du panneau, et les accords marqués sur la frise. */
+function updateMoment() {
+  if (!els.moment) return;
+  els.moment.hidden = !selectedPath;
+  if (!selectedPath) return;
+  const win = currentWindow();
+  if (els.momentRange) {
+    els.momentRange.textContent = win ? `${clock(win.start)} → ${clock(win.end)}` : 'lance la vidéo';
+    els.momentRange.title = win
+      ? (win.fromLoop ? 'La boucle A-B : c\'est le passage dont tu parles au Copilote.' : `Les ${passageSeconds} dernières secondes de la vidéo : « ici », « ce qu'il vient de faire ».`)
+      : '';
+  }
+  if (els.momentLength) els.momentLength.disabled = Boolean(win?.fromLoop);
+  markStrip(win);
+}
+
+let currentChip = null;
+function markStrip(win) {
+  if (!els.grid) return;
+  const now = els.videoPlayer?.currentTime;
+  let current = null;
+  for (const chip of els.grid.children) {
+    const start = Number(chip.dataset.start);
+    const end = Number(chip.dataset.end);
+    const isCurrent = Number.isFinite(now) && now >= start && now < end;
+    chip.classList.toggle('is-current', isCurrent);
+    chip.classList.toggle('is-in-passage', Boolean(win) && start < win.end && end > win.start);
+    if (isCurrent) current = chip;
+  }
+  // L'accord en cours reste visible dans la frise (défilement horizontal seul).
+  if (current && current !== currentChip && els.grid.scrollWidth > els.grid.clientWidth) {
+    const left = current.offsetLeft - els.grid.offsetLeft;
+    if (left < els.grid.scrollLeft || left + current.offsetWidth > els.grid.scrollLeft + els.grid.clientWidth) {
+      els.grid.scrollLeft = Math.max(0, left - 24);
+    }
+  }
+  currentChip = current;
 }
 
 /**
  * [Claude] — 2026-09-25 — Tout ce que le Copilote doit savoir du tutoriel analysé :
- * nom, tonalité, grille datée, parole du professeur, résumé du cours, d'où
- * vient le relevé, frise compacte des notes jouées (et les notes elles-mêmes,
- * pour ses outils : rejouer un passage, le montrer au clavier). Avant, le
- * Copilote ne recevait que le chemin du fichier.
+ * nom, tonalité, grille datée, parole du professeur, d'où vient le relevé, frise
+ * compacte des notes jouées (et les notes elles-mêmes, pour ses outils : rejouer un
+ * passage, le montrer au clavier). [Claude] — 2026-10-03 — Et le MOMENT : l'instant
+ * de la vidéo et le passage que le pianiste désigne par « ici » (tutorial-moment.js).
  * @returns {object|null}
  */
 export function getPedagogieCopilotContext() {
@@ -1075,27 +1016,32 @@ export function getPedagogieCopilotContext() {
   const sourceLabel = analysis.source === 'v2n' ? 'lu à l\'image (vrai clavier filmé, V2N)'
     : analysis.source === 'video' ? 'lu à l\'image (clavier dessiné)'
       : `lu au son (accords)${analysis.notesSource === 'son' ? ' ; notes transcrites depuis le son' : ''}`;
+  const transcript = narrationView.map((n) => ({ start: n.start, text: n.text }));
+  const video = els.videoPlayer;
   return {
     type: 'tutorial',
     path: selectedPath,
     name: tutorialDisplayName(selectedPath.split('/').pop() || selectedPath),
     key: detectedKey,
     chords,
-    transcript: narrationView.map((n) => ({ start: n.start, text: n.text })),
-    summary: summary && !summarizing ? summary : null,
+    transcript,
     sourceLabel,
     notesTimeline: compactTimeline(noteEvents, chords),
     noteEvents,
     notesUnavailable: noteEvents.length ? null : (notesUnavailable || (analysis.source === 'audio'
       ? 'le clavier n\'est pas lisible à l\'image (pianiste filmé de côté ?) et la transcription des notes au son n\'a rien donné'
       : 'aucune note lue')),
+    duration: Number.isFinite(video?.duration) ? video.duration : null,
+    moment: momentContext({
+      now: video?.currentTime,
+      length: passageSeconds,
+      loop,
+      duration: video?.duration,
+      chords,
+      noteEvents,
+      transcript,
+    }),
   };
-}
-
-/** Ouvre le Copilote sur ce tutoriel (mode tutoriel, avec tout son contexte). */
-function openCopilotForTutorial() {
-  document.dispatchEvent(new CustomEvent('app-switch-training-view', { detail: { view: 'copilot' } }));
-  if (selectedPath) document.dispatchEvent(new CustomEvent('copilot-open-tutorial', { detail: { path: selectedPath } }));
 }
 
 /** Fait sauter la lecture vidéo à un instant, si le lecteur est là. */
@@ -1105,6 +1051,7 @@ function seekVideo(seconds) {
     els.videoPlayer.currentTime = Math.max(0, seconds);
     els.videoPlayer.play?.().catch(() => { /* lecture bloquée : le seek reste utile */ });
   } catch (_) { /* lecteur pas encore prêt : le clic n'est pas une erreur */ }
+  updateMoment();
 }
 
 // ---------------------------------------------------------------------------
@@ -1121,8 +1068,16 @@ export function initPedagogieTab() {
   els.trackList = document.getElementById('pedagogie-track-list');
   els.importBtn = document.getElementById('pedagogie-import-btn');
   els.folderHint = document.getElementById('pedagogie-folder-hint');
+  els.home = document.getElementById('pedagogie-home');
+  els.homeTitle = document.getElementById('pedagogie-home-title');
+  els.homeText = document.getElementById('pedagogie-home-text');
+  els.homeFolderBtn = document.getElementById('pedagogie-home-folder-btn');
+  els.homeLibraryBtn = document.getElementById('pedagogie-home-library-btn');
+  els.split = document.getElementById('pedagogie-split');
   els.selectedName = document.getElementById('pedagogie-selected-name');
   els.intro = document.getElementById('pedagogie-intro');
+  els.videoTitle = document.getElementById('pedagogie-video-title');
+  els.main = document.getElementById('pedagogie-main');
   els.analyzeBtn = document.getElementById('pedagogie-analyze-btn');
   els.progress = document.getElementById('pedagogie-progress');
   els.status = document.getElementById('pedagogie-status');
@@ -1130,49 +1085,70 @@ export function initPedagogieTab() {
   els.videoCard = document.getElementById('pedagogie-video-card');
   els.videoPlayer = document.getElementById('pedagogie-video-player');
   els.videoOverlay = document.getElementById('pedagogie-video-overlay');
-  els.result = document.getElementById('pedagogie-result');
+  els.strip = document.getElementById('pedagogie-strip');
   els.grid = document.getElementById('pedagogie-grid');
-  els.crosscheckCard = document.getElementById('pedagogie-crosscheck-card');
-  els.crosscheck = document.getElementById('pedagogie-crosscheck');
-  els.glossary = document.getElementById('pedagogie-glossary');
-  els.copilotShortcutBtn = document.getElementById('pedagogie-copilot-shortcut');
   els.videoActions = document.getElementById('pedagogie-video-actions');
-  els.categoryCard = document.getElementById('pedagogie-category-card');
-  els.categoryGrid = document.getElementById('pedagogie-category-grid');
-  els.resultGridCard = document.getElementById('pedagogie-grid-card');
-  els.resultCopilotCard = document.getElementById('pedagogie-copilot-summary-card');
-  els.categoryHint = document.getElementById('pedagogie-category-hint');
-  els.categoryHintText = document.getElementById('pedagogie-category-hint-text');
-  els.copilotSummaryBtn = document.getElementById('pedagogie-copilot-summary-btn');
-  els.copilotSummaryText = document.getElementById('pedagogie-copilot-summary-text');
+  els.calibrateBtn = document.getElementById('pedagogie-calibrate-btn');
+  els.copilotPanel = document.getElementById('pedagogie-copilot-panel');
+  els.copilotName = document.getElementById('pedagogie-copilot-name');
+  els.copilotNotice = document.getElementById('pedagogie-copilot-notice');
+  els.copilotSlot = document.getElementById('pedagogie-copilot-slot');
+  els.moment = document.getElementById('pedagogie-moment');
+  els.momentRange = document.getElementById('pedagogie-moment-range');
+  els.momentLength = document.getElementById('pedagogie-moment-length');
 
   els.importBtn?.addEventListener('click', () => { importVideo(); });
+  els.homeFolderBtn?.addEventListener('click', () => { chooseFolder(); });
   els.analyzeBtn?.addEventListener('click', () => { analyzeSelected(); });
-  // [Claude] — 2026-09-25 — Le Copilote s'ouvre en mode tutoriel, avec le contexte.
-  els.copilotShortcutBtn?.addEventListener('click', openCopilotForTutorial);
-  els.copilotSummaryBtn?.addEventListener('click', openCopilotForTutorial);
   // [Refonte Astra 12/09] — Le bouton « Calibrer le clavier (V2N) » avait été
   // retiré de l'écran. [Claude] — 2026-09-25 — Il revient, mais seulement quand
   // il sert : V2N installé et un vrai clavier à lire (pas de clavier dessiné
   // reconnu), ou une calibration déjà faite à reprendre.
-  els.calibrateBtn = document.getElementById('pedagogie-calibrate-btn');
   els.calibrateBtn?.addEventListener('click', () => { startCalibration(); });
-  els.categoryHint?.addEventListener('click', () => {
-    categoryPickerOpen = true;
-    playbackStarted = false;
-    render();
-  });
   els.videoPlayer?.addEventListener('click', onCalibrationClick);
 
+  // Le passage suit la vidéo.
+  for (const type of ['timeupdate', 'seeked', 'loadedmetadata', 'pause']) {
+    els.videoPlayer?.addEventListener(type, updateMoment);
+  }
+  els.momentLength?.addEventListener('change', () => {
+    const value = Number(els.momentLength.value);
+    passageSeconds = Number.isFinite(value) && value > 0 ? value : DEFAULT_PASSAGE_SECONDS;
+    updateMoment();
+  });
+
+  // Poser une question au Copilote met la vidéo en pause : le passage ne bouge plus
+  // pendant qu'on écrit.
+  els.copilotPanel?.addEventListener('focusin', (e) => {
+    if (e.target?.id === 'copilot-input') pauseVideo();
+  });
+  els.copilotPanel?.addEventListener('pointerdown', (e) => {
+    if (e.target?.closest?.('.copilot-chip, .tr-prompt-options button, .copilot-chooser button, #copilot-send-btn')) pauseVideo();
+  }, true);
+
+  // Un moment cité par le Copilote (« à 1:31 ») place la vidéo.
+  document.addEventListener('pedagogie-seek', (e) => {
+    const seconds = Number(e.detail?.seconds);
+    if (!selectedPath || !Number.isFinite(seconds)) return;
+    if (!viewActive) document.dispatchEvent(new CustomEvent('app-switch-training-view', { detail: { view: 'pedagogie' } }));
+    seekVideo(seconds);
+  });
+
   document.addEventListener('app-switch-training-view', (e) => {
-    if (e.detail?.view === 'pedagogie') {
+    const view = e.detail?.view;
+    if (view === 'pedagogie') {
+      viewActive = true;
+      announcedPath = null;
       refreshTrackList();
       render();
+      return;
     }
+    if (viewActive) pauseVideo();
+    viewActive = false;
+    // La conversation retourne dans l'onglet Copilote quand on y va.
+    if (view === 'copilot') undockCopilot();
   });
 
   render();
   refreshTrackList();
 }
-
-export { explainUnrecognised };

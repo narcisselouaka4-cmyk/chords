@@ -18,6 +18,11 @@ import { hasAIKey } from '../ai/openai-config.js';
 import { liveTake } from '../recorder/live-take.js';
 import { reviewTake } from '../recorder/take-review.js';
 import { readCopilotContext } from './copilot-context.js';
+import {
+  TUTORIAL_QUICK_ACTIONS, TUTORIAL_KEYS, TRANSFER_KINDS, TUTORIAL_PROGRESSIONS,
+  otherKeyQuestion, applyQuestion, keyIdFrom, keyLabel,
+} from './tutorial-questions.js';
+import { linkClockTimes } from './tutorial-moment.js';
 
 const els = {};
 let currentTutorialPath = null;
@@ -136,17 +141,140 @@ const EXERCISE_QUICK_ACTIONS = [
 ];
 let defaultQuickActions = null;
 
-/** Propositions sous la conversation : celles de l'exercice en mode exercice, sinon celles de la page. */
+/**
+ * Propositions sous la conversation : celles de l'exercice en mode exercice, celles du
+ * tutoriel en mode tutoriel (Pédagogie IA), sinon celles de la page. [Claude] —
+ * 2026-10-03 — En mode tutoriel, deux propositions ouvrent un petit choix (une
+ * tonalité ; quoi reprendre, sur quelle progression, dans quelle tonalité).
+ */
 function renderQuickActionsForMode() {
   if (!els.quickActions) return;
   if (!defaultQuickActions) defaultQuickActions = [...els.quickActions.querySelectorAll('.copilot-chip')].map((b) => ({ label: b.textContent, message: b.dataset.message }));
-  const list = currentMode === 'exercise' ? EXERCISE_QUICK_ACTIONS : defaultQuickActions;
+  const list = currentMode === 'exercise' ? EXERCISE_QUICK_ACTIONS
+    : currentMode === 'tutorial' ? TUTORIAL_QUICK_ACTIONS
+      : defaultQuickActions;
   els.quickActions.querySelectorAll('.copilot-chip').forEach((b) => b.remove());
+  closeChooser();
   // Juste après « Continuer : » (le sélecteur de style reste au bout de la rangée).
-  const chips = list.map((a) => el('button', { type: 'button', className: 'copilot-chip', 'data-message': a.message, text: a.label }));
+  const chips = list.map((a) => el('button', {
+    type: 'button',
+    className: `copilot-chip${a.chooser ? ' has-chooser' : ''}`,
+    'data-message': a.message || null,
+    'data-chooser': a.chooser || null,
+    'aria-expanded': a.chooser ? 'false' : null,
+    text: a.label,
+  }));
   const label = els.quickActions.querySelector('.copilot-quick-actions-label');
-  if (label) label.after(...chips);
-  else els.quickActions.prepend(...chips);
+  if (label) {
+    label.textContent = currentMode === 'tutorial' ? 'Sur ce passage : ' : 'Continuer : ';
+    label.after(...chips);
+  } else {
+    els.quickActions.prepend(...chips);
+  }
+}
+
+// ── Petits choix du mode tutoriel (Pédagogie IA) ─────────────────────────────
+// [Claude] — 2026-10-03 — « Que donnerait ce voicing en Fa♯ ? » : une tonalité.
+// « Comment appliquer ce qu'il vient de faire dans une 4-5-3-6-2-5-1 ? » : quoi
+// reprendre (ses voicings, son enchaînement, son lick), quelle progression, quelle
+// tonalité. Le choix fait, la question part comme si le pianiste l'avait tapée.
+
+/** Tonalité du tutoriel (la tonalité détectée), sinon Do. */
+function tutorialKeyId() {
+  return keyIdFrom(readCopilotContext('tutorial')?.key) || 'C';
+}
+
+function sendPrepared(message) {
+  if (!els.input || !message) return;
+  closeChooser();
+  els.input.value = message;
+  sendUserMessage();
+}
+
+function closeChooser() {
+  els.chooser?.remove();
+  els.chooser = null;
+  els.quickActions?.querySelectorAll('.copilot-chip[data-chooser]').forEach((b) => b.setAttribute('aria-expanded', 'false'));
+}
+
+function keyButtons(onPick, selected = null) {
+  return TUTORIAL_KEYS.map((k) => el('button', {
+    type: 'button',
+    className: `copilot-chooser-key${k.id === selected ? ' is-selected' : ''}`,
+    'aria-pressed': k.id === selected ? 'true' : 'false',
+    'data-key': k.id,
+    text: k.label,
+    onClick: () => onPick(k.id),
+  }));
+}
+
+function buildKeyChooser() {
+  return el('div', { className: 'copilot-chooser', role: 'group', 'aria-label': 'Dans quelle tonalité ?' }, [
+    el('span', { className: 'copilot-chooser-title', text: 'Dans quelle tonalité ?' }),
+    el('div', { className: 'copilot-chooser-keys' }, keyButtons((id) => sendPrepared(otherKeyQuestion(id)))),
+  ]);
+}
+
+function buildApplyChooser() {
+  const choice = { kind: TRANSFER_KINDS[0].id, progression: TUTORIAL_PROGRESSIONS[0], key: tutorialKeyId() };
+  const pick = (row, attr, value) => row.querySelectorAll('button').forEach((b) => {
+    const on = b.dataset[attr] === value;
+    b.classList.toggle('is-selected', on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  const kinds = el('div', { className: 'copilot-chooser-row' }, TRANSFER_KINDS.map((k) => el('button', {
+    type: 'button', className: 'copilot-chooser-option', 'data-kind': k.id, text: k.label,
+    onClick: () => { choice.kind = k.id; pick(kinds, 'kind', k.id); },
+  })));
+  const custom = el('input', {
+    type: 'text', className: 'copilot-chooser-input', maxlength: '80',
+    placeholder: 'ou la tienne : Fmaj7 E7 Am7 D9…', 'aria-label': 'Ta progression (degrés ou accords)',
+  });
+  const progs = el('div', { className: 'copilot-chooser-row' }, TUTORIAL_PROGRESSIONS.map((p) => el('button', {
+    type: 'button', className: 'copilot-chooser-option', 'data-prog': p, text: p,
+    onClick: () => { choice.progression = p; custom.value = ''; pick(progs, 'prog', p); },
+  })));
+  custom.addEventListener('input', () => {
+    if (custom.value.trim()) { choice.progression = custom.value.trim(); pick(progs, 'prog', ''); }
+  });
+  const keys = el('div', { className: 'copilot-chooser-keys' });
+  const setKey = (id) => {
+    choice.key = id;
+    keys.querySelectorAll('button').forEach((b) => {
+      const on = b.dataset.key === id;
+      b.classList.toggle('is-selected', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  };
+  keys.append(...keyButtons(setKey, choice.key));
+  const ask = el('button', {
+    type: 'button', className: 'copilot-chooser-send', text: 'Demander au Copilote',
+    onClick: () => sendPrepared(applyQuestion(choice)),
+  });
+  custom.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); ask.click(); } });
+  const box = el('div', { className: 'copilot-chooser is-apply', role: 'group', 'aria-label': 'Appliquer ce passage à une progression' }, [
+    el('span', { className: 'copilot-chooser-title', text: 'Reprendre de ce passage' }), kinds,
+    el('span', { className: 'copilot-chooser-title', text: 'Sur la progression' }), progs, custom,
+    el('span', { className: 'copilot-chooser-title', text: `En (tonalité du tuto : ${keyLabel(tutorialKeyId())})` }), keys,
+    ask,
+  ]);
+  pick(kinds, 'kind', choice.kind);
+  pick(progs, 'prog', choice.progression);
+  return box;
+}
+
+/** Ouvre (ou ferme) le petit choix d'une proposition. */
+function toggleChooser(kind, chip) {
+  const already = els.chooser?.dataset.kind === kind;
+  closeChooser();
+  if (already) return;
+  const box = kind === 'key' ? buildKeyChooser() : buildApplyChooser();
+  box.dataset.kind = kind;
+  box.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeChooser(); chip?.focus(); } });
+  els.quickActions.after(box);
+  els.chooser = box;
+  chip?.setAttribute('aria-expanded', 'true');
+  box.querySelector('button')?.focus();
 }
 
 const STATIC_QUICK_ACTIONS = [
@@ -190,6 +318,7 @@ function renderActionChips(actions) {
  * Les suggestions utilisent les libellés exacts de la maquette Astra
  * (CopilotView.tsx, .tr-prompt-options). */
 function renderCopilotWelcome() {
+  if (currentMode === 'tutorial') return renderTutorialWelcome();
   const heading = el('h2', {}, [
     document.createTextNode('Une question.'),
     el('br'),
@@ -241,6 +370,18 @@ function renderCopilotWelcome() {
   ]);
 }
 
+/**
+ * [Claude] — 2026-10-03 — Accueil du mode tutoriel (Pédagogie IA, à côté de la vidéo) :
+ * le Copilote dit ce qu'il regarde (« ici » = le passage en haut du panneau) et
+ * propose les questions de Narcisse.
+ */
+function renderTutorialWelcome() {
+  return el('div', { className: 'tr-copilot-welcome copilot-tutorial-welcome' }, [
+    el('h2', { text: 'Une question sur ce passage ?' }),
+    el('p', { text: '« Ici », « ce qu\'il vient de faire » : je regarde le passage qui vient de passer dans la vidéo — les notes que joue le prof, ses accords, ce qu\'il dit. Choisis une question ci-dessous, ou écris la tienne.' }),
+  ]);
+}
+
 function autoGrowInput() {
   const field = els.input;
   if (!field || field.tagName !== 'TEXTAREA') return;
@@ -269,12 +410,18 @@ function escapeHtml(value) {
  * la ligne, un <p> par ligne ; on fait pareil, en rendant en plus le gras. */
 function renderMessageText(container, content) {
   const lines = String(content || '').split('\n');
+  // [Claude] — 2026-10-03 — Tutoriel : chaque moment cité (« à 1:31 ») place la vidéo.
+  const tutorial = currentMode === 'tutorial' ? readCopilotContext('tutorial') : null;
+  const maxSeconds = Number.isFinite(tutorial?.duration) ? tutorial.duration : Infinity;
   for (const line of lines) {
     if (!line.trim()) continue;
     const p = document.createElement('p');
-    const html = escapeHtml(line)
+    let html = escapeHtml(line)
       .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-      .replace(/`([^`]+)`/g, '<code>$1</code>');
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      // [Claude] — 2026-10-03 — « _(remarque)_ » s'affichait avec ses soulignés.
+      .replace(/(^|[\s(])_([^_\n]+)_(?=$|[\s).,;:!?])/g, '$1<em>$2</em>');
+    if (currentMode === 'tutorial') html = linkClockTimes(html, { maxSeconds });
     p.innerHTML = html;
     container.appendChild(p);
   }
@@ -733,6 +880,11 @@ function updateHeaderForMode() {
 
 function updateModeToggle() {
   renderQuickActionsForMode();
+  // [Claude] — 2026-10-03 — En mode tutoriel, la case parle du passage de la vidéo.
+  if (els.input) {
+    if (els.defaultPlaceholder == null) els.defaultPlaceholder = els.input.getAttribute('placeholder') || '';
+    els.input.setAttribute('placeholder', currentMode === 'tutorial' ? 'Pose ta question sur ce passage…' : els.defaultPlaceholder);
+  }
   if (!els.modeToggleBtn) return;
   const state = toggleButtonState(currentMode, currentTutorialPath);
   els.modeToggleBtn.style.display = state.visible ? '' : 'none';
@@ -755,6 +907,29 @@ async function switchToAutonomousMode() {
   await renderHistoryList();
 }
 
+/**
+ * [Claude] — 2026-10-03 — Rouvrir un tutoriel rouvre sa dernière conversation (Narcisse :
+ * l'analyse et la conversation restent avec le tuto) ; sinon, une nouvelle.
+ * @returns {Promise<string|null>}
+ */
+async function resumeOrStartConversation(key) {
+  try {
+    const latest = (await listAllConversations()).find((item) => item.tutorialPath === key && item.preview);
+    if (latest) {
+      const history = await loadHistory(latest.conversationId);
+      if (history?.messages?.length) {
+        lastTake = null;
+        currentConversationId = latest.conversationId;
+        messages = history.messages;
+        return currentConversationId;
+      }
+    }
+  } catch (err) {
+    console.warn('[Copilot] Conversation du tutoriel non retrouvée :', err);
+  }
+  return startNewConversation(key);
+}
+
 async function switchToTutorialMode(path) {
   if (!path) return;
   currentMode = 'tutorial';
@@ -767,7 +942,7 @@ async function switchToTutorialMode(path) {
   updateModeToggle();
   if (!hasAIKey()) { showNoKeyState(); return; }
   showChatArea();
-  await startNewConversation(path);
+  await resumeOrStartConversation(path);
   renderMessages();
   await renderHistoryList();
 }
@@ -989,12 +1164,24 @@ export async function initCopilotTab() {
     els.quickActions.addEventListener('click', (e) => {
       const chip = e.target.closest('.copilot-chip');
       if (!chip || !els.input) return;
+      if (chip.dataset.chooser) {
+        toggleChooser(chip.dataset.chooser, chip);
+        return;
+      }
       const message = chip.dataset.message;
       if (!message) return;
+      closeChooser();
       els.input.value = message;
       sendUserMessage();
     });
   }
+  // [Claude] — 2026-10-03 — Un moment cité dans une réponse (« à 1:31 ») place la
+  // vidéo de Pédagogie IA (pedagogie-tab.js écoute « pedagogie-seek »).
+  els.messages?.addEventListener('click', (e) => {
+    const time = e.target.closest?.('.copilot-time');
+    if (!time) return;
+    document.dispatchEvent(new CustomEvent('pedagogie-seek', { detail: { seconds: Number(time.dataset.seconds) } }));
+  });
 
   // Écoute le changement de tutoriel dans Pédagogie
   document.addEventListener('pedagogie-selection-change', async (e) => {
