@@ -173,7 +173,8 @@ export function transposeInterval(fromKey, toKey) {
 
 const SOLFEGE = { do: 0, re: 2, 'ré': 2, mi: 4, fa: 5, sol: 7, la: 9, si: 11 };
 function keyRoot(key) {
-  const text = String(key || '').trim();
+  // [Claude] — 2026-10-03 — « Fa♯ », « Si♭ » (noms affichés par Pédagogie IA) : ♯ et ♭ lus.
+  const text = String(key || '').trim().replace(/♯/g, '#').replace(/♭/g, 'b');
   if (!text) return null;
   const fr = /^(do|ré|re|mi|fa|sol|la|si)\s*(#|b|dièse|bémol)?/i.exec(text);
   if (fr) return pcOf(SOLFEGE[fr[1].toLowerCase()] + (/^(#|dièse)/i.test(fr[2] || '') ? 1 : fr[2] ? -1 : 0));

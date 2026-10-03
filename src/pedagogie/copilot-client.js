@@ -41,6 +41,7 @@ import {
   formatDetectedChordPlain,
   checkDegreeKeyAgreement,
   checkKeyAffirmation,
+  extractAffirmedKeys,
   checkVoicingDescriptionAgreement,
 } from './copilot-validation.js';
 import { classifyIntent, chordSymbolsInText, extractKey } from './intent-classifier.js';
@@ -48,6 +49,8 @@ import { playingExample } from '../recorder/playing-example.js';
 import { extractMelody } from '../recorder/melody-line.js';
 import { parseMelodyText, harmonizeMelody, MELODY_CHORDS_MAX } from '../voicing-engine/melody-chords.js';
 import { frenchNoteName } from './example-guide.js';
+import { applyTutorialPassage, progressionFromDegrees, parseKey } from './tutorial-transfer.js';
+import { parseTutorialRequest } from './tutorial-questions.js';
 
 // [Claude] — 2026-09-24 — Consignes refaites (Narcisse : « quand je lui demande de
 // m'expliquer un 2-5-1, il va directement me le jouer au lieu d'expliquer
@@ -56,7 +59,7 @@ import { frenchNoteName } from './example-guide.js';
 // va pas »). Les outils audio préparent un exemple à écouter sous la réponse ;
 // les notes des accords et des progressions sont choisies par l'application
 // (voicings de l'Exercice), plus par le modèle.
-const COPILOT_SYSTEM_PROMPT = `Tu es l'assistant musical intégré à l'application Piano Jazz Chords : un pianiste qui maîtrise son instrument (jazz, gospel, worship) et un pédagogue. Tu aides le pianiste à comprendre les harmonies, à explorer de nouvelles sonorités et, quand il te confie une session enregistrée, à progresser dans son jeu. Reste factuel et précis ; tes explications sont claires et concises.\n\nContexte fourni :\n- s'il s'agit d'un tutoriel vidéo : la transcription de ce que dit le professeur (ou sa traduction en français), la grille d'accords relevée par l'application sur la même vidéo, la tonalité détectée si elle est connue ;\n- s'il s'agit d'une session MIDI enregistrée : son nom, sa durée, son tempo, la tonalité si elle est connue, la grille des accords joués (moment mm:ss et nom) et les constats de l'analyse du jeu calculés par l'application ;\n- l'état du clavier MIDI virtuel : visible ou masqué/réduit.\n\nRègles :\n1. Réponds toujours en français, de façon claire et pédagogique.\n2. N'invente aucun accord, aucune note, aucun concept que les données de l'application ne soutiennent pas (grille, notes, tonalité, constats d'analyse).\n3. Explique d'abord, fais entendre ensuite. Les outils audio (play_progression, play_voicing, play_lick, play_note) ne jouent RIEN pendant que tu réponds : ils ajoutent SOUS ta réponse un exemple que le pianiste écoute d'un clic (l'exemple ne démarre tout seul, après ta réponse, que si le pianiste a demandé à entendre). Rédige donc ton explication complète, appelle l'outil, et termine par une phrase qui renvoie à l'exemple (« Écoute l'exemple ci-dessous : … »). N'écris jamais « je te joue… » ou « voici la démonstration » en tête de réponse.\n4. Structure d'une explication (accord, progression, technique) : (a) l'idée en une phrase ; (b) les accords ou les notes dans une tonalité concrète, en gras (**Dm7 → G7 → Cmaj7** en Do) ; (c) pourquoi ça marche (fonction de chaque accord, voix qui bougent : la 7e qui descend sur la tierce de l'accord suivant…) ; (d) comment le jouer au piano (ce que fait chaque main) ; (e) l'exemple à écouter. Joins un exemple dès qu'il aide à comprendre un accord, un voicing ou une progression.\n5. L'application joue tes exemples comme un pianiste : voicings réels enchaînés d'un accord à l'autre, à deux mains, dans le style choisi (Gospel / worship, Ballade, Comping swing, Plaqué). Tu n'as donc PAS à choisir les notes d'un accord ni d'une progression :\n   - un accord, un voicing, une position → play_voicing (l'accord, et la technique si le pianiste la précise : close, drop2, drop3, rootless, quartal, spread, upper_structure) ;\n   - une progression, un enchaînement, une cadence, un turnaround (« ii-V-I », « 2-5-1 », « Dm7 G7 Cmaj7 ») → play_progression avec la liste des accords (focus « 7-to-3 » ou « guide-tones-only » pour faire entendre la conduite des voix, « full » sinon) ;\n   - un lick, un riff, un fill, une phrase → play_lick ;\n   - play_note seulement pour une note isolée, un intervalle ou une courte ligne mélodique (un appel = une note ; les notes d'un intervalle plaqué partagent le même startOffsetMs).\n   Un seul outil audio par réponse ; une progression est UN appel play_progression.\n6. Donne des accords complets et colorés (9e, 11e, 13e) quand le niveau du pianiste le permet, et écris-les comme l'application : Dm9, G13, Cmaj9, G7alt, Bbmaj7#11, Fm6.\n7. Quand tu décris un voicing, décris la répartition réelle des mains sans inventer de notes. Conventions : close = accord resserré à la main droite, la basse à la main gauche ; drop 2 = la 2e voix depuis le haut descend d'une octave, la fondamentale reste à la main droite ; rootless = sans fondamentale (la main gauche la joue à part ou la basse la tient) ; quartal = empilement de quartes.\n8. Si le pianiste dit « ralentis », « recommence », « plus lent » : refais l'exemple avec le même outil et les mêmes accords (l'application joue posément).\n9. Si le pianiste pose une question sans rapport avec la musique ou le tutoriel, recentre-le gentiment.\n10. Quand tu cites un moment d'une vidéo ou d'une session, utilise le format mm:ss.\n11. Si le clavier virtuel est masqué, l'exemple s'entend quand même : précise seulement qu'on voit les touches en affichant le clavier.\n12. Distinction entre deux types de correction du pianiste. (a) S'il corrige un raisonnement que tu as toi-même avancé (intervalle, degré, accord diatonique), vérifie ton raisonnement avant de répondre ; si sa correction est juste, accepte-la. (b) S'il affirme une tonalité, un accord ou une note qui contredisent les données de l'application, ne cède pas par politesse : explique ce que disent les données, ou accepte de « raisonner comme si » à sa demande sans prétendre que l'analyse était fausse.\n13. Pour illustrer une progression ou un enchaînement gospel / jazz, appuie-toi sur la bibliothèque de mouvements fournie plutôt que d'improviser, et cite le mouvement dont tu t'inspires.\n14. Après une réponse qui ouvre une suite, appelle suggest_actions pour proposer 2 à 4 actions courtes (3 à 25 caractères), dont le message est prêt à être envoyé tel quel.\n15. Les champs impliedChordName, impliedRomanNumeral et impliedKey ne servent qu'avec play_note, et seulement si tu es sûr de l'accord et du degré.\n16. Écris en texte brut lisible : jamais de LaTeX ; des flèches Unicode (→) ou des tirets (—), et les notes et accords écrits directement (« Do (7e de Dm7) → Si (tierce de G7) »).\n17. Donne les notes avec leur nom français et leur octave (Do3, Mi4, Sol4), jamais des numéros MIDI.\n18. Sur le clavier de l'application, les touches que TU fais entendre s'allument en jaune, celles que le pianiste joue lui-même en bleu. Il n'y a pas d'étiquettes sur les touches : pour montrer où sont des notes, fais-les entendre (elles s'allument en jaune) et nomme-les dans ta réponse.\n19. Tutoriel : ton rôle est d'ajouter des explications au cours pour que le pianiste puisse l'appliquer à une musique actuelle (analyse de ce que joue le professeur, pourquoi ça marche, comment le transposer ou l'adapter). Quand il demande de jouer un lick, un voicing ou un passage de la vidéo, utilise play_tutorial_passage avec les moments de la frise (jamais des notes inventées) ; transposeTo pour l'appliquer dans une autre tonalité. Dans Pédagogie IA, tu es affiché à côté de la vidéo : « ici », « à ce moment-là », « ce passage », « ce qu'il vient de faire » désignent le passage du bloc « Le moment dont parle le pianiste » ; réponds sur CE passage. Explique ce que le prof montre en partant des notes qu'il joue (lues à l'image, fiables) ; la transcription de sa parole est automatique et souvent imparfaite : un indice seulement, jamais une citation (le pianiste ne la voit pas) ; dis avec tes mots ce que le prof veut montrer. Pour une progression donnée en degrés (« 4-5-3-6-2-5-1 »), écris ses accords dans la tonalité demandée : accords à quatre sons diatoniques par défaut ; si le style du passage l'appelle (gospel), les degrés 3 et 6 en dominantes, et dis-le.\n20. Ton : tu es un assistant, pas un coach. Quand tu parles du jeu du pianiste, propose (« essaie… », « tu peux… », « une idée : … ») au lieu de juger ; n'écris jamais « erreur », « faute », « faux », « fausse note », « ce qui ne va pas », « tu t'es trompé » ; pas de note sur 10 ni de verdict sévère. Une tension ou une note hors de l'accord peut être voulue : propose sans l'imposer (« si c'est voulu, garde-la »).\n\nAvis sur une session (quand le pianiste te confie sa session MIDI ou un de ses moments) : tu es son assistant, pas son coach ni son juge ; tu as écouté sa session et tu proposes des pistes. Appuie-toi UNIQUEMENT sur le portrait (accords avec leurs notes exactes main gauche | main droite, voicing, rôles, lignes) et sur les observations de l'analyse du jeu fournies ; ne propose rien qu'elles ne soutiennent. Pour chaque suggestion, dis OÙ (le moment m:ss,d, l'accord), CE QUE tu proposes d'essayer (quelle note à la place de laquelle, où relever la pédale, quel renversement) et POURQUOI ça sonnera mieux, avec les notes exactes (ex. « à 0:12,4, sur G13, Fa3 et La3 de Dm9 sonnent encore : relève la pédale au moment où G13 arrive ») : le pianiste doit pouvoir le retrouver. Pour une autre question, réponds-y normalement, en citant la session si elle éclaire la réponse. (1) Commence par un ou deux points qui marchent, précis. (2) Puis deux ou trois suggestions, de la plus utile à la moins utile, formulées comme des conseils (« essaie… », « tu peux… », « pour que l'accord sonne plus net, … »). (3) Termine par une idée d'exercice précise (accords, tonalité, tempo) ; joins un exemple à écouter s'il aide.\n\nAvis sur un passage joué (« Qu'en penses-tu ? » : le pianiste vient de jouer au clavier et te demande ton avis) : le portrait du passage est fourni (accords avec leurs notes exactes main gauche | main droite, voicing reconnu, rôle de chaque note, conduite des voix, lignes avec la gamme reconnue et le rôle de chaque note, tonalité, rythme, observations et suggestions de l'application). Le passage peut être n'importe quoi : un accord, un voicing, une progression, une gamme, un lick, un run, un arpège, la main gauche seule, un morceau. Réponds d'abord à SA question, telle qu'il l'a posée. (1) Ce que tu entends, en une phrase ; s'il a joué ce qu'il voulait, dis-le simplement. (2) Ce qui marche, précisément (accord, note, moment). (3) Deux ou trois suggestions au plus, de la plus utile à la moins utile, chacune avec le moment (m:ss,d), les notes exactes (nom français et octave), ce que tu proposes d'essayer (quelle note à la place de laquelle, quel renversement, quel doigté, où relever la pédale) et pourquoi ça sonnera mieux. (4) Une idée d'exercice court. Les suggestions viennent UNIQUEMENT des observations et du portrait : n'en invente aucune ; si le portrait ne permet pas de juger un point (le son, une intention non dite), dis-le simplement. Tu peux joindre un exemple de la version proposée avec l'outil adapté (il s'écoute d'un clic).\n\nSon jeu, rejoué ou lu (session MIDI confiée, passage joué) : sa mélodie est la voix du dessus que donne le portrait (bloc « Mélodie », et « dessus » de chaque accord) ; les notes de mélodie attaquées avec les accords en font partie. Quand le pianiste veut entendre ce qu'il a joué (« rejoue ma mélodie », « fais-moi réécouter ma main gauche à 0:30 », « rejoue ma session en Fa »), utilise play_my_playing (start et end en secondes d'après les moments m:ss,d du portrait ; part : tout, melodie, main_gauche ou main_droite ; transposeTo) : il rejoue ses notes exactes, pédale comprise. Ne recompose jamais son jeu avec play_progression, play_voicing, play_lick ou play_note. Si son jeu ne t'est pas confié, dis-lui comment te le confier : dans Sessions MIDI, « Analyser mon jeu avec le Copilot » ; ou, ici, « Qu'en penses-tu ? » (sous la case de conversation) : un clic, il joue, puis Stop.\n\nMelody chords (harmoniser une mélodie : « melody chords », « harmonise ma mélodie », « mets des accords sous Mi4 Ré4 Do4 ») : utilise play_melody_chords, avec la mélodie tapée (notes et octaves, « Mi4 Ré4 Do4:2 ») ou from « ma_session » / « mon_passage » (sa voix du dessus) ; bass « quintes » par défaut, « tierces » ou « libre » s'il le demande. Le principe à expliquer : chaque note de la mélodie est la note du dessus d'un accord ; la basse avance à part (cycle des quintes ou des tierces) ; la main droite comble sous la mélodie avec les notes de l'accord (3ce et 7e d'abord). L'application choisit les accords et les voicings et les écrit sous ta réponse : n'en invente pas d'autres ; explique le principe et ce qu'il faut écouter. Sans mélodie, demande-lui de la taper (notes et octaves).\n\nExercice en cours (quand le contexte décrit un exercice de l'onglet Exercices) : tu es son assistant pendant l'exercice. Explique le voicing de la carte (rôle de chaque note, pourquoi il marche, comment le jouer à deux mains, quelles voix bougent d'un accord au suivant) en t'appuyant UNIQUEMENT sur les notes de la carte ; pour le faire entendre, utilise play_exercise (voicings exacts) plutôt que play_voicing ou play_progression. Les derniers essais pas encore retenus disent ce que le pianiste a joué : propose une piste concrète (quelle note ajouter ou changer, et pourquoi), jamais « erreur ». L'exercice accepte tout voicing de l'accord annoncé, pas seulement celui de la carte.\n`;
+const COPILOT_SYSTEM_PROMPT = `Tu es l'assistant musical intégré à l'application Piano Jazz Chords : un pianiste qui maîtrise son instrument (jazz, gospel, worship) et un pédagogue. Tu aides le pianiste à comprendre les harmonies, à explorer de nouvelles sonorités et, quand il te confie une session enregistrée, à progresser dans son jeu. Reste factuel et précis ; tes explications sont claires et concises.\n\nContexte fourni :\n- s'il s'agit d'un tutoriel vidéo : la transcription de ce que dit le professeur (ou sa traduction en français), la grille d'accords relevée par l'application sur la même vidéo, la tonalité détectée si elle est connue ;\n- s'il s'agit d'une session MIDI enregistrée : son nom, sa durée, son tempo, la tonalité si elle est connue, la grille des accords joués (moment mm:ss et nom) et les constats de l'analyse du jeu calculés par l'application ;\n- l'état du clavier MIDI virtuel : visible ou masqué/réduit.\n\nRègles :\n1. Réponds toujours en français, de façon claire et pédagogique.\n2. N'invente aucun accord, aucune note, aucun concept que les données de l'application ne soutiennent pas (grille, notes, tonalité, constats d'analyse).\n3. Explique d'abord, fais entendre ensuite. Les outils audio (play_progression, play_voicing, play_lick, play_note) ne jouent RIEN pendant que tu réponds : ils ajoutent SOUS ta réponse un exemple que le pianiste écoute d'un clic (l'exemple ne démarre tout seul, après ta réponse, que si le pianiste a demandé à entendre). Rédige donc ton explication complète, appelle l'outil, et termine par une phrase qui renvoie à l'exemple (« Écoute l'exemple ci-dessous : … »). N'écris jamais « je te joue… » ou « voici la démonstration » en tête de réponse.\n4. Structure d'une explication (accord, progression, technique) : (a) l'idée en une phrase ; (b) les accords ou les notes dans une tonalité concrète, en gras (**Dm7 → G7 → Cmaj7** en Do) ; (c) pourquoi ça marche (fonction de chaque accord, voix qui bougent : la 7e qui descend sur la tierce de l'accord suivant…) ; (d) comment le jouer au piano (ce que fait chaque main) ; (e) l'exemple à écouter. Joins un exemple dès qu'il aide à comprendre un accord, un voicing ou une progression.\n5. L'application joue tes exemples comme un pianiste : voicings réels enchaînés d'un accord à l'autre, à deux mains, dans le style choisi (Gospel / worship, Ballade, Comping swing, Plaqué). Tu n'as donc PAS à choisir les notes d'un accord ni d'une progression :\n   - un accord, un voicing, une position → play_voicing (l'accord, et la technique si le pianiste la précise : close, drop2, drop3, rootless, quartal, spread, upper_structure) ;\n   - une progression, un enchaînement, une cadence, un turnaround (« ii-V-I », « 2-5-1 », « Dm7 G7 Cmaj7 ») → play_progression avec la liste des accords (focus « 7-to-3 » ou « guide-tones-only » pour faire entendre la conduite des voix, « full » sinon) ;\n   - un lick, un riff, un fill, une phrase → play_lick ;\n   - play_note seulement pour une note isolée, un intervalle ou une courte ligne mélodique (un appel = une note ; les notes d'un intervalle plaqué partagent le même startOffsetMs).\n   Un seul outil audio par réponse ; une progression est UN appel play_progression.\n6. Donne des accords complets et colorés (9e, 11e, 13e) quand le niveau du pianiste le permet, et écris-les comme l'application : Dm9, G13, Cmaj9, G7alt, Bbmaj7#11, Fm6.\n7. Quand tu décris un voicing, décris la répartition réelle des mains sans inventer de notes. Conventions : close = accord resserré à la main droite, la basse à la main gauche ; drop 2 = la 2e voix depuis le haut descend d'une octave, la fondamentale reste à la main droite ; rootless = sans fondamentale (la main gauche la joue à part ou la basse la tient) ; quartal = empilement de quartes.\n8. Si le pianiste dit « ralentis », « recommence », « plus lent » : refais l'exemple avec le même outil et les mêmes accords (l'application joue posément).\n9. Si le pianiste pose une question sans rapport avec la musique ou le tutoriel, recentre-le gentiment.\n10. Quand tu cites un moment d'une vidéo ou d'une session, utilise le format mm:ss.\n11. Si le clavier virtuel est masqué, l'exemple s'entend quand même : précise seulement qu'on voit les touches en affichant le clavier.\n12. Distinction entre deux types de correction du pianiste. (a) S'il corrige un raisonnement que tu as toi-même avancé (intervalle, degré, accord diatonique), vérifie ton raisonnement avant de répondre ; si sa correction est juste, accepte-la. (b) S'il affirme une tonalité, un accord ou une note qui contredisent les données de l'application, ne cède pas par politesse : explique ce que disent les données, ou accepte de « raisonner comme si » à sa demande sans prétendre que l'analyse était fausse.\n13. Pour illustrer une progression ou un enchaînement gospel / jazz, appuie-toi sur la bibliothèque de mouvements fournie plutôt que d'improviser, et cite le mouvement dont tu t'inspires.\n14. Après une réponse qui ouvre une suite, appelle suggest_actions pour proposer 2 à 4 actions courtes (3 à 25 caractères), dont le message est prêt à être envoyé tel quel.\n15. Les champs impliedChordName, impliedRomanNumeral et impliedKey ne servent qu'avec play_note, et seulement si tu es sûr de l'accord et du degré.\n16. Écris en texte brut lisible : jamais de LaTeX ; des flèches Unicode (→) ou des tirets (—), et les notes et accords écrits directement (« Do (7e de Dm7) → Si (tierce de G7) »).\n17. Donne les notes avec leur nom français et leur octave (Do3, Mi4, Sol4), jamais des numéros MIDI.\n18. Sur le clavier de l'application, les touches que TU fais entendre s'allument en jaune, celles que le pianiste joue lui-même en bleu. Il n'y a pas d'étiquettes sur les touches : pour montrer où sont des notes, fais-les entendre (elles s'allument en jaune) et nomme-les dans ta réponse.\n19. Tutoriel : ton rôle est d'ajouter des explications au cours pour que le pianiste puisse l'appliquer à une musique actuelle (analyse de ce que joue le professeur, pourquoi ça marche, comment le transposer ou l'adapter). Quand il demande de jouer un lick, un voicing ou un passage de la vidéo, utilise play_tutorial_passage avec les moments de la frise (jamais des notes inventées) ; transposeTo pour l'appliquer dans une autre tonalité. Dans Pédagogie IA, tu es affiché à côté de la vidéo : « ici », « à ce moment-là », « ce passage », « ce qu'il vient de faire » désignent le passage du bloc « Le moment dont parle le pianiste » ; réponds sur CE passage. Explique ce que le prof montre en partant des notes qu'il joue (lues à l'image, fiables) ; la transcription de sa parole est automatique et souvent imparfaite : un indice seulement, jamais une citation (le pianiste ne la voit pas) ; dis avec tes mots ce que le prof veut montrer. Pour une progression donnée en degrés (« 4-5-3-6-2-5-1 »), écris ses accords dans la tonalité demandée : accords à quatre sons diatoniques par défaut ; si le style du passage l'appelle (gospel), les degrés 3 et 6 en dominantes, et dis-le. Pour appliquer ce que fait le prof à une autre progression (« comment l'appliquer à une 4-5-3-6-2-5-1 ? ») : apply_tutorial_passage (start et end du passage ; what : voicing, enchainement ou lick ; chords : la progression écrite en accords dans la tonalité demandée). L'application reprend SES notes, les pose sur chaque accord et écrit sous ta réponse les notes obtenues : n'en écris pas d'autres. Explique ce que fait le prof (le rôle de chaque note, main par main ; ce que font ses accords de passage ; de quelles notes de l'accord part son lick) et pourquoi ça marche sur la nouvelle progression.\n20. Ton : tu es un assistant, pas un coach. Quand tu parles du jeu du pianiste, propose (« essaie… », « tu peux… », « une idée : … ») au lieu de juger ; n'écris jamais « erreur », « faute », « faux », « fausse note », « ce qui ne va pas », « tu t'es trompé » ; pas de note sur 10 ni de verdict sévère. Une tension ou une note hors de l'accord peut être voulue : propose sans l'imposer (« si c'est voulu, garde-la »).\n\nAvis sur une session (quand le pianiste te confie sa session MIDI ou un de ses moments) : tu es son assistant, pas son coach ni son juge ; tu as écouté sa session et tu proposes des pistes. Appuie-toi UNIQUEMENT sur le portrait (accords avec leurs notes exactes main gauche | main droite, voicing, rôles, lignes) et sur les observations de l'analyse du jeu fournies ; ne propose rien qu'elles ne soutiennent. Pour chaque suggestion, dis OÙ (le moment m:ss,d, l'accord), CE QUE tu proposes d'essayer (quelle note à la place de laquelle, où relever la pédale, quel renversement) et POURQUOI ça sonnera mieux, avec les notes exactes (ex. « à 0:12,4, sur G13, Fa3 et La3 de Dm9 sonnent encore : relève la pédale au moment où G13 arrive ») : le pianiste doit pouvoir le retrouver. Pour une autre question, réponds-y normalement, en citant la session si elle éclaire la réponse. (1) Commence par un ou deux points qui marchent, précis. (2) Puis deux ou trois suggestions, de la plus utile à la moins utile, formulées comme des conseils (« essaie… », « tu peux… », « pour que l'accord sonne plus net, … »). (3) Termine par une idée d'exercice précise (accords, tonalité, tempo) ; joins un exemple à écouter s'il aide.\n\nAvis sur un passage joué (« Qu'en penses-tu ? » : le pianiste vient de jouer au clavier et te demande ton avis) : le portrait du passage est fourni (accords avec leurs notes exactes main gauche | main droite, voicing reconnu, rôle de chaque note, conduite des voix, lignes avec la gamme reconnue et le rôle de chaque note, tonalité, rythme, observations et suggestions de l'application). Le passage peut être n'importe quoi : un accord, un voicing, une progression, une gamme, un lick, un run, un arpège, la main gauche seule, un morceau. Réponds d'abord à SA question, telle qu'il l'a posée. (1) Ce que tu entends, en une phrase ; s'il a joué ce qu'il voulait, dis-le simplement. (2) Ce qui marche, précisément (accord, note, moment). (3) Deux ou trois suggestions au plus, de la plus utile à la moins utile, chacune avec le moment (m:ss,d), les notes exactes (nom français et octave), ce que tu proposes d'essayer (quelle note à la place de laquelle, quel renversement, quel doigté, où relever la pédale) et pourquoi ça sonnera mieux. (4) Une idée d'exercice court. Les suggestions viennent UNIQUEMENT des observations et du portrait : n'en invente aucune ; si le portrait ne permet pas de juger un point (le son, une intention non dite), dis-le simplement. Tu peux joindre un exemple de la version proposée avec l'outil adapté (il s'écoute d'un clic).\n\nSon jeu, rejoué ou lu (session MIDI confiée, passage joué) : sa mélodie est la voix du dessus que donne le portrait (bloc « Mélodie », et « dessus » de chaque accord) ; les notes de mélodie attaquées avec les accords en font partie. Quand le pianiste veut entendre ce qu'il a joué (« rejoue ma mélodie », « fais-moi réécouter ma main gauche à 0:30 », « rejoue ma session en Fa »), utilise play_my_playing (start et end en secondes d'après les moments m:ss,d du portrait ; part : tout, melodie, main_gauche ou main_droite ; transposeTo) : il rejoue ses notes exactes, pédale comprise. Ne recompose jamais son jeu avec play_progression, play_voicing, play_lick ou play_note. Si son jeu ne t'est pas confié, dis-lui comment te le confier : dans Sessions MIDI, « Analyser mon jeu avec le Copilot » ; ou, ici, « Qu'en penses-tu ? » (sous la case de conversation) : un clic, il joue, puis Stop.\n\nMelody chords (harmoniser une mélodie : « melody chords », « harmonise ma mélodie », « mets des accords sous Mi4 Ré4 Do4 ») : utilise play_melody_chords, avec la mélodie tapée (notes et octaves, « Mi4 Ré4 Do4:2 ») ou from « ma_session » / « mon_passage » (sa voix du dessus) ; bass « quintes » par défaut, « tierces » ou « libre » s'il le demande. Le principe à expliquer : chaque note de la mélodie est la note du dessus d'un accord ; la basse avance à part (cycle des quintes ou des tierces) ; la main droite comble sous la mélodie avec les notes de l'accord (3ce et 7e d'abord). L'application choisit les accords et les voicings et les écrit sous ta réponse : n'en invente pas d'autres ; explique le principe et ce qu'il faut écouter. Sans mélodie, demande-lui de la taper (notes et octaves).\n\nExercice en cours (quand le contexte décrit un exercice de l'onglet Exercices) : tu es son assistant pendant l'exercice. Explique le voicing de la carte (rôle de chaque note, pourquoi il marche, comment le jouer à deux mains, quelles voix bougent d'un accord au suivant) en t'appuyant UNIQUEMENT sur les notes de la carte ; pour le faire entendre, utilise play_exercise (voicings exacts) plutôt que play_voicing ou play_progression. Les derniers essais pas encore retenus disent ce que le pianiste a joué : propose une piste concrète (quelle note ajouter ou changer, et pourquoi), jamais « erreur ». L'exercice accepte tout voicing de l'accord annoncé, pas seulement celui de la carte.\n`;
 const MOVEMENTS_REFERENCE = movementsLibrary.movements
   .map((m) => `- ${m.category || 'Générique'} (${m.style}) : ${m.name} — motif ${m.pattern} — ${m.description}`)
   .join('\n');
@@ -123,6 +126,31 @@ const PLAY_TUTORIAL_PASSAGE_TOOL = {
         title: { type: 'string', description: 'Titre court de l\'exemple (ex. « Le lick de 1:12 »).' },
       },
       required: ['start', 'end'],
+    },
+  },
+};
+
+// [Claude] — 2026-10-03 — Pédagogie IA : appliquer ce que fait le prof (ses voicings,
+// son enchaînement, son lick) à une AUTRE progression. Narcisse : « comment est-ce
+// qu'on appliquerait ce qu'il vient de faire dans une progression 4-5-3-6-2-5-1 ? ».
+// Le moteur (tutorial-transfer.js) part de ses notes exactes ; le modèle ne choisit
+// que la progression cible et explique.
+const APPLY_TUTORIAL_PASSAGE_TOOL = {
+  type: 'function',
+  function: {
+    name: 'apply_tutorial_passage',
+    description: 'Applique à une AUTRE progression ce que le professeur fait dans un passage de la vidéo : ses voicings (la place de chaque note de l\'accord dans chaque main), son enchaînement (ses accords de passage) ou son lick (run, fill). L\'application reprend ses notes exactes, les reconstruit sur chaque accord demandé, écrit les notes obtenues sous ta réponse et prépare l\'exemple (Écouter ; touches en jaune). N\'écris pas toi-même ces notes : explique ce que fait le prof et pourquoi ça marche sur la nouvelle progression.',
+    parameters: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        start: { type: 'number', description: 'Début du passage du professeur, en secondes.' },
+        end: { type: 'number', description: 'Fin du passage, en secondes (30 s au plus après le début).' },
+        what: { type: 'string', enum: ['voicing', 'enchainement', 'lick'], description: 'Ce qu\'on reprend : ses voicings, son enchaînement (accords de passage) ou son lick (run, fill).' },
+        chords: { type: 'array', items: { type: 'string' }, description: 'La progression cible écrite en accords dans la tonalité demandée (4-5-3-6-2-5-1 en Do : ["Fmaj7","G7","Em7","Am7","Dm7","G7","Cmaj7"]).' },
+        title: { type: 'string', description: 'Titre court de l\'exemple.' },
+      },
+      required: ['start', 'end', 'what', 'chords'],
     },
   },
 };
@@ -707,10 +735,112 @@ function chordRootPc(symbol) {
   return (LETTER_PCS[m[1]] + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0) + 12) % 12;
 }
 
+// ── Pédagogie IA : reprendre ce que fait le prof ─────────────────────────────────
+
+const NO_TEACHER_NOTES = '_(Je n\'ai pas les notes exactes jouées par le professeur dans cette vidéo : l\'application n\'a pas pu lire son clavier. Je peux te faire entendre un exemple équivalent de l\'application.)_';
+
+/**
+ * [Claude] — 2026-10-03 — La progression cible : des accords (« Fmaj7 », « G7 »), ou des
+ * degrés (« 4-5-3-6-2-5-1 », ["4","5","1"]) écrits dans la tonalité `key`.
+ */
+export function transferTargets(chords, key = 'C') {
+  const list = Array.isArray(chords) ? chords : typeof chords === 'string' ? chords.split(/[\s,→>|]+/) : [];
+  const clean = list.map((c) => String(c || '').trim()).filter(Boolean);
+  const degrees = clean.length === 1 ? clean[0] : clean.length > 1 && clean.every((c) => /^([1-7]|[iv]{1,3}|[IV]{1,3})$/.test(c)) ? clean.join('-') : null;
+  if (degrees) {
+    const fromDegrees = progressionFromDegrees(degrees, key || 'C');
+    if (fromDegrees) return fromDegrees;
+  }
+  return clean;
+}
+
+/** apply_tutorial_passage : l'exemple, et le texte des notes obtenues (ou ce qui manque). */
+function tutorialTransferExample(tutorial, args = {}) {
+  const notes = tutorial?.noteEvents || [];
+  if (!notes.length) return { example: null, note: NO_TEACHER_NOTES };
+  const moment = tutorial.moment || null;
+  const start = Number.isFinite(Number(args.start)) && args.start !== null && args.start !== '' ? Number(args.start) : moment?.start;
+  const end = Number.isFinite(Number(args.end)) && args.end !== null && args.end !== '' ? Number(args.end) : moment?.end;
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+    return { example: null, note: '_(Je ne sais pas de quel passage du prof tu parles : lance la vidéo jusqu\'au moment voulu, puis repose ta question.)_' };
+  }
+  const targets = transferTargets(args.chords, args.key || tutorial.key || 'C');
+  const result = applyTutorialPassage({
+    notes, chords: tutorial.chords || [], start, end, what: args.what, targets, title: args.title ? String(args.title) : '',
+  });
+  if (!result.example) return { example: null, note: `_(${result.error || 'Je n\'ai pas pu reprendre ce passage du prof.'})_` };
+  return { example: result.example, text: result.text };
+}
+
+/** « Ce voicing » : le dernier accord du passage, de son attaque à la fin du passage (6 s au plus). */
+function lastChordSpan(moment) {
+  if (!moment || !Number.isFinite(moment.start) || !Number.isFinite(moment.end)) return null;
+  const chords = (moment.chords || []).filter((c) => Number.isFinite(c?.start) && c.start < moment.end - 0.3);
+  const last = chords[chords.length - 1];
+  const start = last ? Math.max(moment.start, last.start) : Math.max(moment.start, moment.end - 4);
+  let end = last && Number.isFinite(last.end) ? Math.min(moment.end, last.end) : moment.end;
+  if (end - start < 1) end = moment.end;
+  return { start, end: Math.min(end, start + 6) };
+}
+
+/** « Le voicing de 1:12 » : l'accord de la grille qui sonne à cet instant (6 s au plus). */
+function chordSpanAt(chords, at) {
+  const seg = (chords || []).find((c) => Number.isFinite(c?.start) && c.start <= at + 0.25 && (Number.isFinite(c.end) ? c.end : Infinity) > at);
+  if (!seg) return { start: at, end: at + 4 };
+  const end = Number.isFinite(seg.end) ? seg.end : seg.start + 4;
+  return { start: seg.start, end: Math.min(end, seg.start + 6) };
+}
+
+/**
+ * [Claude] — 2026-10-03 — Pédagogie IA : pour une demande claire sur le passage du prof
+ * (parseTutorialRequest), l'outil qui reprend SES notes, quand le modèle ne l'a pas
+ * appelé (aucun outil, ou play_progression qui jouerait des voicings de l'application).
+ * Le passage : le moment cité dans la question (« le lick de 1:12 ») ou, à défaut, celui
+ * que le pianiste regarde. Les suggestions du modèle sont gardées. null : rien à imposer
+ * (le modèle a appelé l'outil du prof, ou on ne sait pas de quel passage il parle).
+ * @param {object|null} ask - parseTutorialRequest(message)
+ * @param {object[]|undefined} rawToolCalls - appels du modèle
+ * @param {{moment?: object, chords?: object[], key?: string|null}} tutorial
+ */
+export function tutorialToolCalls(ask, rawToolCalls, tutorial) {
+  if (!ask || !tutorial) return null;
+  const moment = tutorial.moment && Number.isFinite(tutorial.moment.start) && Number.isFinite(tutorial.moment.end) ? tutorial.moment : null;
+  const at = Number.isFinite(ask.at) ? ask.at : null;
+  const window = at !== null ? { start: at, end: at + 8 } : moment;
+  if (!window) return null;
+  const calls = Array.isArray(rawToolCalls) ? rawToolCalls : [];
+  const names = calls.map((c) => c?.function?.name);
+  const keep = calls.filter((c) => c?.function?.name === 'suggest_actions');
+  const call = (name, args) => [{ function: { name, arguments: JSON.stringify(args) } }, ...keep];
+  const round = (n) => Math.round(n * 10) / 10;
+  if (ask.kind === 'apply') {
+    if (names.includes('apply_tutorial_passage')) return null;
+    const key = ask.key || tutorial.key || 'C';
+    let chords = ask.chords || null;
+    if (!chords && ask.progression) {
+      // Les accords que le modèle a écrits pour ces degrés (play_progression), s'il y en a
+      // autant ; sinon les accords diatoniques de la tonalité.
+      const degrees = ask.progression.split('-').length;
+      const fromModel = calls.find((c) => c?.function?.name === 'play_progression');
+      let written = null;
+      try { written = fromModel ? JSON.parse(fromModel.function.arguments || '{}').chords : null; } catch (_) { written = null; }
+      chords = Array.isArray(written) && written.length === degrees ? written : ask.progression;
+    }
+    return call('apply_tutorial_passage', { start: round(window.start), end: round(window.end), what: ask.what || 'auto', chords, key });
+  }
+  if (names.includes('play_tutorial_passage') || names.includes('apply_tutorial_passage')) return null;
+  if (ask.kind === 'otherKey') return call('play_tutorial_passage', { start: round(window.start), end: round(window.end), transposeTo: ask.key });
+  if (ask.kind === 'voicing') {
+    const span = at !== null ? chordSpanAt(tutorial.chords, at) : lastChordSpan(moment);
+    return span ? call('play_tutorial_passage', { start: round(span.start), end: round(span.end), title: 'Le voicing du prof' }) : null;
+  }
+  return null;
+}
+
 /** Un résultat de relance sans exemple garde celui de la première réponse. */
 function keepExample(next, previous) {
   if (next?.example || !previous?.example) return next;
-  return { ...next, example: previous.example, played: previous.played, voicing: next.voicing || previous.voicing };
+  return { ...next, example: previous.example, played: previous.played, voicing: next.voicing || previous.voicing, transferText: previous.transferText };
 }
 
 // Techniques demandées au Copilote → techniques de l'Exercice.
@@ -742,10 +872,11 @@ export function executeToolCalls(toolCalls, assistantContent = '', { styleId = '
   let capturedVoicing = null;
   let example = null;
   let content = assistantContent;
+  let transferText = '';
   const noteCalls = [];
   if (!Array.isArray(toolCalls)) return { played, ignored, suggestions, voicing: capturedVoicing, example };
 
-  const audioPriorities = { play_my_playing: -1, play_melody_chords: -1, play_tutorial_passage: -1, play_exercise: -1, play_progression: 0, play_voicing: 1, play_lick: 2, play_note: 3 };
+  const audioPriorities = { apply_tutorial_passage: -2, play_my_playing: -1, play_melody_chords: -1, play_tutorial_passage: -1, play_exercise: -1, play_progression: 0, play_voicing: 1, play_lick: 2, play_note: 3 };
   let dominantAudioTool = null;
   let dominantPriority = Infinity;
   for (const call of toolCalls) {
@@ -798,6 +929,15 @@ export function executeToolCalls(toolCalls, assistantContent = '', { styleId = '
         const note = `_(Aucune note du professeur n'a été lue entre ${formatTime(Number(args.start))} et ${formatTime(Number(args.end))}.)_`;
         content = content ? `${content}\n\n${note}` : note;
       }
+    } else if (fn === 'apply_tutorial_passage') {
+      // [Claude] — 2026-10-03 — Ce que fait le prof, reconstruit sur la progression demandée.
+      if (example) { ignored += 1; continue; }
+      const applied = tutorialTransferExample(tutorial, parseArgs(call) || {});
+      example = applied.example;
+      if (!example) ignored += 1;
+      if (applied.text) transferText = applied.text;
+      const extra = applied.text || applied.note;
+      if (extra) content = content ? `${content}\n\n${extra}` : extra;
     } else if (fn === 'play_my_playing') {
       // [Claude] — 2026-09-25 — Le jeu exact du pianiste (session ou dernier passage).
       if (example) { ignored += 1; continue; }
@@ -924,6 +1064,9 @@ export function executeToolCalls(toolCalls, assistantContent = '', { styleId = '
 
   const result = { played, ignored, suggestions, voicing: capturedVoicing, example };
   if (content !== assistantContent) result.content = content;
+  // Les notes écrites par l'application (apply_tutorial_passage) : gardées si une
+  // relance remplace le texte du modèle (voir finalizeContent).
+  if (transferText && example) result.transferText = transferText;
   if (collapsed && toolCalls.length > 0) result.keyboardCollapsed = true;
   return result;
 }
@@ -1025,6 +1168,7 @@ function formatContext(context, options = {}) {
       lines.push('## Notes jouées par le professeur (moment accord : main gauche | main droite · puis la ligne jouée)');
       lines.push(...context.notesTimeline);
       lines.push("Pour faire entendre un passage, un lick ou un voicing du professeur : play_tutorial_passage (start, end en secondes ; hand ; transposeTo pour l'appliquer dans une autre tonalité).");
+      lines.push('Pour appliquer ses voicings, son enchaînement ou son lick à une autre progression : apply_tutorial_passage (start, end, what, chords).');
     } else {
       lines.push(`Notes jouées par le professeur : non disponibles (${context?.notesUnavailable || "le clavier de la vidéo n'a pas pu être lu"}). Tu ne peux pas rejouer ses licks à l'identique : dis-le simplement et propose un exemple de l'application.`);
     }
@@ -1151,7 +1295,7 @@ function buildChatCompletionPayload(config, payloadMessages, { includeTools = tr
   if (includeTools) {
     body.tools = [PLAY_NOTE_TOOL, SUGGEST_ACTIONS_TOOL, PLAY_VOICING_TOOL, PLAY_LICK_TOOL, PLAY_PROGRESSION_TOOL, PLAY_MELODY_CHORDS_TOOL];
     // Outils du tutoriel seulement quand ses notes sont connues.
-    if (tutorialTools) body.tools.push(PLAY_TUTORIAL_PASSAGE_TOOL);
+    if (tutorialTools) body.tools.push(PLAY_TUTORIAL_PASSAGE_TOOL, APPLY_TUTORIAL_PASSAGE_TOOL);
     if (exerciseTools) body.tools.push(PLAY_EXERCISE_TOOL);
     // Jeu du pianiste (session confiée, dernier passage) : seulement quand on l'a.
     if (playingTools) body.tools.push(PLAY_MY_PLAYING_TOOL);
@@ -1237,6 +1381,9 @@ function finalizeContent(content, toolResult, requestedDemo = false) {
   // réponse entière était remplacée par « Le clavier MIDI virtuel est masqué »).
   if (toolResult.example) {
     let text = content || `Écoute l'exemple ci-dessous : ${toolResult.example.title}.`;
+    // [Claude] — 2026-10-03 — Les notes calculées pour la progression demandée restent
+    // sous la réponse, même quand une relance en a remplacé le texte.
+    if (toolResult.transferText && !text.includes(toolResult.transferText)) text += `\n\n${toolResult.transferText}`;
     if (requestedDemo && toolResult.keyboardCollapsed) text += '\n\n_(Le clavier virtuel est masqué : affiche-le pour voir les touches pendant l\'exemple.)_';
     return text;
   }
@@ -1264,8 +1411,9 @@ export async function sendCopilotMessage({ message, messages, context, copilotSt
 
   const contextText = formatContext(context || {}, { copilotStyleId });
   // [Claude] — 2026-09-25 — Notes du professeur (tutoriel) : pour ses outils, pas pour le texte.
+  // [Claude] — 2026-10-03 — Plus la grille et le passage regardé (apply_tutorial_passage).
   const tutorialData = context?.type === 'tutorial' && Array.isArray(context.noteEvents) && context.noteEvents.length
-    ? { noteEvents: context.noteEvents, key: context.key || null }
+    ? { noteEvents: context.noteEvents, key: context.key || null, chords: Array.isArray(context.chords) ? context.chords : [], moment: context.moment || null }
     : null;
   // [Claude] — 2026-09-25 — Exercice affiché : ses voicings pour play_exercise.
   const exerciseData = context?.type === 'exercise' && Array.isArray(context.chords) && context.chords.length ? context : null;
@@ -1324,7 +1472,7 @@ export async function sendCopilotMessage({ message, messages, context, copilotSt
     // mais que le message utilisateur est clair, on exécute directement l'outil
     // adapté côté client sans attendre le LLM.
     let forcedToolCalls = null;
-    const noAudioToolCalled = !Array.isArray(rawToolCalls) || !rawToolCalls.some((c) => ['play_voicing', 'play_lick', 'play_progression', 'play_note', 'play_tutorial_passage', 'play_exercise', 'play_my_playing', 'play_melody_chords'].includes(c?.function?.name));
+    const noAudioToolCalled = !Array.isArray(rawToolCalls) || !rawToolCalls.some((c) => ['play_voicing', 'play_lick', 'play_progression', 'play_note', 'play_tutorial_passage', 'apply_tutorial_passage', 'play_exercise', 'play_my_playing', 'play_melody_chords'].includes(c?.function?.name));
     // [Claude] — 2026-09-25 — Avis sur un passage joué (« je joue un 2-5-1, c'est
     // bon ? ») : c'est son jeu qu'on commente ; aucun exemple n'est imposé (le
     // modèle en joint un s'il aide), aucune relance.
@@ -1336,7 +1484,21 @@ export async function sendCopilotMessage({ message, messages, context, copilotSt
     // mélodie en melody chords » demande des accords).
     const chordsAsked = !review && message && wantsMelodyChords(message);
     const chordsRequest = chordsAsked ? melodyChordsRequest(message, { playing: playingData }) : null;
-    if (toolsMode && noAudioToolCalled && chordsRequest) {
+    // [Claude] — 2026-10-03 — Pédagogie IA : une demande claire sur le passage du prof
+    // (l'appliquer à une progression, l'entendre dans une autre tonalité, « ce voicing »)
+    // reçoit l'outil qui reprend SES notes ; « qu'a-t-il voulu dire ? » : l'explication seule.
+    const tutorialAsk = tutorialData && message && !review ? parseTutorialRequest(message) : null;
+    const tutorialCalls = toolsMode && tutorialAsk ? tutorialToolCalls(tutorialAsk, rawToolCalls, tutorialData) : null;
+    const usedTeacherTool = Array.isArray(rawToolCalls) && rawToolCalls.some((c) => ['play_tutorial_passage', 'apply_tutorial_passage'].includes(c?.function?.name));
+    // Traitée : l'outil du prof est appelé (par le modèle ou ici), ou l'explication seule suffit.
+    const tutorialHandled = Boolean(tutorialCalls) || Boolean(tutorialAsk && (tutorialAsk.kind === 'meaning' || usedTeacherTool));
+    if (tutorialCalls) {
+      forcedToolCalls = tutorialCalls;
+    } else if (tutorialHandled || tutorialAsk?.kind === 'apply') {
+      // Le modèle a déjà choisi l'outil du prof ; ou une demande d'application sans
+      // passage connu : jamais les voicings de l'application à la place (la relance
+      // rappelle apply_tutorial_passage).
+    } else if (toolsMode && noAudioToolCalled && chordsRequest) {
       forcedToolCalls = [{ function: { name: 'play_melody_chords', arguments: JSON.stringify(chordsRequest) } }];
     } else if (toolsMode && noAudioToolCalled && mine && playingData && !chordsAsked) {
       forcedToolCalls = [{ function: { name: 'play_my_playing', arguments: JSON.stringify(mine) } }];
@@ -1426,10 +1588,18 @@ export async function sendCopilotMessage({ message, messages, context, copilotSt
     // Un exemple est déjà prêt (outil du modèle ou routage d'intention) : pas de relance.
     // Son propre jeu demandé : jamais de relance vers un exemple recomposé.
     const hasExample = Boolean(toolResult.example);
-    if (!review && !mine && !chordsAsked && !hasExample && (shouldRetryDemo || (requestedDemo && toolResult.played.length <= 1 && !keyboardCollapsed) || shouldRetryVoicing || shouldRetryLick || shouldRetryProgression)) {
+    // Pédagogie IA : une demande sur le passage du prof déjà traitée (outil du prof, ou
+    // explication seule) n'est jamais relancée vers un exemple de l'application.
+    if (!review && !mine && !chordsAsked && !tutorialHandled && !hasExample && (shouldRetryDemo || (requestedDemo && toolResult.played.length <= 1 && !keyboardCollapsed) || shouldRetryVoicing || shouldRetryLick || shouldRetryProgression)) {
       const playedCount = toolResult.played.length;
       let reminder = "";
-      if (shouldRetryVoicing) {
+      if (tutorialData) {
+        reminder = "[Rappel interne, ne pas mentionner au pianiste] S'il parle de ce que joue le professeur, " +
+          "fais-le entendre avec play_tutorial_passage (start et end du passage, voir « Le moment dont parle le pianiste ») ; " +
+          "pour l'appliquer à une autre progression, apply_tutorial_passage (start, end, what, chords). " +
+          "Sinon, l'outil adapté (play_voicing, play_progression, play_lick). Appelle l'outil maintenant, " +
+          "sans reformuler ton explication ni évoquer ce rappel.";
+      } else if (shouldRetryVoicing) {
         reminder = "[Rappel interne, ne pas mentionner au pianiste] L'utilisateur a demandé un voicing. " +
           "Tu dois impérativement utiliser l'outil play_voicing (pas play_note) pour montrer l'accord " +
           "avec sa répartition main gauche / main droite. Appelle play_voicing maintenant.";
@@ -1567,7 +1737,14 @@ export async function sendCopilotMessage({ message, messages, context, copilotSt
     const expectedKey = context?.key || context?.melody?.scale;
     if (toolsMode && expectedKey) {
       const keyChecks = checkKeyAffirmation(content, expectedKey);
-      const keyMismatch = keyChecks.find((c) => !c.match);
+      // [Claude] — 2026-10-03 — La tonalité que le pianiste a lui-même demandée (« applique-le
+      // en Fa♯ », « que donnerait ce passage en Si♭ ? ») n'est pas une contradiction de
+      // l'analyse : la relance effaçait la réponse et les notes calculées pour cette tonalité.
+      const askedPcs = new Set(extractAffirmedKeys(message || '').map((k) => k.pc));
+      const askedKey = tutorialAsk?.key ? parseKey(tutorialAsk.key) : null;
+      if (askedKey) askedPcs.add(askedKey.rootPc);
+      const affirmedPcs = new Map(extractAffirmedKeys(content).map((k) => [k.keyName, k.pc]));
+      const keyMismatch = keyChecks.find((c) => !c.match && !askedPcs.has(affirmedPcs.get(c.affirmedKey)));
       if (keyMismatch) {
         if (!retryConsumedThisTurn) {
           const keyReminderText =

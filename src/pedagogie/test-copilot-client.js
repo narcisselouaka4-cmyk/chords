@@ -120,7 +120,8 @@ global.document = {
 };
 
 // 2. Import dynamique APRÈS le setup de window
-const { sendCopilotMessage, executeToolCalls, wantsToHear, myPlayingRequest, melodyChordsRequest, wantsMelodyChords, setCopilotTimeout } = await import('./copilot-client.js');
+const { sendCopilotMessage, executeToolCalls, wantsToHear, myPlayingRequest, melodyChordsRequest, wantsMelodyChords, setCopilotTimeout, tutorialToolCalls, transferTargets } = await import('./copilot-client.js');
+const { applyQuestion, otherKeyQuestion, voicingQuestion, whatHeMeantQuestion, parseTutorialRequest } = await import('./tutorial-questions.js');
 
 const GREEN = '\x1b[32m';
 const RED = '\x1b[31m';
@@ -1266,14 +1267,22 @@ async function testTutorialContextInPrompt() {
     notesTimeline: ['- 0:00 Dm9 : Ré2 | Fa3 La3 Do4 Mi4', '- 0:02 G13 : — | Ré5 · puis Ré#5 Mi5'],
     noteEvents: TUTORIAL.noteEvents,
   };
-  await sendCopilotMessage({ message: 'Joue-moi le lick de 0:02 en Fa', messages: [], context });
+  const inF = await sendCopilotMessage({ message: 'Joue-moi le lick de 0:02 en Fa', messages: [], context });
   const system = body?.messages?.[0]?.content || '';
   const tools = (body?.tools || []).map((t) => t.function?.name);
   check('Tutoriel : relevé, résumé du cours et frise des notes dans le contexte',
     /Relevé : lu à l'image \(clavier dessiné\)/.test(system) && /## Résumé du cours/.test(system) && /- 0:02 G13 : — \| Ré5 · puis Ré#5 Mi5/.test(system), system.slice(-900));
   check('Tutoriel avec notes : outil play_tutorial_passage proposé (plus de show_tutorial_moment ni d\'annotate_keyboard)', tools.includes('play_tutorial_passage') && !tools.includes('show_tutorial_moment') && !tools.includes('annotate_keyboard'), tools.join(','));
+  // [Claude] — 2026-10-03 — « Le lick de 0:02 en Fa » : ses notes, transposées, tout de
+  // suite (repli déterministe) ; avant, il fallait relancer le modèle.
+  const inFOns = (inF.toolResult?.example?.events || []).filter((e) => e.type === 'noteOn').map((e) => e.note).join(',');
+  check('Tutoriel : « le lick de 0:02 en Fa » rejoué transposé sans relance', inFOns === '79,80,81' && bodies.length === 1, `${inFOns} appels=${bodies.length}`);
+  body = null;
+  bodies.length = 0;
+  await sendCopilotMessage({ message: 'Joue-moi son lick, s\'il te plaît', messages: [], context });
   check('Tutoriel : la relance (exemple annoncé sans outil) garde les outils du tutoriel',
-    bodies.length === 2 && (bodies[1].tools || []).some((t) => t.function?.name === 'play_tutorial_passage'), `appels=${bodies.length}`);
+    bodies.length === 2 && (bodies[1].tools || []).some((t) => t.function?.name === 'play_tutorial_passage')
+    && /play_tutorial_passage \(start et end du passage/.test(bodies[1].messages?.[bodies[1].messages.length - 1]?.content || ''), `appels=${bodies.length}`);
   body = null;
   bodies.length = 0;
   await sendCopilotMessage({ message: 'Joue-moi le lick de 0:02', messages: [], context: { ...context, notesTimeline: [], noteEvents: [], notesUnavailable: 'le clavier n\'est pas lisible à l\'image' } });
@@ -1281,6 +1290,122 @@ async function testTutorialContextInPrompt() {
   const tools2 = (body?.tools || []).map((t) => t.function?.name);
   check('Tutoriel sans notes : la raison est dite au modèle, pas d\'outil de passage',
     /non disponibles \(le clavier n'est pas lisible à l'image\)/.test(system2) && !tools2.includes('play_tutorial_passage'), `${tools2.join(',')}`);
+  global.fetch = originalFetch;
+}
+
+// [Claude] — 2026-10-03 — Pédagogie IA : appliquer ce que fait le prof à une autre
+// progression (apply_tutorial_passage). Les questions sur son passage reçoivent
+// toujours l'outil qui reprend SES notes, sans relance vers un exemple de l'application.
+// Le prof : Dm9 (Ré2 | Fa3 La3 Do4 Mi4), G13 (Sol2 | Fa3 Si3 Mi4), Cmaj9 (Do2 | Mi3 Sol3 Si3 Ré4).
+const TEACHER_GRID = [{ start: 0, end: 2, label: 'Dm9' }, { start: 2, end: 4, label: 'G13' }, { start: 4, end: 6, label: 'Cmaj9' }];
+const TEACHER_NOTES = [
+  { midi: 38, start: 0, end: 1.9, hand: 'lh' }, { midi: 53, start: 0, end: 1.9, hand: 'rh' }, { midi: 57, start: 0, end: 1.9, hand: 'rh' },
+  { midi: 60, start: 0, end: 1.9, hand: 'rh' }, { midi: 64, start: 0, end: 1.9, hand: 'rh' },
+  { midi: 43, start: 2, end: 3.9, hand: 'lh' }, { midi: 53, start: 2, end: 3.9, hand: 'rh' }, { midi: 59, start: 2, end: 3.9, hand: 'rh' }, { midi: 64, start: 2, end: 3.9, hand: 'rh' },
+  { midi: 36, start: 4, end: 6, hand: 'lh' }, { midi: 52, start: 4, end: 6, hand: 'rh' }, { midi: 55, start: 4, end: 6, hand: 'rh' },
+  { midi: 59, start: 4, end: 6, hand: 'rh' }, { midi: 62, start: 4, end: 6, hand: 'rh' },
+];
+const TEACHER_MOMENT = { now: 6, start: 0, end: 6, fromLoop: false, chords: TEACHER_GRID, noteCount: 14, timeline: ['- 0:00 Dm9 : Ré2 | Fa3 La3 Do4 Mi4'], transcript: [] };
+const TEACHER = { key: 'C', noteEvents: TEACHER_NOTES, chords: TEACHER_GRID, moment: TEACHER_MOMENT };
+
+function testApplyTutorialPassageTool() {
+  document.resetMock();
+  document.setPanel(false);
+  const call = (args) => ({ function: { name: 'apply_tutorial_passage', arguments: JSON.stringify(args) } });
+  const names = (r) => (r.example?.chords || []).map((c) => c.name).join(' ');
+  const applied = executeToolCalls([call({ start: 0, end: 6, what: 'voicing', chords: ['Gm7', 'C7', 'Fmaj7'], title: 'Ses voicings en Fa' })], 'Il garde la même forme d\'accord en accord.', { tutorial: TEACHER });
+  check('apply_tutorial_passage : ses voicings posés sur la progression demandée', names(applied) === 'Gm7 C7 Fmaj7' && applied.example.title === 'Ses voicings en Fa', names(applied));
+  check('apply_tutorial_passage : les notes de chaque accord écrites sous la réponse, par l\'application',
+    (applied.content || '').startsWith('Il garde la même forme d\'accord en accord.')
+    && /\*\*Gm7\*\* : main gauche Sol2 · main droite Si♭3 Ré4 Fa4 La4/.test(applied.content || '')
+    && /\*\*C7\*\* : main gauche Do3 · main droite Si♭3 Mi4 La4/.test(applied.content || ''), applied.content);
+  check('apply_tutorial_passage : ces notes sont gardées à part (relance éventuelle)', /\*\*Fmaj7\*\*/.test(applied.transferText || ''));
+  const degrees = executeToolCalls([call({ start: 0, end: 6, what: 'voicing', chords: ['2-5-1'] })], '', { tutorial: TEACHER });
+  check('apply_tutorial_passage : progression en degrés, dans la tonalité du tutoriel', names(degrees) === 'Dm7 G7 Cmaj7', names(degrees));
+  check('progression cible : degrés dans une tonalité donnée, ou accords tels quels', transferTargets('4-5-1', 'Fa').join(' ') === 'Bbmaj7 C7 Fmaj7'
+    && transferTargets(['ii', 'V', 'I'], 'Bb').join(' ') === 'Cm7 F7 Bbmaj7' && transferTargets(['Fmaj7', 'E7'], 'C').join(' ') === 'Fmaj7 E7');
+  const both = executeToolCalls([
+    { function: { name: 'play_progression', arguments: JSON.stringify({ chords: ['Dm7', 'G7', 'Cmaj7'] }) } },
+    call({ start: 0, end: 6, what: 'voicing', chords: ['Dm7', 'G7', 'Cmaj7'] }),
+  ], '', { tutorial: TEACHER });
+  check('apply_tutorial_passage l\'emporte sur play_progression (voicings de l\'application)', both.example?.kind === 'tutorial-transfer' && both.ignored === 1, `${both.example?.kind} ${both.ignored}`);
+  const none = executeToolCalls([call({ start: 0, end: 6, what: 'voicing', chords: ['Fmaj7'] })], 'Voici.', { tutorial: null });
+  check('apply_tutorial_passage sans notes du prof : pas d\'exemple, message honnête', !none.example && /pas les notes exactes jouées par le professeur/.test(none.content || ''), none.content);
+  const far = executeToolCalls([call({ start: 30, end: 40, what: 'voicing', chords: ['Fmaj7'] })], '', { tutorial: TEACHER });
+  check('apply_tutorial_passage sur un passage sans accord net : dit simplement', !far.example && /pas trouvé d'accord du prof assez net/.test(far.content || ''), far.content);
+}
+
+function testTutorialRouting() {
+  const apply = parseTutorialRequest(applyQuestion({ kind: 'voicing', progression: '4-5-3-6-2-5-1', key: 'F#' }));
+  check('« Appliquer à une progression » : reconnu (quoi, degrés, tonalité)', apply?.kind === 'apply' && apply.what === 'voicing' && apply.progression === '4-5-3-6-2-5-1' && apply.key === 'Fa♯', JSON.stringify(apply));
+  const free = parseTutorialRequest('Comment est-ce qu\'on appliquerait ce qu\'il vient de faire dans une progression 4-5-3-6-2-5-1 ?');
+  check('la question de Narcisse, tapée telle quelle : reconnue', free?.kind === 'apply' && free.progression === '4-5-3-6-2-5-1' && free.what === null, JSON.stringify(free));
+  check('« Que donnerait ce voicing en Fa dièse alors qu\'il est en Do ? » : autre tonalité (Fa dièse)', parseTutorialRequest('Que donnerait ce voicing dans la gamme de Fa dièse alors qu\'il est en Do ?')?.key === 'Fa dièse');
+  check('« Joue-moi un 2-5-1 en Do » : question générale, pas le passage du prof', parseTutorialRequest('Joue-moi un 2-5-1 en Do') === null);
+  check('« Ce voicing ? » et « Qu\'a-t-il voulu dire ? » reconnus', parseTutorialRequest(voicingQuestion())?.kind === 'voicing' && parseTutorialRequest(whatHeMeantQuestion())?.kind === 'meaning');
+
+  const forced = tutorialToolCalls(apply, undefined, TEACHER);
+  const args = JSON.parse(forced?.[0]?.function?.arguments || '{}');
+  check('aucun outil appelé : apply_tutorial_passage sur le passage regardé, degrés et tonalité',
+    forced?.[0]?.function?.name === 'apply_tutorial_passage' && args.start === 0 && args.end === 6 && args.what === 'voicing' && args.chords === '4-5-3-6-2-5-1' && args.key === 'Fa♯', JSON.stringify(args));
+  const gospel = ['Bmaj7', 'C#7', 'A#7', 'D#7', 'G#m7', 'C#7', 'F#maj7'];
+  const redirected = tutorialToolCalls(apply, [
+    { function: { name: 'play_progression', arguments: JSON.stringify({ chords: gospel }) } },
+    { function: { name: 'suggest_actions', arguments: JSON.stringify({ actions: [{ label: 'En Do', message: 'Et en Do ?' }] }) } },
+  ], TEACHER);
+  const rArgs = JSON.parse(redirected?.[0]?.function?.arguments || '{}');
+  check('play_progression à la place : redirigé vers apply_tutorial_passage, avec les accords écrits par le modèle, suggestions gardées',
+    redirected?.[0]?.function?.name === 'apply_tutorial_passage' && rArgs.chords.join(' ') === gospel.join(' ') && redirected[1]?.function?.name === 'suggest_actions', JSON.stringify(rArgs));
+  check('apply_tutorial_passage déjà appelé : rien à imposer', tutorialToolCalls(apply, [{ function: { name: 'apply_tutorial_passage', arguments: '{}' } }], TEACHER) === null);
+  const voicing = tutorialToolCalls({ kind: 'voicing' }, undefined, TEACHER);
+  const vArgs = JSON.parse(voicing?.[0]?.function?.arguments || '{}');
+  check('« Ce voicing ? » : le dernier accord du passage, rejoué tel quel', voicing?.[0]?.function?.name === 'play_tutorial_passage' && vArgs.start === 4 && vArgs.end === 6, JSON.stringify(vArgs));
+  const otherKey = tutorialToolCalls({ kind: 'otherKey', key: 'Si♭' }, undefined, TEACHER);
+  check('« Autre tonalité » : le passage transposé', otherKey?.[0]?.function?.name === 'play_tutorial_passage' && JSON.parse(otherKey[0].function.arguments).transposeTo === 'Si♭');
+  check('« Qu\'a-t-il voulu dire ? » : l\'explication seule', tutorialToolCalls({ kind: 'meaning' }, undefined, TEACHER) === null);
+  check('sans passage regardé : rien à imposer', tutorialToolCalls(apply, undefined, { ...TEACHER, moment: null }) === null);
+}
+
+async function testTutorialApplyInSend() {
+  document.resetMock();
+  document.setPanel(false);
+  const originalFetch = global.fetch;
+  const bodies = [];
+  let reply = { role: 'assistant', content: '' };
+  global.fetch = async (url, options) => {
+    bodies.push(JSON.parse(options.body));
+    return { ok: true, status: 200, json: async () => ({ choices: [{ message: reply }] }) };
+  };
+  global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
+  const context = { type: 'tutorial', path: '/t/cours.mp4', name: 'Cours de gospel', key: 'C', chords: TEACHER_GRID, noteEvents: TEACHER_NOTES, notesTimeline: TEACHER_MOMENT.timeline, moment: TEACHER_MOMENT };
+
+  reply = { role: 'assistant', content: 'Le prof garde la fondamentale seule à gauche et une forme à quatre sons à droite. En Fa♯, la progression devient **G#m7 → C#7 → F#maj7**.' };
+  const res = await sendCopilotMessage({ message: applyQuestion({ kind: 'voicing', progression: '2-5-1', key: 'F#' }), messages: [], context });
+  const tools = (bodies[0]?.tools || []).map((t) => t.function?.name);
+  check('Pédagogie : apply_tutorial_passage proposé au modèle', tools.includes('apply_tutorial_passage') && tools.includes('play_tutorial_passage'), tools.join(','));
+  check('Pédagogie : sans outil du modèle, ses voicings sont quand même appliqués (Fa♯)',
+    res.ok && res.toolResult.example?.kind === 'tutorial-transfer' && res.toolResult.example.chords.map((c) => c.name).join(' ') === 'G#m7 C#7 F#maj7', JSON.stringify(res.toolResult?.example?.chords?.map((c) => c.name)));
+  check('Pédagogie : un seul appel (pas de relance, pas de « correction » de la tonalité demandée)', bodies.length === 1, `appels=${bodies.length}`);
+  check('Pédagogie : la réponse garde l\'explication puis donne les notes calculées', res.content.startsWith('Le prof garde la fondamentale seule') && /\*\*G#m7\*\* : main gauche/.test(res.content), res.content);
+  check('Pédagogie : « Fais-la-moi entendre » : l\'exemple démarre après la réponse', res.autoplay === true);
+
+  bodies.length = 0;
+  reply = { role: 'assistant', content: 'Il joue un voicing avec la 7e et la 3ce à la main droite.' };
+  const voicing = await sendCopilotMessage({ message: voicingQuestion(), messages: [], context });
+  check('« Ce voicing ? » : son dernier accord rejoué tel quel, un seul appel',
+    voicing.toolResult.example?.tutorialStart === 4 && voicing.toolResult.example?.tutorialEnd === 6 && bodies.length === 1 && !/n'ai pas réussi/.test(voicing.content), `${voicing.toolResult.example?.tutorialStart} appels=${bodies.length}`);
+
+  bodies.length = 0;
+  reply = { role: 'assistant', content: 'Il montre comment la 7e de Dm9 descend sur la tierce de G13.' };
+  const meaning = await sendCopilotMessage({ message: whatHeMeantQuestion(), messages: [], context });
+  check('« Qu\'a-t-il voulu dire ? » : l\'explication seule, sans relance ni remarque', !meaning.toolResult.example && bodies.length === 1 && !/n'ai pas réussi/.test(meaning.content), `appels=${bodies.length} ${meaning.content}`);
+
+  bodies.length = 0;
+  reply = { role: 'assistant', content: 'En Si♭, tout descend d\'un ton.' };
+  const inBb = await sendCopilotMessage({ message: otherKeyQuestion('Bb'), messages: [], context });
+  const firstOn = (inBb.toolResult.example?.events || []).find((e) => e.type === 'noteOn');
+  check('« Autre tonalité » : son passage transposé (Do → Si♭ : un ton plus bas), un seul appel', firstOn?.note === 36 && bodies.length === 1, `${firstOn?.note} appels=${bodies.length}`);
+
   global.fetch = originalFetch;
 }
 
@@ -1580,6 +1705,9 @@ async function runTests() {
   testNoKeyboardLabels();
   testTutorialPassageTool();
   await testTutorialContextInPrompt();
+  testApplyTutorialPassageTool();
+  testTutorialRouting();
+  await testTutorialApplyInSend();
   testExerciseTool();
   await testExerciseContextInPrompt();
   testMyPlayingTool();

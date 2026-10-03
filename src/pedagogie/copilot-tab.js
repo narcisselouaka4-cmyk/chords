@@ -461,7 +461,10 @@ function renderExampleCard(msg) {
     el('strong', { text: example.title || 'Exemple' }),
     example.subtitle ? el('small', { text: example.subtitle }) : null,
   ]);
-  const hands = (example.chords || []).slice(0, 4).filter((c) => c.leftHand?.length || c.rightHand?.length);
+  // [Claude] — 2026-10-03 — Ce que fait le prof, appliqué à une progression : toutes ses
+  // notes sont déjà écrites dans la réponse, accord par accord ; la carte ne les répète pas.
+  const hands = example.kind === 'tutorial-transfer' ? []
+    : (example.chords || []).slice(0, 4).filter((c) => c.leftHand?.length || c.rightHand?.length);
   if (hands.length) {
     const list = el('ul', { className: 'copilot-example-hands' });
     for (const c of hands) {
