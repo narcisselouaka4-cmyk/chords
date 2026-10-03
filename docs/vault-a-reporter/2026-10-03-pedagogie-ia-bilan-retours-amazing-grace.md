@@ -68,6 +68,8 @@ Ses choix :
   par lot, sans erreur. Ils couvrent : import et attente, retour aux cartes, mémoire,
   Copilote en direct, outils, parole, plage, barre de lecture, transferts (voicings,
   enchaînement, lick). Plus `demo-live` (démo des Exercices, même lecteur).
+- Repassés tous ensemble sur la version finale : 22 passages (11 scénarios, en sombre et
+  en clair), aucune erreur.
 
 ## À vérifier sur le PC de Narcisse
 1. Importer un tuto, aller dans le Studio pendant l'analyse : le message « prêt » apparaît ;
