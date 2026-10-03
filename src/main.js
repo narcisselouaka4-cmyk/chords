@@ -2272,6 +2272,37 @@ function initPracticeExercise() {
     render();
   });
 
+  // [Claude] — 2026-10-03 — Pédagogie IA, lot 6 : un exemple du Copilote (les voicings du
+  // prof posés sur une progression, ses accords de passage…) s'envoie dans Exercices.
+  // Les grilles Perso et les favoris vivent ici (customGrids, exerciseFavorites) : écrits
+  // ailleurs, ils seraient écrasés à la sauvegarde suivante. `done` répond à la carte.
+  document.addEventListener('exercise-save-grid', (e) => {
+    const { name, chords, done } = e.detail || {};
+    const { grids, grid } = upsertGrid(customGrids, { name, chords });
+    if (grid) {
+      customGrids = grids;
+      saveGrids(window.localStorage, customGrids);
+      renderLibrary();
+    }
+    done?.(grid ? { ok: true, id: grid.id, name: grid.name, count: grid.chords.length } : { ok: false });
+  });
+  document.addEventListener('exercise-open-grid', (e) => {
+    const item = getLibraryItems().find((i) => i.id === e.detail?.id);
+    if (!item) return;
+    document.dispatchEvent(new CustomEvent('app-switch-training-view', { detail: { view: 'exercise' } }));
+    selectLibraryCard(item);
+  });
+  document.addEventListener('exercise-add-favorites', (e) => {
+    const { favorites, done } = e.detail || {};
+    const fresh = (favorites || []).filter((fav) => fav?.key && !exerciseFavorites.some((f) => f.key === fav.key));
+    if (fresh.length) {
+      exerciseFavorites = [...fresh, ...exerciseFavorites];
+      saveFavorites(window.localStorage, exerciseFavorites);
+      render();
+    }
+    done?.({ ok: true, added: fresh.length, already: (favorites || []).length - fresh.length });
+  });
+
   els.exerciseLibrarySearch?.addEventListener('input', (e) => {
     librarySearch = e.target.value;
     renderLibrary();

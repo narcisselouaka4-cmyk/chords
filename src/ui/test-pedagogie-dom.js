@@ -392,5 +392,22 @@ check('Sans ffmpeg : la vignette est prise sur la vidéo pendant la lecture',
   /addEventListener\('timeupdate', captureThumbnailFromPlayer\)/.test(tabCode) && tabCode.includes("toDataURL('image/jpeg'"));
 check('La liste « Mes tutoriels » dit « Déjà lu »', tabCode.includes("read ? 'Déjà lu' : 'Vidéo'"));
 
+// ---------------------------------------------------------------------------
+// 11. [Claude] — 2026-10-03 — Lot 6 : outils de travail
+// ---------------------------------------------------------------------------
+
+const copilotTabCode = stripComments(readText('src/pedagogie/copilot-tab.js'));
+check('Vitesse 0,5× · 0,75× · 1× : playbackRate du lecteur, hauteur du son gardée',
+  /const SPEEDS = \[0\.5, 0\.75, 1\]/.test(tabJs) && /video\.preservesPitch = true;[\s\S]{0,80}video\.playbackRate = speed/.test(tabCode)
+  && html.includes('id="pedagogie-speed"'));
+check('Boucle A-B : elle devient « le passage » du Copilote, un saut voulu hors boucle n\'est pas ramené',
+  /loop = \{ start, end \}/.test(tabCode) && /passageWindow\(video\?\.currentTime, \{ length: passageSeconds, loop/.test(tabCode)
+  && /wasInside && \(t >= loop\.end \|\| video\.ended\) && t - lastLoopTime < 1\.5/.test(tabCode) && html.includes('id="pedagogie-loop"'));
+check('Maj + clic sur un accord de la frise : boucler cet accord', /if \(e\.shiftKey\) loopSegment\(seg\.start, seg\.end\)/.test(tabCode));
+check('Sous un exemple du Copilote : « Ajouter à Ma grille » et « Ajouter aux Favoris », reçus par Exercices (main.js)',
+  copilotTabCode.includes("new CustomEvent('exercise-save-grid'") && copilotTabCode.includes("new CustomEvent('exercise-add-favorites'")
+  && mainJs.includes("document.addEventListener('exercise-save-grid'") && mainJs.includes("document.addEventListener('exercise-add-favorites'")
+  && mainJs.includes("document.addEventListener('exercise-open-grid'"));
+
 console.log(`\n=== Résultat : ${passed}/${total} contrôles passés ===`);
 if (passed < total) process.exitCode = 1;

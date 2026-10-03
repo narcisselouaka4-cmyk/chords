@@ -141,6 +141,11 @@ let restoredAt = null;
 let lastStatus = null;
 // Vignettes déjà demandées pendant cette session (une seule tentative par tuto).
 const thumbTried = new Set();
+// [Claude] — 2026-10-03 — Lot 6 : vitesse de la vidéo (gardée d'un tuto à l'autre) et
+// début de boucle posé (A), en attente de sa fin (B).
+const SPEEDS = [0.5, 0.75, 1];
+let speed = 1;
+let loopStart = null;
 
 // ---------------------------------------------------------------------------
 // Utilitaires
@@ -351,6 +356,7 @@ async function chooseFolder() {
   comparison = null;
   restoredAt = null;
   loop = null;
+  loopStart = null;
   resetNarration();
   destroyVideo();
   setStatus('');
@@ -368,6 +374,7 @@ function selectTrack(path) {
   comparison = null;
   restoredAt = null;
   loop = null;
+  loopStart = null;
   resetNarration();
   setStatus('');
   mountVideo(path);
@@ -556,6 +563,115 @@ function onPlayClick() {
 }
 
 // ---------------------------------------------------------------------------
+// Outils de travail (lot 6) : vitesse, boucle A-B
+// ---------------------------------------------------------------------------
+
+/** Vitesse de la vidéo ; la hauteur du son est gardée (preservesPitch). */
+function applySpeed() {
+  const video = els.videoPlayer;
+  if (!video) return;
+  try {
+    video.preservesPitch = true;
+    video.defaultPlaybackRate = speed;
+    video.playbackRate = speed;
+  } catch (_) { /* lecteur pas prêt */ }
+}
+
+function setSpeed(value) {
+  speed = SPEEDS.includes(value) ? value : 1;
+  applySpeed();
+  renderTools();
+}
+
+/** Boucle A-B : A à l'instant de la vidéo, puis B ; la boucle devient « le passage » du Copilote. */
+function setLoopStart() {
+  loopStart = Number(els.videoPlayer?.currentTime) || 0;
+  renderTools();
+}
+
+function setLoopEnd() {
+  const now = Number(els.videoPlayer?.currentTime) || 0;
+  const start = Math.min(loopStart ?? 0, now);
+  const end = Math.max(loopStart ?? 0, now);
+  if (end - start < 1) {
+    setStatus('La boucle doit durer au moins une seconde : laisse la vidéo avancer, puis pose B.', 'info');
+    return;
+  }
+  loop = { start, end };
+  loopStart = null;
+  renderTools();
+  seekVideo(start);
+}
+
+/** Boucle sur un accord de la frise (Maj + clic sur l'accord). */
+function loopSegment(start, end) {
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end - start < 0.5) return;
+  loop = { start, end };
+  loopStart = null;
+  renderTools();
+  seekVideo(start);
+}
+
+function clearLoop() {
+  loop = null;
+  loopStart = null;
+  lastLoopTime = null;
+  renderTools();
+  updateMoment();
+}
+
+/**
+ * La vidéo revient au début de la boucle quand la LECTURE en franchit la fin. Un saut
+ * voulu ailleurs (clic sur un accord de la frise, curseur du lecteur) n'est pas ramené :
+ * on boucle seulement si l'on venait de l'intérieur de la boucle, par petits pas.
+ */
+let lastLoopTime = null;
+function keepInLoop() {
+  const video = els.videoPlayer;
+  if (!loop || !video) { lastLoopTime = null; return; }
+  const t = Number(video.currentTime) || 0;
+  const wasInside = lastLoopTime !== null && lastLoopTime >= loop.start - 0.25 && lastLoopTime < loop.end;
+  if (wasInside && (t >= loop.end || video.ended) && t - lastLoopTime < 1.5) {
+    video.currentTime = loop.start;
+    if (video.paused) video.play?.()?.catch?.(() => {});
+    lastLoopTime = loop.start;
+    return;
+  }
+  lastLoopTime = t;
+}
+
+function renderTools() {
+  if (els.speed) {
+    els.speed.innerHTML = '';
+    els.speed.appendChild(el('span', { className: 'pedago-tools-label', text: 'Vitesse' }));
+    for (const value of SPEEDS) {
+      els.speed.appendChild(el('button', {
+        type: 'button',
+        className: `pedago-tool-btn${value === speed ? ' is-active' : ''}`,
+        'aria-pressed': String(value === speed),
+        'data-speed': String(value),
+        title: value === 1 ? 'Vitesse normale' : 'Plus lent, sans changer la hauteur du son',
+        text: `${String(value).replace('.', ',')}×`,
+        onClick: () => setSpeed(value),
+      }));
+    }
+  }
+  if (els.strip) els.strip.title = 'Clic : placer la vidéo sur l\'accord · Maj + clic : boucler cet accord';
+  if (els.loop) {
+    els.loop.innerHTML = '';
+    if (loop) {
+      els.loop.appendChild(el('span', { className: 'pedago-loop-range', text: `Boucle ${clock(loop.start)} → ${clock(loop.end)}`, title: 'Le Copilote parle de ce passage' }));
+      els.loop.appendChild(el('button', { type: 'button', className: 'pedago-tool-btn', 'aria-label': 'Retirer la boucle', title: 'Retirer la boucle', text: '✕', onClick: clearLoop }));
+    } else if (loopStart !== null) {
+      els.loop.appendChild(el('button', { type: 'button', className: 'pedago-tool-btn is-active', title: 'Pose la fin de la boucle à l\'instant de la vidéo', text: `A ${clock(loopStart)} · poser B`, onClick: setLoopEnd }));
+      els.loop.appendChild(el('button', { type: 'button', className: 'pedago-tool-btn', 'aria-label': 'Annuler la boucle', title: 'Annuler la boucle', text: '✕', onClick: clearLoop }));
+    } else {
+      els.loop.appendChild(el('button', { type: 'button', className: 'pedago-tool-btn', title: 'Pose le début de la boucle à l\'instant de la vidéo, puis sa fin (Maj + clic sur un accord : boucler cet accord)', text: 'Boucle A-B', onClick: setLoopStart }));
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Calibration V2N — 4 coins persistante par vidéo
 // ---------------------------------------------------------------------------
 
@@ -741,6 +857,7 @@ async function mountVideo(path) {
     mountedVideoPath = path;
     els.videoPlayer.src = videoBlobUrl;
     els.videoPlayer.load();
+    applySpeed();
   } catch (err) {
     console.warn('[Pedagogie] montage vidéo échoué :', err);
     setStatus('La vidéo n\'a pas pu être chargée.', 'error', err.message);
@@ -1045,6 +1162,7 @@ function render() {
   renderVideo();
   renderFormat();
   renderResult();
+  renderTools();
   renderCopilotPanel();
   updateMoment();
 }
@@ -1130,7 +1248,8 @@ function renderResult() {
         : ''),
       'data-start': seg.start,
       'data-end': seg.end,
-      onClick: () => { seekVideo(seg.start); },
+      // [Claude] — 2026-10-03 — Maj + clic : boucler cet accord (lot 6).
+      onClick: (e) => { if (e.shiftKey) loopSegment(seg.start, seg.end); else seekVideo(seg.start); },
     }, [
       el('span', { className: 'pedagogie-chip-time', text: formatTime(seg.start) }),
       el('span', {
@@ -1288,6 +1407,8 @@ export function initPedagogieTab() {
   els.homeFolderBtn = document.getElementById('pedagogie-home-folder-btn');
   els.homeLibraryBtn = document.getElementById('pedagogie-home-library-btn');
   els.homeGrid = document.getElementById('pedagogie-home-grid');
+  els.speed = document.getElementById('pedagogie-speed');
+  els.loop = document.getElementById('pedagogie-loop');
   els.redoBtn = document.getElementById('pedagogie-redo-btn');
   els.split = document.getElementById('pedagogie-split');
   els.selectedName = document.getElementById('pedagogie-selected-name');
@@ -1331,6 +1452,10 @@ export function initPedagogieTab() {
   // Fiche du tuto : sa durée, et une vignette prise pendant la lecture s'il n'en a pas.
   els.videoPlayer?.addEventListener('loadedmetadata', rememberDuration);
   els.videoPlayer?.addEventListener('timeupdate', captureThumbnailFromPlayer);
+  // Boucle A-B : retour au début de la boucle (et la vitesse reste celle choisie).
+  els.videoPlayer?.addEventListener('timeupdate', keepInLoop);
+  els.videoPlayer?.addEventListener('ended', keepInLoop);
+  els.videoPlayer?.addEventListener('loadedmetadata', applySpeed);
   els.momentLength?.addEventListener('change', () => {
     const value = Number(els.momentLength.value);
     passageSeconds = Number.isFinite(value) && value > 0 ? value : DEFAULT_PASSAGE_SECONDS;

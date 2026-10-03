@@ -23,6 +23,7 @@ import {
   otherKeyQuestion, applyQuestion, keyIdFrom, keyLabel,
 } from './tutorial-questions.js';
 import { linkClockTimes } from './tutorial-moment.js';
+import { gridFromExample, favoritesFromExample } from './example-export.js';
 
 const els = {};
 let currentTutorialPath = null;
@@ -476,7 +477,68 @@ function renderExampleCard(msg) {
     text.appendChild(list);
   }
   card.appendChild(text);
+  // [Claude] — 2026-10-03 — Lot 6 : l'exemple se travaille ensuite dans Exercices.
+  const exportRow = renderExampleExport(example, id);
+  if (exportRow) card.appendChild(exportRow);
   return card;
+}
+
+// Ce qui a déjà été envoyé dans Exercices, par exemple (les messages sont souvent redessinés).
+const exportedExamples = new Map();
+
+/**
+ * [Claude] — 2026-10-03 — Pédagogie IA, lot 6 : « Ajouter à Ma grille » (les accords de
+ * l'exemple, en grille Perso) et « Ajouter aux Favoris » (ses voicings exacts), envoyés
+ * à Exercices (main.js) par évènement. null : rien à envoyer (une note, un lick seul).
+ */
+function renderExampleExport(example, id) {
+  const tutorial = example.kind === 'tutorial-transfer';
+  const grid = gridFromExample(example, { prefix: tutorial ? 'Tuto' : 'Copilote' });
+  const favorites = favoritesFromExample(example, { technique: tutorial ? 'Voicing du prof' : '' });
+  if (!grid && !favorites.length) return null;
+  const done = exportedExamples.get(id) || {};
+  const row = el('div', { className: 'copilot-example-export' });
+  const remember = (patch) => {
+    exportedExamples.set(id, { ...exportedExamples.get(id), ...patch });
+    row.replaceWith(renderExampleExport(example, id));
+  };
+  if (grid && done.grid) {
+    row.appendChild(el('span', { className: 'copilot-example-done', text: 'Dans Ma grille (Exercices › Perso) ✓' }));
+    row.appendChild(el('button', {
+      type: 'button',
+      className: 'copilot-example-link',
+      text: 'Ouvrir dans Exercices',
+      onClick: () => document.dispatchEvent(new CustomEvent('exercise-open-grid', { detail: { id: done.grid.id } })),
+    }));
+  } else if (grid) {
+    row.appendChild(el('button', {
+      type: 'button',
+      className: 'copilot-example-action',
+      text: 'Ajouter à Ma grille',
+      title: `Enregistre « ${grid.name} » dans Exercices › Perso`,
+      onClick: () => document.dispatchEvent(new CustomEvent('exercise-save-grid', {
+        detail: { ...grid, done: (result) => { if (result?.ok) remember({ grid: result }); } },
+      })),
+    }));
+  }
+  if (favorites.length && done.favorites) {
+    const { added, already } = done.favorites;
+    const text = added === 0 ? 'Déjà dans tes Favoris ✓'
+      : `${added} voicing${added > 1 ? 's' : ''} ajouté${added > 1 ? 's' : ''} aux Favoris (Exercices › Accord cible) ✓${already ? `, ${already} y étai${already > 1 ? 'ent' : 't'} déjà` : ''}`;
+    row.appendChild(el('span', { className: 'copilot-example-done', text }));
+  } else if (favorites.length) {
+    const count = favorites.length;
+    row.appendChild(el('button', {
+      type: 'button',
+      className: 'copilot-example-action',
+      text: count === 1 ? 'Ajouter ce voicing aux Favoris' : `Ajouter ${tutorial ? 'ses' : 'ces'} ${count} voicings aux Favoris`,
+      title: 'Chaque voicing exact (mains, notes) devient un favori de l\'Accord cible',
+      onClick: () => document.dispatchEvent(new CustomEvent('exercise-add-favorites', {
+        detail: { favorites, done: (result) => { if (result?.ok) remember({ favorites: result }); } },
+      })),
+    }));
+  }
+  return row;
 }
 
 /** Lecture / arrêt de l'exemple d'un message (même lecteur que les démos, voir main.js). */
