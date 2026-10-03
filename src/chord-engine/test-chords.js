@@ -107,15 +107,18 @@ const TESTS = [
   },
 
   // [OpenCode] — 2026-09-04 — Quartal retiré : ces notes retombent sur sus4/7sus4
+  // [Claude] — 2026-10-02 — Quinte facultative (bibliothèque revue) : Do Fa Si♭ est
+  // le 7sus4 sans quinte de Do (1-4-♭7), Do Fa Si♭ Mi♭ le Cm11 en quartes (1-11-♭7-♭3,
+  // le son « So What ») — les noms qu'un pianiste de jazz donne, fondamentale en bas.
   {
-    name: 'C-F-Bb sans quartal (retombe sur sus4/basse)',
+    name: 'C-F-Bb sans quartal (1-4-b7 : C7sus4 sans quinte)',
     notes: ['C3', 'F3', 'Bb3'].map(extractPc),
-    expect: 'Fsus4/C',
+    expect: 'C7sus4',
   },
   {
-    name: 'C-F-Bb-Eb sans quartal (retombe sur 7sus4/basse)',
+    name: 'C-F-Bb-Eb sans quartal (quartes sur Do : Cm11)',
     notes: ['C3', 'F3', 'Bb3', 'Eb4'].map(extractPc),
-    expect: 'F7sus4/C',
+    expect: 'Cm11',
   },
 
   // [OpenCode] — 2026-07-03 — Upper structure tests
@@ -254,19 +257,21 @@ const TESTS = [
     expect: 'D#5',
   },
   {
-    name: 'Cmaj7 shell with 9th — not recognised yet (C E B D)',
+    name: 'Cmaj9 sans quinte (C E B D) — quinte omise acceptée',
     notes: ['C3', 'E3', 'B3', 'D4'].map(extractPc),
-    expect: 'E5/C',
+    expect: 'Cmaj9',
   },
+  // [Claude] — 2026-10-02 — Ces deux voicings jazz « pas encore reconnus » le sont :
+  // la 13e se joue sans 11e ni quinte, le 9sus4 sans quinte.
   {
-    name: 'C7 shell with 13th — not recognised yet (C E Bb A)',
+    name: 'C7 shell with 13th (C E Bb A) — C13',
     notes: ['C3', 'E3', 'Bb3', 'A4'].map(extractPc),
-    expect: 'Am/C',
+    expect: 'C13',
   },
   {
-    name: 'C9sus4 no5 — not recognised as shell (C F Bb D)',
+    name: 'C9sus4 no5 (C F Bb D) — C9sus4',
     notes: ['C3', 'F3', 'Bb3', 'D4'].map(extractPc),
-    expect: 'A#add9/C',
+    expect: 'C9sus4',
   },
 ];
 

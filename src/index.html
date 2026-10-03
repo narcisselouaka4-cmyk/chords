@@ -39,6 +39,8 @@
     <link rel="stylesheet" href="./style.css" />
     <link rel="stylesheet" href="./ui/components/design-system.css" />
     <link rel="stylesheet" href="./ui/components/analyzer-workspace.css" />
+    <!-- Écran d'attente commun (Analyse, Studio) — voir ui/components/loader-chroma.js -->
+    <link rel="stylesheet" href="./ui/components/loader-chroma.css" />
     <!-- [Refonte v2/Global] — système de thème v2/Global. Chargé en <link>
          (et non via import JS) pour rester non-layered, au même niveau de
          cascade que style.css : la spécificité tranche, pas l'ordre d'injection. -->
@@ -53,6 +55,9 @@
     <!-- [Refonte Astra Analyse 12/09] — feuille recopiée de la maquette (classes an-*). -->
     <link rel="stylesheet" href="./ui/refonte/astra-analysis.css" />
     <link rel="stylesheet" href="./ui/refonte/astra-bridge.css" />
+    <!-- [Claude] — 2026-10-02 — Temps réel : Lecture en direct et portée. -->
+    <link rel="stylesheet" href="./ui/refonte/astra-realtime.css" />
+    <link rel="stylesheet" href="./ui/refonte/astra-pedagogie.css" />
   </head>
   <body>
     <div id="app" class="app training-shell">
@@ -97,19 +102,24 @@
           <nav class="tr-subnav-tabs practice-mode-tabs" role="tablist" aria-label="Sous-onglets Entraînement">
             <button class="practice-mode-btn active" type="button" role="tab" aria-selected="true" data-view="realtime" title="Jeu libre : les accords joués sont reconnus en direct"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-2.5a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0L6.41 10.54A2 2 0 0 1 4.49 12H2"/></svg><span>Temps réel</span><span class="tr-active-underline" aria-hidden="true"></span></button>
             <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="midi-sessions" title="Enregistrer et rejouer vos sessions MIDI"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 10v3M6 6v11M10 3v18M14 8v7M18 5v13M22 10v3"/></svg><span>Sessions MIDI</span><span class="tr-active-underline" aria-hidden="true"></span></button>
-            <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="coach" title="Accompagner une voix isolée et faire analyser votre placement"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/></svg><span>Coach d'accompagnement</span><span class="tr-active-underline" aria-hidden="true"></span></button>
+            <!-- [Claude] — 2026-10-02 — « Coach d'accompagnement » masqué (Narcisse : garder
+                 Temps réel, Sessions MIDI, Pédagogie IA, Copilote IA, Exercices). La vue
+                 #practice-view-coach et coach-tab.js restent intacts : retirer `hidden`
+                 suffit à le faire revenir. -->
+            <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="coach" hidden title="Accompagner une voix isolée et faire analyser votre placement"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/></svg><span>Coach d'accompagnement</span><span class="tr-active-underline" aria-hidden="true"></span></button>
             <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="pedagogie" title="Lire un tutoriel vidéo et en extraire la grille d'accords"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.42 10.92a1 1 0 0 0-.02-1.84L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.83l8.57 3.91a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg><span>Pédagogie IA</span><span class="tr-active-underline" aria-hidden="true"></span></button>
             <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="copilot" title="Assistant IA conversationnel pour le tutoriel en cours"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.29 1.29L3 12l5.81 1.9a2 2 0 0 1 1.29 1.29L12 21l1.9-5.81a2 2 0 0 1 1.29-1.29L21 12l-5.81-1.9a2 2 0 0 1-1.29-1.29z"/><path d="M5 3v4M19 17v4M3 5h4M17 19h4"/></svg><span>Copilot IA</span><span class="tr-active-underline" aria-hidden="true"></span></button>
-            <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="exercise" title="Ouvrir Exercices"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg><span>Exercices</span><span class="practice-exercise-progress tr-points" id="exercise-collapsed-progress"></span><span class="tr-active-underline" aria-hidden="true"></span></button>
+            <button class="practice-mode-btn" type="button" role="tab" aria-selected="false" data-view="exercise" title="Ouvrir Exercices"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg><span>Exercices</span><span class="practice-exercise-progress tr-points" id="exercise-collapsed-progress" style="display: none;"></span><span class="tr-active-underline" aria-hidden="true"></span></button>
           </nav>
           <div class="tr-session-tools practice-subnav-actions">
-            <button class="tr-midi-connection practice-midi-status" id="practice-midi-status" type="button" title="État du clavier MIDI">
+            <!-- [Claude] — 2026-10-02 — Un clic reconnecte le clavier (comme le débrancher et le rebrancher). -->
+            <button class="tr-midi-connection practice-midi-status" id="practice-midi-status" type="button" title="Cliquer pour reconnecter le clavier MIDI">
               <span class="tr-status-dot practice-midi-status-dot" id="practice-midi-status-dot"></span>
               <span id="practice-midi-status-text">Clavier MIDI non détecté</span>
             </button>
-            <button class="tr-record-button practice-record-btn" id="practice-record-btn" type="button" title="Démarrer une nouvelle session MIDI">
-              <span class="practice-record-dot" aria-hidden="true"></span>Enregistrer
-            </button>
+            <!-- [Claude] — 2026-10-02 — « Enregistrer » ne sert qu'aux Sessions MIDI : il a
+                 quitté cette barre, visible de tout Entraînement, pour devenir le bouton
+                 principal de Sessions MIDI (#midi-session-new-btn). -->
           </div>
         </div>
 
@@ -118,23 +128,62 @@
         <div class="tr-workspace" id="practice-body">
 
         <div class="training-workspace">
-          <section class="main-training-stage" id="practice-center">
-            <div class="chord-display" id="chord-display">
-              <div class="chord-name chord-name-empty" id="chord-name"></div>
-              <div class="chord-meta" id="chord-meta">
-                <span class="voicing-label" id="voicing-label" style="display: none;"></span>
-                <span class="alias-label" id="alias-label" style="display: none;"></span>
+          <!-- [Claude] — 2026-10-02 — « Lecture en direct » (maquette designtempsréel de
+               Narcisse, fenêtre rv-hero + roue PitchWheel), intégrée à même la scène,
+               sans carte : nom de l'accord et roue des 12 notes au centre, lectures en
+               haut à droite, la portée (3e notation) en haut à gauche (Narcisse, 02/10 :
+               plus de bandeau « Lecture en direct », de compteur de notes, de
+               « Réécouter », ni de lignes MIDI / Fréquence). Rendu :
+               src/ui/live-reading.js, appelé par display.js. Les identifiants d'avant
+               sont gardés (main.js, miroir du clavier, tests). -->
+          <section class="main-training-stage live-stage" id="practice-center">
+            <div class="live-center">
+              <div class="chord-display" id="chord-display">
+                <div class="chord-name chord-name-empty" id="chord-name" aria-live="polite"></div>
+                <div class="chord-meta" id="chord-meta">
+                  <span class="voicing-label" id="voicing-label" style="display: none;"></span>
+                  <span class="alias-label" id="alias-label" style="display: none;"></span>
+                </div>
+                <div class="live-also" id="live-also" hidden>
+                  <span class="live-also-label">Aussi</span>
+                  <span class="live-also-chips" id="live-also-chips"></span>
+                </div>
+                <div class="chord-detail" id="chord-detail"></div>
               </div>
-              <div class="chord-detail" id="chord-detail"></div>
+
+              <div class="practice-empty-hint" id="practice-empty-hint">
+                <p class="practice-empty-hint-title">Jouez un accord sur votre clavier MIDI</p>
+              </div>
+
+              <div class="live-wheel-wrap">
+                <svg class="live-wheel" id="live-wheel" viewBox="0 0 200 200" role="img" aria-label="Roue des 12 notes : les notes jouées et leurs liaisons"></svg>
+              </div>
             </div>
 
-            <div class="notes-display" id="notes-display"></div>
-
-            <div class="practice-empty-hint" id="practice-empty-hint">
-              <p class="practice-empty-hint-title">Jouez un accord sur votre clavier MIDI</p>
-              <p class="practice-empty-hint-sub" id="practice-midi-hint"></p>
-              <p class="practice-empty-hint-detail">Les notes jouées seront reconnues automatiquement.</p>
+            <div class="live-side">
+              <dl class="live-readouts" id="live-readouts">
+                <div><dt>Fondamentale</dt><dd id="live-root">—</dd></div>
+                <div><dt>Basse jouée</dt><dd id="live-bass">—</dd></div>
+                <div><dt>Qualité</dt><dd id="live-quality">en attente</dd></div>
+                <div><dt>Position</dt><dd id="live-position">—</dd></div>
+                <div><dt>Intervalles</dt><dd id="live-intervals">—</dd></div>
+                <div><dt>Voicing</dt><dd><span id="live-voicing">—</span><small id="live-voicing-detail"></small></dd></div>
+              </dl>
             </div>
+
+            <!-- [Claude] — 2026-10-02 — La portée, 3e notation (Narcisse : façon manuscrit de
+                 conservatoire, comme Chordie ; clés de sol, d'ut et de fa ; montée en haut
+                 à gauche le 02/10, à la place du bandeau « Lecture en direct »). Rendu : src/ui/live-staff.js.
+                 Le choix de clé n'est pas mémorisé : chaque lancement repart sur Sol + Fa. -->
+            <figure class="live-staff" id="live-staff">
+              <figcaption class="live-staff-head">
+                <span class="live-staff-title">Portée</span>
+                <span class="live-staff-clefs" id="live-staff-clefs" role="group" aria-label="Clé de la portée"></span>
+              </figcaption>
+              <svg class="live-staff-svg" id="live-staff-svg" viewBox="0 0 151 258" role="img" aria-label="Portée"></svg>
+            </figure>
+
+            <div class="notes-display" id="notes-display" aria-hidden="true"></div>
 
             <!-- [Refonte] — Panneau Techniques : compagnon retiré (décision du
                  01/09, « jugé sans utilité par Narcisse »). Gardé dans le DOM
@@ -176,30 +225,82 @@
              dedicatedViews de main.js a reçu l'entrée correspondante.
              Les identifiants que practice-exercise.js / main.js écrivent ou lisent
              ont suivi ici sans être renommés : #practice-exercise-panel,
-             .exercise-mode-btn[data-mode], #new-exercise-btn, #exercise-target,
-             #exercise-feedback, #exercise-degree-badge. -->
+             .exercise-mode-btn[data-mode], #exercise-target,
+             #exercise-feedback. -->
         <div class="tr-view practice-exercices" id="practice-view-exercices" style="display: none;">
-          <div class="tr-view-heading">
-            <div>
-              <div class="tr-page-title"><span class="tr-page-index">05</span><h1>Exercices</h1></div>
-              <p>Un mouvement à la fois. Jusqu'à ce qu'il devienne naturel.</p>
-            </div>
-            <div class="tr-heading-actions">
-              <button class="tr-button" type="button" data-astra-open="exercise-help-dialog"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>Comment jouer</button>
-              <button class="tr-button tr-primary panel-action" type="button" id="new-exercise-btn"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>Nouvel exercice</button>
-            </div>
-          </div>
 
           <div class="tr-exercise-mode" id="practice-exercise-panel">
             <div class="tr-segment-control exercise-mode-selector" role="tablist" aria-label="Type d'exercice">
               <button class="exercise-mode-btn active is-active" data-mode="chord" role="tab" aria-selected="true" type="button">Accord cible</button>
-              <button class="exercise-mode-btn" data-mode="progression" role="tab" aria-selected="false" type="button">Progression</button>
               <button class="exercise-mode-btn" data-mode="movement" role="tab" aria-selected="false" type="button">Mouvement 12 tons</button>
             </div>
-            <span class="tr-local-detection"><span class="tr-status-dot"></span>Reconnaissance locale</span>
+            <!-- [Claude] — 2026-09-24 — Titre « Exercices » et « Reconnaissance locale »
+                 retirés (Narcisse) : le sous-onglet nomme déjà la vue. Les actions
+                 remontent sur la ligne du sélecteur de mode. -->
+            <div class="tr-heading-actions">
+              <!-- [Claude] — 2026-09-25 — « Demander au Copilote » : l'assistant reçoit l'exercice
+                   affiché (accord, voicing de la carte, mouvement, tonalité, derniers essais). -->
+              <button class="tr-button exercise-copilot-btn" type="button" id="exercise-copilot-btn" title="Le Copilot reçoit l'exercice affiché : il explique le voicing, le fait entendre et propose des pistes"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.29 1.29L3 12l5.81 1.9a2 2 0 0 1 1.29 1.29L12 21l1.9-5.81a2 2 0 0 1 1.29-1.29L21 12l-5.81-1.9a2 2 0 0 1-1.29-1.29z"/></svg>Demander au Copilote</button>
+              <button class="tr-button" type="button" data-astra-open="exercise-help-dialog"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>Comment jouer</button>
+              <button class="tr-button panel-action" type="button" id="prev-exercise-btn" style="display: none;" title="Revenir à l'accord précédent pour réexaminer son voicing"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Accord précédent</button>
+              <button class="tr-button tr-primary panel-action" type="button" id="exercise-library-btn" aria-label="Ouvrir la bibliothèque d'exercices"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Bibliothèque</button>
+            </div>
           </div>
 
           <section class="tr-exercise-stage">
+            <!-- Retour de jeu (bonne / mauvaise réponse) : bulle flottante en haut de la
+                 zone, sans place réservée (visible même clavier MIDI déplié). -->
+            <div class="exercise-feedback" id="exercise-feedback" role="status" aria-live="polite"></div>
+            <!-- [Claude] — 2026-09-24 — Mode Accord cible : bande du haut (choix de
+                 l'accord), au-dessus de la carte ; les colonnes gauche (note du
+                 dessus + résultats) et droite (voicings) s'alignent sur elle.
+                 Filtres et Favoris s'ouvrent en fenêtres depuis cette bande. -->
+            <div class="exercise-chord-head" id="exercise-chord-head" hidden>
+              <div class="exercise-chord-head-controls">
+                <!-- Recherche de voicings par top note (sans octave), à la place du sous-titre. -->
+                <label for="exercise-top-note">Top note</label>
+                <select id="exercise-top-note" aria-label="Note la plus haute du voicing (toutes octaves)">
+                  <option value="">Toutes</option>
+                  <option value="0">C</option>
+                  <option value="1">C# / Db</option>
+                  <option value="2">D</option>
+                  <option value="3">D# / Eb</option>
+                  <option value="4">E</option>
+                  <option value="5">F</option>
+                  <option value="6">F# / Gb</option>
+                  <option value="7">G</option>
+                  <option value="8">G# / Ab</option>
+                  <option value="9">A</option>
+                  <option value="10">A# / Bb</option>
+                  <option value="11">B</option>
+                </select>
+                <label for="exercise-target-root">Accord</label>
+                <select id="exercise-target-root" aria-label="Fondamentale de l'accord cible">
+                  <option value="0">C</option>
+                  <option value="1">C# / Db</option>
+                  <option value="2">D</option>
+                  <option value="3">D# / Eb</option>
+                  <option value="4">E</option>
+                  <option value="5">F</option>
+                  <option value="6">F# / Gb</option>
+                  <option value="7">G</option>
+                  <option value="8">G# / Ab</option>
+                  <option value="9">A</option>
+                  <option value="10">A# / Bb</option>
+                  <option value="11">B</option>
+                </select>
+                <!-- Qualités jouables : remplies par main.js depuis TARGET_QUALITY_GROUPS
+                     (practice-exercise.js), source unique partagée avec le navigateur. -->
+                <select id="exercise-target-quality" aria-label="Qualité de l'accord cible"></select>
+                <!-- Tirage d'un accord au hasard : vrai bouton (icône dé), dans la bande du haut. -->
+                <button class="tr-button exercise-random-target-btn" type="button" id="exercise-random-target-btn" title="Tire une racine et une qualité au hasard (en respectant la top note si elle est choisie)"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="16" cy="8" r="1.1" fill="currentColor"/><circle cx="12" cy="12" r="1.1" fill="currentColor"/><circle cx="8" cy="16" r="1.1" fill="currentColor"/><circle cx="16" cy="16" r="1.1" fill="currentColor"/></svg>Accord au hasard</button>
+                <!-- Filtres de la top note et doublures : fenêtre temporaire (fermée par défaut). -->
+                <button class="tr-button exercise-filters-btn" type="button" id="exercise-filters-btn" data-astra-open="exercise-filters-dialog"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18M6 12h12M10 19h4"/></svg>Filtres<span class="exercise-filters-count" id="exercise-filters-count" hidden></span></button>
+                <!-- [Claude] — 2026-09-25 — Favoris : fenêtre temporaire ouverte à côté des
+                     Filtres (Narcisse : « une fenêtre temporaire pour Favoris »). -->
+                <button class="tr-button exercise-favorites-btn" type="button" id="exercise-favorites-btn" data-astra-open="exercise-favorites-dialog"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg>Favoris<span class="exercise-favorites-count" id="exercise-favorites-count" hidden></span></button>
+              </div>
+            </div>
             <!-- [Astra round 3] — Le guide et le panneau de progression ne sont
                  plus des textes figés : main.js (updateExerciseProgressUI) les
                  remplit avec les données réelles de practice-exercise.js, selon
@@ -212,43 +313,212 @@
                 <span id="exercise-brief-category">EXERCICE</span>
               </div>
               <h2 id="exercise-brief-title">Un accord,<br />puis le suivant.</h2>
-              <p id="exercise-brief-text">Jouez les notes de l'accord affiché, ensemble ou une à une. La
-                 reconnaissance est celle du moteur d'accords de l'application :
-                 elle compare les notes reçues, pas votre doigté.</p>
-              <div class="exercise-key-pill" id="exercise-brief-key" style="display: none;"></div>
-              <div class="exercise-degree-badge" id="exercise-degree-badge" style="display: none;"></div>
+              <p id="exercise-brief-text"></p>
+              <!-- [Claude] — 2026-09-24 — Réglages du tour (Mouvement 12 tons), en
+                   grille étiquette / contrôle. La tonalité active a quitté cette
+                   colonne pour le panneau de droite (Narcisse : « pas au bon
+                   endroit »). Mode Progression retiré (degrés, sélecteur de contenu,
+                   badge de degré) : les grilles tapées passent par la bibliothèque
+                   (« Ma grille »). -->
+              <div class="exercise-settings" id="exercise-movement-settings" hidden>
+                <span class="tr-eyebrow exercise-settings-eyebrow">RÉGLAGES DU TOUR</span>
+                <div class="exercise-setting" id="exercise-difficulty-selector">
+                  <label for="exercise-difficulty-select">Niveau</label>
+                  <!-- [Claude] — 2026-09-24 (nuit) — Règle de Narcisse : aucune tension dans les
+                       accords principaux ; le niveau se lit surtout aux accords de passage. -->
+                  <select id="exercise-difficulty-select" aria-label="Niveau : extensions des accords et accords de passage (tensions)">
+                    <option value="1">Débutant · 7e, sans passage</option>
+                    <option value="2">Semi-intermédiaire · 9e, sans passage</option>
+                    <option value="3" selected>Intermédiaire · 13e, passages diminués</option>
+                    <option value="4">Semi-avancé · passages 7b9, 7#5, 7b5</option>
+                    <option value="5">Avancé · passages altérés (alt, #9)</option>
+                  </select>
+                </div>
+                <div class="exercise-setting exercise-setting-keys">
+                  <span class="exercise-setting-label" id="exercise-key-grid-label">Tonalités</span>
+                  <div class="exercise-key-grid" id="exercise-key-grid" role="group" aria-labelledby="exercise-key-grid-label"></div>
+                </div>
+                <div class="exercise-setting">
+                  <label for="exercise-key-order">Ordre</label>
+                  <select id="exercise-key-order" aria-label="Ordre de parcours des tonalités"></select>
+                </div>
+                <div class="exercise-setting" id="exercise-key-selector">
+                  <label for="exercise-key-select">Départ</label>
+                  <select id="exercise-key-select" aria-label="Tonalité de départ du tour">
+                    <option value="">Au hasard</option>
+                  </select>
+                </div>
+              </div>
+              <!-- Sélecteur d'accord cible : visible uniquement en mode "Accord cible".
+                   [Claude] — 2026-09-24 — Colonne de gauche = les accords à charger sur
+                   la carte (recherche par top note). La droite garde les voicings
+                   affichés. [Claude] — 2026-09-25 — Les favoris ont quitté la colonne
+                   pour leur fenêtre (#exercise-favorites-dialog). -->
+              <div class="exercise-target-choice" id="exercise-target-choice" style="display: none;">
+                <section class="exercise-choice-section exercise-topnote-section" aria-label="Accords par top note">
+                  <span class="tr-eyebrow">TOP NOTE</span>
+                  <!-- Tous les accords ayant la note du dessus choisie (rempli par main.js). -->
+                  <p class="exercise-side-hint exercise-browser-hint" id="exercise-topnote-browser-hint">Choisissez une top note : les accords qui l'ont au sommet s'affichent ici.</p>
+                  <div class="exercise-topnote-browser" id="exercise-topnote-browser" hidden></div>
+                </section>
+              </div>
+
             </div>
 
             <div class="tr-chord-arena">
               <div class="tr-arena-ellipse" aria-hidden="true"></div>
               <div class="tr-arena-ellipse tr-ellipse-outer" aria-hidden="true"></div>
               <div class="tr-target-chord">
-                <span class="tr-eyebrow">À VOUS DE JOUER</span>
+                <span class="tr-eyebrow" id="exercise-arena-eyebrow">À VOUS DE JOUER</span>
                 <div class="exercise-target" id="exercise-target" style="display:none;"></div>
               </div>
             </div>
 
             <div class="tr-exercise-progress">
               <span class="tr-eyebrow" id="exercise-progress-eyebrow">VOTRE PROGRESSION</span>
+              <!-- [Claude] — 2026-09-24 — Tonalité en cours, bien en vue en tête du
+                   panneau, puis la frise des tonalités du tour et les accords :
+                   un clic sur une tonalité ou un accord y va directement. -->
+              <div class="exercise-current-key" id="exercise-current-key" hidden></div>
               <div class="tr-key-counter" id="exercise-progress-counter" style="display: none;"></div>
               <div class="tr-key-progress-track" id="exercise-progress-track" style="display: none;"><span></span></div>
+              <!-- [Claude] — 2026-09-24 — Démo du mouvement (gospel / worship) dans la
+                   tonalité en cours, avec les voicings de l'exercice. -->
+              <button class="tr-button exercise-demo-btn" type="button" id="exercise-demo-btn" hidden title="Démo gospel / worship dans la tonalité en cours, avec les voicings de l'exercice"><svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg><span>Écouter le mouvement</span></button>
+              <!-- Style de la démo (rempli par main.js) : selon le mouvement, ou imposé. -->
+              <div class="exercise-demo-style" id="exercise-demo-style-row" hidden>
+                <label for="exercise-demo-style">Style</label>
+                <select id="exercise-demo-style" data-demo-style aria-label="Style de la démo"></select>
+              </div>
+              <div class="exercise-key-strip" id="exercise-key-strip" role="group" aria-label="Tonalités du tour" hidden></div>
+              <span class="tr-eyebrow exercise-chords-eyebrow" id="exercise-chords-eyebrow" hidden>ACCORDS</span>
               <div class="tr-progression-path" id="exercise-progress-path"></div>
               <p class="tr-progress-quiet" id="exercise-progress-quiet">Lancez un exercice : l'avancement s'affiche ici.</p>
+              <!-- [Claude] — 2026-09-24 — Mode Accord cible : la colonne de droite
+                   (score inutile ici) accueille les voicings de l'accord affiché ;
+                   les favoris sont passés à gauche. Les autres modes gardent leur
+                   avancement. -->
+              <div class="exercise-chord-side" id="exercise-chord-side" hidden>
+                <span class="tr-eyebrow">VOICINGS</span>
+                <!-- Voicings disponibles pour l'accord affiché : rempli par main.js. -->
+                <div class="exercise-voicing-choices" id="exercise-voicing-choices"></div>
+              </div>
             </div>
           </section>
 
-          <div class="tr-exercise-response">
-            <div class="tr-response-content">
-              <div class="tr-input-indicator" aria-hidden="true"><i></i><i></i><i></i></div>
-              <div>
-                <strong>À votre rythme. Le clavier vous attend.</strong>
-                <div class="exercise-feedback" id="exercise-feedback"></div>
+          <!-- [Claude] — 2026-09-24 — Case « À votre rythme » retirée : masquée par le
+               clavier MIDI déplié. Le retour de jeu (#exercise-feedback) s'affiche
+               désormais en bulle flottante en haut de la carte. -->
+        </div>
+
+        <!-- [Claude] — 2026-09-24 — Bibliothèque : grande fenêtre Astra centrée,
+             comme celles de Sessions MIDI, du Coach et de Pédagogie IA (Narcisse :
+             « visuellement ça ne rend pas très bien »), au lieu d'un panneau
+             collé au bord. Onglet Progressions retiré avec le mode ; « Ma grille »
+             joue des accords tapés en symboles dans les tonalités choisies. -->
+        <div class="tr-overlay tr-drawer-overlay" id="exercise-library" hidden>
+          <div class="tr-dialog tr-dialog-wide tr-drawer exercise-library" role="dialog" aria-modal="true" aria-label="Bibliothèque des mouvements">
+            <div class="tr-dialog-title">
+              <div class="exercise-library-heading">
+                <h2>Bibliothèque des mouvements</h2>
+                <p>Un enchaînement à faire tourner dans les tonalités choisies, au niveau choisi.</p>
               </div>
+              <button class="tr-icon-button" type="button" id="exercise-library-close" data-astra-close aria-label="Fermer la bibliothèque">✕</button>
+            </div>
+            <div class="tr-dialog-body exercise-library-body">
+              <!-- [Claude] — 2026-09-24 — Ma grille : les accords se choisissent (fondamentale
+                   + qualité), plus de saisie au clavier (Narcisse : « pas pratique d'écrire »).
+                   Puis : note du dessus par accord (voice leading), un accord précis se
+                   modifie d'un clic, la grille s'enregistre dans la catégorie Perso. -->
+              <form class="exercise-grid-entry" id="exercise-grid-form" autocomplete="off">
+                <div class="exercise-grid-entry-text">
+                  <span class="tr-eyebrow">MA GRILLE</span>
+                  <p>Choisissez vos accords un par un, extensions comprises, et si vous voulez la note du dessus de chacun (votre mélodie) : ils seront joués tels quels, ton après ton. Un accord de tension (7b9, 7alt, dim7…) s'ajoute en passage, après l'accord qu'il suit. Cliquez un accord pour le modifier.</p>
+                </div>
+                <div class="exercise-grid-builder">
+                  <div class="exercise-grid-picker">
+                    <select id="exercise-grid-root" aria-label="Fondamentale de l'accord"></select>
+                    <select id="exercise-grid-quality" aria-label="Qualité de l'accord"></select>
+                    <select id="exercise-grid-top" aria-label="Note du dessus de l'accord (voice leading)" title="Voice leading : note jouée au sommet de l'accord"></select>
+                    <button class="tr-button" type="button" id="exercise-grid-add">Ajouter</button>
+                    <button class="tr-button" type="button" id="exercise-grid-cancel" hidden>Annuler</button>
+                  </div>
+                  <ol class="exercise-grid-chips" id="exercise-grid-chips" aria-label="Accords de votre grille"></ol>
+                  <div class="exercise-grid-actions">
+                    <input type="text" id="exercise-grid-name" placeholder="Nom de la grille" aria-label="Nom de la grille, pour l'enregistrer dans Perso" maxlength="60">
+                    <button class="tr-button" type="button" id="exercise-grid-save">Enregistrer</button>
+                    <button class="tr-button" type="button" id="exercise-grid-clear">Tout effacer</button>
+                    <button class="tr-button tr-primary" type="submit" id="exercise-grid-play">Jouer ma grille</button>
+                  </div>
+                  <p class="exercise-grid-status" id="exercise-grid-status" role="status" aria-live="polite"></p>
+                </div>
+              </form>
+              <div class="tr-library-toolbar exercise-library-toolbar">
+                <label class="tr-search exercise-library-search"><svg class="tr-i" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input type="text" id="exercise-library-search" placeholder="Rechercher un mouvement…" aria-label="Rechercher un mouvement"></label>
+                <div class="exercise-library-categories" id="exercise-library-categories" role="group" aria-label="Catégories"></div>
+                <label class="exercise-library-style"><span>Style des aperçus</span><select id="exercise-library-style" data-demo-style aria-label="Style des aperçus"></select></label>
+              </div>
+              <div class="exercise-library-grid" id="exercise-library-grid"></div>
             </div>
           </div>
         </div>
 
         <!-- Fenêtre « Comment jouer » (recopiée de la maquette). -->
+        <!-- [Claude] — 2026-09-24 — Fenêtre temporaire des filtres (Accord cible) :
+             filtres de la top note et doublures, hors de la page. -->
+        <div class="tr-overlay" id="exercise-filters-dialog" hidden>
+          <div class="tr-dialog exercise-filters-dialog" role="dialog" aria-modal="true" aria-label="Filtres">
+            <div class="tr-dialog-title"><h2>Filtres</h2>
+              <button class="tr-icon-button" type="button" data-astra-close aria-label="Fermer">✕</button></div>
+            <div class="tr-dialog-body exercise-filters-body">
+              <section class="exercise-filters-section">
+                <span class="tr-eyebrow">TOP NOTE</span>
+                <p class="exercise-side-hint" id="exercise-topnote-filters-hint">Choisissez une top note pour filtrer les voicings.</p>
+                <div class="exercise-topnote-filters" id="exercise-topnote-filters" hidden>
+                  <!-- Tonalité, fondamentale et techniques : remplies par main.js. -->
+                  <select data-topnote-filter="key" aria-label="Tonalité : voicings dont toutes les notes sont dans la gamme"></select>
+                  <select id="exercise-top-note-level" aria-label="Niveau des voicings suggérés" disabled>
+                    <option value="all">Tous niveaux</option>
+                    <option value="simple">Simple (★1)</option>
+                    <option value="intermediate">Intermédiaire (★2)</option>
+                    <option value="advanced">Avancé (★3–5)</option>
+                  </select>
+                  <select data-topnote-filter="chordRoot" aria-label="Fondamentale des accords listés"></select>
+                  <select data-topnote-filter="technique" aria-label="Technique de voicing"></select>
+                  <select data-topnote-filter="hands" aria-label="Répartition des mains">
+                    <option value="all">Une ou deux mains</option>
+                    <option value="one">Une main</option>
+                    <option value="two">Deux mains</option>
+                  </select>
+                  <button type="button" class="exercise-topnote-reset" id="exercise-topnote-reset" hidden>Réinitialiser les filtres</button>
+                </div>
+              </section>
+              <section class="exercise-filters-section">
+                <span class="tr-eyebrow">DOUBLURES</span>
+                <div id="exercise-doubling-filter"></div>
+              </section>
+              <button class="tr-button tr-primary" type="button" data-astra-close>Voir les voicings</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- [Claude] — 2026-09-25 — Fenêtre temporaire des favoris (Accord cible), ouverte
+             par le bouton « Favoris » à côté de « Filtres ». Mêmes ids qu'avant
+             (#exercise-favorites, #exercise-favorites-search) : main.js remplit la liste.
+             Un clic sur un favori le charge sur la carte et ferme la fenêtre. -->
+        <div class="tr-overlay" id="exercise-favorites-dialog" hidden>
+          <div class="tr-dialog exercise-favorites-dialog" role="dialog" aria-modal="true" aria-label="Favoris">
+            <div class="tr-dialog-title"><h2>Favoris</h2>
+              <button class="tr-icon-button" type="button" data-astra-close aria-label="Fermer">✕</button></div>
+            <div class="tr-dialog-body exercise-favorites-body">
+              <p class="exercise-side-hint">Cliquez sur un favori pour l'afficher sur la carte.</p>
+              <!-- Recherche dans les favoris (hors du rendu de la liste : garde le focus). -->
+              <input type="search" class="exercise-favorites-search" id="exercise-favorites-search" placeholder="Rechercher : Dm9, Bb, drop 2…" aria-label="Rechercher un favori" hidden>
+              <div class="exercise-favorites" id="exercise-favorites"></div>
+            </div>
+          </div>
+        </div>
+
         <div class="tr-overlay" id="exercise-help-dialog" hidden>
           <div class="tr-dialog" role="dialog" aria-modal="true" aria-label="Votre clavier, votre terrain de jeu">
             <div class="tr-dialog-title"><h2>Votre clavier, votre terrain de jeu</h2>
@@ -283,11 +553,14 @@
           <div class="tr-view-heading">
             <div>
               <div class="tr-page-title"><span class="tr-page-index">01</span><h1>Sessions MIDI</h1></div>
-              <p>Retrouvez votre jeu. Explorez chaque nuance.</p>
+              <!-- [Claude] — 2026-09-25 — Le journal de vos enregistrements (choix de Narcisse). -->
+              <p>Le journal de votre jeu : un morceau, une séance, une prise du Studio.</p>
             </div>
             <div class="tr-heading-actions">
               <button class="tr-button tr-library-trigger" type="button" data-astra-open="midi-library-drawer" data-astra-shortcut="b"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 6H3M16 12H3M13 18H3"/><path d="M21 6v12a2 2 0 0 1-2 2"/></svg><span>Bibliothèque</span><kbd>B</kbd></button>
-              <button class="tr-button tr-primary panel-action" id="midi-session-new-btn" type="button"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Nouvelle session</button>
+              <!-- [Claude] — 2026-10-02 — Ancien « + Nouvelle session » : c'est désormais LE bouton
+                   « Enregistrer » d'Entraînement (il ouvre la fenêtre de la nouvelle session). -->
+              <button class="tr-button tr-primary panel-action midi-record-btn" id="midi-session-new-btn" type="button" title="Enregistrer une nouvelle session MIDI"><span class="midi-record-dot" aria-hidden="true"></span>Enregistrer</button>
             </div>
           </div>
 
@@ -299,7 +572,7 @@
                   <h2 class="carnet-session-title" id="carnet-session-title">Aucune session sélectionnée</h2>
                   <div class="tr-session-data carnet-session-meta" id="carnet-session-meta"></div>
                   <div class="midi-session-info" id="midi-session-info">
-                    <p class="detail-hint">Aucune session sélectionnée. Créez une nouvelle session ou choisissez-en une dans la bibliothèque.</p>
+                    <p class="detail-hint">Aucune session sélectionnée. Cliquez sur « Enregistrer » ou choisissez une session dans la bibliothèque. Pour un avis rapide sur un passage : « Qu'en penses-tu ? », dans le Copilote.</p>
                   </div>
                 </div>
               </div>
@@ -360,7 +633,7 @@
                 </label>
               </div>
               <div class="tr-player-copilot">
-                <button class="tr-text-button tr-accent-text carnet-explore-all" id="carnet-explore-all" type="button" disabled>Explorer avec le Copilot<svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></button>
+                <button class="tr-text-button tr-accent-text carnet-explore-all" id="carnet-explore-all" type="button" disabled title="Envoie la session au Copilot : il dit ce qui marche et propose des pistes, moment par moment">Analyser mon jeu avec le Copilot<svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></button>
               </div>
             </div>
           </section>
@@ -375,6 +648,9 @@
                 <span><span class="legend-dot melody"></span>Passage mélodique</span>
               </div>
             </div>
+            <!-- [Claude] 2026-09-24 — Analyse du jeu (session-performance.js) :
+                 ce qui marche, suggestions, moments cliquables. -->
+            <div class="carnet-findings" id="carnet-findings" role="list" aria-label="Analyse du jeu" hidden></div>
             <div class="carnet-entries" id="carnet-entries"></div>
           </section>
 
@@ -396,7 +672,7 @@
                     <button type="button" data-session-filter="all" class="is-active" aria-pressed="true">Toutes <span id="midi-session-count-all">0</span></button>
                     <button type="button" data-session-filter="captures" aria-pressed="false">Mes captures</button>
                   </div>
-                  <button class="tr-button tr-primary" type="button" data-astra-close data-astra-click="#midi-session-new-btn"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Nouvelle session</button>
+                  <button class="tr-button tr-primary midi-record-btn" type="button" data-astra-close data-astra-click="#midi-session-new-btn"><span class="midi-record-dot" aria-hidden="true"></span>Enregistrer</button>
                 </div>
                 <div class="tr-library-table-head" aria-hidden="true">
                   <span>SESSION</span><span>APERÇU MIDI</span><span>DURÉE</span><span>NOTES</span><span></span>
@@ -569,115 +845,147 @@
           <div class="tr-view-heading">
             <div>
               <div class="tr-page-title"><span class="tr-page-index">03</span><h1>Pédagogie IA</h1></div>
-              <p>Regardez. Comprenez. Passez au clavier.</p>
+              <p>La vidéo du prof, et le Copilote pour comprendre et appliquer ce qu'il joue.</p>
             </div>
             <div class="tr-heading-actions">
-              <button class="tr-button" type="button" data-astra-open="pedagogie-library-drawer" data-astra-shortcut="t"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Mes tutoriels</button>
+              <!-- [Claude] — 2026-10-03 — Narcisse : « une fois qu'on a choisi un tutoriel, on n'a
+                   pas d'option qui permette d'en changer ». À la place du tiroir « Mes tutoriels »,
+                   un retour aux cartes, visible quand un tuto est ouvert. -->
+              <button class="tr-button pedago-back-btn" type="button" id="pedagogie-back-btn" hidden title="Revenir à tes tutoriels"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>Mes tutoriels</button>
               <button class="tr-button tr-primary panel-action" id="pedagogie-import-btn" type="button"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6M9 15l3-3 3 3"/></svg>Importer une vidéo</button>
             </div>
           </div>
 
-          <section class="tr-cinema-shell" id="pedagogie-main" aria-label="Lecteur de tutoriel">
-            <div class="tr-cinema-stage">
-              <section class="pedagogie-card is-video" id="pedagogie-video-card" style="display: none;">
-                <video class="pedagogie-video-player" id="pedagogie-video-player" preload="metadata" playsinline></video>
-              </section>
-
-              <div class="tr-video-topline">
-                <span><svg class="tr-i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.42 10.92a1 1 0 0 0-.02-1.84L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.83l8.57 3.91a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg>TUTORIEL</span>
-                <span class="pedagogie-format" id="pedagogie-format" style="display: none;"></span>
-              </div>
-
-              <div class="pedagogie-video-overlay" id="pedagogie-video-overlay" style="display: none;">
-                <button class="tr-cinema-play pedagogie-primary-btn" id="pedagogie-analyze-btn" type="button" disabled aria-label="Lire ce tutoriel"><svg class="tr-i" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 4 13 8-13 8z" fill="currentColor"/></svg><span>Lire ce tutoriel</span></button>
-              </div>
-
-              <div class="tr-video-title">
-                <span class="tr-eyebrow">PIANO / HARMONIE</span>
-                <h2 class="pedagogie-selected-name" id="pedagogie-selected-name">Bienvenue dans Pédagogie IA</h2>
-                <p class="pedagogie-intro" id="pedagogie-intro">Choisissez le dossier qui contient vos tutoriels vidéo (.mp4) dans « Mes tutoriels ». La vidéo et l'analyse apparaîtront ici.</p>
-                <p class="pedagogie-status" id="pedagogie-status" style="display: none;"></p>
-                <span class="pedagogie-progress" id="pedagogie-progress" style="display: none;"></span>
+          <!-- [Claude] — 2026-10-03 — Pédagogie IA refaite avec Narcisse : la vidéo du prof à
+               gauche, le Copilote à droite (« pourquoi ne pas intégrer directement Copilot IA
+               au sein de Pédagogie IA, plutôt que d'être redirigé vers un onglet séparé ? »).
+               La conversation est CELLE du Copilote, déplacée ici (src/pedagogie/copilot-dock.js).
+               Il sait où en est la vidéo : « ici », « ce qu'il vient de faire » = le passage
+               affiché en haut du panneau. Retirés à sa demande : « Résumé du cours » (« trop
+               court »), les fiches du glossaire, la question « Tutoriel ou Cover ? », la
+               transcription (« souvent mal traduite »). -->
+          <section class="pedago-home" id="pedagogie-home" aria-label="Vos tutoriels">
+            <div class="pedago-home-empty" id="pedagogie-home-empty">
+              <div class="pedago-home-icon" aria-hidden="true"><svg class="tr-i" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></div>
+              <h2 id="pedagogie-home-title">Choisis un tutoriel</h2>
+              <p id="pedagogie-home-text">Ouvre un tuto : la vidéo du prof s'affiche à gauche, et le Copilote à droite répond à tes questions sur ce qu'il vient de jouer.</p>
+              <div class="pedago-home-actions">
+                <button class="tr-button tr-primary" type="button" id="pedagogie-home-folder-btn">Choisir le dossier des tutoriels</button>
+                <!-- Le dossier des tutos, et « Changer de dossier… » (il était dans le tiroir). -->
+                <span class="pedagogie-folder-hint" id="pedagogie-folder-hint"></span>
               </div>
             </div>
+            <!-- [Claude] — 2026-10-03 — Ce que devient une vidéo importée (copiée, trop longue…). -->
+            <p class="pedago-home-notice" id="pedagogie-home-notice" hidden></p>
+            <div class="pedago-home-grid" id="pedagogie-home-grid" role="list" aria-label="Vos tutoriels"></div>
           </section>
 
-          <section class="tr-lesson-notebook">
-            <div class="tr-notebook-header">
-              <div class="tr-underlined-tabs" role="tablist" aria-label="Notes du tutoriel">
-                <button type="button" role="tab" aria-selected="true" class="is-active">Résumé du cours</button>
-              </div>
-              <div class="tr-notebook-actions pedagogie-video-actions" id="pedagogie-video-actions" style="display: none;">
-                <button type="button" class="tr-text-button tr-accent-text pedagogie-secondary-btn" id="pedagogie-copilot-shortcut"><svg class="tr-i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.29 1.29L3 12l5.81 1.9a2 2 0 0 1 1.29 1.29L12 21l1.9-5.81a2 2 0 0 1 1.29-1.29L21 12l-5.81-1.9a2 2 0 0 1-1.29-1.29z"/></svg>Copilote IA<svg class="tr-i" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></button>
+          <div class="pedago-split" id="pedagogie-split" hidden>
+            <!-- [Claude] — 2026-10-03 — Narcisse : « tant que l'analyse des images et de l'audio
+                 n'a pas été faite […] autant fermer [le Copilote] et faire comprendre qu'il faut
+                 attendre » ; « un temps de chargement, comme dans l'onglet Analyse et l'onglet
+                 Studio […] en attendant, on peut bouger et aller ailleurs ». Le tuto est analysé
+                 en entier dès l'import (son choix) ; cet écran le couvre tant que ce n'est pas
+                 prêt. -->
+            <div class="pedago-reading" id="pedagogie-reading" hidden>
+              <div class="pedago-reading-box">
+                <div data-chroma-stage></div>
+                <h3 class="pedago-reading-title" id="pedagogie-reading-title">Analyse du tutoriel</h3>
+                <p class="pedago-reading-name" id="pedagogie-reading-name"></p>
+                <p class="pedago-reading-step" id="pedagogie-reading-step" aria-live="polite"></p>
+                <p class="pedago-reading-elapsed" id="pedagogie-reading-elapsed"></p>
+                <p class="pedago-reading-hint" id="pedagogie-reading-hint"></p>
+                <div class="pedago-reading-actions">
+                  <button class="tr-button tr-primary" type="button" id="pedagogie-reading-retry" hidden>Relancer l'analyse</button>
+                </div>
               </div>
             </div>
+            <div class="pedago-stage">
+              <section class="tr-cinema-shell" id="pedagogie-main" aria-label="Lecteur de tutoriel">
+                <div class="tr-cinema-stage">
+                  <section class="pedagogie-card is-video" id="pedagogie-video-card" style="display: none;">
+                    <video class="pedagogie-video-player" id="pedagogie-video-player" preload="metadata" playsinline></video>
+                  </section>
 
-            <div class="tr-notebook-content" role="tabpanel">
-              <!-- Question de catégorie posée avant la première analyse d'un fichier. -->
-              <section class="pedagogie-card" id="pedagogie-category-card" style="display: none;">
-                <h4 class="pedagogie-card-title">Quelle est la nature de cette vidéo ?</h4>
-                <p class="pedagogie-intro">Le classement adapte ce qui est mis en avant pendant la lecture.</p>
-                <div class="pedagogie-category-grid" id="pedagogie-category-grid">
-                  <button type="button" class="pedagogie-category-card" data-category="tutorial">
-                    <span class="pedagogie-category-icon">🎓</span>
-                    <span class="pedagogie-category-title">Tutoriel avec explications</span>
-                    <span class="pedagogie-category-sub">Le professeur explique des accords, progressions ou concepts.</span>
-                  </button>
-                  <button type="button" class="pedagogie-category-card" data-category="cover">
-                    <span class="pedagogie-category-icon">🎹</span>
-                    <span class="pedagogie-category-title">Cover / interprétation</span>
-                    <span class="pedagogie-category-sub">Le but est de reproduire ce qui est joué dans la vidéo.</span>
-                  </button>
+                  <div class="tr-video-topline">
+                    <span><svg class="tr-i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.42 10.92a1 1 0 0 0-.02-1.84L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.83l8.57 3.91a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg>TUTORIEL</span>
+                    <span class="pedagogie-format" id="pedagogie-format" style="display: none;"></span>
+                  </div>
+
                 </div>
-                <p class="pedagogie-category-hint">Vous pourrez modifier ce choix plus tard.</p>
               </section>
 
-              <p class="pedagogie-category-hint" id="pedagogie-category-hint" style="display: none;">
-                <span id="pedagogie-category-hint-text"></span>
-              </p>
-
-              <div class="pedagogie-result" id="pedagogie-result" style="display: none;">
-                <section class="pedagogie-card is-copilot-summary" id="pedagogie-copilot-summary-card" style="display: none;">
-                  <h4 class="pedagogie-card-title">Résumé du cours</h4>
-                  <p class="pedagogie-copilot-summary-text" id="pedagogie-copilot-summary-text"></p>
-                  <button type="button" class="tr-text-button tr-accent-text pedagogie-secondary-btn" id="pedagogie-copilot-summary-btn">Ouvrir le Copilote IA<svg class="tr-i" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></button>
-                </section>
-
-                <section class="pedagogie-card" id="pedagogie-grid-card">
-                  <h4 class="pedagogie-card-title">Grille relevée</h4>
-                  <div class="pedagogie-grid" id="pedagogie-grid"></div>
-                </section>
-
-                <section class="pedagogie-card" id="pedagogie-crosscheck-card" style="display: none;">
-                  <h4 class="pedagogie-card-title">Recoupement image / son</h4>
-                  <div id="pedagogie-crosscheck"></div>
-                </section>
-
-                <section class="pedagogie-card">
-                  <h4 class="pedagogie-card-title">Ce qu'il y a à comprendre</h4>
-                  <div class="pedagogie-glossary" id="pedagogie-glossary"></div>
-                </section>
-              </div>
-            </div>
-          </section>
-
-          <!-- Tiroir « Mes tutoriels ». -->
-          <div class="tr-overlay tr-drawer-overlay" id="pedagogie-library-drawer" hidden>
-            <div class="tr-dialog tr-dialog-wide tr-drawer" role="dialog" aria-modal="true" aria-label="Votre collection de tutoriels">
-              <div class="tr-dialog-title"><h2>Votre collection de tutoriels</h2>
-                <button class="tr-icon-button" type="button" data-astra-close aria-label="Fermer">✕</button></div>
-              <div class="tr-dialog-body">
-                <div class="tr-library-toolbar">
-                  <span class="tr-secondary pedagogie-folder-hint" id="pedagogie-folder-hint"></span>
-                  <button class="tr-button tr-primary" type="button" data-astra-close data-astra-click="#pedagogie-import-btn"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6M9 15l3-3 3 3"/></svg>Importer une vidéo</button>
+              <!-- [Claude] — 2026-10-03 — La plage dont on parle au Copilote, choisie sans rien
+                   taper (Narcisse : « des champs présélectionnés (heures, minutes de 0 à 59) »,
+                   « une minute, c'est trop court ») : Début / Fin en listes, 10 min au plus. Avant
+                   tout choix, elle suit la vidéo (les 30 dernières secondes). « Boucler » fait
+                   tourner la vidéo sur la plage (l'ancienne boucle A-B). -->
+              <div class="pedago-passage" id="pedagogie-passage" hidden>
+                <div class="pedago-passage-row">
+                  <span class="pedago-tools-label">Passage</span>
+                  <div class="pedago-passage-edge" id="pedagogie-passage-start"></div>
+                  <span class="pedago-passage-arrow" aria-hidden="true">→</span>
+                  <div class="pedago-passage-edge" id="pedagogie-passage-end"></div>
+                  <span class="pedago-passage-length" id="pedagogie-passage-length" aria-live="polite"></span>
+                  <span class="pedago-tools-spacer"></span>
+                  <button type="button" class="pedago-tool-btn" id="pedagogie-passage-loop" aria-pressed="false" title="La vidéo tourne en boucle sur ce passage">Boucler</button>
+                  <button type="button" class="pedago-tool-btn" id="pedagogie-passage-follow" hidden title="Revenir aux 30 dernières secondes de la vidéo">Suivre la vidéo</button>
                 </div>
-                <div class="tr-library-table-head" aria-hidden="true">
-                  <span>TUTORIEL</span><span>TYPE</span><span></span>
-                </div>
-                <div class="pedagogie-track-list" id="pedagogie-track-list" data-astra-close-on-click></div>
+                <div class="pedago-passage-activity" id="pedagogie-passage-activity"></div>
               </div>
+
+              <!-- [Claude] — 2026-10-03 — Narcisse : « les étiquettes d'accords […] parfois elles ne
+                   suivent même pas ce que joue le pianiste ; autant les garder repliées par défaut
+                   et permettre de les déplier ». -->
+              <div class="pedago-strip" id="pedagogie-strip" hidden>
+                <button type="button" class="pedago-strip-toggle" id="pedagogie-strip-toggle" aria-expanded="false" aria-controls="pedagogie-grid">Accords relevés</button>
+                <div class="pedagogie-grid" id="pedagogie-grid" role="list" aria-label="Accords relevés : un clic place la vidéo"></div>
+              </div>
+
+              <div class="pedago-tools pedagogie-video-actions" id="pedagogie-video-actions" style="display: none;">
+                <div class="pedago-speed" id="pedagogie-speed" role="group" aria-label="Vitesse de la vidéo"></div>
+                <span class="pedago-tools-spacer"></span>
+                <!-- [Claude] — 2026-09-25 — Calibration d'un vrai clavier filmé (V2N) : visible
+                     seulement quand elle sert (V2N installé, pas de clavier dessiné reconnu). -->
+                <button type="button" class="tr-text-button pedagogie-secondary-btn" id="pedagogie-calibrate-btn" hidden title="Cliquez ensuite les 4 coins du clavier sur la vidéo : l'application lira les touches à l'image">Calibrer le clavier</button>
+                <!-- [Claude] — 2026-10-03 — L'analyse d'un tuto est gardée : la refaire est un choix. -->
+                <button type="button" class="tr-text-button pedagogie-secondary-btn" id="pedagogie-redo-btn" hidden title="Relire toute la vidéo et refaire l'analyse de ce que joue le prof">Refaire l'analyse</button>
+              </div>
+
+              <div class="pedagogie-status" id="pedagogie-status" style="display: none;"></div>
             </div>
+
+            <!-- [Claude] — 2026-10-03 — Narcisse : « la fenêtre [du Copilote] est trop petite […]
+                 si on l'agrandit, la fenêtre vidéo sera forcément impactée […] il faut trouver un
+                 moyen » : une poignée entre les deux (tirer : l'un grandit, l'autre rétrécit ;
+                 flèches du clavier ; double-clic : largeur normale). -->
+            <div class="pedago-resizer" id="pedagogie-resizer" role="separator" aria-orientation="vertical"
+                 aria-controls="pedagogie-copilot-panel" aria-label="Largeur du Copilote (tirer, ou flèches gauche et droite)"
+                 aria-valuemin="25" aria-valuemax="72" aria-valuenow="38" tabindex="0"
+                 title="Tirer pour agrandir le Copilote ou la vidéo · double-clic : largeur normale"></div>
+
+            <aside class="pedago-copilot" id="pedagogie-copilot-panel" aria-label="Copilote du tutoriel">
+              <header class="pedago-copilot-head">
+                <div class="pedago-copilot-title"><svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.29 1.29L3 12l5.81 1.9a2 2 0 0 1 1.29 1.29L12 21l1.9-5.81a2 2 0 0 1 1.29-1.29L21 12l-5.81-1.9a2 2 0 0 1-1.29-1.29z"/></svg><span>Copilote</span><small id="pedagogie-copilot-name"></small></div>
+                <div class="pedago-moment" id="pedagogie-moment" hidden>
+                  <span class="pedago-moment-label">Passage</span>
+                  <strong class="pedago-moment-range" id="pedagogie-moment-range"></strong>
+                </div>
+                <!-- [Claude] — 2026-10-03 — Agrandir / Réduire d'un clic (la poignée fait de même). -->
+                <button type="button" class="pedago-copilot-size" id="pedagogie-copilot-size" aria-pressed="false" aria-controls="pedagogie-copilot-panel"
+                        title="Agrandir le Copilote (la vidéo rétrécit)">
+                  <svg class="tr-i is-grow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
+                  <svg class="tr-i is-shrink" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14h6v6"/><path d="M20 10h-6V4"/><path d="M14 10l7-7"/><path d="M3 21l7-7"/></svg>
+                  <span class="pedago-copilot-size-label">Agrandir</span>
+                </button>
+              </header>
+              <p class="pedago-copilot-notice" id="pedagogie-copilot-notice" hidden></p>
+              <div class="pedago-copilot-slot" id="pedagogie-copilot-slot"></div>
+            </aside>
           </div>
+
+          <!-- [Claude] — 2026-10-03 — Le tiroir « Mes tutoriels » est retiré : les cartes de
+               l'accueil sont la bibliothèque, et « ← Mes tutoriels » y ramène. -->
         </div>
 
         <!-- [Refonte Astra 12/09] — Copilot IA : on prend l'HABILLAGE et le
@@ -712,14 +1020,18 @@
                 <button type="button" class="copilot-chip" data-message="Fais-moi une démonstration au clavier.">Démonstration</button>
                 <button type="button" class="copilot-chip" data-message="Fais-moi un lick adapté.">Lick</button>
                 <span class="copilot-style-spacer"></span>
-                <label class="copilot-style-label" for="copilot-style-select">Style</label>
-                <select id="copilot-style-select" class="copilot-style-select">
-                  <option value="auto">Auto</option>
-                  <option value="worship">Worship</option>
-                  <option value="gospel">Gospel</option>
-                  <option value="jazz">Jazz</option>
-                  <option value="neoSoul">Neo Soul</option>
-                </select>
+                <!-- [Claude] — 2026-10-03 — Libellé et liste groupés : dans le panneau de
+                     Pédagogie IA, la liste partait seule sur une ligne, centrée. -->
+                <span class="copilot-style">
+                  <label class="copilot-style-label" for="copilot-style-select">Style</label>
+                  <select id="copilot-style-select" class="copilot-style-select">
+                    <option value="auto">Auto</option>
+                    <option value="worship">Worship</option>
+                    <option value="gospel">Gospel</option>
+                    <option value="jazz">Jazz</option>
+                    <option value="neoSoul">Neo Soul</option>
+                  </select>
+                </span>
               </div>
 
               <!-- [Astra round 4] — Composer d'Astra : la zone de saisie est un
@@ -728,7 +1040,13 @@
               <div class="tr-composer">
                 <textarea class="copilot-input" id="copilot-input" rows="1" maxlength="2000" placeholder="Quelle harmonie avez-vous en tête ?" aria-label="Message au Copilot"></textarea>
                 <div class="tr-composer-tools">
-                  <span><svg class="tr-i" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.29 1.29L3 12l5.81 1.9a2 2 0 0 1 1.29 1.29L12 21l1.9-5.81a2 2 0 0 1 1.29-1.29L21 12l-5.81-1.9a2 2 0 0 1-1.29-1.29z"/></svg>IA connectée</span>
+                  <!-- [Claude] — 2026-09-26 — « Qu'en penses-tu ? » à la place de « IA connectée »
+                       (demande de Narcisse) : un clic pour que le Copilote écoute, un clic
+                       (Stop) pour arrêter ; ce qui a été joué entre les deux part aussitôt. -->
+                  <div class="copilot-review">
+                    <button class="copilot-review-btn" id="copilot-review-btn" type="button" aria-pressed="false" title="Clique, joue au clavier, puis clique sur Stop : le Copilote reçoit ce que tu as joué entre les deux clics (avec la question tapée, s'il y en a une)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><path d="M21 15a2 2 0 0 1-2 2h-1v-5h1a2 2 0 0 1 2 2zM3 15a2 2 0 0 0 2 2h1v-5H5a2 2 0 0 0-2 2z"/></svg><span>Qu'en penses-tu ?</span></button>
+                    <span class="copilot-review-hint" id="copilot-review-hint" aria-live="polite"></span>
+                  </div>
                   <button class="copilot-send-btn" id="copilot-send-btn" type="button" title="Envoyer" aria-label="Envoyer la question"><svg class="tr-i" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
                 </div>
               </div>
@@ -755,7 +1073,13 @@
               <div class="tr-dialog-body">
                 <div class="tr-library-toolbar">
                   <span class="tr-secondary copilot-history-count" id="copilot-history-count"></span>
-                  <button class="tr-button tr-primary copilot-new-conv-sidebar-btn" id="copilot-new-conv-sidebar-btn" type="button" data-astra-close><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Nouvelle conversation</button>
+                  <div class="tr-library-toolbar-actions">
+                    <button class="tr-text-button copilot-delete-empty-btn" id="copilot-delete-empty-btn" type="button" data-astra-close>
+                      <svg class="tr-i" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                      Supprimer les vides
+                    </button>
+                    <button class="tr-button tr-primary copilot-new-conv-sidebar-btn" id="copilot-new-conv-sidebar-btn" type="button" data-astra-close><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Nouvelle conversation</button>
+                  </div>
                 </div>
                 <div class="tr-library-table-head" aria-hidden="true">
                   <span>CONVERSATION</span><span>DATE</span><span></span>
@@ -774,46 +1098,47 @@
       <main class="analysis-tab an-workspace-shell" id="analysis-tab" style="display: none;">
         <section class="analyzer-workspace" id="analyzer-workspace">
           <!-- État 1 : Import source -->
+          <!-- [Refonte Analyse 02/10] — l'écran d'accueil ne propose plus que
+               ce que l'onglet Analyse sait faire de mieux : prendre un fichier
+               audio et en sortir une grille d'accords.
+               · La carte « Vidéo (MP4) » est retirée — le même geste existe,
+                 mieux outillé, dans Pédagogie IA.
+               · La carte « Enregistrer au clavier MIDI » est retirée — les
+                 Sessions MIDI de l'onglet Entraînement font déjà la capture.
+               Trois portes d'entrée pour un seul but, c'était trois décisions
+               à prendre avant d'avoir commencé. -->
           <div class="analyzer-state" id="analyzer-import-screen">
             <div class="analyzer-import-hero">
-              <div class="analyzer-import-icon">📤</div>
-              <h2>Importer un fichier</h2>
-              <p>Importez un fichier audio ou vidéo pour lancer l'analyse et détecter les accords utilisés.</p>
-              <div class="analyzer-import-cards">
-                <button type="button" class="analyzer-import-card" id="analyzer-import-audio-btn" aria-label="Importer un fichier audio">
-                  <span class="analyzer-import-card-icon audio" aria-hidden="true">🎵</span>
-                  <div>
-                    <div class="analyzer-import-card-title">Audio (MP3, WAV)</div>
-                    <div class="analyzer-import-card-sub">Importez un fichier audio pour analyser les accords.</div>
-                  </div>
-                  <span class="analyzer-import-card-arrow" aria-hidden="true">›</span>
-                </button>
-                <button type="button" class="analyzer-import-card" id="analyzer-import-video-btn" aria-label="Importer une vidéo">
-                  <span class="analyzer-import-card-icon video" aria-hidden="true">🎬</span>
-                  <div>
-                    <div class="analyzer-import-card-title">Vidéo (MP4)</div>
-                    <div class="analyzer-import-card-sub">Importez une vidéo (le son sera analysé).</div>
-                  </div>
-                  <span class="analyzer-import-card-arrow" aria-hidden="true">›</span>
-                </button>
-              </div>
-              <div class="analyzer-import-separator"><span>OU</span></div>
-              <button type="button" class="analyzer-import-card midi" id="analyzer-import-midi-btn" aria-label="Enregistrer au clavier MIDI">
-                <span class="analyzer-import-card-icon midi" aria-hidden="true">🎹</span>
+              <span class="analyzer-import-icon" aria-hidden="true">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+              </span>
+              <h2>Analyser un morceau</h2>
+              <p>Choisissez un fichier audio : l'application en détecte les accords, la tonalité et le tempo, puis vous laisse les parcourir au clavier.</p>
+
+              <button type="button" class="analyzer-import-card is-lead" id="analyzer-import-audio-btn" aria-label="Choisir un fichier audio à analyser">
+                <span class="analyzer-import-card-icon audio" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M17 8l-5-5-5 5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
+                </span>
                 <div>
-                  <div class="analyzer-import-card-title">Enregistrer au clavier MIDI</div>
-                  <div class="analyzer-import-card-sub">Jouez des notes en temps réel pour capturer et analyser les accords.</div>
+                  <div class="analyzer-import-card-title">Choisir un fichier audio</div>
+                  <div class="analyzer-import-card-sub">MP3, WAV ou M4A. Votre fichier n'est jamais modifié.</div>
                 </div>
-                <span class="analyzer-import-card-arrow" aria-hidden="true">›</span>
+                <span class="analyzer-import-card-arrow" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                </span>
               </button>
+
               <!-- [Refonte] — La bibliothèque n'est plus listée ici : elle a sa
                    propre fenêtre, ouverte depuis l'en-tête (🎵) et donc
                    atteignable aussi bien depuis le Studio que depuis l'Analyse.
                    Il reste ce raccourci pour ne pas perdre le chemin d'accès
                    depuis l'écran d'import. -->
               <button type="button" class="analyzer-library-open" id="analyzer-library-open">
-                🎵 Reprendre un morceau de ma bibliothèque
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5v14"/><path d="M8 5v14"/><path d="m13 6 7 2-4 13-7-2z"/></svg>
+                Reprendre un morceau déjà importé
               </button>
+              <p class="analyzer-import-footnote">Un morceau déjà analysé se rouvre instantanément : ses accords sont enregistrés, rien n'est recalculé.</p>
+
               <!-- Bouton historique conservé pour compatibilité initiale -->
               <button type="button" id="analyzer-import-btn" class="analyzer-import-legacy" style="display:none">Importer un nouveau fichier</button>
             </div>
@@ -921,117 +1246,22 @@
             </div>
           </div>
 
-          <!-- État 4 : Enregistrement MIDI -->
-          <div class="analyzer-state" id="analyzer-state-midi-record">
-            <aside class="analyzer-midi-sidebar left">
-              <div class="analyzer-panel-title">Paramètres de session</div>
-              <label class="analyzer-field">
-                <span>Nom de la session</span>
-                <input type="text" id="analyzer-midi-session-name" value="Impro MIDI" />
-              </label>
-              <div class="analyzer-midi-source">
-                <div class="analyzer-field-label">Source MIDI</div>
-                <div class="analyzer-midi-source-name" id="analyzer-midi-source-name">—</div>
-                <div class="analyzer-midi-source-status" id="analyzer-midi-source-status">Connecté</div>
-              </div>
-              <label class="analyzer-field">
-                <span>Compte à rebours</span>
-                <select id="analyzer-midi-countdown">
-                  <option value="0">Aucun</option>
-                  <option value="1">1 mesure</option>
-                  <option value="2" selected>2 mesures (en 4/4)</option>
-                  <option value="4">4 mesures</option>
-                </select>
-              </label>
-              <label class="analyzer-field">
-                <span>Quantification</span>
-                <select id="analyzer-midi-quantization">
-                  <option value="none">Désactivée</option>
-                  <option value="1/16" selected>1/16</option>
-                  <option value="1/8">1/8</option>
-                  <option value="1/4">1/4</option>
-                </select>
-              </label>
-              <label class="analyzer-field switch">
-                <span>Conserver la mélodie</span>
-                <input type="checkbox" id="analyzer-midi-keep-melody" checked />
-              </label>
-              <button type="button" class="btn-secondary analyzer-reset-btn" id="analyzer-midi-reset">↺ Réinitialiser la session</button>
-            </aside>
-
-            <div class="analyzer-midi-center">
-              <button type="button" id="analyzer-midi-back-btn" class="btn-secondary btn-sm" title="Nouvelle analyse" style="align-self: flex-start; margin-bottom: 12px;">← Nouvelle analyse</button>
-              <div class="analyzer-midi-status">
-                <div class="analyzer-midi-rec-dot" id="analyzer-midi-rec-dot"></div>
-                <div class="analyzer-midi-status-text" id="analyzer-midi-status-text">SESSION MIDI EN COURS</div>
-              </div>
-              <div class="analyzer-midi-timer" id="analyzer-midi-timer">00:00</div>
-              <div class="analyzer-midi-bpm" id="analyzer-midi-bpm">4/4 • 120 BPM</div>
-              <div class="analyzer-midi-controls">
-                <button type="button" class="analyzer-midi-record-btn" id="analyzer-midi-record-btn">● Enregistrer</button>
-                <button type="button" class="btn-secondary" id="analyzer-midi-pause-btn">⏸ Pause</button>
-                <button type="button" class="btn-secondary" id="analyzer-midi-stop-btn">■ Arrêter</button>
-              </div>
-              <div class="analyzer-pianoroll" id="analyzer-pianoroll" aria-label="Piano-roll temps réel">
-                <div class="analyzer-pianoroll-placeholder">Piano-roll temps réel</div>
-              </div>
-              <div class="analyzer-midi-bottom">
-                <div class="analyzer-midi-topnotes">
-                  <div class="analyzer-midi-section-title">Top notes détectées</div>
-                  <div class="analyzer-topnotes-list" id="analyzer-topnotes-list">—</div>
-                  <div class="analyzer-topnotes-hint" id="analyzer-topnotes-hint">Basé sur les dernières notes reçues</div>
-                </div>
-                <div class="analyzer-midi-segments">
-                  <div class="analyzer-midi-section-title">Segments capturés</div>
-                  <div class="analyzer-segments-list" id="analyzer-segments-list">
-                    <span class="analyzer-segment-placeholder">Aucun segment</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <aside class="analyzer-midi-sidebar right">
-              <div class="analyzer-panel-title">État de la session</div>
-              <div class="analyzer-midi-status-grid">
-                <div class="analyzer-midi-status-row">
-                  <span class="analyzer-midi-status-label">Source MIDI</span>
-                  <span class="analyzer-midi-status-badge connected" id="analyzer-midi-source-badge">Connectée</span>
-                </div>
-                <div class="analyzer-midi-status-row">
-                  <span class="analyzer-midi-status-label">Enregistrement</span>
-                  <span class="analyzer-midi-status-badge" id="analyzer-midi-rec-badge">Inactif</span>
-                </div>
-                <div class="analyzer-midi-status-row">
-                  <span class="analyzer-midi-status-label">Durée</span>
-                  <span class="analyzer-midi-status-value" id="analyzer-midi-duration-stat">00:00</span>
-                </div>
-                <div class="analyzer-midi-status-row">
-                  <span class="analyzer-midi-status-label">Segments</span>
-                  <span class="analyzer-midi-status-value" id="analyzer-midi-segments-stat">0</span>
-                </div>
-                <div class="analyzer-midi-status-row">
-                  <span class="analyzer-midi-status-label">Notes capturées</span>
-                  <span class="analyzer-midi-status-value" id="analyzer-midi-notes-stat">0</span>
-                </div>
-                <div class="analyzer-midi-status-row">
-                  <span class="analyzer-midi-status-label">Statut</span>
-                  <span class="analyzer-midi-status-badge ready" id="analyzer-midi-status-badge">Prêt</span>
-                </div>
-              </div>
-              <div class="analyzer-tip">
-                <div class="analyzer-tip-title">💡 Conseil</div>
-                <div class="analyzer-tip-text">Jouez librement sur votre synthé. Nous capturons à la fois la mélodie et l'harmonie.</div>
-              </div>
-             </aside>
-           </div>
-
           <!-- [Refonte 2026-09-02, rétabli le 2026-09-03] — overlay de
                traitement : FRÈRE des analyzer-states dans analyzer-workspace,
                pas enfant de #analyzer-results (masqué pendant l'analyse,
                l'overlay y serait invisible — bug refonte, corrigé le 03/09). -->
           <div class="analyzer-processing-overlay" id="analyzer-processing" style="display: none;">
             <div class="analyzer-processing-box">
-              <div class="analyzer-processing-spinner"></div>
+              <!-- [Refonte Analyse 02/10] — l'attente dure souvent plusieurs
+                   minutes ; un rond qui tourne n'y dit rien de ce qui se passe.
+                   Ce qui se passe, c'est que le moteur lit l'énergie des douze
+                   demi-tons image par image : c'est exactement ce que montre
+                   cette scène. Les douze colonnes sont rangées comme une
+                   octave de piano — les cinq « touches noires » plus étroites
+                   et plus sombres — et la ligne qui balaye est la tête de
+                   lecture qui avance dans le morceau. Décor pur : aucune des
+                   valeurs affichées ne prétend venir de l'analyse en cours. -->
+              <div data-chroma-stage></div>
               <p class="analyzer-processing-text" id="analyzer-processing-text">Analyse en cours…</p>
               <!-- Compteur de temps écoulé : une analyse dure souvent plus
                    d'une minute ; sans lui, l'écran d'attente est
@@ -1039,116 +1269,6 @@
               <p class="analyzer-processing-elapsed" id="analyzer-processing-elapsed" aria-live="polite"></p>
               <p class="analyzer-processing-hint">Vous pouvez continuer à utiliser les onglets Entraînement et Studio.</p>
             </div>
-          </div>
-
-          <!-- État 5 : Résultats / Réharmonisation -->
-          <div class="analyzer-state" id="analyzer-state-results">
-            <aside class="analyzer-results-sidebar left">
-              <div class="analyzer-panel-title">Détails de la session</div>
-              <div class="analyzer-detail-row">
-                <span class="analyzer-detail-icon" aria-hidden="true">🎵</span>
-                <div>
-                  <div class="analyzer-detail-label">Tonalité détectée</div>
-                  <div class="analyzer-detail-value" id="analyzer-result-key">—</div>
-                </div>
-              </div>
-              <div class="analyzer-detail-row">
-                <span class="analyzer-detail-icon" aria-hidden="true">🎷</span>
-                <div>
-                  <div class="analyzer-detail-label">Style détecté</div>
-                  <div class="analyzer-detail-value" id="analyzer-result-style">—</div>
-                </div>
-              </div>
-              <div class="analyzer-detail-row">
-                <span class="analyzer-detail-icon" aria-hidden="true">🎹</span>
-                <div>
-                  <div class="analyzer-detail-label">Source</div>
-                  <div class="analyzer-detail-value" id="analyzer-result-source">—</div>
-                </div>
-              </div>
-              <div class="analyzer-detail-row">
-                <span class="analyzer-detail-icon" aria-hidden="true">⏱</span>
-                <div>
-                  <div class="analyzer-detail-label">Durée</div>
-                  <div class="analyzer-detail-value" id="analyzer-result-duration">—</div>
-                </div>
-              </div>
-              <div class="analyzer-detail-row constraints">
-                <span class="analyzer-detail-icon" aria-hidden="true">📋</span>
-                <div>
-                  <div class="analyzer-detail-label">Contraintes</div>
-                  <ul id="analyzer-result-constraints">
-                    <li>Conserver la mélodie</li>
-                    <li>Voicings jouables</li>
-                    <li>Éviter les quintes parallèles</li>
-                    <li>Préférer les tensions douces</li>
-                  </ul>
-                </div>
-              </div>
-              <button type="button" class="btn-secondary w-full" id="analyzer-result-view-capture">🎹 Voir la capture MIDI</button>
-            </aside>
-
-            <div class="analyzer-results-center">
-              <div class="analyzer-result-section">
-                <div class="analyzer-section-title">Mélodie capturée</div>
-                <div class="analyzer-melody-staff" id="analyzer-melody-staff">
-                  <div class="analyzer-melody-placeholder">Portée musicale (données MIDI requises)</div>
-                </div>
-              </div>
-              <div class="analyzer-result-section">
-                <div class="analyzer-section-title">Notes repères</div>
-                <div class="analyzer-anchor-notes" id="analyzer-anchor-notes">—</div>
-              </div>
-              <div class="analyzer-result-section">
-                <div class="analyzer-section-header">
-                  <div class="analyzer-section-title">Propositions de réharmonisation</div>
-                  <div class="analyzer-sort">
-                    <label>Trier par</label>
-                    <select id="analyzer-reharm-sort">
-                      <option value="relevance">Pertinence</option>
-                      <option value="coherence">Cohérence</option>
-                      <option value="tension">Tension</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="analyzer-reharm-grid" id="analyzer-reharm-grid"></div>
-                <button type="button" class="btn-secondary analyzer-more-btn" id="analyzer-reharm-more">Afficher plus de variantes</button>
-              </div>
-            </div>
-
-            <aside class="analyzer-results-sidebar right">
-              <div class="analyzer-panel-title">Résumé</div>
-              <div class="analyzer-detail-row">
-                <span class="analyzer-detail-icon" aria-hidden="true">🎵</span>
-                <div>
-                  <div class="analyzer-detail-label">Contrainte mélodique</div>
-                  <div class="analyzer-detail-value" id="analyzer-summary-melody">La mélodie sera conservée.</div>
-                </div>
-              </div>
-              <div class="analyzer-detail-row">
-                <span class="analyzer-detail-icon" aria-hidden="true">🎼</span>
-                <div>
-                  <div class="analyzer-detail-label">Tonalité détectée</div>
-                  <div class="analyzer-detail-value" id="analyzer-summary-key">—</div>
-                </div>
-              </div>
-              <div class="analyzer-detail-row">
-                <span class="analyzer-detail-icon" aria-hidden="true">📊</span>
-                <div>
-                  <div class="analyzer-detail-label">Analyse</div>
-                  <div class="analyzer-detail-value" id="analyzer-summary-analysis">—</div>
-                </div>
-              </div>
-              <div class="analyzer-detail-row">
-                <span class="analyzer-detail-icon" aria-hidden="true">⏩</span>
-                <div>
-                  <div class="analyzer-detail-label">Action suivante</div>
-                  <div class="analyzer-detail-value" id="analyzer-summary-next">Comparez les propositions pour écouter et choisir la version qui convient le mieux à votre morceau.</div>
-                </div>
-              </div>
-              <button type="button" class="btn-primary w-full" id="analyzer-compare-btn" disabled>⚖ Comparer les propositions</button>
-              <button type="button" class="btn-secondary w-full" id="analyzer-apply-recommended-btn" disabled>✨ Appliquer la version recommandée</button>
-            </aside>
           </div>
 
           <!-- Vue d'analyse active : lecteur + timeline + inspecteur + onglets -->
@@ -1203,18 +1323,6 @@
                  d'accords recopiées de la maquette. La frise reste celle de Zic
                  (blocs proportionnels à la durée réelle, pilotés par le zoom) :
                  seule son habillage devient celui du ruban d'Astra. -->
-            <div class="an-legend-strip" id="analyzer-timeline-legend">
-              <div class="an-legend-items">
-                <span class="an-legend-pill is-structural"><i></i>Accord structurel</span>
-                <span class="an-legend-pill is-passing"><i></i>Accord de passage</span>
-                <span class="an-legend-pill is-uncertain"><i></i>Incertain</span>
-              </div>
-              <label class="an-hierarchize-toggle">
-                <input type="checkbox" id="analyzer-hierarchy-toggle" checked />
-                <span>Hiérarchiser</span>
-              </label>
-            </div>
-
             <div class="an-chord-progression-ribbon" role="region" aria-label="Ligne des accords">
               <button type="button" class="an-ribbon-nav-btn" id="analyzer-timeline-scroll-left" aria-label="Défiler à gauche" title="Accord précédent"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
               <div class="an-ribbon-chords-track" id="analyzer-chord-timeline">
@@ -1227,13 +1335,30 @@
                  recopiée de la maquette. Les data-section sont ceux que lit
                  activateSectionTab() dans analyzer-tab.js, et le module bascule
                  la classe .active (et non .is-active) : le pont fait l'alias. -->
-            <nav class="an-subtabs-nav" id="analyzer-section-tabs" role="tablist" aria-label="Sous-onglets Analyse">
-              <button type="button" class="an-subtab-btn active" data-section="chords" role="tab" aria-selected="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><span>Accord sélectionné</span></button>
-              <button type="button" class="an-subtab-btn" data-section="analysis" role="tab" aria-selected="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg><span>Vue d’ensemble</span></button>
-              <button type="button" class="an-subtab-btn" data-section="reharm" role="tab" aria-selected="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12.83 2.18 8.58 3.91a1 1 0 0 1 0 1.82l-8.58 3.91a2 2 0 0 1-1.66 0L2.59 7.91a1 1 0 0 1 0-1.82l8.58-3.91a2 2 0 0 1 1.66 0Z"/><path d="m22 12.5-9.17 4.18a2 2 0 0 1-1.66 0L2 12.5"/><path d="m22 17.5-9.17 4.18a2 2 0 0 1-1.66 0L2 17.5"/></svg><span>Réharmonisation</span></button>
-              <button type="button" class="an-subtab-btn" data-section="masterclass" role="tab" aria-selected="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.42 10.92a1 1 0 0 0-.02-1.84L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.83l8.57 3.91a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg><span>Masterclass</span></button>
-              <button type="button" class="an-subtab-btn" data-section="corriger" role="tab" aria-selected="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg><span>Corriger</span></button>
-            </nav>
+            <div class="an-subtabs-bar">
+              <nav class="an-subtabs-nav" id="analyzer-section-tabs" role="tablist" aria-label="Sous-onglets Analyse">
+                <button type="button" class="an-subtab-btn active" data-section="chords" role="tab" aria-selected="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><span>Accord sélectionné</span></button>
+                <button type="button" class="an-subtab-btn" data-section="analysis" role="tab" aria-selected="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg><span>Vue d’ensemble</span></button>
+                <button type="button" class="an-subtab-btn" data-section="reharm" role="tab" aria-selected="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12.83 2.18 8.58 3.91a1 1 0 0 1 0 1.82l-8.58 3.91a2 2 0 0 1-1.66 0L2.59 7.91a1 1 0 0 1 0-1.82l8.58-3.91a2 2 0 0 1 1.66 0Z"/><path d="m22 12.5-9.17 4.18a2 2 0 0 1-1.66 0L2 12.5"/><path d="m22 17.5-9.17 4.18a2 2 0 0 1-1.66 0L2 17.5"/></svg><span>Réharmonisation</span></button>
+                <button type="button" class="an-subtab-btn" data-section="masterclass" role="tab" aria-selected="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.42 10.92a1 1 0 0 0-.02-1.84L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.83l8.57 3.91a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg><span>Masterclass</span></button>
+                <button type="button" class="an-subtab-btn" data-section="corriger" role="tab" aria-selected="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg><span>Corriger</span></button>
+              </nav>
+
+              <!-- La légende des rôles et l'interrupteur « Hiérarchiser »
+                   décrivent la frise ci-dessus : ils tiennent au bout de la
+                   rangée d'onglets plutôt que dans une bande à eux. -->
+              <div class="an-legend-strip" id="analyzer-timeline-legend">
+                <div class="an-legend-items">
+                  <span class="an-legend-pill is-structural"><i></i>Accord structurel</span>
+                  <span class="an-legend-pill is-passing"><i></i>Accord de passage</span>
+                  <span class="an-legend-pill is-uncertain"><i></i>Incertain</span>
+                </div>
+                <label class="an-hierarchize-toggle">
+                  <input type="checkbox" id="analyzer-hierarchy-toggle" checked />
+                  <span>Hiérarchiser</span>
+                </label>
+              </div>
+            </div>
 
             <div class="an-stage-viewport" id="analyzer-section-panels">
               <!-- [Refonte Astra Analyse 12/09] — « Accord sélectionné », mise en
@@ -1280,22 +1405,6 @@
                       <button type="button" class="an-btn an-btn-ghost an-btn-mini" id="analyzer-inspector-edit-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Modifier</button>
                     </div>
                   </div>
-
-                  <section id="analyzer-voicing-preview" class="an-card an-panoramic-card an-card-jazz voicing-preview-panel" aria-label="Aperçu du voicing piano" style="display:none">
-                    <div class="an-card-header">
-                      <span class="an-eyebrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.29 1.29L3 12l5.81 1.9a2 2 0 0 1 1.29 1.29L12 21l1.9-5.81a2 2 0 0 1 1.29-1.29L21 12l-5.81-1.9a2 2 0 0 1-1.29-1.29z"/></svg>VOICING ALTERNATIF</span>
-                      <div
-                        id="analyzer-voicing-style-selector"
-                        class="an-style-switcher voicing-style-selector"
-                        role="group"
-                        aria-label="Style de voicing"
-                      >
-                        <button type="button" class="an-style-btn voicing-style-btn" data-voicing-style="close" aria-pressed="true">Serré</button>
-                        <button type="button" class="an-style-btn voicing-style-btn" data-voicing-style="simple" aria-pressed="false">Simple</button>
-                      </div>
-                    </div>
-                    <div class="an-jazz-body" id="analyzer-voicing-content"></div>
-                  </section>
 
                 </div>
               </div>
@@ -1511,7 +1620,7 @@
 
         <div id="studio-processing-overlay" class="studio-processing-overlay" style="display: none;">
           <div class="studio-processing-box">
-            <div class="studio-processing-spinner"></div>
+            <div data-chroma-stage></div>
             <h3>Préparation du morceau</h3>
             <p id="studio-processing-label">Extraction audio en cours...</p>
             <div class="studio-processing-bar-wrap">
@@ -1533,6 +1642,56 @@
           <span class="studio-recording-dot"></span>
           <span>REC</span>
         </div>
+
+        <!-- [Refonte Studio 02/10] — Écran d'accueil du Studio, repris de la
+             maquette Astra. Il remplace la grande liste centrée : celle-ci
+             demandait de choisir un morceau avant d'avoir dit à quoi sert cet
+             onglet. La liste reste à un clic, dans le tiroir « Musiques
+             importées ».
+             Les quatre repères du bas décrivent ce que le Studio de Zic fait
+             RÉELLEMENT — la maquette annonçait une console 3 bandes M/S et un
+             export WAV, que cette application n'a pas (les boutons d'export
+             sont encore désactivés). -->
+        <div class="studio-home-bar" id="studio-home-bar">
+          <button type="button" class="studio-home-btn" id="studio-home-library-btn" aria-expanded="false" aria-controls="studio-sidebar-left">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5v14"/><path d="M8 5v14"/><path d="m13 6 7 2-4 13-7-2z"/></svg>
+            <span>Musiques importées</span>
+            <span class="studio-home-count" id="studio-home-count">0</span>
+          </button>
+          <button type="button" class="studio-home-btn is-primary" id="studio-home-import-btn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M17 8l-5-5-5 5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
+            <span>Importer un fichier</span>
+          </button>
+          <span class="studio-home-privacy">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
+            Tout le traitement se fait sur votre ordinateur
+          </span>
+        </div>
+
+        <section class="studio-empty-hero" id="studio-empty-hero">
+          <span class="studio-empty-vinyl" aria-hidden="true">
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>
+          </span>
+          <span class="studio-empty-eyebrow">Votre table de mixage personnelle</span>
+          <h1 class="studio-empty-title">Un morceau. Votre console.<br /><em>Sculptez le son.</em></h1>
+          <p class="studio-empty-text">Importez un titre, isolez le piano, la basse ou la voix, reprenez une région au casque et transposez sans couper le son.</p>
+          <div class="studio-empty-actions">
+            <button type="button" class="studio-home-btn is-primary is-lg" id="studio-hero-import-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M17 8l-5-5-5 5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
+              Importer un fichier audio ou vidéo
+            </button>
+            <button type="button" class="studio-home-btn is-lg" id="studio-hero-library-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5v14"/><path d="M8 5v14"/><path d="m13 6 7 2-4 13-7-2z"/></svg>
+              Reprendre un morceau importé
+            </button>
+          </div>
+          <div class="studio-empty-features">
+            <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12h2M6 8v8M10 4v16M14 7v10M18 10v4M22 12h-2"/></svg>Forme d'onde et région de travail</span>
+            <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>Séparation des instruments</span>
+            <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Mute, solo et volume par piste</span>
+            <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6.5h20v11H2z"/><path d="M6 6.5v6M10 6.5v6M14 6.5v6M18 6.5v6M2 12.5h20"/></svg>Transposition &#177;12 demi-tons</span>
+          </div>
+        </section>
 
         <aside class="studio-sidebar left" id="studio-sidebar-left">
           <div class="panel studio-tracks-panel" id="studio-tracks-panel">
@@ -1747,9 +1906,6 @@
                 <label class="vk-switch is-warn" title="Couper le son du clavier virtuel">
                   <input type="checkbox" id="silent-mode" /><span>Silencieux</span>
                 </label>
-                <label class="vk-switch" title="Timbre de piano électrique">
-                  <input type="checkbox" id="rhodes-mode" /><span>Rhodes</span>
-                </label>
               </div>
             </div>
 
@@ -1765,23 +1921,23 @@
           <div class="vk-bed">
             <div class="keyboard-container-wrap" id="keyboard-container-wrap">
               <div id="keyboard-container" class="keyboard-container"></div>
-              <div class="keyboard-annotation-layer" id="keyboard-annotation-layer" aria-hidden="true"></div>
             </div>
           </div>
 
           <div class="vk-status">
+            <!-- [Claude] — 2026-09-25 — Qui joue ? Bleu : toi ; jaune : l'application
+                 (Copilote, démos, relecture). Plus d'étiquettes sur les touches. -->
             <div class="vk-legend">
-              <span><i class="vk-dot vk-dot-note"></i>Note</span>
-              <span><i class="vk-dot vk-dot-root"></i>Fondamentale</span>
-              <span class="vk-hint">Les couleurs des touches se règlent dans le pied de page</span>
+              <span><i class="vk-dot vk-dot-you"></i>Toi</span>
+              <span><i class="vk-dot vk-dot-app"></i>L'app</span>
             </div>
             <div class="vk-status-right">
               <span class="vk-mono" id="keyboard-note-count">0 note</span>
             </div>
           </div>
 
-          <!-- Poignée de hauteur : astra-shell.js règle --keyboard-height. -->
-          <div class="vk-resize" id="keyboard-resize" role="separator" aria-label="Redimensionner le clavier" aria-orientation="horizontal"></div>
+          <!-- Pas de poignée de hauteur : l'application décide de la hauteur du
+               clavier selon la largeur et l'étendue (fitKeyboardPanelHeight). -->
         </div>
       </section>
 
@@ -1803,6 +1959,15 @@
           <span id="midi-status-text">Aucun</span>
           <span id="midi-port-count">(0)</span>
           <button id="midi-refresh" title="Rafraîchir les périphériques MIDI">↻</button>
+        </div>
+
+        <!-- [Claude] — 2026-09-24 — Sortie MIDI : la démo et « Écouter » jouent sur
+             le port choisi (VST), le piano intégré se tait. -->
+        <div class="footer-midi-out">
+          <label for="midi-output-select">Sortie :</label>
+          <select id="midi-output-select" title="Où jouent la démo et « Écouter » : piano intégré, ou un port MIDI (ton VST)">
+            <option value="">Piano intégré</option>
+          </select>
         </div>
 
         <div class="footer-right" id="status-bar"></div>

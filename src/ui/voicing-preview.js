@@ -6,11 +6,7 @@
 
 import { parseChordSymbol } from '../chord-engine/chord-display.js';
 import { midiToNoteName, NOTE_NAMING_POLICY } from '../voicing-engine/midi-convention.js';
-import { generateVoicing } from '../voicing-engine/generate-voicing.js';
-
-/**
- * @typedef {import('../voicing-engine/generate-voicing.js').VoicingResult} VoicingResult
- */
+import { generateSingleVoicing } from '../voicing-engine/generate-voicing-catalog.js';
 
 const CONTAINER_ID = 'analyzer-voicing-preview';
 const SELECTOR_CONTAINER_ID = 'analyzer-voicing-style-selector';
@@ -373,8 +369,7 @@ function appendToPreview(container, content, node) {
 
 /**
  * Vide et masque proprement le preview.
- */
-export function clearVoicingTextPreview() {
+ */export function clearVoicingTextPreview() {
   const container = document.getElementById(CONTAINER_ID);
   if (!container) return;
 
@@ -393,17 +388,20 @@ export function clearVoicingTextPreview() {
  * @returns {VoicingResult|null}
  */
 export function updateVoicingPreviewForChord(effectiveChord, options = {}) {
+  if (!effectiveChord || effectiveChord === 'N') {
+    clearVoicingTextPreview();
+    return null;
+  }
+
   const input = effectiveChordToVoicingInput(effectiveChord);
   if (!input) {
     clearVoicingTextPreview();
     return null;
   }
 
-  const style = options.style || getVoicingStyle();
-  const result = generateVoicing(input, { style });
+  const result = generateSingleVoicing(input, { familyId: options.familyId });
   renderVoicingTextPreview(result, {
     ...options,
-    style,
     effectiveChord,
   });
   return result;

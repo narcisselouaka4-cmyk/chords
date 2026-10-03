@@ -9,6 +9,11 @@
 #
 # Installation, dans le .venv du projet :
 #   .venv/bin/pip install -r requirements.txt
+#
+# [Claude] — 2026-09-25 — torch et torchvision viennent de l'index CPU de PyTorch
+# (la version « +cpu » épinglée avant n'existe pas sur PyPI : l'installation
+# échouait). La ligne ci-dessous le déclare pour pip.
+--extra-index-url https://download.pytorch.org/whl/cpu
 
 # --- Extraction et analyse audio (audio-processor.py, melody_extractor.py) ---
 imageio-ffmpeg==0.6.0
@@ -19,7 +24,7 @@ soundfile==0.14.0
 # --- Séparation de pistes, Studio (demucs-wrapper.py) ---
 # Facultatif : sans lui, le Studio produit des stems simulés.
 demucs==4.0.1
-torch==2.6.0+cpu
+torch>=2.2
 
 # --- Reconnaissance vocale locale, Pédagogie IA (transcriber.py) ---
 # Facultatif : sans lui, l'écran dit que la parole n'a pas pu être transcrite —
@@ -27,3 +32,18 @@ torch==2.6.0+cpu
 # pour le choix de faster-whisper plutôt que whisper-timestamped (AGPL-3.0).
 # Le modèle (« small » par défaut, ~250 Mo) se télécharge au premier usage.
 faster-whisper>=1.0
+
+# --- Lecture d'un vrai clavier filmé, Pédagogie IA (piano-vision.py, V2N) ---
+# Facultatif : sans eux, l'écran dit lesquels manquent et se rabat sur le son.
+# Les poids du modèle (electron/v2n-deps/v2n_pianovam.safetensors, 113 Mo) sont
+# suivis par Git LFS : après un clone, lancer « git lfs pull » (sinon le fichier
+# n'est qu'un pointeur de 134 octets, que l'écran signale).
+torchvision>=0.17
+opencv-python-headless>=4.8
+safetensors>=0.4
+scipy>=1.11
+
+# --- Notes d'un pianiste filmé de côté, Pédagogie IA (piano-transcriber.py) ---
+# Facultatif. Licence MIT. Le modèle (~170 Mo) se télécharge au premier usage.
+piano-transcription-inference
+torchlibrosa

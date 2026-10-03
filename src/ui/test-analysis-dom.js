@@ -60,8 +60,6 @@ function testStateElementIds() {
     'analyzer-import-screen',
     'analyzer-state-prepare',
     'analyzer-state-video-type',
-    'analyzer-state-midi-record',
-    'analyzer-state-results',
     'analyzer-results',
   ];
 
@@ -105,8 +103,6 @@ function testStateMapping() {
     'import': 'analyzer-import-screen',
     'prepare': 'analyzer-state-prepare',
     'video-type': 'analyzer-state-video-type',
-    'midi-record': 'analyzer-state-midi-record',
-    'results': 'analyzer-state-results',
     'analysis': 'analyzer-results',
   };
 

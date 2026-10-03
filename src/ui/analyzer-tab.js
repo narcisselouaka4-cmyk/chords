@@ -9,16 +9,8 @@ import {
   countManuallyEditedChords,
 } from '../analyzer/analysis-export.js';
 import { resolveAnalysisState, inferSourceType } from './analyzer-workflow.js';
+import { splitIntoSections, paletteOf, changeCountOf } from '../analyzer/chord-sections.js';
 import { miniKeyboardForNotes } from './mini-keyboard.js';
-import {
-  updateVoicingPreviewForChord,
-  clearVoicingTextPreview,
-  initVoicingStyle,
-  getVoicingStyle,
-  selectVoicingStyle,
-  setRerenderActiveVoicing,
-  renderVoicingStyleSelector,
-} from './voicing-preview.js';
 import { CHORD_DEFINITIONS } from '../chord-engine/chord-defs.js';
 import { noteNameToPc } from '../chord-engine/intervals.js';
 import { ChordEditor, makeSegmentId, NOTE_NAMES } from './chord-editor.js';
@@ -45,7 +37,6 @@ import { fitChordLabel } from './chord-label-fit.js';
 import { notifyOnboarding } from './onboarding.js';
 import { buildDemoFixture } from './reharmonization-demo-fixture.js';
 import { buildReharmonizationViewModel, buildReharmonizationVariantsViewModel } from './reharmonization-orchestrator.js';
-import { startLiveMelodyCapture } from '../melody/reharmonization-live-capture.js';
 import { extractAudioMelody } from '../melody/reharmonization-audio-capture.js';
 import { buildSessionMelodyWrapper } from '../melody/reharmonization-session-capture.js';
 import {
@@ -95,8 +86,6 @@ const els = {
    videoTypeBackBtn: document.getElementById('analyzer-videotype-back-btn'),
    midiBackBtn: document.getElementById('analyzer-midi-back-btn'),
   importAudioBtn: document.getElementById('analyzer-import-audio-btn'),
-  importVideoBtn: document.getElementById('analyzer-import-video-btn'),
-  importMidiBtn: document.getElementById('analyzer-import-midi-btn'),
   libraryList: document.getElementById('analyzer-library-list'),
   results: document.getElementById('analyzer-results'),
   backBtn: document.getElementById('analyzer-back-btn'),
@@ -105,8 +94,6 @@ const els = {
   // États du workspace (maquettes)
   statePrepare: document.getElementById('analyzer-state-prepare'),
   stateVideoType: document.getElementById('analyzer-state-video-type'),
-  stateMidiRecord: document.getElementById('analyzer-state-midi-record'),
-  stateResults: document.getElementById('analyzer-state-results'),
   analysisTab: document.getElementById('analysis-tab'),
   sidebar: document.getElementById('analyzer-sidebar'),
 
@@ -120,29 +107,6 @@ const els = {
   // Type vidéo
   videoTypeCards: document.querySelectorAll('#analyzer-state-video-type .analyzer-video-card'),
   confirmVideoTypeBtn: document.getElementById('analyzer-confirm-video-type'),
-
-  // Enregistrement MIDI
-  midiSourceName: document.getElementById('analyzer-midi-source-name'),
-  midiRecordBtn: document.getElementById('analyzer-midi-record-btn'),
-  midiPauseBtn: document.getElementById('analyzer-midi-pause-btn'),
-  midiStopBtn: document.getElementById('analyzer-midi-stop-btn'),
-  midiTimer: document.getElementById('analyzer-midi-timer'),
-  topNotesList: document.getElementById('analyzer-topnotes-list'),
-  midiSourceBadge: document.getElementById('analyzer-midi-source-badge'),
-  midiRecBadge: document.getElementById('analyzer-midi-rec-badge'),
-  midiDurationStat: document.getElementById('analyzer-midi-duration-stat'),
-  midiSegmentsStat: document.getElementById('analyzer-midi-segments-stat'),
-  midiNotesStat: document.getElementById('analyzer-midi-notes-stat'),
-  midiStatusBadge: document.getElementById('analyzer-midi-status-badge'),
-
-  // Résultats réharmonisation
-  resultKey: document.getElementById('analyzer-result-key'),
-  resultStyle: document.getElementById('analyzer-result-style'),
-  resultSource: document.getElementById('analyzer-result-source'),
-  resultDuration: document.getElementById('analyzer-result-duration'),
-  reharmGrid: document.getElementById('analyzer-reharm-grid'),
-  summaryKey: document.getElementById('analyzer-summary-key'),
-  summaryAnalysis: document.getElementById('analyzer-summary-analysis'),
 
   songTitle: document.getElementById('analyzer-song-title'),
   songArtist: document.getElementById('analyzer-song-artist'),
@@ -248,8 +212,6 @@ let currentSourceType = null; // 'audio' | 'video' | 'midi'
 let currentVideoType = null; // 'tutorial' | 'cover' | 'song' | 'demo'
 let isDraggingProgress = false;
 let lastAutoScrollIndex = -1;
-let lastRenderedVoicingChord = null;
-let lastRenderedVoicingStyle = null;
 let selectedSegmentId = null; // segmentId sélectionné dans la timeline
 
 // Hiérarchie visuelle structurel / passage. Le moteur qualifie chaque segment
@@ -283,18 +245,12 @@ function segmentRole(segment) {
   return Object.prototype.hasOwnProperty.call(ROLE_LABELS, role) ? role : 'structural';
 }
 
-// Capture MIDI (UI) — métriques du panneau droit « État de la session ».
-let midiCaptureSeconds = 0;
-let midiCaptureTimer = null;
-let midiCaptureRunning = false; // true pendant l'enregistrement actif
-let midiSessionFinalized = false; // true après Stop : la session est terminée
-
-// [OpenCode] — 2026-08-24 — Réharmonisation V1, Étape 1 : capture MIDI live.
-// Session de capture active (instance de startLiveMelodyCapture) + dernier
-// wrapper finalisé prêt à alimenter le moteur canonique. null tant qu'aucune
-// capture n'a été lancée ou qu'aucune note n'a été jouée.
-let reharmLiveSession = null;
-let reharmLiveWrapper = null;
+// [Refonte Analyse 02/10] — l'écran de capture MIDI de l'onglet Analyse a été
+// retiré : les Sessions MIDI de l'onglet Entraînement font déjà ce travail. Son
+// état (compteur, badges) et la capture de mélodie live qui s'y greffait sont
+// partis avec lui. La capture live n'avait d'ailleurs plus d'interface depuis
+// un moment : els.reharmLive / els.reharmLiveStatus n'existaient dans aucun
+// markup, et runReharmonizationLive() n'avait aucun appelant.
 // [OpenCode] — 2026-08-25 — EXP-031 Tâche 3 : style de réharmonisation actif.
 // 'gospel' par défaut pour préserver R1 inchangé.
 let reharmActiveStyle = 'gospel';
@@ -396,20 +352,16 @@ export function initAnalyzerTab() {
 
 // [Claude] — 2026-08-08 — Gestion des états du workspace Analyse.
 function setAnalyzerState(state) {
-  const states = ['import', 'prepare', 'video-type', 'midi-record', 'results', 'analysis'];
+  // Mêmes états que ANALYSIS_STATES dans analyzer-workflow.js, que
+  // test-analysis-workflow.js garde synchronisé.
+  const states = ['import', 'prepare', 'video-type', 'analysis'];
   if (!states.includes(state)) return;
 
   // Réinitialiser tous les états
   els.importScreen?.classList.remove('active');
   els.statePrepare?.classList.remove('active');
   els.stateVideoType?.classList.remove('active');
-  els.stateMidiRecord?.classList.remove('active');
-  els.stateResults?.classList.remove('active');
   els.results?.classList.remove('active');
-
-  // En capture MIDI, la sidebar globale « Flux d'analyse » est masquée : le
-  // panneau de droite de l'état affiche les métriques de session.
-  els.analysisTab?.classList.toggle('midi-capture', state === 'midi-record');
 
   switch (state) {
     case 'import':
@@ -420,12 +372,6 @@ function setAnalyzerState(state) {
       break;
     case 'video-type':
       els.stateVideoType?.classList.add('active');
-      break;
-    case 'midi-record':
-      els.stateMidiRecord?.classList.add('active');
-      break;
-    case 'results':
-      els.stateResults?.classList.add('active');
       break;
     case 'analysis':
       els.results?.classList.add('active');
@@ -439,8 +385,6 @@ function initWorkspaceStates() {
 
   // Boutons de l'écran d'accueil
   els.importAudioBtn?.addEventListener('click', () => handleImportClick('audio'));
-  els.importVideoBtn?.addEventListener('click', () => handleImportClick('video'));
-  els.importMidiBtn?.addEventListener('click', () => { resetAnalysisSession(); setAnalyzerState('midi-record'); });
   els.importBtn?.addEventListener('click', () => handleImportClick('audio'));
 
   // Préparation audio
@@ -477,9 +421,6 @@ function initWorkspaceStates() {
   // [OpenCode] — 2026-08-08 — Capture MIDI : câblage des métriques du panneau
   // droit « État de la session ». Le moteur de capture réel reste
   // src/melody/midi-capture.js ; ici on alimente l'UI (durée, badges, statut).
-  els.midiRecordBtn?.addEventListener('click', startMidiCaptureUI);
-  els.midiPauseBtn?.addEventListener('click', pauseMidiCaptureUI);
-  els.midiStopBtn?.addEventListener('click', stopMidiCaptureUI);
 
   // Inspecteur
   els.inspectorEditBtn?.addEventListener('click', () => {
@@ -971,7 +912,6 @@ function setAnalysisControlsDisabled(disabled) {
     els.reanalyzeBtn,
     els.confirmVideoTypeBtn,
     els.importAudioBtn,
-    els.importVideoBtn,
     els.importBtn,
   ];
   for (const el of controls) {
@@ -1059,18 +999,6 @@ async function showResults(analysis) {
   resetUndoRedo();
   chordEditor?.close();
   resetZoom();
-  lastRenderedVoicingChord = null;
-  lastRenderedVoicingStyle = null;
-
-  initVoicingStyle();
-  setRerenderActiveVoicing(() => {
-    lastRenderedVoicingChord = null;
-    lastRenderedVoicingStyle = null;
-    if (currentPlayer) {
-      updatePlaybackPosition(currentPlayer.element?.currentTime ?? 0);
-    }
-  });
-
   renderHeader(analysis);
   addSaveIndicator();
   await loadProjectIfExists();
@@ -1091,7 +1019,6 @@ async function showResults(analysis) {
   updatePlayButton();
   renderStats(analysis);
   renderOverview(analysis);
-  renderResultsSidebar(analysis);
 
   // Première grille d'accords affichée : c'est le moment où expliquer Chordify
   // a un sens, puisque ses éléments existent enfin à l'écran.
@@ -1148,141 +1075,19 @@ export function resetAnalysisSession() {
   resetProjectState();
   resetUndoRedo();
   chordEditor?.close();
-  lastRenderedVoicingChord = null;
-  lastRenderedVoicingStyle = null;
   els.chordTimelineInner.innerHTML = '';
   if (els.hero) els.hero.style.display = 'none';
-  clearVoicingTextPreview();
   if (els.overviewContent) els.overviewContent.innerHTML = '';
   els.stemBadge.textContent = '';
   els.stemBadge.classList.remove('visible');
   // Retour à l’état vide explicite quand aucun fichier n’est analysé.
   updateAnalyzerFileContext('');
-  resetMidiMetricsUI();
   setAnalyzerState('import');
   refreshLibraryList();
 }
 
 function showImportScreen() {
   resetAnalysisSession();
-}
-
-// ── Capture MIDI (UI) : métriques du panneau droit « État de la session » ──
-function resetMidiMetricsUI() {
-  clearMidiCaptureTimer();
-  midiCaptureSeconds = 0;
-  midiCaptureRunning = false;
-  midiSessionFinalized = false;
-  if (els.midiTimer) els.midiTimer.textContent = formatTime(0);
-  if (els.midiDurationStat) els.midiDurationStat.textContent = formatTime(0);
-  if (els.midiSegmentsStat) els.midiSegmentsStat.textContent = '0';
-  if (els.midiNotesStat) els.midiNotesStat.textContent = '0';
-  setMidiBadge(els.midiSourceBadge, 'Connectée', 'connected');
-  setMidiBadge(els.midiRecBadge, 'Inactif', '');
-  setMidiBadge(els.midiStatusBadge, 'Prêt', 'ready');
-  els.stateMidiRecord?.classList.remove('recording');
-}
-
-function startMidiCaptureUI() {
-  // Si une session précédente a été finalisée (Stop), on repart à zéro.
-  if (midiSessionFinalized) {
-    resetMidiMetricsUI();
-  }
-  clearMidiCaptureTimer();
-  midiCaptureRunning = true;
-  midiSessionFinalized = false;
-  els.stateMidiRecord?.classList.add('recording');
-  setMidiBadge(els.midiRecBadge, 'En cours', 'recording');
-  setMidiBadge(els.midiStatusBadge, 'Enregistrement', 'recording');
-  midiCaptureTimer = setInterval(() => {
-    midiCaptureSeconds += 1;
-    const t = formatTime(midiCaptureSeconds);
-    if (els.midiTimer) els.midiTimer.textContent = t;
-    if (els.midiDurationStat) els.midiDurationStat.textContent = t;
-  }, 1000);
-
-  // [OpenCode] — 2026-08-24 — Démarre une capture de mélodie live pour la
-  // réharmonisation. On nettoie tout wrapper précédent : un nouvel
-  // enregistrement invalide l'ancien.
-  try {
-    if (reharmLiveSession) reharmLiveSession.unsubscribe();
-    reharmLiveSession = startLiveMelodyCapture({ name: 'Mélodie live (session Analyse)' });
-    reharmLiveWrapper = null;
-    if (els.reharmLiveStatus) {
-      els.reharmLiveStatus.textContent = 'Capture en cours… jouez votre mélodie.';
-    }
-    if (els.reharmLive) els.reharmLive.disabled = true;
-  } catch (err) {
-    console.warn('[Analyse] capture live échouée:', err);
-    reharmLiveSession = null;
-  }
-}
-
-function pauseMidiCaptureUI() {
-  clearMidiCaptureTimer();
-  midiCaptureRunning = false;
-  setMidiBadge(els.midiRecBadge, 'En pause', '');
-  setMidiBadge(els.midiStatusBadge, 'En pause', '');
-}
-
-function stopMidiCaptureUI() {
-  // Arrêter le timer et figer les métriques.
-  clearMidiCaptureTimer();
-  const kept = midiCaptureSeconds;
-  midiCaptureRunning = false;
-  midiSessionFinalized = true;
-
-  // Conserver les données capturées (ne pas les remettre à zéro).
-  if (kept > 0 && els.midiDurationStat) els.midiDurationStat.textContent = formatTime(kept);
-  if (els.midiTimer) els.midiTimer.textContent = formatTime(kept);
-
-  // Badges : session terminée.
-  els.stateMidiRecord?.classList.remove('recording');
-  setMidiBadge(els.midiRecBadge, 'Terminé', '');
-  setMidiBadge(els.midiStatusBadge, 'Session terminée', 'ready');
-
-  // [OpenCode] — 2026-08-24 — Finalise la capture live et stocke le wrapper
-  // canonique { track, harmonicContext }. Active le bouton « Réharmoniser ma
-  // mélodie » si la capture a produit au moins une note.
-  if (reharmLiveSession) {
-    try {
-      const result = reharmLiveSession.finalize();
-      if (result.status === 'success' && result.wrapper) {
-        reharmLiveWrapper = result.wrapper;
-        if (els.reharmLive) els.reharmLive.disabled = false;
-        if (els.reharmLiveStatus) {
-          els.reharmLiveStatus.textContent =
-            `${result.noteCount} note(s) capturée(s). Cliquez sur « Réharmoniser ma mélodie ».`;
-        }
-      } else {
-        if (els.reharmLive) els.reharmLive.disabled = true;
-        if (els.reharmLiveStatus) {
-          els.reharmLiveStatus.textContent = result.message || 'Capture vide.';
-        }
-      }
-    } catch (err) {
-      console.warn('[Analyse] finalisation live échouée:', err);
-      if (els.reharmLiveStatus) {
-        els.reharmLiveStatus.textContent = 'Erreur de finalisation de la capture.';
-      }
-    } finally {
-      reharmLiveSession = null;
-    }
-  }
-}
-
-function setMidiBadge(el, text, modifier) {
-  if (!el) return;
-  el.textContent = text;
-  el.classList.remove('connected', 'ready', 'recording');
-  if (modifier) el.classList.add(modifier);
-}
-
-function clearMidiCaptureTimer() {
-  if (midiCaptureTimer) {
-    clearInterval(midiCaptureTimer);
-    midiCaptureTimer = null;
-  }
 }
 
 // Lot B — affiche « Fichier analysé : <nom> » ou « Aucun fichier analysé ».
@@ -1753,19 +1558,6 @@ function updatePlaybackPosition(currentTime) {
   // Hero chord
   const activeChord = activeIndex >= 0 ? chords[activeIndex] : null;
   renderHeroChord(activeChord);
-
-  // Phase 1.5A + 2B : read-only close/simple voicing text preview
-  const effectiveChord = activeChord ? getEffectiveChord(activeChord) : null;
-  const currentStyle = getVoicingStyle();
-  if (effectiveChord !== lastRenderedVoicingChord || currentStyle !== lastRenderedVoicingStyle) {
-    lastRenderedVoicingChord = effectiveChord;
-    lastRenderedVoicingStyle = currentStyle;
-    if (effectiveChord) {
-      updateVoicingPreviewForChord(effectiveChord, { style: currentStyle });
-    } else {
-      clearVoicingTextPreview();
-    }
-  }
 
   // Auto-scroll horizontal : défiler uniquement quand le segment approche du bord.
   if (activeIndex >= 0 && activeIndex !== lastAutoScrollIndex && blocks[activeIndex]) {
@@ -2303,11 +2095,11 @@ function renderOverview(analysis) {
     { label: 'Durée couverte', value: `${((stats.totalDuration / Math.max(duration, 1)) * 100).toFixed(0)}%` },
   ];
 
-  // Pattern harmonique : progression simplifiée
-  const progression = chords
-    .map((c) => getEffectiveChord(c))
-    .filter((s, i, arr) => i === 0 || s !== arr[i - 1])
-    .slice(0, 32);
+  // Parcours des accords par section. Le pipeline audio ne livre aucune
+  // section : on les déduit des silences francs et des reprises de boucle, et
+  // on les nomme « Partie A/B/C » — un repère de lecture, pas un « Refrain »
+  // deviné (voir src/analyzer/chord-sections.js).
+  const sections = splitIntoSections(chords, duration);
 
   // Ligne de basse : fondamentale de chaque accord
   const bassNotes = chords
@@ -2318,6 +2110,72 @@ function renderOverview(analysis) {
     })
     .filter((n, i, arr) => i === 0 || n !== arr[i - 1])
     .slice(0, 32);
+
+  // ── Structure du morceau ────────────────────────────────────────────────
+  // Ce que cette carte doit montrer, c'est la FORME : combien de parties, où
+  // elles commencent, et lesquelles reviennent. Pas la liste des accords —
+  // elle est déjà dans la frise, et sur un morceau réel elle compte plus de
+  // deux cents segments. De chaque partie on ne garde que son assise : les
+  // quelques accords qui occupent l'essentiel de son temps.
+  const STRUCTURE_CHORDS = 5;
+  const totalSpan = Math.max(
+    duration,
+    sections.length ? sections[sections.length - 1].end : 0,
+    1,
+  );
+
+  // Bande proportionnelle : chaque partie occupe la largeur de sa durée réelle.
+  const structureBand = sections.map((section) => {
+    const width = ((section.end - section.start) / totalSpan) * 100;
+    const seg = section.chords[0];
+    return `<button type="button" class="an-form-seg" data-letter="${escapeHtml(section.letter)}"`
+      + ` data-segment-id="${escapeHtml(seg?.segmentId || '')}"`
+      + ` style="flex: ${width.toFixed(3)} 1 0"`
+      + ` title="${escapeHtml(section.label)} — ${formatTime(section.start)} à ${formatTime(section.end)}. Cliquez pour l'ouvrir dans la frise.">`
+      + `<span class="an-form-seg-letter">${escapeHtml(section.letter)}</span>`
+      + `<span class="an-form-seg-time">${escapeHtml(formatTime(section.start))}</span>`
+      + `</button>`;
+  }).join('');
+
+  // Une ligne par partie DISTINCTE, pas par passage : c'est la lecture qui
+  // compte (« B revient deux fois »), pas l'énumération.
+  const distinct = [];
+  for (const section of sections) {
+    const found = distinct.find((d) => d.letter === section.letter);
+    if (found) {
+      found.passes += 1;
+      found.seconds += section.end - section.start;
+      found.chords = found.chords.concat(section.chords);
+    } else {
+      distinct.push({
+        letter: section.letter,
+        passes: 1,
+        seconds: section.end - section.start,
+        start: section.start,
+        chords: [...section.chords],
+        segmentId: section.chords[0]?.segmentId || '',
+      });
+    }
+  }
+
+  const structureRows = distinct.map((part) => {
+    const palette = paletteOf(part.chords).slice(0, STRUCTURE_CHORDS);
+    const chips = palette
+      .map((e) => `<span class="an-form-chord">${escapeHtml(e.symbol)}</span>`)
+      .join('');
+    const when = part.passes > 1
+      ? `revient ${part.passes} fois · ${formatTime(part.seconds)} au total`
+      : `${formatTime(part.start)} · ${formatTime(part.seconds)}`;
+    const changes = changeCountOf(part.chords);
+    return `
+      <button type="button" class="an-form-row" data-segment-id="${escapeHtml(part.segmentId)}"
+              title="Ouvrir le début de la partie ${escapeHtml(part.letter)} dans la frise">
+        <span class="an-form-row-letter">${escapeHtml(part.letter)}</span>
+        <span class="an-form-row-when">${escapeHtml(when)}</span>
+        <span class="an-form-row-chords">${chips}</span>
+        <span class="an-form-row-changes">${changes} changements</span>
+      </button>`;
+  }).join('');
 
   // Qualités
   const qualityRows = Object.entries(stats.qualityCounts)
@@ -2354,16 +2212,16 @@ function renderOverview(analysis) {
           <div class="an-card-header">
             <div>
               <span class="an-eyebrow">ARCHITECTURE HARMONIQUE DU MORCEAU</span>
-              <h3 class="an-card-title">Pattern harmonique</h3>
+              <h3 class="an-card-title">Structure du morceau</h3>
             </div>
-            <span class="an-hint-tag">${progression.length} accord${progression.length > 1 ? 's' : ''} enchaînés</span>
+            <span class="an-hint-tag">${distinct.length} partie${distinct.length > 1 ? 's' : ''} · ${sections.length} passage${sections.length > 1 ? 's' : ''}</span>
           </div>
 
-          <div class="an-chords-track">
-            ${progression.length > 0
-              ? progression.map((sym) => `<span class="an-flow-chord-pill"><strong class="an-flow-symbol">${escapeHtml(sym)}</strong></span>`).join('')
-              : '<span class="an-hint-tag">Aucun accord détecté.</span>'}
-          </div>
+          ${sections.length > 0 ? `
+          <div class="an-form-band" role="group" aria-label="Structure du morceau">${structureBand}</div>
+          <div class="an-form-rows">${structureRows}</div>
+          ` : '<span class="an-hint-tag">Aucun accord détecté.</span>'}
+          <p class="an-song-parts-note">Les parties sont découpées aux silences et aux reprises de boucle ; deux parties qui reposent sur les mêmes accords portent la même lettre. Ces repères vous situent dans le morceau — ils ne prétendent pas nommer un couplet ou un refrain.</p>
 
           <div class="an-bassline-tray">
             <div class="an-bassline-header">
@@ -2436,23 +2294,28 @@ function renderOverview(analysis) {
   const overviewExportJson = document.getElementById('analyzer-overview-export-json');
   const overviewCopyText = document.getElementById('analyzer-overview-copy-text');
 
+  // Une pastille du parcours ramène à son accord dans la frise : la vue
+  // d'ensemble sert à repérer un endroit, pas seulement à le contempler.
+  els.overviewContent.querySelectorAll('.an-form-seg[data-segment-id], .an-form-row[data-segment-id]').forEach((pill) => {
+    const id = pill.dataset.segmentId;
+    if (!id) return;
+    pill.addEventListener('click', () => {
+      activateSectionTab('chords');
+      els.sectionTabs.forEach((t) => {
+        const active = t.dataset.section === 'chords';
+        t.classList.toggle('active', active);
+        t.setAttribute('aria-selected', String(active));
+      });
+      selectSegment(id);
+      els.chordTimelineInner
+        ?.querySelector(`.analyzer-timeline-block[data-segment-id="${CSS.escape(id)}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    });
+  });
+
   if (overviewExportMidi) overviewExportMidi.addEventListener('click', () => exportAnalysisToMidi(analysis, currentFileName));
   if (overviewExportJson) overviewExportJson.addEventListener('click', () => exportAnalysisToJson(analysis, currentFileName));
   if (overviewCopyText) overviewCopyText.addEventListener('click', () => exportAnalysisToText(analysis, currentFileName));
-}
-
-// [Claude] — 2026-08-08 — Sidebar résultats (LOT 3).
-// Remplit les infos de la sidebar dans l'état "results" (réharmonisation).
-function renderResultsSidebar(analysis) {
-  if (els.resultKey) els.resultKey.textContent = analysis.key ? `${analysis.key} ${analysis.keyMode || 'majeur'}` : '—';
-  if (els.resultStyle) els.resultStyle.textContent = analysis.style || '—';
-  if (els.resultSource) els.resultSource.textContent = currentSourceType === 'midi' ? 'MIDI' : (currentSourceType === 'video' ? 'Vidéo' : 'Audio');
-  if (els.resultDuration) els.resultDuration.textContent = formatTime(analysis.duration || 0);
-  if (els.summaryKey) els.summaryKey.textContent = analysis.key ? `${analysis.key} ${analysis.keyMode || 'majeur'}` : '—';
-  if (els.summaryAnalysis) {
-    const chordCount = (analysis.chords || []).length;
-    els.summaryAnalysis.textContent = chordCount > 0 ? `${chordCount} accords détectés` : '—';
-  }
 }
 
 function escapeHtml(str) {
@@ -2803,54 +2666,6 @@ async function runReharmonizationDemo() {
     renderReharmonizationError(output, err && err.message ? err.message : 'Erreur inattendue.', 'Error');
   } finally {
     runBtn.disabled = false;
-    output.setAttribute('aria-busy', 'false');
-  }
-}
-
-// [OpenCode] — 2026-08-24 — Réharmonisation V1, Étape 1 : lance le moteur
-// canonique sur la dernière capture MIDI live.
-async function runReharmonizationLive() {
-  const output = els.reharmResults;
-  if (!output) return;
-  if (!reharmLiveWrapper) {
-    renderReharmonizationError(
-      output,
-      'Aucune mélodie live disponible. Lancez une session MIDI, jouez une mélodie, puis arrêtez.',
-      'EmptyMelody',
-    );
-    return;
-  }
-
-  output.setAttribute('aria-busy', 'true');
-  renderReharmonizationLoading(output);
-  await new Promise((resolve) => requestAnimationFrame(resolve));
-  await new Promise((resolve) => setTimeout(resolve, 0));
-
-  try {
-    const viewModel = buildReharmonizationVariantsViewModel({
-      track: reharmLiveWrapper.track,
-      harmonicContext: reharmLiveWrapper.harmonicContext,
-      styleId: getReharmActiveStyle(),
-    });
-    if (viewModel.status === 'success') {
-      const meta = Object.freeze({
-        isDemo: false,
-        isLive: true,
-        label: 'Réharmonisation de votre mélodie',
-        description: `Mélodie live capturée au clavier (${reharmLiveWrapper.track.events.length} notes).`,
-        track: reharmLiveWrapper.track,
-        harmonicContext: reharmLiveWrapper.harmonicContext,
-      });
-      lastReharmVariantsVm = viewModel;
-      lastReharmMeta = meta;
-      renderReharmonizationVariants(output, viewModel, meta);
-      updateReharmContext(meta, viewModel);
-    } else {
-      renderReharmonizationError(output, viewModel.message, viewModel.errorKind);
-    }
-  } catch (err) {
-    renderReharmonizationError(output, err && err.message ? err.message : 'Erreur inattendue.', 'Error');
-  } finally {
     output.setAttribute('aria-busy', 'false');
   }
 }

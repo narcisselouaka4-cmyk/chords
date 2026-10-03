@@ -85,20 +85,39 @@ function assertNotNull(value, msg = '') {
   if (value == null) throw new Error(msg || 'expected non-null');
 }
 
+// [Claude] — 2026-10-02 — Horloge factice : sans horloge injectée, createMidiCapture()
+// utilise performance.now(), et la durée réelle (jitter) entre noteOn/noteOff pouvait
+// faire basculer le candidat tonal gagnant (Do majeur / La mineur relatif) selon la
+// charge système, rendant C18 instable. Toutes les autres suites de tests du module
+// (test-midi-capture.js, test-tonal-harmonic.js, etc.) injectent déjà une horloge
+// déterministe de cette façon ; ce fichier était l'exception.
+function makeClock() {
+  let t = 0;
+  return {
+    now: () => t,
+    advance: (ms) => { t += ms; },
+  };
+}
+
 function makeCMajorTrack() {
-  const capture = createMidiCapture();
+  const clock = makeClock();
+  const capture = createMidiCapture({ getTime: clock.now });
   const notes = [60, 62, 64, 65, 67];
   for (const note of notes) {
     capture.noteOn(note, 0.8, 0);
+    clock.advance(200);
     capture.noteOff(note, 0, 0);
+    clock.advance(10);
   }
   capture.finalize();
   return createMelodyTrack({ notes: capture.getNotes(), sourceCaptureId: 'cap-spell' });
 }
 
 function makeShortTrack() {
-  const capture = createMidiCapture();
+  const clock = makeClock();
+  const capture = createMidiCapture({ getTime: clock.now });
   capture.noteOn(60, 0.8, 0);
+  clock.advance(200);
   capture.noteOff(60, 0, 0);
   capture.finalize();
   return createMelodyTrack({ notes: capture.getNotes(), sourceCaptureId: 'cap-short' });

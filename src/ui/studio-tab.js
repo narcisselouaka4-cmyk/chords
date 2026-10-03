@@ -100,6 +100,12 @@ let countdownTimeout = null;
 const els = {
   importBtn: document.getElementById('studio-import-btn'),
   trackList: document.getElementById('studio-track-list'),
+  // [Refonte Studio 02/10] — écran d'accueil de l'étape 0.
+  homeLibraryBtn: document.getElementById('studio-home-library-btn'),
+  homeImportBtn: document.getElementById('studio-home-import-btn'),
+  homeCount: document.getElementById('studio-home-count'),
+  heroImportBtn: document.getElementById('studio-hero-import-btn'),
+  heroLibraryBtn: document.getElementById('studio-hero-library-btn'),
   studioCenter: document.querySelector('.studio-center'),
   playerWrap: document.getElementById('studio-player-wrap'),
   playerVideoContainer: document.getElementById('studio-video-container'),
@@ -231,8 +237,47 @@ export function initStudioTab() {
   });
 }
 
+// [Refonte Studio 02/10] — Écran d'accueil de l'étape 0.
+// Le tiroir « Musiques importées » réutilise le panneau de gauche existant :
+// c'est le MÊME #studio-track-list, simplement affiché en tiroir tant qu'aucun
+// morceau n'est choisi. Rien n'est dupliqué, donc rien ne peut diverger.
+function setStudioLibraryOpen(open) {
+  const tab = document.getElementById('studio-tab');
+  if (!tab) return;
+  tab.classList.toggle('library-open', open);
+  els.homeLibraryBtn?.setAttribute('aria-expanded', String(open));
+}
+
+function bindStudioHome() {
+  const openImport = () => importFile();
+  els.homeImportBtn?.addEventListener('click', openImport);
+  els.heroImportBtn?.addEventListener('click', openImport);
+
+  const toggleLibrary = () => {
+    const tab = document.getElementById('studio-tab');
+    setStudioLibraryOpen(!tab?.classList.contains('library-open'));
+  };
+  els.homeLibraryBtn?.addEventListener('click', toggleLibrary);
+  els.heroLibraryBtn?.addEventListener('click', toggleLibrary);
+
+  // Un clic en dehors du tiroir le referme : ouvert, il masque une partie de
+  // l'écran d'accueil, et on n'a pas envie de chercher comment s'en sortir.
+  document.addEventListener('click', (e) => {
+    const tab = document.getElementById('studio-tab');
+    if (!tab?.classList.contains('library-open')) return;
+    if (e.target.closest('#studio-sidebar-left')) return;
+    if (e.target.closest('#studio-home-library-btn, #studio-hero-library-btn')) return;
+    setStudioLibraryOpen(false);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') setStudioLibraryOpen(false);
+  });
+}
+
 function bindPlayer() {
   els.importBtn?.addEventListener('click', () => importFile());
+  bindStudioHome();
 
   els.playBtn?.addEventListener('click', async (e) => {
     e.preventDefault();
@@ -540,6 +585,7 @@ async function startCapture() {
     els.recordBtn?.classList.add('recording');
     if (els.recordingIndicator) els.recordingIndicator.style.display = 'flex';
     setStatus('Enregistrement vidéo en cours... (R pour arrêter)');
+    startMidiTake();
   } catch (err) {
     console.error('[Studio] startCapture failed:', err);
     setStatus(`Erreur de capture : ${err.message}`);
@@ -574,8 +620,39 @@ async function finalizeRecording() {
   }
 }
 
+// [Claude] — 2026-09-24 — Le jeu MIDI enregistré avec la vidéo devient une session
+// (Narcisse : « que la prise soit automatiquement enregistrée dans le sous-onglet
+// Session » : la retrouver à l'arrêt, la réécouter seule, l'analyser). La prise
+// elle-même est tenue par recording-tab.js, qui reçoit déjà toutes les notes.
+let midiTakeActive = false;
+
+function startMidiTake() {
+  midiTakeActive = true;
+  document.dispatchEvent(new CustomEvent('studio-take-start', {
+    detail: { trackName: currentTrack?.metadata?.name || '', position: getStudioCurrentTime() },
+  }));
+}
+
+function stopMidiTake() {
+  if (!midiTakeActive) return;
+  midiTakeActive = false;
+  document.dispatchEvent(new CustomEvent('studio-take-stop'));
+}
+
+// Prise sauvegardée (ou vide) : on le dit sous le message de la vidéo.
+document.addEventListener('studio-take-saved', (e) => {
+  const detail = e.detail || {};
+  let message = '';
+  if (detail.sessionId) message = `Jeu MIDI enregistré dans Session MIDI : « ${detail.name} » (${detail.noteCount} notes, ${detail.chordCount} accords).`;
+  else if (detail.error) message = `Jeu MIDI non enregistré : ${detail.error}`;
+  if (!message) return;
+  const previous = els.studioStatus?.textContent || '';
+  setStatus(previous && !previous.startsWith('Jeu MIDI') ? `${previous} — ${message}` : message);
+});
+
 function cleanupRecording() {
   isRecording = false;
+  stopMidiTake();
   if (screenRecordRecorder?.state !== 'inactive') {
     try { screenRecordRecorder?.stop(); } catch (_) {}
   }
@@ -1193,6 +1270,7 @@ async function refreshTrackList() {
 
 function renderTrackList(tracks) {
   if (!els.trackList) return;
+  if (els.homeCount) els.homeCount.textContent = String(tracks.length);
   els.trackList.innerHTML = '';
 
   if (tracks.length === 0) {
@@ -1224,7 +1302,9 @@ function renderTrackList(tracks) {
       <div class="studio-track-name">${escapeHtml(displayName)}</div>
       <div class="studio-track-meta">${metaLine}</div>
     `;
-    info.addEventListener('click', () => loadTrack(track.id));
+    // Choisir un morceau referme le tiroir : l'étape 1 prend le relais et
+    // l'accueil disparaît avec lui.
+    info.addEventListener('click', () => { setStudioLibraryOpen(false); loadTrack(track.id); });
 
     const actions = document.createElement('div');
     actions.className = 'studio-track-actions';

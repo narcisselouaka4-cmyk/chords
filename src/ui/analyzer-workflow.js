@@ -3,12 +3,17 @@
 // Découpée du module lourd analyzer-tab.js (qui importe du CSS) afin d'être
 // testable en Node sans DOM ni navigateur.
 //
-// Machine d'état du workspace Analyse :
-export const ANALYSIS_STATES = ['import', 'prepare', 'video-type', 'midi-record', 'results', 'analysis'];
+// Machine d'état du workspace Analyse.
+// [Refonte Analyse 02/10] — deux états sont tombés :
+//   · 'midi-record' — l'écran de capture au clavier de l'onglet Analyse doublait
+//     les Sessions MIDI de l'onglet Entraînement ;
+//   · 'results'     — markup mort : setAnalyzerState('results') n'a jamais été
+//     appelé depuis la refonte, la vue d'analyse ('analysis') l'avait remplacé.
+export const ANALYSIS_STATES = ['import', 'prepare', 'video-type', 'analysis'];
 
-// États intermédiaires (préparation / capture) — la zone centrale est rendue
-// directement à partir de cet état, pas seulement le panneau Flux d'analyse.
-export const PREP_STATES = new Set(['import', 'prepare', 'video-type', 'midi-record']);
+// États intermédiaires (préparation) — la zone centrale est rendue directement à
+// partir de cet état, pas seulement le panneau Flux d'analyse.
+export const PREP_STATES = new Set(['import', 'prepare', 'video-type']);
 
 // Extensions considérées comme vidéo (conteneurs où le son est dérivé).
 const VIDEO_EXTENSIONS = new Set(['mp4', 'm4v', 'mov', 'webm']);

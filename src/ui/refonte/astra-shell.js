@@ -218,34 +218,9 @@ function initAstraKeyboardChrome() {
   document.getElementById('keyboard-size')?.addEventListener('change', () => setTimeout(syncRange, 0));
   syncRange();
 
-  // Poignée de hauteur (fonctionnalité d'Astra). La hauteur est mémorisée et
-  // posée en style inline sur le panneau ; le clavier SVG se redessine sur
-  // l'évènement resize, comme lors du repli.
-  const handle = document.getElementById('keyboard-resize');
-  const MIN = 150;
-  const MAX = 470;
-  const STORAGE_KEY = 'keyboard-height';
-  let stored = 0;
-  try { stored = Number(localStorage.getItem(STORAGE_KEY)) || 0; } catch (_) { /* pas de persistance */ }
-  if (stored >= MIN && stored <= MAX) panel.style.height = `${stored}px`;
-
-  handle?.addEventListener('pointerdown', (event) => {
-    event.preventDefault();
-    const startY = event.clientY;
-    const startHeight = panel.getBoundingClientRect().height;
-    const move = (e) => {
-      const next = Math.round(Math.max(MIN, Math.min(MAX, startHeight - (e.clientY - startY))));
-      panel.style.height = `${next}px`;
-    };
-    const stop = () => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', stop);
-      try { localStorage.setItem(STORAGE_KEY, String(Math.round(panel.getBoundingClientRect().height))); } catch (_) { /* ignore */ }
-      window.dispatchEvent(new Event('resize'));
-    };
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', stop);
-  });
+  // Plus de poignée de hauteur : l'application décide de la hauteur du clavier
+  // (main.js, fitKeyboardPanelHeight). On oublie la hauteur mémorisée.
+  try { localStorage.removeItem('keyboard-height'); } catch (_) { /* pas de persistance */ }
 }
 
 export function initAstraShell() {

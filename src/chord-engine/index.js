@@ -1,5 +1,5 @@
 // [OpenCode] — 2026-07-03 — Module moteur harmonique avancé (rootless, quartal, etc.)
-import { CHORD_DEFINITIONS, ROOTLESS_DEFINITIONS } from './chord-defs.js';
+import { CHORD_DEFINITIONS, ROOTLESS_DEFINITIONS, DETECTION_DEFINITIONS } from './chord-defs.js';
 
 import { formatNote } from './intervals.js';
 
@@ -78,9 +78,13 @@ function buildPcSet(root, intervals) {
   return new Set(intervals.map((i) => (root + i) % 12));
 }
 
-function findInversionIndex(pcs, root, intervals) {
-  // intervals are from root, find which chord tone is in the bass
-  const bassPc = pcs[0]; // pcs is sorted ascending by midi, so first is bass
+const pcOf = (n) => ((n % 12) + 12) % 12;
+
+// [Claude] — 2026-10-02 — Renversement lu sur la VRAIE basse. Avant, la fonction
+// recevait les classes de notes triées de Do à Si et prenait la première pour la
+// basse : Si♭7 joué en position fondamentale était annoncé « 1ère inversion »,
+// C7/E « position fondamentale ». Basse étrangère à l'accord : 0.
+function findInversionIndex(bassPc, root, intervals) {
   const idx = intervals.findIndex((i) => (root + i) % 12 === bassPc);
   return idx === -1 ? 0 : idx;
 }
@@ -89,10 +93,12 @@ function findInversionIndex(pcs, root, intervals) {
 const MIN_ROOTLESS_NOTES = 3;
 
 // [OpenCode] — 2026-07-03 — Dedicated rootless definitions using explicit parent chord tones
-function findRootlessMatches(pcSet, uniquePcs) {
+// [Claude] — 2026-10-02 — La basse est passée par l'appelant (la note la plus grave
+// jouée), plus la plus petite classe de note.
+function findRootlessMatches(pcSet, uniquePcs, bassPc = uniquePcs[0]) {
   const matches = [];
   // [OpenCode] — 2026-07-03 — Rootless requires at least 3 notes and no more than the voicing size
-  if (uniquePcs.length < 3) return matches;
+  if (uniquePcs.length < MIN_ROOTLESS_NOTES) return matches;
 
   const sortedPlayed = [...uniquePcs].sort((a, b) => a - b);
 
@@ -111,7 +117,6 @@ function findRootlessMatches(pcSet, uniquePcs) {
 
       // Determine bass note info relative to the parent chord intervals (root included)
       const parentIntervals = [0, ...def.intervals];
-      const bassPc = sortedPlayed[0];
       const inversion = parentIntervals.findIndex((i) => (impliedRoot + i) % 12 === bassPc);
 
       matches.push({
@@ -128,188 +133,189 @@ function findRootlessMatches(pcSet, uniquePcs) {
 
 // [OpenCode] — 2026-07-06 — Classifieur pur de voicing, réutilisable pour le jeu live et les suggestions.
 // Même tableau de notes MIDI en entrée → même résultat en sortie.
+// [Claude] — 2026-10-02 — Lu sur l'écart RÉEL des touches, plus sur les classes de
+// notes (Do…Si) : un Cmaj7 serré était annoncé « Open voicing », un C7♯9 étalé sur
+// deux octaves « Cluster ». Le Temps réel affiche, lui, le classifieur complet de
+// src/voicing-engine/voicing-classifier.js (drop 2, rootless, upper structure…).
 export function classifyVoicing(midiNotes) {
   if (!Array.isArray(midiNotes) || midiNotes.length === 0) {
     return { topNote: null, voicingType: '—', inversion: 0, bassPc: null };
   }
 
-  const sortedNotes = [...midiNotes].sort((a, b) => a - b);
+  const sortedNotes = [...new Set(midiNotes)].sort((a, b) => a - b);
   const topNote = sortedNotes[sortedNotes.length - 1];
   const bassMidi = sortedNotes[0];
-  const bassPc = bassMidi % 12;
+  const bassPc = pcOf(bassMidi);
+  const uniquePcs = new Set(sortedNotes.map(pcOf));
 
-  const uniquePcs = Array.from(new Set(sortedNotes.map((n) => n % 12))).sort((a, b) => a - b);
-
-  if (uniquePcs.length < 2) {
+  if (uniquePcs.size < 2) {
     return { topNote, voicingType: 'single', inversion: 0, bassPc };
   }
 
-  const spans = [];
-  for (let i = 1; i < uniquePcs.length; i++) {
-    spans.push((uniquePcs[i] - uniquePcs[i - 1] + 12) % 12);
-  }
-  const hasMinorSecond = spans.includes(1);
-  const hasMajorSecond = spans.includes(2);
-  const hasOctave = spans.includes(0);
-  const totalRange = (uniquePcs[uniquePcs.length - 1] - uniquePcs[0] + 12) % 12;
-
-  let voicingType = 'close';
-
-  if (midiNotes.length === 2 && (spans.includes(3) || spans.includes(4) || spans.includes(10) || spans.includes(11))) {
-    voicingType = 'shell';
-  } else if (hasMinorSecond) {
-    voicingType = 'cluster';
-  } else if (totalRange <= 7 && !hasOctave) {
+  const span = topNote - bassMidi;
+  const gaps = sortedNotes.slice(1).map((n, i) => n - sortedNotes[i]);
+  let voicingType;
+  if (sortedNotes.length === 2) {
+    voicingType = [3, 4, 10, 11].includes(span % 12) ? 'shell' : span <= 12 ? 'close' : 'open';
+  } else if (gaps.includes(1)) {
+    voicingType = 'cluster'; // seconde mineure entre deux touches voisines
+  } else if (span <= 12) {
     voicingType = 'close';
-  } else if (hasOctave || totalRange > 19) {
+  } else if (span > 24) {
     voicingType = 'spread';
-  } else if (totalRange > 7) {
+  } else {
     voicingType = 'open';
   }
 
   return { topNote, voicingType, inversion: 0, bassPc };
 }
 
+// [Claude] — 2026-10-02 — Bibliothèque d'accords du Temps réel, revue avec Narcisse
+// (« je ne suis pas sûr que tout est bon »). Audit sur 73 voicings jazz : 71 % de
+// lectures justes. L'ancien comparateur exigeait TOUTES les notes d'une définition
+// (la 11e d'un 13 compris, que le jazz omet : C13 lu « C9 », Do–Si♭–Mi–La lu
+// « Am/C ») et acceptait des notes en trop sans les nommer (Cmaj7♯11 lu « Cmaj7 »).
+// Désormais :
+//   - une définition se compare sur ses notes obligatoires ; ses optionalIntervals
+//     (quinte, 9e et 11e des 13e…) peuvent manquer, avec une petite pénalité ;
+//   - une lecture exacte (toutes les notes jouées sont dans l'accord) l'emporte,
+//     fondamentale à la basse d'abord ; une note étrangère coûte cher, deux font « ? » ;
+//   - la définition « note seule » ne nomme plus un amas de trois notes (C–C♯–D
+//     s'affichait « C », comme un accord majeur).
+const MATCH_DEFINITIONS = [
+  ...CHORD_DEFINITIONS.filter((d) => !d.parentSymbol && d.intervals.length >= 3),
+  ...DETECTION_DEFINITIONS,
+];
+const SMALL_DEFINITIONS = CHORD_DEFINITIONS.filter((d) => !d.parentSymbol && d.intervals.length < 3);
+
+function requiredIntervals(def) {
+  const optional = new Set(def.optionalIntervals || []);
+  return def.intervals.filter((i) => !optional.has(i));
+}
+
+/** Score d'une lecture (fondamentale, définition) des notes jouées, ou null. */
+function scoreReading(rootPc, def, pcSet, bassPc) {
+  const required = buildPcSet(rootPc, requiredIntervals(def));
+  if (!isSubset(required, pcSet)) return null;
+  const tones = buildPcSet(rootPc, def.intervals);
+  let present = 0;
+  for (const pc of tones) if (pcSet.has(pc)) present += 1;
+  const extras = [];
+  for (const pc of pcSet) if (!tones.has(pc)) extras.push(pc);
+  const exact = extras.length === 0;
+  const omitted = tones.size - present;
+  let score = present * 10 - omitted * 4 - extras.length * 25;
+  if (exact) score += 20;
+  if (rootPc === bassPc) score += exact ? 15 : 5;
+  // Onzte juste qui sonne avec une tierce majeure : la « note à éviter » du jazz.
+  // Une telle lecture est rarement la bonne : Sol Si Do Mi est Cmaj7/G, pas
+  // G6add11 sans quinte (règle qui remplace l'exception codée en dur d'avant).
+  const avoid = pcSet.has((rootPc + 4) % 12) && pcSet.has((rootPc + 5) % 12) && def.intervals.some((i) => i % 12 === 5);
+  if (avoid) score -= 12;
+  return { rootPc, def, score, exact, present, omitted, extras, avoid };
+}
+
+/** Toutes les lectures possibles, de la meilleure à la moins bonne. */
+function rankReadings(pcSet, uniquePcs, bassPc, definitions) {
+  const readings = [];
+  for (const rootPc of uniquePcs) {
+    for (const def of definitions) {
+      const reading = scoreReading(rootPc, def, pcSet, bassPc);
+      if (reading) readings.push(reading);
+    }
+  }
+  // À score égal : moins de notes omises, puis la définition la plus riche, puis
+  // l'ordre de la table (le plus jazz d'abord).
+  return readings.sort((a, b) => b.score - a.score || a.omitted - b.omitted || b.def.intervals.length - a.def.intervals.length);
+}
+
+function readingResult(reading, sortedNotes, bassPc, voicing) {
+  const { rootPc, def, exact, extras, omitted } = reading;
+  const result = {
+    rootPc,
+    symbol: def.symbol,
+    fullName: def.name,
+    intervals: def.intervals,
+    notes: sortedNotes,
+    bassPc,
+    inversion: findInversionIndex(bassPc, rootPc, def.intervals),
+    isSlash: bassPc !== rootPc,
+    missing: (def.optionalIntervals || []).filter((i) => !sortedNotes.some((n) => pcOf(n) === (rootPc + i) % 12)),
+    confidence: exact ? 1.0 : reading.present / (reading.present + extras.length),
+    rootless: false,
+    voicing,
+  };
+  if (extras.length) result.extraPcs = extras;
+  if (omitted) result.omittedIntervals = result.missing;
+  return result;
+}
+
+function unknownResult(sortedNotes, bassPc, voicing) {
+  return {
+    rootPc: bassPc,
+    symbol: '?',
+    fullName: 'Accord non identifié',
+    intervals: [0],
+    notes: sortedNotes,
+    bassPc,
+    inversion: 0,
+    isSlash: false,
+    missing: [],
+    confidence: 0,
+    rootless: false,
+    voicing,
+  };
+}
+
+function rootlessResult(match, sortedNotes, voicing) {
+  const { rootPc, def, bassPc, inversion, confidence } = match;
+  return {
+    rootPc,
+    symbol: def.symbol,
+    fullName: `${def.name} (rootless)`,
+    intervals: [0, ...def.intervals],
+    notes: sortedNotes,
+    bassPc,
+    inversion,
+    isSlash: bassPc !== rootPc,
+    missing: [0],
+    confidence,
+    rootless: true,
+    voicing,
+  };
+}
+
 export function detectChord(activeNotes) {
   if (!activeNotes || activeNotes.length === 0) return null;
 
   const sortedNotes = [...activeNotes].sort((a, b) => a - b);
-  const bassMidi = sortedNotes[0];
-  const bassPc = bassMidi % 12;
-  const uniquePcs = Array.from(new Set(sortedNotes.map((n) => n % 12))).sort((a, b) => a - b);
+  const bassPc = pcOf(sortedNotes[0]);
+  const uniquePcs = Array.from(new Set(sortedNotes.map(pcOf))).sort((a, b) => a - b);
   const pcSet = new Set(uniquePcs);
+  const voicing = classifyVoicing(sortedNotes).voicingType;
 
-  const classification = classifyVoicing(sortedNotes);
-  const voicing = classification.voicingType;
-
-  let bestMatch = null;
-  let bestScore = -1;
-
-  // [OpenCode] — 2026-07-03 — Standard chord detection first
-  for (const rootPc of uniquePcs) {
-    for (const def of CHORD_DEFINITIONS) {
-      const required = buildPcSet(rootPc, def.intervals);
-      if (!isSubset(required, pcSet)) continue;
-
-      // Compute score: prefer larger definitions that match exactly, and prefer root = bass
-      let score = def.intervals.length * 10;
-      const exactMatch = setEquals(required, pcSet);
-      if (exactMatch) score += 20; // exact match bonus
-      if (exactMatch && rootPc === bassPc) score += 15; // strong bonus for exact rooted chord with root in bass
-      else if (rootPc === bassPc) score += 5; // root in bass bonus
-      if (rootPc === uniquePcs[0]) score += 3; // alphabetical root bonus
-      // [OpenCode] — 2026-07-03 — Slight bonus for 7th/9th chords that contain an upper-structure triad
-      if ((def.symbol.includes('7') || def.symbol.includes('9')) && rootPc === bassPc) {
-        const upper = findUpperStructure(pcSet, rootPc, uniquePcs);
-        if (upper) score += 4;
-      }
-
-      if (score > bestScore) {
-        bestScore = score;
-        const inversion = findInversionIndex(uniquePcs, rootPc, def.intervals);
-        const confidence = setEquals(required, pcSet) ? 1.0 : required.size / pcSet.size;
-      bestMatch = {
-        rootPc,
-        symbol: def.symbol,
-        fullName: def.name,
-        intervals: def.intervals,
-        notes: sortedNotes,
-        bassPc,
-        inversion,
-        isSlash: bassPc !== rootPc,
-        missing: [],
-        confidence,
-        rootless: false,
-        voicing,
-      };
-      }
-    }
+  // Une ou deux notes : note seule, quinte à vide, ou la basse nommée seule (le Temps
+  // réel affiche alors l'intervalle). Comportement inchangé pour les autres modules.
+  if (uniquePcs.length < 3) {
+    const small = rankReadings(pcSet, uniquePcs, bassPc, SMALL_DEFINITIONS);
+    return small.length ? readingResult(small[0], sortedNotes, bassPc, voicing) : unknownResult(sortedNotes, bassPc, voicing);
   }
 
-  // [OpenCode] — 2026-07-16 — N2-B: Rooted seventh shell recognition
-  // When a maj7/7/m7 voicing omits the 5th but keeps root (as bass), 3rd, and 7th,
-  // the canonical quality is returned rather than falling back to power chords.
-  const SHELL_DEFS = [
-    { symbol: 'maj7', fullName: 'Major 7', intervals: [0, 4, 11] },
-    { symbol: '7',    fullName: 'Dominant 7', intervals: [0, 4, 10] },
-    { symbol: 'm7',   fullName: 'Minor 7', intervals: [0, 3, 10] },
-  ];
-  if (!bestMatch || bestScore < 68) {
-    for (const def of SHELL_DEFS) {
-      const shellPcs = buildPcSet(bassPc, def.intervals);
-      if (setEquals(shellPcs, pcSet)) {
-        const shellScore = 30 + 20 + 15 + (bassPc === uniquePcs[0] ? 3 : 0);
-        if (shellScore > bestScore) {
-          bestScore = shellScore;
-          bestMatch = {
-            rootPc: bassPc,
-            symbol: def.symbol,
-            fullName: def.fullName,
-            intervals: def.intervals,
-            notes: sortedNotes,
-            bassPc,
-            inversion: 0,
-            isSlash: false,
-            missing: [],
-            confidence: 1.0,
-            rootless: false,
-            voicing,
-            omittedIntervals: [7],
-          };
-        }
-        break;
-      }
-    }
-  }
+  const readings = rankReadings(pcSet, uniquePcs, bassPc, MATCH_DEFINITIONS);
+  const best = readings[0] || null;
+  // Une note étrangère à l'accord se tolère (elle est rendue dans extraPcs) ;
+  // au-delà, mieux vaut dire « ? » que nommer un accord qui ne s'entend pas.
+  const acceptable = best && (best.exact || (best.extras.length === 1 && best.present >= 3));
+  // Deux triades sans note commune (Ré majeur sur Do majeur) se nomment en
+  // polyaccord plutôt qu'en slash à notes manquantes (« Am13/C » sans Si).
+  const weakSlash = acceptable && best.rootPc !== bassPc && best.omitted > 0;
 
-  // [OpenCode] — 2026-07-03 — Rootless post-processing
-  // Prefer a rootless interpretation when the standard match is a triad in root position
-  // and the notes also form a known rootless 7th chord. This covers guide-tone voicings
-  // like E-G-B being Cmaj7 rootless rather than Em, while preserving slash chords like C/E.
-  // [Claude] — 2026-07-03 — Correction : ne pas écraser une triade parfaite en position fondamentale par un rootless. Un C-E-G est un C majeur, pas un Am7 rootless.
-  if (bestMatch && bestMatch.intervals.length === 3 && bestMatch.bassPc === bestMatch.rootPc) {
-    const rootlessMatches = findRootlessMatches(pcSet, uniquePcs);
-    const richerRootless = rootlessMatches.find((m) => m.def.intervals.length >= 3);
-    // Only upgrade to rootless when we have more than 3 notes. With exactly 3 notes, the simplest
-    // and most reliable reading is the triad itself (e.g. C-E-G is C major, not Am7 rootless).
-    if (richerRootless && uniquePcs.length > 3) {
-      const { rootPc, def, bassPc: rlBassPc, inversion, confidence } = richerRootless;
-      const parentIntervals = [0, ...def.intervals];
-      return {
-        rootPc,
-        symbol: def.symbol,
-        fullName: `${def.name} (rootless)`,
-        intervals: parentIntervals,
-        notes: sortedNotes,
-        bassPc: rlBassPc,
-        inversion,
-        isSlash: rlBassPc !== rootPc,
-        missing: [0],
-        confidence,
-        rootless: true,
-        voicing,
-      };
-    }
-  }
-
-  // [OpenCode] — 2026-07-03 — Upper structure enrichment
-  // When a standard chord contains a 7th or 9th/11th/13th, see if the upper notes also form
-  // a complete triad whose root differs from the chord root. If so, enrich the result.
-  if (bestMatch && bestMatch.intervals.some((i) => [10, 11, 14, 17, 18, 20, 21].includes(i))) {
-    const upper = findUpperStructure(pcSet, bestMatch.rootPc, uniquePcs);
-    if (upper) {
-      bestMatch.upperStructure = upper;
-      bestMatch.fullName = `${bestMatch.fullName} (upper: ${upper.triad.name} ${formatNote(upper.rootPc)})`;
-      bestMatch.voicing = voicing;
-    }
-  }
-
-  // [OpenCode] — 2026-07-03 — Polychord detection
-  // Detect two non-overlapping triads as a polychord. Prefer this interpretation when
-  // the standard match is just a generic 7th/9th/11th that happens to contain the triads,
-  // unless it is an exact match with the root in bass.
-  const exactRooted = bestMatch && bestMatch.confidence === 1.0 && bestMatch.bassPc === bestMatch.rootPc;
-  if (!exactRooted) {
+  if (!acceptable || (weakSlash && findPolychord(pcSet))) {
+    // Ni lecture exacte ni presque exacte : voicing sans fondamentale ?
+    const rootless = acceptable ? null : findRootlessMatches(pcSet, uniquePcs, bassPc)
+      .sort((a, b) => b.def.intervals.length - a.def.intervals.length)[0];
+    if (rootless) return rootlessResult(rootless, sortedNotes, voicing);
+    // [OpenCode] — 2026-07-03 — Polychord detection : deux triades sans note commune.
     const poly = findPolychord(pcSet);
     if (poly) {
       const { lower, upper } = poly;
@@ -329,64 +335,65 @@ export function detectChord(activeNotes) {
         voicing,
       };
     }
+    return unknownResult(sortedNotes, bassPc, voicing);
   }
 
-  // [OpenCode] — 2026-07-03 — Helper: detect clusters of minor/major seconds
-  function hasCluster(notes, requireMinorSecond = false) {
-    const sorted = [...notes].sort((a, b) => a - b);
-    for (let i = 1; i < sorted.length; i++) {
-      const gap = (sorted[i] - sorted[i - 1] + 12) % 12;
-      if (requireMinorSecond) {
-        if (gap === 1) return true;
-      } else {
-        if (gap === 1 || gap === 2) return true;
-      }
-    }
-    return false;
+  const bestMatch = readingResult(best, sortedNotes, bassPc, voicing);
+
+  // [OpenCode] — 2026-07-03 — Rootless post-processing : E-G-B-D au-dessus d'une
+  // triade parfaite, quatre notes ou plus… Une triade fondamentale complète reste
+  // une triade (C-E-G est C majeur, pas Am7 sans fondamentale).
+  if (best.def.intervals.length === 3 && !best.exact && uniquePcs.length > 3) {
+    const richer = findRootlessMatches(pcSet, uniquePcs, bassPc).find((m) => m.def.intervals.length >= 3);
+    if (richer) return rootlessResult(richer, sortedNotes, voicing);
   }
 
-  // [OpenCode] — 2026-07-03 — Rootless fallback
-  // If no standard chord matches, try interpreting the notes as a rootless jazz voicing.
-  if (!bestMatch) {
-    const rootlessMatches = findRootlessMatches(pcSet, uniquePcs);
-    if (rootlessMatches.length > 0) {
-      const match = rootlessMatches.sort((a, b) => b.def.intervals.length - a.def.intervals.length)[0];
-      const { rootPc, def, bassPc: rlBassPc, inversion, confidence } = match;
-      return {
-        rootPc,
-        symbol: def.symbol,
-        fullName: `${def.name} (rootless)`,
-        intervals: def.intervals.slice(1),
-        notes: sortedNotes,
-        bassPc: rlBassPc,
-        inversion,
-        isSlash: rlBassPc !== rootPc,
-        missing: [0],
-        confidence,
-        rootless: true,
-        voicing,
-      };
+  // [OpenCode] — 2026-07-03 — Upper structure enrichment
+  // When a standard chord contains a 7th or 9th/11th/13th, see if the upper notes also form
+  // a complete triad whose root differs from the chord root. If so, enrich the result.
+  if (bestMatch.intervals.some((i) => [10, 11, 14, 17, 18, 20, 21].includes(i))) {
+    const upper = findUpperStructure(pcSet, bestMatch.rootPc, uniquePcs);
+    if (upper) {
+      bestMatch.upperStructure = upper;
+      bestMatch.fullName = `${bestMatch.fullName} (upper: ${upper.triad.name} ${formatNote(upper.rootPc)})`;
     }
   }
 
-  if (!bestMatch) {
-    // Fallback: no known chord.
-    return {
-      rootPc: bassPc,
-      symbol: '?',
-      fullName: 'Accord non identifié',
-      intervals: [0],
-      notes: sortedNotes,
-      bassPc,
-      inversion: 0,
-      isSlash: false,
-      missing: [],
-      confidence: 0,
-      rootless: false,
-      voicing,
-    };
-  }
-
-  bestMatch.voicing = voicing;
   return bestMatch;
+}
+
+/**
+ * [Claude] — 2026-10-02 — Les AUTRES lectures exactes des mêmes notes (« Aussi » du
+ * Temps réel) : C6 → Am7/C, Cm7 → E♭6/C, Cdim7 → E♭dim7/C…, F La Si Mi → G13
+ * sans fondamentale. Remplacent les alias figés de voicing.js. La lecture que
+ * detectChord retient est en tête quand elle est exacte.
+ * @param {number[]} activeNotes - MIDI
+ * @returns {{rootPc: number, symbol: string, bassPc: number, isSlash: boolean, rootless: boolean}[]}
+ */
+export function chordReadings(activeNotes) {
+  if (!activeNotes || activeNotes.length === 0) return [];
+  const sortedNotes = [...activeNotes].sort((a, b) => a - b);
+  const bassPc = pcOf(sortedNotes[0]);
+  const uniquePcs = Array.from(new Set(sortedNotes.map(pcOf))).sort((a, b) => a - b);
+  if (uniquePcs.length < 3) return [];
+  const pcSet = new Set(uniquePcs);
+  const out = [];
+  const seen = new Set();
+  const push = (rootPc, symbol, rootless) => {
+    const key = `${rootPc}:${symbol}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push({ rootPc, symbol, bassPc, isSlash: bassPc !== rootPc, rootless });
+  };
+  // Lectures exactes à une note omise au plus, sans 11te juste sur tierce majeure :
+  // « Gmaj13/C » (sans Ré ni La) pour Cmaj7♯11 ou « G6add11/C » pour Cmaj7
+  // n'aident personne. Sans fondamentale : à partir de quatre notes (une
+  // triade de Ré n'est pas « Bm7 sans fondamentale »).
+  for (const reading of rankReadings(pcSet, uniquePcs, bassPc, MATCH_DEFINITIONS)) {
+    if (reading.exact && reading.omitted <= 1 && !reading.avoid) push(reading.rootPc, reading.def.symbol, false);
+  }
+  if (uniquePcs.length >= 4) {
+    for (const match of findRootlessMatches(pcSet, uniquePcs, bassPc)) push(match.rootPc, match.def.symbol, true);
+  }
+  return out;
 }

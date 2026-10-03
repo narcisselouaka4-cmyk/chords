@@ -7,7 +7,7 @@ import {
   isChordSymbolRecognized,
   extractChordSymbol,
 } from './chord-parser-v2.js';
-import { classifyIntent, listIntents, describeIntent } from './intent-classifier.js';
+import { classifyIntent, listIntents, describeIntent, extractKey, chordSymbolsInText } from './intent-classifier.js';
 
 const GREEN = '\x1b[32m';
 const RED = '\x1b[31m';
@@ -92,6 +92,23 @@ function checkClassifier() {
   const explicit = classifyIntent('progression Dm7 - G7 - Cmaj7 en jazz');
   check('Intention progression explicite = play_progression', explicit.intent === 'play_progression', `trouvé ${explicit.intent}`);
   check('Params style progression jazz', explicit.params.styleId === 'jazz');
+
+  // [Claude] — 2026-09-24 — Tonalité en français, accords en solfège, mots courants.
+  const chordsOf = (m) => JSON.stringify(classifyIntent(m).params.chords || null);
+  const expectChords = (m, expected) => check(`« ${m} » → ${expected.join(' ')}`, chordsOf(m) === JSON.stringify(expected), `trouvé ${chordsOf(m)}`);
+  expectChords('Explique-moi un II-V-I en Fa', ['Gm7', 'C7', 'Fmaj7']);
+  expectChords('Joue un 2-5-1 en Sib majeur', ['Cm7', 'F7', 'Bbmaj7']);
+  expectChords('Un 2-5-1 en la mineur', ['Bm7b5', 'E7', 'Am7']);
+  // [Claude] — 2026-09-25 — Le mode écrit juste après la cadence.
+  expectChords('Un II-V-I mineur en la', ['Bm7b5', 'E7', 'Am7']);
+  expectChords('Un 2-5-1 mineur', ['Dm7b5', 'G7', 'Cm7']);
+  expectChords('joue un 2-5-1 en ré', ['Em7', 'A7', 'Dmaj7']);
+  expectChords('joue un 2-5-1 en la jouant lentement', ['Dm7', 'G7', 'Cmaj7']);
+  expectChords('Joue Rém7 Sol7 Domaj7', ['Dm7', 'G7', 'Cmaj7']);
+  expectChords('joue dm7 g7 cmaj7', ['Dm7', 'G7', 'Cmaj7']);
+  expectChords("Qu'est-ce qu'il y a entre Dm7 et G7 ?", ['Dm7', 'G7']);
+  check('extractKey « en Mib » = Mib majeur', JSON.stringify(extractKey('un 2-5-1 en Mib')) === JSON.stringify({ rootPc: 3, minor: false, sharps: false }));
+  check('chordSymbolsInText ignore Do, La et les chiffres romains', JSON.stringify(chordSymbolsInText('Le **II-V-I** en Do : **Dm9 → G13 → Cmaj9**, la 7e de Dm9 (Do) descend.')) === JSON.stringify(['Dm9', 'G13', 'Cmaj9']));
 }
 
 async function runTests() {

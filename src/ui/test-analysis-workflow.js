@@ -7,7 +7,12 @@
  *
  * Usage : node src/ui/test-analysis-workflow.js
  */
+import { readFileSync } from 'fs';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { resolveAnalysisState, ANALYSIS_STATES } from './analyzer-workflow.js';
+
+const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
 function assert(condition, message) {
   if (!condition) throw new Error(`ASSERT FAILED: ${message}`);
@@ -38,10 +43,13 @@ runTest('B — HOME → Vidéo → file picker MP4 → VIDEO_TYPE_SELECTION', ()
   assert(resolveAnalysisState('mp4', 'audio') === 'video-type', 'MP4 auto-détecté comme vidéo');
 });
 
-// ── C : HOME → MIDI → MIDI_CAPTURE ──
-// (MIDI_CAPTURE = état 'midi-record', présent dans la machine d'état)
-runTest('C — HOME → MIDI → MIDI_CAPTURE présent dans les états', () => {
-  assert(ANALYSIS_STATES.includes('midi-record'), 'état midi-capture présent');
+// ── C : la capture MIDI n'appartient plus à l'onglet Analyse ──
+// [Refonte Analyse 02/10] — elle doublait les Sessions MIDI de l'onglet
+// Entraînement. Sa carte d'accueil et son écran ont été retirés : ce test
+// garde la porte fermée.
+runTest("C — la capture au clavier a quitté l'onglet Analyse", () => {
+  assert(!ANALYSIS_STATES.includes('midi-record'), "plus d'état de capture MIDI");
+  assert(!ANALYSIS_STATES.includes('results'), "plus d'état 'results' (markup mort, jamais activé)");
 });
 
 // ── D : Bibliothèque MP3 → AUDIO_PREP (même pipeline) ──
@@ -71,8 +79,18 @@ runTest('Audio/WAV ne bascule jamais vers video-type', () => {
 
 // ── Machine d'état complète ──
 runTest('Machine d’état Analyse complète et ordonnée', () => {
-  const expected = ['import', 'prepare', 'video-type', 'midi-record', 'results', 'analysis'];
+  const expected = ['import', 'prepare', 'video-type', 'analysis'];
   assert(JSON.stringify(ANALYSIS_STATES) === JSON.stringify(expected), 'états complets');
+
+  // setAnalyzerState() garde sa propre liste plutôt que d'importer celle-ci :
+  // l'import se faisait évaluer au moment de l'initialisation de l'onglet et
+  // l'a fait échouer une fois (02/10). Les deux doivent rester identiques.
+  const tabJs = readFileSync(resolve(projectRoot, 'src/ui/analyzer-tab.js'), 'utf-8');
+  const local = tabJs.match(/const states = (\[[^\]]*\]);/);
+  assert(local !== null, 'liste locale trouvee dans setAnalyzerState');
+  const normalise = (x) => x.replace(/'/g, '"').replace(/\s+/g, '');
+  assert(normalise(local[1]) === normalise(JSON.stringify(expected)),
+    'la liste de setAnalyzerState est alignee sur ANALYSIS_STATES (trouve ' + local[1] + ')');
 });
 
 console.log('\nTests workflow Analyse terminés.');

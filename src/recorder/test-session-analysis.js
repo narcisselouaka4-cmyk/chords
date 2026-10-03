@@ -171,6 +171,41 @@ async function testSustainPedal() {
   }
 }
 
+// [Claude] — 2026-09-24 — Jeu de pianiste réel (Narcisse : « les accords détectés
+// et affichés ne sont pas toujours les bons » en Session MIDI).
+const chordEvents = (notes, t0, t1, roll = 0.01) => notes.flatMap((n, k) => [createNoteOn(n, t0 + k * roll), createNoteOff(n, t1)]);
+const describe = (events) => nameChordSegments(segmentSessionEvents(events))
+  .map((s) => (s.type === 'chord' ? s.chordName : `mélodie(${s.notes.length})`)).join(' | ');
+
+async function testPianistPlaying() {
+  check('Accord à deux mains (C2 G2 | E4 G4 B4 D5) : Cmaj9, pas de la mélodie',
+    describe(chordEvents([36, 43, 64, 67, 71, 74], 0, 2)) === 'Cmaj9', describe(chordEvents([36, 43, 64, 67, 71, 74], 0, 2)));
+  const iiVI = [...chordEvents([38, 45, 65, 69, 72, 76], 0, 1.95), ...chordEvents([43, 53, 64, 69, 71], 2, 3.95), ...chordEvents([36, 43, 64, 67, 71, 74], 4, 6)];
+  check('II-V-I à deux mains : Dm9, G13 (la 13e comptée), Cmaj9', describe(iiVI) === 'Dm9 | G13 | Cmaj9', describe(iiVI));
+  const heldBass = [createNoteOn(36, 0), createNoteOff(36, 4), ...chordEvents([64, 67, 71], 0.02, 1.95), ...chordEvents([65, 69, 72], 2, 4)];
+  check('Basse tenue pendant que la main droite change : Cmaj7 puis F/C', describe(heldBass) === 'Cmaj7 | F/C', describe(heldBass));
+  const melodyAfter = [...chordEvents([48, 52, 55], 0, 2), createNoteOn(74, 0.15), createNoteOff(74, 0.5)];
+  check('Note de mélodie juste après l\'accord : C, puis la mélodie (pas Cadd9)', describe(melodyAfter) === 'C | mélodie(1)', describe(melodyAfter));
+  check('Accord roulé (60 ms entre les notes) : Fmaj9', describe(chordEvents([41, 48, 57, 64, 67, 72], 0, 2, 0.06)) === 'Fmaj9');
+  const pedalBass = [createControl(64, 127, 0), createNoteOn(38, 0), createNoteOff(38, 0.3), ...chordEvents([53, 57, 60, 64], 0.5, 2.4), createControl(64, 0, 2.45)];
+  check('Basse frappée puis gardée à la pédale, rootless F A C E au-dessus : Dm9', describe(pedalBass) === 'Dm9', describe(pedalBass));
+  const melodyOver = [...chordEvents([48, 52, 55], 0, 3), createNoteOn(76, 0.5), createNoteOff(76, 0.9), createNoteOn(74, 1.0), createNoteOff(74, 1.4), createNoteOn(72, 1.5), createNoteOff(72, 2.9)];
+  check('Mélodie sur un accord tenu : l\'accord ne change pas', describe(melodyOver) === 'C | mélodie(3)', describe(melodyOver));
+  const walking = [...chordEvents([60, 64, 67], 0, 4), createNoteOn(36, 0), createNoteOff(36, 1.95), createNoteOn(33, 2), createNoteOff(33, 4)];
+  check('Nouvelle basse sous un accord tenu : l\'accord change (C → Am7)', describe(walking) === 'C | Am7', describe(walking));
+  const comping = [...chordEvents([50, 53, 57, 60], 0, 0.4), ...chordEvents([50, 53, 57, 60], 0.67, 1.2), ...chordEvents([50, 53, 57, 60], 2, 2.5)];
+  check('Même accord rejoué (comping) : un seul segment', describe(comping) === 'Dm7', describe(comping));
+  const arpeggio = [41, 48, 57, 64].flatMap((n, k) => [createNoteOn(n, k * 0.15), createNoteOff(n, 2)]);
+  check('Arpège lent (150 ms) : un seul accord, complété (Fmaj7)', describe(arpeggio) === 'Fmaj7', describe(arpeggio));
+  // [Claude] — 2026-09-24 — Pédale tenue d'un accord à l'autre : Ré2 traîne sous
+  // G13, mais la main gauche a frappé sa basse (Sol2) : l'accord joué est G13.
+  const blurred = [createControl(64, 127, 0), ...chordEvents([38, 45, 53, 57, 60, 64], 0, 1.2), ...chordEvents([43, 53, 57, 59, 64], 2, 3.2), createControl(64, 0, 3.5)];
+  check('Pédale tenue, nouvelle basse frappée : Dm9 puis G13 (pas Fmaj13#11/D)', describe(blurred) === 'Dm9 | G13', describe(blurred));
+  const named = nameChordSegments(segmentSessionEvents(chordEvents([36, 43, 64, 67, 71, 74], 0, 2)));
+  check('Nom avec sa fondamentale (Cmaj9), plus « Major 9 »', named[0].chordName === 'Cmaj9' && named[0].rootPc === 0 && named[0].symbol === 'maj9');
+  check('Notation latine possible (Dom9 → Domaj9)', nameChordSegments(segmentSessionEvents(chordEvents([36, 43, 64, 67, 71, 74], 0, 2)), { latin: true })[0].chordName === 'Domaj9');
+}
+
 async function testEmptySession() {
   const segments = segmentSessionEvents([]);
   check('Session vide : liste vide', segments.length === 0);
@@ -181,6 +216,7 @@ async function runTests() {
   await testMelodyNoChord();
   await testChordMelodyChordMelody();
   await testSustainPedal();
+  await testPianistPlaying();
   await testEmptySession();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);

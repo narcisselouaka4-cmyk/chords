@@ -82,6 +82,9 @@
   height: 100%;
   width: 100%;
 }
+/* Petites étendues : la largeur des touches est plafonnée (keyboard-svg.js),
+   le clavier est alors centré ; sa largeur est posée en style inline. */
+#keyboard-panel .vk-bed .keyboard-container { justify-content: center; }
 
 /* Les vues dédiées d'Entraînement sont pilotées en display par main.js
    (applyView() met 'flex' ou 'none') : on ne leur impose rien ici. */
@@ -111,6 +114,22 @@
 .tr-subnav-tabs > button > .tr-active-underline { display: none; }
 .tr-subnav-tabs > button.active > .tr-active-underline { display: block; }
 .tr-subnav-tabs > button .practice-exercise-progress:empty { display: none; }
+/* [Claude] — 2026-10-02 — Une pilule cachée (« Coach d'accompagnement ») le reste :
+   la règle d'Astra pose un display sur les boutons, qui battrait l'attribut hidden. */
+.tr-subnav-tabs > button[hidden] { display: none !important; }
+
+/* [Claude] — 2026-10-02 — Sessions MIDI : « ● Enregistrer » remplace « + Nouvelle
+   session ». La pastille rouge est cerclée de la couleur du texte du bouton pour
+   rester lisible sur le violet, en thème sombre comme en clair. */
+.midi-record-btn { gap: 8px; }
+.midi-record-dot {
+  width: 9px;
+  height: 9px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--tr-red);
+  box-shadow: 0 0 0 2px var(--tr-button-text);
+}
 
 /* ---- Onglet Entraînement : colonne sous-navigation + corps défilant ---- */
 #practice-tab.practice-layout {
@@ -126,12 +145,33 @@
 #practice-tab > .tr-subnavigation { flex-shrink: 0; }
 #practice-body.tr-workspace { flex: 1; min-height: 0; }
 
+/* [Claude] — 2026-10-02 — Mode clair d'Entraînement : fond gris lavande au lieu du
+   quasi-blanc (Narcisse : « j'aime pas le fond blanc utilisé » ; teinte et étendue
+   choisies par lui : gris lavande, tout Entraînement, Analyse et Studio inchangés).
+   En-tête, sous-navigation, clavier et pied de page restent clairs : ce sont les
+   barres de l'interface, le lavande se lit entre elles. Gris secondaires un cran plus
+   foncés pour garder 4,5:1 sur ce fond. Le mode sombre n'est pas concerné. */
+:root[data-theme='light'] #practice-tab {
+  --tr-bg: #e6e2ee;
+  --tr-muted: #655d70;
+  --tr-secondary: #5c546a;
+  background: var(--tr-bg);
+}
+
 /* L'ancien habillage de la sous-navigation de Zic ne doit plus peser :
    les classes d'Astra sont chargées après, mais practice.css place encore un
    fond et une bordure sur .practice-subnav. */
 .tr-subnavigation.practice-subnav { box-shadow: none; }
-.tr-record-button.practice-record-btn::before,
 .tr-midi-connection.practice-midi-status::before { content: none; }
+/* [Claude] — 2026-10-02 — La pastille d'état MIDI reconnecte d'un clic (le synthé
+   affiché « Connecté » mais muet, sans avoir à le débrancher). */
+#practice-midi-status { cursor: pointer; border-radius: 6px; padding: 4px 6px; margin: -4px -6px; transition: color .15s, background .15s; }
+#practice-midi-status:hover { color: var(--tr-text); background: var(--tr-hover); }
+#practice-midi-status:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 2px; }
+#practice-midi-status.is-busy .practice-midi-status-dot { animation: tr-record-pulse .9s infinite; }
+@media (prefers-reduced-motion: reduce) {
+  #practice-midi-status.is-busy .practice-midi-status-dot { animation: none; }
+}
 
 /* ---- Fenêtres et tiroirs ------------------------------------------------
    Sans framework, les .tr-overlay vivent dans le DOM et se masquent par
@@ -164,7 +204,7 @@
 }
 #practice-view-exercices .exercise-target-keyboard svg {
   width: 100%;
-  max-width: 320px;
+  max-width: 100%;
   height: auto;
 }
 #practice-view-exercices .exercise-target-notes {
@@ -209,18 +249,6 @@
   background: var(--tr-accent-strong);
 }
 
-#practice-view-exercices .exercise-degree-badge {
-  align-self: flex-start;
-  margin-top: 4px;
-  padding: 3px 8px;
-  border: 1px solid var(--tr-border);
-  border-radius: 5px;
-  background: var(--tr-accent-soft);
-  color: var(--tr-accent);
-  font: 10px var(--tr-mono);
-  letter-spacing: .06em;
-}
-
 /* ============================================================================
    Sessions MIDI
    ============================================================================ */
@@ -243,6 +271,9 @@
 }
 #midi-session-carnet {
   max-height: 170px;
+}
+#midi-session-carnet:has(.carnet-findings:not([hidden])) {
+  max-height: 230px;
 }
 
 /* Hôte du paysage harmonique : le SVG est injecté par recording-tab.js.
@@ -350,9 +381,86 @@
   display: flex; gap: 14px; margin-top: 6px;
   color: var(--tr-muted); font: 9px var(--tr-mono);
 }
+/* [Claude] — 2026-09-24 — En-tête du carnet sur une ligne (titre puis légende) :
+   la rangée « Analyse du jeu » prend la place gagnée, et les moments restent
+   visibles au-dessus du clavier. Même préfixe que practice.css pour passer devant. */
+:root[data-skin='global'] #practice-view-midi-sessions .carnet-sticky-head,
+:root[data-skin='v2'] #practice-view-midi-sessions .carnet-sticky-head {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 24px;
+  row-gap: 4px;
+  padding: 10px 0 4px;
+}
+#midi-session-carnet .carnet-sticky-head .tr-section-heading { margin-bottom: 0; }
+#midi-session-carnet .carnet-sticky-head .carnet-legend { margin-top: 0; }
 #midi-session-carnet .carnet-legend span { display: inline-flex; align-items: center; gap: 5px; }
 #midi-session-carnet .legend-dot { width: 6px; height: 6px; border-radius: 2px; background: var(--tr-accent); }
 #midi-session-carnet .legend-dot.melody { background: transparent; border: 1px solid var(--tr-muted); }
+/* [Claude] — 2026-09-24 — Analyse du jeu (session-performance.js) : une pastille
+   par constat — point à travailler (rouge Astra), point fort (vert) — avec ses
+   moments cliquables ; le détail s'affiche au survol et reste lu par les
+   lecteurs d'écran. */
+#midi-session-carnet .carnet-findings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 4px;
+}
+#midi-session-carnet .carnet-findings[hidden] { display: none; }
+#midi-session-carnet .carnet-findings-label {
+  margin-right: 4px;
+  color: var(--tr-muted);
+  font: 9px var(--tr-mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+#midi-session-carnet .carnet-finding {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 5px 3px 9px;
+  border: 1px solid var(--tr-border);
+  border-radius: 6px;
+  background: var(--tr-surface);
+  color: var(--tr-text);
+  font-size: 11px;
+  cursor: help;
+}
+/* [Claude] — 2026-09-25 — Suggestions (plus de rouge « défaut ») : point couleur
+   d'accent ; la plus utile a un contour d'accent. */
+#midi-session-carnet .carnet-finding-dot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--tr-accent);
+}
+#midi-session-carnet .carnet-finding.is-strength .carnet-finding-dot { background: var(--tr-green); }
+#midi-session-carnet .carnet-finding.is-major { border-color: color-mix(in srgb, var(--tr-accent) 55%, var(--tr-border)); }
+#midi-session-carnet .carnet-finding-title { font-weight: 550; white-space: nowrap; }
+#midi-session-carnet .carnet-finding-detail {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+#midi-session-carnet .carnet-finding-time {
+  padding: 1px 5px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--tr-raised);
+  color: var(--tr-secondary);
+  font: 9px var(--tr-mono);
+  cursor: pointer;
+}
+#midi-session-carnet .carnet-finding-time:hover { background: var(--tr-accent-soft); color: var(--tr-accent); }
+#midi-session-carnet .carnet-finding-time:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 1px; }
+#midi-session-carnet .carnet-finding-more { color: var(--tr-muted); font: 9px var(--tr-mono); padding-right: 3px; }
 #carnet-entries {
   display: flex;
   flex-direction: row;
@@ -553,61 +661,8 @@
 #pedagogie-video-player { width: 100%; height: 100%; object-fit: cover; background: #0d0b12; }
 #pedagogie-analyze-btn[disabled] { opacity: .4; }
 
-/* Bibliothèque de tutoriels : alignée sur le format .tr-library-row de
-   Sessions MIDI et Coach, avec en-tête et lignes sur la même grille. */
-#pedagogie-library-drawer .tr-library-table-head,
-#pedagogie-track-list .pedagogie-track-row { grid-template-columns: minmax(220px, 2.7fr) 110px 64px; gap: 12px; }
-#pedagogie-track-list { display: flex; flex-direction: column; gap: 6px; }
-#pedagogie-track-list .pedagogie-track-row {
-  align-items: center;
-  padding: 10px 12px;
-  background: var(--tr-surface);
-  border: 1px solid var(--tr-border);
-  border-radius: 10px;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease, box-shadow 0.12s ease;
-}
-#pedagogie-track-list .pedagogie-track-row:hover {
-  background: var(--tr-surface-chip, var(--tr-accent-soft));
-  border-color: var(--tr-border-strong, var(--tr-border));
-  transform: translateY(-1px);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
-}
-#pedagogie-track-list .pedagogie-track-row.is-selected {
-  background: var(--tr-accent-soft);
-  outline: 1px solid var(--tr-accent);
-  outline-offset: -1px;
-}
-#pedagogie-track-list .pedagogie-track-row .tr-file-icon {
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, var(--tr-accent), #7c3aed);
-  color: #fff;
-}
-#pedagogie-track-list .pedagogie-track-row .tr-file-icon svg {
-  width: 20px;
-  height: 20px;
-}
-#pedagogie-track-list .tr-library-cell {
-  text-align: right;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  padding: 4px 8px;
-  border-radius: 999px;
-  color: var(--tr-muted);
-  background: var(--tr-surface-chip, rgba(0,0,0,0.04));
-  justify-self: end;
-}
-#pedagogie-track-list .tr-library-cell[data-type="Tutoriel"],
-#pedagogie-track-list .tr-library-cell[data-type="Cover"] {
-  color: var(--tr-accent);
-  background: var(--tr-accent-soft);
-}
+/* [Claude] — 2026-10-03 — La liste « Mes tutoriels » (tiroir) est retirée : les cartes de
+   l'accueil la remplacent (astra-pedagogie.css). */
 
 #practice-view-pedagogie .tr-notebook-content { display: flex; flex-direction: column; gap: 12px; }
 #practice-view-pedagogie .pedagogie-card {
@@ -652,7 +707,7 @@
    en rangée et posait le bouton à côté du champ — c'est ce qui différait de la
    maquette. On ne garde que la remise à zéro des styles hérités de Zic sur le
    champ et le bouton. */
-#practice-view-copilot #copilot-input.copilot-input {
+:is(#practice-view-copilot, #pedagogie-copilot-panel) #copilot-input.copilot-input {
   display: block;
   width: 100%;
   min-height: 20px;
@@ -669,7 +724,7 @@
   resize: none;
   outline: none;
 }
-#practice-view-copilot .tr-composer-tools > #copilot-send-btn.copilot-send-btn {
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-composer-tools > #copilot-send-btn.copilot-send-btn {
   display: grid;
   place-items: center;
   width: 27px;
@@ -680,13 +735,45 @@
   background: var(--tr-button);
   color: var(--tr-button-text);
 }
-#practice-view-copilot .tr-composer-tools > #copilot-send-btn.copilot-send-btn:hover:not(:disabled) {
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-composer-tools > #copilot-send-btn.copilot-send-btn:hover:not(:disabled) {
   background: var(--tr-accent-strong);
 }
-#practice-view-copilot .tr-composer-tools > #copilot-send-btn.copilot-send-btn:disabled {
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-composer-tools > #copilot-send-btn.copilot-send-btn:disabled {
   background: var(--tr-raised);
   color: var(--tr-muted);
   opacity: 1;
+}
+/* [Claude] — 2026-09-26 — « Qu'en penses-tu ? » à la place de « IA connectée » : une
+   pastille ; pendant l'écoute, « ● Stop · 0:12 » en rouge, le point qui pulse. */
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-review { display: flex; align-items: center; gap: 9px; min-width: 0; }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-review-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 11px;
+  border: 1px solid color-mix(in srgb, var(--tr-accent) 38%, var(--tr-border));
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--tr-accent) 12%, var(--tr-surface));
+  color: var(--tr-accent);
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-review-btn:hover { border-color: var(--tr-accent); }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-review-btn.is-listening {
+  border-color: var(--tr-red);
+  background: color-mix(in srgb, var(--tr-red) 16%, var(--tr-surface));
+  color: var(--tr-red);
+  font-variant-numeric: tabular-nums;
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-review-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; animation: copilot-review-pulse 1.2s ease-in-out infinite; }
+@keyframes copilot-review-pulse { 50% { opacity: 0.3; } }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-review-hint { overflow: hidden; color: var(--tr-muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) {
+  :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-review-dot { animation: none; }
 }
 #copilot-quick-actions {
   display: flex;
@@ -709,6 +796,15 @@
 }
 #copilot-quick-actions .copilot-chip:hover { color: var(--tr-text); border-color: var(--tr-accent); }
 #copilot-quick-actions .copilot-style-spacer { flex: 1; }
+/* [Claude] — 2026-10-03 — « Style » et sa liste ne se séparent plus : quand la rangée est
+   pleine (panneau du Copilote dans Pédagogie IA), ils passent ensemble à la ligne, à droite. */
+#copilot-quick-actions .copilot-style {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  white-space: nowrap;
+}
 #copilot-style-select {
   height: 25px; padding: 0 6px;
   border: 1px solid var(--tr-border); border-radius: 6px;
@@ -728,14 +824,14 @@
 /* Bouton "Nouvelle conversation" : doit avoir le fond coloré .tr-primary,
    pas le fond neutre de l'ancienne règle practice.css (lignes 1889+).
    Spécificité alignée sur l'ancienne règle pour gagner la cascade. */
-:root[data-skin='global'] #practice-view-copilot .tr-primary.copilot-secondary-btn,
-:root[data-skin='v2'] #practice-view-copilot .tr-primary.copilot-secondary-btn {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-primary.copilot-secondary-btn,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-primary.copilot-secondary-btn {
   background: var(--tr-button);
   color: var(--tr-button-text);
   border-color: var(--tr-button);
 }
-:root[data-skin='global'] #practice-view-copilot .tr-primary.copilot-secondary-btn:hover:not(:disabled),
-:root[data-skin='v2'] #practice-view-copilot .tr-primary.copilot-secondary-btn:hover:not(:disabled) {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-primary.copilot-secondary-btn:hover:not(:disabled),
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-primary.copilot-secondary-btn:hover:not(:disabled) {
   background: var(--tr-accent-strong);
   border-color: var(--tr-accent-strong);
 }
@@ -777,10 +873,19 @@
 
 /* Champs du pas à pas et champs courts de la barre d'outils. */
 .vk-stepper > input[type="number"] {
-  width: 38px; height: 20px; padding: 0 2px;
+  width: 46px; height: 20px; padding: 0 2px;
   border: 1px solid var(--vk-line-soft); border-radius: 4px;
   background: #26272e; color: var(--vk-text);
   font: 11px var(--vk-mono); text-align: center; outline: none;
+  /* Les flèches natives du champ mangeaient la moitié des 38 px et cachaient
+     les chiffres : les boutons − / + suffisent. */
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+.vk-stepper > input[type="number"]::-webkit-inner-spin-button,
+.vk-stepper > input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 .vk-select.vk-field-narrow > input {
   width: 52px; height: 22px; padding: 0 5px;
@@ -849,13 +954,42 @@
 #analysis-tab .an-zoom-control label { cursor: pointer; }
 
 /* ---- Frise d'accords ----------------------------------------------------
-   analyzer-tab.js fabrique des .analyzer-timeline-block dont la LARGEUR est
-   proportionnelle à la durée réelle du segment et suit le zoom. On ne touche
-   pas à ce mécanisme : on lui donne l'apparence des pastilles du ruban Astra. */
-#analysis-tab .an-ribbon-chords-track { overflow-x: auto; scrollbar-width: thin; }
-#analyzer-chord-timeline-inner { display: flex; align-items: stretch; gap: 4px; height: 100%; }
-#analysis-tab .analyzer-timeline-block {
+   analyzer-tab.js fabrique des .analyzer-timeline-block dont la POSITION et la
+   LARGEUR sont calculées en pixels à partir du temps réel du segment et du
+   zoom (style.left / style.width). La piste est donc un plan de coordonnées,
+   pas un flux : elle est en position:relative et les blocs en position:absolute.
+
+   [Correctif 02/10] — ce pont posait ici `display:flex` sur la piste et
+   `position:relative` sur les blocs. Les deux mécanismes s'additionnaient : un
+   bloc prenait sa place dans le flux PUIS se décalait encore de son `left`.
+   Le douzième accord d'une grille se retrouvait à 2116 px au lieu de 1080 —
+   la frise ne disait plus où tombaient les accords, et les boutons de
+   défilement visaient à côté. La hauteur est fixée ici (50 px de piste, dont
+   6 px de gouttière pour la barre horizontale) pour qu'aucune barre verticale
+   ne vienne rogner les pastilles. */
+#analysis-tab .an-ribbon-chords-track {
+  height: 50px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--an-border-strong) transparent;
+}
+#analysis-tab .an-ribbon-chords-track::-webkit-scrollbar { height: 6px; }
+#analysis-tab .an-ribbon-chords-track::-webkit-scrollbar-track { background: transparent; }
+#analysis-tab .an-ribbon-chords-track::-webkit-scrollbar-thumb {
+  background: var(--an-border-strong);
+  border-radius: 100px;
+}
+#analyzer-chord-timeline-inner {
   position: relative;
+  display: block;
+  height: 100%;
+  min-width: 100%;
+}
+#analysis-tab .analyzer-timeline-block {
+  position: absolute;
+  top: 0;
+  bottom: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -908,14 +1042,34 @@
 
 /* ---- Sous-onglets Analyse -----------------------------------------------
    analyzer-tab.js écrit .active ; la maquette lit .is-active. */
+/* L'onglet courant doit se lire d'un coup d'œil. Un simple fond « raised » le
+   distinguait à peine de ses voisins au survol : on garde la teinte d'accent,
+   mais sur le texte et une réglette basse plutôt qu'en aplat plein — du blanc
+   sur --an-accent ne passe pas 4,5:1 à 12 px. */
 #analysis-tab .an-subtab-btn.active {
-  color: var(--an-text);
-  background: var(--an-surface-raised);
-  border-color: var(--an-border-strong);
+  position: relative;
+  color: var(--an-accent-bright);
+  background: var(--an-accent-soft);
+  border-color: var(--an-accent);
 }
-#analysis-tab .an-subtab-btn.active svg { color: var(--an-accent); }
-#analysis-tab .an-stage-viewport { flex: 1; min-height: 0; overflow: auto; }
-#analysis-tab .an-stage-viewport > .analyzer-panel { height: 100%; min-height: 0; }
+#analysis-tab .an-subtab-btn.active::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: -7px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--an-accent);
+}
+#analysis-tab .an-subtab-btn.active svg { color: var(--an-accent-bright); }
+/* [Correctif 02/10] — un seul conteneur de défilement. La scène portait
+   `overflow:auto` ET chaque .analyzer-panel portait `height:100%;
+   overflow-y:auto` : deux ascenseurs verticaux superposés, plus un ascenseur
+   horizontal parasite, et un double rembourrage (24 px de la scène + 16 px du
+   panneau) qui décalait tout le contenu de 40 px du bord. La scène garde le
+   défilement, le panneau redevient un simple bloc qui remplit la scène. */
+/* (la règle de base vit désormais dans analyzer-workspace.css) */
 
 /* ---- Accord sélectionné -------------------------------------------------
    Les contenus sont écrits par analyzer-tab.js et voicing-preview.js : on ne
@@ -1112,13 +1266,26 @@
 
 /* ---- Corriger -----------------------------------------------------------
    Flux et inspecteur remplis par corriger-panel.js (classes corriger-*). */
-#analysis-tab .corriger-panel { height: 100%; }
-#analysis-tab .an-correction-container { display: flex; flex-direction: column; gap: 14px; height: 100%; min-height: 0; }
+/* [Correctif 02/10] — « Corriger » restait le dernier sous-onglet à se
+   contraindre à la hauteur de la scène. Résultat sur une vraie analyse de 68
+   accords : la liste des segments gardait son max-height de 380 px de la
+   maquette à l'intérieur d'une carte réduite à 297 px par le partage de
+   hauteur, et `overflow:hidden` de .an-card coupait 83 px de liste SANS
+   ascenseur pour les atteindre. L'inspecteur, lui, scrollait sous son propre
+   en-tête, d'où l'en-tête tronqué en haut de la carte.
+   Comme partout ailleurs maintenant : les cartes prennent la hauteur de leur
+   contenu, et c'est la scène qui défile. */
+#analysis-tab .corriger-panel { height: auto; }
+#analysis-tab .an-correction-container { display: flex; flex-direction: column; gap: 14px; min-height: 100%; }
 #corriger-header.an-stats-counters { display: flex; flex-wrap: wrap; gap: 18px; }
 #corriger-header .corriger-stat { display: flex; flex-direction: column; gap: 2px; }
 #corriger-header .corriger-stat-value { color: var(--an-text); font-size: 20px; font-weight: 700; letter-spacing: -.03em; }
 #corriger-header .corriger-stat-label { color: var(--an-text-muted); font: 8.5px var(--an-mono); letter-spacing: .12em; text-transform: uppercase; }
-#analysis-tab .an-correction-workbench { flex: 1; min-height: 0; }
+/* align-items:start : chaque carte fait la hauteur de son contenu au lieu de
+   s'étirer sur la plus haute des deux. */
+#analysis-tab .an-correction-workbench { align-items: start; }
+/* L'inspecteur ne doit jamais rogner son en-tête : il grandit, la scène défile. */
+#analysis-tab #corriger-editor { overflow: visible; }
 #corriger-list.an-segments-list { display: flex; flex-direction: column; gap: 4px; overflow: auto; min-height: 0; }
 #corriger-list .corriger-segment,
 #corriger-list > button {
@@ -1191,13 +1358,20 @@
   font-size: clamp(40px, 4.2vw, 64px); font-weight: 450; font-family: inherit;
   line-height: 1.1; letter-spacing: -.06em; color: var(--tr-text);
 }
+/* La fenêtre du clavier s'adapte désormais à l'étendue réelle du voicing : un
+   voicing large ajoute des touches, et les plafonds hérités (180px via
+   style.css, 290px ici) les rendaient illisibles. On prend toute la largeur
+   de la carte, `max-width` inclus pour neutraliser le plafond de style.css. */
 :root[data-skin='global'] #practice-view-exercices .exercise-target-keyboard,
 :root[data-skin='v2'] #practice-view-exercices .exercise-target-keyboard {
-  width: min(84%, 290px); margin: 10px 0 4px;
+  width: 100%; max-width: 430px; margin: 10px auto 4px;
 }
 :root[data-skin='global'] #practice-view-exercices .exercise-target-keyboard svg,
 :root[data-skin='v2'] #practice-view-exercices .exercise-target-keyboard svg {
-  width: 100%; max-width: 100%; height: auto; max-height: none; display: block;
+  /* Hauteur proportionnelle à la fenêtre : assez grande pour rester lisible
+     sur un écran normal, sans jamais repousser le bouton « Écouter » hors de
+     l'écran sur une fenêtre courte (correctif de visibilité de la Phase 1). */
+  width: 100%; max-width: 100%; height: auto; max-height: clamp(84px, 13vh, 165px); display: block;
 }
 :root[data-skin='global'] #practice-view-exercices .exercise-target-notes,
 :root[data-skin='v2'] #practice-view-exercices .exercise-target-notes {
@@ -1234,18 +1408,6 @@
 /* ---- Guide (gauche) et panneau de progression (droite) ------------------
    Alimentés par updateExerciseProgressUI() dans main.js à partir de l'état
    réel de practice-exercise.js. Mêmes préfixes de spécificité que le reste. */
-:root[data-skin='global'] #practice-view-exercices .exercise-key-pill,
-:root[data-skin='v2'] #practice-view-exercices .exercise-key-pill {
-  align-self: flex-start;
-  margin-top: 12px;
-  padding: 5px 11px;
-  border: 1px solid var(--tr-border);
-  border-radius: 7px;
-  background: var(--tr-inset);
-  color: var(--tr-accent);
-  font: 11px var(--tr-mono);
-  letter-spacing: .04em;
-}
 :root[data-skin='global'] #practice-view-exercices .tr-key-counter,
 :root[data-skin='v2'] #practice-view-exercices .tr-key-counter {
   display: flex;
@@ -1256,8 +1418,8 @@
 :root[data-skin='global'] #practice-view-exercices .tr-key-counter strong,
 :root[data-skin='v2'] #practice-view-exercices .tr-key-counter strong {
   color: var(--tr-text);
-  font: 600 26px var(--tr-mono);
-  letter-spacing: -.04em;
+  font: 600 15px var(--tr-mono);
+  letter-spacing: -.02em;
 }
 :root[data-skin='global'] #practice-view-exercices .tr-key-counter span,
 :root[data-skin='v2'] #practice-view-exercices .tr-key-counter span {
@@ -1288,18 +1450,34 @@
   gap: 4px;
   margin-top: 14px;
 }
-:root[data-skin='global'] #practice-view-exercices .tr-progression-path > div,
-:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > div {
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button {
   display: flex;
   align-items: center;
   gap: 9px;
+  width: 100%;
   padding: 6px 9px;
   border: 1px solid transparent;
   border-radius: 7px;
+  background: none;
   color: var(--tr-secondary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
 }
-:root[data-skin='global'] #practice-view-exercices .tr-progression-path > div > span,
-:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > div > span {
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button:hover,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button:hover {
+  background: var(--tr-hover, var(--tr-inset));
+  border-color: var(--tr-border);
+}
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button:focus-visible,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button:focus-visible {
+  outline: 2px solid var(--tr-accent);
+  outline-offset: 1px;
+}
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button > span,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button > span {
   display: grid;
   place-items: center;
   width: 20px;
@@ -1310,29 +1488,102 @@
   color: var(--tr-muted);
   font: 9px var(--tr-mono);
 }
-:root[data-skin='global'] #practice-view-exercices .tr-progression-path > div strong,
-:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > div strong {
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button strong,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button strong {
   font-size: 12px;
   font-weight: 550;
 }
-:root[data-skin='global'] #practice-view-exercices .tr-progression-path > div.is-done,
-:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > div.is-done {
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button.is-done,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button.is-done {
   color: var(--tr-muted);
 }
-:root[data-skin='global'] #practice-view-exercices .tr-progression-path > div.is-done > span,
-:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > div.is-done > span {
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button.is-done > span,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button.is-done > span {
   color: var(--tr-green);
 }
-:root[data-skin='global'] #practice-view-exercices .tr-progression-path > div.is-active,
-:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > div.is-active {
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button.is-active,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button.is-active {
   border-color: var(--tr-accent);
   background: var(--tr-accent-soft);
   color: var(--tr-text);
 }
-:root[data-skin='global'] #practice-view-exercices .tr-progression-path > div.is-active > span,
-:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > div.is-active > span {
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button.is-active > span,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button.is-active > span {
   background: var(--tr-accent);
   color: var(--tr-button-text);
+}
+/* [Claude] — 2026-09-24 — Voice leading : note du dessus choisie pour l'accord. */
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path .exercise-path-top,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path .exercise-path-top {
+  color: var(--tr-accent);
+  font: 10px var(--tr-mono);
+}
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path .exercise-path-top.is-missed,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path .exercise-path-top.is-missed {
+  color: var(--mini-key-added, #f59e0b);
+}
+/* [Claude] — 2026-09-24 — Accords de passage de la démo (Narcisse : « ajoute ces
+   accords à droite ») : entre deux accords, en retrait et plus discrets ; allumés
+   quand la démo les joue.
+   [Claude] — 2026-09-24 (nuit) — Ce sont désormais des étapes de l'exercice (les
+   tensions ne se jouent qu'en passage) : en cours et faits, comme les accords. */
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord {
+  width: calc(100% - 18px);
+  margin-left: 18px;
+  padding: 3px 9px;
+  border-style: dashed;
+  border-color: transparent;
+  color: var(--tr-muted);
+}
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord > span,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord > span {
+  width: auto;
+  height: auto;
+  border: 0;
+  background: none;
+  font: 12px var(--tr-mono);
+}
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord > div,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord > div {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 7px;
+}
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord strong,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord strong {
+  font-size: 11px;
+  font-weight: 500;
+}
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord small,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord small {
+  font: 9px var(--tr-mono);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--tr-muted);
+}
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord:hover,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord:hover {
+  border-color: var(--tr-border);
+  color: var(--tr-secondary);
+}
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord.is-playing,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord.is-playing,
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord.is-active,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord.is-active {
+  border-style: solid;
+  border-color: var(--tr-accent);
+  background: var(--tr-accent-soft);
+  color: var(--tr-text);
+}
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord.is-active > span,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord.is-active > span {
+  color: var(--tr-accent);
+}
+:root[data-skin='global'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord.is-done > span,
+:root[data-skin='v2'] #practice-view-exercices .tr-progression-path > button.exercise-passing-chord.is-done > span {
+  color: var(--tr-green);
 }
 :root[data-skin='global'] #practice-view-exercices .tr-progress-quiet,
 :root[data-skin='v2'] #practice-view-exercices .tr-progress-quiet {
@@ -1342,19 +1593,529 @@
   letter-spacing: .03em;
 }
 
+/* ---- Mouvement 12 tons : réglages, tonalité en cours, frise ---------------
+   [Claude] — 2026-09-24 — Narcisse : tonalité active « pas au bon endroit »,
+   réglages de difficulté et de tonalité « posés à la va-vite », pas de choix
+   des tonalités ni de saut direct. Réglages en grille étiquette / contrôle à
+   gauche ; à droite, la tonalité en cours en titre, puis la frise des
+   tonalités et les accords, cliquables. */
+:root[data-skin='global'] #practice-view-exercices .exercise-settings,
+:root[data-skin='v2'] #practice-view-exercices .exercise-settings {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px 12px;
+  width: 100%;
+  max-width: 320px;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--tr-border-soft, var(--tr-border));
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-settings[hidden],
+:root[data-skin='v2'] #practice-view-exercices .exercise-settings[hidden] {
+  display: none;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-settings-eyebrow,
+:root[data-skin='v2'] #practice-view-exercices .exercise-settings-eyebrow {
+  grid-column: 1 / -1;
+  color: var(--tr-muted);
+  font: 8px var(--tr-mono);
+  letter-spacing: .08em;
+}
+/* Chaque réglage occupe une ligne de la grille : étiquette, puis contrôle. */
+:root[data-skin='global'] #practice-view-exercices .exercise-setting,
+:root[data-skin='v2'] #practice-view-exercices .exercise-setting {
+  display: contents;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-setting > label,
+:root[data-skin='v2'] #practice-view-exercices .exercise-setting > label,
+:root[data-skin='global'] #practice-view-exercices .exercise-setting-label,
+:root[data-skin='v2'] #practice-view-exercices .exercise-setting-label {
+  color: var(--tr-secondary);
+  font-size: 11px;
+  font-weight: 550;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-setting-keys > .exercise-setting-label,
+:root[data-skin='v2'] #practice-view-exercices .exercise-setting-keys > .exercise-setting-label {
+  align-self: start;
+  padding-top: 6px;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-setting > select,
+:root[data-skin='v2'] #practice-view-exercices .exercise-setting > select {
+  width: 100%;
+  height: 30px;
+  padding: 0 28px 0 10px;
+  border: 1px solid var(--tr-border);
+  border-radius: 7px;
+  background-color: var(--tr-inset);
+  color: var(--tr-text);
+  font-size: 11px;
+  font-weight: 550;
+  cursor: pointer;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-setting > select:focus-visible,
+:root[data-skin='v2'] #practice-view-exercices .exercise-setting > select:focus-visible {
+  outline: 2px solid var(--tr-accent);
+  outline-offset: 1px;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-key-grid,
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-key-toggle,
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-toggle,
+:root[data-skin='global'] #practice-view-exercices .exercise-key-all,
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-all {
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--tr-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tr-muted);
+  font: 10px var(--tr-mono);
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-key-toggle:not(.is-on),
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-toggle:not(.is-on) {
+  border-style: dashed;
+  opacity: .6;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-key-toggle.is-on,
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-toggle.is-on {
+  border-color: color-mix(in srgb, var(--tr-accent) 45%, var(--tr-border));
+  background: var(--tr-accent-soft);
+  color: var(--tr-text);
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-key-toggle:hover:not(:disabled),
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-toggle:hover:not(:disabled),
+:root[data-skin='global'] #practice-view-exercices .exercise-key-all:hover:not(:disabled),
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-all:hover:not(:disabled) {
+  border-color: var(--tr-accent);
+  color: var(--tr-text);
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-key-toggle:disabled,
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-toggle:disabled {
+  cursor: not-allowed;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-key-all,
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-all {
+  grid-column: 1 / -1;
+  font-family: inherit;
+  font-size: 10px;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-key-all[hidden],
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-all[hidden] {
+  display: none;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-setting > select:disabled,
+:root[data-skin='v2'] #practice-view-exercices .exercise-setting > select:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+/* Colonnes du Mouvement calées en haut : les réglages restent au-dessus du
+   clavier MIDI déplié au lieu d'être centrés sous un grand vide. */
+:root[data-skin='global'] #practice-view-exercices .tr-exercise-stage:not(.is-chord-mode) .tr-exercise-brief,
+:root[data-skin='v2'] #practice-view-exercices .tr-exercise-stage:not(.is-chord-mode) .tr-exercise-brief,
+:root[data-skin='global'] #practice-view-exercices .tr-exercise-stage:not(.is-chord-mode) .tr-exercise-progress,
+:root[data-skin='v2'] #practice-view-exercices .tr-exercise-stage:not(.is-chord-mode) .tr-exercise-progress {
+  justify-content: flex-start;
+  padding-top: 34px;
+}
+
+:root[data-skin='global'] #practice-view-exercices .exercise-current-key,
+:root[data-skin='v2'] #practice-view-exercices .exercise-current-key {
+  margin-top: 8px;
+  color: var(--tr-accent);
+  font-size: 22px;
+  font-weight: 550;
+  letter-spacing: -.03em;
+  line-height: 1.15;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-current-key[hidden],
+:root[data-skin='v2'] #practice-view-exercices .exercise-current-key[hidden],
+:root[data-skin='global'] #practice-view-exercices .exercise-key-strip[hidden],
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-strip[hidden],
+:root[data-skin='global'] #practice-view-exercices .exercise-chords-eyebrow[hidden],
+:root[data-skin='v2'] #practice-view-exercices .exercise-chords-eyebrow[hidden] {
+  display: none;
+}
+:root[data-skin='global'] #practice-view-exercices .tr-key-counter > span:first-child,
+:root[data-skin='v2'] #practice-view-exercices .tr-key-counter > span:first-child {
+  color: var(--tr-secondary);
+  font-family: inherit;
+  font-size: 11px;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-key-strip,
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-strip {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px;
+  margin-top: 12px;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-key-chip,
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-chip {
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--tr-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tr-muted);
+  font: 10px var(--tr-mono);
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-key-chip:hover,
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-chip:hover {
+  border-color: var(--tr-accent);
+  color: var(--tr-text);
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-key-chip.is-done,
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-chip.is-done {
+  border-color: transparent;
+  background: var(--tr-green-soft, var(--tr-inset));
+  color: var(--tr-green, var(--tr-secondary));
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-key-chip.is-current,
+:root[data-skin='v2'] #practice-view-exercices .exercise-key-chip.is-current {
+  border-color: var(--tr-accent);
+  background: var(--tr-accent);
+  color: var(--tr-button-text);
+  font-weight: 700;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-chords-eyebrow,
+:root[data-skin='v2'] #practice-view-exercices .exercise-chords-eyebrow {
+  margin-top: 18px;
+  color: var(--tr-muted);
+  font: 8px var(--tr-mono);
+  letter-spacing: .08em;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-chords-eyebrow + .tr-progression-path,
+:root[data-skin='v2'] #practice-view-exercices .exercise-chords-eyebrow + .tr-progression-path {
+  margin-top: 6px;
+}
+
+/* ---- Démo du mouvement ----------------------------------------------------
+   [Claude] — 2026-09-24 — Bouton « Écouter le mouvement » sous la tonalité en
+   cours ; pendant la démo, l'accord joué est surligné (la carte le suit). */
+:root[data-skin='global'] #practice-view-exercices .exercise-demo-btn,
+:root[data-skin='v2'] #practice-view-exercices .exercise-demo-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  height: 32px;
+  margin-top: 14px;
+  border: 1px solid color-mix(in srgb, var(--tr-accent) 45%, var(--tr-border));
+  border-radius: 8px;
+  background: var(--tr-accent-soft);
+  color: var(--tr-text);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-demo-btn:hover,
+:root[data-skin='v2'] #practice-view-exercices .exercise-demo-btn:hover {
+  border-color: var(--tr-accent);
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-demo-btn[hidden],
+:root[data-skin='v2'] #practice-view-exercices .exercise-demo-btn[hidden] {
+  display: none;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-demo-btn.is-playing,
+:root[data-skin='v2'] #practice-view-exercices .exercise-demo-btn.is-playing {
+  border-color: var(--tr-accent);
+  background: var(--tr-accent);
+  color: var(--tr-button-text);
+}
+:root[data-skin='global'] #practice-view-exercices .tr-exercise-progress.is-demo-playing .tr-progression-path > button.is-active,
+:root[data-skin='v2'] #practice-view-exercices .tr-exercise-progress.is-demo-playing .tr-progression-path > button.is-active {
+  animation: exercise-demo-pulse 1.6s ease-in-out infinite;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-demo-style,
+:root[data-skin='v2'] #practice-view-exercices .exercise-demo-style {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-demo-style[hidden],
+:root[data-skin='v2'] #practice-view-exercices .exercise-demo-style[hidden] {
+  display: none;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-demo-style label,
+:root[data-skin='v2'] #practice-view-exercices .exercise-demo-style label {
+  color: var(--tr-secondary);
+  font-size: 11px;
+  font-weight: 550;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-demo-style select,
+:root[data-skin='v2'] #practice-view-exercices .exercise-demo-style select {
+  width: 100%;
+  height: 28px;
+  padding: 0 26px 0 9px;
+  border: 1px solid var(--tr-border);
+  border-radius: 7px;
+  background-color: var(--tr-inset);
+  color: var(--tr-text);
+  font-size: 11px;
+  font-weight: 550;
+  cursor: pointer;
+}
+:root[data-skin='global'] #practice-view-exercices .exercise-demo-style select:focus-visible,
+:root[data-skin='v2'] #practice-view-exercices .exercise-demo-style select:focus-visible {
+  outline: 2px solid var(--tr-accent);
+  outline-offset: 1px;
+}
+@keyframes exercise-demo-pulse {
+  50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--tr-accent) 30%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-skin='global'] #practice-view-exercices .tr-exercise-progress.is-demo-playing .tr-progression-path > button.is-active,
+  :root[data-skin='v2'] #practice-view-exercices .tr-exercise-progress.is-demo-playing .tr-progression-path > button.is-active {
+    animation: none;
+  }
+}
+
+/* ---- Bibliothèque des mouvements : fenêtre Astra --------------------------
+   Même grammaire que les bibliothèques de Sessions MIDI, du Coach et de
+   Pédagogie IA (.tr-overlay > .tr-dialog.tr-drawer) : fond flouté, fenêtre
+   centrée, cartes en grille. */
+#exercise-library .exercise-library { width: min(100%, 1080px); max-height: min(100%, 760px); }
+#exercise-library .tr-dialog-title { align-items: flex-start; }
+#exercise-library .exercise-library-heading h2 { margin: 0; }
+#exercise-library .exercise-library-heading p { margin: 5px 0 0; color: var(--tr-secondary); font-size: 12px; }
+#exercise-library .exercise-library-body { display: flex; flex-direction: column; gap: 18px; }
+#exercise-library .exercise-grid-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+  align-items: center;
+  gap: 12px 24px;
+  padding: 16px 18px;
+  border: 1px solid color-mix(in srgb, var(--tr-accent) 30%, var(--tr-border));
+  border-radius: 10px;
+  background: var(--tr-accent-soft);
+}
+#exercise-library .exercise-grid-entry-text .tr-eyebrow { color: var(--tr-accent); font: 8px var(--tr-mono); letter-spacing: .08em; }
+#exercise-library .exercise-grid-entry-text p { margin: 5px 0 0; color: var(--tr-secondary); font-size: 11.5px; line-height: 1.55; }
+/* [Claude] — 2026-09-24 — Ma grille : accords choisis (fondamentale + qualité),
+   en pastilles retirables, au lieu d'une saisie au clavier. */
+#exercise-library .exercise-grid-builder { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+#exercise-library .exercise-grid-picker { display: flex; flex-wrap: wrap; gap: 8px; }
+#exercise-library .exercise-grid-picker select {
+  height: 36px;
+  min-width: 0;
+  padding: 0 10px;
+  border: 1px solid var(--tr-border);
+  border-radius: 8px;
+  background: var(--tr-surface);
+  color: var(--tr-text);
+  font: 13px var(--tr-mono);
+  cursor: pointer;
+}
+#exercise-library #exercise-grid-root { flex: 0 0 76px; }
+#exercise-library #exercise-grid-quality { flex: 1 1 110px; }
+#exercise-library #exercise-grid-top { flex: 1 1 130px; }
+#exercise-library .exercise-grid-picker select option:disabled { color: var(--tr-muted); }
+#exercise-library .exercise-grid-picker select:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 0; border-color: transparent; }
+#exercise-library .exercise-grid-builder .tr-button { height: 36px; white-space: nowrap; }
+#exercise-library .exercise-grid-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 30px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+#exercise-library .exercise-grid-chips > li:not(.exercise-grid-empty) {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px 2px 2px;
+  border: 1px solid var(--tr-border);
+  border-radius: 999px;
+  background: var(--tr-surface);
+  color: var(--tr-text);
+  font: 12px var(--tr-mono);
+}
+/* Accord cliquable : on le modifie sans toucher aux autres. */
+#exercise-library .exercise-grid-chips > li > .exercise-grid-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  width: auto;
+  height: auto;
+  padding: 2px 6px 2px 8px;
+  border-radius: 999px;
+  color: var(--tr-text);
+  font: 12px var(--tr-mono);
+}
+#exercise-library .exercise-grid-chips > li > .exercise-grid-chip small { color: var(--tr-accent); font-size: 10.5px; }
+#exercise-library .exercise-grid-chips > li.is-editing { border-color: var(--tr-accent); background: var(--tr-accent-soft); }
+/* [Claude] — 2026-09-24 (nuit) — Accord de tension = accord de passage (règle de
+   Narcisse) : pastille en pointillés, précédée de ↳ ; resté principal = signalé. */
+#exercise-library .exercise-grid-chips > li.is-passing { border-style: dashed; background: none; }
+#exercise-library .exercise-grid-chips > li.is-passing > .exercise-grid-chip { color: var(--tr-secondary); }
+#exercise-library .exercise-grid-chips > li.is-passing > .exercise-grid-chip > span { color: var(--tr-muted); }
+#exercise-library .exercise-grid-chips > li.is-stray { border-color: var(--mini-key-added, #f59e0b); }
+#exercise-library .exercise-grid-chips > li > button:not(.exercise-grid-chip) {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--tr-muted);
+  font: 14px/1 inherit;
+  cursor: pointer;
+}
+#exercise-library .exercise-grid-chips > li > button:hover { background: var(--tr-inset); color: var(--tr-text); }
+#exercise-library .exercise-grid-chips > li > button:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 0; }
+#exercise-library .exercise-grid-empty { color: var(--tr-muted); font-size: 11.5px; line-height: 30px; }
+#exercise-library .exercise-grid-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+#exercise-library #exercise-grid-name {
+  flex: 1 1 160px;
+  min-width: 0;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--tr-border);
+  border-radius: 8px;
+  background: var(--tr-surface);
+  color: var(--tr-text);
+  font: 12.5px inherit;
+}
+#exercise-library #exercise-grid-name:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 0; border-color: transparent; }
+#exercise-library .exercise-grid-status { min-height: 16px; margin: 0; color: var(--tr-accent); font-size: 11.5px; }
+#exercise-library .exercise-grid-status:empty { display: none; }
+#exercise-library .exercise-library-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; }
+#exercise-library .exercise-library-search { flex: 0 1 300px; }
+#exercise-library .exercise-library-search input { height: auto; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+#exercise-library .exercise-library-categories { display: flex; flex-wrap: wrap; gap: 6px; }
+#exercise-library .exercise-library-style { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; color: var(--tr-secondary); font-size: 11px; font-weight: 550; }
+#exercise-library .exercise-library-style select {
+  height: 30px;
+  padding: 0 26px 0 10px;
+  border: 1px solid var(--tr-border);
+  border-radius: 7px;
+  background-color: var(--tr-inset);
+  color: var(--tr-text);
+  font-size: 11px;
+  font-weight: 550;
+  cursor: pointer;
+}
+#exercise-library .exercise-library-style select:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 1px; }
+#exercise-library .exercise-library-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 11px;
+  border: 1px solid var(--tr-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--tr-secondary);
+  font-size: 11px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+#exercise-library .exercise-library-chip:hover { border-color: var(--tr-accent); color: var(--tr-text); }
+#exercise-library .exercise-library-chip.active { border-color: var(--tr-accent); background: var(--tr-accent-soft); color: var(--tr-text); }
+#exercise-library .exercise-library-count { color: var(--tr-muted); font: 9px var(--tr-mono); }
+#exercise-library .exercise-library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 12px;
+  min-height: 0;
+}
+#exercise-library .exercise-library-empty { grid-column: 1 / -1; padding: 30px 10px; color: var(--tr-muted); font-size: 12px; text-align: center; }
+#exercise-library .exercise-library-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 15px 16px 16px;
+  border: 1px solid var(--tr-border);
+  border-radius: 10px;
+  background: var(--tr-raised, var(--tr-surface));
+  color: var(--tr-text);
+  cursor: pointer;
+  transition: border-color .15s, background .15s, transform .12s;
+}
+#exercise-library .exercise-library-card:hover,
+#exercise-library .exercise-library-card:focus-visible {
+  border-color: var(--tr-accent);
+  transform: translateY(-1px);
+  outline: none;
+}
+#exercise-library .exercise-library-card.is-current { border-color: color-mix(in srgb, var(--tr-accent) 55%, var(--tr-border)); }
+#exercise-library .exercise-library-card-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+#exercise-library .exercise-library-card-category { color: var(--tr-muted); font: 8px var(--tr-mono); letter-spacing: .07em; text-transform: uppercase; }
+#exercise-library .exercise-library-card-stars { display: flex; gap: 1px; color: var(--tr-accent); font-size: 11px; }
+#exercise-library .exercise-library-card-stars .star.empty { opacity: .35; }
+#exercise-library .exercise-library-card h4 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; font-weight: 550; letter-spacing: -.02em; line-height: 1.3; }
+#exercise-library .exercise-library-current { flex-shrink: 0; white-space: nowrap; padding: 2px 7px; border-radius: 999px; background: var(--tr-accent-soft); color: var(--tr-accent); font: 8.5px var(--tr-mono); letter-spacing: .04em; }
+#exercise-library .exercise-library-card p { margin: 0; color: var(--tr-secondary); font-size: 11.5px; line-height: 1.6; }
+#exercise-library .exercise-library-card-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: auto; }
+#exercise-library .exercise-library-card-count { color: var(--tr-muted); font: 9px var(--tr-mono); letter-spacing: .04em; text-transform: uppercase; }
+#exercise-library .exercise-library-grid-action {
+  height: 28px;
+  padding: 0 11px;
+  border: 1px solid var(--tr-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--tr-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+#exercise-library .exercise-library-grid-action:hover { border-color: var(--tr-accent); color: var(--tr-text); }
+#exercise-library .exercise-library-grid-action:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 1px; }
+#exercise-library .exercise-library-grid-action.is-danger.is-armed { border-color: var(--tr-red, #e5484d); background: var(--tr-red, #e5484d); color: #fff; }
+#exercise-library .exercise-library-play {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  height: 28px;
+  padding: 0 11px;
+  border: 1px solid var(--tr-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--tr-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+#exercise-library .exercise-library-play:hover { border-color: var(--tr-accent); color: var(--tr-text); }
+#exercise-library .exercise-library-play:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 1px; }
+#exercise-library .exercise-library-play.is-playing { border-color: var(--tr-accent); background: var(--tr-accent); color: var(--tr-button-text); }
+@media (max-width: 820px) {
+  #exercise-library .exercise-grid-entry { grid-template-columns: 1fr; }
+  #exercise-library .exercise-library-search { flex-basis: 100%; }
+}
+
 /* ---- Chat Copilot : compléments à la grammaire d'Astra ------------------
    .tr-chat-message / .tr-message-avatar / .tr-message-content / .tr-chat-demos
    / .tr-thinking sont déjà définis par astra-training.css ; on n'y touche pas.
    Ce qui suit neutralise les anciennes règles .copilot-message de practice.css
    (bulle encadrée, alignement) et habille les deux cas propres à Zic. */
 /* [Astra round 5] — practice.css (L.1665) impose
-   « :root[data-skin='…'] #practice-view-copilot .copilot-message
+   « :root[data-skin='…'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-message
      { flex-direction: column; gap: 4px; max-width: 85% } »,
    plus spécifique que la règle d'astra-training.css : l'avatar passait SOUS la
    bulle côté « Vous » et AU-DESSUS du texte côté Copilot, au lieu d'être à côté.
    Même préfixe ici pour repasser devant et rétablir la rangée d'Astra. */
-:root[data-skin='global'] #practice-view-copilot .copilot-message.tr-chat-message,
-:root[data-skin='v2'] #practice-view-copilot .copilot-message.tr-chat-message {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-message.tr-chat-message,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-message.tr-chat-message {
   display: flex;
   flex-direction: row;
   align-items: flex-start;
@@ -1370,22 +2131,22 @@
 }
 /* Côté « Vous » : la bulle d'abord, l'avatar à sa droite (order: 2 chez Astra),
    le tout poussé à droite. */
-:root[data-skin='global'] #practice-view-copilot .copilot-message.tr-chat-message.is-user,
-:root[data-skin='v2'] #practice-view-copilot .copilot-message.tr-chat-message.is-user {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-message.tr-chat-message.is-user,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-message.tr-chat-message.is-user {
   margin-left: auto;
   width: fit-content;
   max-width: 83%;
 }
-:root[data-skin='global'] #practice-view-copilot .tr-chat-message.is-user .tr-message-avatar,
-:root[data-skin='v2'] #practice-view-copilot .tr-chat-message.is-user .tr-message-avatar {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-chat-message.is-user .tr-message-avatar,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-chat-message.is-user .tr-message-avatar {
   order: 2;
 }
 /* Les avatars ne doivent jamais se comprimer quand la bulle est longue. */
-:root[data-skin='global'] #practice-view-copilot .tr-message-avatar,
-:root[data-skin='v2'] #practice-view-copilot .tr-message-avatar {
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-message-avatar,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-message-avatar {
   flex-shrink: 0;
 }
-#practice-view-copilot .copilot-message.is-system {
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-message.is-system {
   display: block;
   margin: 0 auto 18px;
   padding: 6px 12px;
@@ -1398,8 +2159,8 @@
   width: fit-content;
   max-width: 80%;
 }
-#practice-view-copilot .tr-message-content > p > strong { color: var(--tr-text); font-weight: 650; }
-#practice-view-copilot .tr-message-content > p > code {
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-message-content > p > strong { color: var(--tr-text); font-weight: 650; }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-message-content > p > code {
   padding: 1px 5px;
   border-radius: 4px;
   background: var(--tr-inset);
@@ -1407,7 +2168,7 @@
   font: 11px var(--tr-mono);
 }
 /* Rappel des notes réellement jouées : même forme que les chips, mais inerte. */
-#practice-view-copilot .copilot-played-chip {
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-played-chip {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1418,8 +2179,185 @@
   color: var(--tr-secondary);
   font-size: 10.5px;
 }
-#practice-view-copilot .copilot-played-chip small {
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-played-chip small {
   color: var(--tr-muted);
   font: 9px var(--tr-mono);
   letter-spacing: .03em;
+}
+/* [Claude] — 2026-09-24 — Exemple à écouter, SOUS l'explication (Narcisse :
+   « il va directement me le jouer au lieu d'expliquer d'abord »). Un bouton
+   Écouter / Arrêter, le titre (accords), le style, et ce que fait chaque main. */
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-chat-demos.copilot-example {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 11px 13px;
+  border: 1px solid var(--tr-border);
+  border-radius: 8px;
+  background: var(--tr-inset);
+  transition: border-color .2s;
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example.is-playing { border-color: var(--tr-accent); }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example .copilot-example-play {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border: 1px solid var(--tr-accent);
+  border-radius: 6px;
+  background: var(--tr-surface);
+  color: var(--tr-accent);
+  font-size: 11px;
+  font-weight: 550;
+  white-space: nowrap;
+  cursor: pointer;
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example .copilot-example-play:hover { background: var(--tr-accent-soft); }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example .copilot-example-play:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 2px; }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example.is-playing .copilot-example-play {
+  background: var(--tr-button);
+  border-color: var(--tr-button);
+  color: var(--tr-button-text);
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding-top: 1px;
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example-text > strong { color: var(--tr-text); font-size: 11.5px; font-weight: 650; }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example-text > small { color: var(--tr-muted); font-size: 9.5px; }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example-hands {
+  margin: 5px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--tr-secondary);
+  font: 9.5px/1.5 var(--tr-mono);
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example-hands b { color: var(--tr-accent); font-weight: 600; }
+/* [Claude] — 2026-09-25 — Boutons de la carte, en colonne. */
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-chat-demos.copilot-example { flex-wrap: wrap; }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example-text { flex: 1; }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example-buttons {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 6px;
+}
+/* [Claude] — 2026-10-03 — La barre de lecture de l'exemple qui joue (Narcisse : « revenir en
+   arrière manuellement quand le copilote joue, un peu comme sur un lecteur ») : Pause /
+   Reprendre, « ⟲ 5 s », le curseur avec les moments où le prof parle, la phrase pendant
+   une de ses pauses, l'instant de la vidéo. La piste est en retrait de la moitié du
+   curseur (7 px) : le remplissage et les marques tombent sous son centre. */
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example-transport {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding-top: 9px;
+  border-top: 1px dashed var(--tr-border-soft, var(--tr-border));
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example-transport[hidden] { display: none; }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 4px 9px;
+  border: 1px solid var(--tr-border);
+  border-radius: 6px;
+  background: var(--tr-surface);
+  color: var(--tr-text);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 550;
+  white-space: nowrap;
+  cursor: pointer;
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-btn:hover { border-color: var(--tr-accent); color: var(--tr-accent); }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-btn:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 2px; }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-bar { position: relative; flex: 1; min-width: 90px; height: 24px; }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-track {
+  position: absolute;
+  top: 50%;
+  left: 7px;
+  right: 7px;
+  height: 6px;
+  margin-top: -3px;
+  border-radius: 3px;
+  background: var(--tr-border);
+  pointer-events: none;
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  border-radius: 3px;
+  background: var(--tr-accent);
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-mark {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  min-width: 4px;
+  border-radius: 2px;
+  background: var(--tr-muted);
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-mark.is-pause {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--tr-muted);
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-range {
+  -webkit-appearance: none;
+  appearance: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-range::-webkit-slider-runnable-track { height: 24px; background: transparent; }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 5px;
+  border: 2px solid var(--tr-surface);
+  border-radius: 50%;
+  background: var(--tr-accent);
+  box-shadow: 0 0 0 1px var(--tr-accent);
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-range:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 1px; border-radius: 4px; }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-time {
+  flex-shrink: 0;
+  color: var(--tr-secondary);
+  font: 10.5px var(--tr-mono);
+  font-variant-numeric: tabular-nums;
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-note {
+  margin: 0;
+  padding: 6px 10px;
+  border-left: 3px solid var(--tr-muted);
+  border-radius: 0 6px 6px 0;
+  background: var(--tr-surface);
+  color: var(--tr-text);
+  font-size: 11.5px;
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-note[hidden] { display: none; }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-video { margin: 0; color: var(--tr-secondary); font-size: 11px; font-variant-numeric: tabular-nums; }
+@media (max-width: 640px) {
+  :is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-chat-demos.copilot-example { flex-direction: column; }
 }

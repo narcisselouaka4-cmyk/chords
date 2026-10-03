@@ -10,6 +10,7 @@ import {
   loadHistory,
   saveHistory,
   deleteConversation,
+  deleteEmptyConversations,
   listAllConversations,
   getHistoryFilePath,
   labelForConversationPath,
@@ -117,6 +118,17 @@ async function runTests() {
 
   const allAfter = await listAllConversations();
   check('listAllConversations retourne 1 conversation après suppression', allAfter.length === 1);
+
+  // Suppression des conversations vides
+  const emptyAuto = await createConversation(AUTONOMOUS_HISTORY_KEY);
+  const filledAuto = await createConversation(AUTONOMOUS_HISTORY_KEY);
+  await saveHistory(filledAuto, AUTONOMOUS_HISTORY_KEY, [
+    { role: 'user', content: 'Question', timestamp: '2026-09-06T12:00:00Z' },
+  ]);
+  const removedEmpty = await deleteEmptyConversations();
+  check('deleteEmptyConversations supprime les conversations vides', removedEmpty >= 1);
+  check('La conversation vide a été supprimée', (await loadHistory(emptyAuto)) === null);
+  check('La conversation avec messages est conservée', (await loadHistory(filledAuto)) !== null);
 
   // Mode autonome
   const autoId = await createConversation(AUTONOMOUS_HISTORY_KEY);
