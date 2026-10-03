@@ -72,6 +72,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     transcribePiano: (filePath) => ipcRenderer.invoke('pedagogie:transcribe-piano', filePath),
     // [Claude 06/09, refonte Phase 1] — Sélecteur du dossier des tutoriels.
     selectTutorialFolder: () => ipcRenderer.invoke('pedagogie:select-tutorial-folder'),
+    // [Claude] — 2026-10-03 — Vignette et durée d'un tutoriel (accueil en cartes).
+    thumbnail: (filePath, options = {}) => ipcRenderer.invoke('pedagogie:thumbnail', filePath, options),
   },
   analyzer: {
     processFile: (filePath, options = {}) => ipcRenderer.invoke('analyzer:process-file', filePath, options),

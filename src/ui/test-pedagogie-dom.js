@@ -371,5 +371,26 @@ check('Un accord sans tierce est distingué visuellement',
   tabCode.includes('is-partial')
   && practiceCss.includes('.pedagogie-chip.is-partial'));
 
+// ---------------------------------------------------------------------------
+// 10. [Claude] — 2026-10-03 — Lot 5 : mémoire des tutos et accueil en cartes
+// ---------------------------------------------------------------------------
+
+const pedagoCss = readText('src/ui/refonte/astra-pedagogie.css');
+check('Le relevé est gardé après une lecture réussie, et rouvert sans relire la vidéo',
+  tabCode.includes('createTutorialMemory') && /if \(succeeded && analysis\) saveToMemory\(analyzedPath\)/.test(tabCode)
+  && /restoreFromMemory\(path\)/.test(tabCode) && tabCode.includes('loadAnalysis(path, await fileStat(path))'));
+check('« Lire ce tutoriel » : un tuto déjà lu démarre sans nouveau relevé ; « Refaire le relevé » relit tout',
+  /function onPlayClick\(\) \{\s*if \(analysis && !busy\)/.test(tabCode)
+  && /id="pedagogie-redo-btn"[^>]*hidden/.test(html) && /redoBtn\?\.addEventListener\('click', \(\) => \{ analyzeSelected\(\); \}\)/.test(tabCode));
+check('Accueil en cartes : vignette, durée, « Déjà lu »',
+  html.includes('id="pedagogie-home-grid"') && tabCode.includes("className: 'pedago-card-thumb'") && tabCode.includes('cardDuration(card.duration)')
+  && tabCode.includes("'Déjà lu · relevé gardé'") && pedagoCss.includes('#practice-view-pedagogie .pedago-card {'));
+check('Vignette : même ffmpeg et même sonde que la lecture des images (IPC pedagogie:thumbnail)',
+  electronMain.includes("ipcMain.handle('pedagogie:thumbnail'") && /probeVideoDimensions\(filePath\)[\s\S]{0,400}resolveFfmpeg\(\)[\s\S]{0,600}thumbnailArgs\(filePath, at, width\)/.test(electronMainCode)
+  && preload.includes("ipcRenderer.invoke('pedagogie:thumbnail'") && tabCode.includes('api.thumbnail(tut.path'));
+check('Sans ffmpeg : la vignette est prise sur la vidéo pendant la lecture',
+  /addEventListener\('timeupdate', captureThumbnailFromPlayer\)/.test(tabCode) && tabCode.includes("toDataURL('image/jpeg'"));
+check('La liste « Mes tutoriels » dit « Déjà lu »', tabCode.includes("read ? 'Déjà lu' : 'Vidéo'"));
+
 console.log(`\n=== Résultat : ${passed}/${total} contrôles passés ===`);
 if (passed < total) process.exitCode = 1;

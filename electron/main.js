@@ -14,6 +14,7 @@ import { pathToFileURL } from 'url';
 import { createFrame } from '../src/pedagogie/frame.js';
 import { detectVideoFormat } from '../src/pedagogie/format-detector.js';
 import { readLitKeys } from '../src/pedagogie/key-detection.js';
+import { thumbnailTime, thumbnailArgs } from '../src/pedagogie/tutorial-memory.js';
 // [Claude] — 2026-10-02 — Suivi des entrées MIDI par NOM (pur, testé : src/midi-ports.test.js).
 import { createInputWatcher, OWN_PORT_NAME } from '../src/midi-ports.js';
 
@@ -1666,6 +1667,36 @@ function setupStudioIPC() {
       properties: ['openDirectory'],
     });
     return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
+  });
+
+  // [Claude] — 2026-10-03 — Pédagogie IA, lot 5 : vignette d'un tutoriel pour l'accueil
+  // en cartes. Même ffmpeg et même sonde que la lecture des images (resolveFfmpeg,
+  // probeVideoDimensions) : une seule image JPEG, prise un peu après le début (les tutos
+  // s'ouvrent souvent sur un titre), rendue en data URL (la CSP permet img-src data:),
+  // avec la durée. Rien n'est écrit ici : la mémoire des tutos garde la vignette
+  // (src/pedagogie/tutorial-memory.js).
+  ipcMain.handle('pedagogie:thumbnail', async (event, filePath, options = {}) => {
+    const dims = await probeVideoDimensions(filePath);
+    if (dims?.toolsMissing) return { ok: false, reason: 'ToolsMissing' };
+    if (!dims) return { ok: false, reason: 'NoVideoStream' };
+    const ffmpeg = await resolveFfmpeg();
+    if (!ffmpeg) return { ok: false, reason: 'ToolsMissing', duration: dims.duration };
+    const at = thumbnailTime(dims.duration);
+    const width = Math.max(120, Math.min(640, Number(options.width) || 360));
+    try {
+      const jpeg = await new Promise((resolve, reject) => {
+        const chunks = [];
+        let stderr = '';
+        const proc = trackChild(spawn(ffmpeg, thumbnailArgs(filePath, at, width), { shell: false }));
+        proc.stdout.on('data', (d) => chunks.push(d));
+        proc.stderr.on('data', (d) => { stderr += d.toString(); });
+        proc.on('error', reject);
+        proc.on('exit', (code) => (code === 0 && chunks.length ? resolve(Buffer.concat(chunks)) : reject(new Error(stderr || `ffmpeg exit ${code}`))));
+      });
+      return { ok: true, dataUrl: `data:image/jpeg;base64,${jpeg.toString('base64')}`, duration: dims.duration, width: dims.width, height: dims.height, at };
+    } catch (err) {
+      return { ok: false, reason: 'failed', detail: String(err?.message || err).split('\n')[0], duration: dims.duration };
+    }
   });
 
   // [Claude] — 2026-09-25 — Binaire ffmpeg : celui du système, sinon celui

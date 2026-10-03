@@ -36,6 +36,10 @@
 //     (« souvent mal traduite » : la parole reste un indice pour le Copilote, jamais
 //     montrée). Les messages techniques (V2N, pip, git lfs) sont repliés dans
 //     « Détails techniques ».
+//   - Lot 5 : le relevé de chaque tuto est gardé (tutorial-memory.js) : rouvrir un tuto
+//     déjà lu est instantané (« Lire » lance la vidéo, « Refaire le relevé » relit tout).
+//     L'accueil montre les tutos en cartes : vignette (ffmpeg, « pedagogie:thumbnail » ;
+//     à défaut, une image prise pendant la lecture), durée, « Déjà lu ».
 
 import { buildVideoAnalysis, buildAudioOnlyAnalysis } from '../pedagogie/video-analysis.js';
 import { explainUnrecognised } from '../pedagogie/format-detector.js';
@@ -48,6 +52,7 @@ import { samplesToNoteEvents, eventsFromTranscription, compactTimeline } from '.
 import { registerCopilotContext } from '../pedagogie/copilot-context.js';
 import { dockCopilot, undockCopilot } from '../pedagogie/copilot-dock.js';
 import { momentContext, passageWindow, clock, DEFAULT_PASSAGE_SECONDS } from '../pedagogie/tutorial-moment.js';
+import { createTutorialMemory, cardDuration } from '../pedagogie/tutorial-memory.js';
 
 // [Claude] — 2026-09-25 — Pourquoi l'image n'a pas été lue (Narcisse : « l'application
 // ne peut pas analyser l'image, et je ne sais pas pourquoi ») : dit en clair.
@@ -127,6 +132,15 @@ let announcedPath = null;
 let passageSeconds = DEFAULT_PASSAGE_SECONDS;
 // Boucle A-B : quand elle est posée, c'est elle « le passage ».
 let loop = null;
+// [Claude] — 2026-10-03 — Lot 5 : mémoire des tutos (créée au premier besoin), fiches de
+// l'accueil (vignette, durée, « lu »), date du relevé rouvert depuis la mémoire.
+let memory = null;
+let cards = {};
+let restoredAt = null;
+// Dernier message affiché sous la vidéo : gardé avec le relevé.
+let lastStatus = null;
+// Vignettes déjà demandées pendant cette session (une seule tentative par tuto).
+const thumbTried = new Set();
 
 // ---------------------------------------------------------------------------
 // Utilitaires
@@ -159,6 +173,7 @@ function formatTime(seconds) {
  * techniques ».
  */
 function setStatus(message, tone = 'info', details = '') {
+  lastStatus = message ? { message, tone, details: String(details || '') } : null;
   if (!els.status) return;
   els.status.textContent = '';
   els.status.dataset.tone = tone;
@@ -212,10 +227,11 @@ const ICON_OPEN = [
   el('path', { d: 'M7 7h10v10' }),
 ];
 const PLAY_ICON = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 4 13 8-13 8z" fill="currentColor"/></svg>';
-const REPLAY_ICON = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="m7 4 13 8-13 8z" fill="currentColor"/></svg>';
 
 async function refreshTrackList() {
   if (!els.trackList) return;
+  // Les fiches (« Déjà lu », vignettes) avant la liste.
+  await getMemory();
   els.trackList.innerHTML = '';
 
   const folder = configuredFolder();
@@ -233,11 +249,13 @@ async function refreshTrackList() {
       onClick: () => chooseFolder(),
     }));
     tutorials = [];
+    renderHomeGrid();
     return;
   }
 
   const result = await listTutorialFiles(folder);
   tutorials = result.files;
+  renderHomeGrid();
 
   if (!result.ok) {
     els.trackList.appendChild(el('p', {
@@ -277,8 +295,10 @@ async function refreshTrackList() {
         el('small', { text: tut.path }),
       ]),
     ]));
-    const typeCell = el('span', { className: 'tr-library-cell', text: 'Vidéo' });
-    typeCell.dataset.type = 'Vidéo';
+    // [Claude] — 2026-10-03 — Un tuto déjà lu le dit (son relevé est gardé).
+    const read = Boolean(cards[tut.path]?.analyzedAt);
+    const typeCell = el('span', { className: `tr-library-cell${read ? ' is-read' : ''}`, text: read ? 'Déjà lu' : 'Vidéo' });
+    typeCell.dataset.type = read ? 'Déjà lu' : 'Vidéo';
     row.appendChild(typeCell);
     row.appendChild(el('div', { className: 'tr-library-row-actions' }, [
       el('button', {
@@ -329,6 +349,7 @@ async function chooseFolder() {
   playbackStarted = false;
   analysis = null;
   comparison = null;
+  restoredAt = null;
   loop = null;
   resetNarration();
   destroyVideo();
@@ -345,15 +366,193 @@ function selectTrack(path) {
   playbackStarted = false;
   analysis = null;
   comparison = null;
+  restoredAt = null;
   loop = null;
   resetNarration();
   setStatus('');
   mountVideo(path);
   render();
+  // [Claude] — 2026-10-03 — Déjà lu : le relevé revient de la mémoire, sans relire la vidéo.
+  restoreFromMemory(path);
   // [Claude] — 2026-10-03 — Liste redessinée APRÈS le clic : redessinée tout de suite,
   // le bouton cliqué quittait la page avant que le tiroir « Mes tutoriels » ne voie le
   // clic, et le tiroir restait ouvert par-dessus le tuto choisi.
   setTimeout(refreshTrackList, 0);
+}
+
+// ---------------------------------------------------------------------------
+// Mémoire des tutos et accueil en cartes (lot 5)
+// ---------------------------------------------------------------------------
+
+/** La mémoire des tutos (relevés, fiches), si l'application peut écrire sur le disque. */
+async function getMemory() {
+  if (memory) return memory;
+  const files = window.electronAPI?.files;
+  if (!files?.homeDir || !files.readFile || !files.writeFile) return null;
+  try {
+    const home = await files.homeDir();
+    if (!home) return null;
+    const created = createTutorialMemory(files, home);
+    cards = await created.readIndex();
+    memory = created;
+  } catch (err) {
+    console.warn('[Pedagogie] mémoire des tutos indisponible :', err);
+  }
+  return memory;
+}
+
+async function fileStat(path) {
+  try { return (await window.electronAPI?.files?.stat?.(path)) || null; } catch (_) { return null; }
+}
+
+/** Un tuto déjà lu : son relevé revient de la mémoire, sans relire la vidéo. */
+async function restoreFromMemory(path) {
+  const mem = await getMemory();
+  if (!mem) return;
+  const saved = await mem.loadAnalysis(path, await fileStat(path));
+  if (!saved || selectedPath !== path || busy || analysis) return;
+  analysis = saved.analysis;
+  comparison = saved.comparison;
+  narrationView = Array.isArray(saved.narration) ? saved.narration : [];
+  detectedKey = saved.key ?? null;
+  notesUnavailable = saved.notesUnavailable ?? null;
+  restoredAt = saved.savedAt || null;
+  if (saved.status?.message) setStatus(saved.status.message, saved.status.tone || 'info', saved.status.details || '');
+  // Le Copilote est réannoncé : son en-tête dit maintenant ce qu'il sait du tuto.
+  announcedPath = null;
+  render();
+}
+
+/** Garde le relevé qui vient d'être fait, et le dit dans la liste et sur l'accueil. */
+async function saveToMemory(path) {
+  const mem = await getMemory();
+  if (!mem || !analysis || selectedPath !== path) return;
+  try {
+    await mem.saveAnalysis({
+      path, stat: await fileStat(path), analysis, comparison, narration: narrationView, key: detectedKey, notesUnavailable, status: lastStatus,
+    });
+    cards = await mem.readIndex();
+    refreshTrackList();
+  } catch (err) {
+    console.warn('[Pedagogie] relevé non gardé :', err);
+  }
+}
+
+/** Complète la fiche d'un tuto (vignette, durée) et redessine sa carte. */
+async function updateCard(path, patch) {
+  const mem = await getMemory();
+  if (!mem || !Object.keys(patch).length) return;
+  await mem.updateCard(path, patch);
+  cards = await mem.readIndex();
+  const old = [...(els.homeGrid?.querySelectorAll('.pedago-card') || [])].find((b) => b.dataset.path === path);
+  const tut = tutorials.find((t) => t.path === path);
+  if (old && tut) old.replaceWith(buildCard(tut));
+}
+
+const CARD_PLACEHOLDER = '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>';
+
+/** La carte d'un tuto : sa vignette, sa durée, son nom, « Déjà lu ». */
+function buildCard(tut) {
+  const card = cards[tut.path] || {};
+  const thumb = el('span', { className: 'pedago-card-thumb' });
+  if (card.thumb) thumb.appendChild(el('img', { src: card.thumb, alt: '' }));
+  else {
+    const placeholder = el('span', { className: 'pedago-card-placeholder' });
+    placeholder.innerHTML = CARD_PLACEHOLDER;
+    thumb.appendChild(placeholder);
+  }
+  const duration = cardDuration(card.duration);
+  if (duration) thumb.appendChild(el('span', { className: 'pedago-card-duration', text: duration }));
+  const read = Boolean(card.analyzedAt);
+  return el('button', {
+    className: `pedago-card${read ? ' is-read' : ''}`,
+    type: 'button',
+    title: tut.path,
+    'data-path': tut.path,
+    onClick: () => selectTrack(tut.path),
+  }, [
+    thumb,
+    el('span', { className: 'pedago-card-body' }, [
+      el('strong', { className: 'pedago-card-title', text: tutorialDisplayName(tut.name) }),
+      el('span', { className: 'pedago-card-meta', text: read ? 'Déjà lu · relevé gardé' : 'Pas encore lu' }),
+    ]),
+  ]);
+}
+
+/** Accueil : les tutos du dossier en cartes. */
+function renderHomeGrid() {
+  if (!els.homeGrid) return;
+  els.homeGrid.innerHTML = '';
+  const folder = configuredFolder();
+  const list = folder ? tutorials : [];
+  els.home?.classList.toggle('has-cards', list.length > 0);
+  renderHome(folder);
+  for (const tut of list) els.homeGrid.appendChild(el('div', { role: 'listitem' }, [buildCard(tut)]));
+  ensureThumbnails();
+}
+
+/**
+ * Vignettes manquantes, une à une, en arrière-plan : une image de la vidéo prise par
+ * ffmpeg (« pedagogie:thumbnail »), et sa durée. Une seule tentative par tuto et par
+ * session ; sans ffmpeg, l'image est prise pendant la lecture (captureThumbnailFromPlayer).
+ */
+let thumbsRunning = false;
+async function ensureThumbnails() {
+  const api = window.electronAPI?.pedagogie;
+  if (thumbsRunning || !api?.thumbnail || !(await getMemory())) return;
+  thumbsRunning = true;
+  try {
+    for (const tut of [...tutorials]) {
+      if (cards[tut.path]?.thumb || thumbTried.has(tut.path)) continue;
+      thumbTried.add(tut.path);
+      const result = await api.thumbnail(tut.path, { width: 360 }).catch(() => null);
+      const patch = {};
+      if (result?.ok && String(result.dataUrl || '').startsWith('data:image/')) patch.thumb = result.dataUrl;
+      if (Number.isFinite(result?.duration) && result.duration > 0) patch.duration = result.duration;
+      await updateCard(tut.path, patch);
+    }
+  } finally {
+    thumbsRunning = false;
+  }
+}
+
+/** Sans vignette : une image prise sur la vidéo après quelques secondes de lecture. */
+const thumbCaptured = new Set();
+function captureThumbnailFromPlayer() {
+  const video = els.videoPlayer;
+  const path = selectedPath;
+  if (!video || !path || !memory || cards[path]?.thumb || thumbCaptured.has(path)) return;
+  if (!video.videoWidth || !(video.currentTime >= Math.min(8, (Number(video.duration) || 60) * 0.12))) return;
+  thumbCaptured.add(path);
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = 360;
+    canvas.height = Math.round((360 * video.videoHeight) / video.videoWidth);
+    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+    const thumb = canvas.toDataURL('image/jpeg', 0.72);
+    if (thumb.startsWith('data:image/jpeg')) updateCard(path, { thumb, ...(Number.isFinite(video.duration) ? { duration: video.duration } : {}) });
+  } catch (err) {
+    console.warn('[Pedagogie] vignette non prise :', err);
+  }
+}
+
+/** La durée d'un tuto ouvert, si sa fiche ne l'a pas encore. */
+function rememberDuration() {
+  const video = els.videoPlayer;
+  if (selectedPath && memory && Number.isFinite(video?.duration) && video.duration > 0 && !cards[selectedPath]?.duration) {
+    updateCard(selectedPath, { duration: video.duration });
+  }
+}
+
+/** « Lire ce tutoriel » : un tuto déjà lu démarre tout de suite ; sinon la lecture lance le relevé. */
+function onPlayClick() {
+  if (analysis && !busy) {
+    playbackStarted = true;
+    render();
+    try { els.videoPlayer?.play?.()?.catch?.(() => {}); } catch (_) { /* lecture bloquée */ }
+    return;
+  }
+  analyzeSelected();
 }
 
 // ---------------------------------------------------------------------------
@@ -596,8 +795,11 @@ async function analyzeSelected() {
   busy = true;
   analysis = null;
   comparison = null;
+  restoredAt = null;
   resetNarration();
   render();
+  const analyzedPath = selectedPath;
+  let succeeded = false;
   // [Claude] — 2026-10-03 — La vidéo démarre tout de suite : le relevé avance pendant
   // qu'on la regarde.
   try { els.videoPlayer?.play?.()?.catch?.(() => {}); } catch (_) { /* lecture bloquée */ }
@@ -684,6 +886,7 @@ async function analyzeSelected() {
         }
       }
       showReadingStatus(technical, { fromSound: true, calibrateHint });
+      succeeded = true;
       return;
     }
 
@@ -727,6 +930,7 @@ async function analyzeSelected() {
       });
     }
     if (technical.length || calibrateHint) showReadingStatus(technical, { calibrateHint });
+    succeeded = true;
   } catch (err) {
     console.error('[Pedagogie] analyse échouée :', err);
     setStatus('L\'analyse n\'a pas abouti.', 'error', err.message);
@@ -736,6 +940,8 @@ async function analyzeSelected() {
     // Le Copilote réannonce le tuto : son en-tête dit maintenant ce qu'il en sait.
     announcedPath = null;
     render();
+    // [Claude] — 2026-10-03 — Le relevé est gardé : rouvrir ce tuto sera instantané.
+    if (succeeded && analysis) saveToMemory(analyzedPath);
   }
 }
 
@@ -800,8 +1006,9 @@ function render() {
     els.selectedName.textContent = hasTutorial ? tutorialDisplayName(selectedPath.split('/').pop() || selectedPath) : '';
   }
   if (els.intro) {
+    const when = restoredAt ? ` le ${new Date(restoredAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}` : '';
     els.intro.textContent = analysis
-      ? 'Relire le tutoriel : la vidéo repart du début et le relevé est refait.'
+      ? `Déjà lu${when} : le relevé est gardé, la vidéo démarre tout de suite et le Copilote sait ce que joue le prof.`
       : 'Lance la lecture : l\'application relève ce que joue le prof pendant que tu regardes, puis le Copilote, à droite, t\'explique chaque passage.';
   }
   // Le titre posé sur la vidéo disparaît à la lecture : il cacherait le bas de
@@ -811,12 +1018,14 @@ function render() {
 
   if (els.analyzeBtn) {
     els.analyzeBtn.disabled = busy || !selectedPath;
-    els.analyzeBtn.innerHTML = analysis ? REPLAY_ICON : PLAY_ICON;
+    els.analyzeBtn.innerHTML = PLAY_ICON;
     const span = document.createElement('span');
-    span.textContent = analysis ? 'Relire ce tutoriel' : 'Lire ce tutoriel';
+    span.textContent = 'Lire ce tutoriel';
     els.analyzeBtn.appendChild(span);
     els.analyzeBtn.style.display = (!folder || !selectedPath) ? 'none' : '';
   }
+  // [Claude] — 2026-10-03 — Relire la vidéo et refaire le relevé (il est gardé sinon).
+  if (els.redoBtn) els.redoBtn.hidden = !analysis || busy;
   if (els.videoOverlay) {
     const showOverlay = selectedPath && !playbackStarted && !busy;
     els.videoOverlay.style.display = showOverlay ? 'flex' : 'none';
@@ -840,18 +1049,23 @@ function render() {
   updateMoment();
 }
 
-/** Accueil (aucun tutoriel ouvert) : choisir le dossier, puis un tutoriel. */
+/** Accueil (aucun tutoriel ouvert) : choisir le dossier, puis un tutoriel (en cartes). */
 function renderHome(folder) {
   if (!els.homeTitle) return;
+  const withCards = Boolean(folder) && tutorials.length > 0;
   if (!folder) {
     els.homeTitle.textContent = 'Choisis le dossier de tes tutoriels';
     els.homeText.textContent = 'Les vidéos .mp4 de ce dossier seront listées ici. Ouvre un tuto : la vidéo du prof s\'affiche à gauche, et le Copilote à droite répond à tes questions sur ce qu\'il vient de jouer.';
+  } else if (withCards) {
+    els.homeTitle.textContent = 'Tes tutoriels';
+    els.homeText.textContent = 'Ouvre un tuto : la vidéo du prof s\'affiche à gauche, et le Copilote à droite répond à tes questions sur ce qu\'il vient de jouer. Un tuto déjà lu s\'ouvre tout de suite.';
   } else {
     els.homeTitle.textContent = 'Choisis un tutoriel';
     els.homeText.textContent = 'Ouvre un tuto : la vidéo du prof s\'affiche à gauche, et le Copilote à droite répond à tes questions sur ce qu\'il vient de jouer.';
   }
   if (els.homeFolderBtn) els.homeFolderBtn.hidden = Boolean(folder);
-  if (els.homeLibraryBtn) els.homeLibraryBtn.hidden = !folder;
+  // Les cartes remplacent la liste : « Mes tutoriels » reste dans l'en-tête de la page.
+  if (els.homeLibraryBtn) els.homeLibraryBtn.hidden = !folder || withCards;
 }
 
 /**
@@ -1073,6 +1287,8 @@ export function initPedagogieTab() {
   els.homeText = document.getElementById('pedagogie-home-text');
   els.homeFolderBtn = document.getElementById('pedagogie-home-folder-btn');
   els.homeLibraryBtn = document.getElementById('pedagogie-home-library-btn');
+  els.homeGrid = document.getElementById('pedagogie-home-grid');
+  els.redoBtn = document.getElementById('pedagogie-redo-btn');
   els.split = document.getElementById('pedagogie-split');
   els.selectedName = document.getElementById('pedagogie-selected-name');
   els.intro = document.getElementById('pedagogie-intro');
@@ -1099,7 +1315,8 @@ export function initPedagogieTab() {
 
   els.importBtn?.addEventListener('click', () => { importVideo(); });
   els.homeFolderBtn?.addEventListener('click', () => { chooseFolder(); });
-  els.analyzeBtn?.addEventListener('click', () => { analyzeSelected(); });
+  els.analyzeBtn?.addEventListener('click', () => { onPlayClick(); });
+  els.redoBtn?.addEventListener('click', () => { analyzeSelected(); });
   // [Refonte Astra 12/09] — Le bouton « Calibrer le clavier (V2N) » avait été
   // retiré de l'écran. [Claude] — 2026-09-25 — Il revient, mais seulement quand
   // il sert : V2N installé et un vrai clavier à lire (pas de clavier dessiné
@@ -1111,6 +1328,9 @@ export function initPedagogieTab() {
   for (const type of ['timeupdate', 'seeked', 'loadedmetadata', 'pause']) {
     els.videoPlayer?.addEventListener(type, updateMoment);
   }
+  // Fiche du tuto : sa durée, et une vignette prise pendant la lecture s'il n'en a pas.
+  els.videoPlayer?.addEventListener('loadedmetadata', rememberDuration);
+  els.videoPlayer?.addEventListener('timeupdate', captureThumbnailFromPlayer);
   els.momentLength?.addEventListener('change', () => {
     const value = Number(els.momentLength.value);
     passageSeconds = Number.isFinite(value) && value > 0 ? value : DEFAULT_PASSAGE_SECONDS;
