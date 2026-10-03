@@ -16,6 +16,18 @@
 // Le gabarit est choisi par famille (le prof a souvent une forme pour le mineur, une
 // pour la dominante, une pour le majeur) ; chaque main reste près de l'accord précédent.
 //
+// [Claude] — 2026-10-03 — Narcisse, sur Amazing Grace (9:57 → 10:57) : « il a juste suivi
+// les fondamentales […] mais niveau voicing, ça n'a rien à voir avec ce que jouait le
+// pianiste ». Trois causes, corrigées :
+//   - les rôles de ses notes étaient calculés d'après l'étiquette de la frise, parfois
+//     fausse (une basse Ré lue comme la 11e d'un « Am7 » devenait la 11e de chaque accord) :
+//     quand l'étiquette n'explique pas ses notes, l'accord est relu d'après elles
+//     (chordForNotes, nameMidiChord) ;
+//   - seules les 30 premières secondes du passage étaient lues : tout le passage l'est
+//     (10 min au plus) ;
+//   - pour chaque famille, on prenait le premier voicing venu : c'est celui qu'il joue le
+//     plus souvent (même répartition des mains, mêmes rôles).
+//
 // Fonctions pures, testées dans test-tutorial-transfer.js.
 
 import { parseChordName, availableTensions, degreeOf } from './note-roles.js';
@@ -25,6 +37,8 @@ import { guessHands } from './teacher-notes.js';
 import { buildNotesExample, buildChordExample } from './copilot-demo.js';
 import { normalizeDegrees } from './tutorial-questions.js';
 import { LOW_INTERVAL_LIMITS } from '../voicing-engine/textbook-voicings.js';
+import { nameMidiChord } from '../recorder/midi-chord-namer.js';
+import { MAX_PASSAGE_SECONDS } from './passage-range.js';
 
 const pcOf = (n) => ((n % 12) + 12) % 12;
 const DIM7 = /dim7|°7|^o7/;
@@ -215,9 +229,51 @@ function attackClusters(notes, gap = 0.08) {
 }
 
 /**
+ * L'accord qu'il joue vraiment, d'après ses notes. L'étiquette de la frise est gardée si
+ * elle les explique : toutes dans l'accord ou ses tensions, et la basse sur une note de
+ * l'accord (ou sur sa basse écrite). Une basse seule au grave (main gauche : une note ou
+ * son octave) qui n'est pas la fondamentale de l'étiquette, absente de ses notes, la
+ * dément aussi : c'est alors l'accord que ses notes forment, fondamentale à la basse.
+ * Sinon, l'accord que ses notes forment (nameMidiChord) ; à défaut, l'étiquette, marquée
+ * `unsure`.
+ * @param {{rootPc: number, quality: string, bassPc?: number|null, name?: string}|null} label
+ * @param {{midi: number, hand?: string}[]} notes
+ * @returns {{rootPc: number, quality: string, bassPc: number|null, name: string, renamed: boolean, unsure?: boolean}|null}
+ */
+export function chordForNotes(label, notes) {
+  const list = (notes || []).filter((n) => Number.isFinite(n?.midi));
+  if (!list.length) return label ? { ...label, renamed: false } : null;
+  const midis = list.map((n) => n.midi);
+  const lowest = list.reduce((a, b) => (b.midi < a.midi ? b : a));
+  const bassPc = pcOf(lowest.midi);
+  const explains = (ch) => {
+    if (!ch) return false;
+    const tones = chordToneIntervals(ch.quality);
+    const fits = new Set([...tones, ...availableTensions(ch.quality)]);
+    const writtenBass = ch.bassPc != null ? ch.bassPc : null;
+    return midis.every((m) => fits.has(pcOf(m - ch.rootPc)) || pcOf(m) === writtenBass)
+      && (tones.has(pcOf(bassPc - ch.rootPc)) || bassPc === writtenBass);
+  };
+  const named = nameMidiChord(midis);
+  const fromNotes = named?.matched
+    ? { rootPc: named.rootPc, quality: named.symbol, bassPc: named.isSlash ? named.bassPc : null, name: named.name, renamed: true }
+    : null;
+  if (explains(label)) {
+    const rootHeard = midis.some((m) => pcOf(m) === label.rootPc);
+    const lowHand = list.filter((n) => n.hand === 'lh');
+    const lowLine = lowHand.includes(lowest) && new Set(lowHand.map((n) => pcOf(n.midi))).size <= 2;
+    if (!rootHeard && label.bassPc !== bassPc && lowLine && fromNotes && fromNotes.rootPc === bassPc) return fromNotes;
+    return { ...label, renamed: false };
+  }
+  if (fromNotes) return fromNotes;
+  return label ? { ...label, renamed: false, unsure: true } : null;
+}
+
+/**
  * Les voicings du prof dans un passage : pour chaque accord de la grille, les notes de
  * son attaque principale (et la basse encore tenue), main par main, avec le rôle de
- * chaque note et l'écart à la note du dessous.
+ * chaque note et l'écart à la note du dessous. Les rôles sont pris dans l'accord qu'il
+ * joue (chordForNotes), pas forcément celui de la frise.
  * @param {{midi: number, start: number, end: number, hand?: string}[]} notes - notes du prof
  * @param {{start: number, end: number, label: string}[]} chords - grille relevée
  * @param {{start: number, end: number}} window - le passage
@@ -230,19 +286,27 @@ export function voicingShapes(notes, chords, { start, end }) {
   const all = (notes || []).filter((n) => Number.isFinite(n?.midi) && Number.isFinite(n?.start));
   for (const c of chords || []) {
     if (!Number.isFinite(c?.start) || !(c.start < to && (c.end ?? c.start) > from)) continue;
-    const chord = parseChordName(c.label || c.name);
-    if (!chord) continue;
+    const label = parseChordName(c.label || c.name);
+    if (!label) continue;
+    const segStart = Math.max(from, c.start) - 0.15;
     const segEnd = Math.min(Number.isFinite(c.end) ? c.end : to, to);
-    const attacked = all.filter((n) => n.start >= Math.max(from, c.start) - 0.15 && n.start < segEnd);
+    const attacked = all.filter((n) => n.start >= segStart && n.start < segEnd);
     if (!attacked.length) continue;
     // L'attaque principale : le plus grand groupe de notes attaquées ensemble.
     const main = attackClusters(attacked).sort((a, b) => b.length - a.length || a[0].start - b[0].start)[0];
     const at = main[0].start;
-    // Plus les notes encore tenues qui appartiennent à l'accord (la basse posée juste
-    // avant, une note commune gardée) ; un reste de l'accord précédent est écarté.
+    // Plus les notes encore tenues : posées sur cet accord, sa basse (main gauche, jouée
+    // juste avant la main droite) ou une note de l'accord de la frise ; d'avant, seulement
+    // celles qui appartiennent à l'accord (une note commune gardée) : un reste de l'accord
+    // précédent est écarté.
+    const sounding = (n) => !main.includes(n) && n.start < at && (n.end ?? n.start) > at + 0.05;
+    const labelFits = new Set([...chordToneIntervals(label.quality), ...availableTensions(label.quality)]);
+    const own = all.filter((n) => sounding(n) && n.start >= segStart
+      && (n.hand === 'lh' || (!n.hand && n.midi < 60) || labelFits.has(pcOf(n.midi - label.rootPc))));
+    const chord = chordForNotes(label, guessHands([...main, ...own]));
     const fits = new Set([...chordToneIntervals(chord.quality), ...availableTensions(chord.quality)]);
-    const held = all.filter((n) => !main.includes(n) && n.start < at && (n.end ?? n.start) > at + 0.05
-      && (fits.has(pcOf(n.midi - chord.rootPc)) || (chord.bassPc != null && pcOf(n.midi) === chord.bassPc)));
+    const held = [...own, ...all.filter((n) => sounding(n) && n.start < segStart
+      && (fits.has(pcOf(n.midi - chord.rootPc)) || (chord.bassPc != null && pcOf(n.midi) === chord.bassPc)))];
     const unique = [];
     for (const n of guessHands([...main, ...held]).sort((a, b) => a.midi - b.midi)) if (!unique.some((u) => u.midi === n.midi)) unique.push(n);
     if (new Set(unique.map((n) => pcOf(n.midi))).size < 3) continue;
@@ -255,7 +319,12 @@ export function voicingShapes(notes, chords, { start, end }) {
       list.push({ midi: n.midi, ...role, gap: list.length ? n.midi - list[list.length - 1].midi : 0 });
     }
     shapes.push({
-      label: c.label || c.name,
+      id: shapes.length,
+      // L'accord tel qu'il le joue ; celui de la frise s'il a été relu d'après ses notes.
+      label: chord.renamed ? chord.name : (c.label || c.name),
+      stripLabel: c.label || c.name,
+      renamed: chord.renamed,
+      unsure: Boolean(chord.unsure),
       time: at,
       rootPc: chord.rootPc,
       quality: chord.quality,
@@ -263,7 +332,17 @@ export function voicingShapes(notes, chords, { start, end }) {
       hands,
     });
   }
+  // Combien de fois il joue chaque forme (même famille, même répartition, mêmes rôles).
+  const counts = new Map();
+  for (const sh of shapes) counts.set(shapeKey(sh), (counts.get(shapeKey(sh)) || 0) + 1);
+  for (const sh of shapes) sh.times = counts.get(shapeKey(sh));
   return shapes;
+}
+
+/** Une forme : sa famille, et les rôles de chaque main de bas en haut (« minor:R.R|3.5.7 »). */
+function shapeKey(shape) {
+  const roles = (list) => list.map((slot) => slot.role).join('.');
+  return `${shape.family}:${roles(shape.hands.lh)}|${roles(shape.hands.rh)}`;
 }
 
 /** Description d'un gabarit : « main gauche 1 · b7 | main droite 3 · 13 · 9 ». */
@@ -272,14 +351,26 @@ export function describeShape(shape) {
   return `main gauche ${part(shape.hands.lh)} | main droite ${part(shape.hands.rh)}`;
 }
 
-/** Le gabarit à employer pour une famille d'accord. */
+/**
+ * Le gabarit à employer pour une famille d'accord : la forme qu'il joue le plus souvent
+ * dans cette famille (à égalité, la première jouée). Un accord dont ni la frise ni ses
+ * notes ne disent ce qu'il est (`unsure`) ne compte presque pas.
+ */
 function pickShape(shapes, family) {
   for (const f of FAMILY_FALLBACK[family] || FAMILY_FALLBACK.other) {
-    const found = shapes.find((s) => s.family === f);
-    if (found) return found;
+    const ofFamily = shapes.filter((s) => s.family === f);
+    if (!ofFamily.length) continue;
+    const weight = new Map();
+    for (const s of ofFamily) weight.set(shapeKey(s), (weight.get(shapeKey(s)) || 0) + (s.unsure ? 0.1 : 1));
+    let best = null;
+    for (const s of ofFamily) if (!best || weight.get(shapeKey(s)) > weight.get(shapeKey(best))) best = s;
+    return best;
   }
   return shapes[0] || null;
 }
+
+/** Une forme désignée par un nom d'accord : celui qu'il joue, ou celui de la frise. */
+const shapeNamed = (sh, name) => sh.label === name || sh.stripLabel === name;
 
 /**
  * Registre d'une main : une quinte de part et d'autre de la note du bas jouée par le
@@ -386,13 +477,13 @@ export function applyVoicings(shapes, targets, { exclude = new Set() } = {}) {
   if (!shapes?.length) return [];
   const result = [];
   const prevLow = { lh: null, rh: null };
-  const mainShapes = shapes.filter((sh) => !exclude.has(sh.label));
+  const mainShapes = shapes.filter((sh) => !exclude.has(sh.label) && !exclude.has(sh.stripLabel));
   for (const target of targets || []) {
     const item = typeof target === 'string' ? { name: target } : (target || {});
     const chord = parseChordName(item.name);
     if (!chord) continue;
     const family = chordFamily(chord.quality);
-    const preferred = item.prefer ? shapes.find((sh) => sh.label === item.prefer) : null;
+    const preferred = item.prefer ? shapes.find((sh) => shapeNamed(sh, item.prefer)) : null;
     const shape = preferred || pickShape(mainShapes.length ? mainShapes : shapes, family);
     if (!shape) continue;
     const hands = { lh: [], rh: [] };
@@ -413,7 +504,7 @@ export function applyVoicings(shapes, targets, { exclude = new Set() } = {}) {
     }
     if (hands.lh.length) prevLow.lh = hands.lh[0];
     if (hands.rh.length) prevLow.rh = hands.rh[0];
-    result.push({ ...item, name: chord.name, leftHand: hands.lh, rightHand: hands.rh, from: shape.label });
+    result.push({ ...item, name: chord.name, leftHand: hands.lh, rightHand: hands.rh, from: shape.label, fromId: shape.id });
   }
   return result;
 }
@@ -1008,11 +1099,14 @@ export function lickPlacements(lick, parsed) {
 
 /** Les gabarits du prof réellement employés, dans l'ordre où il les joue. */
 function usedShapes(realized, shapes) {
-  return [...new Map(realized.map((c) => [c.from, shapes.find((sh) => sh.label === c.from)])).values()].filter(Boolean)
+  return [...new Map(realized.map((c) => [c.fromId, shapes.find((sh) => sh.id === c.fromId)])).values()].filter(Boolean)
     .sort((a, b) => a.time - b.time);
 }
 
-const describeUsed = (used) => used.map((sh) => `${clock(sh.time)} ${sh.label} : ${describeShape(sh)}`).join(' ; ');
+// « 0:12 D7 (relu d'après ses notes ; la frise disait Am7), joué 3 fois : main gauche 1 · 1 | main droite 3 · b7 · 1 »
+const describeUsed = (used) => used.map((sh) => `${clock(sh.time)} ${sh.label}`
+  + `${sh.renamed ? ` (relu d'après ses notes ; la frise disait ${sh.stripLabel})` : ''}`
+  + `${sh.times > 1 ? `, joué ${sh.times} fois` : ''} : ${describeShape(sh)}`).join(' ; ');
 
 /** Cas 1 : ses voicings sur la progression. */
 function transferVoicings({ notes, chords, from, to, list, title, sharps }) {
@@ -1170,7 +1264,8 @@ function transferLick({ notes, chords, from, to, list, title, sharps, found = nu
  */
 export function applyTutorialPassage({ notes = [], chords = [], start, end, what = 'voicing', targets = [], title = '', key = null } = {}) {
   const from = Math.max(0, Number(start) || 0);
-  const to = Math.min(Number(end) || from + 20, from + 30);
+  // [Claude] — 2026-10-03 — Toute la plage choisie (10 min au plus), plus seulement 30 s.
+  const to = Math.min(Number(end) || from + 20, from + MAX_PASSAGE_SECONDS);
   const list = (targets || []).map((t) => String(t || '').trim()).filter((t) => parseChordName(t));
   if (!list.length) return { example: null, text: '', error: 'Aucun accord cible reconnu.' };
   const sharps = prefersSharps(list);

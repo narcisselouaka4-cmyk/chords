@@ -2,7 +2,7 @@
 // progression (tutorial-transfer.js). Cas écrits à la main, notes vérifiées une à une.
 // Sans DOM.
 import {
-  noteLabel, chordFamily, roleOfInterval, intervalForRole, voicingShapes, describeShape,
+  noteLabel, chordFamily, roleOfInterval, intervalForRole, voicingShapes, describeShape, chordForNotes,
   applyVoicings, progressionFromDegrees, parseKey, applyTutorialPassage, prefersSharps,
   spellInChord, passingMoves, applyPassingMoves, relationLabel,
   chordScale, lickLine, describeLick, realizeLick, lickPlacements,
@@ -219,7 +219,7 @@ console.log('L\'outil, pour ses enchaînements');
 const ench = applyTutorialPassage({ notes: PASS_NOTES, chords: PASS_GRID, start: 0, end: 7, what: 'enchainement', targets: prog7, key: 'C' });
 const enchLines = ench.text.split('\n');
 check('le texte dit ses enchaînements, puis ses voicings', /^_Enchaînement repris du prof \(0:02 : Cmaj7 → C#dim7 → Dm7, diminué un demi-ton sous l'accord d'arrivée/.test(enchLines[0])
-  && /^_Joués avec ses voicings \(0:00 Cmaj7 : main gauche 1 · 7 \| main droite 3 · 5 · 9 ; 0:02 C#dim7 : main gauche 1 \| main droite b3 · b5 · bb7/.test(enchLines[1]), enchLines.slice(0, 2).join(' / '));
+  && /^_Joués avec ses voicings \(0:00 Cmaj7, joué 2 fois : main gauche 1 · 7 \| main droite 3 · 5 · 9 ; 0:02 C#dim7 : main gauche 1 \| main droite b3 · b5 · bb7/.test(enchLines[1]), enchLines.slice(0, 2).join(' / '));
 check('les accords de passage en italique, avec leurs notes et leurs mains, chacun avec SA forme', enchLines[3] === '- _F#dim7_ (passage) : main gauche Fa♯2 · main droite La3 Do4 Mi♭4'
   && enchLines[12] === '- _Db7_ (passage) : main gauche Ré♭2 Si2 · main droite Fa3 La♭3 Mi♭4' && enchLines.length === 14, enchLines.slice(3, 14).join(' / '));
 const onsAt = (ex, t) => (ex?.events || []).filter((e) => e.type === 'noteOn' && Math.abs(e.time - t) < 1e-6).map((e) => e.note).sort((a, b) => a - b).join(',');
@@ -281,6 +281,60 @@ check('… et la main gauche l\'accompagne avec ses voicings', lickOns.some((e) 
 check('« auto » : sa ligne quand elle finit dans la seconde moitié du passage', /^_Lick repris du prof/.test(applyTutorialPassage({ notes: LICK_NOTES, chords: LICK_GRID, start: 0, end: 4, what: 'auto', targets: ['Dm7', 'G7'] }).text));
 const noLine = applyTutorialPassage({ notes: CMAJ7_NOTES, chords: CMAJ7_GRID, start: 0, end: 5, what: 'lick', targets: ['Dm7', 'G7'] });
 check('pas de ligne dans le passage : dit tel quel, et ses voicings à la place', /^_\(Pas de ligne de notes seules \(lick, run, fill\) entre 0:00 et 0:05 : il y joue des accords\. Voici ses voicings sur ta progression\.\)_/.test(noLine.text) && noLine.example, noLine.text.split('\n')[0]);
+
+// [Claude] — 2026-10-03 — Narcisse, sur Amazing Grace (9:57 → 10:57) : appliqués à
+// 4-5-3-6-2-5-1, ses voicings « n'ont rien à voir avec ce que jouait le pianiste », les
+// fondamentales seules étaient justes. Un passage gospel modelé sur le sien, en Sol : main
+// gauche en octaves, main droite en accord avec la mélodie dessus ; la frise se trompe trois fois.
+console.log('Un passage gospel façon Amazing Grace (frise en partie fausse)');
+const oct = (root, t) => [{ midi: root, start: t, end: t + 1.9, hand: 'lh' }, { midi: root + 12, start: t, end: t + 1.9, hand: 'lh' }];
+const rhAt = (midis, t) => midis.map((midi, i) => ({ midi, start: t + 0.01 * i, end: t + 1.9, hand: 'rh' }));
+const GOSPEL = [
+  ...oct(31, 0), ...rhAt([62, 67, 71], 0), // 0:00 G : Ré4 Sol4 Si4 (5 · 1 · 3), une forme qu'il ne rejoue pas
+  ...oct(31, 2), ...rhAt([59, 65, 67], 2), // 0:02 G7 : Si3 Fa4 Sol4 (3 · b7 · 1)
+  ...oct(36, 4), ...rhAt([64, 67, 72], 4), // 0:04 C : Mi4 Sol4 Do5 (3 · 5 · 1) — la frise dit « Am »
+  ...oct(31, 6), ...rhAt([59, 62, 67], 6), // 0:06 G : Si3 Ré4 Sol4 (3 · 5 · 1)
+  ...oct(40, 8), ...rhAt([67, 71, 74], 8), // 0:08 Em7 : Sol4 Si4 Ré5 (b3 · 5 · b7) — la frise dit « G »
+  ...oct(33, 10), ...rhAt([61, 67, 69], 10), // 0:10 A7 : Do♯4 Sol4 La4 (3 · b7 · 1)
+  ...oct(38, 12), ...rhAt([66, 72, 74], 12), // 0:12 D7 : Fa♯4 Do5 Ré5 (3 · b7 · 1) — la frise dit « Am7 »
+  ...oct(31, 14), ...rhAt([59, 62, 67], 14), // 0:14 G : Si3 Ré4 Sol4 (3 · 5 · 1)
+];
+const GOSPEL_GRID = [['G', 0], ['G7', 2], ['Am', 4], ['G', 6], ['G', 8], ['A7', 10], ['Am7', 12], ['G', 14]].map(([label, start]) => ({ start, end: start + 2, label }));
+const gospel = voicingShapes(GOSPEL, GOSPEL_GRID, { start: 0, end: 16 });
+check('la frise fausse est relue d\'après ses notes : « Am » → C, « G » → Em7, « Am7 » → D7',
+  gospel.map((sh) => (sh.renamed ? `${sh.stripLabel}→${sh.label}` : sh.label)).join(' ') === 'G G7 Am→C G G→Em7 A7 Am7→D7 G',
+  gospel.map((sh) => `${sh.stripLabel}→${sh.label}`).join(' '));
+check('sur D7 (frise « Am7 »), sa basse Ré est la fondamentale, pas une 11e', describeShape(gospel[6]) === 'main gauche 1 · 1 | main droite 3 · b7 · 1', describeShape(gospel[6]));
+check('combien de fois il joue chaque forme', gospel.map((sh) => sh.times).join(',') === '1,3,3,3,1,3,3,3', gospel.map((sh) => sh.times).join(','));
+check('une étiquette juste reste : voicing sans fondamentale (Dm9 : Fa La Do Mi), même à la main gauche',
+  chordForNotes(parseChordName('Dm9'), [53, 57, 60, 64].map((midi) => ({ midi, hand: 'rh' }))).name === 'Dm9'
+  && chordForNotes(parseChordName('Dm9'), [53, 57, 60, 64].map((midi) => ({ midi, hand: 'lh' }))).name === 'Dm9');
+check('un renversement reste : C avec Mi à la basse, Do au-dessus',
+  chordForNotes(parseChordName('C'), [{ midi: 40, hand: 'lh' }, { midi: 60, hand: 'rh' }, { midi: 64, hand: 'rh' }, { midi: 67, hand: 'rh' }]).renamed === false);
+check('une octave de Do sous Mi Sol Do, la frise disant « Am7 » : c\'est C',
+  chordForNotes(parseChordName('Am7'), [{ midi: 36, hand: 'lh' }, { midi: 48, hand: 'lh' }, { midi: 64, hand: 'rh' }, { midi: 67, hand: 'rh' }, { midi: 72, hand: 'rh' }]).name === 'C');
+const gospelProg = progressionFromDegrees('4-5-3-6-2-5-1', 'G');
+const onGospel = applyVoicings(gospel, gospelProg);
+check('4-5-3-6-2-5-1 en Sol : Cmaj7 D7 Bm7 Em7 Am7 D7 Gmaj7', gospelProg.join(' ') === 'Cmaj7 D7 Bm7 Em7 Am7 D7 Gmaj7', gospelProg.join(' '));
+check('main gauche : son octave, sur la fondamentale de chaque accord', onGospel.length === 7
+  && onGospel.every((c, i) => c.leftHand.length === 2 && c.leftHand[1] - c.leftHand[0] === 12 && c.leftHand[0] % 12 === parseChordName(gospelProg[i]).rootPc),
+  onGospel.map(hands).join(' / '));
+check('majeurs : sa forme la plus jouée (3 · 5 · 1, la fondamentale dessus), pas la première venue (5 · 1 · 3)',
+  onGospel[0].from === 'C' && hands(onGospel[0]) === '36,48 | 64,67,72' && hands(onGospel[6]) === '43,55 | 71,74,79', `${onGospel[0].from} ${hands(onGospel[0])} / ${hands(onGospel[6])}`);
+check('dominantes : 3 · b7 · 1 (D7 : Fa♯4 Do5 Ré5)', hands(onGospel[1]) === '38,50 | 66,72,74' && hands(onGospel[5]) === '38,50 | 66,72,74', hands(onGospel[1]));
+check('mineurs : b3 · 5 · b7 (Bm7 : Ré4 Fa♯4 La4 ; Am7 : Do5 Mi5 Sol5)', hands(onGospel[2]) === '35,47 | 62,66,69' && hands(onGospel[4]) === '45,57 | 72,76,79',
+  `${hands(onGospel[2])} / ${hands(onGospel[4])}`);
+const gospelTool = applyTutorialPassage({ notes: GOSPEL, chords: GOSPEL_GRID, start: 0, end: 16, targets: gospelProg });
+check('le texte dit ce qui a été relu d\'après ses notes, et combien de fois il joue la forme',
+  gospelTool.text.split('\n')[0] === '_Voicings repris du prof (0:02 G7, joué 3 fois : main gauche 1 · 1 | main droite 3 · b7 · 1 ; '
+    + '0:04 C (relu d\'après ses notes ; la frise disait Am), joué 3 fois : main gauche 1 · 1 | main droite 3 · 5 · 1 ; '
+    + '0:08 Em7 (relu d\'après ses notes ; la frise disait G) : main gauche 1 · 1 | main droite b3 · 5 · b7) :_', gospelTool.text.split('\n')[0]);
+// Toute la plage est lue (10 min au plus) : sa dominante, jouée à 0:40, sert sur D7 — avant,
+// seules les 30 premières secondes l'étaient, et D7 prenait sa forme majeure (Fa♯ La Ré).
+const LATE = [...GOSPEL.filter((n) => n.start < 2 || (n.start >= 4 && n.start < 10) || n.start >= 14), ...oct(38, 40), ...rhAt([66, 72, 74], 40)];
+const LATE_GRID = [...GOSPEL_GRID.filter((c) => !['G7', 'A7', 'Am7'].includes(c.label)), { start: 40, end: 42, label: 'D7' }];
+const late = applyTutorialPassage({ notes: LATE, chords: LATE_GRID, start: 0, end: 60, targets: ['D7'] });
+check('toute la plage est lue : sa dominante jouée à 0:40 sert sur D7', late.text.split('\n')[1] === '- **D7** : main gauche Ré2 Ré3 · main droite Fa♯4 Do5 Ré5', late.text);
 
 console.log(`\n=== Résultat : ${passed}/${passed + failed} contrôles passés ===`);
 if (failed) process.exit(1);
