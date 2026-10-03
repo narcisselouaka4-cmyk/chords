@@ -915,14 +915,35 @@
                 </div>
               </section>
 
+              <!-- [Claude] — 2026-10-03 — La plage dont on parle au Copilote, choisie sans rien
+                   taper (Narcisse : « des champs présélectionnés (heures, minutes de 0 à 59) »,
+                   « une minute, c'est trop court ») : Début / Fin en listes, 10 min au plus. Avant
+                   tout choix, elle suit la vidéo (les 30 dernières secondes). « Boucler » fait
+                   tourner la vidéo sur la plage (l'ancienne boucle A-B). -->
+              <div class="pedago-passage" id="pedagogie-passage" hidden>
+                <div class="pedago-passage-row">
+                  <span class="pedago-tools-label">Passage</span>
+                  <div class="pedago-passage-edge" id="pedagogie-passage-start"></div>
+                  <span class="pedago-passage-arrow" aria-hidden="true">→</span>
+                  <div class="pedago-passage-edge" id="pedagogie-passage-end"></div>
+                  <span class="pedago-passage-length" id="pedagogie-passage-length" aria-live="polite"></span>
+                  <span class="pedago-tools-spacer"></span>
+                  <button type="button" class="pedago-tool-btn" id="pedagogie-passage-loop" aria-pressed="false" title="La vidéo tourne en boucle sur ce passage">Boucler</button>
+                  <button type="button" class="pedago-tool-btn" id="pedagogie-passage-follow" hidden title="Revenir aux 30 dernières secondes de la vidéo">Suivre la vidéo</button>
+                </div>
+                <div class="pedago-passage-activity" id="pedagogie-passage-activity"></div>
+              </div>
+
+              <!-- [Claude] — 2026-10-03 — Narcisse : « les étiquettes d'accords […] parfois elles ne
+                   suivent même pas ce que joue le pianiste ; autant les garder repliées par défaut
+                   et permettre de les déplier ». -->
               <div class="pedago-strip" id="pedagogie-strip" hidden>
-                <span class="pedago-strip-label">Accords</span>
+                <button type="button" class="pedago-strip-toggle" id="pedagogie-strip-toggle" aria-expanded="false" aria-controls="pedagogie-grid">Accords relevés</button>
                 <div class="pedagogie-grid" id="pedagogie-grid" role="list" aria-label="Accords relevés : un clic place la vidéo"></div>
               </div>
 
               <div class="pedago-tools pedagogie-video-actions" id="pedagogie-video-actions" style="display: none;">
                 <div class="pedago-speed" id="pedagogie-speed" role="group" aria-label="Vitesse de la vidéo"></div>
-                <div class="pedago-loop" id="pedagogie-loop"></div>
                 <span class="pedago-tools-spacer"></span>
                 <!-- [Claude] — 2026-09-25 — Calibration d'un vrai clavier filmé (V2N) : visible
                      seulement quand elle sert (V2N installé, pas de clavier dessiné reconnu). -->
@@ -940,12 +961,6 @@
                 <div class="pedago-moment" id="pedagogie-moment" hidden>
                   <span class="pedago-moment-label">Passage</span>
                   <strong class="pedago-moment-range" id="pedagogie-moment-range"></strong>
-                  <select class="pedago-moment-length" id="pedagogie-moment-length" aria-label="Durée du passage dont tu parles au Copilote" title="« Ici », « ce qu'il vient de faire » : les secondes qui précèdent l'instant de la vidéo">
-                    <option value="10">10 s</option>
-                    <option value="20" selected>20 s</option>
-                    <option value="30">30 s</option>
-                    <option value="60">1 min</option>
-                  </select>
                 </div>
               </header>
               <p class="pedago-copilot-notice" id="pedagogie-copilot-notice" hidden></p>

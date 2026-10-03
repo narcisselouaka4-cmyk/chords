@@ -1262,9 +1262,9 @@ export function tutorialMomentLines(moment) {
   if (!moment || !Number.isFinite(moment.start) || !Number.isFinite(moment.end)) return [];
   const round1 = (n) => Math.round(n * 10) / 10;
   const out = ['', '## Le moment dont parle le pianiste'];
-  out.push(`Il regarde la vidéo à ${formatTime(moment.now)}. « Ici », « à ce moment-là », « ce passage », « ce qu'il vient de faire » = ${moment.fromLoop ? 'la boucle A-B qu\'il a posée' : 'le passage'} de ${formatTime(moment.start)} à ${formatTime(moment.end)} (start ${round1(moment.start)} s, end ${round1(moment.end)} s pour les outils).`);
+  out.push(`Il regarde la vidéo à ${formatTime(moment.now)}. « Ici », « à ce moment-là », « ce passage », « ce qu'il vient de faire » = ${moment.chosen || moment.fromLoop ? 'le passage qu\'il a choisi (Début / Fin)' : 'le passage'} de ${formatTime(moment.start)} à ${formatTime(moment.end)} (start ${round1(moment.start)} s, end ${round1(moment.end)} s pour les outils).`);
   out.push(moment.chords?.length
-    ? `Accords du passage : ${moment.chords.map((c) => `${formatTime(c.start)} ${c.label || '?'}`).join(' · ')}`
+    ? `Accords du passage : ${moment.chords.map((c) => `${formatTime(c.start)} ${c.label || '?'}`).join(' · ')}${moment.chordsMore ? ` · … (${moment.chordsMore} de plus)` : ''}`
     : 'Accords du passage : aucun accord relevé.');
   // [Claude] — 2026-10-03 — Il joue, il parle, ou les deux (vidéo de Narcisse : un passage
   // où le prof parle était décrit comme des accords).
@@ -1282,6 +1282,7 @@ export function tutorialMomentLines(moment) {
   if (moment.transcript?.length) {
     out.push('Ce qu\'il dit pendant ce passage (transcription automatique, parfois fausse) :');
     for (const line of moment.transcript) out.push(`[${formatTime(line.start)}] ${line.text || ''}`);
+    if (moment.transcriptMore) out.push(`… (${moment.transcriptMore} phrases de plus, non détaillées : demande un moment précis)`);
   }
   return out;
 }

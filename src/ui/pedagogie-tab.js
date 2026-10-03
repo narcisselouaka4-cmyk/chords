@@ -58,7 +58,8 @@ import { getTutorialFolder, saveTutorialFolder } from '../pedagogie/tutorial-fol
 import { samplesToNoteEvents, eventsFromTranscription, compactTimeline } from '../pedagogie/teacher-notes.js';
 import { registerCopilotContext } from '../pedagogie/copilot-context.js';
 import { dockCopilot, undockCopilot } from '../pedagogie/copilot-dock.js';
-import { momentContext, passageWindow, clock, DEFAULT_PASSAGE_SECONDS } from '../pedagogie/tutorial-moment.js';
+import { momentContext, passageWindow, clock } from '../pedagogie/tutorial-moment.js';
+import { FOLLOW_SECONDS, MAX_PASSAGE_SECONDS, splitTime, joinTime, timeOptions, setRangeBound, rangeLength } from '../pedagogie/passage-range.js';
 import { createTutorialMemory, cardDuration } from '../pedagogie/tutorial-memory.js';
 import { teacherActivity, chordsWhilePlaying, activitySummary, isPlaying, ACTIVITY } from '../pedagogie/teacher-activity.js';
 
@@ -151,10 +152,19 @@ let viewActive = false;
 // Tutoriel déjà annoncé au Copilote (sa bascule en mode tutoriel n'est pas relancée à
 // chaque rendu ; remis à zéro à chaque ouverture de la vue).
 let announcedPath = null;
-// Durée du passage dont parle le pianiste (« ici »), en secondes.
-let passageSeconds = DEFAULT_PASSAGE_SECONDS;
-// Boucle A-B : quand elle est posée, c'est elle « le passage ».
-let loop = null;
+// [Claude] — 2026-10-03 — La plage dont on parle au Copilote, choisie avec les listes Début /
+// Fin (passage-range.js, 10 min au plus) ; null : elle suit la vidéo (les 30 dernières
+// secondes). `looping` : la vidéo tourne sur la plage (l'ancienne boucle A-B).
+let passage = null;
+let looping = false;
+// Ce que la barre dit après un réglage (« la fin a suivi »), et la vidéo pour laquelle ses
+// listes ont été construites.
+let passageHint = '';
+let passageCapped = false;
+let passageBuiltFor = null;
+// La frise des accords, repliée par défaut (choix retenu dans le navigateur).
+const STRIP_KEY = 'pedagogie-strip-open';
+let stripOpen = false;
 // [Claude] — 2026-10-03 — Lot 5 : mémoire des tutos (créée au premier besoin), fiches de
 // l'accueil (vignette, durée, « lu »), date du relevé rouvert depuis la mémoire.
 let memory = null;
@@ -164,11 +174,9 @@ let restoredAt = null;
 let lastStatus = null;
 // Vignettes déjà demandées pendant cette session (une seule tentative par tuto).
 const thumbTried = new Set();
-// [Claude] — 2026-10-03 — Lot 6 : vitesse de la vidéo (gardée d'un tuto à l'autre) et
-// début de boucle posé (A), en attente de sa fin (B).
+// [Claude] — 2026-10-03 — Lot 6 : vitesse de la vidéo (gardée d'un tuto à l'autre).
 const SPEEDS = [0.5, 0.75, 1];
 let speed = 1;
-let loopStart = null;
 
 // ---------------------------------------------------------------------------
 // Utilitaires
@@ -308,8 +316,11 @@ function resetTutorialView() {
   analysis = null;
   comparison = null;
   restoredAt = null;
-  loop = null;
-  loopStart = null;
+  passage = null;
+  looping = false;
+  passageHint = '';
+  passageCapped = false;
+  passageBuiltFor = null;
   resetNarration();
   setStatus('');
   setProgress('');
@@ -568,7 +579,7 @@ function rememberDuration() {
 }
 
 // ---------------------------------------------------------------------------
-// Outils de travail (lot 6) : vitesse, boucle A-B
+// Outils de travail (lot 6) : vitesse ; « Boucler » le passage
 // ---------------------------------------------------------------------------
 
 /** Vitesse de la vidéo ; la hauteur du son est gardée (preservesPitch). */
@@ -588,58 +599,34 @@ function setSpeed(value) {
   renderTools();
 }
 
-/** Boucle A-B : A à l'instant de la vidéo, puis B ; la boucle devient « le passage » du Copilote. */
-function setLoopStart() {
-  loopStart = Number(els.videoPlayer?.currentTime) || 0;
-  renderTools();
-}
-
-function setLoopEnd() {
-  const now = Number(els.videoPlayer?.currentTime) || 0;
-  const start = Math.min(loopStart ?? 0, now);
-  const end = Math.max(loopStart ?? 0, now);
-  if (end - start < 1) {
-    setStatus('La boucle doit durer au moins une seconde : laisse la vidéo avancer, puis pose B.', 'info');
-    return;
-  }
-  loop = { start, end };
-  loopStart = null;
-  renderTools();
-  seekVideo(start);
-}
-
-/** Boucle sur un accord de la frise (Maj + clic sur l'accord). */
+/** Maj + clic sur un accord (ou « Il explique ») de la frise : le passage devient ce moment, en boucle. */
 function loopSegment(start, end) {
   if (!Number.isFinite(start) || !Number.isFinite(end) || end - start < 0.5) return;
-  loop = { start, end };
-  loopStart = null;
-  renderTools();
-  seekVideo(start);
-}
-
-function clearLoop() {
-  loop = null;
-  loopStart = null;
-  lastLoopTime = null;
-  renderTools();
-  updateMoment();
+  // Mêmes règles que les listes : dans la vidéo, 10 min au plus (le début reste).
+  const next = setRangeBound({ start: Math.floor(start), end: Math.ceil(end) }, 'start', Math.floor(start), Number(els.videoPlayer?.duration));
+  passage = { start: next.start, end: next.end };
+  looping = true;
+  passageHint = '';
+  passageCapped = false;
+  renderPassageBar();
+  seekVideo(passage.start);
 }
 
 /**
- * La vidéo revient au début de la boucle quand la LECTURE en franchit la fin. Un saut
- * voulu ailleurs (clic sur un accord de la frise, curseur du lecteur) n'est pas ramené :
- * on boucle seulement si l'on venait de l'intérieur de la boucle, par petits pas.
+ * La vidéo revient au début du passage quand la LECTURE en franchit la fin (« Boucler »). Un
+ * saut voulu ailleurs (clic sur un accord de la frise, curseur du lecteur) n'est pas ramené :
+ * on boucle seulement si l'on venait de l'intérieur du passage, par petits pas.
  */
 let lastLoopTime = null;
 function keepInLoop() {
   const video = els.videoPlayer;
-  if (!loop || !video) { lastLoopTime = null; return; }
+  if (!looping || !passage || !video) { lastLoopTime = null; return; }
   const t = Number(video.currentTime) || 0;
-  const wasInside = lastLoopTime !== null && lastLoopTime >= loop.start - 0.25 && lastLoopTime < loop.end;
-  if (wasInside && (t >= loop.end || video.ended) && t - lastLoopTime < 1.5) {
-    video.currentTime = loop.start;
+  const wasInside = lastLoopTime !== null && lastLoopTime >= passage.start - 0.25 && lastLoopTime < passage.end;
+  if (wasInside && (t >= passage.end || video.ended) && t - lastLoopTime < 1.5) {
+    video.currentTime = passage.start;
     if (video.paused) video.play?.()?.catch?.(() => {});
-    lastLoopTime = loop.start;
+    lastLoopTime = passage.start;
     return;
   }
   lastLoopTime = t;
@@ -661,19 +648,202 @@ function renderTools() {
       }));
     }
   }
-  if (els.strip) els.strip.title = 'Clic : placer la vidéo sur l\'accord · Maj + clic : boucler cet accord';
-  if (els.loop) {
-    els.loop.innerHTML = '';
-    if (loop) {
-      els.loop.appendChild(el('span', { className: 'pedago-loop-range', text: `Boucle ${clock(loop.start)} → ${clock(loop.end)}`, title: 'Le Copilote parle de ce passage' }));
-      els.loop.appendChild(el('button', { type: 'button', className: 'pedago-tool-btn', 'aria-label': 'Retirer la boucle', title: 'Retirer la boucle', text: '✕', onClick: clearLoop }));
-    } else if (loopStart !== null) {
-      els.loop.appendChild(el('button', { type: 'button', className: 'pedago-tool-btn is-active', title: 'Pose la fin de la boucle à l\'instant de la vidéo', text: `A ${clock(loopStart)} · poser B`, onClick: setLoopEnd }));
-      els.loop.appendChild(el('button', { type: 'button', className: 'pedago-tool-btn', 'aria-label': 'Annuler la boucle', title: 'Annuler la boucle', text: '✕', onClick: clearLoop }));
-    } else {
-      els.loop.appendChild(el('button', { type: 'button', className: 'pedago-tool-btn', title: 'Pose le début de la boucle à l\'instant de la vidéo, puis sa fin (Maj + clic sur un accord : boucler cet accord)', text: 'Boucle A-B', onClick: setLoopStart }));
+  if (els.grid) els.grid.title = 'Clic : placer la vidéo sur l\'accord · Maj + clic : en faire le passage, en boucle';
+}
+
+// ---------------------------------------------------------------------------
+// La plage du Copilote : Début / Fin en listes (passage-range.js)
+// ---------------------------------------------------------------------------
+
+/** La plage en cours : celle choisie, sinon celle qui suit la vidéo. */
+function currentRange() {
+  if (passage) return passage;
+  const win = currentWindow();
+  if (win) return { start: Math.floor(win.start), end: Math.floor(win.end) };
+  return { start: 0, end: Math.min(FOLLOW_SECONDS, Math.floor(Number(els.videoPlayer?.duration) || FOLLOW_SECONDS)) };
+}
+
+/** Un bord de la plage : la valeur choisie dans ses listes (heures, minutes, secondes). */
+function edgeSeconds(edge) {
+  const box = edge === 'start' ? els.passageStart : els.passageEnd;
+  const value = (part) => Number(box?.querySelector(`select[data-part="${part}"]`)?.value) || 0;
+  return joinTime({ h: value('h'), m: value('m'), s: value('s') });
+}
+
+/** Fixe un bord de la plage ; l'autre suit au besoin, et la barre le dit. */
+function setPassageEdge(edge, seconds) {
+  const duration = Number(els.videoPlayer?.duration);
+  const next = setRangeBound(currentRange(), edge, seconds, duration);
+  passage = { start: next.start, end: next.end };
+  passageHint = next.adjusted === 'end' ? 'la fin a suivi' : next.adjusted === 'start' ? 'le début a suivi' : '';
+  // L'autre bord a suivi parce que la plage dépassait 10 minutes (sinon : parce qu'il passait
+  // de l'autre côté).
+  passageCapped = Boolean(next.adjusted) && next.end - next.start >= MAX_PASSAGE_SECONDS;
+  lastLoopTime = null;
+  renderPassageBar();
+  updateMoment();
+}
+
+/** Les listes d'un bord (construites une fois par vidéo). */
+function buildEdge(box, edge, options) {
+  if (!box) return;
+  box.innerHTML = '';
+  box.dataset.edge = edge;
+  const name = edge === 'start' ? 'Début' : 'Fin';
+  box.appendChild(el('span', { className: 'pedago-passage-edge-label', text: name }));
+  const select = (part, values, unit) => {
+    const node = el('select', { className: 'pedago-passage-select', 'data-part': part, 'aria-label': `${name} : ${unit}` });
+    for (const v of values) node.appendChild(el('option', { value: String(v), text: part === 'h' ? `${v} h` : String(v).padStart(2, '0') }));
+    node.addEventListener('change', () => setPassageEdge(edge, edgeSeconds(edge)));
+    box.appendChild(node);
+    if (part !== 'h') box.appendChild(el('span', { className: 'pedago-passage-unit', text: unit }));
+  };
+  if (options.hours.length) select('h', options.hours, 'h');
+  select('m', options.minutes, 'min');
+  select('s', options.seconds, 's');
+  box.appendChild(el('button', {
+    type: 'button',
+    className: 'pedago-tool-btn pedago-passage-now',
+    title: `${name} = l'instant de la vidéo`,
+    text: 'Maintenant',
+    onClick: () => setPassageEdge(edge, Math.floor(Number(els.videoPlayer?.currentTime) || 0)),
+  }));
+}
+
+/**
+ * [Claude] — 2026-10-03 — La barre du passage : Début / Fin (listes, « Maintenant »), sa durée,
+ * « Boucler », « Suivre la vidéo », et ce que fait le prof dans le passage (il joue, il
+ * explique). Les listes ne sont reconstruites que si la vidéo change ; sinon seules leurs
+ * valeurs suivent (jamais pendant qu'on en ouvre une).
+ */
+function renderPassageBar() {
+  const bar = els.passage;
+  if (!bar) return;
+  const ready = Boolean(selectedPath && analysis && !isReadingHere());
+  bar.hidden = !ready;
+  if (!ready) return;
+  const duration = Number(els.videoPlayer?.duration);
+  const key = `${selectedPath}|${Number.isFinite(duration) ? Math.floor(duration) : '?'}`;
+  if (passageBuiltFor !== key) {
+    const options = timeOptions(duration);
+    buildEdge(els.passageStart, 'start', options);
+    buildEdge(els.passageEnd, 'end', options);
+    passageBuiltFor = key;
+  }
+  const range = currentRange();
+  const active = document.activeElement;
+  const choosing = active?.tagName === 'SELECT' && bar.contains(active);
+  if (!choosing) {
+    for (const [box, t] of [[els.passageStart, range.start], [els.passageEnd, range.end]]) {
+      const parts = splitTime(t);
+      for (const part of ['h', 'm', 's']) {
+        const node = box?.querySelector(`select[data-part="${part}"]`);
+        if (node && node.value !== String(parts[part])) node.value = String(parts[part]);
+      }
     }
   }
+  bar.classList.toggle('is-following', !passage);
+  // « 1:45 · 10 min max », « 10:00 · 10 min au plus : la fin a suivi », ou « suit la vidéo… ».
+  // Réécrite seulement quand elle change : c'est une zone lue à voix haute (aria-live).
+  const lengthKey = passage ? `${rangeLength(range)}|${passageCapped}|${passageHint}` : 'suit';
+  if (els.passageLength && els.passageLength.dataset.key !== lengthKey) {
+    const limit = MAX_PASSAGE_SECONDS / 60;
+    els.passageLength.dataset.key = lengthKey;
+    els.passageLength.textContent = '';
+    if (passage) {
+      els.passageLength.appendChild(el('strong', { text: rangeLength(range) }));
+      els.passageLength.appendChild(el('span', {
+        text: passageCapped ? ` · ${limit} min au plus : ${passageHint}` : ` · ${limit} min max${passageHint ? ` · ${passageHint}` : ''}`,
+      }));
+    } else {
+      els.passageLength.appendChild(el('span', { text: `suit la vidéo : les ${FOLLOW_SECONDS} dernières secondes` }));
+    }
+  }
+  if (els.passageLoop) {
+    els.passageLoop.setAttribute('aria-pressed', String(looping));
+    els.passageLoop.classList.toggle('is-active', looping);
+  }
+  if (els.passageFollow) els.passageFollow.hidden = !passage;
+  renderPassageActivity(range);
+}
+
+/**
+ * Ce que fait le prof dans le passage : une bande (il joue / il explique), cliquable. Elle
+ * n'est refaite que si le passage change ; un appui place la vidéo aussitôt (tant que le
+ * passage suit la vidéo, la bande avance avec elle).
+ */
+let activityBuilt = null;
+function renderPassageActivity(range) {
+  const box = els.passageActivity;
+  if (!box) return;
+  const view = teacherView();
+  const key = `${range.start}|${range.end}`;
+  if (activityBuilt?.key === key && activityBuilt.view === view) return;
+  activityBuilt = { key, view };
+  box.innerHTML = '';
+  const spans = (view?.spans || [])
+    .filter((s) => s.start < range.end && s.end > range.start)
+    .map((s) => ({ ...s, start: Math.max(s.start, range.start), end: Math.min(s.end, range.end) }))
+    .filter((s) => s.end - s.start > 0.05);
+  if (!spans.length || range.end <= range.start) { box.hidden = true; return; }
+  box.hidden = false;
+  const track = el('div', { className: 'pedago-activity-track', role: 'list', 'aria-label': 'Ce que fait le prof dans ce passage' });
+  const labels = { joue: 'il joue', parle: 'il explique', 'joue-et-parle': 'il joue en parlant' };
+  const length = range.end - range.start;
+  const percent = (t) => `${Math.round(((t - range.start) / length) * 10000) / 100}%`;
+  for (const s of spans) {
+    const label = labels[s.kind] || '';
+    track.appendChild(el('button', {
+      type: 'button',
+      role: 'listitem',
+      className: `pedago-activity-span is-${s.kind}`,
+      style: `left: ${percent(s.start)}; width: ${percent(range.start + (s.end - s.start))}`,
+      title: `${label || 'rien'} : ${clock(s.start)} → ${clock(s.end)}`,
+      'aria-label': `${label || 'silence'}, ${clock(s.start)} à ${clock(s.end)}`,
+      'data-start': String(s.start),
+      onPointerdown: (e) => { if (e.button === 0) seekVideo(s.start); },
+      // Au clavier (Entrée, Espace) : le clic n'a pas d'appui de souris avant lui.
+      onClick: (e) => { if (e.detail === 0) seekVideo(s.start); },
+    }));
+  }
+  box.appendChild(track);
+  // La légende : chaque moment avec la couleur de la bande (« il explique 10:12–10:20 »).
+  const told = spans.filter((s) => labels[s.kind] && s.end - s.start >= 0.5);
+  if (!told.length) return;
+  const legend = el('p', { className: 'pedago-activity-legend' });
+  for (const s of told.slice(0, 6)) {
+    legend.appendChild(el('span', { className: `pedago-activity-item is-${s.kind}`, text: `${labels[s.kind]} ${clock(s.start)}–${clock(s.end)}` }));
+  }
+  if (told.length > 6) legend.appendChild(el('span', { className: 'pedago-activity-more', text: `et ${told.length - 6} autres moments` }));
+  box.appendChild(legend);
+}
+
+/** « Boucler » : la vidéo tourne sur le passage (fixé à l'instant s'il suivait la vidéo). */
+function toggleLooping() {
+  if (!passage) passage = currentRange();
+  looping = !looping;
+  lastLoopTime = null;
+  renderPassageBar();
+  updateMoment();
+  if (looping) seekVideo(passage.start);
+}
+
+/** « Suivre la vidéo » : la plage redevient les 30 dernières secondes. */
+function followVideo() {
+  passage = null;
+  looping = false;
+  passageHint = '';
+  passageCapped = false;
+  lastLoopTime = null;
+  renderPassageBar();
+  updateMoment();
+}
+
+/** La frise des accords : repliée par défaut, dépliée à la demande (choix retenu). */
+function setStripOpen(open) {
+  stripOpen = Boolean(open);
+  try { localStorage.setItem(STRIP_KEY, stripOpen ? '1' : '0'); } catch (_) { /* stockage indisponible */ }
+  renderResult();
 }
 
 // ---------------------------------------------------------------------------
@@ -1252,6 +1422,7 @@ function render() {
   renderFormat();
   renderResult();
   renderTools();
+  renderPassageBar();
   renderCopilotPanel();
   updateMoment();
 }
@@ -1340,6 +1511,17 @@ function renderResult() {
     ...talks.map((talk) => ({ at: talk.start, talk })),
   ].sort((a, b) => a.at - b.at);
   els.strip.hidden = items.length === 0;
+  // [Claude] — 2026-10-03 — Repliée par défaut (Narcisse : « parfois elles ne suivent même pas
+  // ce que joue le pianiste […] autant les garder repliées et permettre de les déplier »).
+  els.strip.classList.toggle('is-open', stripOpen);
+  els.grid.hidden = !stripOpen;
+  if (els.stripToggle) {
+    els.stripToggle.setAttribute('aria-expanded', String(stripOpen));
+    els.stripToggle.textContent = `Accords relevés (${segments.length})`;
+    els.stripToggle.title = stripOpen
+      ? 'Replier la frise des accords'
+      : 'Déplier la frise : les accords lus à l\'image ou au son (pas toujours justes), un clic place la vidéo';
+  }
   for (const { seg, talk } of items) {
     if (talk) {
       els.grid.appendChild(el('button', {
@@ -1508,13 +1690,19 @@ function homeNotice(message, tone = 'info') {
   els.homeNotice.hidden = !message;
 }
 
-/** Le passage dont parle le pianiste, d'après l'instant de la vidéo. */
+/**
+ * Le passage dont parle le pianiste : la plage qu'il a choisie (Début / Fin), sinon les
+ * 30 dernières secondes avant l'instant de la vidéo.
+ */
 function currentWindow() {
   const video = els.videoPlayer;
-  return passageWindow(video?.currentTime, { length: passageSeconds, loop, duration: video?.duration });
+  return passageWindow(video?.currentTime, { length: FOLLOW_SECONDS, fixed: passage, duration: video?.duration });
 }
 
-/** « Passage : 1:22 → 1:42 » en haut du panneau, et les accords marqués sur la frise. */
+/**
+ * « Passage 1:22 → 1:42 » en haut du panneau du Copilote (lecture seule : on le règle sous la
+ * vidéo), les accords marqués sur la frise, et la barre du passage qui suit la vidéo.
+ */
 function updateMoment() {
   if (!els.moment) return;
   els.moment.hidden = !selectedPath;
@@ -1523,11 +1711,12 @@ function updateMoment() {
   if (els.momentRange) {
     els.momentRange.textContent = win ? `${clock(win.start)} → ${clock(win.end)}` : 'lance la vidéo';
     els.momentRange.title = win
-      ? (win.fromLoop ? 'La boucle A-B : c\'est le passage dont tu parles au Copilote.' : `Les ${passageSeconds} dernières secondes de la vidéo : « ici », « ce qu'il vient de faire ».`)
+      ? (win.chosen ? 'Le passage que tu as choisi sous la vidéo : c\'est celui dont tu parles au Copilote.' : `Les ${FOLLOW_SECONDS} dernières secondes de la vidéo : « ici », « ce qu'il vient de faire ». Choisis un passage sous la vidéo pour le fixer.`)
       : '';
   }
-  if (els.momentLength) els.momentLength.disabled = Boolean(win?.fromLoop);
   markStrip(win);
+  // Tant que la plage suit la vidéo, ses listes avancent avec elle.
+  if (!passage) renderPassageBar();
 }
 
 let currentChip = null;
@@ -1616,8 +1805,8 @@ export function getPedagogieCopilotContext() {
     duration: Number.isFinite(video?.duration) ? video.duration : null,
     moment: momentContext({
       now: video?.currentTime,
-      length: passageSeconds,
-      loop,
+      length: FOLLOW_SECONDS,
+      fixed: passage,
       duration: video?.duration,
       chords,
       noteEvents,
@@ -1657,7 +1846,6 @@ export function initPedagogieTab() {
   els.backBtn = document.getElementById('pedagogie-back-btn');
   els.homeGrid = document.getElementById('pedagogie-home-grid');
   els.speed = document.getElementById('pedagogie-speed');
-  els.loop = document.getElementById('pedagogie-loop');
   els.redoBtn = document.getElementById('pedagogie-redo-btn');
   els.split = document.getElementById('pedagogie-split');
   els.main = document.getElementById('pedagogie-main');
@@ -1676,6 +1864,15 @@ export function initPedagogieTab() {
   els.videoPlayer = document.getElementById('pedagogie-video-player');
   els.strip = document.getElementById('pedagogie-strip');
   els.grid = document.getElementById('pedagogie-grid');
+  // [Claude] — 2026-10-03 — La frise se replie (repliée par défaut), et la barre du passage.
+  els.stripToggle = document.getElementById('pedagogie-strip-toggle');
+  els.passage = document.getElementById('pedagogie-passage');
+  els.passageStart = document.getElementById('pedagogie-passage-start');
+  els.passageEnd = document.getElementById('pedagogie-passage-end');
+  els.passageLength = document.getElementById('pedagogie-passage-length');
+  els.passageLoop = document.getElementById('pedagogie-passage-loop');
+  els.passageFollow = document.getElementById('pedagogie-passage-follow');
+  els.passageActivity = document.getElementById('pedagogie-passage-activity');
   els.videoActions = document.getElementById('pedagogie-video-actions');
   els.calibrateBtn = document.getElementById('pedagogie-calibrate-btn');
   els.copilotPanel = document.getElementById('pedagogie-copilot-panel');
@@ -1684,7 +1881,6 @@ export function initPedagogieTab() {
   els.copilotSlot = document.getElementById('pedagogie-copilot-slot');
   els.moment = document.getElementById('pedagogie-moment');
   els.momentRange = document.getElementById('pedagogie-moment-range');
-  els.momentLength = document.getElementById('pedagogie-moment-length');
 
   els.importBtn?.addEventListener('click', () => { importVideo(); });
   els.backBtn?.addEventListener('click', () => { closeTutorial(); });
@@ -1705,15 +1901,16 @@ export function initPedagogieTab() {
   // Fiche du tuto : sa durée, et une vignette prise pendant la lecture s'il n'en a pas.
   els.videoPlayer?.addEventListener('loadedmetadata', rememberDuration);
   els.videoPlayer?.addEventListener('timeupdate', captureThumbnailFromPlayer);
-  // Boucle A-B : retour au début de la boucle (et la vitesse reste celle choisie).
+  // « Boucler » : retour au début du passage (et la vitesse reste celle choisie).
   els.videoPlayer?.addEventListener('timeupdate', keepInLoop);
   els.videoPlayer?.addEventListener('ended', keepInLoop);
   els.videoPlayer?.addEventListener('loadedmetadata', applySpeed);
-  els.momentLength?.addEventListener('change', () => {
-    const value = Number(els.momentLength.value);
-    passageSeconds = Number.isFinite(value) && value > 0 ? value : DEFAULT_PASSAGE_SECONDS;
-    updateMoment();
-  });
+  // La durée de la vidéo donne les listes Début / Fin.
+  els.videoPlayer?.addEventListener('loadedmetadata', renderPassageBar);
+  els.passageLoop?.addEventListener('click', () => { toggleLooping(); });
+  els.passageFollow?.addEventListener('click', () => { followVideo(); });
+  els.stripToggle?.addEventListener('click', () => { setStripOpen(!stripOpen); });
+  try { stripOpen = localStorage.getItem(STRIP_KEY) === '1'; } catch (_) { stripOpen = false; }
 
   // Poser une question au Copilote met la vidéo en pause : le passage ne bouge plus
   // pendant qu'on écrit.

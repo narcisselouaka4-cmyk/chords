@@ -4,7 +4,7 @@
 // voulu dire à ce moment-là ? », « Comment appliquerait-on ce qu'il vient de faire dans
 // une progression 4-5-3-6-2-5-1 ? ». « Ce moment », « ici », « ce qu'il vient de faire » =
 // le passage qui vient de se jouer : les N dernières secondes avant l'instant de la
-// vidéo (20 par défaut, réglable), ou la boucle A-B quand elle est posée.
+// vidéo, ou la plage qu'il a choisie (Début / Fin, 10 min au plus : passage-range.js).
 //
 // Fonctions pures, testées dans test-tutorial-moment.js. L'écran (src/ui/pedagogie-tab.js)
 // les appelle ; le Copilote reçoit le résultat dans son contexte (copilot-client.js).
@@ -24,24 +24,31 @@ export function clock(seconds) {
 }
 
 /**
- * Le passage désigné par « ici » : les `length` secondes qui précèdent `now`, ou la
- * boucle A-B si elle est posée (elle l'emporte : c'est un passage choisi exprès).
+ * Le passage désigné par « ici » : les `length` secondes qui précèdent `now`, ou la plage
+ * choisie (Début / Fin) quand il y en a une — elle l'emporte : c'est un passage choisi
+ * exprès. [Claude] — 2026-10-03 — `fixed` remplace `loop` (la boucle A-B est devenue la
+ * plage choisie, qu'on peut faire boucler) ; `loop` reste accepté.
  * @param {number} now - instant de la vidéo (s)
- * @param {{length?: number, loop?: {start: number, end: number}|null, duration?: number}} [options]
- * @returns {{start: number, end: number, now: number, fromLoop: boolean}|null}
+ * @param {{length?: number, fixed?: {start: number, end: number}|null, loop?: object|null, duration?: number}} [options]
+ * @returns {{start: number, end: number, now: number, chosen: boolean}|null}
  */
-export function passageWindow(now, { length = DEFAULT_PASSAGE_SECONDS, loop = null, duration = Infinity } = {}) {
+export function passageWindow(now, { length = DEFAULT_PASSAGE_SECONDS, fixed = null, loop = null, duration = Infinity } = {}) {
   const limit = Number.isFinite(duration) && duration > 0 ? duration : Infinity;
-  if (loop && Number.isFinite(loop.start) && Number.isFinite(loop.end) && loop.end - loop.start >= 0.5) {
-    const start = Math.max(0, loop.start);
-    const end = Math.min(limit, loop.end);
-    return { start, end, now: Number.isFinite(now) ? Math.min(Math.max(now, start), end) : end, fromLoop: true };
+  const range = fixed || loop;
+  if (range && Number.isFinite(range.start) && Number.isFinite(range.end) && range.end - range.start >= 0.5) {
+    const start = Math.max(0, range.start);
+    const end = Math.min(limit, range.end);
+    return { start, end, now: Number.isFinite(now) ? Math.min(Math.max(now, start), end) : end, chosen: true };
   }
   if (!Number.isFinite(now) || now < MIN_NOW) return null;
   const span = Number.isFinite(length) && length > 0 ? Math.min(120, length) : DEFAULT_PASSAGE_SECONDS;
   const end = Math.min(now, limit);
-  return { start: Math.max(0, end - span), end, now: end, fromLoop: false };
+  return { start: Math.max(0, end - span), end, now: end, chosen: false };
 }
+
+/** Ce qu'on garde d'une longue plage pour le Copilote (10 min, c'est beaucoup de phrases). */
+const MOMENT_MAX_CHORDS = 60;
+const MOMENT_MAX_LINES = 80;
 
 /** Accords de la grille qui sonnent pendant le passage (même partiellement). */
 export function chordsInWindow(chords, start, end) {
@@ -72,8 +79,8 @@ export function linesInWindow(lines, start, end) {
  * @param {{start: number, end: number, kind: string}[]} [input.activity] - teacherActivity().spans
  * @returns {object|null}
  */
-export function momentContext({ now, length = DEFAULT_PASSAGE_SECONDS, loop = null, duration = Infinity, chords = [], noteEvents = [], transcript = [], activity = [] } = {}) {
-  const win = passageWindow(now, { length, loop, duration });
+export function momentContext({ now, length = DEFAULT_PASSAGE_SECONDS, fixed = null, loop = null, duration = Infinity, chords = [], noteEvents = [], transcript = [], activity = [] } = {}) {
+  const win = passageWindow(now, { length, fixed, loop, duration });
   if (!win) return null;
   const inChords = chordsInWindow(chords, win.start, win.end);
   const inNotes = (noteEvents || []).filter((n) => Number.isFinite(n?.start) && n.start >= win.start - 0.05 && n.start < win.end);
@@ -84,15 +91,18 @@ export function momentContext({ now, length = DEFAULT_PASSAGE_SECONDS, loop = nu
     .map((s) => ({ start: Math.max(s.start, win.start), end: Math.min(s.end, win.end), kind: s.kind }))
     .filter((s) => s.end - s.start > 0.05);
   const playing = spans.some((s) => s.kind === 'joue' || s.kind === 'joue-et-parle');
+  const lines = linesInWindow(transcript, win.start, win.end);
   return {
     now: win.now,
     start: win.start,
     end: win.end,
-    fromLoop: win.fromLoop,
-    chords: inChords.map((c) => ({ start: c.start, end: c.end, label: c.label })),
+    chosen: win.chosen,
+    chords: inChords.slice(0, MOMENT_MAX_CHORDS).map((c) => ({ start: c.start, end: c.end, label: c.label })),
+    chordsMore: Math.max(0, inChords.length - MOMENT_MAX_CHORDS),
     noteCount: inNotes.length,
     timeline: inNotes.length ? compactTimeline(inNotes, inChords, { maxLines: 30 }) : [],
-    transcript: linesInWindow(transcript, win.start, win.end).map((l) => ({ start: l.start, text: l.text })),
+    transcript: lines.slice(0, MOMENT_MAX_LINES).map((l) => ({ start: l.start, text: l.text })),
+    transcriptMore: Math.max(0, lines.length - MOMENT_MAX_LINES),
     activity: spans,
     spokenOnly: !playing && !inNotes.length && spans.some((s) => s.kind === 'parle'),
   };

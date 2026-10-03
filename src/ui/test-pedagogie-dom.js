@@ -274,8 +274,8 @@ check('Plus de raccourci vers l\'onglet Copilote',
 check('Les styles du Copilote valent aussi dans le panneau (même spécificité)',
   practiceCss.includes(':is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-input')
   && readText('src/ui/refonte/astra-bridge.css').includes(':is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example-text'));
-check('Le Copilote sait où en est la vidéo (le passage « ici »)',
-  tabCode.includes('momentContext(') && html.includes('id="pedagogie-moment-range"') && html.includes('id="pedagogie-moment-length"'));
+check('Le Copilote sait où en est la vidéo (le passage « ici »), affiché en lecture seule dans son en-tête',
+  tabCode.includes('momentContext(') && html.includes('id="pedagogie-moment-range"') && !html.includes('id="pedagogie-moment-length"'));
 check('Poser une question met la vidéo en pause ; un moment cité place la vidéo',
   tabCode.includes("'copilot-input') pauseVideo()") && tabCode.includes("'pedagogie-seek'")
   && readText('src/pedagogie/copilot-tab.js').includes("'pedagogie-seek'"));
@@ -450,10 +450,13 @@ const copilotTabCode = stripComments(readText('src/pedagogie/copilot-tab.js'));
 check('Vitesse 0,5× · 0,75× · 1× : playbackRate du lecteur, hauteur du son gardée',
   /const SPEEDS = \[0\.5, 0\.75, 1\]/.test(tabJs) && /video\.preservesPitch = true;[\s\S]{0,80}video\.playbackRate = speed/.test(tabCode)
   && html.includes('id="pedagogie-speed"'));
-check('Boucle A-B : elle devient « le passage » du Copilote, un saut voulu hors boucle n\'est pas ramené',
-  /loop = \{ start, end \}/.test(tabCode) && /passageWindow\(video\?\.currentTime, \{ length: passageSeconds, loop/.test(tabCode)
-  && /wasInside && \(t >= loop\.end \|\| video\.ended\) && t - lastLoopTime < 1\.5/.test(tabCode) && html.includes('id="pedagogie-loop"'));
-check('Maj + clic sur un accord de la frise : boucler cet accord', /if \(e\.shiftKey\) loopSegment\(seg\.start, seg\.end\)/.test(tabCode));
+// [Claude] — 2026-10-03 — Lot 4 : la boucle A-B est devenue « Boucler » sur la barre du passage.
+check('« Boucler » : la vidéo tourne sur le passage choisi, un saut voulu hors du passage n\'est pas ramené',
+  /wasInside && \(t >= passage\.end \|\| video\.ended\) && t - lastLoopTime < 1\.5/.test(tabCode)
+  && /if \(!looping \|\| !passage \|\| !video\)/.test(tabCode) && !html.includes('id="pedagogie-loop"'));
+check('Maj + clic sur un accord de la frise : il devient le passage, en boucle',
+  /if \(e\.shiftKey\) loopSegment\(seg\.start, seg\.end\)/.test(tabCode)
+  && /function loopSegment\(start, end\) \{[\s\S]*?setRangeBound\(\{ start: Math\.floor\(start\), end: Math\.ceil\(end\) \}, 'start'[\s\S]*?passage = \{ start: next\.start, end: next\.end \};\s*looping = true;/.test(tabCode));
 check('Sous un exemple du Copilote : « Ajouter à Ma grille » et « Ajouter aux Favoris », reçus par Exercices (main.js)',
   copilotTabCode.includes("new CustomEvent('exercise-save-grid'") && copilotTabCode.includes("new CustomEvent('exercise-add-favorites'")
   && mainJs.includes("document.addEventListener('exercise-save-grid'") && mainJs.includes("document.addEventListener('exercise-add-favorites'")
@@ -471,6 +474,44 @@ check('La frise : « Il explique » là où il parle sans jouer, les accords seu
   && /isPlaying\(sp\.kind\) && seg\.start < sp\.end && seg\.end > sp\.start/.test(tabCode));
 check('Sa pédale, entendue au son, est gardée avec le relevé et passée au Copilote',
   /built\.pedals = \(piano\.pedals \|\| \[\]\)/.test(tabCode) && /pedals: Array\.isArray\(analysis\.pedals\)/.test(tabCode));
+
+// ---------------------------------------------------------------------------
+// 13. [Claude] — 2026-10-03 — La plage du Copilote, choisie sans rien taper, 10 min au plus ; la
+// frise repliée (Narcisse : « une minute, c'est trop court », « des champs présélectionnés
+// (heures, minutes de 0 à 59) », « autant garder [les étiquettes] repliées par défaut »)
+// ---------------------------------------------------------------------------
+check('La barre du passage est sous la vidéo : Début, Fin, durée, « Boucler », « Suivre la vidéo », ce que fait le prof',
+  /id="pedagogie-main"[\s\S]*?id="pedagogie-passage"[^>]*hidden[\s\S]*?id="pedagogie-passage-start"[\s\S]*?id="pedagogie-passage-end"[\s\S]*?id="pedagogie-passage-length"[\s\S]*?id="pedagogie-passage-loop"[\s\S]*?id="pedagogie-passage-follow"[\s\S]*?id="pedagogie-passage-activity"/.test(html)
+  && html.indexOf('id="pedagogie-passage"') < html.indexOf('id="pedagogie-strip"'));
+check('Début / Fin en listes (heures seulement pour une vidéo d\'1 h ou plus, minutes, secondes) et « Maintenant »',
+  tabCode.includes("const options = timeOptions(duration);") && /if \(options\.hours\.length\) select\('h', options\.hours, 'h'\);/.test(tabCode)
+  && /select\('m', options\.minutes, 'min'\);\s*select\('s', options\.seconds, 's'\);/.test(tabCode)
+  && tabCode.includes("text: 'Maintenant'") && !/<input[^>]*pedagogie-passage/.test(html));
+check('Un bord réglé : la plage reste dans la vidéo, 10 min au plus, l\'autre bord suit et la barre le dit',
+  /const next = setRangeBound\(currentRange\(\), edge, seconds, duration\);/.test(tabCode)
+  && tabCode.includes("'la fin a suivi'") && tabCode.includes("'le début a suivi'")
+  && readText('src/pedagogie/passage-range.js').includes('export const MAX_PASSAGE_SECONDS = 600;'));
+check('Le Copilote parle de la plage choisie (sinon des 30 dernières secondes)',
+  /passageWindow\(video\?\.currentTime, \{ length: FOLLOW_SECONDS, fixed: passage, duration: video\?\.duration \}\)/.test(tabCode)
+  && /length: FOLLOW_SECONDS,\s*fixed: passage,/.test(tabCode));
+check('« Suivre la vidéo » rend la plage à la vidéo ; tant qu\'elle suit, ses listes avancent avec elle',
+  /function followVideo\(\) \{\s*passage = null;\s*looping = false;/.test(tabCode) && /if \(!passage\) renderPassageBar\(\);/.test(tabCode)
+  && /els\.passageFollow\?\.addEventListener\('click', \(\) => \{ followVideo\(\); \}\)/.test(tabCode));
+check('Une liste ouverte n\'est jamais changée sous les doigts ; la durée (lue à voix haute) n\'est réécrite que si elle change',
+  /const choosing = active\?\.tagName === 'SELECT' && bar\.contains\(active\);/.test(tabCode)
+  && /if \(els\.passageLength && els\.passageLength\.dataset\.key !== lengthKey\)/.test(tabCode)
+  && /id="pedagogie-passage-length" aria-live="polite"/.test(html));
+check('La bande « il joue / il explique » du passage : un appui place la vidéo, au clavier aussi',
+  tabCode.includes("className: `pedago-activity-span is-${s.kind}`") && /onPointerdown: \(e\) => \{ if \(e\.button === 0\) seekVideo\(s\.start\); \}/.test(tabCode)
+  && /onClick: \(e\) => \{ if \(e\.detail === 0\) seekVideo\(s\.start\); \}/.test(tabCode));
+check('La frise des accords est repliée par défaut, « Accords relevés (N) » la déplie, le choix est retenu',
+  /<button[^>]*id="pedagogie-strip-toggle"[^>]*aria-expanded="false"[^>]*aria-controls="pedagogie-grid"/.test(html)
+  && /let stripOpen = false;/.test(tabCode) && /els\.grid\.hidden = !stripOpen;/.test(tabCode)
+  && tabCode.includes('`Accords relevés (${segments.length})`')
+  && /localStorage\.setItem\(STRIP_KEY, stripOpen \? '1' : '0'\)/.test(tabCode) && /stripOpen = localStorage\.getItem\(STRIP_KEY\) === '1';/.test(tabCode));
+check('Plus de liste 10 / 20 / 30 / 60 s ni de boucle A-B à part',
+  !tabCode.includes('passageSeconds') && !tabCode.includes('els.momentLength') && !tabCode.includes('els.loop ')
+  && !tabCode.includes('fromLoop'));
 
 console.log(`\n=== Résultat : ${passed}/${total} contrôles passés ===`);
 if (passed < total) process.exitCode = 1;
