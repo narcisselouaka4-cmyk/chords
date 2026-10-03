@@ -2377,9 +2377,12 @@ function initPracticeExercise() {
   // sortie MIDI si elle est choisie. Style choisi par l'utilisateur, ou selon le
   // mouvement (jazz → Comping swing, gospel / worship → Gospel, « Ma grille » →
   // Ballade) ; chaque style a son tempo.
-  // demoContext : { kind: 'movement', stepBefore, passingBefore } | { kind: 'preview', previewId } | null
+  // demoContext : { kind: 'movement', stepBefore, passingBefore } | { kind: 'preview', previewId }
+  //   | { kind: 'copilot', id, tempo } | null
   let demoContext = null;
   let previewId = null;
+  // Envoi régulier de la position de l'exemple du Copilote à sa carte (barre de lecture).
+  let exampleTicker = null;
 
   const DEMO_STYLE_STORAGE = 'exercise-demo-style';
   let demoStyle = 'auto';
@@ -2483,6 +2486,8 @@ function initPracticeExercise() {
     previewId = null;
     demoHooks.playingPassing = null;
     if (context?.kind === 'copilot') {
+      clearInterval(exampleTicker);
+      exampleTicker = null;
       document.dispatchEvent(new CustomEvent('copilot-example-state', { detail: { id: context.id, playing: false } }));
       return;
     }
@@ -2501,20 +2506,49 @@ function initPracticeExercise() {
   document.addEventListener('copilot-play-example', async (e) => {
     const { id, example } = e.detail || {};
     if (!example?.events?.length) return;
-    // Une démo en cours s'arrête d'abord proprement (son contexte est rendu).
-    if (demoPlayer.isPlaying()) demoPlayer.stop();
+    // Une démo en cours (ou en pause) s'arrête d'abord proprement (son contexte est rendu).
+    if (demoPlayer.isActive()) demoPlayer.stop();
     try {
       await resumeAudio();
     } catch (err) {
       console.warn('[Copilot] Audio indisponible', err);
     }
-    demoPlayer.play({ events: example.events, beats: example.beats }, { tempo: example.tempo || 60 });
-    demoContext = { kind: 'copilot', id };
+    const tempo = example.tempo || 60;
+    demoPlayer.play({ events: example.events, beats: example.beats }, { tempo });
+    demoContext = { kind: 'copilot', id, tempo };
     document.dispatchEvent(new CustomEvent('copilot-example-state', { detail: { id, playing: true } }));
+    clearInterval(exampleTicker);
+    exampleTicker = setInterval(sendExampleProgress, 250);
+    sendExampleProgress();
   });
   document.addEventListener('copilot-stop-example', () => {
     if (demoContext?.kind === 'copilot') demoPlayer.stop();
   });
+  // [Claude] — 2026-10-03 — La barre de lecture de l'exemple (Narcisse : « revenir en arrière
+  // manuellement quand le copilote joue, un peu comme sur un lecteur ») : pause, reprise,
+  // −5 s, aller à un instant. La carte reçoit la position toutes les 250 ms.
+  document.addEventListener('copilot-example-control', (e) => {
+    const { id, action, seconds } = e.detail || {};
+    if (demoContext?.kind !== 'copilot' || demoContext.id !== id) return;
+    const perBeat = 60 / demoContext.tempo;
+    if (action === 'pause') demoPlayer.pause();
+    else if (action === 'resume') demoPlayer.resume();
+    else if (action === 'back') demoPlayer.seek(demoPlayer.position() - (Number(seconds) || 5) / perBeat);
+    else if (action === 'seek' && Number.isFinite(Number(seconds))) demoPlayer.seek(Number(seconds) / perBeat);
+    sendExampleProgress();
+  });
+  function sendExampleProgress() {
+    if (demoContext?.kind !== 'copilot' || !demoPlayer.isActive()) return;
+    const perBeat = 60 / demoContext.tempo;
+    document.dispatchEvent(new CustomEvent('copilot-example-progress', {
+      detail: {
+        id: demoContext.id,
+        position: demoPlayer.position() * perBeat,
+        duration: demoPlayer.duration() * perBeat,
+        paused: demoPlayer.isPaused(),
+      },
+    }));
+  }
 
   function refreshDemoButtons(exState) {
     const btn = document.getElementById('exercise-demo-btn');

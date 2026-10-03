@@ -160,6 +160,9 @@ function testPassageExample() {
     leading.events.find((e) => e.type === 'noteOn').time === 2 && leading.markers[0]?.kind === 'parle', JSON.stringify(leading.markers));
   const quiet = passageExample([{ midi: 60, start: 20, end: 21 }], { start: 4, end: 24 });
   check('Rejeu : un silence en tête, sans parole, est sauté', quiet.events.find((e) => e.type === 'noteOn').time <= 0.3 && !quiet.markers.length);
+  // [Claude] — 2026-10-03 — Sa note (0:20 dans la vidéo) est à 0,3 s dans l'exemple : la barre de
+  // lecture doit dire « dans la vidéo : 0:20 », pas 0:07.
+  check('Rejeu : le silence sauté compte dans le temps de la vidéo', JSON.stringify(quiet.timeMap) === JSON.stringify([[0, 19.7], [1.3, 21]]), JSON.stringify(quiet.timeMap));
 }
 
 testSamples();

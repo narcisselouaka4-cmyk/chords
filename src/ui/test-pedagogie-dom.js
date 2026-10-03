@@ -513,5 +513,30 @@ check('Plus de liste 10 / 20 / 30 / 60 s ni de boucle A-B à part',
   !tabCode.includes('passageSeconds') && !tabCode.includes('els.momentLength') && !tabCode.includes('els.loop ')
   && !tabCode.includes('fromLoop'));
 
+// ---------------------------------------------------------------------------
+// 14. [Claude] — 2026-10-03 — La barre de lecture des exemples du Copilote (Narcisse : « revenir
+// en arrière manuellement quand le copilote joue, un peu comme sur un lecteur »)
+// ---------------------------------------------------------------------------
+const playerCode = stripComments(readText('src/exercise-demo-player.js'));
+const bridgeCss = readText('src/ui/refonte/astra-bridge.css');
+check('Le lecteur sait faire pause, reprendre, aller à un instant ; la reprise remet la pédale et les notes tenues',
+  /return \{\s*play,\s*stop,\s*pause,\s*resume,\s*seek,\s*position,/.test(playerCode)
+  && /if \(sustain\) fire\(\{ type: 'sustain', value: true \}\);/.test(playerCode) && /send\('noteOn', note, d\.velocity\);/.test(playerCode));
+check('main.js : commandes de la carte (pause, reprise, −5 s, aller à) et position envoyée toutes les 250 ms',
+  mainJs.includes("document.addEventListener('copilot-example-control'") && /exampleTicker = setInterval\(sendExampleProgress, 250\);/.test(mainJs)
+  && mainJs.includes("new CustomEvent('copilot-example-progress'") && /else if \(action === 'back'\) demoPlayer\.seek\(demoPlayer\.position\(\) - /.test(mainJs));
+check('La carte : Pause / Reprendre, « ⟲ 5 s », curseur, moments où le prof parle, phrase pendant sa pause',
+  copilotTabCode.includes("'data-action': 'toggle'") && copilotTabCode.includes("'data-action': 'back'")
+  && copilotTabCode.includes("className: 'copilot-transport-range'") && /markerSpans\(example, duration\)/.test(copilotTabCode)
+  && /markerNote\(markerAt\(example, position, \{ after: 2\.5 \}\)\)/.test(copilotTabCode)
+  && copilotTabCode.includes("document.addEventListener('copilot-example-progress'"));
+check('« Voir dans la vidéo » : l\'exemple se met en pause, la vidéo va à l\'instant correspondant',
+  copilotTabCode.includes("text: 'Voir dans la vidéo'") && /videoTimeAt\(example, exampleProgress\?\.id === id \? exampleProgress\.position : 0\)/.test(copilotTabCode)
+  && /if \(!examplePaused\) control\('pause'\);/.test(copilotTabCode));
+check('La barre n\'est montrée que sous l\'exemple qui joue, et ses styles valent dans les deux vues',
+  /if \(transport && !playing && !transport\.hidden\)/.test(copilotTabCode)
+  && bridgeCss.includes(':is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example-transport {')
+  && bridgeCss.includes('.copilot-transport-range::-webkit-slider-thumb'));
+
 console.log(`\n=== Résultat : ${passed}/${total} contrôles passés ===`);
 if (passed < total) process.exitCode = 1;

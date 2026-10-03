@@ -342,5 +342,75 @@ console.log('\n=== Lecteur de démo ===');
   check('Après l\'arrêt, aucune minuterie ne rejoue', sent.length === count && clock.length === 0);
 }
 
+// [Claude] — 2026-10-03 — Comme un lecteur (Narcisse : « revenir en arrière manuellement quand
+// le copilote joue, un peu comme sur un lecteur ») : pause, reprise, aller à un instant.
+console.log('\n=== Lecteur de démo : pause, reprise, −5 s ===');
+{
+  // Horloge simulée : chaque minuterie part à son heure, dans l'ordre.
+  let t = 0;
+  let queue = [];
+  const setTimer = (fn, ms) => { const id = { fn, at: t + ms }; queue.push(id); return id; };
+  const clearTimer = (id) => { queue = queue.filter((x) => x !== id); };
+  const advance = (ms) => {
+    const target = t + ms;
+    for (;;) {
+      const due = queue.filter((x) => x.at <= target).sort((a, b) => a.at - b.at)[0];
+      if (!due) break;
+      queue = queue.filter((x) => x !== due);
+      t = due.at;
+      due.fn();
+    }
+    t = target;
+  };
+  const sent = [];
+  const ends = [];
+  const player = createDemoPlayer({
+    send: (type, a, b) => sent.push([Math.round(t), type, a, b]),
+    onEnd: (reason) => ends.push(reason),
+    setTimer,
+    clearTimer,
+    now: () => t,
+  });
+  const after = (from) => sent.filter(([at]) => at >= from).map(([at, type, a]) => `${at} ${type} ${a}`).join(' · ');
+  // Tempo 60 (un temps = une seconde) : Do grave tenu 0–4 s sous la pédale (0,1–3,9 s), puis Mi 5–6 s.
+  const events = [
+    { time: 0, type: 'noteOn', note: 48, velocity: 0.8 },
+    { time: 0.1, type: 'sustain', value: true },
+    { time: 3.9, type: 'sustain', value: false },
+    { time: 4, type: 'noteOff', note: 48 },
+    { time: 5, type: 'noteOn', note: 64, velocity: 0.6 },
+    { time: 6, type: 'noteOff', note: 64 },
+  ];
+  player.play({ events, beats: 6 }, { tempo: 60 });
+  check('Durée de la démo (en temps)', player.duration() === 6);
+  advance(80 + 2000);
+  check('Position suivie pendant la lecture', Math.abs(player.position() - 2) < 1e-9, String(player.position()));
+  const pausedAt = t;
+  check('Pause : tout est relâché, pédale comprise', player.pause() && player.isPaused() && !player.isPlaying() && player.isActive()
+    && after(pausedAt) === `${pausedAt} noteOff 48 · ${pausedAt} sustain false`, after(pausedAt));
+  advance(5000);
+  check('En pause, rien ne joue et la position reste', after(pausedAt + 1) === '' && Math.abs(player.position() - 2) < 1e-9);
+  check('En pause, aller à 1,5 s ne joue rien', player.seek(1.5) && player.position() === 1.5 && after(pausedAt + 1) === '');
+  const resumedAt = t;
+  player.resume();
+  advance(0);
+  check('Reprise au milieu de l\'accord : la pédale est remise, la note tenue rejouée', after(resumedAt) === `${resumedAt} sustain true · ${resumedAt} noteOn 48`, after(resumedAt));
+  advance(3000);
+  check('La suite part à son heure (pédale relevée à 3,9 s, Do relâché à 4 s)',
+    after(resumedAt + 1) === `${resumedAt + 2400} sustain false · ${resumedAt + 2500} noteOff 48`, after(resumedAt + 1));
+  const backAt = t;
+  check('« −5 s » pendant la lecture : retour au début, qui rejoue', player.seek(player.position() - 5) && player.isPlaying());
+  advance(200);
+  check('Le début rejoue : Do, puis la pédale', after(backAt) === `${backAt} noteOn 48 · ${backAt + 100} sustain true`, after(backAt));
+  advance(10000);
+  check('Fin annoncée, tout relâché', ends.join() === 'finished' && !player.isActive() && after(backAt + 1000).endsWith('noteOff 64'), `${ends.join()} | ${after(backAt + 1000)}`);
+  player.play({ events, beats: 6 }, { tempo: 60 });
+  advance(500);
+  player.pause();
+  player.stop();
+  check('Arrêter pendant une pause : la fin est annoncée', ends.join() === 'finished,stopped' && !player.isActive());
+  check('Reprendre ou aller à un instant sans démo : rien', !player.resume() && !player.seek(2) && player.position() === 0);
+}
+
 console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);
 if (failed > 0) process.exit(1);

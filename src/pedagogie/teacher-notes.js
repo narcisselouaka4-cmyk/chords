@@ -299,6 +299,8 @@ export function passageExample(notes, { start, end, hand = null, semitones = 0, 
   const pauses = [];
   const out = [];
   let removed = 0;
+  // Silence de tête sauté (sans parole) : l'exemple commence plus loin dans la vidéo.
+  let leadSkipped = 0;
   let coverEnd = from;
   for (let i = 0; i < picked.length; i += 1) {
     const n = picked[i];
@@ -310,12 +312,14 @@ export function passageExample(notes, { start, end, hand = null, semitones = 0, 
       const exStart = coverEnd - from - removed;
       removed += gap - kept;
       if (i > 0 || talking) pauses.push({ videoStart: coverEnd, videoEnd: n.start, exStart, exEnd: exStart + kept, speaks: talking });
+      else leadSkipped = gap - kept;
     }
     coverEnd = Math.max(coverEnd, ends[i]);
     out.push({ n, at: n.start - from - removed, until: ends[i] - from - removed });
   }
   // Temps de l'exemple → temps de la vidéo : un point à chaque bout de pause, droite entre deux.
-  const timeMap = [[0, from]];
+  // [Claude] — 2026-10-03 — Le premier point tient compte du silence de tête sauté.
+  const timeMap = [[0, from + leadSkipped]];
   for (const p of pauses) timeMap.push([p.exStart, p.videoStart], [p.exEnd, p.videoEnd]);
   timeMap.push([coverEnd - from - removed, coverEnd]);
   const toExample = (t) => {

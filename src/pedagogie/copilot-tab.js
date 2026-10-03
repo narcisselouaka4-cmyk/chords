@@ -22,8 +22,11 @@ import {
   TUTORIAL_QUICK_ACTIONS, TUTORIAL_KEYS, TRANSFER_KINDS, TUTORIAL_PROGRESSIONS,
   otherKeyQuestion, applyQuestion, keyIdFrom, keyLabel,
 } from './tutorial-questions.js';
-import { linkClockTimes } from './tutorial-moment.js';
+import { linkClockTimes, clock } from './tutorial-moment.js';
 import { gridFromExample, favoritesFromExample } from './example-export.js';
+import {
+  BACK_SECONDS, exampleSeconds, videoTimeAt, markerAt, markerNote, markerSpans, timeLabel,
+} from './example-transport.js';
 
 const els = {};
 let currentTutorialPath = null;
@@ -31,6 +34,11 @@ let messages = [];
 let currentConversationId = null;
 // Exemple du Copilote en cours de lecture (identifiant du message), ou null.
 let playingExampleId = null;
+// [Claude] — 2026-10-03 — Sa barre de lecture : en pause ou non, et sa position (envoyée par
+// main.js toutes les 250 ms). Les exemples par identifiant, pour construire la barre.
+let examplePaused = false;
+let exampleProgress = null;
+const examplesById = new Map();
 // [Claude] — 2026-09-25 — Dernier passage joué (« Qu'en penses-tu ? ») : son
 // portrait (lines), ses notes exactes (events, pour le rejouer) et sa tonalité,
 // gardés pour les questions de suivi de la même conversation.
@@ -433,6 +441,8 @@ const FRENCH_NOTES = ['Do', 'Réb', 'Ré', 'Mib', 'Mi', 'Fa', 'Fa#', 'Sol', 'Lab
 const frenchNote = (midi) => `${FRENCH_NOTES[((midi % 12) + 12) % 12]}${Math.floor(midi / 12) - 1}`;
 const ICON_PLAY = '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>';
 const ICON_STOP = '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="1.5"/></svg>';
+const ICON_PAUSE = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>';
+const ICON_BACK = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>';
 
 /** Identifiant stable de l'exemple d'un message (pour le bouton Écouter / Arrêter). */
 function exampleIdOf(msg) {
@@ -477,10 +487,165 @@ function renderExampleCard(msg) {
     text.appendChild(list);
   }
   card.appendChild(text);
+  // [Claude] — 2026-10-03 — La barre de lecture, sous l'exemple qui joue (ou en pause).
+  examplesById.set(id, example);
+  const transport = el('div', { className: 'copilot-example-transport' });
+  transport.hidden = !playing;
+  card.appendChild(transport);
+  if (playing) updateTransport(transport, example, id);
   // [Claude] — 2026-10-03 — Lot 6 : l'exemple se travaille ensuite dans Exercices.
   const exportRow = renderExampleExport(example, id);
   if (exportRow) card.appendChild(exportRow);
   return card;
+}
+
+/**
+ * [Claude] — 2026-10-03 — La barre de lecture de l'exemple (Narcisse : « revenir en arrière
+ * manuellement quand le copilote joue, un peu comme sur un lecteur […] pour revoir un passage
+ * et demander des explications supplémentaires »). Pause / Reprendre, « ⟲ 5 s », le curseur
+ * (les moments où le prof parle y sont marqués), la phrase pendant une de ses pauses, et
+ * l'instant de la vidéo avec « Voir dans la vidéo ». Le lecteur est celui de main.js
+ * (évènement « copilot-example-control »).
+ */
+function buildTransport(box, example, id) {
+  box.textContent = '';
+  box.dataset.builtFor = id;
+  const control = (action, extra = {}) => document.dispatchEvent(new CustomEvent('copilot-example-control', { detail: { id, action, ...extra } }));
+  const duration = exampleSeconds(example);
+  const toggle = el('button', {
+    type: 'button',
+    className: 'copilot-transport-btn',
+    'data-action': 'toggle',
+    onClick: () => control(examplePaused ? 'resume' : 'pause'),
+  });
+  const back = el('button', {
+    type: 'button',
+    className: 'copilot-transport-btn',
+    'data-action': 'back',
+    title: `Revenir ${BACK_SECONDS} secondes en arrière`,
+    'aria-label': `Revenir ${BACK_SECONDS} secondes en arrière`,
+    onClick: () => control('back', { seconds: BACK_SECONDS }),
+  });
+  back.innerHTML = ICON_BACK;
+  back.appendChild(el('span', { text: `${BACK_SECONDS} s` }));
+  // La piste : ce qui est joué, et les moments où le prof parle (ou s'arrête), à leur place.
+  const track = el('div', { className: 'copilot-transport-track', 'aria-hidden': 'true' }, [
+    el('div', { className: 'copilot-transport-fill' }),
+  ]);
+  for (const m of markerSpans(example, duration)) {
+    track.appendChild(el('span', { className: `copilot-transport-mark is-${m.kind}`, style: `left: ${m.left}%; width: ${m.width}%`, title: m.title }));
+  }
+  const time = el('span', { className: 'copilot-transport-time' });
+  const range = el('input', {
+    type: 'range',
+    className: 'copilot-transport-range',
+    min: '0',
+    max: String(Math.max(0.1, Math.round(duration * 10) / 10)),
+    step: '0.1',
+    value: '0',
+    'aria-label': 'Position dans l\'exemple',
+  });
+  // Pendant qu'on tire le curseur, la position reçue ne le déplace pas.
+  const release = () => setTimeout(() => { delete range.dataset.dragging; }, 300);
+  range.addEventListener('pointerdown', () => { range.dataset.dragging = '1'; });
+  range.addEventListener('pointerup', release);
+  range.addEventListener('pointercancel', release);
+  range.addEventListener('input', () => { time.textContent = timeLabel(Number(range.value), duration); });
+  range.addEventListener('change', () => {
+    control('seek', { seconds: Number(range.value) });
+    release();
+  });
+  box.appendChild(el('div', { className: 'copilot-transport-row' }, [
+    toggle,
+    back,
+    el('div', { className: 'copilot-transport-bar' }, [track, range]),
+    time,
+  ]));
+  const note = el('p', { className: 'copilot-transport-note', 'aria-live': 'polite' });
+  note.hidden = true;
+  box.appendChild(note);
+  // Un passage de la vidéo : l'instant correspondant, et y aller (la lecture se met en pause).
+  if (videoTimeAt(example, 0) !== null) {
+    box.appendChild(el('p', { className: 'copilot-transport-video' }, [
+      el('span', { className: 'copilot-transport-video-time' }),
+      el('button', {
+        type: 'button',
+        className: 'copilot-example-link',
+        text: 'Voir dans la vidéo',
+        title: 'Met l\'exemple en pause et place la vidéo du prof à cet instant',
+        onClick: () => {
+          const seconds = videoTimeAt(example, exampleProgress?.id === id ? exampleProgress.position : 0);
+          if (!examplePaused) control('pause');
+          if (Number.isFinite(seconds)) document.dispatchEvent(new CustomEvent('pedagogie-seek', { detail: { seconds } }));
+        },
+      }),
+    ]));
+  }
+}
+
+/** Met la barre à jour : bouton Pause / Reprendre, curseur, temps, phrase, instant de la vidéo. */
+function updateTransport(box, example, id) {
+  if (box.dataset.builtFor !== id) buildTransport(box, example, id);
+  const progress = exampleProgress?.id === id ? exampleProgress : null;
+  const duration = progress?.duration || exampleSeconds(example);
+  const position = Math.min(duration, progress?.position || 0);
+  const toggle = box.querySelector('[data-action="toggle"]');
+  if (toggle && toggle.dataset.paused !== String(examplePaused)) {
+    toggle.dataset.paused = String(examplePaused);
+    toggle.innerHTML = examplePaused ? ICON_PLAY : ICON_PAUSE;
+    toggle.appendChild(el('span', { text: examplePaused ? 'Reprendre' : 'Pause' }));
+    toggle.setAttribute('aria-label', examplePaused ? 'Reprendre la lecture' : 'Mettre en pause');
+  }
+  const range = box.querySelector('.copilot-transport-range');
+  const dragging = range?.dataset.dragging === '1';
+  if (range && !dragging) {
+    range.value = String(Math.round(position * 10) / 10);
+    range.setAttribute('aria-valuetext', timeLabel(position, duration).replace(' / ', ' sur '));
+  }
+  const fill = box.querySelector('.copilot-transport-fill');
+  if (fill) fill.style.width = `${duration > 0 ? Math.min(100, (position / duration) * 100) : 0}%`;
+  const time = box.querySelector('.copilot-transport-time');
+  if (time && !dragging) time.textContent = timeLabel(position, duration);
+  const note = box.querySelector('.copilot-transport-note');
+  if (note) {
+    const text = markerNote(markerAt(example, position, { after: 2.5 }));
+    if (note.textContent !== text) note.textContent = text;
+    const appearing = note.hidden && Boolean(text);
+    note.hidden = !text;
+    if (appearing) keepVisible(box);
+  }
+  const videoTime = box.querySelector('.copilot-transport-video-time');
+  if (videoTime) {
+    const seconds = videoTimeAt(example, position);
+    videoTime.textContent = Number.isFinite(seconds) ? `Dans la vidéo : ${clock(seconds)} · ` : '';
+  }
+}
+
+/** La barre de l'exemple qui joue suit sa position (sans redessiner la conversation). */
+function refreshExampleTransport() {
+  if (!els.messages || !playingExampleId) return;
+  const card = [...els.messages.querySelectorAll('.copilot-example')].find((c) => c.dataset.exampleId === playingExampleId);
+  const box = card?.querySelector('.copilot-example-transport');
+  const example = examplesById.get(playingExampleId);
+  if (!box || !example) return;
+  const appearing = box.hidden;
+  box.hidden = false;
+  card.classList.toggle('is-paused', examplePaused);
+  updateTransport(box, example, playingExampleId);
+  // La barre vient d'apparaître sous la carte : elle reste visible dans la conversation.
+  if (appearing) keepVisible(box);
+}
+
+/**
+ * Un élément de la carte qui joue dépasse en bas de la conversation : elle défile juste ce
+ * qu'il faut. Une conversation qu'on relit plus haut (carte hors de vue) n'est pas ramenée.
+ */
+function keepVisible(node) {
+  const list = els.messages;
+  if (!node || !list || list.scrollHeight <= list.clientHeight) return;
+  const box = node.getBoundingClientRect();
+  const view = list.getBoundingClientRect();
+  if (box.top < view.bottom && box.bottom > view.bottom) list.scrollTop += box.bottom - view.bottom + 8;
 }
 
 // Ce qui a déjà été envoyé dans Exercices, par exemple (les messages sont souvent redessinés).
@@ -558,12 +723,21 @@ function refreshExampleCards() {
   els.messages.querySelectorAll('.copilot-example').forEach((card) => {
     const playing = card.dataset.exampleId === playingExampleId;
     card.classList.toggle('is-playing', playing);
+    card.classList.toggle('is-paused', playing && examplePaused);
+    // [Claude] — 2026-10-03 — La barre de lecture n'est montrée que sous l'exemple qui joue.
+    const transport = card.querySelector('.copilot-example-transport');
+    if (transport && !playing && !transport.hidden) {
+      transport.hidden = true;
+      transport.textContent = '';
+      delete transport.dataset.builtFor;
+    }
     const button = card.querySelector('.copilot-example-play');
     if (!button) return;
     button.setAttribute('aria-pressed', playing ? 'true' : 'false');
     button.innerHTML = playing ? ICON_STOP : ICON_PLAY;
     button.appendChild(el('span', { text: playing ? 'Arrêter' : card.dataset.playLabel || 'Écouter l\'exemple' }));
   });
+  refreshExampleTransport();
 }
 
 const ICON_HEADPHONES = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><path d="M21 15a2 2 0 0 1-2 2h-1v-5h1a2 2 0 0 1 2 2zM3 15a2 2 0 0 0 2 2h1v-5H5a2 2 0 0 0-2 2z"/></svg>';
@@ -1291,9 +1465,24 @@ export async function initCopilotTab() {
   // Lecture d'un exemple commencée / finie (main.js).
   document.addEventListener('copilot-example-state', (e) => {
     const { id, playing } = e.detail || {};
-    if (playing) playingExampleId = id;
-    else if (playingExampleId === id) playingExampleId = null;
+    if (playing) {
+      playingExampleId = id;
+      examplePaused = false;
+      exampleProgress = null;
+    } else if (playingExampleId === id) {
+      playingExampleId = null;
+      examplePaused = false;
+      exampleProgress = null;
+    }
     refreshExampleCards();
+  });
+  // [Claude] — 2026-10-03 — Sa position, toutes les 250 ms (main.js) : la barre la suit.
+  document.addEventListener('copilot-example-progress', (e) => {
+    const { id, position, duration, paused } = e.detail || {};
+    if (!id || id !== playingExampleId) return;
+    exampleProgress = { id, position: Number(position) || 0, duration: Number(duration) || 0 };
+    examplePaused = Boolean(paused);
+    refreshExampleTransport();
   });
 
   document.addEventListener('copilot-send-message', async (e) => {
