@@ -18,7 +18,8 @@
 //
 // Fonctions pures, testées dans test-tutorial-transfer.js.
 
-import { parseChordName, availableTensions } from './note-roles.js';
+import { parseChordName, availableTensions, degreeOf } from './note-roles.js';
+import { scaleById } from './scales.js';
 import { chordToneIntervals } from '../practice-exercise.js';
 import { guessHands } from './teacher-notes.js';
 import { buildNotesExample, buildChordExample } from './copilot-demo.js';
@@ -773,6 +774,236 @@ export function applyPassingMoves(moves, targets, { sharps = false } = {}) {
   return { sequence, everywhere };
 }
 
+// ── Licks, runs et fills : la ligne du prof, note par note ──────────────────────
+// [Claude] — 2026-10-03 — Lot 4. Chaque note de sa ligne est décrite par rapport à
+// l'accord qui sonne dessous : note de l'accord ou tension (son rôle : 3, b7, 9…), note
+// de la gamme de l'accord (son rang : dorien sur m7, mixolydien sur 7…) ou note
+// chromatique (son écart avec la note qui suit : approche par en dessous, par
+// au-dessus). Sur un accord cible, chaque rôle prend l'équivalent (3 → b3 sur un mineur,
+// 7 → b7 sur une dominante), chaque note de gamme le même rang dans la gamme de l'accord
+// cible ; le contour (montées, descentes, sauts) et le rythme du prof sont gardés.
+
+const EXTRA_SCALES = { 'mixolydian-b13': [0, 2, 4, 5, 7, 8, 10] };
+
+/**
+ * Gamme d'un accord (« chord scale ») : ionien sur maj7, lydien sur maj7#11, dorien sur
+ * m7, mineur mélodique sur m(maj7), mixolydien sur 7, altérée sur 7alt, diminuée
+ * demi-ton / ton sur 7b9, locrien sur m7b5, diminuée ton / demi-ton sur dim7.
+ * @returns {{id: string, intervals: number[]}}
+ */
+export function chordScale(quality = '') {
+  const q = String(quality || '');
+  const family = chordFamily(q);
+  let id = 'major';
+  if (family === 'dim') id = DIM7.test(q) ? 'diminished-wh' : 'locrian';
+  else if (family === 'halfdim') id = 'locrian';
+  else if (family === 'sus') id = 'mixolydian';
+  else if (family === 'dominant') {
+    if (/alt|#5|\+|aug/.test(q) || (/#9/.test(q) && /b13/.test(q))) id = 'altered';
+    else if (/b9|#9/.test(q)) id = 'diminished-hw';
+    else if (/#11/.test(q)) id = 'lydian-dominant';
+    else if (/b13/.test(q)) id = 'mixolydian-b13';
+    else id = 'mixolydian';
+  } else if (family === 'minor') id = /maj7|M7/.test(q) ? 'melodic-minor' : /b6|b13/.test(q) ? 'aeolian' : 'dorian';
+  else if (family === 'major') id = /#11|#4/.test(q) ? 'lydian' : AUGMENTED.test(q) ? 'whole-tone' : 'major';
+  return { id, intervals: EXTRA_SCALES[id] || scaleById(id)?.intervals || [0, 2, 4, 5, 7, 9, 11] };
+}
+
+/** L'accord de la grille qui sonne à l'instant t (le dernier commencé). */
+function chordAt(grid, t) {
+  let found = null;
+  for (const c of grid) if (c.start <= t + 0.05) found = c;
+  return found;
+}
+
+/**
+ * Ce qu'est une note de la ligne pour l'accord qui sonne dessous.
+ * @returns {{kind: 'role'|'scale'|'chromatic', interval: number, role?: string, alt?: number, degree?: number, size?: number}}
+ */
+export function lickNoteRole(midi, chord) {
+  const interval = pcOf(midi - chord.rootPc);
+  const tones = chordToneIntervals(chord.quality);
+  if (tones.has(interval) || availableTensions(chord.quality).has(interval)) {
+    return { kind: 'role', interval, ...roleOfInterval(interval, chord.quality, tones) };
+  }
+  const scale = chordScale(chord.quality).intervals;
+  const degree = scale.indexOf(interval);
+  if (degree >= 0) return { kind: 'scale', interval, degree, size: scale.length };
+  return { kind: 'chromatic', interval };
+}
+
+/**
+ * La ligne du prof dans le passage (lick, run, fill) : ses notes seules (ou le dessus
+ * d'une note doublée), main par main, en phrases (un silence de plus de 0,7 s les
+ * sépare) ; la phrase la plus riche (4 notes au moins), la plus récente à égalité, sur
+ * deux accords au plus et ses 4 dernières secondes (24 notes au plus) : « ce qu'il vient
+ * de faire ». null s'il ne joue que des accords.
+ * @param {object[]} notes - notes du prof
+ * @param {{start: number, end: number, label: string}[]} chords - grille relevée
+ * @param {{start: number, end: number}} window
+ * @returns {{hand: 'lh'|'rh', start: number, end: number, notes: {midi: number, start: number, end: number, chord: object, role: object}[], chords: object[]}|null}
+ */
+export function lickLine(notes, chords, { start = 0, end = Infinity, maxNotes = 24, maxSeconds = 4 } = {}) {
+  const grid = [...(chords || [])].filter((c) => Number.isFinite(c?.start)).sort((a, b) => a.start - b.start)
+    .map((c) => ({ ...parseChordName(c.label || c.name), start: c.start, end: Number.isFinite(c.end) ? c.end : c.start }))
+    .filter((c) => c.name);
+  const inWindow = guessHands((notes || []).filter((n) => Number.isFinite(n?.midi) && Number.isFinite(n?.start) && n.start >= start && n.start < end));
+  let best = null;
+  for (const hand of ['rh', 'lh']) {
+    const line = [];
+    for (const group of attackClusters(inWindow.filter((n) => (n.hand === 'lh' ? 'lh' : 'rh') === hand), 0.04)) {
+      // Une note seule, ou le dessus d'une note doublée (tierces, sixtes) ; un accord n'en est pas.
+      if (group.length <= 2) line.push(group.reduce((top, n) => (n.midi > top.midi ? n : top)));
+    }
+    const phrases = [];
+    for (const n of line) {
+      const last = phrases[phrases.length - 1];
+      if (last && n.start - last[last.length - 1].start <= 0.7) last.push(n);
+      else phrases.push([n]);
+    }
+    for (const phrase of phrases) {
+      if (phrase.length < 4) continue;
+      // Un accord arpégé (notes encore tenues ensemble à la dernière) n'est pas une ligne.
+      const last = phrase[phrase.length - 1];
+      if (phrase.slice(0, -1).filter((n) => (Number.isFinite(n.end) ? n.end : n.start) > last.start + 0.05).length >= 3) continue;
+      if (!best || phrase.length > best.phrase.length || (phrase.length === best.phrase.length && phrase[0].start > best.phrase[0].start)) best = { hand, phrase };
+    }
+  }
+  if (!best) return null;
+  const phraseEnd = best.phrase[best.phrase.length - 1].start;
+  let kept = best.phrase.filter((n) => n.start >= phraseEnd - maxSeconds).slice(-maxNotes);
+  // Deux accords au plus : les derniers sous la ligne.
+  const under = (n) => chordAt(grid, n.start);
+  const lickChords = [];
+  for (const n of kept) {
+    const c = under(n);
+    if (c && lickChords[lickChords.length - 1] !== c) lickChords.push(c);
+  }
+  const lastTwo = lickChords.slice(-2);
+  kept = kept.filter((n) => lastTwo.includes(under(n)));
+  if (kept.length < 4 || !lastTwo.length) return null;
+  return {
+    hand: best.hand,
+    start: kept[0].start,
+    end: Math.max(...kept.map((n) => (Number.isFinite(n.end) ? n.end : n.start + 0.2))),
+    notes: kept.map((n) => {
+      const chord = under(n);
+      return { midi: n.midi, start: n.start, end: Number.isFinite(n.end) ? n.end : n.start + 0.2, chord, role: lickNoteRole(n.midi, chord) };
+    }),
+    chords: lastTwo,
+  };
+}
+
+/** La ligne du prof décrite : « 9 · 1 · b7 · (b7) · 13 | 3 » (entre parenthèses : notes chromatiques). */
+export function describeLick(lick) {
+  const parts = [];
+  let current = null;
+  for (const n of lick.notes) {
+    if (current !== n.chord) {
+      parts.push([]);
+      current = n.chord;
+    }
+    const degree = degreeOf(n.role.interval, n.chord.quality);
+    parts[parts.length - 1].push(n.role.kind === 'chromatic' ? `(${degree})` : degree);
+  }
+  return parts.map((p) => p.join(' · ')).join(' | ');
+}
+
+/** L'intervalle (depuis la fondamentale de l'accord cible) de la note qui tient le même rôle ; null : note chromatique. */
+function lickInterval(role, target) {
+  if (role.kind === 'chromatic') return null;
+  if (role.kind === 'role') {
+    const iv = intervalForRole(role, target.quality);
+    if (iv != null) return iv;
+  }
+  const scale = chordScale(target.quality).intervals;
+  if (role.kind === 'scale' && role.size === scale.length) return scale[role.degree];
+  // Gammes de tailles différentes (diminuée à 8 notes), ou rôle absent : la note de la gamme la plus proche.
+  return scale.reduce((best, iv) => (Math.abs(iv - role.interval) < Math.abs(best - role.interval) ? iv : best), scale[0]);
+}
+
+/** Le hauteur de cette classe la plus proche de `want`. */
+function nearestPitch(pc, want) {
+  const base = want - pcOf(want - pc);
+  return want - base <= 6 ? base : base + 12;
+}
+
+/**
+ * La ligne du prof posée sur un ou deux accords cibles (dans l'ordre de ses accords) :
+ * même rôle ou même rang de gamme pour chaque note, mêmes intervalles autant que
+ * possible (contour), notes chromatiques à la même distance de la note qui suit, et
+ * dans le registre du prof (à l'octave près).
+ * @param {object} lick - lickLine()
+ * @param {object[]} targets - accords analysés (parseChordName), un par accord de la ligne
+ * @returns {number[]} les hauteurs MIDI, note par note
+ */
+export function realizeLick(lick, targets) {
+  const out = new Array(lick.notes.length).fill(null);
+  const targetOf = (n) => targets[Math.max(0, lick.chords.indexOf(n.chord))] || targets[0];
+  let prev = null;
+  lick.notes.forEach((n, i) => {
+    const target = targetOf(n);
+    const iv = lickInterval(n.role, target);
+    if (iv === null) return;
+    const pc = pcOf(target.rootPc + iv);
+    out[i] = prev ? nearestPitch(pc, out[prev.index] + (n.midi - prev.midi)) : nearestPitch(pc, n.midi);
+    prev = { index: i, midi: n.midi };
+  });
+  // Notes chromatiques : même écart avec la note qui suit (ou, en fin de ligne, la précédente).
+  for (let i = out.length - 1; i >= 0; i -= 1) {
+    if (out[i] !== null) continue;
+    const next = out.slice(i + 1).findIndex((m) => m !== null);
+    if (next >= 0) {
+      const j = i + 1 + next;
+      out[i] = out[j] + (lick.notes[i].midi - lick.notes[j].midi);
+    } else {
+      const j = out.slice(0, i).map((m, k) => (m !== null ? k : -1)).filter((k) => k >= 0).pop();
+      out[i] = j != null ? out[j] + (lick.notes[i].midi - lick.notes[j].midi) : lick.notes[i].midi;
+    }
+  }
+  // Le registre du prof : la ligne entière, à l'octave près.
+  const mean = (list) => list.reduce((a, b) => a + b, 0) / list.length;
+  const shift = Math.round((mean(lick.notes.map((n) => n.midi)) - mean(out)) / 12) * 12;
+  return out.map((m) => Math.min(108, Math.max(21, m + shift)));
+}
+
+/**
+ * Où poser la ligne dans la progression : sur chaque accord du même genre que celui du
+ * prof (ligne sur un accord) ; sur chaque paire d'accords qui fait le même mouvement que
+ * chez lui (ligne de V → I, de II → V… : sur les autres quintes descendantes, les rôles
+ * s'adaptent : sa 3 devient la b3 d'un accord mineur), d'abord celles dont les accords
+ * sont du même genre que les siens, puis les plus proches de la fin. Jamais deux fois sur
+ * le même accord. Sans place de ce genre, sur chaque accord ou chaque paire (`everywhere`).
+ * @param {object} lick - lickLine()
+ * @param {object[]} parsed - accords de la progression (parseChordName)
+ * @returns {{at: number[], everywhere: boolean}} rang du premier accord de chaque pose, dans l'ordre
+ */
+export function lickPlacements(lick, parsed) {
+  const k = lick.chords.length;
+  const families = lick.chords.map((c) => chordFamily(c.quality));
+  const motion = k === 2 ? pcOf(lick.chords[1].rootPc - lick.chords[0].rootPc) : null;
+  const candidates = [];
+  for (let j = 0; j + k <= parsed.length; j += 1) {
+    const same = parsed.slice(j, j + k).filter((c, i) => chordFamily(c.quality) === families[i]).length;
+    const moves = k === 2 ? pcOf(parsed[j + 1].rootPc - parsed[j].rootPc) : null;
+    candidates.push({ j, same, strict: k === 1 ? same === 1 : moves === motion, loose: k === 1 || moves !== 0 });
+  }
+  const pick = (key) => {
+    const taken = new Set();
+    const at = [];
+    for (const c of candidates.filter((x) => x[key]).sort((a, b) => b.same - a.same || b.j - a.j)) {
+      const span = Array.from({ length: k }, (_, i) => c.j + i);
+      if (span.some((i) => taken.has(i))) continue;
+      span.forEach((i) => taken.add(i));
+      at.push(c.j);
+    }
+    return at.sort((a, b) => a - b);
+  };
+  const strict = pick('strict');
+  if (strict.length) return { at: strict, everywhere: false };
+  return { at: pick('loose'), everywhere: true };
+}
+
 // ── L'outil, de bout en bout ────────────────────────────────────────────────────
 
 /** Les gabarits du prof réellement employés, dans l'ordre où il les joue. */
@@ -836,6 +1067,90 @@ function transferPassingChords({ notes, chords, from, to, list, title, sharps, k
   return { example, text: [head, '_Ses voicings n\'ont pas pu être lus dans ce passage : voicings de l\'application._', ...lines].join('\n') };
 }
 
+/** Accompagnement simple quand le prof n'a pas de forme lisible : fondamentale et 7e (ou quinte), au grave. */
+function shellFor(chord, side = 'lh') {
+  const tones = chordToneIntervals(chord.quality);
+  const upper = tones.has(10) ? 10 : tones.has(11) ? 11 : tones.has(9) && DIM7.test(chord.quality) ? 9 : 7;
+  if (side === 'rh') {
+    const third = tones.has(3) && !tones.has(4) ? 3 : 4;
+    const low = 60 + pcOf(chord.rootPc + third - 60);
+    return [low, low + pcOf(upper - third)];
+  }
+  const root = 36 + pcOf(chord.rootPc - 36);
+  return [root, root + upper];
+}
+
+/** Cas 3 : sa ligne (lick, run, fill) posée sur la progression, ses voicings en accompagnement. */
+function transferLick({ notes, chords, from, to, list, title, sharps, found = null }) {
+  const lick = found || lickLine(notes, chords, { start: from, end: to });
+  if (!lick) {
+    const fallback = transferVoicings({ notes, chords, from, to, list, title, sharps });
+    const why = `Pas de ligne de notes seules (lick, run, fill) entre ${clock(from)} et ${clock(to)} : il y joue des accords.`;
+    return fallback.example ? { ...fallback, text: `_(${why} Voici ses voicings sur ta progression.)_\n${fallback.text}` } : { ...fallback, error: why };
+  }
+  const parsed = list.map((name) => parseChordName(name));
+  const { at, everywhere } = lickPlacements(lick, parsed);
+  const k = lick.chords.length;
+  const span = lick.end - lick.start;
+  const pre = k === 2 ? Math.max(0, lick.chords[1].start - lick.start) : 0;
+  const slots = parsed.map(() => 2);
+  for (const j of at) {
+    if (k === 1) slots[j] = Math.max(2, span + 0.6);
+    else {
+      slots[j] = Math.max(2, pre + 0.6);
+      slots[j + 1] = Math.max(2, span - pre + 0.4);
+    }
+  }
+  const starts = [];
+  slots.reduce((t, d) => { starts.push(t); return t + d; }, 0);
+  const lickHand = lick.hand === 'lh' ? 'LH' : 'RH';
+  const handWord = lick.hand === 'lh' ? 'main gauche' : 'main droite';
+  const covered = new Set(at.flatMap((j) => Array.from({ length: k }, (_, i) => j + i)));
+  const events = [];
+  const lines = [];
+  for (const j of at) {
+    const targets = parsed.slice(j, j + k);
+    const pitches = realizeLick(lick, targets);
+    const origin = k === 1 ? starts[j] + 0.25 : starts[j + 1] - pre;
+    lick.notes.forEach((n, i) => events.push({
+      midi: pitches[i],
+      startOffsetMs: Math.round(Math.max(0, origin + (n.start - lick.start)) * 1000),
+      durationMs: Math.round(Math.max(0.08, n.end - n.start) * 1000),
+      velocity: 0.8,
+      hand: lickHand,
+    }));
+    const names = pitches.map((m, i) => spellInChord(m, (targets[lick.chords.indexOf(lick.notes[i].chord)] || targets[0]).name, { sharps }));
+    // Un accord qui revient (G7 deux fois dans 4-5-3-6-2-5-1) : sa place dans la progression.
+    const label = targets.map((c) => c.name).join(' → ');
+    const repeated = at.filter((x) => parsed.slice(x, x + k).map((c) => c.name).join(' → ') === label).length > 1;
+    lines.push(`- **${label}**${repeated ? ` (${j + 1}e accord)` : ''} : ${handWord} ${names.join(' ')}`);
+  }
+  // Ses voicings en accompagnement : l'autre main toujours, la main de la ligne là où elle ne joue pas.
+  const shapes = voicingShapes(notes, chords, { start: from, end: to });
+  const realized = shapes.length ? applyVoicings(shapes, list) : [];
+  parsed.forEach((chord, i) => {
+    const r = realized.length === parsed.length ? realized[i] : null;
+    const other = lick.hand === 'lh' ? 'rightHand' : 'leftHand';
+    const own = lick.hand === 'lh' ? 'leftHand' : 'rightHand';
+    let accompaniment = r?.[other]?.length ? r[other] : shellFor(chord, lick.hand === 'lh' ? 'rh' : 'lh');
+    const parts = [[accompaniment, lick.hand === 'lh' ? 'RH' : 'LH']];
+    if (!covered.has(i) && r?.[own]?.length) parts.push([r[own], lickHand]);
+    for (const [list2, hand] of parts) {
+      for (const midi of list2) events.push({ midi, startOffsetMs: Math.round(starts[i] * 1000), durationMs: Math.round(slots[i] * 950), velocity: 0.62, hand });
+    }
+  });
+  const example = buildNotesExample(events, {
+    kind: 'tutorial-transfer',
+    title: title || `Son lick sur ${list.join(' → ')}`,
+    subtitle: `Repris de ${clock(lick.start)}–${clock(lick.end)} · ${lick.notes.length} notes · posé ${at.length} fois`,
+  });
+  if (example) example.chords = parsed.map((c, i) => ({ name: c.name, leftHand: [], rightHand: [], lick: covered.has(i) }));
+  const where = everywhere ? ` ; ta progression n'a pas d'accord de ce genre : posé sur ${k === 1 ? 'chaque accord' : 'chaque enchaînement'}` : '';
+  const head = `_Lick repris du prof (${clock(lick.start)}–${clock(lick.end)}, ${handWord}, sur ${lick.chords.map((c) => c.name).join(' → ')} : ${describeLick(lick)} ; entre parenthèses, les notes chromatiques${where}) :_`;
+  const accompaniment = shapes.length ? '_Accompagné de ses voicings._' : '_Accompagné de la fondamentale et de la 7e (ses voicings n\'ont pas pu être lus dans ce passage)._';
+  return { example, text: [head, ...lines, accompaniment].join('\n') };
+}
+
 /**
  * Ce que l'outil apply_tutorial_passage rend : l'exemple à écouter, et le texte qui
  * dit ce qui a été repris du prof et les notes de chaque accord.
@@ -844,8 +1159,9 @@ function transferPassingChords({ notes, chords, from, to, list, title, sharps, k
  * @param {object[]} input.chords - grille relevée
  * @param {number} input.start
  * @param {number} input.end
- * @param {'voicing'|'enchainement'|'lick'|'auto'} [input.what] - auto : ses accords de passage
- *   s'il y en a dans le passage, sinon ses voicings
+ * @param {'voicing'|'enchainement'|'lick'|'auto'} [input.what] - auto (« ce qu'il vient de
+ *   faire ») : sa ligne si elle finit dans la seconde moitié du passage, sinon ses accords
+ *   de passage s'il y en a, sinon ses voicings
  * @param {string[]} input.targets - accords cibles
  * @param {string} [input.title]
  * @param {string|null} [input.key] - tonalité du tuto : un accord hors tonalité dans une
@@ -861,11 +1177,13 @@ export function applyTutorialPassage({ notes = [], chords = [], start, end, what
   const input = { notes, chords, from, to, list, title, sharps, key };
   let kind = what || 'auto';
   if (kind === 'auto') {
+    const line = lickLine(notes, chords, { start: from, end: to });
+    if (line && line.end >= from + (to - from) / 2) return transferLick({ ...input, found: line });
     const found = passingMoves(chords, { start: from, end: to, key });
     if (found.moves.length) return transferPassingChords({ ...input, found });
     kind = 'voicing';
   }
-  if (kind === 'voicing') return transferVoicings(input);
   if (kind === 'enchainement') return transferPassingChords(input);
-  return { example: null, text: '', error: `« ${what} » : pas encore disponible.` };
+  if (kind === 'lick') return transferLick(input);
+  return transferVoicings(input);
 }

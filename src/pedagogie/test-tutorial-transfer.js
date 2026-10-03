@@ -5,7 +5,9 @@ import {
   noteLabel, chordFamily, roleOfInterval, intervalForRole, voicingShapes, describeShape,
   applyVoicings, progressionFromDegrees, parseKey, applyTutorialPassage, prefersSharps,
   spellInChord, passingMoves, applyPassingMoves, relationLabel,
+  chordScale, lickLine, describeLick, realizeLick, lickPlacements,
 } from './tutorial-transfer.js';
+import { parseChordName } from './note-roles.js';
 
 let passed = 0;
 let failed = 0;
@@ -227,6 +229,58 @@ check('« auto » : ses accords de passage quand le passage en a', /^_Enchaînem
 const none = applyTutorialPassage({ notes: CMAJ7_NOTES, chords: CMAJ7_GRID, start: 0, end: 5, what: 'enchainement', targets: ['Dm7', 'G7'], key: 'C' });
 check('pas d\'accord de passage : dit tel quel, et ses voicings à la place', /Pas d'accord de passage entre 0:00 et 0:05 : il enchaîne directement Cmaj7\. Voici ses voicings sur ta progression\./.test(none.text) && none.example, none.text.split('\n')[0]);
 check('« auto » sans accord de passage : ses voicings', /^_Voicings repris du prof/.test(applyTutorialPassage({ notes: CMAJ7_NOTES, chords: CMAJ7_GRID, start: 0, end: 5, what: 'auto', targets: ['Dm7'] }).text));
+
+// ── Lot 4 : ses licks, runs et fills ───────────────────────────────────────────
+console.log('Sa ligne (lick, run, fill)');
+// Le prof, sur G7 → Cmaj7 : gauche Sol2 Fa3 puis Do2 Si2 ; droite un accord, puis la ligne
+// Ré5 Do5 Si4 La4 Fa♯4 Sol4 | Mi4 (5 · 11 · 3 · 9 · approche chromatique · 1 | la 3 de Do).
+const LICK_GRID = [{ start: 0, end: 2, label: 'G7' }, { start: 2, end: 4, label: 'Cmaj7' }];
+const LICK_NOTES = [
+  { midi: 43, start: 0, end: 1.95, hand: 'lh' }, { midi: 53, start: 0, end: 1.95, hand: 'lh' },
+  { midi: 59, start: 0, end: 0.9, hand: 'rh' }, { midi: 62, start: 0, end: 0.9, hand: 'rh' }, { midi: 65, start: 0, end: 0.9, hand: 'rh' },
+  ...[[74, 1.0], [72, 1.15], [71, 1.3], [69, 1.45], [66, 1.6], [67, 1.75], [64, 2.0, 0.6]].map(([midi, start, d = 0.14]) => ({ midi, start, end: start + d, hand: 'rh' })),
+  { midi: 36, start: 2, end: 3.95, hand: 'lh' }, { midi: 47, start: 2, end: 3.95, hand: 'lh' },
+];
+const lick = lickLine(LICK_NOTES, LICK_GRID, { start: 0, end: 4 });
+check('la ligne de la main droite, sans son accord, sur G7 → Cmaj7', lick?.hand === 'rh' && lick.notes.map((n) => n.midi).join(' ') === '74 72 71 69 66 67 64'
+  && lick.chords.map((c) => c.name).join(' ') === 'G7 Cmaj7', lick && lick.notes.map((n) => n.midi).join(' '));
+check('chaque note par rapport à l\'accord dessous (entre parenthèses : chromatique)', describeLick(lick) === '5 · 11 · 3 · 9 · (7) · 1 | 3', describeLick(lick));
+check('note de l\'accord, note de gamme, note chromatique', lick.notes.map((n) => n.role.kind).join(' ') === 'role scale role role chromatic role role');
+check('gamme de l\'accord : dorien, mixolydien, altérée, locrien, diminuée, lydien',
+  ['m7', '7', '7alt', 'm7b5', 'dim7', 'maj7#11', '7b9', 'maj7'].map((q) => chordScale(q).id).join(' ') === 'dorian mixolydian altered locrian diminished-wh lydian diminished-hw major');
+const onTargets = (names) => realizeLick(lick, names.map((n) => parseChordName(n))).join(' ');
+check('sur ses propres accords : sa ligne telle quelle', onTargets(['G7', 'Cmaj7']) === '74 72 71 69 66 67 64');
+check('sur C7 → Fmaj7 : la même ligne, une quarte plus haut', onTargets(['C7', 'Fmaj7']) === '79 77 76 74 71 72 69', onTargets(['C7', 'Fmaj7']));
+check('sur A7 → Dm7 : la note d\'arrivée devient la tierce mineure (Fa)', onTargets(['A7', 'Dm7']) === '76 74 73 71 68 69 65', onTargets(['A7', 'Dm7']));
+check('sur Am7 → Dm7 : 3 → b3, la 4te de la gamme reste la 4te (dorien)', onTargets(['Am7', 'Dm7']) === '76 74 72 71 68 69 65', onTargets(['Am7', 'Dm7']));
+const places = lickPlacements(lick, progressionFromDegrees('4-5-3-6-2-5-1', 'C').map((n) => parseChordName(n)));
+check('4-5-3-6-2-5-1 : sur ses quintes descendantes, G7 → Cmaj7 d\'abord, sans chevauchement', places.at.join(',') === '3,5' && !places.everywhere, JSON.stringify(places));
+check('aucune quinte descendante : sur chaque paire, et dit', lickPlacements(lick, ['C', 'D', 'E'].map((n) => parseChordName(n))).everywhere === true);
+// Un run sur un seul accord : Do6 → Do5 sur Cmaj7, avec la #11 (Fa♯).
+const RUN_GRID = [{ start: 0, end: 3, label: 'Cmaj7' }];
+const RUN_NOTES = [84, 83, 81, 79, 78, 76, 74, 72].map((midi, i) => ({ midi, start: 0.5 + i * 0.1, end: 0.58 + i * 0.1, hand: 'rh' }));
+const run = lickLine(RUN_NOTES, RUN_GRID, { start: 0, end: 3 });
+// Fa6 → Fa5 : la transposition la plus proche de son registre (une quarte plus haut).
+check('un run sur un accord : sa #11 reste la #11 (Si sur Fmaj7)', run && realizeLick(run, [parseChordName('Fmaj7')]).join(' ') === '89 88 86 84 83 81 79 77', run && realizeLick(run, [parseChordName('Fmaj7')]).join(' '));
+check('… posé sur chaque accord majeur de la progression', lickPlacements(run, progressionFromDegrees('4-5-3-6-2-5-1', 'C').map((n) => parseChordName(n))).at.join(',') === '0,6');
+const rolled = lickLine([60, 64, 67, 71].map((midi, i) => ({ midi, start: 1 + i * 0.06, end: 2.5, hand: 'rh' })), RUN_GRID, { start: 0, end: 3 });
+check('un accord arpégé n\'est pas un lick', rolled === null);
+
+console.log('L\'outil, pour sa ligne');
+const lickTool = applyTutorialPassage({ notes: LICK_NOTES, chords: LICK_GRID, start: 0, end: 4, what: 'lick', targets: progressionFromDegrees('4-5-3-6-2-5-1', 'C') });
+const lickLines = lickTool.text.split('\n');
+check('le texte dit sa ligne, puis ses notes sur chaque place', /^_Lick repris du prof \(0:01–0:02, main droite, sur G7 → Cmaj7 : 5 · 11 · 3 · 9 · \(7\) · 1 \| 3/.test(lickLines[0])
+  && lickLines[1] === '- **Am7 → Dm7** : main droite Mi5 Ré5 Do5 Si4 Sol♯4 La4 Fa4' && lickLines[2] === '- **G7 → Cmaj7** : main droite Ré5 Do5 Si4 La4 Fa♯4 Sol4 Mi4'
+  && lickLines[3] === '_Accompagné de ses voicings._', lickLines.join(' / '));
+// Accords toutes les 2 s : Am7 à 6 s, Dm7 à 8 s ; la note d'arrivée (Fa4) tombe avec Dm7.
+const lickOns = (lickTool.example?.events || []).filter((e) => e.type === 'noteOn');
+check('l\'exemple : sa note d\'arrivée tombe avec l\'accord d\'arrivée, son rythme est gardé', lickOns.some((e) => e.note === 65 && Math.abs(e.time - 8) < 1e-6)
+  && lickOns.some((e) => e.note === 76 && Math.abs(e.time - 7) < 1e-6) && lickOns.some((e) => e.note === 74 && Math.abs(e.time - 7.15) < 1e-6),
+  lickOns.filter((e) => e.time >= 6.9 && e.time <= 8.1).map((e) => `${e.note}@${e.time}`).join(' '));
+check('… et la main gauche l\'accompagne avec ses voicings', lickOns.some((e) => e.hand === 'lh' && Math.abs(e.time - 6) < 1e-6));
+check('« auto » : sa ligne quand elle finit dans la seconde moitié du passage', /^_Lick repris du prof/.test(applyTutorialPassage({ notes: LICK_NOTES, chords: LICK_GRID, start: 0, end: 4, what: 'auto', targets: ['Dm7', 'G7'] }).text));
+const noLine = applyTutorialPassage({ notes: CMAJ7_NOTES, chords: CMAJ7_GRID, start: 0, end: 5, what: 'lick', targets: ['Dm7', 'G7'] });
+check('pas de ligne dans le passage : dit tel quel, et ses voicings à la place', /^_\(Pas de ligne de notes seules \(lick, run, fill\) entre 0:00 et 0:05 : il y joue des accords\. Voici ses voicings sur ta progression\.\)_/.test(noLine.text) && noLine.example, noLine.text.split('\n')[0]);
 
 console.log(`\n=== Résultat : ${passed}/${passed + failed} contrôles passés ===`);
 if (failed) process.exit(1);

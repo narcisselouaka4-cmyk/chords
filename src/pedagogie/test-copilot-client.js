@@ -1344,6 +1344,14 @@ function testApplyTutorialPassageTool() {
   check('apply_tutorial_passage, son enchaînement : sa substitution tritonique glissée devant chaque accord qui s\'y prête',
     names(ench) === 'Dm7 Ab9 G7 Db9 Cmaj7 Gb9 Fmaj7' && /Enchaînement repris du prof \(0:03 : G13 → Db9 → Cmaj9, dominante un demi-ton au-dessus de l'arrivée \(substitution tritonique\)\)/.test(ench.content || ''),
     `${names(ench)} | ${(ench.content || '').split('\n')[2]}`);
+
+  // Lot 4 : son lick. Le prof joue Ré5 Do5 Si4 La4 Fa♯4 Sol4 sur G13 (après son accord).
+  const lickNotes = [...TEACHER_NOTES, ...[74, 72, 71, 69, 66, 67].map((midi, i) => ({ midi, start: 2.6 + i * 0.2, end: 2.75 + i * 0.2, hand: 'rh' }))];
+  const lickTutorial = { key: 'C', noteEvents: lickNotes, chords: TEACHER_GRID, moment: TEACHER_MOMENT };
+  const lick = executeToolCalls([call({ start: 0, end: 6, what: 'lick', chords: ['Dm7', 'G7', 'Cmaj7'] })], 'Il part de la quinte et descend jusqu\'à la fondamentale.', { tutorial: lickTutorial });
+  check('apply_tutorial_passage, son lick : sa ligne posée sur la dominante de la progression, notes écrites',
+    /Lick repris du prof \(0:02–0:03, main droite, sur G13 : 5 · 11 · 3 · 9 · \(7\) · 1/.test(lick.content || '') && /- \*\*G7\*\* : main droite Ré5 Do5 Si4 La4 Fa♯4 Sol4/.test(lick.content || '')
+    && lick.example?.kind === 'tutorial-transfer', (lick.content || '').split('\n').slice(1, 4).join(' / '));
 }
 
 function testTutorialRouting() {
