@@ -848,7 +848,10 @@
               <p>La vidéo du prof, et le Copilote pour comprendre et appliquer ce qu'il joue.</p>
             </div>
             <div class="tr-heading-actions">
-              <button class="tr-button" type="button" data-astra-open="pedagogie-library-drawer" data-astra-shortcut="t"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Mes tutoriels</button>
+              <!-- [Claude] — 2026-10-03 — Narcisse : « une fois qu'on a choisi un tutoriel, on n'a
+                   pas d'option qui permette d'en changer ». À la place du tiroir « Mes tutoriels »,
+                   un retour aux cartes, visible quand un tuto est ouvert. -->
+              <button class="tr-button pedago-back-btn" type="button" id="pedagogie-back-btn" hidden title="Revenir à tes tutoriels"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>Mes tutoriels</button>
               <button class="tr-button tr-primary panel-action" id="pedagogie-import-btn" type="button"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6M9 15l3-3 3 3"/></svg>Importer une vidéo</button>
             </div>
           </div>
@@ -868,7 +871,8 @@
               <p id="pedagogie-home-text">Ouvre un tuto : la vidéo du prof s'affiche à gauche, et le Copilote à droite répond à tes questions sur ce qu'il vient de jouer.</p>
               <div class="pedago-home-actions">
                 <button class="tr-button tr-primary" type="button" id="pedagogie-home-folder-btn">Choisir le dossier des tutoriels</button>
-                <button class="tr-button" type="button" id="pedagogie-home-library-btn" data-astra-open="pedagogie-library-drawer">Mes tutoriels</button>
+                <!-- Le dossier des tutos, et « Changer de dossier… » (il était dans le tiroir). -->
+                <span class="pedagogie-folder-hint" id="pedagogie-folder-hint"></span>
               </div>
             </div>
             <div class="pedago-home-grid" id="pedagogie-home-grid" role="list" aria-label="Vos tutoriels"></div>
@@ -939,23 +943,8 @@
             </aside>
           </div>
 
-          <!-- Tiroir « Mes tutoriels ». -->
-          <div class="tr-overlay tr-drawer-overlay" id="pedagogie-library-drawer" hidden>
-            <div class="tr-dialog tr-dialog-wide tr-drawer" role="dialog" aria-modal="true" aria-label="Votre collection de tutoriels">
-              <div class="tr-dialog-title"><h2>Votre collection de tutoriels</h2>
-                <button class="tr-icon-button" type="button" data-astra-close aria-label="Fermer">✕</button></div>
-              <div class="tr-dialog-body">
-                <div class="tr-library-toolbar">
-                  <span class="tr-secondary pedagogie-folder-hint" id="pedagogie-folder-hint"></span>
-                  <button class="tr-button tr-primary" type="button" data-astra-close data-astra-click="#pedagogie-import-btn"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6M9 15l3-3 3 3"/></svg>Importer une vidéo</button>
-                </div>
-                <div class="tr-library-table-head" aria-hidden="true">
-                  <span>TUTORIEL</span><span>TYPE</span><span></span>
-                </div>
-                <div class="pedagogie-track-list" id="pedagogie-track-list" data-astra-close-on-click></div>
-              </div>
-            </div>
-          </div>
+          <!-- [Claude] — 2026-10-03 — Le tiroir « Mes tutoriels » est retiré : les cartes de
+               l'accueil sont la bibliothèque, et « ← Mes tutoriels » y ramène. -->
         </div>
 
         <!-- [Refonte Astra 12/09] — Copilot IA : on prend l'HABILLAGE et le
@@ -990,14 +979,18 @@
                 <button type="button" class="copilot-chip" data-message="Fais-moi une démonstration au clavier.">Démonstration</button>
                 <button type="button" class="copilot-chip" data-message="Fais-moi un lick adapté.">Lick</button>
                 <span class="copilot-style-spacer"></span>
-                <label class="copilot-style-label" for="copilot-style-select">Style</label>
-                <select id="copilot-style-select" class="copilot-style-select">
-                  <option value="auto">Auto</option>
-                  <option value="worship">Worship</option>
-                  <option value="gospel">Gospel</option>
-                  <option value="jazz">Jazz</option>
-                  <option value="neoSoul">Neo Soul</option>
-                </select>
+                <!-- [Claude] — 2026-10-03 — Libellé et liste groupés : dans le panneau de
+                     Pédagogie IA, la liste partait seule sur une ligne, centrée. -->
+                <span class="copilot-style">
+                  <label class="copilot-style-label" for="copilot-style-select">Style</label>
+                  <select id="copilot-style-select" class="copilot-style-select">
+                    <option value="auto">Auto</option>
+                    <option value="worship">Worship</option>
+                    <option value="gospel">Gospel</option>
+                    <option value="jazz">Jazz</option>
+                    <option value="neoSoul">Neo Soul</option>
+                  </select>
+                </span>
               </div>
 
               <!-- [Astra round 4] — Composer d'Astra : la zone de saisie est un

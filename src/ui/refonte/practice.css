@@ -2007,6 +2007,15 @@
   font-size: 0.72rem;
   color: var(--r-text-muted);
 }
+/* [Claude] — 2026-10-03 — Libellé et liste du style groupés, sans retour à la ligne entre eux. */
+:root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-style,
+:root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-style {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  white-space: nowrap;
+}
 :root[data-skin='global'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-style-select,
 :root[data-skin='v2'] :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-style-select {
   padding: 4px 8px;
@@ -2221,23 +2230,6 @@
   color: var(--r-text-faint);
   cursor: not-allowed;
   filter: none;
-}
-:root[data-skin='global'] #practice-view-pedagogie .pedagogie-track-list,
-:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-track-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  overflow-y: auto;
-  min-height: 0;
-}
-:root[data-skin='global'] #practice-view-pedagogie .pedagogie-track-list::-webkit-scrollbar,
-:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-track-list::-webkit-scrollbar {
-  width: 8px;
-}
-:root[data-skin='global'] #practice-view-pedagogie .pedagogie-track-list::-webkit-scrollbar-thumb,
-:root[data-skin='v2'] #practice-view-pedagogie .pedagogie-track-list::-webkit-scrollbar-thumb {
-  background: var(--r-border-strong);
-  border-radius: 4px;
 }
 :root[data-skin='global'] #practice-view-pedagogie .pedagogie-track-row,
 :root[data-skin='v2'] #practice-view-pedagogie .pedagogie-track-row {

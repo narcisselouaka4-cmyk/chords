@@ -246,7 +246,8 @@ check('La vidéo est montée dès la sélection d\'un tutoriel',
 check('L\'overlay de lecture disparaît dès que la lecture commence',
   tabCode.includes('els.videoOverlay') && /!playbackStarted/.test(tabCode));
 check('selectTrack() remet playbackStarted à false',
-  /function selectTrack\(path\)[\s\S]*?playbackStarted = false/.test(tabCode));
+  /function selectTrack\(path\) \{[\s\S]*?resetTutorialView\(\);/.test(tabCode)
+  && /function resetTutorialView\(\) \{\s*playbackStarted = false;/.test(tabCode));
 check('chooseFolder() remet playbackStarted à false',
   /async function chooseFolder\(\)[\s\S]*?playbackStarted = false/.test(tabCode));
 check('analyzeSelected() passe playbackStarted à true au début',
@@ -286,7 +287,7 @@ check('Plus de carte « Résumé du cours »',
 check('Plus de fiches du glossaire à l\'écran',
   !html.includes('id="pedagogie-glossary"'));
 check('Les détails techniques (V2N, pip, git lfs) sont repliés, le message reste en clair',
-  tabCode.includes("'Détails techniques'") && tabCode.includes('showReadingStatus('));
+  tabCode.includes("'Détails techniques'") && tabCode.includes('note(readingStatus(technical'));
 
 const audioOnlyJs = readText('src/pedagogie/video-analysis.js');
 check('Le panneau notes ne répète plus le badge de provenance (explainUnrecognised retiré du rendu notes)',
@@ -377,10 +378,10 @@ check('Un accord sans tierce est distingué visuellement',
 
 const pedagoCss = readText('src/ui/refonte/astra-pedagogie.css');
 check('Le relevé est gardé après une lecture réussie, et rouvert sans relire la vidéo',
-  tabCode.includes('createTutorialMemory') && /if \(succeeded && analysis\) saveToMemory\(analyzedPath\)/.test(tabCode)
+  tabCode.includes('createTutorialMemory') && /if \(succeeded && job\.analysis\) await saveReading\(job\)/.test(tabCode)
   && /restoreFromMemory\(path\)/.test(tabCode) && tabCode.includes('loadAnalysis(path, await fileStat(path))'));
 check('« Lire ce tutoriel » : un tuto déjà lu démarre sans nouveau relevé ; « Refaire le relevé » relit tout',
-  /function onPlayClick\(\) \{\s*if \(analysis && !busy\)/.test(tabCode)
+  /function onPlayClick\(\) \{\s*if \(analysis \|\| isReadingHere\(\)/.test(tabCode)
   && /id="pedagogie-redo-btn"[^>]*hidden/.test(html) && /redoBtn\?\.addEventListener\('click', \(\) => \{ analyzeSelected\(\); \}\)/.test(tabCode));
 check('Accueil en cartes : vignette, durée, « Déjà lu »',
   html.includes('id="pedagogie-home-grid"') && tabCode.includes("className: 'pedago-card-thumb'") && tabCode.includes('cardDuration(card.duration)')
@@ -390,7 +391,33 @@ check('Vignette : même ffmpeg et même sonde que la lecture des images (IPC ped
   && preload.includes("ipcRenderer.invoke('pedagogie:thumbnail'") && tabCode.includes('api.thumbnail(tut.path'));
 check('Sans ffmpeg : la vignette est prise sur la vidéo pendant la lecture',
   /addEventListener\('timeupdate', captureThumbnailFromPlayer\)/.test(tabCode) && tabCode.includes("toDataURL('image/jpeg'"));
-check('La liste « Mes tutoriels » dit « Déjà lu »', tabCode.includes("read ? 'Déjà lu' : 'Vidéo'"));
+check('Une carte dit « Relevé en cours… » quand on est revenu aux cartes pendant un relevé',
+  tabCode.includes("busyHere ? 'Relevé en cours…'") && /refreshCard\(path\);/.test(tabCode));
+
+// ---------------------------------------------------------------------------
+// 10 bis. [Claude] — 2026-10-03 — Retour aux cartes (Narcisse : « une fois qu'on a choisi
+// un tutoriel, on n'a pas d'option qui permette d'en changer »)
+// ---------------------------------------------------------------------------
+check('« ← Mes tutoriels » remplace le tiroir : caché sur l\'accueil, montré quand un tuto est ouvert',
+  /<button[^>]*id="pedagogie-back-btn"[^>]*hidden/.test(html)
+  && /els\.backBtn\?\.addEventListener\('click', \(\) => \{ closeTutorial\(\); \}\)/.test(tabCode)
+  && /if \(els\.backBtn\) els\.backBtn\.hidden = !hasTutorial;/.test(tabCode));
+check('Le tiroir « Mes tutoriels » et sa liste sont retirés (les cartes sont la bibliothèque)',
+  !html.includes('pedagogie-library-drawer') && !html.includes('pedagogie-track-list') && !html.includes('pedagogie-home-library-btn')
+  && !tabCode.includes('els.trackList'));
+check('Le dossier et « Changer de dossier… » sont sur l\'accueil',
+  /id="pedagogie-home"[\s\S]*?id="pedagogie-folder-hint"[\s\S]*?id="pedagogie-home-grid"/.test(html)
+  && tabCode.includes("text: 'Changer de dossier…'"));
+check('Retour aux cartes : vidéo arrêtée, plus de tuto ouvert, le Copilote quitte le mode tuto',
+  /function closeTutorial\(\) \{[\s\S]*?pauseVideo\(\);[\s\S]*?selectedPath = null;[\s\S]*?destroyVideo\(\);[\s\S]*?new CustomEvent\('pedagogie-selection-change', \{ detail: \{ path: null \} \}\)/.test(tabCode));
+check('Un relevé est un travail à part : il continue après le retour aux cartes et reste gardé sous son tuto',
+  /async function runReading\(path\)/.test(tabCode) && /const here = \(\) => selectedPath === path;/.test(tabCode)
+  && /if \(here\(\)\) \{[\s\S]*?if \(succeeded && job\.analysis\) applyReading\(job\);/.test(tabCode)
+  && !/function selectTrack\(path\) \{\s*if \(busy\) return;/.test(tabCode)
+  && /readingQueue = readingQueue\.then\(/.test(tabCode));
+check('« Style » et sa liste restent ensemble (groupe .copilot-style)',
+  /<span class="copilot-style">\s*<label class="copilot-style-label"[^>]*>Style<\/label>\s*<select id="copilot-style-select"/.test(html)
+  && readText('src/ui/refonte/astra-bridge.css').includes('#copilot-quick-actions .copilot-style {'));
 
 // ---------------------------------------------------------------------------
 // 11. [Claude] — 2026-10-03 — Lot 6 : outils de travail

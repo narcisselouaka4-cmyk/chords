@@ -136,7 +136,44 @@
 }
 #practice-view-pedagogie .pedago-card-meta { color: var(--tr-muted); font-size: 11.5px; }
 #practice-view-pedagogie .pedago-card.is-read .pedago-card-meta { color: var(--tr-accent); font-weight: 600; }
-#pedagogie-track-list .tr-library-cell.is-read { color: var(--tr-accent); background: var(--tr-accent-soft); }
+/* [Claude] — 2026-10-03 — Relevé en cours sur ce tuto (on est revenu aux cartes pendant
+   qu'il tournait) : il continue, et la carte le dit. */
+#practice-view-pedagogie .pedago-card.is-reading .pedago-card-meta { color: var(--tr-secondary); font-style: italic; }
+/* Le dossier des tutos, sur l'accueil (il était dans le tiroir « Mes tutoriels », retiré).
+   Même forme que les anciennes règles de practice.css (« :root[data-skin…] ») pour les
+   remplacer : elles empilaient le chemin et le bouton en colonne. */
+:root[data-skin] #practice-view-pedagogie .pedagogie-folder-hint {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  color: var(--tr-muted);
+  font-size: 11.5px;
+}
+#practice-view-pedagogie .pedagogie-folder-hint:empty { display: none; }
+:root[data-skin] #practice-view-pedagogie .pedagogie-folder-path {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--tr-muted);
+  font: 11px var(--tr-mono, ui-monospace, monospace);
+}
+:root[data-skin] #practice-view-pedagogie .pedagogie-folder-btn {
+  padding: 5px 10px;
+  border: 1px solid var(--tr-border);
+  border-radius: 7px;
+  background: var(--tr-surface);
+  color: var(--tr-secondary);
+  font-family: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+:root[data-skin] #practice-view-pedagogie .pedagogie-folder-btn:hover { color: var(--tr-text); border-color: var(--tr-accent); }
 @media (max-width: 720px) {
   #practice-view-pedagogie .pedago-home.has-cards .pedago-home-empty { grid-template-columns: 1fr; grid-template-areas: "title" "text" "actions"; }
   #practice-view-pedagogie .pedago-home.has-cards .pedago-home-actions { justify-content: flex-start; margin-top: 6px; }

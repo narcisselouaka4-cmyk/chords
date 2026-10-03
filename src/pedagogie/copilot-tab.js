@@ -1326,10 +1326,10 @@ export async function initCopilotTab() {
     document.dispatchEvent(new CustomEvent('app-open-ai-settings'));
   });
 
-  // Au chargement : prisme 1 (autonome) par défaut, qu'un tutoriel soit
-  // sélectionné ou non.
-  const currentPath = document.querySelector('#pedagogie-track-list .pedagogie-track-row.is-selected')?.title;
-  currentTutorialPath = currentPath || null;
+  // Au chargement : prisme 1 (autonome) par défaut. [Claude] — 2026-10-03 — Aucun tuto
+  // n'est ouvert au démarrage (la liste qu'on lisait ici, dans le tiroir « Mes tutoriels »,
+  // est retirée) : Pédagogie IA l'annonce quand on en ouvre un.
+  currentTutorialPath = null;
   currentMode = 'autonomous';
   currentSessionId = null;
   currentSessionContext = null;

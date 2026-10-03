@@ -661,61 +661,8 @@
 #pedagogie-video-player { width: 100%; height: 100%; object-fit: cover; background: #0d0b12; }
 #pedagogie-analyze-btn[disabled] { opacity: .4; }
 
-/* Bibliothèque de tutoriels : alignée sur le format .tr-library-row de
-   Sessions MIDI et Coach, avec en-tête et lignes sur la même grille. */
-#pedagogie-library-drawer .tr-library-table-head,
-#pedagogie-track-list .pedagogie-track-row { grid-template-columns: minmax(220px, 2.7fr) 110px 64px; gap: 12px; }
-#pedagogie-track-list { display: flex; flex-direction: column; gap: 6px; }
-#pedagogie-track-list .pedagogie-track-row {
-  align-items: center;
-  padding: 10px 12px;
-  background: var(--tr-surface);
-  border: 1px solid var(--tr-border);
-  border-radius: 10px;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease, box-shadow 0.12s ease;
-}
-#pedagogie-track-list .pedagogie-track-row:hover {
-  background: var(--tr-surface-chip, var(--tr-accent-soft));
-  border-color: var(--tr-border-strong, var(--tr-border));
-  transform: translateY(-1px);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
-}
-#pedagogie-track-list .pedagogie-track-row.is-selected {
-  background: var(--tr-accent-soft);
-  outline: 1px solid var(--tr-accent);
-  outline-offset: -1px;
-}
-#pedagogie-track-list .pedagogie-track-row .tr-file-icon {
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, var(--tr-accent), #7c3aed);
-  color: #fff;
-}
-#pedagogie-track-list .pedagogie-track-row .tr-file-icon svg {
-  width: 20px;
-  height: 20px;
-}
-#pedagogie-track-list .tr-library-cell {
-  text-align: right;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  padding: 4px 8px;
-  border-radius: 999px;
-  color: var(--tr-muted);
-  background: var(--tr-surface-chip, rgba(0,0,0,0.04));
-  justify-self: end;
-}
-#pedagogie-track-list .tr-library-cell[data-type="Tutoriel"],
-#pedagogie-track-list .tr-library-cell[data-type="Cover"] {
-  color: var(--tr-accent);
-  background: var(--tr-accent-soft);
-}
+/* [Claude] — 2026-10-03 — La liste « Mes tutoriels » (tiroir) est retirée : les cartes de
+   l'accueil la remplacent (astra-pedagogie.css). */
 
 #practice-view-pedagogie .tr-notebook-content { display: flex; flex-direction: column; gap: 12px; }
 #practice-view-pedagogie .pedagogie-card {
@@ -849,6 +796,15 @@
 }
 #copilot-quick-actions .copilot-chip:hover { color: var(--tr-text); border-color: var(--tr-accent); }
 #copilot-quick-actions .copilot-style-spacer { flex: 1; }
+/* [Claude] — 2026-10-03 — « Style » et sa liste ne se séparent plus : quand la rangée est
+   pleine (panneau du Copilote dans Pédagogie IA), ils passent ensemble à la ligne, à droite. */
+#copilot-quick-actions .copilot-style {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  white-space: nowrap;
+}
 #copilot-style-select {
   height: 25px; padding: 0 6px;
   border: 1px solid var(--tr-border); border-radius: 6px;
