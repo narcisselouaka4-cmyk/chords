@@ -639,7 +639,8 @@ check('Pédagogie IA donne la structure du tuto au Copilote (calculée une fois 
   /import \{ songStructure \} from '\.\.\/pedagogie\/song-structure\.js';/.test(tabCode)
   && /structure: tutorialStructure\(structureChords, noteEvents\),/.test(tabCode) && /structure = songStructure\(\{ chords, notes, key: detectedKey \}\);/.test(tabCode)
   // Sans les « accords » d'une seule note (une note de mélodie lue comme un accord).
-  && /new Set\(s\.midis\.map\(\(m\) => \(\(m % 12\) \+ 12\) % 12\)\)\.size < 2/.test(tabCode));
+  // Mais un accord lu au son (sans notes : midis vide) reste.
+  && /Array\.isArray\(s\.midis\) && s\.midis\.length > 0 && new Set\(s\.midis\.map\(\(m\) => \(\(m % 12\) \+ 12\) % 12\)\)\.size < 2/.test(tabCode));
 check('Le contexte : la structure avant la grille, le passage situé dans la structure, ses lignes',
   clientCode.indexOf('lines.push(...structureLines(context.structure));') > 0
   && clientCode.indexOf('lines.push(...structureLines(context.structure));') < clientCode.indexOf("'## Grille relevée'")

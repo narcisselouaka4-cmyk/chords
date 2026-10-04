@@ -1867,9 +1867,9 @@ export function getPedagogieCopilotContext() {
   const chords = view.filterChords ? chordsWhilePlaying(allChords, view.spans) : allChords;
   // [Claude] — 2026-10-04 — Pour la structure, pas les « accords » d'une seule note : une note
   // de mélodie que la lecture du clavier nomme comme un accord (« A », « A# » sur
-  // « L'Éternel est bon »).
+  // « L'Éternel est bon »). Un accord lu au son n'a pas de notes (midis vide) : il reste.
   const solidChords = analysis.segments
-    .filter((s) => s.chord?.resolved && !(Array.isArray(s.midis) && new Set(s.midis.map((m) => ((m % 12) + 12) % 12)).size < 2))
+    .filter((s) => s.chord?.resolved && !(Array.isArray(s.midis) && s.midis.length > 0 && new Set(s.midis.map((m) => ((m % 12) + 12) % 12)).size < 2))
     .map((s) => ({ start: s.start, end: s.end, label: s.chord.label }));
   const structureChords = view.filterChords ? chordsWhilePlaying(solidChords, view.spans) : solidChords;
   const noteEvents = view.played;

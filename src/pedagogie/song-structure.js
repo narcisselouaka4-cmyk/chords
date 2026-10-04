@@ -69,29 +69,59 @@ const LETTER_STEPS = [0, 1, 1, 2, 2, 3, 3, 4, 5, 5, 6, 6];
 const SHARP_TO_FLAT = { 'C#': 'Db', 'D#': 'Eb', 'F#': 'Gb', 'G#': 'Ab', 'A#': 'Bb' };
 const FLAT_TO_SHARP = { Db: 'C#', Eb: 'D#', Gb: 'F#', Ab: 'G#', Bb: 'A#' };
 
-/** La note à `interval` demi-tons au-dessus d'une fondamentale écrite, sur la bonne lettre. */
-function spellAbove(rootName, interval) {
+/**
+ * La note à `interval` demi-tons au-dessus d'une fondamentale écrite, sur la bonne lettre (ou
+ * sur la lettre `steps` crans au-dessus, si on la donne).
+ */
+function spellAbove(rootName, interval, steps = LETTER_STEPS[pcOf(interval)]) {
   const letter = rootName[0];
   const rootPc = pcOf(NATURAL_PCS[letter] + (rootName[1] === '#' ? 1 : rootName[1] === 'b' ? -1 : 0));
-  const target = LETTERS[(LETTERS.indexOf(letter) + LETTER_STEPS[pcOf(interval)]) % 7];
+  const target = LETTERS[(LETTERS.indexOf(letter) + steps) % 7];
   const shift = ((pcOf(rootPc + interval) - NATURAL_PCS[target]) % 12 + 18) % 12 - 6;
   if (Math.abs(shift) > 1) return null;
   return `${target}${shift > 0 ? '#' : shift < 0 ? 'b' : ''}`;
 }
 
+const nameToPc = (name) => pcOf(NATURAL_PCS[name[0]] + (name[1] === '#' ? 1 : name[1] === 'b' ? -1 : 0));
+// La tonique écrite comme dans le nom de la tonalité (keyName) : Si♭, Fa♯, Do♯…
+const TONICS_FLAT = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+const TONICS_SHARP = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+// Des noms qu'on n'écrit pas pour une fondamentale : on prend la touche blanche.
+const PLAIN = { Cb: 'B', Fb: 'E', 'E#': 'F', 'B#': 'C' };
+
+/**
+ * [Claude] — 2026-10-04 — La fondamentale écrite d'après son degré dans la tonalité : dans la
+ * gamme, la note de la gamme (Do♯ en La majeur) ; hors gamme, le degré d'usage (b2, b3, #4,
+ * b6, b7 en majeur ; b2, #3, #4, #6, #7 en mineur) : en Do majeur, Ré♭ (b2) et Si♭ (b7), Fa♯
+ * (#4). Un diminué hors gamme monte vers le degré suivant : il s'écrit sur le degré du dessous,
+ * haussé (en Do majeur, C#°7 vers Dm, G#°7 vers Am).
+ */
+function degreeSpelling(key, rootPc, { raised = false } = {}) {
+  const tonic = (key.flats ? TONICS_FLAT : TONICS_SHARP)[pcOf(key.rootPc)];
+  const interval = pcOf(rootPc - key.rootPc);
+  const inScale = (key.minor ? MINOR_STEPS : MAJOR_STEPS).includes(interval);
+  const name = raised && !inScale ? spellAbove(tonic, interval, LETTER_STEPS[interval - 1]) : spellAbove(tonic, interval);
+  return name ? PLAIN[name] || name : null;
+}
+
 /**
  * [Claude] — 2026-10-04 — Un nom d'accord dans l'orthographe de la tonalité : en Si♭ majeur,
- * A# devient Bb et D#maj7/G devient Ebmaj7/G ; la basse est épelée d'après l'accord (D/F#
- * reste D/F#, la tierce de Ré).
+ * A# devient Bb et D#maj7/G devient Ebmaj7/G ; en Do majeur, C#9 devient Db9 (le b2) ; la
+ * basse est épelée d'après l'accord (D/F# reste D/F#, la tierce de Ré).
+ * @param {string} name
+ * @param {{rootPc: number, minor: boolean, flats: boolean}|boolean} key - la tonalité (ou,
+ *   sans elle, seulement le choix des bémols)
  */
-export function respell(name, flats) {
+export function respell(name, key) {
   const m = /^([A-G][#b]?)(.*?)(?:\/([A-G][#b]?))?$/.exec(String(name || ''));
   if (!m) return name;
-  const root = (flats ? SHARP_TO_FLAT : FLAT_TO_SHARP)[m[1]] || m[1];
+  const byKey = Boolean(key) && typeof key === 'object';
+  const flats = byKey ? key.flats : Boolean(key);
+  const raised = /^(?:°|o(?!b)|dim)/.test(m[2]);
+  const root = (byKey && degreeSpelling(key, nameToPc(m[1]), { raised })) || (flats ? SHARP_TO_FLAT : FLAT_TO_SHARP)[m[1]] || m[1];
   if (!m[3]) return `${root}${m[2]}`;
-  const rootPc = pcOf(NATURAL_PCS[root[0]] + (root[1] === '#' ? 1 : root[1] === 'b' ? -1 : 0));
-  const bassPc = pcOf(NATURAL_PCS[m[3][0]] + (m[3][1] === '#' ? 1 : m[3][1] === 'b' ? -1 : 0));
-  const bass = spellAbove(root, pcOf(bassPc - rootPc)) || m[3];
+  const spelled = spellAbove(root, pcOf(nameToPc(m[3]) - nameToPc(root)));
+  const bass = spelled ? PLAIN[spelled] || spelled : m[3];
   return `${root}${m[2]}/${bass}`;
 }
 
@@ -236,7 +266,11 @@ export function degreeLabel(key, chord) {
   const interval = pcOf(chord.rootPc - key.rootPc);
   const steps = key.minor ? MINOR_STEPS : MAJOR_STEPS;
   const step = steps.indexOf(interval);
-  const number = step >= 0 ? String(step + 1) : (key.minor ? MINOR_CHROMATIC : MAJOR_CHROMATIC)[interval];
+  // [Claude] — 2026-10-04 — Un diminué hors gamme se dit sur le degré du dessous, haussé (#1°
+  // vers le 2), comme son nom s'écrit (respell).
+  const number = step >= 0 ? String(step + 1)
+    : chord.family === 'dim' ? `#${steps.indexOf(interval - 1) + 1}`
+      : (key.minor ? MINOR_CHROMATIC : MAJOR_CHROMATIC)[interval];
   const expected = step >= 0 ? DIATONIC[key.minor ? 'minor' : 'major'][step] : 'major';
   const family = chord.family;
   if (family === expected || family === 'other' || family === 'sus' || (expected === 'dominant' && family === 'major')) return number;
@@ -717,7 +751,7 @@ export function songStructure({ chords = [], notes = null, key = null } = {}) {
   if (tokens.length < 2) return null;
   markPassing(tokens);
   const theKey = structureKey(key, tokens.filter((t) => !t.passing));
-  for (const t of tokens) t.name = respell(t.name, theKey.flats);
+  for (const t of tokens) t.name = respell(t.name, theKey);
   const items = structuralChords(tokens).map((t) => ({ ...t, key: pcOf(t.rootPc - theKey.rootPc) }));
   if (!items.length) return null;
   const sections = analyzeRange(items, 0, items.length, theKey);

@@ -41,6 +41,10 @@ check('Diatoniques : 1, 5, 6 ; leur couleur seulement quand elle change',
 check('Hors gamme : b7, b2(7) (substitution tritonique), #4(°)',
   degreeLabel(C, { rootPc: 10, family: 'major' }) === 'b7' && degreeLabel(C, { rootPc: 1, family: 'dominant' }) === 'b2(7)'
   && degreeLabel(C, { rootPc: 6, family: 'dim' }) === '#4(°)');
+check('Un diminué hors gamme, sur le degré du dessous haussé : #1(°) (C#°7 vers Dm), #5(°) (G#°7 vers Am) ; en La mineur, #7(°)',
+  degreeLabel(C, { rootPc: 1, family: 'dim' }) === '#1(°)' && degreeLabel(C, { rootPc: 8, family: 'dim' }) === '#5(°)'
+  && degreeLabel(C, { rootPc: 3, family: 'dim' }) === '#2(°)' && degreeLabel({ rootPc: 9, minor: true }, { rootPc: 8, family: 'dim' }) === '#7(°)'
+  && degreeLabel(C, { rootPc: 1, family: 'dominant' }) === 'b2(7)');
 check('En mineur : 1, 4, 5 ; le 7 de la gamme mineure', degreeLabel({ rootPc: 9, minor: true }, { rootPc: 9, family: 'minor' }) === '1'
   && degreeLabel({ rootPc: 9, minor: true }, { rootPc: 4, family: 'dominant' }) === '5' && degreeLabel({ rootPc: 9, minor: true }, { rootPc: 7, family: 'major' }) === '7');
 
@@ -205,7 +209,29 @@ check('Dans l\'introduction : hors boucle, ses accords', structureMomentLines(s,
 console.log('Le vrai relevé de « L\'Éternel est bon »');
 check('L\'orthographe de la tonalité : Si♭ majeur (pas La♯) ; les accords aussi (A# → Bb, D#maj7/G → Ebmaj7/G, D/F# reste)',
   keyName(structureKey('A#')) === 'Si♭ majeur' && respell('A#', true) === 'Bb' && respell('D#maj7/G', true) === 'Ebmaj7/G'
-  && respell('D/F#', true) === 'D/F#' && respell('G#9sus4', true) === 'Ab9sus4' && respell('Bb', false) === 'A#');
+  && respell('D/F#', true) === 'D/F#' && respell('G#9sus4', true) === 'Ab9sus4');
+// L'orthographe suit le degré : hors gamme, le degré d'usage (b2, b3, #4, b6, b7 en majeur).
+{
+  const C = structureKey('C');
+  const A = structureKey('A');
+  const Bb = structureKey('Bb');
+  const Em = structureKey('Em');
+  const spelled = [
+    respell('C#9', C), respell('Db9', C), respell('A#', C), respell('D#m7', C), respell('Gb7', C),
+    respell('Db', A), respell('Bb7', A), respell('A#7', A),
+    respell('A#', Bb), respell('D#maj7/G', Bb), respell('G#9sus4', Bb), respell('D/F#', Bb), respell('B7', Bb), respell('Cm/F', Bb),
+    respell('Eb', Em), respell('D#°7', Em), respell('C#/F', structureKey('F#')),
+  ].join(' ');
+  check('Les accords écrits d\'après leur degré : en Do, Db9 (b2), Bb (b7), Ebm7, F#7 (#4) ; en La, C# et Bb7 ; en Si♭, B7 (pas Cb7)',
+    spelled === 'Db9 Db9 Bb Ebm7 F#7 C# Bb7 Bb7 Bb Ebmaj7/G Ab9sus4 D/F# B7 Cm/F D# D#°7 C#/F', spelled);
+  // Un diminué hors gamme monte vers le degré suivant : écrit sur le degré du dessous, haussé.
+  const dims = [
+    respell('Db°7', C), respell('Ebdim7', C), respell('Abo7', C), respell('Gb°7', structureKey('F')), respell('Bbdim7', structureKey('Am')),
+    respell('Bbm7b5', C), respell('Bb°7', structureKey('Bb')),
+  ].join(' ');
+  check('Les diminués de passage : en Do, C#°7 (vers Dm), D#dim7 (vers Em), G#o7 (vers Am) ; en Fa, F#°7 ; un demi-diminué garde son degré (Bbm7b5)',
+    dims === 'C#°7 D#dim7 G#o7 F#°7 A#dim7 Bbm7b5 Bb°7', dims);
+}
 check('Un accord posé sur une autre basse (Cm/F) : le 5 (F9sus4) en Si♭, pas le 2 ; un renversement (F/A) garde sa fondamentale',
   harmonicTokens([{ start: 0, end: 2, label: 'Cm/F' }, { start: 2, end: 4, label: 'F/A' }]).map((t) => `${t.rootPc}:${t.family}`).join(' ') === '5:sus 5:major');
 const unnamed = harmonicTokens([{ start: 0, end: 2, label: 'F?' }, { start: 2, end: 4, label: 'G?' }, { start: 4, end: 6, label: 'A' }], {
