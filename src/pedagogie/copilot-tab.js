@@ -39,6 +39,10 @@ let playingExampleId = null;
 let examplePaused = false;
 let exampleProgress = null;
 const examplesById = new Map();
+// [Claude] — 2026-10-04 — Les exemples avec ou sans la pédale (Narcisse : « avec la pédale, il
+// y a une telle flopée de notes qu'on ne distingue pas bien le jeu du prof »). Choix retenu.
+const PEDAL_KEY = 'copilot-example-pedal';
+let examplePedal = readExamplePedal();
 // [Claude] — 2026-09-25 — Dernier passage joué (« Qu'en penses-tu ? ») : son
 // portrait (lines), ses notes exactes (events, pour le rejouer) et sa tonalité,
 // gardés pour les questions de suivi de la même conversation.
@@ -493,6 +497,46 @@ function exampleIdOf(msg) {
   return msg.exampleId;
 }
 
+/** [Claude] — 2026-10-04 — L'exemple a une pédale (qu'on peut enlever). */
+export function hasPedalEvents(example) {
+  return (example?.events || []).some((e) => e?.type === 'sustain');
+}
+
+/**
+ * [Claude] — 2026-10-04 — Le sous-titre d'un exemple. Sans la pédale (choix du pianiste), il
+ * le dit, à la place de « avec sa pédale », « pédale à chaque accord » ou « pédale comprise ».
+ * @param {object} example
+ * @param {{pedal?: boolean}} [options]
+ */
+export function exampleSubtitle(example, { pedal = true } = {}) {
+  const text = String(example?.subtitle || '');
+  if (pedal || !hasPedalEvents(example)) return text;
+  const said = text.replace(/(?: · avec sa pédale| · pédale à chaque accord|, pédale comprise)/, ' · sans pédale');
+  return said !== text ? said : [text, 'sans pédale'].filter(Boolean).join(' · ');
+}
+
+function readExamplePedal() {
+  try {
+    return localStorage.getItem(PEDAL_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+}
+
+/** Avec ou sans la pédale : retenu, appliqué à l'exemple qui joue (main.js), cartes à jour. */
+function setExamplePedal(on) {
+  examplePedal = Boolean(on);
+  try {
+    localStorage.setItem(PEDAL_KEY, examplePedal ? 'on' : 'off');
+  } catch {
+    // Stockage indisponible : le choix vaut jusqu'à la fermeture.
+  }
+  if (playingExampleId) {
+    document.dispatchEvent(new CustomEvent('copilot-example-control', { detail: { id: playingExampleId, action: 'pedal', on: examplePedal } }));
+  }
+  refreshExampleCards();
+}
+
 /**
  * Carte « Écouter l'exemple » : titre (accords), style, et ce que fait chaque
  * main pour chaque accord (quatre accords au plus), sous l'explication.
@@ -511,9 +555,10 @@ function renderExampleCard(msg) {
   button.innerHTML = playing ? ICON_STOP : ICON_PLAY;
   button.appendChild(el('span', { text: playing ? 'Arrêter' : 'Écouter l\'exemple' }));
   card.appendChild(el('div', { className: 'copilot-example-buttons' }, [button]));
+  const subtitle = exampleSubtitle(example, { pedal: examplePedal });
   const text = el('div', { className: 'copilot-example-text' }, [
     el('strong', { text: example.title || 'Exemple' }),
-    example.subtitle ? el('small', { text: example.subtitle }) : null,
+    subtitle ? el('small', { text: subtitle }) : null,
   ]);
   // [Claude] — 2026-10-03 — Ce que fait le prof, appliqué à une progression : toutes ses
   // notes sont déjà écrites dans la réponse, accord par accord ; la carte ne les répète pas.
@@ -590,20 +635,54 @@ function buildTransport(box, example, id) {
   });
   // Pendant qu'on tire le curseur, la position reçue ne le déplace pas.
   const release = () => setTimeout(() => { delete range.dataset.dragging; }, 300);
-  range.addEventListener('pointerdown', () => { range.dataset.dragging = '1'; });
-  range.addEventListener('pointerup', release);
-  range.addEventListener('pointercancel', release);
-  range.addEventListener('input', () => { time.textContent = timeLabel(Number(range.value), duration); });
-  range.addEventListener('change', () => {
-    control('seek', { seconds: Number(range.value) });
+  // [Claude] — 2026-10-04 — Tiré à la souris, le curseur fait suivre le clavier en direct
+  // (Narcisse : « si je redescends avec le curseur à 24, 23 ou 20 secondes, il faudrait que le
+  // jeu en bas rembobine aussi »). Le son se tait pendant qu'on tire ; au lâcher, la lecture
+  // reprend si elle jouait. Au clavier (flèches), chaque pas va à l'instant.
+  const endScrub = () => {
+    window.removeEventListener('pointerup', endScrub, true);
+    window.removeEventListener('pointercancel', endScrub, true);
+    if (range.dataset.scrubbing === '1') {
+      delete range.dataset.scrubbing;
+      control('scrub-end', { seconds: Number(range.value) });
+    }
     release();
+  };
+  // Lâché n'importe où, même hors du curseur : c'est la fin du geste.
+  range.addEventListener('pointerdown', () => {
+    range.dataset.dragging = '1';
+    window.addEventListener('pointerup', endScrub, true);
+    window.addEventListener('pointercancel', endScrub, true);
   });
-  box.appendChild(el('div', { className: 'copilot-transport-row' }, [
+  range.addEventListener('input', () => {
+    time.textContent = timeLabel(Number(range.value), duration);
+    if (range.dataset.dragging !== '1') return;
+    range.dataset.scrubbing = '1';
+    control('scrub', { seconds: Number(range.value) });
+  });
+  range.addEventListener('change', () => {
+    if (range.dataset.scrubbing === '1') endScrub();
+    // Lâché à la souris : la fin du geste a déjà placé la lecture.
+    else if (range.dataset.dragging !== '1') control('seek', { seconds: Number(range.value) });
+  });
+  const row = el('div', { className: 'copilot-transport-row' }, [
     toggle,
     back,
     el('div', { className: 'copilot-transport-bar' }, [track, range]),
     time,
-  ]));
+  ]);
+  // [Claude] — 2026-10-04 — La pédale, à enlever pour bien entendre les doigts (seulement pour
+  // un exemple qui en a une) ; le choix est retenu pour les exemples suivants.
+  if (hasPedalEvents(example)) {
+    row.appendChild(el('button', {
+      type: 'button',
+      className: 'copilot-transport-btn copilot-transport-pedal',
+      'data-action': 'pedal',
+      text: 'Pédale',
+      onClick: () => setExamplePedal(!examplePedal),
+    }));
+  }
+  box.appendChild(row);
   const note = el('p', { className: 'copilot-transport-note', 'aria-live': 'polite' });
   note.hidden = true;
   box.appendChild(note);
@@ -638,6 +717,13 @@ function updateTransport(box, example, id) {
     toggle.innerHTML = examplePaused ? ICON_PLAY : ICON_PAUSE;
     toggle.appendChild(el('span', { text: examplePaused ? 'Reprendre' : 'Pause' }));
     toggle.setAttribute('aria-label', examplePaused ? 'Reprendre la lecture' : 'Mettre en pause');
+  }
+  const pedal = box.querySelector('[data-action="pedal"]');
+  if (pedal && pedal.getAttribute('aria-pressed') !== String(examplePedal)) {
+    pedal.setAttribute('aria-pressed', String(examplePedal));
+    pedal.title = examplePedal
+      ? 'Avec la pédale. Cliquer pour l\'enlever : chaque note s\'arrêtera quand le doigt se lève.'
+      : 'Sans la pédale : chaque note s\'arrête quand le doigt se lève. Cliquer pour la remettre.';
   }
   const range = box.querySelector('.copilot-transport-range');
   const dragging = range?.dataset.dragging === '1';
@@ -757,7 +843,7 @@ function toggleExample(msg) {
     return;
   }
   const example = msg.toolResult.example;
-  document.dispatchEvent(new CustomEvent('copilot-play-example', { detail: { id, example } }));
+  document.dispatchEvent(new CustomEvent('copilot-play-example', { detail: { id, example, pedal: examplePedal } }));
 }
 
 /** Met à jour le bouton de la carte qui joue (ou vient de s'arrêter), sans tout redessiner. */
@@ -767,6 +853,13 @@ function refreshExampleCards() {
     const playing = card.dataset.exampleId === playingExampleId;
     card.classList.toggle('is-playing', playing);
     card.classList.toggle('is-paused', playing && examplePaused);
+    // [Claude] — 2026-10-04 — Le sous-titre dit « sans pédale » quand on l'a enlevée.
+    const small = card.querySelector('.copilot-example-text > small');
+    const example = examplesById.get(card.dataset.exampleId);
+    if (small && example) {
+      const subtitle = exampleSubtitle(example, { pedal: examplePedal });
+      if (small.textContent !== subtitle) small.textContent = subtitle;
+    }
     // [Claude] — 2026-10-03 — La barre de lecture n'est montrée que sous l'exemple qui joue.
     const transport = card.querySelector('.copilot-example-transport');
     if (transport && !playing && !transport.hidden) {

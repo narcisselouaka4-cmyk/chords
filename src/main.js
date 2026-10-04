@@ -588,6 +588,10 @@ function handleNoteOff(note, virtual = false, audible = true) {
   noteGrouper?.noteOff(transposed, { sustained: false });
   if (hasLiveMidiSubscribers()) publishLiveNoteOff(note, 0);
   scheduleRefreshChord();
+  // [Claude] — 2026-10-04 — L'exemple du Copilote en pause garde ses touches allumées : une
+  // touche jaune que le pianiste vient de jouer se rallume en jaune quand il la relâche.
+  const shown = state.isPlayback ? null : demoPlayer.shownVelocity(transposed);
+  if (shown !== null) feedDemoEvent('show', transposed, shown);
 }
 
 function handleSustain(value) {
@@ -657,7 +661,10 @@ function feedMidiEvent(type, a, b) {
 // d'affichage est compensée. Sortie MIDI choisie : les notes partent vers le
 // VST et le piano intégré se tait.
 function feedDemoEvent(type, a, b) {
-  const toOutput = isMidiOutputActive();
+  // [Claude] — 2026-10-04 — « show » / « hide » : la touche s'allume ou s'éteint sans le son
+  // ni la sortie MIDI (l'exemple du Copilote en pause, ou le curseur qu'on tire).
+  const display = type === 'show' || type === 'hide';
+  const toOutput = !display && isMidiOutputActive();
   if (toOutput) {
     if (type === 'noteOn') sendMidi([0x90, a, Math.max(1, Math.min(127, Math.round((b ?? 0.8) * 127)))]);
     else if (type === 'noteOff') sendMidi([0x80, a, 0]);
@@ -665,8 +672,8 @@ function feedDemoEvent(type, a, b) {
   }
   state.isPlayback = true;
   try {
-    if (type === 'noteOn') handleNoteOn(a - state.transpose, b, true, !toOutput);
-    else if (type === 'noteOff') handleNoteOff(a - state.transpose, true, !toOutput);
+    if (type === 'noteOn' || type === 'show') handleNoteOn(a - state.transpose, b, true, !toOutput && !display);
+    else if (type === 'noteOff' || type === 'hide') handleNoteOff(a - state.transpose, true, !toOutput && !display);
     else if (type === 'sustain') handleSustain(Boolean(a));
   } finally {
     state.isPlayback = false;
@@ -2514,7 +2521,8 @@ function initPracticeExercise() {
       console.warn('[Copilot] Audio indisponible', err);
     }
     const tempo = example.tempo || 60;
-    demoPlayer.play({ events: example.events, beats: example.beats }, { tempo });
+    // [Claude] — 2026-10-04 — Avec ou sans la pédale : le choix du pianiste (onglet Copilote).
+    demoPlayer.play({ events: example.events, beats: example.beats }, { tempo, pedal: e.detail.pedal !== false });
     demoContext = { kind: 'copilot', id, tempo };
     document.dispatchEvent(new CustomEvent('copilot-example-state', { detail: { id, playing: true } }));
     clearInterval(exampleTicker);
@@ -2531,10 +2539,24 @@ function initPracticeExercise() {
     const { id, action, seconds } = e.detail || {};
     if (demoContext?.kind !== 'copilot' || demoContext.id !== id) return;
     const perBeat = 60 / demoContext.tempo;
+    const at = Number(seconds);
     if (action === 'pause') demoPlayer.pause();
     else if (action === 'resume') demoPlayer.resume();
-    else if (action === 'back') demoPlayer.seek(demoPlayer.position() - (Number(seconds) || 5) / perBeat);
-    else if (action === 'seek' && Number.isFinite(Number(seconds))) demoPlayer.seek(Number(seconds) / perBeat);
+    else if (action === 'back') demoPlayer.seek(demoPlayer.position() - (at || 5) / perBeat);
+    else if (action === 'seek' && Number.isFinite(at)) demoPlayer.seek(at / perBeat);
+    // [Claude] — 2026-10-04 — Le curseur qu'on tire (Narcisse : « si je redescends avec le
+    // curseur […], il faudrait que le jeu en bas rembobine aussi ») : le son se tait, le
+    // clavier montre l'instant pointé ; au lâcher, la lecture reprend si elle jouait.
+    else if (action === 'scrub' && Number.isFinite(at)) {
+      if (!demoContext.scrub) demoContext.scrub = { resume: demoPlayer.isPlaying() };
+      if (demoPlayer.isPlaying()) demoPlayer.pause();
+      demoPlayer.seek(at / perBeat);
+    } else if (action === 'scrub-end') {
+      const scrub = demoContext.scrub;
+      demoContext.scrub = null;
+      if (scrub && Number.isFinite(at)) demoPlayer.seek(at / perBeat);
+      if (scrub?.resume) demoPlayer.resume();
+    } else if (action === 'pedal') demoPlayer.setPedal(e.detail.on !== false);
     sendExampleProgress();
   });
   function sendExampleProgress() {
@@ -2545,7 +2567,8 @@ function initPracticeExercise() {
         id: demoContext.id,
         position: demoPlayer.position() * perBeat,
         duration: demoPlayer.duration() * perBeat,
-        paused: demoPlayer.isPaused(),
+        // Pendant qu'on tire le curseur d'un exemple qui jouait, le bouton reste « Pause ».
+        paused: demoPlayer.isPaused() && !demoContext.scrub?.resume,
       },
     }));
   }

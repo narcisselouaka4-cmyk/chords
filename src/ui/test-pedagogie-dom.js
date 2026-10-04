@@ -522,7 +522,7 @@ check('Plus de liste 10 / 20 / 30 / 60 s ni de boucle A-B à part',
 const playerCode = stripComments(readText('src/exercise-demo-player.js'));
 const bridgeCss = readText('src/ui/refonte/astra-bridge.css');
 check('Le lecteur sait faire pause, reprendre, aller à un instant ; la reprise remet la pédale et les notes tenues',
-  /return \{\s*play,\s*stop,\s*pause,\s*resume,\s*seek,\s*position,/.test(playerCode)
+  /return \{\s*play,\s*stop,\s*pause,\s*resume,\s*seek,\s*(?:setPedal,\s*)?position,/.test(playerCode)
   && /if \(sustain\) fire\(\{ type: 'sustain', value: true \}\);/.test(playerCode) && /send\('noteOn', note, d\.velocity\);/.test(playerCode));
 check('main.js : commandes de la carte (pause, reprise, −5 s, aller à) et position envoyée toutes les 250 ms',
   mainJs.includes("document.addEventListener('copilot-example-control'") && /exampleTicker = setInterval\(sendExampleProgress, 250\);/.test(mainJs)
@@ -600,6 +600,34 @@ check('« Plus de détails » sous la dernière réponse seulement ; les erreurs
   && /const actions = answerActions\(msg, \{ last, asked: asked\?\.role === 'user' \? asked\.content : '' \}\);/.test(copilotTabCode)
   && (copilotTabCode.match(/content: copilotErrorText\([^)]*\)\)?, isError: true/g) || []).length === 2
   && copilotPrompt.includes('ne le propose pas'));
+
+// ---------------------------------------------------------------------------
+// 18. [Claude] — 2026-10-04 — Le lecteur des exemples (Narcisse : la pause doit « figer
+// l'affichage » ; le curseur doit faire « rembobiner » le clavier, sans « cumul d'accords » ;
+// « un mode sans pédale »)
+// ---------------------------------------------------------------------------
+const mainCode = stripComments(mainJs);
+check('Le clavier reçoit « show » / « hide » : la touche sans le son ni la sortie MIDI',
+  /const display = type === 'show' \|\| type === 'hide';\s*const toOutput = !display && isMidiOutputActive\(\);/.test(mainCode)
+  && /if \(type === 'noteOn' \|\| type === 'show'\) handleNoteOn\(a - state\.transpose, b, true, !toOutput && !display\);/.test(mainCode)
+  && /else if \(type === 'noteOff' \|\| type === 'hide'\) handleNoteOff\(a - state\.transpose, true, !toOutput && !display\);/.test(mainCode));
+check('Pause : le son s\'arrête, les touches de l\'instant restent ; le curseur les recalcule à chaque instant',
+  /function pause\(\) \{[\s\S]*?releaseAll\(\);[\s\S]*?showAt\(pausedAt\);/.test(playerCode)
+  && /if \(paused\) \{\s*pausedAt = at;\s*showAt\(at\);/.test(playerCode)
+  && /const \{ held: down, sustained \} = stateAt\(demo\.events, at, \{ inclusive: true \}\);/.test(playerCode));
+check('Le curseur tiré : « scrub » (le son se tait, le clavier suit), « scrub-end » (la lecture reprend si elle jouait)',
+  /control\('scrub', \{ seconds: Number\(range\.value\) \}\);/.test(copilotTabCode) && /control\('scrub-end', \{ seconds: Number\(range\.value\) \}\);/.test(copilotTabCode)
+  && /action === 'scrub' && Number\.isFinite\(at\)\) \{\s*if \(!demoContext\.scrub\) demoContext\.scrub = \{ resume: demoPlayer\.isPlaying\(\) \};/.test(mainCode)
+  && /if \(scrub\?\.resume\) demoPlayer\.resume\(\);/.test(mainCode)
+  && /paused: demoPlayer\.isPaused\(\) && !demoContext\.scrub\?\.resume,/.test(mainCode));
+check('Sans la pédale : le bouton « Pédale » (exemples qui en ont une), le choix retenu et passé au lecteur',
+  /if \(hasPedalEvents\(example\)\) \{\s*row\.appendChild\(el\('button', \{[\s\S]*?'data-action': 'pedal',/.test(copilotTabCode)
+  && /localStorage\.setItem\(PEDAL_KEY, examplePedal \? 'on' : 'off'\);/.test(copilotTabCode)
+  && /new CustomEvent\('copilot-play-example', \{ detail: \{ id, example, pedal: examplePedal \} \}\)/.test(copilotTabCode)
+  && /\{ tempo, pedal: e\.detail\.pedal !== false \}/.test(mainCode) && /else if \(action === 'pedal'\) demoPlayer\.setPedal\(e\.detail\.on !== false\);/.test(mainCode)
+  && bridgeCss.includes('.copilot-transport-pedal[aria-pressed="false"]'));
+check('Une touche figée jouée puis relâchée par le pianiste redevient jaune',
+  /const shown = state\.isPlayback \? null : demoPlayer\.shownVelocity\(transposed\);\s*if \(shown !== null\) feedDemoEvent\('show', transposed, shown\);/.test(mainCode));
 
 console.log(`\n=== Résultat : ${passed}/${total} contrôles passés ===`);
 if (passed < total) process.exitCode = 1;

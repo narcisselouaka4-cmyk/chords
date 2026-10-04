@@ -11,7 +11,7 @@ import {
   buildDemo, buildGospelDemo, cardHands, demoHands, freeBass, topNeighbour, finalRun, strideSplit,
   octaveFrame, demoPassingChords, demoCardHands, DEMO_STYLES, DEMO_STYLE_IDS, defaultDemoStyle,
 } from './practice-demo.js';
-import { createDemoPlayer } from './exercise-demo-player.js';
+import { createDemoPlayer, stateAt } from './exercise-demo-player.js';
 
 let passed = 0;
 let failed = 0;
@@ -386,15 +386,17 @@ console.log('\n=== Lecteur de démo : pause, reprise, −5 s ===');
   advance(80 + 2000);
   check('Position suivie pendant la lecture', Math.abs(player.position() - 2) < 1e-9, String(player.position()));
   const pausedAt = t;
-  check('Pause : tout est relâché, pédale comprise', player.pause() && player.isPaused() && !player.isPlaying() && player.isActive()
-    && after(pausedAt) === `${pausedAt} noteOff 48 · ${pausedAt} sustain false`, after(pausedAt));
+  // [Claude] — 2026-10-04 — Le son s'arrête, la touche reste allumée (« show » : sans le son).
+  check('Pause : le son s\'arrête (pédale comprise), la touche tenue reste allumée', player.pause() && player.isPaused() && !player.isPlaying() && player.isActive()
+    && after(pausedAt) === `${pausedAt} noteOff 48 · ${pausedAt} sustain false · ${pausedAt} show 48`, after(pausedAt));
   advance(5000);
   check('En pause, rien ne joue et la position reste', after(pausedAt + 1) === '' && Math.abs(player.position() - 2) < 1e-9);
   check('En pause, aller à 1,5 s ne joue rien', player.seek(1.5) && player.position() === 1.5 && after(pausedAt + 1) === '');
   const resumedAt = t;
   player.resume();
   advance(0);
-  check('Reprise au milieu de l\'accord : la pédale est remise, la note tenue rejouée', after(resumedAt) === `${resumedAt} sustain true · ${resumedAt} noteOn 48`, after(resumedAt));
+  check('Reprise au milieu de l\'accord : la touche figée laisse la place, la pédale est remise, la note tenue rejouée',
+    after(resumedAt) === `${resumedAt} hide 48 · ${resumedAt} sustain true · ${resumedAt} noteOn 48`, after(resumedAt));
   advance(3000);
   check('La suite part à son heure (pédale relevée à 3,9 s, Do relâché à 4 s)',
     after(resumedAt + 1) === `${resumedAt + 2400} sustain false · ${resumedAt + 2500} noteOff 48`, after(resumedAt + 1));
@@ -410,6 +412,144 @@ console.log('\n=== Lecteur de démo : pause, reprise, −5 s ===');
   player.stop();
   check('Arrêter pendant une pause : la fin est annoncée', ends.join() === 'finished,stopped' && !player.isActive());
   check('Reprendre ou aller à un instant sans démo : rien', !player.resume() && !player.seek(2) && player.position() === 0);
+}
+
+// [Claude] — 2026-10-04 — Narcisse : « quand j'appuie sur pause pour observer un accord
+// particulier, il faudrait que le jeu en bas se mette réellement en pause et fige l'affichage » ;
+// « si je redescends avec le curseur à 24, 23 ou 20 secondes, il faudrait que le jeu en bas
+// rembobine aussi » sans « cumul d'accords » ; « un mode sans pédale ».
+console.log('\n=== Lecteur de démo : pause figée, curseur suivi sans cumul, sans pédale ===');
+{
+  let t = 0;
+  let queue = [];
+  const setTimer = (fn, ms) => { const id = { fn, at: t + ms }; queue.push(id); return id; };
+  const clearTimer = (id) => { queue = queue.filter((x) => x !== id); };
+  const advance = (ms) => {
+    const target = t + ms;
+    for (;;) {
+      const due = queue.filter((x) => x.at <= target).sort((a, b) => a.at - b.at)[0];
+      if (!due) break;
+      queue = queue.filter((x) => x !== due);
+      t = due.at;
+      due.fn();
+    }
+    t = target;
+  };
+  const sent = [];
+  const ends = [];
+  const player = createDemoPlayer({
+    send: (type, a, b) => sent.push([Math.round(t), type, a, b]),
+    onEnd: (reason) => ends.push(reason),
+    setTimer,
+    clearTimer,
+    now: () => t,
+  });
+  const after = (from) => sent.filter(([at]) => at >= from).map(([, type, a]) => `${type} ${a}`).join(' · ');
+  // Ce que le clavier montre : les touches allumées (son ou sans le son), d'après ce qui est envoyé.
+  const lit = () => {
+    const on = new Set();
+    const sustained = new Set();
+    let pedalDown = false;
+    for (const [, type, a] of sent) {
+      if (type === 'noteOn' || type === 'show') { on.add(a); sustained.delete(a); }
+      else if (type === 'noteOff' || type === 'hide') { on.delete(a); if (pedalDown) sustained.add(a); }
+      else if (type === 'sustain') { pedalDown = Boolean(a); if (!pedalDown) sustained.clear(); }
+    }
+    return [...new Set([...on, ...sustained])].sort((x, y) => x - y).join(' ');
+  };
+  // Tempo 60 : Sol grave tenu 23–27 s ; Fa 24–25, Ré 25–26, Do 26–27 ; pédale 23,9–27,5 s.
+  const events = [
+    { time: 23, type: 'noteOn', note: 43, velocity: 0.7 },
+    { time: 23.9, type: 'sustain', value: true },
+    { time: 24, type: 'noteOn', note: 65, velocity: 0.6 },
+    { time: 25, type: 'noteOff', note: 65 },
+    { time: 25, type: 'noteOn', note: 62, velocity: 0.6 },
+    { time: 26, type: 'noteOff', note: 62 },
+    { time: 26, type: 'noteOn', note: 60, velocity: 0.6 },
+    { time: 27, type: 'noteOff', note: 60 },
+    { time: 27, type: 'noteOff', note: 43 },
+    { time: 27.5, type: 'sustain', value: false },
+  ];
+  const at = (s, o) => {
+    const st = stateAt(events, s, o);
+    return `tenues ${[...st.held.keys()].sort((x, y) => x - y).join(' ')} | pédale ${[...st.sustained.keys()].sort((x, y) => x - y).join(' ')}`;
+  };
+  check('L\'état à un instant : les notes tenues, et celles que la pédale prolonge',
+    at(25.5, { inclusive: true }) === 'tenues 43 62 | pédale 65' && at(26.5, { inclusive: true }) === 'tenues 43 60 | pédale 62 65'
+    && at(27.6, { inclusive: true }) === 'tenues  | pédale ', `${at(25.5, { inclusive: true })} / ${at(26.5, { inclusive: true })}`);
+  check('L\'instant pile d\'une attaque : vue (inclusive), mais pas encore jouée (reprise)',
+    at(26, { inclusive: true }) === 'tenues 43 60 | pédale 62 65' && at(26) === 'tenues 43 | pédale 62 65', `${at(26, { inclusive: true })} / ${at(26)}`);
+
+  player.play({ events, beats: 28 }, { tempo: 60 });
+  check('La démo a une pédale, jouée par défaut', player.hasPedal() && player.pedal());
+  advance(80 + 26500);
+  const pausedAt = t;
+  player.pause();
+  check('Pause à 26,5 s : le son s\'arrête, les touches de l\'instant restent allumées',
+    after(pausedAt) === 'noteOff 43 · noteOff 60 · sustain false · show 43 · show 60 · show 62 · show 65' && lit() === '43 60 62 65',
+    `${after(pausedAt)} | ${lit()}`);
+  advance(3000);
+  check('En pause : rien ne joue, rien ne s\'éteint', after(pausedAt + 1) === '' && lit() === '43 60 62 65');
+  const seekAt = t;
+  player.seek(25.5);
+  check('Curseur ramené à 25,5 s : le Do (26 s) s\'éteint, sans aucun son',
+    after(seekAt) === 'hide 60' && lit() === '43 62 65', `${after(seekAt)} | ${lit()}`);
+  const seekAt2 = t + 1;
+  advance(1);
+  player.seek(24.5);
+  check('À 24,5 s : le Ré s\'éteint aussi (pas de cumul)', after(seekAt2) === 'hide 62' && lit() === '43 65', `${after(seekAt2)} | ${lit()}`);
+  const seekAt3 = t + 1;
+  advance(1);
+  player.seek(22);
+  check('Avant la première note : le clavier est vide', after(seekAt3) === 'hide 43 · hide 65' && lit() === '', `${after(seekAt3)} | ${lit()}`);
+  const seekAt4 = t + 1;
+  advance(1);
+  player.seek(26.2);
+  check('Et en avançant à 26,2 s : les touches de cet instant, et elles seules',
+    after(seekAt4) === 'show 43 · show 60 · show 62 · show 65' && lit() === '43 60 62 65', `${after(seekAt4)} | ${lit()}`);
+  const seekAt5 = t + 1;
+  advance(1);
+  player.seek(25.5);
+  const resumedAt = t + 1;
+  advance(1);
+  player.resume();
+  check('Reprise à 25,5 s : la pédale est remise, le Fa qu\'elle prolonge reste allumé, Sol et Ré sont rejoués',
+    after(resumedAt) === 'hide 43 · hide 62 · hide 65 · sustain true · show 65 · hide 65 · noteOn 43 · noteOn 62' && lit() === '43 62 65',
+    `${after(resumedAt)} | ${lit()} (${after(seekAt5)})`);
+  advance(500);
+  check('La suite part à son heure (26 s : Ré relâché, Do joué)', lit() === '43 60 62 65', lit());
+
+  // Sans la pédale, en cours de lecture : la pédale est relevée, les notes tenues rejouées.
+  const pedalAt = t + 1;
+  advance(1);
+  player.setPedal(false);
+  check('Sans la pédale, en cours de lecture : la pédale se relève, Sol et Do continuent',
+    !player.pedal() && after(pedalAt) === 'noteOff 43 · noteOff 60 · sustain false · noteOn 43 · noteOn 60' && lit() === '43 60',
+    `${after(pedalAt)} | ${lit()}`);
+  advance(5000);
+  check('Sans la pédale : plus aucun appui de pédale, la fin arrive quand même', !sent.slice(-6).some(([, type, a]) => type === 'sustain' && a === true)
+    && ends.join() === 'finished' && lit() === '', `${ends.join()} | ${lit()}`);
+
+  // Sans la pédale dès le départ, et en pause : le clavier ne montre que les doigts.
+  sent.length = 0;
+  player.play({ events, beats: 28 }, { tempo: 60, pedal: false });
+  advance(80 + 26500);
+  player.pause();
+  check('Sans la pédale, pause à 26,5 s : seulement les touches tenues (Sol, Do)', !sent.some(([, type]) => type === 'sustain') && lit() === '43 60', lit());
+  check('Durée inchangée sans la pédale', player.duration() === 28);
+  const backAt = t + 1;
+  advance(1);
+  player.setPedal(true);
+  check('La pédale remise en pause : le clavier montre aussi ce qu\'elle prolonge', after(backAt) === 'show 62 · show 65' && lit() === '43 60 62 65', `${after(backAt)} | ${lit()}`);
+  const stopAt = t + 1;
+  advance(1);
+  player.stop();
+  check('Arrêter en pause : les touches figées s\'éteignent', after(stopAt) === 'hide 43 · hide 60 · hide 62 · hide 65' && lit() === '' && player.shownVelocity(60) === null, `${after(stopAt)} | ${lit()}`);
+  player.play({ events, beats: 28 }, { tempo: 60 });
+  advance(80 + 24500);
+  player.pause();
+  check('La force d\'une touche figée est connue (le pianiste la rejoue et la relâche)', player.shownVelocity(65) === 0.6 && player.shownVelocity(70) === null);
+  player.stop();
 }
 
 console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);

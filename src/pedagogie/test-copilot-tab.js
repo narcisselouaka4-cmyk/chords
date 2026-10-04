@@ -44,6 +44,8 @@ const {
   splitAnswerNotes,
   answerActions,
   MORE_DETAILS,
+  hasPedalEvents,
+  exampleSubtitle,
 } = await import('./copilot-tab.js');
 
 const GREEN = '\x1b[32m';
@@ -191,6 +193,23 @@ function testAnswerActions() {
     && answerActions({ role: 'assistant', isTyping: true }, { last: true }).length === 0);
 }
 
+// [Claude] — 2026-10-04 — Le mode sans pédale (Narcisse : « avec la pédale, il y a une telle
+// flopée de notes qu'on ne distingue pas bien le jeu du prof »).
+function testExampleSubtitle() {
+  const pedal = [{ time: 0, type: 'sustain', value: true }, { time: 0, type: 'noteOn', note: 60 }];
+  const prof = { subtitle: '15 notes jouées par le professeur · avec sa pédale · ses explications raccourcies à 2 s', events: pedal };
+  check('Avec la pédale : le sous-titre tel quel', exampleSubtitle(prof) === prof.subtitle && hasPedalEvents(prof));
+  check('Sans la pédale : « sans pédale » à la place de « avec sa pédale »',
+    exampleSubtitle(prof, { pedal: false }) === '15 notes jouées par le professeur · sans pédale · ses explications raccourcies à 2 s');
+  check('« pédale à chaque accord » et « pédale comprise » aussi',
+    exampleSubtitle({ subtitle: '8 notes jouées par le professeur · pédale à chaque accord', events: pedal }, { pedal: false }) === '8 notes jouées par le professeur · sans pédale'
+    && exampleSubtitle({ subtitle: '12 notes comme tu les as jouées, pédale comprise · transposées de +2 demi-tons', events: pedal }, { pedal: false }) === '12 notes comme tu les as jouées · sans pédale · transposées de +2 demi-tons');
+  check('Un sous-titre qui ne parle pas de pédale : « sans pédale » ajouté',
+    exampleSubtitle({ subtitle: 'Repris de 0:00–0:09', events: pedal }, { pedal: false }) === 'Repris de 0:00–0:09 · sans pédale');
+  check('Un exemple sans pédale : rien ne change, pas de bouton',
+    !hasPedalEvents({ events: [{ time: 0, type: 'noteOn', note: 60 }] }) && exampleSubtitle({ subtitle: 'Dm7 → G7', events: [] }, { pedal: false }) === 'Dm7 → G7' && !hasPedalEvents(null));
+}
+
 async function runTests() {
   testNextModeOnSelectionChange();
   testToggleButtonState();
@@ -198,6 +217,7 @@ async function runTests() {
   testCopilotErrorText();
   testSplitAnswerNotes();
   testAnswerActions();
+  testExampleSubtitle();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);
   process.exit(failed === 0 ? 0 : 1);
