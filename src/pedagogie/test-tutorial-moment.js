@@ -73,12 +73,19 @@ check('horloge m:ss', clock(65.9) === '1:05' && clock(0) === '0:00');
 console.log('Questions toutes prêtes');
 check('quatre propositions : deux directes, deux avec un choix', TUTORIAL_QUICK_ACTIONS.length === 4
   && TUTORIAL_QUICK_ACTIONS.filter((a) => a.message).length === 2 && TUTORIAL_QUICK_ACTIONS.filter((a) => a.chooser).length === 2);
+// [Claude] — 2026-10-04 — Ce qui est écrit part (choix de Narcisse) : une étiquette directe
+// envoie son propre texte, rien de caché.
+check('ce qui est écrit part : « Explique ce passage », « Rejoue ce passage »',
+  TUTORIAL_QUICK_ACTIONS.filter((a) => a.message).every((a) => a.message === `${a.label}.`)
+  && TUTORIAL_QUICK_ACTIONS.map((a) => a.label).join(' | ') === 'Explique ce passage | Rejoue ce passage | Rejoue-le en… | Applique-le à…',
+  TUTORIAL_QUICK_ACTIONS.map((a) => `${a.label} → ${a.message || a.chooser}`).join(' / '));
 check('la progression de Narcisse est proposée en premier', TUTORIAL_PROGRESSIONS[0] === '4-5-3-6-2-5-1');
 check('« Applique… » : quoi, progression en degrés, tonalité en français',
-  applyQuestion({ kind: 'voicing', progression: '4-5-3-6-2-5-1', key: 'F#' }) === 'Comment appliquer ses voicings de ce passage à une progression 4-5-3-6-2-5-1 en Fa♯ ? Fais-la-moi entendre.');
+  applyQuestion({ kind: 'voicing', progression: '4-5-3-6-2-5-1', key: 'F#' }) === 'Applique ses voicings à 4-5-3-6-2-5-1 en Fa♯.');
 check('« Applique… » à une progression tapée en accords : pas de tonalité ajoutée',
-  applyQuestion({ kind: 'lick', progression: 'Fmaj7 E7 Am7 D9', key: 'C' }) === 'Comment appliquer son lick (son run, son fill) de ce passage à une progression Fmaj7 E7 Am7 D9 ? Fais-la-moi entendre.');
-check('« Autre tonalité » en français', otherKeyQuestion('Bb') === 'Que donnerait ce passage en Si♭ ? Fais-le-moi entendre et explique ce qui change.');
+  applyQuestion({ kind: 'lick', progression: 'Fmaj7 E7 Am7 D9', key: 'C' }) === 'Applique son lick à Fmaj7 E7 Am7 D9.');
+check('« Applique… » : ses accords de passage', applyQuestion({ kind: 'enchainement', progression: '2-5-1', key: 'F' }) === 'Applique ses accords de passage à 2-5-1 en Fa.');
+check('« Rejoue-le en… » en français', otherKeyQuestion('Bb') === 'Rejoue ce passage en Si♭.');
 check('tonalité détectée → tonalité de la liste', keyIdFrom('G major') === 'G' && keyIdFrom('C#') === 'Db' && keyIdFrom('Sol mineur') === 'G' && keyIdFrom('') === null);
 check('nom français', keyLabel('Eb') === 'Mi♭' && keyLabel('Fa♯') === 'Fa♯');
 

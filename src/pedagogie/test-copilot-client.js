@@ -121,7 +121,7 @@ global.document = {
 
 // 2. Import dynamique APRÈS le setup de window
 const { sendCopilotMessage, executeToolCalls, wantsToHear, myPlayingRequest, melodyChordsRequest, wantsMelodyChords, setCopilotTimeout, tutorialToolCalls, transferTargets } = await import('./copilot-client.js');
-const { applyQuestion, otherKeyQuestion, voicingQuestion, whatHeMeantQuestion, parseTutorialRequest } = await import('./tutorial-questions.js');
+const { applyQuestion, otherKeyQuestion, parseTutorialRequest } = await import('./tutorial-questions.js');
 
 const GREEN = '\x1b[32m';
 const RED = '\x1b[31m';
@@ -1405,7 +1405,13 @@ function testTutorialRouting() {
   check('la question de Narcisse, tapée telle quelle : reconnue', free?.kind === 'apply' && free.progression === '4-5-3-6-2-5-1' && free.what === null, JSON.stringify(free));
   check('« Que donnerait ce voicing en Fa dièse alors qu\'il est en Do ? » : autre tonalité (Fa dièse)', parseTutorialRequest('Que donnerait ce voicing dans la gamme de Fa dièse alors qu\'il est en Do ?')?.key === 'Fa dièse');
   check('« Joue-moi un 2-5-1 en Do » : question générale, pas le passage du prof', parseTutorialRequest('Joue-moi un 2-5-1 en Do') === null);
-  check('« Ce voicing ? » et « Qu\'a-t-il voulu dire ? » reconnus', parseTutorialRequest(voicingQuestion())?.kind === 'voicing' && parseTutorialRequest(whatHeMeantQuestion())?.kind === 'meaning');
+  check('« C\'est quoi ce voicing ? » et « Explique ce passage. » reconnus', parseTutorialRequest('C\'est quoi ce voicing ?')?.kind === 'voicing' && parseTutorialRequest('Explique ce passage.')?.kind === 'meaning');
+  // [Claude] — 2026-10-04 — Les phrases des étiquettes (ce qui est écrit part).
+  const replayIn = parseTutorialRequest(otherKeyQuestion('F'));
+  check('« Rejoue ce passage en Fa. » : le passage transposé, pas un simple rejeu', replayIn?.kind === 'otherKey' && replayIn.key === 'Fa', JSON.stringify(replayIn));
+  check('« Rejoue ce passage. » : le rejeu', parseTutorialRequest('Rejoue ce passage.')?.kind === 'replay');
+  const typed = parseTutorialRequest(applyQuestion({ kind: 'lick', progression: 'Fmaj7 E7 Am7 D9' }));
+  check('« Applique son lick à Fmaj7 E7 Am7 D9. » : accords tapés reconnus', typed?.kind === 'apply' && typed.what === 'lick' && typed.chords?.join(' ') === 'Fmaj7 E7 Am7 D9', JSON.stringify(typed));
 
   const forced = tutorialToolCalls(apply, undefined, TEACHER);
   const args = JSON.parse(forced?.[0]?.function?.arguments || '{}');
@@ -1450,17 +1456,17 @@ async function testTutorialApplyInSend() {
     res.ok && res.toolResult.example?.kind === 'tutorial-transfer' && res.toolResult.example.chords.map((c) => c.name).join(' ') === 'G#m7 C#7 F#maj7', JSON.stringify(res.toolResult?.example?.chords?.map((c) => c.name)));
   check('Pédagogie : un seul appel (pas de relance, pas de « correction » de la tonalité demandée)', bodies.length === 1, `appels=${bodies.length}`);
   check('Pédagogie : la réponse garde l\'explication puis donne les notes calculées', res.content.startsWith('Le prof garde la fondamentale seule') && /\*\*G#m7\*\* : main gauche/.test(res.content), res.content);
-  check('Pédagogie : « Fais-la-moi entendre » : l\'exemple démarre après la réponse', res.autoplay === true);
+  check('Pédagogie : « Applique… » : l\'exemple démarre après la réponse', res.autoplay === true);
 
   bodies.length = 0;
   reply = { role: 'assistant', content: 'Il joue un voicing avec la 7e et la 3ce à la main droite.' };
-  const voicing = await sendCopilotMessage({ message: voicingQuestion(), messages: [], context });
+  const voicing = await sendCopilotMessage({ message: 'C\'est quoi le voicing qu\'il joue dans ce passage ?', messages: [], context });
   check('« Ce voicing ? » : son dernier accord rejoué tel quel, un seul appel',
     voicing.toolResult.example?.tutorialStart === 4 && voicing.toolResult.example?.tutorialEnd === 6 && bodies.length === 1 && !/n'ai pas réussi/.test(voicing.content), `${voicing.toolResult.example?.tutorialStart} appels=${bodies.length}`);
 
   bodies.length = 0;
   reply = { role: 'assistant', content: 'Il montre comment la 7e de Dm9 descend sur la tierce de G13.' };
-  const meaning = await sendCopilotMessage({ message: whatHeMeantQuestion(), messages: [], context });
+  const meaning = await sendCopilotMessage({ message: 'Explique ce passage.', messages: [], context });
   check('« Qu\'a-t-il voulu dire ? » : l\'explication seule, sans relance ni remarque', !meaning.toolResult.example && bodies.length === 1 && !/n'ai pas réussi/.test(meaning.content), `appels=${bodies.length} ${meaning.content}`);
 
   bodies.length = 0;

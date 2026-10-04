@@ -7,6 +7,11 @@
 //
 // Textes seuls, sans DOM : copilot-tab.js en fait les boutons ; testé dans
 // test-tutorial-moment.js.
+//
+// [Claude] — 2026-10-04 — Narcisse : « pour chaque étiquette, il y a une question » qu'on ne
+// voit pas, « ça se trouve, ça ne colle pas du tout à ce que je pense ». Son choix : ce qui
+// est écrit part. Une étiquette envoie son propre texte ; un choix (tonalité, progression)
+// complète la phrase dans la case, qu'on lit avant de l'envoyer.
 
 /** Les douze tonalités, nom anglais (pour l'application) et nom français (affiché). */
 export const TUTORIAL_KEYS = [
@@ -16,11 +21,11 @@ export const TUTORIAL_KEYS = [
   { id: 'A', label: 'La' }, { id: 'Bb', label: 'Si♭' }, { id: 'B', label: 'Si' },
 ];
 
-/** Ce que le pianiste veut reprendre du professeur. */
+/** Ce que le pianiste veut reprendre du professeur (le libellé est dans la phrase envoyée). */
 export const TRANSFER_KINDS = [
   { id: 'voicing', label: 'Ses voicings', text: 'ses voicings' },
-  { id: 'enchainement', label: 'Son enchaînement', text: 'son enchaînement (ses accords de passage)' },
-  { id: 'lick', label: 'Son lick', text: 'son lick (son run, son fill)' },
+  { id: 'enchainement', label: 'Ses accords de passage', text: 'ses accords de passage' },
+  { id: 'lick', label: 'Son lick', text: 'son lick' },
 ];
 
 /** Progressions proposées, en degrés (la tonalité est choisie à côté). */
@@ -48,41 +53,33 @@ export function keyIdFrom(text) {
   return fr ? fr.id : null;
 }
 
-/** « Qu'a-t-il voulu dire ici ? » */
-export function whatHeMeantQuestion() {
-  return 'Qu\'est-ce que le prof a voulu dire ou montrer dans ce passage ? Explique-le simplement, en partant de ce qu\'il joue.';
-}
-
-/** « C'est quoi ce voicing ? » */
-export function voicingQuestion() {
-  return 'C\'est quoi le voicing qu\'il joue dans ce passage ? Donne le rôle de chaque note, main par main, et pourquoi il sonne comme ça.';
-}
-
-/** « Dans une autre tonalité… » */
+/** « Rejoue-le en… » : « Rejoue ce passage en Fa. » */
 export function otherKeyQuestion(keyId) {
-  return `Que donnerait ce passage en ${keyLabel(keyId)} ? Fais-le-moi entendre et explique ce qui change.`;
+  return `Rejoue ce passage en ${keyLabel(keyId)}.`;
 }
 
 /**
- * « Applique-le à une progression… »
+ * « Applique-le à… » : « Applique ses voicings à 4-5-3-6-2-5-1 en Sol. » ; une progression
+ * tapée en accords n'a pas de tonalité ajoutée (« Applique son lick à Fmaj7 E7 Am7 D9. »).
  * @param {{kind?: string, progression?: string, key?: string}} choice
  */
 export function applyQuestion({ kind = 'voicing', progression = '4-5-3-6-2-5-1', key = 'C' } = {}) {
   const what = (TRANSFER_KINDS.find((k) => k.id === kind) || TRANSFER_KINDS[0]).text;
   const prog = String(progression || '').trim() || '4-5-3-6-2-5-1';
   const isDegrees = /^\d(\s*-\s*\d)+$/.test(prog);
-  return `Comment appliquer ${what} de ce passage à une progression ${prog}${isDegrees ? ` en ${keyLabel(key)}` : ''} ? Fais-la-moi entendre.`;
+  return `Applique ${what} à ${prog}${isDegrees ? ` en ${keyLabel(key)}` : ''}.`;
 }
 
 /**
- * Les questions rapides du mode tutoriel : deux qui partent d'un clic, deux qui
- * ouvrent un petit choix (tonalité ; quoi, quelle progression, quelle tonalité).
+ * Les étiquettes du mode tutoriel : deux qui envoient leur propre texte, deux qui ouvrent
+ * un petit choix (une tonalité ; quoi, quelle progression, quelle tonalité) dont la phrase
+ * s'écrit dans la case.
  */
 export const TUTORIAL_QUICK_ACTIONS = [
-  { label: 'Qu\'a-t-il voulu dire ?', message: whatHeMeantQuestion() },
-  { label: 'Ce voicing ?', message: voicingQuestion() },
-  { label: 'Autre tonalité…', chooser: 'key' },
-  { label: 'Appliquer à une progression…', chooser: 'apply' },
+  { label: 'Explique ce passage', message: 'Explique ce passage.' },
+  { label: 'Rejoue ce passage', message: 'Rejoue ce passage.' },
+  { label: 'Rejoue-le en…', chooser: 'key' },
+  { label: 'Applique-le à…', chooser: 'apply' },
 ];
 
 // ── Ce que demande le pianiste (repli déterministe du Copilote) ─────────────────
@@ -120,7 +117,7 @@ function transferKind(text) {
 
 /** La progression cible écrite en accords, après « progression », « grille » ou « sur ». */
 function chordListIn(text) {
-  const m = /(?:progression|grille|suite d'accords|sur)\s*:?\s*([^?.!;\n]+)/i.exec(text);
+  const m = /(?:progression|grille|suite d'accords|sur|à|pour)\s*:?\s*([^?.!;\n]+)/i.exec(text);
   if (!m) return null;
   const tokens = m[1].split(/[\s,→>|]+|\s-\s/).map((t) => t.trim()).filter(Boolean);
   const chords = [];
@@ -165,7 +162,9 @@ function classifyTutorialRequest(text) {
   }
   // Une progression nommée sans « appliquer » (« joue-moi un 2-5-1 en Do ») : une
   // question générale, pas ce passage dans une autre tonalité.
-  if (key && !progression && !chords && /donnerai|transpos|autre tonalit|dans la (?:gamme|tonalité)|dans le ton|jou(?:e|er)[- ](?:le|la|les|moi)|(?:le|la|les|l')\s*jouer|fais[- ](?:le|la|les)[- ]moi|entendre/i.test(text)) {
+  // [Claude] — 2026-10-04 — « Rejoue ce passage en Fa » (l'étiquette « Rejoue-le en… ») : ce
+  // passage dans une autre tonalité, pas un simple rejeu.
+  if (key && !progression && !chords && (REPLAY.test(text) || /donnerai|transpos|autre tonalit|dans la (?:gamme|tonalité)|dans le ton|jou(?:e|er)[- ](?:le|la|les|moi)|(?:le|la|les|l')\s*jouer|fais[- ](?:le|la|les)[- ]moi|entendre/i.test(text))) {
     return { kind: 'otherKey', key };
   }
   // [Claude] — 2026-10-03 — « Reproduis ce qu'il a joué », « peux-tu reproduire ce que je viens

@@ -440,7 +440,9 @@ check('Un relevé est un travail à part : il continue après le retour aux cart
   && /readingQueue = readingQueue\.then\(/.test(tabCode));
 check('« Style » et sa liste restent ensemble (groupe .copilot-style)',
   /<span class="copilot-style">\s*<label class="copilot-style-label"[^>]*>Style<\/label>\s*<select id="copilot-style-select"/.test(html)
-  && readText('src/ui/refonte/astra-bridge.css').includes('#copilot-quick-actions .copilot-style {'));
+  && readText('src/ui/refonte/astra-bridge.css').includes('.tr-composer-tools > .copilot-style {')
+  // [Claude] — 2026-10-04 — Sur la ligne de la case, avant le bouton d'envoi.
+  && /<div class="tr-composer-tools">[\s\S]*?<span class="copilot-style">[\s\S]*?<button class="copilot-send-btn"/.test(html));
 
 // ---------------------------------------------------------------------------
 // 11. [Claude] — 2026-10-03 — Lot 6 : outils de travail
@@ -556,6 +558,27 @@ check('Le bouton « Agrandir » / « Réduire » dans l\'en-tête du Copilote, l
   && /localStorage\.setItem\(COPILOT_WIDTH_KEY, String\(copilotShare\)\)/.test(tabCode) && /setCopilotShare\(storedShare\(savedShare\), \{ save: false \}\)/.test(tabCode));
 check('Fenêtre étroite (l\'un sous l\'autre) : ni poignée ni bouton',
   /@media \(max-width: 1100px\)[\s\S]*?#practice-view-pedagogie \.pedago-resizer,\s*#pedagogie-copilot-panel \.pedago-copilot-size \{ display: none; \}/.test(pedagoCss));
+
+// ---------------------------------------------------------------------------
+// 16. [Claude] — 2026-10-04 — Étiquettes : ce qui est écrit part (Narcisse : « pour chaque
+// étiquette, il y a une question » qu'on ne voit pas ; « “Voicing”, on ne comprend pas vraiment
+// le sens »)
+// ---------------------------------------------------------------------------
+const chipTags = [...html.matchAll(/<button type="button" class="copilot-chip" data-message="([^"]+)">([^<]+)<\/button>/g)];
+check('Copilote seul (« Continuer : ») : chaque étiquette envoie son propre texte',
+  chipTags.length === 6 && chipTags.every(([, message, text]) => message.replace(/[.]$/, '') === text.replace(/[.]$/, ''))
+  && !html.includes('>Voicing</button>'), chipTags.map(([, m, t]) => `${t} → ${m}`).join(' / '));
+check('Exercices et accueil du Copilote : le libellé est la question envoyée',
+  /\{ label: 'Explique ce voicing', message: 'Explique ce voicing\.' \}/.test(copilotTabCode)
+  && /\{ label: 'Comment mieux accompagner \?', icon: ICON_SPARKLE_MD, message: 'Comment mieux accompagner \?' \}/.test(copilotTabCode));
+check('Un choix écrit la phrase dans la case, sans l\'envoyer ; « Envoyer » (ou Entrée) l\'envoie',
+  /function prepare\(message\) \{[\s\S]*?els\.input\.value = message;/.test(copilotTabCode) && !copilotTabCode.includes('sendPrepared(')
+  && copilotTabCode.includes("text: 'Envoyer'") && /prepare\(otherKeyQuestion\(id\)\)/.test(copilotTabCode)
+  && /const write = \(\) => prepare\(applyQuestion\(choice\)\);/.test(copilotTabCode)
+  && /if \(preparedText && els\.input\?\.value === preparedText\)/.test(copilotTabCode));
+check('Suggestions sous les réponses : le bouton montre le message envoyé, sans « Demander »',
+  /btn\.appendChild\(el\('span', \{ text: message \}\)\);/.test(copilotTabCode) && !copilotTabCode.includes("el('small', { text: 'Demander' })")
+  && readText('src/pedagogie/copilot-client.js').includes('le bouton affiche exactement le message envoyé (label = message)'));
 
 console.log(`\n=== Résultat : ${passed}/${total} contrôles passés ===`);
 if (passed < total) process.exitCode = 1;

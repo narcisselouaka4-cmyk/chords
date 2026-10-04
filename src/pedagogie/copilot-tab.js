@@ -141,12 +141,14 @@ function historyKeyForMode() {
   return AUTONOMOUS_HISTORY_KEY;
 }
 
-// Propositions du mode exercice (envoyées d'un clic, comme les autres).
+// Propositions du mode exercice (envoyées d'un clic, comme les autres). [Claude] —
+// 2026-10-04 — Ce qui est écrit part (Narcisse : « pour chaque étiquette, il y a une
+// question » qu'on ne voit pas) : le message est le texte de l'étiquette.
 const EXERCISE_QUICK_ACTIONS = [
-  { label: 'Ce voicing', message: 'Explique-moi le voicing de la carte : le rôle de chaque note et pourquoi il marche.' },
-  { label: 'Comment le jouer', message: 'Comment je joue l\'accord en cours à deux mains ?' },
-  { label: 'Enchaînement', message: 'Comment enchaîner les accords de l\'exercice : quelles voix bougent ?' },
-  { label: 'Fais-moi entendre', message: 'Fais-moi entendre les accords de la carte.' },
+  { label: 'Explique ce voicing', message: 'Explique ce voicing.' },
+  { label: 'Comment le jouer à deux mains ?', message: 'Comment le jouer à deux mains ?' },
+  { label: 'Quelles voix bougent ?', message: 'Quelles voix bougent ?' },
+  { label: 'Fais-moi entendre la carte', message: 'Fais-moi entendre la carte.' },
 ];
 let defaultQuickActions = null;
 
@@ -175,7 +177,10 @@ function renderQuickActionsForMode() {
   }));
   const label = els.quickActions.querySelector('.copilot-quick-actions-label');
   if (label) {
-    label.textContent = currentMode === 'tutorial' ? 'Sur ce passage : ' : 'Continuer : ';
+    label.textContent = 'Continuer : ';
+    // [Claude] — 2026-10-04 — En mode tuto, les étiquettes disent déjà « ce passage » : sans
+    // libellé, la rangée tient sur une ligne (la conversation y gagne de la hauteur).
+    label.hidden = currentMode === 'tutorial';
     label.after(...chips);
   } else {
     els.quickActions.prepend(...chips);
@@ -185,18 +190,31 @@ function renderQuickActionsForMode() {
 // ── Petits choix du mode tutoriel (Pédagogie IA) ─────────────────────────────
 // [Claude] — 2026-10-03 — « Que donnerait ce voicing en Fa♯ ? » : une tonalité.
 // « Comment appliquer ce qu'il vient de faire dans une 4-5-3-6-2-5-1 ? » : quoi
-// reprendre (ses voicings, son enchaînement, son lick), quelle progression, quelle
-// tonalité. Le choix fait, la question part comme si le pianiste l'avait tapée.
+// reprendre (ses voicings, ses accords de passage, son lick), quelle progression, quelle
+// tonalité. [Claude] — 2026-10-04 — Le choix écrit la phrase dans la case (« Rejoue ce
+// passage en Fa. ») : on la lit, on la change si besoin, puis Entrée ou « Envoyer ».
 
 /** Tonalité du tutoriel (la tonalité détectée), sinon Do. */
 function tutorialKeyId() {
   return keyIdFrom(readCopilotContext('tutorial')?.key) || 'C';
 }
 
-function sendPrepared(message) {
+// La phrase qu'un choix a écrite dans la case (effacée si on ferme le choix sans l'avoir touchée).
+let preparedText = '';
+
+/** Écrit la phrase dans la case, sans l'envoyer. */
+function prepare(message) {
   if (!els.input || !message) return;
-  closeChooser();
   els.input.value = message;
+  preparedText = message;
+  autoGrowInput();
+}
+
+/** « Envoyer » dans un choix : la phrase de la case part (celle qu'on a peut-être changée). */
+function sendFromChooser() {
+  if (!els.input?.value.trim()) return;
+  preparedText = '';
+  closeChooser();
   sendUserMessage();
 }
 
@@ -204,6 +222,22 @@ function closeChooser() {
   els.chooser?.remove();
   els.chooser = null;
   els.quickActions?.querySelectorAll('.copilot-chip[data-chooser]').forEach((b) => b.setAttribute('aria-expanded', 'false'));
+  if (preparedText && els.input?.value === preparedText) {
+    els.input.value = '';
+    autoGrowInput();
+  }
+  preparedText = '';
+}
+
+/** Le bouton « Envoyer » d'un choix (Entrée dans la case fait de même). */
+function chooserSend({ disabled = false } = {}) {
+  const button = el('button', {
+    type: 'button', className: 'copilot-chooser-send', text: 'Envoyer',
+    title: 'Envoie la phrase écrite dans la case (Entrée fait de même)',
+    onClick: () => sendFromChooser(),
+  });
+  button.disabled = disabled;
+  return button;
 }
 
 function keyButtons(onPick, selected = null) {
@@ -218,9 +252,21 @@ function keyButtons(onPick, selected = null) {
 }
 
 function buildKeyChooser() {
-  return el('div', { className: 'copilot-chooser', role: 'group', 'aria-label': 'Dans quelle tonalité ?' }, [
-    el('span', { className: 'copilot-chooser-title', text: 'Dans quelle tonalité ?' }),
-    el('div', { className: 'copilot-chooser-keys' }, keyButtons((id) => sendPrepared(otherKeyQuestion(id)))),
+  const send = chooserSend({ disabled: true });
+  const keys = el('div', { className: 'copilot-chooser-keys' });
+  keys.append(...keyButtons((id) => {
+    prepare(otherKeyQuestion(id));
+    keys.querySelectorAll('button').forEach((b) => {
+      const on = b.dataset.key === id;
+      b.classList.toggle('is-selected', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    send.disabled = false;
+  }));
+  return el('div', { className: 'copilot-chooser', role: 'group', 'aria-label': 'Rejouer ce passage dans quelle tonalité ?' }, [
+    el('span', { className: 'copilot-chooser-title', text: 'Rejouer ce passage en' }),
+    keys,
+    send,
   ]);
 }
 
@@ -231,9 +277,11 @@ function buildApplyChooser() {
     b.classList.toggle('is-selected', on);
     b.setAttribute('aria-pressed', on ? 'true' : 'false');
   });
+  // Chaque choix réécrit la phrase de la case : elle dit toujours ce qui partira.
+  const write = () => prepare(applyQuestion(choice));
   const kinds = el('div', { className: 'copilot-chooser-row' }, TRANSFER_KINDS.map((k) => el('button', {
     type: 'button', className: 'copilot-chooser-option', 'data-kind': k.id, text: k.label,
-    onClick: () => { choice.kind = k.id; pick(kinds, 'kind', k.id); },
+    onClick: () => { choice.kind = k.id; pick(kinds, 'kind', k.id); write(); },
   })));
   const custom = el('input', {
     type: 'text', className: 'copilot-chooser-input', maxlength: '80',
@@ -241,10 +289,10 @@ function buildApplyChooser() {
   });
   const progs = el('div', { className: 'copilot-chooser-row' }, TUTORIAL_PROGRESSIONS.map((p) => el('button', {
     type: 'button', className: 'copilot-chooser-option', 'data-prog': p, text: p,
-    onClick: () => { choice.progression = p; custom.value = ''; pick(progs, 'prog', p); },
+    onClick: () => { choice.progression = p; custom.value = ''; pick(progs, 'prog', p); write(); },
   })));
   custom.addEventListener('input', () => {
-    if (custom.value.trim()) { choice.progression = custom.value.trim(); pick(progs, 'prog', ''); }
+    if (custom.value.trim()) { choice.progression = custom.value.trim(); pick(progs, 'prog', ''); write(); }
   });
   const keys = el('div', { className: 'copilot-chooser-keys' });
   const setKey = (id) => {
@@ -254,21 +302,21 @@ function buildApplyChooser() {
       b.classList.toggle('is-selected', on);
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
+    write();
   };
   keys.append(...keyButtons(setKey, choice.key));
-  const ask = el('button', {
-    type: 'button', className: 'copilot-chooser-send', text: 'Demander au Copilote',
-    onClick: () => sendPrepared(applyQuestion(choice)),
-  });
-  custom.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); ask.click(); } });
+  const send = chooserSend();
+  custom.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); send.click(); } });
   const box = el('div', { className: 'copilot-chooser is-apply', role: 'group', 'aria-label': 'Appliquer ce passage à une progression' }, [
     el('span', { className: 'copilot-chooser-title', text: 'Reprendre de ce passage' }), kinds,
     el('span', { className: 'copilot-chooser-title', text: 'Sur la progression' }), progs, custom,
     el('span', { className: 'copilot-chooser-title', text: `En (tonalité du tuto : ${keyLabel(tutorialKeyId())})` }), keys,
-    ask,
+    send,
   ]);
   pick(kinds, 'kind', choice.kind);
   pick(progs, 'prog', choice.progression);
+  // La phrase de départ est déjà dans la case.
+  write();
   return box;
 }
 
@@ -286,15 +334,6 @@ function toggleChooser(kind, chip) {
   box.querySelector('button')?.focus();
 }
 
-const STATIC_QUICK_ACTIONS = [
-  { label: 'Voicing', message: 'Montre-moi un voicing intéressant pour cet accord.' },
-  { label: 'Main gauche', message: 'Qu’est-ce que la main gauche peut jouer ici ?' },
-  { label: 'Main droite', message: 'Qu’est-ce que la main droite peut jouer ici ?' },
-  { label: 'Arpège', message: 'Fais-moi un arpège lent.' },
-  { label: 'Démonstration', message: 'Fais-moi une démonstration au clavier.' },
-  { label: 'Lick', message: 'Fais-moi un lick adapté.' },
-];
-
 /** [Astra round 4] Rangée de suggestions, dans la grammaire .tr-chat-demos de
  * la maquette : icône, libellé, et une petite mention de ce que fait le clic.
  * Ce sont de vraies actions (elles envoient la question au Copilot), pas des
@@ -303,22 +342,25 @@ function renderActionChips(actions) {
   if (!actions?.length) return null;
   const container = el('div', { className: 'tr-chat-demos copilot-message-actions' });
   for (const action of actions) {
+    // [Claude] — 2026-10-04 — Ce qui est écrit part : l'étiquette montre le message envoyé
+    // (avant : un libellé court, « Voicing », et une question cachée derrière).
+    const message = String(action.message || action.label || '').trim();
+    if (!message) continue;
     const btn = el('button', {
       className: 'copilot-chip',
       type: 'button',
-      title: action.message,
+      title: message,
       onClick: () => {
         if (!els.input) return;
-        els.input.value = action.message;
+        els.input.value = message;
         sendUserMessage();
       },
     });
     btn.innerHTML = ICON_SPARKLE;
-    btn.appendChild(el('span', { text: action.label }));
-    btn.appendChild(el('small', { text: 'Demander' }));
+    btn.appendChild(el('span', { text: message }));
     container.appendChild(btn);
   }
-  return container;
+  return container.childElementCount ? container : null;
 }
 
 /** [Refonte 12/09 — détails] Accueil affiché quand la conversation est vide
@@ -341,10 +383,11 @@ function renderCopilotWelcome() {
   aiObject.innerHTML = `<div></div><div></div><div></div>${ICON_SPARKLE_LG}`;
 
   const options = el('div', { className: 'tr-prompt-options' });
+  // [Claude] — 2026-10-04 — Ce qui est écrit part : le libellé est la question envoyée.
   const welcomeActions = [
-    { label: 'Enrichir mes voicings', icon: ICON_PIANO_MD, message: 'Montre-moi un voicing intéressant pour cet accord.' },
-    { label: 'Comprendre un 2-5-1', icon: ICON_MUSIC2, message: 'Explique-moi l\'harmonie d\'un 2-5-1.' },
-    { label: 'Mieux accompagner', icon: ICON_SPARKLE_MD, message: 'Comment mieux accompagner une mélodie ?' },
+    { label: 'Montre-moi un voicing intéressant', icon: ICON_PIANO_MD, message: 'Montre-moi un voicing intéressant.' },
+    { label: 'Explique-moi un 2-5-1', icon: ICON_MUSIC2, message: 'Explique-moi un 2-5-1.' },
+    { label: 'Comment mieux accompagner ?', icon: ICON_SPARKLE_MD, message: 'Comment mieux accompagner ?' },
   ];
   for (const action of welcomeActions) {
     // Icône à gauche, libellé, flèche à droite : c'est ce que la maquette
@@ -387,7 +430,7 @@ function renderCopilotWelcome() {
 function renderTutorialWelcome() {
   return el('div', { className: 'tr-copilot-welcome copilot-tutorial-welcome' }, [
     el('h2', { text: 'Une question sur ce passage ?' }),
-    el('p', { text: '« Ici », « ce qu\'il vient de faire » : je regarde le passage qui vient de passer dans la vidéo — les notes que joue le prof, ses accords, ce qu\'il dit. Choisis une question ci-dessous, ou écris la tienne.' }),
+    el('p', { text: 'Je regarde le passage choisi sous la vidéo : ce que le prof y joue et y dit. Écris ta question, ou clique une étiquette : ce qui est écrit dessus est envoyé tel quel.' }),
   ]);
 }
 
@@ -1245,6 +1288,8 @@ async function sendUserMessage() {
   if (!text) return;
   els.input.value = '';
   autoGrowInput();
+  // Envoyé depuis la case (Entrée) : le choix ouvert se referme.
+  if (els.chooser) closeChooser();
   await runCopilotTurn(text);
 }
 
