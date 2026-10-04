@@ -6,7 +6,7 @@ import { readFileSync, existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import {
-  harmonicTokens, structureKey, keyName, degreeLabel, findLoop, songStructure, structureLines, structureMomentLines,
+  harmonicTokens, structureKey, keyName, degreeLabel, findLoop, songStructure, structureLines, structureMomentLines, respell,
 } from './song-structure.js';
 
 let total = 0;
@@ -196,7 +196,33 @@ check('Un remplacement dans le passage : « le 4 remplacé par Am7 (2) »', mome
 moment = structureMomentLines(s, { start: 0, end: 56 });
 check('Un long passage : seulement les écarts à la boucle', moment.some((l) => l === 'Écarts à la boucle ici : 0:20 le 4 remplacé par Am7 (2) · 0:44 le 4 remplacé par Am7 (2) (les autres accords sont à leur place).'), moment.join('\n'));
 s = songStructure({ chords: [...grid([['D', 4]]), ...grid([['G', 2], ['Em', 2], ['C', 2], ['D', 2]], { times: 4, from: 4 })], key: 'G' });
-check('Dans l\'introduction : hors boucle', structureMomentLines(s, { start: 0, end: 3 })[0] === 'Dans la structure : l\'introduction (5 (D)), hors boucle.', structureMomentLines(s, { start: 0, end: 3 }).join(' / '));
+check('Dans l\'introduction : hors boucle, ses accords', structureMomentLines(s, { start: 0, end: 3 })[0] === 'Dans la structure : l\'introduction, hors boucle. Accords principaux ici : 0:00 5 (D).', structureMomentLines(s, { start: 0, end: 3 }).join(' / '));
+
+// [Claude] — 2026-10-04 — Le vrai relevé de Narcisse : « L'Éternel est bon » (Dena Mwana, solo
+// blues), clavier dessiné lu à l'image, 48 s. Des notes de mélodie y sont lues comme des
+// « accords » (« A », « A# » : une seule note), des accords n'y sont pas nommés (« F? » : Fa Do
+// Mi♭), la tonalité y est écrite « A# ».
+console.log('Le vrai relevé de « L\'Éternel est bon »');
+check('L\'orthographe de la tonalité : Si♭ majeur (pas La♯) ; les accords aussi (A# → Bb, D#maj7/G → Ebmaj7/G, D/F# reste)',
+  keyName(structureKey('A#')) === 'Si♭ majeur' && respell('A#', true) === 'Bb' && respell('D#maj7/G', true) === 'Ebmaj7/G'
+  && respell('D/F#', true) === 'D/F#' && respell('G#9sus4', true) === 'Ab9sus4' && respell('Bb', false) === 'A#');
+check('Un accord posé sur une autre basse (Cm/F) : le 5 (F9sus4) en Si♭, pas le 2 ; un renversement (F/A) garde sa fondamentale',
+  harmonicTokens([{ start: 0, end: 2, label: 'Cm/F' }, { start: 2, end: 4, label: 'F/A' }]).map((t) => `${t.rootPc}:${t.family}`).join(' ') === '5:sus 5:major');
+const unnamed = harmonicTokens([{ start: 0, end: 2, label: 'F?' }, { start: 2, end: 4, label: 'G?' }, { start: 4, end: 6, label: 'A' }], {
+  notes: [[53, 0], [60, 0], [63, 0], [67, 2], [70, 2], [72, 2], [45, 4], [72, 4]].map(([midi, start]) => ({ midi, start, end: start + 1.5 })),
+});
+check('« F? » (Fa Do Mi♭) lu F7 ; « G? » (Sol Si♭ Do) lu Gm ; « A » joué La et Do lu Am', unnamed.map((t) => t.name).join(' ') === 'F7 Gm Am', unnamed.map((t) => t.name).join(' '));
+const real = JSON.parse(readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'eternel-est-bon.json'), 'utf-8'));
+// Comme l'application : pas les « accords » d'une seule note.
+const realChords = real.segments.filter((x) => !(Array.isArray(x.midis) && new Set(x.midis.map((m) => m % 12)).size < 2)).map((x) => ({ start: x.start, end: x.end, label: x.label }));
+s = songStructure({ chords: realChords, notes: real.noteEvents, key: real.key });
+lines = structureLines(s);
+check('Si♭ majeur ; 48 s sans boucle (la suite ne se répète pas) : elle est dite, sans en inventer',
+  s.key.name === 'Si♭ majeur' && loops(s).length === 0 && lines.some((l) => /^Pas de boucle/.test(l)), lines.join('\n'));
+check('Les accords principaux dans l\'ordre, bien écrits : b7 (Ab9sus4) – 4 (Ebmaj7/G) – 5 (F7) – 6 (Gm) – 2 (Cm) – 5 (F7) – 1 (Bb) — le 2-5-1 vers Si♭',
+  lines.some((l) => l.startsWith('Accords principaux, dans l\'ordre : b7 (Ab9sus4) – 4 (Ebmaj7/G) – 5 (F7) – 6 (Gm) – 2 (Cm) – 5 (F7) – 1 (Bb) – 6 (Gm)')), lines.join('\n'));
+moment = structureMomentLines(s, { start: 18, end: 48 });
+check('Le passage 0:18 → 0:48 : « pas de boucle », et les accords qui y tombent', /^Dans la structure : pas de boucle \(la suite des accords ne se répète pas\)\. Accords principaux ici : .*0:45 6 \(Gm7\)\.$/.test(moment[0] || ''), moment.join('\n'));
 
 // Les grilles réelles du dépôt (relevées au son, avec leurs erreurs) : rien ne casse, et ce
 // qui est trouvé est montré pour mémoire.

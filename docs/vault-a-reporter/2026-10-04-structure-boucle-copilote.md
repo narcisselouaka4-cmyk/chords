@@ -112,6 +112,43 @@ chacun. Il n'avait aucune notion de boucle, et il la recopiait. La question éta
 - Suite complète : 99 suites (deux nouvelles), seuls les 6 échecs anciens connus restent.
   Build et régressions Partie 1 et Partie 3 OK.
 
+## Calibrage sur le vrai relevé de Narcisse (« L'Éternel est bon »)
+Narcisse a envoyé ses relevés gardés : « L'Éternel est bon » (deux fois le même : 48 s,
+clavier dessiné lu à l'image, tonalité « A# »), « comment harmoniser rapidement » et « McCoy
+Tyner Voicings ».
+
+**Ce qui allait mal sur « L'Éternel est bon »**
+- Des notes de mélodie seules étaient lues comme des « accords » (« A », « A# » : une
+  note).
+- Des accords n'étaient pas nommés (« F? » : Fa Do Mi♭ ; « G? » : Sol Si♭ Do) et étaient
+  rejetés. Le F7 disparaissait, et avec lui le 2-5-1 vers Si♭.
+- « Cm/F » (structure supérieure sur une autre basse) comptait comme un 2.
+- « A » joué La et Do comptait comme La majeur.
+- La tonalité s'écrivait « La♯ majeur ».
+- La main gauche avait de faux « licks » (fondamentale-quinte).
+- Un lick à cheval sur deux accords mêlait leurs rôles.
+
+**Corrigé**
+- Les segments d'une seule classe de note ne comptent pas dans la structure
+  (`pedagogie-tab.js`).
+- Un accord « ? » garde sa fondamentale, et sa couleur se lit dans ses notes
+  (`unnamedChord`). Il en va de même quand l'étiquette n'explique pas les notes.
+- Un accord sur une basse qui n'est pas à lui est un accord suspendu sur cette basse.
+- La tonalité et les accords suivent l'orthographe d'usage : Si♭ majeur, Bb, Eb, Ab9sus4 ;
+  la basse est épelée d'après l'accord, D/F# reste D/F# (`respell`).
+- Les lignes sont lues sur les accords de la structure. À la main gauche, plus de lick ; à
+  la main droite, un lick a quatre notes au moins et se décrit accord par accord.
+
+**Résultat**
+- « Tonalité : Si♭ majeur. Pas de boucle (48 s qui ne se répètent pas). Accords principaux,
+  dans l'ordre : b7 (Ab9sus4) – 4 (Ebmaj7/G) – 5 (F7) – 6 (Gm) – 2 (Cm) – 5 (F7) – 1 (Bb) –
+  6 (Gm) – 5 (F7) – 2 (Cm) – 7(m) (Am) – 6 (Gm/D) – … ». La suite finit en Sol mineur par
+  C – D/F# – Gm7.
+- Un lick : « sur F7 (le 5) puis Bb (le 1) — b7 · 5 · 5 · 5 · 13 · b7 · 1 · 13 | 5 ».
+- Le relevé, sans chemin local, est gardé en cas de test :
+  `src/pedagogie/fixtures/eternel-est-bon.json`. `test-song-structure.js` passe à 37/37.
+- Les deux autres tutos sont des tutos d'explication : pas de boucle, à juste titre.
+
 ## Limites connues, et suite
 - **Grilles lues au son** (tuto filmé de côté) : très bruitées. Sur les trois extraits réels
   du dépôt, aucune boucle n'est trouvée, et la structure le dit plutôt que d'en inventer

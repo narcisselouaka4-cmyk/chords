@@ -135,7 +135,8 @@ export function lineMoves({ notes = [], chords = [], structure = null, start: fr
   // Un long passage : ses 90 dernières secondes (« ce qu'il vient de faire » ; huit lignes
   // au plus sont dites au Copilote).
   const start = Number.isFinite(end) ? Math.max(from, end - LINES_SECONDS) : from;
-  const grid = readGrid(chords);
+  // Les accords de la structure (relus, sans les notes seules prises pour des accords).
+  const grid = readGrid(structure?.grid?.length ? structure.grid : chords);
   const usable = (notes || []).filter((n) => Number.isFinite(n?.midi) && Number.isFinite(n?.start))
     .map((n) => ({ ...n, end: Number.isFinite(n.end) ? n.end : n.start + 0.2 }));
   const handed = guessHands(usable.filter((n) => n.start >= start - 2 && n.start < end + 0.5));
@@ -181,19 +182,25 @@ export function lineMoves({ notes = [], chords = [], structure = null, start: fr
         moves.push({ kind: 'approche', hand, start: first.start, end: last.start, notes: notesOf, direction, ...leads });
         continue;
       }
-      // 3. Un lick, sur l'accord qui sonne.
+      // 3. Un lick, sur l'accord qui sonne : à la main droite, quatre notes au moins (à la
+      //    main gauche, une basse fondamentale-quinte n'est pas un lick).
+      if (hand === 'lh' || phrase.length < 4) continue;
       const chord = chordAt(grid, first.start);
       if (!chord) continue;
       let blue = false;
-      const roles = phrase.map((n) => {
+      // Le rôle de chaque note dans l'accord qui sonne dessous ; un lick qui passe d'un
+      // accord au suivant est décrit accord par accord (« … | … »).
+      const parts = [];
+      for (const n of phrase) {
         const under = chordAt(grid, n.start) || chord;
         const interval = pcOf(n.midi - under.rootPc);
         const family = chordFamily(under.quality);
         if ((family === 'major' || family === 'dominant') && (interval === 3 || interval === 6)) blue = true;
         const fits = chordToneIntervals(under.quality).has(interval) || availableTensions(under.quality).has(interval);
         const degree = degreeOf(interval, under.quality);
-        return fits ? degree : `(${degree})`;
-      });
+        if (parts[parts.length - 1]?.chord !== under) parts.push({ chord: under, roles: [] });
+        parts[parts.length - 1].roles.push(fits ? degree : `(${degree})`);
+      }
       moves.push({
         kind: 'lick',
         hand,
@@ -201,7 +208,9 @@ export function lineMoves({ notes = [], chords = [], structure = null, start: fr
         end: last.start,
         notes: notesOf,
         over: { name: chord.name, degree: degreeOfChord(chord) },
-        roles,
+        overs: parts.map((p) => ({ name: p.chord.name, degree: degreeOfChord(p.chord) })),
+        roles: parts.flatMap((p) => p.roles),
+        rolesByChord: parts.map((p) => p.roles),
         blue,
       });
     }
@@ -234,7 +243,9 @@ export function movesLines(moves, { max = 8 } = {}) {
       const instead = `à la place du ${m.instead.degree} (${m.instead.name}) de la boucle${m.played ? `, remplacé par ${m.played.name} à ce tour` : ', qui n\'est pas joué à ce tour'}`;
       out.push(`- ${where} : ligne (${melody}) ${instead}${m.to ? ` ; elle mène au ${m.to.degree} (${m.to.name}) : ${lands(m)}` : ''}.`);
     } else {
-      out.push(`- ${where} : lick sur ${m.over.name}${m.over.degree ? ` (le ${m.over.degree})` : ''} — ${m.roles.join(' · ')}${m.blue ? ' (avec des notes bleues : tierce mineure ou quinte bémol sur un accord majeur)' : ''}.`);
+      const overs = (m.overs || [m.over]).map((o) => `${o.name}${o.degree ? ` (le ${o.degree})` : ''}`).join(' puis ');
+      const roles = (m.rolesByChord || [m.roles]).map((r) => r.join(' · ')).join(' | ');
+      out.push(`- ${where} : lick sur ${overs} — ${roles}${m.blue ? ' (avec des notes bleues : tierce mineure ou quinte bémol sur un accord majeur)' : ''}.`);
     }
   }
   if (moves.length > max) out.push(`- … et ${moves.length - max} autre${moves.length - max > 1 ? 's' : ''}.`);

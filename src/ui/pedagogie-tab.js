@@ -1865,6 +1865,13 @@ export function getPedagogieCopilotContext() {
     .map((s) => ({ start: s.start, end: s.end, label: s.chord.label }));
   // [Claude] — 2026-10-03 — Ses notes jouées, et les accords des moments où il joue.
   const chords = view.filterChords ? chordsWhilePlaying(allChords, view.spans) : allChords;
+  // [Claude] — 2026-10-04 — Pour la structure, pas les « accords » d'une seule note : une note
+  // de mélodie que la lecture du clavier nomme comme un accord (« A », « A# » sur
+  // « L'Éternel est bon »).
+  const solidChords = analysis.segments
+    .filter((s) => s.chord?.resolved && !(Array.isArray(s.midis) && new Set(s.midis.map((m) => ((m % 12) + 12) % 12)).size < 2))
+    .map((s) => ({ start: s.start, end: s.end, label: s.chord.label }));
+  const structureChords = view.filterChords ? chordsWhilePlaying(solidChords, view.spans) : solidChords;
   const noteEvents = view.played;
   const rawNotes = Array.isArray(analysis.noteEvents) ? analysis.noteEvents.length : 0;
   const sourceLabel = analysis.source === 'v2n' ? 'lu à l\'image (vrai clavier filmé, V2N)'
@@ -1882,7 +1889,7 @@ export function getPedagogieCopilotContext() {
     sourceLabel,
     notesTimeline: compactTimeline(noteEvents, chords),
     noteEvents,
-    structure: tutorialStructure(chords, noteEvents),
+    structure: tutorialStructure(structureChords, noteEvents),
     pedals: Array.isArray(analysis.pedals) && analysis.pedals.length ? analysis.pedals : null,
     activity: view.spans,
     activitySummary: activitySummary(view.spans, { max: 40 }),

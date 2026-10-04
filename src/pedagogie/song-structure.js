@@ -29,6 +29,7 @@
 
 import { parseChordName } from './note-roles.js';
 import { chordFamily, chordForNotes, knownRelation, parseKey, relationLabel } from './tutorial-transfer.js';
+import { chordToneIntervals } from '../practice-exercise.js';
 
 const pcOf = (n) => ((n % 12) + 12) % 12;
 const MAJOR_STEPS = [0, 2, 4, 5, 7, 9, 11];
@@ -61,8 +62,59 @@ const clock = (t) => {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 };
 
+const LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+const NATURAL_PCS = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+// Intervalle (demi-tons) → lettres au-dessus de la fondamentale.
+const LETTER_STEPS = [0, 1, 1, 2, 2, 3, 3, 4, 5, 5, 6, 6];
+const SHARP_TO_FLAT = { 'C#': 'Db', 'D#': 'Eb', 'F#': 'Gb', 'G#': 'Ab', 'A#': 'Bb' };
+const FLAT_TO_SHARP = { Db: 'C#', Eb: 'D#', Gb: 'F#', Ab: 'G#', Bb: 'A#' };
+
+/** La note à `interval` demi-tons au-dessus d'une fondamentale écrite, sur la bonne lettre. */
+function spellAbove(rootName, interval) {
+  const letter = rootName[0];
+  const rootPc = pcOf(NATURAL_PCS[letter] + (rootName[1] === '#' ? 1 : rootName[1] === 'b' ? -1 : 0));
+  const target = LETTERS[(LETTERS.indexOf(letter) + LETTER_STEPS[pcOf(interval)]) % 7];
+  const shift = ((pcOf(rootPc + interval) - NATURAL_PCS[target]) % 12 + 18) % 12 - 6;
+  if (Math.abs(shift) > 1) return null;
+  return `${target}${shift > 0 ? '#' : shift < 0 ? 'b' : ''}`;
+}
+
+/**
+ * [Claude] — 2026-10-04 — Un nom d'accord dans l'orthographe de la tonalité : en Si♭ majeur,
+ * A# devient Bb et D#maj7/G devient Ebmaj7/G ; la basse est épelée d'après l'accord (D/F#
+ * reste D/F#, la tierce de Ré).
+ */
+export function respell(name, flats) {
+  const m = /^([A-G][#b]?)(.*?)(?:\/([A-G][#b]?))?$/.exec(String(name || ''));
+  if (!m) return name;
+  const root = (flats ? SHARP_TO_FLAT : FLAT_TO_SHARP)[m[1]] || m[1];
+  if (!m[3]) return `${root}${m[2]}`;
+  const rootPc = pcOf(NATURAL_PCS[root[0]] + (root[1] === '#' ? 1 : root[1] === 'b' ? -1 : 0));
+  const bassPc = pcOf(NATURAL_PCS[m[3][0]] + (m[3][1] === '#' ? 1 : m[3][1] === 'b' ? -1 : 0));
+  const bass = spellAbove(root, pcOf(bassPc - rootPc)) || m[3];
+  return `${root}${m[2]}/${bass}`;
+}
+
 /** Même harmonie (même fondamentale, même genre d'accord). */
 const sameHarmony = (a, b) => a.rootPc === b.rootPc && KIND[a.family] === KIND[b.family];
+
+/**
+ * [Claude] — 2026-10-04 — Un accord que la lecture n'a pas su nommer (« F? ») : sa
+ * fondamentale reste, sa couleur se lit dans ses notes. Fa Do Mi♭ donne F7 (sans tierce : la
+ * dominante en Si♭), Sol Si♭ Do donne Gm. Sans notes, l'accord majeur sur la fondamentale.
+ */
+function unnamedChord(label, notes) {
+  const m = /^([A-G][#b]?)\?/.exec(String(label || ''));
+  if (!m) return null;
+  const rootPc = pcOf(NATURAL_PCS[m[1][0]] + (m[1][1] === '#' ? 1 : m[1][1] === 'b' ? -1 : 0));
+  const heard = new Set((notes || []).map((n) => pcOf(n.midi - rootPc)));
+  const make = (quality) => ({ name: `${m[1]}${quality}`, rootPc, quality, bassPc: null });
+  if (heard.has(4)) return make(heard.has(10) ? '7' : '');
+  if (heard.has(3)) return make(heard.has(10) ? 'm7' : 'm');
+  if (heard.has(10)) return make('7');
+  if (heard.has(5)) return make('sus4');
+  return make('');
+}
 
 /**
  * Les accords de la grille en jetons : un par changement d'harmonie, avec sa durée jusqu'au
@@ -78,16 +130,32 @@ export function harmonicTokens(chords, { notes = null } = {}) {
   const tokens = [];
   for (let i = 0; i < sorted.length; i += 1) {
     const c = sorted[i];
-    let chord = parseChordName(c.label || c.name);
-    if (!chord) continue;
     const end = Number.isFinite(c.end) && c.end > c.start ? c.end : (sorted[i + 1]?.start ?? c.start + 0.5);
+    let chord = parseChordName(c.label || c.name) || unnamedChord(c.label || c.name, heardNotes.filter((n) => n.start >= c.start - 0.12 && n.start < Math.min(end, c.start + 1)));
+    if (!chord) continue;
     if (heardNotes.length) {
       // L'attaque de l'accord : ce qui commence avec lui (la main gauche un peu plus tard).
       const attack = heardNotes.filter((n) => n.start >= c.start - 0.12 && n.start < Math.min(end, c.start + (n.hand === 'lh' ? 0.35 : 0.15)));
       const heard = attack.length >= 2 ? chordForNotes(chord, attack) : null;
       if (heard?.renamed) chord = { ...chord, rootPc: heard.rootPc, quality: heard.quality, bassPc: heard.bassPc ?? null, name: heard.name };
+      // L'étiquette ne les explique pas, et ses notes ne nomment pas d'accord (« A » joué La et
+      // Do) : la fondamentale reste, la couleur se lit dans les notes (Am).
+      else if (heard?.unsure && attack.some((n) => pcOf(n.midi) === chord.rootPc)) {
+        const root = /^([A-G][#b]?)/.exec(chord.name)?.[1];
+        const fixed = root ? unnamedChord(`${root}?`, attack) : null;
+        if (fixed) chord = { ...fixed, bassPc: chord.bassPc ?? null, name: fixed.name };
+      }
     }
-    const piece = { name: chord.name, quality: chord.quality, bassPc: chord.bassPc ?? null, family: chordFamily(chord.quality), dur: end - c.start };
+    // [Claude] — 2026-10-04 — Un accord posé sur une basse qui n'est pas à lui (Cm/F, Bb/C,
+    // Gb/Ab : une « structure supérieure ») sonne comme un accord suspendu sur cette basse :
+    // Cm/F fait le 5 (F9sus4) en Si♭, pas le 2. Un renversement (F/A, D/F#) garde sa
+    // fondamentale.
+    let family = chordFamily(chord.quality);
+    if (chord.bassPc != null && !chordToneIntervals(chord.quality).has(pcOf(chord.bassPc - chord.rootPc))) {
+      chord = { ...chord, rootPc: chord.bassPc };
+      family = 'sus';
+    }
+    const piece = { name: chord.name, quality: chord.quality, bassPc: chord.bassPc ?? null, family, dur: end - c.start };
     const last = tokens[tokens.length - 1];
     // La même harmonie (Dsus4 puis D) ne fait qu'un jeton ; mais une basse qui bouge (D puis
     // D/F#, la basse qui marche vers Sol) en fait un autre.
@@ -124,7 +192,8 @@ export function harmonicTokens(chords, { notes = null } = {}) {
  */
 export function structureKey(keyText, tokens = []) {
   const given = parseKey(keyText);
-  if (given) return { ...given, guessed: false };
+  // L'orthographe d'usage : Si♭ majeur (deux bémols), même si le relevé écrit « A# ».
+  if (given) return { ...given, flats: (given.minor ? FLAT_MINOR : FLAT_MAJOR).has(given.rootPc), guessed: false };
   let best = null;
   const first = tokens[0];
   const last = tokens[tokens.length - 1];
@@ -648,6 +717,7 @@ export function songStructure({ chords = [], notes = null, key = null } = {}) {
   if (tokens.length < 2) return null;
   markPassing(tokens);
   const theKey = structureKey(key, tokens.filter((t) => !t.passing));
+  for (const t of tokens) t.name = respell(t.name, theKey.flats);
   const items = structuralChords(tokens).map((t) => ({ ...t, key: pcOf(t.rootPc - theKey.rootPc) }));
   if (!items.length) return null;
   const sections = analyzeRange(items, 0, items.length, theKey);
@@ -664,13 +734,15 @@ export function songStructure({ chords = [], notes = null, key = null } = {}) {
   }
   sections.forEach((s, i) => {
     if (s.kind !== 'free') return;
-    s.place = i === 0 ? 'intro' : i === sections.length - 1 ? 'fin' : 'passage';
+    s.place = sections.length === 1 ? 'tout' : i === 0 ? 'intro' : i === sections.length - 1 ? 'fin' : 'passage';
     s.chords = items.slice(s.from, s.to + 1).map((x) => ({ degree: degreeLabel(theKey, x), name: x.name, at: x.start }));
   });
   const total = items.reduce((sum, x) => sum + x.dur, 0) || 1;
   const looped = sections.filter((s) => s.kind === 'loop').reduce((sum, s) => sum + (s.end - s.start), 0);
   return {
     key: { ...theKey, name: keyName(theKey) },
+    // Les accords tels que la structure les lit (pour l'accord sous chaque ligne du prof).
+    grid: tokens.map((t) => ({ start: t.start, end: t.start + t.dur, label: t.name })),
     sections,
     tokens: tokens.length,
     passing: tokens.filter((t) => t.passing).length,
@@ -754,8 +826,11 @@ export function structureMomentLines(structure, { start, end } = {}) {
   for (const s of structure.sections) {
     if (s.end <= start || s.start >= end) continue;
     if (s.kind === 'free') {
-      const shown = s.chords.slice(0, 8).map((c) => `${c.degree} (${c.name})`).join(' – ');
-      out.push(`Dans la structure : ${PLACE_WORDS[s.place]} (${shown}${s.chords.length > 8 ? ' – …' : ''}), hors boucle.`);
+      // Les accords principaux qui tombent dans le passage (huit au plus).
+      const here = s.chords.filter((c) => c.at >= start - 0.01 && c.at < end);
+      const shown = (here.length ? here : s.chords).slice(-8).map((c) => `${clock(c.at)} ${c.degree} (${c.name})`).join(' · ');
+      const where = s.place === 'tout' ? 'pas de boucle (la suite des accords ne se répète pas)' : `${PLACE_WORDS[s.place]}, hors boucle`;
+      out.push(`Dans la structure : ${where}. Accords principaux ici : ${shown}.`);
       continue;
     }
     const inside = s.timeline.filter((x) => x.at >= start - 0.01 && x.at < end);
