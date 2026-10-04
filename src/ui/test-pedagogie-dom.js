@@ -488,7 +488,7 @@ check('La barre du passage est sous la vidéo : Début, Fin, durée, « Boucler 
 check('Début / Fin en listes (heures seulement pour une vidéo d\'1 h ou plus, minutes, secondes) et « Maintenant »',
   tabCode.includes("const options = timeOptions(duration);") && /if \(options\.hours\.length\) select\('h', options\.hours, 'h'\);/.test(tabCode)
   && /select\('m', options\.minutes, 'min'\);\s*select\('s', options\.seconds, 's'\);/.test(tabCode)
-  && tabCode.includes("text: 'Maintenant'") && !/<input[^>]*pedagogie-passage/.test(html));
+  && tabCode.includes("'aria-label': `${name} : prendre l'instant de la vidéo`") && !/<input[^>]*pedagogie-passage/.test(html));
 check('Un bord réglé : la plage reste dans la vidéo, 10 min au plus, l\'autre bord suit et la barre le dit',
   /const next = setRangeBound\(currentRange\(\), edge, seconds, duration\);/.test(tabCode)
   && tabCode.includes("'la fin a suivi'") && tabCode.includes("'le début a suivi'")
@@ -509,7 +509,7 @@ check('La bande « il joue / il explique » du passage : un appui place la vidé
 check('La frise des accords est repliée par défaut, « Accords relevés (N) » la déplie, le choix est retenu',
   /<button[^>]*id="pedagogie-strip-toggle"[^>]*aria-expanded="false"[^>]*aria-controls="pedagogie-grid"/.test(html)
   && /let stripOpen = false;/.test(tabCode) && /els\.grid\.hidden = !stripOpen;/.test(tabCode)
-  && tabCode.includes('`Accords relevés (${segments.length})`')
+  && tabCode.includes("els.stripToggle.textContent = 'Accords relevés';") && tabCode.includes("el('span', { className: 'pedago-count', text: String(segments.length) })")
   && /localStorage\.setItem\(STRIP_KEY, stripOpen \? '1' : '0'\)/.test(tabCode) && /stripOpen = localStorage\.getItem\(STRIP_KEY\) === '1';/.test(tabCode));
 check('Plus de liste 10 / 20 / 30 / 60 s ni de boucle A-B à part',
   !tabCode.includes('passageSeconds') && !tabCode.includes('els.momentLength') && !tabCode.includes('els.loop ')
@@ -696,6 +696,25 @@ check('Chaque réponse du modèle est nettoyée de ses appels écrits en texte (
 check('Une réponse gardée est montrée sans appel écrit ; la règle 14 dit de ne jamais l\'écrire',
   /splitAnswerNotes\(extractTextToolCalls\(msg\.content\)\.content, msg\.toolResult\?\.transferText\)/.test(copilotTabCode)
   && readText('src/pedagogie/copilot-client.js').includes("appelle l'outil suggest_actions (un appel d'outil, jamais écrit dans le texte de ta réponse"));
+
+// ---------------------------------------------------------------------------
+// 23. [Claude] — 2026-10-04 — La fenêtre sous la vidéo, en une seule carte (Narcisse : « plus
+// épurée, plus lisible, mieux organisée, visuellement plus moderne, moins chargée »).
+// ---------------------------------------------------------------------------
+check('Une seule carte sous la vidéo : passage, accords relevés, outils, message, dans cet ordre',
+  /<section class="pedago-under" id="pedagogie-under"[^>]*>[\s\S]*?id="pedagogie-passage"[\s\S]*?id="pedagogie-strip"[\s\S]*?id="pedagogie-video-actions"[\s\S]*?id="pedagogie-status"[\s\S]*?<\/section>/.test(html)
+  && html.indexOf('id="pedagogie-status"') < html.indexOf('</section>', html.indexOf('id="pedagogie-under"')));
+check('La carte : un filet entre ses étages visibles, cachée quand tout l\'est',
+  pedagoCss.includes('.pedago-under:not(:has(> :not([hidden]):not([style*="display: none"]))) { display: none; }')
+  && pedagoCss.includes('.pedago-under > :not([hidden]):not([style*="display: none"]) ~ :not([hidden]):not([style*="display: none"])'));
+check('Début / Fin en un champ « 0 : 26 », la durée en pastille, la vitesse en sélecteur segmenté',
+  tabCode.includes("const field = el('span', { className: 'pedago-time' });")
+  && tabCode.includes("el('strong', { className: 'pedago-pill', text: durationText(range.end - range.start) })")
+  && tabCode.includes("const choices = el('span', { className: 'pedago-segmented' });")
+  && pedagoCss.includes('.pedago-segmented .pedago-tool-btn.is-active'));
+check('La bande : son début et sa fin aux deux bouts, une légende par sorte, plus de hachures',
+  tabCode.includes("el('span', { className: 'pedago-activity-time', text: clock(range.start) })")
+  && !pedagoCss.includes('repeating-linear-gradient(135deg, var(--tr-accent) 0 4px'));
 
 console.log(`\n=== Résultat : ${passed}/${total} contrôles passés ===`);
 if (passed < total) process.exitCode = 1;

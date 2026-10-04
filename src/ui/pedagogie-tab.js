@@ -652,8 +652,11 @@ function renderTools() {
   if (els.speed) {
     els.speed.innerHTML = '';
     els.speed.appendChild(el('span', { className: 'pedago-tools-label', text: 'Vitesse' }));
+    // [Claude] — 2026-10-04 — Les trois vitesses en un seul sélecteur.
+    const choices = el('span', { className: 'pedago-segmented' });
+    els.speed.appendChild(choices);
     for (const value of SPEEDS) {
-      els.speed.appendChild(el('button', {
+      choices.appendChild(el('button', {
         type: 'button',
         className: `pedago-tool-btn${value === speed ? ' is-active' : ''}`,
         'aria-pressed': String(value === speed),
@@ -700,30 +703,51 @@ function setPassageEdge(edge, seconds) {
   updateMoment();
 }
 
-/** Les listes d'un bord (construites une fois par vidéo). */
+/** [Claude] — 2026-10-04 — « Prendre l'instant de la vidéo » : une cible. */
+const ICON_NOW = '<svg class="tr-i" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>';
+const UNIT_WORDS = { h: 'heures', min: 'minutes', s: 'secondes' };
+
+/**
+ * Les listes d'un bord (construites une fois par vidéo). [Claude] — 2026-10-04 — Réunies en un
+ * seul champ « 0 : 26 » (les unités restent dites aux lecteurs d'écran), et « Maintenant »
+ * devient une petite cible : moins d'inscriptions sous la vidéo.
+ */
 function buildEdge(box, edge, options) {
   if (!box) return;
   box.innerHTML = '';
   box.dataset.edge = edge;
   const name = edge === 'start' ? 'Début' : 'Fin';
   box.appendChild(el('span', { className: 'pedago-passage-edge-label', text: name }));
+  const field = el('span', { className: 'pedago-time' });
   const select = (part, values, unit) => {
-    const node = el('select', { className: 'pedago-passage-select', 'data-part': part, 'aria-label': `${name} : ${unit}` });
-    for (const v of values) node.appendChild(el('option', { value: String(v), text: part === 'h' ? `${v} h` : String(v).padStart(2, '0') }));
+    const node = el('select', { className: 'pedago-passage-select', 'data-part': part, 'aria-label': `${name} : ${UNIT_WORDS[unit]}`, title: `${name} : ${UNIT_WORDS[unit]}` });
+    for (const v of values) node.appendChild(el('option', { value: String(v), text: part === 'h' ? String(v) : String(v).padStart(2, '0') }));
     node.addEventListener('change', () => setPassageEdge(edge, edgeSeconds(edge)));
-    box.appendChild(node);
-    if (part !== 'h') box.appendChild(el('span', { className: 'pedago-passage-unit', text: unit }));
+    if (field.childNodes.length) field.appendChild(el('span', { className: 'pedago-time-sep', 'aria-hidden': 'true', text: ':' }));
+    field.appendChild(node);
   };
   if (options.hours.length) select('h', options.hours, 'h');
   select('m', options.minutes, 'min');
   select('s', options.seconds, 's');
-  box.appendChild(el('button', {
+  box.appendChild(field);
+  const now = el('button', {
     type: 'button',
-    className: 'pedago-tool-btn pedago-passage-now',
-    title: `${name} = l'instant de la vidéo`,
-    text: 'Maintenant',
+    className: 'pedago-passage-now',
+    title: `${name} : prendre l'instant de la vidéo`,
+    'aria-label': `${name} : prendre l'instant de la vidéo`,
     onClick: () => setPassageEdge(edge, Math.floor(Number(els.videoPlayer?.currentTime) || 0)),
-  }));
+  });
+  now.innerHTML = ICON_NOW;
+  box.appendChild(now);
+}
+
+/** [Claude] — 2026-10-04 — Une durée, dite comme on la lit : « 26 s », « 1 min 05 », « 10 min ». */
+function durationText(seconds) {
+  const total = Math.max(0, Math.round(Number(seconds) || 0));
+  const m = Math.floor(total / 60);
+  const sec = total % 60;
+  if (!m) return `${sec} s`;
+  return sec ? `${m} min ${String(sec).padStart(2, '0')}` : `${m} min`;
 }
 
 /**
@@ -759,20 +783,22 @@ function renderPassageBar() {
     }
   }
   bar.classList.toggle('is-following', !passage);
-  // « 1:45 · 10 min max », « 10:00 · 10 min au plus : la fin a suivi », ou « suit la vidéo… ».
-  // Réécrite seulement quand elle change : c'est une zone lue à voix haute (aria-live).
+  // [Claude] — 2026-10-04 — Une pastille : sa durée (« 26 s »), ou « suit la vidéo » ; ce qui
+  // vient de changer seul (« la fin a suivi », « 10 min au plus ») à côté, le reste en
+  // infobulle. Réécrite seulement quand elle change : c'est une zone lue à voix haute (aria-live).
   const lengthKey = passage ? `${rangeLength(range)}|${passageCapped}|${passageHint}` : 'suit';
   if (els.passageLength && els.passageLength.dataset.key !== lengthKey) {
     const limit = MAX_PASSAGE_SECONDS / 60;
     els.passageLength.dataset.key = lengthKey;
     els.passageLength.textContent = '';
     if (passage) {
-      els.passageLength.appendChild(el('strong', { text: rangeLength(range) }));
-      els.passageLength.appendChild(el('span', {
-        text: passageCapped ? ` · ${limit} min au plus : ${passageHint}` : ` · ${limit} min max${passageHint ? ` · ${passageHint}` : ''}`,
-      }));
+      els.passageLength.title = `Durée du passage (${limit} min au plus)`;
+      els.passageLength.appendChild(el('strong', { className: 'pedago-pill', text: durationText(range.end - range.start) }));
+      const hint = passageCapped ? `${limit} min au plus : ${passageHint}` : passageHint;
+      if (hint) els.passageLength.appendChild(el('span', { className: 'pedago-passage-hint', text: hint }));
     } else {
-      els.passageLength.appendChild(el('span', { text: `suit la vidéo : les ${FOLLOW_SECONDS} dernières secondes` }));
+      els.passageLength.title = `Tant que tu ne choisis pas de passage, le Copilote parle des ${FOLLOW_SECONDS} dernières secondes de la vidéo`;
+      els.passageLength.appendChild(el('span', { className: 'pedago-pill is-muted', text: 'suit la vidéo' }));
     }
   }
   if (els.passageLoop) {
@@ -823,15 +849,22 @@ function renderPassageActivity(range) {
     }));
   }
   box.appendChild(track);
-  // La légende : chaque moment avec la couleur de la bande (« il explique 10:12–10:20 »).
+  // [Claude] — 2026-10-04 — Sous la bande : son début et sa fin aux deux bouts, et une légende
+  // courte, un repère par sorte. Seuls les moments où il explique sont datés (« il explique
+  // 0:12–0:20 ») : qu'il joue, la bande le montre.
   const told = spans.filter((s) => labels[s.kind] && s.end - s.start >= 0.5);
-  if (!told.length) return;
   const legend = el('p', { className: 'pedago-activity-legend' });
-  for (const s of told.slice(0, 6)) {
-    legend.appendChild(el('span', { className: `pedago-activity-item is-${s.kind}`, text: `${labels[s.kind]} ${clock(s.start)}–${clock(s.end)}` }));
+  for (const kind of ['joue', 'parle', 'joue-et-parle']) {
+    const moments = told.filter((s) => s.kind === kind);
+    if (!moments.length) continue;
+    const dated = kind === 'joue' ? '' : ` ${moments.slice(0, 3).map((s) => `${clock(s.start)}–${clock(s.end)}`).join(', ')}${moments.length > 3 ? ` (+${moments.length - 3})` : ''}`;
+    legend.appendChild(el('span', { className: `pedago-activity-item is-${kind}`, text: `${labels[kind]}${dated}` }));
   }
-  if (told.length > 6) legend.appendChild(el('span', { className: 'pedago-activity-more', text: `et ${told.length - 6} autres moments` }));
-  box.appendChild(legend);
+  box.appendChild(el('div', { className: 'pedago-activity-foot' }, [
+    el('span', { className: 'pedago-activity-time', text: clock(range.start) }),
+    legend,
+    el('span', { className: 'pedago-activity-time', text: clock(range.end) }),
+  ]));
 }
 
 /** « Boucler » : la vidéo tourne sur le passage (fixé à l'instant s'il suivait la vidéo). */
@@ -1595,7 +1628,9 @@ function renderResult() {
   els.grid.hidden = !stripOpen;
   if (els.stripToggle) {
     els.stripToggle.setAttribute('aria-expanded', String(stripOpen));
-    els.stripToggle.textContent = `Accords relevés (${segments.length})`;
+    // [Claude] — 2026-10-04 — « Accords relevés » et leur nombre en pastille.
+    els.stripToggle.textContent = 'Accords relevés';
+    els.stripToggle.appendChild(el('span', { className: 'pedago-count', text: String(segments.length) }));
     els.stripToggle.title = stripOpen
       ? 'Replier la frise des accords'
       : 'Déplier la frise : les accords lus à l\'image ou au son (pas toujours justes), un clic place la vidéo';
