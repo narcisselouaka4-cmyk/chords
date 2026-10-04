@@ -693,8 +693,11 @@ export function relationLabel(step, arrivalFamily, { chainLength = 1, index = 0 
   return `${FAMILY_WORDS[family] || 'accord'} ${INTERVAL_WORDS[interval]} de l'arrivée`;
 }
 
-/** Relation connue, qui fait d'un accord hors tonalité un accord de passage même s'il dure. */
-function knownRelation(c, next) {
+/**
+ * Relation connue, qui fait d'un accord hors tonalité un accord de passage même s'il dure.
+ * [Claude] — 2026-10-04 — Exportée : la structure d'un morceau s'en sert (song-structure.js).
+ */
+export function knownRelation(c, next) {
   const interval = pcOf(c.rootPc - next.rootPc);
   if (c.family === 'dim') return [11, 1, 0].includes(interval);
   if (c.family === 'dominant' || c.family === 'sus') return [7, 1, 10, 11].includes(interval);

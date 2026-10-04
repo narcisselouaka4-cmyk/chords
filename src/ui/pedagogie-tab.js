@@ -63,6 +63,7 @@ import { FOLLOW_SECONDS, MAX_PASSAGE_SECONDS, splitTime, joinTime, timeOptions, 
 import { DEFAULT_SHARE, shareAt, isWide, toggledShare, shareForKey, storedShare, clampShare } from '../pedagogie/copilot-width.js';
 import { createTutorialMemory, cardDuration } from '../pedagogie/tutorial-memory.js';
 import { teacherActivity, chordsWhilePlaying, activitySummary, isPlaying, ACTIVITY } from '../pedagogie/teacher-activity.js';
+import { songStructure } from '../pedagogie/song-structure.js';
 
 // [Claude] — 2026-09-25 — Pourquoi l'image n'a pas été lue (Narcisse : « l'application
 // ne peut pas analyser l'image, et je ne sais pas pourquoi ») : dit en clair.
@@ -1817,6 +1818,25 @@ function markStrip(win) {
  * @returns {{spans: object[], played: object[], cleaned: object[], filterChords: boolean}|null}
  */
 let activityCache = null;
+// [Claude] — 2026-10-04 — La structure du tuto (sa boucle), calculée une fois par relevé.
+let structureCache = null;
+
+/**
+ * [Claude] — 2026-10-04 — La structure du morceau (song-structure.js) : la boucle, ses
+ * parties, ses accords de passage et ses remplacements (Narcisse : « Quand je demande la
+ * progression, […] ce que je demande en réalité, c'est la structure de la musique »).
+ */
+function tutorialStructure(chords, notes) {
+  if (structureCache && structureCache.analysis === analysis && structureCache.chords === chords.length && structureCache.key === detectedKey) return structureCache.structure;
+  let structure = null;
+  try {
+    structure = songStructure({ chords, notes, key: detectedKey });
+  } catch (err) {
+    console.warn('[Pedagogie] Structure non calculée :', err);
+  }
+  structureCache = { analysis, chords: chords.length, key: detectedKey, structure };
+  return structure;
+}
 function teacherView() {
   if (!analysis) return null;
   if (activityCache && activityCache.analysis === analysis && activityCache.narration === narrationView) return activityCache.view;
@@ -1862,6 +1882,7 @@ export function getPedagogieCopilotContext() {
     sourceLabel,
     notesTimeline: compactTimeline(noteEvents, chords),
     noteEvents,
+    structure: tutorialStructure(chords, noteEvents),
     pedals: Array.isArray(analysis.pedals) && analysis.pedals.length ? analysis.pedals : null,
     activity: view.spans,
     activitySummary: activitySummary(view.spans, { max: 40 }),

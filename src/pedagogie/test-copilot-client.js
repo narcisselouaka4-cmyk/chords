@@ -122,6 +122,7 @@ global.document = {
 // 2. Import dynamique APRÈS le setup de window
 const { sendCopilotMessage, executeToolCalls, wantsToHear, myPlayingRequest, melodyChordsRequest, wantsMelodyChords, setCopilotTimeout, tutorialToolCalls, transferTargets } = await import('./copilot-client.js');
 const { applyQuestion, otherKeyQuestion, parseTutorialRequest } = await import('./tutorial-questions.js');
+const { songStructure } = await import('./song-structure.js');
 
 const GREEN = '\x1b[32m';
 const RED = '\x1b[31m';
@@ -1435,6 +1436,51 @@ function testTutorialRouting() {
   check('sans passage regardé : rien à imposer', tutorialToolCalls(apply, undefined, { ...TEACHER, moment: null }) === null);
 }
 
+// [Claude] — 2026-10-04 — Narcisse : « je lui ai demandé quelle était la progression. Il m'a
+// sorti une flopée d'accords. […] Ce que je demande en réalité, c'est la structure de la
+// musique. Donc en gros, la boucle. » La structure part avant la grille, avec sa consigne.
+async function testTutorialStructureInPrompt() {
+  document.resetMock();
+  document.setPanel(false);
+  const originalFetch = global.fetch;
+  const bodies = [];
+  global.fetch = async (url, options) => {
+    bodies.push(JSON.parse(options.body));
+    return { ok: true, status: 200, json: async () => ({ choices: [{ message: { role: 'assistant', content: 'Une boucle de 4 accords.' } }] }) };
+  };
+  global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
+  const chords = [];
+  for (let k = 0; k < 6; k += 1) {
+    chords.push(...[['G', 1.5], ['B7', 0.5], ['Em', 2], ['C', 2], ['D', 2]].map(([label, d], i, all) => {
+      const start = k * 8 + all.slice(0, i).reduce((sum, [, x]) => sum + x, 0);
+      return { start, end: start + d, label };
+    }));
+  }
+  const structure = songStructure({ chords, key: 'G' });
+  const moment = { now: 20, start: 16, end: 24, chords: chords.filter((c) => c.start >= 16 && c.start < 24) };
+  // Au tour 3, un lick de main droite sur G (Ré5 Mi5 Ré5 Si4), sur une basse tenue.
+  const noteEvents = [
+    { midi: 43, start: 16, end: 17.9, hand: 'lh' },
+    ...[[74, 16.2], [76, 16.4], [74, 16.6], [71, 16.8]].map(([midi, start]) => ({ midi, start, end: start + 0.18, hand: 'rh' })),
+  ];
+  await sendCopilotMessage({ message: 'Quelle est la progression ?', messages: [], context: { type: 'tutorial', path: '/t/eternel.mp4', name: 'L\'Éternel est bon', key: 'G', chords, structure, moment, noteEvents } });
+  const system = bodies[0]?.messages?.[0]?.content || '';
+  const structureAt = system.indexOf('## Structure du morceau');
+  const gridAt = system.indexOf('## Grille relevée');
+  check('La structure part au Copilote, avant la grille (qui n\'est pas la progression)',
+    structureAt > 0 && gridAt > structureAt && /Boucle — 4 accords : 1 – 6 – 4 – 5 \(G – Em – C – D\)/.test(system)
+    && /## Grille relevée \(chaque changement d'accord, du début à la fin : ce n'est pas la progression/.test(system), system.slice(structureAt, structureAt + 600));
+  check('Le passage désigné est situé dans la structure (tour, accords de la boucle, passage)',
+    /Dans la structure : boucle 1 – 6 – 4 – 5 \(G – Em – C – D\), tour 3 sur 6\./.test(system) && /Accords de passage ici : 0:17 B7 avant le 6 \(Em\)/.test(system));
+  check('Les lignes du prof dans le passage : un lick sur G (le 1), décrit par ses notes',
+    /Lignes du prof ici \(calculées d'après ses notes/.test(system) && /- 0:16 main droite : lick sur G \(le 1\) — 5 · 13 · 5 · 3\./.test(system), system.slice(system.indexOf('Lignes du prof'), system.indexOf('Lignes du prof') + 300));
+  check('Règle 21 : la progression, c\'est la boucle, jamais la liste des accords',
+    /21\. Progression d'un tutoriel/.test(system) && /jamais avec la liste des accords joués du début à la fin/.test(system)
+    && /D'abord la boucle : combien d'accords, lesquels en degrés/.test(system)
+    && /un lick \(une ligne sur un accord, pour le colorer : le rôle de ses notes\), une approche/.test(system));
+  global.fetch = originalFetch;
+}
+
 async function testTutorialApplyInSend() {
   document.resetMock();
   document.setPanel(false);
@@ -1775,6 +1821,7 @@ async function runTests() {
   testTutorialPassageTool();
   testSpeechAndReplay();
   await testTutorialContextInPrompt();
+  await testTutorialStructureInPrompt();
   testApplyTutorialPassageTool();
   testTutorialRouting();
   await testTutorialApplyInSend();

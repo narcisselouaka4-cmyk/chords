@@ -629,5 +629,22 @@ check('Sans la pédale : le bouton « Pédale » (exemples qui en ont une), le c
 check('Une touche figée jouée puis relâchée par le pianiste redevient jaune',
   /const shown = state\.isPlayback \? null : demoPlayer\.shownVelocity\(transposed\);\s*if \(shown !== null\) feedDemoEvent\('show', transposed, shown\);/.test(mainCode));
 
+// ---------------------------------------------------------------------------
+// 19. [Claude] — 2026-10-04 — La structure d'un tuto (Narcisse : « quand je demande la
+// progression, je ne demande pas les accords que joue le pianiste du début jusqu'à la fin […]
+// c'est la structure de la musique, la boucle »), puis ce que font ses lignes.
+// ---------------------------------------------------------------------------
+const clientCode = stripComments(readText('src/pedagogie/copilot-client.js'));
+check('Pédagogie IA donne la structure du tuto au Copilote (calculée une fois par relevé)',
+  /import \{ songStructure \} from '\.\.\/pedagogie\/song-structure\.js';/.test(tabCode)
+  && /structure: tutorialStructure\(chords, noteEvents\),/.test(tabCode) && /structure = songStructure\(\{ chords, notes, key: detectedKey \}\);/.test(tabCode));
+check('Le contexte : la structure avant la grille, le passage situé dans la structure, ses lignes',
+  clientCode.indexOf('lines.push(...structureLines(context.structure));') > 0
+  && clientCode.indexOf('lines.push(...structureLines(context.structure));') < clientCode.indexOf("'## Grille relevée'")
+  && /lines\.push\(\.\.\.structureMomentLines\(context\.structure, context\.moment\)\);/.test(clientCode)
+  && /lines\.push\(\.\.\.movesLines\(lineMoves\(\{ notes: context\.noteEvents, chords: context\.chords, structure: context\.structure, start: context\.moment\.start, end: context\.moment\.end \}\)\)\);/.test(clientCode));
+check('Règle 21 : la progression est la boucle, jamais la liste des accords joués',
+  readText('src/pedagogie/copilot-client.js').includes("21. Progression d'un tutoriel") && readText('src/pedagogie/copilot-client.js').includes('jamais avec la liste des accords joués du début à la fin'));
+
 console.log(`\n=== Résultat : ${passed}/${total} contrôles passés ===`);
 if (passed < total) process.exitCode = 1;
