@@ -875,11 +875,15 @@ function renderMessages() {
     return;
   }
   els.messages.classList.remove('is-empty');
+  // [Claude] — 2026-10-04 — « Plus de détails » : sous la dernière réponse seulement (aucune
+  // pendant que le Copilote répond à la question suivante).
+  const tail = messages[messages.length - 1];
+  const lastAnswer = tail?.role === 'assistant' && !tail.isTyping ? tail : null;
   for (const msg of messages) {
     // [Claude] — 2026-09-26 — Un message qu'on ne sait plus afficher (ancien format
     // gardé dans l'historique) s'affiche en texte simple, sans bloquer les autres.
     try {
-      renderOneMessage(msg);
+      renderOneMessage(msg, { last: msg === lastAnswer });
     } catch (err) {
       console.warn('[Copilot] Message affiché en texte simple :', err);
       els.messages.appendChild(el('div', { className: `tr-chat-message copilot-message is-${msg.role === 'user' ? 'user' : 'assistant'}`, text: String(msg.content || '') }));
@@ -889,8 +893,61 @@ function renderMessages() {
   els.messages.scrollTop = els.messages.scrollHeight;
 }
 
+/**
+ * [Claude] — 2026-10-04 — Les notes que l'application écrit sous une réponse (accord par
+ * accord, main par main) : repliées (Narcisse : « trop de détails, trop d'inscriptions »).
+ */
+function renderNotesDetails(text) {
+  const body = el('div', { className: 'copilot-notes-body' });
+  renderMessageText(body, text);
+  return el('details', { className: 'copilot-notes' }, [
+    el('summary', { text: 'Les notes, accord par accord' }),
+    body,
+  ]);
+}
+
+/**
+ * [Claude] — 2026-10-04 — Le texte d'une réponse et les notes que l'application a écrites
+ * dessous (`transferText` : accord par accord, main par main). Les notes sont repliées à
+ * l'affichage ; le texte complet reste dans la conversation (les questions de suivi les
+ * connaissent). Rien n'est replié si la réponse ne contient pas ces notes, ou rien d'autre.
+ * @param {string} content - le texte de la réponse
+ * @param {string} [transferText] - les notes écrites par l'application
+ * @returns {{text: string, notes: string}} notes : '' si rien à replier
+ */
+export function splitAnswerNotes(content, transferText) {
+  const text = String(content || '');
+  const notes = typeof transferText === 'string' ? transferText.trim() : '';
+  if (!notes || !text.includes(notes)) return { text, notes: '' };
+  const rest = text.replace(notes, '').replace(/\n{3,}/g, '\n\n').trim();
+  return rest ? { text: rest, notes } : { text, notes: '' };
+}
+
+/** Ce qu'envoie « Plus de détails » (le texte de l'étiquette : ce qui est écrit part). */
+export const MORE_DETAILS = 'Plus de détails';
+/** Une demande de détail, par l'étiquette ou tapée (« plus de détails. », « Détaille la main gauche »…). */
+const MORE_DETAILS_ASKED = /^\s*(?:plus de d[ée]tails?|d[ée]taille[sz]?|explique[sz]?(?:-moi)? plus)\b/i;
+/** Le même texte, à la casse et à la ponctuation finale près. */
+const sameText = (a, b) => String(a || '').trim().replace(/[\s.!?…]+$/, '').toLowerCase() === String(b || '').trim().replace(/[\s.!?…]+$/, '').toLowerCase();
+
+/**
+ * [Claude] — 2026-10-04 — Les étiquettes sous une réponse. Réponses courtes, détail sur
+ * demande (choix de Narcisse) : « Plus de détails » sous la dernière réponse seulement (moins
+ * d'inscriptions), ni après une erreur ni après une demande de détail ; puis les suggestions
+ * du Copilote (sans redire « Plus de détails »).
+ * @param {object} msg - la réponse
+ * @param {{last?: boolean, asked?: string}} [options] - dernière réponse ; la question posée
+ * @returns {{label: string, message: string}[]}
+ */
+export function answerActions(msg, { last = false, asked = '' } = {}) {
+  if (!msg || msg.role !== 'assistant' || msg.isTyping) return [];
+  const more = last && !msg.isError && Boolean(String(msg.content || '').trim()) && !MORE_DETAILS_ASKED.test(String(asked || ''));
+  const suggested = (msg.suggestedActions || []).filter((a) => !(more && sameText(a?.message || a?.label, MORE_DETAILS)));
+  return more ? [{ label: MORE_DETAILS, message: MORE_DETAILS }, ...suggested] : suggested;
+}
+
 /** Un message de la conversation (voir renderMessages). */
-function renderOneMessage(msg) {
+function renderOneMessage(msg, { last = false } = {}) {
   const isUser = msg.role === 'user';
   const row = el('div', { className: `tr-chat-message copilot-message is-${msg.role} ${msg.role}` });
 
@@ -922,7 +979,10 @@ function renderOneMessage(msg) {
   ]);
   if (!isUser) author.appendChild(el('span', { text: 'ASSISTANT IA' }));
   content.appendChild(author);
-  renderMessageText(content, msg.content);
+  // [Claude] — 2026-10-04 — Les notes écrites par l'application sont repliées sous la réponse.
+  const { text, notes } = isUser ? { text: msg.content, notes: '' } : splitAnswerNotes(msg.content, msg.toolResult?.transferText);
+  renderMessageText(content, text);
+  if (notes) content.appendChild(renderNotesDetails(notes));
 
   // [Claude] — 2026-09-24 — L'exemple à écouter vient APRÈS l'explication
   // (Narcisse : « il va directement me le jouer au lieu d'expliquer d'abord »).
@@ -939,8 +999,11 @@ function renderOneMessage(msg) {
     content.appendChild(played);
   }
 
-  if (!isUser && msg.suggestedActions?.length) {
-    const chips = renderActionChips(msg.suggestedActions);
+  // [Claude] — 2026-10-04 — « Plus de détails » sous la dernière réponse, puis les suggestions.
+  const asked = last ? messages[messages.length - 2] : null;
+  const actions = answerActions(msg, { last, asked: asked?.role === 'user' ? asked.content : '' });
+  if (actions.length) {
+    const chips = renderActionChips(actions);
     if (chips) content.appendChild(chips);
   }
 
@@ -1371,12 +1434,12 @@ async function runCopilotTurn(text, { review = false, take = null } = {}) {
       // Demande d'écoute (« joue-moi… ») : l'exemple démarre une fois la réponse affichée.
       if (res.autoplay && res.toolResult?.example) autoplayMessage = reply;
     } else {
-      messages.push({ role: 'assistant', content: copilotErrorText(res.error), timestamp: new Date().toISOString() });
+      messages.push({ role: 'assistant', content: copilotErrorText(res.error), isError: true, timestamp: new Date().toISOString() });
     }
   } catch (err) {
     console.warn('[Copilot] Tour interrompu :', err);
     removeTypingIndicator();
-    messages.push({ role: 'assistant', content: copilotErrorText(err?.message || err), timestamp: new Date().toISOString() });
+    messages.push({ role: 'assistant', content: copilotErrorText(err?.message || err), isError: true, timestamp: new Date().toISOString() });
   } finally {
     turnBusy = false;
     els.sendBtn.disabled = false;

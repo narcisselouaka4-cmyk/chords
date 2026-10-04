@@ -580,5 +580,26 @@ check('Suggestions sous les réponses : le bouton montre le message envoyé, san
   /btn\.appendChild\(el\('span', \{ text: message \}\)\);/.test(copilotTabCode) && !copilotTabCode.includes("el('small', { text: 'Demander' })")
   && readText('src/pedagogie/copilot-client.js').includes('le bouton affiche exactement le message envoyé (label = message)'));
 
+// ---------------------------------------------------------------------------
+// 17. [Claude] — 2026-10-04 — Réponses courtes, détail sur demande (Narcisse : « il y a trop de
+// détails, trop d'inscriptions » ; son choix : courtes, le détail sur demande)
+// ---------------------------------------------------------------------------
+const copilotPrompt = readText('src/pedagogie/copilot-client.js');
+check('Consignes : une réponse courte par défaut, l\'explication complète sur « Plus de détails »',
+  copilotPrompt.includes('4. Réponses courtes et claires, par défaut') && copilotPrompt.includes('environ 80 mots en tout')
+  && copilotPrompt.includes('Quand le pianiste demande « Plus de détails »') && copilotPrompt.includes('Rédige donc ton explication (courte : règle 4)')
+  && !copilotPrompt.includes('Rédige donc ton explication complète'));
+check('Les notes écrites par l\'application sont repliées sous la réponse (« Les notes, accord par accord »)',
+  /const \{ text, notes \} = isUser \? \{ text: msg\.content, notes: '' \} : splitAnswerNotes\(msg\.content, msg\.toolResult\?\.transferText\);/.test(copilotTabCode)
+  && /if \(notes\) content\.appendChild\(renderNotesDetails\(notes\)\);/.test(copilotTabCode)
+  && /el\('details', \{ className: 'copilot-notes' \}, \[\s*el\('summary', \{ text: 'Les notes, accord par accord' \}\)/.test(copilotTabCode)
+  && bridgeCss.includes(':is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-notes > summary {'));
+check('« Plus de détails » sous la dernière réponse seulement ; les erreurs sont marquées',
+  /const lastAnswer = tail\?\.role === 'assistant' && !tail\.isTyping \? tail : null;/.test(copilotTabCode)
+  && /renderOneMessage\(msg, \{ last: msg === lastAnswer \}\)/.test(copilotTabCode)
+  && /const actions = answerActions\(msg, \{ last, asked: asked\?\.role === 'user' \? asked\.content : '' \}\);/.test(copilotTabCode)
+  && (copilotTabCode.match(/content: copilotErrorText\([^)]*\)\)?, isError: true/g) || []).length === 2
+  && copilotPrompt.includes('ne le propose pas'));
+
 console.log(`\n=== Résultat : ${passed}/${total} contrôles passés ===`);
 if (passed < total) process.exitCode = 1;

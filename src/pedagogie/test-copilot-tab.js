@@ -41,6 +41,9 @@ const {
   toggleButtonState,
   reviewButtonState,
   copilotErrorText,
+  splitAnswerNotes,
+  answerActions,
+  MORE_DETAILS,
 } = await import('./copilot-tab.js');
 
 const GREEN = '\x1b[32m';
@@ -150,11 +153,51 @@ function testCopilotErrorText() {
   check('Autre erreur : la raison technique, à recopier', /Je n'ai pas pu répondre \(Unexpected token\)/.test(copilotErrorText('Unexpected token')));
 }
 
+// [Claude] — 2026-10-04 — Réponses courtes, détail sur demande (Narcisse : « trop de détails,
+// trop d'inscriptions » ; son choix : des réponses courtes, le détail sur demande).
+function testSplitAnswerNotes() {
+  const notes = 'Sur Fmaj7 : main gauche Fa2 Do3 Mi3 · main droite La3 Do4 Mi4\nSur E7 : main gauche Mi2 Ré3 Sol#3 · main droite Si3 Ré4 Sol#4';
+  const answer = `Le prof garde la tierce et la septième en main gauche.\n\n${notes}\n\nÉcoute l'exemple ci-dessous.`;
+  const split = splitAnswerNotes(answer, `${notes}\n`);
+  check('Les notes écrites par l\'application sont repliées : la réponse garde son texte, sans elles',
+    split.notes === notes && split.text === 'Le prof garde la tierce et la septième en main gauche.\n\nÉcoute l\'exemple ci-dessous.',
+    JSON.stringify(split));
+  check('Sans notes de l\'application : rien n\'est replié',
+    splitAnswerNotes('Une réponse.', undefined).notes === '' && splitAnswerNotes('Une réponse.', '').text === 'Une réponse.');
+  check('Notes absentes de la réponse (ancienne conversation) : rien n\'est replié',
+    splitAnswerNotes('Une réponse sans les notes.', notes).notes === '');
+  check('Une réponse faite des seules notes : elles restent visibles (pas de bulle vide)',
+    splitAnswerNotes(notes, notes).notes === '' && splitAnswerNotes(notes, notes).text === notes);
+}
+
+function testAnswerActions() {
+  const answer = { role: 'assistant', content: 'L\'idée en une phrase.', suggestedActions: [{ label: 'Que fait la main gauche ?', message: 'Que fait la main gauche ?' }] };
+  const last = answerActions(answer, { last: true, asked: 'Explique ce passage.' });
+  check('Sous la dernière réponse : « Plus de détails » d\'abord, puis les suggestions',
+    MORE_DETAILS === 'Plus de détails' && last.length === 2 && last[0].label === MORE_DETAILS && last[0].message === MORE_DETAILS && last[1].message === 'Que fait la main gauche ?',
+    JSON.stringify(last));
+  check('Sous une réponse plus ancienne : les suggestions seulement',
+    answerActions(answer, { last: false }).map((a) => a.message).join('|') === 'Que fait la main gauche ?');
+  check('Après une demande de détail (étiquette ou tapée) : pas de nouveau « Plus de détails »',
+    ['Plus de détails', 'plus de détails.', 'Détaille la main gauche', 'Explique-moi plus'].every((asked) => !answerActions(answer, { last: true, asked }).some((a) => a.message === MORE_DETAILS)));
+  check('Après une erreur, ou une réponse vide : pas de « Plus de détails »',
+    answerActions({ role: 'assistant', content: 'Le service d\'IA n\'a pas répondu à temps.', isError: true }, { last: true }).length === 0
+    && answerActions({ role: 'assistant', content: '  ' }, { last: true }).length === 0);
+  const twice = answerActions({ ...answer, suggestedActions: [{ label: 'Plus de détails.', message: 'Plus de détails.' }, ...answer.suggestedActions] }, { last: true });
+  check('Le Copilote propose aussi « Plus de détails » : une seule fois',
+    twice.filter((a) => /plus de détails/i.test(a.message)).length === 1 && twice.length === 2, JSON.stringify(twice));
+  check('Ni sous la question du pianiste, ni sous l\'attente',
+    answerActions({ role: 'user', content: 'Explique ce passage.' }, { last: true }).length === 0
+    && answerActions({ role: 'assistant', isTyping: true }, { last: true }).length === 0);
+}
+
 async function runTests() {
   testNextModeOnSelectionChange();
   testToggleButtonState();
   testReviewButtonState();
   testCopilotErrorText();
+  testSplitAnswerNotes();
+  testAnswerActions();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);
   process.exit(failed === 0 ? 0 : 1);
