@@ -120,7 +120,7 @@ global.document = {
 };
 
 // 2. Import dynamique APRÈS le setup de window
-const { sendCopilotMessage, executeToolCalls, wantsToHear, myPlayingRequest, melodyChordsRequest, wantsMelodyChords, setCopilotTimeout, tutorialToolCalls, transferTargets } = await import('./copilot-client.js');
+const { sendCopilotMessage, executeToolCalls, wantsToHear, myPlayingRequest, melodyChordsRequest, wantsMelodyChords, setCopilotTimeout, tutorialToolCalls, transferTargets, extractTextToolCalls } = await import('./copilot-client.js');
 const { applyQuestion, otherKeyQuestion, parseTutorialRequest } = await import('./tutorial-questions.js');
 const { songStructure } = await import('./song-structure.js');
 
@@ -1757,6 +1757,63 @@ async function testMelodyChordsInSend() {
   global.fetch = originalFetch;
 }
 
+// [Claude] — 2026-10-04 — Narcisse : « on peut retrouver dans les réponses de Copilot ce
+// genre de message : suggest_actions(actions=[{label: "Détaille les accords", message: "Plus de
+// détails"}, {label: "Rejoue le passage", message: "Rejoue ce passage"}]) ».
+const NARCISSE_TEXT = 'À 0:38, il pose un Ab9 : la 9e (Si♭) au-dessus.\n\nsuggest_actions(actions=[{label: "Détaille les accords", message: "Plus de détails"}, {label: "Rejoue le passage", message: "Rejoue ce passage"}])';
+const messagesOf = (calls) => calls.flatMap((c) => JSON.parse(c.function.arguments).actions.map((a) => a.message));
+function testTextToolCalls() {
+  console.log('\n📋 Appels d\'outil écrits en texte');
+  const own = extractTextToolCalls(NARCISSE_TEXT);
+  check('Sa phrase : le texte reste, l\'appel part', own.content === 'À 0:38, il pose un Ab9 : la 9e (Si♭) au-dessus.', JSON.stringify(own.content));
+  check('… et devient un vrai appel suggest_actions (ses deux messages)', own.calls.length === 1 && own.calls[0].function.name === 'suggest_actions' && messagesOf(own.calls).join(' | ') === 'Plus de détails | Rejoue ce passage');
+  const forms = [
+    ['Entre accents graves, après un intitulé', 'Voici l\'idée.\n\nSuggestions : `suggest_actions({"actions": [{"label": "Et en Fa ?", "message": "Et en Fa ?"}]})`', 'Voici l\'idée.'],
+    ['Bloc <tool_call> en JSON', 'Texte.\n<tool_call>\n{"name": "suggest_actions", "arguments": {"actions": [{"label": "Et en Fa ?", "message": "Et en Fa ?"}]}}\n</tool_call>', 'Texte.'],
+    ['functions.suggest_actions dans un bloc de code, guillemets simples', 'Texte.\n```python\nfunctions.suggest_actions(actions=[{\'label\': "Et en Fa ?", \'message\': \'Et en Fa ?\'}])\n```\nFin.', 'Texte.\n\nFin.'],
+    ['Arguments JSON en chaîne', 'Texte.\n{"function": {"name": "suggest_actions", "arguments": "{\\"actions\\": [{\\"label\\": \\"Et en Fa ?\\", \\"message\\": \\"Et en Fa ?\\"}]}"}}', 'Texte.'],
+    ['Mal fermé : jusqu\'au bout de la ligne', 'Texte.\nsuggest_actions(actions=[{label: "Et en Fa ?", message: "Et en Fa ?"}\nSuite.', 'Texte.\nSuite.'],
+  ];
+  for (const [name, input, want] of forms) {
+    const r = extractTextToolCalls(input);
+    check(`${name} : texte propre, suggestion gardée`, r.content === want && messagesOf(r.calls).join() === 'Et en Fa ?', `${JSON.stringify(r.content)} ${JSON.stringify(r.calls)}`);
+  }
+  const other = extractTextToolCalls('Je te propose play_progression(chords=["Dm7", "G7", "Cmaj7"]) pour l\'entendre.');
+  check('Un autre outil écrit en texte est retiré, sans être exécuté', other.content === 'Je te propose pour l\'entendre.' && other.calls.length === 0, JSON.stringify(other));
+  const phrase = extractTextToolCalls('Écoute l\'exemple ci-dessous suggest_actions(actions=[{label: "A", message: "B"}])');
+  check('La phrase de la ligne de l\'appel reste', phrase.content === 'Écoute l\'exemple ci-dessous');
+  const plain = 'Le 2-5-1 (Dm7 → G7 → Cmaj7) : la 7e de Dm7 (Do) descend sur la tierce de G7 {Si}.';
+  check('Un texte sans appel reste tel quel', extractTextToolCalls(plain).content === plain && extractTextToolCalls(plain).calls.length === 0);
+}
+
+async function testTextToolCallsInSend() {
+  const originalFetch = global.fetch;
+  global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
+  let reply = { role: 'assistant', content: NARCISSE_TEXT };
+  global.fetch = async () => ({ ok: true, status: 200, json: async () => ({ choices: [{ message: reply }] }) });
+  const res = await sendCopilotMessage({ message: 'Que se passe-t-il à 0:38 ?', messages: [], context: null });
+  check('Réponse affichée sans l\'appel écrit en texte', res.ok && !/suggest_actions/.test(res.content) && res.content.startsWith('À 0:38, il pose un Ab9'), res.content);
+  check('… ses suggestions deviennent des boutons (le message envoyé)', (res.suggestedActions || []).map((a) => a.message).join(' | ') === 'Plus de détails | Rejoue ce passage', JSON.stringify(res.suggestedActions));
+  // Le modèle a AUSSI appelé l'outil : pas de doublon, l'appel écrit est seulement retiré.
+  reply = {
+    role: 'assistant',
+    content: NARCISSE_TEXT,
+    tool_calls: [{ id: 'c1', type: 'function', function: { name: 'suggest_actions', arguments: JSON.stringify({ actions: [{ label: 'Et en Fa ?', message: 'Et en Fa ?' }] }) } }],
+  };
+  const both = await sendCopilotMessage({ message: 'Que se passe-t-il à 0:38 ?', messages: [], context: null });
+  check('Appel fait ET écrit : seul l\'appel fait compte, le texte est propre', !/suggest_actions/.test(both.content) && (both.suggestedActions || []).map((a) => a.message).join(' | ') === 'Et en Fa ?', JSON.stringify(both.suggestedActions));
+  // Modèle sans outils (erreur 400 avec outils) : les suggestions écrites deviennent des boutons.
+  let n = 0;
+  global.fetch = async () => {
+    n += 1;
+    if (n === 1) return { ok: false, status: 400, text: async () => 'tools are not supported', json: async () => ({}) };
+    return { ok: true, status: 200, json: async () => ({ choices: [{ message: { role: 'assistant', content: NARCISSE_TEXT } }] }) };
+  };
+  const bare = await sendCopilotMessage({ message: 'Que se passe-t-il à 0:38 ?', messages: [], context: null });
+  check('Sans outils : texte propre, et les suggestions écrites deviennent des boutons', bare.ok && !/suggest_actions/.test(bare.content) && (bare.suggestedActions || []).map((a) => a.message).join(' | ') === 'Plus de détails | Rejoue ce passage', `${n} ${JSON.stringify(bare.suggestedActions)} ${bare.content}`);
+  global.fetch = originalFetch;
+}
+
 // [Claude] — 2026-09-26 — Narcisse : « on ne peut plus converser avec l'IA, la case ne
 // réagit plus ». Un service d'IA qui ne répond pas ne bloque plus le Copilote.
 async function testTimeout() {
@@ -1835,6 +1892,8 @@ async function runTests() {
   await testMelodyChordsInSend();
   await testTimeout();
   testWantsToHear();
+  testTextToolCalls();
+  await testTextToolCallsInSend();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);
   process.exit(failed === 0 ? 0 : 1);

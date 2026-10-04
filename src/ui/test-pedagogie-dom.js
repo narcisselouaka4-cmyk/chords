@@ -590,7 +590,7 @@ check('Consignes : une réponse courte par défaut, l\'explication complète sur
   && copilotPrompt.includes('Quand le pianiste demande « Plus de détails »') && copilotPrompt.includes('Rédige donc ton explication (courte : règle 4)')
   && !copilotPrompt.includes('Rédige donc ton explication complète'));
 check('Les notes écrites par l\'application sont repliées sous la réponse (« Les notes, accord par accord »)',
-  /const \{ text, notes \} = isUser \? \{ text: msg\.content, notes: '' \} : splitAnswerNotes\(msg\.content, msg\.toolResult\?\.transferText\);/.test(copilotTabCode)
+  /const \{ text, notes \} = isUser \? \{ text: msg\.content, notes: '' \} : splitAnswerNotes\((?:extractTextToolCalls\(msg\.content\)\.content|msg\.content), msg\.toolResult\?\.transferText\);/.test(copilotTabCode)
   && /if \(notes\) content\.appendChild\(renderNotesDetails\(notes\)\);/.test(copilotTabCode)
   && /el\('details', \{ className: 'copilot-notes' \}, \[\s*el\('summary', \{ text: 'Les notes, accord par accord' \}\)/.test(copilotTabCode)
   && bridgeCss.includes(':is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-notes > summary {'));
@@ -685,6 +685,17 @@ check('La grille du relevé en usage est corrigée (relevé gardé et analyse ne
   /analysis = readingInUse\(saved\.analysis\);/.test(tabCode) && /analysis = readingInUse\(job\.analysis\);/.test(tabCode)
   && /return withoutReadingArtifacts\(raw, \{ source: raw\.notesSource \|\| \(raw\.source === 'audio' \? 'son' : 'image'\) \}\);/.test(tabCode)
   && /analysis: job\.analysis,/.test(tabCode));
+
+// ---------------------------------------------------------------------------
+// 22. [Claude] — 2026-10-04 — Jamais d'appel d'outil écrit en texte sous les yeux du pianiste
+// (Narcisse : « suggest_actions(actions=[{label: …, message: …}]) » dans les réponses).
+// ---------------------------------------------------------------------------
+check('Chaque réponse du modèle est nettoyée de ses appels écrits en texte (relances comprises)',
+  /return \{ ok: true, choice: withTextToolCalls\(choice\) \};/.test(clientCode)
+  && /if \(!toolsMode\) \{\s*const written = \(first\.choice\.tool_calls \|\| \[\]\)\.filter\(\(c\) => c\?\.function\?\.name === 'suggest_actions'\);/.test(clientCode));
+check('Une réponse gardée est montrée sans appel écrit ; la règle 14 dit de ne jamais l\'écrire',
+  /splitAnswerNotes\(extractTextToolCalls\(msg\.content\)\.content, msg\.toolResult\?\.transferText\)/.test(copilotTabCode)
+  && readText('src/pedagogie/copilot-client.js').includes("appelle l'outil suggest_actions (un appel d'outil, jamais écrit dans le texte de ta réponse"));
 
 console.log(`\n=== Résultat : ${passed}/${total} contrôles passés ===`);
 if (passed < total) process.exitCode = 1;

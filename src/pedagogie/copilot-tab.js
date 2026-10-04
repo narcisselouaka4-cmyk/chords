@@ -13,7 +13,7 @@ import {
   labelForConversationPath,
   AUTONOMOUS_HISTORY_KEY as HISTORY_AUTONOMOUS_KEY,
 } from './copilot-history.js';
-import { sendCopilotMessage } from './copilot-client.js';
+import { sendCopilotMessage, extractTextToolCalls } from './copilot-client.js';
 import { hasAIKey } from '../ai/openai-config.js';
 import { liveTake } from '../recorder/live-take.js';
 import { reviewTake } from '../recorder/take-review.js';
@@ -1123,7 +1123,8 @@ function renderOneMessage(msg, { last = false } = {}) {
   if (!isUser) author.appendChild(el('span', { text: 'ASSISTANT IA' }));
   content.appendChild(author);
   // [Claude] — 2026-10-04 — Les notes écrites par l'application sont repliées sous la réponse.
-  const { text, notes } = isUser ? { text: msg.content, notes: '' } : splitAnswerNotes(msg.content, msg.toolResult?.transferText);
+  // Un appel d'outil que le modèle avait écrit dans une réponse gardée n'est pas montré.
+  const { text, notes } = isUser ? { text: msg.content, notes: '' } : splitAnswerNotes(extractTextToolCalls(msg.content).content, msg.toolResult?.transferText);
   renderMessageText(content, text);
   if (notes) content.appendChild(renderNotesDetails(notes));
 
