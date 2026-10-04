@@ -2285,6 +2285,23 @@
 }
 :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-btn:hover { border-color: var(--tr-accent); color: var(--tr-accent); }
 :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-btn:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 2px; }
+/* [Claude] — 2026-10-04 — La vitesse de l'exemple (0,5× · 0,75× · 1× · 1,25×). */
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-rate {
+  flex-shrink: 0;
+  min-height: 28px;
+  padding: 3px 6px;
+  border: 1px solid var(--tr-border);
+  border-radius: 6px;
+  background: var(--tr-surface);
+  color: var(--tr-text);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-rate:hover { border-color: var(--tr-accent); }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-rate:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 2px; }
 /* [Claude] — 2026-10-04 — « Pédale » : allumé avec la pédale, barré sans elle. */
 :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-pedal[aria-pressed="true"] {
   border-color: color-mix(in srgb, var(--tr-accent) 55%, var(--tr-border));
@@ -2369,6 +2386,29 @@
 }
 :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-note[hidden] { display: none; }
 :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-video { margin: 0; color: var(--tr-secondary); font-size: 11px; font-variant-numeric: tabular-nums; }
+/* [Claude] — 2026-10-04 — La ligne du dessous : l'instant de la vidéo à gauche, les réglages de
+   l'écoute (vitesse, pédale) à droite. Dans un Copilote très étroit, les réglages passent à la
+   ligne, toujours à droite. */
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  min-width: 0;
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-settings {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-rate-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--tr-secondary);
+  font-size: 11px;
+}
 /* [Claude] — 2026-10-04 — Les notes que l'application écrit sous une réponse (accord par
    accord, main par main), repliées : la réponse reste courte (Narcisse : « trop de détails,
    trop d'inscriptions »). */

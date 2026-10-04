@@ -522,7 +522,7 @@ check('Plus de liste 10 / 20 / 30 / 60 s ni de boucle A-B à part',
 const playerCode = stripComments(readText('src/exercise-demo-player.js'));
 const bridgeCss = readText('src/ui/refonte/astra-bridge.css');
 check('Le lecteur sait faire pause, reprendre, aller à un instant ; la reprise remet la pédale et les notes tenues',
-  /return \{\s*play,\s*stop,\s*pause,\s*resume,\s*seek,\s*(?:setPedal,\s*)?position,/.test(playerCode)
+  /return \{\s*play,\s*stop,\s*pause,\s*resume,\s*seek,\s*(?:setPedal,\s*)?(?:setRate,\s*)?position,/.test(playerCode)
   && /if \(sustain\) fire\(\{ type: 'sustain', value: true \}\);/.test(playerCode) && /send\('noteOn', note, d\.velocity\);/.test(playerCode));
 check('main.js : commandes de la carte (pause, reprise, −5 s, aller à) et position envoyée toutes les 250 ms',
   mainJs.includes("document.addEventListener('copilot-example-control'") && /exampleTicker = setInterval\(sendExampleProgress, 250\);/.test(mainJs)
@@ -621,10 +621,10 @@ check('Le curseur tiré : « scrub » (le son se tait, le clavier suit), « scru
   && /if \(scrub\?\.resume\) demoPlayer\.resume\(\);/.test(mainCode)
   && /paused: demoPlayer\.isPaused\(\) && !demoContext\.scrub\?\.resume,/.test(mainCode));
 check('Sans la pédale : le bouton « Pédale » (exemples qui en ont une), le choix retenu et passé au lecteur',
-  /if \(hasPedalEvents\(example\)\) \{\s*row\.appendChild\(el\('button', \{[\s\S]*?'data-action': 'pedal',/.test(copilotTabCode)
+  /if \(hasPedalEvents\(example\)\) \{\s*(?:row|settings)\.appendChild\(el\('button', \{[\s\S]*?'data-action': 'pedal',/.test(copilotTabCode)
   && /localStorage\.setItem\(PEDAL_KEY, examplePedal \? 'on' : 'off'\);/.test(copilotTabCode)
-  && /new CustomEvent\('copilot-play-example', \{ detail: \{ id, example, pedal: examplePedal \} \}\)/.test(copilotTabCode)
-  && /\{ tempo, pedal: e\.detail\.pedal !== false \}/.test(mainCode) && /else if \(action === 'pedal'\) demoPlayer\.setPedal\(e\.detail\.on !== false\);/.test(mainCode)
+  && /new CustomEvent\('copilot-play-example', \{ detail: \{ id, example, pedal: examplePedal(?:, rate: exampleRate)? \} \}\)/.test(copilotTabCode)
+  && /\{ tempo, pedal: e\.detail\.pedal !== false(?:, rate: Number\(e\.detail\.rate\) \|\| 1)? \}/.test(mainCode) && /else if \(action === 'pedal'\) demoPlayer\.setPedal\(e\.detail\.on !== false\);/.test(mainCode)
   && bridgeCss.includes('.copilot-transport-pedal[aria-pressed="false"]'));
 check('Une touche figée jouée puis relâchée par le pianiste redevient jaune',
   /const shown = state\.isPlayback \? null : demoPlayer\.shownVelocity\(transposed\);\s*if \(shown !== null\) feedDemoEvent\('show', transposed, shown\);/.test(mainCode));
@@ -648,6 +648,29 @@ check('Le contexte : la structure avant la grille, le passage situé dans la str
   && /lines\.push\(\.\.\.movesLines\(lineMoves\(\{ notes: context\.noteEvents, chords: context\.chords, structure: context\.structure, start: context\.moment\.start, end: context\.moment\.end \}\)\)\);/.test(clientCode));
 check('Règle 21 : la progression est la boucle, jamais la liste des accords joués',
   readText('src/pedagogie/copilot-client.js').includes("21. Progression d'un tutoriel") && readText('src/pedagogie/copilot-client.js').includes('jamais avec la liste des accords joués du début à la fin'));
+
+// ---------------------------------------------------------------------------
+// 20. [Claude] — 2026-10-04 — La vitesse des exemples (Narcisse : « régler la vitesse selon ce
+// que l'on veut (0,5× ; 0,75× ; 1×…) : ça évite de lui demander à chaque fois de ralentir »)
+// ---------------------------------------------------------------------------
+check('La barre de lecture : le choix de vitesse, retenu, passé au lecteur au départ et en cours de lecture',
+  /const rate = el\('select', \{ className: 'copilot-transport-rate'/.test(copilotTabCode)
+  && /localStorage\.setItem\(RATE_KEY, String\(exampleRate\)\);/.test(copilotTabCode)
+  && /action: 'rate', rate: exampleRate/.test(copilotTabCode)
+  && /detail: \{ id, example, pedal: examplePedal, rate: exampleRate \}/.test(copilotTabCode)
+  && /\{ tempo, pedal: e\.detail\.pedal !== false, rate: Number\(e\.detail\.rate\) \|\| 1 \}/.test(mainCode)
+  && /else if \(action === 'rate'\) demoPlayer\.setRate\(Number\(e\.detail\.rate\) \|\| 1\);/.test(mainCode)
+  && /function setRate\(rate\) \{/.test(playerCode) && bridgeCss.includes('.copilot-transport-rate {'));
+check('La vitesse change sans coupure : rien n\'est relâché ni rejoué, la suite est reprogrammée',
+  /function setRate\(rate\) \{[\s\S]*?clearTimers\(\);\s*fromBeat = at;\s*startedAt = now\(\) \+ wait;\s*schedule\(at, wait\);/.test(playerCode)
+  && !/function setRate\(rate\) \{[^}]*releaseAll\(\)/.test(playerCode));
+check('Règle 8 : à « ralentis », le Copilote rappelle où se règle la vitesse (« Vitesse », sous l\'exemple)',
+  readText('src/pedagogie/copilot-client.js').includes('dans sa barre de lecture (« Vitesse » : 0,5×, 0,75×, 1×, 1,25×) : son choix est gardé pour les exemples suivants.'));
+check('Vitesse et pédale sur la ligne du dessous, à droite (la première ligne garde sa place au curseur)',
+  /const settings = el\('div', \{ className: 'copilot-transport-settings' \}, \[\s*el\('label', \{ className: 'copilot-transport-rate-label' \}, \[el\('span', \{ text: 'Vitesse' \}\), rate\]\),/.test(copilotTabCode)
+  && /foot\.appendChild\(settings\);\s*box\.appendChild\(foot\);/.test(copilotTabCode)
+  && !/className: 'copilot-transport-row' \}, \[[^\]]*\brate,/.test(copilotTabCode)
+  && bridgeCss.includes('.copilot-transport-settings {') && bridgeCss.includes('.copilot-transport-foot {'));
 
 console.log(`\n=== Résultat : ${passed}/${total} contrôles passés ===`);
 if (passed < total) process.exitCode = 1;

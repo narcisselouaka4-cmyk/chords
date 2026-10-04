@@ -552,5 +552,81 @@ console.log('\n=== Lecteur de démo : pause figée, curseur suivi sans cumul, sa
   player.stop();
 }
 
+// [Claude] — 2026-10-04 — La vitesse (Narcisse : « régler la vitesse selon ce que l'on veut
+// (0,5× ; 0,75× ; 1×…) : ça évite de lui demander à chaque fois de ralentir »).
+console.log('\n=== Lecteur de démo : vitesse de lecture ===');
+{
+  let t = 0;
+  let queue = [];
+  const setTimer = (fn, ms) => { const id = { fn, at: t + ms }; queue.push(id); return id; };
+  const clearTimer = (id) => { queue = queue.filter((x) => x !== id); };
+  const advance = (ms) => {
+    const target = t + ms;
+    for (;;) {
+      const due = queue.filter((x) => x.at <= target).sort((a, b) => a.at - b.at)[0];
+      if (!due) break;
+      queue = queue.filter((x) => x !== due);
+      t = due.at;
+      due.fn();
+    }
+    t = target;
+  };
+  const sent = [];
+  const player = createDemoPlayer({ send: (type, a) => sent.push([Math.round(t), type, a]), setTimer, clearTimer, now: () => t });
+  const at = (note) => sent.find(([, type, a]) => type === 'noteOn' && a === note)?.[0];
+  // Tempo 60 : Do à 0 s, Ré à 2 s, Mi à 4 s.
+  const events = [
+    { time: 0, type: 'noteOn', note: 60, velocity: 0.7 }, { time: 1.9, type: 'noteOff', note: 60 },
+    { time: 2, type: 'noteOn', note: 62, velocity: 0.7 }, { time: 3.9, type: 'noteOff', note: 62 },
+    { time: 4, type: 'noteOn', note: 64, velocity: 0.7 }, { time: 5, type: 'noteOff', note: 64 },
+  ];
+  player.play({ events, beats: 5 }, { tempo: 60, rate: 0.5 });
+  advance(80 + 4100);
+  check('À 0,5× : le Ré (2 s) arrive à 4 s, deux fois plus tard ; la position reste celle de la démo',
+    at(62) === 80 + 4000 && player.rate() === 0.5 && Math.abs(player.position() - 2.05) < 1e-9, `${at(62)} ${player.position()}`);
+  player.setRate(1);
+  advance(2000);
+  check('Remis à 1× en cours de lecture : la suite repart du même instant, au tempo (Mi 1,95 s plus tard)',
+    at(64) === 80 + 4100 + 1950 && player.rate() === 1, `${at(64)}`);
+  check('Vitesse bornée (0,25× à 2×) ; une valeur fausse : 1×', player.setRate(10) && player.rate() === 2 && player.setRate(0.1) && player.rate() === 0.25 && player.setRate('x') && player.rate() === 1);
+  player.stop();
+  check('Sans démo : la vitesse est retenue pour rien, sans erreur', player.setRate(0.75) === false && player.rate() === 0.75);
+
+  // Sans coupure : la pédale tient Do (relâché à 1 s), Mi est tenu au doigt (0,5 → 3 s) ; la
+  // vitesse change à 1,5 s. Rien n'est relâché ni rejoué ; Sol (2 s) arrive à la nouvelle vitesse.
+  sent.length = 0;
+  const held = [
+    { time: 0, type: 'sustain', value: true }, { time: 0, type: 'noteOn', note: 60, velocity: 0.7 },
+    { time: 0.5, type: 'noteOn', note: 64, velocity: 0.7 }, { time: 1, type: 'noteOff', note: 60 },
+    { time: 2, type: 'noteOn', note: 67, velocity: 0.7 }, { time: 3, type: 'noteOff', note: 64 },
+    { time: 3, type: 'noteOff', note: 67 }, { time: 3.5, type: 'sustain', value: false },
+  ];
+  player.play({ events: held, beats: 4 }, { tempo: 60, rate: 1 });
+  advance(80 + 1500);
+  const before = sent.length;
+  player.setRate(0.5);
+  const changed = t;
+  check('Changée en pleine lecture : rien n\'est relâché ni rejoué (pédale gardée, Mi tenu)',
+    sent.length === before && Math.abs(player.position() - 1.5) < 1e-9, JSON.stringify(sent.slice(before)));
+  advance(3000);
+  const sol = at(67);
+  const noteOns = (note) => sent.filter(([, type, a]) => type === 'noteOn' && a === note).length;
+  check('… et la suite part à la nouvelle vitesse : Sol (0,5 s plus loin) 1 s plus tard ; Mi attaqué une seule fois',
+    sol === changed + 1000 && noteOns(64) === 1 && noteOns(60) === 1, `${sol - changed} ${noteOns(64)}`);
+  advance(6000);
+  check('… jusqu\'à la fin : la pédale remonte à 3,5 s (4 s plus tard), puis la démo finit',
+    sent.some(([time, type, a]) => type === 'sustain' && a === false && time === changed + 4000) && !player.isActive());
+
+  // Pendant les 80 ms du départ : le départ reste attendu, puis tout part à la nouvelle vitesse.
+  sent.length = 0;
+  const t0 = t;
+  player.play({ events, beats: 5 }, { tempo: 60, rate: 1 });
+  advance(40);
+  player.setRate(0.5);
+  advance(40 + 4000);
+  check('Changée avant la première note : Do à 80 ms, Ré 4 s plus tard (0,5×)', at(60) - t0 === 80 && at(62) - t0 === 80 + 4000, `${at(60) - t0} ${at(62) - t0}`);
+  player.stop();
+}
+
 console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);
 if (failed > 0) process.exit(1);

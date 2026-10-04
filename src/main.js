@@ -2522,7 +2522,7 @@ function initPracticeExercise() {
     }
     const tempo = example.tempo || 60;
     // [Claude] — 2026-10-04 — Avec ou sans la pédale : le choix du pianiste (onglet Copilote).
-    demoPlayer.play({ events: example.events, beats: example.beats }, { tempo, pedal: e.detail.pedal !== false });
+    demoPlayer.play({ events: example.events, beats: example.beats }, { tempo, pedal: e.detail.pedal !== false, rate: Number(e.detail.rate) || 1 });
     demoContext = { kind: 'copilot', id, tempo };
     document.dispatchEvent(new CustomEvent('copilot-example-state', { detail: { id, playing: true } }));
     clearInterval(exampleTicker);
@@ -2557,6 +2557,8 @@ function initPracticeExercise() {
       if (scrub && Number.isFinite(at)) demoPlayer.seek(at / perBeat);
       if (scrub?.resume) demoPlayer.resume();
     } else if (action === 'pedal') demoPlayer.setPedal(e.detail.on !== false);
+    // [Claude] — 2026-10-04 — La vitesse de l'exemple, changée en cours de lecture.
+    else if (action === 'rate') demoPlayer.setRate(Number(e.detail.rate) || 1);
     sendExampleProgress();
   });
   function sendExampleProgress() {

@@ -23,6 +23,13 @@
 // s'arrête quand le doigt se lève.
 
 const START_DELAY_MS = 80;
+/** [Claude] — 2026-10-04 — Vitesses de lecture permises (1 : le tempo de la démo). */
+const MIN_RATE = 0.25;
+const MAX_RATE = 2;
+const clampRate = (rate) => {
+  const r = Number(rate);
+  return Number.isFinite(r) && r > 0 ? Math.min(MAX_RATE, Math.max(MIN_RATE, r)) : 1;
+};
 const defaultNow = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
 
 /**
@@ -101,11 +108,17 @@ export function createDemoPlayer({ send, onStep, onPassing, onEnd, setTimer = se
   // ceux qu'on joue, sans la pédale si on l'a enlevée), sa fin et son tempo.
   let demo = null;
   let withPedal = true;
+  // [Claude] — 2026-10-04 — La vitesse (Narcisse : « régler la vitesse selon ce que l'on veut
+  // (0,5× ; 0,75× ; 1×…) : ça évite de lui demander à chaque fois de ralentir »).
+  let speed = 1;
   // Où en est la lecture : le temps (de la démo) au dernier départ, l'horloge à ce
   // départ, et le temps où elle s'est mise en pause.
   let fromBeat = 0;
   let startedAt = 0;
   let pausedAt = 0;
+  // [Claude] — 2026-10-04 — Les évènements programmés et pas encore joués (leur rang dans
+  // `demo.events`) : un changement de vitesse ne reprogramme qu'eux, sans rien rejouer.
+  let pending = new Set();
 
   function fire(event) {
     switch (event.type) {
@@ -208,7 +221,7 @@ export function createDemoPlayer({ send, onStep, onPassing, onEnd, setTimer = se
     releaseAll();
     hideShown();
     const current = token;
-    const { events, endBeat, msPerBeat } = demo;
+    const { events, endBeat } = demo;
     const at = Math.max(0, Math.min(Number(beat) || 0, endBeat));
     const { held: down, sustained, pedal: sustain, lastStep } = stateAt(events, at);
     fromBeat = at;
@@ -237,30 +250,49 @@ export function createDemoPlayer({ send, onStep, onPassing, onEnd, setTimer = se
       if (delayMs > 0) timers.push(setTimer(chase, delayMs));
       else chase();
     }
-    for (const e of events) {
-      if (playedBefore(e, at)) continue;
+    pending = new Set();
+    events.forEach((e, i) => {
+      if (!playedBefore(e, at)) pending.add(i);
+    });
+    schedule(at, delayMs);
+  }
+
+  /**
+   * [Claude] — 2026-10-04 — Programme ce qui n'a pas encore été joué, depuis l'instant `at`
+   * (dans `delayMs`), au tempo courant ; puis la fin.
+   */
+  function schedule(at, delayMs) {
+    const current = token;
+    const { events, endBeat, msPerBeat } = demo;
+    for (const i of pending) {
+      const e = events[i];
       timers.push(setTimer(() => {
-        if (token === current) fire(e);
-      }, delayMs + (e.time - at) * msPerBeat));
+        if (token !== current) return;
+        pending.delete(i);
+        fire(e);
+      }, delayMs + Math.max(0, e.time - at) * msPerBeat));
     }
     timers.push(setTimer(() => {
       if (token === current) finish();
-    }, delayMs + (endBeat - at) * msPerBeat + 250));
+    }, delayMs + Math.max(0, endBeat - at) * msPerBeat + 250));
   }
 
   /**
    * Joue une démo ({events, beats}) au tempo donné (noires par minute). Une
    * démo en cours est arrêtée d'abord.
-   * @param {{tempo?: number, pedal?: boolean}} [options] - pedal : false, sans la pédale
+   * @param {{tempo?: number, pedal?: boolean, rate?: number}} [options] - pedal : false, sans la
+   *   pédale ; rate : la vitesse (0,5 : deux fois plus lent ; de 0,25 à 2)
    * @returns {object} jeton de lecture (pour savoir si c'est toujours elle qui joue)
    */
-  function play({ events, beats }, { tempo = 72, pedal: usePedal = true } = {}) {
+  function play({ events, beats }, { tempo = 72, pedal: usePedal = true, rate = 1 } = {}) {
     stop(false);
     withPedal = usePedal !== false;
+    speed = clampRate(rate);
     const sorted = events.map((e, i) => ({ e, i })).sort((a, b) => a.e.time - b.e.time || a.i - b.i).map(({ e }) => e);
     // La durée compte la pédale, même enlevée : le curseur garde la même longueur.
     const endBeat = sorted.reduce((max, e) => Math.max(max, e.time), Number(beats) || 0);
-    demo = { allEvents: sorted, events: withPedal ? sorted : withoutPedal(sorted), endBeat, msPerBeat: 60000 / tempo };
+    // Le tempo de la démo, à la vitesse choisie (0,5× : deux fois plus lent, les mêmes notes).
+    demo = { allEvents: sorted, events: withPedal ? sorted : withoutPedal(sorted), endBeat, tempo, msPerBeat: 60000 / (tempo * speed) };
     const current = {};
     token = current;
     startFrom(0, START_DELAY_MS);
@@ -321,6 +353,31 @@ export function createDemoPlayer({ send, onStep, onPassing, onEnd, setTimer = se
     return true;
   }
 
+  /**
+   * [Claude] — 2026-10-04 — La vitesse de lecture (0,5× : deux fois plus lent). En lecture,
+   * elle change du même instant, sans coupure : rien n'est relâché ni rejoué, la suite est
+   * seulement reprogrammée. En pause, elle vaudra à la reprise.
+   */
+  function setRate(rate) {
+    speed = clampRate(rate);
+    if (!demo) return false;
+    const at = position();
+    demo.msPerBeat = 60000 / (demo.tempo * speed);
+    if (!playing) return true;
+    // Le départ attendu (les 80 ms du début) reste attendu.
+    const wait = Math.max(0, startedAt - now());
+    // Une reprise dont l'état n'est pas encore rejoué repart simplement.
+    if (wait > 0 && fromBeat > 0) {
+      startFrom(at, wait);
+      return true;
+    }
+    clearTimers();
+    fromBeat = at;
+    startedAt = now() + wait;
+    schedule(at, wait);
+    return true;
+  }
+
   /** Arrête la démo : tout est relâché, pédale comprise ; les touches figées s'éteignent. */
   function stop(notify = true) {
     const wasActive = playing || paused;
@@ -341,6 +398,7 @@ export function createDemoPlayer({ send, onStep, onPassing, onEnd, setTimer = se
     resume,
     seek,
     setPedal,
+    setRate,
     position,
     /** Durée de la démo, en temps. */
     duration: () => (demo ? demo.endBeat : 0),
@@ -351,6 +409,8 @@ export function createDemoPlayer({ send, onStep, onPassing, onEnd, setTimer = se
     isCurrent: (t) => t != null && t === token,
     /** [Claude] — 2026-10-04 — La pédale est jouée (true), ou enlevée. */
     pedal: () => withPedal,
+    /** La vitesse de lecture (1 : le tempo de la démo). */
+    rate: () => speed,
     /** La démo en cours a une pédale (qu'on peut enlever). */
     hasPedal: () => Boolean(demo?.allEvents.some((e) => e.type === 'sustain')),
     /** La force d'une touche allumée sans le son (en pause), ou null. */

@@ -43,6 +43,12 @@ const examplesById = new Map();
 // y a une telle flopée de notes qu'on ne distingue pas bien le jeu du prof »). Choix retenu.
 const PEDAL_KEY = 'copilot-example-pedal';
 let examplePedal = readExamplePedal();
+// [Claude] — 2026-10-04 — La vitesse des exemples (Narcisse : « régler la vitesse selon ce que
+// l'on veut (0,5× ; 0,75× ; 1×…) : ça évite de lui demander à chaque fois de ralentir »).
+// Choix retenu d'un exemple à l'autre.
+const RATE_KEY = 'copilot-example-rate';
+export const EXAMPLE_RATES = [0.5, 0.75, 1, 1.25];
+let exampleRate = readExampleRate();
 // [Claude] — 2026-09-25 — Dernier passage joué (« Qu'en penses-tu ? ») : son
 // portrait (lines), ses notes exactes (events, pour le rejouer) et sa tonalité,
 // gardés pour les questions de suivi de la même conversation.
@@ -515,6 +521,34 @@ export function exampleSubtitle(example, { pedal = true } = {}) {
   return said !== text ? said : [text, 'sans pédale'].filter(Boolean).join(' · ');
 }
 
+/** « 0,5× », « 0,75× », « 1× », « 1,25× ». */
+export function rateLabel(rate) {
+  return `${String(Number(rate)).replace('.', ',')}×`;
+}
+
+function readExampleRate() {
+  try {
+    const r = Number(localStorage.getItem(RATE_KEY));
+    return EXAMPLE_RATES.includes(r) ? r : 1;
+  } catch {
+    return 1;
+  }
+}
+
+/** La vitesse des exemples : retenue, appliquée à l'exemple qui joue (main.js). */
+function setExampleRate(rate) {
+  exampleRate = EXAMPLE_RATES.includes(Number(rate)) ? Number(rate) : 1;
+  try {
+    localStorage.setItem(RATE_KEY, String(exampleRate));
+  } catch {
+    // Stockage indisponible : le choix vaut jusqu'à la fermeture.
+  }
+  if (playingExampleId) {
+    document.dispatchEvent(new CustomEvent('copilot-example-control', { detail: { id: playingExampleId, action: 'rate', rate: exampleRate } }));
+  }
+  refreshExampleTransport();
+}
+
 function readExamplePedal() {
   try {
     return localStorage.getItem(PEDAL_KEY) !== 'off';
@@ -665,16 +699,27 @@ function buildTransport(box, example, id) {
     // Lâché à la souris : la fin du geste a déjà placé la lecture.
     else if (range.dataset.dragging !== '1') control('seek', { seconds: Number(range.value) });
   });
+  // [Claude] — 2026-10-04 — La vitesse de l'exemple (retenue pour les suivants).
+  const rate = el('select', { className: 'copilot-transport-rate', 'aria-label': 'Vitesse de l\'exemple', title: 'Vitesse de l\'exemple (retenue pour les suivants)' });
+  for (const r of EXAMPLE_RATES) rate.appendChild(el('option', { value: String(r), text: rateLabel(r) }));
+  rate.value = String(exampleRate);
+  rate.addEventListener('change', () => setExampleRate(Number(rate.value)));
   const row = el('div', { className: 'copilot-transport-row' }, [
     toggle,
     back,
     el('div', { className: 'copilot-transport-bar' }, [track, range]),
     time,
   ]);
+  // [Claude] — 2026-10-04 — Les réglages de l'écoute (la vitesse, la pédale) vont sur la ligne du
+  // dessous, à droite : la première ligne laisse sa place au curseur, même dans un Copilote
+  // étroit (à 1280 px de large, « Pédale » sortait de la carte).
+  const settings = el('div', { className: 'copilot-transport-settings' }, [
+    el('label', { className: 'copilot-transport-rate-label' }, [el('span', { text: 'Vitesse' }), rate]),
+  ]);
   // [Claude] — 2026-10-04 — La pédale, à enlever pour bien entendre les doigts (seulement pour
   // un exemple qui en a une) ; le choix est retenu pour les exemples suivants.
   if (hasPedalEvents(example)) {
-    row.appendChild(el('button', {
+    settings.appendChild(el('button', {
       type: 'button',
       className: 'copilot-transport-btn copilot-transport-pedal',
       'data-action': 'pedal',
@@ -686,9 +731,10 @@ function buildTransport(box, example, id) {
   const note = el('p', { className: 'copilot-transport-note', 'aria-live': 'polite' });
   note.hidden = true;
   box.appendChild(note);
+  const foot = el('div', { className: 'copilot-transport-foot' });
   // Un passage de la vidéo : l'instant correspondant, et y aller (la lecture se met en pause).
   if (videoTimeAt(example, 0) !== null) {
-    box.appendChild(el('p', { className: 'copilot-transport-video' }, [
+    foot.appendChild(el('p', { className: 'copilot-transport-video' }, [
       el('span', { className: 'copilot-transport-video-time' }),
       el('button', {
         type: 'button',
@@ -703,6 +749,8 @@ function buildTransport(box, example, id) {
       }),
     ]));
   }
+  foot.appendChild(settings);
+  box.appendChild(foot);
 }
 
 /** Met la barre à jour : bouton Pause / Reprendre, curseur, temps, phrase, instant de la vidéo. */
@@ -718,6 +766,8 @@ function updateTransport(box, example, id) {
     toggle.appendChild(el('span', { text: examplePaused ? 'Reprendre' : 'Pause' }));
     toggle.setAttribute('aria-label', examplePaused ? 'Reprendre la lecture' : 'Mettre en pause');
   }
+  const rateSelect = box.querySelector('.copilot-transport-rate');
+  if (rateSelect && rateSelect.value !== String(exampleRate)) rateSelect.value = String(exampleRate);
   const pedal = box.querySelector('[data-action="pedal"]');
   if (pedal && pedal.getAttribute('aria-pressed') !== String(examplePedal)) {
     pedal.setAttribute('aria-pressed', String(examplePedal));
@@ -843,7 +893,7 @@ function toggleExample(msg) {
     return;
   }
   const example = msg.toolResult.example;
-  document.dispatchEvent(new CustomEvent('copilot-play-example', { detail: { id, example, pedal: examplePedal } }));
+  document.dispatchEvent(new CustomEvent('copilot-play-example', { detail: { id, example, pedal: examplePedal, rate: exampleRate } }));
 }
 
 /** Met à jour le bouton de la carte qui joue (ou vient de s'arrêter), sans tout redessiner. */
