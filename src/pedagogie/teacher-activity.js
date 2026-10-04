@@ -13,7 +13,8 @@
 //
 // Ce module, pur et testé (test-teacher-activity.js) :
 //   - cleanTeacherNotes : des notes possibles pour deux mains (durée bornée, jamais plus de
-//     10 notes ensemble, pas d'amas de demi-tons collés quand elles viennent du son) ;
+//     10 notes ensemble, pas d'amas de demi-tons collés quand elles viennent du son ; pour
+//     toutes les sources, pas de bloc de 6 touches voisines : readingArtifacts) ;
 //   - teacherActivity : les moments où il joue, où il parle (phrases de la transcription de
 //     la parole, faster-whisper), les deux, ou rien ; et les notes jouées, sans celles que
 //     sa voix fait naître pendant qu'il parle ;
@@ -23,6 +24,7 @@
 // ils sont réunis ici pour être réglés sur de vrais relevés.
 
 import { clock } from './tutorial-moment.js';
+import { labelNotes } from './chord-labeling.js';
 
 /** Touches d'un piano. */
 export const PIANO_LOW = 21;
@@ -35,6 +37,19 @@ export const ATTACK_WINDOW = 0.05;
 export const MAX_TOGETHER = 10;
 /** 4 demi-tons collés (Do Do♯ Ré Ré♯) : pas un voicing, un amas de bruit. */
 export const CLUSTER_SEMITONES = 4;
+/**
+ * [Claude] — 2026-10-04 — 6 touches voisines ou plus qui sonnent ensemble : plus que les doigts
+ * d'une main n'en couvrent. Ce n'est pas du jeu, c'est ce que l'image a pris pour des touches :
+ * un bandeau, un logo ou l'écran de fin posé sur le clavier. Vidéo de Narcisse (« This
+ * Anonymous Pianist Impressed Cory Henry With Amazing Grace ») : Si6 → Si7 allumés de 0:38 à
+ * 0:42, que le pianiste ne joue pas ; « comment harmoniser rapidement » : 80 touches d'un coup
+ * à 9:37. En jeu réel, sur ses relevés, jamais plus de 2 touches voisines ensemble.
+ */
+export const KEY_BLOCK = 6;
+/** Deux touches voisines : à un ou deux demi-tons (deux blanches qui se suivent, ou une noire). */
+export const KEY_NEIGHBOUR = 2;
+/** Autour d'un bloc écarté, ses touches qui se rallument (un bandeau qui clignote) : ±0,3 s. */
+export const ARTIFACT_PAD = 0.3;
 /** Notes « fantômes » du relevé au son : très brèves et très faibles. */
 export const GHOST_SECONDS = 0.05;
 export const GHOST_VELOCITY = 0.12;
@@ -96,23 +111,19 @@ function attackGroups(sorted) {
   return groups;
 }
 
+/** Les notes d'un piano (touches 21 à 108), telles qu'elles ont été lues. */
+function pianoNotes(notes) {
+  return (notes || []).filter((n) => finite(n?.midi) && finite(n?.start) && n.midi >= PIANO_LOW && n.midi <= PIANO_HIGH);
+}
+
 /**
- * Des notes possibles pour un pianiste à deux mains.
- * Toutes sources : touches 21 à 108 ; 4 s au plus ; une note s'arrête quand la même touche
- * est rejouée. Notes du son seulement : notes fantômes écartées ; une attaque de plus de
- * 10 notes, ou de 4 demi-tons collés, écartée ; jamais plus de 10 notes ensemble, ni 4
- * demi-tons collés qui sonnent ensemble (les plus anciennes s'arrêtent).
- * @param {{midi: number, start: number, end: number, hand?: string, velocity?: number}[]} notes
- * @param {{source?: string}} [options] - analysis.notesSource (« son », « image (V2N) »…)
- * @returns {object[]} nouvelles notes, triées
+ * Les notes d'un piano, triées, de durée bornée (4 s au plus) ; une note s'arrête quand la
+ * même touche est rejouée. Nouvelles notes (les notes reçues ne sont pas modifiées).
  */
-export function cleanTeacherNotes(notes, { source = '' } = {}) {
-  let list = (notes || [])
-    .filter((n) => finite(n?.midi) && finite(n?.start) && n.midi >= PIANO_LOW && n.midi <= PIANO_HIGH)
+function boundNotes(notes) {
+  const list = pianoNotes(notes)
     .map((n) => ({ ...n, end: finite(n.end) && n.end > n.start ? n.end : n.start + 0.25 }))
     .sort((a, b) => a.start - b.start || a.midi - b.midi);
-
-  // Durée bornée ; la même touche rejouée arrête la précédente.
   const nextSame = new Map();
   for (let i = list.length - 1; i >= 0; i -= 1) {
     const n = list[i];
@@ -122,6 +133,136 @@ export function cleanTeacherNotes(notes, { source = '' } = {}) {
     n.end = Math.round(end * 1000) / 1000;
     nextSame.set(n.midi, n.start);
   }
+  return list;
+}
+
+/** Les suites de touches voisines (à KEY_NEIGHBOUR demi-tons au plus) parmi ces hauteurs. */
+export function keyRuns(pitches, step = KEY_NEIGHBOUR) {
+  const runs = [];
+  for (const p of [...new Set(pitches)].sort((a, b) => a - b)) {
+    const last = runs[runs.length - 1];
+    if (last && p - last[last.length - 1] <= step) last.push(p);
+    else runs.push([p]);
+  }
+  return runs;
+}
+
+/**
+ * [Claude] — 2026-10-04 — Les notes qu'aucun pianiste ne joue : ce que la lecture a pris pour
+ * des touches (voir KEY_BLOCK).
+ * - Un bloc de KEY_BLOCK touches voisines ou plus : lu à l'image, qui SONNENT ensemble ; lu au
+ *   son, ATTAQUÉES ensemble (une gamme tenue à la pédale sonne en bloc : elle reste).
+ * - À l'image, sa zone (ses touches, de son début à sa fin, ±ARTIFACT_PAD) : ce qui s'y
+ *   rallume aussi.
+ * - Une attaque de plus de MAX_TOGETHER notes.
+ * Les autres notes du même instant restent (la main gauche, un accord plus bas).
+ * @param {object[]} notes - notes du prof
+ * @param {{source?: string}} [options] - analysis.notesSource
+ * @returns {{notes: Set<object>, zones: {lo: number, hi: number, start: number, end: number}[]}}
+ */
+export function readingArtifacts(notes, { source = '' } = {}) {
+  const list = (notes || []).filter((n) => finite(n?.midi) && finite(n?.start)).sort((a, b) => a.start - b.start || a.midi - b.midi);
+  const odd = new Set();
+  const found = [];
+  const sound = fromSound(source);
+  const endOf = (n) => (finite(n.end) && n.end > n.start ? n.end : n.start + 0.25);
+  let active = [];
+  for (const group of attackGroups(list)) {
+    const t = group[group.length - 1].start;
+    active = active.filter((n) => endOf(n) > t + 1e-6);
+    active.push(...group);
+    const pool = sound ? group : active;
+    for (const run of keyRuns(pool.map((n) => n.midi))) {
+      if (run.length < KEY_BLOCK) continue;
+      const lo = run[0];
+      const hi = run[run.length - 1];
+      const members = pool.filter((n) => n.midi >= lo && n.midi <= hi);
+      for (const n of members) odd.add(n);
+      found.push({ lo, hi, start: Math.min(...members.map((n) => n.start)), end: Math.max(...members.map(endOf)) });
+    }
+    // Une attaque de plus de 10 notes, sans compter un bloc déjà écarté (l'accord joué au
+    // moment où le bandeau apparaît reste).
+    const rest = group.filter((n) => !odd.has(n));
+    if (rest.length > MAX_TOGETHER) for (const n of rest) odd.add(n);
+  }
+  // Les zones qui se touchent (le même bandeau, vu à plusieurs attaques) n'en font qu'une.
+  const zones = [];
+  for (const z of found.sort((a, b) => a.start - b.start)) {
+    const same = zones.find((y) => z.lo <= y.hi && y.lo <= z.hi && z.start <= y.end + ARTIFACT_PAD && y.start <= z.end + ARTIFACT_PAD);
+    if (same) {
+      same.lo = Math.min(same.lo, z.lo);
+      same.hi = Math.max(same.hi, z.hi);
+      same.start = Math.min(same.start, z.start);
+      same.end = Math.max(same.end, z.end);
+    } else zones.push({ ...z });
+  }
+  // Ce qui se rallume dans une zone (à l'image : un bandeau qui clignote ; au son, une note
+  // tenue étendrait la zone sur du vrai jeu).
+  if (!sound) {
+    for (const n of list) {
+      if (zones.some((z) => n.midi >= z.lo && n.midi <= z.hi && n.start >= z.start - ARTIFACT_PAD && n.start <= z.end + ARTIFACT_PAD)) odd.add(n);
+    }
+  }
+  return { notes: odd, zones: zones.map((z) => ({ ...z, start: Math.round(z.start * 1000) / 1000, end: Math.round(z.end * 1000) / 1000 })) };
+}
+
+/**
+ * [Claude] — 2026-10-04 — La grille d'accords sans les touches d'un bloc écarté : un segment
+ * qui croise une zone perd les touches de la zone et il est renommé d'après ce qui reste
+ * (labelNotes) ; vidé, il est écarté. Les autres segments restent tels quels.
+ * @param {object[]} segments - analysis.segments ({start, end, midis, chord})
+ * @param {{lo: number, hi: number, start: number, end: number}[]} zones - readingArtifacts
+ * @returns {object[]}
+ */
+export function segmentsWithoutArtifacts(segments, zones) {
+  if (!Array.isArray(segments)) return [];
+  if (!zones?.length) return segments;
+  const out = [];
+  for (const s of segments) {
+    const end = finite(s?.end) ? s.end : s?.start;
+    const hit = zones.filter((z) => s.start < z.end + ARTIFACT_PAD && end > z.start - ARTIFACT_PAD);
+    if (!hit.length || !Array.isArray(s.midis) || !s.midis.length) { out.push(s); continue; }
+    const kept = s.midis.filter((m) => !hit.some((z) => m >= z.lo && m <= z.hi));
+    if (kept.length === s.midis.length) { out.push(s); continue; }
+    if (!kept.length) continue;
+    out.push({ ...s, midis: kept, chord: labelNotes(kept) });
+  }
+  return out;
+}
+
+/**
+ * [Claude] — 2026-10-04 — Un relevé sans ce que la lecture a pris pour des touches : sa grille
+ * d'accords corrigée (segmentsWithoutArtifacts). Ses notes restent telles qu'elles ont été
+ * lues : cleanTeacherNotes les nettoie à chaque usage. Un relevé gardé est donc corrigé sans
+ * refaire l'analyse, et son fichier n'est pas modifié.
+ * @param {object} analysis
+ * @param {{source?: string}} [options] - analysis.notesSource
+ * @returns {object} le même relevé s'il n'y a rien à corriger, sinon une copie
+ */
+export function withoutReadingArtifacts(analysis, { source = '' } = {}) {
+  if (!analysis || !Array.isArray(analysis.noteEvents) || !analysis.noteEvents.length) return analysis;
+  const { zones } = readingArtifacts(pianoNotes(analysis.noteEvents), { source });
+  if (!zones.length) return analysis;
+  return { ...analysis, segments: segmentsWithoutArtifacts(analysis.segments, zones), artifactZones: zones };
+}
+
+/**
+ * Des notes possibles pour un pianiste à deux mains.
+ * Toutes sources : touches 21 à 108 ; 4 s au plus ; une note s'arrête quand la même touche
+ * est rejouée ; ni bloc de 6 touches voisines, ni attaque de plus de 10 notes
+ * (readingArtifacts). Notes du son seulement : notes fantômes écartées ; une attaque de
+ * 4 demi-tons collés écartée ; jamais plus de 10 notes ensemble, ni 4 demi-tons collés qui
+ * sonnent ensemble (les plus anciennes s'arrêtent).
+ * @param {{midi: number, start: number, end: number, hand?: string, velocity?: number}[]} notes
+ * @param {{source?: string}} [options] - analysis.notesSource (« son », « image (V2N) »…)
+ * @returns {object[]} nouvelles notes, triées
+ */
+export function cleanTeacherNotes(notes, { source = '' } = {}) {
+  // [Claude] — 2026-10-04 — D'abord ce que la lecture a pris pour des touches, quelle que soit
+  // la source, sur les durées lues (un bandeau allumé 10 s fait une zone de 10 s).
+  const read = pianoNotes(notes);
+  const odd = readingArtifacts(read, { source }).notes;
+  let list = boundNotes(odd.size ? read.filter((n) => !odd.has(n)) : read);
   if (!fromSound(source)) return list;
 
   // Notes fantômes.

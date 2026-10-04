@@ -62,7 +62,7 @@ import { momentContext, passageWindow, clock } from '../pedagogie/tutorial-momen
 import { FOLLOW_SECONDS, MAX_PASSAGE_SECONDS, splitTime, joinTime, timeOptions, setRangeBound, rangeLength } from '../pedagogie/passage-range.js';
 import { DEFAULT_SHARE, shareAt, isWide, toggledShare, shareForKey, storedShare, clampShare } from '../pedagogie/copilot-width.js';
 import { createTutorialMemory, cardDuration } from '../pedagogie/tutorial-memory.js';
-import { teacherActivity, chordsWhilePlaying, activitySummary, isPlaying, ACTIVITY } from '../pedagogie/teacher-activity.js';
+import { teacherActivity, chordsWhilePlaying, activitySummary, isPlaying, ACTIVITY, withoutReadingArtifacts } from '../pedagogie/teacher-activity.js';
 import { songStructure } from '../pedagogie/song-structure.js';
 
 // [Claude] — 2026-09-25 — Pourquoi l'image n'a pas été lue (Narcisse : « l'application
@@ -413,6 +413,17 @@ async function fileStat(path) {
   try { return (await window.electronAPI?.files?.stat?.(path)) || null; } catch (_) { return null; }
 }
 
+/**
+ * [Claude] — 2026-10-04 — Le relevé tel qu'on s'en sert : sa grille sans ce que la lecture a
+ * pris pour des touches (un bandeau ou l'écran de fin posé sur le clavier ; ses notes le sont
+ * à chaque usage, teacherView). Le relevé gardé reste tel qu'il a été lu : un relevé ancien est
+ * corrigé sans refaire l'analyse.
+ */
+function readingInUse(raw) {
+  if (!raw) return raw;
+  return withoutReadingArtifacts(raw, { source: raw.notesSource || (raw.source === 'audio' ? 'son' : 'image') });
+}
+
 /** Un tuto déjà lu : son relevé revient de la mémoire, sans relire la vidéo. */
 async function restoreFromMemory(path) {
   const mem = await getMemory();
@@ -420,7 +431,7 @@ async function restoreFromMemory(path) {
   const saved = await mem.loadAnalysis(path, await fileStat(path));
   // Un relevé de ce tuto tourne (ou attend) : c'est lui qui s'affichera, pas l'ancien.
   if (!saved || selectedPath !== path || isReadingHere() || waitingPaths.has(path) || analysis) return false;
-  analysis = saved.analysis;
+  analysis = readingInUse(saved.analysis);
   playbackStarted = true;
   comparison = saved.comparison;
   narrationView = Array.isArray(saved.narration) ? saved.narration : [];
@@ -1402,7 +1413,7 @@ function isViewVisible() {
 /** Le relevé fini s'affiche sur le tuto ouvert : la vidéo est prête, le Copilote s'ouvre. */
 function applyReading(job) {
   playbackStarted = true;
-  analysis = job.analysis;
+  analysis = readingInUse(job.analysis);
   comparison = job.comparison;
   narrationView = job.narrationView;
   detectedKey = job.key;

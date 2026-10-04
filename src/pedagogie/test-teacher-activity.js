@@ -5,10 +5,15 @@
 // de 0:04 à 0:24 le prof PARLE, et le relevé au son a donné 150 « notes » (sa voix), qui
 // s'empilaient en un amas de 12 notes à la fin du passage rejoué.
 
+import { readFileSync } from 'fs';
+import { dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
 import {
   cleanTeacherNotes, teacherActivity, activitySummary, hasChromaticCluster, onlySpeech,
   chordsWhilePlaying, spansIn, ACTIVITY, MAX_TOGETHER, MAX_NOTE_SECONDS,
+  readingArtifacts, segmentsWithoutArtifacts, withoutReadingArtifacts, keyRuns, KEY_BLOCK,
 } from './teacher-activity.js';
+import { labelNotes } from './chord-labeling.js';
 
 let total = 0;
 let passed = 0;
@@ -140,6 +145,81 @@ check('Sans découpage (rien relevé), les accords restent', chordsWhilePlaying(
 console.log('\n8. Parole non transcrite (faster-whisper absent)');
 const noSpeech = teacherActivity({ notes: soft, speech: [], source: 'son' });
 check('Sans parole connue, les notes plausibles restent jouées', noSpeech.played.length === 8 && !noSpeech.spans.some((s) => s.kind === ACTIVITY.SPEAKS));
+
+// [Claude] — 2026-10-04 — Ce que la lecture prend pour des touches. Narcisse, sur « This
+// Anonymous Pianist Impressed Cory Henry With Amazing Grace » (clavier dessiné) : « entre 38 et
+// 39 s, le Copilote joue des notes que le pianiste original ne joue pas : B6, C7, D7, E7, F7,
+// G7, A7 et B7 s'allument simultanément […] à 40 s, F7, G7, A7 et B7 restent encore allumées
+// […] le problème disparaît vers 42 s ».
+console.log('\n9. Ce que la lecture prend pour des touches (bandeau, écran de fin)');
+const IMAGE = 'image (clavier dessiné)';
+const BANDEAU = [95, 96, 98, 100, 101, 103, 105, 107]; // Si6 Do7 Ré7 Mi7 Fa7 Sol7 La7 Si7
+const realPlay = [
+  ...[44, 72, 75, 80].map((midi) => ({ midi, start: 38, end: 39.9 })), // La♭2 | Do5 Mi♭5 La♭5
+  ...[49, 77, 80, 84].map((midi) => ({ midi, start: 40, end: 41.9 })), // Ré♭3 | Fa5 La♭5 Do6
+];
+const overlay = BANDEAU.map((midi) => ({ midi, start: 38, end: midi <= 100 ? 40 : 42 }));
+const cory = cleanTeacherNotes([...realPlay, ...overlay], { source: IMAGE });
+const pitches = (list) => list.map((n) => n.midi).sort((a, b) => a - b).join(' ');
+check('Keyruns : Si6 → Si7 font une seule suite de 8 touches voisines', keyRuns(BANDEAU).length === 1 && keyRuns(BANDEAU)[0].length === 8 && KEY_BLOCK === 6);
+check('Son cas : Si6 → Si7 écartés, ses deux accords gardés (8 notes)',
+  cory.length === 8 && !cory.some((n) => BANDEAU.includes(n.midi)), pitches(cory));
+const coryPlayed = teacherActivity({ notes: [...realPlay, ...overlay], speech: [], start: 36, end: 44, source: IMAGE }).played;
+check('… et ce que rejoue le Copilote (played) non plus', coryPlayed.length === 8 && !coryPlayed.some((n) => n.midi >= 95));
+const coryZones = readingArtifacts([...realPlay, ...overlay], { source: IMAGE }).zones;
+check('Une zone : Si6 → Si7, de 38 s à 42 s', coryZones.length === 1 && coryZones[0].lo === 95 && coryZones[0].hi === 107 && coryZones[0].start === 38 && coryZones[0].end === 42, JSON.stringify(coryZones));
+// Le bandeau clignote : Fa7 → Si7 se rallument seuls à 40,2 s (4 touches, pas un bloc).
+const blink = [...realPlay, ...BANDEAU.map((midi) => ({ midi, start: 38, end: 40 })), ...[101, 103, 105, 107].map((midi) => ({ midi, start: 40.25, end: 42 }))];
+const blinkClean = cleanTeacherNotes(blink, { source: IMAGE });
+check('Le bandeau qui clignote : ce qui se rallume dans sa zone est écarté aussi', blinkClean.length === 8 && !blinkClean.some((n) => n.midi >= 95), pitches(blinkClean));
+// Un vrai amas de 5 touches (Do4 Ré4 Mi4 Fa4 Sol4) reste du jeu.
+const five = [60, 62, 64, 65, 67].map((midi) => ({ midi, start: 5, end: 6 }));
+check('Un amas de 5 touches voisines lu à l\'image reste (une main le peut)', cleanTeacherNotes(five, { source: IMAGE }).length === 5);
+// L'écran entier : 80 touches d'un coup, après un accord joué.
+const screen = [...[48, 64, 67, 71].map((midi) => ({ midi, start: 99, end: 100 })), ...Array.from({ length: 84 }, (_, i) => ({ midi: 24 + i, start: 100, end: 101 }))];
+const screenClean = cleanTeacherNotes(screen, { source: IMAGE });
+check('Un écran entier allumé est écarté, l\'accord d\'avant reste', pitches(screenClean) === '48 64 67 71', pitches(screenClean));
+// Au son : une gamme tenue à la pédale sonne en bloc (elle reste) ; un bloc attaqué ensemble, non.
+const scale = [60, 62, 64, 65, 67, 69, 71, 72].map((midi, i) => ({ midi, start: 10 + i * 0.15, end: 13, velocity: 0.6 }));
+check('Au son, une gamme tenue à la pédale reste (8 notes)', cleanTeacherNotes(scale, { source: 'son' }).length === 8);
+check('… mais à l\'image, 8 touches voisines tenues ensemble ne sont pas du jeu', cleanTeacherNotes(scale, { source: IMAGE }).length === 0);
+const smash = [...[48, 55].map((midi) => ({ midi, start: 20, end: 21, velocity: 0.6 })), ...[72, 74, 76, 77, 79, 81].map((midi) => ({ midi, start: 20.01, end: 21, velocity: 0.6 }))];
+check('Au son, 6 touches voisines attaquées ensemble sont écartées, la main gauche reste', pitches(cleanTeacherNotes(smash, { source: 'son' })) === '48 55');
+check('Une attaque de plus de 10 notes est écartée, à l\'image aussi',
+  cleanTeacherNotes([36, 40, 43, 48, 52, 55, 60, 64, 67, 72, 76].map((midi) => ({ midi, start: 3, end: 4 })), { source: IMAGE }).length === 0);
+
+// La grille d'accords : le segment pollué est renommé, le segment vidé écarté.
+const segs = [
+  { start: 30, end: 38, midis: [44, 72, 75, 80], chord: labelNotes([44, 72, 75, 80]) },
+  { start: 38, end: 40, midis: [44, 72, 75, 80, ...BANDEAU], chord: labelNotes([44, 72, 75, 80, ...BANDEAU]) },
+  { start: 40.5, end: 41.8, midis: [101, 103, 105, 107], chord: labelNotes([101, 103, 105, 107]) },
+];
+const fixed = segmentsWithoutArtifacts(segs, coryZones);
+check('Grille : le segment d\'avant reste le même', fixed[0] === segs[0]);
+check('Grille : le segment pollué perd Si6 → Si7 et reprend le nom de son accord',
+  fixed.length === 2 && fixed[1].midis.join(' ') === '44 72 75 80' && fixed[1].chord.label === segs[0].chord.label && segs[1].chord.label !== segs[0].chord.label,
+  `${segs[1].chord.label} → ${fixed[1]?.chord?.label}`);
+check('Grille : le segment fait seulement du bandeau est écarté', !fixed.some((s) => s.start === 40.5));
+const relevé = { noteEvents: [...realPlay, ...overlay], segments: segs, notesSource: IMAGE };
+const relu = withoutReadingArtifacts(relevé, { source: IMAGE });
+check('Un relevé gardé est corrigé à la lecture, sans être modifié', relu !== relevé && relu.segments.length === 2 && relevé.segments.length === 3 && relevé.noteEvents.length === 16);
+
+// Ses vrais relevés.
+const fixtures = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures');
+const harm = JSON.parse(readFileSync(resolve(fixtures, 'harmoniser-fin.json'), 'utf-8'));
+const harmClean = cleanTeacherNotes(harm.noteEvents, { source: harm.notesSource });
+const harmPlay = harm.noteEvents.filter((n) => n.start < 577);
+check('« comment harmoniser rapidement » : l\'écran de fin (9:37, 113 notes) est écarté',
+  harmClean.every((n) => n.start < 577) && harm.noteEvents.filter((n) => n.start >= 577).length === 113, `${harmClean.filter((n) => n.start >= 577).length} restent`);
+check('… et tout son jeu d\'avant reste (164 notes, 7:20 → 8:47)', harmClean.length === harmPlay.length && harmPlay.length === 164, `${harmClean.length}/${harmPlay.length}`);
+const harmSegs = harm.segments.map((s) => ({ ...s, chord: labelNotes(s.midis) }));
+const harmFixed = withoutReadingArtifacts({ noteEvents: harm.noteEvents, segments: harmSegs }, { source: harm.notesSource }).segments;
+check('… sa grille perd le faux accord de l\'écran de fin (82 touches), et rien d\'autre',
+  harmFixed.length === harmSegs.length - 1 && !harmFixed.some((s) => s.start >= 577) && harmFixed.every((s, i) => s === harmSegs[i]), `${harmFixed.length}/${harmSegs.length}`);
+const eternel = JSON.parse(readFileSync(resolve(fixtures, 'eternel-est-bon.json'), 'utf-8'));
+check('« L\'Éternel est bon » : aucune note écartée (155)', cleanTeacherNotes(eternel.noteEvents, { source: IMAGE }).length === eternel.noteEvents.length && eternel.noteEvents.length === 155);
+const eternelAnalysis = { noteEvents: eternel.noteEvents, segments: eternel.segments };
+check('… et son relevé reste le même objet', withoutReadingArtifacts(eternelAnalysis, { source: IMAGE }) === eternelAnalysis);
 
 console.log(`\n=== Résultat : ${passed}/${total} contrôles passés ===`);
 if (passed < total) process.exitCode = 1;

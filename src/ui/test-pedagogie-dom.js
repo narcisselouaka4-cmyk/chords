@@ -672,5 +672,19 @@ check('Vitesse et pédale sur la ligne du dessous, à droite (la première ligne
   && !/className: 'copilot-transport-row' \}, \[[^\]]*\brate,/.test(copilotTabCode)
   && bridgeCss.includes('.copilot-transport-settings {') && bridgeCss.includes('.copilot-transport-foot {'));
 
+// ---------------------------------------------------------------------------
+// 21. [Claude] — 2026-10-04 — Ce que la lecture prend pour des touches (Narcisse, « Amazing
+// Grace » de Cory Henry : Si6 → Si7 rejoués de 0:38 à 0:42, que le pianiste ne joue pas).
+// ---------------------------------------------------------------------------
+const activityCode = stripComments(readText('src/pedagogie/teacher-activity.js'));
+check('Les notes du prof sont nettoyées de ce que la lecture a pris pour des touches, toutes sources',
+  /export function cleanTeacherNotes\(notes, \{ source = '' \} = \{\}\) \{\s*const read = pianoNotes\(notes\);\s*const odd = readingArtifacts\(read, \{ source \}\)\.notes;/.test(activityCode)
+  && activityCode.indexOf('readingArtifacts(read, { source })') < activityCode.indexOf('if (!fromSound(source)) return list;')
+  && /export const KEY_BLOCK = 6;/.test(activityCode));
+check('La grille du relevé en usage est corrigée (relevé gardé et analyse neuve), le fichier gardé non',
+  /analysis = readingInUse\(saved\.analysis\);/.test(tabCode) && /analysis = readingInUse\(job\.analysis\);/.test(tabCode)
+  && /return withoutReadingArtifacts\(raw, \{ source: raw\.notesSource \|\| \(raw\.source === 'audio' \? 'son' : 'image'\) \}\);/.test(tabCode)
+  && /analysis: job\.analysis,/.test(tabCode));
+
 console.log(`\n=== Résultat : ${passed}/${total} contrôles passés ===`);
 if (passed < total) process.exitCode = 1;
