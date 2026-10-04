@@ -92,10 +92,11 @@ Cinq blocs empilés, chacun dans son style.
   | Copilote agrandi | 291 px | 294 px |
 
   Rien ne déborde.
-- Scénarios Pédagogie IA en sombre, repassés sans erreur à l'enregistrement : import, retour
-  aux cartes, mémoire, Copilote en direct, outils, parole, passage, barre de lecture, agrandir,
-  curseur, structure, vitesse, étiquettes, réponses courtes, bandeau, texte d'outil. La série
-  en clair tournait encore.
+- Tous les scénarios Pédagogie IA repassés, en sombre et en clair, sans erreur : 40 passages
+  (20 scénarios). Ils couvrent l'import, le retour aux cartes, la mémoire, le Copilote en
+  direct, les outils, la parole et le passage. Puis la barre de lecture, l'agrandissement, le
+  curseur, la structure, la vitesse et les étiquettes. Enfin les réponses courtes, le bandeau,
+  le texte d'outil, la fenêtre et les transferts (voicing, enchaînement, lick).
 
 ## Limites
 - Les listes gardent leur fonctionnement natif. Un clic sur les minutes ouvre la liste des
