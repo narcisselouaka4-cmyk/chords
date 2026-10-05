@@ -81,8 +81,21 @@ export function stateAt(events, at, { inclusive = false } = {}) {
  */
 const playedBefore = (e, at) => e.time < at || (at > 0 && e.time === at && e.type === 'noteOff');
 
-/** Les évènements sans la pédale. */
-const withoutPedal = (events) => events.filter((e) => e.type !== 'sustain');
+/**
+ * Les évènements sans la pédale. [Claude] — 2026-10-04 — Une note tenue au doigt pendant un
+ * changement de pédale (rejeu d'un passage du prof : notes d'approche) retrouve sa vraie fin
+ * (`withoutPedalAt`) : sans la pédale, chaque note s'arrête quand le doigt se lève.
+ */
+export function withoutPedal(events) {
+  const kept = (events || []).filter((e) => e.type !== 'sustain');
+  if (!kept.some((e) => Number.isFinite(e.withoutPedalAt))) return kept;
+  // À temps égal, les relâchements d'abord (une touche rejouée à l'instant où elle se lève).
+  const rank = (e) => (e.type === 'noteOff' ? 0 : 1);
+  return kept
+    .map((e, i) => ({ e: Number.isFinite(e.withoutPedalAt) ? { ...e, time: e.withoutPedalAt } : e, i }))
+    .sort((a, b) => a.e.time - b.e.time || rank(a.e) - rank(b.e) || a.i - b.i)
+    .map(({ e }) => e);
+}
 
 /**
  * @param {{

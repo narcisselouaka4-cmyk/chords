@@ -11,7 +11,7 @@ import {
   buildDemo, buildGospelDemo, cardHands, demoHands, freeBass, topNeighbour, finalRun, strideSplit,
   octaveFrame, demoPassingChords, demoCardHands, DEMO_STYLES, DEMO_STYLE_IDS, defaultDemoStyle,
 } from './practice-demo.js';
-import { createDemoPlayer, stateAt } from './exercise-demo-player.js';
+import { createDemoPlayer, stateAt, withoutPedal } from './exercise-demo-player.js';
 
 let passed = 0;
 let failed = 0;
@@ -625,6 +625,60 @@ console.log('\n=== Lecteur de démo : vitesse de lecture ===');
   player.setRate(0.5);
   advance(40 + 4000);
   check('Changée avant la première note : Do à 80 ms, Ré 4 s plus tard (0,5×)', at(60) - t0 === 80 && at(62) - t0 === 80 + 4000, `${at(60) - t0} ${at(62) - t0}`);
+  player.stop();
+}
+
+// [Claude] — 2026-10-04 — Rejeu d'un passage du prof : une note tenue au doigt pendant que la
+// pédale change (après une note d'approche) retrouve sa vraie fin sans la pédale.
+console.log('\n=== Lecteur de démo : fin réelle des notes sans la pédale ===');
+{
+  // Do grave relâché à 0,12 s, tenu au doigt jusqu'à 0,21 s (la pédale revient à 0,16 s) ;
+  // Do4 rejoué à 0,12 s, pile quand le Do grave se lève vraiment.
+  const events = [
+    { time: 0, type: 'noteOn', note: 48, velocity: 0.7 },
+    { time: 0, type: 'noteOn', note: 60, velocity: 0.7 },
+    { time: 0.1, type: 'noteOff', note: 60 },
+    { time: 0.12, type: 'noteOn', note: 60, velocity: 0.7 },
+    { time: 0.16, type: 'sustain', value: true },
+    { time: 0.21, type: 'noteOff', note: 48, withoutPedalAt: 0.12 },
+    { time: 1, type: 'noteOff', note: 60 },
+    { time: 1.5, type: 'sustain', value: false },
+  ];
+  const free = withoutPedal(events);
+  check('Sans la pédale : plus d\'appui de pédale, le Do grave se lève à sa vraie fin (0,12 s)',
+    !free.some((e) => e.type === 'sustain') && free.find((e) => e.type === 'noteOff' && e.note === 48).time === 0.12);
+  check('… à temps égal, le relâchement passe avant l\'attaque ; le reste garde son ordre',
+    free.map((e) => `${e.type === 'noteOn' ? '+' : '-'}${e.note}@${e.time}`).join(' ') === '+48@0 +60@0 -60@0.1 -48@0.12 +60@0.12 -60@1',
+    free.map((e) => `${e.type === 'noteOn' ? '+' : '-'}${e.note}@${e.time}`).join(' '));
+  const plain = [{ time: 0, type: 'noteOn', note: 60 }, { time: 0.5, type: 'sustain', value: true }, { time: 1, type: 'noteOff', note: 60 }];
+  check('Une démo sans note tenue : les mêmes évènements, sans la pédale', withoutPedal(plain).length === 2 && withoutPedal(plain)[1] === plain[2]);
+
+  let t = 0;
+  let queue = [];
+  const setTimer = (fn, ms) => { const id = { fn, at: t + ms }; queue.push(id); return id; };
+  const clearTimer = (id) => { queue = queue.filter((x) => x !== id); };
+  const advance = (ms) => {
+    const target = t + ms;
+    for (;;) {
+      const due = queue.filter((x) => x.at <= target).sort((a, b) => a.at - b.at)[0];
+      if (!due) break;
+      queue = queue.filter((x) => x !== due);
+      t = due.at;
+      due.fn();
+    }
+    t = target;
+  };
+  const sent = [];
+  const player = createDemoPlayer({ send: (type, a) => sent.push([Math.round(t), type, a]), setTimer, clearTimer, now: () => t });
+  const offAt = (note) => sent.find(([, type, a]) => type === 'noteOff' && a === note)?.[0];
+  player.play({ events, beats: 1.5 }, { tempo: 60, pedal: false });
+  advance(80 + 1000);
+  check('Le lecteur sans la pédale relâche le Do grave à 0,12 s', offAt(48) === 80 + 120, `${offAt(48)}`);
+  sent.length = 0;
+  const t1 = t;
+  player.play({ events, beats: 1.5 }, { tempo: 60 });
+  advance(80 + 1000);
+  check('… et avec la pédale, à 0,21 s (tenu jusqu\'à la reprise de la pédale)', offAt(48) - t1 === 80 + 210, `${offAt(48) - t1}`);
   player.stop();
 }
 

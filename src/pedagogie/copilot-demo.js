@@ -289,7 +289,10 @@ export function buildChordExample(symbols, { styleId = 'auto', technique = 'auto
  * Exemple à partir de notes datées en millisecondes (guide tones, lick, notes
  * isolées) : même lecteur, même carte. Les touches s'allument en jaune pendant
  * l'écoute (main.js) ; rien n'est marqué sur le clavier.
- * @param {{midi: number, startOffsetMs: number, durationMs: number, velocity?: number, hand?: string}[]} notes
+ * @param {{midi: number, startOffsetMs: number, durationMs: number, velocity?: number, hand?: string, holdMs?: number}[]} notes
+ *   holdMs : [Claude] — 2026-10-04 — la note est tenue au doigt plus longtemps pendant que la
+ *   pédale change (rejeu d'un passage du prof) ; sans la pédale, elle s'arrête à sa vraie fin
+ *   (`withoutPedalAt` de son relâchement)
  * @param {{kind?: string, title?: string, subtitle?: string}} [options]
  */
 export function buildNotesExample(notes, { kind = 'notes', title = 'Notes', subtitle = '' } = {}) {
@@ -301,8 +304,11 @@ export function buildNotesExample(notes, { kind = 'notes', title = 'Notes', subt
     const start = Math.max(0, n.startOffsetMs || 0) / 1000;
     const duration = Math.max(0.12, (n.durationMs || 800) / 1000);
     const hand = String(n.hand || '').toUpperCase() === 'LH' ? 'lh' : 'rh';
+    const hold = Math.max(0, Number(n.holdMs) || 0) / 1000;
     events.push({ time: start, type: 'noteOn', note: n.midi, velocity: Math.min(1, Math.max(0.3, n.velocity ?? 0.7)), hand });
-    events.push({ time: start + duration, type: 'noteOff', note: n.midi, hand });
+    events.push(hold > 0
+      ? { time: start + duration + hold, type: 'noteOff', note: n.midi, hand, withoutPedalAt: start + duration }
+      : { time: start + duration, type: 'noteOff', note: n.midi, hand });
   }
   // À temps égal : relâchements d'abord, puis les attaques.
   const order = { noteOff: 0, noteOn: 1 };

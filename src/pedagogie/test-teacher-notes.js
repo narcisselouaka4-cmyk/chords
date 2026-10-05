@@ -6,8 +6,12 @@
 
 import {
   samplesToNoteEvents, eventsFromTranscription, guessHands, notesInRange, notesAt,
-  compactTimeline, transposeInterval, transposeChordLabel, passageExample,
+  compactTimeline, transposeInterval, transposeChordLabel, passageExample, approachNotes,
 } from './teacher-notes.js';
+import { withoutPedal } from '../exercise-demo-player.js';
+import { readFileSync } from 'fs';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
 let passed = 0;
 let failed = 0;
@@ -165,12 +169,143 @@ function testPassageExample() {
   check('Rejeu : le silence sauté compte dans le temps de la vidéo', JSON.stringify(quiet.timeMap) === JSON.stringify([[0, 19.7], [1.3, 21]]), JSON.stringify(quiet.timeMap));
 }
 
+/**
+ * Ce qui sonne quand on rejoue les évènements : pour chaque note, son attaque, le lever du
+ * doigt et la fin du son (la pédale prolonge une note relâchée jusqu'à sa remontée).
+ */
+function sounding(events) {
+  let pedal = false;
+  const open = new Map();
+  const done = [];
+  const close = (v, t) => { v.end = Math.round(t * 1000) / 1000; done.push(v); };
+  for (const e of events) {
+    if (e.type === 'sustain') {
+      pedal = e.value;
+      if (!pedal) for (const [k, v] of [...open]) if (v.off !== null) { close(v, e.time); open.delete(k); }
+    } else if (e.type === 'noteOn') {
+      const prev = open.get(e.note);
+      if (prev) close(prev, e.time);
+      open.set(e.note, { note: e.note, on: e.time, off: null });
+    } else if (e.type === 'noteOff') {
+      const v = open.get(e.note);
+      if (!v) continue;
+      v.off = Math.round(e.time * 1000) / 1000;
+      if (!pedal) { close(v, e.time); open.delete(e.note); }
+    }
+  }
+  for (const v of open.values()) close(v, Infinity);
+  // Dans l'ordre des attaques (celui des notes du passage).
+  return done.sort((a, b) => a.on - b.on || a.note - b.note);
+}
+const endOf = (list, note) => list.find((v) => v.note === note)?.end;
+const at = (list, t) => list.filter((v) => v.on <= t && v.end > t).map((v) => v.note).sort((a, b) => a - b).join(' ');
+
+// [Claude] — 2026-10-04 — Notes d'approche sous la pédale (Narcisse : « copilot gère mal quand
+// il y a un mélange de grace note (montée ou descente chromatique) et pédale de sustain : ça crée
+// des dissonances qui n'ont pas lieu d'être »).
+function testApproachNotes() {
+  const names = (notes) => [...approachNotes(notes)].map((n) => n.midi).sort((a, b) => a - b).join(' ');
+  check('Approche enchaînée : Ré♯5 (0,12 s) puis Mi5', names([{ midi: 75, start: 0, end: 0.12, hand: 'rh' }, { midi: 76, start: 0.12, end: 1, hand: 'rh' }]) === '75');
+  check('Approche détachée : Ré5 relâché avant Ré♯5', names([{ midi: 74, start: 0, end: 0.12, hand: 'rh' }, { midi: 75, start: 0.25, end: 0.5, hand: 'rh' }]) === '74');
+  check('Montée chromatique Do5 → Do♯5 → Ré5 : toutes sauf la dernière',
+    names([{ midi: 72, start: 0, end: 0.12, hand: 'rh' }, { midi: 73, start: 0.12, end: 0.24, hand: 'rh' }, { midi: 74, start: 0.24, end: 1, hand: 'rh' }]) === '72 73');
+  check('Broderie La5 → La♯5 → La5 : les deux premières',
+    names([{ midi: 81, start: 0, end: 0.13, hand: 'rh' }, { midi: 82, start: 0.13, end: 0.25, hand: 'rh' }, { midi: 81, start: 0.25, end: 0.5, hand: 'rh' }]) === '81 82');
+  check('Écrasée : Ré♯5 attaqué avec Mi5 tenu, relâché bien avant',
+    names([{ midi: 75, start: 0, end: 0.1, hand: 'rh' }, { midi: 76, start: 0, end: 1, hand: 'rh' }, { midi: 67, start: 0, end: 1, hand: 'rh' }]) === '75');
+  check('Amas bref Do5 + Do♯5 écrasés ensemble : les deux',
+    names([{ midi: 72, start: 0, end: 0.12, hand: 'rh' }, { midi: 73, start: 0, end: 0.12, hand: 'rh' }, { midi: 74, start: 0.12, end: 0.5, hand: 'rh' }]) === '72 73');
+  check('Un accord bref avec un demi-ton (Si Do Mi Sol) n\'en est pas, même lu une image de travers',
+    names([59, 60, 64, 67].map((midi) => ({ midi, start: 0, end: 0.25, hand: 'rh' }))) === ''
+    && names([{ midi: 59, start: 0, end: 0.13, hand: 'rh' }, ...[60, 64, 67].map((midi) => ({ midi, start: 0, end: 0.25, hand: 'rh' }))]) === '');
+  check('Pas une approche : note longue, autre main, ou tenue après l\'attaque de sa voisine',
+    names([{ midi: 75, start: 0, end: 0.5, hand: 'rh' }, { midi: 76, start: 0.5, end: 1, hand: 'rh' }]) === ''
+    && names([{ midi: 59, start: 0, end: 0.2, hand: 'lh' }, { midi: 60, start: 0.2, end: 1, hand: 'rh' }]) === ''
+    && names([{ midi: 74, start: 0, end: 0.3, hand: 'rh' }, { midi: 75, start: 0.15, end: 1, hand: 'rh' }]) === '');
+  check('Accord de passage un demi-ton au-dessus (main droite seule) : ses notes mènent à l\'accord suivant',
+    names([...[61, 65, 68].map((midi) => ({ midi, start: 0, end: 0.25, hand: 'rh' })), ...[60, 64, 67].map((midi) => ({ midi, start: 0.25, end: 1, hand: 'rh' }))]) === '61 65 68');
+
+  // Accord de Do (basse brève, relâchée tôt) avec Ré♯5 écrasé, qui mène à Mi5 ; puis Fa.
+  const crush = [
+    { midi: 48, start: 0, end: 0.1, hand: 'lh' }, ...[64, 67, 72].map((midi) => ({ midi, start: 0, end: 1.5, hand: 'rh' })),
+    { midi: 75, start: 0, end: 0.12, hand: 'rh' }, { midi: 76, start: 0.12, end: 1.8, hand: 'rh' },
+    { midi: 41, start: 2, end: 2.5, hand: 'lh' }, ...[69, 72, 77].map((midi) => ({ midi, start: 2.01, end: 2.4, hand: 'rh' })),
+  ];
+  const crushed = passageExample(crush, { start: 0, end: 3 });
+  const s1 = sounding(crushed.events);
+  const pedalOf = (ex) => ex.events.filter((e) => e.type === 'sustain').map((e) => `${e.value ? '↓' : '↑'}${e.time}`).join(' ');
+  check('Ré♯5 écrasé avec l\'accord : la pédale attend la fin de l\'approche (↓0,16), puis change avec l\'accord suivant',
+    pedalOf(crushed) === '↓0.16 ↑1.98 ↓2.04 ↑2.8', pedalOf(crushed));
+  check('… Ré♯5 s\'éteint à l\'attaque de Mi5 ; Mi5, l\'accord et la basse sonnent jusqu\'au changement (1,98)',
+    endOf(s1, 75) === 0.12 && [76, 64, 67, 48].every((m) => endOf(s1, m) === 1.98) && at(s1, 1) === '48 64 67 72 76', `${endOf(s1, 75)} | ${at(s1, 1)}`);
+  // (Une note rejouée dure 0,12 s au moins : la basse se lève à 0,12 s.)
+  check('… la basse relâchée tôt est tenue au doigt jusqu\'à la pédale (0,21), sa vraie fin gardée pour le mode sans pédale',
+    crushed.events.some((e) => e.type === 'noteOff' && e.note === 48 && Math.abs(e.time - 0.21) < 1e-9 && Math.abs(e.withoutPedalAt - 0.12) < 1e-9));
+
+  // Fa♯5 → Sol5 au milieu d'une harmonie de Sol.
+  const line = [
+    { midi: 43, start: 0, end: 0.4, hand: 'lh' }, ...[59, 62, 65].map((midi) => ({ midi, start: 0.01, end: 0.5, hand: 'rh' })),
+    { midi: 74, start: 0.6, end: 0.85, hand: 'rh' }, { midi: 78, start: 1, end: 1.15, hand: 'rh' }, { midi: 79, start: 1.15, end: 1.75, hand: 'rh' },
+  ];
+  const middle = passageExample(line, { start: 0, end: 3 });
+  const s2 = sounding(middle.events);
+  check('Fa♯5 → Sol5 au milieu de l\'harmonie : la pédale se relève au lever de Fa♯5 et se rabaisse 0,04 s après',
+    pedalOf(middle) === '↓0.04 ↑1.15 ↓1.19 ↑2.05', pedalOf(middle));
+  check('… Fa♯5 ne sonne plus avec Sol5 ; la basse, l\'accord et Ré5 sonnent jusqu\'au bout comme avant',
+    endOf(s2, 78) === 1.15 && [43, 59, 62, 65, 74, 79].every((m) => endOf(s2, m) === 2.05) && at(s2, 1.5) === '43 59 62 65 74 79', `${endOf(s2, 78)} | ${at(s2, 1.5)}`);
+  const free = sounding(withoutPedal(middle.events));
+  check('Sans la pédale : chaque note s\'arrête quand le doigt se lève (rien n\'est prolongé)',
+    free.every((v) => v.end === v.off) && endOf(free, 43) === 0.4 && endOf(free, 74) === 0.85, free.map((v) => `${v.note}:${v.off}/${v.end}`).join(' '));
+  const heard = passageExample(line, { start: 0, end: 3, pedals: [{ start: 0, end: 2 }] });
+  const s3 = sounding(heard.events);
+  check('Sa vraie pédale (relevée au son) est changée de même',
+    pedalOf(heard) === '↓0 ↑1.15 ↓1.19 ↑2' && endOf(s3, 78) === 1.15 && endOf(s3, 43) === 2 && /avec sa pédale/.test(heard.subtitle), pedalOf(heard));
+
+  // Montée chromatique Do5 → Do♯5 → Ré5 sur un accord de Do.
+  const run = [
+    { midi: 48, start: 0, end: 0.5, hand: 'lh' }, ...[64, 67].map((midi) => ({ midi, start: 0, end: 0.5, hand: 'rh' })),
+    { midi: 72, start: 1, end: 1.12, hand: 'rh' }, { midi: 73, start: 1.12, end: 1.24, hand: 'rh' }, { midi: 74, start: 1.24, end: 2, hand: 'rh' },
+  ];
+  const s4 = sounding(passageExample(run, { start: 0, end: 3 }).events);
+  check('Montée chromatique Do5 → Do♯5 → Ré5 : seule Ré5 reste, avec l\'accord',
+    at(s4, 1.5) === '48 64 67 74' && endOf(s4, 72) === 1.12 && endOf(s4, 73) === 1.24, at(s4, 1.5));
+
+  // Sans note d'approche : rien ne change (même pédale, aucune note tenue au doigt).
+  const plain = [
+    { midi: 36, start: 0, end: 0.5, hand: 'lh' }, ...[60, 64, 67].map((midi) => ({ midi, start: 0.01, end: 0.4, hand: 'rh' })),
+    { midi: 41, start: 2, end: 2.5, hand: 'lh' }, ...[65, 69, 72].map((midi) => ({ midi, start: 2.01, end: 2.4, hand: 'rh' })),
+  ];
+  const same = passageExample(plain, { start: 0, end: 3 });
+  check('Sans note d\'approche : la pédale ne change pas, aucune note n\'est tenue au doigt',
+    pedalOf(same) === '↓0.04 ↑1.98 ↓2.04 ↑2.8' && !same.events.some((e) => 'withoutPedalAt' in e));
+
+  // Son vrai relevé : « L'Éternel est bon » (48 s, clavier dessiné lu à l'image). Avant la
+  // correction, 8 de ses 11 notes d'approche sonnaient encore après le doigt, 5 s en tout
+  // (Do♯5 1,23 s ; Ré♯5 0,98 s ; La♯5 1,11 s), un demi-ton à côté de leur note d'arrivée.
+  const eternel = JSON.parse(readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'eternel-est-bon.json'), 'utf-8'));
+  const picked = guessHands(notesInRange(eternel.noteEvents, 0, 48)).sort((a, b) => a.start - b.start || a.midi - b.midi);
+  const found = approachNotes(picked);
+  check('« L\'Éternel est bon » : ses 11 notes d\'approche (Do5 Do♯5 → Ré5, Ré♯5 → Ré5, La5 La♯5 → La5…)',
+    [...found].map((n) => n.midi).join(' ') === '72 73 70 72 73 74 75 74 75 81 82', [...found].map((n) => n.midi).join(' '));
+  const solo = passageExample(eternel.noteEvents, { start: 0, end: 48 });
+  const soloSound = sounding(solo.events);
+  const isApproach = (i) => found.has(picked[i]);
+  check('… aucune ne sonne plus après le lever du doigt',
+    soloSound.every((v, i) => !isApproach(i) || v.end === v.off), soloSound.filter((v, i) => isApproach(i) && v.end !== v.off).map((v) => v.note).join(' '));
+  const others = soloSound.filter((v, i) => !isApproach(i));
+  const total = others.reduce((s, v) => s + (v.end - v.on), 0);
+  check('… et ses 144 autres notes sonnent comme avant (214,49 s de son, 132 prolongées par la pédale)',
+    others.length === 144 && Math.abs(total - 214.49) < 0.01 && others.filter((v) => v.end > v.off).length === 132,
+    `${others.length} notes, ${total.toFixed(2)} s, ${others.filter((v) => v.end > v.off).length} prolongées`);
+}
+
 testSamples();
 testTranscription();
 testHands();
 testRangeAndTimeline();
 testTranspose();
 testPassageExample();
+testApproachNotes();
 
 console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);
 process.exit(failed === 0 ? 0 : 1);

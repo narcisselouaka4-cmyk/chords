@@ -225,6 +225,117 @@ const PEDAL_UP_BEFORE = 0.02;
 const PEDAL_RELEASE_AFTER = 0.3;
 /** Notes attaquées ensemble (un accord). */
 const TOGETHER = 0.06;
+// [Claude] — 2026-10-04 — Notes d'approche sous la pédale (Narcisse : « copilot gère mal quand
+// il y a un mélange de grace note (montée ou descente chromatique) et pédale de sustain : ça crée
+// des dissonances qui n'ont pas lieu d'être »). Relâchée pédale enfoncée, une note d'approche
+// sonnait jusqu'au prochain accord, un demi-ton à côté de sa note d'arrivée (« L'Éternel est
+// bon » : Ré♯5 1 s avec Ré5). Un pianiste change la pédale juste après la note d'arrivée.
+/** Une note d'approche dure 0,3 s au plus… */
+const APPROACH_SECONDS = 0.3;
+/** … et sa note d'arrivée, à un demi-ton, commence au plus 0,35 s après elle. */
+const APPROACH_REACH = 0.35;
+/** Enchaînée, elle est relâchée au plus tard à l'attaque de sa note d'arrivée (une image près). */
+const APPROACH_OVERLAP = 0.06;
+/** Un morceau de pédale plus court, avant une note d'approche, est supprimé (en ms). */
+const PEDAL_SHORTEST_MS = 300;
+/** Ce que la pédale faisait sonner est tenu au doigt jusqu'un peu après sa reprise (en ms). */
+const PEDAL_CATCH_MS = 50;
+
+/**
+ * Les notes d'approche d'un passage : une note brève (0,3 s au plus) qui mène, à un demi-ton
+ * (en montant ou en descendant), à une note de la même main :
+ * - enchaînée : sa note d'arrivée commence au plus 0,35 s après elle, et elle est relâchée au
+ *   plus tard à cette attaque (Ré♯5 → Mi5) ;
+ * - écrasée : attaquée avec sa note d'arrivée, tenue, elle est relâchée bien avant elle ;
+ * - ou un amas bref de demi-tons attaqués ensemble, seuls de leur main (Do5 et Do♯5 écrasés).
+ * Dans une montée ou une descente chromatique, toutes les notes en sont, sauf la dernière. Un
+ * accord bref qui contient un demi-ton (Si Do Mi Sol) n'en est pas.
+ * @param {object[]} notes - {midi, start, end, hand}
+ * @returns {Set<object>} les notes d'approche (les objets reçus)
+ */
+export function approachNotes(notes) {
+  const list = (notes || []).filter((n) => Number.isFinite(n?.midi) && Number.isFinite(n?.start))
+    .sort((a, b) => a.start - b.start || a.midi - b.midi);
+  const endOf = (n) => (Number.isFinite(n.end) ? n.end : n.start + 0.25);
+  const brief = (n) => endOf(n) - n.start <= APPROACH_SECONDS + 1e-9;
+  const found = new Set();
+  for (let i = 0; i < list.length; i += 1) {
+    const n = list[i];
+    if (!brief(n)) continue;
+    // Les notes de sa main attaquées avec elle ; une note d'arrivée enchaînée.
+    const together = [];
+    let leads = false;
+    for (let j = i - 1; j >= 0 && n.start - list[j].start <= TOGETHER; j -= 1) {
+      if (list[j].hand === n.hand) together.push(list[j]);
+    }
+    for (let j = i + 1; j < list.length && list[j].start - n.start <= APPROACH_REACH; j += 1) {
+      const m = list[j];
+      if (m.hand !== n.hand) continue;
+      if (m.start - n.start <= TOGETHER) together.push(m);
+      else if (Math.abs(m.midi - n.midi) === 1 && endOf(n) <= m.start + APPROACH_OVERLAP) leads = true;
+    }
+    const crushed = together.some((m) => Math.abs(m.midi - n.midi) === 1 && !brief(m) && endOf(m) > endOf(n));
+    const cluster = [n, ...together].sort((a, b) => a.midi - b.midi);
+    const chromaticCluster = cluster.length >= 2 && cluster.every(brief)
+      && cluster.every((m, k) => k === 0 || m.midi - cluster[k - 1].midi === 1);
+    if (leads || crushed || chromaticCluster) found.add(n);
+  }
+  return found;
+}
+
+/**
+ * La pédale changée après les notes d'approche (en millisecondes de l'exemple). Dans chaque
+ * morceau de pédale, les relâchements de notes d'approche (à 0,35 s au plus l'un de l'autre)
+ * forment une figure : la pédale se relève au premier et se rabaisse 0,04 s après le dernier.
+ * Ce qu'elle faisait sonner, sauf les notes d'approche, est tenu au doigt jusqu'à sa reprise
+ * (`heldMs`, jamais au-delà de la prochaine attaque de la même touche) : on n'entend que les
+ * notes d'approche s'éteindre. Un morceau de moins de 0,3 s avant la figure est supprimé : la
+ * pédale attend la fin de l'approche (pédale syncopée).
+ * @param {{n: object, startMs: number, endMs: number, heldMs?: number}[]} timed - notes de l'exemple
+ * @param {Set<object>} approach - notes d'approche (approachNotes)
+ * @param {{down: number, up: number}[]} pieces - pédale enfoncée, en ms
+ * @returns {{down: number, up: number}[]}
+ */
+function pedalAfterApproaches(timed, approach, pieces) {
+  const releases = timed.filter((t) => approach.has(t.n)).map((t) => t.endMs).sort((a, b) => a - b);
+  if (!releases.length) return pieces;
+  const nextSame = new Map();
+  const seen = new Map();
+  for (let k = timed.length - 1; k >= 0; k -= 1) {
+    const { midi } = timed[k].n;
+    if (seen.has(midi)) nextSame.set(timed[k], seen.get(midi));
+    seen.set(midi, timed[k].startMs);
+  }
+  const reach = APPROACH_REACH * 1000;
+  const result = [];
+  for (const piece of pieces) {
+    let { down } = piece;
+    const { up } = piece;
+    // Les notes d'approche relâchées pédale enfoncée, qui sonneraient encore plus de 0,05 s.
+    const inside = releases.filter((r) => r > down && r < up - PEDAL_CATCH_MS);
+    let k = 0;
+    while (k < inside.length) {
+      let j = k;
+      while (j + 1 < inside.length && inside[j + 1] - inside[j] <= reach) j += 1;
+      const first = inside[k];
+      const again = Math.min(inside[j] + Math.round(PEDAL_DOWN_AFTER * 1000), up);
+      const rest = up - again >= 50;
+      const holdTo = rest ? again + PEDAL_CATCH_MS : up;
+      for (const t of timed) {
+        if (approach.has(t.n)) continue;
+        const end = t.heldMs ?? t.endMs;
+        if (end <= down || end > again) continue;
+        const held = Math.min(holdTo, nextSame.has(t) ? nextSame.get(t) - 10 : Infinity);
+        if (held > end) t.heldMs = held;
+      }
+      if (first - down >= PEDAL_SHORTEST_MS) result.push({ down, up: first });
+      down = again;
+      k = j + 1;
+    }
+    if (up - down >= 50) result.push({ down, up });
+  }
+  return result;
+}
 
 /**
  * Les instants où le prof change d'harmonie : attaques de main gauche (une basse, un
@@ -371,19 +482,34 @@ export function passageExample(notes, { start, end, hand = null, semitones = 0, 
     }
     if (piece.end > piece.start) cutByPauses.push(piece);
   }
-  const pedalEvents = [];
+  let pieces = [];
   for (const h of cutByPauses) {
-    const down = Math.round(toExample(h.start) * 1000) / 1000;
-    const up = Math.round((toExample(h.end) + (h.extra || 0)) * 1000) / 1000;
-    if (up - down < 0.05) continue;
-    pedalEvents.push({ time: down, type: 'sustain', value: true }, { time: up, type: 'sustain', value: false });
+    const down = Math.round(toExample(h.start) * 1000);
+    const up = Math.round((toExample(h.end) + (h.extra || 0)) * 1000);
+    if (up - down < 50) continue;
+    pieces.push({ down, up });
+  }
+  // Les notes en millisecondes de l'exemple (ce qu'écrit buildNotesExample).
+  const timed = out.map(({ n, at, until }) => {
+    const startMs = Math.round(at * 1000);
+    const durationMs = Math.round(Math.max(0.12, until - at) * 1000);
+    return { n, startMs, durationMs, endMs: startMs + durationMs };
+  });
+  // [Claude] — 2026-10-04 — La pédale changée après les notes d'approche (voir APPROACH_SECONDS).
+  const approach = pieces.length ? approachNotes(picked) : new Set();
+  if (approach.size) pieces = pedalAfterApproaches(timed, approach, pieces);
+  const pedalEvents = [];
+  for (const { down, up } of pieces) {
+    pedalEvents.push({ time: down / 1000, type: 'sustain', value: true }, { time: up / 1000, type: 'sustain', value: false });
   }
 
   const explains = pauses.some((p) => p.speaks);
-  const example = buildNotesExample(out.map(({ n, at, until }) => ({
+  const example = buildNotesExample(timed.map(({ n, startMs, durationMs, endMs, heldMs }) => ({
     midi: n.midi + shift,
-    startOffsetMs: Math.round(at * 1000),
-    durationMs: Math.round(Math.max(0.12, until - at) * 1000),
+    startOffsetMs: startMs,
+    durationMs,
+    // Tenue au doigt pendant que la pédale change ; sans la pédale, elle s'arrête à sa vraie fin.
+    ...(heldMs > endMs ? { holdMs: heldMs - endMs } : {}),
     velocity: n.velocity ?? 0.72,
     hand: n.hand === 'lh' ? 'LH' : 'RH',
   })), {
