@@ -2285,23 +2285,8 @@
 }
 :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-btn:hover { border-color: var(--tr-accent); color: var(--tr-accent); }
 :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-btn:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 2px; }
-/* [Claude] — 2026-10-04 — La vitesse de l'exemple (0,5× · 0,75× · 1× · 1,25×). */
-:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-rate {
-  flex-shrink: 0;
-  min-height: 28px;
-  padding: 3px 6px;
-  border: 1px solid var(--tr-border);
-  border-radius: 6px;
-  background: var(--tr-surface);
-  color: var(--tr-text);
-  font: inherit;
-  font-size: 11px;
-  font-weight: 550;
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-}
-:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-rate:hover { border-color: var(--tr-accent); }
-:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-rate:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 2px; }
+/* [Claude] — 2026-10-04 — La vitesse de l'exemple (de 0,25× à 2×) : le réglage commun,
+   ui/components/speed-menu.css. */
 /* [Claude] — 2026-10-04 — « Pédale » : allumé avec la pédale, barré sans elle. */
 :is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-transport-pedal[aria-pressed="true"] {
   border-color: color-mix(in srgb, var(--tr-accent) 55%, var(--tr-border));

@@ -46,8 +46,6 @@ const {
   MORE_DETAILS,
   hasPedalEvents,
   exampleSubtitle,
-  EXAMPLE_RATES,
-  rateLabel,
 } = await import('./copilot-tab.js');
 
 const GREEN = '\x1b[32m';
@@ -212,12 +210,6 @@ function testExampleSubtitle() {
     !hasPedalEvents({ events: [{ time: 0, type: 'noteOn', note: 60 }] }) && exampleSubtitle({ subtitle: 'Dm7 → G7', events: [] }, { pedal: false }) === 'Dm7 → G7' && !hasPedalEvents(null));
 }
 
-// [Claude] — 2026-10-04 — La vitesse des exemples (Narcisse : « ça évite de lui demander à
-// chaque fois de ralentir »).
-function testExampleRates() {
-  check('Vitesses proposées : 0,5× · 0,75× · 1× · 1,25×', EXAMPLE_RATES.map(rateLabel).join(' · ') === '0,5× · 0,75× · 1× · 1,25×', EXAMPLE_RATES.map(rateLabel).join(' · '));
-}
-
 async function runTests() {
   testNextModeOnSelectionChange();
   testToggleButtonState();
@@ -226,7 +218,6 @@ async function runTests() {
   testSplitAnswerNotes();
   testAnswerActions();
   testExampleSubtitle();
-  testExampleRates();
 
   console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);
   process.exit(failed === 0 ? 0 : 1);

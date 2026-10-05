@@ -64,6 +64,7 @@ import { DEFAULT_SHARE, shareAt, isWide, toggledShare, shareForKey, storedShare,
 import { createTutorialMemory, cardDuration } from '../pedagogie/tutorial-memory.js';
 import { teacherActivity, chordsWhilePlaying, activitySummary, isPlaying, ACTIVITY, withoutReadingArtifacts } from '../pedagogie/teacher-activity.js';
 import { songStructure } from '../pedagogie/song-structure.js';
+import { createSpeedMenu, setSpeedMenuValue, clampSpeed } from './components/speed-menu.js';
 
 // [Claude] — 2026-09-25 — Pourquoi l'image n'a pas été lue (Narcisse : « l'application
 // ne peut pas analyser l'image, et je ne sais pas pourquoi ») : dit en clair.
@@ -180,8 +181,10 @@ let lastStatus = null;
 // Vignettes déjà demandées pendant cette session (une seule tentative par tuto).
 const thumbTried = new Set();
 // [Claude] — 2026-10-03 — Lot 6 : vitesse de la vidéo (gardée d'un tuto à l'autre).
-const SPEEDS = [0.5, 0.75, 1];
+// [Claude] — 2026-10-04 — De 0,25× à 2×, par pas de 0,05 (Narcisse : « une plus large plage de
+// choix »), dans le réglage commun ui/components/speed-menu.js.
 let speed = 1;
+let speedMenu = null;
 
 // ---------------------------------------------------------------------------
 // Utilitaires
@@ -610,7 +613,7 @@ function applySpeed() {
 }
 
 function setSpeed(value) {
-  speed = SPEEDS.includes(value) ? value : 1;
+  speed = clampSpeed(value, 1);
   applySpeed();
   renderTools();
 }
@@ -649,24 +652,17 @@ function keepInLoop() {
 }
 
 function renderTools() {
-  if (els.speed) {
-    els.speed.innerHTML = '';
-    els.speed.appendChild(el('span', { className: 'pedago-tools-label', text: 'Vitesse' }));
-    // [Claude] — 2026-10-04 — Les trois vitesses en un seul sélecteur.
-    const choices = el('span', { className: 'pedago-segmented' });
-    els.speed.appendChild(choices);
-    for (const value of SPEEDS) {
-      choices.appendChild(el('button', {
-        type: 'button',
-        className: `pedago-tool-btn${value === speed ? ' is-active' : ''}`,
-        'aria-pressed': String(value === speed),
-        'data-speed': String(value),
-        title: value === 1 ? 'Vitesse normale' : 'Plus lent, sans changer la hauteur du son',
-        text: `${String(value).replace('.', ',')}×`,
-        onClick: () => setSpeed(value),
-      }));
-    }
-  }
+  // [Claude] — 2026-10-04 — Le bouton « 1× ▾ » et son panneau, construits une seule fois : les
+  // reconstruire à chaque changement fermerait le panneau pendant qu'on tire le curseur.
+  if (els.speed && !speedMenu) {
+    speedMenu = createSpeedMenu({
+      value: speed,
+      name: 'Vitesse de la vidéo',
+      hint: 'La hauteur du son ne change pas. Gardée d\'un tuto à l\'autre, jusqu\'à la fermeture.',
+      onChange: (value) => setSpeed(value),
+    });
+    els.speed.replaceChildren(el('span', { className: 'pedago-tools-label', text: 'Vitesse' }), speedMenu);
+  } else if (speedMenu) setSpeedMenuValue(speedMenu, speed);
   if (els.grid) els.grid.title = 'Clic : placer la vidéo sur l\'accord · Maj + clic : en faire le passage, en boucle';
 }
 

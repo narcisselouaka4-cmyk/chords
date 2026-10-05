@@ -449,8 +449,10 @@ check('« Style » et sa liste restent ensemble (groupe .copilot-style)',
 // ---------------------------------------------------------------------------
 
 const copilotTabCode = stripComments(readText('src/pedagogie/copilot-tab.js'));
-check('Vitesse 0,5× · 0,75× · 1× : playbackRate du lecteur, hauteur du son gardée',
-  /const SPEEDS = \[0\.5, 0\.75, 1\]/.test(tabJs) && /video\.preservesPitch = true;[\s\S]{0,80}video\.playbackRate = speed/.test(tabCode)
+// [Claude] — 2026-10-04 — De 0,25× à 2× (Narcisse : « une plus large plage de choix »).
+check('Vitesse de la vidéo, de 0,25× à 2× : playbackRate du lecteur, hauteur du son gardée',
+  /speed = clampSpeed\(value, 1\);/.test(tabCode) && !/SPEEDS/.test(tabCode)
+  && /video\.preservesPitch = true;[\s\S]{0,80}video\.playbackRate = speed/.test(tabCode)
   && html.includes('id="pedagogie-speed"'));
 // [Claude] — 2026-10-03 — Lot 4 : la boucle A-B est devenue « Boucler » sur la barre du passage.
 check('« Boucler » : la vidéo tourne sur le passage choisi, un saut voulu hors du passage n\'est pas ramené',
@@ -653,21 +655,23 @@ check('Règle 21 : la progression est la boucle, jamais la liste des accords jou
 // 20. [Claude] — 2026-10-04 — La vitesse des exemples (Narcisse : « régler la vitesse selon ce
 // que l'on veut (0,5× ; 0,75× ; 1×…) : ça évite de lui demander à chaque fois de ralentir »)
 // ---------------------------------------------------------------------------
-check('La barre de lecture : le choix de vitesse, retenu, passé au lecteur au départ et en cours de lecture',
-  /const rate = el\('select', \{ className: 'copilot-transport-rate'/.test(copilotTabCode)
+check('La barre de lecture : le choix de vitesse (0,25× à 2×), retenu, passé au lecteur au départ et en cours de lecture',
+  /const rate = createSpeedMenu\(\{\s*value: exampleRate,[\s\S]*?onChange: \(value\) => setExampleRate\(value\),\s*\}\);/.test(copilotTabCode)
+  && /exampleRate = clampSpeed\(rate, 1\);/.test(copilotTabCode) && /return clampSpeed\(localStorage\.getItem\(RATE_KEY\), 1\);/.test(copilotTabCode)
   && /localStorage\.setItem\(RATE_KEY, String\(exampleRate\)\);/.test(copilotTabCode)
   && /action: 'rate', rate: exampleRate/.test(copilotTabCode)
   && /detail: \{ id, example, pedal: examplePedal, rate: exampleRate \}/.test(copilotTabCode)
   && /\{ tempo, pedal: e\.detail\.pedal !== false, rate: Number\(e\.detail\.rate\) \|\| 1 \}/.test(mainCode)
   && /else if \(action === 'rate'\) demoPlayer\.setRate\(Number\(e\.detail\.rate\) \|\| 1\);/.test(mainCode)
-  && /function setRate\(rate\) \{/.test(playerCode) && bridgeCss.includes('.copilot-transport-rate {'));
+  && /function setRate\(rate\) \{/.test(playerCode) && /const MIN_RATE = 0\.25;\s*const MAX_RATE = 2;/.test(playerCode));
 check('La vitesse change sans coupure : rien n\'est relâché ni rejoué, la suite est reprogrammée',
   /function setRate\(rate\) \{[\s\S]*?clearTimers\(\);\s*fromBeat = at;\s*startedAt = now\(\) \+ wait;\s*schedule\(at, wait\);/.test(playerCode)
   && !/function setRate\(rate\) \{[^}]*releaseAll\(\)/.test(playerCode));
 check('Règle 8 : à « ralentis », le Copilote rappelle où se règle la vitesse (« Vitesse », sous l\'exemple)',
-  readText('src/pedagogie/copilot-client.js').includes('dans sa barre de lecture (« Vitesse » : 0,5×, 0,75×, 1×, 1,25×) : son choix est gardé pour les exemples suivants.'));
+  readText('src/pedagogie/copilot-client.js').includes('dans sa barre de lecture (« Vitesse » : de 0,25× à 2×, par pas de 0,05) : son choix est gardé pour les exemples suivants.'));
 check('Vitesse et pédale sur la ligne du dessous, à droite (la première ligne garde sa place au curseur)',
-  /const settings = el\('div', \{ className: 'copilot-transport-settings' \}, \[\s*el\('label', \{ className: 'copilot-transport-rate-label' \}, \[el\('span', \{ text: 'Vitesse' \}\), rate\]\),/.test(copilotTabCode)
+  // Un <span>, pas un <label> : un clic dans le panneau ouvrirait et fermerait le menu.
+  /const settings = el\('div', \{ className: 'copilot-transport-settings' \}, \[\s*el\('span', \{ className: 'copilot-transport-rate-label' \}, \[el\('span', \{ text: 'Vitesse' \}\), rate\]\),/.test(copilotTabCode)
   && /foot\.appendChild\(settings\);\s*box\.appendChild\(foot\);/.test(copilotTabCode)
   && !/className: 'copilot-transport-row' \}, \[[^\]]*\brate,/.test(copilotTabCode)
   && bridgeCss.includes('.copilot-transport-settings {') && bridgeCss.includes('.copilot-transport-foot {'));
@@ -707,14 +711,38 @@ check('Une seule carte sous la vidéo : passage, accords relevés, outils, messa
 check('La carte : un filet entre ses étages visibles, cachée quand tout l\'est',
   pedagoCss.includes('.pedago-under:not(:has(> :not([hidden]):not([style*="display: none"]))) { display: none; }')
   && pedagoCss.includes('.pedago-under > :not([hidden]):not([style*="display: none"]) ~ :not([hidden]):not([style*="display: none"])'));
-check('Début / Fin en un champ « 0 : 26 », la durée en pastille, la vitesse en sélecteur segmenté',
+check('Début / Fin en un champ « 0 : 26 », la durée en pastille, la vitesse en menu « 1× ▾ » (construit une fois)',
   tabCode.includes("const field = el('span', { className: 'pedago-time' });")
   && tabCode.includes("el('strong', { className: 'pedago-pill', text: durationText(range.end - range.start) })")
-  && tabCode.includes("const choices = el('span', { className: 'pedago-segmented' });")
-  && pedagoCss.includes('.pedago-segmented .pedago-tool-btn.is-active'));
+  && /if \(els\.speed && !speedMenu\) \{\s*speedMenu = createSpeedMenu\(\{/.test(tabCode)
+  && /\} else if \(speedMenu\) setSpeedMenuValue\(speedMenu, speed\);/.test(tabCode)
+  && !pedagoCss.includes('.pedago-segmented'));
 check('La bande : son début et sa fin aux deux bouts, une légende par sorte, plus de hachures',
   tabCode.includes("el('span', { className: 'pedago-activity-time', text: clock(range.start) })")
   && !pedagoCss.includes('repeating-linear-gradient(135deg, var(--tr-accent) 0 4px'));
+
+// ---------------------------------------------------------------------------
+// 24. [Claude] — 2026-10-04 — Le réglage de vitesse commun (ui/components/speed-menu.js) : les
+// exemples du Copilote et la vidéo (Narcisse : « je veux vouloir imposer une vitesse, mais
+// avec une plus large plage de choix »).
+// ---------------------------------------------------------------------------
+const speedMenuCode = stripComments(readText('src/ui/components/speed-menu.js'));
+const speedMenuCss = readText('src/ui/components/speed-menu.css');
+check('Le réglage commun : sa feuille liée dans index.html, importé par le Copilote et par Pédagogie IA',
+  html.includes('<link rel="stylesheet" href="./ui/components/speed-menu.css" />')
+  && /from '\.\.\/ui\/components\/speed-menu\.js'/.test(copilotTabCode) && /from '\.\/components\/speed-menu\.js'/.test(tabCode));
+check('Le panneau : un popover (jamais coupé par la conversation), le bouton en est l\'invocateur, il se ferme si la page défile ou à Échap',
+  /node\('div', 'speed-menu-panel', \{ popover: 'auto', role: 'dialog', 'aria-label': name \}\)/.test(speedMenuCode)
+  && /button\.popoverTargetElement = panel;/.test(speedMenuCode)
+  && /window\.addEventListener\('scroll', onScroll, true\);/.test(speedMenuCode)
+  // Échap, géré par le panneau lui-même : astra-shell.js annule la touche pour toute la page.
+  && /panel\.addEventListener\('keydown', \(e\) => \{\s*if \(e\.key !== 'Escape'\) return;\s*e\.stopPropagation\(\);\s*close\(\);\s*button\.focus\(\);/.test(speedMenuCode)
+  && speedMenuCss.includes('.speed-menu .speed-menu-panel {') && /position: fixed;\s*inset: auto;/.test(speedMenuCss));
+check('Le panneau : 5 vitesses courantes, un curseur de 0,25 à 2 (pas de 0,05), − et + ; le bouton dit la vitesse',
+  /type: 'range', min: String\(SPEED_MIN\), max: String\(SPEED_MAX\), step: String\(SPEED_STEP\)/.test(speedMenuCode)
+  && /'aria-haspopup': 'dialog', 'aria-expanded': 'false'/.test(speedMenuCode)
+  && /button\.setAttribute\('aria-label', `\$\{name\} : \$\{label\}`\);/.test(speedMenuCode)
+  && /range\.setAttribute\('aria-valuetext', label\);/.test(speedMenuCode));
 
 console.log(`\n=== Résultat : ${passed}/${total} contrôles passés ===`);
 if (passed < total) process.exitCode = 1;
