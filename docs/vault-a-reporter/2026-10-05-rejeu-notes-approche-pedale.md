@@ -108,6 +108,14 @@ C'est `pedalAfterApproaches`, appelé par `passageExample`, pour les deux pédal
     - l'accord, la basse, Ré5, Si4, La4 et Sol4 sonnent jusqu'à 3,46 s, comme avant.
   - Sans la pédale : identique avant / après. Chaque note s'éteint au lever du doigt (l'accord
     à 1,60 s).
+- **Scénario `pedago-scrub`** (pause, curseur, mode sans pédale) :
+  - son calcul de référence, pour le mode sans pédale, ignorait les vraies fins
+    (`withoutPedalAt`) et réclamait l'accord encore tenu à 6,4 s ;
+  - une fois mis à jour, il confirme ce que montre l'application : [Sol2 Si4] à 6,4 s,
+    l'accord relâché à 5,6 s ;
+  - avec la pédale, le clavier suit exactement les évènements.
+- **Tous les scénarios Pédagogie IA**, en sombre et en clair : 42 passages (21 scénarios),
+  sans erreur.
 - **Suite complète** : 95 suites. Seuls 5 échecs anciens, dont les sorties sont identiques
   avant et après. Régressions Partie 1 et Partie 3, et build, OK.
 

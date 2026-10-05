@@ -101,6 +101,10 @@ Les règles devenues inutiles sont retirées : `.copilot-transport-rate` (la lis
     avec le panneau ouvert ou non ;
   - rien ne déborde ;
   - le panneau ouvert (177 px) est entier dans la fenêtre.
+- **Tous les scénarios Pédagogie IA**, en sombre et en clair : 42 passages (21 scénarios,
+  dont `pedago-grace`), sans erreur.
+  - Les trois scénarios de la vitesse ont été repassés sur la version finale, après le
+    nettoyage des écouteurs quand le panneau est retiré de la page.
 - **Suite complète** : 95 suites. Seuls 5 échecs anciens, dont les sorties sont identiques
   avant et après. Régressions Partie 1 et Partie 3, et build, OK.
 
