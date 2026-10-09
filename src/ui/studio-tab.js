@@ -1050,7 +1050,9 @@ function bindWaveform() {
 
   window.addEventListener('mousemove', (e) => {
     if (regionConfirmed) return;
-    if (!waveformData) return;
+    // [Claude] — 2026-10-09 — La région se trace dès que la durée est connue, même si la waveform
+    // n'a pas pu être dessinée (avant : sans waveform, aucune région possible — capture de Narcisse).
+    if (!getTotalDuration()) return;
     const rect = els.waveformWrap.getBoundingClientRect();
     const duration = getTotalDuration();
     const time = timeAtX(e.clientX);
@@ -1121,6 +1123,17 @@ function bindWaveform() {
   wrap.addEventListener('dblclick', () => {
     if (!regionConfirmed) resetRegion();
   });
+
+  // [Claude] — 2026-10-09 — Une waveform dessinée pendant que son cadre est caché (chargement)
+  // garde une largeur de 1 px : on redessine dès que le cadre prend sa vraie taille.
+  if (typeof ResizeObserver === 'function') {
+    new ResizeObserver(() => {
+      if (!wrap.getBoundingClientRect().width) return;
+      renderWaveform();
+      updateRegionUI();
+      updatePlayhead(getStudioCurrentTime(), getEffectiveDuration());
+    }).observe(wrap);
+  }
 }
 
 function getTotalDuration() {
@@ -1140,16 +1153,19 @@ function getTotalDuration() {
 }
 
 function getHandleX(time) {
-  if (!els.waveformWrap || !waveformData) return 0;
+  if (!els.waveformWrap) return 0;
   const rect = els.waveformWrap.getBoundingClientRect();
   const duration = getTotalDuration() || 1;
   return (time / duration) * rect.width;
 }
 
 function updateRegionUI() {
-  if (!els.region || !els.handleStart || !els.handleEnd || !waveformData) return;
+  if (!els.region || !els.handleStart || !els.handleEnd) return;
   const rect = els.waveformWrap.getBoundingClientRect();
   const duration = getTotalDuration();
+  // Waveform cachée (largeur nulle) ou durée inconnue : on attend, sinon les marqueurs
+  // s'empilent au bord gauche. Le ResizeObserver de bindWaveform redessine ensuite.
+  if (!rect.width || !duration) return;
   const startX = getHandleX(regionStart);
   const endX = regionEnd !== null ? getHandleX(regionEnd) : rect.width;
   els.region.style.left = `${startX}px`;
@@ -2413,10 +2429,19 @@ export async function loadTrack(trackId) {
 // transport n'est débloqué que lorsque l'audio ET la waveform sont prêts.
 // Un timeout de 15s évite un blocage infini si le worker Python est coincé.
 async function generateWaveformBlocking(preferredWavPath, fallbackOriginalPath) {
-  if (!window.electronAPI?.studio?.generateWaveform) return;
-
   const trackId = currentTrack?.id;
   currentWaveformTrackId = trackId;
+
+  // [Claude] — 2026-10-09 — Narcisse : « bug au niveau de la waveform » (waveform vide sur un
+  // MP4 de 7:47, aucune région traçable). Le calcul passait uniquement par Python, coupé au bout
+  // de 15 s. Le son est déjà décodé pour la lecture : les crêtes en sont tirées tout de suite,
+  // sans Python ni délai. Python ne sert plus que si ce son décodé manque (M4A).
+  const decoded = peaksFromAudioBuffer(masterAudioBuffer);
+  if (decoded) {
+    applyWaveformData(decoded);
+    return;
+  }
+  if (!window.electronAPI?.studio?.generateWaveform) return;
 
   const cleanupProgress = () => {
     if (waveformProgressCleanup) {
@@ -2446,7 +2471,9 @@ async function generateWaveformBlocking(preferredWavPath, fallbackOriginalPath) 
 
   const timeout = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const data = await Promise.race([
-    (async () => tryGenerate(preferredWavPath) || await tryGenerate(fallbackOriginalPath))(),
+    // (await …) : avant, la promesse elle-même était « vraie » et le repli sur l'original
+    // ne se faisait jamais.
+    (async () => (await tryGenerate(preferredWavPath)) || await tryGenerate(fallbackOriginalPath))(),
     timeout(15000),
   ]);
   cleanupProgress();
@@ -2455,16 +2482,46 @@ async function generateWaveformBlocking(preferredWavPath, fallbackOriginalPath) 
   if (currentTrack?.id !== trackId || currentWaveformTrackId !== trackId) return;
 
   if (data) {
-    waveformData = data;
-    renderWaveform();
-    updateRegionUI();
-    updatePlayhead(getStudioCurrentTime(), getEffectiveDuration());
-    // Lot B — la waveform apporte souvent la durée avant le lecteur HTML5 :
-    // rafraîchir le timer dès que la waveform est prête.
-    refreshMediaDurationDisplay();
+    applyWaveformData(data);
   } else {
     console.warn('[Studio] waveform generation timed out or failed');
   }
+}
+
+function applyWaveformData(data) {
+  waveformData = data;
+  renderWaveform();
+  updateRegionUI();
+  updatePlayhead(getStudioCurrentTime(), getEffectiveDuration());
+  // Lot B — la waveform apporte souvent la durée avant le lecteur HTML5 :
+  // rafraîchir le timer dès que la waveform est prête.
+  refreshMediaDurationDisplay();
+}
+
+/**
+ * Crêtes de la waveform tirées d'un AudioBuffer déjà décodé : même forme que le calcul Python
+ * (`generate_waveform` d'audio-processor.py) — 400 crêtes, maximum absolu de chaque bloc.
+ */
+export function peaksFromAudioBuffer(buffer, numPeaks = 400) {
+  if (!buffer || !(buffer.length > 0) || !(buffer.numberOfChannels > 0)) return null;
+  const channels = [];
+  for (let c = 0; c < buffer.numberOfChannels; c++) channels.push(buffer.getChannelData(c));
+  const block = Math.max(1, Math.floor(buffer.length / numPeaks));
+  const peaks = [];
+  for (let i = 0; i < numPeaks; i++) {
+    const start = i * block;
+    const end = Math.min(start + block, buffer.length);
+    let peak = 0;
+    for (let j = start; j < end; j++) {
+      // Mono comme en Python : moyenne des canaux.
+      let sum = 0;
+      for (const data of channels) sum += data[j];
+      const v = Math.abs(sum / channels.length);
+      if (v > peak) peak = v;
+    }
+    peaks.push(Math.round(peak * 10000) / 10000);
+  }
+  return { duration: Math.round(buffer.duration * 1000) / 1000, peaks };
 }
 
 function renderWaveform() {

@@ -225,6 +225,31 @@ function testSeekOnMarkerRelease() {
   console.log('✅ Région — « Revenir au début » va au début de la région tracée');
 }
 
+function testWaveformFromDecodedAudio() {
+  const js = readText('src/ui/studio-tab.js');
+  // La fonction pure est extraite du source et exécutée sur un faux AudioBuffer.
+  const start = js.indexOf('export function peaksFromAudioBuffer');
+  const body = js.slice(start, js.indexOf('\n}\n', start) + 2).replace('export ', '');
+  const peaksFromAudioBuffer = new Function(`${body}; return peaksFromAudioBuffer;`)();
+  const left = new Float32Array(800).fill(0);
+  const right = new Float32Array(800).fill(0);
+  left[1] = 0.5; right[1] = 0.5;     // bloc 0 : crête 0,5
+  left[799] = -1; right[799] = -0.6; // dernier bloc : crête 0,8
+  const fake = { length: 800, numberOfChannels: 2, duration: 467.25, getChannelData: (c) => (c ? right : left) };
+  const data = peaksFromAudioBuffer(fake);
+  const ok = data && data.peaks.length === 400 && data.peaks[0] === 0.5 && data.peaks[399] === 0.8
+    && data.peaks[100] === 0 && data.duration === 467.25 && peaksFromAudioBuffer(null) === null;
+  const gen = js.slice(js.indexOf('async function generateWaveformBlocking'), js.indexOf('function applyWaveformData'));
+  const usesDecoded = /peaksFromAudioBuffer\(masterAudioBuffer\)[\s\S]*?applyWaveformData\(decoded\);\s*return;[\s\S]*generateWaveform/.test(gen)
+    && /\(await tryGenerate\(preferredWavPath\)\) \|\| await tryGenerate\(fallbackOriginalPath\)/.test(gen);
+  const regionWithoutWaveform = !/if \(!waveformData\) return/.test(js) && /new ResizeObserver\(/.test(js);
+  if (!ok || !usesDecoded || !regionWithoutWaveform) {
+    console.error('❌ Waveform — tirée du son décodé, repli Python corrigé, région traçable sans waveform', { ok, usesDecoded, regionWithoutWaveform });
+    process.exit(1);
+  }
+  console.log('✅ Waveform — tirée du son décodé (sans Python), région traçable même sans waveform');
+}
+
 // ── Exécution ──
 console.log('=== Tests contrat DOM Studio ===\n');
 testDefaultFileContext();
@@ -237,4 +262,5 @@ testStageOverlayInPlayer();
 testConfirmedRegionWithoutStems();
 testRegionLockAndShortTracks();
 testSeekOnMarkerRelease();
+testWaveformFromDecodedAudio();
 console.log('\n✅ Tous les tests DOM Studio passent.');

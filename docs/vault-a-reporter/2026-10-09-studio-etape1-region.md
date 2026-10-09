@@ -111,3 +111,27 @@ l'index PyTorch est bloqué depuis l'environnement de test.
 - CLAUDE.md §2 (étape 1) est complété. `test-studio-dom.js` a un contrôle de plus.
 - **À vérifier sur sa machine** : tracer une région, avancer la lecture, cliquer ◀◀ : le
   curseur et la vidéo reviennent au marqueur de début.
+
+## 7. Waveform vide, région impossible à tracer
+- **Ce qu'il voyait** (capture, « Seigneur fais-moi voir ta gloire », MP4 de 7:47) :
+  - le cadre de la waveform vide, seulement le curseur de lecture et un marqueur collé à gauche ;
+  - le texte « Sélectionnez une région… » : la région par défaut n'était pas dessinée.
+- **Cause** :
+  - la waveform était calculée **uniquement par Python** (`audio-processor.py waveform`, qui
+    importe librosa), avec un délai de 15 s. Délai dépassé ou échec : `waveformData` restait vide ;
+  - sans `waveformData`, la région n'était ni dessinée ni modifiable (`if (!waveformData) return`
+    dans le glisser et dans `updateRegionUI`) ;
+  - le repli sur le fichier original ne marchait jamais : `tryGenerate(a) || …` testait une
+    promesse, toujours « vraie ».
+  - Non établi : pourquoi Python a échoué ce jour-là sur sa machine (délai ou erreur). Son log
+    de la console le dirait (`[Studio] waveform generation timed out or failed`).
+- **Correctif** (`studio-tab.js`) :
+  - les crêtes sont tirées du son **déjà décodé** pour la lecture (`peaksFromAudioBuffer`, même
+    forme que le calcul Python : 400 crêtes). Instantané, sans Python. Python reste pour le M4A ;
+  - le repli Python sur l'original est réparé (`await`) ;
+  - la région se trace et s'affiche dès que la durée est connue, même sans waveform ;
+  - un `ResizeObserver` redessine waveform, région et curseur quand le cadre change de taille
+    (une waveform dessinée pendant que le cadre est caché gardait 1 px de large).
+- `test-studio-dom.js` : un contrôle de plus (crêtes calculées sur un faux AudioBuffer).
+- **À vérifier sur sa machine** : rouvrir ce morceau ; la waveform et la région de 5 min
+  apparaissent, et les marqueurs se tirent.
