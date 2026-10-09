@@ -1371,12 +1371,14 @@ input[type='color'] {
   pointer-events: none;
 }
 
-/* Overlay Étape 1 : Ciblage */
+/* Overlay Étape 1 : Ciblage — une petite carte en haut du lecteur (dans .studio-player-wrap). */
 .studio-stage-overlay {
   position: absolute;
-  top: 14px;
+  top: 12px;
   left: 50%;
   transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 24px);
   z-index: 30;
   display: flex;
   align-items: center;

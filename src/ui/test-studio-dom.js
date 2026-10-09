@@ -161,6 +161,21 @@ function testSeparationFailureIsNotFaked() {
   console.log('✅ Séparation — un échec est dit (pas de bips), torchaudio.save remplacé, anciens bips écartés');
 }
 
+// ── Test 7 : [Claude] — 2026-10-09 — la consigne de l'étape 1 est dans le lecteur, sans voile décalé ──
+function testStageOverlayInPlayer() {
+  const html = readText('src/index.html');
+  const css = readText('src/ui/refonte/studio.css');
+  const wrap = html.indexOf('id="studio-player-wrap"');
+  const overlay = html.indexOf('id="studio-stage-overlay"');
+  const video = html.indexOf('id="studio-video-container"');
+  const skinRule = css.slice(css.indexOf(":root[data-skin='global'] #studio-tab .studio-stage-overlay,"), css.indexOf('}', css.indexOf(":root[data-skin='global'] #studio-tab .studio-stage-overlay,")));
+  if (!(wrap > 0 && overlay > wrap && overlay < video) || /inset:\s*0/.test(skinRule) || /backdrop-filter/.test(skinRule)) {
+    console.error('❌ Étape 1 — la consigne doit être dans .studio-player-wrap, sans voile plein écran (inset: 0 + translateX la décalait d\'un demi-écran)');
+    process.exit(1);
+  }
+  console.log('✅ Étape 1 — consigne en carte dans le lecteur, sans voile décalé');
+}
+
 // ── Exécution ──
 console.log('=== Tests contrat DOM Studio ===\n');
 testDefaultFileContext();
@@ -169,4 +184,5 @@ testUpdateStudioFileContextCalledEarly();
 testFinishTrackLoadingUpdatesContext();
 testFailTrackLoadingResetsContext();
 testSeparationFailureIsNotFaked();
+testStageOverlayInPlayer();
 console.log('\n✅ Tous les tests DOM Studio passent.');

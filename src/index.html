@@ -1624,15 +1624,6 @@
       </main>
 
       <main class="studio-tab stage-0" id="studio-tab" style="display: none;">
-        <div id="studio-stage-overlay" class="studio-stage-overlay" style="display: none;">
-          <div class="studio-stage-overlay-inner">
-            <h3>🎯 Sélectionnez une zone à travailler</h3>
-            <p class="studio-overlay-hint">1. Écoutez le morceau avec le bouton <strong>▶</strong>.</p>
-            <p class="studio-overlay-hint">2. Tracez une région de maximum 5 minutes sur la waveform.</p>
-            <p class="studio-overlay-hint">3. Cliquez sur <strong>Confirmer la région</strong>.</p>
-          </div>
-        </div>
-
         <div id="studio-processing-overlay" class="studio-processing-overlay" style="display: none;">
           <div class="studio-processing-box">
             <div data-chroma-stage></div>
@@ -1733,6 +1724,16 @@
           <div class="studio-media-context" id="studio-media-context" aria-live="polite">Fichier du Studio : Aucun fichier chargé dans le Studio</div>
 
           <div class="studio-player-wrap" id="studio-player-wrap">
+            <!-- [Claude] — 2026-10-09 — Étape 1 : la consigne, en petite carte posée en haut du
+                 lecteur (elle était posée sur tout l'onglet, décalée d'un demi-écran à gauche). -->
+            <div id="studio-stage-overlay" class="studio-stage-overlay" style="display: none;">
+              <div class="studio-stage-overlay-inner">
+                <h3>🎯 Sélectionnez une zone à travailler</h3>
+                <p class="studio-overlay-hint">1. Écoutez le morceau avec le bouton <strong>▶</strong>.</p>
+                <p class="studio-overlay-hint">2. Tracez une région de maximum 5 minutes sur la waveform.</p>
+                <p class="studio-overlay-hint">3. Cliquez sur <strong>Confirmer la région</strong>.</p>
+              </div>
+            </div>
             <div id="studio-video-container" class="studio-video-container"></div>
             <div id="studio-audio-container" class="studio-audio-container"></div>
             <div id="studio-audio-backdrop" class="studio-audio-backdrop" style="display: none;">

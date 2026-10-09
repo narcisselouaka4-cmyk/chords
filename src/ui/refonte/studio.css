@@ -1089,18 +1089,22 @@
   color: var(--r-text-muted);
 }
 
-/* --- Overlay de traitement --- */
+/* --- Consigne de l'étape 1 ---
+   [Claude] — 2026-10-09 — Ce bloc posait un voile flouté sur tout l'onglet (inset: 0), mais
+   gardait le translateX(-50%) de style.css : voile et consigne décalés d'un demi-écran à gauche
+   (capture de Narcisse). La consigne est maintenant une petite carte en haut du lecteur, sans
+   voile : la vidéo et la waveform restent nettes (CLAUDE.md : un message flottant compact). */
 :root[data-skin='global'] #studio-tab .studio-stage-overlay,
 :root[data-skin='v2'] #studio-tab .studio-stage-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(10, 10, 14, 0.55);
-  backdrop-filter: blur(4px);
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   pointer-events: none;
+}
+:root[data-skin='global'] #studio-tab .studio-stage-overlay-inner,
+:root[data-skin='v2'] #studio-tab .studio-stage-overlay-inner {
+  background: color-mix(in srgb, var(--r-surface, #1c1c20) 92%, transparent);
+  border: 1px solid var(--r-border);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  color: var(--r-text);
 }
 :root[data-skin='global'] #studio-tab .studio-stage-overlay.hidden,
 :root[data-skin='v2'] #studio-tab .studio-stage-overlay.hidden {
