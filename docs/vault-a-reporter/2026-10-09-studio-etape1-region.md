@@ -86,3 +86,18 @@ l'index PyTorch est bloqué depuis l'environnement de test.
   vérification à vide ne montrait pas.
 - Un `z-index` mis pour passer au-dessus d'un voile rend aussi cliquable ce qui devrait être
   bloqué.
+
+## 5. Ajout — la lecture se place sur le marqueur lâché
+- **Sa demande** : « Quand on choisit sa région, au lieu de modifier le lecteur manuellement
+  pour se positionner pile sur le marqueur de sélection, ce serait mieux que l'app le fasse
+  automatiquement. »
+- **Fait** (`studio-tab.js`, au lâcher de la souris sur la waveform) :
+  - quand on lâche le marqueur de début, ou la région déplacée en entier (Ctrl + glisser), la
+    lecture se place au début de la région ;
+  - quand on lâche le marqueur de fin, elle se place 3 s avant la fin
+    (`END_PREVIEW_SECONDS`), pour entendre où la région s'arrête ;
+  - une lecture en cours continue depuis là.
+- La waveform ne se modifie plus pendant un chargement ou un traitement (`regionLocked`).
+- CLAUDE.md §2 (étape 1) est complété. `test-studio-dom.js` a un contrôle de plus.
+- **À vérifier sur sa machine** : tirer chaque marqueur et lâcher. Le curseur et la vidéo
+  doivent aller au bon endroit.

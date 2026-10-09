@@ -845,6 +845,8 @@ function bindStems() {
 // Les stems sont toujours chargés dans l'AudioContext partagé quand disponibles.
 
 const MAX_REGION_DURATION = 300; // 5 minutes maximum
+/** Marqueur de fin lâché : la lecture se place 3 s avant la fin de la région. */
+const END_PREVIEW_SECONDS = 3;
 
 function setCropControlsEnabled(enabled) {
   if (els.separateBtn) els.separateBtn.disabled = !enabled;
@@ -1008,6 +1010,8 @@ function bindWaveform() {
   }
 
   wrap.addEventListener('mousedown', (e) => {
+    // [Claude] — 2026-10-09 — Pas de région à modifier pendant un chargement ou un traitement.
+    if (regionLocked()) return;
     // ABSOLUTE TIMELINE : le clic sur la waveform modifie audio.currentTime de
     // manière absolue sur le fichier entier, sans jamais toucher aux limiteurs.
     const time = timeAtX(e.clientX);
@@ -1093,15 +1097,22 @@ function bindWaveform() {
     updateCropButtons();
   });
 
+  // [Claude] — 2026-10-09 — Narcisse : « quand on choisit sa région, au lieu de déplacer le
+  // lecteur à la main pour se positionner pile sur le marqueur, que l'app le fasse ». Au lâcher :
+  // marqueur de début ou région déplacée → la lecture se place au début de la région ; marqueur
+  // de fin → 3 s avant la fin, pour entendre où la région s'arrête. Une lecture en cours continue
+  // de là.
   window.addEventListener('mouseup', () => {
     if (regionConfirmed) return;
     if (isDraggingHandle) {
+      const handle = isDraggingHandle;
       isDraggingHandle = null;
-      if (regionConfirmed && transpose !== 0) runPitchShift();
+      if (handle === 'end' && regionEnd !== null) seek(Math.max(regionStart, regionEnd - END_PREVIEW_SECONDS));
+      else seek(regionStart);
     }
     if (isDraggingRegion) {
       isDraggingRegion = false;
-      if (regionConfirmed && transpose !== 0) runPitchShift();
+      seek(regionStart);
     }
   });
 

@@ -205,6 +205,18 @@ function testRegionLockAndShortTracks() {
   console.log('✅ Région — verrouillée pendant chargement et traitement ; ≤ 5 min : séparation directe (une fois par séance)');
 }
 
+// ── Test 10 : [Claude] — 2026-10-09 — au lâcher d'un marqueur, la lecture se place dessus ──
+function testSeekOnMarkerRelease() {
+  const js = readText('src/ui/studio-tab.js');
+  const up = js.slice(js.indexOf("window.addEventListener('mouseup'"), js.indexOf("wrap.addEventListener('dblclick'"));
+  if (!/handle === 'end' && regionEnd !== null\) seek\(Math\.max\(regionStart, regionEnd - END_PREVIEW_SECONDS\)\);\s*else seek\(regionStart\);/.test(up)
+    || !/isDraggingRegion = false;\s*seek\(regionStart\);/.test(up)) {
+    console.error('❌ Région — au lâcher d\'un marqueur, la lecture doit se placer au début (ou 3 s avant la fin)');
+    process.exit(1);
+  }
+  console.log('✅ Région — marqueur lâché : la lecture se place au début de la région (fin : 3 s avant)');
+}
+
 // ── Exécution ──
 console.log('=== Tests contrat DOM Studio ===\n');
 testDefaultFileContext();
@@ -216,4 +228,5 @@ testSeparationFailureIsNotFaked();
 testStageOverlayInPlayer();
 testConfirmedRegionWithoutStems();
 testRegionLockAndShortTracks();
+testSeekOnMarkerRelease();
 console.log('\n✅ Tous les tests DOM Studio passent.');
