@@ -23,6 +23,9 @@ soundfile==0.14.0
 
 # --- Séparation de pistes, Studio (demucs-wrapper.py) ---
 # Facultatif : sans lui, le Studio produit des stems simulés.
+# [Claude] — 2026-10-09 — torchaudio (tiré par demucs) n'est pas épinglé. Depuis la 2.9, il
+# n'enregistre plus que par TorchCodec ; demucs-wrapper.py écrit donc les pistes lui-même
+# (soundfile), et torchcodec n'est pas nécessaire.
 demucs==4.0.1
 torch>=2.2
 

@@ -2119,6 +2119,10 @@ async function startRegionProcessing() {
       },
     );
 
+    // [Claude] — 2026-10-09 — Une séparation qui échoue est dite, et le lecteur garde le son
+    // original (avant : des bips de 2 s remplaçaient les pistes, sans un mot).
+    if (!separationResult?.success) throw new Error(separationFailureText(separationResult));
+
     await refreshStems();
 
     if (processingJobId !== jobId) return;
@@ -2136,6 +2140,18 @@ async function startRegionProcessing() {
     setStatus(`Erreur de préparation : ${err.message}`);
     finishRegionProcessing(false);
   }
+}
+
+/**
+ * [Claude] — 2026-10-09 — Pourquoi la séparation a échoué, en clair (la ligne d'erreur de
+ * Demucs suit).
+ */
+function separationFailureText(result) {
+  const detail = String(result?.error || '').trim();
+  if (/torchcodec/i.test(detail)) {
+    return `la séparation n'a pas pu enregistrer les pistes (torchaudio demande torchcodec). ${detail}`;
+  }
+  return detail ? `la séparation a échoué. ${detail}` : 'la séparation n\'a retourné aucune piste';
 }
 
 function finishRegionProcessing(success) {
@@ -2862,9 +2878,9 @@ async function runSeparation() {
     );
 
     // Ne re-router l'audio que si la séparation a réussi (succès explicite ou simulation).
-    const succeeded = result && (result.success === true || result.simulated === true || Object.values(result).some(Boolean));
-    if (!succeeded) {
-      throw new Error('La séparation n\'a retourné aucune piste');
+    // [Claude] — 2026-10-09 — Un message d'erreur n'est pas un succès.
+    if (result?.success !== true) {
+      throw new Error(separationFailureText(result));
     }
 
     els.separateStatus.textContent = result.simulated ? 'Pistes simulées (Demucs non installé)' : 'Séparation terminée';

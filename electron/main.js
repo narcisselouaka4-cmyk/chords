@@ -1123,7 +1123,7 @@ async function runDemucs(trackId, inputPath) {
     proc.on('exit', async (code) => {
       clearInterval(fallbackInterval);
       if (code !== 0) {
-        reject(new Error(stderr || `Demucs exited with code ${code}`));
+        reject(new Error(demucsErrorSummary(stderr) || `Demucs s'est arrêté (code ${code})`));
         return;
       }
       try {
@@ -1149,12 +1149,51 @@ async function runDemucs(trackId, inputPath) {
             await fs.copyFile(src, dst);
           }
         }
+        await fs.rm(path.join(stemsDir, SIMULATED_MARK), { force: true });
         resolve();
       } catch (err) {
         reject(err);
       }
     });
   });
+}
+
+// [Claude] — 2026-10-09 — Régression du Studio : quand Demucs ÉCHOUAIT (torchaudio récent sans
+// torchcodec, voir demucs-wrapper.py), l'application remplaçait en silence les pistes par des
+// bips de 2 s. Narcisse entendait « un bruit sourd au lancement » (le bip de 80 Hz de la basse),
+// le lecteur « bloqué » (des pistes de 2 s pour une région de 5 min), « le son bug ».
+// Désormais les bips ne servent que si Demucs n'est PAS installé, et ils sont marqués ; un échec
+// est dit tel quel. Les bips laissés par l'ancien comportement sont reconnus et ignorés.
+const SIMULATED_MARK = 'simulated.json';
+// Un bip de 2 s : en-tête WAV (44 octets) + 2 s × 44 100 échantillons × 2 octets, mono 16 bits.
+const LEGACY_BEEP_BYTES = 44 + 2 * 44100 * 2;
+
+/** Les dernières lignes utiles de Demucs (l'erreur Python), pour l'écran. */
+function demucsErrorSummary(stderr) {
+  const lines = String(stderr || '').split(/\r?\n/).map((l) => l.trim())
+    .filter((l) => l && !/^\s*\d{1,3}%\|/.test(l) && !/[█▏▎▍▌▋▊▉]/.test(l));
+  const error = [...lines].reverse().find((l) => /^[A-Za-z_.]*(Error|Exception)\b/.test(l));
+  return error || lines.slice(-1)[0] || '';
+}
+
+/**
+ * Les pistes de ce morceau sont-elles des bips d'un ancien échec (non marqués) ? Elles ne
+ * comptent pas comme séparées : le Studio repart du son original et propose de séparer.
+ */
+async function hasLegacyBeepStems(stemsDir) {
+  try {
+    await fs.access(path.join(stemsDir, SIMULATED_MARK));
+    return false; // bips voulus (Demucs non installé) : ils servent au workflow
+  } catch { /* pas de marque */ }
+  for (const stem of STEMS) {
+    try {
+      const { size } = await fs.stat(path.join(stemsDir, `${stem}.wav`));
+      if (size !== LEGACY_BEEP_BYTES) return false;
+    } catch {
+      return false;
+    }
+  }
+  return true;
 }
 
 async function createSimulatedStems(trackId) {
@@ -1167,6 +1206,7 @@ async function createSimulatedStems(trackId) {
     const wav = await createBeepWav(2, freqs[stem]);
     await fs.writeFile(path.join(stemsDir, `${stem}.wav`), wav);
   }
+  await fs.writeFile(path.join(stemsDir, SIMULATED_MARK), JSON.stringify({ reason: 'demucs-missing' }));
 }
 
 function setupStudioIPC() {
@@ -1221,15 +1261,16 @@ function setupStudioIPC() {
       await createSimulatedStems(trackId);
       return { success: true, simulated: true };
     } catch (err) {
+      // [Claude] — 2026-10-09 — Un échec reste un échec : pas de bips à la place des pistes
+      // (les pistes d'avant, s'il y en avait, restent en place).
       console.error('[Studio] separation failed:', err);
-      // Fallback to simulated stems so tests can continue
-      await createSimulatedStems(trackId);
-      return { success: true, simulated: true, error: err.message };
+      return { success: false, simulated: false, error: err.message };
     }
   });
 
   ipcMain.handle('studio:is-separated', async (event, trackId) => {
     const studioDir = await ensureStudioDir();
+    if (await hasLegacyBeepStems(path.join(studioDir, trackId, 'stems'))) return false;
     for (const stem of STEMS) {
       try {
         await fs.access(path.join(studioDir, trackId, 'stems', `${stem}.wav`));
@@ -1243,7 +1284,9 @@ function setupStudioIPC() {
   ipcMain.handle('studio:get-stems', async (event, trackId) => {
     const studioDir = await ensureStudioDir();
     const paths = {};
+    const legacyBeeps = await hasLegacyBeepStems(path.join(studioDir, trackId, 'stems'));
     for (const stem of STEMS) {
+      if (legacyBeeps) { paths[stem] = null; continue; }
       const p = path.join(studioDir, trackId, 'stems', `${stem}.wav`);
       try {
         await fs.access(p);

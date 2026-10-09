@@ -138,6 +138,29 @@ function testFailTrackLoadingResetsContext() {
   console.log('✅ Code — failTrackLoading réinitialise updateStudioFileContext');
 }
 
+// ── Test 6 : [Claude] — 2026-10-09 — une séparation qui échoue n'est jamais remplacée par des bips ──
+// Régression vécue : torchaudio récent sans torchcodec → Demucs échouait à l'enregistrement →
+// des bips de 2 s à la place des pistes (« bruit sourd », « lecteur bloqué », « le son bug »).
+function testSeparationFailureIsNotFaked() {
+  const main = readText('electron/main.js');
+  const wrapper = readText('electron/demucs-wrapper.py');
+  const studio = readText('src/ui/studio-tab.js');
+  const handler = main.slice(main.indexOf("ipcMain.handle('studio:separate'"), main.indexOf("ipcMain.handle('studio:is-separated'"));
+  const failures = [];
+  if (!/catch \(err\) \{[\s\S]*?return \{ success: false, simulated: false, error: err\.message \};/.test(handler)) failures.push('l\'échec de Demucs ne renvoie pas success: false');
+  if (/catch \(err\) \{[\s\S]*?createSimulatedStems/.test(handler)) failures.push('un échec crée encore des pistes simulées (bips)');
+  if (!wrapper.includes('torchaudio.save = _write_wav') || wrapper.indexOf('torchaudio.save = _write_wav') > wrapper.indexOf('import demucs.separate')) failures.push('demucs-wrapper.py ne remplace pas torchaudio.save avant d\'importer demucs');
+  if (!main.includes("await fs.writeFile(path.join(stemsDir, SIMULATED_MARK)")) failures.push('les pistes simulées ne sont pas marquées');
+  if (!/ipcMain\.handle\('studio:get-stems'[\s\S]*?hasLegacyBeepStems/.test(main)) failures.push('les anciens bips ne sont pas écartés au chargement');
+  if (!studio.includes('if (!separationResult?.success) throw new Error(separationFailureText(separationResult));')) failures.push('le Studio charge les pistes même quand la séparation a échoué');
+  if (!studio.includes('if (result?.success !== true) {')) failures.push('« Réanalyser » prend un message d\'erreur pour un succès');
+  if (failures.length) {
+    console.error(`❌ Séparation — ${failures.join(' ; ')}`);
+    process.exit(1);
+  }
+  console.log('✅ Séparation — un échec est dit (pas de bips), torchaudio.save remplacé, anciens bips écartés');
+}
+
 // ── Exécution ──
 console.log('=== Tests contrat DOM Studio ===\n');
 testDefaultFileContext();
@@ -145,4 +168,5 @@ await testBuildFileContextText();
 testUpdateStudioFileContextCalledEarly();
 testFinishTrackLoadingUpdatesContext();
 testFailTrackLoadingResetsContext();
+testSeparationFailureIsNotFaked();
 console.log('\n✅ Tous les tests DOM Studio passent.');
