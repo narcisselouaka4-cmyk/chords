@@ -89,6 +89,9 @@ Le module Studio suit **obligatoirement** un workflow de 4 étapes.
 - Découpage de la région WAV (`getRegionTrimmedPath`) pour Demucs.
 - Séparation des pistes avec Demucs, ou stems simulés si Demucs absent.
 - La séparation est asynchrone ; l'utilisateur peut aller dans d'autres onglets.
+- *(ajouté le 09/10/2026)* Sous la barre de progression, « Annuler et revenir à la sélection »
+  arrête la séparation (Demucs est tué) et ramène à l'étape 1 avec la région tracée, à
+  modifier puis reconfirmer.
 
 ### Étape 3 : Studio Pro
 - Les pistes séparées sont chargées.

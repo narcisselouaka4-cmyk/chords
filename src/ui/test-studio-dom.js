@@ -250,6 +250,28 @@ function testWaveformFromDecodedAudio() {
   console.log('✅ Waveform — tirée du son décodé (sans Python), région traçable même sans waveform');
 }
 
+function testCancelRegionProcessing() {
+  const html = readText('src/index.html');
+  const js = readText('src/ui/studio-tab.js');
+  const main = readText('electron/main.js');
+  const box = html.slice(html.indexOf('id="studio-processing-overlay"'), html.indexOf('studio-processing-hint'));
+  const button = /studio-processing-bar-wrap[\s\S]*id="studio-processing-cancel"[\s\S]*hidden/.test(box);
+  const cancel = js.slice(js.indexOf('async function cancelRegionProcessing'), js.indexOf('export async function loadTrack'));
+  const backToStage1 = /regionConfirmed = false;/.test(cancel) && /updateStudioStage\(1\)/.test(cancel)
+    && /await cancelSeparation\(track\.id\)/.test(cancel) && /confirmed: false/.test(cancel);
+  const wired = /els\.processingCancel\?\.addEventListener\('click', \(\) => cancelRegionProcessing\(\)\)/.test(js)
+    && /processingCancel\.hidden = !\(stage === 2 && !isLoadingTrack\)/.test(js)
+    && /getRegionTrimmedPath\(\);\s*\/\/[^\n]*\n\s*if \(processingJobId !== jobId\) return;/.test(js);
+  const killed = /ipcMain\.handle\('studio:cancel-separation'[\s\S]*?run\.cancelled = true;[\s\S]*?run\.proc\.kill/.test(main)
+    && /if \(run\.cancelled\) \{\s*reject\(new Error\(CANCELLED\)\)/.test(main)
+    && ['electron/preload.cjs', 'electron/preload.js'].every((p) => /cancelSeparation: \(trackId\) => ipcRenderer\.invoke\('studio:cancel-separation'/.test(readText(p)));
+  if (!button || !backToStage1 || !wired || !killed) {
+    console.error('❌ Traitement — « Annuler » arrête la séparation et revient à la sélection', { button, backToStage1, wired, killed });
+    process.exit(1);
+  }
+  console.log('✅ Traitement — « Annuler » arrête Demucs et revient à la sélection de région');
+}
+
 // ── Exécution ──
 console.log('=== Tests contrat DOM Studio ===\n');
 testDefaultFileContext();
@@ -263,4 +285,5 @@ testConfirmedRegionWithoutStems();
 testRegionLockAndShortTracks();
 testSeekOnMarkerRelease();
 testWaveformFromDecodedAudio();
+testCancelRegionProcessing();
 console.log('\n✅ Tous les tests DOM Studio passent.');

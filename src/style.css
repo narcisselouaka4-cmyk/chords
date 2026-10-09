@@ -1479,6 +1479,16 @@ input[type='color'] {
   margin-top: 8px;
 }
 
+.studio-processing-cancel {
+  margin: 6px 0 14px;
+  padding: 8px 18px;
+  font-size: 0.85rem;
+}
+
+.studio-processing-cancel[hidden] {
+  display: none;
+}
+
 /* Toast Étape 3 prête */
 .studio-ready-toast {
   position: absolute;

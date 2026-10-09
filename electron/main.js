@@ -1053,6 +1053,11 @@ async function createTranscribeDir() {
   return dir;
 }
 
+// [Claude] — 2026-10-09 — Séparations en cours, par morceau : « Annuler » sous la barre de
+// progression arrête Demucs (studio:cancel-separation) au lieu d'attendre la fin du calcul.
+const demucsRuns = new Map();
+const CANCELLED = 'separation-cancelled';
+
 async function runDemucs(trackId, inputPath) {
   const studioDir = await ensureStudioDir();
   const trackDir = path.join(studioDir, trackId);
@@ -1063,11 +1068,13 @@ async function runDemucs(trackId, inputPath) {
   await fs.mkdir(outputDir, { recursive: true });
 
   return new Promise((resolve, reject) => {
-    const proc = spawn(getPythonCommand(), [
+    const proc = trackChild(spawn(getPythonCommand(), [
       path.join(__dirname, 'demucs-wrapper.py'),
       outputDir,
       inputPath,
-    ], { shell: false });
+    ], { shell: false }));
+    const run = { proc, cancelled: false };
+    demucsRuns.set(trackId, run);
 
     let stderr = '';
     let lastPercent = 0;
@@ -1118,10 +1125,17 @@ async function runDemucs(trackId, inputPath) {
 
     proc.on('error', (err) => {
       clearInterval(fallbackInterval);
+      if (demucsRuns.get(trackId) === run) demucsRuns.delete(trackId);
       reject(err);
     });
     proc.on('exit', async (code) => {
       clearInterval(fallbackInterval);
+      if (demucsRuns.get(trackId) === run) demucsRuns.delete(trackId);
+      // Annulée : les pistes d'avant (s'il y en a) restent telles quelles.
+      if (run.cancelled) {
+        reject(new Error(CANCELLED));
+        return;
+      }
       if (code !== 0) {
         reject(new Error(demucsErrorSummary(stderr) || `Demucs s'est arrêté (code ${code})`));
         return;
@@ -1261,11 +1275,23 @@ function setupStudioIPC() {
       await createSimulatedStems(trackId);
       return { success: true, simulated: true };
     } catch (err) {
+      if (err?.message === CANCELLED) {
+        console.log('[Studio] separation cancelled for', trackId);
+        return { success: false, simulated: false, cancelled: true };
+      }
       // [Claude] — 2026-10-09 — Un échec reste un échec : pas de bips à la place des pistes
       // (les pistes d'avant, s'il y en avait, restent en place).
       console.error('[Studio] separation failed:', err);
       return { success: false, simulated: false, error: err.message };
     }
+  });
+
+  ipcMain.handle('studio:cancel-separation', async (event, trackId) => {
+    const run = demucsRuns.get(trackId);
+    if (!run) return false;
+    run.cancelled = true;
+    try { run.proc.kill('SIGTERM'); } catch { /* déjà terminé */ }
+    return true;
   });
 
   ipcMain.handle('studio:is-separated', async (event, trackId) => {

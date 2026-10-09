@@ -13,7 +13,7 @@ import {
 } from '../recorder/studio-storage.js';
 import { importToLibrary } from './media-library.js';
 import { createStemMixer, dbToGain } from '../audio/stem-mixer.js';
-import { separateStems, getStems, STEMS } from '../audio/stem-separator.js';
+import { separateStems, cancelSeparation, getStems, STEMS } from '../audio/stem-separator.js';
 import { createPitchShifter } from '../audio/pitch-shifter.js';
 import { getAudioContext, connectOutput as connectSynthOutput } from '../audio/simple-synth.js';
 import { globalAudioFocusManager } from '../audio/audio-focus-manager.js';
@@ -137,6 +137,7 @@ const els = {
   stageOverlay: document.getElementById('studio-stage-overlay'),
   processingOverlay: document.getElementById('studio-processing-overlay'),
   processingLabel: document.getElementById('studio-processing-label'),
+  processingCancel: document.getElementById('studio-processing-cancel'),
   processingBar: document.getElementById('studio-processing-bar'),
   readyToast: document.getElementById('studio-ready-toast'),
   stemsList: document.getElementById('studio-stems-list'),
@@ -319,6 +320,7 @@ function bindPlayer() {
   });
 
   els.resetRegionBtn?.addEventListener('click', () => resetRegion());
+  els.processingCancel?.addEventListener('click', () => cancelRegionProcessing());
 
   els.progress?.addEventListener('input', () => {
     // La barre de progression reste toujours calée sur la durée TOTALE du fichier.
@@ -2039,6 +2041,9 @@ function updateStudioStage(stage) {
   if (els.processingOverlay && !isLoadingTrack) {
     els.processingOverlay.style.display = stage === 2 ? 'flex' : 'none';
   }
+  // « Annuler » : seulement pour le traitement d'une région, pas pour le chargement du morceau
+  // (même voile).
+  if (els.processingCancel) els.processingCancel.hidden = !(stage === 2 && !isLoadingTrack);
   if (els.readyToast) {
     els.readyToast.style.display = 'none';
   }
@@ -2165,6 +2170,8 @@ async function startRegionProcessing() {
     // 1. Extraire la région audio (WAV) pour Demucs
     setProcessingProgress('Découpage de la région audio...', 10);
     const regionPath = await getRegionTrimmedPath();
+    // Annulé pendant le découpage : ne pas enregistrer la région comme confirmée.
+    if (processingJobId !== jobId) return;
 
     // 2. Sauvegarder la région dans les métadonnées
     await saveMetadata(currentTrack.id, {
@@ -2242,14 +2249,33 @@ function finishRegionProcessing(success) {
   }
 }
 
-function cancelRegionProcessing() {
-  if (!isProcessing) return;
+// [Claude] — 2026-10-09 — Narcisse : « l'utilisateur peut vouloir se rétracter de son choix, mais
+// il doit attendre la longue fin du chargement… une option Annuler qui annule le chargement et
+// revient à l'étape de la sélection de région ». La séparation est arrêtée (Demucs tué), la région
+// tracée est gardée telle quelle, à modifier puis reconfirmer.
+async function cancelRegionProcessing() {
+  if (!isProcessing || !currentTrack) return;
+  const track = currentTrack;
   processingJobId = null;
   isProcessing = false;
-  updateStudioStage(1);
   regionConfirmed = false;
+  pendingRegion = null;
+  setProcessingProgress('', 0);
+  updateStudioStage(1);
+  updateRegionUI();
   updateCropButtons();
-  setStatus('Préparation annulée');
+  seek(regionStart);
+  setStatus('Préparation annulée : modifiez la région puis confirmez de nouveau.');
+  try {
+    await cancelSeparation(track.id);
+  } catch (err) {
+    console.warn('[Studio] cancelSeparation failed:', err);
+  }
+  // La région enregistrée redevient « à confirmer » (sinon, à la réouverture, elle serait
+  // restaurée comme confirmée).
+  const metadata = { ...track.metadata, region: { start: regionStart, end: regionEnd, confirmed: false } };
+  track.metadata = metadata;
+  try { await saveMetadata(track.id, metadata); } catch (err) { console.warn('[Studio] saveMetadata failed:', err); }
 }
 
 export async function loadTrack(trackId) {

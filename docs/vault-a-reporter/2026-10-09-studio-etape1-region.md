@@ -135,3 +135,25 @@ l'index PyTorch est bloqué depuis l'environnement de test.
 - `test-studio-dom.js` : un contrôle de plus (crêtes calculées sur un faux AudioBuffer).
 - **À vérifier sur sa machine** : rouvrir ce morceau ; la waveform et la région de 5 min
   apparaissent, et les marqueurs se tirent.
+
+## 8. « Annuler et revenir à la sélection » pendant le traitement
+- **Sa demande** : « Après la sélection de la région, l'utilisateur peut vouloir se rétracter,
+  mais il doit attendre la longue fin du chargement. Il faudrait, sous la barre de chargement,
+  une option Annuler qui annule le chargement et revient à l'étape de la sélection de région. »
+- **Fait** :
+  - `index.html` : bouton `#studio-processing-cancel` sous la barre, visible seulement pendant
+    le traitement d'une région (pas pendant le chargement d'un morceau, qui utilise le même voile) ;
+  - `electron/main.js` : chaque Demucs en cours est suivi par morceau (`demucsRuns`) ; l'IPC
+    `studio:cancel-separation` le tue. Une séparation annulée rend `{ cancelled: true }` et ne
+    touche pas aux pistes d'avant. Demucs passe aussi par `trackChild` (tué à la fermeture de
+    l'application) ;
+  - `preload.{cjs,js}`, `stem-separator.js` : `cancelSeparation(trackId)` ;
+  - `studio-tab.js` (`cancelRegionProcessing`) : retour à l'étape 1, région gardée et « à
+    confirmer » (aussi dans les métadonnées, sinon la réouverture la restaurerait confirmée),
+    lecture placée au début de la région. Annulé pendant le découpage : la région n'est pas
+    enregistrée comme confirmée.
+- Un morceau de 5 min au plus annulé ne relance pas sa séparation automatique pendant la séance.
+- `test-studio-dom.js` : un contrôle de plus ; capture du voile en sombre et en clair.
+- **À vérifier sur sa machine** : confirmer une région, cliquer « Annuler » pendant la
+  séparation → retour à l'étape 1 tout de suite, et plus de processus Python de Demucs actif
+  (moniteur système).
