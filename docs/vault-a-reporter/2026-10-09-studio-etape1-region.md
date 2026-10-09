@@ -1,17 +1,35 @@
-# Studio — étape 1 : consigne, « Confirmer la région », verrou, morceaux courts (09/10/2026)
+# Studio — étapes 1 et 2 : région, waveform, annulation ; lecture fluide en étape 3 (09/10/2026)
 
 À reporter dans le vault :
-- `log.md` et `state/current-work.md` ;
-- `decisions/` : un morceau de 5 min au plus est séparé directement, sans étape 1 ;
+- `log.md` : une entrée par section ci-dessous (1 à 10) ;
+- `state/current-work.md` : Studio — étape 1 et lecture de l'étape 3 retravaillées, en attente
+  de ses essais sur sa machine ;
+- `state/next-actions.md` : la liste « À vérifier sur sa machine » (consolidée en bas) ;
+- `decisions/` :
+  - un morceau de 5 min au plus est séparé directement, sans étape 1 (§4) ;
+  - la waveform est tirée du son décodé, Python seulement en repli (§7) ;
+  - **l'architecture audio de l'étape 3** : voir la note dédiée
+    `2026-10-09-studio-lecture-fluide.md` (ADR à créer) ;
 - **corriger** `decisions/ADR-017-studio-overlay-css-positioning.md` (session OpenCode du
   08/10) : son correctif n'a jamais été enregistré dans le dépôt, et la vraie cause était
   autre (voir 1) ;
-- `state/next-actions.md` : les vérifications sur sa machine (en bas).
+- `contracts/` (si un contrat Studio existe) : les nouvelles règles de CLAUDE.md §2, §4 et §5.
 
 Suite de `2026-10-09-studio-separation-bips.md`, la séparation ratée remplacée par des bips.
-Quatre commits sur `fix/exercices-voicing-correctifs` :
-`f0d2a44` (bips), `ccb0328` (consigne), `e207bbb` (« Confirmer »), `dba87fd` (verrou,
-morceaux courts).
+Commits sur `fix/exercices-voicing-correctifs`, dans l'ordre :
+
+| Commit | Section | Sujet |
+|---|---|---|
+| `f0d2a44` | (note bips) | séparation ratée : plus de bips à la place des pistes |
+| `ccb0328` | 1 | consigne de l'étape 1 en carte dans le lecteur |
+| `e207bbb` | 2 | « Confirmer la région » revient pour une région gardée sans pistes |
+| `dba87fd` | 3, 4 | boutons de région verrouillés ; ≤ 5 min séparé directement |
+| `48a27e3` | 5 | la lecture se place sur le marqueur lâché |
+| `fc444a0` | 6 | « Revenir au début » ramène au début de la région |
+| `036ef51` | 7 | waveform tirée du son décodé ; région traçable sans waveform |
+| `de016ff` | 8 | « Annuler et revenir à la sélection » pendant le traitement |
+| `326dd52` | 9 | double-clic, trait de lecture, flèche du début ; un seul SoundTouch |
+| `c0c2d0a` | 10 | micro-latences lors des changements brusques |
 
 ## 1. La consigne de l'étape 1 décalée d'un demi-écran (`ccb0328`)
 - **Ce qu'il voyait** (capture) :
@@ -61,31 +79,13 @@ morceaux courts).
   - l'étape 1 reste, et « Confirmer la région » relance.
 - CLAUDE.md §2 (étape 1) est mis à jour.
 
-## Vérifié
+## Vérifié (§1 à §4)
 - `test-studio-dom.js` : quatre nouveaux contrôles.
   - la séparation ratée n'est pas remplacée par des bips ;
   - la consigne est dans le lecteur, sans voile ;
   - une région gardée sans pistes redevient « à confirmer » ;
   - la région est verrouillée, et un morceau court est séparé directement.
 - `test-studio-skin.js`, build, régressions Partie 1 et Partie 3.
-
-## À vérifier sur sa machine
-Rien n'a pu être testé ici avec un vrai morceau chargé, ni avec une vraie séparation Demucs :
-l'index PyTorch est bloqué depuis l'environnement de test.
-1. Un morceau de moins de 5 min : la séparation part seule, et les boutons de région sont
-   grisés pendant le traitement.
-2. « MARYA ADE » (4 min 27) :
-   - avec la nouvelle règle, sa séparation devrait partir seule à l'ouverture ;
-   - les pistes doivent être les vraies, et non des bips.
-3. Un morceau de plus de 5 min : étape 1 avec la carte de consigne en haut du lecteur, et
-   « Confirmer » actif dès qu'une région est tracée.
-
-## Leçon
-- Vérifier une étape d'interface **avec l'état que laisse l'étape d'avant**. Ici, une région
-  restée « confirmée » sans pistes, après la séparation ratée, menait à un cul-de-sac que la
-  vérification à vide ne montrait pas.
-- Un `z-index` mis pour passer au-dessus d'un voile rend aussi cliquable ce qui devrait être
-  bloqué.
 
 ## 5. Ajout — la lecture se place sur le marqueur lâché
 - **Sa demande** : « Quand on choisit sa région, au lieu de modifier le lecteur manuellement
@@ -225,3 +225,31 @@ sont durs à attraper, surtout au tout début : une mini-flèche au-dessus de la
   ci-dessus produisaient les symptômes même sur une machine rapide.
 - **À vérifier sur sa machine** : en pleine lecture, transposer plusieurs fois de suite, puis
   glisser la barre et lâcher : pas de hachure, pas d'image qui accélère.
+
+## À vérifier sur sa machine (liste consolidée, §1 à §10)
+Rien n'a pu être essayé ici avec un vrai morceau chargé ni une vraie séparation Demucs (index
+PyTorch bloqué depuis l'environnement de test) ; tout le reste a été vérifié par tests, build,
+régressions, captures et, pour l'audio, dans Chromium avec des pistes de synthèse.
+1. Morceau de 5 min au plus : séparation lancée seule, boutons de région grisés pendant le
+   traitement, vraies pistes (pas de bips) — par exemple « MARYA ADE » (4 min 27).
+2. Morceau de plus de 5 min (« Seigneur fais-moi voir ta gloire », 7 min 47) : waveform et
+   région de 5 min visibles ; carte de consigne en haut du lecteur ; « Confirmer » actif.
+3. Tirer la flèche ▼ (début) et le marqueur de fin : la lecture se place au début, ou 3 s
+   avant la fin ; ◀◀ ramène au début de la région ; le double-clic ne réinitialise plus rien.
+4. Thème clair : le trait de lecture se voit.
+5. Confirmer, puis « Annuler et revenir à la sélection » : retour immédiat à l'étape 1, plus de
+   processus Demucs dans le moniteur système.
+6. Étape 3 : lecture longue à 0 puis à +2 ; en pleine lecture, transposer plusieurs fois de
+   suite, puis glisser la barre et lâcher : pas de hachure, image et voix en phase, pas
+   d'image qui « accélère puis ralentit ».
+
+## Leçons de la journée
+- Vérifier une étape d'interface avec l'état que laisse l'étape d'avant (§2).
+- Un `z-index` mis pour passer au-dessus d'un voile rend aussi cliquable ce qui devrait être
+  bloqué (§3).
+- Un repli silencieux cache la panne (bips, §bips ; waveform vide sans message, §7).
+- Pour un symptôme « ça hache » en audio temps réel, mesurer le coût **du pire bloc**, pas la
+  moyenne : 5 × 0,68 ms tombaient au même bloc (§9).
+- Ne pas supposer qu'une méthode d'une bibliothèque existe : `clear()` de SoundTouch était
+  appelé depuis des mois sans exister (§10).
+- Un AnalyserNode lisse entre deux lectures : mesurer avec `smoothingTimeConstant = 0` (§10).
