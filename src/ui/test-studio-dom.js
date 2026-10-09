@@ -287,7 +287,7 @@ function testRegionGripPlayheadAndSmoothPlayback() {
     && /els\.gripStart\?\.addEventListener\('mousedown'[\s\S]*?isDraggingHandle = 'start';/.test(js);
   // 4. Un seul SoundTouch, sur le bus, et seulement si on transpose ; horloge corrigée du retard.
   const oneShifter = !/pitchShifters\[/.test(mixer) && /src\.connect\(gain\);/.test(mixer)
-    && /const wantShifter = currentPitch !== 0 && !!pitchShifter;/.test(mixer)
+    && /const wantShifter = !force && !!pitchShifter && \(currentPitch !== 0 \|\| busThroughShifter\);/.test(mixer)
     && /busThroughShifter \? PITCH_SHIFTER_LATENCY : 0/.test(mixer);
   const video = /!playerVideo\.seeking && now - lastVideoResyncAt > VIDEO_RESYNC_COOLDOWN_MS/.test(js)
     && /if \(transpose !== 0\) mixer\.setDetune\(transpose\);\s*mixer\.play\(\);/.test(js);
@@ -296,6 +296,30 @@ function testRegionGripPlayheadAndSmoothPlayback() {
     process.exit(1);
   }
   console.log('✅ Waveform : pas de double-clic, trait lisible, poignée du début ; lecture : un seul SoundTouch, vidéo sans recalages en rafale');
+}
+
+function testAbruptChangesStaySmooth() {
+  const js = readText('src/ui/studio-tab.js');
+  const mixer = readText('src/audio/stem-mixer.js');
+  const shifter = readText('src/audio/pitch-shifter.js');
+  // Transposition en direct : SoundTouch déjà branché → setPitch seul, pas de relance.
+  const live = /if \(routeBus\(\) && isPlaying\) \{\s*play\(heard\);/.test(mixer)
+    && /currentPitch !== 0 \|\| busThroughShifter/.test(mixer);
+  // Chaque relance prend un SoundTouch neuf (pas de reste de l'ancienne position).
+  const fresh = /function freshShifter\(\)[\s\S]*?createPitchShifterNow\(/.test(mixer) && /freshShifter\(\);/.test(mixer)
+    && /export function createPitchShifterNow/.test(shifter);
+  // Volume remonté sur l'horloge audio, plus de setTimeout.
+  const ramp = !/setTimeout\(\(\) => applyState/.test(mixer) && /param\.setTargetAtTime\(computeGain\(stem\), startAt/.test(mixer);
+  // Vidéo : attend le son relancé ; barre de lecture : un seul saut au lâcher.
+  const video = /const warmup = mixer\?\.hasStems\(\) \? mixer\.getWarmupRemaining\(\) : 0;/.test(js)
+    && /if \(isScrubbing && isPlaying\) \{[\s\S]*?return;\s*\}\s*seek\(time\);/.test(js)
+    && /if \(!isScrubbing\) \{\s*updateProgressUI\(realTime, duration\);/.test(js);
+  const noReflow = /const width = waveformWidth \|\|/.test(js);
+  if (!live || !fresh || !ramp || !video || !noReflow) {
+    console.error('❌ Changements brusques en lecture', { live, fresh, ramp, video, noReflow });
+    process.exit(1);
+  }
+  console.log('✅ Changements brusques : transposition en direct, SoundTouch neuf à chaque relance, vidéo qui attend le son, un seul saut au lâcher de la barre');
 }
 
 // ── Exécution ──
@@ -313,4 +337,5 @@ testSeekOnMarkerRelease();
 testWaveformFromDecodedAudio();
 testCancelRegionProcessing();
 testRegionGripPlayheadAndSmoothPlayback();
+testAbruptChangesStaySmooth();
 console.log('\n✅ Tous les tests DOM Studio passent.');

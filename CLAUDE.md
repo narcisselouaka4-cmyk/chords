@@ -177,6 +177,12 @@ La boucle `requestAnimationFrame` qui modifiait `video.playbackRate` causait un 
   rebranchement se fait au moment où les sources redémarrent (comme avant à chaque changement
   de transposition). Cinq SoundTouch (un par piste) dépassaient le budget temps réel → son
   haché. SoundTouch retarde le son de ~135 ms : `getCurrentTime()` du mixeur en tient compte.
+- *(09/10/2026)* Une fois branché, SoundTouch le reste jusqu'au morceau suivant : changer de
+  transposition n'est qu'un `setPitch()` en direct, sans relancer les pistes. À chaque relance
+  (saut, Play), le mixeur prend un SoundTouch **neuf** (`createPitchShifterNow`) : la
+  bibliothèque n'a pas de `clear()`, et l'ancien nœud rejouait ~0,13 s de l'ancienne position.
+  Pendant ce délai de démarrage (`getWarmupRemaining()`), la vidéo attend sur la bonne image.
+- Barre de lecture : pendant le glisser, seul l'affichage suit ; le saut se fait au lâcher.
 
 ---
 

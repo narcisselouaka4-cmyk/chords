@@ -79,6 +79,10 @@ let syncRafId = null;
 const VIDEO_DRIFT_TOLERANCE = 0.12;
 const VIDEO_RESYNC_COOLDOWN_MS = 800;
 let lastVideoResyncAt = 0;
+/** Barre de lecture tenue par l'utilisateur : la boucle n'écrase pas sa position. */
+let isScrubbing = false;
+/** Largeur de la waveform, tenue à jour par un ResizeObserver (pas de mesure à chaque image). */
+let waveformWidth = 0;
 
 // AudioContext partagé pour le Studio (pitch-shift via MediaElementSourceNode)
 let studioAudioCtx = null;
@@ -328,11 +332,32 @@ function bindPlayer() {
   els.resetRegionBtn?.addEventListener('click', () => resetRegion());
   els.processingCancel?.addEventListener('click', () => cancelRegionProcessing());
 
+  // [Claude] — 2026-10-09 — Glisser la barre de lecture faisait un saut à CHAQUE petit
+  // déplacement (des dizaines par seconde) : à chaque fois toutes les pistes et la vidéo
+  // repartaient — c'est là que naissaient les micro-latences « quand je modifie le lecteur ».
+  // Pendant le glisser, seuls le temps affiché et le curseur suivent ; le saut se fait au lâcher.
+  const progressTime = () => (Number(els.progress.value) / 100) * (getTotalDuration() || 1);
+  els.progress?.addEventListener('pointerdown', () => { isScrubbing = true; });
   els.progress?.addEventListener('input', () => {
     // La barre de progression reste toujours calée sur la durée TOTALE du fichier.
-    const duration = getTotalDuration() || 1;
-    const time = (Number(els.progress.value) / 100) * duration;
+    const time = progressTime();
+    if (isScrubbing && isPlaying) {
+      updateProgressUI(time, getEffectiveDuration());
+      updatePlayhead(time, getEffectiveDuration());
+      return;
+    }
     seek(time);
+  });
+  els.progress?.addEventListener('change', () => {
+    const wasScrubbing = isScrubbing;
+    isScrubbing = false;
+    if (wasScrubbing && isPlaying) seek(progressTime());
+  });
+  window.addEventListener('pointerup', () => {
+    // Lâcher hors de la barre : `change` peut ne pas venir.
+    if (!isScrubbing) return;
+    isScrubbing = false;
+    if (isPlaying) seek(progressTime());
   });
 
   els.volume?.addEventListener('input', () => {
@@ -810,8 +835,15 @@ function syncVideoAndCursor() {
       // relançaient la dérive. Désormais : jamais pendant un saut, au plus un toutes les 0,8 s,
       // et une vidéo arrêtée pendant la lecture est relancée au lieu d'être recalée en boucle.
       const now = performance.now();
-      if (!playerVideo.seeking && now - lastVideoResyncAt > VIDEO_RESYNC_COOLDOWN_MS) {
-        if (absDrift > VIDEO_DRIFT_TOLERANCE) {
+      // Son relancé (saut, première transposition) mais pas encore audible : la vidéo attend,
+      // posée sur la bonne image, au lieu de partir devant puis d'être recalée.
+      const warmup = mixer?.hasStems() ? mixer.getWarmupRemaining() : 0;
+      if (warmup > 0) {
+        if (!playerVideo.paused) playerVideo.pause();
+        if (!playerVideo.seeking && Math.abs(drift) > 0.04) playerVideo.currentTime = realTime;
+      } else {
+        if (!playerVideo.seeking && now - lastVideoResyncAt > VIDEO_RESYNC_COOLDOWN_MS
+            && absDrift > VIDEO_DRIFT_TOLERANCE) {
           playerVideo.currentTime = realTime;
           lastVideoResyncAt = now;
         }
@@ -834,9 +866,11 @@ function syncVideoAndCursor() {
       }
     }
 
-    // Affichage UI en temps absolu sur la timeline globale.
-    updateProgressUI(realTime, duration);
-    updatePlayhead(realTime, duration);
+    // Affichage UI en temps absolu sur la timeline globale (sauf pendant le glisser de la barre).
+    if (!isScrubbing) {
+      updateProgressUI(realTime, duration);
+      updatePlayhead(realTime, duration);
+    }
   } catch (e) {
     console.warn('[Studio] syncVideoAndCursor error:', e);
   }
@@ -1157,7 +1191,8 @@ function bindWaveform() {
   // garde une largeur de 1 px : on redessine dès que le cadre prend sa vraie taille.
   if (typeof ResizeObserver === 'function') {
     new ResizeObserver(() => {
-      if (!wrap.getBoundingClientRect().width) return;
+      waveformWidth = wrap.getBoundingClientRect().width;
+      if (!waveformWidth) return;
       renderWaveform();
       updateRegionUI();
       updatePlayhead(getStudioCurrentTime(), getEffectiveDuration());
@@ -1235,11 +1270,14 @@ function updateRegionUI() {
 
 function updatePlayhead(current, duration) {
   if (!els.playhead || !duration) return;
-  const rect = els.waveformWrap?.getBoundingClientRect();
-  if (!rect || rect.width <= 0) return;
+  // [Claude] — 2026-10-09 — Appelée à chaque image : la largeur vient du ResizeObserver
+  // (getBoundingClientRect forçait un recalcul de mise en page de toute la fenêtre à chaque
+  // image, juste après l'écriture du temps affiché).
+  const width = waveformWidth || els.waveformWrap?.getBoundingClientRect().width || 0;
+  if (width <= 0) return;
   // ABSOLUTE TIMELINE : le curseur se déplace sur TOUTE la waveform globale.
   const pct = Math.max(0, Math.min(1, current / duration));
-  els.playhead.style.left = `${pct * rect.width}px`;
+  els.playhead.style.left = `${pct * width}px`;
 }
 
 function bindCropButtons() {

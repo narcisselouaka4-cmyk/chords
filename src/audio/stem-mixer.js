@@ -1,5 +1,5 @@
 import { resumeAudio } from './simple-synth.js';
-import { createPitchShifter } from './pitch-shifter.js';
+import { createPitchShifter, createPitchShifterNow } from './pitch-shifter.js';
 
 const STEMS = ['bass', 'drums', 'vocals', 'other', 'piano'];
 
@@ -147,19 +147,42 @@ export function createStemMixer(sharedAudioCtx = null, readAudioFn = null) {
     bus.connect(destination);
   }
 
-  /** Bus → SoundTouch si on transpose, sinon directement vers la sortie (aucun calcul). */
-  function routeBus() {
-    if (!bus) return;
-    const wantShifter = currentPitch !== 0 && !!pitchShifter;
-    if (wantShifter === busThroughShifter) return;
+  /**
+   * Bus → SoundTouch dès qu'on a transposé, sinon directement vers la sortie (aucun calcul).
+   * [Claude] — 2026-10-09 — Une fois branché, SoundTouch le reste (même revenu à 0) jusqu'au
+   * prochain morceau : changer de transposition n'est alors qu'un `setPitch()`, en direct, sans
+   * relancer les pistes (CLAUDE.md §5). Chaque bascule de branchement, elle, relance les pistes.
+   * `force` : débrancher quoi qu'il arrive (changement de morceau).
+   * @returns {boolean} le branchement a changé
+   */
+  function routeBus(force = false) {
+    if (!bus) return false;
+    const wantShifter = !force && !!pitchShifter && (currentPitch !== 0 || busThroughShifter);
+    if (wantShifter === busThroughShifter) return false;
     try { bus.disconnect(); } catch (_) {}
-    if (wantShifter) {
-      pitchShifter.clear?.();
-      bus.connect(pitchShifter.node);
-    } else {
-      bus.connect(destination);
-    }
+    bus.connect(wantShifter ? pitchShifter.node : destination);
     busThroughShifter = wantShifter;
+    return true;
+  }
+
+  /**
+   * Remplace SoundTouch par un nœud neuf (tampons vides). Appelé à chaque relance des pistes :
+   * sans cela, ~0,13 s de l'ancienne position ressortait après un saut ou une transposition,
+   * avec un retard variable — l'image se recalait, on croyait que « ça accélère puis ralentit ».
+   */
+  function freshShifter() {
+    if (!pitchShifter || !busThroughShifter) return;
+    let next;
+    try {
+      next = createPitchShifterNow(audioCtx, destination, currentPitch);
+    } catch (err) {
+      console.warn('[StemMixer] nouveau pitch-shifter impossible, on garde l\'ancien :', err);
+      return;
+    }
+    try { bus.disconnect(); } catch (_) {}
+    bus.connect(next.node);
+    pitchShifter.disconnect();
+    pitchShifter = next;
   }
 
   function disconnectSources() {
@@ -243,21 +266,23 @@ export function createStemMixer(sharedAudioCtx = null, readAudioFn = null) {
 
     disconnectSources();
 
-    const now = audioCtx.currentTime;
-    for (const stem of Object.keys(gains)) {
-      gains[stem].gain.cancelScheduledValues(now);
-      gains[stem].gain.setValueAtTime(0, now);
-    }
+    freshShifter();
 
     // Toutes les pistes démarrent au même instant de l'horloge audio (léger délai pour que les
-    // cinq départs tombent dans le même bloc).
-    const startAt = audioCtx.currentTime + 0.01;
+    // cinq départs tombent dans le même bloc). Le volume remonte depuis 0 à partir de cet
+    // instant, programmé sur l'horloge audio (avant : un setTimeout de 30 ms, qui glissait quand
+    // le processeur était chargé).
+    const now = audioCtx.currentTime;
+    const startAt = now + 0.01;
+    for (const stem of Object.keys(gains)) {
+      const param = gains[stem].gain;
+      param.cancelScheduledValues(now);
+      param.setValueAtTime(0, now);
+      param.setTargetAtTime(computeGain(stem), startAt, 0.01);
+    }
     for (const stem of Object.keys(buffers)) {
       sourceNodes[stem] = createSourceForStem(stem, startOffset, startAt);
     }
-
-    // Ramp up après un court délai pour synchroniser les stems.
-    setTimeout(() => applyState(0.05), 30);
     startProgress();
   }
 
@@ -283,7 +308,8 @@ export function createStemMixer(sharedAudioCtx = null, readAudioFn = null) {
     }
     // Le bus et le pitch-shifter unique sont gardés : ils resservent au morceau suivant.
     currentPitch = 0;
-    routeBus();
+    pitchShifter?.setPitch(0);
+    routeBus(true);
     buffers = {};
     sourceNodes = {};
     gains = {};
@@ -319,19 +345,26 @@ export function createStemMixer(sharedAudioCtx = null, readAudioFn = null) {
   }
 
   function setDetune(semitones) {
-    // Mémoriser la position exacte avant de changer le pitch pour rester synchrone.
-    if (isPlaying) {
-      currentTime = getCurrentTime();
-    }
+    // Position entendue AVANT un éventuel changement de branchement (le retard en dépend).
+    const heard = isPlaying ? getCurrentTime() : currentTime;
     currentPitch = semitones;
     pitchShifter?.setPitch(semitones);
-    routeBus();
-
-    // Si on est en lecture, recréer les sources pour qu'elles démarrent à la
-    // position actuelle avec le nouveau pitch (évite la dérive temporelle).
-    if (isPlaying) {
-      play(currentTime);
+    // SoundTouch déjà branché : la hauteur change en direct (tempo verrouillé à 1, la position ne
+    // bouge pas) — rien à relancer. Seule la première transposition branche SoundTouch : on
+    // relance alors les pistes depuis la position entendue.
+    if (routeBus() && isPlaying) {
+      play(heard);
     }
+  }
+
+  /**
+   * Secondes avant que le son relancé ne soit entendu (départ programmé + retard de SoundTouch
+   * neuf). La vidéo attend ce délai au lieu de partir devant puis d'être recalée.
+   */
+  function getWarmupRemaining() {
+    if (!audioCtx || !isPlaying) return 0;
+    const latency = busThroughShifter ? PITCH_SHIFTER_LATENCY : 0;
+    return Math.max(0, playStartCtxTime + latency - audioCtx.currentTime);
   }
 
   function startProgress() {
@@ -365,6 +398,7 @@ export function createStemMixer(sharedAudioCtx = null, readAudioFn = null) {
     getDuration,
     hasStems,
     setDetune,
+    getWarmupRemaining,
     setOnProgress: (cb) => { onProgress = cb; },
     get loadedStems() { return Object.keys(buffers); },
     getState: () => state,

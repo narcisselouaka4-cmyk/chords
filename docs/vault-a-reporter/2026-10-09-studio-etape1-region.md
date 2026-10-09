@@ -191,3 +191,37 @@ sont durs à attraper, surtout au tout début : une mini-flèche au-dessus de la
 - **Non vérifiable ici** : la fluidité ressentie sur sa machine avec de vraies pistes Demucs.
 - **À vérifier sur sa machine** : étape 3, lecture longue à 0 puis à +2 : plus de hachures,
   image et voix en phase ; thème clair : trait visible ; tirer la flèche ▼ au tout début.
+
+## 10. Micro-latences lors des changements brusques (transposer et déplacer la lecture en pleine musique)
+- **Ses indications** : les micro-latences arrivent surtout quand il transpose ET déplace le
+  lecteur en pleine lecture ; pause puis lecture remet tout d'aplomb ; parfois la vidéo « bugue »
+  puis accélère un instant pour rattraper, et ralentit. Son hypothèse : le processeur.
+- **Causes trouvées** (en plus du §9) :
+  1. **Restes de SoundTouch** : `clear()` appelé par notre code n'existe pas dans
+     @soundtouchjs/audio-worklet 2.x (aucun message de vidage non plus). Après un saut ou une
+     transposition, l'ancien nœud rejouait ~0,13 s de l'ancienne position, avec un retard
+     variable ; l'horloge supposait 0,135 s → l'image se recalait (« accélère puis ralentit »).
+     Pause + Play « réparait » car le tampon avait eu le temps de se vider.
+  2. **Chaque transposition relançait toutes les pistes** (`setDetune` → `play()`), alors que
+     SoundTouch change de hauteur en direct (tempo verrouillé à 1).
+  3. **Glisser la barre de lecture** déclenchait un saut à chaque évènement `input` (des dizaines
+     par seconde) : relance des 5 pistes + saut vidéo à chaque fois.
+  4. Volume remonté après chaque relance par un `setTimeout(30 ms)`, qui glisse sous charge ;
+     `getBoundingClientRect()` à chaque image (recalcul de mise en page de toute la fenêtre).
+- **Correctif** :
+  - `pitch-shifter.js` : `createPitchShifterNow()` (synchrone, processeur déjà enregistré) ;
+  - `stem-mixer.js` : SoundTouch reste branché une fois la première transposition faite →
+    `setPitch()` seul ensuite ; SoundTouch neuf à chaque relance (`freshShifter`) ; volume
+    remonté par automation sur l'horloge audio ; `getWarmupRemaining()` ;
+  - `studio-tab.js` : la vidéo attend, sur la bonne image, que le son relancé soit audible ;
+    barre de lecture : affichage seul pendant le glisser, un seul saut au lâcher ; largeur de la
+    waveform tenue par le ResizeObserver.
+- **Vérifié dans Chromium** (5 pistes synthétiques, note qui change à 5 s) : 441 → 877 Hz (+12,
+  démarrage 0,145 s) → 587 Hz (+5 en direct : aucune relance, horloge continue) → saut à 6 s :
+  silence net à 60 ms (aucun reste de l'ancien son) puis 883 Hz → retour à 0 : 662 Hz en < 0,3 s.
+  Piège de mesure : un AnalyserNode lisse entre deux lectures (`smoothingTimeConstant` 0,8), ce
+  qui avait fait croire à un retard de 0,6 s ; mesurer avec un lissage à 0.
+- **Le processeur** : il joue (décodage vidéo + SoundTouch sur sa machine), mais les causes
+  ci-dessus produisaient les symptômes même sur une machine rapide.
+- **À vérifier sur sa machine** : en pleine lecture, transposer plusieurs fois de suite, puis
+  glisser la barre et lâcher : pas de hachure, pas d'image qui accélère.
