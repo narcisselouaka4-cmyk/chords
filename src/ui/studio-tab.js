@@ -851,30 +851,65 @@ function setCropControlsEnabled(enabled) {
   console.log('[Studio] separate enabled:', enabled);
 }
 
+/**
+ * [Claude] — 2026-10-09 — Pendant le chargement d'un morceau ou le traitement d'une région, la
+ * région ne se touche pas (Narcisse : « pendant le traitement audio, les boutons Confirmer la
+ * région, Réinitialiser la région et Revenir à la timeline entière sont interactifs, ce qui
+ * n'est pas censé être le cas »). La barre de région passe au-dessus du voile de chargement.
+ */
+function regionLocked() {
+  return isLoadingTrack || isProcessing;
+}
+
 function updateCropButtons() {
   if (!els.confirmRegionBtn || !els.backRegionBtn) return;
+  const locked = regionLocked();
   if (regionConfirmed) {
     els.confirmRegionBtn.style.display = 'none';
     els.confirmRegionBtn.disabled = true;
     els.backRegionBtn.style.display = 'inline-flex';
   } else if (regionEnd !== null) {
     els.confirmRegionBtn.style.display = 'inline-flex';
-    els.confirmRegionBtn.disabled = false;
+    els.confirmRegionBtn.disabled = locked;
     els.backRegionBtn.style.display = 'none';
   } else {
     els.confirmRegionBtn.style.display = 'inline-flex';
     els.confirmRegionBtn.disabled = true;
     els.backRegionBtn.style.display = 'none';
   }
+  els.backRegionBtn.disabled = locked;
+  if (els.resetRegionBtn) els.resetRegionBtn.disabled = locked;
+}
+
+// [Claude] — 2026-10-09 — Narcisse : « pour tous les fichiers de moins de 5 min, pas besoin de
+// demander de sélectionner une région à travailler : que la séparation se fasse directement ».
+// Une seule tentative automatique par morceau et par séance : si elle échoue, l'étape 1 reste
+// (« Confirmer la région » relance), sans relancer plusieurs minutes de calcul à chaque ouverture.
+const autoSeparationTried = new Set();
+
+async function separateShortTrackDirectly(trackId) {
+  if (!currentTrack || currentTrack.id !== trackId || regionConfirmed || regionLocked()) return;
+  const total = getTotalDuration();
+  if (!(total > 0 && total <= MAX_REGION_DURATION) || autoSeparationTried.has(trackId)) return;
+  const stemPaths = await getStems(trackId);
+  if (Object.values(stemPaths || {}).some(Boolean)) return;
+  if (!currentTrack || currentTrack.id !== trackId) return;
+  autoSeparationTried.add(trackId);
+  regionStart = 0;
+  regionEnd = total;
+  renderWaveform();
+  updateRegionUI();
+  confirmRegion();
 }
 
 function confirmRegion() {
-  if (regionEnd === null) return;
+  if (regionEnd === null || regionLocked()) return;
   // Lancer le traitement asynchrone de la région (extraction + séparation en tâche de fond)
   startRegionProcessing();
 }
 
 async function backRegion() {
+  if (regionLocked()) return;
   regionConfirmed = false;
   // Revenir au mode fichier entier : les stems séparés ne sont plus la source active.
   // On arrête tout et on recharge le fichier original pour que le son suive la nouvelle région.
@@ -904,6 +939,7 @@ async function backRegion() {
 }
 
 async function resetRegion() {
+  if (regionLocked()) return;
   const totalDuration = getTotalDuration();
   regionStart = 0;
   // Réinitialiser la région à la plage maximale autorisée (5 min) par défaut,
@@ -1959,6 +1995,8 @@ function updateStudioStage(stage) {
     tab.classList.add(`stage-${stage}`);
   }
 
+  updateCropButtons();
+
   if (els.stageOverlay) {
     // Masquer les instructions de ciblage tant que le morceau n'est pas chargé :
     // montrer les consignes "écoutez + tracez" pendant l'extraction donnerait
@@ -2092,6 +2130,7 @@ async function startRegionProcessing() {
   const jobId = `job_${Date.now()}`;
   processingJobId = jobId;
   isProcessing = true;
+  updateCropButtons();
 
   try {
     // 1. Extraire la région audio (WAV) pour Demucs
@@ -2342,6 +2381,7 @@ export async function loadTrack(trackId) {
     await generateWaveformBlocking(wavPath, metadata?.originalPath);
 
     finishTrackLoading(trackName);
+    await separateShortTrackDirectly(trackId);
   } catch (err) {
     console.error('Failed to load track:', err);
     failTrackLoading(`Erreur de chargement : ${err.message}`);

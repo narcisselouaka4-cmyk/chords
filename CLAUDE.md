@@ -74,6 +74,10 @@ Le module Studio suit **obligatoirement** un workflow de 4 étapes.
 - L'utilisateur écoute le morceau et trace une région de **maximum 5 minutes** sur la waveform.
 - L'interface avancée (transpose, stems) est masquée / inactive.
 - Dès qu'une région est tracée, le curseur et la durée affichée se calent sur la région, pas sur le fichier entier.
+- *(changé le 09/10/2026)* Un morceau de **5 minutes ou moins** n'a pas d'étape 1 à faire : dès
+  la fin du chargement, la région devient le morceau entier et la séparation démarre seule
+  (une tentative automatique par morceau et par séance ; en cas d'échec, l'étape 1 reste).
+- Pendant le chargement et le traitement, les boutons de région (Confirmer, ↩, ↺) sont inactifs.
 
 ### Étape 2 : Traitement
 - Overlay plein écran avec loader, **limité à l'onglet Studio** (les onglets Analyse/Entraînement restent accessibles).

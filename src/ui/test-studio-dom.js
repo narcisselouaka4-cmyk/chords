@@ -186,6 +186,25 @@ function testConfirmedRegionWithoutStems() {
   console.log('✅ Région gardée — sans pistes, « Confirmer la région » revient');
 }
 
+// ── Test 9 : [Claude] — 2026-10-09 — région verrouillée pendant chargement / traitement ; séparation directe ≤ 5 min ──
+function testRegionLockAndShortTracks() {
+  const js = readText('src/ui/studio-tab.js');
+  const failures = [];
+  if (!js.includes('return isLoadingTrack || isProcessing;')) failures.push('pas de verrou de région');
+  if (!/els\.backRegionBtn\.disabled = locked;\s*if \(els\.resetRegionBtn\) els\.resetRegionBtn\.disabled = locked;/.test(js)) failures.push('« ↩ » et « ↺ » ne sont pas désactivés pendant le chargement / traitement');
+  for (const fn of ['function confirmRegion() {\n  if (regionEnd === null || regionLocked()) return;', 'async function backRegion() {\n  if (regionLocked()) return;', 'async function resetRegion() {\n  if (regionLocked()) return;']) {
+    if (!js.includes(fn)) failures.push(`garde absente : ${fn.split('(')[0]}`);
+  }
+  if (!/function updateStudioStage\(stage\) \{[\s\S]*?updateCropButtons\(\);/.test(js)) failures.push('les boutons ne suivent pas les changements d\'étape');
+  if (!/finishTrackLoading\(trackName\);\s*await separateShortTrackDirectly\(trackId\);/.test(js)
+    || !js.includes('if (!(total > 0 && total <= MAX_REGION_DURATION) || autoSeparationTried.has(trackId)) return;')) failures.push('pas de séparation directe pour un morceau de 5 min au plus');
+  if (failures.length) {
+    console.error(`❌ Région — ${failures.join(' ; ')}`);
+    process.exit(1);
+  }
+  console.log('✅ Région — verrouillée pendant chargement et traitement ; ≤ 5 min : séparation directe (une fois par séance)');
+}
+
 // ── Exécution ──
 console.log('=== Tests contrat DOM Studio ===\n');
 testDefaultFileContext();
@@ -196,4 +215,5 @@ testFailTrackLoadingResetsContext();
 testSeparationFailureIsNotFaked();
 testStageOverlayInPlayer();
 testConfirmedRegionWithoutStems();
+testRegionLockAndShortTracks();
 console.log('\n✅ Tous les tests DOM Studio passent.');
