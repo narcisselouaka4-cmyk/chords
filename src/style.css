@@ -1161,6 +1161,7 @@ input[type='color'] {
 .studio-tab.stage-0 .studio-center,
 .studio-tab.stage-0 .studio-player-wrap,
 .studio-tab.stage-0 .studio-waveform-wrap,
+.studio-tab.stage-0 .studio-handle-rail,
 .studio-tab.stage-0 .studio-region-bar,
 .studio-tab.stage-0 .studio-controls,
 .studio-tab.stage-0 .studio-sidebar.right,
@@ -1953,6 +1954,40 @@ body.studio-recording-cursor * {
 
 .studio-handle:hover {
   opacity: 1;
+}
+
+.studio-handle-rail {
+  position: relative;
+  flex: 0 0 auto;
+  height: 16px;
+  margin-top: 8px;
+  user-select: none;
+}
+
+/* Petite flèche ▼ posée au-dessus du début de la région. Zone de prise de 28 × 16 px. */
+.studio-handle-grip {
+  position: absolute;
+  top: 0;
+  width: 28px;
+  height: 16px;
+  transform: translateX(-50%);
+  cursor: ew-resize;
+}
+
+.studio-handle-grip::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 1px;
+  transform: translateX(-50%);
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 11px solid var(--accent);
+  transition: transform 0.12s ease;
+}
+
+.studio-handle-grip:hover::before {
+  transform: translateX(-50%) scale(1.2);
 }
 
 .studio-region-bar {

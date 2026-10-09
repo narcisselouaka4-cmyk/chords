@@ -82,6 +82,8 @@ Le module Studio suit **obligatoirement** un workflow de 4 étapes.
   déplacée), 3 s avant la fin pour le marqueur de fin.
 - « Revenir au début » (◀◀) ramène au début de la région dès qu'elle est tracée, et au début
   du morceau sinon.
+- Une petite flèche ▼ au-dessus de la waveform (`#studio-handle-grip-start`) attrape le marqueur
+  de début de région. Un double-clic sur la waveform ne réinitialise **plus** la région (↺ le fait).
 
 ### Étape 2 : Traitement
 - Overlay plein écran avec loader, **limité à l'onglet Studio** (les onglets Analyse/Entraînement restent accessibles).
@@ -152,6 +154,8 @@ La boucle `requestAnimationFrame` qui modifiait `video.playbackRate` causait un 
 ### Solution
 - La vidéo est calée explicitement sur le temps de l'AudioContext / SoundTouch.
 - On n'utilise **pas** `video.playbackRate` pour rattraper la dérive.
+- *(09/10/2026)* Recalage par `currentTime` seulement au-delà de 0,12 s de dérive, jamais pendant
+  un saut (`video.seeking`), au plus un toutes les 0,8 s : chaque recalage fige l'image.
 - Le curseur et le HTMLVideoElement suivent le temps courant du premier stem actif (ou du mix master).
 
 ---
@@ -168,6 +172,11 @@ La boucle `requestAnimationFrame` qui modifiait `video.playbackRate` causait un 
 - Éviter de recréer le nœud SoundTouch à chaque changement : utiliser `setPitch()`.
 - Nettoyer les buffers internes (`clear()` / `flush()`) seulement quand on change radicalement de source, pas à chaque pas de transposition.
 - À transposition 0, ne pas bypasser brutalement le graphe si cela casse la lecture en cours.
+- *(09/10/2026)* Étape 3 : **un seul** SoundTouch, sur le bus des pistes (pistes → volumes → bus),
+  branché seulement si la transposition est non nulle ; à 0 le bus va droit à la sortie. Le
+  rebranchement se fait au moment où les sources redémarrent (comme avant à chaque changement
+  de transposition). Cinq SoundTouch (un par piste) dépassaient le budget temps réel → son
+  haché. SoundTouch retarde le son de ~135 ms : `getCurrentTime()` du mixeur en tient compte.
 
 ---
 

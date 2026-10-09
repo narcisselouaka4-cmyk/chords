@@ -75,6 +75,10 @@ let playerAudio = null;
 let audioBlobUrl = null;
 let videoBlobUrl = null;
 let syncRafId = null;
+/** Vidéo : dérive tolérée avant un recalage (s), et délai minimal entre deux recalages (ms). */
+const VIDEO_DRIFT_TOLERANCE = 0.12;
+const VIDEO_RESYNC_COOLDOWN_MS = 800;
+let lastVideoResyncAt = 0;
 
 // AudioContext partagé pour le Studio (pitch-shift via MediaElementSourceNode)
 let studioAudioCtx = null;
@@ -148,6 +152,8 @@ const els = {
   playhead: document.getElementById('studio-playhead'),
   handleStart: document.getElementById('studio-handle-start'),
   handleEnd: document.getElementById('studio-handle-end'),
+  handleRail: document.getElementById('studio-handle-rail'),
+  gripStart: document.getElementById('studio-handle-grip-start'),
   regionInfo: document.getElementById('studio-region-info'),
   resetRegionBtn: document.getElementById('studio-reset-region'),
   confirmRegionBtn: document.getElementById('studio-confirm-region'),
@@ -798,8 +804,20 @@ function syncVideoAndCursor() {
 
       // On force un resync par currentTime si la dérive dépasse le seuil,
       // sinon on laisse la vidéo avancer à son propre rythme naturel.
-      if (absDrift > 0.15 || playerVideo.paused) {
-        playerVideo.currentTime = realTime;
+      // [Claude] — 2026-10-09 — « Micro-latences » de la vidéo : chaque recalage est un saut qui
+      // fige l'image le temps de décoder. Avant, on recalait à chaque image dès que la vidéo
+      // était en pause ou en train de sauter (seeking) — d'où des sauts en rafale, qui
+      // relançaient la dérive. Désormais : jamais pendant un saut, au plus un toutes les 0,8 s,
+      // et une vidéo arrêtée pendant la lecture est relancée au lieu d'être recalée en boucle.
+      const now = performance.now();
+      if (!playerVideo.seeking && now - lastVideoResyncAt > VIDEO_RESYNC_COOLDOWN_MS) {
+        if (absDrift > VIDEO_DRIFT_TOLERANCE) {
+          playerVideo.currentTime = realTime;
+          lastVideoResyncAt = now;
+        }
+        if (playerVideo.paused && isPlaying && !playerVideo.ended) {
+          playerVideo.play().catch(() => {});
+        }
       }
       // Garder playbackRate à 1.0 en permanence pour éviter toute dérive induite.
       if (playerVideo.playbackRate !== 1.0) {
@@ -1040,9 +1058,10 @@ function bindWaveform() {
     const startX = getHandleX(regionStart);
     const endX = regionEnd !== null ? getHandleX(regionEnd) : rect.width;
 
-    if (Math.abs(x - startX) < 10) {
+    // Zone de prise élargie (12 px de part et d'autre) : le marqueur est fin.
+    if (Math.abs(x - startX) < 12) {
       isDraggingHandle = 'start';
-    } else if (Math.abs(x - endX) < 10) {
+    } else if (Math.abs(x - endX) < 12) {
       isDraggingHandle = 'end';
     } else {
       isDraggingHandle = null;
@@ -1122,8 +1141,16 @@ function bindWaveform() {
     }
   });
 
-  wrap.addEventListener('dblclick', () => {
-    if (!regionConfirmed) resetRegion();
+  // [Claude] — 2026-10-09 — Plus de réinitialisation de la région au double-clic sur la waveform
+  // (Narcisse : « cela ne doit pas arriver ») ; le bouton ↺ reste là pour ça.
+
+  // Poignée du début de région, au-dessus de la waveform : un glisser qui commence dessus
+  // déplace le marqueur de début (même suite que le marqueur dans la waveform).
+  els.gripStart?.addEventListener('mousedown', (e) => {
+    if (regionLocked() || regionConfirmed || e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    isDraggingHandle = 'start';
   });
 
   // [Claude] — 2026-10-09 — Une waveform dessinée pendant que son cadre est caché (chargement)
@@ -1173,6 +1200,12 @@ function updateRegionUI() {
   els.region.style.left = `${startX}px`;
   els.region.style.width = `${Math.max(0, endX - startX)}px`;
 
+  if (els.gripStart) {
+    els.gripStart.style.display = regionConfirmed ? 'none' : '';
+    // Le rail a la largeur de la waveform ; on rattrape sa bordure (clientLeft). Au tout début,
+    // la flèche (16 px de large, centrée) serait à moitié coupée : on la garde entière.
+    els.gripStart.style.left = `${Math.max(8, startX + (els.waveformWrap.clientLeft || 0))}px`;
+  }
   if (regionConfirmed) {
     els.handleStart.style.display = 'none';
     els.handleEnd.style.display = 'none';
@@ -2052,6 +2085,8 @@ function updateStudioStage(stage) {
   const stage0 = stage === 0;
   if (els.playerWrap) els.playerWrap.style.display = stage0 ? 'none' : '';
   if (els.waveformWrap) els.waveformWrap.style.display = stage0 ? 'none' : '';
+  if (els.handleRail) els.handleRail.style.display = stage0 ? 'none' : '';
+  if (els.gripStart && (stage0 || regionConfirmed)) els.gripStart.style.display = 'none';
   if (els.regionInfo) els.regionInfo.style.display = stage0 ? 'none' : '';
   if (els.studioCenter) els.studioCenter.style.display = stage0 ? 'none' : '';
   if (els.centerHeader) els.centerHeader.style.display = stage0 ? 'none' : '';
@@ -2738,8 +2773,10 @@ export async function play() {
     // Convertir le temps absolu en temps local dans la région extraite.
     const localTime = Math.max(0, Math.min(getRegionDuration(), resumeTime - regionStart));
     mixer.seek(localTime);
-    mixer.play();
+    // [Claude] — 2026-10-09 — Transposition posée AVANT de lancer : avant, setDetune relançait
+    // aussitôt toutes les pistes (un deuxième départ, et un trou, à chaque Play).
     if (transpose !== 0) mixer.setDetune(transpose);
+    mixer.play();
   } else if (html5Audio) {
     // Le seek HTML5 audio est asynchrone : on attend explicitement avant de lancer play().
     html5Audio.volume = dbToGain(Number(els.volume?.value) || 0);

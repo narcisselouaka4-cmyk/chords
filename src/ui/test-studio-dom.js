@@ -272,6 +272,32 @@ function testCancelRegionProcessing() {
   console.log('✅ Traitement — « Annuler » arrête Demucs et revient à la sélection de région');
 }
 
+function testRegionGripPlayheadAndSmoothPlayback() {
+  const js = readText('src/ui/studio-tab.js');
+  const html = readText('src/index.html');
+  const css = readText('src/ui/refonte/studio.css');
+  const mixer = readText('src/audio/stem-mixer.js');
+  // 1. Plus de réinitialisation au double-clic sur la waveform.
+  const noDblclick = !/addEventListener\('dblclick'/.test(js);
+  // 2. Trait de lecture à la couleur du texte du thème (lisible en clair), en fin de feuille.
+  const playhead = /:root\[data-skin\] #studio-tab \.studio-playhead \{[^}]*background: var\(--r-text\);[^}]*opacity: 1;/.test(css)
+    && css.indexOf(':root[data-skin] #studio-tab .studio-playhead {') > css.indexOf(":root[data-skin='v2'] #studio-tab .studio-playhead");
+  // 3. Poignée du début de région au-dessus de la waveform.
+  const grip = /id="studio-handle-rail"[\s\S]*id="studio-handle-grip-start"[\s\S]*id="studio-waveform-wrap"/.test(html)
+    && /els\.gripStart\?\.addEventListener\('mousedown'[\s\S]*?isDraggingHandle = 'start';/.test(js);
+  // 4. Un seul SoundTouch, sur le bus, et seulement si on transpose ; horloge corrigée du retard.
+  const oneShifter = !/pitchShifters\[/.test(mixer) && /src\.connect\(gain\);/.test(mixer)
+    && /const wantShifter = currentPitch !== 0 && !!pitchShifter;/.test(mixer)
+    && /busThroughShifter \? PITCH_SHIFTER_LATENCY : 0/.test(mixer);
+  const video = /!playerVideo\.seeking && now - lastVideoResyncAt > VIDEO_RESYNC_COOLDOWN_MS/.test(js)
+    && /if \(transpose !== 0\) mixer\.setDetune\(transpose\);\s*mixer\.play\(\);/.test(js);
+  if (!noDblclick || !playhead || !grip || !oneShifter || !video) {
+    console.error('❌ Waveform / lecture fluide', { noDblclick, playhead, grip, oneShifter, video });
+    process.exit(1);
+  }
+  console.log('✅ Waveform : pas de double-clic, trait lisible, poignée du début ; lecture : un seul SoundTouch, vidéo sans recalages en rafale');
+}
+
 // ── Exécution ──
 console.log('=== Tests contrat DOM Studio ===\n');
 testDefaultFileContext();
@@ -286,4 +312,5 @@ testRegionLockAndShortTracks();
 testSeekOnMarkerRelease();
 testWaveformFromDecodedAudio();
 testCancelRegionProcessing();
+testRegionGripPlayheadAndSmoothPlayback();
 console.log('\n✅ Tous les tests DOM Studio passent.');

@@ -157,3 +157,37 @@ l'index PyTorch est bloqué depuis l'environnement de test.
 - **À vérifier sur sa machine** : confirmer une région, cliquer « Annuler » pendant la
   séparation → retour à l'étape 1 tout de suite, et plus de processus Python de Demucs actif
   (moniteur système).
+
+## 9. Waveform : double-clic, trait de lecture, poignée du début ; lecture fluide en étape 3
+**Ses demandes** : 1) le double-clic sur la waveform réinitialise la région, « cela ne doit pas
+arriver » ; 2) le trait de lecture blanc est quasi invisible en thème clair ; 3) les marqueurs
+sont durs à attraper, surtout au tout début : une mini-flèche au-dessus de la waveform ;
+4) après la séparation, « micro-latences par-ci, par-là » (vidéo, voix, audio).
+
+- **1** : le gestionnaire `dblclick` est retiré ; ↺ reste le seul moyen de réinitialiser.
+- **2** : le trait prend `var(--r-text)` (presque blanc en sombre, presque noir en clair), 2 px,
+  pleine opacité, liseré de la couleur de fond (avant : `#fff` à 0,8 dans les deux skins).
+- **3** : `#studio-handle-rail` + `#studio-handle-grip-start` (flèche ▼, zone de prise 28 × 16 px)
+  entre la vidéo et la waveform ; elle suit le début de la région (gardée entière au bord gauche)
+  et se cache une fois la région confirmée. Zone de prise des marqueurs dans la waveform : 12 px.
+- **4 — cause mesurée** :
+  - le mixeur mettait **un SoundTouch par piste** (5 AudioWorklets), même à transposition 0 ;
+  - simulation du processeur hors navigateur : pire bloc ≈ 0,68 ms par nœud ; les 5 pistes
+    démarrent ensemble, leurs pics tombent au même bloc ≈ 3,4 ms pour un budget de 2,9 ms
+    (128 échantillons à 44,1 kHz) → le rendu audio décroche. Sur sa machine, plus lente, pire ;
+  - SoundTouch retarde le son de 128 à 142 ms : la vidéo, calée sur l'horloge, passait devant ;
+  - la vidéo était recalée à chaque image tant qu'elle était en pause/en saut → sauts en rafale ;
+  - `play()` relançait toutes les pistes une deuxième fois quand une transposition était active.
+- **Correctif** :
+  - `stem-mixer.js` : pistes → volumes → bus → (SoundTouch unique si transposition ≠ 0, sinon
+    sortie directe). Horloge corrigée de `PITCH_SHIFTER_LATENCY` (0,135 s) quand SoundTouch est
+    branché. Départ des 5 pistes à la même heure audio (+10 ms) ;
+  - `studio-tab.js` : recalage vidéo seulement si dérive > 0,12 s, jamais pendant `seeking`, au
+    plus toutes les 0,8 s ; vidéo arrêtée pendant la lecture → relancée ; transposition posée
+    avant `mixer.play()`.
+- **Vérifié** dans Chromium (page de test, 5 pistes synthétiques) : 441 Hz à 0, 877 Hz à +12 en
+  cours de lecture, retour à 441 Hz, mute OK, horloge qui avance. Captures du trait et de la
+  flèche en sombre et en clair. `test-studio-dom.js` : un contrôle de plus.
+- **Non vérifiable ici** : la fluidité ressentie sur sa machine avec de vraies pistes Demucs.
+- **À vérifier sur sa machine** : étape 3, lecture longue à 0 puis à +2 : plus de hachures,
+  image et voix en phase ; thème clair : trait visible ; tirer la flèche ▼ au tout début.

@@ -1599,3 +1599,31 @@
 }
 
 #studio-tab.stage-0 .studio-collapse-tab { display: none; }
+
+/* [Claude] — 2026-10-09 — Trait de lecture : blanc en dur (#fff, opacité 0,8), il disparaissait
+   en thème clair sur la surface claire. Il prend la couleur du texte du thème (presque blanc en
+   sombre, presque noir en clair), à pleine opacité, sur 2 px, avec un liseré de la couleur de
+   fond pour se détacher de la forme d'onde. Placé en fin de feuille : même spécificité que les
+   règles de skin, il les remplace. */
+:root[data-skin] #studio-tab .studio-playhead {
+  width: 2px;
+  margin-left: -1px;
+  background: var(--r-text);
+  opacity: 1;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--r-surface) 75%, transparent);
+  z-index: 2;
+}
+
+/* Poignée du début de région (au-dessus de la waveform), aux couleurs du skin. */
+:root[data-skin] #studio-tab .studio-handle-rail {
+  margin-top: 6px;
+}
+:root[data-skin] #studio-tab .studio-handle-rail + .studio-waveform-wrap {
+  margin-top: 2px;
+}
+:root[data-skin='global'] #studio-tab .studio-handle-grip::before {
+  border-top-color: var(--r-waveform-global);
+}
+:root[data-skin='v2'] #studio-tab .studio-handle-grip::before {
+  border-top-color: var(--r-waveform-v2);
+}
