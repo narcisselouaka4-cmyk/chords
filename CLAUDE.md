@@ -80,6 +80,8 @@ Le module Studio suit **obligatoirement** un workflow de 4 étapes.
 - Pendant le chargement et le traitement, les boutons de région (Confirmer, ↩, ↺) sont inactifs.
 - Au lâcher d'un marqueur de région, la lecture s'y place : début de la région (ou région
   déplacée), 3 s avant la fin pour le marqueur de fin.
+- « Revenir au début » (◀◀) ramène au début de la région dès qu'elle est tracée, et au début
+  du morceau sinon.
 
 ### Étape 2 : Traitement
 - Overlay plein écran avec loader, **limité à l'onglet Studio** (les onglets Analyse/Entraînement restent accessibles).

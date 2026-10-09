@@ -310,7 +310,9 @@ function bindPlayer() {
   els.stopBtn?.addEventListener('click', () => stop());
 
   els.prevBtn?.addEventListener('click', () => {
-    const target = regionConfirmed ? regionStart : 0;
+    // [Claude] — 2026-10-09 — « affecte aussi le bouton "Revenir au début" » : comme au lâcher
+    // d'un marqueur, dès qu'une région est tracée (confirmée ou non), on revient à son début.
+    const target = regionEnd !== null ? regionStart : 0;
     seek(target);
     updateProgressUI(target, getEffectiveDuration());
     updatePlayhead(target, getEffectiveDuration());

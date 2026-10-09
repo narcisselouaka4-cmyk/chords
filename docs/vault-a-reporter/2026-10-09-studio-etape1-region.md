@@ -101,3 +101,13 @@ l'index PyTorch est bloqué depuis l'environnement de test.
 - CLAUDE.md §2 (étape 1) est complété. `test-studio-dom.js` a un contrôle de plus.
 - **À vérifier sur sa machine** : tirer chaque marqueur et lâcher. Le curseur et la vidéo
   doivent aller au bon endroit.
+
+## 6. Ajout — « Revenir au début » va au début de la région
+- **Sa demande** : « Affecte aussi le bouton "Revenir au début". »
+- **Avant** : ◀◀ ramenait au début de la région seulement une fois la région confirmée ; à
+  l'étape 1, il ramenait au début du morceau.
+- **Fait** (`studio-tab.js`) : dès qu'une région est tracée, confirmée ou non, ◀◀ ramène à son
+  début ; sans région, au début du morceau.
+- CLAUDE.md §2 (étape 1) est complété. `test-studio-dom.js` a un contrôle de plus.
+- **À vérifier sur sa machine** : tracer une région, avancer la lecture, cliquer ◀◀ : le
+  curseur et la vidéo reviennent au marqueur de début.

@@ -215,6 +215,14 @@ function testSeekOnMarkerRelease() {
     process.exit(1);
   }
   console.log('✅ Région — marqueur lâché : la lecture se place au début de la région (fin : 3 s avant)');
+
+  // « Revenir au début » (◀◀) : début de la région dès qu'elle est tracée, pas seulement confirmée.
+  const prev = js.slice(js.indexOf("els.prevBtn?.addEventListener('click'"), js.indexOf("els.resetRegionBtn?.addEventListener('click'"));
+  if (!/const target = regionEnd !== null \? regionStart : 0;/.test(prev)) {
+    console.error('❌ Région — « Revenir au début » doit aller au début de la région tracée');
+    process.exit(1);
+  }
+  console.log('✅ Région — « Revenir au début » va au début de la région tracée');
 }
 
 // ── Exécution ──
