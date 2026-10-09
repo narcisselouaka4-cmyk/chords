@@ -1334,10 +1334,11 @@ function renderTimeline(chords, duration) {
       ${isOverridden ? '<span class="override-icon" title="Corrigé manuellement">✏</span>' : ''}
     `;
 
-    // Clic simple : sélection + mise à jour de l'inspecteur.
+    // Clic simple : sélection + mise à jour de l'inspecteur, et la lecture se place sur l'accord.
     // Double-clic : édition.
     block.addEventListener('click', () => {
       selectSegment(chord.segmentId);
+      seekToSegment(chord);
       block.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
     });
     block.addEventListener('keydown', (e) => {
@@ -1570,6 +1571,23 @@ function seekFromPointerEvent(e) {
   const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
   const duration = currentPlayer.getDuration?.() || currentAnalysis?.duration || 1;
   currentPlayer.seek(ratio * duration);
+}
+
+/**
+ * [Claude] — 2026-10-09 — Narcisse : « quand on fait un clic gauche sur une étiquette d'accord,
+ * que les lecteurs reviennent à cet accord-là ». La lecture se place au début de l'accord : en
+ * cours de lecture, elle continue de là ; en pause, elle y reste. Le curseur, la frise et la
+ * carte « Accord à l'écoute » suivent aussitôt.
+ */
+function seekToSegment(segment) {
+  const el = currentPlayer?.element;
+  if (!el || !segment || !Number.isFinite(segment.startTime)) return;
+  const duration = currentPlayer.getDuration?.() || currentAnalysis?.duration || 0;
+  const target = Math.max(0, Math.min(segment.startTime, Math.max(duration - 0.05, 0)));
+  // Écrit directement sur l'élément : `seek()` du lecteur borne par audio.duration, qui vaut
+  // NaN tant que les métadonnées ne sont pas lues (la lecture retombait alors à 0).
+  el.currentTime = target;
+  updatePlaybackPosition(target);
 }
 
 /**
@@ -2253,6 +2271,7 @@ function renderOverview(analysis) {
         t.setAttribute('aria-selected', String(active));
       });
       selectSegment(id);
+      seekToSegment(getDisplayChords().find((s) => s.segmentId === id));
       els.chordTimelineInner
         ?.querySelector(`.analyzer-timeline-block[data-segment-id="${CSS.escape(id)}"]`)
         ?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });

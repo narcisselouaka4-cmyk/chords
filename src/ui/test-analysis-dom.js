@@ -8,6 +8,7 @@
 import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { miniKeyboardForNotes } from './mini-keyboard.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(__dirname, '..', '..');
@@ -121,6 +122,36 @@ function testStateMapping() {
   console.log('✅ Mapping — Chaque état correspond à un élément analyzer-state dans le DOM');
 }
 
+// ── Test 6 : mini-clavier — chaque SVG a ses propres dégradés ──
+// [Claude] — 2026-10-09 — Les mini-claviers partageaient les mêmes id de dégradés : `url(#id)`
+// renvoyait au premier de la page, souvent caché, et la carte « Accord à l'écoute » s'affichait
+// sans touches noires ni notes colorées.
+function testMiniKeyboardGradientIds() {
+  const a = miniKeyboardForNotes([62, 65, 67, 71]).svg;
+  const b = miniKeyboardForNotes([60, 64, 67]).svg;
+  const ids = (svg) => [...svg.matchAll(/<linearGradient id="([^"]+)"/g)].map((m) => m[1]);
+  const refs = (svg) => [...new Set([...svg.matchAll(/url\(#([^)]+)\)/g)].map((m) => m[1]))];
+  const shared = ids(a).filter((id) => ids(b).includes(id));
+  const dangling = [a, b].some((svg) => refs(svg).some((r) => !ids(svg).includes(r)));
+  if (shared.length || dangling || !ids(a).length) {
+    console.error('❌ Mini-clavier — dégradés partagés entre SVG ou renvois vers un autre SVG', { shared, dangling });
+    process.exit(1);
+  }
+  console.log('✅ Mini-clavier — chaque SVG porte et utilise ses propres dégradés');
+}
+
+// ── Test 7 : un clic sur une étiquette d'accord place la lecture sur cet accord ──
+function testChordLabelSeeks() {
+  const js = readText('src/ui/analyzer-tab.js');
+  const click = /block\.addEventListener\('click', \(\) => \{\s*selectSegment\(chord\.segmentId\);\s*seekToSegment\(chord\);/.test(js);
+  const fn = /function seekToSegment\(segment\) \{[\s\S]*?el\.currentTime = target;\s*updatePlaybackPosition\(target\);/.test(js);
+  if (!click || !fn) {
+    console.error('❌ Frise — le clic sur une étiquette doit placer la lecture au début de l’accord', { click, fn });
+    process.exit(1);
+  }
+  console.log('✅ Frise — un clic sur une étiquette place la lecture au début de l’accord');
+}
+
 // ── Exécution ──
 console.log('=== Tests contrat DOM Analyse ===\n');
 testNoInlineDisplayNone();
@@ -128,4 +159,6 @@ testCssRules();
 testStateElementIds();
 testSidebarIds();
 testStateMapping();
+testMiniKeyboardGradientIds();
+testChordLabelSeeks();
 console.log('\n✅ Tous les tests DOM Analyse passent.');

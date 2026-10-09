@@ -1081,7 +1081,19 @@
   letter-spacing: .02em;
   white-space: pre-wrap;
 }
-#analyzer-hero-keyboard.an-piano-stage svg { width: 100%; height: auto; display: block; }
+/* [Claude] — 2026-10-09 — Le SVG prenait toute la largeur de la carte (≈ 720 px pour deux
+   octaves → plus de 200 px de haut) et sortait de la carte par le bas. Il est borné et centré,
+   avec une ombre douce pour se détacher du fond. */
+#analyzer-hero-keyboard.an-piano-stage { padding: 4px 16px 12px; }
+#analyzer-hero-keyboard.an-piano-stage svg {
+  width: 100%;
+  max-width: 440px;
+  max-height: 132px;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.28));
+}
 
 /* Grille clé/valeur de l'inspecteur (spans .label / .value en paires). */
 #analyzer-inspector-details.an-meta-grid {

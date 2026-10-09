@@ -52,19 +52,29 @@ function blackKeyX(midi, startMidi) {
   return baseX + offsets[pc];
 }
 
-// Dégradés partagés (identiques dans chaque SVG : un id répété désigne le même rendu).
+// Dégradés des touches.
+// [Claude] — 2026-10-09 — Narcisse : le mini-clavier de « Accord à l'écoute » (Analyse) était
+// « totalement cassé » : touches noires transparentes, notes jouées sans couleur. Les dégradés
+// portaient les MÊMES id dans tous les mini-claviers de la page (« un id répété désigne le même
+// rendu », pensait-on). Mais `url(#id)` désigne le PREMIER élément de ce nom dans le document ;
+// quand ce premier mini-clavier est dans un panneau caché (display:none), Chromium ne peint pas
+// le dégradé, et toutes les touches qui y renvoient restent vides. Chaque SVG a donc ses propres
+// id (suffixe unique).
 const vertical = (id, top, bottom) => `<linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${top}"/><stop offset="1" stop-color="${bottom}"/></linearGradient>`;
 const horizontal = (id, left, right) => `<linearGradient id="${id}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${left}"/><stop offset="0.8" stop-color="${right}"/></linearGradient>`;
-const GRADIENTS = `<defs>${[
-  vertical('mk-off-w', '#fdfcfe', '#f0edf3'),
-  horizontal('mk-off-b', '#3f3c43', '#212027'),
-  vertical('mk-on-w', '#c2a5fa', '#a583e2'),
-  horizontal('mk-on-b', '#a082da', '#705095'),
-  vertical('mk-rh-w', '#bfe6d8', '#8ccdb7'),
-  horizontal('mk-rh-b', '#7fc4ad', '#4f8f7a'),
-  vertical('mk-add-w', '#f6ddb0', '#e8b86a'),
-  horizontal('mk-add-b', '#e0aa55', '#a8742a'),
-].join('')}</defs>`;
+let gradientSerial = 0;
+function gradients(suffix) {
+  return `<defs>${[
+    vertical(`mk-off-w${suffix}`, '#fdfcfe', '#f0edf3'),
+    horizontal(`mk-off-b${suffix}`, '#3f3c43', '#212027'),
+    vertical(`mk-on-w${suffix}`, '#c2a5fa', '#a583e2'),
+    horizontal(`mk-on-b${suffix}`, '#a082da', '#705095'),
+    vertical(`mk-rh-w${suffix}`, '#bfe6d8', '#8ccdb7'),
+    horizontal(`mk-rh-b${suffix}`, '#7fc4ad', '#4f8f7a'),
+    vertical(`mk-add-w${suffix}`, '#f6ddb0', '#e8b86a'),
+    horizontal(`mk-add-b${suffix}`, '#e0aa55', '#a8742a'),
+  ].join('')}</defs>`;
+}
 
 export function generateMiniKeyboard(activeNotes = [], options = {}) {
   const start = options.startMidi ?? START_MIDI;
@@ -112,7 +122,8 @@ export function generateMiniKeyboard(activeNotes = [], options = {}) {
     if (rightHandSet.has(midi)) return 'rh';
     return 'on'; // main gauche, ou note jouée sans main précisée
   }
-  const fillOf = (midi) => `url(#mk-${tone(midi)}-${isBlackKey(midi) ? 'b' : 'w'})`;
+  const suffix = `-${++gradientSerial}`;
+  const fillOf = (midi) => `url(#mk-${tone(midi)}-${isBlackKey(midi) ? 'b' : 'w'}${suffix})`;
   const STROKES = {
     w: { off: '#bdb7c5', on: '#8f6fe0', rh: '#5fa892', add: '#c8923f' },
     b: { off: '#141318', on: '#5c437c', rh: '#3e8b74', add: '#9a6a22' },
@@ -136,7 +147,7 @@ export function generateMiniKeyboard(activeNotes = [], options = {}) {
     markup += `<rect class="${activeClasses(midi)}" data-midi="${midi}" x="${x}" y="-1" width="${BLACK_WIDTH}" height="${BLACK_HEIGHT}" rx="${BLACK_RADIUS}" fill="${fillOf(midi)}" stroke="${STROKES.b[tone(midi)]}" stroke-width="0.8"${title}/>`;
   }
 
-  const svg = `\n<svg class="mini-keyboard" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">${GRADIENTS}${markup}</svg>\n`;
+  const svg = `\n<svg class="mini-keyboard" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">${gradients(suffix)}${markup}</svg>\n`;
   const noteNames = activeNotes
     .filter((n) => typeof n === 'number')
     .sort((a, b) => a - b)
