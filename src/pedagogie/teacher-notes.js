@@ -16,6 +16,7 @@
 // au clavier. Module pur (testé en Node).
 
 import { frenchNoteName } from './example-guide.js';
+import { shapeDynamics } from './dynamics.js';
 import { buildNotesExample } from './copilot-demo.js';
 import { parseChordName } from './note-roles.js';
 
@@ -240,6 +241,27 @@ const APPROACH_OVERLAP = 0.06;
 const PEDAL_SHORTEST_MS = 300;
 /** Ce que la pédale faisait sonner est tenu au doigt jusqu'un peu après sa reprise (en ms). */
 const PEDAL_CATCH_MS = 50;
+// [Claude] — 2026-10-09 — Narcisse : « il y a deux types de grace notes : d'un ton (ré → mi) et
+// d'un demi-ton (mi♭ → mi, ou ré – mi♭ – mi) ; Copilot gère ça beaucoup trop mal ». Celle d'un
+// ton n'était pas reconnue. Mais un ton, c'est aussi le pas d'une gamme : on ne la retient que si
+// elle est très brève et que sa note d'arrivée est TENUE (une gamme rapide ne tient aucune note).
+/** Grace note d'un ton : 0,2 s au plus… */
+const WHOLE_TONE_GRACE_SECONDS = 0.2;
+/** … et sa note d'arrivée tenue 0,35 s au moins, et 2,5 fois plus longtemps qu'elle (sur « L'Éternel
+ * est bon », Fa5 → Sol5 tenu 0,25 s à 0:29,6 est une ligne qui monte, pas une grace note). */
+const WHOLE_TONE_TARGET_SECONDS = 0.35;
+const WHOLE_TONE_TARGET_RATIO = 2.5;
+// [Claude] — 2026-10-09 — Les runs rapides sous la pédale : Narcisse, « Gospel Piano Harmony
+// Secrets » 0:09–0:23, un lick qui descend de l'octave 5 à l'octave 2, archi rapide. Pédale
+// enfoncée, ses 20 notes sonnaient toutes ensemble jusqu'au prochain accord. Un run de la même
+// main (5 notes au moins, qui se suivent à 0,15 s au plus, brèves, dans un même sens) est traité
+// comme une figure d'approche : la pédale se relève pendant le run et se reprend à sa dernière
+// note ; la basse et l'accord restent tenus au doigt (pedalAfterApproaches).
+const RUN_MIN_NOTES = 5;
+const RUN_MAX_STEP = 0.15;
+const RUN_NOTE_SECONDS = 0.25;
+/** Note la plus brève rejouée (s) : 0,12 s faisait se chevaucher les notes d'un run rapide. */
+const SHORTEST_NOTE = 0.05;
 
 /**
  * Les notes d'approche d'un passage : une note brève (0,3 s au plus) qui mène, à un demi-ton
@@ -258,6 +280,14 @@ export function approachNotes(notes) {
     .sort((a, b) => a.start - b.start || a.midi - b.midi);
   const endOf = (n) => (Number.isFinite(n.end) ? n.end : n.start + 0.25);
   const brief = (n) => endOf(n) - n.start <= APPROACH_SECONDS + 1e-9;
+  const length = (n) => endOf(n) - n.start;
+  // Vers sa note d'arrivée : un demi-ton ; ou un ton, note très brève et arrivée tenue.
+  const step = (n, m) => {
+    const d = Math.abs(m.midi - n.midi);
+    if (d === 1) return true;
+    return d === 2 && length(n) <= WHOLE_TONE_GRACE_SECONDS + 1e-9
+      && length(m) >= Math.max(WHOLE_TONE_TARGET_SECONDS, WHOLE_TONE_TARGET_RATIO * length(n)) - 1e-9;
+  };
   const found = new Set();
   for (let i = 0; i < list.length; i += 1) {
     const n = list[i];
@@ -272,15 +302,49 @@ export function approachNotes(notes) {
       const m = list[j];
       if (m.hand !== n.hand) continue;
       if (m.start - n.start <= TOGETHER) together.push(m);
-      else if (Math.abs(m.midi - n.midi) === 1 && endOf(n) <= m.start + APPROACH_OVERLAP) leads = true;
+      else if (step(n, m) && endOf(n) <= m.start + APPROACH_OVERLAP) leads = true;
     }
-    const crushed = together.some((m) => Math.abs(m.midi - n.midi) === 1 && !brief(m) && endOf(m) > endOf(n));
+    const crushed = together.some((m) => step(n, m) && !brief(m) && endOf(m) > endOf(n));
     const cluster = [n, ...together].sort((a, b) => a.midi - b.midi);
     const chromaticCluster = cluster.length >= 2 && cluster.every(brief)
       && cluster.every((m, k) => k === 0 || m.midi - cluster[k - 1].midi === 1);
     if (leads || crushed || chromaticCluster) found.add(n);
   }
+  for (const n of runNotes(list)) found.add(n);
   return found;
+}
+
+/**
+ * Les notes d'un run rapide, sauf la dernière (voir RUN_MIN_NOTES) : notes seules de leur main
+ * (rien d'autre de cette main attaqué avec elles), brèves, qui se suivent à RUN_MAX_STEP au plus,
+ * et vont pour la plupart dans le même sens.
+ * @param {object[]} list - notes triées
+ * @returns {object[]}
+ */
+export function runNotes(list) {
+  const out = [];
+  for (const hand of [...new Set(list.map((n) => n.hand))]) {
+    const mine = list.filter((n) => n.hand === hand);
+    const alone = mine.filter((n, i) => !mine.some((m, j) => j !== i && Math.abs(m.start - n.start) <= TOGETHER));
+    const short = (n) => (Number.isFinite(n.end) ? n.end : n.start + 0.25) - n.start <= RUN_NOTE_SECONDS + 1e-9;
+    let k = 0;
+    while (k < alone.length) {
+      let j = k;
+      while (j + 1 < alone.length && alone[j + 1].start - alone[j].start <= RUN_MAX_STEP && short(alone[j])) j += 1;
+      const run = alone.slice(k, j + 1);
+      if (run.length >= RUN_MIN_NOTES) {
+        let up = 0;
+        let down = 0;
+        for (let q = 1; q < run.length; q += 1) {
+          if (run[q].midi > run[q - 1].midi) up += 1;
+          else if (run[q].midi < run[q - 1].midi) down += 1;
+        }
+        if (Math.max(up, down) >= 0.7 * (run.length - 1)) out.push(...run.slice(0, -1));
+      }
+      k = j + 1;
+    }
+  }
+  return out;
 }
 
 /**
@@ -400,7 +464,7 @@ export function passageExample(notes, { start, end, hand = null, semitones = 0, 
     let until = Math.min(Number.isFinite(n.end) ? n.end : n.start + 0.25, n.start + REPLAY_NOTE_SECONDS, to + 0.5);
     const next = nextSame.get(n.midi);
     if (next !== undefined) until = Math.min(until, next - 0.01);
-    ends[i] = Math.max(n.start + 0.12, until);
+    ends[i] = Math.max(n.start + SHORTEST_NOTE, until);
     nextSame.set(n.midi, n.start);
   }
 
@@ -451,7 +515,7 @@ export function passageExample(notes, { start, end, hand = null, semitones = 0, 
     while (sounding.length >= REPLAY_MAX_TOGETHER) {
       sounding.sort((a, b) => a.at - b.at);
       const oldest = sounding.shift();
-      oldest.until = Math.max(oldest.at + 0.12, o.at);
+      oldest.until = Math.max(oldest.at + SHORTEST_NOTE, o.at);
     }
     sounding.push(o);
   }
@@ -492,12 +556,19 @@ export function passageExample(notes, { start, end, hand = null, semitones = 0, 
   // Les notes en millisecondes de l'exemple (ce qu'écrit buildNotesExample).
   const timed = out.map(({ n, at, until }) => {
     const startMs = Math.round(at * 1000);
-    const durationMs = Math.round(Math.max(0.12, until - at) * 1000);
+    const durationMs = Math.round(Math.max(SHORTEST_NOTE, until - at) * 1000);
     return { n, startMs, durationMs, endMs: startMs + durationMs };
   });
   // [Claude] — 2026-10-04 — La pédale changée après les notes d'approche (voir APPROACH_SECONDS).
-  const approach = pieces.length ? approachNotes(picked) : new Set();
+  // Les notes d'approche et de run servent deux fois : la pédale (ci-dessous) et la nuance.
+  const light = approachNotes(picked);
+  const approach = pieces.length ? light : new Set();
   if (approach.size) pieces = pedalAfterApproaches(timed, approach, pieces);
+  // [Claude] — 2026-10-09 — La force de chaque note (dynamics.js) : mesurée au son quand
+  // l'analyse l'a relevée (n.velocity), avec les règles de pianiste (dessus d'accord qui
+  // chante, voix intérieures plus douces, notes d'approche et de run plus légères). Avant :
+  // 0,72 pour presque toutes les notes.
+  const dynamics = shapeDynamics(picked, { light });
   const pedalEvents = [];
   for (const { down, up } of pieces) {
     pedalEvents.push({ time: down / 1000, type: 'sustain', value: true }, { time: up / 1000, type: 'sustain', value: false });
@@ -510,7 +581,7 @@ export function passageExample(notes, { start, end, hand = null, semitones = 0, 
     durationMs,
     // Tenue au doigt pendant que la pédale change ; sans la pédale, elle s'arrête à sa vraie fin.
     ...(heldMs > endMs ? { holdMs: heldMs - endMs } : {}),
-    velocity: n.velocity ?? 0.72,
+    velocity: dynamics.get(n) ?? n.velocity ?? 0.72,
     hand: n.hand === 'lh' ? 'LH' : 'RH',
   })), {
     kind: 'tutorial',

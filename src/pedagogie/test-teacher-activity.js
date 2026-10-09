@@ -182,7 +182,19 @@ check('Un écran entier allumé est écarté, l\'accord d\'avant reste', pitches
 // Au son : une gamme tenue à la pédale sonne en bloc (elle reste) ; un bloc attaqué ensemble, non.
 const scale = [60, 62, 64, 65, 67, 69, 71, 72].map((midi, i) => ({ midi, start: 10 + i * 0.15, end: 13, velocity: 0.6 }));
 check('Au son, une gamme tenue à la pédale reste (8 notes)', cleanTeacherNotes(scale, { source: 'son' }).length === 8);
-check('… mais à l\'image, 8 touches voisines tenues ensemble ne sont pas du jeu', cleanTeacherNotes(scale, { source: IMAGE }).length === 0);
+// [Claude] — 2026-10-09 — Renversé. Le 04/10, on supposait qu'à l'image 8 touches voisines
+// tenues ensemble n'étaient jamais du jeu. Narcisse a montré le contraire : un lick rapide
+// (« Gospel Piano Harmony Secrets », 0:20–0:22, de l'octave 5 à l'octave 2) dont les touches
+// restent allumées le temps de la descente était écarté en entier. Ce qui distingue le jeu d'un
+// bandeau : les touches s'allument L'UNE APRÈS L'AUTRE, dans l'ordre des hauteurs (isPlayedLine).
+// Les bandeaux réellement observés (Si6 → Si7, l'écran de fin) s'allument d'un coup : écartés.
+check('À l\'image, une gamme attaquée note après note puis tenue reste (8 notes)', cleanTeacherNotes(scale, { source: IMAGE }).length === 8);
+const fastLick = Array.from({ length: 22 }, (_, i) => ({ midi: 84 - i * 2 + (i % 3 === 0 ? 1 : 0), start: 20 + i * 0.07, end: 22.2 }));
+check('Le lick de 0:20 (22 notes en 1,5 s, de l\'octave 5 à l\'octave 2, tenues) reste en entier', cleanTeacherNotes(fastLick, { source: IMAGE }).length === 22);
+const slow = [60, 62, 64, 65, 67, 69, 71, 72].map((midi, i) => ({ midi, start: 10 + i * 0.6, end: 16 }));
+check('Mais 8 touches voisines qui s\'allument lentement (0,6 s d\'écart) et restent : écartées', cleanTeacherNotes(slow, { source: IMAGE }).length === 0);
+const atOnce = [60, 62, 64, 65, 67, 69, 71, 72].map((midi) => ({ midi, start: 10, end: 13 }));
+check('Et 8 touches voisines allumées d\'un coup : écartées', cleanTeacherNotes(atOnce, { source: IMAGE }).length === 0);
 const smash = [...[48, 55].map((midi) => ({ midi, start: 20, end: 21, velocity: 0.6 })), ...[72, 74, 76, 77, 79, 81].map((midi) => ({ midi, start: 20.01, end: 21, velocity: 0.6 }))];
 check('Au son, 6 touches voisines attaquées ensemble sont écartées, la main gauche reste', pitches(cleanTeacherNotes(smash, { source: 'son' })) === '48 55');
 check('Une attaque de plus de 10 notes est écartée, à l\'image aussi',

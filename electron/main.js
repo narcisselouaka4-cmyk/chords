@@ -14,6 +14,7 @@ import { pathToFileURL } from 'url';
 import { createFrame } from '../src/pedagogie/frame.js';
 import { detectVideoFormat } from '../src/pedagogie/format-detector.js';
 import { readLitKeys } from '../src/pedagogie/key-detection.js';
+import { busyWindows, mergeFineSamples, FINE_FPS } from '../src/pedagogie/fine-reading.js';
 import { thumbnailTime, thumbnailArgs } from '../src/pedagogie/tutorial-memory.js';
 // [Claude] — 2026-10-02 — Suivi des entrées MIDI par NOM (pur, testé : src/midi-ports.test.js).
 import { createInputWatcher, OWN_PORT_NAME } from '../src/midi-ports.js';
@@ -1587,13 +1588,32 @@ function setupStudioIPC() {
       samples.push({ t: index / sampleFps, keys: readLitKeys(frame, geometry) });
     });
 
+    // 3. [Claude] — 2026-10-09 — Relecture fine des passages rapides (src/pedagogie/fine-reading.js) :
+    // à 8 images/s, un lick de 20 notes en 2 s et les double-croches d'un montuno passaient
+    // entre deux images. Les passages où les attaques se suivent vite sont relus à 30 i/s.
+    const fineFps = Number(options.fineFps) || FINE_FPS;
+    const windows = fineFps > sampleFps ? busyWindows(samples, { duration }) : [];
+    const fine = [];
+    for (const w of windows) {
+      const got = [];
+      await streamFrames(filePath, fineFps, frameBytes, (buf, index) => {
+        const frame = createFrame(buf, width, height, 3);
+        got.push({ t: Math.round((w.start + index / fineFps) * 1000) / 1000, keys: readLitKeys(frame, geometry) });
+      }, { start: w.start, duration: w.end - w.start }).catch((err) => {
+        console.warn('[Pedagogie] relecture fine impossible', w, err.message);
+      });
+      fine.push({ ...w, samples: got });
+    }
+    const allSamples = fine.length ? mergeFineSamples(samples, fine) : samples;
+
     return {
       ok: true,
       format: format.format,
       implemented: true,
       confidence: format.confidence,
       sampleInterval: 1 / sampleFps,
-      samples,
+      fineReading: { fps: fineFps, windows: fine.filter((w) => w.samples.length).map(({ start, end }) => ({ start, end })) },
+      samples: allSamples,
       video: { width, height, duration },
       geometry: {
         lowestMidi: geometry.lowestMidi,
@@ -1762,6 +1782,54 @@ function setupStudioIPC() {
     return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
   });
 
+  // [Claude] — 2026-10-09 — Pédagogie IA : le volume du son, pour la force de chaque attaque.
+  // Narcisse : « Copilot reproduit bien les notes mais ça manque de vélocité : tous les accords
+  // ne sont pas plaqués ni appuyés de la même façon ». L'image d'un clavier dessiné ne dit rien
+  // de la force (les touches s'allument toutes pareil) ; le son, si : à l'instant d'une attaque,
+  // un accord plaqué fort monte plus haut qu'un accord effleuré. Niveau RMS en dB toutes les
+  // 10 ms, sur un mono 8 kHz (assez pour l'énergie d'une attaque, léger à transférer : 12 min
+  // = 72 000 valeurs). src/pedagogie/dynamics.js en tire les vélocités.
+  ipcMain.handle('pedagogie:loudness', async (event, filePath) => {
+    const ffmpeg = await resolveFfmpeg();
+    if (!ffmpeg) return { ok: false, reason: 'ToolsMissing' };
+    const RATE = 8000;
+    const HOP = 80; // 10 ms
+    try {
+      const db = await new Promise((resolve, reject) => {
+        const proc = trackChild(spawn(ffmpeg, [
+          '-v', 'error', '-i', filePath, '-map', '0:a:0', '-ac', '1', '-ar', String(RATE), '-f', 's16le', '-',
+        ], { shell: false }));
+        const out = [];
+        let pending = Buffer.alloc(0);
+        let sum = 0;
+        let count = 0;
+        proc.stdout.on('data', (chunk) => {
+          pending = pending.length ? Buffer.concat([pending, chunk]) : chunk;
+          const usable = pending.length - (pending.length % 2);
+          for (let i = 0; i < usable; i += 2) {
+            const v = pending.readInt16LE(i) / 32768;
+            sum += v * v;
+            count += 1;
+            if (count === HOP) {
+              out.push(Math.round(10 * 10 * Math.log10(sum / HOP + 1e-10)) / 10);
+              sum = 0;
+              count = 0;
+            }
+          }
+          pending = pending.subarray(usable);
+        });
+        let stderr = '';
+        proc.stderr.on('data', (d) => { stderr += d.toString(); });
+        proc.on('error', reject);
+        proc.on('exit', (code) => (code === 0 || out.length ? resolve(out) : reject(new Error(stderr || `ffmpeg exit ${code}`))));
+      });
+      return { ok: true, hop: HOP / RATE, db };
+    } catch (err) {
+      console.warn('[Pedagogie] volume du son illisible :', err.message);
+      return { ok: false, reason: 'Failed', message: err.message };
+    }
+  });
+
   // [Claude] — 2026-10-03 — Pédagogie IA, lot 5 : vignette d'un tutoriel pour l'accueil
   // en cartes. Même ffmpeg et même sonde que la lecture des images (resolveFfmpeg,
   // probeVideoDimensions) : une seule image JPEG, prise un peu après le début (les tutos
@@ -1880,11 +1948,17 @@ function setupStudioIPC() {
   }
 
   /** Diffuse les images décodées, une par une, sans jamais toutes les garder. */
-  async function streamFrames(filePath, fps, frameBytes, onFrame) {
+  async function streamFrames(filePath, fps, frameBytes, onFrame, range = null) {
     const ffmpeg = (await resolveFfmpeg()) || 'ffmpeg';
+    // [Claude] — 2026-10-09 — `range` : n'en lire qu'un extrait (relecture fine d'un passage
+    // rapide). `-ss` avant `-i` : saut précis (ffmpeg décode depuis l'image clé d'avant).
+    const rangeArgs = range && range.duration > 0
+      ? ['-ss', String(Math.max(0, range.start)), '-t', String(range.duration)]
+      : [];
     return new Promise((resolve, reject) => {
       const proc = trackChild(spawn(ffmpeg, [
         '-v', 'error',
+        ...rangeArgs,
         '-i', filePath,
         // [Claude] — 2026-09-25 — La vraie vidéo, jamais l'image de couverture.
         '-map', '0:V:0',

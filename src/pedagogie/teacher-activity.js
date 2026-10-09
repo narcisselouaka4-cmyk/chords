@@ -148,6 +148,42 @@ export function keyRuns(pitches, step = KEY_NEIGHBOUR) {
 }
 
 /**
+ * [Claude] — 2026-10-09 — Un bloc de touches voisines qui s'allument L'UNE APRÈS L'AUTRE, dans
+ * l'ordre des hauteurs, est un lick, une gamme, un run : du jeu. Narcisse : sur « Gospel Piano
+ * Harmony Secrets », 0:20–0:22, le pianiste descend de l'octave 5 à l'octave 2 très vite ; ses
+ * touches restent allumées le temps de la descente et formaient un « bloc » de 6 touches
+ * voisines et plus : tout le lick était écarté comme un bandeau, et ce qui l'entourait avec.
+ * Un bandeau, un logo, l'écran de fin allument leurs touches D'UN COUP.
+ * Critère : des attaques distinctes pour presque toutes les touches (au plus une sur cinq
+ * attaquée avec une autre), qui s'enchaînent vite (0,25 s au plus de l'une à la suivante,
+ * comme dans un run), et au moins 80 % des pas dans le même sens.
+ */
+export const LINE_MIN_DIRECTION = 0.8;
+export const LINE_MAX_STEP = 0.25;
+export function isPlayedLine(members) {
+  const sorted = [...(members || [])].sort((a, b) => a.start - b.start || a.midi - b.midi);
+  if (sorted.length < 3) return false;
+  const attacks = [];
+  for (const n of sorted) {
+    const last = attacks[attacks.length - 1];
+    if (last && n.start - last.start <= ATTACK_WINDOW) last.notes.push(n);
+    else attacks.push({ start: n.start, notes: [n] });
+  }
+  if (attacks.length < Math.ceil(sorted.length * 0.8)) return false;
+  if (attacks.some((a, k) => k > 0 && a.start - attacks[k - 1].start > LINE_MAX_STEP)) return false;
+  // La hauteur moyenne de chaque attaque, dans l'ordre du temps.
+  const heights = attacks.map((a) => a.notes.reduce((x, n) => x + n.midi, 0) / a.notes.length);
+  let up = 0;
+  let down = 0;
+  for (let k = 1; k < heights.length; k += 1) {
+    if (heights[k] > heights[k - 1]) up += 1;
+    else if (heights[k] < heights[k - 1]) down += 1;
+  }
+  const steps = heights.length - 1;
+  return steps > 0 && Math.max(up, down) / steps >= LINE_MIN_DIRECTION;
+}
+
+/**
  * [Claude] — 2026-10-04 — Les notes qu'aucun pianiste ne joue : ce que la lecture a pris pour
  * des touches (voir KEY_BLOCK).
  * - Un bloc de KEY_BLOCK touches voisines ou plus : lu à l'image, qui SONNENT ensemble ; lu au
@@ -177,6 +213,7 @@ export function readingArtifacts(notes, { source = '' } = {}) {
       const lo = run[0];
       const hi = run[run.length - 1];
       const members = pool.filter((n) => n.midi >= lo && n.midi <= hi);
+      if (isPlayedLine(members)) continue;
       for (const n of members) odd.add(n);
       found.push({ lo, hi, start: Math.min(...members.map((n) => n.start)), end: Math.max(...members.map(endOf)) });
     }

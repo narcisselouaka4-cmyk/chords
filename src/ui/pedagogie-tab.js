@@ -56,6 +56,7 @@ import { normalizeTranscription, alignNarration } from '../pedagogie/transcripti
 import { listTutorialFiles, copyTutorialIntoFolder, tutorialDisplayName, isMp4Name } from '../pedagogie/tutorial-library.js';
 import { getTutorialFolder, saveTutorialFolder } from '../pedagogie/tutorial-folder-pref.js';
 import { samplesToNoteEvents, eventsFromTranscription, compactTimeline } from '../pedagogie/teacher-notes.js';
+import { withMeasuredVelocity } from '../pedagogie/dynamics.js';
 import { registerCopilotContext } from '../pedagogie/copilot-context.js';
 import { dockCopilot, undockCopilot } from '../pedagogie/copilot-dock.js';
 import { momentContext, passageWindow, clock } from '../pedagogie/tutorial-moment.js';
@@ -1387,6 +1388,14 @@ async function runReading(path) {
       // Touches allumées → notes, la main d'après la couleur.
       built.noteEvents = samplesToNoteEvents(result.samples, result.sampleInterval);
       built.notesSource = 'image (clavier dessiné)';
+    }
+    // [Claude] — 2026-10-09 — La force de chaque attaque, mesurée au son de la vidéo (l'image ne
+    // la montre pas) : src/pedagogie/dynamics.js. Enregistrée avec les notes : le rejeu du
+    // Copilote nuance ses accords comme le prof. Sans son lisible, les règles de pianiste seules.
+    if (api.pedagogie?.loudness && built.noteEvents?.length) {
+      step('Force des attaques (au son)…');
+      const loud = await api.pedagogie.loudness(path).catch(() => null);
+      if (loud?.ok) built.noteEvents = withMeasuredVelocity(built.noteEvents, loud);
     }
     job.narrationView = alignNarration(narration.segments, built.segments);
 

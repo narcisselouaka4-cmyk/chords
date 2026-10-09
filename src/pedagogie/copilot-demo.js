@@ -302,7 +302,9 @@ export function buildNotesExample(notes, { kind = 'notes', title = 'Notes', subt
   const events = [];
   for (const n of list) {
     const start = Math.max(0, n.startOffsetMs || 0) / 1000;
-    const duration = Math.max(0.12, (n.durationMs || 800) / 1000);
+    // [Claude] — 2026-10-09 — 0,05 s au plus court (et non 0,12) : les notes d'un run rapide,
+    // relu à 30 images/s, durent 60 ms ; allongées à 120 ms, elles se chevauchaient.
+    const duration = Math.max(0.05, (n.durationMs || 800) / 1000);
     const hand = String(n.hand || '').toUpperCase() === 'LH' ? 'lh' : 'rh';
     const hold = Math.max(0, Number(n.holdMs) || 0) / 1000;
     events.push({ time: start, type: 'noteOn', note: n.midi, velocity: Math.min(1, Math.max(0.3, n.velocity ?? 0.7)), hand });

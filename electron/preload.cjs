@@ -74,6 +74,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     selectTutorialFolder: () => ipcRenderer.invoke('pedagogie:select-tutorial-folder'),
     // [Claude] — 2026-10-03 — Vignette et durée d'un tutoriel (accueil en cartes).
     thumbnail: (filePath, options = {}) => ipcRenderer.invoke('pedagogie:thumbnail', filePath, options),
+    // [Claude] — 2026-10-09 — Volume du son (dB toutes les 10 ms), pour la force des attaques.
+    loudness: (filePath) => ipcRenderer.invoke('pedagogie:loudness', filePath),
   },
   analyzer: {
     processFile: (filePath, options = {}) => ipcRenderer.invoke('analyzer:process-file', filePath, options),

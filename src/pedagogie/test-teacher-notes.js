@@ -6,7 +6,7 @@
 
 import {
   samplesToNoteEvents, eventsFromTranscription, guessHands, notesInRange, notesAt,
-  compactTimeline, transposeInterval, transposeChordLabel, passageExample, approachNotes,
+  compactTimeline, transposeInterval, transposeChordLabel, passageExample, approachNotes, runNotes,
 } from './teacher-notes.js';
 import { withoutPedal } from '../exercise-demo-player.js';
 import { readFileSync } from 'fs';
@@ -238,9 +238,10 @@ function testApproachNotes() {
     pedalOf(crushed) === '↓0.16 ↑1.98 ↓2.04 ↑2.8', pedalOf(crushed));
   check('… Ré♯5 s\'éteint à l\'attaque de Mi5 ; Mi5, l\'accord et la basse sonnent jusqu\'au changement (1,98)',
     endOf(s1, 75) === 0.12 && [76, 64, 67, 48].every((m) => endOf(s1, m) === 1.98) && at(s1, 1) === '48 64 67 72 76', `${endOf(s1, 75)} | ${at(s1, 1)}`);
-  // (Une note rejouée dure 0,12 s au moins : la basse se lève à 0,12 s.)
-  check('… la basse relâchée tôt est tenue au doigt jusqu\'à la pédale (0,21), sa vraie fin gardée pour le mode sans pédale',
-    crushed.events.some((e) => e.type === 'noteOff' && e.note === 48 && Math.abs(e.time - 0.21) < 1e-9 && Math.abs(e.withoutPedalAt - 0.12) < 1e-9));
+  // (Une note rejouée dure 0,05 s au moins depuis le 09/10 — 0,12 s avant : la basse se lève à sa
+  // vraie fin, 0,1 s.)
+  check('… la basse relâchée tôt est tenue au doigt jusqu\'à la pédale (0,21), sa vraie fin (0,1) gardée pour le mode sans pédale',
+    crushed.events.some((e) => e.type === 'noteOff' && e.note === 48 && Math.abs(e.time - 0.21) < 1e-9 && Math.abs(e.withoutPedalAt - 0.1) < 1e-9));
 
   // Fa♯5 → Sol5 au milieu d'une harmonie de Sol.
   const line = [
@@ -304,8 +305,47 @@ testTranscription();
 testHands();
 testRangeAndTimeline();
 testTranspose();
+// [Claude] — 2026-10-09 — Grace notes d'un ton, runs rapides sous la pédale.
+function testGraceAndRuns() {
+  console.log('\n--- Grace notes d\'un ton, runs rapides sous la pédale ---');
+  const names = (notes) => [...approachNotes(notes)].map((n) => n.midi).sort((a, b) => a - b).join(' ');
+  check('Grace note d\'un ton : Ré5 très bref → Mi5 tenu (Ré5 est une note d\'approche)',
+    names([{ midi: 74, start: 0, end: 0.06, hand: 'rh' }, { midi: 76, start: 0.06, end: 0.8, hand: 'rh' }]) === '74');
+  check('Grace d\'un ton écrasée avec sa note d\'arrivée (Ré5 + Mi5 attaqués ensemble, Ré5 lâché tout de suite)',
+    names([{ midi: 74, start: 0, end: 0.05, hand: 'rh' }, { midi: 76, start: 0, end: 0.9, hand: 'rh' }]) === '74');
+  check('Mais une gamme par tons (Do Ré Mi Fa♯, notes égales) n\'a pas de grace note',
+    names([72, 74, 76, 78].map((midi, i) => ({ midi, start: i * 0.25, end: i * 0.25 + 0.24, hand: 'rh' }))) === '');
+  check('Ni un ton vers une note pas plus tenue qu\'elle (Fa5 0,12 s → Sol5 0,25 s)',
+    names([{ midi: 77, start: 0, end: 0.12, hand: 'rh' }, { midi: 79, start: 0.12, end: 0.37, hand: 'rh' }]) === '');
+
+  // Accord de Do tenu (basse + main droite), puis un lick qui descend de Do6 à Ré3 en 1,5 s
+  // (une note toutes les 70 ms), puis Fa.
+  const WHITE = [0, 2, 4, 5, 7, 9, 11];
+  const run = [];
+  for (let m = 84; m >= 50 && run.length < 21; m -= 1) if (WHITE.includes(m % 12)) run.push(m);
+  const notes = [
+    { midi: 36, start: 0, end: 3.5, hand: 'lh' }, ...[40, 43, 46].map((midi) => ({ midi, start: 0, end: 0.6, hand: 'lh' })),
+    ...run.map((midi, i) => ({ midi, start: 1 + i * 0.07, end: 1 + i * 0.07 + 0.06, hand: 'rh' })),
+    { midi: 41, start: 3.6, end: 4.5, hand: 'lh' }, ...[69, 72, 77].map((midi) => ({ midi, start: 3.6, end: 4.5, hand: 'rh' })),
+  ];
+  const runSet = runNotes(guessHands(notes).sort((a, b) => a.start - b.start || a.midi - b.midi));
+  check(`Le lick de ${run.length} notes est reconnu comme un run (toutes sauf la dernière)`, runSet.length === run.length - 1);
+  const ex = passageExample(notes, { start: 0, end: 5 });
+  const v = sounding(ex.events);
+  const runEnd = 1 + (run.length - 1) * 0.07 + 0.06;
+  const pileUp = Math.max(...run.map((m, i) => at(v, 1 + i * 0.07 + 0.03).split(' ').filter((x) => run.includes(Number(x))).length));
+  check(`Sous la pédale, les notes du run ne s'empilent plus (au plus ${pileUp} ensemble)`, pileUp <= 2);
+  check('… la basse Do2 sonne toujours pendant le run (tenue au doigt)', at(v, 1.5).split(' ').includes('36'));
+  check('… la dernière note du run (Ré3) est reprise par la pédale et sonne jusqu\'à Fa',
+    (endOf(v, run[run.length - 1]) ?? 0) > runEnd + 0.5, String(endOf(v, run[run.length - 1])));
+  const rate = passageExample(run.map((midi, i) => ({ midi, start: i * 0.07, end: i * 0.07 + 0.06, hand: 'rh' })), { start: 0, end: 2 });
+  const shortest = Math.min(...sounding(rate.events).map((x) => x.end - x.on));
+  check(`Les notes d'un run gardent leur durée (60 ms), au lieu d'être allongées à 120 ms (la plus courte : ${Math.round(shortest * 1000)} ms)`, shortest < 0.1);
+}
+
 testPassageExample();
 testApproachNotes();
+testGraceAndRuns();
 
 console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);
 process.exit(failed === 0 ? 0 : 1);
