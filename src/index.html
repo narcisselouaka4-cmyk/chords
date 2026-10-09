@@ -1128,15 +1128,16 @@
                 <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
               </span>
               <h2>Analyser un morceau</h2>
-              <p>Choisissez un fichier audio : l'application en détecte les accords, la tonalité et le tempo, puis vous laisse les parcourir au clavier.</p>
+              <p>Choisissez un fichier audio ou une vidéo : l'application en détecte les accords, la tonalité et le tempo, puis vous laisse les parcourir au clavier.</p>
 
-              <button type="button" class="analyzer-import-card is-lead" id="analyzer-import-audio-btn" aria-label="Choisir un fichier audio à analyser">
+              <!-- [Claude] — 2026-10-09 — MP4 accepté : le son de la vidéo est analysé. -->
+              <button type="button" class="analyzer-import-card is-lead" id="analyzer-import-audio-btn" aria-label="Choisir un fichier audio ou une vidéo à analyser">
                 <span class="analyzer-import-card-icon audio" aria-hidden="true">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M17 8l-5-5-5 5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
                 </span>
                 <div>
-                  <div class="analyzer-import-card-title">Choisir un fichier audio</div>
-                  <div class="analyzer-import-card-sub">MP3, WAV ou M4A. Votre fichier n'est jamais modifié.</div>
+                  <div class="analyzer-import-card-title">Choisir un fichier audio ou vidéo</div>
+                  <div class="analyzer-import-card-sub">MP3, WAV, M4A ou MP4. Votre fichier n'est jamais modifié.</div>
                 </div>
                 <span class="analyzer-import-card-arrow" aria-hidden="true">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
@@ -1163,10 +1164,10 @@
           <div class="analyzer-state" id="analyzer-state-prepare">
             <div class="analyzer-prepare-header">
               <button type="button" id="analyzer-prepare-back-btn" class="btn-secondary btn-sm" title="Nouvelle analyse">← Nouvelle analyse</button>
-              <h2>Préparer l'analyse audio</h2>
+              <h2>Préparer l'analyse</h2>
               <p>Votre fichier est prêt. Configurez les options d'analyse puis lancez la détection des accords et de la structure.</p>
               <div class="analyzer-stepper">
-                <div class="analyzer-step active"><span>1</span><div>Fichier audio sélectionné</div></div>
+                <div class="analyzer-step active"><span>1</span><div>Fichier sélectionné</div></div>
                 <div class="analyzer-step"><span>2</span><div>Paramètres d'analyse</div></div>
                 <div class="analyzer-step"><span>3</span><div>Lancer l'analyse</div></div>
               </div>
@@ -1227,39 +1228,8 @@
             </div>
           </div>
 
-          <!-- État 3 : Type vidéo -->
-          <div class="analyzer-state" id="analyzer-state-video-type">
-            <div class="analyzer-video-modal">
-              <button type="button" id="analyzer-videotype-back-btn" class="btn-secondary btn-sm" title="Nouvelle analyse" style="align-self: flex-start;">← Nouvelle analyse</button>
-              <div class="analyzer-modal-icon" aria-hidden="true">❓</div>
-              <h2>Quel type de vidéo avez-vous importé ?</h2>
-              <p>Ce choix nous aide à adapter l'analyse et les résultats.</p>
-              <div class="analyzer-video-grid">
-                <button type="button" class="analyzer-video-card" data-video-type="tutorial" aria-label="Tutoriel pédagogique">
-                  <span class="analyzer-video-icon" aria-hidden="true">🎓</span>
-                  <div class="analyzer-video-title">Tutoriel pédagogique</div>
-                  <div class="analyzer-video-sub">Contenu éducatif expliquant des accords, progressions ou concepts.</div>
-                </button>
-                <button type="button" class="analyzer-video-card" data-video-type="cover" aria-label="Cover ou reprise">
-                  <span class="analyzer-video-icon" aria-hidden="true">🎤</span>
-                  <div class="analyzer-video-title">Cover / Reprise</div>
-                  <div class="analyzer-video-sub">Reprise d'un morceau existant (interprétation personnelle).</div>
-                </button>
-                <button type="button" class="analyzer-video-card" data-video-type="song" aria-label="Morceau original">
-                  <span class="analyzer-video-icon" aria-hidden="true">🎼</span>
-                  <div class="analyzer-video-title">Morceau</div>
-                  <div class="analyzer-video-sub">Composition ou titre original (œuvre complète).</div>
-                </button>
-                <button type="button" class="analyzer-video-card" data-video-type="demo" aria-label="Démonstration ou autre">
-                  <span class="analyzer-video-icon" aria-hidden="true">✨</span>
-                  <div class="analyzer-video-title">Démonstration / Autre</div>
-                  <div class="analyzer-video-sub">Démonstration, improvisation libre ou autre type de contenu.</div>
-                </button>
-              </div>
-              <button type="button" class="btn-primary" id="analyzer-confirm-video-type" disabled>Continuer l'analyse</button>
-              <p class="analyzer-modal-hint">Vous pourrez modifier ce choix plus tard.</p>
-            </div>
-          </div>
+          <!-- [Claude] — 2026-10-09 — L'écran « Quel type de vidéo avez-vous importé ? » est retiré
+               (Narcisse) : une vidéo MP4 passe par la même préparation qu'un fichier audio. -->
 
           <!-- [Refonte 2026-09-02, rétabli le 2026-09-03] — overlay de
                traitement : FRÈRE des analyzer-states dans analyzer-workspace,

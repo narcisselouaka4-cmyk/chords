@@ -34,13 +34,18 @@ runTest('A — HOME → Audio → file picker MP3 → AUDIO_PREP', () => {
   assert(resolveAnalysisState('wav', 'audio') === 'prepare', 'WAV → prepare');
 });
 
-// ── B : HOME → Vidéo → file picker MP4 → VIDEO_TYPE_SELECTION ──
-runTest('B — HOME → Vidéo → file picker MP4 → VIDEO_TYPE_SELECTION', () => {
-  assert(resolveAnalysisState('mp4', 'video') === 'video-type', 'MP4 → video-type');
-  assert(resolveAnalysisState('m4v') === 'video-type', 'M4V → video-type');
-  assert(resolveAnalysisState('mov') === 'video-type', 'MOV → video-type');
-  assert(resolveAnalysisState('webm') === 'video-type', 'WEBM → video-type');
-  assert(resolveAnalysisState('mp4', 'audio') === 'video-type', 'MP4 auto-détecté comme vidéo');
+// ── B : HOME → file picker MP4 → AUDIO_PREP (plus d'écran « type de vidéo ») ──
+// [Claude] — 2026-10-09 — Narcisse : MP4 accepté dans l'onglet Analyse, et plus
+// de question « Quel type de vidéo avez-vous importé ? ».
+runTest('B — HOME → file picker MP4 → AUDIO_PREP, sans choix du type de vidéo', () => {
+  assert(resolveAnalysisState('mp4', 'video') === 'prepare', 'MP4 → prepare');
+  assert(resolveAnalysisState('mp4', 'audio') === 'prepare', 'MP4 auto-détecté → prepare');
+  assert(!ANALYSIS_STATES.includes('video-type'), "plus d'état video-type");
+  const html = readFileSync(resolve(projectRoot, 'src/index.html'), 'utf-8');
+  assert(!html.includes('analyzer-state-video-type'), "l'écran du type de vidéo est retiré du markup");
+  const main = readFileSync(resolve(projectRoot, 'electron/main.js'), 'utf-8');
+  assert(/'studio:select-analysis-file'[\s\S]*?extensions: \['mp3', 'wav', 'm4a', 'mp4'\]/.test(main),
+    'le sélecteur de l’onglet Analyse propose le MP4');
 });
 
 // ── C : la capture MIDI n'appartient plus à l'onglet Analyse ──
@@ -57,10 +62,23 @@ runTest('D — Bibliothèque MP3 → AUDIO_PREP (même pipeline)', () => {
   assert(resolveAnalysisState('mp3', 'audio') === 'prepare', 'bibliothèque MP3 réutilise prepare');
 });
 
-// ── E : Bibliothèque MP4 → workflow Vidéo correct ──
-runTest('E — Bibliothèque MP4 → workflow Vidéo correct', () => {
-  assert(resolveAnalysisState('mp4', 'video') === 'video-type', 'bibliothèque MP4 → video-type');
-  assert(resolveAnalysisState('m4v', 'video') === 'video-type', 'bibliothèque M4V → video-type');
+// ── E : Bibliothèque MP4 → AUDIO_PREP (même pipeline que l'audio) ──
+runTest('E — Bibliothèque MP4 → AUDIO_PREP', () => {
+  assert(resolveAnalysisState('mp4', 'video') === 'prepare', 'bibliothèque MP4 → prepare');
+});
+
+// ── E bis : les pistes du Studio ne servent à l'analyse que si elles couvrent tout le morceau ──
+// Un MP4 de la bibliothèque passé par le Studio n'affichait « aucun accord » : l'analyse
+// prenait le piano séparé d'une RÉGION (ou des bips de 2 s) pour le morceau entier.
+runTest('E bis — pistes du Studio : ni bips, ni région partielle', () => {
+  const main = readFileSync(resolve(projectRoot, 'electron/main.js'), 'utf-8');
+  const fn = main.slice(main.indexOf('async function findStudioStemForFile'), main.indexOf('// [OpenCode] — 2026-07-04 — Utilise le venv local'));
+  assert(/SIMULATED_MARK/.test(fn) && /hasLegacyBeepStems\(stemsDir\)/.test(fn), 'les bips sont écartés');
+  assert(/region\.start <= FULL_COVERAGE_TOLERANCE/.test(fn) && /region\.end >= duration - FULL_COVERAGE_TOLERANCE/.test(fn),
+    'une région partielle est écartée');
+  const pipe = main.slice(main.indexOf('async function runAnalysisPipeline'));
+  assert(pipe.indexOf("runAudioProcessor(['probe', filePath])") < pipe.indexOf("findStudioStemForFile(filePath, 'piano', duration)"),
+    'la durée est lue avant de choisir les pistes');
 });
 
 // ── AUDIO_PREP / VIDEO_TYPE / MIDI_CAPTURE → Nouvelle analyse → HOME ──
@@ -72,14 +90,14 @@ runTest('F/G/H — retour à HOME après Nouvelle analyse (reset → import)', (
 });
 
 // ── Routage audio restant sur PREP même si requesté comme vidéo par extension ──
-runTest('Audio/WAV ne bascule jamais vers video-type', () => {
+runTest('Audio/WAV restent sur la préparation', () => {
   assert(resolveAnalysisState('wav', 'audio') === 'prepare', 'WAV → prepare');
   assert(resolveAnalysisState('aiff', 'audio') === 'prepare', 'AIFF → prepare');
 });
 
 // ── Machine d'état complète ──
 runTest('Machine d’état Analyse complète et ordonnée', () => {
-  const expected = ['import', 'prepare', 'video-type', 'analysis'];
+  const expected = ['import', 'prepare', 'analysis'];
   assert(JSON.stringify(ANALYSIS_STATES) === JSON.stringify(expected), 'états complets');
 
   // setAnalyzerState() garde sa propre liste plutôt que d'importer celle-ci :

@@ -59,7 +59,6 @@ function testStateElementIds() {
   const requiredIds = [
     'analyzer-import-screen',
     'analyzer-state-prepare',
-    'analyzer-state-video-type',
     'analyzer-results',
   ];
 
@@ -102,7 +101,6 @@ function testStateMapping() {
   const mapping = {
     'import': 'analyzer-import-screen',
     'prepare': 'analyzer-state-prepare',
-    'video-type': 'analyzer-state-video-type',
     'analysis': 'analyzer-results',
   };
 

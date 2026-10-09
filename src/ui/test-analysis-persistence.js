@@ -76,7 +76,8 @@ runTest("B. Flux — une source déjà analysée court-circuite l'écran de pré
   assert(start > 0, 'loadAnalysisSource est asynchrone');
   const body = js.slice(start, js.indexOf('\n}\n', start));
   const restoreAt = body.indexOf('restoreSavedAnalysis');
-  const resolveAt = body.indexOf('resolveAnalysisState');
+  // 09/10/2026 : plus d'aiguillage audio/vidéo, la préparation est montrée directement.
+  const resolveAt = body.indexOf('showPrepareScreen()');
   assert(restoreAt > 0, 'loadAnalysisSource tente la restauration');
   assert(
     restoreAt < resolveAt,

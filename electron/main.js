@@ -565,7 +565,24 @@ async function purgeLegacyTempDirs() {
 // [Claude] — 2026-07-08 — Si un fichier importé dans l'onglet Analyse correspond
 // à un morceau déjà séparé dans le Studio, on utilise le stem piano isolé pour
 // l'analyse. Cela améliore nettement la qualité par rapport au mix complet.
-async function findStudioPianoStemForFile(filePath) {
+// [Claude] — 2026-10-09 — Narcisse : un MP4 choisi dans la bibliothèque, analysé dans l'onglet
+// Analyse, ne donnait « aucun accord, rien du tout ». L'analyse reprenait d'office le piano (et la
+// basse) séparés dans le Studio dès qu'ils existaient. Or ces pistes :
+//   · ne couvrent que la RÉGION travaillée (5 min au plus), et leurs temps partent du début de
+//     la région, pas du début du morceau ;
+//   · peuvent être des bips de 2 s (Demucs absent, ou anciens échecs non marqués).
+// On ne les prend donc que si ce sont de vraies pistes ET qu'elles couvrent tout le morceau ;
+// sinon l'analyse se fait sur le mix original, toujours juste.
+/** Tolérance (s) pour dire qu'une région couvre tout le morceau. */
+const FULL_COVERAGE_TOLERANCE = 0.5;
+
+/**
+ * Piste séparée du Studio utilisable pour analyser `filePath` entier, ou null.
+ * @param {string} filePath — fichier original analysé
+ * @param {'piano'|'bass'} stem
+ * @param {number|null} duration — durée du fichier original (s), si connue
+ */
+async function findStudioStemForFile(filePath, stem, duration = null) {
   const studioDir = getStudioDir();
   try {
     const entries = await fs.readdir(studioDir, { withFileTypes: true });
@@ -579,44 +596,37 @@ async function findStudioPianoStemForFile(filePath) {
       const originalPath = path.join(trackDir, originalFile);
       const realOriginalPath = await fs.realpath(originalPath).catch(() => originalPath);
       if (realFilePath !== realOriginalPath) continue;
-      const pianoStem = path.join(trackDir, 'stems', 'piano.wav');
+
+      const stemsDir = path.join(trackDir, 'stems');
+      const stemPath = path.join(stemsDir, `${stem}.wav`);
       try {
-        await fs.access(pianoStem);
-        return pianoStem;
+        await fs.access(stemPath);
       } catch {
         return null;
       }
+      // Bips (Demucs absent, marqués) ou anciens bips non marqués : inutilisables.
+      const simulated = await fs.access(path.join(stemsDir, SIMULATED_MARK)).then(() => true, () => false);
+      if (simulated || await hasLegacyBeepStems(stemsDir)) {
+        console.log(`[Analyzer] pistes du Studio simulées (bips), analyse sur le mix : ${entry.name}`);
+        return null;
+      }
+      // Pistes d'une région seulement : leurs temps ne sont pas ceux du morceau.
+      let region = null;
+      try {
+        region = JSON.parse(await fs.readFile(path.join(trackDir, 'metadata.json'), 'utf8'))?.region || null;
+      } catch { /* pas de métadonnées : séparation ancienne, du morceau entier */ }
+      if (region && Number.isFinite(region.start) && Number.isFinite(region.end)) {
+        const coversStart = region.start <= FULL_COVERAGE_TOLERANCE;
+        const coversEnd = !Number.isFinite(duration) || region.end >= duration - FULL_COVERAGE_TOLERANCE;
+        if (!coversStart || !coversEnd) {
+          console.log(`[Analyzer] pistes du Studio limitées à la région ${region.start}–${region.end} s, analyse sur le mix : ${entry.name}`);
+          return null;
+        }
+      }
+      return stemPath;
     }
   } catch (e) {
     // ignore: le dossier Studio peut ne pas exister.
-  }
-  return null;
-}
-
-async function findStudioBassStemForFile(filePath) {
-  const studioDir = getStudioDir();
-  try {
-    const entries = await fs.readdir(studioDir, { withFileTypes: true });
-    const realFilePath = await fs.realpath(filePath).catch(() => filePath);
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      const trackDir = path.join(studioDir, entry.name);
-      const files = await fs.readdir(trackDir);
-      const originalFile = files.find((f) => f.startsWith('original.'));
-      if (!originalFile) continue;
-      const originalPath = path.join(trackDir, originalFile);
-      const realOriginalPath = await fs.realpath(originalPath).catch(() => originalPath);
-      if (realFilePath !== realOriginalPath) continue;
-      const bassStem = path.join(trackDir, 'stems', 'bass.wav');
-      try {
-        await fs.access(bassStem);
-        return bassStem;
-      } catch {
-        return null;
-      }
-    }
-  } catch (e) {
-    // ignore
   }
   return null;
 }
@@ -1245,6 +1255,20 @@ function setupStudioIPC() {
       properties: ['openFile'],
       filters: [
         { name: 'Fichiers audio (MP3, WAV, M4A)', extensions: ['mp3', 'wav', 'm4a'] },
+      ],
+    });
+    return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
+  });
+
+  // [Claude] — 2026-10-09 — Onglet Analyse : audio ET vidéo MP4 (le son en est extrait par
+  // ffmpeg, comme pour les morceaux de la bibliothèque).
+  ipcMain.handle('studio:select-analysis-file', async () => {
+    if (!mainWindow) return null;
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'Choisir un morceau à analyser',
+      properties: ['openFile'],
+      filters: [
+        { name: 'Audio ou vidéo (MP3, WAV, M4A, MP4)', extensions: ['mp3', 'wav', 'm4a', 'mp4'] },
       ],
     });
     return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
@@ -1923,19 +1947,8 @@ function setupStudioIPC() {
     const playbackWav = path.join(tmpDir, 'audio.wav');
 
     try {
-      const pianoStem = await findStudioPianoStemForFile(filePath);
-      if (pianoStem) {
-        console.log('[Analyzer] using Studio piano stem:', pianoStem);
-      }
-
-      // Find bass stem if requested
-      const bassStem = options.analyzeBass !== false
-        ? await findStudioBassStemForFile(filePath) : null;
-      if (bassStem) {
-        console.log('[Analyzer] using Studio bass stem for bass detection:', bassStem);
-      }
-
       // Durée du fichier original importé, indépendamment du stem utilisé pour l'analyse.
+      // Lue en premier : elle sert à savoir si les pistes du Studio couvrent tout le morceau.
       let duration = null;
       try {
         const probeJson = await runAudioProcessor(['probe', filePath]);
@@ -1944,6 +1957,18 @@ function setupStudioIPC() {
         duration = probeResult.duration;
       } catch (probeErr) {
         console.warn('[Analyzer] probe duration failed:', probeErr.message);
+      }
+
+      const pianoStem = await findStudioStemForFile(filePath, 'piano', duration);
+      if (pianoStem) {
+        console.log('[Analyzer] using Studio piano stem:', pianoStem);
+      }
+
+      // Find bass stem if requested
+      const bassStem = options.analyzeBass !== false
+        ? await findStudioStemForFile(filePath, 'bass', duration) : null;
+      if (bassStem) {
+        console.log('[Analyzer] using Studio bass stem for bass detection:', bassStem);
       }
 
       // La lecture utilise toujours le mix original.

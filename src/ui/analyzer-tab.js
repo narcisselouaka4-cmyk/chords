@@ -1,4 +1,4 @@
-import { selectMediaFile, selectAudioFile, selectVideoFile, createAudioPlayer, isSupportedMediaFile, isAudioFile, isVideoFile } from '../audio/media-engine.js';
+import { selectMediaFile, selectAnalysisFile, createAudioPlayer, isSupportedMediaFile, isAudioFile, isVideoFile } from '../audio/media-engine.js';
 import { globalAudioFocusManager } from '../audio/audio-focus-manager.js';
 import { createAudioAnalyzer } from '../analyzer/audio-analyzer.js';
 import {
@@ -8,7 +8,7 @@ import {
   computeProductStatistics,
   countManuallyEditedChords,
 } from '../analyzer/analysis-export.js';
-import { resolveAnalysisState, inferSourceType } from './analyzer-workflow.js';
+import { inferSourceType } from './analyzer-workflow.js';
 import { splitIntoSections, paletteOf, changeCountOf } from '../analyzer/chord-sections.js';
 import { miniKeyboardForNotes } from './mini-keyboard.js';
 import { CHORD_DEFINITIONS } from '../chord-engine/chord-defs.js';
@@ -83,7 +83,6 @@ const els = {
   importScreen: document.getElementById('analyzer-import-screen'),
    importBtn: document.getElementById('analyzer-import-btn'),
    prepareBackBtn: document.getElementById('analyzer-prepare-back-btn'),
-   videoTypeBackBtn: document.getElementById('analyzer-videotype-back-btn'),
    midiBackBtn: document.getElementById('analyzer-midi-back-btn'),
   importAudioBtn: document.getElementById('analyzer-import-audio-btn'),
   libraryList: document.getElementById('analyzer-library-list'),
@@ -93,11 +92,11 @@ const els = {
 
   // États du workspace (maquettes)
   statePrepare: document.getElementById('analyzer-state-prepare'),
-  stateVideoType: document.getElementById('analyzer-state-video-type'),
   analysisTab: document.getElementById('analysis-tab'),
   sidebar: document.getElementById('analyzer-sidebar'),
 
   // Préparation audio
+  prepareFileIcon: document.getElementById('analyzer-prepare-file-icon'),
   prepareFileName: document.getElementById('analyzer-prepare-file-name'),
   prepareFileMeta: document.getElementById('analyzer-prepare-file-meta'),
   prepareWaveform: document.getElementById('analyzer-prepare-waveform'),
@@ -105,8 +104,6 @@ const els = {
   launchAnalysisBtn: document.getElementById('analyzer-launch-analysis-btn'),
 
   // Type vidéo
-  videoTypeCards: document.querySelectorAll('#analyzer-state-video-type .analyzer-video-card'),
-  confirmVideoTypeBtn: document.getElementById('analyzer-confirm-video-type'),
 
   songTitle: document.getElementById('analyzer-song-title'),
   songArtist: document.getElementById('analyzer-song-artist'),
@@ -209,7 +206,6 @@ let currentAnalysis = null;
 let currentFileName = '';
 let currentAudioPath = '';
 let currentSourceType = null; // 'audio' | 'video' | 'midi'
-let currentVideoType = null; // 'tutorial' | 'cover' | 'song' | 'demo'
 let isDraggingProgress = false;
 let lastAutoScrollIndex = -1;
 let selectedSegmentId = null; // segmentId sélectionné dans la timeline
@@ -354,13 +350,12 @@ export function initAnalyzerTab() {
 function setAnalyzerState(state) {
   // Mêmes états que ANALYSIS_STATES dans analyzer-workflow.js, que
   // test-analysis-workflow.js garde synchronisé.
-  const states = ['import', 'prepare', 'video-type', 'analysis'];
+  const states = ['import', 'prepare', 'analysis'];
   if (!states.includes(state)) return;
 
   // Réinitialiser tous les états
   els.importScreen?.classList.remove('active');
   els.statePrepare?.classList.remove('active');
-  els.stateVideoType?.classList.remove('active');
   els.results?.classList.remove('active');
 
   switch (state) {
@@ -369,9 +364,6 @@ function setAnalyzerState(state) {
       break;
     case 'prepare':
       els.statePrepare?.classList.add('active');
-      break;
-    case 'video-type':
-      els.stateVideoType?.classList.add('active');
       break;
     case 'analysis':
       els.results?.classList.add('active');
@@ -384,38 +376,20 @@ function initWorkspaceStates() {
   setAnalyzerState('import');
 
   // Boutons de l'écran d'accueil
-  els.importAudioBtn?.addEventListener('click', () => handleImportClick('audio'));
-  els.importBtn?.addEventListener('click', () => handleImportClick('audio'));
+  els.importAudioBtn?.addEventListener('click', () => handleImportClick());
+  els.importBtn?.addEventListener('click', () => handleImportClick());
 
   // Préparation audio
   els.prepareRemove?.addEventListener('click', () => showImportScreen());
-  els.launchAnalysisBtn?.addEventListener('click', () => {
-    if (currentSourceType === 'video' && !currentVideoType) {
-      setAnalyzerState('video-type');
-    } else {
-      launchAnalysisFromPrepare();
-    }
-  });
-
-  // Type vidéo
-  els.videoTypeCards?.forEach((card) => {
-    card.addEventListener('click', () => {
-      els.videoTypeCards.forEach((c) => c.classList.remove('selected'));
-      card.classList.add('selected');
-      currentVideoType = card.dataset.videoType;
-      if (els.confirmVideoTypeBtn) els.confirmVideoTypeBtn.disabled = false;
-    });
-  });
-  els.confirmVideoTypeBtn?.addEventListener('click', () => {
-    if (!currentVideoType) return;
-    launchAnalysisFromPrepare();
-  });
+  // [Claude] — 2026-10-09 — Plus d'écran « Quel type de vidéo avez-vous importé ? » (Narcisse :
+  // « supprimer l'étape qui demande quel type de vidéo a été importé ») : une vidéo MP4 suit
+  // le même chemin qu'un fichier audio — préparation, puis analyse de son son.
+  els.launchAnalysisBtn?.addEventListener('click', () => launchAnalysisFromPrepare());
 
   // Retour à l'accueil (« Nouvelle analyse ») : reset centralisé, jamais reload.
   els.backBtn?.addEventListener('click', resetAnalysisSession);
   els.backToImportBtn?.addEventListener('click', resetAnalysisSession);
   els.prepareBackBtn?.addEventListener('click', resetAnalysisSession);
-  els.videoTypeBackBtn?.addEventListener('click', resetAnalysisSession);
   els.midiBackBtn?.addEventListener('click', resetAnalysisSession);
 
   // [OpenCode] — 2026-08-08 — Capture MIDI : câblage des métriques du panneau
@@ -698,10 +672,9 @@ function showDeleteModal(displayName) {
 // [OpenCode] — Passe corrective — Pipeline d'import unifié.
 // `loadAnalysisSource` est le SEUL point d'entrée pour charger une source
 // (choix depuis le file picker OU depuis la bibliothèque). La bibliothèque
-// réutilise exactement le même chemin d'état que l'import manuel :
-//   MP3/WAV → AUDIO_PREP (état 'prepare')
-//   MP4/M4V/MOV/WEBM → VIDEO_TYPE_SELECTION (état 'video-type')
-// Aucun pipeline parallèle entre manuel et bibliothèque.
+// réutilise exactement le même chemin d'état que l'import manuel : audio et
+// vidéo MP4 passent tous deux par l'état 'prepare' (09/10/2026 : l'état
+// 'video-type' est retiré). Aucun pipeline parallèle entre manuel et bibliothèque.
 async function loadAnalysisSource(sourceType, filePath, fileName) {
   if (!filePath) return;
   currentAudioPath = filePath;
@@ -718,43 +691,27 @@ async function loadAnalysisSource(sourceType, filePath, fileName) {
   // niveau 6 de la Definition of Done.
   if (await restoreSavedAnalysis(filePath)) return;
 
-  const target = resolveAnalysisState(ext, currentSourceType);
-  if (target === 'video-type') {
-    // La vidéo passe directement à la sélection de type (HOME → Vidéo → choix).
-    currentVideoType = null;
-    if (els.videoTypeCards) {
-      els.videoTypeCards.forEach((c) => c.classList.remove('selected'));
-    }
-    if (els.confirmVideoTypeBtn) els.confirmVideoTypeBtn.disabled = true;
-    setAnalyzerState('video-type');
-  } else {
-    showPrepareScreen();
-  }
+  showPrepareScreen();
 }
 
-async function handleImportClick(sourceType = 'audio') {
+async function handleImportClick() {
   if (analysisRunning) {
     showToast('Une analyse est en cours : attendez qu’elle se termine avant d’importer.', 4000, 'warning');
     return;
   }
   try {
-    // Filtre strict : le file picker natif n'accepte que les formats du type demandé.
-    const filePath = sourceType === 'video'
-      ? await selectVideoFile()
-      : await selectAudioFile();
+    // [Claude] — 2026-10-09 — MP4 accepté (Narcisse : « dans l'onglet Analyse, ajouter aussi les
+    // fichiers MP4 ») : le son en est extrait par ffmpeg, comme pour la bibliothèque.
+    const filePath = await selectAnalysisFile();
     if (!filePath) return;
 
     // Validation défensive : refuser un format qui aurait contourné le filtre natif.
-    if (sourceType === 'video' && !isVideoFile(filePath)) {
-      alert('Format non supporté pour la vidéo. Seuls les fichiers .mp4 sont acceptés.');
-      return;
-    }
-    if (sourceType === 'audio' && !isAudioFile(filePath)) {
-      alert('Format non supporté pour l\'audio. Formats acceptés : MP3, WAV, M4A.');
+    if (!isAudioFile(filePath) && !isVideoFile(filePath)) {
+      alert('Format non supporté. Formats acceptés : MP3, WAV, M4A, MP4.');
       return;
     }
 
-    loadAnalysisSource(sourceType, filePath);
+    loadAnalysisSource(inferSourceType(filePath, 'audio'), filePath);
   } catch (err) {
     console.error('[Analyzer] import failed:', err);
     alert(`Erreur d'import : ${err.message}`);
@@ -793,13 +750,9 @@ function showPrepareScreen() {
   selectedSegmentId = null;
   setAnalyzerState('prepare');
 
-  // Audio : la case fichier reprend les métadonnées disponibles.
-  if (currentSourceType === 'video') {
-    // La vidéo est routée directement vers la sélection de type par
-    // loadAnalysisSource ; on ne passe pas par showPrepareScreen.
-    return;
-  }
-  if (currentSourceType === 'audio' && currentAudioPath) {
+  // La case fichier reprend les métadonnées disponibles (audio ou vidéo MP4).
+  if (els.prepareFileIcon) els.prepareFileIcon.textContent = currentSourceType === 'video' ? '🎬' : '🎵';
+  if (currentAudioPath) {
     if (els.prepareFileName) els.prepareFileName.textContent = currentFileName || '—';
     const ext = (currentAudioPath.split('.').pop() || '').toUpperCase();
     const metaParts = [];
@@ -863,7 +816,6 @@ async function restoreSavedAnalysis(filePath) {
       duration: cached.duration ?? playback.duration ?? 0,
       restoredFromProject: true,
     };
-    if (analysis.videoType) currentVideoType = analysis.videoType;
 
     currentAnalysis = analysis;
     await showResults(analysis);
@@ -910,7 +862,6 @@ function setAnalysisControlsDisabled(disabled) {
   const controls = [
     els.launchAnalysisBtn,
     els.reanalyzeBtn,
-    els.confirmVideoTypeBtn,
     els.importAudioBtn,
     els.importBtn,
   ];
@@ -933,10 +884,6 @@ async function launchAnalysisFromPrepare() {
   try {
     const analysis = await analyzer.analyze(currentAudioPath);
     currentAnalysis = analysis;
-    // Enregistrer le type vidéo dans l'analyse si pertinent.
-    if (currentSourceType === 'video' && currentVideoType) {
-      analysis.videoType = currentVideoType;
-    }
     await showResults(analysis);
     // Ajouter à la bibliothèque en arrière-plan.
     importToLibrary(currentAudioPath).then(() => refreshLibraryList()).catch((e) => {
@@ -1069,7 +1016,6 @@ export function resetAnalysisSession() {
   currentAudioPath = '';
   currentSourceType = null;
   setMasterclassSourceType('audio');
-  currentVideoType = null;
   selectedSegmentId = null;
   clearInspector();
   resetProjectState();
