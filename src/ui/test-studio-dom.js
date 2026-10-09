@@ -138,6 +138,190 @@ function testFailTrackLoadingResetsContext() {
   console.log('✅ Code — failTrackLoading réinitialise updateStudioFileContext');
 }
 
+// ── Test 6 : [Claude] — 2026-10-09 — une séparation qui échoue n'est jamais remplacée par des bips ──
+// Régression vécue : torchaudio récent sans torchcodec → Demucs échouait à l'enregistrement →
+// des bips de 2 s à la place des pistes (« bruit sourd », « lecteur bloqué », « le son bug »).
+function testSeparationFailureIsNotFaked() {
+  const main = readText('electron/main.js');
+  const wrapper = readText('electron/demucs-wrapper.py');
+  const studio = readText('src/ui/studio-tab.js');
+  const handler = main.slice(main.indexOf("ipcMain.handle('studio:separate'"), main.indexOf("ipcMain.handle('studio:is-separated'"));
+  const failures = [];
+  if (!/catch \(err\) \{[\s\S]*?return \{ success: false, simulated: false, error: err\.message \};/.test(handler)) failures.push('l\'échec de Demucs ne renvoie pas success: false');
+  if (/catch \(err\) \{[\s\S]*?createSimulatedStems/.test(handler)) failures.push('un échec crée encore des pistes simulées (bips)');
+  if (!wrapper.includes('torchaudio.save = _write_wav') || wrapper.indexOf('torchaudio.save = _write_wav') > wrapper.indexOf('import demucs.separate')) failures.push('demucs-wrapper.py ne remplace pas torchaudio.save avant d\'importer demucs');
+  if (!main.includes("await fs.writeFile(path.join(stemsDir, SIMULATED_MARK)")) failures.push('les pistes simulées ne sont pas marquées');
+  if (!/ipcMain\.handle\('studio:get-stems'[\s\S]*?hasLegacyBeepStems/.test(main)) failures.push('les anciens bips ne sont pas écartés au chargement');
+  if (!studio.includes('if (!separationResult?.success) throw new Error(separationFailureText(separationResult));')) failures.push('le Studio charge les pistes même quand la séparation a échoué');
+  if (!studio.includes('if (result?.success !== true) {')) failures.push('« Réanalyser » prend un message d\'erreur pour un succès');
+  if (failures.length) {
+    console.error(`❌ Séparation — ${failures.join(' ; ')}`);
+    process.exit(1);
+  }
+  console.log('✅ Séparation — un échec est dit (pas de bips), torchaudio.save remplacé, anciens bips écartés');
+}
+
+// ── Test 7 : [Claude] — 2026-10-09 — la consigne de l'étape 1 est dans le lecteur, sans voile décalé ──
+function testStageOverlayInPlayer() {
+  const html = readText('src/index.html');
+  const css = readText('src/ui/refonte/studio.css');
+  const wrap = html.indexOf('id="studio-player-wrap"');
+  const overlay = html.indexOf('id="studio-stage-overlay"');
+  const video = html.indexOf('id="studio-video-container"');
+  const skinRule = css.slice(css.indexOf(":root[data-skin='global'] #studio-tab .studio-stage-overlay,"), css.indexOf('}', css.indexOf(":root[data-skin='global'] #studio-tab .studio-stage-overlay,")));
+  if (!(wrap > 0 && overlay > wrap && overlay < video) || /inset:\s*0/.test(skinRule) || /backdrop-filter/.test(skinRule)) {
+    console.error('❌ Étape 1 — la consigne doit être dans .studio-player-wrap, sans voile plein écran (inset: 0 + translateX la décalait d\'un demi-écran)');
+    process.exit(1);
+  }
+  console.log('✅ Étape 1 — consigne en carte dans le lecteur, sans voile décalé');
+}
+
+// ── Test 8 : [Claude] — 2026-10-09 — une région gardée sans pistes se confirme de nouveau ──
+function testConfirmedRegionWithoutStems() {
+  const js = readText('src/ui/studio-tab.js');
+  if (!/if \(metadata\?\.region\?\.confirmed\) \{[\s\S]*?const hasStems = Object\.values\(stemPaths\)\.some\(Boolean\);\s*regionConfirmed = hasStems;/.test(js)) {
+    console.error('❌ Région gardée — sans pistes, elle doit redevenir « à confirmer » (sinon « Confirmer la région » disparaît)');
+    process.exit(1);
+  }
+  console.log('✅ Région gardée — sans pistes, « Confirmer la région » revient');
+}
+
+// ── Test 9 : [Claude] — 2026-10-09 — région verrouillée pendant chargement / traitement ; séparation directe ≤ 5 min ──
+function testRegionLockAndShortTracks() {
+  const js = readText('src/ui/studio-tab.js');
+  const failures = [];
+  if (!js.includes('return isLoadingTrack || isProcessing;')) failures.push('pas de verrou de région');
+  if (!/els\.backRegionBtn\.disabled = locked;\s*if \(els\.resetRegionBtn\) els\.resetRegionBtn\.disabled = locked;/.test(js)) failures.push('« ↩ » et « ↺ » ne sont pas désactivés pendant le chargement / traitement');
+  for (const fn of ['function confirmRegion() {\n  if (regionEnd === null || regionLocked()) return;', 'async function backRegion() {\n  if (regionLocked()) return;', 'async function resetRegion() {\n  if (regionLocked()) return;']) {
+    if (!js.includes(fn)) failures.push(`garde absente : ${fn.split('(')[0]}`);
+  }
+  if (!/function updateStudioStage\(stage\) \{[\s\S]*?updateCropButtons\(\);/.test(js)) failures.push('les boutons ne suivent pas les changements d\'étape');
+  if (!/finishTrackLoading\(trackName\);\s*await separateShortTrackDirectly\(trackId\);/.test(js)
+    || !js.includes('if (!(total > 0 && total <= MAX_REGION_DURATION) || autoSeparationTried.has(trackId)) return;')) failures.push('pas de séparation directe pour un morceau de 5 min au plus');
+  if (failures.length) {
+    console.error(`❌ Région — ${failures.join(' ; ')}`);
+    process.exit(1);
+  }
+  console.log('✅ Région — verrouillée pendant chargement et traitement ; ≤ 5 min : séparation directe (une fois par séance)');
+}
+
+// ── Test 10 : [Claude] — 2026-10-09 — au lâcher d'un marqueur, la lecture se place dessus ──
+function testSeekOnMarkerRelease() {
+  const js = readText('src/ui/studio-tab.js');
+  const up = js.slice(js.indexOf("window.addEventListener('mouseup'"), js.indexOf("wrap.addEventListener('dblclick'"));
+  if (!/handle === 'end' && regionEnd !== null\) seek\(Math\.max\(regionStart, regionEnd - END_PREVIEW_SECONDS\)\);\s*else seek\(regionStart\);/.test(up)
+    || !/isDraggingRegion = false;\s*seek\(regionStart\);/.test(up)) {
+    console.error('❌ Région — au lâcher d\'un marqueur, la lecture doit se placer au début (ou 3 s avant la fin)');
+    process.exit(1);
+  }
+  console.log('✅ Région — marqueur lâché : la lecture se place au début de la région (fin : 3 s avant)');
+
+  // « Revenir au début » (◀◀) : début de la région dès qu'elle est tracée, pas seulement confirmée.
+  const prev = js.slice(js.indexOf("els.prevBtn?.addEventListener('click'"), js.indexOf("els.resetRegionBtn?.addEventListener('click'"));
+  if (!/const target = regionEnd !== null \? regionStart : 0;/.test(prev)) {
+    console.error('❌ Région — « Revenir au début » doit aller au début de la région tracée');
+    process.exit(1);
+  }
+  console.log('✅ Région — « Revenir au début » va au début de la région tracée');
+}
+
+function testWaveformFromDecodedAudio() {
+  const js = readText('src/ui/studio-tab.js');
+  // La fonction pure est extraite du source et exécutée sur un faux AudioBuffer.
+  const start = js.indexOf('export function peaksFromAudioBuffer');
+  const body = js.slice(start, js.indexOf('\n}\n', start) + 2).replace('export ', '');
+  const peaksFromAudioBuffer = new Function(`${body}; return peaksFromAudioBuffer;`)();
+  const left = new Float32Array(800).fill(0);
+  const right = new Float32Array(800).fill(0);
+  left[1] = 0.5; right[1] = 0.5;     // bloc 0 : crête 0,5
+  left[799] = -1; right[799] = -0.6; // dernier bloc : crête 0,8
+  const fake = { length: 800, numberOfChannels: 2, duration: 467.25, getChannelData: (c) => (c ? right : left) };
+  const data = peaksFromAudioBuffer(fake);
+  const ok = data && data.peaks.length === 400 && data.peaks[0] === 0.5 && data.peaks[399] === 0.8
+    && data.peaks[100] === 0 && data.duration === 467.25 && peaksFromAudioBuffer(null) === null;
+  const gen = js.slice(js.indexOf('async function generateWaveformBlocking'), js.indexOf('function applyWaveformData'));
+  const usesDecoded = /peaksFromAudioBuffer\(masterAudioBuffer\)[\s\S]*?applyWaveformData\(decoded\);\s*return;[\s\S]*generateWaveform/.test(gen)
+    && /\(await tryGenerate\(preferredWavPath\)\) \|\| await tryGenerate\(fallbackOriginalPath\)/.test(gen);
+  const regionWithoutWaveform = !/if \(!waveformData\) return/.test(js) && /new ResizeObserver\(/.test(js);
+  if (!ok || !usesDecoded || !regionWithoutWaveform) {
+    console.error('❌ Waveform — tirée du son décodé, repli Python corrigé, région traçable sans waveform', { ok, usesDecoded, regionWithoutWaveform });
+    process.exit(1);
+  }
+  console.log('✅ Waveform — tirée du son décodé (sans Python), région traçable même sans waveform');
+}
+
+function testCancelRegionProcessing() {
+  const html = readText('src/index.html');
+  const js = readText('src/ui/studio-tab.js');
+  const main = readText('electron/main.js');
+  const box = html.slice(html.indexOf('id="studio-processing-overlay"'), html.indexOf('studio-processing-hint'));
+  const button = /studio-processing-bar-wrap[\s\S]*id="studio-processing-cancel"[\s\S]*hidden/.test(box);
+  const cancel = js.slice(js.indexOf('async function cancelRegionProcessing'), js.indexOf('export async function loadTrack'));
+  const backToStage1 = /regionConfirmed = false;/.test(cancel) && /updateStudioStage\(1\)/.test(cancel)
+    && /await cancelSeparation\(track\.id\)/.test(cancel) && /confirmed: false/.test(cancel);
+  const wired = /els\.processingCancel\?\.addEventListener\('click', \(\) => cancelRegionProcessing\(\)\)/.test(js)
+    && /processingCancel\.hidden = !\(stage === 2 && !isLoadingTrack\)/.test(js)
+    && /getRegionTrimmedPath\(\);\s*\/\/[^\n]*\n\s*if \(processingJobId !== jobId\) return;/.test(js);
+  const killed = /ipcMain\.handle\('studio:cancel-separation'[\s\S]*?run\.cancelled = true;[\s\S]*?run\.proc\.kill/.test(main)
+    && /if \(run\.cancelled\) \{\s*reject\(new Error\(CANCELLED\)\)/.test(main)
+    && ['electron/preload.cjs', 'electron/preload.js'].every((p) => /cancelSeparation: \(trackId\) => ipcRenderer\.invoke\('studio:cancel-separation'/.test(readText(p)));
+  if (!button || !backToStage1 || !wired || !killed) {
+    console.error('❌ Traitement — « Annuler » arrête la séparation et revient à la sélection', { button, backToStage1, wired, killed });
+    process.exit(1);
+  }
+  console.log('✅ Traitement — « Annuler » arrête Demucs et revient à la sélection de région');
+}
+
+function testRegionGripPlayheadAndSmoothPlayback() {
+  const js = readText('src/ui/studio-tab.js');
+  const html = readText('src/index.html');
+  const css = readText('src/ui/refonte/studio.css');
+  const mixer = readText('src/audio/stem-mixer.js');
+  // 1. Plus de réinitialisation au double-clic sur la waveform.
+  const noDblclick = !/addEventListener\('dblclick'/.test(js);
+  // 2. Trait de lecture à la couleur du texte du thème (lisible en clair), en fin de feuille.
+  const playhead = /:root\[data-skin\] #studio-tab \.studio-playhead \{[^}]*background: var\(--r-text\);[^}]*opacity: 1;/.test(css)
+    && css.indexOf(':root[data-skin] #studio-tab .studio-playhead {') > css.indexOf(":root[data-skin='v2'] #studio-tab .studio-playhead");
+  // 3. Poignée du début de région au-dessus de la waveform.
+  const grip = /id="studio-handle-rail"[\s\S]*id="studio-handle-grip-start"[\s\S]*id="studio-waveform-wrap"/.test(html)
+    && /els\.gripStart\?\.addEventListener\('mousedown'[\s\S]*?isDraggingHandle = 'start';/.test(js);
+  // 4. Un seul SoundTouch, sur le bus, et seulement si on transpose ; horloge corrigée du retard.
+  const oneShifter = !/pitchShifters\[/.test(mixer) && /src\.connect\(gain\);/.test(mixer)
+    && /const wantShifter = !force && !!pitchShifter && \(currentPitch !== 0 \|\| busThroughShifter\);/.test(mixer)
+    && /busThroughShifter \? PITCH_SHIFTER_LATENCY : 0/.test(mixer);
+  const video = /!playerVideo\.seeking && now - lastVideoResyncAt > VIDEO_RESYNC_COOLDOWN_MS/.test(js)
+    && /if \(transpose !== 0\) mixer\.setDetune\(transpose\);\s*mixer\.play\(\);/.test(js);
+  if (!noDblclick || !playhead || !grip || !oneShifter || !video) {
+    console.error('❌ Waveform / lecture fluide', { noDblclick, playhead, grip, oneShifter, video });
+    process.exit(1);
+  }
+  console.log('✅ Waveform : pas de double-clic, trait lisible, poignée du début ; lecture : un seul SoundTouch, vidéo sans recalages en rafale');
+}
+
+function testAbruptChangesStaySmooth() {
+  const js = readText('src/ui/studio-tab.js');
+  const mixer = readText('src/audio/stem-mixer.js');
+  const shifter = readText('src/audio/pitch-shifter.js');
+  // Transposition en direct : SoundTouch déjà branché → setPitch seul, pas de relance.
+  const live = /if \(routeBus\(\) && isPlaying\) \{\s*play\(heard\);/.test(mixer)
+    && /currentPitch !== 0 \|\| busThroughShifter/.test(mixer);
+  // Chaque relance prend un SoundTouch neuf (pas de reste de l'ancienne position).
+  const fresh = /function freshShifter\(\)[\s\S]*?createPitchShifterNow\(/.test(mixer) && /freshShifter\(\);/.test(mixer)
+    && /export function createPitchShifterNow/.test(shifter);
+  // Volume remonté sur l'horloge audio, plus de setTimeout.
+  const ramp = !/setTimeout\(\(\) => applyState/.test(mixer) && /param\.setTargetAtTime\(computeGain\(stem\), startAt/.test(mixer);
+  // Vidéo : attend le son relancé ; barre de lecture : un seul saut au lâcher.
+  const video = /const warmup = mixer\?\.hasStems\(\) \? mixer\.getWarmupRemaining\(\) : 0;/.test(js)
+    && /if \(isScrubbing && isPlaying\) \{[\s\S]*?return;\s*\}\s*seek\(time\);/.test(js)
+    && /if \(!isScrubbing\) \{\s*updateProgressUI\(realTime, duration\);/.test(js);
+  const noReflow = /const width = waveformWidth \|\|/.test(js);
+  if (!live || !fresh || !ramp || !video || !noReflow) {
+    console.error('❌ Changements brusques en lecture', { live, fresh, ramp, video, noReflow });
+    process.exit(1);
+  }
+  console.log('✅ Changements brusques : transposition en direct, SoundTouch neuf à chaque relance, vidéo qui attend le son, un seul saut au lâcher de la barre');
+}
+
 // ── Exécution ──
 console.log('=== Tests contrat DOM Studio ===\n');
 testDefaultFileContext();
@@ -145,4 +329,13 @@ await testBuildFileContextText();
 testUpdateStudioFileContextCalledEarly();
 testFinishTrackLoadingUpdatesContext();
 testFailTrackLoadingResetsContext();
+testSeparationFailureIsNotFaked();
+testStageOverlayInPlayer();
+testConfirmedRegionWithoutStems();
+testRegionLockAndShortTracks();
+testSeekOnMarkerRelease();
+testWaveformFromDecodedAudio();
+testCancelRegionProcessing();
+testRegionGripPlayheadAndSmoothPlayback();
+testAbruptChangesStaySmooth();
 console.log('\n✅ Tous les tests DOM Studio passent.');

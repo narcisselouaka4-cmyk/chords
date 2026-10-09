@@ -7,9 +7,12 @@ import {
   renameSession,
 } from '../recorder/session-manager.js';
 import { createRecorder } from '../recorder/recorder.js';
+import { buildMidiFile } from '../recorder/serializer.js';
 import { createPlayer } from '../recorder/player.js';
 import { playNote, releaseNote, resumeAudio } from '../audio/simple-synth.js';
 import { segmentSessionEvents, nameChordSegments } from '../recorder/session-analysis.js';
+import { analyzeSessionPerformance, formatPerformanceFindings } from '../recorder/session-performance.js';
+import { reviewTake, takeContextLines, takeMoment } from '../recorder/take-review.js';
 // [Refonte Astra 12/09] — Le paysage harmonique remplace l'ancienne frise de
 // blocs, qui forçait toute la session à tenir dans la largeur. buildNoteWindows
 // est la fonction déjà utilisée par l'analyse de session : on la réutilise, on
@@ -69,6 +72,7 @@ const els = {
   carnetExploreAll: document.getElementById('carnet-explore-all'),
   carnetTimeline: document.getElementById('carnet-timeline'),
   carnetEntries: document.getElementById('carnet-entries'),
+  carnetFindings: document.getElementById('carnet-findings'),
   modalOverlay: document.getElementById('midi-session-end-modal'),
   modalStats: document.getElementById('midi-session-modal-stats'),
   modalKeepBtn: document.getElementById('midi-session-keep'),
@@ -113,10 +117,14 @@ export function initRecordingTab({
   // moment, l'onglet Sessions MIDI n'est pas forcément affiché. On initialise
   // le player sans branchement au clavier principal : le câblage MIDI live
   // reste dans main.js. Le player sert uniquement à la relecture des sessions.
+  // [Claude] — 2026-09-25 — Relecture par le pont de main.js (feedMidiEvent) : touches
+  // allumées, accord lu, pédale rejouée, jamais réenregistré ni jugé par un exercice
+  // (Narcisse : « il ne peut pas reproduire exactement mon jeu »). Sans pont
+  // (tests), le synthé directement, comme avant.
   player = createPlayer({
-    onNoteOn: (note, velocity) => playNote(note, velocity),
-    onNoteOff: (note) => releaseNote(note),
-    onSustain: () => {},
+    onNoteOn: (note, velocity) => (onMidiEvent ? onMidiEvent('noteOn', note, velocity) : playNote(note, velocity)),
+    onNoteOff: (note) => (onMidiEvent ? onMidiEvent('noteOff', note) : releaseNote(note)),
+    onSustain: (down) => onMidiEvent?.('sustain', Boolean(down)),
     onPitchWheel: () => {},
     onModWheel: () => {},
   });
@@ -427,7 +435,10 @@ function hideEndModal() {
 async function keepSession() {
   hideEndModal();
   try {
-    const stats = { ...recorder.getStats(), chordCount: chordCountDuringRecording };
+    // Nombre d'accords : celui du carnet (découpage de la session), pas le
+    // compteur approximatif de l'enregistrement en direct.
+    const chordCount = segmentSessionEvents(currentEvents).filter((seg) => seg.type === 'chord').length;
+    const stats = { ...recorder.getStats(), chordCount };
     await saveSessionEvents(currentSession.id, currentEvents, stats);
     currentSession = { ...currentSession, ...stats };
     setRecordingStatus('Session sauvegardée.', 'saved');
@@ -471,23 +482,92 @@ async function replaySession() {
 
 export function feedRecorderNoteOn(note, velocity) {
   recorder?.noteOn(note, velocity);
+  studioTake?.recorder.noteOn(note, velocity);
 }
 
 export function feedRecorderNoteOff(note) {
   recorder?.noteOff(note);
+  studioTake?.recorder.noteOff(note);
 }
 
 export function feedRecorderSustain(value) {
   recorder?.sustain(value);
+  studioTake?.recorder.sustain(value);
 }
 
 export function feedRecorderPitchWheel(value) {
   recorder?.pitchWheel(value);
+  studioTake?.recorder.pitchWheel(value);
 }
 
 export function feedRecorderModWheel(value) {
   recorder?.modWheel(value);
+  studioTake?.recorder.modWheel(value);
 }
+
+// ── Prises du Studio ──
+// [Claude] — 2026-09-24 — Narcisse : « quand j'enregistre mon jeu dans le Studio,
+// que la prise soit automatiquement enregistrée dans le sous-onglet Session »,
+// pour la retrouver dès l'arrêt, la réécouter seule (sans les pistes audio) et
+// l'analyser. Le Studio annonce le début et la fin de son enregistrement
+// (évènements « studio-take-start » / « studio-take-stop ») ; pendant ce temps,
+// un second enregistreur reçoit les mêmes notes que celui des sessions.
+let studioTake = null; // { recorder, meta: { trackName, position } }
+
+function startStudioTake(meta = {}) {
+  studioTake = { recorder: createRecorder(), meta };
+  studioTake.recorder.start();
+}
+
+/**
+ * Fin de prise : si des notes ont été jouées, une session « Prise du Studio »
+ * est créée et sauvegardée, puis sélectionnée dans la liste.
+ * @returns {Promise<object|null>} la session créée
+ */
+async function stopStudioTake() {
+  const take = studioTake;
+  studioTake = null;
+  if (!take) return null;
+  const events = take.recorder.stop();
+  const notes = events.filter((e) => e.type === 'note_on' && e.velocity > 0);
+  const notify = (detail) => document.dispatchEvent(new CustomEvent('studio-take-saved', { detail }));
+  if (notes.length === 0) {
+    notify({ empty: true });
+    return null;
+  }
+  try {
+    if (!window.electronAPI?.files) throw new Error('enregistrement des sessions indisponible hors de l\'application');
+    const now = new Date();
+    const when = `${now.toLocaleDateString('fr-FR')} ${now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+    const trackName = String(take.meta.trackName || '').trim();
+    const name = `Studio · ${trackName || 'prise'} · ${when}`;
+    const position = Number(take.meta.position);
+    const session = await createSession({
+      name,
+      // Le Studio ne connaît pas le tempo du morceau : aucun tempo inventé.
+      tempo: Number(take.meta.tempo) || null,
+      tags: ['studio'],
+      sourceType: 'studio',
+      comments: `Prise enregistrée dans le Studio${trackName ? ` sur « ${trackName} »` : ''}${Number.isFinite(position) && position > 0 ? `, à partir de ${formatTimeShort(position)} du morceau` : ''}.`,
+    });
+    const chordCount = segmentSessionEvents(events).filter((seg) => seg.type === 'chord').length;
+    const stats = { ...take.recorder.getStats(), chordCount };
+    await saveSessionEvents(session.id, events, stats);
+    await refreshSessionList();
+    // Pas de prise en cours dans l'onglet Session : la nouvelle prise y est sélectionnée.
+    if (!recorder?.isRecording) await loadAndPlaySession(session.id);
+    notify({ sessionId: session.id, name, noteCount: notes.length, chordCount });
+    return session;
+  } catch (err) {
+    console.error('[Session] Prise du Studio non sauvegardée :', err);
+    notify({ error: err.message || String(err) });
+    return null;
+  }
+}
+
+document.addEventListener('studio-take-start', (e) => startStudioTake(e.detail || {}));
+
+document.addEventListener('studio-take-stop', () => { stopStudioTake(); });
 
 async function refreshSessionList() {
   if (!els.sessionList) return;
@@ -496,7 +576,7 @@ async function refreshSessionList() {
     const query = (els.sessionSearch?.value || '').trim().toLowerCase();
 
     const scoped = sessionFilter === 'captures'
-      ? sessions.filter((s) => (s.sourceType || 'midi') === 'midi')
+      ? sessions.filter((s) => ['midi', 'studio', 'passage'].includes(s.sourceType || 'midi'))
       : sessions;
 
     const filtered = query
@@ -535,6 +615,7 @@ function syncSessionFilterUi(total) {
 // Libellé de provenance affiché sous le nom de la session.
 const SESSION_SOURCE_LABELS = {
   midi: 'Capture locale',
+  studio: 'Prise du Studio',
   import: 'Import MIDI',
   example: 'Exemple',
 };
@@ -570,6 +651,8 @@ function renderMiniWave(preview) {
 const ICON_FILE_MUSIC = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><circle cx="9.5" cy="17" r="1.8"/><path d="M11.3 17v-4.6l4 1"/></svg>';
 const ICON_TRASH = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>';
 const ICON_OPEN = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>';
+const ICON_EXPORT = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>';
+const ICON_DONE = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>';
 const ICON_EMPTY_LIBRARY = '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
 
 function renderSessionList(sessions, { total = 0, query = '' } = {}) {
@@ -578,7 +661,7 @@ function renderSessionList(sessions, { total = 0, query = '' } = {}) {
 
   if (sessions.length === 0) {
     els.sessionList.innerHTML = total === 0
-      ? `<div class="tr-empty">${ICON_EMPTY_LIBRARY}<h3>Aucune session pour l'instant</h3><p>Installez-vous au clavier et lancez une nouvelle session : votre jeu sera enregistré ici, note par note.</p></div>`
+      ? `<div class="tr-empty">${ICON_EMPTY_LIBRARY}<h3>Aucune session pour l'instant</h3><p>Installez-vous au clavier et cliquez sur « Enregistrer » : votre jeu sera enregistré ici, note par note.</p></div>`
       : `<div class="tr-empty">${ICON_EMPTY_LIBRARY}<h3>Aucun résultat</h3><p>${query ? `Aucune session ne correspond à « ${escapeHtml(query)} ».` : 'Aucune session ne correspond à ce filtre.'}</p></div>`;
     return;
   }
@@ -607,6 +690,7 @@ function renderSessionList(sessions, { total = 0, query = '' } = {}) {
       <span class="tr-library-cell">${noteCount}</span>
       <div class="tr-library-row-actions">
         <button class="tr-icon-button tr-delete" type="button" data-action="delete" aria-label="Supprimer la session ${escapeHtml(session.name)}" title="Supprimer">${ICON_TRASH}</button>
+        <button class="tr-icon-button" type="button" data-action="export" aria-label="Exporter la session ${escapeHtml(session.name)} en fichier MIDI" title="Exporter en fichier MIDI (.mid)">${ICON_EXPORT}</button>
         <button class="tr-icon-button" type="button" data-action="open" aria-label="Ouvrir la session ${escapeHtml(session.name)}" title="Ouvrir">${ICON_OPEN}</button>
       </div>
     `;
@@ -650,8 +734,23 @@ function renderSessionList(sessions, { total = 0, query = '' } = {}) {
 
     item.addEventListener('click', (e) => {
       if (item.dataset.editing === 'true') return;
-      if (e.target.closest('[data-action="delete"]')) return;
+      if (e.target.closest('[data-action="delete"], [data-action="export"]')) return;
       loadAndPlaySession(session.id);
+    });
+
+    item.querySelector('[data-action="export"]')?.addEventListener('click', async (e) => {
+      e.stopPropagation(); // ni sélection, ni fermeture du tiroir
+      const button = e.currentTarget;
+      try {
+        const saved = await exportSessionMidi(session);
+        if (!saved) return;
+        button.innerHTML = ICON_DONE;
+        button.title = 'Fichier MIDI enregistré';
+        setTimeout(() => { button.innerHTML = ICON_EXPORT; button.title = 'Exporter en fichier MIDI (.mid)'; }, 1800);
+      } catch (err) {
+        console.error('[Sessions MIDI] Export MIDI impossible', err);
+        alert(`L'export MIDI n'a pas abouti : ${err?.message || err}`);
+      }
     });
 
     item.querySelector('[data-action="delete"]')?.addEventListener('click', async (e) => {
@@ -672,6 +771,26 @@ function renderSessionList(sessions, { total = 0, query = '' } = {}) {
   }
 }
 
+// [Claude] — 2026-10-09 — Narcisse : « enregistrer une session dans un fichier, pour pouvoir
+// ensuite la donner à l'onglet Analyse ». Le fichier est un MIDI standard (.mid), lisible aussi
+// par n'importe quel logiciel de musique. On le refait à partir des évènements de la session (et
+// pas du events.mid gardé à côté : les anciens étaient écrits deux fois trop lents).
+/** Exporte une session en fichier .mid ; false si le pianiste annule. */
+async function exportSessionMidi(session) {
+  const files = window.electronAPI?.files;
+  if (!files?.saveDialog || !files?.writeBinary) throw new Error('export indisponible hors de l\'application');
+  const { events } = await loadSession(session.id);
+  if (!events.some((ev) => ev.type === 'note_on')) throw new Error('cette session ne contient aucune note');
+  const base = String(session.name || 'Session').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim() || 'Session';
+  const target = await files.saveDialog({
+    defaultPath: `${base}.mid`,
+    filters: [{ name: 'Fichier MIDI', extensions: ['mid', 'midi'] }],
+  });
+  if (!target) return false;
+  await files.writeBinary(target, buildMidiFile(events, { name: session.name }));
+  return true;
+}
+
 function selectSession(sessionId) {
   loadAndPlaySession(sessionId);
 }
@@ -689,7 +808,10 @@ async function loadAndPlaySession(sessionId, autoPlay = false) {
     refreshSessionList();
     if (els.copilotSessionBtn) els.copilotSessionBtn.disabled = false;
     if (els.transportBar) els.transportBar.style.display = 'flex';
-    if (els.carnet) els.carnet.style.display = 'flex';
+    // [Claude] — 2026-10-09 — « Le carnet des moments marquants » ne s'affiche plus (Narcisse :
+    // « pas vraiment utile sous cette forme, il ne faut plus que ça apparaisse »). Son markup
+    // reste (des liaisons en dépendent), toujours masqué.
+    if (els.carnet) els.carnet.style.display = 'none';
     if (els.recordingControls) els.recordingControls.style.display = 'none';
     if (els.loadedState) els.loadedState.style.display = 'inline-flex';
     updateTransportUI();
@@ -716,7 +838,7 @@ function renderSelectedSessionInfo() {
 
 function resetSelectedSessionInfo() {
   if (els.selectedSessionInfo) {
-    els.selectedSessionInfo.innerHTML = `<p class="detail-hint">Aucune session sélectionnée. Créez une nouvelle session ou choisissez-en une dans la liste.</p>`;
+    els.selectedSessionInfo.innerHTML = `<p class="detail-hint">Aucune session sélectionnée. Cliquez sur « Enregistrer » ou choisissez une session dans la liste. Pour un avis rapide sur un passage : « Qu'en penses-tu ? », dans le Copilote.</p>`;
   }
   if (els.carnetSessionTitle) els.carnetSessionTitle.textContent = 'Aucune session sélectionnée';
   if (els.carnetSessionMeta) els.carnetSessionMeta.textContent = '';
@@ -734,12 +856,13 @@ function renderCarnet() {
   if (!currentSession) return;
 
   const segments = currentEvents.length
-    ? nameChordSegments(segmentSessionEvents(currentEvents))
+    ? nameChordSegments(segmentSessionEvents(currentEvents), { latin: currentNotation === 'latin' })
     : [];
   const totalDuration = currentSession.duration || segments[segments.length - 1]?.end || 1;
 
   renderCarnetHeader(segments, totalDuration);
   renderTimeline(segments, totalDuration);
+  renderCarnetFindings(sessionAnalysis());
   if (segments.length) {
     renderCarnetEntries(segments);
     bindCarnetPlayButtons(segments);
@@ -747,6 +870,109 @@ function renderCarnet() {
     bindCarnetExploreAll(segments);
   } else {
     if (els.carnetEntries) els.carnetEntries.innerHTML = '';
+  }
+}
+
+// [Claude] — 2026-09-24 — Analyse du jeu de la session affichée (pédale, grave
+// boueux, voix du dessus, régularité, nuances… : session-performance.js), gardée
+// tant que la session et la notation ne changent pas ; le Copilote reçoit la même.
+let analysisCache = { events: null, notation: null, analysis: null };
+
+function sessionAnalysis() {
+  if (analysisCache.events === currentEvents && analysisCache.notation === currentNotation) return analysisCache.analysis;
+  const analysis = currentEvents?.length
+    ? analyzeSessionPerformance(currentEvents, { tempo: currentSession?.tempo || null, latin: currentNotation === 'latin' })
+    : null;
+  analysisCache = { events: currentEvents, notation: currentNotation, analysis };
+  return analysis;
+}
+
+// [Claude] — 2026-09-25 — Portrait complet de la session (accords exacts main gauche |
+// main droite, voicing reconnu, rôles, lignes et gammes, rythme, constats détaillés) :
+// le même que « Qu'en penses-tu ? ». Le Copilote le reçoit.
+let reviewCache = { events: null, review: null };
+
+function sessionReview() {
+  if (reviewCache.events === currentEvents) return reviewCache.review;
+  const review = currentEvents?.length ? reviewTake(currentEvents) : null;
+  reviewCache = { events: currentEvents, review };
+  return review;
+}
+
+/**
+ * Fait réécouter un moment de la session : boucle courte autour de lui (on
+ * l'entend arriver) ; les touches s'allument en jaune, sans étiquette.
+ */
+function showSessionMoment(at) {
+  if (!player) return;
+  const review = sessionReview();
+  const chord = review?.chords.find((c) => c.at - 0.05 <= at && at < c.end + 0.05) || null;
+  const start = Math.max(0, at - 0.4);
+  const end = Math.min(player.getDuration(), Math.max(at + 2.2, chord ? Math.min(chord.end, at + 4) : at + 2.2));
+  playMomentLoop(start, end);
+}
+
+/** Boucle courte sur [start, end] (même mécanique que les boucles du carnet). */
+async function playMomentLoop(start, end) {
+  stopCarnetLoop();
+  carnetLoopSegment = { start, end, moment: true };
+  carnetLoopStart = start;
+  carnetLoopEnd = end;
+  player.seek(start);
+  await resumeAudio();
+  player.play();
+  startCarnetLoop();
+  startTransportLoop();
+}
+
+/** Rangée « Analyse du jeu » du carnet : un constat par pastille, ses moments cliquables. */
+function renderCarnetFindings(analysis) {
+  const host = els.carnetFindings;
+  if (!host) return;
+  host.innerHTML = '';
+  const items = analysis
+    ? [...analysis.issues.map((f) => ({ ...f, kind: 'issue' })), ...analysis.strengths.map((f) => ({ ...f, kind: 'strength' }))]
+    : [];
+  host.hidden = items.length === 0;
+  if (!items.length) return;
+  const label = document.createElement('span');
+  label.className = 'carnet-findings-label';
+  label.textContent = 'Analyse du jeu';
+  host.appendChild(label);
+  for (const f of items) {
+    const pill = document.createElement('div');
+    pill.className = `carnet-finding is-${f.kind}${f.severity >= 3 ? ' is-major' : ''}`;
+    pill.setAttribute('role', 'listitem');
+    pill.title = f.text;
+    const dot = document.createElement('span');
+    dot.className = 'carnet-finding-dot';
+    dot.setAttribute('aria-hidden', 'true');
+    const title = document.createElement('span');
+    title.className = 'carnet-finding-title';
+    title.textContent = f.title;
+    // Le détail (lu par les lecteurs d'écran ; à l'écran, au survol).
+    const detail = document.createElement('span');
+    detail.className = 'carnet-finding-detail';
+    detail.textContent = `${f.kind === 'issue' ? 'Suggestion' : 'Ce qui marche'} : ${f.text}`;
+    pill.append(dot, title, detail);
+    (f.times || []).slice(0, 3).forEach((t, i) => {
+      const detailCase = f.details?.[i] || null;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'carnet-finding-time';
+      btn.textContent = formatTimeShort(t);
+      btn.title = detailCase ? `${formatTimeShort(t)} — ${detailCase.text} (écouter en boucle)` : `Écouter ${formatTimeShort(t)} en boucle`;
+      // [Claude] — 2026-09-25 — Le moment en boucle courte (touches en jaune).
+      btn.addEventListener('click', () => showSessionMoment(t));
+      pill.appendChild(btn);
+    });
+    if ((f.times || []).length > 3) {
+      const more = document.createElement('span');
+      more.className = 'carnet-finding-more';
+      more.textContent = `+${f.times.length - 3}`;
+      pill.appendChild(more);
+    }
+    host.appendChild(pill);
   }
 }
 
@@ -884,6 +1110,8 @@ async function toggleCarnetLoop(seg, btn, segments) {
     await resumeAudio();
     player.play();
     startCarnetLoop();
+    // [Claude] — 2026-09-25 — Tête de lecture et temps à jour pendant la boucle.
+    startTransportLoop();
   }
 }
 
@@ -933,6 +1161,13 @@ function bindCarnetExploreButtons(segments) {
   });
 }
 
+// [Claude] — 2026-09-24 — Narcisse : « transférer une session MIDI vers le
+// Copilote IA pour qu'il analyse le jeu, donne des conseils et pointe ce qui ne
+// va pas ».
+// [Claude] — 2026-09-25 — Ton « assistant, pas coach » : des suggestions, pas des défauts.
+// (Pas « écoute » : ce mot fait démarrer un exemple sonore, voir wantsToHear.)
+const SESSION_COACHING_REQUEST = 'Que penses-tu de ma session ? Ce qui marche, et tes suggestions (avec les moments) pour aller plus loin.';
+
 function bindCarnetExploreAll(segments) {
   if (!els.carnetExploreAll) return;
   els.carnetExploreAll.disabled = false;
@@ -942,7 +1177,7 @@ function bindCarnetExploreAll(segments) {
     if (!context) return;
     document.dispatchEvent(new CustomEvent('app-switch-training-view', { detail: { view: 'copilot' } }));
     document.dispatchEvent(new CustomEvent('copilot-switch-to-session', { detail: context }));
-    const starter = 'Que peux-tu me dire sur cette session ?';
+    const starter = SESSION_COACHING_REQUEST;
     setTimeout(() => {
       document.dispatchEvent(new CustomEvent('copilot-send-message', { detail: { message: starter } }));
     }, 50);
@@ -1017,7 +1252,7 @@ function buildSessionContext() {
   // jamais existé) — on rejoue la session à travers la même analyse fraîche
   // que le carnet (segmentSessionEvents + nameChordSegments), qui est déjà
   // la source de vérité affichée à l'écran.
-  const segments = nameChordSegments(segmentSessionEvents(currentEvents || []));
+  const segments = nameChordSegments(segmentSessionEvents(currentEvents || []), { latin: currentNotation === 'latin' });
   const chordSegments = segments.filter((s) => s.type === 'chord');
 
   // Liste chronologique des vrais moments d'accord. Pas de déduplication par
@@ -1027,10 +1262,16 @@ function buildSessionContext() {
     .filter((s) => s.chordName)
     .map((s) => ({ start: s.start, label: s.chordName }));
 
+  // [Claude] — 2026-09-24 — Constats mesurés sur le jeu (pédale, grave boueux,
+  // voix du dessus, régularité, nuances…) : le Copilote les commente en coach.
+  const performance = sessionAnalysis();
+  const review = sessionReview();
+
   return {
     type: 'session',
     sessionId: currentSession.id,
     name: currentSession.name,
+    source: SESSION_SOURCE_LABELS[currentSession.sourceType] || null,
     duration: Number.isFinite(currentSession.duration) ? currentSession.duration : 0,
     tempo: currentSession.tempo || null,
     key: currentSession.key || null,
@@ -1041,6 +1282,14 @@ function buildSessionContext() {
     chordCount: chordSegments.length,
     comments: currentSession.comments || '',
     chords: chordMoments,
+    performance: performance ? { lines: formatPerformanceFindings(performance) } : null,
+    // [Claude] — 2026-09-25 — Notes exactes : voicings datés, types, rôles, mélodie,
+    // lignes, constats détaillés.
+    portrait: review ? takeContextLines(review, { title: '## Portrait de la session (notes exactes, moments m:ss,d)', maxChords: 60 }) : null,
+    // [Claude] — 2026-09-25 — Les évènements exacts, pour que le Copilote rejoue le
+    // jeu à l'identique (play_my_playing) ; jamais envoyés en texte au modèle.
+    events: currentEvents || [],
+    heardKey: review?.key?.label || null,
   };
 }
 
@@ -1052,7 +1301,7 @@ function bindCopilotButton() {
     if (!context) return;
     document.dispatchEvent(new CustomEvent('app-switch-training-view', { detail: { view: 'copilot' } }));
     document.dispatchEvent(new CustomEvent('copilot-switch-to-session', { detail: context }));
-    const starter = 'Que peux-tu me dire sur cette session ?';
+    const starter = SESSION_COACHING_REQUEST;
     setTimeout(() => {
       document.dispatchEvent(new CustomEvent('copilot-send-message', { detail: { message: starter } }));
     }, 50);
@@ -1062,6 +1311,8 @@ function bindCopilotButton() {
 let transportRafId = null;
 // Relance la session à la fin quand l'utilisateur travaille un passage.
 let transportLoopEnabled = false;
+/** Barre de lecture tenue par l'utilisateur : l'affichage ne la réécrit pas. */
+let transportScrubbing = false;
 
 const PLAY_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 4 13 8-13 8z" fill="currentColor"/></svg>';
 const PAUSE_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg>';
@@ -1098,17 +1349,30 @@ function bindTransportBar() {
     if (player.isPlaying) startTransportLoop();
   });
 
+  // [Claude] — 2026-10-09 — « Impossible de modifier manuellement la position de lecture »
+  // (Narcisse) : pendant la lecture, la boucle d'affichage réécrivait la barre à chaque image et
+  // effaçait le glisser ; au lâcher, on retombait sur la position courante. Tant que la barre
+  // est tenue, la boucle ne la touche plus ; le saut se fait au lâcher.
+  const sliderTime = () => ((Number(els.transportSlider.value) || 0) / 100) * (player?.getDuration() || 0);
+  els.transportSlider?.addEventListener('pointerdown', () => { transportScrubbing = true; });
   els.transportSlider?.addEventListener('input', () => {
     const duration = player?.getDuration() || 0;
-    const val = Number(els.transportSlider.value);
-    // Mise à jour visuelle uniquement pendant le drag ; le son se déclenche au mouseup.
-    updateTransportSliderOnly((val / 100) * duration, duration);
+    // Mise à jour visuelle (temps compris) pendant le glisser ; le son suit au lâcher.
+    updateTransportSliderOnly(sliderTime(), duration);
+    if (els.timecodeCurrent) els.timecodeCurrent.textContent = formatDuration(sliderTime());
+    if (!transportScrubbing) player?.seek(sliderTime()); // clavier (flèches) : saut direct
   });
 
   els.transportSlider?.addEventListener('change', () => {
-    const duration = player?.getDuration() || 0;
-    const val = Number(els.transportSlider.value);
-    player?.seek((val / 100) * duration);
+    transportScrubbing = false;
+    player?.seek(sliderTime());
+    updateTransportUI();
+  });
+  window.addEventListener('pointerup', () => {
+    if (!transportScrubbing) return;
+    transportScrubbing = false;
+    player?.seek(sliderTime());
+    updateTransportUI();
   });
 
   els.transportLoop?.addEventListener('click', () => {
@@ -1158,8 +1422,10 @@ function updateTransportUI() {
   if (!els.transportBar) return;
   const dur = player?.getDuration() || 0;
   const cur = player?.getCurrentTime() || 0;
-  updateTransportSliderOnly(cur, dur);
-  if (els.timecodeCurrent) els.timecodeCurrent.textContent = formatDuration(cur);
+  if (!transportScrubbing) {
+    updateTransportSliderOnly(cur, dur);
+    if (els.timecodeCurrent) els.timecodeCurrent.textContent = formatDuration(cur);
+  }
   if (els.timecodeTotal) els.timecodeTotal.textContent = formatDuration(dur);
   if (els.transportPlay) {
     // innerHTML et non textContent : le bouton porte une icône SVG depuis la

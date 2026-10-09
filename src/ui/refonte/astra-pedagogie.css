@@ -1,0 +1,1065 @@
+/* ============================================================================
+   astra-pedagogie.css — Entraînement › Pédagogie IA
+   [Claude] — 2026-10-03 — Refonte avec Narcisse : la vidéo du prof à gauche, le
+   Copilote à droite (« pourquoi ne pas intégrer directement Copilot IA au sein de
+   Pédagogie IA »). La conversation est celle du Copilote, déplacée dans
+   #pedagogie-copilot-panel (src/pedagogie/copilot-dock.js) : ses styles valent aux
+   deux endroits (:is(#practice-view-copilot, #pedagogie-copilot-panel) dans
+   astra-bridge.css et practice.css).
+   Les anciennes règles de practice.css visent « :root[data-skin='…']
+   #practice-view-pedagogie .x » : on reprend ici la même forme (même spécificité,
+   chargée après) pour les remplacer. Couleurs : jetons Astra (--tr-*), donc les deux
+   thèmes.
+   ============================================================================ */
+
+#practice-view-pedagogie [hidden] { display: none !important; }
+
+/* ---- Accueil (aucun tutoriel ouvert) ------------------------------------- */
+#practice-view-pedagogie .pedago-home {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  overflow: auto;
+}
+#practice-view-pedagogie .pedago-home-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 540px;
+  margin: auto;
+  padding: 36px 20px;
+  text-align: center;
+}
+#practice-view-pedagogie .pedago-home-icon {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  margin-bottom: 4px;
+  border-radius: 50%;
+  background: var(--tr-accent-soft);
+  color: var(--tr-accent);
+}
+#practice-view-pedagogie .pedago-home-empty h2 {
+  margin: 0;
+  color: var(--tr-text);
+  font-size: 22px;
+  font-weight: 550;
+  letter-spacing: -0.03em;
+}
+#practice-view-pedagogie .pedago-home-empty p {
+  margin: 0;
+  color: var(--tr-secondary);
+  font-size: 12.5px;
+  line-height: 1.65;
+}
+#practice-view-pedagogie .pedago-home-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 8px; }
+
+/* [Claude] — 2026-10-03 — Lot 5 : l'accueil en cartes (vignette, durée, « Déjà lu »).
+   Avec des tutos, l'en-tête se range en haut à gauche et les cartes prennent la place. */
+#practice-view-pedagogie .pedago-home.has-cards .pedago-home-empty {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "title actions" "text actions";
+  align-items: center;
+  gap: 2px 16px;
+  max-width: none;
+  margin: 0;
+  padding: 2px 2px 0;
+  text-align: left;
+}
+#practice-view-pedagogie .pedago-home.has-cards .pedago-home-icon { display: none; }
+#practice-view-pedagogie .pedago-home.has-cards .pedago-home-empty h2 { grid-area: title; font-size: 18px; }
+#practice-view-pedagogie .pedago-home.has-cards .pedago-home-empty p { grid-area: text; }
+#practice-view-pedagogie .pedago-home.has-cards .pedago-home-actions { grid-area: actions; margin: 0; }
+#practice-view-pedagogie .pedago-home.has-cards .pedago-home-actions:not(:has(> :not([hidden]))) { display: none; }
+#practice-view-pedagogie .pedago-home-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  align-content: start;
+  gap: 14px;
+  padding: 2px 2px 18px;
+}
+#practice-view-pedagogie .pedago-home-grid:empty { display: none; }
+#practice-view-pedagogie .pedago-card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--tr-border);
+  border-radius: 12px;
+  background: var(--tr-surface);
+  color: var(--tr-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+#practice-view-pedagogie .pedago-card:hover { border-color: var(--tr-accent); transform: translateY(-1px); box-shadow: var(--tr-shadow); }
+#practice-view-pedagogie .pedago-card:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 2px; }
+#practice-view-pedagogie .pedago-card-thumb {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: var(--tr-inset);
+  color: var(--tr-muted);
+}
+#practice-view-pedagogie .pedago-card-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+#practice-view-pedagogie .pedago-card-placeholder { display: grid; place-items: center; opacity: 0.7; }
+#practice-view-pedagogie .pedago-card-duration {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(8, 6, 12, 0.78);
+  color: #fff;
+  font-family: var(--tr-mono, ui-monospace, monospace);
+  font-size: 11px;
+  line-height: 1.4;
+}
+#practice-view-pedagogie .pedago-card-body { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px 12px; }
+#practice-view-pedagogie .pedago-card-title {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+#practice-view-pedagogie .pedago-card-meta { color: var(--tr-muted); font-size: 11.5px; }
+#practice-view-pedagogie .pedago-card.is-read .pedago-card-meta { color: var(--tr-accent); font-weight: 600; }
+/* [Claude] — 2026-10-03 — Relevé en cours sur ce tuto (on est revenu aux cartes pendant
+   qu'il tournait) : il continue, et la carte le dit. */
+#practice-view-pedagogie .pedago-card.is-reading .pedago-card-meta { color: var(--tr-secondary); font-style: italic; }
+/* Le dossier des tutos, sur l'accueil (il était dans le tiroir « Mes tutoriels », retiré).
+   Même forme que les anciennes règles de practice.css (« :root[data-skin…] ») pour les
+   remplacer : elles empilaient le chemin et le bouton en colonne. */
+:root[data-skin] #practice-view-pedagogie .pedagogie-folder-hint {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  color: var(--tr-muted);
+  font-size: 11.5px;
+}
+#practice-view-pedagogie .pedagogie-folder-hint:empty { display: none; }
+:root[data-skin] #practice-view-pedagogie .pedagogie-folder-path {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--tr-muted);
+  font: 11px var(--tr-mono, ui-monospace, monospace);
+}
+:root[data-skin] #practice-view-pedagogie .pedagogie-folder-btn {
+  padding: 5px 10px;
+  border: 1px solid var(--tr-border);
+  border-radius: 7px;
+  background: var(--tr-surface);
+  color: var(--tr-secondary);
+  font-family: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+:root[data-skin] #practice-view-pedagogie .pedagogie-folder-btn:hover { color: var(--tr-text); border-color: var(--tr-accent); }
+@media (max-width: 720px) {
+  #practice-view-pedagogie .pedago-home.has-cards .pedago-home-empty { grid-template-columns: 1fr; grid-template-areas: "title" "text" "actions"; }
+  #practice-view-pedagogie .pedago-home.has-cards .pedago-home-actions { justify-content: flex-start; margin-top: 6px; }
+}
+
+/* ---- Vidéo à gauche, Copilote à droite ------------------------------------ */
+/* [Claude] — 2026-10-03 — La vidéo, la poignée, le Copilote. La part du Copilote
+   (--pedago-copilot-share, 38 % par défaut) se règle à la poignée ou au bouton « Agrandir » ;
+   le Copilote garde au moins 300 px, la vidéo au moins 380 px. */
+#practice-view-pedagogie .pedago-split {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 16px clamp(300px, var(--pedago-copilot-share, 38%), calc(100% - 396px));
+  gap: 0;
+}
+#practice-view-pedagogie .pedago-resizer {
+  position: relative;
+  z-index: 2;
+  min-height: 0;
+  cursor: col-resize;
+  touch-action: none;
+}
+#practice-view-pedagogie .pedago-resizer::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 56px;
+  margin: -28px 0 0 -2px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--tr-muted) 60%, transparent);
+  transition: background .15s ease, height .15s ease, margin .15s ease;
+}
+#practice-view-pedagogie .pedago-resizer:hover::before,
+#practice-view-pedagogie .pedago-resizer:focus-visible::before,
+#practice-view-pedagogie .pedago-split.is-resizing .pedago-resizer::before {
+  height: 88px;
+  margin-top: -44px;
+  background: var(--tr-accent);
+}
+#practice-view-pedagogie .pedago-resizer:focus-visible { outline: none; }
+#practice-view-pedagogie .pedago-split.is-resizing { cursor: col-resize; user-select: none; }
+#practice-view-pedagogie .pedago-split.is-resizing :is(video, #pedagogie-copilot-panel) { pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  #practice-view-pedagogie .pedago-resizer::before { transition: none; }
+}
+
+/* [Claude] — 2026-10-03 — L'écran d'attente de l'analyse (comme le Studio et l'Analyse) : il
+   couvre le tuto tant qu'il n'est pas analysé — pas de Copilote avant. */
+#practice-view-pedagogie .pedago-reading {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  border: 1px solid var(--tr-border);
+  border-radius: 12px;
+  background: var(--tr-surface);
+}
+#practice-view-pedagogie .pedago-reading-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  max-width: 560px;
+  text-align: center;
+}
+#practice-view-pedagogie .pedago-reading.is-still [data-chroma-stage] { display: none; }
+#practice-view-pedagogie .pedago-reading-title { margin: 6px 0 0; color: var(--tr-text); font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
+#practice-view-pedagogie .pedago-reading-name { margin: 0; color: var(--tr-accent); font-size: 13px; font-weight: 600; }
+#practice-view-pedagogie .pedago-reading-step { margin: 6px 0 0; color: var(--tr-text); font-size: 13px; line-height: 1.6; }
+#practice-view-pedagogie .pedago-reading-elapsed { margin: 0; color: var(--tr-muted); font: 11px var(--tr-mono); }
+#practice-view-pedagogie .pedago-reading-elapsed:empty { display: none; }
+#practice-view-pedagogie .pedago-reading-hint { margin: 10px 0 0; color: var(--tr-secondary); font-size: 12px; line-height: 1.6; }
+#practice-view-pedagogie .pedago-reading-actions { display: flex; gap: 10px; margin-top: 6px; }
+#practice-view-pedagogie .pedago-reading-actions:not(:has(> :not([hidden]))) { display: none; }
+
+/* Le message de l'accueil (import : lecture, copie, trop long). */
+#practice-view-pedagogie .pedago-home-notice {
+  margin: 0;
+  padding: 9px 12px;
+  border: 1px solid var(--tr-border);
+  border-radius: 8px;
+  background: var(--tr-surface);
+  color: var(--tr-secondary);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+#practice-view-pedagogie .pedago-home-notice[data-tone="error"] { border-color: color-mix(in srgb, var(--tr-red) 55%, var(--tr-border)); color: var(--tr-text); }
+#practice-view-pedagogie .pedago-card.is-too-long .pedago-card-meta { color: var(--tr-red); }
+#practice-view-pedagogie .pedago-stage {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+}
+#practice-view-pedagogie .pedago-stage > :not(.tr-cinema-shell) { flex: none; }
+
+/* Le lecteur garde la forme de la vidéo (16:9), sans la rogner (les tutoriels ont
+   souvent leur clavier tout en bas de l'image). Sur une fenêtre basse, c'est lui qui
+   rétrécit (image cadrée en entier, bandes sur les côtés) : la frise des accords et
+   le message restent toujours visibles dessous. */
+#practice-view-pedagogie .pedago-stage > .tr-cinema-shell {
+  flex: 0 1 auto;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  min-height: 180px;
+}
+/* Le cadre de la vidéo épouse le lecteur (practice.css le remettait dans le flux :
+   il gardait la hauteur de l'image et le bas était rogné quand le lecteur rétrécit). */
+:root[data-skin] #practice-view-pedagogie #pedagogie-video-card {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: #000;
+}
+:root[data-skin] #practice-view-pedagogie .pedagogie-video-player,
+#practice-view-pedagogie #pedagogie-video-player {
+  max-height: none;
+  min-height: 0;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+
+/* Avant la lecture : l'image du tuto, un voile léger et le bouton « Lire ce tutoriel »
+   (les règles .tr-cinema-play d'Astra et .pedagogie-primary-btn de practice.css se
+   contredisaient : bouton carré, texte coupé en deux lignes). */
+:root[data-skin] #practice-view-pedagogie .pedagogie-video-overlay {
+  background: rgba(8, 6, 14, 0.34);
+  backdrop-filter: none;
+}
+:root[data-skin] #practice-view-pedagogie .pedagogie-video-overlay .pedagogie-primary-btn {
+  position: static;
+  transform: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: auto;
+  height: 50px;
+  padding: 0 24px 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--tr-button);
+  color: var(--tr-button-text);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.38);
+}
+:root[data-skin] #practice-view-pedagogie .pedagogie-video-overlay .pedagogie-primary-btn:hover:not(:disabled) { background: var(--tr-accent-strong); }
+:root[data-skin] #practice-view-pedagogie .pedagogie-video-overlay .pedagogie-primary-btn svg { width: 20px; height: 20px; }
+
+/* Bandeau du haut : un simple badge « Lu à l'image » / « Lu au son » ; la phrase qui
+   l'accompagnait doublait le message sous la vidéo. Pendant la lecture, le libellé
+   « Tutoriel » s'efface pour ne pas couvrir l'image. */
+:root[data-skin] #practice-view-pedagogie .pedagogie-format {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+:root[data-skin] #practice-view-pedagogie .pedagogie-format-text { display: none; }
+:root[data-skin] #practice-view-pedagogie .pedagogie-badge {
+  padding: 3px 7px;
+  border: 0;
+  border-radius: 5px;
+  background: rgba(10, 8, 16, 0.62);
+  color: #f1ecf7;
+  font: 600 9px var(--tr-mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+:root[data-skin] #practice-view-pedagogie .pedagogie-badge.is-image,
+:root[data-skin] #practice-view-pedagogie .pedagogie-badge.is-audio { background: rgba(10, 8, 16, 0.62); }
+:root[data-skin] #practice-view-pedagogie .pedagogie-badge.is-image { color: #9fdcc6; }
+:root[data-skin] #practice-view-pedagogie .pedagogie-badge.is-audio { color: #f0cf8a; }
+#pedagogie-main.is-playing .tr-video-topline > span:first-child { visibility: hidden; }
+
+/* Progression du relevé, sous la vidéo. */
+:root[data-skin] #practice-view-pedagogie .pedagogie-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--tr-secondary);
+  font: 10.5px var(--tr-mono);
+  font-weight: 400;
+}
+:root[data-skin] #practice-view-pedagogie .pedagogie-progress::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tr-accent);
+  animation: pedago-pulse 1.1s ease-in-out infinite;
+}
+@keyframes pedago-pulse { 50% { opacity: .3; } }
+
+/* ---- Frise des accords relevés -------------------------------------------- */
+#practice-view-pedagogie .pedago-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+/* [Claude] — 2026-10-03 — Repliée par défaut : « Accords relevés (12) ▸ » la déplie. */
+:root[data-skin] #practice-view-pedagogie .pedago-strip-toggle {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  padding: 3px 8px 3px 4px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--tr-secondary);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 550;
+  cursor: pointer;
+}
+/* [Claude] — 2026-10-04 — Leur nombre, en pastille. */
+:root[data-skin] #practice-view-pedagogie .pedago-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--tr-inset);
+  color: var(--tr-muted);
+  font: 10.5px var(--tr-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+}
+:root[data-skin] #practice-view-pedagogie .pedago-strip-toggle::before {
+  content: '';
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 5px solid currentColor;
+  transition: transform .15s ease;
+}
+:root[data-skin] #practice-view-pedagogie .pedago-strip-toggle[aria-expanded='true']::before { transform: rotate(90deg); }
+:root[data-skin] #practice-view-pedagogie .pedago-strip-toggle:hover { border-color: var(--tr-border); color: var(--tr-text); }
+:root[data-skin] #practice-view-pedagogie .pedago-strip-toggle:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 2px; }
+#practice-view-pedagogie #pedagogie-grid[hidden] { display: none; }
+#practice-view-pedagogie #pedagogie-grid {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 2px 1px 4px;
+  scrollbar-width: thin;
+  scroll-behavior: smooth;
+}
+:root[data-skin] #practice-view-pedagogie .pedagogie-chip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  padding: 5px 9px;
+  border: 1px solid var(--tr-border);
+  border-radius: 7px;
+  background: var(--tr-surface);
+  color: var(--tr-text);
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease;
+}
+:root[data-skin] #practice-view-pedagogie .pedagogie-chip:hover { border-color: var(--tr-accent); }
+:root[data-skin] #practice-view-pedagogie .pedagogie-chip:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 1px; }
+:root[data-skin] #practice-view-pedagogie .pedagogie-chip-time {
+  color: var(--tr-muted);
+  font: 9.5px var(--tr-mono);
+}
+:root[data-skin] #practice-view-pedagogie .pedagogie-chip-label {
+  color: var(--tr-text);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 650;
+}
+/* Les accords du passage dont parle le Copilote, et l'accord en cours. */
+:root[data-skin] #practice-view-pedagogie .pedagogie-chip.is-in-passage {
+  border-color: color-mix(in srgb, var(--tr-accent) 45%, var(--tr-border));
+  background: var(--tr-accent-soft);
+}
+:root[data-skin] #practice-view-pedagogie .pedagogie-chip.is-current {
+  border-color: var(--tr-accent);
+  box-shadow: 0 0 0 1px var(--tr-accent);
+}
+:root[data-skin] #practice-view-pedagogie .pedagogie-chip.is-current .pedagogie-chip-label { color: var(--tr-accent); }
+:root[data-skin] #practice-view-pedagogie .pedagogie-chip.is-partial { border-style: dashed; }
+:root[data-skin] #practice-view-pedagogie .pedagogie-chip.is-unresolved .pedagogie-chip-label { color: var(--tr-muted); }
+/* [Claude] — 2026-10-03 — « Il explique » : un moment où le prof parle sans jouer. */
+:root[data-skin] #practice-view-pedagogie .pedagogie-chip.is-speech { background: transparent; border-style: dashed; }
+:root[data-skin] #practice-view-pedagogie .pedagogie-chip.is-speech .pedagogie-chip-label { color: var(--tr-secondary); font-style: italic; font-weight: 500; }
+
+/* ---- Outils sous la vidéo (vitesse, calibration) ---------------------------- */
+#practice-view-pedagogie .pedago-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  min-height: 28px;
+}
+/* [Claude] — 2026-10-04 — Les outils de la vidéo (Calibrer le clavier, Refaire l'analyse) :
+   des boutons discrets, en bas à droite de la carte. */
+:root[data-skin] #practice-view-pedagogie .pedago-under .pedagogie-secondary-btn {
+  padding: 4px 9px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--tr-secondary);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 550;
+  filter: none;
+}
+:root[data-skin] #practice-view-pedagogie .pedago-under .pedagogie-secondary-btn:hover:not(:disabled) { border-color: var(--tr-border); color: var(--tr-text); filter: none; }
+:root[data-skin] #practice-view-pedagogie .pedago-under .pedagogie-secondary-btn:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 1px; }
+:root[data-skin] #practice-view-pedagogie .pedago-under .pedagogie-secondary-btn[hidden] { display: none; }
+#practice-view-pedagogie .pedago-tools-spacer { flex: 1; }
+#practice-view-pedagogie .pedago-speed:empty { display: none; }
+
+/* ---- [Claude] — 2026-10-04 — La fenêtre sous la vidéo, en une seule carte ------
+   Narcisse : « plus épurée, plus lisible, mieux organisée, visuellement plus moderne, moins
+   chargée », sans changer son fonctionnement. Trois étages séparés par un filet : le passage
+   (sa plage Début / Fin, sa durée, « Boucler », « Suivre la vidéo », ce que fait le prof
+   dedans), les accords relevés (repliés), puis la vitesse de la vidéo et ses outils ; le
+   message de lecture en note de bas de carte. Un étage caché ne laisse pas de filet ; la carte
+   entière se cache quand tout l'est. */
+:root[data-skin] #practice-view-pedagogie .pedago-under {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--tr-border);
+  border-radius: 10px;
+  background: var(--tr-surface);
+}
+#practice-view-pedagogie .pedago-under:not(:has(> :not([hidden]):not([style*="display: none"]))) { display: none; }
+#practice-view-pedagogie .pedago-under > :not([hidden]):not([style*="display: none"]) ~ :not([hidden]):not([style*="display: none"]) {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--tr-border-soft, var(--tr-border));
+}
+#practice-view-pedagogie .pedago-under-title {
+  color: var(--tr-text);
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+/* Le passage : une ligne (elle passe à la ligne dans une colonne étroite, les boutons à droite),
+   puis la bande « il joue / il explique ». Tant qu'il suit la vidéo, ses valeurs sont grisées. */
+#practice-view-pedagogie .pedago-passage { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+#practice-view-pedagogie .pedago-passage[hidden] { display: none; }
+#practice-view-pedagogie .pedago-passage-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+#practice-view-pedagogie .pedago-passage-edge { display: inline-flex; align-items: center; gap: 6px; }
+#practice-view-pedagogie .pedago-passage-edge-label { color: var(--tr-muted); font-size: 11px; }
+/* Un seul champ « 0 : 26 » : les listes (heures, minutes, secondes) sans flèche ni unité. */
+:root[data-skin] #practice-view-pedagogie .pedago-time {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 3px;
+  border: 1px solid var(--tr-border);
+  border-radius: 7px;
+  background: var(--tr-inset);
+  color: var(--tr-text);
+  font-family: var(--tr-mono, ui-monospace, monospace);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  transition: border-color .15s ease;
+}
+:root[data-skin] #practice-view-pedagogie .pedago-time:hover,
+:root[data-skin] #practice-view-pedagogie .pedago-time:focus-within { border-color: var(--tr-accent); }
+:root[data-skin] #practice-view-pedagogie .pedago-passage-select {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 22px;
+  padding: 0 3px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+:root[data-skin] #practice-view-pedagogie .pedago-passage-select:hover { background: var(--tr-accent-soft); }
+:root[data-skin] #practice-view-pedagogie .pedago-passage-select:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 0; }
+:root[data-skin] #practice-view-pedagogie .pedago-passage-select option { background: var(--tr-surface); color: var(--tr-text); }
+#practice-view-pedagogie .pedago-time-sep { padding: 0 1px; color: var(--tr-muted); }
+/* « Prendre l'instant de la vidéo » : une petite cible. */
+:root[data-skin] #practice-view-pedagogie .pedago-passage-now {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--tr-muted);
+  cursor: pointer;
+  transition: color .15s ease, border-color .15s ease;
+}
+:root[data-skin] #practice-view-pedagogie .pedago-passage-now:hover { border-color: var(--tr-border); color: var(--tr-accent); }
+:root[data-skin] #practice-view-pedagogie .pedago-passage-now:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 1px; }
+#practice-view-pedagogie .pedago-passage-arrow { color: var(--tr-muted); }
+/* Sa durée en pastille (« 26 s »), ou « suit la vidéo » ; ce qui vient de changer seul à côté. */
+#practice-view-pedagogie .pedago-passage-length { display: inline-flex; align-items: center; gap: 8px; }
+:root[data-skin] #practice-view-pedagogie .pedago-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: var(--tr-accent-soft);
+  color: var(--tr-accent);
+  font-family: var(--tr-mono, ui-monospace, monospace);
+  font-size: 11.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+:root[data-skin] #practice-view-pedagogie .pedago-pill.is-muted {
+  background: var(--tr-inset);
+  color: var(--tr-muted);
+  font-family: inherit;
+  font-weight: 500;
+}
+#practice-view-pedagogie .pedago-passage-hint { color: var(--tr-muted); font-size: 11px; }
+:root[data-skin] #practice-view-pedagogie .pedago-passage.is-following .pedago-time { color: var(--tr-muted); }
+#practice-view-pedagogie .pedago-passage-actions { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+#practice-view-pedagogie .pedago-passage-actions .pedago-tool-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; }
+#practice-view-pedagogie .pedago-passage [hidden] { display: none; }
+
+/* Ce que fait le prof dans le passage : il joue (couleur du Copilote), il explique (gris), les
+   deux (entre les deux, sans hachures) ; son début et sa fin aux deux bouts. */
+#practice-view-pedagogie .pedago-passage-activity { display: flex; flex-direction: column; gap: 5px; }
+#practice-view-pedagogie .pedago-passage-activity[hidden] { display: none; }
+:root[data-skin] #practice-view-pedagogie .pedago-activity-track {
+  position: relative;
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--tr-inset);
+  box-shadow: inset 0 0 0 1px var(--tr-border-soft, var(--tr-border));
+}
+:root[data-skin] #practice-view-pedagogie .pedago-activity-span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  min-width: 2px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  cursor: pointer;
+}
+:root[data-skin] #practice-view-pedagogie .pedago-activity-span.is-joue { background: var(--tr-accent); }
+:root[data-skin] #practice-view-pedagogie .pedago-activity-span.is-parle { background: color-mix(in srgb, var(--tr-muted) 75%, transparent); }
+:root[data-skin] #practice-view-pedagogie .pedago-activity-span.is-joue-et-parle { background: color-mix(in srgb, var(--tr-accent) 50%, var(--tr-muted)); }
+:root[data-skin] #practice-view-pedagogie .pedago-activity-span:hover { filter: brightness(1.2); }
+:root[data-skin] #practice-view-pedagogie .pedago-activity-span:focus-visible { outline: 2px solid var(--tr-text); outline-offset: -2px; }
+#practice-view-pedagogie .pedago-activity-foot { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+#practice-view-pedagogie .pedago-activity-time {
+  flex: none;
+  color: var(--tr-muted);
+  font: 10.5px var(--tr-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+}
+#practice-view-pedagogie .pedago-activity-legend {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px 14px;
+  min-width: 0;
+  margin: 0;
+  color: var(--tr-secondary);
+  font-size: 11px;
+}
+#practice-view-pedagogie .pedago-activity-item { display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+#practice-view-pedagogie .pedago-activity-item::before {
+  content: '';
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--tr-muted) 75%, transparent);
+}
+#practice-view-pedagogie .pedago-activity-item.is-joue::before { background: var(--tr-accent); }
+#practice-view-pedagogie .pedago-activity-item.is-joue-et-parle::before { background: color-mix(in srgb, var(--tr-accent) 50%, var(--tr-muted)); }
+
+/* ---- Message de lecture : une note en bas de la carte (détail technique replié) ---- */
+:root[data-skin] #practice-view-pedagogie .pedagogie-status {
+  max-width: none;
+  max-height: 8.5em;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--tr-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+/* Le message, et « Détails techniques » sur sa ligne quand la place le permet. */
+:root[data-skin] #practice-view-pedagogie .pedago-under .pedagogie-status:not([style*="display: none"]) { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; }
+#practice-view-pedagogie .pedagogie-status > p { display: flex; align-items: flex-start; gap: 7px; margin: 0; }
+#practice-view-pedagogie .pedagogie-status > p::before {
+  content: '';
+  flex: none;
+  width: 13px;
+  height: 13px;
+  margin-top: 1px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 11v5M12 8h.01'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 11v5M12 8h.01'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+:root[data-skin] #practice-view-pedagogie .pedagogie-status[data-tone='error'] {
+  padding-left: 10px;
+  border-left: 2px solid var(--tr-red);
+  color: var(--tr-text);
+}
+:root[data-skin] #practice-view-pedagogie .pedagogie-status[data-tone='error'] > p::before { background: var(--tr-red); }
+:root[data-skin] #practice-view-pedagogie .pedagogie-status[data-tone='ok'] { color: var(--tr-green); }
+#practice-view-pedagogie .pedagogie-status-details { margin: 0 0 0 20px; }
+#practice-view-pedagogie .pedagogie-status-details[open] { flex-basis: 100%; }
+#practice-view-pedagogie .pedagogie-status-details > summary {
+  color: var(--tr-muted);
+  font-size: 10.5px;
+  cursor: pointer;
+}
+#practice-view-pedagogie .pedagogie-status-details > summary:hover { color: var(--tr-secondary); }
+#practice-view-pedagogie .pedagogie-status-details > p {
+  margin: 6px 0 0;
+  color: var(--tr-muted);
+  font: 10px/1.6 var(--tr-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ---- Le panneau du Copilote ------------------------------------------------- */
+#pedagogie-copilot-panel {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--tr-border);
+  border-radius: 12px;
+  background: var(--tr-surface);
+  box-shadow: var(--tr-shadow);
+  overflow: hidden;
+}
+/* [Claude] — 2026-10-03 — L'en-tête tient sur une ligne (le Copilote, le passage, « Agrandir ») :
+   la conversation y gagne de la hauteur. */
+#pedagogie-copilot-panel .pedago-copilot-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 9px 10px 9px 14px;
+  border-bottom: 1px solid var(--tr-border-soft);
+}
+#pedagogie-copilot-panel .pedago-copilot-head > .pedago-copilot-title { flex: 1 1 140px; }
+#pedagogie-copilot-panel .pedago-copilot-size {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 4px 10px;
+  border: 1px solid var(--tr-border);
+  border-radius: 6px;
+  background: var(--tr-surface);
+  color: var(--tr-secondary);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 550;
+  cursor: pointer;
+}
+#pedagogie-copilot-panel .pedago-copilot-size:hover { border-color: var(--tr-accent); color: var(--tr-accent); }
+#pedagogie-copilot-panel .pedago-copilot-size:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 2px; }
+#pedagogie-copilot-panel .pedago-copilot-size .is-shrink,
+#pedagogie-copilot-panel .pedago-copilot-size[aria-pressed='true'] .is-grow { display: none; }
+#pedagogie-copilot-panel .pedago-copilot-size[aria-pressed='true'] .is-shrink { display: inline; }
+#pedagogie-copilot-panel .pedago-copilot-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--tr-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+#pedagogie-copilot-panel .pedago-copilot-title > svg { flex-shrink: 0; color: var(--tr-accent); }
+#pedagogie-copilot-panel .pedago-copilot-title > small {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--tr-muted);
+  font-size: 11px;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#pedagogie-copilot-panel .pedago-copilot-title > small:not(:empty)::before { content: '· '; }
+#pedagogie-copilot-panel .pedago-moment {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--tr-muted);
+  font: 9.5px var(--tr-mono);
+}
+#pedagogie-copilot-panel .pedago-moment-label { letter-spacing: .1em; text-transform: uppercase; }
+#pedagogie-copilot-panel .pedago-moment-range {
+  color: var(--tr-accent);
+  font: 600 11.5px var(--tr-mono);
+  font-variant-numeric: tabular-nums;
+}
+#pedagogie-copilot-panel .pedago-copilot-notice {
+  margin: 0;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--tr-border-soft);
+  background: var(--tr-accent-soft);
+  color: var(--tr-secondary);
+  font-size: 11px;
+  line-height: 1.5;
+}
+#pedagogie-copilot-panel .pedago-copilot-slot {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px 12px;
+}
+/* La conversation prend toute la place du panneau (dans son onglet, elle est
+   centrée sur 860 px). */
+#pedagogie-copilot-panel #copilot-chat-area {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: none;
+  align-self: stretch;
+}
+#pedagogie-copilot-panel #copilot-no-key { flex: 1; min-height: 0; padding: 10px; }
+#pedagogie-copilot-panel #copilot-no-key > h2 { font-size: 20px; }
+#pedagogie-copilot-panel .tr-composer-footnote { display: none; }
+#pedagogie-copilot-panel .tr-copilot-welcome { min-height: 0; padding: 12px 6px; }
+#pedagogie-copilot-panel .tr-composer { padding: 11px 12px 9px; }
+
+/* Accueil du mode tutoriel (conversation vide) : les questions sont juste dessous. */
+.copilot-tutorial-welcome { padding-bottom: 8px; }
+.copilot-tutorial-welcome > h2 { margin-top: 0 !important; font-size: clamp(19px, 1.7vw, 24px) !important; }
+.copilot-tutorial-welcome > p { max-width: 420px; }
+
+/* ---- Moments cliquables dans les réponses (« à 1:31 ») ---------------------- */
+.copilot-message .copilot-time {
+  display: inline;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--tr-accent-soft);
+  color: var(--tr-accent);
+  font: 600 .92em var(--tr-mono);
+  cursor: pointer;
+}
+.copilot-message .copilot-time:hover { text-decoration: underline; }
+.copilot-message .copilot-time:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 1px; }
+
+/* ---- Petits choix du mode tutoriel (tonalité ; appliquer à une progression) --- */
+.copilot-chip.has-chooser[aria-expanded='true'] {
+  border-color: var(--tr-accent) !important;
+  background: var(--tr-accent-soft) !important;
+  color: var(--tr-accent) !important;
+}
+/* Le choix flotte au-dessus de la rangée de propositions, par-dessus le bas de la
+   conversation, au lieu de l'écraser (le panneau de Pédagogie est étroit). */
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-composer-area { position: relative; }
+.copilot-chooser {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  max-height: 62vh;
+  overflow: auto;
+  padding: 11px 12px;
+  border: 1px solid var(--tr-border);
+  border-radius: 10px;
+  background: var(--tr-surface);
+  box-shadow: 0 18px 44px -14px rgba(0, 0, 0, 0.5);
+}
+.copilot-chooser-title {
+  color: var(--tr-muted);
+  font: 9px var(--tr-mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.copilot-chooser-row { display: flex; flex-wrap: wrap; gap: 5px; }
+.copilot-chooser-keys { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px; }
+.copilot-chooser-option,
+.copilot-chooser-key {
+  height: 26px;
+  padding: 0 9px;
+  border: 1px solid var(--tr-border);
+  border-radius: 6px;
+  background: var(--tr-surface);
+  color: var(--tr-secondary);
+  font-size: 11px;
+  cursor: pointer;
+}
+.copilot-chooser-key { padding: 0 4px; }
+.copilot-chooser-option:hover,
+.copilot-chooser-key:hover { color: var(--tr-text); border-color: var(--tr-accent); }
+.copilot-chooser-option.is-selected,
+.copilot-chooser-key.is-selected {
+  border-color: var(--tr-accent);
+  background: var(--tr-accent-soft);
+  color: var(--tr-accent);
+  font-weight: 600;
+}
+.copilot-chooser-option:focus-visible,
+.copilot-chooser-key:focus-visible,
+.copilot-chooser-send:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 1px; }
+.copilot-chooser-input {
+  height: 28px;
+  padding: 0 9px;
+  border: 1px solid var(--tr-border);
+  border-radius: 6px;
+  background: var(--tr-surface);
+  color: var(--tr-text);
+  font-size: 11px;
+}
+.copilot-chooser-input:focus { outline: none; border-color: var(--tr-accent); }
+.copilot-chooser-send {
+  align-self: flex-end;
+  height: 28px;
+  margin-top: 2px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--tr-button);
+  color: var(--tr-button-text);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.copilot-chooser-send:hover { background: var(--tr-accent-strong); }
+
+/* ---- Fenêtre étroite : la vidéo au-dessus, le Copilote dessous ------------- */
+@media (max-width: 1100px) {
+  #practice-view-pedagogie .pedago-split {
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: max-content;
+    gap: 16px;
+    overflow: auto;
+  }
+  #practice-view-pedagogie .pedago-stage { overflow: visible; }
+  #pedagogie-copilot-panel { min-height: 460px; }
+  /* L'un sous l'autre : plus de largeur à partager. */
+  #practice-view-pedagogie .pedago-resizer,
+  #pedagogie-copilot-panel .pedago-copilot-size { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-skin] #practice-view-pedagogie .pedagogie-progress::before { animation: none; }
+  #practice-view-pedagogie #pedagogie-grid { scroll-behavior: auto; }
+}
+
+/* ---- [Claude] — 2026-10-03 — Lot 6 : outils de travail ---------------------
+   Vitesse sous la vidéo (la boucle A-B est devenue « Boucler », sur la barre du
+   passage) ; sous un exemple du Copilote, « Ajouter à Ma grille » et « Ajouter aux
+   Favoris » (Exercices).
+   [Claude] — 2026-10-04 — La vitesse, de 0,25× à 2× : le bouton « 1× ▾ » et son
+   panneau, le réglage commun (ui/components/speed-menu.css). */
+#practice-view-pedagogie .pedago-speed { display: inline-flex; align-items: center; gap: 8px; }
+#practice-view-pedagogie .pedago-tools-label { color: var(--tr-muted); font-size: 11.5px; }
+#practice-view-pedagogie .pedago-tool-btn {
+  min-height: 26px;
+  padding: 3px 9px;
+  border: 1px solid var(--tr-border);
+  border-radius: 6px;
+  background: var(--tr-surface);
+  color: var(--tr-secondary);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+#practice-view-pedagogie .pedago-tool-btn:hover { border-color: var(--tr-accent); color: var(--tr-text); }
+#practice-view-pedagogie .pedago-tool-btn:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 2px; }
+#practice-view-pedagogie .pedago-tool-btn.is-active {
+  border-color: var(--tr-accent);
+  background: var(--tr-accent-soft);
+  color: var(--tr-accent);
+  font-weight: 600;
+}
+
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example-export {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-top: 9px;
+  border-top: 1px dashed var(--tr-border-soft, var(--tr-border));
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example-action {
+  padding: 5px 10px;
+  border: 1px solid var(--tr-border);
+  border-radius: 6px;
+  background: var(--tr-surface);
+  color: var(--tr-text);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example-action:hover { border-color: var(--tr-accent); color: var(--tr-accent); }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example-action:focus-visible,
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example-link:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 2px; }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example-done { color: var(--tr-green); font-size: 11px; font-weight: 550; }
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--tr-accent);
+  font: inherit;
+  font-size: 11px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* [Claude] — 2026-10-03 — « « Amazing Grace » est prêt » : visible depuis n'importe quel onglet
+   (on a pu aller ailleurs pendant l'analyse). Posé sur <body>, hors de .training-shell : les
+   jetons --tr-* n'y sont pas définis, d'où les valeurs de repli (thème sombre, puis clair). */
+.pedago-ready-toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 9000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  max-width: 340px;
+  padding: 12px 16px;
+  border: 1px solid #b8a0f3;
+  border-radius: 10px;
+  background: #1c1c20;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  color: #f0eff3;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.pedago-ready-toast[hidden] { display: none; }
+.pedago-ready-toast strong { font-size: 13px; font-weight: 650; }
+.pedago-ready-toast span { color: #b8a0f3; font-size: 11.5px; }
+:root[data-theme='light'] .pedago-ready-toast { background: #ffffff; color: #1d1b22; border-color: #7c5fd6; box-shadow: 0 12px 32px rgba(40, 30, 70, 0.18); }
+:root[data-theme='light'] .pedago-ready-toast span { color: #6a4fc7; }

@@ -14,6 +14,8 @@ export const CHORD_DEFINITIONS = [
     identityIntervals: [3, 10, 21], optionalIntervals: [7, 14, 17], supportedOmissions: [7, 14, 17], extensionIntervals: [2], suspensionIntervals: [5] },
   { name: 'Dominant 13 #11', symbol: '13#11', intervals: [0, 4, 7, 10, 14, 18, 21],
     identityIntervals: [4, 10, 18, 21], optionalIntervals: [7, 14], supportedOmissions: [7, 14], extensionIntervals: [2], suspensionIntervals: [5] },
+  { name: 'Major 13 #11', symbol: 'maj13#11', intervals: [0, 4, 7, 11, 14, 18, 21],
+    identityIntervals: [4, 11, 18, 21], optionalIntervals: [7, 14], supportedOmissions: [7, 14], extensionIntervals: [2], suspensionIntervals: [5] },
   { name: 'Dominant 7 b13', symbol: '7b13', intervals: [0, 4, 7, 10, 14, 20],
     identityIntervals: [4, 10, 20], optionalIntervals: [7, 14], supportedOmissions: [7, 14], extensionIntervals: [2, 9, 17], suspensionIntervals: [5] },
   { name: 'Dominant 7 #9 b13', symbol: '7#9b13', intervals: [0, 4, 7, 10, 15, 20],
@@ -30,6 +32,8 @@ export const CHORD_DEFINITIONS = [
     identityIntervals: [3, 10, 17], optionalIntervals: [7, 14], supportedOmissions: [7, 14], extensionIntervals: [2, 9, 21], suspensionIntervals: [5] },
   { name: 'Dominant 7 #11', symbol: '7#11', intervals: [0, 4, 7, 10, 18],
     identityIntervals: [4, 10, 18], optionalIntervals: [7], supportedOmissions: [7], extensionIntervals: [2, 9, 14, 17, 20, 21], suspensionIntervals: [5] },
+  { name: 'Dominant 7 #9 #11', symbol: '7#9#11', intervals: [0, 4, 7, 10, 15, 18],
+    identityIntervals: [4, 10, 15, 18], optionalIntervals: [7], supportedOmissions: [7], extensionIntervals: [9, 14, 17, 20, 21], suspensionIntervals: [5] },
 
   // 9th chords
   { name: 'Dominant 9 sus4', symbol: '9sus4', intervals: [0, 5, 7, 10, 14],
@@ -76,8 +80,8 @@ export const CHORD_DEFINITIONS = [
     identityIntervals: [2, 11], optionalIntervals: [7], supportedOmissions: [7], extensionIntervals: [14, 17, 21], suspensionIntervals: [] },
   { name: 'Major 7 suspended 4', symbol: 'maj7sus4', intervals: [0, 5, 7, 11],
     identityIntervals: [5, 11], optionalIntervals: [7], supportedOmissions: [7], extensionIntervals: [14, 17, 21], suspensionIntervals: [] },
-  { name: 'Minor 7 b5', symbol: 'm7b5', intervals: [0, 3, 6, 10],
-    identityIntervals: [3, 6, 10], optionalIntervals: [], supportedOmissions: [], extensionIntervals: [9, 14], suspensionIntervals: [] },
+  // [Claude] — 2026-10-02 — Doublon « Minor 7 b5 » retiré : mêmes intervalles que
+  // « Half-Diminished 7 » ci-dessus (resolveCanonicalChordDefinition prenait déjà le premier).
 
   // 6/9 and add chords
   { name: 'Major 6/9', symbol: '6/9', intervals: [0, 4, 7, 9, 14],
@@ -135,6 +139,29 @@ export const ROOTLESS_DEFINITIONS = [
   { name: 'Minor 7', symbol: 'm7', parentSymbol: 'm7', intervals: [3, 7, 10] },             // b3-5-b7
   { name: 'Minor 9', symbol: 'm9', parentSymbol: 'm9', intervals: [3, 7, 10, 14] },        // b3-5-b7-9
   { name: 'Half-Diminished 7', symbol: 'm7b5', parentSymbol: 'm7b5', intervals: [3, 6, 10] }, // b3-b5-b7
+  // [Claude] — 2026-10-02 — 13e de dominante sans fondamentale, le voicing de main
+  // gauche le plus joué en jazz : Fa La Si Mi = G13 (7-9-3-13), Si Mi Fa La (3-13-7-9).
+  { name: 'Dominant 13', symbol: '13', parentSymbol: '13', intervals: [4, 9, 10, 14] }, // 3-13-b7-9
+];
+
+// [Claude] — 2026-10-02 — Couleurs que la DÉTECTION doit savoir nommer (Temps réel,
+// Sessions MIDI…) mais que le moteur de voicings ne construit pas : elles vivent
+// à part pour ne rien changer à CHORD_DEFINITIONS, que lisent aussi le moteur de
+// voicings, la mélodie, l'Analyse et Corriger. Audit du 02/10 : Cmaj7♯11 était lu
+// « Cmaj7 » (le ♯11 disparaissait), Cm6/9 « Adim/C », C13♭9 « C7♭9 »…
+// optionalIntervals : notes qu'un pianiste omet sans changer le nom (la quinte).
+export const DETECTION_DEFINITIONS = [
+  { name: 'Major 7 #11', symbol: 'maj7#11', intervals: [0, 4, 7, 11, 18], optionalIntervals: [7] },
+  { name: 'Major 9 #11', symbol: 'maj9#11', intervals: [0, 4, 7, 11, 14, 18], optionalIntervals: [7] },
+  { name: 'Dominant 9 #11', symbol: '9#11', intervals: [0, 4, 7, 10, 14, 18], optionalIntervals: [7] },
+  { name: 'Dominant 13 b9', symbol: '13b9', intervals: [0, 4, 7, 10, 13, 21], optionalIntervals: [7] },
+  { name: 'Dominant 13 #9', symbol: '13#9', intervals: [0, 4, 7, 10, 15, 21], optionalIntervals: [7] },
+  { name: 'Dominant 7 b9 #11', symbol: '7b9#11', intervals: [0, 4, 7, 10, 13, 18], optionalIntervals: [7] },
+  { name: 'Dominant 7 b5 b9', symbol: '7b5b9', intervals: [0, 4, 6, 10, 13], optionalIntervals: [] },
+  { name: 'Dominant 7 sus4 b9', symbol: '7sus4b9', intervals: [0, 5, 7, 10, 13], optionalIntervals: [7] },
+  { name: 'Minor 6/9', symbol: 'm6/9', intervals: [0, 3, 7, 9, 14], optionalIntervals: [7] },
+  { name: 'Minor Major 9', symbol: 'mMaj9', intervals: [0, 3, 7, 11, 14], optionalIntervals: [7] },
+  { name: 'Half-Diminished 9', symbol: 'm9b5', intervals: [0, 3, 6, 10, 14], optionalIntervals: [] },
 ];
 
 // Intervals names for pedagogical display

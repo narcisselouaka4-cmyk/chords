@@ -75,8 +75,9 @@ check('La vue est cachée par défaut',
 
 const ids = [...tabJs.matchAll(/getElementById\('([^']+)'\)/g)].map((m) => m[1]);
 check('pedagogie-tab.js référence des identifiants', ids.length > 0);
-// pedagogie-calibration-overlay est créé dynamiquement, pas dans le HTML statique.
-const missing = ids.filter((id) => id !== 'pedagogie-calibration-overlay' && !html.includes(`id="${id}"`));
+// pedagogie-calibration-overlay et pedagogie-ready-toast (le message « prêt », posé sur
+// <body>) sont créés dynamiquement, pas dans le HTML statique.
+const missing = ids.filter((id) => !['pedagogie-calibration-overlay', 'pedagogie-ready-toast'].includes(id) && !html.includes(`id="${id}"`));
 check('Tous les identifiants lus par pedagogie-tab.js existent dans index.html',
   missing.length === 0, missing.join(', '));
 
@@ -167,11 +168,10 @@ check('Aucun texte n\'est simulé quand la dépendance manque (contrairement aux
 check('La transcription a son propre dossier de travail, pour ne pas purger celui de l\'analyse',
   electronMain.includes('createTranscribeDir'));
 
-// La couche IA reste facultative : le résumé automatique n'est tenté que si une clé est configurée.
-check('Le contrôleur détecte la présence d\'une clé IA',
-  tabCode.includes('hasAIKey()') && tabCode.includes('getAIConfig'));
-check('Le résumé automatique appelle explainNarration',
-  tabCode.includes('explainNarration'));
+// [Claude] — 2026-10-03 — Plus de résumé automatique (Narcisse : « un résumé est trop
+// court et manque d'explications ») : le Copilote, intégré à l'écran, explique à la demande.
+check('Plus de résumé automatique : aucun appel à explainNarration depuis l\'écran',
+  !tabCode.includes('explainNarration') && !tabCode.includes('maybeAutoSummarize'));
 check('explainNarration suit le patron des autres appels IA (401/403 et 429 nommés)',
   readText('src/ai/ai-client.js').includes('fetchNarrationExplanation'));
 check('Masterclass et Réharmonisation ne sont pas touchées',
@@ -244,56 +244,54 @@ check('Un état distinct playbackStarted est introduit',
   tabCode.includes('let playbackStarted') && tabCode.includes('playbackStarted = true'));
 check('La vidéo est montée dès la sélection d\'un tutoriel',
   /renderVideo\([^)]*\)[\s\S]*?if \(!selectedPath\)/.test(tabCode) && tabCode.includes('mountVideo(selectedPath)'));
-check('L\'overlay de lecture disparaît dès que la lecture commence',
-  tabCode.includes('els.videoOverlay') && /!playbackStarted/.test(tabCode));
+// [Claude] — 2026-10-03 — Plus de bouton « Lire ce tutoriel » : la vidéo est prête dès que le
+// tuto est analysé ; avant, l'écran d'attente la couvre.
+check('Plus de bouton « Lire ce tutoriel » : la vidéo est prête une fois le tuto analysé',
+  !html.includes('id="pedagogie-analyze-btn"') && !html.includes('id="pedagogie-video-overlay"')
+  && /function applyReading\(job\) \{\s*playbackStarted = true;/.test(tabCode));
 check('selectTrack() remet playbackStarted à false',
-  /function selectTrack\(path\)[\s\S]*?playbackStarted = false/.test(tabCode));
+  /function selectTrack\(path\) \{[\s\S]*?resetTutorialView\(\);/.test(tabCode)
+  && /function resetTutorialView\(\) \{\s*playbackStarted = false;/.test(tabCode));
 check('chooseFolder() remet playbackStarted à false',
   /async function chooseFolder\(\)[\s\S]*?playbackStarted = false/.test(tabCode));
 check('analyzeSelected() passe playbackStarted à true au début',
   /async function analyzeSelected\(\)[\s\S]*?playbackStarted = true/.test(tabCode));
 
-// Raccourci Copilote IA visible pendant la lecture.
-check('Le bouton raccourci "Copilote IA" existe dans le HTML',
-  html.includes('id="pedagogie-copilot-shortcut"') && html.includes('Copilote IA'));
-check('Le contrôleur référence le bouton Copilote IA',
-  tabCode.includes('pedagogie-copilot-shortcut'));
-check('Le raccourci dispatche app-switch-training-view vers copilot',
-  /app-switch-training-view.*detail:.*view:\s*['"]copilot['"]/.test(tabCode));
+// [Claude] — 2026-10-03 — Le Copilote est INTÉGRÉ à Pédagogie IA (Narcisse : « pourquoi
+// ne pas intégrer directement Copilot IA au sein de Pédagogie IA, plutôt que d'être
+// redirigé vers un onglet séparé ? ») : sa conversation est déplacée dans le panneau.
+const dockCode = readText('src/pedagogie/copilot-dock.js');
+check('Le panneau du Copilote est dans l\'écran, à droite de la vidéo',
+  html.includes('id="pedagogie-copilot-panel"') && html.includes('id="pedagogie-copilot-slot"')
+  && html.indexOf('id="pedagogie-video-card"') < html.indexOf('id="pedagogie-copilot-panel"'));
+check('La conversation du Copilote est déplacée (un seul moteur), puis remise dans son onglet',
+  tabCode.includes('dockCopilot(') && tabCode.includes('undockCopilot()')
+  && dockCode.includes("'copilot-chat-area'") && dockCode.includes('homeMarker.after('));
+check('Le Copilote passe en mode tutoriel sur le tuto ouvert',
+  tabCode.includes("'copilot-open-tutorial'"));
+check('Plus de raccourci vers l\'onglet Copilote',
+  !html.includes('id="pedagogie-copilot-shortcut"') && !/detail:\s*\{\s*view:\s*['"]copilot['"]/.test(tabCode));
+check('Les styles du Copilote valent aussi dans le panneau (même spécificité)',
+  practiceCss.includes(':is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-input')
+  && readText('src/ui/refonte/astra-bridge.css').includes(':is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example-text'));
+check('Le Copilote sait où en est la vidéo (le passage « ici »), affiché en lecture seule dans son en-tête',
+  tabCode.includes('momentContext(') && html.includes('id="pedagogie-moment-range"') && !html.includes('id="pedagogie-moment-length"'));
+check('Poser une question met la vidéo en pause ; un moment cité place la vidéo',
+  tabCode.includes("'copilot-input') pauseVideo()") && tabCode.includes("'pedagogie-seek'")
+  && readText('src/pedagogie/copilot-tab.js').includes("'pedagogie-seek'"));
 
-// Sélecteur de catégorie de tutoriel.
-check('Le sélecteur de catégorie existe dans le HTML',
-  html.includes('id="pedagogie-category-card"') && html.includes('id="pedagogie-category-grid"'));
-check('Les deux catégories (tutorial / cover) sont présentes dans le HTML',
-  html.includes('data-category="tutorial"') && html.includes('data-category="cover"'));
-check('Le contrôleur référence le sélecteur de catégorie',
-  tabCode.includes('pedagogie-category-card') && tabCode.includes('pedagogie-category-grid'));
-check('La persistance de catégorie est importée depuis tutorial-folder-pref.js',
-  tabCode.includes('getTutorialCategory') && tabCode.includes('saveTutorialCategory')
-  && tabCode.includes('TUTORIAL_CATEGORIES'));
-check('analyzeSelected() pose categoryPickerOpen quand aucune catégorie n\'est connue',
-  /async function analyzeSelected\(\)[\s\S]*?categoryPickerOpen = true/.test(tabCode));
-check('La grille d\'accords est masquée en mode tutoriel',
-  tabCode.includes('resultGridCard.style.display') && tabCode.includes('TUTORIAL_CATEGORIES.TUTORIAL'));
-check('La carte Copilot est affichée en mode tutoriel',
-  tabCode.includes('resultCopilotCard.style.display') && tabCode.includes('TUTORIAL_CATEGORIES.TUTORIAL'));
-check('L\'indicateur de catégorie permet de changer le choix',
-  tabCode.includes('categoryPickerOpen = true') && tabCode.includes('pedagogie-category-hint'));
-
-// Résumé automatique du sujet en mode tutoriel.
-check('La carte Copilot summary a un emplacement de texte dédié',
-  html.includes('id="pedagogie-copilot-summary-text"'));
-check('Le contrôleur référence l\'emplacement du résumé',
-  tabCode.includes('pedagogie-copilot-summary-text'));
-check('Le résumé automatique ne se déclenche qu\'en mode tutoriel',
-  tabCode.includes('TUTORIAL_CATEGORIES.TUTORIAL') && tabCode.includes('maybeAutoSummarize'));
-check('Le résumé automatique exige une clé IA',
-  /maybeAutoSummarize[\s\S]*?hasAIKey\(\)/.test(tabCode));
-check('L\'état "Génération du résumé…" est affiché pendant l\'appel',
-  tabCode.includes('Génération du résumé…'));
-check('Le résumé est affiché dans la carte Copilot summary une fois prêt',
-  tabCode.includes('copilotSummaryText.textContent = summary'));
-
+// Plus de question « Tutoriel ou Cover ? » ni de résumé du cours (choix de Narcisse).
+// Le balisage de la vue seule, sans ses commentaires.
+const pedagogieView = html.slice(html.indexOf('id="practice-view-pedagogie"'), html.indexOf('id="practice-view-copilot"'))
+  .replace(/<!--[\s\S]*?-->/g, '');
+check('Plus de question « Tutoriel ou Cover ? »',
+  !pedagogieView.includes('pedagogie-category-card') && !tabCode.includes('categoryPickerOpen') && !pedagogieView.includes('🎓'));
+check('Plus de carte « Résumé du cours »',
+  !pedagogieView.includes('pedagogie-copilot-summary-text') && !pedagogieView.includes('Résumé du cours') && !tabCode.includes('Génération du résumé'));
+check('Plus de fiches du glossaire à l\'écran',
+  !html.includes('id="pedagogie-glossary"'));
+check('Les détails techniques (V2N, pip, git lfs) sont repliés, le message reste en clair',
+  tabCode.includes("'Détails techniques'") && tabCode.includes('note(readingStatus(technical'));
 
 const audioOnlyJs = readText('src/pedagogie/video-analysis.js');
 check('Le panneau notes ne répète plus le badge de provenance (explainUnrecognised retiré du rendu notes)',
@@ -325,8 +323,8 @@ check('maybeTranslate n\'existe plus dans pedagogie-tab.js',
   !tabCode.includes('maybeTranslate'));
 check('La traduction automatique n\'est plus tentée ici',
   !tabCode.includes('translationFailed') && !tabCode.includes('translated ='));
-check('Le résumé automatique est la seule explication de narration lancée par le contrôleur',
-  tabCode.includes('maybeAutoSummarize'));
+check('Aucune explication automatique de la parole : le Copilote explique à la demande',
+  !tabCode.includes('maybeAutoSummarize'));
 
 // ---------------------------------------------------------------------------
 // 7. Garde-fous du projet
@@ -365,13 +363,386 @@ for (const sel of ['.pedagogie-layout', '.pedagogie-card', '.pedagogie-chip', '.
 
 check('L\'écran affiche la provenance du relevé (image ou son)',
   html.includes('id="pedagogie-format"') && tabCode.includes('is-audio'));
-check('Le bouton « Calibrer le clavier (V2N) » a été retiré, markup et JS',
-  !html.includes('id="pedagogie-calibrate-v2n-btn"') && !tabCode.includes('els.calibrateBtn'));
+// [Claude] — 2026-09-25 — « Calibrer le clavier » revient (retiré à la refonte
+// Astra), mais caché tant qu'il ne sert à rien : V2N ne lit un vrai clavier filmé
+// qu'après les 4 coins. Il n'apparaît que si V2N est prêt sur cette machine.
+check('« Calibrer le clavier » : caché par défaut, montré seulement si V2N peut lire l\'image',
+  /id="pedagogie-calibrate-btn"[^>]*hidden|hidden[^>]*id="pedagogie-calibrate-btn"/.test(html)
+    && /calibrateBtn\.hidden = !\(v2nState\?\.available/.test(tabCode)
+    && !html.includes('id="pedagogie-calibrate-v2n-btn"'));
 check('Un accord non résolu est marqué, pas deviné',
   tabCode.includes('is-unresolved'));
 check('Un accord sans tierce est distingué visuellement',
   tabCode.includes('is-partial')
   && practiceCss.includes('.pedagogie-chip.is-partial'));
+
+// ---------------------------------------------------------------------------
+// 10. [Claude] — 2026-10-03 — Lot 5 : mémoire des tutos et accueil en cartes
+// ---------------------------------------------------------------------------
+
+const pedagoCss = readText('src/ui/refonte/astra-pedagogie.css');
+check('Le relevé est gardé après une lecture réussie, et rouvert sans relire la vidéo',
+  tabCode.includes('createTutorialMemory') && /if \(succeeded && job\.analysis\) \{\s*await saveReading\(job\);/.test(tabCode)
+  && /restoreFromMemory\(path\)/.test(tabCode) && tabCode.includes('loadAnalysis(path, await fileStat(path))'));
+check('Un tuto déjà analysé s\'ouvre sans nouvelle analyse ; « Refaire l\'analyse » relit tout',
+  /if \(!analysis && !isReadingHere\(\) && !waitingPaths\.has\(path\) && !isTooLong\(path\)\) analyzeSelected\(\);/.test(tabCode)
+  && /id="pedagogie-redo-btn"[^>]*hidden[^>]*>Refaire l'analyse</.test(html) && /redoBtn\?\.addEventListener\('click', \(\) => \{ analyzeSelected\(\); \}\)/.test(tabCode));
+check('Accueil en cartes : vignette, durée, « Déjà lu »',
+  html.includes('id="pedagogie-home-grid"') && tabCode.includes("className: 'pedago-card-thumb'") && tabCode.includes('cardDuration(card.duration)')
+  && tabCode.includes('`Prêt · analysé le ${day}`') && pedagoCss.includes('#practice-view-pedagogie .pedago-card {'));
+check('Vignette : même ffmpeg et même sonde que la lecture des images (IPC pedagogie:thumbnail)',
+  electronMain.includes("ipcMain.handle('pedagogie:thumbnail'") && /probeVideoDimensions\(filePath\)[\s\S]{0,400}resolveFfmpeg\(\)[\s\S]{0,600}thumbnailArgs\(filePath, at, width\)/.test(electronMainCode)
+  && preload.includes("ipcRenderer.invoke('pedagogie:thumbnail'") && tabCode.includes('api.thumbnail(tut.path'));
+check('Sans ffmpeg : la vignette est prise sur la vidéo pendant la lecture',
+  /addEventListener\('timeupdate', captureThumbnailFromPlayer\)/.test(tabCode) && tabCode.includes("toDataURL('image/jpeg'"));
+check('Une carte dit « Analyse en cours… » quand on est revenu aux cartes pendant une analyse',
+  tabCode.includes("reading: 'Analyse en cours…'") && /refreshCard\(path\);/.test(tabCode));
+
+// ---------------------------------------------------------------------------
+// 10 ter. [Claude] — 2026-10-03 — Analyse à l'import, Copilote fermé tant que ce n'est pas
+// prêt (Narcisse : « un temps de chargement, comme dans l'onglet Analyse et l'onglet Studio »)
+// ---------------------------------------------------------------------------
+check('Écran d\'attente de l\'analyse : la scène commune, l\'étape, le temps écoulé, « tu peux aller ailleurs »',
+  /id="pedagogie-reading"[^>]*hidden[\s\S]*?<div data-chroma-stage><\/div>[\s\S]*?id="pedagogie-reading-step"[\s\S]*?id="pedagogie-reading-elapsed"/.test(html)
+  && tabCode.includes('Tu peux aller dans les autres onglets') && /readingTicker = setInterval\(renderReading, 1000\)/.test(tabCode));
+check('Le Copilote ne s\'ouvre que sur un tuto analysé',
+  /const ready = Boolean\(selectedPath && analysis && !isReadingHere\(\)\);/.test(tabCode) && /if \(viewActive && ready && els\.copilotSlot\)/.test(tabCode));
+check('Importer : la durée est lue avant la copie, 30 min au plus ; le tuto s\'ouvre et son analyse démarre',
+  /const MAX_TUTORIAL_SECONDS = 30 \* 60;/.test(tabCode) && /api\.pedagogie\.thumbnail\(filePath, \{ width: 360 \}\)/.test(tabCode)
+  && /duration > MAX_TUTORIAL_SECONDS[\s\S]{0,300}30 minutes au plus/.test(tabCode) && /importNotice\(''\);\s*selectTrack\(path\);/.test(tabCode));
+check('Prêt : un message, depuis n\'importe quel onglet, ouvre le tuto',
+  /if \(!\(here\(\) && isViewVisible\(\)\)\) showReadyToast\(path\);/.test(tabCode) && tabCode.includes("id: 'pedagogie-ready-toast'")
+  && /function openTutorialAnywhere\(path\)/.test(tabCode));
+check('Un tuto trop long, ou une analyse qui n\'aboutit pas, est dit (et « Relancer l\'analyse »)',
+  tabCode.includes("title = 'Tutoriel trop long'") && tabCode.includes("title = 'L\\'analyse n\\'a pas abouti'")
+  && /els\.readingRetry\?\.addEventListener\('click', \(\) => \{ analyzeSelected\(\); \}\)/.test(tabCode));
+
+// ---------------------------------------------------------------------------
+// 10 bis. [Claude] — 2026-10-03 — Retour aux cartes (Narcisse : « une fois qu'on a choisi
+// un tutoriel, on n'a pas d'option qui permette d'en changer »)
+// ---------------------------------------------------------------------------
+check('« ← Mes tutoriels » remplace le tiroir : caché sur l\'accueil, montré quand un tuto est ouvert',
+  /<button[^>]*id="pedagogie-back-btn"[^>]*hidden/.test(html)
+  && /els\.backBtn\?\.addEventListener\('click', \(\) => \{ closeTutorial\(\); \}\)/.test(tabCode)
+  && /if \(els\.backBtn\) els\.backBtn\.hidden = !hasTutorial;/.test(tabCode));
+check('Le tiroir « Mes tutoriels » et sa liste sont retirés (les cartes sont la bibliothèque)',
+  !html.includes('pedagogie-library-drawer') && !html.includes('pedagogie-track-list') && !html.includes('pedagogie-home-library-btn')
+  && !tabCode.includes('els.trackList'));
+check('Le dossier et « Changer de dossier… » sont sur l\'accueil',
+  /id="pedagogie-home"[\s\S]*?id="pedagogie-folder-hint"[\s\S]*?id="pedagogie-home-grid"/.test(html)
+  && tabCode.includes("text: 'Changer de dossier…'"));
+check('Retour aux cartes : vidéo arrêtée, plus de tuto ouvert, le Copilote quitte le mode tuto',
+  /function closeTutorial\(\) \{[\s\S]*?pauseVideo\(\);[\s\S]*?selectedPath = null;[\s\S]*?destroyVideo\(\);[\s\S]*?new CustomEvent\('pedagogie-selection-change', \{ detail: \{ path: null \} \}\)/.test(tabCode));
+check('Un relevé est un travail à part : il continue après le retour aux cartes et reste gardé sous son tuto',
+  /async function runReading\(path\)/.test(tabCode) && /const here = \(\) => selectedPath === path;/.test(tabCode)
+  && /if \(here\(\)\) \{[\s\S]*?if \(succeeded && job\.analysis\) applyReading\(job\);/.test(tabCode)
+  && !/function selectTrack\(path\) \{\s*if \(busy\) return;/.test(tabCode)
+  && /readingQueue = readingQueue\.then\(/.test(tabCode));
+check('« Style » et sa liste restent ensemble (groupe .copilot-style)',
+  /<span class="copilot-style">\s*<label class="copilot-style-label"[^>]*>Style<\/label>\s*<select id="copilot-style-select"/.test(html)
+  && readText('src/ui/refonte/astra-bridge.css').includes('.tr-composer-tools > .copilot-style {')
+  // [Claude] — 2026-10-04 — Sur la ligne de la case, avant le bouton d'envoi.
+  && /<div class="tr-composer-tools">[\s\S]*?<span class="copilot-style">[\s\S]*?<button class="copilot-send-btn"/.test(html));
+
+// ---------------------------------------------------------------------------
+// 11. [Claude] — 2026-10-03 — Lot 6 : outils de travail
+// ---------------------------------------------------------------------------
+
+const copilotTabCode = stripComments(readText('src/pedagogie/copilot-tab.js'));
+// [Claude] — 2026-10-04 — De 0,25× à 2× (Narcisse : « une plus large plage de choix »).
+check('Vitesse de la vidéo, de 0,25× à 2× : playbackRate du lecteur, hauteur du son gardée',
+  /speed = clampSpeed\(value, 1\);/.test(tabCode) && !/SPEEDS/.test(tabCode)
+  && /video\.preservesPitch = true;[\s\S]{0,80}video\.playbackRate = speed/.test(tabCode)
+  && html.includes('id="pedagogie-speed"'));
+// [Claude] — 2026-10-03 — Lot 4 : la boucle A-B est devenue « Boucler » sur la barre du passage.
+check('« Boucler » : la vidéo tourne sur le passage choisi, un saut voulu hors du passage n\'est pas ramené',
+  /wasInside && \(t >= passage\.end \|\| video\.ended\) && t - lastLoopTime < 1\.5/.test(tabCode)
+  && /if \(!looping \|\| !passage \|\| !video\)/.test(tabCode) && !html.includes('id="pedagogie-loop"'));
+check('Maj + clic sur un accord de la frise : il devient le passage, en boucle',
+  /if \(e\.shiftKey\) loopSegment\(seg\.start, seg\.end\)/.test(tabCode)
+  && /function loopSegment\(start, end\) \{[\s\S]*?setRangeBound\(\{ start: Math\.floor\(start\), end: Math\.ceil\(end\) \}, 'start'[\s\S]*?passage = \{ start: next\.start, end: next\.end \};\s*looping = true;/.test(tabCode));
+check('Sous un exemple du Copilote : « Ajouter à Ma grille » et « Ajouter aux Favoris », reçus par Exercices (main.js)',
+  copilotTabCode.includes("new CustomEvent('exercise-save-grid'") && copilotTabCode.includes("new CustomEvent('exercise-add-favorites'")
+  && mainJs.includes("document.addEventListener('exercise-save-grid'") && mainJs.includes("document.addEventListener('exercise-add-favorites'")
+  && mainJs.includes("document.addEventListener('exercise-open-grid'"));
+
+// ---------------------------------------------------------------------------
+// 12. [Claude] — 2026-10-03 — Ne rejouer que ce que le prof joue (vidéo de Narcisse : sa voix
+// transcrite comme un piano, rejouée en « vrille » ; Amazing Grace : rejeu sans pédale)
+// ---------------------------------------------------------------------------
+check('Le Copilote reçoit les notes JOUÉES (sans celles de sa voix), et les moments joue / parle',
+  /const view = teacherView\(\);/.test(tabCode) && /const noteEvents = view\.played;/.test(tabCode)
+  && /activity: view\.spans,/.test(tabCode) && /chordsWhilePlaying\(allChords, view\.spans\)/.test(tabCode));
+check('La frise : « Il explique » là où il parle sans jouer, les accords seulement là où il joue',
+  tabCode.includes("className: 'pedagogie-chip is-speech'") && tabCode.includes("text: 'Il explique'")
+  && /isPlaying\(sp\.kind\) && seg\.start < sp\.end && seg\.end > sp\.start/.test(tabCode));
+check('Sa pédale, entendue au son, est gardée avec le relevé et passée au Copilote',
+  /built\.pedals = \(piano\.pedals \|\| \[\]\)/.test(tabCode) && /pedals: Array\.isArray\(analysis\.pedals\)/.test(tabCode));
+
+// ---------------------------------------------------------------------------
+// 13. [Claude] — 2026-10-03 — La plage du Copilote, choisie sans rien taper, 10 min au plus ; la
+// frise repliée (Narcisse : « une minute, c'est trop court », « des champs présélectionnés
+// (heures, minutes de 0 à 59) », « autant garder [les étiquettes] repliées par défaut »)
+// ---------------------------------------------------------------------------
+check('La barre du passage est sous la vidéo : Début, Fin, durée, « Boucler », « Suivre la vidéo », ce que fait le prof',
+  /id="pedagogie-main"[\s\S]*?id="pedagogie-passage"[^>]*hidden[\s\S]*?id="pedagogie-passage-start"[\s\S]*?id="pedagogie-passage-end"[\s\S]*?id="pedagogie-passage-length"[\s\S]*?id="pedagogie-passage-loop"[\s\S]*?id="pedagogie-passage-follow"[\s\S]*?id="pedagogie-passage-activity"/.test(html)
+  && html.indexOf('id="pedagogie-passage"') < html.indexOf('id="pedagogie-strip"'));
+check('Début / Fin en listes (heures seulement pour une vidéo d\'1 h ou plus, minutes, secondes) et « Maintenant »',
+  tabCode.includes("const options = timeOptions(duration);") && /if \(options\.hours\.length\) select\('h', options\.hours, 'h'\);/.test(tabCode)
+  && /select\('m', options\.minutes, 'min'\);\s*select\('s', options\.seconds, 's'\);/.test(tabCode)
+  && tabCode.includes("'aria-label': `${name} : prendre l'instant de la vidéo`") && !/<input[^>]*pedagogie-passage/.test(html));
+check('Un bord réglé : la plage reste dans la vidéo, 10 min au plus, l\'autre bord suit et la barre le dit',
+  /const next = setRangeBound\(currentRange\(\), edge, seconds, duration\);/.test(tabCode)
+  && tabCode.includes("'la fin a suivi'") && tabCode.includes("'le début a suivi'")
+  && readText('src/pedagogie/passage-range.js').includes('export const MAX_PASSAGE_SECONDS = 600;'));
+check('Le Copilote parle de la plage choisie (sinon des 30 dernières secondes)',
+  /passageWindow\(video\?\.currentTime, \{ length: FOLLOW_SECONDS, fixed: passage, duration: video\?\.duration \}\)/.test(tabCode)
+  && /length: FOLLOW_SECONDS,\s*fixed: passage,/.test(tabCode));
+check('« Suivre la vidéo » rend la plage à la vidéo ; tant qu\'elle suit, ses listes avancent avec elle',
+  /function followVideo\(\) \{\s*passage = null;\s*looping = false;/.test(tabCode) && /if \(!passage\) renderPassageBar\(\);/.test(tabCode)
+  && /els\.passageFollow\?\.addEventListener\('click', \(\) => \{ followVideo\(\); \}\)/.test(tabCode));
+check('Une liste ouverte n\'est jamais changée sous les doigts ; la durée (lue à voix haute) n\'est réécrite que si elle change',
+  /const choosing = active\?\.tagName === 'SELECT' && bar\.contains\(active\);/.test(tabCode)
+  && /if \(els\.passageLength && els\.passageLength\.dataset\.key !== lengthKey\)/.test(tabCode)
+  && /id="pedagogie-passage-length" aria-live="polite"/.test(html));
+check('La bande « il joue / il explique » du passage : un appui place la vidéo, au clavier aussi',
+  tabCode.includes("className: `pedago-activity-span is-${s.kind}`") && /onPointerdown: \(e\) => \{ if \(e\.button === 0\) seekVideo\(s\.start\); \}/.test(tabCode)
+  && /onClick: \(e\) => \{ if \(e\.detail === 0\) seekVideo\(s\.start\); \}/.test(tabCode));
+check('La frise des accords est repliée par défaut, « Accords relevés (N) » la déplie, le choix est retenu',
+  /<button[^>]*id="pedagogie-strip-toggle"[^>]*aria-expanded="false"[^>]*aria-controls="pedagogie-grid"/.test(html)
+  && /let stripOpen = false;/.test(tabCode) && /els\.grid\.hidden = !stripOpen;/.test(tabCode)
+  && tabCode.includes("els.stripToggle.textContent = 'Accords relevés';") && tabCode.includes("el('span', { className: 'pedago-count', text: String(segments.length) })")
+  && /localStorage\.setItem\(STRIP_KEY, stripOpen \? '1' : '0'\)/.test(tabCode) && /stripOpen = localStorage\.getItem\(STRIP_KEY\) === '1';/.test(tabCode));
+check('Plus de liste 10 / 20 / 30 / 60 s ni de boucle A-B à part',
+  !tabCode.includes('passageSeconds') && !tabCode.includes('els.momentLength') && !tabCode.includes('els.loop ')
+  && !tabCode.includes('fromLoop'));
+
+// ---------------------------------------------------------------------------
+// 14. [Claude] — 2026-10-03 — La barre de lecture des exemples du Copilote (Narcisse : « revenir
+// en arrière manuellement quand le copilote joue, un peu comme sur un lecteur »)
+// ---------------------------------------------------------------------------
+const playerCode = stripComments(readText('src/exercise-demo-player.js'));
+const bridgeCss = readText('src/ui/refonte/astra-bridge.css');
+check('Le lecteur sait faire pause, reprendre, aller à un instant ; la reprise remet la pédale et les notes tenues',
+  /return \{\s*play,\s*stop,\s*pause,\s*resume,\s*seek,\s*(?:setPedal,\s*)?(?:setRate,\s*)?position,/.test(playerCode)
+  && /if \(sustain\) fire\(\{ type: 'sustain', value: true \}\);/.test(playerCode) && /send\('noteOn', note, d\.velocity\);/.test(playerCode));
+check('main.js : commandes de la carte (pause, reprise, −5 s, aller à) et position envoyée toutes les 250 ms',
+  mainJs.includes("document.addEventListener('copilot-example-control'") && /exampleTicker = setInterval\(sendExampleProgress, 250\);/.test(mainJs)
+  && mainJs.includes("new CustomEvent('copilot-example-progress'") && /else if \(action === 'back'\) demoPlayer\.seek\(demoPlayer\.position\(\) - /.test(mainJs));
+check('La carte : Pause / Reprendre, « ⟲ 5 s », curseur, moments où le prof parle, phrase pendant sa pause',
+  copilotTabCode.includes("'data-action': 'toggle'") && copilotTabCode.includes("'data-action': 'back'")
+  && copilotTabCode.includes("className: 'copilot-transport-range'") && /markerSpans\(example, duration\)/.test(copilotTabCode)
+  && /markerNote\(markerAt\(example, position, \{ after: 2\.5 \}\)\)/.test(copilotTabCode)
+  && copilotTabCode.includes("document.addEventListener('copilot-example-progress'"));
+check('« Voir dans la vidéo » : l\'exemple se met en pause, la vidéo va à l\'instant correspondant',
+  copilotTabCode.includes("text: 'Voir dans la vidéo'") && /videoTimeAt\(example, exampleProgress\?\.id === id \? exampleProgress\.position : 0\)/.test(copilotTabCode)
+  && /if \(!examplePaused\) control\('pause'\);/.test(copilotTabCode));
+check('La barre n\'est montrée que sous l\'exemple qui joue, et ses styles valent dans les deux vues',
+  /if \(transport && !playing && !transport\.hidden\)/.test(copilotTabCode)
+  && bridgeCss.includes(':is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-example-transport {')
+  && bridgeCss.includes('.copilot-transport-range::-webkit-slider-thumb'));
+
+// ---------------------------------------------------------------------------
+// 15. [Claude] — 2026-10-03 — Agrandir le Copilote (Narcisse : « la fenêtre est trop petite […]
+// si on l'agrandit, la fenêtre vidéo sera forcément impactée […] il faut trouver un moyen »)
+// ---------------------------------------------------------------------------
+check('Une poignée entre la vidéo et le Copilote (séparateur réglable au clavier)',
+  /class="pedago-stage"[\s\S]*?<div class="pedago-resizer" id="pedagogie-resizer" role="separator" aria-orientation="vertical"[\s\S]*?tabindex="0"[\s\S]*?<aside class="pedago-copilot" id="pedagogie-copilot-panel"/.test(html));
+check('La grille partage la largeur : la vidéo prend le reste, le Copilote sa part (300 px au moins, la vidéo 380 px)',
+  pedagoCss.includes('grid-template-columns: minmax(0, 1fr) 16px clamp(300px, var(--pedago-copilot-share, 38%), calc(100% - 396px));')
+  && /els\.split\?\.style\.setProperty\('--pedago-copilot-share'/.test(tabCode));
+check('Tirer la poignée, les flèches, Entrée, le double-clic',
+  /handle\.setPointerCapture\(e\.pointerId\)/.test(tabCode) && /setCopilotShare\(shareAt\(e\.clientX, els\.split\.getBoundingClientRect\(\)\), \{ save: false \}\)/.test(tabCode)
+  && /handle\.addEventListener\('dblclick', \(\) => setCopilotShare\(DEFAULT_SHARE\)\)/.test(tabCode) && /shareForKey\(copilotShare, e\.key\)/.test(tabCode));
+check('Le bouton « Agrandir » / « Réduire » dans l\'en-tête du Copilote, la largeur retenue',
+  /<button type="button" class="pedago-copilot-size" id="pedagogie-copilot-size" aria-pressed="false"/.test(html)
+  && /els\.sizeBtn\?\.addEventListener\('click', \(\) => setCopilotShare\(toggledShare\(copilotShare\)\)\)/.test(tabCode)
+  && /localStorage\.setItem\(COPILOT_WIDTH_KEY, String\(copilotShare\)\)/.test(tabCode) && /setCopilotShare\(storedShare\(savedShare\), \{ save: false \}\)/.test(tabCode));
+check('Fenêtre étroite (l\'un sous l\'autre) : ni poignée ni bouton',
+  /@media \(max-width: 1100px\)[\s\S]*?#practice-view-pedagogie \.pedago-resizer,\s*#pedagogie-copilot-panel \.pedago-copilot-size \{ display: none; \}/.test(pedagoCss));
+
+// ---------------------------------------------------------------------------
+// 16. [Claude] — 2026-10-04 — Étiquettes : ce qui est écrit part (Narcisse : « pour chaque
+// étiquette, il y a une question » qu'on ne voit pas ; « “Voicing”, on ne comprend pas vraiment
+// le sens »)
+// ---------------------------------------------------------------------------
+const chipTags = [...html.matchAll(/<button type="button" class="copilot-chip" data-message="([^"]+)">([^<]+)<\/button>/g)];
+check('Copilote seul (« Continuer : ») : chaque étiquette envoie son propre texte',
+  chipTags.length === 6 && chipTags.every(([, message, text]) => message.replace(/[.]$/, '') === text.replace(/[.]$/, ''))
+  && !html.includes('>Voicing</button>'), chipTags.map(([, m, t]) => `${t} → ${m}`).join(' / '));
+check('Exercices et accueil du Copilote : le libellé est la question envoyée',
+  /\{ label: 'Explique ce voicing', message: 'Explique ce voicing\.' \}/.test(copilotTabCode)
+  && /\{ label: 'Comment mieux accompagner \?', icon: ICON_SPARKLE_MD, message: 'Comment mieux accompagner \?' \}/.test(copilotTabCode));
+check('Un choix écrit la phrase dans la case, sans l\'envoyer ; « Envoyer » (ou Entrée) l\'envoie',
+  /function prepare\(message\) \{[\s\S]*?els\.input\.value = message;/.test(copilotTabCode) && !copilotTabCode.includes('sendPrepared(')
+  && copilotTabCode.includes("text: 'Envoyer'") && /prepare\(otherKeyQuestion\(id\)\)/.test(copilotTabCode)
+  && /const write = \(\) => prepare\(applyQuestion\(choice\)\);/.test(copilotTabCode)
+  && /if \(preparedText && els\.input\?\.value === preparedText\)/.test(copilotTabCode));
+check('Suggestions sous les réponses : le bouton montre le message envoyé, sans « Demander »',
+  /btn\.appendChild\(el\('span', \{ text: message \}\)\);/.test(copilotTabCode) && !copilotTabCode.includes("el('small', { text: 'Demander' })")
+  && readText('src/pedagogie/copilot-client.js').includes('le bouton affiche exactement le message envoyé (label = message)'));
+
+// ---------------------------------------------------------------------------
+// 17. [Claude] — 2026-10-04 — Réponses courtes, détail sur demande (Narcisse : « il y a trop de
+// détails, trop d'inscriptions » ; son choix : courtes, le détail sur demande)
+// ---------------------------------------------------------------------------
+const copilotPrompt = readText('src/pedagogie/copilot-client.js');
+check('Consignes : une réponse courte par défaut, l\'explication complète sur « Plus de détails »',
+  copilotPrompt.includes('4. Réponses courtes et claires, par défaut') && copilotPrompt.includes('environ 80 mots en tout')
+  && copilotPrompt.includes('Quand le pianiste demande « Plus de détails »') && copilotPrompt.includes('rédige ton explication (courte : règle 4)')
+  && !copilotPrompt.includes('Rédige donc ton explication complète'));
+check('Les notes écrites par l\'application sont repliées sous la réponse (« Les notes, accord par accord »)',
+  /const \{ text, notes \} = isUser \? \{ text: msg\.content, notes: '' \} : splitAnswerNotes\((?:extractTextToolCalls\(msg\.content\)\.content|msg\.content), msg\.toolResult\?\.transferText\);/.test(copilotTabCode)
+  && /if \(notes\) content\.appendChild\(renderNotesDetails\(notes\)\);/.test(copilotTabCode)
+  && /el\('details', \{ className: 'copilot-notes' \}, \[\s*el\('summary', \{ text: 'Les notes, accord par accord' \}\)/.test(copilotTabCode)
+  && bridgeCss.includes(':is(#practice-view-copilot, #pedagogie-copilot-panel) .copilot-notes > summary {'));
+check('« Plus de détails » sous la dernière réponse seulement ; les erreurs sont marquées',
+  /const lastAnswer = tail\?\.role === 'assistant' && !tail\.isTyping \? tail : null;/.test(copilotTabCode)
+  && /renderOneMessage\(msg, \{ last: msg === lastAnswer \}\)/.test(copilotTabCode)
+  && /const actions = answerActions\(msg, \{ last, asked: asked\?\.role === 'user' \? asked\.content : '' \}\);/.test(copilotTabCode)
+  && (copilotTabCode.match(/content: copilotErrorText\([^)]*\)\)?, isError: true/g) || []).length === 2
+  && copilotPrompt.includes('ne le propose pas'));
+
+// ---------------------------------------------------------------------------
+// 18. [Claude] — 2026-10-04 — Le lecteur des exemples (Narcisse : la pause doit « figer
+// l'affichage » ; le curseur doit faire « rembobiner » le clavier, sans « cumul d'accords » ;
+// « un mode sans pédale »)
+// ---------------------------------------------------------------------------
+const mainCode = stripComments(mainJs);
+check('Le clavier reçoit « show » / « hide » : la touche sans le son ni la sortie MIDI',
+  /const display = type === 'show' \|\| type === 'hide';\s*const toOutput = !display && isMidiOutputActive\(\);/.test(mainCode)
+  && /if \(type === 'noteOn' \|\| type === 'show'\) handleNoteOn\(a - state\.transpose, b, true, !toOutput && !display\);/.test(mainCode)
+  && /else if \(type === 'noteOff' \|\| type === 'hide'\) handleNoteOff\(a - state\.transpose, true, !toOutput && !display\);/.test(mainCode));
+check('Pause : le son s\'arrête, les touches de l\'instant restent ; le curseur les recalcule à chaque instant',
+  /function pause\(\) \{[\s\S]*?releaseAll\(\);[\s\S]*?showAt\(pausedAt\);/.test(playerCode)
+  && /if \(paused\) \{\s*pausedAt = at;\s*showAt\(at\);/.test(playerCode)
+  && /const \{ held: down, sustained \} = stateAt\(demo\.events, at, \{ inclusive: true \}\);/.test(playerCode));
+check('Le curseur tiré : « scrub » (le son se tait, le clavier suit), « scrub-end » (la lecture reprend si elle jouait)',
+  /control\('scrub', \{ seconds: Number\(range\.value\) \}\);/.test(copilotTabCode) && /control\('scrub-end', \{ seconds: Number\(range\.value\) \}\);/.test(copilotTabCode)
+  && /action === 'scrub' && Number\.isFinite\(at\)\) \{\s*if \(!demoContext\.scrub\) demoContext\.scrub = \{ resume: demoPlayer\.isPlaying\(\) \};/.test(mainCode)
+  && /if \(scrub\?\.resume\) demoPlayer\.resume\(\);/.test(mainCode)
+  && /paused: demoPlayer\.isPaused\(\) && !demoContext\.scrub\?\.resume,/.test(mainCode));
+check('Sans la pédale : le bouton « Pédale » (exemples qui en ont une), le choix retenu et passé au lecteur',
+  /if \(hasPedalEvents\(example\)\) \{\s*(?:row|settings)\.appendChild\(el\('button', \{[\s\S]*?'data-action': 'pedal',/.test(copilotTabCode)
+  && /localStorage\.setItem\(PEDAL_KEY, examplePedal \? 'on' : 'off'\);/.test(copilotTabCode)
+  && /new CustomEvent\('copilot-play-example', \{ detail: \{ id, example, pedal: examplePedal(?:, rate: exampleRate)? \} \}\)/.test(copilotTabCode)
+  && /\{ tempo, pedal: e\.detail\.pedal !== false(?:, rate: Number\(e\.detail\.rate\) \|\| 1)? \}/.test(mainCode) && /else if \(action === 'pedal'\) demoPlayer\.setPedal\(e\.detail\.on !== false\);/.test(mainCode)
+  && bridgeCss.includes('.copilot-transport-pedal[aria-pressed="false"]'));
+check('Une touche figée jouée puis relâchée par le pianiste redevient jaune',
+  /const shown = state\.isPlayback \? null : demoPlayer\.shownVelocity\(transposed\);\s*if \(shown !== null\) feedDemoEvent\('show', transposed, shown\);/.test(mainCode));
+
+// ---------------------------------------------------------------------------
+// 19. [Claude] — 2026-10-04 — La structure d'un tuto (Narcisse : « quand je demande la
+// progression, je ne demande pas les accords que joue le pianiste du début jusqu'à la fin […]
+// c'est la structure de la musique, la boucle »), puis ce que font ses lignes.
+// ---------------------------------------------------------------------------
+const clientCode = stripComments(readText('src/pedagogie/copilot-client.js'));
+check('Pédagogie IA donne la structure du tuto au Copilote (calculée une fois par relevé)',
+  /import \{ songStructure \} from '\.\.\/pedagogie\/song-structure\.js';/.test(tabCode)
+  && /structure: tutorialStructure\(structureChords, noteEvents\),/.test(tabCode) && /structure = songStructure\(\{ chords, notes, key: detectedKey \}\);/.test(tabCode)
+  // Sans les « accords » d'une seule note (une note de mélodie lue comme un accord).
+  // Mais un accord lu au son (sans notes : midis vide) reste.
+  && /Array\.isArray\(s\.midis\) && s\.midis\.length > 0 && new Set\(s\.midis\.map\(\(m\) => \(\(m % 12\) \+ 12\) % 12\)\)\.size < 2/.test(tabCode));
+check('Le contexte : la structure avant la grille, le passage situé dans la structure, ses lignes',
+  clientCode.indexOf('lines.push(...structureLines(context.structure));') > 0
+  && clientCode.indexOf('lines.push(...structureLines(context.structure));') < clientCode.indexOf("'## Grille relevée'")
+  && /lines\.push\(\.\.\.structureMomentLines\(context\.structure, context\.moment\)\);/.test(clientCode)
+  && /lines\.push\(\.\.\.movesLines\(lineMoves\(\{ notes: context\.noteEvents, chords: context\.chords, structure: context\.structure, start: context\.moment\.start, end: context\.moment\.end \}\)\)\);/.test(clientCode));
+check('Règle 21 : la progression est la boucle, jamais la liste des accords joués',
+  readText('src/pedagogie/copilot-client.js').includes("21. Progression d'un tutoriel") && readText('src/pedagogie/copilot-client.js').includes('jamais avec la liste des accords joués du début à la fin'));
+
+// ---------------------------------------------------------------------------
+// 20. [Claude] — 2026-10-04 — La vitesse des exemples (Narcisse : « régler la vitesse selon ce
+// que l'on veut (0,5× ; 0,75× ; 1×…) : ça évite de lui demander à chaque fois de ralentir »)
+// ---------------------------------------------------------------------------
+check('La barre de lecture : le choix de vitesse (0,25× à 2×), retenu, passé au lecteur au départ et en cours de lecture',
+  /const rate = createSpeedMenu\(\{\s*value: exampleRate,[\s\S]*?onChange: \(value\) => setExampleRate\(value\),\s*\}\);/.test(copilotTabCode)
+  && /exampleRate = clampSpeed\(rate, 1\);/.test(copilotTabCode) && /return clampSpeed\(localStorage\.getItem\(RATE_KEY\), 1\);/.test(copilotTabCode)
+  && /localStorage\.setItem\(RATE_KEY, String\(exampleRate\)\);/.test(copilotTabCode)
+  && /action: 'rate', rate: exampleRate/.test(copilotTabCode)
+  && /detail: \{ id, example, pedal: examplePedal, rate: exampleRate \}/.test(copilotTabCode)
+  && /\{ tempo, pedal: e\.detail\.pedal !== false, rate: Number\(e\.detail\.rate\) \|\| 1 \}/.test(mainCode)
+  && /else if \(action === 'rate'\) demoPlayer\.setRate\(Number\(e\.detail\.rate\) \|\| 1\);/.test(mainCode)
+  && /function setRate\(rate\) \{/.test(playerCode) && /const MIN_RATE = 0\.25;\s*const MAX_RATE = 2;/.test(playerCode));
+check('La vitesse change sans coupure : rien n\'est relâché ni rejoué, la suite est reprogrammée',
+  /function setRate\(rate\) \{[\s\S]*?clearTimers\(\);\s*fromBeat = at;\s*startedAt = now\(\) \+ wait;\s*schedule\(at, wait\);/.test(playerCode)
+  && !/function setRate\(rate\) \{[^}]*releaseAll\(\)/.test(playerCode));
+check('Règle 8 : à « ralentis », le Copilote rappelle où se règle la vitesse (« Vitesse », sous l\'exemple)',
+  readText('src/pedagogie/copilot-client.js').includes('dans sa barre de lecture (« Vitesse » : de 0,25× à 2×, par pas de 0,05) : son choix est gardé pour les exemples suivants.'));
+check('Vitesse et pédale sur la ligne du dessous, à droite (la première ligne garde sa place au curseur)',
+  // Un <span>, pas un <label> : un clic dans le panneau ouvrirait et fermerait le menu.
+  /const settings = el\('div', \{ className: 'copilot-transport-settings' \}, \[\s*el\('span', \{ className: 'copilot-transport-rate-label' \}, \[el\('span', \{ text: 'Vitesse' \}\), rate\]\),/.test(copilotTabCode)
+  && /foot\.appendChild\(settings\);\s*box\.appendChild\(foot\);/.test(copilotTabCode)
+  && !/className: 'copilot-transport-row' \}, \[[^\]]*\brate,/.test(copilotTabCode)
+  && bridgeCss.includes('.copilot-transport-settings {') && bridgeCss.includes('.copilot-transport-foot {'));
+
+// ---------------------------------------------------------------------------
+// 21. [Claude] — 2026-10-04 — Ce que la lecture prend pour des touches (Narcisse, « Amazing
+// Grace » de Cory Henry : Si6 → Si7 rejoués de 0:38 à 0:42, que le pianiste ne joue pas).
+// ---------------------------------------------------------------------------
+const activityCode = stripComments(readText('src/pedagogie/teacher-activity.js'));
+check('Les notes du prof sont nettoyées de ce que la lecture a pris pour des touches, toutes sources',
+  /export function cleanTeacherNotes\(notes, \{ source = '' \} = \{\}\) \{\s*const read = pianoNotes\(notes\);\s*const odd = readingArtifacts\(read, \{ source \}\)\.notes;/.test(activityCode)
+  && activityCode.indexOf('readingArtifacts(read, { source })') < activityCode.indexOf('if (!fromSound(source)) return list;')
+  && /export const KEY_BLOCK = 6;/.test(activityCode));
+check('La grille du relevé en usage est corrigée (relevé gardé et analyse neuve), le fichier gardé non',
+  /analysis = readingInUse\(saved\.analysis\);/.test(tabCode) && /analysis = readingInUse\(job\.analysis\);/.test(tabCode)
+  && /return withoutReadingArtifacts\(raw, \{ source: raw\.notesSource \|\| \(raw\.source === 'audio' \? 'son' : 'image'\) \}\);/.test(tabCode)
+  && /analysis: job\.analysis,/.test(tabCode));
+
+// ---------------------------------------------------------------------------
+// 22. [Claude] — 2026-10-04 — Jamais d'appel d'outil écrit en texte sous les yeux du pianiste
+// (Narcisse : « suggest_actions(actions=[{label: …, message: …}]) » dans les réponses).
+// ---------------------------------------------------------------------------
+check('Chaque réponse du modèle est nettoyée de ses appels écrits en texte (relances comprises)',
+  /return \{ ok: true, choice: withTextToolCalls\(choice\) \};/.test(clientCode)
+  && /if \(!toolsMode\) \{\s*const written = \(first\.choice\.tool_calls \|\| \[\]\)\.filter\(\(c\) => c\?\.function\?\.name === 'suggest_actions'\);/.test(clientCode));
+check('Une réponse gardée est montrée sans appel écrit ; la règle 14 dit de ne jamais l\'écrire',
+  /splitAnswerNotes\(extractTextToolCalls\(msg\.content\)\.content, msg\.toolResult\?\.transferText\)/.test(copilotTabCode)
+  && readText('src/pedagogie/copilot-client.js').includes("appelle l'outil suggest_actions (un appel d'outil, jamais écrit dans le texte de ta réponse"));
+
+// ---------------------------------------------------------------------------
+// 23. [Claude] — 2026-10-04 — La fenêtre sous la vidéo, en une seule carte (Narcisse : « plus
+// épurée, plus lisible, mieux organisée, visuellement plus moderne, moins chargée »).
+// ---------------------------------------------------------------------------
+check('Une seule carte sous la vidéo : passage, accords relevés, outils, message, dans cet ordre',
+  /<section class="pedago-under" id="pedagogie-under"[^>]*>[\s\S]*?id="pedagogie-passage"[\s\S]*?id="pedagogie-strip"[\s\S]*?id="pedagogie-video-actions"[\s\S]*?id="pedagogie-status"[\s\S]*?<\/section>/.test(html)
+  && html.indexOf('id="pedagogie-status"') < html.indexOf('</section>', html.indexOf('id="pedagogie-under"')));
+check('La carte : un filet entre ses étages visibles, cachée quand tout l\'est',
+  pedagoCss.includes('.pedago-under:not(:has(> :not([hidden]):not([style*="display: none"]))) { display: none; }')
+  && pedagoCss.includes('.pedago-under > :not([hidden]):not([style*="display: none"]) ~ :not([hidden]):not([style*="display: none"])'));
+check('Début / Fin en un champ « 0 : 26 », la durée en pastille, la vitesse en menu « 1× ▾ » (construit une fois)',
+  tabCode.includes("const field = el('span', { className: 'pedago-time' });")
+  && tabCode.includes("el('strong', { className: 'pedago-pill', text: durationText(range.end - range.start) })")
+  && /if \(els\.speed && !speedMenu\) \{\s*speedMenu = createSpeedMenu\(\{/.test(tabCode)
+  && /\} else if \(speedMenu\) setSpeedMenuValue\(speedMenu, speed\);/.test(tabCode)
+  && !pedagoCss.includes('.pedago-segmented'));
+check('La bande : son début et sa fin aux deux bouts, une légende par sorte, plus de hachures',
+  tabCode.includes("el('span', { className: 'pedago-activity-time', text: clock(range.start) })")
+  && !pedagoCss.includes('repeating-linear-gradient(135deg, var(--tr-accent) 0 4px'));
+
+// ---------------------------------------------------------------------------
+// 24. [Claude] — 2026-10-04 — Le réglage de vitesse commun (ui/components/speed-menu.js) : les
+// exemples du Copilote et la vidéo (Narcisse : « je veux vouloir imposer une vitesse, mais
+// avec une plus large plage de choix »).
+// ---------------------------------------------------------------------------
+const speedMenuCode = stripComments(readText('src/ui/components/speed-menu.js'));
+const speedMenuCss = readText('src/ui/components/speed-menu.css');
+check('Le réglage commun : sa feuille liée dans index.html, importé par le Copilote et par Pédagogie IA',
+  html.includes('<link rel="stylesheet" href="./ui/components/speed-menu.css" />')
+  && /from '\.\.\/ui\/components\/speed-menu\.js'/.test(copilotTabCode) && /from '\.\/components\/speed-menu\.js'/.test(tabCode));
+check('Le panneau : un popover (jamais coupé par la conversation), le bouton en est l\'invocateur, il se ferme si la page défile ou à Échap',
+  /node\('div', 'speed-menu-panel', \{ popover: 'auto', role: 'dialog', 'aria-label': name \}\)/.test(speedMenuCode)
+  && /button\.popoverTargetElement = panel;/.test(speedMenuCode)
+  && /window\.addEventListener\('scroll', onScroll, true\);/.test(speedMenuCode)
+  // Échap, géré par le panneau lui-même : astra-shell.js annule la touche pour toute la page.
+  && /panel\.addEventListener\('keydown', \(e\) => \{\s*if \(e\.key !== 'Escape'\) return;\s*e\.stopPropagation\(\);\s*close\(\);\s*button\.focus\(\);/.test(speedMenuCode)
+  && speedMenuCss.includes('.speed-menu .speed-menu-panel {') && /position: fixed;\s*inset: auto;/.test(speedMenuCss));
+check('Le panneau : 5 vitesses courantes, un curseur de 0,25 à 2 (pas de 0,05), − et + ; le bouton dit la vitesse',
+  /type: 'range', min: String\(SPEED_MIN\), max: String\(SPEED_MAX\), step: String\(SPEED_STEP\)/.test(speedMenuCode)
+  && /'aria-haspopup': 'dialog', 'aria-expanded': 'false'/.test(speedMenuCode)
+  && /button\.setAttribute\('aria-label', `\$\{name\} : \$\{label\}`\);/.test(speedMenuCode)
+  && /range\.setAttribute\('aria-valuetext', label\);/.test(speedMenuCode));
 
 console.log(`\n=== Résultat : ${passed}/${total} contrôles passés ===`);
 if (passed < total) process.exitCode = 1;

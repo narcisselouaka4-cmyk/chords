@@ -303,6 +303,7 @@
 .tr-dialog-footnote { display: flex; align-items: center; gap: 7px; padding-top: 15px; margin-top: 15px; border-top: 1px solid var(--tr-border-soft); color: var(--tr-muted); font-size: 10px; }
 .tr-dialog-footnote > span:last-child { margin-left: auto; }
 .tr-library-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 22px; }
+.tr-library-toolbar-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .tr-search { display: flex; align-items: center; gap: 9px; flex: 1; max-width: 410px; min-width: 120px; padding: 0 12px; height: 36px; border: 1px solid var(--tr-border); border-radius: 6px; color: var(--tr-muted); background: var(--tr-inset); }
 .tr-search input { width: 100%; min-width: 0; padding: 0; border: 0; outline: none; color: var(--tr-text); background: none; font-size: 11px; }
 .tr-search input:focus-visible { outline: none; }
@@ -312,7 +313,7 @@
 .tr-segment-control > button { display: flex; align-items: center; gap: 9px; min-height: 28px; padding: 0 13px; border: 1px solid transparent; border-radius: 4px; background: none; color: var(--tr-secondary); font-size: 10px; white-space: nowrap; }
 .tr-segment-control > button.is-active { color: var(--tr-text); background: var(--tr-raised); border-color: var(--tr-border); box-shadow: 0 1px 3px #0000000d; }
 .tr-segment-control > button > span { color: var(--tr-muted); font-family: var(--tr-mono); font-size: 9px; }
-.tr-library-table-head, .tr-library-row { display: grid; grid-template-columns: minmax(220px, 2.7fr) 1fr .55fr .5fr 90px; gap: 20px; align-items: center; }
+.tr-library-table-head, .tr-library-row { display: grid; grid-template-columns: minmax(220px, 2.7fr) 1fr .55fr .5fr 96px; gap: 20px; align-items: center; }
 .tr-library-table-head { padding: 0 12px 11px; border-bottom: 1px solid var(--tr-border); color: var(--tr-muted); font: 8px var(--tr-mono); letter-spacing: .06em; }
 .tr-library-row { min-height: 65px; border-bottom: 1px solid var(--tr-border-soft); padding: 0 12px; border-radius: 5px; color: var(--tr-secondary); font-size: 10px; }
 .tr-library-row.is-selected { background: var(--tr-accent-soft); border-color: transparent; }
@@ -608,7 +609,7 @@
 .tr-exercise-mode .tr-segment-control > button { min-height: 27px; padding: 0 15px; }
 .tr-exercise-mode .tr-segment-control > button.is-active { color: var(--tr-accent); background: var(--tr-accent-soft); border-color: color-mix(in srgb, var(--tr-accent) 22%, var(--tr-border)); }
 .tr-local-detection { display: inline-flex; align-items: center; gap: 7px; color: var(--tr-muted); font: 8px var(--tr-mono); }
-.tr-exercise-stage { display: grid; grid-template-columns: .94fr 1.35fr .73fr; flex: 1; min-height: 278px; border: 1px solid var(--tr-border); border-radius: 10px; background: var(--tr-surface); box-shadow: var(--tr-shadow); transition: border-color .3s; overflow: hidden; }
+.tr-exercise-stage { display: grid; grid-template-columns: .82fr 1.7fr .68fr; flex: 1; min-height: 440px; min-height: 70vh; border: 1px solid var(--tr-border); border-radius: 10px; background: var(--tr-surface); box-shadow: var(--tr-shadow); transition: border-color .3s; overflow: hidden; }
 .tr-exercise-stage.is-correct { border-color: color-mix(in srgb, var(--tr-green) 50%, var(--tr-border)); }
 .tr-exercise-brief { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; padding: 23px 27px; }
 .tr-exercise-label { display: flex; align-items: center; gap: 7px; color: var(--tr-accent); }
@@ -625,7 +626,7 @@
 .tr-exercise-guide > span { width: 100%; color: var(--tr-muted); font: 7px var(--tr-mono); letter-spacing: .04em; }
 .tr-exercise-guide strong { display: flex; align-items: center; gap: 10px; color: var(--tr-accent); font: 14px var(--tr-mono); }
 .tr-exercise-guide p { color: var(--tr-muted); font-size: 9px; }
-.tr-chord-arena { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 0; padding: 16px 12px; overflow: hidden; background: radial-gradient(ellipse at 50% 56%, color-mix(in srgb, var(--tr-accent) 7%, transparent), transparent 58%); }
+.tr-chord-arena { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 0; min-height: 440px; padding: 16px 12px; overflow: hidden; background: radial-gradient(ellipse at 50% 56%, color-mix(in srgb, var(--tr-accent) 7%, transparent), transparent 58%); }
 .tr-arena-ellipse { position: absolute; width: 86%; aspect-ratio: 1.5; top: 48%; left: 50%; transform: translate(-50%, -50%) rotate(-12deg) scaleY(.52); border: 1px solid var(--tr-border); border-radius: 50%; pointer-events: none; opacity: .8; }
 .tr-arena-ellipse.tr-ellipse-outer { width: 115%; opacity: .4; border-style: dashed; }
 .tr-target-chord { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; width: 100%; perspective: 500px; }
@@ -781,7 +782,7 @@
   .tr-moment-visual { width: 28px; gap: 1px; }
   .tr-moment-visual > i { width: 2px; }
   .tr-moment-arrow { display: none; }
-  .tr-library-row, .tr-library-table-head { grid-template-columns: minmax(220px, 2fr) .8fr .55fr .4fr 76px; gap: 12px; }
+  .tr-library-row, .tr-library-table-head { grid-template-columns: minmax(220px, 2fr) .8fr .55fr .4fr 90px; gap: 12px; }
   .tr-notebook-actions .tr-text-button:first-child { font-size: 0; gap: 0; }
   .tr-notebook-actions .tr-text-button:first-child > svg { width: 17px; height: 17px; }
   .tr-underlined-tabs { gap: 20px; }
@@ -850,7 +851,7 @@
   .tr-library-toolbar { flex-wrap: wrap; gap: 10px; }
   .tr-library-toolbar .tr-search { max-width: none; }
   .tr-library-toolbar .tr-segment-control { order: 3; }
-  .tr-library-table-head, .tr-library-row { grid-template-columns: minmax(200px, 1fr) 55px 65px; gap: 12px; }
+  .tr-library-table-head, .tr-library-row { grid-template-columns: minmax(200px, 1fr) 55px 90px; gap: 12px; }
   .tr-library-table-head > span:nth-child(2), .tr-library-row > .tr-mini-wave, .tr-library-table-head > span:nth-child(4), .tr-library-row > span:nth-child(4) { display: none; }
   .tr-library-row { padding: 0 7px; }
   .tr-library-select { gap: 10px; }
@@ -880,7 +881,8 @@
   .tr-coach-footer { gap: 12px; flex-wrap: wrap; }
   .tr-coach-device { font-size: 9px; }
   .tr-coach-start { min-width: auto; }
-  .tr-exercise-stage { grid-template-columns: .9fr 1.1fr; min-height: 433px; }
+  .tr-exercise-stage { grid-template-columns: .9fr 1.1fr; min-height: 560px; }
+  .tr-chord-arena { min-height: 440px; }
   .tr-exercise-brief { padding: 24px; }
   .tr-exercise-brief > p { font-size: 11px; }
   .tr-exercise-brief h2 { font-size: 25px; }
@@ -974,7 +976,7 @@
   .tr-library-toolbar > .tr-segment-control { flex: 1; }
   .tr-library-toolbar .tr-segment-control button { font-size: 9px; padding: 0 9px; }
   .tr-library-table-head { display: none; }
-  .tr-library-row { grid-template-columns: minmax(0, 1fr) 53px; gap: 4px; padding: 0 3px; }
+  .tr-library-row { grid-template-columns: minmax(0, 1fr) 76px; gap: 4px; padding: 0 3px; }
   .tr-library-row > span:nth-child(3) { display: none; }
   .tr-library-row .tr-file-icon { display: none; }
   .tr-library-select strong { font-size: 11px; }
@@ -1050,7 +1052,7 @@
   .tr-exercise-mode .tr-segment-control { width: 100%; }
   .tr-exercise-mode .tr-segment-control button { flex: 1; padding: 0 7px; font-size: 9px; }
   .tr-local-detection { margin-left: auto; font-size: 8px; }
-  .tr-exercise-stage { display: flex; flex-direction: column; min-height: 660px; }
+  .tr-exercise-stage { display: flex; flex-direction: column; min-height: 800px; min-height: 80vh; }
   .tr-exercise-brief { padding: 22px 24px; }
   .tr-exercise-brief h2 br { display: none; }
   .tr-exercise-brief h2 { font-size: 25px; }
@@ -1059,7 +1061,7 @@
   .tr-exercise-label > svg, .tr-exercise-label > span:last-child { display: inline-flex; }
   .tr-exercise-label > span { font-size: 8px; }
   .tr-exercise-guide { display: none; }
-  .tr-chord-arena { min-height: 310px; }
+  .tr-chord-arena { min-height: 460px; }
   .tr-target-chord h3 { font-size: 76px; }
   .tr-target-chord > .tr-eyebrow { font-size: 9px; }
   .tr-target-chord > p { font-size: 11px; }
@@ -1119,4 +1121,45 @@
 
 @media (prefers-reduced-motion: reduce) {
   .training-shell *, .training-shell *::before, .training-shell *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
+/* [Claude] — 2026-10-09 — Copilot IA (sous-onglet d'Entraînement).
+   1. Le logo au-dessus de « Votre partenaire d'harmonie » était rogné : l'accueil, centré
+      verticalement dans une zone qui défile, perdait son haut quand la place manquait (on ne
+      peut pas défiler au-dessus du début). Centrage « sûr » : il repasse en haut s'il déborde.
+   2. La barre de défilement était au milieu de l'écran : c'était celle d'une colonne de 860 px.
+      La zone qui défile prend toute la largeur de la vue ; son contenu reste dans la colonne
+      (marges intérieures), la barre est collée au bord droit.
+   3. Sans contexte, le titre (« Copilot IA ») est vide : il est masqué. */
+.tr-copilot-welcome { justify-content: safe center; }
+#practice-view-copilot { --copilot-col: 860px; }
+@media (min-width: 1600px) { #practice-view-copilot { --copilot-col: 1000px; } }
+@media (max-width: 1040px) { #practice-view-copilot { --copilot-col: 650px; } }
+#practice-view-copilot .tr-conversation-space { max-width: none; align-self: stretch; }
+#practice-view-copilot .tr-chat-messages,
+:root[data-skin] #practice-view-copilot .copilot-messages.tr-chat-messages {
+  padding-left: max(5px, calc((100% - var(--copilot-col)) / 2));
+  padding-right: max(5px, calc((100% - var(--copilot-col)) / 2));
+}
+#practice-view-copilot .tr-composer-area {
+  width: 100%;
+  max-width: var(--copilot-col);
+  align-self: center;
+}
+#practice-view-copilot .copilot-selected-name:empty,
+#practice-view-copilot .tr-page-title:has(.copilot-selected-name:empty) { display: none; }
+
+/* [Claude] — 2026-10-09 — Narcisse : les réponses du Copilote « ne donnent pas du tout envie de
+   lire ». Elles étaient en 12 px, gris secondaire, interligne 1,8 : du texte d'appoint, pas de la
+   lecture. Les réponses passent en corps de lecture (14 px, couleur du texte, interligne 1,6),
+   avec un peu d'air entre les points. */
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-chat-message:not(.is-user) .tr-message-content > p {
+  color: var(--tr-text);
+  font-size: 14px;
+  line-height: 1.62;
+  margin-bottom: 9px;
+  letter-spacing: .005em;
+}
+:is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-chat-message.is-user .tr-message-content > p { font-size: 13.5px; line-height: 1.55; }
+@media (max-width: 1040px) {
+  :is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-chat-message:not(.is-user) .tr-message-content > p { font-size: 13.5px; }
 }

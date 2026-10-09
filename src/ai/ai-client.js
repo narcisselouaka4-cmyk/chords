@@ -430,7 +430,8 @@ Analyse chaque accord et donne des conseils de maître.`;
 // ajouter un conseil qui ne serait pas dans la vidéo — c'est la même règle que
 // pour les fiches du glossaire (voir src/pedagogie/glossary.js).
 
-const NARRATION_SYSTEM_PROMPT = 'Tu es un professeur de piano jazz et gospel qui aide un élève à '
+// [Claude] — 2026-09-25 — Un assistant qui aide un pianiste (Narcisse : « on reste un assistant, pas un coach »).
+const NARRATION_SYSTEM_PROMPT = 'Tu es un assistant musical (piano jazz et gospel) qui aide un pianiste à '
   + "comprendre un tutoriel vidéo. On te donne la TRANSCRIPTION de ce que dit le professeur dans la "
   + "vidéo, et la GRILLE D'ACCORDS que l'application a relevée sur la même vidéo.\n\n"
   + 'Ta tâche : expliquer avec des mots simples, en français, ce que le professeur enseigne — les '
@@ -500,7 +501,7 @@ export async function explainNarration(segmentText, context = {}) {
     + `Grille relevée par l'application${context.key ? ` (tonalité : ${context.key})` : ''} : `
     + `${chords.length ? chords.join(' — ') : 'aucun accord relevé'}\n`
     + `${sourceLine}\n\n`
-    + "Explique à l'élève ce que le professeur enseigne dans ce passage.";
+    + "Explique au pianiste ce que le professeur enseigne dans ce passage.";
 
   let lastErr = null;
   for (let attempt = 0; attempt <= RETRY_DELAYS.length; attempt++) {

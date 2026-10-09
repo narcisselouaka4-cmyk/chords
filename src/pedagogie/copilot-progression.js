@@ -417,16 +417,19 @@ export function progressionToNoteSequence(progression, options = {}) {
   const notes = [];
 
   for (const chord of progression.chords) {
+    // [Claude] — 2026-09-25 — Chaque note garde son accord (rôles au clavier pendant l'écoute).
     const allNotes = [
       ...chord.leftHand.map((midi, i) => ({
         midi,
         hand: 'LH',
         role: i === 0 ? 'bass' : 'root-doubling',
+        chord: chord.chordSymbol,
       })),
       ...chord.rightHand.map((midi) => ({
         midi,
         hand: 'RH',
         role: midi === chord.focusNote ? 'focus-guide-tone' : 'chord-tone',
+        chord: chord.chordSymbol,
       })),
     ];
 

@@ -158,8 +158,12 @@ runTest('B. HTML — #analyzer-import-screen contient les cartes d\'import', () 
 
   const content = importSection[1];
   assert(content.includes('analyzer-import-audio-btn'), 'Bouton Audio présent');
-  assert(content.includes('analyzer-import-video-btn'), 'Bouton Vidéo présent');
-  assert(content.includes('analyzer-import-midi-btn'), 'Bouton MIDI présent');
+  // [Refonte Analyse 02/10] — l'écran d'accueil ne propose plus qu'une porte
+  // d'entrée. « Vidéo (MP4) » doublait Pédagogie IA, « Enregistrer au clavier
+  // MIDI » doublait les Sessions MIDI de l'onglet Entraînement : trois cartes
+  // pour un seul but, c'étaient trois décisions avant d'avoir commencé.
+  assert(!content.includes('analyzer-import-video-btn'), 'Carte Vidéo retirée');
+  assert(!content.includes('analyzer-import-midi-btn'), 'Carte MIDI retirée');
   // [Refonte 2026-09-02] — La liste des morceaux ne vit plus dans l'écran
   // d'import : elle a été sortie dans « Ma bibliothèque », fenêtre commune au
   // Studio et à l'Analyse. Ce que l'écran d'accueil doit garantir, c'est
@@ -180,8 +184,8 @@ runTest('C. JS — setAnalyzerState gère tous les états', () => {
   assert(js.includes("els.importScreen?.classList.remove('active')"), 'Supprime active de importScreen');
   assert(js.includes("els.statePrepare?.classList.remove('active')"), 'Supprime active de statePrepare');
   assert(js.includes("els.stateVideoType?.classList.remove('active')"), 'Supprime active de stateVideoType');
-  assert(js.includes("els.stateMidiRecord?.classList.remove('active')"), 'Supprime active de stateMidiRecord');
-  assert(js.includes("els.stateResults?.classList.remove('active')"), 'Supprime active de stateResults');
+  assert(!js.includes('stateMidiRecord'), 'plus aucune référence à l\'état de capture MIDI');
+  assert(!js.includes('stateResults'), 'plus aucune référence à l\'état results (markup mort)');
   assert(js.includes("els.results?.classList.remove('active')"), 'Supprime active de results (vue analyse)');
 });
 

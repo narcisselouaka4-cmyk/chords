@@ -8,22 +8,69 @@ import {
   loadHistory,
   saveHistory,
   deleteConversation,
+  deleteEmptyConversations,
   listAllConversations,
   labelForConversationPath,
   AUTONOMOUS_HISTORY_KEY as HISTORY_AUTONOMOUS_KEY,
 } from './copilot-history.js';
-import { sendCopilotMessage } from './copilot-client.js';
+import { sendCopilotMessage, extractTextToolCalls } from './copilot-client.js';
 import { hasAIKey } from '../ai/openai-config.js';
+import { liveTake } from '../recorder/live-take.js';
+import { reviewTake } from '../recorder/take-review.js';
+import { readCopilotContext } from './copilot-context.js';
+import {
+  TUTORIAL_QUICK_ACTIONS, TUTORIAL_KEYS, TRANSFER_KINDS, TUTORIAL_PROGRESSIONS,
+  otherKeyQuestion, applyQuestion, keyIdFrom, keyLabel,
+} from './tutorial-questions.js';
+import { linkClockTimes, clock } from './tutorial-moment.js';
+import { gridFromExample, favoritesFromExample } from './example-export.js';
+import {
+  BACK_SECONDS, exampleSeconds, videoTimeAt, markerAt, markerNote, markerSpans, timeLabel,
+} from './example-transport.js';
+import { createSpeedMenu, setSpeedMenuValue, clampSpeed } from '../ui/components/speed-menu.js';
 
 const els = {};
 let currentTutorialPath = null;
 let messages = [];
 let currentConversationId = null;
+// Exemple du Copilote en cours de lecture (identifiant du message), ou null.
+let playingExampleId = null;
+// [Claude] — 2026-10-03 — Sa barre de lecture : en pause ou non, et sa position (envoyée par
+// main.js toutes les 250 ms). Les exemples par identifiant, pour construire la barre.
+let examplePaused = false;
+let exampleProgress = null;
+const examplesById = new Map();
+// [Claude] — 2026-10-04 — Les exemples avec ou sans la pédale (Narcisse : « avec la pédale, il
+// y a une telle flopée de notes qu'on ne distingue pas bien le jeu du prof »). Choix retenu.
+const PEDAL_KEY = 'copilot-example-pedal';
+let examplePedal = readExamplePedal();
+// [Claude] — 2026-10-04 — La vitesse des exemples (Narcisse : « régler la vitesse selon ce que
+// l'on veut (0,5× ; 0,75× ; 1×…) : ça évite de lui demander à chaque fois de ralentir »).
+// Choix retenu d'un exemple à l'autre. Puis : « je veux vouloir imposer une vitesse, avec une
+// plus large plage de choix » : de 0,25× à 2×, par pas de 0,05 (ui/components/speed-menu.js).
+const RATE_KEY = 'copilot-example-rate';
+let exampleRate = readExampleRate();
+// [Claude] — 2026-09-25 — Dernier passage joué (« Qu'en penses-tu ? ») : son
+// portrait (lines), ses notes exactes (events, pour le rejouer) et sa tonalité,
+// gardés pour les questions de suivi de la même conversation.
+let lastTake = null;
+// [Claude] — 2026-09-26 — Écoute de « Qu'en penses-tu ? » : début (ms) et minuterie
+// du compteur ; arrêt et envoi automatiques au bout de 5 minutes.
+const REVIEW_MAX_SECONDS = 300;
+let reviewStartedAt = 0;
+let reviewTimer = null;
+// [Claude] — 2026-09-26 — Un tour de conversation est en cours (réponse attendue).
+let turnBusy = false;
+const DEFAULT_REVIEW_QUESTION = 'Qu\'en penses-tu de ce que je viens de jouer ?';
 
 export const AUTONOMOUS_HISTORY_KEY = HISTORY_AUTONOMOUS_KEY;
 let currentMode = 'autonomous';
 let currentSessionId = null;
 let currentSessionContext = null;
+// [Claude] — 2026-09-25 — Mode exercice : le Copilote parle de l'exercice affiché
+// (Narcisse : relier le Copilote et l'onglet Exercices).
+let currentExerciseId = null;
+let currentExerciseTitle = null;
 
 /**
  * Nouveau mode à adopter quand la sélection de tutoriel ou de session change.
@@ -40,7 +87,7 @@ export function nextModeOnSelectionChange(currentMode, newTutorialPath, newSessi
 
 /** État du bouton de bascule (visibilité + libellé) selon mode + sélection. */
 export function toggleButtonState(mode, tutorialPath) {
-  if (mode === 'tutorial' || mode === 'session') {
+  if (mode === 'tutorial' || mode === 'session' || mode === 'exercise') {
     return { visible: true, label: 'Revenir au mode autonome' };
   }
   return { visible: Boolean(tutorialPath), label: 'Mode tutoriel' };
@@ -70,26 +117,18 @@ function formatTime(seconds) {
 }
 
 /** Renvoie un résumé du tutoriel pour le contexte IA. */
+// [Claude] — 2026-09-25 — Le contexte vient de l'écran Pédagogie (grille, parole,
+// résumé, notes du professeur). Avant, il lisait window.__pedagogieAnalysis, que
+// rien n'affectait : le Copilote ne recevait que le chemin du fichier.
 function getTutorialContext() {
   if (currentMode !== 'tutorial' || !currentTutorialPath) return null;
-  const analysis = window.__pedagogieAnalysis;
-  if (!analysis) return { type: 'tutorial', path: currentTutorialPath };
-
-  const chords = analysis.segments
-    .filter((s) => s.chord?.resolved)
-    .map((s) => ({ start: s.start, end: s.end, label: s.chord.label }));
-
-  const transcript = analysis.narrationView
-    ? analysis.narrationView.map((n) => ({ start: n.start, text: n.text }))
-    : [];
-
+  const context = readCopilotContext('tutorial');
+  if (context && context.path === currentTutorialPath) return context;
   return {
     type: 'tutorial',
     path: currentTutorialPath,
     name: currentTutorialPath.split('/').pop(),
-    key: analysis.key,
-    chords,
-    transcript,
+    notesUnavailable: 'le tutoriel n\'a pas encore été analysé dans Pédagogie IA (son analyse démarre quand on l\'importe ou qu\'on l\'ouvre)',
   };
 }
 
@@ -99,14 +138,212 @@ function getSessionContext() {
   return currentSessionContext;
 }
 
-const STATIC_QUICK_ACTIONS = [
-  { label: 'Voicing', message: 'Montre-moi un voicing intéressant pour cet accord.' },
-  { label: 'Main gauche', message: 'Qu’est-ce que la main gauche peut jouer ici ?' },
-  { label: 'Main droite', message: 'Qu’est-ce que la main droite peut jouer ici ?' },
-  { label: 'Arpège', message: 'Fais-moi un arpège lent.' },
-  { label: 'Démonstration', message: 'Fais-moi une démonstration au clavier.' },
-  { label: 'Lick', message: 'Fais-moi un lick adapté.' },
+/** Exercice affiché (relu à chaque question : étape, tonalité et essais à jour). */
+function getExerciseContext() {
+  if (currentMode !== 'exercise') return null;
+  return readCopilotContext('exercise');
+}
+
+/** Clé de l'historique de la conversation selon le mode (tutoriel, session, exercice, autonome). */
+function historyKeyForMode() {
+  if (currentMode === 'tutorial' && currentTutorialPath) return currentTutorialPath;
+  if (currentMode === 'session' && currentSessionId) return currentSessionId;
+  if (currentMode === 'exercise' && currentExerciseTitle) return `exercice:${currentExerciseTitle}`;
+  return AUTONOMOUS_HISTORY_KEY;
+}
+
+// Propositions du mode exercice (envoyées d'un clic, comme les autres). [Claude] —
+// 2026-10-04 — Ce qui est écrit part (Narcisse : « pour chaque étiquette, il y a une
+// question » qu'on ne voit pas) : le message est le texte de l'étiquette.
+const EXERCISE_QUICK_ACTIONS = [
+  { label: 'Explique ce voicing', message: 'Explique ce voicing.' },
+  { label: 'Comment le jouer à deux mains ?', message: 'Comment le jouer à deux mains ?' },
+  { label: 'Quelles voix bougent ?', message: 'Quelles voix bougent ?' },
+  { label: 'Fais-moi entendre la carte', message: 'Fais-moi entendre la carte.' },
 ];
+let defaultQuickActions = null;
+
+/**
+ * Propositions sous la conversation : celles de l'exercice en mode exercice, celles du
+ * tutoriel en mode tutoriel (Pédagogie IA), sinon celles de la page. [Claude] —
+ * 2026-10-03 — En mode tutoriel, deux propositions ouvrent un petit choix (une
+ * tonalité ; quoi reprendre, sur quelle progression, dans quelle tonalité).
+ */
+function renderQuickActionsForMode() {
+  if (!els.quickActions) return;
+  if (!defaultQuickActions) defaultQuickActions = [...els.quickActions.querySelectorAll('.copilot-chip')].map((b) => ({ label: b.textContent, message: b.dataset.message }));
+  const list = currentMode === 'exercise' ? EXERCISE_QUICK_ACTIONS
+    : currentMode === 'tutorial' ? TUTORIAL_QUICK_ACTIONS
+      : defaultQuickActions;
+  els.quickActions.querySelectorAll('.copilot-chip').forEach((b) => b.remove());
+  closeChooser();
+  // Juste après « Continuer : » (le sélecteur de style reste au bout de la rangée).
+  const chips = list.map((a) => el('button', {
+    type: 'button',
+    className: `copilot-chip${a.chooser ? ' has-chooser' : ''}`,
+    'data-message': a.message || null,
+    'data-chooser': a.chooser || null,
+    'aria-expanded': a.chooser ? 'false' : null,
+    text: a.label,
+  }));
+  const label = els.quickActions.querySelector('.copilot-quick-actions-label');
+  if (label) {
+    label.textContent = 'Continuer : ';
+    // [Claude] — 2026-10-04 — En mode tuto, les étiquettes disent déjà « ce passage » : sans
+    // libellé, la rangée tient sur une ligne (la conversation y gagne de la hauteur).
+    label.hidden = currentMode === 'tutorial';
+    label.after(...chips);
+  } else {
+    els.quickActions.prepend(...chips);
+  }
+}
+
+// ── Petits choix du mode tutoriel (Pédagogie IA) ─────────────────────────────
+// [Claude] — 2026-10-03 — « Que donnerait ce voicing en Fa♯ ? » : une tonalité.
+// « Comment appliquer ce qu'il vient de faire dans une 4-5-3-6-2-5-1 ? » : quoi
+// reprendre (ses voicings, ses accords de passage, son lick), quelle progression, quelle
+// tonalité. [Claude] — 2026-10-04 — Le choix écrit la phrase dans la case (« Rejoue ce
+// passage en Fa. ») : on la lit, on la change si besoin, puis Entrée ou « Envoyer ».
+
+/** Tonalité du tutoriel (la tonalité détectée), sinon Do. */
+function tutorialKeyId() {
+  return keyIdFrom(readCopilotContext('tutorial')?.key) || 'C';
+}
+
+// La phrase qu'un choix a écrite dans la case (effacée si on ferme le choix sans l'avoir touchée).
+let preparedText = '';
+
+/** Écrit la phrase dans la case, sans l'envoyer. */
+function prepare(message) {
+  if (!els.input || !message) return;
+  els.input.value = message;
+  preparedText = message;
+  autoGrowInput();
+}
+
+/** « Envoyer » dans un choix : la phrase de la case part (celle qu'on a peut-être changée). */
+function sendFromChooser() {
+  if (!els.input?.value.trim()) return;
+  preparedText = '';
+  closeChooser();
+  sendUserMessage();
+}
+
+function closeChooser() {
+  els.chooser?.remove();
+  els.chooser = null;
+  els.quickActions?.querySelectorAll('.copilot-chip[data-chooser]').forEach((b) => b.setAttribute('aria-expanded', 'false'));
+  if (preparedText && els.input?.value === preparedText) {
+    els.input.value = '';
+    autoGrowInput();
+  }
+  preparedText = '';
+}
+
+/** Le bouton « Envoyer » d'un choix (Entrée dans la case fait de même). */
+function chooserSend({ disabled = false } = {}) {
+  const button = el('button', {
+    type: 'button', className: 'copilot-chooser-send', text: 'Envoyer',
+    title: 'Envoie la phrase écrite dans la case (Entrée fait de même)',
+    onClick: () => sendFromChooser(),
+  });
+  button.disabled = disabled;
+  return button;
+}
+
+function keyButtons(onPick, selected = null) {
+  return TUTORIAL_KEYS.map((k) => el('button', {
+    type: 'button',
+    className: `copilot-chooser-key${k.id === selected ? ' is-selected' : ''}`,
+    'aria-pressed': k.id === selected ? 'true' : 'false',
+    'data-key': k.id,
+    text: k.label,
+    onClick: () => onPick(k.id),
+  }));
+}
+
+function buildKeyChooser() {
+  const send = chooserSend({ disabled: true });
+  const keys = el('div', { className: 'copilot-chooser-keys' });
+  keys.append(...keyButtons((id) => {
+    prepare(otherKeyQuestion(id));
+    keys.querySelectorAll('button').forEach((b) => {
+      const on = b.dataset.key === id;
+      b.classList.toggle('is-selected', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    send.disabled = false;
+  }));
+  return el('div', { className: 'copilot-chooser', role: 'group', 'aria-label': 'Rejouer ce passage dans quelle tonalité ?' }, [
+    el('span', { className: 'copilot-chooser-title', text: 'Rejouer ce passage en' }),
+    keys,
+    send,
+  ]);
+}
+
+function buildApplyChooser() {
+  const choice = { kind: TRANSFER_KINDS[0].id, progression: TUTORIAL_PROGRESSIONS[0], key: tutorialKeyId() };
+  const pick = (row, attr, value) => row.querySelectorAll('button').forEach((b) => {
+    const on = b.dataset[attr] === value;
+    b.classList.toggle('is-selected', on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  // Chaque choix réécrit la phrase de la case : elle dit toujours ce qui partira.
+  const write = () => prepare(applyQuestion(choice));
+  const kinds = el('div', { className: 'copilot-chooser-row' }, TRANSFER_KINDS.map((k) => el('button', {
+    type: 'button', className: 'copilot-chooser-option', 'data-kind': k.id, text: k.label,
+    onClick: () => { choice.kind = k.id; pick(kinds, 'kind', k.id); write(); },
+  })));
+  const custom = el('input', {
+    type: 'text', className: 'copilot-chooser-input', maxlength: '80',
+    placeholder: 'ou la tienne : Fmaj7 E7 Am7 D9…', 'aria-label': 'Ta progression (degrés ou accords)',
+  });
+  const progs = el('div', { className: 'copilot-chooser-row' }, TUTORIAL_PROGRESSIONS.map((p) => el('button', {
+    type: 'button', className: 'copilot-chooser-option', 'data-prog': p, text: p,
+    onClick: () => { choice.progression = p; custom.value = ''; pick(progs, 'prog', p); write(); },
+  })));
+  custom.addEventListener('input', () => {
+    if (custom.value.trim()) { choice.progression = custom.value.trim(); pick(progs, 'prog', ''); write(); }
+  });
+  const keys = el('div', { className: 'copilot-chooser-keys' });
+  const setKey = (id) => {
+    choice.key = id;
+    keys.querySelectorAll('button').forEach((b) => {
+      const on = b.dataset.key === id;
+      b.classList.toggle('is-selected', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    write();
+  };
+  keys.append(...keyButtons(setKey, choice.key));
+  const send = chooserSend();
+  custom.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); send.click(); } });
+  const box = el('div', { className: 'copilot-chooser is-apply', role: 'group', 'aria-label': 'Appliquer ce passage à une progression' }, [
+    el('span', { className: 'copilot-chooser-title', text: 'Reprendre de ce passage' }), kinds,
+    el('span', { className: 'copilot-chooser-title', text: 'Sur la progression' }), progs, custom,
+    el('span', { className: 'copilot-chooser-title', text: `En (tonalité du tuto : ${keyLabel(tutorialKeyId())})` }), keys,
+    send,
+  ]);
+  pick(kinds, 'kind', choice.kind);
+  pick(progs, 'prog', choice.progression);
+  // La phrase de départ est déjà dans la case.
+  write();
+  return box;
+}
+
+/** Ouvre (ou ferme) le petit choix d'une proposition. */
+function toggleChooser(kind, chip) {
+  const already = els.chooser?.dataset.kind === kind;
+  closeChooser();
+  if (already) return;
+  const box = kind === 'key' ? buildKeyChooser() : buildApplyChooser();
+  box.dataset.kind = kind;
+  box.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeChooser(); chip?.focus(); } });
+  els.quickActions.after(box);
+  els.chooser = box;
+  chip?.setAttribute('aria-expanded', 'true');
+  box.querySelector('button')?.focus();
+}
 
 /** [Astra round 4] Rangée de suggestions, dans la grammaire .tr-chat-demos de
  * la maquette : icône, libellé, et une petite mention de ce que fait le clic.
@@ -116,22 +353,25 @@ function renderActionChips(actions) {
   if (!actions?.length) return null;
   const container = el('div', { className: 'tr-chat-demos copilot-message-actions' });
   for (const action of actions) {
+    // [Claude] — 2026-10-04 — Ce qui est écrit part : l'étiquette montre le message envoyé
+    // (avant : un libellé court, « Voicing », et une question cachée derrière).
+    const message = String(action.message || action.label || '').trim();
+    if (!message) continue;
     const btn = el('button', {
       className: 'copilot-chip',
       type: 'button',
-      title: action.message,
+      title: message,
       onClick: () => {
         if (!els.input) return;
-        els.input.value = action.message;
+        els.input.value = message;
         sendUserMessage();
       },
     });
     btn.innerHTML = ICON_SPARKLE;
-    btn.appendChild(el('span', { text: action.label }));
-    btn.appendChild(el('small', { text: 'Demander' }));
+    btn.appendChild(el('span', { text: message }));
     container.appendChild(btn);
   }
-  return container;
+  return container.childElementCount ? container : null;
 }
 
 /** [Refonte 12/09 — détails] Accueil affiché quand la conversation est vide
@@ -140,6 +380,7 @@ function renderActionChips(actions) {
  * Les suggestions utilisent les libellés exacts de la maquette Astra
  * (CopilotView.tsx, .tr-prompt-options). */
 function renderCopilotWelcome() {
+  if (currentMode === 'tutorial') return renderTutorialWelcome();
   const heading = el('h2', {}, [
     document.createTextNode('Une question.'),
     el('br'),
@@ -153,10 +394,11 @@ function renderCopilotWelcome() {
   aiObject.innerHTML = `<div></div><div></div><div></div>${ICON_SPARKLE_LG}`;
 
   const options = el('div', { className: 'tr-prompt-options' });
+  // [Claude] — 2026-10-04 — Ce qui est écrit part : le libellé est la question envoyée.
   const welcomeActions = [
-    { label: 'Enrichir mes voicings', icon: ICON_PIANO_MD, message: 'Montre-moi un voicing intéressant pour cet accord.' },
-    { label: 'Comprendre un 2-5-1', icon: ICON_MUSIC2, message: 'Explique-moi l\'harmonie d\'un 2-5-1.' },
-    { label: 'Mieux accompagner', icon: ICON_SPARKLE_MD, message: 'Comment mieux accompagner une mélodie ?' },
+    { label: 'Montre-moi un voicing intéressant', icon: ICON_PIANO_MD, message: 'Montre-moi un voicing intéressant.' },
+    { label: 'Explique-moi un 2-5-1', icon: ICON_MUSIC2, message: 'Explique-moi un 2-5-1.' },
+    { label: 'Comment mieux accompagner ?', icon: ICON_SPARKLE_MD, message: 'Comment mieux accompagner ?' },
   ];
   for (const action of welcomeActions) {
     // Icône à gauche, libellé, flèche à droite : c'est ce que la maquette
@@ -191,6 +433,18 @@ function renderCopilotWelcome() {
   ]);
 }
 
+/**
+ * [Claude] — 2026-10-03 — Accueil du mode tutoriel (Pédagogie IA, à côté de la vidéo) :
+ * le Copilote dit ce qu'il regarde (« ici » = le passage en haut du panneau) et
+ * propose les questions de Narcisse.
+ */
+function renderTutorialWelcome() {
+  return el('div', { className: 'tr-copilot-welcome copilot-tutorial-welcome' }, [
+    el('h2', { text: 'Une question sur ce passage ?' }),
+    el('p', { text: 'Je regarde le passage choisi sous la vidéo : ce que le prof y joue et y dit. Écris ta question, ou clique une étiquette : ce qui est écrit dessus est envoyé tel quel.' }),
+  ]);
+}
+
 function autoGrowInput() {
   const field = els.input;
   if (!field || field.tagName !== 'TEXTAREA') return;
@@ -219,15 +473,537 @@ function escapeHtml(value) {
  * la ligne, un <p> par ligne ; on fait pareil, en rendant en plus le gras. */
 function renderMessageText(container, content) {
   const lines = String(content || '').split('\n');
+  // [Claude] — 2026-10-03 — Tutoriel : chaque moment cité (« à 1:31 ») place la vidéo.
+  const tutorial = currentMode === 'tutorial' ? readCopilotContext('tutorial') : null;
+  const maxSeconds = Number.isFinite(tutorial?.duration) ? tutorial.duration : Infinity;
   for (const line of lines) {
     if (!line.trim()) continue;
     const p = document.createElement('p');
-    p.innerHTML = escapeHtml(line)
+    let html = escapeHtml(line)
       .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-      .replace(/`([^`]+)`/g, '<code>$1</code>');
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      // [Claude] — 2026-10-03 — « _(remarque)_ » s'affichait avec ses soulignés.
+      .replace(/(^|[\s(])_([^_\n]+)_(?=$|[\s).,;:!?])/g, '$1<em>$2</em>');
+    if (currentMode === 'tutorial') html = linkClockTimes(html, { maxSeconds });
+    p.innerHTML = html;
     container.appendChild(p);
   }
   if (!container.childElementCount) container.appendChild(el('p', { text: String(content || '') }));
+}
+
+const FRENCH_NOTES = ['Do', 'Réb', 'Ré', 'Mib', 'Mi', 'Fa', 'Fa#', 'Sol', 'Lab', 'La', 'Sib', 'Si'];
+const frenchNote = (midi) => `${FRENCH_NOTES[((midi % 12) + 12) % 12]}${Math.floor(midi / 12) - 1}`;
+const ICON_PLAY = '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>';
+const ICON_STOP = '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="1.5"/></svg>';
+const ICON_PAUSE = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>';
+const ICON_BACK = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>';
+
+/** Identifiant stable de l'exemple d'un message (pour le bouton Écouter / Arrêter). */
+function exampleIdOf(msg) {
+  if (!msg.exampleId) msg.exampleId = `ex-${msg.timestamp || Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  return msg.exampleId;
+}
+
+/** [Claude] — 2026-10-04 — L'exemple a une pédale (qu'on peut enlever). */
+export function hasPedalEvents(example) {
+  return (example?.events || []).some((e) => e?.type === 'sustain');
+}
+
+/**
+ * [Claude] — 2026-10-04 — Le sous-titre d'un exemple. Sans la pédale (choix du pianiste), il
+ * le dit, à la place de « avec sa pédale », « pédale à chaque accord » ou « pédale comprise ».
+ * @param {object} example
+ * @param {{pedal?: boolean}} [options]
+ */
+export function exampleSubtitle(example, { pedal = true } = {}) {
+  const text = String(example?.subtitle || '');
+  if (pedal || !hasPedalEvents(example)) return text;
+  const said = text.replace(/(?: · avec sa pédale| · pédale à chaque accord|, pédale comprise)/, ' · sans pédale');
+  return said !== text ? said : [text, 'sans pédale'].filter(Boolean).join(' · ');
+}
+
+function readExampleRate() {
+  try {
+    return clampSpeed(localStorage.getItem(RATE_KEY), 1);
+  } catch {
+    return 1;
+  }
+}
+
+/** La vitesse des exemples (0,25× à 2×) : retenue, appliquée à l'exemple qui joue (main.js). */
+function setExampleRate(rate) {
+  exampleRate = clampSpeed(rate, 1);
+  try {
+    localStorage.setItem(RATE_KEY, String(exampleRate));
+  } catch {
+    // Stockage indisponible : le choix vaut jusqu'à la fermeture.
+  }
+  if (playingExampleId) {
+    document.dispatchEvent(new CustomEvent('copilot-example-control', { detail: { id: playingExampleId, action: 'rate', rate: exampleRate } }));
+  }
+  refreshExampleTransport();
+}
+
+function readExamplePedal() {
+  try {
+    return localStorage.getItem(PEDAL_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+}
+
+/** Avec ou sans la pédale : retenu, appliqué à l'exemple qui joue (main.js), cartes à jour. */
+function setExamplePedal(on) {
+  examplePedal = Boolean(on);
+  try {
+    localStorage.setItem(PEDAL_KEY, examplePedal ? 'on' : 'off');
+  } catch {
+    // Stockage indisponible : le choix vaut jusqu'à la fermeture.
+  }
+  if (playingExampleId) {
+    document.dispatchEvent(new CustomEvent('copilot-example-control', { detail: { id: playingExampleId, action: 'pedal', on: examplePedal } }));
+  }
+  refreshExampleCards();
+}
+
+/**
+ * Carte « Écouter l'exemple » : titre (accords), style, et ce que fait chaque
+ * main pour chaque accord (quatre accords au plus), sous l'explication.
+ */
+function renderExampleCard(msg) {
+  const example = msg.toolResult.example;
+  const id = exampleIdOf(msg);
+  const playing = playingExampleId === id;
+  const card = el('div', { className: `tr-chat-demos copilot-example${playing ? ' is-playing' : ''}`, 'data-example-id': id });
+  const button = el('button', {
+    className: 'copilot-example-play',
+    type: 'button',
+    'aria-pressed': playing ? 'true' : 'false',
+    onClick: () => toggleExample(msg),
+  });
+  button.innerHTML = playing ? ICON_STOP : ICON_PLAY;
+  button.appendChild(el('span', { text: playing ? 'Arrêter' : 'Écouter l\'exemple' }));
+  card.appendChild(el('div', { className: 'copilot-example-buttons' }, [button]));
+  const subtitle = exampleSubtitle(example, { pedal: examplePedal });
+  const text = el('div', { className: 'copilot-example-text' }, [
+    el('strong', { text: example.title || 'Exemple' }),
+    subtitle ? el('small', { text: subtitle }) : null,
+  ]);
+  // [Claude] — 2026-10-03 — Ce que fait le prof, appliqué à une progression : toutes ses
+  // notes sont déjà écrites dans la réponse, accord par accord ; la carte ne les répète pas.
+  const hands = example.kind === 'tutorial-transfer' ? []
+    : (example.chords || []).slice(0, 4).filter((c) => c.leftHand?.length || c.rightHand?.length);
+  if (hands.length) {
+    const list = el('ul', { className: 'copilot-example-hands' });
+    for (const c of hands) {
+      const parts = [];
+      if (c.leftHand?.length) parts.push(`main gauche ${c.leftHand.map(frenchNote).join(' ')}`);
+      if (c.rightHand?.length) parts.push(`main droite ${c.rightHand.map(frenchNote).join(' ')}`);
+      list.appendChild(el('li', {}, [el('b', { text: c.name }), document.createTextNode(` — ${parts.join(' · ')}`)]));
+    }
+    text.appendChild(list);
+  }
+  card.appendChild(text);
+  // [Claude] — 2026-10-03 — La barre de lecture, sous l'exemple qui joue (ou en pause).
+  examplesById.set(id, example);
+  const transport = el('div', { className: 'copilot-example-transport' });
+  transport.hidden = !playing;
+  card.appendChild(transport);
+  if (playing) updateTransport(transport, example, id);
+  // [Claude] — 2026-10-03 — Lot 6 : l'exemple se travaille ensuite dans Exercices.
+  const exportRow = renderExampleExport(example, id);
+  if (exportRow) card.appendChild(exportRow);
+  return card;
+}
+
+/**
+ * [Claude] — 2026-10-03 — La barre de lecture de l'exemple (Narcisse : « revenir en arrière
+ * manuellement quand le copilote joue, un peu comme sur un lecteur […] pour revoir un passage
+ * et demander des explications supplémentaires »). Pause / Reprendre, « ⟲ 5 s », le curseur
+ * (les moments où le prof parle y sont marqués), la phrase pendant une de ses pauses, et
+ * l'instant de la vidéo avec « Voir dans la vidéo ». Le lecteur est celui de main.js
+ * (évènement « copilot-example-control »).
+ */
+function buildTransport(box, example, id) {
+  box.textContent = '';
+  box.dataset.builtFor = id;
+  const control = (action, extra = {}) => document.dispatchEvent(new CustomEvent('copilot-example-control', { detail: { id, action, ...extra } }));
+  const duration = exampleSeconds(example);
+  const toggle = el('button', {
+    type: 'button',
+    className: 'copilot-transport-btn',
+    'data-action': 'toggle',
+    onClick: () => control(examplePaused ? 'resume' : 'pause'),
+  });
+  const back = el('button', {
+    type: 'button',
+    className: 'copilot-transport-btn',
+    'data-action': 'back',
+    title: `Revenir ${BACK_SECONDS} secondes en arrière`,
+    'aria-label': `Revenir ${BACK_SECONDS} secondes en arrière`,
+    onClick: () => control('back', { seconds: BACK_SECONDS }),
+  });
+  back.innerHTML = ICON_BACK;
+  back.appendChild(el('span', { text: `${BACK_SECONDS} s` }));
+  // La piste : ce qui est joué, et les moments où le prof parle (ou s'arrête), à leur place.
+  const track = el('div', { className: 'copilot-transport-track', 'aria-hidden': 'true' }, [
+    el('div', { className: 'copilot-transport-fill' }),
+  ]);
+  for (const m of markerSpans(example, duration)) {
+    track.appendChild(el('span', { className: `copilot-transport-mark is-${m.kind}`, style: `left: ${m.left}%; width: ${m.width}%`, title: m.title }));
+  }
+  const time = el('span', { className: 'copilot-transport-time' });
+  const range = el('input', {
+    type: 'range',
+    className: 'copilot-transport-range',
+    min: '0',
+    max: String(Math.max(0.1, Math.round(duration * 10) / 10)),
+    step: '0.1',
+    value: '0',
+    'aria-label': 'Position dans l\'exemple',
+  });
+  // Pendant qu'on tire le curseur, la position reçue ne le déplace pas.
+  const release = () => setTimeout(() => { delete range.dataset.dragging; }, 300);
+  // [Claude] — 2026-10-04 — Tiré à la souris, le curseur fait suivre le clavier en direct
+  // (Narcisse : « si je redescends avec le curseur à 24, 23 ou 20 secondes, il faudrait que le
+  // jeu en bas rembobine aussi »). Le son se tait pendant qu'on tire ; au lâcher, la lecture
+  // reprend si elle jouait. Au clavier (flèches), chaque pas va à l'instant.
+  const endScrub = () => {
+    window.removeEventListener('pointerup', endScrub, true);
+    window.removeEventListener('pointercancel', endScrub, true);
+    if (range.dataset.scrubbing === '1') {
+      delete range.dataset.scrubbing;
+      control('scrub-end', { seconds: Number(range.value) });
+    }
+    release();
+  };
+  // Lâché n'importe où, même hors du curseur : c'est la fin du geste.
+  range.addEventListener('pointerdown', () => {
+    range.dataset.dragging = '1';
+    window.addEventListener('pointerup', endScrub, true);
+    window.addEventListener('pointercancel', endScrub, true);
+  });
+  range.addEventListener('input', () => {
+    time.textContent = timeLabel(Number(range.value), duration);
+    if (range.dataset.dragging !== '1') return;
+    range.dataset.scrubbing = '1';
+    control('scrub', { seconds: Number(range.value) });
+  });
+  range.addEventListener('change', () => {
+    if (range.dataset.scrubbing === '1') endScrub();
+    // Lâché à la souris : la fin du geste a déjà placé la lecture.
+    else if (range.dataset.dragging !== '1') control('seek', { seconds: Number(range.value) });
+  });
+  // [Claude] — 2026-10-04 — La vitesse de l'exemple, de 0,25× à 2× (retenue pour les suivants) :
+  // un bouton « 0,75× ▾ » et son panneau (vitesses courantes, curseur fin, − / +).
+  const rate = createSpeedMenu({
+    value: exampleRate,
+    name: 'Vitesse de l\'exemple',
+    hint: 'Retenue pour les exemples suivants.',
+    onChange: (value) => setExampleRate(value),
+  });
+  const row = el('div', { className: 'copilot-transport-row' }, [
+    toggle,
+    back,
+    el('div', { className: 'copilot-transport-bar' }, [track, range]),
+    time,
+  ]);
+  // [Claude] — 2026-10-04 — Les réglages de l'écoute (la vitesse, la pédale) vont sur la ligne du
+  // dessous, à droite : la première ligne laisse sa place au curseur, même dans un Copilote
+  // étroit (à 1280 px de large, « Pédale » sortait de la carte).
+  const settings = el('div', { className: 'copilot-transport-settings' }, [
+    el('span', { className: 'copilot-transport-rate-label' }, [el('span', { text: 'Vitesse' }), rate]),
+  ]);
+  // [Claude] — 2026-10-04 — La pédale, à enlever pour bien entendre les doigts (seulement pour
+  // un exemple qui en a une) ; le choix est retenu pour les exemples suivants.
+  if (hasPedalEvents(example)) {
+    settings.appendChild(el('button', {
+      type: 'button',
+      className: 'copilot-transport-btn copilot-transport-pedal',
+      'data-action': 'pedal',
+      text: 'Pédale',
+      onClick: () => setExamplePedal(!examplePedal),
+    }));
+  }
+  box.appendChild(row);
+  const note = el('p', { className: 'copilot-transport-note', 'aria-live': 'polite' });
+  note.hidden = true;
+  box.appendChild(note);
+  const foot = el('div', { className: 'copilot-transport-foot' });
+  // Un passage de la vidéo : l'instant correspondant, et y aller (la lecture se met en pause).
+  if (videoTimeAt(example, 0) !== null) {
+    foot.appendChild(el('p', { className: 'copilot-transport-video' }, [
+      el('span', { className: 'copilot-transport-video-time' }),
+      el('button', {
+        type: 'button',
+        className: 'copilot-example-link',
+        text: 'Voir dans la vidéo',
+        title: 'Met l\'exemple en pause et place la vidéo du prof à cet instant',
+        onClick: () => {
+          const seconds = videoTimeAt(example, exampleProgress?.id === id ? exampleProgress.position : 0);
+          if (!examplePaused) control('pause');
+          if (Number.isFinite(seconds)) document.dispatchEvent(new CustomEvent('pedagogie-seek', { detail: { seconds } }));
+        },
+      }),
+    ]));
+  }
+  foot.appendChild(settings);
+  box.appendChild(foot);
+}
+
+/** Met la barre à jour : bouton Pause / Reprendre, curseur, temps, phrase, instant de la vidéo. */
+function updateTransport(box, example, id) {
+  if (box.dataset.builtFor !== id) buildTransport(box, example, id);
+  const progress = exampleProgress?.id === id ? exampleProgress : null;
+  const duration = progress?.duration || exampleSeconds(example);
+  const position = Math.min(duration, progress?.position || 0);
+  const toggle = box.querySelector('[data-action="toggle"]');
+  if (toggle && toggle.dataset.paused !== String(examplePaused)) {
+    toggle.dataset.paused = String(examplePaused);
+    toggle.innerHTML = examplePaused ? ICON_PLAY : ICON_PAUSE;
+    toggle.appendChild(el('span', { text: examplePaused ? 'Reprendre' : 'Pause' }));
+    toggle.setAttribute('aria-label', examplePaused ? 'Reprendre la lecture' : 'Mettre en pause');
+  }
+  const rateMenu = box.querySelector('.speed-menu');
+  if (rateMenu && rateMenu.dataset.value !== String(exampleRate)) setSpeedMenuValue(rateMenu, exampleRate);
+  const pedal = box.querySelector('[data-action="pedal"]');
+  if (pedal && pedal.getAttribute('aria-pressed') !== String(examplePedal)) {
+    pedal.setAttribute('aria-pressed', String(examplePedal));
+    pedal.title = examplePedal
+      ? 'Avec la pédale. Cliquer pour l\'enlever : chaque note s\'arrêtera quand le doigt se lève.'
+      : 'Sans la pédale : chaque note s\'arrête quand le doigt se lève. Cliquer pour la remettre.';
+  }
+  const range = box.querySelector('.copilot-transport-range');
+  const dragging = range?.dataset.dragging === '1';
+  if (range && !dragging) {
+    range.value = String(Math.round(position * 10) / 10);
+    range.setAttribute('aria-valuetext', timeLabel(position, duration).replace(' / ', ' sur '));
+  }
+  const fill = box.querySelector('.copilot-transport-fill');
+  if (fill) fill.style.width = `${duration > 0 ? Math.min(100, (position / duration) * 100) : 0}%`;
+  const time = box.querySelector('.copilot-transport-time');
+  if (time && !dragging) time.textContent = timeLabel(position, duration);
+  const note = box.querySelector('.copilot-transport-note');
+  if (note) {
+    const text = markerNote(markerAt(example, position, { after: 2.5 }));
+    if (note.textContent !== text) note.textContent = text;
+    const appearing = note.hidden && Boolean(text);
+    note.hidden = !text;
+    if (appearing) keepVisible(box);
+  }
+  const videoTime = box.querySelector('.copilot-transport-video-time');
+  if (videoTime) {
+    const seconds = videoTimeAt(example, position);
+    videoTime.textContent = Number.isFinite(seconds) ? `Dans la vidéo : ${clock(seconds)} · ` : '';
+  }
+}
+
+/** La barre de l'exemple qui joue suit sa position (sans redessiner la conversation). */
+function refreshExampleTransport() {
+  if (!els.messages || !playingExampleId) return;
+  const card = [...els.messages.querySelectorAll('.copilot-example')].find((c) => c.dataset.exampleId === playingExampleId);
+  const box = card?.querySelector('.copilot-example-transport');
+  const example = examplesById.get(playingExampleId);
+  if (!box || !example) return;
+  const appearing = box.hidden;
+  box.hidden = false;
+  card.classList.toggle('is-paused', examplePaused);
+  updateTransport(box, example, playingExampleId);
+  // La barre vient d'apparaître sous la carte : elle reste visible dans la conversation.
+  if (appearing) keepVisible(box);
+}
+
+/**
+ * Un élément de la carte qui joue dépasse en bas de la conversation : elle défile juste ce
+ * qu'il faut. Une conversation qu'on relit plus haut (carte hors de vue) n'est pas ramenée.
+ */
+function keepVisible(node) {
+  const list = els.messages;
+  if (!node || !list || list.scrollHeight <= list.clientHeight) return;
+  const box = node.getBoundingClientRect();
+  const view = list.getBoundingClientRect();
+  if (box.top < view.bottom && box.bottom > view.bottom) list.scrollTop += box.bottom - view.bottom + 8;
+}
+
+// Ce qui a déjà été envoyé dans Exercices, par exemple (les messages sont souvent redessinés).
+const exportedExamples = new Map();
+
+/**
+ * [Claude] — 2026-10-03 — Pédagogie IA, lot 6 : « Ajouter à Ma grille » (les accords de
+ * l'exemple, en grille Perso) et « Ajouter aux Favoris » (ses voicings exacts), envoyés
+ * à Exercices (main.js) par évènement. null : rien à envoyer (une note, un lick seul).
+ */
+function renderExampleExport(example, id) {
+  const tutorial = example.kind === 'tutorial-transfer';
+  const grid = gridFromExample(example, { prefix: tutorial ? 'Tuto' : 'Copilote' });
+  const favorites = favoritesFromExample(example, { technique: tutorial ? 'Voicing du prof' : '' });
+  if (!grid && !favorites.length) return null;
+  const done = exportedExamples.get(id) || {};
+  const row = el('div', { className: 'copilot-example-export' });
+  const remember = (patch) => {
+    exportedExamples.set(id, { ...exportedExamples.get(id), ...patch });
+    row.replaceWith(renderExampleExport(example, id));
+  };
+  if (grid && done.grid) {
+    row.appendChild(el('span', { className: 'copilot-example-done', text: 'Dans Ma grille (Exercices › Perso) ✓' }));
+    row.appendChild(el('button', {
+      type: 'button',
+      className: 'copilot-example-link',
+      text: 'Ouvrir dans Exercices',
+      onClick: () => document.dispatchEvent(new CustomEvent('exercise-open-grid', { detail: { id: done.grid.id } })),
+    }));
+  } else if (grid) {
+    row.appendChild(el('button', {
+      type: 'button',
+      className: 'copilot-example-action',
+      text: 'Ajouter à Ma grille',
+      title: `Enregistre « ${grid.name} » dans Exercices › Perso`,
+      onClick: () => document.dispatchEvent(new CustomEvent('exercise-save-grid', {
+        detail: { ...grid, done: (result) => { if (result?.ok) remember({ grid: result }); } },
+      })),
+    }));
+  }
+  if (favorites.length && done.favorites) {
+    const { added, already } = done.favorites;
+    const text = added === 0 ? 'Déjà dans tes Favoris ✓'
+      : `${added} voicing${added > 1 ? 's' : ''} ajouté${added > 1 ? 's' : ''} aux Favoris (Exercices › Accord cible) ✓${already ? `, ${already} y étai${already > 1 ? 'ent' : 't'} déjà` : ''}`;
+    row.appendChild(el('span', { className: 'copilot-example-done', text }));
+  } else if (favorites.length) {
+    const count = favorites.length;
+    row.appendChild(el('button', {
+      type: 'button',
+      className: 'copilot-example-action',
+      text: count === 1 ? 'Ajouter ce voicing aux Favoris' : `Ajouter ${tutorial ? 'ses' : 'ces'} ${count} voicings aux Favoris`,
+      title: 'Chaque voicing exact (mains, notes) devient un favori de l\'Accord cible',
+      onClick: () => document.dispatchEvent(new CustomEvent('exercise-add-favorites', {
+        detail: { favorites, done: (result) => { if (result?.ok) remember({ favorites: result }); } },
+      })),
+    }));
+  }
+  return row;
+}
+
+/** Lecture / arrêt de l'exemple d'un message (même lecteur que les démos, voir main.js). */
+function toggleExample(msg) {
+  const id = exampleIdOf(msg);
+  if (playingExampleId === id) {
+    document.dispatchEvent(new CustomEvent('copilot-stop-example'));
+    return;
+  }
+  const example = msg.toolResult.example;
+  document.dispatchEvent(new CustomEvent('copilot-play-example', { detail: { id, example, pedal: examplePedal, rate: exampleRate } }));
+}
+
+/** Met à jour le bouton de la carte qui joue (ou vient de s'arrêter), sans tout redessiner. */
+function refreshExampleCards() {
+  if (!els.messages) return;
+  els.messages.querySelectorAll('.copilot-example').forEach((card) => {
+    const playing = card.dataset.exampleId === playingExampleId;
+    card.classList.toggle('is-playing', playing);
+    card.classList.toggle('is-paused', playing && examplePaused);
+    // [Claude] — 2026-10-04 — Le sous-titre dit « sans pédale » quand on l'a enlevée.
+    const small = card.querySelector('.copilot-example-text > small');
+    const example = examplesById.get(card.dataset.exampleId);
+    if (small && example) {
+      const subtitle = exampleSubtitle(example, { pedal: examplePedal });
+      if (small.textContent !== subtitle) small.textContent = subtitle;
+    }
+    // [Claude] — 2026-10-03 — La barre de lecture n'est montrée que sous l'exemple qui joue.
+    const transport = card.querySelector('.copilot-example-transport');
+    if (transport && !playing && !transport.hidden) {
+      transport.hidden = true;
+      transport.textContent = '';
+      delete transport.dataset.builtFor;
+    }
+    const button = card.querySelector('.copilot-example-play');
+    if (!button) return;
+    button.setAttribute('aria-pressed', playing ? 'true' : 'false');
+    button.innerHTML = playing ? ICON_STOP : ICON_PLAY;
+    button.appendChild(el('span', { text: playing ? 'Arrêter' : card.dataset.playLabel || 'Écouter l\'exemple' }));
+  });
+  refreshExampleTransport();
+}
+
+const ICON_HEADPHONES = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><path d="M21 15a2 2 0 0 1-2 2h-1v-5h1a2 2 0 0 1 2 2zM3 15a2 2 0 0 0 2 2h1v-5H5a2 2 0 0 0-2 2z"/></svg>';
+const REVIEW_LISTENING_HINT = 'J\'écoute ton jeu… joue, puis clique sur Stop.';
+const REVIEW_NOTHING_HINT = 'Rien entendu : clique, joue au clavier, puis clique sur Stop.';
+
+/**
+ * [Claude] — 2026-09-26 — Libellé du bouton « Qu'en penses-tu ? » : au repos, ou
+ * pendant l'écoute (« Stop · 0:12 »).
+ * @param {{capturing?: boolean, seconds?: number}} state
+ * @returns {{label: string, pressed: boolean, hint: string}}
+ */
+export function reviewButtonState({ capturing = false, seconds = 0 } = {}) {
+  if (!capturing) return { label: 'Qu\'en penses-tu ?', pressed: false, hint: '' };
+  const s = Math.max(0, Math.floor(seconds || 0));
+  return { label: `Stop · ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`, pressed: true, hint: REVIEW_LISTENING_HINT };
+}
+
+function renderReviewButton(hint = null) {
+  if (!els.reviewBtn) return;
+  const capturing = liveTake.isCapturing();
+  const state = reviewButtonState({ capturing, seconds: capturing ? (Date.now() - reviewStartedAt) / 1000 : 0 });
+  els.reviewBtn.classList.toggle('is-listening', capturing);
+  els.reviewBtn.setAttribute('aria-pressed', String(state.pressed));
+  els.reviewBtn.innerHTML = capturing ? '<i class="copilot-review-dot" aria-hidden="true"></i>' : ICON_HEADPHONES;
+  els.reviewBtn.appendChild(el('span', { text: state.label }));
+  if (els.reviewHint) els.reviewHint.textContent = hint ?? state.hint;
+}
+
+/**
+ * [Claude] — 2026-09-26 — « Qu'en penses-tu ? » (dans la case du Copilote, à la place
+ * de « IA connectée ») : premier clic, le Copilote écoute ; second clic (Stop), ce
+ * qui a été joué entre les deux part aussitôt. Narcisse : un essai raté juste avant
+ * se mêlait à l'essai réussi quand le passage était « depuis la dernière pause ».
+ * @returns {Promise<object|null>} l'avis de l'application, une fois envoyé
+ */
+export async function toggleReviewCapture() {
+  if (!liveTake.isCapturing()) {
+    liveTake.startCapture();
+    reviewStartedAt = Date.now();
+    clearInterval(reviewTimer);
+    reviewTimer = setInterval(() => {
+      if ((Date.now() - reviewStartedAt) / 1000 >= REVIEW_MAX_SECONDS) toggleReviewCapture();
+      else renderReviewButton();
+    }, 1000);
+    renderReviewButton();
+    return null;
+  }
+  clearInterval(reviewTimer);
+  reviewTimer = null;
+  const passage = liveTake.stopCapture();
+  if (!passage) {
+    renderReviewButton(REVIEW_NOTHING_HINT);
+    return null;
+  }
+  renderReviewButton();
+  return reviewPassage(passage);
+}
+
+/**
+ * Le passage joué est analysé par l'application et part au Copilote avec la
+ * question tapée (n'importe laquelle), ou « Qu'en penses-tu de ce que je viens de
+ * jouer ? ». En mode exercice (« Demander au Copilote »), le jeu est comparé aux
+ * accords de l'exercice, sans qu'il faille les taper.
+ * @param {{events: object[], duration: number, noteCount: number}} passage
+ */
+export async function reviewPassage(passage, { question = '' } = {}) {
+  if (!passage?.events?.length || !els.input) return null;
+  const asked = String(question || els.input.value || '').trim();
+  const exercise = currentMode === 'exercise' ? readCopilotContext('exercise') : null;
+  const review = reviewTake(passage.events, { question: asked, expect: exercise ? { ...exercise.expect, label: exercise.title } : null });
+  if (!review) return null;
+  // Stop pendant que le Copilote répond encore : l'envoi attend la fin de la réponse
+  // (deux minutes au plus : le service d'IA a 90 secondes pour répondre).
+  for (let waited = 0; turnBusy && waited < 120000; waited += 200) {
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  els.input.value = '';
+  autoGrowInput();
+  const defaultQuestion = exercise ? `Qu'en penses-tu de ce que je viens de jouer sur l'exercice (${exercise.title}) ?` : DEFAULT_REVIEW_QUESTION;
+  await runCopilotTurn(asked || defaultQuestion, { review: true, take: { lines: review.contextLines, events: passage.events, key: review.key?.label || null } });
+  return review;
 }
 
 /** Rendu de la liste des messages, dans la structure d'Astra
@@ -240,62 +1016,141 @@ function renderMessages() {
     return;
   }
   els.messages.classList.remove('is-empty');
+  // [Claude] — 2026-10-04 — « Plus de détails » : sous la dernière réponse seulement (aucune
+  // pendant que le Copilote répond à la question suivante).
+  const tail = messages[messages.length - 1];
+  const lastAnswer = tail?.role === 'assistant' && !tail.isTyping ? tail : null;
   for (const msg of messages) {
-    const isUser = msg.role === 'user';
-    const row = el('div', { className: `tr-chat-message copilot-message is-${msg.role} ${msg.role}` });
-
-    if (msg.role === 'system') {
-      row.className += ' is-system';
-      row.textContent = msg.content;
-      els.messages.appendChild(row);
-      continue;
+    // [Claude] — 2026-09-26 — Un message qu'on ne sait plus afficher (ancien format
+    // gardé dans l'historique) s'affiche en texte simple, sans bloquer les autres.
+    try {
+      renderOneMessage(msg, { last: msg === lastAnswer });
+    } catch (err) {
+      console.warn('[Copilot] Message affiché en texte simple :', err);
+      els.messages.appendChild(el('div', { className: `tr-chat-message copilot-message is-${msg.role === 'user' ? 'user' : 'assistant'}`, text: String(msg.content || '') }));
     }
-
-    const avatar = el('div', { className: 'tr-message-avatar' });
-    if (isUser) avatar.textContent = 'V';
-    else avatar.innerHTML = ICON_SPARKLE;
-    row.appendChild(avatar);
-
-    if (msg.isTyping) {
-      row.className += ' is-typing';
-      row.appendChild(el('div', {
-        className: 'tr-thinking',
-        innerHTML: '<i></i><i></i><i></i>',
-      }));
-      els.messages.appendChild(row);
-      continue;
-    }
-
-    const content = el('div', { className: 'tr-message-content' });
-    const author = el('div', { className: 'tr-message-author' }, [
-      el('strong', { text: isUser ? 'Vous' : 'Copilot' }),
-    ]);
-    if (!isUser) author.appendChild(el('span', { text: 'ASSISTANT IA' }));
-    content.appendChild(author);
-    renderMessageText(content, msg.content);
-
-    // Notes réellement jouées au clavier virtuel par l'outil du Copilot.
-    // Information, pas bouton : rien ne permet aujourd'hui de rejouer la démo.
-    if (msg.toolResult?.played?.length) {
-      const played = el('div', { className: 'tr-chat-demos copilot-tool-note is-static' });
-      const chip = el('span', { className: 'copilot-played-chip' });
-      chip.innerHTML = ICON_PIANO;
-      chip.appendChild(el('span', { text: 'Notes jouées' }));
-      chip.appendChild(el('small', { text: msg.toolResult.played.map((p) => p.name).join(' · ') }));
-      played.appendChild(chip);
-      content.appendChild(played);
-    }
-
-    if (!isUser && msg.suggestedActions?.length) {
-      const chips = renderActionChips(msg.suggestedActions);
-      if (chips) content.appendChild(chips);
-    }
-
-    row.appendChild(content);
-    els.messages.appendChild(row);
   }
   // Auto-scroll vers le bas
   els.messages.scrollTop = els.messages.scrollHeight;
+}
+
+/**
+ * [Claude] — 2026-10-04 — Les notes que l'application écrit sous une réponse (accord par
+ * accord, main par main) : repliées (Narcisse : « trop de détails, trop d'inscriptions »).
+ */
+function renderNotesDetails(text) {
+  const body = el('div', { className: 'copilot-notes-body' });
+  renderMessageText(body, text);
+  return el('details', { className: 'copilot-notes' }, [
+    el('summary', { text: 'Les notes, accord par accord' }),
+    body,
+  ]);
+}
+
+/**
+ * [Claude] — 2026-10-04 — Le texte d'une réponse et les notes que l'application a écrites
+ * dessous (`transferText` : accord par accord, main par main). Les notes sont repliées à
+ * l'affichage ; le texte complet reste dans la conversation (les questions de suivi les
+ * connaissent). Rien n'est replié si la réponse ne contient pas ces notes, ou rien d'autre.
+ * @param {string} content - le texte de la réponse
+ * @param {string} [transferText] - les notes écrites par l'application
+ * @returns {{text: string, notes: string}} notes : '' si rien à replier
+ */
+export function splitAnswerNotes(content, transferText) {
+  const text = String(content || '');
+  const notes = typeof transferText === 'string' ? transferText.trim() : '';
+  if (!notes || !text.includes(notes)) return { text, notes: '' };
+  const rest = text.replace(notes, '').replace(/\n{3,}/g, '\n\n').trim();
+  return rest ? { text: rest, notes } : { text, notes: '' };
+}
+
+/** Ce qu'envoie « Plus de détails » (le texte de l'étiquette : ce qui est écrit part). */
+export const MORE_DETAILS = 'Plus de détails';
+/** Une demande de détail, par l'étiquette ou tapée (« plus de détails. », « Détaille la main gauche »…). */
+const MORE_DETAILS_ASKED = /^\s*(?:plus de d[ée]tails?|d[ée]taille[sz]?|explique[sz]?(?:-moi)? plus)\b/i;
+/** Le même texte, à la casse et à la ponctuation finale près. */
+const sameText = (a, b) => String(a || '').trim().replace(/[\s.!?…]+$/, '').toLowerCase() === String(b || '').trim().replace(/[\s.!?…]+$/, '').toLowerCase();
+
+/**
+ * [Claude] — 2026-10-04 — Les étiquettes sous une réponse. Réponses courtes, détail sur
+ * demande (choix de Narcisse) : « Plus de détails » sous la dernière réponse seulement (moins
+ * d'inscriptions), ni après une erreur ni après une demande de détail ; puis les suggestions
+ * du Copilote (sans redire « Plus de détails »).
+ * @param {object} msg - la réponse
+ * @param {{last?: boolean, asked?: string}} [options] - dernière réponse ; la question posée
+ * @returns {{label: string, message: string}[]}
+ */
+export function answerActions(msg, { last = false, asked = '' } = {}) {
+  if (!msg || msg.role !== 'assistant' || msg.isTyping) return [];
+  const more = last && !msg.isError && Boolean(String(msg.content || '').trim()) && !MORE_DETAILS_ASKED.test(String(asked || ''));
+  const suggested = (msg.suggestedActions || []).filter((a) => !(more && sameText(a?.message || a?.label, MORE_DETAILS)));
+  return more ? [{ label: MORE_DETAILS, message: MORE_DETAILS }, ...suggested] : suggested;
+}
+
+/** Un message de la conversation (voir renderMessages). */
+function renderOneMessage(msg, { last = false } = {}) {
+  const isUser = msg.role === 'user';
+  const row = el('div', { className: `tr-chat-message copilot-message is-${msg.role} ${msg.role}` });
+
+  if (msg.role === 'system') {
+    row.className += ' is-system';
+    row.textContent = msg.content;
+    els.messages.appendChild(row);
+    return;
+  }
+
+  const avatar = el('div', { className: 'tr-message-avatar' });
+  if (isUser) avatar.textContent = 'V';
+  else avatar.innerHTML = ICON_SPARKLE;
+  row.appendChild(avatar);
+
+  if (msg.isTyping) {
+    row.className += ' is-typing';
+    row.appendChild(el('div', {
+      className: 'tr-thinking',
+      innerHTML: '<i></i><i></i><i></i>',
+    }));
+    els.messages.appendChild(row);
+    return;
+  }
+
+  const content = el('div', { className: 'tr-message-content' });
+  const author = el('div', { className: 'tr-message-author' }, [
+    el('strong', { text: isUser ? 'Vous' : 'Copilot' }),
+  ]);
+  if (!isUser) author.appendChild(el('span', { text: 'ASSISTANT IA' }));
+  content.appendChild(author);
+  // [Claude] — 2026-10-04 — Les notes écrites par l'application sont repliées sous la réponse.
+  // Un appel d'outil que le modèle avait écrit dans une réponse gardée n'est pas montré.
+  const { text, notes } = isUser ? { text: msg.content, notes: '' } : splitAnswerNotes(extractTextToolCalls(msg.content).content, msg.toolResult?.transferText);
+  renderMessageText(content, text);
+  if (notes) content.appendChild(renderNotesDetails(notes));
+
+  // [Claude] — 2026-09-24 — L'exemple à écouter vient APRÈS l'explication
+  // (Narcisse : « il va directement me le jouer au lieu d'expliquer d'abord »).
+  if (msg.toolResult?.example) {
+    content.appendChild(renderExampleCard(msg));
+  } else if (msg.toolResult?.played?.length) {
+    // Anciennes conversations : notes jouées à l'époque, pour mémoire.
+    const played = el('div', { className: 'tr-chat-demos copilot-tool-note is-static' });
+    const chip = el('span', { className: 'copilot-played-chip' });
+    chip.innerHTML = ICON_PIANO;
+    chip.appendChild(el('span', { text: 'Notes jouées' }));
+    chip.appendChild(el('small', { text: msg.toolResult.played.map((p) => p.name).join(' · ') }));
+    played.appendChild(chip);
+    content.appendChild(played);
+  }
+
+  // [Claude] — 2026-10-04 — « Plus de détails » sous la dernière réponse, puis les suggestions.
+  const asked = last ? messages[messages.length - 2] : null;
+  const actions = answerActions(msg, { last, asked: asked?.role === 'user' ? asked.content : '' });
+  if (actions.length) {
+    const chips = renderActionChips(actions);
+    if (chips) content.appendChild(chips);
+  }
+
+  row.appendChild(content);
+  els.messages.appendChild(row);
 }
 
 function addTypingIndicator() {
@@ -319,6 +1174,7 @@ function showChatArea() {
 }
 
 async function startNewConversation(tutorialPath) {
+  lastTake = null;
   const id = await createConversation(tutorialPath || AUTONOMOUS_HISTORY_KEY);
   if (!id) return null;
   currentConversationId = id;
@@ -328,13 +1184,7 @@ async function startNewConversation(tutorialPath) {
 
 async function ensureCurrentConversation() {
   if (currentConversationId) return currentConversationId;
-  const key =
-    currentMode === 'tutorial' && currentTutorialPath
-      ? currentTutorialPath
-      : currentMode === 'session' && currentSessionId
-        ? currentSessionId
-        : AUTONOMOUS_HISTORY_KEY;
-  return startNewConversation(key);
+  return startNewConversation(historyKeyForMode());
 }
 
 function formatHistoryDate(isoString) {
@@ -400,12 +1250,9 @@ async function renderHistoryList() {
             deleteHistoryItem(item.conversationId, primary, e.currentTarget);
           },
         }, [
-          el('svg', { width: '15', height: '15', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.65', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' }, [
-            el('path', { d: 'M3 6h18' }),
-            el('path', { d: 'M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2' }),
-            el('path', { d: 'M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6' }),
-            el('path', { d: 'M10 11v6' }),
-            el('path', { d: 'M14 11v6' }),
+          el('svg', { width: '15', height: '15', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.9', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' }, [
+            el('path', { d: 'M18 6 6 18' }),
+            el('path', { d: 'M6 6l12 12' }),
           ]),
         ]),
       ]),
@@ -440,6 +1287,38 @@ async function deleteHistoryItem(conversationId, label, btn) {
   await renderHistoryList();
 }
 
+async function onDeleteEmptyConversations() {
+  const all = await listAllConversations();
+  const emptyItems = [];
+  for (const item of all) {
+    const history = await loadHistory(item.conversationId);
+    const messages = history?.messages;
+    if (!messages || messages.length === 0) emptyItems.push(item);
+  }
+  if (emptyItems.length === 0) {
+    alert('Aucune conversation vide à supprimer.');
+    return;
+  }
+  const label = emptyItems.length === 1
+    ? '1 conversation vide'
+    : `${emptyItems.length} conversations vides`;
+  if (!confirm(`Supprimer ${label} ? Cette action est irréversible.`)) return;
+
+  // Si la conversation courante est vide, on la décharge avant suppression.
+  const currentIsEmpty = emptyItems.some((item) => item.conversationId === currentConversationId);
+  if (currentIsEmpty) {
+    messages = [];
+    currentConversationId = null;
+    renderMessages();
+  }
+
+  const removed = await deleteEmptyConversations();
+  await renderHistoryList();
+  if (removed === 0) {
+    alert('La suppression a échoué. Vérifiez que les fichiers ne sont pas ouverts ailleurs.');
+  }
+}
+
 async function loadHistoryItem(conversationId) {
   const history = await loadHistory(conversationId);
   if (!history) return;
@@ -449,6 +1328,8 @@ async function loadHistoryItem(conversationId) {
   currentSessionId = null;
   currentSessionContext = null;
   currentTutorialPath = null;
+  currentExerciseId = null;
+  currentExerciseTitle = null;
   updateHeaderForMode();
   updateModeToggle();
   showChatArea();
@@ -456,22 +1337,44 @@ async function loadHistoryItem(conversationId) {
   await renderHistoryList();
 }
 
+// [Claude] — 2026-10-09 — Narcisse : la mention « Copilot IA » en haut à gauche « ne sert à rien »
+// (le sous-onglet porte déjà ce nom). Le titre ne dit plus que le contexte (tutoriel, session,
+// exercice) ; sans contexte, il est vide et masqué.
 function updateHeaderForMode() {
   if (currentMode === 'tutorial' && currentTutorialPath) {
     const name = currentTutorialPath.split('/').pop();
-    if (els.selectedName) els.selectedName.textContent = `Copilot IA — ${name}`;
-    if (els.introText) els.introText.textContent = 'Mode accompagnement : le Copilot connaît la grille, la transcription et la tonalité de ce tutoriel.';
+    if (els.selectedName) els.selectedName.textContent = name;
+    // [Claude] — 2026-09-25 — Ce que le Copilote sait VRAIMENT de ce tutoriel.
+    const context = getTutorialContext();
+    let intro;
+    if (!context?.chords) {
+      intro = 'Ce tutoriel n\'est pas encore analysé : ouvrez-le dans Pédagogie IA, son analyse démarre. Le Copilot connaîtra alors sa grille, la parole du professeur et les notes jouées.';
+    } else if (context.noteEvents?.length) {
+      intro = `Le Copilot connaît ce tutoriel : grille, parole du professeur${context.summary ? ', résumé du cours' : ''} et notes jouées (${context.sourceLabel}). Demandez-lui de rejouer un lick ou un voicing de la vidéo, ou de l'appliquer dans une autre tonalité.`;
+    } else {
+      intro = `Le Copilot connaît la grille et la parole du professeur ; les notes exactes ne sont pas disponibles (${context.notesUnavailable}).`;
+    }
+    if (els.introText) els.introText.textContent = intro;
   } else if (currentMode === 'session' && currentSessionContext) {
     const name = currentSessionContext.name || currentSessionId;
-    if (els.selectedName) els.selectedName.textContent = `Copilot IA — Session : ${name}`;
+    if (els.selectedName) els.selectedName.textContent = `Session : ${name}`;
     if (els.introText) els.introText.textContent = 'Mode session : le Copilot analyse la session MIDI sélectionnée.';
+  } else if (currentMode === 'exercise' && currentExerciseTitle) {
+    if (els.selectedName) els.selectedName.textContent = currentExerciseTitle;
+    if (els.introText) els.introText.textContent = 'Le Copilot connaît l\'exercice affiché : accords et voicings de la carte, tonalité, étape et tes derniers essais. Demande-lui d\'expliquer un voicing ou de le faire entendre ; après avoir joué, « Qu\'en penses-tu ? » compare ton jeu à l\'exercice.';
   } else {
-    if (els.selectedName) els.selectedName.textContent = 'Copilot IA';
+    if (els.selectedName) els.selectedName.textContent = '';
     if (els.introText) els.introText.textContent = '';
   }
 }
 
 function updateModeToggle() {
+  renderQuickActionsForMode();
+  // [Claude] — 2026-10-03 — En mode tutoriel, la case parle du passage de la vidéo.
+  if (els.input) {
+    if (els.defaultPlaceholder == null) els.defaultPlaceholder = els.input.getAttribute('placeholder') || '';
+    els.input.setAttribute('placeholder', currentMode === 'tutorial' ? 'Pose ta question sur ce passage…' : els.defaultPlaceholder);
+  }
   if (!els.modeToggleBtn) return;
   const state = toggleButtonState(currentMode, currentTutorialPath);
   els.modeToggleBtn.style.display = state.visible ? '' : 'none';
@@ -483,6 +1386,8 @@ async function switchToAutonomousMode() {
   currentSessionId = null;
   currentSessionContext = null;
   currentTutorialPath = null;
+  currentExerciseId = null;
+  currentExerciseTitle = null;
   updateHeaderForMode();
   updateModeToggle();
   if (!hasAIKey()) { showNoKeyState(); return; }
@@ -492,17 +1397,42 @@ async function switchToAutonomousMode() {
   await renderHistoryList();
 }
 
+/**
+ * [Claude] — 2026-10-03 — Rouvrir un tutoriel rouvre sa dernière conversation (Narcisse :
+ * l'analyse et la conversation restent avec le tuto) ; sinon, une nouvelle.
+ * @returns {Promise<string|null>}
+ */
+async function resumeOrStartConversation(key) {
+  try {
+    const latest = (await listAllConversations()).find((item) => item.tutorialPath === key && item.preview);
+    if (latest) {
+      const history = await loadHistory(latest.conversationId);
+      if (history?.messages?.length) {
+        lastTake = null;
+        currentConversationId = latest.conversationId;
+        messages = history.messages;
+        return currentConversationId;
+      }
+    }
+  } catch (err) {
+    console.warn('[Copilot] Conversation du tutoriel non retrouvée :', err);
+  }
+  return startNewConversation(key);
+}
+
 async function switchToTutorialMode(path) {
   if (!path) return;
   currentMode = 'tutorial';
   currentSessionId = null;
   currentSessionContext = null;
+  currentExerciseId = null;
+  currentExerciseTitle = null;
   currentTutorialPath = path;
   updateHeaderForMode();
   updateModeToggle();
   if (!hasAIKey()) { showNoKeyState(); return; }
   showChatArea();
-  await startNewConversation(path);
+  await resumeOrStartConversation(path);
   renderMessages();
   await renderHistoryList();
 }
@@ -513,6 +1443,8 @@ export async function switchToSessionMode(sessionContext) {
   currentSessionId = sessionContext.sessionId;
   currentSessionContext = sessionContext;
   currentTutorialPath = null;
+  currentExerciseId = null;
+  currentExerciseTitle = null;
   updateHeaderForMode();
   updateModeToggle();
   if (!hasAIKey()) { showNoKeyState(); return; }
@@ -522,8 +1454,34 @@ export async function switchToSessionMode(sessionContext) {
   await renderHistoryList();
 }
 
+/**
+ * [Claude] — 2026-09-25 — Mode exercice (« Demander au Copilote » dans Exercices ;
+ * « Qu'en penses-tu ? » y compare le jeu à l'exercice). Même exercice : la
+ * conversation continue ; autre exercice : une nouvelle conversation.
+ * @returns {Promise<boolean>} faux si aucun exercice n'est affiché
+ */
+export async function switchToExerciseMode() {
+  const ctx = readCopilotContext('exercise');
+  if (!ctx) return false;
+  const same = currentMode === 'exercise' && currentExerciseId === ctx.id && currentConversationId;
+  currentMode = 'exercise';
+  currentExerciseId = ctx.id;
+  currentExerciseTitle = ctx.title;
+  currentSessionId = null;
+  currentSessionContext = null;
+  currentTutorialPath = null;
+  updateHeaderForMode();
+  updateModeToggle();
+  if (!hasAIKey()) { showNoKeyState(); return true; }
+  showChatArea();
+  if (!same) await startNewConversation(historyKeyForMode());
+  renderMessages();
+  await renderHistoryList();
+  return true;
+}
+
 async function onModeToggleClick() {
-  if (currentMode === 'tutorial' || currentMode === 'session') {
+  if (currentMode === 'tutorial' || currentMode === 'session' || currentMode === 'exercise') {
     await switchToAutonomousMode();
   } else if (currentTutorialPath) {
     await switchToTutorialMode(currentTutorialPath);
@@ -532,60 +1490,121 @@ async function onModeToggleClick() {
 
 /** Envoie un message utilisateur. */
 async function sendUserMessage() {
+  // Réponse en cours : le texte reste dans la case, il partira ensuite.
+  if (turnBusy) return;
   const text = els.input.value.trim();
   if (!text) return;
   els.input.value = '';
   autoGrowInput();
-  els.input.disabled = true;
-  els.sendBtn.disabled = true;
+  // Envoyé depuis la case (Entrée) : le choix ouvert se referme.
+  if (els.chooser) closeChooser();
+  await runCopilotTurn(text);
+}
 
-  await ensureCurrentConversation();
-  messages.push({ role: 'user', content: text, timestamp: new Date().toISOString() });
-  addTypingIndicator();
+/**
+ * [Claude] — 2026-09-26 — Ce que le pianiste lit quand le Copilote n'a pas pu
+ * répondre : la raison, en clair, et quoi faire.
+ */
+export function copilotErrorText(error) {
+  const code = String(error || '');
+  if (code === 'AI_API_KEY_INVALID') return 'La clé API a été refusée. Vérifiez-la dans Réglages › Assistant IA.';
+  if (code === 'AI_TIMEOUT') return 'Le service d\'IA n\'a pas répondu à temps (90 secondes). Réessaie ; s\'il est souvent aussi lent, choisis un autre modèle dans Réglages › Assistant IA.';
+  if (/^AI_API_ERROR_(413|429)$/.test(code)) return 'Le service d\'IA refuse la demande pour l\'instant (trop longue, ou trop de demandes rapprochées pour ce modèle). Réessaie dans une minute, ou choisis un autre modèle dans Réglages › Assistant IA.';
+  if (/^AI_API_ERROR_5\d\d$/.test(code)) return 'Le service d\'IA a un problème de son côté. Réessaie dans un moment.';
+  return `Je n'ai pas pu répondre (${code || 'erreur inconnue'}). Réessaie ; si ça se répète, recopie-moi ce message.`;
+}
 
-  const context = getTutorialContext() || getSessionContext();
-  const copilotStyleId = els.styleSelect?.value || 'auto';
-  const res = await sendCopilotMessage({ message: text, messages, context, copilotStyleId });
-
-  removeTypingIndicator();
-  if (res.ok) {
-    messages.push({
-      role: 'assistant',
-      content: res.content,
-      toolResult: res.toolResult,
-      suggestedActions: res.suggestedActions,
-      timestamp: new Date().toISOString(),
-    });
-    const key =
-      currentMode === 'tutorial' && currentTutorialPath
-        ? currentTutorialPath
-        : currentMode === 'session' && currentSessionId
-          ? currentSessionId
-          : AUTONOMOUS_HISTORY_KEY;
-    await saveHistory(currentConversationId, key, messages);
-  } else {
-    const errorMsg = res.error === 'AI_API_KEY_INVALID'
-      ? 'La clé API a été refusée. Vérifiez-la dans Réglages › Assistant IA.'
-      : `Erreur : ${res.error}`;
-    messages.push({ role: 'assistant', content: errorMsg, timestamp: new Date().toISOString() });
+/**
+ * [Claude] — 2026-09-25 — Jeu du pianiste que le Copilote peut rejouer à
+ * l'identique (play_my_playing) : la session confiée (touches brutes, plus la
+ * transposition du clavier, comme sa relecture) et le dernier passage de
+ * « Qu'en penses-tu ? » (notes entendues).
+ */
+function playingSources() {
+  const out = {};
+  const session = getSessionContext();
+  if (session?.events?.length) {
+    out.session = { events: session.events, key: session.key || session.heardKey || null, offset: Number(readCopilotContext('keyboard')?.transpose) || 0 };
   }
+  if (lastTake?.events?.length) out.passage = { events: lastTake.events, key: lastTake.key || null };
+  return out.session || out.passage ? out : null;
+}
 
+/**
+ * Un tour de conversation : la question (et, pour « Qu'en penses-tu ? », le
+ * passage joué), l'appel au modèle, la réponse.
+ * @param {string} text
+ * @param {{review?: boolean, take?: {lines: string[], events: object[], key: string|null}}} [options]
+ */
+async function runCopilotTurn(text, { review = false, take = null } = {}) {
+  // [Claude] — 2026-09-26 — Narcisse : « on ne peut plus converser avec l'IA, la case
+  // ne réagit plus, même en rechargeant ». La case était désactivée pendant chaque
+  // tour et ne se réactivait qu'à la fin d'un tour réussi : une réponse qui
+  // n'arrivait pas, ou une erreur en route, la laissaient bloquée. Désormais la
+  // case reste libre (on peut écrire la question suivante) ; seul l'envoi attend ;
+  // quoi qu'il arrive, la réponse ou la raison de l'échec s'affiche.
+  turnBusy = true;
+  els.sendBtn.disabled = true;
+  let autoplayMessage = null;
+  try {
+    // L'historique (fichiers) ne doit jamais empêcher de répondre.
+    await ensureCurrentConversation().catch((err) => console.warn('[Copilot] Conversation non enregistrée :', err));
+    // Après la création éventuelle de la conversation (qui oublie l'ancien passage).
+    if (take) lastTake = take;
+    messages.push({ role: 'user', content: text, timestamp: new Date().toISOString() });
+    addTypingIndicator();
+
+    const base = getTutorialContext() || getSessionContext() || getExerciseContext();
+    // Le dernier passage joué reste connu pour les questions de suivi ; le jeu
+    // (session, passage) reste rejouable.
+    const playing = playingSources();
+    let context = base;
+    if (lastTake || playing) context = { ...(base || { type: 'autonomous' }) };
+    if (lastTake?.lines?.length) context.take = lastTake.lines;
+    if (playing) context.playing = playing;
+    const copilotStyleId = els.styleSelect?.value || 'auto';
+    const res = await sendCopilotMessage({ message: text, messages, context, copilotStyleId, review });
+
+    removeTypingIndicator();
+    if (res.ok) {
+      const reply = {
+        role: 'assistant',
+        content: res.content,
+        toolResult: res.toolResult,
+        suggestedActions: res.suggestedActions,
+        timestamp: new Date().toISOString(),
+      };
+      if (res.toolResult?.example) exampleIdOf(reply);
+      messages.push(reply);
+      // Demande d'écoute (« joue-moi… ») : l'exemple démarre une fois la réponse affichée.
+      if (res.autoplay && res.toolResult?.example) autoplayMessage = reply;
+    } else {
+      messages.push({ role: 'assistant', content: copilotErrorText(res.error), isError: true, timestamp: new Date().toISOString() });
+    }
+  } catch (err) {
+    console.warn('[Copilot] Tour interrompu :', err);
+    removeTypingIndicator();
+    messages.push({ role: 'assistant', content: copilotErrorText(err?.message || err), isError: true, timestamp: new Date().toISOString() });
+  } finally {
+    turnBusy = false;
+    els.sendBtn.disabled = false;
+    els.input.disabled = false;
+  }
   renderMessages();
-  await renderHistoryList();
-  els.input.disabled = false;
-  els.sendBtn.disabled = false;
+  if (autoplayMessage) setTimeout(() => toggleExample(autoplayMessage), 700);
   els.input.focus();
+  // Enregistrement et liste des conversations : après, sans jamais bloquer la case.
+  try {
+    await saveHistory(currentConversationId, historyKeyForMode(), messages.filter((m) => !m.isTyping));
+    await renderHistoryList();
+  } catch (err) {
+    console.warn('[Copilot] Historique non mis à jour :', err);
+  }
 }
 
 /** Reset de la conversation. */
 async function onNewConversation() {
-  const key =
-    currentMode === 'tutorial' && currentTutorialPath
-      ? currentTutorialPath
-      : currentMode === 'session' && currentSessionId
-        ? currentSessionId
-        : AUTONOMOUS_HISTORY_KEY;
-  await startNewConversation(key);
+  await startNewConversation(historyKeyForMode());
   renderMessages();
   await renderHistoryList();
 }
@@ -605,8 +1624,15 @@ export async function initCopilotTab() {
   els.introText = document.getElementById('copilot-intro');
   els.historyList = document.getElementById('copilot-history-list');
   els.newConvSidebarBtn = document.getElementById('copilot-new-conv-sidebar-btn');
+  els.deleteEmptyBtn = document.getElementById('copilot-delete-empty-btn');
 
   els.sendBtn?.addEventListener('click', sendUserMessage);
+  // [Claude] — 2026-09-26 — « Qu'en penses-tu ? » : dans la case, à la place de « IA connectée ».
+  els.reviewBtn = document.getElementById('copilot-review-btn');
+  els.reviewHint = document.getElementById('copilot-review-hint');
+  els.reviewBtn?.addEventListener('click', () => toggleReviewCapture());
+  // « Demander au Copilote » depuis Exercices.
+  document.addEventListener('copilot-open-exercise', () => switchToExerciseMode());
   // [Astra round 4] — Le champ est un <textarea> qui grandit avec le texte,
   // comme dans la maquette (max ~110px, puis défilement interne).
   els.input?.addEventListener('input', autoGrowInput);
@@ -618,6 +1644,7 @@ export async function initCopilotTab() {
   });
   els.newConvBtn?.addEventListener('click', onNewConversation);
   els.newConvSidebarBtn?.addEventListener('click', onNewConversation);
+  els.deleteEmptyBtn?.addEventListener('click', onDeleteEmptyConversations);
   els.modeToggleBtn?.addEventListener('click', onModeToggleClick);
 
   // Sélecteur de style pianistique.
@@ -629,12 +1656,24 @@ export async function initCopilotTab() {
     els.quickActions.addEventListener('click', (e) => {
       const chip = e.target.closest('.copilot-chip');
       if (!chip || !els.input) return;
+      if (chip.dataset.chooser) {
+        toggleChooser(chip.dataset.chooser, chip);
+        return;
+      }
       const message = chip.dataset.message;
       if (!message) return;
+      closeChooser();
       els.input.value = message;
       sendUserMessage();
     });
   }
+  // [Claude] — 2026-10-03 — Un moment cité dans une réponse (« à 1:31 ») place la
+  // vidéo de Pédagogie IA (pedagogie-tab.js écoute « pedagogie-seek »).
+  els.messages?.addEventListener('click', (e) => {
+    const time = e.target.closest?.('.copilot-time');
+    if (!time) return;
+    document.dispatchEvent(new CustomEvent('pedagogie-seek', { detail: { seconds: Number(time.dataset.seconds) } }));
+  });
 
   // Écoute le changement de tutoriel dans Pédagogie
   document.addEventListener('pedagogie-selection-change', async (e) => {
@@ -658,10 +1697,45 @@ export async function initCopilotTab() {
     }
   });
 
+  // [Claude] — 2026-09-25 — « Copilote IA » depuis Pédagogie : mode tutoriel, avec son contexte
+  // (la conversation en cours est gardée si c'est déjà ce tutoriel).
+  document.addEventListener('copilot-open-tutorial', async (e) => {
+    const path = e.detail?.path;
+    if (!path) return;
+    if (currentMode === 'tutorial' && currentTutorialPath === path) {
+      updateHeaderForMode();
+      return;
+    }
+    await switchToTutorialMode(path);
+  });
+
   document.addEventListener('copilot-switch-to-session', async (e) => {
     const sessionContext = e.detail;
     if (!sessionContext?.sessionId) return;
     await switchToSessionMode(sessionContext);
+  });
+
+  // Lecture d'un exemple commencée / finie (main.js).
+  document.addEventListener('copilot-example-state', (e) => {
+    const { id, playing } = e.detail || {};
+    if (playing) {
+      playingExampleId = id;
+      examplePaused = false;
+      exampleProgress = null;
+    } else if (playingExampleId === id) {
+      playingExampleId = null;
+      examplePaused = false;
+      exampleProgress = null;
+    }
+    refreshExampleCards();
+  });
+  // [Claude] — 2026-10-03 — Sa position, toutes les 250 ms (main.js) : la barre la suit.
+  document.addEventListener('copilot-example-progress', (e) => {
+    const { id, position, duration, paused } = e.detail || {};
+    if (!id || id !== playingExampleId) return;
+    exampleProgress = { id, position: Number(position) || 0, duration: Number(duration) || 0 };
+    examplePaused = Boolean(paused);
+    refreshExampleTransport();
   });
 
   document.addEventListener('copilot-send-message', async (e) => {
@@ -694,10 +1768,10 @@ export async function initCopilotTab() {
     document.dispatchEvent(new CustomEvent('app-open-ai-settings'));
   });
 
-  // Au chargement : prisme 1 (autonome) par défaut, qu'un tutoriel soit
-  // sélectionné ou non.
-  const currentPath = document.querySelector('#pedagogie-track-list .pedagogie-track-row.is-selected')?.title;
-  currentTutorialPath = currentPath || null;
+  // Au chargement : prisme 1 (autonome) par défaut. [Claude] — 2026-10-03 — Aucun tuto
+  // n'est ouvert au démarrage (la liste qu'on lisait ici, dans le tiroir « Mes tutoriels »,
+  // est retirée) : Pédagogie IA l'annonce quand on en ouvre un.
+  currentTutorialPath = null;
   currentMode = 'autonomous';
   currentSessionId = null;
   currentSessionContext = null;
@@ -711,7 +1785,9 @@ export async function initCopilotTab() {
   // le panneau Copilot s'affichait entièrement vide sous son en-tête, sans la
   // moindre erreur en console.
   showChatArea();
-  await startNewConversation(AUTONOMOUS_HISTORY_KEY);
+  // [Claude] — 2026-09-26 — L'historique (fichiers) ne doit jamais empêcher la
+  // conversation de s'afficher.
+  await startNewConversation(AUTONOMOUS_HISTORY_KEY).catch((err) => console.warn('[Copilot] Conversation non enregistrée :', err));
   renderMessages();
-  await renderHistoryList();
+  await renderHistoryList().catch((err) => console.warn('[Copilot] Liste des conversations indisponible :', err));
 }

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, session, dialog, desktopCapturer, safeStorage } from 'electron';
+import { app, BrowserWindow, ipcMain, session, dialog, desktopCapturer, safeStorage, powerMonitor } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import midi from '@julusian/midi';
@@ -14,6 +14,10 @@ import { pathToFileURL } from 'url';
 import { createFrame } from '../src/pedagogie/frame.js';
 import { detectVideoFormat } from '../src/pedagogie/format-detector.js';
 import { readLitKeys } from '../src/pedagogie/key-detection.js';
+import { busyWindows, mergeFineSamples, FINE_FPS } from '../src/pedagogie/fine-reading.js';
+import { thumbnailTime, thumbnailArgs } from '../src/pedagogie/tutorial-memory.js';
+// [Claude] — 2026-10-02 — Suivi des entrées MIDI par NOM (pur, testé : src/midi-ports.test.js).
+import { createInputWatcher, OWN_PORT_NAME } from '../src/midi-ports.js';
 
 // [OpenCode] — 2026-07-04 — Charge .env s'il existe (sans dépendance dotenv)
 try {
@@ -48,9 +52,7 @@ let analysisInFlight = null;
 // analyse ne continue à consommer le CPU après la fermeture de la fenêtre.
 const liveChildren = new Set();
 let midiPollTimer = null;
-let midiInput = null;
-let currentInputId = null; // currently opened input port id
-let currentInputName = null; // name used to reconnect after hot-plug
+let midiInput = null; // l'entrée ouverte ; son nom et sa place sont suivis par inputWatcher
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -144,14 +146,69 @@ function sendMidiLog(type, data) {
 
 let midiInputEnumerator = null;
 
-let nativeMidiFailed = false;
+// [Claude] — 2026-09-24 — Sortie MIDI (voir midi:open-output).
+const VIRTUAL_OUTPUT_ID = 'virtual';
+// Même nom que celui que src/midi-ports.js écarte des entrées (on ne s'écoute pas soi-même).
+const VIRTUAL_OUTPUT_NAME = OWN_PORT_NAME;
+let midiOutput = null;
 
-// [OpenCode] — 2026-07-04 — Heuristic to skip internal/virtual ALSA ports when auto-connecting.
-const VIRTUAL_PORT_NAMES = ['midi through', 'through', 'virmidi', 'client-', 'timidity', 'fluidsynth', 'pipewire'];
-function isLikelyHardware(name) {
-  const lower = name.toLowerCase();
-  return !VIRTUAL_PORT_NAMES.some((v) => lower.includes(v));
+function getMidiOutputs() {
+  if (nativeMidiFailed) return [];
+  let enumerator = null;
+  try {
+    enumerator = new midi.Output();
+    const outputs = [];
+    for (let i = 0; i < enumerator.getPortCount(); i += 1) {
+      const name = enumerator.getPortName(i);
+      // Notre propre port virtuel ne doit pas se proposer à lui-même.
+      if (!name.includes(VIRTUAL_OUTPUT_NAME)) outputs.push({ id: String(i), name });
+    }
+    if (process.platform !== 'win32') outputs.push({ id: VIRTUAL_OUTPUT_ID, name: `Port virtuel « ${VIRTUAL_OUTPUT_NAME} »`, virtual: true });
+    return outputs;
+  } catch (err) {
+    console.error('[MIDI] sorties indisponibles :', err.message);
+    return [];
+  } finally {
+    try { enumerator?.closePort(); } catch (e) { /* rien d'ouvert */ }
+  }
 }
+
+/** Relâche tout sur la sortie (notes, pédale) puis la ferme. */
+function closeMidiOutput() {
+  if (!midiOutput) return;
+  try {
+    for (let channel = 0; channel < 16; channel += 1) {
+      midiOutput.sendMessage([0xb0 + channel, 64, 0]);
+      midiOutput.sendMessage([0xb0 + channel, 123, 0]);
+    }
+    midiOutput.closePort();
+  } catch (e) {
+    // Port déjà disparu : rien à relâcher.
+  }
+  midiOutput = null;
+}
+
+/** Ouvre la sortie `outputId` (index de port ou « virtual ») ; null ferme. */
+function openMidiOutput(outputId) {
+  closeMidiOutput();
+  if (outputId == null || outputId === '') return { ok: true, id: null, name: null };
+  try {
+    midiOutput = new midi.Output();
+    if (outputId === VIRTUAL_OUTPUT_ID) {
+      midiOutput.openVirtualPort(VIRTUAL_OUTPUT_NAME);
+      return { ok: true, id: outputId, name: `Port virtuel « ${VIRTUAL_OUTPUT_NAME} »` };
+    }
+    const index = Number(outputId);
+    const name = midiOutput.getPortName(index);
+    midiOutput.openPort(index);
+    return { ok: true, id: outputId, name };
+  } catch (err) {
+    midiOutput = null;
+    return { ok: false, id: null, error: err.message };
+  }
+}
+
+let nativeMidiFailed = false;
 
 function getMidiInputEnumerator() {
   if (nativeMidiFailed) return null;
@@ -208,8 +265,6 @@ function closeMidiInput() {
       // ignore
     }
     midiInput = null;
-    currentInputId = null;
-    currentInputName = null;
   }
 }
 
@@ -264,46 +319,39 @@ function openMidiInput(portId) {
       mainWindow.webContents.send('midi-pitch-wheel', { value: bend });
     }
   });
-  currentInputId = portId;
-  currentInputName = name;
   sendMidiLog('open', { portId, name });
   return { success: true, portId, name };
 }
 
-// [OpenCode] — 2026-07-04 — Auto-connect to a real hardware input if none is open yet.
-function autoOpenHardwareInput(inputs) {
-  if (midiInput) return null; // already connected
-  const hardware = inputs.filter((i) => isLikelyHardware(i.name));
-  const preferred = hardware.find((i) =>
-    /usb|piano|keyboard|mpk|midi|key|synth|controller/i.test(i.name),
-  ) || hardware[0];
-  if (preferred) {
-    console.log('[MIDI] auto-connecting to', preferred.id, preferred.name);
-    const result = openMidiInput(preferred.id);
-    if (result.success) {
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('midi-device-connected', { portId: preferred.id, name: preferred.name });
-      }
-      return result;
-    }
-  }
-  return null;
+// [Claude] — 2026-10-02 — Un seul décideur pour les entrées MIDI : le surveillant de
+// src/midi-ports.js. Il remplace l'auto-connexion « premier port matériel » et la
+// reconnexion par nom exact, qui suivaient le port par sa POSITION dans la liste :
+// un synthé ré-énuméré (veille, synthé rallumé) gardait sa place sous un autre
+// numéro ALSA, la connexion était morte et l'app affichait « Connecté » ; notre
+// port virtuel « Piano Jazz Chords » (son nom contient « piano ») pouvait même être
+// pris pour le clavier. Le rendu ne décide plus rien : il affiche l'état.
+function sendToWindow(channel, data) {
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, data);
 }
 
-// [OpenCode] — 2026-07-04 — When the current port disappears, try to reconnect to a port with the same name.
-function reconnectByName(inputs) {
-  if (!currentInputName || midiInput) return null;
-  const match = inputs.find((i) => i.name === currentInputName && i.id !== currentInputId);
-  if (match) {
-    console.log('[MIDI] reconnecting by name to', match.id, match.name);
-    const result = openMidiInput(match.id);
-    if (result.success && mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('midi-device-connected', { portId: match.id, name: match.name });
+const inputWatcher = createInputWatcher({
+  listPorts: () => getMidiInputs(true),
+  openPort: (portId) => openMidiInput(portId),
+  closePort: () => closeMidiInput(),
+  resetScanner: () => closeMidiInputEnumerator(),
+  notify: (type, data) => {
+    if (type === 'connected') {
+      console.log('[MIDI] connecté :', data.name, `(${data.reason})`);
+      sendToWindow('midi-device-connected', data);
+    } else if (type === 'lost') {
+      console.log('[MIDI] port perdu :', data.previousName);
+      sendToWindow('midi-port-lost', data);
+    } else if (type === 'devices') {
+      console.log('[MIDI] ports :', data.map((i) => i.name).join(', ') || 'aucun');
+      sendToWindow('midi-devices-changed', data);
     }
-    return result;
-  }
-  return null;
-}
+  },
+});
 
 function userAudioGroups() {
   const userInfo = os.userInfo();
@@ -330,16 +378,6 @@ function requestMidiPermission() {
   session.defaultSession.setPermissionCheckHandler((webContents, permission) => {
     return permission === 'midi' || permission === 'midiSysex';
   });
-}
-
-let lastSeenInputs = [];
-
-function inputsChanged(a, b) {
-  if (a.length !== b.length) return true;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i].name !== b[i].name) return true;
-  }
-  return false;
 }
 
 // [Claude] — 2026-07-03 — API système de fichiers pour le Module 2 (sessions d'enregistrement)
@@ -528,7 +566,24 @@ async function purgeLegacyTempDirs() {
 // [Claude] — 2026-07-08 — Si un fichier importé dans l'onglet Analyse correspond
 // à un morceau déjà séparé dans le Studio, on utilise le stem piano isolé pour
 // l'analyse. Cela améliore nettement la qualité par rapport au mix complet.
-async function findStudioPianoStemForFile(filePath) {
+// [Claude] — 2026-10-09 — Narcisse : un MP4 choisi dans la bibliothèque, analysé dans l'onglet
+// Analyse, ne donnait « aucun accord, rien du tout ». L'analyse reprenait d'office le piano (et la
+// basse) séparés dans le Studio dès qu'ils existaient. Or ces pistes :
+//   · ne couvrent que la RÉGION travaillée (5 min au plus), et leurs temps partent du début de
+//     la région, pas du début du morceau ;
+//   · peuvent être des bips de 2 s (Demucs absent, ou anciens échecs non marqués).
+// On ne les prend donc que si ce sont de vraies pistes ET qu'elles couvrent tout le morceau ;
+// sinon l'analyse se fait sur le mix original, toujours juste.
+/** Tolérance (s) pour dire qu'une région couvre tout le morceau. */
+const FULL_COVERAGE_TOLERANCE = 0.5;
+
+/**
+ * Piste séparée du Studio utilisable pour analyser `filePath` entier, ou null.
+ * @param {string} filePath — fichier original analysé
+ * @param {'piano'|'bass'} stem
+ * @param {number|null} duration — durée du fichier original (s), si connue
+ */
+async function findStudioStemForFile(filePath, stem, duration = null) {
   const studioDir = getStudioDir();
   try {
     const entries = await fs.readdir(studioDir, { withFileTypes: true });
@@ -542,44 +597,37 @@ async function findStudioPianoStemForFile(filePath) {
       const originalPath = path.join(trackDir, originalFile);
       const realOriginalPath = await fs.realpath(originalPath).catch(() => originalPath);
       if (realFilePath !== realOriginalPath) continue;
-      const pianoStem = path.join(trackDir, 'stems', 'piano.wav');
+
+      const stemsDir = path.join(trackDir, 'stems');
+      const stemPath = path.join(stemsDir, `${stem}.wav`);
       try {
-        await fs.access(pianoStem);
-        return pianoStem;
+        await fs.access(stemPath);
       } catch {
         return null;
       }
+      // Bips (Demucs absent, marqués) ou anciens bips non marqués : inutilisables.
+      const simulated = await fs.access(path.join(stemsDir, SIMULATED_MARK)).then(() => true, () => false);
+      if (simulated || await hasLegacyBeepStems(stemsDir)) {
+        console.log(`[Analyzer] pistes du Studio simulées (bips), analyse sur le mix : ${entry.name}`);
+        return null;
+      }
+      // Pistes d'une région seulement : leurs temps ne sont pas ceux du morceau.
+      let region = null;
+      try {
+        region = JSON.parse(await fs.readFile(path.join(trackDir, 'metadata.json'), 'utf8'))?.region || null;
+      } catch { /* pas de métadonnées : séparation ancienne, du morceau entier */ }
+      if (region && Number.isFinite(region.start) && Number.isFinite(region.end)) {
+        const coversStart = region.start <= FULL_COVERAGE_TOLERANCE;
+        const coversEnd = !Number.isFinite(duration) || region.end >= duration - FULL_COVERAGE_TOLERANCE;
+        if (!coversStart || !coversEnd) {
+          console.log(`[Analyzer] pistes du Studio limitées à la région ${region.start}–${region.end} s, analyse sur le mix : ${entry.name}`);
+          return null;
+        }
+      }
+      return stemPath;
     }
   } catch (e) {
     // ignore: le dossier Studio peut ne pas exister.
-  }
-  return null;
-}
-
-async function findStudioBassStemForFile(filePath) {
-  const studioDir = getStudioDir();
-  try {
-    const entries = await fs.readdir(studioDir, { withFileTypes: true });
-    const realFilePath = await fs.realpath(filePath).catch(() => filePath);
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      const trackDir = path.join(studioDir, entry.name);
-      const files = await fs.readdir(trackDir);
-      const originalFile = files.find((f) => f.startsWith('original.'));
-      if (!originalFile) continue;
-      const originalPath = path.join(trackDir, originalFile);
-      const realOriginalPath = await fs.realpath(originalPath).catch(() => originalPath);
-      if (realFilePath !== realOriginalPath) continue;
-      const bassStem = path.join(trackDir, 'stems', 'bass.wav');
-      try {
-        await fs.access(bassStem);
-        return bassStem;
-      } catch {
-        return null;
-      }
-    }
-  } catch (e) {
-    // ignore
   }
   return null;
 }
@@ -854,19 +902,76 @@ async function transcriberInstalled() {
 // electron/v2n-deps/v2n_pianovam.safetensors. On vérifie les deux.
 const V2N_MODEL_PATH = path.join(__dirname, 'v2n-deps', 'v2n_pianovam.safetensors');
 
-async function v2nInstalled() {
-  try {
-    fsSync.accessSync(V2N_MODEL_PATH);
-  } catch {
-    return false;
-  }
+// [Claude] — 2026-09-25 — Narcisse : « l'application ne peut pas analyser l'image, et je
+// ne sais pas pourquoi ; pourtant j'ai installé ce qu'il fallait ». La raison
+// n'était jamais dite. Diagnostic précis : poids absents, poids restés à l'état
+// de pointeur Git LFS (134 octets au lieu de 113 Mo : `git lfs pull`), paquets
+// Python manquants (nommés, avec la commande d'installation).
+const V2N_PACKAGES = { torch: 'torch', torchvision: 'torchvision', cv2: 'opencv-python-headless', numpy: 'numpy', safetensors: 'safetensors', scipy: 'scipy' };
+
+function missingPythonModules(modules) {
+  const script = `import importlib.util, json; print(json.dumps([m for m in ${JSON.stringify(modules)} if importlib.util.find_spec(m) is None]))`;
   return new Promise((resolve) => {
-    const proc = spawn(getPythonCommand(), [
-      '-c',
-      'import torch, torchvision, cv2, numpy, safetensors, scipy',
-    ], { shell: false });
-    proc.on('error', () => resolve(false));
-    proc.on('exit', (code) => resolve(code === 0));
+    let out = '';
+    const proc = spawn(getPythonCommand(), ['-c', script], { shell: false });
+    proc.stdout.on('data', (d) => { out += d.toString(); });
+    proc.on('error', () => resolve({ python: false, missing: modules }));
+    proc.on('exit', () => {
+      try { resolve({ python: true, missing: JSON.parse(out.trim().split('\n').pop() || '[]') }); } catch { resolve({ python: true, missing: modules }); }
+    });
+  });
+}
+
+async function v2nStatus() {
+  let size = 0;
+  try {
+    size = fsSync.statSync(V2N_MODEL_PATH).size;
+  } catch {
+    return { available: false, reason: 'model-missing', detail: V2N_MODEL_PATH };
+  }
+  if (size < 1024 * 1024) {
+    let head = '';
+    try { head = fsSync.readFileSync(V2N_MODEL_PATH, 'utf8').slice(0, 60); } catch { /* lecture impossible */ }
+    if (/git-lfs/.test(head)) return { available: false, reason: 'model-lfs-pointer', detail: `${size} octets` };
+    return { available: false, reason: 'model-missing', detail: `${size} octets` };
+  }
+  const { python, missing } = await missingPythonModules(Object.keys(V2N_PACKAGES));
+  if (!python) return { available: false, reason: 'python-missing', detail: getPythonCommand() };
+  if (missing.length) {
+    const packages = missing.map((m) => V2N_PACKAGES[m] || m);
+    return { available: false, reason: 'missing-packages', detail: packages.join(', '), packages };
+  }
+  return { available: true };
+}
+
+async function v2nInstalled() {
+  return (await v2nStatus()).available;
+}
+
+/**
+ * [Claude] — 2026-09-25 — Lance un script Python de electron/ et lit le JSON de la
+ * dernière ligne de stdout (même contrat que piano-vision.py et transcriber.py).
+ */
+function runPythonJson(script, args) {
+  return new Promise((resolve, reject) => {
+    const proc = trackChild(spawn(getPythonCommand(), [path.join(__dirname, script), ...args], { shell: false }));
+    let stdout = '';
+    let stderr = '';
+    proc.stdout.on('data', (d) => { stdout += d.toString(); });
+    proc.stderr.on('data', (d) => { stderr += d.toString(); });
+    proc.on('error', (err) => reject(err));
+    proc.on('exit', (code) => {
+      const line = stdout.trim().split('\n').filter(Boolean).pop();
+      if (!line) {
+        reject(new Error(stderr || `${script} exited with code ${code}`));
+        return;
+      }
+      try {
+        resolve(JSON.parse(line));
+      } catch (err) {
+        reject(new Error(`${script} : JSON invalide — ${err.message}`));
+      }
+    });
   });
 }
 
@@ -959,6 +1064,11 @@ async function createTranscribeDir() {
   return dir;
 }
 
+// [Claude] — 2026-10-09 — Séparations en cours, par morceau : « Annuler » sous la barre de
+// progression arrête Demucs (studio:cancel-separation) au lieu d'attendre la fin du calcul.
+const demucsRuns = new Map();
+const CANCELLED = 'separation-cancelled';
+
 async function runDemucs(trackId, inputPath) {
   const studioDir = await ensureStudioDir();
   const trackDir = path.join(studioDir, trackId);
@@ -969,11 +1079,13 @@ async function runDemucs(trackId, inputPath) {
   await fs.mkdir(outputDir, { recursive: true });
 
   return new Promise((resolve, reject) => {
-    const proc = spawn(getPythonCommand(), [
+    const proc = trackChild(spawn(getPythonCommand(), [
       path.join(__dirname, 'demucs-wrapper.py'),
       outputDir,
       inputPath,
-    ], { shell: false });
+    ], { shell: false }));
+    const run = { proc, cancelled: false };
+    demucsRuns.set(trackId, run);
 
     let stderr = '';
     let lastPercent = 0;
@@ -1024,12 +1136,19 @@ async function runDemucs(trackId, inputPath) {
 
     proc.on('error', (err) => {
       clearInterval(fallbackInterval);
+      if (demucsRuns.get(trackId) === run) demucsRuns.delete(trackId);
       reject(err);
     });
     proc.on('exit', async (code) => {
       clearInterval(fallbackInterval);
+      if (demucsRuns.get(trackId) === run) demucsRuns.delete(trackId);
+      // Annulée : les pistes d'avant (s'il y en a) restent telles quelles.
+      if (run.cancelled) {
+        reject(new Error(CANCELLED));
+        return;
+      }
       if (code !== 0) {
-        reject(new Error(stderr || `Demucs exited with code ${code}`));
+        reject(new Error(demucsErrorSummary(stderr) || `Demucs s'est arrêté (code ${code})`));
         return;
       }
       try {
@@ -1055,12 +1174,51 @@ async function runDemucs(trackId, inputPath) {
             await fs.copyFile(src, dst);
           }
         }
+        await fs.rm(path.join(stemsDir, SIMULATED_MARK), { force: true });
         resolve();
       } catch (err) {
         reject(err);
       }
     });
   });
+}
+
+// [Claude] — 2026-10-09 — Régression du Studio : quand Demucs ÉCHOUAIT (torchaudio récent sans
+// torchcodec, voir demucs-wrapper.py), l'application remplaçait en silence les pistes par des
+// bips de 2 s. Narcisse entendait « un bruit sourd au lancement » (le bip de 80 Hz de la basse),
+// le lecteur « bloqué » (des pistes de 2 s pour une région de 5 min), « le son bug ».
+// Désormais les bips ne servent que si Demucs n'est PAS installé, et ils sont marqués ; un échec
+// est dit tel quel. Les bips laissés par l'ancien comportement sont reconnus et ignorés.
+const SIMULATED_MARK = 'simulated.json';
+// Un bip de 2 s : en-tête WAV (44 octets) + 2 s × 44 100 échantillons × 2 octets, mono 16 bits.
+const LEGACY_BEEP_BYTES = 44 + 2 * 44100 * 2;
+
+/** Les dernières lignes utiles de Demucs (l'erreur Python), pour l'écran. */
+function demucsErrorSummary(stderr) {
+  const lines = String(stderr || '').split(/\r?\n/).map((l) => l.trim())
+    .filter((l) => l && !/^\s*\d{1,3}%\|/.test(l) && !/[█▏▎▍▌▋▊▉]/.test(l));
+  const error = [...lines].reverse().find((l) => /^[A-Za-z_.]*(Error|Exception)\b/.test(l));
+  return error || lines.slice(-1)[0] || '';
+}
+
+/**
+ * Les pistes de ce morceau sont-elles des bips d'un ancien échec (non marqués) ? Elles ne
+ * comptent pas comme séparées : le Studio repart du son original et propose de séparer.
+ */
+async function hasLegacyBeepStems(stemsDir) {
+  try {
+    await fs.access(path.join(stemsDir, SIMULATED_MARK));
+    return false; // bips voulus (Demucs non installé) : ils servent au workflow
+  } catch { /* pas de marque */ }
+  for (const stem of STEMS) {
+    try {
+      const { size } = await fs.stat(path.join(stemsDir, `${stem}.wav`));
+      if (size !== LEGACY_BEEP_BYTES) return false;
+    } catch {
+      return false;
+    }
+  }
+  return true;
 }
 
 async function createSimulatedStems(trackId) {
@@ -1073,6 +1231,7 @@ async function createSimulatedStems(trackId) {
     const wav = await createBeepWav(2, freqs[stem]);
     await fs.writeFile(path.join(stemsDir, `${stem}.wav`), wav);
   }
+  await fs.writeFile(path.join(stemsDir, SIMULATED_MARK), JSON.stringify({ reason: 'demucs-missing' }));
 }
 
 function setupStudioIPC() {
@@ -1097,6 +1256,21 @@ function setupStudioIPC() {
       properties: ['openFile'],
       filters: [
         { name: 'Fichiers audio (MP3, WAV, M4A)', extensions: ['mp3', 'wav', 'm4a'] },
+      ],
+    });
+    return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
+  });
+
+  // [Claude] — 2026-10-09 — Onglet Analyse : audio ET vidéo MP4 (le son en est extrait par
+  // ffmpeg, comme pour les morceaux de la bibliothèque).
+  ipcMain.handle('studio:select-analysis-file', async () => {
+    if (!mainWindow) return null;
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'Choisir un morceau à analyser',
+      properties: ['openFile'],
+      filters: [
+        // [Claude] — 2026-10-09 — Et les fichiers MIDI (une session exportée, ou tout autre MIDI).
+        { name: 'Audio, vidéo ou MIDI (MP3, WAV, M4A, MP4, MID)', extensions: ['mp3', 'wav', 'm4a', 'mp4', 'mid', 'midi'] },
       ],
     });
     return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
@@ -1127,15 +1301,28 @@ function setupStudioIPC() {
       await createSimulatedStems(trackId);
       return { success: true, simulated: true };
     } catch (err) {
+      if (err?.message === CANCELLED) {
+        console.log('[Studio] separation cancelled for', trackId);
+        return { success: false, simulated: false, cancelled: true };
+      }
+      // [Claude] — 2026-10-09 — Un échec reste un échec : pas de bips à la place des pistes
+      // (les pistes d'avant, s'il y en avait, restent en place).
       console.error('[Studio] separation failed:', err);
-      // Fallback to simulated stems so tests can continue
-      await createSimulatedStems(trackId);
-      return { success: true, simulated: true, error: err.message };
+      return { success: false, simulated: false, error: err.message };
     }
+  });
+
+  ipcMain.handle('studio:cancel-separation', async (event, trackId) => {
+    const run = demucsRuns.get(trackId);
+    if (!run) return false;
+    run.cancelled = true;
+    try { run.proc.kill('SIGTERM'); } catch { /* déjà terminé */ }
+    return true;
   });
 
   ipcMain.handle('studio:is-separated', async (event, trackId) => {
     const studioDir = await ensureStudioDir();
+    if (await hasLegacyBeepStems(path.join(studioDir, trackId, 'stems'))) return false;
     for (const stem of STEMS) {
       try {
         await fs.access(path.join(studioDir, trackId, 'stems', `${stem}.wav`));
@@ -1149,7 +1336,9 @@ function setupStudioIPC() {
   ipcMain.handle('studio:get-stems', async (event, trackId) => {
     const studioDir = await ensureStudioDir();
     const paths = {};
+    const legacyBeeps = await hasLegacyBeepStems(path.join(studioDir, trackId, 'stems'));
     for (const stem of STEMS) {
+      if (legacyBeeps) { paths[stem] = null; continue; }
       const p = path.join(studioDir, trackId, 'stems', `${stem}.wav`);
       try {
         await fs.access(p);
@@ -1339,11 +1528,19 @@ function setupStudioIPC() {
     const sampleFps = Number(options.sampleFps) || 4;
 
     const dims = await probeVideoDimensions(filePath);
+    if (dims?.toolsMissing) {
+      return {
+        ok: false,
+        reason: 'ToolsMissing',
+        message: 'ffmpeg est introuvable sur cette machine (ni celui du système, ni celui du paquet Python imageio-ffmpeg) : '
+          + 'l\'image ne peut pas être lue, le relevé se fera au son. Installez ffmpeg, ou lancez « .venv/bin/pip install imageio-ffmpeg ».',
+      };
+    }
     if (!dims) {
       return {
         ok: false,
         reason: 'NoVideoStream',
-        message: 'Ce fichier ne contient pas de piste vidéo exploitable.',
+        message: 'Ce fichier ne contient pas de piste vidéo exploitable : le relevé se fera au son.',
       };
     }
     const { width, height, duration } = dims;
@@ -1392,13 +1589,32 @@ function setupStudioIPC() {
       samples.push({ t: index / sampleFps, keys: readLitKeys(frame, geometry) });
     });
 
+    // 3. [Claude] — 2026-10-09 — Relecture fine des passages rapides (src/pedagogie/fine-reading.js) :
+    // à 8 images/s, un lick de 20 notes en 2 s et les double-croches d'un montuno passaient
+    // entre deux images. Les passages où les attaques se suivent vite sont relus à 30 i/s.
+    const fineFps = Number(options.fineFps) || FINE_FPS;
+    const windows = fineFps > sampleFps ? busyWindows(samples, { duration }) : [];
+    const fine = [];
+    for (const w of windows) {
+      const got = [];
+      await streamFrames(filePath, fineFps, frameBytes, (buf, index) => {
+        const frame = createFrame(buf, width, height, 3);
+        got.push({ t: Math.round((w.start + index / fineFps) * 1000) / 1000, keys: readLitKeys(frame, geometry) });
+      }, { start: w.start, duration: w.end - w.start }).catch((err) => {
+        console.warn('[Pedagogie] relecture fine impossible', w, err.message);
+      });
+      fine.push({ ...w, samples: got });
+    }
+    const allSamples = fine.length ? mergeFineSamples(samples, fine) : samples;
+
     return {
       ok: true,
       format: format.format,
       implemented: true,
       confidence: format.confidence,
       sampleInterval: 1 / sampleFps,
-      samples,
+      fineReading: { fps: fineFps, windows: fine.filter((w) => w.samples.length).map(({ start, end }) => ({ start, end })) },
+      samples: allSamples,
       video: { width, height, duration },
       geometry: {
         lowestMidi: geometry.lowestMidi,
@@ -1471,9 +1687,36 @@ function setupStudioIPC() {
     }
   });
 
+  // [Claude] — 2026-09-25 — Pédagogie IA : notes d'un pianiste filmé de côté ou de face
+  // (l'image ne montre pas le clavier), transcrites depuis le son par
+  // electron/piano-transcriber.py (piano-transcription-inference, licence MIT).
+  // Même contrat honnête que la parole : si le paquet manque, on le dit.
+  ipcMain.handle('pedagogie:transcribe-piano', async (event, filePath) => {
+    const { python, missing } = await missingPythonModules(['piano_transcription_inference', 'torch', 'librosa']);
+    if (!python || missing.length) {
+      return { available: false, reason: 'dependency-missing', detail: python ? missing.join(', ') : getPythonCommand() };
+    }
+    let workDir = null;
+    try {
+      workDir = await createTranscribeDir();
+      const wavPath = path.join(workDir, 'piano.wav');
+      await extractTrackAudio(filePath, wavPath);
+      const raw = await runPythonJson('piano-transcriber.py', ['transcribe', wavPath]);
+      if (!raw?.ok) {
+        return { available: false, reason: raw?.reason === 'MissingDependency' ? 'dependency-missing' : 'failed', detail: raw?.message || null };
+      }
+      return { available: true, notes: raw.notes || [], pedals: raw.pedals || [], duration: raw.duration ?? null };
+    } catch (err) {
+      console.error('[Pedagogie] transcription piano échouée :', err);
+      return { available: false, reason: 'failed', detail: err.message };
+    } finally {
+      if (workDir) await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
+    }
+  });
+
   // [OpenCode] — 2026-09-07 — Pédagogie IA V2N : disponibilité du modèle.
   ipcMain.handle('pedagogie:check-v2n', async () => {
-    return { available: await v2nInstalled(), modelPath: V2N_MODEL_PATH };
+    return { ...(await v2nStatus()), modelPath: V2N_MODEL_PATH };
   });
 
   // [OpenCode] — 2026-09-07 — Pédagogie IA V2N : transcription visuelle d'une
@@ -1481,8 +1724,9 @@ function setupStudioIPC() {
   // renderer. Même contrat honnête que la transcription vocale : si V2N manque,
   // on le dit, on n'invente pas une grille d'accords.
   ipcMain.handle('pedagogie:analyze-video-vision', async (event, filePath, options = {}) => {
-    if (!(await v2nInstalled())) {
-      return { available: false, reason: 'dependency-missing' };
+    const status = await v2nStatus();
+    if (!status.available) {
+      return { available: false, reason: status.reason, detail: status.detail || null };
     }
 
     const corners = options.corners;
@@ -1539,12 +1783,147 @@ function setupStudioIPC() {
     return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
   });
 
+  // [Claude] — 2026-10-09 — Pédagogie IA : le volume du son, pour la force de chaque attaque.
+  // Narcisse : « Copilot reproduit bien les notes mais ça manque de vélocité : tous les accords
+  // ne sont pas plaqués ni appuyés de la même façon ». L'image d'un clavier dessiné ne dit rien
+  // de la force (les touches s'allument toutes pareil) ; le son, si : à l'instant d'une attaque,
+  // un accord plaqué fort monte plus haut qu'un accord effleuré. Niveau RMS en dB toutes les
+  // 10 ms, sur un mono 8 kHz (assez pour l'énergie d'une attaque, léger à transférer : 12 min
+  // = 72 000 valeurs). src/pedagogie/dynamics.js en tire les vélocités.
+  ipcMain.handle('pedagogie:loudness', async (event, filePath) => {
+    const ffmpeg = await resolveFfmpeg();
+    if (!ffmpeg) return { ok: false, reason: 'ToolsMissing' };
+    const RATE = 8000;
+    const HOP = 80; // 10 ms
+    try {
+      const db = await new Promise((resolve, reject) => {
+        const proc = trackChild(spawn(ffmpeg, [
+          '-v', 'error', '-i', filePath, '-map', '0:a:0', '-ac', '1', '-ar', String(RATE), '-f', 's16le', '-',
+        ], { shell: false }));
+        const out = [];
+        let pending = Buffer.alloc(0);
+        let sum = 0;
+        let count = 0;
+        proc.stdout.on('data', (chunk) => {
+          pending = pending.length ? Buffer.concat([pending, chunk]) : chunk;
+          const usable = pending.length - (pending.length % 2);
+          for (let i = 0; i < usable; i += 2) {
+            const v = pending.readInt16LE(i) / 32768;
+            sum += v * v;
+            count += 1;
+            if (count === HOP) {
+              out.push(Math.round(10 * 10 * Math.log10(sum / HOP + 1e-10)) / 10);
+              sum = 0;
+              count = 0;
+            }
+          }
+          pending = pending.subarray(usable);
+        });
+        let stderr = '';
+        proc.stderr.on('data', (d) => { stderr += d.toString(); });
+        proc.on('error', reject);
+        proc.on('exit', (code) => (code === 0 || out.length ? resolve(out) : reject(new Error(stderr || `ffmpeg exit ${code}`))));
+      });
+      return { ok: true, hop: HOP / RATE, db };
+    } catch (err) {
+      console.warn('[Pedagogie] volume du son illisible :', err.message);
+      return { ok: false, reason: 'Failed', message: err.message };
+    }
+  });
+
+  // [Claude] — 2026-10-03 — Pédagogie IA, lot 5 : vignette d'un tutoriel pour l'accueil
+  // en cartes. Même ffmpeg et même sonde que la lecture des images (resolveFfmpeg,
+  // probeVideoDimensions) : une seule image JPEG, prise un peu après le début (les tutos
+  // s'ouvrent souvent sur un titre), rendue en data URL (la CSP permet img-src data:),
+  // avec la durée. Rien n'est écrit ici : la mémoire des tutos garde la vignette
+  // (src/pedagogie/tutorial-memory.js).
+  ipcMain.handle('pedagogie:thumbnail', async (event, filePath, options = {}) => {
+    const dims = await probeVideoDimensions(filePath);
+    if (dims?.toolsMissing) return { ok: false, reason: 'ToolsMissing' };
+    if (!dims) return { ok: false, reason: 'NoVideoStream' };
+    const ffmpeg = await resolveFfmpeg();
+    if (!ffmpeg) return { ok: false, reason: 'ToolsMissing', duration: dims.duration };
+    const at = thumbnailTime(dims.duration);
+    const width = Math.max(120, Math.min(640, Number(options.width) || 360));
+    try {
+      const jpeg = await new Promise((resolve, reject) => {
+        const chunks = [];
+        let stderr = '';
+        const proc = trackChild(spawn(ffmpeg, thumbnailArgs(filePath, at, width), { shell: false }));
+        proc.stdout.on('data', (d) => chunks.push(d));
+        proc.stderr.on('data', (d) => { stderr += d.toString(); });
+        proc.on('error', reject);
+        proc.on('exit', (code) => (code === 0 && chunks.length ? resolve(Buffer.concat(chunks)) : reject(new Error(stderr || `ffmpeg exit ${code}`))));
+      });
+      return { ok: true, dataUrl: `data:image/jpeg;base64,${jpeg.toString('base64')}`, duration: dims.duration, width: dims.width, height: dims.height, at };
+    } catch (err) {
+      return { ok: false, reason: 'failed', detail: String(err?.message || err).split('\n')[0], duration: dims.duration };
+    }
+  });
+
+  // [Claude] — 2026-09-25 — Binaire ffmpeg : celui du système, sinon celui
+  // d'imageio-ffmpeg (paquet Python déjà requis pour l'audio). Sans ffprobe, la
+  // sonde passe par ffmpeg ; sans aucun des deux, l'écran le dit et se rabat sur
+  // le son (avant : « pas de piste vidéo » et arrêt).
+  let ffmpegBinaryPromise = null;
+  function resolveFfmpeg() {
+    if (!ffmpegBinaryPromise) {
+      ffmpegBinaryPromise = new Promise((resolve) => {
+        const fromImageio = () => {
+          let out = '';
+          const py = spawn(getPythonCommand(), ['-c', 'import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())'], { shell: false });
+          py.stdout.on('data', (d) => { out += d.toString(); });
+          py.on('error', () => resolve(null));
+          py.on('exit', (code) => resolve(code === 0 && out.trim() ? out.trim().split('\n').pop() : null));
+        };
+        const probe = spawn('ffmpeg', ['-version'], { shell: false });
+        let settled = false;
+        probe.on('error', () => { if (!settled) { settled = true; fromImageio(); } });
+        probe.on('exit', (code) => {
+          if (settled) return;
+          settled = true;
+          if (code === 0) resolve('ffmpeg');
+          else fromImageio();
+        });
+      });
+    }
+    return ffmpegBinaryPromise;
+  }
+
+  /** Sonde de secours sans ffprobe : ffmpeg -i écrit les dimensions et la durée. */
+  async function probeWithFfmpeg(filePath) {
+    const ffmpeg = await resolveFfmpeg();
+    if (!ffmpeg) return { toolsMissing: true };
+    return new Promise((resolve) => {
+      let err = '';
+      const proc = spawn(ffmpeg, ['-hide_banner', '-i', filePath], { shell: false });
+      proc.stderr.on('data', (d) => { err += d.toString(); });
+      proc.on('error', () => resolve({ toolsMissing: true }));
+      proc.on('exit', () => {
+        // [Claude] — 2026-09-25 — Les vidéos YouTube portent souvent une image de
+        // couverture (« attached pic ») déclarée comme piste vidéo : on l'ignore.
+        const size = /Stream #[^\n]*Video:(?![^\n]*attached pic)[^\n]*?(\d{2,5})x(\d{2,5})/.exec(err);
+        if (!size) { resolve(null); return; }
+        const d = /Duration:\s*(\d+):(\d{2}):(\d{2}(?:\.\d+)?)/.exec(err);
+        const duration = d ? Number(d[1]) * 3600 + Number(d[2]) * 60 + Number(d[3]) : 0;
+        resolve({ width: Number(size[1]), height: Number(size[2]), duration });
+      });
+    });
+  }
+
   /** Dimensions et durée de la piste vidéo, via ffprobe (compagnon de ffmpeg). */
-  function probeVideoDimensions(filePath) {
+  async function probeVideoDimensions(filePath) {
+    const viaFfprobe = await probeWithFfprobe(filePath);
+    if (viaFfprobe && !viaFfprobe.unavailable) return viaFfprobe;
+    // ffprobe absent (ou en échec) : ffmpeg donne les mêmes informations.
+    return probeWithFfmpeg(filePath);
+  }
+
+  function probeWithFfprobe(filePath) {
     return new Promise((resolve) => {
       const proc = spawn('ffprobe', [
         '-v', 'error',
-        '-select_streams', 'v:0',
+        '-select_streams', 'V:0', // V : pistes vidéo hors image de couverture
         '-show_entries', 'stream=width,height',
         '-show_entries', 'format=duration',
         '-of', 'json',
@@ -1552,9 +1931,9 @@ function setupStudioIPC() {
       ], { shell: false });
       let out = '';
       proc.stdout.on('data', (d) => { out += d.toString(); });
-      proc.on('error', () => resolve(null));
+      proc.on('error', () => resolve({ unavailable: true }));
       proc.on('exit', (code) => {
-        if (code !== 0) { resolve(null); return; }
+        if (code !== 0) { resolve({ unavailable: true }); return; }
         try {
           const json = JSON.parse(out);
           const stream = json.streams?.[0];
@@ -1570,11 +1949,20 @@ function setupStudioIPC() {
   }
 
   /** Diffuse les images décodées, une par une, sans jamais toutes les garder. */
-  function streamFrames(filePath, fps, frameBytes, onFrame) {
+  async function streamFrames(filePath, fps, frameBytes, onFrame, range = null) {
+    const ffmpeg = (await resolveFfmpeg()) || 'ffmpeg';
+    // [Claude] — 2026-10-09 — `range` : n'en lire qu'un extrait (relecture fine d'un passage
+    // rapide). `-ss` avant `-i` : saut précis (ffmpeg décode depuis l'image clé d'avant).
+    const rangeArgs = range && range.duration > 0
+      ? ['-ss', String(Math.max(0, range.start)), '-t', String(range.duration)]
+      : [];
     return new Promise((resolve, reject) => {
-      const proc = trackChild(spawn('ffmpeg', [
+      const proc = trackChild(spawn(ffmpeg, [
         '-v', 'error',
+        ...rangeArgs,
         '-i', filePath,
+        // [Claude] — 2026-09-25 — La vraie vidéo, jamais l'image de couverture.
+        '-map', '0:V:0',
         '-vf', `fps=${fps}`,
         '-f', 'rawvideo',
         '-pix_fmt', 'rgb24',
@@ -1634,19 +2022,8 @@ function setupStudioIPC() {
     const playbackWav = path.join(tmpDir, 'audio.wav');
 
     try {
-      const pianoStem = await findStudioPianoStemForFile(filePath);
-      if (pianoStem) {
-        console.log('[Analyzer] using Studio piano stem:', pianoStem);
-      }
-
-      // Find bass stem if requested
-      const bassStem = options.analyzeBass !== false
-        ? await findStudioBassStemForFile(filePath) : null;
-      if (bassStem) {
-        console.log('[Analyzer] using Studio bass stem for bass detection:', bassStem);
-      }
-
       // Durée du fichier original importé, indépendamment du stem utilisé pour l'analyse.
+      // Lue en premier : elle sert à savoir si les pistes du Studio couvrent tout le morceau.
       let duration = null;
       try {
         const probeJson = await runAudioProcessor(['probe', filePath]);
@@ -1655,6 +2032,18 @@ function setupStudioIPC() {
         duration = probeResult.duration;
       } catch (probeErr) {
         console.warn('[Analyzer] probe duration failed:', probeErr.message);
+      }
+
+      const pianoStem = await findStudioStemForFile(filePath, 'piano', duration);
+      if (pianoStem) {
+        console.log('[Analyzer] using Studio piano stem:', pianoStem);
+      }
+
+      // Find bass stem if requested
+      const bassStem = options.analyzeBass !== false
+        ? await findStudioStemForFile(filePath, 'bass', duration) : null;
+      if (bassStem) {
+        console.log('[Analyzer] using Studio bass stem for bass detection:', bassStem);
       }
 
       // La lecture utilise toujours le mix original.
@@ -1862,71 +2251,67 @@ app.whenReady().then(() => {
   purgeLegacyTempDirs().catch(() => {});
 
   // Poll native MIDI ports so hot-plugged keyboards/synths are detected automatically.
-  // [OpenCode] — 2026-07-04 — Even when a port is open we still scan to detect hot-unplug.
-  midiPollTimer = setInterval(() => {
+  // [Claude] — 2026-10-02 — Le scan est confié au surveillant (src/midi-ports.js) :
+  // port suivi par son nom, rouvert s'il revient sous un autre numéro, jamais notre
+  // propre port virtuel. Premier passage tout de suite : la fenêtre lit l'état par
+  // midi:get-status au chargement, plus besoin qu'elle ouvre un port elle-même.
+  const scanMidi = (reason) => {
     if (nativeMidiFailed) return;
-    const inputs = getMidiInputs(true);
-
-    // [Claude] — 2026-07-03 — Hot-plug handling : if the currently opened port disappeared, close it and notify renderer.
-    if (currentInputId !== null) {
-      const stillAvailable = inputs.some((input) => input.id === currentInputId);
-      if (!stillAvailable) {
-        console.log('[MIDI] current port lost, closing input');
-        closeMidiInput();
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('midi-port-lost', { previousId: currentInputId, previousName: currentInputName });
-        }
-      }
+    try {
+      if (reason === 'resume') inputWatcher.reconnect(reason);
+      else inputWatcher.tick(reason);
+    } catch (err) {
+      // Un port qui refuse de s'ouvrir ne doit pas arrêter les scans suivants.
+      console.error('[MIDI] scan impossible :', err.message);
     }
+  };
+  scanMidi('startup');
+  midiPollTimer = setInterval(() => scanMidi('poll'), 2000);
 
-    // [OpenCode] — 2026-07-04 — If current port vanished but same name came back with a new id, reconnect.
-    if (!midiInput && currentInputName) {
-      reconnectByName(inputs);
-    }
-
-    if (inputsChanged(inputs, lastSeenInputs)) {
-      console.log('[MIDI] ports changed:', inputs.map((i) => i.name).join(', ') || 'none');
-      lastSeenInputs = inputs;
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('midi-devices-changed', inputs);
-      }
-    }
-
-    // [OpenCode] — 2026-07-04 — Auto-connect a hardware device if nothing is open yet.
-    if (!midiInput && inputs.length > 0) {
-      autoOpenHardwareInput(inputs);
-    }
-  }, 2000);
+  // [Claude] — 2026-10-02 — Réveil de veille : l'USB est ré-énuméré. Sous Linux le
+  // numéro ALSA change (le scan le voit) ; sous Windows et macOS, ni le nom ni la
+  // place ne changent — rien ne trahirait une connexion morte. On rouvre donc le
+  // clavier après un court délai, le temps que l'USB revienne.
+  powerMonitor.on('resume', () => {
+    setTimeout(() => scanMidi('resume'), 1500);
+  });
 
   ipcMain.handle('midi:get-inputs', () => {
     return getMidiInputs();
   });
 
+  // [Claude] — 2026-10-02 — État réel de l'entrée, pour l'affichage (« Connecté »).
+  ipcMain.handle('midi:get-status', () => inputWatcher.status());
+
+  // Rafraîchir = reconnecter (bouton du pied de page, pastille « Reconnecter » de la
+  // sous-navigation) : fermer, rescanner, rouvrir — l'équivalent d'un débranchement.
   ipcMain.handle('midi:refresh-inputs', () => {
-    // Close the active input before re-enumerating to avoid ALSA 'port in use' issues
-    closeMidiInput();
-    closeMidiInputEnumerator();
-    const inputs = getMidiInputs();
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('midi-devices-changed', inputs);
-    }
-    // [OpenCode] — 2026-07-04 — After a manual refresh, try to auto-connect a hardware device.
-    const auto = autoOpenHardwareInput(inputs);
-    if (auto) {
-      inputs.forEach((input) => sendMidiLog('port', { id: input.id, name: input.name }));
-    }
-    return inputs;
+    if (nativeMidiFailed) return [];
+    inputWatcher.reconnect('reconnect');
+    return getMidiInputs();
   });
 
-  // [Claude] — 2026-07-03 — Return the actually opened port id so the renderer can track the current input
-  ipcMain.handle('midi:open-input', (event, portId) => {
-    const result = openMidiInput(portId);
-    return result;
-  });
+  // Choix à la main dans le menu : ce port devient celui qu'on veut garder.
+  ipcMain.handle('midi:open-input', (event, portId) => inputWatcher.choose(portId));
 
   ipcMain.handle('midi:close-input', () => {
-    closeMidiInput();
+    inputWatcher.close();
     return true;
+  });
+
+  // [Claude] — 2026-09-24 — Sortie MIDI : la démo des mouvements et « Écouter »
+  // jouent sur le VST de l'utilisateur (Narcisse : « le rendu serait bien
+  // meilleur »). Ports existants, plus un port virtuel hors Windows (RtMidi) :
+  // l'hôte du VST s'y branche sans câble MIDI virtuel à installer.
+  ipcMain.handle('midi:get-outputs', () => getMidiOutputs());
+  ipcMain.handle('midi:open-output', (event, outputId) => openMidiOutput(outputId));
+  ipcMain.on('midi:send', (event, bytes) => {
+    if (!midiOutput || !Array.isArray(bytes)) return;
+    try {
+      midiOutput.sendMessage(bytes);
+    } catch (err) {
+      console.warn('[MIDI] envoi impossible :', err.message);
+    }
   });
 
   ipcMain.handle('system:audio-groups', () => {
@@ -1958,6 +2343,7 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   closeMidiInput();
   closeMidiInputEnumerator();
+  closeMidiOutput();
   if (process.platform !== 'darwin') app.quit();
 });
 

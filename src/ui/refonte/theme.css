@@ -469,7 +469,8 @@
 }
 
 :root[data-skin] .footer-left,
-:root[data-skin] .footer-midi {
+:root[data-skin] .footer-midi,
+:root[data-skin] .footer-midi-out {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -839,8 +840,10 @@
 
 /* Raccourci vers la bibliothèque depuis l'écran d'import de l'Analyse. */
 :root[data-skin] .analyzer-library-open {
-  display: block;
-  margin: 18px auto 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px auto 0;
   padding: 9px 16px;
   background: transparent;
   border: 1px solid var(--r-border);

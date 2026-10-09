@@ -51,12 +51,10 @@
   color: var(--r-text-faint);
 }
 
-:root[data-skin='global'] #analysis-tab .analyzer-section-panels,
-:root[data-skin='v2'] #analysis-tab .analyzer-section-panels,
-:root[data-skin='global'] #analysis-tab .analyzer-panel,
-:root[data-skin='v2'] #analysis-tab .analyzer-panel {
-  background: var(--r-ground);
-}
+/* [Correctif 02/10] — la scène et ses panneaux étaient peints en --r-ground
+   (#141416, un gris neutre) par-dessus le fond violet-noir d'Astra (#121019) :
+   une dalle rectangulaire se détachait derrière les cartes. L'onglet Analyse
+   est passé au système Astra ; c'est --an-bg qui doit transparaître. */
 
 /* Progress bar */
 :root[data-skin='global'] #analysis-tab .analyzer-progress-fill,
@@ -128,69 +126,13 @@
 
 /* ========================================================================== *
  *  BANDE D'ACCORDS (timeline)                                                 *
+ *  [Correctif 02/10] — plus rien ici. La frise est gouvernée par la couche    *
+ *  Astra (astra-analysis.css + astra-bridge.css). Les règles de skin qui      *
+ *  vivaient à cet endroit avaient une spécificité supérieure : les pastilles  *
+ *  d'accords gardaient l'habillage d'avant la refonte (chip gris, filet       *
+ *  d'accent inséré, coins à 5 px) pendant que la barre, les onglets et les    *
+ *  cartes suivaient Astra. Deux langages visuels dans la même vue.            *
  * ========================================================================== */
-:root[data-skin='global'] #analysis-tab .analyzer-timeline-block,
-:root[data-skin='v2'] #analysis-tab .analyzer-timeline-block {
-  background: var(--r-surface-chip);
-  border-color: var(--r-border);
-  color: var(--r-text);
-  font-family: var(--r-font-title);
-}
-
-/* ---- Global : étiquettes rectangulaires, filet d'accent (§5) ---- */
-:root[data-skin='global'] #analysis-tab .analyzer-timeline-block {
-  border-radius: 5px;
-}
-:root[data-skin='global'] #analysis-tab .analyzer-timeline-block.role-structural {
-  border-color: rgba(139, 108, 245, 0.5);
-  box-shadow: inset 3px 0 0 var(--r-accent);
-}
-:root[data-skin='global'] #analysis-tab .analyzer-timeline-block.role-passing {
-  color: var(--r-text-muted);
-}
-:root[data-skin='global'] #analysis-tab .analyzer-timeline-block.role-uncertain {
-  color: var(--r-text-faint);
-}
-:root[data-skin='global'] #analysis-tab .analyzer-timeline-block.current {
-  background: var(--r-accent-soft);
-  border-color: var(--r-accent);
-  color: var(--r-text);
-}
-
-/* ---- v2 : pilules 100px, dégradé sur l'actif ---- */
-:root[data-skin='v2'] #analysis-tab .analyzer-timeline-block {
-  border-radius: 100px;
-}
-:root[data-skin='v2'] #analysis-tab .analyzer-timeline-block.role-structural {
-  background: var(--r-accent-soft);
-  border-color: rgba(139, 108, 245, 0.5);
-}
-:root[data-skin='v2'] #analysis-tab .analyzer-timeline-block.role-passing {
-  color: var(--r-text-muted);
-}
-:root[data-skin='v2'] #analysis-tab .analyzer-timeline-block.role-uncertain {
-  color: var(--r-text-faint);
-}
-:root[data-skin='v2'] #analysis-tab .analyzer-timeline-block.current {
-  background: var(--r-grad);
-  border-color: transparent;
-  color: #fff;
-}
-
-/* ---- Sélection : contour blanc neutre dans les deux skins (§5 : Narcisse a
-        tranché contre le corail historique) ---- */
-:root[data-skin='global'] #analysis-tab .analyzer-timeline-block.selected,
-:root[data-skin='v2'] #analysis-tab .analyzer-timeline-block.selected {
-  outline: 2px solid #ffffff;
-  outline-offset: -2px;
-}
-
-/* Légende : pastilles cohérentes avec la bande */
-:root[data-skin='global'] #analysis-tab .analyzer-legend-swatch.role-structural,
-:root[data-skin='v2'] #analysis-tab .analyzer-legend-swatch.role-structural {
-  border-color: var(--r-accent);
-  box-shadow: inset 2px 0 0 var(--r-accent);
-}
 
 /* ========================================================================== *
  *  §3.1 — SOUS-ONGLET « ACCORD SÉLECTIONNÉ »                                  *
@@ -208,36 +150,11 @@
 }
 
 /* ---- Frise des accords ----
-   Dans les maquettes, la frise est une bande fine posée au-dessus des
-   sous-onglets : on y lit la suite harmonique d'un regard, sans qu'elle
-   accapare l'écran. L'implémentation lui donnait 88 px de haut, soit un tiers
-   de la zone de travail, ce qui repoussait le contenu du sous-onglet hors de
-   vue et obligeait à défiler pour lire une fiche d'accord. */
-#analysis-tab .analyzer-timeline-wrapper {
-  height: 62px;
-}
-
-#analysis-tab .analyzer-timeline-block {
-  top: 6px;
-  bottom: 6px;
-  font-size: 0.86rem;
-}
-
-/* La barre de défilement horizontale de la frise reste discrète mais visible :
-   elle signale qu'il y a d'autres accords à droite. */
-#analysis-tab .analyzer-timeline-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: var(--r-border-strong) transparent;
-}
-
-#analysis-tab .analyzer-timeline-scroll::-webkit-scrollbar {
-  height: 6px;
-}
-
-#analysis-tab .analyzer-timeline-scroll::-webkit-scrollbar-thumb {
-  background: var(--r-border-strong);
-  border-radius: 100px;
-}
+   [Correctif 02/10] — ce bloc habillait .analyzer-timeline-wrapper /
+   .analyzer-timeline-scroll, deux conteneurs supprimés par la refonte Astra, et
+   posait sur les blocs un top/bottom de 6 px qui se battait avec le pont.
+   La hauteur de la piste et la barre de défilement vivent maintenant dans
+   astra-bridge.css, au même endroit que le positionnement des pastilles. */
 
 /* Mise en page du sous-onglet « Accord sélectionné » — maquettes 03 et 09.
    Les deux maquettes montrent la même chose : une colonne unique, centrée, où
@@ -468,6 +385,20 @@
 :root[data-skin='global'] #analysis-tab .analyzer-import-hero h2,
 :root[data-skin='v2'] #analysis-tab .analyzer-import-hero h2 {
   font-family: var(--r-font-title);
+}
+
+/* L'action principale de l'écran d'accueil. Elle doit se distinguer du fond au
+   premier regard : c'est le seul geste que l'onglet attend de vous. Posé ici
+   parce que la règle de skin ci-dessus est plus spécifique que la base. */
+:root[data-skin='global'] #analysis-tab .analyzer-import-card.is-lead,
+:root[data-skin='v2'] #analysis-tab .analyzer-import-card.is-lead {
+  background: linear-gradient(135deg, var(--r-accent-soft), var(--r-surface) 72%);
+  border-color: var(--r-accent);
+}
+:root[data-skin='global'] #analysis-tab .analyzer-import-card.is-lead:hover,
+:root[data-skin='v2'] #analysis-tab .analyzer-import-card.is-lead:hover {
+  border-color: var(--r-accent);
+  box-shadow: 0 10px 28px -16px var(--r-accent);
 }
 
 /* ========================================================================== *

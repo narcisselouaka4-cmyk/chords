@@ -40,6 +40,17 @@ export function getWebMidiInputs() {
   return inputs;
 }
 
+// [Claude] — 2026-09-24 — Sorties Web MIDI (repli hors Electron) pour la démo des mouvements.
+export function getWebMidiOutputs() {
+  if (!midiAccess) return [];
+  return [...midiAccess.outputs.values()].map((output) => ({ id: output.id, name: output.name, device: output }));
+}
+
+export function findWebMidiOutput(outputId) {
+  if (!midiAccess || outputId == null) return null;
+  return midiAccess.outputs.get(outputId) || null;
+}
+
 export function openWebMidiInput(inputId, callbacks) {
   if (!midiAccess) return false;
   let id = 0;

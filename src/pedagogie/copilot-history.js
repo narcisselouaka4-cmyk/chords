@@ -141,6 +141,26 @@ export async function saveHistory(conversationId, tutorialPath, messages) {
 }
 
 /**
+ * Supprime toutes les conversations dont la liste de messages est vide.
+ * Retourne le nombre de conversations supprimées.
+ *
+ * @returns {Promise<number>}
+ */
+export async function deleteEmptyConversations() {
+  const all = await listAllConversations();
+  let removed = 0;
+  for (const item of all) {
+    const history = await loadHistory(item.conversationId);
+    const messages = history?.messages;
+    if (!messages || messages.length === 0) {
+      const ok = await deleteConversation(item.conversationId);
+      if (ok) removed += 1;
+    }
+  }
+  return removed;
+}
+
+/**
  * Supprime une conversation par son ID.
  *
  * @param {string} conversationId
@@ -223,6 +243,8 @@ export async function listAllConversations() {
 export function labelForConversationPath(tutorialPath) {
   if (!tutorialPath) return 'Conversation';
   if (tutorialPath === AUTONOMOUS_HISTORY_KEY) return 'Mode autonome';
+  // [Claude] — 2026-09-25 — Conversation d'un exercice (« exercice:<titre> ») : le titre tel quel (C6/9 garde sa barre).
+  if (tutorialPath.startsWith('exercice:')) return tutorialPath.slice('exercice:'.length) || 'Exercice';
   const name = tutorialPath.split('/').pop();
   return name || 'Tutoriel';
 }

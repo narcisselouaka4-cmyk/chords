@@ -66,21 +66,12 @@ export const CHAPTERS = [
         target: '#analyzer-import-audio-btn',
         title: 'Importer un fichier audio',
         body:
-          "Formats acceptés : MP3, WAV, M4A. L'analyse porte toujours sur le fichier "
+          "Formats acceptés : MP3, WAV, M4A, MP4 et MIDI. L'analyse porte toujours sur le fichier "
           + "d'origine — rien n'est modifié sur votre disque.",
       },
       {
-        id: 'import-video',
-        target: '#analyzer-import-video-btn',
-        title: 'Ou une vidéo',
-        body:
-          "Un fichier MP4 fonctionne aussi : la bande son en est extraite pour l'analyse. "
-          + "L'application vous demandera ensuite s'il s'agit d'un tutoriel pédagogique "
-          + "ou d'un morceau, ce qui adapte l'interprétation.",
-      },
-      {
         id: 'import-library',
-        target: '#analyzer-library-list',
+        target: '#analyzer-library-open',
         title: 'Votre bibliothèque',
         body:
           "Tout morceau importé revient ici. Le menu « ⋮ » de chaque ligne permet de le "
