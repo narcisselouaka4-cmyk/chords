@@ -152,6 +152,24 @@ function testChordLabelSeeks() {
   console.log('✅ Frise — un clic sur une étiquette place la lecture au début de l’accord');
 }
 
+// ── Test 8 : on voit où en est la lecture dans l'accord ──
+function testChordProgressHighlight() {
+  const js = readText('src/ui/analyzer-tab.js');
+  const css = readText('src/ui/refonte/astra-bridge.css');
+  const html = readText('src/index.html');
+  const progress = /block\.style\.setProperty\('--chord-progress', chordProgress\.toFixed\(4\)\)/.test(js)
+    && /block\.classList\.toggle\('upcoming', activeIndex >= 0 && idx === activeIndex \+ 1\)/.test(js);
+  const drawn = /\.analyzer-timeline-block\.current::before \{[^}]*scaleX\(var\(--chord-progress, 0\)\)/.test(css)
+    && /\.analyzer-timeline-block\.selected:not\(\.current\) \{[^}]*outline:/.test(css);
+  const hero = /id="analyzer-hero-progress-fill"/.test(html) && /id="analyzer-hero-next"/.test(html)
+    && /heroKey === heroRenderedKey/.test(js);
+  if (!progress || !drawn || !hero) {
+    console.error('❌ Frise — progression dans l’accord en cours', { progress, drawn, hero });
+    process.exit(1);
+  }
+  console.log('✅ Frise — accord en cours rempli au fil de la lecture, suivant annoncé, sélection distincte');
+}
+
 // ── Exécution ──
 console.log('=== Tests contrat DOM Analyse ===\n');
 testNoInlineDisplayNone();
@@ -161,4 +179,5 @@ testSidebarIds();
 testStateMapping();
 testMiniKeyboardGradientIds();
 testChordLabelSeeks();
+testChordProgressHighlight();
 console.log('\n✅ Tous les tests DOM Analyse passent.');

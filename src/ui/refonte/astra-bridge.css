@@ -2445,3 +2445,76 @@
 @media (max-width: 640px) {
   :is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-chat-demos.copilot-example { flex-direction: column; }
 }
+
+/* ---- Où en est la lecture dans l'accord (09/10/2026) ---------------------
+   Narcisse : « quand le lecteur avance, on ne sait pas où l'on se situe au niveau de
+   l'accord ». Avant, l'accord en cours et l'accord sélectionné avaient le même aspect.
+   · En cours (.current) : bordure pleine d'accent, l'accord se remplit de gauche à droite
+     (--chord-progress, écrit par analyzer-tab.js) avec une barre pleine en bas, léger relief.
+   · Suivant (.upcoming) : bordure d'accent pointillée, pour l'anticiper.
+   · Sélectionné (.selected, au clic) : contour seul, sans remplissage. */
+#analysis-tab .analyzer-timeline-block { overflow: hidden; isolation: isolate; }
+#analysis-tab .analyzer-timeline-block.selected:not(.current) {
+  background: var(--an-surface-raised);
+  color: var(--an-text);
+  box-shadow: none;
+  outline: 2px solid var(--an-accent);
+  outline-offset: -3px;
+}
+#analysis-tab .analyzer-timeline-block.current {
+  background: var(--an-accent-soft);
+  border: 2px solid var(--an-accent);
+  color: var(--an-text);
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--an-accent) 22%, transparent), 0 10px 24px -12px var(--an-accent-glow);
+  z-index: 5;
+}
+#analysis-tab .analyzer-timeline-block.current::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: color-mix(in srgb, var(--an-accent) 38%, transparent);
+  transform-origin: left center;
+  transform: scaleX(var(--chord-progress, 0));
+}
+#analysis-tab .analyzer-timeline-block.current::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 4px;
+  width: 100%;
+  background: var(--an-accent);
+  transform-origin: left center;
+  transform: scaleX(var(--chord-progress, 0));
+}
+#analysis-tab .analyzer-timeline-block.current .analyzer-timeline-label { font-weight: 750; }
+#analysis-tab .analyzer-timeline-block.upcoming:not(.current) {
+  border-style: dashed;
+  border-color: var(--an-accent);
+}
+
+#analysis-tab .an-hero-progress {
+  width: min(280px, 70%);
+  height: 4px;
+  margin: 10px auto 0;
+  border-radius: 999px;
+  background: var(--an-border-soft, var(--an-border));
+  overflow: hidden;
+}
+#analysis-tab .an-hero-progress span {
+  display: block;
+  height: 100%;
+  background: var(--an-accent);
+  transform-origin: left center;
+  transform: scaleX(0);
+}
+#analysis-tab .an-hero-next {
+  min-height: 1.2em;
+  margin-top: 6px;
+  font: 11px var(--an-mono);
+  letter-spacing: .04em;
+  color: var(--an-text-muted);
+  text-align: center;
+}

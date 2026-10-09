@@ -148,6 +148,8 @@ const els = {
   heroName: document.getElementById('analyzer-hero-name'),
   heroNotes: document.getElementById('analyzer-hero-notes'),
   heroKeyboard: document.getElementById('analyzer-hero-keyboard'),
+  heroProgressFill: document.getElementById('analyzer-hero-progress-fill'),
+  heroNext: document.getElementById('analyzer-hero-next'),
   inspectorEmpty: document.getElementById('analyzer-inspector-empty'),
   inspectorContent: document.getElementById('analyzer-inspector-content'),
   inspectorChord: document.getElementById('analyzer-inspector-chord'),
@@ -1433,12 +1435,20 @@ function renderInspector(segment) {
   }
 }
 
+// Dernier accord dessiné dans la carte : on ne redessine (clavier compris) qu'au changement
+// d'accord, pas à chaque image de la lecture.
+let heroRenderedKey = null;
+
 function renderHeroChord(chord) {
   if (!els.hero) return;
   if (!chord) {
+    heroRenderedKey = null;
     els.hero.style.display = 'none';
     return;
   }
+  const heroKey = `${chord.segmentId}|${getEffectiveChord(chord)}`;
+  if (heroKey === heroRenderedKey && els.hero.style.display !== 'none') return;
+  heroRenderedKey = heroKey;
 
   const effectiveChordStr = getEffectiveChord(chord);
   const display = deriveChordDisplay(effectiveChordStr);
@@ -1497,14 +1507,29 @@ function updatePlaybackPosition(currentTime) {
     }
   }
 
+  // [Claude] — 2026-10-09 — Narcisse : « quand le lecteur avance, on ne sait pas où l'on se
+  // situe au niveau de l'accord ». L'accord en cours se remplit de gauche à droite au fil de la
+  // lecture (--chord-progress, 0 → 1), l'accord suivant est annoncé (.upcoming), et la carte
+  // « Accord à l'écoute » montre la même progression et le nom de l'accord suivant.
+  const activeChord = activeIndex >= 0 ? chords[activeIndex] : null;
+  const span = activeChord ? Math.max(activeChord.endTime - activeChord.startTime, 0.001) : 1;
+  const chordProgress = activeChord ? Math.max(0, Math.min(1, (clamped - activeChord.startTime) / span)) : 0;
   const blocks = els.chordTimelineInner.querySelectorAll('.analyzer-timeline-block');
   blocks.forEach((block, idx) => {
-    block.classList.toggle('current', idx === activeIndex);
+    const isCurrent = idx === activeIndex;
+    block.classList.toggle('current', isCurrent);
+    block.classList.toggle('upcoming', activeIndex >= 0 && idx === activeIndex + 1);
+    if (isCurrent) block.style.setProperty('--chord-progress', chordProgress.toFixed(4));
+    else block.style.removeProperty('--chord-progress');
   });
 
   // Hero chord
-  const activeChord = activeIndex >= 0 ? chords[activeIndex] : null;
   renderHeroChord(activeChord);
+  if (els.heroProgressFill) els.heroProgressFill.style.transform = `scaleX(${chordProgress.toFixed(4)})`;
+  if (els.heroNext) {
+    const next = activeIndex >= 0 ? chords[activeIndex + 1] : null;
+    els.heroNext.textContent = next ? `Ensuite : ${getEffectiveChord(next)}` : '';
+  }
 
   // Auto-scroll horizontal : défiler uniquement quand le segment approche du bord.
   if (activeIndex >= 0 && activeIndex !== lastAutoScrollIndex && blocks[activeIndex]) {
