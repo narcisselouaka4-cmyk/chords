@@ -80,5 +80,35 @@ const nCoarse = samplesToNoteEvents(cM, 1 / 8).length;
 const nFine = samplesToNoteEvents(mM, 1 / 8).length;
 check(`montuno à 190 : ${nCoarse} attaques vues à 8 i/s, ${nFine} avec la relecture (${montuno.length} jouées)`, nFine >= montuno.length * 0.95 && nCoarse < montuno.length * 0.8);
 
+// [Claude] — 2026-10-09 — Un lick si rapide que la lecture à 8 i/s n'en voit que quelques notes
+// (Narcisse : « Copilot ne joue que 4 ou 5 des 19 à 26 notes ») : 26 notes en 2 s, chaque touche
+// allumée 35 ms. Il doit quand même être relu, du début à la fin.
+for (const phase of [0, 0.04, 0.09]) {
+  const R = 20 + phase;
+  const fast = [];
+  for (let m = 96; m >= 36 && fast.length < 26; m -= 1) if (WHITE.includes(m % 12)) fast.push(m);
+  const notesF = [
+    ...[48, 52, 55, 60].map((midi) => ({ midi, start: 18.5, end: 19.8 })),
+    ...fast.map((midi, i) => ({ midi, start: R + i * (2 / 26), end: R + i * (2 / 26) + 0.035 })),
+    ...[41, 53, 57, 60].map((midi) => ({ midi, start: 22.4, end: 24 })),
+  ];
+  const litF = (t) => notesF.filter((n) => t >= n.start && t < n.end).map((n) => ({ midi: n.midi }));
+  const readF = (fps, a, b) => { const o = []; for (let i = Math.ceil(a * fps - 1e-9); i / fps < b; i += 1) { const t = Math.round((i / fps) * 1000) / 1000; o.push({ t, keys: litF(t) }); } return o; };
+  const cF = readF(8, 0, 30);
+  const wF = busyWindows(cF, { duration: 30 });
+  const mF = mergeFineSamples(cF, wF.map((w) => ({ ...w, samples: readF(FINE_FPS, w.start, w.end) })));
+  const inLick = (ns) => ns.filter((n) => n.start >= R - 0.01 && n.start < R + 2).length;
+  const seen8 = inLick(samplesToNoteEvents(cF, 1 / 8));
+  const seenAll = inLick(samplesToNoteEvents(mF, 1 / 8));
+  check(`lick de 26 notes en 2 s, touches allumées 35 ms (décalage ${phase}) : ${seen8} vues à 8 i/s, ${seenAll} après relecture`,
+    wF.some((w) => w.start <= R && w.end >= R + 2) && seenAll >= 24, JSON.stringify(wF));
+}
+// Une ballade (accords tenus 1,5 s) n'est pas relue.
+const ballad = [];
+for (let k = 0; k < 8; k += 1) for (const midi of [48, 55, 64, 71]) ballad.push({ midi, start: k * 2, end: k * 2 + 1.5 });
+const litB = (t) => ballad.filter((n) => t >= n.start && t < n.end).map((n) => ({ midi: n.midi }));
+const cB = []; for (let i = 0; i / 8 < 16; i += 1) cB.push({ t: i / 8, keys: litB(i / 8) });
+check('une ballade en accords tenus n\'est pas relue', busyWindows(cB, { duration: 16 }).length === 0);
+
 console.log(`\n=== Résultat : ${passed}/${passed + failed} contrôles passés ===`);
 if (failed) process.exit(1);

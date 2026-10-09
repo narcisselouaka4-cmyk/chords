@@ -366,6 +366,21 @@ export function lineNotes(notes, chordNotes = new Set()) {
     const durations = run.map((n) => n.end - n.start).sort((a, b) => a - b);
     const median = durations[Math.floor(durations.length / 2)];
     if (small / (run.length - 1) >= 0.75 && median <= LINE_DURATION) for (const n of run) kept.add(n);
+    // [Claude] — 2026-10-09 — Un lick très rapide (une note toutes les 0,15 s au plus, 5 notes et
+    // plus, dans un même sens) est son jeu, même par grands intervalles : celui de « Gospel Piano
+    // Harmony Secrets » (0:20–0:22) descend de trois octaves par arpèges, en parlant. La voix ne
+    // donne jamais 5 notes en 0,6 s qui descendent (ou montent) toutes.
+    else {
+      // Ses morceaux très rapides, pris un à un (le lick peut être suivi de notes plus lentes).
+      let k = 0;
+      while (k < run.length) {
+        let j = k;
+        while (j + 1 < run.length && run[j + 1].start - run[j].start <= FAST_LINE_STEP) j += 1;
+        const part = run.slice(k, j + 1);
+        if (isFastLine(part)) for (const n of part) kept.add(n);
+        k = j + 1;
+      }
+    }
   };
   let run = [];
   for (const n of singles) {
@@ -374,6 +389,23 @@ export function lineNotes(notes, chordNotes = new Set()) {
   }
   close(run);
   return kept;
+}
+
+/** Ligne très rapide : FAST_LINE_NOTES notes au moins, FAST_LINE_STEP s au plus entre deux, et
+ * FAST_LINE_DIRECTION des pas dans le même sens. */
+export const FAST_LINE_NOTES = 5;
+export const FAST_LINE_STEP = 0.15;
+export const FAST_LINE_DIRECTION = 0.7;
+function isFastLine(run) {
+  if (run.length < FAST_LINE_NOTES) return false;
+  if (run.some((n, i) => i > 0 && n.start - run[i - 1].start > FAST_LINE_STEP)) return false;
+  let up = 0;
+  let down = 0;
+  for (let i = 1; i < run.length; i += 1) {
+    if (run[i].midi > run[i - 1].midi) up += 1;
+    else if (run[i].midi < run[i - 1].midi) down += 1;
+  }
+  return Math.max(up, down) / (run.length - 1) >= FAST_LINE_DIRECTION;
 }
 
 /** Part de [a, b] couverte par les phrases. */

@@ -347,5 +347,46 @@ testPassageExample();
 testApproachNotes();
 testGraceAndRuns();
 
+// [Claude] — 2026-10-09 — Un montuno de salsa relevé au son (« Clase dos », 5:29–5:37) : notes
+// courtes et répétées, sans pédale. Le rejeu doit rester détaché (aucune pédale ajoutée, ni celle,
+// trompeuse, de la transcription), chaque attaque à sa place, avec ses accents.
+function testSalsaMontuno() {
+  const beat = 60 / 190;
+  const notes = [];
+  const pattern = [0, 1.5, 2.5, 3, 4, 5.5, 6.5, 7]; // en croches, syncopé
+  for (let bar = 0; bar < 4; bar += 1) {
+    const t0 = 5 * 60 + 29 + bar * 4 * beat;
+    pattern.forEach((e, k) => {
+      const t = t0 + (e / 2) * beat;
+      const accent = e % 1 !== 0 ? 0.85 : 0.5;
+      for (const midi of [72 + (k % 3 === 0 ? 0 : 4), 84 + (k % 3 === 0 ? 0 : 4)]) notes.push({ midi, start: Math.round(t * 1000) / 1000, end: Math.round((t + 0.11) * 1000) / 1000, velocity: accent });
+    });
+    for (const e of [1.5, 3]) notes.push({ midi: 41, start: Math.round((t0 + e * beat) * 1000) / 1000, end: Math.round((t0 + e * beat + 0.18) * 1000) / 1000, velocity: 0.7 });
+  }
+  notes.sort((a, b) => a.start - b.start || a.midi - b.midi);
+  const from = 5 * 60 + 29;
+  const plain = passageExample(notes, { start: from, end: from + 8 });
+  const pedalOf = (ex) => ex.events.filter((e) => e.type === 'sustain').length;
+  check('Montuno : aucune pédale ajoutée (jeu détaché)', pedalOf(plain) === 0 && /détaché/.test(plain.subtitle), plain.subtitle);
+  const withSoundPedal = passageExample(notes, { start: from, end: from + 8, pedals: [{ start: from - 1, end: from + 9 }] });
+  check('Montuno : la pédale que la transcription croit entendre est retirée aussi', pedalOf(withSoundPedal) === 0);
+  const ons = plain.events.filter((e) => e.type === 'noteOn');
+  const offs = plain.events.filter((e) => e.type === 'noteOff');
+  check(`Montuno : toutes les attaques, à leur place (${ons.length} / ${notes.length})`, ons.length === notes.length
+    && notes.every((n) => ons.some((e) => Math.abs(e.time - (n.start - notes[0].start)) < 0.002 && e.note === n.midi)));
+  check('Montuno : chaque note s\'arrête court (0,11 à 0,18 s), rien ne traîne', offs.every((e) => !(e.withoutPedalAt > 0)) && ons.every((on) => {
+    const off = offs.find((e) => e.note === on.note && e.time > on.time);
+    return off && off.time - on.time <= 0.19;
+  }));
+  const strong = ons.filter((e) => e.velocity >= 0.75).length;
+  const soft = ons.filter((e) => e.velocity <= 0.6).length;
+  check(`Montuno : les accents du pianiste restent (${strong} attaques fortes, ${soft} douces)`, strong >= 16 && soft >= 16);
+  // Et une ballade gardée telle quelle : sa pédale à chaque accord reste.
+  const ballad = [];
+  for (let k = 0; k < 4; k += 1) for (const midi of [48, 55, 64, 71]) ballad.push({ midi, start: k * 2, end: k * 2 + 0.4 });
+  check('Ballade (accords brefs, peu nombreux) : pédale à chaque accord gardée', pedalOf(passageExample(ballad, { start: 0, end: 8 })) > 0);
+}
+testSalsaMontuno();
+
 console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);
 process.exit(failed === 0 ? 0 : 1);

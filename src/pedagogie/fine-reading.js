@@ -24,10 +24,19 @@ export const BUSY_ONSETS_PER_SECOND = 5;
  * toutes sur une image. Des accords tenus, eux, restent allumés plusieurs images. */
 export const BUSY_MIN_ONSETS = 3;
 export const BUSY_MIN_BRIEF = 2;
+/** [Claude] — 2026-10-09 — … ou dès 2 instants dans la seconde où une note n'a été vue que sur UNE
+ * image. Narcisse, après la relecture fine : « entre 0:20 et 0:22, Copilot ne joue que 4 ou 5 des
+ * 19 à 26 notes du lick ». Plus un lick est rapide, MOINS la lecture à 8 i/s en voit : si ses
+ * touches ne restent allumées que 50 ms, 2 ou 3 par seconde seulement sont vues, sous les seuils
+ * d'attaques ci-dessus — le passage le plus rapide échappait à la relecture. Une note vue sur une
+ * seule image est par nature plus brève que la lecture : la lecture n'y est pas fiable. */
+export const BUSY_BRIEF_INSTANTS = 2;
 /** Fenêtre (s) sur laquelle on compte les attaques. */
 export const BUSY_WINDOW_SECONDS = 1;
-/** Marge (s) autour d'un passage chargé : l'entrée et la sortie du lick. */
-export const BUSY_PAD_SECONDS = 0.5;
+/** Marge (s) autour d'un passage chargé : l'entrée et la sortie du lick. [Claude] — 2026-10-09 —
+ * 1 s (et non 0,5) : les premières notes d'un lick que la lecture à 8 i/s n'a pas vues tombaient
+ * avant la fenêtre relue. */
+export const BUSY_PAD_SECONDS = 1;
 /** Deux passages séparés de moins d'une seconde n'en font qu'un (une seule relecture). */
 export const BUSY_MERGE_GAP = 1;
 /** Cadence de la relecture fine. */
@@ -81,14 +90,18 @@ export function busyWindows(samples, { duration = Infinity } = {}) {
   const raw = [];
   let j = 0;
   let brief = 0;
+  let briefInstants = 0;
   for (let i = 0; i < instants.length; i += 1) {
-    brief += instants[i].brief ? 1 : 0;
+    brief += instants[i].brief;
+    briefInstants += instants[i].brief ? 1 : 0;
     while (instants[j].t < instants[i].t - BUSY_WINDOW_SECONDS + 1e-9) {
-      brief -= instants[j].brief ? 1 : 0;
+      brief -= instants[j].brief;
+      briefInstants -= instants[j].brief ? 1 : 0;
       j += 1;
     }
     const count = i - j + 1;
-    if (count >= BUSY_ONSETS_PER_SECOND || (count >= BUSY_MIN_ONSETS && brief >= BUSY_MIN_BRIEF)) {
+    if (count >= BUSY_ONSETS_PER_SECOND || (count >= BUSY_MIN_ONSETS && brief >= BUSY_MIN_BRIEF)
+      || briefInstants >= BUSY_BRIEF_INSTANTS) {
       raw.push({ start: instants[j].t, end: instants[i].t });
     }
   }

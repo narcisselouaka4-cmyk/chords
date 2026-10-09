@@ -302,7 +302,20 @@ export function detectChord(activeNotes) {
   }
 
   const readings = rankReadings(pcSet, uniquePcs, bassPc, MATCH_DEFINITIONS);
-  const best = readings[0] || null;
+  // [Claude] — 2026-10-09 — Narcisse : main gauche Do + Sol, main droite Fa La Do Mi (un Fmaj7) :
+  // « affiche Fa majeur 9 / Do en grand ». La lecture sur la basse, C6add11, gardait la 11te
+  // juste sur la tierce majeure (la note à éviter) et passait de 3 points devant Fmaj9/C. Quand
+  // la première lecture a cette note à éviter et qu'un accord riche (5 notes et plus) est
+  // joué EN ENTIER au-dessus de la basse, sans note étrangère, presque aussi bien noté, c'est
+  // lui qu'on nomme. Sur les 1 012 accords de 3 à 6 notes (basse comprise), seul Do Mi Fa Sol La
+  // change.
+  // Seulement quand la 11te est une note que la lecture NOMME (add11, 6add11) : dans un C13 où
+  // elle n'est qu'une tension facultative, C13 reste (pas « Gm13/C »).
+  const namesEleventh = (r) => requiredIntervals(r.def).some((i) => i % 12 === 5);
+  const richSlash = readings[0]?.avoid && namesEleventh(readings[0])
+    ? readings.find((r) => r.exact && !r.avoid && r.omitted === 0 && r.present >= 5 && r.score >= readings[0].score - 6)
+    : null;
+  const best = richSlash || readings[0] || null;
   // Une note étrangère à l'accord se tolère (elle est rendue dans extraPcs) ;
   // au-delà, mieux vaut dire « ? » que nommer un accord qui ne s'entend pas.
   const acceptable = best && (best.exact || (best.extras.length === 1 && best.present >= 3));

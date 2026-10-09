@@ -21,6 +21,22 @@
 
 export const MEMORY_VERSION = 1;
 
+// [Claude] — 2026-10-09 — Révision de la LECTURE du clavier dessiné. Narcisse a refait son test du
+// lick de « Gospel Piano Harmony Secrets » (0:20–0:22) : « Copilot ne joue que 4 ou 5 des 19 à 26
+// notes ». Un tuto déjà lu revient de la mémoire sans relire la vidéo : son relevé à 8 images/s,
+// fait avant la relecture fine des passages rapides, revenait tel quel. Un relevé lu à l'image
+// d'une révision plus ancienne est donc relu (une fois) ; les relevés au son, inchangés, restent.
+//   1 : 8 images/s
+//   2 : + relecture à 30 images/s des passages rapides (fine-reading.js)
+export const READING_REVISION = 2;
+
+/** Lu à l'image (clavier dessiné) avec une lecture plus ancienne que READING_REVISION. */
+export function staleImageReading(analysis) {
+  if (!analysis) return false;
+  const drawn = analysis.source === 'video' || /clavier dessiné/.test(String(analysis.notesSource || ''));
+  return drawn && (Number(analysis.readingRevision) || 1) < READING_REVISION;
+}
+
 /** Clé courte et stable d'un chemin de tuto : FNV-1a 32 bits, en hexadécimal. */
 export function memoryKey(path) {
   let hash = 0x811c9dc5;
@@ -70,6 +86,7 @@ export function packAnalysis({ path, stat = null, analysis, comparison = null, n
 export function unpackAnalysis(saved, stat = null) {
   if (!saved || typeof saved !== 'object' || saved.version !== MEMORY_VERSION) return null;
   if (!saved.analysis || !Array.isArray(saved.analysis.segments)) return null;
+  if (staleImageReading(saved.analysis)) return null;
   if (stat && saved.size != null && (saved.size !== stat.size || Math.round(saved.mtimeMs) !== Math.round(stat.mtimeMs))) return null;
   return saved;
 }

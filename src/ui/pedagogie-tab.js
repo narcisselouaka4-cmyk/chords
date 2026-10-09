@@ -62,7 +62,7 @@ import { dockCopilot, undockCopilot } from '../pedagogie/copilot-dock.js';
 import { momentContext, passageWindow, clock } from '../pedagogie/tutorial-moment.js';
 import { FOLLOW_SECONDS, MAX_PASSAGE_SECONDS, splitTime, joinTime, timeOptions, setRangeBound, rangeLength } from '../pedagogie/passage-range.js';
 import { DEFAULT_SHARE, shareAt, isWide, toggledShare, shareForKey, storedShare, clampShare } from '../pedagogie/copilot-width.js';
-import { createTutorialMemory, cardDuration } from '../pedagogie/tutorial-memory.js';
+import { createTutorialMemory, cardDuration, READING_REVISION } from '../pedagogie/tutorial-memory.js';
 import { teacherActivity, chordsWhilePlaying, activitySummary, isPlaying, ACTIVITY, withoutReadingArtifacts } from '../pedagogie/teacher-activity.js';
 import { songStructure } from '../pedagogie/song-structure.js';
 import { createSpeedMenu, setSpeedMenuValue, clampSpeed } from './components/speed-menu.js';
@@ -1388,6 +1388,10 @@ async function runReading(path) {
       // Touches allumées → notes, la main d'après la couleur.
       built.noteEvents = samplesToNoteEvents(result.samples, result.sampleInterval);
       built.notesSource = 'image (clavier dessiné)';
+      // [Claude] — 2026-10-09 — Révision de la lecture (relecture fine comprise) : un relevé plus
+      // ancien est relu à la réouverture du tuto (tutorial-memory.js, staleImageReading).
+      built.readingRevision = READING_REVISION;
+      built.fineReading = result.fineReading || null;
     }
     // [Claude] — 2026-10-09 — La force de chaque attaque, mesurée au son de la vidéo (l'image ne
     // la montre pas) : src/pedagogie/dynamics.js. Enregistrée avec les notes : le rejeu du

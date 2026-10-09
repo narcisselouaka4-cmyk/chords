@@ -233,5 +233,23 @@ check('« L\'Éternel est bon » : aucune note écartée (155)', cleanTeacherNot
 const eternelAnalysis = { noteEvents: eternel.noteEvents, segments: eternel.segments };
 check('… et son relevé reste le même objet', withoutReadingArtifacts(eternelAnalysis, { source: IMAGE }) === eternelAnalysis);
 
+// [Claude] — 2026-10-09 — Au son, un lick très rapide joué EN PARLANT, par arpèges (sauts de 3 à 5
+// demi-tons, cinq octaves en 2 s), doucement : c'est son jeu, il reste.
+{
+  const lickNotes = [];
+  let m = 100;
+  const steps = [5, 3, 5, 4];
+  for (let i = 0; i < 19; i += 1) { lickNotes.push({ midi: m, start: 20 + i * 0.105, end: 20 + i * 0.105 + 0.09, velocity: 0.3 }); m -= steps[i % steps.length]; }
+  const louder = Array.from({ length: 10 }, (_, k) => ({ midi: 48 + (k % 3) * 4, start: k * 1.5, end: k * 1.5 + 1, velocity: 0.8 }));
+  const speech = [{ start: 19, end: 23, text: 'et là je descends avec ce petit lick' }];
+  const view = teacherActivity({ notes: [...louder, ...lickNotes], speech, source: 'son', start: 0 });
+  const kept = view.played.filter((n) => n.start >= 19.9 && n.start < 22.1).length;
+  check(`au son, lick rapide par arpèges joué en parlant : ${kept} / 19 notes gardées`, kept === 19);
+  // Sa voix : notes lentes, aux sauts irréguliers, dans tous les sens → écartées comme avant.
+  const voice = [{ midi: 62, start: 30, end: 30.5, velocity: 0.2 }, { midi: 69, start: 30.6, end: 31.1, velocity: 0.2 }, { midi: 60, start: 31.2, end: 31.8, velocity: 0.2 }, { midi: 67, start: 31.9, end: 32.4, velocity: 0.2 }, { midi: 59, start: 32.5, end: 33, velocity: 0.2 }];
+  const v2 = teacherActivity({ notes: [...louder, ...voice], speech: [{ start: 29.5, end: 33.5, text: 'alors écoutez bien' }], source: 'son', start: 0 });
+  check('au son, la voix (notes lentes, sauts dans tous les sens) reste écartée', v2.played.filter((n) => n.start >= 30).length === 0);
+}
+
 console.log(`\n=== Résultat : ${passed}/${total} contrôles passés ===`);
 if (passed < total) process.exitCode = 1;

@@ -401,6 +401,47 @@ function pedalAfterApproaches(timed, approach, pieces) {
   return result;
 }
 
+// [Claude] — 2026-10-09 — Narcisse, « Clase dos : diez secretos para improvisar en la salsa »,
+// 5:29–5:37 : « l'application joue de façon monotone, alors que le pianiste joue de façon
+// saccadée en mettant un rythme salsa ». Un montuno se joue détaché, sans pédale : ses notes
+// courtes, répétées, font le rythme. La pédale « à chaque accord » (ou celle que la transcription
+// croit entendre, souvent trompée par la réverbération et les percussions) laissait sonner
+// chaque note jusqu'au changement d'harmonie : les attaques se fondaient en une nappe égale.
+// Un morceau de pédale est donc retiré quand les notes qu'il couvre sont, presque toutes, des
+// attaques courtes et répétées : PERCUSSIVE_MIN_NOTES au moins, PERCUSSIVE_SHORT_SHARE de
+// notes de PERCUSSIVE_NOTE_MS au plus, PERCUSSIVE_REPEAT_SHARE qui rejouent une touche déjà
+// jouée dans ce morceau, et au plus une note longue. Un lick (touches toutes différentes), un
+// accord tenu ou une ballade gardent leur pédale.
+const PERCUSSIVE_MIN_NOTES = 6;
+const PERCUSSIVE_NOTE_MS = 250;
+const PERCUSSIVE_SHORT_SHARE = 0.75;
+const PERCUSSIVE_REPEAT_SHARE = 0.4;
+const PERCUSSIVE_LONG_MS = 600;
+
+/** Le jeu se juge sur 2 s au moins autour du morceau : une pédale « à chaque accord » change à
+ * chaque basse d'un tumbao, ses morceaux sont trop courts pour juger seuls. */
+const PERCUSSIVE_CONTEXT_MS = 1000;
+
+/** Le morceau de pédale (en ms) ne couvre-t-il qu'un jeu rythmique détaché ? */
+function percussivePiece(timed, { down, up }) {
+  const from = Math.min(down, (down + up) / 2 - PERCUSSIVE_CONTEXT_MS);
+  const to = Math.max(up, (down + up) / 2 + PERCUSSIVE_CONTEXT_MS);
+  const inside = timed.filter((t) => t.startMs >= from - 60 && t.startMs < to);
+  if (inside.length < PERCUSSIVE_MIN_NOTES) return false;
+  const length = (t) => t.endMs - t.startMs;
+  const short = inside.filter((t) => length(t) <= PERCUSSIVE_NOTE_MS).length;
+  const long = inside.filter((t) => length(t) >= PERCUSSIVE_LONG_MS).length;
+  const seen = new Set();
+  let repeated = 0;
+  for (const t of inside) {
+    if (seen.has(t.n.midi)) repeated += 1;
+    seen.add(t.n.midi);
+  }
+  return short >= PERCUSSIVE_SHORT_SHARE * inside.length
+    && repeated >= PERCUSSIVE_REPEAT_SHARE * inside.length
+    && long <= 1;
+}
+
 /**
  * Les instants où le prof change d'harmonie : attaques de main gauche (une basse, un
  * accord) ; sans main gauche, les accords d'au moins 3 notes ; et la première note.
@@ -559,6 +600,9 @@ export function passageExample(notes, { start, end, hand = null, semitones = 0, 
     const durationMs = Math.round(Math.max(SHORTEST_NOTE, until - at) * 1000);
     return { n, startMs, durationMs, endMs: startMs + durationMs };
   });
+  // [Claude] — 2026-10-09 — Pas de pédale sur un jeu rythmique détaché (voir percussivePiece).
+  const percussive = pieces.filter((p) => percussivePiece(timed, p));
+  if (percussive.length) pieces = pieces.filter((p) => !percussive.includes(p));
   // [Claude] — 2026-10-04 — La pédale changée après les notes d'approche (voir APPROACH_SECONDS).
   // Les notes d'approche et de run servent deux fois : la pédale (ci-dessous) et la nuance.
   const light = approachNotes(picked);
@@ -589,6 +633,7 @@ export function passageExample(notes, { start, end, hand = null, semitones = 0, 
     subtitle: `${out.length} notes jouées par le professeur${hand ? ` (${handOf(hand) === 'lh' ? 'main gauche' : 'main droite'})` : ''}`
       + `${shift ? ` · transposées de ${shift > 0 ? '+' : ''}${shift} demi-ton${Math.abs(shift) > 1 ? 's' : ''}` : ''}`
       + `${pedalEvents.length ? (fromSound.length ? ' · avec sa pédale' : ' · pédale à chaque accord') : ''}`
+      + `${percussive.length ? ' · jeu détaché, sans pédale' : ''}`
       + `${explains ? ' · ses explications raccourcies à 2 s' : ''}`,
   });
   if (example) {

@@ -1,6 +1,6 @@
 // [Claude] — 2026-10-03 — Pédagogie IA, lot 5 : la mémoire des tutoriels
 // (tutorial-memory.js), avec un faux disque. Sans DOM ni Electron.
-import { memoryKey, memoryDir, packAnalysis, unpackAnalysis, cardDuration, createTutorialMemory, MEMORY_VERSION, thumbnailTime, thumbnailArgs } from './tutorial-memory.js';
+import { memoryKey, memoryDir, packAnalysis, unpackAnalysis, cardDuration, createTutorialMemory, MEMORY_VERSION, thumbnailTime, thumbnailArgs, READING_REVISION, staleImageReading } from './tutorial-memory.js';
 
 let passed = 0;
 let failed = 0;
@@ -51,6 +51,12 @@ check('tout ce que l\'écran recalculerait', packed.version === MEMORY_VERSION &
 check('une copie, pas l\'objet de l\'écran', packed.analysis !== ANALYSIS && packed.analysis.segments !== ANALYSIS.segments);
 check('rendu s\'il est encore celui du fichier', unpackAnalysis(JSON.parse(JSON.stringify(packed)), STAT)?.analysis.segments[0].chord.label === 'Dm9');
 check('fichier remplacé (autre taille ou autre date) : relu', unpackAnalysis(packed, { ...STAT, size: 1 }) === null && unpackAnalysis(packed, { ...STAT, mtimeMs: STAT.mtimeMs + 5000 }) === null);
+// [Claude] — 2026-10-09 — Un clavier dessiné lu avant la relecture fine (révision 1) est relu.
+const drawnOld = packAnalysis({ path: PATH, stat: STAT, analysis: { ...ANALYSIS, source: 'video', notesSource: 'image (clavier dessiné)' } });
+const drawnNew = packAnalysis({ path: PATH, stat: STAT, analysis: { ...ANALYSIS, source: 'video', notesSource: 'image (clavier dessiné)', readingRevision: READING_REVISION } });
+check('clavier dessiné lu avant la relecture fine : relu', staleImageReading(drawnOld.analysis) && unpackAnalysis(drawnOld, STAT) === null);
+check('clavier dessiné lu avec la relecture fine : gardé', unpackAnalysis(drawnNew, STAT)?.analysis.readingRevision === READING_REVISION);
+check('relevé au son ou V2N : gardé (lecture inchangée)', unpackAnalysis(packed, STAT) !== null && !staleImageReading({ source: 'v2n', notesSource: 'image (V2N)' }));
 check('autre version de la mémoire ou contenu illisible : relu', unpackAnalysis({ ...packed, version: 0 }, STAT) === null && unpackAnalysis({ version: MEMORY_VERSION }, STAT) === null && unpackAnalysis(null) === null);
 
 console.log('Sur le disque');
