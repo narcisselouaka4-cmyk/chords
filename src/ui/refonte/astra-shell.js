@@ -53,11 +53,18 @@ function initAstraBrand() {
  */
 function initAstraDialogs() {
   let opener = null;
+  // [Claude] — 2026-10-09 — On mémorise l'overlay réellement ouvert PAR Astra.
+  // Avant, on retrouvait la fenêtre via `.tr-overlay:not([hidden])`, mais
+  // #ai-settings-modal (piloté par main.js) est caché par `style.display:none`
+  // et non par l'attribut `hidden` : il correspondait donc TOUJOURS au sélecteur,
+  // ce qui annulait Échap sur toute la page et neutralisait les raccourcis
+  // b/m/c. En ne suivant que ce qu'Astra ouvre, on ignore cette fenêtre.
+  let current = null;
 
   const close = () => {
-    const open = document.querySelector('.tr-overlay:not([hidden])');
-    if (!open) return;
-    open.hidden = true;
+    if (!current) return;
+    current.hidden = true;
+    current = null;
     document.body.classList.remove('tr-dialog-open');
     opener?.focus();
     opener = null;
@@ -68,6 +75,7 @@ function initAstraDialogs() {
     if (!overlay) return;
     close();
     opener = trigger || null;
+    current = overlay;
     overlay.hidden = false;
     document.body.classList.add('tr-dialog-open');
     overlay.querySelector("input:not([type='checkbox']), textarea, button")?.focus();
@@ -95,7 +103,7 @@ function initAstraDialogs() {
   document.addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
-    if (document.querySelector('.tr-overlay:not([hidden])')) return;
+    if (current) return; // [Claude] — 2026-10-09 — overlay Astra ouvert
     const key = e.key.toLowerCase();
     const trigger = [...document.querySelectorAll('[data-astra-shortcut]')]
       .find((btn) => btn.dataset.astraShortcut === key && btn.offsetParent !== null);
@@ -105,7 +113,7 @@ function initAstraDialogs() {
   });
 
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && document.querySelector('.tr-overlay:not([hidden])')) {
+    if (e.key === 'Escape' && current) { // [Claude] — 2026-10-09 — Échap ne vise que les overlays Astra
       e.preventDefault();
       close();
     }
