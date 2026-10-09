@@ -2299,7 +2299,13 @@ export async function loadTrack(trackId) {
     if (metadata?.region?.confirmed) {
       regionStart = metadata.region.start;
       regionEnd = metadata.region.end;
-      regionConfirmed = true;
+      // [Claude] — 2026-10-09 — Sans pistes (séparation ratée, anciens bips écartés), la région
+      // gardée n'est plus « confirmée » : l'étape 1 propose de nouveau « Confirmer la région ».
+      // Avant, l'étape 1 s'ouvrait avec une région confirmée : « Confirmer » caché et « ↩ »
+      // grisé, impossible d'en sortir (capture de Narcisse).
+      const stemPaths = await getStems(trackId);
+      const hasStems = Object.values(stemPaths).some(Boolean);
+      regionConfirmed = hasStems;
       renderWaveform();
       updateRegionUI();
       updateCropButtons();
@@ -2307,8 +2313,6 @@ export async function loadTrack(trackId) {
       stop();
       seek(regionStart);
       // Si les stems existent déjà, on passe directement à l'étape 3
-      const stemPaths = await getStems(trackId);
-      const hasStems = Object.values(stemPaths).some(Boolean);
       if (hasStems) {
         updateStudioStage(3);
         setTransposeControlsEnabled(true);

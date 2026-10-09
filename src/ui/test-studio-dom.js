@@ -176,6 +176,16 @@ function testStageOverlayInPlayer() {
   console.log('✅ Étape 1 — consigne en carte dans le lecteur, sans voile décalé');
 }
 
+// ── Test 8 : [Claude] — 2026-10-09 — une région gardée sans pistes se confirme de nouveau ──
+function testConfirmedRegionWithoutStems() {
+  const js = readText('src/ui/studio-tab.js');
+  if (!/if \(metadata\?\.region\?\.confirmed\) \{[\s\S]*?const hasStems = Object\.values\(stemPaths\)\.some\(Boolean\);\s*regionConfirmed = hasStems;/.test(js)) {
+    console.error('❌ Région gardée — sans pistes, elle doit redevenir « à confirmer » (sinon « Confirmer la région » disparaît)');
+    process.exit(1);
+  }
+  console.log('✅ Région gardée — sans pistes, « Confirmer la région » revient');
+}
+
 // ── Exécution ──
 console.log('=== Tests contrat DOM Studio ===\n');
 testDefaultFileContext();
@@ -185,4 +195,5 @@ testFinishTrackLoadingUpdatesContext();
 testFailTrackLoadingResetsContext();
 testSeparationFailureIsNotFaked();
 testStageOverlayInPlayer();
+testConfirmedRegionWithoutStems();
 console.log('\n✅ Tous les tests DOM Studio passent.');
