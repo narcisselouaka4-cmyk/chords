@@ -9,6 +9,7 @@ import {
   countManuallyEditedChords,
 } from '../analyzer/analysis-export.js';
 import { inferSourceType } from './analyzer-workflow.js';
+import { analyzeMidiFile, ensureMidiPlayback } from '../analyzer/midi-render.js';
 import { splitIntoSections, paletteOf, changeCountOf } from '../analyzer/chord-sections.js';
 import { miniKeyboardForNotes } from './mini-keyboard.js';
 import { CHORD_DEFINITIONS } from '../chord-engine/chord-defs.js';
@@ -708,8 +709,8 @@ async function handleImportClick() {
     if (!filePath) return;
 
     // Validation défensive : refuser un format qui aurait contourné le filtre natif.
-    if (!isAudioFile(filePath) && !isVideoFile(filePath)) {
-      alert('Format non supporté. Formats acceptés : MP3, WAV, M4A, MP4.');
+    if (!isAudioFile(filePath) && !isVideoFile(filePath) && inferSourceType(filePath) !== 'midi') {
+      alert('Format non supporté. Formats acceptés : MP3, WAV, M4A, MP4, MIDI.');
       return;
     }
 
@@ -753,7 +754,7 @@ function showPrepareScreen() {
   setAnalyzerState('prepare');
 
   // La case fichier reprend les métadonnées disponibles (audio ou vidéo MP4).
-  if (els.prepareFileIcon) els.prepareFileIcon.textContent = currentSourceType === 'video' ? '🎬' : '🎵';
+  if (els.prepareFileIcon) els.prepareFileIcon.textContent = currentSourceType === 'video' ? '🎬' : currentSourceType === 'midi' ? '🎹' : '🎵';
   if (currentAudioPath) {
     if (els.prepareFileName) els.prepareFileName.textContent = currentFileName || '—';
     const ext = (currentAudioPath.split('.').pop() || '').toUpperCase();
@@ -806,7 +807,10 @@ async function restoreSavedAnalysis(filePath) {
     }
 
     showProcessing('Chargement de l’analyse enregistrée…');
-    const playback = await window.electronAPI?.analyzer?.preparePlayback?.(filePath);
+    // [Claude] — 2026-10-09 — Un MIDI n'a pas de son à extraire : son WAV d'écoute est rendu.
+    const playback = currentSourceType === 'midi'
+      ? { wavPath: await ensureMidiPlayback(filePath).catch(() => null) }
+      : await window.electronAPI?.analyzer?.preparePlayback?.(filePath);
     if (!playback?.wavPath) {
       hideProcessing();
       return false;
@@ -882,13 +886,17 @@ async function launchAnalysisFromPrepare() {
   }
   analysisRunning = true;
   setAnalysisControlsDisabled(true);
-  showProcessing('Extraction audio en cours…', { withElapsed: true });
+  const midi = currentSourceType === 'midi';
+  showProcessing(midi ? 'Lecture des notes du fichier MIDI…' : 'Extraction audio en cours…', { withElapsed: true });
   try {
-    const analysis = await analyzer.analyze(currentAudioPath);
+    // [Claude] — 2026-10-09 — Un fichier MIDI : ses notes sont exactes, les accords en sont tirés
+    // directement (pas de ffmpeg ni de chromagramme), et son écoute est rendue au piano.
+    const analysis = midi ? await analyzeMidiFile(currentAudioPath) : await analyzer.analyze(currentAudioPath);
     currentAnalysis = analysis;
     await showResults(analysis);
-    // Ajouter à la bibliothèque en arrière-plan.
-    importToLibrary(currentAudioPath).then(() => refreshLibraryList()).catch((e) => {
+    // Ajouter à la bibliothèque en arrière-plan (pas un MIDI : la bibliothèque est celle du Studio,
+    // qui sépare des pistes audio).
+    if (!midi) importToLibrary(currentAudioPath).then(() => refreshLibraryList()).catch((e) => {
       console.warn('[Analyzer] library import failed:', e);
     });
   } catch (err) {

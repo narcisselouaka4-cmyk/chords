@@ -79,7 +79,7 @@ import {
   spellChordTone,
   isTensionQuality,
 } from './practice-exercise.js';
-import { loadGrids, saveGrids, upsertGrid, removeGrid } from './practice-grids.js';
+import { loadGrids, saveGrids, upsertGrid, removeGrid, defaultGridName } from './practice-grids.js';
 import movementsLibrary from './data/movements-library.json' with { type: 'json' };
 import { keyLabel } from './practice-key-spelling.js';
 import {
@@ -2248,11 +2248,12 @@ function initPracticeExercise() {
       gridStatus('Ajoutez au moins un accord avant d\'enregistrer.');
       return;
     }
-    const name = els.exerciseGridName?.value.trim() || '';
+    // Sans nom, la grille est enregistrée sous un nom par défaut (« Ma grille 1 »…), affiché
+    // dans le champ pour pouvoir le changer ensuite.
+    let name = els.exerciseGridName?.value.trim() || '';
     if (!name) {
-      els.exerciseGridName?.focus();
-      gridStatus('Donnez un nom à la grille pour l\'enregistrer.');
-      return;
+      name = defaultGridName(customGrids);
+      if (els.exerciseGridName) els.exerciseGridName.value = name;
     }
     const { grids, grid } = upsertGrid(customGrids, { name, chords: gridChords.map((c) => ({ name: gridChordName(c), top: c.top })) });
     if (!grid) return;

@@ -416,3 +416,19 @@
   .live-wheel-shape { animation: none; }
   .live-wheel-dot, .live-wheel-labels .live-wheel-label, .live-stage .live-wheel-wrap::before { transition: none; }
 }
+
+/* [Claude] — 2026-10-09 — Bouton « Masquer / Afficher les caractéristiques » : discret, aligné à
+   droite au-dessus de la liste ; la liste masquée laisse la place à la roue. */
+.live-stage .live-readouts-toggle {
+  align-self: flex-end;
+  padding: 3px 9px;
+  border: 1px solid var(--tr-border-soft);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--tr-muted);
+  font: 10px var(--tr-mono);
+  letter-spacing: .04em;
+  cursor: pointer;
+}
+.live-stage .live-readouts-toggle:hover { color: var(--tr-text); border-color: var(--tr-border); }
+.live-stage .live-readouts[hidden] { display: none; }

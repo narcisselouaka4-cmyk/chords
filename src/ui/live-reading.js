@@ -142,7 +142,9 @@ export function describeLiveReading(notes, result, latin = false) {
     count: sorted.length,
     title: '',
     titleIsChord: false,
-    root: '—', bass: '—', quality: 'en attente', position: '—', intervals: '—',
+    // [Claude] — 2026-10-09 — « — » au repos, comme les autres caractéristiques (Narcisse : la
+    // mention « en attente » de la Qualité est retirée).
+    root: '—', bass: '—', quality: '—', position: '—', intervals: '—',
     voicing: '—', voicingDetail: '', also: [],
     wheel: { active: new Set(pcs), rootPc: null, bassPc: sorted.length ? pcOf(sorted[0]) : null, names: nameOfPc },
   };
@@ -353,4 +355,28 @@ export function clearLiveReading(latin = false) {
 /** La roue au repos, au lancement. */
 export function initLiveReading() {
   updateWheel(byId('live-wheel'), describeLiveReading([], null).wheel, false);
+  bindReadoutsToggle();
+}
+
+// [Claude] — 2026-10-09 — Narcisse : « un bouton pour masquer les caractéristiques si
+// l'utilisateur le souhaite ». Le choix est retenu d'une ouverture à l'autre.
+export const READOUTS_HIDDEN_KEY = 'pjc.live.readoutsHidden';
+
+function bindReadoutsToggle() {
+  const button = byId('live-readouts-toggle');
+  const list = byId('live-readouts');
+  if (!button || !list) return;
+  const apply = (hidden) => {
+    list.hidden = hidden;
+    button.setAttribute('aria-expanded', String(!hidden));
+    button.textContent = hidden ? 'Afficher les caractéristiques' : 'Masquer les caractéristiques';
+  };
+  let hidden = false;
+  try { hidden = localStorage.getItem(READOUTS_HIDDEN_KEY) === '1'; } catch { /* stockage indisponible */ }
+  apply(hidden);
+  button.addEventListener('click', () => {
+    hidden = !list.hidden;
+    apply(hidden);
+    try { localStorage.setItem(READOUTS_HIDDEN_KEY, hidden ? '1' : '0'); } catch { /* idem */ }
+  });
 }

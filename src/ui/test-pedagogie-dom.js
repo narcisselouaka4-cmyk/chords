@@ -589,7 +589,7 @@ check('Suggestions sous les réponses : le bouton montre le message envoyé, san
 const copilotPrompt = readText('src/pedagogie/copilot-client.js');
 check('Consignes : une réponse courte par défaut, l\'explication complète sur « Plus de détails »',
   copilotPrompt.includes('4. Réponses courtes et claires, par défaut') && copilotPrompt.includes('environ 80 mots en tout')
-  && copilotPrompt.includes('Quand le pianiste demande « Plus de détails »') && copilotPrompt.includes('Rédige donc ton explication (courte : règle 4)')
+  && copilotPrompt.includes('Quand le pianiste demande « Plus de détails »') && copilotPrompt.includes('rédige ton explication (courte : règle 4)')
   && !copilotPrompt.includes('Rédige donc ton explication complète'));
 check('Les notes écrites par l\'application sont repliées sous la réponse (« Les notes, accord par accord »)',
   /const \{ text, notes \} = isUser \? \{ text: msg\.content, notes: '' \} : splitAnswerNotes\((?:extractTextToolCalls\(msg\.content\)\.content|msg\.content), msg\.toolResult\?\.transferText\);/.test(copilotTabCode)

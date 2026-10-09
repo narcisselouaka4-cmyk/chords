@@ -1337,10 +1337,13 @@ async function loadHistoryItem(conversationId) {
   await renderHistoryList();
 }
 
+// [Claude] — 2026-10-09 — Narcisse : la mention « Copilot IA » en haut à gauche « ne sert à rien »
+// (le sous-onglet porte déjà ce nom). Le titre ne dit plus que le contexte (tutoriel, session,
+// exercice) ; sans contexte, il est vide et masqué.
 function updateHeaderForMode() {
   if (currentMode === 'tutorial' && currentTutorialPath) {
     const name = currentTutorialPath.split('/').pop();
-    if (els.selectedName) els.selectedName.textContent = `Copilot IA — ${name}`;
+    if (els.selectedName) els.selectedName.textContent = name;
     // [Claude] — 2026-09-25 — Ce que le Copilote sait VRAIMENT de ce tutoriel.
     const context = getTutorialContext();
     let intro;
@@ -1354,13 +1357,13 @@ function updateHeaderForMode() {
     if (els.introText) els.introText.textContent = intro;
   } else if (currentMode === 'session' && currentSessionContext) {
     const name = currentSessionContext.name || currentSessionId;
-    if (els.selectedName) els.selectedName.textContent = `Copilot IA — Session : ${name}`;
+    if (els.selectedName) els.selectedName.textContent = `Session : ${name}`;
     if (els.introText) els.introText.textContent = 'Mode session : le Copilot analyse la session MIDI sélectionnée.';
   } else if (currentMode === 'exercise' && currentExerciseTitle) {
-    if (els.selectedName) els.selectedName.textContent = `Copilot IA — ${currentExerciseTitle}`;
+    if (els.selectedName) els.selectedName.textContent = currentExerciseTitle;
     if (els.introText) els.introText.textContent = 'Le Copilot connaît l\'exercice affiché : accords et voicings de la carte, tonalité, étape et tes derniers essais. Demande-lui d\'expliquer un voicing ou de le faire entendre ; après avoir joué, « Qu\'en penses-tu ? » compare ton jeu à l\'exercice.';
   } else {
-    if (els.selectedName) els.selectedName.textContent = 'Copilot IA';
+    if (els.selectedName) els.selectedName.textContent = '';
     if (els.introText) els.introText.textContent = '';
   }
 }

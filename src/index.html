@@ -164,10 +164,13 @@
             </div>
 
             <div class="live-side">
+              <!-- [Claude] — 2026-10-09 — Masquer / afficher les caractéristiques (Narcisse) ;
+                   le choix est retenu (live-reading.js). -->
+              <button type="button" class="live-readouts-toggle" id="live-readouts-toggle" aria-controls="live-readouts" aria-expanded="true">Masquer les caractéristiques</button>
               <dl class="live-readouts" id="live-readouts">
                 <div><dt>Fondamentale</dt><dd id="live-root">—</dd></div>
                 <div><dt>Basse jouée</dt><dd id="live-bass">—</dd></div>
-                <div><dt>Qualité</dt><dd id="live-quality">en attente</dd></div>
+                <div><dt>Qualité</dt><dd id="live-quality">—</dd></div>
                 <div><dt>Position</dt><dd id="live-position">—</dd></div>
                 <div><dt>Intervalles</dt><dd id="live-intervals">—</dd></div>
                 <div><dt>Voicing</dt><dd><span id="live-voicing">—</span><small id="live-voicing-detail"></small></dd></div>
@@ -1010,7 +1013,7 @@
         <div class="tr-view practice-copilot" id="practice-view-copilot" style="display: none;">
           <div class="tr-view-heading">
             <div>
-              <div class="tr-page-title"><span class="tr-page-index">04</span><h1 class="copilot-selected-name" id="copilot-selected-name">Copilot IA</h1></div>
+              <div class="tr-page-title"><span class="tr-page-index">04</span><h1 class="copilot-selected-name" id="copilot-selected-name"></h1></div>
               <p class="copilot-intro" id="copilot-intro">Posez vos questions. Donnez du sens à ce que vous jouez.</p>
             </div>
             <div class="tr-heading-actions">
@@ -1137,7 +1140,7 @@
                 </span>
                 <div>
                   <div class="analyzer-import-card-title">Choisir un fichier audio ou vidéo</div>
-                  <div class="analyzer-import-card-sub">MP3, WAV, M4A ou MP4. Votre fichier n'est jamais modifié.</div>
+                  <div class="analyzer-import-card-sub">MP3, WAV, M4A, MP4 ou MIDI. Votre fichier n'est jamais modifié.</div>
                 </div>
                 <span class="analyzer-import-card-arrow" aria-hidden="true">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>

@@ -120,7 +120,7 @@ global.document = {
 };
 
 // 2. Import dynamique APRÈS le setup de window
-const { sendCopilotMessage, executeToolCalls, wantsToHear, myPlayingRequest, melodyChordsRequest, wantsMelodyChords, setCopilotTimeout, tutorialToolCalls, transferTargets, extractTextToolCalls } = await import('./copilot-client.js');
+const { sendCopilotMessage, executeToolCalls, wantsToHear, myPlayingRequest, melodyChordsRequest, wantsMelodyChords, setCopilotTimeout, tutorialToolCalls, transferTargets, extractTextToolCalls, asksForExample, isStructureQuestion, structureFocus, HEAR_IT_ACTION } = await import('./copilot-client.js');
 const { applyQuestion, otherKeyQuestion, parseTutorialRequest } = await import('./tutorial-questions.js');
 const { songStructure } = await import('./song-structure.js');
 
@@ -588,15 +588,67 @@ async function testExplanationGetsExampleCard() {
   };
   let { res, calls } = await ask("Explique-moi l'harmonie d'un 2-5-1.", 'Le II-V-I en Do : **Dm7** (II), **G7** (V), **Cmaj7** (I). La 7e de Dm7 descend sur la tierce de G7.');
   check('Explication : un seul appel au modèle (pas de relance)', calls === 1, `appels : ${calls}`);
-  check('Explication : exemple prêt sous le texte', res.toolResult?.example?.title === 'Dm7 → G7 → Cmaj7', res.toolResult?.example?.title);
+  // [Claude] — 2026-10-09 — Une simple explication n'a plus d'exemple : « Fais-le-moi entendre » le propose.
+  check('Explication : pas d\'exemple non demandé', !res.toolResult?.example, res.toolResult?.example?.title);
+  check('Explication : « Fais-le-moi entendre » proposé en premier', res.suggestedActions?.[0]?.message === HEAR_IT_ACTION, JSON.stringify(res.suggestedActions));
+  ({ res } = await ask("Explique-moi un 2-5-1 avec un exemple.", 'Le II-V-I en Do : **Dm7** (II), **G7** (V), **Cmaj7** (I).'));
+  check('« … avec un exemple » : exemple prêt sous le texte', res.toolResult?.example?.title === 'Dm7 → G7 → Cmaj7', res.toolResult?.example?.title);
   check('Explication : pas de lecture automatique', res.autoplay === false);
   check('Explication : texte inchangé (pas de remarque d\'échec)', !/n'ai pas réussi/.test(res.content));
-  ({ res } = await ask('Explique-moi un 2-5-1', 'En Do, avec des couleurs : **Dm9 → G13 → Cmaj9**.'));
+  ({ res } = await ask('Fais-moi entendre un 2-5-1', 'En Do, avec des couleurs : **Dm9 → G13 → Cmaj9**.'));
   check('Exemple = accords écrits dans la réponse (Dm9 G13 Cmaj9)', res.toolResult?.example?.title === 'Dm9 → G13 → Cmaj9', res.toolResult?.example?.title);
-  ({ res } = await ask('Explique-moi un II-V-I en Fa', 'En Fa : **Gm7 → C7 → Fmaj7**.'));
+  ({ res } = await ask('Montre-moi un II-V-I en Fa', 'En Fa : **Gm7 → C7 → Fmaj7**.'));
   check('Tonalité française comprise (« en Fa » → Gm7 C7 Fmaj7)', res.toolResult?.example?.title === 'Gm7 → C7 → Fmaj7', res.toolResult?.example?.title);
   ({ res } = await ask('Joue-moi un 2-5-1 en Sib', 'Voici un II-V-I en Sib.'));
   check('« Joue-moi… en Sib » : Cm7 F7 Bbmaj7, lecture automatique', res.toolResult?.example?.title === 'Cm7 → F7 → Bbmaj7' && res.autoplay === true, `${res.toolResult?.example?.title} autoplay=${res.autoplay}`);
+  global.fetch = originalFetch;
+}
+
+// [Claude] — 2026-10-09 — Pas d'exemple non demandé ; les questions sur la progression.
+async function testNoUnaskedExample() {
+  const { songStructure } = await import('./song-structure.js');
+  check('asksForExample : « joue-moi », « un exemple », « fais-le-moi entendre »',
+    asksForExample('Joue-moi un 2-5-1') && asksForExample('Tu as un exemple ?') && asksForExample(HEAR_IT_ACTION) && asksForExample('À quoi ça ressemble ?'));
+  check('asksForExample : une explication n\'en demande pas',
+    !asksForExample('Explique-moi un 2-5-1') && !asksForExample('Quelle est la progression ?') && !asksForExample('Pourquoi ce voicing marche ?'));
+  check('isStructureQuestion : progression, boucle, ce qui fait tourner, les bases',
+    ['Quelle est la progression ?', "C'est quoi la boucle ?", 'Qu\'est-ce qui fait tourner le morceau ?', 'Explique-moi les bases', 'Quels accords il joue ?'].every(isStructureQuestion));
+  check('isStructureQuestion : pas une question de voicing', !isStructureQuestion('Que fait la main gauche à 1:20 ?'));
+  const withLoop = structureFocus({ loop: {} });
+  check('structureFocus : la boucle d\'abord, pas la grille de bout en bout, pas d\'outil audio', /boucle d'abord/.test(withLoop) && /N'énumère pas/.test(withLoop) && /aucun outil audio/.test(withLoop));
+  check('structureFocus : sans boucle, le dire', /Aucune boucle/.test(structureFocus(null)));
+  check('structureFocus : s\'il veut entendre, l\'outil audio reste permis', !/aucun outil audio/.test(structureFocus({}, { hear: true })));
+
+  const originalFetch = global.fetch;
+  global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
+  const bodies = [];
+  global.fetch = async (url, init) => {
+    bodies.push(JSON.parse(init.body));
+    return { ok: true, status: 200, json: async () => ({ choices: [{ message: { role: 'assistant', content: 'Le II-V-I : **Dm7 → G7 → Cmaj7**.\nÉcoute l\'exemple ci-dessous : la 7e descend.', tool_calls: [
+      { id: 'a', type: 'function', function: { name: 'play_progression', arguments: JSON.stringify({ chords: ['Dm7', 'G7', 'Cmaj7'] }) } },
+      { id: 'b', type: 'function', function: { name: 'suggest_actions', arguments: JSON.stringify({ actions: [{ label: 'Que fait la main gauche ?', message: 'Que fait la main gauche ?' }] }) } },
+    ] } }] }) };
+  };
+  const res = await sendCopilotMessage({ message: 'Pourquoi un 2-5-1 sonne bien ?', messages: [], context: {} });
+  check('Outil audio non demandé : pas d\'exemple préparé', !res.toolResult?.example, res.toolResult?.example?.title);
+  check('Outil audio non demandé : la phrase « Écoute l\'exemple ci-dessous » est retirée', !/ci-dessous/.test(res.content) && /Dm7/.test(res.content), res.content);
+  check('Outil audio non demandé : « Fais-le-moi entendre » puis les suggestions du modèle',
+    res.suggestedActions?.[0]?.message === HEAR_IT_ACTION && res.suggestedActions?.[1]?.message === 'Que fait la main gauche ?', JSON.stringify(res.suggestedActions));
+  check('Une seule requête (pas de relance vers play_progression)', bodies.length === 1, `${bodies.length}`);
+
+  global.fetch = async () => ({ ok: true, status: 200, json: async () => ({ choices: [{ message: { role: 'assistant', content: 'Écoute la 7e qui descend.' } }] }) });
+  const heard = await sendCopilotMessage({ message: HEAR_IT_ACTION, messages: [{ role: 'user', content: 'Explique-moi un 2-5-1' }, { role: 'assistant', content: 'En Do, avec des couleurs : **Dm9 → G13 → Cmaj9**.' }], context: {} });
+  check('« Fais-le-moi entendre » : l\'exemple de la question d\'avant, avec les accords de la réponse', heard.toolResult?.example?.title === 'Dm9 → G13 → Cmaj9' && heard.autoplay === true, `${heard.toolResult?.example?.title} autoplay=${heard.autoplay}`);
+
+  bodies.length = 0;
+  global.fetch = async (url, init) => {
+    bodies.push(JSON.parse(init.body));
+    return { ok: true, status: 200, json: async () => ({ choices: [{ message: { role: 'assistant', content: 'La boucle : **1 – 6 – 4 – 5**.' } }] }) };
+  };
+  const tuto = await sendCopilotMessage({ message: 'Quelle est la progression ?', messages: [], context: { type: 'tutorial', title: 'Tuto', structure: songStructure({ chords: ['C', 'Am', 'F', 'G', 'C', 'Am', 'F', 'G', 'C', 'Am', 'F', 'G'].map((name, i) => ({ name, time: i * 2, start: i * 2, end: i * 2 + 2, duration: 2 })), key: 'C' }) } });
+  const sent = bodies[0]?.messages?.at(-1)?.content || '';
+  check('Tuto, « quelle est la progression ? » : la consigne de structure accompagne la question', /Quelle est la progression \?/.test(sent) && /boucle d'abord/.test(sent), sent.slice(0, 200));
+  check('Tuto, « quelle est la progression ? » : une seule requête, pas d\'exemple', bodies.length === 1 && !tuto.toolResult?.example, `${bodies.length}`);
   global.fetch = originalFetch;
 }
 
@@ -1752,7 +1804,7 @@ async function testMelodyChordsInSend() {
   body = null;
   const both = await sendCopilotMessage({ message: 'Joue-moi ma mélodie en melody chords', messages: [], context });
   check('« Joue-moi ma mélodie en melody chords » : des accords, pas la relecture', both.toolResult?.example?.kind === 'melody-chords' && calls === 1, `${both.toolResult?.example?.kind} calls=${calls}`);
-  const progression = await sendCopilotMessage({ message: 'Explique-moi l\'harmonisation de Dm7 G7 Cmaj7', messages: [], context });
+  const progression = await sendCopilotMessage({ message: 'Explique-moi l\'harmonisation de Dm7 G7 Cmaj7 avec un exemple', messages: [], context });
   check('« L\'harmonisation de Dm7 G7 Cmaj7 » en session : l\'exemple de la progression, pas sa mélodie', progression.toolResult?.example && progression.toolResult.example.kind !== 'melody-chords', progression.toolResult?.example?.kind);
   global.fetch = originalFetch;
 }
@@ -1868,6 +1920,7 @@ async function runTests() {
   await testFallbackWithoutToolsOn400();
   await testParsePlayNoteFromText();
   await testExplanationGetsExampleCard();
+  await testNoUnaskedExample();
   await testSessionFindingsInPrompt();
   await testCollapsedKeyboardKeepsExplanation();
   testMetadataOnPlayedNotes();

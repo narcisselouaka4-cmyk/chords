@@ -28,7 +28,7 @@ import {
   planPassingChord,
   PASSING_QUALITIES_BY_LEVEL,
 } from './practice-exercise.js';
-import { loadGrids, saveGrids, upsertGrid, removeGrid } from './practice-grids.js';
+import { loadGrids, saveGrids, upsertGrid, removeGrid, defaultGridName } from './practice-grids.js';
 import {
   respectsLowIntervalLimits, respectsFamilyDefinition, minorNinthClashes, hasEleventhAgainstMajorThird,
 } from './voicing-engine/textbook-voicings.js';
@@ -1554,6 +1554,10 @@ function checkMelodyAndGrids() {
   store.data['piano-jazz-exercise-grids'] = '{abîmé';
   check('Stockage illisible : aucune grille, pas d\'erreur', loadGrids(store).length === 0);
   check('Grille sans nom ou sans accord refusée', upsertGrid([], { name: ' ', chords: [{ name: 'C7' }] }).grid === null && upsertGrid([], { name: 'X', chords: [] }).grid === null);
+  // [Claude] — 2026-10-09 — Enregistrée sans nom : « Ma grille 1 », puis le plus petit numéro libre.
+  check('Nom par défaut : « Ma grille 1 », puis le premier numéro libre',
+    defaultGridName([]) === 'Ma grille 1'
+    && defaultGridName([{ name: 'Ma grille 1' }, { name: 'ma grille 2' }, { name: 'Ma grille 4' }]) === 'Ma grille 3');
 }
 
 // [Claude] — 2026-09-24 (nuit) — Règle de Narcisse : « les accords altérés ne

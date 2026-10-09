@@ -10,7 +10,7 @@
 import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { resolveAnalysisState, ANALYSIS_STATES } from './analyzer-workflow.js';
+import { resolveAnalysisState, ANALYSIS_STATES, inferSourceType } from './analyzer-workflow.js';
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -44,8 +44,10 @@ runTest('B — HOME → file picker MP4 → AUDIO_PREP, sans choix du type de vi
   const html = readFileSync(resolve(projectRoot, 'src/index.html'), 'utf-8');
   assert(!html.includes('analyzer-state-video-type'), "l'écran du type de vidéo est retiré du markup");
   const main = readFileSync(resolve(projectRoot, 'electron/main.js'), 'utf-8');
-  assert(/'studio:select-analysis-file'[\s\S]*?extensions: \['mp3', 'wav', 'm4a', 'mp4'\]/.test(main),
-    'le sélecteur de l’onglet Analyse propose le MP4');
+  assert(/'studio:select-analysis-file'[\s\S]*?extensions: \['mp3', 'wav', 'm4a', 'mp4', 'mid', 'midi'\]/.test(main),
+    'le sélecteur de l’onglet Analyse propose le MP4 et le MIDI');
+  // [Claude] — 2026-10-09 — Les fichiers MIDI sont une source à part (notes analysées directement).
+  assert(inferSourceType('/x/Ma session.mid') === 'midi' && inferSourceType('a.MIDI') === 'midi', 'un .mid est une source MIDI');
 });
 
 // ── C : la capture MIDI n'appartient plus à l'onglet Analyse ──

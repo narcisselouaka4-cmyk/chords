@@ -71,7 +71,25 @@ async function testSeekInsideChord() {
   check('Pause : tout relâché, pédale relevée', received.slice(-1)[0] === 'pedal up', received.slice(-3).join(', '));
 }
 
+// [Claude] — 2026-10-09 — « Quand on appuie sur pause, ça revient à zéro » (Narcisse).
+async function testPauseKeepsPosition() {
+  const { player } = recorderPlayer();
+  player.load(EVENTS);
+  player.seek(1);
+  player.play();
+  await sleep(120);
+  player.pause();
+  const paused = player.getCurrentTime();
+  check(`Pause : la position est gardée (${paused.toFixed(2)} s, pas 0)`, paused > 1.05 && paused < 1.4);
+  player.play();
+  await sleep(60);
+  const resumed = player.getCurrentTime();
+  player.pause();
+  check(`Reprise : la lecture repart de la pause (${resumed.toFixed(2)} s)`, resumed > paused && resumed < paused + 0.3);
+}
+
 await testStartIncluded();
+await testPauseKeepsPosition();
 await testSeekOnMoment();
 await testSeekInsideChord();
 

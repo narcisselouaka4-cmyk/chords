@@ -66,7 +66,7 @@ export const CHAPTERS = [
         target: '#analyzer-import-audio-btn',
         title: 'Importer un fichier audio',
         body:
-          "Formats acceptés : MP3, WAV, M4A. L'analyse porte toujours sur le fichier "
+          "Formats acceptés : MP3, WAV, M4A, MP4 et MIDI. L'analyse porte toujours sur le fichier "
           + "d'origine — rien n'est modifié sur votre disque.",
       },
       {

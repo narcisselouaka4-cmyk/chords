@@ -83,8 +83,12 @@ export function createPlayer({ onNoteOn, onNoteOff, onSustain, onPitchWheel, onM
 
   function pause() {
     if (state !== 'playing') return;
-    state = 'paused';
+    // [Claude] — 2026-10-09 — La position AVANT de changer d'état : getCurrentTime() ne compte le
+    // temps écoulé qu'en lecture. Dans l'ordre inverse, la pause relisait la position de départ
+    // (0) : « quand on appuie sur pause, ça revient à zéro » (Narcisse), et la reprise repartait
+    // du début.
     currentTime = getCurrentTime();
+    state = 'paused';
     cancelFrame(rafId);
     rafId = null;
     allNotesOff();

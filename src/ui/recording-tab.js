@@ -7,6 +7,7 @@ import {
   renameSession,
 } from '../recorder/session-manager.js';
 import { createRecorder } from '../recorder/recorder.js';
+import { buildMidiFile } from '../recorder/serializer.js';
 import { createPlayer } from '../recorder/player.js';
 import { playNote, releaseNote, resumeAudio } from '../audio/simple-synth.js';
 import { segmentSessionEvents, nameChordSegments } from '../recorder/session-analysis.js';
@@ -650,6 +651,8 @@ function renderMiniWave(preview) {
 const ICON_FILE_MUSIC = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><circle cx="9.5" cy="17" r="1.8"/><path d="M11.3 17v-4.6l4 1"/></svg>';
 const ICON_TRASH = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>';
 const ICON_OPEN = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>';
+const ICON_EXPORT = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>';
+const ICON_DONE = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>';
 const ICON_EMPTY_LIBRARY = '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
 
 function renderSessionList(sessions, { total = 0, query = '' } = {}) {
@@ -687,6 +690,7 @@ function renderSessionList(sessions, { total = 0, query = '' } = {}) {
       <span class="tr-library-cell">${noteCount}</span>
       <div class="tr-library-row-actions">
         <button class="tr-icon-button tr-delete" type="button" data-action="delete" aria-label="Supprimer la session ${escapeHtml(session.name)}" title="Supprimer">${ICON_TRASH}</button>
+        <button class="tr-icon-button" type="button" data-action="export" aria-label="Exporter la session ${escapeHtml(session.name)} en fichier MIDI" title="Exporter en fichier MIDI (.mid)">${ICON_EXPORT}</button>
         <button class="tr-icon-button" type="button" data-action="open" aria-label="Ouvrir la session ${escapeHtml(session.name)}" title="Ouvrir">${ICON_OPEN}</button>
       </div>
     `;
@@ -730,8 +734,23 @@ function renderSessionList(sessions, { total = 0, query = '' } = {}) {
 
     item.addEventListener('click', (e) => {
       if (item.dataset.editing === 'true') return;
-      if (e.target.closest('[data-action="delete"]')) return;
+      if (e.target.closest('[data-action="delete"], [data-action="export"]')) return;
       loadAndPlaySession(session.id);
+    });
+
+    item.querySelector('[data-action="export"]')?.addEventListener('click', async (e) => {
+      e.stopPropagation(); // ni sélection, ni fermeture du tiroir
+      const button = e.currentTarget;
+      try {
+        const saved = await exportSessionMidi(session);
+        if (!saved) return;
+        button.innerHTML = ICON_DONE;
+        button.title = 'Fichier MIDI enregistré';
+        setTimeout(() => { button.innerHTML = ICON_EXPORT; button.title = 'Exporter en fichier MIDI (.mid)'; }, 1800);
+      } catch (err) {
+        console.error('[Sessions MIDI] Export MIDI impossible', err);
+        alert(`L'export MIDI n'a pas abouti : ${err?.message || err}`);
+      }
     });
 
     item.querySelector('[data-action="delete"]')?.addEventListener('click', async (e) => {
@@ -752,6 +771,26 @@ function renderSessionList(sessions, { total = 0, query = '' } = {}) {
   }
 }
 
+// [Claude] — 2026-10-09 — Narcisse : « enregistrer une session dans un fichier, pour pouvoir
+// ensuite la donner à l'onglet Analyse ». Le fichier est un MIDI standard (.mid), lisible aussi
+// par n'importe quel logiciel de musique. On le refait à partir des évènements de la session (et
+// pas du events.mid gardé à côté : les anciens étaient écrits deux fois trop lents).
+/** Exporte une session en fichier .mid ; false si le pianiste annule. */
+async function exportSessionMidi(session) {
+  const files = window.electronAPI?.files;
+  if (!files?.saveDialog || !files?.writeBinary) throw new Error('export indisponible hors de l\'application');
+  const { events } = await loadSession(session.id);
+  if (!events.some((ev) => ev.type === 'note_on')) throw new Error('cette session ne contient aucune note');
+  const base = String(session.name || 'Session').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim() || 'Session';
+  const target = await files.saveDialog({
+    defaultPath: `${base}.mid`,
+    filters: [{ name: 'Fichier MIDI', extensions: ['mid', 'midi'] }],
+  });
+  if (!target) return false;
+  await files.writeBinary(target, buildMidiFile(events, { name: session.name }));
+  return true;
+}
+
 function selectSession(sessionId) {
   loadAndPlaySession(sessionId);
 }
@@ -769,7 +808,10 @@ async function loadAndPlaySession(sessionId, autoPlay = false) {
     refreshSessionList();
     if (els.copilotSessionBtn) els.copilotSessionBtn.disabled = false;
     if (els.transportBar) els.transportBar.style.display = 'flex';
-    if (els.carnet) els.carnet.style.display = 'flex';
+    // [Claude] — 2026-10-09 — « Le carnet des moments marquants » ne s'affiche plus (Narcisse :
+    // « pas vraiment utile sous cette forme, il ne faut plus que ça apparaisse »). Son markup
+    // reste (des liaisons en dépendent), toujours masqué.
+    if (els.carnet) els.carnet.style.display = 'none';
     if (els.recordingControls) els.recordingControls.style.display = 'none';
     if (els.loadedState) els.loadedState.style.display = 'inline-flex';
     updateTransportUI();
@@ -1269,6 +1311,8 @@ function bindCopilotButton() {
 let transportRafId = null;
 // Relance la session à la fin quand l'utilisateur travaille un passage.
 let transportLoopEnabled = false;
+/** Barre de lecture tenue par l'utilisateur : l'affichage ne la réécrit pas. */
+let transportScrubbing = false;
 
 const PLAY_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 4 13 8-13 8z" fill="currentColor"/></svg>';
 const PAUSE_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg>';
@@ -1305,17 +1349,30 @@ function bindTransportBar() {
     if (player.isPlaying) startTransportLoop();
   });
 
+  // [Claude] — 2026-10-09 — « Impossible de modifier manuellement la position de lecture »
+  // (Narcisse) : pendant la lecture, la boucle d'affichage réécrivait la barre à chaque image et
+  // effaçait le glisser ; au lâcher, on retombait sur la position courante. Tant que la barre
+  // est tenue, la boucle ne la touche plus ; le saut se fait au lâcher.
+  const sliderTime = () => ((Number(els.transportSlider.value) || 0) / 100) * (player?.getDuration() || 0);
+  els.transportSlider?.addEventListener('pointerdown', () => { transportScrubbing = true; });
   els.transportSlider?.addEventListener('input', () => {
     const duration = player?.getDuration() || 0;
-    const val = Number(els.transportSlider.value);
-    // Mise à jour visuelle uniquement pendant le drag ; le son se déclenche au mouseup.
-    updateTransportSliderOnly((val / 100) * duration, duration);
+    // Mise à jour visuelle (temps compris) pendant le glisser ; le son suit au lâcher.
+    updateTransportSliderOnly(sliderTime(), duration);
+    if (els.timecodeCurrent) els.timecodeCurrent.textContent = formatDuration(sliderTime());
+    if (!transportScrubbing) player?.seek(sliderTime()); // clavier (flèches) : saut direct
   });
 
   els.transportSlider?.addEventListener('change', () => {
-    const duration = player?.getDuration() || 0;
-    const val = Number(els.transportSlider.value);
-    player?.seek((val / 100) * duration);
+    transportScrubbing = false;
+    player?.seek(sliderTime());
+    updateTransportUI();
+  });
+  window.addEventListener('pointerup', () => {
+    if (!transportScrubbing) return;
+    transportScrubbing = false;
+    player?.seek(sliderTime());
+    updateTransportUI();
   });
 
   els.transportLoop?.addEventListener('click', () => {
@@ -1365,8 +1422,10 @@ function updateTransportUI() {
   if (!els.transportBar) return;
   const dur = player?.getDuration() || 0;
   const cur = player?.getCurrentTime() || 0;
-  updateTransportSliderOnly(cur, dur);
-  if (els.timecodeCurrent) els.timecodeCurrent.textContent = formatDuration(cur);
+  if (!transportScrubbing) {
+    updateTransportSliderOnly(cur, dur);
+    if (els.timecodeCurrent) els.timecodeCurrent.textContent = formatDuration(cur);
+  }
   if (els.timecodeTotal) els.timecodeTotal.textContent = formatDuration(dur);
   if (els.transportPlay) {
     // innerHTML et non textContent : le bouton porte une icône SVG depuis la

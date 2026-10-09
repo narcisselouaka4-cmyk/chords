@@ -26,9 +26,13 @@ export function resolveAnalysisState(_ext, _sourceType = 'audio') {
   return 'prepare';
 }
 
-// [P0/P4] — Type de source (audio/video) dérivé de l'extension.
+// [Claude] — 2026-10-09 — Fichiers MIDI : leurs notes sont analysées directement (midi-source.js).
+const MIDI_EXTENSIONS = new Set(['mid', 'midi']);
+
+// [P0/P4] — Type de source (audio/video/midi) dérivé de l'extension.
 export function inferSourceType(filePath, requested = 'audio') {
   const ext = (filePath || '').split('.').pop().toLowerCase();
+  if (MIDI_EXTENSIONS.has(ext)) return 'midi';
   if (requested === 'video' || VIDEO_EXTENSIONS.has(ext)) return 'video';
   return 'audio';
 }

@@ -63,6 +63,18 @@ export function upsertGrid(grids, { name, chords }, makeId = () => `perso-${Date
   return { grids: [saved, ...grids.filter((g) => g !== existing)].slice(0, MAX_GRIDS), grid: saved };
 }
 
+/**
+ * [Claude] — 2026-10-09 — Nom par défaut d'une grille enregistrée sans nom (Narcisse : « permettre
+ * l'enregistrement même si l'utilisateur ne nomme pas sa grille, avec un nom générique pas trop
+ * long ») : « Ma grille 1 », « Ma grille 2 »… le plus petit numéro libre.
+ */
+export function defaultGridName(grids) {
+  const used = new Set((grids || []).map((g) => String(g?.name || '').trim().toLowerCase()));
+  let n = 1;
+  while (used.has(`ma grille ${n}`)) n += 1;
+  return `Ma grille ${n}`;
+}
+
 /** Grilles sans celle d'identifiant `id`. */
 export function removeGrid(grids, id) {
   return grids.filter((g) => g.id !== id);

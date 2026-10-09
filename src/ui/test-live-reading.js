@@ -62,7 +62,7 @@ v = view([48, 52, 55, 59, 62, 54]);
 check('le voicing joué est nommé', v.voicing && v.voicing !== '—', v.voicing);
 check('readingName : sans fondamentale', readingName({ rootPc: 7, symbol: '13', bassPc: 5, isSlash: true, rootless: true }) === 'G13 sans fondamentale');
 v = describeLiveReading([], null);
-check('repos : en attente, roue vide', v.quality === 'en attente' && v.count === 0 && v.wheel.active.size === 0);
+check('repos : « — » (plus « en attente »), roue vide', v.quality === '—' && v.count === 0 && v.wheel.active.size === 0);
 
 console.log(`\n=== Résultat : ${passed}/${passed + failed} contrôles passés ===`);
 if (failed) process.exit(1);

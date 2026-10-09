@@ -1269,7 +1269,8 @@ function setupStudioIPC() {
       title: 'Choisir un morceau à analyser',
       properties: ['openFile'],
       filters: [
-        { name: 'Audio ou vidéo (MP3, WAV, M4A, MP4)', extensions: ['mp3', 'wav', 'm4a', 'mp4'] },
+        // [Claude] — 2026-10-09 — Et les fichiers MIDI (une session exportée, ou tout autre MIDI).
+        { name: 'Audio, vidéo ou MIDI (MP3, WAV, M4A, MP4, MID)', extensions: ['mp3', 'wav', 'm4a', 'mp4', 'mid', 'midi'] },
       ],
     });
     return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
