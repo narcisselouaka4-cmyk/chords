@@ -1,7 +1,8 @@
 // [Claude] — 2026-10-02 — Grace notes (src/note-grouper.js) : le Ré frotté vers le Mi
 // d'un Cmaj7 ne compte pas dans l'accord ; un vrai Ré, un cluster ou un accord plaqué
 // staccato, si. Temps simulé (performance.now remplacé), aucun DOM.
-import { createNoteGrouper, isGraceNote, GRACE_MAX_MS } from './note-grouper.js';
+import { createNoteGrouper, isGraceNote, GRACE_MAX_MS, chordNotesWithHeld } from './note-grouper.js';
+import { detectChord } from './chord-engine/index.js';
 
 let passed = 0;
 let failed = 0;
@@ -53,6 +54,16 @@ check('note encore tenue : jamais une grace note', !isGraceNote({ note: D, onTim
 check(`seuil : touche tenue plus de ${GRACE_MAX_MS} ms → gardée`,
   !isGraceNote({ note: D, onTime: 0, keyOffTime: GRACE_MAX_MS + 10 }, [{ note: E, onTime: 120, keyOffTime: null }]));
 check('voisine trop éloignée (tierce) : gardée', !isGraceNote({ note: C, onTime: 0, keyOffTime: 60 }, [{ note: E, onTime: 70, keyOffTime: null }]));
+
+// [Claude] — 2026-10-09 — Main gauche tenue (Do3 + Sol3) pendant que la main droite plaque.
+const name = (notes) => { const r = detectChord(notes); return r ? `${r.rootPc}:${r.symbol}` : ''; };
+check('Do Sol tenus + Mi : Do majeur', name(chordNotesWithHeld([64], [48, 55])) === '0:');
+check('Do Sol tenus + Si Ré Mi plaqués : Do majeur 9 (pas l\'accord de la main droite seule)',
+  name(chordNotesWithHeld([71, 74, 76], [48, 55, 71, 74, 76])) === '0:maj9', name(chordNotesWithHeld([71, 74, 76], [48, 55, 71, 74, 76])));
+const f = chordNotesWithHeld([77, 81, 84, 88], [48, 55, 77, 81, 84, 88]);
+const fr = detectChord(f);
+check('Do Sol tenus + Fa La Do Mi : Do à la basse, plus un Fa majeur 7 seul', fr.bassPc === 0 && f.includes(48) && f.includes(55) && !(fr.rootPc === 5 && fr.symbol === 'maj7' && !fr.isSlash), `${fr.rootPc}:${fr.symbol} basse ${fr.bassPc}`);
+check('Un accord plaqué staccato (déjà relâché) reste lu en entier', chordNotesWithHeld([60, 64, 67], []).join() === '60,64,67');
 
 console.log(`\n=== Résultat : ${passed}/${passed + failed} contrôles passés ===`);
 if (failed) process.exit(1);

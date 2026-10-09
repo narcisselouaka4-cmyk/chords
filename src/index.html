@@ -1866,6 +1866,15 @@
               <span class="vk-readout-notes" id="keyboard-readout-notes">aucune note</span>
             </div>
 
+            <!-- [Claude] — 2026-10-09 — Lecture en cours (exemple du Copilote, démo d'un mouvement) :
+                 elle continue d'un onglet à l'autre ; on l'arrête d'ici, où qu'on soit. -->
+            <div class="vk-group vk-playing" id="keyboard-playing" role="group" aria-label="Lecture en cours" hidden>
+              <span class="vk-playing-dot" aria-hidden="true"></span>
+              <span class="vk-playing-label" data-role="label">Lecture</span>
+              <button type="button" class="vk-playing-btn" data-action="pause" aria-label="Mettre la lecture en pause" title="Pause"></button>
+              <button type="button" class="vk-playing-btn" data-action="stop" aria-label="Arrêter la lecture" title="Arrêter"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="1.5"/></svg></button>
+            </div>
+
             <div class="vk-group vk-controls">
               <div class="vk-stepper" aria-label="Transposition">
                 <span>Transposition</span>

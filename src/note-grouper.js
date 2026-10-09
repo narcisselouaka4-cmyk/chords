@@ -36,6 +36,22 @@ export function isGraceNote(g, others) {
   return false;
 }
 
+// [Claude] — 2026-10-09 — Narcisse : « ma main gauche tient Do et Sol, ma main droite joue Si, Ré
+// et Mi : je devrais avoir un Do majeur 9, et c'est seulement l'accord de la main droite qui
+// s'affiche ». Le regroupement ci-dessous ne voit que les notes ATTAQUÉES ensemble (la main
+// droite) ; l'accord affiché s'en tenait là et effaçait, 200 ms plus tard, la bonne lecture faite
+// sur toutes les touches tenues. L'accord est donc lu sur le groupe ET sur tout ce qui sonne
+// encore (touches tenues, notes tenues par la pédale).
+/**
+ * Les notes de l'accord à lire : celles du groupe attaqué, plus celles qui sonnent encore.
+ * @param {number[]} groupNotes - notes du groupe (regroupement temporel)
+ * @param {Iterable<number>} soundingNotes - touches tenues et notes tenues par la pédale
+ * @returns {number[]} sans doublon, de la plus grave à la plus aiguë
+ */
+export function chordNotesWithHeld(groupNotes, soundingNotes) {
+  return Array.from(new Set([...(groupNotes || []), ...(soundingNotes || [])])).sort((a, b) => a - b);
+}
+
 // [OpenCode] — 2026-07-04 — Groupement temporel des notes avec fenêtre glissante pour les cascades/arpèges.
 // [OpenCode] — 2026-09-05 — Un accord (même roulé, pédale tenue) a un instant où plusieurs
 // notes sonnent vraiment ensemble ; une gamme ou un glissando joués note à note, même rapides

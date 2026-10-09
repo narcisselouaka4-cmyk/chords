@@ -220,3 +220,18 @@
 :root[data-theme='light'] .vk-switch:hover { border-color: #cfcad8; }
 :root[data-theme='light'] .vk-switch:has(> input:checked) { color: #ffffff; background: var(--vk-accent); border-color: var(--vk-accent); }
 :root[data-theme='light'] .vk-switch.is-warn:has(> input:checked) { color: #2d1a1f; background: #e0a3b0; border-color: #e0a3b0; }
+
+/* [Claude] — 2026-10-09 — Lecture en cours (exemple du Copilote, démo d'un mouvement) : elle suit
+   le pianiste d'un onglet à l'autre ; on la met en pause ou on l'arrête d'ici. Pastille jaune :
+   la couleur des touches que l'application joue. */
+.vk-playing[hidden] { display: none; }
+.vk-playing { gap: 7px; padding: 3px 4px 3px 10px; border: 1px solid var(--vk-line); border-radius: 999px; background: var(--vk-shell-2); flex-shrink: 0; }
+.vk-playing-dot { width: 7px; height: 7px; border-radius: 50%; background: #f2c94c; box-shadow: 0 0 0 3px rgba(242, 201, 76, .18); animation: vk-playing-pulse 1.4s ease-in-out infinite; }
+.vk-playing.is-paused .vk-playing-dot { animation: none; opacity: .55; }
+.vk-playing-label { color: var(--vk-text); font-size: 10.5px; white-space: nowrap; }
+.vk-playing-btn { display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--vk-text); cursor: pointer; }
+.vk-playing-btn:hover { background: var(--vk-line); }
+.vk-playing-btn:focus-visible { outline: 2px solid var(--vk-accent); outline-offset: 1px; }
+@keyframes vk-playing-pulse { 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .vk-playing-dot { animation: none; } }
+.vk-readout strong { flex-shrink: 0; }

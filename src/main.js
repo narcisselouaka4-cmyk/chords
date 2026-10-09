@@ -22,7 +22,7 @@ import { pickPreferredInput } from './midi-ports.js';
 import { createChordHistory } from './chord-history.js';
 import { initCopilotTab } from './pedagogie/copilot-tab.js';
 
-import { createNoteGrouper, isGraceNote } from './note-grouper.js';
+import { createNoteGrouper, isGraceNote, chordNotesWithHeld } from './note-grouper.js';
 import { initAnalyzerTab } from './ui/analyzer-tab.js';
 import { mountChromaStages } from './ui/components/loader-chroma.js';
 import { initStudioTab } from './ui/studio-tab.js';
@@ -1314,8 +1314,8 @@ function initNoteGrouper() {
     onGroupReady: (group) => {
       // Re-evaluate chord after grouping window closes, en différé pour ne pas
       // bloquer l'animation / le lecteur audio.
-      const notes = group.map((n) => n.note);
-      const unique = Array.from(new Set(notes)).sort((a, b) => a - b);
+      // [Claude] — 2026-10-09 — Avec ce que la main gauche tient toujours (chordNotesWithHeld).
+      const unique = chordNotesWithHeld(group.map((n) => n.note), getAllActivePcs());
       if (unique.length >= 3) {
         scheduleGroupedDetection(unique);
       }
@@ -1359,6 +1359,7 @@ function updateExerciseProgressUI(exState) {
 const KEY_NAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
 const DEMO_PLAY_ICON = '<svg class="tr-i" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>';
 const DEMO_STOP_ICON = '<svg class="tr-i" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="1.5"/></svg>';
+const DEMO_PAUSE_ICON = '<svg class="tr-i" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>';
 
 /** Panneau de gauche : ce qu'on travaille, et les réglages du tour en Mouvement. */
 function renderExerciseBrief(exState) {
@@ -2576,6 +2577,45 @@ function initPracticeExercise() {
     }));
   }
 
+  // [Claude] — 2026-10-09 — La lecture en cours, dans la barre du clavier (visible de partout).
+  function initDemoDock() {
+    const dock = document.getElementById('keyboard-playing');
+    if (!dock) return;
+    const label = dock.querySelector('[data-role="label"]');
+    const pauseBtn = dock.querySelector('[data-action="pause"]');
+    const stopBtn = dock.querySelector('[data-action="stop"]');
+    // Court : la barre du clavier est déjà chargée (le nom complet est dans l'infobulle).
+    const LABELS = { copilot: ['Copilote', 'Exemple du Copilote en lecture'], movement: ['Démo', 'Démo du mouvement en lecture'], preview: ['Aperçu', 'Aperçu du mouvement en lecture'] };
+    let shown = '';
+    const refresh = () => {
+      const active = demoPlayer.isActive() && Boolean(demoContext);
+      const paused = active && demoPlayer.isPaused();
+      const key = active ? `${demoContext.kind}|${paused}` : '';
+      if (key === shown) return;
+      shown = key;
+      dock.hidden = !active;
+      if (!active) return;
+      const [short, full] = LABELS[demoContext.kind] || ['Lecture', 'Lecture en cours'];
+      label.textContent = short;
+      dock.title = full;
+      dock.classList.toggle('is-paused', paused);
+      pauseBtn.innerHTML = paused ? DEMO_PLAY_ICON : DEMO_PAUSE_ICON;
+      pauseBtn.setAttribute('aria-label', paused ? 'Reprendre la lecture' : 'Mettre la lecture en pause');
+      pauseBtn.title = paused ? 'Reprendre' : 'Pause';
+    };
+    pauseBtn.addEventListener('click', () => {
+      if (!demoPlayer.isActive()) return;
+      if (demoPlayer.isPaused()) demoPlayer.resume(); else demoPlayer.pause();
+      sendExampleProgress();
+      refresh();
+    });
+    stopBtn.addEventListener('click', () => {
+      demoPlayer.stop();
+      refresh();
+    });
+    setInterval(refresh, 250);
+  }
+
   function refreshDemoButtons(exState) {
     const btn = document.getElementById('exercise-demo-btn');
     if (!btn) return;
@@ -2606,9 +2646,13 @@ function initPracticeExercise() {
   };
   exercisesView?.addEventListener('click', interruptDemo, true);
   exercisesView?.addEventListener('change', interruptDemo, true);
-  // Changer de vue ou d'onglet, ou fermer la bibliothèque pendant un aperçu, arrête aussi.
-  document.addEventListener('app-switch-training-view', () => demoPlayer.stop());
-  document.querySelectorAll('.tab-btn').forEach((tab) => tab.addEventListener('click', () => demoPlayer.stop()));
+  // [Claude] — 2026-10-09 — Changer de vue ou d'onglet n'arrête PLUS la lecture (Narcisse : « quand
+  // Copilote joue et que je bascule sur Temps réel, il s'arrête ; on a envie que ça continue, et
+  // que ça ne s'arrête que quand c'est moi qui l'ai décidé », comme une relecture de Sessions
+  // MIDI). Le clavier, l'accord et l'animation du Temps réel suivent déjà la démo (feedDemoEvent).
+  // Où qu'il soit, le pianiste la met en pause ou l'arrête depuis la barre du clavier
+  // (#keyboard-playing). Seul l'aperçu d'une carte s'arrête quand on ferme la bibliothèque.
+  initDemoDock();
   if (els.exerciseLibrary && typeof MutationObserver !== 'undefined') {
     new MutationObserver(() => {
       if (els.exerciseLibrary.hidden && demoContext?.kind === 'preview') demoPlayer.stop();
