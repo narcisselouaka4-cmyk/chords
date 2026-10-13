@@ -89,7 +89,7 @@
 :root[data-skin='v2'] #analysis-tab .analyzer-analysis-header .badge {
   background: var(--r-accent-soft);
   color: var(--r-text);
-  border-color: rgba(139, 108, 245, 0.4);
+  border-color: color-mix(in srgb, var(--r-accent) 40%, transparent);
 }
 
 /* ========================================================================== *
@@ -297,7 +297,7 @@
 
 /* Carte héros : dégradé plein en v2, aplat en Global */
 :root[data-skin='v2'] #analysis-tab .analyzer-hero-card {
-  background: linear-gradient(150deg, #7c4dff 0%, #5b4bd1 100%);
+  background: var(--r-grad);
   border-color: transparent;
   border-radius: var(--r-radius-card);
 }
@@ -681,7 +681,7 @@
 :root[data-skin='v2'] #analysis-tab .reharm-card-score.full {
   background: var(--r-accent-soft);
   color: var(--r-text);
-  border-color: rgba(139, 108, 245, 0.4);
+  border-color: color-mix(in srgb, var(--r-accent) 40%, transparent);
 }
 :root[data-skin='v2'] #analysis-tab .reharm-card-score.full {
   background: var(--r-grad);

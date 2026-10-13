@@ -13,13 +13,13 @@
 :root {
   --r-vocals: #f2637a;
   --r-drums: #4fd1c5;
-  --r-bass: #8b6cf5;
+  --r-bass: var(--r-accent);
   --r-other: #f0b155;
   --r-piano: #68d391;
 }
 
 :root[data-skin='global'] { --r-waveform: #4fd1c5; }
-:root[data-skin='v2'] { --r-waveform: #a78bfa; }
+:root[data-skin='v2'] { --r-waveform: var(--r-accent); }
 
 /* -------------------------------------------------------------------------- *
  *  COMMUN — colonne « Lecture »                                               *
@@ -117,7 +117,7 @@
 :root[data-skin='global'] #studio-tab #studio-import-btn {
   background: var(--r-accent-soft);
   color: var(--r-accent-text);
-  border: 1px solid rgba(139, 108, 245, 0.35);
+  border: 1px solid color-mix(in srgb, var(--r-accent) 35%, transparent);
   border-radius: 8px;
   font-weight: 600;
   font-size: 0.72rem;
@@ -140,7 +140,7 @@
   /* Le morceau en cours se signale par l'accent de l'application, comme dans la
      maquette — pas par le turquoise de la forme d'onde, qui désignait une autre
      chose et devenait un vert d'eau délavé en thème clair. */
-  border-color: rgba(139, 108, 245, 0.45);
+  border-color: color-mix(in srgb, var(--r-accent) 45%, transparent);
   background: var(--r-accent-soft);
   box-shadow: inset 3px 0 0 var(--r-accent);
 }
@@ -466,7 +466,7 @@
 :root[data-skin='global'] #studio-tab .studio-confirm-btn {
   background: var(--r-accent-soft);
   color: var(--r-accent-text);
-  border-color: rgba(139, 108, 245, 0.4);
+  border-color: color-mix(in srgb, var(--r-accent) 40%, transparent);
 }
 
 :root[data-skin='global'] #studio-tab .studio-controls {
@@ -626,7 +626,7 @@
 :root[data-skin='global'] #studio-tab .studio-stem-btn.active {
   background: var(--r-accent-soft);
   color: var(--r-accent);
-  border-color: rgba(139, 108, 245, 0.5);
+  border-color: color-mix(in srgb, var(--r-accent) 50%, transparent);
 }
 :root[data-skin='global'] #studio-tab .studio-stem-volume-wrap {
   flex-basis: 100%;

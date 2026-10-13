@@ -165,8 +165,8 @@
             <div class="live-side">
               <!-- [Claude] — 2026-10-09 — Masquer / afficher les caractéristiques (Narcisse) ;
                    le choix est retenu (live-reading.js). -->
-              <button type="button" class="live-readouts-toggle" id="live-readouts-toggle" aria-controls="live-readouts" aria-expanded="false">Afficher</button>
-              <dl class="live-readouts" id="live-readouts" hidden>
+              <button type="button" class="live-readouts-toggle" id="live-readouts-toggle" aria-controls="live-readouts" aria-expanded="true">Masquer</button>
+              <dl class="live-readouts" id="live-readouts">
                 <div><dt>Fondamentale</dt><dd id="live-root">—</dd></div>
                 <div><dt>Basse jouée</dt><dd id="live-bass">—</dd></div>
                 <div><dt>Qualité</dt><dd id="live-quality">—</dd></div>
@@ -1927,6 +1927,9 @@
                 </select>
               </label>
 
+            </div>
+
+            <div class="vk-group vk-right">
               <!-- Interrupteurs : l'apparence est celle d'Astra, la mécanique
                    reste la case à cocher que main.js lit (.checked). -->
               <div class="vk-switches">
@@ -1937,9 +1940,6 @@
                   <input type="checkbox" id="silent-mode" /><span>Silencieux</span>
                 </label>
               </div>
-            </div>
-
-            <div class="vk-group vk-right">
               <button type="button" class="vk-collapse keyboard-collapse-btn" id="keyboard-collapse-btn"
                       aria-expanded="true" aria-controls="keyboard-container"
                       title="Réduire le clavier virtuel"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
@@ -1958,8 +1958,10 @@
             <!-- [Claude] — 2026-09-25 — Qui joue ? Bleu : toi ; jaune : l'application
                  (Copilote, démos, relecture). Plus d'étiquettes sur les touches. -->
             <div class="vk-legend">
-              <span><i class="vk-dot vk-dot-you"></i>Toi</span>
-              <span><i class="vk-dot vk-dot-app"></i>L'app</span>
+              <!-- [Claude] — 2026-10-13 — Un clic sur la pastille règle la couleur des touches (Toi / L'app) :
+                   la case « couleur des notes » de Réglages est supprimée. -->
+              <label class="vk-legend-pick" title="Clique pour changer la couleur de tes notes"><i class="vk-dot vk-dot-you"></i>Toi<input type="color" id="color-you" value="#2563eb" aria-label="Couleur de tes notes" /></label>
+              <label class="vk-legend-pick" title="Clique pour changer la couleur de ce que joue l'application"><i class="vk-dot vk-dot-app"></i>L'app<input type="color" id="color-app" value="#f2b705" aria-label="Couleur de ce que joue l'application" /></label>
             </div>
             <!-- [Claude] — 2026-10-13 — Plus de compteur « 1 note, 2 notes… » (pas nécessaire). -->
           </div>
@@ -2013,6 +2015,13 @@
 
           <div class="settings-section" id="settings-appearance">
             <h4 class="settings-section-title">Apparence</h4>
+            <!-- [Claude] — 2026-10-13 — Couleur générale de l'application (accent-theme.js) : toutes les
+                 familles de variables de couleur en dérivent. -->
+            <div class="appearance-field" id="settings-accent">
+              <span>Couleur de l'application</span>
+              <div class="accent-presets" id="accent-presets" role="group" aria-label="Couleur de l'application"></div>
+              <label class="accent-custom"><span>Autre couleur…</span><input type="color" id="accent-custom" value="#9b7bf0" aria-label="Choisir une autre couleur pour l'application" /></label>
+            </div>
             <div class="appearance-field">
               <span>Habillage de l'application</span>
               <div class="skin-segmented" id="skin-selector" role="group" aria-label="Habillage de l'application">
@@ -2056,12 +2065,6 @@
                   <input type="number" id="tolerance" value="200" min="50" max="500" step="10" />
                 </div>
                 <small class="settings-note">Fenêtre dans laquelle des notes attaquées presque ensemble forment un accord.</small>
-              </div>
-              <div class="settings-row">
-                <label for="color-note">Couleur des notes</label>
-                <div class="settings-control">
-                  <input type="color" id="color-note" value="#2563eb" />
-                </div>
               </div>
             </div>
             <div class="settings-status" id="status-bar" role="status" aria-live="polite"></div>

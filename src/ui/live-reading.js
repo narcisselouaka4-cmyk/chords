@@ -360,10 +360,12 @@ export function initLiveReading() {
 
 // [Claude] — 2026-10-09 — Narcisse : « un bouton pour masquer les caractéristiques si
 // l'utilisateur le souhaite ». Le choix est retenu d'une ouverture à l'autre.
-// [Claude] — 2026-10-13 — Libellé court (« Masquer » / « Afficher », ce que le bouton FERA) et
-// caractéristiques masquées au premier lancement (« tu gardes Afficher par défaut »). Nouvelle clé :
-// l'ancienne gardait le choix fait pendant les essais, qui aurait écrasé ce défaut.
-export const READOUTS_HIDDEN_KEY = 'pjc.live.readoutsHidden.v2';
+// [Claude] — 2026-10-13 — Libellé court : « Masquer » (ce que le bouton FERA) quand les
+// caractéristiques sont visibles, « Afficher » quand elles sont masquées. [Claude] — 2026-10-13 (soir) —
+// VISIBLES par défaut : « Afficher » par défaut avait été compris comme « masqué » ; Narcisse voulait
+// voir les caractéristiques d'emblée, avec le bouton « Masquer ». Nouvelle clé (v3) : le choix gardé
+// par la version d'avant ne doit pas écraser ce défaut.
+export const READOUTS_HIDDEN_KEY = 'pjc.live.readoutsHidden.v3';
 
 function bindReadoutsToggle() {
   const button = byId('live-readouts-toggle');
@@ -375,8 +377,8 @@ function bindReadoutsToggle() {
     button.textContent = hidden ? 'Afficher' : 'Masquer';
     button.title = hidden ? 'Afficher les caractéristiques de l\'accord' : 'Masquer les caractéristiques de l\'accord';
   };
-  let hidden = true;
-  try { hidden = localStorage.getItem(READOUTS_HIDDEN_KEY) !== '0'; } catch { /* stockage indisponible */ }
+  let hidden = false;
+  try { hidden = localStorage.getItem(READOUTS_HIDDEN_KEY) === '1'; } catch { /* stockage indisponible */ }
   apply(hidden);
   button.addEventListener('click', () => {
     hidden = !list.hidden;

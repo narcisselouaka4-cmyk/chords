@@ -62,3 +62,26 @@ inversée ; Pédagogie IA : bibliothèque intégrée au lieu d'un dossier).
 - `src/ui/components/list-search.js` : filtre ce qui est affiché (sans accents ni casse, tous les mots
   doivent s'y trouver, Échap efface, « Aucun résultat pour … ») et se ré-applique quand l'application
   redessine la liste (MutationObserver). Aucun rendu de liste n'a été réécrit. Test : `test-list-search.js`.
+
+## Retours du 13/10 (nuit) : barre stable, Temps réel, couleurs
+- **Barre du clavier stable.** Cause : la lecture d'accord (nom + notes) de la barre avait une largeur
+  libre ; chaque accord d'une session jouée la changeait et poussait Transposition, Étendue, Début, Fin,
+  Notation, PC → MIDI, Silencieux (mesuré : 6 positions différentes). Maintenant largeur FIXE (270 px, 170
+  sous 1420 px de large, texte coupé par « … ») : 1 seule position, sur 5 accords, clair et sombre,
+  1600 et 1280 px. Réglages au milieu ; PC → MIDI et Silencieux calés tout à droite (à côté du repli).
+- **Temps réel** : plus de lecture d'accord sur la barre du clavier dans cette vue
+  (`:root:has(#practice-tab[data-training-view='realtime'])`), elle reste ailleurs. Caractéristiques
+  VISIBLES par défaut, bouton « Masquer » (puis « Afficher »), clé de mémoire v3 ; contour du bouton net en
+  clair (1,5 px, 45 % de la couleur du texte).
+- **Copilot IA** : le « bout de logo caché » venait de l'accueil comprimé sur fenêtre peu haute (le logo
+  rétrécissait de 60 à 23 px) : plus de rétrécissement, marge au-dessus du logo, accueil compact sous 900 px de
+  haut, en-tête à 40 px.
+- **Couleur générale** (`src/ui/accent-theme.js`) : le violet vivait dans cinq familles de variables
+  (--tr-, --r-, --vk-, --an-, --accent) déclarées sur des éléments différents. Une couleur choisie
+  (Réglages › Apparence : 8 pastilles + « Autre couleur… », clé `pjc.accent`) génère la palette de chaque
+  famille, sombre et clair, injectée dans une feuille finale (!important) ; fonds clairs teintés ; texte de
+  bouton sombre si la teinte est claire (jaune). Les violets écrits en dur (bordures, dégradés, mini-clavier,
+  touches allumées de la barre) pointent maintenant vers les variables. Sans choix : violet d'origine.
+- **« Couleur des notes » supprimée** de Réglages. Les pastilles Toi (bleu) et L'app (jaune) de la légende
+  sous le clavier ouvrent le sélecteur de couleur d'un clic (`pjc.keyColors`).
+- Échec ancien inchangé : `test-skin-manager` (2).

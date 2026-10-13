@@ -1185,3 +1185,22 @@
    d'invitation : courte colonne centrée, discrète (l'en-tête garde le titre et les boutons). */
 .tr-copilot-welcome > p.copilot-context-note { max-width: 56ch; margin: 14px auto 0; padding: 8px 12px; border-left: 2px solid var(--tr-border); color: var(--tr-muted); font-size: 11px; line-height: 1.6; text-align: left; }
 .tr-copilot-welcome > p.copilot-context-note[hidden] { display: none; }
+
+/* [Claude] — 2026-10-13 — Copilot IA : un petit bout du logo restait caché. Les plans inclinés du logo
+   dépassent de sa boîte de quelques pixels ; l'accueil, collé en haut du défileur dès que la fenêtre est
+   basse, les coupait. Marge au-dessus du logo, et en-tête encore plus fin (40 px au lieu de 48). */
+#practice-view-copilot > .tr-view-heading { min-height: 40px; }
+#practice-view-copilot > .tr-view-heading .tr-button { height: 32px; padding-top: 0; padding-bottom: 0; }
+#practice-view-copilot .tr-copilot-welcome { padding-top: 22px; }
+#practice-view-copilot .tr-copilot-welcome > .tr-ai-object { margin-top: 8px; }
+/* Cause réelle du « bout de logo caché » : sur une fenêtre peu haute, l'accueil se comprimait et le logo
+   (boîte flex) rétrécissait de 60 à 23 px, coupé net. Rien ne rétrécit plus : le défileur défile. */
+#practice-view-copilot .tr-copilot-welcome { flex: 1 0 auto; }
+#practice-view-copilot .tr-copilot-welcome > * { flex-shrink: 0; }
+/* Fenêtre peu haute : l'accueil du Copilote se compacte (titre plus petit, sans le paragraphe d'invitation)
+   plutôt que de déborder du défileur. */
+@media (max-height: 900px) {
+  #practice-view-copilot .tr-copilot-welcome > h2 { font-size: 26px; margin-top: 8px; }
+  #practice-view-copilot .tr-copilot-welcome > p:not(.copilot-context-note) { display: none; }
+  #practice-view-copilot .tr-copilot-welcome { min-height: 0; padding-bottom: 10px; }
+}

@@ -67,8 +67,8 @@ function gradients(suffix) {
   return `<defs>${[
     vertical(`mk-off-w${suffix}`, '#fdfcfe', '#f0edf3'),
     horizontal(`mk-off-b${suffix}`, '#3f3c43', '#212027'),
-    vertical(`mk-on-w${suffix}`, '#c2a5fa', '#a583e2'),
-    horizontal(`mk-on-b${suffix}`, '#a082da', '#705095'),
+    vertical(`mk-on-w${suffix}`, 'color-mix(in srgb, var(--vk-accent-deep) 55%, #ffffff)', 'color-mix(in srgb, var(--vk-accent-deep) 85%, #ffffff)'),
+    horizontal(`mk-on-b${suffix}`, 'color-mix(in srgb, var(--vk-accent-deep) 80%, #000000)', 'color-mix(in srgb, var(--vk-accent-deep) 55%, #000000)'),
     vertical(`mk-rh-w${suffix}`, '#bfe6d8', '#8ccdb7'),
     horizontal(`mk-rh-b${suffix}`, '#7fc4ad', '#4f8f7a'),
     vertical(`mk-add-w${suffix}`, '#f6ddb0', '#e8b86a'),
@@ -125,8 +125,8 @@ export function generateMiniKeyboard(activeNotes = [], options = {}) {
   const suffix = `-${++gradientSerial}`;
   const fillOf = (midi) => `url(#mk-${tone(midi)}-${isBlackKey(midi) ? 'b' : 'w'}${suffix})`;
   const STROKES = {
-    w: { off: '#bdb7c5', on: '#8f6fe0', rh: '#5fa892', add: '#c8923f' },
-    b: { off: '#141318', on: '#5c437c', rh: '#3e8b74', add: '#9a6a22' },
+    w: { off: '#bdb7c5', on: 'var(--vk-accent-deep)', rh: '#5fa892', add: '#c8923f' },
+    b: { off: '#141318', on: 'color-mix(in srgb, var(--vk-accent-deep) 60%, #000000)', rh: '#3e8b74', add: '#9a6a22' },
   };
 
   // Touches blanches

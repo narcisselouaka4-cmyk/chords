@@ -26,6 +26,7 @@ import { createNoteGrouper, isGraceNote, chordNotesWithHeld } from './note-group
 import { initAnalyzerTab } from './ui/analyzer-tab.js';
 import { mountChromaStages } from './ui/components/loader-chroma.js';
 import { attachListSearch } from './ui/components/list-search.js';
+import { initAccentTheme } from './ui/accent-theme.js';
 import { initStudioTab } from './ui/studio-tab.js';
 // [Claude 05/09] — Coach d'accompagnement au chant : vue sœur de Sessions MIDI
 // dans la sous-navigation d'Entraînement. Reste un flux séparé, sans pont de
@@ -195,7 +196,7 @@ const els = {
   chordDisplay: document.getElementById('chord-display'),
   notesDisplay: document.getElementById('notes-display'),
   pedagogy: document.getElementById('pedagogy-content'),
-  colorNote: document.getElementById('color-note'),
+  colorNote: document.getElementById('color-you'), // [Claude] — 2026-10-13 — pastille « Toi » de la légende du clavier
   statusBar: document.getElementById('status-bar'),
 
   midiRefresh: document.getElementById('midi-refresh'),
@@ -1083,13 +1084,42 @@ function applyYouColor() {
   document.documentElement.style.setProperty('--kb-you', state.colorNote);
 }
 
+// [Claude] — 2026-10-13 — Les deux couleurs des touches se règlent d'un clic sur leur pastille (légende
+// « Toi / L'app » sous le clavier) ; elles sont gardées d'une ouverture à l'autre.
+const KEY_COLORS_STORAGE = 'pjc.keyColors';
+function lighten(hex, amount = 0.45) {
+  const n = parseInt(hex.slice(1), 16);
+  const mix = (c) => Math.round(c + (255 - c) * amount);
+  return `#${[(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => mix(c).toString(16).padStart(2, '0')).join('')}`;
+}
+function applyAppColor(hex) {
+  const style = document.documentElement.style;
+  style.setProperty('--kb-app', hex);
+  style.setProperty('--kb-app-light', lighten(hex));
+}
+function readKeyColors() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(KEY_COLORS_STORAGE) || '{}');
+    const ok = (v) => (/^#[0-9a-f]{6}$/i.test(v) ? v : null);
+    return { you: ok(saved.you), app: ok(saved.app) };
+  } catch { return { you: null, app: null }; }
+}
+function saveKeyColors(patch) {
+  try { localStorage.setItem(KEY_COLORS_STORAGE, JSON.stringify({ ...readKeyColors(), ...patch })); } catch { /* idem */ }
+}
+
 function initSettings() {
   els.noteStart.value = state.noteStart;
   els.noteEnd.value = state.noteEnd;
   els.keyboardSize.value = 'midi';
   els.notation.value = state.notation || 'english';
+  const savedKeys = readKeyColors();
+  if (savedKeys.you) state.colorNote = savedKeys.you;
   els.colorNote.value = state.colorNote;
   applyYouColor();
+  const appPicker = document.getElementById('color-app');
+  if (savedKeys.app) { applyAppColor(savedKeys.app); if (appPicker) appPicker.value = savedKeys.app; }
+  appPicker?.addEventListener('input', () => { applyAppColor(appPicker.value); saveKeyColors({ app: appPicker.value }); });
   els.transposeInput.value = state.transpose;
   // [Claude] — 2026-10-13 — Silencieux DÉCOCHÉ à l'ouverture : Narcisse avait demandé l'inverse le
   // 24/09 (« le clavier joué ne sonne pas par défaut ») et a changé d'avis : le clavier MIDI
@@ -1110,6 +1140,7 @@ function initSettings() {
     state.pcKeyboardToMidi = els.pcKeyboardMidi ? els.pcKeyboardMidi.checked : true;
     setPcKeyboardToMidiEnabled(state.pcKeyboardToMidi);
     state.colorNote = els.colorNote.value;
+    saveKeyColors({ you: state.colorNote });
     applyYouColor();
 
     // [Claude] — 2026-07-03 — Retransposer les notes actives quand le réglage de transposition change
@@ -3031,6 +3062,7 @@ async function init() {
   // `data-chroma-stage` (Analyse, Studio) depuis une source unique.
   safeInit('mountChromaStages', () => mountChromaStages());
   // [Claude] — 2026-10-13 — Une barre de recherche dans chaque bibliothèque (list-search.js).
+  safeInit('accentTheme', () => initAccentTheme());
   safeInit('librarySearches', () => {
     for (const [input, list] of [
       ['studio-library-search', 'studio-track-list'],

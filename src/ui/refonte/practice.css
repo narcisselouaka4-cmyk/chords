@@ -667,7 +667,7 @@
 :root[data-skin='global'] #practice-tab .practice-exercise-progress {
   background: var(--r-accent-soft);
   color: var(--r-text);
-  border: 1px solid rgba(139, 108, 245, 0.4);
+  border: 1px solid color-mix(in srgb, var(--r-accent) 40%, transparent);
 }
 /* v2 : badge de progression en dégradé (identité v2 déjà utilisée sur .tab-btn.active) */
 :root[data-skin='v2'] #practice-tab .practice-exercise-progress {
@@ -819,7 +819,7 @@
 }
 :root[data-skin='global'] #practice-view-midi-sessions .session-item.active,
 :root[data-skin='v2'] #practice-view-midi-sessions .session-item.active {
-  border-color: rgba(139, 108, 245, 0.45);
+  border-color: color-mix(in srgb, var(--r-accent) 45%, transparent);
   background: var(--r-accent-soft);
   box-shadow: inset 3px 0 0 var(--r-accent);
 }
@@ -897,7 +897,7 @@
   border-radius: var(--r-radius-pill);
   background: var(--r-accent-soft);
   color: var(--r-text);
-  border: 1px solid rgba(139, 108, 245, 0.4);
+  border: 1px solid color-mix(in srgb, var(--r-accent) 40%, transparent);
 }
 
 :root[data-skin='global'] #practice-view-midi-sessions .midi-session-transport,
@@ -1024,7 +1024,7 @@
   flex-wrap: wrap;
   padding: 12px 14px;
   background: var(--r-accent-soft);
-  border: 1px solid rgba(139, 108, 245, 0.4);
+  border: 1px solid color-mix(in srgb, var(--r-accent) 40%, transparent);
   border-radius: var(--r-radius-btn);
 }
 :root[data-skin='global'] #practice-view-midi-sessions .midi-session-status,
@@ -3091,7 +3091,7 @@
 :root[data-skin='global'] #practice-view-midi-sessions .carnet-entry.is-target,
 :root[data-skin='v2'] #practice-view-midi-sessions .carnet-entry.is-target {
   background: var(--r-accent-soft);
-  border-color: rgba(139, 108, 245, 0.5);
+  border-color: color-mix(in srgb, var(--r-accent) 50%, transparent);
 }
 
 :root[data-skin='global'] #practice-view-midi-sessions .carnet-play-btn,

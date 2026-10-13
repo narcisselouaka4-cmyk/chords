@@ -84,14 +84,14 @@
 .vk-white:last-child { border-right: 0; }
 .vk-white.is-octave { border-left: 1px solid #b3b0ab; }
 .vk-white:hover { background: linear-gradient(#ffffff, #f4f2ef 62%, #eceae7); }
-.vk-white.is-lit { background: linear-gradient(#d9c9fb, #c0a8f2 58%, #a98fe8); box-shadow: inset 0 -3px 0 #8f6fe0, inset 0 0 14px #ffffff8c, 0 0 16px -2px var(--vk-accent); transform: translateY(1px); }
+.vk-white.is-lit { background: linear-gradient(color-mix(in srgb, var(--vk-accent) 45%, #fff), color-mix(in srgb, var(--vk-accent) 80%, #fff) 58%, var(--vk-accent)); box-shadow: inset 0 -3px 0 var(--vk-accent-deep), inset 0 0 14px #ffffff8c, 0 0 16px -2px var(--vk-accent); transform: translateY(1px); }
 .vk-white.is-root { background: linear-gradient(#c6ece5, #a2dcd2 58%, #84cdc0); box-shadow: inset 0 -3px 0 #56b3a5, inset 0 0 14px #ffffffa3, 0 0 18px -2px var(--vk-root-note); }
 .vk-white > span { position: absolute; bottom: 4px; left: 0; right: 0; color: #9a968f; font: 8px var(--vk-mono); text-align: center; letter-spacing: .01em; pointer-events: none; }
 .vk-white > span.vk-octave-label { color: #7c7873; font-weight: 600; }
 .vk-white > em { position: absolute; top: 5px; left: 0; right: 0; color: #b6b2ac; font: 7.5px var(--vk-mono); text-align: center; font-style: normal; pointer-events: none; }
 .vk-black { position: absolute; top: 6px; height: 58%; z-index: 2; border: 1px solid #0a0a0d; border-top: 0; border-radius: 0 0 4px 4px; background: linear-gradient(90deg, #34343b, #1a1a1f 46%, #26262c 78%, #101014); box-shadow: 0 4px 5px #000000a6, inset 0 -4px 0 #08080b, inset 0 1px 0 #ffffff26; transform: translateX(-50%); cursor: pointer; touch-action: none; transition: background .07s, height .07s; }
 .vk-black:hover { background: linear-gradient(90deg, #3f3f47, #232329 46%, #303038 78%, #1a1a20); }
-.vk-black.is-lit { height: 56%; background: linear-gradient(90deg, #a288e2, #7d5fc9 46%, #927ae0 78%, #6c4fb5); box-shadow: 0 3px 5px #000000a6, inset 0 -3px 0 #5a3fa8, 0 0 16px -1px var(--vk-accent); }
+.vk-black.is-lit { height: 56%; background: linear-gradient(90deg, color-mix(in srgb, var(--vk-accent-deep) 85%, #fff), var(--vk-accent-deep) 46%, color-mix(in srgb, var(--vk-accent-deep) 90%, #fff) 78%, color-mix(in srgb, var(--vk-accent-deep) 80%, #000)); box-shadow: 0 3px 5px #000000a6, inset 0 -3px 0 color-mix(in srgb, var(--vk-accent-deep) 70%, #000), 0 0 16px -1px var(--vk-accent); }
 .vk-black.is-root { background: linear-gradient(90deg, #7ecfc3, #4fae9f 46%, #62bdb0 78%, #3f9c8e); box-shadow: 0 3px 5px #000000a6, inset 0 -3px 0 #33857a, 0 0 18px -1px var(--vk-root-note); }
 .vk-black > em { position: absolute; bottom: 6px; left: 0; right: 0; color: #8f8b9c; font: 7px var(--vk-mono); text-align: center; font-style: normal; pointer-events: none; }
 .vk-black.is-lit > em { color: #2b2140; }
@@ -99,7 +99,7 @@
 /* --- Status bar --------------------------------------------------------- */
 .vk-status { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-shrink: 0; height: 30px; padding: 0 15px; border-top: 1px solid var(--vk-line-soft); background: #191a1f; }
 .vk-legend { display: flex; align-items: center; gap: 14px; min-width: 0; }
-.vk-legend > span { display: inline-flex; align-items: center; gap: 6px; color: var(--vk-secondary); font: 9px var(--vk-mono); white-space: nowrap; }
+.vk-legend > span, .vk-legend > label { display: inline-flex; align-items: center; gap: 6px; color: var(--vk-secondary); font: 9px var(--vk-mono); white-space: nowrap; }
 .vk-dot { width: 9px; height: 9px; border-radius: 50%; }
 .vk-dot-you { background: var(--kb-you, #2563eb); }
 /* [Claude] — 2026-09-25 — Jaune : ce que joue l'application (style.css, --kb-app). */
@@ -243,3 +243,31 @@
 #keyboard-panel .vk-right { margin-left: auto; }
 #keyboard-panel .vk-select #keyboard-size { max-width: none; width: auto; min-width: 176px; }
 @media (max-width: 1280px) { #keyboard-panel .vk-select #keyboard-size { min-width: 150px; } }
+
+/* [Claude] — 2026-10-13 — Barre du clavier STABLE. Narcisse : quand l'application joue une session,
+   « les cases (transposition, étendue, début, fin, notation) et les boutons PC MIDI et Silencieux se
+   mettent à bouger : je n'arrive pas à cliquer sur « + » ». Cause : la lecture d'accord (nom +
+   notes) avait une largeur libre ; chaque nouvel accord la changeait et poussait tout le reste.
+   Maintenant : la lecture d'accord a une largeur FIXE (le texte long est coupé par « … »), les
+   réglages restent au milieu, PC → MIDI et Silencieux sont calés tout à droite. */
+#keyboard-panel .vk-brand { flex: none; }
+#keyboard-panel .vk-readout { flex: 0 0 270px; width: 270px; min-width: 0; overflow: hidden; }
+#keyboard-panel .vk-readout strong { flex: none; width: 92px; max-width: 92px; }
+#keyboard-panel .vk-readout-notes { flex: 1 1 auto; min-width: 0; max-width: none; }
+#keyboard-panel .vk-controls { flex: 1 1 auto; justify-content: center; margin: 0; min-width: 0; }
+#keyboard-panel .vk-controls > * { flex: none; }
+#keyboard-panel .vk-right { flex: none; margin-left: 0; gap: 12px; }
+#keyboard-panel .vk-switches { flex: none; }
+/* Dans le Temps réel, la lecture d'accord n'est plus sur la barre du clavier (la scène la montre). */
+:root:has(#practice-tab[data-training-view='realtime']:not([style*='display: none'])) #keyboard-panel .vk-readout { display: none; }
+#keyboard-panel .vk-readout-notes { text-align: left; }
+@media (max-width: 1420px) {
+  #keyboard-panel .vk-readout { flex-basis: 170px; width: 170px; }
+  #keyboard-panel .vk-readout strong { width: 64px; max-width: 64px; font-size: 15px; }
+  #keyboard-panel .vk-readout-label { display: none; }
+  #keyboard-panel .vk-select #keyboard-size { min-width: 170px; max-width: 180px; }
+  #keyboard-panel .vk-select #notation-select { max-width: 128px; }
+  #keyboard-panel .vk-controls { gap: 8px; }
+  #keyboard-panel .vk-field-narrow > input { width: 44px; }
+  #keyboard-panel .vk-stepper > span { display: none; }
+}
