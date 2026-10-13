@@ -30,7 +30,7 @@ export const CHAPTERS = [
         title: 'Bienvenue',
         body:
           "Piano Jazz Chords transforme un morceau en une grille d'accords que vous "
-          + "pouvez lire, corriger et travailler au piano. Ce tutoriel dure deux minutes "
+          + "pouvez lire, corriger et travailler au piano. Ce didacticiel dure deux minutes "
           + "et reste accessible à tout moment par le bouton « ? » en haut à droite.",
       },
       {
@@ -45,7 +45,7 @@ export const CHAPTERS = [
       {
         id: 'welcome-help',
         target: '#onboarding-help-btn',
-        title: 'Revenir au tutoriel',
+        title: 'Revenir au didacticiel',
         body:
           "Ce bouton rouvre ce menu à tout moment et permet de reprendre un chapitre "
           + "précis — par exemple « Lire et corriger Chordify » quand vous aurez une "

@@ -38,6 +38,31 @@ export async function getUserDataDir() {
   return `${home}/PianoJazzChords`;
 }
 
+// [Claude] — 2026-10-13 — Narcisse : « on ne fonctionne plus par dossier : Pédagogie IA doit avoir sa
+// propre bibliothèque intégrée, au même titre qu'Analyse et Studio ». Les vidéos importées sont
+// copiées dans le stock de l'application (~/PianoJazzChords/Pedagogie/bibliotheque), à côté de
+// la mémoire des relevés (…/Pedagogie/memoire) : plus de dossier à choisir ni à retrouver.
+/** Sous-dossier de la bibliothèque, sous ~/PianoJazzChords. */
+export const LIBRARY_SUBDIR = 'Pedagogie/bibliotheque';
+
+/** Le dossier de la bibliothèque (créé au besoin), ou null hors de l'application. */
+export async function libraryFolder() {
+  const base = await getUserDataDir();
+  const files = getElectronFiles();
+  if (!base || !files) return null;
+  const dir = `${base}/${LIBRARY_SUBDIR}`;
+  try { await files.ensureDir?.(dir); } catch (err) { console.warn('[Tutoriels] bibliothèque non créée :', err); }
+  return dir;
+}
+
+/** Supprime la vidéo d'un tutoriel de la bibliothèque (le fichier, pas ce qu'il y avait avant). */
+export async function deleteTutorialFile(path) {
+  const files = getElectronFiles();
+  if (!files?.deleteFile || !isMp4Name(path)) return false;
+  await files.deleteFile(path);
+  return true;
+}
+
 /** Un nom se termine-t-il par .mp4, quelle que soit la casse ? */
 export function isMp4Name(name) {
   return typeof name === 'string' && name.toLowerCase().endsWith(MP4_EXTENSION);

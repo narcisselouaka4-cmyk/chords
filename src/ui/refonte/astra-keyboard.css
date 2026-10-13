@@ -235,3 +235,11 @@
 @keyframes vk-playing-pulse { 50% { opacity: .45; } }
 @media (prefers-reduced-motion: reduce) { .vk-playing-dot { animation: none; } }
 .vk-readout strong { flex-shrink: 0; }
+
+/* [Claude] — 2026-10-13 — « Étendue » : la liste se lit en entier (« Virtuel MIDI (C0–C9) » était
+   coupée à 132 px alors qu'il y avait de la place). Transposition (et le reste des réglages)
+   se colle à gauche, contre l'accord ; seul le bouton de repli reste à l'extrême droite. */
+#keyboard-panel .vk-controls { margin-left: 0; }
+#keyboard-panel .vk-right { margin-left: auto; }
+#keyboard-panel .vk-select #keyboard-size { max-width: none; width: auto; min-width: 176px; }
+@media (max-width: 1280px) { #keyboard-panel .vk-select #keyboard-size { min-width: 150px; } }

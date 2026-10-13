@@ -1163,3 +1163,20 @@
 @media (max-width: 1040px) {
   :is(#practice-view-copilot, #pedagogie-copilot-panel) .tr-chat-message:not(.is-user) .tr-message-content > p { font-size: 13.5px; }
 }
+
+/* [Claude] — 2026-10-13 — Sessions MIDI et Pédagogie IA n'ont plus de titre : les actions restent
+   à droite, sur leur ligne. */
+.tr-view-heading > .tr-heading-actions:only-child { margin-left: auto; }
+
+/* [Claude] — 2026-10-13 — Tiroir « Bibliothèque » de Pédagogie IA : mêmes rangées que les Sessions MIDI,
+   avec une vignette à la place de l'aperçu MIDI, et l'état de l'analyse. */
+.tr-count { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--tr-accent-soft); color: var(--tr-accent); font: 500 10px var(--tr-mono); }
+.pedago-library-list { display: flex; flex-direction: column; }
+.pedago-lib-thumb { display: block; width: 72px; height: 41px; border-radius: 5px; object-fit: cover; background: var(--tr-inset); border: 1px solid var(--tr-border-soft); }
+.pedago-lib-thumb.is-empty { background: linear-gradient(135deg, var(--tr-inset), var(--tr-surface)); }
+.pedago-lib-status { font-size: 11px; color: var(--tr-muted); }
+.pedago-lib-status.is-ready { color: var(--tr-accent); }
+.pedago-lib-status.is-tooLong { color: var(--tr-secondary); }
+.pedago-library-list .tr-library-row { min-height: 56px; }
+@media (max-width: 820px) { .pedago-library-list .tr-library-row > .pedago-lib-thumb, .pedago-library-list .tr-library-row > .pedago-lib-status { display: none; } }
+.pedago-lib-rename { width: 100%; min-width: 0; padding: 7px 10px; border: 1px solid var(--tr-accent); border-radius: 6px; background: var(--tr-inset); color: var(--tr-text); font: inherit; font-size: 12px; outline: none; }

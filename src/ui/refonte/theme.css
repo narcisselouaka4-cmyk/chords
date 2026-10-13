@@ -876,3 +876,24 @@
   text-transform: uppercase;
   color: var(--muted);
 }
+
+/* [Claude] — 2026-10-13 — Réglages › Clavier et MIDI : lignes « intitulé / réglage / note » (ce qui
+   était dans le pied de page de l'application, retiré). */
+.app-settings-box { width: min(520px, 92vw); max-height: 88vh; overflow-y: auto; }
+.settings-rows { display: flex; flex-direction: column; gap: 14px; }
+.settings-row { display: grid; grid-template-columns: 150px minmax(0, 1fr); align-items: center; column-gap: 14px; row-gap: 4px; }
+.settings-row > label { font-size: 0.8rem; font-weight: 600; color: var(--r-text, inherit); }
+.settings-row > .settings-control { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.settings-row > .settings-note { grid-column: 2; font-size: 0.72rem; line-height: 1.5; color: var(--r-text-muted, var(--muted)); }
+.settings-row:has(> .settings-control:first-child) { grid-template-columns: minmax(0, 1fr); }
+.settings-row:has(> .settings-control:first-child) > .settings-note { grid-column: 1; }
+.settings-control select, .settings-control input[type='number'] {
+  min-width: 0; flex: 1; padding: 6px 9px; font-size: 0.8rem; border-radius: var(--r-radius-btn, 6px);
+  border: 1px solid var(--r-border-strong, var(--panel-border)); background: var(--r-surface-chip, transparent); color: inherit;
+}
+.settings-control input[type='number'] { flex: 0 0 96px; }
+.settings-control input[type='color'] { width: 36px; height: 24px; padding: 0; border: 1px solid var(--r-border-strong, var(--panel-border)); border-radius: 5px; background: transparent; cursor: pointer; }
+.settings-control #midi-refresh { width: 28px; height: 28px; flex: none; border-radius: 6px; border: 1px solid var(--r-border-strong, var(--panel-border)); background: transparent; color: inherit; cursor: pointer; }
+.settings-status { margin-top: 12px; min-height: 0; font-size: 0.72rem; color: var(--r-text-muted, var(--muted)); }
+.settings-status:empty { display: none; }
+.settings-note #midi-status-text, .settings-note #midi-port-count { font: inherit; color: inherit; margin: 0; }

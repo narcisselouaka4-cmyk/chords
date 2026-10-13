@@ -170,7 +170,6 @@ function initAstraKeyboardChrome() {
 
   const chordOut = document.getElementById('keyboard-readout-chord');
   const notesOut = document.getElementById('keyboard-readout-notes');
-  const countOut = document.getElementById('keyboard-note-count');
   const railOut = document.getElementById('keyboard-rail-readout');
   const rangeOut = document.getElementById('keyboard-range-readout');
   const chordName = document.getElementById('chord-name');
@@ -184,7 +183,6 @@ function initAstraKeyboardChrome() {
       : (notesDisplay?.textContent || '').trim();
     if (chordOut) chordOut.textContent = chord || '—';
     if (notesOut) notesOut.textContent = notes || 'aucune note';
-    if (countOut) countOut.textContent = `${pills.length} note${pills.length > 1 ? 's' : ''}`;
     if (railOut) {
       railOut.innerHTML = '';
       if (chord) {

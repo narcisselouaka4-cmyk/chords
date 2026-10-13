@@ -185,5 +185,21 @@ export function createTutorialMemory(files, home) {
     return unpackAnalysis(await readJson(analysisPath(path)), stat);
   }
 
-  return { dir, readIndex, updateCard, saveAnalysis, loadAnalysis, analysisPath };
+  /** Oublie un tuto : sa fiche et son relevé (la vidéo n'est pas touchée ici). */
+  function forget(path) {
+    queue = queue.then(async () => {
+      await ensure();
+      const cards = await readIndex();
+      delete cards[path];
+      await files.writeFile(indexPath, JSON.stringify({ version: MEMORY_VERSION, cards }));
+      try { await files.deleteFile?.(analysisPath(path)); } catch (_) { /* pas de relevé gardé */ }
+      return true;
+    }).catch((err) => {
+      console.warn('[Pedagogie] fiche non effacée :', err?.message || err);
+      return false;
+    });
+    return queue;
+  }
+
+  return { dir, readIndex, updateCard, saveAnalysis, loadAnalysis, analysisPath, forget };
 }

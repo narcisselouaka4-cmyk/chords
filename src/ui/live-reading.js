@@ -211,7 +211,7 @@ function svgEl(parent, tag, attrs = {}) {
 
 /**
  * Roue construite une fois : anneaux, graduations, 12 positions. Les noms des notes
- * et le compte sont du texte HTML posé sur la roue (taille fixe, lisible même quand
+ * sont du texte HTML posé sur la roue (taille fixe, lisible même quand
  * la roue rapetisse sur un petit écran) ; le reste est du SVG.
  */
 function buildWheel(svg) {
@@ -280,8 +280,8 @@ function updateWheel(svg, wheel, latin) {
     const text = on && names.get(pc) ? names.get(pc) : defaultWheelName(pc, latin);
     if (label && label.textContent !== text) label.textContent = text;
   }
-  const center = overlay?.querySelector('.live-wheel-center');
-  if (center) center.textContent = active.size ? String(active.size) : '';
+  // [Claude] — 2026-10-13 — Plus de chiffre au centre de la roue (le nombre de notes jouées,
+  // « pas nécessaire » pour Narcisse).
 
   // Les lignes ne sont redessinées (et animées) que si les notes changent.
   const ordered = [...active].sort((a, b) => a - b);
@@ -360,7 +360,10 @@ export function initLiveReading() {
 
 // [Claude] — 2026-10-09 — Narcisse : « un bouton pour masquer les caractéristiques si
 // l'utilisateur le souhaite ». Le choix est retenu d'une ouverture à l'autre.
-export const READOUTS_HIDDEN_KEY = 'pjc.live.readoutsHidden';
+// [Claude] — 2026-10-13 — Libellé court (« Masquer » / « Afficher », ce que le bouton FERA) et
+// caractéristiques masquées au premier lancement (« tu gardes Afficher par défaut »). Nouvelle clé :
+// l'ancienne gardait le choix fait pendant les essais, qui aurait écrasé ce défaut.
+export const READOUTS_HIDDEN_KEY = 'pjc.live.readoutsHidden.v2';
 
 function bindReadoutsToggle() {
   const button = byId('live-readouts-toggle');
@@ -369,10 +372,11 @@ function bindReadoutsToggle() {
   const apply = (hidden) => {
     list.hidden = hidden;
     button.setAttribute('aria-expanded', String(!hidden));
-    button.textContent = hidden ? 'Afficher les caractéristiques' : 'Masquer les caractéristiques';
+    button.textContent = hidden ? 'Afficher' : 'Masquer';
+    button.title = hidden ? 'Afficher les caractéristiques de l\'accord' : 'Masquer les caractéristiques de l\'accord';
   };
-  let hidden = false;
-  try { hidden = localStorage.getItem(READOUTS_HIDDEN_KEY) === '1'; } catch { /* stockage indisponible */ }
+  let hidden = true;
+  try { hidden = localStorage.getItem(READOUTS_HIDDEN_KEY) !== '0'; } catch { /* stockage indisponible */ }
   apply(hidden);
   button.addEventListener('click', () => {
     hidden = !list.hidden;

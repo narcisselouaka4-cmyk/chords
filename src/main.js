@@ -195,7 +195,6 @@ const els = {
   notesDisplay: document.getElementById('notes-display'),
   pedagogy: document.getElementById('pedagogy-content'),
   colorNote: document.getElementById('color-note'),
-  colorTonic: document.getElementById('color-tonic'),
   statusBar: document.getElementById('status-bar'),
 
   midiRefresh: document.getElementById('midi-refresh'),
@@ -275,7 +274,8 @@ const els = {
   themeToggle: document.getElementById('theme-toggle'),
 
   // [Claude] — 2026-07-04 — Paramètres API IA
-  aiSettingsToggle: document.getElementById('ai-settings-toggle'),
+  // [Claude] — 2026-10-13 — Le bouton de clé API a quitté l'en-tête : il s'ouvre depuis Réglages.
+  aiSettingsToggle: document.getElementById('app-settings-ai-btn'),
   aiSettingsModal: document.getElementById('ai-settings-modal'),
   aiPreset: document.getElementById('ai-preset'),
   aiBaseUrl: document.getElementById('ai-base-url'),
@@ -1088,14 +1088,14 @@ function initSettings() {
   els.keyboardSize.value = 'midi';
   els.notation.value = state.notation || 'english';
   els.colorNote.value = state.colorNote;
-  els.colorTonic.value = state.colorTonic;
   applyYouColor();
   els.transposeInput.value = state.transpose;
-  // [Claude] — 2026-09-24 — Silencieux coché à l'ouverture (demande de Narcisse) :
-  // le clavier joué ne sonne pas par défaut ; « Écouter » de l'Exercice n'est
-  // pas concerné (il appelle directement playVirtualNote).
-  state.silentMode = true;
-  els.silentMode.checked = true;
+  // [Claude] — 2026-10-13 — Silencieux DÉCOCHÉ à l'ouverture : Narcisse avait demandé l'inverse le
+  // 24/09 (« le clavier joué ne sonne pas par défaut ») et a changé d'avis : le clavier MIDI
+  // virtuel sonne par défaut. « Écouter » de l'Exercice n'est pas concerné (il appelle
+  // directement playVirtualNote).
+  state.silentMode = false;
+  els.silentMode.checked = false;
   state.pcKeyboardToMidi = true;
   if (els.pcKeyboardMidi) els.pcKeyboardMidi.checked = true;
 
@@ -1109,7 +1109,6 @@ function initSettings() {
     state.pcKeyboardToMidi = els.pcKeyboardMidi ? els.pcKeyboardMidi.checked : true;
     setPcKeyboardToMidiEnabled(state.pcKeyboardToMidi);
     state.colorNote = els.colorNote.value;
-    state.colorTonic = els.colorTonic.value;
     applyYouColor();
 
     // [Claude] — 2026-07-03 — Retransposer les notes actives quand le réglage de transposition change
@@ -1153,7 +1152,6 @@ function initSettings() {
   els.silentMode.addEventListener('change', update);
   els.pcKeyboardMidi?.addEventListener('change', update);
   els.colorNote.addEventListener('input', update);
-  els.colorTonic.addEventListener('input', update);
 
   els.keyboardSize?.addEventListener('change', () => {
     applyKeyboardPreset(els.keyboardSize.value);
@@ -3144,6 +3142,10 @@ function initAppSettings() {
 
   toggle.addEventListener('click', () => {
     modal.style.display = 'flex';
+  });
+  // La clé API s'ouvre depuis Réglages (fenêtre à part) : Réglages se ferme derrière elle.
+  document.getElementById('app-settings-ai-btn')?.addEventListener('click', () => {
+    modal.style.display = 'none';
   });
   close?.addEventListener('click', () => {
     modal.style.display = 'none';

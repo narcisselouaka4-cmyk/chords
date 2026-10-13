@@ -90,9 +90,8 @@
           </div>
           <button class="theme-toggle" id="theme-toggle" title="Changer de thème" hidden>🌙</button>
           <span class="tr-tool-separator" aria-hidden="true"></span>
-          <button class="tr-icon-button onboarding-help-toggle" id="onboarding-help-btn" title="Tutoriel — comment utiliser l'application" aria-label="Ouvrir le tutoriel" aria-haspopup="menu"><svg class="tr-i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></button>
-          <button class="tr-icon-button settings-toggle" id="ai-settings-toggle" title="Clé API de l'assistant IA" aria-label="Clé API de l'assistant IA"><svg class="tr-i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.6 17.4A2 2 0 0 0 2 18.8V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.2a2 2 0 0 0 1.4-.6l.8-.8a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".6" fill="currentColor"/></svg></button>
-          <button class="tr-icon-button app-settings-toggle" id="app-settings-toggle" title="Paramètres" aria-label="Ouvrir les paramètres"><svg class="tr-i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7h-9M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg></button>
+          <button class="tr-icon-button onboarding-help-toggle" id="onboarding-help-btn" title="Didacticiel — comment utiliser l'application" aria-label="Ouvrir le didacticiel" aria-haspopup="menu"><svg class="tr-i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></button>
+          <button class="tr-icon-button app-settings-toggle" id="app-settings-toggle" title="Réglages" aria-label="Ouvrir les réglages"><svg class="tr-i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7h-9M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg></button>
         </div>
       </header>
 
@@ -166,8 +165,8 @@
             <div class="live-side">
               <!-- [Claude] — 2026-10-09 — Masquer / afficher les caractéristiques (Narcisse) ;
                    le choix est retenu (live-reading.js). -->
-              <button type="button" class="live-readouts-toggle" id="live-readouts-toggle" aria-controls="live-readouts" aria-expanded="true">Masquer les caractéristiques</button>
-              <dl class="live-readouts" id="live-readouts">
+              <button type="button" class="live-readouts-toggle" id="live-readouts-toggle" aria-controls="live-readouts" aria-expanded="false">Afficher</button>
+              <dl class="live-readouts" id="live-readouts" hidden>
                 <div><dt>Fondamentale</dt><dd id="live-root">—</dd></div>
                 <div><dt>Basse jouée</dt><dd id="live-bass">—</dd></div>
                 <div><dt>Qualité</dt><dd id="live-quality">—</dd></div>
@@ -557,11 +556,7 @@
              frise de blocs mais l'hôte du paysage harmonique (SVG en relief). -->
         <div class="tr-view practice-midi-sessions midi-sessions-main" id="practice-view-midi-sessions" style="display: none;">
           <div class="tr-view-heading">
-            <div>
-              <div class="tr-page-title"><span class="tr-page-index">01</span><h1>Sessions MIDI</h1></div>
-              <!-- [Claude] — 2026-09-25 — Le journal de vos enregistrements (choix de Narcisse). -->
-              <p>Le journal de votre jeu : un morceau, une séance, une prise du Studio.</p>
-            </div>
+            <!-- [Claude] — 2026-10-13 — Plus de titre ni de sous-titre : l'onglet actif dit déjà où l'on est. -->
             <div class="tr-heading-actions">
               <button class="tr-button tr-library-trigger" type="button" data-astra-open="midi-library-drawer" data-astra-shortcut="b"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 6H3M16 12H3M13 18H3"/><path d="M21 6v12a2 2 0 0 1-2 2"/></svg><span>Bibliothèque</span><kbd>B</kbd></button>
               <!-- [Claude] — 2026-10-02 — Ancien « + Nouvelle session » : c'est désormais LE bouton
@@ -849,14 +844,14 @@
              Tous les autres identifiants lus par pedagogie-tab.js sont conservés. -->
         <div class="tr-view practice-pedagogie" id="practice-view-pedagogie" style="display: none;">
           <div class="tr-view-heading">
-            <div>
-              <div class="tr-page-title"><span class="tr-page-index">03</span><h1>Pédagogie IA</h1></div>
-              <p>La vidéo du prof, et le Copilote pour comprendre et appliquer ce qu'il joue.</p>
-            </div>
+            <!-- [Claude] — 2026-10-13 — Plus de titre ni de sous-titre (idem Sessions MIDI). -->
             <div class="tr-heading-actions">
               <!-- [Claude] — 2026-10-03 — Narcisse : « une fois qu'on a choisi un tutoriel, on n'a
                    pas d'option qui permette d'en changer ». À la place du tiroir « Mes tutoriels »,
                    un retour aux cartes, visible quand un tuto est ouvert. -->
+              <!-- [Claude] — 2026-10-13 — La bibliothèque de Pédagogie IA (comme Sessions MIDI, le Studio
+                   et l'Analyse) : un tiroir, plus de dossier à choisir. -->
+              <button class="tr-button tr-library-trigger" type="button" id="pedagogie-library-btn" data-astra-open="pedagogie-library-drawer"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 6H3M16 12H3M13 18H3"/><path d="M21 6v12a2 2 0 0 1-2 2"/></svg><span>Bibliothèque</span><span class="tr-count" id="pedagogie-library-count">0</span></button>
               <button class="tr-button pedago-back-btn" type="button" id="pedagogie-back-btn" hidden title="Revenir à tes tutoriels"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>Mes tutoriels</button>
               <button class="tr-button tr-primary panel-action" id="pedagogie-import-btn" type="button"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6M9 15l3-3 3 3"/></svg>Importer une vidéo</button>
             </div>
@@ -873,18 +868,42 @@
           <section class="pedago-home" id="pedagogie-home" aria-label="Vos tutoriels">
             <div class="pedago-home-empty" id="pedagogie-home-empty">
               <div class="pedago-home-icon" aria-hidden="true"><svg class="tr-i" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></div>
-              <h2 id="pedagogie-home-title">Choisis un tutoriel</h2>
+              <h2 id="pedagogie-home-title">Ta bibliothèque de tutoriels est vide</h2>
               <p id="pedagogie-home-text">Ouvre un tuto : la vidéo du prof s'affiche à gauche, et le Copilote à droite répond à tes questions sur ce qu'il vient de jouer.</p>
               <div class="pedago-home-actions">
-                <button class="tr-button tr-primary" type="button" id="pedagogie-home-folder-btn">Choisir le dossier des tutoriels</button>
-                <!-- Le dossier des tutos, et « Changer de dossier… » (il était dans le tiroir). -->
-                <span class="pedagogie-folder-hint" id="pedagogie-folder-hint"></span>
+                <button class="tr-button tr-primary" type="button" id="pedagogie-home-import-btn">Importer une vidéo</button>
+                <!-- [Claude] — 2026-10-13 — Plus de dossier : si un ancien dossier de tutoriels était
+                     configuré, ses vidéos se reprennent d'un clic dans la bibliothèque. -->
+                <span class="pedagogie-folder-hint" id="pedagogie-legacy-hint"></span>
               </div>
             </div>
             <!-- [Claude] — 2026-10-03 — Ce que devient une vidéo importée (copiée, trop longue…). -->
             <p class="pedago-home-notice" id="pedagogie-home-notice" hidden></p>
             <div class="pedago-home-grid" id="pedagogie-home-grid" role="list" aria-label="Vos tutoriels"></div>
           </section>
+
+          <!-- [Claude] — 2026-10-13 — Tiroir « Bibliothèque » de Pédagogie IA : mêmes classes que celui des
+               Sessions MIDI (recherche, filtre, rangées, actions). La liste est remplie par pedagogie-tab.js. -->
+          <div class="tr-overlay tr-drawer-overlay" id="pedagogie-library-drawer" hidden>
+            <div class="tr-dialog tr-dialog-wide tr-drawer" role="dialog" aria-modal="true" aria-label="Votre bibliothèque de tutoriels">
+              <div class="tr-dialog-title"><h2>Votre bibliothèque de tutoriels</h2>
+                <button class="tr-icon-button" type="button" data-astra-close aria-label="Fermer">✕</button></div>
+              <div class="tr-dialog-body">
+                <div class="tr-library-toolbar">
+                  <label class="tr-search"><svg class="tr-i" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input type="text" id="pedagogie-library-search" placeholder="Rechercher un tutoriel..." aria-label="Rechercher un tutoriel"><kbd>ESC</kbd></label>
+                  <div class="tr-segment-control" id="pedagogie-library-filters" role="group" aria-label="Filtrer les tutoriels">
+                    <button type="button" data-library-filter="all" class="is-active" aria-pressed="true">Tous <span id="pedagogie-library-count-all">0</span></button>
+                    <button type="button" data-library-filter="read" aria-pressed="false">Analysés</button>
+                  </div>
+                  <button class="tr-button tr-primary" type="button" data-astra-close data-astra-click="#pedagogie-import-btn">Importer une vidéo</button>
+                </div>
+                <div class="tr-library-table-head" aria-hidden="true">
+                  <span>TUTORIEL</span><span>APERÇU</span><span>DURÉE</span><span>ÉTAT</span><span></span>
+                </div>
+                <div class="pedago-library-list" id="pedagogie-library-list" data-astra-close-on-click></div>
+              </div>
+            </div>
+          </div>
 
           <div class="pedago-split" id="pedagogie-split" hidden>
             <!-- [Claude] — 2026-10-03 — Narcisse : « tant que l'analyse des images et de l'audio
@@ -1649,10 +1668,6 @@
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M17 8l-5-5-5 5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
             <span>Importer un fichier</span>
           </button>
-          <span class="studio-home-privacy">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
-            Tout le traitement se fait sur votre ordinateur
-          </span>
         </div>
 
         <section class="studio-empty-hero" id="studio-empty-hero">
@@ -1898,7 +1913,6 @@
 
               <label class="vk-select vk-field-narrow"><span>Début</span><input type="text" id="note-start" value="C0" /></label>
               <label class="vk-select vk-field-narrow"><span>Fin</span><input type="text" id="note-end" value="C9" /></label>
-              <label class="vk-select vk-field-narrow"><span>Tolérance</span><input type="number" id="tolerance" value="200" min="50" max="500" step="10" /></label>
 
               <label class="vk-select">
                 <span>Notation</span>
@@ -1942,9 +1956,7 @@
               <span><i class="vk-dot vk-dot-you"></i>Toi</span>
               <span><i class="vk-dot vk-dot-app"></i>L'app</span>
             </div>
-            <div class="vk-status-right">
-              <span class="vk-mono" id="keyboard-note-count">0 note</span>
-            </div>
+            <!-- [Claude] — 2026-10-13 — Plus de compteur « 1 note, 2 notes… » (pas nécessaire). -->
           </div>
 
           <!-- Pas de poignée de hauteur : l'application décide de la hauteur du
@@ -1952,37 +1964,9 @@
         </div>
       </section>
 
-      <footer class="app-footer">
-        <div class="footer-left">
-          <label>
-            Couleur notes
-            <input type="color" id="color-note" value="#2563eb" />
-          </label>
-          <label>
-            Couleur fondamentale
-            <input type="color" id="color-tonic" value="#111111" />
-          </label>
-        </div>
-
-        <div class="footer-midi">
-          <label for="midi-select">MIDI :</label>
-          <select id="midi-select" data-last-count="0"></select>
-          <span id="midi-status-text">Aucun</span>
-          <span id="midi-port-count">(0)</span>
-          <button id="midi-refresh" title="Rafraîchir les périphériques MIDI">↻</button>
-        </div>
-
-        <!-- [Claude] — 2026-09-24 — Sortie MIDI : la démo et « Écouter » jouent sur
-             le port choisi (VST), le piano intégré se tait. -->
-        <div class="footer-midi-out">
-          <label for="midi-output-select">Sortie :</label>
-          <select id="midi-output-select" title="Où jouent la démo et « Écouter » : piano intégré, ou un port MIDI (ton VST)">
-            <option value="">Piano intégré</option>
-          </select>
-        </div>
-
-        <div class="footer-right" id="status-bar"></div>
-      </footer>
+      <!-- [Claude] — 2026-10-13 — Plus de pied de page : couleur des notes, ports MIDI d'entrée et de
+           sortie, état et tolérance vivent dans Réglages (#app-settings-modal). La couleur
+           « fondamentale » est supprimée (« elle ne sert à rien »). -->
 
       <div class="modal-overlay" id="session-end-modal" style="display: none;">
         <div class="modal-box">
@@ -2019,7 +2003,7 @@
            accueillir d'autres sans changer sa structure. -->
       <div class="modal-overlay" id="app-settings-modal" style="display: none;">
         <div class="modal-box app-settings-box">
-          <h3>Paramètres</h3>
+          <h3>Réglages</h3>
 
           <div class="settings-section" id="settings-appearance">
             <h4 class="settings-section-title">Apparence</h4>
@@ -2034,6 +2018,58 @@
                 <strong>Scène</strong> — plus chaleureux, formes arrondies et dégradés violets.<br />
                 Les deux affichent exactement le même contenu et fonctionnent à l'identique : seul l'habillage change.
               </p>
+            </div>
+          </div>
+
+          <!-- [Claude] — 2026-10-13 — Clavier et MIDI : ce qui était sous le clavier virtuel (ports
+               d'entrée et de sortie, couleur des notes, état) et la tolérance. Mêmes id= qu'avant :
+               main.js n'a rien à changer. -->
+          <div class="settings-section" id="settings-midi">
+            <h4 class="settings-section-title">Clavier et MIDI</h4>
+            <div class="settings-rows">
+              <div class="settings-row">
+                <label for="midi-select">Entrée MIDI</label>
+                <div class="settings-control">
+                  <select id="midi-select" data-last-count="0"></select>
+                  <button type="button" id="midi-refresh" title="Rafraîchir les périphériques MIDI" aria-label="Rafraîchir les périphériques MIDI">↻</button>
+                </div>
+                <small class="settings-note"><span id="midi-status-text">Aucun</span> <span id="midi-port-count">(0)</span></small>
+              </div>
+              <div class="settings-row">
+                <label for="midi-output-select">Sortie MIDI</label>
+                <div class="settings-control">
+                  <select id="midi-output-select" title="Où jouent la démo et « Écouter » : piano intégré, ou un port MIDI (ton VST)">
+                    <option value="">Piano intégré</option>
+                  </select>
+                </div>
+                <small class="settings-note">Où jouent la démo et « Écouter » : le piano intégré, ou un port MIDI (votre VST).</small>
+              </div>
+              <div class="settings-row">
+                <label for="tolerance">Tolérance (ms)</label>
+                <div class="settings-control">
+                  <input type="number" id="tolerance" value="200" min="50" max="500" step="10" />
+                </div>
+                <small class="settings-note">Fenêtre dans laquelle des notes attaquées presque ensemble forment un accord.</small>
+              </div>
+              <div class="settings-row">
+                <label for="color-note">Couleur des notes</label>
+                <div class="settings-control">
+                  <input type="color" id="color-note" value="#2563eb" />
+                </div>
+              </div>
+            </div>
+            <div class="settings-status" id="status-bar" role="status" aria-live="polite"></div>
+          </div>
+
+          <!-- [Claude] — 2026-10-13 — La clé API de l'assistant IA a quitté l'en-tête : elle s'ouvre d'ici
+               (même fenêtre qu'avant, #ai-settings-modal). -->
+          <div class="settings-section" id="settings-ai">
+            <h4 class="settings-section-title">Assistant IA</h4>
+            <div class="settings-row">
+              <div class="settings-control">
+                <button type="button" class="btn-primary" id="app-settings-ai-btn">Clé API de l'assistant IA…</button>
+              </div>
+              <small class="settings-note">Zic fonctionne sans clé ; une clé personnelle active les réponses libres du Copilote.</small>
             </div>
           </div>
 

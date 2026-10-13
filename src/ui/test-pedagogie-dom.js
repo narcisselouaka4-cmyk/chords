@@ -252,8 +252,8 @@ check('Plus de bouton « Lire ce tutoriel » : la vidéo est prête une fois le 
 check('selectTrack() remet playbackStarted à false',
   /function selectTrack\(path\) \{[\s\S]*?resetTutorialView\(\);/.test(tabCode)
   && /function resetTutorialView\(\) \{\s*playbackStarted = false;/.test(tabCode));
-check('chooseFolder() remet playbackStarted à false',
-  /async function chooseFolder\(\)[\s\S]*?playbackStarted = false/.test(tabCode));
+check('Supprimer le tuto ouvert (ou changer de vue) ramène aux cartes, lecture remise à zéro',
+  /async function removeTutorial\(tut\)[\s\S]*?closeTutorial\(\)/.test(tabCode) && /function closeTutorial\(\)[\s\S]*?resetTutorialView\(\)/.test(tabCode));
 check('analyzeSelected() passe playbackStarted à true au début',
   /async function analyzeSelected\(\)[\s\S]*?playbackStarted = true/.test(tabCode));
 
@@ -305,18 +305,16 @@ check('buildNotes garde ce qui n\'est dit nulle part ailleurs (octave, tierces, 
 // « Résumé du cours »). L'assertion vérifie désormais son ABSENCE, DOM et JS.
 check('Le panneau notes a bien été retiré, markup et JS',
   !html.includes('id="pedagogie-notes-card"') && !tabCode.includes('els.notesCard'));
-check('L\'écran dit clairement de choisir un dossier quand aucun n\'est configuré',
-  html.includes('pedagogie-folder-hint') && tabCode.includes('Choisissez le dossier'));
-check('Le gros bouton "Choisir le dossier" est créé par le contrôleur quand aucun dossier n\'est configuré',
-  tabCode.includes('Choisir le dossier des tutoriels')
-  && tabCode.includes("'panel-action'"));
-check('Le bouton d\'import est masqué quand aucun dossier n\'est configuré',
-  tabCode.includes('els.importBtn.style.display = folder') || tabCode.includes("importBtn.style.display = folder"));
-
-// Le résumé automatique n'est pas dupliqué par une traduction automatique : le
-// transcript est donné à explainNarration en langue source, le modèle répond en
-// français. translateNarrationSegments reste dans ai-client.js pour d'autres usages
-// futurs mais n'est plus appelé ici.
+// [Claude] — 2026-10-13 — Pédagogie IA a sa PROPRE bibliothèque : plus de dossier à choisir.
+check('Plus de dossier à choisir : ni bouton, ni sélecteur côté écran',
+  !html.includes('pedagogie-home-folder-btn') && !tabCode.includes('Choisir le dossier des tutoriels') && !tabCode.includes('chooseFolder')
+  && !tabCode.includes('selectTutorialFolder'));
+check('Les vidéos importées sont copiées dans la bibliothèque de l\'application (Pedagogie/bibliotheque)',
+  tabCode.includes('libraryFolder') && readText('src/pedagogie/tutorial-library.js').includes("LIBRARY_SUBDIR = 'Pedagogie/bibliotheque'"));
+check('« Importer une vidéo » est toujours disponible (la bibliothèque n\'est pas à choisir)',
+  tabCode.includes('els.importBtn.disabled = false') && !tabCode.includes('els.importBtn.style.display = folder'));
+check('L\'ancien dossier se reprend d\'un clic dans la bibliothèque (importLegacy)',
+  html.includes('id="pedagogie-legacy-hint"') && tabCode.includes('async function importLegacy()') && tabCode.includes('Reprendre mes'));
 check('translateNarrationSegments n\'est plus importée dans pedagogie-tab.js',
   !tabCode.includes('translateNarrationSegments'));
 check('maybeTranslate n\'existe plus dans pedagogie-tab.js',
@@ -425,12 +423,12 @@ check('« ← Mes tutoriels » remplace le tiroir : caché sur l\'accueil, montr
   /<button[^>]*id="pedagogie-back-btn"[^>]*hidden/.test(html)
   && /els\.backBtn\?\.addEventListener\('click', \(\) => \{ closeTutorial\(\); \}\)/.test(tabCode)
   && /if \(els\.backBtn\) els\.backBtn\.hidden = !hasTutorial;/.test(tabCode));
-check('Le tiroir « Mes tutoriels » et sa liste sont retirés (les cartes sont la bibliothèque)',
-  !html.includes('pedagogie-library-drawer') && !html.includes('pedagogie-track-list') && !html.includes('pedagogie-home-library-btn')
-  && !tabCode.includes('els.trackList'));
-check('Le dossier et « Changer de dossier… » sont sur l\'accueil',
-  /id="pedagogie-home"[\s\S]*?id="pedagogie-folder-hint"[\s\S]*?id="pedagogie-home-grid"/.test(html)
-  && tabCode.includes("text: 'Changer de dossier…'"));
+check('Le tiroir « Bibliothèque » (recherche, filtre, renommer, supprimer) remplace le dossier ; pas de liste « Mes tutoriels »',
+  html.includes('id="pedagogie-library-drawer"') && html.includes('id="pedagogie-library-list"') && html.includes('data-astra-open="pedagogie-library-drawer"')
+  && !html.includes('pedagogie-track-list') && !tabCode.includes('els.trackList')
+  && tabCode.includes('function renderLibraryDrawer()') && tabCode.includes('function startRename(') && tabCode.includes('async function removeTutorial('));
+check('Le titre et le sous-titre de Pédagogie IA sont retirés',
+  !/id="practice-view-pedagogie"[\s\S]{0,400}<h1>/.test(html) && !html.includes('La vidéo du prof, et le Copilote pour comprendre et appliquer'));
 check('Retour aux cartes : vidéo arrêtée, plus de tuto ouvert, le Copilote quitte le mode tuto',
   /function closeTutorial\(\) \{[\s\S]*?pauseVideo\(\);[\s\S]*?selectedPath = null;[\s\S]*?destroyVideo\(\);[\s\S]*?new CustomEvent\('pedagogie-selection-change', \{ detail: \{ path: null \} \}\)/.test(tabCode));
 check('Un relevé est un travail à part : il continue après le retour aux cartes et reste gardé sous son tuto',

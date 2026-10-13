@@ -53,7 +53,7 @@ import { explainUnrecognised } from '../pedagogie/format-detector.js';
 import { crossCheck } from '../pedagogie/cross-check.js';
 import { normalizeAnalyzerChords } from '../pedagogie/audio-fallback.js';
 import { normalizeTranscription, alignNarration } from '../pedagogie/transcription.js';
-import { listTutorialFiles, copyTutorialIntoFolder, tutorialDisplayName, isMp4Name } from '../pedagogie/tutorial-library.js';
+import { listTutorialFiles, copyTutorialIntoFolder, tutorialDisplayName, isMp4Name, libraryFolder, deleteTutorialFile } from '../pedagogie/tutorial-library.js';
 import { getTutorialFolder, saveTutorialFolder } from '../pedagogie/tutorial-folder-pref.js';
 import { samplesToNoteEvents, eventsFromTranscription, compactTimeline } from '../pedagogie/teacher-notes.js';
 import { withMeasuredVelocity } from '../pedagogie/dynamics.js';
@@ -243,80 +243,94 @@ function setProgress(message) {
 // Bibliothèque de tutoriels — dossier propre, .mp4 uniquement
 // ---------------------------------------------------------------------------
 
-function configuredFolder() {
+// [Claude] — 2026-10-13 — Plus de dossier à choisir : la bibliothèque est celle de Pédagogie IA
+// (~/PianoJazzChords/Pedagogie/bibliotheque), au même titre que celles de l'Analyse et du Studio.
+let libraryDir = null;
+async function getLibraryDir() {
+  if (!libraryDir) libraryDir = await libraryFolder();
+  return libraryDir;
+}
+
+/** L'ancien dossier de tutoriels, s'il en avait été choisi un (réglage d'avant la bibliothèque). */
+function legacyFolder() {
   return getTutorialFolder(typeof localStorage !== 'undefined' ? localStorage : null);
 }
 
-/** Message expliquant pourquoi la liste ne peut pas être peuplée, raison par raison. */
-function folderProblemText(reason) {
-  switch (reason) {
-    case 'no-folder':
-      return 'Aucun dossier de tutoriels n\'est configuré. Choisissez le dossier qui contient '
-        + 'vos vidéos .mp4 : elles seront listées ici.';
-    case 'missing':
-      return 'Le dossier configuré n\'existe plus sur le disque. Choisissez-en un autre.';
-    case 'unreadable':
-      return 'Le dossier n\'a pas pu être lu (accès refusé ou système de fichiers indisponible).';
-    default:
-      return 'Le dossier n\'a pas pu être listé.';
-  }
+/** Le titre d'un tuto : le nom que Narcisse lui a donné, sinon son nom de fichier. */
+function tutorialTitle(path) {
+  const given = cards[path]?.name;
+  if (typeof given === 'string' && given.trim()) return given.trim();
+  return tutorialDisplayName(String(path || '').split('/').pop() || String(path || ''));
 }
 
+// Les vidéos de l'ancien dossier, à reprendre dans la bibliothèque : { folder, files } ou null.
+let legacy = null;
 
 /**
- * Les tutos du dossier, en cartes sur l'accueil. [Claude] — 2026-10-03 — Le tiroir « Mes
- * tutoriels » et sa liste sont retirés : les cartes sont la bibliothèque, et « ← Mes
- * tutoriels » y ramène.
+ * Les tutos de la bibliothèque, en cartes sur l'accueil et dans le tiroir « Bibliothèque ».
+ * [Claude] — 2026-10-03 — Le tiroir « Mes tutoriels » et sa liste étaient retirés : les cartes sont
+ * la bibliothèque, et « ← Mes tutoriels » y ramène. [Claude] — 2026-10-13 — Le tiroir revient,
+ * « Bibliothèque », comme dans Sessions MIDI : recherche, renommer, supprimer.
  */
 async function refreshTutorials() {
-  // Les fiches (« Déjà lu », vignettes) avant les cartes.
+  // Les fiches (« Déjà lu », vignettes, noms) avant les cartes.
   await getMemory();
-  const folder = configuredFolder();
-  renderFolderHint(folder);
-  if (!folder) {
+  const dir = await getLibraryDir();
+  if (!dir) {
     tutorials = [];
-    renderHomeGrid();
-    return;
+    libraryProblem = 'La bibliothèque n\'est pas disponible dans cet environnement.';
+  } else {
+    const result = await listTutorialFiles(dir);
+    tutorials = result.files;
+    libraryProblem = result.ok ? null : 'La bibliothèque n\'a pas pu être lue (accès refusé ou système de fichiers indisponible).';
   }
-  const result = await listTutorialFiles(folder);
-  tutorials = result.files;
-  folderProblem = result.ok ? null : folderProblemText(result.reason);
+  await detectLegacy(dir);
   renderHomeGrid();
 }
-// Le dossier configuré n'a pas pu être listé : l'accueil le dit.
-let folderProblem = null;
+// La bibliothèque n'a pas pu être lue : l'accueil le dit.
+let libraryProblem = null;
 
-/** Le dossier des tutos sur l'accueil, avec « Changer de dossier… ». */
-function renderFolderHint(folder) {
-  if (!els.folderHint) return;
-  els.folderHint.innerHTML = '';
-  if (!folder) return; // « Choisir le dossier des tutoriels » est déjà sur l'accueil.
-  // La fin du chemin suffit (« …/Musique/Tutos ») ; le chemin entier est dans l'infobulle.
-  const parts = folder.replace(/\/+$/, '').split('/').filter(Boolean);
-  els.folderHint.appendChild(el('span', {
-    className: 'pedagogie-folder-path',
-    text: parts.length > 2 ? `…/${parts.slice(-2).join('/')}` : folder,
-    title: folder,
-  }));
-  els.folderHint.appendChild(el('button', {
+/** Des vidéos dans l'ancien dossier configuré, pas encore dans la bibliothèque ? */
+async function detectLegacy(dir) {
+  legacy = null;
+  const folder = legacyFolder();
+  if (!folder || !dir || folder.replace(/\/+$/, '') === dir.replace(/\/+$/, '')) return;
+  const result = await listTutorialFiles(folder);
+  const known = new Set(tutorials.map((t) => t.name.toLowerCase()));
+  const files = result.files.filter((f) => !known.has(f.name.toLowerCase()));
+  if (files.length) legacy = { folder, files };
+}
+
+/** « Reprendre mes N vidéos de l'ancien dossier » : un clic, sur l'accueil. */
+function renderLegacyHint() {
+  if (!els.legacyHint) return;
+  els.legacyHint.innerHTML = '';
+  if (!legacy) return;
+  els.legacyHint.appendChild(el('button', {
     className: 'pedagogie-folder-btn',
     type: 'button',
-    text: 'Changer de dossier…',
-    onClick: () => chooseFolder(),
+    text: `Reprendre mes ${legacy.files.length} vidéo${legacy.files.length > 1 ? 's' : ''} de l'ancien dossier`,
+    title: legacy.folder,
+    onClick: () => importLegacy(),
   }));
 }
 
-async function chooseFolder() {
-  const api = window.electronAPI;
-  if (!api?.pedagogie?.selectTutorialFolder) {
-    setStatus('Le sélecteur de dossier n\'est pas disponible dans cet environnement.', 'error');
-    return;
+/** Copie les vidéos de l'ancien dossier dans la bibliothèque (il n'est pas modifié). */
+async function importLegacy() {
+  const dir = await getLibraryDir();
+  if (!legacy || !dir) return;
+  const todo = legacy.files;
+  let done = 0;
+  let failed = 0;
+  for (const file of todo) {
+    importNotice(`Reprise de l'ancien dossier… ${done + failed + 1} / ${todo.length}`, 'busy');
+    const result = await copyTutorialIntoFolder(file.path, dir);
+    if (result.ok) done += 1; else failed += 1;
   }
-  const folder = await api.pedagogie.selectTutorialFolder();
-  if (!folder) return;
-  saveTutorialFolder(typeof localStorage !== 'undefined' ? localStorage : null, folder);
-  // Plus de tutoriel ouvert : retour à l'accueil, sur les cartes du nouveau dossier.
-  closeTutorial();
+  // Rien à reprendre une seconde fois : le réglage de l'ancien dossier est oublié.
+  if (!failed) saveTutorialFolder(typeof localStorage !== 'undefined' ? localStorage : null, '');
+  await refreshTutorials();
+  importNotice(failed ? `${done} vidéo${done > 1 ? 's' : ''} reprise${done > 1 ? 's' : ''}, ${failed} n'${failed > 1 ? 'ont' : 'a'} pas pu être copiée${failed > 1 ? 's' : ''}.` : `${done} vidéo${done > 1 ? 's' : ''} reprise${done > 1 ? 's' : ''} dans la bibliothèque.`, failed ? 'error' : 'info');
 }
 
 /** Remet l'écran à zéro pour un tuto (ou aucun). Un relevé en cours n'est pas touché. */
@@ -483,6 +497,7 @@ async function updateCard(path, patch) {
   await mem.updateCard(path, patch);
   cards = await mem.readIndex();
   refreshCard(path);
+  renderLibraryDrawer();
 }
 
 const CARD_PLACEHOLDER = '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>';
@@ -518,7 +533,7 @@ function buildCard(tut) {
   }, [
     thumb,
     el('span', { className: 'pedago-card-body' }, [
-      el('strong', { className: 'pedago-card-title', text: tutorialDisplayName(tut.name) }),
+      el('strong', { className: 'pedago-card-title', text: tutorialTitle(tut.path) }),
       el('span', { className: 'pedago-card-meta', text: meta }),
     ]),
   ]);
@@ -535,10 +550,10 @@ function refreshCard(path) {
 function renderHomeGrid() {
   if (!els.homeGrid) return;
   els.homeGrid.innerHTML = '';
-  const folder = configuredFolder();
-  const list = folder ? tutorials : [];
+  const list = tutorials;
   els.home?.classList.toggle('has-cards', list.length > 0);
-  renderHome(folder);
+  renderLibraryDrawer();
+  renderHome();
   for (const tut of list) els.homeGrid.appendChild(el('div', { role: 'listitem' }, [buildCard(tut)]));
   ensureThumbnails();
 }
@@ -586,6 +601,141 @@ function captureThumbnailFromPlayer() {
   } catch (err) {
     console.warn('[Pedagogie] vignette non prise :', err);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Tiroir « Bibliothèque » (comme Sessions MIDI) : recherche, renommer, supprimer
+// ---------------------------------------------------------------------------
+
+const LIB_ICON_PENCIL = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
+const LIB_ICON_TRASH = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>';
+const LIB_ICON_OPEN = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>';
+
+let libraryQuery = '';
+let libraryFilter = 'all';
+const plain = (text) => String(text || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+const STATUS_LABELS = { ready: 'Analysé', reading: 'En cours…', waiting: 'En attente', tooLong: 'Trop long', todo: 'À analyser' };
+
+function libraryRow(tut) {
+  const card = cards[tut.path] || {};
+  const status = tutorialStatus(tut.path);
+  const title = tutorialTitle(tut.path);
+  const day = card.analyzedAt ? new Date(card.analyzedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) : '';
+  const icon = el('span', { className: 'tr-file-icon' });
+  icon.innerHTML = CARD_PLACEHOLDER.replace('width="30" height="30"', 'width="15" height="15"');
+  const name = el('strong', { className: 'session-name', title, text: title });
+  const select = el('button', { className: 'tr-library-select', type: 'button', 'aria-current': tut.path === selectedPath ? 'true' : 'false' }, [
+    icon,
+    el('span', {}, [name, el('small', { text: day ? `Analysé le ${day}` : 'Vidéo .mp4' })]),
+  ]);
+  const thumb = card.thumb
+    ? el('img', { className: 'pedago-lib-thumb', src: card.thumb, alt: '' })
+    : el('span', { className: 'pedago-lib-thumb is-empty', 'aria-hidden': 'true' });
+  const action = (kind, label, icon, onClick) => {
+    const b = el('button', { className: `tr-icon-button${kind === 'delete' ? ' tr-delete' : ''}`, type: 'button', 'data-action': kind, 'aria-label': `${label} ${title}`, title: label });
+    b.innerHTML = icon;
+    b.addEventListener('click', (e) => { e.stopPropagation(); onClick(b); });
+    return b;
+  };
+  const row = el('div', { className: `tr-library-row${tut.path === selectedPath ? ' is-selected' : ''}`, 'data-path': tut.path }, [
+    select,
+    thumb,
+    el('span', { className: 'tr-library-cell', text: cardDuration(card.duration) || '—' }),
+    el('span', { className: `tr-library-cell pedago-lib-status is-${status}`, text: STATUS_LABELS[status] || '' }),
+    el('div', { className: 'tr-library-row-actions' }, [
+      action('rename', 'Renommer', LIB_ICON_PENCIL, () => startRename(row, name, tut)),
+      action('delete', 'Supprimer', LIB_ICON_TRASH, () => removeTutorial(tut)),
+      action('open', 'Ouvrir', LIB_ICON_OPEN, () => { closeLibraryDrawer(); selectTrack(tut.path); }),
+    ]),
+  ]);
+  name.addEventListener('dblclick', (e) => { e.preventDefault(); e.stopPropagation(); startRename(row, name, tut); });
+  row.addEventListener('click', (e) => {
+    if (row.dataset.editing === 'true' || e.target.closest('[data-action]')) return;
+    closeLibraryDrawer();
+    selectTrack(tut.path);
+  });
+  return row;
+}
+
+function closeLibraryDrawer() {
+  document.querySelector('#pedagogie-library-drawer [data-astra-close]')?.click();
+}
+
+/** Renommage en place (double-clic ou crayon) : le nom est celui de la fiche, le fichier ne bouge pas.
+ * Un vrai champ de saisie (et non du texte éditable dans un bouton : la barre d'espace y est avalée). */
+function startRename(row, name, tut) {
+  if (row.dataset.editing === 'true') return;
+  row.dataset.editing = 'true';
+  const select = row.querySelector('.tr-library-select');
+  const input = el('input', { className: 'pedago-lib-rename', type: 'text', maxlength: '120', 'aria-label': `Nouveau nom de ${tutorialTitle(tut.path)}` });
+  input.value = tutorialTitle(tut.path);
+  if (select) { select.hidden = true; row.insertBefore(input, select); }
+  input.focus();
+  input.select();
+  let ended = false;
+  const finish = async (save) => {
+    if (ended) return;
+    ended = true;
+    const next = input.value.trim().slice(0, 120);
+    delete row.dataset.editing;
+    if (save && next && next !== tutorialTitle(tut.path)) {
+      await updateCard(tut.path, { name: next });
+      if (tut.path === selectedPath) { announcedPath = null; render(); }
+    }
+    renderLibraryDrawer();
+    renderHomeGrid();
+  };
+  input.addEventListener('blur', () => finish(true));
+  input.addEventListener('click', (e) => e.stopPropagation());
+  input.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+  });
+}
+
+/** Supprime un tuto de la bibliothèque : sa vidéo (copiée par l'application), sa fiche et son relevé. */
+async function removeTutorial(tut) {
+  if (reading?.path === tut.path) {
+    importNotice('Ce tutoriel est en cours d\'analyse : attends la fin avant de le supprimer.', 'error');
+    return;
+  }
+  if (!window.confirm(`Supprimer « ${tutorialTitle(tut.path)} » de la bibliothèque ?\nLa vidéo copiée et son analyse seront effacées.`)) return;
+  try {
+    await deleteTutorialFile(tut.path);
+    const mem = await getMemory();
+    if (mem) { await mem.forget(tut.path); cards = await mem.readIndex(); }
+  } catch (err) {
+    console.warn('[Pedagogie] suppression impossible :', err);
+    importNotice('Suppression impossible.', 'error');
+    return;
+  }
+  waitingPaths.delete(tut.path);
+  if (selectedPath === tut.path) closeTutorial();
+  await refreshTutorials();
+}
+
+/** La liste du tiroir : filtrée par la recherche et le filtre ; le compteur du bouton aussi. */
+function renderLibraryDrawer() {
+  if (els.libraryCount) els.libraryCount.textContent = String(tutorials.length);
+  if (els.libraryCountAll) els.libraryCountAll.textContent = String(tutorials.length);
+  const list = els.libraryList;
+  if (!list) return;
+  // Un renommage en cours ne doit pas être effacé par une vignette qui arrive.
+  if (list.querySelector('[data-editing="true"]')) return;
+  const q = plain(libraryQuery);
+  const rows = tutorials.filter((t) => (libraryFilter === 'all' || tutorialStatus(t.path) === 'ready') && (!q || plain(tutorialTitle(t.path)).includes(q)));
+  list.innerHTML = '';
+  if (!rows.length) {
+    const empty = el('div', { className: 'tr-empty' }, [
+      el('h3', { text: tutorials.length ? 'Aucun résultat' : 'Aucun tutoriel pour l\'instant' }),
+      el('p', { text: tutorials.length ? 'Aucun tutoriel ne correspond à cette recherche.' : 'Importe une vidéo .mp4 : elle sera gardée ici, avec son analyse.' }),
+    ]);
+    list.appendChild(empty);
+    return;
+  }
+  for (const tut of rows) list.appendChild(libraryRow(tut));
 }
 
 /** La durée d'un tuto ouvert, si sa fiche ne l'a pas encore. */
@@ -1071,14 +1221,14 @@ function renderCalibrationOverlay() {
 
 /**
  * Import d'une vidéo : le fichier choisi (filtré .mp4 par la boîte de dialogue,
- * re-filtré ici) est COPIÉ dans le dossier configuré. Plus d'entrée dans le
+ * re-filtré ici) est COPIÉ dans la bibliothèque de Pédagogie IA. Plus d'entrée dans le
  * magasin Studio — studio-storage.js et media-library.js ne sont pas touchés.
  */
 async function importVideo() {
   const api = window.electronAPI;
-  const folder = configuredFolder();
+  const folder = await getLibraryDir();
   if (!folder) {
-    importNotice('Choisis d\'abord le dossier de tes tutoriels.', 'error');
+    importNotice('La bibliothèque n\'est pas disponible dans cet environnement.', 'error');
     return;
   }
   if (!api?.studio?.selectVideoFile) {
@@ -1101,7 +1251,7 @@ async function importVideo() {
     importNotice(`Cette vidéo dure ${cardDuration(duration)} : Pédagogie IA analyse les tutos de 30 minutes au plus. Garde le passage qui t'intéresse (avec un éditeur vidéo), puis importe-le.`, 'error');
     return;
   }
-  importNotice('Copie dans le dossier des tutoriels…', 'busy');
+  importNotice('Ajout à la bibliothèque…', 'busy');
   try {
     const result = await copyTutorialIntoFolder(filePath, folder);
     if (!result.ok) {
@@ -1514,13 +1664,12 @@ async function runTranscription(originalPath) {
 // ---------------------------------------------------------------------------
 
 function render() {
-  const folder = configuredFolder();
   const hasTutorial = Boolean(selectedPath);
   if (els.home) els.home.hidden = hasTutorial;
   if (els.split) els.split.hidden = !hasTutorial;
   // [Claude] — 2026-10-03 — « ← Mes tutoriels » : seulement quand un tuto est ouvert.
   if (els.backBtn) els.backBtn.hidden = !hasTutorial;
-  renderHome(folder);
+  renderHome();
   // [Claude] — 2026-10-03 — Tant que le tuto n'est pas analysé, l'écran d'attente le couvre
   // (pas de Copilote) ; analysé, la vidéo est prête et le Copilote s'ouvre.
   const ready = hasTutorial && Boolean(analysis) && !isReadingHere();
@@ -1528,10 +1677,8 @@ function render() {
   renderReading();
   // Refaire l'analyse (elle est gardée sinon).
   if (els.redoBtn) els.redoBtn.hidden = !ready;
-  if (els.importBtn) {
-    els.importBtn.disabled = !folder;
-    els.importBtn.style.display = folder ? '' : 'none';
-  }
+  // [Claude] — 2026-10-13 — « Importer une vidéo » est toujours là : la bibliothèque n'a pas à être choisie.
+  if (els.importBtn) els.importBtn.disabled = false;
   if (els.videoActions) els.videoActions.style.display = ready ? '' : 'none';
   if (els.calibrateBtn) {
     const needsKeyboard = analysis && analysis.source !== 'video';
@@ -1547,26 +1694,23 @@ function render() {
   updateMoment();
 }
 
-/** Accueil (aucun tutoriel ouvert) : choisir le dossier, puis un tutoriel (en cartes). */
-function renderHome(folder) {
+/** Accueil (aucun tutoriel ouvert) : choisir un tutoriel de la bibliothèque (en cartes). */
+function renderHome() {
   if (!els.homeTitle) return;
-  const withCards = Boolean(folder) && tutorials.length > 0;
-  if (!folder) {
-    els.homeTitle.textContent = 'Choisis le dossier de tes tutoriels';
-    els.homeText.textContent = 'Les vidéos .mp4 de ce dossier seront listées ici. Ouvre un tuto : la vidéo du prof s\'affiche à gauche, et le Copilote à droite répond à tes questions sur ce qu\'il vient de jouer.';
-  } else if (folderProblem) {
-    // [Claude] — 2026-10-03 — Le tiroir qui le disait est retiré : l'accueil le dit.
-    els.homeTitle.textContent = 'Le dossier des tutoriels n\'a pas pu être lu';
-    els.homeText.textContent = folderProblem;
+  const withCards = tutorials.length > 0;
+  if (libraryProblem) {
+    els.homeTitle.textContent = 'La bibliothèque n\'a pas pu être lue';
+    els.homeText.textContent = libraryProblem;
   } else if (withCards) {
     els.homeTitle.textContent = 'Tes tutoriels';
     els.homeText.textContent = 'Ouvre un tuto : la vidéo du prof s\'affiche à gauche, et le Copilote à droite répond à tes questions sur ce qu\'il vient de jouer. Un tuto déjà lu s\'ouvre tout de suite.';
   } else {
-    els.homeTitle.textContent = 'Aucun tutoriel dans ce dossier';
-    els.homeText.textContent = 'Ajoute une vidéo .mp4 avec « Importer une vidéo », en haut à droite : elle apparaîtra ici en carte.';
+    els.homeTitle.textContent = 'Ta bibliothèque de tutoriels est vide';
+    els.homeText.textContent = 'Importe une vidéo .mp4 : elle est gardée dans la bibliothèque de Pédagogie IA, avec son analyse. Ouvre ensuite un tuto : la vidéo du prof s\'affiche à gauche, et le Copilote à droite répond à tes questions sur ce qu\'il vient de jouer.';
   }
-  // Avec un dossier, « Changer de dossier… » est sur la ligne du dossier.
-  if (els.homeFolderBtn) els.homeFolderBtn.hidden = Boolean(folder);
+  // Le gros bouton d'import sert tant que la bibliothèque est vide ; « Importer une vidéo » est en haut sinon.
+  if (els.homeImportBtn) els.homeImportBtn.hidden = withCards;
+  renderLegacyHint();
 }
 
 /**
@@ -1690,7 +1834,7 @@ function renderResult() {
  */
 function renderCopilotPanel() {
   if (!els.copilotPanel) return;
-  const name = selectedPath ? tutorialDisplayName(selectedPath.split('/').pop() || selectedPath) : '';
+  const name = selectedPath ? tutorialTitle(selectedPath) : '';
   if (els.copilotName) els.copilotName.textContent = name;
   // [Claude] — 2026-10-03 — Le Copilote ne s'ouvre que sur un tuto analysé (Narcisse : « tant
   // que l'analyse […] n'a pas été faite, je ne peux pas lui demander de reproduire ce que le
@@ -1732,7 +1876,7 @@ function renderReading() {
   const show = Boolean(path) && status !== 'ready' && (memoryChecked || status === 'reading' || status === 'waiting');
   box.hidden = !show;
   if (!show) return;
-  const name = tutorialDisplayName(path.split('/').pop() || path);
+  const name = tutorialTitle(path);
   let title = 'Analyse du tutoriel';
   let step = '';
   let elapsed = '';
@@ -1743,7 +1887,7 @@ function renderReading() {
     elapsed = `Depuis ${elapsedText(Date.now() - reading.startedAt)}`;
   } else if (status === 'waiting') {
     title = 'Analyse en attente';
-    const other = reading ? tutorialDisplayName(reading.path.split('/').pop() || reading.path) : '';
+    const other = reading ? tutorialTitle(reading.path) : '';
     step = other ? `« ${other} » est en cours d'analyse : celui-ci passera juste après.` : 'Un autre tuto passe avant.';
   } else if (failed) {
     title = 'L\'analyse n\'a pas abouti';
@@ -1783,7 +1927,7 @@ function showReadyToast(path) {
     toast = el('button', { id: 'pedagogie-ready-toast', className: 'pedago-ready-toast', type: 'button' });
     document.body.appendChild(toast);
   }
-  const name = tutorialDisplayName(path.split('/').pop() || path);
+  const name = tutorialTitle(path);
   toast.textContent = '';
   toast.appendChild(el('strong', { text: `« ${name} » est prêt` }));
   toast.appendChild(el('span', { text: 'Pédagogie IA · ouvrir' }));
@@ -1937,7 +2081,7 @@ export function getPedagogieCopilotContext() {
   return {
     type: 'tutorial',
     path: selectedPath,
-    name: tutorialDisplayName(selectedPath.split('/').pop() || selectedPath),
+    name: tutorialTitle(selectedPath),
     key: detectedKey,
     chords,
     transcript,
@@ -1987,11 +2131,16 @@ export function initPedagogieTab() {
   registerCopilotContext('tutorial', getPedagogieCopilotContext);
 
   els.importBtn = document.getElementById('pedagogie-import-btn');
-  els.folderHint = document.getElementById('pedagogie-folder-hint');
+  els.legacyHint = document.getElementById('pedagogie-legacy-hint');
+  els.libraryList = document.getElementById('pedagogie-library-list');
+  els.libraryCount = document.getElementById('pedagogie-library-count');
+  els.libraryCountAll = document.getElementById('pedagogie-library-count-all');
+  els.librarySearch = document.getElementById('pedagogie-library-search');
+  els.libraryFilters = document.getElementById('pedagogie-library-filters');
   els.home = document.getElementById('pedagogie-home');
   els.homeTitle = document.getElementById('pedagogie-home-title');
   els.homeText = document.getElementById('pedagogie-home-text');
-  els.homeFolderBtn = document.getElementById('pedagogie-home-folder-btn');
+  els.homeImportBtn = document.getElementById('pedagogie-home-import-btn');
   els.backBtn = document.getElementById('pedagogie-back-btn');
   els.homeGrid = document.getElementById('pedagogie-home-grid');
   els.speed = document.getElementById('pedagogie-speed');
@@ -2033,7 +2182,19 @@ export function initPedagogieTab() {
 
   els.importBtn?.addEventListener('click', () => { importVideo(); });
   els.backBtn?.addEventListener('click', () => { closeTutorial(); });
-  els.homeFolderBtn?.addEventListener('click', () => { chooseFolder(); });
+  els.homeImportBtn?.addEventListener('click', () => { importVideo(); });
+  els.librarySearch?.addEventListener('input', () => { libraryQuery = els.librarySearch.value; renderLibraryDrawer(); });
+  els.libraryFilters?.addEventListener('click', (e) => {
+    const button = e.target.closest('[data-library-filter]');
+    if (!button) return;
+    libraryFilter = button.dataset.libraryFilter;
+    for (const b of els.libraryFilters.querySelectorAll('[data-library-filter]')) {
+      const on = b === button;
+      b.classList.toggle('is-active', on);
+      b.setAttribute('aria-pressed', String(on));
+    }
+    renderLibraryDrawer();
+  });
   els.readingRetry?.addEventListener('click', () => { analyzeSelected(); });
   els.redoBtn?.addEventListener('click', () => { analyzeSelected(); });
   // [Refonte Astra 12/09] — Le bouton « Calibrer le clavier (V2N) » avait été
