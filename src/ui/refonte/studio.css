@@ -1920,21 +1920,23 @@
   transition: opacity .12s ease, visibility 0s linear .12s;
 }
 
-/* [Claude] — 2026-10-13 — Pistes repliées : « Lecture » et « Export » descendent en bas de la colonne de
-   droite, au niveau du lecteur (la barre ▶ ■ ●), et la colonne centrale — vidéo, forme d'onde, lecteur —
-   se recentre dans la page, SANS changer de taille. Les colonnes de côté sont égales (280 px au moins),
-   la centrale garde la largeur qu'elle a quand les pistes sont déployées et la bibliothèque ouverte :
-   un tiers de la place (2,1 / 2,95) après les 250 px de la bibliothèque et les deux écarts de 14 px.
-   (Sa largeur ne dépend donc pas de l'état de la bibliothèque, ni de l'habillage.) */
+/* [Claude] — 2026-10-13 — Pistes repliées : « Lecture » et « Export » quittent la colonne de droite et se
+   rangent en une rangée collée AU-DESSUS du lecteur, dans le même cadre (voir .studio-controls-lecture
+   plus bas) : la colonne de droite ne garde que son rond, et la colonne centrale — vidéo, forme
+   d'onde, lecteur — se recentre dans la page, SANS changer de taille. Les colonnes de côté sont
+   égales (250 px au moins : la largeur de la bibliothèque) ; la centrale garde la largeur qu'elle a
+   pistes déployées et bibliothèque ouverte : 2,1 / 2,95 de la place après les 250 px de la
+   bibliothèque et les deux écarts de 14 px (ou toute la place moins la colonne de droite, 270 px,
+   sur une fenêtre étroite). Elle ne dépend donc ni de l'état de la bibliothèque, ni de l'habillage. */
 :root[data-skin] #studio-tab.stems-collapsed:not(.stage-0) {
   grid-template-columns:
-    minmax(280px, 1fr)
-    minmax(0, min(calc((100% - 278px) * .7119), calc(100% - 278px - 270px)))
-    minmax(280px, 1fr);
+    minmax(250px, 1fr)
+    minmax(0, min(calc((100% - 278px) * .7119), calc(100% - 548px)))
+    minmax(250px, 1fr);
 }
 
 /* Replié : un rond de 46 px en haut à droite de la colonne */
-:root[data-skin] #studio-tab:not(.stage-0) .studio-sidebar.right.stems-collapsed { position: relative; justify-content: flex-end; }
+:root[data-skin] #studio-tab:not(.stage-0) .studio-sidebar.right.stems-collapsed { position: relative; justify-content: flex-start; }
 :root[data-skin] #studio-tab:not(.stage-0) .studio-sidebar.right.stems-collapsed .studio-right-panel { flex: 0 0 auto; }
 :root[data-skin] #studio-tab:not(.stage-0) .studio-stems-section.is-collapsed {
   position: absolute;
@@ -1996,7 +1998,8 @@
  *  [Claude] — 2026-10-13 — Mode enregistrement (bouton ● du lecteur).          *
  *  Ne restent que : la vidéo, le lecteur (transport), le nom du fichier, le    *
  *  nom et le logo de l'application, plus le clavier MIDI en bas (rendu à       *
- *  Narcisse). Le reste disparaît ; vidéo et lecteur sont centrés. Classe posée sur <html> par studio-tab.js (setRecordingMode). *
+ *  Narcisse). Le reste disparaît ; vidéo et lecteur sont centrés. Classe       *
+ *  posée sur <html> par studio-tab.js (setRecordingMode).                      *
  * ========================================================================== */
 :root.studio-rec-mode .tr-app-header .tr-main-navigation,
 :root.studio-rec-mode .tr-app-header .tr-header-tools,
@@ -2007,6 +2010,7 @@
 :root.studio-rec-mode #studio-tab .studio-handle-rail,
 :root.studio-rec-mode #studio-tab .studio-waveform-wrap,
 :root.studio-rec-mode #studio-tab .studio-stage-overlay,
+:root.studio-rec-mode #studio-tab .studio-controls-lecture,
 :root.studio-rec-mode #studio-tab #studio-separate-btn-center,
 :root.studio-rec-mode .app-notify-root { display: none !important; }
 
@@ -2027,3 +2031,137 @@
 }
 :root.studio-rec-mode[data-skin] #studio-tab .studio-player-wrap { flex: 1 1 auto; min-height: 0; max-height: none; }
 :root.studio-rec-mode[data-skin] #studio-tab .studio-controls { flex: 0 0 auto; }
+
+/* ========================================================================== *
+ *  [Claude] — 2026-10-13 — « Lecture » et « Export » rangés au-dessus du       *
+ *  lecteur quand les pistes séparées sont repliées.                            *
+ *  Une seule boîte avec le lecteur (même cadre, même largeur que la vidéo) :   *
+ *  rangée du haut = ♭ 0 ♯ · volume · lecture en boucle · Export, rangée du     *
+ *  bas = ◀◀ ▶ ■ ● et la barre de progression. Les sections sont les mêmes      *
+ *  éléments que dans la colonne de droite, simplement mis à l'horizontale.     *
+ * ========================================================================== */
+:root[data-skin] #studio-tab.stems-collapsed .studio-controls { row-gap: 10px; }
+:root[data-skin] #studio-tab .studio-controls-lecture {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 22px;
+  min-width: 0;
+  padding: 0 0 10px;
+  border-bottom: 1px solid var(--tr-border, var(--r-border));
+}
+:root[data-skin] #studio-tab .studio-controls-lecture:empty:not(.is-leaving) { display: none; }
+#studio-tab .studio-controls-lecture.is-animating,
+#studio-tab .studio-controls-lecture.is-leaving { overflow: hidden; }
+
+/* Plus de carte : le fond, le cadre et la marge viennent du lecteur. */
+:root[data-skin] #studio-tab .studio-controls-lecture :is(.studio-playback-section, .studio-export-section) {
+  flex: 0 0 auto;
+  display: block;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+:root[data-skin] #studio-tab .studio-controls-lecture #studio-playback-block {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 22px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+:root[data-skin] #studio-tab .studio-controls-lecture .studio-rp-title {
+  margin: 0;
+  font-family: var(--r-font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tr-muted, var(--r-text-faint));
+}
+:root[data-skin] #studio-tab .studio-controls-lecture .studio-rp-row { flex: 0 0 auto; gap: 10px; }
+
+/* ♭ 0 ♯ puis le texte d'état, sur une ligne */
+:root[data-skin] #studio-tab .studio-controls-lecture .studio-transpose-row { display: flex; align-items: center; gap: 10px; }
+:root[data-skin] #studio-tab .studio-controls-lecture .studio-transpose-row .studio-transpose-control { grid-column: auto; }
+:root[data-skin] #studio-tab .studio-controls-lecture .studio-transpose-row .studio-transpose-status {
+  grid-column: auto;
+  white-space: nowrap;
+  max-width: none;
+  flex: 0 0 6.8em;   /* largeur réservée : le texte d'état (« +2 demi‑tons ») ne fait pas bouger le reste de la rangée */
+}
+:root[data-skin] #studio-tab .studio-controls-lecture .studio-volume-label { width: 190px; }
+:root[data-skin] #studio-tab .studio-controls-lecture .studio-loop-row { gap: 10px; }
+
+/* Export : un bouton compact ; ouvert, un petit menu au-dessus de la rangée. */
+#studio-tab .studio-controls-lecture .studio-export-section { position: relative; }
+:root[data-skin] #studio-tab .studio-controls-lecture .studio-export-section > summary {
+  height: 32px;
+  padding: 0 12px;
+  gap: 8px;
+  border: 1px solid var(--tr-border, var(--r-border));
+  border-radius: 9px;
+  background: transparent;
+  font-family: var(--r-font-body);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--tr-secondary, var(--r-text-muted));
+}
+:root[data-skin='v2'] #studio-tab .studio-controls-lecture .studio-export-section > summary { border-radius: 999px; }
+:root[data-skin] #studio-tab .studio-controls-lecture .studio-export-section > summary:hover,
+:root[data-skin] #studio-tab .studio-controls-lecture .studio-export-section[open] > summary {
+  color: var(--tr-text, var(--r-text));
+  border-color: color-mix(in srgb, var(--tr-accent, var(--r-accent)) 55%, var(--tr-border, var(--r-border)));
+}
+#studio-tab .studio-controls-lecture .studio-export-section > .studio-export-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 12px);
+  z-index: 30;
+  width: 250px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid var(--tr-border, var(--r-border));
+  background: var(--tr-surface, var(--r-surface));
+  box-shadow: 0 18px 40px -16px #000000a6;
+}
+#studio-tab .studio-controls-lecture .studio-export-section > .studio-export-menu .studio-export-btn { margin: 0; width: 100%; }
+:root[data-skin] #studio-tab .studio-controls-lecture .studio-export-menu .studio-export-btn {
+  padding: 9px 12px;
+  border: 1px solid var(--tr-border, var(--r-border));
+  border-radius: 9px;
+  background: var(--r-surface-chip, transparent);
+  color: var(--tr-text, var(--r-text));
+  font-family: var(--r-font-body);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+:root[data-skin='v2'] #studio-tab .studio-controls-lecture .studio-export-menu .studio-export-btn { border-radius: 999px; padding-left: 16px; }
+:root[data-skin] #studio-tab .studio-controls-lecture .studio-export-menu .studio-export-btn:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--tr-accent, var(--r-accent)) 60%, var(--tr-border, var(--r-border)));
+}
+:root[data-skin] #studio-tab .studio-controls-lecture .studio-export-menu .studio-export-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Fenêtre étroite : la rangée se resserre (plus de titre « Lecture », volume plus court) pour que
+   « Export » reste sur la même ligne et que la vidéo ne perde pas une seconde rangée de hauteur. */
+@media (max-width: 1400px) {
+  :root[data-skin] #studio-tab .studio-controls-lecture { gap: 8px 14px; }
+  :root[data-skin] #studio-tab .studio-controls-lecture #studio-playback-block { gap: 8px 14px; }
+  :root[data-skin] #studio-tab .studio-controls-lecture .studio-playback-block > .studio-rp-title { display: none; }
+  :root[data-skin] #studio-tab .studio-controls-lecture .studio-volume-label { width: 150px; }
+  :root[data-skin] #studio-tab .studio-controls-lecture .studio-transpose-row .studio-transpose-status { flex-basis: 6.2em; }
+}

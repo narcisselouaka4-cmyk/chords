@@ -1775,6 +1775,9 @@
           </div>
 
           <div class="studio-controls">
+            <!-- [Claude] — 2026-10-13 — Pistes séparées repliées : « Lecture » et « Export » viennent se ranger
+                 ici, en une rangée au-dessus du lecteur (studio-tab.js, applyStemsCollapsed). Vide sinon. -->
+            <div class="studio-controls-lecture" id="studio-controls-lecture" role="group" aria-label="Lecture et export"></div>
             <div class="studio-buttons">
               <button id="studio-prev-btn" title="Revenir au début">◀◀</button>
               <button id="studio-play-btn" title="Lecture / Pause">▶</button>
@@ -1858,8 +1861,11 @@
             <summary class="studio-rp-title studio-foldable-summary">Export</summary>
             <!-- [Claude] — 2026-10-13 — Branchés (src/ui/studio-export.js) : le mixage tel qu'on l'entend
                  (volumes, muet / solo, transposition) en WAV ; la piste piano transcrite en MIDI. -->
+            <div class="studio-export-menu">
             <button type="button" class="studio-placeholder-btn studio-export-btn" id="studio-export-wav-btn" disabled title="Enregistrer le mixage tel que vous l'entendez (volumes, pistes coupées, transposition) en fichier WAV">Exporter le mixage (WAV)</button>
             <button type="button" class="studio-placeholder-btn studio-export-btn" id="studio-export-midi-btn" disabled title="Transcrire les notes de la piste piano et les enregistrer en fichier MIDI">Exporter le piano (MIDI)</button>
+          
+            </div>
           </details>
         </aside>
       </main>

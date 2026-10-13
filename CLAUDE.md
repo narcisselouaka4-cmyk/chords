@@ -221,9 +221,11 @@ La boucle `requestAnimationFrame` qui modifiait `video.playbackRate` causait un 
   (`:root[data-skin] #studio-tab.stage-0 { grid-template-rows: auto minmax(0,1fr) }`) :
   le bloc de skin plus haut dans `studio.css` impose `minmax(0,1fr)` avec une
   spécificité supérieure, d'où le `:root[data-skin]` en préfixe.
-- Pistes séparées repliées en rond : « Lecture » et « Export » descendent en bas de la colonne de
-  droite (au niveau du lecteur) et la colonne centrale se recentre dans la page sans changer de
-  taille ; Atelier et Scène ont les mêmes colonnes (même largeur de vidéo).
+- Pistes séparées repliées en rond : « Lecture » et « Export » quittent la colonne de droite et se
+  rangent en une rangée collée au-dessus du lecteur, dans le même cadre (`#studio-controls-lecture` ;
+  mêmes éléments, déplacés par `applyStemsCollapsed`) ; « Export » y devient un petit menu. La
+  colonne centrale se recentre dans la page sans changer de largeur ; Atelier et Scène ont les
+  mêmes colonnes (même largeur de vidéo). En mode enregistrement, la rangée est masquée.
 
 
 ### Stems

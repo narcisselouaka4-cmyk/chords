@@ -30,9 +30,20 @@
     la met à jour sur place (renommage, suppression) ; classe `wheel-open` sur `#studio-tab`.
   - Une fois un morceau chargé (étapes 1-3), `#studio-import-btn` reste dans le panneau de gauche :
     c'est le seul moyen d'importer un autre fichier à ce moment-là (il n'y a pas de retour à l'étape 0).
-- **Pistes repliées** (`studio.css`, `applyStemsCollapsed`) :
-  - Lecture + Export descendent en bas de la colonne de droite (le bas d'Export = le bas du lecteur) ;
-    ils glissent (FLIP existant).
+- **Pistes repliées** (`studio.css`, `applyStemsCollapsed`) — *version retenue, 3e proposition* (la 1re,
+  Lecture en bas de la colonne de droite, a été livrée puis remplacée ; voir le commit précédent) :
+  - « Lecture » et « Export » se rangent en UNE rangée au-dessus du lecteur, dans la même boîte
+    (`#studio-controls-lecture`, 1re ligne de `.studio-controls`) : ♭ 0 ♯ + texte d'état, volume,
+    lire la piste en boucle, « Export » (petit menu qui s'ouvre vers le haut ; clic ailleurs / Échap le
+    ferme). Mêmes éléments que dans la colonne (déplacés, pas copiés : réglages et boutons restent
+    branchés). Retour au déploiement : ils retournent dans la colonne, la rangée se referme.
+  - Animation : la rangée s'ouvre en hauteur (la vidéo cède la place progressivement) pendant que
+    les deux sections voyagent depuis leur ancienne place ; la colonne centrale glisse vers le milieu.
+  - Coût : la vidéo perd de la hauteur, pas de largeur (≈ 53 px à 1500×900, 53 px à 1920×1080 ;
+    ≈ 41 px à 1280×800). En dessous de 1400 px de large le titre « Lecture » disparaît et le volume
+    raccourcit pour tenir sur une seule ligne.
+  - Mode enregistrement : la rangée est masquée (le lecteur reste seul).
+- (Première version, remplacée :) Lecture + Export en bas de la colonne de droite, au niveau du lecteur ;
   - Classe `stems-collapsed` sur `#studio-tab` : grille `minmax(280px,1fr) · colonne centrale · minmax(280px,1fr)`.
     La colonne centrale garde la largeur qu'elle a pistes déployées et bibliothèque ouverte
     (`min((100% − 278px) × 0,7119 ; 100% − 278px − 270px)`), et se recentre dans la page ; elle glisse
@@ -46,9 +57,9 @@
 - `CLAUDE.md` : étape 0, repli des pistes et checklist mis à jour.
 
 ## Choix à confirmer
-- L'interprétation du point 5 : « Lecture » reste dans la colonne de droite, en bas, au niveau du
-  lecteur (et sous la fenêtre vidéo), plutôt que d'entrer dans la colonne centrale (qui aurait
-  rétréci la vidéo d'environ 65 px en hauteur).
+- Point 5 : Narcisse a laissé la liberté de proposer mieux que ses deux idées (Lecture en bas à droite /
+  Lecture entre la vidéo et le lecteur). Retenu : Lecture + Export FUSIONNÉS avec le lecteur (une
+  boîte, deux rangées), centrés sous la vidéo.
 - Vidéo : en repli total (bibliothèque en rond ET pistes en rond), la vidéo passe de 995 à 850 px
   (centrée) au lieu de grandir encore.
 

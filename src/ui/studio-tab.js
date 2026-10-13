@@ -432,6 +432,15 @@ function bindScreenRecorder() {
   els.collapseLeftBtn?.addEventListener('click', () => toggleLeftPanel());
   els.collapseTabBtn?.addEventListener('click', () => toggleLeftPanel());
   document.getElementById('studio-stems-collapse')?.addEventListener('click', () => toggleStemsPanel());
+  // Dans la rangée au-dessus du lecteur, « Export » s'ouvre en petit menu : un clic ailleurs (ou Échap) le ferme.
+  document.addEventListener('click', (e) => {
+    const ex = document.getElementById('studio-export-section');
+    if (ex?.open && ex.closest('.studio-controls-lecture') && !ex.contains(e.target)) ex.open = false;
+  });
+  document.addEventListener('keydown', (e) => {
+    const ex = document.getElementById('studio-export-section');
+    if (e.key === 'Escape' && ex?.open && ex.closest('.studio-controls-lecture')) ex.open = false;
+  });
   document.getElementById('studio-export-wav-btn')?.addEventListener('click', () => exportMixWav());
   document.getElementById('studio-export-midi-btn')?.addEventListener('click', () => exportPianoMidi());
   document.getElementById('studio-stems-expand')?.addEventListener('click', () => toggleStemsPanel());
@@ -451,19 +460,34 @@ function applyStemsCollapsed(collapsed, animate = true) {
   const section = els.stemsSection;
   const sidebar = section?.closest('.studio-sidebar.right');
   if (!section || !sidebar) return;
-  const movers = [
-    sidebar.querySelector('.studio-playback-section'),
-    sidebar.querySelector('.studio-export-section'),
-  ].filter(Boolean);
-  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const tab = document.getElementById('studio-tab');
   const center = els.studioCenter;
+  const dock = document.getElementById('studio-controls-lecture');
+  const playback = document.getElementById('studio-playback-section');
+  const exportSection = document.getElementById('studio-export-section');
+  const movers = [playback, exportSection].filter(Boolean);
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const before = animate && !reduce ? new Map([section, ...movers, center].filter(Boolean).map((el) => [el, el.getBoundingClientRect()])) : null;
+  const dockH0 = dock ? dock.getBoundingClientRect().height : 0;
+
+  // Les sections « Lecture » et « Export » changent de maison : la colonne de droite quand les pistes sont
+  // déployées, la rangée au-dessus du lecteur quand elles sont repliées. Ce sont les MÊMES éléments
+  // (déplacés, pas copiés) : leurs boutons et leurs réglages restent branchés.
+  if (dock && playback && exportSection) {
+    if (collapsed) {
+      dock.append(playback, exportSection);
+    } else {
+      sidebar.querySelector('.studio-right-panel')?.appendChild(playback);
+      sidebar.appendChild(exportSection);
+      exportSection.open = false;
+    }
+  }
   section.classList.toggle('is-collapsed', collapsed);
   sidebar.classList.toggle('stems-collapsed', collapsed);
   tab?.classList.toggle('stems-collapsed', collapsed);
   document.getElementById('studio-stems-expand')?.setAttribute('tabindex', collapsed ? '0' : '-1');
   if (!before) return;
+
   const a = before.get(section);
   const b = section.getBoundingClientRect();
   if (a.width && b.width) {
@@ -486,12 +510,31 @@ function applyStemsCollapsed(collapsed, animate = true) {
     }
     setTimeout(() => { if (waveformData) renderWaveform(); }, 560);
   }
+  // La rangée au-dessus du lecteur s'ouvre (ou se referme) en hauteur : la vidéo cède la place
+  // progressivement au lieu de sauter. Les deux sections voyagent depuis / vers leur ancienne place.
+  if (dock) {
+    const dockH1 = dock.getBoundingClientRect().height;
+    if (collapsed && dockH1 > 0) {
+      dock.classList.add('is-animating');
+      dock.animate([{ height: '0px', opacity: 0, paddingBottom: '0px' }, { height: `${dockH1}px`, opacity: 1, paddingBottom: getComputedStyle(dock).paddingBottom }], { duration: 500, easing: FLIP_EASE })
+        .finished.then(() => dock.classList.remove('is-animating'), () => dock.classList.remove('is-animating'));
+    } else if (!collapsed && dockH0 > 0) {
+      // Vide, la rangée n'a plus de hauteur : on la garde le temps de la refermer en douceur.
+      dock.classList.add('is-leaving');
+      dock.style.height = `${dockH0}px`;
+      dock.animate([{ height: `${dockH0}px`, opacity: 1 }, { height: '0px', opacity: 0, paddingBottom: '0px' }], { duration: 500, easing: FLIP_EASE })
+        .finished.then(() => { dock.classList.remove('is-leaving'); dock.style.height = ''; }, () => { dock.classList.remove('is-leaving'); dock.style.height = ''; });
+    }
+  }
   for (const el of movers) {
     const f = before.get(el);
     const l = el.getBoundingClientRect();
     const dx = f.left - l.left; const dy = f.top - l.top;
     if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue;
-    el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration: 500, easing: FLIP_EASE });
+    el.animate(
+      [{ transform: `translate(${dx}px, ${dy}px)`, opacity: collapsed ? 0.15 : 1 }, { transform: 'none', opacity: 1 }],
+      { duration: 500, easing: FLIP_EASE },
+    );
   }
 }
 
