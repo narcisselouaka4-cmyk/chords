@@ -429,6 +429,7 @@ function renderCopilotWelcome() {
     el('span', { className: 'tr-eyebrow', text: 'VOTRE PARTENAIRE D’HARMONIE' }),
     heading,
     intro,
+    contextNoteNode(),
     options,
   ]);
 }
@@ -442,6 +443,8 @@ function renderTutorialWelcome() {
   return el('div', { className: 'tr-copilot-welcome copilot-tutorial-welcome' }, [
     el('h2', { text: 'Une question sur ce passage ?' }),
     el('p', { text: 'Je regarde le passage choisi sous la vidéo : ce que le prof y joue et y dit. Écris ta question, ou clique une étiquette : ce qui est écrit dessus est envoyé tel quel.' }),
+    // Dans Pédagogie IA, le Copilote est à côté de la vidéo : son encart dit déjà ce qu'il sait.
+    ...(document.getElementById('practice-view-copilot')?.contains(els.messages) ? [contextNoteNode()] : []),
   ]);
 }
 
@@ -1340,6 +1343,18 @@ async function loadHistoryItem(conversationId) {
 // [Claude] — 2026-10-09 — Narcisse : la mention « Copilot IA » en haut à gauche « ne sert à rien »
 // (le sous-onglet porte déjà ce nom). Le titre ne dit plus que le contexte (tutoriel, session,
 // exercice) ; sans contexte, il est vide et masqué.
+// [Claude] — 2026-10-13 — Narcisse : « rétrécir le bord […] ou mets l'explication en dehors du bord ».
+// Ce que le Copilote connaît (tutoriel, exercice, session) n'est plus écrit dans l'en-tête, sous le
+// titre : sur trois lignes, il masquait le logo de l'accueil. Il est posé dans l'accueil, sous
+// le texte d'invitation ; l'en-tête ne garde que le titre et les boutons.
+let contextNote = '';
+function setContextNote(text) {
+  contextNote = String(text || '');
+  const node = els.messages?.querySelector('.copilot-context-note');
+  if (node) { node.textContent = contextNote; node.hidden = !contextNote; }
+}
+const contextNoteNode = () => el('p', { className: 'copilot-context-note', text: contextNote, ...(contextNote ? {} : { hidden: '' }) });
+
 function updateHeaderForMode() {
   if (currentMode === 'tutorial' && currentTutorialPath) {
     const name = currentTutorialPath.split('/').pop();
@@ -1354,17 +1369,17 @@ function updateHeaderForMode() {
     } else {
       intro = `Le Copilot connaît la grille et la parole du professeur ; les notes exactes ne sont pas disponibles (${context.notesUnavailable}).`;
     }
-    if (els.introText) els.introText.textContent = intro;
+    setContextNote(intro);
   } else if (currentMode === 'session' && currentSessionContext) {
     const name = currentSessionContext.name || currentSessionId;
     if (els.selectedName) els.selectedName.textContent = `Session : ${name}`;
-    if (els.introText) els.introText.textContent = 'Mode session : le Copilot analyse la session MIDI sélectionnée.';
+    setContextNote('Mode session : le Copilot analyse la session MIDI sélectionnée.');
   } else if (currentMode === 'exercise' && currentExerciseTitle) {
     if (els.selectedName) els.selectedName.textContent = currentExerciseTitle;
-    if (els.introText) els.introText.textContent = 'Le Copilot connaît l\'exercice affiché : accords et voicings de la carte, tonalité, étape et tes derniers essais. Demande-lui d\'expliquer un voicing ou de le faire entendre ; après avoir joué, « Qu\'en penses-tu ? » compare ton jeu à l\'exercice.';
+    setContextNote('Le Copilot connaît l\'exercice affiché : accords et voicings de la carte, tonalité, étape et tes derniers essais. Demande-lui d\'expliquer un voicing ou de le faire entendre ; après avoir joué, « Qu\'en penses-tu ? » compare ton jeu à l\'exercice.');
   } else {
     if (els.selectedName) els.selectedName.textContent = '';
-    if (els.introText) els.introText.textContent = '';
+    setContextNote('');
   }
 }
 
@@ -1621,7 +1636,6 @@ export async function initCopilotTab() {
   els.newConvBtn = document.getElementById('copilot-new-conv-btn');
   els.modeToggleBtn = document.getElementById('copilot-mode-toggle-btn');
   els.selectedName = document.getElementById('copilot-selected-name');
-  els.introText = document.getElementById('copilot-intro');
   els.historyList = document.getElementById('copilot-history-list');
   els.newConvSidebarBtn = document.getElementById('copilot-new-conv-sidebar-btn');
   els.deleteEmptyBtn = document.getElementById('copilot-delete-empty-btn');

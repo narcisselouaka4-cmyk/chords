@@ -48,3 +48,10 @@ inversée ; Pédagogie IA : bibliothèque intégrée au lieu d'un dossier).
   réécrits pour la bibliothèque), `test-onboarding`, build, Partie 1 et 3, `test:chords`.
 - Échecs anciens inchangés : `test-training-dom` (11), `test-coach-dom` (2), `test-home-results-separation`
   (1), `test-load-session` (window absent).
+
+## Complément du 13/10 (soir)
+- Sessions MIDI : repères C2, C3, C4, C5 retirés du paysage harmonique (`astra-harmonic-roll.js`).
+- Copilot IA : l'explication en gris (ce que le Copilote connaît d'un tuto, d'un exercice, d'une
+  session) quitte l'en-tête, où elle faisait trois lignes et poussait l'accueil sous le logo. Elle est
+  dans l'accueil, sous le texte d'invitation (`setContextNote` / `.copilot-context-note`). L'en-tête
+  garde le titre et les trois boutons (48 px au lieu de 83), avec son propre fond : rien n'est fusionné.

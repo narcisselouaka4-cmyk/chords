@@ -134,10 +134,7 @@ export function renderHarmonicRoll(host, options) {
       const a = point(0, i * 15); const b = point(SPAN_X, i * 15);
       svg.appendChild(el('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: 'var(--tr-grid-line)', 'stroke-width': i % 4 === 0 ? 0.8 : 0.45 }));
     }
-    ['C2', 'C3', 'C4', 'C5'].forEach((label, index) => {
-      const p = point(0, index * 45.6);
-      svg.appendChild(el('text', { transform: `translate(${p[0] - 29} ${p[1] + 3}) scale(1 ${labelScale})`, class: 'tr-roll-label' }, label));
-    });
+    // [Claude] — 2026-10-13 — Les repères C2, C3, C4, C5 sont retirés (Narcisse : « tu m'enlèves ça »).
 
     // Notes : on affiche l'intégralité de la session. Sur les très longues
     // sessions on échantillonne uniformément sur toute la durée pour conserver
