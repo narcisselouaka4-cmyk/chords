@@ -55,3 +55,10 @@ inversée ; Pédagogie IA : bibliothèque intégrée au lieu d'un dossier).
   session) quitte l'en-tête, où elle faisait trois lignes et poussait l'accueil sous le logo. Elle est
   dans l'accueil, sous le texte d'invitation (`setContextNote` / `.copilot-context-note`). L'en-tête
   garde le titre et les trois boutons (48 px au lieu de 83), avec son propre fond : rien n'est fusionné.
+
+## Recherche dans chaque bibliothèque (13/10)
+- Déjà équipées : Sessions MIDI, Pédagogie IA (tiroir), Bibliothèque des mouvements, favoris.
+- Ajoutée : Studio (« Musiques importées »), Analyse (« Ma bibliothèque »), Coach (répertoire), Copilote (conversations).
+- `src/ui/components/list-search.js` : filtre ce qui est affiché (sans accents ni casse, tous les mots
+  doivent s'y trouver, Échap efface, « Aucun résultat pour … ») et se ré-applique quand l'application
+  redessine la liste (MutationObserver). Aucun rendu de liste n'a été réécrit. Test : `test-list-search.js`.

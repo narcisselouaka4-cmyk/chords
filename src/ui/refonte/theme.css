@@ -897,3 +897,11 @@
 .settings-status { margin-top: 12px; min-height: 0; font-size: 0.72rem; color: var(--r-text-muted, var(--muted)); }
 .settings-status:empty { display: none; }
 .settings-note #midi-status-text, .settings-note #midi-port-count { font: inherit; color: inherit; margin: 0; }
+
+/* [Claude] — 2026-10-13 — Barre de recherche des bibliothèques sans toolbar Astra (Studio, Analyse). */
+.library-search {
+  width: 100%; box-sizing: border-box; margin: 0 0 10px; padding: 8px 12px; font: inherit; font-size: 0.82rem;
+  color: inherit; background: var(--r-surface-chip, transparent); border: 1px solid var(--r-border-strong, var(--panel-border, #444)); border-radius: 8px; outline: none;
+}
+.library-search:focus-visible { border-color: var(--r-accent, var(--tr-accent, #8b6cf5)); }
+.library-search-empty { margin: 10px 4px; font-size: 0.78rem; color: var(--r-text-muted, var(--muted, #888)); }

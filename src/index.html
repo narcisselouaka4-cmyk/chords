@@ -811,6 +811,7 @@
                 <button class="tr-icon-button" type="button" data-astra-close aria-label="Fermer">✕</button></div>
               <div class="tr-dialog-body">
                 <div class="tr-library-toolbar">
+                  <label class="tr-search"><svg class="tr-i" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input type="text" id="coach-library-search" placeholder="Rechercher un morceau..." aria-label="Rechercher un morceau"><kbd>ESC</kbd></label>
                   <span class="tr-secondary coach-library-count" id="coach-library-count"></span>
                   <button class="tr-button tr-primary" type="button" data-astra-close data-astra-click="#coach-start-btn"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 4 13 8-13 8z" fill="currentColor"/></svg>Démarrer une séance</button>
                 </div>
@@ -1111,6 +1112,7 @@
                 <button class="tr-icon-button" type="button" data-astra-close aria-label="Fermer">✕</button></div>
               <div class="tr-dialog-body">
                 <div class="tr-library-toolbar">
+                  <label class="tr-search"><svg class="tr-i" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input type="text" id="copilot-history-search" placeholder="Rechercher une conversation..." aria-label="Rechercher une conversation"><kbd>ESC</kbd></label>
                   <span class="tr-secondary copilot-history-count" id="copilot-history-count"></span>
                   <div class="tr-library-toolbar-actions">
                     <button class="tr-text-button copilot-delete-empty-btn" id="copilot-delete-empty-btn" type="button" data-astra-close>
@@ -1707,6 +1709,7 @@
             <div class="studio-panel-body" id="studio-tracks-body">
               <p class="studio-empty-hint">Sélectionnez un morceau pour travailler ses pistes et sa lecture.</p>
               <button id="studio-import-btn" class="record-action">Importer un fichier</button>
+              <input type="search" class="library-search" id="studio-library-search" placeholder="Rechercher un morceau…" aria-label="Rechercher un morceau">
               <div class="studio-track-list" id="studio-track-list"></div>
             </div>
           </div>
@@ -1991,6 +1994,7 @@
         <div class="modal-box library-box">
           <h3>Ma bibliothèque</h3>
           <p class="modal-hint">Les morceaux que vous avez importés. Cliquez sur un morceau pour l'analyser ; le menu ⋮ permet de le renommer ou de le supprimer.</p>
+          <input type="search" class="library-search" id="analyzer-library-search" placeholder="Rechercher un morceau…" aria-label="Rechercher un morceau">
           <div id="analyzer-library-list"></div>
           <div class="modal-actions">
             <button type="button" class="btn-primary" id="library-close">Fermer</button>

@@ -38,6 +38,9 @@ check('La clé API a quitté l\'en-tête ; elle s\'ouvre depuis Réglages',
 check('Le badge « Tutoriel » s\'appelle « Didacticiel »', html.includes('aria-label="Ouvrir le didacticiel"') && read('src/ui/onboarding.js').includes('>Didacticiel<'));
 check('Studio : « Tout le traitement se fait sur votre ordinateur » retiré', !html.includes('Tout le traitement se fait sur votre ordinateur'));
 check('Sessions MIDI : titre et sous-titre retirés', !html.includes('<h1>Sessions MIDI</h1>') && !html.includes('Le journal de votre jeu'));
+check('Une barre de recherche dans chaque bibliothèque (Studio, Analyse, Coach, Copilote, Sessions MIDI, Pédagogie IA, Exercices)',
+  ['studio-library-search', 'analyzer-library-search', 'coach-library-search', 'copilot-history-search', 'midi-session-search', 'pedagogie-library-search'].every((id) => html.includes(`id="${id}"`))
+  && html.includes('exercise-library-search') && main.includes("attachListSearch({ input: document.getElementById(input)"));
 
 console.log(`\n=== Résultat : ${passed}/${passed + failed} contrôles passés ===`);
 if (failed) process.exit(1);

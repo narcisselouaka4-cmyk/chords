@@ -25,6 +25,7 @@ import { initCopilotTab } from './pedagogie/copilot-tab.js';
 import { createNoteGrouper, isGraceNote, chordNotesWithHeld } from './note-grouper.js';
 import { initAnalyzerTab } from './ui/analyzer-tab.js';
 import { mountChromaStages } from './ui/components/loader-chroma.js';
+import { attachListSearch } from './ui/components/list-search.js';
 import { initStudioTab } from './ui/studio-tab.js';
 // [Claude 05/09] — Coach d'accompagnement au chant : vue sœur de Sessions MIDI
 // dans la sous-navigation d'Entraînement. Reste un flux séparé, sans pont de
@@ -3029,6 +3030,15 @@ async function init() {
   // [Refonte 02/10] — Écran d'attente commun : on remplit les emplacements
   // `data-chroma-stage` (Analyse, Studio) depuis une source unique.
   safeInit('mountChromaStages', () => mountChromaStages());
+  // [Claude] — 2026-10-13 — Une barre de recherche dans chaque bibliothèque (list-search.js).
+  safeInit('librarySearches', () => {
+    for (const [input, list] of [
+      ['studio-library-search', 'studio-track-list'],
+      ['analyzer-library-search', 'analyzer-library-list'],
+      ['coach-library-search', 'coach-track-list'],
+      ['copilot-history-search', 'copilot-history-list'],
+    ]) attachListSearch({ input: document.getElementById(input), list: document.getElementById(list) });
+  });
   // [Claude] — 2026-07-08 — Initialisation de l'onglet Analyse simplifié (import → analyse → grille).
   safeInit('initAnalyzerTab', initAnalyzerTab);
 
