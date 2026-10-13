@@ -12,7 +12,7 @@ PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROGRESSIONS_DIR = os.path.join(PROJECT, 'tests', 'audio', 'progressions')
 AUDIO_PROC = os.path.join(PROJECT, 'electron', 'audio-processor.py')
 PYTHON = os.path.join(PROJECT, '.venv', 'bin', 'python')
-REPORT = os.path.join(PROJECT, 'COMPARAISON_PROGRESSIONS.md')
+REPORT = os.path.join(PROJECT, 'docs', 'rapports', 'COMPARAISON_PROGRESSIONS.md')
 
 VARIANTS = {
     'A (legacy_family_fix)': 'legacy_family_fix',
