@@ -69,8 +69,12 @@ function gradients(suffix) {
     horizontal(`mk-off-b${suffix}`, '#3f3c43', '#212027'),
     vertical(`mk-on-w${suffix}`, 'color-mix(in srgb, var(--vk-accent-deep) 55%, #ffffff)', 'color-mix(in srgb, var(--vk-accent-deep) 85%, #ffffff)'),
     horizontal(`mk-on-b${suffix}`, 'color-mix(in srgb, var(--vk-accent-deep) 80%, #000000)', 'color-mix(in srgb, var(--vk-accent-deep) 55%, #000000)'),
-    vertical(`mk-rh-w${suffix}`, '#bfe6d8', '#8ccdb7'),
-    horizontal(`mk-rh-b${suffix}`, '#7fc4ad', '#4f8f7a'),
+    // [Claude] — 2026-10-13 — Mains : couleurs propres, jamais confondues avec celle de l'application
+    // (ui/hand-colors.js pose --hand-lh / --hand-rh).
+    vertical(`mk-lh-w${suffix}`, 'color-mix(in srgb, var(--hand-lh, #a583e2) 55%, #ffffff)', 'var(--hand-lh, #a583e2)'),
+    horizontal(`mk-lh-b${suffix}`, 'color-mix(in srgb, var(--hand-lh, #a583e2) 85%, #000000)', 'color-mix(in srgb, var(--hand-lh, #a583e2) 55%, #000000)'),
+    vertical(`mk-rh-w${suffix}`, 'color-mix(in srgb, var(--hand-rh, #8ccdb7) 55%, #ffffff)', 'var(--hand-rh, #8ccdb7)'),
+    horizontal(`mk-rh-b${suffix}`, 'color-mix(in srgb, var(--hand-rh, #8ccdb7) 85%, #000000)', 'color-mix(in srgb, var(--hand-rh, #8ccdb7) 55%, #000000)'),
     vertical(`mk-add-w${suffix}`, '#f6ddb0', '#e8b86a'),
     horizontal(`mk-add-b${suffix}`, '#e0aa55', '#a8742a'),
   ].join('')}</defs>`;
@@ -120,13 +124,14 @@ export function generateMiniKeyboard(activeNotes = [], options = {}) {
     if (!activeSet.has(midi)) return 'off';
     if (addedSet.has(midi)) return 'add';
     if (rightHandSet.has(midi)) return 'rh';
-    return 'on'; // main gauche, ou note jouée sans main précisée
+    if (leftHandSet.has(midi)) return 'lh';
+    return 'on'; // note jouée sans main précisée : couleur de l'application
   }
   const suffix = `-${++gradientSerial}`;
   const fillOf = (midi) => `url(#mk-${tone(midi)}-${isBlackKey(midi) ? 'b' : 'w'}${suffix})`;
   const STROKES = {
-    w: { off: '#bdb7c5', on: 'var(--vk-accent-deep)', rh: '#5fa892', add: '#c8923f' },
-    b: { off: '#141318', on: 'color-mix(in srgb, var(--vk-accent-deep) 60%, #000000)', rh: '#3e8b74', add: '#9a6a22' },
+    w: { off: '#bdb7c5', on: 'var(--vk-accent-deep)', lh: 'color-mix(in srgb, var(--hand-lh, #a583e2) 75%, #000000)', rh: 'color-mix(in srgb, var(--hand-rh, #8ccdb7) 70%, #000000)', add: '#c8923f' },
+    b: { off: '#141318', on: 'color-mix(in srgb, var(--vk-accent-deep) 60%, #000000)', lh: 'color-mix(in srgb, var(--hand-lh, #a583e2) 50%, #000000)', rh: 'color-mix(in srgb, var(--hand-rh, #8ccdb7) 50%, #000000)', add: '#9a6a22' },
   };
 
   // Touches blanches

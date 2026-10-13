@@ -1412,9 +1412,9 @@ function checkCardDemoAdditions() {
   ex.setKeyChoice(0);
   ex.setContentChoice('Cadence II-V-I majeur');
   const target = ex.getState().target;
-  const demo = { lh: [38, 45], rh: [60, 62, 65, 67, 72], bass: [38, 45], doubled: [60], movedToRight: false, styleLabel: 'Gospel / worship' };
+  const demo = { lh: [38, 45], rh: [60, 62, 65, 67, 72], bass: [38, 45], doubled: [60], movedToRight: false, styleLabel: 'Posé' };
   const html = renderExerciseTarget(target, { demo });
-  check('Légende : basse et doublure de la démo, avec le style', html.includes('Démo Gospel / worship : basse D2 · A2 à la main gauche, C4 doublé à la main droite'),
+  check('Légende : basse et doublure de la démo, avec le style', html.includes('Démo Posé : basse D2 · A2 à la main gauche, C4 doublé à la main droite'),
     (html.match(/exercise-demo-added">([^<]*)</) || [])[1]);
   const hands = (html.match(/exercise-hand-notes">([^<]*)</g) || []).join(' ');
   check('Cases des mains : le voicing de l\'exercice seul (pas la basse de la démo)', hands.length > 0 && !hands.includes('D2') && !hands.includes('A2'), hands);
@@ -1468,14 +1468,14 @@ function checkLeftHandStyles() {
   check('Favori rouvert : main gauche D2 A2, notes ajoutées et option Gospel reprises', v.leftHand.join() === '38,45' && v.styleAdded.join() === '38,45,60'
     && ex.getState().leftHandStyle === 'gospel', `${v.leftHand} | ${ex.getState().leftHandStyle}`);
   const listHtml = renderFavoritesList([fav], { techniqueLabels: { close: 'Close position' } });
-  check('Liste des favoris : « Close position + main gauche Gospel / worship »', listHtml.includes('Close position + main gauche Gospel / worship'));
+  check('Liste des favoris : « Close position + main gauche Posé »', listHtml.includes('Close position + main gauche Posé'));
   check('Voicing seul et voicing avec main gauche : deux favoris distincts', fav.key !== favoriteFromTarget({ ...ex.getState().target, voicing: { ...v, leftHand: [], rightHand: [62, 65, 67, 72] } }).key);
 
   // Carte : menu, légende, cases des mains.
   const html = renderExerciseTarget(ex.getState().target, { leftHandStyle: 'gospel', layout: 'chord' });
   check('Carte (Accord cible compris) : menu « Main gauche » avec Gospel choisi', /data-exercise-left-hand[\s\S]*value="gospel" selected/.test(html)
-    && html.includes('Main droite seule') && html.includes('+ main gauche Ballade') && html.includes('+ main gauche Comping swing'));
-  check('Carte : légende de la main gauche du style', html.includes('Main gauche Gospel / worship : basse D2 · A2, C4 doublé à la main droite'));
+    && html.includes('Main droite seule') && html.includes('+ main gauche Arpégé') && html.includes('+ main gauche Rythmé'));
+  check('Carte : légende de la main gauche du style', html.includes('Main gauche Posé : basse D2 · A2, C4 doublé à la main droite'));
   check('Carte : main gauche du style dans les cases des mains', /Main gauche<\/span>\s*<span class="exercise-hand-notes">D2 · A2/.test(html));
 
   // Rootless : « Voicing seul », main droite remontée au-dessus de la basse.

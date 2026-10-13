@@ -1,3 +1,10 @@
+/* [Claude] — 2026-10-13 — --vk-accent / --vk-accent-deep servent aussi aux mini-claviers des autres
+   écrans (Exercices, Analyse…), hors de .vk-root : définis ici pour toute l'application, sinon,
+   avec la couleur d'origine, leurs touches allumées étaient peintes en noir (dégradé invalide). La
+   couleur choisie dans Réglages les remplace partout (accent-theme.js). */
+:root { --vk-accent: #b8a0f3; --vk-accent-deep: #8f6fe0; }
+:root[data-theme='light'] { --vk-accent: #7954c5; --vk-accent-deep: #6541b4; }
+
 /* The virtual MIDI keyboard is a self-contained hardware unit: dark, legible,
    and retractable. It keeps its own look in both application themes. */
 .vk-root {

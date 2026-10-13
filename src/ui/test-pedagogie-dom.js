@@ -570,7 +570,7 @@ check('Copilote seul (« Continuer : ») : chaque étiquette envoie son propre t
   && !html.includes('>Voicing</button>'), chipTags.map(([, m, t]) => `${t} → ${m}`).join(' / '));
 check('Exercices et accueil du Copilote : le libellé est la question envoyée',
   /\{ label: 'Explique ce voicing', message: 'Explique ce voicing\.' \}/.test(copilotTabCode)
-  && /\{ label: 'Comment mieux accompagner \?', icon: ICON_SPARKLE_MD, message: 'Comment mieux accompagner \?' \}/.test(copilotTabCode));
+  && /\{ label: 'Comment accompagner une chanson \?', icon: ICON_MUSIC2, message: 'Comment accompagner une chanson \?' \}/.test(copilotTabCode));
 check('Un choix écrit la phrase dans la case, sans l\'envoyer ; « Envoyer » (ou Entrée) l\'envoie',
   /function prepare\(message\) \{[\s\S]*?els\.input\.value = message;/.test(copilotTabCode) && !copilotTabCode.includes('sendPrepared(')
   && copilotTabCode.includes("text: 'Envoyer'") && /prepare\(otherKeyQuestion\(id\)\)/.test(copilotTabCode)

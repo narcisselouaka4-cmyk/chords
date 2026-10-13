@@ -10,16 +10,27 @@
 /* -------------------------------------------------------------------------- *
  *  Variables communes                                                         *
  * -------------------------------------------------------------------------- */
-:root {
-  --r-vocals: #f2637a;
-  --r-drums: #4fd1c5;
+/* [Claude] — 2026-10-13 — Les pistes et la forme d'onde prennent la couleur de l'application, dans
+   les deux habillages (Narcisse : « chaque piste avait sa propre couleur… avec la couleur
+   d'apparence, cela devient obsolète »). Cinq nuances de la même couleur, du plus clair au plus
+   profond, pour qu'on distingue encore les pistes d'un coup d'œil. Le sélecteur porte data-theme
+   pour passer devant les valeurs claires de theme.css. */
+:root[data-skin][data-theme] {
   --r-bass: var(--r-accent);
-  --r-other: #f0b155;
-  --r-piano: #68d391;
+  --r-vocals: color-mix(in srgb, var(--r-accent) 62%, #ffffff);
+  --r-other: color-mix(in srgb, var(--r-accent) 80%, #ffffff);
+  --r-drums: color-mix(in srgb, var(--r-accent) 72%, #000000);
+  --r-piano: color-mix(in srgb, var(--r-accent) 52%, #000000);
+  --r-waveform: var(--r-accent);
+  --r-waveform-global: var(--r-accent);
+  --r-waveform-v2: var(--r-accent);
 }
-
-:root[data-skin='global'] { --r-waveform: #4fd1c5; }
-:root[data-skin='v2'] { --r-waveform: var(--r-accent); }
+:root[data-skin][data-theme='light'] {
+  --r-vocals: color-mix(in srgb, var(--r-accent) 55%, #ffffff);
+  --r-other: color-mix(in srgb, var(--r-accent) 78%, #ffffff);
+  --r-drums: color-mix(in srgb, var(--r-accent) 75%, #000000);
+  --r-piano: color-mix(in srgb, var(--r-accent) 55%, #000000);
+}
 
 /* -------------------------------------------------------------------------- *
  *  COMMUN — colonne « Lecture »                                               *
@@ -414,13 +425,13 @@
 :root[data-skin='global'] #studio-tab .studio-waveform-wrap {
   height: 66px;
   background: var(--r-surface);
-  border: 1px solid rgba(79, 209, 197, 0.35);
+  border: 1px solid color-mix(in srgb, var(--r-accent) 35%, transparent);
   border-radius: 14px;
   margin-top: 4px;
   padding: 4px;
 }
 :root[data-skin='global'] #studio-tab .studio-region {
-  background: rgba(79, 209, 197, 0.16);
+  background: color-mix(in srgb, var(--r-accent) 16%, transparent);
   opacity: 1;
   border-left: 2px solid var(--r-waveform-global);
   border-right: 2px solid var(--r-waveform-global);
@@ -438,7 +449,7 @@
   border-radius: 50%;
   background: var(--r-waveform-global);
   opacity: 1;
-  box-shadow: 0 0 0 3px rgba(79, 209, 197, 0.25);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--r-accent) 25%, transparent);
 }
 
 :root[data-skin='global'] #studio-tab .studio-region-bar {
@@ -1627,3 +1638,227 @@
 :root[data-skin='v2'] #studio-tab .studio-handle-grip::before {
   border-top-color: var(--r-waveform-v2);
 }
+
+/* ========================================================================== *
+ *  [Claude] — 2026-10-13 — Barre de région : boutons nommés, forme d'onde      *
+ *  masquable. Les deux flèches seules (↩ ↺) étaient à peine visibles.         *
+ * ========================================================================== */
+:root[data-skin] #studio-tab .studio-region-bar { justify-content: flex-start; flex-wrap: wrap; gap: 8px; }
+:root[data-skin] #studio-tab .studio-region-bar .studio-region-info { margin-right: auto; }
+:root[data-skin] #studio-tab .studio-region-bar .studio-labeled-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  height: 30px;
+  padding: 0 11px;
+  font-family: var(--r-font-body, inherit);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--tr-secondary, var(--r-text-muted));
+  background: var(--tr-surface, transparent);
+  border: 1px solid var(--tr-border, var(--r-border));
+  border-radius: 8px;
+  white-space: nowrap;
+  transition: color .15s, border-color .15s, background-color .15s, transform .15s, box-shadow .15s;
+}
+:root[data-skin] #studio-tab .studio-region-bar .studio-labeled-btn:hover:not(:disabled) {
+  color: var(--tr-text, var(--r-text));
+  border-color: color-mix(in srgb, var(--tr-accent, var(--r-accent)) 55%, var(--tr-border, var(--r-border)));
+}
+:root[data-skin='v2'] #studio-tab .studio-region-bar .studio-labeled-btn { border-radius: 999px; }
+:root[data-skin='v2'] #studio-tab .studio-region-bar .studio-labeled-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px -8px #000000a0;
+}
+:root[data-skin] #studio-tab .studio-region-bar .studio-labeled-btn:disabled { opacity: .45; cursor: not-allowed; }
+:root[data-skin] #studio-tab .studio-region-bar .studio-labeled-btn > svg { flex: 0 0 auto; color: var(--tr-accent, var(--r-accent)); }
+:root[data-skin] #studio-tab .studio-region-bar .studio-wave-toggle[aria-pressed='true'] {
+  color: var(--tr-text, var(--r-text));
+  background: color-mix(in srgb, var(--tr-accent, var(--r-accent)) 14%, var(--tr-surface, transparent));
+}
+#studio-tab.stage-0 .studio-wave-toggle { display: none !important; }
+
+/* Forme d'onde masquée (sauf à l'étape 1, où l'on trace la région dessus) */
+#studio-tab.wave-hidden:not(.stage-1) .studio-waveform-wrap,
+#studio-tab.wave-hidden:not(.stage-1) .studio-handle-rail { display: none !important; }
+
+/* ========================================================================== *
+ *  [Claude] — 2026-10-13 — « Musiques importées » : réduction animée en rond   *
+ *  (Narcisse : le panneau ne doit pas seulement se rétracter de bas en haut,   *
+ *  mais de bas en haut vers la gauche, pour former un rond avec un petit       *
+ *  logo). Replié, il ne garde qu'un rond de 46 px en haut à gauche : la         *
+ *  colonne se resserre et la vidéo gagne la place. La première colonne de la    *
+ *  grille suit la largeur du panneau (« auto »), qui, elle, s'anime.            *
+ * ========================================================================== */
+:root[data-skin='global'] #studio-tab:not(.stage-0) {
+  grid-template-columns: auto minmax(0, 2.1fr) minmax(270px, 0.85fr);
+}
+:root[data-skin='v2'] #studio-tab:not(.stage-0) {
+  grid-template-columns: auto minmax(0, 1fr) 280px;
+}
+#studio-tab:not(.stage-0) .studio-sidebar.left {
+  --lib-w: 250px;
+  width: var(--lib-w);
+  min-width: 0;
+  align-self: stretch;
+  height: auto;
+  max-height: 100%;
+  overflow: visible;
+  transition: width .5s cubic-bezier(.65, 0, .35, 1);
+}
+:root[data-skin='v2'] #studio-tab:not(.stage-0) .studio-sidebar.left { --lib-w: 260px; }
+
+#studio-tab:not(.stage-0) .studio-sidebar.left .studio-tracks-panel {
+  position: relative;
+  flex: 0 0 auto;         /* une hauteur explicite, animable (flex-grow ne l'est pas) */
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  transform-origin: top left;
+  transition:
+    height .5s cubic-bezier(.65, 0, .35, 1),
+    border-radius .45s cubic-bezier(.65, 0, .35, 1),
+    box-shadow .3s ease;
+}
+#studio-tab:not(.stage-0) .studio-sidebar.left :is(.studio-panel-header, .studio-panel-body) {
+  opacity: 1;
+  transition: opacity .22s ease .28s;   /* au déploiement : le contenu revient une fois la place faite */
+}
+
+/* — Replié — */
+#studio-tab.lib-collapsed:not(.stage-0) .studio-sidebar.left.collapsed {
+  width: 46px;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  overflow: visible;
+}
+#studio-tab.lib-collapsed:not(.stage-0) .studio-sidebar.left.collapsed .studio-tracks-panel {
+  height: 46px;
+  min-height: 46px;
+  padding: 0;
+  border-radius: 23px;
+  box-shadow: 0 10px 24px -14px #000000b3;
+}
+#studio-tab.lib-collapsed:not(.stage-0) .studio-sidebar.left.collapsed :is(.studio-panel-header, .studio-panel-body) {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .14s ease;          /* au repli : le contenu s'efface d'abord */
+}
+
+/* Le rond (bouton de déploiement) */
+#studio-tab:not(.stage-0) .studio-sidebar.left .studio-collapse-tab {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: inherit;
+  display: grid;
+  place-items: center;
+  color: var(--tr-button-text, #221a32);
+  background: var(--tr-button, var(--r-accent));
+  opacity: 0;
+  transform: scale(.6);
+  pointer-events: none;
+  z-index: 3;
+  transition: opacity .2s ease, transform .3s cubic-bezier(.2, .9, .3, 1.3);
+}
+#studio-tab.lib-collapsed:not(.stage-0) .studio-sidebar.left.collapsed .studio-collapse-tab {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+  transition: opacity .25s ease .3s, transform .35s cubic-bezier(.2, .9, .3, 1.3) .3s;
+}
+#studio-tab.lib-collapsed:not(.stage-0) .studio-sidebar.left.collapsed .studio-collapse-tab:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--tr-accent, var(--r-accent)) 25%, transparent);
+}
+#studio-tab:not(.stage-0) .studio-sidebar.left .studio-collapse-tab:focus-visible {
+  outline: 2px solid var(--tr-accent, var(--r-accent));
+  outline-offset: 3px;
+}
+.studio-collapse-count {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  font: 700 10px/18px var(--r-font-body, sans-serif);
+  text-align: center;
+  color: var(--tr-text, #fff);
+  background: var(--tr-surface, #1c1c20);
+  border: 1px solid var(--tr-border, #303036);
+}
+#studio-tab:not(.stage-0) .studio-sidebar.left.collapsed .studio-tracks-panel { overflow: visible; }
+
+/* Bouton « réduire » dans l'en-tête du panneau : chevron vers la gauche */
+#studio-tab:not(.stage-0) .studio-sidebar.left .studio-collapse-btn { display: grid; place-items: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  #studio-tab:not(.stage-0) .studio-sidebar.left,
+  #studio-tab:not(.stage-0) .studio-sidebar.left :is(.studio-tracks-panel, .studio-panel-header, .studio-panel-body, .studio-collapse-tab) { transition: none !important; }
+}
+
+/* ========================================================================== *
+ *  [Claude] — 2026-10-13 — Cadre du lecteur (vidéo / fond audio)              *
+ *  Un « écran » : toujours sombre (la vidéo y est à sa place), coins doux,    *
+ *  léger reflet de la couleur de l'application et une ombre portée. En mode   *
+ *  clair, le titre du fond audio était sombre sur sombre : il est clair.      *
+ * ========================================================================== */
+:root[data-skin] #studio-tab .studio-player-wrap {
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--tr-accent, var(--r-accent)) 22%, var(--tr-border, var(--r-border)));
+  background:
+    radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--tr-accent, var(--r-accent)) 14%, transparent), transparent 60%),
+    linear-gradient(180deg, #17161d, #0e0d12);
+  box-shadow: 0 22px 44px -30px #000000d9, inset 0 1px 0 #ffffff10;
+}
+:root[data-skin] #studio-tab .studio-video-container video { object-fit: contain; background: #000; }
+:root[data-skin] #studio-tab .studio-audio-backdrop { background: transparent; color: #f0eff3; gap: 14px; }
+:root[data-skin] #studio-tab .studio-backdrop-icon {
+  display: grid;
+  place-items: center;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  color: var(--tr-accent, var(--r-accent));
+  background: radial-gradient(circle, color-mix(in srgb, var(--tr-accent, var(--r-accent)) 18%, #1b1a22) 0%, #121117 75%);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--tr-accent, var(--r-accent)) 35%, transparent), 0 18px 40px -20px color-mix(in srgb, var(--tr-accent, var(--r-accent)) 60%, transparent);
+  font-size: 0;
+  opacity: 1;
+}
+:root[data-skin] #studio-tab .studio-backdrop-title { color: #f4f2f8; font-size: 22px; font-weight: 700; }
+:root[data-skin] #studio-tab .studio-backdrop-hint { color: #a3a0ad; }
+
+/* [Claude] — 2026-10-13 — « Refaire la séparation » (ex-« Réanalyser le fichier ») : action rare,
+   donc discrète, sous la liste des pistes, à la même place dans les deux habillages. */
+:root[data-skin] #studio-tab #studio-separate-btn-center.studio-separate-done { display: none !important; }
+:root[data-skin] #studio-tab:not(.stage-0) .studio-stems-section { display: flex; flex-direction: column; }
+:root[data-skin] #studio-tab:not(.stage-0) #studio-separate-btn.studio-separate-done {
+  display: inline-flex !important;
+  order: 10;
+  align-self: center;
+  justify-content: center;
+  width: auto;
+  margin: 10px 0 2px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tr-secondary, var(--r-text-muted));
+  background: transparent;
+  border: 1px dashed var(--tr-border, var(--r-border));
+  border-radius: 999px;
+  box-shadow: none;
+}
+:root[data-skin] #studio-tab:not(.stage-0) #studio-separate-btn.studio-separate-done:hover:not(:disabled) {
+  color: var(--tr-text, var(--r-text));
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--tr-accent, var(--r-accent)) 55%, var(--tr-border, var(--r-border)));
+}
+:root[data-skin] #studio-tab:not(.stage-0) .studio-stems-section .studio-status-box { order: 11; }

@@ -57,10 +57,13 @@
 import { respectsLowIntervalLimits } from './voicing-engine/textbook-voicings.js';
 import { chordToneIntervals } from './practice-exercise.js';
 
+// [Claude] — 2026-10-13 — Noms généralistes (Narcisse : « Gospel / worship », « Ballade », « Comping swing »
+// étaient trop spécifiques ; l'application ne vise pas que le jazz et le gospel). Les identifiants
+// internes (gospel, ballade, swing) ne changent pas : favoris et réglages gardés restent valables.
 export const DEMO_STYLES = {
-  gospel: { label: 'Gospel / worship', tempo: 76, beatsPerChord: 4, build: buildGospelDemo },
-  ballade: { label: 'Ballade', tempo: 60, beatsPerChord: 4, build: buildBalladeDemo },
-  swing: { label: 'Comping swing', tempo: 132, beatsPerChord: 4, build: buildSwingDemo },
+  gospel: { label: 'Posé', tempo: 76, beatsPerChord: 4, build: buildGospelDemo },
+  ballade: { label: 'Arpégé', tempo: 60, beatsPerChord: 4, build: buildBalladeDemo },
+  swing: { label: 'Rythmé', tempo: 132, beatsPerChord: 4, build: buildSwingDemo },
   plaque: { label: 'Plaqué', tempo: 72, beatsPerChord: 4, build: buildPlaqueDemo },
 };
 

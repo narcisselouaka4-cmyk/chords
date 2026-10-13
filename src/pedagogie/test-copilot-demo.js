@@ -37,7 +37,7 @@ function testTwoHandsByDefault() {
   check('2-5-1 : voix du dessus enchaînée (tierce au plus)', tops.slice(1).every((t, i) => Math.abs(t - tops[i]) <= 4), tops.map(noteName).join(' → '));
   const hands = new Set(ex.events.filter((e) => e.type === 'noteOn').map((e) => e.hand));
   check('2-5-1 : les deux mains jouent', hands.has('lh') && hands.has('rh'));
-  check('Sous-titre : style et main droite', /Ballade · 3 accords · main droite en voicings rootless/.test(ex.subtitle), ex.subtitle);
+  check('Sous-titre : style et main droite', /Arpégé · 3 accords · main droite en voicings rootless/.test(ex.subtitle), ex.subtitle);
 }
 
 function testRegisterLift() {

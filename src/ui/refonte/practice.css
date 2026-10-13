@@ -583,8 +583,10 @@
   /* Couleurs du mini-clavier (dessinées dans mini-keyboard.js), reprises ici
      pour les blocs de mains et les notes ajoutées : violet d'accent pour la
      main gauche, vert sauge (--tr-green) pour la main droite. */
-  --mini-key-lh: #a583e2;
-  --mini-key-rh: #8ccdb7;
+  /* [Claude] — 2026-10-13 — Couleurs des mains choisies par ui/hand-colors.js (jamais celle de
+     l'application) ; valeurs d'origine en secours. */
+  --mini-key-lh: var(--hand-lh, #a583e2);
+  --mini-key-rh: var(--hand-rh, #8ccdb7);
   --mini-key-added: #e8b86a;
 }
 

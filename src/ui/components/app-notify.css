@@ -1,0 +1,74 @@
+/* [Claude] — 2026-10-13 — Notification de l'application (src/ui/components/app-notify.js) :
+   visible depuis n'importe quel onglet, en bas à droite, au-dessus du clavier. */
+.app-notify-root {
+  position: fixed;
+  right: 20px;
+  bottom: 24px;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  pointer-events: none;
+}
+.app-notify {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: min(360px, calc(100vw - 40px));
+  padding: 14px 14px 14px 14px;
+  border-radius: 14px;
+  background: var(--tr-surface, #1c1c20);
+  color: var(--tr-text, #f0eff3);
+  border: 1px solid color-mix(in srgb, var(--tr-accent, #b8a0f3) 40%, var(--tr-border, #303036));
+  box-shadow: 0 18px 40px -16px #000000a6, 0 2px 6px #00000033;
+  font: 13px/1.4 "DM Sans", system-ui, sans-serif;
+  opacity: 0;
+  transform: translateY(14px) scale(.98);
+  transition: opacity .24s ease, transform .3s cubic-bezier(.2, .9, .3, 1.2);
+}
+.app-notify.is-visible { opacity: 1; transform: none; }
+.app-notify-icon {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: var(--tr-button-text, #221a32);
+  background: var(--tr-button, #bba2f4);
+}
+.app-notify.is-error .app-notify-icon { background: #e05d5d; color: #fff; }
+.app-notify-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.app-notify-body > strong { font-weight: 700; font-size: 13.5px; }
+.app-notify-body > span { color: var(--tr-secondary, #a2a0aa); overflow-wrap: anywhere; }
+.app-notify-action {
+  align-self: flex-start;
+  margin-top: 8px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 0;
+  font: inherit;
+  font-weight: 650;
+  color: var(--tr-button-text, #221a32);
+  background: var(--tr-button, #bba2f4);
+  cursor: pointer;
+}
+.app-notify-action:hover { filter: brightness(1.08); }
+.app-notify-close {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  margin: -4px -4px 0 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tr-muted, #89848f);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+.app-notify-close:hover { color: var(--tr-text, #f0eff3); background: color-mix(in srgb, currentColor 10%, transparent); }
+:is(.app-notify-action, .app-notify-close):focus-visible { outline: 2px solid var(--tr-accent, #b8a0f3); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .app-notify { transition: opacity .2s; transform: none; } }

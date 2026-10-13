@@ -43,7 +43,10 @@ export function favoriteFromTarget(target) {
 }
 
 /** Libellés des mains gauches de style (option « Main gauche » de la carte). */
-const LEFT_HAND_STYLE_LABELS = { gospel: 'Gospel / worship', ballade: 'Ballade', swing: 'Comping swing' };
+// [Claude] — 2026-10-13 — Noms généralistes (Narcisse : « Gospel / worship », « Ballade », « Comping swing »
+// étaient trop spécifiques ; l'application ne vise pas que le jazz et le gospel). Les identifiants
+// internes (gospel, ballade, swing) ne changent pas : favoris et réglages gardés restent valables.
+const LEFT_HAND_STYLE_LABELS = { gospel: 'Posé', ballade: 'Arpégé', swing: 'Rythmé' };
 
 /** Technique affichée d'un favori, main gauche du style comprise. */
 function favoriteTechniqueLabel(f, techniqueLabels = {}) {

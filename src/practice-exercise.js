@@ -1746,7 +1746,10 @@ function buildChordTarget(rootPc, symbol, technique, variant = 0, difficulty = n
 // déclinée en fonction du style »). La main gauche du style fait partie du
 // voicing de la carte : affichée, jouée par « Écouter » et la démo, gardée par
 // les favoris. `styleAdded` = notes ajoutées au voicing de base (en couleur).
-export const LEFT_HAND_LABELS = { gospel: 'Gospel / worship', ballade: 'Ballade', swing: 'Comping swing' };
+// [Claude] — 2026-10-13 — Noms généralistes (Narcisse : « Gospel / worship », « Ballade », « Comping swing »
+// étaient trop spécifiques ; l'application ne vise pas que le jazz et le gospel). Les identifiants
+// internes (gospel, ballade, swing) ne changent pas : favoris et réglages gardés restent valables.
+export const LEFT_HAND_LABELS = { gospel: 'Posé', ballade: 'Arpégé', swing: 'Rythmé' };
 
 function withLeftHandStyle(rootPc, symbol, voicing, usedTechnique, leftHandStyle) {
   if (!LEFT_HAND_STYLES.includes(leftHandStyle)) return;

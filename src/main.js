@@ -103,6 +103,7 @@ import { applyTabVisibility } from './ui/tab-visibility.js';
 import { initAstraShell } from './ui/refonte/astra-shell.js';
 import { initOnboarding, notifyOnboarding } from './ui/onboarding.js';
 import { lightKeyElement, unlightKeyElement, resolveAppKeyColor } from './ui/key-colors.js';
+import { pickHandColors } from './ui/hand-colors.js';
 import { liveTake } from './recorder/live-take.js';
 import { registerCopilotContext } from './pedagogie/copilot-context.js';
 import { exerciseContext } from './pedagogie/exercise-context.js';
@@ -1101,7 +1102,15 @@ function applyAppColor(hex) {
 // [Claude] — 2026-10-13 — « Ce que joue l'application » suit la couleur de l'application (rose, vert…),
 // sauf si le pianiste a réglé cette couleur lui-même (pastille « L'app », gardée dans pjc.keyColors) :
 // son choix gagne. Le bouton de Réglages › Apparence rend la main à la couleur de l'application.
+// [Claude] — 2026-10-13 — Couleurs des mains (Exercices) : distinctes de la couleur de l'application.
+function refreshHandColors() {
+  const { lh, rh } = pickHandColors(savedAccent());
+  document.documentElement.style.setProperty('--hand-lh', lh);
+  document.documentElement.style.setProperty('--hand-rh', rh);
+}
+
 function refreshAppKeyColor() {
+  refreshHandColors();
   const { color, source } = resolveAppKeyColor({ custom: readKeyColors().app, accent: savedAccent() });
   applyAppColor(color);
   const picker = document.getElementById('color-app');

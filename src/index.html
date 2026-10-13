@@ -44,6 +44,7 @@
     <!-- [Claude] — 2026-10-04 — Réglage de vitesse commun (exemples du Copilote, vidéo de
          Pédagogie IA) — voir ui/components/speed-menu.js -->
     <link rel="stylesheet" href="./ui/components/speed-menu.css" />
+    <link rel="stylesheet" href="./ui/components/app-notify.css" />
     <!-- [Refonte v2/Global] — système de thème v2/Global. Chargé en <link>
          (et non via import JS) pour rester non-layered, au même niveau de
          cascade que style.css : la spécificité tranche, pas l'ordre d'injection. -->
@@ -1055,12 +1056,14 @@
                 <span class="copilot-quick-actions-label">Continuer : </span>
                 <!-- [Claude] — 2026-10-04 — Ce qui est écrit part (Narcisse : « “Voicing”, on ne
                      comprend pas vraiment le sens ») : chaque étiquette envoie son propre texte. -->
-                <button type="button" class="copilot-chip" data-message="Montre-moi un voicing pour cet accord.">Montre-moi un voicing pour cet accord</button>
-                <button type="button" class="copilot-chip" data-message="Que peut jouer la main gauche ?">Que peut jouer la main gauche ?</button>
-                <button type="button" class="copilot-chip" data-message="Que peut jouer la main droite ?">Que peut jouer la main droite ?</button>
-                <button type="button" class="copilot-chip" data-message="Fais-moi un arpège lent.">Fais-moi un arpège lent</button>
-                <button type="button" class="copilot-chip" data-message="Fais-moi une démonstration.">Fais-moi une démonstration</button>
-                <button type="button" class="copilot-chip" data-message="Fais-moi un lick adapté.">Fais-moi un lick adapté</button>
+<!-- [Claude] — 2026-10-13 — Étiquettes généralistes (Narcisse : l'application ne vise pas que le
+                     jazz ou le gospel) et utiles : des relances qu'on taperait sans cesse au clavier. -->
+                <button type="button" class="copilot-chip" data-message="Fais-moi entendre un exemple.">Fais-moi entendre un exemple</button>
+                <button type="button" class="copilot-chip" data-message="Plus simple, s'il te plaît.">Plus simple, s'il te plaît</button>
+                <button type="button" class="copilot-chip" data-message="Va plus loin.">Va plus loin</button>
+                <button type="button" class="copilot-chip" data-message="Que fait chaque main ?">Que fait chaque main ?</button>
+                <button type="button" class="copilot-chip" data-message="Donne-moi un exercice pour le travailler.">Donne-moi un exercice pour le travailler</button>
+                <button type="button" class="copilot-chip" data-message="Résume en trois points.">Résume en trois points</button>
               </div>
 
               <!-- [Astra round 4] — Composer d'Astra : la zone de saisie est un
@@ -1642,9 +1645,9 @@
           </div>
         </div>
 
-        <div id="studio-ready-toast" class="studio-ready-toast" style="display: none;">
-          <span>✅ Le morceau est prêt dans le Studio !</span>
-        </div>
+        <!-- [Claude] — 2026-10-13 — L'ancien « Le morceau est prêt dans le Studio » (visible seulement
+             dans le Studio, affiché deux fois et trop tôt) est remplacé par une notification de
+             l'application : src/ui/components/app-notify.js. -->
 
         <div id="studio-record-countdown" class="studio-record-countdown" style="display: none;">
           <div class="studio-record-countdown-number" id="studio-record-countdown-number">3</div>
@@ -1703,10 +1706,12 @@
 
         <aside class="studio-sidebar left" id="studio-sidebar-left">
           <div class="panel studio-tracks-panel" id="studio-tracks-panel">
-            <button class="studio-collapse-tab" id="studio-collapse-tab" title="Développer le panneau" aria-label="Développer le panneau Musiques importées">▼</button>
+            <!-- [Claude] — 2026-10-13 — Replié, le panneau devient un rond (note de musique) en haut à gauche ;
+                 un clic le redéploie. -->
+            <button class="studio-collapse-tab" id="studio-collapse-tab" title="Musiques importées" aria-label="Afficher les musiques importées"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><span class="studio-collapse-count" id="studio-collapse-count" hidden></span></button>
             <div class="studio-panel-header" id="studio-tracks-header">
               <span class="studio-panel-title">🎵 Musiques importées</span>
-              <button class="studio-collapse-btn" id="studio-collapse-left" title="Réduire le panneau" aria-label="Réduire le panneau Musiques importées">▲</button>
+              <button class="studio-collapse-btn" id="studio-collapse-left" title="Réduire le panneau" aria-label="Réduire le panneau Musiques importées"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
             </div>
             <div class="studio-panel-body" id="studio-tracks-body">
               <p class="studio-empty-hint">Sélectionnez un morceau pour travailler ses pistes et sa lecture.</p>
@@ -1740,7 +1745,7 @@
             <div id="studio-video-container" class="studio-video-container"></div>
             <div id="studio-audio-container" class="studio-audio-container"></div>
             <div id="studio-audio-backdrop" class="studio-audio-backdrop" style="display: none;">
-              <div class="studio-backdrop-icon">🎵</div>
+              <div class="studio-backdrop-icon" aria-hidden="true"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>
               <div class="studio-backdrop-meta">
                 <div class="studio-backdrop-title" id="studio-backdrop-title"></div>
                 <div class="studio-backdrop-hint">Fichier audio — aucun contenu vidéo</div>
@@ -1764,8 +1769,13 @@
           <div class="studio-region-bar">
             <div class="studio-region-info" id="studio-region-info">Sélectionnez une région pour activer transpo / séparation</div>
             <button id="studio-confirm-region" class="studio-action-btn studio-confirm-btn" title="Confirmer la région" style="display:none;">Confirmer la région</button>
-            <button id="studio-back-region" class="studio-action-btn" title="Revenir à la timeline entière" style="display:none;">↩</button>
-            <button id="studio-reset-region" class="studio-action-btn" title="Réinitialiser la région">↺</button>
+            <!-- [Claude] — 2026-10-13 — Deux flèches seules (↩ ↺) : à peine visibles et muettes (Narcisse).
+                 Elles portent maintenant leur nom. -->
+            <button id="studio-back-region" class="studio-action-btn studio-labeled-btn" title="Revenir au morceau entier pour déplacer ou redimensionner la région" style="display:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg><span>Modifier la région</span></button>
+            <button id="studio-reset-region" class="studio-action-btn studio-labeled-btn" title="Effacer la région et repartir du début du morceau (5 minutes maximum)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg><span>Réinitialiser la région</span></button>
+            <!-- [Claude] — 2026-10-13 — La forme d'onde peut se masquer (elle reste visible à l'étape 1 :
+                 c'est là qu'on trace la région). -->
+            <button id="studio-wave-toggle" class="studio-action-btn studio-labeled-btn studio-wave-toggle" type="button" aria-pressed="false" title="Masquer la forme d'onde"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12h2M6 8v8M10 5v14M14 9v6M18 7v10M22 12h-2"/></svg><span>Masquer l'onde</span></button>
           </div>
 
           <div class="studio-controls">
@@ -1810,7 +1820,9 @@
               <div class="studio-playback-block" id="studio-playback-block">
               <div class="studio-rp-title">Lecture</div>
               <div class="studio-rp-row">
-                <span class="studio-rp-label">Transposition</span>
+                <!-- [Claude] — 2026-10-13 — « du morceau » : le clavier MIDI a aussi sa « Transposition »
+                     (celle des notes jouées) ; celle-ci change la tonalité du morceau. -->
+                <span class="studio-rp-label">Transposition du morceau</span>
                 <div class="studio-transpose-control" id="studio-transpose-control">
                   <button id="studio-transpose-minus" type="button" aria-label="Diminuer la transposition">−</button>
                   <input type="number" id="studio-transpose" value="0" min="-12" max="12" step="1" aria-label="Transposition en demi-tons" />
@@ -1823,8 +1835,9 @@
                 <input type="range" id="studio-volume" min="-60" max="6" value="0" step="1" />
                 <span id="studio-volume-label">0 dB</span>
               </label>
-              <label class="studio-rp-row studio-loop-row" title="Rejouer la région en boucle">
-                <span class="studio-rp-label">Boucler la région</span>
+              <!-- [Claude] — 2026-10-13 — « Boucler la région » n'était clair que pour qui connaît le mot. -->
+              <label class="studio-rp-row studio-loop-row" title="Arrivée à la fin de la région, la lecture repart à son début">
+                <span class="studio-rp-label">Lire la région en boucle</span>
                 <input type="checkbox" id="studio-loop-region" />
               </label>
               </div>
@@ -1836,17 +1849,8 @@
                des emplacements réservés sans contenu réel, et déployées elles
                prenaient 140 px dans la colonne où « Lecture » manque de place.
                Le pli est natif, donc accessible au clavier sans JavaScript. -->
-          <details class="studio-effects-section studio-foldable" id="studio-effects-section">
-            <summary class="studio-rp-title studio-foldable-summary">Effets</summary>
-            <div class="studio-placeholder-row">
-              <span class="studio-placeholder-label">Réverb</span>
-              <span class="studio-placeholder-value">À venir</span>
-            </div>
-            <div class="studio-placeholder-row">
-              <span class="studio-placeholder-label">EQ</span>
-              <span class="studio-placeholder-value">À venir</span>
-            </div>
-          </details>
+          <!-- [Claude] — 2026-10-13 — Section « Effets » retirée (Narcisse : le Studio reste simple :
+               pistes séparées, transposition, volume, lecture en boucle). « Export » est gardé. -->
           <details class="studio-export-section studio-foldable" id="studio-export-section">
             <summary class="studio-rp-title studio-foldable-summary">Export</summary>
             <button type="button" class="studio-placeholder-btn" id="studio-export-wav-btn" disabled>Exporter WAV</button>

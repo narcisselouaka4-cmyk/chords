@@ -155,10 +155,14 @@ function historyKeyForMode() {
 // Propositions du mode exercice (envoyées d'un clic, comme les autres). [Claude] —
 // 2026-10-04 — Ce qui est écrit part (Narcisse : « pour chaque étiquette, il y a une
 // question » qu'on ne voit pas) : le message est le texte de l'étiquette.
+// [Claude] — 2026-10-13 — Formulations accessibles à tous (« quelles notes » plutôt que « quelles
+// voix »), et deux aides concrètes : le retenir, savoir où l'utiliser.
 const EXERCISE_QUICK_ACTIONS = [
   { label: 'Explique ce voicing', message: 'Explique ce voicing.' },
   { label: 'Comment le jouer à deux mains ?', message: 'Comment le jouer à deux mains ?' },
-  { label: 'Quelles voix bougent ?', message: 'Quelles voix bougent ?' },
+  { label: 'Quelles notes bougent ?', message: 'Quelles notes bougent ?' },
+  { label: 'Comment le retenir ?', message: 'Comment le retenir ?' },
+  { label: 'Dans quels morceaux l\'utiliser ?', message: 'Dans quels morceaux l\'utiliser ?' },
   { label: 'Fais-moi entendre la carte', message: 'Fais-moi entendre la carte.' },
 ];
 let defaultQuickActions = null;
@@ -396,9 +400,11 @@ function renderCopilotWelcome() {
   const options = el('div', { className: 'tr-prompt-options' });
   // [Claude] — 2026-10-04 — Ce qui est écrit part : le libellé est la question envoyée.
   const welcomeActions = [
-    { label: 'Montre-moi un voicing intéressant', icon: ICON_PIANO_MD, message: 'Montre-moi un voicing intéressant.' },
-    { label: 'Explique-moi un 2-5-1', icon: ICON_MUSIC2, message: 'Explique-moi un 2-5-1.' },
-    { label: 'Comment mieux accompagner ?', icon: ICON_SPARKLE_MD, message: 'Comment mieux accompagner ?' },
+    // [Claude] — 2026-10-13 — Portes d'entrée pour tous les niveaux et tous les styles (avant :
+    // « voicing intéressant », « 2-5-1 » : du vocabulaire de jazzman).
+    { label: 'Par où commencer au piano ?', icon: ICON_PIANO_MD, message: 'Par où commencer au piano ?' },
+    { label: 'Comment accompagner une chanson ?', icon: ICON_MUSIC2, message: 'Comment accompagner une chanson ?' },
+    { label: 'Rends mes accords plus beaux', icon: ICON_SPARKLE_MD, message: 'Rends mes accords plus beaux.' },
   ];
   for (const action of welcomeActions) {
     // Icône à gauche, libellé, flèche à droite : c'est ce que la maquette
@@ -419,7 +425,7 @@ function renderCopilotWelcome() {
   }
 
   const intro = el('p', {}, [
-    document.createTextNode('Un voicing à explorer, une progression à comprendre.'),
+    document.createTextNode('Un accord à explorer, un morceau à comprendre.'),
     el('br'),
     document.createTextNode('Prenons le temps de l’écouter ensemble.'),
   ]);

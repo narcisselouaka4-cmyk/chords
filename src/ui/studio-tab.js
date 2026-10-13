@@ -21,6 +21,7 @@ import { formatMediaDuration, isValidMediaDuration } from './media-format.js';
 import { buildFileContextText } from './file-context.js';
 import { applyStudioSidebarState } from './studio-view-state.js';
 import { getSkin } from './refonte/skin-manager.js';
+import { notify } from './components/app-notify.js';
 
 /**
  * Lit un fichier audio via IPC et retourne un ArrayBuffer brut.
@@ -101,7 +102,10 @@ let html5AudioReadyPromise = null;
 let html5AudioResolve = null;
 
 // [Claude] — 2026-07-07 — État du Screen Recorder intégré au Studio.
-let isLeftPanelCollapsed = false;
+// [Claude] — 2026-10-13 — Replié par défaut dès qu'un morceau est ouvert (la vidéo gagne la place) ;
+// le choix du pianiste est gardé d'une ouverture à l'autre.
+const LIBRARY_COLLAPSED_KEY = 'pjc.studio.libraryCollapsed';
+let isLeftPanelCollapsed = (() => { try { return localStorage.getItem(LIBRARY_COLLAPSED_KEY) !== '0'; } catch { return true; } })();
 let isRecording = false;
 let countdownTimeout = null;
 
@@ -147,7 +151,6 @@ const els = {
   processingLabel: document.getElementById('studio-processing-label'),
   processingCancel: document.getElementById('studio-processing-cancel'),
   processingBar: document.getElementById('studio-processing-bar'),
-  readyToast: document.getElementById('studio-ready-toast'),
   stemsList: document.getElementById('studio-stems-list'),
   studioStatus: document.getElementById('studio-status-text'),
   waveformWrap: document.getElementById('studio-waveform-wrap'),
@@ -331,6 +334,7 @@ function bindPlayer() {
 
   els.resetRegionBtn?.addEventListener('click', () => resetRegion());
   els.processingCancel?.addEventListener('click', () => cancelRegionProcessing());
+  bindWaveToggle();
 
   // [Claude] — 2026-10-09 — Glisser la barre de lecture faisait un saut à CHAQUE petit
   // déplacement (des dizaines par seconde) : à chaque fois toutes les pistes et la vidéo
@@ -432,6 +436,9 @@ function bindScreenRecorder() {
 
 function toggleLeftPanel() {
   setLeftPanelCollapsed(!isLeftPanelCollapsed);
+  try { localStorage.setItem(LIBRARY_COLLAPSED_KEY, isLeftPanelCollapsed ? '1' : '0'); } catch { /* stockage indisponible */ }
+  // La colonne centrale change de largeur pendant l'animation : la forme d'onde est redessinée à la fin.
+  setTimeout(() => { if (waveformData) renderWaveform(); }, 560);
 }
 
 function setLeftPanelCollapsed(collapsed) {
@@ -440,6 +447,14 @@ function setLeftPanelCollapsed(collapsed) {
     collapseButton: els.collapseLeftBtn,
     expandButton: els.collapseTabBtn,
   }, studioStage, collapsed);
+  document.getElementById('studio-tab')?.classList.toggle('lib-collapsed', isLeftPanelCollapsed);
+  updateCollapseCount();
+}
+
+/** Nombre de morceaux, en pastille sur le rond « Musiques importées ». */
+function updateCollapseCount() {
+  const count = document.getElementById('studio-collapse-count');
+  if (count) { count.textContent = String(tracks.length || ''); count.hidden = !tracks.length; }
 }
 
 // [Refonte v2/Global] — Déplace les éléments du Studio entre leurs deux positions
@@ -915,6 +930,34 @@ function setCropControlsEnabled(enabled) {
  * région, Réinitialiser la région et Revenir à la timeline entière sont interactifs, ce qui
  * n'est pas censé être le cas »). La barre de région passe au-dessus du voile de chargement.
  */
+// [Claude] — 2026-10-13 — « Masquer l'onde » (Narcisse : pouvoir masquer la forme d'onde). Le choix
+// est gardé d'une ouverture à l'autre. À l'étape 1, la forme d'onde reste visible quoi qu'il arrive :
+// c'est sur elle qu'on trace la région (le bouton y est grisé).
+const WAVE_HIDDEN_KEY = 'pjc.studio.waveHidden';
+let waveHidden = false;
+function applyWaveHidden() {
+  const tab = document.getElementById('studio-tab');
+  tab?.classList.toggle('wave-hidden', waveHidden);
+  const btn = document.getElementById('studio-wave-toggle');
+  if (!btn) return;
+  btn.setAttribute('aria-pressed', String(waveHidden));
+  btn.title = waveHidden ? 'Afficher la forme d\'onde' : 'Masquer la forme d\'onde';
+  const label = btn.querySelector('span');
+  if (label) label.textContent = waveHidden ? 'Afficher l\'onde' : 'Masquer l\'onde';
+  btn.disabled = studioStage === 1;
+}
+function bindWaveToggle() {
+  try { waveHidden = localStorage.getItem(WAVE_HIDDEN_KEY) === '1'; } catch { /* stockage indisponible */ }
+  applyWaveHidden();
+  document.getElementById('studio-wave-toggle')?.addEventListener('click', () => {
+    waveHidden = !waveHidden;
+    try { localStorage.setItem(WAVE_HIDDEN_KEY, waveHidden ? '1' : '0'); } catch { /* idem */ }
+    applyWaveHidden();
+    // Réaffichée, la forme d'onde est redessinée à sa vraie taille (masquée, son canvas valait 0 px).
+    if (!waveHidden) setTimeout(() => { if (waveformData) renderWaveform(); }, 320);
+  });
+}
+
 function regionLocked() {
   return isLoadingTrack || isProcessing;
 }
@@ -1407,6 +1450,7 @@ async function refreshTrackList() {
 }
 
 function renderTrackList(tracks) {
+  setTimeout(updateCollapseCount, 0);
   if (!els.trackList) return;
   if (els.homeCount) els.homeCount.textContent = String(tracks.length);
   els.trackList.innerHTML = '';
@@ -2098,6 +2142,7 @@ function updateStudioStage(stage) {
   }
 
   updateCropButtons();
+  applyWaveHidden();
 
   if (els.stageOverlay) {
     // Masquer les instructions de ciblage tant que le morceau n'est pas chargé :
@@ -2115,9 +2160,6 @@ function updateStudioStage(stage) {
   // « Annuler » : seulement pour le traitement d'une région, pas pour le chargement du morceau
   // (même voile).
   if (els.processingCancel) els.processingCancel.hidden = !(stage === 2 && !isLoadingTrack);
-  if (els.readyToast) {
-    els.readyToast.style.display = 'none';
-  }
 
   // Stage 0 : aucun morceau sélectionné. Seule la liste de tracks est visible.
   const stage0 = stage === 0;
@@ -2143,10 +2185,6 @@ function updateStudioStage(stage) {
 
   // [Refonte v2/Global] — visibilité des zones spécifiques au skin.
   applyStudioSkinStageVisibility(getSkin(), stage);
-
-  if (stage === 3) {
-    showReadyToast();
-  }
 }
 
 let waveformProgressCleanup = null;
@@ -2206,12 +2244,22 @@ function failTrackLoading(message) {
   }
 }
 
-function showReadyToast() {
-  if (!els.readyToast) return;
-  els.readyToast.style.display = 'block';
-  setTimeout(() => {
-    if (els.readyToast) els.readyToast.style.display = 'none';
-  }, 4000);
+// [Claude] — 2026-10-13 — « Le morceau est prêt » : Narcisse l'a vu (1) trop tôt, pendant un
+// chargement, (2) deux fois, (3) seulement dans le Studio. Causes : l'ancien message partait à chaque
+// passage à l'étape 3 — refreshStems() y passe une fois, finishRegionProcessing() une seconde, et la
+// simple réouverture d'un morceau déjà séparé (pendant son chargement) aussi. Désormais il ne part
+// qu'une fois, à la vraie fin d'une séparation (pistes chargées, lecteur prêt), et c'est une
+// notification de l'application : visible depuis n'importe quel onglet, avec « Ouvrir le Studio »
+// quand on est ailleurs.
+function notifySeparationReady() {
+  const name = currentTrack?.metadata?.name || currentTrack?.id || 'Le morceau';
+  const inStudio = document.querySelector('.tab-btn[data-tab="studio"]')?.classList.contains('active');
+  notify({
+    id: 'studio-ready',
+    title: 'Pistes séparées',
+    message: `« ${name} » est prêt dans le Studio.`,
+    action: inStudio ? null : { label: 'Ouvrir le Studio', onClick: () => document.querySelector('.tab-btn[data-tab="studio"]')?.click() },
+  });
 }
 
 function setProcessingProgress(label, percent) {
@@ -2287,6 +2335,14 @@ async function startRegionProcessing() {
     setProcessingProgress(`Erreur : ${err.message}`, 0);
     setStatus(`Erreur de préparation : ${err.message}`);
     finishRegionProcessing(false);
+    // Hors du Studio, l'échec doit se voir aussi (le message d'erreur vit dans le Studio).
+    if (!document.querySelector('.tab-btn[data-tab="studio"]')?.classList.contains('active')) {
+      notify({
+        id: 'studio-ready', tone: 'error', title: 'Séparation interrompue',
+        message: err.message,
+        action: { label: 'Ouvrir le Studio', onClick: () => document.querySelector('.tab-btn[data-tab="studio"]')?.click() },
+      });
+    }
   }
 }
 
@@ -2315,6 +2371,7 @@ function finishRegionProcessing(success) {
     updateProgressUI(regionStart, getEffectiveDuration());
     updatePlayhead(regionStart, getEffectiveDuration());
     if (transpose !== 0) runPitchShift();
+    notifySeparationReady();
   } else {
     updateStudioStage(1);
     regionConfirmed = false;
@@ -2370,7 +2427,6 @@ export async function loadTrack(trackId) {
     }
     if (els.waveformWrap) els.waveformWrap.style.display = 'none';
     if (els.regionInfo) els.regionInfo.style.display = 'none';
-    if (els.readyToast) els.readyToast.style.display = 'none';
     const metadata = await loadMetadata(trackId);
     currentTrack = { id: trackId, metadata };
     trackName = metadata?.name || trackId;
@@ -2926,8 +2982,13 @@ async function refreshStems() {
 }
 
 function updateSeparateButton(hasStems) {
-  const globalText = hasStems ? 'Réanalyser le fichier' : '🎚 Séparer les pistes';
-  const v2Text = hasStems ? 'Réanalyser le fichier' : '🎚 Séparer les pistes';
+  // [Claude] — 2026-10-13 — Une fois les pistes là, « Réanalyser le fichier » était en tête du panneau
+  // (Atelier) ou dans l'en-tête du lecteur (Scène) : la place d'une action principale, pour une
+  // action rare. Il devient « Refaire la séparation », discret, sous la liste des pistes, au même
+  // endroit dans les deux habillages (studio.css : .studio-separate-done). Avant la séparation, le
+  // bouton « Séparer les pistes » garde sa place d'action principale.
+  const globalText = hasStems ? '↻ Refaire la séparation' : '🎚 Séparer les pistes';
+  const v2Text = globalText;
   const title = hasStems
     ? 'Relancer la séparation des pistes à partir du fichier original'
     : 'Séparer les pistes (basse, batterie, voix, autres, piano) avec Demucs';
