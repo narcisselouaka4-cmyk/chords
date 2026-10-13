@@ -2003,12 +2003,11 @@
 /* ========================================================================== *
  *  [Claude] — 2026-10-13 — Mode enregistrement (bouton ● du lecteur).          *
  *  Ne restent que : la vidéo, le lecteur (transport), le nom du fichier, le    *
- *  nom et le logo de l'application. Le reste disparaît ; vidéo et lecteur      *
- *  sont centrés. Classe posée sur <html> par studio-tab.js (setRecordingMode). *
+ *  nom et le logo de l'application, plus le clavier MIDI en bas (rendu à       *
+ *  Narcisse). Le reste disparaît ; vidéo et lecteur sont centrés. Classe posée sur <html> par studio-tab.js (setRecordingMode). *
  * ========================================================================== */
 :root.studio-rec-mode .tr-app-header .tr-main-navigation,
 :root.studio-rec-mode .tr-app-header .tr-header-tools,
-:root.studio-rec-mode #keyboard-panel,
 :root.studio-rec-mode #studio-tab .studio-sidebar.left,
 :root.studio-rec-mode #studio-tab .studio-sidebar.right,
 :root.studio-rec-mode #studio-tab .studio-stems-bottom,
