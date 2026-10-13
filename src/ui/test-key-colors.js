@@ -3,7 +3,7 @@
 //
 // Lancer : node src/ui/test-key-colors.js
 
-import { lightKeyElement, unlightKeyElement, APP_KEY_CLASS } from './key-colors.js';
+import { lightKeyElement, unlightKeyElement, APP_KEY_CLASS, resolveAppKeyColor, DEFAULT_APP_KEY_COLOR } from './key-colors.js';
 
 let passed = 0;
 let failed = 0;
@@ -49,6 +49,19 @@ check('Les autres classes de la touche restent', app.set.has('note') && app.set.
 lightKeyElement(null, true);
 unlightKeyElement(undefined);
 check('Touche absente (clavier réduit) : rien ne casse', true);
+
+// [Claude] — 2026-10-13 — Couleur de ce que joue l'application : choix personnel > couleur de l'application > jaune.
+{
+  const a = resolveAppKeyColor({ custom: null, accent: null });
+  check('Aucune couleur choisie : le jaune d\'origine', a.color === DEFAULT_APP_KEY_COLOR && a.source === 'default');
+  const b = resolveAppKeyColor({ custom: null, accent: '#ec4899' });
+  check('Application en rose : ce que joue l\'application est rose', b.color === '#ec4899' && b.source === 'accent');
+  const c = resolveAppKeyColor({ custom: '#2563eb', accent: '#ec4899' });
+  check('Choix personnel (bleu) : il gagne sur le rose de l\'application', c.color === '#2563eb' && c.source === 'custom');
+  const d = resolveAppKeyColor({ custom: 'bleu', accent: '#ec4899' });
+  check('Valeur personnelle invalide ignorée', d.color === '#ec4899');
+  check('Sans argument : jaune', resolveAppKeyColor().color === DEFAULT_APP_KEY_COLOR);
+}
 
 console.log(`\n=== Résultat : ${passed}/${passed + failed} tests passés ===`);
 process.exit(failed === 0 ? 0 : 1);

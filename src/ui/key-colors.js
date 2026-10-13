@@ -31,3 +31,23 @@ export function unlightKeyElement(key) {
   if (!key?.classList) return;
   key.classList.remove('active', APP_KEY_CLASS);
 }
+
+const HEX = /^#[0-9a-f]{6}$/i;
+
+/** Jaune d'origine de « ce que joue l'application » (style.css : --kb-app). */
+export const DEFAULT_APP_KEY_COLOR = '#f2b705';
+
+/**
+ * [Claude] — 2026-10-13 — Quelle couleur pour ce que joue l'application ?
+ * 1. celle que le pianiste a réglée lui-même (pastille « L'app » de la légende) : elle gagne toujours ;
+ * 2. sinon, la couleur de l'application choisie dans Réglages (rose, vert…) : les touches de
+ *    l'application la suivent ;
+ * 3. sinon, le jaune d'origine (l'application est restée en violet d'origine).
+ * @param {{custom?: string|null, accent?: string|null}} colors
+ * @returns {{color: string, source: 'custom'|'accent'|'default'}}
+ */
+export function resolveAppKeyColor({ custom = null, accent = null } = {}) {
+  if (typeof custom === 'string' && HEX.test(custom)) return { color: custom, source: 'custom' };
+  if (typeof accent === 'string' && HEX.test(accent)) return { color: accent, source: 'accent' };
+  return { color: DEFAULT_APP_KEY_COLOR, source: 'default' };
+}

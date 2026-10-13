@@ -2024,6 +2024,13 @@
               <div class="accent-presets" id="accent-presets" role="group" aria-label="Couleur de l'application"></div>
               <label class="accent-custom"><span>Autre couleur…</span><input type="color" id="accent-custom" value="#9b7bf0" aria-label="Choisir une autre couleur pour l'application" /></label>
             </div>
+            <!-- [Claude] — 2026-10-13 — Ce que joue l'application (touches allumées par les exemples, démos,
+                 relectures) suit la couleur de l'application, sauf choix personnel (pastille « L'app »). -->
+            <div class="appearance-field" id="settings-app-keys">
+              <span>Ce que joue l'application</span>
+              <p class="appearance-hint" id="app-key-color-hint">Suit la couleur de l'application.</p>
+              <button type="button" class="accent-reset" id="app-key-color-reset" hidden>Suivre la couleur de l'application</button>
+            </div>
             <div class="appearance-field">
               <span>Habillage de l'application</span>
               <div class="skin-segmented" id="skin-selector" role="group" aria-label="Habillage de l'application">
@@ -2032,7 +2039,7 @@
               </div>
               <p class="appearance-hint">
                 <strong>Atelier</strong> — net et sobre, formes droites et aplats : la vue de travail.<br />
-                <strong>Scène</strong> — plus chaleureux, formes arrondies et dégradés violets.<br />
+                <strong>Scène</strong> — plus chaleureux, formes arrondies et dégradés de la couleur de l'application.<br />
                 Les deux affichent exactement le même contenu et fonctionnent à l'identique : seul l'habillage change.
               </p>
             </div>

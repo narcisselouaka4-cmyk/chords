@@ -26,7 +26,7 @@ import { createNoteGrouper, isGraceNote, chordNotesWithHeld } from './note-group
 import { initAnalyzerTab } from './ui/analyzer-tab.js';
 import { mountChromaStages } from './ui/components/loader-chroma.js';
 import { attachListSearch } from './ui/components/list-search.js';
-import { initAccentTheme } from './ui/accent-theme.js';
+import { initAccentTheme, savedAccent } from './ui/accent-theme.js';
 import { initStudioTab } from './ui/studio-tab.js';
 // [Claude 05/09] — Coach d'accompagnement au chant : vue sœur de Sessions MIDI
 // dans la sous-navigation d'Entraînement. Reste un flux séparé, sans pont de
@@ -102,7 +102,7 @@ import {
 import { applyTabVisibility } from './ui/tab-visibility.js';
 import { initAstraShell } from './ui/refonte/astra-shell.js';
 import { initOnboarding, notifyOnboarding } from './ui/onboarding.js';
-import { lightKeyElement, unlightKeyElement } from './ui/key-colors.js';
+import { lightKeyElement, unlightKeyElement, resolveAppKeyColor } from './ui/key-colors.js';
 import { liveTake } from './recorder/live-take.js';
 import { registerCopilotContext } from './pedagogie/copilot-context.js';
 import { exerciseContext } from './pedagogie/exercise-context.js';
@@ -1098,6 +1098,23 @@ function applyAppColor(hex) {
   style.setProperty('--kb-app', hex);
   style.setProperty('--kb-app-light', lighten(hex));
 }
+// [Claude] — 2026-10-13 — « Ce que joue l'application » suit la couleur de l'application (rose, vert…),
+// sauf si le pianiste a réglé cette couleur lui-même (pastille « L'app », gardée dans pjc.keyColors) :
+// son choix gagne. Le bouton de Réglages › Apparence rend la main à la couleur de l'application.
+function refreshAppKeyColor() {
+  const { color, source } = resolveAppKeyColor({ custom: readKeyColors().app, accent: savedAccent() });
+  applyAppColor(color);
+  const picker = document.getElementById('color-app');
+  if (picker) picker.value = color;
+  const hint = document.getElementById('app-key-color-hint');
+  const reset = document.getElementById('app-key-color-reset');
+  if (hint) {
+    hint.textContent = source === 'custom'
+      ? 'Couleur choisie par toi (pastille « L\'app » sous le clavier).'
+      : source === 'accent' ? 'Suit la couleur de l\'application.' : 'Jaune (couleur d\'origine).';
+  }
+  if (reset) reset.hidden = source !== 'custom';
+}
 function readKeyColors() {
   try {
     const saved = JSON.parse(localStorage.getItem(KEY_COLORS_STORAGE) || '{}');
@@ -1119,8 +1136,11 @@ function initSettings() {
   els.colorNote.value = state.colorNote;
   applyYouColor();
   const appPicker = document.getElementById('color-app');
-  if (savedKeys.app) { applyAppColor(savedKeys.app); if (appPicker) appPicker.value = savedKeys.app; }
-  appPicker?.addEventListener('input', () => { applyAppColor(appPicker.value); saveKeyColors({ app: appPicker.value }); });
+  refreshAppKeyColor();
+  appPicker?.addEventListener('input', () => { saveKeyColors({ app: appPicker.value }); refreshAppKeyColor(); });
+  document.getElementById('app-key-color-reset')?.addEventListener('click', () => { saveKeyColors({ app: null }); refreshAppKeyColor(); });
+  // Changer la couleur de l'application (Réglages › Apparence) : les touches de l'application suivent.
+  window.addEventListener('app-theme-changed', refreshAppKeyColor);
   els.transposeInput.value = state.transpose;
   // [Claude] — 2026-10-13 — Silencieux DÉCOCHÉ à l'ouverture : Narcisse avait demandé l'inverse le
   // 24/09 (« le clavier joué ne sonne pas par défaut ») et a changé d'avis : le clavier MIDI

@@ -76,3 +76,18 @@
 - **Non traité (à surveiller)** : le son d'une note en cours est lancé à l'ancienne hauteur ; son
   relâchement arrive à la nouvelle — une note tenue pendant le changement peut ne pas être relâchée
   proprement. Non vérifié à l'oreille.
+
+---
+
+# Suite du 13/10 (2) — « Ce que joue l'application » suit la couleur de l'application
+
+- **Règle** (`resolveAppKeyColor`, `ui/key-colors.js`) : choix personnel (pastille « L'app » sous le
+  clavier, `pjc.keyColors.app`) > couleur de l'application (`pjc.accent`, Réglages › Apparence) >
+  jaune d'origine. Sans couleur d'application choisie (violet d'origine), les touches de
+  l'application restent jaunes (décision du 25/09 : bleu = toi, jaune = l'app).
+- `main.js` : `refreshAppKeyColor()` au démarrage, à chaque `app-theme-changed` et au clic sur la
+  pastille. Réglages › Apparence : ligne « Ce que joue l'application » (état + bouton « Suivre la
+  couleur de l'application », visible seulement après un choix personnel).
+- Vérifié dans l'application : défaut jaune ; accent rose → touches roses ; changement via
+  Réglages en direct ; choix bleu gardé quand l'accent change ; bouton → retour au suivi.
+  `test-key-colors.js` 11/11.
