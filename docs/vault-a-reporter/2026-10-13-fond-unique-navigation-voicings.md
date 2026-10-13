@@ -91,3 +91,32 @@
 - Vérifié dans l'application : défaut jaune ; accent rose → touches roses ; changement via
   Réglages en direct ; choix bleu gardé quand l'accent change ; bouton → retour au suivi.
   `test-key-colors.js` 11/11.
+
+---
+
+# Suite du 13/10 (3) — Paysage harmonique : angle « Chute » (style Synthesia)
+
+- **Décision** : option 2 de Narcisse — la 2D est GARDÉE, « Chute » devient le troisième angle
+  (2D · Relief · Chute). Raison : la 2D / le Relief montrent toute la session d'un coup (vue
+  d'ensemble) ; la chute ne montre que les 4 prochaines secondes (vue de jeu). Deux usages, pas un
+  remplacement.
+- **Fichiers** : `ui/refonte/astra-falling-notes.js` (canvas), `recording-tab.js` (`rollView`
+  `'spatial' | 'flat' | 'fall'`, `mountHarmonicRoll` détruit/monte la bonne famille), bouton
+  « Chute » dans `index.html`, une règle CSS (la légende « hauteur = vélocité » disparaît).
+- **Alignement** : les colonnes sont mesurées sur les VRAIES touches de `#keyboard-container`
+  (`.note[data-midi] .piano-key`) : une note de do tombe pile sur la touche de do, et l'étendue
+  réglée (C0–C9, personnalisée) est respectée. Sans clavier mesurable : clavier de secours de 88
+  touches sur la largeur.
+- **Rendu** : lecture = les notes arrivent d'en haut, ligne « maintenant » au bas de la zone,
+  la note qui touche la ligne s'allume (halo) ; touches noires par-dessus les blanches, couloirs des
+  noires en filigrane ; couleurs dérivées de `--tr-accent` (suit la couleur de l'application, relue
+  à chaque `app-theme-changed`). Clic sur une note = `onSeek(début)`. Enregistrement : les notes
+  jouées montent depuis les touches (le temps ne se lit pas à l'avance).
+- **Vérifié** dans l'application avec des notes synthétiques posées dans `#carnet-timeline` :
+  alignement sur la touche de do, notes allumées sur la ligne, clic = seek, bascule Relief ↔ Chute
+  (SVG ↔ canvas). `test-astra-falling-notes.js` 15/15 (géométrie : clavier de secours, fenêtre de
+  notes, position des rectangles, sens en enregistrement) ; un bug du clavier de secours (touches
+  noires toutes au même endroit) trouvé et corrigé par ce test.
+- **Non vérifié** : une vraie session enregistrée lue pendant plusieurs secondes (l'enregistrement
+  ne démarre pas dans le navigateur de test : pas de MIDI ; une erreur `showEndModal` y apparaît à
+  l'arrêt, antérieure à ce travail). Vitesse de chute fixe (4 s visibles) : pas de réglage de zoom.

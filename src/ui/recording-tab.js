@@ -19,6 +19,7 @@ import { reviewTake, takeContextLines, takeMoment } from '../recorder/take-revie
 // n'en écrit pas une seconde.
 import { buildNoteWindows } from '../recorder/session-analysis.js';
 import { renderHarmonicRoll, windowsToRollNotes } from './refonte/astra-harmonic-roll.js';
+import { renderFallingNotes } from './refonte/astra-falling-notes.js';
 // [Refonte 2026-09-03] — Plus d'import depuis analyzer-tab.js.
 //
 // Ce module visait une API qui n'existe plus : `renderAnalysis` et
@@ -39,7 +40,8 @@ let sessionFilter = 'all';
 let currentSession = null;
 let currentEvents = [];
 let harmonicRoll = null;      // instance du paysage harmonique
-let rollSpatial = true;       // Relief (true) ou 2D (false)
+let rollView = 'spatial';     // 'spatial' (relief), 'flat' (2D) ou 'fall' (chute vers le clavier, style Synthesia)
+let rollMounted = null;       // vue actuellement montée dans l'hôte
 let rollNotes = [];
 let rollDuration = 1;
 let currentMetadata = null;
@@ -1004,29 +1006,37 @@ function mountHarmonicRoll() {
     notes: rollNotes,
     duration: rollDuration,
     position: player?.getCurrentTime?.() || 0,
-    spatial: rollSpatial,
+    spatial: rollView === 'spatial',
     recording: Boolean(recorder?.isRecording),
     onSeek: (time) => {
       player?.seek(time);
       updateTransportUI();
     },
   };
+  // [Claude] — 2026-10-13 — Trois angles : Relief et 2D (SVG) partagent une instance ; « Chute » est un
+  // canvas à part. Changer de famille détruit l'ancienne vue et monte la nouvelle dans le même hôte.
+  const family = rollView === 'fall' ? 'fall' : 'svg';
+  if (rollMounted && rollMounted !== family) { harmonicRoll?.destroy(); harmonicRoll = null; }
   if (harmonicRoll) harmonicRoll.update(payload);
-  else harmonicRoll = renderHarmonicRoll(els.carnetTimeline, payload);
+  else harmonicRoll = family === 'fall'
+    ? renderFallingNotes(els.carnetTimeline, payload)
+    : renderHarmonicRoll(els.carnetTimeline, payload);
+  rollMounted = family;
+  els.carnetTimeline.closest('.tr-roll-stage')?.setAttribute('data-view', rollView);
 }
 
 function updateHarmonicRollPosition(position) {
   harmonicRoll?.update({ position: Number(position) || 0 });
 }
 
-// Bascule 2D / Relief de la maquette.
+// Bascule 2D / Relief / Chute.
 function bindProjectionSwitch() {
   const group = document.getElementById('midi-roll-projection');
   if (!group) return;
   group.addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-projection]');
     if (!btn) return;
-    rollSpatial = btn.dataset.projection === 'spatial';
+    rollView = ['flat', 'spatial', 'fall'].includes(btn.dataset.projection) ? btn.dataset.projection : 'spatial';
     group.querySelectorAll('button[data-projection]').forEach((b) => {
       const on = b === btn;
       b.classList.toggle('is-active', on);
