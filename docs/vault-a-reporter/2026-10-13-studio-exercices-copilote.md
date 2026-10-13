@@ -79,3 +79,9 @@ Note : appeler `loadTrack` par `import('/ui/studio-tab.js')` charge une SECONDE 
 ## Non vérifié
 - Sur la vraie application Electron : vidéo MP4 réelle dans le nouveau cadre, séparation Demucs réelle.
 - Export (WAV / MIDI) : toujours inactif.
+
+## Correction du 13/10 (Narcisse) — transposition du Studio
+- « Transposition du morceau » : trop long → **libellé retiré**. Les boutons deviennent **♭** (un
+  demi-ton plus bas) et **♯** (un demi-ton plus haut) : ils disent ce qu'ils font et se distinguent du
+  − / + du clavier MIDI. Infobulles et noms accessibles complets. Valeur centrée et lisible (les
+  flèches du champ numérique rognaient « −1 ») ; « −1 demi-ton » au singulier.

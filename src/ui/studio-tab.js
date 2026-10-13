@@ -2753,7 +2753,7 @@ async function runPitchShift() {
       mixer.setDetune(transpose);
       if (els.transposeStatus) {
         els.transposeStatus.textContent = transpose !== 0
-          ? `Transposé : ${transpose > 0 ? '+' : ''}${transpose} demi-tons`
+          ? `Transposé : ${transpose > 0 ? '+' : ''}${transpose} demi-ton${Math.abs(transpose) > 1 ? 's' : ''}`
           : '';
       }
     } catch (err) {
@@ -2768,7 +2768,7 @@ async function runPitchShift() {
     await masterPlayer.setPitch(transpose);
     if (els.transposeStatus) {
       els.transposeStatus.textContent = transpose !== 0
-        ? `Transposé : ${transpose > 0 ? '+' : ''}${transpose} demi-tons`
+        ? `Transposé : ${transpose > 0 ? '+' : ''}${transpose} demi-ton${Math.abs(transpose) > 1 ? 's' : ''}`
         : '';
     }
   }

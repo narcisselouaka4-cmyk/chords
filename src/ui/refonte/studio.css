@@ -1862,3 +1862,17 @@
   border-color: color-mix(in srgb, var(--tr-accent, var(--r-accent)) 55%, var(--tr-border, var(--r-border)));
 }
 :root[data-skin] #studio-tab:not(.stage-0) .studio-stems-section .studio-status-box { order: 11; }
+
+/* [Claude] — 2026-10-13 — Transposition sans libellé : ♭ / ♯ en grand, le chiffre au milieu. */
+:root[data-skin] #studio-tab .studio-transpose-row { justify-content: flex-start; }
+:root[data-skin] #studio-tab .studio-transpose-row .studio-transpose-control { margin-left: 0; }
+:root[data-skin] #studio-tab .studio-accidental-btn {
+  font-family: "Bravura", "Noto Music", "Segoe UI Symbol", "DejaVu Sans", serif;
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 1;
+}
+/* La valeur entière reste lisible (« −12 ») : les petites flèches du champ numérique mangeaient la place. */
+:root[data-skin] #studio-tab #studio-transpose { width: 48px; padding: 0 2px; text-align: center; -moz-appearance: textfield; appearance: textfield; }
+:root[data-skin] #studio-tab #studio-transpose::-webkit-inner-spin-button,
+:root[data-skin] #studio-tab #studio-transpose::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }

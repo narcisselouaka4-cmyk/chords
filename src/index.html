@@ -1819,14 +1819,14 @@
             <div class="studio-playback-section" id="studio-playback-section">
               <div class="studio-playback-block" id="studio-playback-block">
               <div class="studio-rp-title">Lecture</div>
-              <div class="studio-rp-row">
-                <!-- [Claude] — 2026-10-13 — « du morceau » : le clavier MIDI a aussi sa « Transposition »
-                     (celle des notes jouées) ; celle-ci change la tonalité du morceau. -->
-                <span class="studio-rp-label">Transposition du morceau</span>
+              <!-- [Claude] — 2026-10-13 — Plus de libellé (Narcisse : « Transposition du morceau », beaucoup
+                   trop long). Les boutons disent ce qu'ils font : ♭ descend d'un demi-ton, ♯ monte d'un
+                   demi-ton — et marquent la différence avec le − / + du clavier MIDI. -->
+              <div class="studio-rp-row studio-transpose-row">
                 <div class="studio-transpose-control" id="studio-transpose-control">
-                  <button id="studio-transpose-minus" type="button" aria-label="Diminuer la transposition">−</button>
-                  <input type="number" id="studio-transpose" value="0" min="-12" max="12" step="1" aria-label="Transposition en demi-tons" />
-                  <button id="studio-transpose-plus" type="button" aria-label="Augmenter la transposition">+</button>
+                  <button id="studio-transpose-minus" class="studio-accidental-btn" type="button" title="Transposer le morceau d'un demi-ton plus bas" aria-label="Transposer le morceau d'un demi-ton plus bas (bémol)">♭</button>
+                  <input type="number" id="studio-transpose" value="0" min="-12" max="12" step="1" title="Transposition du morceau, en demi-tons" aria-label="Transposition du morceau, en demi-tons" />
+                  <button id="studio-transpose-plus" class="studio-accidental-btn" type="button" title="Transposer le morceau d'un demi-ton plus haut" aria-label="Transposer le morceau d'un demi-ton plus haut (dièse)">♯</button>
                   <span id="studio-transpose-status" class="studio-transpose-status"></span>
                 </div>
               </div>
