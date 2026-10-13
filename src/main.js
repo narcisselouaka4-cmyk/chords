@@ -106,6 +106,7 @@ import { lightKeyElement, unlightKeyElement } from './ui/key-colors.js';
 import { liveTake } from './recorder/live-take.js';
 import { registerCopilotContext } from './pedagogie/copilot-context.js';
 import { exerciseContext } from './pedagogie/exercise-context.js';
+import { shiftTransposedState } from './transpose-shift.js';
 import {
   publishLiveNoteOn,
   publishLiveNoteOff,
@@ -1145,20 +1146,7 @@ function initSettings() {
 
     // [Claude] — 2026-07-03 — Retransposer les notes actives quand le réglage de transposition change
     const transposeDelta = state.transpose - previousTranspose;
-    if (transposeDelta !== 0) {
-      const newActiveNotes = new Map();
-      for (const [midi, velocity] of state.activeNotes) {
-        newActiveNotes.set(midi + transposeDelta, velocity);
-      }
-      state.activeNotes = newActiveNotes;
-
-      const newSustainedNotes = new Set();
-      for (const midi of state.sustainedNotes) {
-        newSustainedNotes.add(midi + transposeDelta);
-      }
-      state.sustainedNotes = newSustainedNotes;
-      state.keyTimes.clear(); // horodatages des grace notes : plus valables
-    }
+    if (transposeDelta !== 0) shiftTransposedState(state, transposeDelta);
 
     // [Claude] — 2026-07-03 — Mise à jour dynamique de la tolérance de groupement
     const toleranceMs = Number(els.toleranceInput?.value) || 200;

@@ -48,3 +48,31 @@
 ## Non vérifié sur sa machine
 - Le rendu réel des sous-onglets d'Analyse avec un morceau chargé (forcés à l'écran seulement).
 - Studio en étape 1 à 3 (seul l'accueil a été capturé) ; Pédagogie IA, Sessions MIDI, Coach.
+
+---
+
+# Suite du 13/10 — Sessions MIDI : paysage harmonique et transposition en lecture
+
+## Paysage harmonique (`astra-harmonic-roll.js`)
+- **Couleur** : les violets étaient écrits en dur dans le SVG. Tout dérive maintenant de
+  `--tr-accent` (`color-mix` avec du blanc / du noir) : le paysage suit la couleur choisie dans
+  Réglages › Apparence, sans redessin (le navigateur relit les variables). Test : aucune teinte en
+  dur dans le fichier.
+- **Tête de lecture** : pas un bug mais la perspective — en relief, tous les points d'un même
+  instant sont sur l'oblique de la grille ; l'ancien trait partait du coin avant du sol vers le
+  fond en montant de 25, ni vertical ni sur le sol. Maintenant : trait **vertical** au bord avant
+  (pastille sur le sol) et, en filigrane, la paroi qui s'étend jusqu'au fond (arête au sol sur la
+  grille : les notes jouées à cet instant s'y alignent). À plat : un trait vertical, inchangé.
+  Compromis connu : une note aiguë qui joue est à ~50 px à droite du trait vertical ; la paroi et
+  la surbrillance de la note la relient.
+
+## Transposition en pleine lecture (`transpose-shift.js`, `main.js`)
+- **Cause** : à chaque changement de transposition, `activeNotes` et `sustainedNotes` étaient
+  décalés, mais pas `playbackNotes` (l'ensemble qui décide jaune = l'application / bleu = le
+  pianiste). Les touches décalées n'y figuraient plus et se rallumaient en bleu.
+- **Correction** : `shiftTransposedState` décale les trois ensembles ensemble. Reproduit dans
+  l'application avec l'exemple d'Exercices (avant : toutes les touches passent en « toi » après −1 ;
+  après : toutes restent « app »). Test `src/test-transpose-shift.js` (7/7).
+- **Non traité (à surveiller)** : le son d'une note en cours est lancé à l'ancienne hauteur ; son
+  relâchement arrive à la nouvelle — une note tenue pendant le changement peut ne pas être relâchée
+  proprement. Non vérifié à l'oreille.
