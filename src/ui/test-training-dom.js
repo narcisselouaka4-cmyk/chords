@@ -381,12 +381,20 @@ function testLectureEnDirect() {
   check(main.includes("safeInit('initLiveStaff'"), 'Temps réel — portée initialisée');
   check(readText('src/ui/staff/BRAVURA-OFL.txt').includes('SIL OPEN FONT LICENSE'), 'Temps réel — licence OFL de Bravura jointe aux glyphes');
   // [Claude] — 2026-10-02 — Mode clair (Narcisse : en sombre « que rien ne bouge ») :
-  // le sombre garde ses halos ; le clair a ses propres règles, sans halo, et le fond
-  // gris lavande d'Entraînement.
+  // le sombre garde ses halos ; le clair a ses propres règles, sans halo. (13/10 : le
+  // fond gris lavande propre à Entraînement a été retiré — un seul fond pour les trois
+  // onglets principaux.)
   const realtimeCss = readText('src/ui/refonte/astra-realtime.css');
   check(/\.live-wheel-shape \{[^}]*drop-shadow\(0 0 4px/.test(realtimeCss), 'Temps réel — en sombre, la roue garde ses halos');
   check(/:root\[data-theme='light'\] \.live-wheel-shape \{[^}]*filter: none/.test(realtimeCss), 'Temps réel — en clair, la roue est dessinée sans halo');
-  check(/:root\[data-theme='light'\] #practice-tab \{[^}]*--tr-bg:/.test(readText('src/ui/refonte/astra-bridge.css')), 'Entraînement — fond gris lavande en clair');
+  check(!/#practice-tab \{[^}]*--tr-bg:/.test(readText('src/ui/refonte/astra-bridge.css')), 'Entraînement — pas de fond propre : le même que Analyse et Studio');
+  const analysisCss = readText('src/ui/refonte/astra-analysis.css');
+  check(/--an-bg: var\(--tr-bg\)/.test(analysisCss) && /--an-surface: var\(--tr-surface\)/.test(analysisCss), 'Analyse — mêmes fond et cartes qu\'Entraînement');
+  const navCss = readText('src/ui/refonte/astra-nav.css');
+  check(/grid-auto-columns: 1fr/.test(navCss), 'Navigation — trois onglets principaux de même largeur');
+  const indexHtml = readText('src/index.html');
+  const navHtml = indexHtml.slice(indexHtml.indexOf('id="tab-nav"'), indexHtml.indexOf('</nav>', indexHtml.indexOf('id="tab-nav"')));
+  check((navHtml.match(/<svg/g) || []).length === 3, 'Navigation — un logo sur chacun des trois onglets principaux');
 }
 
 testDomContract();

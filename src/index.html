@@ -61,6 +61,8 @@
     <!-- [Claude] — 2026-10-02 — Temps réel : Lecture en direct et portée. -->
     <link rel="stylesheet" href="./ui/refonte/astra-realtime.css" />
     <link rel="stylesheet" href="./ui/refonte/astra-pedagogie.css" />
+    <!-- [Claude] — 2026-10-13 — Navigation (onglets principaux et sous-onglets), Atelier et Scène. -->
+    <link rel="stylesheet" href="./ui/refonte/astra-nav.css" />
   </head>
   <body>
     <div id="app" class="app training-shell">
@@ -78,9 +80,9 @@
         </button>
 
         <nav class="tr-main-navigation" id="tab-nav" aria-label="Sections de l'application">
-          <button class="tab-btn active" data-tab="practice" title="Entraînement en temps réel"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 10v3M6 6v11M10 3v18M14 8v7M18 5v13M22 10v3"/></svg>Entraînement</button>
-          <button class="tab-btn" data-tab="analysis" title="Analyser et rejouer des sessions MIDI">Analyse</button>
-          <button class="tab-btn" data-tab="studio" title="Importer, lire et séparer des morceaux">Studio</button>
+          <button class="tab-btn active" data-tab="practice" title="Entraînement en temps réel"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M9 14v5M15 14v5M7.5 5v9M12 5v9M16.5 5v9"/></svg>Entraînement</button>
+          <button class="tab-btn" data-tab="analysis" title="Analyser et rejouer des sessions MIDI"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2M8.5 12.5v-2M11 12.5V8.5M13.5 12.5v-3"/></svg>Analyse</button>
+          <button class="tab-btn" data-tab="studio" title="Importer, lire et séparer des morceaux"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>Studio</button>
         </nav>
 
         <div class="tr-header-tools">

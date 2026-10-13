@@ -1,0 +1,50 @@
+# 2026-10-13 — Fond unique, navigation Atelier/Scène, voicings indisponibles masqués
+
+À reporter dans le vault : `log.md`, `state/current-state.md`, `decisions/` (le fond lavande est abandonné).
+
+## Fond uniforme (Entraînement / Analyse / Studio)
+- **Constat** : trois fonds différents. Entraînement avait en clair un gris lavande propre
+  (`#e6e2ee`, décision du 02/10 — **abandonnée**, Narcisse veut qu'on sente la même
+  application), Analyse ses propres gris violacés (`--an-*`, sombre `#121019`), Studio
+  `--r-ground`.
+- **Règle** : une seule source pour les neutres, `--tr-bg / --tr-header / --tr-surface /
+  --tr-raised / --tr-hover / --tr-inset / --tr-border* / --tr-text*`. `--an-*` les lit
+  (`astra-analysis.css`), le bloc `#practice-tab { --tr-bg: #e6e2ee }` d'`astra-bridge.css`
+  est retiré. Mesuré : `rgb(20,20,22)` en sombre, `rgb(245,244,247)` en clair, pour les
+  trois onglets, dans les deux habillages. Les accents et couleurs d'état d'Analyse restent
+  propres à Analyse.
+- La couleur d'accent personnalisée continue de teinter les clairs (`accent-theme.js`).
+
+## Navigation (`src/ui/refonte/astra-nav.css`, chargée en dernier)
+- **Onglets principaux** : un logo sur chacun (Entraînement : clavier de piano — l'ancienne
+  forme d'onde était déjà celle de « Sessions MIDI » ; Analyse : loupe sur barres ; Studio :
+  curseurs de mixage). Grille à colonnes égales : la barre garde la même largeur d'un onglet
+  à l'autre.
+- **Atelier** : aplat relevé + filet d'accent sous l'onglet actif.
+- **Scène** : pilules ; l'onglet actif est un bouton plein (`--tr-button` / `--tr-button-text`,
+  donc lisible quelle que soit la couleur d'accent, jaune compris), relief + ombre colorée ;
+  léger soulèvement au survol (même effet que la carte « Choisir un fichier »). L'icône ne
+  disparaît plus (elle était accent sur dégradé accent).
+- **Sous-onglets (Entraînement et Analyse)** : Atelier = onglets soulignés, trait d'accent au
+  survol (atténué) et sur l'onglet courant ; Scène = bande en pilule, onglet courant en relief
+  (contour d'accent, ombre), moins appuyé que les onglets principaux. Le trait d'Astra
+  (`.tr-active-underline`) est masqué : il se superposait ou dépassait de la pilule.
+- Points de rupture d'`astra-training.css` non touchés (tailles, hauteurs). Vérifié sans
+  débordement horizontal à 820, 1024 et 1400 px.
+
+## Exercices
+- `renderVoicingCategories` (`practice-exercise.js`) : les techniques inapplicables à l'accord
+  ne sont plus affichées (elles étaient barrées, `.exercise-category-tag.disabled`). Une
+  technique en cours de jeu est toujours gardée. Ex. C13 : « Shell » n'apparaît plus.
+- Test ajouté dans `practice-exercise.test.js` (544/544).
+
+## Tests
+- `test-training-dom.js` : le contrôle « fond gris lavande en clair » est remplacé par quatre
+  contrôles (pas de fond propre à Entraînement, `--an-*` lit `--tr-*`, colonnes égales, trois
+  logos). Échecs anciens inchangés : training-dom (11), coach-dom (2), home-results (1),
+  skin-manager (3 lignes), analyse-skin (2).
+- `test:chords` 98/98, build OK.
+
+## Non vérifié sur sa machine
+- Le rendu réel des sous-onglets d'Analyse avec un morceau chargé (forcés à l'écran seulement).
+- Studio en étape 1 à 3 (seul l'accueil a été capturé) ; Pédagogie IA, Sessions MIDI, Coach.

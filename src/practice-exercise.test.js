@@ -883,6 +883,15 @@ function checkAutoTag() {
   html = renderExerciseTarget(ex.getState().target, { categories: cats(), selectedTechnique: ex.getState().technique });
   check('Block choisi : Block actif, Auto inactif',
     /exercise-category-tag active" data-technique="block"/.test(html) && !/exercise-category-auto active/.test(html));
+  // [Claude] — 2026-10-13 — Techniques inapplicables : masquées, jamais barrées.
+  const mixed = [
+    { id: 'shell', label: 'Shell', playable: true, count: 1 },
+    { id: 'drop2', label: 'Drop 2', playable: false, count: 0 },
+    { id: 'block', label: 'Block', playable: true, count: 1 },
+  ];
+  html = renderExerciseTarget(ex.getState().target, { categories: mixed, selectedTechnique: 'auto' });
+  check('Technique indisponible : absente', !/data-technique="drop2"/.test(html) && !/exercise-category-tag disabled/.test(html));
+  check('Techniques disponibles : toujours là', /data-technique="shell"/.test(html) && /data-technique="block"/.test(html));
   ex.setTechnique('auto');
   check('Retour en Auto : technique auto et voicing shell', ex.getState().technique === 'auto' && ex.getState().target.voicing.technique === 'shell');
 }

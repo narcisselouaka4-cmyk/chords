@@ -3233,7 +3233,10 @@ function renderVoicingCategories(categories, activeTechnique, variant = 0, varia
   if (!categories || categories.length === 0) return '';
   const isAuto = selectedTechnique === 'auto';
   const autoTag = `<span class="exercise-category-tag exercise-category-auto${isAuto ? ' active' : ''}" data-technique="auto" title="L'application choisit la technique (ordre pédagogique)" aria-pressed="${isAuto}">${escapeHtml(TECHNIQUE_LABELS.auto)}</span>`;
-  const items = categories.map((cat) => {
+  // [Claude] — 2026-10-13 — Les techniques inapplicables à l'accord ne sont plus affichées
+  // (elles apparaissaient barrées et alourdissaient la colonne) : seules les disponibles
+  // restent. Une technique en cours de jeu est toujours gardée.
+  const items = categories.filter((cat) => cat.playable || cat.id === activeTechnique).map((cat) => {
     const playing = cat.id === activeTechnique;
     const state = playing ? (isAuto ? ' current' : ' active') : '';
     const playable = cat.playable ? '' : ' disabled';
