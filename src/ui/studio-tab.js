@@ -22,6 +22,8 @@ import { buildFileContextText } from './file-context.js';
 import { applyStudioSidebarState } from './studio-view-state.js';
 import { getSkin } from './refonte/skin-manager.js';
 import { notify } from './components/app-notify.js';
+import { effectiveGain, encodeWav, transcriptionToEvents, exportFileName, renderMix } from './studio-export.js';
+import { buildMidiFile } from '../recorder/serializer.js';
 
 /**
  * Lit un fichier audio via IPC et retourne un ArrayBuffer brut.
@@ -431,7 +433,57 @@ function bindPlayer() {
 function bindScreenRecorder() {
   els.collapseLeftBtn?.addEventListener('click', () => toggleLeftPanel());
   els.collapseTabBtn?.addEventListener('click', () => toggleLeftPanel());
+  document.getElementById('studio-stems-collapse')?.addEventListener('click', () => toggleStemsPanel());
+  document.getElementById('studio-export-wav-btn')?.addEventListener('click', () => exportMixWav());
+  document.getElementById('studio-export-midi-btn')?.addEventListener('click', () => exportPianoMidi());
+  document.getElementById('studio-stems-expand')?.addEventListener('click', () => toggleStemsPanel());
+  applyStemsCollapsed(stemsCollapsed, false);
   els.recordBtn?.addEventListener('click', () => toggleRecording());
+}
+
+// [Claude] — 2026-10-13 — « Pistes séparées » se replie en miroir de « Musiques importées » : vers le
+// haut et vers la droite, en un rond (icône de console) ; « Lecture » et « Export » remontent vers le
+// milieu de la colonne. Les déplacements sont animés (technique FLIP : on mesure avant / après le
+// changement, puis on anime l'écart), la taille du panneau aussi. Choix gardé.
+const STEMS_COLLAPSED_KEY = 'pjc.studio.stemsCollapsed';
+let stemsCollapsed = (() => { try { return localStorage.getItem(STEMS_COLLAPSED_KEY) === '1'; } catch { return false; } })();
+const FLIP_EASE = 'cubic-bezier(.65, 0, .35, 1)';
+
+function applyStemsCollapsed(collapsed, animate = true) {
+  const section = els.stemsSection;
+  const sidebar = section?.closest('.studio-sidebar.right');
+  if (!section || !sidebar) return;
+  const movers = [
+    sidebar.querySelector('.studio-playback-section'),
+    sidebar.querySelector('.studio-export-section'),
+  ].filter(Boolean);
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const before = animate && !reduce ? new Map([section, ...movers].map((el) => [el, el.getBoundingClientRect()])) : null;
+  section.classList.toggle('is-collapsed', collapsed);
+  sidebar.classList.toggle('stems-collapsed', collapsed);
+  document.getElementById('studio-stems-expand')?.setAttribute('tabindex', collapsed ? '0' : '-1');
+  if (!before) return;
+  const a = before.get(section);
+  const b = section.getBoundingClientRect();
+  if (a.width && b.width) {
+    section.animate([
+      { width: `${a.width}px`, height: `${a.height}px`, transform: `translate(${a.right - b.right}px, ${a.top - b.top}px)`, borderRadius: collapsed ? '14px' : '23px' },
+      { width: `${b.width}px`, height: `${b.height}px`, transform: 'none', borderRadius: collapsed ? '23px' : '14px' },
+    ], { duration: 500, easing: FLIP_EASE });
+  }
+  for (const el of movers) {
+    const f = before.get(el);
+    const l = el.getBoundingClientRect();
+    const dx = f.left - l.left; const dy = f.top - l.top;
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue;
+    el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration: 500, easing: FLIP_EASE });
+  }
+}
+
+function toggleStemsPanel() {
+  stemsCollapsed = !stemsCollapsed;
+  try { localStorage.setItem(STEMS_COLLAPSED_KEY, stemsCollapsed ? '1' : '0'); } catch { /* stockage indisponible */ }
+  applyStemsCollapsed(stemsCollapsed);
 }
 
 function toggleLeftPanel() {
@@ -514,11 +566,21 @@ function toggleRecording() {
   }
 }
 
+// [Claude] — 2026-10-13 — Mode enregistrement (Narcisse) : pendant le compte à rebours et
+// l'enregistrement, tout disparaît sauf la vidéo et le lecteur (plus le nom du fichier, le nom et le
+// logo de l'application), centrés à l'écran : panneaux, pistes, Lecture, Export, boutons de région,
+// forme d'onde, onglets, réglages, clavier MIDI. La classe est sur <html> : studio.css s'en charge.
+function setRecordingMode(on) {
+  document.documentElement.classList.toggle('studio-rec-mode', Boolean(on));
+  // Le lecteur change de taille : la forme d'onde (masquée) sera redessinée au retour.
+  if (!on) setTimeout(() => { if (waveformData) renderWaveform(); }, 60);
+}
+
 function startRecordingSequence() {
   if (isRecording || !window.electronAPI?.studio?.getWindowSource) return;
 
-  // Libérer l'espace visuel avant le record.
-  if (!isLeftPanelCollapsed) toggleLeftPanel();
+  // Libérer l'espace visuel avant le record : le mode enregistrement ne garde que la vidéo et le lecteur.
+  setRecordingMode(true);
 
   runCountdown(3, () => {
     startCapture();
@@ -721,6 +783,7 @@ function cleanupRecording() {
   }
 
   screenRecordChunks = [];
+  setRecordingMode(false);
   els.recordBtn?.classList.remove('recording');
   if (els.recordingIndicator) els.recordingIndicator.style.display = 'none';
 
@@ -2143,6 +2206,7 @@ function updateStudioStage(stage) {
 
   updateCropButtons();
   applyWaveHidden();
+  updateExportButtons();
 
   if (els.stageOverlay) {
     // Masquer les instructions de ciblage tant que le morceau n'est pas chargé :
@@ -2753,7 +2817,7 @@ async function runPitchShift() {
       mixer.setDetune(transpose);
       if (els.transposeStatus) {
         els.transposeStatus.textContent = transpose !== 0
-          ? `Transposé : ${transpose > 0 ? '+' : ''}${transpose} demi-ton${Math.abs(transpose) > 1 ? 's' : ''}`
+          ? `${transpose > 0 ? '+' : '−'}${Math.abs(transpose)} demi‑ton${Math.abs(transpose) > 1 ? 's' : ''}`
           : '';
       }
     } catch (err) {
@@ -2768,7 +2832,7 @@ async function runPitchShift() {
     await masterPlayer.setPitch(transpose);
     if (els.transposeStatus) {
       els.transposeStatus.textContent = transpose !== 0
-        ? `Transposé : ${transpose > 0 ? '+' : ''}${transpose} demi-ton${Math.abs(transpose) > 1 ? 's' : ''}`
+        ? `${transpose > 0 ? '+' : '−'}${Math.abs(transpose)} demi‑ton${Math.abs(transpose) > 1 ? 's' : ''}`
         : '';
     }
   }
@@ -2968,6 +3032,7 @@ async function refreshStems() {
   if (hasStems) {
     storeOriginalStems(blobUrls, stemPaths);
     await mixer.loadStems(stemPaths);
+    updateExportButtons();
     if (transpose !== 0) mixer.setDetune(transpose);
     // Si la région était déjà confirmée, on passe automatiquement à l'étape 3
     if (regionConfirmed && studioStage !== 3) {
@@ -3104,6 +3169,111 @@ function formatDb(db) {
   return `${db > 0 ? '+' : ''}${db} dB`;
 }
 
+
+// ── Export (studio-export.js) ──────────────────────────────────────────────
+let exportBusy = false;
+function updateExportButtons() {
+  const wav = document.getElementById('studio-export-wav-btn');
+  const midi = document.getElementById('studio-export-midi-btn');
+  const ready = Boolean(currentTrack) && studioStage >= 1 && !isLoadingTrack && !isProcessing && !exportBusy;
+  if (wav) wav.disabled = !(ready && (mixer?.hasStems?.() || masterAudioBuffer));
+  if (midi) midi.disabled = !(ready && window.electronAPI?.pedagogie?.transcribePiano);
+}
+
+function exportFailed(title, err) {
+  console.error(`[Studio] ${title}`, err);
+  notify({ id: 'studio-export', tone: 'error', title, message: err?.message || String(err || '') });
+}
+
+async function withExportBusy(button, label, task) {
+  const original = button?.textContent;
+  exportBusy = true;
+  updateExportButtons();
+  if (button) button.textContent = label;
+  try { await task(); } finally {
+    exportBusy = false;
+    if (button) button.textContent = original;
+    updateExportButtons();
+  }
+}
+
+async function exportMixWav() {
+  const files = window.electronAPI?.files;
+  if (!currentTrack || !files?.saveDialog || !files?.writeBinary) return;
+  const name = currentTrack.metadata?.name || currentTrack.id;
+  const target = await files.saveDialog({
+    defaultPath: exportFileName(name, transpose ? `mixage ${transpose > 0 ? '+' : ''}${transpose}` : 'mixage', 'wav'),
+    filters: [{ name: 'Fichier WAV', extensions: ['wav'] }],
+  });
+  if (!target) return;
+  await withExportBusy(document.getElementById('studio-export-wav-btn'), 'Export en cours…', async () => {
+    try {
+      const masterDb = Number(els.volume?.value) || 0;
+      let sources;
+      let duration;
+      if (mixer?.hasStems?.()) {
+        const buffers = mixer.getSources();
+        const state = mixer.getState();
+        sources = Object.entries(buffers).map(([stem, buffer]) => ({ buffer, gain: effectiveGain(stem, state, masterDb) }));
+        duration = Math.max(...Object.values(buffers).map((b) => b.duration));
+      } else if (masterAudioBuffer) {
+        const start = regionEnd !== null ? regionStart : 0;
+        const end = regionEnd !== null ? regionEnd : masterAudioBuffer.duration;
+        sources = [{ buffer: masterAudioBuffer, gain: 10 ** (masterDb / 20), offset: start }];
+        duration = Math.max(0.1, end - start);
+      } else {
+        throw new Error('aucun son chargé');
+      }
+      if (!sources.some((src) => src.gain > 0)) throw new Error('toutes les pistes sont coupées');
+      const { channels, sampleRate, transposed } = await renderMix({ sources, duration, transpose, createPitchShifter });
+      await files.writeBinary(target, encodeWav(channels, sampleRate));
+      notify({
+        id: 'studio-export',
+        title: 'Mixage exporté',
+        message: transpose && !transposed
+          ? `${target} — sans la transposition (indisponible à l'export sur cet ordinateur).`
+          : target,
+      });
+    } catch (err) {
+      exportFailed('Export du mixage impossible', err);
+    }
+  });
+}
+
+async function exportPianoMidi() {
+  const files = window.electronAPI?.files;
+  const transcribe = window.electronAPI?.pedagogie?.transcribePiano;
+  if (!currentTrack || !files?.saveDialog || !files?.writeBinary || !transcribe) return;
+  const name = currentTrack.metadata?.name || currentTrack.id;
+  const target = await files.saveDialog({
+    defaultPath: exportFileName(name, 'piano', 'mid'),
+    filters: [{ name: 'Fichier MIDI', extensions: ['mid', 'midi'] }],
+  });
+  if (!target) return;
+  await withExportBusy(document.getElementById('studio-export-midi-btn'), 'Transcription du piano…', async () => {
+    try {
+      // La piste piano séparée si elle existe (déjà limitée à la région) ; sinon le son du morceau,
+      // dont on ne garde que la région.
+      const pianoStem = originalStemsPaths?.piano || null;
+      const source = pianoStem || audioWavPath || currentTrack.metadata?.originalPath;
+      const range = pianoStem ? {} : { from: regionEnd !== null ? regionStart : 0, to: regionEnd };
+      if (!source) throw new Error('fichier introuvable');
+      const result = await transcribe(source);
+      if (!result?.available) {
+        throw new Error(result?.reason === 'dependency-missing'
+          ? `la transcription du piano demande des modules Python qui manquent (${result.detail || 'piano_transcription_inference, torch, librosa'}).`
+          : (result?.detail || 'la transcription a échoué'));
+      }
+      const events = transcriptionToEvents(result.notes, { shift: transpose, pedals: result.pedals, ...range });
+      const count = events.filter((e) => e.type === 'note_on').length;
+      if (!count) throw new Error(pianoStem ? 'aucune note trouvée dans la piste piano' : 'aucune note de piano trouvée');
+      await files.writeBinary(target, buildMidiFile(events, { name: `${name} — piano` }));
+      notify({ id: 'studio-export', title: 'Piano exporté en MIDI', message: `${count} notes${pianoStem ? '' : ' (morceau entier, sans séparation)'} — ${target}` });
+    } catch (err) {
+      exportFailed('Export MIDI impossible', err);
+    }
+  });
+}
 
 async function getRegionTrimmedPath() {
   if (regionEnd === null || !currentTrack) return currentTrack.metadata?.originalPath;

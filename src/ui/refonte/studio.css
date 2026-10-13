@@ -1863,16 +1863,176 @@
 }
 :root[data-skin] #studio-tab:not(.stage-0) .studio-stems-section .studio-status-box { order: 11; }
 
-/* [Claude] — 2026-10-13 — Transposition sans libellé : ♭ / ♯ en grand, le chiffre au milieu. */
-:root[data-skin] #studio-tab .studio-transpose-row { justify-content: flex-start; }
-:root[data-skin] #studio-tab .studio-transpose-row .studio-transpose-control { margin-left: 0; }
-:root[data-skin] #studio-tab .studio-accidental-btn {
-  font-family: "Bravura", "Noto Music", "Segoe UI Symbol", "DejaVu Sans", serif;
-  font-size: 17px;
-  font-weight: 400;
-  line-height: 1;
+/* [Claude] — 2026-10-13 — Transposition sans libellé : ♭ 0 ♯ CENTRÉ dans « Lecture », le texte
+   d'état (« Transposé : +2 demi-tons ») à sa droite. Trois colonnes : vide · groupe · texte. Les
+   signes sont dessinés (SVG) : un caractère ♭/♯ dépend de la police et n'était pas centré dans
+   son carré (espace au-dessus). */
+:root[data-skin] #studio-tab .studio-transpose-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);   /* minmax : le texte ne décentre pas le groupe */
+  align-items: center;
+  column-gap: 10px;
 }
+:root[data-skin] #studio-tab .studio-transpose-row .studio-transpose-control { grid-column: 2; margin: 0; }
+:root[data-skin] #studio-tab .studio-transpose-row .studio-transpose-status {
+  grid-column: 3;
+  justify-self: start;
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.25;
+  white-space: normal;
+  overflow: visible;
+  min-width: 0;
+  max-width: 100%;
+  text-align: left;
+  color: var(--tr-secondary, var(--r-text-muted));
+}
+:root[data-skin] #studio-tab .studio-accidental-btn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  line-height: 0;
+}
+:root[data-skin] #studio-tab .studio-accidental-btn > svg { display: block; }
 /* La valeur entière reste lisible (« −12 ») : les petites flèches du champ numérique mangeaient la place. */
 :root[data-skin] #studio-tab #studio-transpose { width: 48px; padding: 0 2px; text-align: center; -moz-appearance: textfield; appearance: textfield; }
 :root[data-skin] #studio-tab #studio-transpose::-webkit-inner-spin-button,
 :root[data-skin] #studio-tab #studio-transpose::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* ========================================================================== *
+ *  [Claude] — 2026-10-13 — « Pistes séparées » repliable en rond (miroir de   *
+ *  « Musiques importées », vers le haut et vers la droite). Les tailles et     *
+ *  les déplacements sont animés en JS (studio-tab.js, applyStemsCollapsed).    *
+ * ========================================================================== */
+:root[data-skin] #studio-tab .studio-stems-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+:root[data-skin] #studio-tab .studio-stems-head .panel-title { margin: 0; }
+:root[data-skin] #studio-tab .studio-stems-section > .studio-stems-head { margin-bottom: 10px; }
+:root[data-skin] #studio-tab .studio-stems-collapse {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 7px;
+  border: 1px solid var(--tr-border, var(--r-border));
+  background: transparent;
+  color: var(--tr-secondary, var(--r-text-muted));
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+:root[data-skin='v2'] #studio-tab .studio-stems-collapse { border-radius: 50%; }
+:root[data-skin] #studio-tab .studio-stems-collapse:hover { color: var(--tr-text, var(--r-text)); border-color: color-mix(in srgb, var(--tr-accent, var(--r-accent)) 55%, var(--tr-border, var(--r-border))); }
+#studio-tab.stage-1 .studio-stems-collapse { display: none; }
+
+/* Le contenu s'efface d'abord au repli, revient après la place faite au déploiement */
+#studio-tab .studio-stems-section { position: relative; }
+#studio-tab .studio-stems-section > :not(.studio-stems-expand) { transition: opacity .22s ease .26s; }
+#studio-tab .studio-stems-section.is-collapsed > :not(.studio-stems-expand) {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transition: opacity .12s ease, visibility 0s linear .12s;
+}
+
+/* Replié : un rond de 46 px en haut à droite de la colonne */
+:root[data-skin] #studio-tab:not(.stage-0) .studio-sidebar.right.stems-collapsed { position: relative; justify-content: center; }
+:root[data-skin] #studio-tab:not(.stage-0) .studio-sidebar.right.stems-collapsed .studio-right-panel { flex: 0 0 auto; }
+:root[data-skin] #studio-tab:not(.stage-0) .studio-stems-section.is-collapsed {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 4;
+  flex: none;
+  width: 46px;
+  height: 46px;
+  min-height: 46px;
+  padding: 0;
+  border-radius: 23px;
+  overflow: visible;
+  box-shadow: 0 10px 24px -14px #000000b3;
+}
+#studio-tab .studio-stems-expand {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: inherit;
+  color: var(--tr-button-text, #221a32);
+  background: var(--tr-button, var(--r-accent));
+  opacity: 0;
+  transform: scale(.6);
+  pointer-events: none;
+  z-index: 3;
+  cursor: pointer;
+  transition: opacity .2s ease, transform .3s cubic-bezier(.2, .9, .3, 1.3);
+}
+#studio-tab .studio-stems-section.is-collapsed .studio-stems-expand {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+  transition: opacity .25s ease .3s, transform .35s cubic-bezier(.2, .9, .3, 1.3) .3s;
+}
+#studio-tab .studio-stems-section.is-collapsed .studio-stems-expand:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--tr-accent, var(--r-accent)) 25%, transparent);
+}
+#studio-tab .studio-stems-expand:focus-visible { outline: 2px solid var(--tr-accent, var(--r-accent)); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) {
+  #studio-tab .studio-stems-section > *, #studio-tab .studio-stems-expand { transition: none !important; }
+}
+
+/* Export : visible dans les deux habillages maintenant que ses boutons fonctionnent */
+:root[data-skin='v2'] #studio-tab:not(.stage-0) .studio-export-section {
+  display: block;
+  background: var(--r-surface);
+  border: 1px solid var(--r-border);
+  border-radius: 14px;
+  padding: 12px;
+}
+
+/* ========================================================================== *
+ *  [Claude] — 2026-10-13 — Mode enregistrement (bouton ● du lecteur).          *
+ *  Ne restent que : la vidéo, le lecteur (transport), le nom du fichier, le    *
+ *  nom et le logo de l'application. Le reste disparaît ; vidéo et lecteur      *
+ *  sont centrés. Classe posée sur <html> par studio-tab.js (setRecordingMode). *
+ * ========================================================================== */
+:root.studio-rec-mode .tr-app-header .tr-main-navigation,
+:root.studio-rec-mode .tr-app-header .tr-header-tools,
+:root.studio-rec-mode #keyboard-panel,
+:root.studio-rec-mode #studio-tab .studio-sidebar.left,
+:root.studio-rec-mode #studio-tab .studio-sidebar.right,
+:root.studio-rec-mode #studio-tab .studio-stems-bottom,
+:root.studio-rec-mode #studio-tab .studio-region-bar,
+:root.studio-rec-mode #studio-tab .studio-handle-rail,
+:root.studio-rec-mode #studio-tab .studio-waveform-wrap,
+:root.studio-rec-mode #studio-tab .studio-stage-overlay,
+:root.studio-rec-mode #studio-tab #studio-separate-btn-center,
+:root.studio-rec-mode .app-notify-root { display: none !important; }
+
+:root.studio-rec-mode[data-skin] #studio-tab {
+  display: flex !important;
+  justify-content: center;
+  align-items: stretch;
+  padding: 16px 24px 20px;
+}
+:root.studio-rec-mode[data-skin] #studio-tab .studio-center {
+  flex: 0 1 1280px;
+  width: 100%;
+  max-width: 1280px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+:root.studio-rec-mode[data-skin] #studio-tab .studio-player-wrap { flex: 1 1 auto; min-height: 0; max-height: none; }
+:root.studio-rec-mode[data-skin] #studio-tab .studio-controls { flex: 0 0 auto; }

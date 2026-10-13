@@ -1806,7 +1806,13 @@
             <!-- Section Pistes séparées (Global). En v2 cette section est déplacée
                  visuellement en bas de la zone centrale par studio-tab.js. -->
             <div class="studio-stems-section" id="studio-stems-section">
-              <div class="panel-title">Pistes séparées</div>
+              <!-- [Claude] — 2026-10-13 — Repliable comme « Musiques importées », en miroir : le panneau se
+                   réduit vers le haut et vers la droite en un rond ; Lecture et Export remontent. -->
+              <button type="button" class="studio-stems-expand" id="studio-stems-expand" title="Pistes séparées" aria-label="Afficher les pistes séparées"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg></button>
+              <div class="studio-stems-head">
+                <div class="panel-title">Pistes séparées</div>
+                <button type="button" class="studio-stems-collapse" id="studio-stems-collapse" title="Réduire le panneau" aria-label="Réduire le panneau Pistes séparées"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+              </div>
               <button id="studio-separate-btn" class="record-action">🎚 Séparer les pistes</button>
               <div class="studio-separate-status" id="studio-separate-status"></div>
               <div class="studio-stems-list" id="studio-stems-list"></div>
@@ -1824,11 +1830,12 @@
                    demi-ton — et marquent la différence avec le − / + du clavier MIDI. -->
               <div class="studio-rp-row studio-transpose-row">
                 <div class="studio-transpose-control" id="studio-transpose-control">
-                  <button id="studio-transpose-minus" class="studio-accidental-btn" type="button" title="Transposer le morceau d'un demi-ton plus bas" aria-label="Transposer le morceau d'un demi-ton plus bas (bémol)">♭</button>
+                  <button id="studio-transpose-minus" class="studio-accidental-btn" type="button" title="Transposer le morceau d'un demi-ton plus bas" aria-label="Transposer le morceau d'un demi-ton plus bas (bémol)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 3.5v17"/><path d="M9.5 20.5c4.6-1.6 7.2-4.2 7.2-7 0-2.6-2.9-3.6-7.2-.2"/></svg></button>
                   <input type="number" id="studio-transpose" value="0" min="-12" max="12" step="1" title="Transposition du morceau, en demi-tons" aria-label="Transposition du morceau, en demi-tons" />
-                  <button id="studio-transpose-plus" class="studio-accidental-btn" type="button" title="Transposer le morceau d'un demi-ton plus haut" aria-label="Transposer le morceau d'un demi-ton plus haut (dièse)">♯</button>
-                  <span id="studio-transpose-status" class="studio-transpose-status"></span>
+                  <button id="studio-transpose-plus" class="studio-accidental-btn" type="button" title="Transposer le morceau d'un demi-ton plus haut" aria-label="Transposer le morceau d'un demi-ton plus haut (dièse)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" aria-hidden="true"><path d="M10 4.5v15.5M15 4v15.5" stroke-width="1.8"/><path d="M6 10.6 19 8.4M6 16.6 19 14.4" stroke-width="2.7"/></svg></button>
                 </div>
+                <!-- Le texte d'état est à droite, hors du groupe ♭ 0 ♯, qui reste centré. -->
+                <span id="studio-transpose-status" class="studio-transpose-status"></span>
               </div>
               <label class="studio-rp-row studio-volume-label" id="studio-master-volume-label" title="Volume général (dB)">
                 <span class="studio-rp-label">Volume</span>
@@ -1836,8 +1843,8 @@
                 <span id="studio-volume-label">0 dB</span>
               </label>
               <!-- [Claude] — 2026-10-13 — « Boucler la région » n'était clair que pour qui connaît le mot. -->
-              <label class="studio-rp-row studio-loop-row" title="Arrivée à la fin de la région, la lecture repart à son début">
-                <span class="studio-rp-label">Lire la région en boucle</span>
+              <label class="studio-rp-row studio-loop-row" title="Arrivée à la fin de la piste, la lecture repart à son début">
+                <span class="studio-rp-label">Lire la piste en boucle</span>
                 <input type="checkbox" id="studio-loop-region" />
               </label>
               </div>
@@ -1853,8 +1860,10 @@
                pistes séparées, transposition, volume, lecture en boucle). « Export » est gardé. -->
           <details class="studio-export-section studio-foldable" id="studio-export-section">
             <summary class="studio-rp-title studio-foldable-summary">Export</summary>
-            <button type="button" class="studio-placeholder-btn" id="studio-export-wav-btn" disabled>Exporter WAV</button>
-            <button type="button" class="studio-placeholder-btn" id="studio-export-midi-btn" disabled>Exporter MIDI</button>
+            <!-- [Claude] — 2026-10-13 — Branchés (src/ui/studio-export.js) : le mixage tel qu'on l'entend
+                 (volumes, muet / solo, transposition) en WAV ; la piste piano transcrite en MIDI. -->
+            <button type="button" class="studio-placeholder-btn studio-export-btn" id="studio-export-wav-btn" disabled title="Enregistrer le mixage tel que vous l'entendez (volumes, pistes coupées, transposition) en fichier WAV">Exporter le mixage (WAV)</button>
+            <button type="button" class="studio-placeholder-btn studio-export-btn" id="studio-export-midi-btn" disabled title="Transcrire les notes de la piste piano et les enregistrer en fichier MIDI">Exporter le piano (MIDI)</button>
           </details>
         </aside>
       </main>

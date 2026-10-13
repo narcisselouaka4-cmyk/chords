@@ -85,3 +85,29 @@ Note : appeler `loadTrack` par `import('/ui/studio-tab.js')` charge une SECONDE 
   demi-ton plus bas) et **♯** (un demi-ton plus haut) : ils disent ce qu'ils font et se distinguent du
   − / + du clavier MIDI. Infobulles et noms accessibles complets. Valeur centrée et lisible (les
   flèches du champ numérique rognaient « −1 ») ; « −1 demi-ton » au singulier.
+
+## Suite du 13/10 (Narcisse) — Pistes séparées, ♭ 0 ♯, export, mode enregistrement
+- **Pistes séparées repliables** en miroir de Musiques importées : bouton › dans l'en-tête ; replié =
+  rond de 46 px (icône de console) en haut à droite ; « Lecture » et « Export » remontent vers le
+  milieu de la colonne. Animation FLIP (studio-tab.js `applyStemsCollapsed`) : taille du panneau et
+  déplacement des deux blocs animés, contenu effacé d'abord. Choix gardé (`pjc.studio.stemsCollapsed`).
+- **♭ 0 ♯** : signes dessinés en SVG (le caractère ♭/♯ dépendait de la police et laissait un espace
+  au-dessus), groupe centré dans « Lecture » (grille minmax(0,1fr) · auto · minmax(0,1fr)), texte
+  d'état à droite (« −1 demi‑ton », trait d'union insécable).
+- « Lire la région en boucle » → **« Lire la piste en boucle »**.
+- **Export branché** (`ui/studio-export.js`, testé 13/13) :
+  - « Exporter le mixage (WAV) » : pistes séparées avec leurs réglages (volume, muet, solo, volume
+    général) et la transposition, rendues hors temps réel (OfflineAudioContext + SoundTouch) ; sans
+    pistes, la région du morceau d'origine. Vérifié dans le banc d'essai : fichier écrit, son non
+    silencieux, transposition +2 réellement appliquée (rapport des passages par zéro 1,1227 = 2^(2/12)).
+  - « Exporter le piano (MIDI) » : la piste piano transcrite par `pedagogie:transcribe-piano`
+    (piano-transcriber.py, même moteur que Pédagogie IA), décalée de la transposition, pédale
+    comprise ; sans séparation, le son de la région. Si les modules Python manquent, la notification
+    le dit.
+  - Export visible aussi en Scène (il y était masqué).
+- **Mode enregistrement** (bouton ● du lecteur, dès le compte à rebours) : classe `studio-rec-mode`
+  sur `<html>` ; ne restent que la vidéo, le lecteur, le nom du fichier, le nom et le logo de
+  l'application, centrés. Masqués : onglets, thème, réglages, clavier MIDI, panneaux, pistes, Lecture,
+  Export, boutons de région, forme d'onde, notifications. Tout revient à l'arrêt (ou si la capture
+  échoue).
+- **Non vérifié** : la vraie capture d'écran (Electron) et la vraie transcription (modules Python).
