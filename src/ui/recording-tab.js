@@ -6,6 +6,8 @@ import {
   deleteSession,
   renameSession,
 } from '../recorder/session-manager.js';
+import { appConfirm } from './components/app-dialog.js';
+import { notify } from './components/app-notify.js';
 import { createRecorder } from '../recorder/recorder.js';
 import { buildMidiFile } from '../recorder/serializer.js';
 import { createPlayer } from '../recorder/player.js';
@@ -751,13 +753,18 @@ function renderSessionList(sessions, { total = 0, query = '' } = {}) {
         setTimeout(() => { button.innerHTML = ICON_EXPORT; button.title = 'Exporter en fichier MIDI (.mid)'; }, 1800);
       } catch (err) {
         console.error('[Sessions MIDI] Export MIDI impossible', err);
-        alert(`L'export MIDI n'a pas abouti : ${err?.message || err}`);
+        notify({ id: 'session-export', tone: 'error', title: 'L\'export MIDI n\'a pas abouti', message: String(err?.message || err), duration: 10000 });
       }
     });
 
     item.querySelector('[data-action="delete"]')?.addEventListener('click', async (e) => {
       e.stopPropagation(); // garde le tiroir ouvert après une suppression
-      if (confirm(`Supprimer la session "${session.name}" ?`)) {
+      if (await appConfirm({
+        title: `Supprimer la session « ${session.name} » ?`,
+        message: 'Ses notes enregistrées seront effacées.',
+        confirmLabel: 'Supprimer',
+        danger: true,
+      })) {
         await deleteSession(session.id);
         if (currentSession?.id === session.id) {
           currentSession = null;

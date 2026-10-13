@@ -49,6 +49,7 @@
 //     s'affichent que si ce tuto est ouvert. Un seul relevé tourne à la fois.
 
 import { buildVideoAnalysis, buildAudioOnlyAnalysis } from '../pedagogie/video-analysis.js';
+import { appConfirm } from './components/app-dialog.js';
 import { explainUnrecognised } from '../pedagogie/format-detector.js';
 import { crossCheck } from '../pedagogie/cross-check.js';
 import { normalizeAnalyzerChords } from '../pedagogie/audio-fallback.js';
@@ -701,7 +702,12 @@ async function removeTutorial(tut) {
     importNotice('Ce tutoriel est en cours d\'analyse : attends la fin avant de le supprimer.', 'error');
     return;
   }
-  if (!window.confirm(`Supprimer « ${tutorialTitle(tut.path)} » de la bibliothèque ?\nLa vidéo copiée et son analyse seront effacées.`)) return;
+  if (!await appConfirm({
+    title: `Supprimer « ${tutorialTitle(tut.path)} » de la bibliothèque ?`,
+    message: 'La vidéo copiée et son analyse seront effacées.',
+    confirmLabel: 'Supprimer',
+    danger: true,
+  })) return;
   try {
     await deleteTutorialFile(tut.path);
     const mem = await getMemory();

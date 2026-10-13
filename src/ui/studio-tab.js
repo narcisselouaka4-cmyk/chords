@@ -1419,7 +1419,7 @@ async function importFile() {
 
     if (!isSupportedFormat(filePath)) {
       setStatus('Format non supporté');
-      alert(`Format non supporté\n\nFormats acceptés : ${SUPPORTED_FORMATS.join(', ').toUpperCase()}`);
+      notify({ id: 'studio-format', tone: 'error', title: 'Format non supporté', message: `Formats acceptés : ${SUPPORTED_FORMATS.join(', ').toUpperCase()}`, duration: 10000 });
       return;
     }
 

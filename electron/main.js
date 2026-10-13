@@ -103,6 +103,7 @@ function createWindow() {
   // lancement, même en développement. Ils restent accessibles via le
   // raccourci clavier standard (Ctrl+Shift+I / Cmd+Option+I).
 
+  let closePromptOpen = false;
   mainWindow.on('close', async (e) => {
     try {
       const dirty = await mainWindow.webContents.executeJavaScript('window.__projectDirty || false');
@@ -111,23 +112,40 @@ function createWindow() {
       return; // renderer not ready
     }
     e.preventDefault();
-    const result = await dialog.showMessageBox(mainWindow, {
-      type: 'question',
-      buttons: ['Enregistrer', 'Ignorer', 'Annuler la fermeture'],
-      defaultId: 0,
-      cancelId: 2,
-      title: 'Modifications non enregistrées',
-      message: 'Des modifications d\'accords n\'ont pas été enregistrées.',
-      detail: 'Les corrections manuelles seront perdues si vous ne les enregistrez pas.',
-    });
-    if (result.response === 0) {
+    // [Claude] — 2026-10-13 — La question est posée par l'application (window.__askBeforeClose,
+    // src/ui/analyzer-tab.js), aux couleurs du thème, et non plus par une fenêtre du système.
+    // Un second clic sur « fermer » pendant qu'elle est ouverte est ignoré.
+    if (closePromptOpen) return;
+    closePromptOpen = true;
+    let answer = null;
+    try {
+      answer = await mainWindow.webContents.executeJavaScript('window.__askBeforeClose ? window.__askBeforeClose() : null');
+    } catch (askErr) {
+      console.error('[Main] close prompt failed:', askErr);
+    } finally {
+      closePromptOpen = false;
+    }
+    if (answer == null) {
+      // Interface hors d'état de répondre : dernier recours, la fenêtre du système.
+      const result = await dialog.showMessageBox(mainWindow, {
+        type: 'question',
+        buttons: ['Enregistrer', 'Ignorer', 'Annuler la fermeture'],
+        defaultId: 0,
+        cancelId: 2,
+        title: 'Modifications non enregistrées',
+        message: 'Des modifications d\'accords n\'ont pas été enregistrées.',
+        detail: 'Les corrections manuelles seront perdues si vous ne les enregistrez pas.',
+      });
+      answer = ['save', 'discard', 'cancel'][result.response];
+    }
+    if (answer === 'save') {
       try {
         await mainWindow.webContents.executeJavaScript('window.__saveProjectBeforeClose()');
       } catch (saveErr) {
         console.error('[Main] save before close failed:', saveErr);
       }
       mainWindow.destroy();
-    } else if (result.response === 1) {
+    } else if (answer === 'discard') {
       mainWindow.destroy();
     }
   });

@@ -28,6 +28,8 @@ import {
   BACK_SECONDS, exampleSeconds, videoTimeAt, markerAt, markerNote, markerSpans, timeLabel,
 } from './example-transport.js';
 import { createSpeedMenu, setSpeedMenuValue, clampSpeed } from '../ui/components/speed-menu.js';
+import { appConfirm } from '../ui/components/app-dialog.js';
+import { notify } from '../ui/components/app-notify.js';
 
 const els = {};
 let currentTutorialPath = null;
@@ -1272,7 +1274,12 @@ async function renderHistoryList() {
 
 async function deleteHistoryItem(conversationId, label, btn) {
   const displayLabel = label || 'cette conversation';
-  if (!confirm(`Supprimer ${displayLabel} ? Cette action est irréversible.`)) return;
+  if (!await appConfirm({
+    title: `Supprimer ${displayLabel} ?`,
+    message: 'Cette action est irréversible.',
+    confirmLabel: 'Supprimer',
+    danger: true,
+  })) return;
   if (btn) {
     btn.disabled = true;
     btn.dataset.originalHtml = btn.innerHTML;
@@ -1285,7 +1292,7 @@ async function deleteHistoryItem(conversationId, label, btn) {
   }
   if (!ok) {
     console.warn('[Copilot] La suppression de la conversation a échoué :', conversationId);
-    alert('La suppression a échoué. Vérifiez que le fichier n\'est pas ouvert ailleurs.');
+    notify({ id: 'copilot-delete', tone: 'error', title: 'La suppression a échoué', message: 'Vérifiez que le fichier n\'est pas ouvert ailleurs.' });
     return;
   }
   if (conversationId === currentConversationId) {
@@ -1305,13 +1312,18 @@ async function onDeleteEmptyConversations() {
     if (!messages || messages.length === 0) emptyItems.push(item);
   }
   if (emptyItems.length === 0) {
-    alert('Aucune conversation vide à supprimer.');
+    notify({ id: 'copilot-delete', tone: 'info', title: 'Aucune conversation vide à supprimer' });
     return;
   }
   const label = emptyItems.length === 1
     ? '1 conversation vide'
     : `${emptyItems.length} conversations vides`;
-  if (!confirm(`Supprimer ${label} ? Cette action est irréversible.`)) return;
+  if (!await appConfirm({
+    title: `Supprimer ${label} ?`,
+    message: 'Cette action est irréversible.',
+    confirmLabel: 'Supprimer',
+    danger: true,
+  })) return;
 
   // Si la conversation courante est vide, on la décharge avant suppression.
   const currentIsEmpty = emptyItems.some((item) => item.conversationId === currentConversationId);
@@ -1324,7 +1336,7 @@ async function onDeleteEmptyConversations() {
   const removed = await deleteEmptyConversations();
   await renderHistoryList();
   if (removed === 0) {
-    alert('La suppression a échoué. Vérifiez que les fichiers ne sont pas ouverts ailleurs.');
+    notify({ id: 'copilot-delete', tone: 'error', title: 'La suppression a échoué', message: 'Vérifiez que les fichiers ne sont pas ouverts ailleurs.' });
   }
 }
 

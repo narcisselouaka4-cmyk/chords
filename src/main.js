@@ -26,6 +26,7 @@ import { createNoteGrouper, isGraceNote, chordNotesWithHeld } from './note-group
 import { initAnalyzerTab } from './ui/analyzer-tab.js';
 import { mountChromaStages } from './ui/components/loader-chroma.js';
 import { attachListSearch } from './ui/components/list-search.js';
+import { appConfirm } from './ui/components/app-dialog.js';
 import { initAccentTheme, savedAccent } from './ui/accent-theme.js';
 import { initStudioTab } from './ui/studio-tab.js';
 // [Claude 05/09] — Coach d'accompagnement au chant : vue sœur de Sessions MIDI
@@ -1851,19 +1852,26 @@ function initPracticeExercise() {
     modeButtons.forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
   }
 
-  function maybeConfirmReset() {
+  // [Claude] — 2026-10-13 — La question est posée par l'application (appConfirm), et non plus
+  // par une fenêtre du système (confirm) : même aspect sur tous les PC.
+  async function maybeConfirmReset(restart = false) {
     const cur = practiceExercise.getState();
     if (cur.score > 0 || cur.attempts > 0) {
-      return confirm('Recommencer ? Votre progression sur cet exercice sera perdue.');
+      return appConfirm({
+        title: restart ? 'Recommencer l\'exercice ?' : 'Changer d\'exercice ?',
+        message: 'Votre progression sur cet exercice (score et essais) sera perdue.',
+        confirmLabel: restart ? 'Recommencer' : 'Changer d\'exercice',
+        cancelLabel: 'Continuer l\'exercice',
+      });
     }
     return true;
   }
 
   modeButtons.forEach((btn) => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       // Ne pas perdre la progression en cours sur un clic accidentel :
       // si l'exercice courant a déjà été joué, demander confirmation.
-      if (!maybeConfirmReset()) return;
+      if (!await maybeConfirmReset(btn.dataset.mode === practiceExercise.getState().mode)) return;
       setModeButtonActive(btn.dataset.mode);
       practiceExercise.setMode(btn.dataset.mode);
       feedbackDiv.textContent = '';
@@ -2078,17 +2086,17 @@ function initPracticeExercise() {
   }
 
   /** Passe en mode Mouvement si besoin (après confirmation si un exercice est en cours). */
-  function ensureMovementMode() {
+  async function ensureMovementMode() {
     if (practiceExercise.getState().mode === 'movement') return true;
-    if (!maybeConfirmReset()) return false;
+    if (!await maybeConfirmReset()) return false;
     practiceExercise.setMode('movement');
     setModeButtonActive('movement');
     return true;
   }
 
-  function selectLibraryCard(item) {
+  async function selectLibraryCard(item) {
     demoPlayer.stop();
-    if (!ensureMovementMode()) return;
+    if (!await ensureMovementMode()) return;
     if (item.grid) practiceExercise.setCustomGrid(item.grid.chords, { name: item.grid.name });
     else practiceExercise.setContentChoice(item.name);
     closeLibrary();
@@ -2318,13 +2326,13 @@ function initPracticeExercise() {
   renderGridTopOptions();
   renderGridChips();
 
-  els.exerciseGridForm?.addEventListener('submit', (e) => {
+  els.exerciseGridForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (gridChords.length === 0) {
       els.exerciseGridRoot?.focus();
       return;
     }
-    if (practiceExercise.getState().mode !== 'movement' && !maybeConfirmReset()) return;
+    if (practiceExercise.getState().mode !== 'movement' && !await maybeConfirmReset()) return;
     const name = els.exerciseGridName?.value.trim() || null;
     practiceExercise.setCustomGrid(gridChords.map((c) => ({ name: gridChordName(c), top: c.top })), { name });
     setModeButtonActive('movement');

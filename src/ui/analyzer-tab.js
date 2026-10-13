@@ -61,6 +61,15 @@ import './reharmonization-view.css';
 import { playNote, releaseNote, resumeAudio } from '../audio/simple-synth.js';
 import { buildFileContextText } from './file-context.js';
 import { listTracks, loadMetadata, getOriginalPath, importToLibrary, renameTrack, deleteTrack } from './media-library.js';
+import { appConfirm, appDialog } from './components/app-dialog.js';
+import { notify } from './components/app-notify.js';
+
+// [Claude] — 2026-10-13 — Messages d'erreur dans la notification de l'application, et non plus
+// dans une fenêtre du système (alert).
+function notifyError(text) {
+  const [title, ...rest] = String(text).split(/\s*(?: : |\n\n)\s*/);
+  notify({ id: 'analyzer-error', tone: 'error', title, message: rest.join(' : '), duration: 10000 });
+}
 
 // [Refonte Astra Analyse 12/09] — icônes du transport (Lucide recopiées en SVG
 // inline : aucune dépendance ajoutée).
@@ -542,7 +551,7 @@ async function promptRenameTrack(track, currentName) {
     await refreshLibraryList();
   } catch (err) {
     console.error('[Analyzer] rename failed:', err);
-    alert(`Erreur lors du renommage : ${err.message}`);
+    notifyError(`Erreur lors du renommage : ${err.message}`);
   }
 }
 
@@ -554,7 +563,7 @@ async function confirmDeleteTrack(track, displayName) {
     await refreshLibraryList();
   } catch (err) {
     console.error('[Analyzer] delete failed:', err);
-    alert(`Erreur lors de la suppression : ${err.message}`);
+    notifyError(`Erreur lors de la suppression : ${err.message}`);
   }
 }
 
@@ -710,14 +719,14 @@ async function handleImportClick() {
 
     // Validation défensive : refuser un format qui aurait contourné le filtre natif.
     if (!isAudioFile(filePath) && !isVideoFile(filePath) && inferSourceType(filePath) !== 'midi') {
-      alert('Format non supporté. Formats acceptés : MP3, WAV, M4A, MP4, MIDI.');
+      notifyError('Format non supporté\n\nFormats acceptés : MP3, WAV, M4A, MP4, MIDI.');
       return;
     }
 
     loadAnalysisSource(inferSourceType(filePath, 'audio'), filePath);
   } catch (err) {
     console.error('[Analyzer] import failed:', err);
-    alert(`Erreur d'import : ${err.message}`);
+    notifyError(`Erreur d'import : ${err.message}`);
   }
 }
 
@@ -730,13 +739,13 @@ async function analyzeLibraryTrack(track) {
   try {
     const originalPath = await getOriginalPath(track.id);
     if (!originalPath) {
-      alert('Fichier original introuvable.');
+      notifyError('Fichier original introuvable.');
       return;
     }
     // Gestion propre des entrées orphelines (fichier supprimé).
     const exists = await window.electronAPI?.files?.exists?.(originalPath);
     if (exists === false) {
-      alert('Fichier introuvable dans la bibliothèque. Réimportez-le.');
+      notifyError('Fichier introuvable dans la bibliothèque. Réimportez-le.');
       return;
     }
     const name = track.metadata?.name || track.id;
@@ -745,7 +754,7 @@ async function analyzeLibraryTrack(track) {
     loadAnalysisSource(sourceType, originalPath, name);
   } catch (err) {
     console.error('[Analyzer] library track load failed:', err);
-    alert(`Erreur de chargement : ${err.message}`);
+    notifyError(`Erreur de chargement : ${err.message}`);
   }
 }
 
@@ -838,11 +847,12 @@ async function restoreSavedAnalysis(filePath) {
 async function reanalyzeCurrentTrack() {
   if (!currentAudioPath) return;
   const hasEdits = (currentAnalysis?.chords || []).some((seg) => seg.manualOverride);
-  if (hasEdits && !window.confirm(
-    'Relancer l’analyse va recalculer tous les accords. '
-    + 'Vos corrections manuelles seront réappliquées quand le segment correspondant existe encore, '
-    + 'et conservées de côté sinon. Continuer ?',
-  )) return;
+  if (hasEdits && !await appConfirm({
+    title: 'Relancer l’analyse ?',
+    message: 'Tous les accords vont être recalculés. Vos corrections manuelles seront '
+      + 'réappliquées quand le segment correspondant existe encore, et conservées de côté sinon.',
+    confirmLabel: 'Relancer l’analyse',
+  })) return;
   await launchAnalysisFromPrepare();
 }
 
@@ -902,7 +912,7 @@ async function launchAnalysisFromPrepare() {
   } catch (err) {
     console.error('[Analyzer] analysis failed:', err);
     hideProcessing();
-    alert(`Erreur d'analyse : ${err.message}`);
+    notifyError(`Erreur d'analyse : ${err.message}`);
   } finally {
     analysisRunning = false;
     setAnalysisControlsDisabled(false);
@@ -1669,7 +1679,7 @@ function initTimelineZoom() {
 async function handleExportMidi() {
   if (!currentAnalysis) return;
   if (!window.electronAPI?.files?.saveDialog || !window.electronAPI?.files?.writeBinary) {
-    alert('Export MIDI non disponible dans cet environnement.');
+    notifyError('Export MIDI non disponible dans cet environnement.');
     return;
   }
 
@@ -1681,7 +1691,7 @@ async function handleExportMidi() {
 
   const midiBytes = exportAnalysisToMidi(currentAnalysis);
   if (!midiBytes) {
-    alert('Aucune donnée à exporter.');
+    notifyError('Aucune donnée à exporter.');
     return;
   }
   await window.electronAPI.files.writeBinary(filePath, midiBytes);
@@ -1693,7 +1703,7 @@ async function handleExportMidi() {
 async function handleExportJson() {
   if (!currentAnalysis) return;
   if (!window.electronAPI?.files?.saveDialog || !window.electronAPI?.files?.writeFile) {
-    alert('Export JSON non disponible dans cet environnement.');
+    notifyError('Export JSON non disponible dans cet environnement.');
     return;
   }
 
@@ -2031,6 +2041,24 @@ function buildAudioIdentity(audioPath, analysis, stat) {
 window.__projectDirty = false;
 window.__saveProjectBeforeClose = async function () {
   await saveProject();
+};
+
+// [Claude] — 2026-10-13 — Question posée à la fermeture quand des corrections ne sont pas
+// enregistrées. Avant, electron/main.js ouvrait une fenêtre du système (dialog.showMessageBox) ;
+// la question est maintenant dessinée par l'application. Réponse : 'save' | 'discard' | 'cancel'.
+window.__askBeforeClose = function () {
+  return appDialog({
+    title: 'Modifications non enregistrées',
+    message: 'Des modifications d’accords n’ont pas été enregistrées.',
+    detail: 'Les corrections manuelles seront perdues si vous ne les enregistrez pas.',
+    tone: 'question',
+    cancelId: 'cancel',
+    buttons: [
+      { id: 'cancel', label: 'Annuler' },
+      { id: 'discard', label: 'Ne pas enregistrer' },
+      { id: 'save', label: 'Enregistrer', primary: true },
+    ],
+  });
 };
 
 function renderStats(analysis) {
