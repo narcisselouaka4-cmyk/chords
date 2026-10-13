@@ -63,8 +63,13 @@ Le module Studio suit **obligatoirement** un workflow de 4 étapes.
   morceau déjà importé. *(changé le 02/10/2026 : auparavant, la liste
   « Morceaux importés » occupait seule le centre de l'écran en grand ; elle
   demandait de choisir avant d'avoir dit à quoi sert l'onglet.)*
-- La liste reste à un clic, dans le tiroir « Musiques importées » ouvert depuis
-  la barre du haut (classe `.library-open` sur `#studio-tab`).
+- *(changé le 13/10/2026)* La barre du haut (« Musiques importées » / « Importer un fichier ») est
+  retirée : elle doublonnait les deux boutons du milieu. « Reprendre un morceau importé » ouvre la
+  **roue des morceaux** (`src/ui/components/track-wheel.{js,css}`, classe `.wheel-open` sur
+  `#studio-tab`) : les titres en demi-cercle qu'on fait glisser (souris, molette, ↑ ↓), avec une
+  recherche à côté, un déploiement en éventail à l'ouverture, et le morceau choisi à 3 h
+  (Ouvrir / Renommer / Supprimer). Sans bouton d'import dans la roue. Une fois un morceau chargé,
+  la liste redevient le panneau « Musiques importées » de gauche (autre animation).
 - Vidéo, waveform, contrôles, stems sont masqués.
 
 ### Étape 1 : Ciblage
@@ -216,7 +221,9 @@ La boucle `requestAnimationFrame` qui modifiait `video.playbackRate` causait un 
   (`:root[data-skin] #studio-tab.stage-0 { grid-template-rows: auto minmax(0,1fr) }`) :
   le bloc de skin plus haut dans `studio.css` impose `minmax(0,1fr)` avec une
   spécificité supérieure, d'où le `:root[data-skin]` en préfixe.
-- L'Étape 0 affiche uniquement la liste des morceaux importés, centrée en grand.
+- Pistes séparées repliées en rond : « Lecture » et « Export » descendent en bas de la colonne de
+  droite (au niveau du lecteur) et la colonne centrale se recentre dans la page sans changer de
+  taille ; Atelier et Scène ont les mêmes colonnes (même largeur de vidéo).
 
 
 ### Stems
@@ -254,8 +261,9 @@ On ne redemande validation que pour les choix architecturaux majeurs ou irréver
 
 À valider après chaque modification audio majeure :
 1. Arriver dans l'onglet Studio sans track → l'accueil apparaît (disque, titre,
-   deux actions, quatre repères) ; « Musiques importées » ouvre le tiroir de la
-   liste et un clic en dehors le referme.
+   deux actions, quatre repères, pas de barre en haut à gauche) ; « Reprendre un
+   morceau importé » déploie la roue des morceaux (glisser, molette, recherche,
+   Échap ou « Retour » pour revenir à l'accueil).
 2. Cliquer un morceau → déploiement de l'interface (vidéo, waveform, contrôles).
 3. Importer un MP3 → Étape 1 → Play → son sort.
 4. Importer un MP4/M4A → image + son synchronisés, pas de freeze à 2s, pas de bruit sourd.

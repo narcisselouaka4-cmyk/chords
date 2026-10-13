@@ -22,6 +22,7 @@ import { buildFileContextText } from './file-context.js';
 import { applyStudioSidebarState } from './studio-view-state.js';
 import { getSkin } from './refonte/skin-manager.js';
 import { notify } from './components/app-notify.js';
+import { createTrackWheel } from './components/track-wheel.js';
 import { effectiveGain, encodeWav, transcriptionToEvents, exportFileName, renderMix } from './studio-export.js';
 import { buildMidiFile } from '../recorder/serializer.js';
 
@@ -115,9 +116,7 @@ const els = {
   importBtn: document.getElementById('studio-import-btn'),
   trackList: document.getElementById('studio-track-list'),
   // [Refonte Studio 02/10] — écran d'accueil de l'étape 0.
-  homeLibraryBtn: document.getElementById('studio-home-library-btn'),
-  homeImportBtn: document.getElementById('studio-home-import-btn'),
-  homeCount: document.getElementById('studio-home-count'),
+  wheelRoot: document.getElementById('studio-wheel'),
   heroImportBtn: document.getElementById('studio-hero-import-btn'),
   heroLibraryBtn: document.getElementById('studio-hero-library-btn'),
   studioCenter: document.querySelector('.studio-center'),
@@ -254,40 +253,39 @@ export function initStudioTab() {
 }
 
 // [Refonte Studio 02/10] — Écran d'accueil de l'étape 0.
-// Le tiroir « Musiques importées » réutilise le panneau de gauche existant :
-// c'est le MÊME #studio-track-list, simplement affiché en tiroir tant qu'aucun
-// morceau n'est choisi. Rien n'est dupliqué, donc rien ne peut diverger.
-function setStudioLibraryOpen(open) {
+// [Claude] — 2026-10-13 — « Reprendre un morceau importé » ouvre la ROUE des morceaux (track-wheel.js) :
+// les titres en demi-cercle, qu'on fait glisser, avec une recherche à côté. Elle ne sert qu'à l'étape 0 ;
+// une fois un morceau chargé, la liste est le panneau « Musiques importées » de gauche (autre animation).
+// Les deux barres du haut (« Musiques importées », « Importer un fichier ») sont retirées : elles
+// doublonnaient les deux boutons du milieu.
+let trackWheel = null;
+let wheelItems = [];
+
+function setStudioLibraryOpen(open, { immediate = false } = {}) {
   const tab = document.getElementById('studio-tab');
-  if (!tab) return;
-  tab.classList.toggle('library-open', open);
-  els.homeLibraryBtn?.setAttribute('aria-expanded', String(open));
+  if (!tab || !trackWheel) return;
+  if (open && studioStage !== 0) return;
+  tab.classList.toggle('wheel-open', open);
+  els.heroLibraryBtn?.setAttribute('aria-expanded', String(open));
+  if (open) trackWheel.open(wheelItems); else trackWheel.close({ immediate });
 }
 
 function bindStudioHome() {
-  const openImport = () => importFile();
-  els.homeImportBtn?.addEventListener('click', openImport);
-  els.heroImportBtn?.addEventListener('click', openImport);
+  els.heroImportBtn?.addEventListener('click', () => importFile());
 
-  const toggleLibrary = () => {
-    const tab = document.getElementById('studio-tab');
-    setStudioLibraryOpen(!tab?.classList.contains('library-open'));
-  };
-  els.homeLibraryBtn?.addEventListener('click', toggleLibrary);
-  els.heroLibraryBtn?.addEventListener('click', toggleLibrary);
-
-  // Un clic en dehors du tiroir le referme : ouvert, il masque une partie de
-  // l'écran d'accueil, et on n'a pas envie de chercher comment s'en sortir.
-  document.addEventListener('click', (e) => {
-    const tab = document.getElementById('studio-tab');
-    if (!tab?.classList.contains('library-open')) return;
-    if (e.target.closest('#studio-sidebar-left')) return;
-    if (e.target.closest('#studio-home-library-btn, #studio-hero-library-btn')) return;
-    setStudioLibraryOpen(false);
+  trackWheel = createTrackWheel({
+    root: els.wheelRoot,
+    onOpen: (id) => { setStudioLibraryOpen(false, { immediate: true }); loadTrack(id); },
+    onRename: (id, title) => handleRenameTrack(id, title),
+    onDelete: (id, title) => handleDeleteTrack(id, title),
+    onClose: () => setStudioLibraryOpen(false),
   });
+  els.heroLibraryBtn?.setAttribute('aria-controls', 'studio-wheel');
+  els.heroLibraryBtn?.setAttribute('aria-expanded', 'false');
+  els.heroLibraryBtn?.addEventListener('click', () => setStudioLibraryOpen(!trackWheel?.isOpen()));
 
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') setStudioLibraryOpen(false);
+    if (e.key === 'Escape' && trackWheel?.isOpen()) setStudioLibraryOpen(false);
   });
 }
 
@@ -458,9 +456,12 @@ function applyStemsCollapsed(collapsed, animate = true) {
     sidebar.querySelector('.studio-export-section'),
   ].filter(Boolean);
   const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  const before = animate && !reduce ? new Map([section, ...movers].map((el) => [el, el.getBoundingClientRect()])) : null;
+  const tab = document.getElementById('studio-tab');
+  const center = els.studioCenter;
+  const before = animate && !reduce ? new Map([section, ...movers, center].filter(Boolean).map((el) => [el, el.getBoundingClientRect()])) : null;
   section.classList.toggle('is-collapsed', collapsed);
   sidebar.classList.toggle('stems-collapsed', collapsed);
+  tab?.classList.toggle('stems-collapsed', collapsed);
   document.getElementById('studio-stems-expand')?.setAttribute('tabindex', collapsed ? '0' : '-1');
   if (!before) return;
   const a = before.get(section);
@@ -470,6 +471,20 @@ function applyStemsCollapsed(collapsed, animate = true) {
       { width: `${a.width}px`, height: `${a.height}px`, transform: `translate(${a.right - b.right}px, ${a.top - b.top}px)`, borderRadius: collapsed ? '14px' : '23px' },
       { width: `${b.width}px`, height: `${b.height}px`, transform: 'none', borderRadius: collapsed ? '23px' : '14px' },
     ], { duration: 500, easing: FLIP_EASE });
+  }
+  // La colonne centrale (vidéo, onde, lecteur) glisse vers le milieu de la page — ou en revient —, et
+  // retrouve sa largeur si elle change (bibliothèque repliée) ; la forme d'onde est redessinée à la fin.
+  const c0 = center && before.get(center);
+  if (c0) {
+    const c1 = center.getBoundingClientRect();
+    const dx = c0.left - c1.left;
+    if (Math.abs(dx) > 1 || Math.abs(c0.width - c1.width) > 1) {
+      center.animate([
+        { width: `${c0.width}px`, transform: `translateX(${dx}px)` },
+        { width: `${c1.width}px`, transform: 'none' },
+      ], { duration: 500, easing: FLIP_EASE });
+    }
+    setTimeout(() => { if (waveformData) renderWaveform(); }, 560);
   }
   for (const el of movers) {
     const f = before.get(el);
@@ -1512,10 +1527,22 @@ async function refreshTrackList() {
   }
 }
 
+/** Texte (sans HTML) de la ligne de détail d'un morceau : format et durée, ou nom du fichier source s'il a changé. */
+function trackMetaText(track) {
+  const metadata = track.metadata || {};
+  const displayName = metadata.name || track.id;
+  const source = metadata.sourcePath ? metadata.sourcePath.split('/').pop() || metadata.sourcePath.split('\\').pop() : track.id;
+  const ext = metadata.sourcePath ? getFileExtension(metadata.sourcePath).toUpperCase() : '';
+  const duration = formatDuration(metadata.duration || 0);
+  return source && source !== displayName ? `${source} · ${duration}` : `${ext ? `${ext} · ` : ''}${duration}`;
+}
+
 function renderTrackList(tracks) {
   setTimeout(updateCollapseCount, 0);
+  // La roue de l'accueil (étape 0) montre les mêmes morceaux ; ouverte, elle se met à jour sur place.
+  wheelItems = tracks.map((t) => ({ id: t.id, title: (t.metadata && t.metadata.name) || t.id, meta: trackMetaText(t) }));
+  trackWheel?.setItems(wheelItems);
   if (!els.trackList) return;
-  if (els.homeCount) els.homeCount.textContent = String(tracks.length);
   els.trackList.innerHTML = '';
 
   if (tracks.length === 0) {
@@ -1547,9 +1574,7 @@ function renderTrackList(tracks) {
       <div class="studio-track-name">${escapeHtml(displayName)}</div>
       <div class="studio-track-meta">${metaLine}</div>
     `;
-    // Choisir un morceau referme le tiroir : l'étape 1 prend le relais et
-    // l'accueil disparaît avec lui.
-    info.addEventListener('click', () => { setStudioLibraryOpen(false); loadTrack(track.id); });
+    info.addEventListener('click', () => loadTrack(track.id));
 
     const actions = document.createElement('div');
     actions.className = 'studio-track-actions';

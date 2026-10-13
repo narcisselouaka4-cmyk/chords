@@ -1395,27 +1395,15 @@
    (--st-*) n'existe pas dans Zic, on prend donc les variables de thème --r-*
    que l'application utilise partout ailleurs.
    ========================================================================= */
-#studio-tab .studio-home-bar,
 #studio-tab .studio-empty-hero {
   display: none;
 }
 
-/* L'accueil occupe deux rangées : la barre d'actions, puis la scène. Sans
-   cette ligne, la grille à trois colonnes du Studio répartissait la hauteur à
-   parts égales et la barre d'actions s'étirait sur 222 px. */
-/* Le bloc de skin plus haut pose `grid-template-rows: minmax(0,1fr)` avec une
-   spécificité supérieure : on la dépasse en reprenant l'attribut data-skin. */
+/* [Claude] — 2026-10-13 — La barre d'actions du haut (« Musiques importées », « Importer un fichier »)
+   est retirée : l'accueil n'a plus qu'une rangée, la scène. */
 :root[data-skin] #studio-tab.stage-0 {
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   align-content: stretch;
-}
-
-#studio-tab.stage-0 .studio-home-bar {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 20px 0;
 }
 
 #studio-tab.stage-0 .studio-empty-hero {
@@ -1480,17 +1468,6 @@
   height: 44px;
   padding: 0 22px;
   font-size: 0.86rem;
-}
-
-.studio-home-count {
-  min-width: 20px;
-  padding: 1px 6px;
-  border-radius: 5px;
-  background: var(--r-surface-chip);
-  color: var(--r-text-muted);
-  font-family: var(--r-font-mono);
-  font-size: 0.68rem;
-  line-height: 1.5;
 }
 
 .studio-home-privacy {
@@ -1586,27 +1563,25 @@
 
 .studio-empty-features svg { color: var(--r-accent); }
 
-/* ---- Tiroir « Musiques importées » ----
-   À l'étape 0, le panneau de gauche n'occupe plus le centre de l'écran : il
-   s'ouvre en tiroir sous son bouton, et se referme dès qu'on a choisi. */
-#studio-tab.stage-0 aside#studio-sidebar-left.studio-sidebar.left {
-  position: absolute;
-  top: 58px;
-  left: 20px;
-  z-index: 12;
-  width: min(420px, calc(100% - 40px));
-  max-height: min(60vh, 460px);
-  margin: 0;
-  padding: 0;
-  grid-column: auto;
-  justify-self: start;
-  display: none;
-  box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.6);
-}
+/* ---- Accueil : la liste des morceaux est la roue (track-wheel.css) ----
+   [Claude] — 2026-10-13 — À l'étape 0, le panneau de gauche n'existe plus (l'ancien tiroir est
+   remplacé par la roue) ; une fois un morceau chargé, il revient en panneau « Musiques importées ». */
+#studio-tab.stage-0 aside#studio-sidebar-left.studio-sidebar.left { display: none; }
 
-#studio-tab.stage-0.library-open aside#studio-sidebar-left.studio-sidebar.left {
-  display: flex;
-  flex-direction: column;
+#studio-tab .studio-wheel { display: none; }
+#studio-tab.stage-0 .studio-wheel:not([hidden]) { display: flex; }
+
+/* L'accueil s'efface (en glissant un peu vers la gauche) pendant que la roue se déploie. */
+#studio-tab.stage-0 .studio-empty-hero {
+  transition: opacity .35s ease, transform .55s cubic-bezier(.2, .9, .25, 1);
+}
+#studio-tab.stage-0.wheel-open .studio-empty-hero {
+  opacity: 0;
+  transform: translateX(-5%) scale(.97);
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  #studio-tab.stage-0 .studio-empty-hero { transition: none; transform: none; }
 }
 
 #studio-tab.stage-0 .studio-collapse-tab { display: none; }
@@ -1695,8 +1670,13 @@
 :root[data-skin='global'] #studio-tab:not(.stage-0) {
   grid-template-columns: auto minmax(0, 2.1fr) minmax(270px, 0.85fr);
 }
+/* [Claude] — 2026-10-13 — Scène a maintenant EXACTEMENT les mêmes colonnes, marges et espacements
+   qu'Atelier (Narcisse : « la fenêtre est trop grande quand je passe en Scène » — la colonne centrale
+   prenait tout le reste, 912 px contre 850 px). Seul l'aspect des composants distingue les deux. */
 :root[data-skin='v2'] #studio-tab:not(.stage-0) {
-  grid-template-columns: auto minmax(0, 1fr) 280px;
+  grid-template-columns: auto minmax(0, 2.1fr) minmax(270px, 0.85fr);
+  gap: 14px;
+  padding: 14px;
 }
 #studio-tab:not(.stage-0) .studio-sidebar.left {
   --lib-w: 250px;
@@ -1708,7 +1688,6 @@
   overflow: visible;
   transition: width .5s cubic-bezier(.65, 0, .35, 1);
 }
-:root[data-skin='v2'] #studio-tab:not(.stage-0) .studio-sidebar.left { --lib-w: 260px; }
 
 #studio-tab:not(.stage-0) .studio-sidebar.left .studio-tracks-panel {
   position: relative;
@@ -1941,8 +1920,21 @@
   transition: opacity .12s ease, visibility 0s linear .12s;
 }
 
+/* [Claude] — 2026-10-13 — Pistes repliées : « Lecture » et « Export » descendent en bas de la colonne de
+   droite, au niveau du lecteur (la barre ▶ ■ ●), et la colonne centrale — vidéo, forme d'onde, lecteur —
+   se recentre dans la page, SANS changer de taille. Les colonnes de côté sont égales (280 px au moins),
+   la centrale garde la largeur qu'elle a quand les pistes sont déployées et la bibliothèque ouverte :
+   un tiers de la place (2,1 / 2,95) après les 250 px de la bibliothèque et les deux écarts de 14 px.
+   (Sa largeur ne dépend donc pas de l'état de la bibliothèque, ni de l'habillage.) */
+:root[data-skin] #studio-tab.stems-collapsed:not(.stage-0) {
+  grid-template-columns:
+    minmax(280px, 1fr)
+    minmax(0, min(calc((100% - 278px) * .7119), calc(100% - 278px - 270px)))
+    minmax(280px, 1fr);
+}
+
 /* Replié : un rond de 46 px en haut à droite de la colonne */
-:root[data-skin] #studio-tab:not(.stage-0) .studio-sidebar.right.stems-collapsed { position: relative; justify-content: center; }
+:root[data-skin] #studio-tab:not(.stage-0) .studio-sidebar.right.stems-collapsed { position: relative; justify-content: flex-end; }
 :root[data-skin] #studio-tab:not(.stage-0) .studio-sidebar.right.stems-collapsed .studio-right-panel { flex: 0 0 auto; }
 :root[data-skin] #studio-tab:not(.stage-0) .studio-stems-section.is-collapsed {
   position: absolute;

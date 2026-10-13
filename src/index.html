@@ -46,6 +46,7 @@
     <link rel="stylesheet" href="./ui/components/speed-menu.css" />
     <link rel="stylesheet" href="./ui/components/app-notify.css" />
     <link rel="stylesheet" href="./ui/components/app-dialog.css" />
+    <link rel="stylesheet" href="./ui/components/track-wheel.css" />
     <!-- [Refonte v2/Global] — système de thème v2/Global. Chargé en <link>
          (et non via import JS) pour rester non-layered, au même niveau de
          cascade que style.css : la spécificité tranche, pas l'ordre d'injection. -->
@@ -1668,18 +1669,8 @@
              RÉELLEMENT — la maquette annonçait une console 3 bandes M/S et un
              export WAV, que cette application n'a pas (les boutons d'export
              sont encore désactivés). -->
-        <div class="studio-home-bar" id="studio-home-bar">
-          <button type="button" class="studio-home-btn" id="studio-home-library-btn" aria-expanded="false" aria-controls="studio-sidebar-left">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5v14"/><path d="M8 5v14"/><path d="m13 6 7 2-4 13-7-2z"/></svg>
-            <span>Musiques importées</span>
-            <span class="studio-home-count" id="studio-home-count">0</span>
-          </button>
-          <button type="button" class="studio-home-btn is-primary" id="studio-home-import-btn">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M17 8l-5-5-5 5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
-            <span>Importer un fichier</span>
-          </button>
-        </div>
-
+        <!-- [Claude] — 2026-10-13 — La barre « Musiques importées / Importer un fichier » en haut à gauche
+             est retirée : ces deux actions sont déjà au milieu de l'accueil (Narcisse : un doublon). -->
         <section class="studio-empty-hero" id="studio-empty-hero">
           <span class="studio-empty-vinyl" aria-hidden="true">
             <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>
@@ -1704,6 +1695,10 @@
             <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6.5h20v11H2z"/><path d="M6 6.5v6M10 6.5v6M14 6.5v6M18 6.5v6M2 12.5h20"/></svg>Transposition &#177;12 demi-tons</span>
           </div>
         </section>
+
+        <!-- [Claude] — 2026-10-13 — « Reprendre un morceau importé » : les morceaux en demi-cercle, qu'on
+             fait glisser comme une roue (src/ui/components/track-wheel.js), avec une recherche à côté. -->
+        <div class="studio-wheel" id="studio-wheel" hidden aria-hidden="true"></div>
 
         <aside class="studio-sidebar left" id="studio-sidebar-left">
           <div class="panel studio-tracks-panel" id="studio-tracks-panel">
