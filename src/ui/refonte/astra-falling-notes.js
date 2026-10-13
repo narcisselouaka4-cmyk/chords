@@ -1,5 +1,5 @@
-// [Claude] — 2026-10-13 — « Chute » : les notes de la session tombent du haut vers le clavier, comme
-// dans les tutoriels façon Synthesia. Troisième angle du paysage harmonique (avec « 2D » et « Relief »).
+// [Claude] — 2026-10-13 — « Cascade » : les notes de la session tombent du haut vers le clavier, comme
+// dans les tutoriels façon Synthesia. Troisième angle du paysage harmonique (avec « 2D » et « Relief »). Nom courant : « Synthesia ».
 //
 // Idée de Narcisse : une note de do tout en haut descend jusqu'à la touche de do. Les colonnes sont
 // donc alignées sur les VRAIES touches du clavier affiché en bas de l'application (mesurées dans le
@@ -17,6 +17,8 @@
 
 /** Secondes visibles au-dessus de la ligne (« maintenant »). */
 export const LOOKAHEAD = 4;
+
+import { formatNoteList } from '../../chord-engine/naming.js';
 
 const WHITE_PC = new Set([0, 2, 4, 5, 7, 9, 11]);
 export const isBlackKey = (midi) => !WHITE_PC.has(((midi % 12) + 12) % 12);
@@ -76,6 +78,15 @@ export function noteBox(note, position, { height, lineY, ahead = LOOKAHEAD, reco
   return { top: Math.max(0, top), bottom: Math.min(height, bottom), raw: { top, bottom } };
 }
 
+const letterCache = new Map();
+/** Lettre de la note (sans octave), dans la notation du clavier : « C#», « Do# »… */
+export function noteLetter(midi, latin = false) {
+  const pc = ((midi % 12) + 12) % 12;
+  const key = `${pc}|${latin ? 1 : 0}`;
+  if (!letterCache.has(key)) letterCache.set(key, formatNoteList([pc], latin)[0] || '');
+  return letterCache.get(key);
+}
+
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 function normVelocity(v) {
   const n = Number(v);
@@ -98,7 +109,9 @@ const css = (rgb, alpha = 1) => `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alpha})`;
  */
 export function renderFallingNotes(host, options) {
   if (!host) return { update() {}, destroy() {} };
-  let state = { notes: [], duration: 1, position: 0, recording: false, onSeek: null, ...options };
+  // shift : transposition du clavier (demi-tons) — la lecture joue les notes transposées, les touches
+  // s'allument donc décalées ; latin : notation des lettres (Do Ré Mi / C D E).
+  let state = { notes: [], duration: 1, position: 0, recording: false, onSeek: null, shift: 0, latin: false, ...options };
 
   const canvas = document.createElement('canvas');
   canvas.className = 'tr-falling-notes';
@@ -124,6 +137,11 @@ export function renderFallingNotes(host, options) {
       bg: get('var(--tr-bg, #141416)'),
       text: get('var(--tr-muted, #89848f)'),
     };
+    // Lettre posée sur une note : sombre sur un fond clair, claire sur un fond foncé
+    const lum = (c) => (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255;
+    palette.onAccent = lum(accent) > 0.62 ? [29, 23, 38] : [255, 255, 255];
+    palette.onDeep = [255, 255, 255];
+    palette.onLight = [29, 23, 38];
   }
 
   let layout = null;
@@ -189,22 +207,21 @@ export function renderFallingNotes(host, options) {
     // Notes : touches blanches d'abord, noires par-dessus (elles chevauchent la blanche voisine)
     hits = [];
     const visible = windowNotes(notes, position, LOOKAHEAD, recording ? LOOKAHEAD : 0);
-    const sounding = new Set();
+    const shift = Math.round(Number(state.shift) || 0);
     for (const pass of [false, true]) {
       for (const note of visible) {
-        const k = keys.get(note.midi);
+        const shown = note.midi + shift;
+        const k = keys.get(shown);
         if (!k || k.black !== pass) continue;
         const box = noteBox(note, position, { height: h, lineY, recording });
         if (box.bottom - box.top < 1) continue;
         const velocity = normVelocity(note.velocity);
         const active = position >= note.start && position <= note.start + Math.max(0.05, note.duration);
-        if (active) sounding.add(note.midi);
         const inset = k.black ? 0.5 : 1.5;
         const x = k.x + inset; const bw = Math.max(3, k.w - inset * 2);
         const radius = Math.min(4, bw / 2, (box.bottom - box.top) / 2);
         const body = k.black ? palette.deep : palette.accent;
         ctx.save();
-        if (active) { ctx.shadowColor = css(palette.light, 0.9); ctx.shadowBlur = 14; }
         const grad = ctx.createLinearGradient(0, box.top, 0, box.bottom);
         grad.addColorStop(0, css(active ? palette.light : mixRgb(body, [255, 255, 255], 0.18), (active ? 1 : 0.55 + velocity * 0.4)));
         grad.addColorStop(1, css(active ? palette.light : body, (active ? 1 : 0.55 + velocity * 0.4)));
@@ -218,24 +235,27 @@ export function renderFallingNotes(host, options) {
         ctx.beginPath();
         ctx.roundRect(x + 0.4, box.top + 0.4, bw - 0.8, box.bottom - box.top - 0.8, radius);
         ctx.stroke();
-        hits.push({ x, y: box.top, w: bw, h: box.bottom - box.top, start: note.start });
+        // Lettre de la note, discrète, en bas de la case (si la case est assez grande pour la porter)
+        const boxH = box.bottom - box.top;
+        if (boxH >= 15 && bw >= 9) {
+          const name = noteLetter(shown, state.latin);
+          const small = k.black || bw < 14;
+          ctx.font = `600 ${small ? 7 : 9.5}px "DM Sans", sans-serif`;
+          if (ctx.measureText(name).width <= bw - 1) {
+            const ink = active ? palette.onLight : (k.black ? palette.onDeep : palette.onAccent);
+            ctx.fillStyle = css(ink, active ? 0.8 : 0.72);
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'alphabetic';
+            ctx.fillText(name, x + bw / 2, box.bottom - 4.5);
+          }
+        }
+        hits.push({ x, y: box.top, w: bw, h: boxH, start: note.start });
       }
     }
 
-    // Ligne « maintenant » (le haut du clavier) et halo des touches qui sonnent
-    const lineGrad = ctx.createLinearGradient(0, lineY - 26, 0, lineY);
-    lineGrad.addColorStop(0, css(palette.accent, 0));
-    lineGrad.addColorStop(1, css(palette.accent, 0.22));
-    ctx.fillStyle = lineGrad;
-    ctx.fillRect(0, lineY - 26, w, 26);
-    ctx.fillStyle = css(palette.light, 0.9);
+    // Ligne d'arrivée : un simple trait net (Narcisse : pas de brouillard ni de halo lumineux)
+    ctx.fillStyle = css(palette.light, 0.85);
     ctx.fillRect(0, lineY, w, 1.5);
-    for (const midi of sounding) {
-      const k = keys.get(midi);
-      if (!k) continue;
-      ctx.fillStyle = css(palette.light, 0.85);
-      ctx.fillRect(k.x, lineY - 2, k.w, 4);
-    }
 
     if (!notes.length) {
       ctx.fillStyle = css(palette.text, 1);
@@ -251,6 +271,15 @@ export function renderFallingNotes(host, options) {
   if (keyboardEl && observer) observer.observe(keyboardEl);
   const onTheme = () => { palette = null; draw(); };
   window.addEventListener('app-theme-changed', onTheme);
+  // Transposition, notation ou étendue du clavier modifiées : la cascade se recale tout de suite, même en pause.
+  const onKeyboard = (e) => {
+    const d = e?.detail || {};
+    if (Number.isFinite(d.transpose)) state.shift = d.transpose;
+    if (typeof d.latin === 'boolean') state.latin = d.latin;
+    layoutKey = '';
+    draw();
+  };
+  window.addEventListener('keyboard-settings-changed', onKeyboard);
 
   const onClick = (e) => {
     if (!state.onSeek || state.recording) return;
@@ -277,6 +306,7 @@ export function renderFallingNotes(host, options) {
     destroy() {
       observer?.disconnect();
       window.removeEventListener('app-theme-changed', onTheme);
+      window.removeEventListener('keyboard-settings-changed', onKeyboard);
       canvas.removeEventListener('click', onClick);
       canvas.removeEventListener('mousemove', onMove);
       host.innerHTML = '';

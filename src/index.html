@@ -580,7 +580,7 @@
                 </div>
               </div>
               <div class="tr-console-actions">
-                <span class="tr-session-state session-loaded-state" id="midi-session-loaded-state" style="display: none;"><span></span>Session enregistrée</span>
+                <!-- [Claude] — 2026-10-13 — La mention « Session enregistrée » (point vert) est retirée : on le sait déjà. -->
                 <div class="midi-session-controls" id="midi-session-controls" style="display: none;">
                   <span class="tr-session-state is-live"><span></span><span class="midi-session-status" id="midi-session-status" data-state="recording">Enregistrement en cours</span></span>
                   <span class="tr-mono midi-session-timer" id="midi-session-timer">00:00</span>
@@ -596,8 +596,8 @@
                 <div class="tr-projection-switch" id="midi-roll-projection" role="group" aria-label="Projection du paysage harmonique">
                   <button type="button" data-projection="flat" aria-pressed="false"><svg class="tr-i" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12.83 2.18 8.58 3.91a1 1 0 0 1 0 1.82l-8.58 3.91a2 2 0 0 1-1.66 0L2.59 7.91a1 1 0 0 1 0-1.82l8.58-3.91a2 2 0 0 1 1.66 0Z"/><path d="m22 12.5-9.17 4.18a2 2 0 0 1-1.66 0L2 12.5"/></svg>2D</button>
                   <button type="button" data-projection="spatial" class="is-active" aria-pressed="true"><svg class="tr-i" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>Relief</button>
-                  <!-- [Claude] — 2026-10-13 — Troisième angle : les notes tombent vers les touches du clavier (style Synthesia). -->
-                  <button type="button" data-projection="fall" aria-pressed="false" title="Les notes tombent vers les touches du clavier"><svg class="tr-i" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 21h16"/></svg>Chute</button>
+                  <!-- [Claude] — 2026-10-13 — Troisième angle : les notes descendent en cascade sur les touches du clavier. -->
+                  <button type="button" data-projection="fall" aria-pressed="false" title="Les notes descendent en cascade sur les touches du clavier"><svg class="tr-i" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2.5" width="3.6" height="8" rx="1.2"/><rect x="10.2" y="6" width="3.6" height="6.5" rx="1.2"/><rect x="16.4" y="3.5" width="3.6" height="5" rx="1.2"/><path d="M3 15.5h18v5.5H3zM7.5 15.5V21M12 15.5V21M16.5 15.5V21"/></svg>Cascade</button>
                 </div>
               </div>
               <!-- Hôte du paysage harmonique : recording-tab.js y injecte le SVG
@@ -605,9 +605,7 @@
                    liaison de clic du carnet passe toujours par lui. -->
               <div class="carnet-timeline" id="carnet-timeline" aria-label="Paysage harmonique de la session"></div>
               <div class="tr-roll-caption">
-                <span><i class="tr-legend-note"></i>Notes jouées</span>
                 <span><i class="tr-legend-velocity"></i>Hauteur = vélocité</span>
-                <span class="tr-chart-hint">Cliquez sur une note pour vous y rendre</span>
               </div>
             </div>
 

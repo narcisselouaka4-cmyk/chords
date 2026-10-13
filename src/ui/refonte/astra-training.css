@@ -1205,8 +1205,6 @@
   #practice-view-copilot .tr-copilot-welcome { min-height: 0; padding-bottom: 10px; }
 }
 
-/* [Claude] — 2026-10-13 — Angle « Chute » : la légende « hauteur = vélocité » ne s'applique pas. */
-.tr-roll-stage[data-view="fall"] .tr-legend-velocity { display: none; }
-.tr-roll-stage[data-view="fall"] .tr-legend-velocity + * { margin-left: 0; }
-.tr-roll-stage[data-view="fall"] .tr-roll-caption > span:has(.tr-legend-velocity) { display: none; }
+/* [Claude] — 2026-10-13 — Angle « Cascade » : pas de légende (la vélocité n'y est pas en hauteur). */
+.tr-roll-stage[data-view="fall"] .tr-roll-caption { display: none; }
 .tr-falling-notes { cursor: default; }

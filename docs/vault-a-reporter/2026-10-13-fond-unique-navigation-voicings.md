@@ -120,3 +120,33 @@
 - **Non vérifié** : une vraie session enregistrée lue pendant plusieurs secondes (l'enregistrement
   ne démarre pas dans le navigateur de test : pas de MIDI ; une erreur `showEndModal` y apparaît à
   l'arrêt, antérieure à ce travail). Vitesse de chute fixe (4 s visibles) : pas de réglage de zoom.
+
+---
+
+# Suite du 13/10 (4) — Cascade : transposition, lettres, sans halo ; lecteur Pause ; textes retirés
+
+- **Nom** : « Chute » → **« Cascade »** (nom courant : Synthesia), nouvelle icône (trois barres qui
+  descendent sur un petit clavier). `data-projection="fall"` inchangé en interne.
+- **Transposition** : la lecture d'une session passe par `handleNoteOn(note)` → touche allumée =
+  note + transposition. La cascade décale donc ses notes de `shift` (lu dans `#transpose` au montage,
+  puis par l'évènement `keyboard-settings-changed` émis par `main.js` à chaque `update()` du clavier :
+  transposition, notation, étendue). Vérifié : +1 décale d'un demi-ton (une blanche devient une noire),
+  +12 d'une octave. Même évènement = recalage immédiat en pause.
+- **Lettres** : en bas de chaque case assez grande (≥ 15 px de haut), discrètes (9,5 px / 7 px sur les
+  noires, 70 % d'opacité, encre claire ou sombre selon la couleur d'accent), dans la notation du
+  clavier (`formatNoteList`, Do Ré Mi / C D E), sans octave, sur la hauteur transposée. Les dièses
+  latins (« Sol# ») ne tiennent pas sur une touche noire : ils sont omis plutôt que rognés.
+- **Ligne d'arrivée** : brouillard (dégradé) et halo (`shadowBlur`, barres de touches) supprimés ; un
+  simple trait net. La note qui joue reste signalée par sa couleur plus claire.
+- **Textes retirés** : « Notes jouées » et « Cliquez sur une note pour vous y rendre » (pied du
+  paysage ; « Hauteur = vélocité » reste en 2D/Relief, la légende entière est masquée en Cascade) ;
+  « Session enregistrée » + point vert (haut à droite).
+- **Lecteur — Pause** : cause trouvée et reproduite. `updateTransportUI()` tourne à chaque image
+  pendant la lecture et réécrivait `innerHTML` du bouton (l'icône) à CHAQUE image ; un clic exige
+  appui et relâchement sur le même élément, or l'icône était remplacée entre les deux → pas de clic.
+  À l'arrêt rien ne tourne, donc Play marchait toujours (« ça marche quand l'application en a
+  envie »). Reproduction isolée : 0/30 clics reçus avant, 30/30 après. Correction : le bouton n'est
+  réécrit que si son état change (`dataset.state`). `test-session-transport.js` 7/7.
+  À surveiller : même schéma (réécriture à chaque image d'un élément cliquable) ailleurs ? Non cherché
+  hors Sessions MIDI.
+- Tests : `test-astra-falling-notes.js` 20/20.

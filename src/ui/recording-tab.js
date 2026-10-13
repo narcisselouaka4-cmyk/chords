@@ -1007,13 +1007,16 @@ function mountHarmonicRoll() {
     duration: rollDuration,
     position: player?.getCurrentTime?.() || 0,
     spatial: rollView === 'spatial',
+    // Cascade : la lecture joue les notes transposées ; la notation vient du sélecteur du clavier.
+    shift: Number(document.getElementById('transpose')?.value) || 0,
+    latin: document.getElementById('notation-select')?.value === 'latin',
     recording: Boolean(recorder?.isRecording),
     onSeek: (time) => {
       player?.seek(time);
       updateTransportUI();
     },
   };
-  // [Claude] — 2026-10-13 — Trois angles : Relief et 2D (SVG) partagent une instance ; « Chute » est un
+  // [Claude] — 2026-10-13 — Trois angles : Relief et 2D (SVG) partagent une instance ; « Cascade » est un
   // canvas à part. Changer de famille détruit l'ancienne vue et monte la nouvelle dans le même hôte.
   const family = rollView === 'fall' ? 'fall' : 'svg';
   if (rollMounted && rollMounted !== family) { harmonicRoll?.destroy(); harmonicRoll = null; }
@@ -1029,7 +1032,7 @@ function updateHarmonicRollPosition(position) {
   harmonicRoll?.update({ position: Number(position) || 0 });
 }
 
-// Bascule 2D / Relief / Chute.
+// Bascule 2D / Relief / Cascade.
 function bindProjectionSwitch() {
   const group = document.getElementById('midi-roll-projection');
   if (!group) return;
@@ -1440,8 +1443,19 @@ function updateTransportUI() {
   if (els.transportPlay) {
     // innerHTML et non textContent : le bouton porte une icône SVG depuis la
     // refonte, un textContent la supprimerait au premier changement d'état.
-    els.transportPlay.innerHTML = player?.isPlaying ? PAUSE_SVG : PLAY_SVG;
-    els.transportPlay.classList.toggle('is-playing', Boolean(player?.isPlaying));
+    // [Claude] — 2026-10-13 — « Pause ne répond pas, je dois cliquer plusieurs fois » (Narcisse). Cause :
+    // cette fonction tourne à chaque image pendant la lecture, et réécrivait l'icône à CHAQUE image.
+    // Un clic = appui puis relâchement sur le même élément ; si l'icône sous le doigt est remplacée
+    // entre les deux, le navigateur ne déclenche pas le clic. Pendant la lecture, la plupart des clics
+    // sur Pause se perdaient (à l'arrêt, rien ne tourne : Play marchait toujours). On ne touche plus
+    // au bouton que lorsque son état change.
+    const wanted = player?.isPlaying ? 'playing' : 'paused';
+    if (els.transportPlay.dataset.state !== wanted) {
+      els.transportPlay.dataset.state = wanted;
+      els.transportPlay.innerHTML = wanted === 'playing' ? PAUSE_SVG : PLAY_SVG;
+      els.transportPlay.classList.toggle('is-playing', wanted === 'playing');
+      els.transportPlay.setAttribute('aria-label', wanted === 'playing' ? 'Pause' : 'Lecture');
+    }
   }
   updateHarmonicRollPosition(cur);
 }

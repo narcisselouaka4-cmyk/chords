@@ -1174,6 +1174,11 @@ function initSettings() {
 
     refreshKeyboard();
     refreshChord();
+    // [Claude] — 2026-10-13 — La cascade des Sessions MIDI se cale sur le clavier : transposition,
+    // notation (lettres) et étendue (touches affichées).
+    window.dispatchEvent(new CustomEvent('keyboard-settings-changed', {
+      detail: { transpose: state.transpose, latin: state.notation === 'latin' },
+    }));
   };
 
   els.noteStart.addEventListener('change', () => {

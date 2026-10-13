@@ -1,5 +1,6 @@
-// Angle « Chute » du paysage harmonique : géométrie pure (le dessin lui-même est vérifié dans le navigateur).
-import { fallbackKeyLayout, windowNotes, noteBox, isBlackKey, LOOKAHEAD } from './astra-falling-notes.js';
+// Angle « Cascade » du paysage harmonique : géométrie pure (le dessin lui-même est vérifié dans le navigateur).
+import { readFileSync } from 'node:fs';
+import { fallbackKeyLayout, windowNotes, noteBox, isBlackKey, noteLetter, LOOKAHEAD } from './astra-falling-notes.js';
 
 let passed = 0; let failed = 0;
 const check = (ok, label) => { if (ok) { passed++; console.log(`  ✓ ${label}`); } else { failed++; console.log(`  ✗ ${label}`); } };
@@ -42,6 +43,16 @@ const rec = noteBox({ start: 8, duration: 1 }, 10, { ...geo, recording: true });
 check(Math.abs(rec.top - (297 - 2 * pps)) < 1e-9 && Math.abs(rec.bottom - (297 - pps)) < 1e-9, 'enregistrement : une note jouée de il y a 2 s à il y a 1 s occupe de 2 s à 1 s au-dessus de la ligne');
 const recHeld = noteBox({ start: 9, duration: 5 }, 10, { ...geo, recording: true });
 check(recHeld.bottom === 297 && recHeld.top < 297, 'enregistrement : une note encore tenue part de la ligne et s\'allonge vers le haut');
+
+// Lettres sur les notes : dans la notation du clavier, sans octave
+check(noteLetter(60, false) === 'C' && noteLetter(62, false) === 'D' && noteLetter(66, false) === 'F#', 'lettres anglaises : C, D, F#');
+check(noteLetter(60, true) === 'Do' && noteLetter(62, true) === 'Ré' && noteLetter(67, true) === 'Sol', 'notes latines : Do, Ré, Sol');
+check(noteLetter(72, false) === noteLetter(60, false) && noteLetter(-1, false) === 'B', 'la lettre ne dépend pas de l\'octave');
+
+// Source : plus de brouillard ni de halo à la ligne d'arrivée ; la cascade suit la transposition
+const src = readFileSync(new URL('./astra-falling-notes.js', import.meta.url), 'utf8');
+check(!/shadowBlur\s*=/.test(src) && !/lineGrad/.test(src), 'aucun halo ni brouillard à la ligne d\'arrivée');
+check(/note\.midi \+ shift/.test(src) && /keyboard-settings-changed/.test(src), 'les notes sont décalées de la transposition et la vue écoute le clavier');
 
 console.log(`\n=== Résultat : ${passed}/${passed + failed} contrôles passés ===`);
 process.exit(failed ? 1 : 0);
