@@ -1117,6 +1117,87 @@ runTest('T82 — Format : la géométrie retenue est celle sur laquelle les imag
   assertTrue(String(none.reason).startsWith('UnstableGeometry'), `motif : ${none.reason}`);
 });
 
+// [Claude] — 2026-10-14 — « Next Level Worship » : clavier dessiné sous un professeur dont les MAINS
+// couvrent le milieu des touches (peau sombre, qui se soude aux noires), et touches blanches allumées
+// seulement sur leur partie haute. Les cinq tests suivants reprennent ces conditions.
+const SKIN = [150, 105, 80];
+function withHand(frame, { x0, x1, top, bottom, color = SKIN }) {
+  fillRect(frame, x0, top, x1 - x0, bottom - top, color);
+}
+
+runTest('T84 — Mains sur le clavier : le motif 2/3 casse au milieu, le clavier est quand même trouvé', () => {
+  const t = makeTutorialFrame({ filmedPiano: false });
+  // Deux mains : le milieu de la rangée des noires est caché, ainsi que le bas des blanches.
+  withHand(t.frame, { x0: 330, x1: 470, top: t.kbTop + 4, bottom: t.kbBottom });
+  withHand(t.frame, { x0: 520, x1: 560, top: t.kbTop + 20, bottom: t.kbBottom });
+  const g = detectKeyboardGeometry(t.frame);
+  assertTrue(g.ok, `détection : ${g.detail || g.reason}`);
+  assertEqual(g.strategy, 'keyboardBand', 'stratégie :');
+  assertEqual(g.lowestMidi, 21, 'La0 :');
+  assertEqual(g.highestMidi, 108, 'Do8 :');
+  assertEqual(g.whiteKeys.length, 52, 'blanches :');
+  // Les noires cachées par les mains sont déduites de la grille : toutes les 36 sont là.
+  assertEqual(g.blackKeys.length, 36, 'noires (cachées complétées) :');
+});
+
+runTest('T85 — Mains : un faux motif ailleurs (écran sans clavier) n\'est pas pris pour un clavier', () => {
+  // Quatre barres sombres régulières sur fond clair : trop peu de noires, pas de motif 2/3 sur 10.
+  const frame = createBlankFrame(640, 360, [235, 235, 235]);
+  for (let i = 0; i < 6; i++) fillRect(frame, 40 + i * 30, 240, 10, 50, [20, 20, 20]);
+  assertTrue(!detectKeyboardGeometry(frame).ok, 'aucun clavier dans un décor à six barres');
+  // Des barres régulières (mire) : un seul groupe géant, rejeté.
+  const mire = createBlankFrame(640, 360, [235, 235, 235]);
+  for (let i = 0; i < 30; i++) fillRect(mire, 10 + i * 20, 240, 8, 60, [20, 20, 20]);
+  assertTrue(!detectKeyboardGeometry(mire).ok, 'une mire n\'est pas un clavier');
+});
+
+runTest('T86 — Teintes : une peau n\'est pas une touche allumée, une touche sombre non plus', () => {
+  // Peau claire, moyenne, foncée, ombre olive d'un bord de main : aucune n'est « allumée ».
+  for (const [r, g, b] of [[232, 190, 160], [198, 140, 100], [150, 105, 80], [90, 67, 49], [82, 85, 53]]) {
+    assertEqual(classifyTint(r, g, b), null, `peau ${r},${g},${b} :`);
+  }
+  // Une noire verdâtre à 41/255 est une noire éclairée de côté, pas une noire allumée.
+  assertEqual(classifyTint(5, 41, 8), null, 'noire sombre :');
+  // Les vraies touches allumées restent lues.
+  assertEqual(classifyTint(24, 140, 20), 'green', 'vert franc :');
+  assertEqual(classifyTint(20, 135, 16), 'green', 'noire verte allumée :');
+  assertEqual(classifyTint(40, 100, 230), 'blue', 'bleu franc :');
+  assertEqual(classifyTint(255, 140, 0), 'other', 'orange vif de rendu :');
+});
+
+runTest('T87 — Blanche allumée seulement en haut : lue à hauteur des noires, malgré une main devant le bas', () => {
+  const t = makeTutorialFrame({ filmedPiano: false });
+  const probe = detectKeyboardGeometry(t.frame);
+  assertTrue(probe.ok, `détection au repos : ${probe.reason}`);
+  // Fa4 (65) et Ré♭4 (61, noire) allumés en haut ; la main cache le bas des blanches.
+  const f = makeTutorialFrame({ filmedPiano: false });
+  const key = (m) => probe.whiteKeys.find((k) => k.midi === m);
+  const fk = key(65);
+  fillRect(f.frame, Math.round(fk.center - 3), f.kbTop, 7, f.blackBottom - f.kbTop, GREEN);       // barre verte au centre de la blanche
+  const bk = probe.blackKeys.find((k) => k.midi === 61);
+  fillRect(f.frame, Math.round(bk.left), f.kbTop, Math.round(bk.right - bk.left) + 1, f.blackBottom - f.kbTop, GREEN); // noire allumée
+  withHand(f.frame, { x0: Math.round(fk.center) - 40, x1: Math.round(fk.center) + 40, top: f.blackBottom + 3, bottom: f.kbBottom });
+  const lit = toMidiList(readLitKeys(f.frame, probe));
+  assertDeep(lit, [61, 65], 'notes lues :');
+});
+
+runTest('T88 — Clavier absent de l\'image : rien n\'est lu (plus de notes fantômes sur un décor)', () => {
+  const good = () => makeTutorialFrame({ filmedPiano: false }).frame;
+  const r = detectVideoFormat([good(), good(), good(), good()]);
+  assertTrue(r.implemented, `reconnu : ${r.reason}`);
+  assertTrue(Number.isFinite(r.geometry.presenceMin), 'un seuil de présence est posé');
+  // Au repos et touches allumées : le clavier est là, les notes sont lues.
+  const lit = makeTutorialFrame({ filmedPiano: false, lit: { 60: GREEN, 64: GREEN } }).frame;
+  assertDeep(toMidiList(readLitKeys(lit, r.geometry)), [60, 64], 'clavier visible :');
+  // Même cadre, mais un décor à la place (professeur seul, panneau, écran de fin) : couleurs vives
+  // aux endroits des touches, pourtant rien n'est lu.
+  const decor = createBlankFrame(lit.width, lit.height, [40, 90, 40]);
+  fillRect(decor, 0, 300, lit.width, 70, [30, 140, 30]);
+  assertDeep(readLitKeys(decor, r.geometry), [], 'décor : aucune note');
+  const black = createBlankFrame(lit.width, lit.height, [10, 10, 10]);
+  assertDeep(readLitKeys(black, r.geometry), [], 'écran noir : aucune note');
+});
+
 runTest('T83 — Noms d\'accords en texte simple (pas de balise dans la grille)', () => {
   // « comment harmoniser rapidement » : E7♯9♭13, A7/C#, F#7♭9.
   for (const notes of [[52, 56, 62, 67, 72], [49, 57, 64, 67], [42, 46, 49, 52, 55]]) {

@@ -235,6 +235,12 @@ La boucle `requestAnimationFrame` qui modifiait `video.playbackRate` causait un 
   de l'image et les glissandos. Si le son ne recoupe pas l'image (< 30 %), rien n'est changé. Le
   rapport est dans `analysis.soundCheck` ; `notesSource` ne contient **pas** « son » (sinon
   `fromSound()` traiterait les notes comme issues du son).
+- *(14/10/2026)* Clavier dessiné **sous les mains du prof** (« Next Level Worship ») : le détecteur
+  (`keyboard-geometry.js`, stratégie « bande ») accepte un motif de noires cassé au milieu par les mains
+  (`longestValidRun`) ; la peau n'est pas une touche allumée (`key-detection.js`) ; une blanche allumée
+  seulement en haut est lue à hauteur des noires ; `keyboardPresence` + `presenceMin` (posé par
+  `format-detector.js`) font lire *aucune* note quand le clavier n'est plus à l'écran (titre, prof seul,
+  écran de fin).
 - *(14/10/2026)* Métronome sous la vidéo (`components/metronome-menu.*`, `audio/metronome.js`) : tempo
   cherché dans le niveau sonore (`pedagogie/tempo-estimate.js`, IPC `pedagogie:loudness`), clics
   libres ou calés sur les temps de la vidéo (suit pause, saut, vitesse). Réglages par tutoriel

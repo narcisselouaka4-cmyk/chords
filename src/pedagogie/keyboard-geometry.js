@@ -45,6 +45,8 @@ export const DEFAULT_GEOMETRY_OPTIONS = {
   // noires doit faire au moins cette hauteur (un clavier dessiné, pas un trait).
   minBandBlackKeys: 8,
   minBandHeight: 6,
+  // [Claude] — 2026-10-14 — Tronçon valide minimal quand des mains cachent une partie des noires.
+  minRunBlackKeys: 10,
 };
 
 /**
@@ -473,7 +475,7 @@ function buildGeometry(frame, rows, picked, grid, options = {}) {
   // mauvaise lecture (mauvaise rangée de noires, grille mal calée), qu'il
   // faut écarter ici plutôt que la laisser fausser le contrôle de stabilité
   // entre plusieurs images (detectVideoFormat).
-  if (whiteKeys.length > 60 || picked.keys.length < whiteKeys.length * 0.45) {
+  if (whiteKeys.length > 60 || (!picked.partial && picked.keys.length < whiteKeys.length * 0.45)) {
     return { ok: false, reason: 'ImplausibleKeyCount', detail: `${whiteKeys.length}w/${picked.keys.length}b` };
   }
 
@@ -636,6 +638,28 @@ export function detectStaticKeyboardGeometry(frame, options = {}) {
 }
 
 /**
+ * [Claude] — 2026-10-14 — Le plus long tronçon de touches noires voisines (d'au moins
+ * `minRunBlackKeys`) dont le motif 2/3 est valide, quand la rangée entière ne l'est pas.
+ * Un tronçon plus court qu'un vrai demi-clavier ne prouve pas qu'on regarde un piano : on exige
+ * assez de noires pour au moins quatre groupes alternés.
+ *
+ * @returns {{ keys: object[], grouping: object } | null}
+ */
+export function longestValidRun(keys, options = {}) {
+  const opts = { ...DEFAULT_GEOMETRY_OPTIONS, ...options };
+  const minLen = Math.max(opts.minBandBlackKeys, opts.minRunBlackKeys);
+  let best = null;
+  for (let i = 0; i + minLen <= keys.length; i++) {
+    for (let j = keys.length; j - i >= minLen && (!best || j - i > best.keys.length); j--) {
+      const slice = keys.slice(i, j);
+      const grouping = groupBlackKeys(slice, opts);
+      if (grouping.valid && grouping.groups.length >= 4 && classifyBlackGroups(grouping.groups)) { best = { keys: slice, grouping }; break; }
+    }
+  }
+  return best;
+}
+
+/**
  * [Claude] — 2026-09-25 — Bande des touches noires : le groupe de rangées
  * consécutives où le motif 2/3 est valide, le plus haut et le plus fourni. On
  * la cherche dans TOUTE l'image : le clavier dessiné n'est pas toujours en bas
@@ -650,11 +674,20 @@ export function findKeyboardBand(frame, options = {}) {
   const opts = { ...DEFAULT_GEOMETRY_OPTIONS, ...options };
   const bands = [];
   for (let y = 0; y < frame.height; y++) {
-    const keys = findBlackKeys(frame, y, opts);
+    let keys = findBlackKeys(frame, y, opts);
     if (keys.length < opts.minBandBlackKeys) continue;
-    const grouping = groupBlackKeys(keys, opts);
-    if (!grouping.valid) continue;
-    const row = { y, count: keys.length, keys, grouping };
+    let grouping = groupBlackKeys(keys, opts);
+    let partial = false;
+    if (!grouping.valid) {
+      // [Claude] — 2026-10-14 — Mains devant le clavier (« Next Level Worship ») : les mains
+      // sombres cachent des noires ou s'y soudent, et le motif 2/3 casse au milieu de la rangée
+      // alors qu'il reste net de chaque côté. On garde le plus long tronçon qui, lui, est valide.
+      const run = longestValidRun(keys, opts);
+      if (!run) continue;
+      ({ keys, grouping } = run);
+      partial = true;
+    }
+    const row = { y, count: keys.length, keys, grouping, partial };
     const last = bands[bands.length - 1];
     // Même bande : rangées voisines, à peu près le même nombre de noires
     // (une noire allumée peut manquer sur une rangée, pas dix).
@@ -724,7 +757,7 @@ export function detectKeyboardBandGeometry(frame, options = {}) {
   const most = Math.max(...band.rows.map((r) => r.count));
   const best = band.rows.filter((r) => r.count === most);
   const pickedRow = best[Math.floor(best.length / 2)];
-  const picked = { row: pickedRow.y, keys: pickedRow.keys, grouping: pickedRow.grouping };
+  const picked = { row: pickedRow.y, keys: pickedRow.keys, grouping: pickedRow.grouping, partial: pickedRow.partial };
 
   // Luminance des blanches : entre les noires, sur la rangée retenue.
   const x0 = Math.max(0, Math.floor(picked.keys[0].left));
@@ -754,18 +787,54 @@ export function detectKeyboardBandGeometry(frame, options = {}) {
   // deux rangées de transition, ni noires ni blanches, précèdent la zone des
   // blanches. Sur « comment harmoniser rapidement », cette seule rangée faisait
   // échouer 13 images de sondage sur 24. On la saute avant de mesurer.
+  // [Claude] — 2026-10-14 — La bande peut s'arrêter bien avant le bas des noires (une main devant
+  // casse le motif sur les dernières rangées) : on cherche la zone des blanches plus bas, d'abord
+  // par une rangée presque entièrement claire — les rangées des noires, elles, restent à ~55 %.
+  const bandHeight = band.bottom - band.top + 1;
+  const maxSkip = Math.max(3, Math.round(frame.height * 0.2));
+  const keyRatio = (y) => {
+    let ok = 0;
+    let n = 0;
+    for (let x = x0; x <= x1; x += 2) { n++; if (isKeyPixel(x, y)) ok++; }
+    return ok / n;
+  };
   let zoneTop = band.bottom + 1;
-  while (zoneTop <= band.bottom + 3 && zoneTop < frame.height && !isKeyRow(zoneTop)) zoneTop++;
+  while (zoneTop <= band.bottom + maxSkip && zoneTop < frame.height && !(keyRatio(zoneTop) >= (zoneTop <= band.bottom + 3 ? 0.6 : 0.85))) zoneTop++;
   let bottom = zoneTop - 1;
-  for (let y = zoneTop; y < frame.height && y <= band.bottom + (band.bottom - band.top + 1) * 2; y++) {
+  const zoneLimit = zoneTop + Math.max(bandHeight * 2, Math.round(frame.height * 0.12));
+  for (let y = zoneTop; y < frame.height && y <= zoneLimit; y++) {
     if (!isKeyRow(y)) break;
     bottom = y;
   }
   if (bottom - zoneTop + 1 < 3) return { ok: false, reason: 'NoWhiteZone' };
   const zoneHeight = bottom - zoneTop + 1;
 
-  const whiteRow = zoneTop + Math.round(zoneHeight * 0.35);
-  const grid = findWhiteGrid(frame, whiteRow, { ...opts, whiteLuma: Math.min(opts.whiteLuma, whiteRef * 0.85), separatorLuma: whiteRef - 25 });
+  // [Claude] — 2026-10-14 — Une seule rangée de lecture des séparations ne suffit pas : des mains ou
+  // des touches allumées (vertes) la masquent (« Next Level Worship » : une grille à 9 traits, donc
+  // une largeur de deux touches). On essaie plusieurs hauteurs et on retient la grille la plus
+  // fournie dont le pas colle à celui des noires : cinq noires d'écart = une octave = 7 blanches.
+  const gridOpts = { ...opts, whiteLuma: Math.min(opts.whiteLuma, whiteRef * 0.85), separatorLuma: whiteRef - 25 };
+  const octaveGaps = [];
+  for (let i = 0; i + 5 < picked.keys.length; i++) octaveGaps.push((picked.keys[i + 5].center - picked.keys[i].center) / 7);
+  octaveGaps.sort((a, b) => a - b);
+  const expectedWidth = octaveGaps.length ? octaveGaps[Math.floor(octaveGaps.length / 2)] : null;
+  let whiteRow = -1;
+  let grid = null;
+  for (const f of [0.35, 0.2, 0.5, 0.65, 0.1, 0.8]) {
+    const row = zoneTop + Math.round(zoneHeight * f);
+    // Seuil des traits : celui de la noire, et celui du blanc réellement lu sur CETTE rangée
+    // (la noire peut être plus sombre que les blanches : traits à 190 pour des blanches à 231).
+    const lumas = [];
+    for (let x = x0; x <= x1; x++) lumas.push(getLuma(frame, x, row));
+    lumas.sort((a, b) => a - b);
+    const rowWhite = lumas[Math.floor(lumas.length * 0.8)];
+    for (const sepLuma of [gridOpts.separatorLuma, Math.max(gridOpts.separatorLuma, rowWhite - 25)]) {
+      const g = findWhiteGrid(frame, row, { ...gridOpts, separatorLuma: sepLuma });
+      if (!g) continue;
+      if (expectedWidth && Math.abs(g.width - expectedWidth) > expectedWidth * 0.06) continue;
+      if (!grid || g.separators.length > grid.separators.length) { grid = g; whiteRow = row; }
+    }
+  }
   if (!grid) return { ok: false, reason: 'NoWhiteGrid' };
 
   const geometry = buildGeometry(frame, { whiteRow, bottom: bottom + 1 }, picked, grid, opts);

@@ -15,7 +15,7 @@
 //
 // Module pur : pas de DOM, pas de fichier, pas d'IPC.
 
-import { sampleMedian } from './frame.js';
+import { getPixel, sampleMedian } from './frame.js';
 
 export const DEFAULT_DETECTION_OPTIONS = {
   // Écart minimal entre canal max et canal min pour parler de couleur.
@@ -26,7 +26,29 @@ export const DEFAULT_DETECTION_OPTIONS = {
   sampleRadius: 1,
   // Fraction de la hauteur de touche blanche où échantillonner, sous les noires.
   whiteSampleRatio: 0.78,
+  // [Claude] — 2026-10-14 — Une touche allumée est CLAIRE : une noire verdâtre à 41/255 n'est qu'une
+  // noire éclairée de côté (« Next Level Worship » : un faux Fa♯). En dessous, on ne décide pas.
+  minValue: 80,
+  otherMinValue: 150,
+  // Une peau (main du prof devant le clavier) n'est pas une touche allumée : teinte rouge-orangé,
+  // saturation moyenne. Un vrai orange de rendu Synthesia est bien plus vif et plus clair.
+  skinMaxSaturation: 0.75,
+  skinMinValueVivid: 170,
 };
+
+/**
+ * Couleur de peau : rouge dominant, vert entre rouge et bleu (teinte 0–50°), peu saturée ou sombre.
+ * Les hues de rendu (vert, bleu, magenta, jaune vif, orange vif) n'en sont pas.
+ */
+function isSkinTone(r, g, b, opts) {
+  if (!(r >= g && g >= b && r > 0)) return false;
+  const max = r;
+  const min = b;
+  const sat = (max - min) / max;
+  const hue = (60 * (g - b)) / (max - min);          // 0° rouge … 60° jaune
+  if (hue > 50) return false;
+  return sat < opts.skinMaxSaturation || max < opts.skinMinValueVivid;
+}
 
 /**
  * Classe une couleur en « éteinte » ou en teinte de main.
@@ -42,9 +64,56 @@ export function classifyTint(r, g, b, options = {}) {
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);
   if (max - min < opts.minSaturation) return null;
+  if (max < opts.minValue) return null;
+  if (isSkinTone(r, g, b, opts)) return null;
   if (b > r + opts.hueMargin && b >= g) return 'blue';
   if (g > r + opts.hueMargin && g > b + opts.hueMargin) return 'green';
-  return 'other';
+  // Une teinte « autre » (ni bleu ni vert) doit être franche et claire : le bord ombré d'une main ou
+  // d'un objet donne du brun olive sombre, pas une touche allumée.
+  return max >= opts.otherMinValue ? 'other' : null;
+}
+
+/**
+ * [Claude] — 2026-10-14 — Le clavier est-il VISIBLE sur cette image ? (0 à 1)
+ *
+ * La géométrie est mesurée une fois, sur les images de sondage, puis appliquée à toutes les images
+ * de la vidéo. Quand la vidéo quitte le clavier (titre, professeur seul, panneau publicitaire, écran
+ * de fin), lire « les touches allumées » aux mêmes endroits fabrique des notes fantômes
+ * (« Next Level Worship » : Si♭1 Si1 Do2 sur le panneau d'intro). On compare donc l'image au motif
+ * attendu : noires sombres (ou colorées si allumées), blanches claires (ou colorées), sur la rangée
+ * des noires, et blanches claires en bas des touches. Des mains devant le clavier ne font guère
+ * baisser le score (0,93–0,98 mesuré) ; un autre décor tombe à 0,2–0,3.
+ *
+ * @returns {number}
+ */
+export function keyboardPresence(frame, geometry) {
+  const lum = (r, g, b) => 0.299 * r + 0.587 * g + 0.114 * b;
+  const sat = (r, g, b) => Math.max(r, g, b) - Math.min(r, g, b);
+  let plain = 0;
+  let colored = 0;
+  let n = 0;
+  const px = (x, y) => getPixel(frame, Math.max(0, Math.min(frame.width - 1, Math.round(x))), y);
+  // Une couleur vive compte pour une touche allumée, mais une touche allumée est l'exception :
+  // un décor entièrement coloré (scène verte, panneau) ne doit pas passer pour un clavier.
+  const tally = (r, g, b, expectDark, satMin) => {
+    n++;
+    const l = lum(r, g, b);
+    if (expectDark ? l < 100 : l > 140) plain++;
+    else if (sat(r, g, b) >= satMin) colored++;
+  };
+  for (const k of geometry.blackKeys) {
+    const [r, g, b] = px(k.center, geometry.blackRow);
+    tally(r, g, b, true, 60);
+  }
+  for (const k of geometry.whiteKeys) {
+    const [r, g, b] = px(k.center, geometry.blackRow);
+    tally(r, g, b, false, 60);
+    if (Number.isFinite(geometry.sampleRow)) {
+      const [r2, g2, b2] = px(k.center, geometry.sampleRow);
+      tally(r2, g2, b2, false, 40);
+    }
+  }
+  return n ? (plain + Math.min(colored, n * 0.25)) / n : 0;
 }
 
 /**
@@ -65,6 +134,9 @@ export function readLitKeys(frame, geometry, options = {}) {
   const opts = { ...DEFAULT_DETECTION_OPTIONS, ...options };
   const lit = [];
 
+  // Clavier absent de cette image (voir keyboardPresence) : rien n'est allumé, rien n'est lu.
+  if (Number.isFinite(geometry.presenceMin) && keyboardPresence(frame, geometry) < geometry.presenceMin) return lit;
+
   // Rangée d'échantillonnage des blanches : bien sous les touches noires.
   // `sampleRow` est calculé par buildGeometry() à partir de mesures communes
   // aux deux stratégies (blackRow + bottom). En repli, on garde l'ancienne
@@ -84,7 +156,16 @@ export function readLitKeys(frame, geometry, options = {}) {
 
   for (const key of geometry.whiteKeys) {
     const [r, g, b] = sampleMedian(frame, key.center, whiteY, opts.sampleRadius);
-    const hand = classifyTint(r, g, b, opts);
+    let hand = classifyTint(r, g, b, opts);
+    // [Claude] — 2026-10-14 — Certains rendus (« Next Level Worship ») n'allument une blanche que
+    // sur sa partie haute, entre les noires, et laissent le bas blanc ; les mains du prof couvrent
+    // en plus le bas des touches. On lit donc aussi le centre de la blanche à hauteur des noires,
+    // mais seulement pour une couleur franche (vert, bleu), jamais pour une teinte « autre ».
+    if (!hand && Number.isFinite(geometry.blackRow) && geometry.strategy === 'keyboardBand') {
+      const [r2, g2, b2] = sampleMedian(frame, key.center, geometry.blackRow, opts.sampleRadius);
+      const top = classifyTint(r2, g2, b2, opts);
+      if (top === 'green' || top === 'blue') hand = top;
+    }
     if (hand) lit.push({ midi: key.midi, hand, kind: 'white' });
   }
 

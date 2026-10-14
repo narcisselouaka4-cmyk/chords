@@ -18,6 +18,7 @@
 // Module pur : la détection ne lit que des images déjà décodées.
 
 import { detectKeyboardGeometry } from './keyboard-geometry.js';
+import { keyboardPresence } from './key-detection.js';
 
 /** Formats connus de la taxonomie. */
 export const FORMATS = {
@@ -83,10 +84,12 @@ export function detectVideoFormat(frames, options = {}) {
 
   const probes = [];
   const geometries = [];
+  const sourceFrames = new Map();
   for (const frame of list) {
     const g = detectKeyboardGeometry(frame, options);
     if (g.ok) {
       geometries.push(g);
+      sourceFrames.set(g, frame);
       probes.push({ ok: true });
     } else {
       probes.push({ ok: false, reason: g.reason, detail: g.detail });
@@ -148,6 +151,16 @@ export function detectVideoFormat(frames, options = {}) {
       reason: `UnstableGeometry:${drift}`,
       fallback: 'audio',
     };
+  }
+
+  // [Claude] — 2026-10-14 — Seuil de présence du clavier, mesuré sur les images qui l'ont montré :
+  // la lecture des touches saute les images où le clavier n'est plus là (voir keyboardPresence).
+  // Seulement pour la stratégie « bande » : le clavier d'un rendu Synthesia ou d'un clavier fixe
+  // est toujours à l'écran. Le seuil suit le score réel de CETTE vidéo (mains, éclairage).
+  if (chosen.strategy === 'keyboardBand') {
+    const scores = agreeing.map((g) => keyboardPresence(sourceFrames.get(g), chosen)).sort((a, b) => a - b);
+    const median = scores[Math.floor(scores.length / 2)];
+    chosen.presenceMin = Math.round(Math.min(0.9, Math.max(0.6, median - 0.1)) * 100) / 100;
   }
 
   return {
