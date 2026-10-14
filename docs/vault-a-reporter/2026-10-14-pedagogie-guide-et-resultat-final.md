@@ -61,3 +61,12 @@ intermédiaires et ceux qui ne comprennent pas la langue de la vidéo. Puis : an
 - Résumés français : il faut la clé IA et la transcription (Whisper) ; sinon les titres
   automatiques restent.
 - Pour relire NLW : « Refaire l'analyse » (ou réimporter).
+
+## Correctif après essai réel (14/10, soir)
+- Log : « transcription piano échouée … piano.wav : No such file ». Cause : la parole et les notes
+  du piano se transcrivent **en même temps** et partagent `.work-transcribe` ; `createTranscribeDir()`
+  purgeait tous les autres dossiers, donc l'une effaçait le WAV de l'autre en plein calcul.
+- Correctif (`electron/main.js`) : un dossier en cours d'utilisation n'est plus purgé
+  (`activeTranscribeDirs`, `releaseTranscribeDir`) ; nom unique (suffixe aléatoire).
+- Conséquence : sans ce correctif, la transcription du piano échouait souvent, donc le recoupement
+  image/son (octaves, lacunes, glissandos) n'avait pas lieu.

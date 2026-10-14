@@ -1064,22 +1064,36 @@ function runTranscriber(args) {
 // WAV de l'autre en pleine lecture. Deux racines, deux purges indépendantes.
 const TRANSCRIBE_DIR_NAME = 'PianoJazzChords/.work-transcribe';
 
+// [Claude] — 2026-10-14 — Deux transcriptions tournent en même temps (parole + notes du piano) :
+// chacune purgeait les dossiers de l'autre, et le WAV de l'une disparaissait en plein calcul
+// (« No such file … piano.wav »). Un dossier en cours d'utilisation n'est plus jamais purgé ;
+// seuls les restes d'un lancement précédent le sont.
+const activeTranscribeDirs = new Set();
+
 async function createTranscribeDir() {
   const root = path.join(os.homedir(), TRANSCRIBE_DIR_NAME);
   await fs.mkdir(root, { recursive: true });
-  const dir = path.join(root, `transcribe-${Date.now()}`);
+  const dir = path.join(root, `transcribe-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
   await fs.mkdir(dir, { recursive: true });
+  activeTranscribeDirs.add(dir);
   try {
     const entries = await fs.readdir(root);
     await Promise.all(entries.map(async (name) => {
       const full = path.join(root, name);
-      if (full === dir) return;
+      if (activeTranscribeDirs.has(full)) return;
       await fs.rm(full, { recursive: true, force: true }).catch(() => {});
     }));
   } catch {
     /* dossier absent : rien à purger */
   }
   return dir;
+}
+
+/** Fin d'une transcription : le dossier n'est plus utilisé, on le supprime. */
+async function releaseTranscribeDir(dir) {
+  if (!dir) return;
+  activeTranscribeDirs.delete(dir);
+  await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
 }
 
 // [Claude] — 2026-10-09 — Séparations en cours, par morceau : « Annuler » sous la barre de
@@ -1701,7 +1715,7 @@ function setupStudioIPC() {
       console.error('[Pedagogie] transcription échouée :', err);
       return { available: false, reason: 'failed', detail: err.message };
     } finally {
-      if (workDir) await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
+      await releaseTranscribeDir(workDir);
     }
   });
 
@@ -1728,7 +1742,7 @@ function setupStudioIPC() {
       console.error('[Pedagogie] transcription piano échouée :', err);
       return { available: false, reason: 'failed', detail: err.message };
     } finally {
-      if (workDir) await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
+      await releaseTranscribeDir(workDir);
     }
   });
 
