@@ -24,6 +24,7 @@ function fakeFiles() {
 
 const ANALYSIS = {
   source: 'audio',
+  readingRevision: READING_REVISION,
   segments: [{ start: 0, end: 4, chord: { label: 'Dm9', resolved: true, noteNames: [] } }],
   stats: { segmentCount: 1 },
   noteEvents: [{ midi: 50, start: 0, end: 3.8, hand: 'lh' }],
@@ -52,11 +53,13 @@ check('une copie, pas l\'objet de l\'écran', packed.analysis !== ANALYSIS && pa
 check('rendu s\'il est encore celui du fichier', unpackAnalysis(JSON.parse(JSON.stringify(packed)), STAT)?.analysis.segments[0].chord.label === 'Dm9');
 check('fichier remplacé (autre taille ou autre date) : relu', unpackAnalysis(packed, { ...STAT, size: 1 }) === null && unpackAnalysis(packed, { ...STAT, mtimeMs: STAT.mtimeMs + 5000 }) === null);
 // [Claude] — 2026-10-09 — Un clavier dessiné lu avant la relecture fine (révision 1) est relu.
-const drawnOld = packAnalysis({ path: PATH, stat: STAT, analysis: { ...ANALYSIS, source: 'video', notesSource: 'image (clavier dessiné)' } });
+const drawnOld = packAnalysis({ path: PATH, stat: STAT, analysis: { ...ANALYSIS, source: 'video', notesSource: 'image (clavier dessiné)', readingRevision: 1 } });
 const drawnNew = packAnalysis({ path: PATH, stat: STAT, analysis: { ...ANALYSIS, source: 'video', notesSource: 'image (clavier dessiné)', readingRevision: READING_REVISION } });
 check('clavier dessiné lu avant la relecture fine : relu', staleImageReading(drawnOld.analysis) && unpackAnalysis(drawnOld, STAT) === null);
 check('clavier dessiné lu avec la relecture fine : gardé', unpackAnalysis(drawnNew, STAT)?.analysis.readingRevision === READING_REVISION);
-check('relevé au son ou V2N : gardé (lecture inchangée)', unpackAnalysis(packed, STAT) !== null && !staleImageReading({ source: 'v2n', notesSource: 'image (V2N)' }));
+check('relevé V2N : gardé (lecture inchangée)', unpackAnalysis(packed, STAT) !== null && !staleImageReading({ source: 'v2n', notesSource: 'image (V2N)' }));
+// [Claude] — 2026-10-14 — Relevé au son faute de clavier reconnu : relu une fois (révision 3), puis gardé.
+check('relevé au son d\'avant la révision 3 : relu (son clavier peut être reconnu)', staleImageReading({ source: 'audio' }) && !staleImageReading({ source: 'audio', readingRevision: READING_REVISION }));
 check('autre version de la mémoire ou contenu illisible : relu', unpackAnalysis({ ...packed, version: 0 }, STAT) === null && unpackAnalysis({ version: MEMORY_VERSION }, STAT) === null && unpackAnalysis(null) === null);
 
 console.log('Sur le disque');

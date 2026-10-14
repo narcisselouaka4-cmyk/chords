@@ -1198,6 +1198,20 @@ runTest('T88 — Clavier absent de l\'image : rien n\'est lu (plus de notes fant
   assertDeep(readLitKeys(black, r.geometry), [], 'écran noir : aucune note');
 });
 
+runTest('T89 — Noire allumée par une barre large : la blanche voisine n\'est pas lue (pas de faux Si à côté du Si♭)', () => {
+  const t = makeTutorialFrame({ filmedPiano: false });
+  const probe = detectKeyboardGeometry(t.frame);
+  assertTrue(probe.ok, `détection : ${probe.reason}`);
+  const f = makeTutorialFrame({ filmedPiano: false });
+  // « Next Level Worship » : la barre verte d'une noire fait presque une blanche de large.
+  for (const m of [58, 61]) {
+    const bk = probe.blackKeys.find((k) => k.midi === m);
+    const half = Math.round(probe.whiteWidth * 0.5);
+    fillRect(f.frame, Math.round(bk.center) - half, f.kbTop, 2 * half + 1, f.blackBottom - f.kbTop, GREEN);
+  }
+  assertDeep(toMidiList(readLitKeys(f.frame, probe)), [58, 61], 'notes lues :');
+});
+
 runTest('T83 — Noms d\'accords en texte simple (pas de balise dans la grille)', () => {
   // « comment harmoniser rapidement » : E7♯9♭13, A7/C#, F#7♭9.
   for (const notes of [[52, 56, 62, 67, 72], [49, 57, 64, 67], [42, 46, 49, 52, 55]]) {

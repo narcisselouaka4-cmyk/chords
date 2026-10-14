@@ -28,13 +28,20 @@ export const MEMORY_VERSION = 1;
 // d'une révision plus ancienne est donc relu (une fois) ; les relevés au son, inchangés, restent.
 //   1 : 8 images/s
 //   2 : + relecture à 30 images/s des passages rapides (fine-reading.js)
-export const READING_REVISION = 2;
+//   3 : [Claude] — 2026-10-14 — clavier sous les mains du prof, touches allumées seulement à la
+//       frappe (flash-notes.js), noire voisine qui déborde. Un tuto relevé AU SON faute de clavier
+//       reconnu est aussi relu une fois : son clavier peut l'être maintenant (« Next Level Worship »).
+export const READING_REVISION = 3;
+/** Révision à partir de laquelle un relevé au son (clavier non reconnu) n'est plus relu. */
+const AUDIO_RECHECK_REVISION = 3;
 
-/** Lu à l'image (clavier dessiné) avec une lecture plus ancienne que READING_REVISION. */
+/** Lu à l'image (clavier dessiné), ou au son faute de clavier, avec une lecture plus ancienne. */
 export function staleImageReading(analysis) {
   if (!analysis) return false;
   const drawn = analysis.source === 'video' || /clavier dessiné/.test(String(analysis.notesSource || ''));
-  return drawn && (Number(analysis.readingRevision) || 1) < READING_REVISION;
+  const revision = Number(analysis.readingRevision) || 1;
+  if (drawn) return revision < READING_REVISION;
+  return analysis.source === 'audio' && revision < AUDIO_RECHECK_REVISION;
 }
 
 /** Clé courte et stable d'un chemin de tuto : FNV-1a 32 bits, en hexadécimal. */

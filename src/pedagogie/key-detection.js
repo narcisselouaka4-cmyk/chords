@@ -153,6 +153,7 @@ export function readLitKeys(frame, geometry, options = {}) {
     const hand = classifyTint(r, g, b, opts);
     if (hand) lit.push({ midi: key.midi, hand, kind: 'black' });
   }
+  const litBlack = new Set(lit.map((k) => k.midi));
 
   for (const key of geometry.whiteKeys) {
     const [r, g, b] = sampleMedian(frame, key.center, whiteY, opts.sampleRadius);
@@ -161,7 +162,10 @@ export function readLitKeys(frame, geometry, options = {}) {
     // sur sa partie haute, entre les noires, et laissent le bas blanc ; les mains du prof couvrent
     // en plus le bas des touches. On lit donc aussi le centre de la blanche à hauteur des noires,
     // mais seulement pour une couleur franche (vert, bleu), jamais pour une teinte « autre ».
-    if (!hand && Number.isFinite(geometry.blackRow) && geometry.strategy === 'keyboardBand') {
+    // Une noire allumée voisine déborde sur le haut de cette blanche (sa barre fait presque une
+    // blanche de large) : la couleur vue en haut serait la sienne (faux Si à côté d'un Si♭).
+    const blackNeighbourLit = litBlack.has(key.midi - 1) || litBlack.has(key.midi + 1);
+    if (!hand && !blackNeighbourLit && Number.isFinite(geometry.blackRow) && geometry.strategy === 'keyboardBand') {
       const [r2, g2, b2] = sampleMedian(frame, key.center, geometry.blackRow, opts.sampleRadius);
       const top = classifyTint(r2, g2, b2, opts);
       if (top === 'green' || top === 'blue') hand = top;
