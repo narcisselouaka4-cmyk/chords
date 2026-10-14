@@ -1165,6 +1165,23 @@ runTest('T86 — Teintes : une peau n\'est pas une touche allumée, une touche s
   assertEqual(classifyTint(255, 140, 0), 'other', 'orange vif de rendu :');
 });
 
+runTest('T86b — Un rendu rouge est lu sur les blanches ET sur les noires, sans confondre avec la peau', () => {
+  // [Claude] — 2026-10-15 — Valeurs relevées sur « Amazing Grace » (clavier à touches rouges) et
+  // sur « Next Level Worship » (mains du prof devant un clavier vert) : bugs/open/pedagogie-touches-rouges-non-lues.
+  // Une BLANCHE allumée en rouge est claire — elle passait déjà.
+  assertEqual(classifyTint(237, 49, 38), 'other', 'blanche rouge allumée :');
+  // Une NOIRE allumée en rouge reste sombre (max < otherMinValue) mais sa saturation est franche
+  // (0,87 à 0,93) : c'est ce qui la distingue d'un bord de main ombré. Elle tombait avant le 15/10,
+  // et la basse perdue ruinait toute la segmentation.
+  for (const [r, g, b] of [[119, 17, 15], [111, 17, 13], [125, 16, 15], [121, 19, 8], [132, 22, 17]]) {
+    assertEqual(classifyTint(r, g, b), 'other', `noire rouge allumée ${r},${g},${b} :`);
+  }
+  // La peau mesurée sur la vidéo verte plafonne à 0,60 de saturation : elle reste écartée.
+  for (const [r, g, b] of [[160, 124, 92], [187, 146, 123], [218, 189, 170], [106, 70, 52], [84, 61, 34]]) {
+    assertEqual(classifyTint(r, g, b), null, `peau mesurée ${r},${g},${b} :`);
+  }
+});
+
 runTest('T87 — Blanche allumée seulement en haut : lue à hauteur des noires, malgré une main devant le bas', () => {
   const t = makeTutorialFrame({ filmedPiano: false });
   const probe = detectKeyboardGeometry(t.frame);

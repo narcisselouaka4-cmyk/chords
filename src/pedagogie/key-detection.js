@@ -34,6 +34,12 @@ export const DEFAULT_DETECTION_OPTIONS = {
   // saturation moyenne. Un vrai orange de rendu Synthesia est bien plus vif et plus clair.
   skinMaxSaturation: 0.75,
   skinMinValueVivid: 170,
+  // [Claude] — 2026-10-15 — Au-delà de cette saturation, la couleur est un rendu, jamais de la peau
+  // ni une touche ombrée. Mesuré sur deux vidéos : la peau des mains du prof (« Next Level Worship »)
+  // plafonne à 0,60 de saturation, tandis qu'une NOIRE allumée en rouge (« Amazing Grace »,
+  // rgb(119,17,15)) tient 0,87 à 0,93. Le seuil est posé dans l'intervalle vide entre les deux ;
+  // de 0,70 à 0,80 la mesure donne le même résultat.
+  vividSaturation: 0.75,
 };
 
 /**
@@ -47,6 +53,10 @@ function isSkinTone(r, g, b, opts) {
   const sat = (max - min) / max;
   const hue = (60 * (g - b)) / (max - min);          // 0° rouge … 60° jaune
   if (hue > 50) return false;
+  // [Claude] — 2026-10-15 — Une saturation franche n'est jamais de la peau. Sans cette sortie, le
+  // « ou max < skinMinValueVivid » écartait TOUTE touche rougeâtre sombre, donc toutes les noires
+  // allumées en rouge — et la perte de la basse ruinait ensuite la segmentation.
+  if (sat >= opts.vividSaturation) return false;
   return sat < opts.skinMaxSaturation || max < opts.skinMinValueVivid;
 }
 
@@ -70,7 +80,11 @@ export function classifyTint(r, g, b, options = {}) {
   if (g > r + opts.hueMargin && g > b + opts.hueMargin) return 'green';
   // Une teinte « autre » (ni bleu ni vert) doit être franche et claire : le bord ombré d'une main ou
   // d'un objet donne du brun olive sombre, pas une touche allumée.
-  return max >= opts.otherMinValue ? 'other' : null;
+  if (max >= opts.otherMinValue) return 'other';
+  // [Claude] — 2026-10-15 — … mais une NOIRE allumée reste sombre par nature : le rouge d'une noire
+  // vaut rgb(119,17,15), sous les 150 attendus d'une blanche allumée. Une saturation franche suffit
+  // alors à trancher : le brun olive d'un bord ombré ne monte pas à 0,75.
+  return (max - min) / max >= opts.vividSaturation ? 'other' : null;
 }
 
 /**
