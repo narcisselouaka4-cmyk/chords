@@ -1,3 +1,11 @@
+---
+title: Pédagogie IA — guide du tuto, résultat final, barre à régions
+type: feature
+date: 2026-10-14
+status: implémenté, non vérifié dans Electron
+tags: [pedagogie-ia, copilote, guide, flash-notes, transcription]
+---
+
 # Pédagogie IA — le guide du tuto et le résultat final (14/10/2026)
 
 **Déclencheur** : « Next Level Worship » — « entre 3:08 et 3:37, Copilot n'arrive pas à bien
@@ -70,3 +78,16 @@ intermédiaires et ceux qui ne comprennent pas la langue de la vidéo. Puis : an
   (`activeTranscribeDirs`, `releaseTranscribeDir`) ; nom unique (suffixe aléatoire).
 - Conséquence : sans ce correctif, la transcription du piano échouait souvent, donc le recoupement
   image/son (octaves, lacunes, glissandos) n'avait pas lieu.
+
+## À mettre dans decisions/
+- Le guide du tuto ne répond qu'avec ce que le tuto montre ; sans correspondance : « pas directement » + le chemin par sa boucle (jamais inventé).
+- Tonalité : un II-V-I complet l'emporte sur le bonus « commence par la tonique ».
+- Les titres en français sont demandés à l'IA à partir des accords + paroles, avec consigne de ne rien ajouter.
+
+## À mettre dans experiments/
+- Lecture « éclair » : tenir les notes jusqu'au changement d'harmonie (`BASS_REACH` 5, `MAX_WINDOW` 8 s) : la première règle fusionnait des sections entières ; corrigée par « la basse bouge » / « basse plus grave ».
+- Blanche lue « en haut » à côté d'une noire allumée : faux demi-tons ; rejeté, remplacé par la règle de la noire voisine.
+
+## Prochaines actions
+- Hypothèses « intro / couplet / mouvement » (demandées, pas faites) ; boucle de batterie par style (styles à choisir avec Narcisse).
+- Vérifier dans le vrai Electron (« Refaire l'analyse » sur Next Level Worship).

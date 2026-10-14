@@ -32,10 +32,6 @@ par chemins explicites, `git commit` et `git push`. Une session sans accès au P
 notes dans `docs/vault-a-reporter/` ; la session suivante sur le PC les range dans le coffre
 (`bash scripts/sync-vault.sh`).
 
-> *(14/10/2026)* Le coffre unifié devient `/home/visiteur/Documents/zic-vault` (source de vérité).
-> L'ancien chemin ci-dessus est conservé tant que la fusion n'est pas validée. Depuis le cloud,
-> on n'écrit pas dans le coffre : voir « Fin de session (obligatoire) » juste après.
-
 ## Fin de session (obligatoire)
 
 Le coffre Obsidian (`/home/visiteur/Documents/zic-vault`) est la mémoire du projet, mais je n'y ai
