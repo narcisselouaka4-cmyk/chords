@@ -57,12 +57,19 @@ import { normalizeAnalyzerChords } from '../pedagogie/audio-fallback.js';
 import { normalizeTranscription, alignNarration } from '../pedagogie/transcription.js';
 import { listTutorialFiles, copyTutorialIntoFolder, tutorialDisplayName, isMp4Name, libraryFolder, deleteTutorialFile } from '../pedagogie/tutorial-library.js';
 import { getTutorialFolder, saveTutorialFolder } from '../pedagogie/tutorial-folder-pref.js';
-import { samplesToNoteEvents, eventsFromTranscription, compactTimeline } from '../pedagogie/teacher-notes.js';
+import { samplesToNoteEvents, eventsFromTranscription, compactTimeline, passageExample } from '../pedagogie/teacher-notes.js';
+import { isFlashRendering, flashSegments, holdFlashNotes } from '../pedagogie/flash-notes.js';
+import { labelNotes } from '../pedagogie/chord-labeling.js';
+import { buildTutorialGuide, finalResultExample } from '../pedagogie/tutorial-guide.js';
+import { guideSignature, needsSummaries, summaryMessages, parseSummaries, applySummaries } from '../pedagogie/guide-summaries.js';
+import { getAIConfig, callChatCompletions } from '../ai/openai-config.js';
 import { withMeasuredVelocity } from '../pedagogie/dynamics.js';
 import { registerCopilotContext } from '../pedagogie/copilot-context.js';
 import { dockCopilot, undockCopilot } from '../pedagogie/copilot-dock.js';
 import { momentContext, passageWindow, clock } from '../pedagogie/tutorial-moment.js';
-import { FOLLOW_SECONDS, MAX_PASSAGE_SECONDS, splitTime, joinTime, timeOptions, setRangeBound, rangeLength } from '../pedagogie/passage-range.js';
+import { FOLLOW_SECONDS, MAX_PASSAGE_SECONDS, setRangeBound } from '../pedagogie/passage-range.js';
+import { createPassageTimeline } from './components/passage-timeline.js';
+import { createGuidePanel } from './pedagogie-guide.js';
 import { DEFAULT_SHARE, shareAt, isWide, toggledShare, shareForKey, storedShare, clampShare } from '../pedagogie/copilot-width.js';
 import { createTutorialMemory, cardDuration, READING_REVISION } from '../pedagogie/tutorial-memory.js';
 import { teacherActivity, chordsWhilePlaying, activitySummary, isPlaying, ACTIVITY, withoutReadingArtifacts } from '../pedagogie/teacher-activity.js';
@@ -169,12 +176,14 @@ let passage = null;
 let looping = false;
 // Ce que la barre dit après un réglage (« la fin a suivi »), et la vidéo pour laquelle ses
 // listes ont été construites.
-let passageHint = '';
-let passageCapped = false;
-let passageBuiltFor = null;
+// [Claude] — 2026-10-14 — La barre du passage (components/passage-timeline.js) et le guide du tuto
+// (pedagogie-guide.js), dans l'onglet « Guide du tuto » à côté du Copilote.
+let timeline = null;
+let guidePanel = null;
+let guideShownFor = null;
+let panelTab = 'guide';
+const TIP_KEY = 'pjc.pedagogie.timeline-tip';
 // La frise des accords, repliée par défaut (choix retenu dans le navigateur).
-const STRIP_KEY = 'pedagogie-strip-open';
-let stripOpen = false;
 // [Claude] — 2026-10-03 — La part du Copilote dans la largeur (poignée, « Agrandir »), retenue.
 const COPILOT_WIDTH_KEY = 'pedagogie-copilot-width';
 let copilotShare = DEFAULT_SHARE;
@@ -355,9 +364,8 @@ function resetTutorialView() {
   restoredAt = null;
   passage = null;
   looping = false;
-  passageHint = '';
-  passageCapped = false;
-  passageBuiltFor = null;
+  guideShownFor = null;
+  panelTab = 'guide';
   resetNarration();
   setStatus('');
   setProgress('');
@@ -797,8 +805,6 @@ function loopSegment(start, end) {
   const next = setRangeBound({ start: Math.floor(start), end: Math.ceil(end) }, 'start', Math.floor(start), Number(els.videoPlayer?.duration));
   passage = { start: next.start, end: next.end };
   looping = true;
-  passageHint = '';
-  passageCapped = false;
   renderPassageBar();
   seekVideo(passage.start);
 }
@@ -928,7 +934,6 @@ function renderTools() {
     });
     els.speed.replaceChildren(el('span', { className: 'pedago-tools-label', text: 'Vitesse' }), speedMenu);
   } else if (speedMenu) setSpeedMenuValue(speedMenu, speed);
-  if (els.grid) els.grid.title = 'Clic : placer la vidéo sur l\'accord · Maj + clic : en faire le passage, en boucle';
 }
 
 // ---------------------------------------------------------------------------
@@ -943,63 +948,41 @@ function currentRange() {
   return { start: 0, end: Math.min(FOLLOW_SECONDS, Math.floor(Number(els.videoPlayer?.duration) || FOLLOW_SECONDS)) };
 }
 
-/** Un bord de la plage : la valeur choisie dans ses listes (heures, minutes, secondes). */
-function edgeSeconds(edge) {
-  const box = edge === 'start' ? els.passageStart : els.passageEnd;
-  const value = (part) => Number(box?.querySelector(`select[data-part="${part}"]`)?.value) || 0;
-  return joinTime({ h: value('h'), m: value('m'), s: value('s') });
-}
-
-/** Fixe un bord de la plage ; l'autre suit au besoin, et la barre le dit. */
-function setPassageEdge(edge, seconds) {
-  const duration = Number(els.videoPlayer?.duration);
-  const next = setRangeBound(currentRange(), edge, seconds, duration);
-  passage = { start: next.start, end: next.end };
-  passageHint = next.adjusted === 'end' ? 'la fin a suivi' : next.adjusted === 'start' ? 'le début a suivi' : '';
-  // L'autre bord a suivi parce que la plage dépassait 10 minutes (sinon : parce qu'il passait
-  // de l'autre côté).
-  passageCapped = Boolean(next.adjusted) && next.end - next.start >= MAX_PASSAGE_SECONDS;
-  lastLoopTime = null;
-  renderPassageBar();
-  updateMoment();
-}
-
-/** [Claude] — 2026-10-04 — « Prendre l'instant de la vidéo » : une cible. */
-const ICON_NOW = '<svg class="tr-i" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>';
-const UNIT_WORDS = { h: 'heures', min: 'minutes', s: 'secondes' };
-
 /**
- * Les listes d'un bord (construites une fois par vidéo). [Claude] — 2026-10-04 — Réunies en un
- * seul champ « 0 : 26 » (les unités restent dites aux lecteurs d'écran), et « Maintenant »
- * devient une petite cible : moins d'inscriptions sous la vidéo.
+ * [Claude] — 2026-10-14 — Le passage du Copilote, posé sur la barre (glisser, double-clic sur une
+ * étape) ou depuis le guide (une étape, le résultat final, un mouvement). 10 minutes au plus.
  */
-function buildEdge(box, edge, options) {
-  if (!box) return;
-  box.innerHTML = '';
-  box.dataset.edge = edge;
-  const name = edge === 'start' ? 'Début' : 'Fin';
-  box.appendChild(el('span', { className: 'pedago-passage-edge-label', text: name }));
-  const field = el('span', { className: 'pedago-time' });
-  const select = (part, values, unit) => {
-    const node = el('select', { className: 'pedago-passage-select', 'data-part': part, 'aria-label': `${name} : ${UNIT_WORDS[unit]}`, title: `${name} : ${UNIT_WORDS[unit]}` });
-    for (const v of values) node.appendChild(el('option', { value: String(v), text: part === 'h' ? String(v) : String(v).padStart(2, '0') }));
-    node.addEventListener('change', () => setPassageEdge(edge, edgeSeconds(edge)));
-    if (field.childNodes.length) field.appendChild(el('span', { className: 'pedago-time-sep', 'aria-hidden': 'true', text: ':' }));
-    field.appendChild(node);
-  };
-  if (options.hours.length) select('h', options.hours, 'h');
-  select('m', options.minutes, 'min');
-  select('s', options.seconds, 's');
-  box.appendChild(field);
-  const now = el('button', {
-    type: 'button',
-    className: 'pedago-passage-now',
-    title: `${name} : prendre l'instant de la vidéo`,
-    'aria-label': `${name} : prendre l'instant de la vidéo`,
-    onClick: () => setPassageEdge(edge, Math.floor(Number(els.videoPlayer?.currentTime) || 0)),
-  });
-  now.innerHTML = ICON_NOW;
-  box.appendChild(now);
+function setPassage(range, { flash = true } = {}) {
+  if (!range || !Number.isFinite(range.start) || !Number.isFinite(range.end)) return;
+  const duration = Number(els.videoPlayer?.duration);
+  let start = Math.max(0, range.start);
+  let end = Math.max(start + 1, range.end);
+  if (Number.isFinite(duration) && duration > 0) end = Math.min(end, duration);
+  if (end - start > MAX_PASSAGE_SECONDS) end = start + MAX_PASSAGE_SECONDS;
+  passage = { start: Math.round(start * 10) / 10, end: Math.round(end * 10) / 10 };
+  lastLoopTime = null;
+  hideTimelineTip(true);
+  renderPassageBar();
+  if (flash) timeline?.flash();
+  updateMoment();
+  pulseMoment();
+}
+
+/** Le passage, dans l'en-tête du panneau, s'allume : c'est lui que le Copilote regarde. */
+function pulseMoment() {
+  if (!els.moment) return;
+  els.moment.classList.remove('is-pulse');
+  void els.moment.offsetWidth;
+  els.moment.classList.add('is-pulse');
+}
+
+/** La bulle d'aide sur la barre : une fois, jusqu'au premier passage tracé (ou « Compris »). */
+function timelineTipSeen() {
+  try { return localStorage.getItem(TIP_KEY) === '1'; } catch (_) { return true; }
+}
+function hideTimelineTip(remember) {
+  if (els.timelineTip) els.timelineTip.hidden = true;
+  if (remember) { try { localStorage.setItem(TIP_KEY, '1'); } catch (_) { /* stockage indisponible */ } }
 }
 
 /** [Claude] — 2026-10-04 — Une durée, dite comme on la lit : « 26 s », « 1 min 05 », « 10 min ». */
@@ -1012,10 +995,8 @@ function durationText(seconds) {
 }
 
 /**
- * [Claude] — 2026-10-03 — La barre du passage : Début / Fin (listes, « Maintenant »), sa durée,
- * « Boucler », « Suivre la vidéo », et ce que fait le prof dans le passage (il joue, il
- * explique). Les listes ne sont reconstruites que si la vidéo change ; sinon seules leurs
- * valeurs suivent (jamais pendant qu'on en ouvre une).
+ * [Claude] — 2026-10-14 — La barre du passage : les étapes du tuto, la région du Copilote, la tête
+ * de lecture ; dessous, ce que regarde le Copilote (en clair), « Boucler » et « Effacer ».
  */
 function renderPassageBar() {
   const bar = els.passage;
@@ -1024,42 +1005,28 @@ function renderPassageBar() {
   bar.hidden = !ready;
   if (!ready) return;
   const duration = Number(els.videoPlayer?.duration);
-  const key = `${selectedPath}|${Number.isFinite(duration) ? Math.floor(duration) : '?'}`;
-  if (passageBuiltFor !== key) {
-    const options = timeOptions(duration);
-    buildEdge(els.passageStart, 'start', options);
-    buildEdge(els.passageEnd, 'end', options);
-    passageBuiltFor = key;
-  }
-  const range = currentRange();
-  const active = document.activeElement;
-  const choosing = active?.tagName === 'SELECT' && bar.contains(active);
-  if (!choosing) {
-    for (const [box, t] of [[els.passageStart, range.start], [els.passageEnd, range.end]]) {
-      const parts = splitTime(t);
-      for (const part of ['h', 'm', 's']) {
-        const node = box?.querySelector(`select[data-part="${part}"]`);
-        if (node && node.value !== String(parts[part])) node.value = String(parts[part]);
-      }
-    }
-  }
-  bar.classList.toggle('is-following', !passage);
-  // [Claude] — 2026-10-04 — Une pastille : sa durée (« 26 s »), ou « suit la vidéo » ; ce qui
-  // vient de changer seul (« la fin a suivi », « 10 min au plus ») à côté, le reste en
-  // infobulle. Réécrite seulement quand elle change : c'est une zone lue à voix haute (aria-live).
-  const lengthKey = passage ? `${rangeLength(range)}|${passageCapped}|${passageHint}` : 'suit';
-  if (els.passageLength && els.passageLength.dataset.key !== lengthKey) {
-    const limit = MAX_PASSAGE_SECONDS / 60;
-    els.passageLength.dataset.key = lengthKey;
-    els.passageLength.textContent = '';
+  const guide = tutorialGuide();
+  timeline?.update({
+    // La vidéo pas encore chargée : la durée relevée à l'analyse.
+    duration: Number.isFinite(duration) && duration > 0 ? duration : (Number(analysis.stats?.duration) || 0),
+    now: Number(els.videoPlayer?.currentTime) || 0,
+    range: passage,
+    // Sans guide (tuto lu au son, sans les notes du prof) : ses accords, en bandes neutres.
+    steps: guide?.steps || chordSteps(),
+  });
+  if (els.timelineLegend) els.timelineLegend.hidden = !guide?.steps?.length;
+  if (els.timelineTip && !timelineTipSeen()) els.timelineTip.hidden = false;
+  const chipKey = passage ? `${passage.start}|${passage.end}` : 'suit';
+  if (els.regionChip && els.regionChip.dataset.key !== chipKey) {
+    els.regionChip.dataset.key = chipKey;
+    els.regionChip.textContent = '';
     if (passage) {
-      els.passageLength.title = `Durée du passage (${limit} min au plus)`;
-      els.passageLength.appendChild(el('strong', { className: 'pedago-pill', text: durationText(range.end - range.start) }));
-      const hint = passageCapped ? `${limit} min au plus : ${passageHint}` : passageHint;
-      if (hint) els.passageLength.appendChild(el('span', { className: 'pedago-passage-hint', text: hint }));
+      els.regionChip.append('Le Copilote regarde ', el('strong', { text: `${clock(passage.start)} → ${clock(passage.end)}` }), ` (${durationText(passage.end - passage.start)})`);
+      els.regionChip.classList.remove('is-new');
+      void els.regionChip.offsetWidth;
+      els.regionChip.classList.add('is-new');
     } else {
-      els.passageLength.title = `Tant que tu ne choisis pas de passage, le Copilote parle des ${FOLLOW_SECONDS} dernières secondes de la vidéo`;
-      els.passageLength.appendChild(el('span', { className: 'pedago-pill is-muted', text: 'suit la vidéo' }));
+      els.regionChip.append(el('span', { className: 'is-follow', text: `Le Copilote suit la vidéo (les ${FOLLOW_SECONDS} dernières secondes)` }));
     }
   }
   if (els.passageLoop) {
@@ -1067,65 +1034,6 @@ function renderPassageBar() {
     els.passageLoop.classList.toggle('is-active', looping);
   }
   if (els.passageFollow) els.passageFollow.hidden = !passage;
-  renderPassageActivity(range);
-}
-
-/**
- * Ce que fait le prof dans le passage : une bande (il joue / il explique), cliquable. Elle
- * n'est refaite que si le passage change ; un appui place la vidéo aussitôt (tant que le
- * passage suit la vidéo, la bande avance avec elle).
- */
-let activityBuilt = null;
-function renderPassageActivity(range) {
-  const box = els.passageActivity;
-  if (!box) return;
-  const view = teacherView();
-  const key = `${range.start}|${range.end}`;
-  if (activityBuilt?.key === key && activityBuilt.view === view) return;
-  activityBuilt = { key, view };
-  box.innerHTML = '';
-  const spans = (view?.spans || [])
-    .filter((s) => s.start < range.end && s.end > range.start)
-    .map((s) => ({ ...s, start: Math.max(s.start, range.start), end: Math.min(s.end, range.end) }))
-    .filter((s) => s.end - s.start > 0.05);
-  if (!spans.length || range.end <= range.start) { box.hidden = true; return; }
-  box.hidden = false;
-  const track = el('div', { className: 'pedago-activity-track', role: 'list', 'aria-label': 'Ce que fait le prof dans ce passage' });
-  const labels = { joue: 'il joue', parle: 'il explique', 'joue-et-parle': 'il joue en parlant' };
-  const length = range.end - range.start;
-  const percent = (t) => `${Math.round(((t - range.start) / length) * 10000) / 100}%`;
-  for (const s of spans) {
-    const label = labels[s.kind] || '';
-    track.appendChild(el('button', {
-      type: 'button',
-      role: 'listitem',
-      className: `pedago-activity-span is-${s.kind}`,
-      style: `left: ${percent(s.start)}; width: ${percent(range.start + (s.end - s.start))}`,
-      title: `${label || 'rien'} : ${clock(s.start)} → ${clock(s.end)}`,
-      'aria-label': `${label || 'silence'}, ${clock(s.start)} à ${clock(s.end)}`,
-      'data-start': String(s.start),
-      onPointerdown: (e) => { if (e.button === 0) seekVideo(s.start); },
-      // Au clavier (Entrée, Espace) : le clic n'a pas d'appui de souris avant lui.
-      onClick: (e) => { if (e.detail === 0) seekVideo(s.start); },
-    }));
-  }
-  box.appendChild(track);
-  // [Claude] — 2026-10-04 — Sous la bande : son début et sa fin aux deux bouts, et une légende
-  // courte, un repère par sorte. Seuls les moments où il explique sont datés (« il explique
-  // 0:12–0:20 ») : qu'il joue, la bande le montre.
-  const told = spans.filter((s) => labels[s.kind] && s.end - s.start >= 0.5);
-  const legend = el('p', { className: 'pedago-activity-legend' });
-  for (const kind of ['joue', 'parle', 'joue-et-parle']) {
-    const moments = told.filter((s) => s.kind === kind);
-    if (!moments.length) continue;
-    const dated = kind === 'joue' ? '' : ` ${moments.slice(0, 3).map((s) => `${clock(s.start)}–${clock(s.end)}`).join(', ')}${moments.length > 3 ? ` (+${moments.length - 3})` : ''}`;
-    legend.appendChild(el('span', { className: `pedago-activity-item is-${kind}`, text: `${labels[kind]}${dated}` }));
-  }
-  box.appendChild(el('div', { className: 'pedago-activity-foot' }, [
-    el('span', { className: 'pedago-activity-time', text: clock(range.start) }),
-    legend,
-    el('span', { className: 'pedago-activity-time', text: clock(range.end) }),
-  ]));
 }
 
 /** « Boucler » : la vidéo tourne sur le passage (fixé à l'instant s'il suivait la vidéo). */
@@ -1142,8 +1050,6 @@ function toggleLooping() {
 function followVideo() {
   passage = null;
   looping = false;
-  passageHint = '';
-  passageCapped = false;
   lastLoopTime = null;
   renderPassageBar();
   updateMoment();
@@ -1209,13 +1115,6 @@ function bindResizer() {
     e.preventDefault();
     setCopilotShare(next);
   });
-}
-
-/** La frise des accords : repliée par défaut, dépliée à la demande (choix retenu). */
-function setStripOpen(open) {
-  stripOpen = Boolean(open);
-  try { localStorage.setItem(STRIP_KEY, stripOpen ? '1' : '0'); } catch (_) { /* stockage indisponible */ }
-  renderResult();
 }
 
 // ---------------------------------------------------------------------------
@@ -1634,6 +1533,8 @@ async function runReading(path) {
           technical.push(`Notes du prof : ${job.notesUnavailable}.`);
         }
       }
+      // Relevé au son faute de clavier : relu une fois si la lecture de l'image change (tutorial-memory.js).
+      built.readingRevision = READING_REVISION;
       job.analysis = built;
       note(readingStatus(technical, { fromSound: true, calibrateHint }));
       succeeded = true;
@@ -1654,14 +1555,21 @@ async function runReading(path) {
       built.noteEvents = eventsFromTranscription(v2nResult.notes);
       built.notesSource = 'image (V2N)';
     } else {
+      // Touches allumées → notes, la main d'après la couleur.
+      const litNotes = samplesToNoteEvents(result.samples, result.sampleInterval);
+      // [Claude] — 2026-10-14 — Clavier qui n'allume une touche qu'à la frappe (« Next Level
+      // Worship ») : la grille se fait par harmonie, et chaque note sonne jusqu'au changement
+      // d'harmonie, comme le prof la tient (flash-notes.js).
+      const flash = isFlashRendering(litNotes);
       built = buildVideoAnalysis({
         samples: result.samples,
         geometry: result.geometry,
         sampleInterval: result.sampleInterval,
         narration,
+        ...(flash ? { segments: flashSegments(litNotes, labelNotes) } : {}),
       });
-      // Touches allumées → notes, la main d'après la couleur.
-      built.noteEvents = samplesToNoteEvents(result.samples, result.sampleInterval);
+      built.noteEvents = flash ? holdFlashNotes(litNotes) : litNotes;
+      if (flash) built.flashHighlights = true;
       built.notesSource = 'image (clavier dessiné)';
       // [Claude] — 2026-10-09 — Révision de la lecture (relecture fine comprise) : un relevé plus
       // ancien est relu à la réouverture du tuto (tutorial-memory.js, staleImageReading).
@@ -1834,7 +1742,7 @@ function render() {
 
   renderVideo();
   renderFormat();
-  renderResult();
+  renderGuide();
   renderTools();
   renderPassageBar();
   renderCopilotPanel();
@@ -1907,72 +1815,62 @@ function renderFormat() {
  * Frise des accords relevés, sous la vidéo : un clic place la vidéo à l'accord ;
  * l'accord en cours et ceux du passage dont parle le Copilote sont marqués.
  */
-function renderResult() {
-  if (!els.grid || !els.strip) return;
-  els.grid.innerHTML = '';
-  // [Claude] — 2026-10-03 — Les accords des moments où il joue ; « Il explique » là où il
-  // parle sans jouer (un clic place la vidéo sur l'explication).
+/**
+ * [Claude] — 2026-10-14 — Le guide du tuto (onglet « Guide du tuto ») : refait quand le relevé
+ * change. Les « Accords relevés » sont retirés (Narcisse : « je ne l'utilise pas du tout »).
+ */
+function renderGuide() {
+  if (!guidePanel) return;
+  const ready = Boolean(selectedPath && analysis && !isReadingHere());
+  const guide = ready ? tutorialGuide() : null;
+  if (guideShownFor === guide && guidePanel.root.childElementCount) return;
+  guideShownFor = guide;
+  guidePanel.render(guide, { noNotes: ready && !guide });
+  setPanelTab(guide ? panelTab : 'copilot', { quiet: true });
+}
+
+/** Les accords relevés, en étapes neutres pour la barre du tuto (quand il n'y a pas de guide). */
+function chordSteps() {
+  return (analysis?.segments || [])
+    .filter((s) => Number.isFinite(s?.start) && Number.isFinite(s?.end) && s.end > s.start && s.label)
+    .map((s, i) => ({ id: `c${i + 1}`, kind: 'chord', start: s.start, end: s.end, title: s.label }));
+}
+
+/** L'onglet du panneau de droite : le guide du tuto, ou le Copilote. */
+function setPanelTab(tab, { quiet = false } = {}) {
+  panelTab = tab === 'copilot' ? 'copilot' : 'guide';
+  if (!quiet && panelTab === 'guide') panelTabChosen = true;
+  if (!els.copilotPanel) return;
+  els.copilotPanel.dataset.tab = panelTab;
+  for (const [btn, name] of [[els.tabGuide, 'guide'], [els.tabCopilot, 'copilot']]) {
+    if (!btn) continue;
+    btn.setAttribute('aria-selected', String(panelTab === name));
+    btn.tabIndex = panelTab === name ? 0 : -1;
+  }
+  if (panelTab === 'copilot') els.tabCopilot?.classList.remove('has-news');
+}
+let panelTabChosen = false;
+
+/** Un exemple du guide (le résultat final, un mouvement) : le même lecteur que le Copilote. */
+function playGuideExample(id, what) {
   const view = teacherView();
-  let segments = analysis?.segments || [];
-  if (view?.filterChords) {
-    segments = segments.filter((seg) => view.spans.some((sp) => isPlaying(sp.kind) && seg.start < sp.end && seg.end > sp.start));
+  const notes = view?.played || analysis?.noteEvents || [];
+  let example = null;
+  if (what.kind === 'final') {
+    example = finalResultExample({ guide: tutorialGuide(), noteEvents: notes, pedals: analysis?.pedals || null, activity: view?.spans || [] }, { part: what.part, hand: what.hand }).example;
+  } else if (what.kind === 'movement') {
+    example = passageExample(notes, { start: what.start, end: what.end, title: 'Le mouvement du prof', pedals: analysis?.pedals || null, speech: view?.spans || [] });
   }
-  const talks = (view?.spans || []).filter((sp) => sp.kind === ACTIVITY.SPEAKS && sp.end - sp.start >= 2);
-  const items = [
-    ...segments.map((seg) => ({ at: seg.start, seg })),
-    ...talks.map((talk) => ({ at: talk.start, talk })),
-  ].sort((a, b) => a.at - b.at);
-  els.strip.hidden = items.length === 0;
-  // [Claude] — 2026-10-03 — Repliée par défaut (Narcisse : « parfois elles ne suivent même pas
-  // ce que joue le pianiste […] autant les garder repliées et permettre de les déplier »).
-  els.strip.classList.toggle('is-open', stripOpen);
-  els.grid.hidden = !stripOpen;
-  if (els.stripToggle) {
-    els.stripToggle.setAttribute('aria-expanded', String(stripOpen));
-    // [Claude] — 2026-10-04 — « Accords relevés » et leur nombre en pastille.
-    els.stripToggle.textContent = 'Accords relevés';
-    els.stripToggle.appendChild(el('span', { className: 'pedago-count', text: String(segments.length) }));
-    els.stripToggle.title = stripOpen
-      ? 'Replier la frise des accords'
-      : 'Déplier la frise : les accords lus à l\'image ou au son (pas toujours justes), un clic place la vidéo';
-  }
-  for (const { seg, talk } of items) {
-    if (talk) {
-      els.grid.appendChild(el('button', {
-        type: 'button',
-        role: 'listitem',
-        className: 'pedagogie-chip is-speech',
-        title: `Le prof explique, sans jouer (${formatTime(talk.start)} → ${formatTime(talk.end)}) : un clic place la vidéo`,
-        'data-start': talk.start,
-        'data-end': talk.end,
-        onClick: (e) => { if (e.shiftKey) loopSegment(talk.start, talk.end); else seekVideo(talk.start); },
-      }, [
-        el('span', { className: 'pedagogie-chip-time', text: formatTime(talk.start) }),
-        el('span', { className: 'pedagogie-chip-label', text: 'Il explique' }),
-      ]));
-      continue;
-    }
-    const chip = el('button', {
-      type: 'button',
-      role: 'listitem',
-      className: `pedagogie-chip${seg.chord.thirdMissing ? ' is-partial' : ''}`
-        + `${seg.chord.resolved ? '' : ' is-unresolved'}`,
-      title: seg.chord.note || (seg.chord.noteNames.length
-        ? `Notes lues : ${seg.chord.noteNames.join(' ')}`
-        : ''),
-      'data-start': seg.start,
-      'data-end': seg.end,
-      // [Claude] — 2026-10-03 — Maj + clic : boucler cet accord (lot 6).
-      onClick: (e) => { if (e.shiftKey) loopSegment(seg.start, seg.end); else seekVideo(seg.start); },
-    }, [
-      el('span', { className: 'pedagogie-chip-time', text: formatTime(seg.start) }),
-      el('span', {
-        className: 'pedagogie-chip-label',
-        text: seg.chord.resolved ? seg.chord.label : '?',
-      }),
-    ]);
-    els.grid.appendChild(chip);
-  }
+  if (!example) return;
+  pauseVideo();
+  document.dispatchEvent(new CustomEvent('copilot-play-example', { detail: { id, example, pedal: true, rate: 1 } }));
+}
+
+/** « Explique » dans le guide : le passage est posé, le Copilote reçoit la question. */
+function askCopilot(question, range) {
+  if (range) setPassage(range);
+  setPanelTab('copilot');
+  document.dispatchEvent(new CustomEvent('copilot-send-message', { detail: { message: question } }));
 }
 
 /**
@@ -2128,32 +2026,10 @@ function updateMoment() {
       ? (win.chosen ? 'Le passage que tu as choisi sous la vidéo : c\'est celui dont tu parles au Copilote.' : `Les ${FOLLOW_SECONDS} dernières secondes de la vidéo : « ici », « ce qu'il vient de faire ». Choisis un passage sous la vidéo pour le fixer.`)
       : '';
   }
-  markStrip(win);
-  // Tant que la plage suit la vidéo, ses listes avancent avec elle.
-  if (!passage) renderPassageBar();
-}
-
-let currentChip = null;
-function markStrip(win) {
-  if (!els.grid) return;
-  const now = els.videoPlayer?.currentTime;
-  let current = null;
-  for (const chip of els.grid.children) {
-    const start = Number(chip.dataset.start);
-    const end = Number(chip.dataset.end);
-    const isCurrent = Number.isFinite(now) && now >= start && now < end;
-    chip.classList.toggle('is-current', isCurrent);
-    chip.classList.toggle('is-in-passage', Boolean(win) && start < win.end && end > win.start);
-    if (isCurrent) current = chip;
-  }
-  // L'accord en cours reste visible dans la frise (défilement horizontal seul).
-  if (current && current !== currentChip && els.grid.scrollWidth > els.grid.clientWidth) {
-    const left = current.offsetLeft - els.grid.offsetLeft;
-    if (left < els.grid.scrollLeft || left + current.offsetWidth > els.grid.scrollLeft + els.grid.clientWidth) {
-      els.grid.scrollLeft = Math.max(0, left - 24);
-    }
-  }
-  currentChip = current;
+  // La tête de lecture de la barre, et l'étape en cours dans le guide.
+  const now = Number(els.videoPlayer?.currentTime) || 0;
+  timeline?.update({ now });
+  guidePanel?.setNow(now);
 }
 
 /**
@@ -2184,6 +2060,64 @@ function tutorialStructure(chords, notes) {
   structureCache = { analysis, chords: chords.length, key: detectedKey, structure };
   return structure;
 }
+// [Claude] — 2026-10-14 — Le guide du tuto (tutorial-guide.js) : ses étapes, le résultat final de
+// chaque partie, les mouvements qu'il montre. Calculé une fois par relevé affiché.
+let guideCache = null;
+function tutorialGuide() {
+  if (!analysis) return null;
+  const view = teacherView();
+  if (guideCache && guideCache.analysis === analysis && guideCache.narration === narrationView) return guideCache.guide;
+  let guide = null;
+  try {
+    guide = buildTutorialGuide({
+      segments: analysis.segments || [],
+      noteEvents: view?.played || analysis.noteEvents || [],
+      transcript: narrationView.map((n) => ({ start: n.start, text: n.text })),
+      duration: Number.isFinite(els.videoPlayer?.duration) ? els.videoPlayer.duration : (analysis.stats?.duration || null),
+    });
+  } catch (err) {
+    console.warn('[Pedagogie] Guide non calculé :', err);
+  }
+  // Les étapes en français, si elles ont déjà été résumées pour ce découpage (guide-summaries.js).
+  const fr = cards[selectedPath]?.guideFr;
+  if (guide && fr && fr.sig === guideSignature(guide)) guide = applySummaries(guide, fr.summaries);
+  else if (guide) requestGuideSummaries(selectedPath, guide);
+  guideCache = { analysis, narration: narrationView, guide };
+  return guide;
+}
+
+/**
+ * [Claude] — 2026-10-14 — Ce que dit le prof, étape par étape, en français : une demande au modèle du
+ * Copilote (Narcisse : « la barrière de la langue »), une fois par tuto et par découpage, gardée
+ * avec la fiche du tuto. Sans clé ou sans paroles, le guide reste tel quel.
+ */
+const summaryAsked = new Set();
+async function requestGuideSummaries(path, guide) {
+  const sig = guideSignature(guide);
+  if (!path || !sig || !needsSummaries(guide) || summaryAsked.has(`${path}|${sig}`)) return;
+  const config = getAIConfig();
+  if (!config?.apiKey || !config?.baseUrl) return;
+  summaryAsked.add(`${path}|${sig}`);
+  try {
+    const res = await callChatCompletions(config.baseUrl, config.apiKey, {
+      model: config.model,
+      messages: summaryMessages(guide),
+      temperature: 0.2,
+    }, { timeoutMs: 45000 });
+    if (!res.ok) return;
+    const data = await res.json();
+    const summaries = parseSummaries(data?.choices?.[0]?.message?.content || '', guide);
+    if (!Object.keys(summaries).length) return;
+    await updateCard(path, { guideFr: { sig, summaries } });
+    if (selectedPath === path) {
+      guideCache = null;
+      renderGuide();
+    }
+  } catch (err) {
+    console.warn('[Pedagogie] étapes non résumées :', err?.message || err);
+  }
+}
+
 function teacherView() {
   if (!analysis) return null;
   if (activityCache && activityCache.analysis === analysis && activityCache.narration === narrationView) return activityCache.view;
@@ -2238,6 +2172,7 @@ export function getPedagogieCopilotContext() {
     notesTimeline: compactTimeline(noteEvents, chords),
     noteEvents,
     structure: tutorialStructure(structureChords, noteEvents),
+    guide: tutorialGuide(),
     pedals: Array.isArray(analysis.pedals) && analysis.pedals.length ? analysis.pedals : null,
     activity: view.spans,
     activitySummary: activitySummary(view.spans, { max: 40 }),
@@ -2310,17 +2245,17 @@ export function initPedagogieTab() {
   els.format = document.getElementById('pedagogie-format');
   els.videoCard = document.getElementById('pedagogie-video-card');
   els.videoPlayer = document.getElementById('pedagogie-video-player');
-  els.strip = document.getElementById('pedagogie-strip');
-  els.grid = document.getElementById('pedagogie-grid');
   // [Claude] — 2026-10-03 — La frise se replie (repliée par défaut), et la barre du passage.
-  els.stripToggle = document.getElementById('pedagogie-strip-toggle');
   els.passage = document.getElementById('pedagogie-passage');
-  els.passageStart = document.getElementById('pedagogie-passage-start');
-  els.passageEnd = document.getElementById('pedagogie-passage-end');
-  els.passageLength = document.getElementById('pedagogie-passage-length');
+  els.timelineMount = document.getElementById('pedagogie-timeline');
+  els.timelineTip = document.getElementById('pedagogie-timeline-tip');
+  els.timelineLegend = document.getElementById('pedagogie-timeline-legend');
+  els.regionChip = document.getElementById('pedagogie-region-chip');
+  els.tabGuide = document.getElementById('pedagogie-tab-guide');
+  els.tabCopilot = document.getElementById('pedagogie-tab-copilot');
+  els.guideSlot = document.getElementById('pedagogie-guide-slot');
   els.passageLoop = document.getElementById('pedagogie-passage-loop');
   els.passageFollow = document.getElementById('pedagogie-passage-follow');
-  els.passageActivity = document.getElementById('pedagogie-passage-activity');
   els.videoActions = document.getElementById('pedagogie-video-actions');
   els.calibrateBtn = document.getElementById('pedagogie-calibrate-btn');
   els.copilotPanel = document.getElementById('pedagogie-copilot-panel');
@@ -2369,8 +2304,44 @@ export function initPedagogieTab() {
   els.videoPlayer?.addEventListener('loadedmetadata', renderPassageBar);
   els.passageLoop?.addEventListener('click', () => { toggleLooping(); });
   els.passageFollow?.addEventListener('click', () => { followVideo(); });
-  els.stripToggle?.addEventListener('click', () => { setStripOpen(!stripOpen); });
-  try { stripOpen = localStorage.getItem(STRIP_KEY) === '1'; } catch (_) { stripOpen = false; }
+  // [Claude] — 2026-10-14 — La barre du passage et le guide du tuto.
+  if (els.timelineMount) {
+    timeline = createPassageTimeline({
+      onSeek: (t) => seekVideo(t),
+      onRegion: (range) => { if (range) setPassage(range, { flash: false }); else followVideo(); },
+      maxSeconds: MAX_PASSAGE_SECONDS,
+      followSeconds: FOLLOW_SECONDS,
+    });
+    els.timelineMount.appendChild(timeline.root);
+  }
+  document.getElementById('pedagogie-timeline-tip-ok')?.addEventListener('click', () => hideTimelineTip(true));
+  if (els.guideSlot) {
+    guidePanel = createGuidePanel({
+      onSeek: (t) => seekVideo(t),
+      onRegion: (range) => setPassage(range),
+      onAsk: (question, range) => askCopilot(question, range),
+      onPlay: (id, what) => playGuideExample(id, what),
+      onStop: () => document.dispatchEvent(new CustomEvent('copilot-stop-example')),
+    });
+    els.guideSlot.appendChild(guidePanel.root);
+  }
+  els.tabGuide?.addEventListener('click', () => setPanelTab('guide'));
+  els.tabCopilot?.addEventListener('click', () => setPanelTab('copilot'));
+  for (const btn of [els.tabGuide, els.tabCopilot]) {
+    btn?.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      e.preventDefault();
+      setPanelTab(panelTab === 'guide' ? 'copilot' : 'guide');
+      (panelTab === 'guide' ? els.tabGuide : els.tabCopilot)?.focus();
+    });
+  }
+  // Les exemples du guide jouent dans le lecteur commun : leurs boutons le disent.
+  document.addEventListener('copilot-example-state', (e) => {
+    const { id, playing } = e.detail || {};
+    if (typeof id === 'string' && id.startsWith('guide-')) guidePanel?.setPlaying(id, Boolean(playing));
+    else if (playing) guidePanel?.setPlaying(null, false);
+  });
+  setPanelTab('guide', { quiet: true });
   // La largeur du Copilote : la poignée, le bouton, et la part retenue.
   els.resizer = document.getElementById('pedagogie-resizer');
   els.sizeBtn = document.getElementById('pedagogie-copilot-size');

@@ -48,6 +48,7 @@
     <link rel="stylesheet" href="./ui/components/app-dialog.css" />
     <link rel="stylesheet" href="./ui/components/track-wheel.css" />
     <link rel="stylesheet" href="./ui/components/metronome-menu.css" />
+    <link rel="stylesheet" href="./ui/components/passage-timeline.css" />
     <!-- [Refonte v2/Global] — système de thème v2/Global. Chargé en <link>
          (et non via import JS) pour rester non-layered, au même niveau de
          cascade que style.css : la spécificité tranche, pas l'ordre d'injection. -->
@@ -65,6 +66,7 @@
     <!-- [Claude] — 2026-10-02 — Temps réel : Lecture en direct et portée. -->
     <link rel="stylesheet" href="./ui/refonte/astra-realtime.css" />
     <link rel="stylesheet" href="./ui/refonte/astra-pedagogie.css" />
+    <link rel="stylesheet" href="./ui/refonte/pedagogie-guide.css" />
     <!-- [Claude] — 2026-10-13 — Navigation (onglets principaux et sous-onglets), Atelier et Scène. -->
     <link rel="stylesheet" href="./ui/refonte/astra-nav.css" />
   </head>
@@ -954,33 +956,29 @@
                    dedans. Au milieu, les accords relevés (repliés). En bas, la vitesse de la
                    vidéo, ses outils, et le message de lecture. -->
               <section class="pedago-under" id="pedagogie-under" aria-label="Le passage et les réglages de la vidéo">
-                <!-- [Claude] — 2026-10-03 — La plage dont on parle au Copilote, choisie sans rien
-                     taper (Narcisse : « des champs présélectionnés (heures, minutes de 0 à 59) »,
-                     « une minute, c'est trop court ») : Début / Fin en listes, 10 min au plus. Avant
-                     tout choix, elle suit la vidéo (les 30 dernières secondes). « Boucler » fait
-                     tourner la vidéo sur la plage (l'ancienne boucle A-B). -->
+                <!-- [Claude] — 2026-10-14 — Le passage du Copilote : une barre comme la waveform du Studio
+                     (Narcisse : « plutôt que d'expliquer en petit texte gris […], un système de régions,
+                     un peu comme dans Studio, avec une petite animation pour que ce soit évident »). Les
+                     étapes du tuto y sont dessinées ; glisser trace la région ; un clic place la vidéo
+                     (components/passage-timeline.js). Les « Accords relevés » sont retirés (il ne s'en
+                     servait pas). -->
                 <div class="pedago-passage" id="pedagogie-passage" hidden>
+                  <div class="pedago-timeline-tip" id="pedagogie-timeline-tip" hidden>
+                    <span>Glisse sur la barre pour choisir un passage : le Copilote regardera ce que le prof y joue, pour te l'expliquer ou te le rejouer.</span>
+                    <button type="button" class="pedago-timeline-tip-ok" id="pedagogie-timeline-tip-ok">Compris</button>
+                  </div>
+                  <div class="pedago-timeline-mount" id="pedagogie-timeline"></div>
                   <div class="pedago-passage-row">
-                    <span class="pedago-under-title">Passage</span>
-                    <div class="pedago-passage-edge" id="pedagogie-passage-start"></div>
-                    <span class="pedago-passage-arrow" aria-hidden="true">→</span>
-                    <div class="pedago-passage-edge" id="pedagogie-passage-end"></div>
-                    <span class="pedago-passage-length" id="pedagogie-passage-length" aria-live="polite"></span>
+                    <span class="pedago-region-chip" id="pedagogie-region-chip" aria-live="polite"></span>
                     <span class="pedago-tools-spacer"></span>
                     <div class="pedago-passage-actions">
                       <button type="button" class="pedago-tool-btn pedago-passage-loop" id="pedagogie-passage-loop" aria-pressed="false" title="La vidéo tourne en boucle sur ce passage"><svg class="tr-i" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>Boucler</button>
-                      <button type="button" class="pedago-tool-btn pedago-passage-follow" id="pedagogie-passage-follow" hidden title="Revenir aux 30 dernières secondes de la vidéo">Suivre la vidéo</button>
+                      <button type="button" class="pedago-tool-btn pedago-passage-follow" id="pedagogie-passage-follow" hidden title="Effacer le passage : le Copilote suit à nouveau la vidéo"><svg class="tr-i" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>Effacer</button>
                     </div>
                   </div>
-                  <div class="pedago-passage-activity" id="pedagogie-passage-activity"></div>
-                </div>
-
-                <!-- [Claude] — 2026-10-03 — Narcisse : « les étiquettes d'accords […] parfois elles ne
-                     suivent même pas ce que joue le pianiste ; autant les garder repliées par défaut
-                     et permettre de les déplier ». -->
-                <div class="pedago-strip" id="pedagogie-strip" hidden>
-                  <button type="button" class="pedago-strip-toggle" id="pedagogie-strip-toggle" aria-expanded="false" aria-controls="pedagogie-grid">Accords relevés</button>
-                  <div class="pedagogie-grid" id="pedagogie-grid" role="list" aria-label="Accords relevés : un clic place la vidéo"></div>
+                  <div class="pedago-timeline-legend" id="pedagogie-timeline-legend" aria-hidden="true">
+                    <span class="is-both">Les deux mains</span><span class="is-lh">Main gauche</span><span class="is-rh">Main droite</span><span class="is-line">Mélodie</span><span class="is-talk">Il explique</span>
+                  </div>
                 </div>
 
                 <div class="pedago-tools pedagogie-video-actions" id="pedagogie-video-actions" style="display: none;">
@@ -1011,7 +1009,14 @@
 
             <aside class="pedago-copilot" id="pedagogie-copilot-panel" aria-label="Copilote du tutoriel">
               <header class="pedago-copilot-head">
-                <div class="pedago-copilot-title"><svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.29 1.29L3 12l5.81 1.9a2 2 0 0 1 1.29 1.29L12 21l1.9-5.81a2 2 0 0 1 1.29-1.29L21 12l-5.81-1.9a2 2 0 0 1-1.29-1.29z"/></svg><span>Copilote</span><small id="pedagogie-copilot-name"></small></div>
+                <!-- [Claude] — 2026-10-14 — Deux onglets : le Guide du tuto (étapes, résultat final,
+                     mouvements : pedagogie-guide.js) et le Copilote. -->
+                <div class="pedago-panel-tabs" role="tablist" aria-label="Guide ou Copilote">
+                  <span class="pedago-panel-tabs-glider" aria-hidden="true"></span>
+                  <button type="button" role="tab" class="pedago-panel-tab" id="pedagogie-tab-guide" aria-selected="true" aria-controls="pedagogie-guide-slot"><svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></svg><span>Guide du tuto</span></button>
+                  <button type="button" role="tab" class="pedago-panel-tab" id="pedagogie-tab-copilot" aria-selected="false" aria-controls="pedagogie-copilot-slot"><svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.29 1.29L3 12l5.81 1.9a2 2 0 0 1 1.29 1.29L12 21l1.9-5.81a2 2 0 0 1 1.29-1.29L21 12l-5.81-1.9a2 2 0 0 1-1.29-1.29z"/></svg><span>Copilote</span></button>
+                </div>
+                <small class="pedago-copilot-name" id="pedagogie-copilot-name" hidden></small>
                 <div class="pedago-moment" id="pedagogie-moment" hidden>
                   <span class="pedago-moment-label">Passage</span>
                   <strong class="pedago-moment-range" id="pedagogie-moment-range"></strong>
@@ -1025,7 +1030,10 @@
                 </button>
               </header>
               <p class="pedago-copilot-notice" id="pedagogie-copilot-notice" hidden></p>
-              <div class="pedago-copilot-slot" id="pedagogie-copilot-slot"></div>
+              <div class="pedago-panel-slots" id="pedagogie-panel-slots">
+                <div class="pedago-guide-slot" id="pedagogie-guide-slot" role="tabpanel" aria-labelledby="pedagogie-tab-guide"></div>
+                <div class="pedago-copilot-slot" id="pedagogie-copilot-slot" role="tabpanel" aria-labelledby="pedagogie-tab-copilot"></div>
+              </div>
             </aside>
           </div>
 

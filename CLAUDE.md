@@ -245,6 +245,24 @@ La boucle `requestAnimationFrame` qui modifiait `video.playbackRate` causait un 
   cherché dans le niveau sonore (`pedagogie/tempo-estimate.js`, IPC `pedagogie:loudness`), clics
   libres ou calés sur les temps de la vidéo (suit pause, saut, vitesse). Réglages par tutoriel
   (`localStorage`, clé `pjc.pedagogie.metronome`).
+- *(14/10/2026)* Rendu **« éclair »** (`pedagogie/flash-notes.js`) : certains tutos n'allument une
+  touche qu'à l'attaque (≈ 0,3 s). Détecté par `isFlashRendering` ; les notes sont alors tenues
+  jusqu'au prochain changement d'harmonie (`holdFlashNotes`) et les accords sont groupés par
+  harmonie (`flashSegments`), sinon chaque accord n'a que deux ou trois notes.
+- *(14/10/2026)* Une blanche n'est lue « en haut » (hauteur des noires) que si aucune noire voisine
+  n'est allumée : un repère vert large sur une noire allumait la blanche d'à côté (faux demi-tons).
+- *(14/10/2026)* **Guide du tuto** (`pedagogie/tutorial-guide.js`, `buildTutorialGuide`) : les
+  étapes (deux mains, main gauche seule, main droite seule, ligne du dessus, il parle), les parties
+  (une par tonalité, même boucle en degrés), le **résultat final** (la boucle jouée d'un trait, ou
+  rassemblée à partir des mains montrées séparément) et les **mouvements** relevés (passage,
+  chromatisme, marche, modulation). `findMovements` ne répond qu'avec ce que le tuto montre (sinon
+  « pas directement » + les chemins par ses accords). Le Copilote reçoit le guide (`guideLines`) et
+  l'outil `play_final_result`. Titres et phrases des étapes en français : une demande à l'IA
+  (`guide-summaries.js`), gardée dans la mémoire du tuto (`guideFr`).
+- *(14/10/2026)* Sous la vidéo, la **barre du tuto** (`components/passage-timeline.{js,css}`) : les
+  étapes en couleurs et la **région du Copilote** comme dans le Studio (tracer, déplacer, poignées,
+  double-clic sur une étape). Plus de listes Début / Fin ni de frise « Accords relevés ». Le panneau
+  de droite a deux onglets : **Guide** (`ui/pedagogie-guide.js`) et **Copilote**.
 
 ### Stems
 - Demucs `htdemucs_6s` produit 6 stems ; la guitare est fusionnée dans `other` pour l'UI.

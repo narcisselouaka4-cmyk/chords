@@ -220,8 +220,6 @@ check('La vidéo est montée depuis un blob, comme dans le Studio',
   tabCode.includes('URL.createObjectURL'));
 check('L\'URL blob est libérée avant chaque nouveau montage (pas de fuite)',
   tabCode.includes('URL.revokeObjectURL'));
-check('La grille d\'accords est un accompagnement : bande compacte sous le lecteur',
-  /max-height:\s*168px/.test(practiceCss) && html.indexOf('id="pedagogie-video-card"') < html.indexOf('id="pedagogie-grid"'));
 
 // La carte « Ce que dit le professeur » a été retirée : la transcription
 // alimente maintenant le Copilot IA, elle n'a plus sa propre carte.
@@ -368,11 +366,6 @@ check('« Calibrer le clavier » : caché par défaut, montré seulement si V2N 
   /id="pedagogie-calibrate-btn"[^>]*hidden|hidden[^>]*id="pedagogie-calibrate-btn"/.test(html)
     && /calibrateBtn\.hidden = !\(v2nState\?\.available/.test(tabCode)
     && !html.includes('id="pedagogie-calibrate-v2n-btn"'));
-check('Un accord non résolu est marqué, pas deviné',
-  tabCode.includes('is-unresolved'));
-check('Un accord sans tierce est distingué visuellement',
-  tabCode.includes('is-partial')
-  && practiceCss.includes('.pedagogie-chip.is-partial'));
 
 // ---------------------------------------------------------------------------
 // 10. [Claude] — 2026-10-03 — Lot 5 : mémoire des tutos et accueil en cartes
@@ -456,9 +449,6 @@ check('Vitesse de la vidéo, de 0,25× à 2× : playbackRate du lecteur, hauteur
 check('« Boucler » : la vidéo tourne sur le passage choisi, un saut voulu hors du passage n\'est pas ramené',
   /wasInside && \(t >= passage\.end \|\| video\.ended\) && t - lastLoopTime < 1\.5/.test(tabCode)
   && /if \(!looping \|\| !passage \|\| !video\)/.test(tabCode) && !html.includes('id="pedagogie-loop"'));
-check('Maj + clic sur un accord de la frise : il devient le passage, en boucle',
-  /if \(e\.shiftKey\) loopSegment\(seg\.start, seg\.end\)/.test(tabCode)
-  && /function loopSegment\(start, end\) \{[\s\S]*?setRangeBound\(\{ start: Math\.floor\(start\), end: Math\.ceil\(end\) \}, 'start'[\s\S]*?passage = \{ start: next\.start, end: next\.end \};\s*looping = true;/.test(tabCode));
 check('Sous un exemple du Copilote : « Ajouter à Ma grille » et « Ajouter aux Favoris », reçus par Exercices (main.js)',
   copilotTabCode.includes("new CustomEvent('exercise-save-grid'") && copilotTabCode.includes("new CustomEvent('exercise-add-favorites'")
   && mainJs.includes("document.addEventListener('exercise-save-grid'") && mainJs.includes("document.addEventListener('exercise-add-favorites'")
@@ -471,9 +461,6 @@ check('Sous un exemple du Copilote : « Ajouter à Ma grille » et « Ajouter au
 check('Le Copilote reçoit les notes JOUÉES (sans celles de sa voix), et les moments joue / parle',
   /const view = teacherView\(\);/.test(tabCode) && /const noteEvents = view\.played;/.test(tabCode)
   && /activity: view\.spans,/.test(tabCode) && /chordsWhilePlaying\(allChords, view\.spans\)/.test(tabCode));
-check('La frise : « Il explique » là où il parle sans jouer, les accords seulement là où il joue',
-  tabCode.includes("className: 'pedagogie-chip is-speech'") && tabCode.includes("text: 'Il explique'")
-  && /isPlaying\(sp\.kind\) && seg\.start < sp\.end && seg\.end > sp\.start/.test(tabCode));
 check('Sa pédale, entendue au son, est gardée avec le relevé et passée au Copilote',
   /built\.pedals = \(piano\.pedals \|\| \[\]\)/.test(tabCode) && /pedals: Array\.isArray\(analysis\.pedals\)/.test(tabCode));
 
@@ -482,35 +469,9 @@ check('Sa pédale, entendue au son, est gardée avec le relevé et passée au Co
 // frise repliée (Narcisse : « une minute, c'est trop court », « des champs présélectionnés
 // (heures, minutes de 0 à 59) », « autant garder [les étiquettes] repliées par défaut »)
 // ---------------------------------------------------------------------------
-check('La barre du passage est sous la vidéo : Début, Fin, durée, « Boucler », « Suivre la vidéo », ce que fait le prof',
-  /id="pedagogie-main"[\s\S]*?id="pedagogie-passage"[^>]*hidden[\s\S]*?id="pedagogie-passage-start"[\s\S]*?id="pedagogie-passage-end"[\s\S]*?id="pedagogie-passage-length"[\s\S]*?id="pedagogie-passage-loop"[\s\S]*?id="pedagogie-passage-follow"[\s\S]*?id="pedagogie-passage-activity"/.test(html)
-  && html.indexOf('id="pedagogie-passage"') < html.indexOf('id="pedagogie-strip"'));
-check('Début / Fin en listes (heures seulement pour une vidéo d\'1 h ou plus, minutes, secondes) et « Maintenant »',
-  tabCode.includes("const options = timeOptions(duration);") && /if \(options\.hours\.length\) select\('h', options\.hours, 'h'\);/.test(tabCode)
-  && /select\('m', options\.minutes, 'min'\);\s*select\('s', options\.seconds, 's'\);/.test(tabCode)
-  && tabCode.includes("'aria-label': `${name} : prendre l'instant de la vidéo`") && !/<input[^>]*pedagogie-passage/.test(html));
-check('Un bord réglé : la plage reste dans la vidéo, 10 min au plus, l\'autre bord suit et la barre le dit',
-  /const next = setRangeBound\(currentRange\(\), edge, seconds, duration\);/.test(tabCode)
-  && tabCode.includes("'la fin a suivi'") && tabCode.includes("'le début a suivi'")
-  && readText('src/pedagogie/passage-range.js').includes('export const MAX_PASSAGE_SECONDS = 600;'));
 check('Le Copilote parle de la plage choisie (sinon des 30 dernières secondes)',
   /passageWindow\(video\?\.currentTime, \{ length: FOLLOW_SECONDS, fixed: passage, duration: video\?\.duration \}\)/.test(tabCode)
   && /length: FOLLOW_SECONDS,\s*fixed: passage,/.test(tabCode));
-check('« Suivre la vidéo » rend la plage à la vidéo ; tant qu\'elle suit, ses listes avancent avec elle',
-  /function followVideo\(\) \{\s*passage = null;\s*looping = false;/.test(tabCode) && /if \(!passage\) renderPassageBar\(\);/.test(tabCode)
-  && /els\.passageFollow\?\.addEventListener\('click', \(\) => \{ followVideo\(\); \}\)/.test(tabCode));
-check('Une liste ouverte n\'est jamais changée sous les doigts ; la durée (lue à voix haute) n\'est réécrite que si elle change',
-  /const choosing = active\?\.tagName === 'SELECT' && bar\.contains\(active\);/.test(tabCode)
-  && /if \(els\.passageLength && els\.passageLength\.dataset\.key !== lengthKey\)/.test(tabCode)
-  && /id="pedagogie-passage-length" aria-live="polite"/.test(html));
-check('La bande « il joue / il explique » du passage : un appui place la vidéo, au clavier aussi',
-  tabCode.includes("className: `pedago-activity-span is-${s.kind}`") && /onPointerdown: \(e\) => \{ if \(e\.button === 0\) seekVideo\(s\.start\); \}/.test(tabCode)
-  && /onClick: \(e\) => \{ if \(e\.detail === 0\) seekVideo\(s\.start\); \}/.test(tabCode));
-check('La frise des accords est repliée par défaut, « Accords relevés (N) » la déplie, le choix est retenu',
-  /<button[^>]*id="pedagogie-strip-toggle"[^>]*aria-expanded="false"[^>]*aria-controls="pedagogie-grid"/.test(html)
-  && /let stripOpen = false;/.test(tabCode) && /els\.grid\.hidden = !stripOpen;/.test(tabCode)
-  && tabCode.includes("els.stripToggle.textContent = 'Accords relevés';") && tabCode.includes("el('span', { className: 'pedago-count', text: String(segments.length) })")
-  && /localStorage\.setItem\(STRIP_KEY, stripOpen \? '1' : '0'\)/.test(tabCode) && /stripOpen = localStorage\.getItem\(STRIP_KEY\) === '1';/.test(tabCode));
 check('Plus de liste 10 / 20 / 30 / 60 s ni de boucle A-B à part',
   !tabCode.includes('passageSeconds') && !tabCode.includes('els.momentLength') && !tabCode.includes('els.loop ')
   && !tabCode.includes('fromLoop'));
@@ -703,21 +664,9 @@ check('Une réponse gardée est montrée sans appel écrit ; la règle 14 dit de
 // 23. [Claude] — 2026-10-04 — La fenêtre sous la vidéo, en une seule carte (Narcisse : « plus
 // épurée, plus lisible, mieux organisée, visuellement plus moderne, moins chargée »).
 // ---------------------------------------------------------------------------
-check('Une seule carte sous la vidéo : passage, accords relevés, outils, message, dans cet ordre',
-  /<section class="pedago-under" id="pedagogie-under"[^>]*>[\s\S]*?id="pedagogie-passage"[\s\S]*?id="pedagogie-strip"[\s\S]*?id="pedagogie-video-actions"[\s\S]*?id="pedagogie-status"[\s\S]*?<\/section>/.test(html)
-  && html.indexOf('id="pedagogie-status"') < html.indexOf('</section>', html.indexOf('id="pedagogie-under"')));
 check('La carte : un filet entre ses étages visibles, cachée quand tout l\'est',
   pedagoCss.includes('.pedago-under:not(:has(> :not([hidden]):not([style*="display: none"]))) { display: none; }')
   && pedagoCss.includes('.pedago-under > :not([hidden]):not([style*="display: none"]) ~ :not([hidden]):not([style*="display: none"])'));
-check('Début / Fin en un champ « 0 : 26 », la durée en pastille, la vitesse en menu « 1× ▾ » (construit une fois)',
-  tabCode.includes("const field = el('span', { className: 'pedago-time' });")
-  && tabCode.includes("el('strong', { className: 'pedago-pill', text: durationText(range.end - range.start) })")
-  && /if \(els\.speed && !speedMenu\) \{\s*speedMenu = createSpeedMenu\(\{/.test(tabCode)
-  && /\} else if \(speedMenu\) setSpeedMenuValue\(speedMenu, speed\);/.test(tabCode)
-  && !pedagoCss.includes('.pedago-segmented'));
-check('La bande : son début et sa fin aux deux bouts, une légende par sorte, plus de hachures',
-  tabCode.includes("el('span', { className: 'pedago-activity-time', text: clock(range.start) })")
-  && !pedagoCss.includes('repeating-linear-gradient(135deg, var(--tr-accent) 0 4px'));
 
 // ---------------------------------------------------------------------------
 // 24. [Claude] — 2026-10-04 — Le réglage de vitesse commun (ui/components/speed-menu.js) : les
@@ -741,6 +690,47 @@ check('Le panneau : 5 vitesses courantes, un curseur de 0,25 à 2 (pas de 0,05),
   && /'aria-haspopup': 'dialog', 'aria-expanded': 'false'/.test(speedMenuCode)
   && /button\.setAttribute\('aria-label', `\$\{name\} : \$\{label\}`\);/.test(speedMenuCode)
   && /range\.setAttribute\('aria-valuetext', label\);/.test(speedMenuCode));
+
+
+// ---------------------------------------------------------------------------
+// 30. [Claude] — 2026-10-14 — Refonte : la barre du passage (régions, comme le Studio), le guide du
+// tuto (étapes, résultat final, mouvements) à côté du Copilote, plus d'« Accords relevés ».
+// ---------------------------------------------------------------------------
+const timelineCode = stripComments(readText('src/ui/components/passage-timeline.js'));
+const guideUiCode = stripComments(readText('src/ui/pedagogie-guide.js'));
+check('« Accords relevés » est retiré (frise, liste, réglage gardé)',
+  !html.includes('id="pedagogie-strip"') && !html.includes('id="pedagogie-grid"') && !tabCode.includes('stripOpen') && !tabCode.includes('STRIP_KEY'));
+check('Plus de listes Début / Fin : la barre du passage, sous la vidéo, avec « Boucler » et « Effacer »',
+  /id="pedagogie-passage"[^>]*hidden[\s\S]*?id="pedagogie-timeline"[\s\S]*?id="pedagogie-region-chip"[\s\S]*?id="pedagogie-passage-loop"[\s\S]*?id="pedagogie-passage-follow"/.test(html)
+  && !html.includes('id="pedagogie-passage-start"') && !tabCode.includes('timeOptions('));
+check('La barre : glisser trace une région, ses poignées la règlent, un clic place la vidéo, double-clic sur une étape',
+  timelineCode.includes("mode: onHandle ? `edge-${onHandle}` : inside ? 'move' : 'new'") && timelineCode.includes("if (!d.mode.startsWith('edge')) onSeek(timeAt(e.clientX));")
+  && timelineCode.includes("track.addEventListener('dblclick'") && timelineCode.includes("onRegion({ ...state.range }, 'step');"));
+check('La région s\'anime à la pose, l\'en-tête du Copilote s\'allume',
+  timelineCode.includes("region.classList.add('is-new');") && readText('src/ui/components/passage-timeline.css').includes('@keyframes passage-region-in')
+  && /function pulseMoment\(\) \{/.test(tabCode));
+check('Une bulle d\'aide (une fois) dit à quoi sert la barre, au lieu d\'un petit texte gris',
+  html.includes('id="pedagogie-timeline-tip"') && html.includes('le Copilote regardera ce que le prof y joue') && /localStorage\.setItem\(TIP_KEY, '1'\)/.test(tabCode));
+check('Le passage : 10 min au plus, le Copilote le regarde (sinon les 30 dernières secondes)',
+  /if \(end - start > MAX_PASSAGE_SECONDS\) end = start \+ MAX_PASSAGE_SECONDS;/.test(tabCode)
+  && /passageWindow\(video\?\.currentTime, \{ length: FOLLOW_SECONDS, fixed: passage, duration: video\?\.duration \}\)/.test(tabCode));
+check('Deux onglets à droite : Guide du tuto et Copilote',
+  html.includes('id="pedagogie-tab-guide"') && html.includes('id="pedagogie-tab-copilot"') && html.includes('id="pedagogie-guide-slot"')
+  && /function setPanelTab\(tab/.test(tabCode));
+check('Le guide : le résultat final (écouter, une main), les étapes, les mouvements (du … au …)',
+  guideUiCode.includes("section('final', 'Le résultat final'") && guideUiCode.includes("section('steps', 'Les étapes du tuto'")
+  && guideUiCode.includes("section('moves', 'Les mouvements'") && guideUiCode.includes('findMovements(guide, search.from, search.to)'));
+check('Les exemples du guide passent par le lecteur commun (copilot-play-example)',
+  /function playGuideExample\(id, what\) \{[\s\S]*?new CustomEvent\('copilot-play-example'/.test(tabCode));
+check('« Explique » dans le guide : le passage est posé et la question part au Copilote',
+  /function askCopilot\(question, range\) \{[\s\S]*?setPassage\(range\);[\s\S]*?setPanelTab\('copilot'\);[\s\S]*?'copilot-send-message'/.test(tabCode));
+check('Le Copilote reçoit le guide (étapes, résultat final, mouvements)',
+  /guide: tutorialGuide\(\),/.test(tabCode) && readText('src/pedagogie/copilot-client.js').includes('lines.push(...guideLines(context.guide));'));
+check('Tuto lu au son (pas de guide) : la barre montre ses accords, le guide dit pourquoi il est vide',
+  /steps: guide\?\.steps \|\| chordSteps\(\),/.test(tabCode) && /guidePanel\.render\(guide, \{ noNotes: ready && !guide \}\)/.test(tabCode)
+  && guideUiCode.includes('Ce tuto a été lu au son') && readText('src/ui/components/passage-timeline.css').includes('.passage-timeline-step.is-chord'));
+check('La barre prend la durée de l\'analyse tant que la vidéo n\'est pas chargée',
+  /: \(Number\(analysis\.stats\?\.duration\) \|\| 0\),/.test(tabCode));
 
 console.log(`\n=== Résultat : ${passed}/${total} contrôles passés ===`);
 if (passed < total) process.exitCode = 1;
