@@ -5,14 +5,19 @@
 
 ## 0. Mémoire du projet — lire en premier
 
-La mémoire persistante du projet est un vault Obsidian **hors du dépôt** :
+La mémoire persistante du projet est **un seul** coffre Obsidian, **hors du dépôt** *(depuis
+le 14/10/2026, ADR-049 du coffre)* :
 
 ```
-/home/visiteur/.openclaw/workspace/apps/piano-jazz-chord/
+/home/visiteur/Documents/zic-vault/
 ```
 
-**Avant toute tâche non triviale, lire `00_AGENT_START_HERE.md` dans ce vault**,
-puis `schema.md`, `state/current-state.md`, `state/current-work.md`,
+C'est un dépôt Git à part (GitLab privé `narcisselouaka4-cmyk/zic-vault`). L'ancien vault
+`/home/visiteur/.openclaw/workspace/apps/piano-jazz-chord/` est une archive : ne plus y écrire.
+Une mémoire interne d'IA n'est qu'une copie ; en cas d'écart, le coffre fait foi.
+
+**Avant toute tâche non triviale, lire `00_AGENT_START_HERE.md` dans ce coffre**,
+puis `index.md`, `state/current-state.md`, `state/current-work.md`,
 `state/next-actions.md`.
 
 On y trouve : les invariants à ne pas casser (`contracts/`), les décisions
@@ -21,8 +26,11 @@ les concepts musicaux partagés (`concepts/`), les sources brutes (`raw/`) et la
 Definition of Done du module Analyse
 (`features/analyse-definition-of-done.md`).
 
-Le vault doit aussi être **mis à jour** en fin de tâche : `state/` + `log.md`,
-plus `experiments/` ou `decisions/` si pertinent.
+Le coffre doit aussi être **mis à jour** en fin de tâche : `state/` + entrée datée en fin de
+`log.md`, plus `experiments/` ou `decisions/` si pertinent ; puis, dans le coffre, `git add`
+par chemins explicites, `git commit` et `git push`. Une session sans accès au PC dépose ses
+notes dans `docs/vault-a-reporter/` ; la session suivante sur le PC les range dans le coffre
+(`bash scripts/sync-vault.sh`).
 
 ---
 

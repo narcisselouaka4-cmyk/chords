@@ -6,7 +6,8 @@
 # les range ensuite dans state/, log.md, experiments/ ou decisions/.
 set -euo pipefail
 
-VAULT="${PJC_VAULT:-/home/visiteur/.openclaw/workspace/apps/piano-jazz-chord}"
+# Coffre unique depuis le 14/10/2026 (ADR-049) ; l'ancien vault OpenClaw est une archive.
+VAULT="${PJC_VAULT:-/home/visiteur/Documents/zic-vault}"
 SRC="$(cd "$(dirname "$0")/.." && pwd)/docs/vault-a-reporter"
 DEST="$VAULT/a-integrer"
 
