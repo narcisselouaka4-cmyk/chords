@@ -36,7 +36,7 @@ import { passageExample, transposeInterval } from './teacher-notes.js';
 import { chordToneIntervals } from '../practice-exercise.js';
 import { availableTensions } from './note-roles.js';
 
-export const GUIDE_VERSION = 1;
+export const GUIDE_VERSION = 2;
 /** Un voicing complet : au moins ceci de notes (deux mains). */
 const FULL_MIN_NOTES = 5;
 /** … et au moins cet écart entre la plus grave et la plus aiguë (demi-tons). */
@@ -722,6 +722,92 @@ function describeStep(step, part, progression, { first }) {
 
 // ── Le guide ──────────────────────────────────────────────────────────────────
 
+// ── Rôle de chaque étape dans le morceau (HYPOTHÈSES) ─────────────────────────
+
+/**
+ * [Claude] — 2026-10-14 — Narcisse : « poser des hypothèses pour rattacher chaque passage à un moment
+ * précis du morceau (intro, couplet ou exécution d'un mouvement particulier) ». Le rôle d'une étape
+ * est TOUJOURS une hypothèse, avec sa raison, tirée de ce qui se voit et s'entend : sa place dans le
+ * tuto, les mains jouées, les mouvements relevés, et les MOTS du prof (intro, verse / couplet,
+ * chorus / refrain, bridge / pont, turnaround, lick…). Sans mot pour le dire, un couplet n'est pas
+ * deviné : l'étape reste « la boucle ».
+ */
+const norm = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+const SAID_ROLES = [
+  { id: 'intro', label: 'Intro', re: /\b(intro|introduction|vamp|opening|ouverture)\b/ },
+  { id: 'verse', label: 'Couplet', re: /\b(verse|couplet|strophe)\b/ },
+  { id: 'chorus', label: 'Refrain', re: /\b(chorus|refrain)\b/ },
+  { id: 'bridge', label: 'Pont', re: /\b(bridge|pont)\b/ },
+  { id: 'ending', label: 'Fin', re: /\b(outro|ending|end of the song|fin du morceau|conclusion)\b/ },
+  { id: 'turnaround', label: 'Retour (turnaround)', re: /\b(turnaround|turn around)\b/ },
+];
+const MOVEMENT_SAID = /\b(passing|chromatic|chromatique|walk|walking|approach|descend|descending|descente|ascending|montee|lick|run|fill|substitut|reharmon)/;
+const BUILD_WORDS = { lh: 'main gauche seule', rh: 'main droite seule', line: 'la ligne du dessus' };
+
+function overlap(aStart, aEnd, bStart, bEnd) {
+  return Math.min(aEnd, bEnd) - Math.max(aStart, bStart);
+}
+
+/**
+ * Pose `role` ({id, label, why, guess: true}) sur chaque étape, et `movements` (les ids des
+ * mouvements qui s'y jouent). Modifie les étapes données.
+ */
+export function assignRoles(steps, parts, movements, { duration = null } = {}) {
+  const total = Number.isFinite(duration) && duration > 0 ? duration : (steps[steps.length - 1]?.end || 0);
+  const firstOfPart = new Map(parts.map((p, i) => [p.steps[0], { part: p, index: i }]));
+  const assemblyStart = new Map();
+  for (const p of parts) if (p.final?.source === 'together') assemblyStart.set(p.id, p.final.start);
+  const buildSeen = new Set(); // parties où une main seule a déjà été montrée
+
+  steps.forEach((st, i) => {
+    const said = norm((st.said || []).join(' '));
+    const here = movements.filter((m) => m.times.some((t) => overlap(st.start, st.end, t.start, t.end) > 0.2)).map((m) => m.id);
+    st.movements = here;
+    const set = (id, label, why, guess = true) => { st.role = { id, label, why, guess }; };
+    if (BUILD_WORDS[st.kind]) buildSeen.add(st.part);
+
+    // 1. Ce que le prof NOMME (« this is the verse »).
+    const named = SAID_ROLES.find((r) => r.re.test(said));
+    if (named && st.kind !== 'talk') return set(named.id, named.label, `il dit « ${named.label === 'Intro' ? 'intro' : named.id} » à cet endroit`);
+
+    // 2. Une nouvelle tonalité.
+    const f = firstOfPart.get(st.id);
+    if (f && f.index > 0) return set('modulation', 'Changement de tonalité', `la progression repart en ${f.part.keyName}`);
+
+    // 3. Il ne joue pas : il présente, il explique, ou il conclut.
+    if (st.kind === 'talk') {
+      if (i === 0 && st.start < Math.max(30, total * 0.1)) return set('presentation', 'Présentation', 'il parle avant de jouer, au début du tuto');
+      if (total && st.start >= total * 0.9) return set('ending', 'Conclusion', 'il parle à la toute fin');
+      return set('explain', 'Explication', 'il parle sans jouer', false);
+    }
+
+    // 3 bis. La première chose jouée, avant de la décomposer : l'intro (avant un éventuel mouvement).
+    const playedBefore = steps.slice(0, i).some((x) => x.kind !== 'talk');
+    const laterBuild = steps.slice(i + 1).some((x) => BUILD_WORDS[x.kind] && x.part === st.part);
+    if (!playedBefore && st.start < total * 0.25 && laterBuild) {
+      return set('intro', 'Intro', 'c\'est la première chose qu\'il joue, avant de la décomposer');
+    }
+
+    // 4. Un mouvement, quand l'étape est courte ou que le prof en parle.
+    if (here.length && (st.end - st.start <= 20 || MOVEMENT_SAID.test(said))) {
+      const m = movements.find((x) => x.id === here[0]);
+      return set('movement', 'Mouvement', `il y joue ${m.from.degree} → ${m.to.degree}${m.via.length ? ` en passant par ${m.via.map((v) => v.name).join(', ')}` : ''}`);
+    }
+
+    // 5. Les mains séparées : il construit pièce par pièce.
+    if (BUILD_WORDS[st.kind]) return set('build', 'Construction', `il montre ${BUILD_WORDS[st.kind]}, avant d'assembler le tout`);
+
+    // 6. Les deux mains.
+    const part = parts.find((p) => p.id === st.part);
+    const together = part && assemblyStart.get(part.id);
+    if (st.complete && together != null && Math.abs(st.start - together) < 1 && buildSeen.has(st.part)) {
+      return set('assembly', 'Assemblage', 'les deux mains ensemble, après les avoir montrées séparément');
+    }
+    return set('loop', st.complete ? 'La boucle' : 'Deux mains', st.complete ? 'la progression entière, des deux mains' : 'les deux mains, sans la boucle entière');
+  });
+  return steps;
+}
+
 /**
  * Le guide d'un tuto.
  * @param {{segments: object[], noteEvents?: object[], transcript?: {start: number, text: string}[], duration?: number|null}} input
@@ -777,6 +863,7 @@ export function buildTutorialGuide({ segments = [], noteEvents = [], transcript 
       steps: stepIds,
     });
   });
+  assignRoles(steps, outParts, movements, { duration });
   return { version: GUIDE_VERSION, steps, parts: outParts, movements };
 }
 
@@ -842,10 +929,11 @@ export function guideLines(guide, { maxSteps = 24, maxMovements = 16 } = {}) {
       out.push('  Résultat final : pas assez d\'éléments pour l\'assembler.');
     }
   }
-  out.push('Étapes du tuto :');
+  out.push('Étapes du tuto (le « rôle supposé » est une HYPOTHÈSE de l\'application, avec sa raison : dis « il semble », cite la raison, ne l\'affirme pas) :');
   for (const s of guide.steps.slice(0, maxSteps)) {
     const chords = s.chords.length ? ` — ${s.chords.map((c) => c.name).join(' → ')}` : '';
-    out.push(`- ${clock(s.start)}–${clock(s.end)} ${s.title}${chords}${s.said?.length ? ` — il dit : « ${s.said.join(' ').slice(0, 140)} »` : ''}`);
+    const role = s.role ? ` [rôle supposé : ${s.role.label} — ${s.role.why}]` : '';
+    out.push(`- ${clock(s.start)}–${clock(s.end)} ${s.title}${role}${chords}${s.said?.length ? ` — il dit : « ${s.said.join(' ').slice(0, 140)} »` : ''}`);
   }
   if (guide.steps.length > maxSteps) out.push(`… (${guide.steps.length - maxSteps} étapes de plus)`);
   if (guide.movements.length) {

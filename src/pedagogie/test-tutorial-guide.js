@@ -122,6 +122,33 @@ console.log('Degrés');
 check('« 1 », « I », « vi », « b7 », « ♭7 »', normalizeDegree('1') === '1' && normalizeDegree('I') === '1' && normalizeDegree('vi') === '6' && normalizeDegree('b7') === 'b7' && normalizeDegree('♭7') === 'b7' && normalizeDegree('IV') === '4');
 check('n\'importe quoi : rien', normalizeDegree('accord') === null);
 
+// ── Rôles supposés (intro / couplet / mouvement) ────────────────────────────────────────────
+console.log('Rôles supposés');
+{
+  const byStart = (t) => g.steps.find((st) => t >= st.start && t < st.end);
+  check('chaque étape porte un rôle avec sa raison ; tout est une hypothèse sauf « il parle »',
+    g.steps.every((st) => st.role && st.role.label && st.role.why && st.role.guess === (st.role.id !== 'explain')));
+  check('la première chose jouée, avant d\'être décomposée : l\'intro', byStart(3).role.id === 'intro', byStart(3).role.id);
+  check('une main seule : construction', byStart(10).role.id === 'build' && byStart(25).role.id === 'build');
+  check('les deux mains après les mains séparées : assemblage', byStart(50).role.id === 'assembly', byStart(50).role.id);
+  check('la reprise en Ré♭ : changement de tonalité', byStart(70).role.id === 'modulation' && /Ré♭/.test(byStart(70).role.why));
+  check('3:08 – 3:35 (le passage que Narcisse n\'arrivait pas à reproduire) : assemblage', byStart(200).role.id === 'assembly', byStart(200).role.id);
+  check('il parle à la toute fin : conclusion', byStart(225).role.id === 'ending', byStart(225).role.id);
+  check('le guide donne les rôles au Copilote, avec « hypothèse »',
+    /rôle supposé : Assemblage/.test(guideLines(g).join('\n')) && /HYPOTHÈSE/.test(guideLines(g).join('\n')));
+
+  // Les mots du prof nomment un couplet ; sans mot, il n'est pas deviné.
+  const f2 = load('next-level-worship.json');
+  const said = (word) => buildTutorialGuide({ segments: f2.segments, noteEvents: f2.noteEvents, duration: f2.duration,
+    transcript: [{ start: 45, text: word }] });
+  const verse = said('now this is the verse, we play it like this');
+  check('« this is the verse » : l\'étape devient « Couplet » (il le dit)', verse.steps.find((st) => 45 >= st.start && 45 < st.end).role.id === 'verse');
+  check('sans le mot, aucun couplet ni refrain n\'est supposé', !g.steps.some((st) => ['verse', 'chorus', 'bridge'].includes(st.role.id)));
+  const mv = g.steps.filter((st) => st.role.id === 'movement');
+  check('une étape courte où il joue un mouvement relevé : « Mouvement », avec le mouvement dans la raison',
+    mv.every((st) => /→/.test(st.role.why)) && g.steps.every((st) => Array.isArray(st.movements)));
+}
+
 // ── Autres relevés réels : rien ne casse ─────────────────────────────────────────────────────
 console.log('Autres relevés réels');
 for (const name of ['eternel-est-bon.json', 'harmoniser-fin.json']) {

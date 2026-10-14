@@ -126,7 +126,7 @@ export function createPassageTimeline({ onSeek = () => {}, onRegion = () => {}, 
     if (!(state.duration > 0)) return;
     state.steps.forEach((s, i) => {
       const block = node('div', `passage-timeline-step is-${s.kind}${s.complete ? ' is-complete' : ''}`, {
-        title: `${clock(s.start)} → ${clock(s.end)} · ${s.title || KIND_WORDS[s.kind] || ''}${'\n'}Double-clic : en faire le passage du Copilote`,
+        title: `${clock(s.start)} → ${clock(s.end)} · ${s.title || KIND_WORDS[s.kind] || ''}${s.role ? ` (${s.role.label}${s.role.guess ? ' ?' : ''})` : ''}${'\n'}Double-clic : en faire le passage du Copilote`,
         'data-step': s.id,
       });
       block.style.left = `${pct(s.start)}%`;

@@ -324,6 +324,22 @@
 .pedago-step-top { display: flex; align-items: baseline; gap: 8px; }
 .pedago-step-time { flex: none; color: var(--tr-accent); font: 650 12.5px var(--tr-mono); }
 .pedago-step-title { font-size: 14px; font-weight: 700; line-height: 1.3; transition: color .2s; }
+.pedago-step-role {
+  flex: none;
+  align-self: center;
+  padding: 1px 8px;
+  border: 1px dashed color-mix(in srgb, var(--tr-accent) 55%, var(--tr-border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tr-accent) 9%, transparent);
+  color: var(--tr-text);
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+  cursor: help;
+}
+.pedago-step-role.is-intro, .pedago-step-role.is-verse, .pedago-step-role.is-chorus, .pedago-step-role.is-bridge, .pedago-step-role.is-ending { border-color: color-mix(in srgb, #e0aa55 70%, var(--tr-border)); background: color-mix(in srgb, #e0aa55 14%, transparent); }
+.pedago-step-role.is-movement, .pedago-step-role.is-modulation, .pedago-step-role.is-turnaround { border-color: var(--tr-accent); background: var(--tr-accent-soft); }
+.pedago-step-top { flex-wrap: wrap; }
 .pedago-step-summary { color: var(--tr-text); font-size: 13px; opacity: .88; }
 .pedago-step-chords { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
 .pedago-step-chord {

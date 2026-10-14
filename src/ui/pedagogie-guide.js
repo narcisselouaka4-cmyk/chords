@@ -225,7 +225,7 @@ export function createGuidePanel({ onSeek = () => {}, onRegion = () => {}, onAsk
         }, [
           el('span', { className: `pedago-step-icon is-${s.kind}`, html: KIND_ICON[s.kind] || '' }),
           el('span', { className: 'pedago-step-text' }, [
-            el('span', { className: 'pedago-step-top' }, [el('span', { className: 'pedago-step-time', text: clock(s.start) }), el('strong', { className: 'pedago-step-title', text: s.title })]),
+            el('span', { className: 'pedago-step-top' }, [el('span', { className: 'pedago-step-time', text: clock(s.start) }), el('strong', { className: 'pedago-step-title', text: s.title }), s.role ? el('span', { className: `pedago-step-role is-${s.role.id}`, title: `${s.role.guess ? 'Hypothèse : ' : ''}${s.role.why}`, text: s.role.guess ? `${s.role.label} ?` : s.role.label }) : null]),
             el('span', { className: 'pedago-step-summary', text: s.summary }),
             chords.length ? el('span', { className: 'pedago-step-chords' }, chords) : null,
             said,

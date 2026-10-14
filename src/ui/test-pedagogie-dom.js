@@ -732,5 +732,9 @@ check('Tuto lu au son (pas de guide) : la barre montre ses accords, le guide dit
 check('La barre prend la durée de l\'analyse tant que la vidéo n\'est pas chargée',
   /: \(Number\(analysis\.stats\?\.duration\) \|\| 0\),/.test(tabCode));
 
+check('Chaque étape du guide affiche son rôle supposé (« Intro ? »), avec la raison en infobulle, et la barre le répète',
+  guideUiCode.includes("pedago-step-role is-${s.role.id}") && guideUiCode.includes("'Hypothèse : '")
+  && readText('src/ui/components/passage-timeline.js').includes('s.role.label')
+  && readText('src/ui/refonte/pedagogie-guide.css').includes('.pedago-step-role'));
 console.log(`\n=== Résultat : ${passed}/${total} contrôles passés ===`);
 if (passed < total) process.exitCode = 1;
