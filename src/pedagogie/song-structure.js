@@ -242,6 +242,15 @@ export function structureKey(keyText, tokens = []) {
       // est en Sol, pas en Mi mineur). À égalité, le majeur (essayé d'abord) reste.
       if (tonic(first)) score += 0.5 * first.dur;
       if (tonic(last)) score += 0.5 * last.dur;
+      // [Claude] — 2026-10-14 — Un II-V-I complet désigne sa tonalité, même dans une boucle qui
+      // commence ailleurs : Ré m9 – Sol13 – Do maj9 – La7♯9 est un 2-5-1-6 en Do, pas Ré mineur.
+      for (let i = 0; i + 2 < tokens.length; i += 1) {
+        const [a, b, c] = [tokens[i], tokens[i + 1], tokens[i + 2]];
+        const two = pcOf(a.rootPc - rootPc) === 2 && (minor ? a.family === 'halfdim' || a.family === 'minor' : a.family === 'minor');
+        const five = pcOf(b.rootPc - rootPc) === 7 && b.family === 'dominant';
+        const one = c.rootPc === rootPc && c.family !== 'dominant' && KIND[c.family] === (minor ? 'm' : 'M');
+        if (two && five && one) score += a.dur + b.dur + c.dur;
+      }
       if (!best || score > best.score + 1e-9) best = { rootPc, minor, score };
     }
   }

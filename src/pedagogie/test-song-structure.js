@@ -63,6 +63,17 @@ const lovely = grid([['G', 2], ['Em', 2], ['C', 2], ['D', 2]], { times: 6 });
 check('Donnée par le tuto (« G major »), ou devinée d\'après les accords (Sol majeur)',
   keyName(structureKey('G major')) === 'Sol majeur' && !structureKey('G major').guessed
   && keyName(structureKey(null, harmonicTokens(lovely))) === 'Sol majeur' && structureKey(null, harmonicTokens(lovely)).guessed);
+// [Claude] — 2026-10-14 — Un II-V-I complet désigne sa tonalité : la boucle qui commence sur Ré m
+// est un 2-5-1-6 en Do, pas Ré mineur. Un vrai Ré mineur (Mi ø – La7 – Ré m) le reste.
+{
+  const loop = [];
+  for (let k = 0; k < 6; k += 1) loop.push(['Dm9', 2], ['G13', 2], ['Cmaj9', 2], ['A7#9', 2]);
+  const minorLoop = [];
+  for (let k = 0; k < 4; k += 1) minorLoop.push(['Dm7', 4], ['Em7b5', 2], ['A7', 2]);
+  check('Ré m9 – Sol13 – Do maj9 – La7♯9 en boucle : Do majeur (II-V-I), pas Ré mineur',
+    keyName(structureKey(null, harmonicTokens(grid(loop)))) === 'Do majeur'
+    && keyName(structureKey(null, harmonicTokens(grid(minorLoop)))) === 'Ré mineur');
+}
 check('Fa♯ mineur, Si♭ majeur', keyName(structureKey('F#m')) === 'Fa♯ mineur' && keyName(structureKey('Bb')) === 'Si♭ majeur');
 
 console.log('La boucle');

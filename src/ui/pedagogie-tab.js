@@ -2069,8 +2069,11 @@ function tutorialGuide() {
   if (guideCache && guideCache.analysis === analysis && guideCache.narration === narrationView) return guideCache.guide;
   let guide = null;
   try {
+    // Les accords des moments où il joue : ceux lus pendant qu'il parle (sa voix prise pour du piano,
+    // une image restée allumée) ne sont pas des étapes jouées.
+    const segments = analysis.segments || [];
     guide = buildTutorialGuide({
-      segments: analysis.segments || [],
+      segments: view?.filterChords ? chordsWhilePlaying(segments, view.spans) : segments,
       noteEvents: view?.played || analysis.noteEvents || [],
       transcript: narrationView.map((n) => ({ start: n.start, text: n.text })),
       duration: Number.isFinite(els.videoPlayer?.duration) ? els.videoPlayer.duration : (analysis.stats?.duration || null),

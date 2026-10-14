@@ -40,11 +40,19 @@ intermédiaires et ceux qui ne comprennent pas la langue de la vidéo. Puis : an
   - panneau de droite à deux onglets : **Guide** (résultat final à écouter, étapes avec
     « Explique », mouvements avec « Aller du … au … ») et **Copilote**.
 
+## Trouvé en vérifiant (corrigé)
+- Tuto lu au son : barre vide et guide « en attente » pour toujours → la barre montre ses accords
+  (bandes neutres) et le guide dit qu'il lui faut les notes vues à l'image.
+- Le guide comptait comme « joué » un accord lu pendant que le prof parle → mêmes accords que le
+  Copilote (`chordsWhilePlaying`).
+- Tonalité : une boucle Ré m9 – Sol13 – Do maj9 – La7♯9 sortait en Ré mineur (« 1 – 4(7) – 7 –
+  5 ») → `structureKey` compte un II-V-I complet : « 2 – 5 – 1 – 6(7) » en Do. NLW inchangé.
+
 ## Vérifié
 - Sur les vraies données NLW : Together = Ebm9 → Gbmaj9 → Bbm9 → Dbmaj9 ; Gbmaj9 = MG Sol♭3
   Ré♭4 Fa4 | MD La♭4 Si♭4 Fa5 ; modulation Cmaj9 → Ebm9 relevée.
 - Tests : flash-notes 16/16, tutorial-guide 38/38, guide-summaries 14/14, moteur 96/96,
-  DOM 174/174, test:chords 98/98, régressions Partie 1 et 3, build.
+  structure 41/41, DOM 176/176, test:chords 98/98, régressions Partie 1 et 3, build.
 - Playwright (mock, sombre / clair, 1600 / 1280) : guide, écoute du résultat final, mouvements,
   région, « Explique » → Copilote. Anciens scénarios adaptés à la barre.
 
