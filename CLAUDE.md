@@ -266,7 +266,8 @@ On ne redemande validation que pour les choix architecturaux majeurs ou irréver
    deux actions, quatre repères, pas de barre en haut à gauche) ; « Reprendre un
    morceau importé » déploie la roue des morceaux (glisser, molette, recherche,
    Échap ou « Retour » pour revenir à l'accueil).
-2. Cliquer un morceau → déploiement de l'interface (vidéo, waveform, contrôles).
+2. Cliquer un morceau de la liste le SÉLECTIONNE seulement ; « Charger ce morceau » (sur la carte
+   sélectionnée) le charge → déploiement de l'interface (vidéo, waveform, contrôles).
 3. Importer un MP3 → Étape 1 → Play → son sort.
 4. Importer un MP4/M4A → image + son synchronisés, pas de freeze à 2s, pas de bruit sourd.
 5. Pause à 24s → Play reprend exactement à 24s.

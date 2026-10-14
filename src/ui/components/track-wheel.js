@@ -370,8 +370,8 @@ export function createTrackWheel({ root, onOpen, onRename, onDelete, onClose }) 
     if (!d.moved) {
       const el = d.downTarget?.closest?.('.track-wheel-item');
       if (el) {
-        const i = Number(el.dataset.index);
-        if (i === snapOffset(target, shown.length)) activate(i); else goTo(i);
+        // Un clic fait seulement tourner la roue jusqu'à ce morceau : on l'ouvre avec « Ouvrir » (ou Entrée).
+        goTo(Number(el.dataset.index));
       }
       return;
     }

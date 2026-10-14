@@ -1570,6 +1570,16 @@ async function refreshTrackList() {
   }
 }
 
+let selectedTrackId = null;
+
+/** Sélectionne une carte de « Musiques importées » (sans charger le morceau). */
+function selectLibraryTrack(id) {
+  selectedTrackId = selectedTrackId === id ? null : id;
+  for (const item of els.trackList?.querySelectorAll('.studio-track-item') || []) {
+    item.classList.toggle('is-selected', item.dataset.id === selectedTrackId);
+  }
+}
+
 function renderTrackList(tracks) {
   setTimeout(updateCollapseCount, 0);
   // La roue de l'accueil (étape 0) montre les mêmes morceaux ; ouverte, elle se met à jour sur place.
@@ -1597,15 +1607,28 @@ function renderTrackList(tracks) {
     info.innerHTML = `
       <div class="studio-track-name">${escapeHtml(displayName)}</div>
     `;
-    info.addEventListener('click', () => loadTrack(track.id));
+    // [Claude] — 2026-10-14 — Un clic SÉLECTIONNE le morceau ; il ne le charge plus (un clic par mégarde
+    // changeait de morceau). Le bouton « Charger ce morceau » de la carte sélectionnée confirme.
+    item.dataset.id = track.id;
+    if (selectedTrackId === track.id) item.classList.add('is-selected');
+    info.tabIndex = 0;
+    info.addEventListener('click', () => selectLibraryTrack(track.id));
+    info.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectLibraryTrack(track.id); }
+    });
 
     const actions = document.createElement('div');
     actions.className = 'studio-track-actions';
     actions.innerHTML = `
+      <button class="studio-track-load" type="button">Charger ce morceau</button>
       <button class="studio-track-rename" title="Renommer">✏️</button>
       <button class="studio-track-delete" title="Supprimer">🗑️</button>
     `;
 
+    actions.querySelector('.studio-track-load').addEventListener('click', (e) => {
+      e.stopPropagation();
+      loadTrack(track.id);
+    });
     actions.querySelector('.studio-track-rename').addEventListener('click', (e) => {
       e.stopPropagation();
       handleRenameTrack(track.id, metadata.name || track.id);

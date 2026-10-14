@@ -1683,18 +1683,22 @@
  *  grille suit la largeur du panneau (« auto »), qui, elle, s'anime.            *
  * ========================================================================== */
 :root[data-skin='global'] #studio-tab:not(.stage-0) {
-  grid-template-columns: auto minmax(0, 2.1fr) minmax(270px, 0.85fr);
+  grid-template-columns: auto minmax(0, 2.1fr) minmax(250px, 0.7fr);
 }
 /* [Claude] — 2026-10-13 — Scène a maintenant EXACTEMENT les mêmes colonnes, marges et espacements
    qu'Atelier (Narcisse : « la fenêtre est trop grande quand je passe en Scène » — la colonne centrale
    prenait tout le reste, 912 px contre 850 px). Seul l'aspect des composants distingue les deux. */
 :root[data-skin='v2'] #studio-tab:not(.stage-0) {
-  grid-template-columns: auto minmax(0, 2.1fr) minmax(270px, 0.85fr);
+  grid-template-columns: auto minmax(0, 2.1fr) minmax(250px, 0.7fr);
   gap: 14px;
   padding: 14px;
 }
+/* [Claude] — 2026-10-14 — « Musiques importées » plus large (les noms de fichiers sont longs) : 300 px
+   à 1500 px de large (250 mini, 320 maxi), pris sur la colonne de droite (Pistes séparées, Lecture,
+   Export), un peu plus étroite : 286 px au lieu de 340 px. */
+#studio-tab:not(.stage-0) { --st-lib: clamp(250px, 20vw, 320px); }
 #studio-tab:not(.stage-0) .studio-sidebar.left {
-  --lib-w: 250px;
+  --lib-w: var(--st-lib);
   width: var(--lib-w);
   min-width: 0;
   align-self: stretch;
@@ -1945,9 +1949,9 @@
    sur une fenêtre étroite). Elle ne dépend donc ni de l'état de la bibliothèque, ni de l'habillage. */
 :root[data-skin] #studio-tab.stems-collapsed:not(.stage-0) {
   grid-template-columns:
-    minmax(250px, 1fr)
-    minmax(0, min(calc((100% - 278px) * .7119), calc(100% - 548px)))
-    minmax(250px, 1fr);
+    minmax(var(--st-lib), 1fr)
+    minmax(0, min(calc((100% - var(--st-lib) - 28px) * .75), calc(100% - var(--st-lib) * 2 - 28px)))
+    minmax(var(--st-lib), 1fr);
 }
 
 /* Replié : un rond de 46 px en haut à droite de la colonne */
@@ -2187,3 +2191,67 @@
    prend toute la largeur de sa colonne (jusqu'à l'écart de 14 px avec la colonne centrale), ce qui laisse
    aussi plus de place aux titres. Rond (replié), il garde ses 46 px. */
 :root[data-skin] #studio-tab.stems-collapsed:not(.stage-0) .studio-sidebar.left:not(.collapsed) { width: 100%; }
+
+/* [Claude] — 2026-10-14 — Musiques importées : un clic SÉLECTIONNE (il ne charge plus rien, pour qu'un clic
+   par mégarde ne change pas de morceau) ; un bouton « Charger ce morceau » confirme. Renommer et Supprimer
+   apparaissent aussi sur la carte sélectionnée. Les noms, souvent longs, passent à la ligne au lieu
+   d'être coupés. */
+:root[data-skin] #studio-tab .studio-sidebar.left .studio-track-item .studio-track-name {
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  line-height: 1.3;
+}
+:root[data-skin] #studio-tab .studio-sidebar.left .studio-track-item { position: relative; cursor: pointer; }
+:root[data-skin] #studio-tab .studio-sidebar.left .studio-track-item:focus-visible,
+:root[data-skin] #studio-tab .studio-sidebar.left .studio-track-info:focus-visible { outline: 2px solid var(--tr-accent, var(--r-accent)); outline-offset: 2px; }
+:root[data-skin] #studio-tab .studio-sidebar.left .studio-track-actions {
+  position: static;
+  transform: none;
+  display: none;
+  opacity: 1;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+:root[data-skin] #studio-tab .studio-sidebar.left .studio-track-item.is-selected .studio-track-actions { display: flex; }
+:root[data-skin] #studio-tab .studio-sidebar.left .studio-track-item.is-selected {
+  border-color: color-mix(in srgb, var(--tr-accent, var(--r-accent)) 70%, var(--tr-border, var(--r-border)));
+  background: color-mix(in srgb, var(--tr-accent, var(--r-accent)) 12%, var(--tr-surface, var(--r-surface-raised)));
+}
+:root[data-skin] #studio-tab .studio-track-load {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--tr-button, var(--r-accent));
+  color: var(--tr-button-text, #fff);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+:root[data-skin='v2'] #studio-tab .studio-track-load { border-radius: 999px; }
+:root[data-skin] #studio-tab .studio-track-load:hover { filter: brightness(1.08); }
+:root[data-skin] #studio-tab .studio-track-item.active .studio-track-load { display: none; }
+:root[data-skin] #studio-tab .studio-track-item.active .studio-track-actions::before {
+  content: 'Morceau chargé';
+  flex: 1 1 auto;
+  font-size: 0.72rem;
+  color: var(--tr-secondary, var(--r-text-muted));
+}
+:root[data-skin] #studio-tab .studio-track-actions :is(.studio-track-rename, .studio-track-delete) {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--tr-border, var(--r-border));
+  border-radius: 9px;
+  background: transparent;
+  cursor: pointer;
+}
+:root[data-skin='v2'] #studio-tab .studio-track-actions :is(.studio-track-rename, .studio-track-delete) { border-radius: 50%; }
