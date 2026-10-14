@@ -450,7 +450,8 @@ function renderCopilotWelcome() {
 function renderTutorialWelcome() {
   return el('div', { className: 'tr-copilot-welcome copilot-tutorial-welcome' }, [
     el('h2', { text: 'Une question sur ce passage ?' }),
-    el('p', { text: 'Je regarde le passage choisi sous la vidéo : ce que le prof y joue et y dit. Écris ta question, ou clique une étiquette : ce qui est écrit dessus est envoyé tel quel.' }),
+    // [Claude] — 2026-10-14 — Plus court, et dit où se choisit le passage : la barre sous la vidéo.
+    el('p', { text: 'Je regarde le passage que tu choisis sur la barre, sous la vidéo. Pose ta question, ou choisis une étiquette.' }),
     // Dans Pédagogie IA, le Copilote est à côté de la vidéo : son encart dit déjà ce qu'il sait.
     ...(document.getElementById('practice-view-copilot')?.contains(els.messages) ? [contextNoteNode()] : []),
   ]);

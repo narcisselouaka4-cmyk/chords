@@ -78,6 +78,8 @@ export function applyQuestion({ kind = 'voicing', progression = '4-5-3-6-2-5-1',
 export const TUTORIAL_QUICK_ACTIONS = [
   { label: 'Explique ce passage', message: 'Explique ce passage.' },
   { label: 'Rejoue ce passage', message: 'Rejoue ce passage.' },
+  // [Claude] — 2026-10-14 — Le résultat final du tuto, tout assemblé (tutorial-guide.js).
+  { label: 'Joue le résultat final', message: 'Joue le résultat final.' },
   { label: 'Rejoue-le en…', chooser: 'key' },
   { label: 'Applique-le à…', chooser: 'apply' },
 ];
@@ -159,6 +161,13 @@ function classifyTutorialRequest(text) {
     || /(?:dans|sur|à|a|pour) (?:une|un|la|le|ma|mon) (?:progression|grille|suite)/i.test(text);
   if ((progression || chords) && transfer) {
     return { kind: 'apply', what: transferKind(text), progression, chords, key };
+  }
+  // [Claude] — 2026-10-14 — « Joue le résultat final », « fais-moi entendre le rendu final », « tout
+  // assemblé » : le résultat final du guide (tutorial-guide.js), éventuellement dans une autre tonalité.
+  if (/r[ée]sultat final|rendu final|version finale|tout (?:assembl|ensemble|reconstitu)|une fois (?:tout )?assembl/i.test(text)
+    && /jou|entend|[ée]cout|fais|montre|rejou/i.test(text)) {
+    const hand = /main gauche/i.test(text) ? 'LH' : /main droite/i.test(text) ? 'RH' : null;
+    return { kind: 'final', ...(key ? { key } : {}), ...(hand ? { hand } : {}) };
   }
   // Une progression nommée sans « appliquer » (« joue-moi un 2-5-1 en Do ») : une
   // question générale, pas ce passage dans une autre tonalité.
