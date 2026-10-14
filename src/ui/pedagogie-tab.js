@@ -49,6 +49,7 @@
 //     s'affichent que si ce tuto est ouvert. Un seul relevé tourne à la fois.
 
 import { buildVideoAnalysis, buildAudioOnlyAnalysis } from '../pedagogie/video-analysis.js';
+import { reconcileWithSound, soundCheckSentence } from '../pedagogie/sound-reconcile.js';
 import { appConfirm } from './components/app-dialog.js';
 import { explainUnrecognised } from '../pedagogie/format-detector.js';
 import { crossCheck } from '../pedagogie/cross-check.js';
@@ -67,6 +68,10 @@ import { createTutorialMemory, cardDuration, READING_REVISION } from '../pedagog
 import { teacherActivity, chordsWhilePlaying, activitySummary, isPlaying, ACTIVITY, withoutReadingArtifacts } from '../pedagogie/teacher-activity.js';
 import { songStructure } from '../pedagogie/song-structure.js';
 import { createSpeedMenu, setSpeedMenuValue, clampSpeed } from './components/speed-menu.js';
+import { createMetronomeMenu, setMetronomeMenuState, flashMetronomeBeat, triggerMetronomeDetect, clampBpm } from './components/metronome-menu.js';
+import { createMetronome } from '../audio/metronome.js';
+import { estimateTempo } from '../pedagogie/tempo-estimate.js';
+import { getAudioContext } from '../audio/simple-synth.js';
 
 // [Claude] — 2026-09-25 — Pourquoi l'image n'a pas été lue (Narcisse : « l'application
 // ne peut pas analyser l'image, et je ne sais pas pourquoi ») : dit en clair.
@@ -187,6 +192,14 @@ const thumbTried = new Set();
 // choix »), dans le réglage commun ui/components/speed-menu.js.
 let speed = 1;
 let speedMenu = null;
+// [Claude] — 2026-10-14 — Le métronome (src/audio/metronome.js, components/metronome-menu.js). Réglages
+// gardés PAR TUTORIEL (tempo, mesure, place du « 1 », suivre la vidéo) ; le volume est commun.
+const METRONOME_KEY = 'pjc.pedagogie.metronome';
+let metronome = null;
+let metronomeMenu = null;
+let metronomeSettings = { bpm: 100, beatsPerBar: 4, follow: false, volume: 0.7, offset: 0, anchored: false };
+const metronomeSearched = new Set();   // tutos dont le tempo a déjà été cherché à l'ouverture du panneau
+const loudnessCache = new Map();       // chemin → niveau sonore (dB / 10 ms), pour ne le demander qu'une fois
 
 // ---------------------------------------------------------------------------
 // Utilitaires
@@ -352,6 +365,7 @@ function resetTutorialView() {
 
 function selectTrack(path) {
   if (!path) return;
+  if (path !== selectedPath) { stopMetronome(); loadMetronomeFor(path); }
   // [Claude] — 2026-10-03 — Plus bloqué par un relevé en cours : il continue de son côté
   // (runReading), sous son tuto.
   selectedPath = path;
@@ -395,6 +409,7 @@ function isTooLong(path) {
  * Copilote quitte le mode tuto ; un relevé en cours continue et sera gardé sous son tuto.
  */
 function closeTutorial() {
+  stopMetronome();
   pauseVideo();
   if (calibrationMode) cancelCalibration();
   selectedPath = null;
@@ -808,7 +823,100 @@ function keepInLoop() {
   lastLoopTime = t;
 }
 
+// ---------------------------------------------------------------------------
+// Métronome
+// ---------------------------------------------------------------------------
+
+function readMetronomeStore() {
+  try { return JSON.parse(localStorage.getItem(METRONOME_KEY) || '{}') || {}; } catch (_) { return {}; }
+}
+
+function saveMetronomeSettings() {
+  if (!selectedPath) return;
+  try {
+    const all = readMetronomeStore();
+    all.__volume = metronomeSettings.volume;
+    all[selectedPath] = {
+      bpm: metronomeSettings.bpm, beatsPerBar: metronomeSettings.beatsPerBar, follow: metronomeSettings.follow,
+      offset: metronomeSettings.offset, anchored: metronomeSettings.anchored,
+    };
+    localStorage.setItem(METRONOME_KEY, JSON.stringify(all));
+  } catch (_) { /* stockage indisponible : les réglages ne sont pas gardés */ }
+}
+
+/** Le métronome s'arrête (un autre tuto, retour aux cartes, autre onglet). */
+function stopMetronome() {
+  metronome?.stop();
+  if (metronomeMenu) setMetronomeMenuState(metronomeMenu, { running: false });
+}
+
+/** Réglages de CE tuto : ceux gardés, sinon les valeurs de départ. */
+function loadMetronomeFor(path) {
+  const all = readMetronomeStore();
+  const saved = (path && all[path]) || {};
+  metronomeSettings = {
+    bpm: clampBpm(saved.bpm, 100),
+    beatsPerBar: [2, 3, 4, 6].includes(saved.beatsPerBar) ? saved.beatsPerBar : 4,
+    follow: Boolean(saved.follow),
+    volume: Number.isFinite(all.__volume) ? all.__volume : 0.7,
+    offset: Number.isFinite(saved.offset) ? saved.offset : 0,
+    anchored: Boolean(saved.anchored),
+  };
+  metronome?.set(metronomeSettings);
+  if (metronomeMenu) setMetronomeMenuState(metronomeMenu, { ...metronomeSettings, running: false, found: null });
+}
+
+/**
+ * Le tempo de la vidéo, tiré du niveau sonore (pedagogie:loudness, déjà mesuré pour la force des
+ * attaques). Sur le passage choisi s'il dure au moins 12 s, sinon sur toute la vidéo.
+ */
+async function detectTutorialTempo() {
+  const api = window.electronAPI;
+  const path = selectedPath;
+  if (!path || !api?.pedagogie?.loudness) return null;
+  let loud = loudnessCache.get(path);
+  if (!loud) {
+    loud = await api.pedagogie.loudness(path).catch(() => null);
+    if (loud?.ok && Array.isArray(loud.db)) loudnessCache.set(path, loud);
+  }
+  if (!loud?.ok || !Array.isArray(loud.db)) return null;
+  const useRange = passage && passage.end - passage.start >= 12;
+  const result = (useRange && estimateTempo(loud.db, loud.hop, { from: passage.start, to: passage.end })) || estimateTempo(loud.db, loud.hop);
+  return result ? { bpm: result.bpm, confidence: result.confidence, firstBeat: result.firstBeat } : null;
+}
+
+function renderMetronome() {
+  if (!els.metronome || metronomeMenu) return;
+  metronome = createMetronome({
+    getContext: getAudioContext,
+    getVideo: () => els.videoPlayer,
+    onBeat: (b) => flashMetronomeBeat(metronomeMenu, b.beatInBar),
+  });
+  metronomeMenu = createMetronomeMenu({
+    state: metronomeSettings,
+    getVideoTime: () => Number(els.videoPlayer?.currentTime) || 0,
+    onDetect: detectTutorialTempo,
+    onOpen: () => {
+      // Premier coup d'œil sur ce tuto : le tempo se cherche tout seul (sans rien démarrer).
+      const stored = selectedPath ? readMetronomeStore()[selectedPath] : null;
+      if (selectedPath && !stored && !metronomeSearched.has(selectedPath)) {
+        metronomeSearched.add(selectedPath);
+        triggerMetronomeDetect(metronomeMenu);
+      }
+    },
+    onChange: (patch) => {
+      for (const k of ['bpm', 'beatsPerBar', 'follow', 'volume', 'offset', 'anchored']) if (k in patch) metronomeSettings[k] = patch[k];
+      metronome.set(metronomeSettings);
+      saveMetronomeSettings();
+    },
+    onToggle: (running) => { if (running) metronome.start(); else metronome.stop(); },
+  });
+  els.metronome.replaceChildren(metronomeMenu);
+  loadMetronomeFor(selectedPath);
+}
+
 function renderTools() {
+  renderMetronome();
   // [Claude] — 2026-10-04 — Le bouton « 1× ▾ » et son panneau, construits une seule fois : les
   // reconstruire à chaque changement fermerait le panneau pendant qu'on tire le curseur.
   if (els.speed && !speedMenu) {
@@ -1434,6 +1542,17 @@ async function runReading(path) {
     // partent ensemble, et l'on n'attend la transcription qu'au moment
     // d'assembler le résultat.
     const transcriptionPromise = runTranscription(path);
+    // [Claude] — 2026-10-14 — Les notes ENTENDUES (transcription du piano au son) : une seconde lecture
+    // de la même vidéo, lancée tout de suite en parallèle de l'image. Elle sert dans les deux cas :
+    // à recouper la lecture à l'image (sound-reconcile.js : octaves, lacunes, glissandos), et, quand
+    // l'image ne donne rien, à fournir les notes. Une seule transcription par relevé.
+    let pianoPromise = null;
+    const soundNotes = () => {
+      if (!api?.pedagogie?.transcribePiano) return Promise.resolve({ available: false, reason: 'not-attempted' });
+      pianoPromise ??= api.pedagogie.transcribePiano(path).catch((err) => ({ available: false, reason: 'failed', detail: err.message }));
+      return pianoPromise;
+    };
+    void soundNotes();
 
     // [Claude] — 2026-09-25 — 8 images/s (au lieu de 4) : les notes brèves d'un lick
     // tiennent au moins une image et sont gardées (notes du professeur).
@@ -1500,7 +1619,7 @@ async function runReading(path) {
       // transcrites depuis le son (piano-transcriber.py), si le paquet est là.
       if (api?.pedagogie?.transcribePiano) {
         step('Relevé des notes jouées (au son)…');
-        const piano = await api.pedagogie.transcribePiano(path).catch((err) => ({ available: false, reason: 'failed', detail: err.message }));
+        const piano = await soundNotes();
         if (piano?.available && piano.notes?.length) {
           built.noteEvents = eventsFromTranscription(piano.notes);
           built.notesSource = 'son';
@@ -1548,6 +1667,28 @@ async function runReading(path) {
       // ancien est relu à la réouverture du tuto (tutorial-memory.js, staleImageReading).
       built.readingRevision = READING_REVISION;
       built.fineReading = result.fineReading || null;
+    }
+    // [Claude] — 2026-10-14 — Le SON recoupe l'image (sound-reconcile.js) : une octave fausse est
+    // corrigée, les notes qu'une image brouillée n'a pas vues et celles d'un glissando sont ajoutées.
+    // Si le son et l'image ne se recoupent pas (musique de fond…), rien n'est changé.
+    if (api.pedagogie?.transcribePiano && built.noteEvents?.length) {
+      step('Recoupement des notes avec le son…');
+      const piano = await soundNotes();
+      if (piano?.available && piano.notes?.length) {
+        const merged = reconcileWithSound(built.noteEvents, piano.notes);
+        built.soundCheck = merged.report;
+        if (merged.report.reliable) {
+          built.noteEvents = merged.notes;
+          // Sa pédale, entendue au son : le rejeu la reprend (l'image ne la voit pas).
+          if (!built.pedals?.length) {
+            built.pedals = (piano.pedals || [])
+              .filter((p) => Number.isFinite(p?.onset) && Number.isFinite(p?.offset) && p.offset > p.onset)
+              .map((p) => ({ start: p.onset, end: p.offset }));
+          }
+        }
+      } else {
+        built.soundCheck = { reliable: false, reason: piano?.reason === 'dependency-missing' ? 'not-installed' : 'no-sound' };
+      }
     }
     // [Claude] — 2026-10-09 — La force de chaque attaque, mesurée au son de la vidéo (l'image ne
     // la montre pas) : src/pedagogie/dynamics.js. Enregistrée avec les notes : le rejeu du
@@ -1749,14 +1890,15 @@ function renderFormat() {
 
   const fromV2n = analysis.source === 'v2n';
   const fromImage = fromV2n || analysis.source === 'video';
+  const checkedBySound = fromImage && analysis.soundCheck?.reliable;
   els.format.appendChild(el('span', {
     className: `pedagogie-badge ${fromImage ? 'is-image' : 'is-audio'}`,
-    text: fromV2n ? 'Lu à l\'image (V2N)' : (fromImage ? 'Lu à l\'image' : 'Lu au son'),
+    text: fromV2n ? 'Lu à l\'image (V2N)' : (fromImage ? (checkedBySound ? 'Lu à l\'image + son' : 'Lu à l\'image') : 'Lu au son'),
   }));
   els.format.appendChild(el('span', {
     className: 'pedagogie-format-text',
     text: fromImage
-      ? `${analysis.stats.segmentCount} accords relevés sur ${formatTime(analysis.stats.duration)}.`
+      ? `${analysis.stats.segmentCount} accords relevés sur ${formatTime(analysis.stats.duration)}.${analysis.soundCheck ? ` ${soundCheckSentence(analysis.soundCheck)}` : ''}`
       : 'Aucun clavier lisible à l\'image ; le relevé vient du son.',
   }));
 }
@@ -2079,8 +2221,9 @@ export function getPedagogieCopilotContext() {
   const structureChords = view.filterChords ? chordsWhilePlaying(solidChords, view.spans) : solidChords;
   const noteEvents = view.played;
   const rawNotes = Array.isArray(analysis.noteEvents) ? analysis.noteEvents.length : 0;
-  const sourceLabel = analysis.source === 'v2n' ? 'lu à l\'image (vrai clavier filmé, V2N)'
-    : analysis.source === 'video' ? 'lu à l\'image (clavier dessiné)'
+  const heardToo = analysis.soundCheck?.reliable ? ', recoupé avec le son (octaves, notes manquées et glissandos vérifiés à l\'oreille)' : '';
+  const sourceLabel = analysis.source === 'v2n' ? `lu à l'image (vrai clavier filmé, V2N)${heardToo}`
+    : analysis.source === 'video' ? `lu à l'image (clavier dessiné)${heardToo}`
       : `lu au son (accords)${analysis.notesSource === 'son' ? ' ; notes transcrites depuis le son' : ''}`;
   const transcript = narrationView.map((n) => ({ start: n.start, text: n.text }));
   const video = els.videoPlayer;
@@ -2150,6 +2293,7 @@ export function initPedagogieTab() {
   els.backBtn = document.getElementById('pedagogie-back-btn');
   els.homeGrid = document.getElementById('pedagogie-home-grid');
   els.speed = document.getElementById('pedagogie-speed');
+  els.metronome = document.getElementById('pedagogie-metronome');
   els.redoBtn = document.getElementById('pedagogie-redo-btn');
   els.split = document.getElementById('pedagogie-split');
   els.main = document.getElementById('pedagogie-main');
@@ -2263,7 +2407,7 @@ export function initPedagogieTab() {
       render();
       return;
     }
-    if (viewActive) pauseVideo();
+    if (viewActive) { pauseVideo(); stopMetronome(); }
     viewActive = false;
     // La conversation retourne dans l'onglet Copilote quand on y va.
     if (view === 'copilot') undockCopilot();

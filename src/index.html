@@ -47,6 +47,7 @@
     <link rel="stylesheet" href="./ui/components/app-notify.css" />
     <link rel="stylesheet" href="./ui/components/app-dialog.css" />
     <link rel="stylesheet" href="./ui/components/track-wheel.css" />
+    <link rel="stylesheet" href="./ui/components/metronome-menu.css" />
     <!-- [Refonte v2/Global] — système de thème v2/Global. Chargé en <link>
          (et non via import JS) pour rester non-layered, au même niveau de
          cascade que style.css : la spécificité tranche, pas l'ordre d'injection. -->
@@ -984,6 +985,9 @@
 
                 <div class="pedago-tools pedagogie-video-actions" id="pedagogie-video-actions" style="display: none;">
                   <div class="pedago-speed" id="pedagogie-speed" role="group" aria-label="Vitesse de la vidéo"></div>
+                  <!-- [Claude] — 2026-10-14 — Le métronome : tempo cherché dans le son du tuto, clics libres
+                       ou sur les temps de la vidéo (components/metronome-menu.js). -->
+                  <div class="pedago-metronome" id="pedagogie-metronome" role="group" aria-label="Métronome"></div>
                   <span class="pedago-tools-spacer"></span>
                   <!-- [Claude] — 2026-09-25 — Calibration d'un vrai clavier filmé (V2N) : visible
                        seulement quand elle sert (V2N installé, pas de clavier dessiné reconnu). -->

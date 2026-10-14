@@ -514,6 +514,8 @@
 :root[data-skin] #practice-view-pedagogie .pedago-under .pedagogie-secondary-btn[hidden] { display: none; }
 #practice-view-pedagogie .pedago-tools-spacer { flex: 1; }
 #practice-view-pedagogie .pedago-speed:empty { display: none; }
+#practice-view-pedagogie .pedago-metronome { display: inline-flex; align-items: center; }
+#practice-view-pedagogie .pedago-metronome:empty { display: none; }
 
 /* ---- [Claude] — 2026-10-04 — La fenêtre sous la vidéo, en une seule carte ------
    Narcisse : « plus épurée, plus lisible, mieux organisée, visuellement plus moderne, moins

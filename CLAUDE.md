@@ -228,6 +228,18 @@ La boucle `requestAnimationFrame` qui modifiait `video.playbackRate` causait un 
   mêmes colonnes (même largeur de vidéo). En mode enregistrement, la rangée est masquée.
 
 
+### Pédagogie IA (lecture du tutoriel)
+- *(14/10/2026)* Les notes du prof viennent de l'**image** (clavier dessiné, ou V2N) ET sont recoupées
+  avec le **son** : `src/pedagogie/sound-reconcile.js` compare avec la transcription du piano au son
+  (`transcribePiano`, lancée en parallèle de l'image) et corrige les octaves, comble les lacunes
+  de l'image et les glissandos. Si le son ne recoupe pas l'image (< 30 %), rien n'est changé. Le
+  rapport est dans `analysis.soundCheck` ; `notesSource` ne contient **pas** « son » (sinon
+  `fromSound()` traiterait les notes comme issues du son).
+- *(14/10/2026)* Métronome sous la vidéo (`components/metronome-menu.*`, `audio/metronome.js`) : tempo
+  cherché dans le niveau sonore (`pedagogie/tempo-estimate.js`, IPC `pedagogie:loudness`), clics
+  libres ou calés sur les temps de la vidéo (suit pause, saut, vitesse). Réglages par tutoriel
+  (`localStorage`, clé `pjc.pedagogie.metronome`).
+
 ### Stems
 - Demucs `htdemucs_6s` produit 6 stems ; la guitare est fusionnée dans `other` pour l'UI.
 - Si Demucs n'est pas installé, on génère des stems simulés (bips) pour ne pas bloquer le workflow.
