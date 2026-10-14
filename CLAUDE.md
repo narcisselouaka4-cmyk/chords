@@ -24,6 +24,26 @@ Definition of Done du module Analyse
 Le vault doit aussi être **mis à jour** en fin de tâche : `state/` + `log.md`,
 plus `experiments/` ou `decisions/` si pertinent.
 
+> *(14/10/2026)* Le coffre unifié devient `/home/visiteur/Documents/zic-vault` (source de vérité).
+> L'ancien chemin ci-dessus est conservé tant que la fusion n'est pas validée. Depuis le cloud,
+> on n'écrit pas dans le coffre : voir « Fin de session (obligatoire) » juste après.
+
+## Fin de session (obligatoire)
+
+Le coffre Obsidian (`/home/visiteur/Documents/zic-vault`) est la mémoire du projet, mais je n'y ai
+pas accès depuis le cloud. À la fin de chaque implémentation :
+
+1. Lancer tests et build ; noter précisément ce qui n'a **pas** été vérifié (ex. « pas testé dans Electron »). Ne jamais dire « fait » sans preuve.
+2. Commit + push du code, sur la branche de travail : chemins explicites, jamais `git add -A`, jamais `apikeys` ni `.env`.
+3. Écrire `docs/vault-a-reporter/AAAA-MM-JJ-sujet.md` avec un frontmatter (`title`, `type`, `date`, `status`, `tags`) et ces sections : ce qui a été fait + fichiers touchés ; ce qui a été vérifié et comment ; ce qui reste à vérifier ; « À mettre dans decisions/ » ; « À mettre dans experiments/ » (essais, même ratés) ; prochaines actions et questions pour Narcisse.
+4. Commit + push de la note dans le même dépôt.
+5. Terminer la réponse par : « Note à reporter dans le coffre : `<chemin>` ».
+
+Ensuite, sur le PC, une session qui voit le coffre : `git pull` dans le dépôt de l'app, range chaque
+note de `docs/vault-a-reporter/` dans le coffre (features, ADR, EXP), met à jour `state/`, `log.md`
+et `index.md`, puis commit + push du coffre. `scripts/sync-vault.sh` dépose les nouvelles notes
+dans `<coffre>/a-integrer/` sans rien écraser.
+
 ---
 
 ## 1. Vue d'ensemble
