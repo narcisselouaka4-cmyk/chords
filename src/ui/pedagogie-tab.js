@@ -1832,8 +1832,8 @@ function renderGuide() {
 /** Les accords relevés, en étapes neutres pour la barre du tuto (quand il n'y a pas de guide). */
 function chordSteps() {
   return (analysis?.segments || [])
-    .filter((s) => Number.isFinite(s?.start) && Number.isFinite(s?.end) && s.end > s.start && s.label)
-    .map((s, i) => ({ id: `c${i + 1}`, kind: 'chord', start: s.start, end: s.end, title: s.label }));
+    .filter((s) => Number.isFinite(s?.start) && Number.isFinite(s?.end) && s.end > s.start && s.chord?.resolved && s.chord.label)
+    .map((s, i) => ({ id: `c${i + 1}`, kind: 'chord', start: s.start, end: s.end, title: s.chord.label }));
 }
 
 /** L'onglet du panneau de droite : le guide du tuto, ou le Copilote. */
