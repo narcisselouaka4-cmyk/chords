@@ -2061,7 +2061,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;   /* [2026-10-14] tout le contenu de « Lecture » est centré dans la rangée */
   gap: 8px 22px;
   min-width: 0;
   padding: 0 0 10px;
@@ -2087,6 +2087,7 @@
   flex-direction: row;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   gap: 8px 22px;
   margin: 0;
   padding: 0;
@@ -2180,3 +2181,9 @@
   :root[data-skin] #studio-tab .studio-controls-lecture .studio-volume-label { width: 150px; }
   :root[data-skin] #studio-tab .studio-controls-lecture .studio-transpose-row .studio-transpose-status { flex-basis: 6.2em; }
 }
+
+/* [Claude] — 2026-10-14 — Pistes repliées : la colonne de gauche est plus large que le panneau « Musiques
+   importées » (250 px), ce qui laissait un vide entre le panneau et la vidéo / le lecteur. Le panneau
+   prend toute la largeur de sa colonne (jusqu'à l'écart de 14 px avec la colonne centrale), ce qui laisse
+   aussi plus de place aux titres. Rond (replié), il garde ses 46 px. */
+:root[data-skin] #studio-tab.stems-collapsed:not(.stage-0) .studio-sidebar.left:not(.collapsed) { width: 100%; }
