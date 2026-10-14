@@ -250,6 +250,21 @@
   transition: opacity 0.15s ease;
 }
 
+/* [Claude] — 2026-10-14 — Sans la ligne grise « MP3 · 00:00 », la carte d'un morceau n'est plus qu'une
+   ligne : les boutons Renommer / Supprimer passent à droite du titre, sur la même ligne, au lieu de
+   laisser une bande vide sous le nom. */
+:root[data-skin] #studio-tab .studio-sidebar.left .studio-track-item { position: relative; }
+:root[data-skin] #studio-tab .studio-sidebar.left .studio-track-item .studio-track-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: padding-right .15s ease; }
+:root[data-skin] #studio-tab .studio-sidebar.left .studio-track-item:is(:hover, :focus-within) .studio-track-name { padding-right: 56px; }
+:root[data-skin] #studio-tab .studio-sidebar.left .studio-track-actions {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 2px;
+}
+
 #studio-tab .studio-track-item:hover .studio-track-actions,
 #studio-tab .studio-track-item:focus-within .studio-track-actions {
   opacity: 1;

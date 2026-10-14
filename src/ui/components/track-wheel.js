@@ -182,7 +182,7 @@ export function createTrackWheel({ root, onOpen, onRename, onDelete, onClose }) 
 
   function measure() {
     const h = dial.clientHeight || 520;
-    radius = clamp(h * 0.44, 170, 360);
+    radius = clamp(h * 0.34, 140, 270);   // [2026-10-14] cercle resserré (Narcisse : « rétrécis-le un peu plus »)
     root.style.setProperty('--wheel-r', `${radius}px`);
   }
 
@@ -195,6 +195,7 @@ export function createTrackWheel({ root, onOpen, onRename, onDelete, onClose }) 
     if (item) {
       cardTitle.textContent = item.title;
       cardMeta.textContent = item.meta || '';
+      cardMeta.hidden = !item.meta;
     }
   }
 
@@ -203,8 +204,8 @@ export function createTrackWheel({ root, onOpen, onRename, onDelete, onClose }) 
     nodes = shown.map((item, i) => {
       const el = node('div', 'track-wheel-item', { role: 'option', id: `track-wheel-opt-${i}`, 'data-index': String(i) });
       const t = node('span', 'track-wheel-item-title'); t.textContent = item.title;
-      const m = node('span', 'track-wheel-item-meta'); m.textContent = item.meta || '';
-      el.append(t, m);
+      el.append(t);
+      if (item.meta) { const m = node('span', 'track-wheel-item-meta'); m.textContent = item.meta; el.append(m); }
       itemsLayer.appendChild(el);
       return el;
     });

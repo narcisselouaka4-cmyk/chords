@@ -1570,20 +1570,10 @@ async function refreshTrackList() {
   }
 }
 
-/** Texte (sans HTML) de la ligne de détail d'un morceau : format et durée, ou nom du fichier source s'il a changé. */
-function trackMetaText(track) {
-  const metadata = track.metadata || {};
-  const displayName = metadata.name || track.id;
-  const source = metadata.sourcePath ? metadata.sourcePath.split('/').pop() || metadata.sourcePath.split('\\').pop() : track.id;
-  const ext = metadata.sourcePath ? getFileExtension(metadata.sourcePath).toUpperCase() : '';
-  const duration = formatDuration(metadata.duration || 0);
-  return source && source !== displayName ? `${source} · ${duration}` : `${ext ? `${ext} · ` : ''}${duration}`;
-}
-
 function renderTrackList(tracks) {
   setTimeout(updateCollapseCount, 0);
   // La roue de l'accueil (étape 0) montre les mêmes morceaux ; ouverte, elle se met à jour sur place.
-  wheelItems = tracks.map((t) => ({ id: t.id, title: (t.metadata && t.metadata.name) || t.id, meta: trackMetaText(t) }));
+  wheelItems = tracks.map((t) => ({ id: t.id, title: (t.metadata && t.metadata.name) || t.id }));
   trackWheel?.setItems(wheelItems);
   if (!els.trackList) return;
   els.trackList.innerHTML = '';
@@ -1600,22 +1590,12 @@ function renderTrackList(tracks) {
 
     const metadata = track.metadata || {};
     const displayName = metadata.name || track.id;
-    const source = metadata.sourcePath ? metadata.sourcePath.split('/').pop() || metadata.sourcePath.split('\\').pop() : track.id;
-    const ext = metadata.sourcePath ? getFileExtension(metadata.sourcePath).toUpperCase() : '';
-
-    // La ligne de détail ne répète jamais le titre affiché juste au-dessus.
-    // Elle ne montre le nom du fichier source que s'il diffère réellement du
-    // titre — c'est-à-dire après un renommage. Sinon, format et durée suffisent.
-    const sourceDiffers = source && source !== displayName;
-    const metaLine = sourceDiffers
-      ? `${escapeHtml(source)} · ${formatDuration(metadata.duration || 0)}`
-      : `${ext ? `${ext} · ` : ''}${formatDuration(metadata.duration || 0)}`;
-
+    // [Claude] — 2026-10-14 — Plus de ligne grise « MP3 · 00:00 » sous le nom (Narcisse : « j'en ai marre
+    // de voir ça ») : le titre suffit.
     const info = document.createElement('div');
     info.className = 'studio-track-info';
     info.innerHTML = `
       <div class="studio-track-name">${escapeHtml(displayName)}</div>
-      <div class="studio-track-meta">${metaLine}</div>
     `;
     info.addEventListener('click', () => loadTrack(track.id));
 
