@@ -33,7 +33,7 @@ check('Ré♭ : Ebm9 – Gbmaj9 – Bbm9 – Db…', /^Ebm9 Gbmaj9 Bbm9 Db/.test
 
 console.log('Next Level Worship : les étapes');
 const kinds = new Set(g.steps.map((s) => s.kind));
-check('il montre la main droite seule, la main gauche seule, tout ensemble, et parle', ['rh', 'lh', 'both', 'talk'].every((k) => kinds.has(k)), [...kinds].join(' '));
+check('il montre la main droite seule, la main gauche seule, tout ensemble ; les trous sans parole transcrite sont « rien de relevé »', ['rh', 'lh', 'both', 'quiet'].every((k) => kinds.has(k)) && !kinds.has('talk'), [...kinds].join(' '));
 const lhStep = g.steps.find((s) => s.kind === 'lh' && s.start > 165 && s.start < 175);
 check('2:50 : la main gauche seule, sous Gbmaj9 · Bbm9 · Dbmaj9', lhStep && lhStep.chords.map((c) => c.name).join(' ') === 'Gbmaj9 Bbm9 Dbmaj9', lhStep && lhStep.chords.map((c) => c.name).join(' '));
 const together = g.steps.find((s) => s.complete && s.start > 180);
@@ -96,7 +96,7 @@ const assembledSegs = [
   seg(32, 34, DM9), seg(34, 36, G13), seg(36, 38, CMAJ9),
 ];
 const ga = buildTutorialGuide({ segments: assembledSegs, duration: 40 });
-check('les étapes : main droite, main gauche, deux mains', ga.steps.filter((s) => s.kind !== 'talk').map((s) => s.kind).join(' ') === 'rh lh both', ga.steps.map((s) => s.kind).join(' '));
+check('les étapes : main droite, main gauche, deux mains', ga.steps.filter((s) => s.kind !== 'talk' && s.kind !== 'quiet').map((s) => s.kind).join(' ') === 'rh lh both', ga.steps.map((s) => s.kind).join(' '));
 check('la boucle 2 – 5 – 1', ga.parts[0].progression.chords.map((c) => c.degree).join(' – ') === '2 – 5 – 1', ga.parts[0].progression.chords.map((c) => c.degree).join(' – '));
 const fa = ga.parts[0].final;
 check('résultat final : chaque accord, main gauche + main droite', fa && fa.chords.every((c) => c.lh.length === 3 && c.rh.length === 3), fa && fa.chords.map((c) => `${names(c.lh)} | ${names(c.rh)}`).join(' / '));
@@ -122,31 +122,33 @@ console.log('Degrés');
 check('« 1 », « I », « vi », « b7 », « ♭7 »', normalizeDegree('1') === '1' && normalizeDegree('I') === '1' && normalizeDegree('vi') === '6' && normalizeDegree('b7') === 'b7' && normalizeDegree('♭7') === 'b7' && normalizeDegree('IV') === '4');
 check('n\'importe quoi : rien', normalizeDegree('accord') === null);
 
-// ── Rôles supposés (intro / couplet / mouvement) ────────────────────────────────────────────
-console.log('Rôles supposés');
+// ── Parole et silence : « il parle » seulement avec de la parole transcrite ─────────────────────
+console.log('Parole et silence');
 {
-  const byStart = (t) => g.steps.find((st) => t >= st.start && t < st.end);
-  check('chaque étape porte un rôle avec sa raison ; tout est une hypothèse sauf « il parle »',
-    g.steps.every((st) => st.role && st.role.label && st.role.why && st.role.guess === (st.role.id !== 'explain')));
-  check('la première chose jouée, avant d\'être décomposée : l\'intro', byStart(3).role.id === 'intro', byStart(3).role.id);
-  check('une main seule : construction', byStart(10).role.id === 'build' && byStart(25).role.id === 'build');
-  check('les deux mains après les mains séparées : assemblage', byStart(50).role.id === 'assembly', byStart(50).role.id);
-  check('la reprise en Ré♭ : changement de tonalité', byStart(70).role.id === 'modulation' && /Ré♭/.test(byStart(70).role.why));
-  check('3:08 – 3:35 (le passage que Narcisse n\'arrivait pas à reproduire) : assemblage', byStart(200).role.id === 'assembly', byStart(200).role.id);
-  check('il parle à la toute fin : conclusion', byStart(225).role.id === 'ending', byStart(225).role.id);
-  check('le guide donne les rôles au Copilote, avec « hypothèse »',
-    /rôle supposé : Assemblage/.test(guideLines(g).join('\n')) && /HYPOTHÈSE/.test(guideLines(g).join('\n')));
+  // Narcisse : le Copilote disait « il explique » entre 0 et 20 s d'une vidéo où il joue sans parler.
+  check('plus aucun rôle supposé (ADR-052) : ni « rôle », ni « hypothèse » sur les étapes ni pour le Copilote',
+    g.steps.every((st) => st.role === undefined && st.movements === undefined)
+    && !/rôle supposé|HYPOTHÈSE/.test(guideLines(g).join('\n')));
+  check('aucune étape « il parle » sans parole transcrite',
+    g.steps.filter((st) => st.kind === 'talk').every((st) => st.said.length > 0));
+  check('un trou sans notes NI parole est « rien de relevé », jamais « il explique »',
+    g.steps.filter((st) => st.kind === 'quiet').every((st) => st.said.length === 0 && st.title === 'Rien de relevé' && !/explique|parle/i.test(st.summary.replace('ni parole', ''))));
 
-  // Les mots du prof nomment un couplet ; sans mot, il n'est pas deviné.
+  // La même vidéo sans aucune transcription : tout trou est « rien de relevé » (jamais « il parle »).
   const f2 = load('next-level-worship.json');
-  const said = (word) => buildTutorialGuide({ segments: f2.segments, noteEvents: f2.noteEvents, duration: f2.duration,
-    transcript: [{ start: 45, text: word }] });
-  const verse = said('now this is the verse, we play it like this');
-  check('« this is the verse » : l\'étape devient « Couplet » (il le dit)', verse.steps.find((st) => 45 >= st.start && 45 < st.end).role.id === 'verse');
-  check('sans le mot, aucun couplet ni refrain n\'est supposé', !g.steps.some((st) => ['verse', 'chorus', 'bridge'].includes(st.role.id)));
-  const mv = g.steps.filter((st) => st.role.id === 'movement');
-  check('une étape courte où il joue un mouvement relevé : « Mouvement », avec le mouvement dans la raison',
-    mv.every((st) => /→/.test(st.role.why)) && g.steps.every((st) => Array.isArray(st.movements)));
+  const mute = buildTutorialGuide({ segments: f2.segments, noteEvents: f2.noteEvents, duration: f2.duration, transcript: [] });
+  check('sans transcription : aucune étape « il parle »', !mute.steps.some((st) => st.kind === 'talk'));
+  check('… et le Copilote ne reçoit jamais « il parle » ni « il explique »',
+    !/il parle|il explique/i.test(guideLines(mute).join('\n').replace(/n'affirme rien[^\n]*/g, '').replace(/ne dis PAS qu'il parle ou explique/g, '')));
+
+  // Avec de la parole, ce trou-là devient « il parle ».
+  const gap = mute.steps.find((st) => st.kind === 'quiet');
+  if (gap) {
+    const talked = buildTutorialGuide({ segments: f2.segments, noteEvents: f2.noteEvents, duration: f2.duration,
+      transcript: [{ start: gap.start + 1, text: 'so here is what we are going to do' }] });
+    const same = talked.steps.find((st) => st.start === gap.start);
+    check('le même trou avec de la parole transcrite : « il parle »', same && same.kind === 'talk' && same.said.length === 1);
+  }
 }
 
 // ── Autres relevés réels : rien ne casse ─────────────────────────────────────────────────────

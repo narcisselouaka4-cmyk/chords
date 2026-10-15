@@ -20,12 +20,14 @@ porte la raison, pour que l'interface puisse la distinguer) :
 
 POURQUOI faster-whisper ET PAS whisper-timestamped
 --------------------------------------------------
-faster-whisper (réimplémentation CTranslate2 de Whisper) est sous licence MIT et
-donne l'horodatage PAR SEGMENT en natif. whisper-timestamped ajoute
-l'horodatage mot à mot, mais sous licence AGPL-3.0 : un copyleft avec obligation
-de divulgation de la source, exactement la contrainte que le projet évite depuis
-la décision du 28/08. La granularité segment suffit à ce qui est demandé —
-situer un conseil dans le temps, pas sous-titrer mot à mot.
+faster-whisper (réimplémentation CTranslate2 de Whisper) est sous licence MIT. whisper-timestamped,
+sous licence AGPL-3.0 (copyleft avec obligation de divulgation de la source, la contrainte que le
+projet évite depuis la décision du 28/08), a longtemps semblé nécessaire pour l'horodatage mot à mot —
+mais faster-whisper le fournit lui-même nativement (`word_timestamps=True`, toujours MIT). [Claude] —
+2026-10-16 — Et il est devenu nécessaire : la granularité segment, livrée telle quelle par Whisper, peut
+mentir de vingt secondes sur le début réel de la parole (voir WORD_GAP_SPLIT plus bas). Les segments
+exposés par ce module sont donc reconstruits à partir des mots, horodatage mot à mot mais sortie en
+segments : le reste du projet n'a rien à changer.
 
 POURQUOI LE MODÈLE « small »
 ----------------------------
@@ -68,6 +70,16 @@ BEAM_SIZE = 1
 # Un texte inventé serait ici un mensonge pédagogique, pas une approximation.
 NO_SPEECH_MAX = 0.6
 AVG_LOGPROB_MIN = -1.0
+
+# [Claude] — 2026-10-16 — Un SEGMENT whisper peut durer 25 s et commencer bien avant le premier mot
+# vraiment prononcé : son VAD fusionne une plage musicale avec la parole qui la suit, et un mot isolé
+# (souvent une interjection mal reconnue, ici « Hey » sur de la musique) traîne le début du segment à
+# t=0. Mesuré sur « Passing chords… Drop 2 » : le pianiste joue sans parler de 0 à 21 s, et le segment
+# whisper annonçait pourtant « parle » dès 0 s — de quoi faire croire au Copilote qu'il explique, alors
+# qu'il joue. Les segments sont donc reconstruits à partir des MOTS (faster-whisper les horodate nativement,
+# licence MIT comme le reste du module — ce n'est PAS whisper-timestamped/AGPL cité plus haut, qui ne sert
+# qu'à motiver faster-whisper) : un silence de WORD_GAP_SPLIT entre deux mots commence un nouveau segment.
+WORD_GAP_SPLIT = 1.5
 
 
 def log(message):
@@ -120,25 +132,35 @@ def transcribe(wav_path, model_size, language):
             # Sans ce réglage, le modèle se met à répéter en boucle la dernière
             # phrase entendue dès qu'il traverse une longue plage musicale.
             condition_on_previous_text=False,
+            word_timestamps=True,
         )
 
-        segments = []
+        # Les mots des segments qui passent le filtre de qualité (silence, confiance), dans l'ordre.
+        words = []
         dropped = 0
         for seg in segment_iter:
-            text = (seg.text or "").strip()
-            if not text:
-                dropped += 1
-                continue
             no_speech = getattr(seg, "no_speech_prob", 0.0) or 0.0
             avg_logprob = getattr(seg, "avg_logprob", 0.0) or 0.0
-            if no_speech > NO_SPEECH_MAX or avg_logprob < AVG_LOGPROB_MIN:
+            seg_words = [w for w in (seg.words or []) if (w.word or "").strip()]
+            if not seg_words or no_speech > NO_SPEECH_MAX or avg_logprob < AVG_LOGPROB_MIN:
                 dropped += 1
                 continue
-            segments.append({
-                "start": round(float(seg.start), 3),
-                "end": round(float(seg.end), 3),
-                "text": text,
-            })
+            words.extend(seg_words)
+
+        # Reconstruction des segments à partir des mots : un silence de WORD_GAP_SPLIT en sépare deux.
+        segments = []
+        current = None
+        for w in words:
+            if current and w.start - current["end"] < WORD_GAP_SPLIT:
+                current["end"] = float(w.end)
+                current["_parts"].append(w.word.strip())
+            else:
+                current = {"start": float(w.start), "end": float(w.end), "_parts": [w.word.strip()]}
+                segments.append(current)
+        for seg in segments:
+            seg["start"] = round(seg["start"], 3)
+            seg["end"] = round(seg["end"], 3)
+            seg["text"] = " ".join(seg.pop("_parts"))
 
         log(f"{len(segments)} segments retenus, {dropped} écartés")
         return {

@@ -262,9 +262,12 @@ export function buildSteps(moments, { transcript = [], duration = null } = {}) {
   // Les silences : il explique (ou la vidéo montre autre chose).
   const out = [];
   const lines = (transcript || []).filter((l) => Number.isFinite(l?.start) && String(l.text || '').trim());
+  // [Claude] — 2026-10-16 — « Il parle » ne se déduit PAS d'un silence de notes : seulement de la parole
+  // transcrite. Sans parole, rien n'est relevé (il peut jouer sans que l'image le montre) : étape « quiet ».
+  // Narcisse : le Copilote disait « il explique » entre 0 et 20 s d'une vidéo où il joue sans parler.
   const talk = (start, end) => {
     const said = lines.filter((l) => l.start >= start - 0.5 && l.start < end).map((l) => String(l.text).trim());
-    out.push({ kind: 'talk', start: round2(start), end: round2(end), moments: [], said });
+    out.push({ kind: said.length ? 'talk' : 'quiet', start: round2(start), end: round2(end), moments: [], said });
   };
   let cursor = 0;
   for (const s of steps) {
@@ -275,7 +278,7 @@ export function buildSteps(moments, { transcript = [], duration = null } = {}) {
   if (Number.isFinite(duration) && duration - cursor >= TALK_MIN) talk(cursor, duration);
   // Ce qu'il dit pendant qu'il joue compte aussi (il commente souvent en jouant).
   for (const s of out) {
-    if (s.kind === 'talk') continue;
+    if (s.kind === 'talk' || s.kind === 'quiet') continue;
     s.said = lines.filter((l) => l.start >= s.start - 0.5 && l.start < s.end).map((l) => String(l.text).trim());
   }
   return out;
@@ -665,6 +668,7 @@ const HAND_TITLES = {
   rh: 'Main droite seule',
   line: 'La ligne du dessus',
   talk: 'Il explique',
+  quiet: 'Rien de relevé',
 };
 
 /** Les accords d'une étape, dans l'ordre, sans répétition voisine (six au plus). */
@@ -701,7 +705,9 @@ function describeStep(step, part, progression, { first }) {
   let title = HAND_TITLES[step.kind] || 'Passage';
   let summary = '';
   if (step.kind === 'talk') {
-    summary = step.said?.length ? 'Il parle sans jouer.' : 'Il ne joue pas (il parle, ou la vidéo montre autre chose).';
+    summary = 'Il parle sans jouer.';
+  } else if (step.kind === 'quiet') {
+    summary = 'Ni notes ni parole relevées ici : il peut jouer sans que l\'image le montre.';
   } else if (step.kind === 'both') {
     if (covers && progression.loop) {
       title = 'Tout ensemble';
@@ -723,90 +729,6 @@ function describeStep(step, part, progression, { first }) {
 // ── Le guide ──────────────────────────────────────────────────────────────────
 
 // ── Rôle de chaque étape dans le morceau (HYPOTHÈSES) ─────────────────────────
-
-/**
- * [Claude] — 2026-10-14 — Narcisse : « poser des hypothèses pour rattacher chaque passage à un moment
- * précis du morceau (intro, couplet ou exécution d'un mouvement particulier) ». Le rôle d'une étape
- * est TOUJOURS une hypothèse, avec sa raison, tirée de ce qui se voit et s'entend : sa place dans le
- * tuto, les mains jouées, les mouvements relevés, et les MOTS du prof (intro, verse / couplet,
- * chorus / refrain, bridge / pont, turnaround, lick…). Sans mot pour le dire, un couplet n'est pas
- * deviné : l'étape reste « la boucle ».
- */
-const norm = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-const SAID_ROLES = [
-  { id: 'intro', label: 'Intro', re: /\b(intro|introduction|vamp|opening|ouverture)\b/ },
-  { id: 'verse', label: 'Couplet', re: /\b(verse|couplet|strophe)\b/ },
-  { id: 'chorus', label: 'Refrain', re: /\b(chorus|refrain)\b/ },
-  { id: 'bridge', label: 'Pont', re: /\b(bridge|pont)\b/ },
-  { id: 'ending', label: 'Fin', re: /\b(outro|ending|end of the song|fin du morceau|conclusion)\b/ },
-  { id: 'turnaround', label: 'Retour (turnaround)', re: /\b(turnaround|turn around)\b/ },
-];
-const MOVEMENT_SAID = /\b(passing|chromatic|chromatique|walk|walking|approach|descend|descending|descente|ascending|montee|lick|run|fill|substitut|reharmon)/;
-const BUILD_WORDS = { lh: 'main gauche seule', rh: 'main droite seule', line: 'la ligne du dessus' };
-
-function overlap(aStart, aEnd, bStart, bEnd) {
-  return Math.min(aEnd, bEnd) - Math.max(aStart, bStart);
-}
-
-/**
- * Pose `role` ({id, label, why, guess: true}) sur chaque étape, et `movements` (les ids des
- * mouvements qui s'y jouent). Modifie les étapes données.
- */
-export function assignRoles(steps, parts, movements, { duration = null } = {}) {
-  const total = Number.isFinite(duration) && duration > 0 ? duration : (steps[steps.length - 1]?.end || 0);
-  const firstOfPart = new Map(parts.map((p, i) => [p.steps[0], { part: p, index: i }]));
-  const assemblyStart = new Map();
-  for (const p of parts) if (p.final?.source === 'together') assemblyStart.set(p.id, p.final.start);
-  const buildSeen = new Set(); // parties où une main seule a déjà été montrée
-
-  steps.forEach((st, i) => {
-    const said = norm((st.said || []).join(' '));
-    const here = movements.filter((m) => m.times.some((t) => overlap(st.start, st.end, t.start, t.end) > 0.2)).map((m) => m.id);
-    st.movements = here;
-    const set = (id, label, why, guess = true) => { st.role = { id, label, why, guess }; };
-    if (BUILD_WORDS[st.kind]) buildSeen.add(st.part);
-
-    // 1. Ce que le prof NOMME (« this is the verse »).
-    const named = SAID_ROLES.find((r) => r.re.test(said));
-    if (named && st.kind !== 'talk') return set(named.id, named.label, `il dit « ${named.label === 'Intro' ? 'intro' : named.id} » à cet endroit`);
-
-    // 2. Une nouvelle tonalité.
-    const f = firstOfPart.get(st.id);
-    if (f && f.index > 0) return set('modulation', 'Changement de tonalité', `la progression repart en ${f.part.keyName}`);
-
-    // 3. Il ne joue pas : il présente, il explique, ou il conclut.
-    if (st.kind === 'talk') {
-      if (i === 0 && st.start < Math.max(30, total * 0.1)) return set('presentation', 'Présentation', 'il parle avant de jouer, au début du tuto');
-      if (total && st.start >= total * 0.9) return set('ending', 'Conclusion', 'il parle à la toute fin');
-      return set('explain', 'Explication', 'il parle sans jouer', false);
-    }
-
-    // 3 bis. La première chose jouée, avant de la décomposer : l'intro (avant un éventuel mouvement).
-    const playedBefore = steps.slice(0, i).some((x) => x.kind !== 'talk');
-    const laterBuild = steps.slice(i + 1).some((x) => BUILD_WORDS[x.kind] && x.part === st.part);
-    if (!playedBefore && st.start < total * 0.25 && laterBuild) {
-      return set('intro', 'Intro', 'c\'est la première chose qu\'il joue, avant de la décomposer');
-    }
-
-    // 4. Un mouvement, quand l'étape est courte ou que le prof en parle.
-    if (here.length && (st.end - st.start <= 20 || MOVEMENT_SAID.test(said))) {
-      const m = movements.find((x) => x.id === here[0]);
-      return set('movement', 'Mouvement', `il y joue ${m.from.degree} → ${m.to.degree}${m.via.length ? ` en passant par ${m.via.map((v) => v.name).join(', ')}` : ''}`);
-    }
-
-    // 5. Les mains séparées : il construit pièce par pièce.
-    if (BUILD_WORDS[st.kind]) return set('build', 'Construction', `il montre ${BUILD_WORDS[st.kind]}, avant d'assembler le tout`);
-
-    // 6. Les deux mains.
-    const part = parts.find((p) => p.id === st.part);
-    const together = part && assemblyStart.get(part.id);
-    if (st.complete && together != null && Math.abs(st.start - together) < 1 && buildSeen.has(st.part)) {
-      return set('assembly', 'Assemblage', 'les deux mains ensemble, après les avoir montrées séparément');
-    }
-    return set('loop', st.complete ? 'La boucle' : 'Deux mains', st.complete ? 'la progression entière, des deux mains' : 'les deux mains, sans la boucle entière');
-  });
-  return steps;
-}
 
 /**
  * Le guide d'un tuto.
@@ -863,7 +785,6 @@ export function buildTutorialGuide({ segments = [], noteEvents = [], transcript 
       steps: stepIds,
     });
   });
-  assignRoles(steps, outParts, movements, { duration });
   return { version: GUIDE_VERSION, steps, parts: outParts, movements };
 }
 
@@ -929,11 +850,13 @@ export function guideLines(guide, { maxSteps = 24, maxMovements = 16 } = {}) {
       out.push('  Résultat final : pas assez d\'éléments pour l\'assembler.');
     }
   }
-  out.push('Étapes du tuto (le « rôle supposé » est une HYPOTHÈSE de l\'application, avec sa raison : dis « il semble », cite la raison, ne l\'affirme pas) :');
+  // [Claude] — 2026-10-16 — Seulement ce que le relevé établit : il joue (des notes lues), il parle (de la
+  // parole transcrite), ou rien n'est relevé. Ni mains (ADR-054), ni rôle supposé (ADR-052), ni noms d'accords.
+  const DOING = { talk: 'il parle (parole transcrite)', quiet: 'rien de relevé : ni notes ni parole (ne rien affirmer sur ce qu\'il fait)' };
+  out.push('Ce que le relevé montre, moment par moment (n\'affirme rien de plus : là où « rien de relevé », ne dis PAS qu\'il parle ou explique) :');
   for (const s of guide.steps.slice(0, maxSteps)) {
-    const chords = s.chords.length ? ` — ${s.chords.map((c) => c.name).join(' → ')}` : '';
-    const role = s.role ? ` [rôle supposé : ${s.role.label} — ${s.role.why}]` : '';
-    out.push(`- ${clock(s.start)}–${clock(s.end)} ${s.title}${role}${chords}${s.said?.length ? ` — il dit : « ${s.said.join(' ').slice(0, 140)} »` : ''}`);
+    const doing = DOING[s.kind] || 'il joue';
+    out.push(`- ${clock(s.start)}–${clock(s.end)} ${doing}${s.said?.length ? ` — il dit : « ${s.said.join(' ').slice(0, 140)} »` : ''}`);
   }
   if (guide.steps.length > maxSteps) out.push(`… (${guide.steps.length - maxSteps} étapes de plus)`);
   if (guide.movements.length) {
