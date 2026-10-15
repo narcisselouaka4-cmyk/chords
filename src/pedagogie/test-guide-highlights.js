@@ -31,6 +31,18 @@ const part = (final = true) => ({
   check('dans l\'ordre du tuto', h.filter((x) => x.kind === 'movement').every((x, i, a) => i === 0 || a[i - 1].start <= x.start));
 }
 {
+  // Mesuré sur « Above All » : un « mouvement » du 2 au 2 n'en est pas un ; les noms d'accords de passage ne s'affichent pas.
+  const g = { parts: [part(false)], movements: [
+    mv('a', '2', '2', ['passing'], [[10, 15]], [{ name: 'C#m13' }]),
+    mv('b', '1', '2', ['passing', 'chromatic'], [[20, 25]], [{ name: 'C6' }, { name: 'E/G#' }]),
+  ] };
+  const h = buildHighlights(g);
+  check('un mouvement du degré vers lui-même est écarté', h.every((x) => x.title !== '2 → 2') && h.length === 1);
+  check('les noms d\'accords de passage ne sont pas affichés', !/C6|E\/G#|C#m13|\(/.test(`${h[0].title} ${h[0].detail}`) && /accord de passage/.test(h[0].detail));
+  const mod = buildHighlights({ parts: [part(false)], movements: [mv('m', '1', '1', ['modulation'], [[5, 9]])] });
+  check('un changement de tonalité reste, même du 1 au 1', mod.length === 1);
+}
+{
   // Le même mouvement montré 3 fois = une seule case, qui le dit.
   const g = { parts: [part(false)], movements: [mv('a', '2', '5', ['direct'], [[10, 15]]), mv('b', '2', '5', ['direct'], [[70, 75]]), mv('c', '2', '5', ['direct'], [[130, 135]])] };
   const h = buildHighlights(g);

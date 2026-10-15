@@ -57,6 +57,8 @@ export function buildHighlights(guide, { max = MAX_HIGHLIGHTS } = {}) {
   const groups = new Map();
   for (const m of guide.movements || []) {
     if (!m.times?.length || !m.from || !m.to) continue;
+    // Un « mouvement » du 2 au 2 n'en est pas un (sauf un changement de tonalité) : mesuré sur « Above All ».
+    if (bareDegree(m.from.degree) === bareDegree(m.to.degree) && !(m.kinds || []).includes('modulation')) continue;
     const key = `${bareDegree(m.from.degree)}>${bareDegree(m.to.degree)}|${(m.kinds || []).join('+')}`;
     const g = groups.get(key);
     if (g) { g.count += m.times.length; if (m.times[0].start < g.first.start) g.first = m.times[0]; } else groups.set(key, { m, first: m.times[0], count: m.times.length });
@@ -69,7 +71,8 @@ export function buildHighlights(guide, { max = MAX_HIGHLIGHTS } = {}) {
     .sort((a, b) => a.first.start - b.first.start);
 
   for (const g of picked) {
-    const kind = movementKindText(g.m);
+    // Le geste, sans les noms d'accords de passage : le relevé les rate souvent (Narcisse), les degrés suffisent.
+    const kind = movementKindText({ ...g.m, via: [] });
     out.push({
       id: `move:${g.key}`,
       kind: 'movement',

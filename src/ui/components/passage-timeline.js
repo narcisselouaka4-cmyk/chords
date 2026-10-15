@@ -119,19 +119,25 @@ export function createPassageTimeline({ onSeek = () => {}, onRegion = () => {}, 
   }
 
   function paintSteps() {
-    const key = `${state.duration}|${state.steps.map((s) => `${s.id}:${s.start}-${s.end}`).join(',')}`;
+    const key = `${state.duration}|${state.steps.map((s) => `${s.id}:${s.start}-${s.end}:${s.label || ''}`).join(',')}`;
     if (key === state.stepsKey) return;
     state.stepsKey = key;
     steps.textContent = '';
     if (!(state.duration > 0)) return;
     state.steps.forEach((s, i) => {
-      const block = node('div', `passage-timeline-step is-${s.kind}${s.complete ? ' is-complete' : ''}`, {
+      const block = node('div', `passage-timeline-step is-${s.kind}${s.complete ? ' is-complete' : ''}${s.label ? ' has-label' : ''}${i % 2 ? ' is-alt' : ''}`, {
         title: `${clock(s.start)} → ${clock(s.end)} · ${s.title || KIND_WORDS[s.kind] || ''}${'\n'}Double-clic : en faire le passage du Copilote`,
         'data-step': s.id,
       });
       block.style.left = `${pct(s.start)}%`;
       block.style.width = `${Math.max(0.3, pct(s.end) - pct(s.start))}%`;
       block.style.setProperty('--i', String(i));
+      // Les chapitres d'un tuto (guide-chapters.js) : leur titre est écrit dans la barre, comme sur YouTube.
+      if (s.label) {
+        block.appendChild(node('span', 'passage-timeline-step-label', { text: s.label }));
+        // Segment étroit : le numéro du chapitre à la place du titre (le titre entier reste en infobulle).
+        block.appendChild(node('span', 'passage-timeline-step-index', { text: String(i + 1), 'aria-hidden': 'true' }));
+      }
       steps.appendChild(block);
     });
     steps.classList.remove('is-entering');

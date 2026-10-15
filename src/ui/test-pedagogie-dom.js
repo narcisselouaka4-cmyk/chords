@@ -730,12 +730,20 @@ check('Écouter un enseignement du guide : la vitesse et la transposition choisi
   /function playGuideExample\(id, what\) \{[\s\S]*?const rate = [\s\S]*?const semitones = [\s\S]*?detail: \{ id, example, pedal: true, rate \}/.test(tabCode));
 check('Le Copilote reçoit le guide (étapes, résultat final, mouvements)',
   /guide: tutorialGuide\(\),/.test(tabCode) && readText('src/pedagogie/copilot-client.js').includes('lines.push(...guideLines(context.guide));'));
-check('Tuto lu au son (pas de guide) : la barre montre ses accords, le guide dit pourquoi il est vide',
-  /steps: guide\?\.steps \|\| chordSteps\(\),/.test(tabCode) && /guidePanel\.render\(guide, \{ noNotes: ready && !guide \}\)/.test(tabCode)
+check('Tuto lu au son (pas de guide) : la barre montre ses chapitres ou ses accords, le guide dit pourquoi il est vide',
+  /steps: chapterSteps\(\) \|\| chordSteps\(\),/.test(tabCode) && /noNotes: ready && !guide && !chapters\.length/.test(tabCode)
   && guideUiCode.includes('Ce tuto a été lu au son') && readText('src/ui/components/passage-timeline.css').includes('.passage-timeline-step.is-chord'));
 check('La barre prend la durée de l\'analyse tant que la vidéo n\'est pas chargée',
   /: \(Number\(analysis\.stats\?\.duration\) \|\| 0\),/.test(tabCode));
 
 
+check('Les chapitres du tuto : bornes décidées par le moteur, titres français demandés à l\'IA et gardés dans la fiche',
+  /function tutorialChapters\(\)/.test(tabCode) && tabCode.includes('buildChapters({') && tabCode.includes('chapterMessages(chapters, { moveTitles })')
+  && tabCode.includes('updateCard(path, { chaptersFr:') && readText('src/pedagogie/guide-chapters.js').includes('Les BORNES sont décidées ici, par le moteur'));
+check('Les chapitres s\'écrivent dans la barre sous la vidéo (titre dans chaque segment), sans légende des mains',
+  readText('src/ui/components/passage-timeline.js').includes('passage-timeline-step-label') && /function chapterSteps\(\)/.test(tabCode)
+  && !html.includes('pedagogie-timeline-legend') && !html.includes('Main gauche</span>'));
+check('Plus de résumés par étape (remplacés par les titres de chapitres)',
+  !tabCode.includes('requestGuideSummaries') && !tabCode.includes('guideFr'));
 console.log(`\n=== Résultat : ${passed}/${total} contrôles passés ===`);
 if (passed < total) process.exitCode = 1;

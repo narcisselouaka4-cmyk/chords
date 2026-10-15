@@ -50,6 +50,35 @@
   opacity: 1;
 }
 .passage-timeline-step.is-current { opacity: 1; top: 6px; bottom: 6px; }
+
+/* Les chapitres d'un tuto : de gros segments, le titre écrit dedans (15/10/2026). */
+.passage-timeline-step.has-label {
+  top: 4px;
+  bottom: 4px;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 0 9px;
+  border-radius: 7px;
+  overflow: hidden;
+  opacity: 1;
+  container-type: inline-size;
+}
+.passage-timeline-step.is-ch-play { background: color-mix(in srgb, var(--tl-both) 62%, transparent); }
+.passage-timeline-step.is-ch-talk,
+.passage-timeline-step.is-ch-mixed,
+.passage-timeline-step.is-ch-none { background: color-mix(in srgb, var(--tr-muted) 34%, transparent); }
+.passage-timeline-step.has-label.is-alt { filter: brightness(1.22); }
+.passage-timeline-step.has-label.is-current { top: 2px; bottom: 2px; box-shadow: inset 0 0 0 2px var(--tr-accent); }
+.passage-timeline-step-label {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--tr-text);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
 .passage-timeline-steps.is-entering .passage-timeline-step {
   animation: passage-step-in .45s cubic-bezier(.2, .8, .2, 1) both;
   animation-delay: calc(var(--i, 0) * 35ms);
@@ -167,4 +196,10 @@
   .passage-timeline-region.is-new { animation: none; }
   .passage-timeline-playhead,
   .passage-timeline-follow { transition: none; }
+}
+
+.passage-timeline-step-index { display: none; color: var(--tr-text); font-size: 12.5px; font-weight: 700; }
+@container (max-width: 112px) {
+  .passage-timeline-step-label { display: none; }
+  .passage-timeline-step-index { display: inline; }
 }

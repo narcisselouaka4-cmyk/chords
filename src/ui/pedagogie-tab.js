@@ -62,7 +62,8 @@ import { samplesToNoteEvents, eventsFromTranscription, compactTimeline, passageE
 import { isFlashRendering, flashSegments, holdFlashNotes } from '../pedagogie/flash-notes.js';
 import { labelNotes } from '../pedagogie/chord-labeling.js';
 import { buildTutorialGuide, finalResultExample } from '../pedagogie/tutorial-guide.js';
-import { guideSignature, needsSummaries, summaryMessages, parseSummaries, applySummaries } from '../pedagogie/guide-summaries.js';
+import { buildChapters, chaptersSignature, needsChapterTitles, chapterMessages, parseChapterTitles, applyChapterTitles } from '../pedagogie/guide-chapters.js';
+import { buildHighlights } from '../pedagogie/guide-highlights.js';
 import { getAIConfig, callChatCompletions } from '../ai/openai-config.js';
 import { withMeasuredVelocity } from '../pedagogie/dynamics.js';
 import { registerCopilotContext } from '../pedagogie/copilot-context.js';
@@ -1012,10 +1013,10 @@ function renderPassageBar() {
     duration: Number.isFinite(duration) && duration > 0 ? duration : (Number(analysis.stats?.duration) || 0),
     now: Number(els.videoPlayer?.currentTime) || 0,
     range: passage,
-    // Sans guide (tuto lu au son, sans les notes du prof) : ses accords, en bandes neutres.
-    steps: guide?.steps || chordSteps(),
+    // Les chapitres du tuto (titre écrit dans la barre) ; sinon (vidéo trop courte), ses accords, en
+    // bandes neutres. Les étapes du moteur, qui parlent de mains (ADR-054), ne s'affichent plus.
+    steps: chapterSteps() || chordSteps(),
   });
-  if (els.timelineLegend) els.timelineLegend.hidden = !guide?.steps?.length;
   if (els.timelineTip && !timelineTipSeen()) els.timelineTip.hidden = false;
   const chipKey = passage ? `${passage.start}|${passage.end}` : 'suit';
   if (els.regionChip && els.regionChip.dataset.key !== chipKey) {
@@ -1833,10 +1834,20 @@ function renderGuide() {
   if (!guidePanel) return;
   const ready = Boolean(selectedPath && analysis && !isReadingHere());
   const guide = ready ? tutorialGuide() : null;
-  if (guideShownFor === guide && guidePanel.root.childElementCount) return;
-  guideShownFor = guide;
-  guidePanel.render(guide, { noNotes: ready && !guide });
-  setPanelTab(guide ? panelTab : 'copilot', { quiet: true });
+  const { chapters, subject, titles } = ready ? tutorialChapters() : { chapters: [], subject: '', titles: null };
+  const shown = `${guide ? 'g' : '-'}|${chaptersSignature(chapters)}|${chapters.map((c) => c.title).join('/')}|${subject}|${titles}`;
+  if (guideShownFor === shown && guidePanel.root.childElementCount) return;
+  guideShownFor = shown;
+  guidePanel.render(guide, { noNotes: ready && !guide && !chapters.length, chapters, subject, titles });
+  setPanelTab(guide || chapters.length ? panelTab : 'copilot', { quiet: true });
+}
+
+/** Les chapitres du tuto, en gros segments titrés pour la barre sous la vidéo (null : pas de chapitres). */
+function chapterSteps() {
+  if (!analysis || !selectedPath) return null;
+  const { chapters } = tutorialChapters();
+  if (!chapters.length) return null;
+  return chapters.map((c) => ({ id: c.id, kind: `ch-${c.kind}`, start: c.start, end: c.end, title: c.title, label: c.title }));
 }
 
 /** Les accords relevés, en étapes neutres pour la barre du tuto (quand il n'y a pas de guide). */
@@ -2089,43 +2100,88 @@ function tutorialGuide() {
   } catch (err) {
     console.warn('[Pedagogie] Guide non calculé :', err);
   }
-  // Les étapes en français, si elles ont déjà été résumées pour ce découpage (guide-summaries.js).
-  const fr = cards[selectedPath]?.guideFr;
-  if (guide && fr && fr.sig === guideSignature(guide)) guide = applySummaries(guide, fr.summaries);
-  else if (guide) requestGuideSummaries(selectedPath, guide);
   guideCache = { analysis, narration: narrationView, guide };
   return guide;
 }
 
 /**
- * [Claude] — 2026-10-14 — Ce que dit le prof, étape par étape, en français : une demande au modèle du
- * Copilote (Narcisse : « la barrière de la langue »), une fois par tuto et par découpage, gardée
- * avec la fiche du tuto. Sans clé ou sans paroles, le guide reste tel quel.
+ * [Claude] — 2026-10-15 — Les CHAPITRES du tuto, comme sur YouTube (guide-chapters.js). Les bornes sont
+ * décidées par le moteur (parole, jeu, tonalité, vocabulaire) ; l'IA ne fait que les NOMMER en français
+ * (Narcisse : « la barrière de la langue »), une fois par tuto et par découpage, gardée dans sa fiche.
+ * @returns {{chapters: object[], subject: string, titles: 'pending'|'nokey'|null}}
  */
-const summaryAsked = new Set();
-async function requestGuideSummaries(path, guide) {
-  const sig = guideSignature(guide);
-  if (!path || !sig || !needsSummaries(guide) || summaryAsked.has(`${path}|${sig}`)) return;
+let chaptersCache = null;
+const chapterTitlesAsked = new Set();
+const chapterTitlesPending = new Set();
+function tutorialChapters() {
+  const none = { chapters: [], subject: '', titles: null };
+  if (!analysis || !selectedPath) return none;
+  const guide = tutorialGuide();
+  if (chaptersCache && chaptersCache.analysis === analysis && chaptersCache.narration === narrationView && chaptersCache.guide === guide) return chaptersCache.value;
+  const view = teacherView();
+  const highlights = guide ? buildHighlights(guide) : [];
+  let chapters = [];
+  try {
+    chapters = buildChapters({
+      narration: narrationView,
+      spans: view?.spans || [],
+      parts: guide?.parts || [],
+      highlights,
+      duration: Number.isFinite(els.videoPlayer?.duration) ? els.videoPlayer.duration : (analysis.stats?.duration || null),
+    });
+  } catch (err) {
+    console.warn('[Pedagogie] Chapitres non calculés :', err);
+  }
+  let subject = '';
+  let titles = null;
+  const sig = chaptersSignature(chapters);
+  const fr = cards[selectedPath]?.chaptersFr;
+  if (chapters.length && fr && fr.sig === sig) {
+    chapters = applyChapterTitles(chapters, { byId: fr.byId });
+    subject = fr.subject || '';
+  } else if (chapters.length && needsChapterTitles(chapters)) {
+    const config = getAIConfig();
+    if (!config?.apiKey || !config?.baseUrl) titles = 'nokey';
+    else {
+      titles = 'pending';
+      requestChapterTitles(selectedPath, chapters, highlights);
+    }
+  }
+  const value = { chapters, subject, titles };
+  chaptersCache = { analysis, narration: narrationView, guide, value };
+  return value;
+}
+
+async function requestChapterTitles(path, chapters, highlights) {
+  const sig = chaptersSignature(chapters);
+  const key = `${path}|${sig}`;
+  if (!path || !sig || chapterTitlesAsked.has(key)) return;
   const config = getAIConfig();
   if (!config?.apiKey || !config?.baseUrl) return;
-  summaryAsked.add(`${path}|${sig}`);
+  chapterTitlesAsked.add(key);
+  chapterTitlesPending.add(key);
+  const moveTitles = Object.fromEntries(highlights.map((h) => [h.id, `${h.title}${h.detail ? ` (${h.detail})` : ''}`]));
   try {
     const res = await callChatCompletions(config.baseUrl, config.apiKey, {
       model: config.model,
-      messages: summaryMessages(guide),
+      messages: chapterMessages(chapters, { moveTitles }),
       temperature: 0.2,
-    }, { timeoutMs: 45000 });
+    }, { timeoutMs: 60000 });
     if (!res.ok) return;
     const data = await res.json();
-    const summaries = parseSummaries(data?.choices?.[0]?.message?.content || '', guide);
-    if (!Object.keys(summaries).length) return;
-    await updateCard(path, { guideFr: { sig, summaries } });
-    if (selectedPath === path) {
-      guideCache = null;
-      renderGuide();
-    }
+    const parsed = parseChapterTitles(data?.choices?.[0]?.message?.content || '', chapters);
+    if (!Object.keys(parsed.byId).length) return;
+    await updateCard(path, { chaptersFr: { sig, subject: parsed.subject, byId: parsed.byId } });
   } catch (err) {
-    console.warn('[Pedagogie] étapes non résumées :', err?.message || err);
+    console.warn('[Pedagogie] Chapitres non nommés :', err?.message || err);
+  } finally {
+    chapterTitlesPending.delete(key);
+    if (selectedPath === path) {
+      chaptersCache = null;
+      guideShownFor = null;
+      renderGuide();
+      renderPassageBar();
+    }
   }
 }
 
@@ -2260,7 +2316,6 @@ export function initPedagogieTab() {
   els.passage = document.getElementById('pedagogie-passage');
   els.timelineMount = document.getElementById('pedagogie-timeline');
   els.timelineTip = document.getElementById('pedagogie-timeline-tip');
-  els.timelineLegend = document.getElementById('pedagogie-timeline-legend');
   els.regionChip = document.getElementById('pedagogie-region-chip');
   els.tabGuide = document.getElementById('pedagogie-tab-guide');
   els.tabCopilot = document.getElementById('pedagogie-tab-copilot');

@@ -1,19 +1,24 @@
-// [Claude] — 2026-10-15 — Pédagogie IA : le panneau « Guide du tuto », réduit à l'essentiel.
+// [Claude] — 2026-10-15 — Pédagogie IA : le panneau « Guide du tuto » = les CHAPITRES de la vidéo.
 //
 // Narcisse : « il y a vraiment trop d'options dans le guide du tuto, c'est beaucoup trop long, il faut
-// scroller tout en bas de la sidebar […] j'avais moi-même envie de suivre sa vidéo directement sur
-// YouTube ». Décisions : ADR-052 (des procédés rejouables, pas la leçon commentée), ADR-054 (pas de mains).
+// scroller tout en bas de la sidebar […] nos guides tutos devraient ressembler un peu à ce que font les
+// youtubeurs sur YouTube, avec une sorte de timeline : de gros chapitres, une à trois minutes pour
+// l'introduction, puis un par sujet. Je veux que l'application les détecte d'elle-même. »
+// Décisions : ADR-052 (des procédés rejouables, pas la leçon commentée), ADR-054 (pas de mains).
 //
-// Deux blocs seulement :
-//   1. DE QUOI ÇA PARLE — une phrase, ce que le moteur a relevé (la boucle, la tonalité) ;
-//   2. CE QU'IL MONTRE — six cases au plus pour toute la vidéo. Un clic amène la vidéo au bon moment et
-//      en fait le passage du Copilote ; « Écouter » le rejoue, à la vitesse et dans la tonalité choisies.
+// Le panneau montre, de haut en bas :
+//   1. DE QUOI ÇA PARLE — une phrase (celle de l'IA si elle est là, sinon ce que le moteur a relevé) ;
+//   2. LA PROGRESSION COMPLÈTE — si le moteur l'a reconstituée : « Écouter » ;
+//   3. LES CHAPITRES — repliés (l'heure, un titre) ; le chapitre en cours s'ouvre : sa phrase et les
+//      mouvements qu'il montre, à écouter d'un clic. Un clic amène la vidéo au chapitre et en fait le
+//      passage du Copilote ;
+//   4. VITESSE ET TRANSPOSITION — pour bien observer un geste, ou se l'approprier dans une autre tonalité.
 //
-// Disparus : les étapes une à une, les accords en puces, les mains, la mélodie, les paroles, le rôle
-// supposé (« Intro ? »), la recherche « du 1 au 6 ». Tout vient du guide du moteur (tutorial-guide.js) :
-// rien n'est inventé ici. Le choix des cases est dans guide-highlights.js (pur, testé).
+// Les chapitres viennent de guide-chapters.js (bornes décidées par le moteur, jamais par l'IA), les
+// mouvements de guide-highlights.js : rien n'est inventé ici. Sans chapitres (vidéo courte, rien de lu),
+// le panneau retombe sur les seuls mouvements.
 //
-// createGuidePanel(callbacks) rend { root, render(guide), setNow(t), setPlaying(id, playing) }.
+// createGuidePanel(callbacks) rend { root, render(guide, options), setNow(t), setPlaying(id, playing) }.
 
 import { buildHighlights, describeSubject, highlightAt, clock } from '../pedagogie/guide-highlights.js';
 
@@ -46,6 +51,11 @@ function readView() {
   return { rate: 1, semitones: 0 };
 }
 
+const NOTES = {
+  pending: 'Titres en français en cours…',
+  nokey: 'Les titres en français demandent la clé IA (réglages).',
+};
+
 /**
  * @param {object} cb
  * @param {(t: number) => void} cb.onSeek
@@ -58,10 +68,13 @@ export function createGuidePanel({ onSeek = () => {}, onRegion = () => {}, onPla
   const view = readView();
   let guide = null;
   let highlights = [];
+  let chapters = [];
   let playingId = null;
   let currentId = null;
+  let openId = null;
 
   const saveView = () => { try { localStorage.setItem(VIEW_KEY, JSON.stringify(view)); } catch (_) { /* stockage indisponible */ } };
+  const playWhat = (h) => ({ ...h.play, rate: view.rate, semitones: view.semitones });
 
   function controls() {
     const speed = el('div', { className: 'pedago-hl-speed', role: 'group', 'aria-label': 'Vitesse d\'écoute' }, RATES.map((r) => el('button', {
@@ -81,8 +94,34 @@ export function createGuidePanel({ onSeek = () => {}, onRegion = () => {}, onPla
     ]);
   }
 
-  function card(h, i) {
+  function playButton(h, { small = false } = {}) {
     const on = playingId === h.id;
+    const btn = el('button', {
+      type: 'button',
+      className: `${small ? 'pedago-ch-move' : 'pedago-hl-play'}${on ? ' is-playing' : ''}`,
+      'data-play': h.id,
+      'aria-pressed': String(on),
+      'aria-label': `Écouter : ${h.title}`,
+      onClick: () => (playingId === h.id ? onStop() : onPlay(h.id, playWhat(h))),
+    });
+    btn.dataset.small = small ? '1' : '';
+    btn.dataset.title = h.title;
+    btn.dataset.detail = h.detail || '';
+    paintPlay(btn, on);
+    return btn;
+  }
+
+  function paintPlay(btn, on) {
+    if (btn.dataset.small) {
+      const label = `${btn.dataset.title}${btn.dataset.detail ? ` · ${btn.dataset.detail}` : ''}`.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+      btn.innerHTML = `${on ? STOP_ICON : PLAY_ICON}<span>${label}</span>`;
+    } else {
+      btn.innerHTML = `${on ? STOP_ICON : PLAY_ICON}<span>${on ? 'Arrêter' : 'Écouter'}</span>`;
+    }
+  }
+
+  /** Une case « enseignement » (la progression complète, ou un mouvement quand il n'y a pas de chapitres). */
+  function card(h, i) {
     const main = el('button', {
       type: 'button',
       className: 'pedago-hl-main',
@@ -94,22 +133,52 @@ export function createGuidePanel({ onSeek = () => {}, onRegion = () => {}, onPla
       h.detail ? el('span', { className: 'pedago-hl-detail', text: h.detail }) : null,
       Number.isFinite(h.start) ? el('span', { className: 'pedago-hl-time', text: clock(h.start) }) : null,
     ]);
-    const play = el('button', {
-      type: 'button',
-      className: `pedago-hl-play${on ? ' is-playing' : ''}`,
-      'data-play': h.id,
-      'aria-pressed': String(on),
-      onClick: () => (playingId === h.id ? onStop() : onPlay(h.id, { ...h.play, rate: view.rate, semitones: view.semitones })),
-    });
-    play.innerHTML = `${on ? STOP_ICON : PLAY_ICON}<span>${on ? 'Arrêter' : 'Écouter'}</span>`;
-    return el('li', { className: `pedago-hl is-${h.kind}`, 'data-hl': h.id, style: `--i:${i}` }, [main, play]);
+    return el('li', { className: `pedago-hl is-${h.kind}`, 'data-hl': h.id, style: `--i:${i}` }, [main, playButton(h)]);
   }
 
-  /** @param {object|null} next - le guide ; `noNotes` : analyse finie mais sans les notes du prof (lu au son). */
-  function render(next, { noNotes = false, subject = '' } = {}) {
+  /** Un chapitre, replié : l'heure et le titre. Ouvert (en cours ou cliqué) : sa phrase et ses mouvements. */
+  function chapterRow(c, i) {
+    const moves = c.moves.map((id) => highlights.find((h) => h.id === id)).filter(Boolean);
+    const open = openId === c.id;
+    const main = el('button', {
+      type: 'button',
+      className: 'pedago-ch-main',
+      'aria-expanded': String(open),
+      'aria-label': `${clock(c.start)} : ${c.title}. Aller à ce chapitre`,
+      onClick: () => { openId = openId === c.id ? null : c.id; paintOpen(); onRegion({ start: c.start, end: c.end }); onSeek(c.start); },
+    }, [
+      el('span', { className: 'pedago-ch-time', text: clock(c.start) }),
+      el('strong', { className: 'pedago-ch-title', text: c.title }),
+      moves.length ? el('span', { className: 'pedago-ch-badge', title: `${moves.length} mouvement${moves.length > 1 ? 's' : ''} à écouter`, text: `▶ ${moves.length}` }) : null,
+    ]);
+    const detail = (c.summary || moves.length) ? el('div', { className: 'pedago-ch-detail' }, [
+      c.summary ? el('p', { className: 'pedago-ch-summary', text: c.summary }) : null,
+      moves.length ? el('div', { className: 'pedago-ch-moves' }, moves.map((h) => playButton(h, { small: true }))) : null,
+    ]) : null;
+    return el('li', { className: `pedago-ch is-ch-${c.kind}${open ? ' is-open' : ''}`, 'data-ch': c.id, style: `--i:${i}` }, [main, detail]);
+  }
+
+  function paintOpen() {
+    for (const li of root.querySelectorAll('.pedago-ch')) {
+      const on = li.dataset.ch === openId;
+      li.classList.toggle('is-open', on);
+      li.querySelector('.pedago-ch-main')?.setAttribute('aria-expanded', String(on));
+    }
+  }
+
+  /**
+   * @param {object|null} next - le guide ; `noNotes` : analyse finie mais sans les notes du prof (lu au son).
+   * @param {object} [opts]
+   * @param {string} [opts.subject] - « de quoi parle le tuto » (IA) ; sinon ce que le moteur a relevé
+   * @param {object[]} [opts.chapters] - les chapitres (guide-chapters.js)
+   * @param {'pending'|'nokey'|null} [opts.titles] - l'état des titres en français
+   */
+  function render(next, { noNotes = false, subject = '', chapters: nextChapters = [], titles = null } = {}) {
     guide = next;
+    chapters = nextChapters || [];
     root.textContent = '';
-    if (!guide) {
+    highlights = guide ? buildHighlights(guide) : [];
+    if (!guide && !chapters.length) {
       root.appendChild(el('p', {
         className: 'pedago-guide-empty',
         text: noNotes
@@ -118,16 +187,26 @@ export function createGuidePanel({ onSeek = () => {}, onRegion = () => {}, onPla
       }));
       return;
     }
-    highlights = buildHighlights(guide);
-    const about = subject || describeSubject(guide);
+    const about = subject || (guide ? describeSubject(guide) : '');
     if (about) root.appendChild(el('p', { className: 'pedago-guide-about', text: about }));
-    if (!highlights.length) {
-      root.appendChild(el('p', { className: 'pedago-guide-empty', text: 'Je n\'ai pas relevé de mouvement net dans ce tuto. Trace un passage sous la vidéo : le Copilote l\'analyse.' }));
-      return;
+
+    const final = highlights.find((h) => h.kind === 'final');
+    if (final) root.appendChild(el('ol', { className: 'pedago-hl-list is-final' }, [card(final, 0)]));
+
+    if (chapters.length) {
+      root.appendChild(el('h3', { className: 'pedago-guide-heading', text: 'Chapitres' }));
+      if (titles && NOTES[titles]) root.appendChild(el('p', { className: 'pedago-guide-note', text: NOTES[titles] }));
+      root.appendChild(el('ol', { className: 'pedago-ch-list' }, chapters.map(chapterRow)));
+    } else {
+      const rest = highlights.filter((h) => h.kind !== 'final');
+      if (rest.length) {
+        root.appendChild(el('h3', { className: 'pedago-guide-heading', text: 'Ce qu\'il montre' }));
+        root.appendChild(el('ol', { className: 'pedago-hl-list' }, rest.map(card)));
+      } else if (!final) {
+        root.appendChild(el('p', { className: 'pedago-guide-empty', text: 'Je n\'ai pas relevé de mouvement net dans ce tuto. Trace un passage sous la vidéo : le Copilote l\'analyse.' }));
+      }
     }
-    root.appendChild(el('h3', { className: 'pedago-guide-heading', text: 'Ce qu\'il montre' }));
-    root.appendChild(el('ol', { className: 'pedago-hl-list' }, highlights.map(card)));
-    root.appendChild(controls());
+    if (highlights.length) root.appendChild(controls());
     root.classList.remove('is-entering');
     void root.offsetWidth;
     root.classList.add('is-entering');
@@ -135,15 +214,18 @@ export function createGuidePanel({ onSeek = () => {}, onRegion = () => {}, onPla
   }
 
   function markCurrent() {
+    for (const li of root.querySelectorAll('.pedago-ch')) li.classList.toggle('is-current', li.dataset.ch === currentId);
     for (const li of root.querySelectorAll('.pedago-hl')) li.classList.toggle('is-current', li.dataset.hl === currentId);
   }
 
-  /** La case où en est la vidéo s'éclaire. */
+  /** Le chapitre où en est la vidéo s'éclaire (ou, sans chapitres, la case de son mouvement). */
   function setNow(t) {
-    if (!guide || !Number.isFinite(t)) return;
-    const id = highlightAt(highlights, t);
+    if (!Number.isFinite(t) || (!guide && !chapters.length)) return;
+    const chapter = chapters.find((c) => t >= c.start && t < c.end);
+    const id = chapter ? chapter.id : highlightAt(highlights, t);
     if (id === currentId) return;
     currentId = id;
+    if (chapter) { openId = chapter.id; paintOpen(); }
     markCurrent();
   }
 
@@ -154,7 +236,7 @@ export function createGuidePanel({ onSeek = () => {}, onRegion = () => {}, onPla
       const on = btn.dataset.play === playingId;
       btn.classList.toggle('is-playing', on);
       btn.setAttribute('aria-pressed', String(on));
-      btn.innerHTML = `${on ? STOP_ICON : PLAY_ICON}<span>${on ? 'Arrêter' : 'Écouter'}</span>`;
+      paintPlay(btn, on);
     }
   }
 
