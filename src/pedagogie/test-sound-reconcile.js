@@ -118,5 +118,27 @@ const heard = () => Array.from({ length: 10 }, (_, i) => snd(60 + (i % 5) * 2, 1
   check('le décalage général reste dans le clavier', r.report.globalShift === -12 && r.notes.every((n) => n.midi >= 21 && n.midi <= 108));
 }
 
+{
+  // Transcription PAR EXTRAITS : seul le début est écouté ; l'image est une octave trop haut partout.
+  const long = Array.from({ length: 30 }, (_, i) => img(72 + (i % 5) * 2, 1 + i * 0.6));
+  const spans = [{ start: 0, end: 10 }];
+  const heardEarly = Array.from({ length: 15 }, (_, i) => snd(60 + (i % 5) * 2, 1.03 + i * 0.6));
+  const r = reconcileWithSound(long, heardEarly, { spans });
+  check('par extraits : seules les notes vues dans les extraits sont recoupées', r.report.sampled && r.report.studied === 15 && r.report.confirmed + r.report.octaveFixed === 15);
+  check('par extraits : le décalage trouvé s\'applique au reste de la vidéo', r.report.globalShift === -12 && r.notes.every((n) => n.midi >= 60 && n.midi <= 68));
+  check('par extraits : les notes hors extraits sont comptées comme déduites', r.report.octaveInferred === 15);
+  const noSpan = reconcileWithSound(long, heardEarly);
+  check('sans extraits : comportement inchangé (tout le son est supposé là)', noSpan.report.sampled === false && noSpan.report.studied === 30);
+}
+{
+  // Un son qui ne recoupe pas l'image DANS les extraits n'est pas cru, même si l'image est longue.
+  const long = Array.from({ length: 30 }, (_, i) => img(60 + (i % 5) * 2, 1 + i * 0.6));
+  const unrelated = Array.from({ length: 15 }, (_, i) => snd(61 + (i % 3) * 7, 1.03 + i * 0.6));
+  const r = reconcileWithSound(long, unrelated, { spans: [{ start: 0, end: 10 }] });
+  check('par extraits : un son sans rapport avec l\'image n\'est pas cru', !r.report.reliable && r.report.octaveInferred === 0 && r.notes.every((n, i) => n.midi === 60 + (i % 5) * 2));
+  const none = reconcileWithSound(long, unrelated, { spans: [{ start: 500, end: 520 }] });
+  check('par extraits : aucun extrait ne tombe sur des notes vues : rien n\'est changé', !none.report.reliable && none.notes.length === 30);
+}
+
 console.log(`\n${pass} réussis, ${fail} échoués`);
 if (fail) process.exit(1);

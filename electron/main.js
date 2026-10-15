@@ -1723,7 +1723,7 @@ function setupStudioIPC() {
   // (l'image ne montre pas le clavier), transcrites depuis le son par
   // electron/piano-transcriber.py (piano-transcription-inference, licence MIT).
   // Même contrat honnête que la parole : si le paquet manque, on le dit.
-  ipcMain.handle('pedagogie:transcribe-piano', async (event, filePath) => {
+  ipcMain.handle('pedagogie:transcribe-piano', async (event, filePath, options = {}) => {
     const { python, missing } = await missingPythonModules(['piano_transcription_inference', 'torch', 'librosa']);
     if (!python || missing.length) {
       return { available: false, reason: 'dependency-missing', detail: python ? missing.join(', ') : getPythonCommand() };
@@ -1733,11 +1733,16 @@ function setupStudioIPC() {
       workDir = await createTranscribeDir();
       const wavPath = path.join(workDir, 'piano.wav');
       await extractTrackAudio(filePath, wavPath);
-      const raw = await runPythonJson('piano-transcriber.py', ['transcribe', wavPath]);
+      // [Claude] — 2026-10-15 — Par extraits (options.windows : [{start, duration}], voir
+      // src/pedagogie/sound-sampling.js) : le modèle coûte ~2,5x la durée de l'audio sur CPU.
+      const windows = Array.isArray(options?.windows) ? options.windows : [];
+      const args = ['transcribe', wavPath];
+      if (windows.length) args.push(`--windows=${windows.map((w) => `${Number(w.start)}:${Number(w.duration)}`).join(',')}`);
+      const raw = await runPythonJson('piano-transcriber.py', args);
       if (!raw?.ok) {
         return { available: false, reason: raw?.reason === 'MissingDependency' ? 'dependency-missing' : 'failed', detail: raw?.message || null };
       }
-      return { available: true, notes: raw.notes || [], pedals: raw.pedals || [], duration: raw.duration ?? null };
+      return { available: true, notes: raw.notes || [], pedals: raw.pedals || [], duration: raw.duration ?? null, spans: raw.spans || null };
     } catch (err) {
       console.error('[Pedagogie] transcription piano échouée :', err);
       return { available: false, reason: 'failed', detail: err.message };

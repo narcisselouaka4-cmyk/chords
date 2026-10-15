@@ -50,6 +50,7 @@
 
 import { buildVideoAnalysis, buildAudioOnlyAnalysis } from '../pedagogie/video-analysis.js';
 import { reconcileWithSound, soundCheckSentence } from '../pedagogie/sound-reconcile.js';
+import { pickSoundWindows, windowsToSpans } from '../pedagogie/sound-sampling.js';
 import { appConfirm } from './components/app-dialog.js';
 import { explainUnrecognised } from '../pedagogie/format-detector.js';
 import { crossCheck } from '../pedagogie/cross-check.js';
@@ -1451,7 +1452,10 @@ async function runReading(path) {
       pianoPromise ??= api.pedagogie.transcribePiano(path).catch((err) => ({ available: false, reason: 'failed', detail: err.message }));
       return pianoPromise;
     };
-    void soundNotes();
+    // [Claude] — 2026-10-15 — La transcription COMPLÈTE n'est plus lancée d'office : elle coûte ~2,5x la
+    // durée de la vidéo sur CPU (« Above All », 19 min : 38 min). Quand l'image se lit bien, quelques
+    // extraits suffisent à fixer l'octave et à recouper (sound-sampling.js) ; la transcription complète
+    // ne part que si l'image ne donne rien (pianiste filmé de côté : les notes SONT le son).
 
     // [Claude] — 2026-09-25 — 8 images/s (au lieu de 4) : les notes brèves d'un lick
     // tiennent au moins une image et sont gardées (notes du professeur).
@@ -1580,15 +1584,21 @@ async function runReading(path) {
     // corrigée, les notes qu'une image brouillée n'a pas vues et celles d'un glissando sont ajoutées.
     // Si le son et l'image ne se recoupent pas (musique de fond…), rien n'est changé.
     if (api.pedagogie?.transcribePiano && built.noteEvents?.length) {
-      step('Recoupement des notes avec le son…');
-      const piano = await soundNotes();
+      const videoDuration = Number(built.stats?.duration) || Number(els.videoPlayer?.duration) || 0;
+      const windows = pickSoundWindows(built.noteEvents, videoDuration);
+      const sampled = windows.length > 0 && !(windows.length === 1 && windows[0].start === 0 && windows[0].duration >= videoDuration - 0.5);
+      step(sampled ? `Recoupement des notes avec le son (${windows.length} extraits)…` : 'Recoupement des notes avec le son…');
+      const piano = sampled
+        ? await api.pedagogie.transcribePiano(path, { windows }).catch((err) => ({ available: false, reason: 'failed', detail: err.message }))
+        : await soundNotes();
       if (piano?.available && piano.notes?.length) {
-        const merged = reconcileWithSound(built.noteEvents, piano.notes);
+        const merged = reconcileWithSound(built.noteEvents, piano.notes, sampled ? { spans: windowsToSpans(windows) } : {});
         built.soundCheck = merged.report;
         if (merged.report.reliable) {
           built.noteEvents = merged.notes;
-          // Sa pédale, entendue au son : le rejeu la reprend (l'image ne la voit pas).
-          if (!built.pedals?.length) {
+          // Sa pédale, entendue au son : le rejeu la reprend (l'image ne la voit pas). Par extraits, elle
+          // n'est connue que par morceaux : on ne la garde pas (pédale d'harmonie, partout pareille).
+          if (!sampled && !built.pedals?.length) {
             built.pedals = (piano.pedals || [])
               .filter((p) => Number.isFinite(p?.onset) && Number.isFinite(p?.offset) && p.offset > p.onset)
               .map((p) => ({ start: p.onset, end: p.offset }));

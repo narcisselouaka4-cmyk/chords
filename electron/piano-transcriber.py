@@ -13,7 +13,7 @@ Même contrat que transcriber.py : arguments en ligne de commande, JSON sur la
 DERNIÈRE ligne de stdout, journaux sur stderr, code de sortie 0 même en échec
 (c'est le JSON qui porte la raison).
 
-    piano-transcriber.py transcribe <fichier.wav> [--device=cpu]
+    piano-transcriber.py transcribe <fichier.wav> [--device=cpu] [--windows=début:durée,…]
 
 Sortie, succès :
     {"ok": true, "notes": [{"midi": 60, "onset": 0.51, "offset": 1.02, "velocity": 74}],
@@ -52,11 +52,22 @@ def fail(reason, message):
 
 def parse_args(argv):
     if len(argv) < 3 or argv[1] != "transcribe":
-        fail("Failed", "Usage : piano-transcriber.py transcribe <fichier.wav> [--device=cpu]")
-    options = {"device": "cpu"}
+        fail("Failed", "Usage : piano-transcriber.py transcribe <fichier.wav> [--device=cpu] [--windows=début:durée,…]")
+    options = {"device": "cpu", "windows": None}
     for extra in argv[3:]:
         if extra.startswith("--device="):
             options["device"] = extra.split("=", 1)[1] or "cpu"
+        elif extra.startswith("--windows="):
+            # [Claude] — 2026-10-15 — Extraits (secondes) : ne transcrire que ces passages. Le modèle coûte
+            # ~2,5x la durée de l'audio sur CPU ; quelques extraits suffisent à fixer l'octave et à
+            # recouper l'image (sound-reconcile.js), pour une fraction du temps.
+            try:
+                options["windows"] = [
+                    (float(a), float(b))
+                    for a, b in (w.split(":") for w in extra.split("=", 1)[1].split(",") if w)
+                ]
+            except ValueError:
+                fail("Failed", f"--windows illisible : {extra}")
     return argv[2], options
 
 
@@ -80,36 +91,48 @@ def main():
     except Exception as e:  # noqa: BLE001 — la raison est rendue telle quelle
         fail("ReadFailed", f"Lecture audio impossible : {e}")
 
+    total = len(audio) / float(sample_rate)
+    if options["windows"]:
+        pieces = [(max(0.0, a), min(total, a + b)) for a, b in options["windows"]]
+        pieces = [(a, b) for a, b in pieces if b - a >= 1.0]
+        if not pieces:
+            fail("Failed", "Aucun extrait exploitable dans --windows")
+    else:
+        pieces = [(0.0, total)]
+
+    notes = []
+    pedals = []
     try:
         transcriptor = PianoTranscription(device=options["device"], checkpoint_path=None)
-        with tempfile.TemporaryDirectory() as tmp:
-            result = transcriptor.transcribe(audio, os.path.join(tmp, "out.mid"))
+        for begin, end in pieces:
+            chunk = audio[int(begin * sample_rate):int(end * sample_rate)]
+            with tempfile.TemporaryDirectory() as tmp:
+                result = transcriptor.transcribe(chunk, os.path.join(tmp, "out.mid"))
+            for ev in result.get("est_note_events", []) or []:
+                try:
+                    notes.append({
+                        "midi": int(ev["midi_note"]),
+                        "onset": round(float(ev["onset_time"]) + begin, 3),
+                        "offset": round(float(ev["offset_time"]) + begin, 3),
+                        "velocity": int(ev.get("velocity", 64)),
+                    })
+                except (KeyError, TypeError, ValueError):
+                    continue
+            for ev in result.get("est_pedal_events", []) or []:
+                try:
+                    pedals.append({"onset": round(float(ev["onset_time"]) + begin, 3), "offset": round(float(ev["offset_time"]) + begin, 3)})
+                except (KeyError, TypeError, ValueError):
+                    continue
     except Exception as e:  # noqa: BLE001
         fail("Failed", f"Transcription impossible : {e}")
 
-    notes = []
-    for ev in result.get("est_note_events", []) or []:
-        try:
-            notes.append({
-                "midi": int(ev["midi_note"]),
-                "onset": round(float(ev["onset_time"]), 3),
-                "offset": round(float(ev["offset_time"]), 3),
-                "velocity": int(ev.get("velocity", 64)),
-            })
-        except (KeyError, TypeError, ValueError):
-            continue
     notes.sort(key=lambda n: (n["onset"], n["midi"]))
-    pedals = []
-    for ev in result.get("est_pedal_events", []) or []:
-        try:
-            pedals.append({"onset": round(float(ev["onset_time"]), 3), "offset": round(float(ev["offset_time"]), 3)})
-        except (KeyError, TypeError, ValueError):
-            continue
     emit({
         "ok": True,
         "notes": notes,
         "pedals": pedals,
-        "duration": round(len(audio) / float(sample_rate), 3),
+        "duration": round(total, 3),
+        "spans": [{"start": round(a, 3), "end": round(b, 3)} for a, b in pieces] if options["windows"] else None,
         "model": "piano-transcription-inference",
     })
 

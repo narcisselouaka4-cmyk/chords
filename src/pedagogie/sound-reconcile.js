@@ -44,6 +44,12 @@ export const SOUND_CHECK_DEFAULTS = {
    */
   globalShiftShare: 0.6,
   globalShiftMin: 8,
+  /**
+   * Plages [{start, end}] réellement écoutées. Absent : tout le son est là. Présent (transcription par
+   * extraits, sound-sampling.js) : seules les notes vues DANS ces plages sont recoupées et comptées
+   * pour la fiabilité ; le décalage d'octave général trouvé s'applique ensuite à toutes les autres.
+   */
+  spans: null,
   /** Glissando : écart maximal (s) entre deux attaques voisines, et nombre minimal d'attaques. */
   runStep: 0.25,
   runMinEvents: 3,
@@ -170,13 +176,20 @@ export function reconcileWithSound(imageNotes, soundList, options = {}) {
   const report = {
     reliable: false, reason: null, imageNotes: image.length, soundNotes: sound.length,
     confirmed: 0, octaveFixed: 0, addedGap: 0, addedSlide: 0, heardOnly: 0, unsupported: 0,
-    globalShift: 0, octaveInferred: 0,
+    globalShift: 0, octaveInferred: 0, studied: image.length, sampled: false,
   };
   if (!sound.length) { report.reason = 'no-sound'; return { notes: image, report }; }
   if (!image.length) { report.reason = 'no-image'; return { notes: image, report }; }
 
   const claimed = new Set();
-  const byImageStart = image.map((n, idx) => ({ n, idx })).sort((a, b) => a.n.start - b.n.start);
+  const spans = Array.isArray(o.spans) && o.spans.length ? o.spans : null;
+  const inSpan = (n) => !spans || spans.some((sp) => n.start >= sp.start && n.start < sp.end);
+  const outside = spans ? image.map((n, idx) => idx).filter((idx) => !inSpan(image[idx])) : [];
+  const studiedNotes = image.map((n, idx) => ({ n, idx })).filter(({ n }) => inSpan(n));
+  report.studied = studiedNotes.length;
+  report.sampled = Boolean(spans);
+  if (!studiedNotes.length) { report.reason = 'unreliable'; return { notes: image, report }; }
+  const byImageStart = studiedNotes.sort((a, b) => a.n.start - b.n.start);
 
   // Candidats : notes entendues d'attaque proche, la plus proche dans le temps d'abord.
   const nearby = (n, predicate) => {
@@ -206,9 +219,9 @@ export function reconcileWithSound(imageNotes, soundList, options = {}) {
 
   // Garde-fou : l'image et le son se recoupent-ils assez pour croire le son ?
   const shared = report.confirmed + fixes.length;
-  if (shared / image.length < o.minReliable) {
+  if (shared / studiedNotes.length < o.minReliable) {
     report.reason = 'unreliable';
-    report.unsupported = image.length - report.confirmed;
+    report.unsupported = studiedNotes.length - report.confirmed;
     return { notes: image, report };
   }
   report.reliable = true;
@@ -237,7 +250,7 @@ export function reconcileWithSound(imageNotes, soundList, options = {}) {
   const [topShift, topCount] = [...shiftCount].sort((a, b) => b[1] - a[1])[0] || [0, 0];
   if (topShift !== 0 && matched >= o.globalShiftMin && topCount / matched >= o.globalShiftShare) {
     report.globalShift = topShift;
-    for (const idx of lost) {
+    for (const idx of [...lost, ...outside]) {
       const n = image[idx];
       const to = n.midi + topShift;
       if (to < 21 || to > 108) continue;
@@ -293,6 +306,7 @@ export function soundCheckSentence(report) {
   if (report.reason === 'unreliable') return 'Le son et l\'image ne se recoupent pas assez (musique de fond ?) : les notes viennent de l\'image seule.';
   if (!report.reliable) return '';
   const parts = [`${report.confirmed} notes de l'image confirmées par le son`];
+  if (report.sampled) parts.unshift(`son écouté par extraits (${report.studied} notes comparées)`);
   if (report.octaveFixed) parts.push(`${report.octaveFixed} octave${report.octaveFixed > 1 ? 's' : ''} corrigée${report.octaveFixed > 1 ? 's' : ''}`);
   if (report.octaveInferred) parts.push(`${report.octaveInferred} de plus d'après le décalage général du clavier`);
   if (report.addedGap) parts.push(`${report.addedGap} note${report.addedGap > 1 ? 's' : ''} ajoutée${report.addedGap > 1 ? 's' : ''} là où l'image ne voyait rien`);
