@@ -120,6 +120,20 @@ export function createGuidePanel({ onSeek = () => {}, onRegion = () => {}, onPla
     }
   }
 
+  /** Les accords de la progression complète, écrits (degré + nom), avec la tonalité (Narcisse : « on voit
+   * quels sont les accords [au son], mais pas ce qui est dit à l'écrit »). */
+  function writtenChords(h) {
+    if (!h.chords?.length) return null;
+    const row = el('div', { className: 'pedago-hl-chords' }, h.chords.map((c, i) => el('span', { className: 'pedago-hl-chord' }, [
+      c.degree ? el('span', { className: 'pedago-hl-chord-degree', text: c.degree }) : null,
+      el('span', { className: 'pedago-hl-chord-name', text: c.name }),
+    ])));
+    return el('div', { className: 'pedago-hl-written' }, [
+      h.keyName ? el('span', { className: 'pedago-hl-key', text: h.keyName }) : null,
+      row,
+    ]);
+  }
+
   /** Une case « enseignement » (la progression complète, ou un mouvement quand il n'y a pas de chapitres). */
   function card(h, i) {
     const main = el('button', {
@@ -133,7 +147,7 @@ export function createGuidePanel({ onSeek = () => {}, onRegion = () => {}, onPla
       h.detail ? el('span', { className: 'pedago-hl-detail', text: h.detail }) : null,
       Number.isFinite(h.start) ? el('span', { className: 'pedago-hl-time', text: clock(h.start) }) : null,
     ]);
-    return el('li', { className: `pedago-hl is-${h.kind}`, 'data-hl': h.id, style: `--i:${i}` }, [main, playButton(h)]);
+    return el('li', { className: `pedago-hl is-${h.kind}`, 'data-hl': h.id, style: `--i:${i}` }, [main, writtenChords(h), playButton(h)]);
   }
 
   /** Un chapitre, replié : l'heure et le titre. Ouvert (en cours ou cliqué) : sa phrase et ses mouvements. */
@@ -151,8 +165,18 @@ export function createGuidePanel({ onSeek = () => {}, onRegion = () => {}, onPla
       el('strong', { className: 'pedago-ch-title', text: c.title }),
       moves.length ? el('span', { className: 'pedago-ch-badge', title: `${moves.length} mouvement${moves.length > 1 ? 's' : ''} à écouter`, text: `▶ ${moves.length}` }) : null,
     ]);
-    const detail = (c.summary || moves.length) ? el('div', { className: 'pedago-ch-detail' }, [
+    const subpoints = c.subpoints?.length ? el('div', { className: 'pedago-ch-subpoints' }, c.subpoints.map((sp) => el('button', {
+      type: 'button',
+      className: 'pedago-ch-subpoint',
+      'aria-label': `${clock(sp.t)}${sp.label ? ` : ${sp.label}` : ''}. Aller à ce moment`,
+      onClick: (e) => { e.stopPropagation(); onRegion({ start: sp.t, end: c.end }); onSeek(sp.t); },
+    }, [
+      el('span', { className: 'pedago-ch-subpoint-time', text: clock(sp.t) }),
+      sp.label ? el('span', { className: 'pedago-ch-subpoint-label', text: sp.label }) : null,
+    ]))) : null;
+    const detail = (c.summary || moves.length || subpoints) ? el('div', { className: 'pedago-ch-detail' }, [
       c.summary ? el('p', { className: 'pedago-ch-summary', text: c.summary }) : null,
+      subpoints,
       moves.length ? el('div', { className: 'pedago-ch-moves' }, moves.map((h) => playButton(h, { small: true }))) : null,
     ]) : null;
     return el('li', { className: `pedago-ch is-ch-${c.kind}${open ? ' is-open' : ''}`, 'data-ch': c.id, style: `--i:${i}` }, [main, detail]);

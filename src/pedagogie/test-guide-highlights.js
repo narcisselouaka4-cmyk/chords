@@ -17,7 +17,8 @@ const part = (final = true) => ({
 {
   const guide = { parts: [part()], movements: [mv('a', '6', '4', ['chromatic'], [[45, 60]])] };
   const h = buildHighlights(guide);
-  check('la progression complète vient en premier, sans liste de degrés (relevé trop peu fiable)', h[0].kind === 'final' && h[0].detail === '' && !/–/.test(h[0].title));
+  check('la progression complète vient en premier, écrite : degrés, noms d\'accords, tonalité', h[0].kind === 'final' && h[0].keyName === 'Ré♭ majeur'
+    && h[0].chords.map((c) => c.degree).join(' ') === '2 5 1 6' && h[0].chords[0].name === 'Z');
   check('un mouvement est nommé en degrés, avec son geste', h[1].title === '6 → 4' && /chromatique/.test(h[1].detail));
   check('chaque case se rejoue', h.every((x) => x.play && x.play.kind));
   check('aucun nom d\'accord ni main dans les cases', h.every((x) => !/ main |Main|droite|gauche/i.test(`${x.title} ${x.detail}`)));

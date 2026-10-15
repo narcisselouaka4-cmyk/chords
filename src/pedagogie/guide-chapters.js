@@ -30,6 +30,9 @@ export const CHAPTER_DEFAULTS = {
   minLength: 30,
   /** Pause dans la parole qui suggère un changement de sujet (s). */
   pause: 6,
+  /** Sous-repères DANS un chapitre (Narcisse : « il faudrait peut-être des sous-sujets, pas beaucoup »). */
+  maxSubpoints: 2,
+  subpointMargin: 20,
   /** Transition jeu ↔ parole : chaque côté dure au moins cela (s). */
   runMin: 15,
   /** Score minimal pour qu'une coupure soit retenue. */
@@ -140,7 +143,8 @@ function mergeCandidates(list) {
  * @param {{id: string, start: number|null}[]} [input.highlights] - les mouvements à rattacher (guide-highlights.js)
  * @param {number} [input.duration]
  * @returns {{id: string, start: number, end: number, kind: 'play'|'talk'|'mixed'|'none', text: string,
- *   moves: string[], title: string, autoTitle: string, summary: string, why: string[]}[]}
+ *   moves: string[], subpoints: {t: number, label: string}[], title: string, autoTitle: string,
+ *   summary: string, why: string[]}[]}
  */
 export function buildChapters({ narration = [], spans = [], parts = [], highlights = [], duration = null } = {}, options = {}) {
   const o = { ...CHAPTER_DEFAULTS, ...options };
@@ -166,6 +170,10 @@ export function buildChapters({ narration = [], spans = [], parts = [], highligh
 
   const bounds = [{ t: 0, why: [] }, ...cuts, { t: total, why: [] }];
   const speech = narration.filter((n) => finite(n?.start) && String(n.text || '').trim());
+  // [Claude] — 2026-10-16 — Sous-repères : les meilleures coupures candidates qui n'ont pas fait un
+  // chapitre à part entière, mais tombent franchement À L'INTÉRIEUR d'un chapitre (`subpointMargin` des
+  // bords). Peu nombreux (`maxSubpoints`), juste de quoi sauter à l'intérieur d'un gros chapitre.
+  const usedAsCut = (t) => bounds.some((b) => Math.abs(b.t - t) < 1);
   const chapters = [];
   for (let i = 0; i < bounds.length - 1; i += 1) {
     const start = bounds[i].t; const end = bounds[i + 1].t; const len = end - start;
@@ -183,8 +191,17 @@ export function buildChapters({ narration = [], spans = [], parts = [], highligh
     else if (talk / len >= 0.6 && play / len < 0.3) kind = 'talk';
     else kind = (play || talk) ? 'mixed' : 'none';
     const moves = highlights.filter((h) => h.kind === 'movement' && finite(h.start) && h.start >= start && h.start < end).map((h) => h.id);
+    const inside = ranked.filter((c) => !usedAsCut(c.t) && c.t >= start + o.subpointMargin && c.t <= end - o.subpointMargin);
+    const subpoints = [];
+    for (const c of inside.sort((a, b) => b.score - a.score)) {
+      if (subpoints.length >= o.maxSubpoints) break;
+      if (subpoints.some((sp) => Math.abs(sp.t - c.t) < o.subpointMargin)) continue;
+      const near = speech.find((n) => n.start >= c.t - 1 && n.start < c.t + 8);
+      subpoints.push({ t: round1(c.t), label: near ? near.text.trim().split(/\s+/).slice(0, 8).join(' ') : '' });
+    }
+    subpoints.sort((a, b) => a.t - b.t);
     chapters.push({
-      id: `c${i + 1}`, start: round1(start), end: round1(end), kind, text: text.slice(0, 900), moves,
+      id: `c${i + 1}`, start: round1(start), end: round1(end), kind, text: text.slice(0, 900), moves, subpoints,
       title: '', autoTitle: '', summary: '', why: bounds[i].why,
     });
   }

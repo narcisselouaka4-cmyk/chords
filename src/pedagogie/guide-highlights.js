@@ -46,9 +46,13 @@ export function buildHighlights(guide, { max = MAX_HIGHLIGHTS } = {}) {
       id: `final:${part.id}`,
       kind: 'final',
       title: 'La progression complète',
-      // Pas de liste de degrés : le relevé des accords est trop peu fiable (« Above All » : 1 – 5 – 6 – 4 – b3 – 2 – 6
-      // pour un tuto dont le prof dit « une progression 6-5 »). On rejoue SES notes, on n'affirme rien dessus.
       detail: keys > 1 ? `en ${keys} tonalités` : '',
+      // [Claude] — 2026-10-16 — Écrite, pas seulement jouée (Narcisse : « on voit quels sont les accords,
+      // mais pas ce qui est dit à l'écrit »). Vient du même relevé que le rejeu (f.chords) : pas une seconde
+      // source. La case ne PRÉTEND à rien de plus que ce que le moteur a lu — aucun degré du chapitre n'en
+      // dérive (guide-chapters.js garde sa propre prudence sur « de quoi ça parle »).
+      keyName: part.keyName,
+      chords: f.chords.map((c) => ({ degree: bareDegree(c.degree), name: c.name })),
       start: f.source === 'together' ? f.start : null,
       end: f.source === 'together' ? f.end : null,
       play: { kind: 'final', part: part.id, hand: null },

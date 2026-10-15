@@ -377,3 +377,39 @@
 .pedago-ch-move:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 2px; }
 .pedago-guide.is-entering .pedago-ch { animation: pedago-hl-in .35s cubic-bezier(.3, .9, .3, 1) both; animation-delay: calc(var(--i, 0) * 45ms); }
 @media (prefers-reduced-motion: reduce) { .pedago-guide.is-entering .pedago-ch { animation: none; } }
+
+/* ---- Progression écrite (degré + nom d'accord), sous la case « progression complète » (16/10/2026) ---- */
+.pedago-hl-written { display: flex; flex-direction: column; gap: 6px; padding: 0 12px 10px; }
+.pedago-hl-key { align-self: flex-start; padding: 1px 8px; border-radius: 999px; background: var(--tr-inset); color: var(--tr-secondary); font-size: 12.5px; font-weight: 600; }
+.pedago-hl-chords { display: flex; flex-wrap: wrap; gap: 6px; }
+.pedago-hl-chord {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 4px 9px;
+  border: 1px solid var(--tr-border);
+  border-radius: 8px;
+  background: var(--tr-inset);
+}
+.pedago-hl-chord-degree { color: var(--tr-accent); font-size: 12px; font-weight: 700; }
+.pedago-hl-chord-name { color: var(--tr-text); font-size: 13.5px; font-weight: 600; }
+
+/* ---- Sous-repères dans un chapitre : peu nombreux, juste de quoi sauter dedans (16/10/2026) ---- */
+.pedago-ch-subpoints { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; padding-left: 10px; border-left: 2px solid var(--tr-border); }
+.pedago-ch-subpoint {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tr-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.pedago-ch-subpoint:hover { background: var(--tr-hover); }
+.pedago-ch-subpoint:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: -2px; }
+.pedago-ch-subpoint-time { flex: 0 0 auto; color: var(--tr-accent); font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pedago-ch-subpoint-label { overflow: hidden; color: var(--tr-secondary); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }

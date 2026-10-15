@@ -78,5 +78,28 @@ const say = (start, end, text) => ({ start, end, text });
   check('une réponse illisible ne change rien', parseChapterTitles('pas du json', ch).subject === '' && applyChapterTitles(ch, parseChapterTitles('x', ch)).every((c, i) => c.title === ch[i].title));
 }
 
+{
+  // Sous-repères : plusieurs changements de sujet dans un même (grand) chapitre, peu nombreux.
+  const topics = [
+    'left hand drop two voicing inner notes passing chord',
+    'right hand melody line upper structure extension',
+    'rhythm comping syncopation groove swing feel bounce',
+    'left hand walking bass octave stride pattern motion',
+    'right hand arpeggio run fill lick phrase ornament',
+  ];
+  const narration = [];
+  topics.forEach((t, k) => { for (let i = 0; i < 13; i += 1) narration.push(say(k * 100 + i * 7.5, k * 100 + i * 7.5 + 6.5, t)); });
+  const ch = buildChapters({ narration, duration: 500, spans: [span(0, 500, ACTIVITY.SPEAKS)], perChapter: 250 });
+  check('au moins un chapitre porte des sous-repères', ch.some((c) => c.subpoints.length > 0));
+  check('jamais plus de 2 sous-repères par chapitre', ch.every((c) => c.subpoints.length <= 2));
+  check('un sous-repère reste DANS son chapitre, loin des bords', ch.every((c) => c.subpoints.every((sp) => sp.t > c.start + 15 && sp.t < c.end - 15)));
+  check('un sous-repère porte un court extrait de ce qui est dit là', ch.some((c) => c.subpoints.some((sp) => sp.label.length > 0)));
+}
+{
+  // Peu de matière : pas de sous-repères forcés.
+  const ch = buildChapters({ spans: [span(0, 80, ACTIVITY.PLAYS), span(80, 300, ACTIVITY.SPEAKS)], duration: 300, narration: [say(80, 90, 'let us start now the lesson')] });
+  check('sans matière suffisante : aucun sous-repère inventé', ch.every((c) => c.subpoints.length === 0));
+}
+
 console.log(`\n${pass} réussis, ${fail} échoués`);
 if (fail) process.exit(1);
