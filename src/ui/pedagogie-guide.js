@@ -7,7 +7,7 @@
 // Décisions : ADR-052 (des procédés rejouables, pas la leçon commentée), ADR-054 (pas de mains).
 //
 // Le panneau montre, de haut en bas :
-//   1. DE QUOI ÇA PARLE — une phrase (celle de l'IA si elle est là, sinon ce que le moteur a relevé) ;
+//   1. DE QUOI ÇA PARLE — une phrase de l'IA, fondée sur ce que dit le prof (rien sans elle) ;
 //   2. LA PROGRESSION COMPLÈTE — si le moteur l'a reconstituée : « Écouter » ;
 //   3. LES CHAPITRES — repliés (l'heure, un titre) ; le chapitre en cours s'ouvre : sa phrase et les
 //      mouvements qu'il montre, à écouter d'un clic. Un clic amène la vidéo au chapitre et en fait le
@@ -20,7 +20,7 @@
 //
 // createGuidePanel(callbacks) rend { root, render(guide, options), setNow(t), setPlaying(id, playing) }.
 
-import { buildHighlights, describeSubject, highlightAt, clock } from '../pedagogie/guide-highlights.js';
+import { buildHighlights, highlightAt, clock } from '../pedagogie/guide-highlights.js';
 
 const PLAY_ICON = '<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
 const STOP_ICON = '<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
@@ -187,7 +187,9 @@ export function createGuidePanel({ onSeek = () => {}, onRegion = () => {}, onPla
       }));
       return;
     }
-    const about = subject || (guide ? describeSubject(guide) : '');
+    // « De quoi ça parle » : seulement la phrase de l'IA, fondée sur ce que dit le prof. Pas de phrase tirée
+    // des accords relevés : trop peu fiables pour affirmer quoi que ce soit (Narcisse).
+    const about = subject;
     if (about) root.appendChild(el('p', { className: 'pedago-guide-about', text: about }));
 
     const final = highlights.find((h) => h.kind === 'final');

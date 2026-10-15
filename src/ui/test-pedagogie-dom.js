@@ -718,7 +718,7 @@ check('Deux onglets à droite : Guide du tuto et Copilote',
   html.includes('id="pedagogie-tab-guide"') && html.includes('id="pedagogie-tab-copilot"') && html.includes('id="pedagogie-guide-slot"')
   && /function setPanelTab\(tab/.test(tabCode));
 check('Le guide est court : une phrase « de quoi ça parle », six cases au plus, vitesse et transposition',
-  guideUiCode.includes('buildHighlights(guide)') && guideUiCode.includes('describeSubject(guide)')
+  guideUiCode.includes('buildHighlights(guide)') && !guideUiCode.includes('describeSubject')
   && guideUiCode.includes("'Ce qu\\'il montre'") && guideUiCode.includes('RATES') && guideUiCode.includes('TRANSPOSE')
   && readText('src/pedagogie/guide-highlights.js').includes('MAX_HIGHLIGHTS = 6'));
 check('Le guide ne montre plus ni mains, ni accords en puces, ni étapes une à une, ni rôle supposé (ADR-052, ADR-054)',

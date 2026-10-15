@@ -1,5 +1,5 @@
 // Tests de guide-highlights.js : le guide réduit à l'essentiel (≤ 6 cases, degrés, pas de mains).
-import { buildHighlights, describeSubject, highlightAt, MAX_HIGHLIGHTS } from './guide-highlights.js';
+import { buildHighlights, highlightAt, MAX_HIGHLIGHTS } from './guide-highlights.js';
 
 let pass = 0; let fail = 0;
 const check = (label, ok) => { if (ok) { pass += 1; console.log('  ✓', label); } else { fail += 1; console.log('  ✗', label); } };
@@ -17,7 +17,7 @@ const part = (final = true) => ({
 {
   const guide = { parts: [part()], movements: [mv('a', '6', '4', ['chromatic'], [[45, 60]])] };
   const h = buildHighlights(guide);
-  check('la progression complète vient en premier', h[0].kind === 'final' && h[0].detail === '2 – 5 – 1 – 6');
+  check('la progression complète vient en premier, sans liste de degrés (relevé trop peu fiable)', h[0].kind === 'final' && h[0].detail === '' && !/–/.test(h[0].title));
   check('un mouvement est nommé en degrés, avec son geste', h[1].title === '6 → 4' && /chromatique/.test(h[1].detail));
   check('chaque case se rejoue', h.every((x) => x.play && x.play.kind));
   check('aucun nom d\'accord ni main dans les cases', h.every((x) => !/ main |Main|droite|gauche/i.test(`${x.title} ${x.detail}`)));
@@ -49,10 +49,8 @@ const part = (final = true) => ({
   check('un mouvement répété est une seule case', h.length === 1 && /3 fois/.test(h[0].detail) && h[0].start === 10);
 }
 {
-  check('sans guide : rien', buildHighlights(null).length === 0 && describeSubject(null) === '');
-  check('de quoi ça parle : la boucle et la tonalité relevées', describeSubject({ parts: [part()] }) === 'Une boucle 2 – 5 – 1 – 6, en Ré♭ majeur.');
-  check('plusieurs tonalités : dit combien', /en 3 tonalités/.test(describeSubject({ parts: [part(), part(), part()] })));
-  check('rien de sûr : rien d\'inventé', describeSubject({ parts: [{ id: 'p1', progression: { chords: [] } }] }) === '');
+  check('sans guide : rien', buildHighlights(null).length === 0);
+  check('plusieurs tonalités : dit combien', /en 2 tonalités/.test(buildHighlights({ parts: [part(), part()], movements: [] })[0].detail));
   const hl = [{ id: 'a', start: 10, end: 20 }, { id: 'b', start: 100, end: 110 }];
   check('la case où en est la vidéo', highlightAt(hl, 15) === 'a' && highlightAt(hl, 105) === 'b' && highlightAt(hl, 60) === null);
 }

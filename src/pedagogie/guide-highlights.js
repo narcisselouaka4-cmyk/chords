@@ -41,13 +41,14 @@ export function buildHighlights(guide, { max = MAX_HIGHLIGHTS } = {}) {
   if (finals.length) {
     const part = finals[finals.length - 1];
     const f = part.final;
-    const degrees = f.chords.map((c) => bareDegree(c.degree)).filter(Boolean).join(' – ');
     const keys = (guide.parts || []).length;
     out.push({
       id: `final:${part.id}`,
       kind: 'final',
       title: 'La progression complète',
-      detail: `${degrees}${keys > 1 ? ` · en ${keys} tonalités` : ''}`,
+      // Pas de liste de degrés : le relevé des accords est trop peu fiable (« Above All » : 1 – 5 – 6 – 4 – b3 – 2 – 6
+      // pour un tuto dont le prof dit « une progression 6-5 »). On rejoue SES notes, on n'affirme rien dessus.
+      detail: keys > 1 ? `en ${keys} tonalités` : '',
       start: f.source === 'together' ? f.start : null,
       end: f.source === 'together' ? f.end : null,
       play: { kind: 'final', part: part.id, hand: null },
@@ -84,22 +85,6 @@ export function buildHighlights(guide, { max = MAX_HIGHLIGHTS } = {}) {
     });
   }
   return out;
-}
-
-/**
- * « De quoi ça parle », sans rien deviner : la tonalité et la boucle que le moteur a relevées.
- * Chaîne vide si le moteur n'a rien de sûr.
- */
-export function describeSubject(guide) {
-  const parts = guide?.parts || [];
-  const first = parts.find((p) => p.progression?.chords?.length);
-  if (!first) return '';
-  const degrees = first.progression.chords.map((c) => bareDegree(c.degree)).filter(Boolean).join(' – ');
-  if (!degrees) return '';
-  const what = first.progression.loop ? 'Une boucle' : 'Une suite d\'accords';
-  const keyName = (p) => String(p.keyName || '').trim();
-  if (parts.length > 1) return `${what} ${degrees}, jouée en ${parts.length} tonalités.`;
-  return `${what} ${degrees}${keyName(first) ? `, en ${keyName(first)}` : ''}.`;
 }
 
 /** L'enseignement où se trouve la vidéo (pour l'éclairer) : le dernier dont le début est passé. */
