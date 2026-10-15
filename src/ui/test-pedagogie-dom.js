@@ -717,13 +717,17 @@ check('Le passage : 10 min au plus, le Copilote le regarde (sinon les 30 derniè
 check('Deux onglets à droite : Guide du tuto et Copilote',
   html.includes('id="pedagogie-tab-guide"') && html.includes('id="pedagogie-tab-copilot"') && html.includes('id="pedagogie-guide-slot"')
   && /function setPanelTab\(tab/.test(tabCode));
-check('Le guide : le résultat final (écouter, une main), les étapes, les mouvements (du … au …)',
-  guideUiCode.includes("section('final', 'Le résultat final'") && guideUiCode.includes("section('steps', 'Les étapes du tuto'")
-  && guideUiCode.includes("section('moves', 'Les mouvements'") && guideUiCode.includes('findMovements(guide, search.from, search.to)'));
+check('Le guide est court : une phrase « de quoi ça parle », six cases au plus, vitesse et transposition',
+  guideUiCode.includes('buildHighlights(guide)') && guideUiCode.includes('describeSubject(guide)')
+  && guideUiCode.includes("'Ce qu\\'il montre'") && guideUiCode.includes('RATES') && guideUiCode.includes('TRANSPOSE')
+  && readText('src/pedagogie/guide-highlights.js').includes('MAX_HIGHLIGHTS = 6'));
+check('Le guide ne montre plus ni mains, ni accords en puces, ni étapes une à une, ni rôle supposé (ADR-052, ADR-054)',
+  !/pedago-step|pedago-final|pedago-hand|pedago-move|pedago-step-role|Main gauche|Main droite|Hypothèse/.test(guideUiCode)
+  && !readText('src/ui/refonte/pedagogie-guide.css').match(/\.pedago-(step|final|hand|move)/));
 check('Les exemples du guide passent par le lecteur commun (copilot-play-example)',
   /function playGuideExample\(id, what\) \{[\s\S]*?new CustomEvent\('copilot-play-example'/.test(tabCode));
-check('« Explique » dans le guide : le passage est posé et la question part au Copilote',
-  /function askCopilot\(question, range\) \{[\s\S]*?setPassage\(range\);[\s\S]*?setPanelTab\('copilot'\);[\s\S]*?'copilot-send-message'/.test(tabCode));
+check('Écouter un enseignement du guide : la vitesse et la transposition choisies partent au lecteur',
+  /function playGuideExample\(id, what\) \{[\s\S]*?const rate = [\s\S]*?const semitones = [\s\S]*?detail: \{ id, example, pedal: true, rate \}/.test(tabCode));
 check('Le Copilote reçoit le guide (étapes, résultat final, mouvements)',
   /guide: tutorialGuide\(\),/.test(tabCode) && readText('src/pedagogie/copilot-client.js').includes('lines.push(...guideLines(context.guide));'));
 check('Tuto lu au son (pas de guide) : la barre montre ses accords, le guide dit pourquoi il est vide',
@@ -732,9 +736,6 @@ check('Tuto lu au son (pas de guide) : la barre montre ses accords, le guide dit
 check('La barre prend la durée de l\'analyse tant que la vidéo n\'est pas chargée',
   /: \(Number\(analysis\.stats\?\.duration\) \|\| 0\),/.test(tabCode));
 
-check('Chaque étape du guide affiche son rôle supposé (« Intro ? »), avec la raison en infobulle, et la barre le répète',
-  guideUiCode.includes("pedago-step-role is-${s.role.id}") && guideUiCode.includes("'Hypothèse : '")
-  && readText('src/ui/components/passage-timeline.js').includes('s.role.label')
-  && readText('src/ui/refonte/pedagogie-guide.css').includes('.pedago-step-role'));
+
 console.log(`\n=== Résultat : ${passed}/${total} contrôles passés ===`);
 if (passed < total) process.exitCode = 1;

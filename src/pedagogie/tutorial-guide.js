@@ -971,7 +971,7 @@ export function finalRealized(final, { hand = null, cycles = 2, semitones = 0 } 
  * Joué d'un trait par le prof : SES notes, avec sa pédale, telles qu'il les joue (deux tours au
  * plus) ; assemblé : les accords réunis, plaqués, deux tours. Une main seule, transposable.
  * @param {{guide: object, noteEvents?: object[], pedals?: object[]|null, activity?: object[]}} tutorial
- * @param {{part?: string, hand?: 'LH'|'RH'|'both'|'lh'|'rh', transposeTo?: string, title?: string}} args
+ * @param {{part?: string, hand?: 'LH'|'RH'|'both'|'lh'|'rh', transposeTo?: string, semitones?: number, title?: string}} args
  * @returns {{example: object|null, part: object|null, note?: string}}
  */
 export function finalResultExample(tutorial, args = {}) {
@@ -982,7 +982,8 @@ export function finalResultExample(tutorial, args = {}) {
   const f = part.final;
   const hand = /^l/i.test(args.hand || '') ? 'lh' : /^r/i.test(args.hand || '') ? 'rh' : null;
   const keyText = `${KEY_NAMES[part.key.rootPc]}${part.key.minor ? 'm' : ''}`;
-  const semitones = args.transposeTo ? transposeInterval(keyText, args.transposeTo) : 0;
+  // `semitones` (le guide : sélecteur « Transposer ») ou `transposeTo` (le Copilote : une tonalité nommée).
+  const semitones = Number.isFinite(args.semitones) ? args.semitones : (args.transposeTo ? transposeInterval(keyText, args.transposeTo) : 0);
   const title = args.title ? String(args.title) : `Le résultat final — ${part.keyName}${semitones ? ` (transposé)` : ''}`;
   if (f.source === 'together' && Array.isArray(tutorial.noteEvents) && tutorial.noteEvents.length) {
     // Deux tours au plus : le passage peut en compter davantage.

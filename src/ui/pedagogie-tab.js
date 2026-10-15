@@ -1863,25 +1863,23 @@ let panelTabChosen = false;
 
 /** Un exemple du guide (le résultat final, un mouvement) : le même lecteur que le Copilote. */
 function playGuideExample(id, what) {
+  // Vitesse (¼ à 1×) et transposition (demi-tons) choisies dans le guide : on peut ralentir pour bien
+  // observer le geste, ou le jouer dans une autre tonalité pour se l'approprier.
+  const rate = Number.isFinite(what.rate) && what.rate > 0 ? what.rate : 1;
+  const semitones = Number.isFinite(what.semitones) ? Math.max(-12, Math.min(12, what.semitones)) : 0;
   const view = teacherView();
   const notes = view?.played || analysis?.noteEvents || [];
   let example = null;
   if (what.kind === 'final') {
-    example = finalResultExample({ guide: tutorialGuide(), noteEvents: notes, pedals: analysis?.pedals || null, activity: view?.spans || [] }, { part: what.part, hand: what.hand }).example;
+    example = finalResultExample({ guide: tutorialGuide(), noteEvents: notes, pedals: analysis?.pedals || null, activity: view?.spans || [] }, { part: what.part, hand: what.hand, semitones }).example;
   } else if (what.kind === 'movement') {
-    example = passageExample(notes, { start: what.start, end: what.end, title: 'Le mouvement du prof', pedals: analysis?.pedals || null, speech: view?.spans || [] });
+    example = passageExample(notes, { start: what.start, end: what.end, semitones, title: 'Le mouvement du prof', pedals: analysis?.pedals || null, speech: view?.spans || [] });
   }
   if (!example) return;
   pauseVideo();
-  document.dispatchEvent(new CustomEvent('copilot-play-example', { detail: { id, example, pedal: true, rate: 1 } }));
+  document.dispatchEvent(new CustomEvent('copilot-play-example', { detail: { id, example, pedal: true, rate } }));
 }
 
-/** « Explique » dans le guide : le passage est posé, le Copilote reçoit la question. */
-function askCopilot(question, range) {
-  if (range) setPassage(range);
-  setPanelTab('copilot');
-  document.dispatchEvent(new CustomEvent('copilot-send-message', { detail: { message: question } }));
-}
 
 /**
  * Panneau du Copilote : la conversation y est amarrée quand la vue est affichée, et
@@ -2332,7 +2330,6 @@ export function initPedagogieTab() {
     guidePanel = createGuidePanel({
       onSeek: (t) => seekVideo(t),
       onRegion: (range) => setPassage(range),
-      onAsk: (question, range) => askCopilot(question, range),
       onPlay: (id, what) => playGuideExample(id, what),
       onStop: () => document.dispatchEvent(new CustomEvent('copilot-stop-example')),
     });
