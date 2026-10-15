@@ -87,5 +87,36 @@ const heard = () => Array.from({ length: 10 }, (_, i) => snd(60 + (i % 5) * 2, 1
   check('la phrase dit aussi quand le son n\'a pas servi', /image seule/.test(soundCheckSentence({ reason: 'unreliable' })));
 }
 
+{
+  // Décalage d'octave GÉNÉRAL (mesuré sur « Above All » : 85 % des notes retrouvées étaient à +12).
+  // Les notes que le son ne confirme pas suivent le même décalage.
+  const imageNotes = [...phrase(12), img(72 + 12, 20), img(74 + 12, 21), img(76 + 12, 22)];
+  const r = reconcileWithSound(imageNotes, heard());
+  check('le décalage général est repéré', r.report.reliable && r.report.globalShift === -12);
+  check('les notes non confirmées sont ramenées avec les autres', r.report.octaveInferred === 3
+    && [72, 74, 76].every((m) => r.notes.some((n) => n.midi === m && n.start >= 20)));
+  check('… et gardent leur hauteur d\'origine', r.notes.filter((n) => n.start >= 20).every((n) => n.octaveFrom === n.midi + 12));
+}
+{
+  // Trop peu de notes retrouvées : un décalage ne se généralise pas sur 4 notes.
+  const heardFew = Array.from({ length: 4 }, (_, i) => snd(60 + (i % 5) * 2, 1.03 + i * 0.6));
+  const imageNotes = [...Array.from({ length: 4 }, (_, i) => img(72 + (i % 5) * 2, 1 + i * 0.6)), img(90, 30), img(91, 31), img(92, 32), img(93, 33), img(94, 34), img(95, 35)];
+  const r = reconcileWithSound(imageNotes, heardFew, { minReliable: 0.2 });
+  check('peu de notes retrouvées : pas de généralisation', r.report.globalShift === 0 && r.report.octaveInferred === 0);
+}
+{
+  // Moitié des notes juste, moitié décalée : ce n'est pas un défaut de calage, on ne généralise pas.
+  const imageNotes = phrase().map((n, i) => (i < 5 ? n : { ...n, midi: n.midi + 12 }));
+  imageNotes.push(img(100, 40), img(101, 41));
+  const r = reconcileWithSound(imageNotes, heard());
+  check('moitié juste, moitié décalée : pas de généralisation', r.report.globalShift === 0 && r.report.octaveInferred === 0);
+}
+{
+  // Jamais hors du clavier : une note qui sortirait de 21–108 est laissée.
+  const imageNotes = [...phrase(12), img(105, 20), img(107, 21)];
+  const r = reconcileWithSound(imageNotes, heard());
+  check('le décalage général reste dans le clavier', r.report.globalShift === -12 && r.notes.every((n) => n.midi >= 21 && n.midi <= 108));
+}
+
 console.log(`\n${pass} réussis, ${fail} échoués`);
 if (fail) process.exit(1);

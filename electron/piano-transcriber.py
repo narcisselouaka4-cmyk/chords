@@ -63,7 +63,8 @@ def parse_args(argv):
 def main():
     wav_path, options = parse_args(sys.argv)
     try:
-        from piano_transcription_inference import PianoTranscription, sample_rate, load_audio
+        import librosa
+        from piano_transcription_inference import PianoTranscription, sample_rate
     except ImportError as e:
         fail("MissingDependency", f"Dépendance Python manquante : {e}")
 
@@ -71,7 +72,11 @@ def main():
         fail("ReadFailed", f"Fichier audio introuvable : {wav_path}")
 
     try:
-        audio, _ = load_audio(wav_path, sr=sample_rate, mono=True)
+        # [Claude] — 2026-10-15 — On lit le WAV nous-mêmes. Le `load_audio` de la bibliothèque appelle
+        # `librosa.core.audio.*`, retiré dans librosa 0.10+ : avec librosa 0.11 il échouait toujours
+        # (« No librosa.core attribute audio »), donc la transcription au son n'a jamais abouti et le
+        # recoupement image/son (octaves, notes manquées) n'a jamais eu lieu.
+        audio, _ = librosa.load(wav_path, sr=sample_rate, mono=True)
     except Exception as e:  # noqa: BLE001 — la raison est rendue telle quelle
         fail("ReadFailed", f"Lecture audio impossible : {e}")
 

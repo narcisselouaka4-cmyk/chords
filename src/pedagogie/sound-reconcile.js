@@ -37,6 +37,13 @@ export const SOUND_CHECK_DEFAULTS = {
   blindGap: 0.5,
   /** Part minimale de notes vues retrouvées au son pour le croire. */
   minReliable: 0.3,
+  /**
+   * Décalage d'octave GÉNÉRAL : si au moins `globalShiftShare` des notes retrouvées au son sont décalées
+   * du même nombre d'octaves (et il y en a au moins `globalShiftMin`), le clavier dessiné est mal calé
+   * pour TOUTE la vidéo : on applique ce décalage aussi aux notes que le son ne confirme pas.
+   */
+  globalShiftShare: 0.6,
+  globalShiftMin: 8,
   /** Glissando : écart maximal (s) entre deux attaques voisines, et nombre minimal d'attaques. */
   runStep: 0.25,
   runMinEvents: 3,
@@ -163,6 +170,7 @@ export function reconcileWithSound(imageNotes, soundList, options = {}) {
   const report = {
     reliable: false, reason: null, imageNotes: image.length, soundNotes: sound.length,
     confirmed: 0, octaveFixed: 0, addedGap: 0, addedSlide: 0, heardOnly: 0, unsupported: 0,
+    globalShift: 0, octaveInferred: 0,
   };
   if (!sound.length) { report.reason = 'no-sound'; return { notes: image, report }; }
   if (!image.length) { report.reason = 'no-image'; return { notes: image, report }; }
@@ -190,9 +198,10 @@ export function reconcileWithSound(imageNotes, soundList, options = {}) {
   }
   // 2. Même note, autre octave.
   const fixes = [];
+  const lost = [];
   for (const { n, idx } of unmatched) {
     const c = nearby(n, (s) => s.midi !== n.midi && pc(s.midi) === pc(n.midi) && Math.abs(s.midi - n.midi) <= 24)[0];
-    if (c) { claimed.add(c.k); fixes.push({ idx, midi: c.s.midi }); } else report.unsupported += 1;
+    if (c) { claimed.add(c.k); fixes.push({ idx, midi: c.s.midi }); } else { report.unsupported += 1; lost.push(idx); }
   }
 
   // Garde-fou : l'image et le son se recoupent-ils assez pour croire le son ?
@@ -212,6 +221,32 @@ export function reconcileWithSound(imageNotes, soundList, options = {}) {
     n.octaveFrom = n.midi;
     n.midi = f.midi;
     report.octaveFixed += 1;
+  }
+
+  // [Claude] — 2026-10-15 — Décalage d'octave général. Mesuré sur « Above All » (clavier dessiné lu une
+  // octave trop bas) : 1168 des 1376 notes retrouvées au son étaient à +12. Le recoupement corrige
+  // chaque note qu'il retrouve, mais laissait telles quelles les ~740 que le son ne confirme pas : la
+  // vidéo sonnait alors mi-juste, mi-une octave trop bas. Une erreur de calage du clavier est la même
+  // pour toutes les notes : on l'étend aux notes non confirmées.
+  const shiftCount = new Map();
+  for (const f of fixes) {
+    const was = image[f.idx].octaveFrom ?? image[f.idx].midi;
+    shiftCount.set(f.midi - was, (shiftCount.get(f.midi - was) || 0) + 1);
+  }
+  const matched = report.confirmed + fixes.length;
+  const [topShift, topCount] = [...shiftCount].sort((a, b) => b[1] - a[1])[0] || [0, 0];
+  if (topShift !== 0 && matched >= o.globalShiftMin && topCount / matched >= o.globalShiftShare) {
+    report.globalShift = topShift;
+    for (const idx of lost) {
+      const n = image[idx];
+      const to = n.midi + topShift;
+      if (to < 21 || to > 108) continue;
+      const clash = image.some((m, i) => i !== idx && m.midi === to && Math.abs(m.start - n.start) < 0.1);
+      if (clash) continue;
+      n.octaveFrom = n.midi;
+      n.midi = to;
+      report.octaveInferred += 1;
+    }
   }
 
   // 3. Notes entendues sans équivalent à l'image : lacune, glissando, ou simple « entendu ».
@@ -259,6 +294,7 @@ export function soundCheckSentence(report) {
   if (!report.reliable) return '';
   const parts = [`${report.confirmed} notes de l'image confirmées par le son`];
   if (report.octaveFixed) parts.push(`${report.octaveFixed} octave${report.octaveFixed > 1 ? 's' : ''} corrigée${report.octaveFixed > 1 ? 's' : ''}`);
+  if (report.octaveInferred) parts.push(`${report.octaveInferred} de plus d'après le décalage général du clavier`);
   if (report.addedGap) parts.push(`${report.addedGap} note${report.addedGap > 1 ? 's' : ''} ajoutée${report.addedGap > 1 ? 's' : ''} là où l'image ne voyait rien`);
   if (report.addedSlide) parts.push(`${report.addedSlide} note${report.addedSlide > 1 ? 's' : ''} ajoutée${report.addedSlide > 1 ? 's' : ''} dans des glissandos`);
   return `${parts.join(', ')}.`;
