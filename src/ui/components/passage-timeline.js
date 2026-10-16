@@ -6,11 +6,10 @@
 // un peu comme dans Studio. L'utilisateur choisit son passage avec une petite animation pour que
 // ce soit évident ».
 //
-// Une barre de la durée de la vidéo :
-//   - les ACCORDS relevés y sont dessinés en bandes neutres (le guide du tuto et ses chapitres sont
-//     retirés le 16/10/2026) : on voit d'un coup d'œil comment le tuto est construit ;
+// Une barre NUE, de la durée de la vidéo (16/10/2026 : plus de bandes dessinées dedans — ni étapes,
+// ni chapitres, ni accords relevés ; Narcisse les a fait retirer avec le guide du tuto) :
 //   - glisser sur la barre trace une RÉGION, comme dans le Studio ; ses poignées la règlent, on
-//     la déplace en la tirant ; un double-clic sur une étape en fait la région ;
+//     la déplace en la tirant ;
 //   - un simple clic place la vidéo ; la tête de lecture avance avec elle ;
 //   - sans région, le Copilote regarde les 30 dernières secondes : un reflet suit la tête.
 //
@@ -35,16 +34,6 @@ function node(tag, className, attrs = {}) {
   return el;
 }
 
-/** Les mots d'une étape, pour l'infobulle et les lecteurs d'écran. */
-const KIND_WORDS = {
-  both: 'les deux mains',
-  lh: 'main gauche seule',
-  rh: 'main droite seule',
-  line: 'la ligne du dessus',
-  talk: 'il explique',
-  chord: 'accord entendu',
-};
-
 /**
  * @param {object} options
  * @param {(t: number) => void} options.onSeek - un clic sur la barre
@@ -55,7 +44,6 @@ const KIND_WORDS = {
 export function createPassageTimeline({ onSeek = () => {}, onRegion = () => {}, maxSeconds = 600, followSeconds = 30 } = {}) {
   const root = node('div', 'passage-timeline', { role: 'group', 'aria-label': 'Le passage du Copilote' });
   const track = node('div', 'passage-timeline-track');
-  const steps = node('div', 'passage-timeline-steps', { 'aria-hidden': 'true' });
   const follow = node('div', 'passage-timeline-follow', { 'aria-hidden': 'true' });
   const region = node('div', 'passage-timeline-region');
   const regionLabel = node('span', 'passage-timeline-region-label', { 'aria-hidden': 'true' });
@@ -64,14 +52,14 @@ export function createPassageTimeline({ onSeek = () => {}, onRegion = () => {}, 
   const playhead = node('div', 'passage-timeline-playhead', { 'aria-hidden': 'true' });
   const ghost = node('div', 'passage-timeline-ghost', { 'aria-hidden': 'true' });
   region.append(regionLabel, handleStart, handleEnd);
-  track.append(steps, follow, region, ghost, playhead);
+  track.append(follow, region, ghost, playhead);
   const scale = node('div', 'passage-timeline-scale', { 'aria-hidden': 'true' });
   const scaleStart = node('span', '', { text: '0:00' });
   const scaleEnd = node('span', '', { text: '0:00' });
   scale.append(scaleStart, scaleEnd);
   root.append(track, scale);
 
-  const state = { duration: 0, now: 0, range: null, steps: [], stepsKey: '' };
+  const state = { duration: 0, now: 0, range: null };
   const pct = (t) => (state.duration > 0 ? Math.max(0, Math.min(100, (t / state.duration) * 100)) : 0);
   const timeAt = (clientX) => {
     const r = track.getBoundingClientRect();
@@ -118,40 +106,8 @@ export function createPassageTimeline({ onSeek = () => {}, onRegion = () => {}, 
     }
   }
 
-  function paintSteps() {
-    const key = `${state.duration}|${state.steps.map((s) => `${s.id}:${s.start}-${s.end}:${s.label || ''}`).join(',')}`;
-    if (key === state.stepsKey) return;
-    state.stepsKey = key;
-    steps.textContent = '';
-    if (!(state.duration > 0)) return;
-    state.steps.forEach((s, i) => {
-      const block = node('div', `passage-timeline-step is-${s.kind}${s.complete ? ' is-complete' : ''}${s.label ? ' has-label' : ''}${i % 2 ? ' is-alt' : ''}`, {
-        title: `${clock(s.start)} → ${clock(s.end)} · ${s.title || KIND_WORDS[s.kind] || ''}${'\n'}Double-clic : en faire le passage du Copilote`,
-        'data-step': s.id,
-      });
-      block.style.left = `${pct(s.start)}%`;
-      block.style.width = `${Math.max(0.3, pct(s.end) - pct(s.start))}%`;
-      block.style.setProperty('--i', String(i));
-      // Le titre d'une bande (l'accord relevé) est écrit dedans quand la place le permet.
-      if (s.label) {
-        block.appendChild(node('span', 'passage-timeline-step-label', { text: s.label }));
-        // Segment étroit : le numéro du chapitre à la place du titre (le titre entier reste en infobulle).
-        block.appendChild(node('span', 'passage-timeline-step-index', { text: String(i + 1), 'aria-hidden': 'true' }));
-      }
-      steps.appendChild(block);
-    });
-    steps.classList.remove('is-entering');
-    // L'entrée des étapes, l'une après l'autre (relancée à chaque nouveau guide).
-    void steps.offsetWidth;
-    steps.classList.add('is-entering');
-  }
-
   function paintNow() {
     playhead.style.left = `${pct(state.now)}%`;
-    for (const block of steps.children) {
-      const s = state.steps.find((x) => x.id === block.dataset.step);
-      block.classList.toggle('is-current', Boolean(s) && state.now >= s.start && state.now < s.end);
-    }
   }
 
   /** Un éclat sur la région : elle vient d'être posée (ou choisie dans le guide). */
@@ -221,17 +177,6 @@ export function createPassageTimeline({ onSeek = () => {}, onRegion = () => {}, 
   track.addEventListener('pointerleave', () => { ghost.hidden = true; });
   ghost.hidden = true;
 
-  // Double-clic sur une étape : elle devient le passage.
-  track.addEventListener('dblclick', (e) => {
-    const t = timeAt(e.clientX);
-    const s = state.steps.find((x) => t >= x.start && t < x.end);
-    if (!s) return;
-    state.range = clampRange(s.start, s.end);
-    paintRegion();
-    flash();
-    onRegion({ ...state.range }, 'step');
-  });
-
   // Les poignées au clavier : une seconde (Maj : cinq).
   for (const [handle, edge] of [[handleStart, 'start'], [handleEnd, 'end']]) {
     handle.addEventListener('keydown', (e) => {
@@ -247,7 +192,7 @@ export function createPassageTimeline({ onSeek = () => {}, onRegion = () => {}, 
   }
 
   /**
-   * @param {{duration?: number, now?: number, range?: {start: number, end: number}|null, steps?: object[]}} next
+   * @param {{duration?: number, now?: number, range?: {start: number, end: number}|null}} next
    */
   function update(next = {}) {
     if (Number.isFinite(next.duration) && next.duration !== state.duration) {
@@ -255,9 +200,7 @@ export function createPassageTimeline({ onSeek = () => {}, onRegion = () => {}, 
       scaleEnd.textContent = clock(next.duration);
     }
     if ('range' in next && !drag) state.range = next.range ? { ...next.range } : null;
-    if (Array.isArray(next.steps)) state.steps = next.steps;
     if (Number.isFinite(next.now)) state.now = next.now;
-    paintSteps();
     paintRegion();
     paintNow();
   }

@@ -702,9 +702,8 @@ check('« Accords relevés » est retiré (frise, liste, réglage gardé)',
 check('Plus de listes Début / Fin : la barre du passage, sous la vidéo, avec « Boucler » et « Effacer »',
   /id="pedagogie-passage"[^>]*hidden[\s\S]*?id="pedagogie-timeline"[\s\S]*?id="pedagogie-region-chip"[\s\S]*?id="pedagogie-passage-loop"[\s\S]*?id="pedagogie-passage-follow"/.test(html)
   && !html.includes('id="pedagogie-passage-start"') && !tabCode.includes('timeOptions('));
-check('La barre : glisser trace une région, ses poignées la règlent, un clic place la vidéo, double-clic sur une étape',
-  timelineCode.includes("mode: onHandle ? `edge-${onHandle}` : inside ? 'move' : 'new'") && timelineCode.includes("if (!d.mode.startsWith('edge')) onSeek(timeAt(e.clientX));")
-  && timelineCode.includes("track.addEventListener('dblclick'") && timelineCode.includes("onRegion({ ...state.range }, 'step');"));
+check('La barre : glisser trace une région, ses poignées la règlent, un clic place la vidéo',
+  timelineCode.includes("mode: onHandle ? `edge-${onHandle}` : inside ? 'move' : 'new'") && timelineCode.includes("if (!d.mode.startsWith('edge')) onSeek(timeAt(e.clientX));"));
 check('La région s\'anime à la pose, l\'en-tête du Copilote s\'allume',
   timelineCode.includes("region.classList.add('is-new');") && readText('src/ui/components/passage-timeline.css').includes('@keyframes passage-region-in')
   && /function pulseMoment\(\) \{/.test(tabCode));
@@ -731,8 +730,12 @@ check('Les modules du guide sont supprimés (guide, chapitres, cases, contrôle 
 check('Le Copilote ne rejoue plus un « résultat final » reconstitué par l\'application',
   !copilotCode.includes('play_final_result') && !copilotCode.includes('guideLines')
   && !readText('src/pedagogie/tutorial-questions.js').includes("kind: 'final'"));
-check('La barre sous la vidéo montre les accords relevés (plus de chapitres)',
-  /steps: chordSteps\(\),/.test(tabCode) && !tabCode.includes('chapterSteps'));
+// [Claude] — 2026-10-16 — Narcisse, sur les bandes dessinées dans la barre : « les enlever et ne
+// laisser qu'une barre vide pour tracer la région. je prefere ».
+check('La barre sous la vidéo est NUE : rien n\'y est dessiné, elle sert à tracer la région',
+  !tabCode.includes('chordSteps') && !tabCode.includes('chapterSteps') && !/steps:/.test(tabCode)
+  && !timelineCode.includes('passage-timeline-step') && !timelineCode.includes('state.steps')
+  && !readText('src/ui/components/passage-timeline.css').includes('passage-timeline-step'));
 // [Claude] — 2026-10-16 — En retirant les onglets, j'ai emporté la règle qui donnait sa hauteur au
 // conteneur du Copilote : la case de conversation sortait de l'écran (Narcisse : « y'a plus de chat
 // pour discuter »). Sans `flex: 1` + `min-height: 0` sur le parent, le `flex: 1` du slot ne vaut rien.

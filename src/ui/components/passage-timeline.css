@@ -1,13 +1,9 @@
 /* [Claude] — 2026-10-14 — La barre du passage (Pédagogie IA) : src/ui/components/passage-timeline.js.
-   Les étapes du tuto en couleurs, la région du Copilote (comme dans le Studio), la tête de lecture.
+   Une barre nue : la région du Copilote (comme dans le Studio) et la tête de lecture. Plus de bandes
+   dessinées dedans depuis le 16/10/2026 (ni étapes, ni chapitres, ni accords).
    Jetons --tr-* : sombre et clair. */
 
 .passage-timeline {
-  --tl-both: var(--tr-accent);
-  --tl-lh: color-mix(in srgb, #5aa6e8 78%, var(--tr-surface));
-  --tl-rh: color-mix(in srgb, var(--tr-green) 88%, var(--tr-surface));
-  --tl-line: color-mix(in srgb, #e0aa55 82%, var(--tr-surface));
-  --tl-talk: color-mix(in srgb, var(--tr-muted) 30%, transparent);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -26,68 +22,8 @@
 }
 
 /* Les étapes : des bandes posées sur le bas de la barre. */
-.passage-timeline-steps { position: absolute; inset: 0; border-radius: 9px; overflow: hidden; pointer-events: none; }
-.passage-timeline-step {
-  position: absolute;
-  top: 9px;
-  bottom: 9px;
-  border-radius: 5px;
-  background: var(--tl-talk);
-  opacity: .78;
-  transform-origin: left center;
-  transition: opacity .2s, top .2s, bottom .2s;
-}
-.passage-timeline-step + .passage-timeline-step { margin-left: 1px; }
-.passage-timeline-step.is-both { background: color-mix(in srgb, var(--tl-both) 70%, transparent); }
-.passage-timeline-step.is-both.is-complete { background: var(--tl-both); }
-.passage-timeline-step.is-lh { background: var(--tl-lh); }
-.passage-timeline-step.is-rh { background: var(--tl-rh); }
-.passage-timeline-step.is-line { background: var(--tl-line); }
 /* Un tuto lu au son (pas de guide) : ses accords, en bandes neutres. */
-.passage-timeline-step.is-chord { background: color-mix(in srgb, var(--tr-muted) 45%, transparent); }
-.passage-timeline-step.is-talk {
-  background: repeating-linear-gradient(135deg, var(--tl-talk) 0 4px, transparent 4px 8px);
-  opacity: 1;
-}
-.passage-timeline-step.is-current { opacity: 1; top: 6px; bottom: 6px; }
-
 /* Les chapitres d'un tuto : de gros segments, le titre écrit dedans (15/10/2026). */
-.passage-timeline-step.has-label {
-  top: 4px;
-  bottom: 4px;
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  padding: 0 9px;
-  border-radius: 7px;
-  overflow: hidden;
-  opacity: 1;
-  container-type: inline-size;
-}
-.passage-timeline-step.is-ch-play { background: color-mix(in srgb, var(--tl-both) 62%, transparent); }
-.passage-timeline-step.is-ch-talk,
-.passage-timeline-step.is-ch-mixed,
-.passage-timeline-step.is-ch-none { background: color-mix(in srgb, var(--tr-muted) 34%, transparent); }
-.passage-timeline-step.has-label.is-alt { filter: brightness(1.22); }
-.passage-timeline-step.has-label.is-current { top: 2px; bottom: 2px; box-shadow: inset 0 0 0 2px var(--tr-accent); }
-.passage-timeline-step-label {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--tr-text);
-  font-size: 12.5px;
-  font-weight: 600;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-.passage-timeline-steps.is-entering .passage-timeline-step {
-  animation: passage-step-in .45s cubic-bezier(.2, .8, .2, 1) both;
-  animation-delay: calc(var(--i, 0) * 35ms);
-}
-@keyframes passage-step-in {
-  from { transform: scaleX(0); opacity: 0; }
-  to { transform: scaleX(1); }
-}
-
 /* Sans région : le reflet des 30 dernières secondes. */
 .passage-timeline-follow {
   position: absolute;
@@ -192,14 +128,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .passage-timeline-steps.is-entering .passage-timeline-step,
   .passage-timeline-region.is-new { animation: none; }
   .passage-timeline-playhead,
   .passage-timeline-follow { transition: none; }
-}
-
-.passage-timeline-step-index { display: none; color: var(--tr-text); font-size: 12.5px; font-weight: 700; }
-@container (max-width: 112px) {
-  .passage-timeline-step-label { display: none; }
-  .passage-timeline-step-index { display: inline; }
 }

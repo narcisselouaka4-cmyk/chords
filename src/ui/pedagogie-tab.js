@@ -1005,9 +1005,6 @@ function renderPassageBar() {
     duration: Number.isFinite(duration) && duration > 0 ? duration : (Number(analysis.stats?.duration) || 0),
     now: Number(els.videoPlayer?.currentTime) || 0,
     range: passage,
-    // Les accords relevés, en bandes neutres. Les étapes du moteur, qui parlent de mains (ADR-054),
-    // ne s'affichent plus ; les chapitres sont partis avec le guide (16/10/2026).
-    steps: chordSteps(),
   });
   if (els.timelineTip && !timelineTipSeen()) els.timelineTip.hidden = false;
   const chipKey = passage ? `${passage.start}|${passage.end}` : 'suit';
@@ -1817,13 +1814,6 @@ function renderFormat() {
  * Frise des accords relevés, sous la vidéo : un clic place la vidéo à l'accord ;
  * l'accord en cours et ceux du passage dont parle le Copilote sont marqués.
  */
-/** Les accords relevés, en étapes pour la barre du tuto, sous la vidéo. */
-function chordSteps() {
-  return (analysis?.segments || [])
-    .filter((s) => Number.isFinite(s?.start) && Number.isFinite(s?.end) && s.end > s.start && s.chord?.resolved && s.chord.label)
-    .map((s, i) => ({ id: `c${i + 1}`, kind: 'chord', start: s.start, end: s.end, title: s.chord.label }));
-}
-
 /**
  * Panneau du Copilote : la conversation y est amarrée quand la vue est affichée, et
  * le Copilote passe en mode tutoriel sur ce tuto. Une ligne dit ce qu'il sait (ou
