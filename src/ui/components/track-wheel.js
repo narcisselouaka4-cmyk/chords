@@ -133,10 +133,20 @@ export function createTrackWheel({ root, onOpen, onRename, onDelete, onClose }) 
   // ---- structure ----
   const dial = node('div', 'track-wheel-dial', { role: 'listbox', 'aria-label': 'Morceaux importés', tabindex: '0' });
   const disc = node('div', 'track-wheel-disc', { 'aria-hidden': 'true' });
-  const ticks = node('div', 'track-wheel-ticks', { 'aria-hidden': 'true' });
+  // [Claude] — 2026-10-16 — Le disque est un VINYLE (Narcisse : « au lieu d'un simple demi-cercle
+  // basique qui ne raconte rien […] pourquoi ne pas en faire un demi-disque de musique ? Genre un
+  // vinyle de DJ »). Ce qui tourne avec la roue est rassemblé ici : les sillons marqués, l'étiquette
+  // centrale et son reflet. Les sillons concentriques, eux, ne tourneraient pas visiblement — c'est
+  // l'étiquette qui donne le mouvement, exactement comme sur une platine.
+  const spin = node('div', 'track-wheel-spin', { 'aria-hidden': 'true' });
+  const ticks = node('div', 'track-wheel-ticks');
+  const label = node('div', 'track-wheel-label');
+  label.append(node('span', 'track-wheel-label-text', {}, 'PIANO JAZZ CHORDS'), node('i', 'track-wheel-spindle'));
+  spin.append(ticks, label);
+  const shine = node('div', 'track-wheel-shine', { 'aria-hidden': 'true' });
   const marker = node('div', 'track-wheel-marker', { 'aria-hidden': 'true' });
   const itemsLayer = node('div', 'track-wheel-items');
-  dial.append(disc, ticks, itemsLayer, marker);
+  dial.append(disc, spin, shine, itemsLayer, marker);
 
   const side = node('div', 'track-wheel-side');
   const backBtn = node('button', 'track-wheel-back', { type: 'button' }, `${SVG.back}<span>Retour</span>`);
@@ -239,7 +249,7 @@ export function createTrackWheel({ root, onOpen, onRename, onDelete, onClose }) 
       }
     }
     // Les graduations tournent avec la roue.
-    ticks.style.transform = `rotate(${(-offset * WHEEL_STEP_DEG).toFixed(2)}deg)`;
+    spin.style.transform = `rotate(${(-offset * WHEEL_STEP_DEG).toFixed(2)}deg)`;
   }
 
   function tick(now) {

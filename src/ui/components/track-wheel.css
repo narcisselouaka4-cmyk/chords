@@ -33,8 +33,20 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--tr-accent, #b8a0f3) 70%, transparent), inset 0 0 80px color-mix(in srgb, var(--tr-accent, #b8a0f3) 10%, transparent);
 }
 
-/* Le disque : un demi-disque (la moitié gauche sort de l'écran), qui grandit depuis son centre. */
-.track-wheel-disc {
+/* ── Le VINYLE (16/10/2026) ──────────────────────────────────────────────────────
+   Narcisse : « au lieu que ce soit un simple demi-cercle basique qui ne raconte
+   rien […] pourquoi ne pas en faire un demi-disque de musique ? Genre un vinyle de
+   DJ ». Le demi-disque devient un 33 tours posé sur sa platine : corps noir, sillons
+   concentriques, étiquette centrale coupée par le bord de l'écran, et un reflet fixe
+   qui balaie la surface — c'est le reflet qui reste immobile pendant que le disque
+   tourne, comme sous une vraie lampe.
+
+   Trois couches superposées, toutes centrées sur le centre de la roue (bord gauche) :
+   `disc` (le corps et ses sillons, immobile), `spin` (ce qui tourne : sillons marqués
+   et étiquette), `shine` (le reflet, immobile). */
+.track-wheel-disc,
+.track-wheel-spin,
+.track-wheel-shine {
   position: absolute;
   top: 50%;
   left: 0;
@@ -42,34 +54,116 @@
   height: calc(var(--wheel-r) * 2 - 8px);
   margin: calc(var(--wheel-r) * -1 + 4px) 0 0 calc(var(--wheel-r) * -1 + 4px);
   border-radius: 50%;
-  border: 1px solid var(--tr-border, #303036);
+  pointer-events: none;
+}
+
+/* Le corps du disque : noir profond, et des sillons fins, serrés, qui s'arrêtent avant l'étiquette. */
+.track-wheel-disc {
+  border: 1px solid #000;
   background:
-    radial-gradient(circle at center, transparent 0 56%, color-mix(in srgb, var(--tr-accent, #b8a0f3) 9%, transparent) 100%),
-    var(--tr-surface, #1c1c20);
-  box-shadow: inset 0 0 70px color-mix(in srgb, var(--tr-accent, #b8a0f3) 7%, transparent), 0 30px 70px -40px #000000b3;
+    /* les sillons */
+    repeating-radial-gradient(circle at center,
+      rgba(255, 255, 255, .055) 0 1px,
+      rgba(0, 0, 0, .55) 1px 3px),
+    /* le noir du vinyle, légèrement teinté de l'accent vers le bord */
+    radial-gradient(circle at center,
+      #14131a 0 31%,
+      #0d0c11 33%,
+      #141319 62%,
+      color-mix(in srgb, var(--tr-accent, #b8a0f3) 10%, #0b0a0e) 100%);
+  box-shadow:
+    inset 0 0 90px rgba(0, 0, 0, .9),
+    inset 0 0 0 1px rgba(255, 255, 255, .05),
+    0 30px 70px -40px #000000e6;
   transform: scale(.12);
   opacity: 0;
   transition: transform .75s cubic-bezier(.2, .9, .25, 1), opacity .35s ease, box-shadow .2s ease;
 }
 .track-wheel.is-open .track-wheel-disc { transform: none; opacity: 1; }
+.track-wheel-dial:focus-visible .track-wheel-disc {
+  box-shadow:
+    inset 0 0 90px rgba(0, 0, 0, .9),
+    0 0 0 2px color-mix(in srgb, var(--tr-accent, #b8a0f3) 70%, transparent),
+    0 30px 70px -40px #000000e6;
+}
 
-/* Graduations sur le bord du disque : elles tournent avec la roue (transform posé en JS). */
-.track-wheel-ticks {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  width: calc(var(--wheel-r) * 2 - 8px);
-  height: calc(var(--wheel-r) * 2 - 8px);
-  margin: calc(var(--wheel-r) * -1 + 4px) 0 0 calc(var(--wheel-r) * -1 + 4px);
-  border-radius: 50%;
-  background: repeating-conic-gradient(from -.4deg, color-mix(in srgb, var(--tr-text, #f0eff3) 38%, transparent) 0 .8deg, transparent .8deg 5deg);
-  -webkit-mask-image: radial-gradient(circle closest-side, transparent calc(100% - 15px), #000 calc(100% - 15px), #000 calc(100% - 6px), transparent calc(100% - 6px));
-  mask-image: radial-gradient(circle closest-side, transparent calc(100% - 15px), #000 calc(100% - 15px), #000 calc(100% - 6px), transparent calc(100% - 6px));
-  pointer-events: none;
+/* Ce qui tourne. Des sillons parfaitement concentriques ne montreraient aucun mouvement :
+   l'étiquette et les marques du bord donnent la rotation, comme sur une platine. */
+.track-wheel-spin {
   opacity: 0;
   transition: opacity .5s ease .3s;
 }
-.track-wheel.is-open .track-wheel-ticks { opacity: 1; }
+.track-wheel.is-open .track-wheel-spin { opacity: 1; }
+
+/* Les marques du bord (la zone de sortie du sillon). */
+.track-wheel-ticks {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from -.4deg, rgba(255, 255, 255, .22) 0 .8deg, transparent .8deg 5deg);
+  -webkit-mask-image: radial-gradient(circle closest-side, transparent calc(100% - 15px), #000 calc(100% - 15px), #000 calc(100% - 6px), transparent calc(100% - 6px));
+  mask-image: radial-gradient(circle closest-side, transparent calc(100% - 15px), #000 calc(100% - 15px), #000 calc(100% - 6px), transparent calc(100% - 6px));
+}
+
+/* L'étiquette : le rond de papier au centre, coupé par le bord gauche de l'écran. */
+.track-wheel-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 31%;
+  aspect-ratio: 1;
+  margin: -15.5% 0 0 -15.5%;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 38% 32%, color-mix(in srgb, #fff 22%, transparent), transparent 46%),
+    conic-gradient(from 210deg, color-mix(in srgb, var(--tr-accent, #b8a0f3) 92%, #000), color-mix(in srgb, var(--tr-accent, #b8a0f3) 58%, #120f1a) 55%, color-mix(in srgb, var(--tr-accent, #b8a0f3) 92%, #000));
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .35), 0 0 22px -6px color-mix(in srgb, var(--tr-accent, #b8a0f3) 60%, transparent);
+}
+/* Le titre suit la courbe de l'étiquette : posé en haut, tourné avec elle. */
+.track-wheel-label-text {
+  position: absolute;
+  top: 12%;
+  right: 12%;
+  max-width: 46%;
+  color: #15121d;
+  font: 700 9px/1.2 var(--tr-mono, ui-monospace, monospace);
+  letter-spacing: .14em;
+  text-align: right;
+  opacity: .72;
+}
+.track-wheel-spindle {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #08070b;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .9), 0 0 0 1px rgba(255, 255, 255, .08);
+}
+
+/* Le reflet : deux lobes de lumière opposés, immobiles. C'est lui qui fait « vinyle »
+   plutôt que « rond noir » — et il ne tourne pas, puisque la lampe ne tourne pas. */
+.track-wheel-shine {
+  background:
+    conic-gradient(from 150deg,
+      transparent 0deg,
+      rgba(255, 255, 255, .085) 26deg,
+      transparent 62deg,
+      transparent 180deg,
+      rgba(255, 255, 255, .055) 208deg,
+      transparent 244deg,
+      transparent 360deg);
+  -webkit-mask-image: radial-gradient(circle closest-side, transparent 0 30%, #000 34%, #000 99%, transparent 100%);
+  mask-image: radial-gradient(circle closest-side, transparent 0 30%, #000 34%, #000 99%, transparent 100%);
+  mix-blend-mode: screen;
+  opacity: 0;
+  transition: opacity .6s ease .35s;
+}
+.track-wheel.is-open .track-wheel-shine { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .track-wheel-disc { transition: opacity .2s ease; transform: none; }
+}
 
 /* Repère fixe à 3 h : le morceau qui s'y arrête est le morceau choisi. */
 .track-wheel-marker {

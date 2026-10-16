@@ -1,4 +1,5 @@
 // Tests Node de la géométrie de la roue des morceaux (track-wheel.js) : pas de DOM ici.
+import fs from 'node:fs';
 import {
   WHEEL_STEP_DEG, WHEEL_MAX_DEG, clampOffset, snapOffset, dragToOffset, settleOffset, easeOutBack, unfoldProgress, itemPose,
 } from './track-wheel.js';
@@ -47,6 +48,20 @@ check('easeOutBack : 0 → 0, 1 → 1, dépasse 1 en route', near(easeOutBack(0)
 check('le déploiement part du morceau choisi : les proches partent avant les lointains', unfoldProgress(100, 0) > unfoldProgress(100, 6));
 check('le déploiement finit', unfoldProgress(5000, 20) === 1 && unfoldProgress(0, 0) === 0);
 check('le retard est plafonné (la roue ne met pas des secondes à s\'ouvrir)', unfoldProgress(1000, 500) === 1);
+
+// [Claude] — 2026-10-16 — Le disque est un VINYLE (Narcisse : « genre un vinyle de DJ »). Ce qui
+// tourne est le calque `spin` (sillons marqués + étiquette) : des sillons concentriques seuls ne
+// montreraient aucun mouvement. Le reflet, lui, ne tourne pas — la lampe ne tourne pas non plus.
+{
+  const css = fs.readFileSync(new URL('./track-wheel.css', import.meta.url), 'utf8');
+  const js = fs.readFileSync(new URL('./track-wheel.js', import.meta.url), 'utf8');
+  check('Le disque a des sillons et un corps noir', /repeating-radial-gradient/.test(css) && /\.track-wheel-disc[\s\S]{0,600}#0d0c11/.test(css));
+  check('Une étiquette centrale, avec son axe', /\.track-wheel-label \{/.test(css) && /\.track-wheel-spindle \{/.test(css)
+    && js.includes("node('div', 'track-wheel-label')") && js.includes("track-wheel-spindle"));
+  check('C\'est le calque tournant qui porte l\'étiquette', js.includes("spin.append(ticks, label)")
+    && js.includes('spin.style.transform = `rotate('));
+  check('Le reflet ne tourne pas avec le disque', /\.track-wheel-shine \{/.test(css) && !js.includes('shine.style.transform'));
+}
 
 console.log(`\n${pass} réussis, ${fail} échoués`);
 if (fail) process.exit(1);
