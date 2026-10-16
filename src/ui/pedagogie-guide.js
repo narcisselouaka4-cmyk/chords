@@ -128,10 +128,11 @@ export function createGuidePanel({ onSeek = () => {}, onRegion = () => {}, onPla
       c.degree ? el('span', { className: 'pedago-hl-chord-degree', text: c.degree }) : null,
       el('span', { className: 'pedago-hl-chord-name', text: c.name }),
     ])));
-    return el('div', { className: 'pedago-hl-written' }, [
-      h.keyName ? el('span', { className: 'pedago-hl-key', text: h.keyName }) : null,
-      row,
-    ]);
+    // [Claude] — 2026-10-16 — Quand le prof annonce sa tonalité, c'est la sienne qui s'affiche et non
+    // celle devinée : dit au survol, sans alourdir la case (« Drop 2 » : « the key of C sharp »).
+    const keyChip = h.keyName ? el('span', { className: `pedago-hl-key${h.keySaid ? ' is-said' : ''}`, text: h.keyName }) : null;
+    if (keyChip && h.keySaid) keyChip.title = `La tonalité que le prof annonce : « ${h.keySaid} »`;
+    return el('div', { className: 'pedago-hl-written' }, [keyChip, row]);
   }
 
   /** Une case « enseignement » (la progression complète, ou un mouvement quand il n'y a pas de chapitres). */

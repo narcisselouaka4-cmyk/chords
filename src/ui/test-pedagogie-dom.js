@@ -738,12 +738,20 @@ check('La barre prend la durée de l\'analyse tant que la vidéo n\'est pas char
 
 
 check('Les chapitres du tuto : bornes décidées par le moteur, titres français demandés à l\'IA et gardés dans la fiche',
-  /function tutorialChapters\(\)/.test(tabCode) && tabCode.includes('buildChapters({') && tabCode.includes('chapterMessages(chapters, { moveTitles })')
+  /function tutorialChapters\(\)/.test(tabCode) && tabCode.includes('buildChapters({') && /chapterMessages\(chapters, \{ moveTitles, spoken:/.test(tabCode)
   && tabCode.includes('updateCard(path, { chaptersFr:') && readText('src/pedagogie/guide-chapters.js').includes('Les BORNES sont décidées ici, par le moteur'));
 check('Les chapitres s\'écrivent dans la barre sous la vidéo (titre dans chaque segment), sans légende des mains',
   readText('src/ui/components/passage-timeline.js').includes('passage-timeline-step-label') && /function chapterSteps\(\)/.test(tabCode)
   && !html.includes('pedagogie-timeline-legend') && !html.includes('Main gauche</span>'));
 check('Plus de résumés par étape (remplacés par les titres de chapitres)',
   !tabCode.includes('requestGuideSummaries') && !tabCode.includes('guideFr'));
+// [Claude] — 2026-10-16 — Ce que le prof annonce (tonalité, degrés, ses mots) remonte à l'écran et au
+// Copilote : le guide disait « 4 → 1 » quand le tuto dit « from the chord I to the chord V ».
+check('La tonalité annoncée par le prof est dite au survol de la pastille',
+  guideUiCode.includes('h.keySaid') && /La tonalité que le prof annonce/.test(guideUiCode)
+  && readText('src/ui/refonte/pedagogie-guide.css').includes('.pedago-hl-key.is-said'));
+check('Le guide lit la théorie annoncée dans la transcription (tonalité, degrés, vocabulaire)',
+  readText('src/pedagogie/tutorial-guide.js').includes('readSpokenTheory(transcript)')
+  && /transcript: narrationView\.map\(\(n\) => \(\{ start: n\.start, end: n\.end, text: n\.text \}\)\)/.test(tabCode));
 console.log(`\n=== Résultat : ${passed}/${total} contrôles passés ===`);
 if (passed < total) process.exitCode = 1;

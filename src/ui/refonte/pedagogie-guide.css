@@ -381,6 +381,8 @@
 /* ---- Progression écrite (degré + nom d'accord), sous la case « progression complète » (16/10/2026) ---- */
 .pedago-hl-written { display: flex; flex-direction: column; gap: 6px; padding: 0 12px 10px; }
 .pedago-hl-key { align-self: flex-start; padding: 1px 8px; border-radius: 999px; background: var(--tr-inset); color: var(--tr-secondary); font-size: 12.5px; font-weight: 600; }
+/* Tonalité annoncée par le prof (16/10/2026) : la pastille s'affirme un peu, le détail au survol. */
+.pedago-hl-key.is-said { background: color-mix(in srgb, var(--tr-accent, #7aa2f7) 16%, var(--tr-inset)); color: var(--tr-primary); cursor: help; }
 .pedago-hl-chords { display: flex; flex-wrap: wrap; gap: 6px; }
 .pedago-hl-chord {
   display: inline-flex;

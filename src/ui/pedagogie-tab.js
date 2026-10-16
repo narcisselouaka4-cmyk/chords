@@ -2094,7 +2094,9 @@ function tutorialGuide() {
     guide = buildTutorialGuide({
       segments: view?.filterChords ? chordsWhilePlaying(segments, view.spans) : segments,
       noteEvents: view?.played || analysis.noteEvents || [],
-      transcript: narrationView.map((n) => ({ start: n.start, text: n.text })),
+      // `end` compte : une ligne parlée peut durer 40 s, et spoken-theory.js y situe chaque mot
+      // (« the key of C sharp » à 1:09, pas au début de la ligne).
+      transcript: narrationView.map((n) => ({ start: n.start, end: n.end, text: n.text })),
       duration: Number.isFinite(els.videoPlayer?.duration) ? els.videoPlayer.duration : (analysis.stats?.duration || null),
     });
   } catch (err) {
@@ -2170,7 +2172,7 @@ async function requestChapterTitles(path, chapters, highlights) {
   try {
     const res = await callChatCompletions(config.baseUrl, config.apiKey, {
       model: config.model,
-      messages: chapterMessages(chapters, { moveTitles }),
+      messages: chapterMessages(chapters, { moveTitles, spoken: tutorialGuide()?.spoken || null }),
       temperature: 0.2,
     }, { timeoutMs: 60000 });
     if (!res.ok) return;

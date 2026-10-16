@@ -29,7 +29,8 @@
 //
 // Module pur, testé par test-tutorial-guide.js.
 
-import { harmonicTokens, structureKey, keyName, degreeLabel, respell, songStructure } from './song-structure.js';
+import { harmonicTokens, structureKey, keyName, degreeLabel, respell, songStructure, keyCoverage } from './song-structure.js';
+import { readSpokenTheory, spokenKeyFor, termsNear, movementSaid, keyText as spokenKeyText, NO_SPOKEN_THEORY } from './spoken-theory.js';
 import { parseChordName } from './note-roles.js';
 import { chordFamily, chordsExample } from './tutorial-transfer.js';
 import { passageExample, transposeInterval } from './teacher-notes.js';
@@ -52,6 +53,13 @@ const KEY_CHANGE_CHORDS = 3;
 const KEY_CHANGE_SECONDS = 6;
 /** Une partie doit compter au moins ceci de jeu des deux mains (s), sinon elle rejoint sa voisine. */
 const MIN_PART_SECONDS = 12;
+/**
+ * [Claude] — 2026-10-16 — La tonalité qu'il ANNONCE l'emporte sur celle que le moteur devine, tant que
+ * ce qu'il joue la soutient à peu près aussi bien (sa phrase peut être mal transcrite, ou ne concerner
+ * qu'un exemple). Mesuré : « Drop 2 » annoncé 100 % contre 95 % devinés → sa phrase gagne ; salsa
+ * annoncée 73 % contre 91 % → le jeu gagne.
+ */
+const SAID_KEY_MARGIN = 0.05;
 
 const pcOf = (n) => ((n % 12) + 12) % 12;
 const round2 = (x) => Math.round(x * 100) / 100;
@@ -295,6 +303,30 @@ function keyOfSteps(steps) {
   return tokens.length >= 2 ? structureKey(null, tokens) : null;
 }
 
+/**
+ * [Claude] — 2026-10-16 — La tonalité d'une partie, le prof ayant le dernier mot sur le moteur.
+ *
+ * Mesuré sur « Passing chords… Drop 2 Inner Voicings » : il annonce « the key of C sharp », puis
+ * « your chord I, C sharp, and your chord V, which is your A flat », et le moteur devinait La♭ majeur
+ * — le guide affichait « 4 → 1 » là où le tuto montre « 1 → 5 ». Tous ses degrés étaient donc faux.
+ * Sa phrase n'est retenue que si ce qu'il joue la soutient (`SAID_KEY_MARGIN`) : sur la vidéo de salsa,
+ * il annonce Sol mineur mais joue en Si mineur, et c'est le jeu qui l'emporte.
+ *
+ * @returns {{key: object, said: {text: string, at: number}|null}}
+ */
+function keyOfPart(part, measured, spoken) {
+  const said = spokenKeyFor(spoken, part.start, part.end);
+  if (!said) return { key: measured, said: null };
+  const candidate = structureKey(spokenKeyText(said.pc, said.minor));
+  if (!candidate) return { key: measured, said: null };
+  if (candidate.rootPc === measured.rootPc && candidate.minor === measured.minor) {
+    return { key: { ...measured, guessed: false, said: true }, said: { text: said.text, at: said.at } };
+  }
+  const tokens = harmonicTokens(part.steps.flatMap((s) => chordsOfMoments(s.moments)));
+  if (keyCoverage(candidate, tokens) < keyCoverage(measured, tokens) - SAID_KEY_MARGIN) return { key: measured, said: null };
+  return { key: { ...candidate, said: true }, said: { text: said.text, at: said.at } };
+}
+
 // Même armure : Do majeur et La mineur (ou Ré mineur pris pour la tonalité d'une boucle qui
 // commence par Ré m) jouent les mêmes notes : ce n'est pas un changement de tonalité.
 const signature = (k) => pcOf(k.rootPc - (k.minor ? 9 : 0));
@@ -305,7 +337,7 @@ const sameKey = (a, b) => a && b && signature(a) === signature(b);
  * reconnaît à ses NOTES (deux classes de hauteur au moins jamais jouées des deux mains dans la
  * partie) plutôt qu'à une tonalité devinée : Ré m9 – Fa maj9 – La m7 – Do maj7, c'est encore Do.
  */
-export function buildParts(steps) {
+export function buildParts(steps, { spoken = NO_SPOKEN_THEORY } = {}) {
   const parts = [];
   let cur = null;
   for (const s of steps) {
@@ -334,10 +366,13 @@ export function buildParts(steps) {
     parts.splice(i, 1);
   }
   // La tonalité de chaque partie, sur tout ce qu'il y joue des deux mains (sinon tous ses accords,
-  // sinon la voisine).
+  // sinon la voisine) — puis celle qu'il annonce, si son jeu la soutient.
   parts.forEach((p, i) => {
     const both = p.steps.filter((s) => s.kind === 'both');
-    p.key = (both.length ? keyOfSteps(both) : null) || p.key || keyOfSteps(p.steps) || parts[i - 1]?.key || parts[i + 1]?.key || { rootPc: 0, minor: false, flats: false, guessed: true };
+    const measured = (both.length ? keyOfSteps(both) : null) || p.key || keyOfSteps(p.steps) || parts[i - 1]?.key || parts[i + 1]?.key || { rootPc: 0, minor: false, flats: false, guessed: true };
+    const chosen = keyOfPart(p, measured, spoken);
+    p.key = chosen.key;
+    p.saidKey = chosen.said;
   });
   return parts;
 }
@@ -353,16 +388,25 @@ export function degreeIn(key, label) {
 /** Le degré nu : « 6(m) » → « 6 », « b7 » → « b7 ». */
 export const bareDegree = (degree) => String(degree || '').replace(/\(.*\)$/, '');
 
-/** La progression d'une partie : la boucle de ce qu'il joue des deux mains (sinon de tout). */
+/**
+ * La progression d'une partie : la boucle de ce qu'il joue des deux mains (sinon de tout).
+ *
+ * [Claude] — 2026-10-16 — La tonalité de la partie est DONNÉE à `songStructure`, et la fondamentale de
+ * chaque accord est lue sur son nom. Sans cela, `songStructure` devinait sa propre tonalité et les
+ * `interval` rendus se comptaient depuis SON tonique, alors que `pc` les rajoutait à celui de la
+ * partie : dès que les deux différaient, tous les `pc` étaient faux. Révélé par la tonalité annoncée
+ * (« Drop 2 » : partie en Ré♭, structure devinée en La♭ → 5 demi-tons d'écart, plus aucun accord
+ * reconnu dans sa propre boucle, donc zéro mouvement relevé).
+ */
 function partProgression(part) {
   const both = part.steps.filter((s) => s.kind === 'both');
   const chords = chordsOfMoments((both.length ? both : part.steps).flatMap((s) => s.moments));
-  const structure = chords.length >= 2 ? songStructure({ chords }) : null;
+  const structure = chords.length >= 2 ? songStructure({ chords, key: keyTextOf(part.key) }) : null;
   const loop = structure?.sections.find((s) => s.kind === 'loop');
   if (loop) {
     return {
       loop: true,
-      chords: loop.pattern.map((x) => ({ name: respell(x.name, part.key), degree: degreeIn(part.key, x.name) || x.degree, pc: pcOf(part.key.rootPc + x.interval) })),
+      chords: loop.pattern.map((x) => ({ name: respell(x.name, part.key), degree: degreeIn(part.key, x.name) || x.degree, pc: rootOf(x.name) ?? pcOf(part.key.rootPc + x.interval) })),
       secondsPerCycle: loop.secondsPerCycle,
       cycles: loop.cycles,
     };
@@ -380,6 +424,8 @@ function partProgression(part) {
 }
 
 const KEY_NAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+/** « Db », « Am » : la tonalité d'une partie telle que `structureKey` la lit. */
+const keyTextOf = (key) => (key ? `${KEY_NAMES[pcOf(key.rootPc)]}${key.minor ? 'm' : ''}` : null);
 
 const KIND_OF = { major: 'M', dominant: 'M', sus: 'M', other: 'M', minor: 'm', halfdim: 'ø', dim: '°' };
 const kindOfLabel = (label) => KIND_OF[chordFamily(parseChordName(label)?.quality || '')] || 'M';
@@ -421,7 +467,9 @@ function alignKeys(parts) {
   const progressions = parts.map((p) => partProgression(p));
   const order = parts.map((_, i) => i)
     .filter((i) => progressions[i].loop)
-    .sort((a, b) => (parts[b].end - parts[b].start) - (parts[a].end - parts[a].start));
+    // [Claude] — 2026-10-16 — Une partie dont le prof ANNONCE la tonalité sert de référence avant
+    // toute autre : c'est elle qui fixe la lecture en degrés de tout le tuto.
+    .sort((a, b) => (parts[b].key?.said ? 1 : 0) - (parts[a].key?.said ? 1 : 0) || (parts[b].end - parts[b].start) - (parts[a].end - parts[a].start));
   const ref = order[0];
   if (ref == null) return progressions;
   const refKey = parts[ref].key;
@@ -431,6 +479,17 @@ function alignKeys(parts) {
     const match = transposedLoop(p, refProg);
     if (!match) return;
     const rootPc = pcOf(refKey.rootPc + match.offset);
+    // Sa tonalité annoncée n'est pas recalculée depuis une autre partie : il l'a dite.
+    if (p.key?.said) {
+      progressions[i] = {
+        loop: true,
+        chords: refProg.chords.map((c, k) => ({ name: respell(match.names[k], p.key), degree: degreeIn(p.key, match.names[k]) || c.degree, pc: pcOf(c.pc + match.offset) })),
+        secondsPerCycle: refProg.secondsPerCycle,
+        cycles: 0,
+        transposedFrom: parts[ref],
+      };
+      return;
+    }
     p.key = structureKey(`${KEY_NAMES[rootPc]}${refKey.minor ? 'm' : ''}`);
     progressions[i] = {
       loop: true,
@@ -738,8 +797,11 @@ function describeStep(step, part, progression, { first }) {
 export function buildTutorialGuide({ segments = [], noteEvents = [], transcript = [], duration = null } = {}) {
   const moments = assignHands(guideMoments(segments, noteEvents));
   if (!moments.length) return null;
+  // [Claude] — 2026-10-16 — Ce que le prof DIT de sa théorie : sa tonalité fixe les degrés de tout le
+  // guide, les degrés qu'il nomme désignent le mouvement dont parle le tuto, et ses mots le nomment.
+  const spoken = readSpokenTheory(transcript);
   const rawSteps = buildSteps(moments, { transcript, duration });
-  const parts = buildParts(rawSteps);
+  const parts = buildParts(rawSteps, { spoken });
   const progressions = alignKeys(parts);
   const steps = [];
   const outParts = [];
@@ -779,13 +841,34 @@ export function buildTutorialGuide({ segments = [], noteEvents = [], transcript 
       end: round2(part.end),
       key: part.key,
       keyName: keyName(part.key),
+      saidKey: part.saidKey || null,
       progression,
       sameAs: same ? same.id : null,
       final,
       steps: stepIds,
     });
   });
-  return { version: GUIDE_VERSION, steps, parts: outParts, movements };
+  // Ce que le prof dit de chaque mouvement : nomme-t-il ses deux degrés ? quels mots emploie-t-il
+  // en le jouant ? C'est ainsi que le tuto désigne lui-même son sujet (« from the chord I to the
+  // chord V using a drop 2 movement ») plutôt que l'application de choisir à sa place.
+  for (const m of movements) {
+    const said = movementSaid(spoken, bareDegree(m.from.degree), bareDegree(m.to.degree));
+    // Les mots prononcés PENDANT l'un de ses passages, chacun pris séparément. Mesuré : en prenant
+    // d'un seul coup du premier au dernier (sept passages étalés sur 19 min d'« Above All »), tout le
+    // vocabulaire de la vidéo se collait à chaque mouvement — « renversement · drop 2 » partout.
+    m.said = { ...said, terms: uniq(m.times.flatMap((t) => termsNear(spoken, t.start, t.end))) };
+  }
+  return { version: GUIDE_VERSION, steps, parts: outParts, movements, spoken: summarizeSpoken(spoken) };
+}
+
+/** Ce que le prof annonce, pour l'écran et le Copilote (jamais une déduction : ses mots). */
+function summarizeSpoken(spoken) {
+  return {
+    keys: spoken.keys.map((k) => ({ at: k.at, name: keyName(structureKey(spokenKeyText(k.pc, k.minor))), text: k.text })),
+    degreeCount: spoken.degreeCount,
+    terms: uniq(spoken.terms.map((t) => t.name)),
+    progressions: spoken.progressions.map((p) => ({ at: p.at, degrees: p.degrees })),
+  };
 }
 
 // ── Recherche d'un mouvement (« du 1 au 6 ») ─────────────────────────────────
@@ -834,6 +917,18 @@ export function guideLines(guide, { maxSteps = 24, maxMovements = 16 } = {}) {
   if (!guide) return [];
   const out = ['', '## Guide du tuto (calculé par l\'application d\'après ce qu\'il joue : ses étapes, son résultat final, ses mouvements)'];
   out.push('Ce que le pianiste voit à l\'écran : la liste des étapes, le résultat final (à écouter), et les mouvements. Appuie-toi dessus ; ne cite que ce qui y est.');
+  // [Claude] — 2026-10-16 — Ce que le prof ANNONCE, mot pour mot : c'est la source la plus sûre, et
+  // elle a priorité sur tout relevé. Sans ce bloc, le Copilote pouvait affirmer « 4 → 1 » quand le
+  // prof dit « from the chord I to the chord V » — Narcisse : « ce n'est pas bon du tout pour la fiabilité ».
+  const sp = guide.spoken;
+  if (sp && (sp.keys.length || sp.terms.length || Object.keys(sp.degreeCount).length)) {
+    out.push('Ce que le PROF ANNONCE lui-même (priorité absolue sur tout relevé : s\'il le dit, c\'est vrai) :');
+    if (sp.keys.length) out.push(`- tonalité(s) annoncée(s) : ${sp.keys.map((k) => `${k.name} (« ${k.text} », à ${clock(k.at)})`).join(' ; ')}`);
+    const named = Object.entries(sp.degreeCount).sort((a, b) => b[1] - a[1]);
+    if (named.length) out.push(`- degrés qu'il nomme à voix haute : ${named.map(([d, n]) => `${d} (${n} fois)`).join(', ')}`);
+    if (sp.progressions.length) out.push(`- suites de degrés qu'il énonce : ${uniq(sp.progressions.map((p) => p.degrees.join('-'))).slice(0, 6).join(' ; ')}`);
+    if (sp.terms.length) out.push(`- vocabulaire qu'il emploie : ${sp.terms.join(', ')} (emploie SES mots, pas d'autres)`);
+  }
   for (const p of guide.parts) {
     const prog = p.progression.chords.map((c) => `${c.degree} (${c.name})`).join(' – ');
     out.push(`Partie ${p.id.slice(1)} — ${p.keyName} (${clock(p.start)} → ${clock(p.end)}) : ${p.progression.loop ? `boucle ${prog}` : `accords principaux ${prog}`}${p.sameAs ? ` — la même progression que la partie ${p.sameAs.slice(1)}, dans une autre tonalité` : ''}.`);
@@ -861,8 +956,12 @@ export function guideLines(guide, { maxSteps = 24, maxMovements = 16 } = {}) {
   if (guide.steps.length > maxSteps) out.push(`… (${guide.steps.length - maxSteps} étapes de plus)`);
   if (guide.movements.length) {
     out.push('Mouvements harmoniques montrés dans le tuto (degrés de la tonalité de leur partie) :');
-    for (const m of guide.movements.slice(0, maxMovements)) {
-      out.push(`- ${m.from.degree} → ${m.to.degree} (${m.from.name} → ${m.to.name}) : ${movementKindText(m)} ; à ${m.times.slice(0, 3).map((t) => clock(t.start)).join(', ')}${m.times.length > 3 ? '…' : ''} [id ${m.id}]`);
+    // Ceux qu'il nomme en premier : ce sont eux le sujet du tuto.
+    const ranked = [...guide.movements].sort((a, b) => (b.said?.pair ? 1 : 0) - (a.said?.pair ? 1 : 0) || (b.said?.degrees || 0) - (a.said?.degrees || 0));
+    for (const m of ranked.slice(0, maxMovements)) {
+      const says = m.said?.pair ? ' — IL L\'ANNONCE lui-même' : m.said?.degrees === 2 ? ' — il nomme ses deux degrés' : '';
+      const words = m.said?.terms?.length ? ` — il dit : ${m.said.terms.join(', ')}` : '';
+      out.push(`- ${m.from.degree} → ${m.to.degree} (${m.from.name} → ${m.to.name}) : ${movementKindText(m)} ; à ${m.times.slice(0, 3).map((t) => clock(t.start)).join(', ')}${m.times.length > 3 ? '…' : ''}${says}${words} [id ${m.id}]`);
     }
     out.push('Pour faire entendre un mouvement tel que le prof le joue : play_tutorial_passage (start, end de l\'un de ses moments).');
     out.push('Si on te demande un mouvement que cette liste ne contient pas, dis que le tuto ne le montre pas, puis propose ce qu\'il montre de plus proche (par exemple le chemin que prend sa boucle). N\'invente pas de mouvement attribué au prof.');

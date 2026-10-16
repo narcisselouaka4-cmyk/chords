@@ -295,7 +295,7 @@ const MAX_SUBJECT = 220;
  * La demande à l'IA (format chat/completions) : un titre et une phrase en français par chapitre, plus
  * « de quoi parle le tuto ». Elle ne reçoit que ce que le moteur a relevé et ne choisit aucune borne.
  */
-export function chapterMessages(chapters, { moveTitles = {} } = {}) {
+export function chapterMessages(chapters, { moveTitles = {}, spoken = null } = {}) {
   const list = (chapters || []).map((c) => ({
     id: c.id,
     moment: `${clock(c.start)}–${clock(c.end)}`,
@@ -303,6 +303,14 @@ export function chapterMessages(chapters, { moveTitles = {} } = {}) {
     paroles: c.text.slice(0, MAX_TEXT),
     mouvements_releves: c.moves.map((id) => moveTitles[id]).filter(Boolean),
   }));
+  // [Claude] — 2026-10-16 — Ce que le prof ANNONCE (tonalité, degrés, ses mots) : le « sujet » du tuto
+  // sort de sa bouche plutôt que d'une interprétation. Mesuré : « from the chord I to the chord V
+  // using a drop 2 movement », dit quatre fois, dans « the key of C sharp ».
+  const annonce = spoken && (spoken.keys?.length || spoken.terms?.length || spoken.progressions?.length) ? {
+    tonalites: (spoken.keys || []).map((k) => k.name),
+    suites_de_degres: [...new Set((spoken.progressions || []).map((p) => p.degrees.join('-')))].slice(0, 6),
+    ses_mots: spoken.terms || [],
+  } : null;
   return [
     {
       role: 'system',
@@ -314,7 +322,7 @@ export function chapterMessages(chapters, { moveTitles = {} } = {}) {
         + 'Ne parle jamais de mains gauche ou droite. Ne change ni les identifiants ni les moments. '
         + 'Réponds par un JSON seul, sans texte autour : {"sujet":"…","chapitres":[{"id":"c1","titre":"…","resume":"…"}]}.',
     },
-    { role: 'user', content: `Chapitres :\n${JSON.stringify(list)}` },
+    { role: 'user', content: `${annonce ? `Ce que le prof annonce lui-même (le plus sûr : sers-t'en pour le sujet) :\n${JSON.stringify(annonce)}\n\n` : ''}Chapitres :\n${JSON.stringify(list)}` },
   ];
 }
 

@@ -4,13 +4,14 @@ import { buildHighlights, highlightAt, MAX_HIGHLIGHTS } from './guide-highlights
 let pass = 0; let fail = 0;
 const check = (label, ok) => { if (ok) { pass += 1; console.log('  ✓', label); } else { fail += 1; console.log('  ✗', label); } };
 
-const mv = (id, from, to, kinds, times, via = []) => ({
+const mv = (id, from, to, kinds, times, via = [], said = null) => ({
   id, part: 'p1', from: { degree: from, name: 'X' }, to: { degree: to, name: 'Y' }, via, kinds,
   times: times.map(([start, end]) => ({ start, end })),
+  ...(said ? { said } : {}),
 });
 const chord = (degree) => ({ degree, name: 'Z', rh: [], lh: [] });
-const part = (final = true) => ({
-  id: 'p1', keyName: 'Ré♭ majeur', progression: { loop: true, chords: ['2(m7)', '5(7)', '1', '6(m7)'].map(chord) },
+const part = (final = true, key = { rootPc: 1, minor: false }) => ({
+  id: 'p1', keyName: 'Ré♭ majeur', key, progression: { loop: true, chords: ['2(m7)', '5(7)', '1', '6(m7)'].map(chord) },
   final: final ? { source: 'together', start: 30, end: 50, chords: ['2(m7)', '5(7)', '1', '6(m7)'].map(chord) } : null,
 });
 
@@ -50,8 +51,39 @@ const part = (final = true) => ({
   check('un mouvement répété est une seule case', h.length === 1 && /3 fois/.test(h[0].detail) && h[0].start === 10);
 }
 {
+  // [Claude] — 2026-10-16 — Ce que le PROF DIT départage les mouvements, et son mot s'affiche.
+  // Mesuré sur « Passing chords… Drop 2 » : il annonce « from the chord I to the chord V » et dit
+  // « drop 2 » en le jouant ; sur « Above All », 85 mouvements relevés pour 5 cases à remplir.
+  const movements = [
+    mv('a', '3', '6', ['chromatic'], [[10, 15]]),
+    mv('b', '1', '5', ['direct'], [[20, 25], [60, 65]], [], { degrees: 2, pair: true, terms: ['drop 2'] }),
+    mv('c', '4', '2', ['passing'], [[30, 35]], [{ name: 'Bb' }]),
+  ];
+  const h = buildHighlights({ parts: [part(false)], movements }, { max: 2 });
+  const announced = h.find((x) => x.title === '1 → 5');
+  // Deux places seulement : celui qu'il annonce est gardé, l'accord de passage dont il ne parle pas sort.
+  check('le mouvement que le prof annonce est gardé, le muet est écarté', Boolean(announced) && !h.some((x) => x.title === '4 → 2'));
+  check('le mot du prof s\'affiche sur la case', /drop 2/.test(announced.detail));
+  check('la case dit qu\'il l\'annonce', announced.said === true && h.filter((x) => x !== announced).every((x) => !x.said));
+  check('les cases restent dans l\'ordre du tuto', h.every((x, i, a) => i === 0 || a[i - 1].start <= x.start));
+}
+{
+  // Mesuré sur « Drop 2 » : « 1 → 5 » en direct puis « 1 → 5 » par un accord de passage faisaient
+  // DEUX cases pour un seul enseignement. Une case par mouvement, qui porte tous ses gestes et joue
+  // son passage le plus riche.
+  const g = { parts: [part(false)], movements: [
+    mv('a', '1', '5', ['direct'], [[20, 25]]),
+    mv('b', '1', '5', ['passing', 'chromatic'], [[80, 85]], [{ name: 'Gb' }]),
+  ] };
+  const h = buildHighlights(g);
+  check('un mouvement, une seule case, quel que soit le geste', h.length === 1 && h[0].title === '1 → 5');
+  check('la case porte tous ses gestes et compte tous ses passages', /chromatique/.test(h[0].detail) && /2 fois/.test(h[0].detail));
+  check('elle rejoue le passage le plus instructif', h[0].play.start === 80);
+}
+{
   check('sans guide : rien', buildHighlights(null).length === 0);
-  check('plusieurs tonalités : dit combien', /en 2 tonalités/.test(buildHighlights({ parts: [part(), part()], movements: [] })[0].detail));
+  check('plusieurs tonalités : dit combien', /en 2 tonalités/.test(buildHighlights({ parts: [part(), part(true, { rootPc: 0, minor: false })], movements: [] })[0].detail));
+  check('deux parties dans la MÊME tonalité ne font pas deux tonalités', !/tonalités/.test(buildHighlights({ parts: [part(), part()], movements: [] })[0].detail));
   const hl = [{ id: 'a', start: 10, end: 20 }, { id: 'b', start: 100, end: 110 }];
   check('la case où en est la vidéo', highlightAt(hl, 15) === 'a' && highlightAt(hl, 105) === 'b' && highlightAt(hl, 60) === null);
 }

@@ -151,6 +151,52 @@ console.log('Parole et silence');
   }
 }
 
+// ── La tonalité que le prof ANNONCE l'emporte sur celle devinée ──────────────────────────────
+// [Claude] — 2026-10-16 — Mesuré sur « Passing chords… Drop 2 Inner Voicings » : il annonce « the key
+// of C sharp », le moteur devinait La♭ majeur, et le guide affichait « 4 → 1 » là où le tuto montre
+// « 1 → 5 ». Tous les degrés du guide étaient faux. Sa phrase est retenue si son jeu la soutient.
+console.log('La tonalité annoncée par le prof');
+{
+  const f = load('next-level-worship.json');
+  const base = { segments: f.segments, noteEvents: f.noteEvents, duration: f.duration };
+  const guessed = buildTutorialGuide(base);
+  check('sans parole : la tonalité reste devinée (Do, puis Ré♭)',
+    guessed.parts[0].keyName === 'Do majeur' && !guessed.parts[0].key.said && guessed.parts[0].saidKey === null);
+
+  // La relative mineure : les mêmes notes, donc le jeu la soutient aussi bien → sa phrase gagne,
+  // et les degrés de toute la partie se recomptent depuis La (Dm9 devient le 4).
+  const said = buildTutorialGuide({ ...base, transcript: [{ start: 1, end: 3, text: 'we are in the key of A minor here' }] });
+  check('il annonce La mineur et son jeu le permet : c\'est la sienne',
+    said.parts[0].keyName === 'La mineur' && said.parts[0].key.said === true, said.parts[0].keyName);
+  check('… et l\'application dit d\'où elle le sait', said.parts[0].saidKey?.text === 'key of A minor');
+  check('… et les degrés de la partie suivent sa tonalité',
+    said.parts[0].progression.chords.map((c) => c.degree).join(' ') === '4 6 1 3',
+    said.parts[0].progression.chords.map((c) => c.degree).join(' '));
+
+  // Une tonalité annoncée que le jeu contredit franchement : le relevé l'emporte, sans rien afficher.
+  const wrong = buildTutorialGuide({ ...base, transcript: [{ start: 1, end: 3, text: 'we are in the key of E major here' }] });
+  check('il annonce une tonalité que son jeu contredit : le relevé l\'emporte',
+    wrong.parts[0].keyName === 'Do majeur' && wrong.parts[0].saidKey === null, wrong.parts[0].keyName);
+
+  // Les mots du prof, et les degrés qu'il nomme, remontent sur les mouvements et vers le Copilote.
+  const spoken = buildTutorialGuide({ ...base, transcript: [
+    { start: 1, end: 3, text: 'in the key of C major' },
+    // Le prof parle du 2 → 4 pendant qu'il le joue (41,9 s dans ce relevé), et d'un lick ailleurs.
+    { start: 40, end: 44, text: 'so we go from the 2 to the 4 with a drop 2 voicing' },
+    { start: 150, end: 153, text: 'and here is a nice lick' },
+  ] });
+  const mv24 = spoken.movements.find((m) => m.from.degree.startsWith('2') && m.to.degree.startsWith('4'));
+  check('un mouvement qu\'il énonce est marqué comme annoncé', mv24 && mv24.said.degrees === 2 && mv24.said.pair === true);
+  check('ses mots sont rattachés au passage où il les dit', spoken.movements.some((m) => m.said.terms.includes('drop 2')));
+  check('… et pas à des passages qu\'il joue ailleurs', spoken.movements.every((m) => !m.said.terms.includes('lick')));
+  check('le prof ne dit rien du 6 → 1 : rien n\'est inventé',
+    spoken.movements.filter((m) => m.from.degree.startsWith('6') && m.to.degree.startsWith('1')).every((m) => !m.said.pair));
+  const lines = guideLines(spoken).join('\n');
+  check('le Copilote reçoit ce que le prof annonce, avec priorité', /PROF ANNONCE/.test(lines) && /tonalité\(s\) annoncée\(s\) : Do majeur/.test(lines));
+  check('… ses mots à lui, pas d\'autres', /vocabulaire qu'il emploie : .*drop 2/.test(lines));
+  check('sans parole, aucun bloc « ce que le prof annonce »', !/PROF ANNONCE/.test(guideLines(guessed).join('\n')));
+}
+
 // ── Autres relevés réels : rien ne casse ─────────────────────────────────────────────────────
 console.log('Autres relevés réels');
 for (const name of ['eternel-est-bon.json', 'harmoniser-fin.json']) {

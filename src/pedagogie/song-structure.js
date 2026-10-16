@@ -216,6 +216,27 @@ export function harmonicTokens(chords, { notes = null } = {}) {
 }
 
 /**
+ * [Claude] — 2026-10-16 — Part de ce qui est joué (pesée par la durée) qui tient dans la gamme d'une
+ * tonalité. Sert à départager la tonalité que le prof ANNONCE et celle que le moteur devine : sur
+ * « Passing chords… Drop 2 » le prof dit « the key of C sharp » (couverture 100 %) là où le moteur
+ * devinait La♭ (95 %) ; sur la vidéo de salsa il annonce Sol mineur (73 %) alors que ce qu'il joue
+ * est en Si mineur (91 %) — sa phrase ne doit pas l'emporter là.
+ * @returns {number} entre 0 et 1 (0 sans accord)
+ */
+export function keyCoverage(key, tokens = []) {
+  if (!key) return 0;
+  const steps = key.minor ? MINOR_STEPS : MAJOR_STEPS;
+  let total = 0;
+  let inside = 0;
+  for (const t of tokens || []) {
+    const dur = Number.isFinite(t?.dur) ? t.dur : 1;
+    total += dur;
+    if (steps.includes(pcOf(t.rootPc - key.rootPc))) inside += dur;
+  }
+  return total ? inside / total : 0;
+}
+
+/**
  * La tonalité : celle du tuto si elle est connue ; sinon devinée, celle où les accords
  * (pesés par leur durée) sont le plus dans la gamme, l'accord de tonique comptant plus.
  * @returns {{rootPc: number, minor: boolean, flats: boolean, guessed: boolean}}
