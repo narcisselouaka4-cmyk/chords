@@ -2067,45 +2067,31 @@ function initPracticeExercise() {
       : items.map((item, i) => renderLibraryCard(item, i, current)).join('');
   }
 
-  /** Le niveau en jauge de cinq points : plus lisible que cinq étoiles, et plus sobre. */
-  function renderLevelDots(level) {
-    const filled = Math.min(5, Math.max(1, Number(level) || 1));
-    return `<span class="exercise-library-level" title="Niveau ${filled} sur 5" aria-label="Niveau ${filled} sur 5">${
-      Array.from({ length: 5 }, (_, i) => `<i class="${i < filled ? 'is-on' : ''}"></i>`).join('')}</span>`;
-  }
-
   /**
-   * [Claude] — 2026-10-16 — Une carte de la bibliothèque. Narcisse : « la plupart des mouvements ou
-   * progressions ne sont pas compréhensibles, on n'y comprend rien […] ça ne donne ni envie de
-   * regarder ni de tester ». La carte montre donc, d'un coup d'œil : à quoi ça sert (une phrase),
-   * LES ACCORDS qui seront joués (en Do), et ce que ça fait à l'oreille. Le reste — quand s'en
-   * servir et le détail théorique — se déplie à la demande, pour ne pas noyer la grille.
+   * [Claude] — 2026-10-16 (soir) — Une carte de la bibliothèque, SIMPLE. Narcisse : « il y a
+   * beaucoup trop de détails sur les cartes, c'est pas assez simple… il faut simplifier mille
+   * fois », « les bulles avec les suites d'accords, ça ne rend pas du tout », « quand on clique
+   * c'est encore pire : on voit des V7, des I7, c'est totalement illisible ». Une carte dit
+   * UNE chose — ce que c'est, en une phrase — et propose de l'écouter. Les accords en Do,
+   * l'effet à l'oreille, le dépliant et sa théorie en degrés, les étoiles et les points :
+   * retirés. Les données, elles, restent entières dans le JSON et dans la recherche (chercher
+   * « Dm7 » trouve toujours les mouvements qui le contiennent) ; le moteur de jeu et le Copilote
+   * s'en servent tels quels.
    */
   function renderLibraryCard(item, i, current) {
     const isCurrent = item.name === current;
-    const chords = (item.chords || []).slice(0, 12);
-    const more = (item.use || item.description) ? `
-            <div class="exercise-library-more" id="more-${escapeAttr(item.id)}" hidden>
-              ${item.use ? `<p class="exercise-library-use"><span>Quand s'en servir</span>${escapeHtml(item.use)}</p>` : ''}
-              ${item.description ? `<p class="exercise-library-detail">${escapeHtml(item.description)}</p>` : ''}
-            </div>` : '';
+    const phrase = item.context || item.sound || '';
     return `<article class="exercise-library-card${isCurrent ? ' is-current' : ''}${item.grid ? ' is-perso' : ''}" data-id="${escapeAttr(item.id)}" style="--i:${i}" tabindex="0" role="button" aria-label="${escapeAttr(item.grid ? `${item.name}, grille perso` : `${item.name}, niveau ${item.level} sur 5`)}">
             <div class="exercise-library-card-header">
               <span class="exercise-library-card-category">${escapeHtml(item.category)}</span>
               ${item.grid
     ? `<span class="exercise-library-card-count">${item.grid.chords.length} accord${item.grid.chords.length > 1 ? 's' : ''}</span>`
-    : renderLevelDots(item.level)}
+    : `<span class="exercise-library-card-level">Niveau ${item.level}/5</span>`}
             </div>
             <h4>${escapeHtml(item.name)}${isCurrent ? '<span class="exercise-library-current">En cours</span>' : ''}</h4>
-            ${item.context ? `<p class="exercise-library-context">${escapeHtml(item.context)}</p>` : ''}
-            ${chords.length ? `<ol class="exercise-library-chords" aria-label="Les accords, en Do">${
-    chords.map((c) => `<li>${escapeHtml(c)}</li>`).join('')}${
-    (item.chords || []).length > chords.length ? '<li class="is-more">…</li>' : ''}</ol>` : ''}
-            ${item.sound ? `<p class="exercise-library-sound">${escapeHtml(item.sound)}</p>` : ''}
-            ${item.grid && item.description ? `<p>${escapeHtml(item.description)}</p>` : ''}${more}
+            ${phrase ? `<p class="exercise-library-context">${escapeHtml(phrase)}</p>` : ''}
             <div class="exercise-library-card-actions">
               <button type="button" class="exercise-library-play${previewId === item.id ? ' is-playing' : ''}" data-preview="${escapeAttr(item.id)}" aria-label="${escapeAttr(`${previewId === item.id ? 'Arrêter' : 'Écouter'} : ${item.name}`)}">${previewId === item.id ? DEMO_STOP_ICON : DEMO_PLAY_ICON}<span>${previewId === item.id ? 'Arrêter' : 'Écouter'}</span></button>
-              ${more ? `<button type="button" class="exercise-library-toggle" data-more="${escapeAttr(item.id)}" aria-expanded="false" aria-controls="more-${escapeAttr(item.id)}">En savoir plus</button>` : ''}
               ${item.grid ? `<button type="button" class="exercise-library-grid-action" data-grid-load="${escapeAttr(item.id)}" aria-label="${escapeAttr(`Modifier la grille ${item.name}`)}">Modifier</button>
               <button type="button" class="exercise-library-grid-action is-danger${gridDeleteArmed === item.id ? ' is-armed' : ''}" data-grid-delete="${escapeAttr(item.id)}" aria-label="${escapeAttr(`Supprimer la grille ${item.name}`)}">${gridDeleteArmed === item.id ? 'Confirmer' : 'Supprimer'}</button>` : ''}
             </div>
@@ -2516,24 +2502,11 @@ function initPracticeExercise() {
       renderLibrary();
       return;
     }
-    // « En savoir plus » déplie la carte sans la choisir.
-    const toggle = e.target.closest('[data-more]');
-    if (toggle) {
-      e.stopPropagation();
-      const panel = document.getElementById(`more-${toggle.dataset.more}`);
-      if (panel) {
-        const open = panel.hasAttribute('hidden');
-        panel.toggleAttribute('hidden', !open);
-        toggle.setAttribute('aria-expanded', String(open));
-        toggle.textContent = open ? 'Replier' : 'En savoir plus';
-      }
-      return;
-    }
     const card = e.target.closest('.exercise-library-card');
     if (card) pickLibraryCard(card);
   });
   els.exerciseLibraryGrid?.addEventListener('keydown', (e) => {
-    if (e.target.closest('[data-preview], [data-grid-load], [data-grid-delete], [data-more]')) return;
+    if (e.target.closest('[data-preview], [data-grid-load], [data-grid-delete]')) return;
     const card = e.target.closest('.exercise-library-card');
     if (!card || (e.key !== 'Enter' && e.key !== ' ')) return;
     e.preventDefault();
