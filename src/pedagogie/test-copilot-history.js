@@ -83,9 +83,12 @@ async function runTests() {
   check('Le chemin de fichier se termine par .json', filePath.endsWith('.json'));
   check('Le fichier contient le conversationId', filePath.includes(conversationId));
 
-  const initial = await loadHistory(conversationId);
-  check('Avant sauvegarde, l’historique est vide', initial && initial.messages.length === 0);
-  check('Le tutoriel d’origine est conservé', initial?.tutorialPath === tutorialPath);
+  // [Claude] — 2026-10-16 — Créer une conversation n'écrit RIEN sur le disque : le fichier naît au
+  // premier message. Sans cela, ouvrir l'onglet ou cliquer « Nouvelle conversation » laissait à
+  // chaque fois une conversation vide dans l'historique (Narcisse : « une tonne de conversations
+  // vides […] c'est super dérangeant »).
+  check('Créer une conversation n\'écrit rien sur le disque', (await loadHistory(conversationId)) === null);
+  check('… et elle n\'apparaît pas encore dans l\'historique', (await listAllConversations()).length === 0);
 
   // Sauvegarde
   const messages = [
@@ -108,8 +111,14 @@ async function runTests() {
   // Multi-conversations
   const secondId = await createConversation(tutorialPath);
   check('Deux conversations distinctes pour le même tutoriel', secondId !== conversationId);
+  // La seconde n'a aucun message : elle reste hors de l'historique tant que rien n'est dit.
   const all = await listAllConversations();
-  check('listAllConversations retourne 2 conversations', all.length === 2);
+  check('listAllConversations ne montre que la conversation où quelque chose a été dit', all.length === 1);
+  check('… et elle est titrée par la question du pianiste', all[0].title === 'Explique le premier accord');
+  check('… avec son nombre d\'échanges', all[0].messageCount === 2);
+  check('… et un aperçu de la réponse', all[0].preview.startsWith('Le premier accord'));
+  check('Enregistrer une conversation sans message ne crée pas de fichier',
+    (await saveHistory(secondId, tutorialPath, [])) === false && (await loadHistory(secondId)) === null);
 
   // Suppression
   const deleted = await deleteConversation(conversationId);
@@ -117,7 +126,7 @@ async function runTests() {
   check('Après suppression, la conversation est absente', (await loadHistory(conversationId)) === null);
 
   const allAfter = await listAllConversations();
-  check('listAllConversations retourne 1 conversation après suppression', allAfter.length === 1);
+  check('listAllConversations est vide après suppression', allAfter.length === 0);
 
   // Suppression des conversations vides
   const emptyAuto = await createConversation(AUTONOMOUS_HISTORY_KEY);
@@ -125,9 +134,11 @@ async function runTests() {
   await saveHistory(filledAuto, AUTONOMOUS_HISTORY_KEY, [
     { role: 'user', content: 'Question', timestamp: '2026-09-06T12:00:00Z' },
   ]);
+  // Plus aucune conversation vide n'est écrite : la purge n'a donc rien à supprimer (elle reste pour
+  // les fichiers vides laissés par les anciennes versions).
   const removedEmpty = await deleteEmptyConversations();
-  check('deleteEmptyConversations supprime les conversations vides', removedEmpty >= 1);
-  check('La conversation vide a été supprimée', (await loadHistory(emptyAuto)) === null);
+  check('Plus aucune conversation vide à supprimer', removedEmpty === 0);
+  check('La conversation ouverte sans rien dire n\'est jamais écrite', (await loadHistory(emptyAuto)) === null);
   check('La conversation avec messages est conservée', (await loadHistory(filledAuto)) !== null);
 
   // Mode autonome

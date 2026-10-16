@@ -56,28 +56,16 @@ async function ensureDir() {
 export async function createConversation(tutorialPath) {
   if (!tutorialPath) return null;
   if (!(await ensureDir())) return null;
-  const conversationId = generateConversationId();
-  const filePath = await getHistoryFilePath(conversationId);
-  if (!filePath) return null;
-  const payload = {
-    version: STORAGE_VERSION,
-    tutorialPath,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    messages: [],
-  };
-  const api = typeof window !== 'undefined' ? window.electronAPI?.files : null;
-  if (!api?.writeFile) return null;
-  try {
-    await api.writeFile(filePath, payload);
-    dispatchHistorySaved(tutorialPath);
-    return conversationId;
-  } catch (err) {
-    console.warn('[CopilotHistory] Création impossible :', err);
-    return null;
-  }
+  // [Claude] — 2026-10-16 — Rien n'est ÉCRIT ici. Avant, ouvrir une conversation posait aussitôt un
+  // fichier `messages: []` sur le disque : ouvrir l'onglet, changer de mode ou cliquer « Nouvelle
+  // conversation » laissait chaque fois une conversation vide dans l'historique, qu'il fallait
+  // supprimer à la main. Narcisse : « il ne doit plus y avoir aucune conversation vide ». Le fichier
+  // naît au premier message réellement échangé (saveHistory). L'identifiant, lui, est rendu tout de
+  // suite : l'écran n'a pas à attendre.
+  return generateConversationId();
 }
 
+/** Prévient l'écran qu'une conversation vient d'être écrite ou supprimée. */
 function dispatchHistorySaved(tutorialPath) {
   if (typeof window !== 'undefined' && typeof document !== 'undefined' && document.dispatchEvent) {
     document.dispatchEvent(new CustomEvent('copilot-history-saved', { detail: { tutorialPath } }));
@@ -119,6 +107,8 @@ export async function loadHistory(conversationId) {
  */
 export async function saveHistory(conversationId, tutorialPath, messages) {
   if (!conversationId || !Array.isArray(messages)) return false;
+  // Une conversation sans message ne s'écrit pas : c'est ce qui peuplait l'historique de vides.
+  if (messages.length === 0) return false;
   if (!(await ensureDir())) return false;
   const api = typeof window !== 'undefined' ? window.electronAPI?.files : null;
   if (!api?.writeFile) return false;
@@ -190,6 +180,24 @@ export async function deleteConversation(conversationId) {
  *
  * @returns {Promise<{conversationId: string, tutorialPath: string, updatedAt: string|null, preview: string}[]>}
  */
+/**
+ * [Claude] — 2026-10-16 — Un extrait lisible d'un message : sans markdown, sans retours à la ligne,
+ * coupé sur un mot entier. Les réponses du Copilote commencent souvent par du gras ou une puce, et
+ * l'aperçu montrait « **Dm7 → G7** • la 7e… » — illisible dans une liste.
+ */
+function cleanPreview(text, max) {
+  const flat = String(text || '')
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/[*_`#>]/g, '')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (flat.length <= max) return flat;
+  const cut = flat.slice(0, max);
+  const space = cut.lastIndexOf(' ');
+  return `${(space > max * 0.6 ? cut.slice(0, space) : cut).trimEnd()}…`;
+}
+
 export async function listAllConversations() {
   const api = typeof window !== 'undefined' ? window.electronAPI?.files : null;
   if (!api?.readDir) return [];
@@ -204,14 +212,21 @@ export async function listAllConversations() {
       let updatedAt = null;
       let preview = '';
       let tutorialPath = '';
+      // [Claude] — 2026-10-16 — La PREMIÈRE QUESTION du pianiste titre la conversation : c'est elle
+      // qu'il reconnaît, bien mieux que le début de la réponse. Le nombre d'échanges dit d'un coup
+      // d'œil si la conversation a duré. L'aperçu (la réponse) reste, en seconde ligne.
+      let title = '';
+      let messageCount = 0;
       try {
         const raw = await api.readFile(filePath);
         if (raw) {
           const parsed = JSON.parse(raw);
           updatedAt = parsed.updatedAt || null;
           tutorialPath = parsed.tutorialPath || '';
-          const firstAssistant = parsed.messages?.find((m) => m.role === 'assistant' && !m.isTyping);
-          preview = firstAssistant?.content?.slice(0, 60) || '';
+          const messages = Array.isArray(parsed.messages) ? parsed.messages.filter((m) => !m.isTyping) : [];
+          messageCount = messages.filter((m) => m.role === 'user' || m.role === 'assistant').length;
+          title = cleanPreview(messages.find((m) => m.role === 'user')?.content, 90);
+          preview = cleanPreview(messages.find((m) => m.role === 'assistant')?.content, 120);
         }
       } catch (_) {
         // Fichier illisible : on affiche quand même l'entrée, sans aperçu.
@@ -221,6 +236,8 @@ export async function listAllConversations() {
         tutorialPath,
         updatedAt,
         preview,
+        title,
+        messageCount,
       });
     }
     return conversations.sort((a, b) => {

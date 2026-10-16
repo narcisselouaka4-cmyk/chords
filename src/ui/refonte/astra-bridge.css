@@ -804,15 +804,210 @@
   border: 1px solid var(--tr-border); border-radius: 6px;
   background: var(--tr-inset); color: var(--tr-text); font-size: 10.5px;
 }
-#copilot-history-list { display: flex; flex-direction: column; }
-/* Même contrainte que pour le répertoire du Coach : en-tête et lignes partagent
-   la grille, sinon les colonnes se décalent. */
-#copilot-history-drawer .tr-library-table-head,
-#copilot-history-list .copilot-history-row { grid-template-columns: minmax(220px, 2fr) 120px 64px; gap: 12px; }
-#copilot-history-list .tr-library-select strong { font-weight: 500; }
-#copilot-history-list .tr-library-select small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#copilot-history-list .copilot-history-delete { color: var(--tr-muted); }
-#copilot-history-list .copilot-history-delete:hover { color: var(--tr-red); background: rgba(239, 68, 68, 0.08); }
+/* ── Historique des conversations (16/10/2026) ───────────────────────────────────
+   Narcisse : l'historique « ne fait pas très professionnel ». Les lignes de tableau
+   (titre | date | ✕), toutes identiques, deviennent des cartes groupées par jour :
+   la question posée en titre, la réponse en aperçu, d'où elle vient et combien
+   d'échanges. */
+#copilot-history-list { display: flex; flex-direction: column; gap: 6px; }
+
+#copilot-history-list .copilot-history-group {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 14px 0 2px;
+  padding: 4px 2px;
+  background: linear-gradient(var(--tr-surface) 68%, transparent);
+  color: var(--tr-secondary);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+#copilot-history-list .copilot-history-group:first-child { margin-top: 0; }
+
+#copilot-history-list .copilot-history-card {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  border: 1px solid var(--tr-border);
+  border-radius: 12px;
+  background: var(--tr-raised);
+  transition: border-color .18s, background .18s, transform .18s;
+  animation: copilot-history-in .34s cubic-bezier(.3, .9, .3, 1) both;
+  animation-delay: calc(var(--i, 0) * 22ms);
+}
+@keyframes copilot-history-in { from { opacity: 0; transform: translateY(7px); } }
+#copilot-history-list .copilot-history-card:hover { border-color: var(--tr-border-strong, var(--tr-accent)); background: var(--tr-hover); }
+#copilot-history-list .copilot-history-card.is-current {
+  border-color: color-mix(in srgb, var(--tr-accent) 70%, transparent);
+  background: var(--tr-accent-soft);
+}
+/* Le filet de gauche marque la conversation ouverte sans colorer toute la carte. */
+#copilot-history-list .copilot-history-card.is-current::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--tr-accent);
+}
+
+#copilot-history-list .copilot-history-open {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 11px 6px 11px 14px;
+  border: 0;
+  background: transparent;
+  color: var(--tr-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+#copilot-history-list .copilot-history-open:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: -2px; border-radius: 11px; }
+#copilot-history-list .copilot-history-head { display: flex; align-items: baseline; gap: 10px; }
+#copilot-history-list .copilot-history-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#copilot-history-list .copilot-history-time {
+  flex: none;
+  color: var(--tr-muted);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+#copilot-history-list .copilot-history-snippet {
+  margin: 0;
+  color: var(--tr-secondary);
+  font-size: 12.5px;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+#copilot-history-list .copilot-history-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+#copilot-history-list .copilot-history-origin,
+#copilot-history-list .copilot-history-count-chip,
+#copilot-history-list .copilot-history-badge {
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+#copilot-history-list .copilot-history-origin { background: var(--tr-inset); color: var(--tr-secondary); }
+#copilot-history-list .copilot-history-count-chip { color: var(--tr-muted); }
+#copilot-history-list .copilot-history-count-chip.is-empty { color: var(--tr-muted); font-style: italic; }
+#copilot-history-list .copilot-history-badge { background: var(--tr-accent); color: var(--tr-on-accent, #fff); }
+
+/* La corbeille n'apparaît qu'au survol (ou au clavier) : une liste de croix fait brouillon. */
+#copilot-history-list .copilot-history-delete {
+  flex: none;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-right: 8px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--tr-muted);
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(.9);
+  transition: opacity .16s, transform .16s, color .16s, background .16s;
+}
+#copilot-history-list .copilot-history-card:hover .copilot-history-delete,
+#copilot-history-list .copilot-history-delete:focus-visible { opacity: 1; transform: none; }
+#copilot-history-list .copilot-history-delete:hover { color: var(--tr-red); background: rgba(239, 68, 68, 0.1); }
+#copilot-history-list .copilot-history-delete:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  #copilot-history-list .copilot-history-card { animation: none; }
+  #copilot-history-list .copilot-history-delete { opacity: 1; transform: none; transition: none; }
+}
+
+/* ── Le bouton « Conversations » : l'horloge REMBOBINE (16/10/2026) ──────────────
+   Narcisse voulait « une petite animation […] quelque chose d'original qu'on n'a
+   pas l'habitude de voir ». Au survol, l'aiguille repart en arrière d'un tour et
+   demi en laissant derrière elle deux copies d'elle-même, de plus en plus pâles :
+   la traînée d'un rembobinage. Pendant ce temps la flèche circulaire se retrace
+   d'un trait et sa pointe donne un petit coup. */
+.copilot-history-icon { overflow: visible; }
+.copilot-history-icon .copilot-history-hand {
+  transform-box: view-box;
+  transform-origin: 12px 12px;
+}
+.copilot-history-icon .copilot-history-ghost-1,
+.copilot-history-icon .copilot-history-ghost-2 { opacity: 0; }
+.copilot-history-icon .copilot-history-arc {
+  stroke-dasharray: 52;
+  stroke-dashoffset: 0;
+}
+.copilot-history-btn:hover .copilot-history-hand,
+.copilot-history-btn:focus-visible .copilot-history-hand {
+  animation: copilot-rewind-hand .72s cubic-bezier(.22, 1, .3, 1) both;
+}
+.copilot-history-btn:hover .copilot-history-ghost-1,
+.copilot-history-btn:focus-visible .copilot-history-ghost-1 { animation-delay: .055s; animation-name: copilot-rewind-ghost; }
+.copilot-history-btn:hover .copilot-history-ghost-2,
+.copilot-history-btn:focus-visible .copilot-history-ghost-2 { animation-delay: .11s; animation-name: copilot-rewind-ghost-faint; }
+.copilot-history-btn:hover .copilot-history-arc,
+.copilot-history-btn:focus-visible .copilot-history-arc { animation: copilot-rewind-arc .72s cubic-bezier(.4, 0, .2, 1) both; }
+.copilot-history-btn:hover .copilot-history-arrow,
+.copilot-history-btn:focus-visible .copilot-history-arrow { animation: copilot-rewind-arrow .72s cubic-bezier(.3, 1.5, .4, 1) both; }
+
+@keyframes copilot-rewind-hand {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(-540deg); }
+}
+/* Les fantômes suivent la même course, décalés, et ne se voient que pendant le tour. */
+@keyframes copilot-rewind-ghost {
+  0% { transform: rotate(0deg); opacity: 0; }
+  18%, 72% { opacity: .45; }
+  100% { transform: rotate(-540deg); opacity: 0; }
+}
+@keyframes copilot-rewind-ghost-faint {
+  0% { transform: rotate(0deg); opacity: 0; }
+  18%, 72% { opacity: .22; }
+  100% { transform: rotate(-540deg); opacity: 0; }
+}
+@keyframes copilot-rewind-arc {
+  0% { stroke-dashoffset: 0; }
+  45% { stroke-dashoffset: 52; }
+  100% { stroke-dashoffset: 0; }
+}
+@keyframes copilot-rewind-arrow {
+  0%, 55% { transform: translateX(0); }
+  75% { transform: translateX(-1.6px); }
+  100% { transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .copilot-history-btn:hover .copilot-history-hand,
+  .copilot-history-btn:focus-visible .copilot-history-hand,
+  .copilot-history-btn:hover .copilot-history-arc,
+  .copilot-history-btn:focus-visible .copilot-history-arc,
+  .copilot-history-btn:hover .copilot-history-arrow,
+  .copilot-history-btn:focus-visible .copilot-history-arrow { animation: none; }
+  .copilot-history-btn:hover .copilot-history-ghost-1,
+  .copilot-history-btn:hover .copilot-history-ghost-2 { animation: none; opacity: 0; }
+}
 #copilot-no-key { flex: 1; min-height: 0; }
 
 /* Bouton "Nouvelle conversation" : doit avoir le fond coloré .tr-primary,

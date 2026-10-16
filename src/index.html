@@ -1048,7 +1048,9 @@
                    maintenant dans l'accueil (copilot-tab.js, contextNote). -->
             </div>
             <div class="tr-heading-actions">
-              <button class="tr-button" type="button" data-astra-open="copilot-history-drawer" data-astra-shortcut="c"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>Conversations</button>
+              <!-- [Claude] — 2026-10-16 — L'horloge REMBOBINE au survol : l'aiguille repart en arrière en
+                   laissant une traînée d'elle-même, et la flèche circulaire se retrace (astra-bridge.css). -->
+              <button class="tr-button copilot-history-btn" type="button" data-astra-open="copilot-history-drawer" data-astra-shortcut="c"><svg class="tr-i copilot-history-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="copilot-history-arc" d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path class="copilot-history-arrow" d="M3 3v5h5"/><path class="copilot-history-hand copilot-history-ghost-2" d="M12 7v5l4 2"/><path class="copilot-history-hand copilot-history-ghost-1" d="M12 7v5l4 2"/><path class="copilot-history-hand" d="M12 7v5l4 2"/></svg>Conversations</button>
               <button class="tr-button copilot-secondary-btn" id="copilot-mode-toggle-btn" type="button" style="display: none;">Mode tutoriel</button>
               <button class="tr-button tr-primary copilot-secondary-btn" id="copilot-new-conv-btn" type="button"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Nouvelle conversation</button>
             </div>
@@ -1132,9 +1134,6 @@
                     </button>
                     <button class="tr-button tr-primary copilot-new-conv-sidebar-btn" id="copilot-new-conv-sidebar-btn" type="button" data-astra-close><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Nouvelle conversation</button>
                   </div>
-                </div>
-                <div class="tr-library-table-head" aria-hidden="true">
-                  <span>CONVERSATION</span><span>DATE</span><span></span>
                 </div>
                 <div class="copilot-history-list" id="copilot-history-list"></div>
                 <div class="tr-dialog-footnote">Vos échanges restent sur votre appareil.</div>

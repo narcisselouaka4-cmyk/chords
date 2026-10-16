@@ -1209,8 +1209,52 @@ function formatHistoryDate(isoString) {
   }
 }
 
+/**
+ * [Claude] — 2026-10-16 — Le groupe de date d'une conversation : « Aujourd'hui », « Hier », le jour
+ * de la semaine dans les sept derniers jours, puis le mois. Narcisse : l'historique « ne fait pas
+ * très professionnel » — une liste plate de lignes toutes pareilles ne se parcourt pas.
+ */
+function historyGroup(isoString, now = new Date()) {
+  if (!isoString) return { key: 'zzz', label: 'Sans date' };
+  const d = new Date(isoString);
+  if (Number.isNaN(d.getTime())) return { key: 'zzz', label: 'Sans date' };
+  const midnight = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((midnight(now) - midnight(d)) / 86400000);
+  if (days <= 0) return { key: '0', label: "Aujourd'hui" };
+  if (days === 1) return { key: '1', label: 'Hier' };
+  if (days < 7) return { key: `2-${days}`, label: d.toLocaleDateString('fr-FR', { weekday: 'long' }) };
+  if (days < 365) return { key: `3-${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}`, label: d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }) };
+  return { key: `4-${d.getFullYear()}`, label: String(d.getFullYear()) };
+}
+
+/** L'heure d'une conversation, courte : « 14:05 » aujourd'hui, « 12 oct. » au-delà. */
+function historyTime(isoString, now = new Date()) {
+  if (!isoString) return '';
+  const d = new Date(isoString);
+  if (Number.isNaN(d.getTime())) return '';
+  const sameDay = d.toDateString() === now.toDateString();
+  return sameDay
+    ? d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+    : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+}
+
+const TRASH_ICON = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>';
+
+/**
+ * La liste des conversations : groupées par jour, chacune titrée par la PREMIÈRE QUESTION du
+ * pianiste (ce qu'il reconnaît), avec la réponse en aperçu, d'où elle vient et son nombre d'échanges.
+ */
+let emptiesPurged = false;
+
 async function renderHistoryList() {
   if (!els.historyList) return;
+  // [Claude] — 2026-10-16 — Les conversations vides laissées par les versions d'avant sont balayées
+  // une fois, sans rien demander : plus rien n'en crée, et Narcisse n'a plus à cliquer
+  // « Supprimer les vides » à chaque fois.
+  if (!emptiesPurged) {
+    emptiesPurged = true;
+    try { await deleteEmptyConversations(); } catch (_) { /* purge sans importance */ }
+  }
   const items = await listAllConversations();
   els.historyList.innerHTML = '';
 
@@ -1224,52 +1268,61 @@ async function renderHistoryList() {
     }));
     return;
   }
+
+  const now = new Date();
+  let lastGroup = '';
+  let index = 0;
   for (const item of items) {
-    const dateText = formatHistoryDate(item.updatedAt);
+    const group = historyGroup(item.updatedAt, now);
+    if (group.key !== lastGroup) {
+      lastGroup = group.key;
+      els.historyList.appendChild(el('div', { className: 'copilot-history-group', text: group.label }));
+    }
     const isActive = item.conversationId === currentConversationId;
-    const primary = item.preview || 'Conversation vide';
-    const secondary = `${labelForConversationPath(item.tutorialPath)} · ${dateText || 'sans date'}`;
-    const row = el('div', { className: `tr-library-row copilot-history-row ${isActive ? 'is-selected' : ''}` }, [
+    const title = item.title || item.preview || 'Conversation vide';
+    const origin = labelForConversationPath(item.tutorialPath);
+    const card = el('article', {
+      className: `copilot-history-card${isActive ? ' is-current' : ''}${item.messageCount ? '' : ' is-empty'}`,
+      style: `--i:${index}`,
+    }, [
       el('button', {
-        className: 'tr-library-select',
+        className: 'copilot-history-open',
         type: 'button',
+        'aria-label': `Ouvrir : ${title}`,
         onClick: () => {
           loadHistoryItem(item.conversationId);
           document.getElementById('copilot-history-drawer')?.setAttribute('hidden', 'true');
           document.body.classList.remove('tr-dialog-open');
         },
       }, [
-        el('span', { className: 'tr-file-icon' }, [
-          el('svg', { width: '19', height: '19', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.65', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' }, [
-            el('path', { d: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z' }),
-          ]),
+        el('div', { className: 'copilot-history-head' }, [
+          el('h4', { className: 'copilot-history-title', text: title }),
+          el('time', { className: 'copilot-history-time', text: historyTime(item.updatedAt, now), ...(item.updatedAt ? { datetime: item.updatedAt } : {}) }),
         ]),
-        el('span', {}, [
-          el('strong', { text: primary }),
-          el('small', { text: secondary }),
-        ]),
-      ]),
-      el('span', { className: 'tr-library-cell', text: dateText || '—' }),
-      el('div', { className: 'tr-library-row-actions' }, [
-        el('button', {
-          className: 'tr-icon-button tr-delete copilot-history-delete',
-          type: 'button',
-          title: 'Supprimer cette conversation',
-          'aria-label': `Supprimer la conversation ${primary}`,
-          onClick: (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            deleteHistoryItem(item.conversationId, primary, e.currentTarget);
-          },
-        }, [
-          el('svg', { width: '15', height: '15', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.9', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' }, [
-            el('path', { d: 'M18 6 6 18' }),
-            el('path', { d: 'M6 6l12 12' }),
-          ]),
+        item.preview ? el('p', { className: 'copilot-history-snippet', text: item.preview }) : null,
+        el('div', { className: 'copilot-history-meta' }, [
+          el('span', { className: 'copilot-history-origin', text: origin }),
+          item.messageCount
+            ? el('span', { className: 'copilot-history-count-chip', text: `${item.messageCount} message${item.messageCount > 1 ? 's' : ''}` })
+            : el('span', { className: 'copilot-history-count-chip is-empty', text: 'vide' }),
+          isActive ? el('span', { className: 'copilot-history-badge', text: 'Ouverte' }) : null,
         ]),
       ]),
+      el('button', {
+        className: 'copilot-history-delete',
+        type: 'button',
+        title: 'Supprimer cette conversation',
+        'aria-label': `Supprimer la conversation ${title}`,
+        innerHTML: TRASH_ICON,
+        onClick: (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          deleteHistoryItem(item.conversationId, title, e.currentTarget);
+        },
+      }),
     ]);
-    els.historyList.appendChild(row);
+    els.historyList.appendChild(card);
+    index += 1;
   }
 }
 
