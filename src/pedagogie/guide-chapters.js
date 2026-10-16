@@ -22,8 +22,11 @@
 import { ACTIVITY } from './teacher-activity.js';
 
 export const CHAPTER_DEFAULTS = {
-  /** Durée visée d'un chapitre (s) : 19 min → 8 chapitres, 3 min → 2 ou 3. */
-  perChapter: 150,
+  // [Claude] — 2026-10-16 — Durée visée d'un chapitre (s). 150 s donnait 3 chapitres pour un tuto de
+  // 7 min : Narcisse les a trouvés « un peu trop gros ». 110 s → 4 chapitres pour 7 min, 9 (le plafond)
+  // pour 19 min. Un chapitre reste une PARTIE du tuto, pas une phrase : en dessous, on retomberait dans
+  // le « quasiment une case pour chaque phrase » qu'il reprochait à la version précédente.
+  perChapter: 110,
   minChapters: 2,
   maxChapters: 9,
   /** Aucun chapitre plus court que cela (s) ni que la moitié de la durée visée. */
@@ -33,6 +36,8 @@ export const CHAPTER_DEFAULTS = {
   /** Sous-repères DANS un chapitre (Narcisse : « il faudrait peut-être des sous-sujets, pas beaucoup »). */
   maxSubpoints: 2,
   subpointMargin: 20,
+  /** Titre de secours : combien de ses mots reprendre, quand l'IA n'a pas (encore) nommé le chapitre. */
+  fallbackWords: 7,
   /** Transition jeu ↔ parole : chaque côté dure au moins cela (s). */
   runMin: 15,
   /** Score minimal pour qu'une coupure soit retenue. */
@@ -191,13 +196,18 @@ export function buildChapters({ narration = [], spans = [], parts = [], highligh
     else if (talk / len >= 0.6 && play / len < 0.3) kind = 'talk';
     else kind = (play || talk) ? 'mixed' : 'none';
     const moves = highlights.filter((h) => h.kind === 'movement' && finite(h.start) && h.start >= start && h.start < end).map((h) => h.id);
+    const first = speech.find((n) => n.start >= start && n.start < end && String(n.text || '').trim());
     const inside = ranked.filter((c) => !usedAsCut(c.t) && c.t >= start + o.subpointMargin && c.t <= end - o.subpointMargin);
     const subpoints = [];
     for (const c of inside.sort((a, b) => b.score - a.score)) {
       if (subpoints.length >= o.maxSubpoints) break;
       if (subpoints.some((sp) => Math.abs(sp.t - c.t) < o.subpointMargin)) continue;
       const near = speech.find((n) => n.start >= c.t - 1 && n.start < c.t + 8);
-      subpoints.push({ t: round1(c.t), label: near ? near.text.trim().split(/\s+/).slice(0, 8).join(' ') : '' });
+      // Un sous-repère MUET n'aide pas (on ne sait pas ce qu'il désigne), et un sous-repère qui répète
+      // les premiers mots de son propre chapitre non plus : dans les deux cas, on n'en pose pas.
+      const label = near ? near.text.trim().split(/\s+/).slice(0, 8).join(' ') : '';
+      if (!label || (first && near === first)) continue;
+      subpoints.push({ t: round1(c.t), label });
     }
     subpoints.sort((a, b) => a.t - b.t);
     chapters.push({
@@ -206,12 +216,20 @@ export function buildChapters({ narration = [], spans = [], parts = [], highligh
     });
   }
 
-  // Titres de secours (sans l'IA) : factuels et DIFFÉRENTS. Presque tous les chapitres d'un tuto sont
-  // « il parle en jouant » : le même titre partout n'aiderait personne. Seul un passage muet dit ce qu'il fait.
+  // [Claude] — 2026-10-16 — Titres de secours (sans l'IA, ou tant qu'elle n'a pas répondu) : les PREMIERS
+  // MOTS que le prof dit dans le chapitre, pas un numéro. Narcisse : « comme titre de chapitre tu as
+  // littéralement mis "chapitre", et pas le sujet dont parle la vidéo » — et, plus largement, « le guide
+  // tuto ne nous aide pas du tout à comprendre la vidéo ». Ses mots ne sont pas une traduction (ils restent
+  // dans la langue du tuto), mais ils disent de quoi il parle ; un numéro ne dit rien. Rien n'est inventé :
+  // c'est sa phrase, coupée.
   chapters.forEach((c, i) => {
-    const base = c.kind === 'play' ? 'Il joue, sans parler' : (i === 0 ? 'Début' : `Chapitre ${i + 1}`);
+    const opening = speech.find((n) => n.start >= c.start && n.start < c.end && String(n.text || '').trim());
+    const words = opening ? String(opening.text).trim().split(/\s+/) : [];
+    const excerpt = words.length ? `${words.slice(0, o.fallbackWords).join(' ')}${words.length > o.fallbackWords ? '…' : ''}` : '';
+    const base = excerpt || (c.kind === 'play' ? 'Il joue, sans parler' : (i === 0 ? 'Début' : `Partie ${i + 1}`));
     c.autoTitle = base;
     c.title = base;
+    c.fromSpeech = Boolean(excerpt);
   });
   return chapters;
 }
@@ -220,6 +238,42 @@ export function buildChapters({ narration = [], spans = [], parts = [], highligh
 export function chaptersSignature(chapters) {
   if (!chapters?.length) return '';
   return chapters.map((c) => `${c.id}@${Math.round(c.start)}-${Math.round(c.end)}`).join('|');
+}
+
+/**
+ * [Claude] — 2026-10-16 — Retrouver les titres déjà obtenus même si le découpage a BOUGÉ.
+ *
+ * Les bornes dépendent du relevé (notes lues, parole) : une ré-analyse les déplace de quelques
+ * secondes, la signature change, et tous les titres français étaient perdus — l'écran retombait sur
+ * des titres de secours, ce que Narcisse a vu comme une régression (« tu as littéralement mis
+ * "chapitre" »). On apparie donc chaque chapitre au titre gardé dont la plage se RECOUVRE le plus,
+ * à condition que le recouvrement couvre l'essentiel du plus LONG des deux : un titre ne se retrouve
+ * jamais sur un passage qui n'est pas le sien, ni sur un court extrait d'un passage plus large.
+ *
+ * @param {object[]} chapters
+ * @param {{start: number, end: number, title: string, summary: string}[]} stored
+ * @param {{minShare?: number}} [options]
+ */
+export function matchChapterTitles(chapters, stored, { minShare = 0.6 } = {}) {
+  const list = (stored || []).filter((t) => finite(t?.start) && finite(t?.end) && t.end > t.start && t.title);
+  if (!list.length) return chapters || [];
+  const used = new Set();
+  return (chapters || []).map((c) => {
+    let best = null;
+    let bestShare = 0;
+    list.forEach((t, i) => {
+      if (used.has(i)) return;
+      const ov = overlap(c.start, c.end, t.start, t.end);
+      if (ov <= 0) return;
+      // Le recouvrement doit couvrir l'essentiel du PLUS LONG des deux : sans cela, un court chapitre
+      // tombant à l'intérieur d'un long passage gardé en hériterait le titre, qui ne le décrit pas.
+      const share = ov / Math.max(c.end - c.start, t.end - t.start);
+      if (share > bestShare) { bestShare = share; best = { t, i }; }
+    });
+    if (!best || bestShare < minShare) return c;
+    used.add(best.i);
+    return { ...c, title: best.t.title, summary: best.t.summary || '' };
+  });
 }
 
 /** Faut-il demander des titres à l'IA ? Seulement s'il y a des paroles à comprendre. */

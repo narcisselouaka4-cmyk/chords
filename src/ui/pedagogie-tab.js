@@ -62,7 +62,7 @@ import { samplesToNoteEvents, eventsFromTranscription, compactTimeline, passageE
 import { isFlashRendering, flashSegments, holdFlashNotes } from '../pedagogie/flash-notes.js';
 import { labelNotes } from '../pedagogie/chord-labeling.js';
 import { buildTutorialGuide, finalResultExample } from '../pedagogie/tutorial-guide.js';
-import { buildChapters, chaptersSignature, needsChapterTitles, chapterMessages, parseChapterTitles, applyChapterTitles } from '../pedagogie/guide-chapters.js';
+import { buildChapters, chaptersSignature, needsChapterTitles, chapterMessages, parseChapterTitles, matchChapterTitles } from '../pedagogie/guide-chapters.js';
 import { buildHighlights } from '../pedagogie/guide-highlights.js';
 import { getAIConfig, callChatCompletions } from '../ai/openai-config.js';
 import { withMeasuredVelocity } from '../pedagogie/dynamics.js';
@@ -2136,10 +2136,16 @@ function tutorialChapters() {
   let titles = null;
   const sig = chaptersSignature(chapters);
   const fr = cards[selectedPath]?.chaptersFr;
-  if (chapters.length && fr && fr.sig === sig) {
-    chapters = applyChapterTitles(chapters, { byId: fr.byId });
+  // [Claude] — 2026-10-16 — Les titres gardés sont retrouvés par RECOUVREMENT de temps, pas par égalité
+  // de signature : une ré-analyse déplace les bornes de quelques secondes et faisait tout perdre.
+  const named = chapters.length && fr?.titles?.length ? matchChapterTitles(chapters, fr.titles) : chapters;
+  const allNamed = chapters.length > 0 && named.every((c, i) => c !== chapters[i]);
+  if (allNamed) {
+    chapters = named;
     subject = fr.subject || '';
   } else if (chapters.length && needsChapterTitles(chapters)) {
+    chapters = named;
+    subject = fr?.subject || '';
     const config = getAIConfig();
     if (!config?.apiKey || !config?.baseUrl) titles = 'nokey';
     else {
@@ -2171,7 +2177,11 @@ async function requestChapterTitles(path, chapters, highlights) {
     const data = await res.json();
     const parsed = parseChapterTitles(data?.choices?.[0]?.message?.content || '', chapters);
     if (!Object.keys(parsed.byId).length) return;
-    await updateCard(path, { chaptersFr: { sig, subject: parsed.subject, byId: parsed.byId } });
+    // Gardés AVEC leurs bornes : c'est ce qui permet de les retrouver après une ré-analyse.
+    const titles = chapters
+      .filter((c) => parsed.byId[c.id])
+      .map((c) => ({ start: c.start, end: c.end, title: parsed.byId[c.id].title, summary: parsed.byId[c.id].summary }));
+    await updateCard(path, { chaptersFr: { sig, subject: parsed.subject, titles } });
   } catch (err) {
     console.warn('[Pedagogie] Chapitres non nommés :', err?.message || err);
   } finally {

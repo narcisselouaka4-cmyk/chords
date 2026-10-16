@@ -547,10 +547,23 @@ export function spansIn(spans, start, end) {
     .filter((s) => s.end - s.start > 0.05);
 }
 
-/** Dans ce passage, le prof ne fait que parler (aucun moment où il joue, au moins une phrase). */
-export function onlySpeech(spans, start, end) {
+/**
+ * Dans ce passage, le prof ne fait QUE parler : il y parle vraiment (la parole couvre l'essentiel du
+ * passage), et il n'y joue à aucun moment.
+ *
+ * [Claude] — 2026-10-16 — La part de parole est exigée. Avant, un simple CONTACT suffisait : sur
+ * « Passing chords… Drop 2 », un passage 0:00 → 0:21 où le relevé ne sait rien (le prof joue, mais
+ * l'image n'a pas été lue) empiétait de 0,2 s sur la zone de parole qui commence à 20 s — et le
+ * Copilote affirmait « le prof parle : il ne joue pas » pour les vingt secondes entières. Un bout de
+ * parole au bord d'un passage ne dit rien de ce qui se passe au milieu.
+ */
+export function onlySpeech(spans, start, end, { minShare = 0.5 } = {}) {
   const inside = spansIn(spans, start, end);
-  return inside.some((s) => s.kind === ACTIVITY.SPEAKS) && !inside.some((s) => isPlaying(s.kind));
+  if (!inside.length || inside.some((s) => isPlaying(s.kind))) return false;
+  const span = Math.max(0, end - start);
+  if (!span) return false;
+  const talking = inside.filter((s) => s.kind === ACTIVITY.SPEAKS).reduce((sum, s) => sum + (s.end - s.start), 0);
+  return talking / span >= minShare;
 }
 
 /** Les accords relevés pendant qu'il joue (ceux lus pendant qu'il parle ne sont pas son jeu). */

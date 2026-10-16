@@ -251,5 +251,20 @@ check('… et son relevé reste le même objet', withoutReadingArtifacts(eternel
   check('au son, la voix (notes lentes, sauts dans tous les sens) reste écartée', v2.played.filter((n) => n.start >= 30).length === 0);
 }
 
+// [Claude] — 2026-10-16 — Cas réel « Passing chords… Drop 2 Inner Voicings » : le prof joue de 0 à 20 s
+// sans un mot (l'image n'ayant pas été lue, le relevé n'en sait rien : « rien »), puis parle à partir de
+// 20 s. Un passage 0:00 → 0:21 empiétait de 0,2 s sur la parole, et le Copilote affirmait « le prof parle :
+// il ne joue pas » sur les vingt secondes entières. Un bord qui touche la parole ne dit rien du milieu.
+{
+  const spans = [{ start: 0, end: 20, kind: 'rien' }, { start: 20, end: 59.5, kind: 'parle' }];
+  check('un passage que le relevé ne connaît pas, effleurant la parole au bord, n\'est PAS « il parle »',
+    !onlySpeech(spans, 0, 20.2) && !onlySpeech(spans, 0, 21) && !onlySpeech(spans, 0, 25));
+  check('… et un passage vraiment parlé l\'est toujours', onlySpeech(spans, 25, 55));
+  check('… la bascule se fait quand la parole occupe l\'essentiel du passage',
+    !onlySpeech(spans, 0, 39) && onlySpeech(spans, 0, 41));
+  check('un passage où il joue n\'est jamais « il parle », même rempli de parole',
+    !onlySpeech([{ start: 0, end: 30, kind: 'joue-et-parle' }], 0, 30));
+}
+
 console.log(`\n=== Résultat : ${passed}/${total} contrôles passés ===`);
 if (passed < total) process.exitCode = 1;

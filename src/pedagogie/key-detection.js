@@ -40,7 +40,43 @@ export const DEFAULT_DETECTION_OPTIONS = {
   // rgb(119,17,15)) tient 0,87 à 0,93. Le seuil est posé dans l'intervalle vide entre les deux ;
   // de 0,70 à 0,80 la mesure donne le même résultat.
   vividSaturation: 0.75,
+  // [Claude] — 2026-10-16 — Clavier TEINTÉ (filtre sépia, éclairage chaud) : « Passing chords… Drop 2 »
+  // montre un clavier crème (rgb 253,249,184) pendant ses vingt premières secondes. Chaque blanche
+  // étant « colorée », les 52 touches étaient lues comme allumées — un relevé aberrant, jeté ensuite,
+  // qui laissait l'app sans rien à dire du passage (et le Copilote inventait que le prof y parlait).
+  // On apprend donc la couleur du clavier AU REPOS dans chaque image (la médiane de ses touches), et
+  // une touche n'est allumée que si elle s'en écarte franchement. Tant que ce repos est quasi gris
+  // (rendus Synthesia habituels), rien ne change : la règle ne retire jamais une touche d'un clavier gris.
+  restMaxSaturation: 28,
+  restMinDistance: 55,
 };
+
+/** Médiane par canal d'une liste de couleurs (robuste : la moitié des touches peut être allumée). */
+function medianColor(samples) {
+  if (!samples.length) return null;
+  const at = (i) => {
+    const v = samples.map((s) => s[i]).sort((a, b) => a - b);
+    return v[v.length >> 1];
+  };
+  return [at(0), at(1), at(2)];
+}
+
+/**
+ * Le clavier au repos est-il teinté (et non quasi gris) ? Si oui, on renvoie sa couleur : une touche
+ * ne sera « allumée » que si elle s'en écarte. Gris : null, et la lecture reste celle d'avant.
+ */
+function restTint(samples, opts) {
+  const med = medianColor(samples);
+  if (!med) return null;
+  const max = Math.max(...med);
+  const min = Math.min(...med);
+  return max - min >= opts.restMaxSaturation ? med : null;
+}
+
+/** Distance d'une couleur à la couleur de repos (plus grand écart sur un canal). */
+function awayFrom(rest, r, g, b) {
+  return Math.max(Math.abs(r - rest[0]), Math.abs(g - rest[1]), Math.abs(b - rest[2]));
+}
 
 /**
  * Couleur de peau : rouge dominant, vert entre rouge et bleu (teinte 0–50°), peu saturée ou sombre.
@@ -162,16 +198,25 @@ export function readLitKeys(frame, geometry, options = {}) {
     whiteY = Math.round(top + (geometry.bottom - top) * opts.whiteSampleRatio);
   }
 
-  for (const key of geometry.blackKeys) {
-    const [r, g, b] = sampleMedian(frame, key.center, geometry.blackRow, opts.sampleRadius);
+  // Les couleurs d'abord, la décision ensuite : il faut avoir vu TOUT le clavier pour savoir de quelle
+  // couleur il est au repos (voir restTint).
+  const blackSamples = geometry.blackKeys.map((key) => sampleMedian(frame, key.center, geometry.blackRow, opts.sampleRadius));
+  const whiteSamples = geometry.whiteKeys.map((key) => sampleMedian(frame, key.center, whiteY, opts.sampleRadius));
+  const blackRest = restTint(blackSamples, opts);
+  const whiteRest = restTint(whiteSamples, opts);
+  const litOn = (rest, r, g, b) => !rest || awayFrom(rest, r, g, b) >= opts.restMinDistance;
+
+  geometry.blackKeys.forEach((key, i) => {
+    const [r, g, b] = blackSamples[i];
     const hand = classifyTint(r, g, b, opts);
-    if (hand) lit.push({ midi: key.midi, hand, kind: 'black' });
-  }
+    if (hand && litOn(blackRest, r, g, b)) lit.push({ midi: key.midi, hand, kind: 'black' });
+  });
   const litBlack = new Set(lit.map((k) => k.midi));
 
-  for (const key of geometry.whiteKeys) {
-    const [r, g, b] = sampleMedian(frame, key.center, whiteY, opts.sampleRadius);
+  geometry.whiteKeys.forEach((key, i) => {
+    const [r, g, b] = whiteSamples[i];
     let hand = classifyTint(r, g, b, opts);
+    if (hand && !litOn(whiteRest, r, g, b)) hand = null;
     // [Claude] — 2026-10-14 — Certains rendus (« Next Level Worship ») n'allument une blanche que
     // sur sa partie haute, entre les noires, et laissent le bas blanc ; les mains du prof couvrent
     // en plus le bas des touches. On lit donc aussi le centre de la blanche à hauteur des noires,
@@ -182,10 +227,10 @@ export function readLitKeys(frame, geometry, options = {}) {
     if (!hand && !blackNeighbourLit && Number.isFinite(geometry.blackRow) && geometry.strategy === 'keyboardBand') {
       const [r2, g2, b2] = sampleMedian(frame, key.center, geometry.blackRow, opts.sampleRadius);
       const top = classifyTint(r2, g2, b2, opts);
-      if (top === 'green' || top === 'blue') hand = top;
+      if ((top === 'green' || top === 'blue') && litOn(blackRest, r2, g2, b2)) hand = top;
     }
     if (hand) lit.push({ midi: key.midi, hand, kind: 'white' });
-  }
+  });
 
   return lit.sort((a, b) => a.midi - b.midi);
 }

@@ -1,5 +1,5 @@
 // Tests de guide-chapters.js : découper un tuto en chapitres, comme sur YouTube.
-import { buildChapters, chapterCandidates, chaptersSignature, needsChapterTitles, chapterMessages, parseChapterTitles, applyChapterTitles } from './guide-chapters.js';
+import { buildChapters, chapterCandidates, chaptersSignature, needsChapterTitles, chapterMessages, parseChapterTitles, applyChapterTitles, matchChapterTitles } from './guide-chapters.js';
 import { ACTIVITY } from './teacher-activity.js';
 
 let pass = 0; let fail = 0;
@@ -24,7 +24,9 @@ const say = (start, end, text) => ({ start, end, text });
   check('aucun chapitre plus court que 30 s', ch.every((c) => c.end - c.start >= 30));
   const others = ch.filter((c) => c.kind !== 'play').map((c) => c.title);
   check('les chapitres qui parlent ont chacun un titre de secours différent (jamais le même partout)', new Set(others).size === others.length);
-  check('le 1er chapitre muet dit qu\'il joue ; les autres sont numérotés', ch[0].title === 'Il joue, sans parler' && ch.slice(1).every((c, i) => c.title === `Chapitre ${i + 2}` || c.title === 'Il joue, sans parler'));
+  check('le 1er chapitre muet dit qu\'il joue (aucune parole à reprendre)', ch[0].title === 'Il joue, sans parler' && ch[0].fromSpeech === false);
+  check('un chapitre où il parle est titré par SES PREMIERS MOTS, jamais par un numéro',
+    ch.filter((c) => c.text).every((c) => c.fromSpeech && !/^(Chapitre|Partie) \d/.test(c.title) && c.text.startsWith(c.title.replace(/…$/, ''))));
 }
 {
   // Sans notes lues : la parole seule, avec une pause de 12 s au milieu.
@@ -89,7 +91,7 @@ const say = (start, end, text) => ({ start, end, text });
   ];
   const narration = [];
   topics.forEach((t, k) => { for (let i = 0; i < 13; i += 1) narration.push(say(k * 100 + i * 7.5, k * 100 + i * 7.5 + 6.5, t)); });
-  const ch = buildChapters({ narration, duration: 500, spans: [span(0, 500, ACTIVITY.SPEAKS)], perChapter: 250 });
+  const ch = buildChapters({ narration, duration: 500, spans: [span(0, 500, ACTIVITY.SPEAKS)] }, { perChapter: 250 });
   check('au moins un chapitre porte des sous-repères', ch.some((c) => c.subpoints.length > 0));
   check('jamais plus de 2 sous-repères par chapitre', ch.every((c) => c.subpoints.length <= 2));
   check('un sous-repère reste DANS son chapitre, loin des bords', ch.every((c) => c.subpoints.every((sp) => sp.t > c.start + 15 && sp.t < c.end - 15)));
@@ -99,6 +101,24 @@ const say = (start, end, text) => ({ start, end, text });
   // Peu de matière : pas de sous-repères forcés.
   const ch = buildChapters({ spans: [span(0, 80, ACTIVITY.PLAYS), span(80, 300, ACTIVITY.SPEAKS)], duration: 300, narration: [say(80, 90, 'let us start now the lesson')] });
   check('sans matière suffisante : aucun sous-repère inventé', ch.every((c) => c.subpoints.length === 0));
+}
+
+{
+  // Les titres gardés survivent à une ré-analyse qui déplace les bornes de quelques secondes.
+  const stored = [
+    { start: 0, end: 170, title: 'Présentation du mouvement', summary: 'Il annonce le sujet.' },
+    { start: 170, end: 300, title: 'La basse pas à pas', summary: 'Il construit la basse.' },
+  ];
+  const moved = [{ id: 'c1', start: 0, end: 176, title: 'Début', summary: '' }, { id: 'c2', start: 176, end: 300, title: 'Partie 2', summary: '' }];
+  const out = matchChapterTitles(moved, stored);
+  check('les titres gardés sont retrouvés malgré des bornes déplacées', out[0].title === 'Présentation du mouvement' && out[1].title === 'La basse pas à pas');
+  check('… avec leurs phrases', out[0].summary === 'Il annonce le sujet.');
+  // Un découpage qui n'a plus rien à voir ne récupère pas les titres d'un autre.
+  const other = [{ id: 'c1', start: 0, end: 20, title: 'Début', summary: '' }, { id: 'c2', start: 280, end: 300, title: 'Partie 2', summary: '' }];
+  const none = matchChapterTitles(other, stored);
+  check('un découpage sans rapport ne récupère aucun titre', none.every((c) => /^(Début|Partie)/.test(c.title)));
+  check('un titre n\'est jamais posé deux fois', new Set(out.map((c) => c.title)).size === out.length);
+  check('sans titres gardés : rien ne change', matchChapterTitles(moved, []).every((c, i) => c === moved[i]));
 }
 
 console.log(`\n${pass} réussis, ${fail} échoués`);
