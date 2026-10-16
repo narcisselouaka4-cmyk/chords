@@ -1014,6 +1014,15 @@ export function executeToolCalls(toolCalls, assistantContent = '', { styleId = '
   }
 
   const collapsed = isVirtualKeyboardCollapsed();
+  // [Claude] — 2026-10-16 — Un modèle qui appelle deux fois le même outil faisait écrire deux fois la
+  // même parenthèse sous sa réponse (vu par Narcisse : « le prof parle… » répété). Une explication ne
+  // s'écrit qu'une fois.
+  const said = new Set();
+  const addNote = (note) => {
+    if (!note || said.has(note)) return;
+    said.add(note);
+    content = content ? `${content}\n\n${note}` : note;
+  };
   const parseArgs = (call) => {
     try {
       return JSON.parse(call.function.arguments || '{}');
@@ -1022,8 +1031,7 @@ export function executeToolCalls(toolCalls, assistantContent = '', { styleId = '
     }
   };
   const unplayable = (what, diag) => {
-    const note = `_(Je n'ai pas trouvé d'exemple jouable pour **${what}**${diag ? ` : ${diag}` : ''}. Essaie avec un autre accord.)_`;
-    content = content ? `${content}\n\n${note}` : note;
+    addNote(`_(Je n'ai pas trouvé d'exemple jouable pour **${what}**${diag ? ` : ${diag}` : ''}. Essaie avec un autre accord.)_`);
   };
 
   for (const call of toolCalls) {
@@ -1041,8 +1049,7 @@ export function executeToolCalls(toolCalls, assistantContent = '', { styleId = '
       const missing = args ? teacherNotesMissing(tutorial, Number(args.start), Number(args.end)) : NO_TEACHER_NOTES;
       if (!args || !notes.length || (missing && onlySpeech(tutorial?.activity, Number(args.start), Number(args.end)))) {
         ignored += 1;
-        const note = missing || NO_TEACHER_NOTES;
-        content = content ? `${content}\n\n${note}` : note;
+        addNote(missing || NO_TEACHER_NOTES);
         continue;
       }
       let semitones = 0;
@@ -1058,8 +1065,7 @@ export function executeToolCalls(toolCalls, assistantContent = '', { styleId = '
       });
       if (!example) {
         ignored += 1;
-        const note = `_(Aucune note du professeur n'a été lue entre ${formatTime(Number(args.start))} et ${formatTime(Number(args.end))}.)_`;
-        content = content ? `${content}\n\n${note}` : note;
+        addNote(`_(Aucune note du professeur n'a été lue entre ${formatTime(Number(args.start))} et ${formatTime(Number(args.end))}.)_`);
       }
     } else if (fn === 'play_final_result') {
       // [Claude] — 2026-10-14 — Le résultat final du tuto (tutorial-guide.js).
@@ -1068,7 +1074,7 @@ export function executeToolCalls(toolCalls, assistantContent = '', { styleId = '
       example = result.example;
       if (!example) {
         ignored += 1;
-        if (result.note) content = content ? `${content}\n\n${result.note}` : result.note;
+        addNote(result.note);
       }
     } else if (fn === 'apply_tutorial_passage') {
       // [Claude] — 2026-10-03 — Ce que fait le prof, reconstruit sur la progression demandée.
@@ -1085,7 +1091,7 @@ export function executeToolCalls(toolCalls, assistantContent = '', { styleId = '
       const mine = myPlayingExample(playing, parseArgs(call) || {});
       example = mine.example;
       if (!example) ignored += 1;
-      if (mine.note) content = content ? `${content}\n\n${mine.note}` : mine.note;
+      addNote(mine.note);
     } else if (fn === 'play_melody_chords') {
       // [Claude] — 2026-09-26 — Melody chords : accords choisis et écrits par l'application.
       if (example) { ignored += 1; continue; }
@@ -1100,8 +1106,7 @@ export function executeToolCalls(toolCalls, assistantContent = '', { styleId = '
       example = exercise ? exerciseExample(exercise, { chords: args.chords, title: args.title ? String(args.title) : '' }) : null;
       if (!example) {
         ignored += 1;
-        const note = '_(Aucun exercice n\'est affiché : ouvre l\'onglet Exercices pour que je fasse entendre ses voicings.)_';
-        content = content ? `${content}\n\n${note}` : note;
+        addNote('_(Aucun exercice n\'est affiché : ouvre l\'onglet Exercices pour que je fasse entendre ses voicings.)_');
       }
     } else if (fn === 'suggest_actions') {
       const args = parseArgs(call);

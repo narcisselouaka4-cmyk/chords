@@ -31,7 +31,12 @@ export const MEMORY_VERSION = 1;
 //   3 : [Claude] — 2026-10-14 — clavier sous les mains du prof, touches allumées seulement à la
 //       frappe (flash-notes.js), noire voisine qui déborde. Un tuto relevé AU SON faute de clavier
 //       reconnu est aussi relu une fois : son clavier peut l'être maintenant (« Next Level Worship »).
-export const READING_REVISION = 3;
+//   4 : [Claude] — 2026-10-16 — noires allumées en rouge (saturation franche ≠ peau), et surtout
+//       clavier TEINTÉ : la couleur du clavier au repos est apprise par image, au lieu de supposer
+//       qu'elle est grise. Sans cette révision, un relevé déjà gardé garderait sa lecture fausse —
+//       « Passing chords… Drop 2 » restait à 52 touches allumées, et le Copilote continuait de dire
+//       qu'aucune note n'avait été lue. Voir bugs/open/pedagogie-clavier-teinte-tout-lu-comme-allume.
+export const READING_REVISION = 4;
 /** Révision à partir de laquelle un relevé au son (clavier non reconnu) n'est plus relu. */
 const AUDIO_RECHECK_REVISION = 3;
 
