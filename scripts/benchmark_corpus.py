@@ -9,7 +9,7 @@ corpus_config.json et produit :
   - benchmark_corpus_results.md           (rapport lisible)
 
 Usage:
-    python scripts/benchmark_corpus.py [--config corpus_config.json]
+    python scripts/benchmark_corpus.py [--config data/benchmark/corpus_config.json]
 """
 
 import sys, os, json, time, csv, re
@@ -26,7 +26,7 @@ bd = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(bd)
 
 OUTPUT_DIR = 'benchmark_outputs'
-RESULTS_MD = 'benchmark_corpus_results.md'
+RESULTS_MD = 'docs/rapports/benchmark_corpus_results.md'
 
 NOTE_NAMES = bd.NOTE_NAMES
 
@@ -307,7 +307,7 @@ def generate_markdown(summary, valid, rtfs, output_dir):
 # ---------------------------------------------------------------------------
 
 def main():
-    config_path = sys.argv[1] if len(sys.argv) > 1 else 'corpus_config.json'
+    config_path = sys.argv[1] if len(sys.argv) > 1 else 'data/benchmark/corpus_config.json'
     if not os.path.isfile(config_path):
         print(f'Config not found: {config_path}')
         return 1

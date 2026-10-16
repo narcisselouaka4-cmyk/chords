@@ -653,7 +653,8 @@ SIMPLE_MAJOR_FAMILY = {'', 'maj7', '7', 'sus2', 'sus4', 'aug', 'aug7'}
 SIMPLE_MINOR_FAMILY = {'m', 'm7', 'dim', 'dim7', 'm7b5'}
 
 QUALITY_FAMILIES = {
-    '': 0, 'maj7': 0, 'sus2': 0, 'sus4': 0,
+    '': 0, 'maj7': 0,
+    'sus2': 5, 'sus4': 6,
     '7': 1,
     'm': 2, 'm7': 2,
     'dim': 3, 'm7b5': 3,
@@ -1022,7 +1023,7 @@ def _merge_similar_segments(segments):
     """Fusionne les segments consécutifs de même fondamentale et qualité voisine."""
     if not segments:
         return segments
-    merged = [segments[0]]
+    merged = [dict(segments[0])]
     for seg in segments[1:]:
         prev = merged[-1]
         prev_root, prev_sfx = _parse_chord_label(prev['chord'])
@@ -1032,7 +1033,7 @@ def _merge_similar_segments(segments):
             and _is_similar_quality(prev_sfx, cur_sfx)):
             merged[-1]['endTime'] = seg['endTime']
         else:
-            merged.append(seg)
+            merged.append(dict(seg))
     return merged
 
 
@@ -2713,6 +2714,12 @@ def _build_transition_matrix(states, key):
                 # récompense l'alternance de qualité (ex: A → Aaug → A → Aaug).
                 if dst['root'] is not None and dst['root'] in diatonic_roots and rd != 0:
                     score += 0.1
+            else:
+                # EXPERIMENT (Priorite 1, RAPPORT_DIAGNOSTIC.md): rendre la
+                # transition vers une qualite voisine sur meme fondamentale
+                # neutre (0.0), au lieu de -0.02, pour laisser l'observation
+                # trancher au lieu de figer Viterbi sur une qualite dominante.
+                score = 0.0
 
             mat[i, j] = score
     return mat

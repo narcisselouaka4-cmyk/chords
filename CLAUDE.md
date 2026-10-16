@@ -5,14 +5,19 @@
 
 ## 0. Mémoire du projet — lire en premier
 
-La mémoire persistante du projet est un vault Obsidian **hors du dépôt** :
+La mémoire persistante du projet est **un seul** coffre Obsidian, **hors du dépôt** *(depuis
+le 14/10/2026, ADR-049 du coffre)* :
 
 ```
-/home/visiteur/.openclaw/workspace/apps/piano-jazz-chord/
+/home/visiteur/Documents/zic-vault/
 ```
 
-**Avant toute tâche non triviale, lire `00_AGENT_START_HERE.md` dans ce vault**,
-puis `schema.md`, `state/current-state.md`, `state/current-work.md`,
+C'est un dépôt Git à part (GitLab privé `narcisselouaka4-cmyk/zic-vault`). L'ancien vault
+`/home/visiteur/.openclaw/workspace/apps/piano-jazz-chord/` est une archive : ne plus y écrire.
+Une mémoire interne d'IA n'est qu'une copie ; en cas d'écart, le coffre fait foi.
+
+**Avant toute tâche non triviale, lire `00_AGENT_START_HERE.md` dans ce coffre**,
+puis `index.md`, `state/current-state.md`, `state/current-work.md`,
 `state/next-actions.md`.
 
 On y trouve : les invariants à ne pas casser (`contracts/`), les décisions
@@ -21,8 +26,27 @@ les concepts musicaux partagés (`concepts/`), les sources brutes (`raw/`) et la
 Definition of Done du module Analyse
 (`features/analyse-definition-of-done.md`).
 
-Le vault doit aussi être **mis à jour** en fin de tâche : `state/` + `log.md`,
-plus `experiments/` ou `decisions/` si pertinent.
+Le coffre doit aussi être **mis à jour** en fin de tâche : `state/` + entrée datée en fin de
+`log.md`, plus `experiments/` ou `decisions/` si pertinent ; puis, dans le coffre, `git add`
+par chemins explicites, `git commit` et `git push`. Une session sans accès au PC dépose ses
+notes dans `docs/vault-a-reporter/` ; la session suivante sur le PC les range dans le coffre
+(`bash scripts/sync-vault.sh`).
+
+## Fin de session (obligatoire)
+
+Le coffre Obsidian (`/home/visiteur/Documents/zic-vault`) est la mémoire du projet, mais je n'y ai
+pas accès depuis le cloud. À la fin de chaque implémentation :
+
+1. Lancer tests et build ; noter précisément ce qui n'a **pas** été vérifié (ex. « pas testé dans Electron »). Ne jamais dire « fait » sans preuve.
+2. Commit + push du code, sur la branche de travail : chemins explicites, jamais `git add -A`, jamais `apikeys` ni `.env`.
+3. Écrire `docs/vault-a-reporter/AAAA-MM-JJ-sujet.md` avec un frontmatter (`title`, `type`, `date`, `status`, `tags`) et ces sections : ce qui a été fait + fichiers touchés ; ce qui a été vérifié et comment ; ce qui reste à vérifier ; « À mettre dans decisions/ » ; « À mettre dans experiments/ » (essais, même ratés) ; prochaines actions et questions pour Narcisse.
+4. Commit + push de la note dans le même dépôt.
+5. Terminer la réponse par : « Note à reporter dans le coffre : `<chemin>` ».
+
+Ensuite, sur le PC, une session qui voit le coffre : `git pull` dans le dépôt de l'app, range chaque
+note de `docs/vault-a-reporter/` dans le coffre (features, ADR, EXP), met à jour `state/`, `log.md`
+et `index.md`, puis commit + push du coffre. `scripts/sync-vault.sh` dépose les nouvelles notes
+dans `<coffre>/a-integrer/` sans rien écraser.
 
 ---
 
@@ -58,7 +82,18 @@ Le module Studio suit **obligatoirement** un workflow de 4 étapes.
 
 ### Étape 0 : Arrivée sur l'onglet
 - Aucun morceau sélectionné.
-- L'écran affiche **uniquement** la liste "Morceaux importés" centrée en grand.
+- L'écran affiche l'**accueil du Studio** (`.studio-empty-hero`) : ce que
+  l'onglet sait faire, et deux actions — importer un fichier, ou reprendre un
+  morceau déjà importé. *(changé le 02/10/2026 : auparavant, la liste
+  « Morceaux importés » occupait seule le centre de l'écran en grand ; elle
+  demandait de choisir avant d'avoir dit à quoi sert l'onglet.)*
+- *(changé le 13/10/2026)* La barre du haut (« Musiques importées » / « Importer un fichier ») est
+  retirée : elle doublonnait les deux boutons du milieu. « Reprendre un morceau importé » ouvre la
+  **roue des morceaux** (`src/ui/components/track-wheel.{js,css}`, classe `.wheel-open` sur
+  `#studio-tab`) : les titres en demi-cercle qu'on fait glisser (souris, molette, ↑ ↓), avec une
+  recherche à côté, un déploiement en éventail à l'ouverture, et le morceau choisi à 3 h
+  (Ouvrir / Renommer / Supprimer). Sans bouton d'import dans la roue. Une fois un morceau chargé,
+  la liste redevient le panneau « Musiques importées » de gauche (autre animation).
 - Vidéo, waveform, contrôles, stems sont masqués.
 
 ### Étape 1 : Ciblage
@@ -68,6 +103,16 @@ Le module Studio suit **obligatoirement** un workflow de 4 étapes.
 - L'utilisateur écoute le morceau et trace une région de **maximum 5 minutes** sur la waveform.
 - L'interface avancée (transpose, stems) est masquée / inactive.
 - Dès qu'une région est tracée, le curseur et la durée affichée se calent sur la région, pas sur le fichier entier.
+- *(changé le 09/10/2026)* Un morceau de **5 minutes ou moins** n'a pas d'étape 1 à faire : dès
+  la fin du chargement, la région devient le morceau entier et la séparation démarre seule
+  (une tentative automatique par morceau et par séance ; en cas d'échec, l'étape 1 reste).
+- Pendant le chargement et le traitement, les boutons de région (Confirmer, ↩, ↺) sont inactifs.
+- Au lâcher d'un marqueur de région, la lecture s'y place : début de la région (ou région
+  déplacée), 3 s avant la fin pour le marqueur de fin.
+- « Revenir au début » (◀◀) ramène au début de la région dès qu'elle est tracée, et au début
+  du morceau sinon.
+- Une petite flèche ▼ au-dessus de la waveform (`#studio-handle-grip-start`) attrape le marqueur
+  de début de région. Un double-clic sur la waveform ne réinitialise **plus** la région (↺ le fait).
 
 ### Étape 2 : Traitement
 - Overlay plein écran avec loader, **limité à l'onglet Studio** (les onglets Analyse/Entraînement restent accessibles).
@@ -75,6 +120,9 @@ Le module Studio suit **obligatoirement** un workflow de 4 étapes.
 - Découpage de la région WAV (`getRegionTrimmedPath`) pour Demucs.
 - Séparation des pistes avec Demucs, ou stems simulés si Demucs absent.
 - La séparation est asynchrone ; l'utilisateur peut aller dans d'autres onglets.
+- *(ajouté le 09/10/2026)* Sous la barre de progression, « Annuler et revenir à la sélection »
+  arrête la séparation (Demucs est tué) et ramène à l'étape 1 avec la région tracée, à
+  modifier puis reconfirmer.
 
 ### Étape 3 : Studio Pro
 - Les pistes séparées sont chargées.
@@ -135,6 +183,8 @@ La boucle `requestAnimationFrame` qui modifiait `video.playbackRate` causait un 
 ### Solution
 - La vidéo est calée explicitement sur le temps de l'AudioContext / SoundTouch.
 - On n'utilise **pas** `video.playbackRate` pour rattraper la dérive.
+- *(09/10/2026)* Recalage par `currentTime` seulement au-delà de 0,12 s de dérive, jamais pendant
+  un saut (`video.seeking`), au plus un toutes les 0,8 s : chaque recalage fige l'image.
 - Le curseur et le HTMLVideoElement suivent le temps courant du premier stem actif (ou du mix master).
 
 ---
@@ -151,6 +201,17 @@ La boucle `requestAnimationFrame` qui modifiait `video.playbackRate` causait un 
 - Éviter de recréer le nœud SoundTouch à chaque changement : utiliser `setPitch()`.
 - Nettoyer les buffers internes (`clear()` / `flush()`) seulement quand on change radicalement de source, pas à chaque pas de transposition.
 - À transposition 0, ne pas bypasser brutalement le graphe si cela casse la lecture en cours.
+- *(09/10/2026)* Étape 3 : **un seul** SoundTouch, sur le bus des pistes (pistes → volumes → bus),
+  branché seulement si la transposition est non nulle ; à 0 le bus va droit à la sortie. Le
+  rebranchement se fait au moment où les sources redémarrent (comme avant à chaque changement
+  de transposition). Cinq SoundTouch (un par piste) dépassaient le budget temps réel → son
+  haché. SoundTouch retarde le son de ~135 ms : `getCurrentTime()` du mixeur en tient compte.
+- *(09/10/2026)* Une fois branché, SoundTouch le reste jusqu'au morceau suivant : changer de
+  transposition n'est qu'un `setPitch()` en direct, sans relancer les pistes. À chaque relance
+  (saut, Play), le mixeur prend un SoundTouch **neuf** (`createPitchShifterNow`) : la
+  bibliothèque n'a pas de `clear()`, et l'ancien nœud rejouait ~0,13 s de l'ancienne position.
+  Pendant ce délai de démarrage (`getWarmupRemaining()`), la vidéo attend sur la bonne image.
+- Barre de lecture : pendant le glisser, seul l'affichage suit ; le saut se fait au lâcher.
 
 ---
 
@@ -177,8 +238,55 @@ La boucle `requestAnimationFrame` qui modifiait `video.playbackRate` causait un 
 - Les overlays plein écran avec `pointer-events:none` peuvent quand même flouter et décourager l'utilisateur. Préférer un message flottant compact.
 - Le bouton **Confirmer la région** doit être visible dès l'Étape 1, mais désactivé tant qu'aucune région n'est tracée.
 - L'écran de chargement doit être `position: absolute` dans `.studio-tab` pour ne bloquer que l'onglet Studio, et la lecture doit être mise en pause automatiquement.
-- L'Étape 0 affiche uniquement la liste des morceaux importés, centrée en grand.
+- **L'écran d'attente est un composant commun** : `src/ui/components/loader-chroma.{js,css}`.
+  Poser `<div data-chroma-stage></div>` dans le markup ; `mountChromaStages()`
+  (appelé une fois depuis `main.js`) le remplit. Ne pas réécrire de spinner.
+- L'étape 0 du Studio repose sur une grille à deux rangées
+  (`:root[data-skin] #studio-tab.stage-0 { grid-template-rows: auto minmax(0,1fr) }`) :
+  le bloc de skin plus haut dans `studio.css` impose `minmax(0,1fr)` avec une
+  spécificité supérieure, d'où le `:root[data-skin]` en préfixe.
+- Pistes séparées repliées en rond : « Lecture » et « Export » quittent la colonne de droite et se
+  rangent en une rangée collée au-dessus du lecteur, dans le même cadre (`#studio-controls-lecture` ;
+  mêmes éléments, déplacés par `applyStemsCollapsed`) ; « Export » y devient un petit menu. La
+  colonne centrale se recentre dans la page sans changer de largeur ; Atelier et Scène ont les
+  mêmes colonnes (même largeur de vidéo). En mode enregistrement, la rangée est masquée.
 
+
+### Pédagogie IA (lecture du tutoriel)
+- *(14/10/2026)* Les notes du prof viennent de l'**image** (clavier dessiné, ou V2N) ET sont recoupées
+  avec le **son** : `src/pedagogie/sound-reconcile.js` compare avec la transcription du piano au son
+  (`transcribePiano`, lancée en parallèle de l'image) et corrige les octaves, comble les lacunes
+  de l'image et les glissandos. Si le son ne recoupe pas l'image (< 30 %), rien n'est changé. Le
+  rapport est dans `analysis.soundCheck` ; `notesSource` ne contient **pas** « son » (sinon
+  `fromSound()` traiterait les notes comme issues du son).
+- *(14/10/2026)* Clavier dessiné **sous les mains du prof** (« Next Level Worship ») : le détecteur
+  (`keyboard-geometry.js`, stratégie « bande ») accepte un motif de noires cassé au milieu par les mains
+  (`longestValidRun`) ; la peau n'est pas une touche allumée (`key-detection.js`) ; une blanche allumée
+  seulement en haut est lue à hauteur des noires ; `keyboardPresence` + `presenceMin` (posé par
+  `format-detector.js`) font lire *aucune* note quand le clavier n'est plus à l'écran (titre, prof seul,
+  écran de fin).
+- *(14/10/2026)* Métronome sous la vidéo (`components/metronome-menu.*`, `audio/metronome.js`) : tempo
+  cherché dans le niveau sonore (`pedagogie/tempo-estimate.js`, IPC `pedagogie:loudness`), clics
+  libres ou calés sur les temps de la vidéo (suit pause, saut, vitesse). Réglages par tutoriel
+  (`localStorage`, clé `pjc.pedagogie.metronome`).
+- *(14/10/2026)* Rendu **« éclair »** (`pedagogie/flash-notes.js`) : certains tutos n'allument une
+  touche qu'à l'attaque (≈ 0,3 s). Détecté par `isFlashRendering` ; les notes sont alors tenues
+  jusqu'au prochain changement d'harmonie (`holdFlashNotes`) et les accords sont groupés par
+  harmonie (`flashSegments`), sinon chaque accord n'a que deux ou trois notes.
+- *(14/10/2026)* Une blanche n'est lue « en haut » (hauteur des noires) que si aucune noire voisine
+  n'est allumée : un repère vert large sur une noire allumait la blanche d'à côté (faux demi-tons).
+- *(14/10/2026)* **Guide du tuto** (`pedagogie/tutorial-guide.js`, `buildTutorialGuide`) : les
+  étapes (deux mains, main gauche seule, main droite seule, ligne du dessus, il parle), les parties
+  (une par tonalité, même boucle en degrés), le **résultat final** (la boucle jouée d'un trait, ou
+  rassemblée à partir des mains montrées séparément) et les **mouvements** relevés (passage,
+  chromatisme, marche, modulation). `findMovements` ne répond qu'avec ce que le tuto montre (sinon
+  « pas directement » + les chemins par ses accords). Le Copilote reçoit le guide (`guideLines`) et
+  l'outil `play_final_result`. Titres et phrases des étapes en français : une demande à l'IA
+  (`guide-summaries.js`), gardée dans la mémoire du tuto (`guideFr`).
+- *(14/10/2026)* Sous la vidéo, la **barre du tuto** (`components/passage-timeline.{js,css}`) : les
+  étapes en couleurs et la **région du Copilote** comme dans le Studio (tracer, déplacer, poignées,
+  double-clic sur une étape). Plus de listes Début / Fin ni de frise « Accords relevés ». Le panneau
+  de droite a deux onglets : **Guide** (`ui/pedagogie-guide.js`) et **Copilote**.
 
 ### Stems
 - Demucs `htdemucs_6s` produit 6 stems ; la guitare est fusionnée dans `other` pour l'UI.
@@ -214,8 +322,12 @@ On ne redemande validation que pour les choix architecturaux majeurs ou irréver
 ## 10. Checklist manuelle Studio
 
 À valider après chaque modification audio majeure :
-1. Arriver dans l'onglet Studio sans track → seule la liste des morceaux apparaît, centrée.
-2. Cliquer un morceau → déploiement de l'interface (vidéo, waveform, contrôles).
+1. Arriver dans l'onglet Studio sans track → l'accueil apparaît (disque, titre,
+   deux actions, quatre repères, pas de barre en haut à gauche) ; « Reprendre un
+   morceau importé » déploie la roue des morceaux (glisser, molette, recherche,
+   Échap ou « Retour » pour revenir à l'accueil).
+2. Cliquer un morceau de la liste le SÉLECTIONNE seulement ; « Charger ce morceau » (sur la carte
+   sélectionnée) le charge → déploiement de l'interface (vidéo, waveform, contrôles).
 3. Importer un MP3 → Étape 1 → Play → son sort.
 4. Importer un MP4/M4A → image + son synchronisés, pas de freeze à 2s, pas de bruit sourd.
 5. Pause à 24s → Play reprend exactement à 24s.

@@ -18,6 +18,7 @@
 // Module pur : la détection ne lit que des images déjà décodées.
 
 import { detectKeyboardGeometry } from './keyboard-geometry.js';
+import { keyboardPresence } from './key-detection.js';
 
 /** Formats connus de la taxonomie. */
 export const FORMATS = {
@@ -83,10 +84,12 @@ export function detectVideoFormat(frames, options = {}) {
 
   const probes = [];
   const geometries = [];
+  const sourceFrames = new Map();
   for (const frame of list) {
     const g = detectKeyboardGeometry(frame, options);
     if (g.ok) {
       geometries.push(g);
+      sourceFrames.set(g, frame);
       probes.push({ ok: true });
     } else {
       probes.push({ ok: false, reason: g.reason, detail: g.detail });
@@ -117,16 +120,28 @@ export function detectVideoFormat(frames, options = {}) {
   // calculée sur cette image-là aurait un trou permanent. Retenir l'image qui
   // en montre le plus revient à retenir la vue la plus au repos, sans avoir à
   // deviner laquelle l'est.
-  const chosen = geometries.reduce((a, b) => {
+  //
+  // [Claude] — 2026-09-25 — … parmi les images qui s'accordent : le calage
+  // (touche la plus grave) le plus fréquent l'emporte. Une image mal lue (un
+  // autre objet pris pour un clavier, une main qui masque des touches) ne fait
+  // plus échouer toute la vidéo ; seules comptent les lectures cohérentes, et il
+  // en faut autant qu'avant.
+  const byLow = new Map();
+  for (const g of geometries) byLow.set(g.lowestMidi, (byLow.get(g.lowestMidi) || 0) + 1);
+  let modeLow = geometries[0].lowestMidi;
+  let modeCount = -1;
+  for (const [low, n] of byLow) if (n > modeCount) { modeCount = n; modeLow = low; }
+  const agreeing = geometries.filter((g) => Math.abs(g.lowestMidi - modeLow) <= opts.maxRangeDrift);
+  const chosen = agreeing.reduce((a, b) => {
     if (b.blackKeys.length !== a.blackKeys.length) {
       return b.blackKeys.length > a.blackKeys.length ? b : a;
     }
     return b.whiteKeys.length > a.whiteKeys.length ? b : a;
-  }, geometries[0]);
+  }, agreeing[0]);
   const drift = geometries.reduce(
     (max, g) => Math.max(max, Math.abs(g.lowestMidi - chosen.lowestMidi)), 0,
   );
-  if (drift > opts.maxRangeDrift) {
+  if (agreeing.length < required) {
     return {
       format: FORMATS.UNRECOGNISED,
       implemented: false,
@@ -138,10 +153,22 @@ export function detectVideoFormat(frames, options = {}) {
     };
   }
 
+  // [Claude] — 2026-10-14 — Seuil de présence du clavier, mesuré sur les images qui l'ont montré :
+  // la lecture des touches saute les images où le clavier n'est plus là (voir keyboardPresence).
+  // Seulement pour la stratégie « bande » : le clavier d'un rendu Synthesia ou d'un clavier fixe
+  // est toujours à l'écran. Le seuil suit le score réel de CETTE vidéo (mains, éclairage).
+  if (chosen.strategy === 'keyboardBand') {
+    const scores = agreeing.map((g) => keyboardPresence(sourceFrames.get(g), chosen)).sort((a, b) => a - b);
+    const median = scores[Math.floor(scores.length / 2)];
+    chosen.presenceMin = Math.round(Math.min(0.9, Math.max(0.6, median - 0.1)) * 100) / 100;
+  }
+
   return {
     format: FORMATS.PIANO_ROLL,
     implemented: true,
-    confidence: ratio,
+    // Part des images qui voient CE clavier-là (les lectures écartées n'y
+    // comptent pas).
+    confidence: agreeing.length / list.length,
     geometry: chosen,
     probes,
     reason: null,

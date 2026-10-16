@@ -1,0 +1,106 @@
+/* [Claude] — 2026-10-14 — Pédagogie IA : l'en-tête du panneau du Copilote et la rangée sous la barre
+   du passage. Le « Guide du tuto » et ses onglets sont retirés (16/10/2026). Narcisse : « tout doit être
+   extrêmement simple et limpide […], en évitant les textes minuscules en gris » : des textes à
+   13 px au moins, des contrastes francs, des déploiements animés. Jetons --tr-* (sombre et clair). */
+
+/* [Claude] — 2026-10-16 — Le conteneur du Copilote prend toute la hauteur restante du panneau.
+   Sans `flex: 1` + `min-height: 0`, son contenu déborde sous le panneau et la case de conversation
+   sort de l'écran : c'est ce qui est arrivé en retirant les onglets, qui portaient ces règles. */
+#pedagogie-copilot-panel .pedago-panel-slots {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+#pedagogie-copilot-panel .pedago-copilot-name[hidden] { display: none; }
+
+/* Le passage, dans l'en-tête : il s'allume quand on vient d'en choisir un. */
+#pedagogie-copilot-panel .pedago-moment.is-pulse .pedago-moment-range { animation: pedago-moment-pulse .9s ease-out; }
+@keyframes pedago-moment-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--tr-accent) 70%, transparent); background: var(--tr-accent-soft); }
+  100% { box-shadow: 0 0 0 12px transparent; background: transparent; }
+}
+#pedagogie-copilot-panel .pedago-moment-range { padding: 2px 6px; border-radius: 6px; font-size: 12.5px; }
+#pedagogie-copilot-panel .pedago-moment { font-size: 11px; }
+
+/* ---- Sous la vidéo : la barre du passage --------------------------------------- */
+#practice-view-pedagogie .pedago-timeline-mount { padding-top: 22px; }
+#practice-view-pedagogie .pedago-region-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--tr-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+#practice-view-pedagogie .pedago-region-chip strong { color: var(--tr-accent); font-family: var(--tr-mono); font-size: 13px; }
+#practice-view-pedagogie .pedago-region-chip .is-follow { color: var(--tr-secondary); font-weight: 600; }
+#practice-view-pedagogie .pedago-region-chip.is-new { animation: pedago-rise .4s both; }
+#practice-view-pedagogie .pedago-timeline-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--tr-secondary); font-size: 12px; }
+#practice-view-pedagogie .pedago-timeline-legend > span { display: inline-flex; align-items: center; gap: 6px; }
+#practice-view-pedagogie .pedago-timeline-legend > span::before { content: ''; width: 14px; height: 8px; border-radius: 3px; background: var(--tr-border); }
+#practice-view-pedagogie .pedago-timeline-legend > .is-both::before { background: var(--tr-accent); }
+#practice-view-pedagogie .pedago-timeline-legend > .is-lh::before { background: color-mix(in srgb, #5aa6e8 78%, var(--tr-surface)); }
+#practice-view-pedagogie .pedago-timeline-legend > .is-rh::before { background: color-mix(in srgb, var(--tr-green) 88%, var(--tr-surface)); }
+#practice-view-pedagogie .pedago-timeline-legend > .is-line::before { background: color-mix(in srgb, #e0aa55 82%, var(--tr-surface)); }
+#practice-view-pedagogie .pedago-timeline-legend > .is-talk::before { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--tr-muted) 45%, transparent) 0 3px, transparent 3px 6px); }
+#practice-view-pedagogie .pedago-timeline-legend[hidden] { display: none; }
+
+/* La bulle d'aide, une fois : elle tombe sur la barre, puis disparaît à la première région. */
+#practice-view-pedagogie .pedago-timeline-tip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--tr-accent-soft);
+  border: 1px solid color-mix(in srgb, var(--tr-accent) 55%, transparent);
+  color: var(--tr-text);
+  font-size: 13.5px;
+  font-weight: 550;
+  animation: pedago-tip-in .6s cubic-bezier(.2, .9, .3, 1.2) both;
+}
+#practice-view-pedagogie .pedago-timeline-tip[hidden] { display: none; }
+#practice-view-pedagogie .pedago-timeline-tip::after {
+  content: '';
+  position: absolute;
+  left: 32px;
+  bottom: -7px;
+  width: 12px;
+  height: 12px;
+  transform: rotate(45deg);
+  background: inherit;
+  border-right: 1px solid color-mix(in srgb, var(--tr-accent) 55%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--tr-accent) 55%, transparent);
+}
+#practice-view-pedagogie .pedago-timeline-tip-ok {
+  flex: none;
+  padding: 5px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--tr-button);
+  color: var(--tr-button-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+@keyframes pedago-tip-in { from { opacity: 0; transform: translateY(-8px) scale(.97); } }
+
+/* L'accueil du Copilote dans Pédagogie IA : une phrase lisible, pas un petit texte gris. */
+#pedagogie-copilot-panel .copilot-tutorial-welcome > p {
+  max-width: 440px;
+  color: var(--tr-text);
+  font-size: 14px;
+  line-height: 1.55;
+  opacity: .9;
+}
+
+/* Panneau étroit (1280 px, Copilote réduit) : l'en-tête tient sur une ligne. */
+#pedagogie-copilot-panel { container-type: inline-size; }
+@container (max-width: 560px) {
+  #pedagogie-copilot-panel .pedago-copilot-size-label,
+  #pedagogie-copilot-panel .pedago-moment-label { display: none; }
+  #pedagogie-copilot-panel .pedago-copilot-head { gap: 6px 8px; padding-left: 10px; }
+}

@@ -14,6 +14,24 @@
 // en acceptant aussi une vélocité brute au cas où la source change.
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
+// [Claude] — 2026-10-13 — Couleurs : plus aucun violet écrit en dur. Tout dérive de la couleur
+// d'accent de l'application (--tr-accent), par mélange avec du blanc ou du noir : le paysage
+// suit donc le choix fait dans Réglages › Apparence, sans être redessiné (les variables CSS
+// sont relues par le navigateur à chaque affichage).
+const ACCENT = 'var(--tr-accent, #b8a0f3)';
+const mix = (pct, other) => `color-mix(in srgb, ${ACCENT} ${pct}%, ${other})`;
+const TONE = {
+  topLight: mix(68, '#ffffff'),     // dessus des notes, côté clair
+  topDark: mix(94, '#000000'),      // dessus des notes, côté sombre
+  frontLight: mix(88, '#000000'),   // face avant
+  frontDark: mix(52, '#000000'),
+  side: mix(42, '#000000'),         // face latérale
+  accent: ACCENT,                   // halo, trait de la tête de lecture (voir plus bas)
+  sounding: mix(24, '#ffffff'),     // note qui joue
+  accentEdge: mix(58, '#ffffff'),   // contour des notes
+  accentMark: mix(70, 'var(--tr-text, #ffffff)'),   // tête de lecture : clair en sombre, foncé en clair
+  accentTop: mix(80, '#ffffff'),    // une note sur onze, pour casser l'uniformité
+};
 const SPAN_X = 1060;   // largeur utile du plancher, en unités de viewBox
 const SPAN_Y = 180;    // profondeur utile du plancher
 
@@ -112,9 +130,9 @@ export function renderHarmonicRoll(host, options) {
       return g;
     };
     defs.appendChild(grad(`${id}-plane`, 0, 1, [[null, 'var(--tr-grid-fill)', '0.08'], [1, 'var(--tr-grid-fill)', '0.5']]));
-    defs.appendChild(grad(`${id}-top`, 1, 1, [[null, '#ccb9ff', null], [1, '#9c79f4', null]]));
-    defs.appendChild(grad(`${id}-front`, 0, 1, [[null, '#a183ed', null], [1, '#62489e', null]]));
-    defs.appendChild(grad(`${id}-cursor`, 0, 1, [[null, '#b799ff', '.4'], [1, '#b799ff', '0']]));
+    defs.appendChild(grad(`${id}-top`, 1, 1, [[null, TONE.topLight, null], [1, TONE.topDark, null]]));
+    defs.appendChild(grad(`${id}-front`, 0, 1, [[null, TONE.frontLight, null], [1, TONE.frontDark, null]]));
+    defs.appendChild(grad(`${id}-cursor`, 0, 1, [[null, TONE.accent, '.3'], [1, TONE.accent, '0']]));
     const filter = el('filter', { id: `${id}-glow`, x: '-30%', y: '-50%', width: '160%', height: '200%' });
     filter.appendChild(el('feGaussianBlur', { stdDeviation: 5 }));
     defs.appendChild(filter);
@@ -134,10 +152,7 @@ export function renderHarmonicRoll(host, options) {
       const a = point(0, i * 15); const b = point(SPAN_X, i * 15);
       svg.appendChild(el('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: 'var(--tr-grid-line)', 'stroke-width': i % 4 === 0 ? 0.8 : 0.45 }));
     }
-    ['C2', 'C3', 'C4', 'C5'].forEach((label, index) => {
-      const p = point(0, index * 45.6);
-      svg.appendChild(el('text', { transform: `translate(${p[0] - 29} ${p[1] + 3}) scale(1 ${labelScale})`, class: 'tr-roll-label' }, label));
-    });
+    // [Claude] — 2026-10-13 — Les repères C2, C3, C4, C5 sont retirés (Narcisse : « tu m'enlèves ça »).
 
     // Notes : on affiche l'intégralité de la session. Sur les très longues
     // sessions on échantillonne uniformément sur toute la durée pour conserver
@@ -165,15 +180,15 @@ export function renderHarmonicRoll(host, options) {
         opacity: active ? 1 : 0.64 + velocity * 0.34,
       });
       g.appendChild(el('title', {}, `${noteName(note.midi)} · ${formatTime(note.start)} · vélocité ${Math.round(velocity * 127)}`));
-      if (active) g.appendChild(el('polygon', { points: poly(top), fill: '#b9a0ff', filter: `url(#${id}-glow)` }));
+      if (active) g.appendChild(el('polygon', { points: poly(top), fill: TONE.accent, filter: `url(#${id}-glow)` }));
       if (spatial) {
         g.appendChild(el('polygon', { points: poly(front), fill: `url(#${id}-front)` }));
-        g.appendChild(el('polygon', { points: poly(side), fill: '#514174' }));
+        g.appendChild(el('polygon', { points: poly(side), fill: TONE.side }));
       }
       g.appendChild(el('polygon', {
         points: poly(top),
-        fill: active ? '#ede3ff' : index % 11 === 0 ? '#cfb9de' : `url(#${id}-top)`,
-        stroke: active ? '#fff' : '#d2baff',
+        fill: active ? TONE.sounding : index % 11 === 0 ? TONE.accentTop : `url(#${id}-top)`,
+        stroke: active ? '#ffffff' : TONE.accentEdge,
         'stroke-width': '0.55',
       }));
       if (state.onSeek && !state.recording) {
@@ -184,16 +199,32 @@ export function renderHarmonicRoll(host, options) {
     });
 
     // Tête de lecture
+    // [Claude] — 2026-10-13 — « Le trait n'est pas droit » (Narcisse). Ce n'était pas un bug :
+    // en relief, tous les points d'un même instant sont alignés sur l'oblique de la grille
+    // (la perspective), et l'ancien trait partait du coin avant du sol vers le fond en montant
+    // de 25 : ni vertical, ni posé sur le sol. Maintenant : un trait bien VERTICAL au bord
+    // avant (sa pastille est sur le sol), et, en filigrane, la paroi qui s'étend derrière
+    // jusqu'au fond (son arête au sol suit la grille, donc les notes jouées à cet instant
+    // s'y alignent). À plat, tout reste un seul trait vertical.
     if (notes.length) {
       const px = (position / duration) * SPAN_X;
+      const wall = 70;
+      const f0 = point(px, 0); const f1 = point(px, SPAN_Y);
+      const t0 = point(px, 0, wall); const t1 = point(px, SPAN_Y, wall);
       const head = el('g', { class: 'tr-playhead' });
-      head.appendChild(el('polygon', {
-        points: poly([point(px, 0), point(px, SPAN_Y), point(px, SPAN_Y, 58), point(px, 0, 58)]),
-        fill: `url(#${id}-cursor)`,
-      }));
-      const a = point(px, 0); const b = point(px, SPAN_Y, 25);
-      head.appendChild(el('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: '#d6c4ff', 'stroke-width': '1.4' }));
-      head.appendChild(el('circle', { cx: a[0], cy: a[1], r: 3, fill: '#d6c4ff' }));
+      head.appendChild(el('polygon', { points: poly([f0, f1, t1, t0]), fill: `url(#${id}-cursor)` }));
+      const edge = (from, to, width, opacity = 1) => el('line', {
+        x1: from[0], y1: from[1], x2: to[0], y2: to[1], stroke: TONE.accentMark, 'stroke-width': width, 'stroke-opacity': opacity, 'stroke-linecap': 'round',
+      });
+      if (spatial) {
+        head.appendChild(edge(f0, f1, 1, 0.5));
+        head.appendChild(edge(f1, t1, 0.8, 0.3));
+        head.appendChild(edge(t0, t1, 0.7, 0.22));
+        head.appendChild(edge(f0, t0, 2));
+      } else {
+        head.appendChild(edge(f0, f1, 1.4));
+      }
+      head.appendChild(el('circle', { cx: f0[0], cy: f0[1], r: 3.2, fill: TONE.accentMark }));
       svg.appendChild(head);
     }
 
