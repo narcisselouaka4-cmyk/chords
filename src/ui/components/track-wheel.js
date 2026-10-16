@@ -11,8 +11,14 @@
 // Entrée, ou « Ouvrir ») le charge. À l'ouverture, les morceaux sortent tous du milieu et se
 // déploient en éventail, l'un après l'autre.
 //
-// Partie pure (testée sous Node, test-track-wheel.js) : la géométrie de la roue et l'inertie.
-// Partie DOM : createTrackWheel({ root, … }).
+// [Claude] — 2026-10-16 (soir) — Le vinyle a été retiré (Narcisse : « le vinyle ne me plaît pas…
+// pourquoi ne pas tenter autre chose en rapport avec la musique ? »). La couronne devient un
+// CLAVIER vu du dessus : des touches blanches et noires qui rayonnent du centre, comme l'éventail
+// d'un piano à queue. Le clavier tourne avec la roue, et la touche qui s'arrête sous le repère
+// (3 h) s'enfonce — le piano « joue » le morceau choisi.
+//
+// Partie pure (testée sous Node, test-track-wheel.js) : la géométrie de la roue, celle du clavier
+// et l'inertie. Partie DOM : createTrackWheel({ root, … }).
 
 import { matchesQuery } from './list-search.js';
 
@@ -20,6 +26,62 @@ import { matchesQuery } from './list-search.js';
 export const WHEEL_STEP_DEG = 15;
 /** Au-delà de cet angle (par rapport au milieu), un morceau n'est plus affiché. */
 export const WHEEL_MAX_DEG = 88;
+
+/* ── Le clavier en éventail ─────────────────────────────────────────────────────
+   Une touche blanche par pas de roue (15°) : quand la roue se pose, sa position est un
+ multiple de 15°, donc une touche est toujours PILE sous le repère. Le clavier couvre
+ le cercle entier (la roue tourne loin) : 24 touches blanches, dont le motif d'octave
+ recommence toutes les 7. Rayons exprimés en centièmes du rayon de la roue (viewBox
+ 0 0 200 200, centre 100,100). */
+/** Largeur angulaire d'une touche blanche — la même que le pas de la roue. */
+export const KEY_STEP_DEG = WHEEL_STEP_DEG;
+/** Nombre de touches blanches sur le cercle entier. */
+export const KEY_COUNT = Math.round(360 / KEY_STEP_DEG);
+/** Une noire est posée sur la frontière qui suit la touche blanche `index` (motif d'octave). */
+export function hasBlackAfter(index) {
+  const k = ((index % 7) + 7) % 7;
+  return k === 0 || k === 1 || k === 3 || k === 4 || k === 5;
+}
+/** Secteur annulaire (calotte entre deux cercles) : le `d` d'une touche, angles en degrés. */
+export function annulusSector(cx, cy, rIn, rOut, a0, a1) {
+  const pt = (r, a) => {
+    const rad = (a * Math.PI) / 180;
+    return `${(cx + r * Math.cos(rad)).toFixed(2)} ${(cy + r * Math.sin(rad)).toFixed(2)}`;
+  };
+  return `M ${pt(rOut, a0)} A ${rOut} ${rOut} 0 0 1 ${pt(rOut, a1)} L ${pt(rIn, a1)} A ${rIn} ${rIn} 0 0 0 ${pt(rIn, a0)} Z`;
+}
+/** Toutes les touches du clavier : blanches rayonnantes, noires (plus courtes) aux frontières. */
+export function keyboardKeys({ rIn = 47, rOut = 87, blackSpan = .62, blackWidth = 6.2, keyGap = .6 } = {}) {
+  const keys = [];
+  for (let k = 0; k < KEY_COUNT; k += 1) {
+    const c = k * KEY_STEP_DEG;
+    keys.push({
+      kind: 'white', index: k,
+      d: annulusSector(100, 100, rIn, rOut, c - KEY_STEP_DEG / 2 + keyGap, c + KEY_STEP_DEG / 2 - keyGap),
+    });
+    if (hasBlackAfter(k)) {
+      const b = c + KEY_STEP_DEG;   // la frontière qui suit
+      keys.push({
+        kind: 'black', index: k,
+        d: annulusSector(100, 100, rIn, rIn + (rOut - rIn) * blackSpan, b - blackWidth / 2, b + blackWidth / 2),
+      });
+    }
+  }
+  return keys;
+}
+/** La touche blanche qui s'arrête pile sous le repère (3 h) quand la roue est posée. */
+export function pressedKeyIndex(offset) {
+  const n = Math.round(Number(offset) || 0);
+  return ((n % KEY_COUNT) + KEY_COUNT) % KEY_COUNT;
+}
+/** Le clavier complet, en SVG (cercle de fond + touches). */
+export function buildKeyboardSvg() {
+  const keys = keyboardKeys();
+  // Le fond de clavier déborde d'un poil de chaque côté des touches : un liseré du lit du clavier.
+  const bed = `<circle class="track-wheel-keybed" cx="100" cy="100" r="67" stroke-width="44" fill="none"></circle>`;
+  const paths = keys.map((k) => `<path class="track-wheel-key track-wheel-key-${k.kind}" data-key="${k.index}" d="${k.d}"></path>`).join('');
+  return `<svg viewBox="0 0 200 200" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">${bed}${paths}</svg>`;
+}
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
@@ -133,25 +195,15 @@ export function createTrackWheel({ root, onOpen, onRename, onDelete, onClose }) 
   // ---- structure ----
   const dial = node('div', 'track-wheel-dial', { role: 'listbox', 'aria-label': 'Morceaux importés', tabindex: '0' });
   const disc = node('div', 'track-wheel-disc', { 'aria-hidden': 'true' });
-  // [Claude] — 2026-10-16 — Le disque est un VINYLE (Narcisse : « au lieu d'un simple demi-cercle
-  // basique qui ne raconte rien […] pourquoi ne pas en faire un demi-disque de musique ? Genre un
-  // vinyle de DJ »). Ce qui tourne avec la roue est rassemblé ici : les sillons marqués, l'étiquette
-  // centrale et son reflet. Les sillons concentriques, eux, ne tourneraient pas visiblement — c'est
-  // l'étiquette qui donne le mouvement, exactement comme sur une platine.
+  // [Claude] — 2026-10-16 (soir) — Le calque qui tourne porte le CLAVIER : des touches immobiles ne
+  // montreraient aucun mouvement — c'est le clavier qui défile sous le repère, et la touche qui
+  // s'y arrête s'enfonce, comme si le piano jouait le morceau choisi.
   const spin = node('div', 'track-wheel-spin', { 'aria-hidden': 'true' });
-  const ticks = node('div', 'track-wheel-ticks');
-  const label = node('div', 'track-wheel-label');
-  // Pas de texte sur l'étiquette : la moitié gauche sort de l'écran, et un titre coupé en deux rendait
-  // mal (Narcisse). Un petit pictogramme dans la moitié visible, et l'axe au centre — comme le vinyle
-  // du Coach d'accompagnement, dont ce disque reprend la matière.
-  const labelMark = node('span', 'track-wheel-label-mark', { 'aria-hidden': 'true' });
-  labelMark.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
-  label.append(labelMark, node('i', 'track-wheel-spindle'));
-  spin.append(ticks, label);
-  const shine = node('div', 'track-wheel-shine', { 'aria-hidden': 'true' });
-  const marker = node('div', 'track-wheel-marker', { 'aria-hidden': 'true' });
+  spin.innerHTML = buildKeyboardSvg();
+  const keyEls = spin.querySelectorAll('.track-wheel-key-white');
   const itemsLayer = node('div', 'track-wheel-items');
-  dial.append(disc, spin, shine, itemsLayer, marker);
+  const marker = node('div', 'track-wheel-marker', { 'aria-hidden': 'true' });
+  dial.append(disc, spin, itemsLayer, marker);
 
   const side = node('div', 'track-wheel-side');
   const backBtn = node('button', 'track-wheel-back', { type: 'button' }, `${SVG.back}<span>Retour</span>`);
@@ -190,6 +242,7 @@ export function createTrackWheel({ root, onOpen, onRename, onDelete, onClose }) 
   let dragging = null;
   let wheelAcc = 0;
   let nodes = [];          // un élément par morceau affiché
+  let pressedShown = -1;   // touche blanche enfoncée sous le repère (index), -1 si aucune
   const reduceMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
   const arc = () => radius * (WHEEL_STEP_DEG * Math.PI) / 180;
@@ -253,8 +306,17 @@ export function createTrackWheel({ root, onOpen, onRename, onDelete, onClose }) 
         if (isSel) dial.setAttribute('aria-activedescendant', el.id);
       }
     }
-    // Les graduations tournent avec la roue.
+    // Le clavier tourne avec la roue.
     spin.style.transform = `rotate(${(-offset * WHEEL_STEP_DEG).toFixed(2)}deg)`;
+    // La touche qui s'enfonce : celle qui est pile sous le repère, une fois la roue posée.
+    // Pendant le glissé ou l'inertie, aucune touche n'est enfoncée (le pianiste cherche).
+    const settled = !dragging && !closing && shown.length > 0 && Math.abs(target - offset) <= 0.002;
+    const want = settled ? pressedKeyIndex(offset) : -1;
+    if (want !== pressedShown) {
+      if (pressedShown >= 0) keyEls[pressedShown]?.classList.remove('is-pressed');
+      if (want >= 0) keyEls[want]?.classList.add('is-pressed');
+      pressedShown = want;
+    }
   }
 
   function tick(now) {

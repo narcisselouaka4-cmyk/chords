@@ -1,7 +1,7 @@
 /* [Claude] — 2026-10-13 — La roue des morceaux importés (src/ui/components/track-wheel.js).
    Les morceaux sont posés sur un demi-cercle dont le centre est au bord gauche ; celui qui est à
    3 h est le morceau choisi. Les positions des morceaux sont calculées en JS (transform en ligne) ;
-   ici : le disque, les graduations, l'habillage, et l'ouverture en éventail. */
+   ici : le disque, le clavier, l'habillage, et l'ouverture en éventail. */
 .track-wheel {
   --wheel-r: 300px;
   position: absolute;
@@ -33,22 +33,18 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--tr-accent, #b8a0f3) 70%, transparent), inset 0 0 80px color-mix(in srgb, var(--tr-accent, #b8a0f3) 10%, transparent);
 }
 
-/* ── Le VINYLE (16/10/2026) ──────────────────────────────────────────────────────
-   Narcisse : « au lieu que ce soit un simple demi-cercle basique qui ne raconte rien
-   […] genre un vinyle de DJ », puis : « j'aurais aimé avoir le type de vinyle que
-   celui qui était dans coach d'accompagnement ». La matière est donc reprise de
-   `.tr-vinyl-disc` (astra-training.css) : un dégradé conique qui fait tourner la
-   lumière sur la galette, des sillons fins, une étiquette lilas cernée de noir.
+/* ── Le CLAVIER en éventail (16/10/2026, soir) ────────────────────────────────────
+    Narcisse : « le vinyle ne me plaît pas… pourquoi ne pas tenter autre chose en
+    rapport avec la musique ? ». La couronne devient un clavier de piano vu du
+    dessus : touches blanches et noires rayonnant du centre, teintées pour le
+    disque sobre derrière elles — jamais de grande galette noire, ni en mode
+    sombre ni en mode clair. Ce qui tourne, c'est le clavier : la touche qui
+    s'arrête sous le repère (3 h) s'enfonce, le piano « joue » le morceau choisi.
 
-   Le disque reste sombre dans les deux thèmes — un vinyle est noir — mais en mode
-   clair il se pose sur un halo, sinon il flotte sur du blanc.
-
-   Trois couches centrées sur le centre de la roue (bord gauche de l'écran) :
-   `disc` (la galette), `spin` (ce qui tourne : marques du bord et étiquette),
-   `shine` (le reflet, immobile : la lampe de la pièce ne tourne pas). */
+    Deux couches centrées sur le centre de la roue (bord gauche de l'écran) :
+    `disc` (le demi-disque sobre, immobile), `spin` (le clavier, qui tourne). */
 .track-wheel-disc,
-.track-wheel-spin,
-.track-wheel-shine {
+.track-wheel-spin {
   position: absolute;
   top: 50%;
   left: 0;
@@ -59,115 +55,56 @@
   pointer-events: none;
 }
 
+/* Le disque : un demi-disque (la moitié gauche sort de l'écran), qui grandit depuis son centre. */
 .track-wheel-disc {
-  border: 1px solid #49434f;
+  border: 1px solid var(--tr-border, #303036);
   background:
-    repeating-radial-gradient(circle at center, transparent 0 2px, #aea0c812 2.3px 2.7px, transparent 3px 4px),
-    conic-gradient(from 10deg, #151319, #29242c 23%, #131116 32%, #4a414e 46%, #1b171f 50%, #0f0d13 66%, #312a37 83%, #1a171e 95%, #151319);
-  box-shadow:
-    0 2px 0 #09080c,
-    0 8px 0 -5px #625571,
-    0 24px 60px -20px #000000cc,
-    inset 0 0 0 8px #0000003d;
+    radial-gradient(circle at center, transparent 0 56%, color-mix(in srgb, var(--tr-accent, #b8a0f3) 9%, transparent) 100%),
+    var(--tr-surface, #1c1c20);
+  box-shadow: inset 0 0 70px color-mix(in srgb, var(--tr-accent, #b8a0f3) 7%, transparent), 0 30px 70px -40px #000000b3;
   transform: scale(.12);
   opacity: 0;
   transition: transform .75s cubic-bezier(.2, .9, .25, 1), opacity .35s ease, box-shadow .2s ease;
 }
 .track-wheel.is-open .track-wheel-disc { transform: none; opacity: 1; }
-.track-wheel-dial:focus-visible .track-wheel-disc {
-  box-shadow:
-    0 0 0 2px color-mix(in srgb, var(--tr-accent, #b8a0f3) 70%, transparent),
-    0 24px 60px -20px #000000cc,
-    inset 0 0 0 8px #0000003d;
-}
-/* En mode clair, la galette se pose sur un halo : sans lui elle flotte sur du blanc. */
-:root[data-theme='light'] .track-wheel-dial::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 0;
-  width: calc(var(--wheel-r) * 2.5);
-  height: calc(var(--wheel-r) * 2.5);
-  margin: calc(var(--wheel-r) * -1.25) 0 0 calc(var(--wheel-r) * -1.25);
-  border-radius: 50%;
-  background: radial-gradient(circle at center, color-mix(in srgb, var(--tr-accent) 16%, transparent) 0 38%, transparent 68%);
-  pointer-events: none;
-}
 
-/* Ce qui tourne : des sillons concentriques ne montreraient rien, c'est l'étiquette
-   et les marques du bord qui donnent la rotation — comme sur une vraie platine. */
+/* Ce qui tourne : le clavier, dessiné en SVG (buildKeyboardSvg, les angles en JS).
+    Il apparaît quand le disque a fini de grandir. */
 .track-wheel-spin { opacity: 0; transition: opacity .5s ease .3s; }
 .track-wheel.is-open .track-wheel-spin { opacity: 1; }
-
-.track-wheel-ticks {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: repeating-conic-gradient(from -.4deg, #d8ccf52e 0 .8deg, transparent .8deg 5deg);
-  -webkit-mask-image: radial-gradient(circle closest-side, transparent calc(100% - 15px), #000 calc(100% - 15px), #000 calc(100% - 6px), transparent calc(100% - 6px));
-  mask-image: radial-gradient(circle closest-side, transparent calc(100% - 15px), #000 calc(100% - 15px), #000 calc(100% - 6px), transparent calc(100% - 6px));
+.track-wheel-spin svg { width: 100%; height: 100%; display: block; }
+/* Le fond de clavier : une bande à peine plus sombre que le disque, que les
+    interstices entre touches laissent voir. */
+.track-wheel-keybed { stroke: color-mix(in srgb, var(--tr-secondary, #a2a0aa) 16%, var(--tr-inset, #17171a)); }
+/* Les touches : blanches et noires dans les deux thèmes — ce sont des touches
+    de piano, elles ne changent pas avec la page ; c'est le disque derrière qui
+    est teinté. */
+.track-wheel-key { stroke: none; }
+.track-wheel-key-white { fill: #fcfbfe; }
+.track-wheel-key-black { fill: #262230; }
+/* La touche enfoncée sous le repère : elle s'enfonce (se resserre) et prend une
+    teinte d'accent — le piano joue ce morceau-là. */
+.track-wheel-key-white.is-pressed {
+  fill: color-mix(in srgb, var(--tr-accent, #b8a0f3) 30%, #fcfbfe);
+  transform: scale(.965);
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: fill .2s ease, transform .16s cubic-bezier(.2, .9, .3, 1.2);
 }
-
-/* L'étiquette, coupée en deux par le bord de l'écran. Sans texte : un titre à moitié
-   hors champ rendait mal. Un pictogramme dans la moitié visible, et l'axe au centre. */
-.track-wheel-label {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 30%;
-  aspect-ratio: 1;
-  margin: -15% 0 0 -15%;
-  border: 1px solid #eadbffa8;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(130deg, #cbb8e9, #a38bbf);
-  box-shadow: 0 0 0 8px #0d0a1366;
-}
-.track-wheel-label-mark {
-  position: absolute;
-  left: 63%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  color: #4e3d66;
-  opacity: .62;
-}
-.track-wheel-spindle {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #151019;
-  box-shadow: 0 0 0 1px #f8f0ff77;
-}
-
-/* Le reflet : deux lobes opposés, immobiles. */
-.track-wheel-shine {
-  background:
-    conic-gradient(from 150deg,
-      transparent 0deg,
-      #ffffff14 26deg,
-      transparent 62deg,
-      transparent 180deg,
-      #ffffff0d 208deg,
-      transparent 244deg,
-      transparent 360deg);
-  -webkit-mask-image: radial-gradient(circle closest-side, transparent 0 30%, #000 34%, #000 99%, transparent 100%);
-  mask-image: radial-gradient(circle closest-side, transparent 0 30%, #000 34%, #000 99%, transparent 100%);
-  mix-blend-mode: screen;
-  opacity: 0;
-  transition: opacity .6s ease .35s;
-}
-.track-wheel.is-open .track-wheel-shine { opacity: 1; }
+.track-wheel-key-white:not(.is-pressed) { transition: fill .25s ease, transform .3s ease; }
 
 @media (prefers-reduced-motion: reduce) {
   .track-wheel-disc { transition: opacity .2s ease; transform: none; }
+  .track-wheel-key-white { transition: none !important; }
 }
 
-/* Repère fixe à 3 h : le morceau qui s'y arrête est le morceau choisi. */
+/* Repère fixe à 3 h : le morceau qui s'y arrête est le morceau choisi. Posé juste
+   au-delà de la couronne du clavier (r × .87 : le bord extérieur des touches), il
+   pointe l'étiquette choisie quelle que soit la taille de la roue. */
 .track-wheel-marker {
   position: absolute;
   top: 50%;
-  left: calc(var(--wheel-r) - 30px);
+  left: calc(var(--wheel-r) * .87 + 3px);
   width: 0;
   height: 0;
   margin-top: -7px;
@@ -199,55 +136,44 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 10px 16px 10px 20px;
-  border-radius: 12px;
-  /* [Claude] — 2026-10-16 — Les marqueurs sont posés SUR le vinyle : ils se teintent donc pour le
-     vinyle, pas pour la page (Narcisse : « le souci vient aussi des marqueurs sur le vinyle qui
-     sert à désigner les morceaux »). En mode clair, `--tr-surface` valant blanc, les étiquettes
-     devenaient des taches blanches flottant sur du noir. Verre sombre et texte clair, dans les
-     deux thèmes — comme une gommette de repérage collée sur la galette. */
-  border: 1px solid #ffffff1f;
-  background: linear-gradient(#211e2ae6, #15131ce6);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  box-shadow: 0 10px 24px -18px #000, inset 0 1px 0 #ffffff14;
+  padding: 10px 16px 10px 18px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  /* [Claude] — 2026-10-16 (soir) — Retour aux étiquettes teintées pour la PAGE (celles d'avant le
+     vinyle). Narcisse : « ces bulles pour désigner les musiques à côté du vinyle, c'est une
+     régression totale, c'était largement mieux avant » — le verre sombre faisait en plus des
+     taches noires horribles en mode clair. */
+  background: color-mix(in srgb, var(--tr-surface, #1c1c20) 86%, transparent);
   transform-origin: left center;
   will-change: transform, opacity;
   cursor: pointer;
-  transition: background .18s ease, border-color .18s ease, box-shadow .25s ease;
+  transition: background-color .18s ease, border-color .18s ease, box-shadow .25s ease;
 }
-/* La gommette qui l'attache au sillon : un trait court plutôt qu'un clou, comme une marque de
-   repérage posée par un DJ sur le disque. */
-.track-wheel-item::before {
+.track-wheel-item::before {   /* le « clou » qui l'attache au bord de la roue */
   content: '';
   position: absolute;
-  left: -3px;
+  left: -5px;
   top: 50%;
-  width: 7px;
-  height: 18px;
-  margin-top: -9px;
-  border-radius: 2px;
-  background: #cfc6e0;
-  box-shadow: 0 0 0 2px #0d0b12cc;
-  transition: background-color .2s ease, height .25s ease, box-shadow .2s ease;
+  width: 9px;
+  height: 9px;
+  margin-top: -4.5px;
+  border-radius: 50%;
+  background: var(--tr-muted, #7c7a84);
+  box-shadow: 0 0 0 3px var(--tr-surface, #1c1c20);
+  transition: background-color .2s ease, transform .25s ease;
 }
-.track-wheel-item:hover { border-color: #ffffff3d; background: linear-gradient(#2a2638e6, #1b1826e6); }
+.track-wheel-item:hover { border-color: color-mix(in srgb, var(--tr-accent, #b8a0f3) 35%, var(--tr-border, #303036)); }
 .track-wheel-item.is-selected {
-  border-color: color-mix(in srgb, var(--tr-accent, #b8a0f3) 70%, transparent);
-  background: linear-gradient(color-mix(in srgb, var(--tr-accent, #b8a0f3) 30%, #1a1724), color-mix(in srgb, var(--tr-accent, #b8a0f3) 14%, #141119));
-  box-shadow: 0 16px 34px -18px color-mix(in srgb, var(--tr-accent, #b8a0f3) 80%, transparent), inset 0 1px 0 #ffffff1f;
+  background: color-mix(in srgb, var(--tr-accent, #b8a0f3) 16%, var(--tr-surface, #1c1c20));
+  border-color: color-mix(in srgb, var(--tr-accent, #b8a0f3) 60%, var(--tr-border, #303036));
+  box-shadow: 0 14px 30px -18px color-mix(in srgb, var(--tr-accent, #b8a0f3) 70%, transparent);
 }
-.track-wheel-item.is-selected::before {
-  background: var(--tr-accent, #b8a0f3);
-  height: 30px;
-  margin-top: -15px;
-  box-shadow: 0 0 0 2px #0d0b12cc, 0 0 14px color-mix(in srgb, var(--tr-accent, #b8a0f3) 75%, transparent);
-}
+.track-wheel-item.is-selected::before { background: var(--tr-accent, #b8a0f3); transform: scale(1.35); }
 .track-wheel-item-title {
   font-size: 15px;
   font-weight: 650;
   line-height: 1.3;
-  color: #f2f0f7;
+  color: var(--tr-text, #f0eff3);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -256,12 +182,12 @@
   font-family: var(--r-font-mono, ui-monospace, monospace);
   font-size: 11px;
   letter-spacing: .02em;
-  color: #9c95ad;
+  color: var(--tr-muted, #7c7a84);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.track-wheel-item.is-selected .track-wheel-item-meta { color: #d9d3e8; }
+.track-wheel-item.is-selected .track-wheel-item-meta { color: var(--tr-secondary, #a2a0aa); }
 
 .track-wheel.is-empty .track-wheel-dial::after {
   content: 'Aucun morceau à afficher';
@@ -431,5 +357,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .track-wheel, .track-wheel-disc, .track-wheel-ticks, .track-wheel-marker, .track-wheel-side { transition: none !important; transform: none !important; }
+  .track-wheel, .track-wheel-disc, .track-wheel-marker, .track-wheel-side { transition: none !important; transform: none !important; }
 }
