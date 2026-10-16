@@ -36,7 +36,16 @@ export const MEMORY_VERSION = 1;
 //       qu'elle est grise. Sans cette révision, un relevé déjà gardé garderait sa lecture fausse —
 //       « Passing chords… Drop 2 » restait à 52 touches allumées, et le Copilote continuait de dire
 //       qu'aucune note n'avait été lue. Voir bugs/open/pedagogie-clavier-teinte-tout-lu-comme-allume.
-export const READING_REVISION = 4;
+//   5 : [Claude] — 2026-10-16 — Relevés de la révision 4 à jeter. Narcisse : « le Copilote fait très
+//       clairement n'importe quoi » en rejouant « Amazing Grace ». Mesuré : le relevé gardé de cette
+//       vidéo (relu le 16/10 à 12:22) ne contient que 127 notes, dont 90 en octave 2, là où celui du
+//       4 octobre en avait 603, en octaves 3 et 4. Or le code actuel, rejoué hors Electron exactement
+//       comme l'application le lance (8 i/s + relecture fine à 30 i/s, mêmes modules), rend 603 notes
+//       en octaves 3 et 4 : la lecture est bonne, c'est le relevé ENREGISTRÉ qui est abîmé. Cette
+//       révision le fait relire. Si une vidéo revient encore abîmée, la cause est dans ce que seul
+//       Electron fait (sondes de géométrie, fenêtres de relecture) : la chercher là, pas dans la
+//       couleur des touches (vérifiée identique à l'ancienne lecture, 575 touches lues sur 176 images).
+export const READING_REVISION = 5;
 /** Révision à partir de laquelle un relevé au son (clavier non reconnu) n'est plus relu. */
 const AUDIO_RECHECK_REVISION = 3;
 

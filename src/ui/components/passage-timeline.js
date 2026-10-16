@@ -7,8 +7,8 @@
 // ce soit évident ».
 //
 // Une barre de la durée de la vidéo :
-//   - les ÉTAPES du tuto y sont dessinées (tutorial-guide.js : main gauche seule, main droite
-//     seule, tout ensemble, il explique) : on voit d'un coup d'œil comment le tuto est construit ;
+//   - les ACCORDS relevés y sont dessinés en bandes neutres (le guide du tuto et ses chapitres sont
+//     retirés le 16/10/2026) : on voit d'un coup d'œil comment le tuto est construit ;
 //   - glisser sur la barre trace une RÉGION, comme dans le Studio ; ses poignées la règlent, on
 //     la déplace en la tirant ; un double-clic sur une étape en fait la région ;
 //   - un simple clic place la vidéo ; la tête de lecture avance avec elle ;
@@ -132,7 +132,7 @@ export function createPassageTimeline({ onSeek = () => {}, onRegion = () => {}, 
       block.style.left = `${pct(s.start)}%`;
       block.style.width = `${Math.max(0.3, pct(s.end) - pct(s.start))}%`;
       block.style.setProperty('--i', String(i));
-      // Les chapitres d'un tuto (guide-chapters.js) : leur titre est écrit dans la barre, comme sur YouTube.
+      // Le titre d'une bande (l'accord relevé) est écrit dedans quand la place le permet.
       if (s.label) {
         block.appendChild(node('span', 'passage-timeline-step-label', { text: s.label }));
         // Segment étroit : le numéro du chapitre à la place du titre (le titre entier reste en infobulle).

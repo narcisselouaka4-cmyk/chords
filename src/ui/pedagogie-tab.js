@@ -61,10 +61,6 @@ import { getTutorialFolder, saveTutorialFolder } from '../pedagogie/tutorial-fol
 import { samplesToNoteEvents, eventsFromTranscription, compactTimeline, passageExample } from '../pedagogie/teacher-notes.js';
 import { isFlashRendering, flashSegments, holdFlashNotes } from '../pedagogie/flash-notes.js';
 import { labelNotes } from '../pedagogie/chord-labeling.js';
-import { buildTutorialGuide, finalResultExample } from '../pedagogie/tutorial-guide.js';
-import { buildChapters, chaptersSignature, needsChapterTitles, chapterMessages, parseChapterTitles, matchChapterTitles } from '../pedagogie/guide-chapters.js';
-import { buildHighlights } from '../pedagogie/guide-highlights.js';
-import { checkDemonstration } from '../pedagogie/demo-check.js';
 import { getAIConfig, callChatCompletions } from '../ai/openai-config.js';
 import { withMeasuredVelocity } from '../pedagogie/dynamics.js';
 import { registerCopilotContext } from '../pedagogie/copilot-context.js';
@@ -72,11 +68,11 @@ import { dockCopilot, undockCopilot } from '../pedagogie/copilot-dock.js';
 import { momentContext, passageWindow, clock } from '../pedagogie/tutorial-moment.js';
 import { FOLLOW_SECONDS, MAX_PASSAGE_SECONDS, setRangeBound } from '../pedagogie/passage-range.js';
 import { createPassageTimeline } from './components/passage-timeline.js';
-import { createGuidePanel } from './pedagogie-guide.js';
 import { DEFAULT_SHARE, shareAt, isWide, toggledShare, shareForKey, storedShare, clampShare } from '../pedagogie/copilot-width.js';
 import { createTutorialMemory, cardDuration, READING_REVISION } from '../pedagogie/tutorial-memory.js';
 import { teacherActivity, chordsWhilePlaying, activitySummary, isPlaying, ACTIVITY, withoutReadingArtifacts } from '../pedagogie/teacher-activity.js';
-import { songStructure } from '../pedagogie/song-structure.js';
+import { songStructure, harmonicTokens, structureKey, keyCoverage } from '../pedagogie/song-structure.js';
+import { readSpokenTheory, spokenKeyFor, keyText as spokenKeyText } from '../pedagogie/spoken-theory.js';
 import { createSpeedMenu, setSpeedMenuValue, clampSpeed } from './components/speed-menu.js';
 import { createMetronomeMenu, setMetronomeMenuState, flashMetronomeBeat, triggerMetronomeDetect, clampBpm } from './components/metronome-menu.js';
 import { createMetronome } from '../audio/metronome.js';
@@ -179,12 +175,10 @@ let passage = null;
 let looping = false;
 // Ce que la barre dit après un réglage (« la fin a suivi »), et la vidéo pour laquelle ses
 // listes ont été construites.
-// [Claude] — 2026-10-14 — La barre du passage (components/passage-timeline.js) et le guide du tuto
-// (pedagogie-guide.js), dans l'onglet « Guide du tuto » à côté du Copilote.
+// [Claude] — 2026-10-16 — La barre du passage (components/passage-timeline.js). Le « Guide du tuto »
+// est retiré : le panneau de droite ne contient plus que le Copilote (Narcisse : « je ne vois aucune
+// plus-value au guide du tuto […] on gardera simplement le copilote, et puis basta »).
 let timeline = null;
-let guidePanel = null;
-let guideShownFor = null;
-let panelTab = 'guide';
 const TIP_KEY = 'pjc.pedagogie.timeline-tip';
 // La frise des accords, repliée par défaut (choix retenu dans le navigateur).
 // [Claude] — 2026-10-03 — La part du Copilote dans la largeur (poignée, « Agrandir »), retenue.
@@ -367,8 +361,6 @@ function resetTutorialView() {
   restoredAt = null;
   passage = null;
   looping = false;
-  guideShownFor = null;
-  panelTab = 'guide';
   resetNarration();
   setStatus('');
   setProgress('');
@@ -1008,15 +1000,14 @@ function renderPassageBar() {
   bar.hidden = !ready;
   if (!ready) return;
   const duration = Number(els.videoPlayer?.duration);
-  const guide = tutorialGuide();
   timeline?.update({
     // La vidéo pas encore chargée : la durée relevée à l'analyse.
     duration: Number.isFinite(duration) && duration > 0 ? duration : (Number(analysis.stats?.duration) || 0),
     now: Number(els.videoPlayer?.currentTime) || 0,
     range: passage,
-    // Les chapitres du tuto (titre écrit dans la barre) ; sinon (vidéo trop courte), ses accords, en
-    // bandes neutres. Les étapes du moteur, qui parlent de mains (ADR-054), ne s'affichent plus.
-    steps: chapterSteps() || chordSteps(),
+    // Les accords relevés, en bandes neutres. Les étapes du moteur, qui parlent de mains (ADR-054),
+    // ne s'affichent plus ; les chapitres sont partis avec le guide (16/10/2026).
+    steps: chordSteps(),
   });
   if (els.timelineTip && !timelineTipSeen()) els.timelineTip.hidden = false;
   const chipKey = passage ? `${passage.start}|${passage.end}` : 'suit';
@@ -1754,7 +1745,6 @@ function render() {
 
   renderVideo();
   renderFormat();
-  renderGuide();
   renderTools();
   renderPassageBar();
   renderCopilotPanel();
@@ -1827,81 +1817,12 @@ function renderFormat() {
  * Frise des accords relevés, sous la vidéo : un clic place la vidéo à l'accord ;
  * l'accord en cours et ceux du passage dont parle le Copilote sont marqués.
  */
-/**
- * [Claude] — 2026-10-14 — Le guide du tuto (onglet « Guide du tuto ») : refait quand le relevé
- * change. Les « Accords relevés » sont retirés (Narcisse : « je ne l'utilise pas du tout »).
- */
-function renderGuide() {
-  if (!guidePanel) return;
-  const ready = Boolean(selectedPath && analysis && !isReadingHere());
-  const guide = ready ? tutorialGuide() : null;
-  const { chapters, subject, titles } = ready ? tutorialChapters() : { chapters: [], subject: '', titles: null };
-  const shown = `${guide ? 'g' : '-'}|${chaptersSignature(chapters)}|${chapters.map((c) => c.title).join('/')}|${subject}|${titles}`;
-  if (guideShownFor === shown && guidePanel.root.childElementCount) return;
-  guideShownFor = shown;
-  guidePanel.render(guide, {
-    noNotes: ready && !guide && !chapters.length,
-    chapters,
-    subject,
-    titles,
-    // Chaque case est confrontée à ce qu'elle jouera vraiment (demo-check.js) avant d'être proposée.
-    check: (h) => {
-      const v = teacherView();
-      return checkDemonstration(h, { guide, notes: v?.played || analysis?.noteEvents || [], pedals: analysis?.pedals || null, activity: v?.spans || [] });
-    },
-  });
-  setPanelTab(guide || chapters.length ? panelTab : 'copilot', { quiet: true });
-}
-
-/** Les chapitres du tuto, en gros segments titrés pour la barre sous la vidéo (null : pas de chapitres). */
-function chapterSteps() {
-  if (!analysis || !selectedPath) return null;
-  const { chapters } = tutorialChapters();
-  if (!chapters.length) return null;
-  return chapters.map((c) => ({ id: c.id, kind: `ch-${c.kind}`, start: c.start, end: c.end, title: c.title, label: c.title }));
-}
-
-/** Les accords relevés, en étapes neutres pour la barre du tuto (quand il n'y a pas de guide). */
+/** Les accords relevés, en étapes pour la barre du tuto, sous la vidéo. */
 function chordSteps() {
   return (analysis?.segments || [])
     .filter((s) => Number.isFinite(s?.start) && Number.isFinite(s?.end) && s.end > s.start && s.chord?.resolved && s.chord.label)
     .map((s, i) => ({ id: `c${i + 1}`, kind: 'chord', start: s.start, end: s.end, title: s.chord.label }));
 }
-
-/** L'onglet du panneau de droite : le guide du tuto, ou le Copilote. */
-function setPanelTab(tab, { quiet = false } = {}) {
-  panelTab = tab === 'copilot' ? 'copilot' : 'guide';
-  if (!quiet && panelTab === 'guide') panelTabChosen = true;
-  if (!els.copilotPanel) return;
-  els.copilotPanel.dataset.tab = panelTab;
-  for (const [btn, name] of [[els.tabGuide, 'guide'], [els.tabCopilot, 'copilot']]) {
-    if (!btn) continue;
-    btn.setAttribute('aria-selected', String(panelTab === name));
-    btn.tabIndex = panelTab === name ? 0 : -1;
-  }
-  if (panelTab === 'copilot') els.tabCopilot?.classList.remove('has-news');
-}
-let panelTabChosen = false;
-
-/** Un exemple du guide (le résultat final, un mouvement) : le même lecteur que le Copilote. */
-function playGuideExample(id, what) {
-  // Vitesse (¼ à 1×) et transposition (demi-tons) choisies dans le guide : on peut ralentir pour bien
-  // observer le geste, ou le jouer dans une autre tonalité pour se l'approprier.
-  const rate = Number.isFinite(what.rate) && what.rate > 0 ? what.rate : 1;
-  const semitones = Number.isFinite(what.semitones) ? Math.max(-12, Math.min(12, what.semitones)) : 0;
-  const view = teacherView();
-  const notes = view?.played || analysis?.noteEvents || [];
-  let example = null;
-  if (what.kind === 'final') {
-    example = finalResultExample({ guide: tutorialGuide(), noteEvents: notes, pedals: analysis?.pedals || null, activity: view?.spans || [] }, { part: what.part, hand: what.hand, semitones }).example;
-  } else if (what.kind === 'movement') {
-    example = passageExample(notes, { start: what.start, end: what.end, semitones, title: 'Le mouvement du prof', pedals: analysis?.pedals || null, speech: view?.spans || [] });
-  }
-  if (!example) return;
-  pauseVideo();
-  document.dispatchEvent(new CustomEvent('copilot-play-example', { detail: { id, example, pedal: true, rate } }));
-}
-
 
 /**
  * Panneau du Copilote : la conversation y est amarrée quand la vue est affichée, et
@@ -2056,10 +1977,8 @@ function updateMoment() {
       ? (win.chosen ? 'Le passage que tu as choisi sous la vidéo : c\'est celui dont tu parles au Copilote.' : `Les ${FOLLOW_SECONDS} dernières secondes de la vidéo : « ici », « ce qu'il vient de faire ». Choisis un passage sous la vidéo pour le fixer.`)
       : '';
   }
-  // La tête de lecture de la barre, et l'étape en cours dans le guide.
   const now = Number(els.videoPlayer?.currentTime) || 0;
   timeline?.update({ now });
-  guidePanel?.setNow(now);
 }
 
 /**
@@ -2080,134 +1999,39 @@ let structureCache = null;
  * progression, […] ce que je demande en réalité, c'est la structure de la musique »).
  */
 function tutorialStructure(chords, notes) {
-  if (structureCache && structureCache.analysis === analysis && structureCache.chords === chords.length && structureCache.key === detectedKey) return structureCache.structure;
+  // [Claude] — 2026-10-16 — La tonalité que le prof ANNONCE à voix haute l'emporte sur celle que le
+  // moteur devine, tant que ce qu'il joue la soutient. Mesuré sur « Passing chords… Drop 2 » : il dit
+  // « the key of C sharp », le moteur devinait La♭ majeur, et tous les degrés rendus au Copilote
+  // étaient décalés d'une quinte (« 4 → 1 » là où le tuto montre « 1 → 5 »). Garde-fou mesuré : la
+  // vidéo de salsa annonce Sol mineur mais joue en Si mineur, et c'est le jeu qui gagne.
+  const said = spokenKeyFor(readSpokenTheory(narrationView.map((n) => ({ start: n.start, end: n.end, text: n.text }))), 0, Number(analysis?.stats?.duration) || Infinity);
+  const key = detectedKey || announcedKey(said, chords) || null;
+  if (structureCache && structureCache.analysis === analysis && structureCache.chords === chords.length && structureCache.key === key) return structureCache.structure;
   let structure = null;
   try {
-    structure = songStructure({ chords, notes, key: detectedKey });
+    structure = songStructure({ chords, notes, key });
   } catch (err) {
     console.warn('[Pedagogie] Structure non calculée :', err);
   }
-  structureCache = { analysis, chords: chords.length, key: detectedKey, structure };
+  structureCache = { analysis, chords: chords.length, key, structure };
   return structure;
 }
-// [Claude] — 2026-10-14 — Le guide du tuto (tutorial-guide.js) : ses étapes, le résultat final de
-// chaque partie, les mouvements qu'il montre. Calculé une fois par relevé affiché.
-let guideCache = null;
-function tutorialGuide() {
-  if (!analysis) return null;
-  const view = teacherView();
-  if (guideCache && guideCache.analysis === analysis && guideCache.narration === narrationView) return guideCache.guide;
-  let guide = null;
-  try {
-    // Les accords des moments où il joue : ceux lus pendant qu'il parle (sa voix prise pour du piano,
-    // une image restée allumée) ne sont pas des étapes jouées.
-    const segments = analysis.segments || [];
-    guide = buildTutorialGuide({
-      segments: view?.filterChords ? chordsWhilePlaying(segments, view.spans) : segments,
-      noteEvents: view?.played || analysis.noteEvents || [],
-      // `end` compte : une ligne parlée peut durer 40 s, et spoken-theory.js y situe chaque mot
-      // (« the key of C sharp » à 1:09, pas au début de la ligne).
-      transcript: narrationView.map((n) => ({ start: n.start, end: n.end, text: n.text })),
-      duration: Number.isFinite(els.videoPlayer?.duration) ? els.videoPlayer.duration : (analysis.stats?.duration || null),
-    });
-  } catch (err) {
-    console.warn('[Pedagogie] Guide non calculé :', err);
-  }
-  guideCache = { analysis, narration: narrationView, guide };
-  return guide;
-}
 
-/**
- * [Claude] — 2026-10-15 — Les CHAPITRES du tuto, comme sur YouTube (guide-chapters.js). Les bornes sont
- * décidées par le moteur (parole, jeu, tonalité, vocabulaire) ; l'IA ne fait que les NOMMER en français
- * (Narcisse : « la barrière de la langue »), une fois par tuto et par découpage, gardée dans sa fiche.
- * @returns {{chapters: object[], subject: string, titles: 'pending'|'nokey'|null}}
- */
-let chaptersCache = null;
-const chapterTitlesAsked = new Set();
-const chapterTitlesPending = new Set();
-function tutorialChapters() {
-  const none = { chapters: [], subject: '', titles: null };
-  if (!analysis || !selectedPath) return none;
-  const guide = tutorialGuide();
-  if (chaptersCache && chaptersCache.analysis === analysis && chaptersCache.narration === narrationView && chaptersCache.guide === guide) return chaptersCache.value;
-  const view = teacherView();
-  const highlights = guide ? buildHighlights(guide) : [];
-  let chapters = [];
+/** La tonalité annoncée, si les accords joués la soutiennent au moins aussi bien que la devinée. */
+function announcedKey(said, chords) {
+  if (!said || !chords?.length) return null;
   try {
-    chapters = buildChapters({
-      narration: narrationView,
-      spans: view?.spans || [],
-      parts: guide?.parts || [],
-      highlights,
-      duration: Number.isFinite(els.videoPlayer?.duration) ? els.videoPlayer.duration : (analysis.stats?.duration || null),
-    });
-  } catch (err) {
-    console.warn('[Pedagogie] Chapitres non calculés :', err);
-  }
-  let subject = '';
-  let titles = null;
-  const sig = chaptersSignature(chapters);
-  const fr = cards[selectedPath]?.chaptersFr;
-  // [Claude] — 2026-10-16 — Les titres gardés sont retrouvés par RECOUVREMENT de temps, pas par égalité
-  // de signature : une ré-analyse déplace les bornes de quelques secondes et faisait tout perdre.
-  const named = chapters.length && fr?.titles?.length ? matchChapterTitles(chapters, fr.titles) : chapters;
-  const allNamed = chapters.length > 0 && named.every((c, i) => c !== chapters[i]);
-  if (allNamed) {
-    chapters = named;
-    subject = fr.subject || '';
-  } else if (chapters.length && needsChapterTitles(chapters)) {
-    chapters = named;
-    subject = fr?.subject || '';
-    const config = getAIConfig();
-    if (!config?.apiKey || !config?.baseUrl) titles = 'nokey';
-    else {
-      titles = 'pending';
-      requestChapterTitles(selectedPath, chapters, highlights);
-    }
-  }
-  const value = { chapters, subject, titles };
-  chaptersCache = { analysis, narration: narrationView, guide, value };
-  return value;
-}
-
-async function requestChapterTitles(path, chapters, highlights) {
-  const sig = chaptersSignature(chapters);
-  const key = `${path}|${sig}`;
-  if (!path || !sig || chapterTitlesAsked.has(key)) return;
-  const config = getAIConfig();
-  if (!config?.apiKey || !config?.baseUrl) return;
-  chapterTitlesAsked.add(key);
-  chapterTitlesPending.add(key);
-  const moveTitles = Object.fromEntries(highlights.map((h) => [h.id, `${h.title}${h.detail ? ` (${h.detail})` : ''}`]));
-  try {
-    const res = await callChatCompletions(config.baseUrl, config.apiKey, {
-      model: config.model,
-      messages: chapterMessages(chapters, { moveTitles, spoken: tutorialGuide()?.spoken || null }),
-      temperature: 0.2,
-    }, { timeoutMs: 60000 });
-    if (!res.ok) return;
-    const data = await res.json();
-    const parsed = parseChapterTitles(data?.choices?.[0]?.message?.content || '', chapters);
-    if (!Object.keys(parsed.byId).length) return;
-    // Gardés AVEC leurs bornes : c'est ce qui permet de les retrouver après une ré-analyse.
-    const titles = chapters
-      .filter((c) => parsed.byId[c.id])
-      .map((c) => ({ start: c.start, end: c.end, title: parsed.byId[c.id].title, summary: parsed.byId[c.id].summary }));
-    await updateCard(path, { chaptersFr: { sig, subject: parsed.subject, titles } });
-  } catch (err) {
-    console.warn('[Pedagogie] Chapitres non nommés :', err?.message || err);
-  } finally {
-    chapterTitlesPending.delete(key);
-    if (selectedPath === path) {
-      chaptersCache = null;
-      guideShownFor = null;
-      renderGuide();
-      renderPassageBar();
-    }
+    const tokens = harmonicTokens(chords);
+    if (tokens.length < 2) return null;
+    const text = spokenKeyText(said.pc, said.minor);
+    const candidate = structureKey(text);
+    const measured = structureKey(null, tokens);
+    if (candidate.rootPc === measured.rootPc && candidate.minor === measured.minor) return null;
+    return keyCoverage(candidate, tokens) >= keyCoverage(measured, tokens) - 0.05 ? text : null;
+  } catch (_) {
+    return null;
   }
 }
-
 function teacherView() {
   if (!analysis) return null;
   if (activityCache && activityCache.analysis === analysis && activityCache.narration === narrationView) return activityCache.view;
@@ -2262,7 +2086,6 @@ export function getPedagogieCopilotContext() {
     notesTimeline: compactTimeline(noteEvents, chords),
     noteEvents,
     structure: tutorialStructure(structureChords, noteEvents),
-    guide: tutorialGuide(),
     pedals: Array.isArray(analysis.pedals) && analysis.pedals.length ? analysis.pedals : null,
     activity: view.spans,
     activitySummary: activitySummary(view.spans, { max: 40 }),
@@ -2340,9 +2163,6 @@ export function initPedagogieTab() {
   els.timelineMount = document.getElementById('pedagogie-timeline');
   els.timelineTip = document.getElementById('pedagogie-timeline-tip');
   els.regionChip = document.getElementById('pedagogie-region-chip');
-  els.tabGuide = document.getElementById('pedagogie-tab-guide');
-  els.tabCopilot = document.getElementById('pedagogie-tab-copilot');
-  els.guideSlot = document.getElementById('pedagogie-guide-slot');
   els.passageLoop = document.getElementById('pedagogie-passage-loop');
   els.passageFollow = document.getElementById('pedagogie-passage-follow');
   els.videoActions = document.getElementById('pedagogie-video-actions');
@@ -2393,7 +2213,7 @@ export function initPedagogieTab() {
   els.videoPlayer?.addEventListener('loadedmetadata', renderPassageBar);
   els.passageLoop?.addEventListener('click', () => { toggleLooping(); });
   els.passageFollow?.addEventListener('click', () => { followVideo(); });
-  // [Claude] — 2026-10-14 — La barre du passage et le guide du tuto.
+  // La barre du passage, sous la vidéo.
   if (els.timelineMount) {
     timeline = createPassageTimeline({
       onSeek: (t) => seekVideo(t),
@@ -2404,32 +2224,6 @@ export function initPedagogieTab() {
     els.timelineMount.appendChild(timeline.root);
   }
   document.getElementById('pedagogie-timeline-tip-ok')?.addEventListener('click', () => hideTimelineTip(true));
-  if (els.guideSlot) {
-    guidePanel = createGuidePanel({
-      onSeek: (t) => seekVideo(t),
-      onRegion: (range) => setPassage(range),
-      onPlay: (id, what) => playGuideExample(id, what),
-      onStop: () => document.dispatchEvent(new CustomEvent('copilot-stop-example')),
-    });
-    els.guideSlot.appendChild(guidePanel.root);
-  }
-  els.tabGuide?.addEventListener('click', () => setPanelTab('guide'));
-  els.tabCopilot?.addEventListener('click', () => setPanelTab('copilot'));
-  for (const btn of [els.tabGuide, els.tabCopilot]) {
-    btn?.addEventListener('keydown', (e) => {
-      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-      e.preventDefault();
-      setPanelTab(panelTab === 'guide' ? 'copilot' : 'guide');
-      (panelTab === 'guide' ? els.tabGuide : els.tabCopilot)?.focus();
-    });
-  }
-  // Les exemples du guide jouent dans le lecteur commun : leurs boutons le disent.
-  document.addEventListener('copilot-example-state', (e) => {
-    const { id, playing } = e.detail || {};
-    if (typeof id === 'string' && id.startsWith('guide-')) guidePanel?.setPlaying(id, Boolean(playing));
-    else if (playing) guidePanel?.setPlaying(null, false);
-  });
-  setPanelTab('guide', { quiet: true });
   // La largeur du Copilote : la poignée, le bouton, et la part retenue.
   els.resizer = document.getElementById('pedagogie-resizer');
   els.sizeBtn = document.getElementById('pedagogie-copilot-size');

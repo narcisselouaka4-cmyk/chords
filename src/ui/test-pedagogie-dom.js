@@ -7,7 +7,7 @@
 // un import qui dérive d'un fichier à l'autre et éteint une partie de
 // l'interface sans le dire.
 
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -597,8 +597,8 @@ check('Une touche figée jouée puis relâchée par le pianiste redevient jaune'
 // ---------------------------------------------------------------------------
 const clientCode = stripComments(readText('src/pedagogie/copilot-client.js'));
 check('Pédagogie IA donne la structure du tuto au Copilote (calculée une fois par relevé)',
-  /import \{ songStructure \} from '\.\.\/pedagogie\/song-structure\.js';/.test(tabCode)
-  && /structure: tutorialStructure\(structureChords, noteEvents\),/.test(tabCode) && /structure = songStructure\(\{ chords, notes, key: detectedKey \}\);/.test(tabCode)
+  /import \{ songStructure, harmonicTokens, structureKey, keyCoverage \} from '\.\.\/pedagogie\/song-structure\.js';/.test(tabCode)
+  && /structure: tutorialStructure\(structureChords, noteEvents\),/.test(tabCode) && /structure = songStructure\(\{ chords, notes, key \}\);/.test(tabCode)
   // Sans les « accords » d'une seule note (une note de mélodie lue comme un accord).
   // Mais un accord lu au son (sans notes : midis vide) reste.
   && /Array\.isArray\(s\.midis\) && s\.midis\.length > 0 && new Set\(s\.midis\.map\(\(m\) => \(\(m % 12\) \+ 12\) % 12\)\)\.size < 2/.test(tabCode));
@@ -697,7 +697,6 @@ check('Le panneau : 5 vitesses courantes, un curseur de 0,25 à 2 (pas de 0,05),
 // tuto (étapes, résultat final, mouvements) à côté du Copilote, plus d'« Accords relevés ».
 // ---------------------------------------------------------------------------
 const timelineCode = stripComments(readText('src/ui/components/passage-timeline.js'));
-const guideUiCode = stripComments(readText('src/ui/pedagogie-guide.js'));
 check('« Accords relevés » est retiré (frise, liste, réglage gardé)',
   !html.includes('id="pedagogie-strip"') && !html.includes('id="pedagogie-grid"') && !tabCode.includes('stripOpen') && !tabCode.includes('STRIP_KEY'));
 check('Plus de listes Début / Fin : la barre du passage, sous la vidéo, avec « Boucler » et « Effacer »',
@@ -714,47 +713,30 @@ check('Une bulle d\'aide (une fois) dit à quoi sert la barre, au lieu d\'un pet
 check('Le passage : 10 min au plus, le Copilote le regarde (sinon les 30 dernières secondes)',
   /if \(end - start > MAX_PASSAGE_SECONDS\) end = start \+ MAX_PASSAGE_SECONDS;/.test(tabCode)
   && /passageWindow\(video\?\.currentTime, \{ length: FOLLOW_SECONDS, fixed: passage, duration: video\?\.duration \}\)/.test(tabCode));
-check('Deux onglets à droite : Guide du tuto et Copilote',
-  html.includes('id="pedagogie-tab-guide"') && html.includes('id="pedagogie-tab-copilot"') && html.includes('id="pedagogie-guide-slot"')
-  && /function setPanelTab\(tab/.test(tabCode));
-check('Le guide est court : une phrase « de quoi ça parle », six cases au plus, vitesse et transposition',
-  guideUiCode.includes('buildHighlights(guide)') && !guideUiCode.includes('describeSubject')
-  && guideUiCode.includes("'Ce qu\\'il montre'") && guideUiCode.includes('RATES') && guideUiCode.includes('TRANSPOSE')
-  && readText('src/pedagogie/guide-highlights.js').includes('MAX_HIGHLIGHTS = 6'));
-check('Le guide ne montre plus ni mains, ni accords en puces, ni étapes une à une, ni rôle supposé (ADR-052, ADR-054)',
-  !/pedago-step|pedago-final|pedago-hand|pedago-move|pedago-step-role|Main gauche|Main droite|Hypothèse/.test(guideUiCode)
-  && !readText('src/ui/refonte/pedagogie-guide.css').match(/\.pedago-(step|final|hand|move)/));
-check('Les exemples du guide passent par le lecteur commun (copilot-play-example)',
-  /function playGuideExample\(id, what\) \{[\s\S]*?new CustomEvent\('copilot-play-example'/.test(tabCode));
-check('Écouter un enseignement du guide : la vitesse et la transposition choisies partent au lecteur',
-  /function playGuideExample\(id, what\) \{[\s\S]*?const rate = [\s\S]*?const semitones = [\s\S]*?detail: \{ id, example, pedal: true, rate \}/.test(tabCode));
-check('Le Copilote reçoit le guide (étapes, résultat final, mouvements)',
-  /guide: tutorialGuide\(\),/.test(tabCode) && readText('src/pedagogie/copilot-client.js').includes('lines.push(...guideLines(context.guide));'));
-check('Tuto lu au son (pas de guide) : la barre montre ses chapitres ou ses accords, le guide dit pourquoi il est vide',
-  /steps: chapterSteps\(\) \|\| chordSteps\(\),/.test(tabCode) && /noNotes: ready && !guide && !chapters\.length/.test(tabCode)
-  && guideUiCode.includes('Ce tuto a été lu au son') && readText('src/ui/components/passage-timeline.css').includes('.passage-timeline-step.is-chord'));
 check('La barre prend la durée de l\'analyse tant que la vidéo n\'est pas chargée',
   /: \(Number\(analysis\.stats\?\.duration\) \|\| 0\),/.test(tabCode));
 
 
-check('Les chapitres du tuto : bornes décidées par le moteur, titres français demandés à l\'IA et gardés dans la fiche',
-  /function tutorialChapters\(\)/.test(tabCode) && tabCode.includes('buildChapters({') && /chapterMessages\(chapters, \{ moveTitles, spoken:/.test(tabCode)
-  && tabCode.includes('updateCard(path, { chaptersFr:') && readText('src/pedagogie/guide-chapters.js').includes('Les BORNES sont décidées ici, par le moteur'));
-check('Les chapitres s\'écrivent dans la barre sous la vidéo (titre dans chaque segment), sans légende des mains',
-  readText('src/ui/components/passage-timeline.js').includes('passage-timeline-step-label') && /function chapterSteps\(\)/.test(tabCode)
-  && !html.includes('pedagogie-timeline-legend') && !html.includes('Main gauche</span>'));
-check('Plus de résumés par étape (remplacés par les titres de chapitres)',
-  !tabCode.includes('requestGuideSummaries') && !tabCode.includes('guideFr'));
+// [Claude] — 2026-10-16 — Le « Guide du tuto » est RETIRÉ (Narcisse : « je ne vois aucune plus-value
+// au guide du tuto, donc on va l'enlever […] on gardera simplement le copilote, et puis basta »).
+// Ces contrôles veillent à ce qu'il ne revienne pas par la fenêtre.
+const copilotCode = stripComments(readText('src/pedagogie/copilot-client.js'));
+const exists = (rel) => existsSync(resolve(projectRoot, rel));
+check('Plus de panneau « Guide du tuto » ni d\'onglets : le panneau de droite est le Copilote seul',
+  !html.includes('pedagogie-guide-slot') && !html.includes('pedagogie-tab-guide') && !html.includes('pedago-panel-tabs')
+  && !exists('src/ui/pedagogie-guide.js') && !tabCode.includes('createGuidePanel'));
+check('Les modules du guide sont supprimés (guide, chapitres, cases, contrôle de cohérence)',
+  ['src/pedagogie/tutorial-guide.js', 'src/pedagogie/guide-chapters.js', 'src/pedagogie/guide-highlights.js', 'src/pedagogie/demo-check.js']
+    .every((f) => !exists(f)));
+check('Le Copilote ne rejoue plus un « résultat final » reconstitué par l\'application',
+  !copilotCode.includes('play_final_result') && !copilotCode.includes('guideLines')
+  && !readText('src/pedagogie/tutorial-questions.js').includes("kind: 'final'"));
+check('La barre sous la vidéo montre les accords relevés (plus de chapitres)',
+  /steps: chordSteps\(\),/.test(tabCode) && !tabCode.includes('chapterSteps'));
+// La tonalité que le prof ANNONCE est gardée : elle corrigeait des degrés faux, et elle alimente
+// maintenant la structure que lit le Copilote, non plus le guide.
+check('La tonalité annoncée par le prof l\'emporte encore, sur la structure du Copilote',
+  tabCode.includes("from '../pedagogie/spoken-theory.js'") && /function announcedKey\(said, chords\)/.test(tabCode)
+  && /keyCoverage\(candidate, tokens\) >= keyCoverage\(measured, tokens\)/.test(tabCode));
 // [Claude] — 2026-10-16 — Ce que le prof annonce (tonalité, degrés, ses mots) remonte à l'écran et au
 // Copilote : le guide disait « 4 → 1 » quand le tuto dit « from the chord I to the chord V ».
-check('La tonalité annoncée par le prof est dite au survol de la pastille',
-  guideUiCode.includes('h.keySaid') && /La tonalité que le prof annonce/.test(guideUiCode)
-  && readText('src/ui/refonte/pedagogie-guide.css').includes('.pedago-hl-key.is-said'));
-check('Une case ne s\'écoute que si le contrôle de cohérence la juge fidèle (demo-check.js) : sinon, pas de bouton Écouter',
-  tabCode.includes("import { checkDemonstration } from '../pedagogie/demo-check.js'") && /check: \(h\) => \{[\s\S]*?checkDemonstration\(h,/.test(tabCode)
-  && /h\.check\?\.state === 'non exploitable'/.test(guideUiCode) && readText('src/ui/refonte/pedagogie-guide.css').includes('.pedago-hl-unplayable'));
-check('Le guide lit la théorie annoncée dans la transcription (tonalité, degrés, vocabulaire)',
-  readText('src/pedagogie/tutorial-guide.js').includes('readSpokenTheory(transcript)')
-  && /transcript: narrationView\.map\(\(n\) => \(\{ start: n\.start, end: n\.end, text: n\.text \}\)\)/.test(tabCode));
-console.log(`\n=== Résultat : ${passed}/${total} contrôles passés ===`);
-if (passed < total) process.exitCode = 1;
