@@ -64,6 +64,7 @@ import { labelNotes } from '../pedagogie/chord-labeling.js';
 import { buildTutorialGuide, finalResultExample } from '../pedagogie/tutorial-guide.js';
 import { buildChapters, chaptersSignature, needsChapterTitles, chapterMessages, parseChapterTitles, matchChapterTitles } from '../pedagogie/guide-chapters.js';
 import { buildHighlights } from '../pedagogie/guide-highlights.js';
+import { checkDemonstration } from '../pedagogie/demo-check.js';
 import { getAIConfig, callChatCompletions } from '../ai/openai-config.js';
 import { withMeasuredVelocity } from '../pedagogie/dynamics.js';
 import { registerCopilotContext } from '../pedagogie/copilot-context.js';
@@ -1838,7 +1839,17 @@ function renderGuide() {
   const shown = `${guide ? 'g' : '-'}|${chaptersSignature(chapters)}|${chapters.map((c) => c.title).join('/')}|${subject}|${titles}`;
   if (guideShownFor === shown && guidePanel.root.childElementCount) return;
   guideShownFor = shown;
-  guidePanel.render(guide, { noNotes: ready && !guide && !chapters.length, chapters, subject, titles });
+  guidePanel.render(guide, {
+    noNotes: ready && !guide && !chapters.length,
+    chapters,
+    subject,
+    titles,
+    // Chaque case est confrontée à ce qu'elle jouera vraiment (demo-check.js) avant d'être proposée.
+    check: (h) => {
+      const v = teacherView();
+      return checkDemonstration(h, { guide, notes: v?.played || analysis?.noteEvents || [], pedals: analysis?.pedals || null, activity: v?.spans || [] });
+    },
+  });
   setPanelTab(guide || chapters.length ? panelTab : 'copilot', { quiet: true });
 }
 

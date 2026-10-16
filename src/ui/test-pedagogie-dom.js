@@ -750,6 +750,9 @@ check('Plus de résumés par étape (remplacés par les titres de chapitres)',
 check('La tonalité annoncée par le prof est dite au survol de la pastille',
   guideUiCode.includes('h.keySaid') && /La tonalité que le prof annonce/.test(guideUiCode)
   && readText('src/ui/refonte/pedagogie-guide.css').includes('.pedago-hl-key.is-said'));
+check('Une case ne s\'écoute que si le contrôle de cohérence la juge fidèle (demo-check.js) : sinon, pas de bouton Écouter',
+  tabCode.includes("import { checkDemonstration } from '../pedagogie/demo-check.js'") && /check: \(h\) => \{[\s\S]*?checkDemonstration\(h,/.test(tabCode)
+  && /h\.check\?\.state === 'non exploitable'/.test(guideUiCode) && readText('src/ui/refonte/pedagogie-guide.css').includes('.pedago-hl-unplayable'));
 check('Le guide lit la théorie annoncée dans la transcription (tonalité, degrés, vocabulaire)',
   readText('src/pedagogie/tutorial-guide.js').includes('readSpokenTheory(transcript)')
   && /transcript: narrationView\.map\(\(n\) => \(\{ start: n\.start, end: n\.end, text: n\.text \}\)\)/.test(tabCode));

@@ -6,7 +6,7 @@ const check = (label, ok) => { if (ok) { pass += 1; console.log('  ✓', label);
 
 const mv = (id, from, to, kinds, times, via = [], said = null) => ({
   id, part: 'p1', from: { degree: from, name: 'X' }, to: { degree: to, name: 'Y' }, via, kinds,
-  times: times.map(([start, end]) => ({ start, end })),
+  times: times.map(([start, end, terms]) => ({ start, end, terms: terms || said?.terms || [] })),
   ...(said ? { said } : {}),
 });
 const chord = (degree) => ({ degree, name: 'Z', rh: [], lh: [] });
@@ -79,6 +79,26 @@ const part = (final = true, key = { rootPc: 1, minor: false }) => ({
   check('un mouvement, une seule case, quel que soit le geste', h.length === 1 && h[0].title === '1 → 5');
   check('la case porte tous ses gestes et compte tous ses passages', /chromatique/.test(h[0].detail) && /2 fois/.test(h[0].detail));
   check('elle rejoue le passage le plus instructif', h[0].play.start === 80);
+}
+{
+  // [Claude] — 2026-10-16 — Une case DÉCRIT EXACTEMENT ce qu'elle rejoue. Mesuré sur « Drop 2 » : la
+  // case « 1 → 5 · drop 2 · avec accord de passage » rejouait un enchaînement direct (le seul passage
+  // avec accord de passage est cinq minutes plus loin, et le prof n'y dit pas « drop 2 »).
+  const direct = mv('d', '1', '5', ['direct'], [[113, 116, ['drop 2']], [249, 252, ['drop 2']]], [], { degrees: 2, pair: true, terms: ['drop 2'] });
+  const passing = mv('p', '1', '5', ['passing'], [[286, 290, []]], [{ name: 'Gb' }], { degrees: 2, pair: true, terms: [] });
+  const h = buildHighlights({ parts: [part(false)], movements: [direct, passing] });
+  const c = h[0];
+  // Le passage avec accord de passage est le plus instructif (8 contre 7,5) : c'est lui qui est joué…
+  check('la case rejoue le passage le plus instructif', c.play.start === 286);
+  // … et la case ne dit QUE ce qu'on y entend : ni « drop 2 » (dit ailleurs), ni les gestes d'un autre passage.
+  check('… et ne décrit que celui-là : son accord de passage, pas le « drop 2 » dit ailleurs',
+    /accord de passage/.test(c.detail) && !/drop 2/.test(c.detail) && c.terms.length === 0);
+  // Même scénario, mais sans accord de passage : c'est alors le passage direct où il dit « drop 2 ».
+  const solo = buildHighlights({ parts: [part(false)], movements: [direct] })[0];
+  check('sans autre candidat, la case décrit le passage direct et le mot du prof dit à cet endroit',
+    solo.play.start === 113 && /drop 2/.test(solo.detail) && !/accord de passage/.test(solo.detail));
+  check('elle dit combien de fois le tuto le montre, à part', /montré 3 fois/.test(c.detail));
+  check('elle porte ce qu\'elle affirme (pour le contrôle de cohérence)', c.claims.movementId === 'p' && c.claims.from === '1' && c.claims.to === '5');
 }
 {
   check('sans guide : rien', buildHighlights(null).length === 0);

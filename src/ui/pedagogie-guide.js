@@ -95,6 +95,11 @@ export function createGuidePanel({ onSeek = () => {}, onRegion = () => {}, onPla
   }
 
   function playButton(h, { small = false } = {}) {
+    if (h.check?.state === 'non exploitable') {
+      const why = el('span', { className: 'pedago-hl-unplayable', text: 'Pas d\'écoute fiable pour ce passage' });
+      why.title = h.check.problems.join(' ; ');
+      return why;
+    }
     const on = playingId === h.id;
     const btn = el('button', {
       type: 'button',
@@ -198,11 +203,14 @@ export function createGuidePanel({ onSeek = () => {}, onRegion = () => {}, onPla
    * @param {object[]} [opts.chapters] - les chapitres (guide-chapters.js)
    * @param {'pending'|'nokey'|null} [opts.titles] - l'état des titres en français
    */
-  function render(next, { noNotes = false, subject = '', chapters: nextChapters = [], titles = null } = {}) {
+  function render(next, { noNotes = false, subject = '', chapters: nextChapters = [], titles = null, check = null } = {}) {
     guide = next;
     chapters = nextChapters || [];
     root.textContent = '';
     highlights = guide ? buildHighlights(guide) : [];
+    // [Claude] — 2026-10-16 — Le contrôle de cohérence (demo-check.js) : une case qui ne peut pas être jouée
+    // fidèlement n'a pas de bouton « Écouter » — jamais un rejeu qui ne correspond pas à ce qu'elle annonce.
+    for (const h of highlights) h.check = typeof check === 'function' ? check(h) : null;
     if (!guide && !chapters.length) {
       root.appendChild(el('p', {
         className: 'pedago-guide-empty',

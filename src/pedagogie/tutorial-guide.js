@@ -856,7 +856,10 @@ export function buildTutorialGuide({ segments = [], noteEvents = [], transcript 
     // Les mots prononcés PENDANT l'un de ses passages, chacun pris séparément. Mesuré : en prenant
     // d'un seul coup du premier au dernier (sept passages étalés sur 19 min d'« Above All »), tout le
     // vocabulaire de la vidéo se collait à chaque mouvement — « renversement · drop 2 » partout.
-    m.said = { ...said, terms: uniq(m.times.flatMap((t) => termsNear(spoken, t.start, t.end))) };
+    // … et gardés PASSAGE PAR PASSAGE (`time.terms`) : une case du guide ne doit décrire que le passage
+    // qu'elle rejoue. Mesuré sur « Drop 2 » : « drop 2 » est dit au passage de 1:53, pas aux quatre autres.
+    for (const t of m.times) t.terms = termsNear(spoken, t.start, t.end);
+    m.said = { ...said, terms: uniq(m.times.flatMap((t) => t.terms)) };
   }
   return { version: GUIDE_VERSION, steps, parts: outParts, movements, spoken: summarizeSpoken(spoken) };
 }

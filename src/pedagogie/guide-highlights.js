@@ -22,19 +22,21 @@ export const MAX_HIGHLIGHTS = 6;
  * retenues (1 → 2, 4 → 6, 2 → 6…) n'étaient pas le sujet du tuto — lui annonce « a 6, 5 chord
  * progression ». Les degrés qu'il nomme à voix haute départagent : le tuto désigne son propre sujet.
  */
-function movementScore(m) {
+function movementScore(m, time = null) {
   const kinds = m.kinds || [];
   const said = m.said || {};
+  // Les mots dits PENDANT ce passage-là (sinon, ceux du mouvement entier).
+  const terms = time ? (time.terms || []) : (said.terms || []);
   let score = 0;
   // Il enchaîne lui-même ces deux degrés à voix haute (« from the chord I to the chord V »).
   if (said.pair) score += 6;
   else if (said.degrees === 2) score += 3;
   else if (said.degrees === 1) score += 1;
-  if (said.terms?.length) score += 1.5;
+  if (terms.length) score += 1.5;
   if (kinds.includes('modulation')) score += 4;
   if (kinds.some((k) => ['chromatic', 'walkUp', 'walkDown', 'lick', 'line'].includes(k))) score += 3;
   if (kinds.includes('passing') || (m.via && m.via.length)) score += 2;
-  score += Math.min((m.times || []).length, 3) * 0.5;
+  if (!time) score += Math.min((m.times || []).length, 3) * 0.5;
   return score;
 }
 
@@ -78,53 +80,56 @@ export function buildHighlights(guide, { max = MAX_HIGHLIGHTS } = {}) {
 
   // [Claude] — 2026-10-16 — Groupé par DEGRÉS seuls, plus par degrés + geste : « Drop 2 » montrait
   // « 1 → 5 » deux fois (une fois en direct, une fois par un accord de passage) et « 5 → 1 » deux fois,
-  // soit quatre cases pour deux enseignements. Un mouvement = une case, qui porte tous ses gestes et
-  // joue son occurrence la plus riche. La même en deux tonalités (« Next Level Worship ») compte pour
-  // une : c'est le même enseignement.
+  // soit quatre cases pour deux enseignements. La même en deux tonalités (« Next Level Worship »)
+  // compte pour une : c'est le même enseignement.
+  //
+  // Une case DÉCRIT EXACTEMENT ce qu'elle rejoue. La première version affichait l'union des gestes de
+  // tous les passages regroupés puis rejouait l'un d'eux : « 1 → 5 · avec accord de passage » jouait
+  // un enchaînement DIRECT (le seul passage avec accord de passage est cinq minutes plus loin). Une
+  // case est donc choisie parmi les OCCURRENCES (un mouvement à un instant) et se décrit à partir
+  // d'elle seule ; le nombre d'occurrences est dit à part (« montré 5 fois »).
   const groups = new Map();
   for (const m of guide.movements || []) {
     if (!m.times?.length || !m.from || !m.to) continue;
     // Un « mouvement » du 2 au 2 n'en est pas un (sauf un changement de tonalité) : mesuré sur « Above All ».
     if (bareDegree(m.from.degree) === bareDegree(m.to.degree) && !(m.kinds || []).includes('modulation')) continue;
     const key = `${bareDegree(m.from.degree)}>${bareDegree(m.to.degree)}`;
-    const g = groups.get(key);
-    if (!g) {
-      groups.set(key, { m, best: m, first: m.times[0], count: m.times.length, terms: [...(m.said?.terms || [])], kinds: [...(m.kinds || [])] });
-      continue;
-    }
+    let g = groups.get(key);
+    if (!g) { g = { best: null, count: 0, score: -Infinity }; groups.set(key, g); }
     g.count += m.times.length;
-    if (m.times[0].start < g.first.start) g.first = m.times[0];
-    // Le geste le plus instructif décide de ce que la case rejoue (un accord de passage plutôt qu'un
-    // simple enchaînement) ; à égalité, le premier du tuto.
-    if (movementScore(m) > movementScore(g.best) || (movementScore(m) === movementScore(g.best) && m.times[0].start < g.best.times[0].start)) g.best = m;
-    for (const t of m.said?.terms || []) if (!g.terms.includes(t)) g.terms.push(t);
-    for (const k of m.kinds || []) if (!g.kinds.includes(k)) g.kinds.push(k);
+    for (const t of m.times) {
+      const score = movementScore(m, t);
+      if (score > g.score || (score === g.score && t.start < g.best.time.start)) { g.best = { m, time: t }; g.score = score; }
+    }
   }
   const room = Math.max(0, max - out.length);
   const picked = [...groups.entries()]
-    .map(([key, g]) => ({ key, ...g, score: movementScore(g.best) + Math.min(g.count, 3) * 0.1 }))
-    .sort((a, b) => b.score - a.score || a.first.start - b.first.start)
+    .map(([key, g]) => ({ key, ...g, rank: g.score + Math.min(g.count, 3) * 0.1 }))
+    .sort((a, b) => b.rank - a.rank || a.best.time.start - b.best.time.start)
     .slice(0, room)
-    .sort((a, b) => a.best.times[0].start - b.best.times[0].start);
+    .sort((a, b) => a.best.time.start - b.best.time.start);
 
   for (const g of picked) {
-    // Le geste, sans les noms d'accords de passage : le relevé les rate souvent (Narcisse), les degrés suffisent.
-    const kind = movementKindText({ ...g.best, kinds: g.kinds.filter((k) => k !== 'direct'), via: [] });
-    // [Claude] — 2026-10-16 — Le mot du prof, quand il en emploie un en jouant ce mouvement : « drop 2 »,
+    const { m, time } = g.best;
+    // Le geste de CE passage, sans les noms d'accords de passage : le relevé les rate souvent (Narcisse).
+    const gestures = (m.kinds || []).filter((k) => k !== 'direct');
+    const kind = movementKindText({ ...m, kinds: gestures, via: [] });
+    // [Claude] — 2026-10-16 — Le mot du prof, quand il en emploie un en jouant CE passage : « drop 2 »,
     // « accord de passage », « notes de passage ». Narcisse : « si tu vois qu'il fait une upper structure,
     // tu indiques upper structure » — et c'est encore plus sûr quand c'est lui qui le dit.
-    const terms = (g.terms || []).slice(0, 2);
-    const when = g.best.times[0];
+    const terms = (time.terms || []).slice(0, 2);
     out.push({
       id: `move:${g.key}`,
       kind: 'movement',
-      title: `${bareDegree(g.best.from.degree)} → ${bareDegree(g.best.to.degree)}`,
-      detail: [terms.join(' · '), kind, g.count > 1 ? `${g.count} fois` : ''].filter(Boolean).join(' · '),
+      title: `${bareDegree(m.from.degree)} → ${bareDegree(m.to.degree)}`,
+      detail: [terms.join(' · '), kind, g.count > 1 ? `montré ${g.count} fois` : ''].filter(Boolean).join(' · '),
       terms,
-      said: Boolean(g.best.said?.pair || g.best.said?.degrees === 2),
-      start: when.start,
-      end: when.end,
-      play: { kind: 'movement', start: when.start, end: when.end },
+      said: Boolean(m.said?.pair || m.said?.degrees === 2),
+      start: time.start,
+      end: time.end,
+      play: { kind: 'movement', start: time.start, end: time.end },
+      // Ce que la case affirme, et d'où : le contrôle de cohérence (demo-check.js) le relit.
+      claims: { movementId: m.id, from: bareDegree(m.from.degree), to: bareDegree(m.to.degree), gestures, terms, count: g.count },
     });
   }
   return out;
