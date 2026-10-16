@@ -449,12 +449,18 @@
                   <p>Choisissez vos accords un par un, extensions comprises, et si vous voulez la note du dessus de chacun (votre mélodie) : ils seront joués tels quels, ton après ton. Un accord de tension (7b9, 7alt, dim7…) s'ajoute en passage, après l'accord qu'il suit. Cliquez un accord pour le modifier.</p>
                 </div>
                 <div class="exercise-grid-builder">
+                  <!-- [Claude] — 2026-10-16 — Composer une grille au CLIC (Narcisse : « rends aussi
+                       l'ajout d'accords beaucoup plus simple et intuitif »). On choisit une qualité
+                       une fois, puis chaque touche du clavier ajoute l'accord : trois clics pour
+                       Dm7 → G7 → Cmaj7 au lieu de douze. Plus de bouton « Ajouter ». -->
                   <div class="exercise-grid-picker">
-                    <select id="exercise-grid-root" aria-label="Fondamentale de l'accord"></select>
-                    <select id="exercise-grid-quality" aria-label="Qualité de l'accord"></select>
-                    <select id="exercise-grid-top" aria-label="Note du dessus de l'accord (voice leading)" title="Voice leading : note jouée au sommet de l'accord"></select>
-                    <button class="tr-button" type="button" id="exercise-grid-add">Ajouter</button>
-                    <button class="tr-button" type="button" id="exercise-grid-cancel" hidden>Annuler</button>
+                    <div class="exercise-grid-qualities" id="exercise-grid-qualities" role="group" aria-label="Qualité de l'accord"></div>
+                    <div class="exercise-grid-keys" id="exercise-grid-keys" role="group" aria-label="Fondamentale : cliquez une touche pour ajouter l'accord"></div>
+                    <div class="exercise-grid-picker-foot">
+                      <p class="exercise-grid-hint" id="exercise-grid-hint" aria-live="polite"></p>
+                      <select id="exercise-grid-top" aria-label="Note du dessus de l'accord (voice leading)" title="Voice leading : note jouée au sommet de l'accord"></select>
+                      <button class="tr-button" type="button" id="exercise-grid-cancel" hidden>Annuler</button>
+                    </div>
                   </div>
                   <ol class="exercise-grid-chips" id="exercise-grid-chips" aria-label="Accords de votre grille"></ol>
                   <div class="exercise-grid-actions">

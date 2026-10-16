@@ -228,9 +228,9 @@ const els = {
   exerciseChordsEyebrow: document.getElementById('exercise-chords-eyebrow'),
   exerciseArenaEyebrow: document.getElementById('exercise-arena-eyebrow'),
   exerciseGridForm: document.getElementById('exercise-grid-form'),
-  exerciseGridRoot: document.getElementById('exercise-grid-root'),
-  exerciseGridQuality: document.getElementById('exercise-grid-quality'),
-  exerciseGridAdd: document.getElementById('exercise-grid-add'),
+  exerciseGridQualities: document.getElementById('exercise-grid-qualities'),
+  exerciseGridKeys: document.getElementById('exercise-grid-keys'),
+  exerciseGridHint: document.getElementById('exercise-grid-hint'),
   exerciseGridChips: document.getElementById('exercise-grid-chips'),
   exerciseGridClear: document.getElementById('exercise-grid-clear'),
   exerciseGridTop: document.getElementById('exercise-grid-top'),
@@ -2165,15 +2165,33 @@ function initPracticeExercise() {
   const GRID_ROOTS = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
   const GRID_MAX = 16;
   let gridEditing = null; // rang de l'accord en cours de modification
-  if (els.exerciseGridRoot) {
-    els.exerciseGridRoot.innerHTML = GRID_ROOTS.map((name) => `<option value="${name}">${name}</option>`).join('');
+  // [Claude] — 2026-10-16 — Composer au clic : une qualité choisie une fois, puis chaque touche du
+  // clavier ajoute l'accord. Les douze qualités courantes sont montrées d'emblée ; les 48 au complet
+  // se déplient (« Toutes les qualités »), rangées par famille.
+  const GRID_COMMON_QUALITIES = ['maj7', 'maj9', '6', 'm7', 'm9', 'm11', '7', '9', '13', '7sus4', 'm7b5', 'dim7'];
+  const GRID_BLACK_KEYS = { Db: 0, Eb: 1, 'F#': 3, Ab: 4, Bb: 5 };
+  /** La fondamentale et la qualité en cours : le choix se garde d'un accord à l'autre. */
+  let gridPick = { quality: 'm7', allQualities: false };
+
+  function renderGridQualities() {
+    if (!els.exerciseGridQualities) return;
+    const chip = (q) => `<button type="button" class="exercise-grid-quality${q === gridPick.quality ? ' is-active' : ''}${isTensionQuality(q) ? ' is-tension' : ''}" data-quality="${escapeAttr(q)}" aria-pressed="${q === gridPick.quality}" title="${isTensionQuality(q) ? 'Accord de tension : il s\'ajoute en passage, après un accord principal' : ''}">${q === '5' ? '5' : escapeHtml(q)}</button>`;
+    const common = GRID_COMMON_QUALITIES.map(chip).join('');
+    const all = TARGET_QUALITY_GROUPS.map((group) => `<div class="exercise-grid-quality-group"><span>${escapeHtml(group.label)}</span><div>${group.qualities.map(chip).join('')}</div></div>`).join('');
+    els.exerciseGridQualities.innerHTML = `<div class="exercise-grid-quality-row">${common}
+      <button type="button" class="exercise-grid-quality-more" data-all-qualities aria-expanded="${gridPick.allQualities}">${gridPick.allQualities ? 'Moins' : 'Toutes…'}</button></div>
+      <div class="exercise-grid-quality-all"${gridPick.allQualities ? '' : ' hidden'}>${all}</div>`;
   }
-  if (els.exerciseGridQuality) {
-    els.exerciseGridQuality.innerHTML = TARGET_QUALITY_GROUPS.map((group) => `
-      <optgroup label="${group.label}">${group.qualities.map((q) =>
-    `<option value="${escapeAttr(q)}">${q === '5' ? '5 (power chord)' : escapeAttr(q)}</option>`).join('')}
-      </optgroup>`).join('');
-    els.exerciseGridQuality.value = 'm7';
+
+  /** Les douze fondamentales, dessinées comme un clavier : on clique la touche, l'accord s'ajoute. */
+  function renderGridKeys() {
+    if (!els.exerciseGridKeys) return;
+    const whites = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+    const label = (n) => n.replace('b', '♭').replace('#', '♯');
+    const full = gridChords.length >= GRID_MAX && gridEditing == null;
+    const key = (name, black) => `<button type="button" class="exercise-grid-key${black ? ' is-black' : ''}"${black ? ` style="--slot:${GRID_BLACK_KEYS[name]}"` : ''} data-root="${escapeAttr(name)}"${full ? ' disabled' : ''} aria-label="${escapeAttr(`Ajouter ${label(name)}${gridPick.quality}`)}"><span>${escapeHtml(label(name))}</span></button>`;
+    els.exerciseGridKeys.innerHTML = `<div class="exercise-grid-whites">${whites.map((n) => key(n, false)).join('')}</div>
+      <div class="exercise-grid-blacks">${Object.keys(GRID_BLACK_KEYS).map((n) => key(n, true)).join('')}</div>`;
   }
 
   const gridChordName = (c) => `${c.root}${c.quality}`;
@@ -2213,18 +2231,25 @@ function initPracticeExercise() {
     return null;
   }
 
-  /** Libellé du bouton d'ajout : « Ajouter en passage » pour un accord de tension. */
+  /** La phrase d'aide sous le clavier : ce qu'un clic va faire, ici et maintenant. */
   function refreshGridAddLabel() {
-    if (!els.exerciseGridAdd) return;
-    const tension = isTensionQuality(els.exerciseGridQuality?.value ?? '');
-    els.exerciseGridAdd.textContent = gridEditing != null ? `Modifier l'accord ${gridEditing + 1}` : tension ? 'Ajouter en passage' : 'Ajouter';
+    if (!els.exerciseGridHint) return;
+    const q = gridPick.quality;
+    const tension = isTensionQuality(q);
+    els.exerciseGridHint.textContent = gridEditing != null
+      ? `Cliquez une touche pour remplacer l'accord ${gridEditing + 1}.`
+      : gridChords.length >= GRID_MAX
+        ? `Grille complète (${GRID_MAX} accords).`
+        : `Cliquez une touche : l'accord ${q || 'majeur'} s'ajoute${tension ? ' en passage' : ''}.`;
   }
 
   /** Menu « Dessus » : notes de l'accord choisi, grisées si aucun voicing ne les met au sommet. */
   function renderGridTopOptions(selected = null) {
-    if (!els.exerciseGridTop || !els.exerciseGridRoot || !els.exerciseGridQuality) return;
-    const root = els.exerciseGridRoot.value;
-    const quality = els.exerciseGridQuality.value;
+    if (!els.exerciseGridTop) return;
+    // Sans fondamentale choisie, les notes du dessus se calculent sur Do : la liste reste utile
+    // (3ce, 5te, 7e…) et se recalcule dès qu'un accord est repris pour modification.
+    const root = gridPick.root || 'C';
+    const quality = gridPick.quality;
     const rootPc = GRID_ROOTS.indexOf(root);
     const choices = rootPc >= 0 ? cachedTopNoteChoices(rootPc, quality) : [];
     els.exerciseGridTop.innerHTML = ['<option value="">Dessus libre</option>']
@@ -2248,9 +2273,9 @@ function initPracticeExercise() {
           : stray ? 'Accord de tension joué comme accord principal : placez-le après un accord principal' : 'Modifier cet accord';
         return `<li class="${[i === gridEditing ? 'is-editing' : '', passing ? 'is-passing' : '', stray ? 'is-stray' : ''].filter(Boolean).join(' ')}"><button type="button" class="exercise-grid-chip" data-grid-edit="${i}" title="${title}" aria-label="Modifier l'accord ${i + 1} : ${escapeAttr(name)}${passing ? ', accord de passage' : ''}${top ? `, dessus ${escapeAttr(top)}` : ''}">${passing ? '<span aria-hidden="true">↳</span>' : ''}${escapeAttr(name)}${top ? `<small>♪ ${escapeAttr(top)}</small>` : ''}</button><button type="button" data-grid-remove="${i}" aria-label="Retirer ${escapeAttr(name)}" title="Retirer">×</button></li>`;
       }).join('')
-      : '<li class="exercise-grid-empty">Aucun accord pour l\'instant : choisissez une fondamentale et une qualité, puis « Ajouter ».</li>';
+      : '<li class="exercise-grid-empty">Aucun accord pour l\'instant : choisissez une qualité, puis cliquez les touches.</li>';
     const editing = gridEditing != null;
-    if (els.exerciseGridAdd) els.exerciseGridAdd.disabled = !editing && gridChords.length >= GRID_MAX;
+    renderGridKeys();
     refreshGridAddLabel();
     if (els.exerciseGridCancel) els.exerciseGridCancel.hidden = !editing;
   }
@@ -2289,38 +2314,50 @@ function initPracticeExercise() {
     renderGridChips();
   }
 
-  els.exerciseGridRoot?.addEventListener('change', () => renderGridTopOptions(els.exerciseGridTop?.value === '' ? null : Number(els.exerciseGridTop?.value)));
-  els.exerciseGridQuality?.addEventListener('change', () => {
-    renderGridTopOptions(els.exerciseGridTop?.value === '' ? null : Number(els.exerciseGridTop?.value));
-    refreshGridAddLabel();
-  });
-  els.exerciseGridAdd?.addEventListener('click', () => {
-    const root = els.exerciseGridRoot?.value;
-    const quality = els.exerciseGridQuality?.value ?? '';
-    if (!root) return;
+  /** Ajoute (ou remplace, en mode modification) l'accord formé par la touche cliquée. */
+  function addGridChord(root) {
+    const quality = gridPick.quality;
     const topValue = els.exerciseGridTop?.value ?? '';
     const chord = { root, quality, top: topValue === '' ? null : Number(topValue) };
     if (gridEditing != null) {
-      // Modification d'un accord précis : les autres restent tels quels.
       const refusal = passingRefusal(chord, gridEditing, gridChords);
-      if (refusal) {
-        gridStatus(refusal);
-        return;
-      }
+      if (refusal) { gridStatus(refusal); return; }
       gridChords[gridEditing] = chord;
       gridStatus(`Accord ${gridEditing + 1} modifié : ${gridChordName(chord)}${chord.top != null ? ` (dessus ${gridTopLabel(chord)})` : ''}.`);
       gridEditing = null;
     } else {
       if (gridChords.length >= GRID_MAX) return;
       const refusal = passingRefusal(chord, gridChords.length, gridChords);
-      if (refusal) {
-        gridStatus(refusal);
-        return;
-      }
+      if (refusal) { gridStatus(refusal); return; }
       gridChords.push(chord);
       if (isTensionQuality(quality)) gridStatus(`${gridChordName(chord)} ajouté en passage, au dernier temps de ${gridChordName(gridChords[gridChords.length - 2])}.`);
     }
     renderGridChips();
+  }
+
+  els.exerciseGridQualities?.addEventListener('click', (e) => {
+    if (e.target.closest('[data-all-qualities]')) {
+      gridPick.allQualities = !gridPick.allQualities;
+      renderGridQualities();
+      return;
+    }
+    const chip = e.target.closest('[data-quality]');
+    if (!chip) return;
+    gridPick.quality = chip.dataset.quality;
+    renderGridQualities();
+    renderGridKeys();
+    renderGridTopOptions(els.exerciseGridTop?.value === '' ? null : Number(els.exerciseGridTop?.value));
+    refreshGridAddLabel();
+  });
+  els.exerciseGridKeys?.addEventListener('click', (e) => {
+    const key = e.target.closest('[data-root]');
+    if (!key || key.disabled) return;
+    gridPick.root = key.dataset.root;
+    // Un éclat sur la touche : on voit ce qu'on vient d'ajouter.
+    key.classList.remove('is-hit');
+    void key.offsetWidth;
+    key.classList.add('is-hit');
+    addGridChord(key.dataset.root);
   });
   els.exerciseGridCancel?.addEventListener('click', stopGridEditing);
   els.exerciseGridChips?.addEventListener('click', (e) => {
@@ -2340,8 +2377,9 @@ function initPracticeExercise() {
     const chord = gridChords[index];
     if (!chord) return;
     gridEditing = index;
-    if (els.exerciseGridRoot) els.exerciseGridRoot.value = GRID_ROOTS.includes(chord.root) ? chord.root : 'C';
-    if (els.exerciseGridQuality) els.exerciseGridQuality.value = chord.quality;
+    gridPick.root = GRID_ROOTS.includes(chord.root) ? chord.root : 'C';
+    gridPick.quality = chord.quality;
+    renderGridQualities();
     renderGridTopOptions(chord.top);
     renderGridChips();
   });
@@ -2354,7 +2392,7 @@ function initPracticeExercise() {
   // Enregistrer : catégorie Perso de la bibliothèque (même nom = mise à jour).
   els.exerciseGridSave?.addEventListener('click', () => {
     if (gridChords.length === 0) {
-      els.exerciseGridRoot?.focus();
+      els.exerciseGridKeys?.querySelector('[data-root]')?.focus();
       gridStatus('Ajoutez au moins un accord avant d\'enregistrer.');
       return;
     }
@@ -2372,13 +2410,14 @@ function initPracticeExercise() {
     gridStatus(`« ${grid.name} » enregistrée dans Perso.`);
     renderLibrary();
   });
+  renderGridQualities();
   renderGridTopOptions();
   renderGridChips();
 
   els.exerciseGridForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (gridChords.length === 0) {
-      els.exerciseGridRoot?.focus();
+      els.exerciseGridKeys?.querySelector('[data-root]')?.focus();
       return;
     }
     if (practiceExercise.getState().mode !== 'movement' && !await maybeConfirmReset()) return;

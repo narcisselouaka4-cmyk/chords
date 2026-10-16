@@ -150,11 +150,14 @@ function testDomContract() {
   check(!html.includes('keyboard-mark-caption') && /vk-dot-you[^<]*<\/i>Toi/.test(html) && /vk-dot-app[^<]*<\/i>L'app/.test(html),
     'DOM — légende du clavier : « Toi » et « L\'app », plus de légende de marques');
 
-  // [Claude] — 2026-09-24 — Ma grille : accords choisis (fondamentale + qualité),
-  // plus de saisie au clavier (Narcisse : « pas pratique d'écrire »).
-  check(['exercise-grid-root', 'exercise-grid-quality', 'exercise-grid-add', 'exercise-grid-chips', 'exercise-grid-clear', 'exercise-grid-play']
-    .every((id) => html.includes(`id="${id}"`)) && !html.includes('id="exercise-grid-input"'),
-    'DOM — Ma grille : sélecteur fondamentale + qualité, pastilles, plus de champ texte');
+  // [Claude] — 2026-10-16 — Ma grille se compose au CLIC : une rangée de qualités, un petit clavier
+  // dont chaque touche AJOUTE l'accord (Narcisse : « rends l'ajout d'accords beaucoup plus simple et
+  // intuitif »). Plus de menus déroulants ni de bouton « Ajouter » — c'étaient quatre gestes par accord.
+  check(['exercise-grid-qualities', 'exercise-grid-keys', 'exercise-grid-hint', 'exercise-grid-chips', 'exercise-grid-clear', 'exercise-grid-play']
+    .every((id) => html.includes(`id="${id}"`))
+    && !html.includes('id="exercise-grid-input"') && !html.includes('id="exercise-grid-root"')
+    && !html.includes('id="exercise-grid-quality"') && !html.includes('id="exercise-grid-add"'),
+    'DOM — Ma grille : qualités en pastilles, clavier qui ajoute l\'accord, plus de menus ni de bouton Ajouter');
   // [Claude] — 2026-09-24 — Note du dessus par accord, accord modifiable, grille
   // enregistrée sous un nom (catégorie Perso de la bibliothèque).
   check(['exercise-grid-top', 'exercise-grid-cancel', 'exercise-grid-name', 'exercise-grid-save', 'exercise-grid-status']

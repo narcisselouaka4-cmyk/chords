@@ -2092,39 +2092,176 @@
 #exercise-library .exercise-library-heading h2 { margin: 0; }
 #exercise-library .exercise-library-heading p { margin: 5px 0 0; color: var(--tr-secondary); font-size: 12px; }
 #exercise-library .exercise-library-body { display: flex; flex-direction: column; gap: 18px; }
+/* ── « Ma grille » : un atelier, pas un encadré rose (16/10/2026) ───────────────
+   Narcisse : « comme l'application est rose, il ne faut pas juste un bête fond rosé
+   par-dessus », et « rends l'ajout d'accords beaucoup plus simple et intuitif ».
+   D'où : une surface sombre et creusée qui se détache des cartes claires, une ligne
+   d'accent qui balaie le haut à l'ouverture, et surtout un vrai petit CLAVIER — on
+   choisit la qualité une fois, puis chaque touche pose l'accord. */
 #exercise-library .exercise-grid-entry {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
-  align-items: center;
-  gap: 12px 24px;
-  padding: 16px 18px;
-  border: 1px solid color-mix(in srgb, var(--tr-accent) 30%, var(--tr-border));
-  border-radius: 10px;
-  background: var(--tr-accent-soft);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+  align-items: start;
+  gap: 14px 26px;
+  padding: 18px 20px;
+  border: 1px solid color-mix(in srgb, var(--tr-accent) 26%, var(--tr-border));
+  border-radius: 16px;
+  background:
+    radial-gradient(90% 120% at 0% 0%, color-mix(in srgb, var(--tr-accent) 13%, transparent), transparent 62%),
+    var(--tr-inset);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 7%, transparent), 0 20px 40px -34px #000;
+  overflow: hidden;
 }
-#exercise-library .exercise-grid-entry-text .tr-eyebrow { color: var(--tr-accent); font: 8px var(--tr-mono); letter-spacing: .08em; }
-#exercise-library .exercise-grid-entry-text p { margin: 5px 0 0; color: var(--tr-secondary); font-size: 11.5px; line-height: 1.55; }
-/* [Claude] — 2026-09-24 — Ma grille : accords choisis (fondamentale + qualité),
-   en pastilles retirables, au lieu d'une saisie au clavier. */
+/* Une lueur qui traverse le haut une fois, à l'ouverture : l'atelier s'allume. */
+#exercise-library .exercise-grid-entry::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--tr-accent), transparent);
+  opacity: .9;
+  animation: grid-entry-sweep 1.5s cubic-bezier(.3, .9, .3, 1) .15s both;
+}
+@keyframes grid-entry-sweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+#exercise-library .exercise-grid-entry-text .tr-eyebrow {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tr-accent) 18%, transparent);
+  color: var(--tr-accent);
+  font: 9px var(--tr-mono);
+  letter-spacing: .12em;
+}
+#exercise-library .exercise-grid-entry-text p { margin: 8px 0 0; color: var(--tr-secondary); font-size: 11.5px; line-height: 1.55; }
 #exercise-library .exercise-grid-builder { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-#exercise-library .exercise-grid-picker { display: flex; flex-wrap: wrap; gap: 8px; }
-#exercise-library .exercise-grid-picker select {
-  height: 36px;
+#exercise-library .exercise-grid-picker { display: flex; flex-direction: column; gap: 9px; }
+
+/* Les qualités : douze courantes, les 48 au complet derrière « Toutes… ». */
+#exercise-library .exercise-grid-qualities { display: flex; flex-direction: column; gap: 7px; }
+#exercise-library .exercise-grid-quality-row { display: flex; flex-wrap: wrap; gap: 4px; }
+#exercise-library .exercise-grid-quality,
+#exercise-library .exercise-grid-quality-more {
+  height: 25px;
+  padding: 0 9px;
+  border: 1px solid var(--tr-border);
+  border-radius: 7px;
+  background: var(--tr-surface);
+  color: var(--tr-secondary);
+  font: 11.5px var(--tr-mono);
+  cursor: pointer;
+  transition: background .14s, color .14s, border-color .14s, transform .14s;
+}
+#exercise-library .exercise-grid-quality:hover,
+#exercise-library .exercise-grid-quality-more:hover { border-color: var(--tr-accent); color: var(--tr-text); }
+#exercise-library .exercise-grid-quality.is-active {
+  border-color: transparent;
+  background: var(--tr-accent);
+  color: var(--tr-on-accent, #fff);
+  transform: translateY(-1px);
+}
+/* Un accord de tension ne se joue qu'en passage : son contour le dit. */
+#exercise-library .exercise-grid-quality.is-tension { border-style: dashed; }
+#exercise-library .exercise-grid-quality:focus-visible,
+#exercise-library .exercise-grid-quality-more:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 1px; }
+#exercise-library .exercise-grid-quality-more { color: var(--tr-muted); font-family: inherit; font-size: 11px; font-weight: 600; }
+#exercise-library .exercise-grid-quality-all {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--tr-surface) 70%, transparent);
+  animation: exercise-more-in .26s cubic-bezier(.2, .9, .25, 1) both;
+}
+#exercise-library .exercise-grid-quality-all[hidden] { display: none; }
+#exercise-library .exercise-grid-quality-group > span {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--tr-muted);
+  font: 8px var(--tr-mono);
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+#exercise-library .exercise-grid-quality-group > div { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* Le clavier : sept blanches, cinq noires posées dessus. Un clic = un accord. */
+#exercise-library .exercise-grid-keys {
+  --key-h: 56px;
+  --bk-w: 22px;
+  position: relative;
+  height: var(--key-h);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 6px 14px -10px #000;
+}
+#exercise-library .exercise-grid-whites { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; height: 100%; }
+#exercise-library .exercise-grid-blacks { position: absolute; inset: 0; pointer-events: none; }
+#exercise-library .exercise-grid-key {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 5px;
+  border: 0;
+  background: linear-gradient(#fbfbfd, #dedbe6);
+  color: #2a2733;
+  font: 600 11px var(--tr-mono);
+  cursor: pointer;
+  transition: background .12s, transform .08s;
+}
+#exercise-library .exercise-grid-key:hover { background: linear-gradient(#fff, color-mix(in srgb, var(--tr-accent) 34%, #e7e4ef)); }
+#exercise-library .exercise-grid-key:active { transform: translateY(1px); }
+#exercise-library .exercise-grid-key:disabled { opacity: .45; cursor: default; }
+#exercise-library .exercise-grid-key:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: -2px; z-index: 3; }
+#exercise-library .exercise-grid-key.is-black {
+  position: absolute;
+  top: 0;
+  left: calc((var(--slot) + 1) * 100% / 7 - var(--bk-w) / 2);
+  width: var(--bk-w);
+  height: 62%;
+  border-radius: 0 0 4px 4px;
+  background: linear-gradient(#3a3744, #1a1821);
+  color: #e9e7f0;
+  font-size: 9.5px;
+  pointer-events: auto;
+  z-index: 2;
+}
+#exercise-library .exercise-grid-key.is-black:hover { background: linear-gradient(#4a4558, color-mix(in srgb, var(--tr-accent) 45%, #1a1821)); }
+/* L'éclat au moment où l'accord part dans la grille. */
+#exercise-library .exercise-grid-key.is-hit { animation: grid-key-hit .42s ease-out; }
+@keyframes grid-key-hit {
+  0% { box-shadow: inset 0 0 0 0 color-mix(in srgb, var(--tr-accent) 85%, transparent); }
+  25% { box-shadow: inset 0 0 22px 2px color-mix(in srgb, var(--tr-accent) 85%, transparent); }
+  100% { box-shadow: inset 0 0 0 0 transparent; }
+}
+
+#exercise-library .exercise-grid-picker-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+#exercise-library .exercise-grid-hint { flex: 1 1 180px; margin: 0; color: var(--tr-secondary); font-size: 11.5px; }
+#exercise-library #exercise-grid-top {
+  flex: 0 1 190px;
+  height: 30px;
   min-width: 0;
-  padding: 0 10px;
+  padding: 0 9px;
   border: 1px solid var(--tr-border);
   border-radius: 8px;
   background: var(--tr-surface);
   color: var(--tr-text);
-  font: 13px var(--tr-mono);
+  font: 11.5px var(--tr-mono);
   cursor: pointer;
 }
-#exercise-library #exercise-grid-root { flex: 0 0 76px; }
-#exercise-library #exercise-grid-quality { flex: 1 1 110px; }
-#exercise-library #exercise-grid-top { flex: 1 1 130px; }
-#exercise-library .exercise-grid-picker select option:disabled { color: var(--tr-muted); }
-#exercise-library .exercise-grid-picker select:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 0; border-color: transparent; }
-#exercise-library .exercise-grid-builder .tr-button { height: 36px; white-space: nowrap; }
+#exercise-library #exercise-grid-top option:disabled { color: var(--tr-muted); }
+#exercise-library #exercise-grid-top:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 0; border-color: transparent; }
+#exercise-library .exercise-grid-builder .tr-button { height: 32px; white-space: nowrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  #exercise-library .exercise-grid-entry::before,
+  #exercise-library .exercise-grid-quality-all,
+  #exercise-library .exercise-grid-key.is-hit { animation: none; }
+}
+
 #exercise-library .exercise-grid-chips {
   display: flex;
   flex-wrap: wrap;
