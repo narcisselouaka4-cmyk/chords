@@ -150,14 +150,16 @@ function testDomContract() {
   check(!html.includes('keyboard-mark-caption') && /vk-dot-you[^<]*<\/i>Toi/.test(html) && /vk-dot-app[^<]*<\/i>L'app/.test(html),
     'DOM — légende du clavier : « Toi » et « L\'app », plus de légende de marques');
 
-  // [Claude] — 2026-10-16 — Ma grille se compose au CLIC : une rangée de qualités, un petit clavier
-  // dont chaque touche AJOUTE l'accord (Narcisse : « rends l'ajout d'accords beaucoup plus simple et
-  // intuitif »). Plus de menus déroulants ni de bouton « Ajouter » — c'étaient quatre gestes par accord.
-  check(['exercise-grid-qualities', 'exercise-grid-keys', 'exercise-grid-hint', 'exercise-grid-chips', 'exercise-grid-clear', 'exercise-grid-play']
+  // [Claude] — 2026-10-16 (soir) — L'atelier au mini-clavier a été retiré (Narcisse : « le
+  // mini-keyboard […] est horrible… c'était bien mieux avant ») : retour aux trois menus
+  // (fondamentale, qualité, note du dessus) + « Ajouter ». Et « Ma grille » vit dans SA
+  // PROPRE fenêtre (#exercise-grid-dialog, bouton « Ma grille » de l'onglet), pas dans
+  // la bibliothèque.
+  check(['exercise-grid-dialog', 'exercise-grid-btn', 'exercise-grid-root', 'exercise-grid-quality', 'exercise-grid-add', 'exercise-grid-chips', 'exercise-grid-clear', 'exercise-grid-play']
     .every((id) => html.includes(`id="${id}"`))
-    && !html.includes('id="exercise-grid-input"') && !html.includes('id="exercise-grid-root"')
-    && !html.includes('id="exercise-grid-quality"') && !html.includes('id="exercise-grid-add"'),
-    'DOM — Ma grille : qualités en pastilles, clavier qui ajoute l\'accord, plus de menus ni de bouton Ajouter');
+    && !html.includes('id="exercise-grid-input"') && !html.includes('id="exercise-grid-qualities"')
+    && !html.includes('id="exercise-grid-keys"') && !html.includes('id="exercise-grid-hint"'),
+    'DOM — Ma grille : sa propre fenêtre, menus fondamentale + qualité + « Ajouter » (retour à l\'avant-atelier)');
   // [Claude] — 2026-09-24 — Note du dessus par accord, accord modifiable, grille
   // enregistrée sous un nom (catégorie Perso de la bibliothèque).
   check(['exercise-grid-top', 'exercise-grid-cancel', 'exercise-grid-name', 'exercise-grid-save', 'exercise-grid-status']

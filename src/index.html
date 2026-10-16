@@ -257,6 +257,10 @@
               <button class="tr-button" type="button" data-astra-open="exercise-help-dialog"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>Comment jouer</button>
               <button class="tr-button panel-action" type="button" id="prev-exercise-btn" style="display: none;" title="Revenir à l'accord précédent pour réexaminer son voicing"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Accord précédent</button>
               <button class="tr-button tr-primary panel-action" type="button" id="exercise-library-btn" aria-label="Ouvrir la bibliothèque d'exercices"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Bibliothèque</button>
+              <!-- [Claude] — 2026-10-16 (soir) — « Ma grille » vit dans sa propre fenêtre :
+                   Narcisse : « sortons-le de la bibliothèque et voyons ce que ça donne ». Le
+                   formulaire sobre (menus + « Ajouter ») remplace l'atelier au mini-clavier. -->
+              <button class="tr-button panel-action" type="button" id="exercise-grid-btn" data-astra-open="exercise-grid-dialog" aria-label="Composer ma grille d'accords"><svg class="tr-i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 4v16M13 4v16M18 4v16"/><path d="M5.5 4v7M10.5 4v7M15.5 4v7"/></svg>Ma grille</button>
             </div>
           </div>
 
@@ -439,45 +443,52 @@
               <button class="tr-icon-button" type="button" id="exercise-library-close" data-astra-close aria-label="Fermer la bibliothèque">✕</button>
             </div>
             <div class="tr-dialog-body exercise-library-body">
-              <!-- [Claude] — 2026-09-24 — Ma grille : les accords se choisissent (fondamentale
-                   + qualité), plus de saisie au clavier (Narcisse : « pas pratique d'écrire »).
-                   Puis : note du dessus par accord (voice leading), un accord précis se
-                   modifie d'un clic, la grille s'enregistre dans la catégorie Perso. -->
-              <form class="exercise-grid-entry" id="exercise-grid-form" autocomplete="off">
-                <div class="exercise-grid-entry-text">
-                  <span class="tr-eyebrow">MA GRILLE</span>
-                  <p>Choisissez vos accords un par un, extensions comprises, et si vous voulez la note du dessus de chacun (votre mélodie) : ils seront joués tels quels, ton après ton. Un accord de tension (7b9, 7alt, dim7…) s'ajoute en passage, après l'accord qu'il suit. Cliquez un accord pour le modifier.</p>
-                </div>
-                <div class="exercise-grid-builder">
-                  <!-- [Claude] — 2026-10-16 — Composer une grille au CLIC (Narcisse : « rends aussi
-                       l'ajout d'accords beaucoup plus simple et intuitif »). On choisit une qualité
-                       une fois, puis chaque touche du clavier ajoute l'accord : trois clics pour
-                       Dm7 → G7 → Cmaj7 au lieu de douze. Plus de bouton « Ajouter ». -->
-                  <div class="exercise-grid-picker">
-                    <div class="exercise-grid-qualities" id="exercise-grid-qualities" role="group" aria-label="Qualité de l'accord"></div>
-                    <div class="exercise-grid-keys" id="exercise-grid-keys" role="group" aria-label="Fondamentale : cliquez une touche pour ajouter l'accord"></div>
-                    <div class="exercise-grid-picker-foot">
-                      <p class="exercise-grid-hint" id="exercise-grid-hint" aria-live="polite"></p>
-                      <select id="exercise-grid-top" aria-label="Note du dessus de l'accord (voice leading)" title="Voice leading : note jouée au sommet de l'accord"></select>
-                      <button class="tr-button" type="button" id="exercise-grid-cancel" hidden>Annuler</button>
-                    </div>
-                  </div>
-                  <ol class="exercise-grid-chips" id="exercise-grid-chips" aria-label="Accords de votre grille"></ol>
-                  <div class="exercise-grid-actions">
-                    <input type="text" id="exercise-grid-name" placeholder="Nom de la grille" aria-label="Nom de la grille, pour l'enregistrer dans Perso" maxlength="60">
-                    <button class="tr-button" type="button" id="exercise-grid-save">Enregistrer</button>
-                    <button class="tr-button" type="button" id="exercise-grid-clear">Tout effacer</button>
-                    <button class="tr-button tr-primary" type="submit" id="exercise-grid-play">Jouer ma grille</button>
-                  </div>
-                  <p class="exercise-grid-status" id="exercise-grid-status" role="status" aria-live="polite"></p>
-                </div>
-              </form>
+              <!-- [Claude] — 2026-10-16 (soir) — Le formulaire « Ma grille » a quitté la
+                   bibliothèque : il vit dans sa propre fenêtre (#exercise-grid-dialog),
+                   ouverte par le bouton « Ma grille » de l'onglet. Narcisse : « la mettre
+                   tout en haut comme ça, ça ne passe pas du tout… sortons-le de la
+                   bibliothèque et voyons ce que ça donne ». -->
               <div class="tr-library-toolbar exercise-library-toolbar">
                 <label class="tr-search exercise-library-search"><svg class="tr-i" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input type="text" id="exercise-library-search" placeholder="Rechercher un mouvement…" aria-label="Rechercher un mouvement"></label>
                 <div class="exercise-library-categories" id="exercise-library-categories" role="group" aria-label="Catégories"></div>
                 <label class="exercise-library-style"><span>Style des aperçus</span><select id="exercise-library-style" data-demo-style aria-label="Style des aperçus"></select></label>
               </div>
               <div class="exercise-library-grid" id="exercise-library-grid"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- « Ma grille » (16/10/2026, soir) : sa PROPRE fenêtre, ouverte par le bouton de
+             l'onglet Exercices. Narcisse : « le mini-keyboard est horrible… c'était bien
+             mieux avant » : retour au formulaire sobre — trois menus (fondamentale, qualité,
+             note du dessus) et « Ajouter » — plus les pastilles cliquables de la grille. -->
+        <div class="tr-overlay" id="exercise-grid-dialog" hidden>
+          <div class="tr-dialog exercise-grid-dialog" role="dialog" aria-modal="true" aria-label="Ma grille">
+            <div class="tr-dialog-title">
+              <div class="exercise-grid-heading">
+                <h2>Ma grille</h2>
+                <p>Choisissez vos accords un par un, extensions comprises, et si vous voulez la note du dessus de chacun (votre mélodie) : ils seront joués tels quels, ton après ton. Un accord de tension (7b9, 7alt, dim7…) s'ajoute en passage, après l'accord qu'il suit. Cliquez un accord pour le modifier.</p>
+              </div>
+              <button class="tr-icon-button" type="button" data-astra-close aria-label="Fermer">✕</button>
+            </div>
+            <div class="tr-dialog-body">
+              <form class="exercise-grid-form" id="exercise-grid-form" autocomplete="off">
+                <div class="exercise-grid-picker">
+                  <select id="exercise-grid-root" aria-label="Fondamentale de l'accord"></select>
+                  <select id="exercise-grid-quality" aria-label="Qualité de l'accord"></select>
+                  <select id="exercise-grid-top" aria-label="Note du dessus de l'accord (voice leading)" title="Voice leading : note jouée au sommet de l'accord"></select>
+                  <button class="tr-button" type="button" id="exercise-grid-add">Ajouter</button>
+                  <button class="tr-button" type="button" id="exercise-grid-cancel" hidden>Annuler</button>
+                </div>
+                <ol class="exercise-grid-chips" id="exercise-grid-chips" aria-label="Accords de votre grille"></ol>
+                <div class="exercise-grid-actions">
+                  <input type="text" id="exercise-grid-name" placeholder="Nom de la grille" aria-label="Nom de la grille, pour l'enregistrer dans Perso" maxlength="60">
+                  <button class="tr-button" type="button" id="exercise-grid-save">Enregistrer</button>
+                  <button class="tr-button" type="button" id="exercise-grid-clear">Tout effacer</button>
+                  <button class="tr-button tr-primary" type="submit" id="exercise-grid-play">Jouer ma grille</button>
+                </div>
+                <p class="exercise-grid-status" id="exercise-grid-status" role="status" aria-live="polite"></p>
+              </form>
             </div>
           </div>
         </div>

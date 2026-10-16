@@ -2092,184 +2092,38 @@
 #exercise-library .exercise-library-heading h2 { margin: 0; }
 #exercise-library .exercise-library-heading p { margin: 5px 0 0; color: var(--tr-secondary); font-size: 12px; }
 #exercise-library .exercise-library-body { display: flex; flex-direction: column; gap: 18px; }
-/* ── « Ma grille » : un atelier, pas un encadré rose (16/10/2026) ───────────────
-   Narcisse : « comme l'application est rose, il ne faut pas juste un bête fond rosé
-   par-dessus », et « rends l'ajout d'accords beaucoup plus simple et intuitif ».
-   D'où : une surface sombre et creusée qui se détache des cartes claires, une ligne
-   d'accent qui balaie le haut à l'ouverture, et surtout un vrai petit CLAVIER — on
-   choisit la qualité une fois, puis chaque touche pose l'accord. */
-#exercise-library .exercise-grid-entry {
-  position: relative;
-  /* `flex: none` : le corps du tiroir est une colonne flex qui défile. Sans cela l'atelier se
-     laissait écraser à 38 px (pour 280 px de contenu) — le clavier et la grille disparaissaient,
-     et il ne restait qu'un bandeau. C'est le corps qui défile, pas l'atelier qui rétrécit. */
-  flex: none;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
-  align-items: start;
-  gap: 14px 26px;
-  padding: 18px 20px;
-  border: 1px solid color-mix(in srgb, var(--tr-accent) 26%, var(--tr-border));
-  border-radius: 16px;
-  background:
-    radial-gradient(90% 120% at 0% 0%, color-mix(in srgb, var(--tr-accent) 13%, transparent), transparent 62%),
-    var(--tr-inset);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 7%, transparent), 0 20px 40px -34px #000;
-  overflow: hidden;
-}
-/* Une lueur qui traverse le haut une fois, à l'ouverture : l'atelier s'allume. */
-#exercise-library .exercise-grid-entry::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--tr-accent), transparent);
-  opacity: .9;
-  animation: grid-entry-sweep 1.5s cubic-bezier(.3, .9, .3, 1) .15s both;
-}
-@keyframes grid-entry-sweep {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(100%); }
-}
-#exercise-library .exercise-grid-entry-text .tr-eyebrow {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--tr-accent) 18%, transparent);
-  color: var(--tr-accent);
-  font: 9px var(--tr-mono);
-  letter-spacing: .12em;
-}
-#exercise-library .exercise-grid-entry-text p { margin: 8px 0 0; color: var(--tr-secondary); font-size: 11.5px; line-height: 1.55; }
-#exercise-library .exercise-grid-builder { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-#exercise-library .exercise-grid-picker { display: flex; flex-direction: column; gap: 9px; }
-
-/* Les qualités : douze courantes, les 48 au complet derrière « Toutes… ». */
-#exercise-library .exercise-grid-qualities { display: flex; flex-direction: column; gap: 7px; }
-#exercise-library .exercise-grid-quality-row { display: flex; flex-wrap: wrap; gap: 4px; }
-#exercise-library .exercise-grid-quality,
-#exercise-library .exercise-grid-quality-more {
-  height: 25px;
-  padding: 0 9px;
-  border: 1px solid var(--tr-border);
-  border-radius: 7px;
-  background: var(--tr-surface);
-  color: var(--tr-secondary);
-  font: 11.5px var(--tr-mono);
-  cursor: pointer;
-  transition: background .14s, color .14s, border-color .14s, transform .14s;
-}
-#exercise-library .exercise-grid-quality:hover,
-#exercise-library .exercise-grid-quality-more:hover { border-color: var(--tr-accent); color: var(--tr-text); }
-#exercise-library .exercise-grid-quality.is-active {
-  border-color: transparent;
-  background: var(--tr-accent);
-  color: var(--tr-on-accent, #fff);
-  transform: translateY(-1px);
-}
-/* Un accord de tension ne se joue qu'en passage : son contour le dit. */
-#exercise-library .exercise-grid-quality.is-tension { border-style: dashed; }
-#exercise-library .exercise-grid-quality:focus-visible,
-#exercise-library .exercise-grid-quality-more:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 1px; }
-#exercise-library .exercise-grid-quality-more { color: var(--tr-muted); font-family: inherit; font-size: 11px; font-weight: 600; }
-#exercise-library .exercise-grid-quality-all {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 9px 10px;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--tr-surface) 70%, transparent);
-  animation: exercise-more-in .26s cubic-bezier(.2, .9, .25, 1) both;
-}
-#exercise-library .exercise-grid-quality-all[hidden] { display: none; }
-#exercise-library .exercise-grid-quality-group > span {
-  display: block;
-  margin-bottom: 3px;
-  color: var(--tr-muted);
-  font: 8px var(--tr-mono);
-  letter-spacing: .07em;
-  text-transform: uppercase;
-}
-#exercise-library .exercise-grid-quality-group > div { display: flex; flex-wrap: wrap; gap: 4px; }
-
-/* Le clavier : sept blanches, cinq noires posées dessus. Un clic = un accord. */
-#exercise-library .exercise-grid-keys {
-  --key-h: 56px;
-  --bk-w: 22px;
-  position: relative;
-  height: var(--key-h);
-  padding: 4px 4px 0;
-  border-radius: 10px;
-  /* Le châssis sombre autour des touches : sans lui, des touches blanches sur un fond clair ne
-     se lisent pas comme un clavier. */
-  background: linear-gradient(#2a2733, #171520);
-  box-shadow: 0 8px 18px -12px #000, inset 0 1px 0 rgba(255, 255, 255, .08);
-}
-#exercise-library .exercise-grid-whites { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; height: 100%; border-radius: 7px 7px 0 0; overflow: hidden; }
-#exercise-library .exercise-grid-blacks { position: absolute; inset: 4px 4px 0; pointer-events: none; }
-#exercise-library .exercise-grid-key {
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding-bottom: 5px;
-  border: 0;
-  background: linear-gradient(#fbfbfd, #dedbe6);
-  color: #2a2733;
-  font: 600 11px var(--tr-mono);
-  cursor: pointer;
-  transition: background .12s, transform .08s;
-}
-#exercise-library .exercise-grid-key:hover { background: linear-gradient(#fff, color-mix(in srgb, var(--tr-accent) 34%, #e7e4ef)); }
-#exercise-library .exercise-grid-key:active { transform: translateY(1px); }
-#exercise-library .exercise-grid-key:disabled { opacity: .45; cursor: default; }
-#exercise-library .exercise-grid-key:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: -2px; z-index: 3; }
-#exercise-library .exercise-grid-key.is-black {
-  position: absolute;
-  top: 0;
-  left: calc((var(--slot) + 1) * 100% / 7 - var(--bk-w) / 2);
-  width: var(--bk-w);
-  height: 62%;
-  border-radius: 0 0 4px 4px;
-  background: linear-gradient(#3a3744, #1a1821);
-  color: #e9e7f0;
-  font-size: 9.5px;
-  pointer-events: auto;
-  z-index: 2;
-}
-#exercise-library .exercise-grid-key.is-black:hover { background: linear-gradient(#4a4558, color-mix(in srgb, var(--tr-accent) 45%, #1a1821)); }
-/* L'éclat au moment où l'accord part dans la grille. */
-#exercise-library .exercise-grid-key.is-hit { animation: grid-key-hit .42s ease-out; }
-@keyframes grid-key-hit {
-  0% { box-shadow: inset 0 0 0 0 color-mix(in srgb, var(--tr-accent) 85%, transparent); }
-  25% { box-shadow: inset 0 0 22px 2px color-mix(in srgb, var(--tr-accent) 85%, transparent); }
-  100% { box-shadow: inset 0 0 0 0 transparent; }
-}
-
-#exercise-library .exercise-grid-picker-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
-#exercise-library .exercise-grid-hint { flex: 1 1 180px; margin: 0; color: var(--tr-secondary); font-size: 11.5px; }
-#exercise-library #exercise-grid-top {
-  flex: 0 1 190px;
-  height: 30px;
+/* ── « Ma grille » : sa PROPRE fenêtre, formulaire sobre (16/10/2026, soir) ───────
+    Narcisse : « le mini-keyboard pour désigner un accord avec des contours noirs
+    est horrible… c'était bien mieux avant » ; « sortons-le de la bibliothèque et
+    voyons ce que ça donne ». Retour aux trois menus + « Ajouter » d'avant
+    l'atelier. Pas de surface encadrée : la fenêtre est le cadre. */
+#exercise-grid-dialog .exercise-grid-dialog { width: min(100%, 640px); }
+#exercise-grid-dialog .tr-dialog-title { align-items: flex-start; }
+#exercise-grid-dialog .exercise-grid-heading h2 { margin: 0; }
+#exercise-grid-dialog .exercise-grid-heading p { margin: 5px 0 0; color: var(--tr-secondary); font-size: 12px; line-height: 1.55; }
+#exercise-grid-dialog .exercise-grid-form { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+#exercise-grid-dialog .exercise-grid-picker { display: flex; flex-wrap: wrap; gap: 8px; }
+/* Les trois menus : fondamentale, qualité, note du dessus — l'habillage sobre
+   d'avant l'atelier, celui que Narcisse jugeait « bien mieux ». */
+#exercise-grid-dialog .exercise-grid-picker select {
+  height: 36px;
   min-width: 0;
-  padding: 0 9px;
+  padding: 0 10px;
   border: 1px solid var(--tr-border);
   border-radius: 8px;
   background: var(--tr-surface);
   color: var(--tr-text);
-  font: 11.5px var(--tr-mono);
+  font: 13px var(--tr-mono);
   cursor: pointer;
 }
-#exercise-library #exercise-grid-top option:disabled { color: var(--tr-muted); }
-#exercise-library #exercise-grid-top:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 0; border-color: transparent; }
-#exercise-library .exercise-grid-builder .tr-button { height: 32px; white-space: nowrap; }
+#exercise-grid-dialog #exercise-grid-root { flex: 0 0 76px; }
+#exercise-grid-dialog #exercise-grid-quality { flex: 1 1 110px; }
+#exercise-grid-dialog #exercise-grid-top { flex: 1 1 130px; }
+#exercise-grid-dialog .exercise-grid-picker select option:disabled { color: var(--tr-muted); }
+#exercise-grid-dialog .exercise-grid-picker select:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 0; border-color: transparent; }
+#exercise-grid-dialog .exercise-grid-form .tr-button { height: 36px; white-space: nowrap; }
 
-@media (prefers-reduced-motion: reduce) {
-  #exercise-library .exercise-grid-entry::before,
-  #exercise-library .exercise-grid-quality-all,
-  #exercise-library .exercise-grid-key.is-hit { animation: none; }
-}
-
-#exercise-library .exercise-grid-chips {
+#exercise-grid-dialog .exercise-grid-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
@@ -2278,7 +2132,7 @@
   padding: 0;
   list-style: none;
 }
-#exercise-library .exercise-grid-chips > li:not(.exercise-grid-empty) {
+#exercise-grid-dialog .exercise-grid-chips > li:not(.exercise-grid-empty) {
   display: inline-flex;
   align-items: center;
   gap: 2px;
@@ -2290,7 +2144,7 @@
   font: 12px var(--tr-mono);
 }
 /* Accord cliquable : on le modifie sans toucher aux autres. */
-#exercise-library .exercise-grid-chips > li > .exercise-grid-chip {
+#exercise-grid-dialog .exercise-grid-chips > li > .exercise-grid-chip {
   display: inline-flex;
   align-items: baseline;
   gap: 5px;
@@ -2301,15 +2155,15 @@
   color: var(--tr-text);
   font: 12px var(--tr-mono);
 }
-#exercise-library .exercise-grid-chips > li > .exercise-grid-chip small { color: var(--tr-accent); font-size: 10.5px; }
-#exercise-library .exercise-grid-chips > li.is-editing { border-color: var(--tr-accent); background: var(--tr-accent-soft); }
+#exercise-grid-dialog .exercise-grid-chips > li > .exercise-grid-chip small { color: var(--tr-accent); font-size: 10.5px; }
+#exercise-grid-dialog .exercise-grid-chips > li.is-editing { border-color: var(--tr-accent); background: var(--tr-accent-soft); }
 /* [Claude] — 2026-09-24 (nuit) — Accord de tension = accord de passage (règle de
    Narcisse) : pastille en pointillés, précédée de ↳ ; resté principal = signalé. */
-#exercise-library .exercise-grid-chips > li.is-passing { border-style: dashed; background: none; }
-#exercise-library .exercise-grid-chips > li.is-passing > .exercise-grid-chip { color: var(--tr-secondary); }
-#exercise-library .exercise-grid-chips > li.is-passing > .exercise-grid-chip > span { color: var(--tr-muted); }
-#exercise-library .exercise-grid-chips > li.is-stray { border-color: var(--mini-key-added, #f59e0b); }
-#exercise-library .exercise-grid-chips > li > button:not(.exercise-grid-chip) {
+#exercise-grid-dialog .exercise-grid-chips > li.is-passing { border-style: dashed; background: none; }
+#exercise-grid-dialog .exercise-grid-chips > li.is-passing > .exercise-grid-chip { color: var(--tr-secondary); }
+#exercise-grid-dialog .exercise-grid-chips > li.is-passing > .exercise-grid-chip > span { color: var(--tr-muted); }
+#exercise-grid-dialog .exercise-grid-chips > li.is-stray { border-color: var(--mini-key-added, #f59e0b); }
+#exercise-grid-dialog .exercise-grid-chips > li > button:not(.exercise-grid-chip) {
   display: grid;
   place-items: center;
   width: 20px;
@@ -2322,11 +2176,11 @@
   font: 14px/1 inherit;
   cursor: pointer;
 }
-#exercise-library .exercise-grid-chips > li > button:hover { background: var(--tr-inset); color: var(--tr-text); }
-#exercise-library .exercise-grid-chips > li > button:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 0; }
-#exercise-library .exercise-grid-empty { color: var(--tr-muted); font-size: 11.5px; line-height: 30px; }
-#exercise-library .exercise-grid-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
-#exercise-library #exercise-grid-name {
+#exercise-grid-dialog .exercise-grid-chips > li > button:hover { background: var(--tr-inset); color: var(--tr-text); }
+#exercise-grid-dialog .exercise-grid-chips > li > button:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 0; }
+#exercise-grid-dialog .exercise-grid-empty { color: var(--tr-muted); font-size: 11.5px; line-height: 30px; }
+#exercise-grid-dialog .exercise-grid-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+#exercise-grid-dialog #exercise-grid-name {
   flex: 1 1 160px;
   min-width: 0;
   height: 36px;
@@ -2337,9 +2191,9 @@
   color: var(--tr-text);
   font: 12.5px inherit;
 }
-#exercise-library #exercise-grid-name:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 0; border-color: transparent; }
-#exercise-library .exercise-grid-status { min-height: 16px; margin: 0; color: var(--tr-accent); font-size: 11.5px; }
-#exercise-library .exercise-grid-status:empty { display: none; }
+#exercise-grid-dialog #exercise-grid-name:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 0; border-color: transparent; }
+#exercise-grid-dialog .exercise-grid-status { min-height: 16px; margin: 0; color: var(--tr-accent); font-size: 11.5px; }
+#exercise-grid-dialog .exercise-grid-status:empty { display: none; }
 #exercise-library .exercise-library-toolbar { flex: none; display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; }
 #exercise-library .exercise-library-search { flex: 0 1 300px; }
 #exercise-library .exercise-library-search input { height: auto; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
@@ -2466,18 +2320,8 @@
 :root[data-theme='light'] #exercise-library .exercise-library-card:focus-visible {
   box-shadow: 0 2px 4px rgba(0, 0, 0, .05), 0 22px 36px -24px rgba(0, 0, 0, .5);
 }
-/* L'atelier reste un objet à part, même sur blanc : une surface teintée et cernée. */
-:root[data-theme='light'] #exercise-library .exercise-grid-entry {
-  background:
-    radial-gradient(90% 120% at 0% 0%, color-mix(in srgb, var(--tr-accent) 16%, transparent), transparent 62%),
-    color-mix(in srgb, var(--tr-accent) 7%, #fff);
-  border-color: color-mix(in srgb, var(--tr-accent) 34%, var(--tr-border));
-  box-shadow: inset 0 1px 0 #fff, 0 12px 26px -22px rgba(0, 0, 0, .5);
-}
-:root[data-theme='light'] #exercise-library .exercise-grid-quality,
-:root[data-theme='light'] #exercise-library .exercise-grid-quality-more,
-:root[data-theme='light'] #exercise-library #exercise-grid-top { background: #fff; }
-:root[data-theme='light'] #exercise-library .exercise-grid-quality-all { background: color-mix(in srgb, #fff 72%, transparent); }
+/* L'ancien bloc mode clair de l'atelier (surface teintée, qualités sur blanc) a été
+   retiré avec l'atelier : le formulaire sobre vit dans sa fenêtre et suit les tokens. */
 
 @media (prefers-reduced-motion: reduce) {
   #exercise-library .exercise-library-card { animation: none; transition: border-color .2s; }
@@ -2518,7 +2362,6 @@
 #exercise-library .exercise-library-play:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 1px; }
 #exercise-library .exercise-library-play.is-playing { border-color: var(--tr-accent); background: var(--tr-accent); color: var(--tr-button-text); }
 @media (max-width: 820px) {
-  #exercise-library .exercise-grid-entry { grid-template-columns: 1fr; }
   #exercise-library .exercise-library-search { flex-basis: 100%; }
 }
 
