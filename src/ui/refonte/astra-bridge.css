@@ -2100,6 +2100,10 @@
    choisit la qualité une fois, puis chaque touche pose l'accord. */
 #exercise-library .exercise-grid-entry {
   position: relative;
+  /* `flex: none` : le corps du tiroir est une colonne flex qui défile. Sans cela l'atelier se
+     laissait écraser à 38 px (pour 280 px de contenu) — le clavier et la grille disparaissaient,
+     et il ne restait qu'un bandeau. C'est le corps qui défile, pas l'atelier qui rétrécit. */
+  flex: none;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
   align-items: start;
@@ -2194,12 +2198,15 @@
   --bk-w: 22px;
   position: relative;
   height: var(--key-h);
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 6px 14px -10px #000;
+  padding: 4px 4px 0;
+  border-radius: 10px;
+  /* Le châssis sombre autour des touches : sans lui, des touches blanches sur un fond clair ne
+     se lisent pas comme un clavier. */
+  background: linear-gradient(#2a2733, #171520);
+  box-shadow: 0 8px 18px -12px #000, inset 0 1px 0 rgba(255, 255, 255, .08);
 }
-#exercise-library .exercise-grid-whites { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; height: 100%; }
-#exercise-library .exercise-grid-blacks { position: absolute; inset: 0; pointer-events: none; }
+#exercise-library .exercise-grid-whites { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; height: 100%; border-radius: 7px 7px 0 0; overflow: hidden; }
+#exercise-library .exercise-grid-blacks { position: absolute; inset: 4px 4px 0; pointer-events: none; }
 #exercise-library .exercise-grid-key {
   display: flex;
   align-items: flex-end;
@@ -2333,7 +2340,7 @@
 #exercise-library #exercise-grid-name:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 0; border-color: transparent; }
 #exercise-library .exercise-grid-status { min-height: 16px; margin: 0; color: var(--tr-accent); font-size: 11.5px; }
 #exercise-library .exercise-grid-status:empty { display: none; }
-#exercise-library .exercise-library-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; }
+#exercise-library .exercise-library-toolbar { flex: none; display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; }
 #exercise-library .exercise-library-search { flex: 0 1 300px; }
 #exercise-library .exercise-library-search input { height: auto; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
 #exercise-library .exercise-library-categories { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -2525,6 +2532,39 @@
 
 #exercise-library .exercise-library-card-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: auto; padding-top: 2px; }
 #exercise-library .exercise-library-card-count { color: var(--tr-muted); font: 9px var(--tr-mono); letter-spacing: .04em; text-transform: uppercase; }
+
+/* ── Mode clair : rendre la hiérarchie (16/10/2026) ──────────────────────────────
+   Narcisse : « ça donne encore moins envie qu'avant ». Sur fond blanc, la carte
+   (#f0eef4) et le fond se distinguaient à peine, et les pastilles d'accords (#f8f7fa
+   sur #f0eef4) disparaissaient. En clair, la carte devient blanche et se détache par
+   son ombre ; ce sont les accords qui portent la couleur. */
+:root[data-theme='light'] #exercise-library .exercise-library-card {
+  background: #fff;
+  border-color: color-mix(in srgb, var(--tr-accent) 14%, var(--tr-border));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .04), 0 10px 22px -18px rgba(0, 0, 0, .45);
+}
+:root[data-theme='light'] #exercise-library .exercise-library-card:hover,
+:root[data-theme='light'] #exercise-library .exercise-library-card:focus-visible {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, .05), 0 22px 36px -24px rgba(0, 0, 0, .5);
+}
+:root[data-theme='light'] #exercise-library .exercise-library-chords > li {
+  border-color: color-mix(in srgb, var(--tr-accent) 24%, var(--tr-border));
+  background: color-mix(in srgb, var(--tr-accent) 8%, #fff);
+  color: color-mix(in srgb, var(--tr-accent) 72%, var(--tr-text));
+}
+:root[data-theme='light'] #exercise-library .exercise-library-more { background: color-mix(in srgb, var(--tr-accent) 6%, #fff); }
+/* L'atelier reste un objet à part, même sur blanc : une surface teintée et cernée. */
+:root[data-theme='light'] #exercise-library .exercise-grid-entry {
+  background:
+    radial-gradient(90% 120% at 0% 0%, color-mix(in srgb, var(--tr-accent) 16%, transparent), transparent 62%),
+    color-mix(in srgb, var(--tr-accent) 7%, #fff);
+  border-color: color-mix(in srgb, var(--tr-accent) 34%, var(--tr-border));
+  box-shadow: inset 0 1px 0 #fff, 0 12px 26px -22px rgba(0, 0, 0, .5);
+}
+:root[data-theme='light'] #exercise-library .exercise-grid-quality,
+:root[data-theme='light'] #exercise-library .exercise-grid-quality-more,
+:root[data-theme='light'] #exercise-library #exercise-grid-top { background: #fff; }
+:root[data-theme='light'] #exercise-library .exercise-grid-quality-all { background: color-mix(in srgb, #fff 72%, transparent); }
 
 @media (prefers-reduced-motion: reduce) {
   #exercise-library .exercise-library-card,

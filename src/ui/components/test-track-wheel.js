@@ -53,11 +53,22 @@ check('le retard est plafonné (la roue ne met pas des secondes à s\'ouvrir)', 
 // tourne est le calque `spin` (sillons marqués + étiquette) : des sillons concentriques seuls ne
 // montreraient aucun mouvement. Le reflet, lui, ne tourne pas — la lampe ne tourne pas non plus.
 {
-  const css = fs.readFileSync(new URL('./track-wheel.css', import.meta.url), 'utf8');
+  // Sans les commentaires : ils citent les jetons qu'on vérifie justement ne plus utiliser.
+  const css = fs.readFileSync(new URL('./track-wheel.css', import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
   const js = fs.readFileSync(new URL('./track-wheel.js', import.meta.url), 'utf8');
-  check('Le disque a des sillons et un corps noir', /repeating-radial-gradient/.test(css) && /\.track-wheel-disc[\s\S]{0,600}#0d0c11/.test(css));
-  check('Une étiquette centrale, avec son axe', /\.track-wheel-label \{/.test(css) && /\.track-wheel-spindle \{/.test(css)
-    && js.includes("node('div', 'track-wheel-label')") && js.includes("track-wheel-spindle"));
+  // La matière est celle du vinyle du Coach d'accompagnement (astra-training.css) : dégradé conique
+  // qui fait tourner la lumière, sillons fins, étiquette lilas cernée de noir.
+  check('Le disque a la matière du vinyle du Coach (dégradé conique + sillons)',
+    /repeating-radial-gradient\(circle at center, transparent 0 2px, #aea0c812/.test(css)
+    && /conic-gradient\(from 10deg, #151319/.test(css));
+  check('Une étiquette lilas, sans texte coupé, avec son axe', /\.track-wheel-label \{/.test(css)
+    && /linear-gradient\(130deg, #cbb8e9/.test(css) && /\.track-wheel-spindle \{/.test(css)
+    && js.includes("node('div', 'track-wheel-label')") && !js.includes('PIANO JAZZ CHORDS'));
+  // Les marqueurs sont posés SUR le vinyle : ils se teintent pour lui, pas pour la page — sinon ils
+  // deviennent des taches blanches sur du noir en mode clair.
+  check('Les marqueurs de morceaux se lisent sur la galette, dans les deux thèmes',
+    /\.track-wheel-item \{[\s\S]{0,700}background: linear-gradient\(#211e2ae6/.test(css)
+    && !/\.track-wheel-item \{[\s\S]{0,700}var\(--tr-surface/.test(css));
   check('C\'est le calque tournant qui porte l\'étiquette', js.includes("spin.append(ticks, label)")
     && js.includes('spin.style.transform = `rotate('));
   check('Le reflet ne tourne pas avec le disque', /\.track-wheel-shine \{/.test(css) && !js.includes('shine.style.transform'));

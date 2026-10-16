@@ -141,7 +141,12 @@ export function createTrackWheel({ root, onOpen, onRename, onDelete, onClose }) 
   const spin = node('div', 'track-wheel-spin', { 'aria-hidden': 'true' });
   const ticks = node('div', 'track-wheel-ticks');
   const label = node('div', 'track-wheel-label');
-  label.append(node('span', 'track-wheel-label-text', {}, 'PIANO JAZZ CHORDS'), node('i', 'track-wheel-spindle'));
+  // Pas de texte sur l'étiquette : la moitié gauche sort de l'écran, et un titre coupé en deux rendait
+  // mal (Narcisse). Un petit pictogramme dans la moitié visible, et l'axe au centre — comme le vinyle
+  // du Coach d'accompagnement, dont ce disque reprend la matière.
+  const labelMark = node('span', 'track-wheel-label-mark', { 'aria-hidden': 'true' });
+  labelMark.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
+  label.append(labelMark, node('i', 'track-wheel-spindle'));
   spin.append(ticks, label);
   const shine = node('div', 'track-wheel-shine', { 'aria-hidden': 'true' });
   const marker = node('div', 'track-wheel-marker', { 'aria-hidden': 'true' });
