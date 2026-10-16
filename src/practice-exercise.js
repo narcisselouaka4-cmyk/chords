@@ -2993,6 +2993,30 @@ export function createPracticeExercise() {
  * @param {object} voicing
  * @returns {{midi: number, startOffsetMs: number, durationMs: number}[]}
  */
+/**
+ * [Claude] — 2026-10-16 — Les accords d'un mouvement, écrits dans une tonalité (Do par défaut).
+ *
+ * La bibliothèque les affiche sur chaque carte : Narcisse ne savait pas ce qu'un mouvement contenait
+ * (« sur cadence éolienne […] on ne sait pas ce que c'est, ça ne donne ni envie de regarder ni de
+ * tester »). Ils sont calculés par le MÊME chemin que le jeu (parseMovementToken + spellDegreeInKey),
+ * donc toujours d'accord avec ce que l'exercice jouera — rien n'est écrit à la main dans la fiche.
+ *
+ * @param {{pattern: string}} movement
+ * @param {number} [keyPc] - tonique (0 = Do)
+ * @returns {string[]} les noms d'accords, dans l'ordre ([] si le motif est illisible)
+ */
+export function movementChordNames(movement, keyPc = 0) {
+  const tokens = String(movement?.pattern || '').split('-').filter(Boolean);
+  if (!tokens.length) return [];
+  const parsed = tokens.map((t) => parseMovementToken(t));
+  if (parsed.some((p) => !p)) return [];
+  const minor = isMinorProgression(parsed);
+  return parsed.map((p) => {
+    const rootPc = (((keyPc + p.offset) % 12) + 12) % 12;
+    return `${spellDegreeInKey(rootPc, p.degree, keyPc, minor)}${p.quality}`;
+  });
+}
+
 export function exerciseVoicingToSequence(voicing) {
   const notes = [...(voicing?.leftHand || []), ...(voicing?.rightHand || [])];
   const startOffsetMs = 0;

@@ -1,6 +1,7 @@
 // [Claude] — 2026-09-21 — Tests headless du moteur de voicing de l'onglet Exercices.
 
 import {
+  movementChordNames,
   createPracticeExercise,
   exerciseVoicingToSequence,
   unavailableTechniquesFor,
@@ -1799,3 +1800,21 @@ runTests().catch((err) => {
   console.error(err);
   process.exit(1);
 });
+
+// [Claude] — 2026-10-16 — La bibliothèque des mouvements : Narcisse ne comprenait pas ce que chaque
+// mouvement contenait (« sur cadence éolienne, il n'y a pas assez d'informations »). Chaque fiche
+// doit donc porter à quoi ça sert, l'effet à l'oreille, quand s'en servir — et rendre ses accords.
+{
+  const lib = movementsLibrary.movements;
+  const sansAccords = lib.filter((m) => movementChordNames(m).length === 0);
+  check('Chaque mouvement de la bibliothèque rend ses accords', sansAccords.length === 0, sansAccords.map((m) => m.id).join(', '));
+  const incomplets = lib.filter((m) => !m.context || !m.sound || !m.use || !m.description);
+  check('Chaque mouvement dit à quoi il sert, ce qu\'il donne à l\'oreille et quand s\'en servir',
+    incomplets.length === 0, incomplets.map((m) => m.id).join(', '));
+  const trop = lib.filter((m) => m.sound.length > 130 || m.use.length > 90);
+  check('Ces phrases restent courtes (la carte doit rester lisible)', trop.length === 0, trop.map((m) => m.id).join(', '));
+  check('Les accords sont ceux du moteur, en Do',
+    movementChordNames(lib.find((m) => m.id === 'aeolian-cadence-1')).join(' ') === 'Cmaj7 Abmaj7 Bb7 Cmaj7');
+  check('… et se transposent avec la tonalité',
+    movementChordNames(lib.find((m) => m.id === 'basic-ii-v-i-major-1'), 5).join(' ') === 'Gm7 C7 Fmaj7');
+}

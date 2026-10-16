@@ -81,6 +81,7 @@ import {
   topNoteChoices,
   spellChordTone,
   isTensionQuality,
+  movementChordNames,
 } from './practice-exercise.js';
 import { loadGrids, saveGrids, upsertGrid, removeGrid, defaultGridName } from './practice-grids.js';
 import movementsLibrary from './data/movements-library.json' with { type: 'json' };
@@ -1999,6 +2000,14 @@ function initPracticeExercise() {
       category: m.category || 'Mouvements 12 tons',
       level: m.level,
       description: m.description || '',
+      // [Claude] — 2026-10-16 — Ce qu'il manquait sur les cartes (Narcisse : « sur cadence éolienne,
+      // il n'y a pas assez d'informations ; on ne sait pas ce que c'est ») : à quoi ça sert, l'effet
+      // à l'oreille, quand s'en servir, et surtout LES ACCORDS — calculés par le moteur de jeu
+      // (movementChordNames), donc exactement ceux que l'exercice jouera.
+      context: m.context || '',
+      sound: m.sound || '',
+      use: m.use || '',
+      chords: movementChordNames(m),
       tags: m.tags || [],
       style: m.style,
     }));
@@ -2007,7 +2016,11 @@ function initPracticeExercise() {
       name: g.name,
       category: PERSO_CATEGORY,
       level: 0,
-      description: gridSummary(g),
+      description: '',
+      context: '',
+      sound: '',
+      use: '',
+      chords: (g.chords || []).map((c) => c.name),
       tags: [],
       style: undefined,
       grid: g,
@@ -2024,6 +2037,10 @@ function initPracticeExercise() {
         item.name.toLowerCase().includes(q)
         || item.category.toLowerCase().includes(q)
         || item.description.toLowerCase().includes(q)
+        || (item.context || '').toLowerCase().includes(q)
+        || (item.sound || '').toLowerCase().includes(q)
+        || (item.use || '').toLowerCase().includes(q)
+        || (item.chords || []).some((c) => c.toLowerCase().includes(q))
         || item.tags.some((tag) => tag.toLowerCase().includes(q)));
     }
     // Catégories de la bibliothèque par ordre alphabétique, Perso (vos grilles) en dernier.
@@ -2047,22 +2064,54 @@ function initPracticeExercise() {
       : 'Aucun mouvement ne correspond à votre recherche.';
     els.exerciseLibraryGrid.innerHTML = items.length === 0
       ? `<div class="exercise-library-empty">${empty}</div>`
-      : items.map((item) => `<article class="exercise-library-card${item.name === current ? ' is-current' : ''}${item.grid ? ' is-perso' : ''}" data-id="${escapeAttr(item.id)}" tabindex="0" role="button" aria-label="${escapeAttr(item.grid ? `${item.name}, grille perso` : `${item.name}, niveau ${item.level} sur 5`)}">
+      : items.map((item, i) => renderLibraryCard(item, i, current)).join('');
+  }
+
+  /** Le niveau en jauge de cinq points : plus lisible que cinq étoiles, et plus sobre. */
+  function renderLevelDots(level) {
+    const filled = Math.min(5, Math.max(1, Number(level) || 1));
+    return `<span class="exercise-library-level" title="Niveau ${filled} sur 5" aria-label="Niveau ${filled} sur 5">${
+      Array.from({ length: 5 }, (_, i) => `<i class="${i < filled ? 'is-on' : ''}"></i>`).join('')}</span>`;
+  }
+
+  /**
+   * [Claude] — 2026-10-16 — Une carte de la bibliothèque. Narcisse : « la plupart des mouvements ou
+   * progressions ne sont pas compréhensibles, on n'y comprend rien […] ça ne donne ni envie de
+   * regarder ni de tester ». La carte montre donc, d'un coup d'œil : à quoi ça sert (une phrase),
+   * LES ACCORDS qui seront joués (en Do), et ce que ça fait à l'oreille. Le reste — quand s'en
+   * servir et le détail théorique — se déplie à la demande, pour ne pas noyer la grille.
+   */
+  function renderLibraryCard(item, i, current) {
+    const isCurrent = item.name === current;
+    const chords = (item.chords || []).slice(0, 12);
+    const more = (item.use || item.description) ? `
+            <div class="exercise-library-more" id="more-${escapeAttr(item.id)}" hidden>
+              ${item.use ? `<p class="exercise-library-use"><span>Quand s'en servir</span>${escapeHtml(item.use)}</p>` : ''}
+              ${item.description ? `<p class="exercise-library-detail">${escapeHtml(item.description)}</p>` : ''}
+            </div>` : '';
+    return `<article class="exercise-library-card${isCurrent ? ' is-current' : ''}${item.grid ? ' is-perso' : ''}" data-id="${escapeAttr(item.id)}" style="--i:${i}" tabindex="0" role="button" aria-label="${escapeAttr(item.grid ? `${item.name}, grille perso` : `${item.name}, niveau ${item.level} sur 5`)}">
             <div class="exercise-library-card-header">
               <span class="exercise-library-card-category">${escapeHtml(item.category)}</span>
               ${item.grid
     ? `<span class="exercise-library-card-count">${item.grid.chords.length} accord${item.grid.chords.length > 1 ? 's' : ''}</span>`
-    : `<span class="exercise-library-card-stars" title="Niveau ${item.level} sur 5">${renderStarString(item.level)}</span>`}
+    : renderLevelDots(item.level)}
             </div>
-            <h4>${escapeHtml(item.name)}${item.name === current ? '<span class="exercise-library-current">En cours</span>' : ''}</h4>
-            <p>${escapeHtml(item.description)}</p>
+            <h4>${escapeHtml(item.name)}${isCurrent ? '<span class="exercise-library-current">En cours</span>' : ''}</h4>
+            ${item.context ? `<p class="exercise-library-context">${escapeHtml(item.context)}</p>` : ''}
+            ${chords.length ? `<ol class="exercise-library-chords" aria-label="Les accords, en Do">${
+    chords.map((c) => `<li>${escapeHtml(c)}</li>`).join('')}${
+    (item.chords || []).length > chords.length ? '<li class="is-more">…</li>' : ''}</ol>` : ''}
+            ${item.sound ? `<p class="exercise-library-sound">${escapeHtml(item.sound)}</p>` : ''}
+            ${item.grid && item.description ? `<p>${escapeHtml(item.description)}</p>` : ''}${more}
             <div class="exercise-library-card-actions">
               <button type="button" class="exercise-library-play${previewId === item.id ? ' is-playing' : ''}" data-preview="${escapeAttr(item.id)}" aria-label="${escapeAttr(`${previewId === item.id ? 'Arrêter' : 'Écouter'} : ${item.name}`)}">${previewId === item.id ? DEMO_STOP_ICON : DEMO_PLAY_ICON}<span>${previewId === item.id ? 'Arrêter' : 'Écouter'}</span></button>
+              ${more ? `<button type="button" class="exercise-library-toggle" data-more="${escapeAttr(item.id)}" aria-expanded="false" aria-controls="more-${escapeAttr(item.id)}">En savoir plus</button>` : ''}
               ${item.grid ? `<button type="button" class="exercise-library-grid-action" data-grid-load="${escapeAttr(item.id)}" aria-label="${escapeAttr(`Modifier la grille ${item.name}`)}">Modifier</button>
               <button type="button" class="exercise-library-grid-action is-danger${gridDeleteArmed === item.id ? ' is-armed' : ''}" data-grid-delete="${escapeAttr(item.id)}" aria-label="${escapeAttr(`Supprimer la grille ${item.name}`)}">${gridDeleteArmed === item.id ? 'Confirmer' : 'Supprimer'}</button>` : ''}
             </div>
-          </article>`).join('');
+          </article>`;
   }
+
 
   /** Prépare le contenu ; l'ouverture elle-même est faite par astra-shell.js (data-astra-open). */
   function openLibrary() {
@@ -2428,11 +2477,24 @@ function initPracticeExercise() {
       renderLibrary();
       return;
     }
+    // « En savoir plus » déplie la carte sans la choisir.
+    const toggle = e.target.closest('[data-more]');
+    if (toggle) {
+      e.stopPropagation();
+      const panel = document.getElementById(`more-${toggle.dataset.more}`);
+      if (panel) {
+        const open = panel.hasAttribute('hidden');
+        panel.toggleAttribute('hidden', !open);
+        toggle.setAttribute('aria-expanded', String(open));
+        toggle.textContent = open ? 'Replier' : 'En savoir plus';
+      }
+      return;
+    }
     const card = e.target.closest('.exercise-library-card');
     if (card) pickLibraryCard(card);
   });
   els.exerciseLibraryGrid?.addEventListener('keydown', (e) => {
-    if (e.target.closest('[data-preview], [data-grid-load], [data-grid-delete]')) return;
+    if (e.target.closest('[data-preview], [data-grid-load], [data-grid-delete], [data-more]')) return;
     const card = e.target.closest('.exercise-library-card');
     if (!card || (e.key !== 'Enter' && e.key !== ' ')) return;
     e.preventDefault();
