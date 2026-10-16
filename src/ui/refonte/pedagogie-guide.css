@@ -3,6 +3,17 @@
    extrêmement simple et limpide […], en évitant les textes minuscules en gris » : des textes à
    13 px au moins, des contrastes francs, des déploiements animés. Jetons --tr-* (sombre et clair). */
 
+/* [Claude] — 2026-10-16 — Le conteneur du Copilote prend toute la hauteur restante du panneau.
+   Sans `flex: 1` + `min-height: 0`, son contenu déborde sous le panneau et la case de conversation
+   sort de l'écran : c'est ce qui est arrivé en retirant les onglets, qui portaient ces règles. */
+#pedagogie-copilot-panel .pedago-panel-slots {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+#pedagogie-copilot-panel .pedago-copilot-name[hidden] { display: none; }
+
 /* Le passage, dans l'en-tête : il s'allume quand on vient d'en choisir un. */
 #pedagogie-copilot-panel .pedago-moment.is-pulse .pedago-moment-range { animation: pedago-moment-pulse .9s ease-out; }
 @keyframes pedago-moment-pulse {
@@ -76,10 +87,6 @@
   cursor: pointer;
 }
 @keyframes pedago-tip-in { from { opacity: 0; transform: translateY(-8px) scale(.97); } }
-
-@media (prefers-reduced-motion: reduce) {
-  #pedagogie-copilot-panel .pedago-panel-slots > * { animation: none !important; transition: none !important; }
-}
 
 /* L'accueil du Copilote dans Pédagogie IA : une phrase lisible, pas un petit texte gris. */
 #pedagogie-copilot-panel .copilot-tutorial-welcome > p {

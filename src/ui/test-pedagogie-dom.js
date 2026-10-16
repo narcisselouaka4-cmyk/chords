@@ -733,6 +733,12 @@ check('Le Copilote ne rejoue plus un « résultat final » reconstitué par l\'a
   && !readText('src/pedagogie/tutorial-questions.js').includes("kind: 'final'"));
 check('La barre sous la vidéo montre les accords relevés (plus de chapitres)',
   /steps: chordSteps\(\),/.test(tabCode) && !tabCode.includes('chapterSteps'));
+// [Claude] — 2026-10-16 — En retirant les onglets, j'ai emporté la règle qui donnait sa hauteur au
+// conteneur du Copilote : la case de conversation sortait de l'écran (Narcisse : « y'a plus de chat
+// pour discuter »). Sans `flex: 1` + `min-height: 0` sur le parent, le `flex: 1` du slot ne vaut rien.
+check('La conversation du Copilote garde sa hauteur (sinon la case de saisie sort de l\'écran)',
+  /#pedagogie-copilot-panel \.pedago-panel-slots \{[^}]*flex: 1;[^}]*min-height: 0;/.test(readText('src/ui/refonte/pedagogie-guide.css'))
+  && /#pedagogie-copilot-panel \.pedago-copilot-slot \{[^}]*flex: 1;[^}]*min-height: 0;/.test(readText('src/ui/refonte/astra-pedagogie.css')));
 // La tonalité que le prof ANNONCE est gardée : elle corrigeait des degrés faux, et elle alimente
 // maintenant la structure que lit le Copilote, non plus le guide.
 check('La tonalité annoncée par le prof l\'emporte encore, sur la structure du Copilote',
