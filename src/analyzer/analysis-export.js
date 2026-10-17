@@ -101,12 +101,17 @@ export function exportAnalysisToJson(analysis, options = {}) {
   const segments = (analysis.chords || []).map((chord) => {
     const detected = parseChordSymbol(chord.chord);
     const override = chord.manualOverride;
-    const effective = parseChordSymbol(getEffectiveChord(chord));
+    const effectiveSymbol = getEffectiveChord(chord);
+    const effective = parseChordSymbol(effectiveSymbol);
     return {
       segmentId: chord.segmentId,
       startTime: chord.startTime,
       endTime: chord.endTime,
       duration: chord.endTime - chord.startTime,
+      // [Mission ANGES §8] Étiquette plate = accord AFFICHÉ (après overrides
+      // et post-traitement) : rend le JSON lisible par
+      // scripts/eval-chords-triad.py sans conversion (type timestamped).
+      chord: effectiveSymbol,
       detectedChord: {
         symbol: chord.chord,
         root: detected.root,
@@ -121,11 +126,13 @@ export function exportAnalysisToJson(analysis, options = {}) {
           }
         : null,
       effectiveChord: {
-        symbol: getEffectiveChord(chord),
+        symbol: effectiveSymbol,
         root: effective.root,
         quality: effective.quality,
         bass: effective.bass,
       },
+      confidence: typeof chord.confidence === 'number' ? chord.confidence : null,
+      role: chord.role || null,
       wasManuallyEdited: override != null,
     };
   });
@@ -134,13 +141,51 @@ export function exportAnalysisToJson(analysis, options = {}) {
     schemaVersion: 1,
     exportedAt: new Date().toISOString(),
     title: analysis.title || 'Piano Jazz Chords Analysis',
+    // [Mission ANGES §8] Nom du fichier audio analysé, tonalité complète,
+    // version du moteur (permet de repérer une grille sauvegardée avec un
+    // ancien vocabulaire — cf. le G#7 de l'analyse ANGES du 14/10).
+    audioFile: options.fileName || analysis.audioFile || null,
     duration: analysis.duration || 0,
     tempo: analysis.tempo || 120,
     timeSignature: analysis.timeSignature || '4/4',
     key: analysis.key || null,
+    keyMode: analysis.keyMode || null,
+    engine: analysis.engine || 'pré-ADR-061',
     manuallyEditedCount: segments.filter((s) => s.wasManuallyEdited).length,
     segments,
+    // [Mission ANGES §8] Sortie brute : séquence du Viterbi AVANT tout
+    // post-traitement, pour comparer ce que chaque couche ajoute/retire.
+    rawChords: analysis.rawChords || null,
   };
+}
+
+// [Mission ANGES §8] Export CSV (lisible dans un tableur) : un accord par
+// ligne, accord affiché + accord détecté + méta.
+export function exportAnalysisToCsv(analysis, options = {}) {
+  const rows = [
+    ['start', 'end', 'chord', 'root', 'quality', 'bass', 'confidence', 'role', 'detected', 'manuallyEdited'],
+  ];
+  for (const chord of analysis.chords || []) {
+    const effectiveSymbol = getEffectiveChord(chord);
+    const effective = parseChordSymbol(effectiveSymbol);
+    rows.push([
+      chord.startTime,
+      chord.endTime,
+      effectiveSymbol,
+      effective.root,
+      effective.quality,
+      effective.bass,
+      typeof chord.confidence === 'number' ? chord.confidence : '',
+      chord.role || '',
+      chord.chord,
+      chord.manualOverride != null ? 'oui' : '',
+    ]);
+  }
+  const esc = (v) => {
+    const s = String(v ?? '');
+    return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  return rows.map((r) => r.map(esc).join(',')).join('\r\n') + '\r\n';
 }
 
 export function exportAnalysisToText(analysis, options = {}) {

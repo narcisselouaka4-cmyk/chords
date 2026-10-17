@@ -143,12 +143,14 @@ function renderHeader() {
     <div class="corriger-actions">
       <button type="button" class="btn-secondary" id="analyzer-export-midi-btn">Exporter MIDI</button>
       <button type="button" class="btn-secondary" id="analyzer-export-json-btn">Exporter JSON</button>
+      <button type="button" class="btn-secondary" id="analyzer-export-csv-btn">Exporter CSV</button>
       <button type="button" class="btn-secondary" id="analyzer-copy-text-btn">Copier le texte</button>
     </div>
   `;
 
   panelEls.corrigerHeader.querySelector('#analyzer-export-midi-btn')?.addEventListener('click', () => callbacks.onExportMidi?.());
   panelEls.corrigerHeader.querySelector('#analyzer-export-json-btn')?.addEventListener('click', () => callbacks.onExportJson?.());
+  panelEls.corrigerHeader.querySelector('#analyzer-export-csv-btn')?.addEventListener('click', () => callbacks.onExportCsv?.());
   panelEls.corrigerHeader.querySelector('#analyzer-copy-text-btn')?.addEventListener('click', () => callbacks.onCopyText?.());
 }
 

@@ -4,6 +4,7 @@ import { createAudioAnalyzer } from '../analyzer/audio-analyzer.js';
 import {
   exportAnalysisToMidi,
   exportAnalysisToJson,
+  exportAnalysisToCsv,
   exportAnalysisToText,
   computeProductStatistics,
   countManuallyEditedChords,
@@ -149,6 +150,7 @@ const els = {
 
   exportMidiBtn: document.getElementById('analyzer-export-midi-btn'),
   exportJsonBtn: document.getElementById('analyzer-export-json-btn'),
+  exportCsvBtn: document.getElementById('analyzer-export-csv-btn'),
   copyTextBtn: document.getElementById('analyzer-copy-text-btn'),
   statsContent: document.getElementById('analyzer-stats-content'),
   overviewContent: document.getElementById('analyzer-overview-content'),
@@ -339,6 +341,7 @@ export function initAnalyzerTab() {
     },
     onExportMidi: () => handleExportMidi(),
     onExportJson: () => handleExportJson(),
+    onExportCsv: () => handleExportCsv(),
     onCopyText: () => handleCopyText(),
   });
   refreshLibraryList();
@@ -1714,11 +1717,32 @@ async function handleExportJson() {
   });
   if (!filePath) return;
 
-  const jsonData = exportAnalysisToJson(currentAnalysis);
+  const jsonData = exportAnalysisToJson(currentAnalysis, { fileName: currentFileName });
   await window.electronAPI.files.writeFile(filePath, JSON.stringify(jsonData, null, 2));
   const edited = countManuallyEditedChords(currentAnalysis);
   const suffix = edited > 0 ? ` — ${edited} correction(s) manuelle(s)` : '';
   showToast(`JSON exporté${suffix} vers ${filePath}`, 4000);
+}
+
+// [Mission ANGES §8] Export CSV de la grille affichée (même contenu que le
+// JSON, format tableur) via la boîte de sauvegarde système. Aucun réseau.
+async function handleExportCsv() {
+  if (!currentAnalysis) return;
+  if (!window.electronAPI?.files?.saveDialog || !window.electronAPI?.files?.writeFile) {
+    notifyError('Export CSV non disponible dans cet environnement.');
+    return;
+  }
+
+  const baseName = currentFileName.replace(/\.[^.]+$/, '') || 'analyse';
+  const filePath = await window.electronAPI.files.saveDialog({
+    defaultPath: `${baseName}_analysis.csv`,
+    filters: [{ name: 'Fichier CSV', extensions: ['csv'] }, { name: 'Tous les fichiers', extensions: ['*'] }],
+  });
+  if (!filePath) return;
+
+  const csv = exportAnalysisToCsv(currentAnalysis, { fileName: currentFileName });
+  await window.electronAPI.files.writeFile(filePath, csv);
+  showToast(`CSV exporté vers ${filePath}`, 4000);
 }
 
 async function handleCopyText() {
@@ -1820,6 +1844,7 @@ function bindExportMidiButton() {
 
 function bindExportJsonButton() {
   els.exportJsonBtn?.addEventListener('click', handleExportJson);
+  els.exportCsvBtn?.addEventListener('click', handleExportCsv);
 }
 
 function bindCopyTextButton() {

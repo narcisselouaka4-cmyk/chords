@@ -310,6 +310,11 @@ def pitch_shift_stems(stem_paths_json, output_dir, semitones, start_sec=0.0, end
 
 NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 
+# [ADR-061, mission ANGES §8] Version du moteur exposée dans la sortie JSON :
+# permet à l'app de signaler une analyse obsolète (ex. grille sauvegardée avec
+# l'ancien vocabulaire à septièmes) et à l'export de dater la grille.
+ENGINE_VERSION = 'ADR-061-triades-1'
+
 # Profils Krumhansl-Kessler pour l'estimation de la tonalité (Do = index 0)
 MAJOR_PROFILE = np.array([6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88], dtype=np.float32)
 MINOR_PROFILE = np.array([6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17], dtype=np.float32)
@@ -4661,6 +4666,15 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
 
     # 5. Segmentation et post-traitement.
     segments = _segment_path(path, beat_times, duration, states, obs_scores)
+    # [ADR-061, mission ANGES §8] Séquence brute du Viterbi, avant TOUT
+    # post-traitement : exposée dans la sortie (rawChords) pour comparer ce
+    # que chaque couche ajoute ou retire (utile au diagnostic, cf. EXP-058).
+    raw_chords = [
+        {'startTime': round(float(seg['startTime']), 3),
+         'endTime': round(float(seg['endTime']), 3),
+         'chord': seg['chord'],
+         'confidence': round(float(seg.get('confidence', 0.0)), 3)}
+        for seg in segments]
     if debug:
         _log_seg_stage("after Viterbi + segment_path", segments, states)
     segments = _merge_similar_segments(segments)
@@ -4891,6 +4905,8 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
         "keyCandidates": key_candidates[:5],
         "confidence": overall_confidence,
         "chords": chords,
+        "engine": ENGINE_VERSION,
+        "rawChords": raw_chords,
         "aggregation": aggregation_info
     }
     if diagnostics is not None:
