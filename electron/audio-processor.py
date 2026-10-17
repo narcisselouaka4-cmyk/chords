@@ -331,6 +331,56 @@ CHORD_TEMPLATES_WEIGHTED = {
 }
 CHORD_INTERVALS = {suffix: [pc for pc, _ in tpl] for suffix, tpl in CHORD_TEMPLATES_WEIGHTED.items()}
 
+# [ADR-061 — mission détection d'accords fiable, 17/10/2026]
+# Vocabulaire de DÉTECTION restreint aux triades 4 qualités : '', 'm', 'dim',
+# 'aug' (+ l'état 'N' ajouté par _build_chord_states). Les templates gardés ont
+# tous exactement 3 notes : plus aucun biais de similarité cosinus dû aux
+# dimensions différentes (cause n°1 du journal). Une 7e jouée dans l'audio se
+# replie naturellement sur sa triade (m7→m, maj7→maj, 7→maj, ø7/dim7→dim) :
+# l'énergie de 7e pénalise toutes les triades à peu près également et ne peut
+# plus créer d'accord « septième » parasite. Les autres suffixes de
+# CHORD_TEMPLATES_WEIGHTED restent définis pour les couches de post-traitement
+# qui s'y réfèrent (_resolve_fifth_confusion, discriminateurs, etc.) ; elles
+# deviennent simplement inactives sur des états qui n'existent plus.
+DETECTION_SUFFIXES = ('', 'm', 'dim', 'aug')
+
+# [ADR-061] Familles d'observation : pour chaque triade de détection, les
+# templates des accords réels qui se REPLIENT sur elle (règles de repli :
+# m7→m, maj7→maj, 7→maj, sus2/sus4→maj, 6→maj, ø7/m7b5→dim, dim7→dim).
+# L'émission d'un état triade est le MAX de similarité sur sa famille : une
+# 7e, une 6e ou une sus jouée dans l'audio ne fait plus baisser l'émission de
+# la triade juste — elle ne crée plus non plus d'état parasite (plus de sus/7
+# dans l'espace d'états). Mesuré sur le tuto Yahweh : les voicings Dsus2
+# (émission 0,927 en ancien vocabulaire) tombaient à ~0,6 en triade stricte,
+# et le Viterbi ratait les changements D-A-E (CSR 81,7→50,8) — c'est ce que
+# cette famille corrige.
+CHORD_TEMPLATE_6 = [(0, 1.0), (4, 0.8), (7, 0.6), (9, 0.6)]
+CHORD_TEMPLATE_DIM7 = [(0, 1.0), (3, 0.9), (6, 0.9), (9, 0.9)]
+FAMILY_TEMPLATE_SOURCE = dict(CHORD_TEMPLATES_WEIGHTED)
+FAMILY_TEMPLATE_SOURCE['6'] = CHORD_TEMPLATE_6
+FAMILY_TEMPLATE_SOURCE['dim7'] = CHORD_TEMPLATE_DIM7
+TRIAD_FAMILY = {
+    '': ('', '7', 'maj7', 'sus2', 'sus4', '6'),
+    'm': ('m', 'm7'),
+    'dim': ('dim', 'm7b5', 'dim7'),
+    'aug': ('aug',),
+}
+
+
+def _family_templates(root, triad_suffix):
+    """Templates normalisés de tous les membres de la famille d'observation."""
+    out = []
+    for member in TRIAD_FAMILY[triad_suffix]:
+        tpl = FAMILY_TEMPLATE_SOURCE[member]
+        vec = np.zeros(12, dtype=np.float32)
+        for pc, weight in tpl:
+            vec[(root + pc) % 12] = weight
+        norm = float(np.linalg.norm(vec))
+        if norm > 0:
+            vec = vec / norm
+        out.append(vec)
+    return out
+
 # Contradictions ciblées pour le mode "targeted_contradictions" (O2).
 # Chaque entrée : suffixe cible → liste de (intervalle, poids_relatif).
 # Le poids effectif = contradiction_weight * poids_relatif.
@@ -972,6 +1022,9 @@ def _build_chord_states(observation_mode="baseline", contradiction_weight=0.10):
     states = []
     for root in range(12):
         for suffix, tpl in CHORD_TEMPLATES_WEIGHTED.items():
+            # [ADR-061] Vocabulaire de détection : triades 4 qualités uniquement.
+            if suffix not in DETECTION_SUFFIXES:
+                continue
             template = np.zeros(12, dtype=np.float32)
             for pc, weight in tpl:
                 template[(root + pc) % 12] = weight
@@ -988,6 +1041,7 @@ def _build_chord_states(observation_mode="baseline", contradiction_weight=0.10):
                 'root': root,
                 'suffix': suffix,
                 'template': template,
+                'family_templates': _family_templates(root, suffix),
                 'structural_root': base_chord_parsed['root_pc'],
                 'structural_mode': base_chord_parsed['mode'],
             })
@@ -2695,6 +2749,13 @@ def _build_transition_matrix(states, key):
             elif rd == 6:
                 score -= 0.18
 
+            # [Réfuté — ADR-061 boucle, itération 3] La pénalité de changement
+            # de qualité a été retirée en test : sans elle, les insertions
+            # mineures diatoniques (C#m, Bm) deviennent plus faciles et la
+            # couche _stabilize_antiparasite les fusionne en méga-segments
+            # (A tenu 52 s sur « You Are Yahweh » live ; CSR −9,8). Remise en
+            # place ; à re-tester seulement après neutralisation du biais tonal
+            # et de la couche antiparasite (elles se compensaient).
             if src['suffix'] != dst['suffix']:
                 score -= 0.04
 
@@ -2709,11 +2770,15 @@ def _build_transition_matrix(states, key):
             )
 
             if not same_root_similar:
-                # Bonus diatonique UNIQUEMENT si la fondamentale change (rd != 0).
-                # Ne pas l'appliquer sur la même fondamentale évite que le Viterbi
-                # récompense l'alternance de qualité (ex: A → Aaug → A → Aaug).
-                if dst['root'] is not None and dst['root'] in diatonic_roots and rd != 0:
-                    score += 0.1
+                # [ADR-061, cause n°2 — neutralisation du biais tonal]
+                # Le bonus diatonique de transition (+0,10 si la fondamentale
+                # de destination est diatonique de la tonalité détectée) est
+                # RETIRÉ : journal 01/10 (tracé Autumn Leaves — il renverse
+                # des émissions correctes par 0,0114), tonalités quasi à
+                # égalité (±0,012 de score) dans deux corpus indépendants.
+                # Les transitions restent structurées par distance de
+                # fondamentale (rd) ; plus rien ne dépend de la tonalité.
+                pass
             else:
                 # EXPERIMENT (Priorite 1, RAPPORT_DIAGNOSTIC.md): rendre la
                 # transition vers une qualite voisine sur meme fondamentale
@@ -2762,14 +2827,19 @@ def _compute_observation_scores(beat_chroma, states, key, frame_energies):
                 scores[t, j] = max(0.05, 1.0 - energy_ratio)
             continue
 
-        template = state['template']
+        # [ADR-061] Émission tolérante aux extensions : similarité maximale
+        # sur la famille de repli de la triade (triade, 7e, sus, 6e, dim7).
+        # Une extension jouée ne pénalise plus la triade juste ; elle ne crée
+        # plus d'état parasite (les extensions ne sont pas des états).
+        templates = state.get('family_templates') or [state['template']]
         for t in range(T):
             frame = beat_chroma[:, t]
             norm = np.linalg.norm(frame)
             if norm < 1e-6:
                 sim = 0.0
             else:
-                sim = float(np.dot(frame / norm, template))
+                frame_n = frame / norm
+                sim = max(float(np.dot(frame_n, tpl)) for tpl in templates)
             sim = max(0.0, min(1.0, sim))
 
             # LOT 7 — Discrimination de tierce (contenu acoustique uniquement).
