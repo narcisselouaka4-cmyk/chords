@@ -315,19 +315,24 @@ MAJOR_PROFILE = np.array([6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 
 MINOR_PROFILE = np.array([6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17], dtype=np.float32)
 
 # Vocabulaire strict d'accords : pas de 9/11/13/altérations à ce stade.
-# Vocabulaire strict d'accords : pas de 9/11/13/altérations à ce stade.
-# Les templates pondèrent la fondamentale > tierce > quinte > extensions.
+# [ADR-061 — itération 4] Profil de poids UNIFORME pour tous les templates :
+# racine 1.0, tierce 0.8, quinte 0.6, extension 0.8. Chaque qualité de triade
+# a exactement la même géométrie de poids (seule la position des notes change),
+# et chaque membre de famille de 4 notes a la même exigence : plus aucun avantage
+# de norme (mesuré : sur un vrai Si mineur B-D-F# avec B:50 % en grave, le
+# template D6 ancien (poids 6e = 0.6, norme 1.54) battait Bm7 (7e = 0.85,
+# norme 1.69) — le biais cosinus de la cause n°1 renaissait entre familles).
 CHORD_TEMPLATES_WEIGHTED = {
     '': [(0, 1.0), (4, 0.8), (7, 0.6)],
-    'm': [(0, 1.0), (3, 0.85), (7, 0.55)],
-    '7': [(0, 1.0), (4, 0.75), (7, 0.55), (10, 0.4)],
-    'maj7': [(0, 1.0), (4, 0.85), (7, 0.65), (11, 0.9)],
-    'sus2': [(0, 1.0), (2, 0.75), (7, 0.55)],
-    'sus4': [(0, 1.0), (5, 0.75), (7, 0.55)],
-    'm7': [(0, 1.0), (3, 0.85), (7, 0.65), (10, 0.85)],
-    'dim': [(0, 1.0), (3, 0.9), (6, 0.9)],
-    'm7b5': [(0, 1.0), (3, 0.85), (6, 0.9), (10, 0.85)],
-    'aug': [(0, 1.0), (4, 0.85), (8, 0.9)],
+    'm': [(0, 1.0), (3, 0.8), (7, 0.6)],
+    '7': [(0, 1.0), (4, 0.8), (7, 0.6), (10, 0.8)],
+    'maj7': [(0, 1.0), (4, 0.8), (7, 0.6), (11, 0.8)],
+    'sus2': [(0, 1.0), (2, 0.8), (7, 0.6)],
+    'sus4': [(0, 1.0), (5, 0.8), (7, 0.6)],
+    'm7': [(0, 1.0), (3, 0.8), (7, 0.6), (10, 0.8)],
+    'dim': [(0, 1.0), (3, 0.8), (6, 0.6)],
+    'm7b5': [(0, 1.0), (3, 0.8), (6, 0.6), (10, 0.8)],
+    'aug': [(0, 1.0), (4, 0.8), (8, 0.6)],
 }
 CHORD_INTERVALS = {suffix: [pc for pc, _ in tpl] for suffix, tpl in CHORD_TEMPLATES_WEIGHTED.items()}
 
@@ -354,8 +359,8 @@ DETECTION_SUFFIXES = ('', 'm', 'dim', 'aug')
 # (émission 0,927 en ancien vocabulaire) tombaient à ~0,6 en triade stricte,
 # et le Viterbi ratait les changements D-A-E (CSR 81,7→50,8) — c'est ce que
 # cette famille corrige.
-CHORD_TEMPLATE_6 = [(0, 1.0), (4, 0.8), (7, 0.6), (9, 0.6)]
-CHORD_TEMPLATE_DIM7 = [(0, 1.0), (3, 0.9), (6, 0.9), (9, 0.9)]
+CHORD_TEMPLATE_6 = [(0, 1.0), (4, 0.8), (7, 0.6), (9, 0.8)]
+CHORD_TEMPLATE_DIM7 = [(0, 1.0), (3, 0.8), (6, 0.6), (9, 0.8)]
 FAMILY_TEMPLATE_SOURCE = dict(CHORD_TEMPLATES_WEIGHTED)
 FAMILY_TEMPLATE_SOURCE['6'] = CHORD_TEMPLATE_6
 FAMILY_TEMPLATE_SOURCE['dim7'] = CHORD_TEMPLATE_DIM7
@@ -2749,14 +2754,16 @@ def _build_transition_matrix(states, key):
             elif rd == 6:
                 score -= 0.18
 
-            # [Réfuté — ADR-061 boucle, itération 3] La pénalité de changement
-            # de qualité a été retirée en test : sans elle, les insertions
-            # mineures diatoniques (C#m, Bm) deviennent plus faciles et la
-            # couche _stabilize_antiparasite les fusionne en méga-segments
-            # (A tenu 52 s sur « You Are Yahweh » live ; CSR −9,8). Remise en
-            # place ; à re-tester seulement après neutralisation du biais tonal
-            # et de la couche antiparasite (elles se compensaient).
-            if src['suffix'] != dst['suffix']:
+            # [ADR-061, cause n°6] La pénalité de changement de qualité est
+            # SCOPÉE à la même fondamentale : son rôle est d'empêcher le
+            # flip-flop de qualité sur un accord tenu (Em↔E), pas de taxer les
+            # vrais changements d'accord. Sans le scoping, D→Bm payait 0,04 de
+            # plus que D→E à émission égale et le Viterbi choisissait E alors
+            # que le chroma dit B-D-F# avec B:50 % en grave (mesuré, jehovah
+            # 9-13 s). Le retrait total est par ailleurs RÉFUTÉ (itération 3
+            # de la boucle : la couche antiparasite fusionnait alors les
+            # insertions en méga-segments, live −9,8 pts).
+            if src['suffix'] != dst['suffix'] and rd == 0:
                 score -= 0.04
 
             # Stabilité harmonique : même fondamentale, qualité voisine → pas de
@@ -2853,6 +2860,15 @@ def _compute_observation_scores(beat_chroma, states, key, frame_energies):
                 elif state['suffix'] in _MAJOR_THIRD_SUFFIXES and third_diff < 0:
                     sim = min(1.0, sim - THIRD_EVIDENCE_WEIGHT * third_diff)
 
+            # [Réfuté — boucle ADR-061, itération 6] Le bonus d'observation
+            # diatonique a été retiré en test puis RESTAURÉ : sa suppression
+            # effondrait le contrôle synthétique (autumn 24,7 % -> 0,0 %,
+            # grille beat dégénérée sur accords tenus), la live (66,8 -> 63,3)
+            # et ESPRIT (boucle 13,0 -> 3,4) ; seul PERE gagnait (+22 en
+            # boucle). À +0,05 il agit en régularisateur léger sur les frames
+            # ambiguës — le biais tonal décisif était le bonus de TRANSITION
+            # (+0,10), retiré à l'itération 3. keyConfidence est inerte
+            # (journal 03/10) : ne pas retester la pondération par confiance.
             # Biais tonal doux : bonus sur la fondamentale seule, sans pénalité.
             if state['root'] is not None and state['root'] in diatonic_roots:
                 sim += 0.05
