@@ -656,6 +656,42 @@ def evaluate_item(item, repo, python_bin, runs, workers):
                     'seq_match_root': root_match_w, 'coverage': cov,
                     'segments_pred': len(pred_events),
                     'segments_ref': len(ref_events)})
+    elif item['type'] == 'chordify-only':
+        # [§5.0bis] Morceaux de diversité : pas de grille Narcisse, pas de
+        # timestamps — le relevé Chordify (cellules NON calibrées) sert de
+        # SECONDE référence, évalué par alignement (jamais par CSR à la
+        # seconde). Statistiques : jamais utilisé pour régler le moteur.
+        chordify_path = item['chordify']
+        with open(os.path.expanduser(chordify_path), 'r', encoding='utf-8') as fh:
+            cf_data = json.load(fh)
+        cf = parse_chordify_file(chordify_path)
+        pred_events = collapse_events(pred)
+        out['segments_pred'] = len(pred_events)
+        match_w, _ = ordered_match(cf, pred_events)
+        rev_w, _ = ordered_match(pred_events, cf)
+        align = align_similarity(cf, pred_events)
+        cf_labels = set()
+        for (t, _) in cf:
+            cf_labels.add((t[0], t[1]))
+        dur_by_triad = {}
+        for (t, w) in pred_events:
+            dur_by_triad[(t[0], t[1])] = dur_by_triad.get((t[0], t[1]), 0.0) + w
+        audio_dur = first.get('duration', 0) or 1.0
+        thresh = max(3.0, 0.01 * audio_dur)
+        covered = sum(1 for lab in cf_labels if dur_by_triad.get(lab, 0.0) >= thresh)
+        out.update({
+            'chordify_match': match_w, 'chordify_match_reverse': rev_w,
+            'chordify_align': align,
+            'coverage': 100.0 * covered / len(cf_labels) if cf_labels else None,
+            'n_chordify_labels': len(cf_labels)})
+        expected_keys = []
+        key_raw = cf_data.get('key')
+        if key_raw:
+            pc, rest = parse_root_pc(str(key_raw).split('(')[0].split('(')[0])
+            mode = 'minor' if 'min' in str(key_raw).lower() or 'm)' in str(key_raw) else 'major'
+            if pc is not None:
+                expected_keys.append({'pc': pc, 'mode': mode})
+        out['key_ok'] = key_matches(first, expected_keys) if expected_keys else None
     elif item['type'] in ('grid', 'multi-grid'):
         audio_dur = first.get('duration', 0)
         pred_events = collapse_events(pred)
