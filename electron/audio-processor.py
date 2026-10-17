@@ -4658,6 +4658,14 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
                 elif key_mode == 'minor' and state['suffix'] == 'm':
                     obs_scores[0, j] += 0.04
     trans = _build_transition_matrix(states, key)
+    # [ADR-061 — itération 11] Inertie forte à la grille fine : les coûts de
+    # transition (hors rester sur place, diagonale = 0) sont doublés. À 0,25 s
+    # par frame, une oscillation A→B→A coûte 2×(−0,07) par aller-retour ; les
+    # émissions bruitées de frontière (fenêtres à cheval) suffisent à la
+    # déclencher et cassent les boucles (ESPRIT : alternances G↔C de 1-2 s,
+    # médiane de segment 2,16 s pour des accords de 3 s). Mission §4.3 :
+    # « Viterbi à forte inertie ».
+    trans = trans * 2.0
     path = _viterbi(obs_scores, trans)
 
     # 5. Segmentation et post-traitement.
