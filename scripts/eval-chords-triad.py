@@ -364,6 +364,64 @@ def ordered_match(ref_events, pred_events):
             100.0 * matched_n / total_n if total_n else None)
 
 
+def transition_metrics(events, loops, variants, expected_labels):
+    """[Mission ANGES §2] Sauts et arrivées anticipées pour une grille SANS timestamps.
+
+    Pour chaque accord source X de la grille (chaque position de chaque boucle,
+    successeurs fusionnés) et chaque occurrence de X détectée : la fenêtre
+    jusqu'à la prochaine occurrence de X doit contenir l'un des successeurs
+    attendus de X. Sinon -> transition SAUTÉE. Si un accord de la grille
+    (ni X ni un successeur attendu) apparaît avant tout successeur attendu ->
+    ARRIVÉE ANTICIPÉE (un accord arrive avant sa place dans l'ordre).
+    Retourne (skip_rate, early_rate, detail {(src,tgt): [kept, skipped]}).
+    """
+    variants = variants or {}
+    expanded = expand_loops(loops, variants)
+    succ = {}
+    for loop in expanded:
+        fl = [fold_label(c) for c in loop]
+        for k, x in enumerate(fl):
+            y = fl[(k + 1) % len(fl)]
+            succ.setdefault((x[0], x[1]), set()).add((y[0], y[1]))
+    expected = set()
+    for lab in expected_labels:
+        t = fold_label(lab)
+        expected.add((t[0], t[1]))
+    srcs = list(succ.keys())
+    total_kept = total_skipped = total_early = 0
+    detail = {}
+    for src in srcs:
+        targets = succ[src]
+        occ = [i for i, (t, _) in enumerate(events) if (t[0], t[1]) == src]
+        kept = skipped = early = 0
+        for k, i in enumerate(occ):
+            end = occ[k + 1] if k + 1 < len(occ) else len(events)
+            if end <= i + 1:
+                # fenêtre vide : le morceau se coupe là, pas de saut comptable
+                continue
+            found_target = False
+            for j in range(i + 1, end):
+                ev = (events[j][0][0], events[j][0][1])
+                if ev in targets:
+                    found_target = True
+                    break
+                if ev in expected and ev != src and ev not in targets:
+                    early += 1
+                    break
+            if found_target:
+                kept += 1
+            else:
+                skipped += 1
+        detail[src] = [kept, skipped, early]
+        total_kept += kept
+        total_skipped += skipped
+        total_early += early
+    tot = total_kept + total_skipped
+    skip_rate = 100.0 * total_skipped / tot if tot else None
+    early_rate = 100.0 * total_early / tot if tot else None
+    return skip_rate, early_rate, detail
+
+
 def levenshtein(a, b):
     """Distance d'édition sur des séquences quelconques."""
     if not a:
@@ -628,11 +686,18 @@ def evaluate_item(item, repo, python_bin, runs, workers):
         recall, passing = recall_events(ref, pred_c)
         prec_b, rec_b, f1_b, med_b = boundaries(ref, pred_c)
         frag, n_pred, n_ref = fragmentation(ref, pred_c)
+        ref_labels = {(t[0], t[1]) for (_, _, t) in ref if t[1] != 'N'}
+        pred_non_n = [(s, e, t) for (s, e, t) in pred_c if t[1] != 'N']
+        pred_dur_t = sum(e - s for (s, e, _) in pred_non_n)
+        foreign = sum(e - s for (s, e, t) in pred_non_n
+                      if (t[0], t[1]) not in ref_labels)
         out.update({'recall_events': recall, 'passing_recall': passing,
                     'boundaries_precision': prec_b, 'boundaries_recall': rec_b,
                     'boundaries_f1': f1_b, 'median_offset': med_b,
                     'fragmentation': frag, 'segments_pred': n_pred,
                     'segments_ref': n_ref,
+                    'skipped_rate': None if recall is None else 100.0 - recall,
+                    'insertion_rate': 100.0 * foreign / pred_dur_t if pred_dur_t else None,
                     'slash': slash_stats(ref, pred_c)})
     elif item['type'] == 'sequence':
         gt_seq = gt.get('chords_in_order') or gt.get('chords') or []
@@ -679,11 +744,17 @@ def evaluate_item(item, repo, python_bin, runs, workers):
         audio_dur = first.get('duration', 0) or 1.0
         thresh = max(3.0, 0.01 * audio_dur)
         covered = sum(1 for lab in cf_labels if dur_by_triad.get(lab, 0.0) >= thresh)
+        cov_pct = 100.0 * covered / len(cf_labels) if cf_labels else None
+        pred_dur_c = sum(w for (_, w) in pred_events)
+        foreign_c = sum(w for (t, w) in pred_events
+                        if (t[0], t[1]) not in cf_labels)
         out.update({
             'chordify_match': match_w, 'chordify_match_reverse': rev_w,
             'chordify_align': align,
-            'coverage': 100.0 * covered / len(cf_labels) if cf_labels else None,
-            'n_chordify_labels': len(cf_labels)})
+            'coverage': cov_pct,
+            'n_chordify_labels': len(cf_labels),
+            'skipped_rate': None if cov_pct is None else 100.0 - cov_pct,
+            'insertion_rate': 100.0 * foreign_c / pred_dur_c if pred_dur_c else None})
         expected_keys = []
         key_raw = cf_data.get('key')
         if key_raw:
@@ -706,9 +777,15 @@ def evaluate_item(item, repo, python_bin, runs, workers):
             cov, covered = grid_coverage(pred_events, gt['expected_set'], audio_dur)
             prec = grid_precision(pred_events, expected)
             ls_strict, ls_loose = loop_score(pred_events, loops, variants)
+            skip_rate, early_rate, skip_detail = transition_metrics(
+                pred_events, loops, variants, expected)
             out.update({'coverage': cov, 'coverage_detail': covered,
                         'precision_set': prec, 'loop_score': ls_strict,
                         'loop_loose': ls_loose,
+                        'skipped_rate': skip_rate, 'early_rate': early_rate,
+                        'skip_detail': {f'{k[0]}/{k[1]}': v
+                                        for k, v in skip_detail.items()},
+                        'insertion_rate': None if prec is None else 100.0 - prec,
                         'key_ok': key_matches(first, keys)})
             out['passing'] = [
                 {'chord': p['chord'],
@@ -790,6 +867,23 @@ def selftest():
     # 13 événements : le C initial n'amorce aucune rotation, les 12 suivants
     # (Em C G D x3) sont absorbés par les rotations -> 12/13 ≈ 92,3.
     assert abs(ls2 - 100.0 * 12 / 13) < 1e-9, ls2
+    # transition_metrics : boucle [C D G] (pcs 0/2/7), événements
+    # [C D G C G C D G] :
+    # C->D : C@0 fenêtre(D,G)=D ✓ ; C@3 fenêtre(G)=... cible D absente ->
+    # sauté, et G arrive avant sa place -> avance ; C@5 fenêtre(D,G)=D ✓.
+    # D->G : D@1 fenêtre(G,C)=G ✓ ; D@6 fenêtre(G)=G ✓ -> 0.
+    # G->C : G@2 fenêtre(C,G,C)=C ✓ ; G@4 fenêtre(C,D)=C ✓ ; G@7 fin -> sauté.
+    Cc, Dd, Gg = (0, 'maj', None), (2, 'maj', None), (7, 'maj', None)
+    sk, er, det = transition_metrics(
+        [(Cc, 1), (Dd, 1), (Gg, 1), (Cc, 1), (Gg, 1), (Cc, 1), (Dd, 1), (Gg, 1)],
+        [['C', 'D', 'G']], {}, ['C', 'D', 'G'])
+    # C@3 : fenêtre (G) sans D -> sauté + avance ; G@7 : fenêtre vide, exclu.
+    # 7 transitions comptables, 1 saut, 1 avance -> 1/7 chacun.
+    assert abs(sk - 100.0 / 7) < 1e-9, sk
+    assert abs(er - 100.0 / 7) < 1e-9, er
+    sk2, er2, _ = transition_metrics([(Cc, 1), (Dd, 1), (Gg, 1)] * 3,
+                                    [['C', 'D', 'G']], {}, ['C', 'D', 'G'])
+    assert sk2 == 0.0 and er2 == 0.0, (sk2, er2)
     # loose : tolère les accords de passage À L'INTÉRIEUR d'un tour.
     # [Em C |Am| G D Am Am Am] : aucun tour strict (Em C interrompus, G D
     # seuls) ; loose reconnaît le tour Em-C-(-Am)-G-D -> 4/8 = 50 %.
@@ -851,7 +945,8 @@ def main():
               'csr_triade', 'csr_majmin', 'csr_root', 'recall_events',
               'passing_recall', 'boundaries_f1', 'boundaries_precision',
               'boundaries_recall', 'median_offset', 'fragmentation',
-              'coverage', 'precision_set', 'loop_score', 'loop_loose', 'key_ok',
+              'coverage', 'precision_set', 'loop_score', 'loop_loose', 'skipped_rate',
+              'early_rate', 'insertion_rate', 'key_ok',
               'chordify_match', 'chordify_align', 'seq_match', 'segments_pred', 'segments_ref',
               'detected_key', 'detected_mode', 'error']
     write_header = not os.path.exists(os.path.expanduser(args.csv))
@@ -875,8 +970,9 @@ def main():
             print(f"{res['id']:14s} ERREUR : {res['error'][:120]}")
             continue
         keys = ['csr_triade', 'recall_events', 'boundaries_f1', 'fragmentation',
-                'coverage', 'precision_set', 'loop_score', 'loop_loose', 'key_ok',
-                'chordify_align', 'seq_match']
+                'coverage', 'precision_set', 'loop_score', 'key_ok',
+                'chordify_align', 'seq_match', 'skipped_rate', 'early_rate',
+                'insertion_rate']
         vals = ' '.join(f"{k}={_fmt(res.get(k))}" for k in keys if res.get(k) is not None)
         det = '' if res['deterministic'] else ' ⚠️NON-DÉTERMINISTE'
         print(f"{res['id']:14s} {vals}{det}")
