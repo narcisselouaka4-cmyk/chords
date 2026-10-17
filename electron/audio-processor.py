@@ -1848,7 +1848,14 @@ def _stabilize_progression(segments, key, states,
 #      des deux côtés par la même fondamentale structurelle est fusionné dans
 #      celle-ci (vote majoritaire + garde acoustique).
 #   C. Re-fusion finale des segments consécutifs devenus identiques.
-ENABLE_ANTIPARASITE_STABILIZATION = True
+# [ADR-061 — itération 8] DÉSACTIVÉE. Cette couche (mission v4, juillet) supprimait
+# les fondamentales diatoniques « parasites » attirées par le bonus diatonique de
+# transition — bonus retiré à l'itération 3 (transitions neutres de tonalité).
+# Depuis, elle ne corrige plus rien et AVALE des accords réels : mesuré, son unique
+# effet sur le pipeline triades est de doubler la taille max des segments
+# (6,6 s -> 13,8 s sur le tuto Yahweh : D/E du cycle avalés par un A tenu ;
+# 52 s de A sur le live dans le test de retrait de pénalité ; CSR tuto 73,7 -> 54,4).
+ENABLE_ANTIPARASITE_STABILIZATION = False
 
 
 def _compute_structural_roots_v4(segments, n_structural_roots=4,
@@ -4511,40 +4518,38 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
             'chords': [],
         }
 
-    # 1. Rythme : beats réels et tempo moyen.
+    # 1. Rythme : tempo moyen (affichage) et grille d'analyse UNIFORME.
+    # [ADR-061 — itération 7, cause « tempo/grille » du journal] La grille
+    # d'analyse ne dépend plus du beat tracking : frames fixes de 0,25 s.
+    # Motifs mesurés : (a) beat_frames n'est JAMAIS recalculé après
+    # _resolve_tempo (journal 20/09) et le correctif naïf « régénérer depuis
+    # le tempo corrigé » est réfuté (53 % -> 44 %) ; (b) grilles dégénérées
+    # sur accords tenus (beat_frames=[0,3], ~2 s/beat sur Autumn Leaves) ;
+    # (c) frontières quantifiées aux beats (F1 frontières ~40 %) ; (d) sur
+    # un concert à tempo variable (ESPRIT), aucune grille fixe ne suit le
+    # rubato. Le beat tracker reste appelé pour le champ tempo/affichage.
     hop_length = 512
-    tempo, beat_frames = _beat_track(y, sr, hop_length=hop_length)
-    beat_frames = np.atleast_1d(beat_frames)
-    # On inclut explicitement le début du fichier pour ne pas perdre la première mesure.
-    if len(beat_frames) == 0 or beat_frames[0] != 0:
-        beat_frames = np.concatenate(([0], beat_frames))
-    beat_frames = _fill_beat_grid_gaps(beat_frames)
-    beat_times = librosa.frames_to_time(beat_frames, sr=sr, hop_length=hop_length)
-    if len(beat_times) < 2:
-        # Fallback : pas assez de beats, on retourne une grille vide.
-        key, key_candidates = detect_key(y, sr)
-        return {
-            'duration': round(duration, 3),
-            'tempo': round(tempo, 1) if tempo else None,
-            'timeSignature': '4/4',
-            'key': key['name'] if key else None,
-            'keyMode': key['mode'] if key else None,
-            'keyConfidence': key['confidence'] if key else 0.0,
-            'keyCandidates': key_candidates,
-            'confidence': 0.0,
-            'chords': [],
-        }
-
-    # Tempo moyen robuste (médiane des inter-beat intervals).
-    ibis = np.diff(beat_times)
+    tempo, _tracked_frames = _beat_track(y, sr, hop_length=hop_length)
+    # Tempo moyen robuste (médiane des inter-beat intervals RÉELS).
+    tracked_times = librosa.frames_to_time(np.atleast_1d(_tracked_frames),
+                                            sr=sr, hop_length=hop_length)
+    ibis = np.diff(tracked_times)
     if len(ibis) > 0:
-        median_ibi = float(np.median(ibis))
-        avg_tempo = 60.0 / median_ibi if median_ibi > 0 else tempo
+        median_ibi_real = float(np.median(ibis))
+        avg_tempo = 60.0 / median_ibi_real if median_ibi_real > 0 else tempo
     else:
         avg_tempo = tempo
     # Correction du double/moitié classique sur les morceaux lents avec batterie/voix.
     avg_tempo = _resolve_tempo(y, sr, avg_tempo)
     time_signature = estimate_time_signature(wav_path, avg_tempo)
+
+    # Grille d'analyse uniforme : une frame toutes les 0,25 s.
+    ANALYSIS_FRAME_SEC = 0.25
+    n_total_frames = 1 + len(y) // hop_length
+    frame_step = max(1, int(round(ANALYSIS_FRAME_SEC * sr / hop_length)))
+    beat_frames = np.arange(0, max(2, n_total_frames), frame_step, dtype=int)
+    beat_times = librosa.frames_to_time(beat_frames, sr=sr, hop_length=hop_length)
+    median_ibi = float(ANALYSIS_FRAME_SEC)
 
     # 2. Tonalité.
     key, key_candidates = detect_key(y, sr)
@@ -4598,6 +4603,34 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
             s_up = min(start_f, e_up)
             if e_up > s_up:
                 beat_chroma_upper[:, k] = np.mean(chroma_upper[:, s_up:e_up], axis=1)
+
+    # [ADR-061 — itération 7] Lissage temporel des frames fines : moyenne
+    # glissante centrée à 5 taps (0,1/0,2/0,4/0,2/0,1, fenêtre effective
+    # ~1,25 s à résolution 0,25 s). La grille beat-synchrone débruitait en
+    # agrégant 0,55-2 s par fenêtre ; à 0,25 s sans lissage le tuto (accords
+    # démontrés en arpèges lents) tombait de 73,7 à 54,4 — une frame ne voit
+    # qu'un fragment d'arpège. 1,25 s couvre l'arpège sans flouter les tours
+    # de boucle de 3 s (F1 à ±0,5 s reste mesurable).
+    def _smooth_frames(mat, axis=1):
+        kernel = np.array([0.1, 0.2, 0.4, 0.2, 0.1])
+        if mat is None or mat.shape[1] < 5:
+            return mat
+        out = mat.copy()
+        n = mat.shape[1]
+        for k in range(n):
+            lo = max(0, k - 2)
+            hi = min(n, k + 3)
+            seg = mat[:, lo:hi]
+            w = kernel[2 - (k - lo):2 + (hi - k)]
+            out[:, k] = seg @ (w / w.sum())
+        return out
+
+    beat_chroma = _smooth_frames(beat_chroma)
+    if beat_chroma_upper is not None:
+        beat_chroma_upper = _smooth_frames(beat_chroma_upper)
+    _ek = np.array([0.1, 0.2, 0.4, 0.2, 0.1])
+    frame_energies = np.convolve(frame_energies, _ek, mode='same') \
+        if len(frame_energies) >= 5 else frame_energies
 
     # 4. HMM : observation + transition + Viterbi.
     states = _build_chord_states(observation_mode, contradiction_weight)
