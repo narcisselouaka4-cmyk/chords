@@ -2942,17 +2942,16 @@ def _apply_discriminator(obs_scores, beat_chroma, states,
 
 
 def _initial_scores(states, key):
-    """Bonus initial pour les degrés stables de la tonalité (tonique / dominante)."""
+    """Bonus initial pour les degrés stables de la tonalité (tonique / dominante).
+
+    [ADR-061 — itération 13] RETIRÉ (retourne zéro) : ce prior de tonalité en
+    début de chemin est la 2e localisation du biais tonal (cause n°2). Il ne
+    concerne que les toutes premières frames, mais la tonalité peut être
+    fausse ou ambiguë (journal 11/10) — un choix de départ dicté par une
+    tonalité fausse tire tout le début du chemin. L'émission acoustique seule
+    décide désormais du premier accord.
+    """
     scores = np.zeros(len(states), dtype=np.float64)
-    if not key:
-        return scores
-    diatonic_roots = _build_diatonic_roots(key)
-    for j, state in enumerate(states):
-        if state['root'] is not None and state['root'] in diatonic_roots:
-            if state['root'] == key['pc']:
-                scores[j] += 0.25
-            elif (state['root'] - key['pc']) % 12 == 7:
-                scores[j] += 0.15
     return scores
 
 
@@ -4642,21 +4641,13 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
             discriminator_strength=discriminator_strength)
     obs_scores[0] += _initial_scores(states, key)
     obs_scores = np.clip(obs_scores, 0.0, 1.0)
-    # Bonus de qualité tonale au beat 0 (EXP-024, EXP-025) : appliqué APRÈS
-    # clipping pour qu'il ne soit pas clipé à 1.0. En cas d'égalité d'observation
-    # entre C et Cm (tous deux à 1.0), ce bonus fait préférer la qualité de la
-    # tonalité. Scopé au beat 0 uniquement, ne touche pas la matrice de transition.
-    # Seuil 0.04 calibré (EXP-025) : exactement l'avantage de transition Cm→Am
-    # (+0.03) sur C→Am (−0.01) = 0.04. À 0.06 le cas Q fixture régressait ;
-    # à 0.03 l'oscillation n'était pas corrigée. 0.04 est le point d'équilibre.
-    if key:
-        key_mode = key.get('mode', 'major')
-        for j, state in enumerate(states):
-            if state['root'] is not None:
-                if key_mode == 'major' and state['suffix'] == '':
-                    obs_scores[0, j] += 0.04
-                elif key_mode == 'minor' and state['suffix'] == 'm':
-                    obs_scores[0, j] += 0.04
+    # Bonus de qualité tonale au beat 0 (EXP-024, EXP-025) : RETIRÉ
+    # [ADR-061 — itération 13, cause n°2, 5e localisation]. Ce bonus départageait
+    # les égalités d'observation du premier frame selon le MODE de la tonalité
+    # détectée. La tonalité peut être fausse ou ambiguë ; l'émission décide seule.
+    # (Historique : calibré à 0,04 par EXP-025 dans l'ancien vocabulaire 10
+    # qualités pour corriger l'oscillation Cm↔Am ; ne plus retenter tel quel —
+    # le contexte Viterbi a changé avec ADR-061.)
     trans = _build_transition_matrix(states, key)
     # [ADR-061 — itération 11] Inertie forte à la grille fine : les coûts de
     # transition (hors rester sur place, diagonale = 0) sont doublés. À 0,25 s
