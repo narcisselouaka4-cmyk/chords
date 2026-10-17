@@ -417,11 +417,17 @@ def expand_loops(loops, variants):
     return out
 
 
-def loop_score(events, loops, variants=None):
+def loop_score(events, loops, variants=None, max_insertions=1):
     """Part (pondérée par durée) de la séquence expliquée par les boucles attendues.
 
     Reconnaît les rotations ; un accord peut être suivi de répétitions de la
-    boucle complète (match cyclique) ou d'une autre rotation.
+    boucle complète (match cyclique) ou d'une autre rotation. Retourne
+    (strict, loose) :
+      - strict : chaque tour doit être 100 % conforme (aucun accord étranger) ;
+      - loose  : les accords de la boucle doivent apparaître DANS L'ORDRE en
+        tolérant jusqu'à `max_insertions` accords étrangers par tour
+        (accords de passage réels d'un arrangement live — la mission §9 parle
+        de « boucle reconnue dans le bon ordre », pas de boucle nue).
     """
     variants = variants or {}
     expanded = expand_loops(loops, variants)
@@ -430,29 +436,107 @@ def loop_score(events, loops, variants=None):
         folded_loops.append([fold_label(ch) for ch in loop])
     total = sum(w for (_, w) in events)
     if not total:
-        return None
-    matched = 0.0
+        return None, None
+
+    def run_strict(i, rot):
+        j = 0
+        w = 0.0
+        while i + j < len(events) and events[i + j][0] == rot[j % len(rot)]:
+            w += events[i + j][1]
+            j += 1
+            if j >= 2 * len(rot):
+                break
+        return j, w
+
+    # loose : les accords de la boucle doivent apparaître DANS L'ORDRE en
+    # tolérant jusqu'à `max_insertions` accords étrangers par tour (accords
+    # de passage réels d'un arrangement live — mission §9 : « boucle reconnue
+    # dans le bon ordre », pas boucle nue). Ne touche pas aux événements déjà
+    # réclamés par la passe stricte.
+    def run_loose(i, rot):
+        L = len(rot)
+        pos = i
+        expect = 0
+        inserts = 0
+        budget = max_insertions
+        matched_w = 0.0
+        matched_count = 0
+        while pos < len(events):
+            if claimed[pos]:
+                break
+            if events[pos][0] == rot[expect % L]:
+                matched_w += events[pos][1]
+                matched_count += 1
+                expect += 1
+                pos += 1
+                if expect % L == 0 and expect >= L:
+                    budget += max_insertions  # nouveau tour, nouveau budget
+                    # le tour suivant doit suivre quasi immédiatement
+                    nxt = 0
+                    while (pos + nxt < len(events) and not claimed[pos + nxt]
+                           and events[pos + nxt][0] == rot[expect % L]
+                           and nxt == 0):
+                        matched_w += events[pos + nxt][1]
+                        matched_count += 1
+                        expect += 1
+                        pos += 1
+                    break
+            else:
+                inserts += 1
+                pos += 1
+                if inserts > budget:
+                    break
+        if expect >= L:
+            return matched_count, matched_w, pos
+        return 0, 0.0, i
+
+    matched_strict = 0.0
+    matched_loose = 0.0
     i, n = 0, len(events)
+    claimed = [False] * n
+
+    # passe 1 : strict (prioritaire)
+    i = 0
     while i < n:
         best_len, best_w = 0, 0.0
         for floop in folded_loops:
             for k in range(len(floop)):
                 rot = floop[k:] + floop[:k]
-                j = 0
-                w = 0.0
-                while i + j < n and events[i + j][0] == rot[j % len(rot)]:
-                    w += events[i + j][1]
-                    j += 1
-                    if j >= 2 * len(rot):
-                        break
+                j, w = run_strict(i, rot)
                 if j >= len(rot) and j > best_len:
                     best_len, best_w = j, w
         if best_len > 0:
-            matched += best_w
+            matched_strict += best_w
+            matched_loose += best_w
+            for k in range(i, i + best_len):
+                claimed[k] = True
             i += best_len
         else:
             i += 1
-    return 100.0 * matched / total
+
+    # passe 2 : loose sur les événements non réclamés par strict
+    i = 0
+    while i < n:
+        if claimed[i]:
+            i += 1
+            continue
+        best_len, best_w, best_end = 0, 0.0, i
+        for floop in folded_loops:
+            for k in range(len(floop)):
+                rot = floop[k:] + floop[:k]
+                j, w, end = run_loose(i, rot)
+                if j >= len(rot) and w > best_w:
+                    best_len, best_w, best_end = j, w, end
+        if best_len > 0:
+            matched_loose += best_w
+            for k in range(i, min(n, best_end)):
+                claimed[k] = True
+            i = max(best_end, i + 1)
+        else:
+            i += 1
+
+    return (100.0 * matched_strict / total,
+            100.0 * matched_loose / total)
 
 
 def grid_coverage(pred_events, expected_triads, audio_dur):
@@ -585,9 +669,10 @@ def evaluate_item(item, repo, python_bin, runs, workers):
                 expected.append(p['chord'])
             cov, covered = grid_coverage(pred_events, gt['expected_set'], audio_dur)
             prec = grid_precision(pred_events, expected)
-            ls = loop_score(pred_events, loops, variants)
+            ls_strict, ls_loose = loop_score(pred_events, loops, variants)
             out.update({'coverage': cov, 'coverage_detail': covered,
-                        'precision_set': prec, 'loop_score': ls,
+                        'precision_set': prec, 'loop_score': ls_strict,
+                        'loop_loose': ls_loose,
                         'key_ok': key_matches(first, keys)})
             out['passing'] = [
                 {'chord': p['chord'],
@@ -602,9 +687,10 @@ def evaluate_item(item, repo, python_bin, runs, workers):
                 if sec.get('key'):
                     expected_all.extend(sec['expected_set'])
                 cov, covered = grid_coverage(pred_events, sec['expected_set'], audio_dur)
-                ls = loop_score(pred_events, sec['loops'], sec.get('variants'))
+                ls_strict, ls_loose = loop_score(pred_events, sec['loops'], sec.get('variants'))
                 per_section.append({'name': sec['name'], 'coverage': cov,
-                                    'coverage_detail': covered, 'loop_score': ls})
+                                    'coverage_detail': covered, 'loop_score': ls_strict,
+                                    'loop_loose': ls_loose})
             prec = grid_precision(pred_events, expected_all)
             out.update({'coverage': None, 'sections': per_section,
                         'precision_set': prec,
@@ -661,13 +747,23 @@ def selftest():
     assert fold_label('Cm7') == (0, 'min', None)
     assert fold_label('Emaj7') == (4, 'maj', None)
     events = [((4, 'min', None), 1), ((0, 'maj', None), 1), ((7, 'maj', None), 1), ((2, 'maj', None), 1)] * 3
-    ls = loop_score(events, [['Em', 'C', 'G', 'D']])
-    assert abs(ls - 100.0) < 1e-9, ls
+    ls, ls_l = loop_score(events, [['Em', 'C', 'G', 'D']])
+    assert abs(ls - 100.0) < 1e-9 and abs(ls_l - 100.0) < 1e-9, (ls, ls_l)
     events2 = [((0, 'maj', None), 1)] + events
-    ls2 = loop_score(events2, [['Em', 'C', 'G', 'D']])
+    ls2, ls2_l = loop_score(events2, [['Em', 'C', 'G', 'D']])
     # 13 événements : le C initial n'amorce aucune rotation, les 12 suivants
     # (Em C G D x3) sont absorbés par les rotations -> 12/13 ≈ 92,3.
     assert abs(ls2 - 100.0 * 12 / 13) < 1e-9, ls2
+    # loose : tolère les accords de passage À L'INTÉRIEUR d'un tour.
+    # [Em C |Am| G D Am Am Am] : aucun tour strict (Em C interrompus, G D
+    # seuls) ; loose reconnaît le tour Em-C-(-Am)-G-D -> 4/8 = 50 %.
+    ls3, ls3_l = loop_score([((4, 'min', None), 1), ((0, 'maj', None), 1),
+                            ((9, 'min', None), 1), ((7, 'maj', None), 1),
+                            ((2, 'maj', None), 1),
+                            ((9, 'min', None), 1), ((9, 'min', None), 1),
+                            ((9, 'min', None), 1)],
+                           [['Em', 'C', 'G', 'D']])
+    assert ls3 == 0.0 and abs(ls3_l - 50.0) < 1e-9, (ls3, ls3_l)
     print('SELFTEST OK — métriques vérifiées sur exemples faits main.')
 
 
@@ -719,7 +815,7 @@ def main():
               'csr_triade', 'csr_majmin', 'csr_root', 'recall_events',
               'passing_recall', 'boundaries_f1', 'boundaries_precision',
               'boundaries_recall', 'median_offset', 'fragmentation',
-              'coverage', 'precision_set', 'loop_score', 'key_ok',
+              'coverage', 'precision_set', 'loop_score', 'loop_loose', 'key_ok',
               'chordify_match', 'chordify_align', 'seq_match', 'segments_pred', 'segments_ref',
               'detected_key', 'detected_mode', 'error']
     write_header = not os.path.exists(os.path.expanduser(args.csv))
@@ -743,7 +839,7 @@ def main():
             print(f"{res['id']:14s} ERREUR : {res['error'][:120]}")
             continue
         keys = ['csr_triade', 'recall_events', 'boundaries_f1', 'fragmentation',
-                'coverage', 'precision_set', 'loop_score', 'key_ok',
+                'coverage', 'precision_set', 'loop_score', 'loop_loose', 'key_ok',
                 'chordify_align', 'seq_match']
         vals = ' '.join(f"{k}={_fmt(res.get(k))}" for k in keys if res.get(k) is not None)
         det = '' if res['deterministic'] else ' ⚠️NON-DÉTERMINISTE'
@@ -751,7 +847,7 @@ def main():
         if res.get('sections'):
             for sec in res['sections']:
                 print(f"    - {sec['name']:30s} coverage={_fmt(sec['coverage'])} "
-                      f"loop_score={_fmt(sec['loop_score'])}")
+                      f"loop={_fmt(sec['loop_score'])} loose={_fmt(sec['loop_loose'])}")
 
 
 def _fmt(v):
