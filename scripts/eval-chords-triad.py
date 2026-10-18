@@ -889,8 +889,11 @@ def evaluate_item(item, repo, python_bin, runs, workers):
     out['detected_key'] = first.get('key')
     out['detected_mode'] = first.get('keyMode')
     out['keys'] = first.get('keys')
-    # [Mission §9.6] Modulations : précision/rappel à ±5 s, offset, exactitude
+    # [Mission §9.6] Modulations : précision/rappel à ±3 s (correction 18/10 :
+    # ±5 s acceptait une frontière décalée de −15 s), offset, exactitude
     # de la tonalité pondérée par la durée, fausses modulations.
+    # Le filet « même tonalité, n'importe quand » est retiré : il
+    # comptait comme bonnes des frontières hors tolérance.
     exp_mods = (gt or {}).get('expected_modulations')
     det_keys = first.get('keys') or []
     if exp_mods is not None:
@@ -904,14 +907,9 @@ def evaluate_item(item, repo, python_bin, runs, workers):
                 if used[j]:
                     continue
                 if (dm['key'], dm['mode']) == (em['key'], em['mode']) and \
-                        abs(dm['at'] - em['at']) <= 5.0:
+                        abs(dm['at'] - em['at']) <= 3.0:
                     hit = j
                     break
-            if hit is None:
-                for j, dm in enumerate(det_mods):
-                    if not used[j] and (dm['key'], dm['mode']) == (em['key'], em['mode']):
-                        hit = j
-                        break
             if hit is not None:
                 used[hit] = True
                 matched.append(abs(det_mods[hit]['at'] - em['at']))
@@ -1078,7 +1076,8 @@ def main():
               'passing_recall', 'boundaries_f1', 'boundaries_precision',
               'boundaries_recall', 'median_offset', 'fragmentation',
               'coverage', 'precision_set', 'loop_score', 'loop_loose', 'skipped_rate',
-              'early_rate', 'insertion_rate', 'key_ok',
+              'early_rate',               'insertion_rate', 'key_ok',
+              'mod_recall', 'mod_precision', 'mod_offset', 'false_modulations',
               'chordify_match', 'chordify_align', 'seq_match', 'chromatic_recall',
               'short2_recall', 'segments_pred', 'segments_ref',
               'detected_key', 'detected_mode', 'error']
@@ -1105,7 +1104,8 @@ def main():
         keys = ['csr_triade', 'recall_events', 'boundaries_f1', 'fragmentation',
                 'coverage', 'precision_set', 'loop_score', 'key_ok',
                 'chordify_align', 'seq_match', 'skipped_rate', 'early_rate',
-                'insertion_rate', 'chromatic_recall', 'short2_recall']
+                'insertion_rate', 'chromatic_recall', 'short2_recall',
+                'mod_recall', 'mod_precision', 'mod_offset', 'false_modulations']
         vals = ' '.join(f"{k}={_fmt(res.get(k))}" for k in keys if res.get(k) is not None)
         det = '' if res['deterministic'] else ' ⚠️NON-DÉTERMINISTE'
         print(f"{res['id']:14s} {vals}{det}")

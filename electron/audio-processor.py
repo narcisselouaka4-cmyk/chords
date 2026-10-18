@@ -313,7 +313,7 @@ NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 # [ADR-061, mission ANGES §8] Version du moteur exposée dans la sortie JSON :
 # permet à l'app de signaler une analyse obsolète (ex. grille sauvegardée avec
 # l'ancien vocabulaire à septièmes) et à l'export de dater la grille.
-ENGINE_VERSION = 'ADR-061-triades-2'
+ENGINE_VERSION = 'ADR-061-triades-3'
 
 # Profils Krumhansl-Kessler pour l'estimation de la tonalité (Do = index 0)
 MAJOR_PROFILE = np.array([6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88], dtype=np.float32)
@@ -1204,23 +1204,48 @@ def detect_local_keys(chords, duration, fallback_key=None):
         if stable_for >= LOCAL_KEY_MIN_STABLE_SEC and cad_total >= 1:
             # modulation validée : frontière au premier accord diatonique de
             # la nouvelle tonalité dans la fenêtre du run.
+            # [Correction 18/10 (a)] La frontière est le DÉBUT DE LA
+            # STABILITÉ : dans la région validée, on retient le PLUS ANCIEN
+            # accord dont la fenêtre aval de 20 s fait gagner la nouvelle
+            # tonalité sur l'ancienne avec la marge requise. Le premier
+            # accord distinctif seul ne suffit pas (la bavure Do# d'une
+            # seconde entre deux Fa de SEIGNEUR) et le dernier accord hors
+            # nouvelle tonalité pousse la frontière après les accords
+            # empruntés de la section établie (mesuré : +29 s sur SEIGNEUR).
+            region_lo = max(run_first_t - LOCAL_KEY_HOP_SEC, seg_start)
+            region_hi = run_last_w['t1']
+            region = [c for c in chord_list
+                      if region_lo <= c['startTime'] < region_hi]
             boundary = None
             pivot = None
-            for c in chord_list:
-                if c['startTime'] >= max(run_first_t - LOCAL_KEY_HOP_SEC, seg_start):
-                    in_new = _degree_weight(c['root'], c['suffix'], run_key[0],
-                                            run_key[1]) > 0
-                    in_old = _degree_weight(c['root'], c['suffix'], current[0],
-                                            current[1]) > 0
-                    if in_new and not in_old:
-                        boundary = c['startTime']
-                        pivot = c['chord']
-                        break
-                    if in_new and boundary is None:
-                        boundary = c['startTime']
-                        pivot = c['chord']
+            tonic_suffix = 'm' if current[1] == 'minor' else ''
+            for c in region:
+                b0 = c['startTime']
+                b1 = min(b0 + LOCAL_KEY_MIN_STABLE_SEC, region_hi)
+                sc, _cad = window_scores(b0, b1)
+                base = abs(sc[current]) + 1e-9
+                if (sc[run_key] - sc[current]) / base < 2.0:
+                    continue
+                # Fenêtre SANS triade tonique de l'ancienne tonalité :
+                # l'établissement commence quand l'ancienne tonique cesse de
+                # sonner. La bavure de SEIGNEUR (Do# d'une seconde entre deux
+                # Fa) et un ancrage −7 s trop tôt (fenêtre aval débordant sur
+                # la section stable) sont écartés par ce critère, mesuré le
+                # 18/10 ; ANGES s’ancre à l’arrivée du Ré (Do#m/Bm, marge 6,6).
+                dirty = any(c2['root'] == current[0]
+                            and c2['suffix'] == tonic_suffix
+                            and b0 <= c2['startTime'] < b1
+                            for c2 in region)
+                if not dirty:
+                    boundary = b0
+                    pivot = c['chord']
+                    break
             if boundary is None:
-                boundary = run_first_t
+                if region:
+                    boundary = region[0]['startTime']
+                    pivot = region[0]['chord']
+                else:
+                    boundary = run_first_t
             if boundary <= seg_start + 1e-6:
                 # frontière impossible (déjà prise) : pas de modulation
                 # déguisée en segment de longueur nulle.
@@ -1236,6 +1261,39 @@ def detect_local_keys(chords, duration, fallback_key=None):
             run_first_t = None
             run_margins = []
     commit(duration)
+
+    # [Correction 18/10 (b)] Fusion même tonique : un changement de MODE
+    # seul (Fa m -> Fa, ou Fa -> Fa m) n'est PAS une modulation — le mode
+    # se décide sur la durée totale du segment fusionné. Corrige le faux
+    # segment « Fa m (intro 24 s) -> Fa » de SEIGNEUR : le morceau est en
+    # Fa majeur dès le début (l'accord Fa m de l'intro est une erreur de
+    # tierce du moteur, pas un changement de tonalité).
+    merged = []
+    for seg in segments:
+        if merged and merged[-1]['key'][0] == seg['key'][0]:
+            prev = merged[-1]
+            dur_next = seg['end'] - seg['start']
+            acc = prev.setdefault('_mode_dur', {})
+            if not acc:
+                # première fusion : comptabiliser une seule fois la durée du
+                # mode initial de prev (avant extension de prev['end'])
+                acc[prev['key'][1]] = prev['end'] - prev['start']
+                acc.setdefault('_conf', {prev['key'][1]: prev['confidence']})
+            acc.setdefault('_conf', {'major': 0.9, 'minor': 0.9})
+            acc['_conf'][seg['key'][1]] = seg['confidence']
+            acc[seg['key'][1]] = acc.get(seg['key'][1], 0.0) + dur_next
+            prev['end'] = seg['end']
+            continue
+        merged.append(dict(seg))
+    segments = merged
+    for seg in segments:
+        md = seg.pop('_mode_dur', None)
+        if md:
+            confs = md.pop('_conf', {})
+            best_mode = max(md.items(), key=lambda kv: kv[1])[0]
+            seg['key'] = (seg['key'][0], best_mode)
+            if best_mode in confs:
+                seg['confidence'] = confs[best_mode]
 
     # 3. mise en forme + tonalité globale (dominante en durée).
     keys = []
