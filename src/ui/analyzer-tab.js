@@ -978,12 +978,11 @@ async function showResults(analysis) {
     currentPlayer = null;
   }
 
-  if (analysis.wavPath) {
-    const blobUrl = await loadAudioBlobUrl(analysis.wavPath);
-    currentPlayer = createAudioPlayer(els.audioContainer, blobUrl, {
-      onTimeUpdate: updatePlaybackPosition,
-    });
-  }
+  // [Claude] — 2026-10-18 — Le lecteur se créait seulement si `analysis.wavPath` existait, et sans
+  // aucun filet : un WAV temporaire nettoyé (~/PianoJazzChords/.work vidé au démarrage) ou une analyse
+  // rouverte sans wav laissait `currentPlayer` null, donc TOUT le transport muet — Narcisse : « le
+  // lecteur est bloqué, quand j'interagis rien ne se passe ». On tente maintenant de retrouver l'audio.
+  await createPlayerForAnalysis(analysis);
 
   renderTimeline(analysis.chords || [], analysis.duration || 0);
   updatePlayButton();
@@ -1291,6 +1290,27 @@ function renderTimeline(chords, duration) {
     return `${m}:${String(sec).padStart(2, '0')}`;
   };
 
+  // [Mission §9, 18/10] Repères de modulation sur la frise : un marqueur par
+  // changement de tonalité détecté ; un clic y saute. Positionnés avec le
+  // même décalage inter-blocs que les accords.
+  const modKeys = currentAnalysis?.keys;
+  if (Array.isArray(modKeys) && modKeys.length > 1) {
+    for (let i = 1; i < modKeys.length; i++) {
+      const k = modKeys[i];
+      const idxBefore = chords.filter((c) => c.startTime < k.start).length;
+      const marker = document.createElement('button');
+      marker.type = 'button';
+      marker.className = 'analyzer-timeline-modkey';
+      marker.title = `Modulation → ${keyDisplayLabel(k.key, k.mode)}`;
+      marker.style.left = `${k.start * pps + idxBefore * BLOCK_GAP}px`;
+      marker.addEventListener('click', (e) => {
+        e.stopPropagation();
+        seekToSegment({ startTime: k.start });
+      });
+      els.chordTimelineInner.appendChild(marker);
+    }
+  }
+
   chords.forEach((chord, index) => {
     const effectiveChordStr = getEffectiveChord(chord);
     const originalDetected = chord.chord;
@@ -1566,16 +1586,31 @@ function updatePlaybackPosition(currentTime) {
   }
 }
 
-function togglePlayback() {
-  if (!currentPlayer) return;
-  if (currentPlayer.element?.paused) {
+async function togglePlayback() {
+  // [Claude] — 2026-10-18 — Plus de clic sans effet et sans explication : si le lecteur n'existe
+  // pas, on tente de le (re)créer, et faute de son jouable on le dit au lieu de rester muet.
+  if (!currentPlayer) {
+    const ok = await createPlayerForAnalysis(currentAnalysis);
+    if (!ok) {
+      showToast('Audio indisponible pour la lecture de cette analyse.', 3500, 'warning');
+      return;
+    }
+    updatePlayButton();
+  }
+  const el = currentPlayer.element;
+  if (el?.paused) {
     // [Claude] — 2026-08-08 — Demande l’audio focus avant de jouer. Si Studio
     // est en train de jouer, il est mis en pause sans synchronisation de
     // currentTime ou de position.
     globalAudioFocusManager.requestFocus('analysis');
-    currentPlayer.play();
+    try {
+      await el.play();
+    } catch (err) {
+      console.warn('[Analyzer] play failed:', err);
+      showToast(`Lecture impossible : ${err?.message || 'erreur audio'}`, 4000, 'warning');
+    }
   } else {
-    currentPlayer.pause();
+    el.pause();
   }
   updatePlayButton();
 }
@@ -1616,7 +1651,12 @@ function seekFromPointerEvent(e) {
   const rect = els.progressTrack.getBoundingClientRect();
   const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
   const duration = currentPlayer.getDuration?.() || currentAnalysis?.duration || 1;
-  currentPlayer.seek(ratio * duration);
+  const target = ratio * duration;
+  currentPlayer.seek(target);
+  // [Claude] — 2026-10-18 — En pause, la boucle d'animation ne tourne pas : sans ceci, déplacer
+  // manuellement le curseur ne bougeait rien à l'écran (« j'ai essayé d'aller à un endroit, sans
+  // succès »). On met la barre et le temps à jour tout de suite.
+  updatePlaybackPosition(target);
 }
 
 /**
@@ -1625,6 +1665,32 @@ function seekFromPointerEvent(e) {
  * cours de lecture, elle continue de là ; en pause, elle y reste. Le curseur, la frise et la
  * carte « Accord à l'écoute » suivent aussitôt.
  */
+// [Mission §9, 18/10] Libellé de tonalité : « F majeur » / « F mineur »,
+// JAMAIS « Fm major » (l'ancien code concaténait le nom qui porte déjà le
+// mode + le champ mode). Les analyses sauvegardées par l'ancien moteur
+// contiennent des paires incohérentes (« Fm » + « major ») : le nom fait foi.
+function keyDisplayLabel(keyName, mode) {
+  const name = String(keyName || '');
+  if (!name) return '—';
+  const endsM = /m$/i.test(name) && name.length >= 2;
+  const root = endsM ? name.slice(0, -1) : name;
+  const isMinor = endsM || mode === 'minor';
+  return `${root} ${isMinor ? 'mineur' : 'majeur'}`;
+}
+
+function keysDisplayString(analysis) {
+  const keys = analysis?.keys;
+  if (Array.isArray(keys) && keys.length > 1) {
+    const fmt = (sec) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
+    let out = keyDisplayLabel(keys[0].key, keys[0].mode);
+    for (let i = 1; i < keys.length; i++) {
+      out += ` → ${keyDisplayLabel(keys[i].key, keys[i].mode)} à ${fmt(keys[i].start)}`;
+    }
+    return out;
+  }
+  return keyDisplayLabel(analysis?.key, analysis?.keyMode);
+}
+
 function seekToSegment(segment) {
   const el = currentPlayer?.element;
   if (!el || !segment || !Number.isFinite(segment.startTime)) return;
@@ -1858,6 +1924,36 @@ async function loadAudioBlobUrl(filePath) {
   const bytes = await window.electronAPI.files.readBinary(filePath);
   const blob = new Blob([bytes], { type: 'audio/wav' });
   return URL.createObjectURL(blob);
+}
+
+/**
+ * [Claude] — 2026-10-18 — Crée le lecteur pour une analyse. Rend `true` s'il y a du son jouable.
+ * Si `wavPath` manque ou n'est plus lisible (fichier temporaire nettoyé, analyse rouverte), on
+ * redérive l'audio depuis le fichier source. Ne jette jamais : le reste de l'écran reste utilisable.
+ */
+async function createPlayerForAnalysis(analysis) {
+  if (!analysis) return false;
+  let wavPath = analysis.wavPath;
+  try {
+    const canRead = wavPath && (!window.electronAPI?.files?.exists || await window.electronAPI.files.exists(wavPath));
+    if (!canRead && currentAudioPath) {
+      const playback = currentSourceType === 'midi'
+        ? { wavPath: await ensureMidiPlayback(currentAudioPath).catch(() => null) }
+        : await window.electronAPI?.analyzer?.preparePlayback?.(currentAudioPath);
+      wavPath = playback?.wavPath || null;
+      if (wavPath) analysis.wavPath = wavPath;
+    }
+    if (!wavPath) return false;
+    const blobUrl = await loadAudioBlobUrl(wavPath);
+    currentPlayer = createAudioPlayer(els.audioContainer, blobUrl, {
+      onTimeUpdate: updatePlaybackPosition,
+    });
+    return true;
+  } catch (err) {
+    console.warn('[Analyzer] lecteur indisponible :', err);
+    currentPlayer = null;
+    return false;
+  }
 }
 
 // ── Phase B : Persistance des overrides ──
@@ -2127,7 +2223,7 @@ function renderOverview(analysis) {
 
   // En-tête : métriques globales (LOT 4)
   const headerItems = [
-    { label: 'Tonalité', value: analysis.key ? `${analysis.key} ${analysis.keyMode || 'majeur'}` : '—' },
+    { label: 'Tonalité', value: keysDisplayString(analysis) },
     { label: 'Tempo', value: analysis.tempo ? `${Math.round(analysis.tempo)} BPM` : '—' },
     { label: 'Durée', value: formatTime(duration) },
     { label: 'Confiance', value: analysis.confidence ? `${(analysis.confidence * 100).toFixed(0)}%` : '—' },
@@ -2364,9 +2460,13 @@ function renderOverview(analysis) {
     });
   });
 
-  if (overviewExportMidi) overviewExportMidi.addEventListener('click', () => exportAnalysisToMidi(analysis, currentFileName));
-  if (overviewExportJson) overviewExportJson.addEventListener('click', () => exportAnalysisToJson(analysis, currentFileName));
-  if (overviewCopyText) overviewCopyText.addEventListener('click', () => exportAnalysisToText(analysis, currentFileName));
+  // [Claude] — 2026-10-18 — Ces trois boutons appelaient les fonctions pures d'export et en jetaient
+  // le résultat : rien n'était enregistré ni copié (Narcisse : « fais en sorte qu'ils fonctionnent »).
+  // On passe par les mêmes handlers que les boutons d'export du panneau Corriger (boîte de sauvegarde
+  // système, presse-papiers, toast), qui s'appuient sur `currentAnalysis` et incluent les corrections.
+  if (overviewExportMidi) overviewExportMidi.addEventListener('click', handleExportMidi);
+  if (overviewExportJson) overviewExportJson.addEventListener('click', handleExportJson);
+  if (overviewCopyText) overviewCopyText.addEventListener('click', handleCopyText);
 }
 
 function escapeHtml(str) {

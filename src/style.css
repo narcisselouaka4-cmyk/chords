@@ -5812,3 +5812,21 @@ body.studio-recording-cursor * {
 .keyboard-panel.collapsed .keyboard-collapse-caret {
   transform: rotate(180deg);
 }
+
+/* [Mission §9, 18/10] Repère de modulation sur la frise d'accords de
+   l'onglet Analyse : trait vertical cliquable (saute à la modulation). */
+.analyzer-timeline-modkey {
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  width: 3px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 2px;
+  background: var(--accent, #e0b354);
+  opacity: 0.85;
+  cursor: pointer;
+  z-index: 5;
+}
+.analyzer-timeline-modkey:hover { opacity: 1; }
