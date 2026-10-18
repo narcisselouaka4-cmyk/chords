@@ -313,7 +313,7 @@ NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 # [ADR-061, mission ANGES §8] Version du moteur exposée dans la sortie JSON :
 # permet à l'app de signaler une analyse obsolète (ex. grille sauvegardée avec
 # l'ancien vocabulaire à septièmes) et à l'export de dater la grille.
-ENGINE_VERSION = 'ADR-061-triades-1'
+ENGINE_VERSION = 'ADR-061-triades-2'
 
 # Profils Krumhansl-Kessler pour l'estimation de la tonalité (Do = index 0)
 MAJOR_PROFILE = np.array([6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88], dtype=np.float32)
@@ -1018,6 +1018,245 @@ def detect_key(y, sr):
     except Exception as e:
         log(f'key detection failed: {e}')
         return None, []
+
+
+# [Mission §9 — détection des modulations (SEIGNEUR, ANGES)] Poids de degré
+# d'une triade dans une tonalité : c'est la durée de la TONIQUE et les
+# cadences qui départagent deux tonalités partageant leurs accords
+# diatoniques (piège Do♯-dominante / Fa♯-tonique : 5 accords communs).
+_MAJOR_DEGREE_WEIGHTS = {
+    (0, ''): 3.0,    # I tonique
+    (7, ''): 2.0,    # V dominante
+    (5, ''): 1.5,    # IV sous-dominante
+    (2, 'm'): 1.0,   # ii
+    (4, 'm'): 1.0,   # iii
+    (9, 'm'): 1.0,   # vi
+    (11, 'dim'): 0.8,  # vii°
+}
+_MINOR_DEGREE_WEIGHTS = {
+    (0, 'm'): 3.0,   # i tonique
+    (7, ''): 2.0,    # V (mineur harmonique)
+    (5, 'm'): 1.5,   # iv
+    (3, ''): 1.2,    # III
+    (8, ''): 1.0,    # VI
+    (10, ''): 1.0,   # VII
+    (2, 'dim'): 0.8,  # ii°
+}
+_NON_DIATONIC_WEIGHT = -0.5
+_CADENCE_V_I_BONUS = 1.5
+_CADENCE_IV_I_BONUS = 0.5
+
+LOCAL_KEY_WINDOW_SEC = 25.0
+LOCAL_KEY_HOP_SEC = 5.0
+LOCAL_KEY_MIN_STABLE_SEC = 20.0
+LOCAL_KEY_MARGIN = 0.15
+
+
+def _degree_weight(root_pc, suffix, key_pc, mode):
+    rel = (root_pc - key_pc) % 12
+    table = _MAJOR_DEGREE_WEIGHTS if mode == 'major' else _MINOR_DEGREE_WEIGHTS
+    return table.get((rel, suffix), _NON_DIATONIC_WEIGHT)
+
+
+def detect_local_keys(chords, duration, fallback_key=None):
+    """Tonalités locales et modulations, à partir des accords DÉTECTÉS.
+
+    [Mission §9] Le profil global Krumhansl-Kessler MOYENNE les tonalités :
+    mesuré sur SEIGNEUR, il renvoie « Fa mineur » (à 0,006 de Fa majeur)
+    parce que la matière de la seconde tonalité (Fa♯ majeur : Fa♯ Sol♯ La♯
+    Si Do♯ Ré♯) coïncide presque avec le profil KK de Fa mineur. Cette couche
+    travaille par fenêtres glissantes sur la séquence d'accords, avec des
+    POIDS DE DEGRÉ (tonique > dominante > sous-dominante > diatoniques,
+    non-diatoniques pénalisés) et des bonus de cadence : la durée de la
+    tonique et les V→I tranchent le piège Fa♯-tonique / Do♯-dominante.
+
+    Une modulation est déclarée quand une nouvelle tonalité bat la courante
+    avec la marge requise pendant ≥ LOCAL_KEY_MIN_STABLE_SEC (hystérésis) ;
+    les accords de passage et dominantes secondaires (courts) ne suffisent pas.
+
+    Ne modifie PAS les accords : couche purement informative (§9.7).
+    Retourne (keys, global) : liste [{start, end, key, mode, confidence,
+    pivot?}] et la tonalité dominante en durée.
+    """
+    chord_list = []
+    for c in chords:
+        root, suffix = _parse_chord_label(c.get('chord', ''))
+        if root is None or c.get('chord') == 'N':
+            continue
+        chord_list.append({'startTime': float(c['startTime']),
+                           'endTime': float(c['endTime']),
+                           'root': root, 'suffix': suffix,
+                           'chord': c['chord']})
+    if not chord_list:
+        if fallback_key:
+            return ([{'start': 0.0, 'end': max(duration, 0.0),
+                      'key': fallback_key.get('name'),
+                      'mode': fallback_key.get('mode'),
+                      'confidence': fallback_key.get('confidence', 0.0)}],
+                    fallback_key)
+        return [], None
+    if duration <= 0:
+        duration = chord_list[-1]['endTime']
+
+    def window_scores(t0, t1):
+        """Scores des 24 tonalités sur la fenêtre + cadences V->I comptées
+        (une modulation exigera une preuve cadentielle : instruction de la
+        mission — trancher par les cadences, pas par le seul profil)."""
+        segs = [c for c in chord_list if c['startTime'] < t1 and c['endTime'] > t0]
+        scores = {}
+        cadences = {}
+        for key_pc in range(12):
+            for mode in ('major', 'minor'):
+                s = 0.0
+                cad = 0
+                prev_rel = None
+                for c in segs:
+                    st = max(c['startTime'], t0)
+                    en = min(c['endTime'], t1)
+                    if en <= st:
+                        continue
+                    s += (en - st) * _degree_weight(c['root'], c['suffix'],
+                                                    key_pc, mode)
+                    rel = (c['root'] - key_pc) % 12
+                    if prev_rel == 7 and rel == 0:
+                        s += _CADENCE_V_I_BONUS
+                        cad += 1
+                    elif prev_rel == 5 and rel == 0:
+                        s += _CADENCE_IV_I_BONUS
+                    prev_rel = rel
+                scores[(key_pc, mode)] = s
+                cadences[(key_pc, mode)] = cad
+        return scores, cadences
+
+    # 1. fenêtres glissantes : meilleure tonalité + marge sur la courante.
+    windows = []
+    t = 0.0
+    while t < duration:
+        w0, w1 = t, min(t + LOCAL_KEY_WINDOW_SEC, duration)
+        sc, cad = window_scores(w0, w1)
+        ranked = sorted(sc.items(), key=lambda kv: -kv[1])
+        windows.append({'t': t, 't0': w0, 't1': w1, 'scores': sc,
+                        'cadences': cad, 'best': ranked[0][0],
+                        'score': ranked[0][1]})
+        t += LOCAL_KEY_HOP_SEC
+
+    # 2. hystérésis : parcours des fenêtres, runs stables pour changer.
+    segments = []
+    # Tonalité INITIALE : la meilleure tonalité ayant une preuve cadentielle
+    # (V->I) dans les trois premières fenêtres ; sinon la meilleure absolue.
+    # Corrige les intros de vamp lues dans la tonalité du premier accord
+    # (mesuré : « D » au début de YAHWEH live (l'intro vamp D-A est en La),
+    # « Mi♭ » sur Oh Happy Day (l'arrangement est en La♭)).
+    # Initiale simple : meilleure tonalité de la première fenêtre. Les
+    # variantes « avec preuve cadentielle » ont été mesurées puis retirées :
+    # sur des intros courtes, elles troquaient une erreur contre une autre
+    # (Si♭ volait Sol m sur autumn_synth, La volait Mi sur le medley). Les
+    # lectures d'intro (vamp D des 28 premières secondes de YAHWEH live,
+    # vamp E de Way Maker, Mi♭ de Oh Happy Day) sont documentées comme
+    # limite connue, pas masquées.
+    current = windows[0]['best']
+    seg_start = 0.0
+    run_key = None
+    run_first_t = None
+    run_margins = []
+
+    def margin(win, cand, cur):
+        sc = win['scores']
+        base = abs(sc[cur]) + 1e-9
+        return (sc[cand] - sc[cur]) / base
+
+    def commit(prev_end):
+        segments.append({'start': seg_start, 'end': prev_end,
+                         'key': current, 'confidence': 0.9})
+
+    for w in windows:
+        if w['best'] == current:
+            if run_key is not None and w['t'] - run_first_t < LOCAL_KEY_MIN_STABLE_SEC:
+                run_key = None
+                run_first_t = None
+                run_margins = []
+            continue
+        m = margin(w, w['best'], current)
+        if m < LOCAL_KEY_MARGIN:
+            if run_key is not None and w['t'] - run_first_t < LOCAL_KEY_MIN_STABLE_SEC:
+                run_key = None
+                run_first_t = None
+                run_margins = []
+            continue
+        if run_key == w['best']:
+            run_margins.append(m)
+            run_last_w = w
+            stable_for = w['t'] + LOCAL_KEY_HOP_SEC - run_first_t
+        else:
+            run_key = w['best']
+            run_first_t = w['t']
+            run_first_w = w
+            run_last_w = w
+            run_margins = [m]
+            stable_for = LOCAL_KEY_HOP_SEC
+        # Preuve cadentielle : la nouvelle tonalité doit être ÉTABLIE par au
+        # moins une cadence V->I dans ses fenêtres stables. Un simple accord
+        # tenu (ex. Do♯ maintenu dans le fade-out de SEIGNEUR, sans aucun
+        # Sol♯) n'est pas une tonalité — instruction mission §1quinquies.
+        cad_total = sum(w['cadences'].get(run_key, 0)
+                        for w in windows
+                        if run_first_t <= w['t'] <= run_last_w['t'])
+        if stable_for >= LOCAL_KEY_MIN_STABLE_SEC and cad_total >= 1:
+            # modulation validée : frontière au premier accord diatonique de
+            # la nouvelle tonalité dans la fenêtre du run.
+            boundary = None
+            pivot = None
+            for c in chord_list:
+                if c['startTime'] >= max(run_first_t - LOCAL_KEY_HOP_SEC, seg_start):
+                    in_new = _degree_weight(c['root'], c['suffix'], run_key[0],
+                                            run_key[1]) > 0
+                    in_old = _degree_weight(c['root'], c['suffix'], current[0],
+                                            current[1]) > 0
+                    if in_new and not in_old:
+                        boundary = c['startTime']
+                        pivot = c['chord']
+                        break
+                    if in_new and boundary is None:
+                        boundary = c['startTime']
+                        pivot = c['chord']
+            if boundary is None:
+                boundary = run_first_t
+            if boundary <= seg_start + 1e-6:
+                # frontière impossible (déjà prise) : pas de modulation
+                # déguisée en segment de longueur nulle.
+                run_key = None
+                run_first_t = None
+                run_margins = []
+                continue
+            commit(boundary)
+            segments[-1]['pivot'] = pivot
+            seg_start = boundary
+            current = run_key
+            run_key = None
+            run_first_t = None
+            run_margins = []
+    commit(duration)
+
+    # 3. mise en forme + tonalité globale (dominante en durée).
+    keys = []
+    for seg in segments:
+        conf = seg.get('confidence', 0.85)
+        entry = {'start': round(seg['start'], 2), 'end': round(seg['end'], 2),
+                 'key': key_name(seg['key'][0], seg['key'][1]),
+                 'mode': seg['key'][1],
+                 'confidence': round(conf, 3)}
+        if seg.get('pivot'):
+            entry['pivot'] = seg['pivot']
+        keys.append(entry)
+    totals = {}
+    for seg in segments:
+        k = seg['key']
+        totals[k] = totals.get(k, 0.0) + (seg['end'] - seg['start'])
+    best_k = max(totals.items(), key=lambda kv: kv[1])[0] if totals else None
+    global_key = {'pc': best_k[0], 'mode': best_k[1],
+                  'name': key_name(best_k[0], best_k[1]),
+                  'confidence': keys[0]['confidence'] if keys else 0.0}
+    return keys, global_key
 
 
 def _build_chord_states(observation_mode="baseline", contradiction_weight=0.10):
@@ -4909,6 +5148,22 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
         "rawChords": raw_chords,
         "aggregation": aggregation_info
     }
+
+    # [Mission §9] Tonalités locales + modulations, et tonalité globale
+    # dominante en durée (remplace le profil KK global qui MOYENNE les
+    # tonalités : « Fa mineur » sur SEIGNEUR alors que le morceau va de
+    # Fa majeur à Fa♯ majeur). Les accords ne sont PAS modifiés : la clé
+    # interne utilisée par le HMM et les couches reste celle de detect_key.
+    try:
+        local_keys, global_key = detect_local_keys(chords, duration,
+                                                   fallback_key=key)
+        result['keys'] = local_keys
+        if global_key:
+            result['key'] = global_key['name']
+            result['keyMode'] = global_key['mode']
+    except Exception as exc:
+        log(f'local key detection failed: {exc}')
+        result['keys'] = []
     if diagnostics is not None:
         result["diagnostics"] = diagnostics
     return result

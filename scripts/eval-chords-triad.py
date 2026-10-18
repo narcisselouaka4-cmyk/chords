@@ -422,6 +422,40 @@ def transition_metrics(events, loops, variants, expected_labels):
     return skip_rate, early_rate, detail
 
 
+def diatonic_triad_set(key_pc, mode):
+    """Triades diatoniques d'une tonalité, comme ensembles (root_pc, qualité).
+
+    Majeur : I, ii, iii, IV, v(min), vi, vii°. Mineur naturel : i, ii°, III, iv,
+    v(min), VI, VII. Enharmonique par pitch class (Cdim ≡ B#dim de C# majeur).
+    """
+    if mode == 'major':
+        base = [(0, 'maj'), (2, 'min'), (4, 'min'), (5, 'maj'),
+                (7, 'min'), (9, 'min'), (11, 'dim')]
+    else:
+        base = [(0, 'min'), (2, 'dim'), (3, 'maj'), (5, 'min'),
+                (7, 'maj'), (8, 'maj'), (10, 'maj')]
+    return {((key_pc + i) % 12, q) for (i, q) in base}
+
+
+def recall_subset(ref, pred, keep):
+    """Rappel (critère >=50 % de durée couverte par la même triade) sur un
+    sous-ensemble d'accords de référence sélectionnés par keep(t)."""
+    ref_sel = [(s, e, t) for (s, e, t) in ref if t[1] != 'N' and keep(t)]
+    if not ref_sel:
+        return None
+    ok = 0
+    for (s, e, t) in ref_sel:
+        cov = 0.0
+        for (ps, pe, pt) in pred:
+            if pt[0] == t[0] and pt[1] == t[1]:
+                ov = min(e, pe) - max(s, ps)
+                if ov > 0:
+                    cov += ov
+        if cov >= 0.5 * (e - s):
+            ok += 1
+    return 100.0 * ok / len(ref_sel)
+
+
 def levenshtein(a, b):
     """Distance d'édition sur des séquences quelconques."""
     if not a:
@@ -691,7 +725,36 @@ def evaluate_item(item, repo, python_bin, runs, workers):
         pred_dur_t = sum(e - s for (s, e, _) in pred_non_n)
         foreign = sum(e - s for (s, e, t) in pred_non_n
                       if (t[0], t[1]) not in ref_labels)
-        out.update({'recall_events': recall, 'passing_recall': passing,
+        # [Mission ANGES §1quater] Accords chromatiques (hors triades
+        # diatoniques de la tonalité de la GT) et accords courts (< 2 s) :
+        # rappel sur ces sous-ensembles. Le moteur remplace-t-il les accords
+        # chromatiques d'un temps par des accords proches de la tonalité ?
+        kpc = gt.get('key_pc')
+        kmode = gt.get('key_mode')
+        if kpc is None and gt.get('key'):
+            kpc, _ = parse_root_pc(str(gt['key']).split(' ')[0])
+            kmode = 'minor' if 'm' in str(gt.get('key', '')) else 'major'
+        if kpc is not None:
+            dia = diatonic_triad_set(kpc, kmode)
+            chrom_recall = recall_subset(
+                ref, pred_c, lambda t: (t[0], t[1]) not in dia)
+            short2_recall = recall_subset(
+                ref, pred_c, lambda t: True)
+        else:
+            chrom_recall = None
+            short2_recall = None
+        # [Mission §1quinquies] Tonalité attendue sur les morceaux à
+        # timestamps aussi : comparaison (pitch class, mode) — le nom de la
+        # tonalité porte déjà le mode (« Fm » = Fa mineur).
+        exp_key = item.get('expected_key')
+        if exp_key:
+            exp_fold = fold_label(exp_key)
+            det_name = str(first.get('key') or '')
+            det_fold = fold_label(det_name)
+            out['key_ok'] = (det_fold[0] == exp_fold[0]
+                             and det_fold[1] == exp_fold[1])
+        out.update({'chromatic_recall': chrom_recall, 'short2_recall': short2_recall,
+                    'recall_events': recall, 'passing_recall': passing,
                     'boundaries_precision': prec_b, 'boundaries_recall': rec_b,
                     'boundaries_f1': f1_b, 'median_offset': med_b,
                     'fragmentation': frag, 'segments_pred': n_pred,
@@ -825,6 +888,62 @@ def evaluate_item(item, repo, python_bin, runs, workers):
     out['gt_status'] = gt_status
     out['detected_key'] = first.get('key')
     out['detected_mode'] = first.get('keyMode')
+    out['keys'] = first.get('keys')
+    # [Mission §9.6] Modulations : précision/rappel à ±5 s, offset, exactitude
+    # de la tonalité pondérée par la durée, fausses modulations.
+    exp_mods = (gt or {}).get('expected_modulations')
+    det_keys = first.get('keys') or []
+    if exp_mods is not None:
+        det_mods = [{'at': k['start'], 'key': k['key'], 'mode': k['mode']}
+                    for k in det_keys[1:]] if det_keys else []
+        used = [False] * len(det_mods)
+        matched = []
+        for em in exp_mods:
+            hit = None
+            for j, dm in enumerate(det_mods):
+                if used[j]:
+                    continue
+                if (dm['key'], dm['mode']) == (em['key'], em['mode']) and \
+                        abs(dm['at'] - em['at']) <= 5.0:
+                    hit = j
+                    break
+            if hit is None:
+                for j, dm in enumerate(det_mods):
+                    if not used[j] and (dm['key'], dm['mode']) == (em['key'], em['mode']):
+                        hit = j
+                        break
+            if hit is not None:
+                used[hit] = True
+                matched.append(abs(det_mods[hit]['at'] - em['at']))
+        out['mod_recall'] = 100.0 * len(matched) / len(exp_mods) if exp_mods else None
+        out['mod_precision'] = 100.0 * len(matched) / len(det_mods) if det_mods else (100.0 if not exp_mods else None)
+        out['mod_offset'] = sum(matched) / len(matched) if matched else None
+        out['false_modulations'] = len(det_mods) - len(matched)
+    if det_keys:
+        exp_keys = (gt or {}).get('expected_keys')
+        if exp_keys:
+            def key_of(label, mode):
+                return (label, mode)
+            dur_ok = 0.0
+            total = 0.0
+            for (st, lab, mode) in exp_keys:
+                pass
+            # recouvrement des segments de tonalité prédits vs attendus
+            pred_segs = [(float(k['start']), float(k['end']), (k['key'], k['mode']))
+                         for k in det_keys]
+            for (e_start, e_key, e_mode) in exp_keys:
+                e_end = None
+                for (s2, k2, m2) in exp_keys:
+                    if s2 > e_start:
+                        e_end = s2 if e_end is None else min(e_end, s2)
+                e_end = (first.get('duration') or 0) if e_end is None else e_end
+                total += e_end - e_start
+                for (ps, pe, pk) in pred_segs:
+                    ov = min(e_end, pe) - max(e_start, ps)
+                    if ov > 0 and pk == (e_key, e_mode):
+                        dur_ok += ov
+            out['key_dur_accuracy'] = 100.0 * dur_ok / total if total else None
+    out['detected_mode'] = first.get('keyMode')
     out['duration'] = first.get('duration')
     out['pred'] = [{'start': s, 'end': e, 'chord': f"{t[0]}/{t[1]}"
                     if t[0] is not None else 'N'}
@@ -867,6 +986,19 @@ def selftest():
     # 13 événements : le C initial n'amorce aucune rotation, les 12 suivants
     # (Em C G D x3) sont absorbés par les rotations -> 12/13 ≈ 92,3.
     assert abs(ls2 - 100.0 * 12 / 13) < 1e-9, ls2
+    # diatoniques de C# majeur (pc 1) : C#maj, D#m, E#m(=Fm), F#maj, G#m,
+    # A#m, B#dim(=Cdim). F majeur et D# majeur sont chromatiques.
+    dia = diatonic_triad_set(1, 'major')
+    assert (1, 'maj') in dia and (3, 'min') in dia and (5, 'min') in dia
+    assert (6, 'maj') in dia and (8, 'min') in dia and (10, 'min') in dia
+    assert (0, 'dim') in dia
+    assert (5, 'maj') not in dia and (3, 'maj') not in dia
+    # recall_subset : 1 chromatin retrouvé sur 2.
+    ref3 = [(0, 2, (5, 'maj', None)), (2, 4, (3, 'maj', None))]
+    pred3 = [(0, 2.2, (5, 'maj', None)), (2.2, 4, (1, 'maj', None))]
+    r = recall_subset(ref3, pred3, lambda t: True)
+    assert abs(r - 50.0) < 1e-9, r
+
     # transition_metrics : boucle [C D G] (pcs 0/2/7), événements
     # [C D G C G C D G] :
     # C->D : C@0 fenêtre(D,G)=D ✓ ; C@3 fenêtre(G)=... cible D absente ->
@@ -947,7 +1079,8 @@ def main():
               'boundaries_recall', 'median_offset', 'fragmentation',
               'coverage', 'precision_set', 'loop_score', 'loop_loose', 'skipped_rate',
               'early_rate', 'insertion_rate', 'key_ok',
-              'chordify_match', 'chordify_align', 'seq_match', 'segments_pred', 'segments_ref',
+              'chordify_match', 'chordify_align', 'seq_match', 'chromatic_recall',
+              'short2_recall', 'segments_pred', 'segments_ref',
               'detected_key', 'detected_mode', 'error']
     write_header = not os.path.exists(os.path.expanduser(args.csv))
     with open(os.path.expanduser(args.csv), 'a', newline='',
@@ -972,7 +1105,7 @@ def main():
         keys = ['csr_triade', 'recall_events', 'boundaries_f1', 'fragmentation',
                 'coverage', 'precision_set', 'loop_score', 'key_ok',
                 'chordify_align', 'seq_match', 'skipped_rate', 'early_rate',
-                'insertion_rate']
+                'insertion_rate', 'chromatic_recall', 'short2_recall']
         vals = ' '.join(f"{k}={_fmt(res.get(k))}" for k in keys if res.get(k) is not None)
         det = '' if res['deterministic'] else ' ⚠️NON-DÉTERMINISTE'
         print(f"{res['id']:14s} {vals}{det}")
