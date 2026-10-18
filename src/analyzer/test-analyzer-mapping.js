@@ -75,6 +75,9 @@ function mapThroughAnalyzer(chords) {
   const payload = {
     wavPath: '/tmp/x.wav', duration: 141.2, tempo: 107.7, timeSignature: '4/4',
     key: 'A', keyMode: 'major', keyConfidence: 0.9, confidence: 0.8,
+    keys: [{ start: 0, end: 141.2, key: 'F', mode: 'major', confidence: 0.9,
+             pivot: 'A#m' }],
+    engine: 'ADR-061-triades-3',
     chords, bassSegments: [],
   };
   // La méthode de normalisation est privée dans le flux IPC ; on la sollicite
@@ -158,6 +161,22 @@ runTest('C. Le mapper porte un avertissement explicite', () => {
          'le commentaire prévient que la liste est exhaustive et silencieuse');
   assert(src.includes('test-analyzer-mapping.js'),
          'il renvoie au test qui garde le contrat');
+});
+
+// ── D. Contrat d'analyse — les champs de niveau analyse (hors segments) ──
+
+runTest('D. Mapper — `keys` et `engine` survivent au mapper (la faute qui cachait les modulations à l’UI)', async () => {
+  const result = await mapThroughAnalyzer([engineSegment()]);
+  assert(Array.isArray(result.keys) && result.keys.length === 1,
+         'keys (tonalités locales avec pivots) arrives jusqu’au mapper de sortie');
+  assert(result.keys[0].key === 'F' && typeof result.keys[0].pivot === 'string',
+         'le pivot de modulation passe entier');
+  assert(typeof result.engine === 'string' && result.engine.length > 0,
+         'engine (version du moteur, invalidation du cache) arrive au mapper de sortie');
+  for (const field of ['key', 'keyMode', 'keyConfidence']) {
+    assert(Object.prototype.hasOwnProperty.call(result, field),
+           `« ${field} » survit au mapper`);
+  }
 });
 
 // ── Bilan ──

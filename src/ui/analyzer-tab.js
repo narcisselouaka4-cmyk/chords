@@ -35,6 +35,7 @@ import {
   tryApplyProjectOverrides,
   extractCachedAnalysis,
 } from './chord-editor.js';
+import { ANALYSIS_ENGINE_VERSION } from '../analyzer/engine-versions.js';
 import { fitChordLabel } from './chord-label-fit.js';
 import { notifyOnboarding } from './onboarding.js';
 import { buildDemoFixture } from './reharmonization-demo-fixture.js';
@@ -802,6 +803,23 @@ async function restoreSavedAnalysis(filePath) {
 
     const cached = extractCachedAnalysis(data);
     if (!cached) return false; // projet en schéma 1 : analyse à refaire
+
+    // Version du moteur : une analyse enregistrée avec une autre vitesse
+    // du moteur (avant les tonalités locales, par exemple) ne décrit pas
+    // ce que le moteur sortirait aujourd'hui — calibration des couches
+    // changeante. On recalcule, puis le resauvegarde porte la bonne version.
+    if (cached.engine && cached.engine !== ANALYSIS_ENGINE_VERSION) {
+      showToast(
+        "Analyse enregistrée avec une version antérieure du moteur : nouvelle analyse nécessaire.",
+        6000,
+        'warning',
+      );
+      return false;
+    }
+    if (!cached.engine) {
+      // Analyse d'avant l'exposition de la version dans l'UI : recalcul.
+      return false;
+    }
 
     // Le fichier audio a-t-il changé depuis l'enregistrement ? Si oui, les
     // temps de l'analyse ne décrivent plus ce fichier : on ne restaure pas.

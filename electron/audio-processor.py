@@ -313,6 +313,9 @@ NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 # [ADR-061, mission ANGES §8] Version du moteur exposée dans la sortie JSON :
 # permet à l'app de signaler une analyse obsolète (ex. grille sauvegardée avec
 # l'ancien vocabulaire à septièmes) et à l'export de dater la grille.
+# Miroir JS : src/analyzer/engine-versions.js (ANALYSIS_ENGINE_VERSION) —
+# toute modification ici est répercutée là-bas ; l'UI refuse de restaurer
+# une analyse enregistrée portant une autre version et relance l'analyse.
 ENGINE_VERSION = 'ADR-061-triades-3'
 
 # Profils Krumhansl-Kessler pour l'estimation de la tonalité (Do = index 0)

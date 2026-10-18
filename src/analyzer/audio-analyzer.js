@@ -31,6 +31,17 @@ export const UI_SEGMENT_FIELDS = [
   'structuralChord', 'inStructuralLoop',
 ];
 
+/**
+ * Champs de niveau analyse (hors segments) que l'interface consomme. Ici
+ * aussi le mapper est une liste blanche : `keys` (tonalités locales avec
+ * pivots, pour la carte Tonalité et les marqueurs de la frise) et `engine`
+ * (version du moteur, pour l'invalidation du cache .pjc.json) ont été
+ * avalés par la première version. Couvert par test-analyzer-mapping.js.
+ */
+export const UI_ANALYSIS_FIELDS = [
+  'key', 'keyMode', 'keys', 'engine', 'keyConfidence', 'tempo', 'timeSignature',
+];
+
 export class AudioAnalyzer {
   /**
    * Analyse un fichier media et retourne un objet enrichi.
@@ -80,6 +91,8 @@ export class TemplateAudioAnalyzer extends AudioAnalyzer {
       timeSignature: result.timeSignature ?? '4/4',
       key: result.key ?? null,
       keyMode: result.keyMode ?? 'major',
+      keys: result.keys ?? [],
+      engine: result.engine ?? null,
       keyConfidence: result.keyConfidence ?? 0,
       keyCandidates,
       confidence: result.confidence ?? 0,

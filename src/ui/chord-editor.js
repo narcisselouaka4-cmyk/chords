@@ -307,7 +307,8 @@ export const SUPPORTED_PROJECT_SCHEMA_VERSIONS = [1, 2];
 // qui n'ont aucun sens d'une session à l'autre.
 const PERSISTED_ANALYSIS_FIELDS = [
   'duration', 'tempo', 'timeSignature', 'key', 'keyMode', 'keyConfidence',
-  'keyCandidates', 'confidence', 'videoType', 'usedPianoStem', 'usedBassStem',
+  'keys', 'engine', 'keyCandidates', 'confidence', 'videoType',
+  'usedPianoStem', 'usedBassStem',
 ];
 
 const PERSISTED_SEGMENT_FIELDS = [
