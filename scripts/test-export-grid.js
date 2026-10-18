@@ -41,6 +41,10 @@ const analysis = {
   key: 'C#',
   keyMode: 'major',
   engine: 'ADR-061-triades-1',
+  keys: [
+    { start: 0, end: 180, key: 'F', mode: 'major', confidence: 0.9 },
+    { start: 180, end: 360, key: 'F#', mode: 'major', confidence: 0.9 },
+  ],
   chords: [
     {
       segmentId: 'seg_a1',
@@ -91,6 +95,8 @@ check('JSON : confidence conservée', json.segments[0].confidence === 0.91);
 check('JSON : rôle conservé', json.segments[1].role === 'passing');
 check('JSON : correction manuelle comptée', json.manuallyEditedCount === 1);
 check('JSON : accord corrigé affiché comme G#', json.segments[1].effectiveChord.symbol === 'G#');
+check('JSON : tonalités locales exportées (2, dont 1 modulation)',
+  Array.isArray(json.keys) && json.keys.length === 2 && json.keys[1].key === 'F#');
 check('JSON : séquence brute du Viterbi (4 bruts vs 3 finaux)',
   Array.isArray(json.rawChords) && json.rawChords.length === 4);
 
@@ -106,9 +112,11 @@ const reread = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
 check('Disque : JSON relu identique', reread.segments.length === 3 && reread.engine === 'ADR-061-triades-1');
 
 const csvLines = fs.readFileSync(csvPath, 'utf-8').trim().split(/\r\n/);
-check('CSV : en-tête + une ligne par accord', csvLines.length === 4);
-check('CSV : en-tête attendu', csvLines[0].startsWith('start,end,chord,root,quality,bass,confidence,role,detected,manuallyEdited'));
-check('CSV : accord corrigé = G#', csvLines[2].includes(',G#,'));
+check('CSV : en-tête + une ligne par accord', csvLines.length === 5);
+check('CSV : ligne tonalités en en-tête (2 tonalités)',
+  csvLines[0].startsWith('# tonalites') && csvLines[0].includes('F majeur') && csvLines[0].includes('F# majeur'));
+check('CSV : en-tête attendu', csvLines[1].startsWith('start,end,chord,root,quality,bass,confidence,role,detected,manuallyEdited'));
+check('CSV : accord corrigé = G#', csvLines[3].includes(',G#,'));
 
 // Compatibilité directe avec le thermomètre Python (format timestamped).
 const py = spawnSync('.venv/bin/python', ['-'], {

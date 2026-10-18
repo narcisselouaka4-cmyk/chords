@@ -152,6 +152,8 @@ export function exportAnalysisToJson(analysis, options = {}) {
     keyMode: analysis.keyMode || null,
     engine: analysis.engine || 'pré-ADR-061',
     manuallyEditedCount: segments.filter((s) => s.wasManuallyEdited).length,
+    // [Mission §9, 18/10] Tonalités locales avec leurs temps (modulations).
+    keys: analysis.keys || null,
     segments,
     // [Mission ANGES §8] Sortie brute : séquence du Viterbi AVANT tout
     // post-traitement, pour comparer ce que chaque couche ajoute/retire.
@@ -165,6 +167,13 @@ export function exportAnalysisToCsv(analysis, options = {}) {
   const rows = [
     ['start', 'end', 'chord', 'root', 'quality', 'bass', 'confidence', 'role', 'detected', 'manuallyEdited'],
   ];
+  // [Mission §9] Tonalités locales en en-tête du CSV, ligne préfixée « # ».
+  const keyRows = [];
+  if (Array.isArray(analysis.keys) && analysis.keys.length > 0) {
+    keyRows.push(['# tonalites', analysis.keys
+      .map((k) => `${k.key} ${k.mode === 'minor' ? 'mineur' : 'majeur'} ${k.start}-${k.end}`)
+      .join(' | ')]);
+  }
   for (const chord of analysis.chords || []) {
     const effectiveSymbol = getEffectiveChord(chord);
     const effective = parseChordSymbol(effectiveSymbol);
@@ -185,7 +194,7 @@ export function exportAnalysisToCsv(analysis, options = {}) {
     const s = String(v ?? '');
     return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
-  return rows.map((r) => r.map(esc).join(',')).join('\r\n') + '\r\n';
+  return keyRows.concat(rows).map((r) => r.map(esc).join(',')).join('\r\n') + '\r\n';
 }
 
 export function exportAnalysisToText(analysis, options = {}) {
