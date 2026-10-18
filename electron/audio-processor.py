@@ -4972,6 +4972,24 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
          'chord': seg['chord'],
          'confidence': round(float(seg.get('confidence', 0.0)), 3)}
         for seg in segments]
+    # [Chantier accords 18/10] Clé interne des COUCHES = tonalité dominante
+    # en durée des tonalités locales de la séquence brute. Mesuré, le profil
+    # KK global SEIGNEUR = « Fa mineur » (0,001 de Fa majeur) et la couche
+    # _resolve_fifth_confusion, cartographiant les degrés en mineur, réécrivait
+    # C → Fm (×10) et F → A#m : 46 s de F→Fm, la plus grosse erreur du
+    # morceau. Le HMM et les candidats KK restent inchangés ; les couches
+    # post-traitement, qui exigent une vraie étiquette de tonalité, 
+    # reçoivent la dominante locale.
+    try:
+        _lk, _gk = detect_local_keys(raw_chords, duration, fallback_key=key)
+        if _gk and not (_gk['pc'] == key['pc'] and _gk['mode'] == key['mode']):
+            _log_segment_postproc = None  # pas de log de couche ici
+            log(f'layer key replaced: {key["name"]} -> {_gk["name"]} '
+                f'(dominante des tonalités locales du Viterbi brut)')
+            key = {'pc': _gk['pc'], 'mode': _gk['mode'],
+                   'name': _gk['name'], 'confidence': key['confidence']}
+    except Exception as exc:
+        log(f'layer key localdominant failed: {exc}')
     if debug:
         _log_seg_stage("after Viterbi + segment_path", segments, states)
     segments = _merge_similar_segments(segments)
