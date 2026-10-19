@@ -747,13 +747,15 @@
   overflow: hidden;
 }
 
+/* [Claude] — 2026-10-19 — Narcisse : « agrandi cette fenêtre, faut que la sidebar verticale
+   puisse être tout à droite et que les écritures puissent démarrer tout à gauche, un mode plein
+   écran quoi ». Colonne centrée à 760px retirée : la page et son contenu vont bord à bord,
+   l'ascenseur (overflow-y) colle au bord droit de la fenêtre. */
 :root[data-skin] .app-settings-page .app-settings-box {
   flex: 1;
   min-height: 0;
   width: 100%;
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 28px 32px 48px;
+  padding: 28px 40px 48px;
   overflow-y: auto;
   overscroll-behavior: contain;
   background: transparent;
