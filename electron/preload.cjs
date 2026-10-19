@@ -1,11 +1,17 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-// Expose les variables d'environnement IA_* définies dans .env
+// [Claude] — 2026-10-19 — Audit Codex (P0) : exposait TOUTES les variables
+// d'environnement préfixées IA_ au renderer (une seule à y lire aujourd'hui
+// suffirait à ce qu'une future variable non prévue pour le renderer s'y
+// retrouve aussi). Repli de confort développeur pour un .env local
+// (src/ai/ai-client.js, getApiConfig) — le modèle produit reste « clé
+// personnelle saisie dans Réglages » ; ceci ne change que la liste exposée.
+const IA_ENV_ALLOWLIST = ['IA_API_KEY', 'IA_BASE_URL', 'IA_MODEL'];
 function getIAEnvVars() {
   const env = {};
   try {
-    for (const key of Object.keys(process.env || {})) {
-      if (key.startsWith('IA_')) env[key] = process.env[key];
+    for (const key of IA_ENV_ALLOWLIST) {
+      if (process.env[key]) env[key] = process.env[key];
     }
   } catch (e) {
     // process.env inaccessible selon le sandboxing

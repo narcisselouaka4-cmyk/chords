@@ -398,6 +398,76 @@ function requestMidiPermission() {
   });
 }
 
+// ── Sécurité : pont fichiers restreint ──────────────────────────────────────
+// [Claude] — 2026-10-19 — Audit Codex (P0) : ce pont acceptait n'importe quel
+// chemin fourni par le renderer — lecture, écriture, renommage, suppression
+// récursive, sans restriction de racine. Un renderer compromis (XSS) aurait
+// pu toucher n'importe quel fichier accessible à l'utilisateur.
+//
+// Deux catégories de chemins légitimes :
+//   1. Tout ce qui vit sous ~/PianoJazzChords/ (données gérées par l'app :
+//      Studio, Sessions, Analyse, Pédagogie, .work — un seul répertoire
+//      racine pour tous, vérifié côté renderer).
+//   2. Un chemin choisi EXPLICITEMENT par l'utilisateur via une vraie boîte
+//      de dialogue native cette session (import audio/vidéo/MIDI, dossier
+//      des tutoriels, destination d'export) : le dialogue natif, pas une
+//      chaîne construite par le renderer, est la preuve de consentement.
+//      approveExternalPath() les enregistre au moment où chaque dialogue
+//      renvoie un résultat (voir setupStudioIPC).
+//
+// Les liens symboliques sont résolus (fs.realpath) pour qu'un lien posé
+// dans un dossier autorisé ne fasse pas sortir discrètement du périmètre.
+const APP_DATA_ROOT = path.join(os.homedir(), 'PianoJazzChords');
+const externallyApprovedPaths = new Set();
+
+function approveExternalPath(p) {
+  if (p) externallyApprovedPaths.add(path.resolve(p));
+  return p;
+}
+
+function isWithinRoot(root, target) {
+  const rel = path.relative(root, target);
+  return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+}
+
+/**
+ * Résout `rawPath` (liens symboliques compris quand la cible — ou le premier
+ * dossier parent existant — peut être résolue) et vérifie qu'il appartient à
+ * une racine autorisée. Retourne le chemin réel à utiliser pour l'opération
+ * fs ; lève une erreur si le chemin est hors périmètre.
+ */
+async function assertAllowedPath(rawPath) {
+  if (typeof rawPath !== 'string' || !rawPath) {
+    throw new Error('Chemin de fichier invalide.');
+  }
+  const resolved = path.resolve(rawPath);
+  let real = resolved;
+  try {
+    real = await fs.realpath(resolved);
+  } catch {
+    // La cible n'existe pas encore (écriture, dossier à créer) : on résout
+    // le premier dossier parent existant pour détecter un lien symbolique
+    // malveillant plus haut dans l'arborescence.
+    let dir = path.dirname(resolved);
+    let prev = null;
+    while (dir !== prev) {
+      try {
+        const realDir = await fs.realpath(dir);
+        real = path.join(realDir, path.relative(dir, resolved));
+        break;
+      } catch {
+        prev = dir;
+        dir = path.dirname(dir);
+      }
+    }
+  }
+  if (isWithinRoot(APP_DATA_ROOT, real)) return real;
+  for (const approved of externallyApprovedPaths) {
+    if (real === approved || isWithinRoot(approved, real)) return real;
+  }
+  throw new Error(`Chemin hors du périmètre autorisé par l'application : ${rawPath}`);
+}
+
 // [Claude] — 2026-07-03 — API système de fichiers pour le Module 2 (sessions d'enregistrement)
 function setupFileSystemIPC() {
   const homeDir = os.homedir();
@@ -405,13 +475,15 @@ function setupFileSystemIPC() {
   ipcMain.handle('files:home-dir', () => homeDir);
 
   ipcMain.handle('files:ensure-dir', async (event, dirPath) => {
-    await fs.mkdir(dirPath, { recursive: true });
+    const safePath = await assertAllowedPath(dirPath);
+    await fs.mkdir(safePath, { recursive: true });
     return true;
   });
 
   ipcMain.handle('files:read-dir', async (event, dirPath) => {
     try {
-      const entries = await fs.readdir(dirPath, { withFileTypes: true });
+      const safePath = await assertAllowedPath(dirPath);
+      const entries = await fs.readdir(safePath, { withFileTypes: true });
       return entries.map((e) => ({ name: e.name, isDirectory: e.isDirectory(), isFile: e.isFile() }));
     } catch (err) {
       if (err.code === 'ENOENT') return [];
@@ -420,19 +492,21 @@ function setupFileSystemIPC() {
   });
 
   ipcMain.handle('files:write-file', async (event, filePath, content) => {
+    const safePath = await assertAllowedPath(filePath);
     let data = content;
     if (content instanceof ArrayBuffer) {
       data = new Uint8Array(content);
     } else if (typeof content === 'object' && content !== null && !(content instanceof Uint8Array)) {
       data = JSON.stringify(content);
     }
-    await fs.writeFile(filePath, data);
+    await fs.writeFile(safePath, data);
     return true;
   });
 
   ipcMain.handle('files:read-file', async (event, filePath) => {
     try {
-      return await fs.readFile(filePath, 'utf-8');
+      const safePath = await assertAllowedPath(filePath);
+      return await fs.readFile(safePath, 'utf-8');
     } catch (err) {
       if (err.code === 'ENOENT') return null;
       throw err;
@@ -440,11 +514,13 @@ function setupFileSystemIPC() {
   });
 
   ipcMain.handle('files:read-binary', async (event, filePath) => {
-    const buffer = await fs.readFile(filePath);
+    const safePath = await assertAllowedPath(filePath);
+    const buffer = await fs.readFile(safePath);
     return new Uint8Array(buffer);
   });
 
   ipcMain.handle('files:write-binary', async (event, filePath, data) => {
+    const safePath = await assertAllowedPath(filePath);
     let buffer = data;
     if (data instanceof ArrayBuffer) {
       buffer = Buffer.from(data);
@@ -453,13 +529,14 @@ function setupFileSystemIPC() {
     } else if (data instanceof Uint8Array) {
       buffer = Buffer.from(data.buffer, data.byteOffset, data.byteLength);
     }
-    await fs.writeFile(filePath, buffer);
+    await fs.writeFile(safePath, buffer);
     return true;
   });
 
   ipcMain.handle('files:exists', async (event, filePath) => {
     try {
-      await fs.access(filePath);
+      const safePath = await assertAllowedPath(filePath);
+      await fs.access(safePath);
       return true;
     } catch {
       return false;
@@ -467,12 +544,14 @@ function setupFileSystemIPC() {
   });
 
   ipcMain.handle('files:delete-dir', async (event, dirPath) => {
-    await fs.rm(dirPath, { recursive: true, force: true });
+    const safePath = await assertAllowedPath(dirPath);
+    await fs.rm(safePath, { recursive: true, force: true });
     return true;
   });
 
   ipcMain.handle('files:delete-file', async (event, filePath) => {
-    await fs.rm(filePath, { force: true });
+    const safePath = await assertAllowedPath(filePath);
+    await fs.rm(safePath, { force: true });
     return true;
   });
 
@@ -485,12 +564,15 @@ function setupFileSystemIPC() {
         { name: 'Tous les fichiers', extensions: ['*'] },
       ],
     });
-    return result.canceled ? null : result.filePath;
+    // La destination d'export est choisie par l'utilisateur dans le dialogue
+    // natif ; le renderer y écrira ensuite via files:write-file/writeBinary.
+    return result.canceled ? null : approveExternalPath(result.filePath);
   });
 
   ipcMain.handle('files:stat', async (event, filePath) => {
     try {
-      const st = await fs.stat(filePath);
+      const safePath = await assertAllowedPath(filePath);
+      const st = await fs.stat(safePath);
       return { size: st.size, mtimeMs: st.mtimeMs, isFile: st.isFile(), isDirectory: st.isDirectory() };
     } catch (err) {
       if (err.code === 'ENOENT') return null;
@@ -499,7 +581,9 @@ function setupFileSystemIPC() {
   });
 
   ipcMain.handle('files:rename', async (event, oldPath, newPath) => {
-    await fs.rename(oldPath, newPath);
+    const safeOld = await assertAllowedPath(oldPath);
+    const safeNew = await assertAllowedPath(newPath);
+    await fs.rename(safeOld, safeNew);
     return true;
   });
 }
@@ -1277,7 +1361,9 @@ function setupStudioIPC() {
         { name: 'Formats supportés (MP3, WAV, M4A, MP4)', extensions: ['mp3', 'wav', 'm4a', 'mp4'] },
       ],
     });
-    return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
+    // Chemin choisi par l'utilisateur via le dialogue natif : approuvé pour
+    // le reste de la session (lecture, éventuelle copie dans PianoJazzChords).
+    return result.canceled || result.filePaths.length === 0 ? null : approveExternalPath(result.filePaths[0]);
   });
 
   // [OpenCode] — Filtres stricts Audio / Vidéo pour l'onglet Analyse.
@@ -1290,7 +1376,9 @@ function setupStudioIPC() {
         { name: 'Fichiers audio (MP3, WAV, M4A)', extensions: ['mp3', 'wav', 'm4a'] },
       ],
     });
-    return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
+    // Chemin choisi par l'utilisateur via le dialogue natif : approuvé pour
+    // le reste de la session (lecture, éventuelle copie dans PianoJazzChords).
+    return result.canceled || result.filePaths.length === 0 ? null : approveExternalPath(result.filePaths[0]);
   });
 
   // [Claude] — 2026-10-09 — Onglet Analyse : audio ET vidéo MP4 (le son en est extrait par
@@ -1305,7 +1393,9 @@ function setupStudioIPC() {
         { name: 'Audio, vidéo ou MIDI (MP3, WAV, M4A, MP4, MID)', extensions: ['mp3', 'wav', 'm4a', 'mp4', 'mid', 'midi'] },
       ],
     });
-    return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
+    // Chemin choisi par l'utilisateur via le dialogue natif : approuvé pour
+    // le reste de la session (lecture, éventuelle copie dans PianoJazzChords).
+    return result.canceled || result.filePaths.length === 0 ? null : approveExternalPath(result.filePaths[0]);
   });
 
   ipcMain.handle('studio:select-video-file', async () => {
@@ -1317,7 +1407,9 @@ function setupStudioIPC() {
         { name: 'Fichiers vidéo (MP4)', extensions: ['mp4'] },
       ],
     });
-    return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
+    // Chemin choisi par l'utilisateur via le dialogue natif : approuvé pour
+    // le reste de la session (lecture, éventuelle copie dans PianoJazzChords).
+    return result.canceled || result.filePaths.length === 0 ? null : approveExternalPath(result.filePaths[0]);
   });
 
   ipcMain.handle('studio:separate', async (event, trackId, inputPath) => {
@@ -1817,7 +1909,9 @@ function setupStudioIPC() {
       title: 'Dossier des tutoriels',
       properties: ['openDirectory'],
     });
-    return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
+    // Chemin choisi par l'utilisateur via le dialogue natif : approuvé pour
+    // le reste de la session (lecture, éventuelle copie dans PianoJazzChords).
+    return result.canceled || result.filePaths.length === 0 ? null : approveExternalPath(result.filePaths[0]);
   });
 
   // [Claude] — 2026-10-09 — Pédagogie IA : le volume du son, pour la force de chaque attaque.
@@ -2246,12 +2340,38 @@ ipcMain.handle('safe-storage:decrypt', (event, encryptedBase64) => {
   return safeStorage.decryptString(Buffer.from(encryptedBase64, 'base64'));
 });
 
+// [Claude] — 2026-10-19 — Audit Codex (P0) : baseUrl arrivait du renderer sans
+// aucune validation, puis la requête partait du processus principal — donc
+// hors CORS, avec la clé IA de l'utilisateur en en-tête. Un renderer compromis
+// pouvait ainsi faire sonder n'importe quel hôte (y compris le réseau local)
+// sous couvert de cet appel. Le modèle produit reste « clé personnelle,
+// fournisseur au choix » (y compris un serveur local type Ollama) : on ne
+// ferme donc pas la liste des fournisseurs, on valide la DESTINATION — HTTPS,
+// ou HTTP seulement vers un serveur local (évite aussi d'envoyer la clé en
+// clair à un hôte distant).
+function isAllowedAIEndpoint(rawUrl) {
+  let url;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    return false;
+  }
+  if (url.protocol === 'https:') return true;
+  if (url.protocol === 'http:') {
+    return url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]';
+  }
+  return false;
+}
+
 // [OpenCode] — 2026-09-08 — Fait passer les appels IA OpenAI-compatible par le
 // processus principal pour contourner les restrictions CORS du renderer
 // (en particulier Ollama Cloud qui ne déclare pas Authorization dans
 // Access-Control-Allow-Headers). Le renderer continue de bénéficier du
 // repli fetch() direct dans les environnements sans electronAPI (tests Node).
 ipcMain.handle('ai:chat-completion', async (event, { baseUrl, apiKey, body, timeoutMs }) => {
+  if (!isAllowedAIEndpoint(baseUrl)) {
+    throw new Error("Fournisseur IA non autorisé : utilisez une adresse HTTPS, ou HTTP vers un serveur local (localhost).");
+  }
   const controller = new AbortController();
   const effectiveTimeout = Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : null;
   const timer = effectiveTimeout ? setTimeout(() => controller.abort(), effectiveTimeout) : null;
