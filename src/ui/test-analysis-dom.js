@@ -57,9 +57,10 @@ function testCssRules() {
 function testStateElementIds() {
   const html = readText('src/index.html');
 
+  // [Claude] — 2026-10-19 — 'analyzer-state-prepare' retiré : l'écran
+  // « Préparer l'analyse » n'existe plus (sélection → analyse directe).
   const requiredIds = [
     'analyzer-import-screen',
-    'analyzer-state-prepare',
     'analyzer-results',
   ];
 
@@ -101,7 +102,6 @@ function testStateMapping() {
   // Vérifie que le mapping dans setAnalyzerState est cohérent
   const mapping = {
     'import': 'analyzer-import-screen',
-    'prepare': 'analyzer-state-prepare',
     'analysis': 'analyzer-results',
   };
 

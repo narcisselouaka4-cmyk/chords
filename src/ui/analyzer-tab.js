@@ -94,7 +94,6 @@ let chordEditor = null;
 const els = {
   importScreen: document.getElementById('analyzer-import-screen'),
    importBtn: document.getElementById('analyzer-import-btn'),
-   prepareBackBtn: document.getElementById('analyzer-prepare-back-btn'),
    midiBackBtn: document.getElementById('analyzer-midi-back-btn'),
   importAudioBtn: document.getElementById('analyzer-import-audio-btn'),
   libraryList: document.getElementById('analyzer-library-list'),
@@ -102,18 +101,10 @@ const els = {
   backBtn: document.getElementById('analyzer-back-btn'),
   backToImportBtn: document.getElementById('analyzer-back-to-import-btn'),
 
-  // États du workspace (maquettes)
-  statePrepare: document.getElementById('analyzer-state-prepare'),
+  // États du workspace (maquettes) — [Claude] 2026-10-19 : l'écran « Préparer
+  // l'analyse » est retiré ; seuls restent l'import et les résultats.
   analysisTab: document.getElementById('analysis-tab'),
   sidebar: document.getElementById('analyzer-sidebar'),
-
-  // Préparation audio
-  prepareFileIcon: document.getElementById('analyzer-prepare-file-icon'),
-  prepareFileName: document.getElementById('analyzer-prepare-file-name'),
-  prepareFileMeta: document.getElementById('analyzer-prepare-file-meta'),
-  prepareWaveform: document.getElementById('analyzer-prepare-waveform'),
-  prepareRemove: document.getElementById('analyzer-prepare-file-remove'),
-  launchAnalysisBtn: document.getElementById('analyzer-launch-analysis-btn'),
 
   // Type vidéo
 
@@ -366,20 +357,16 @@ export function initAnalyzerTab() {
 function setAnalyzerState(state) {
   // Mêmes états que ANALYSIS_STATES dans analyzer-workflow.js, que
   // test-analysis-workflow.js garde synchronisé.
-  const states = ['import', 'prepare', 'analysis'];
+  const states = ['import', 'analysis'];
   if (!states.includes(state)) return;
 
   // Réinitialiser tous les états
   els.importScreen?.classList.remove('active');
-  els.statePrepare?.classList.remove('active');
   els.results?.classList.remove('active');
 
   switch (state) {
     case 'import':
       els.importScreen?.classList.add('active');
-      break;
-    case 'prepare':
-      els.statePrepare?.classList.add('active');
       break;
     case 'analysis':
       els.results?.classList.add('active');
@@ -395,17 +382,13 @@ function initWorkspaceStates() {
   els.importAudioBtn?.addEventListener('click', () => handleImportClick());
   els.importBtn?.addEventListener('click', () => handleImportClick());
 
-  // Préparation audio
-  els.prepareRemove?.addEventListener('click', () => showImportScreen());
-  // [Claude] — 2026-10-09 — Plus d'écran « Quel type de vidéo avez-vous importé ? » (Narcisse :
-  // « supprimer l'étape qui demande quel type de vidéo a été importé ») : une vidéo MP4 suit
-  // le même chemin qu'un fichier audio — préparation, puis analyse de son son.
-  els.launchAnalysisBtn?.addEventListener('click', () => launchAnalysisFromPrepare());
+  // [Claude] — 2026-10-19 — Plus d'écran « Préparer l'analyse » (Narcisse : « supprime cette
+  // étape ») ni d'écran « Quel type de vidéo » (2026-10-09) : sélectionner une source lance
+  // directement l'analyse (loadAnalysisSource → launchAnalysisFromPrepare).
 
   // Retour à l'accueil (« Nouvelle analyse ») : reset centralisé, jamais reload.
   els.backBtn?.addEventListener('click', resetAnalysisSession);
   els.backToImportBtn?.addEventListener('click', resetAnalysisSession);
-  els.prepareBackBtn?.addEventListener('click', resetAnalysisSession);
   els.midiBackBtn?.addEventListener('click', resetAnalysisSession);
 
   // [OpenCode] — 2026-08-08 — Capture MIDI : câblage des métriques du panneau
@@ -688,9 +671,14 @@ function showDeleteModal(displayName) {
 // [OpenCode] — Passe corrective — Pipeline d'import unifié.
 // `loadAnalysisSource` est le SEUL point d'entrée pour charger une source
 // (choix depuis le file picker OU depuis la bibliothèque). La bibliothèque
-// réutilise exactement le même chemin d'état que l'import manuel : audio et
-// vidéo MP4 passent tous deux par l'état 'prepare' (09/10/2026 : l'état
-// 'video-type' est retiré). Aucun pipeline parallèle entre manuel et bibliothèque.
+// réutilise exactement le même chemin que l'import manuel : audio et vidéo MP4
+// passent tous deux par le même lancement. Aucun pipeline parallèle entre
+// manuel et bibliothèque.
+// [Claude] — 2026-10-19 — L'écran « Préparer l'analyse » est retiré (Narcisse :
+// « supprime cette étape ») : il n'offrait qu'un récapitulatif du fichier et
+// quatre cases à cocher jamais lues par le code. Sélectionner un fichier lance
+// désormais l'analyse directement. Un morceau déjà analysé revient toujours à
+// ses résultats sans recalcul.
 async function loadAnalysisSource(sourceType, filePath, fileName) {
   if (!filePath) return;
   currentAudioPath = filePath;
@@ -707,7 +695,7 @@ async function loadAnalysisSource(sourceType, filePath, fileName) {
   // niveau 6 de la Definition of Done.
   if (await restoreSavedAnalysis(filePath)) return;
 
-  showPrepareScreen();
+  await launchAnalysisFromPrepare();
 }
 
 async function handleImportClick() {
@@ -759,27 +747,6 @@ async function analyzeLibraryTrack(track) {
   } catch (err) {
     console.error('[Analyzer] library track load failed:', err);
     notifyError(`Erreur de chargement : ${err.message}`);
-  }
-}
-
-function showPrepareScreen() {
-  selectedSegmentId = null;
-  setAnalyzerState('prepare');
-
-  // La case fichier reprend les métadonnées disponibles (audio ou vidéo MP4).
-  if (els.prepareFileIcon) els.prepareFileIcon.textContent = currentSourceType === 'video' ? '🎬' : currentSourceType === 'midi' ? '🎹' : '🎵';
-  if (currentAudioPath) {
-    if (els.prepareFileName) els.prepareFileName.textContent = currentFileName || '—';
-    const ext = (currentAudioPath.split('.').pop() || '').toUpperCase();
-    const metaParts = [];
-    if (ext) metaParts.push(ext);
-    if (currentAnalysis?.duration) metaParts.push(formatTime(currentAnalysis.duration));
-    if (els.prepareFileMeta) els.prepareFileMeta.textContent = metaParts.join(' · ') || '—';
-  }
-
-  // La waveform n'est pas encore extraite ici : message honnête.
-  if (els.prepareWaveform) {
-    els.prepareWaveform.innerHTML = `<span class="analyzer-waveform-hint">Waveform disponible après lancement de l'analyse</span>`;
   }
 }
 
@@ -897,7 +864,6 @@ let processingStartedAt = 0;
 /** Active ou désactive les commandes qui déclencheraient une seconde analyse. */
 function setAnalysisControlsDisabled(disabled) {
   const controls = [
-    els.launchAnalysisBtn,
     els.reanalyzeBtn,
     els.importAudioBtn,
     els.importBtn,

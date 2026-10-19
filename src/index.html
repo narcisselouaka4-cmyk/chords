@@ -375,7 +375,6 @@
                 <section class="exercise-choice-section exercise-topnote-section" aria-label="Accords par top note">
                   <span class="tr-eyebrow">TOP NOTE</span>
                   <!-- Tous les accords ayant la note du dessus choisie (rempli par main.js). -->
-                  <p class="exercise-side-hint exercise-browser-hint" id="exercise-topnote-browser-hint">Choisissez une top note : les accords qui l'ont au sommet s'affichent ici.</p>
                   <div class="exercise-topnote-browser" id="exercise-topnote-browser" hidden></div>
                 </section>
               </div>
@@ -597,9 +596,7 @@
                 <div>
                   <h2 class="carnet-session-title" id="carnet-session-title">Aucune session sélectionnée</h2>
                   <div class="tr-session-data carnet-session-meta" id="carnet-session-meta"></div>
-                  <div class="midi-session-info" id="midi-session-info">
-                    <p class="detail-hint">Aucune session sélectionnée. Cliquez sur « Enregistrer » ou choisissez une session dans la bibliothèque. Pour un avis rapide sur un passage : « Qu'en penses-tu ? », dans le Copilote.</p>
-                  </div>
+                  <div class="midi-session-info" id="midi-session-info"></div>
                 </div>
               </div>
               <div class="tr-console-actions">
@@ -1181,7 +1178,6 @@
                 <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
               </span>
               <h2>Analyser un morceau</h2>
-              <p>Choisissez un fichier audio ou une vidéo : l'application en détecte les accords, la tonalité et le tempo, puis vous laisse les parcourir au clavier.</p>
 
               <!-- [Claude] — 2026-10-09 — MP4 accepté : le son de la vidéo est analysé. -->
               <button type="button" class="analyzer-import-card is-lead" id="analyzer-import-audio-btn" aria-label="Choisir un fichier audio ou une vidéo à analyser">
@@ -1206,83 +1202,18 @@
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5v14"/><path d="M8 5v14"/><path d="m13 6 7 2-4 13-7-2z"/></svg>
                 Reprendre un morceau déjà importé
               </button>
-              <p class="analyzer-import-footnote">Un morceau déjà analysé se rouvre instantanément : ses accords sont enregistrés, rien n'est recalculé.</p>
 
               <!-- Bouton historique conservé pour compatibilité initiale -->
               <button type="button" id="analyzer-import-btn" class="analyzer-import-legacy" style="display:none">Importer un nouveau fichier</button>
             </div>
           </div>
 
-          <!-- État 2 : Préparation audio -->
-          <div class="analyzer-state" id="analyzer-state-prepare">
-            <div class="analyzer-prepare-header">
-              <button type="button" id="analyzer-prepare-back-btn" class="btn-secondary btn-sm" title="Nouvelle analyse">← Nouvelle analyse</button>
-              <h2>Préparer l'analyse</h2>
-              <p>Votre fichier est prêt. Configurez les options d'analyse puis lancez la détection des accords et de la structure.</p>
-              <div class="analyzer-stepper">
-                <div class="analyzer-step active"><span>1</span><div>Fichier sélectionné</div></div>
-                <div class="analyzer-step"><span>2</span><div>Paramètres d'analyse</div></div>
-                <div class="analyzer-step"><span>3</span><div>Lancer l'analyse</div></div>
-              </div>
-            </div>
-            <div class="analyzer-prepare-grid">
-              <div class="analyzer-prepare-card file">
-                <div class="analyzer-prepare-card-title">Fichier sélectionné</div>
-                <div class="analyzer-file-row">
-                  <span class="analyzer-file-icon" id="analyzer-prepare-file-icon" aria-hidden="true">🎵</span>
-                  <div class="analyzer-file-info">
-                    <div class="analyzer-file-name" id="analyzer-prepare-file-name">—</div>
-                    <div class="analyzer-file-meta" id="analyzer-prepare-file-meta">—</div>
-                  </div>
-                  <button type="button" class="analyzer-file-remove" id="analyzer-prepare-file-remove" title="Retirer le fichier" aria-label="Retirer le fichier">🗑</button>
-                </div>
-                <div class="analyzer-waveform-preview" id="analyzer-prepare-waveform"></div>
-                <div class="analyzer-prepare-info" id="analyzer-prepare-info">Le fichier sera analysé pour détecter les accords, la tonalité, le tempo et la structure.</div>
-              </div>
-              <div class="analyzer-prepare-card options">
-                <div class="analyzer-prepare-card-title">Options d'analyse</div>
-                <label class="analyzer-option">
-                  <input type="checkbox" id="analyzer-opt-chords" checked />
-                  <div>
-                    <div class="analyzer-option-title">Détection des accords</div>
-                    <div class="analyzer-option-sub">Identifier les accords joués au cours du morceau.</div>
-                  </div>
-                </label>
-                <label class="analyzer-option">
-                  <input type="checkbox" id="analyzer-opt-key" checked />
-                  <div>
-                    <div class="analyzer-option-title">Détection de la tonalité</div>
-                    <div class="analyzer-option-sub">Estimer la tonalité principale et les modulations.</div>
-                  </div>
-                </label>
-                <label class="analyzer-option">
-                  <input type="checkbox" id="analyzer-opt-tempo" checked />
-                  <div>
-                    <div class="analyzer-option-title">Détection du tempo</div>
-                    <div class="analyzer-option-sub">Estimer le tempo global et les variations.</div>
-                  </div>
-                </label>
-                <label class="analyzer-option">
-                  <input type="checkbox" id="analyzer-opt-segment" checked />
-                  <div>
-                    <div class="analyzer-option-title">Segmentation automatique</div>
-                    <div class="analyzer-option-sub">Découper le morceau en sections (intro, couplets, etc.).</div>
-                  </div>
-                </label>
-              </div>
-            </div>
-            <!-- [Refonte 2026-09-02, rétabli le 2026-09-03] — L'action
-                 principale sort de la carte « Options » : au fond d'une colonne
-                 qui défile, elle tombait sous la zone visible sur une fenêtre de
-                 900 px et l'écran semblait sans issue. Elle est désormais ancrée
-                 en bas de l'écran de préparation, toujours visible. -->
-            <div class="analyzer-prepare-actions">
-              <button type="button" class="btn-primary analyzer-launch-btn" id="analyzer-launch-analysis-btn">▶ Lancer l'analyse</button>
-            </div>
-          </div>
-
           <!-- [Claude] — 2026-10-09 — L'écran « Quel type de vidéo avez-vous importé ? » est retiré
-               (Narcisse) : une vidéo MP4 passe par la même préparation qu'un fichier audio. -->
+               (Narcisse) : une vidéo MP4 suit le même chemin qu'un fichier audio.
+               [Claude] — 2026-10-19 — L'écran « Préparer l'analyse » (#analyzer-state-prepare)
+               est retiré lui aussi (Narcisse : « supprime cette étape ») : il n'offrait qu'un
+               récapitulatif et quatre cases jamais lues. Sélectionner un fichier lance
+               directement l'analyse (loadAnalysisSource → launchAnalysisFromPrepare). -->
 
           <!-- [Refonte 2026-09-02, rétabli le 2026-09-03] — overlay de
                traitement : FRÈRE des analyzer-states dans analyzer-workspace,
@@ -1695,9 +1626,7 @@
           <span class="studio-empty-vinyl" aria-hidden="true">
             <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>
           </span>
-          <span class="studio-empty-eyebrow">Votre table de mixage personnelle</span>
           <h1 class="studio-empty-title">Un morceau. Votre console.<br /><em>Sculptez le son.</em></h1>
-          <p class="studio-empty-text">Importez un titre, isolez le piano, la basse ou la voix, reprenez une région au casque et transposez sans couper le son.</p>
           <div class="studio-empty-actions">
             <button type="button" class="studio-home-btn is-primary is-lg" id="studio-hero-import-btn">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M17 8l-5-5-5 5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
@@ -1707,12 +1636,6 @@
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5v14"/><path d="M8 5v14"/><path d="m13 6 7 2-4 13-7-2z"/></svg>
               Reprendre un morceau importé
             </button>
-          </div>
-          <div class="studio-empty-features">
-            <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12h2M6 8v8M10 4v16M14 7v10M18 10v4M22 12h-2"/></svg>Forme d'onde et région de travail</span>
-            <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>Séparation des instruments</span>
-            <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Mute, solo et volume par piste</span>
-            <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6.5h20v11H2z"/><path d="M6 6.5v6M10 6.5v6M14 6.5v6M18 6.5v6M2 12.5h20"/></svg>Transposition &#177;12 demi-tons</span>
           </div>
         </section>
 
@@ -2032,7 +1955,6 @@
       <div class="modal-overlay" id="library-modal" style="display: none;">
         <div class="modal-box library-box">
           <h3>Ma bibliothèque</h3>
-          <p class="modal-hint">Les morceaux que vous avez importés. Cliquez sur un morceau pour l'analyser ; le menu ⋮ permet de le renommer ou de le supprimer.</p>
           <input type="search" class="library-search" id="analyzer-library-search" placeholder="Rechercher un morceau…" aria-label="Rechercher un morceau">
           <div id="analyzer-library-list"></div>
           <div class="modal-actions">
@@ -2063,7 +1985,6 @@
                  relectures) suit la couleur de l'application, sauf choix personnel (pastille « L'app »). -->
             <div class="appearance-field" id="settings-app-keys">
               <span>Ce que joue l'application</span>
-              <p class="appearance-hint" id="app-key-color-hint">Suit la couleur de l'application.</p>
               <button type="button" class="accent-reset" id="app-key-color-reset" hidden>Suivre la couleur de l'application</button>
             </div>
             <div class="appearance-field">
@@ -2072,11 +1993,6 @@
                 <button type="button" data-skin-value="global" aria-pressed="true">Atelier</button>
                 <button type="button" data-skin-value="v2" aria-pressed="false">Scène</button>
               </div>
-              <p class="appearance-hint">
-                <strong>Atelier</strong> — net et sobre, formes droites et aplats : la vue de travail.<br />
-                <strong>Scène</strong> — plus chaleureux, formes arrondies et dégradés de la couleur de l'application.<br />
-                Les deux affichent exactement le même contenu et fonctionnent à l'identique : seul l'habillage change.
-              </p>
             </div>
           </div>
 
@@ -2101,14 +2017,12 @@
                     <option value="">Piano intégré</option>
                   </select>
                 </div>
-                <small class="settings-note">Où jouent la démo et « Écouter » : le piano intégré, ou un port MIDI (votre VST).</small>
               </div>
               <div class="settings-row">
                 <label for="tolerance">Tolérance (ms)</label>
                 <div class="settings-control">
                   <input type="number" id="tolerance" value="200" min="50" max="500" step="10" />
                 </div>
-                <small class="settings-note">Fenêtre dans laquelle des notes attaquées presque ensemble forment un accord.</small>
               </div>
             </div>
             <div class="settings-status" id="status-bar" role="status" aria-live="polite"></div>

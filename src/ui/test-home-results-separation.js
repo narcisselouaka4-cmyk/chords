@@ -153,7 +153,10 @@ runTest('B. HTML — #analyzer-import-screen contient les cartes d\'import', () 
   const htmlPath = resolve(projectRoot, 'src/index.html');
   const html = readFileSync(htmlPath, 'utf-8');
 
-  const importSection = html.match(/<div[^>]*\bid="analyzer-import-screen"[^>]*>([\s\S]*?)(?=<div[^>]*\bid="analyzer-state-prepare")/);
+  // [Claude] — 2026-10-19 — Borne mise à jour : l'écran « Préparer l'analyse »
+  // (#analyzer-state-prepare) est retiré ; le bloc suivant est l'overlay de
+  // traitement (#analyzer-processing).
+  const importSection = html.match(/<div[^>]*\bid="analyzer-import-screen"[^>]*>([\s\S]*?)(?=<div[^>]*\bid="analyzer-processing")/);
   assert(importSection !== null, 'Contenu de #analyzer-import-screen trouvé');
 
   const content = importSection[1];
@@ -180,10 +183,12 @@ runTest('C. JS — setAnalyzerState gère tous les états', () => {
   const jsPath = resolve(projectRoot, 'src/ui/analyzer-tab.js');
   const js = readFileSync(jsPath, 'utf-8');
 
-  // Vérifier que setAnalyzerState supprime 'active' de tous les conteneurs
+  // Vérifier que setAnalyzerState supprime 'active' des conteneurs rendus.
+  // [Claude] — 2026-10-19 — Deux états seulement : import et analysis. Les
+  // écrans 'prepare' (« Préparer l'analyse ») et 'video-type' sont retirés.
   assert(js.includes("els.importScreen?.classList.remove('active')"), 'Supprime active de importScreen');
-  assert(js.includes("els.statePrepare?.classList.remove('active')"), 'Supprime active de statePrepare');
-  assert(js.includes("els.stateVideoType?.classList.remove('active')"), 'Supprime active de stateVideoType');
+  assert(!js.includes('statePrepare'), 'plus aucune référence à l\'état de préparation');
+  assert(!js.includes('stateVideoType'), 'plus aucune référence à l\'état du type de vidéo');
   assert(!js.includes('stateMidiRecord'), 'plus aucune référence à l\'état de capture MIDI');
   assert(!js.includes('stateResults'), 'plus aucune référence à l\'état results (markup mort)');
   assert(js.includes("els.results?.classList.remove('active')"), 'Supprime active de results (vue analyse)');

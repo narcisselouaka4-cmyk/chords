@@ -30,16 +30,16 @@ function runTest(name, fn) {
 
 // ── A : HOME → Audio → file picker MP3/WAV → AUDIO_PREP ──
 runTest('A — HOME → Audio → file picker MP3 → AUDIO_PREP', () => {
-  assert(resolveAnalysisState('mp3', 'audio') === 'prepare', 'MP3 → prepare');
-  assert(resolveAnalysisState('wav', 'audio') === 'prepare', 'WAV → prepare');
+  assert(resolveAnalysisState('mp3', 'audio') === 'analysis', 'MP3 → analyse directe');
+  assert(resolveAnalysisState('wav', 'audio') === 'analysis', 'WAV → analyse directe');
 });
 
 // ── B : HOME → file picker MP4 → AUDIO_PREP (plus d'écran « type de vidéo ») ──
 // [Claude] — 2026-10-09 — Narcisse : MP4 accepté dans l'onglet Analyse, et plus
 // de question « Quel type de vidéo avez-vous importé ? ».
 runTest('B — HOME → file picker MP4 → AUDIO_PREP, sans choix du type de vidéo', () => {
-  assert(resolveAnalysisState('mp4', 'video') === 'prepare', 'MP4 → prepare');
-  assert(resolveAnalysisState('mp4', 'audio') === 'prepare', 'MP4 auto-détecté → prepare');
+  assert(resolveAnalysisState('mp4', 'video') === 'analysis', 'MP4 → analyse directe');
+  assert(resolveAnalysisState('mp4', 'audio') === 'analysis', 'MP4 auto-détecté → analyse directe');
   assert(!ANALYSIS_STATES.includes('video-type'), "plus d'état video-type");
   const html = readFileSync(resolve(projectRoot, 'src/index.html'), 'utf-8');
   assert(!html.includes('analyzer-state-video-type'), "l'écran du type de vidéo est retiré du markup");
@@ -57,16 +57,20 @@ runTest('B — HOME → file picker MP4 → AUDIO_PREP, sans choix du type de vi
 runTest("C — la capture au clavier a quitté l'onglet Analyse", () => {
   assert(!ANALYSIS_STATES.includes('midi-record'), "plus d'état de capture MIDI");
   assert(!ANALYSIS_STATES.includes('results'), "plus d'état 'results' (markup mort, jamais activé)");
+  // [Claude] — 2026-10-19 — l'écran « Préparer l'analyse » est retiré (sélection → analyse directe).
+  assert(!ANALYSIS_STATES.includes('prepare'), "plus d'état 'prepare' (écran « Préparer l'analyse » retiré)");
+  const html = readFileSync(resolve(projectRoot, 'src/index.html'), 'utf-8');
+  assert(!html.includes('id="analyzer-state-prepare"'), "l'écran « Préparer l'analyse » est retiré du markup");
 });
 
 // ── D : Bibliothèque MP3 → AUDIO_PREP (même pipeline) ──
 runTest('D — Bibliothèque MP3 → AUDIO_PREP (même pipeline)', () => {
-  assert(resolveAnalysisState('mp3', 'audio') === 'prepare', 'bibliothèque MP3 réutilise prepare');
+  assert(resolveAnalysisState('mp3', 'audio') === 'analysis', 'bibliotheque MP3 va droit a l analyse');
 });
 
 // ── E : Bibliothèque MP4 → AUDIO_PREP (même pipeline que l'audio) ──
 runTest('E — Bibliothèque MP4 → AUDIO_PREP', () => {
-  assert(resolveAnalysisState('mp4', 'video') === 'prepare', 'bibliothèque MP4 → prepare');
+  assert(resolveAnalysisState('mp4', 'video') === 'analysis', 'bibliothèque MP4 → analyse directe');
 });
 
 // ── E bis : les pistes du Studio ne servent à l'analyse que si elles couvrent tout le morceau ──
@@ -93,13 +97,13 @@ runTest('F/G/H — retour à HOME après Nouvelle analyse (reset → import)', (
 
 // ── Routage audio restant sur PREP même si requesté comme vidéo par extension ──
 runTest('Audio/WAV restent sur la préparation', () => {
-  assert(resolveAnalysisState('wav', 'audio') === 'prepare', 'WAV → prepare');
-  assert(resolveAnalysisState('aiff', 'audio') === 'prepare', 'AIFF → prepare');
+  assert(resolveAnalysisState('wav', 'audio') === 'analysis', 'WAV → analyse directe');
+  assert(resolveAnalysisState('aiff', 'audio') === 'analysis', 'AIFF → analyse directe');
 });
 
 // ── Machine d'état complète ──
 runTest('Machine d’état Analyse complète et ordonnée', () => {
-  const expected = ['import', 'prepare', 'analysis'];
+  const expected = ['import', 'analysis'];
   assert(JSON.stringify(ANALYSIS_STATES) === JSON.stringify(expected), 'états complets');
 
   // setAnalyzerState() garde sa propre liste plutôt que d'importer celle-ci :

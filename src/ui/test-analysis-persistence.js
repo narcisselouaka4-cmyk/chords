@@ -70,18 +70,20 @@ runTest("A. IPC — un canal prépare la lecture sans lancer d'analyse", () => {
 
 // ── B. Le flux d'ouverture tente la restauration avant l'écran de préparation ──
 
-runTest("B. Flux — une source déjà analysée court-circuite l'écran de préparation", () => {
+runTest("B. Flux — une source déjà analysée court-circuite le lancement de l'analyse", () => {
   const js = read('src/ui/analyzer-tab.js');
   const start = js.indexOf('async function loadAnalysisSource(');
   assert(start > 0, 'loadAnalysisSource est asynchrone');
   const body = js.slice(start, js.indexOf('\n}\n', start));
   const restoreAt = body.indexOf('restoreSavedAnalysis');
-  // 09/10/2026 : plus d'aiguillage audio/vidéo, la préparation est montrée directement.
-  const resolveAt = body.indexOf('showPrepareScreen()');
+  // 19/10/2026 : l'écran « Préparer l'analyse » est retiré ; sélectionner un
+  // fichier lance directement l'analyse (launchAnalysisFromPrepare).
+  const resolveAt = body.indexOf('launchAnalysisFromPrepare()');
   assert(restoreAt > 0, 'loadAnalysisSource tente la restauration');
+  assert(resolveAt > 0, "loadAnalysisSource lance l'analyse en dernier recours");
   assert(
     restoreAt < resolveAt,
-    "la restauration est tentée AVANT de router vers l'écran de préparation",
+    "la restauration est tentée AVANT de lancer une nouvelle analyse",
   );
 });
 

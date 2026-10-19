@@ -11,19 +11,21 @@
 //     appelé depuis la refonte, la vue d'analyse ('analysis') l'avait remplacé.
 // [Claude] — 2026-10-09 — et 'video-type' (« Quel type de vidéo avez-vous
 // importé ? ») est retiré : une vidéo MP4 est analysée comme un fichier audio.
-export const ANALYSIS_STATES = ['import', 'prepare', 'analysis'];
-
-// États intermédiaires (préparation) — la zone centrale est rendue directement à
-// partir de cet état, pas seulement le panneau Flux d'analyse.
-export const PREP_STATES = new Set(['import', 'prepare']);
+// [Claude] — 2026-10-19 — et 'prepare' (« Préparer l'analyse ») est retiré
+// (Narcisse : « supprime cette étape ») : il n'offrait qu'un récapitulatif et
+// quatre cases jamais lues. Sélectionner une source lance directement l'analyse ;
+// seuls deux états sont rendus (l'écran d'import, puis les résultats).
+export const ANALYSIS_STATES = ['import', 'analysis'];
 
 // Extensions considérées comme vidéo (conteneurs où le son est dérivé).
 const VIDEO_EXTENSIONS = new Set(['mp4', 'm4v', 'mov', 'webm']);
 
 // [P0/P4] — Décision d'état pour une source importée (file picker OU
-// bibliothèque, exactement le même pipeline). Audio et vidéo : préparation.
+// bibliothèque, exactement le même pipeline). Audio, vidéo et MIDI : l'analyse
+// est lancée aussitôt, sans écran intermédiaire ; l'état rendu après l'attente
+// est la vue des résultats.
 export function resolveAnalysisState(_ext, _sourceType = 'audio') {
-  return 'prepare';
+  return 'analysis';
 }
 
 // [Claude] — 2026-10-09 — Fichiers MIDI : leurs notes sont analysées directement (midi-source.js).
