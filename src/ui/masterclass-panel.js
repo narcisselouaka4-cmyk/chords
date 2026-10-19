@@ -573,7 +573,7 @@ export function renderMasterclass(els, segment, analysis) {
 
   const concept = isLowConfidence ? { type: 'lowConfidence', chord: segment.chord } : detectConcept(analysis.chords, index);
   if (!concept) {
-    els.masterclassContent.innerHTML = '<p class="mc-empty">Aucune fiche n’est disponible pour cet accord. Vous pouvez demander une explication à l’IA ci-dessous.</p>';
+    els.masterclassContent.innerHTML = '<p class="mc-empty">Aucune fiche n’est disponible pour cet accord. Sélectionnez un autre passage dans la frise pour explorer les fiches disponibles.</p>';
     return;
   }
 

@@ -1344,6 +1344,24 @@
   margin-top: 14px;
 }
 #analysis-tab .an-stats-col { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+#analysis-tab .an-stats-details {
+  margin-top: 16px;
+  border-top: 1px solid var(--an-border);
+  padding-top: 12px;
+}
+#analysis-tab .an-stats-details > summary {
+  padding: 6px 0;
+  color: var(--an-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+#analysis-tab .an-stats-details > summary:hover { color: var(--an-text); }
+#analysis-tab .an-stats-details > summary:focus-visible {
+  outline: 2px solid var(--an-accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
 #analysis-tab .an-kv-row {
   display: flex;
   justify-content: space-between;
@@ -2767,4 +2785,15 @@
   letter-spacing: .04em;
   color: var(--an-text-muted);
   text-align: center;
+}
+
+/* Sans filtre de note supérieure, ne pas réserver une colonne vide « TOP NOTE ».
+   La bibliothèque revient dès qu'une note est choisie ; le mode mouvement reste intact. */
+:root[data-skin] #practice-tab .tr-exercise-stage.is-chord-mode:has(#exercise-topnote-browser[hidden]) .tr-exercise-brief {
+  display: none;
+}
+@media (min-width: 821px) {
+  :root[data-skin] #practice-tab .tr-exercise-stage.is-chord-mode:has(#exercise-topnote-browser[hidden]) {
+    grid-template-columns: minmax(0, 1fr) minmax(230px, .3fr);
+  }
 }

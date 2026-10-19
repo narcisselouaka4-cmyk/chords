@@ -2382,6 +2382,8 @@ function renderOverview(analysis) {
             `).join('')}
           </div>
 
+          <details class="an-stats-details">
+          <summary>Voir les statistiques détaillées</summary>
           <div class="an-stats-split">
             <div class="an-stats-col">
               <span class="an-section-mini-tag">Segments et corrections</span>
@@ -2399,6 +2401,7 @@ function renderOverview(analysis) {
               ${topRows}
             </div>
           </div>
+          </details>
         </div>
       </div>
 
