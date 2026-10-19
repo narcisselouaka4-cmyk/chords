@@ -68,10 +68,31 @@ function check(label, ok) {
     /@media \(prefers-reduced-motion: reduce\) \{\s*\.ai-key-panel \{ transition: none; \}/.test(css));
 
   const mainJs = read('src/main.js');
-  check('initAISettings bascule aria-expanded + hidden au clic sur le bouton',
-    /toggle\.addEventListener\('click', \(\) => \{[\s\S]*?setExpanded\(!expanded\)/.test(mainJs));
+  check('initSettingsAccordion (générique) bascule aria-expanded + hidden au clic sur le bouton',
+    /function initSettingsAccordion\(toggleId, panelId[\s\S]*?setExpanded\(!expanded\)/.test(mainJs));
+  check('initAISettings utilise l\'accordéon générique (app-settings-ai-btn, ai-key-panel)',
+    mainJs.includes("initSettingsAccordion('app-settings-ai-btn', 'ai-key-panel'"));
   check('Plus de références aux ids de l\'ancienne fenêtre (aiPreset, aiCancelBtn, aiSettingsModal)',
     !mainJs.includes('aiPreset') && !mainJs.includes('aiCancelBtn') && !mainJs.includes('aiSettingsModal'));
+
+  // [Claude] — 2026-10-20 — Narcisse : « masque Apparence à l'aide d'un bouton Apparence, et le
+  // contenu de Clavier et MIDI aussi » — même accordéon que la clé API, généralisé aux trois
+  // sections de Réglages. Le bouton EST le titre de la section (plus de <h4> séparé).
+  for (const [label, toggleId, panelId] of [
+    ['Apparence', 'settings-appearance-toggle', 'settings-appearance-panel'],
+    ['Clavier et MIDI', 'settings-midi-toggle', 'settings-midi-panel'],
+  ]) {
+    check(`${label} : bouton-titre replié par défaut, contrôle son panneau`,
+      new RegExp(`id="${toggleId}"[^>]*aria-expanded="false"[^>]*aria-controls="${panelId}"`).test(html)
+      || new RegExp(`id="${toggleId}"[^>]*aria-controls="${panelId}"[^>]*aria-expanded="false"`).test(html));
+    check(`${label} : panneau replié par défaut (hidden)`,
+      new RegExp(`id="${panelId}" hidden`).test(html));
+    check(`${label} : main.js câble l'accordéon générique sur ce bouton/panneau`,
+      mainJs.includes(`initSettingsAccordion('${toggleId}', '${panelId}')`));
+  }
+  check('Plus de <h4> séparé pour Apparence / Clavier et MIDI (le bouton-titre les remplace)',
+    !/<h4 class="settings-section-title">Apparence<\/h4>/.test(html)
+    && !/<h4 class="settings-section-title">Clavier et MIDI<\/h4>/.test(html));
 }
 
 // ── C. Réglages masque l'onglet actif à l'ouverture, le restaure à la fermeture ─

@@ -1828,27 +1828,38 @@
             <button type="button" class="tr-icon-button" id="app-settings-dismiss" aria-label="Fermer les réglages">✕</button>
           </div>
 
+          <!-- [Claude] — 2026-10-20 — Apparence et Clavier/MIDI deviennent des accordéons, comme
+               Assistant IA (Narcisse : « masque Apparence à l'aide d'un bouton Apparence, et le
+               contenu de Clavier et MIDI aussi »). Même mécanique partagée (initSettingsAccordion,
+               main.js) : bouton = le titre de la section, panneau replié par défaut. -->
           <div class="settings-section" id="settings-appearance">
-            <h4 class="settings-section-title">Apparence</h4>
-            <!-- [Claude] — 2026-10-13 — Couleur générale de l'application (accent-theme.js) : toutes les
-                 familles de variables de couleur en dérivent. -->
-            <div class="appearance-field" id="settings-accent">
-              <span>Couleur de l'application</span>
-              <div class="accent-presets" id="accent-presets" role="group" aria-label="Couleur de l'application"></div>
-              <label class="accent-custom"><span>Autre couleur…</span><input type="color" id="accent-custom" value="#9b7bf0" aria-label="Choisir une autre couleur pour l'application" /></label>
-            </div>
-            <!-- [Claude] — 2026-10-13 — Ce que joue l'application (touches allumées par les exemples, démos,
-                 relectures) suit la couleur de l'application, sauf choix personnel (pastille « L'app »). -->
-            <div class="appearance-field" id="settings-app-keys">
-              <span>Ce que joue l'application</span>
-              <button type="button" class="accent-reset" id="app-key-color-reset" hidden>Suivre la couleur de l'application</button>
-            </div>
-            <div class="appearance-field">
-              <span>Habillage de l'application</span>
-              <div class="skin-segmented" id="skin-selector" role="group" aria-label="Habillage de l'application">
-                <button type="button" data-skin-value="global" aria-pressed="true">Atelier</button>
-                <button type="button" data-skin-value="v2" aria-pressed="false">Scène</button>
+            <button type="button" class="ai-key-toggle settings-section-toggle" id="settings-appearance-toggle" aria-expanded="false" aria-controls="settings-appearance-panel">
+              <span>Apparence</span>
+              <svg class="ai-key-toggle-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+            </button>
+            <div class="ai-key-panel" id="settings-appearance-panel" hidden>
+             <div class="ai-key-panel-inner">
+              <!-- [Claude] — 2026-10-13 — Couleur générale de l'application (accent-theme.js) : toutes les
+                   familles de variables de couleur en dérivent. -->
+              <div class="appearance-field" id="settings-accent">
+                <span>Couleur de l'application</span>
+                <div class="accent-presets" id="accent-presets" role="group" aria-label="Couleur de l'application"></div>
+                <label class="accent-custom"><span>Autre couleur…</span><input type="color" id="accent-custom" value="#9b7bf0" aria-label="Choisir une autre couleur pour l'application" /></label>
               </div>
+              <!-- [Claude] — 2026-10-13 — Ce que joue l'application (touches allumées par les exemples, démos,
+                   relectures) suit la couleur de l'application, sauf choix personnel (pastille « L'app »). -->
+              <div class="appearance-field" id="settings-app-keys">
+                <span>Ce que joue l'application</span>
+                <button type="button" class="accent-reset" id="app-key-color-reset" hidden>Suivre la couleur de l'application</button>
+              </div>
+              <div class="appearance-field">
+                <span>Habillage de l'application</span>
+                <div class="skin-segmented" id="skin-selector" role="group" aria-label="Habillage de l'application">
+                  <button type="button" data-skin-value="global" aria-pressed="true">Atelier</button>
+                  <button type="button" data-skin-value="v2" aria-pressed="false">Scène</button>
+                </div>
+              </div>
+             </div>
             </div>
           </div>
 
@@ -1856,32 +1867,39 @@
                d'entrée et de sortie, couleur des notes, état) et la tolérance. Mêmes id= qu'avant :
                main.js n'a rien à changer. -->
           <div class="settings-section" id="settings-midi">
-            <h4 class="settings-section-title">Clavier et MIDI</h4>
-            <div class="settings-rows">
-              <div class="settings-row">
-                <label for="midi-select">Entrée MIDI</label>
-                <div class="settings-control">
-                  <select id="midi-select" data-last-count="0"></select>
-                  <button type="button" id="midi-refresh" title="Rafraîchir les périphériques MIDI" aria-label="Rafraîchir les périphériques MIDI">↻</button>
+            <button type="button" class="ai-key-toggle settings-section-toggle" id="settings-midi-toggle" aria-expanded="false" aria-controls="settings-midi-panel">
+              <span>Clavier et MIDI</span>
+              <svg class="ai-key-toggle-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+            </button>
+            <div class="ai-key-panel" id="settings-midi-panel" hidden>
+             <div class="ai-key-panel-inner">
+              <div class="settings-rows">
+                <div class="settings-row">
+                  <label for="midi-select">Entrée MIDI</label>
+                  <div class="settings-control">
+                    <select id="midi-select" data-last-count="0"></select>
+                    <button type="button" id="midi-refresh" title="Rafraîchir les périphériques MIDI" aria-label="Rafraîchir les périphériques MIDI">↻</button>
+                  </div>
+                  <small class="settings-note"><span id="midi-status-text">Aucun</span> <span id="midi-port-count">(0)</span></small>
                 </div>
-                <small class="settings-note"><span id="midi-status-text">Aucun</span> <span id="midi-port-count">(0)</span></small>
-              </div>
-              <div class="settings-row">
-                <label for="midi-output-select">Sortie MIDI</label>
-                <div class="settings-control">
-                  <select id="midi-output-select" title="Où jouent la démo et « Écouter » : piano intégré, ou un port MIDI (ton VST)">
-                    <option value="">Piano intégré</option>
-                  </select>
+                <div class="settings-row">
+                  <label for="midi-output-select">Sortie MIDI</label>
+                  <div class="settings-control">
+                    <select id="midi-output-select" title="Où jouent la démo et « Écouter » : piano intégré, ou un port MIDI (ton VST)">
+                      <option value="">Piano intégré</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="settings-row">
+                  <label for="tolerance">Tolérance (ms)</label>
+                  <div class="settings-control">
+                    <input type="number" id="tolerance" value="200" min="50" max="500" step="10" />
+                  </div>
                 </div>
               </div>
-              <div class="settings-row">
-                <label for="tolerance">Tolérance (ms)</label>
-                <div class="settings-control">
-                  <input type="number" id="tolerance" value="200" min="50" max="500" step="10" />
-                </div>
-              </div>
+              <div class="settings-status" id="status-bar" role="status" aria-live="polite"></div>
+             </div>
             </div>
-            <div class="settings-status" id="status-bar" role="status" aria-live="polite"></div>
           </div>
 
           <!-- [Claude] — 2026-10-19 — Assistant IA : accordéon inline (Narcisse : « un bouton sur la

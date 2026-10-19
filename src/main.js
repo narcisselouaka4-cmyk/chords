@@ -3020,16 +3020,6 @@ function initAISettings() {
     else window.open(url, '_blank', 'noopener');
   }
 
-  function setExpanded(expanded) {
-    toggle.setAttribute('aria-expanded', String(expanded));
-    panel.hidden = !expanded;
-    // [Claude] — 2026-10-19 — .is-open pilote l'animation grid-template-rows (theme.css) ;
-    // posée APRÈS un reflow pour que le navigateur anime bien depuis 0fr (sinon, retirer `hidden`
-    // et poser la classe dans le même tick saute l'état de départ, donc l'animation).
-    if (expanded) requestAnimationFrame(() => panel.classList.add('is-open'));
-    else panel.classList.remove('is-open');
-  }
-
   async function loadConfigIntoUI() {
     const cfg = await loadSecureAIConfig();
     if (els.aiBaseUrl) els.aiBaseUrl.value = cfg.baseUrl;
@@ -3164,12 +3154,6 @@ function initAISettings() {
     setStatus('Clé enregistrée supprimée.');
   });
 
-  toggle.addEventListener('click', () => {
-    const expanded = toggle.getAttribute('aria-expanded') === 'true';
-    if (!expanded) loadConfigIntoUI();
-    setExpanded(!expanded);
-  });
-
   els.aiTestBtn?.addEventListener('click', async () => {
     if (!els.aiTestResult) return;
     els.aiTestResult.textContent = 'Test en cours…';
@@ -3203,6 +3187,7 @@ function initAISettings() {
   });
 
   renderProviders();
+  initSettingsAccordion('app-settings-ai-btn', 'ai-key-panel', { onExpand: loadConfigIntoUI });
 }
 
 // [Régression 2026-09-06] — Chaque initialisation est blindée individuellement :
@@ -3408,7 +3393,36 @@ function initKeyboardCollapse() {
 // temporairement son emplacement.
 const APP_SETTINGS_TAB_IDS = ['practice-tab', 'analysis-tab', 'studio-tab'];
 
+// [Claude] — 2026-10-20 — Accordéon générique des sections de Réglages (Narcisse : « masque
+// Apparence à l'aide d'un bouton Apparence, et le contenu de Clavier et MIDI aussi » — même
+// mécanique que l'accordéon Assistant IA du 19/10, désormais partagée par les trois sections).
+// Le bouton EST le titre de la section ; le panneau est replié par défaut (hidden) et anime sa
+// hauteur via .is-open (grid-template-rows 0fr → 1fr, theme.css).
+function initSettingsAccordion(toggleId, panelId, { onExpand } = {}) {
+  const toggle = document.getElementById(toggleId);
+  const panel = document.getElementById(panelId);
+  if (!toggle || !panel) return null;
+
+  function setExpanded(expanded) {
+    toggle.setAttribute('aria-expanded', String(expanded));
+    panel.hidden = !expanded;
+    if (expanded) requestAnimationFrame(() => panel.classList.add('is-open'));
+    else panel.classList.remove('is-open');
+  }
+
+  toggle.addEventListener('click', () => {
+    const expanded = toggle.getAttribute('aria-expanded') === 'true';
+    if (!expanded) onExpand?.();
+    setExpanded(!expanded);
+  });
+
+  return { toggle, panel, setExpanded };
+}
+
 function initAppSettings() {
+  initSettingsAccordion('settings-appearance-toggle', 'settings-appearance-panel');
+  initSettingsAccordion('settings-midi-toggle', 'settings-midi-panel');
+
   const modal = document.getElementById('app-settings-modal');
   const toggle = document.getElementById('app-settings-toggle');
   const closeButton = document.getElementById('app-settings-close');
