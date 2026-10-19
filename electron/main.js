@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, session, dialog, desktopCapturer, safeStorage, powerMonitor } from 'electron';
+import { app, BrowserWindow, ipcMain, session, dialog, desktopCapturer, safeStorage, powerMonitor, shell } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import midi from '@julusian/midi';
@@ -404,24 +404,68 @@ function requestMidiPermission() {
 // récursive, sans restriction de racine. Un renderer compromis (XSS) aurait
 // pu toucher n'importe quel fichier accessible à l'utilisateur.
 //
-// Deux catégories de chemins légitimes :
+// Trois catégories de chemins légitimes :
 //   1. Tout ce qui vit sous ~/PianoJazzChords/ (données gérées par l'app :
 //      Studio, Sessions, Analyse, Pédagogie, .work — un seul répertoire
 //      racine pour tous, vérifié côté renderer).
-//   2. Un chemin choisi EXPLICITEMENT par l'utilisateur via une vraie boîte
-//      de dialogue native cette session (import audio/vidéo/MIDI, dossier
-//      des tutoriels, destination d'export) : le dialogue natif, pas une
-//      chaîne construite par le renderer, est la preuve de consentement.
-//      approveExternalPath() les enregistre au moment où chaque dialogue
-//      renvoie un résultat (voir setupStudioIPC).
+//   2. Les ressources EMBARQUÉES avec l'application elle-même (assets/,
+//      échantillons du sampler piano) : un chemin constant résolu depuis
+//      __dirname, jamais fourni par le renderer — pas un choix utilisateur,
+//      mais pas davantage un risque : c'est le code de l'app, pas une donnée.
+//   3. Un chemin choisi EXPLICITEMENT par l'utilisateur via une vraie boîte
+//      de dialogue native (import audio/vidéo/MIDI, dossier des tutoriels,
+//      destination d'export) : le dialogue natif, pas une chaîne construite
+//      par le renderer, est la preuve de consentement. approveExternalPath()
+//      les enregistre au moment où chaque dialogue renvoie un résultat (voir
+//      setupStudioIPC) — ET les persiste sur disque (electron-settings.json)
+//      pour survivre au redémarrage : un dossier de tutoriels choisi une fois
+//      doit rester lisible aux lancements suivants, sans redemander le
+//      dialogue à chaque fois (régression observée le 19/10 : le dossier
+//      mémorisé par tutorial-folder-pref.js, lu automatiquement à l'ouverture
+//      de Pédagogie, était refusé après redémarrage — la liste n'existait
+//      qu'en mémoire, vidée à chaque lancement).
 //
 // Les liens symboliques sont résolus (fs.realpath) pour qu'un lien posé
 // dans un dossier autorisé ne fasse pas sortir discrètement du périmètre.
 const APP_DATA_ROOT = path.join(os.homedir(), 'PianoJazzChords');
+const APP_ASSETS_ROOT = path.join(__dirname, '..', 'assets');
 const externallyApprovedPaths = new Set();
 
+// [Claude] — 2026-10-19 — Chemin calculé à l'appel, pas au chargement du module : app.getPath()
+// n'est garanti qu'après app.whenReady() (loadApprovedExternalPaths n'est appelée que là-bas).
+function getApprovedPathsFile() {
+  return path.join(app.getPath('userData'), 'approved-external-paths.json');
+}
+
+function loadApprovedExternalPaths() {
+  try {
+    const raw = fsSync.readFileSync(getApprovedPathsFile(), 'utf-8');
+    const list = JSON.parse(raw);
+    if (Array.isArray(list)) {
+      for (const p of list) if (typeof p === 'string' && p) externallyApprovedPaths.add(p);
+    }
+  } catch {
+    /* premier lancement, ou fichier absent/corrompu : liste vide */
+  }
+}
+
+function persistApprovedExternalPaths() {
+  try {
+    const file = getApprovedPathsFile();
+    fsSync.mkdirSync(path.dirname(file), { recursive: true });
+    fsSync.writeFileSync(file, JSON.stringify([...externallyApprovedPaths]));
+  } catch (err) {
+    console.warn('[Sécurité] Échec de la sauvegarde des chemins approuvés :', err.message);
+  }
+}
+
 function approveExternalPath(p) {
-  if (p) externallyApprovedPaths.add(path.resolve(p));
+  if (!p) return p;
+  const resolved = path.resolve(p);
+  if (!externallyApprovedPaths.has(resolved)) {
+    externallyApprovedPaths.add(resolved);
+    persistApprovedExternalPaths();
+  }
   return p;
 }
 
@@ -461,7 +505,7 @@ async function assertAllowedPath(rawPath) {
       }
     }
   }
-  if (isWithinRoot(APP_DATA_ROOT, real)) return real;
+  if (isWithinRoot(APP_DATA_ROOT, real) || isWithinRoot(APP_ASSETS_ROOT, real)) return real;
   for (const approved of externallyApprovedPaths) {
     if (real === approved || isWithinRoot(approved, real)) return real;
   }
@@ -2340,6 +2384,25 @@ ipcMain.handle('safe-storage:decrypt', (event, encryptedBase64) => {
   return safeStorage.decryptString(Buffer.from(encryptedBase64, 'base64'));
 });
 
+// [Claude] — 2026-10-19 — Narcisse, Réglages › Assistant IA : « Générer une clé » doit ouvrir la
+// page du fournisseur dans le navigateur système. Liste fermée des URLs exactes (pas un domaine
+// arbitraire fourni par le renderer) : mêmes pages que PRESETS/EXTERNAL_PROVIDER_LINKS côté
+// renderer (src/ai/openai-config.js) — les deux listes doivent rester synchronisées à la main.
+const ALLOWED_EXTERNAL_URLS = new Set([
+  'https://console.groq.com/keys',
+  'https://openrouter.ai/keys',
+  'https://aistudio.google.com/apikey',
+  'https://platform.openai.com/api-keys',
+  'https://console.anthropic.com/settings/keys',
+]);
+ipcMain.handle('app:open-external', async (event, rawUrl) => {
+  if (!ALLOWED_EXTERNAL_URLS.has(rawUrl)) {
+    throw new Error(`Adresse non autorisée : ${rawUrl}`);
+  }
+  await shell.openExternal(rawUrl);
+  return true;
+});
+
 // [Claude] — 2026-10-19 — Audit Codex (P0) : baseUrl arrivait du renderer sans
 // aucune validation, puis la requête partait du processus principal — donc
 // hors CORS, avec la clé IA de l'utilisateur en en-tête. Un renderer compromis
@@ -2399,6 +2462,7 @@ ipcMain.handle('ai:chat-completion', async (event, { baseUrl, apiKey, body, time
 });
 
 app.whenReady().then(() => {
+  loadApprovedExternalPaths();
   requestMidiPermission();
   setupFileSystemIPC();
   setupStudioIPC();

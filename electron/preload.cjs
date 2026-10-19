@@ -52,6 +52,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     pianoSamplesDir: () => ipcRenderer.invoke('assets:piano-samples-dir'),
   },
   log: (msg) => ipcRenderer.invoke('app:log', msg),
+  // [Claude] — 2026-10-19 — Réglages › Assistant IA : « Générer une clé » ouvre la page du
+  // fournisseur dans le navigateur système. Liste fermée côté main (electron/main.js) ; ce pont ne
+  // fait que relayer, il ne décide pas ce qui est autorisé.
+  openExternal: (url) => ipcRenderer.invoke('app:open-external', url),
   files: {
     homeDir: () => ipcRenderer.invoke('files:home-dir'),
     ensureDir: (dirPath) => ipcRenderer.invoke('files:ensure-dir', dirPath),

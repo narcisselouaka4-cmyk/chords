@@ -58,6 +58,11 @@ import {
   testAIConfig,
   loadSecureAIConfig,
   PRESETS,
+  EXTERNAL_PROVIDER_LINKS,
+  listSavedKeys,
+  saveNamedKey,
+  activateSavedKey,
+  deleteSavedKey,
 } from './ai/openai-config.js';
 import {
   getMonthlyCap,
@@ -283,15 +288,16 @@ const els = {
 
   // [Claude] — 2026-07-04 — Paramètres API IA
   // [Claude] — 2026-10-13 — Le bouton de clé API a quitté l'en-tête : il s'ouvre depuis Réglages.
+  // [Claude] — 2026-10-19 — Plus de fenêtre séparée (#ai-settings-modal, #ai-preset, #ai-cancel-btn) :
+  // app-settings-ai-btn déplie maintenant #ai-key-panel sur la même page (voir initAISettings).
   aiSettingsToggle: document.getElementById('app-settings-ai-btn'),
-  aiSettingsModal: document.getElementById('ai-settings-modal'),
-  aiPreset: document.getElementById('ai-preset'),
+  aiKeyPanel: document.getElementById('ai-key-panel'),
+  aiKeyLabel: document.getElementById('ai-key-label'),
   aiBaseUrl: document.getElementById('ai-base-url'),
   aiApiKey: document.getElementById('ai-api-key'),
   aiModel: document.getElementById('ai-model'),
   aiTestBtn: document.getElementById('ai-test-btn'),
   aiSaveBtn: document.getElementById('ai-save-btn'),
-  aiCancelBtn: document.getElementById('ai-cancel-btn'),
   aiTestResult: document.getElementById('ai-test-result'),
   aiMonthlyCap: document.getElementById('ai-monthly-cap'),
   aiUsage: document.getElementById('ai-usage'),
@@ -2991,22 +2997,53 @@ function checkPracticeExercise(notes) {
 
 // [Claude] — 2026-07-04 — Initialisation du panneau de configuration API IA
 // [Refonte 2026-09-02] — Chiffrement safeStorage + plafond mensuel réel.
+// [Claude] — 2026-10-19 — Refonte complète (Narcisse) :
+//   1. Plus de fenêtre à part : un accordéon (#ai-key-panel) qui se déroule sur la page Réglages,
+//      ouvert/fermé par app-settings-ai-btn (voir initAppSettings pour la coordination d'ouverture
+//      depuis app-open-ai-settings, déclenché par le Copilote).
+//   2. Clés enregistrées : un <select> qui liste les profils déjà sauvegardés (openai-config.js,
+//      listSavedKeys/saveNamedKey/activateSavedKey/deleteSavedKey) — plus besoin de retaper une clé.
+//   3. Fournisseurs présélectionnés avec un vrai bouton « Générer une clé » vers la page du
+//      fournisseur (PRESETS.genUrl, EXTERNAL_PROVIDER_LINKS pour Claude/autres non pré-remplis).
 function initAISettings() {
-  const modal = els.aiSettingsModal;
-  if (!modal) return;
+  const toggle = els.aiSettingsToggle;
+  const panel = els.aiKeyPanel;
+  if (!toggle || !panel) return;
+
+  const providerGrid = document.getElementById('ai-provider-grid');
+  const savedWrap = document.getElementById('ai-saved-keys-wrap');
+  const savedSelect = document.getElementById('ai-saved-keys');
+  const savedDelete = document.getElementById('ai-saved-key-delete');
+
+  function openExternal(url) {
+    if (window.electronAPI?.openExternal) window.electronAPI.openExternal(url);
+    else window.open(url, '_blank', 'noopener');
+  }
+
+  function setExpanded(expanded) {
+    toggle.setAttribute('aria-expanded', String(expanded));
+    panel.hidden = !expanded;
+    // [Claude] — 2026-10-19 — .is-open pilote l'animation grid-template-rows (theme.css) ;
+    // posée APRÈS un reflow pour que le navigateur anime bien depuis 0fr (sinon, retirer `hidden`
+    // et poser la classe dans le même tick saute l'état de départ, donc l'animation).
+    if (expanded) requestAnimationFrame(() => panel.classList.add('is-open'));
+    else panel.classList.remove('is-open');
+  }
 
   async function loadConfigIntoUI() {
     const cfg = await loadSecureAIConfig();
     if (els.aiBaseUrl) els.aiBaseUrl.value = cfg.baseUrl;
     if (els.aiApiKey) els.aiApiKey.value = cfg.apiKey;
     if (els.aiModel) els.aiModel.value = cfg.model;
+    if (els.aiKeyLabel) els.aiKeyLabel.value = '';
     if (els.aiMonthlyCap) els.aiMonthlyCap.value = String(getMonthlyCap());
     if (els.aiUsage) els.aiUsage.textContent = `${getMonthlyUsage()} / ${getMonthlyCap()} ce mois`;
-    if (els.aiPreset) els.aiPreset.value = '';
     if (els.aiTestResult) {
       els.aiTestResult.textContent = '';
       els.aiTestResult.className = 'ai-test-result';
     }
+    highlightActiveProvider();
+    renderSavedKeys();
   }
 
   function gatherConfigFromUI() {
@@ -3018,43 +3055,119 @@ function initAISettings() {
     };
   }
 
-  function openAIModal() {
-    loadConfigIntoUI();
-    modal.hidden = false;
-    modal.style.display = 'flex';
-    modal.setAttribute('aria-hidden', 'false');
-    document.body.classList.add('tr-dialog-open');
+  function highlightActiveProvider() {
+    if (!providerGrid) return;
+    const current = (els.aiBaseUrl?.value || '').trim();
+    providerGrid.querySelectorAll('.ai-provider-card[data-base-url]').forEach((card) => {
+      card.classList.toggle('is-active', card.dataset.baseUrl === current);
+    });
   }
 
-  function closeAIModal() {
-    modal.hidden = true;
-    modal.style.display = 'none';
-    modal.setAttribute('aria-hidden', 'true');
-    document.body.classList.remove('tr-dialog-open');
+  // ---- Fournisseurs présélectionnés — « proposer des clés préexistantes » ----
+  function renderProviders() {
+    if (!providerGrid) return;
+    providerGrid.innerHTML = '';
+    for (const preset of PRESETS) {
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'ai-provider-card';
+      card.dataset.baseUrl = preset.baseUrl;
+      const name = document.createElement('span');
+      name.className = 'ai-provider-card-name';
+      name.textContent = preset.name;
+      const blurb = document.createElement('span');
+      blurb.className = 'ai-provider-card-blurb';
+      blurb.textContent = preset.blurb || '';
+      card.append(name, blurb);
+      card.addEventListener('click', () => {
+        if (els.aiBaseUrl) els.aiBaseUrl.value = preset.baseUrl;
+        if (els.aiModel) els.aiModel.value = preset.models[0] || '';
+        highlightActiveProvider();
+        els.aiApiKey?.focus();
+      });
+      if (preset.genUrl) {
+        const genBtn = document.createElement('button');
+        genBtn.type = 'button';
+        genBtn.className = 'ai-provider-card-gen';
+        genBtn.textContent = 'Générer une clé →';
+        genBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openExternal(preset.genUrl);
+        });
+        card.appendChild(genBtn);
+      }
+      providerGrid.appendChild(card);
+    }
+    // Fournisseurs sans préréglage utilisable ici (schéma d'appel différent) : juste un lien vers
+    // leur page de clé, l'utilisateur configure l'adresse lui-même ci-dessous (« Personnalisé »).
+    for (const ext of EXTERNAL_PROVIDER_LINKS) {
+      const card = document.createElement('div');
+      card.className = 'ai-provider-card';
+      const name = document.createElement('span');
+      name.className = 'ai-provider-card-name';
+      name.textContent = ext.name;
+      const blurb = document.createElement('span');
+      blurb.className = 'ai-provider-card-blurb';
+      blurb.textContent = 'Configuration manuelle ci-dessous';
+      const genBtn = document.createElement('button');
+      genBtn.type = 'button';
+      genBtn.className = 'ai-provider-card-gen';
+      genBtn.textContent = 'Générer une clé →';
+      genBtn.addEventListener('click', () => openExternal(ext.genUrl));
+      card.append(name, blurb, genBtn);
+      providerGrid.appendChild(card);
+    }
   }
 
-  els.aiSettingsToggle?.addEventListener('click', openAIModal);
+  // ---- Clés enregistrées — « sélectionner une clé au lieu de la retaper » ----
+  function renderSavedKeys() {
+    if (!savedSelect || !savedWrap) return;
+    const keys = listSavedKeys();
+    savedWrap.hidden = keys.length === 0;
+    const current = savedSelect.value;
+    savedSelect.innerHTML = '';
+    const emptyOpt = document.createElement('option');
+    emptyOpt.value = '';
+    emptyOpt.textContent = '— Nouvelle clé —';
+    savedSelect.appendChild(emptyOpt);
+    for (const k of keys) {
+      const opt = document.createElement('option');
+      opt.value = k.id;
+      opt.textContent = k.label;
+      savedSelect.appendChild(opt);
+    }
+    savedSelect.value = keys.some((k) => k.id === current) ? current : '';
+    if (savedDelete) savedDelete.hidden = !savedSelect.value;
+  }
 
-  document.addEventListener('app-open-ai-settings', openAIModal);
-
-  els.aiCancelBtn?.addEventListener('click', closeAIModal);
-
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) closeAIModal();
+  savedSelect?.addEventListener('change', async () => {
+    const id = savedSelect.value;
+    if (savedDelete) savedDelete.hidden = !id;
+    if (!id) return;
+    try {
+      const cfg = await activateSavedKey(id);
+      if (els.aiBaseUrl) els.aiBaseUrl.value = cfg.baseUrl;
+      if (els.aiApiKey) els.aiApiKey.value = cfg.apiKey;
+      if (els.aiModel) els.aiModel.value = cfg.model;
+      highlightActiveProvider();
+      setStatus(`Clé « ${savedSelect.selectedOptions[0]?.textContent || ''} » activée`);
+    } catch (err) {
+      setStatus(err.message);
+    }
   });
 
-  els.aiPreset?.addEventListener('change', () => {
-    const key = els.aiPreset.value;
-    const preset = PRESETS.find((p) => {
-      if (key === 'groq' && p.name.includes('Groq')) return true;
-      if (key === 'openrouter' && p.name.includes('OpenRouter')) return true;
-      if (key === 'gemini' && p.name.includes('Google AI Studio')) return true;
-      return false;
-    });
-    if (preset) {
-      if (els.aiBaseUrl) els.aiBaseUrl.value = preset.baseUrl;
-      if (els.aiModel) els.aiModel.value = preset.models[0] || '';
-    }
+  savedDelete?.addEventListener('click', () => {
+    const id = savedSelect?.value;
+    if (!id) return;
+    deleteSavedKey(id);
+    renderSavedKeys();
+    setStatus('Clé enregistrée supprimée.');
+  });
+
+  toggle.addEventListener('click', () => {
+    const expanded = toggle.getAttribute('aria-expanded') === 'true';
+    if (!expanded) loadConfigIntoUI();
+    setExpanded(!expanded);
   });
 
   els.aiTestBtn?.addEventListener('click', async () => {
@@ -3076,9 +3189,20 @@ function initAISettings() {
     const cfg = await saveAIConfig(gathered);
     setMonthlyCap(gathered.monthlyCap);
     if (els.aiUsage) els.aiUsage.textContent = `${getMonthlyUsage()} / ${getMonthlyCap()} ce mois`;
+    if (gathered.apiKey) {
+      await saveNamedKey({
+        label: els.aiKeyLabel?.value,
+        baseUrl: gathered.baseUrl,
+        apiKey: gathered.apiKey,
+        model: gathered.model,
+      });
+      renderSavedKeys();
+    }
+    highlightActiveProvider();
     setStatus(`Paramètres IA enregistrés (${cfg.model})`);
-    closeAIModal();
   });
+
+  renderProviders();
 }
 
 // [Régression 2026-09-06] — Chaque initialisation est blindée individuellement :
@@ -3273,6 +3397,17 @@ function initKeyboardCollapse() {
 
 // [Refonte] — Paramètres de l'application (rouage de l'en-tête). Distinct du
 // modal 🔑 qui ne concerne que la clé API de l'assistant IA.
+// [Claude] — 2026-10-19 — Narcisse : « il faut qu'il y ait une page qui s'ouvre, et plus une
+// fenêtre temporaire qui floute tout ce qui entoure ». Réglages (#app-settings-modal) a quitté
+// .modal-overlay pour .app-settings-page, un enfant flex de #app positionné entre les trois
+// onglets et le clavier virtuel (index.html) : elle occupe donc exactement le même espace qu'un
+// onglet, sans jamais recouvrir ni dépasser le clavier. Pour que cet espace lui revienne, l'onglet
+// actif doit être masqué pendant que Réglages est ouverte — sinon les deux s'empileraient. On le
+// fait ici plutôt que via applyTabVisibility (tab-visibility.js) : Réglages n'est pas un onglet de
+// navigation (pas de bouton dans #tab-nav, pas de TAB_NAMES), juste une page qui emprunte
+// temporairement son emplacement.
+const APP_SETTINGS_TAB_IDS = ['practice-tab', 'analysis-tab', 'studio-tab'];
+
 function initAppSettings() {
   const modal = document.getElementById('app-settings-modal');
   const toggle = document.getElementById('app-settings-toggle');
@@ -3280,23 +3415,52 @@ function initAppSettings() {
   const dialog = modal?.querySelector('[role="dialog"]');
   if (!modal || !toggle) return;
   let previousFocus = null;
+  let hiddenTabEl = null;
+
   const close = (restoreFocus = true) => {
     modal.style.display = 'none';
     toggle.setAttribute('aria-expanded', 'false');
+    if (hiddenTabEl) {
+      hiddenTabEl.style.removeProperty('display');
+      hiddenTabEl = null;
+    }
     if (restoreFocus && previousFocus?.isConnected) previousFocus.focus();
+  };
+
+  // [Claude] — 2026-10-19 — Point d'entrée unique, réutilisé par le bouton d'en-tête ET par
+  // app-open-ai-settings (Copilote : « Ouvrir les réglages » sur l'écran « pas de clé ») — ce
+  // dernier ouvre directement sur la clé API, en dépliant l'accordéon (app-settings-ai-btn,
+  // géré par initAISettings) plutôt que par une fenêtre séparée désormais inexistante.
+  const open = ({ focusAI = false } = {}) => {
+    previousFocus = document.activeElement;
+    const activeTab = APP_SETTINGS_TAB_IDS
+      .map((id) => document.getElementById(id))
+      .find((el) => el && el.style.display !== 'none');
+    if (activeTab) {
+      activeTab.style.display = 'none';
+      hiddenTabEl = activeTab;
+    }
+    modal.style.display = 'flex';
+    toggle.setAttribute('aria-expanded', 'true');
+    dialog?.focus();
+    if (focusAI) {
+      requestAnimationFrame(() => {
+        const aiToggle = document.getElementById('app-settings-ai-btn');
+        if (aiToggle && aiToggle.getAttribute('aria-expanded') !== 'true') aiToggle.click();
+        aiToggle?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      });
+    }
   };
 
   toggle.setAttribute('aria-haspopup', 'dialog');
   toggle.setAttribute('aria-expanded', 'false');
-  toggle.addEventListener('click', () => {
-    previousFocus = document.activeElement;
-    modal.style.display = 'flex';
-    toggle.setAttribute('aria-expanded', 'true');
-    dialog?.focus();
-  });
-  // La clé API s'ouvre depuis Réglages (fenêtre à part) : Réglages se ferme derrière elle.
-  document.getElementById('app-settings-ai-btn')?.addEventListener('click', () => {
-    close(false);
+  toggle.addEventListener('click', () => open());
+  document.addEventListener('app-open-ai-settings', () => open({ focusAI: true }));
+  // [Claude] — 2026-10-19 — Émis par switchToTab (main.js) à chaque navigation : Réglages se
+  // ferme avant que l'onglet ciblé ne redevienne visible, sinon les deux se superposent (bug
+  // signalé par Narcisse : « je clique Réglages, puis Analyse — c'est là que ça casse »).
+  document.addEventListener('app-settings-force-close', () => {
+    if (modal.style.display === 'flex') close(false);
   });
   closeButton?.addEventListener('click', () => close());
   document.getElementById('app-settings-dismiss')?.addEventListener('click', () => close());
@@ -3331,6 +3495,14 @@ function initTabNavigation() {
   const studioTab = document.getElementById('studio-tab');
 
   function switchToTab(tab) {
+    // [Claude] — 2026-10-19 — Bug signalé par Narcisse : cliquer un bouton de navigation
+    // (Analyse, Studio…) PENDANT que Réglages est ouverte rendait l'onglet visible
+    // (applyTabVisibility ci-dessous) sans jamais fermer Réglages — les deux se
+    // retrouvaient visibles en même temps, chacun flex:1, se partageant l'espace au lieu
+    // de l'un remplaçant l'autre. switchToTab est le point de passage unique de toute
+    // navigation (clic direct sur #tab-nav ET évènement app-switch-tab) : Réglages
+    // écoute ce signal pour se fermer avant que l'onglet ne redevienne visible.
+    document.dispatchEvent(new CustomEvent('app-settings-force-close'));
     applyTabVisibility({
       practice: practiceTab,
       analysis: analysisTab,

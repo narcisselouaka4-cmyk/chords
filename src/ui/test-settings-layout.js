@@ -16,11 +16,26 @@ let passed = 0;
 function check(label, ok) {
   if (ok) { passed += 1; console.log(`✅ ${label}`); } else { failed += 1; console.error(`❌ ${label}`); }
 }
+// [Claude] — 2026-10-19 — Réglages est devenue une page pleine (plus une fenêtre flottante +
+// une fenêtre à part #ai-settings-modal, retirée) : la borne de fin se trouve maintenant par
+// équilibrage de balises <div> depuis #app-settings-modal, plutôt que par un second id marqueur
+// qui n'existe plus.
+const settingsStart = html.indexOf('id="app-settings-modal"');
+const settingsOpenTag = html.lastIndexOf('<div', settingsStart);
+const settingsEnd = (() => {
+  const tagRegex = /<\/?div\b[^>]*>/g;
+  tagRegex.lastIndex = settingsOpenTag;
+  let depth = 0;
+  let m;
+  while ((m = tagRegex.exec(html)) !== null) {
+    depth += m[0].startsWith('</') ? -1 : 1;
+    if (depth === 0) return m.index;
+  }
+  throw new Error('Fermeture de #app-settings-modal introuvable');
+})();
 const inSettings = (id) => {
-  const a = html.indexOf('id="app-settings-modal"');
-  const b = html.indexOf('id="ai-settings-modal"');
   const at = html.indexOf(`id="${id}"`);
-  return at > a && at < b;
+  return at > settingsStart && at < settingsEnd;
 };
 
 check('Plus de pied de page', !html.includes('<footer class="app-footer">'));

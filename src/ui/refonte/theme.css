@@ -726,7 +726,55 @@
   margin: 0;
 }
 
-/* ---- Fenêtres modales (Paramètres, Ma bibliothèque, clé API) ---- */
+/* ---- Réglages : page pleine, plus une fenêtre flottante (19/10) ---- */
+/* [Claude] — 2026-10-19 — Narcisse : « il faut qu'il y ait une page qui
+   s'ouvre, et plus une fenêtre temporaire qui floute tout ce qui entoure.
+   Il faut agrandir cette fenêtre pour que ça fasse comme une vraie page,
+   mais qui s'arrête au clavier MIDI virtuel en bas, sans le dépasser. »
+   #app-settings-modal a quitté .modal-overlay pour .app-settings-page : un
+   enfant flex de #app au même titre que les trois onglets (déplacé dans
+   index.html, juste avant #keyboard-panel). initAppSettings (main.js)
+   masque l'onglet actif à l'ouverture et le restaure à la fermeture — la
+   page prend donc exactement le même espace, sous l'en-tête et au-dessus du
+   clavier, sans jamais le recouvrir. display: flex/none reste posé en ligne
+   par JS, comme avant ; seules les propriétés structurelles vivent ici. */
+:root[data-skin] .app-settings-page {
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  background: var(--r-ground);
+  overflow: hidden;
+}
+
+:root[data-skin] .app-settings-page .app-settings-box {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 28px 32px 48px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+:root[data-skin] .app-settings-page .app-settings-box h3 {
+  font-family: var(--r-font-title);
+  font-size: 1.4rem;
+  font-weight: 800;
+  margin: 0;
+}
+
+:root[data-skin] .app-settings-page .app-settings-heading {
+  padding-bottom: 16px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--r-border);
+}
+
+/* ---- Fenêtres modales restantes (Ma bibliothèque, confirmations) ---- */
 :root[data-skin] .modal-overlay {
   background: var(--r-overlay);
   backdrop-filter: blur(3px);
@@ -878,8 +926,10 @@
 }
 
 /* [Claude] — 2026-10-13 — Réglages › Clavier et MIDI : lignes « intitulé / réglage / note » (ce qui
-   était dans le pied de page de l'application, retiré). */
-.app-settings-box { width: min(520px, 92vw); max-height: min(88vh, calc(100dvh - 32px)); overflow-y: auto; overscroll-behavior: contain; }
+   était dans le pied de page de l'application, retiré).
+   [Claude] — 2026-10-19 — Taille/scroll de .app-settings-box déplacés plus haut
+   (règle « Réglages : page pleine ») : c'est maintenant la page entière, plus
+   une petite fenêtre centrée à largeur fixe. */
 .app-settings-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
 .app-settings-heading h3 { margin: 0; }
 #settings-app-keys[hidden] { display: none; }
@@ -901,6 +951,100 @@
 .settings-status { margin-top: 12px; min-height: 0; font-size: 0.72rem; color: var(--r-text-muted, var(--muted)); }
 .settings-status:empty { display: none; }
 .settings-note #midi-status-text, .settings-note #midi-port-count { font: inherit; color: inherit; margin: 0; }
+
+/* ---- Assistant IA : accordéon inline (19/10) ---- */
+/* [Claude] — 2026-10-19 — Narcisse : « un bouton sur la même page qui,
+   lorsqu'on clique dessus, déroule les clés API et toutes les
+   fonctionnalités associées du haut vers le bas ». Remplace l'ancienne
+   fenêtre à part #ai-settings-modal. Le panneau anime sa hauteur avec la
+   technique grid-template-rows 0fr → 1fr (le seul enfant .ai-key-panel-inner
+   est l'élément mesurable) ; `hidden` reste la source de vérité pour le
+   clavier et les lecteurs d'écran, la classe .is-open ne pilote que
+   l'animation (posée par JS en même temps que l'attribut). */
+.ai-key-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 16px;
+  margin-top: 10px;
+  border: 1px solid var(--r-border-strong, var(--panel-border));
+  border-radius: var(--r-radius-btn, 8px);
+  background: var(--r-surface-chip, transparent);
+  color: var(--r-text, inherit);
+  font-family: var(--r-font-body, inherit);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.ai-key-toggle:hover { border-color: var(--r-accent, var(--accent)); }
+.ai-key-toggle-caret { flex: none; transition: transform 0.2s ease; }
+.ai-key-toggle[aria-expanded='true'] .ai-key-toggle-caret { transform: rotate(180deg); }
+
+.ai-key-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.28s ease;
+}
+.ai-key-panel.is-open { grid-template-rows: 1fr; }
+.ai-key-panel-inner {
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-key-panel { transition: none; }
+}
+
+.ai-saved-keys-row { display: flex; align-items: center; gap: 8px; }
+.ai-saved-keys-row select { flex: 1; min-width: 0; }
+.ai-saved-keys-row .tr-icon-button { flex: none; }
+
+/* Fournisseurs présélectionnés — clés gratuites mises en avant (Narcisse). */
+.ai-provider-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 8px;
+  margin-top: 17px;
+}
+.ai-provider-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 11px 12px;
+  border: 1px solid var(--r-border-strong, var(--panel-border));
+  border-radius: var(--r-radius-btn, 8px);
+  background: var(--r-surface-chip, transparent);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.ai-provider-card:hover, .ai-provider-card:focus-visible { border-color: var(--r-accent, var(--accent)); }
+.ai-provider-card.is-active { border-color: var(--r-accent, var(--accent)); background: var(--r-accent-soft, var(--accent-soft)); }
+.ai-provider-card-name { font-size: 0.82rem; font-weight: 700; color: var(--r-text, inherit); }
+.ai-provider-card-blurb { font-size: 0.7rem; color: var(--r-text-muted, var(--muted)); line-height: 1.4; }
+.ai-provider-card-gen {
+  margin-top: 4px;
+  padding: 4px 9px;
+  border: 1px solid var(--r-border-strong, var(--panel-border));
+  border-radius: 100px;
+  background: transparent;
+  color: var(--r-accent, var(--accent));
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ai-provider-card-gen:hover { background: var(--r-accent-soft, var(--accent-soft)); }
+
+/* Le détail des champs (.ai-form-grid, .ai-form-field, .ai-form-section,
+   .ai-form-trust…) vit dans analyse.css, rescopé de l'ancien #ai-settings-modal
+   vers #ai-key-panel — c'est la même habilllage Astra qu'avant, inchangé. */
+.ai-key-actions { display: flex; justify-content: flex-end; margin-top: 20px; }
 
 /* [Claude] — 2026-10-13 — Barre de recherche des bibliothèques sans toolbar Astra (Studio, Analyse). */
 .library-search {

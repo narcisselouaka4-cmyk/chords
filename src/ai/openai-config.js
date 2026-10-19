@@ -213,20 +213,129 @@ export async function testAIConfig(config) {
   return await res.json();
 }
 
+// [Claude] — 2026-10-19 — `genUrl` et `blurb` : Narcisse, Réglages › Assistant IA — « proposer des
+// clés API préexistantes ou présélectionnées ». genUrl pointe vers la page où générer une clé
+// gratuite chez le fournisseur (ouverte dans le navigateur système, pas dans l'app) ; blurb est la
+// phrase courte affichée sur la carte. OpenAI est ajouté : son API /chat/completions est au même
+// format que Groq/OpenRouter/Google (Authorization: Bearer, même schéma JSON) — compatible sans
+// code supplémentaire, contrairement à l'API native d'Anthropic (schéma différent, voir note plus
+// bas) qui reste donc hors de cette liste, à configurer manuellement en « Personnalisé ».
 export const PRESETS = [
   {
-    name: 'Groq (gratuit, rapide)',
+    name: 'Groq',
+    blurb: 'Gratuit, rapide',
     baseUrl: 'https://api.groq.com/openai/v1',
     models: ['openai/gpt-oss-20b', 'openai/gpt-oss-120b', 'llama-3.3-70b-versatile'],
+    genUrl: 'https://console.groq.com/keys',
   },
   {
-    name: 'OpenRouter (multi-modèles gratuits)',
+    name: 'OpenRouter',
+    blurb: 'Multi-modèles gratuits',
     baseUrl: 'https://openrouter.ai/api/v1',
     models: ['meta-llama/llama-3.1-8b-instruct:free', 'google/gemini-flash-1.5:free'],
+    genUrl: 'https://openrouter.ai/keys',
   },
   {
-    name: 'Google AI Studio (Gemini Flash)',
+    name: 'Google AI Studio',
+    blurb: 'Gemini Flash, gratuit',
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
     models: ['gemini-1.5-flash', 'gemini-1.5-flash-8b'],
+    genUrl: 'https://aistudio.google.com/apikey',
+  },
+  {
+    name: 'OpenAI',
+    blurb: 'Payant, large choix de modèles',
+    baseUrl: 'https://api.openai.com/v1',
+    models: ['gpt-4o-mini', 'gpt-4o'],
+    genUrl: 'https://platform.openai.com/api-keys',
   },
 ];
+
+// Fournisseur sans préréglage utilisable ici (schéma d'appel différent de
+// /chat/completions) : seul un lien vers sa page de clé est proposé, pour que
+// l'utilisateur configure lui-même une adresse compatible s'il en connaît une
+// (Narcisse : « ils configurent eux-mêmes leur clé avec Claude, ChatGPT, etc. »).
+export const EXTERNAL_PROVIDER_LINKS = [
+  { name: 'Anthropic (Claude)', genUrl: 'https://console.anthropic.com/settings/keys' },
+];
+
+// ── Clés enregistrées (plusieurs profils, un seul actif à la fois) ─────────
+// [Claude] — 2026-10-19 — Narcisse : « il faut un bouton qui permette de voir
+// toutes les clés enregistrées et d'en sélectionner une dans la liste. C'est
+// trop long de devoir retaper une clé ». Stockage séparé de la config active
+// (STORAGE_KEY ci-dessus, inchangée) : une liste de profils {id, label,
+// baseUrl, apiKey chiffrée, model}. Activer un profil ne fait que (re)poser
+// la config active avec ses valeurs — aucun code existant (ai-client.js,
+// masterclass-panel.js, pedagogie-tab.js…) n'a besoin de changer.
+const KEYS_LIST_STORAGE_KEY = 'piano-jazz-ai-keys';
+
+function getKeysListRaw() {
+  if (!isBrowser()) return [];
+  try {
+    const raw = localStorage.getItem(KEYS_LIST_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function setKeysListRaw(list) {
+  if (!isBrowser()) return;
+  try {
+    localStorage.setItem(KEYS_LIST_STORAGE_KEY, JSON.stringify(list));
+  } catch (_) { /* ignore */ }
+}
+
+function labelForBaseUrl(baseUrl) {
+  const preset = PRESETS.find((p) => p.baseUrl === baseUrl);
+  if (preset) return preset.name;
+  try {
+    return new URL(baseUrl).hostname;
+  } catch (_) {
+    return baseUrl || 'Fournisseur personnalisé';
+  }
+}
+
+/**
+ * Liste des profils enregistrés, SANS déchiffrer les clés (un simple survol
+ * de la liste n'a pas besoin du secret — il n'est lu qu'à l'activation).
+ */
+export function listSavedKeys() {
+  return getKeysListRaw().map(({ id, label, baseUrl, model }) => ({ id, label, baseUrl, model }));
+}
+
+/**
+ * Enregistre un profil nommé. Une entrée existante avec le même baseUrl est
+ * mise à jour (un profil par fournisseur) plutôt que dupliquée.
+ */
+export async function saveNamedKey({ label, baseUrl, apiKey, model }) {
+  const cleanBaseUrl = baseUrl?.trim() || DEFAULTS.baseUrl;
+  const encryptedKey = await encryptApiKey(apiKey?.trim() || '');
+  const list = getKeysListRaw();
+  const existingIndex = list.findIndex((k) => k.baseUrl === cleanBaseUrl);
+  const entry = {
+    id: existingIndex >= 0 ? list[existingIndex].id : `key-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    label: label?.trim() || labelForBaseUrl(cleanBaseUrl),
+    baseUrl: cleanBaseUrl,
+    apiKey: encryptedKey,
+    model: model?.trim() || DEFAULTS.model,
+  };
+  if (existingIndex >= 0) list[existingIndex] = entry;
+  else list.push(entry);
+  setKeysListRaw(list);
+  return entry.id;
+}
+
+/** Active un profil enregistré : déchiffre sa clé et la pose comme config active. */
+export async function activateSavedKey(id) {
+  const entry = getKeysListRaw().find((k) => k.id === id);
+  if (!entry) throw new Error('Clé enregistrée introuvable.');
+  const apiKey = await decryptApiKey(entry.apiKey);
+  return saveAIConfig({ baseUrl: entry.baseUrl, apiKey, model: entry.model, monthlyCap: getAIConfig().monthlyCap });
+}
+
+export function deleteSavedKey(id) {
+  const list = getKeysListRaw().filter((k) => k.id !== id);
+  setKeysListRaw(list);
+}

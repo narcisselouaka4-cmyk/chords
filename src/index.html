@@ -1813,6 +1813,177 @@
         </aside>
       </main>
 
+      <!-- [Claude] — 2026-10-19 — Réglages : page pleine, pas une fenêtre flottante qui floute
+           le reste (Narcisse : « il faut qu'il y ait une page qui s'ouvre »). Déplacée ici, entre
+           les trois onglets et le clavier virtuel : comme eux, c'est un enfant flex de #app, elle
+           occupe donc exactement le même emplacement (flex:1, sous l'en-tête, au-dessus du
+           clavier) sans jamais le recouvrir ni le dépasser. L'onglet actif est masqué pendant que
+           Réglages est ouvert (initAppSettings, main.js) et retrouve son affichage à la fermeture.
+           L'ancienne fenêtre séparée de la clé API (#ai-settings-modal) est retirée : son contenu
+           vit maintenant dans #ai-key-panel, un accordéon qui se déroule sur cette même page. -->
+      <div class="app-settings-page" id="app-settings-modal" style="display: none;">
+        <div class="app-settings-box" role="dialog" aria-modal="true" aria-labelledby="app-settings-title" tabindex="-1">
+          <div class="app-settings-heading">
+            <h3 id="app-settings-title">Réglages</h3>
+            <button type="button" class="tr-icon-button" id="app-settings-dismiss" aria-label="Fermer les réglages">✕</button>
+          </div>
+
+          <div class="settings-section" id="settings-appearance">
+            <h4 class="settings-section-title">Apparence</h4>
+            <!-- [Claude] — 2026-10-13 — Couleur générale de l'application (accent-theme.js) : toutes les
+                 familles de variables de couleur en dérivent. -->
+            <div class="appearance-field" id="settings-accent">
+              <span>Couleur de l'application</span>
+              <div class="accent-presets" id="accent-presets" role="group" aria-label="Couleur de l'application"></div>
+              <label class="accent-custom"><span>Autre couleur…</span><input type="color" id="accent-custom" value="#9b7bf0" aria-label="Choisir une autre couleur pour l'application" /></label>
+            </div>
+            <!-- [Claude] — 2026-10-13 — Ce que joue l'application (touches allumées par les exemples, démos,
+                 relectures) suit la couleur de l'application, sauf choix personnel (pastille « L'app »). -->
+            <div class="appearance-field" id="settings-app-keys">
+              <span>Ce que joue l'application</span>
+              <button type="button" class="accent-reset" id="app-key-color-reset" hidden>Suivre la couleur de l'application</button>
+            </div>
+            <div class="appearance-field">
+              <span>Habillage de l'application</span>
+              <div class="skin-segmented" id="skin-selector" role="group" aria-label="Habillage de l'application">
+                <button type="button" data-skin-value="global" aria-pressed="true">Atelier</button>
+                <button type="button" data-skin-value="v2" aria-pressed="false">Scène</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- [Claude] — 2026-10-13 — Clavier et MIDI : ce qui était sous le clavier virtuel (ports
+               d'entrée et de sortie, couleur des notes, état) et la tolérance. Mêmes id= qu'avant :
+               main.js n'a rien à changer. -->
+          <div class="settings-section" id="settings-midi">
+            <h4 class="settings-section-title">Clavier et MIDI</h4>
+            <div class="settings-rows">
+              <div class="settings-row">
+                <label for="midi-select">Entrée MIDI</label>
+                <div class="settings-control">
+                  <select id="midi-select" data-last-count="0"></select>
+                  <button type="button" id="midi-refresh" title="Rafraîchir les périphériques MIDI" aria-label="Rafraîchir les périphériques MIDI">↻</button>
+                </div>
+                <small class="settings-note"><span id="midi-status-text">Aucun</span> <span id="midi-port-count">(0)</span></small>
+              </div>
+              <div class="settings-row">
+                <label for="midi-output-select">Sortie MIDI</label>
+                <div class="settings-control">
+                  <select id="midi-output-select" title="Où jouent la démo et « Écouter » : piano intégré, ou un port MIDI (ton VST)">
+                    <option value="">Piano intégré</option>
+                  </select>
+                </div>
+              </div>
+              <div class="settings-row">
+                <label for="tolerance">Tolérance (ms)</label>
+                <div class="settings-control">
+                  <input type="number" id="tolerance" value="200" min="50" max="500" step="10" />
+                </div>
+              </div>
+            </div>
+            <div class="settings-status" id="status-bar" role="status" aria-live="polite"></div>
+          </div>
+
+          <!-- [Claude] — 2026-10-19 — Assistant IA : accordéon inline (Narcisse : « un bouton sur la
+               même page qui, lorsqu'on clique dessus, déroule les clés API et toutes les
+               fonctionnalités associées du haut vers le bas »). Remplace l'ancienne fenêtre à part
+               #ai-settings-modal ; mêmes id= pour les champs manuels (ai-base-url, ai-model,
+               ai-api-key, ai-test-btn, ai-save-btn), initAISettings() dans main.js. -->
+          <div class="settings-section" id="settings-ai">
+            <h4 class="settings-section-title">Assistant IA</h4>
+            <p class="settings-note ai-key-intro">Zic fonctionne sans clé. Une clé API personnelle permet d'aller plus loin : poser une question libre ou approfondir une explication. <strong>Vous payez votre propre consommation.</strong></p>
+
+            <button type="button" class="ai-key-toggle" id="app-settings-ai-btn" aria-expanded="false" aria-controls="ai-key-panel">
+              <span>Clé API et fournisseurs</span>
+              <svg class="ai-key-toggle-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+            </button>
+
+            <!-- [Claude] — 2026-10-19 — Déploiement du haut vers le bas (Narcisse) : .ai-key-panel
+                 est la piste de l'accordéon (grid-template-rows 0fr → 1fr, voir theme.css) ;
+                 .ai-key-panel-inner est l'unique enfant mesurable qui porte le vrai contenu — la
+                 technique CSS n'anime proprement qu'avec un seul enfant de ce type. -->
+            <div class="ai-key-panel" id="ai-key-panel" hidden>
+             <div class="ai-key-panel-inner">
+              <!-- [Claude] — 2026-10-19 — Clés déjà enregistrées : plus besoin de retaper une clé
+                   déjà renseignée. Masqué tant qu'aucune clé n'est enregistrée. -->
+              <div class="ai-saved-keys" id="ai-saved-keys-wrap" hidden>
+                <label class="tr-form-field ai-form-field">
+                  <span>Clés enregistrées</span>
+                  <div class="ai-saved-keys-row">
+                    <select id="ai-saved-keys">
+                      <option value="">— Nouvelle clé —</option>
+                    </select>
+                    <button type="button" class="tr-icon-button" id="ai-saved-key-delete" title="Supprimer cette clé enregistrée" aria-label="Supprimer cette clé enregistrée" hidden>🗑</button>
+                  </div>
+                </label>
+              </div>
+
+              <!-- [Claude] — 2026-10-19 — Fournisseurs présélectionnés, clés gratuites en premier
+                   (Narcisse : « proposer des clés API préexistantes ou présélectionnées »). Rempli
+                   par main.js depuis PRESETS (openai-config.js) ; chaque carte ouvre la page de
+                   génération de clé du fournisseur dans le navigateur système. -->
+              <div class="ai-provider-grid" id="ai-provider-grid" role="group" aria-label="Fournisseur"></div>
+
+              <div class="ai-form-grid">
+                <label class="tr-form-field ai-form-field">
+                  <span>Adresse de l'API</span>
+                  <input type="url" id="ai-base-url" placeholder="https://api.groq.com/openai/v1" />
+                </label>
+                <label class="tr-form-field ai-form-field">
+                  <span>Modèle</span>
+                  <input type="text" id="ai-model" placeholder="openai/gpt-oss-20b" />
+                </label>
+              </div>
+
+              <div class="ai-form-grid">
+                <label class="tr-form-field ai-form-field">
+                  <span>Nom (optionnel)</span>
+                  <input type="text" id="ai-key-label" placeholder="Ma clé Groq" />
+                </label>
+                <label class="tr-form-field ai-form-field">
+                  <span>Clé API</span>
+                  <input type="password" id="ai-api-key" placeholder="gsk_..." autocomplete="off" />
+                </label>
+              </div>
+
+              <div class="ai-form-test">
+                <button type="button" id="ai-test-btn" class="tr-button">Tester la connexion</button>
+                <span class="ai-test-result" id="ai-test-result"></span>
+              </div>
+
+              <div class="ai-form-section">
+                <span class="tr-eyebrow">Utilisation ce mois-ci</span>
+                <div class="ai-cap-row">
+                  <label class="tr-form-field ai-form-field ai-cap-field">
+                    <span>Plafond d'appels par mois</span>
+                    <input type="number" id="ai-monthly-cap" min="1" step="1" value="50" />
+                  </label>
+                  <span class="ai-usage" id="ai-usage">0 / 50 ce mois</span>
+                </div>
+                <p class="ai-form-hint">Zic compte les appels qu'il déclenche lui-même. Ce compteur ne mesure pas un coût réel : pour un montant en euros, seul le tableau de bord de votre fournisseur fait foi.</p>
+              </div>
+
+              <div class="ai-form-trust">
+                <span class="tr-eyebrow">Confidentialité</span>
+                <ul>
+                  <li>Votre clé reste sur cet ordinateur et est chiffrée quand c'est possible.</li>
+                  <li>Si l'IA ne répond pas ou si le plafond est atteint, Zic retombe sur ses fiches préécrites.</li>
+                </ul>
+              </div>
+
+              <div class="ai-key-actions">
+                <button type="button" id="ai-save-btn" class="tr-button tr-primary">Enregistrer cette clé</button>
+              </div>
+             </div>
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn-primary" id="app-settings-close">Fermer</button>
+          </div>
+        </div>
+      </div>
+
       <!-- [Refonte Astra 12/09] — Habillage du clavier MIDI, recopié de la
            maquette (classes vk-*). INTERDIT 2.1 RESPECTÉ : les touches ne sont
            PAS touchées. #keyboard-container reste rendu par
@@ -1959,172 +2130,6 @@
           <div id="analyzer-library-list"></div>
           <div class="modal-actions">
             <button type="button" class="btn-primary" id="library-close">Fermer</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- [Refonte] — Paramètres de l'application, ouverts par le rouage de
-           l'en-tête. Séparés des réglages de clé API (🔑), qui restent à part :
-           ici vivent les préférences générales, à commencer par l'apparence.
-           Une seule section aujourd'hui, mais le modal est fait pour en
-           accueillir d'autres sans changer sa structure. -->
-      <div class="modal-overlay" id="app-settings-modal" style="display: none;">
-        <div class="modal-box app-settings-box" role="dialog" aria-modal="true" aria-labelledby="app-settings-title" tabindex="-1">
-          <div class="app-settings-heading">
-            <h3 id="app-settings-title">Réglages</h3>
-            <button type="button" class="tr-icon-button" id="app-settings-dismiss" aria-label="Fermer les réglages">✕</button>
-          </div>
-
-          <div class="settings-section" id="settings-appearance">
-            <h4 class="settings-section-title">Apparence</h4>
-            <!-- [Claude] — 2026-10-13 — Couleur générale de l'application (accent-theme.js) : toutes les
-                 familles de variables de couleur en dérivent. -->
-            <div class="appearance-field" id="settings-accent">
-              <span>Couleur de l'application</span>
-              <div class="accent-presets" id="accent-presets" role="group" aria-label="Couleur de l'application"></div>
-              <label class="accent-custom"><span>Autre couleur…</span><input type="color" id="accent-custom" value="#9b7bf0" aria-label="Choisir une autre couleur pour l'application" /></label>
-            </div>
-            <!-- [Claude] — 2026-10-13 — Ce que joue l'application (touches allumées par les exemples, démos,
-                 relectures) suit la couleur de l'application, sauf choix personnel (pastille « L'app »). -->
-            <div class="appearance-field" id="settings-app-keys">
-              <span>Ce que joue l'application</span>
-              <button type="button" class="accent-reset" id="app-key-color-reset" hidden>Suivre la couleur de l'application</button>
-            </div>
-            <div class="appearance-field">
-              <span>Habillage de l'application</span>
-              <div class="skin-segmented" id="skin-selector" role="group" aria-label="Habillage de l'application">
-                <button type="button" data-skin-value="global" aria-pressed="true">Atelier</button>
-                <button type="button" data-skin-value="v2" aria-pressed="false">Scène</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- [Claude] — 2026-10-13 — Clavier et MIDI : ce qui était sous le clavier virtuel (ports
-               d'entrée et de sortie, couleur des notes, état) et la tolérance. Mêmes id= qu'avant :
-               main.js n'a rien à changer. -->
-          <div class="settings-section" id="settings-midi">
-            <h4 class="settings-section-title">Clavier et MIDI</h4>
-            <div class="settings-rows">
-              <div class="settings-row">
-                <label for="midi-select">Entrée MIDI</label>
-                <div class="settings-control">
-                  <select id="midi-select" data-last-count="0"></select>
-                  <button type="button" id="midi-refresh" title="Rafraîchir les périphériques MIDI" aria-label="Rafraîchir les périphériques MIDI">↻</button>
-                </div>
-                <small class="settings-note"><span id="midi-status-text">Aucun</span> <span id="midi-port-count">(0)</span></small>
-              </div>
-              <div class="settings-row">
-                <label for="midi-output-select">Sortie MIDI</label>
-                <div class="settings-control">
-                  <select id="midi-output-select" title="Où jouent la démo et « Écouter » : piano intégré, ou un port MIDI (ton VST)">
-                    <option value="">Piano intégré</option>
-                  </select>
-                </div>
-              </div>
-              <div class="settings-row">
-                <label for="tolerance">Tolérance (ms)</label>
-                <div class="settings-control">
-                  <input type="number" id="tolerance" value="200" min="50" max="500" step="10" />
-                </div>
-              </div>
-            </div>
-            <div class="settings-status" id="status-bar" role="status" aria-live="polite"></div>
-          </div>
-
-          <!-- [Claude] — 2026-10-13 — La clé API de l'assistant IA a quitté l'en-tête : elle s'ouvre d'ici
-               (même fenêtre qu'avant, #ai-settings-modal). -->
-          <div class="settings-section" id="settings-ai">
-            <h4 class="settings-section-title">Assistant IA</h4>
-            <div class="settings-row">
-              <div class="settings-control">
-                <button type="button" class="btn-primary" id="app-settings-ai-btn">Clé API de l'assistant IA…</button>
-              </div>
-              <small class="settings-note">Zic fonctionne sans clé ; une clé personnelle active les réponses libres du Copilote.</small>
-            </div>
-          </div>
-
-          <div class="modal-actions">
-            <button type="button" class="btn-primary" id="app-settings-close">Fermer</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- [Refonte visuelle 2026-09-03] — Réglages › Assistant IA. Habillage v2/Global
-           du modal existant (fonctionnel depuis le 2026-07-04, chiffré safeStorage
-           depuis le 2026-09-02) : mêmes id=, même logique dans main.js
-           (initAISettings()), aucun changement fonctionnel ici — uniquement le
-           balisage et les classes, pour reprendre la structure du 5e bloc de la
-           maquette Analyse v2 (bloc de confiance, présentation de l'utilisation).
-           Écart assumé et non tranché seul : la maquette proposait les préréglages
-           Claude/OpenAI/Ollama/Autre, le code réel propose Groq/OpenRouter/Google AI
-           Studio/Personnalisé (fournisseurs gratuits) — liste réelle conservée telle
-           quelle, voir decouverte-analyse-deja-construite.md. -->
-      <!-- [Refonte Astra 12/09] — Paramètres de clé API : modale sobre, alignée
-           sur le design Astra (.tr-dialog, .tr-form-field, .tr-button). Les IDs
-           des champs et boutons sont conservés pour main.js. -->
-      <div class="tr-overlay" id="ai-settings-modal" style="display: none;" aria-hidden="true">
-        <div class="tr-dialog" role="dialog" aria-modal="true" aria-label="Paramètres de l’assistant IA">
-          <div class="tr-dialog-title"><h2>Assistant IA</h2>
-            <button class="tr-icon-button" type="button" id="ai-cancel-btn" aria-label="Fermer">✕</button>
-          </div>
-          <div class="tr-dialog-body ai-settings-body">
-            <p class="tr-dialog-description ai-settings-intro">Zic fonctionne sans clé. Une clé API personnelle permet d’aller plus loin : poser une question libre ou approfondir une explication. <strong>Vous payez votre propre consommation.</strong></p>
-
-            <label class="tr-form-field ai-form-field">
-              <span>Préréglage</span>
-              <select id="ai-preset">
-                <option value="" disabled selected>Choisir un fournisseur…</option>
-                <option value="groq">Groq (gratuit, rapide)</option>
-                <option value="openrouter">OpenRouter (multi-modèles gratuits)</option>
-                <option value="gemini">Google AI Studio (Gemini Flash)</option>
-                <option value="custom">Autre — compatible OpenAI</option>
-              </select>
-            </label>
-
-            <div class="ai-form-grid">
-              <label class="tr-form-field ai-form-field">
-                <span>Adresse de l’API</span>
-                <input type="url" id="ai-base-url" placeholder="https://api.groq.com/openai/v1" />
-              </label>
-              <label class="tr-form-field ai-form-field">
-                <span>Modèle</span>
-                <input type="text" id="ai-model" placeholder="openai/gpt-oss-20b" />
-              </label>
-            </div>
-
-            <label class="tr-form-field ai-form-field">
-              <span>Clé API</span>
-              <input type="password" id="ai-api-key" placeholder="gsk_..." autocomplete="off" />
-            </label>
-
-            <div class="ai-form-test">
-              <button type="button" id="ai-test-btn" class="tr-button">Tester la connexion</button>
-              <span class="ai-test-result" id="ai-test-result"></span>
-            </div>
-
-            <div class="ai-form-section">
-              <span class="tr-eyebrow">Utilisation ce mois-ci</span>
-              <div class="ai-cap-row">
-                <label class="tr-form-field ai-form-field ai-cap-field">
-                  <span>Plafond d’appels par mois</span>
-                  <input type="number" id="ai-monthly-cap" min="1" step="1" value="50" />
-                </label>
-                <span class="ai-usage" id="ai-usage">0 / 50 ce mois</span>
-              </div>
-              <p class="ai-form-hint">Zic compte les appels qu’il déclenche lui-même. Ce compteur ne mesure pas un coût réel : pour un montant en euros, seul le tableau de bord de votre fournisseur fait foi.</p>
-            </div>
-
-            <div class="ai-form-trust">
-              <span class="tr-eyebrow">Confidentialité</span>
-              <ul>
-                <li>Votre clé reste sur cet ordinateur et est chiffrée quand c’est possible.</li>
-                <li>Si l’IA ne répond pas ou si le plafond est atteint, Zic retombe sur ses fiches préécrites.</li>
-              </ul>
-            </div>
-
-            <div class="tr-dialog-actions">
-              <button type="button" id="ai-save-btn" class="tr-button tr-primary">Enregistrer</button>
-            </div>
           </div>
         </div>
       </div>
