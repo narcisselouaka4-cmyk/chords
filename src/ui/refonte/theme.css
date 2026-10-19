@@ -879,7 +879,11 @@
 
 /* [Claude] — 2026-10-13 — Réglages › Clavier et MIDI : lignes « intitulé / réglage / note » (ce qui
    était dans le pied de page de l'application, retiré). */
-.app-settings-box { width: min(520px, 92vw); max-height: 88vh; overflow-y: auto; }
+.app-settings-box { width: min(520px, 92vw); max-height: min(88vh, calc(100dvh - 32px)); overflow-y: auto; overscroll-behavior: contain; }
+.app-settings-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.app-settings-heading h3 { margin: 0; }
+#settings-app-keys[hidden] { display: none; }
+#app-settings-modal :is(button, input, select):focus-visible { outline: 2px solid var(--r-accent-text); outline-offset: 3px; }
 .settings-rows { display: flex; flex-direction: column; gap: 14px; }
 .settings-row { display: grid; grid-template-columns: 150px minmax(0, 1fr); align-items: center; column-gap: 14px; row-gap: 4px; }
 .settings-row > label { font-size: 0.8rem; font-weight: 600; color: var(--r-text, inherit); }

@@ -25,6 +25,9 @@ import {
 let progress = defaultProgress();
 let tour = null; // { chapter, index, nodes… } quand une visite est en cours
 let pickerEl = null;
+// Le didacticiel sera finalisé après l'application. Il reste consultable à la
+// demande, sans interrompre le travail lors d'un import ou changement d'onglet.
+const AUTO_START_ENABLED = false;
 
 // ── Progression persistée ───────────────────────────────────────────────────
 
@@ -199,7 +202,6 @@ export function startChapter(chapterId) {
   if (!chapter) return false;
   if (tour) close();
   closePicker();
-  switchTab(chapter.tab);
 
   const root = document.createElement('div');
   root.className = 'onboarding-root';
@@ -256,6 +258,9 @@ export function startChapter(chapterId) {
   window.addEventListener('resize', layout);
   window.addEventListener('scroll', layout, true);
 
+  // Le changement d'onglet notifie lui-même l'onboarding. Créer tour AVANT cet
+  // évènement évite la réentrée Studio → startChapter → Studio à pile infinie.
+  switchTab(chapter.tab);
   renderStep();
   card.focus();
   return true;
@@ -320,7 +325,7 @@ export function openPicker(anchor) {
  * jamais été vu. Silencieux dans tous les autres cas.
  */
 export function maybeAutoStart(chapterId, trigger) {
-  if (tour) return false;
+  if (!AUTO_START_ENABLED || tour) return false;
   if (!shouldAutoStart(chapterId, trigger, progress)) return false;
   return startChapter(chapterId);
 }

@@ -9,8 +9,8 @@
       (function () {
         const isDev = location.protocol === 'http:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
         const csp = isDev
-          ? "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://localhost:* http://localhost:* https://api.groq.com https://openrouter.ai https://generativelanguage.googleapis.com; img-src 'self' data: blob:; media-src 'self' blob:;"
-          : "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.groq.com https://openrouter.ai https://generativelanguage.googleapis.com; img-src 'self' data: blob:; media-src 'self' blob:;";
+          ? "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self' ws://localhost:* http://localhost:* https://api.groq.com https://openrouter.ai https://generativelanguage.googleapis.com; img-src 'self' data: blob:; media-src 'self' blob:;"
+          : "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self' https://api.groq.com https://openrouter.ai https://generativelanguage.googleapis.com; img-src 'self' data: blob:; media-src 'self' blob:;";
         document.getElementById('csp-meta').setAttribute('content', csp);
       })();
     </script>
@@ -1969,8 +1969,11 @@
            Une seule section aujourd'hui, mais le modal est fait pour en
            accueillir d'autres sans changer sa structure. -->
       <div class="modal-overlay" id="app-settings-modal" style="display: none;">
-        <div class="modal-box app-settings-box">
-          <h3>Réglages</h3>
+        <div class="modal-box app-settings-box" role="dialog" aria-modal="true" aria-labelledby="app-settings-title" tabindex="-1">
+          <div class="app-settings-heading">
+            <h3 id="app-settings-title">Réglages</h3>
+            <button type="button" class="tr-icon-button" id="app-settings-dismiss" aria-label="Fermer les réglages">✕</button>
+          </div>
 
           <div class="settings-section" id="settings-appearance">
             <h4 class="settings-section-title">Apparence</h4>

@@ -1123,6 +1123,8 @@ function refreshAppKeyColor() {
   // (Narcisse : supprimer les indications grisées). Seul le bouton de réinitialisation reste.
   const reset = document.getElementById('app-key-color-reset');
   if (reset) reset.hidden = source !== 'custom';
+  const field = document.getElementById('settings-app-keys');
+  if (field) field.hidden = source !== 'custom';
 }
 function readKeyColors() {
   try {
@@ -3274,25 +3276,52 @@ function initKeyboardCollapse() {
 function initAppSettings() {
   const modal = document.getElementById('app-settings-modal');
   const toggle = document.getElementById('app-settings-toggle');
-  const close = document.getElementById('app-settings-close');
+  const closeButton = document.getElementById('app-settings-close');
+  const dialog = modal?.querySelector('[role="dialog"]');
   if (!modal || !toggle) return;
+  let previousFocus = null;
+  const close = (restoreFocus = true) => {
+    modal.style.display = 'none';
+    toggle.setAttribute('aria-expanded', 'false');
+    if (restoreFocus && previousFocus?.isConnected) previousFocus.focus();
+  };
 
+  toggle.setAttribute('aria-haspopup', 'dialog');
+  toggle.setAttribute('aria-expanded', 'false');
   toggle.addEventListener('click', () => {
+    previousFocus = document.activeElement;
     modal.style.display = 'flex';
+    toggle.setAttribute('aria-expanded', 'true');
+    dialog?.focus();
   });
   // La clé API s'ouvre depuis Réglages (fenêtre à part) : Réglages se ferme derrière elle.
   document.getElementById('app-settings-ai-btn')?.addEventListener('click', () => {
-    modal.style.display = 'none';
+    close(false);
   });
-  close?.addEventListener('click', () => {
-    modal.style.display = 'none';
-  });
+  closeButton?.addEventListener('click', () => close());
+  document.getElementById('app-settings-dismiss')?.addEventListener('click', () => close());
   modal.addEventListener('click', (e) => {
-    if (e.target === modal) modal.style.display = 'none';
+    if (e.target === modal) close();
   });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && modal.style.display === 'flex') modal.style.display = 'none';
-  });
+    if (modal.style.display !== 'flex') return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      close();
+    } else if (e.key === 'Tab' && dialog) {
+      const controls = Array.from(dialog.querySelectorAll('button, input, select, textarea, a[href], [tabindex]'))
+        .filter((element) => !element.disabled && element.tabIndex >= 0 && element.getClientRects().length > 0);
+      const first = controls[0];
+      const last = controls.at(-1);
+      if (!first) { e.preventDefault(); dialog.focus(); }
+      else if (e.shiftKey && (document.activeElement === first || document.activeElement === dialog)) {
+        e.preventDefault(); last.focus();
+      } else if (!e.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
+        e.preventDefault(); first.focus();
+      }
+    }
+  }, true);
 }
 
 function initTabNavigation() {

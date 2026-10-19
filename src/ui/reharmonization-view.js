@@ -43,8 +43,8 @@ export function renderReharmonizationEmpty(container) {
   notice.appendChild(el('p', {
     className: 'reharm-empty-text',
     text:
-      'Cliquez sur « Lancer la démonstration » pour exécuter le moteur et obtenir ' +
-      'trois propositions de réharmonisation.',
+      'Choisissez un style, puis cliquez sur « Réharmoniser mon morceau » ' +
+      'pour créer des propositions à comparer et à écouter.',
   }));
   container.appendChild(notice);
 }
