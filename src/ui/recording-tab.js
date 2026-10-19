@@ -847,7 +847,7 @@ function renderSelectedSessionInfo() {
 
 function resetSelectedSessionInfo() {
   if (els.selectedSessionInfo) {
-    els.selectedSessionInfo.innerHTML = `<p class="detail-hint">Aucune session sélectionnée. Cliquez sur « Enregistrer » ou choisissez une session dans la liste. Pour un avis rapide sur un passage : « Qu'en penses-tu ? », dans le Copilote.</p>`;
+    els.selectedSessionInfo.innerHTML = '';
   }
   if (els.carnetSessionTitle) els.carnetSessionTitle.textContent = 'Aucune session sélectionnée';
   if (els.carnetSessionMeta) els.carnetSessionMeta.textContent = '';

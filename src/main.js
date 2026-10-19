@@ -1119,13 +1119,9 @@ function refreshAppKeyColor() {
   applyAppColor(color);
   const picker = document.getElementById('color-app');
   if (picker) picker.value = color;
-  const hint = document.getElementById('app-key-color-hint');
+  // [Claude] — 2026-10-18 — L'indication grisée sous « Ce que joue l'application » est retirée
+  // (Narcisse : supprimer les indications grisées). Seul le bouton de réinitialisation reste.
   const reset = document.getElementById('app-key-color-reset');
-  if (hint) {
-    hint.textContent = source === 'custom'
-      ? 'Couleur choisie par toi (pastille « L\'app » sous le clavier).'
-      : source === 'accent' ? 'Suit la couleur de l\'application.' : 'Jaune (couleur d\'origine).';
-  }
   if (reset) reset.hidden = source !== 'custom';
 }
 function readKeyColors() {
@@ -1772,8 +1768,6 @@ function initPracticeExercise() {
     const box = els.exerciseTopNoteBrowser;
     if (!box) return;
     const topPc = exState.topNote?.pc;
-    const hint = document.getElementById('exercise-topnote-browser-hint');
-    if (hint) hint.hidden = topPc != null;
     if (exState.mode !== 'chord' || topPc == null) {
       box.hidden = true;
       topNoteBrowserKey = '';
