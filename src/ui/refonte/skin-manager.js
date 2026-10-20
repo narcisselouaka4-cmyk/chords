@@ -1,17 +1,19 @@
 // [Refonte v2/Global] — 2026-09-02 — Gestion du skin visuel sélectionnable.
 //
-// Deux skins réels et sélectionnables par l'utilisateur (decision-deux-themes-
-// selectionnables-v2-global.md) : « v2 » (pilules, dégradés violets) et
-// « Global » (anguleux, aplats). Ils partagent la même palette (§1) et le même
-// contenu fonctionnel — seule la grammaire de forme change, portée par les
-// variables CSS --r-* sous :root[data-skin='…'].
+// Trois skins sélectionnables : « v2 » (Scène), « global » (Atelier) et
+// « velours ». Velours réutilise la grammaire complète de Global puis remplace
+// sa matière via data-skin-choice='velours'. Cette composition évite de copier
+// les centaines de sélecteurs historiques global/v2 et garantit que le nouveau
+// skin couvre aussi les écrans que sa référence visuelle n'a pas redessinés.
 //
 // Même mécanisme que le thème clair/sombre existant (attribut sur <html> +
 // localStorage + CustomEvent), volontairement : on ne réinvente rien.
 
-export const SKINS = ['v2', 'global'];
+export const SKINS = ['v2', 'global', 'velours'];
 export const DEFAULT_SKIN = 'global';
 const STORAGE_KEY = 'skin';
+
+const baseSkin = (skin) => (skin === 'velours' ? 'global' : skin);
 
 /** Lit le skin persisté, en repliant sur le défaut si absent ou invalide. */
 export function getSkin() {
@@ -28,13 +30,14 @@ export function getSkin() {
  * Applique un skin : pose l'attribut data-skin sur <html>, persiste le choix et
  * notifie les composants qui en dépendent (canvas waveform, piano-roll…).
  * Bascule sans rechargement — aucune régression de comportement attendue.
- * @param {'v2'|'global'} skin
- * @returns {'v2'|'global'} le skin réellement appliqué (défaut si invalide)
+ * @param {'v2'|'global'|'velours'} skin
+ * @returns {'v2'|'global'|'velours'} le skin réellement appliqué (défaut si invalide)
  */
 export function setSkin(skin) {
   const next = SKINS.includes(skin) ? skin : DEFAULT_SKIN;
   const root = document.documentElement;
-  root.setAttribute('data-skin', next);
+  root.setAttribute('data-skin', baseSkin(next));
+  root.setAttribute('data-skin-choice', next);
   try {
     localStorage.setItem(STORAGE_KEY, next);
   } catch (_) {
@@ -53,8 +56,12 @@ export function setSkin(skin) {
 export function initSkin(opts = {}) {
   const current = getSkin();
   // Resynchronisation (au cas où le script inline aurait été contourné).
-  if (document.documentElement.getAttribute('data-skin') !== current) {
-    document.documentElement.setAttribute('data-skin', current);
+  if (
+    document.documentElement.getAttribute('data-skin') !== baseSkin(current)
+    || document.documentElement.getAttribute('data-skin-choice') !== current
+  ) {
+    document.documentElement.setAttribute('data-skin', baseSkin(current));
+    document.documentElement.setAttribute('data-skin-choice', current);
   }
 
   const selector = opts.selector || null;

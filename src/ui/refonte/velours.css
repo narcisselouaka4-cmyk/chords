@@ -1,0 +1,349 @@
+/* ============================================================================
+   VELOURS — socle du troisième habillage
+   ----------------------------------------------------------------------------
+   Phases 1 et 2 : palette, typographie, ressources et scène ambiante.
+
+   Velours s'appuie sur data-skin='global' pour hériter de toute la grammaire
+   d'Atelier. data-skin-choice='velours' ne remplace que la matière visuelle.
+   Le décor partagé de Temps réel, Analyse et Studio vit ici ; leur composition
+   et la barre du clavier restent des lots séparés. Aucune règle métier n'entre
+   dans ce fichier.
+   ============================================================================ */
+
+:root[data-skin-choice='velours'] {
+  /* Ressource fournie par la maquette Arena, désormais locale et packagée. */
+  --velours-studio-image: url('../../assets/themes/velours/studio.jpg');
+  --velours-fx-intensity: 1;
+  --velours-fx-parallax: 18px;
+  --velours-accent: #e8a64a;
+  --velours-accent-strong: #f0b252;
+  --velours-accent-soft: rgba(232, 166, 74, 0.14);
+  --velours-accent-glow: rgba(232, 166, 74, 0.32);
+  --velours-counter: #c8762b;
+
+  /* Nuit de studio : graphite, ivoire, ambre et turquoise. */
+  --r-ground: #0a0b0e;
+  --r-surface: #14171c;
+  --r-surface-raised: #1c2027;
+  --r-surface-chip: #232830;
+  --r-border: rgba(241, 235, 224, 0.10);
+  --r-border-strong: rgba(241, 235, 224, 0.22);
+  --r-text: #f2ece0;
+  --r-text-muted: #b3ac9f;
+  --r-text-faint: #8a8377;
+  --r-accent: var(--velours-accent);
+  --r-accent-soft: var(--velours-accent-soft);
+  --r-accent-text: var(--velours-accent-strong);
+  --r-accent-contrast: #1a1206;
+  --r-coral: #c8762b;
+  --r-coral-soft: rgba(200, 118, 43, 0.16);
+  --r-good: #4cc9b8;
+  --r-good-soft: rgba(76, 201, 184, 0.16);
+  --r-warn: var(--velours-accent);
+  --r-error: #e17878;
+  --r-grad: linear-gradient(135deg, #f0b252 0%, #c8762b 100%);
+  --r-shadow-sm: 0 8px 24px -14px rgba(0, 0, 0, 0.80);
+  --r-shadow-card: 0 24px 60px -30px rgba(0, 0, 0, 0.85);
+  --r-waveform-global: #4cc9b8;
+  --r-waveform-v2: var(--velours-accent);
+  --r-player-bg: linear-gradient(135deg, #181b21 0%, #111317 55%, #0a0b0e 100%);
+  --r-overlay: rgba(7, 8, 10, 0.78);
+
+  --r-font-title: 'Fraunces Variable', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  --r-font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --r-font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+
+  /* Grammaire calme : panneaux souples, commandes précises, pas de pilules
+     omniprésentes. */
+  --r-radius-card: 14px;
+  --r-radius-inset: 10px;
+  --r-radius-chip: 7px;
+  --r-radius-btn: 8px;
+  --r-radius-field: 8px;
+  --r-radius-pill: 999px;
+
+  --r-active-bg: var(--velours-accent-soft);
+  --r-active-fg: var(--r-text);
+  --r-active-border-color: color-mix(in srgb, var(--velours-accent) 44%, transparent);
+  --r-active-filet: inset 0 -2px 0 var(--r-accent);
+  --r-tab-active-bg: var(--velours-accent-soft);
+  --r-tab-active-fg: var(--r-text);
+  --r-tab-active-border: color-mix(in srgb, var(--velours-accent) 44%, transparent);
+  --r-tab-active-underline: 2px solid var(--r-accent);
+  --r-btn-primary-bg: var(--r-grad);
+  --r-btn-primary-fg: #1a1206;
+  --r-btn-primary-border: transparent;
+  --r-segmented-radius: 12px;
+  --r-segmented-active-bg: color-mix(in srgb, var(--velours-accent) 16%, transparent);
+  --r-segmented-active-fg: var(--r-text);
+}
+
+:root[data-skin-choice='velours'][data-theme='light'] {
+  /* Atelier ivoire : palette indépendante, pas une inversion du sombre. */
+  --r-ground: #f1ebdf;
+  --r-surface: #fbf8f1;
+  --r-surface-raised: #fffdf8;
+  --r-surface-chip: #f3eee3;
+  --r-border: rgba(32, 27, 20, 0.14);
+  --r-border-strong: rgba(32, 27, 20, 0.28);
+  --r-text: #1e1a14;
+  --r-text-muted: #574f42;
+  --r-text-faint: #756c5d;
+  --velours-accent: #b9661a;
+  --velours-accent-strong: #8d4710;
+  --velours-accent-soft: rgba(185, 102, 26, 0.13);
+  --velours-accent-glow: rgba(185, 102, 26, 0.22);
+  --velours-counter: #d9842f;
+  --r-accent: var(--velours-accent);
+  --r-accent-soft: rgba(185, 102, 26, 0.13);
+  --r-accent-text: #8d4710;
+  --r-accent-contrast: #fff9f0;
+  --r-coral: #a84e21;
+  --r-coral-soft: rgba(168, 78, 33, 0.12);
+  --r-good: #0f8c7f;
+  --r-good-soft: rgba(15, 140, 127, 0.14);
+  --r-warn: #9b590f;
+  --r-error: #b84141;
+  --r-grad: linear-gradient(135deg, #d9842f 0%, #a95312 100%);
+  --r-shadow-sm: 0 8px 20px -14px rgba(70, 50, 20, 0.40);
+  --r-shadow-card: 0 24px 50px -32px rgba(70, 50, 20, 0.45);
+  --r-waveform-global: #0f8c7f;
+  --r-waveform-v2: #b9661a;
+  --r-player-bg: linear-gradient(135deg, #f0e8d9 0%, #e8decd 55%, #ded1bc 100%);
+  --r-overlay: rgba(42, 32, 20, 0.38);
+
+  --r-active-bg: rgba(185, 102, 26, 0.12);
+  --r-active-border-color: rgba(185, 102, 26, 0.42);
+  --r-tab-active-bg: rgba(185, 102, 26, 0.11);
+  --r-tab-active-border: rgba(185, 102, 26, 0.36);
+  --r-segmented-active-bg: rgba(185, 102, 26, 0.12);
+}
+
+/* Les composants Astra possèdent encore leurs propres familles de variables.
+   On les aligne ici sur Velours sans modifier leur structure ou leur logique. */
+:root[data-skin-choice='velours'],
+:root[data-skin-choice='velours'] .training-shell {
+  --tr-bg: #0a0b0e;
+  --tr-header: #111317;
+  --tr-surface: #14171c;
+  --tr-raised: #1c2027;
+  --tr-hover: #232830;
+  --tr-inset: #0f1115;
+  --tr-border: rgba(241, 235, 224, 0.10);
+  --tr-border-soft: rgba(241, 235, 224, 0.075);
+  --tr-text: #f2ece0;
+  --tr-secondary: #b3ac9f;
+  --tr-muted: #8a8377;
+  --tr-accent: var(--velours-accent);
+  --tr-accent-strong: var(--velours-accent-strong);
+  --tr-accent-soft: var(--velours-accent-soft);
+  --tr-button: var(--velours-accent);
+  --tr-button-text: #1a1206;
+  --tr-green: #4cc9b8;
+  --tr-green-soft: rgba(76, 201, 184, 0.16);
+  --tr-red: #e17878;
+  --tr-grid-line: rgba(241, 235, 224, 0.11);
+  --tr-grid-fill: var(--velours-accent-soft);
+  --tr-shadow: 0 18px 44px -24px rgba(0, 0, 0, 0.82);
+  --tr-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+  --tr-on-accent: #1a1206;
+}
+
+:root[data-skin-choice='velours'][data-theme='light'],
+:root[data-skin-choice='velours'][data-theme='light'] .training-shell {
+  --tr-bg: #f1ebdf;
+  --tr-header: #fbf8f1;
+  --tr-surface: #fffdf8;
+  --tr-raised: #f3eee3;
+  --tr-hover: #e9e1d2;
+  --tr-inset: #f7f1e6;
+  --tr-border: rgba(32, 27, 20, 0.14);
+  --tr-border-soft: rgba(32, 27, 20, 0.10);
+  --tr-text: #1e1a14;
+  --tr-secondary: #574f42;
+  --tr-muted: #756c5d;
+  --tr-accent: var(--velours-accent);
+  --tr-accent-strong: var(--velours-accent-strong);
+  --tr-accent-soft: var(--velours-accent-soft);
+  --tr-button: var(--velours-accent);
+  --tr-button-text: #fff9f0;
+  --tr-green: #0f8c7f;
+  --tr-green-soft: rgba(15, 140, 127, 0.14);
+  --tr-red: #b84141;
+  --tr-grid-line: rgba(32, 27, 20, 0.12);
+  --tr-grid-fill: rgba(185, 102, 26, 0.10);
+  --tr-shadow: 0 14px 34px -24px rgba(70, 50, 20, 0.42);
+  --tr-on-accent: #fff9f0;
+}
+
+:root[data-skin-choice='velours'] .an-workspace-shell {
+  --an-accent: var(--velours-accent);
+  --an-accent-bright: var(--velours-accent-strong);
+  --an-accent-deep: #9f551e;
+  --an-accent-soft: var(--velours-accent-soft);
+  --an-accent-glow: var(--velours-accent-glow);
+  --an-green: #4cc9b8;
+  --an-green-soft: rgba(76, 201, 184, 0.15);
+  --an-amber: var(--velours-accent);
+  --an-amber-soft: var(--velours-accent-soft);
+  --an-shadow: 0 20px 46px -28px rgba(0, 0, 0, 0.86);
+}
+
+:root[data-skin-choice='velours'][data-theme='light'] .an-workspace-shell {
+  --an-accent: #b9661a;
+  --an-accent-bright: #8d4710;
+  --an-accent-deep: #713608;
+  --an-accent-soft: rgba(185, 102, 26, 0.12);
+  --an-accent-glow: rgba(185, 102, 26, 0.22);
+  --an-green: #0f8c7f;
+  --an-green-soft: rgba(15, 140, 127, 0.13);
+  --an-amber: #a85b12;
+  --an-amber-soft: rgba(168, 91, 18, 0.12);
+  --an-shadow: 0 16px 38px -28px rgba(70, 50, 20, 0.42);
+}
+
+/* Signature typographique : seulement quand Velours est sélectionné. */
+:root[data-skin-choice='velours'] :is(
+  h1,
+  h2,
+  .tr-brand strong,
+  .chord-name,
+  .analysis-upload-title,
+  .studio-empty-title
+) {
+  font-family: 'Fraunces Variable', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  font-variation-settings: 'opsz' 72;
+  font-weight: 520;
+  letter-spacing: -0.025em;
+}
+
+/* Le sélecteur doit rester lisible avec trois choix à 1195 px. */
+:root[data-skin-choice='velours'] .skin-segmented button[aria-pressed='true'] {
+  color: var(--r-accent-contrast);
+  background: var(--r-grad);
+}
+
+/* --------------------------------------------------------------------------
+   Phase 2 — scène de studio partagée
+
+   La photographie vient de la maquette retenue ; les autres couches ne sont
+   que lumière et profondeur. Le décor n'apparaît que sur les trois surfaces
+   validées, jamais dans Sessions MIDI, Pédagogie IA, Copilote ou Exercices.
+   -------------------------------------------------------------------------- */
+:root[data-skin-choice='velours'] {
+  --velours-lamp-x: 28%;
+  --velours-lamp-y: 8%;
+  --velours-photo-opacity: 0.24;
+  --velours-halo-opacity: 0.72;
+}
+
+:root[data-skin-choice='velours'][data-theme='light'] {
+  --velours-photo-opacity: 0.17;
+  --velours-halo-opacity: 0.42;
+}
+
+:root[data-skin-choice='velours'][data-velours-surface='analysis'] {
+  --velours-lamp-x: 62%;
+  --velours-lamp-y: 6%;
+}
+
+:root[data-skin-choice='velours'][data-velours-surface='studio'] {
+  --velours-lamp-x: 50%;
+  --velours-lamp-y: 0%;
+}
+
+:root[data-skin-choice='velours'] #app.training-shell {
+  position: relative;
+  isolation: isolate;
+}
+
+:root[data-skin-choice='velours'][data-velours-surface]:not([data-velours-surface='none']) #app.training-shell {
+  background: transparent;
+}
+
+:root[data-skin-choice='velours'] #app > :not(.velours-ambient) {
+  position: relative;
+  z-index: 1;
+}
+
+.velours-ambient {
+  display: none;
+}
+
+:root[data-skin-choice='velours'][data-velours-surface]:not([data-velours-surface='none']) .velours-ambient {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  display: block;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+  background:
+    radial-gradient(42% 46% at var(--velours-lamp-x) var(--velours-lamp-y), var(--velours-accent-glow), transparent 72%),
+    radial-gradient(30% 34% at calc(100% - var(--velours-lamp-x)) 86%, color-mix(in srgb, var(--velours-counter) 17%, transparent), transparent 72%),
+    radial-gradient(120% 82% at 50% 112%, var(--r-ground) 20%, transparent 62%),
+    linear-gradient(180deg, var(--r-surface) 0%, var(--r-ground) 72%);
+}
+
+.velours-ambient > * {
+  position: absolute;
+  pointer-events: none;
+}
+
+.velours-ambient-photo {
+  inset: 0;
+  background-image: var(--velours-studio-image);
+  background-size: cover;
+  background-position: center 65%;
+  opacity: calc(var(--velours-photo-opacity) * var(--velours-fx-intensity));
+}
+
+:root[data-skin-choice='velours'][data-theme='light'] .velours-ambient-photo {
+  opacity: .11;
+}
+
+/* Ces couches étaient animées dans la maquette. Elles restent dans le DOM
+   pour faciliter une future option "effets renforcés", mais sont neutralisées
+   par défaut tant qu'Electron fonctionne sans accélération graphique. */
+.velours-ambient-light,
+.velours-ambient-counter,
+.velours-ambient-staff,
+.velours-ambient-wave,
+.velours-ambient-halo {
+  display: none;
+}
+
+.velours-ambient-shade {
+  inset: 0;
+  background:
+    linear-gradient(180deg, transparent 40%, color-mix(in srgb, var(--r-ground) 68%, transparent) 100%),
+    radial-gradient(ellipse at center, transparent 35%, color-mix(in srgb, var(--r-ground) 54%, transparent) 100%);
+}
+
+:root[data-skin-choice='velours'][data-theme='light'] .velours-ambient-shade {
+  opacity: .38;
+}
+
+/* Les grands fonds deviennent des vitres légères ; les cartes et panneaux
+   internes gardent leur propre matière et donc leur lisibilité. */
+:root[data-skin-choice='velours'][data-velours-surface='realtime'] #practice-body,
+:root[data-skin-choice='velours'][data-velours-surface='realtime'] #practice-tab .training-workspace,
+:root[data-skin-choice='velours'][data-velours-surface='analysis'] #analysis-tab,
+:root[data-skin-choice='velours'][data-velours-surface='studio'] #studio-tab {
+  background: transparent !important;
+}
+
+:root[data-skin-choice='velours'] :is(
+  .tr-main-navigation button.active,
+  .tr-subnav-tabs > button.active,
+  #practice-subnav .practice-mode-btn.active
+) {
+  color: var(--tr-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-skin-choice='velours'] {
+    --velours-fx-intensity: 1;
+    --velours-fx-parallax: 0px;
+  }
+}

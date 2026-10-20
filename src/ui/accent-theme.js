@@ -96,10 +96,18 @@ export function accentPalette(hex) {
       '--r-accent-soft': soft,
       '--r-accent-text': hsl(h, Math.min(s, 100), L.text),
       '--r-accent-contrast': onButton,
+      '--r-coral': hsl(h, s, dark ? 58 : 43),
+      '--r-coral-soft': hsl(h, s, L.acc, dark ? 0.16 : 0.12),
       '--r-grad': `linear-gradient(90deg, ${accent}, ${grad2})`,
       '--r-btn-primary-fg': onButton,
+      '--r-active-bg': hsl(h, s, L.acc, dark ? 0.14 : 0.12),
+      '--r-active-border-color': hsl(h, s, L.acc, dark ? 0.44 : 0.38),
+      '--r-tab-active-bg': hsl(h, s, L.acc, dark ? 0.14 : 0.11),
+      '--r-tab-active-border': hsl(h, s, L.acc, dark ? 0.44 : 0.36),
+      '--r-segmented-active-bg': hsl(h, s, L.acc, dark ? 0.16 : 0.12),
       '--r-bass': accent,
       '--r-waveform': accent,
+      '--r-waveform-v2': accent,
       '--vk-accent': accent,
       '--vk-accent-deep': hsl(h, s, L.deep),
       '--an-accent': hsl(h, s, L.an),
@@ -107,6 +115,13 @@ export function accentPalette(hex) {
       '--an-accent-deep': hsl(h, Math.min(s, 60), L.anDeep),
       '--an-accent-soft': hsl(h, s, L.an, dark ? 0.14 : 0.1),
       '--an-accent-glow': hsl(h, s, L.an, dark ? 0.35 : 0.2),
+      '--an-amber': hsl(h, s, L.an),
+      '--an-amber-soft': hsl(h, s, L.an, dark ? 0.14 : 0.1),
+      '--velours-accent': accent,
+      '--velours-accent-strong': strong,
+      '--velours-accent-soft': hsl(h, s, L.acc, dark ? 0.16 : 0.12),
+      '--velours-accent-glow': hsl(h, s, L.acc, dark ? 0.34 : 0.22),
+      '--velours-counter': hsl(h, Math.min(s, 78), dark ? 62 : 48),
       '--accent': accent,
       '--accent-soft': soft,
       '--accent-text': onAccent,
@@ -182,5 +197,14 @@ export function initAccentTheme() {
     root.appendChild(b);
   }
   custom?.addEventListener('input', () => { applyAccent(custom.value); mark(); });
+  // Un changement de skin remplace plusieurs familles de variables. On repose
+  // donc explicitement la couleur choisie juste après la bascule : Velours
+  // conserve son ambre natif sans personnalisation, mais ne peut plus le faire
+  // réapparaître par-dessus un rose, un bleu ou une autre couleur enregistrée.
+  window.addEventListener('app-skin-changed', () => {
+    const current = savedAccent();
+    if (current) applyAccent(current);
+    mark();
+  });
   mark();
 }

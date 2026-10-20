@@ -221,7 +221,6 @@ function initAstraKeyboardChrome() {
   };
   start?.addEventListener('change', syncRange);
   end?.addEventListener('change', syncRange);
-  document.getElementById('keyboard-size')?.addEventListener('change', () => setTimeout(syncRange, 0));
   syncRange();
 
   // Plus de poignée de hauteur : l'application décide de la hauteur du clavier

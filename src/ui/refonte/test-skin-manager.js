@@ -151,10 +151,10 @@ runTest('Valeur invalide → repli sur le défaut, sans exception', () => {
   assert(ctx.htmlEl.getAttribute('data-skin') === 'global', 'data-skin reste "global"');
 });
 
-runTest('SKINS contient exactement v2 et global', () => {
+runTest('SKINS contient v2, global et velours', () => {
   assert(
-    SKINS.length === 2 && SKINS.includes('v2') && SKINS.includes('global'),
-    'SKINS = ["v2", "global"]',
+    SKINS.length === 3 && SKINS.includes('v2') && SKINS.includes('global') && SKINS.includes('velours'),
+    'SKINS = ["v2", "global", "velours"]',
   );
 });
 
@@ -163,6 +163,7 @@ runTest('initSkin câble un sélecteur segmenté (aria-pressed + clic)', () => {
   const buttons = [
     { dataset: { skinValue: 'global' }, _pressed: null, setAttribute(k, v) { if (k === 'aria-pressed') this._pressed = v; } },
     { dataset: { skinValue: 'v2' }, _pressed: null, setAttribute(k, v) { if (k === 'aria-pressed') this._pressed = v; } },
+    { dataset: { skinValue: 'velours' }, _pressed: null, setAttribute(k, v) { if (k === 'aria-pressed') this._pressed = v; } },
   ];
   let clickHandler = null;
   const selector = {
@@ -180,6 +181,11 @@ runTest('initSkin câble un sélecteur segmenté (aria-pressed + clic)', () => {
   clickHandler({ target: { closest: (sel) => (sel === '[data-skin-value]' ? buttons[1] : null) } });
   assert(ctx.htmlEl.getAttribute('data-skin') === 'v2', 'clic sur "v2" applique le skin v2');
   assert(buttons[1]._pressed === 'true' && buttons[0]._pressed === 'false', 'aria-pressed suit la sélection après clic');
+
+  clickHandler({ target: { closest: (sel) => (sel === '[data-skin-value]' ? buttons[2] : null) } });
+  assert(ctx.htmlEl.getAttribute('data-skin') === 'global', 'Velours hérite de la grammaire Global');
+  assert(ctx.htmlEl.getAttribute('data-skin-choice') === 'velours', 'Velours reste identifié comme choix actif');
+  assert(buttons[2]._pressed === 'true' && buttons[1]._pressed === 'false', 'aria-pressed suit Velours');
 
   setSkin('global');
 });
@@ -203,21 +209,31 @@ runTest('index.html : data-skin sur <html> + boot script + <link> theme.css + s�
   );
   assert(html.includes('id="skin-selector"'), 'le sélecteur #skin-selector est présent dans Réglages');
   assert(
-    html.includes('data-skin-value="global"') && html.includes('data-skin-value="v2"'),
-    'les deux boutons de skin (global, v2) sont présents',
+    html.includes('data-skin-value="global"') && html.includes('data-skin-value="v2"') && html.includes('data-skin-value="velours"'),
+    'les trois boutons de skin (global, v2, velours) sont présents',
   );
+  assert(html.includes('href="./ui/refonte/velours.css"'), 'velours.css est chargé après la refonte');
 });
 
-runTest('theme.css : palette §1 + deux jeux de tokens de forme', () => {
+runTest('theme.css : palette actuelle + deux jeux de tokens visuels', () => {
   const css = read('src/ui/refonte/theme.css');
-  assert(css.includes('--r-ground: #100c14') && css.includes('--r-accent: #8b6cf5'), 'palette §1 présente (--r-ground, --r-accent)');
+  assert(css.includes('--r-ground: #141416') && css.includes('--r-accent: #b8a0f3'), 'palette actuelle présente (--r-ground, --r-accent)');
   assert(/:root\[data-skin='v2'\]/.test(css), 'bloc de tokens :root[data-skin=\'v2\']');
   assert(/:root\[data-skin='global'\]/.test(css), 'bloc de tokens :root[data-skin=\'global\']');
   assert(
-    css.includes('--r-radius-chip: 100px') && css.includes('--r-radius-chip: 5px'),
-    'grammaire de forme divergente : pilule 100px (v2) vs 5px (Global)',
+    css.includes('--r-active-bg: var(--r-grad)') && css.includes('--r-active-filet: inset 3px 0 0 var(--r-accent)'),
+    'les deux skins conservent des signatures actives distinctes',
   );
   assert(css.includes('inset 3px 0 0 var(--r-accent)'), 'signature Global : filet d\'accent inséré à gauche (§5)');
+});
+
+runTest('velours.css : palettes, police locale et ressource packagée', () => {
+  const css = read('src/ui/refonte/velours.css');
+  const fonts = read('src/ui/refonte/refonte-fonts.js');
+  assert(css.includes(":root[data-skin-choice='velours']"), 'bloc sombre Velours présent');
+  assert(css.includes("[data-theme='light']"), 'bloc clair Velours présent');
+  assert(css.includes("studio.jpg"), 'ressource de studio locale référencée');
+  assert(fonts.includes("@fontsource-variable/fraunces"), 'Fraunces est importée localement');
 });
 
 runTest('main.js : polices + initSkin câblés', () => {

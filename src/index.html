@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr" data-theme="dark" data-skin="global" style="background-color: #0f1117;">
+<html lang="fr" data-theme="dark" data-skin="global" data-skin-choice="global" style="background-color: #0f1117;">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -24,15 +24,20 @@
           if (saved === 'light' || saved === 'dark') theme = saved;
         } catch (_) {}
         document.documentElement.setAttribute('data-theme', theme);
-        document.documentElement.style.backgroundColor = theme === 'dark' ? '#100c14' : '#f4f2f9';
 
-        // Skin de la refonte visuelle : 'v2' | 'global' (défaut 'global').
+        // Skin de la refonte visuelle. Velours réutilise la grammaire robuste
+        // de Global, puis remplace sa matière via data-skin-choice : tous les
+        // écrans historiques restent donc couverts sans second moteur de thème.
         let skin = 'global';
         try {
           const savedSkin = localStorage.getItem('skin');
-          if (savedSkin === 'v2' || savedSkin === 'global') skin = savedSkin;
+          if (savedSkin === 'v2' || savedSkin === 'global' || savedSkin === 'velours') skin = savedSkin;
         } catch (_) {}
-        document.documentElement.setAttribute('data-skin', skin);
+        document.documentElement.setAttribute('data-skin', skin === 'velours' ? 'global' : skin);
+        document.documentElement.setAttribute('data-skin-choice', skin);
+        document.documentElement.style.backgroundColor = skin === 'velours'
+          ? (theme === 'dark' ? '#0a0b0e' : '#f1ebdf')
+          : (theme === 'dark' ? '#100c14' : '#f4f2f9');
       })();
     </script>
     <title>Piano Jazz Chords</title>
@@ -69,9 +74,26 @@
     <link rel="stylesheet" href="./ui/refonte/pedagogie-guide.css" />
     <!-- [Claude] — 2026-10-13 — Navigation (onglets principaux et sous-onglets), Atelier et Scène. -->
     <link rel="stylesheet" href="./ui/refonte/astra-nav.css" />
+    <!-- [Codex] — 2026-10-20 — Velours est un troisième habillage, construit
+         sur la grammaire Global et chargé en dernier pour ne remplacer que sa
+         matière (palette, typographie, profondeur), jamais le comportement. -->
+    <link rel="stylesheet" href="./ui/refonte/velours.css" />
   </head>
   <body>
     <div id="app" class="app training-shell">
+      <!-- [Codex] — 2026-10-20 — Phase 2 de Velours : décor commun aux
+           trois surfaces validées. Il est purement visuel, hors du flux et
+           ignoré par les technologies d'assistance. -->
+      <div class="velours-ambient" id="velours-ambient" aria-hidden="true">
+        <div class="velours-ambient-photo"></div>
+        <div class="velours-ambient-light"></div>
+        <div class="velours-ambient-counter"></div>
+        <div class="velours-ambient-staff"></div>
+        <div class="velours-ambient-wave velours-ambient-wave-a"></div>
+        <div class="velours-ambient-wave velours-ambient-wave-b"></div>
+        <div class="velours-ambient-halo"></div>
+        <div class="velours-ambient-shade"></div>
+      </div>
       <!-- [Refonte Astra 12/09] — En-tête recopié de la maquette : identité à
            gauche, navigation d'espaces centrée (c'est le #tab-nav de Zic — il
            garde son id et ses .tab-btn[data-tab], donc main.js fonctionne sans
@@ -1857,6 +1879,7 @@
                 <div class="skin-segmented" id="skin-selector" role="group" aria-label="Habillage de l'application">
                   <button type="button" data-skin-value="global" aria-pressed="true">Atelier</button>
                   <button type="button" data-skin-value="v2" aria-pressed="false">Scène</button>
+                  <button type="button" data-skin-value="velours" aria-pressed="false">Velours</button>
                 </div>
               </div>
              </div>
@@ -2051,19 +2074,6 @@
                 <input type="number" id="transpose" value="0" min="-12" max="12" />
                 <button type="button" data-step-target="#transpose" data-step="1" aria-label="Monter la transposition"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
               </div>
-
-              <label class="vk-select">
-                <span>Étendue</span>
-                <select id="keyboard-size">
-                  <option value="custom">Personnalisé</option>
-                  <option value="25">25 touches (C3–C5)</option>
-                  <option value="49">49 touches (C2–C6)</option>
-                  <option value="61">61 touches (C2–C7)</option>
-                  <option value="76">76 touches (E1–G7)</option>
-                  <option value="88">88 touches (A0–C8)</option>
-                  <option value="midi" selected>Virtuel MIDI (C0–C9)</option>
-                </select>
-              </label>
 
               <label class="vk-select vk-field-narrow"><span>Début</span><input type="text" id="note-start" value="C0" /></label>
               <label class="vk-select vk-field-narrow"><span>Fin</span><input type="text" id="note-end" value="C9" /></label>

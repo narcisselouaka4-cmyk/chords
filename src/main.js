@@ -52,6 +52,7 @@ import {
 // theme.css est chargé en <link> dans index.html (cascade non-layered).
 import './ui/refonte/refonte-fonts.js';
 import { initSkin } from './ui/refonte/skin-manager.js';
+import { initVeloursAmbient } from './ui/refonte/velours-ambient.js';
 import {
   getAIConfig,
   saveAIConfig,
@@ -276,7 +277,6 @@ const els = {
   practiceViewCopilot: document.getElementById('practice-view-copilot'),
   practiceViewExercices: document.getElementById('practice-view-exercices'),
 
-  keyboardSize: document.getElementById('keyboard-size'),
   transposeInput: document.getElementById('transpose'),
   toleranceInput: document.getElementById('tolerance'),
   silentMode: document.getElementById('silent-mode'),
@@ -1070,26 +1070,6 @@ function updateMidiList(inputs, callbacks, isWeb) {
   }
 }
 
-const KEYBOARD_PRESETS = {
-  '25': { start: 'C3', end: 'C5' },
-  '49': { start: 'C2', end: 'C6' },
-  '61': { start: 'C2', end: 'C7' },
-  '76': { start: 'E1', end: 'G7' },
-  '88': { start: 'A0', end: 'C8' },
-  'midi': { start: 'C0', end: 'C9' },
-  'custom': null,
-};
-
-function applyKeyboardPreset(size) {
-  const preset = KEYBOARD_PRESETS[size];
-  if (!preset) return;
-  state.noteStart = preset.start;
-  state.noteEnd = preset.end;
-  els.noteStart.value = preset.start;
-  els.noteEnd.value = preset.end;
-  refreshKeyboard();
-}
-
 // [Claude] — 2026-09-25 — La pastille « Toi » de la légende du clavier suit la
 // couleur des notes réglée dans le pied de page (bleue par défaut).
 function applyYouColor() {
@@ -1146,7 +1126,6 @@ function saveKeyColors(patch) {
 function initSettings() {
   els.noteStart.value = state.noteStart;
   els.noteEnd.value = state.noteEnd;
-  els.keyboardSize.value = 'midi';
   els.notation.value = state.notation || 'english';
   const savedKeys = readKeyColors();
   if (savedKeys.you) state.colorNote = savedKeys.you;
@@ -1198,14 +1177,8 @@ function initSettings() {
     }));
   };
 
-  els.noteStart.addEventListener('change', () => {
-    els.keyboardSize.value = 'custom';
-    update();
-  });
-  els.noteEnd.addEventListener('change', () => {
-    els.keyboardSize.value = 'custom';
-    update();
-  });
+  els.noteStart.addEventListener('change', update);
+  els.noteEnd.addEventListener('change', update);
   els.notation.addEventListener('change', () => {
     update();
   });
@@ -1215,9 +1188,6 @@ function initSettings() {
   els.pcKeyboardMidi?.addEventListener('change', update);
   els.colorNote.addEventListener('input', update);
 
-  els.keyboardSize?.addEventListener('change', () => {
-    applyKeyboardPreset(els.keyboardSize.value);
-  });
 }
 
 function initPanelToggles() {
@@ -3269,6 +3239,7 @@ async function init() {
   safeInit('mountChromaStages', () => mountChromaStages());
   // [Claude] — 2026-10-13 — Une barre de recherche dans chaque bibliothèque (list-search.js).
   safeInit('accentTheme', () => initAccentTheme());
+  safeInit('veloursAmbient', () => initVeloursAmbient());
   safeInit('librarySearches', () => {
     for (const [input, list] of [
       ['studio-library-search', 'studio-track-list'],

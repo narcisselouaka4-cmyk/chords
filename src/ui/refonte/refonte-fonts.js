@@ -4,6 +4,7 @@
 //   Manrope       → titres (600/700/800)
 //   Inter         → texte courant (400/500/600/700)
 //   JetBrains Mono → métadonnées techniques, badges (400/500)
+//   Fraunces Variable → titres éditoriaux du skin Velours (local, sans Google)
 
 import '@fontsource/manrope/600.css';
 import '@fontsource/manrope/700.css';
@@ -16,3 +17,6 @@ import '@fontsource/inter/700.css';
 
 import '@fontsource/jetbrains-mono/400.css';
 import '@fontsource/jetbrains-mono/500.css';
+
+import '@fontsource-variable/fraunces/full.css';
+import '@fontsource-variable/fraunces/full-italic.css';

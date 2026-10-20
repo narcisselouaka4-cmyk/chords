@@ -17,6 +17,8 @@ check('hexToHsl : valeur invalide → null', hexToHsl('rouge') === null && hexTo
 const p = accentPalette('#f2b705');
 const families = ['--tr-accent', '--r-accent', '--vk-accent', '--an-accent', '--accent'];
 check('Les cinq familles de variables reçoivent la couleur (sombre et clair)', families.every((v) => p.dark[v] && p.light[v]));
+const veloursVars = ['--velours-accent', '--velours-accent-soft', '--velours-accent-glow', '--r-active-bg', '--r-tab-active-border', '--r-coral', '--an-amber'];
+check('Velours reçoit aussi la couleur choisie jusque dans ses états secondaires', veloursVars.every((v) => p.dark[v] && p.light[v]));
 check('Même teinte partout (45°)', Object.values({ ...p.dark, ...p.light }).filter((v) => /^hsl\(/.test(v)).every((v) => Math.abs(Number(v.match(/hsl\((\d+)/)[1]) - 45) <= 13));
 check('Jaune : le texte posé sur un bouton est sombre (lisible)', p.dark['--tr-button-text'] === '#1d1726' && p.light['--tr-button-text'] === '#1d1726');
 const violet = accentPalette('#7b52db');

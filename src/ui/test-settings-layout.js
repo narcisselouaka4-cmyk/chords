@@ -43,7 +43,21 @@ check('Ports MIDI d\'entrée et de sortie, tolérance, état : dans Réglages',
   ['midi-select', 'midi-output-select', 'tolerance', 'status-bar', 'midi-refresh'].every(inSettings));
 check('« Couleur fondamentale » supprimée (champ et code)', !html.includes('color-tonic') && !main.includes("getElementById('color-tonic')") && !main.includes('els.colorTonic'));
 check('La tolérance a quitté la barre du clavier', !/vk-toolbar[\s\S]*?id="tolerance"[\s\S]*?vk-status/.test(html));
-check('Notation, Étendue et Transposition restent sur la barre du clavier', ['notation-select', 'keyboard-size', 'transpose'].every((id) => html.indexOf(`id="${id}"`) < html.indexOf('class="vk-status"')));
+check('Notation, Début, Fin et Transposition restent sur la barre du clavier', ['notation-select', 'note-start', 'note-end', 'transpose'].every((id) => {
+  const at = html.indexOf(`id="${id}"`);
+  return at >= 0 && at < html.indexOf('class="vk-status"');
+}));
+check('Sélecteur Étendue retiré, sans référence JS ni styles résiduels',
+  !html.includes('id="keyboard-size"') && !main.includes('keyboardSize')
+  && !main.includes('KEYBOARD_PRESETS') && !main.includes('applyKeyboardPreset')
+  && !read('src/ui/refonte/astra-shell.js').includes('keyboard-size')
+  && !read('src/ui/refonte/astra-keyboard.css').includes('#keyboard-size'));
+check('Début et Fin actualisent toujours le clavier',
+  main.includes("els.noteStart.addEventListener('change', update)")
+  && main.includes("els.noteEnd.addEventListener('change', update)"));
+check('Notation garde une largeur lisible même en fenêtre étroite',
+  read('src/ui/refonte/astra-keyboard.css').includes('#notation-select { width: 148px; min-width: 148px; max-width: none; }')
+  && !read('src/ui/refonte/astra-keyboard.css').includes('#notation-select { max-width: 128px; }'));
 check('Plus de compteur « 1 note, 2 notes »', !html.includes('keyboard-note-count') && !read('src/ui/refonte/astra-shell.js').includes('keyboard-note-count'));
 check('Le clavier virtuel sonne par défaut (Silencieux décoché)', /state\.silentMode = false;\s*els\.silentMode\.checked = false;/.test(main));
 check('Plus de chiffre au centre de la roue', !/center\.textContent = active\.size/.test(live));
