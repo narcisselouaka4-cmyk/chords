@@ -463,3 +463,44 @@
 :root[data-skin-choice='velours'] .vk-volume input {
   background: linear-gradient(to right, var(--vk-accent) var(--vk-fill, 55%), var(--tr-raised) var(--vk-fill, 55%));
 }
+
+/* --------------------------------------------------------------------------
+   Phase 4 — accueil Studio (composition à deux colonnes)
+
+   ADR-062 §3 : présentation éditoriale à gauche, carte d'import compacte à
+   droite. #studio-empty-hero reste la même section pour tous les skins ;
+   seul Velours la passe en grille (Atelier/Scène gardent l'empilement
+   vertical d'origine, studio.css inchangé). Les boutons restent les vrais
+   boutons d'import/reprise (mêmes id, mêmes gestionnaires dans
+   src/ui/studio-tab.js) : aucun nouveau comportement, uniquement la mise en
+   page. D'après le retour sur la phase 3 (« effet étiquette » refusé sur la
+   portée et la roue), on reste volontairement sobre ici : pas de cadre
+   pointillé ni de glassmorphism, juste l'alignement en deux colonnes. */
+:root[data-skin-choice='velours'][data-velours-surface='studio'] #studio-tab.stage-0 .studio-empty-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  align-items: center;
+  gap: 48px;
+  max-width: 960px;
+  text-align: left;
+  padding: 10px 32px 32px;
+}
+
+:root[data-skin-choice='velours'][data-velours-surface='studio'] .studio-empty-hero-editorial {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+:root[data-skin-choice='velours'][data-velours-surface='studio'] .studio-empty-actions {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
+:root[data-skin-choice='velours'][data-velours-surface='studio'] .studio-home-btn.is-lg {
+  justify-content: flex-start;
+  height: 52px;
+  padding: 0 20px;
+}

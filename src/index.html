@@ -1650,11 +1650,18 @@
              sont encore désactivés). -->
         <!-- [Claude] — 2026-10-13 — La barre « Musiques importées / Importer un fichier » en haut à gauche
              est retirée : ces deux actions sont déjà au milieu de l'accueil (Narcisse : un doublon). -->
+        <!-- [Claude] — 2026-10-20 — studio-empty-hero-editorial regroupe le disque et le titre dans
+             un bloc à part : Velours en fait la colonne de gauche (phase 4, ADR-062) quand
+             #studio-empty-hero passe en grille à deux colonnes ; Atelier/Scène gardent l'empilement
+             vertical d'origine (ce wrapper n'y change rien, aucune règle de mise en page générale
+             ne le cible). -->
         <section class="studio-empty-hero" id="studio-empty-hero">
-          <span class="studio-empty-vinyl" aria-hidden="true">
-            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>
-          </span>
-          <h1 class="studio-empty-title">Un morceau. Votre console.<br /><em>Sculptez le son.</em></h1>
+          <div class="studio-empty-hero-editorial">
+            <span class="studio-empty-vinyl" aria-hidden="true">
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>
+            </span>
+            <h1 class="studio-empty-title">Un morceau. Votre console.<br /><em>Sculptez le son.</em></h1>
+          </div>
           <div class="studio-empty-actions">
             <button type="button" class="studio-home-btn is-primary is-lg" id="studio-hero-import-btn">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M17 8l-5-5-5 5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
