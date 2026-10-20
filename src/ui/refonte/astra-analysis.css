@@ -1392,12 +1392,11 @@
 
 .an-overview-grid {
   display: grid;
-  grid-template-columns: 1.4fr 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
 }
 
-.an-architecture-card,
-.an-insights-card {
+.an-architecture-card {
   padding-bottom: 16px;
 }
 
@@ -2832,9 +2831,6 @@
    RESPONSIVE LAYOUTS
    ========================================================================= */
 @media (max-width: 1250px) {
-  .an-overview-grid {
-    grid-template-columns: 1fr;
-  }
   .an-reharm-cards-grid {
     grid-template-columns: 1fr 1fr;
   }

@@ -2197,11 +2197,9 @@ function renderStats(analysis) {
 }
 
 // [Claude] — 2026-08-08 — Vue d'ensemble scrollable (LOT 4).
-// Remplit #analyzer-overview-content avec les blocs : score, pattern, basse,
-// réharmonisation, statistiques, export.
+// Vue d'ensemble destinée au pianiste : repères, structure, basse et export.
 function renderOverview(analysis) {
   if (!els.overviewContent) return;
-  const stats = computeProductStatistics(analysis);
   const chords = analysis.chords || [];
   const duration = analysis.duration || 0;
 
@@ -2211,18 +2209,6 @@ function renderOverview(analysis) {
     { label: 'Tempo', value: analysis.tempo ? `${Math.round(analysis.tempo)} BPM` : '—' },
     { label: 'Durée', value: formatTime(duration) },
     { label: 'Confiance', value: analysis.confidence ? `${(analysis.confidence * 100).toFixed(0)}%` : '—' },
-  ];
-
-  // Score analyse : détails mesurables
-  const avgConfidence = chords.length > 0
-    ? `${(chords.reduce((acc, c) => acc + (typeof c.confidence === 'number' ? c.confidence : 0), 0) / chords.length * 100).toFixed(0)}%`
-    : '—';
-  const uniqueChordCount = new Set(chords.map((c) => getEffectiveChord(c))).size;
-  const scoreRows = [
-    { label: 'Segments', value: String(stats.totalSegments) },
-    { label: 'Accords distincts', value: String(uniqueChordCount) },
-    { label: 'Confiance moyenne', value: avgConfidence },
-    { label: 'Durée couverte', value: `${((stats.totalDuration / Math.max(duration, 1)) * 100).toFixed(0)}%` },
   ];
 
   // Parcours des accords par section. Le pipeline audio ne livre aucune
@@ -2307,20 +2293,9 @@ function renderOverview(analysis) {
       </button>`;
   }).join('');
 
-  // Qualités
-  const qualityRows = Object.entries(stats.qualityCounts)
-    .sort((a, b) => b[1] - a[1])
-    .map(([q, count]) => `<div class="an-kv-row"><span>${escapeHtml(q || 'majeur')}</span><span>${count}</span></div>`)
-    .join('') || '<div class="an-kv-row is-empty"><span>Aucune</span></div>';
-
-  // Accords les plus utilisés
-  const topRows = stats.mostUsedChords
-    .map(({ symbol, count }) => `<div class="an-kv-row"><span>${escapeHtml(symbol)}</span><span>${count}</span></div>`)
-    .join('') || '<div class="an-kv-row is-empty"><span>Aucun</span></div>';
-
   // [Refonte Astra Analyse 12/09] — Mise en page « Vue d'ensemble » recopiée de
   // la maquette (classes an-*). Les DONNÉES sont inchangées : ce sont celles
-  // que computeProductStatistics() et l'analyse produisent réellement.
+  // que l'analyse produit réellement.
   // §2 du brief : les blocs « Guide d'écoute pour débutant » et « Polarité
   // tonale » de la maquette ne sont PAS portés — leurs textes sont écrits à la
   // main dans la maquette, aucun moteur de Zic ne les produit.
@@ -2365,44 +2340,6 @@ function renderOverview(analysis) {
           </div>
         </div>
 
-        <div class="an-card an-overview-card an-insights-card">
-          <div class="an-card-header">
-            <div>
-              <span class="an-eyebrow">CE QUE L'ANALYSE A MESURÉ</span>
-              <h3 class="an-card-title">Score et statistiques</h3>
-            </div>
-          </div>
-
-          <div class="an-overview-hero-bar an-inline-metrics">
-            ${scoreRows.map(({ label, value }) => `
-              <div class="an-metric-tile">
-                <span class="an-metric-label">${escapeHtml(label)}</span>
-                <div class="an-metric-val-row"><strong class="an-metric-primary">${escapeHtml(value)}</strong></div>
-              </div>
-            `).join('')}
-          </div>
-
-          <details class="an-stats-details">
-          <summary>Voir les statistiques détaillées</summary>
-          <div class="an-stats-split">
-            <div class="an-stats-col">
-              <span class="an-section-mini-tag">Segments et corrections</span>
-              <div class="an-kv-row"><span>Segments</span><span>${stats.totalSegments}</span></div>
-              <div class="an-kv-row"><span>Durée totale</span><span>${formatTime(stats.totalDuration)}</span></div>
-              <div class="an-kv-row"><span>Corrections manuelles</span><span>${stats.manuallyEditedCount}</span></div>
-              <div class="an-kv-row"><span>Slash chords</span><span>${stats.slashChordCount}</span></div>
-            </div>
-            <div class="an-stats-col">
-              <span class="an-section-mini-tag">Qualités</span>
-              ${qualityRows}
-            </div>
-            <div class="an-stats-col">
-              <span class="an-section-mini-tag">Accords les plus utilisés</span>
-              ${topRows}
-            </div>
-          </div>
-          </details>
-        </div>
       </div>
 
       <div class="an-card an-overview-card">
