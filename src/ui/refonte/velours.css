@@ -347,3 +347,113 @@
     --velours-fx-parallax: 0px;
   }
 }
+
+/* --------------------------------------------------------------------------
+   Phase 3 — Temps réel
+
+   Alignement et échelle seulement : aucun redesign de la portée ni de la
+   fiche harmonique (#live-readouts garde ses libellés, ses valeurs et sa
+   logique dans live-reading.js), aucun bloc « notes jouées », aucune
+   légende ajoutée, aucune logique musicale modifiée. On ne fait que porter
+   la hiérarchie éditoriale de la maquette retenue : le titre d'invitation en
+   Fraunces, et la colonne des lectures encadrée comme une fiche posée sur la
+   scène plutôt qu'une simple liste.
+   -------------------------------------------------------------------------- */
+:root[data-skin-choice='velours'] .practice-empty-hint-title {
+  font-family: 'Fraunces Variable', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  font-variation-settings: 'opsz' 72;
+  font-weight: 540;
+  letter-spacing: -0.02em;
+  color: var(--tr-text);
+}
+
+:root[data-skin-choice='velours'][data-velours-surface='realtime'] .live-side {
+  padding: 14px 18px;
+  border: 1px solid var(--tr-border);
+  border-radius: var(--r-radius-card);
+  background: color-mix(in srgb, var(--tr-surface) 72%, transparent);
+  box-shadow: var(--tr-shadow);
+  backdrop-filter: blur(6px);
+}
+
+:root[data-skin-choice='velours'][data-velours-surface='realtime'] .live-readouts-toggle {
+  align-self: flex-end;
+  padding: 3px 10px;
+  border: 1px solid var(--tr-border);
+  border-radius: var(--r-radius-pill);
+  background: var(--tr-raised);
+}
+
+:root[data-skin-choice='velours'][data-velours-surface='realtime'] .live-staff {
+  padding: 12px 16px;
+  border: 1px solid var(--tr-border);
+  border-radius: var(--r-radius-card);
+  background: color-mix(in srgb, var(--tr-surface) 72%, transparent);
+  box-shadow: var(--tr-shadow);
+  backdrop-filter: blur(6px);
+}
+
+/* --------------------------------------------------------------------------
+   Phase 5 — barre de réglages au-dessus du clavier
+
+   Densité, bordures et hiérarchie inchangées ; seule la matière change. Le
+   clavier (src/virtual-keyboard.js) garde son propre dessin de touches
+   (--vk-white/--vk-black non touchés) : aucune lettre de clavier PC n'est
+   dessinée dessus, dans aucun skin — ce garde-fou de l'ADR-062 ne demande
+   donc aucun retrait ici, seulement de ne pas en introduire. Les variables
+   --vk-* et les fonds de puces, jusqu'ici en gris froid codé en dur, suivent
+   désormais l'ambre/graphite (sombre) ou le brun/ivoire (clair) de Velours.
+   -------------------------------------------------------------------------- */
+:root[data-skin-choice='velours'] {
+  --vk-shell: var(--tr-bg);
+  --vk-shell-2: var(--tr-surface);
+  --vk-line: var(--tr-border-strong, var(--tr-border));
+  --vk-line-soft: var(--tr-border);
+  --vk-text: var(--tr-text);
+  --vk-secondary: var(--tr-secondary);
+  --vk-muted: var(--tr-muted);
+  --vk-accent: var(--velours-accent);
+  --vk-accent-deep: var(--velours-accent-strong);
+  --vk-root-note: var(--tr-green);
+}
+
+/* astra-keyboard.css repose --vk-accent/--vk-accent-deep sur .vk-root
+   (#keyboard-panel) pour le violet d'Atelier, à la même spécificité que la
+   règle :root ci-dessus : selon l'ordre des feuilles, le clavier pouvait
+   retomber sur le violet alors que :root affichait déjà l'ambre. On referme
+   l'écart avec un sélecteur plus spécifique, pour le clavier principal et
+   les mini-claviers qui partagent les mêmes variables. */
+:root[data-skin-choice='velours'] .vk-root {
+  --vk-accent: var(--velours-accent);
+  --vk-accent-deep: var(--velours-accent-strong);
+}
+
+:root[data-skin-choice='velours'] :is(
+  .vk-toolbar,
+  .vk-rail
+) {
+  background: linear-gradient(var(--tr-surface), var(--tr-bg));
+}
+:root[data-skin-choice='velours'] .vk-status { background: var(--tr-bg); }
+:root[data-skin-choice='velours'] :is(
+  .vk-stepper > button,
+  .vk-select select,
+  .vk-switches > button,
+  .vk-device,
+  .vk-collapse,
+  .vk-device-pill,
+  .vk-expand,
+  .vk-status-right > button
+) {
+  background: var(--tr-raised);
+}
+:root[data-skin-choice='velours'] .vk-switches > button.is-on {
+  color: var(--tr-on-accent);
+}
+:root[data-skin-choice='velours'] .vk-status-right > button.is-on {
+  background: var(--velours-accent-soft);
+  border-color: color-mix(in srgb, var(--velours-accent) 44%, transparent);
+}
+:root[data-skin-choice='velours'] .vk-volume input {
+  background: linear-gradient(to right, var(--vk-accent) var(--vk-fill, 55%), var(--tr-raised) var(--vk-fill, 55%));
+}
