@@ -384,13 +384,19 @@
   background: var(--tr-raised);
 }
 
-:root[data-skin-choice='velours'][data-velours-surface='realtime'] .live-staff {
-  padding: 12px 16px;
-  border: 1px solid var(--tr-border);
-  border-radius: var(--r-radius-card);
-  background: color-mix(in srgb, var(--tr-surface) 72%, transparent);
-  box-shadow: var(--tr-shadow);
-  backdrop-filter: blur(6px);
+/* Narcisse, 20/10 (retour sur la phase 3) : « l'effet étiquette sur la
+   portée et la roue ne passe pas du tout » — le cadre posé sur la portée et
+   les nouveaux contours de la roue sont retirés ci-dessous. Seuls restent :
+   l'alignement (point 1b, demandé), l'agrandissement de la roue (point 2b,
+   demandé) et le titre en Fraunces (point 2e, validé). La portée garde son
+   propre design intact (point a) — y compris l'absence de cadre d'avant. */
+:root[data-skin-choice='velours'][data-velours-surface='realtime'] .live-staff,
+:root[data-skin-choice='velours'][data-velours-surface='realtime'] .live-side {
+  align-self: center;
+}
+
+:root[data-skin-choice='velours'][data-velours-surface='realtime'] .live-wheel {
+  width: clamp(200px, min(66cqh, 39cqw), 500px);
 }
 
 /* --------------------------------------------------------------------------
