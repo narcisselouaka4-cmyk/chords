@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 // [Claude] — 2026-10-19 — Audit Codex (P0) : exposait TOUTES les variables
 // d'environnement préfixées IA_ au renderer (une seule à y lire aujourd'hui
@@ -56,7 +56,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // fournisseur dans le navigateur système. Liste fermée côté main (electron/main.js) ; ce pont ne
   // fait que relayer, il ne décide pas ce qui est autorisé.
   openExternal: (url) => ipcRenderer.invoke('app:open-external', url),
+  // [Claude] — 2026-10-20 — Glisser-déposer (Analyse) : Electron 32 a retiré `File.path` des
+  // objets déposés par l'OS dans un renderer sandboxé ; webUtils.getPathForFile(file) est son
+  // remplaçant officiel. Il ne fait que lire un chemin déjà choisi par l'utilisateur (le drop
+  // lui-même), le garde-fou assertAllowedPath s'applique ensuite comme pour tout import.
+  getPathForFile: (file) => webUtils.getPathForFile(file),
   files: {
+    approveDroppedFile: (filePath) => ipcRenderer.invoke('files:approve-dropped-file', filePath),
     homeDir: () => ipcRenderer.invoke('files:home-dir'),
     directoryStatus: (dirPath) => ipcRenderer.invoke('files:directory-status', dirPath),
     ensureDir: (dirPath) => ipcRenderer.invoke('files:ensure-dir', dirPath),

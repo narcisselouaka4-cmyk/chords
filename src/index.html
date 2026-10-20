@@ -1201,14 +1201,20 @@
               </span>
               <h2>Analyser un morceau</h2>
 
-              <!-- [Claude] — 2026-10-09 — MP4 accepté : le son de la vidéo est analysé. -->
-              <button type="button" class="analyzer-import-card is-lead" id="analyzer-import-audio-btn" aria-label="Choisir un fichier audio ou une vidéo à analyser">
+              <!-- [Claude] — 2026-10-09 — MP4 accepté : le son de la vidéo est analysé.
+                   [Claude] — 2026-10-20 — Glisser-déposer réel ajouté (src/ui/analyzer-tab.js,
+                   initImportDropzone) : le bouton est aussi une zone de dépôt, d'où la copie et les
+                   puces de formats ci-dessous. .is-dragover est posée/retirée en JS pendant le survol. -->
+              <button type="button" class="analyzer-import-card is-lead" id="analyzer-import-audio-btn" aria-label="Déposer ou choisir un fichier audio ou une vidéo à analyser">
                 <span class="analyzer-import-card-icon audio" aria-hidden="true">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M17 8l-5-5-5 5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
                 </span>
                 <div>
-                  <div class="analyzer-import-card-title">Choisir un fichier audio ou vidéo</div>
-                  <div class="analyzer-import-card-sub">MP3, WAV, M4A, MP4 ou MIDI. Votre fichier n'est jamais modifié.</div>
+                  <div class="analyzer-import-card-title">Déposez un fichier audio ou vidéo ici</div>
+                  <div class="analyzer-import-card-sub">ou cliquez pour parcourir — votre fichier n'est jamais modifié.</div>
+                  <div class="analyzer-import-card-formats" aria-hidden="true">
+                    <span class="analyzer-import-card-chip">MP3</span><span class="analyzer-import-card-chip">WAV</span><span class="analyzer-import-card-chip">M4A</span><span class="analyzer-import-card-chip">MP4</span><span class="analyzer-import-card-chip">MIDI</span>
+                  </div>
                 </div>
                 <span class="analyzer-import-card-arrow" aria-hidden="true">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>

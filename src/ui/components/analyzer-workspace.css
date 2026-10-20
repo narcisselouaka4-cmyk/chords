@@ -120,11 +120,20 @@
   transition: border-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
 }
 
-/* L'action principale : c'est elle qu'on vient faire ici. */
+/* L'action principale : c'est elle qu'on vient faire ici. Pointillé depuis
+   le 20/10 (glisser-déposer réel ajouté, analyzer-tab.js initImportDropzone) :
+   le bouton est aussi une zone de dépôt, le bord le dit franchement. */
 .analyzer-import-card.is-lead {
   border-color: var(--accent);
+  border-style: dashed;
   background: linear-gradient(135deg, var(--accent-soft), var(--surface) 70%);
   box-shadow: var(--shadow-sm);
+}
+
+.analyzer-import-card.is-lead.is-dragover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .analyzer-import-card:hover {
@@ -169,6 +178,25 @@
 }
 
 .analyzer-import-card:hover .analyzer-import-card-arrow { color: var(--accent); }
+
+.analyzer-import-card-formats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.analyzer-import-card-chip {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised, var(--surface));
+  color: var(--text-dim);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  font-family: var(--font-mono, inherit);
+}
 
 /* La reprise d'un morceau déjà importé est un chemin secondaire : visible,
    mais jamais en concurrence visuelle avec l'action principale. */

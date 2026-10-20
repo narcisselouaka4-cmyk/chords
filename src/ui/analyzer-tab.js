@@ -381,6 +381,7 @@ function initWorkspaceStates() {
   // Boutons de l'écran d'accueil
   els.importAudioBtn?.addEventListener('click', () => handleImportClick());
   els.importBtn?.addEventListener('click', () => handleImportClick());
+  initImportDropzone(els.importAudioBtn);
 
   // [Claude] — 2026-10-19 — Plus d'écran « Préparer l'analyse » (Narcisse : « supprime cette
   // étape ») ni d'écran « Quel type de vidéo » (2026-10-09) : sélectionner une source lance
@@ -698,6 +699,18 @@ async function loadAnalysisSource(sourceType, filePath, fileName) {
   await launchAnalysisFromPrepare();
 }
 
+/** Chemin déjà choisi par l'utilisateur (dialogue natif ou glisser-déposer) : valide le format et lance l'analyse. */
+function importAnalysisFile(filePath) {
+  if (!filePath) return;
+  // Validation défensive : refuser un format qui aurait contourné le filtre natif ou la
+  // liste blanche du glisser-déposer (electron/main.js, files:approve-dropped-file).
+  if (!isAudioFile(filePath) && !isVideoFile(filePath) && inferSourceType(filePath) !== 'midi') {
+    notifyError('Format non supporté\n\nFormats acceptés : MP3, WAV, M4A, MP4, MIDI.');
+    return;
+  }
+  loadAnalysisSource(inferSourceType(filePath, 'audio'), filePath);
+}
+
 async function handleImportClick() {
   if (analysisRunning) {
     showToast('Une analyse est en cours : attendez qu’elle se termine avant d’importer.', 4000, 'warning');
@@ -707,19 +720,66 @@ async function handleImportClick() {
     // [Claude] — 2026-10-09 — MP4 accepté (Narcisse : « dans l'onglet Analyse, ajouter aussi les
     // fichiers MP4 ») : le son en est extrait par ffmpeg, comme pour la bibliothèque.
     const filePath = await selectAnalysisFile();
-    if (!filePath) return;
-
-    // Validation défensive : refuser un format qui aurait contourné le filtre natif.
-    if (!isAudioFile(filePath) && !isVideoFile(filePath) && inferSourceType(filePath) !== 'midi') {
-      notifyError('Format non supporté\n\nFormats acceptés : MP3, WAV, M4A, MP4, MIDI.');
-      return;
-    }
-
-    loadAnalysisSource(inferSourceType(filePath, 'audio'), filePath);
+    importAnalysisFile(filePath);
   } catch (err) {
     console.error('[Analyzer] import failed:', err);
     notifyError(`Erreur d'import : ${err.message}`);
   }
+}
+
+/**
+ * Glisser-déposer sur la carte d'import (Narcisse, 20/10, d'après la maquette retenue pour
+ * Velours). Le drop est traité comme un choix de fichier explicite par l'utilisateur — il l'a
+ * lui-même fait glisser depuis son Finder/Explorateur — et passe par le même garde-fou
+ * d'approbation que le dialogue natif (electron/main.js, files:approve-dropped-file), jamais une
+ * copie silencieuse d'un chemin arbitraire.
+ */
+function initImportDropzone(target) {
+  if (!target || !window.electronAPI?.getPathForFile || !window.electronAPI?.files?.approveDroppedFile) return;
+  let dragDepth = 0;
+  const setDragOver = (on) => target.classList.toggle('is-dragover', on);
+  target.addEventListener('dragenter', (e) => {
+    if (!Array.from(e.dataTransfer?.types || []).includes('Files')) return;
+    e.preventDefault();
+    dragDepth += 1;
+    setDragOver(true);
+  });
+  target.addEventListener('dragover', (e) => {
+    if (!Array.from(e.dataTransfer?.types || []).includes('Files')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  });
+  target.addEventListener('dragleave', () => {
+    dragDepth = Math.max(0, dragDepth - 1);
+    if (dragDepth === 0) setDragOver(false);
+  });
+  target.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    dragDepth = 0;
+    setDragOver(false);
+    if (analysisRunning) {
+      showToast('Une analyse est en cours : attendez qu’elle se termine avant d’importer.', 4000, 'warning');
+      return;
+    }
+    const file = e.dataTransfer?.files?.[0];
+    if (!file) return;
+    if (e.dataTransfer.files.length > 1) {
+      notifyError('Déposez un seul fichier à la fois.');
+      return;
+    }
+    try {
+      const rawPath = window.electronAPI.getPathForFile(file);
+      const approvedPath = await window.electronAPI.files.approveDroppedFile(rawPath);
+      if (!approvedPath) {
+        notifyError('Format non supporté\n\nFormats acceptés : MP3, WAV, M4A, MP4, MIDI.');
+        return;
+      }
+      importAnalysisFile(approvedPath);
+    } catch (err) {
+      console.error('[Analyzer] drop import failed:', err);
+      notifyError(`Erreur d'import : ${err.message}`);
+    }
+  });
 }
 
 // [OpenCode] — Passe corrective — Bibliographie réutilise le pipeline d'import.

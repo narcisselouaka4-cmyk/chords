@@ -1447,6 +1447,24 @@ function setupStudioIPC() {
 
   // [Claude] — 2026-10-09 — Onglet Analyse : audio ET vidéo MP4 (le son en est extrait par
   // ffmpeg, comme pour les morceaux de la bibliothèque).
+  // [Claude] — 2026-10-20 — Glisser-déposer (Analyse) : le drop dans la fenêtre est le même geste
+  // de consentement qu'un dialogue natif (l'utilisateur choisit le fichier dans son propre
+  // Finder/Explorateur et le fait glisser lui-même jusqu'ici) ; le renderer ne fournit que le
+  // chemin, résolu via webUtils.getPathForFile. Liste blanche d'extensions en garde-fou
+  // supplémentaire, le dialogue natif n'ayant pas de filtre équivalent pour un drop OS.
+  const DROPPED_FILE_EXTENSIONS = new Set(['.mp3', '.wav', '.m4a', '.mp4', '.mid', '.midi']);
+  ipcMain.handle('files:approve-dropped-file', async (event, filePath) => {
+    if (typeof filePath !== 'string' || !filePath) return null;
+    if (!DROPPED_FILE_EXTENSIONS.has(path.extname(filePath).toLowerCase())) return null;
+    try {
+      const stat = await fs.stat(filePath);
+      if (!stat.isFile()) return null;
+    } catch {
+      return null;
+    }
+    return approveExternalPath(filePath);
+  });
+
   ipcMain.handle('studio:select-analysis-file', async () => {
     if (!mainWindow) return null;
     const result = await dialog.showOpenDialog(mainWindow, {
