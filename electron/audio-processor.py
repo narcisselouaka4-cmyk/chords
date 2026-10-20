@@ -316,7 +316,7 @@ NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 # Miroir JS : src/analyzer/engine-versions.js (ANALYSIS_ENGINE_VERSION) —
 # toute modification ici est répercutée là-bas ; l'UI refuse de restaurer
 # une analyse enregistrée portant une autre version et relance l'analyse.
-ENGINE_VERSION = 'ADR-061-triades-3'
+ENGINE_VERSION = 'ADR-061-triades-4'
 
 # Profils Krumhansl-Kessler pour l'estimation de la tonalité (Do = index 0)
 MAJOR_PROFILE = np.array([6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88], dtype=np.float32)
@@ -1061,7 +1061,7 @@ def _degree_weight(root_pc, suffix, key_pc, mode):
     return table.get((rel, suffix), _NON_DIATONIC_WEIGHT)
 
 
-def detect_local_keys(chords, duration, fallback_key=None):
+def detect_local_keys(chords, duration, fallback_key=None, *, require_established_change=True):
     """Tonalités locales et modulations, à partir des accords DÉTECTÉS.
 
     [Mission §9] Le profil global Krumhansl-Kessler MOYENNE les tonalités :
@@ -1077,7 +1077,13 @@ def detect_local_keys(chords, duration, fallback_key=None):
     avec la marge requise pendant ≥ LOCAL_KEY_MIN_STABLE_SEC (hystérésis) ;
     les accords de passage et dominantes secondaires (courts) ne suffisent pas.
 
+    Par défaut, une annonce exige une ancre aval complète et établie ; ne
+    jamais transformer l'absence de preuve en frontière par défaut.
+    require_established_change=False conserve l'heuristique EXP-060 utilisée
+    EN INTERNE pour choisir la clé des post-traitements, sans changer les accords.
     Ne modifie PAS les accords : couche purement informative (§9.7).
+    Sans changement établi, la clé globale déjà estimée résout les intros
+    ambiguës ; la première fenêtre ne doit pas décider seule du morceau.
     Retourne (keys, global) : liste [{start, end, key, mode, confidence,
     pivot?}] et la tonalité dominante en durée.
     """
@@ -1174,14 +1180,16 @@ def detect_local_keys(chords, duration, fallback_key=None):
 
     for w in windows:
         if w['best'] == current:
-            if run_key is not None and w['t'] - run_first_t < LOCAL_KEY_MIN_STABLE_SEC:
+            if run_key is not None and (require_established_change
+                    or w['t'] - run_first_t < LOCAL_KEY_MIN_STABLE_SEC):
                 run_key = None
                 run_first_t = None
                 run_margins = []
             continue
         m = margin(w, w['best'], current)
         if m < LOCAL_KEY_MARGIN:
-            if run_key is not None and w['t'] - run_first_t < LOCAL_KEY_MIN_STABLE_SEC:
+            if run_key is not None and (require_established_change
+                    or w['t'] - run_first_t < LOCAL_KEY_MIN_STABLE_SEC):
                 run_key = None
                 run_first_t = None
                 run_margins = []
@@ -1225,6 +1233,9 @@ def detect_local_keys(chords, duration, fallback_key=None):
             for c in region:
                 b0 = c['startTime']
                 b1 = min(b0 + LOCAL_KEY_MIN_STABLE_SEC, region_hi)
+                # Un fragment final raccourci ne prouve pas 20 s de stabilité.
+                if require_established_change and b1 - b0 < LOCAL_KEY_MIN_STABLE_SEC - 1e-6:
+                    continue
                 sc, _cad = window_scores(b0, b1)
                 base = abs(sc[current]) + 1e-9
                 if (sc[run_key] - sc[current]) / base < 2.0:
@@ -1237,13 +1248,19 @@ def detect_local_keys(chords, duration, fallback_key=None):
                 # 18/10 ; ANGES s’ancre à l’arrivée du Ré (Do#m/Bm, marge 6,6).
                 dirty = any(c2['root'] == current[0]
                             and c2['suffix'] == tonic_suffix
-                            and b0 <= c2['startTime'] < b1
+                            and (c2['startTime'] < b1 and c2['endTime'] > b0
+                                 if require_established_change
+                                 else b0 <= c2['startTime'] < b1)
                             for c2 in region)
                 if not dirty:
                     boundary = b0
                     pivot = c['chord']
                     break
             if boundary is None:
+                if require_established_change:
+                    # Le gagnant local peut être le IV ou le V de la tonalité
+                    # en cours. Sans établissement, garder la tonalité courante.
+                    continue
                 if region:
                     boundary = region[0]['startTime']
                     pivot = region[0]['chord']
@@ -1297,6 +1314,15 @@ def detect_local_keys(chords, duration, fallback_key=None):
             seg['key'] = (seg['key'][0], best_mode)
             if best_mode in confs:
                 seg['confidence'] = confs[best_mode]
+
+    # Une intro de vamp peut gagner la première fenêtre sans définir la
+    # tonalité de toute la chanson (YAHWEH live : D-A). Si aucun changement
+    # n'est établi, garder la clé globale existante EXP-060, pas cette seule
+    # fenêtre. La voie interne historique ne doit jamais être modifiée ici.
+    if (require_established_change and len(segments) == 1 and fallback_key
+            and fallback_key.get('pc') in range(12)
+            and fallback_key.get('mode') in ('major', 'minor')):
+        segments[0]['key'] = (fallback_key['pc'], fallback_key['mode'])
 
     # 3. mise en forme + tonalité globale (dominante en durée).
     keys = []
@@ -4984,7 +5010,8 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
     # post-traitement, qui exigent une vraie étiquette de tonalité, 
     # reçoivent la dominante locale.
     try:
-        _lk, _gk = detect_local_keys(raw_chords, duration, fallback_key=key)
+        _lk, _gk = detect_local_keys(raw_chords, duration, fallback_key=key,
+                                    require_established_change=False)
         if _gk and not (_gk['pc'] == key['pc'] and _gk['mode'] == key['mode']):
             _log_segment_postproc = None  # pas de log de couche ici
             log(f'layer key replaced: {key["name"]} -> {_gk["name"]} '
@@ -5231,8 +5258,9 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
     # [Mission §9] Tonalités locales + modulations, et tonalité globale
     # dominante en durée (remplace le profil KK global qui MOYENNE les
     # tonalités : « Fa mineur » sur SEIGNEUR alors que le morceau va de
-    # Fa majeur à Fa♯ majeur). Les accords ne sont PAS modifiés : la clé
-    # interne utilisée par le HMM et les couches reste celle de detect_key.
+    # Fa majeur à Fa♯ majeur). Les accords ne sont PAS modifiés : detect_key
+    # reste l'entrée du HMM et l'heuristique EXP-060 des accords bruts reste
+    # la clé des couches ; la validation des annonces est indépendante.
     try:
         local_keys, global_key = detect_local_keys(chords, duration,
                                                    fallback_key=key)
