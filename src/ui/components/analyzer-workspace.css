@@ -87,6 +87,14 @@
    plus grand et moins gras qu'avant (1,6rem/700), sans aller jusqu'à la taille
    du Studio — « Analyser un morceau » est un intitulé court au-dessus d'une
    seule carte, pas un grand titre éditorial en deux lignes. */
+.analyzer-import-eyebrow {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
 .analyzer-import-hero h2 {
   margin: 0;
   font-size: 1.85rem;
