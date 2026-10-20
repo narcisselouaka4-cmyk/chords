@@ -304,9 +304,13 @@ check('buildNotes garde ce qui n\'est dit nulle part ailleurs (octave, tierces, 
 check('Le panneau notes a bien été retiré, markup et JS',
   !html.includes('id="pedagogie-notes-card"') && !tabCode.includes('els.notesCard'));
 // [Claude] — 2026-10-13 — Pédagogie IA a sa PROPRE bibliothèque : plus de dossier à choisir.
-check('Plus de dossier à choisir : ni bouton, ni sélecteur côté écran',
-  !html.includes('pedagogie-home-folder-btn') && !tabCode.includes('Choisir le dossier des tutoriels') && !tabCode.includes('chooseFolder')
-  && !tabCode.includes('selectTutorialFolder'));
+check('La bibliothèque intégrée n’exige pas de choisir un dossier',
+  !html.includes('pedagogie-home-folder-btn') && !tabCode.includes('Choisir le dossier des tutoriels') && !tabCode.includes('chooseFolder'));
+check('Un ancien dossier inaccessible propose une nouvelle sélection native, pas une autorisation automatique',
+  tabCode.includes('if (legacyProblem)') && tabCode.includes('Retrouver le dossier')
+  && tabCode.includes('async function locateLegacyFolder()') && tabCode.includes('pedagogie?.selectTutorialFolder')
+  && preload.includes("ipcRenderer.invoke('files:directory-status', dirPath)")
+  && electronMain.includes("ipcMain.handle('files:directory-status'"));
 check('Les vidéos importées sont copiées dans la bibliothèque de l\'application (Pedagogie/bibliotheque)',
   tabCode.includes('libraryFolder') && readText('src/pedagogie/tutorial-library.js').includes("LIBRARY_SUBDIR = 'Pedagogie/bibliotheque'"));
 check('« Importer une vidéo » est toujours disponible (la bibliothèque n\'est pas à choisir)',

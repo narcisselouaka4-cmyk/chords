@@ -58,6 +58,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openExternal: (url) => ipcRenderer.invoke('app:open-external', url),
   files: {
     homeDir: () => ipcRenderer.invoke('files:home-dir'),
+    directoryStatus: (dirPath) => ipcRenderer.invoke('files:directory-status', dirPath),
     ensureDir: (dirPath) => ipcRenderer.invoke('files:ensure-dir', dirPath),
     readDir: (dirPath) => ipcRenderer.invoke('files:read-dir', dirPath),
     writeFile: (filePath, content) => ipcRenderer.invoke('files:write-file', filePath, content),

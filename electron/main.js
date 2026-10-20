@@ -518,6 +518,26 @@ function setupFileSystemIPC() {
 
   ipcMain.handle('files:home-dir', () => homeDir);
 
+  // Diagnostic sans octroi de droits : un ancien chemin mémorisé peut être
+  // refusé. Ne pas déclencher une erreur IPC pour cet état attendu, ni sonder
+  // l'existence d'une cible hors périmètre après le refus.
+  ipcMain.handle('files:directory-status', async (event, dirPath) => {
+    let safePath;
+    try {
+      safePath = await assertAllowedPath(dirPath);
+    } catch {
+      return { ok: false, reason: 'unapproved' };
+    }
+    try {
+      const stat = await fs.stat(safePath);
+      return stat.isDirectory()
+        ? { ok: true, reason: null }
+        : { ok: false, reason: 'not-directory' };
+    } catch (err) {
+      return { ok: false, reason: err.code === 'ENOENT' ? 'missing' : 'unreadable' };
+    }
+  });
+
   ipcMain.handle('files:ensure-dir', async (event, dirPath) => {
     const safePath = await assertAllowedPath(dirPath);
     await fs.mkdir(safePath, { recursive: true });

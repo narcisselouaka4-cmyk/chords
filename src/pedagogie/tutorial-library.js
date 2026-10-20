@@ -103,6 +103,12 @@ export async function listTutorialFiles(folderPath) {
 
   let entries;
   try {
+    if (files.directoryStatus) {
+      const status = await files.directoryStatus(folderPath);
+      if (!status?.ok) {
+        return { ok: false, reason: status?.reason || 'unreadable', files: [] };
+      }
+    }
     entries = await files.readDir(folderPath);
   } catch (err) {
     console.warn('[Tutoriels] lecture du dossier échouée :', err);

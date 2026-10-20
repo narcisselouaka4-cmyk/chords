@@ -226,5 +226,35 @@ runTest('L14 — un localStorage qui jette ne fait pas tomber l\'écran', () => 
   saveTutorialFolder(broken, '/x'); // ne lève pas
 });
 
+await runTest('L15 — refus, absence et cible invalide : statut explicite sans lecture interdite', async () => {
+  for (const reason of ['unapproved', 'missing', 'not-directory', 'unreadable']) {
+    let reads = 0;
+    await withWindow({
+      directoryStatus: async () => ({ ok: false, reason }),
+      readDir: async () => { reads++; throw new Error('lecture interdite'); },
+    }, async () => {
+      const result = await listTutorialFiles('/ancien/dossier');
+      assertEqual(result.ok, false);
+      assertEqual(result.reason, reason);
+      assertEqual(result.files.length, 0);
+      assertEqual(reads, 0);
+    });
+  }
+});
+
+await runTest('L16 — dossier approuvé : lecture normale après contrôle', async () => {
+  const calls = [];
+  const { api } = fakeFiles({ entries: [{ name: 'Retrouvé.mp4', isFile: true }] });
+  api.directoryStatus = async () => { calls.push('status'); return { ok: true, reason: null }; };
+  const read = api.readDir;
+  api.readDir = async () => { calls.push('read'); return read(); };
+  await withWindow(api, async () => {
+    const result = await listTutorialFiles('/retrouvé');
+    assertEqual(result.ok, true);
+    assertEqual(result.files[0].name, 'Retrouvé.mp4');
+    assertEqual(calls.join(','), 'status,read');
+  });
+});
+
 console.log(`\n=== Résultat : ${passed}/${total} tests passés ===`);
 if (passed < total) process.exitCode = 1;

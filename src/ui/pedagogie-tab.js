@@ -285,6 +285,8 @@ function tutorialTitle(path) {
 
 // Les vidéos de l'ancien dossier, à reprendre dans la bibliothèque : { folder, files } ou null.
 let legacy = null;
+let legacyProblem = null;
+let locatingLegacy = false;
 
 /**
  * Les tutos de la bibliothèque, en cartes sur l'accueil et dans le tiroir « Bibliothèque ».
@@ -313,9 +315,14 @@ let libraryProblem = null;
 /** Des vidéos dans l'ancien dossier configuré, pas encore dans la bibliothèque ? */
 async function detectLegacy(dir) {
   legacy = null;
+  legacyProblem = null;
   const folder = legacyFolder();
   if (!folder || !dir || folder.replace(/\/+$/, '') === dir.replace(/\/+$/, '')) return;
   const result = await listTutorialFiles(folder);
+  if (!result.ok) {
+    legacyProblem = { folder, reason: result.reason };
+    return;
+  }
   const known = new Set(tutorials.map((t) => t.name.toLowerCase()));
   const files = result.files.filter((f) => !known.has(f.name.toLowerCase()));
   if (files.length) legacy = { folder, files };
@@ -325,6 +332,20 @@ async function detectLegacy(dir) {
 function renderLegacyHint() {
   if (!els.legacyHint) return;
   els.legacyHint.innerHTML = '';
+  if (legacyProblem) {
+    els.legacyHint.appendChild(el('p', {
+      text: 'Ton ancien dossier de tutoriels n’est plus accessible. Tu peux le retrouver pour récupérer tes vidéos.',
+    }));
+    els.legacyHint.appendChild(el('button', {
+      className: 'pedagogie-folder-btn',
+      type: 'button',
+      text: locatingLegacy ? 'Sélection en cours…' : 'Retrouver le dossier',
+      disabled: locatingLegacy ? '' : null,
+      title: legacyProblem.folder,
+      onClick: locateLegacyFolder,
+    }));
+    return;
+  }
   if (!legacy) return;
   els.legacyHint.appendChild(el('button', {
     className: 'pedagogie-folder-btn',
@@ -333,6 +354,38 @@ function renderLegacyHint() {
     title: legacy.folder,
     onClick: () => importLegacy(),
   }));
+}
+
+/** La boîte native est la seule autorité pour approuver le dossier retrouvé.
+ * Une annulation ou un dossier illisible laisse l'ancien réglage intact.
+ * Le choix n'importe rien : la reprise des vidéos reste un second clic.
+ */
+async function locateLegacyFolder() {
+  if (locatingLegacy) return;
+  const select = window.electronAPI?.pedagogie?.selectTutorialFolder;
+  if (!select) {
+    importNotice('La sélection du dossier nécessite l’application de bureau.', 'error');
+    return;
+  }
+  locatingLegacy = true;
+  renderLegacyHint();
+  try {
+    const selected = await select();
+    if (!selected) return;
+    const result = await listTutorialFiles(selected);
+    if (!result.ok) {
+      importNotice('Ce dossier ne peut pas être lu. Choisis un dossier de vidéos accessible.', 'error');
+      return;
+    }
+    saveTutorialFolder(typeof localStorage !== 'undefined' ? localStorage : null, selected);
+    await refreshTutorials();
+    if (!legacy) importNotice('Aucune nouvelle vidéo MP4 à récupérer dans ce dossier.', 'info');
+  } catch {
+    importNotice('Impossible de retrouver le dossier pour le moment. Tu peux réessayer.', 'error');
+  } finally {
+    locatingLegacy = false;
+    renderLegacyHint();
+  }
 }
 
 /** Copie les vidéos de l'ancien dossier dans la bibliothèque (il n'est pas modifié). */
