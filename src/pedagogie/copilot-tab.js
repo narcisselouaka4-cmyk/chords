@@ -1135,7 +1135,9 @@ function renderOneMessage(msg, { last = false } = {}) {
   // [Claude] — 2026-10-04 — Les notes écrites par l'application sont repliées sous la réponse.
   // Un appel d'outil que le modèle avait écrit dans une réponse gardée n'est pas montré.
   const { text, notes } = isUser ? { text: msg.content, notes: '' } : splitAnswerNotes(extractTextToolCalls(msg.content).content, msg.toolResult?.transferText);
-  renderMessageText(content, text);
+  const visibleText = !isUser && !String(text || '').trim() && !msg.toolResult?.example
+    ? 'Cette réponse enregistrée est vide. Repose ta question pour obtenir une nouvelle réponse.' : text;
+  renderMessageText(content, visibleText);
   if (notes) content.appendChild(renderNotesDetails(notes));
 
   // [Claude] — 2026-09-24 — L'exemple à écouter vient APRÈS l'explication
@@ -1594,6 +1596,7 @@ async function sendUserMessage() {
  */
 export function copilotErrorText(error) {
   const code = String(error || '');
+  if (code === 'AI_EMPTY_RESPONSE') return 'Le service d’IA a renvoyé une réponse vide. Ta question est conservée ; réessaie ou choisis un autre modèle dans Réglages › Assistant IA.';
   if (code === 'AI_API_KEY_INVALID') return 'La clé API a été refusée. Vérifiez-la dans Réglages › Assistant IA.';
   if (code === 'AI_TIMEOUT') return 'Le service d\'IA n\'a pas répondu à temps (90 secondes). Réessaie ; s\'il est souvent aussi lent, choisis un autre modèle dans Réglages › Assistant IA.';
   if (/^AI_API_ERROR_(413|429)$/.test(code)) return 'Le service d\'IA refuse la demande pour l\'instant (trop longue, ou trop de demandes rapprochées pour ce modèle). Réessaie dans une minute, ou choisis un autre modèle dans Réglages › Assistant IA.';
@@ -1624,6 +1627,7 @@ function playingSources() {
  * @param {{review?: boolean, take?: {lines: string[], events: object[], key: string|null}}} [options]
  */
 async function runCopilotTurn(text, { review = false, take = null } = {}) {
+  if (turnBusy) return;
   // [Claude] — 2026-09-26 — Narcisse : « on ne peut plus converser avec l'IA, la case
   // ne réagit plus, même en rechargeant ». La case était désactivée pendant chaque
   // tour et ne se réactivait qu'à la fin d'un tour réussi : une réponse qui
@@ -1638,6 +1642,8 @@ async function runCopilotTurn(text, { review = false, take = null } = {}) {
     await ensureCurrentConversation().catch((err) => console.warn('[Copilot] Conversation non enregistrée :', err));
     // Après la création éventuelle de la conversation (qui oublie l'ancien passage).
     if (take) lastTake = take;
+    const turnMessages = messages;
+    const turnConversationId = currentConversationId;
     messages.push({ role: 'user', content: text, timestamp: new Date().toISOString() });
     addTypingIndicator();
 
@@ -1652,11 +1658,14 @@ async function runCopilotTurn(text, { review = false, take = null } = {}) {
     const copilotStyleId = els.styleSelect?.value || 'auto';
     const res = await sendCopilotMessage({ message: text, messages, context, copilotStyleId, review });
 
+    // Une réponse lente ne doit jamais atterrir dans une autre conversation.
+    if (messages !== turnMessages || currentConversationId !== turnConversationId) return;
+
     removeTypingIndicator();
     if (res.ok) {
       const reply = {
         role: 'assistant',
-        content: res.content,
+        content: String(res.content || '').trim() || copilotErrorText('AI_EMPTY_RESPONSE'),
         toolResult: res.toolResult,
         suggestedActions: res.suggestedActions,
         timestamp: new Date().toISOString(),
@@ -1678,7 +1687,12 @@ async function runCopilotTurn(text, { review = false, take = null } = {}) {
     els.input.disabled = false;
   }
   renderMessages();
-  if (autoplayMessage) setTimeout(() => toggleExample(autoplayMessage), 700);
+  if (autoplayMessage) {
+    const conversationId = currentConversationId;
+    setTimeout(() => {
+      if (currentConversationId === conversationId && messages.includes(autoplayMessage)) toggleExample(autoplayMessage);
+    }, 700);
+  }
   els.input.focus();
   // Enregistrement et liste des conversations : après, sans jamais bloquer la case.
   try {

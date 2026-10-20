@@ -54,6 +54,7 @@ import { applyTutorialPassage, progressionFromDegrees, parseKey } from './tutori
 import { parseTutorialRequest } from './tutorial-questions.js';
 import { structureLines, structureMomentLines } from './song-structure.js';
 import { lineMoves, movesLines } from './melodic-moves.js';
+import { buildScaleNotes, resolveScaleRequest, scaleTheoryAnswer, SCALE_DEFINITIONS } from './copilot-scale.js';
 
 // [Claude] — 2026-09-24 — Consignes refaites (Narcisse : « quand je lui demande de
 // m'expliquer un 2-5-1, il va directement me le jouer au lieu d'expliquer
@@ -568,6 +569,24 @@ const PLAY_LICK_TOOL = {
   },
 };
 
+const PLAY_SCALE_TOOL = {
+  type: 'function',
+  function: {
+    name: 'play_scale',
+    description: 'Prépare une GAMME exacte, pas un lick ni un accord. Les notes sont calculées par l’application. Pour une gamme, utiliser cet outil et jamais play_lick. Seulement si le pianiste demande à entendre.',
+    parameters: {
+      type: 'object', additionalProperties: false,
+      properties: {
+        tonic: { type: 'string', description: 'Tonique : Eb, Mib, F#, Do…' },
+        scale: { type: 'string', enum: Object.keys(SCALE_DEFINITIONS) },
+        direction: { type: 'string', enum: ['up', 'down', 'both'] },
+        hand: { type: 'string', enum: ['RH', 'LH'] },
+      },
+      required: ['tonic', 'scale'],
+    },
+  },
+};
+
 const PLAY_PROGRESSION_TOOL = {
   type: 'function',
   function: {
@@ -972,7 +991,7 @@ export function executeToolCalls(toolCalls, assistantContent = '', { styleId = '
   const noteCalls = [];
   if (!Array.isArray(toolCalls)) return { played, ignored, suggestions, voicing: capturedVoicing, example };
 
-  const audioPriorities = { apply_tutorial_passage: -2, play_my_playing: -1, play_melody_chords: -1, play_tutorial_passage: -1, play_exercise: -1, play_progression: 0, play_voicing: 1, play_lick: 2, play_note: 3 };
+  const audioPriorities = { apply_tutorial_passage: -2, play_my_playing: -1, play_melody_chords: -1, play_tutorial_passage: -1, play_exercise: -1, play_scale: 0, play_progression: 0, play_voicing: 1, play_lick: 2, play_note: 3 };
   let dominantAudioTool = null;
   let dominantPriority = Infinity;
   for (const call of toolCalls) {
@@ -1074,7 +1093,7 @@ export function executeToolCalls(toolCalls, assistantContent = '', { styleId = '
       const list = Array.isArray(args?.actions) ? args.actions : [];
       // [Claude] — 2026-10-04 — Ce qui est écrit part : le bouton affiche le message envoyé.
       const asked = list
-        .map((a) => String((typeof a?.message === 'string' && a.message.trim()) || (typeof a?.label === 'string' && a.label.trim()) || '').trim())
+        .map((a) => String(typeof a === 'string' ? a : (typeof a?.message === 'string' && a.message.trim()) || (typeof a?.label === 'string' && a.label.trim()) || '').trim())
         .filter(Boolean)
         .map((text) => ({ label: text, message: text }));
       if (asked.length > 0) suggestions.push(...asked);
@@ -1118,6 +1137,11 @@ export function executeToolCalls(toolCalls, assistantContent = '', { styleId = '
       example = buildNotesExample(voicingToNoteSequence(voicing, { pattern: 'rolled', startOffsetMs: 0, durationMs: 2600 }), {
         kind: 'voicing', title: chordSymbol, subtitle: 'Voicing à deux mains',
       });
+    } else if (fn === 'play_scale') {
+      if (example) { ignored += 1; continue; }
+      const scale = buildScaleNotes(parseArgs(call) || {});
+      if (!scale) { ignored += 1; addNote('Je ne peux pas préparer cette gamme : précise sa tonique et son type (par exemple « pentatonique mineure de Mib »).'); continue; }
+      example = buildNotesExample(scale.notes, { kind: 'scale', title: scale.title, subtitle: scale.names.join(' · ') });
     } else if (fn === 'play_lick') {
       if (example) { ignored += 1; continue; }
       const args = parseArgs(call);
@@ -1166,7 +1190,7 @@ export function executeToolCalls(toolCalls, assistantContent = '', { styleId = '
     }
   }
 
-  if (!example && noteCalls.length > 0) {
+  if (!example && dominantAudioTool === 'play_note' && noteCalls.length > 0) {
     example = buildNotesExample(noteCalls, { kind: 'notes', title: noteCalls.length === 1 ? 'Une note' : `${noteCalls.length} notes`, subtitle: 'Notes demandées au clavier' });
     // Notes jouées telles quelles, métadonnées comprises (contrôles de cohérence).
     played = noteCalls.map((n) => ({ ...n, name: midiToName(n.midi) }));
@@ -1442,7 +1466,7 @@ function buildChatCompletionPayload(config, payloadMessages, { includeTools = tr
     body.max_completion_tokens = 1200;
   }
   if (includeTools) {
-    body.tools = [PLAY_NOTE_TOOL, SUGGEST_ACTIONS_TOOL, PLAY_VOICING_TOOL, PLAY_LICK_TOOL, PLAY_PROGRESSION_TOOL, PLAY_MELODY_CHORDS_TOOL];
+    body.tools = [PLAY_NOTE_TOOL, SUGGEST_ACTIONS_TOOL, PLAY_VOICING_TOOL, PLAY_LICK_TOOL, PLAY_SCALE_TOOL, PLAY_PROGRESSION_TOOL, PLAY_MELODY_CHORDS_TOOL];
     // Outils du tutoriel seulement quand ses notes sont connues.
     if (tutorialTools) body.tools.push(PLAY_TUTORIAL_PASSAGE_TOOL, APPLY_TUTORIAL_PASSAGE_TOOL);
     if (exerciseTools) body.tools.push(PLAY_EXERCISE_TOOL);
@@ -1469,8 +1493,8 @@ export function setCopilotTimeout(ms) {
 // [Claude] — 2026-10-04 — Les appels d'outil que le modèle écrit dans sa réponse au lieu de les
 // faire (Narcisse : « on peut retrouver dans les réponses de Copilot ce genre de message :
 // suggest_actions(actions=[{label: "Détaille les accords", message: "Plus de détails"}, …]) »).
-const TEXT_TOOL_NAMES = ['suggest_actions', 'play_note', 'play_voicing', 'play_lick', 'play_progression', 'play_tutorial_passage', 'apply_tutorial_passage', 'play_exercise', 'play_my_playing', 'play_melody_chords'];
-const TEXT_TOOL_CALL = new RegExp(`(?:\\bfunctions\\.)?\\b(${TEXT_TOOL_NAMES.join('|')})\\s*\\(`, 'g');
+const TEXT_TOOL_NAMES = ['suggest_actions', 'play_note', 'play_voicing', 'play_lick', 'play_scale', 'play_progression', 'play_tutorial_passage', 'apply_tutorial_passage', 'play_exercise', 'play_my_playing', 'play_melody_chords'];
+const TEXT_TOOL_CALL = new RegExp(`(?:\\bfunctions\\.)?\\b(${TEXT_TOOL_NAMES.join('|')})\\s*\\(`, 'gi');
 const CUT = '\u0000';
 
 /** La fin du bloc qui s'ouvre à `start` (« ( », « [ » ou « { »), chaînes comprises ; -1 sinon. */
@@ -1548,7 +1572,7 @@ function textActions(args) {
     list = (raw.match(/\{[^{}]*\}/g) || []).map((chunk) => ({ label: pick(chunk, 'label'), message: pick(chunk, 'message') }));
   }
   return (list || [])
-    .map((a) => ({ label: typeof a?.label === 'string' ? a.label.trim() : '', message: typeof a?.message === 'string' ? a.message.trim() : '' }))
+    .map((a) => typeof a === 'string' ? { label: a.trim(), message: a.trim() } : ({ label: typeof a?.label === 'string' ? a.label.trim() : '', message: typeof a?.message === 'string' ? a.message.trim() : '' }))
     .filter((a) => a.label || a.message);
 }
 
@@ -1564,18 +1588,31 @@ function textActions(args) {
  */
 export function extractTextToolCalls(content) {
   const source = typeof content === 'string' ? content : '';
-  if (!source || !TEXT_TOOL_NAMES.some((name) => source.includes(name))) return { content: source, calls: [] };
+  if (!source || (!TEXT_TOOL_NAMES.some((name) => source.toLowerCase().includes(name)) && !/"actions"\s*:/.test(source))) return { content: source, calls: [] };
   let text = source;
   const actions = [];
   const cuts = [];
+  // Ollama peut écrire [Suggest_actions{"actions":["question", ...]}] au lieu d'appeler l'outil.
+  const wrapped = new RegExp(`\\[?\\b(${TEXT_TOOL_NAMES.join('|')})\\s*(?=\\{)`, 'gi');
+  for (let match = wrapped.exec(text); match; match = wrapped.exec(text)) {
+    const open = text.indexOf('{', match.index);
+    const close = closingIndex(text, open);
+    if (close < 0) continue;
+    let end = close + 1;
+    if (text[end] === ']') end++;
+    if (match[1].toLowerCase() === 'suggest_actions') actions.push(...textActions(text.slice(open, close + 1)));
+    cuts.push([match.index, end]);
+    wrapped.lastIndex = end;
+  }
   // 1. name(…) et functions.name(…).
   TEXT_TOOL_CALL.lastIndex = 0;
   for (let m = TEXT_TOOL_CALL.exec(text); m; m = TEXT_TOOL_CALL.exec(text)) {
+    if (cuts.some(([a, b]) => m.index >= a && m.index < b)) continue;
     const open = m.index + m[0].length - 1;
     const close = closingIndex(text, open);
     // Mal fermé : jusqu'au bout de la ligne.
     const end = close >= 0 ? close + 1 : (text.indexOf('\n', open) >= 0 ? text.indexOf('\n', open) : text.length);
-    if (m[1] === 'suggest_actions') actions.push(...textActions(close >= 0 ? text.slice(open + 1, close) : text.slice(open + 1, end)));
+    if (m[1].toLowerCase() === 'suggest_actions') actions.push(...textActions(close >= 0 ? text.slice(open + 1, close) : text.slice(open + 1, end)));
     cuts.push([m.index, end]);
     TEXT_TOOL_CALL.lastIndex = end;
   }
@@ -1585,13 +1622,14 @@ export function extractTextToolCalls(content) {
     const close = closingIndex(text, i);
     if (close < 0) continue;
     const chunk = text.slice(i, close + 1);
-    if (!TEXT_TOOL_NAMES.some((name) => chunk.includes(name))) continue;
+    if (!TEXT_TOOL_NAMES.some((name) => chunk.toLowerCase().includes(name)) && !/"actions"\s*:/.test(chunk)) continue;
     let obj = null;
     try { obj = JSON.parse(chunk); } catch (_) { obj = null; }
-    const name = obj?.name || obj?.function?.name || obj?.tool || obj?.tool_name;
+    const bareActions = Array.isArray(obj?.actions) && Object.keys(obj).every((key) => key === 'actions');
+    const name = bareActions ? 'suggest_actions' : String(obj?.name || obj?.function?.name || obj?.tool || obj?.tool_name || '').toLowerCase();
     if (!TEXT_TOOL_NAMES.includes(name)) continue;
     if (name === 'suggest_actions') {
-      let args = obj.arguments ?? obj.function?.arguments ?? obj.parameters ?? obj.args ?? null;
+      let args = bareActions ? obj : obj.arguments ?? obj.function?.arguments ?? obj.parameters ?? obj.args ?? null;
       if (typeof args === 'string') { try { args = JSON.parse(args); } catch (_) { /* écrit librement */ } }
       actions.push(...textActions(args));
     }
@@ -1619,6 +1657,7 @@ export function extractTextToolCalls(content) {
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+  if (actions.length) text = text.replace(/(?:^|\n)(?:#{1,3}\s*)?\*{0,2}Suggestions(?: de (?:suite|suivi))?\s*:?\*{0,2}\s*$/i, '').replace(/\n\s*---\s*$/, '').trim();
   const calls = actions.length
     ? [{ id: 'text_suggest_actions', type: 'function', function: { name: 'suggest_actions', arguments: JSON.stringify({ actions }) } }]
     : [];
@@ -1638,6 +1677,8 @@ function withTextToolCalls(choice) {
 }
 
 async function callChatCompletionOnce(config, body) {
+  const timeoutMs = Math.min(copilotTimeoutMs, config.copilotDeadline ? config.copilotDeadline - Date.now() : copilotTimeoutMs);
+  if (timeoutMs <= 0) return { ok: false, error: 'AI_TIMEOUT' };
   // Une seule minuterie pour tout l'échange (envoi, attente, lecture de la
   // réponse), quel que soit le chemin : fetch (navigateur) ou processus principal
   // (Electron, qui reçoit aussi le délai pour arrêter sa propre requête).
@@ -1647,10 +1688,10 @@ async function callChatCompletionOnce(config, body) {
     timer = setTimeout(() => {
       controller?.abort();
       resolve({ ok: false, error: 'AI_TIMEOUT' });
-    }, copilotTimeoutMs);
+    }, timeoutMs);
   });
   const exchange = (async () => {
-    const response = await callChatCompletions(config.baseUrl, config.apiKey, body, { timeoutMs: copilotTimeoutMs, signal: controller?.signal });
+    const response = await callChatCompletions(config.baseUrl, config.apiKey, body, { timeoutMs, signal: controller?.signal });
     if (!response.ok) {
       const text = await response.text().catch(() => '');
       if (response.status === 401 || response.status === 403) {
@@ -1725,7 +1766,25 @@ function finalizeContent(content, toolResult, requestedDemo = false) {
  * @returns {Promise<{ok: true, content: string, toolResult: {played: object[], ignored: number}} | {ok: false, error: string}>}
  */
 export async function sendCopilotMessage({ message, messages, context, copilotStyleId = 'auto', review = false }) {
-  const config = getAIConfig();
+  // La gamme nommée se joue exactement, même si le modèle ne sait pas appeler le bon outil.
+  // Jamais à la place des notes réelles d'un tutoriel, d'une session ou d'un exercice.
+  const scaleRequest = !review && (!context || context.type === 'autonomous') ? resolveScaleRequest(message, messages) : null;
+  const theory = scaleRequest && !asksForExample(message) ? scaleTheoryAnswer(message, messages) : null;
+  if (theory) return {
+    ok: true, content: theory,
+    toolResult: { played: [], ignored: 0, suggestions: [], example: null, voicing: null },
+    suggestedActions: [{ label: 'Fais-le-moi entendre', message: 'Fais-le-moi entendre' }], autoplay: false,
+  };
+  if (scaleRequest && asksForExample(message)) {
+    const scale = buildScaleNotes(scaleRequest);
+    const toolResult = executeToolCalls([{ function: { name: 'play_scale', arguments: JSON.stringify(scaleRequest) } }]);
+    if (scale && toolResult.example) return {
+      ok: true,
+      content: `Voici la gamme ${scale.title} : **${scale.names.join(' – ')}**. L’exemple la joue ${scaleRequest.direction === 'down' ? 'en descendant' : 'en montant puis en descendant'}, sur une octave. Tu peux régler sa vitesse pendant l’écoute.`,
+      toolResult, suggestedActions: [], autoplay: wantsToHear(message),
+    };
+  }
+  const config = { ...getAIConfig(), copilotDeadline: Date.now() + copilotTimeoutMs };
   if (!config?.apiKey) {
     return { ok: false, error: 'Aucune clé API configurée.' };
   }
@@ -1756,9 +1815,14 @@ export async function sendCopilotMessage({ message, messages, context, copilotSt
   // Groq rejette tout champ inconnu dans les messages (timestamp, toolResult,
   // etc.). On ne garde que role et content pour la requête réseau.
   const sanitized = (Array.isArray(messages) ? messages : [])
+    .filter((m) => !m.isTyping && !m.isError && ['user', 'assistant'].includes(m.role) && typeof m.content === 'string' && m.content.trim())
     .map((m) => ({ role: m.role, content: typeof m.content === 'string' ? m.content : '' }));
+  // Le contrôleur a déjà affiché la question : ne pas la transmettre deux fois.
+  if (sanitized.at(-1)?.role === 'user' && sanitized.at(-1).content.trim() === String(message || '').trim()) sanitized.pop();
+  const knownScale = scaleRequest ? buildScaleNotes(scaleRequest) : null;
+  const scaleFacts = knownScale ? `\n\nRéférence calculée par l'application pour cette question : ${knownScale.title}, ${knownScale.names.join(' – ')}. Ces notes priment sur toute supposition. Pour une gamme demandée, utiliser play_scale, pas play_lick.` : '';
   const payloadMessages = normalizePayloadMessages([
-    { role: 'system', content: `${COPILOT_SYSTEM_PROMPT}\n\n## Bibliothèque de mouvements de référence\n${MOVEMENTS_REFERENCE}\n\n${contextText}` },
+    { role: 'system', content: `${COPILOT_SYSTEM_PROMPT}\n\nInstrument de cette application : PIANO. Décris le clavier et les touches, pas un manche, des frettes ou des positions de guitare. Ne propose pas de doigté précis sans données pour le justifier. Ne recopie aucune instruction de génération de suggestions dans ta réponse.\n\n## Bibliothèque de mouvements de référence\n${MOVEMENTS_REFERENCE}\n\n${contextText}${scaleFacts}` },
     ...sanitized,
   ]);
   // [Claude] — 2026-10-09 — « Fais-le-moi entendre » renvoie à la question et à la réponse d'avant.
@@ -1801,6 +1865,15 @@ export async function sendCopilotMessage({ message, messages, context, copilotSt
     }
 
     if (!first.ok) return first;
+    // Certains modèles n'envoient que suggest_actions (ou une réponse vide).
+    // Une seule relance sans outils demande le texte, sinon échec explicite, jamais bulle vide.
+    if (!String(first.choice.content || '').trim() && !(first.choice.tool_calls || []).some((call) => call?.function?.name?.startsWith('play_') || call?.function?.name === 'apply_tutorial_passage')) {
+      const suggestions = (first.choice.tool_calls || []).filter((call) => call?.function?.name === 'suggest_actions');
+      const completed = await retryWithInternalReminder(config, payloadMessages, '', 'Réponds maintenant à la dernière question en français, avec une explication concrète fondée sur le contexte fourni. Pas de liste de questions de suivi, pas d’appel d’outil : seulement la réponse au pianiste.', { includeTools: false });
+      if (!completed.ok) return completed;
+      if (!String(completed.choice.content || '').trim()) return { ok: false, error: 'AI_EMPTY_RESPONSE' };
+      first = { ...completed, choice: { ...completed.choice, tool_calls: suggestions } };
+    }
 
     let content = first.choice.content || '';
     const rawToolCalls = toolsMode ? first.choice.tool_calls : undefined;
@@ -1810,7 +1883,7 @@ export async function sendCopilotMessage({ message, messages, context, copilotSt
     // mais que le message utilisateur est clair, on exécute directement l'outil
     // adapté côté client sans attendre le LLM.
     let forcedToolCalls = null;
-    const noAudioToolCalled = !Array.isArray(rawToolCalls) || !rawToolCalls.some((c) => ['play_voicing', 'play_lick', 'play_progression', 'play_note', 'play_tutorial_passage', 'apply_tutorial_passage', 'play_exercise', 'play_my_playing', 'play_melody_chords'].includes(c?.function?.name));
+    const noAudioToolCalled = !Array.isArray(rawToolCalls) || !rawToolCalls.some((c) => ['play_voicing', 'play_lick', 'play_scale', 'play_progression', 'play_note', 'play_tutorial_passage', 'apply_tutorial_passage', 'play_exercise', 'play_my_playing', 'play_melody_chords'].includes(c?.function?.name));
     // [Claude] — 2026-09-25 — Avis sur un passage joué (« je joue un 2-5-1, c'est
     // bon ? ») : c'est son jeu qu'on commente ; aucun exemple n'est imposé (le
     // modèle en joint un s'il aide), aucune relance.
@@ -1893,7 +1966,7 @@ export async function sendCopilotMessage({ message, messages, context, copilotSt
     // asksForExample) ; il lui est proposé d'un clic. Les demandes explicites sur le passage du prof
     // (tutorialCalls), son propre jeu et les melody chords gardent leur exemple ; l'avis sur un
     // passage joué (review) aussi.
-    const AUDIO_TOOLS = ['play_voicing', 'play_lick', 'play_progression', 'play_note', 'play_tutorial_passage', 'apply_tutorial_passage', 'play_exercise', 'play_my_playing', 'play_melody_chords'];
+    const AUDIO_TOOLS = ['play_voicing', 'play_lick', 'play_scale', 'play_progression', 'play_note', 'play_tutorial_passage', 'apply_tutorial_passage', 'play_exercise', 'play_my_playing', 'play_melody_chords'];
     let effectiveToolCalls = forcedToolCalls || rawToolCalls;
     let exampleHeldBack = false;
     if (toolsMode && message && !review && !forcedToolCalls && !mine && !chordsAsked && !asksForExample(message) && Array.isArray(effectiveToolCalls)) {
@@ -2183,6 +2256,7 @@ export async function sendCopilotMessage({ message, messages, context, copilotSt
       console.log('[CopilotValidation]', JSON.stringify(logPayload, null, 2));
     }
 
+    if (!String(content || '').trim()) return { ok: false, error: 'AI_EMPTY_RESPONSE' };
     return {
       ok: true,
       content,

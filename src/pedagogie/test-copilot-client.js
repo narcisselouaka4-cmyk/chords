@@ -1868,6 +1868,58 @@ async function testTextToolCallsInSend() {
 
 // [Claude] — 2026-09-26 — Narcisse : « on ne peut plus converser avec l'IA, la case ne
 // réagit plus ». Un service d'IA qui ne répond pas ne bloque plus le Copilote.
+async function testVideoRegressions() {
+  const originalFetch = global.fetch;
+  global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'test' }) };
+  try {
+    const bodies = [];
+    global.fetch = async (_, options) => {
+      bodies.push(JSON.parse(options.body));
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: 'Une réponse concrète.' } }] }) };
+    };
+    await sendCopilotMessage({ message: 'Comment utiliser la pentatonique mineure de Eb ?', messages: [
+      { role: 'assistant', content: '', isTyping: true },
+      { role: 'assistant', content: 'Ancienne erreur réseau', isError: true },
+      { role: 'user', content: 'Comment utiliser la pentatonique mineure de Eb ?', timestamp: 'maintenant' },
+    ] });
+    const payload = bodies[0].messages;
+    check('Question actuelle transmise exactement une fois', payload.filter((m) => m.role === 'user').length === 1);
+    check('Indicateurs de frappe et erreurs absents du contexte réseau', !payload.some((m) => !m.content.trim() || m.content.includes('Ancienne erreur réseau')));
+    const wrapped = extractTextToolCalls('Réponse musicale.\n[Suggest_actions{"actions":["Joue la gamme de Mib", "Compare les gammes"]}]');
+    check('Ollama : les commandes entre crochets disparaissent du texte', wrapped.content === 'Réponse musicale.');
+    const actions = executeToolCalls(wrapped.calls).suggestions;
+    check('Ollama : les questions en texte deviennent de vrais boutons', actions.length === 2 && actions[0].message === 'Joue la gamme de Mib');
+    const jsonBlock = extractTextToolCalls('Explication.\n\n---\nSuggestions\n```json\n{"actions":["Et en Fa ?","Joue cette gamme"]}\n```');
+    check('Ollama : bloc JSON de suggestions retiré, titre compris', jsonBlock.content === 'Explication.', jsonBlock.content);
+    check('Ollama : suggestions du bloc JSON converties en boutons', executeToolCalls(jsonBlock.calls).suggestions.length === 2);
+    const followup = extractTextToolCalls('Explication.\n\n---\n*Suggestions de suivi*\n[Suggest_actions{"actions":["Et en Fa ?"]}]');
+    check('Ollama : titre de suivi inutile retiré après conversion en boutons', followup.content === 'Explication.');
+
+    const before = bodies.length;
+    const heard = await sendCopilotMessage({ message: 'joue moi cette gamme', messages: [
+      { role: 'user', content: "c'est quoi la gamme pentatonique mineur de Eb ?" },
+      { role: 'assistant', content: 'La gamme pentatonique mineure de Mib : Mib, Solb, Lab, Sib, Réb.' },
+    ] });
+    check('Vidéo : cette gamme donne un vrai exemple de gamme, sans appel API supplémentaire', heard.ok && heard.toolResult?.example?.kind === 'scale' && bodies.length === before);
+    check('Vidéo : les cinq notes de Mib sont jouées, pas une seule note', new Set(heard.toolResult.played.map((n) => n.midi % 12)).size === 5 && heard.toolResult.played.length === 11);
+    check('Vidéo : aucune erreur de lick/accord dans la réponse', !/pas trouvé|impossible|autre accord/i.test(heard.content));
+
+    let calls = 0;
+    global.fetch = async () => {
+      calls++;
+      const message = calls === 1 ? { content: null, tool_calls: [{ function: { name: 'suggest_actions', arguments: JSON.stringify({ actions: [{ label: 'Rejoue ce passage', message: 'Rejoue ce passage' }] }) } }] } : { content: 'Les notes du passage sont décrites ici.' };
+      return { ok: true, json: async () => ({ choices: [{ message }] }) };
+    };
+    const completed = await sendCopilotMessage({ message: "Qu'en penses-tu ?", messages: [], review: true });
+    check('Réponse limitée aux suggestions : une seule relance obtient le texte', completed.ok && calls === 2 && completed.content.includes('notes du passage'));
+    check('Les suggestions de la première réponse sont conservées', completed.suggestedActions?.[0]?.message === 'Rejoue ce passage');
+    calls = 0;
+    global.fetch = async () => { calls++; return { ok: true, json: async () => ({ choices: [{ message: { content: '  ' } }] }) }; };
+    const empty = await sendCopilotMessage({ message: "Qu'en penses-tu ?", messages: [], review: true });
+    check('Deux réponses vides donnent une erreur explicite, pas une réussite vide', !empty.ok && empty.error === 'AI_EMPTY_RESPONSE' && calls === 2);
+  } finally { global.fetch = originalFetch; }
+}
+
 async function testTimeout() {
   const originalFetch = global.fetch;
   global.localStorage.store = { 'piano-jazz-ai-config': JSON.stringify({ apiKey: 'fake-key', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-20b', monthlyCap: 50 }) };
@@ -1943,6 +1995,7 @@ async function runTests() {
   testMelodyChordsTool();
   testMelodyChordsRequest();
   await testMelodyChordsInSend();
+  await testVideoRegressions();
   await testTimeout();
   testWantsToHear();
   testTextToolCalls();
