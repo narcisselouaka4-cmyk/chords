@@ -10,7 +10,11 @@
 import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { resolveAnalysisState, ANALYSIS_STATES, inferSourceType } from './analyzer-workflow.js';
+import {
+  resolveAnalysisState, ANALYSIS_STATES, inferSourceType,
+  shouldOfferRegionSelection, clampRegion,
+  REGION_SKIP_BELOW_SECONDS, REGION_MAX_SECONDS, REGION_MIN_SECONDS,
+} from './analyzer-workflow.js';
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -101,9 +105,58 @@ runTest('Audio/WAV restent sur la préparation', () => {
   assert(resolveAnalysisState('aiff', 'audio') === 'analysis', 'AIFF → analyse directe');
 });
 
+// ── Étape de région avant analyse (2026-10-21, demande de Narcisse) ──
+runTest('Région — proposée seulement pour l’audio/vidéo assez long', () => {
+  assert(shouldOfferRegionSelection(REGION_SKIP_BELOW_SECONDS, 'audio') === false,
+    'pile au seuil : pas d’étape (sinon un morceau de 6:00 pile la déclenche par erreur)');
+  assert(shouldOfferRegionSelection(REGION_SKIP_BELOW_SECONDS + 1, 'audio') === true,
+    'juste au-dessus du seuil : étape proposée');
+  assert(shouldOfferRegionSelection(3600, 'video') === true, 'une vidéo longue aussi');
+  assert(shouldOfferRegionSelection(3600, 'midi') === false, 'un MIDI n’a pas de région audio à découper');
+  assert(shouldOfferRegionSelection(NaN, 'audio') === false, 'durée inconnue : jamais bloquant');
+  assert(shouldOfferRegionSelection(0, 'audio') === false, 'durée nulle : jamais bloquant');
+});
+
+runTest('Région — clampRegion reste dans le morceau, bornée en longueur', () => {
+  const duration = 1200;
+  assert(JSON.stringify(clampRegion(0, 100, duration)) === JSON.stringify({ start: 0, end: 100 }),
+    'région déjà valide inchangée');
+  const tooLong = clampRegion(0, duration, duration);
+  assert(tooLong.end - tooLong.start <= REGION_MAX_SECONDS, `région jamais plus longue que ${REGION_MAX_SECONDS}s`);
+  assert(tooLong.start === 0, 'en allongeant depuis la fin, le début bougé reste celui demandé');
+  const tooShort = clampRegion(50, 52, duration);
+  assert(tooShort.end - tooShort.start >= REGION_MIN_SECONDS, `région jamais plus courte que ${REGION_MIN_SECONDS}s`);
+  const outOfBounds = clampRegion(-20, duration + 500, duration);
+  assert(outOfBounds.start >= 0 && outOfBounds.end <= duration, 'toujours dans les bornes du morceau');
+  const swapped = clampRegion(300, 100, duration);
+  assert(swapped.start <= swapped.end, 'un glisser à l’envers (fin avant début) se réordonne');
+});
+
+runTest('Région — markup et câblage présents', () => {
+  const html = readFileSync(resolve(projectRoot, 'src/index.html'), 'utf-8');
+  for (const id of [
+    'analyzer-region-screen', 'analyzer-region-picker', 'analyzer-region-canvas',
+    'analyzer-region-band', 'analyzer-region-handle-start', 'analyzer-region-handle-end',
+    'analyzer-region-confirm-btn', 'analyzer-region-full-btn', 'analyzer-region-back-btn',
+  ]) {
+    assert(html.includes(`id="${id}"`), `#${id} existe dans index.html`);
+  }
+  assert(html.includes('ui/components/analyzer-region.css'), 'la feuille de style dédiée est chargée');
+  const tabJs = readFileSync(resolve(projectRoot, 'src/ui/analyzer-tab.js'), 'utf-8');
+  assert(tabJs.includes('async function prepareRegionStep'), 'le routage vers l’étape de région existe');
+  assert(tabJs.includes("await launchAnalysisFromPrepare();") && tabJs.includes('currentRegion = null;'),
+    'le repli « analyser le fichier entier » existe toujours');
+  const main = readFileSync(resolve(projectRoot, 'electron/main.js'), 'utf-8');
+  assert(main.includes("ipcMain.handle('analyzer:prepare-region'"), 'IPC analyzer:prepare-region côté main');
+  assert(/options\.region/.test(main.slice(main.indexOf('async function runAnalysisPipeline'))),
+    'runAnalysisPipeline sait recevoir une région');
+  const preload = readFileSync(resolve(projectRoot, 'electron/preload.cjs'), 'utf-8');
+  assert(preload.includes('prepareRegion:'), 'le pont expose prepareRegion au renderer');
+});
+
 // ── Machine d'état complète ──
 runTest('Machine d’état Analyse complète et ordonnée', () => {
-  const expected = ['import', 'analysis'];
+  const expected = ['import', 'region', 'analysis'];
   assert(JSON.stringify(ANALYSIS_STATES) === JSON.stringify(expected), 'états complets');
 
   // setAnalyzerState() garde sa propre liste plutôt que d'importer celle-ci :

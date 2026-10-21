@@ -2246,6 +2246,36 @@ function setupStudioIPC() {
     return out;
   }
 
+  // [Claude] — 2026-10-21 — Étape de région avant analyse (Narcisse : les fichiers
+  // longs mettent trop de temps à analyser). Probe d'abord, bon marché ; l'extraction
+  // + la waveform (coûteuses sur un fichier long) ne sont faites que si le renderer
+  // a déjà décidé, sur cette durée, qu'il proposera l'étape (skipBelowSeconds reflète
+  // REGION_SKIP_BELOW_SECONDS côté src/ui/analyzer-workflow.js — dupliqué ici en
+  // argument plutôt qu'importé : ce fichier n'est pas un module ES partagé avec le
+  // renderer).
+  ipcMain.handle('analyzer:prepare-region', async (event, filePath, options = {}) => {
+    const safePath = await assertAllowedPath(filePath);
+    const probeJson = await runAudioProcessor(['probe', safePath]);
+    const probeLines = probeJson.split('\n').filter(Boolean);
+    const duration = JSON.parse(probeLines[probeLines.length - 1]).duration ?? null;
+
+    const skipBelowSeconds = Number(options.skipBelowSeconds) || 0;
+    if (!Number.isFinite(duration) || duration <= skipBelowSeconds) {
+      return { duration, peaks: null };
+    }
+
+    const tmpDir = await createWorkDir('region');
+    const previewWav = path.join(tmpDir, 'preview.wav');
+    try {
+      await extractTrackAudio(safePath, previewWav);
+      const waveform = await generateWaveform(previewWav);
+      return { duration, peaks: waveform.peaks };
+    } catch (err) {
+      await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+      throw err;
+    }
+  });
+
   ipcMain.handle('analyzer:process-file', async (event, filePath, options = {}) => {
     const key = JSON.stringify([filePath, options]);
     if (analysisInFlight) {
@@ -2266,34 +2296,52 @@ function setupStudioIPC() {
   async function runAnalysisPipeline(filePath, options = {}) {
     const tmpDir = await createWorkDir('analyze');
     const playbackWav = path.join(tmpDir, 'audio.wav');
+    // [Claude] — 2026-10-21 — Région choisie par l'utilisateur (étape avant analyse,
+    // fichiers longs). Les temps de tous les accords retournés sont alors relatifs au
+    // DÉBUT DE LA RÉGION, pas du fichier original — cohérent avec le Studio, qui fait
+    // déjà repartir à zéro toute piste régionale.
+    const region = options.region && Number.isFinite(options.region.start) && Number.isFinite(options.region.end)
+      && options.region.end > options.region.start
+      ? options.region : null;
 
     try {
       // Durée du fichier original importé, indépendamment du stem utilisé pour l'analyse.
       // Lue en premier : elle sert à savoir si les pistes du Studio couvrent tout le morceau.
-      let duration = null;
-      try {
-        const probeJson = await runAudioProcessor(['probe', filePath]);
-        const probeLines = probeJson.split('\n').filter(Boolean);
-        const probeResult = JSON.parse(probeLines[probeLines.length - 1]);
-        duration = probeResult.duration;
-      } catch (probeErr) {
-        console.warn('[Analyzer] probe duration failed:', probeErr.message);
+      // Une région déjà choisie connaît sa propre durée : pas besoin de reprober le fichier.
+      let duration = region ? region.end - region.start : null;
+      if (!region) {
+        try {
+          const probeJson = await runAudioProcessor(['probe', filePath]);
+          const probeLines = probeJson.split('\n').filter(Boolean);
+          const probeResult = JSON.parse(probeLines[probeLines.length - 1]);
+          duration = probeResult.duration;
+        } catch (probeErr) {
+          console.warn('[Analyzer] probe duration failed:', probeErr.message);
+        }
       }
 
-      const pianoStem = await findStudioStemForFile(filePath, 'piano', duration);
+      // Les pistes séparées du Studio couvrent le morceau entier (vérifié par
+      // findStudioStemForFile) : elles ne correspondent pas à une région choisie
+      // ici, propre à cette analyse. On reste sur le mix recadré dans ce cas.
+      const pianoStem = region ? null : await findStudioStemForFile(filePath, 'piano', duration);
       if (pianoStem) {
         console.log('[Analyzer] using Studio piano stem:', pianoStem);
       }
 
       // Find bass stem if requested
-      const bassStem = options.analyzeBass !== false
+      const bassStem = !region && options.analyzeBass !== false
         ? await findStudioStemForFile(filePath, 'bass', duration) : null;
       if (bassStem) {
         console.log('[Analyzer] using Studio bass stem for bass detection:', bassStem);
       }
 
-      // La lecture utilise toujours le mix original.
-      await extractTrackAudio(filePath, playbackWav);
+      // La lecture utilise toujours le mix original — recadré sur la région si
+      // l'utilisateur en a choisi une.
+      if (region) {
+        await runAudioProcessor(['trim', filePath, playbackWav, String(region.start), String(region.end)]);
+      } else {
+        await extractTrackAudio(filePath, playbackWav);
+      }
 
       // L'analyse des accords utilise le piano isolé si disponible, sinon le mix.
       const analysisWav = pianoStem || playbackWav;
@@ -2335,6 +2383,7 @@ function setupStudioIPC() {
         analysisWavPath: analysisWav,
         usedPianoStem: Boolean(pianoStem),
         usedBassStem: Boolean(bassStem),
+        region,
         duration: duration ?? result.duration ?? 0,
         tempo: result.tempo ?? null,
         timeSignature: result.timeSignature ?? '4/4',

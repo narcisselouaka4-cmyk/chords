@@ -44,6 +44,10 @@
     <link rel="stylesheet" href="./style.css" />
     <link rel="stylesheet" href="./ui/components/design-system.css" />
     <link rel="stylesheet" href="./ui/components/analyzer-workspace.css" />
+    <!-- [Claude] — 2026-10-21 — Étape de région avant analyse : fichier à part, design
+         volontairement différent du reste d'Analyse (voir le commentaire dans ce fichier
+         au-dessus de #analyzer-region-screen). -->
+    <link rel="stylesheet" href="./ui/components/analyzer-region.css" />
     <!-- Écran d'attente commun (Analyse, Studio) — voir ui/components/loader-chroma.js -->
     <link rel="stylesheet" href="./ui/components/loader-chroma.css" />
     <!-- [Claude] — 2026-10-04 — Réglage de vitesse commun (exemples du Copilote, vidéo de
@@ -1239,6 +1243,48 @@
 
               <!-- Bouton historique conservé pour compatibilité initiale -->
               <button type="button" id="analyzer-import-btn" class="analyzer-import-legacy" style="display:none">Importer un nouveau fichier</button>
+            </div>
+          </div>
+
+          <!-- [Claude] — 2026-10-21 — Étape de région avant analyse (Narcisse : les
+               fichiers longs mettent trop de temps à analyser). N'apparaît que pour
+               l'audio/vidéo au-delà de REGION_SKIP_BELOW_SECONDS
+               (src/ui/analyzer-workflow.js) ; un MIDI saute directement à l'analyse,
+               et sous ce seuil le fichier entier est analysé comme avant — aucun
+               changement pour la majorité des morceaux. Design volontairement
+               différent du sélecteur de région du Studio (ruban organique en
+               dégradé plutôt que des barres techniques) : ici, c'est un choix
+               éditorial (« quel passage m'intéresse ? »), pas une console de
+               montage. Logique câblée dans src/ui/analyzer-tab.js
+               (showRegionScreen/confirmRegionSelection), formes pures dans
+               src/ui/analyzer-workflow.js (shouldOfferRegionSelection, clampRegion). -->
+          <div class="analyzer-state" id="analyzer-region-screen">
+            <div class="analyzer-region-hero">
+              <span class="analyzer-region-eyebrow">Analyse</span>
+              <h2>Choisissez un passage à étudier</h2>
+              <p class="analyzer-region-subtitle" id="analyzer-region-subtitle"></p>
+
+              <div class="analyzer-region-picker" id="analyzer-region-picker" role="group" aria-label="Choix du passage à analyser">
+                <canvas class="analyzer-region-canvas" id="analyzer-region-canvas"></canvas>
+                <div class="analyzer-region-band" id="analyzer-region-band"></div>
+                <div class="analyzer-region-handle analyzer-region-handle-start" id="analyzer-region-handle-start" role="slider" tabindex="0" aria-label="Début du passage" aria-valuemin="0">
+                  <span class="analyzer-region-handle-time" id="analyzer-region-handle-start-time"></span>
+                </div>
+                <div class="analyzer-region-handle analyzer-region-handle-end" id="analyzer-region-handle-end" role="slider" tabindex="0" aria-label="Fin du passage">
+                  <span class="analyzer-region-handle-time" id="analyzer-region-handle-end-time"></span>
+                </div>
+              </div>
+
+              <p class="analyzer-region-summary" id="analyzer-region-summary"></p>
+
+              <div class="analyzer-region-actions">
+                <button type="button" class="analyzer-region-btn is-primary" id="analyzer-region-confirm-btn">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+                  Analyser ce passage
+                </button>
+                <button type="button" class="analyzer-region-btn" id="analyzer-region-full-btn">Analyser le morceau entier</button>
+              </div>
+              <button type="button" class="analyzer-region-back-btn" id="analyzer-region-back-btn">Choisir un autre fichier</button>
             </div>
           </div>
 

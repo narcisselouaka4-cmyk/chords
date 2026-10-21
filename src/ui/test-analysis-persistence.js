@@ -78,13 +78,19 @@ runTest("B. Flux — une source déjà analysée court-circuite le lancement de 
   const restoreAt = body.indexOf('restoreSavedAnalysis');
   // 19/10/2026 : l'écran « Préparer l'analyse » est retiré ; sélectionner un
   // fichier lance directement l'analyse (launchAnalysisFromPrepare).
-  const resolveAt = body.indexOf('launchAnalysisFromPrepare()');
+  // 21/10/2026 : « directement » passe maintenant par prepareRegionStep(),
+  // qui lance lui-même launchAnalysisFromPrepare() — tout de suite pour un
+  // fichier court ou un MIDI, après le choix d'une région pour un fichier
+  // long. L'invariant ne change pas : restauration tentée en premier.
+  const resolveAt = body.indexOf('prepareRegionStep()');
   assert(restoreAt > 0, 'loadAnalysisSource tente la restauration');
-  assert(resolveAt > 0, "loadAnalysisSource lance l'analyse en dernier recours");
+  assert(resolveAt > 0, "loadAnalysisSource lance l'analyse (via l'étape de région) en dernier recours");
   assert(
     restoreAt < resolveAt,
     "la restauration est tentée AVANT de lancer une nouvelle analyse",
   );
+  const tabJs = body;
+  assert(tabJs.includes('currentRegion = null'), 'la région est réinitialisée à chaque nouvelle source');
 });
 
 runTest('B. Flux — la restauration échoue silencieusement vers le flux normal', () => {

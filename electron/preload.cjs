@@ -97,6 +97,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   analyzer: {
     processFile: (filePath, options = {}) => ipcRenderer.invoke('analyzer:process-file', filePath, options),
     preparePlayback: (filePath) => ipcRenderer.invoke('analyzer:prepare-playback', filePath),
+    // [Claude] — 2026-10-21 — Étape de région avant analyse (fichiers longs).
+    prepareRegion: (filePath, options = {}) => ipcRenderer.invoke('analyzer:prepare-region', filePath, options),
   },
   studio: {
     selectFile: () => ipcRenderer.invoke('studio:select-file'),

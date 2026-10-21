@@ -9,7 +9,10 @@ import {
   computeProductStatistics,
   countManuallyEditedChords,
 } from '../analyzer/analysis-export.js';
-import { inferSourceType } from './analyzer-workflow.js';
+import {
+  inferSourceType, shouldOfferRegionSelection, clampRegion,
+  REGION_SKIP_BELOW_SECONDS, REGION_DEFAULT_SECONDS,
+} from './analyzer-workflow.js';
 import { analyzeMidiFile, ensureMidiPlayback } from '../analyzer/midi-render.js';
 import { splitIntoSections, paletteOf, changeCountOf } from '../analyzer/chord-sections.js';
 import { harmonicRole, selectChordProgression } from '../analyzer/structural-progression.js';
@@ -101,6 +104,21 @@ const els = {
   results: document.getElementById('analyzer-results'),
   backBtn: document.getElementById('analyzer-back-btn'),
   backToImportBtn: document.getElementById('analyzer-back-to-import-btn'),
+
+  // Étape de région avant analyse (2026-10-21, fichiers longs).
+  regionScreen: document.getElementById('analyzer-region-screen'),
+  regionSubtitle: document.getElementById('analyzer-region-subtitle'),
+  regionPicker: document.getElementById('analyzer-region-picker'),
+  regionCanvas: document.getElementById('analyzer-region-canvas'),
+  regionBand: document.getElementById('analyzer-region-band'),
+  regionHandleStart: document.getElementById('analyzer-region-handle-start'),
+  regionHandleEnd: document.getElementById('analyzer-region-handle-end'),
+  regionHandleStartTime: document.getElementById('analyzer-region-handle-start-time'),
+  regionHandleEndTime: document.getElementById('analyzer-region-handle-end-time'),
+  regionSummary: document.getElementById('analyzer-region-summary'),
+  regionConfirmBtn: document.getElementById('analyzer-region-confirm-btn'),
+  regionFullBtn: document.getElementById('analyzer-region-full-btn'),
+  regionBackBtn: document.getElementById('analyzer-region-back-btn'),
 
   // États du workspace (maquettes) — [Claude] 2026-10-19 : l'écran « Préparer
   // l'analyse » est retiré ; seuls restent l'import et les résultats.
@@ -213,6 +231,15 @@ let currentAnalysis = null;
 let currentFileName = '';
 let currentAudioPath = '';
 let currentSourceType = null; // 'audio' | 'video' | 'midi'
+// Étape de région (2026-10-21) : region confirmée (passée au moteur), ou null
+// pour analyser le fichier entier. regionDuration/regionPeaks/regionStart/
+// regionEnd ne vivent que pendant que l'écran de région est affiché.
+let currentRegion = null;
+let regionDuration = 0;
+let regionPeaks = null;
+let regionStart = 0;
+let regionEnd = 0;
+let regionDragHandle = null; // 'start' | 'end' | null
 let isDraggingProgress = false;
 let lastAutoScrollIndex = -1;
 let selectedSegmentId = null; // segmentId sélectionné dans la timeline
@@ -356,16 +383,20 @@ export function initAnalyzerTab() {
 function setAnalyzerState(state) {
   // Mêmes états que ANALYSIS_STATES dans analyzer-workflow.js, que
   // test-analysis-workflow.js garde synchronisé.
-  const states = ['import', 'analysis'];
+  const states = ['import', 'region', 'analysis'];
   if (!states.includes(state)) return;
 
   // Réinitialiser tous les états
   els.importScreen?.classList.remove('active');
+  els.regionScreen?.classList.remove('active');
   els.results?.classList.remove('active');
 
   switch (state) {
     case 'import':
       els.importScreen?.classList.add('active');
+      break;
+    case 'region':
+      els.regionScreen?.classList.add('active');
       break;
     case 'analysis':
       els.results?.classList.add('active');
@@ -381,6 +412,12 @@ function initWorkspaceStates() {
   els.importAudioBtn?.addEventListener('click', () => handleImportClick());
   els.importBtn?.addEventListener('click', () => handleImportClick());
   initImportDropzone(els.importAudioBtn);
+
+  // Étape de région (2026-10-21).
+  initRegionHandles();
+  els.regionConfirmBtn?.addEventListener('click', () => confirmRegionSelection());
+  els.regionFullBtn?.addEventListener('click', () => analyzeWholeFile());
+  els.regionBackBtn?.addEventListener('click', () => resetAnalysisSession());
 
   // [Claude] — 2026-10-19 — Plus d'écran « Préparer l'analyse » (Narcisse : « supprime cette
   // étape ») ni d'écran « Quel type de vidéo » (2026-10-09) : sélectionner une source lance
@@ -684,6 +721,7 @@ async function loadAnalysisSource(sourceType, filePath, fileName) {
   currentAudioPath = filePath;
   currentFileName = fileName || filePath.split('/').pop() || filePath.split('\\').pop() || filePath;
   currentSourceType = sourceType;
+  currentRegion = null;
 
   // Discrimination audio/vidéo par extension (auto-détection fiable du format).
   const ext = (filePath.split('.').pop() || '').toLowerCase();
@@ -695,7 +733,36 @@ async function loadAnalysisSource(sourceType, filePath, fileName) {
   // niveau 6 de la Definition of Done.
   if (await restoreSavedAnalysis(filePath)) return;
 
-  await launchAnalysisFromPrepare();
+  await prepareRegionStep();
+}
+
+/**
+ * [Claude] — 2026-10-21 — Étape de région avant analyse : un fichier audio/vidéo
+ * assez long propose de choisir un passage plutôt que d'attendre le calcul sur
+ * l'intégralité. Ne bloque jamais l'analyse : toute erreur (IPC indisponible,
+ * extraction échouée) retombe sur l'analyse du fichier entier, comme avant.
+ */
+async function prepareRegionStep() {
+  if (currentSourceType === 'midi' || !window.electronAPI?.analyzer?.prepareRegion) {
+    await launchAnalysisFromPrepare();
+    return;
+  }
+  showProcessing('Préparation…');
+  try {
+    const info = await window.electronAPI.analyzer.prepareRegion(currentAudioPath, {
+      skipBelowSeconds: REGION_SKIP_BELOW_SECONDS,
+    });
+    hideProcessing();
+    if (!info?.peaks || !shouldOfferRegionSelection(info.duration, currentSourceType)) {
+      await launchAnalysisFromPrepare();
+      return;
+    }
+    showRegionScreen(info.duration, info.peaks);
+  } catch (err) {
+    console.warn('[Analyzer] région indisponible, analyse du fichier entier :', err.message);
+    hideProcessing();
+    await launchAnalysisFromPrepare();
+  }
 }
 
 /** Chemin déjà choisi par l'utilisateur (dialogue natif ou glisser-déposer) : valide le format et lance l'analyse. */
@@ -934,6 +1001,201 @@ function setAnalysisControlsDisabled(disabled) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Étape de région avant analyse (2026-10-21). Ruban organique (pas des barres
+// techniques comme le Studio) : canvas 2D dessiné à la main, deux poignées
+// rondes en overlay DOM (plus simples à rendre accessibles qu'un dessin canvas).
+// ---------------------------------------------------------------------------
+
+function formatRegionDuration(seconds) {
+  const total = Math.max(0, Math.round(seconds));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  if (m === 0) return `${s} s`;
+  if (s === 0) return `${m} min`;
+  return `${m} min ${s} s`;
+}
+
+function showRegionScreen(duration, peaks) {
+  regionDuration = duration;
+  regionPeaks = peaks;
+  regionStart = 0;
+  regionEnd = Math.min(duration, REGION_DEFAULT_SECONDS);
+  if (els.regionSubtitle) {
+    els.regionSubtitle.textContent = `Ce morceau dure ${formatRegionDuration(duration)}. `
+      + 'Pour aller plus vite, concentrez-vous sur un passage : glissez les deux poignées sur le ruban.';
+  }
+  setAnalyzerState('region');
+  drawRegionWaveform();
+  updateRegionUI();
+}
+
+function drawRegionWaveform() {
+  const canvas = els.regionCanvas;
+  const peaks = regionPeaks;
+  if (!canvas || !peaks || !peaks.length) return;
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.max(1, Math.round(rect.width * dpr));
+  canvas.height = Math.max(1, Math.round(rect.height * dpr));
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const w = rect.width;
+  const h = rect.height;
+  const midY = h / 2;
+  ctx.clearRect(0, 0, w, h);
+
+  const style = getComputedStyle(canvas.parentElement || document.body);
+  const accent = style.getPropertyValue('--accent').trim() || '#4f46e5';
+  const text = style.getPropertyValue('--text-dim').trim() || '#6b7280';
+
+  // Amplitude min garantie pour que le ruban ne s'aplatisse jamais à zéro
+  // (silences, fade-in) : on garde toujours une forme à suivre du regard.
+  const minAmp = 0.06;
+  const top = peaks.map((p) => midY - Math.max(p, minAmp) * midY * 0.92);
+  const bottom = peaks.map((p) => midY + Math.max(p, minAmp) * midY * 0.92);
+  const stepX = w / (peaks.length - 1 || 1);
+
+  const smoothPath = (ys, reverse) => {
+    const order = reverse ? [...ys.keys()].reverse() : [...ys.keys()];
+    for (let idx = 0; idx < order.length; idx++) {
+      const i = order[idx];
+      const x = i * stepX;
+      const y = ys[i];
+      if (idx === 0) { ctx.lineTo(x, y); continue; }
+      const prevI = order[idx - 1];
+      const prevX = prevI * stepX;
+      const midX = (prevX + x) / 2;
+      ctx.quadraticCurveTo(prevX, ys[prevI], midX, (ys[prevI] + y) / 2);
+    }
+  };
+
+  ctx.beginPath();
+  ctx.moveTo(0, top[0]);
+  smoothPath(top, false);
+  smoothPath(bottom, true);
+  ctx.closePath();
+  const gradient = ctx.createLinearGradient(0, 0, 0, h);
+  gradient.addColorStop(0, withAlpha(accent, 0.55));
+  gradient.addColorStop(1, withAlpha(text, 0.3));
+  ctx.fillStyle = gradient;
+  ctx.fill();
+}
+
+/** Résout une couleur CSS quelconque (nommée, var() déjà résolue, hex…) en rgba() avec alpha, pour un canvas 2D qui n'accepte pas color-mix(). */
+function withAlpha(cssColor, alpha) {
+  const probe = document.createElement('span');
+  probe.style.color = cssColor;
+  document.body.appendChild(probe);
+  const resolved = getComputedStyle(probe).color;
+  probe.remove();
+  const m = resolved.match(/\d+(\.\d+)?/g);
+  if (!m || m.length < 3) return cssColor;
+  const [r, g, b] = m;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function updateRegionUI() {
+  const picker = els.regionPicker;
+  if (!picker || !regionDuration) return;
+  const width = picker.getBoundingClientRect().width;
+  const xFor = (t) => (width * t) / regionDuration;
+  const startX = xFor(regionStart);
+  const endX = xFor(regionEnd);
+
+  if (els.regionBand) {
+    els.regionBand.style.left = `${startX}px`;
+    els.regionBand.style.width = `${Math.max(0, endX - startX)}px`;
+  }
+  if (els.regionHandleStart) els.regionHandleStart.style.left = `${startX}px`;
+  if (els.regionHandleEnd) els.regionHandleEnd.style.left = `${endX}px`;
+  if (els.regionHandleStartTime) els.regionHandleStartTime.textContent = formatTime(regionStart);
+  if (els.regionHandleEndTime) els.regionHandleEndTime.textContent = formatTime(regionEnd);
+  if (els.regionSummary) {
+    els.regionSummary.innerHTML = `Passage choisi : <strong>${formatTime(regionStart)}</strong> → `
+      + `<strong>${formatTime(regionEnd)}</strong> (${formatRegionDuration(regionEnd - regionStart)} `
+      + `sur ${formatRegionDuration(regionDuration)})`;
+  }
+}
+
+function initRegionHandles() {
+  const picker = els.regionPicker;
+  if (!picker) return;
+
+  const timeFromEvent = (clientX) => {
+    const rect = picker.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    return ratio * regionDuration;
+  };
+
+  const startDrag = (which) => (e) => {
+    e.preventDefault();
+    regionDragHandle = which;
+    const el = which === 'start' ? els.regionHandleStart : els.regionHandleEnd;
+    el?.classList.add('is-dragging');
+  };
+  els.regionHandleStart?.addEventListener('pointerdown', startDrag('start'));
+  els.regionHandleEnd?.addEventListener('pointerdown', startDrag('end'));
+
+  // Au clic ailleurs sur le ruban : recentre la poignée la plus proche, comme
+  // on pointerait directement l'endroit qui intéresse.
+  picker.addEventListener('pointerdown', (e) => {
+    if (e.target === els.regionHandleStart || e.target === els.regionHandleEnd
+      || els.regionHandleStart?.contains(e.target) || els.regionHandleEnd?.contains(e.target)) return;
+    const t = timeFromEvent(e.clientX);
+    const which = Math.abs(t - regionStart) <= Math.abs(t - regionEnd) ? 'start' : 'end';
+    regionDragHandle = which;
+    (which === 'start' ? els.regionHandleStart : els.regionHandleEnd)?.classList.add('is-dragging');
+    applyDrag(t);
+  });
+
+  const applyDrag = (t) => {
+    const clamped = regionDragHandle === 'start'
+      ? clampRegion(t, regionEnd, regionDuration)
+      : clampRegion(regionStart, t, regionDuration);
+    regionStart = clamped.start;
+    regionEnd = clamped.end;
+    updateRegionUI();
+  };
+
+  window.addEventListener('pointermove', (e) => {
+    if (!regionDragHandle) return;
+    applyDrag(timeFromEvent(e.clientX));
+  });
+  window.addEventListener('pointerup', () => {
+    if (!regionDragHandle) return;
+    regionDragHandle = null;
+    els.regionHandleStart?.classList.remove('is-dragging');
+    els.regionHandleEnd?.classList.remove('is-dragging');
+  });
+
+  // Clavier : flèches gauche/droite sur une poignée focalisée (accessibilité).
+  const onKey = (which) => (e) => {
+    const step = e.shiftKey ? 10 : 1;
+    if (e.key === 'ArrowLeft') { regionDragHandle = which; applyDrag((which === 'start' ? regionStart : regionEnd) - step); regionDragHandle = null; }
+    else if (e.key === 'ArrowRight') { regionDragHandle = which; applyDrag((which === 'start' ? regionStart : regionEnd) + step); regionDragHandle = null; }
+  };
+  els.regionHandleStart?.addEventListener('keydown', onKey('start'));
+  els.regionHandleEnd?.addEventListener('keydown', onKey('end'));
+
+  window.addEventListener('resize', () => {
+    if (els.regionScreen?.classList.contains('active')) {
+      drawRegionWaveform();
+      updateRegionUI();
+    }
+  });
+}
+
+function confirmRegionSelection() {
+  currentRegion = { start: regionStart, end: regionEnd };
+  launchAnalysisFromPrepare();
+}
+
+function analyzeWholeFile() {
+  currentRegion = null;
+  launchAnalysisFromPrepare();
+}
+
 async function launchAnalysisFromPrepare() {
   if (!currentAudioPath) return;
   if (analysisRunning) {
@@ -947,7 +1209,9 @@ async function launchAnalysisFromPrepare() {
   try {
     // [Claude] — 2026-10-09 — Un fichier MIDI : ses notes sont exactes, les accords en sont tirés
     // directement (pas de ffmpeg ni de chromagramme), et son écoute est rendue au piano.
-    const analysis = midi ? await analyzeMidiFile(currentAudioPath) : await analyzer.analyze(currentAudioPath);
+    const analysis = midi
+      ? await analyzeMidiFile(currentAudioPath)
+      : await analyzer.analyze(currentAudioPath, currentRegion ? { region: currentRegion } : {});
     currentAnalysis = analysis;
     await showResults(analysis);
     // Ajouter à la bibliothèque en arrière-plan (pas un MIDI : la bibliothèque est celle du Studio,
@@ -1084,6 +1348,9 @@ export function resetAnalysisSession() {
   currentFileName = '';
   currentAudioPath = '';
   currentSourceType = null;
+  currentRegion = null;
+  regionDuration = 0;
+  regionPeaks = null;
   setMasterclassSourceType('audio');
   selectedSegmentId = null;
   clearInspector();
