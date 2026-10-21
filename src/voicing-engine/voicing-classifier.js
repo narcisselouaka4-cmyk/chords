@@ -107,9 +107,12 @@ export const VOICING_LABELS = {
  * @param {number[]} notes - MIDI
  * @param {number} rootPc - fondamentale de l'accord
  * @param {string} quality - qualité (« m9 », « 13 », « maj7#11 »)
+ * @param {{allowRootless?: boolean}} options - permet aux écrans pédagogiques
+ *   de reconnaître cette technique ; le Temps réel la désactive pour ne pas
+ *   présenter une fondamentale implicite comme caractéristique de l'accord.
  * @returns {{technique: string|null, label: string, detail: string, hands: {left: number[], right: number[], oneHand: boolean}, rootless: boolean, inversion: string}}
  */
-export function classifyVoicing(notes, rootPc, quality = '') {
+export function classifyVoicing(notes, rootPc, quality = '', { allowRootless = true } = {}) {
   const s = uniqueSorted(notes);
   const hands = splitHands(s);
   const rel = (n) => pcOf(n - rootPc);
@@ -153,7 +156,7 @@ export function classifyVoicing(notes, rootPc, quality = '') {
   const leftRels = hands.left.map(rel);
 
   // 4. Rootless : ni fondamentale au-dessus de la basse, 3ce et 7e présentes.
-  if (!upperRels.includes(0) && upper.length >= 3 && upperRels.some(isThirdPc) && upperRels.some(isSeventhPc)) {
+  if (allowRootless && !upperRels.includes(0) && upper.length >= 3 && upperRels.some(isThirdPc) && upperRels.some(isSeventhPc)) {
     const lowest = upperRels[0];
     const type = isThirdPc(lowest) ? 'type A (3ce en bas)' : isSeventhPc(lowest) ? 'type B (7e en bas)' : 'renversé';
     const drop = upper.length === 4 ? dropType(upper) : null;

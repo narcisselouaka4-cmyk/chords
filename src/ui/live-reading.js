@@ -179,10 +179,14 @@ export function describeLiveReading(notes, result, latin = false) {
   out.position = positionLabel(result, sorted);
   out.intervals = intervalDegrees(sorted, result.rootPc, result.symbol).join(' · ');
   out.wheel.rootPc = result.rootless ? null : result.rootPc;
-  const played = classifyPlayedVoicing(sorted, result.rootPc, result.symbol);
+  // Le Temps réel décrit uniquement la forme réellement jouée. « Rootless » est
+  // une interprétation harmonique implicite, pas une géométrie de voicing utile
+  // dans cette fiche : elle pouvait notamment apparaître alors que la
+  // fondamentale était bel et bien jouée à la main gauche.
+  const played = classifyPlayedVoicing(sorted, result.rootPc, result.symbol, { allowRootless: false });
   out.voicing = played.label || '—';
   out.voicingDetail = played.detail || '';
-  out.also = chordReadings(sorted)
+  out.also = chordReadings(sorted, { includeRootless: false })
     .filter((r) => !(r.rootPc === result.rootPc && r.symbol === result.symbol))
     .slice(0, 3)
     .map((r) => readingName(r, latin));

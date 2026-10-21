@@ -98,6 +98,7 @@ check('C6 → aussi Am7', also([48, 52, 55, 57]).includes('9:m7'), JSON.stringif
 check('Cm7 → aussi E♭6', also([48, 51, 55, 58]).includes('3:6'));
 check('Cdim7 → les quatre lectures', ['0:dim7', '3:dim7', '6:dim7', '9:dim7'].every((k) => also([48, 51, 54, 57]).includes(k)));
 check('Fa La Si Mi → aussi G13 sans fondamentale', also([53, 57, 59, 64]).includes('7:13 sans fond.'), JSON.stringify(also([53, 57, 59, 64])));
+check('le Temps réel peut exclure toutes les lectures sans fondamentale', !chordReadings([53, 57, 59, 64], { includeRootless: false }).some((r) => r.rootless));
 check('la lecture retenue est en tête', also([48, 52, 55, 57])[0] === '0:6');
 check('deux notes : pas d\'autres lectures', chordReadings([60, 64]).length === 0);
 check('Cmaj7♯11 : pas de « Gmaj13/C » (deux notes omises)', !also([48, 52, 55, 59, 66]).includes('7:maj13'), JSON.stringify(also([48, 52, 55, 59, 66])));

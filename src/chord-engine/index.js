@@ -285,7 +285,16 @@ function rootlessResult(match, sortedNotes, voicing) {
   };
 }
 
-export function detectChord(activeNotes) {
+/**
+ * Détecte l'accord le plus plausible.
+ *
+ * `allowRootless: false` est utilisé par le Temps réel : une fondamentale
+ * absente ne doit pas faire remplacer silencieusement l'accord effectivement
+ * joué par un accord enrichi seulement implicite. Les outils pédagogiques qui
+ * travaillent volontairement les voicings sans fondamentale gardent le
+ * comportement historique par défaut.
+ */
+export function detectChord(activeNotes, { allowRootless = true } = {}) {
   if (!activeNotes || activeNotes.length === 0) return null;
 
   const sortedNotes = [...activeNotes].sort((a, b) => a - b);
@@ -325,7 +334,7 @@ export function detectChord(activeNotes) {
 
   if (!acceptable || (weakSlash && findPolychord(pcSet))) {
     // Ni lecture exacte ni presque exacte : voicing sans fondamentale ?
-    const rootless = acceptable ? null : findRootlessMatches(pcSet, uniquePcs, bassPc)
+    const rootless = !allowRootless || acceptable ? null : findRootlessMatches(pcSet, uniquePcs, bassPc)
       .sort((a, b) => b.def.intervals.length - a.def.intervals.length)[0];
     if (rootless) return rootlessResult(rootless, sortedNotes, voicing);
     // [OpenCode] — 2026-07-03 — Polychord detection : deux triades sans note commune.
@@ -356,7 +365,7 @@ export function detectChord(activeNotes) {
   // [OpenCode] — 2026-07-03 — Rootless post-processing : E-G-B-D au-dessus d'une
   // triade parfaite, quatre notes ou plus… Une triade fondamentale complète reste
   // une triade (C-E-G est C majeur, pas Am7 sans fondamentale).
-  if (best.def.intervals.length === 3 && !best.exact && uniquePcs.length > 3) {
+  if (allowRootless && best.def.intervals.length === 3 && !best.exact && uniquePcs.length > 3) {
     const richer = findRootlessMatches(pcSet, uniquePcs, bassPc).find((m) => m.def.intervals.length >= 3);
     if (richer) return rootlessResult(richer, sortedNotes, voicing);
   }
@@ -383,7 +392,7 @@ export function detectChord(activeNotes) {
  * @param {number[]} activeNotes - MIDI
  * @returns {{rootPc: number, symbol: string, bassPc: number, isSlash: boolean, rootless: boolean}[]}
  */
-export function chordReadings(activeNotes) {
+export function chordReadings(activeNotes, { includeRootless = true } = {}) {
   if (!activeNotes || activeNotes.length === 0) return [];
   const sortedNotes = [...activeNotes].sort((a, b) => a - b);
   const bassPc = pcOf(sortedNotes[0]);
@@ -405,7 +414,7 @@ export function chordReadings(activeNotes) {
   for (const reading of rankReadings(pcSet, uniquePcs, bassPc, MATCH_DEFINITIONS)) {
     if (reading.exact && reading.omitted <= 1 && !reading.avoid) push(reading.rootPc, reading.def.symbol, false);
   }
-  if (uniquePcs.length >= 4) {
+  if (includeRootless && uniquePcs.length >= 4) {
     for (const match of findRootlessMatches(pcSet, uniquePcs, bassPc)) push(match.rootPc, match.def.symbol, true);
   }
   return out;
