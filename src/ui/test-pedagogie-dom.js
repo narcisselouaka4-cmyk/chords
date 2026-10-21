@@ -118,6 +118,16 @@ check('Le nombre d\'images de sondage scale avec la durée jusqu\'à un plafond'
   electronMain.includes('Math.min(60, Math.max(24, Math.ceil(duration / 30)))'));
 check('Le contrôle de durée se fait avant collectFrames',
   /duration\s*>\s*MAX_DURATION_SECONDS[\s\S]*?collectFrames/.test(electronMainCode));
+check('La relecture fine longue est distribuée dans un budget borné',
+  electronMain.includes('capBusyWindows(requestedWindows')
+  && electronMain.includes('FINE_READING_BUDGET_SECONDS'));
+const streamFramesCode = electronMainCode.match(/async function streamFrames[\s\S]*?\n  \}/)?.[0] || '';
+check('Le flux vidéo réutilise un tampon d\'image au lieu de Buffer.concat',
+  streamFramesCode.includes('Buffer.allocUnsafe(frameBytes)') && !streamFramesCode.includes('Buffer.concat'));
+check('La transcription de la parole démarre après la lecture vidéo, pas en parallèle',
+  /let transcriptionPromise = null;[\s\S]*?const transcription = \(\) =>/.test(tabCode)
+  && !/const transcriptionPromise = runTranscription\(path\)/.test(tabCode)
+  && tabCode.indexOf('await api.pedagogie.analyzeVideo') < tabCode.indexOf('await transcription()'));
 
 // ---------------------------------------------------------------------------
 // 6. Le repli audio réutilise le pipeline existant

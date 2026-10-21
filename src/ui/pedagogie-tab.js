@@ -1442,7 +1442,7 @@ async function analyzeSelected() {
 
 /**
  * Le relevé d'un tuto : lecture des images, sinon du vrai clavier (V2N), sinon du son ;
- * la parole en parallèle. Ses résultats restent dans `job` : ils sont gardés sous son tuto,
+ * puis la parole. Ses résultats restent dans `job` : ils sont gardés sous son tuto,
  * et montrés seulement si ce tuto est ouvert (on a pu revenir aux cartes, ou en ouvrir un
  * autre, pendant qu'il tournait).
  * @param {string} path
@@ -1481,10 +1481,16 @@ async function runReading(path) {
   note(null);
 
   try {
-    // La parole ne dépend pas de ce que l'image donne : les deux lectures
-    // partent ensemble, et l'on n'attend la transcription qu'au moment
-    // d'assembler le résultat.
-    const transcriptionPromise = runTranscription(path);
+    // La parole ne dépend pas du résultat de l'image, mais les deux traitements
+    // ne doivent plus tourner en même temps : ffmpeg + Whisper faisaient monter
+    // le pic mémoire jusqu'à l'OOM sur les tutoriels longs. La promesse reste
+    // mémorisée pour ne transcrire qu'une fois, et ne démarre qu'après l'image
+    // (ou le repli audio) au moment où le récit est réellement nécessaire.
+    let transcriptionPromise = null;
+    const transcription = () => {
+      transcriptionPromise ??= runTranscription(path);
+      return transcriptionPromise;
+    };
     // [Claude] — 2026-10-14 — Les notes ENTENDUES (transcription du piano au son) : une seconde lecture
     // de la même vidéo, lancée tout de suite en parallèle de l'image. Elle sert dans les deux cas :
     // à recouper la lecture à l'image (sound-reconcile.js : octaves, lacunes, glissandos), et, quand
@@ -1553,7 +1559,7 @@ async function runReading(path) {
       const audioSegments = await runAudioFallback(path);
       job.key = audioSegments.key ?? null;
       step('Écoute de ce que dit le prof…');
-      const narration = normalizeTranscription(await transcriptionPromise);
+      const narration = normalizeTranscription(await transcription());
       const built = buildAudioOnlyAnalysis({
         reason: result.reason,
         audioSegments: audioSegments.segments,
@@ -1589,7 +1595,7 @@ async function runReading(path) {
     }
 
     step('Écoute de ce que dit le prof…');
-    const narration = normalizeTranscription(await transcriptionPromise);
+    const narration = normalizeTranscription(await transcription());
 
     step('Relevé des accords…');
     let built;
