@@ -322,6 +322,29 @@ function testAbruptChangesStaySmooth() {
   console.log('✅ Changements brusques : transposition en direct, SoundTouch neuf à chaque relance, vidéo qui attend le son, un seul saut au lâcher de la barre');
 }
 
+// ── Test 15 : R ne déclenche le Screen Recorder qu'avec une source Studio prête ──
+function testRecordingShortcutRequiresLoadedStudioTrack() {
+  const js = readText('src/ui/studio-tab.js');
+  const shortcutStart = js.indexOf("if (e.code !== 'KeyR') return;");
+  const shortcutEnd = js.indexOf("els.stopBtn?.addEventListener", shortcutStart);
+  const shortcut = js.slice(shortcutStart, shortcutEnd);
+  const guardStart = js.indexOf('function studioRecordingShortcutAvailable()');
+  const guardEnd = js.indexOf('\n}', guardStart) + 2;
+  const guard = js.slice(guardStart, guardEnd);
+  const guardedBeforeAction = shortcut.indexOf('if (!studioRecordingShortcutAvailable()) return;') >= 0
+    && shortcut.indexOf('if (!studioRecordingShortcutAvailable()) return;') < shortcut.indexOf('toggleRecording();');
+  const validSource = /currentTrack && studioStage > 0 && !isLoadingTrack/.test(guard);
+  const studioOnly = /data-tab="studio"/.test(guard) && /classList\.contains\('active'\)/.test(guard);
+  const safeKeyboard = /e\.repeat/.test(shortcut) && /isContentEditable/.test(shortcut);
+  if (!guardedBeforeAction || !validSource || !studioOnly || !safeKeyboard) {
+    console.error('❌ Enregistrement Studio — R doit rester inactif sans morceau prêt et hors du Studio', {
+      guardedBeforeAction, validSource, studioOnly, safeKeyboard,
+    });
+    process.exit(1);
+  }
+  console.log('✅ Enregistrement Studio — R exige le Studio actif et un morceau complètement chargé');
+}
+
 // ── Exécution ──
 console.log('=== Tests contrat DOM Studio ===\n');
 testDefaultFileContext();
@@ -338,4 +361,5 @@ testWaveformFromDecodedAudio();
 testCancelRegionProcessing();
 testRegionGripPlayheadAndSmoothPlayback();
 testAbruptChangesStaySmooth();
+testRecordingShortcutRequiresLoadedStudioTrack();
 console.log('\n✅ Tous les tests DOM Studio passent.');

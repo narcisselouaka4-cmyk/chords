@@ -312,10 +312,17 @@ function bindPlayer() {
     else play();
   });
 
-  // Raccourci R global dédié au Screen Recorder du Studio.
+  // Raccourci R dédié au Screen Recorder du Studio. Il ne doit jamais sortir
+  // l'application de son état vide : le raccourci n'est disponible que dans
+  // l'onglet Studio, après le chargement complet d'un morceau sélectionné.
   document.addEventListener('keydown', (e) => {
     if (e.code !== 'KeyR') return;
-    if (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(e.target?.tagName)) return;
+    if (e.repeat || ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(e.target?.tagName) || e.target?.isContentEditable) return;
+    if (!studioRecordingShortcutAvailable()) return;
+    // Une seconde pression pendant le compte à rebours ne doit pas empiler
+    // plusieurs séquences. Une fois l'enregistrement actif, R reste disponible
+    // pour l'arrêter normalement.
+    if (!isRecording && countdownTimeout) return;
     e.preventDefault();
     e.stopPropagation();
     toggleRecording();
@@ -425,6 +432,11 @@ function bindPlayer() {
 
   // Les événements media sont attachés dynamiquement à chaque nouvel élément.
   // Voir createMediaPlayer().
+}
+
+function studioRecordingShortcutAvailable() {
+  const studioIsActive = document.querySelector('.tab-btn[data-tab="studio"]')?.classList.contains('active');
+  return Boolean(studioIsActive && currentTrack && studioStage > 0 && !isLoadingTrack);
 }
 
 // [Claude] — 2026-07-07 — Screen Recorder : panneau rétractable + record + raccourcis.
