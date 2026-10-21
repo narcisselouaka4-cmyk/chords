@@ -573,6 +573,11 @@
   accent-color: var(--an-accent);
 }
 
+#analyzer-timeline-legend:not(.is-detailed) .is-passing,
+#analyzer-timeline-legend:not(.is-detailed) .is-uncertain {
+  display: none;
+}
+
 /* =========================================================================
    CHORD PROGRESSION HORIZONTAL RIBBON
    ========================================================================= */

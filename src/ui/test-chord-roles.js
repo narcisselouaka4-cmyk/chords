@@ -4,9 +4,8 @@
  * Le moteur qualifie chaque segment d'un rôle (structural / passing /
  * uncertain / silence) ; la timeline doit le traduire en poids visuel.
  *
- * Invariant central, issu de contracts/chordify-contract et de la mission
- * produit : **on hiérarchise, on ne masque jamais.** Un accord de passage doit
- * rester visible, cliquable et corrigible.
+ * Lecture structurelle par défaut ; les autres rôles sont consultables et
+ * corrigibles dans la vue détaillée, sans modifier le résultat enregistré.
  *
  * Usage : node src/ui/test-chord-roles.js
  */
@@ -97,13 +96,11 @@ runTest('B. Timeline — chaque rôle devient une classe CSS sur le bloc', () =>
   );
 });
 
-runTest('B. Timeline — un rôle inconnu ou absent retombe sur structural', () => {
-  const js = read('src/ui/analyzer-tab.js');
-  const start = js.indexOf('function segmentRole(');
-  const body = js.slice(start, js.indexOf('\n}', start));
+runTest('B. Timeline — compatibilité des anciens projets et corrections', () => {
+  const body = read('src/analyzer/structural-progression.js');
   assert(
     body.includes("return 'structural'"),
-    'une analyse sans champ role reste affichée normalement (compatibilité ascendante)',
+    'une analyse sans champ role reste affichée (compatibilité MIDI et anciens projets)',
   );
   assert(
     body.includes('manualOverride'),
@@ -111,7 +108,7 @@ runTest('B. Timeline — un rôle inconnu ou absent retombe sur structural', () 
   );
 });
 
-// ── C. On hiérarchise, on ne masque jamais ──
+// ── C. La vue détaillée garde les rôles lisibles et corrigibles ──
 
 runTest('C. CSS — aucun rôle ne masque le bloc', () => {
   const css = read('src/ui/components/analyzer-workspace.css');
@@ -173,9 +170,11 @@ runTest('D. Interface — légende et bascule présentes', () => {
   );
   assert(
     html.includes('analyzer-hierarchy-toggle'),
-    'la bascule « Hiérarchiser » existe',
+    'la bascule vers les détails existe',
   );
-  for (const label of ['Accord structurel', 'Accord de passage', 'Incertain']) {
+  assert(!/id="analyzer-hierarchy-toggle"[^>]*\bchecked\b/.test(html), 'la vue détaillée est désactivée par défaut');
+  assert(html.includes('Vue détaillée'), 'la bascule annonce clairement les détails');
+  for (const label of ['Accords structurels', 'Accord de passage', 'Incertain']) {
     assert(html.includes(label), `la légende nomme « ${label} »`);
   }
 });

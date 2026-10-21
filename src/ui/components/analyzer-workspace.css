@@ -1836,9 +1836,9 @@
 
 /* ── Hiérarchie harmonique de la timeline ──────────────────────────────────
    Le moteur qualifie chaque segment (structurel / passage / incertain) ; la
-   timeline le traduit en poids visuel. Principe : on hiérarchise, on ne masque
-   jamais. Un accord de passage reste lisible, cliquable et corrigible — il est
-   seulement présenté comme secondaire. Le codage repose sur trois canaux
+   vue détaillée le traduit en poids visuel. Un accord de passage y reste
+   lisible, cliquable et corrigible. La vue principale sélectionne les seuls
+   accords structurels dans le modèle. Le codage repose sur trois canaux
    redondants (cadre, opacité, style de bordure) pour rester lisible en cas de
    daltonisme et sur écran peu contrasté. */
 

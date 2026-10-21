@@ -429,7 +429,7 @@ def build_J():
     # (min_duration=0.4s). Un passage plus court serait absorbé par le moteur,
     # ce qui n'est pas le défaut ciblé ici.
     c_block = chord_wave('C2', ['E3', 'G3', 'C4'], 2 * BEAT_DUR)
-    d7_block = chord_wave('D2', ['F3', 'A3', 'C4'], 1 * BEAT_DUR)
+    d7_block = chord_wave('D2', ['F#3', 'A3', 'C4'], 1 * BEAT_DUR)
     g_block = chord_wave('G2', ['B3', 'D4', 'G4'], 1 * BEAT_DUR)
     triplet = concat(c_block, d7_block, g_block)
     y = concat(*([triplet] * REPS))
@@ -440,7 +440,7 @@ def build_J():
                                ['E3', 'G3', 'C4'], [0, 4, 7], kind='chord'))
         segs.append(gt_segment(s0 + 2 * BEAT_DUR, s0 + 3 * BEAT_DUR,
                                'D', '7', 'D2',
-                               ['F3', 'A3', 'C4'], [0, 4, 7, 10], kind='passing'))
+                               ['F#3', 'A3', 'C4'], [0, 4, 7, 10], kind='passing'))
         segs.append(gt_segment(s0 + 3 * BEAT_DUR, s0 + 4 * BEAT_DUR,
                                'G', 'major', 'G2',
                                ['B3', 'D4', 'G4'], [0, 4, 7], kind='chord'))

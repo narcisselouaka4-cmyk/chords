@@ -46,7 +46,7 @@ NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 def run_analyze(wav_path):
     """Lance analyze-chords en mode legacy et retourne le dict résultat."""
     proc = subprocess.run(
-        ['python3', AUDIO_PROCESSOR, 'analyze-chords', wav_path],
+        [sys.executable, AUDIO_PROCESSOR, 'analyze-chords', wav_path],
         capture_output=True, text=True, cwd=ROOT,
     )
     if proc.returncode != 0:
@@ -165,14 +165,15 @@ AUDIO_SPECS['H_c_then_g_half_bar'] = AudioStrictSpec(
               for i in range(8)],
 )
 
-# I : le G occupe 0.25s, plus court que le beat détecté (~1.0s) → BLOCKED.
+# I : quatre G de 0.25 s. La grille du moteur est désormais indépendante
+# des beats : ce cas doit être évalué, pas masqué derrière un ancien BLOCKED.
+# Les C de fin/début des quatre répétitions sont contigus : neuf zones.
 AUDIO_SPECS['I_c_g_off_half_beat'] = AudioStrictSpec(
     'I', 'Changement C -> G sur demi-temps (0.25s) puis retour C',
-    expected=[ZoneExpectation(0, {'', 'maj7'}, 0.0),
-              ZoneExpectation(7, {'', 'maj7'}, 0.75),
-              ZoneExpectation(0, {'', 'maj7'}, 1.0)],
-    blocked_note=('le G de 0.25s est plus court que le beat détecté (~1.0s) : '
-                  'la grille ne peut pas représenter cette frontière'),
+    expected=[ZoneExpectation(0, {'', 'maj7'}, 0.0, tol_time=0.12)] + [
+        e for i in range(4) for e in (
+            ZoneExpectation(7, {'', 'maj7'}, 2.0 * i + 0.75, tol_time=0.12),
+            ZoneExpectation(0, {'', 'maj7'}, 2.0 * i + 1.0, tol_time=0.12))],
 )
 
 # J : 12 zones (C, D7 de passage, G) × 4. Même correction qu'en H : la fixture

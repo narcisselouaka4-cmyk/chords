@@ -144,15 +144,15 @@ runTest('C. Le symbole complet reste dans l’infobulle et l’aria-label', () =
 
 runTest('D. Repli — seuls les accords NON structurels se replient', () => {
   const js = read('src/ui/analyzer-tab.js');
-  const start = js.indexOf('const collapsed = hierarchyEnabled');
+  const start = js.indexOf('const collapsed = detailedChords');
   assert(start > 0, 'la condition de repli existe');
   const body = js.slice(start, js.indexOf(';', start));
   assert(body.includes("role !== 'structural'"),
          'un accord structurel ne se replie jamais : c’est la structure qu’on lit de loin');
   assert(body.includes('COLLAPSE_MIN_WIDTH_PX'),
          'le repli dépend de la largeur rendue, donc du zoom');
-  assert(body.includes('hierarchyEnabled'),
-         'désactiver la hiérarchie désactive aussi le repli');
+  assert(body.includes('detailedChords'),
+         'les passages repliés appartiennent uniquement à la vue détaillée');
 });
 
 runTest('D. Repli — la donnée reste présente et récupérable', () => {

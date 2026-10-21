@@ -5,4 +5,4 @@
 // (.pjc.json) refuse toute analyse portant une autre version : elle est
 // recalculée, puis resauvegardée avec la bonne (chord-editor.js persiste
 // analysis.engine via PERSISTED_ANALYSIS_FIELDS).
-export const ANALYSIS_ENGINE_VERSION = 'ADR-061-triades-4';
+export const ANALYSIS_ENGINE_VERSION = 'ADR-061-triades-6';

@@ -316,7 +316,7 @@ NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 # Miroir JS : src/analyzer/engine-versions.js (ANALYSIS_ENGINE_VERSION) —
 # toute modification ici est répercutée là-bas ; l'UI refuse de restaurer
 # une analyse enregistrée portant une autre version et relance l'analyse.
-ENGINE_VERSION = 'ADR-061-triades-4'
+ENGINE_VERSION = 'ADR-061-triades-6'
 
 # Profils Krumhansl-Kessler pour l'estimation de la tonalité (Do = index 0)
 MAJOR_PROFILE = np.array([6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88], dtype=np.float32)
@@ -1554,6 +1554,9 @@ def _merge_arpeggio_segments(segments, beat_chroma, states, key, obs_scores=None
                 continue
             if states[state_idx]['suffix'] == 'N':
                 continue
+            if any(s.get('_independentHarmony') and s['chord'] != states[state_idx]['name']
+                   for s in segments[i:i + w]):
+                continue
 
             # L'accord gagnant doit être diatonique
             if states[state_idx]['root'] not in diatonic_roots:
@@ -1624,7 +1627,7 @@ def _merge_arpeggio_segments(segments, beat_chroma, states, key, obs_scores=None
         if last['chord'] != 'N' and prev['chord'] != 'N' and prev.get('merged_by_arpeggio'):
             last_dur = last['endTime'] - last['startTime']
             prev_dur = prev['endTime'] - prev['startTime'] - last_dur
-            if last_dur <= 0.55 and prev_dur >= 1.0:
+            if last_dur <= 0.55 and prev_dur >= 1.0 and not last.get('_independentHarmony'):
                 prev['endTime'] = last['endTime']
                 prev['beatIndices'].extend(last.get('beatIndices', []))
                 last_conf = float(last.get('confidence', 0.0))
@@ -1856,6 +1859,15 @@ def _absorb_arpeggio_figures(segments, beat_chroma, states, beat_dur=None,
             repeats = True
             for i in range(cycle_len, n):
                 if roots[i] != pattern[i % cycle_len]:
+                    # A clipped final bass cycle can give the decoder a
+                    # different last label. Accept only that final fragment,
+                    # after two complete cycles, with stationary upper voices.
+                    if (i == n - 1 and i >= 2 * cycle_len
+                            and group[i]['endTime'] - group[i]['startTime'] < 1.2
+                            and group[i].get('_upperVoiceChange') is False):
+                        stability = _upper_voice_stability(zone_start, zone_end)
+                        if stability is not None and stability >= 0.98:
+                            continue
                     repeats = False
                     break
             if not repeats:
@@ -1901,6 +1913,10 @@ def _absorb_arpeggio_figures(segments, beat_chroma, states, beat_dur=None,
     fusions = sorted(set(fusions), key=lambda x: x[0])
     filtered = []
     for start, end, chord in fusions:
+        if any(s.get('_independentHarmony') and s['chord'] != chord
+               and s.get('_upperVoiceChange') is not False
+               for s in segments[start:end + 1]):
+            continue
         if not filtered or start >= filtered[-1][1]:
             filtered.append([start, end, chord])
         elif end > filtered[-1][1]:
@@ -2035,7 +2051,7 @@ def _stabilize_progression(segments, key, states,
         if seg['chord'] == 'N':
             continue
         dur = seg['endTime'] - seg['startTime']
-        if dur >= short_threshold:
+        if dur >= short_threshold or seg.get('_independentHarmony'):
             continue
         rp = seg_root_pc(seg)
         if rp is None:
@@ -2974,7 +2990,7 @@ def _stabilize_progressive_harmony(segments, beat_chroma, states, key,
                 i += 1
                 continue
             s_dur = s['endTime'] - s['startTime']
-            if s_dur > max_absorb_dur:
+            if s_dur > max_absorb_dur or s.get('_independentHarmony'):
                 i += 1
                 continue
             s_root, _ = _parse_chord_label(s['chord'])
@@ -3621,6 +3637,7 @@ def _absorb_vi_parasites(segments, key, max_parasite_dur=2.5,
         rel = (root - key_pc) % 12
         dur = s['endTime'] - s['startTime']
         is_parasite = (
+            not s.get('_independentHarmony') and
             rel == vi_degree and
             dur <= max_parasite_dur and
             0 < i < n - 1 and  # pas le premier ni le dernier
@@ -3936,7 +3953,7 @@ def _classify_chord_roles(segments, key, beat_dur=None):
     Sert la hiérarchie visuelle de Chordify. Aucune conséquence sur les accords
     détectés : cette couche ne renomme ni ne fusionne rien, elle qualifie.
 
-    - `structural` : diatonique et membre du vocabulaire récurrent du morceau.
+    - `structural` : membre tenu du vocabulaire, y compris les emprunts établis.
       C'est l'accord fondamental au sens de concepts/accord-fondamental.
     - `passing`    : bref, hors vocabulaire structurel, encadré des deux côtés
       par des accords structurels. C'est concepts/accord-passage.
@@ -3994,8 +4011,28 @@ def _classify_chord_roles(segments, key, beat_dur=None):
     # longtemps pour porter l'harmonie.
     sounding = [float(seg['endTime'] - seg['startTime']) for seg in segments
                 if seg.get('chord') and seg['chord'] != 'N']
-    median_dur = float(np.median(sounding)) if sounding else 0.0
-    min_structural = ROLE_STRUCTURAL_MIN_RATIO * median_dur
+    # Weight the duration distribution by musical exposure. Many tiny passing
+    # events must not lower the reference until they become structural too.
+    ordered_durations = np.sort(sounding)
+    median_dur = (float(ordered_durations[np.searchsorted(
+        np.cumsum(ordered_durations), 0.5 * sum(sounding))]) if sounding else 0.0)
+    min_structural = max(0.12, ROLE_STRUCTURAL_MIN_RATIO * median_dur)
+    confirmed_vocabulary = {
+        seg['chord'] for seg in segments
+        if seg['endTime'] - seg['startTime'] >= 2.0 * beat_dur
+        and seg.get('analysis', {}).get('harmonicEvidence', {}).get('independent')
+        and seg.get('analysis', {}).get('harmonicEvidence', {}).get('supportSeconds', 0.0) >= 0.2
+    }
+    confirmed_occurrences = {}
+    for seg in segments:
+        proof = seg.get('analysis', {}).get('harmonicEvidence', {})
+        if (seg['endTime'] - seg['startTime'] + 0.05 >= beat_dur
+                and proof.get('independent') and proof.get('supportSeconds', 0.0) >= 0.2):
+            chord = seg['chord']
+            confirmed_occurrences[chord] = confirmed_occurrences.get(chord, 0) + 1
+    confirmed_vocabulary.update(chord for chord, count in confirmed_occurrences.items() if count >= 2)
+    vocabulary.update(chord for chord in confirmed_vocabulary
+                      if not degrees or _is_diatonic_chord(*_parse_chord_label(chord), degrees))
     for seg in segments:
         chord = seg.get('chord')
         if not chord or chord == 'N':
@@ -4004,26 +4041,71 @@ def _classify_chord_roles(segments, key, beat_dur=None):
         dur = float(seg['endTime'] - seg['startTime'])
         root, suffix = _parse_chord_label(chord)
         diatonic = _is_diatonic_chord(root, suffix, degrees)
-        held = dur >= min_structural
+        # CQT boundaries can trim a few frames from a short structural chord.
+        held = dur + min(0.05, 0.1 * min_structural) >= min_structural
+        evidence = seg.get('analysis', {}).get('harmonicEvidence')
+        context = seg.get('analysis', {}).get('contextEvidence', {})
+        confirmed = (context.get('confirmed') and context.get('chord') == chord
+                     and context.get('source') == 'recurring_harmony')
+        supported = (evidence or {}).get('independent', False) or confirmed
+        # A clearly recurring pillar can occur for one beat inside a phrase;
+        # it need not reach half the duration of the song's longest voicings.
+        if supported and chord in confirmed_vocabulary and dur + 0.05 >= beat_dur:
+            held = True
+        if evidence is not None and not supported and not held:
+            seg['role'] = 'uncertain'
+            continue
+        established = (dur >= ROLE_VOCABULARY_MIN_HELD_BEATS * beat_dur
+                       or (occurrences.get(chord, 0) >= ROLE_VOCABULARY_MIN_OCCURRENCES
+                           and dur >= max(min_structural, 2.0 * beat_dur)))
         # Sans tonalité fiable, on ne prétend pas hiérarchiser finement : tout ce
         # qui est récurrent et tenu est admis comme structurel.
         if not degrees:
             seg['role'] = 'structural' if (chord in vocabulary and held) else None
         else:
-            seg['role'] = 'structural' if (diatonic and chord in vocabulary and held) else None
+            seg['role'] = 'structural' if (
+                (diatonic or established) and chord in vocabulary and held) else None
 
     # Seconde passe : passage contre incertain, décidé par le voisinage. Un
     # accord de passage relie deux piliers ; il peut parfaitement être
     # diatonique — un IV bref entre deux I en est un. Un seul seuil sépare donc
     # les deux rôles : trop court pour être un pilier, mais encadré par deux
     # piliers, c'est un passage ; sinon on ne prétend rien et c'est incertain.
-    for i, seg in enumerate(segments):
-        if seg.get('role') is not None:
+    # Classify entire runs together: two real passing chords in succession
+    # must not become uncertain solely because they are each other's neighbor.
+    i = 0
+    while i < len(segments):
+        if segments[i].get('role') is not None:
+            i += 1
             continue
-        prev_role = segments[i - 1].get('role') if i > 0 else None
-        next_role = segments[i + 1].get('role') if i + 1 < len(segments) else None
-        framed = prev_role == 'structural' and next_role == 'structural'
-        seg['role'] = 'passing' if framed else 'uncertain'
+        end = i + 1
+        while end < len(segments) and segments[end].get('role') is None:
+            end += 1
+        left = segments[i - 1] if i > 0 else None
+        right = segments[end] if end < len(segments) else None
+        framed = (left is not None and right is not None
+                  and left.get('role') == right.get('role') == 'structural'
+                  and abs(left['endTime'] - segments[i]['startTime']) < 1e-3
+                  and abs(segments[end - 1]['endTime'] - right['startTime']) < 1e-3
+                  and all(abs(a['endTime'] - b['startTime']) < 1e-3
+                          for a, b in zip(segments[i:end], segments[i + 1:end])))
+        run_duration = segments[end - 1]['endTime'] - segments[i]['startTime']
+        # Two confirmed passing harmonies can share a three-beat turnaround.
+        # Keep the shorter limit if any event lacks its own acoustic proof.
+        confirmed_run = all(
+            s.get('analysis', {}).get('harmonicEvidence', {}).get('independent')
+            or (s.get('analysis', {}).get('contextEvidence', {}).get('confirmed')
+                and s['analysis']['contextEvidence'].get('chord') == s['chord']
+                and s['analysis']['contextEvidence'].get('source') == 'recurring_harmony')
+            for s in segments[i:end])
+        passing_beats = 3.0 if end - i >= 2 and confirmed_run else 2.0
+        short = framed and run_duration <= min(
+            passing_beats * beat_dur,
+            0.75 * max(left['endTime'] - left['startTime'],
+                       right['endTime'] - right['startTime']))
+        for seg in segments[i:end]:
+            seg['role'] = 'passing' if short else 'uncertain'
+        i = end
 
     return segments
 
@@ -4376,15 +4458,16 @@ def _regularize_repeated_progression(segments, key, states, beat_chroma,
 
 
 def _clean_segments(segments, min_duration=0.6, silence_min=1.2):
-    """Fusionne les segments très courts et supprime les silences parasites."""
+    """Merge weak short events, preserving acoustic passages and real silence."""
     if not segments:
         return []
 
     # D'abord fusionner les silences courts entre deux fois le même accord.
     merged = []
     for seg in segments:
-        if seg['chord'] == 'N' and (seg['endTime'] - seg['startTime']) < silence_min:
-            if merged:
+        if (seg['chord'] == 'N' and seg.get('state') is not None
+                and (seg['endTime'] - seg['startTime']) < silence_min):
+            if merged and merged[-1]['chord'] != 'N':
                 # Étendre le segment précédent pour masquer le silence court.
                 merged[-1]['endTime'] = seg['endTime']
                 continue
@@ -4394,20 +4477,22 @@ def _clean_segments(segments, min_duration=0.6, silence_min=1.2):
     cleaned = []
     for seg in merged:
         duration = seg['endTime'] - seg['startTime']
-        if duration < min_duration:
-            if cleaned:
+        if (duration < min_duration and not seg.get('_independentHarmony')
+                and seg['chord'] != 'N'
+                and 'harmonicEvidence' not in seg.get('analysis', {})):
+            if cleaned and cleaned[-1]['chord'] != 'N':
                 cleaned[-1]['endTime'] = seg['endTime']
-            continue
+                continue
         cleaned.append(seg)
 
     # Fusionner les répétitions consécutives (peut arriver après absorption).
     final = []
     for seg in cleaned:
         if final and seg['chord'] == final[-1]['chord']:
-            final[-1]['endTime'] = seg['endTime']
             # Moyenne pondérée par durée pour la confiance.
             d1 = final[-1]['endTime'] - final[-1]['startTime']
             d2 = seg['endTime'] - seg['startTime']
+            final[-1]['endTime'] = seg['endTime']
             if d1 + d2 > 0:
                 final[-1]['confidence'] = round(
                     (final[-1]['confidence'] * d1 + seg['confidence'] * d2) / (d1 + d2), 3
@@ -4831,6 +4916,8 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
     Retourne un dict enrichi {duration, tempo, timeSignature, key, keyConfidence,
     keyCandidates, confidence, chords: [ChordEvent]}.
     """
+    from harmony_engine.temporal import HarmonicTimeline, analysis_frame_grid
+
     log(f'analyzing chords from {wav_path} (mode={clean_mode}, obs={observation_mode})')
     y, sr = librosa.load(wav_path, sr=22050, mono=True)
     duration = float(len(y) / sr)
@@ -4875,11 +4962,8 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
 
     # Grille d'analyse uniforme : une frame toutes les 0,25 s.
     ANALYSIS_FRAME_SEC = 0.25
-    n_total_frames = 1 + len(y) // hop_length
-    frame_step = max(1, int(round(ANALYSIS_FRAME_SEC * sr / hop_length)))
-    beat_frames = np.arange(0, max(2, n_total_frames), frame_step, dtype=int)
-    beat_times = librosa.frames_to_time(beat_frames, sr=sr, hop_length=hop_length)
-    median_ibi = float(ANALYSIS_FRAME_SEC)
+    beat_frames, beat_times, median_ibi = analysis_frame_grid(
+        len(y), sr, hop_length, ANALYSIS_FRAME_SEC)
 
     # 2. Tonalité.
     key, key_candidates = detect_key(y, sr)
@@ -4964,6 +5048,15 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
 
     # 4. HMM : observation + transition + Viterbi.
     states = _build_chord_states(observation_mode, contradiction_weight)
+    # HPSS at margin=8 deliberately keeps sustained harmony; a short passing
+    # chord may disappear from it. The temporal check reads the original
+    # signal, with a separate upper register to reject walking-bass changes.
+    fine_chroma = librosa.feature.chroma_cqt(
+        y=y, sr=sr, hop_length=hop_length, bins_per_octave=36) if clean_mode == 'legacy' else chroma
+    fine_upper = librosa.feature.chroma_cqt(
+        y=y, sr=sr, hop_length=hop_length, bins_per_octave=36,
+        fmin=librosa.note_to_hz('C3'), n_octaves=4) if clean_mode == 'legacy' else None
+    fine_timeline = HarmonicTimeline(fine_chroma, hop_length / sr, states, fine_upper)
     obs_scores = _compute_observation_scores(beat_chroma, states, key, frame_energies)
     if observation_mode == "posthoc_discriminator":
         obs_scores = _apply_discriminator(
@@ -5001,6 +5094,11 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
          'chord': seg['chord'],
          'confidence': round(float(seg.get('confidence', 0.0)), 3)}
         for seg in segments]
+    # Protect genuine short harmonies before the historical absorption layers.
+    # Keep rawChords above unchanged for meaningful before/after diagnostics.
+    if clean_mode == 'legacy':
+        segments = fine_timeline.refine_boundaries(segments)
+        fine_timeline.refresh_segments(segments, beat_times, obs_scores, states)
     # [Chantier accords 18/10] Clé interne des COUCHES = tonalité dominante
     # en durée des tonalités locales de la séquence brute. Mesuré, le profil
     # KK global SEIGNEUR = « Fa mineur » (0,001 de Fa majeur) et la couche
@@ -5152,19 +5250,30 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
                         segments, key, states, beat_chroma, beat_times=beat_times)
                     if debug:
                         _log_seg_stage("after _regularize_repeated_progression", segments, states)
-                # Détection structurelle vs accords de passage (informationnelle).
-                if ENABLE_SIMPLE_CHORD_VOCABULARY and ENABLE_STRUCTURAL_LOOP_DETECTION:
-                    segments = _detect_structural_loop(segments, key)
-                    if debug:
-                        _log_seg_stage("after _detect_structural_loop", segments, states)
             segments = _silence_leading_segments(segments, _audio_onset_time(y, sr, hop_length))
             segments = _carve_silences(segments, _detect_silent_regions(y, sr, hop_length))
             if debug:
                 _log_seg_stage("after _silence_leading_segments", segments, states)
+            segments = fine_timeline.recover_local_harmonies(segments)
+            fine_timeline.annotate(segments)
+            segments = fine_timeline.suppress_unsupported_short_events(
+                segments, max_duration=min(1.2, 120.0 / avg_tempo) if avg_tempo else 1.0)
             segments = _clean_segments(segments, min_duration=0.4, silence_min=1.2)
+            segments = fine_timeline.refine_boundaries(segments)
+            segments = fine_timeline.refresh_segments(segments, beat_times, obs_scores, states)
+            segments = fine_timeline.reject_unconfirmed_recoveries(segments)
+            segments = _clean_segments(segments, min_duration=0.0, silence_min=0.0)
+            segments = fine_timeline.refresh_segments(segments, beat_times, obs_scores, states)
+            segments = fine_timeline.resolve_recurring_harmony(
+                segments, beat_seconds=60.0 / avg_tempo if avg_tempo else 0.5)
+            segments = _clean_segments(segments, min_duration=0.0, silence_min=0.0)
+            segments = fine_timeline.refresh_segments(segments, beat_times, obs_scores, states)
             # Qualification des segments définitifs. Placée en dernier pour que
             # le rôle porte sur ce que l'utilisateur voit réellement.
-            segments = _classify_chord_roles(segments, key, beat_dur=median_ibi)
+            if ENABLE_SIMPLE_CHORD_VOCABULARY and ENABLE_STRUCTURAL_LOOP_DETECTION:
+                segments = _detect_structural_loop(segments, key)
+            segments = _classify_chord_roles(
+                segments, key, beat_dur=60.0 / avg_tempo if avg_tempo else 0.5)
             if debug:
                 _log_seg_stage("after _clean_segments", segments, states)
         subdivision_method = "legacy"

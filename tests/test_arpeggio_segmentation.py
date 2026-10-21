@@ -148,7 +148,7 @@ def aggregate(det_statuses, audio_statuses):
 def run_layer(script_name, verbose=False):
     """Exécute une couche de tests et retourne (output, returncode)."""
     script = os.path.join(HERE, script_name)
-    args = ['python3', script]
+    args = [sys.executable, script]
     if verbose:
         args.append('--verbose')
     proc = subprocess.run(args, capture_output=True, text=True, cwd=ROOT)

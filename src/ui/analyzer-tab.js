@@ -12,6 +12,7 @@ import {
 import { inferSourceType } from './analyzer-workflow.js';
 import { analyzeMidiFile, ensureMidiPlayback } from '../analyzer/midi-render.js';
 import { splitIntoSections, paletteOf, changeCountOf } from '../analyzer/chord-sections.js';
+import { harmonicRole, selectChordProgression } from '../analyzer/structural-progression.js';
 import { miniKeyboardForNotes } from './mini-keyboard.js';
 import { CHORD_DEFINITIONS } from '../chord-engine/chord-defs.js';
 import { noteNameToPc } from '../chord-engine/intervals.js';
@@ -216,10 +217,9 @@ let isDraggingProgress = false;
 let lastAutoScrollIndex = -1;
 let selectedSegmentId = null; // segmentId sélectionné dans la timeline
 
-// Hiérarchie visuelle structurel / passage. Le moteur qualifie chaque segment
-// d'un rôle harmonique ; la timeline le traduit en poids visuel. Désactivable :
-// certains utilisateurs préfèrent une grille uniforme.
-let hierarchyEnabled = true;
+// La lecture commence par les seuls accords structurels. Les détails du
+// moteur restent consultables volontairement pour vérifier ou corriger.
+let detailedChords = false;
 
 // En dessous de cette largeur, un accord non structurel se replie en marqueur
 // fin : il ne disparaît pas du modèle et reste cliquable, il cesse seulement de
@@ -237,14 +237,9 @@ const ROLE_LABELS = {
   silence: 'Silence',
 };
 
-// Rôle par défaut : les analyses produites avant l'introduction du champ, et
-// les segments corrigés à la main, sont traités comme structurels — un accord
-// que l'utilisateur a lui-même saisi n'est jamais « incertain ».
+// Rôle partagé entre la sélection des piliers et leurs libellés.
 function segmentRole(segment) {
-  if (!segment) return 'structural';
-  if (segment.manualOverride) return 'structural';
-  const role = segment.role;
-  return Object.prototype.hasOwnProperty.call(ROLE_LABELS, role) ? role : 'structural';
+  return harmonicRole(segment);
 }
 
 // [Refonte Analyse 02/10] — l'écran de capture MIDI de l'onglet Analyse a été
@@ -278,9 +273,13 @@ function getReharmActiveStyle() {
 // Retourne l'accord affiché selon le mode timeline actuel.
 function getDisplayChords() {
   if (timelineViewMode === 'reharm' && appliedReharmonization && appliedReharmonization.chords) {
-    return appliedReharmonization.chords;
+    return selectChordProgression(appliedReharmonization.chords, { detailed: detailedChords });
   }
-  return currentAnalysis?.chords || [];
+  return selectChordProgression(currentAnalysis?.chords || [], { detailed: detailedChords });
+}
+
+function getDisplayAnalysis() {
+  return { ...currentAnalysis, chords: getDisplayChords() };
 }
 
 // Phase B : persistance
@@ -1005,6 +1004,10 @@ async function showResults(analysis) {
   hideProcessing();
   setAnalyzerState('analysis');
   currentAnalysis = analysis;
+  timelineViewMode = 'original';
+  detailedChords = false;
+  if (els.hierarchyToggle) els.hierarchyToggle.checked = false;
+  els.timelineLegend?.classList.remove('is-detailed');
   selectedSegmentId = null;
   clearInspector();
   // Lot B — contexte fichier explicite : « Fichier analysé : <nom> ».
@@ -1028,10 +1031,10 @@ async function showResults(analysis) {
   // lecteur est bloqué, quand j'interagis rien ne se passe ». On tente maintenant de retrouver l'audio.
   await createPlayerForAnalysis(analysis);
 
-  renderTimeline(analysis.chords || [], analysis.duration || 0);
+  renderTimeline(getDisplayChords(), analysis.duration || 0);
   updatePlayButton();
-  renderStats(analysis);
-  renderOverview(analysis);
+  renderStats(getDisplayAnalysis());
+  renderOverview(getDisplayAnalysis());
 
   // Première grille d'accords affichée : c'est le moment où expliquer Chordify
   // a un sens, puisque ses éléments existent enfin à l'écran.
@@ -1184,7 +1187,15 @@ function redo() {
 
 function rerenderTimeline() {
   if (currentAnalysis) {
+    if (!getDisplayChords().some((s) => s.segmentId === selectedSegmentId)) {
+      selectedSegmentId = null;
+      clearInspector();
+    }
+    lastAutoScrollIndex = -1;
     renderTimeline(getDisplayChords(), currentAnalysis.duration || 0);
+    renderStats(getDisplayAnalysis());
+    renderOverview(getDisplayAnalysis());
+    selectSegment(selectedSegmentId);
   }
 }
 
@@ -1320,11 +1331,12 @@ function renderTimeline(chords, duration) {
 
   duration = Math.max(duration || 0, 1);
   const pps = BASE_PIXELS_PER_SECOND * timelineZoom;
-  const totalWidth = Math.max(duration * pps + (chords.length - 1) * BLOCK_GAP, 0);
+  const totalWidth = duration * pps;
   els.chordTimelineInner.style.width = `${totalWidth}px`;
 
   if (chords.length === 0) {
-    els.chordTimelineInner.innerHTML = '<span class="analyzer-timeline-empty">Aucun accord détecté.</span>';
+    els.chordTimelineInner.innerHTML = `<span class="analyzer-timeline-empty">${detailedChords ? 'Aucun accord détecté.' : 'Aucun accord structurel confirmé.'}</span>`;
+    updatePlaybackPosition(currentPlayer?.element?.currentTime ?? 0);
     return;
   }
 
@@ -1335,18 +1347,17 @@ function renderTimeline(chords, duration) {
   };
 
   // [Mission §9, 18/10] Repères de modulation sur la frise : un marqueur par
-  // changement de tonalité détecté ; un clic y saute. Positionnés avec le
-  // même décalage inter-blocs que les accords.
+  // changement de tonalité détecté ; un clic y saute. Les positions suivent
+  // le temps audio, indépendamment du nombre d'accords visibles.
   const modKeys = currentAnalysis?.keys;
   if (Array.isArray(modKeys) && modKeys.length > 1) {
     for (let i = 1; i < modKeys.length; i++) {
       const k = modKeys[i];
-      const idxBefore = chords.filter((c) => c.startTime < k.start).length;
       const marker = document.createElement('button');
       marker.type = 'button';
       marker.className = 'analyzer-timeline-modkey';
       marker.title = `Modulation → ${keyDisplayLabel(k.key, k.mode)}`;
-      marker.style.left = `${k.start * pps + idxBefore * BLOCK_GAP}px`;
+      marker.style.left = `${k.start * pps}px`;
       marker.addEventListener('click', (e) => {
         e.stopPropagation();
         seekToSegment({ startTime: k.start });
@@ -1356,11 +1367,13 @@ function renderTimeline(chords, duration) {
   }
 
   chords.forEach((chord, index) => {
+    // L'indice visible change avec le filtre, l'identité de la cible non.
+    const sourceIndex = currentAnalysis?.chords?.indexOf(chord) ?? -1;
     const effectiveChordStr = getEffectiveChord(chord);
     const originalDetected = chord.chord;
     const isOverridden = chord.manualOverride != null;
 
-    const left = chord.startTime * pps + index * BLOCK_GAP;
+    const left = chord.startTime * pps;
     const timeWidth = Math.max((chord.endTime - chord.startTime) * pps - BLOCK_GAP, 0);
 
     const block = document.createElement('button');
@@ -1372,7 +1385,7 @@ function renderTimeline(chords, duration) {
       'aria-label',
       `${effectiveChordStr}, ${ROLE_LABELS[segmentRole(chord)] || ''} — ${fmt(chord.startTime)} à ${fmt(chord.endTime)}`,
     );
-    block.dataset.index = String(index);
+    block.dataset.index = String(sourceIndex);
     block.dataset.start = String(chord.startTime);
     block.dataset.segmentId = chord.segmentId || '';
     block.style.left = `${left}px`;
@@ -1390,19 +1403,15 @@ function renderTimeline(chords, duration) {
       block.classList.add('manual-override');
     }
 
-    // Hiérarchie harmonique : le rôle devient un poids visuel, jamais un
-    // masquage. Un accord de passage reste lisible et cliquable — il est
-    // seulement présenté comme secondaire.
+    // Dans la vue détaillée, distinguer les passages et les incertitudes.
     const role = segmentRole(chord);
     block.dataset.harmonicRole = role;
-    if (hierarchyEnabled) {
-      block.classList.add(`role-${role}`);
-    }
+    block.classList.add(`role-${role}`);
 
     // Repli progressif : au dézoom, les accords non structurels devenus trop
     // étroits se réduisent à un marqueur. Les piliers, eux, gardent toujours
     // leur pastille — c'est la structure qu'on veut pouvoir lire de loin.
-    const collapsed = hierarchyEnabled
+    const collapsed = detailedChords
       && role !== 'structural'
       && timeWidth < COLLAPSE_MIN_WIDTH_PX;
     if (collapsed) block.classList.add('collapsed');
@@ -1431,13 +1440,13 @@ function renderTimeline(chords, duration) {
     block.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
-        openChordEditor(index);
+        openChordEditor(sourceIndex);
       }
     });
     block.addEventListener('dblclick', (e) => {
       e.stopPropagation();
       selectSegment(chord.segmentId);
-      openChordEditor(index);
+      openChordEditor(sourceIndex);
     });
     block.addEventListener('pointerdown', (e) => e.stopPropagation());
     els.chordTimelineInner.appendChild(block);
@@ -1450,10 +1459,10 @@ function renderTimeline(chords, duration) {
 
 function bindHierarchyToggle() {
   if (!els.hierarchyToggle) return;
-  hierarchyEnabled = els.hierarchyToggle.checked;
+  els.hierarchyToggle.checked = detailedChords;
   els.hierarchyToggle.addEventListener('change', () => {
-    hierarchyEnabled = els.hierarchyToggle.checked;
-    els.timelineLegend?.classList.toggle('muted', !hierarchyEnabled);
+    detailedChords = els.hierarchyToggle.checked;
+    els.timelineLegend?.classList.toggle('is-detailed', detailedChords);
     rerenderTimeline();
   });
 }
@@ -1528,6 +1537,7 @@ function renderHeroChord(chord) {
   if (!els.hero) return;
   if (!chord) {
     heroRenderedKey = null;
+    heroMidiNotes = [];
     els.hero.style.display = 'none';
     return;
   }
@@ -1802,7 +1812,7 @@ async function handleExportMidi() {
   });
   if (!filePath) return;
 
-  const midiBytes = exportAnalysisToMidi(currentAnalysis);
+  const midiBytes = exportAnalysisToMidi(getDisplayAnalysis());
   if (!midiBytes) {
     notifyError('Aucune donnée à exporter.');
     return;
@@ -1827,7 +1837,7 @@ async function handleExportJson() {
   });
   if (!filePath) return;
 
-  const jsonData = exportAnalysisToJson(currentAnalysis, { fileName: currentFileName });
+  const jsonData = exportAnalysisToJson(getDisplayAnalysis(), { fileName: currentFileName });
   await window.electronAPI.files.writeFile(filePath, JSON.stringify(jsonData, null, 2));
   const edited = countManuallyEditedChords(currentAnalysis);
   const suffix = edited > 0 ? ` — ${edited} correction(s) manuelle(s)` : '';
@@ -1850,14 +1860,14 @@ async function handleExportCsv() {
   });
   if (!filePath) return;
 
-  const csv = exportAnalysisToCsv(currentAnalysis, { fileName: currentFileName });
+  const csv = exportAnalysisToCsv(getDisplayAnalysis(), { fileName: currentFileName });
   await window.electronAPI.files.writeFile(filePath, csv);
   showToast(`CSV exporté vers ${filePath}`, 4000);
 }
 
 async function handleCopyText() {
   if (!currentAnalysis) return;
-  const text = exportAnalysisToText(currentAnalysis);
+  const text = exportAnalysisToText(getDisplayAnalysis());
   if (navigator.clipboard) {
     await navigator.clipboard.writeText(text);
   } else {
