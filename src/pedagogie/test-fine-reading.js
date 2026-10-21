@@ -7,7 +7,9 @@
 //
 // Usage : node src/pedagogie/test-fine-reading.js
 
-import { busyWindows, mergeFineSamples, sampleOnsets, FINE_FPS } from './fine-reading.js';
+import {
+  busyWindows, capBusyWindows, mergeFineSamples, sampleOnsets, FINE_FPS,
+} from './fine-reading.js';
 import { samplesToNoteEvents } from './teacher-notes.js';
 
 let failed = 0;
@@ -109,6 +111,23 @@ for (let k = 0; k < 8; k += 1) for (const midi of [48, 55, 64, 71]) ballad.push(
 const litB = (t) => ballad.filter((n) => t >= n.start && t < n.end).map((n) => ({ midi: n.midi }));
 const cB = []; for (let i = 0; i / 8 < 16; i += 1) cB.push({ t: i / 8, keys: litB(i / 8) });
 check('une ballade en accords tenus n\'est pas relue', busyWindows(cB, { duration: 16 }).length === 0);
+
+// Un tutoriel long peut être chargé presque en continu. La lecture à 8 i/s
+// reste complète, mais sa passe fine doit rester bornée et répartie.
+const shortBusy = [{ start: 2, end: 9 }, { start: 20, end: 27 }];
+check('les passages fins restent inchangés sous le budget',
+  JSON.stringify(capBusyWindows(shortBusy, { maxTotalDuration: 20 })) === JSON.stringify(shortBusy));
+const longBusy = [{ start: 0, end: 19 * 60 }];
+const capped = capBusyWindows(longBusy, { maxTotalDuration: 120, maxChunkDuration: 8 });
+const cappedDuration = capped.reduce((sum, w) => sum + w.end - w.start, 0);
+check('la relecture fine d\'un tutoriel long reste sous 120 secondes', cappedDuration <= 120.01,
+  `${cappedDuration}s`);
+check('la relecture fine longue lance au plus 15 extraits', capped.length <= 15, String(capped.length));
+check('les extraits fins restent ordonnés et disjoints',
+  capped.every((w, i) => i === 0 || w.start >= capped[i - 1].end - 1e-3), JSON.stringify(capped));
+check('le début, le milieu et la fin du tutoriel restent représentés',
+  capped[0].start < 60 && capped.some((w) => w.start < 570 && w.end > 570) && capped.at(-1).end > 1080,
+  JSON.stringify(capped));
 
 console.log(`\n=== Résultat : ${passed}/${passed + failed} contrôles passés ===`);
 if (failed) process.exit(1);

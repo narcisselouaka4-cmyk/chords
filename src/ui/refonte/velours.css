@@ -261,7 +261,12 @@
   background: transparent;
 }
 
-:root[data-skin-choice='velours'] #app > :not(.velours-ambient) {
+/* Les écrans et le clavier doivent rester devant le décor. Les modales sont
+   volontairement exclues : leur `position: fixed` et leur z-index propres
+   doivent continuer à couvrir l'application sans entrer dans la flexbox de
+   #app. Les inclure ici transformait notamment « Ma bibliothèque » en bloc
+   relatif et faisait remonter le clavier MIDI au-dessus de la fenêtre. */
+:root[data-skin-choice='velours'] #app > :not(.velours-ambient):not(.modal-overlay) {
   position: relative;
   z-index: 1;
 }
@@ -387,13 +392,12 @@
    l'alignement (point 1b, demandé), l'agrandissement de la roue (point 2b,
    demandé) et le titre en Fraunces (point 2e, validé). La portée garde son
    propre design intact (point a) — y compris l'absence de cadre d'avant. */
-:root[data-skin-choice='velours'][data-velours-surface='realtime'] .live-staff,
-:root[data-skin-choice='velours'][data-velours-surface='realtime'] .live-side {
-  align-self: center;
-}
-
-:root[data-skin-choice='velours'][data-velours-surface='realtime'] .live-wheel {
-  width: clamp(200px, min(66cqh, 39cqw), 500px);
+/* Le placement est maintenant commun à tous les thèmes dans
+   astra-realtime.css. Velours garde seulement la roue légèrement plus grande
+   validée par Narcisse ; le titre utilise automatiquement ce diamètre. */
+:root[data-skin-choice='velours'][data-velours-surface='realtime'] #practice-center.live-stage {
+  --live-wheel-size: clamp(200px, min(66cqh, 39cqw), 500px);
+  --live-wheel-radius: clamp(100px, min(33cqh, 19.5cqw), 250px);
 }
 
 /* --------------------------------------------------------------------------

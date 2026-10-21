@@ -14,7 +14,9 @@ import { pathToFileURL } from 'url';
 import { createFrame } from '../src/pedagogie/frame.js';
 import { detectVideoFormat } from '../src/pedagogie/format-detector.js';
 import { readLitKeys } from '../src/pedagogie/key-detection.js';
-import { busyWindows, mergeFineSamples, FINE_FPS } from '../src/pedagogie/fine-reading.js';
+import {
+  busyWindows, capBusyWindows, mergeFineSamples, FINE_FPS, FINE_READING_BUDGET_SECONDS,
+} from '../src/pedagogie/fine-reading.js';
 import { thumbnailTime, thumbnailArgs } from '../src/pedagogie/tutorial-memory.js';
 // [Claude] — 2026-10-02 — Suivi des entrées MIDI par NOM (pur, testé : src/midi-ports.test.js).
 import { createInputWatcher, OWN_PORT_NAME } from '../src/midi-ports.js';
@@ -81,6 +83,16 @@ function createWindow() {
     } else {
       callback(false);
     }
+  });
+
+  // [Codex] — 2026-10-21 — Chromium mémorise le zoom par origine. Le serveur
+  // Vite (http://localhost:5173) et le build de launch.sh (file://.../dist)
+  // ont donc deux valeurs distinctes ; une ancienne valeur -1 sur file://
+  // faisait paraître toute la version publique dézoomée. Chaque lancement
+  // repart à 100 %, sans bloquer ensuite Ctrl+/- pendant la session.
+  mainWindow.webContents.on('did-finish-load', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    mainWindow.webContents.setZoomFactor(1);
   });
 
   // [OpenCode] — 2026-07-04 — En développement, charge Vite HMR ; en production, charge le build dist.
@@ -1799,7 +1811,13 @@ function setupStudioIPC() {
     // à 8 images/s, un lick de 20 notes en 2 s et les double-croches d'un montuno passaient
     // entre deux images. Les passages où les attaques se suivent vite sont relus à 30 i/s.
     const fineFps = Number(options.fineFps) || FINE_FPS;
-    const windows = fineFps > sampleFps ? busyWindows(samples, { duration }) : [];
+    const requestedWindows = fineFps > sampleFps ? busyWindows(samples, { duration }) : [];
+    // Un tutoriel long et très animé pouvait demander plusieurs minutes de
+    // seconde passe à 30 i/s. La passe 8 i/s couvre toujours toute la vidéo ;
+    // seuls les renforts fins sont répartis dans un budget mémoire/CPU borné.
+    const windows = capBusyWindows(requestedWindows, {
+      maxTotalDuration: FINE_READING_BUDGET_SECONDS,
+    });
     const fine = [];
     for (const w of windows) {
       const got = [];
@@ -1819,7 +1837,12 @@ function setupStudioIPC() {
       implemented: true,
       confidence: format.confidence,
       sampleInterval: 1 / sampleFps,
-      fineReading: { fps: fineFps, windows: fine.filter((w) => w.samples.length).map(({ start, end }) => ({ start, end })) },
+      fineReading: {
+        fps: fineFps,
+        windows: fine.filter((w) => w.samples.length).map(({ start, end }) => ({ start, end })),
+        limited: requestedWindows.length > 0
+          && requestedWindows.reduce((sum, w) => sum + w.end - w.start, 0) > FINE_READING_BUDGET_SECONDS,
+      },
       samples: allSamples,
       video: { width, height, duration },
       geometry: {
@@ -2181,18 +2204,28 @@ function setupStudioIPC() {
         '-pix_fmt', 'rgb24',
         '-',
       ], { shell: false }));
-      let pending = Buffer.alloc(0);
+      // Un seul tampon de taille image, réutilisé pendant toute la passe.
+      // L'ancien Buffer.concat() recopiait continuellement les gros blocs
+      // rawvideo ; sur un tutoriel long, l'allocateur gardait cette mémoire et
+      // le noyau finissait par tuer le renderer Electron.
+      const frame = Buffer.allocUnsafe(frameBytes);
+      let filled = 0;
       let index = 0;
       let stderr = '';
       proc.stdout.on('data', (chunk) => {
-        pending = pending.length ? Buffer.concat([pending, chunk]) : chunk;
-        while (pending.length >= frameBytes) {
-          const frame = pending.subarray(0, frameBytes);
-          pending = pending.subarray(frameBytes);
-          try { onFrame(frame, index); } catch (err) {
-            console.warn('[Pedagogie] lecture d\'image échouée:', err.message);
+        let offset = 0;
+        while (offset < chunk.length) {
+          const copied = Math.min(frameBytes - filled, chunk.length - offset);
+          chunk.copy(frame, filled, offset, offset + copied);
+          filled += copied;
+          offset += copied;
+          if (filled === frameBytes) {
+            try { onFrame(frame, index); } catch (err) {
+              console.warn('[Pedagogie] lecture d\'image échouée:', err.message);
+            }
+            index++;
+            filled = 0;
           }
-          index++;
         }
       });
       proc.stderr.on('data', (d) => { stderr += d.toString(); });

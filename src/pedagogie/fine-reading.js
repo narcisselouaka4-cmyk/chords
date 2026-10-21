@@ -41,6 +41,14 @@ export const BUSY_PAD_SECONDS = 1;
 export const BUSY_MERGE_GAP = 1;
 /** Cadence de la relecture fine. */
 export const FINE_FPS = 30;
+/**
+ * Temps maximal relu à 30 i/s sur un tutoriel. La première passe à 8 i/s
+ * couvre toujours la vidéo entière ; ce budget ne limite que la passe fine,
+ * nettement plus coûteuse en décodage et en mémoire.
+ */
+export const FINE_READING_BUDGET_SECONDS = 120;
+/** Une relecture fine reste courte pour libérer ffmpeg et ses tampons régulièrement. */
+export const FINE_READING_CHUNK_SECONDS = 8;
 
 /**
  * Instants des attaques d'une lecture : une touche allumée qui ne l'était pas à l'image d'avant.
@@ -114,6 +122,68 @@ export function busyWindows(samples, { duration = Infinity } = {}) {
     else windows.push({ start, end });
   }
   return windows.map((w) => ({ start: round3(w.start), end: round3(w.end) }));
+}
+
+/**
+ * Répartit un budget de relecture fine sur toute la chronologie des passages
+ * chargés. Si ces passages tiennent dans le budget, ils restent strictement
+ * inchangés. Sinon, on prélève des extraits courts et régulièrement espacés
+ * dans le temps occupé : le début, le milieu et la fin d'un long tutoriel
+ * restent représentés, sans relire plusieurs minutes à 30 images/s.
+ *
+ * @param {{start: number, end: number}[]} windows
+ * @param {{maxTotalDuration?: number, maxChunkDuration?: number}} [options]
+ * @returns {{start: number, end: number}[]}
+ */
+export function capBusyWindows(windows, {
+  maxTotalDuration = FINE_READING_BUDGET_SECONDS,
+  maxChunkDuration = FINE_READING_CHUNK_SECONDS,
+} = {}) {
+  const clean = (windows || [])
+    .map((w) => ({ start: Number(w?.start), end: Number(w?.end) }))
+    .filter((w) => Number.isFinite(w.start) && Number.isFinite(w.end) && w.end > w.start)
+    .sort((a, b) => a.start - b.start);
+  const budget = Math.max(0, Number(maxTotalDuration) || 0);
+  const chunkMax = Math.max(0.1, Number(maxChunkDuration) || FINE_READING_CHUNK_SECONDS);
+  if (!clean.length || budget <= 0) return [];
+
+  const durations = clean.map((w) => w.end - w.start);
+  const total = durations.reduce((sum, duration) => sum + duration, 0);
+  if (total <= budget + 1e-9) {
+    return clean.map((w) => ({ start: round3(w.start), end: round3(w.end) }));
+  }
+
+  // Un nombre borné de processus ffmpeg : 120 s / 8 s = 15 extraits au plus.
+  const count = Math.max(1, Math.ceil(budget / chunkMax));
+  const chunkDuration = budget / count;
+  const capped = [];
+  let windowIndex = 0;
+  let elapsedBefore = 0;
+
+  for (let i = 0; i < count; i += 1) {
+    const target = ((i + 0.5) / count) * total;
+    while (windowIndex < clean.length - 1 && target > elapsedBefore + durations[windowIndex]) {
+      elapsedBefore += durations[windowIndex];
+      windowIndex += 1;
+    }
+    const window = clean[windowIndex];
+    const center = window.start + Math.max(0, Math.min(durations[windowIndex], target - elapsedBefore));
+    const actualDuration = Math.min(chunkDuration, durations[windowIndex]);
+    const start = Math.max(window.start, Math.min(center - actualDuration / 2, window.end - actualDuration));
+    const end = start + actualDuration;
+    capped.push({ start: round3(start), end: round3(end) });
+  }
+
+  // Les centres sont espacés d'au moins la durée d'un extrait, mais un arrondi
+  // ou une très petite fenêtre peut tout de même créer deux extraits contigus.
+  // Les fusionner évite un démarrage ffmpeg inutile sans dépasser le budget.
+  const merged = [];
+  for (const window of capped) {
+    const previous = merged[merged.length - 1];
+    if (previous && window.start <= previous.end + 1e-3) previous.end = Math.max(previous.end, window.end);
+    else merged.push({ ...window });
+  }
+  return merged.map((w) => ({ start: round3(w.start), end: round3(w.end) }));
 }
 
 /**

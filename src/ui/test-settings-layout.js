@@ -11,6 +11,9 @@ const read = (p) => readFileSync(resolve(root, p), 'utf-8');
 const html = read('src/index.html');
 const main = read('src/main.js');
 const live = read('src/ui/live-reading.js');
+const velours = read('src/ui/refonte/velours.css');
+const realtimeCss = read('src/ui/refonte/astra-realtime.css');
+const electronMain = read('electron/main.js');
 let failed = 0;
 let passed = 0;
 function check(label, ok) {
@@ -76,6 +79,17 @@ check('« Couleur des notes » supprimée de Réglages et de partout ; la légen
   !html.includes('id="color-note"') && html.includes('id="color-you"') && html.includes('id="color-app"') && /vk-legend-pick[^>]*>[^<]*<i class="vk-dot vk-dot-you"/.test(html));
 check('Couleur générale de l\'application : pastilles dans Réglages › Apparence, branchée au démarrage',
   html.includes('id="accent-presets"') && html.includes('id="accent-custom"') && main.includes('initAccentTheme'));
+check('Velours laisse les fenêtres modales hors du flux de #app',
+  /#app\s*>\s*:not\(\.velours-ambient\):not\(\.modal-overlay\)\s*\{[^}]*position:\s*relative/s.test(velours)
+  && /\.modal-overlay\s*\{[^}]*position:\s*fixed/s.test(read('src/style.css')));
+check('Temps réel : titre et invitation sont ancrés au-dessus du rayon de la roue',
+  realtimeCss.includes('--live-wheel-radius:')
+  && /\.live-center\s*>\s*\.chord-display,[\s\S]*?\.live-center\s*>\s*\.practice-empty-hint\s*\{[^}]*calc\(50% \+ var\(--live-wheel-radius\) \+ var\(--live-title-gap\)\)/.test(realtimeCss));
+check('Temps réel : portée et fiche sont centrées dans tous les thèmes',
+  /\.live-stage \.live-side\s*\{[^}]*align-self:\s*center/s.test(realtimeCss)
+  && /\.live-stage \.live-staff\s*\{[^}]*align-self:\s*center/s.test(realtimeCss));
+check('launch.sh : Electron remet chaque origine à un zoom réel de 100 %',
+  /webContents\.on\('did-finish-load'[\s\S]*?webContents\.setZoomFactor\(1\)/.test(electronMain));
 
 console.log(`\n=== Résultat : ${passed}/${passed + failed} contrôles passés ===`);
 if (failed) process.exit(1);

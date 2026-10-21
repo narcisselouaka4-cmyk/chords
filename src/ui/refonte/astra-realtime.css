@@ -13,6 +13,9 @@
 
 /* ---- La scène : plus de cadre, une grille ------------------------------- */
 #practice-tab #practice-center.live-stage {
+  --live-wheel-size: clamp(170px, min(58cqh, 34cqw), 440px);
+  --live-wheel-radius: clamp(85px, min(29cqh, 17cqw), 220px);
+  --live-title-gap: clamp(22px, 4.5cqh, 38px);
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
@@ -34,6 +37,7 @@
 .live-stage .live-center {
   grid-area: center;
   align-self: stretch;
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -116,11 +120,27 @@
   letter-spacing: -0.02em;
 }
 
+/* La roue est le seul élément qui participe au centrage de la colonne. Le
+   titre complet (nom + « Aussi ») ou l'invitation est ancré au-dessus de son
+   rayon réel. Ainsi le C au sommet ne peut plus être recouvert, quelle que
+   soit la taille de fenêtre, le thème ou le zoom utilisé au lancement. */
+#practice-tab #practice-center .live-center > .chord-display,
+#practice-tab #practice-center .live-center > .practice-empty-hint {
+  position: absolute;
+  z-index: 2;
+  inset: auto auto calc(50% + var(--live-wheel-radius) + var(--live-title-gap)) 50%;
+  width: max-content;
+  max-width: min(44cqw, 620px);
+  min-height: 0;
+  translate: -50% 0;
+}
+
 /* ---- La roue --------------------------------------------------------------- */
 .live-stage .live-wheel-wrap {
   position: relative;
   display: grid;
   place-items: center;
+  flex: 0 0 auto;
 }
 .live-stage .live-wheel-wrap::before {
   content: '';
@@ -135,7 +155,7 @@
 .live-stage.has-notes .live-wheel-wrap::before { opacity: 1; }
 .live-stage .live-wheel {
   display: block;
-  width: clamp(170px, min(58cqh, 34cqw), 440px);
+  width: var(--live-wheel-size);
   height: auto;
   aspect-ratio: 1;
   overflow: visible;
@@ -211,7 +231,7 @@
 .live-stage .live-side {
   grid-area: side;
   justify-self: end;
-  align-self: start;
+  align-self: center;
   width: min(100%, 280px);
   display: flex;
   flex-direction: column;
@@ -257,7 +277,7 @@
    grandit et la portée avec elle. */
 .live-stage .live-staff {
   grid-area: left;
-  align-self: start;
+  align-self: center;
   justify-self: start;
   margin: 0;
   display: flex;
