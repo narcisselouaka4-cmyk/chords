@@ -184,7 +184,7 @@ function scheduleGroupedDetection(notes) {
     const toAnalyze = pendingGroupNotes;
     pendingGroupNotes = null;
     if (toAnalyze && toAnalyze.length >= 3) {
-      const result = detectChord(toAnalyze);
+      const result = detectChord(toAnalyze, { allowRootless: false });
       updateDisplay(els, result, toAnalyze, state.notation === 'latin');
       addToHistory(result);
     }
@@ -430,7 +430,7 @@ function refreshChord() {
     return;
   }
 
-  const result = detectChord(notes);
+  const result = detectChord(notes, { allowRootless: false });
   state.currentChord = result;
   updateDisplay(els, result, notes, state.notation === 'latin');
   // [Claude] — 2026-09-25 — Une relecture (session, démo, exemple) s'affiche mais
