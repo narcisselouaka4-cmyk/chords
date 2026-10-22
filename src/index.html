@@ -1919,7 +1919,10 @@
                main.js) : bouton = le titre de la section, panneau replié par défaut. -->
           <div class="settings-section" id="settings-appearance">
             <button type="button" class="ai-key-toggle settings-section-toggle" id="settings-appearance-toggle" aria-expanded="false" aria-controls="settings-appearance-panel">
-              <span>Apparence</span>
+              <span class="settings-toggle-text">
+                <span class="settings-toggle-label">Apparence</span>
+                <span class="settings-toggle-desc">Couleur, habillage, mode clair ou sombre</span>
+              </span>
               <svg class="ai-key-toggle-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
             </button>
             <div class="ai-key-panel" id="settings-appearance-panel" hidden>
@@ -1954,7 +1957,10 @@
                main.js n'a rien à changer. -->
           <div class="settings-section" id="settings-midi">
             <button type="button" class="ai-key-toggle settings-section-toggle" id="settings-midi-toggle" aria-expanded="false" aria-controls="settings-midi-panel">
-              <span>Clavier et MIDI</span>
+              <span class="settings-toggle-text">
+                <span class="settings-toggle-label">Clavier et MIDI</span>
+                <span class="settings-toggle-desc">Ports d'entrée et de sortie, tolérance de jeu</span>
+              </span>
               <svg class="ai-key-toggle-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
             </button>
             <div class="ai-key-panel" id="settings-midi-panel" hidden>
@@ -1993,12 +1999,17 @@
                fonctionnalités associées du haut vers le bas »). Remplace l'ancienne fenêtre à part
                #ai-settings-modal ; mêmes id= pour les champs manuels (ai-base-url, ai-model,
                ai-api-key, ai-test-btn, ai-save-btn), initAISettings() dans main.js. -->
+          <!-- [Claude] — 2026-10-23 — Cette section portait un intitulé « ASSISTANT IA » en petites
+               capitales plus un paragraphe, là où Apparence et Clavier/MIDI n'avaient qu'un bouton :
+               trois sections de même rang, trois traitements différents — c'est ce décalage qui
+               faisait « débutant ». Les trois sont maintenant le même composant (titre + une ligne
+               qui dit ce qu'on y règle). Le propos de l'ancien paragraphe tient dans cette ligne. -->
           <div class="settings-section" id="settings-ai">
-            <h4 class="settings-section-title">Assistant IA</h4>
-            <p class="settings-note ai-key-intro">Optionnel. Une clé API personnelle débloque les questions libres — <strong>vous payez votre consommation</strong>.</p>
-
-            <button type="button" class="ai-key-toggle" id="app-settings-ai-btn" aria-expanded="false" aria-controls="ai-key-panel">
-              <span>Clé API</span>
+            <button type="button" class="ai-key-toggle settings-section-toggle" id="app-settings-ai-btn" aria-expanded="false" aria-controls="ai-key-panel">
+              <span class="settings-toggle-text">
+                <span class="settings-toggle-label">Clé API</span>
+                <span class="settings-toggle-desc">Optionnelle — débloque les questions libres, à votre charge</span>
+              </span>
               <svg class="ai-key-toggle-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
             </button>
 

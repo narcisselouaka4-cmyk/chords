@@ -229,6 +229,44 @@ await (async () => {
     mainJs.includes('ai-key-add-btn') && mainJs.includes("setNewKeyFormOpen(newKeyForm?.hidden !== false)"));
 }
 
+// ── H. Refonte 23/10 — les trois sections sont le même composant ──
+// Narcisse : « les cases sont trop serrées entre elles » + « le CSS fait trop
+// débutant ». Le défaut de fond : trois sections de même rang avec trois
+// traitements différents (Assistant IA avait un intitulé en capitales + un
+// paragraphe, les deux autres un simple bouton), et des intervalles plats.
+
+{
+  const html = read('src/index.html');
+  check('Les trois sections de Réglages partagent la même classe de bouton (settings-section-toggle)',
+    (html.match(/class="ai-key-toggle settings-section-toggle"/g) || []).length === 3);
+  check('Chacune porte un libellé ET une ligne qui dit ce qu’on y règle',
+    (html.match(/class="settings-toggle-label"/g) || []).length === 3
+    && (html.match(/class="settings-toggle-desc"/g) || []).length === 3);
+  check('Plus d’intitulé « Assistant IA » en capitales au-dessus du bouton (rang incohérent)',
+    !/<h4 class="settings-section-title">Assistant IA<\/h4>/.test(html));
+  check('Plus de paragraphe d’introduction orphelin dans la section IA (son propos est dans la ligne descriptive)',
+    !html.includes('ai-key-intro'));
+
+  const css = read('src/ui/refonte/theme.css');
+  check('Séparation entre sections : de l’espace, plus un filet (le trait doublonnait les contours)',
+    /\.settings-section \+ \.settings-section \{\s*margin-top: 28px;\s*\}/.test(css));
+  check('Le panneau déplié n’est plus collé (gap 4px → 18px)',
+    /\.ai-key-panel-inner \{[^}]*gap: 18px;/.test(css));
+  check('Le cadre du panneau n’est posé qu’une fois ouvert (sinon une bande vide reste visible)',
+    css.includes('.ai-key-panel.is-open .ai-key-panel-inner'));
+  check('La rangée ouverte se raccorde à son panneau (coins bas droits, sans ombre entre les deux)',
+    /\.ai-key-toggle\[aria-expanded='true'\] \{[^}]*border-bottom-left-radius: 0;/.test(css));
+  check('Ombre portée réelle (décalage + flou), pas un contour plat',
+    /\.ai-key-toggle \{[^}]*box-shadow: 0 1px 2px -1px/.test(css));
+  check('Les lignes de réglage respirent (gap 20px) et leur note reste collée à leur contrôle (6px)',
+    /\.settings-rows \{ display: flex; flex-direction: column; gap: 20px; \}/.test(css)
+    && /\.settings-row \{[^}]*row-gap: 6px;/.test(css));
+  check('Survol et chevron sont animés, mais neutralisés si l’utilisateur réduit les animations',
+    /@media \(prefers-reduced-motion: reduce\) \{\s*\.ai-key-toggle, \.ai-key-toggle-caret \{ transition: none; \}/.test(css));
+  check('Les surfaces dessinées par le navigateur sont habillées (sélection, ascenseur)',
+    css.includes('.app-settings-page ::selection') && css.includes('.app-settings-box::-webkit-scrollbar-thumb'));
+}
+
 function pathToFileURL(relPath) {
   return new URL(relPath, `file://${root}/`).href;
 }

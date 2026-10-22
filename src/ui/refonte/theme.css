@@ -677,17 +677,22 @@
 }
 
 /* ---- Sélecteur de skin (Réglages › Apparence) ---- */
+/* [Claude] — 2026-10-23 — Les marges asymétriques (4px haut / 12px bas) se
+   cumulaient au gap du panneau : des intervalles différents entre chaque champ,
+   sans que la différence veuille dire quoi que ce soit. Le gap du parent fait
+   seul le travail ; l'intitulé est plus près de son contrôle que du champ
+   suivant (groupement par proximité, pas par trait). */
 .appearance-field {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin: 4px 0 12px;
+  gap: 10px;
+  margin: 0;
 }
 
 .appearance-field > span {
-  font-size: 0.78rem;
+  font-size: 0.82rem;
   font-weight: 600;
-  color: var(--muted);
+  color: var(--r-text, inherit);
 }
 
 .skin-segmented {
@@ -765,15 +770,41 @@
 
 :root[data-skin] .app-settings-page .app-settings-box h3 {
   font-family: var(--r-font-title);
-  font-size: 1.4rem;
-  font-weight: 800;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
   margin: 0;
 }
 
+/* [Claude] — 2026-10-23 — Plus de filet sous le titre : l'espace sépare, et le
+   trait faisait doublon avec les contours des rangées juste en dessous. */
 :root[data-skin] .app-settings-page .app-settings-heading {
-  padding-bottom: 16px;
-  margin-bottom: 20px;
-  border-bottom: 1px solid var(--r-border);
+  margin-bottom: 30px;
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+/* Surfaces que le navigateur dessine par défaut et qui n'appartiennent à aucun
+   système de design tant qu'on ne les habille pas (craft floor). */
+:root[data-skin] .app-settings-page ::selection {
+  background: var(--r-accent-soft, var(--accent-soft));
+  color: var(--r-text, inherit);
+}
+:root[data-skin] .app-settings-page .app-settings-box {
+  scrollbar-width: thin;
+  scrollbar-color: var(--r-border-strong, var(--border)) transparent;
+}
+:root[data-skin] .app-settings-page .app-settings-box::-webkit-scrollbar { width: 10px; }
+:root[data-skin] .app-settings-page .app-settings-box::-webkit-scrollbar-track { background: transparent; }
+:root[data-skin] .app-settings-page .app-settings-box::-webkit-scrollbar-thumb {
+  background: var(--r-border-strong, var(--border));
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 999px;
+}
+:root[data-skin] .app-settings-page .app-settings-box::-webkit-scrollbar-thumb:hover {
+  background: var(--r-text-muted, var(--muted));
+  background-clip: content-box;
 }
 
 /* ---- Fenêtres modales restantes (Ma bibliothèque, confirmations) ---- */
@@ -911,13 +942,24 @@
   border-color: var(--r-border-strong);
 }
 
-/* ---- Sections du modal Réglages (Apparence / Assistant IA) ---- */
+/* ---- Sections de Réglages (Apparence / Clavier et MIDI / Clé API) ----
+   [Claude] — 2026-10-23 — Narcisse : « les cases sont trop serrées entre elles,
+   le CSS fait trop débutant ». Trois défauts corrigés ici :
+   1. Rythme plat — 18px de marge + un filet entre chaque section, la même valeur
+      partout : rien ne respirait et rien ne se groupait. La séparation passe à
+      28px et le filet disparaît : l'espace sépare mieux qu'un trait, et la
+      section ouverte se détache enfin de ses voisines.
+   2. Rangs incohérents — « Assistant IA » avait un intitulé en capitales et un
+      paragraphe, les deux autres non (voir index.html). Un seul composant
+      maintenant.
+   3. Surface sans profondeur — un simple contour 1px sur un fond de puce. La
+      rangée a sa propre surface, une ombre portée réelle (décalage + flou) et
+      un état ouvert marqué. */
 .settings-section + .settings-section {
-  margin-top: 18px;
-  padding-top: 16px;
-  border-top: 1px solid var(--panel-border);
+  margin-top: 28px;
 }
 
+/* Conservé : la vue d'ensemble garde des intitulés de section ailleurs. */
 .settings-section-title {
   margin: 0 0 10px;
   font-size: 0.72rem;
@@ -936,17 +978,23 @@
 .app-settings-heading h3 { margin: 0; }
 #settings-app-keys[hidden] { display: none; }
 #app-settings-modal :is(button, input, select):focus-visible { outline: 2px solid var(--r-accent-text); outline-offset: 3px; }
-.settings-rows { display: flex; flex-direction: column; gap: 14px; }
-.settings-row { display: grid; grid-template-columns: 150px minmax(0, 1fr); align-items: center; column-gap: 14px; row-gap: 4px; }
-.settings-row > label { font-size: 0.8rem; font-weight: 600; color: var(--r-text, inherit); }
+/* [Claude] — 2026-10-23 — 14px entre les lignes contre 4px entre une ligne et sa
+   propre note : les deux intervalles étaient trop proches pour qu'on voie où un
+   réglage finit et où le suivant commence. Écart franc entre lignes, note
+   collée à son réglage. */
+.settings-rows { display: flex; flex-direction: column; gap: 20px; }
+.settings-row { display: grid; grid-template-columns: 170px minmax(0, 1fr); align-items: center; column-gap: 18px; row-gap: 6px; }
+.settings-row > label { font-size: 0.82rem; font-weight: 600; color: var(--r-text, inherit); }
 .settings-row > .settings-control { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .settings-row > .settings-note { grid-column: 2; font-size: 0.72rem; line-height: 1.5; color: var(--r-text-muted, var(--muted)); }
 .settings-row:has(> .settings-control:first-child) { grid-template-columns: minmax(0, 1fr); }
 .settings-row:has(> .settings-control:first-child) > .settings-note { grid-column: 1; }
 .settings-control select, .settings-control input[type='number'] {
-  min-width: 0; flex: 1; padding: 6px 9px; font-size: 0.8rem; border-radius: var(--r-radius-btn, 6px);
+  min-width: 0; flex: 1; padding: 9px 12px; font-size: 0.82rem; border-radius: var(--r-radius-btn, 8px);
   border: 1px solid var(--r-border-strong, var(--panel-border)); background: var(--r-surface-chip, transparent); color: inherit;
+  transition: border-color 0.15s ease;
 }
+.settings-control select:hover, .settings-control input[type='number']:hover { border-color: var(--r-accent, var(--accent)); }
 .settings-control input[type='number'] { flex: 0 0 96px; }
 .settings-control input[type='color'] { width: 36px; height: 24px; padding: 0; border: 1px solid var(--r-border-strong, var(--panel-border)); border-radius: 5px; background: transparent; cursor: pointer; }
 .settings-control #midi-refresh { width: 28px; height: 28px; flex: none; border-radius: 6px; border: 1px solid var(--r-border-strong, var(--panel-border)); background: transparent; color: inherit; cursor: pointer; }
@@ -967,23 +1015,53 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 20px;
   width: 100%;
-  padding: 11px 16px;
-  margin-top: 10px;
-  border: 1px solid var(--r-border-strong, var(--panel-border));
-  border-radius: var(--r-radius-btn, 8px);
-  background: var(--r-surface-chip, transparent);
+  padding: 18px 22px;
+  border: 1px solid var(--r-border, var(--panel-border));
+  border-radius: var(--r-radius-card, 12px);
+  background: var(--r-surface, var(--surface));
+  box-shadow: 0 1px 2px -1px rgb(0 0 0 / 0.28), 0 6px 16px -10px rgb(0 0 0 / 0.30);
   color: var(--r-text, inherit);
   font-family: var(--r-font-body, inherit);
-  font-size: 0.85rem;
-  font-weight: 700;
+  text-align: left;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.12s ease;
 }
-.ai-key-toggle:hover { border-color: var(--r-accent, var(--accent)); }
-.ai-key-toggle-caret { flex: none; transition: transform 0.2s ease; }
-.ai-key-toggle[aria-expanded='true'] .ai-key-toggle-caret { transform: rotate(180deg); }
+.ai-key-toggle:hover {
+  border-color: var(--r-border-strong, var(--border));
+  box-shadow: 0 2px 4px -1px rgb(0 0 0 / 0.30), 0 12px 26px -12px rgb(0 0 0 / 0.38);
+  transform: translateY(-1px);
+}
+/* Ouverte, la rangée est le chapeau du panneau : elle s'y raccorde (coins bas
+   droits, pas d'ombre entre les deux) au lieu de flotter au-dessus de lui. */
+.ai-key-toggle[aria-expanded='true'] {
+  border-color: var(--r-accent, var(--accent));
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  box-shadow: none;
+  transform: none;
+}
+.settings-toggle-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.settings-toggle-label { font-size: 0.95rem; font-weight: 650; letter-spacing: -0.01em; }
+.settings-toggle-desc {
+  font-size: 0.78rem;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--r-text-muted, var(--muted));
+}
+.ai-key-toggle-caret {
+  flex: none;
+  color: var(--r-text-muted, var(--muted));
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), color 0.18s ease;
+}
+.ai-key-toggle:hover .ai-key-toggle-caret { color: var(--r-text, inherit); }
+.ai-key-toggle[aria-expanded='true'] .ai-key-toggle-caret { transform: rotate(180deg); color: var(--r-accent, var(--accent)); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-key-toggle, .ai-key-toggle-caret { transition: none; }
+  .ai-key-toggle:hover { transform: none; }
+}
 
 .ai-key-panel {
   display: grid;
@@ -991,12 +1069,26 @@
   transition: grid-template-rows 0.28s ease;
 }
 .ai-key-panel.is-open { grid-template-rows: 1fr; }
+/* [Claude] — 2026-10-23 — gap: 4px écrasait tout le contenu déplié les uns sur
+   les autres (c'est le « trop serré » de Narcisse). Le panneau devient le corps
+   de la rangée-chapeau : même surface, raccordé en haut, et de vrais intervalles
+   entre ses blocs. */
 .ai-key-panel-inner {
   min-height: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 18px;
+}
+/* Cadre et marges seulement une fois ouvert : .ai-key-panel-inner est l'élément
+   clippé par l'animation (hauteur 0 en replié), et un padding y resterait
+   visible comme une bande vide le temps d'une image. */
+.ai-key-panel.is-open .ai-key-panel-inner {
+  padding: 22px;
+  border: 1px solid var(--r-accent, var(--accent));
+  border-top: 0;
+  border-radius: 0 0 var(--r-radius-card, 12px) var(--r-radius-card, 12px);
+  background: var(--r-surface, var(--surface));
 }
 @media (prefers-reduced-motion: reduce) {
   .ai-key-panel { transition: none; }
