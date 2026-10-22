@@ -195,6 +195,40 @@ await (async () => {
   check('deleteSavedKey laisse les autres profils intacts', listSavedKeys()[0].id === id3);
 })();
 
+// ── G. Refonte 22/10 — clés enregistrées visibles, plus de champ Nom ──
+// Narcisse : « je ne sais absolument pas où récupérer les clés API
+// enregistrées » + « le nom, on n'en a pas besoin ».
+
+{
+  const html = read('src/index.html');
+  check('Plus de champ "Nom" dans le formulaire de clé', !html.includes('id="ai-key-label"'));
+  check('#ai-keys-list existe : la liste des clés enregistrées, pas un <select> caché',
+    html.includes('id="ai-keys-list"'));
+  check('Plus de <select> de clés enregistrées (remplacé par la liste)', !html.includes('id="ai-saved-keys"'));
+  check('#ai-new-key-form regroupe le formulaire d’ajout, replié par défaut dans le markup statique',
+    /id="ai-new-key-form" hidden/.test(html));
+  {
+    const formStart = html.indexOf('id="ai-new-key-form"');
+    const formEnd = html.indexOf('class="ai-form-section"', formStart);
+    const formSlice = html.slice(formStart, formEnd);
+    check('Le formulaire d’ajout ne contient plus que Adresse + Modèle + Clé API (3 champs, pas 4)',
+      (formSlice.match(/<input/g) || []).length === 3);
+  }
+
+  const mainJs = read('src/main.js');
+  check('Plus de référence à aiKeyLabel dans main.js', !mainJs.includes('aiKeyLabel'));
+  check('saveNamedKey est appelé sans label (déduit automatiquement du fournisseur)',
+    /await saveNamedKey\(\{\s*baseUrl: gathered\.baseUrl/.test(mainJs));
+  check('renderSavedKeys construit une ligne par clé avec activation au clic (ai-key-row-activate)',
+    mainJs.includes('ai-key-row-activate') && mainJs.includes('activateSavedKey(k.id)'));
+  check('Chaque ligne a un bouton de suppression dédié (ai-key-row-delete)',
+    mainJs.includes('ai-key-row-delete') && mainJs.includes('deleteSavedKey(k.id)'));
+  check('Le formulaire d’ajout s’ouvre seul quand aucune clé n’existe, se replie sinon',
+    mainJs.includes('setNewKeyFormOpen(keys.length === 0)'));
+  check('Un bouton "+ Ajouter une clé" permet de rouvrir le formulaire sans tout retaper',
+    mainJs.includes('ai-key-add-btn') && mainJs.includes("setNewKeyFormOpen(newKeyForm?.hidden !== false)"));
+}
+
 function pathToFileURL(relPath) {
   return new URL(relPath, `file://${root}/`).href;
 }

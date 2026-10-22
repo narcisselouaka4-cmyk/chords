@@ -292,7 +292,6 @@ const els = {
   // app-settings-ai-btn déplie maintenant #ai-key-panel sur la même page (voir initAISettings).
   aiSettingsToggle: document.getElementById('app-settings-ai-btn'),
   aiKeyPanel: document.getElementById('ai-key-panel'),
-  aiKeyLabel: document.getElementById('ai-key-label'),
   aiBaseUrl: document.getElementById('ai-base-url'),
   aiApiKey: document.getElementById('ai-api-key'),
   aiModel: document.getElementById('ai-model'),
@@ -2981,9 +2980,8 @@ function initAISettings() {
   if (!toggle || !panel) return;
 
   const providerGrid = document.getElementById('ai-provider-grid');
-  const savedWrap = document.getElementById('ai-saved-keys-wrap');
-  const savedSelect = document.getElementById('ai-saved-keys');
-  const savedDelete = document.getElementById('ai-saved-key-delete');
+  const keysList = document.getElementById('ai-keys-list');
+  const newKeyForm = document.getElementById('ai-new-key-form');
 
   function openExternal(url) {
     if (window.electronAPI?.openExternal) window.electronAPI.openExternal(url);
@@ -2995,7 +2993,6 @@ function initAISettings() {
     if (els.aiBaseUrl) els.aiBaseUrl.value = cfg.baseUrl;
     if (els.aiApiKey) els.aiApiKey.value = cfg.apiKey;
     if (els.aiModel) els.aiModel.value = cfg.model;
-    if (els.aiKeyLabel) els.aiKeyLabel.value = '';
     if (els.aiMonthlyCap) els.aiMonthlyCap.value = String(getMonthlyCap());
     if (els.aiUsage) els.aiUsage.textContent = `${getMonthlyUsage()} / ${getMonthlyCap()} ce mois`;
     if (els.aiTestResult) {
@@ -3079,50 +3076,83 @@ function initAISettings() {
     }
   }
 
-  // ---- Clés enregistrées — « sélectionner une clé au lieu de la retaper » ----
-  function renderSavedKeys() {
-    if (!savedSelect || !savedWrap) return;
-    const keys = listSavedKeys();
-    savedWrap.hidden = keys.length === 0;
-    const current = savedSelect.value;
-    savedSelect.innerHTML = '';
-    const emptyOpt = document.createElement('option');
-    emptyOpt.value = '';
-    emptyOpt.textContent = '— Nouvelle clé —';
-    savedSelect.appendChild(emptyOpt);
-    for (const k of keys) {
-      const opt = document.createElement('option');
-      opt.value = k.id;
-      opt.textContent = k.label;
-      savedSelect.appendChild(opt);
-    }
-    savedSelect.value = keys.some((k) => k.id === current) ? current : '';
-    if (savedDelete) savedDelete.hidden = !savedSelect.value;
+  function setNewKeyFormOpen(open) {
+    if (!newKeyForm) return;
+    newKeyForm.hidden = !open;
   }
 
-  savedSelect?.addEventListener('change', async () => {
-    const id = savedSelect.value;
-    if (savedDelete) savedDelete.hidden = !id;
-    if (!id) return;
-    try {
-      const cfg = await activateSavedKey(id);
-      if (els.aiBaseUrl) els.aiBaseUrl.value = cfg.baseUrl;
-      if (els.aiApiKey) els.aiApiKey.value = cfg.apiKey;
-      if (els.aiModel) els.aiModel.value = cfg.model;
-      highlightActiveProvider();
-      setStatus(`Clé « ${savedSelect.selectedOptions[0]?.textContent || ''} » activée`);
-    } catch (err) {
-      setStatus(err.message);
-    }
-  });
+  // ---- Clés enregistrées — « sélectionner une clé au lieu de la retaper » ----
+  // [Claude] — 2026-10-22 — Refonte (Narcisse : « je ne sais absolument pas où
+  // récupérer les clés enregistrées ») : une liste visible plutôt qu'un <select>
+  // qui ne s'affichait qu'une fois une clé déjà créée. Chaque ligne active sa
+  // clé au clic (activateSavedKey fait déjà tout : déchiffre, pose la config
+  // active). Le formulaire d'ajout se replie automatiquement dès qu'une clé
+  // existe ; « + Ajouter une clé » le redéplie sans retaper quoi que ce soit.
+  function renderSavedKeys() {
+    if (!keysList) return;
+    const keys = listSavedKeys();
+    const activeBaseUrl = (els.aiBaseUrl?.value || '').trim();
+    keysList.innerHTML = '';
 
-  savedDelete?.addEventListener('click', () => {
-    const id = savedSelect?.value;
-    if (!id) return;
-    deleteSavedKey(id);
-    renderSavedKeys();
-    setStatus('Clé enregistrée supprimée.');
-  });
+    if (keys.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'ai-keys-empty';
+      empty.textContent = 'Aucune clé enregistrée pour l’instant.';
+      keysList.appendChild(empty);
+    }
+
+    for (const k of keys) {
+      const row = document.createElement('div');
+      row.className = 'ai-key-row';
+      row.classList.toggle('is-active', k.baseUrl === activeBaseUrl);
+
+      const activate = document.createElement('button');
+      activate.type = 'button';
+      activate.className = 'ai-key-row-activate';
+      activate.innerHTML = `<span class="ai-key-row-dot" aria-hidden="true"></span><span class="ai-key-row-label">${k.label}</span>`;
+      activate.title = `Utiliser la clé « ${k.label} »`;
+      activate.addEventListener('click', async () => {
+        try {
+          const cfg = await activateSavedKey(k.id);
+          if (els.aiBaseUrl) els.aiBaseUrl.value = cfg.baseUrl;
+          if (els.aiApiKey) els.aiApiKey.value = cfg.apiKey;
+          if (els.aiModel) els.aiModel.value = cfg.model;
+          highlightActiveProvider();
+          setNewKeyFormOpen(false);
+          renderSavedKeys();
+          setStatus(`Clé « ${k.label} » activée`);
+        } catch (err) {
+          setStatus(err.message);
+        }
+      });
+
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'tr-icon-button ai-key-row-delete';
+      del.title = `Supprimer la clé « ${k.label} »`;
+      del.setAttribute('aria-label', `Supprimer la clé « ${k.label} »`);
+      del.textContent = '🗑';
+      del.addEventListener('click', () => {
+        deleteSavedKey(k.id);
+        renderSavedKeys();
+        setStatus('Clé enregistrée supprimée.');
+      });
+
+      row.append(activate, del);
+      keysList.appendChild(row);
+    }
+
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'ai-key-add-btn';
+    addBtn.textContent = keys.length ? '+ Ajouter une clé' : '+ Ajouter une première clé';
+    addBtn.addEventListener('click', () => setNewKeyFormOpen(newKeyForm?.hidden !== false));
+    keysList.appendChild(addBtn);
+
+    // Premier usage (aucune clé) : le formulaire reste ouvert pour ne pas
+    // cacher la seule action possible derrière un clic en plus.
+    setNewKeyFormOpen(keys.length === 0);
+  }
 
   els.aiTestBtn?.addEventListener('click', async () => {
     if (!els.aiTestResult) return;
@@ -3144,8 +3174,9 @@ function initAISettings() {
     setMonthlyCap(gathered.monthlyCap);
     if (els.aiUsage) els.aiUsage.textContent = `${getMonthlyUsage()} / ${getMonthlyCap()} ce mois`;
     if (gathered.apiKey) {
+      // [Claude] — 2026-10-22 — Plus de champ « Nom » (Narcisse : inutile) ;
+      // saveNamedKey() déduit déjà un nom lisible du fournisseur/de l'adresse.
       await saveNamedKey({
-        label: els.aiKeyLabel?.value,
         baseUrl: gathered.baseUrl,
         apiKey: gathered.apiKey,
         model: gathered.model,

@@ -1002,9 +1002,61 @@
   .ai-key-panel { transition: none; }
 }
 
-.ai-saved-keys-row { display: flex; align-items: center; gap: 8px; }
-.ai-saved-keys-row select { flex: 1; min-width: 0; }
-.ai-saved-keys-row .tr-icon-button { flex: none; }
+/* [Claude] — 2026-10-22 — Liste des clés enregistrées : remplace le <select>
+   discret (Narcisse ne le trouvait pas). C'est la première chose vue en
+   ouvrant le panneau. */
+.ai-keys-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 4px; }
+.ai-keys-empty { margin: 0 0 2px; color: var(--r-text-muted, var(--muted)); font-size: 0.82rem; }
+.ai-key-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--r-border-strong, var(--panel-border));
+  border-radius: var(--r-radius-btn, 8px);
+  background: var(--r-surface-chip, transparent);
+}
+.ai-key-row.is-active { border-color: var(--r-accent, var(--accent)); background: var(--r-accent-soft, var(--accent-soft)); }
+.ai-key-row-activate {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 9px 12px;
+  border: 0;
+  background: none;
+  color: var(--r-text, inherit);
+  font-size: 0.84rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.ai-key-row-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid var(--r-text-muted, var(--muted));
+}
+.ai-key-row.is-active .ai-key-row-dot { background: var(--r-accent, var(--accent)); border-color: var(--r-accent, var(--accent)); }
+.ai-key-row-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai-key-row-delete { flex: none; margin-right: 6px; }
+.ai-key-add-btn {
+  align-self: flex-start;
+  padding: 6px 10px;
+  border: 1px dashed var(--r-border-strong, var(--panel-border));
+  border-radius: var(--r-radius-btn, 8px);
+  background: none;
+  color: var(--r-accent, var(--accent));
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ai-key-add-btn:hover { background: var(--r-accent-soft, var(--accent-soft)); }
+
+.ai-new-key { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; padding-top: 14px; border-top: 1px solid var(--r-border, var(--panel-border)); }
+
+.ai-form-trust-line { margin: 10px 0 0; color: var(--r-text-muted, var(--muted)); font-size: 0.74rem; line-height: 1.5; }
 
 /* Fournisseurs présélectionnés — clés gratuites mises en avant (Narcisse). */
 .ai-provider-grid {

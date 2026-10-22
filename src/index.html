@@ -1995,64 +1995,60 @@
                ai-api-key, ai-test-btn, ai-save-btn), initAISettings() dans main.js. -->
           <div class="settings-section" id="settings-ai">
             <h4 class="settings-section-title">Assistant IA</h4>
-            <p class="settings-note ai-key-intro">Zic fonctionne sans clé. Une clé API personnelle permet d'aller plus loin : poser une question libre ou approfondir une explication. <strong>Vous payez votre propre consommation.</strong></p>
+            <p class="settings-note ai-key-intro">Optionnel. Une clé API personnelle débloque les questions libres — <strong>vous payez votre consommation</strong>.</p>
 
             <button type="button" class="ai-key-toggle" id="app-settings-ai-btn" aria-expanded="false" aria-controls="ai-key-panel">
-              <span>Clé API et fournisseurs</span>
+              <span>Clé API</span>
               <svg class="ai-key-toggle-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
             </button>
 
             <!-- [Claude] — 2026-10-19 — Déploiement du haut vers le bas (Narcisse) : .ai-key-panel
                  est la piste de l'accordéon (grid-template-rows 0fr → 1fr, voir theme.css) ;
                  .ai-key-panel-inner est l'unique enfant mesurable qui porte le vrai contenu — la
-                 technique CSS n'anime proprement qu'avec un seul enfant de ce type. -->
+                 technique CSS n'anime proprement qu'avec un seul enfant de ce type.
+                 [Claude] — 2026-10-22 — Refonte (Narcisse : « je ne sais absolument pas où
+                 récupérer les clés déjà enregistrées, trop de détails ») : les clés enregistrées
+                 deviennent la PREMIÈRE chose vue en ouvrant ce panneau — une liste, pas un <select>
+                 discret qui restait masqué le temps qu'une clé existe. Le formulaire d'ajout se
+                 replie derrière « Ajouter une clé » dès qu'au moins une clé existe ; le champ
+                 « Nom » a disparu (saveNamedKey déduit déjà un nom du fournisseur, inutile à taper). -->
             <div class="ai-key-panel" id="ai-key-panel" hidden>
              <div class="ai-key-panel-inner">
-              <!-- [Claude] — 2026-10-19 — Clés déjà enregistrées : plus besoin de retaper une clé
-                   déjà renseignée. Masqué tant qu'aucune clé n'est enregistrée. -->
-              <div class="ai-saved-keys" id="ai-saved-keys-wrap" hidden>
-                <label class="tr-form-field ai-form-field">
-                  <span>Clés enregistrées</span>
-                  <div class="ai-saved-keys-row">
-                    <select id="ai-saved-keys">
-                      <option value="">— Nouvelle clé —</option>
-                    </select>
-                    <button type="button" class="tr-icon-button" id="ai-saved-key-delete" title="Supprimer cette clé enregistrée" aria-label="Supprimer cette clé enregistrée" hidden>🗑</button>
-                  </div>
-                </label>
-              </div>
+              <!-- Rempli par renderSavedKeys() (main.js) : une ligne par clé enregistrée, plus le
+                   bouton qui déplie #ai-new-key-form. -->
+              <div class="ai-keys-list" id="ai-keys-list"></div>
 
-              <!-- [Claude] — 2026-10-19 — Fournisseurs présélectionnés, clés gratuites en premier
-                   (Narcisse : « proposer des clés API préexistantes ou présélectionnées »). Rempli
-                   par main.js depuis PRESETS (openai-config.js) ; chaque carte ouvre la page de
-                   génération de clé du fournisseur dans le navigateur système. -->
-              <div class="ai-provider-grid" id="ai-provider-grid" role="group" aria-label="Fournisseur"></div>
+              <div class="ai-new-key" id="ai-new-key-form" hidden>
+                <!-- [Claude] — 2026-10-19 — Fournisseurs présélectionnés, clés gratuites en premier
+                     (Narcisse : « proposer des clés API préexistantes ou présélectionnées »). Rempli
+                     par main.js depuis PRESETS (openai-config.js) ; chaque carte ouvre la page de
+                     génération de clé du fournisseur dans le navigateur système. -->
+                <div class="ai-provider-grid" id="ai-provider-grid" role="group" aria-label="Fournisseur"></div>
 
-              <div class="ai-form-grid">
-                <label class="tr-form-field ai-form-field">
-                  <span>Adresse de l'API</span>
-                  <input type="url" id="ai-base-url" placeholder="https://api.groq.com/openai/v1" />
-                </label>
-                <label class="tr-form-field ai-form-field">
-                  <span>Modèle</span>
-                  <input type="text" id="ai-model" placeholder="openai/gpt-oss-20b" />
-                </label>
-              </div>
+                <div class="ai-form-grid">
+                  <label class="tr-form-field ai-form-field">
+                    <span>Adresse de l'API</span>
+                    <input type="url" id="ai-base-url" placeholder="https://api.groq.com/openai/v1" />
+                  </label>
+                  <label class="tr-form-field ai-form-field">
+                    <span>Modèle</span>
+                    <input type="text" id="ai-model" placeholder="openai/gpt-oss-20b" />
+                  </label>
+                </div>
 
-              <div class="ai-form-grid">
-                <label class="tr-form-field ai-form-field">
-                  <span>Nom (optionnel)</span>
-                  <input type="text" id="ai-key-label" placeholder="Ma clé Groq" />
-                </label>
                 <label class="tr-form-field ai-form-field">
                   <span>Clé API</span>
                   <input type="password" id="ai-api-key" placeholder="gsk_..." autocomplete="off" />
                 </label>
-              </div>
 
-              <div class="ai-form-test">
-                <button type="button" id="ai-test-btn" class="tr-button">Tester la connexion</button>
-                <span class="ai-test-result" id="ai-test-result"></span>
+                <div class="ai-form-test">
+                  <button type="button" id="ai-test-btn" class="tr-button">Tester la connexion</button>
+                  <span class="ai-test-result" id="ai-test-result"></span>
+                </div>
+
+                <div class="ai-key-actions">
+                  <button type="button" id="ai-save-btn" class="tr-button tr-primary">Enregistrer cette clé</button>
+                </div>
               </div>
 
               <div class="ai-form-section">
@@ -2064,20 +2060,10 @@
                   </label>
                   <span class="ai-usage" id="ai-usage">0 / 50 ce mois</span>
                 </div>
-                <p class="ai-form-hint">Zic compte les appels qu'il déclenche lui-même. Ce compteur ne mesure pas un coût réel : pour un montant en euros, seul le tableau de bord de votre fournisseur fait foi.</p>
+                <p class="ai-form-hint">Compteur interne, pas un montant réel : vos coûts sont sur le tableau de bord de votre fournisseur.</p>
               </div>
 
-              <div class="ai-form-trust">
-                <span class="tr-eyebrow">Confidentialité</span>
-                <ul>
-                  <li>Votre clé reste sur cet ordinateur et est chiffrée quand c'est possible.</li>
-                  <li>Si l'IA ne répond pas ou si le plafond est atteint, Zic retombe sur ses fiches préécrites.</li>
-                </ul>
-              </div>
-
-              <div class="ai-key-actions">
-                <button type="button" id="ai-save-btn" class="tr-button tr-primary">Enregistrer cette clé</button>
-              </div>
+              <p class="ai-form-trust-line">🔒 Clé chiffrée, gardée sur cet ordinateur. Sans réponse IA, Zic revient à ses fiches toutes faites.</p>
              </div>
             </div>
           </div>
