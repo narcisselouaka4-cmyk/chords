@@ -32,3 +32,19 @@ apikeys
 # Environnement Python local et cache pytest.
 .venv/
 .pytest_cache/
+
+# Worktrees Git locaux (un répertoire par session) : jamais le contenu d'un
+# autre dépôt/checkout dans celui-ci. Un seul avait été ajouté par erreur
+# comme gitlink (.claude/worktrees/refonte-ui-jazz, retiré le 24/10/2026).
+.claude/worktrees/
+
+# Config locale de l'outil Codex CLI, hors du projet.
+.codex/
+
+# Sorties de QA/audit manuel (captures, logs, jsonl) : régénérables à la
+# demande, pas des artefacts de build.
+audit-output/
+
+# Clone externe (papier ISMIR 2019, chord transcription) utilisé pour la
+# recherche hors-dépôt : ~1,4 Go avec son venv, réinstallable via git clone.
+ism2019-chord/
