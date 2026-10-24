@@ -135,8 +135,8 @@ runTest('Région — clampRegion reste dans le morceau, bornée en longueur', ()
 runTest('Région — markup et câblage présents', () => {
   const html = readFileSync(resolve(projectRoot, 'src/index.html'), 'utf-8');
   for (const id of [
-    'analyzer-region-screen', 'analyzer-region-picker', 'analyzer-region-canvas',
-    'analyzer-region-band', 'analyzer-region-handle-start', 'analyzer-region-handle-end',
+    'analyzer-region-screen', 'analyzer-region-player', 'analyzer-region-audio',
+    'analyzer-region-start', 'analyzer-region-end', 'analyzer-region-preview',
     'analyzer-region-confirm-btn', 'analyzer-region-full-btn', 'analyzer-region-back-btn',
   ]) {
     assert(html.includes(`id="${id}"`), `#${id} existe dans index.html`);

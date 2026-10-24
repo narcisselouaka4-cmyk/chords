@@ -7,7 +7,6 @@ import { chordSymbolToMidi } from './copilot-voicing.js';
 import { parseChordSymbol as parseNewChordSymbol, chordSymbolToPitchClasses } from './chord-parser-v2.js';
 import { resolveCanonicalChordDefinition } from '../chord-engine/chord-display.js';
 import { midiToNoteName } from '../voicing-engine/midi-convention.js';
-import movementsLibrary from '../data/movements-library.json' with { type: 'json' };
 
 /**
  * @typedef {{

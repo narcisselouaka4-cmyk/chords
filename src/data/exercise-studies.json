@@ -1,0 +1,2171 @@
+{
+  "version": 1,
+  "movements": [
+    {
+      "id": "study-ii-v-i-major",
+      "name": "II–V–I majeur",
+      "kind": "progression",
+      "category": "Progressions",
+      "pattern": "2m7-5:7-1maj7",
+      "route": "ii → V → I",
+      "context": "Un cadre de cadence, avec une arrivée deux fois plus longue que la préparation.",
+      "description": "Suivez Do → Si au dessus, puis Fa → Mi à l’intérieur. Le dernier accord respire.",
+      "focus": "Suivez Do → Si au dessus, puis Fa → Mi à l’intérieur. Le dernier accord respire.",
+      "style": "jazz",
+      "preserveQualities": true,
+      "noAutoPassing": true,
+      "provenance": {
+        "kind": "original-study",
+        "label": "Étude originale · procédé référencé",
+        "sources": [
+          {
+            "title": "Robert Hutchinson · Standard Chord Progressions",
+            "url": "https://musictheory.pugetsound.edu/mt21c/StandardChordProgressions.html",
+            "supports": "Formule harmonique et fonction ; la réalisation jouée est une étude originale de l’application."
+          }
+        ]
+      },
+      "score": {
+        "tempo": 84,
+        "meter": [
+          4,
+          4
+        ],
+        "steps": [
+          {
+            "beats": 2,
+            "lh": [
+              50
+            ],
+            "rh": [
+              65,
+              69,
+              72
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 1.9,
+                "velocity": 0.51
+              },
+              {
+                "at": 0.12,
+                "hand": "inner",
+                "duration": 1.78,
+                "velocity": 0.49
+              },
+              {
+                "at": 0.12,
+                "hand": "top",
+                "duration": 1.78,
+                "velocity": 0.65
+              }
+            ]
+          },
+          {
+            "beats": 2,
+            "lh": [
+              43
+            ],
+            "rh": [
+              65,
+              67,
+              71
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 1.9,
+                "velocity": 0.54
+              },
+              {
+                "at": 0.25,
+                "hand": "rh",
+                "duration": 1.65,
+                "velocity": 0.6,
+                "roll": 0.025
+              }
+            ]
+          },
+          {
+            "beats": 4,
+            "lh": [
+              48
+            ],
+            "rh": [
+              64,
+              67,
+              71
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 3.9,
+                "velocity": 0.49
+              },
+              {
+                "at": 0.08,
+                "hand": "rh",
+                "duration": 2.8,
+                "velocity": 0.56,
+                "roll": 0.03
+              },
+              {
+                "at": 3,
+                "hand": "top",
+                "duration": 0.85,
+                "velocity": 0.48
+              }
+            ]
+          }
+        ]
+      },
+      "aliases": [
+        "Cadence II-V-I majeur"
+      ]
+    },
+    {
+      "id": "study-ii-v-i-minor",
+      "name": "IIø–V7♭9–i6 en mineur",
+      "kind": "progression",
+      "category": "Progressions",
+      "pattern": "2m7b5-5:7b9-1m6",
+      "route": "iiø → V7♭9 → i6",
+      "context": "Une dominante altérée appartient ici à la grille : ce n’est pas un ajout automatique.",
+      "description": "La préparation dure trois temps, la dominante un temps. La voix du dessus fait Do → Si → La.",
+      "focus": "La préparation dure trois temps, la dominante un temps. La voix du dessus fait Do → Si → La.",
+      "style": "jazz",
+      "preserveQualities": true,
+      "noAutoPassing": true,
+      "provenance": {
+        "kind": "original-study",
+        "label": "Étude originale · procédé référencé",
+        "sources": [
+          {
+            "title": "Robert Hutchinson · Standard Chord Progressions",
+            "url": "https://musictheory.pugetsound.edu/mt21c/StandardChordProgressions.html",
+            "supports": "Formule harmonique et fonction ; la réalisation jouée est une étude originale de l’application."
+          }
+        ]
+      },
+      "score": {
+        "tempo": 72,
+        "meter": [
+          4,
+          4
+        ],
+        "steps": [
+          {
+            "beats": 3,
+            "lh": [
+              50
+            ],
+            "rh": [
+              65,
+              68,
+              72
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 2.92,
+                "velocity": 0.52
+              },
+              {
+                "at": 0.08,
+                "hand": "rh",
+                "duration": 2.84,
+                "velocity": 0.57,
+                "roll": 0.025
+              }
+            ]
+          },
+          {
+            "beats": 1,
+            "lh": [
+              43,
+              53
+            ],
+            "rh": [
+              62,
+              68,
+              71
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 0.92,
+                "velocity": 0.52
+              },
+              {
+                "at": 0.03,
+                "hand": "rh",
+                "duration": 0.89,
+                "velocity": 0.57,
+                "roll": 0.025
+              }
+            ]
+          },
+          {
+            "beats": 4,
+            "lh": [
+              48
+            ],
+            "rh": [
+              63,
+              67,
+              69
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 3.92,
+                "velocity": 0.52
+              },
+              {
+                "at": 0.04,
+                "hand": "rh",
+                "duration": 3.88,
+                "velocity": 0.57,
+                "roll": 0.025
+              }
+            ]
+          }
+        ]
+      },
+      "aliases": [
+        "II-V-I altéré en mineur"
+      ]
+    },
+    {
+      "id": "study-turnaround",
+      "name": "Turnaround I–VI7–ii–V–I",
+      "kind": "progression",
+      "category": "Progressions",
+      "pattern": "1maj7-6:7b9-2m7-5:7-1maj7",
+      "route": "I → VI7 → ii → V → I",
+      "context": "Une relance de quatre accords, puis son retour à la tonique.",
+      "description": "Écoutez Mi → Mi → Fa → Fa → Mi à l’intérieur. Les réponses changent de place avant l’arrivée.",
+      "focus": "Écoutez Mi → Mi → Fa → Fa → Mi à l’intérieur. Les réponses changent de place avant l’arrivée.",
+      "style": "jazz",
+      "preserveQualities": true,
+      "noAutoPassing": true,
+      "provenance": {
+        "kind": "original-study",
+        "label": "Étude originale · procédé référencé",
+        "sources": [
+          {
+            "title": "Robert Hutchinson · Standard Chord Progressions",
+            "url": "https://musictheory.pugetsound.edu/mt21c/StandardChordProgressions.html",
+            "supports": "Formule harmonique et fonction ; la réalisation jouée est une étude originale de l’application."
+          }
+        ]
+      },
+      "score": {
+        "tempo": 92,
+        "meter": [
+          4,
+          4
+        ],
+        "steps": [
+          {
+            "beats": 2,
+            "lh": [
+              48
+            ],
+            "rh": [
+              64,
+              67,
+              71
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 1.85,
+                "velocity": 0.5
+              },
+              {
+                "at": 0.25,
+                "hand": "rh",
+                "duration": 1.4,
+                "velocity": 0.54
+              }
+            ]
+          },
+          {
+            "beats": 2,
+            "lh": [
+              45,
+              55
+            ],
+            "rh": [
+              61,
+              64,
+              70
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 1.85,
+                "velocity": 0.55
+              },
+              {
+                "at": 0.5,
+                "hand": "rh",
+                "duration": 0.65,
+                "velocity": 0.59
+              },
+              {
+                "at": 1.5,
+                "hand": "rh",
+                "duration": 0.35,
+                "velocity": 0.52
+              }
+            ]
+          },
+          {
+            "beats": 2,
+            "lh": [
+              50
+            ],
+            "rh": [
+              65,
+              69,
+              72
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 1.85,
+                "velocity": 0.52
+              },
+              {
+                "at": 0,
+                "hand": "rh",
+                "duration": 0.6,
+                "velocity": 0.56
+              },
+              {
+                "at": 1.25,
+                "hand": "rh",
+                "duration": 0.6,
+                "velocity": 0.58
+              }
+            ]
+          },
+          {
+            "beats": 2,
+            "lh": [
+              43
+            ],
+            "rh": [
+              65,
+              67,
+              71
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 1.85,
+                "velocity": 0.55
+              },
+              {
+                "at": 0.5,
+                "hand": "rh",
+                "duration": 1.35,
+                "velocity": 0.6
+              }
+            ]
+          },
+          {
+            "beats": 4,
+            "lh": [
+              48
+            ],
+            "rh": [
+              64,
+              67,
+              71
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 3.92,
+                "velocity": 0.52
+              },
+              {
+                "at": 0.08,
+                "hand": "rh",
+                "duration": 3.84,
+                "velocity": 0.57,
+                "roll": 0.025
+              }
+            ]
+          }
+        ]
+      },
+      "aliases": [
+        "Turnaround I-VI7-II-V-I"
+      ]
+    },
+    {
+      "id": "study-pop-cycle",
+      "name": "Boucle I–V–vi–IV",
+      "kind": "progression",
+      "category": "Progressions",
+      "pattern": "1add9-5:7-6m7-4maj7",
+      "route": "I → V → vi → IV",
+      "context": "Une boucle pop / worship ; le IV laisse la phrase ouverte pour recommencer.",
+      "description": "Les arpèges dessinent une ligne Sol → Sol → Mi → Mi. Laissez les notes se recouvrir sans précipiter les changements.",
+      "focus": "Les arpèges dessinent une ligne Sol → Sol → Mi → Mi. Laissez les notes se recouvrir sans précipiter les changements.",
+      "style": "worship",
+      "preserveQualities": true,
+      "noAutoPassing": true,
+      "provenance": {
+        "kind": "original-study",
+        "label": "Étude originale · procédé référencé",
+        "sources": [
+          {
+            "title": "Robert Hutchinson · The Best-Seller Progression",
+            "url": "https://musictheory.pugetsound.edu/mt21c/BestsellerProgression.html",
+            "supports": "Formule I–V–vi–IV ; voicings et arpèges originaux de l’application."
+          }
+        ]
+      },
+      "score": {
+        "tempo": 68,
+        "meter": [
+          4,
+          4
+        ],
+        "steps": [
+          {
+            "beats": 4,
+            "lh": [
+              48
+            ],
+            "rh": [
+              62,
+              64,
+              67
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 3.9,
+                "velocity": 0.48
+              },
+              {
+                "at": 0.1,
+                "hand": "note",
+                "duration": 2.3,
+                "velocity": 0.57,
+                "index": 2
+              },
+              {
+                "at": 0.75,
+                "hand": "note",
+                "duration": 3.1,
+                "velocity": 0.47,
+                "index": 0
+              },
+              {
+                "at": 1.5,
+                "hand": "note",
+                "duration": 2.35,
+                "velocity": 0.51,
+                "index": 1
+              },
+              {
+                "at": 2.5,
+                "hand": "top",
+                "duration": 1.35,
+                "velocity": 0.55
+              }
+            ]
+          },
+          {
+            "beats": 4,
+            "lh": [
+              43
+            ],
+            "rh": [
+              59,
+              62,
+              65,
+              67
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 3.9,
+                "velocity": 0.47
+              },
+              {
+                "at": 0.25,
+                "hand": "note",
+                "duration": 3.6,
+                "velocity": 0.49,
+                "index": 0
+              },
+              {
+                "at": 1,
+                "hand": "note",
+                "duration": 2.85,
+                "velocity": 0.5,
+                "index": 1
+              },
+              {
+                "at": 1.75,
+                "hand": "top",
+                "duration": 2.1,
+                "velocity": 0.57
+              },
+              {
+                "at": 1.5,
+                "hand": "note",
+                "duration": 2.35,
+                "velocity": 0.48,
+                "index": 2
+              }
+            ]
+          },
+          {
+            "beats": 4,
+            "lh": [
+              45
+            ],
+            "rh": [
+              55,
+              60,
+              64
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 3.9,
+                "velocity": 0.49
+              },
+              {
+                "at": 0.1,
+                "hand": "top",
+                "duration": 1.65,
+                "velocity": 0.6
+              },
+              {
+                "at": 0.75,
+                "hand": "note",
+                "duration": 3.1,
+                "velocity": 0.48,
+                "index": 0
+              },
+              {
+                "at": 1.5,
+                "hand": "note",
+                "duration": 2.35,
+                "velocity": 0.49,
+                "index": 1
+              },
+              {
+                "at": 2,
+                "hand": "top",
+                "duration": 1.85,
+                "velocity": 0.54
+              }
+            ]
+          },
+          {
+            "beats": 4,
+            "lh": [
+              41
+            ],
+            "rh": [
+              57,
+              60,
+              64
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 3.9,
+                "velocity": 0.48
+              },
+              {
+                "at": 0.25,
+                "hand": "rh",
+                "duration": 2.4,
+                "velocity": 0.54,
+                "roll": 0.15
+              },
+              {
+                "at": 3,
+                "hand": "top",
+                "duration": 0.8,
+                "velocity": 0.46
+              }
+            ]
+          }
+        ]
+      },
+      "aliases": [
+        "I-V-vi-IV (pop / worship)"
+      ]
+    },
+    {
+      "id": "study-jazz-blues",
+      "name": "Blues jazz · 12 mesures",
+      "kind": "progression",
+      "category": "Progressions",
+      "pattern": "1:7-4:7-1:7-1:7-4:7-4:7-1:7-6:7-2m7-5:7-1:7-5:7",
+      "route": "12 mesures · retour au I après le V",
+      "context": "Une forme complète, avec quick change, relance VI–ii–V et un slide sur le IV.",
+      "description": "Les accords répondent à la basse à des endroits différents. Le slide La♭ → La ne colore que l’entrée du IV en mesure 5.",
+      "focus": "Les accords répondent à la basse à des endroits différents. Le slide La♭ → La ne colore que l’entrée du IV en mesure 5.",
+      "style": "jazz",
+      "preserveQualities": true,
+      "noAutoPassing": true,
+      "provenance": {
+        "kind": "original-study",
+        "label": "Étude originale · procédé référencé",
+        "sources": [
+          {
+            "title": "Robert Hutchinson · Standard Chord Progressions",
+            "url": "https://musictheory.pugetsound.edu/mt21c/StandardChordProgressions.html",
+            "supports": "Formule harmonique et fonction ; la réalisation jouée est une étude originale de l’application."
+          },
+          {
+            "title": "Jonny May / Michael LaDisa · Gospel Piano Chords and Walking Bass",
+            "url": "https://pianowithjonny.com/piano-lessons/gospel-piano-chords-and-walking-bass/",
+            "supports": "Usage du slide vers la tierce en gospel ; l’arrangement joué ici est original."
+          }
+        ]
+      },
+      "score": {
+        "tempo": 108,
+        "meter": [
+          4,
+          4
+        ],
+        "steps": [
+          {
+            "beats": 4,
+            "lh": [
+              48
+            ],
+            "rh": [
+              64,
+              67,
+              70
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 1.75,
+                "velocity": 0.55
+              },
+              {
+                "at": 2,
+                "hand": "lh",
+                "duration": 1.75,
+                "velocity": 0.5
+              },
+              {
+                "at": 0,
+                "hand": "rh",
+                "duration": 0.65,
+                "velocity": 0.61
+              },
+              {
+                "at": 2.5,
+                "hand": "rh",
+                "duration": 0.65,
+                "velocity": 0.54
+              }
+            ]
+          },
+          {
+            "beats": 4,
+            "lh": [
+              41
+            ],
+            "rh": [
+              63,
+              69,
+              72
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 1.75,
+                "velocity": 0.55
+              },
+              {
+                "at": 2,
+                "hand": "lh",
+                "duration": 1.75,
+                "velocity": 0.5
+              },
+              {
+                "at": 0.5,
+                "hand": "rh",
+                "duration": 0.65,
+                "velocity": 0.61
+              },
+              {
+                "at": 2.6666666666666665,
+                "hand": "rh",
+                "duration": 0.65,
+                "velocity": 0.54
+              }
+            ]
+          },
+          {
+            "beats": 4,
+            "lh": [
+              48
+            ],
+            "rh": [
+              64,
+              67,
+              70
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 1.75,
+                "velocity": 0.55
+              },
+              {
+                "at": 2,
+                "hand": "lh",
+                "duration": 1.75,
+                "velocity": 0.5
+              },
+              {
+                "at": 0,
+                "hand": "rh",
+                "duration": 0.65,
+                "velocity": 0.61
+              },
+              {
+                "at": 1.5,
+                "hand": "rh",
+                "duration": 0.65,
+                "velocity": 0.54
+              },
+              {
+                "at": 3,
+                "hand": "rh",
+                "duration": 0.65,
+                "velocity": 0.54
+              }
+            ]
+          },
+          {
+            "beats": 4,
+            "lh": [
+              48
+            ],
+            "rh": [
+              64,
+              67,
+              70
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 1.75,
+                "velocity": 0.55
+              },
+              {
+                "at": 2,
+                "hand": "lh",
+                "duration": 1.75,
+                "velocity": 0.5
+              },
+              {
+                "at": 0.6666666666666666,
+                "hand": "rh",
+                "duration": 0.65,
+                "velocity": 0.61
+              },
+              {
+                "at": 2.5,
+                "hand": "rh",
+                "duration": 0.65,
+                "velocity": 0.54
+              }
+            ]
+          },
+          {
+            "beats": 4,
+            "lh": [
+              41
+            ],
+            "rh": [
+              63,
+              69,
+              72
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 1.75,
+                "velocity": 0.55
+              },
+              {
+                "at": 2,
+                "hand": "lh",
+                "duration": 1.75,
+                "velocity": 0.5
+              },
+              {
+                "at": 0.16,
+                "hand": "rh",
+                "duration": 0.65,
+                "velocity": 0.61
+              },
+              {
+                "at": 2.6666666666666665,
+                "hand": "rh",
+                "duration": 0.65,
+                "velocity": 0.54
+              },
+              {
+                "at": 0.08,
+                "hand": "grace",
+                "duration": 0.075,
+                "velocity": 0.46,
+                "note": 68
+              }
+            ]
+          },
+          {
+            "beats": 4,
+            "lh": [
+              41
+            ],
+            "rh": [
+              63,
+              69,
+              72
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 1.75,
+                "velocity": 0.55
+              },
+              {
+                "at": 2,
+                "hand": "lh",
+                "duration": 1.75,
+                "velocity": 0.5
+              },
+              {
+                "at": 0,
+                "hand": "rh",
+                "duration": 0.65,
+                "velocity": 0.61
+              },
+              {
+                "at": 0.6666666666666666,
+                "hand": "rh",
+                "duration": 0.65,
+                "velocity": 0.54
+              },
+              {
+                "at": 2.5,
+                "hand": "rh",
+                "duration": 0.65,
+                "velocity": 0.54
+              }
+            ]
+          },
+          {
+            "beats": 4,
+            "lh": [
+              48
+            ],
+            "rh": [
+              64,
+              67,
+              70
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 1.75,
+                "velocity": 0.55
+              },
+              {
+                "at": 2,
+                "hand": "lh",
+                "duration": 1.75,
+                "velocity": 0.5
+              },
+              {
+                "at": 0,
+                "hand": "rh",
+                "duration": 0.65,
+                "velocity": 0.61
+              },
+              {
+                "at": 3,
+                "hand": "rh",
+                "duration": 0.65,
+                "velocity": 0.54
+              }
+            ]
+          },
+          {
+            "beats": 4,
+            "lh": [
+              45
+            ],
+            "rh": [
+              61,
+              64,
+              67
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 1.75,
+                "velocity": 0.55
+              },
+              {
+                "at": 2,
+                "hand": "lh",
+                "duration": 1.75,
+                "velocity": 0.5
+              },
+              {
+                "at": 0.5,
+                "hand": "rh",
+                "duration": 0.65,
+                "velocity": 0.61
+              },
+              {
+                "at": 2.5,
+                "hand": "rh",
+                "duration": 0.65,
+                "velocity": 0.54
+              }
+            ]
+          },
+          {
+            "beats": 4,
+            "lh": [
+              50
+            ],
+            "rh": [
+              60,
+              65,
+              69
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 1.75,
+                "velocity": 0.55
+              },
+              {
+                "at": 2,
+                "hand": "lh",
+                "duration": 1.75,
+                "velocity": 0.5
+              },
+              {
+                "at": 0,
+                "hand": "rh",
+                "duration": 0.65,
+                "velocity": 0.61
+              },
+              {
+                "at": 1.6666666666666665,
+                "hand": "rh",
+                "duration": 0.65,
+                "velocity": 0.54
+              }
+            ]
+          },
+          {
+            "beats": 4,
+            "lh": [
+              43
+            ],
+            "rh": [
+              59,
+              62,
+              65
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 1.75,
+                "velocity": 0.55
+              },
+              {
+                "at": 2,
+                "hand": "lh",
+                "duration": 1.75,
+                "velocity": 0.5
+              },
+              {
+                "at": 0.6666666666666666,
+                "hand": "rh",
+                "duration": 0.65,
+                "velocity": 0.61
+              },
+              {
+                "at": 2.6666666666666665,
+                "hand": "rh",
+                "duration": 0.65,
+                "velocity": 0.54
+              }
+            ]
+          },
+          {
+            "beats": 4,
+            "lh": [
+              48
+            ],
+            "rh": [
+              64,
+              67,
+              70
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 1.75,
+                "velocity": 0.55
+              },
+              {
+                "at": 2,
+                "hand": "lh",
+                "duration": 1.75,
+                "velocity": 0.5
+              },
+              {
+                "at": 0,
+                "hand": "rh",
+                "duration": 0.65,
+                "velocity": 0.61
+              },
+              {
+                "at": 2.5,
+                "hand": "rh",
+                "duration": 0.65,
+                "velocity": 0.54
+              }
+            ]
+          },
+          {
+            "beats": 4,
+            "lh": [
+              43
+            ],
+            "rh": [
+              59,
+              62,
+              65
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 1.75,
+                "velocity": 0.55
+              },
+              {
+                "at": 2,
+                "hand": "lh",
+                "duration": 1.75,
+                "velocity": 0.5
+              },
+              {
+                "at": 0.5,
+                "hand": "rh",
+                "duration": 0.65,
+                "velocity": 0.61
+              },
+              {
+                "at": 2.6666666666666665,
+                "hand": "rh",
+                "duration": 0.65,
+                "velocity": 0.54
+              }
+            ]
+          }
+        ]
+      },
+      "aliases": [
+        "Blues jazz 12 mesures"
+      ]
+    },
+    {
+      "id": "passage-diminished-ii",
+      "name": "Vers le ii · diminué chromatique",
+      "kind": "passage",
+      "category": "Passages A → B",
+      "pattern": "1maj7-#1dim7-2m7",
+      "route": "I → ♯I°7 → ii",
+      "context": "Départ sur I, un demi-ton de basse, puis arrivée sur ii.",
+      "description": "Le diminué ne dure qu’une croche. La basse fait Do → Do♯ → Ré et le dessus Si → Si♭ → Do.",
+      "focus": "Le diminué ne dure qu’une croche. La basse fait Do → Do♯ → Ré et le dessus Si → Si♭ → Do.",
+      "style": "gospel",
+      "preserveQualities": true,
+      "noAutoPassing": true,
+      "provenance": {
+        "kind": "original-study",
+        "label": "Étude originale · procédé référencé",
+        "sources": [
+          {
+            "title": "PianoGroove · Gospel Passing Chords",
+            "url": "https://www.pianogroove.com/blues-piano-lessons/gospel-passing-chords-substitutions/",
+            "supports": "Procédé de liaison gospel ; les notes, le rythme et le phrasé de cette étude sont écrits pour l’application."
+          },
+          {
+            "title": "Richard W. Smith · Apostolic Praise 102, p. 46",
+            "url": "https://www.apostolicpsom.com/wp-content/uploads/woocommerce_uploads/2016/10/AP-102-Study-Info-with-Goals-and-Homework.pdf#page=46",
+            "supports": "Approche d’un accord mineur par un diminué un demi-ton en dessous ; voicings et phrasé de l’étude originaux."
+          }
+        ]
+      },
+      "score": {
+        "tempo": 76,
+        "meter": [
+          4,
+          4
+        ],
+        "steps": [
+          {
+            "beats": 2,
+            "lh": [
+              48
+            ],
+            "rh": [
+              64,
+              67,
+              71
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 1.92,
+                "velocity": 0.52
+              },
+              {
+                "at": 0.08,
+                "hand": "rh",
+                "duration": 1.8399999999999999,
+                "velocity": 0.57,
+                "roll": 0.025
+              }
+            ]
+          },
+          {
+            "beats": 0.5,
+            "lh": [
+              49
+            ],
+            "rh": [
+              64,
+              67,
+              70
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 0.42,
+                "velocity": 0.52
+              },
+              {
+                "at": 0,
+                "hand": "rh",
+                "duration": 0.42,
+                "velocity": 0.57,
+                "roll": 0.025
+              }
+            ]
+          },
+          {
+            "beats": 5.5,
+            "lh": [
+              50
+            ],
+            "rh": [
+              65,
+              69,
+              72
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 5.42,
+                "velocity": 0.52
+              },
+              {
+                "at": 0.025,
+                "hand": "rh",
+                "duration": 5.395,
+                "velocity": 0.57,
+                "roll": 0.025
+              }
+            ]
+          }
+        ]
+      },
+      "roles": [
+        "departure",
+        "passing",
+        "arrival"
+      ]
+    },
+    {
+      "id": "passage-secondary-ii",
+      "name": "Vers le ii · dominante secondaire",
+      "kind": "passage",
+      "category": "Passages A → B",
+      "pattern": "1maj7-6:7b9-2m7",
+      "route": "I → VI7♭9 → ii",
+      "context": "VI7 prépare le ii. Le passage et sa tension sont écrits, sans autre accord intercalé.",
+      "description": "La basse fait Do → La → Ré. Faites entendre Do♯ → Ré dans la résolution de la dominante.",
+      "focus": "La basse fait Do → La → Ré. Faites entendre Do♯ → Ré dans la résolution de la dominante.",
+      "style": "gospel",
+      "preserveQualities": true,
+      "noAutoPassing": true,
+      "provenance": {
+        "kind": "original-study",
+        "label": "Étude originale · procédé référencé",
+        "sources": [
+          {
+            "title": "PianoGroove · Gospel Passing Chords",
+            "url": "https://www.pianogroove.com/blues-piano-lessons/gospel-passing-chords-substitutions/",
+            "supports": "Procédé de liaison gospel ; les notes, le rythme et le phrasé de cette étude sont écrits pour l’application."
+          }
+        ]
+      },
+      "score": {
+        "tempo": 80,
+        "meter": [
+          4,
+          4
+        ],
+        "steps": [
+          {
+            "beats": 2,
+            "lh": [
+              48
+            ],
+            "rh": [
+              64,
+              67,
+              71
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 1.92,
+                "velocity": 0.52
+              },
+              {
+                "at": 0.08,
+                "hand": "rh",
+                "duration": 1.8399999999999999,
+                "velocity": 0.57,
+                "roll": 0.025
+              }
+            ]
+          },
+          {
+            "beats": 2,
+            "lh": [
+              45,
+              55
+            ],
+            "rh": [
+              61,
+              64,
+              70
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 1.85,
+                "velocity": 0.55
+              },
+              {
+                "at": 0.5,
+                "hand": "rh",
+                "duration": 1.35,
+                "velocity": 0.61
+              }
+            ]
+          },
+          {
+            "beats": 4,
+            "lh": [
+              50
+            ],
+            "rh": [
+              62,
+              65,
+              69
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 3.92,
+                "velocity": 0.52
+              },
+              {
+                "at": 0,
+                "hand": "rh",
+                "duration": 3.92,
+                "velocity": 0.57,
+                "roll": 0.025
+              }
+            ]
+          }
+        ]
+      },
+      "roles": [
+        "departure",
+        "passing",
+        "arrival"
+      ]
+    },
+    {
+      "id": "passage-chromatic-iv",
+      "name": "Vers le IV · deux dominantes chromatiques",
+      "kind": "passage",
+      "category": "Passages A → B",
+      "pattern": "1:7-b3:7-3:7-4:9sus4",
+      "route": "I → ♭III7 → III7 → IV9sus4",
+      "context": "Deux marches chromatiques avant le IV suspendu.",
+      "description": "Les deux dominantes durent un temps chacune ; leur quinte au dessus monte Si♭ → Si. Le IV laisse enfin de l’espace.",
+      "focus": "Les deux dominantes durent un temps chacune ; leur quinte au dessus monte Si♭ → Si. Le IV laisse enfin de l’espace.",
+      "style": "gospel",
+      "preserveQualities": true,
+      "noAutoPassing": true,
+      "provenance": {
+        "kind": "original-study",
+        "label": "Étude originale · procédé référencé",
+        "sources": [
+          {
+            "title": "PianoGroove · Gospel Passing Chords",
+            "url": "https://www.pianogroove.com/blues-piano-lessons/gospel-passing-chords-substitutions/",
+            "supports": "Procédé de liaison gospel ; les notes, le rythme et le phrasé de cette étude sont écrits pour l’application."
+          }
+        ]
+      },
+      "score": {
+        "tempo": 76,
+        "meter": [
+          4,
+          4
+        ],
+        "steps": [
+          {
+            "beats": 2,
+            "lh": [
+              48
+            ],
+            "rh": [
+              64,
+              67,
+              70
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 1.92,
+                "velocity": 0.52
+              },
+              {
+                "at": 0.08,
+                "hand": "rh",
+                "duration": 1.8399999999999999,
+                "velocity": 0.57,
+                "roll": 0.025
+              }
+            ]
+          },
+          {
+            "beats": 1,
+            "lh": [
+              51
+            ],
+            "rh": [
+              61,
+              67,
+              70
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 0.92,
+                "velocity": 0.52
+              },
+              {
+                "at": 0.02,
+                "hand": "rh",
+                "duration": 0.9,
+                "velocity": 0.57,
+                "roll": 0.025
+              }
+            ]
+          },
+          {
+            "beats": 1,
+            "lh": [
+              52
+            ],
+            "rh": [
+              62,
+              68,
+              71
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 0.92,
+                "velocity": 0.52
+              },
+              {
+                "at": 0.02,
+                "hand": "rh",
+                "duration": 0.9,
+                "velocity": 0.57,
+                "roll": 0.025
+              }
+            ]
+          },
+          {
+            "beats": 4,
+            "lh": [
+              41
+            ],
+            "rh": [
+              63,
+              67,
+              70
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 3.9,
+                "velocity": 0.53
+              },
+              {
+                "at": 0.08,
+                "hand": "inner",
+                "duration": 3.8,
+                "velocity": 0.53
+              },
+              {
+                "at": 0.08,
+                "hand": "top",
+                "duration": 3.8,
+                "velocity": 0.64
+              }
+            ]
+          }
+        ]
+      },
+      "roles": [
+        "departure",
+        "passing",
+        "passing",
+        "arrival"
+      ]
+    },
+    {
+      "id": "passage-tritone",
+      "name": "Vers le I · substitution tritonique",
+      "kind": "passage",
+      "category": "Passages A → B",
+      "pattern": "2m7-b2:7-1maj7",
+      "route": "ii → ♭II7 → I",
+      "context": "Le ♭II7 remplace le V7 ; il ne s’ajoute pas après lui.",
+      "description": "Un temps sur ii, une croche sur ♭II7, puis l’arrivée. Suivez la basse Ré → Ré♭ → Do.",
+      "focus": "Un temps sur ii, une croche sur ♭II7, puis l’arrivée. Suivez la basse Ré → Ré♭ → Do.",
+      "style": "jazz",
+      "preserveQualities": true,
+      "noAutoPassing": true,
+      "provenance": {
+        "kind": "original-study",
+        "label": "Étude originale · procédé référencé",
+        "sources": [
+          {
+            "title": "Robert Hutchinson · Standard Chord Progressions",
+            "url": "https://musictheory.pugetsound.edu/mt21c/StandardChordProgressions.html",
+            "supports": "Formule harmonique et fonction ; la réalisation jouée est une étude originale de l’application."
+          }
+        ]
+      },
+      "score": {
+        "tempo": 84,
+        "meter": [
+          4,
+          4
+        ],
+        "steps": [
+          {
+            "beats": 1,
+            "lh": [
+              50
+            ],
+            "rh": [
+              65,
+              69,
+              72
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 0.92,
+                "velocity": 0.52
+              },
+              {
+                "at": 0,
+                "hand": "rh",
+                "duration": 0.92,
+                "velocity": 0.57,
+                "roll": 0.025
+              }
+            ]
+          },
+          {
+            "beats": 0.5,
+            "lh": [
+              49
+            ],
+            "rh": [
+              65,
+              68,
+              71
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 0.42,
+                "velocity": 0.52
+              },
+              {
+                "at": 0,
+                "hand": "rh",
+                "duration": 0.42,
+                "velocity": 0.57,
+                "roll": 0.025
+              }
+            ]
+          },
+          {
+            "beats": 2.5,
+            "lh": [
+              48
+            ],
+            "rh": [
+              64,
+              67,
+              71
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 2.42,
+                "velocity": 0.52
+              },
+              {
+                "at": 0.03,
+                "hand": "rh",
+                "duration": 2.39,
+                "velocity": 0.57,
+                "roll": 0.025
+              }
+            ]
+          }
+        ]
+      },
+      "roles": [
+        "departure",
+        "passing",
+        "arrival"
+      ],
+      "aliases": [
+        "Tritone substitution V7"
+      ]
+    },
+    {
+      "id": "passage-backdoor",
+      "name": "Vers le I · cadence backdoor",
+      "kind": "passage",
+      "category": "Passages A → B",
+      "pattern": "4m7-b7:7-1maj7",
+      "route": "ivm7 → ♭VII7 → I",
+      "context": "Une autre approche de la tonique, par le iv mineur et le ♭VII7.",
+      "description": "L’intérieur descend La♭ → La♭ → Sol. Le dessus fait Mi♭ → Ré → Mi, avec une réponse tardive sur ♭VII7.",
+      "focus": "L’intérieur descend La♭ → La♭ → Sol. Le dessus fait Mi♭ → Ré → Mi, avec une réponse tardive sur ♭VII7.",
+      "style": "jazz",
+      "preserveQualities": true,
+      "noAutoPassing": true,
+      "provenance": {
+        "kind": "original-study",
+        "label": "Étude originale · procédé référencé",
+        "sources": [
+          {
+            "title": "James Melton · Backdoor Progression",
+            "url": "https://www.learnjazzstandards.com/blog/learning-jazz/jazz-theory/backdoor-progression/",
+            "supports": "Cadence iv–♭VII7–I et conduite des voix ; étude originale, sans transcription d’un morceau."
+          }
+        ]
+      },
+      "score": {
+        "tempo": 74,
+        "meter": [
+          4,
+          4
+        ],
+        "steps": [
+          {
+            "beats": 2,
+            "lh": [
+              41
+            ],
+            "rh": [
+              63,
+              68,
+              75
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 1.9,
+                "velocity": 0.5
+              },
+              {
+                "at": 0.1,
+                "hand": "rh",
+                "duration": 1.8,
+                "velocity": 0.55,
+                "roll": 0.04
+              }
+            ]
+          },
+          {
+            "beats": 2,
+            "lh": [
+              46
+            ],
+            "rh": [
+              62,
+              68,
+              74
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 1.9,
+                "velocity": 0.53
+              },
+              {
+                "at": 0.5,
+                "hand": "rh",
+                "duration": 1.4,
+                "velocity": 0.59
+              }
+            ]
+          },
+          {
+            "beats": 4,
+            "lh": [
+              48
+            ],
+            "rh": [
+              64,
+              67,
+              76
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 3.92,
+                "velocity": 0.52
+              },
+              {
+                "at": 0.04,
+                "hand": "rh",
+                "duration": 3.88,
+                "velocity": 0.57,
+                "roll": 0.025
+              }
+            ]
+          }
+        ]
+      },
+      "roles": [
+        "departure",
+        "passing",
+        "arrival"
+      ]
+    },
+    {
+      "id": "passage-minor-plagal",
+      "name": "Vers le I · IV–iv mineur",
+      "kind": "passage",
+      "category": "Passages A → B",
+      "pattern": "1maj7-4maj7-4m6-1maj7",
+      "route": "I → IV → iv6 → I",
+      "context": "Le IV majeur s’assombrit en iv mineur avant de rentrer au I.",
+      "description": "Écoutez La → La♭ → Sol au milieu du voicing. Les deux accords de IV partagent une seule mesure avec le départ.",
+      "focus": "Écoutez La → La♭ → Sol au milieu du voicing. Les deux accords de IV partagent une seule mesure avec le départ.",
+      "style": "gospel",
+      "preserveQualities": true,
+      "noAutoPassing": true,
+      "provenance": {
+        "kind": "original-study",
+        "label": "Étude originale · procédé référencé",
+        "sources": [
+          {
+            "title": "James Melton · Backdoor Progression",
+            "url": "https://www.learnjazzstandards.com/blog/learning-jazz/jazz-theory/backdoor-progression/",
+            "supports": "Cadence iv–♭VII7–I et conduite des voix ; étude originale, sans transcription d’un morceau."
+          }
+        ]
+      },
+      "score": {
+        "tempo": 70,
+        "meter": [
+          4,
+          4
+        ],
+        "steps": [
+          {
+            "beats": 2,
+            "lh": [
+              48
+            ],
+            "rh": [
+              64,
+              67,
+              71
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 1.92,
+                "velocity": 0.52
+              },
+              {
+                "at": 0.08,
+                "hand": "rh",
+                "duration": 1.8399999999999999,
+                "velocity": 0.57,
+                "roll": 0.025
+              }
+            ]
+          },
+          {
+            "beats": 1,
+            "lh": [
+              41
+            ],
+            "rh": [
+              60,
+              64,
+              69
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 0.92,
+                "velocity": 0.52
+              },
+              {
+                "at": 0.02,
+                "hand": "rh",
+                "duration": 0.9,
+                "velocity": 0.57,
+                "roll": 0.025
+              }
+            ]
+          },
+          {
+            "beats": 1,
+            "lh": [
+              41
+            ],
+            "rh": [
+              60,
+              62,
+              68
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 0.92,
+                "velocity": 0.52
+              },
+              {
+                "at": 0.02,
+                "hand": "rh",
+                "duration": 0.9,
+                "velocity": 0.57,
+                "roll": 0.025
+              }
+            ]
+          },
+          {
+            "beats": 4,
+            "lh": [
+              48
+            ],
+            "rh": [
+              59,
+              64,
+              67
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 3.92,
+                "velocity": 0.52
+              },
+              {
+                "at": 0.05,
+                "hand": "rh",
+                "duration": 3.87,
+                "velocity": 0.57,
+                "roll": 0.025
+              }
+            ]
+          }
+        ]
+      },
+      "roles": [
+        "departure",
+        "passing",
+        "passing",
+        "arrival"
+      ],
+      "aliases": [
+        "IV-iv-I (plagale mineure)"
+      ]
+    },
+    {
+      "id": "study-suspension",
+      "name": "Suspension 4–3 sur le V",
+      "kind": "study",
+      "category": "Gestes & voix",
+      "pattern": "5:7sus4-5:7-1maj7",
+      "route": "V7sus4 → V7 → I",
+      "context": "Un geste de voix : la quarte se résout en tierce avant le retour au I.",
+      "description": "Le dessus Do → Si arrive seulement au quatrième temps. Gardez Ré et Fa comme repères, puis laissez le I durer.",
+      "focus": "Le dessus Do → Si arrive seulement au quatrième temps. Gardez Ré et Fa comme repères, puis laissez le I durer.",
+      "style": "jazz",
+      "preserveQualities": true,
+      "noAutoPassing": true,
+      "provenance": {
+        "kind": "original-study",
+        "label": "Étude originale · procédé référencé",
+        "sources": [
+          {
+            "title": "PianoGroove · Gospel Passing Chords",
+            "url": "https://www.pianogroove.com/blues-piano-lessons/gospel-passing-chords-substitutions/",
+            "supports": "Procédé de liaison gospel ; les notes, le rythme et le phrasé de cette étude sont écrits pour l’application."
+          }
+        ]
+      },
+      "score": {
+        "tempo": 66,
+        "meter": [
+          4,
+          4
+        ],
+        "steps": [
+          {
+            "beats": 3,
+            "lh": [
+              43
+            ],
+            "rh": [
+              62,
+              65,
+              72
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 2.9,
+                "velocity": 0.51
+              },
+              {
+                "at": 0.05,
+                "hand": "inner",
+                "duration": 2.85,
+                "velocity": 0.5
+              },
+              {
+                "at": 0.05,
+                "hand": "top",
+                "duration": 2.85,
+                "velocity": 0.66
+              }
+            ]
+          },
+          {
+            "beats": 1,
+            "lh": [
+              43
+            ],
+            "rh": [
+              62,
+              65,
+              71
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 0.92,
+                "velocity": 0.52
+              },
+              {
+                "at": 0,
+                "hand": "rh",
+                "duration": 0.92,
+                "velocity": 0.57,
+                "roll": 0.025
+              }
+            ]
+          },
+          {
+            "beats": 4,
+            "lh": [
+              48
+            ],
+            "rh": [
+              64,
+              67,
+              71
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 3.92,
+                "velocity": 0.52
+              },
+              {
+                "at": 0.05,
+                "hand": "rh",
+                "duration": 3.87,
+                "velocity": 0.57,
+                "roll": 0.025
+              }
+            ]
+          }
+        ]
+      },
+      "aliases": [
+        "V7sus4-V7-I"
+      ]
+    },
+    {
+      "id": "study-minor-line",
+      "name": "Ligne chromatique sur accord mineur",
+      "kind": "study",
+      "category": "Gestes & voix",
+      "pattern": "1madd9-1mMaj7-1m7-1m6",
+      "route": "i(add9) → i(maj7) → i7 → i6",
+      "context": "La basse reste sur la tonique ; c’est la voix du dessus qui descend.",
+      "description": "Faites chanter Do → Si → Si♭ → La au dessus de Mi♭–Sol. Ce n’est pas une cadence vers quatre fondamentales différentes.",
+      "focus": "Faites chanter Do → Si → Si♭ → La au dessus de Mi♭–Sol. Ce n’est pas une cadence vers quatre fondamentales différentes.",
+      "style": "jazz",
+      "preserveQualities": true,
+      "noAutoPassing": true,
+      "provenance": {
+        "kind": "original-study",
+        "label": "Étude originale · procédé référencé",
+        "sources": [
+          {
+            "title": "PianoGroove · The Minor Line Cliché",
+            "url": "https://www.pianogroove.com/jazz-piano-lessons/the-minor-line-cliche-tutorial/",
+            "supports": "Mouvement chromatique sur un accord mineur ; mise en voix et rythme originaux de l’application."
+          }
+        ]
+      },
+      "score": {
+        "tempo": 64,
+        "meter": [
+          4,
+          4
+        ],
+        "steps": [
+          {
+            "beats": 2,
+            "lh": [
+              48
+            ],
+            "rh": [
+              62,
+              63,
+              67,
+              72
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 1.9,
+                "velocity": 0.47
+              },
+              {
+                "at": 0.05,
+                "hand": "inner",
+                "duration": 1.85,
+                "velocity": 0.48
+              },
+              {
+                "at": 0.05,
+                "hand": "top",
+                "duration": 1.85,
+                "velocity": 0.66
+              }
+            ]
+          },
+          {
+            "beats": 2,
+            "lh": [
+              48
+            ],
+            "rh": [
+              63,
+              67,
+              71
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 1.9,
+                "velocity": 0.47
+              },
+              {
+                "at": 0,
+                "hand": "rh",
+                "duration": 1.9,
+                "velocity": 0.58
+              }
+            ]
+          },
+          {
+            "beats": 2,
+            "lh": [
+              48
+            ],
+            "rh": [
+              63,
+              67,
+              70
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 1.9,
+                "velocity": 0.47
+              },
+              {
+                "at": 0.125,
+                "hand": "rh",
+                "duration": 1.775,
+                "velocity": 0.56
+              }
+            ]
+          },
+          {
+            "beats": 2,
+            "lh": [
+              48
+            ],
+            "rh": [
+              63,
+              67,
+              69
+            ],
+            "attacks": [
+              {
+                "at": 0,
+                "hand": "lh",
+                "duration": 1.92,
+                "velocity": 0.52
+              },
+              {
+                "at": 0.03,
+                "hand": "rh",
+                "duration": 1.89,
+                "velocity": 0.57,
+                "roll": 0.025
+              }
+            ]
+          }
+        ]
+      },
+      "aliases": [
+        "Ligne chromatique mineure (line cliché)"
+      ]
+    }
+  ]
+}

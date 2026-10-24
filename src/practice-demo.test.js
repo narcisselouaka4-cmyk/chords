@@ -6,10 +6,15 @@
 // tient, voix du dessus qui bouge, montée finale.
 // Exécution : node src/practice-demo.test.js
 
-import { createPracticeExercise, listMovementNames } from './practice-exercise.js';
+import { createPracticeExercise as createEngine } from './practice-exercise.js';
+import legacyFixtures from './data/movements-library.json' with { type: 'json' };
+// Compatibilité des accompagnements libres sur des fixtures historiques.
+// Les réalisations du catalogue actif sont testées dans exercise-studies.test.js.
+const createPracticeExercise = () => createEngine({ library: legacyFixtures });
+const listMovementNames = () => legacyFixtures.movements.map((m) => m.name);
 import {
   buildDemo, buildGospelDemo, cardHands, demoHands, freeBass, topNeighbour, finalRun, strideSplit,
-  octaveFrame, demoPassingChords, demoCardHands, DEMO_STYLES, DEMO_STYLE_IDS, defaultDemoStyle,
+  octaveFrame, demoPassingChords, demoCardHands, DEMO_STYLES, DEMO_STYLE_IDS, DEMO_VARIATIONS, defaultDemoStyle,
 } from './practice-demo.js';
 import { createDemoPlayer, stateAt, withoutPedal } from './exercise-demo-player.js';
 
@@ -47,6 +52,7 @@ const chordOf = (rootPc, symbol, lh, rh, technique = 'close') => ({
  */
 function playabilityProblems(demo, grid, beatsPerChord = 4) {
   const out = [];
+  if (demo.events.some((e) => !Number.isFinite(e.time) || e.time < 0 || e.time > demo.beats)) out.push('instant hors partition');
   if (demo.events.some((e) => e.type === 'sustain')) out.push('pédale');
   if (demo.events.some((e, k) => k > 0 && demo.events[k - 1].time > e.time)) out.push('ordre');
   const held = new Map();
@@ -277,15 +283,32 @@ console.log('\n=== Démo : toute la bibliothèque, tous les styles ===');
 const problems = [];
 for (const name of listMovementNames()) {
   for (const technique of ['auto', 'rootless', 'drop2', 'drop2_4', 'spread', 'stride']) {
-    for (const difficulty of [1, 3, 5]) {
-      const grid = movement(name, { technique, key: 7, difficulty });
-      for (const style of DEMO_STYLE_IDS) {
-        playabilityProblems(buildDemo(grid, style), grid).forEach((p) => problems.push(`${name} ${technique} niveau ${difficulty} ${style} : ${p}`));
+    for (const key of technique === 'auto' ? Array.from({ length: 12 }, (_, i) => i) : [7]) {
+      for (const difficulty of [1, 3, 5]) {
+        const grid = movement(name, { technique, key, difficulty });
+        for (const style of DEMO_STYLE_IDS) {
+          DEMO_VARIATIONS[style].forEach((_, variation) => {
+            playabilityProblems(buildDemo(grid, style, { variation }), grid).forEach((p) => problems.push(`${name} ${technique} tonalité ${key} couleurs ${difficulty} ${style} prise ${variation} : ${p}`));
+          });
+        }
       }
     }
   }
 }
-check('Tous les mouvements × 6 techniques × 3 niveaux × 4 styles : deux mains, sans pédale, carte et passages entiers', problems.length === 0, problems.slice(0, 3).join(' ; '));
+check('Tous les mouvements × 12 tons en Auto + 5 techniques en Sol × 3 couleurs × toutes les interprétations : deux mains, sans pédale, carte et passages entiers', problems.length === 0, problems.slice(0, 3).join(' ; '));
+
+console.log('\n=== Interprétations musicales ===');
+{
+  const grid = movement('Turnaround III-VI-II-V-I', { key: 0, technique: 'close', difficulty: 3 });
+  for (const style of ['gospel', 'ballade', 'swing']) {
+    const takes = DEMO_VARIATIONS[style].map((_, variation) => buildDemo(grid, style, { variation }));
+    const attacks = takes.map((d) => JSON.stringify(d.events.filter((e) => e.type === 'noteOn').map(({ time, note, hand }) => [time, note, hand])));
+    check(`${style} : quatre phrases différentes en rythme et en notes (pas seulement en nuance)`, new Set(attacks).size === takes.length);
+    check(`${style} : une interprétation choisie se rejoue à l'identique`, takes.every((d, variation) => JSON.stringify(d) === JSON.stringify(buildDemo(grid, style, { variation }))));
+    check(`${style} : valeur d'interprétation invalide = première prise`, JSON.stringify(takes[0]) === JSON.stringify(buildDemo(grid, style, { variation: -4 })));
+  }
+  check('Plaqué conserve le simple plaquage quelle que soit la prise', JSON.stringify(buildDemo(grid, 'plaque')) === JSON.stringify(buildDemo(grid, 'plaque', { variation: 3 })));
+}
 
 console.log('\n=== Lecteur de démo ===');
 {

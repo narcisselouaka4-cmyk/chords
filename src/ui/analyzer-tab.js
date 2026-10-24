@@ -1,4 +1,5 @@
 import { selectMediaFile, selectAnalysisFile, createAudioPlayer, isSupportedMediaFile, isAudioFile, isVideoFile } from '../audio/media-engine.js';
+import { createRegionPlayer } from './components/analyzer-region-player.js';
 import { globalAudioFocusManager } from '../audio/audio-focus-manager.js';
 import { createAudioAnalyzer } from '../analyzer/audio-analyzer.js';
 import {
@@ -10,7 +11,7 @@ import {
   countManuallyEditedChords,
 } from '../analyzer/analysis-export.js';
 import {
-  inferSourceType, shouldOfferRegionSelection, clampRegion,
+  inferSourceType, shouldOfferRegionSelection,
   REGION_SKIP_BELOW_SECONDS, REGION_DEFAULT_SECONDS,
 } from './analyzer-workflow.js';
 import { analyzeMidiFile, ensureMidiPlayback } from '../analyzer/midi-render.js';
@@ -42,6 +43,7 @@ import {
 import { ANALYSIS_ENGINE_VERSION } from '../analyzer/engine-versions.js';
 import { fitChordLabel } from './chord-label-fit.js';
 import { notifyOnboarding } from './onboarding.js';
+import { initAnalysisWaitingTips } from './components/analysis-waiting-tips.js';
 import { buildDemoFixture } from './reharmonization-demo-fixture.js';
 import { buildReharmonizationViewModel, buildReharmonizationVariantsViewModel } from './reharmonization-orchestrator.js';
 import { extractAudioMelody } from '../melody/reharmonization-audio-capture.js';
@@ -69,6 +71,7 @@ import { buildFileContextText } from './file-context.js';
 import { listTracks, loadMetadata, getOriginalPath, importToLibrary, renameTrack, deleteTrack } from './media-library.js';
 import { appConfirm, appDialog } from './components/app-dialog.js';
 import { notify } from './components/app-notify.js';
+import { fillLibraryTrackButton } from './components/library-track-view.js';
 
 // [Claude] — 2026-10-13 — Messages d'erreur dans la notification de l'application, et non plus
 // dans une fenêtre du système (alert).
@@ -108,13 +111,6 @@ const els = {
   // Étape de région avant analyse (2026-10-21, fichiers longs).
   regionScreen: document.getElementById('analyzer-region-screen'),
   regionSubtitle: document.getElementById('analyzer-region-subtitle'),
-  regionPicker: document.getElementById('analyzer-region-picker'),
-  regionCanvas: document.getElementById('analyzer-region-canvas'),
-  regionBand: document.getElementById('analyzer-region-band'),
-  regionHandleStart: document.getElementById('analyzer-region-handle-start'),
-  regionHandleEnd: document.getElementById('analyzer-region-handle-end'),
-  regionHandleStartTime: document.getElementById('analyzer-region-handle-start-time'),
-  regionHandleEndTime: document.getElementById('analyzer-region-handle-end-time'),
   regionSummary: document.getElementById('analyzer-region-summary'),
   regionConfirmBtn: document.getElementById('analyzer-region-confirm-btn'),
   regionFullBtn: document.getElementById('analyzer-region-full-btn'),
@@ -232,14 +228,13 @@ let currentFileName = '';
 let currentAudioPath = '';
 let currentSourceType = null; // 'audio' | 'video' | 'midi'
 // Étape de région (2026-10-21) : region confirmée (passée au moteur), ou null
-// pour analyser le fichier entier. regionDuration/regionPeaks/regionStart/
+// pour analyser le fichier entier. regionDuration/regionPlayer/regionStart/
 // regionEnd ne vivent que pendant que l'écran de région est affiché.
 let currentRegion = null;
 let regionDuration = 0;
-let regionPeaks = null;
+let regionPlayer = null;
 let regionStart = 0;
 let regionEnd = 0;
-let regionDragHandle = null; // 'start' | 'end' | null
 let isDraggingProgress = false;
 let lastAutoScrollIndex = -1;
 let selectedSegmentId = null; // segmentId sélectionné dans la timeline
@@ -386,6 +381,8 @@ function setAnalyzerState(state) {
   const states = ['import', 'region', 'analysis'];
   if (!states.includes(state)) return;
 
+  if (state !== 'region') regionPlayer?.pause();
+
   // Réinitialiser tous les états
   els.importScreen?.classList.remove('active');
   els.regionScreen?.classList.remove('active');
@@ -414,7 +411,6 @@ function initWorkspaceStates() {
   initImportDropzone(els.importAudioBtn);
 
   // Étape de région (2026-10-21).
-  initRegionHandles();
   els.regionConfirmBtn?.addEventListener('click', () => confirmRegionSelection());
   els.regionFullBtn?.addEventListener('click', () => analyzeWholeFile());
   els.regionBackBtn?.addEventListener('click', () => resetAnalysisSession());
@@ -448,6 +444,7 @@ function bindImportButton() {
 
 async function refreshLibraryList() {
   if (!els.libraryList) return;
+  els.libraryList.setAttribute('aria-busy', 'true');
   try {
     const tracks = await listTracks();
     const enriched = await Promise.all(tracks.map(async (track) => {
@@ -461,6 +458,9 @@ async function refreshLibraryList() {
     renderLibraryList(enriched);
   } catch (err) {
     console.error('[Analyzer] library list failed:', err);
+    els.libraryList.innerHTML = '<p class="analyzer-library-empty">Impossible de charger la bibliothèque. Fermez cette fenêtre puis réessayez.</p>';
+  } finally {
+    els.libraryList.setAttribute('aria-busy', 'false');
   }
 }
 
@@ -481,7 +481,6 @@ function renderLibraryList(tracks) {
   for (const track of tracks) {
     const metadata = track.metadata || {};
     const displayName = metadata.name || track.id;
-    const ext = (metadata.format || metadata.sourcePath?.split('.').pop() || '').toUpperCase();
 
     const row = document.createElement('div');
     row.className = 'analyzer-library-row';
@@ -489,7 +488,7 @@ function renderLibraryList(tracks) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'analyzer-library-item';
-    btn.innerHTML = `<span class="analyzer-library-name">${escapeHtml(displayName)}</span><span class="analyzer-library-ext">${ext}</span>`;
+    fillLibraryTrackButton(btn, metadata, track.id);
     btn.addEventListener('click', () => analyzeLibraryTrack(track));
     row.appendChild(btn);
 
@@ -502,6 +501,8 @@ function renderLibraryList(tracks) {
     menuBtn.className = 'analyzer-library-menu-btn';
     menuBtn.textContent = '⋮';
     menuBtn.title = 'Actions';
+    menuBtn.setAttribute('aria-label', `Actions pour ${displayName}`);
+    menuBtn.setAttribute('aria-expanded', 'false');
 
     const menu = document.createElement('div');
     menu.className = 'analyzer-library-menu';
@@ -510,8 +511,9 @@ function renderLibraryList(tracks) {
     const renameItem = document.createElement('button');
     renameItem.type = 'button';
     renameItem.className = 'analyzer-library-menu-item';
-    renameItem.innerHTML = '<span>✏️</span> Renommer';
+    renameItem.textContent = 'Renommer';
     renameItem.addEventListener('click', () => {
+      menuBtn.setAttribute('aria-expanded', 'false');
       menu.classList.remove('open');
       promptRenameTrack(track, displayName);
     });
@@ -521,8 +523,9 @@ function renderLibraryList(tracks) {
     const deleteItem = document.createElement('button');
     deleteItem.type = 'button';
     deleteItem.className = 'analyzer-library-menu-item danger';
-    deleteItem.innerHTML = '<span>🗑️</span> Supprimer';
+    deleteItem.textContent = 'Supprimer';
     deleteItem.addEventListener('click', () => {
+      menuBtn.setAttribute('aria-expanded', 'false');
       menu.classList.remove('open');
       confirmDeleteTrack(track, displayName);
     });
@@ -535,13 +538,16 @@ function renderLibraryList(tracks) {
       e.preventDefault();
       // Fermer tous les autres menus
       document.querySelectorAll('.analyzer-library-menu.open').forEach(m => {
-        if (m !== menu) m.classList.remove('open');
+        if (m !== menu) {
+          m.classList.remove('open');
+          m.previousElementSibling?.setAttribute('aria-expanded', 'false');
+        }
       });
       const willOpen = !menu.classList.contains('open');
       if (willOpen) {
         // Calculer l'espace disponible sous le bouton
         const btnRect = menuBtn.getBoundingClientRect();
-        const viewportHeight = window.innerHeight;
+        const viewportHeight = Math.min(window.innerHeight, els.libraryList.getBoundingClientRect().bottom);
         const estimatedMenuHeight = 90; // 2 items × ~45px chacun
         const spaceBelow = viewportHeight - btnRect.bottom;
         if (spaceBelow < estimatedMenuHeight) {
@@ -551,13 +557,7 @@ function renderLibraryList(tracks) {
         }
       }
       menu.classList.toggle('open');
-    });
-
-    // Fermer le menu si on clique ailleurs
-    document.addEventListener('click', function closeMenu(e) {
-      if (!menuContainer.contains(e.target)) {
-        menu.classList.remove('open');
-      }
+      menuBtn.setAttribute('aria-expanded', String(willOpen));
     });
 
     menuContainer.appendChild(menuBtn);
@@ -566,6 +566,16 @@ function renderLibraryList(tracks) {
     els.libraryList.appendChild(row);
   }
 }
+
+// Un seul écouteur : les rafraîchissements ne conservent pas les anciennes lignes.
+document.addEventListener('click', (event) => {
+  document.querySelectorAll('.analyzer-library-menu.open').forEach((menu) => {
+    if (!menu.parentElement.contains(event.target)) {
+      menu.classList.remove('open');
+      menu.previousElementSibling?.setAttribute('aria-expanded', 'false');
+    }
+  });
+});
 
 async function promptRenameTrack(track, currentName) {
   const newName = await showRenameModal(currentName);
@@ -753,11 +763,11 @@ async function prepareRegionStep() {
       skipBelowSeconds: REGION_SKIP_BELOW_SECONDS,
     });
     hideProcessing();
-    if (!info?.peaks || !shouldOfferRegionSelection(info.duration, currentSourceType)) {
+    if (!info?.wavPath || !shouldOfferRegionSelection(info.duration, currentSourceType)) {
       await launchAnalysisFromPrepare();
       return;
     }
-    showRegionScreen(info.duration, info.peaks);
+    await showRegionScreen(info.duration, info.wavPath);
   } catch (err) {
     console.warn('[Analyzer] région indisponible, analyse du fichier entier :', err.message);
     hideProcessing();
@@ -1002,9 +1012,7 @@ function setAnalysisControlsDisabled(disabled) {
 }
 
 // ---------------------------------------------------------------------------
-// Étape de région avant analyse (2026-10-21). Ruban organique (pas des barres
-// techniques comme le Studio) : canvas 2D dessiné à la main, deux poignées
-// rondes en overlay DOM (plus simples à rendre accessibles qu'un dessin canvas).
+// Étape avant analyse : écouter le morceau et poser les repères du passage.
 // ---------------------------------------------------------------------------
 
 function formatRegionDuration(seconds) {
@@ -1016,174 +1024,42 @@ function formatRegionDuration(seconds) {
   return `${m} min ${s} s`;
 }
 
-function showRegionScreen(duration, peaks) {
+async function showRegionScreen(duration, wavPath) {
   regionDuration = duration;
-  regionPeaks = peaks;
   regionStart = 0;
   regionEnd = Math.min(duration, REGION_DEFAULT_SECONDS);
   if (els.regionSubtitle) {
     els.regionSubtitle.textContent = `Ce morceau dure ${formatRegionDuration(duration)}. `
-      + 'Pour aller plus vite, concentrez-vous sur un passage : glissez les deux poignées sur le ruban.';
+      + 'Écoutez-le, puis indiquez le début et la fin du passage à étudier.';
   }
+  regionPlayer?.destroy();
+  regionPlayer = createRegionPlayer(document.getElementById('analyzer-region-player'), {
+    duration, start: regionStart, end: regionEnd,
+    onChange: (start, end) => {
+      regionStart = start;
+      regionEnd = end;
+      updateRegionUI();
+    },
+  });
   setAnalyzerState('region');
-  drawRegionWaveform();
   updateRegionUI();
-}
-
-function drawRegionWaveform() {
-  const canvas = els.regionCanvas;
-  const peaks = regionPeaks;
-  if (!canvas || !peaks || !peaks.length) return;
-  const rect = canvas.getBoundingClientRect();
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = Math.max(1, Math.round(rect.width * dpr));
-  canvas.height = Math.max(1, Math.round(rect.height * dpr));
-  const ctx = canvas.getContext('2d');
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const w = rect.width;
-  const h = rect.height;
-  const midY = h / 2;
-  ctx.clearRect(0, 0, w, h);
-
-  const style = getComputedStyle(canvas.parentElement || document.body);
-  const accent = style.getPropertyValue('--accent').trim() || '#4f46e5';
-  const text = style.getPropertyValue('--text-dim').trim() || '#6b7280';
-
-  // Amplitude min garantie pour que le ruban ne s'aplatisse jamais à zéro
-  // (silences, fade-in) : on garde toujours une forme à suivre du regard.
-  const minAmp = 0.06;
-  const top = peaks.map((p) => midY - Math.max(p, minAmp) * midY * 0.92);
-  const bottom = peaks.map((p) => midY + Math.max(p, minAmp) * midY * 0.92);
-  const stepX = w / (peaks.length - 1 || 1);
-
-  const smoothPath = (ys, reverse) => {
-    const order = reverse ? [...ys.keys()].reverse() : [...ys.keys()];
-    for (let idx = 0; idx < order.length; idx++) {
-      const i = order[idx];
-      const x = i * stepX;
-      const y = ys[i];
-      if (idx === 0) { ctx.lineTo(x, y); continue; }
-      const prevI = order[idx - 1];
-      const prevX = prevI * stepX;
-      const midX = (prevX + x) / 2;
-      ctx.quadraticCurveTo(prevX, ys[prevI], midX, (ys[prevI] + y) / 2);
-    }
-  };
-
-  ctx.beginPath();
-  ctx.moveTo(0, top[0]);
-  smoothPath(top, false);
-  smoothPath(bottom, true);
-  ctx.closePath();
-  const gradient = ctx.createLinearGradient(0, 0, 0, h);
-  gradient.addColorStop(0, withAlpha(accent, 0.55));
-  gradient.addColorStop(1, withAlpha(text, 0.3));
-  ctx.fillStyle = gradient;
-  ctx.fill();
-}
-
-/** Résout une couleur CSS quelconque (nommée, var() déjà résolue, hex…) en rgba() avec alpha, pour un canvas 2D qui n'accepte pas color-mix(). */
-function withAlpha(cssColor, alpha) {
-  const probe = document.createElement('span');
-  probe.style.color = cssColor;
-  document.body.appendChild(probe);
-  const resolved = getComputedStyle(probe).color;
-  probe.remove();
-  const m = resolved.match(/\d+(\.\d+)?/g);
-  if (!m || m.length < 3) return cssColor;
-  const [r, g, b] = m;
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  const player = regionPlayer;
+  try {
+    const url = await loadAudioBlobUrl(wavPath);
+    if (regionPlayer !== player) { URL.revokeObjectURL(url); return; }
+    player.load(url);
+  } catch (err) {
+    if (regionPlayer === player) player.fail();
+    console.warn('[Analyzer] préécoute indisponible :', err);
+  }
 }
 
 function updateRegionUI() {
-  const picker = els.regionPicker;
-  if (!picker || !regionDuration) return;
-  const width = picker.getBoundingClientRect().width;
-  const xFor = (t) => (width * t) / regionDuration;
-  const startX = xFor(regionStart);
-  const endX = xFor(regionEnd);
-
-  if (els.regionBand) {
-    els.regionBand.style.left = `${startX}px`;
-    els.regionBand.style.width = `${Math.max(0, endX - startX)}px`;
-  }
-  if (els.regionHandleStart) els.regionHandleStart.style.left = `${startX}px`;
-  if (els.regionHandleEnd) els.regionHandleEnd.style.left = `${endX}px`;
-  if (els.regionHandleStartTime) els.regionHandleStartTime.textContent = formatTime(regionStart);
-  if (els.regionHandleEndTime) els.regionHandleEndTime.textContent = formatTime(regionEnd);
   if (els.regionSummary) {
     els.regionSummary.innerHTML = `Passage choisi : <strong>${formatTime(regionStart)}</strong> → `
       + `<strong>${formatTime(regionEnd)}</strong> (${formatRegionDuration(regionEnd - regionStart)} `
       + `sur ${formatRegionDuration(regionDuration)})`;
   }
-}
-
-function initRegionHandles() {
-  const picker = els.regionPicker;
-  if (!picker) return;
-
-  const timeFromEvent = (clientX) => {
-    const rect = picker.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-    return ratio * regionDuration;
-  };
-
-  const startDrag = (which) => (e) => {
-    e.preventDefault();
-    regionDragHandle = which;
-    const el = which === 'start' ? els.regionHandleStart : els.regionHandleEnd;
-    el?.classList.add('is-dragging');
-  };
-  els.regionHandleStart?.addEventListener('pointerdown', startDrag('start'));
-  els.regionHandleEnd?.addEventListener('pointerdown', startDrag('end'));
-
-  // Au clic ailleurs sur le ruban : recentre la poignée la plus proche, comme
-  // on pointerait directement l'endroit qui intéresse.
-  picker.addEventListener('pointerdown', (e) => {
-    if (e.target === els.regionHandleStart || e.target === els.regionHandleEnd
-      || els.regionHandleStart?.contains(e.target) || els.regionHandleEnd?.contains(e.target)) return;
-    const t = timeFromEvent(e.clientX);
-    const which = Math.abs(t - regionStart) <= Math.abs(t - regionEnd) ? 'start' : 'end';
-    regionDragHandle = which;
-    (which === 'start' ? els.regionHandleStart : els.regionHandleEnd)?.classList.add('is-dragging');
-    applyDrag(t);
-  });
-
-  const applyDrag = (t) => {
-    const clamped = regionDragHandle === 'start'
-      ? clampRegion(t, regionEnd, regionDuration)
-      : clampRegion(regionStart, t, regionDuration);
-    regionStart = clamped.start;
-    regionEnd = clamped.end;
-    updateRegionUI();
-  };
-
-  window.addEventListener('pointermove', (e) => {
-    if (!regionDragHandle) return;
-    applyDrag(timeFromEvent(e.clientX));
-  });
-  window.addEventListener('pointerup', () => {
-    if (!regionDragHandle) return;
-    regionDragHandle = null;
-    els.regionHandleStart?.classList.remove('is-dragging');
-    els.regionHandleEnd?.classList.remove('is-dragging');
-  });
-
-  // Clavier : flèches gauche/droite sur une poignée focalisée (accessibilité).
-  const onKey = (which) => (e) => {
-    const step = e.shiftKey ? 10 : 1;
-    if (e.key === 'ArrowLeft') { regionDragHandle = which; applyDrag((which === 'start' ? regionStart : regionEnd) - step); regionDragHandle = null; }
-    else if (e.key === 'ArrowRight') { regionDragHandle = which; applyDrag((which === 'start' ? regionStart : regionEnd) + step); regionDragHandle = null; }
-  };
-  els.regionHandleStart?.addEventListener('keydown', onKey('start'));
-  els.regionHandleEnd?.addEventListener('keydown', onKey('end'));
-
-  window.addEventListener('resize', () => {
-    if (els.regionScreen?.classList.contains('active')) {
-      drawRegionWaveform();
-      updateRegionUI();
-    }
-  });
 }
 
 function confirmRegionSelection() {
@@ -1202,6 +1078,7 @@ async function launchAnalysisFromPrepare() {
     showToast('Une analyse est déjà en cours.', 3000, 'warning');
     return;
   }
+  regionPlayer?.pause();
   analysisRunning = true;
   setAnalysisControlsDisabled(true);
   const midi = currentSourceType === 'midi';
@@ -1237,6 +1114,10 @@ async function launchAnalysisFromPrepare() {
  *   preuve visible que l'application n'est pas figée.
  */
 function showProcessing(text, opts = {}) {
+  initAnalysisWaitingTips();
+  const tab = document.getElementById('analysis-tab');
+  tab?.classList.add('is-processing');
+  tab?.setAttribute('aria-busy', 'true');
   els.processingText.textContent = text;
   els.processing.style.display = 'flex';
   if (processingTimer) clearInterval(processingTimer);
@@ -1256,6 +1137,9 @@ function showProcessing(text, opts = {}) {
 }
 
 function hideProcessing() {
+  const tab = document.getElementById('analysis-tab');
+  tab?.classList.remove('is-processing');
+  tab?.setAttribute('aria-busy', 'false');
   els.processing.style.display = 'none';
   if (processingTimer) {
     clearInterval(processingTimer);
@@ -1350,7 +1234,8 @@ export function resetAnalysisSession() {
   currentSourceType = null;
   currentRegion = null;
   regionDuration = 0;
-  regionPeaks = null;
+  regionPlayer?.destroy();
+  regionPlayer = null;
   setMasterclassSourceType('audio');
   selectedSegmentId = null;
   clearInspector();
@@ -1512,6 +1397,8 @@ function pausePlayback() {
 
 function initKeyboardShortcuts() {
   document.addEventListener('keydown', (e) => {
+    const analysisTab = document.getElementById('analysis-tab');
+    if (!analysisTab || analysisTab.getClientRects().length === 0) return;
     if (chordEditor?.isOpen) {
       if (e.key === 'Escape') {
         e.preventDefault();

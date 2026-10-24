@@ -9,7 +9,7 @@
 // Les notes générées sont validées avant d'être acceptées. Si invalides → fallback.
 
 import { getAIConfig, callChatCompletions } from './openai-config.js';
-import movementsLibrary from '../data/movements-library.json' with { type: 'json' };
+import movementsLibrary from '../exercise-catalogue.js';
 import { classifyVoicing } from '../chord-engine/index.js';
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -139,10 +139,10 @@ export async function generateReharmonization(chord, style, topNoteName = '—')
   };
 
   const libraryText = movementsLibrary.movements
-    .map((m) => `- ${m.artist} (${m.style}) : ${m.name} — ${m.pattern} — ${m.description}`)
+    .map((m) => `- ${m.kind} (${m.style}) : ${m.name} — ${m.pattern} — ${m.context} Étude originale ; procédé référencé, sans attribution à un artiste.`)
     .join('\n');
 
-  const systemPrompt = `Tu es l'algorithme central de réharmonisation de l'application. Tu analyses la suite de mouvements jouée par l'utilisateur (Basse + Top Note). Au lieu de suggérer des accords théoriques isolés, tu fouilles dans la bibliothèque de mouvements locale extraite des vidéos précédemment analysées pour proposer 3 alternatives basées sur des signatures réelles.
+  const systemPrompt = `Tu es l'algorithme central de réharmonisation de l'application. Tu analyses la suite de mouvements jouée par l'utilisateur (Basse + Top Note). Au lieu de suggérer des accords théoriques isolés, tu fouilles dans la bibliothèque locale de progressions, passages et gestes de voix pour proposer des études adaptées. Ce sont des réalisations originales de l’application sur des procédés référencés, jamais des transcriptions de vidéos ni des signatures attribuées à un artiste. Un passage relie ses accords cibles sans intercaler d’autres accords automatiquement.
 
 BIBLIOTHÈQUE DE MOUVEMENTS LOCALE :
 ${libraryText}
@@ -354,7 +354,7 @@ export async function generateMasterclass(analysis) {
   }).join('\n');
 
   const libraryText = movementsLibrary.movements
-    .map((m) => `- ${m.category || 'Générique'} (${m.style}) : ${m.name} — ${m.pattern} — ${m.description}`)
+    .map((m) => `- ${m.category || 'Générique'} (${m.style}) : ${m.name} [${m.kind}] — ${m.pattern} — ${m.context} — étude originale, procédé référencé`)
     .join('\n');
 
   const systemPrompt = `Tu es un professeur de piano jazz et gospel de renom. Tu analyses des progressions harmoniques completes et tu donnes des conseils personnalises.

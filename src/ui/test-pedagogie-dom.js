@@ -550,7 +550,7 @@ check('Un choix écrit la phrase dans la case, sans l\'envoyer ; « Envoyer » (
   /function prepare\(message\) \{[\s\S]*?els\.input\.value = message;/.test(copilotTabCode) && !copilotTabCode.includes('sendPrepared(')
   && copilotTabCode.includes("text: 'Envoyer'") && /prepare\(otherKeyQuestion\(id\)\)/.test(copilotTabCode)
   && /const write = \(\) => prepare\(applyQuestion\(choice\)\);/.test(copilotTabCode)
-  && /if \(preparedText && els\.input\?\.value === preparedText\)/.test(copilotTabCode));
+  && copilotTabCode.includes("text: 'Annuler'") && copilotTabCode.includes('cancelChooserOnEscape'));
 check('Suggestions sous les réponses : le bouton montre le message envoyé, sans « Demander »',
   /btn\.appendChild\(el\('span', \{ text: message \}\)\);/.test(copilotTabCode) && !copilotTabCode.includes("el('small', { text: 'Demander' })")
   && readText('src/pedagogie/copilot-client.js').includes('le bouton affiche exactement le message envoyé (label = message)'));

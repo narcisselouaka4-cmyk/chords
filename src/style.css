@@ -5413,10 +5413,10 @@ body.studio-recording-cursor * {
 /* Toast de l'analyseur */
 .analyzer-toast {
   position: fixed;
-  bottom: 20px;
+  top: 96px;
   left: 50%;
   transform: translateX(-50%);
-  background: var(--panel-bg, #18181b);
+  background: var(--r-surface, var(--panel-bg, #18181b));
   border: 1px solid var(--border, #27272a);
   color: var(--text, #e4e4e7);
   padding: 10px 16px;
@@ -5425,7 +5425,7 @@ body.studio-recording-cursor * {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
   opacity: 0;
   transition: opacity 0.3s ease, transform 0.3s ease;
-  z-index: 100;
+  z-index: 2000;
   pointer-events: none;
   max-width: min(90vw, 600px);
   text-align: center;
@@ -5437,13 +5437,13 @@ body.studio-recording-cursor * {
 }
 .analyzer-toast.warning {
   border-color: #f59e0b;
-  color: #fbbf24;
-  background: rgba(245, 158, 11, 0.1);
+  color: var(--r-text, var(--text));
+  background: var(--r-surface, var(--panel-bg, #18181b));
 }
 .analyzer-toast.error {
   border-color: #ef4444;
-  color: #fca5a5;
-  background: rgba(239, 68, 68, 0.1);
+  color: var(--r-text, var(--text));
+  background: var(--r-surface, var(--panel-bg, #18181b));
 }
 
 /* Indicateur de correction manuelle dans la timeline */

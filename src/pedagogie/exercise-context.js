@@ -10,7 +10,8 @@
 // entendre tel quel, et proposer des pistes à partir de ce qui a été joué.
 // Module pur (testé en Node) : l'état vient de practiceExercise.getState().
 
-import { TECHNIQUE_LABELS } from '../practice-exercise.js';
+import { TECHNIQUE_LABELS, HARMONIC_COLOR_LABELS } from '../practice-exercise.js';
+import { EXERCISE_KIND_LABELS } from '../exercise-catalogue.js';
 import { frenchNoteName } from './example-guide.js';
 import { noteRoles } from './note-roles.js';
 
@@ -34,7 +35,7 @@ function describeChord(target, { current = false } = {}) {
     rootPc: target.rootPc,
     quality: target.symbol ?? target.quality ?? '',
     degree: target.degree || null,
-    passing: Boolean(target.passing),
+    passing: Boolean(target.passing || target.harmonicRole === 'passing'),
     technique: target.voicing?.technique || null,
     lh,
     rh,
@@ -66,14 +67,18 @@ export function exerciseContext(state, attempts = []) {
     base = {
       mode: 'movement',
       id: `mouvement:${prog.name}:${prog.currentKey}`,
-      title: `Mouvement 12 tons — ${prog.name}${key ? ` en ${key}` : ''}`,
+      title: `${EXERCISE_KIND_LABELS[prog.movement?.kind] || 'Parcours harmonique'} — ${prog.name}${key ? ` en ${key}` : ''}`,
       name: prog.name,
+      contentKind: prog.movement?.kind || 'progression',
+      route: prog.movement?.route || null,
+      provenance: prog.movement?.provenance || null,
+      interpretation: prog.movement?.score ? 'Étude originale écrite ; ne pas attribuer les notes jouées à la source du procédé.' : null,
       description: prog.description || '',
       key,
       keyProgress: state.target.keyProgress || '',
       stepProgress: state.target.stepProgress || '',
       chords,
-      // Accords principaux attendus dans la tonalité en cours (les passages sont facultatifs au jeu).
+      // Tous les accords écrits du trajet sont attendus dans la tonalité en cours.
       expect: { chords: prog.chords.map((c) => c.name), technique: expectTechnique, keyPc: prog.currentKey ?? null, minor: Boolean(prog.minor) },
     };
   } else {
@@ -100,7 +105,7 @@ export function exerciseContext(state, attempts = []) {
     type: 'exercise',
     ...base,
     technique: techniqueLabel,
-    level: state.mode === 'movement' ? state.difficulty ?? null : null,
+    harmonicColor: state.mode === 'movement' && !prog?.movement?.preserveQualities ? HARMONIC_COLOR_LABELS[state.difficulty] || null : null,
     attempts: tries,
   };
 }
@@ -115,9 +120,11 @@ export function exerciseContextLines(ctx) {
   const out = [];
   out.push(`## Exercice en cours : ${ctx.title}`);
   if (ctx.description) out.push(ctx.description);
+  if (ctx.contentKind) out.push(`Nature du contenu : ${ctx.contentKind}${ctx.route ? ` ; trajet : ${ctx.route}` : ''}. Les accords écrits sont fixés ; ne pas intercaler de nouveaux accords dans un mouvement de passage sans demande explicite.`);
+  if (ctx.interpretation) out.push(ctx.interpretation);
   const facts = [
     `technique demandée : ${ctx.technique}`,
-    ctx.level != null ? `niveau ${ctx.level}` : null,
+    ctx.harmonicColor ? `couleurs : ${ctx.harmonicColor}` : null,
     ctx.keyProgress ? `tonalités : ${ctx.keyProgress}` : null,
     ctx.stepProgress ? `étape : ${ctx.stepProgress}` : null,
   ].filter(Boolean);

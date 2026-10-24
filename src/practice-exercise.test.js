@@ -2,7 +2,7 @@
 
 import {
   movementChordNames,
-  createPracticeExercise,
+  createPracticeExercise as createEngine,
   exerciseVoicingToSequence,
   unavailableTechniquesFor,
   getAvailableTechniques,
@@ -14,7 +14,6 @@ import {
   TARGET_QUALITY_GROUPS,
   keySequence,
   CUSTOM_GRID_NAME,
-  listMovementNames,
   TECHNIQUES,
   judgeAnswer,
   exerciseSuggestion,
@@ -34,6 +33,10 @@ import {
   respectsLowIntervalLimits, respectsFamilyDefinition, minorNinthClashes, hasEleventhAgainstMajorThird,
 } from './voicing-engine/textbook-voicings.js';
 import movementsLibrary from './data/movements-library.json' with { type: 'json' };
+// Fixtures historiques du moteur (recettes automatiques et passages écrits).
+// Le catalogue livré, immuable et phrasé, est vérifié dans exercise-studies.test.js.
+const createPracticeExercise = () => createEngine({ library: movementsLibrary });
+const listMovementNames = () => movementsLibrary.movements.map((m) => m.name);
 import { getVoicingLabVoicings } from './voicing-engine/voicinglab-availability.js';
 import { generateCopilotVoicing } from './pedagogie/copilot-voicing.js';
 import { parseChordSymbol } from './pedagogie/chord-parser-v2.js';
@@ -1254,14 +1257,14 @@ function checkTypedCustomGrid() {
   // [Claude] — 2026-09-24 (nuit) — Règle de Narcisse : un accord de tension se joue en passage.
   const withPassing = (prog) => prog.chords.map((c) => `${c.name}:${c.symbol}${c.passingChord ? ` (${c.passingChord.name}:${c.passingChord.symbol})` : ''}`).join(' ');
   const rich = typed('Dm11 G7#9b13 Cmaj13').getState().progression;
-  check('Extensions gardées ; G7#9b13 joué en passage entre Dm11 et Cmaj13', withPassing(rich) === 'Dm11:m11 (G7#9b13:7#9b13) Cmaj13:maj13', withPassing(rich));
+  check('Extensions gardées ; G7#9b13 reste un accord de grille', withPassing(rich) === 'Dm11:m11 G7#9b13:7#9b13 Cmaj13:maj13', withPassing(rich));
   const alt = typed('Dm7b5 G7alt CmMaj7').getState().progression;
-  check('Grille mineure : lue en Do mineur, G7alt reste 7alt (en passage)', alt.minor === true && withPassing(alt) === 'Dm7b5:m7b5 (G7alt:7alt) CmMaj7:mMaj7', `${alt.minor} ${withPassing(alt)}`);
+  check('Grille mineure : G7alt structurel est conservé', alt.minor === true && withPassing(alt) === 'Dm7b5:m7b5 G7alt:7alt CmMaj7:mMaj7', `${alt.minor} ${withPassing(alt)}`);
   const turn = typed('Cmaj7 Am7 Dm7 G7').getState().progression;
   check('« Cmaj7 Am7 Dm7 G7 » lue en Do majeur (pas en Sol)', turn.currentKey === 0 && turn.description.includes('C majeur'), turn.description);
   const notations = typed('Bbmaj7 F#m7b5 CM7 C-7 Cø7 C°7 CmM7 C69').getState().progression;
-  check('Notations reconnues (Bbmaj7 F#m7b5 CM7 C-7 Cø7 C°7 CmM7 C69), C°7 en passage',
-    notations.chords.map((c) => c.symbol + (c.passingChord ? `(${c.passingChord.symbol})` : '')).join(' ') === 'maj7 m7b5 maj7 m7 m7b5(dim7) mMaj7 6/9' && !notations.notice,
+  check('Notations reconnues (Bbmaj7 F#m7b5 CM7 C-7 Cø7 C°7 CmM7 C69), C°7 conservé',
+    notations.chords.map((c) => c.symbol + (c.passingChord ? `(${c.passingChord.symbol})` : '')).join(' ') === 'maj7 m7b5 maj7 m7 m7b5 dim7 mMaj7 6/9' && !notations.notice,
     notations.chords.map((c) => c.symbol + (c.passingChord ? `(${c.passingChord.symbol})` : '')).join(' '));
   const partial = typed('Dm7 C Xyz G7/B G7').getState().progression;
   check('Accords impossibles ignorés, pas en silence (triade, inconnu, basse séparée)',
@@ -1687,7 +1690,7 @@ function checkTensionRule() {
   check('Dernier accord joué : tonalité suivante, sur son premier accord', st.progression.keyIndex === 1 && st.stepIndex === 0 && !st.progression.onPassing, bars);
 
   const grid = createPracticeExercise();
-  grid.setCustomGrid([{ name: 'Cmaj7' }, { name: 'A7b9', top: 1 }, { name: 'Dm7' }, { name: 'G7' }]);
+  grid.setCustomGrid([{ name: 'Cmaj7' }, { name: 'A7b9', top: 1, role: 'passing' }, { name: 'Dm7' }, { name: 'G7' }]);
   st = grid.getState();
   check('Ma grille : A7b9 joué en passage entre Cmaj7 et Dm7, aucun passage ajouté par le niveau',
     st.progression.chords.map((c) => c.name + (c.passingChord ? `(${c.passingChord.name})` : '')).join(' ') === 'Cmaj7(A7b9) Dm7 G7');
@@ -1697,8 +1700,8 @@ function checkTensionRule() {
   check('Ma grille : dessus du passage changé sur la carte → gardé dans la grille', grid.getState().customGrid[1].top === 4 && grid.getState().customGrid[0].top == null);
   const lead = createPracticeExercise();
   lead.setCustomGrid('C7#9 Fmaj7 Bb7alt Eb7b9 Abmaj7');
-  check('Ma grille ancienne : tension en tête ou deux de suite → reste un accord principal',
-    lead.getState().progression.chords.map((c) => c.name + (c.passingChord ? `(${c.passingChord.name})` : '')).join(' ') === 'C7#9 Fmaj7(Bb7alt) Eb7b9 Abmaj7',
+  check('Ma grille : aucune qualité ne détermine automatiquement le rôle',
+    lead.getState().progression.chords.map((c) => c.name + (c.passingChord ? `(${c.passingChord.name})` : '')).join(' ') === 'C7#9 Fmaj7 Bb7alt Eb7b9 Abmaj7',
     lead.getState().progression.chords.map((c) => c.name + (c.passingChord ? `(${c.passingChord.name})` : '')).join(' '));
 }
 

@@ -11,6 +11,7 @@ import {
   deleteEmptyConversations,
   listAllConversations,
   labelForConversationPath,
+  conversationToText,
   AUTONOMOUS_HISTORY_KEY as HISTORY_AUTONOMOUS_KEY,
 } from './copilot-history.js';
 import { sendCopilotMessage, extractTextToolCalls } from './copilot-client.js';
@@ -216,34 +217,40 @@ function tutorialKeyId() {
   return keyIdFrom(readCopilotContext('tutorial')?.key) || 'C';
 }
 
-// La phrase qu'un choix a écrite dans la case (effacée si on ferme le choix sans l'avoir touchée).
-let preparedText = '';
+// Le brouillon antérieur au choix est restauré par Annuler ou Échap.
+let chooserDraft = null;
+let chooserTrigger = null;
 
 /** Écrit la phrase dans la case, sans l'envoyer. */
 function prepare(message) {
-  if (!els.input || !message) return;
+  if (!els.input || message == null) return;
   els.input.value = message;
-  preparedText = message;
   autoGrowInput();
 }
 
 /** « Envoyer » dans un choix : la phrase de la case part (celle qu'on a peut-être changée). */
 function sendFromChooser() {
-  if (!els.input?.value.trim()) return;
-  preparedText = '';
-  closeChooser();
+  if (turnBusy || !els.input?.value.trim()) return;
+  closeChooser({ restore: false });
   sendUserMessage();
 }
 
-function closeChooser() {
+function closeChooser({ restore = true } = {}) {
   els.chooser?.remove();
   els.chooser = null;
   els.quickActions?.querySelectorAll('.copilot-chip[data-chooser]').forEach((b) => b.setAttribute('aria-expanded', 'false'));
-  if (preparedText && els.input?.value === preparedText) {
-    els.input.value = '';
+  if (restore && chooserDraft !== null && els.input) {
+    els.input.value = chooserDraft;
     autoGrowInput();
   }
-  preparedText = '';
+  chooserDraft = null;
+}
+
+function chooserCancel() {
+  return el('button', {
+    type: 'button', className: 'copilot-chooser-option copilot-chooser-cancel', text: 'Annuler',
+    onClick: () => { closeChooser(); chooserTrigger?.focus(); },
+  });
 }
 
 /** Le bouton « Envoyer » d'un choix (Entrée dans la case fait de même). */
@@ -284,6 +291,7 @@ function buildKeyChooser() {
     el('span', { className: 'copilot-chooser-title', text: 'Rejouer ce passage en' }),
     keys,
     send,
+    chooserCancel(),
   ]);
 }
 
@@ -306,10 +314,14 @@ function buildApplyChooser() {
   });
   const progs = el('div', { className: 'copilot-chooser-row' }, TUTORIAL_PROGRESSIONS.map((p) => el('button', {
     type: 'button', className: 'copilot-chooser-option', 'data-prog': p, text: p,
-    onClick: () => { choice.progression = p; custom.value = ''; pick(progs, 'prog', p); write(); },
+    onClick: () => { choice.progression = p; custom.value = ''; pick(progs, 'prog', p); write(); send.disabled = false; },
   })));
   custom.addEventListener('input', () => {
-    if (custom.value.trim()) { choice.progression = custom.value.trim(); pick(progs, 'prog', ''); write(); }
+    choice.progression = custom.value.trim();
+    pick(progs, 'prog', '');
+    send.disabled = !choice.progression;
+    if (choice.progression) write();
+    else prepare('');
   });
   const keys = el('div', { className: 'copilot-chooser-keys' });
   const setKey = (id) => {
@@ -328,7 +340,7 @@ function buildApplyChooser() {
     el('span', { className: 'copilot-chooser-title', text: 'Reprendre de ce passage' }), kinds,
     el('span', { className: 'copilot-chooser-title', text: 'Sur la progression' }), progs, custom,
     el('span', { className: 'copilot-chooser-title', text: `En (tonalité du tuto : ${keyLabel(tutorialKeyId())})` }), keys,
-    send,
+    send, chooserCancel(),
   ]);
   pick(kinds, 'kind', choice.kind);
   pick(progs, 'prog', choice.progression);
@@ -342,13 +354,40 @@ function toggleChooser(kind, chip) {
   const already = els.chooser?.dataset.kind === kind;
   closeChooser();
   if (already) return;
+  chooserDraft = els.input?.value || '';
+  chooserTrigger = chip;
   const box = kind === 'key' ? buildKeyChooser() : buildApplyChooser();
   box.dataset.kind = kind;
-  box.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeChooser(); chip?.focus(); } });
+  box.addEventListener('keydown', cancelChooserOnEscape);
   els.quickActions.after(box);
   els.chooser = box;
   chip?.setAttribute('aria-expanded', 'true');
   box.querySelector('button')?.focus();
+}
+
+function cancelChooserOnEscape(e) {
+  if (e.key !== 'Escape' || !els.chooser) return;
+  e.preventDefault();
+  closeChooser();
+  chooserTrigger?.focus();
+}
+
+/** Une étiquette prépare une demande réversible ; seul Envoyer la transmet. */
+function prepareAction(message, trigger) {
+  if (!els.input || turnBusy) return;
+  closeChooser();
+  chooserDraft = els.input.value;
+  chooserTrigger = trigger;
+  prepare(message);
+  const box = el('div', { className: 'copilot-chooser', role: 'group', 'aria-label': 'Demande à envoyer' }, [
+    el('span', { className: 'copilot-chooser-title', text: 'Tu peux modifier la demande avant de l’envoyer.' }),
+    chooserSend(), chooserCancel(),
+  ]);
+  box.dataset.kind = 'message';
+  box.addEventListener('keydown', cancelChooserOnEscape);
+  els.quickActions.after(box);
+  els.chooser = box;
+  els.input.focus();
 }
 
 /** [Astra round 4] Rangée de suggestions, dans la grammaire .tr-chat-demos de
@@ -367,11 +406,7 @@ function renderActionChips(actions) {
       className: 'copilot-chip',
       type: 'button',
       title: message,
-      onClick: () => {
-        if (!els.input) return;
-        els.input.value = message;
-        sendUserMessage();
-      },
+      onClick: (e) => prepareAction(message, e.currentTarget),
     });
     btn.innerHTML = ICON_SPARKLE;
     btn.appendChild(el('span', { text: message }));
@@ -1311,6 +1346,14 @@ async function renderHistoryList() {
         ]),
       ]),
       el('button', {
+        className: 'copilot-history-copy',
+        type: 'button',
+        title: 'Copier toute la conversation',
+        'aria-label': `Copier la conversation ${title}`,
+        text: 'Copier',
+        onClick: (e) => copyHistoryItem(item.conversationId, e.currentTarget, item.tutorialPath),
+      }),
+      el('button', {
         className: 'copilot-history-delete',
         type: 'button',
         title: 'Supprimer cette conversation',
@@ -1325,6 +1368,43 @@ async function renderHistoryList() {
     ]);
     els.historyList.appendChild(card);
     index += 1;
+  }
+}
+
+async function copyHistoryItem(conversationId, btn, tutorialPath) {
+  btn.disabled = true;
+  let restoreFocus = false;
+  try {
+    const history = conversationId === currentConversationId
+      ? { tutorialPath, messages }
+      : await loadHistory(conversationId);
+    if (!history) throw new Error('Conversation introuvable');
+    const text = conversationToText(history);
+    if (!text) {
+      notify({ id: 'copilot-copy', tone: 'info', title: 'Aucun texte à copier' });
+      return;
+    }
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      restoreFocus = true;
+      const field = el('textarea', { 'aria-label': 'Conversation à copier', style: 'position:fixed;opacity:0;pointer-events:none' });
+      field.value = text;
+      document.body.appendChild(field);
+      try {
+        field.select();
+        if (!document.execCommand('copy')) throw new Error('Presse-papiers indisponible');
+      } finally {
+        field.remove();
+      }
+    }
+    notify({ id: 'copilot-copy', title: 'Conversation copiée', message: 'Vous pouvez la coller où vous voulez.', duration: 3500 });
+  } catch (err) {
+    console.warn('[Copilot] Copie impossible :', err);
+    notify({ id: 'copilot-copy', tone: 'error', title: 'La copie a échoué', message: 'Réessayez de copier la conversation.' });
+  } finally {
+    btn.disabled = false;
+    if (restoreFocus) btn.focus();
   }
 }
 
@@ -1586,7 +1666,7 @@ async function sendUserMessage() {
   els.input.value = '';
   autoGrowInput();
   // Envoyé depuis la case (Entrée) : le choix ouvert se referme.
-  if (els.chooser) closeChooser();
+  if (els.chooser) closeChooser({ restore: false });
   await runCopilotTurn(text);
 }
 
@@ -1737,6 +1817,7 @@ export async function initCopilotTab() {
   // comme dans la maquette (max ~110px, puis défilement interne).
   els.input?.addEventListener('input', autoGrowInput);
   els.input?.addEventListener('keydown', (e) => {
+    cancelChooserOnEscape(e);
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendUserMessage();
@@ -1762,9 +1843,7 @@ export async function initCopilotTab() {
       }
       const message = chip.dataset.message;
       if (!message) return;
-      closeChooser();
-      els.input.value = message;
-      sendUserMessage();
+      prepareAction(message, chip);
     });
   }
   // [Claude] — 2026-10-03 — Un moment cité dans une réponse (« à 1:31 ») place la

@@ -48,13 +48,14 @@ function testMovementMode() {
   const mv = createPracticeExercise();
   mv.setMode('movement');
   mv.setKeyChoice(5);
-  mv.setContentChoice('Turnaround III-VI-II-V-I');
+  mv.setContentChoice('study-turnaround');
   const state = mv.getState();
   const prog = state.progression;
   const ctx = exerciseContext(state, []);
-  check('Mouvement : titre avec la tonalité', ctx.mode === 'movement' && /^Mouvement 12 tons — Turnaround III-VI-II-V-I en /.test(ctx.title), ctx.title);
+  check('Mouvement : titre avec la tonalité', ctx.mode === 'movement' && /^Progression — Turnaround I–VI7–ii–V–I en /.test(ctx.title), ctx.title);
+  check('Mouvement : les couleurs ne sont pas un niveau du pianiste', ctx.level == null && ctx.harmonicColor == null && !/niveau [1-5]/.test(exerciseContextLines(ctx).join('\n')));
   const mains = ctx.chords.filter((c) => !c.passing);
-  check('Mouvement : accords principaux et de passage, dans l\'ordre', mains.map((c) => c.name).join(' ') === prog.chords.map((c) => c.name).join(' ') && ctx.chords.length > mains.length, ctx.chords.map((c) => c.name).join(' '));
+  check('Progression : accords écrits sans insertion automatique', mains.map((c) => c.name).join(' ') === prog.chords.map((c) => c.name).join(' ') && ctx.chords.length === mains.length, ctx.chords.map((c) => c.name).join(' '));
   check('Mouvement : un seul accord « à jouer maintenant » (le premier)', ctx.chords.filter((c) => c.current).length === 1 && ctx.chords[0].current);
   check('Mouvement : degrés gardés', mains.every((c) => c.degree), mains.map((c) => c.degree).join(' '));
   check('Attentes : accords principaux de la tonalité en cours, tonalité de l\'exercice', ctx.expect.chords.join(' ') === prog.chords.map((c) => c.name).join(' ') && ctx.expect.keyPc === prog.currentKey, JSON.stringify(ctx.expect));

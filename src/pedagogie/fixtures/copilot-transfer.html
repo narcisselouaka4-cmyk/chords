@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="fr"><meta charset="utf-8"><title>Contrôle Copilote : retours et adaptations</title>
+<style>
+body{font:16px system-ui;background:#171b23;color:#eee;max-width:980px;margin:35px auto;padding:0 24px}button,input,textarea{font:inherit}button{color:inherit;background:#303846;border:1px solid #526075;border-radius:7px;padding:8px 12px;cursor:pointer}button:disabled{opacity:.4}button:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px solid #89bbff}textarea,input{color:#fff;background:#222a36;border:1px solid #526075;border-radius:6px;padding:10px}textarea{width:96%;height:62px}#copilot-chat-area{display:flex!important;flex-direction:column;gap:16px}#copilot-no-key{display:none!important}.copilot-chooser{padding:18px;border:1px solid #91bfff;border-radius:10px;display:flex;gap:10px;flex-wrap:wrap}.copilot-chooser-title{width:100%;color:#b6cbe5}.copilot-chooser-row,.copilot-chooser-keys{display:flex;gap:6px;flex-wrap:wrap}.is-selected{background:#355b86}#copilot-messages{max-height:300px;overflow:auto}.copilot-message{padding:10px;border-bottom:1px solid #465266}.tr-message-avatar{display:none}svg{width:20px;height:20px}#results{white-space:pre-wrap;font:14px monospace;color:#c4e4cd}.note{color:#acb7c9;font-size:14px}.copilot-quick-actions-label{display:none}
+</style>
+<h1>Retours arrière et adaptations du Copilote</h1>
+<p class="note">Banc de vérification : données musicales synthétiques, véritable contrôleur du Copilote. Aucun fichier utilisateur ni service d’IA.</p>
+<button id="run">Exécuter les contrôles</button><pre id="results">Prêt.</pre>
+<main id="practice-view-copilot">
+<div id="copilot-no-key"></div><div id="copilot-chat-area">
+<div id="copilot-messages"></div><div id="copilot-quick-actions"><span class="copilot-quick-actions-label"></span></div>
+<textarea id="copilot-input" aria-label="Ta demande" placeholder="Pose ta question"></textarea>
+<div><button id="copilot-send-btn">Envoyer la demande</button><button id="copilot-mode-toggle-btn"></button></div>
+</div></main>
+<script type="module">
+import { initCopilotTab } from '/pedagogie/copilot-tab.js';
+import { registerCopilotContext } from '/pedagogie/copilot-context.js';
+const block=(start,midis)=>midis.map(midi=>({midi,start,end:start+1.8}));
+registerCopilotContext('tutorial',()=>({type:'tutorial',path:'/fixture.mp4',name:'Source synthétique I → vi',key:'C',moment:{start:0,end:4},
+  noteEvents:[...block(0,[36,47,52,55,62]),...block(2,[45,55,60,64,67])],
+  chords:[{start:0,end:2,label:'Cmaj7'},{start:2,end:4,label:'Am7'}]}));
+await initCopilotTab();
+document.dispatchEvent(new CustomEvent('copilot-open-tutorial',{detail:{path:'/fixture.mp4'}}));
+const $=s=>document.querySelector(s);
+const action=text=>[...document.querySelectorAll('#copilot-quick-actions button')].find(b=>b.textContent===text);
+const wait=async fn=>{for(let i=0;i<100;i++){if(fn())return;await new Promise(r=>setTimeout(r,20));}throw Error('Réponse absente');};
+let network=0;
+window.fetch=()=>{network++;throw Error('Pas de réseau dans ce banc');};
+$('#run').onclick=async()=>{
+  const lines=[];let failed=0;
+  const check=(name,ok)=>{lines.push(`${ok?'✓':'✗'} ${name}`);if(!ok)failed++;$('#results').textContent=lines.join('\n');};
+  try{
+    const input=$('#copilot-input');input.value='Ma question initiale';
+    action('Rejoue-le en…').click();$('.copilot-chooser [data-key="F"]').click();
+    check('Le choix prépare la transposition sans envoyer',input.value==='Rejoue ce passage en Fa.'&&!$('#copilot-messages').textContent);
+    $('.copilot-chooser-cancel').click();check('Annuler retrouve le brouillon initial',input.value==='Ma question initiale'&&!$('.copilot-chooser'));
+    action('Rejoue-le en…').click();action('Rejoue-le en…').click();check('Un deuxième clic referme le choix',!$('.copilot-chooser')&&input.value==='Ma question initiale');
+    action('Applique-le à…').click();check('Une autre étiquette reste accessible',!!$('.is-apply'));
+    $('.copilot-chooser-input').value='';$('.copilot-chooser-input').dispatchEvent(new Event('input'));
+    check('Effacer la cible désactive Envoyer et efface la demande', $('.copilot-chooser-send').disabled&&input.value==='');
+    $('.copilot-chooser [data-prog="2-5-1"]').click();check('Choisir une cible réactive Envoyer',!$('.copilot-chooser-send').disabled&&input.value.includes('2-5-1'));
+    input.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));check('Échap depuis la saisie restaure le brouillon',!$('.copilot-chooser')&&input.value==='Ma question initiale');
+    action('Rejoue ce passage').click();check('Rejouer prépare aussi une demande annulable',!!$('.copilot-chooser-cancel')&&input.value==='Rejoue ce passage.'&&!$('#copilot-messages').textContent);
+    $('.copilot-chooser-cancel').click();check('Annuler un rejeu ne crée aucun message',!$('#copilot-messages').textContent&&input.value==='Ma question initiale');
+    action('Applique-le à…').click();action('Rejoue-le en…').click();$('.copilot-chooser [data-key="Bb"]').click();$('.copilot-chooser-cancel').click();
+    check('Changer de choix garde le brouillon d’origine',input.value==='Ma question initiale');
+    input.value='Applique ce mouvement sur 2-5-1 en Do.';$('#copilot-send-btn').click();
+    await wait(()=>$('#copilot-messages').textContent.includes('changerait le mouvement'));
+    check('I → vi vers ii-V-I : motif affiché, aucun faux exemple',!$('.copilot-example')&&$('#copilot-messages').textContent.includes('Cmaj7 → Am7'));
+    input.value='Applique ses voicings à 2-5-1 en Fa.';$('#copilot-send-btn').click();
+    await wait(()=>!!$('.copilot-example'));
+    check('Voicing adaptable : véritable exemple affiché',!!$('.copilot-example')&&$('#copilot-messages').textContent.includes('rôles du voicing'));
+    check('Aucun appel à un modèle pour inventer l’adaptation',network===0);
+  }catch(e){check(e.message,false);}
+  $('#results').textContent+=`\n${lines.length-failed}/${lines.length} contrôles passent`;
+};
+</script></html>

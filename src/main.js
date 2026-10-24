@@ -26,6 +26,7 @@ import { createNoteGrouper, isGraceNote, chordNotesWithHeld } from './note-group
 import { initAnalyzerTab } from './ui/analyzer-tab.js';
 import { mountChromaStages } from './ui/components/loader-chroma.js';
 import { attachListSearch } from './ui/components/list-search.js';
+import { initLibraryModal } from './ui/components/library-modal.js';
 import { appConfirm } from './ui/components/app-dialog.js';
 import { initAccentTheme, savedAccent } from './ui/accent-theme.js';
 import { initStudioTab } from './ui/studio-tab.js';
@@ -86,11 +87,10 @@ import {
   TECHNIQUE_LABELS,
   topNoteChoices,
   spellChordTone,
-  isTensionQuality,
   movementChordNames,
 } from './practice-exercise.js';
 import { loadGrids, saveGrids, upsertGrid, removeGrid, defaultGridName } from './practice-grids.js';
-import movementsLibrary from './data/movements-library.json' with { type: 'json' };
+import movementsLibrary, { archivedMovements, EXERCISE_KIND_LABELS } from './exercise-catalogue.js';
 import { keyLabel } from './practice-key-spelling.js';
 import {
   loadFavorites,
@@ -102,7 +102,7 @@ import {
   restoreFavorites,
 } from './practice-favorites.js';
 import { voicingToNoteSequence } from './pedagogie/copilot-voicing.js';
-import { buildDemo, DEMO_STYLES, DEMO_STYLE_IDS, defaultDemoStyle, demoCardHands } from './practice-demo.js';
+import { buildDemo, DEMO_STYLES, DEMO_STYLE_IDS, DEMO_VARIATIONS, defaultDemoStyle, demoCardHands } from './practice-demo.js';
 import { createDemoPlayer } from './exercise-demo-player.js';
 import {
   listMidiOutputs, openMidiOutput, savedMidiOutputName, isMidiOutputActive, currentMidiOutput, sendMidi,
@@ -1399,12 +1399,13 @@ function renderExerciseBrief(exState) {
 
   const target = exState.target;
   const isMovement = exState.mode === 'movement' && Boolean(target?.movementName);
-  if (els.exerciseMovementSettings) els.exerciseMovementSettings.hidden = !isMovement;
+  // Les options vivent dans leur panneau et ne déterminent plus la hauteur de la carte.
 
   if (isMovement) {
-    category.textContent = target.movementCategory || 'MOUVEMENT 12 TONS';
+    const entry = exState.progression?.movement;
+    category.textContent = EXERCISE_KIND_LABELS[entry?.kind] || target.movementCategory || 'PARCOURS HARMONIQUE';
     title.textContent = target.movementName;
-    text.textContent = target.movementDescription || '';
+    text.textContent = entry?.context || target.movementDescription || '';
     renderMovementSettings(exState);
     return;
   }
@@ -1421,7 +1422,8 @@ function renderMovementSettings(exState) {
     // Mouvement aux accords fixés (Barry Harris, « Ma grille ») : le niveau ne change pas ses qualités.
     const fixed = Boolean(exState.progression?.movement?.preserveQualities);
     els.exerciseDifficultySelect.disabled = fixed;
-    els.exerciseDifficultySelect.title = fixed ? 'Les accords de ce mouvement sont fixés : le niveau ne les change pas.' : '';
+    if (els.exerciseDifficultySelect.closest('.exercise-setting')) els.exerciseDifficultySelect.closest('.exercise-setting').hidden = fixed;
+    els.exerciseDifficultySelect.title = fixed ? 'Les accords de ce mouvement sont fixés : le choix de couleurs ne les change pas.' : '';
   }
   const keySet = new Set(exState.keySet || []);
   if (els.exerciseKeyGrid) {
@@ -1505,7 +1507,9 @@ function renderExerciseProgressPanel(exState) {
     path.innerHTML = prog.chords.map((chord, i) => {
       const current = i === stepIndex && !onPassing;
       const state = current ? 'is-active' : i < stepIndex || (i === stepIndex && onPassing) ? 'is-done' : '';
-      const row = `<button type="button" class="${state}" data-step="${i}" title="Afficher ${chord.name}"${current ? ' aria-current="step"' : ''}><span>${i + 1}</span><div><strong>${chord.name || '—'}</strong>${topTag(chord)}</div></button>`;
+      const role = { departure: 'Départ', passing: 'Passage écrit', arrival: 'Arrivée' }[chord.harmonicRole];
+      const timing = chord.studyStep ? `${role ? `${role} · ` : ''}${chord.studyStep.beats.toLocaleString('fr-FR')} temps` : '';
+      const row = `<button type="button" class="${state}" data-step="${i}" title="Afficher ${chord.name}${timing ? ` · ${timing}` : ''}"${current ? ' aria-current="step"' : ''}><span>${i + 1}</span><div><strong>${chord.name || '—'}</strong>${timing ? `<small class="exercise-path-top">${timing}</small>` : ''}${topTag(chord)}</div></button>`;
       const p = chord.passingChord;
       if (!p) return row;
       const onIt = onPassing && i === stepIndex;
@@ -1581,6 +1585,7 @@ function initPracticeExercise() {
 
   function render() {
     const exState = practiceExercise.getState();
+    setModeButtonActive(exState.mode);
     targetDiv.style.display = exState.target ? 'flex' : 'none';
     if (exState.target) {
       const categories = getAvailableTechniques(exState.target.name);
@@ -1607,7 +1612,7 @@ function initPracticeExercise() {
       }
       targetDiv.innerHTML = renderExerciseTarget(exState.target, {
         categories, difficulty, variant: exState.variant, selectedTechnique: exState.technique,
-        doubling: exState.doubling, isFavorite, layout: exState.mode === 'chord' ? 'chord' : 'default', spelling,
+        doubling: exState.doubling, isFavorite, layout: exState.mode === 'chord' ? 'chord' : 'default', separateVoicings: true, spelling,
         leftHandStyle: exState.leftHandStyle,
         topNote,
         // Accord de passage : l'accord vers lequel il mène (le premier de la grille pour un retour).
@@ -1666,8 +1671,7 @@ function initPracticeExercise() {
     const feedbackHome = isChord ? els.exerciseChordHead : stage;
     if (feedback && feedbackHome && feedback.parentElement !== feedbackHome) feedbackHome.prepend(feedback);
     els.exerciseChordSide?.closest('.tr-exercise-progress')?.classList.toggle('is-chord-side', isChord);
-    if (els.exerciseChordSide) els.exerciseChordSide.hidden = !isChord;
-    if (!isChord) return;
+    if (els.exerciseChordSide) els.exerciseChordSide.hidden = !exState.target;
     // Voicings disponibles de l'accord affiché (hors de la carte en Accord cible).
     if (els.exerciseVoicingChoices) {
       els.exerciseVoicingChoices.innerHTML = exState.target
@@ -1823,7 +1827,12 @@ function initPracticeExercise() {
   renderPracticeExercise = render;
 
   function setModeButtonActive(mode) {
-    modeButtons.forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
+    modeButtons.forEach((b) => {
+      const selected = b.dataset.mode === mode;
+      b.classList.toggle('active', selected);
+      b.classList.toggle('is-active', selected);
+      b.setAttribute('aria-selected', String(selected));
+    });
   }
 
   // [Claude] — 2026-10-13 — La question est posée par l'application (appConfirm), et non plus
@@ -1957,7 +1966,7 @@ function initPracticeExercise() {
   const PERSO_CATEGORY = 'Perso';
   /** Résumé d'une grille enregistrée : accords, passages entre parenthèses, notes du dessus (« Dm11 ♪ C → (D7b9) → G13 »). */
   const gridSummary = (grid) => {
-    const chords = grid.chords.map((c) => gridChordFrom(c.name, c.top));
+    const chords = grid.chords.map((c) => gridChordFrom(c.name, c.top, c.role));
     const roles = gridRoles(chords.map((c) => c || { quality: '' }));
     return grid.chords.map((c, i) => {
       const top = chords[i] ? gridTopLabel(chords[i]) : '';
@@ -1967,8 +1976,13 @@ function initPracticeExercise() {
   };
 
   function getLibraryItems() {
-    const movements = (movementsLibrary?.movements || []).map((m) => ({
+    const movements = [...(movementsLibrary?.movements || []), ...archivedMovements].map((m) => ({
       id: m.id,
+      kind: m.kind,
+      route: m.route,
+      focus: m.focus,
+      provenance: m.provenance,
+      score: m.score,
       name: m.name,
       category: m.category || 'Mouvements 12 tons',
       level: m.level,
@@ -2003,7 +2017,10 @@ function initPracticeExercise() {
 
   function renderLibrary() {
     const all = getLibraryItems();
-    let items = all;
+    const active = all.filter((i) => i.kind !== 'archive');
+    const libraryStyle = document.getElementById('exercise-library-style');
+    if (libraryStyle) renderDemoStyleMenu(libraryStyle, !['Archives · grilles seules', PERSO_CATEGORY].includes(libraryCategory));
+    let items = libraryCategory === 'Archives · grilles seules' ? all : active;
     const q = librarySearch.trim().toLowerCase();
     if (q) {
       items = items.filter((item) =>
@@ -2017,10 +2034,10 @@ function initPracticeExercise() {
         || item.tags.some((tag) => tag.toLowerCase().includes(q)));
     }
     // Catégories de la bibliothèque par ordre alphabétique, Perso (vos grilles) en dernier.
-    const categories = [...new Set(all.map((i) => i.category))].filter((c) => c !== PERSO_CATEGORY)
-      .sort((a, b) => a.localeCompare(b)).concat(PERSO_CATEGORY);
+    const categoryOrder = ['Progressions', 'Passages A → B', 'Gestes & voix', PERSO_CATEGORY, 'Archives · grilles seules'];
+    const categories = categoryOrder;
     if (els.exerciseLibraryCategories) {
-      els.exerciseLibraryCategories.innerHTML = [`<button type="button" class="exercise-library-chip ${libraryCategory ? '' : 'active'}" data-category="" aria-pressed="${!libraryCategory}">Tous<span class="exercise-library-count">${all.length}</span></button>`]
+      els.exerciseLibraryCategories.innerHTML = [`<button type="button" class="exercise-library-chip ${libraryCategory ? '' : 'active'}" data-category="" aria-pressed="${!libraryCategory}">Études<span class="exercise-library-count">${active.length}</span></button>`]
         .concat(categories.map((cat) => {
           const count = all.filter((i) => i.category === cat).length;
           const active = libraryCategory === cat;
@@ -2028,13 +2045,12 @@ function initPracticeExercise() {
         })).join('');
     }
     if (libraryCategory) items = items.filter((i) => i.category === libraryCategory);
-    const persoLast = (item) => (item.category === PERSO_CATEGORY ? 1 : 0);
-    items.sort((a, b) => persoLast(a) - persoLast(b) || a.category.localeCompare(b.category) || (a.level || 0) - (b.level || 0) || a.name.localeCompare(b.name));
+    items.sort((a, b) => categoryOrder.indexOf(a.category) - categoryOrder.indexOf(b.category) || a.name.localeCompare(b.name));
     if (!els.exerciseLibraryGrid) return;
     const current = practiceExercise.getState().progression?.name;
     const empty = libraryCategory === PERSO_CATEGORY && !q
       ? 'Aucune grille perso pour l\'instant : composez une grille dans « Ma grille », donnez-lui un nom puis « Enregistrer ».'
-      : 'Aucun mouvement ne correspond à votre recherche.';
+      : 'Aucune étude ne correspond à votre recherche.';
     els.exerciseLibraryGrid.innerHTML = items.length === 0
       ? `<div class="exercise-library-empty">${empty}</div>`
       : items.map((item, i) => renderLibraryCard(item, i, current)).join('');
@@ -2054,16 +2070,25 @@ function initPracticeExercise() {
   function renderLibraryCard(item, i, current) {
     const isCurrent = item.name === current;
     const phrase = item.context || item.sound || '';
-    return `<article class="exercise-library-card${isCurrent ? ' is-current' : ''}${item.grid ? ' is-perso' : ''}" data-id="${escapeAttr(item.id)}" style="--i:${i}" tabindex="0" role="button" aria-label="${escapeAttr(item.grid ? `${item.name}, grille perso` : `${item.name}, niveau ${item.level} sur 5`)}">
+    const references = item.provenance?.sources || [];
+    const details = item.focus ? `<details class="exercise-study-reference"><summary>Comprendre cette étude</summary>
+      <p>${escapeHtml(item.focus)}</p><p class="exercise-study-chords">En Do : ${escapeHtml(item.chords.join(' → '))}</p>
+      <p>${escapeHtml(item.provenance.label)}. La source documente le procédé ; cette écoute est une réalisation composée pour l’application.</p>
+      ${references.map((s) => `<a href="${escapeAttr(s.url)}" target="_blank" rel="noopener noreferrer" title="${escapeAttr(s.supports)}">${escapeHtml(s.title)} ↗</a>`).join('')}
+      </details>` : item.kind === 'archive' ? '<p class="exercise-study-archive">Grille conservée, sans interprétation documentée.</p>' : '';
+    return `<article class="exercise-library-card${isCurrent ? ' is-current' : ''}${item.grid ? ' is-perso' : ''}" data-id="${escapeAttr(item.id)}" style="--i:${i}" aria-label="${escapeAttr(item.grid ? `${item.name}, grille perso` : item.name)}">
             <div class="exercise-library-card-header">
-              <span class="exercise-library-card-category">${escapeHtml(item.category)}</span>
+              <span class="exercise-library-card-category">${escapeHtml(EXERCISE_KIND_LABELS[item.kind] || item.category)}</span>
               ${item.grid
     ? `<span class="exercise-library-card-count">${item.grid.chords.length} accord${item.grid.chords.length > 1 ? 's' : ''}</span>`
-    : `<span class="exercise-library-card-level">Niveau ${item.level}/5</span>`}
+    : `<span class="exercise-library-card-count">${item.chords.length} accords</span>`}
             </div>
             <h4>${escapeHtml(item.name)}${isCurrent ? '<span class="exercise-library-current">En cours</span>' : ''}</h4>
+            ${item.route ? `<p class="exercise-study-route">${escapeHtml(item.route)}</p>` : ''}
             ${phrase ? `<p class="exercise-library-context">${escapeHtml(phrase)}</p>` : ''}
+            ${details}
             <div class="exercise-library-card-actions">
+              <button type="button" class="exercise-library-grid-action" data-study-select="${escapeAttr(item.id)}">Travailler</button>
               <button type="button" class="exercise-library-play${previewId === item.id ? ' is-playing' : ''}" data-preview="${escapeAttr(item.id)}" aria-label="${escapeAttr(`${previewId === item.id ? 'Arrêter' : 'Écouter'} : ${item.name}`)}">${previewId === item.id ? DEMO_STOP_ICON : DEMO_PLAY_ICON}<span>${previewId === item.id ? 'Arrêter' : 'Écouter'}</span></button>
               ${item.grid ? `<button type="button" class="exercise-library-grid-action" data-grid-load="${escapeAttr(item.id)}" aria-label="${escapeAttr(`Modifier la grille ${item.name}`)}">Modifier</button>
               <button type="button" class="exercise-library-grid-action is-danger${gridDeleteArmed === item.id ? ' is-armed' : ''}" data-grid-delete="${escapeAttr(item.id)}" aria-label="${escapeAttr(`Supprimer la grille ${item.name}`)}">${gridDeleteArmed === item.id ? 'Confirmer' : 'Supprimer'}</button>` : ''}
@@ -2082,8 +2107,8 @@ function initPracticeExercise() {
 
   function closeLibrary() {
     if (!els.exerciseLibrary || els.exerciseLibrary.hidden) return;
-    els.exerciseLibrary.hidden = true;
-    document.body.classList.remove('tr-dialog-open');
+    // Fermer par le contrôleur commun rend le focus et libère la navigation clavier.
+    els.exerciseLibrary.querySelector('[data-astra-close]')?.click();
   }
 
   /** Passe en mode Mouvement si besoin (après confirmation si un exercice est en cours). */
@@ -2099,7 +2124,7 @@ function initPracticeExercise() {
     demoPlayer.stop();
     if (!await ensureMovementMode()) return;
     if (item.grid) practiceExercise.setCustomGrid(item.grid.chords, { name: item.grid.name });
-    else practiceExercise.setContentChoice(item.name);
+    else practiceExercise.setContentChoice(item.id);
     closeLibrary();
     feedbackDiv.textContent = '';
     render();
@@ -2136,46 +2161,33 @@ function initPracticeExercise() {
 
   const gridChordName = (c) => `${c.root}${c.quality}`;
   /** Accord de grille depuis son nom (« Dm11 ») et sa note du dessus. */
-  const gridChordFrom = (name, top = null) => {
+  const gridChordFrom = (name, top = null, role = undefined) => {
     const match = /^([A-G][#b]?)(.*)$/.exec(String(name || ''));
-    return match ? { root: match[1], quality: match[2], top: Number.isInteger(top) ? top : null } : null;
+    return match ? { root: match[1], quality: match[2], top: Number.isInteger(top) ? top : null, role } : null;
   };
   const gridTopLabel = (c) => (c.top == null ? '' : spellChordTone(c.root, c.top, c.quality));
 
-  // [Claude] — 2026-09-24 (nuit) — Règle de Narcisse : un accord de tension (7b9,
-  // 7alt, dim7…) ne se joue qu'en passage, entre deux accords principaux. Rôle de
-  // chaque accord de la grille, comme le moteur le lira (splitGridPassing) : un
-  // accord de tension qui suit un accord principal est son passage ; en tête ou
-  // après un autre passage, il reste principal.
+  // Le rôle est déclaré par l’utilisateur ; la couleur ne classe pas l’accord.
   function gridRoles(chords) {
-    let mainSeen = false;
-    let passingTaken = true;
+    let available = false;
     return chords.map((c) => {
-      if (isTensionQuality(c.quality) && mainSeen && !passingTaken) {
-        passingTaken = true;
-        return 'passing';
-      }
-      mainSeen = true;
-      passingTaken = false;
-      return 'main';
+      const passing = c.role === 'passing' && available;
+      available = !passing;
+      return passing ? 'passing' : 'main';
     });
   }
 
-  /** Refus d'un accord de tension à la place `index` (null = il peut s'y jouer en passage). */
   function passingRefusal(chord, index, chords) {
-    if (!isTensionQuality(chord.quality)) return null;
-    const before = chords[index - 1];
-    const after = chords[index + 1];
-    if (!before) return `${gridChordName(chord)} est un accord de tension : il se joue en passage, après un accord principal. Ajoutez d'abord l'accord qu'il suit.`;
-    if (isTensionQuality(before.quality) || (after && isTensionQuality(after.quality))) return 'Un seul accord de passage entre deux accords principaux.';
+    if (chord.role !== 'passing') return null;
+    if (index === 0 || gridRoles(chords.slice(0,index)).at(-1) === 'passing') return 'Placez le passage après un accord de grille.';
+    if (chords[index + 1]?.role === 'passing') return 'Cet accord précède déjà un passage. Gardez-le dans la grille ou modifiez d’abord le passage suivant.';
     return null;
   }
 
-  /** Libellé du bouton d'ajout : « Ajouter en passage » pour un accord de tension. */
   function refreshGridAddLabel() {
     if (!els.exerciseGridAdd) return;
-    const tension = isTensionQuality(els.exerciseGridQuality?.value ?? '');
-    els.exerciseGridAdd.textContent = gridEditing != null ? `Modifier l'accord ${gridEditing + 1}` : tension ? 'Ajouter en passage' : 'Ajouter';
+    const passing = document.getElementById('exercise-grid-role')?.value === 'passing';
+    els.exerciseGridAdd.textContent = gridEditing != null ? `Modifier l’accord ${gridEditing + 1}` : passing ? 'Ajouter en passage' : 'Ajouter';
   }
 
   /** Menu « Dessus » : notes de l'accord choisi, grisées si aucun voicing ne les met au sommet. */
@@ -2200,11 +2212,8 @@ function initPracticeExercise() {
         const name = gridChordName(c);
         const top = gridTopLabel(c);
         const passing = roles[i] === 'passing';
-        // Accord de tension resté principal (grille d'avant la règle) : signalé.
-        const stray = !passing && isTensionQuality(c.quality);
-        const title = passing ? 'Accord de passage (tension) — cliquer pour le modifier'
-          : stray ? 'Accord de tension joué comme accord principal : placez-le après un accord principal' : 'Modifier cet accord';
-        return `<li class="${[i === gridEditing ? 'is-editing' : '', passing ? 'is-passing' : '', stray ? 'is-stray' : ''].filter(Boolean).join(' ')}"><button type="button" class="exercise-grid-chip" data-grid-edit="${i}" title="${title}" aria-label="Modifier l'accord ${i + 1} : ${escapeAttr(name)}${passing ? ', accord de passage' : ''}${top ? `, dessus ${escapeAttr(top)}` : ''}">${passing ? '<span aria-hidden="true">↳</span>' : ''}${escapeAttr(name)}${top ? `<small>♪ ${escapeAttr(top)}</small>` : ''}</button><button type="button" data-grid-remove="${i}" aria-label="Retirer ${escapeAttr(name)}" title="Retirer">×</button></li>`;
+        const title = passing ? 'Passage choisi — cliquer pour le modifier' : 'Accord de grille — cliquer pour le modifier';
+        return `<li class="${[i === gridEditing ? 'is-editing' : '', passing ? 'is-passing' : ''].filter(Boolean).join(' ')}"><button type="button" class="exercise-grid-chip" data-grid-edit="${i}" title="${title}" aria-label="Modifier l'accord ${i + 1} : ${escapeAttr(name)}${passing ? ', accord de passage' : ''}${top ? `, dessus ${escapeAttr(top)}` : ''}">${passing ? '<span aria-hidden="true">↳</span>' : ''}${escapeAttr(name)}${top ? `<small>♪ ${escapeAttr(top)}</small>` : ''}</button><button type="button" data-grid-remove="${i}" aria-label="Retirer ${escapeAttr(name)}" title="Retirer">×</button></li>`;
       }).join('')
       : '<li class="exercise-grid-empty">Aucun accord pour l\'instant : choisissez une fondamentale et une qualité, puis « Ajouter ».</li>';
     const editing = gridEditing != null;
@@ -2226,9 +2235,9 @@ function initPracticeExercise() {
     if (!saved || !exState.customGrid) return null;
     // Grille jouée sous ce nom mais changée sans être enregistrée : on n'écrase rien.
     const sameChords = saved.chords.length === exState.customGrid.length
-      && saved.chords.every((c, i) => c.name === exState.customGrid[i].name);
+      && saved.chords.every((c, i) => c.name === exState.customGrid[i].name && c.role === exState.customGrid[i].role);
     if (!sameChords) return null;
-    const { grids, grid } = upsertGrid(customGrids, { name: saved.name, chords: exState.customGrid.map((c) => ({ name: c.name, top: c.top })) });
+    const { grids, grid } = upsertGrid(customGrids, { name: saved.name, chords: exState.customGrid.map((c) => ({ name: c.name, top: c.top, ...(c.role === 'passing' ? { role: 'passing' } : {}) })) });
     if (!grid) return null;
     customGrids = grids;
     saveGrids(window.localStorage, customGrids);
@@ -2257,7 +2266,7 @@ function initPracticeExercise() {
     const quality = els.exerciseGridQuality?.value ?? '';
     if (!root) return;
     const topValue = els.exerciseGridTop?.value ?? '';
-    const chord = { root, quality, top: topValue === '' ? null : Number(topValue) };
+    const chord = { root, quality, top: topValue === '' ? null : Number(topValue), role: document.getElementById('exercise-grid-role')?.value === 'passing' ? 'passing' : undefined };
     if (gridEditing != null) {
       // Modification d'un accord précis : les autres restent tels quels.
       const refusal = passingRefusal(chord, gridEditing, gridChords);
@@ -2276,10 +2285,11 @@ function initPracticeExercise() {
         return;
       }
       gridChords.push(chord);
-      if (isTensionQuality(quality)) gridStatus(`${gridChordName(chord)} ajouté en passage, au dernier temps de ${gridChordName(gridChords[gridChords.length - 2])}.`);
+      if (chord.role === 'passing') gridStatus(`${gridChordName(chord)} ajouté en passage, au dernier temps de ${gridChordName(gridChords[gridChords.length - 2])}.`);
     }
     renderGridChips();
   });
+  document.getElementById('exercise-grid-role')?.addEventListener('change', refreshGridAddLabel);
   els.exerciseGridCancel?.addEventListener('click', stopGridEditing);
   els.exerciseGridChips?.addEventListener('click', (e) => {
     const remove = e.target.closest('[data-grid-remove]');
@@ -2300,6 +2310,8 @@ function initPracticeExercise() {
     gridEditing = index;
     if (els.exerciseGridRoot) els.exerciseGridRoot.value = GRID_ROOTS.includes(chord.root) ? chord.root : 'C';
     if (els.exerciseGridQuality) els.exerciseGridQuality.value = chord.quality;
+    const roleSelect = document.getElementById('exercise-grid-role');
+    if (roleSelect) roleSelect.value = chord.role === 'passing' ? 'passing' : 'main';
     renderGridTopOptions(chord.top);
     renderGridChips();
   });
@@ -2323,7 +2335,7 @@ function initPracticeExercise() {
       name = defaultGridName(customGrids);
       if (els.exerciseGridName) els.exerciseGridName.value = name;
     }
-    const { grids, grid } = upsertGrid(customGrids, { name, chords: gridChords.map((c) => ({ name: gridChordName(c), top: c.top })) });
+    const { grids, grid } = upsertGrid(customGrids, { name, chords: gridChords.map((c) => ({ name: gridChordName(c), top: c.top, ...(c.role === 'passing' ? { role: 'passing' } : {}) })) });
     if (!grid) return;
     customGrids = grids;
     saveGrids(window.localStorage, customGrids);
@@ -2343,7 +2355,7 @@ function initPracticeExercise() {
     if (!keep) {
       const exState = practiceExercise.getState();
       if (exState.customGrid) {
-        gridChords = exState.customGrid.map((t) => gridChordFrom(t.name, t.top)).filter(Boolean);
+        gridChords = exState.customGrid.map((t) => gridChordFrom(t.name, t.top, t.role)).filter(Boolean);
         if (els.exerciseGridName) els.exerciseGridName.value = exState.customGridName || '';
       }
     }
@@ -2374,7 +2386,7 @@ function initPracticeExercise() {
     }
     if (practiceExercise.getState().mode !== 'movement' && !await maybeConfirmReset()) return;
     const name = els.exerciseGridName?.value.trim() || null;
-    practiceExercise.setCustomGrid(gridChords.map((c) => ({ name: gridChordName(c), top: c.top })), { name });
+    practiceExercise.setCustomGrid(gridChords.map((c) => ({ name: gridChordName(c), top: c.top, ...(c.role === 'passing' ? { role: 'passing' } : {}) })), { name });
     setModeButtonActive('movement');
     closeGridDialog();
     feedbackDiv.textContent = '';
@@ -2441,7 +2453,7 @@ function initPracticeExercise() {
     if (load) {
       const grid = customGrids.find((g) => g.id === load.dataset.gridLoad);
       if (!grid) return;
-      gridChords = grid.chords.map((c) => gridChordFrom(c.name, c.top)).filter(Boolean);
+      gridChords = grid.chords.map((c) => gridChordFrom(c.name, c.top, c.role)).filter(Boolean);
       gridEditing = null;
       if (els.exerciseGridName) els.exerciseGridName.value = grid.name;
       renderGridChips();
@@ -2470,15 +2482,8 @@ function initPracticeExercise() {
       renderLibrary();
       return;
     }
-    const card = e.target.closest('.exercise-library-card');
-    if (card) pickLibraryCard(card);
-  });
-  els.exerciseLibraryGrid?.addEventListener('keydown', (e) => {
-    if (e.target.closest('[data-preview], [data-grid-load], [data-grid-delete]')) return;
-    const card = e.target.closest('.exercise-library-card');
-    if (!card || (e.key !== 'Enter' && e.key !== ' ')) return;
-    e.preventDefault();
-    pickLibraryCard(card);
+    const choose = e.target.closest('[data-study-select]');
+    if (choose) pickLibraryCard(choose.closest('.exercise-library-card'));
   });
 
   // ── Démo des mouvements ──
@@ -2504,7 +2509,36 @@ function initPracticeExercise() {
     // Stockage indisponible : « Selon le mouvement ».
   }
   const resolveDemoStyle = (movementStyle) => (demoStyle === 'auto' ? defaultDemoStyle(movementStyle) : demoStyle);
+  const variationSelect = document.getElementById('exercise-demo-variation');
+  const variationChoices = {};
+  const nextVariation = {};
+  let currentVariation = null;
+  try {
+    const saved = JSON.parse(window.localStorage?.getItem('exercise-demo-variations') || '{}');
+    for (const id of DEMO_STYLE_IDS) {
+      const value = saved?.[id];
+      if (value === 'cycle' || (Number.isInteger(value) && value >= 0 && value < DEMO_VARIATIONS[id].length)) variationChoices[id] = value;
+    }
+  } catch (_) { /* Les prises tournent automatiquement par défaut. */ }
+  variationSelect?.addEventListener('change', () => {
+    const id = resolveDemoStyle(practiceExercise.getState().progression?.movement?.style);
+    variationChoices[id] = variationSelect.value === 'cycle' ? 'cycle' : Number(variationSelect.value);
+    try { window.localStorage?.setItem('exercise-demo-variations', JSON.stringify(variationChoices)); } catch (_) { /* Séance seulement. */ }
+    demoPlayer.stop();
+    currentVariation = null;
+    refreshDemoButtons(practiceExercise.getState());
+  });
   const demoStyleSelects = [...document.querySelectorAll('[data-demo-style]')];
+  function renderDemoStyleMenu(select, written) {
+    const menu = written ? 'study' : 'free';
+    if (select.dataset.menu !== menu) {
+      select.innerHTML = written
+        ? '<option value="auto">Étude écrite</option><option value="plaque">Accords seuls</option>'
+        : '<option value="auto">Accompagnement automatique</option>' + DEMO_STYLE_IDS.map((id) => `<option value="${id}">${DEMO_STYLES[id].label} · ${DEMO_STYLES[id].tempo}</option>`).join('');
+      select.dataset.menu = menu;
+    }
+    select.value = written && demoStyle !== 'plaque' ? 'auto' : demoStyle;
+  }
   // Options posées une fois (un menu reconstruit à chaque rendu se refermerait
   // pendant la démo) ; seul le libellé « Selon le mouvement » suit le mouvement.
   demoStyleSelects.forEach((select) => {
@@ -2525,15 +2559,20 @@ function initPracticeExercise() {
     });
   });
 
-  async function startDemo(chords, context, movementStyle) {
+  async function startDemo(chords, context, movementStyle, entry = null) {
     if (!chords?.length) return;
     try {
       await resumeAudio();
     } catch (err) {
       console.warn('[Démo] Audio indisponible', err);
     }
-    const styleId = resolveDemoStyle(movementStyle);
-    demoPlayer.play(buildDemo(chords, styleId), { tempo: DEMO_STYLES[styleId].tempo });
+    const written = chords.every((c) => c.studyStep);
+    const styleId = written ? (demoStyle === 'plaque' ? 'plaque' : 'gospel') : resolveDemoStyle(movementStyle);
+    const choice = variationChoices[styleId] ?? 'cycle';
+    const variation = choice === 'cycle' ? (nextVariation[styleId] || 0) : choice;
+    if (choice === 'cycle') nextVariation[styleId] = (variation + 1) % DEMO_VARIATIONS[styleId].length;
+    currentVariation = { styleId, variation };
+    demoPlayer.play(buildDemo(chords, styleId, { variation }), { tempo: entry?.score?.tempo || DEMO_STYLES[styleId].tempo });
     demoContext = context;
     previewId = context.kind === 'preview' ? context.previewId : null;
     refreshDemoButtons(practiceExercise.getState());
@@ -2547,7 +2586,7 @@ function initPracticeExercise() {
     }
     const exState = practiceExercise.getState();
     if (exState.mode !== 'movement' || !exState.progression) return;
-    startDemo(exState.progression.chords, { kind: 'movement', stepBefore: exState.progression.stepIndex || 0, passingBefore: Boolean(exState.progression.onPassing) }, exState.progression.movement?.style);
+    startDemo(exState.progression.chords, { kind: 'movement', stepBefore: exState.progression.stepIndex || 0, passingBefore: Boolean(exState.progression.onPassing) }, exState.progression.movement?.style, exState.progression.movement);
   }
 
   function togglePreview(id) {
@@ -2562,14 +2601,15 @@ function initPracticeExercise() {
     const key = exState.mode === 'movement' && exState.progression ? exState.progression.currentKey : (exState.keyChoice ?? 0);
     const chords = !item ? null : item.grid
       ? practiceExercise.previewGrid(item.grid.chords, item.grid.name)
-      : practiceExercise.previewMovement(item.name, key);
-    if (chords) startDemo(chords, { kind: 'preview', previewId: id }, item.style);
+      : practiceExercise.previewMovement(item.id, key);
+    if (chords) startDemo(chords, { kind: 'preview', previewId: id }, item.style, item);
   }
 
   // Notes que la démo ajoute à l'accord affiché (basse, doublure), pour la carte.
   demoHooks.cardExtras = (exState) => {
     const prog = exState.mode === 'movement' ? exState.progression : null;
     if (!prog?.chords?.length) return null;
+    if (prog.movement?.score) return null;
     const styleId = resolveDemoStyle(prog.movement?.style);
     const extras = demoCardHands(prog.chords, prog.stepIndex || 0, styleId, { passing: Boolean(prog.onPassing) });
     return extras ? { ...extras, styleId, styleLabel: DEMO_STYLES[styleId]?.label } : null;
@@ -2724,16 +2764,52 @@ function initPracticeExercise() {
     btn.hidden = exState.mode !== 'movement' || !exState.progression;
     const styleRow = document.getElementById('exercise-demo-style-row');
     if (styleRow) styleRow.hidden = btn.hidden;
+    const entry = exState.progression?.movement;
+    const written = Boolean(entry?.score);
+    demoStyleSelects.forEach((select) => {
+      const useStudy = select.id === 'exercise-library-style'
+        ? !['Archives · grilles seules', PERSO_CATEGORY].includes(libraryCategory) : written;
+      renderDemoStyleMenu(select, useStudy);
+    });
+    const studyInfo = document.getElementById('exercise-study-info');
+    if (studyInfo) {
+      studyInfo.hidden = btn.hidden || !written;
+      const tops = written ? exState.progression.chords.map((c) => {
+        const note = Math.max(...c.voicing.rightHand, ...c.voicing.leftHand);
+        const rootName = /^[A-G][#b]*/.exec(c.name)?.[0];
+        return spellChordTone(rootName, ((note - c.rootPc) % 12 + 12) % 12, c.quality);
+      }).join(' → ') : '';
+      studyInfo.innerHTML = written ? `<strong>${escapeHtml(entry.route)}</strong><p>Dessus en ${escapeHtml(exState.target?.keyName || '')} : ${escapeHtml(tops)}.</p><small>Repères en Do : ${escapeHtml(entry.focus)}</small><small>Étude originale · ${entry.score.tempo} à la noire · ${entry.score.steps.map((s) => s.beats.toLocaleString('fr-FR')).join(' + ')} temps${exState.progression.chords.some((c) => !c.studyStep?.writtenVoicing) ? ' · voicings modifiés' : ''}</small>` : '';
+    }
     // « Selon le mouvement » annonce le style qu'il donnera pour le mouvement affiché.
     const movementStyle = exState.progression?.movement?.style;
     const autoStyle = DEMO_STYLES[defaultDemoStyle(movementStyle)];
     const autoOption = document.querySelector('#exercise-demo-style option[value="auto"]');
-    if (autoOption) autoOption.textContent = `Selon le mouvement · ${autoStyle.label}`;
-    const style = DEMO_STYLES[resolveDemoStyle(movementStyle)];
-    btn.title = `Démo ${style.label} (${style.tempo} à la noire) dans la tonalité en cours, avec les voicings de l'exercice`;
+    if (autoOption) autoOption.textContent = written ? 'Étude écrite' : `Automatique · ${autoStyle.label}`;
+    const styleId = resolveDemoStyle(movementStyle);
+    const style = DEMO_STYLES[styleId];
+    const variations = DEMO_VARIATIONS[styleId];
+    const variationRow = document.getElementById('exercise-demo-variation-row');
+    if (variationRow) variationRow.hidden = btn.hidden || written || variations.length === 1;
+    if (variationSelect) {
+      if (variationSelect.dataset.style !== styleId) {
+        variationSelect.innerHTML = '<option value="cycle">Une autre à chaque écoute</option>'
+          + variations.map((v, i) => `<option value="${i}">${v.label}</option>`).join('');
+        variationSelect.dataset.style = styleId;
+      }
+      const choice = variationChoices[styleId] ?? 'cycle';
+      variationSelect.value = String(choice);
+      const active = demoContext?.kind === 'movement' && currentVariation?.styleId === styleId;
+      const take = choice === 'cycle' ? (active ? currentVariation.variation : nextVariation[styleId] || 0) : choice;
+      const caption = document.getElementById('exercise-demo-variation-description');
+      if (caption) caption.textContent = choice === 'cycle'
+        ? `${active ? 'En écoute' : 'Prochaine écoute'} : ${variations[take].label}. ${variations[take].description}`
+        : variations[take].description;
+    }
+    btn.title = written ? `Étude écrite à ${entry.score.tempo} à la noire ; les accords et leur durée sont conservés` : `Accompagnement ${style.label} (${style.tempo} à la noire)`;
     const playing = demoContext?.kind === 'movement';
     btn.classList.toggle('is-playing', playing);
-    btn.innerHTML = `${playing ? DEMO_STOP_ICON : DEMO_PLAY_ICON}<span>${playing ? 'Arrêter la démo' : 'Écouter le mouvement'}</span>`;
+    btn.innerHTML = `${playing ? DEMO_STOP_ICON : DEMO_PLAY_ICON}<span>${playing ? 'Arrêter la démo' : written ? 'Écouter l’étude' : 'Écouter la grille'}</span>`;
     btn.closest('.tr-exercise-progress')?.classList.toggle('is-demo-playing', playing);
   }
 
@@ -3302,35 +3378,6 @@ async function init() {
   safeInit('ensurePianoSamples', () => ensurePianoSamples().then((ok) => {
     if (!ok) console.warn('[Main] échantillons piano indisponibles — repli synthétique');
   }));
-}
-
-// [Refonte] — Ma bibliothèque : fenêtre commune au Studio et à l'Analyse,
-// ouverte depuis l'en-tête (🎵) ou depuis l'écran d'import de l'Analyse.
-function initLibraryModal() {
-  const modal = document.getElementById('library-modal');
-  if (!modal) return;
-  const open = () => {
-    modal.style.display = 'flex';
-    // La liste est peuplée par analyzer-tab.js ; on lui demande de se
-    // rafraîchir à l'ouverture pour refléter les derniers imports.
-    document.dispatchEvent(new CustomEvent('app-library-refresh'));
-  };
-  document.getElementById('library-toggle')?.addEventListener('click', open);
-  document.getElementById('analyzer-library-open')?.addEventListener('click', open);
-  document.getElementById('library-close')?.addEventListener('click', () => {
-    modal.style.display = 'none';
-  });
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) modal.style.display = 'none';
-  });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && modal.style.display === 'flex') modal.style.display = 'none';
-  });
-  // Un morceau choisi dans la bibliothèque lance son analyse : la fenêtre a
-  // fait son travail, elle se referme.
-  modal.addEventListener('click', (e) => {
-    if (e.target.closest('.analyzer-library-item')) modal.style.display = 'none';
-  });
 }
 
 // [Refonte 2026-09-02, rétabli le 2026-09-03] — Repli du clavier virtuel.

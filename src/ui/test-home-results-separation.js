@@ -173,7 +173,7 @@ runTest('B. HTML — #analyzer-import-screen contient les cartes d\'import', () 
   // l'accès à cette bibliothèque — c'est donc cela que l'on vérifie, la liste
   // elle-même étant contrôlée là où elle se trouve désormais.
   assert(content.includes('analyzer-library-open'), 'Accès à la bibliothèque présent');
-  assert(html.includes('id="library-modal"'), 'Fenêtre « Ma bibliothèque » présente');
+  assert(html.includes('class="library-page" id="library-modal"'), 'Page immersive « Ma bibliothèque » présente');
   assert(html.includes('analyzer-library-list'), 'Liste de la bibliothèque présente dans la fenêtre');
 });
 

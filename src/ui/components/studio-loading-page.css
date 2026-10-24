@@ -1,0 +1,56 @@
+/* Le chargement remplace l'espace de travail, sans fenêtre ni contenu en transparence. */
+:root[data-skin] #studio-tab.is-processing {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  padding: 0;
+  background: var(--r-ground, var(--bg)) !important;
+  overflow: auto;
+}
+
+#studio-tab.is-processing > :not(#studio-processing-overlay) {
+  display: none !important;
+}
+
+#studio-tab.is-processing::before,
+#studio-tab.is-processing::after {
+  display: none;
+}
+
+#studio-tab.is-processing #studio-processing-overlay {
+  position: static;
+  grid-area: 1 / 1;
+  min-height: 100%;
+  box-sizing: border-box;
+  padding: 40px 24px;
+  background: var(--r-ground, var(--bg));
+}
+
+:root[data-skin] #studio-tab.is-processing .studio-processing-box {
+  width: min(100%, 440px);
+  box-sizing: border-box;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+#studio-tab.is-processing .studio-processing-box h3 {
+  font-size: clamp(1.3rem, 2.2vw, 1.75rem);
+  margin-bottom: 14px;
+}
+
+#studio-tab.is-processing .studio-processing-bar-wrap {
+  margin: 12px 0 20px;
+  height: 6px;
+}
+
+/* Velours garde le décor commun de Temps réel. Les outils du Studio sont
+   masqués plus haut ; seul le fond d'ambiance reste visible derrière l'attente. */
+:root[data-skin-choice='velours'] #studio-tab.is-processing {
+  background: transparent !important;
+}
+
+:root[data-skin-choice='velours'] #studio-tab.is-processing #studio-processing-overlay {
+  background: transparent;
+}

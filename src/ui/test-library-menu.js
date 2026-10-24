@@ -220,7 +220,7 @@ runTest('6. JS — Le menu se ferme au clic extérieur', () => {
   const jsPath = resolve(projectRoot, 'src/ui/analyzer-tab.js');
   const js = readFileSync(jsPath, 'utf-8');
 
-  assert(js.includes("!menuContainer.contains(e.target)"), 'Détecte le clic hors du conteneur');
+  assert(js.includes("!menu.parentElement.contains(event.target)"), 'Détecte le clic hors du conteneur via un écouteur commun');
   assert(js.includes("menu.classList.remove('open')"), 'Ferme le menu au clic extérieur');
 });
 

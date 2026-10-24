@@ -266,6 +266,16 @@ export function labelForConversationPath(tutorialPath) {
   return name || 'Tutoriel';
 }
 
+/** Texte complet à partager, sans les états d'attente ni les données internes. */
+export function conversationToText(history) {
+  const exchanges = (history?.messages || [])
+    .filter((message) => !message.isTyping && ['user', 'assistant'].includes(message.role)
+      && typeof message.content === 'string' && message.content.trim())
+    .map((message) => `${message.role === 'user' ? 'Vous' : 'Copilote IA'} :\n${message.content.trim()}`);
+  if (!exchanges.length) return '';
+  return [`Conversation — Copilote IA`, labelForConversationPath(history.tutorialPath), ...exchanges].join('\n\n');
+}
+
 /**
  * Supprime l'ancien historique mono-conversation d'un tutoriel.
  * Utilisé pour la compatibilité ascendante : les anciens fichiers hashés sont

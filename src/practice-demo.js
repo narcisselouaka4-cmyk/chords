@@ -67,6 +67,31 @@ export const DEMO_STYLES = {
   plaque: { label: 'Plaqué', tempo: 72, beatsPerChord: 4, build: buildPlaqueDemo },
 };
 
+/** Interprétations écrites : le même choix rejoue exactement la même phrase.
+ * Aucun tirage de notes ni d'accords : rythme, articulation et ordre des notes
+ * varient à l'intérieur des mains jouables du style. */
+export const DEMO_VARIATIONS = {
+  gospel: [
+    { label: 'Égrené', description: 'Accords tenus, voix du dessus mobile et montée finale.' },
+    { label: 'Respirations', description: 'Attaques espacées, silences et résolution tenue.' },
+    { label: 'Question–réponse', description: 'La basse pose le mouvement, le dessus lui répond.' },
+    { label: 'Ligne chantée', description: 'Une voix du dessus liée, puis une retombée sur le dernier accord.' },
+  ],
+  ballade: [
+    { label: 'Montée', description: 'Notes égrenées du grave à l’aigu, tenues aux doigts.' },
+    { label: 'Descente', description: 'Le dessus ouvre chaque accord, les autres voix le rejoignent.' },
+    { label: 'Aller–retour', description: 'Un arpège qui monte puis redescend, avec une basse tenue.' },
+    { label: 'Par paires', description: 'Les voix se répondent par groupes de deux notes.' },
+  ],
+  swing: [
+    { label: 'Charleston', description: 'Un appui sur le temps, puis une réponse en contretemps.' },
+    { label: 'Appuis décalés', description: 'Un accord bref, puis une relance tardive.' },
+    { label: 'Contretemps', description: 'Trois réponses courtes entre les temps, sur une basse régulière.' },
+    { label: 'Espace', description: 'Des accords espacés et un dernier appui plus long.' },
+  ],
+  plaque: [{ label: 'Accords tenus', description: 'Les deux mains ensemble, sans ornement.' }],
+};
+
 /** Ordre d'affichage des styles. */
 export const DEMO_STYLE_IDS = ['gospel', 'ballade', 'swing', 'plaque'];
 
@@ -80,9 +105,47 @@ export function defaultDemoStyle(movementStyle) {
 }
 
 /** Démo d'une grille dans le style demandé (Gospel / worship si inconnu). */
-export function buildDemo(chords, styleId) {
+export function buildDemo(chords, styleId, { variation = 0 } = {}) {
+  if (chords?.length && chords.every((c) => c.studyStep)) {
+    return buildStudyDemo(chords, { plain: styleId === 'plaque' });
+  }
   const style = DEMO_STYLES[styleId] || DEMO_STYLES.gospel;
-  return style.build(chords, { beatsPerChord: style.beatsPerChord });
+  return style.build(chords, { beatsPerChord: style.beatsPerChord, variation });
+}
+
+/** Une réalisation par étude : rythme harmonique, attaques, silences et
+ * ornements écrits dans le catalogue. Pas de fill ni de fin automatique.
+ * Le mode accords seuls conserve les durées et les voicings de cette étude. */
+export function buildStudyDemo(chords, { plain = false } = {}) {
+  const score = createScore();
+  let time = 0;
+  chords.forEach((chord, i) => {
+    const step = chord.studyStep;
+    const { lh, rh } = cardHands(chord);
+    score.step(time, i);
+    const attacks = plain
+      ? [{ at: 0, hand: 'lh', duration: step.beats - LIFT, velocity: .52 },
+        { at: 0, hand: 'rh', duration: step.beats - LIFT, velocity: .57 }]
+      : step.attacks;
+    attacks.forEach((attack) => {
+      let notes = attack.hand === 'lh' ? lh : rh;
+      if (attack.hand === 'top') notes = rh.slice(-1);
+      if (attack.hand === 'inner') notes = rh.slice(0, -1);
+      if (attack.hand === 'note') notes = rh.length ? [rh[Math.min(attack.index, rh.length - 1)]] : [];
+      // L'ornement n'est pertinent que dans la mise en voix pour laquelle il
+      // a été écrit ; explorer un autre voicing ne crée pas de grace note au hasard.
+      if (attack.hand === 'grace') notes = step.writtenVoicing ? [attack.note + step.keyPc] : [];
+      const roll = plain ? 0 : (attack.roll || 0);
+      const release = time + Math.min(step.beats - .01, attack.at + attack.duration);
+      if (release <= time + attack.at + Math.max(0, notes.length - 1) * roll) return;
+      score.hand(time + attack.at, notes, attack.velocity, release, {
+        hand: attack.hand === 'lh' ? 'lh' : 'rh', roll,
+        accentTop: attack.hand === 'rh' ? .04 : 0,
+      });
+    });
+    time += step.beats;
+  });
+  return score.finish(time);
 }
 
 const LOWEST_BASS = 28; // Mi1 : plus grave, la basse devient un grondement.
@@ -488,9 +551,9 @@ function playLeftHand(score, t, hands, velocity, release, { roll = 0, beatsPerCh
     score.hand(t, hands.lh, velocity, release, { roll, hand: 'lh' });
     return;
   }
-  for (let beat = 0; beat < beatsPerChord; beat += 1) {
+  for (let beat = 0; beat < beatsPerChord && t + beat < release; beat += 1) {
     const part = beat % 2 === 0 ? hands.stride.bass : hands.stride.chord;
-    const stop = beat === beatsPerChord - 1 ? release : t + beat + 1 - LIFT;
+    const stop = Math.min(release, t + beat + 1 - LIFT);
     score.hand(t + beat, part, velocity - (beat % 2) * 0.06, stop, { roll: roll / 2, hand: 'lh' });
   }
 }
@@ -501,7 +564,9 @@ function playLeftHand(score, t, hands, velocity, release, { roll = 0, beatsPerCh
  * @param {{beatsPerChord?: number}} [options]
  * @returns {{events: {time: number, type: 'noteOn'|'noteOff'|'step'|'passing', note?: number, velocity?: number, hand?: 'lh'|'rh', step?: number, passing?: number}[], beats: number}}
  */
-export function buildGospelDemo(chords, { beatsPerChord = 4 } = {}) {
+export function buildGospelDemo(chords, { beatsPerChord = 4, variation = 0 } = {}) {
+  const take = normalizeVariation('gospel', variation);
+  if (take && beatsPerChord >= 4) return buildInterpretedDemo(chords, 'gospel', take, beatsPerChord);
   const score = createScore();
   // Main droite en cadre d'octave, diminués de passage (voir planGospel).
   const { bars, passing: passingChords } = planGospel(chords, beatsPerChord);
@@ -566,7 +631,9 @@ export function buildGospelDemo(chords, { beatsPerChord = 4 } = {}) {
  * dessus reprises au 3e temps ; au 4e, un diminué de passage arpégé doucement
  * quand la basse monte d'un ton ou d'une quarte (comme en Gospel / worship).
  */
-export function buildBalladeDemo(chords, { beatsPerChord = 4 } = {}) {
+export function buildBalladeDemo(chords, { beatsPerChord = 4, variation = 0 } = {}) {
+  const take = normalizeVariation('ballade', variation);
+  if (take && beatsPerChord >= 4) return buildInterpretedDemo(chords, 'ballade', take, beatsPerChord);
   const score = createScore();
   const { bars, passing: passingChords } = planBallade(chords, beatsPerChord);
   chords.forEach((chord, i) => {
@@ -607,7 +674,9 @@ export function buildBalladeDemo(chords, { beatsPerChord = 4 } = {}) {
  * 3e ; sinon la main gauche de la carte accompagne avec la droite. Le dernier
  * accord est tenu.
  */
-export function buildSwingDemo(chords, { beatsPerChord = 4 } = {}) {
+export function buildSwingDemo(chords, { beatsPerChord = 4, variation = 0 } = {}) {
+  const take = normalizeVariation('swing', variation);
+  if (take && beatsPerChord >= 4) return buildInterpretedDemo(chords, 'swing', take, beatsPerChord);
   const score = createScore();
   const { bars, passing: passingChords } = planSwing(chords, beatsPerChord);
   chords.forEach((chord, i) => {
@@ -646,6 +715,131 @@ export function buildSwingDemo(chords, { beatsPerChord = 4 } = {}) {
       const p = t + beatsPerChord - 1;
       score.passing(p, i);
       playPassing(score, passing, p, t + beatsPerChord - LIFT, score.shade(i, 0.6), { roll: 0.01 });
+    }
+  });
+  return score.finish(chords.length * beatsPerChord);
+}
+
+/** Les valeurs extérieures à la bibliothèque reviennent à la première prise. */
+function normalizeVariation(style, variation) {
+  const n = Number(variation);
+  return Number.isInteger(n) && n >= 0 && n < DEMO_VARIATIONS[style].length ? n : 0;
+}
+
+/** Une phrase Posé : attaques, réponses et cadences écrites sur les seules
+ * notes du voicing (sauf la voisine vérifiée par topNeighbour). */
+function playCalmPhrase(score, chord, hands, nextHands, t, release, take, i, last) {
+  const { lh, rh } = hands;
+  const available = release - t;
+  const delay = take === 2 ? (i % 2 ? 0.5 : 0.25) : 0.08;
+  // Les silences sont de vrais relâchements ; la basse reste sous les réponses.
+  const stop = take === 1 && !last ? Math.min(release, t + (i % 2 ? 2.3 : 2.8)) : release;
+  playLeftHand(score, t, hands, score.shade(i, 0.56), stop, { roll: 0.03, beatsPerChord: Math.round(available) });
+  if (!rh.length) return;
+  if (take === 1) {
+    // Alterner l'accord presque plaqué et l'arrivée égrenée après la basse.
+    score.hand(t + (i % 2 ? 0.35 : 0.06), rh, score.shade(i, 0.49), stop, { roll: i % 2 ? 0.09 : 0.025, accentTop: 0.07 });
+    return;
+  }
+  if (take === 2) {
+    const answerAt = t + (i % 2 ? 2 : 1.75);
+    const answer = rh.slice(-Math.min(2, rh.length));
+    const inner = rh.filter((n) => !answer.includes(n));
+    score.hand(t + delay, inner, score.shade(i, 0.46), release, { roll: 0.045 });
+    score.hand(t + delay, answer, score.shade(i, 0.55), answerAt - LIFT, { roll: 0.045, accentTop: 0.06 });
+    score.hand(answerAt, answer, score.shade(i, last ? 0.45 : 0.5), release, { roll: 0.1, accentTop: 0.04 });
+    return;
+  }
+  const inner = rh.slice(0, -1);
+  const top = rh[rh.length - 1];
+  const melodyAt = t + (i % 2 ? 2.25 : 1.75);
+  const neighbour = !last && chord.topInterval == null
+    ? topNeighbour(chord, lh, rh, nextHands?.rh?.at(-1) ?? null) : null;
+  // Dernier accord : retombée sur ses propres notes, sans ajouter une gamme.
+  if (last && chord.topInterval == null && !hands.stride && rh.length > 2) {
+    const closeAt = t + 2;
+    score.hand(t + 0.12, rh, 0.51, closeAt - LIFT, { roll: 0.05, accentTop: 0.07 });
+    const fall = [...rh].reverse().slice(0, 3);
+    fall.forEach((n, k) => score.note(closeAt + k * 0.4, n, 0.51 - k * 0.035, release - closeAt - k * 0.4, 'rh'));
+    return;
+  }
+  score.hand(t + 0.12, inner, score.shade(i, 0.46), release, { roll: 0.04 });
+  score.note(t + 0.12 + inner.length * 0.04, top, score.shade(i, 0.59), (neighbour == null ? release : melodyAt - LIFT) - t - 0.12 - inner.length * 0.04, 'rh');
+  if (neighbour != null) score.note(melodyAt, neighbour, score.shade(i, 0.53), release - melodyAt, 'rh');
+}
+
+function playArpeggioPhrase(score, hands, t, release, take, i, last) {
+  const { rh } = hands;
+  playLeftHand(score, t, hands, score.shade(i, 0.53), release, { roll: 0.04, beatsPerChord: Math.round(release - t) });
+  if (!rh.length) return;
+  if (take === 1) {
+    // Descente tenue, d'abord la mélodie, puis les voix intérieures.
+    [...rh].reverse().forEach((n, k) => {
+      const start = t + 0.15 + k * 0.3;
+      score.note(start, n, 0.55 - k * 0.025, release - start, 'rh');
+    });
+    return;
+  }
+  if (take === 2) {
+    const line = [...rh, ...rh.slice(0, -1).reverse()];
+    const spacing = Math.min(0.33, (release - t - 0.4) / line.length);
+    line.forEach((n, k) => {
+      const start = t + 0.2 + k * spacing;
+      score.note(start, n, score.shade(i, 0.46 + (k === rh.length - 1 ? 0.09 : 0)), last && k === line.length - 1 ? release - start : spacing * 1.05, 'rh');
+    });
+    return;
+  }
+  const low = rh.slice(0, Math.ceil(rh.length / 2));
+  const high = rh.slice(Math.ceil(rh.length / 2));
+  const groups = high.length ? [low, high, low, high] : [low, low];
+  groups.forEach((notes, k) => {
+    const at = t + 0.2 + k * (release - t - 0.4) / groups.length;
+    const stop = k === groups.length - 1 ? release : at + 0.45;
+    score.hand(at, notes, score.shade(i, k % 2 ? 0.53 : 0.45), stop, { roll: 0.06, accentTop: 0.04 });
+  });
+}
+
+function playRhythmicPhrase(score, chord, hands, t, release, take, i, last) {
+  const { lh, rh } = hands;
+  if (last) {
+    playLeftHand(score, t, hands, 0.56, release, { roll: 0.02, beatsPerChord: Math.round(release - t) });
+    score.hand(t + 0.02, rh, 0.55, release, { roll: 0.015, accentTop: 0.05 });
+    return;
+  }
+  const patterns = { 1: [0, 2 + SWING_OFFBEAT], 2: [SWING_OFFBEAT, 1 + SWING_OFFBEAT, 2 + SWING_OFFBEAT], 3: [0, i % 2 ? 2 : 1 + SWING_OFFBEAT] };
+  const attacks = patterns[take].filter((beat) => t + beat + 0.12 < release);
+  if (hands.freeLeft && lh.length) {
+    score.note(t, lh[0], score.shade(i, 0.59), 0.8, 'lh');
+    score.note(t + 2, swingSecondBass(chord, lh[0], rh), score.shade(i, 0.53), Math.min(0.8, release - t - 2), 'lh');
+  } else if (hands.stride) {
+    playLeftHand(score, t, hands, 0.55, release, { beatsPerChord: Math.round(release - t) });
+  }
+  attacks.forEach((beat, k) => {
+    const at = t + beat;
+    const next = k < attacks.length - 1 ? t + attacks[k + 1] - LIFT : release;
+    const stop = Math.min(next, at + (take === 3 && k > 0 ? 1.1 : 0.4));
+    const velocity = score.shade(i, k % 2 ? 0.62 : 0.53);
+    if (!hands.freeLeft && !hands.stride) score.hand(at, lh, velocity - 0.04, stop, { roll: 0.01, hand: 'lh' });
+    score.hand(at, rh, velocity, stop, { roll: 0.012, accentTop: 0.06 });
+  });
+}
+
+function buildInterpretedDemo(chords, style, take, beatsPerChord) {
+  const score = createScore();
+  const { bars, passing } = PASSING_PLANS[style](chords, beatsPerChord);
+  chords.forEach((chord, i) => {
+    const t = i * beatsPerChord;
+    const held = passing[i] ? beatsPerChord - 1 : beatsPerChord;
+    const release = t + held - LIFT;
+    const last = i === chords.length - 1 && !passing[i];
+    score.step(t, i);
+    if (style === 'gospel') playCalmPhrase(score, chord, bars[i], passing[i] || bars[i + 1], t, release, take, i, last);
+    else if (style === 'ballade') playArpeggioPhrase(score, bars[i], t, release, take, i, last);
+    else playRhythmicPhrase(score, chord, bars[i], t, release, take, i, last);
+    if (passing[i]) {
+      const at = t + beatsPerChord - 1;
+      score.passing(at, i);
+      playPassing(score, passing[i], at, t + beatsPerChord - LIFT, 0.52, { roll: style === 'swing' ? 0.01 : 0.05 });
     }
   });
   return score.finish(chords.length * beatsPerChord);

@@ -18,7 +18,7 @@ const sameName = (a, b) => String(a).trim().toLowerCase() === String(b).trim().t
 function cleanChord(c) {
   if (!c || typeof c.name !== 'string' || !c.name.trim()) return null;
   const top = Number.isInteger(c.top) && c.top >= 0 && c.top < 12 ? c.top : null;
-  return { name: c.name.trim(), top };
+  return { name: c.name.trim(), top, ...(c.role === 'passing' ? { role: 'passing' } : {}) };
 }
 
 /** Grille valide : identifiant, nom, au moins un accord. */

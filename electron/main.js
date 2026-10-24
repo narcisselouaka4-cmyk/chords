@@ -2248,7 +2248,7 @@ function setupStudioIPC() {
 
   // [Claude] — 2026-10-21 — Étape de région avant analyse (Narcisse : les fichiers
   // longs mettent trop de temps à analyser). Probe d'abord, bon marché ; l'extraction
-  // + la waveform (coûteuses sur un fichier long) ne sont faites que si le renderer
+  // pour l’écoute (coûteuse sur un fichier long) n’est faite que si le renderer
   // a déjà décidé, sur cette durée, qu'il proposera l'étape (skipBelowSeconds reflète
   // REGION_SKIP_BELOW_SECONDS côté src/ui/analyzer-workflow.js — dupliqué ici en
   // argument plutôt qu'importé : ce fichier n'est pas un module ES partagé avec le
@@ -2261,15 +2261,14 @@ function setupStudioIPC() {
 
     const skipBelowSeconds = Number(options.skipBelowSeconds) || 0;
     if (!Number.isFinite(duration) || duration <= skipBelowSeconds) {
-      return { duration, peaks: null };
+      return { duration, wavPath: null };
     }
 
     const tmpDir = await createWorkDir('region');
     const previewWav = path.join(tmpDir, 'preview.wav');
     try {
       await extractTrackAudio(safePath, previewWav);
-      const waveform = await generateWaveform(previewWav);
-      return { duration, peaks: waveform.peaks };
+      return { duration, wavPath: previewWav };
     } catch (err) {
       await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
       throw err;

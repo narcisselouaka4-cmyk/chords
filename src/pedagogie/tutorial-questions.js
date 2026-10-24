@@ -110,7 +110,7 @@ export function normalizeDegrees(text) {
 /** Ce qu'il veut reprendre du prof, d'après ses mots ; null s'il ne le dit pas. */
 function transferKind(text) {
   if (/\b(licks?|runs?|fills?|riffs?|phrases?|traits?|impro)\b/i.test(text)) return 'lick';
-  if (/encha[iî]n|accords? de passage|passing|marche|walk|transition|turnaround|cadence/i.test(text)) return 'enchainement';
+  if (/mouvement|encha[iî]n|accords? de passage|passing|marche|walk|transition|turnaround|cadence/i.test(text)) return 'enchainement';
   if (/voicings?|positions?|renversements?|\baccords?\b|plaqu/i.test(text)) return 'voicing';
   return null;
 }
@@ -123,9 +123,14 @@ function chordListIn(text) {
   const chords = [];
   for (const t of tokens) {
     if (CHORD_TOKEN.test(t)) chords.push(t.replace(/♯/g, '#').replace(/♭/g, 'b'));
-    else if (chords.length) break;
+    else if (chords.length) {
+      if (/^(en|dans)$/i.test(t)) break;
+      // Un accord non reconnu reste dans la cible : le contrôle le refusera,
+      // au lieu de jouer silencieusement une progression amputée.
+      chords.push(t);
+    }
   }
-  return chords.length >= 2 ? chords : null;
+  return chords.length ? chords : null;
 }
 
 /**
@@ -141,7 +146,7 @@ function chordListIn(text) {
  *   |{kind: 'otherKey', key: string}|{kind: 'voicing'}|{kind: 'meaning'}|{kind: 'replay'}) & {at?: number}|null}
  */
 export function parseTutorialRequest(message) {
-  const text = String(message || '').replace(/\s+/g, ' ').trim();
+  const text = String(message || '').replace(/[‐‑‒–—−]/g, '-').replace(/’/g, "'").replace(/\s+/g, ' ').trim();
   if (!text) return null;
   const ask = classifyTutorialRequest(text);
   if (!ask) return null;
@@ -151,14 +156,22 @@ export function parseTutorialRequest(message) {
 
 function classifyTutorialRequest(text) {
   const keyMatch = KEY_AFTER.exec(text);
-  const key = keyMatch ? keyMatch[1].trim() : null;
-  const degreesMatch = DEGREES.exec(text);
+  const degreesMatches = [...text.matchAll(new RegExp(DEGREES.source, 'g'))];
+  const targetDegrees = degreesMatches.find((m) => /(?:à|sur|dans|pour|vers)\s+(?:(?:la|une|un|le|ta|ton|ma|mon)\s+)?(?:(?:progression|grille|contexte)(?:\s+de)?\s*)?$/i.test(text.slice(0, m.index + m[0].indexOf(m[1]))));
+  const degreesMatch = targetDegrees || degreesMatches[0];
+  const sourceDegrees = targetDegrees && degreesMatches.find((m) => m.index < targetDegrees.index);
+  const targetKey = targetDegrees && KEY_AFTER.exec(text.slice(targetDegrees.index + targetDegrees[0].length));
+  const key = (targetKey || keyMatch)?.[1]?.trim() || null;
   const progression = degreesMatch ? normalizeDegrees(degreesMatch[1]) : null;
   const chords = progression ? null : chordListIn(text);
+  const contextualReplay = /rejou|reprodui/i.test(text) && Boolean(progression || chords)
+    && /(?:ce|cet|son|ses|mon|mes)\s+(?:passage|mouvement|voicing|accord|lick|encha[iî]nement)|ce qu'il (?:joue|a joué|vient de jouer)/i.test(text);
   const transfer = /appliqu|repren|utilis|transf[eéè]r|adapt|r[ée]utilis|mettre|placer|ferai[st]?|donnerai[st]?|jouerai[st]?|serai[st]?|marcherai[st]?/i.test(text)
-    || /(?:dans|sur|à|a|pour) (?:une|un|la|le|ma|mon) (?:progression|grille|suite)/i.test(text);
-  if ((progression || chords) && transfer) {
-    return { kind: 'apply', what: transferKind(text), progression, chords, key };
+    || /(?:dans|sur|à|a|pour) (?:une|un|la|le|ma|mon) (?:progression|grille|suite)/i.test(text)
+    || contextualReplay;
+  if (transfer && ((progression || chords) || /(?:ce|cet|son|mon|ses|mes)\s+(?:mouvement|voicing|accord|lick|passage|encha[iî]nement)|applique[- ]le|adapte[- ]le/i.test(text))) {
+    return { kind: 'apply', what: transferKind(text) || (sourceDegrees ? 'enchainement' : null), progression, chords, key,
+      ...(sourceDegrees ? { sourceProgression: normalizeDegrees(sourceDegrees[1]) } : {}) };
   }
   // [Claude] — 2026-10-16 — « Joue le résultat final » n'existe plus : il rejouait une progression
   // RECONSTITUÉE par l'application à partir de bouts (main gauche montrée seule + main droite montrée

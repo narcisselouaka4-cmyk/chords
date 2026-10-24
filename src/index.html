@@ -82,6 +82,9 @@
          sur la grammaire Global et chargé en dernier pour ne remplacer que sa
          matière (palette, typographie, profondeur), jamais le comportement. -->
     <link rel="stylesheet" href="./ui/refonte/velours.css" />
+    <link rel="stylesheet" href="./ui/components/exercise-workspace.css" />
+    <link rel="stylesheet" href="./ui/components/studio-loading-page.css" />
+    <link rel="stylesheet" href="./ui/components/analyzer-loading-page.css" />
   </head>
   <body>
     <div id="app" class="app training-shell">
@@ -271,7 +274,7 @@
           <div class="tr-exercise-mode" id="practice-exercise-panel">
             <div class="tr-segment-control exercise-mode-selector" role="tablist" aria-label="Type d'exercice">
               <button class="exercise-mode-btn active is-active" data-mode="chord" role="tab" aria-selected="true" type="button">Accord cible</button>
-              <button class="exercise-mode-btn" data-mode="movement" role="tab" aria-selected="false" type="button">Mouvement 12 tons</button>
+              <button class="exercise-mode-btn" data-mode="movement" role="tab" aria-selected="false" type="button">Parcours harmonique</button>
             </div>
             <!-- [Claude] — 2026-09-24 — Titre « Exercices » et « Reconnaissance locale »
                  retirés (Narcisse) : le sous-onglet nomme déjà la vue. Les actions
@@ -357,41 +360,13 @@
               </div>
               <h2 id="exercise-brief-title">Un accord,<br />puis le suivant.</h2>
               <p id="exercise-brief-text"></p>
+              <button class="tr-button exercise-options-btn" type="button" data-astra-open="exercise-options-dialog">Options du tour</button>
               <!-- [Claude] — 2026-09-24 — Réglages du tour (Mouvement 12 tons), en
                    grille étiquette / contrôle. La tonalité active a quitté cette
                    colonne pour le panneau de droite (Narcisse : « pas au bon
                    endroit »). Mode Progression retiré (degrés, sélecteur de contenu,
                    badge de degré) : les grilles tapées passent par la bibliothèque
                    (« Ma grille »). -->
-              <div class="exercise-settings" id="exercise-movement-settings" hidden>
-                <span class="tr-eyebrow exercise-settings-eyebrow">RÉGLAGES DU TOUR</span>
-                <div class="exercise-setting" id="exercise-difficulty-selector">
-                  <label for="exercise-difficulty-select">Niveau</label>
-                  <!-- [Claude] — 2026-09-24 (nuit) — Règle de Narcisse : aucune tension dans les
-                       accords principaux ; le niveau se lit surtout aux accords de passage. -->
-                  <select id="exercise-difficulty-select" aria-label="Niveau : extensions des accords et accords de passage (tensions)">
-                    <option value="1">Débutant · 7e, sans passage</option>
-                    <option value="2">Semi-intermédiaire · 9e, sans passage</option>
-                    <option value="3" selected>Intermédiaire · 13e, passages diminués</option>
-                    <option value="4">Semi-avancé · passages 7b9, 7#5, 7b5</option>
-                    <option value="5">Avancé · passages altérés (alt, #9)</option>
-                  </select>
-                </div>
-                <div class="exercise-setting exercise-setting-keys">
-                  <span class="exercise-setting-label" id="exercise-key-grid-label">Tonalités</span>
-                  <div class="exercise-key-grid" id="exercise-key-grid" role="group" aria-labelledby="exercise-key-grid-label"></div>
-                </div>
-                <div class="exercise-setting">
-                  <label for="exercise-key-order">Ordre</label>
-                  <select id="exercise-key-order" aria-label="Ordre de parcours des tonalités"></select>
-                </div>
-                <div class="exercise-setting" id="exercise-key-selector">
-                  <label for="exercise-key-select">Départ</label>
-                  <select id="exercise-key-select" aria-label="Tonalité de départ du tour">
-                    <option value="">Au hasard</option>
-                  </select>
-                </div>
-              </div>
               <!-- Sélecteur d'accord cible : visible uniquement en mode "Accord cible".
                    [Claude] — 2026-09-24 — Colonne de gauche = les accords à charger sur
                    la carte (recherche par top note). La droite garde les voicings
@@ -429,9 +404,15 @@
               <button class="tr-button exercise-demo-btn" type="button" id="exercise-demo-btn" hidden title="Démo gospel / worship dans la tonalité en cours, avec les voicings de l'exercice"><svg class="tr-i" width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg><span>Écouter le mouvement</span></button>
               <!-- Style de la démo (rempli par main.js) : selon le mouvement, ou imposé. -->
               <div class="exercise-demo-style" id="exercise-demo-style-row" hidden>
-                <label for="exercise-demo-style">Style</label>
-                <select id="exercise-demo-style" data-demo-style aria-label="Style de la démo"></select>
+                <label for="exercise-demo-style">Écoute</label>
+                <select id="exercise-demo-style" data-demo-style aria-label="Écoute de l’étude"></select>
               </div>
+              <div class="exercise-demo-variation" id="exercise-demo-variation-row" hidden>
+                <label for="exercise-demo-variation">Interprétation</label>
+                <select id="exercise-demo-variation" aria-label="Interprétation de la démo"></select>
+                <p id="exercise-demo-variation-description"></p>
+              </div>
+              <div class="exercise-study-info" id="exercise-study-info" hidden></div>
               <div class="exercise-key-strip" id="exercise-key-strip" role="group" aria-label="Tonalités du tour" hidden></div>
               <span class="tr-eyebrow exercise-chords-eyebrow" id="exercise-chords-eyebrow" hidden>ACCORDS</span>
               <div class="tr-progression-path" id="exercise-progress-path"></div>
@@ -458,12 +439,49 @@
              « visuellement ça ne rend pas très bien »), au lieu d'un panneau
              collé au bord. Onglet Progressions retiré avec le mode ; « Ma grille »
              joue des accords tapés en symboles dans les tonalités choisies. -->
+        <div class="tr-overlay exercise-panel-overlay" id="exercise-options-dialog" hidden>
+          <div class="tr-dialog" role="dialog" aria-modal="true" aria-labelledby="exercise-options-title">
+            <div class="tr-dialog-title"><h2 id="exercise-options-title">Options du tour</h2><button class="tr-icon-button" type="button" data-astra-close aria-label="Fermer les options">✕</button></div>
+            <div class="tr-dialog-body">
+              <div class="exercise-settings" id="exercise-movement-settings">
+                <p class="exercise-options-hint">Choisissez les couleurs et le parcours qui vous intéressent. Ces choix ne mesurent pas votre niveau au piano.</p>
+                <div class="exercise-setting" id="exercise-difficulty-selector">
+                  <label for="exercise-difficulty-select">Couleurs</label>
+                  <!-- Recettes harmoniques ; valeurs historiques conservées pour les grilles. -->
+                  <select id="exercise-difficulty-select" aria-label="Couleurs harmoniques et accords de passage">
+                    <option value="1">7e / 6e · sans passage</option>
+                    <option value="2">9e · sans passage</option>
+                    <option value="3" selected>Couleurs étendues · passages diminués</option>
+                    <option value="4">Couleurs étendues · passages 7b9, 7#5, 7b5</option>
+                    <option value="5">Couleurs étendues · passages alt, #9</option>
+                  </select>
+                </div>
+                <div class="exercise-setting exercise-setting-keys">
+                  <span class="exercise-setting-label" id="exercise-key-grid-label">Tonalités</span>
+                  <div class="exercise-key-grid" id="exercise-key-grid" role="group" aria-labelledby="exercise-key-grid-label"></div>
+                </div>
+                <div class="exercise-setting">
+                  <label for="exercise-key-order">Ordre</label>
+                  <select id="exercise-key-order" aria-label="Ordre de parcours des tonalités"></select>
+                </div>
+                <div class="exercise-setting" id="exercise-key-selector">
+                  <label for="exercise-key-select">Départ</label>
+                  <select id="exercise-key-select" aria-label="Tonalité de départ du tour">
+                    <option value="">Au hasard</option>
+                  </select>
+                </div>
+              </div>
+              <button class="tr-button tr-primary" type="button" data-astra-close>Revenir au mouvement</button>
+            </div>
+          </div>
+        </div>
+
         <div class="tr-overlay tr-drawer-overlay" id="exercise-library" hidden>
-          <div class="tr-dialog tr-dialog-wide tr-drawer exercise-library" role="dialog" aria-modal="true" aria-label="Bibliothèque des mouvements">
+          <div class="tr-dialog tr-dialog-wide tr-drawer exercise-library" role="dialog" aria-modal="true" aria-label="Bibliothèque harmonique">
             <div class="tr-dialog-title">
               <div class="exercise-library-heading">
-                <h2>Bibliothèque des mouvements</h2>
-                <p>Un enchaînement à faire tourner dans les tonalités choisies, au niveau choisi.</p>
+                <h2>Bibliothèque harmonique</h2>
+                <p>Une progression pose le cadre. Un passage relie deux points. Chaque étude possède son propre phrasé.</p>
               </div>
               <button class="tr-icon-button" type="button" id="exercise-library-close" data-astra-close aria-label="Fermer la bibliothèque">✕</button>
             </div>
@@ -474,9 +492,9 @@
                    tout en haut comme ça, ça ne passe pas du tout… sortons-le de la
                    bibliothèque et voyons ce que ça donne ». -->
               <div class="tr-library-toolbar exercise-library-toolbar">
-                <label class="tr-search exercise-library-search"><svg class="tr-i" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input type="text" id="exercise-library-search" placeholder="Rechercher un mouvement…" aria-label="Rechercher un mouvement"></label>
+                <label class="tr-search exercise-library-search"><svg class="tr-i" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input type="text" id="exercise-library-search" placeholder="Rechercher un procédé, une arrivée…" aria-label="Rechercher une étude"></label>
                 <div class="exercise-library-categories" id="exercise-library-categories" role="group" aria-label="Catégories"></div>
-                <label class="exercise-library-style"><span>Style des aperçus</span><select id="exercise-library-style" data-demo-style aria-label="Style des aperçus"></select></label>
+                <label class="exercise-library-style"><span>Écoute des aperçus</span><select id="exercise-library-style" data-demo-style aria-label="Écoute des aperçus"></select></label>
               </div>
               <div class="exercise-library-grid" id="exercise-library-grid"></div>
             </div>
@@ -492,7 +510,7 @@
             <div class="tr-dialog-title">
               <div class="exercise-grid-heading">
                 <h2>Ma grille</h2>
-                <p>Choisissez vos accords un par un, extensions comprises, et si vous voulez la note du dessus de chacun (votre mélodie) : ils seront joués tels quels, ton après ton. Un accord de tension (7b9, 7alt, dim7…) s'ajoute en passage, après l'accord qu'il suit. Cliquez un accord pour le modifier.</p>
+                <p>Choisissez vos accords et leur note du dessus. Une couleur altérée ne détermine pas le rôle : indiquez vous-même si l’accord appartient à la grille ou s’il sert de passage. Un passage choisi ici se joue sur le dernier temps de l’accord précédent.</p>
               </div>
               <button class="tr-icon-button" type="button" data-astra-close aria-label="Fermer">✕</button>
             </div>
@@ -501,6 +519,7 @@
                 <div class="exercise-grid-picker">
                   <select id="exercise-grid-root" aria-label="Fondamentale de l'accord"></select>
                   <select id="exercise-grid-quality" aria-label="Qualité de l'accord"></select>
+                  <select id="exercise-grid-role" aria-label="Rôle de l’accord"><option value="main">Accord de grille</option><option value="passing">Passage écrit</option></select>
                   <select id="exercise-grid-top" aria-label="Note du dessus de l'accord (voice leading)" title="Voice leading : note jouée au sommet de l'accord"></select>
                   <button class="tr-button" type="button" id="exercise-grid-add">Ajouter</button>
                   <button class="tr-button" type="button" id="exercise-grid-cancel" hidden>Annuler</button>
@@ -532,12 +551,6 @@
                 <div class="exercise-topnote-filters" id="exercise-topnote-filters" hidden>
                   <!-- Tonalité, fondamentale et techniques : remplies par main.js. -->
                   <select data-topnote-filter="key" aria-label="Tonalité : voicings dont toutes les notes sont dans la gamme"></select>
-                  <select id="exercise-top-note-level" aria-label="Niveau des voicings suggérés" disabled>
-                    <option value="all">Tous niveaux</option>
-                    <option value="simple">Simple (★1)</option>
-                    <option value="intermediate">Intermédiaire (★2)</option>
-                    <option value="advanced">Avancé (★3–5)</option>
-                  </select>
                   <select data-topnote-filter="chordRoot" aria-label="Fondamentale des accords listés"></select>
                   <select data-topnote-filter="technique" aria-label="Technique de voicing"></select>
                   <select data-topnote-filter="hands" aria-label="Répartition des mains">
@@ -1188,6 +1201,28 @@
       <!-- Onglet Analyse — reconstruction autour des maquettes officielles -->
       <main class="analysis-tab an-workspace-shell" id="analysis-tab" style="display: none;">
         <section class="analyzer-workspace" id="analyzer-workspace">
+          <!-- Bibliothèque immersive : un état de l'Analyse, pas une fenêtre modale. -->
+          <section class="library-page" id="library-modal" style="display: none;" aria-hidden="true" aria-labelledby="library-title">
+            <div class="library-box">
+              <div class="library-page-toolbar">
+                <button type="button" id="library-close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6"/></svg><span>Retour à l’Analyse</span></button>
+              </div>
+              <header class="library-header">
+                <p class="library-eyebrow">Votre collection</p>
+                <h2 id="library-title">Ma bibliothèque</h2>
+                <p class="library-intro">Retrouvez un morceau.<br>Reprenez là où vous en étiez.</p>
+              </header>
+              <div class="library-collection">
+                <label class="library-search-field">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg>
+                  <input type="search" class="library-search" id="analyzer-library-search" placeholder="Rechercher dans votre collection…" aria-label="Rechercher un morceau">
+                </label>
+                <div class="library-list-heading"><span>Morceaux importés</span><span id="library-count" role="status" aria-live="polite"></span></div>
+                <div id="analyzer-library-list"></div>
+                <footer class="library-footer">Sélectionnez un morceau pour poursuivre son analyse.</footer>
+              </div>
+            </div>
+          </section>
           <!-- État 1 : Import source -->
           <!-- [Refonte Analyse 02/10] — l'écran d'accueil ne propose plus que
                ce que l'onglet Analyse sait faire de mieux : prendre un fichier
@@ -1231,11 +1266,8 @@
                 </span>
               </button>
 
-              <!-- [Refonte] — La bibliothèque n'est plus listée ici : elle a sa
-                   propre fenêtre, ouverte depuis l'en-tête (🎵) et donc
-                   atteignable aussi bien depuis le Studio que depuis l'Analyse.
-                   Il reste ce raccourci pour ne pas perdre le chemin d'accès
-                   depuis l'écran d'import. -->
+              <!-- La bibliothèque est une page immersive de l'Analyse ; le Studio
+                   conserve son propre sélecteur sur le même stockage. -->
               <button type="button" class="analyzer-library-open" id="analyzer-library-open">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5v14"/><path d="M8 5v14"/><path d="m13 6 7 2-4 13-7-2z"/></svg>
                 Reprendre un morceau déjà importé
@@ -1251,28 +1283,31 @@
                l'audio/vidéo au-delà de REGION_SKIP_BELOW_SECONDS
                (src/ui/analyzer-workflow.js) ; un MIDI saute directement à l'analyse,
                et sous ce seuil le fichier entier est analysé comme avant — aucun
-               changement pour la majorité des morceaux. Design volontairement
-               différent du sélecteur de région du Studio (ruban organique en
-               dégradé plutôt que des barres techniques) : ici, c'est un choix
-               éditorial (« quel passage m'intéresse ? »), pas une console de
-               montage. Logique câblée dans src/ui/analyzer-tab.js
-               (showRegionScreen/confirmRegionSelection), formes pures dans
-               src/ui/analyzer-workflow.js (shouldOfferRegionSelection, clampRegion). -->
+               changement pour la majorité des morceaux. Le lecteur permet d’écouter
+               avant de poser les repères du passage à analyser. -->
           <div class="analyzer-state" id="analyzer-region-screen">
             <div class="analyzer-region-hero">
               <span class="analyzer-region-eyebrow">Analyse</span>
               <h2>Choisissez un passage à étudier</h2>
               <p class="analyzer-region-subtitle" id="analyzer-region-subtitle"></p>
 
-              <div class="analyzer-region-picker" id="analyzer-region-picker" role="group" aria-label="Choix du passage à analyser">
-                <canvas class="analyzer-region-canvas" id="analyzer-region-canvas"></canvas>
-                <div class="analyzer-region-band" id="analyzer-region-band"></div>
-                <div class="analyzer-region-handle analyzer-region-handle-start" id="analyzer-region-handle-start" role="slider" tabindex="0" aria-label="Début du passage" aria-valuemin="0">
-                  <span class="analyzer-region-handle-time" id="analyzer-region-handle-start-time"></span>
+              <div class="analyzer-region-player" id="analyzer-region-player" role="group" aria-label="Écoute et choix du passage">
+                <div id="analyzer-region-audio"></div>
+                <p id="analyzer-region-player-status" role="status">Préparation de l’écoute…</p>
+                <div class="analyzer-region-times">
+                  <div>
+                    <label for="analyzer-region-start">Début <span>(min:sec)</span></label>
+                    <input id="analyzer-region-start" type="text" value="00:00" spellcheck="false" aria-describedby="analyzer-region-hint">
+                    <button type="button" id="analyzer-region-mark-start">Définir à l’écoute</button>
+                  </div>
+                  <div>
+                    <label for="analyzer-region-end">Fin <span>(min:sec)</span></label>
+                    <input id="analyzer-region-end" type="text" value="04:00" spellcheck="false" aria-describedby="analyzer-region-hint">
+                    <button type="button" id="analyzer-region-mark-end">Définir à l’écoute</button>
+                  </div>
                 </div>
-                <div class="analyzer-region-handle analyzer-region-handle-end" id="analyzer-region-handle-end" role="slider" tabindex="0" aria-label="Fin du passage">
-                  <span class="analyzer-region-handle-time" id="analyzer-region-handle-end-time"></span>
-                </div>
+                <button type="button" class="analyzer-region-btn" id="analyzer-region-preview">Écouter le passage choisi</button>
+                <p id="analyzer-region-hint">Choisissez un extrait de 10 secondes à 8 minutes.</p>
               </div>
 
               <p class="analyzer-region-summary" id="analyzer-region-summary"></p>
@@ -1301,6 +1336,8 @@
                l'overlay y serait invisible — bug refonte, corrigé le 03/09). -->
           <div class="analyzer-processing-overlay" id="analyzer-processing" style="display: none;">
             <div class="analyzer-processing-box">
+              <div class="analysis-waiting-status">
+              <span class="analysis-waiting-eyebrow">À L’ÉCOUTE DE VOTRE MORCEAU</span>
               <!-- [Refonte Analyse 02/10] — l'attente dure souvent plusieurs
                    minutes ; un rond qui tourne n'y dit rien de ce qui se passe.
                    Ce qui se passe, c'est que le moteur lit l'énergie des douze
@@ -1311,12 +1348,30 @@
                    lecture qui avance dans le morceau. Décor pur : aucune des
                    valeurs affichées ne prétend venir de l'analyse en cours. -->
               <div data-chroma-stage></div>
-              <p class="analyzer-processing-text" id="analyzer-processing-text">Analyse en cours…</p>
+              <p class="analyzer-processing-text" id="analyzer-processing-text" role="status" aria-live="polite">Analyse en cours…</p>
               <!-- Compteur de temps écoulé : une analyse dure souvent plus
                    d'une minute ; sans lui, l'écran d'attente est
                    indistinguable d'une application figée. -->
               <p class="analyzer-processing-elapsed" id="analyzer-processing-elapsed" aria-live="polite"></p>
               <p class="analyzer-processing-hint">Vous pouvez continuer à utiliser les onglets Entraînement et Studio.</p>
+              </div>
+              <aside class="analysis-waiting-tip" aria-label="Mini-atelier pendant l’analyse">
+                <div class="analysis-waiting-tip-heading"><span class="analysis-waiting-eyebrow">UNE IDÉE À ESSAYER</span><span id="analysis-waiting-tip-count">01 / 03</span></div>
+                <h3 id="analysis-waiting-tip-title">Trois accords, une résolution.</h3>
+                <p id="analysis-waiting-tip-copy">Jouez chaque accord lentement. Écoutez comment le Sol7 crée une tension que le Do majeur apaise.</p>
+                <div class="analysis-waiting-chords" id="analysis-waiting-chords">
+                  <div><strong>Dm7</strong><span>Ré · Fa · La · Do</span></div>
+                  <div><strong>G7</strong><span>Sol · Si · Ré · Fa</span></div>
+                  <div><strong>Cmaj7</strong><span>Do · Mi · Sol · Si</span></div>
+                </div>
+                <p class="analysis-waiting-challenge" id="analysis-waiting-challenge">Au clavier : gardez un tempo lent et régulier, puis recommencez les yeux fermés.</p>
+                <div class="analysis-waiting-tip-footer"><span>Exercice libre, indépendant du morceau.</span><div><button type="button" id="analysis-waiting-tip-prev" aria-label="Conseil précédent">←</button><button type="button" id="analysis-waiting-tip-next" aria-label="Conseil suivant">→</button></div></div>
+              </aside>
+              <div class="analysis-waiting-guide" aria-label="Après l’analyse">
+                <div><span>01 / REPÉRER</span><strong>Le fil du morceau</strong><p>Retrouvez sa tonalité, son tempo et les accords essentiels.</p></div>
+                <div><span>02 / ÉCOUTER</span><strong>Un passage à la fois</strong><p>Revenez sur une transition pour entendre le mouvement des accords.</p></div>
+                <div><span>03 / JOUER</span><strong>À vous le clavier</strong><p>Reprenez la grille au piano, à votre rythme.</p></div>
+              </div>
             </div>
           </div>
 
@@ -1663,7 +1718,7 @@
           <div class="studio-processing-box">
             <div data-chroma-stage></div>
             <h3>Préparation du morceau</h3>
-            <p id="studio-processing-label">Extraction audio en cours...</p>
+            <p id="studio-processing-label" role="status" aria-live="polite">Extraction audio en cours...</p>
             <div class="studio-processing-bar-wrap">
               <div id="studio-processing-bar" class="studio-processing-bar" style="width: 0%"></div>
             </div>
@@ -1781,6 +1836,7 @@
                marqueur dans la waveform est fin et difficile à attraper, surtout tout au début. -->
           <div class="studio-handle-rail" id="studio-handle-rail">
             <div class="studio-handle-grip" id="studio-handle-grip-start" title="Glisser pour déplacer le début de la région" style="display: none;"></div>
+            <div class="studio-handle-grip" id="studio-handle-grip-end" title="Glisser pour déplacer la fin de la région" style="display: none;"></div>
           </div>
           <div class="studio-waveform-wrap" id="studio-waveform-wrap">
             <canvas id="studio-waveform" class="studio-waveform" width="800" height="80"></canvas>
@@ -2206,21 +2262,6 @@
         </div>
       </div>
 
-      <!-- [Refonte] — Ma bibliothèque. Les morceaux importés sont un stock
-           commun au Studio et à l'Analyse (même stockage, studio-storage.js) :
-           ils méritaient donc un accès commun plutôt qu'une liste reléguée au
-           bas de l'écran d'import de l'Analyse. La liste elle-même garde son
-           id : le code qui la remplit et gère ses actions est inchangé. -->
-      <div class="modal-overlay" id="library-modal" style="display: none;">
-        <div class="modal-box library-box">
-          <h3>Ma bibliothèque</h3>
-          <input type="search" class="library-search" id="analyzer-library-search" placeholder="Rechercher un morceau…" aria-label="Rechercher un morceau">
-          <div id="analyzer-library-list"></div>
-          <div class="modal-actions">
-            <button type="button" class="btn-primary" id="library-close">Fermer</button>
-          </div>
-        </div>
-      </div>
     </div>
 
     <script type="module" src="./main.js"></script>

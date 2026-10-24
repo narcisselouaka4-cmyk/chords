@@ -55,8 +55,9 @@
 /* ── Écran d'accueil (Import source) ── */
 #analyzer-import-screen {
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   overflow-y: auto;
+  container-type: size;
 }
 
 .analyzer-import-hero {
@@ -68,6 +69,8 @@
   max-width: 640px;
   width: 100%;
   text-align: center;
+  flex-shrink: 0;
+  margin-block: auto;
 }
 
 .analyzer-import-icon {

@@ -34,7 +34,7 @@ import { parseChordName, availableTensions, degreeOf } from './note-roles.js';
 import { scaleById } from './scales.js';
 import { chordToneIntervals } from '../practice-exercise.js';
 import { guessHands } from './teacher-notes.js';
-import { buildNotesExample, buildChordExample } from './copilot-demo.js';
+import { buildNotesExample } from './copilot-demo.js';
 import { normalizeDegrees } from './tutorial-questions.js';
 import { LOW_INTERVAL_LIMITS } from '../voicing-engine/textbook-voicings.js';
 import { nameMidiChord } from '../recorder/midi-chord-namer.js';
@@ -719,7 +719,8 @@ export function passingMoves(chords, { start = 0, end = Infinity, key = null } =
   const teacherKey = key ? parseKey(key) : null;
   // Toute la grille (l'accord d'arrivée peut tomber juste après le passage), sans doublons.
   const all = [];
-  for (const c of [...(chords || [])].filter((x) => Number.isFinite(x?.start)).sort((a, b) => a.start - b.start)) {
+  for (const c of [...(chords || [])].filter((x) => Number.isFinite(x?.start)
+    && x.start < end && (x.end ?? x.start) > start).sort((a, b) => a.start - b.start)) {
     const parsed = parseChordName(c.label || c.name);
     if (!parsed) continue;
     const last = all[all.length - 1];
@@ -782,22 +783,25 @@ export function passingMoves(chords, { start = 0, end = Infinity, key = null } =
  * fondamentale, basse au demi-ton, doublon de l'accord précédent, diminué après la
  * dominante qui mène déjà à l'accord).
  */
-function chainBefore(moves, prev, target, { sharps = false, anywhere = false } = {}) {
+function sameHarmonicFunction(sourceRoot, targetRoot, sourceKey, targetKey) {
+  if (!sourceKey || !targetKey) return true;
+  const from = parseKey(sourceKey), to = parseKey(targetKey);
+  return Boolean(from && to && from.minor === to.minor
+    && pcOf(sourceRoot - from.rootPc) === pcOf(targetRoot - to.rootPc));
+}
+
+function chainBefore(moves, prev, target, { sharps = false, sourceKey = null, targetKey = null } = {}) {
   const motion = pcOf(target.rootPc - prev.rootPc);
   if (motion === 0) return null;
   const family = chordFamily(target.quality);
-  const order = FAMILY_FALLBACK[family] || FAMILY_FALLBACK.other;
-  const rank = (m) => {
-    if (m.to.family === family && m.motion === motion) return 0;
-    if (m.to.family === family) return 1;
-    if (m.motion === motion) return 2;
-    const f = order.indexOf(m.to.family);
-    return 3 + (f < 0 ? order.length : f);
-  };
-  const move = [...moves].sort((a, b) => rank(a) - rank(b) || a.time - b.time)[0];
+  // Le même accord d'arrivée seul ne suffit pas : un I → vi ne devient pas un ii → V.
+  const move = [...moves].filter((m) => m.from
+    && m.from.family === chordFamily(prev.quality)
+    && m.to.family === family && m.motion === motion
+    && sameHarmonicFunction(m.from.rootPc, prev.rootPc, sourceKey, targetKey)
+    && sameHarmonicFunction(m.to.rootPc, target.rootPc, sourceKey, targetKey))
+    .sort((a, b) => a.time - b.time)[0];
   if (!move) return null;
-  // Là où il s'en sert : devant le même genre d'accord, ou par le même mouvement de basse.
-  if (!anywhere && rank(move) > 2) return null;
   // Basse qui avance d'un demi-ton : pas de passage, sauf si le prof en mettait un là.
   if ((motion === 1 || motion === 11) && move.motion !== motion) return null;
   const steps = move.chain.map((step) => {
@@ -807,6 +811,7 @@ function chainBefore(moves, prev, target, { sharps = false, anywhere = false } =
     return {
       name: `${spellFromArrival(target, step.interval, sharps)}${quality}${bass}`,
       rootPc,
+      bassPc: step.bassInterval != null ? pcOf(target.rootPc + step.bassInterval) : null,
       family: chordFamily(quality),
       passing: true,
       share: step.share,
@@ -816,7 +821,8 @@ function chainBefore(moves, prev, target, { sharps = false, anywhere = false } =
     };
   });
   const prevFamily = chordFamily(prev.quality);
-  if (steps.some((st) => st.rootPc === prev.rootPc && st.family === prevFamily)) return null;
+  if (steps.some((st) => st.rootPc === prev.rootPc && st.family === prevFamily
+    && (st.bassPc ?? st.rootPc) === (prev.bassPc ?? prev.rootPc))) return null;
   if (steps[0].family === 'dim' && pcOf(prev.rootPc - target.rootPc) === 7 && prevFamily === 'dominant') return null;
   return steps;
 }
@@ -828,31 +834,26 @@ const PASSING_SLOT = 2;
  * La progression demandée avec les accords de passage du prof, là où il s'en sert :
  * devant le même genre d'accord que dans la vidéo, ou quand la basse fait le même
  * mouvement (sa substitution tritonique de V → I va sur chaque quinte descendante, son
- * diminué sur la sensible devant chaque accord mineur). Si la progression n'en offre
- * aucune place, devant chaque accord (`everywhere`). Chaque passage prend sur l'accord
+ * diminué sur la sensible devant chaque accord mineur). Si la progression ne contient
+ * pas le même départ, la même arrivée et le même déplacement, aucun passage n'est ajouté. Chaque passage prend sur l'accord
  * qui le précède la part qu'il avait chez le prof.
  * @param {object[]} moves - passingMoves().moves
  * @param {string[]} targets - accords de la progression
  * @param {{sharps?: boolean}} [options] - noms en dièses (sinon en bémols, hors lettre évidente)
  * @returns {{sequence: {name: string, passing: boolean, seconds: number, relation?: string, teacher?: string}[], everywhere: boolean}}
  */
-export function applyPassingMoves(moves, targets, { sharps = false } = {}) {
+export function applyPassingMoves(moves, targets, { sharps = false, sourceKey = null, targetKey = null } = {}) {
   const parsed = (targets || []).map((t) => parseChordName(t)).filter(Boolean);
-  const build = (anywhere) => {
+  const build = () => {
     const list = [];
     parsed.forEach((t, i) => {
-      const chain = i > 0 && moves?.length ? chainBefore(moves, parsed[i - 1], t, { sharps, anywhere }) : null;
+      const chain = i > 0 && moves?.length ? chainBefore(moves, parsed[i - 1], t, { sharps, sourceKey, targetKey }) : null;
       if (chain) list.push(...chain);
       list.push({ name: t.name, passing: false });
     });
     return list;
   };
-  let sequence = build(false);
-  let everywhere = false;
-  if (!sequence.some((c) => c.passing)) {
-    const loose = build(true);
-    if (loose.some((c) => c.passing)) { sequence = loose; everywhere = true; }
-  }
+  const sequence = build();
   // Durées : un passage prend sur l'accord principal qui le précède (60 % au plus).
   for (let i = 0; i < sequence.length; i += 1) {
     if (sequence[i].passing) continue;
@@ -865,7 +866,7 @@ export function applyPassingMoves(moves, targets, { sharps = false } = {}) {
       sequence[k].seconds = Math.max(0.35, Math.round(PASSING_SLOT * sequence[k].share * (total / shares) * 100) / 100);
     }
   }
-  return { sequence, everywhere };
+  return { sequence, everywhere: false };
 }
 
 // ── Licks, runs et fills : la ligne du prof, note par note ──────────────────────
@@ -1064,15 +1065,14 @@ export function realizeLick(lick, targets) {
 /**
  * Où poser la ligne dans la progression : sur chaque accord du même genre que celui du
  * prof (ligne sur un accord) ; sur chaque paire d'accords qui fait le même mouvement que
- * chez lui (ligne de V → I, de II → V… : sur les autres quintes descendantes, les rôles
- * s'adaptent : sa 3 devient la b3 d'un accord mineur), d'abord celles dont les accords
+ * chez lui (ligne de V → I, de II → V… : mêmes familles de départ et d'arrivée), d'abord celles dont les accords
  * sont du même genre que les siens, puis les plus proches de la fin. Jamais deux fois sur
- * le même accord. Sans place de ce genre, sur chaque accord ou chaque paire (`everywhere`).
+ * le même accord. Sans contexte compatible, aucune pose n'est proposée.
  * @param {object} lick - lickLine()
  * @param {object[]} parsed - accords de la progression (parseChordName)
  * @returns {{at: number[], everywhere: boolean}} rang du premier accord de chaque pose, dans l'ordre
  */
-export function lickPlacements(lick, parsed) {
+export function lickPlacements(lick, parsed, { sourceKey = null, targetKey = null } = {}) {
   const k = lick.chords.length;
   const families = lick.chords.map((c) => chordFamily(c.quality));
   const motion = k === 2 ? pcOf(lick.chords[1].rootPc - lick.chords[0].rootPc) : null;
@@ -1080,7 +1080,8 @@ export function lickPlacements(lick, parsed) {
   for (let j = 0; j + k <= parsed.length; j += 1) {
     const same = parsed.slice(j, j + k).filter((c, i) => chordFamily(c.quality) === families[i]).length;
     const moves = k === 2 ? pcOf(parsed[j + 1].rootPc - parsed[j].rootPc) : null;
-    candidates.push({ j, same, strict: k === 1 ? same === 1 : moves === motion, loose: k === 1 || moves !== 0 });
+    const functions = k === 1 || lick.chords.every((c, i) => sameHarmonicFunction(c.rootPc, parsed[j + i].rootPc, sourceKey, targetKey));
+    candidates.push({ j, same, strict: same === k && (k === 1 || moves === motion) && functions });
   }
   const pick = (key) => {
     const taken = new Set();
@@ -1094,8 +1095,7 @@ export function lickPlacements(lick, parsed) {
     return at.sort((a, b) => a - b);
   };
   const strict = pick('strict');
-  if (strict.length) return { at: strict, everywhere: false };
-  return { at: pick('loose'), everywhere: true };
+  return { at: strict, everywhere: false };
 }
 
 // ── L'outil, de bout en bout ────────────────────────────────────────────────────
@@ -1113,32 +1113,50 @@ const describeUsed = (used) => used.map((sh) => `${clock(sh.time)} ${sh.label}`
 
 /** Cas 1 : ses voicings sur la progression. */
 function transferVoicings({ notes, chords, from, to, list, title, sharps }) {
-  const shapes = voicingShapes(notes, chords, { start: from, end: to });
+  const shapes = voicingShapes(notes, chords, { start: from, end: to }).filter((s) => !s.unsure);
   if (!shapes.length) return { example: null, text: '', error: `Je n'ai pas trouvé d'accord du prof assez net entre ${clock(from)} et ${clock(to)} pour en reprendre le voicing.` };
   const realized = applyVoicings(shapes, list);
-  const head = `_Voicings repris du prof (${describeUsed(usedShapes(realized, shapes))}) :_`;
+  if (realized.length !== list.length) return { example: null, text: '', error: 'Les voicings ne peuvent pas être réalisés sur tous les accords demandés.' };
+  for (const c of realized) {
+    const sh = shapes.find((s) => s.id === c.fromId);
+    const missing = [...sh.hands.lh, ...sh.hands.rh].find((slot) => intervalForRole(slot, parseChordName(c.name).quality) === null);
+    if (missing) return { example: null, text: '', error: `Le rôle ${roleLabel(missing, sh.quality)} du voicing source n’existe pas dans ${c.name}. Le remplacer par une autre note changerait le procédé. Précise un accord cible qui conserve ce rôle.` };
+  }
+  const head = `_Adaptation des rôles du voicing (${describeUsed(usedShapes(realized, shapes))}). Les tierces, septièmes et couleurs sont adaptées aux accords cibles ; ce n’est pas une copie du mouvement harmonique :_`;
   const example = chordsExample(realized, {
     title: title || `Ses voicings sur ${list.join(' → ')}`,
     subtitle: `Repris de ${clock(from)}–${clock(to)} · ${realized.length} accords`,
   });
-  return { example, text: [head, ...realized.map((c) => realizedLine(c, { sharps }))].join('\n') };
+  return { example, summary: `Je reprends la répartition et les rôles des notes du voicing sur ${list.join(' → ')}. Les tierces, septièmes et couleurs suivent les accords cibles. Cela reprend le voicing, pas le mouvement harmonique complet.`, text: [head, ...realized.map((c) => realizedLine(c, { sharps }))].join('\n') };
 }
 
 /** Cas 2 : ses accords de passage, glissés dans la progression, avec ses voicings. */
-function transferPassingChords({ notes, chords, from, to, list, title, sharps, key, found = null }) {
+function transferPassingChords({ notes, chords, from, to, list, title, sharps, key, targetKey, found = null, passingOnly = false }) {
   const { chords: played, moves } = found || passingMoves(chords, { start: from, end: to, key });
-  const withVoicings = (why) => {
-    const fallback = transferVoicings({ notes, chords, from, to, list, title, sharps });
-    const note = `_(${why} Voici ses voicings sur ta progression.)_`;
-    return fallback.example ? { ...fallback, text: `${note}\n${fallback.text}` } : { ...fallback, error: `${why}` };
-  };
   if (!moves.length) {
     const grid = played.map((c) => c.name).join(' → ') || 'aucun accord relevé';
-    return withVoicings(`Pas d'accord de passage entre ${clock(from)} et ${clock(to)} : il enchaîne directement ${grid}.`);
+    if (played.length >= 2 && !passingOnly) {
+      const targets = list.map((name) => ({ ...parseChordName(name), family: chordFamily(parseChordName(name).quality) }));
+      const placements = [];
+      for (let i = 0; i + played.length <= targets.length; i += 1) {
+        const shift = pcOf(targets[i].rootPc - played[0].rootPc);
+        if (played.every((c, j) => c.family === targets[i + j].family && pcOf(targets[i + j].rootPc - c.rootPc) === shift
+          && sameHarmonicFunction(c.rootPc, targets[i + j].rootPc, key, targetKey))) placements.push(i);
+      }
+      if (placements.length) {
+        const adapted = transferVoicings({ notes, chords, from, to, list, title, sharps });
+        if (!adapted.example) return adapted;
+        const summary = `Le mouvement direct ${grid} se retrouve sur ${placements.map((i) => list.slice(i, i + played.length).join(' → ')).join(' ; ')} : mêmes familles d’accords et mêmes déplacements de fondamentale. Aucun accord de passage ajouté.`;
+        return { ...adapted, summary, text: `_${summary}_\n${adapted.text}` };
+      }
+      return { example: null, text: '', error: `Le mouvement direct relevé est ${grid}. Je ne retrouve pas cette suite de degrés, de familles d'accords et de déplacements de fondamentale dans ${list.join(' → ')}. L'y appliquer changerait le mouvement ; je ne le joue pas. Tu peux demander d'adapter seulement la répartition des notes du voicing.` };
+    }
+    return { example: null, text: '', error: `Pas d'accord de passage identifié entre ${clock(from)} et ${clock(to)} : le relevé donne ${grid}. Je ne peux pas lui attribuer un accord de passage ni le remplacer par un autre procédé. Sélectionne un passage qui contient le mouvement voulu, ou demande explicitement d'adapter seulement le voicing.` };
   }
-  const { sequence, everywhere } = applyPassingMoves(moves, list, { sharps });
+  const { sequence, everywhere } = applyPassingMoves(moves, list, { sharps, sourceKey: key, targetKey });
   if (!sequence.some((c) => c.passing)) {
-    return withVoicings('Ses accords de passage ne trouvent pas de place dans cette progression (même fondamentale ou basse au demi-ton d\'un accord à l\'autre).');
+    const source = moves.map((m) => [m.from?.name, ...m.chain.map((c) => c.name), m.to.name].filter(Boolean).join(' → ')).join(' ; ');
+    return { example: null, text: '', error: `Le mouvement relevé (${source}) ne trouve pas de contexte compatible dans ${list.join(' → ')} : il faut conserver les degrés dans la tonalité, les familles des accords de départ et d'arrivée ainsi que leur déplacement de fondamentale. Le placer ici changerait son fonctionnement. Je ne le joue pas ; tu peux choisir une autre progression ou demander seulement le voicing.` };
   }
   const where = everywhere ? ' (ta progression ne fait nulle part son mouvement : glissé devant chaque accord)' : '';
   const head = `_Enchaînement repris du prof (${moves.map((m) => `${clock(m.time)} : ${[m.from?.name, ...m.chain.map((c) => c.name), m.to.name].filter(Boolean).join(' → ')}, ${m.chain.map((c) => c.relation).join(', puis ')}`).join(' ; ')})${where} :_`;
@@ -1150,43 +1168,20 @@ function transferPassingChords({ notes, chords, from, to, list, title, sharps, k
   if (realized.length === sequence.length) {
     const voicings = `_Joués avec ses voicings (${describeUsed(usedShapes(realized, shapes))}) :_`;
     const example = chordsExample(realized, { title: exampleTitle, subtitle });
-    return { example, text: [head, voicings, ...realized.map((c) => realizedLine(c, { sharps }))].join('\n') };
+    return { example, summary: `Les accords de passage de ${moves.map((m) => [m.from?.name, ...m.chain.map((c) => c.name), m.to.name].filter(Boolean).join(' → ')).join(' ; ')} sont repris uniquement aux endroits compatibles de ${list.join(' → ')}. Le départ, l’arrivée et leur déplacement harmonique sont conservés.`, text: [head, voicings, ...realized.map((c) => realizedLine(c, { sharps }))].join('\n') };
   }
-  // Ses voicings illisibles dans ce passage : ceux de l'application, enchaînés.
-  const example = buildChordExample(sequence.map((c) => c.name), { styleId: 'auto' });
-  if (!example) return { example: null, text: '', error: 'Je n\'ai pas pu faire jouer cette progression avec ses accords de passage.' };
-  example.kind = 'tutorial-transfer';
-  example.title = exampleTitle;
-  example.subtitle = subtitle;
-  const lines = (example.chords || []).map((c, i) => (c.leftHand || c.rightHand
-    ? realizedLine({ name: c.name, leftHand: c.leftHand || [], rightHand: c.rightHand || [], passing: sequence[i]?.passing }, { sharps })
-    : `- ${sequence[i]?.passing ? `_${c.name}_ (passage)` : `**${c.name}**`}`));
-  return { example, text: [head, '_Ses voicings n\'ont pas pu être lus dans ce passage : voicings de l\'application._', ...lines].join('\n') };
-}
-
-/** Accompagnement simple quand le prof n'a pas de forme lisible : fondamentale et 7e (ou quinte), au grave. */
-function shellFor(chord, side = 'lh') {
-  const tones = chordToneIntervals(chord.quality);
-  const upper = tones.has(10) ? 10 : tones.has(11) ? 11 : tones.has(9) && DIM7.test(chord.quality) ? 9 : 7;
-  if (side === 'rh') {
-    const third = tones.has(3) && !tones.has(4) ? 3 : 4;
-    const low = 60 + pcOf(chord.rootPc + third - 60);
-    return [low, low + pcOf(upper - third)];
-  }
-  const root = 36 + pcOf(chord.rootPc - 36);
-  return [root, root + upper];
+  return { example: null, text: '', error: 'Le mouvement harmonique est compatible, mais les notes de ses voicings ne sont pas assez lisibles pour produire une adaptation fidèle. Je ne les remplace pas par des accords inventés.' };
 }
 
 /** Cas 3 : sa ligne (lick, run, fill) posée sur la progression, ses voicings en accompagnement. */
-function transferLick({ notes, chords, from, to, list, title, sharps, found = null }) {
+function transferLick({ notes, chords, from, to, list, title, sharps, key, targetKey, found = null }) {
   const lick = found || lickLine(notes, chords, { start: from, end: to });
   if (!lick) {
-    const fallback = transferVoicings({ notes, chords, from, to, list, title, sharps });
-    const why = `Pas de ligne de notes seules (lick, run, fill) entre ${clock(from)} et ${clock(to)} : il y joue des accords.`;
-    return fallback.example ? { ...fallback, text: `_(${why} Voici ses voicings sur ta progression.)_\n${fallback.text}` } : { ...fallback, error: why };
+    return { example: null, text: '', error: `Pas de ligne de notes seules (lick, run, fill) identifiée entre ${clock(from)} et ${clock(to)}. Je ne peux pas inventer ce lick à partir des accords. Sélectionne sa ligne, ou demande d'adapter les voicings.` };
   }
   const parsed = list.map((name) => parseChordName(name));
-  const { at, everywhere } = lickPlacements(lick, parsed);
+  const { at, everywhere } = lickPlacements(lick, parsed, { sourceKey: key, targetKey });
+  if (!at.length) return { example: null, text: '', error: `La ligne relevée repose sur ${lick.chords.map((c) => c.name).join(' → ')}. Je ne retrouve pas ses familles d'accords et, pour une ligne entre deux accords, ses degrés et son mouvement dans ${list.join(' → ')}. L'y placer modifierait son appui harmonique ; je ne la joue pas arbitrairement.` };
   const k = lick.chords.length;
   const span = lick.end - lick.start;
   const pre = k === 2 ? Math.max(0, lick.chords[1].start - lick.start) : 0;
@@ -1223,13 +1218,15 @@ function transferLick({ notes, chords, from, to, list, title, sharps, found = nu
     lines.push(`- **${label}**${repeated ? ` (${j + 1}e accord)` : ''} : ${handWord} ${names.join(' ')}`);
   }
   // Ses voicings en accompagnement : l'autre main toujours, la main de la ligne là où elle ne joue pas.
-  const shapes = voicingShapes(notes, chords, { start: from, end: to });
+  const shapes = voicingShapes(notes, chords, { start: from, end: to }).filter((s) => !s.unsure);
   const realized = shapes.length ? applyVoicings(shapes, list) : [];
   parsed.forEach((chord, i) => {
-    const r = realized.length === parsed.length ? realized[i] : null;
+    let r = realized.length === parsed.length ? realized[i] : null;
+    const sourceShape = r && shapes.find((s) => s.id === r.fromId);
+    if (sourceShape && [...sourceShape.hands.lh, ...sourceShape.hands.rh].some((slot) => intervalForRole(slot, chord.quality) === null)) r = null;
     const other = lick.hand === 'lh' ? 'rightHand' : 'leftHand';
     const own = lick.hand === 'lh' ? 'leftHand' : 'rightHand';
-    let accompaniment = r?.[other]?.length ? r[other] : shellFor(chord, lick.hand === 'lh' ? 'rh' : 'lh');
+    const accompaniment = r?.[other] || [];
     const parts = [[accompaniment, lick.hand === 'lh' ? 'RH' : 'LH']];
     if (!covered.has(i) && r?.[own]?.length) parts.push([r[own], lickHand]);
     for (const [list2, hand] of parts) {
@@ -1244,8 +1241,8 @@ function transferLick({ notes, chords, from, to, list, title, sharps, found = nu
   if (example) example.chords = parsed.map((c, i) => ({ name: c.name, leftHand: [], rightHand: [], lick: covered.has(i) }));
   const where = everywhere ? ` ; ta progression n'a pas d'accord de ce genre : posé sur ${k === 1 ? 'chaque accord' : 'chaque enchaînement'}` : '';
   const head = `_Lick repris du prof (${clock(lick.start)}–${clock(lick.end)}, ${handWord}, sur ${lick.chords.map((c) => c.name).join(' → ')} : ${describeLick(lick)} ; entre parenthèses, les notes chromatiques${where}) :_`;
-  const accompaniment = shapes.length ? '_Accompagné de ses voicings._' : '_Accompagné de la fondamentale et de la 7e (ses voicings n\'ont pas pu être lus dans ce passage)._';
-  return { example, text: [head, ...lines, accompaniment].join('\n') };
+  const accompaniment = shapes.length ? '_Accompagné de ses voicings là où leurs rôles peuvent être conservés._' : '_Ligne seule : aucun accompagnement ajouté, ses voicings n’ont pas pu être lus dans ce passage._';
+  return { example, summary: `La ligne sur ${lick.chords.map((c) => c.name).join(' → ')} trouve le même appui harmonique sur ${at.map((j) => list.slice(j, j + k).join(' → ')).join(' ; ')}. Ses rôles, son contour et son rythme sont repris à ces endroits seulement.`, text: [head, ...lines, accompaniment].join('\n') };
 }
 
 /**
@@ -1265,23 +1262,42 @@ function transferLick({ notes, chords, from, to, list, title, sharps, found = nu
  *   relation connue (diminué, dominante…) est un accord de passage même s'il dure
  * @returns {{example: object|null, text: string, error?: string}}
  */
-export function applyTutorialPassage({ notes = [], chords = [], start, end, what = 'voicing', targets = [], title = '', key = null } = {}) {
+export function applyTutorialPassage({ notes = [], chords = [], start, end, what = 'voicing', targets = [], title = '', key = null, targetKey = null, passingOnly = false } = {}) {
   const from = Math.max(0, Number(start) || 0);
   // [Claude] — 2026-10-03 — Toute la plage choisie (10 min au plus), plus seulement 30 s.
   const to = Math.min(Number(end) || from + 20, from + MAX_PASSAGE_SECONDS);
-  const list = (targets || []).map((t) => String(t || '').trim()).filter((t) => parseChordName(t));
+  const list = (Array.isArray(targets) ? targets : []).map((t) => String(t || '').trim());
   if (!list.length) return { example: null, text: '', error: 'Aucun accord cible reconnu.' };
+  if (list.some((t) => !t || !parseChordName(t))) return { example: null, text: '', error: 'Un accord cible n’est pas reconnu. Précise tous les accords de la progression ; je ne supprime pas les accords inconnus.' };
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return { example: null, text: '', error: 'Choisis le début et la fin du passage à adapter.' };
+  if (!['auto', 'voicing', 'enchainement', 'lick'].includes(what)) return { example: null, text: '', error: 'Précise ce que tu veux reprendre : le voicing, le mouvement harmonique ou la ligne mélodique.' };
+  // La grille seule ne suffit pas à certifier les notes de la source.
+  if (!notes.some((n) => Number.isFinite(n.midi) && n.start >= from && n.start < to)) return { example: null, text: '', error: 'Je n’ai pas les notes jouées dans ce passage. Je ne peux pas produire une adaptation fidèle à partir de la grille seule.' };
   const sharps = prefersSharps(list);
-  const input = { notes, chords, from, to, list, title, sharps, key };
+  // Les mouvements utilisent les accords vérifiés par les notes, lorsque leur lecture
+  // contredit l'étiquette ; une grille seule ne peut imposer une fonction harmonique.
+  const shapes = voicingShapes(notes, chords, { start: from, end: to });
+  if (what === 'enchainement') {
+    const sourceChords = chords.filter((c) => c.start < to && c.end > from).sort((a, b) => a.start - b.start);
+    if (sourceChords.some((c, i) => i > 0 && c.start - sourceChords[i - 1].end > 1)) return { example: null, text: '', error: 'Le relevé contient une interruption entre ces accords. Je ne peux pas les assembler comme un mouvement continu ; sélectionne un seul enchaînement joué.' };
+    const missing = chords.find((c) => c.start < to && c.end > from
+      && (c.uncertain || !shapes.some((s) => !s.unsure && s.time >= Math.max(from, c.start) - 0.15 && s.time < Math.min(to, c.end))));
+    if (missing) return { example: null, text: '', error: `Les notes de ${missing.label || missing.name || 'cet accord'} vers ${clock(missing.start)} ne permettent pas de vérifier le mouvement complet. Je ne peux pas adapter cette suite à partir des seules étiquettes.` };
+  }
+  const checkedChords = chords.map((c) => {
+    const sh = shapes.find((s) => !s.unsure && s.time >= c.start - 0.15 && s.time < c.end);
+    return sh?.renamed ? { ...c, label: sh.label } : c;
+  });
+  const input = { notes, chords: checkedChords, from, to, list, title, sharps, key, targetKey, passingOnly };
   let kind = what || 'auto';
   if (kind === 'auto') {
-    const line = lickLine(notes, chords, { start: from, end: to });
+    const line = lickLine(notes, checkedChords, { start: from, end: to });
     if (line && line.end >= from + (to - from) / 2) return transferLick({ ...input, found: line });
-    const found = passingMoves(chords, { start: from, end: to, key });
+    const found = passingMoves(checkedChords, { start: from, end: to, key });
     if (found.moves.length) return transferPassingChords({ ...input, found });
     kind = 'voicing';
   }
   if (kind === 'enchainement') return transferPassingChords(input);
   if (kind === 'lick') return transferLick(input);
-  return transferVoicings(input);
+  return transferVoicings({ ...input, chords });
 }

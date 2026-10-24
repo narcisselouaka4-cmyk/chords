@@ -165,9 +165,9 @@ function testDomContract() {
   check(['exercise-grid-top', 'exercise-grid-cancel', 'exercise-grid-name', 'exercise-grid-save', 'exercise-grid-status']
     .every((id) => html.includes(`id="${id}"`)),
     'DOM — Ma grille : note du dessus, modification d\'un accord, enregistrement nommé');
-  // [Claude] — 2026-09-24 (nuit) — Niveau lu aux accords de passage (règle de Narcisse).
-  check(['sans passage', 'passages diminués', 'passages 7b9, 7#5, 7b5', 'passages altérés'].every((label) => html.includes(label)),
-    'DOM — Niveaux : accords de passage par niveau (diminués, 7b9 / 7#5 / 7b5, altérés)');
+  // Les couleurs décrivent le contenu musical, sans classer le pianiste.
+  check(['sans passage', 'passages diminués', 'passages 7b9, 7#5, 7b5', 'passages alt, #9'].every((label) => html.includes(label)),
+    'DOM — Couleurs et passages disponibles sans étiquette de niveau');
 
   // CSS : panneaux jamais branchés (voir plus haut) + navigation réelle. Les
   // styles du rail et des tiroirs (.app-rail, .rail-btn, .domain-drawer,

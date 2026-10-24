@@ -1,0 +1,486 @@
+{
+  "provenance": "Fragment du relevé existant fourni avec la conversation ; pas une vérité terrain musicale manuelle.",
+  "context": {
+    "type": "tutorial",
+    "path": "/fixture/no-ways-tired.mp4",
+    "name": "This Pianist Stuns Cory Henry With Nasty 7-3-6 on No Ways Tired.mp4",
+    "key": "E",
+    "moment": {
+      "start": 35,
+      "end": 51,
+      "now": 51
+    },
+    "chords": [
+      {
+        "start": 42.017,
+        "end": 43.108,
+        "label": "B7♯9♯11"
+      },
+      {
+        "start": 43,
+        "end": 43.75,
+        "label": "E7♯5"
+      },
+      {
+        "start": 43.75,
+        "end": 46.125,
+        "label": "A7sus4"
+      },
+      {
+        "start": 46.125,
+        "end": 47.375,
+        "label": "B7♯9♯11"
+      },
+      {
+        "start": 47.375,
+        "end": 48.375,
+        "label": "E7♯5"
+      },
+      {
+        "start": 49.125,
+        "end": 50.875,
+        "label": "A7sus4"
+      }
+    ],
+    "noteEvents": [
+      {
+        "midi": 47,
+        "start": 40.04,
+        "end": 40.14,
+        "hand": null,
+        "velocity": 0.9,
+        "from": "son",
+        "kind": "gap"
+      },
+      {
+        "midi": 47,
+        "start": 40.16,
+        "end": 40.25,
+        "hand": null,
+        "velocity": 0.9,
+        "from": "son",
+        "kind": "gap"
+      },
+      {
+        "midi": 46,
+        "start": 40.23,
+        "end": 40.29,
+        "hand": null,
+        "velocity": 0.9,
+        "from": "son",
+        "kind": "gap"
+      },
+      {
+        "midi": 43,
+        "start": 40.32,
+        "end": 40.41,
+        "hand": null,
+        "velocity": 0.865,
+        "from": "son",
+        "kind": "gap"
+      },
+      {
+        "midi": 47,
+        "start": 40.54,
+        "end": 40.59,
+        "hand": null,
+        "velocity": 0.95,
+        "from": "son",
+        "kind": "gap"
+      },
+      {
+        "midi": 46,
+        "start": 40.56,
+        "end": 40.62,
+        "hand": null,
+        "velocity": 0.95,
+        "from": "son",
+        "kind": "gap"
+      },
+      {
+        "midi": 43,
+        "start": 40.75,
+        "end": 40.82,
+        "hand": null,
+        "velocity": 0.804,
+        "from": "son",
+        "kind": "gap"
+      },
+      {
+        "midi": 77,
+        "start": 40.76,
+        "end": 40.82,
+        "hand": null,
+        "velocity": 0.804,
+        "from": "son",
+        "kind": "gap"
+      },
+      {
+        "midi": 81,
+        "start": 40.76,
+        "end": 40.81,
+        "hand": null,
+        "velocity": 0.804,
+        "from": "son",
+        "kind": "gap"
+      },
+      {
+        "midi": 54,
+        "start": 41.28,
+        "end": 41.32,
+        "hand": null,
+        "velocity": 0.663
+      },
+      {
+        "midi": 59,
+        "start": 41.28,
+        "end": 41.38,
+        "hand": null,
+        "velocity": 0.663
+      },
+      {
+        "midi": 62,
+        "start": 41.28,
+        "end": 41.42,
+        "hand": null,
+        "velocity": 0.663
+      },
+      {
+        "midi": 55,
+        "start": 41.52,
+        "end": 41.58,
+        "hand": null,
+        "velocity": 0.764
+      },
+      {
+        "midi": 60,
+        "start": 41.52,
+        "end": 41.62,
+        "hand": null,
+        "velocity": 0.764
+      },
+      {
+        "midi": 63,
+        "start": 41.52,
+        "end": 41.65,
+        "hand": null,
+        "velocity": 0.764
+      },
+      {
+        "midi": 56,
+        "start": 41.72,
+        "end": 41.82,
+        "hand": null,
+        "velocity": 0.807
+      },
+      {
+        "midi": 61,
+        "start": 41.72,
+        "end": 41.92,
+        "hand": null,
+        "velocity": 0.807
+      },
+      {
+        "midi": 64,
+        "start": 41.72,
+        "end": 41.85,
+        "hand": null,
+        "velocity": 0.807
+      },
+      {
+        "midi": 47,
+        "start": 42.05,
+        "end": 42.75,
+        "hand": null,
+        "velocity": 0.801
+      },
+      {
+        "midi": 51,
+        "start": 42.05,
+        "end": 42.78,
+        "hand": null,
+        "velocity": 0.801
+      },
+      {
+        "midi": 54,
+        "start": 42.05,
+        "end": 42.75,
+        "hand": null,
+        "velocity": 0.801
+      },
+      {
+        "midi": 57,
+        "start": 42.05,
+        "end": 42.88,
+        "hand": null,
+        "velocity": 0.801
+      },
+      {
+        "midi": 62,
+        "start": 42.05,
+        "end": 42.85,
+        "hand": null,
+        "velocity": 0.801
+      },
+      {
+        "midi": 65,
+        "start": 42.05,
+        "end": 42.85,
+        "hand": null,
+        "velocity": 0.801
+      },
+      {
+        "midi": 40,
+        "start": 43.13,
+        "end": 43.63,
+        "hand": null,
+        "velocity": 0.751
+      },
+      {
+        "midi": 50,
+        "start": 43.13,
+        "end": 43.63,
+        "hand": null,
+        "velocity": 0.751
+      },
+      {
+        "midi": 56,
+        "start": 43.13,
+        "end": 43.63,
+        "hand": null,
+        "velocity": 0.751
+      },
+      {
+        "midi": 60,
+        "start": 43.13,
+        "end": 43.63,
+        "hand": null,
+        "velocity": 0.751
+      },
+      {
+        "midi": 64,
+        "start": 43.13,
+        "end": 43.63,
+        "hand": null,
+        "velocity": 0.751
+      },
+      {
+        "midi": 59,
+        "start": 43.88,
+        "end": 44,
+        "hand": null,
+        "velocity": 0.812
+      },
+      {
+        "midi": 64,
+        "start": 43.88,
+        "end": 44,
+        "hand": null,
+        "velocity": 0.812
+      },
+      {
+        "midi": 69,
+        "start": 43.88,
+        "end": 44,
+        "hand": null,
+        "velocity": 0.812
+      },
+      {
+        "midi": 45,
+        "start": 44.25,
+        "end": 45.63,
+        "hand": null,
+        "velocity": 0.695
+      },
+      {
+        "midi": 52,
+        "start": 44.25,
+        "end": 45.63,
+        "hand": null,
+        "velocity": 0.695
+      },
+      {
+        "midi": 55,
+        "start": 44.25,
+        "end": 45.63,
+        "hand": null,
+        "velocity": 0.695
+      },
+      {
+        "midi": 57,
+        "start": 44.25,
+        "end": 45.63,
+        "hand": null,
+        "velocity": 0.695
+      },
+      {
+        "midi": 62,
+        "start": 44.25,
+        "end": 45.63,
+        "hand": null,
+        "velocity": 0.695
+      },
+      {
+        "midi": 67,
+        "start": 44.25,
+        "end": 45.63,
+        "hand": null,
+        "velocity": 0.695
+      },
+      {
+        "midi": 47,
+        "start": 46.25,
+        "end": 47.13,
+        "hand": null,
+        "velocity": 0.865
+      },
+      {
+        "midi": 57,
+        "start": 46.25,
+        "end": 47.13,
+        "hand": null,
+        "velocity": 0.865
+      },
+      {
+        "midi": 51,
+        "start": 46.38,
+        "end": 47.13,
+        "hand": null,
+        "velocity": 0.698
+      },
+      {
+        "midi": 54,
+        "start": 46.38,
+        "end": 47.13,
+        "hand": null,
+        "velocity": 0.698
+      },
+      {
+        "midi": 62,
+        "start": 46.38,
+        "end": 47.13,
+        "hand": null,
+        "velocity": 0.698
+      },
+      {
+        "midi": 65,
+        "start": 46.38,
+        "end": 47.13,
+        "hand": null,
+        "velocity": 0.698
+      },
+      {
+        "midi": 40,
+        "start": 47.5,
+        "end": 48.25,
+        "hand": null,
+        "velocity": 0.721
+      },
+      {
+        "midi": 50,
+        "start": 47.5,
+        "end": 48.25,
+        "hand": null,
+        "velocity": 0.721
+      },
+      {
+        "midi": 56,
+        "start": 47.5,
+        "end": 48.25,
+        "hand": null,
+        "velocity": 0.721
+      },
+      {
+        "midi": 60,
+        "start": 47.5,
+        "end": 48.25,
+        "hand": null,
+        "velocity": 0.721
+      },
+      {
+        "midi": 64,
+        "start": 47.5,
+        "end": 48.25,
+        "hand": null,
+        "velocity": 0.721
+      },
+      {
+        "midi": 69,
+        "start": 48.88,
+        "end": 49,
+        "hand": null,
+        "velocity": 0.796
+      },
+      {
+        "midi": 45,
+        "start": 49.25,
+        "end": 50.75,
+        "hand": null,
+        "velocity": 0.61
+      },
+      {
+        "midi": 52,
+        "start": 49.25,
+        "end": 50.75,
+        "hand": null,
+        "velocity": 0.61
+      },
+      {
+        "midi": 55,
+        "start": 49.25,
+        "end": 50.75,
+        "hand": null,
+        "velocity": 0.61
+      },
+      {
+        "midi": 57,
+        "start": 49.25,
+        "end": 50.75,
+        "hand": null,
+        "velocity": 0.61
+      },
+      {
+        "midi": 62,
+        "start": 49.25,
+        "end": 50.75,
+        "hand": null,
+        "velocity": 0.61
+      },
+      {
+        "midi": 67,
+        "start": 49.25,
+        "end": 50.75,
+        "hand": null,
+        "velocity": 0.61
+      }
+    ],
+    "transcript": [
+      {
+        "start": 27.24,
+        "end": 28.48,
+        "text": "He was playing in the key of C.",
+        "chord": "C",
+        "chordStart": 25.375,
+        "nearest": true
+      }
+    ]
+  },
+  "questions": [
+    "bon je comprend pas l'anglais il raconte quoi là ?",
+    "fait moi exemple de 7-3-6 qu'il vient de montrer",
+    "ta compris la vidéo non ?",
+    "fait moi une démonstration",
+    "mais c'est quoi ça ? comble les licks par des accords au moins",
+    "Applique le 7-3-6 de la vidéo à la progression 1-6-2-5 en Mi.",
+    "je veux conserver ce qui est possible de conserver"
+  ],
+  "legacyTransferQuestion": "Applique le 7-3-6 de la vidéo à la progression 1-6-2-5 en Mi.",
+  "legacyFollowup": "je veux conserver ce qui est possible de conserver",
+  "followupQuestions": [
+    "fait moi exemple de 7-3-6 qu'il vient de montrer",
+    "un autre exemple",
+    "c'est pas dans la vidéo ça ?",
+    "Applique le 7-3-6 de la vidéo à la progression 1-6-2-5 en Mi.",
+    "tu peut le jouer entre le 1-6 comme mouvement de passage"
+  ]
+}

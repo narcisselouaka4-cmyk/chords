@@ -473,8 +473,10 @@
    juste à une échelle proche de la maquette retenue. */
 :root[data-skin-choice='velours'][data-velours-surface='analysis'] .analyzer-import-hero {
   max-width: 760px;
-  gap: 20px;
-  padding: 40px;
+  /* Adapter les espaces à la scène disponible (clavier ouvert, zoom système),
+     pas réduire les textes ni masquer une barre nécessaire sur petit écran. */
+  gap: clamp(10px, 2cqh, 20px);
+  padding: clamp(12px, 3cqh, 32px) 40px;
 }
 :root[data-skin-choice='velours'][data-velours-surface='analysis'] .analyzer-import-icon {
   width: 72px;

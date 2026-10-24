@@ -162,6 +162,7 @@ const els = {
   handleEnd: document.getElementById('studio-handle-end'),
   handleRail: document.getElementById('studio-handle-rail'),
   gripStart: document.getElementById('studio-handle-grip-start'),
+  gripEnd: document.getElementById('studio-handle-grip-end'),
   regionInfo: document.getElementById('studio-region-info'),
   resetRegionBtn: document.getElementById('studio-reset-region'),
   confirmRegionBtn: document.getElementById('studio-confirm-region'),
@@ -1362,6 +1363,12 @@ function bindWaveform() {
     e.stopPropagation();
     isDraggingHandle = 'start';
   });
+  els.gripEnd?.addEventListener('mousedown', (e) => {
+    if (regionLocked() || regionConfirmed || e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    isDraggingHandle = 'end';
+  });
 
   // [Claude] — 2026-10-09 — Une waveform dessinée pendant que son cadre est caché (chargement)
   // garde une largeur de 1 px : on redessine dès que le cadre prend sa vraie taille.
@@ -1415,7 +1422,11 @@ function updateRegionUI() {
     els.gripStart.style.display = regionConfirmed ? 'none' : '';
     // Le rail a la largeur de la waveform ; on rattrape sa bordure (clientLeft). Au tout début,
     // la flèche (16 px de large, centrée) serait à moitié coupée : on la garde entière.
-    els.gripStart.style.left = `${Math.max(8, startX + (els.waveformWrap.clientLeft || 0))}px`;
+    els.gripStart.style.left = `${Math.max(8, Math.min(rect.width - 8, startX + (els.waveformWrap.clientLeft || 0)))}px`;
+  }
+  if (els.gripEnd) {
+    els.gripEnd.style.display = regionConfirmed ? 'none' : '';
+    els.gripEnd.style.left = `${Math.max(8, Math.min(rect.width - 8, endX + (els.waveformWrap.clientLeft || 0)))}px`;
   }
   if (regionConfirmed) {
     els.handleStart.style.display = 'none';
@@ -1493,23 +1504,12 @@ async function importFile() {
       return;
     }
 
-    // Choix manuel du type de source : tutoriel pédagogique ou morceau/performance.
-    const sourceType = await askSourceType();
-    if (!sourceType) return;
-
     setStatus(`Import de ${filePath}...`);
 
     // Dédoublonnage : importToLibrary retrouve une entrée existante si le
     // même fichier (identité stable) a déjà été importé, ou crée une
     // nouvelle entrée avec résolution de conflit de nom.
-    const { id: trackId, isReimport } = await importToLibrary(filePath);
-
-    // Mettre à jour le type de source dans les métadonnées.
-    const meta = await loadMetadata(trackId);
-    if (meta) {
-      meta.sourceType = sourceType;
-      await saveMetadata(trackId, meta);
-    }
+    const { id: trackId, metadata: meta, isReimport } = await importToLibrary(filePath);
 
     await refreshTrackList();
     await loadTrack(trackId);
@@ -1521,45 +1521,6 @@ async function importFile() {
     console.error('Import failed:', err);
     setStatus(`Erreur d'import : ${err.message}`);
   }
-}
-
-function askSourceType() {
-  return new Promise((resolve) => {
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
-    overlay.style.zIndex = '3000';
-    overlay.innerHTML = `
-      <div class="modal-box" style="max-width: 420px; text-align: center;">
-        <h3>Type d'import</h3>
-        <p class="modal-hint">Comment classer ce fichier pour l'analyse ?</p>
-        <div class="modal-actions" style="flex-direction: column; gap: 10px; margin-top: 16px;">
-          <button type="button" class="primary" id="import-type-tutorial">Tutoriel pédagogique</button>
-          <button type="button" class="secondary" id="import-type-cover">Morceau à étudier</button>
-          <button type="button" class="secondary" id="import-type-cancel">Annuler</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(overlay);
-
-    overlay.querySelector('#import-type-tutorial').addEventListener('click', () => {
-      document.body.removeChild(overlay);
-      resolve('tutorial');
-    });
-    overlay.querySelector('#import-type-cover').addEventListener('click', () => {
-      document.body.removeChild(overlay);
-      resolve('cover');
-    });
-    overlay.querySelector('#import-type-cancel').addEventListener('click', () => {
-      document.body.removeChild(overlay);
-      resolve(null);
-    });
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) {
-        document.body.removeChild(overlay);
-        resolve(null);
-      }
-    });
-  });
 }
 
 async function refreshTrackList() {
@@ -2285,6 +2246,8 @@ function updateStudioStage(stage) {
   if (tab) {
     tab.classList.remove('stage-0', 'stage-1', 'stage-2', 'stage-3');
     tab.classList.add(`stage-${stage}`);
+    tab.classList.toggle('is-processing', isLoadingTrack || stage === 2);
+    tab.setAttribute('aria-busy', String(isLoadingTrack || stage === 2));
   }
 
   updateCropButtons();
@@ -2314,6 +2277,7 @@ function updateStudioStage(stage) {
   if (els.waveformWrap) els.waveformWrap.style.display = stage0 ? 'none' : '';
   if (els.handleRail) els.handleRail.style.display = stage0 ? 'none' : '';
   if (els.gripStart && (stage0 || regionConfirmed)) els.gripStart.style.display = 'none';
+  if (els.gripEnd && (stage0 || regionConfirmed)) els.gripEnd.style.display = 'none';
   if (els.regionInfo) els.regionInfo.style.display = stage0 ? 'none' : '';
   if (els.studioCenter) els.studioCenter.style.display = stage0 ? 'none' : '';
   if (els.centerHeader) els.centerHeader.style.display = stage0 ? 'none' : '';

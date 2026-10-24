@@ -113,6 +113,15 @@ function initAstraDialogs() {
   });
 
   document.addEventListener('keydown', (e) => {
+    // Les panneaux d'Exercice gardent la navigation au clavier dans le dialogue.
+    if (e.key === 'Tab' && current && !current.hidden && current.id.startsWith('exercise-')) {
+      const focusable = [...current.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]')]
+        .filter((el) => el.getClientRects().length > 0);
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (first && e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (last && !e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
     if (e.key === 'Escape' && current) { // [Claude] — 2026-10-09 — Échap ne vise que les overlays Astra
       e.preventDefault();
       close();

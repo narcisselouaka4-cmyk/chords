@@ -19,7 +19,7 @@
 import { detectChord } from './chord-engine/index.js';
 import { formatPc, noteName } from './chord-engine/naming.js';
 import { miniKeyboardForNotes } from './ui/mini-keyboard.js';
-import movementsLibrary from './data/movements-library.json' with { type: 'json' };
+import movementsLibrary, { findCatalogueEntry } from './exercise-catalogue.js';
 import { getVoicingLabVoicings, isQualityOnVoicingLab, isDerivedQuality } from './voicing-engine/voicinglab-availability.js';
 import {
   respectsLowIntervalLimits, minorNinthClashes, hasEleventhAgainstMajorThird, respectsFamilyDefinition,
@@ -31,12 +31,18 @@ import { applyDoublings, DOUBLING_MODES, DOUBLING_LABELS } from './voicing-engin
 // circulaire sans risque : practice-demo.js n'appelle ce module qu'à l'usage.
 import { styleLeftHand, LEFT_HAND_STYLES } from './practice-demo.js';
 import { spellDegreeInKey, spellPcInKey, keyLabel, isMinorProgression } from './practice-key-spelling.js';
-import { playingDifficulty, difficultyReasonText } from './voicing-engine/playing-difficulty.js';
+import { playingDifficulty } from './voicing-engine/playing-difficulty.js';
 
-// Niveaux du Mouvement 12 tons (1–5 : qualités des accords, accords de passage).
-// [Claude] — 2026-09-25 — Les étoiles d'un VOICING sont une autre notion : la
-// difficulté de jouer ses notes (voicing-engine/playing-difficulty.js).
-export const DIFFICULTY_LEVELS = [1, 2, 3, 4, 5];
+// Identifiants historiques des recettes harmoniques (qualités et passages).
+// Ils ne représentent pas un niveau du pianiste ; conservés pour les données existantes.
+export const HARMONIC_COLOR_LABELS = {
+  1: '7e / 6e · sans passage',
+  2: '9e · sans passage',
+  3: 'Couleurs étendues · passages diminués',
+  4: 'Couleurs étendues · passages 7b9, 7#5, 7b5',
+  5: 'Couleurs étendues · passages alt, #9',
+};
+export const DIFFICULTY_LEVELS = Object.keys(HARMONIC_COLOR_LABELS).map(Number);
 
 const SYMBOL_DIFFICULTY = {
   // Triades / bases (1★)
@@ -339,6 +345,7 @@ const MOVEMENT_TECHNIQUES = TECHNIQUES.filter((t) => t !== 'fourway_close');
 
 export const TECHNIQUE_LABELS = {
   auto: 'Auto',
+  written: 'Mise en voix de l’étude',
   shell: 'Shell',
   two_note_shell: 'Two-note shell',
   rootless: 'Rootless (A/B)',
@@ -1523,7 +1530,10 @@ const DEGREE_NAMES = {
 
 /** Degré lisible d'un intervalle dans la qualité (« 9 », « b7 », « #11 »). */
 export function degreeName(interval, quality) {
-  return DEGREE_NAMES[intervalLabel(((interval % 12) + 12) % 12, quality)] || String(interval);
+  const relative = ((interval % 12) + 12) % 12;
+  if (quality === 'dim7' && relative === 9) return 'bb7';
+  if (/^dim/.test(quality || '') && relative === 6) return 'b5';
+  return DEGREE_NAMES[intervalLabel(relative, quality)] || String(interval);
 }
 
 const TONE_LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
@@ -1711,6 +1721,7 @@ function buildTopNoteVoicing(rootPc, quality, technique, variant, topNote) {
       technique: s.technique,
       label: TECHNIQUE_LABELS[s.technique] || s.technique,
       difficulty: s.difficulty,
+      noteCount: new Set([...(s.lh || []), ...(s.rh || [])]).size,
       derived: s.derived,
       description: describeVariant(s.technique, s),
     })),
@@ -1811,28 +1822,6 @@ function parseMovementToken(token) {
   return parseProgressionToken(token);
 }
 
-  function tokenDifficultyLevel(token) {
-    const parsed = parseMovementToken(token);
-    if (!parsed) return 5;
-    const quality = parsed.quality;
-    if (SYMBOL_DIFFICULTY[quality] != null) return SYMBOL_DIFFICULTY[quality];
-    // Alias spécifiques aux mouvements.
-    if (quality === 'mMaj7') return 5;
-    if (quality === '7#9b13' || quality === '7alt') return 5;
-    if (quality === 'm7b5') return 3;
-    if (quality === 'm6') return 3;
-    if (quality === 'maj7#11') return 5;
-    if (quality === '6' || quality === '') return 1;
-    if (quality === '7' || quality === 'maj7' || quality === 'm7') return 2;
-    if (quality === 'm9' || quality === '9' || quality === 'maj9') return 3;
-    if (quality.includes('b9') || quality.includes('#9') || quality.includes('#11')) return 5;
-    return 3;
-  }
-
-  function isTokenDifficultyAllowed(token, difficulty) {
-    return tokenDifficultyLevel(token) <= difficulty;
-  }
-
   /**
    * Accords d'un mouvement dans une tonalité. Un jeton illisible ou un accord
    * sans voicing est omis ; `failures` (facultatif) reçoit alors son nom, pour
@@ -1930,10 +1919,34 @@ function parseMovementToken(token) {
     };
     return skeleton.map((chord, i) => {
       const p = passingChords[i];
+      const writtenStep = movement.score?.steps[chord.tokenIndex];
+      let target = targetAt(chord, mainAt[i], topIntervals[i]);
+      // Auto = la mise en voix de l'étude, transposée en bloc. Les techniques
+      // choisies explicitement restent explorables, sans réécrire l'harmonie.
+      const useWritten = writtenStep && technique === 'auto' && !anchors[i]
+        && topIntervals[i] == null && doubling === 'none' && leftHandStyle === 'none';
+      if (useWritten) {
+        const transpose = (notes) => notes.map((n) => n + keyPc);
+        const voicing = {
+          ...target.voicing,
+          leftHand: transpose(writtenStep.lh), rightHand: transpose(writtenStep.rh),
+          source: 'original-study', technique: 'written', familyId: 'written',
+          variantIndex: 0, variantCount: 1, variantLabel: 'Mise en voix de l’étude',
+          derived: false, rebuilt: false, doubled: [], styleAdded: [],
+        };
+        target = {
+          ...targetFromVoicing(chord.rootPc, chord.quality, voicing, 'written'),
+          name: chord.name, quality: chord.quality, topInterval: null, topMissed: false,
+        };
+      }
       return {
-        ...targetAt(chord, mainAt[i], topIntervals[i]),
+        ...target,
         token: chord.token,
         degree: chord.degree,
+        harmonicRole: movement.roles?.[i] || 'structural',
+        // Même réalisation pour l'aperçu et l'exercice. Les attaques font
+        // référence aux mains affichées, sauf les appoggiatures écrites.
+        studyStep: writtenStep ? { ...writtenStep, keyPc, writtenVoicing: Boolean(useWritten) } : null,
         passingChord: p ? { ...targetAt(p, passingAt[i], passingTops[i]), passing: true, after: i, kind: p.kind } : null,
       };
     });
@@ -2059,11 +2072,9 @@ function keepAllMain(typed) {
 }
 
 /**
- * Accords jouables d'une grille perso répartis en accords principaux et
- * passages (règle de Narcisse : les tensions ne se jouent qu'en passage). Un
- * accord de tension qui suit un accord principal devient son passage (un seul
- * par accord) ; en tête de grille ou juste après un autre passage, il reste
- * principal (grilles écrites avant la règle).
+ * Un passage perso est déclaré par l'utilisateur (role: 'passing').
+ * La qualité altérée/diminuée ne détermine jamais à elle seule sa fonction.
+ * Les grilles anciennes sans rôle explicite gardent tous leurs accords.
  * @returns {{main: object[], passing: Record<number, object>, source: {main: number[], passing: Record<number, number>}}}
  */
 function splitGridPassing(typed) {
@@ -2073,7 +2084,7 @@ function splitGridPassing(typed) {
   typed.forEach((c, typedIndex) => {
     if (c.symbol == null || !isQualityOnVoicingLab(c.symbol, c.rootPc)) return;
     const last = main.length - 1;
-    if (isTensionQuality(c.symbol) && last >= 0 && passing[last] == null) {
+    if (c.role === 'passing' && last >= 0 && passing[last] == null) {
       passing[last] = c;
       source.passing[last] = typedIndex;
       return;
@@ -2103,12 +2114,12 @@ export function isGridChordPlayable(name) {
  */
 function typedGrid(input) {
   if (Array.isArray(input)) {
-    return input.filter((c) => c?.name).map((c) => ({ ...parseTypedChord(String(c.name)), top: Number.isInteger(c.top) ? ((c.top % 12) + 12) % 12 : null }));
+    return input.filter((c) => c?.name).map((c) => ({ ...parseTypedChord(String(c.name)), top: Number.isInteger(c.top) ? ((c.top % 12) + 12) % 12 : null, ...(c.role === 'passing' ? { role: 'passing' } : {}) }));
   }
   return String(input || '').trim().split(/\s+/).filter(Boolean).map((name) => ({ ...parseTypedChord(name), top: null }));
 }
 
-export function createPracticeExercise() {
+export function createPracticeExercise({ library = movementsLibrary } = {}) {
   // Difficulté prise en compte par le mode Auto (sélecteur masqué en mode Accord).
   const autoDifficulty = () => (state.mode === 'chord' ? null : state.difficulty);
 
@@ -2217,24 +2228,15 @@ export function createPracticeExercise() {
   function findMovement(name) {
     if (!name) return null;
     if (name === CUSTOM_GRID_NAME) return state.customGrid ? customGridMovement(state.customGrid, state.customGridName) : null;
-    return movementsLibrary.movements.find((m) => m.name === name) || null;
+    return library === movementsLibrary ? findCatalogueEntry(name)
+      : library.movements.find((m) => m.name === name || m.id === name) || null;
   }
 
   function generateMovementTarget() {
     // Mouvement explicitement choisi par l'utilisateur, sinon tirage au sort.
     const chosen = findMovement(state.movementChoice);
-    // Filtre par niveau intrinsèque du mouvement si défini, sinon par analyse
-    // des symboles de son pattern.
-    const allowedMovements = movementsLibrary.movements.filter((m) => {
-      if (typeof m.level === 'number') return m.level <= state.difficulty;
-      return m.pattern.split('-').every((token) => isTokenDifficultyAllowed(token, state.difficulty));
-    });
-    // Si un mouvement a été explicitement choisi mais ne correspond pas au
-    // niveau, on l'accepte quand même (l'utilisateur sait ce qu'il fait) ;
-    // sinon on tire uniquement dans les mouvements adaptés.
-    const pool = chosen
-      ? [chosen]
-      : (allowedMovements.length > 0 ? allowedMovements : movementsLibrary.movements);
+    // Chaque mouvement reste accessible : les couleurs choisies ne classent pas le pianiste.
+    const pool = chosen ? [chosen] : library.movements;
     // Grille tapée jouable : ses accords impossibles sont ignorés, et l'écran le dit.
     // Grille tapée sans aucun accord jouable : un autre mouvement, annoncé.
     const gridImpossible = !chosen && state.movementChoice === CUSTOM_GRID_NAME;
@@ -2266,7 +2268,7 @@ export function createPracticeExercise() {
     // plus remplacé en silence (bug « II-V-I altéré en mineur » et « Cycle de
     // tierces majeures ») : `notice` dit à l'écran lequel et pourquoi.
     const startKey = chooseStartKey();
-    const candidates = [...allowedMovements, ...movementsLibrary.movements].filter((m) => m !== chosen);
+    const candidates = library.movements.filter((m) => m !== chosen);
     const noticeFor = (replacement) => {
       if (gridImpossible) return ignoredNotice(replacement);
       if (!chosen) return null;
@@ -2278,7 +2280,7 @@ export function createPracticeExercise() {
       if (isComplete(movement, chords)) return movementTarget(movement, startKey, chords, noticeFor(movement));
     }
     // Bibliothèque entière inconstructible : ne doit pas arriver (test 12 tons × 5 niveaux).
-    const fallback = chosen || allowedMovements[0] || movementsLibrary.movements[0];
+    const fallback = chosen || library.movements[0];
     return movementTarget(fallback, startKey, build(fallback, startKey), noticeFor(fallback));
   }
 
@@ -3059,9 +3061,7 @@ export function renderExerciseTarget(target, options = {}) {
     ? (n) => `${spellPcInKey(n, options.spelling.keyPc, options.spelling.minor)}${Math.floor(n / 12) - 1}`
     : formatNoteNameWithOctave;
   const allNames = cardNotes.map((n) => noteLabel(n)).join(' · ');
-  const difficultyInfo = difficultyDetailsOfVoicing(target);
-  const difficulty = options.difficulty ?? difficultyInfo.stars;
-  const difficultyWhy = difficultyReasonText(difficultyInfo);
+  const handCount = Number(leftHand.length > 0) + Number(rightHand.length > 0);
   // Accord cible : le choix du voicing et les doublures quittent la carte
   // (colonne de droite et fenêtre Filtres) ; la carte garde l'essentiel.
   const compact = options.layout === 'chord';
@@ -3074,11 +3074,9 @@ export function renderExerciseTarget(target, options = {}) {
           <div class="exercise-target-name">${escapeHtml(target.name)}</div>
           ${target.passing ? `<div class="exercise-target-passing">↳ Accord de passage${options.passingTo ? `, vers ${escapeHtml(options.passingTo)}` : ''}</div>` : ''}
         </div>
-        <div class="exercise-target-stars" aria-label="Difficulté ${difficulty} sur 5" title="Difficulté ${difficulty} sur 5${difficultyWhy ? ` — ${escapeHtml(difficultyWhy)}` : ''}">
-          ${renderStars(difficulty)}
-        </div>
+        <div class="exercise-voicing-facts">${cardNotes.length} notes · ${handCount || 1} main${handCount > 1 ? 's' : ''}</div>
       </div>
-      ${compact ? '' : renderVoicingChoices(target, options)}
+      ${compact || options.separateVoicings ? '' : renderVoicingChoices(target, options)}
       ${target.topNoteMiss ? `<div class="exercise-topnote-miss">Aucun voicing de ${escapeHtml(target.name)} n'a cette note au sommet avec ces filtres : voicing habituel affiché.</div>` : ''}
       <div class="exercise-target-keyboard">${kb.svg}</div>
       ${doubled.length > 0 ? `<div class="exercise-doubled-note">Doublure${doubled.length > 1 ? 's' : ''} ajoutée${doubled.length > 1 ? 's' : ''} : ${escapeHtml(formatHandNotes(doubled, noteLabel))}</div>` : ''}
@@ -3199,7 +3197,7 @@ function renderTopNotePanel(voicing) {
     const active = i === variantIndex ? ' active' : '';
     return `<li><button type="button" class="exercise-topnote-item${active}" data-topnote-index="${i}" title="${escapeHtml(sug.description)}">
         <span class="exercise-topnote-tech">${escapeHtml(sug.label)}</span>
-        <span class="exercise-topnote-stars" aria-label="Difficulté ${sug.difficulty} sur 5">${'★'.repeat(sug.difficulty)}</span>
+        <span class="exercise-topnote-facts">${sug.noteCount} notes</span>
       </button></li>`;
   }).join('');
   return `
@@ -3240,14 +3238,6 @@ export function renderTopNoteBrowser(results, { topPc, selected = null } = {}) {
     ${results.length === 0
     ? '<p class="exercise-browser-empty">Aucun voicing avec ces filtres.</p>'
     : `<ul class="exercise-browser-list" data-browser-scroll>${rows}</ul>`}`;
-}
-
-function renderStars(difficulty) {
-  const filled = Math.min(5, Math.max(1, Number(difficulty) || 1));
-  const empty = 5 - filled;
-  const fullStar = '<span class="star filled">★</span>';
-  const emptyStar = '<span class="star empty">☆</span>';
-  return fullStar.repeat(filled) + emptyStar.repeat(empty);
 }
 
 /**
