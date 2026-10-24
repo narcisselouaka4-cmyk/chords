@@ -408,3 +408,139 @@ Sa cadence finale : il dit « c'est 5, 4, 1, mais le 4 je le remplace par A#7b9 
 **est** le V en ré dièse, à confirmer — s'agit-il de `V → V7b9 → I` (le IV remplacé par une
 tension bâtie sur le V), ou d'un autre degré ? Le relevé montre à ces endroits `Fdim` sur
 {F, G#, B}, compatible avec A#7b9 sans fondamentale. À trancher par lui.
+
+---
+
+# Suite 3 (25/10) — Correctifs appliqués sur le chemin MIDI
+
+Narcisse a joué une **troisième** session, `Session_017` (22 s, do majeur), en dictant sa
+grille accord par accord, et a demandé de corriger. C'est le premier lot de code de la
+journée (les deux précédents étaient des mesures).
+
+## Vérité terrain de Session_017, dictée par Narcisse
+
+`F → Gadd9 (appoggiature sur la seconde) → Em → Am → Dm7 → Gadd9/B → Fadd9/A →
+Cmaj7-9 → Dm7-9 → Em7 (+ Fa d'appui)`
+
+Deux écarts constatés entre son intention et le fichier, à lui signaler : **aucun Si n'est
+joué** sur son « Do majeur 7 » (donc `Cadd9`, pas `Cmaj9`) et **aucun Do** sur son « Ré
+mineur 7 » (donc `Dmadd9`, pas `Dm9`). Sur son « Sol add9 basse de Si », la note la plus
+grave du fichier est un **La2**, pas un Si.
+
+## Diagnostic : la règle qui manquait
+
+Dans ses trois erreurs signalées, la lecture retenue était celle dont la **triade ne sonne
+même pas** :
+
+| Ses notes | Retenu | Sa triade | La triade du nom retenu |
+|---|---|---|---|
+| Sol La Si Ré | `A9sus4` | Sol-Si-Ré **jouée** | La-Do#-Mi : **ni Do# ni Mi** |
+| Do Fa Sol La | `G9sus4/A` | Fa-La-Do **jouée** | Sol-Si-Ré : **ni Si ni Ré** |
+| Mi Fa Sol Si | `G13/E` | Mi-Sol-Si **jouée** | Sol-Si-Ré : **pas de Ré** |
+
+Cause : l'arbitrage `precision = required.length * 2 - optional.length * 0.25` récompense le
+gabarit qui exige le **plus** de notes. L'identité d'un accord tient à sa triade, pas au
+nombre de cases que coche un modèle.
+
+### Piste essayée et corrigée en route (à garder)
+
+Première version : exiger **tierce ET quinte**. Elle a cassé un cas réel de
+`test-session-analysis.js` — `G13` joué sans quinte, basse Sol frappée, devenait `Em/G`
+(4 suites en échec). **La quinte est la première note qu'un pianiste omet** : on ne doit
+jamais l'exiger de l'accord retenu.
+
+Le discriminant correct est la **basse**. {Mi Fa Sol Si} et {Mi Fa Sol La Si} sont le même
+accord à une note près et correspondent tous deux au gabarit `13` : c'est la basse qui
+tranche — Mi chez Narcisse (→ `Em`), Sol dans le test (→ `G13`). Le repli ne s'applique donc
+que si **la basse jouée porte elle-même une triade entière** et que l'accord retenu n'est pas
+déjà enraciné sur elle.
+
+## Ce qui a été changé
+
+`src/recorder/midi-chord-namer.js`
+- Une lecture dont la triade est réellement jouée passe avant une lecture plus « riche »
+  dont la triade est absente (bonus prioritaire sur la précision, mais la quinte n'est jamais
+  exigée de l'accord retenu).
+- Repli « appoggiature » : si aucun modèle ne décrit l'ensemble avec une triade qui sonne,
+  mais que la basse porte une triade entière, on nomme cette triade (`matched: false`, donc
+  confiance 0,6 — honnête : « Em, avec une note que je n'explique pas »).
+- Gabarits ajoutés : `add11` / `madd11` (quarte ajoutée, l'appoggiature la plus courante) et
+  coquille de septième **sans tierce** (`[0, 10]`, quinte facultative).
+- Orthographe : option `useSharps`, pour que les accords suivent la convention de la tonalité.
+
+`src/recorder/session-analysis.js` — `nameChordSegments` accepte `useSharps` et renomme.
+
+`src/analyzer/midi-source.js`
+- Un accord s'arrête **où le suivant commence** (le plancher de 0,05 s faisait chevaucher).
+- `pruneAttackTransients` : un segment de moins de 0,12 s n'est pas un accord mais une note
+  du voicing arrivée en avance ; il est retiré et l'accord suivant reprend son début.
+- La tonalité se vote sur les accords **retenus**, pas sur les segments bruts.
+- Accords et tonalité dans la même orthographe (dièses).
+
+`src/analyzer/key-detector.js` — deux correctifs
+- Une fondamentale **étrangère** à la tonalité candidate compte **contre** elle
+  (`weights[deg] ?? -1.5`) au lieu de compter pour rien : un Fa majeur ne coûtait rien à Sol
+  majeur, alors qu'il contredit son armure.
+- Quand la corrélation tonale a un avis, le choix se joue entre **sa** tonalité et **sa
+  relative** — la seule ambiguïté que les accords peuvent trancher, relatives majeure et
+  mineure partageant tous leurs accords diatoniques. L'ancien
+  `else if (chordScoreKrumhansl > best.score)` ne pouvait **jamais** se déclencher : `best`
+  venait d'être écrasé par le vainqueur de la boucle exhaustive, donc supérieur ou égal.
+  Mesuré : do majeur (Krumhansl **+0,737**) perdait contre la mineur (**−0,732**) sur un
+  écart de **0,019** point de vote par accords.
+
+## Résultats mesurés
+
+| | Session_017 | Session 15/09 |
+|---|---|---|
+| segments | 13 → **11** (10 visés) | 97 → **81** |
+| fantômes ≤ 0,12 s | 2 → **0** | 15 → **0** |
+| chevauchements | 1 → **0** | 11 → **0** |
+| « ? » affichés | 2 → **0** | 2 → **0** |
+| tonalité | `C major` ✓ (passée par `Am minor` et `G major` en route) | `D# major` ✓ |
+
+Les 10 accords de sa grille sont maintenant nommés comme il les a dictés, aux deux écarts
+de notes près signalés plus haut. Sur la session du 15/09 : `F9sus4/G` → `D#add9/G` (son
+degré I), `F13sus4/D` → `A#add11/D` (son V en premier renversement), `Bb?` → `A#7`.
+
+## Ce qui a été vérifié, et comment
+
+- **20 suites de tests** passent, dont les quatre cassées en route, les régressions Partie 1
+  et Partie 3, et 98/98 sur `test-chords`. Nouveau banc : `test-midi-chord-namer.js`, 19
+  contrôles tirés de ses deux grilles, avec les notes **relevées dans les fichiers MIDI**.
+- `npm run build` passe.
+- Les deux sessions réelles rejouées hors app.
+
+## Ce qui reste à vérifier
+
+- **Rien n'a été vérifié dans Electron** : à rouvrir ses sessions dans l'onglet Analyse pour
+  juger à l'écran. Les analyses déjà enregistrées gardent les anciens noms.
+- La convention « dièses » est imposée en dur dans `midi-source.js`. Une tonalité comme fa
+  majeur y écrira `A#` au lieu de `Bb`. Une convention par tonalité (armure) ou une
+  préférence utilisateur reste à décider — question pour Narcisse.
+- La pénalité de fondamentale étrangère (−1,5) n'est **pas** calibrée sur un corpus : elle
+  est vérifiée sur deux sessions et les 20 suites, rien de plus. À surveiller sur du jazz
+  chromatique, où des fondamentales hors tonalité sont légitimes.
+
+## Défauts encore ouverts (mesurés, non corrigés)
+
+1. **Son Em de Session_017 reste coupé en deux** : `Esus4` (8,14 s) puis `Emadd11` (9,38 s).
+   L'appoggiature La est tenue, puis se résout sur Sol : le segmenteur ouvre un accord à
+   chaque état. C'est l'**appoggiature dans le temps**, pas dans le nom — le garde-fou de
+   `segmentSessionEvents` ne couvre que le cas d'**une** note seule au sommet.
+2. **Son degré I du 15/09 reste lu `Cmadd9/D#`** : {D# Do Ré} est une coquille majeure sans
+   tierce ni quinte (fondamentale + 6e + 7e). Aucun gabarit, et la basse ne porte pas de
+   triade entière, donc aucun des deux correctifs ne s'applique.
+3. **Son A#7b9 reste affiché `Fdim`** : dominante **sans fondamentale** (structure supérieure
+   5 / b7 / b9 au-dessus d'une basse qui est la quinte). Chantier à part, bien défini.
+4. **Sur-segmentation 81 contre ~29** sur le 15/09 : un changement de voicing sur un accord
+   tenu ouvre toujours un nouveau segment.
+5. **Rôles et degrés toujours absents du chemin MIDI** (`role: 'structural'` en dur,
+   `degree: null`). C'est le prochain chantier, avec la hiérarchie par répétition de section.
+
+## Prochaines actions
+
+1. Narcisse rouvre ses trois sessions dans Analyse (Electron) et juge à l'écran.
+2. Trancher la convention d'orthographe (dièses partout, armure, ou préférence).
+3. Appoggiature dans le temps (défaut 1) puis rôles/degrés sur le chemin MIDI (défaut 5) :
+   ce sont les deux qui restent les plus visibles pour lui.
