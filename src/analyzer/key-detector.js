@@ -171,11 +171,18 @@ export function chordScoreForKey(chords, keyPc, mode) {
 
   const weights = mode === 'minor' ? degreeWeightsMinor : degreeWeightsMajor;
 
+  // Une fondamentale étrangère à la tonalité candidate doit compter CONTRE elle,
+  // pas pour rien. Avec `weights[deg] || 0`, un Fa majeur ne coûtait rien à Sol
+  // majeur, alors qu'il en contredit l'armure. Mesuré sur la session du 25/10 de
+  // Narcisse (Fa, Sol, Em, Am, Dm7, Do) : Sol majeur et La mineur passaient
+  // devant Do majeur à moins d'un point d'écart.
+  const FOREIGN_ROOT_PENALTY = -1.5;
+
   for (const chord of chords) {
     const root = chordRootPc(chord);
     if (root == null) continue;
     const deg = degreeOf(root, keyPc);
-    const weight = weights[deg] || 0;
+    const weight = weights[deg] ?? FOREIGN_ROOT_PENALTY;
     const symbol = chordSymbol(chord);
     const duration = chord.duration || 1;
 
@@ -276,9 +283,19 @@ export function detectKey(events, chords, options = {}) {
       const chordScoreKrumhansl = chordScoreForKey(chords, krumhanslResult.pc, krumhanslResult.mode);
       const chordScoreRelative = chordScoreForKey(chords, relativePc, relativeMode);
 
+      // Quand la corrélation tonale a un avis, le choix se joue entre SA tonalité
+      // et sa relative — la seule ambiguïté que les accords peuvent trancher,
+      // puisque relatives majeure et mineure partagent tous leurs accords
+      // diatoniques. La boucle exhaustive ci-dessus ne décide que faute d'avis.
+      //
+      // L'ancien `else if (chordScoreKrumhansl > best.score)` ne se déclenchait
+      // jamais dans ce cas : `best` venait d'être écrasé par le vainqueur du vote
+      // par accords, forcément supérieur ou égal. Mesuré sur la session du 25/10
+      // de Narcisse : Do majeur (Krumhansl +0,737) perdait contre La mineur
+      // (−0,732) sur un écart de 0,019 point de vote par accords.
       if (chordScoreRelative > chordScoreKrumhansl * 1.15) {
         best = { pc: relativePc, mode: relativeMode, score: chordScoreRelative };
-      } else if (chordScoreKrumhansl > (best.score || 0)) {
+      } else {
         best = { pc: krumhanslResult.pc, mode: krumhanslResult.mode, score: chordScoreKrumhansl };
       }
     }

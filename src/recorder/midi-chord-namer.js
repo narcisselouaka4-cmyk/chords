@@ -32,6 +32,10 @@ const TEMPLATES = [
   ['m6/9', [0, 3, 9, 2], [7]],
   ['add9', [0, 4, 2], [7]],
   ['madd9', [0, 3, 2], [7]],
+  // Quarte ajoutée : l'appoggiature sur la quarte, très courante au piano, ne
+  // trouvait aucun modèle. {Mi Sol La} sortait « E? » faute de gabarit.
+  ['add11', [0, 4, 5], [7]],
+  ['madd11', [0, 3, 5], [7]],
   ['maj7', [0, 4, 11], [7]],
   ['maj9', [0, 4, 11, 2], [7]],
   ['maj13', [0, 4, 11, 9], [7, 2]],
@@ -47,6 +51,10 @@ const TEMPLATES = [
   ['m7b5', [0, 3, 6, 10], [1, 2, 5]],
   ['dim7', [0, 3, 6, 9], []],
   ['7', [0, 4, 10], [7]],
+  // Coquille sans tierce (fondamentale + quinte + septième), la main gauche la
+  // plus courante en gospel : {Sib Fa Lab} n'avait aucun modèle et sortait
+  // « Bb? ». Le modèle complet ci-dessus gagne dès que la tierce est jouée.
+  ['7', [0, 10], [7]],
   ['9', [0, 4, 10, 2], [7]],
   ['13', [0, 4, 10, 9], [7, 2]],
   ['7sus4', [0, 5, 10], [7]],
@@ -74,12 +82,26 @@ function isAltered(intervals) {
   return ![2, 5, 7, 9, 11].some(has);
 }
 
+// Triade implicite d'un modèle : sa tierce (ou la note qui en tient lieu dans un
+// sus) et sa quinte. Sert à savoir si l'accord candidat SONNE vraiment.
+function triadOf(required, optional) {
+  const third = [4, 3, 5, 2].find((i) => required.includes(i));
+  const fifth = [7, 6, 8].find((i) => required.includes(i) || optional.includes(i));
+  return third === undefined || fifth === undefined ? null : [third, fifth];
+}
+
 const NAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+// L'orthographe des accords doit suivre celle de la tonalité affichée : la
+// session du 15/09 montrait « D# major » en tête et « Eb », « Ab », « Bb » dans
+// la frise. Narcisse écrit en dièses (« ré dièse majeur », « La#7 bémol 9 »).
+const SHARPS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const LATIN = ['Do', 'Réb', 'Ré', 'Mib', 'Mi', 'Fa', 'Fa#', 'Sol', 'Lab', 'La', 'Sib', 'Si'];
+const LATIN_SHARPS = ['Do', 'Do#', 'Ré', 'Ré#', 'Mi', 'Fa', 'Fa#', 'Sol', 'Sol#', 'La', 'La#', 'Si'];
 
 /** Nom d'une classe de hauteur (orthographe courante des grilles : Bb, Eb, F#). */
-export function pitchName(pc, { latin = false } = {}) {
-  return (latin ? LATIN : NAMES)[((pc % 12) + 12) % 12];
+export function pitchName(pc, { latin = false, useSharps = false } = {}) {
+  const table = latin ? (useSharps ? LATIN_SHARPS : LATIN) : (useSharps ? SHARPS : NAMES);
+  return table[((pc % 12) + 12) % 12];
 }
 
 /**
@@ -88,7 +110,7 @@ export function pitchName(pc, { latin = false } = {}) {
  * @param {{latin?: boolean}} [options]
  * @returns {{rootPc: number, symbol: string, bassPc: number, isSlash: boolean, name: string, matched: boolean}|null}
  */
-export function nameMidiChord(notes, { latin = false } = {}) {
+export function nameMidiChord(notes, { latin = false, useSharps = false } = {}) {
   const list = (notes || []).filter(Number.isFinite);
   if (list.length === 0) return null;
   const pcs = [...new Set(list.map((n) => ((n % 12) + 12) % 12))];
@@ -107,19 +129,51 @@ export function nameMidiChord(notes, { latin = false } = {}) {
       // Le modèle le plus précis d'abord (plus de notes obligatoires, moins de
       // facultatives) ; la fondamentale à la basse passe avant tout.
       const precision = c.altered ? 11 : c.required.length * 2 - c.optional.length * 0.25;
-      const score = (root === bassPc ? 100 : 0) + precision;
-      if (!best || score > best.score) best = { rootPc: root, symbol: c.symbol, score };
+      // L'identité d'un accord tient à sa TRIADE : une lecture dont la tierce et
+      // la quinte sont réellement jouées passe avant une lecture plus « riche »
+      // dont la triade est absente. Mesuré sur la session du 25/10 de Narcisse :
+      // {Sol La Si Ré} donnait « A9sus4 » (ni Do# ni Mi joués) au lieu de
+      // « Gadd9 » (Sol-Si-Ré joués) ; {Do Fa Sol La} donnait « G9sus4/A » (ni Si
+      // ni Ré) au lieu de « Fadd9/A » ; {Mi Fa Sol Si} donnait « G13/E » (pas de
+      // Ré) au lieu de « Em ». L'arbitrage par nombre de notes obligatoires
+      // (`precision`) préférait systématiquement le modèle le plus complexe.
+      const triad = triadOf(c.required, c.optional);
+      const sounds = c.altered || (triad ? triad.every((i) => intervals.has(i)) : false);
+      const score = (sounds ? 1000 : 0) + (root === bassPc ? 100 : 0) + precision;
+      if (!best || score > best.score) best = { rootPc: root, symbol: c.symbol, score, sounds };
     }
   }
+  // Appoggiature : aucun modèle ne décrit l'ensemble avec une triade qui sonne,
+  // mais une triade sonne bel et bien et une note s'y ajoute sans lui appartenir.
+  // C'est la lecture d'un pianiste : « Em avec un Fa d'appui », pas « G13 ».
+  // Mesuré sur la session du 25/10 : {Mi Fa Sol Si} sortait « G13/E » alors que
+  // le Ré de G13 n'est pas joué, quand Mi-Sol-Si sonne en entier.
+  // On ne se rabat sur cette lecture que si la BASSE JOUÉE porte elle-même une
+  // triade entière. C'est ce qui sépare les deux cas, identiques en classes de
+  // hauteur : {Mi Fa Sol Si} basse Mi, où Mi-Sol-Si sonne en entier, se lit
+  // « Em » ; {Mi Fa Sol La Si} basse Sol se lit « G13 », parce que Sol-Si-Ré n'y
+  // sonne pas et que Sol est la basse frappée (voir le cas « pédale tenue,
+  // nouvelle basse frappée » de test-session-analysis.js). La quinte est la
+  // première note qu'un pianiste omet : on ne l'exige jamais de l'accord retenu,
+  // seulement de la triade de la basse quand on écarte le modèle.
+  if (!best || !best.sounds) {
+    const fromBass = new Set(pcs.map((pc) => (pc - bassPc + 12) % 12));
+    const triad = [['', [0, 4, 7]], ['m', [0, 3, 7]]]
+      .find(([, t]) => t.every((i) => fromBass.has(i)));
+    if (triad && (!best || best.rootPc !== bassPc)) {
+      best = { rootPc: bassPc, symbol: triad[0], approximated: true };
+    }
+  }
+
   // Aucun modèle n'explique toutes les notes : nom approché (detectChord), et
   // `matched: false` (voicing rare, ou note étrangère : voir session-performance.js).
-  const matched = Boolean(best);
+  const matched = Boolean(best) && !best.approximated;
   if (!best) {
     const detected = detectChord(list);
     if (!detected || detected.rootPc == null || detected.symbol == null) return null;
     best = { rootPc: detected.rootPc, symbol: detected.symbol };
   }
   const isSlash = best.rootPc !== bassPc;
-  const name = `${pitchName(best.rootPc, { latin })}${best.symbol}${isSlash ? `/${pitchName(bassPc, { latin })}` : ''}`;
+  const name = `${pitchName(best.rootPc, { latin, useSharps })}${best.symbol}${isSlash ? `/${pitchName(bassPc, { latin, useSharps })}` : ''}`;
   return { rootPc: best.rootPc, symbol: best.symbol, bassPc, isSlash, name, matched };
 }

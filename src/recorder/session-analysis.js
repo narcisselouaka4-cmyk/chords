@@ -278,11 +278,13 @@ export function segmentSessionEvents(events) {
  * @param {object[]} segments
  * @param {{latin?: boolean}} [options]
  */
-export function nameChordSegments(segments, { latin = false } = {}) {
+export function nameChordSegments(segments, { latin = false, useSharps = false } = {}) {
   for (const seg of segments) {
     if (seg.type !== 'chord' || !seg.notes?.length) continue;
-    if (seg.chordName && !latin) continue;
-    const named = nameMidiChord(seg.notes, { latin });
+    // Déjà nommé par segmentSessionEvents : on ne renomme que si l'orthographe
+    // demandée (latin, dièses) diffère de celle posée par défaut.
+    if (seg.chordName && !latin && !useSharps) continue;
+    const named = nameMidiChord(seg.notes, { latin, useSharps });
     seg.chordName = named?.name || seg.chordName || null;
   }
   return segments;

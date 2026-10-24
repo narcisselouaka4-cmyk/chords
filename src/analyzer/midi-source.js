@@ -59,6 +59,38 @@ export function noteSpans(events) {
   return spans.sort((a, b) => a.start - b.start || a.midi - b.midi);
 }
 
+// Durée en dessous de laquelle un segment n'est pas un accord joué mais le
+// transitoire d'une attaque : une note du voicing arrive quelques millisecondes
+// avant les autres, et le segmenteur ouvre un accord sur un voicing partiel.
+// Mesuré sur la session du 25/10 : 15 segments de ce type sur 97, dont le tout
+// premier accord du morceau, et deux « ? » affichés à l'écran.
+const MIN_CHORD_DURATION = 0.12;
+
+/**
+ * Les accords sans leurs transitoires d'attaque : le segment trop court est
+ * retiré, et l'accord qui le suit reprend son début (c'est là que l'attaque a
+ * réellement commencé). Aucun accord ne se chevauche en sortie.
+ * @param {object[]} chords
+ * @returns {object[]}
+ */
+export function pruneAttackTransients(chords) {
+  const kept = [];
+  let carried = null;
+  for (const c of chords) {
+    if (c.endTime - c.startTime < MIN_CHORD_DURATION) {
+      if (carried == null) carried = c.startTime;
+      continue;
+    }
+    if (carried != null) { c.startTime = round3(Math.min(c.startTime, carried)); carried = null; }
+    const prev = kept[kept.length - 1];
+    if (prev && prev.chord === c.chord) { prev.endTime = c.endTime; continue; }
+    if (prev) prev.endTime = round3(Math.max(prev.startTime, c.startTime));
+    kept.push(c);
+  }
+  // Tout le morceau tient dans des transitoires : mieux vaut les garder que rien.
+  return kept.length ? kept : chords;
+}
+
 /**
  * L'analyse d'un MIDI, dans la forme de l'analyse audio (TemplateAudioAnalyzer.analyze).
  * @param {object[]} events
@@ -68,7 +100,10 @@ export function analyzeMidiEvents(events, { duration = 0, tempo = null } = {}) {
   const list = events || [];
   const spans = noteSpans(list);
   const end = Math.max(Number(duration) || 0, ...spans.map((s) => s.end), 0);
-  const segments = nameChordSegments(segmentSessionEvents(list)).filter((s) => s.chordName);
+  // Même orthographe pour les accords et pour la tonalité (dièses, comme
+  // `detectKey` plus bas) : la frise montrait « Eb » sous une tonalité « D# ».
+  const segments = nameChordSegments(segmentSessionEvents(list), { useSharps: true })
+    .filter((s) => s.chordName);
 
   // Des accords qui se touchent : un accord dure jusqu'au suivant (comme la grille audio) ;
   // deux accords de même nom qui se suivent n'en font qu'un.
@@ -76,11 +111,16 @@ export function analyzeMidiEvents(events, { duration = 0, tempo = null } = {}) {
   for (const s of segments) {
     const last = chords[chords.length - 1];
     if (last && last.chord === s.chordName) { last.endTime = Math.max(last.endTime, s.end); continue; }
-    if (last) last.endTime = Math.max(last.startTime + 0.05, s.start);
+    // Un accord s'arrête EXACTEMENT où le suivant commence. Le plancher de 0,05 s
+    // appliqué ici faisait dépasser le segment précédent sur le suivant : mesuré
+    // sur la session du 25/10, 11 segments se chevauchaient, jusqu'à 39 ms.
+    if (last) last.endTime = Math.max(last.startTime, s.start);
     chords.push({
       startTime: round3(s.start),
       endTime: round3(s.end),
       chord: s.chordName,
+      rootPc: s.rootPc,
+      symbol: s.symbol,
       structuralChord: null,
       confidence: s.matched === false ? 0.6 : 1,
       role: 'structural',
@@ -96,12 +136,15 @@ export function analyzeMidiEvents(events, { duration = 0, tempo = null } = {}) {
   }
   if (chords.length) chords[chords.length - 1].endTime = round3(Math.max(chords[chords.length - 1].endTime, end));
   for (const c of chords) c.endTime = round3(c.endTime);
+  const kept = pruneAttackTransients(chords);
 
+  // La tonalité se vote sur les accords RETENUS, pas sur les segments bruts : un
+  // transitoire d'attaque de 50 ms pesait autant qu'un accord tenu deux secondes.
   const keyChords = segments.map((s) => ({ time: s.start, duration: s.end - s.start, rootPc: s.rootPc, symbol: s.symbol, notes: s.notes }));
   const key = list.some((e) => e.type === 'note_on') ? detectKey(list, keyChords, { useSharps: true, latin: false }) : null;
 
   // La basse : la note la plus grave de chaque accord.
-  const bassSegments = chords.map((c) => {
+  const bassSegments = kept.map((c) => {
     const low = Math.min(...(c.notes.length ? c.notes : [NaN]));
     if (!Number.isFinite(low)) return null;
     return { startTime: c.startTime, endTime: c.endTime, midi: low, note: NOTE_NAMES[low % 12], octave: Math.floor(low / 12) - 1, confidence: 1, source: 'midi', isVirtual: false };
@@ -121,7 +164,7 @@ export function analyzeMidiEvents(events, { duration = 0, tempo = null } = {}) {
     keyConfidence: key?.confidence ?? 0,
     keyCandidates: [],
     confidence: 1,
-    chords,
+    chords: kept,
     bassSegments,
     noteCount: spans.length,
   };
