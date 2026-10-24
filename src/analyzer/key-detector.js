@@ -145,7 +145,7 @@ function degreeOf(rootPc, keyPc) {
   return (rootPc - keyPc + 12) % 12;
 }
 
-function chordScoreForKey(chords, keyPc, mode) {
+export function chordScoreForKey(chords, keyPc, mode) {
   let score = 0;
   let count = 0;
 
@@ -182,9 +182,12 @@ function chordScoreForKey(chords, keyPc, mode) {
     // Bonus pour les cadences typiques
     let cadenceBonus = 0;
     if (mode === 'major') {
-      if (deg === 5 && isDominant(symbol)) cadenceBonus += 2;
+      // [Claude] — 2026-09-25 — `deg` est un écart en demi-tons : la dominante V est à 7
+      // (Sol en Do), pas à 5 (qui est le IV, Fa). L'ancien `deg === 5` créditait à tort
+      // le IV d'un bonus de dominante (ex. F7 en Do) et privait le vrai V (G7) du bonus.
+      if (deg === 7 && isDominant(symbol)) cadenceBonus += 2;
       if (deg === 0 && isMajor(symbol)) cadenceBonus += 1.5;
-      if (deg === 5 && isMajor(symbol)) cadenceBonus += 0.5; // V comme majeur
+      if (deg === 7 && isMajor(symbol)) cadenceBonus += 0.5; // V comme majeur
       if (deg === 9 && isMinor(symbol)) cadenceBonus += 1;
     } else {
       if (deg === 7 && isDominant(symbol)) cadenceBonus += 2; // V7 mineur harmonique

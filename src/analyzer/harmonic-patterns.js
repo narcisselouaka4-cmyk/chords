@@ -8,6 +8,7 @@ import {
   isMajorSymbol,
   isMinorSymbol,
   formatChordBrief,
+  DEGREE_NAMES_MAJOR,
 } from './harmonic-utils.js';
 
 export function enrichChordsWithDegrees(chords, key) {
@@ -147,8 +148,10 @@ export function detectTurnarounds(chords, key) {
   return turnarounds;
 }
 
+// [Claude] — 2026-09-25 — `degree` est un écart en demi-tons (0..11) ; on réutilise la
+// table partagée à 12 entrées au lieu de la table diatonique à 7 entrées qui rendait
+// des libellés faux (ex. le turnaround [0,9,2,7] sortait « I - 9 - iii - 7 »).
 function formatDegree(degree) {
-  const DEGREE_NAMES_MAJOR = ['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii°'];
   return DEGREE_NAMES_MAJOR[degree] || String(degree);
 }
 
