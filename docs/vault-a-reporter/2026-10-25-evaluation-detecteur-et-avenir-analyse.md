@@ -301,3 +301,110 @@ frontières à ±0,1 s (le MIDI le permet), et rôle structurel/passage — la s
 3. Question pour Narcisse : écrire la grille qu'il **attendait** pour
    `Session 15 09 2026 17 42.mid` (accords, et lesquels sont de passage). C'est la première
    ligne du banc, et je ne peux pas la deviner à sa place.
+
+---
+
+# Suite 2 (25/10) — Vérité terrain donnée par Narcisse, et cause unique
+
+Narcisse a dicté la structure de `Session 15 09 2026 17 42.mid`. **Tonalité : ré dièse majeur**
+(il confirme que l'app l'a bien trouvée). Deux parties :
+
+- **Couplet, 2 tours** : `I → IV → V → I` puis `I → IV → ii → V → I` (9 accords)
+- **Refrain** : `I → IV → V → I → V (1er renversement) → vi → IV`, puis `I → V → vi → IV → V`,
+  boucle répétée, et cadence finale `V → IV → I` où le IV peut être remplacé par un accord de
+  tension, **A#7b9** (≈ 20 accords)
+
+Soit **~29 accords de structure** pour 147,9 s.
+
+## Correction à porter : j'avais tort sur l'orthographe
+
+J'ai écrit plus haut que « D# major n'est pas une tonalité d'usage — c'est Mi bémol majeur ».
+**À retirer.** Narcisse pense et écrit en dièses (il dit « ré dièse majeur », « La#7 bémol 9 »)
+et juge la tonalité correctement trouvée. Le défaut réel n'est pas le choix de D# : c'est
+l'**incohérence** entre la tonalité affichée en dièses (`D# major`) et les accords affichés en
+bémols (`Eb`, `Ab`, `Bb`, `Cmadd9/Eb`). Le correctif est d'aligner l'orthographe des accords
+sur celle de la tonalité — donc sur sa convention — et non de changer la tonalité.
+
+## Ce que le moteur fait bien (à ne pas casser)
+
+- **Aucun segment ne tombe sur un degré qu'il ne joue pas.** Les 82 segments réels se
+  répartissent sur I (22), IV (18), vi (15), V (15), ii (12) — **exactement ses cinq degrés**,
+  0 % de iii, de vii ou de chromatique. Les fondamentales retenues sont toutes dans son
+  vocabulaire. *(Ma réduction en degrés de la passe précédente faisait apparaître des iii et
+  des vii : c'était un défaut de MON heuristique, pas du moteur. Retiré.)*
+- **Son V en premier renversement est bien vu** : basse D relevée à 21,47 / 56,04 / 86,36 /
+  87,47 / 123,58 / 124,42 / 134,01 s.
+- Le moteur est **déterministe** : les deux tours du couplet produisent les mêmes erreurs aux
+  mêmes endroits.
+
+## Les trois défauts réels, mesurés contre sa grille
+
+**1. Sur-segmentation 3,3×.** 97 segments émis pour ~29 accords de structure (82 hors
+fantômes, encore 62 après regroupement par degré, soit 2,1×). Cause : un changement de
+voicing ou de note de mélodie sur un accord **tenu** ouvre un nouveau segment. Exemple, son
+vi : `Csus4` (23,71) → `Eb6/9/C` (24,66) → `Cm` (24,97) = trois segments pour un seul accord.
+Le garde-fou existant (`if (current && single && cluster[0].note === top) continue;`) ne
+protège que le cas d'**une** note seule au sommet.
+
+**2. Aucune hiérarchie : les 97 sont marqués `structural`.** Donc la sur-segmentation 3,3×
+est présentée comme de la structure. Ses accords de passage — qu'il connaît — ne sont nulle
+part. C'est le défaut le plus visible pour lui.
+
+**3. Cause unique derrière le mauvais nommage : aucun gabarit pour un accord SANS TIERCE.**
+
+Mesuré : **27 % des segments (22/82) ne contiennent pas la tierce du degré que joue la basse**
+— ce sont les voicings « coquille » de la main gauche gospel. La table de
+`src/recorder/midi-chord-namer.js` n'a **aucun** gabarit sans tierce. Faute de modèle, le
+moteur re-enracine ailleurs, d'où **34 % de segments (28/82) dont la fondamentale retenue
+n'est pas la basse**, et les noms exotiques.
+
+Conséquences directement vérifiées sur sa grille :
+
+| Il joue | Notes | Affiché | Occurrences |
+|---|---|---|---|
+| **I** (ouverture du couplet) | D#, C, D (sans la tierce G) | `Cmadd9/Eb` → **vi** | 2,34 / 14,14 / 47,81 |
+| **V** (coquille) | A#, G#, G (sans la tierce D) | `Abmaj7sus2/Bb` | 74,52 / 112,06 |
+| **vi** (coquille) | C, G, G# (sans la tierce D#) | `Abmaj7/C` | 79,17 |
+| **V7** (sans tierce) | A#, F, G# | `Bb?` — un **`?` à l'écran** | 8,50 / 42,32 |
+| **A#7b9** (sans fondamentale) | F, G#, B = 5 / b7 / b9 | `Fdim` | 31,52 (6,78 s) / 65,69 |
+| **V 1er renversement** | basse D | `Bb6/D`, `Bb/D`, `F13sus4/D` | 3 noms pour un objet |
+
+Le premier accord du morceau — son degré I — est lu **vi**, trois fois. Et son accord de
+tension A#7b9, qu'il nomme lui-même, est affiché `Fdim` : le moteur n'a pas la notion de
+**dominante sans fondamentale** (structure supérieure 5/b7/b9 au-dessus d'une basse qui est
+la quinte).
+
+Au total : **25 noms distincts** affichés pour 5 degrés et 1 accord de tension.
+
+## Conclusion technique
+
+Les trois défauts sont **indépendants du signal** et tous trois localisés :
+sur-segmentation dans `segmentSessionEvents`, hiérarchie absente dans `analyzeMidiEvents`
+(`role` codé en dur), nommage dans `midi-chord-namer.js` (table sans gabarit sans tierce,
+arbitrage sans contexte tonal). Rien ici ne relève du plafond acoustique de l'ADR-061.
+
+## Prochaines actions, par ordre de rentabilité
+
+1. **Figer sa grille comme premier cas du banc MIDI** (couplet 2 tours + refrain + cadence
+   A#7b9 ci-dessus). Simuler chaque correctif dessus avant de toucher au code.
+2. **Gabarits sans tierce** (coquilles : fondamentale + quinte + 7e / 6e / 9e) — corrige en un
+   point le `?`, le I lu vi, le V et le vi coquilles. Le gain le plus large pour le plus petit
+   changement.
+3. **Basse privilégiée comme fondamentale** quand elle est la fondamentale d'un degré de la
+   tonalité et qu'aucune lecture mieux étayée n'existe. Demande de passer la **tonalité** à
+   `nameMidiChord`, qui aujourd'hui n'en reçoit aucune.
+4. **Orthographe cohérente** accords/tonalité, sur la convention de l'utilisateur (dièses ici).
+5. **Fantômes et chevauchements** (≤ 0,12 s, 11 chevauchements jusqu'à −39 ms).
+6. **Ne pas couper sur un changement de voicing d'un accord tenu** — étendre le garde-fou
+   au-delà du cas « une seule note au sommet ».
+7. **Rôles et degrés sur le chemin MIDI**, puis hiérarchie par **répétition de section** (les
+   deux tours du couplet sont détectables : mêmes suites aux mêmes positions).
+8. **Dominante sans fondamentale** (chantier à part, bien défini) : reconnaître une structure
+   supérieure 5/b7/b9 et nommer le V7b9 au lieu d'une triade diminuée.
+
+## Question restante pour Narcisse
+
+Sa cadence finale : il dit « c'est 5, 4, 1, mais le 4 je le remplace par A#7b9 ». Comme A#
+**est** le V en ré dièse, à confirmer — s'agit-il de `V → V7b9 → I` (le IV remplacé par une
+tension bâtie sur le V), ou d'un autre degré ? Le relevé montre à ces endroits `Fdim` sur
+{F, G#, B}, compatible avec A#7b9 sans fondamentale. À trancher par lui.
