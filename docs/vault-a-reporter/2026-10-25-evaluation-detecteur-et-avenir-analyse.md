@@ -1053,3 +1053,84 @@ Un morceau à 0,0 % mérite d'être regardé : c'est probablement un défaut, pa
 Le moteur n'émet que `maj`, `m` et `dim` (vocabulaire ADR-061). GuitarSet annote des septièmes
 et des demi-diminués. **La colonne « 7es » est donc plafonnée par construction** et ne se
 compare pas à la littérature.
+
+---
+
+# Suite 10 (25/10) — A/B du filtre mort, et l'écart de fondamentale sur 180 morceaux
+
+## 1. Le filtre mort : réel, et son correctif est NEUTRE sur la justesse
+
+`_clean_segments` devait absorber les segments trop courts. Sa condition testait la **présence**
+de la clé `harmonicEvidence`, pas son contenu — or **133 segments sur 133** la portent. Le filtre
+ne s'est donc **jamais déclenché**. Et le contenu épargné dit souvent le contraire de ce qu'on
+croit : `{independent: false, supportSeconds: 0.0}`, soit « aucun appui acoustique ».
+
+Correctif : n'épargner que les segments à appui RÉEL (évidence indépendante, ou support mesuré).
+A/B sur les **180 morceaux**, moteur de l'app gelé d'un côté, variante de l'autre (`--engine`) :
+
+| style | majmin réf | majmin variante | écart | sur-seg réf | sur-seg variante |
+|---|---|---|---|---|---|
+| SS | 79,2 % | 79,6 % | +0,4 | 1,66× | 1,54× |
+| Rock | 77,2 % | 77,6 % | +0,4 | 1,40× | 1,33× |
+| Bossa | 65,7 % | 65,3 % | −0,4 | 1,44× | 1,32× |
+| Jazz | 49,6 % | 49,8 % | +0,2 | 1,67× | 1,51× |
+| Funk | 42,6 % | 42,7 % | +0,1 | **2,26×** | **2,02×** |
+| **tous** | **62,9 %** | **63,0 %** | **+0,1** | **1,69×** | **1,54×** |
+
+35 morceaux améliorés, 23 dégradés, 122 inchangés. Médiane **+0,00**, écart-type 1,61.
+
+**Verdict** : neutre sur la justesse, mais **−9 % de segments** (et −11 % sur le funk). Le
+correctif ne rend pas le moteur plus juste ; il rend la grille plus lisible, sans rien coûter.
+C'est exactement la plainte d'origine de Narcisse — « les accords qui disparaissent ou se
+multiplient » — donc il vaut d'être pris, pour la lisibilité, pas pour le score.
+
+À noter : le −2,7 mesuré d'abord sur `00_Jazz2-110-Bb_comp` était une **exception**. Le pire cas
+du corpus est −4,9 (`05_BN1-129-Eb_comp`), le meilleur +13,4 (`00_Jazz2-187-F#_comp`).
+
+## 2. L'écart de fondamentale : 57 % des erreurs sont des notes DE l'accord
+
+Décomposition de la perte sur les 180 morceaux : **31,4 % du temps la fondamentale est fausse,
+5,8 % seulement où elle est juste mais la qualité fausse.** Enrichir le vocabulaire (septièmes,
+sus) ne rapporterait donc au mieux que ~6 points — c'est la fondamentale qui porte tout.
+
+Histogramme des écarts (fondamentale retenue moins attendue, pondéré par la durée) :
+
+| écart | part du temps | part des erreurs |
+|---|---|---|
+| juste | 76,9 % | — |
+| **+7 (quinte)** | 5,6 % | **24,1 %** |
+| **+4 (tierce majeure)** | 4,3 % | 18,6 % |
+| +10 (septième mineure) | 3,8 % | 16,5 % |
+| **+3 (tierce mineure)** | 3,3 % | 14,3 % |
+| +9 (sixte majeure) | 2,3 % | 10,0 % |
+| +5 (quarte) | 1,7 % | 7,4 % |
+| le reste | 2,2 % | 9,1 % |
+
+**Le résultat qui compte** : les écarts +3, +4 et +7 sont les notes **de l'accord lui-même** —
+sa tierce et sa quinte. Ensemble ils font **13,2 % du temps, soit 57 % de toutes les erreurs de
+fondamentale**. Le moteur entend le bon accord et le nomme par la mauvaise note.
+
++10 et +9 (6,1 %, 26 % des erreurs) sont les confusions de relative et de septième.
+
+L'erreur n'est donc **pas diffuse** : elle a une structure musicale nette. Et elle confirme avec
+un chiffre l'hypothèse que le rapport ADR-061 avait posée sans la mesurer — « cause n°3 :
+inversions / basse, le prochain chantier ». Le dépôt contient déjà `scripts/bass-detector.py`
+(Bass Engine V2.5), jamais branché sur cette chaîne.
+
+C'est la **même famille de défaut** que celui corrigé côté MIDI cette nuit (`F9sus4/G` retenu au
+lieu de `Ebadd9/G`, l'arbitrage préférant le gabarit le plus riche sans regarder si sa triade
+sonnait). La règle qui a tranché là-bas — l'identité d'un accord tient à sa triade réellement
+jouée, et la basse départage — a un équivalent à trouver ici.
+
+## Vérifié / non vérifié
+
+Les deux mesures portent sur les 180 morceaux, moteur `legacy`, mir_eval. Le correctif du filtre
+mort **n'est pas fusionné** : il vit dans une copie hors dépôt. Rien n'a été vérifié dans
+Electron.
+
+## Prochaine action désignée par la mesure
+
+Brancher une détection de basse sur l'attribution de fondamentale. C'est la cible la mieux
+étayée de toute la session : 57 % des erreurs de fondamentale, qui portent elles-mêmes 31,4 %
+de la perte totale — soit environ **18 % du temps** récupérable en principe. L'outil existe déjà
+dans le dépôt.
