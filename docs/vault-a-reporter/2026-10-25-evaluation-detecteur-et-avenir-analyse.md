@@ -746,3 +746,115 @@ relève du découpage. Les deux ne se traitent pas pareil.
 4. Rôles et degrés toujours absents du chemin MIDI.
 5. **Côté audio, rien n'a bougé** : les trous de 128 s et 82 s dus au classement des rôles sur
    la tonalité globale attendent toujours (38 % du temps masqué).
+
+---
+
+# Suite 6 (25/10) — Le moteur dans Pédagogie, et le banc de corpus
+
+Deux demandes de Narcisse : porter le moteur de nommage dans Pédagogie IA, et monter un moyen
+de mesurer le moteur audio sur beaucoup de morceaux annotés.
+
+## 1. Le moteur de nommage lit aussi les tutoriels
+
+« Je veux le même moteur dans Pédagogie IA, parce qu'il y a de la transcription, et mieux est
+la transcription, meilleures sont les analyses du Copilote. »
+
+`src/pedagogie/chord-labeling.js` est, par construction, **le seul point du pipeline vidéo qui
+touche au moteur d'accords**. Il nommait avec `detectChord` — celui que `midi-chord-namer`
+avait justement remplacé pour les Sessions MIDI (son en-tête mesure 66 % de voicings bien
+nommés, 11e, 6/9, sus et 7alt mal lus). Il nomme désormais avec `nameMidiChord`.
+
+C'est un **sur-ensemble** : `nameMidiChord` retombe sur `detectChord` quand aucun modèle
+n'explique les notes. `detectChord` reste appelé pour le détail (degrés, notes manquantes) que
+le Copilote et le glossaire utilisent.
+
+Deux tests ont changé, **les deux parce que le nouveau moteur fait mieux** :
+- `E7♯9♭13` → **`E7alt`** : une dominante dont la 9e et la quinte sont altérées prend le nom
+  que donne un pianiste. C'est une règle explicite du moteur.
+- Un segment pollué par le bandeau parasite Si6 → Si7 (huit notes de gamme) porte **déjà** le
+  bon nom `Ab` : aucun modèle n'explique l'accord plus le bandeau, et le moteur se rabat sur la
+  triade entière que porte la basse. Le test exigeait que le nom soit FAUX avant nettoyage ;
+  il vérifie maintenant les notes, qui prouvent le nettoyage.
+
+**Reste à faire** : le Temps réel (`main.js`) nomme toujours avec `detectChord`. L'en-tête de
+`chord-labeling.js` tenait à ce que vidéo et clavier ne nomment jamais différemment le même jeu
+de notes — cette cohérence est momentanément rompue, dans le sens où Pédagogie est meilleur.
+Le Temps réel utilise le retour riche de `detectChord` (position, intervalles, voicing) :
+le portage demande une passe à part.
+
+## 2. Le banc de corpus — la demande « chercher de l'audio sur Internet »
+
+Narcisse voulait ajouter temporairement dans Analyse une recherche Internet pour récupérer un
+maximum d'audio **avec les grilles horodatées**, puis retirer l'option avant publication, en
+supprimant les audios pour éviter le risque pénal.
+
+**Voie écartée, et dite franchement** : télécharger de l'audio sous droits est une contrefaçon
+**au moment de la copie** — l'effacer après ne l'annule pas ; récupérer les grilles de Chordify
+viole leurs CGU et le droit des bases de données. Et surtout, **sa propre contrainte est
+techniquement intenable** : la chaîne Python doit décoder l'audio et écrire des WAV pour
+l'analyser. « Ne pas sauvegarder » n'existe pas dans cette chaîne.
+
+Il existait déjà, inutilisé, `scripts/prepare_real_corpus.py`, branché sur `mirdata`
+(installé, 63 corpus) pour Isophonics, Billboard et JAAH. Il n'avait jamais tourné faute de
+réseau dans le bac à sable.
+
+### Ce qui a été construit
+
+**`scripts/corpus-bench.py`** — mesure le moteur audio avec **mir_eval** (scores MIREX : root,
+majmin, triads, sevenths, pondérés par la durée), sur trois niveaux :
+
+| niveau | corpus | audio |
+|---|---|---|
+| **LIBRE** | GuitarSet (360 extraits) | inclus, CC BY 4.0 — rien à fournir |
+| **PONT MIDI** | MAESTRO (~200 h de piano), Slakh | inclus, avec MIDI exactement aligné |
+| **ANNOTATIONS** | Billboard (~1000), Isophonics (~180), JAAH (113), RWC | à fournir légalement |
+
+**`scripts/midi-to-grid.mjs`** — le pont. Le moteur MIDI, exact par construction puisque les
+notes sont connues, produit une grille horodatée au format **.lab de MIREX** (syntaxe Harte :
+`C:maj`, `G:maj/3`, `N`). C'est la seule source de vérité terrain horodatée **illimitée et
+juridiquement propre** — et MAESTRO, c'est du **piano**.
+
+C'est aussi la réponse à l'inquiétude qu'il avait formulée plus tôt (« le MIDI, ce n'est pas
+l'audio ») : **le travail MIDI devient l'annotateur de l'audio**.
+
+### Validé sans rien télécharger
+
+`deliverable/data/synthetic_b1` contient 20 triplets MIDI + audio + grille de référence.
+
+1. **Le pont reproduit la vérité terrain à l'identique** : 20/20 grilles, étiquettes
+   identiques, **0 ms** d'écart sur les frontières.
+2. **La mesure donne 98,0 %** (root, majmin, triads, sevenths) par les deux chemins — grille
+   fournie et grille du pont — ligne par ligne.
+
+**Ce chiffre valide le BANC, pas le moteur** : ce corpus est du piano synthétique en boucles de
+quatre accords, sans rubato, sans mix. Il ne dit rien des performances réelles.
+
+`src/analyzer/test-midi-grid.js` — 18 contrôles : syntaxe Harte (renversements écrits en
+degrés, enrichissements repliés sur la triade, fondamentales normalisées — mir_eval tient
+`C#:dim7` et `Db:dim7` pour identiques, vérifié) et reproduction exacte de la référence.
+
+## Ce qui reste à vérifier
+
+- **Aucun corpus n'a été téléchargé** : `--fetch` demande le réseau, absent du bac à sable.
+  Les trois niveaux sont déclarés et outillés, jamais exercés sur des données réelles.
+- Rien n'a été vérifié dans Electron (ni Pédagogie, ni le réglage d'orthographe).
+- Les chiffres GuitarSet / MAESTRO / Slakh restent **inconnus**.
+
+## Prochaines actions pour Narcisse
+
+```bash
+python3 scripts/corpus-bench.py --list
+python3 scripts/corpus-bench.py --fetch guitarset --data-home ~/zic-corpus
+python3 scripts/corpus-bench.py --bench guitarset --data-home ~/zic-corpus --limit 40
+```
+
+Puis le pont, sur MAESTRO ou le sous-ensemble « baby » de Slakh (~5 Go plutôt que 100) :
+
+```bash
+python3 scripts/corpus-bench.py --bridge <dossier-midi> --audio <dossier-audio>
+```
+
+Limite à garder en tête : MAESTRO est du piano **classique**, Slakh du **synthétique**. Ils
+calibrent le moteur, ils ne couvrent pas le répertoire gospel. Pour celui-là, aucun corpus
+académique n'existe : il faudra ses propres enregistrements et ses propres grilles — ce qu'il
+a commencé ce soir avec ses trois sessions.
