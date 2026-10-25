@@ -1236,7 +1236,12 @@ runTest('T83 — Noms d\'accords en texte simple (pas de balise dans la grille)'
     assertTrue(r.resolved, `accord résolu : ${notes}`);
     assertTrue(!/[<>]/.test(r.label), `pas de balise : ${r.label}`);
   }
-  assertEqual(labelNotes([52, 56, 62, 67, 72]).label, 'E7♯9♭13', 'altérations en caractères :');
+  // [Claude] — 2026-10-25 — Depuis que Pédagogie nomme avec `nameMidiChord`
+  // (demande de Narcisse : « je veux le même moteur »), une dominante dont la 9e
+  // ET la quinte sont altérées s'écrit « 7alt », le nom que donne un pianiste,
+  // plutôt que E7♯9♭13. Les altérations restent en caractères, pas en balises :
+  // c'est ce que ce test garde.
+  assertEqual(labelNotes([52, 56, 62, 67, 72]).label, 'E7alt', 'dominante altérée :');
 });
 
 console.log(`\n=== Résultat : ${passed}/${total} tests passés ===`);

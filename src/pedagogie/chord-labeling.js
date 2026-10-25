@@ -2,15 +2,23 @@
 //
 // Seul point du pipeline vidéo qui touche au moteur d'accords. Il est isolé ici
 // pour deux raisons : la segmentation (note-grouping.js) reste testable sans le
-// moteur, et le nommage passe par la MÊME fonction que la détection en temps
-// réel de l'onglet Entraînement — aucun second moteur d'accords n'est introduit,
-// donc aucun risque que la vidéo et le clavier nomment différemment le même
-// jeu de notes.
+// moteur, et le nommage passe par une seule fonction.
+//
+// [Claude] — 2026-10-25 — Narcisse : « je veux le même moteur dans Pédagogie IA,
+// parce qu'il y a de la transcription, et mieux est la transcription, meilleures
+// sont les analyses du Copilote. » Le nommage passe donc de `detectChord` à
+// `nameMidiChord` (Sessions MIDI), qui part des notes RÉELLEMENT jouées : chaque
+// classe de hauteur est essayée comme fondamentale, et le modèle retenu est celui
+// dont la triade sonne vraiment. `nameMidiChord` retombe sur `detectChord` quand
+// aucun modèle n'explique les notes : c'est un sur-ensemble, jamais une perte.
+// `detectChord` reste appelé pour le DÉTAIL (degrés, notes manquantes, voicing)
+// que le Copilote et le glossaire utilisent.
 //
 // Discipline : si le moteur ne reconnaît rien, le segment est marqué non résolu
 // et le dit. On n'affiche jamais un accord que le pipeline n'a pas réellement lu.
 
 import { detectChord } from '../chord-engine/index.js';
+import { nameMidiChord } from '../recorder/midi-chord-namer.js';
 import { chordName, slashName, formatNoteList } from '../chord-engine/naming.js';
 
 /**
@@ -45,8 +53,9 @@ export function labelNotes(midis, options = {}) {
     };
   }
 
+  const named = nameMidiChord(list, { latin });
   const chord = detectChord(list);
-  if (!chord) {
+  if (!named && !chord) {
     return {
       resolved: false, label: null, symbol: null, rootPc: null, bassPc: null,
       isSlash: false, noteNames: formatNoteList(pcs, latin), detail: null,
@@ -57,25 +66,25 @@ export function labelNotes(midis, options = {}) {
   // [Claude] — 2026-09-25 — Texte simple : chordName() écrit les altérations en
   // HTML (<span class="flat">♭</span>) pour d'autres écrans ; ici le nom est
   // affiché en texte (la grille montrait les balises) et envoyé au Copilote.
-  const label = plainText(chord.isSlash
+  const label = plainText(named ? named.name : (chord.isSlash
     ? slashName(chord.rootPc, chord.symbol, chord.bassPc, latin)
-    : chordName(chord.rootPc, chord.symbol, latin));
+    : chordName(chord.rootPc, chord.symbol, latin)));
 
   // Une quinte à vide n'est pas une erreur de lecture : c'est ce qui est
   // réellement joué à cet endroit. On le signale plutôt que de compléter la
   // tierce depuis la tonalité — ce serait afficher une note que la vidéo ne
   // montre pas. Le recoupement avec l'analyse audio (cross-check.js) est le
   // bon endroit pour confronter cette lecture littérale à l'harmonie entendue.
-  const thirdMissing = chord.symbol === '5'
-    || (Array.isArray(chord.missing) && chord.missing.includes(3));
+  const thirdMissing = chord?.symbol === '5'
+    || (Array.isArray(chord?.missing) && chord.missing.includes(3));
 
   return {
     resolved: true,
     label,
-    symbol: chord.symbol,
-    rootPc: chord.rootPc,
-    bassPc: chord.bassPc ?? null,
-    isSlash: Boolean(chord.isSlash),
+    symbol: named ? named.symbol : chord.symbol,
+    rootPc: named ? named.rootPc : chord.rootPc,
+    bassPc: (named ? named.bassPc : chord.bassPc) ?? null,
+    isSlash: Boolean(named ? named.isSlash : chord.isSlash),
     noteNames: formatNoteList(pcs, latin),
     thirdMissing,
     note: thirdMissing

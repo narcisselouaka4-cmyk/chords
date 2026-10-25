@@ -208,8 +208,13 @@ const segs = [
 ];
 const fixed = segmentsWithoutArtifacts(segs, coryZones);
 check('Grille : le segment d\'avant reste le même', fixed[0] === segs[0]);
-check('Grille : le segment pollué perd Si6 → Si7 et reprend le nom de son accord',
-  fixed.length === 2 && fixed[1].midis.join(' ') === '44 72 75 80' && fixed[1].chord.label === segs[0].chord.label && segs[1].chord.label !== segs[0].chord.label,
+// [Claude] — 2026-10-25 — Depuis que Pédagogie nomme avec `nameMidiChord`, le
+// segment pollué porte DÉJÀ le bon nom : aucun modèle n'explique l'accord plus
+// les huit notes du bandeau, et le moteur se rabat sur la triade entière que
+// porte la basse (Sol#2 · Do5 · Ré#5 = Ab). Le nom ne prouve donc plus le
+// nettoyage — ce sont les notes qui le prouvent, et c'est ce qu'on vérifie.
+check('Grille : le segment pollué perd Si6 → Si7 et garde le nom de son accord',
+  fixed.length === 2 && fixed[1].midis.join(' ') === '44 72 75 80' && fixed[1].chord.label === segs[0].chord.label,
   `${segs[1].chord.label} → ${fixed[1]?.chord?.label}`);
 check('Grille : le segment fait seulement du bandeau est écarté', !fixed.some((s) => s.start === 40.5));
 const relevé = { noteEvents: [...realPlay, ...overlay], segments: segs, notesSource: IMAGE };
