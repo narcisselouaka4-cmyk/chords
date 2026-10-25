@@ -1219,3 +1219,80 @@ Ne pas brancher le détecteur de basse. Avant tout choix de chantier côté audi
 l'audibilité de la fondamentale sur un corpus proche du répertoire de Narcisse**. S'il s'avère
 qu'elle y sonne, alors seulement la piste basse/contexte redevient pertinente — et le banc
 GuitarSet ne sera plus le bon juge.
+
+---
+
+# Suite 12 (25/10) — Narcisse avait raison : « Père nous t'adorons » est en MI
+
+Mesure de l'audibilité de la fondamentale sur son répertoire (33 accords, deux morceaux avec
+référence horodatée) : **36,4 %** contre 51,9 % sur GuitarSet. Le registre grave seul donne
+42,4 %. Conclusion apparente : la fondamentale sonne ENCORE MOINS chez lui.
+
+**Ce chiffre est à retirer.** Narcisse : « il me semble que la musique a une modulation à un
+moment donné ». Vérification faite, la référence est fausse, donc la mesure aussi.
+
+## La tonalité au fil du morceau (10,1 min, fenêtres de 20 s, Krumhansl, sans aucune grille)
+
+30 fenêtres, toutes **diatoniques de mi majeur**, zéro exception :
+
+| trouvé | degré en mi | fenêtres |
+|---|---|---|
+| Si | **V** | 19 |
+| Mi | **I** | 7 |
+| La | IV | 1 |
+| Sol#m | iii | 1 |
+| Do#m | vi | 1 |
+| Fa#m | **ii** | 1 |
+
+En si majeur, deux de ces fenêtres seraient hors tonalité (La et Fa#m). En mi majeur, aucune.
+
+## La note qui tranche
+
+Si majeur et mi majeur ne diffèrent que par une note : **La# contre La naturel**. Suivie au fil
+du morceau, sans accord ni grille :
+
+| plage | tonalité |
+|---|---|
+| 0 → 30 s | **MI** |
+| 30 → 45 s | SI |
+| 45 → 135 s | **MI** |
+| 255 → 420 s | **MI** |
+| 510 → 540 s | SI |
+| 540 → 585 s | **MI** |
+
+Le La naturel domine presque partout. Les brefs passages en Si sont des **dominantes
+secondaires** (Fa#7 → Si), idiomatiques en gospel — pas une modulation de fond.
+
+## Verdict sur une question ouverte du coffre
+
+Le rapport ADR-061 laissait ceci à arbitrer : « PERE : tonalité B (moteur ET ancienne GT
+track_002) contre E (toi + Chordify) ». **La mesure tranche en faveur de Narcisse : mi majeur.**
+La référence `tests/references/track_002_pere_nous_tadorons.json` prend la dominante pour la
+tonique — sa grille contient des **Fa# majeur**, diatoniques de si et non de mi, alors que le
+morceau joue des **Fa# mineur** plus loin.
+
+Elle ne couvre d'ailleurs que les **60 premières secondes** sur 10 minutes, et tombe sur un des
+rares passages où le Si domine (30-45 s). D'où l'erreur.
+
+## Ce qui est retiré, et ce qui tient
+
+- **Retiré** : « sur le répertoire de Narcisse la fondamentale ne sonne que 36,4 % ». Calculé
+  sur une référence dont les fondamentales sont fausses. Sans valeur.
+- **Retiré aussi** : le test de transposition qui concluait « la référence en si tient mieux
+  que mi (40 % contre 20 %) ». Il portait sur les 60 s couvertes par la référence, c'est-à-dire
+  précisément la zone où le morceau est sur sa dominante.
+- **Tient** : la mesure sur GuitarSet (51,9 %, 360 accords, annotations professionnelles).
+
+## Conséquence
+
+On ne sait toujours pas si la fondamentale sonne sur le répertoire de Narcisse. Pour le savoir
+il faut une grille juste, et les deux seules références horodatées dont nous disposons sont
+suspectes (celle de jehovah est marquée « provisoire » dans le coffre, celle de PERE est
+maintenant réfutée).
+
+**La vérité terrain la plus sûre dont nous disposions sur son jeu reste ses sessions MIDI** :
+notes exactes, grille dictée par lui. C'est là qu'il faudrait porter la mesure.
+
+Leçon méthodologique : une mesure ne vaut que sa référence. Trois fois aujourd'hui une référence
+fausse a produit un chiffre crédible et faux — les MIDI désalignés de Slakh, la durée totale
+comme indicateur d'alignement, et maintenant cette tonalité.
