@@ -42,6 +42,23 @@ const NEW_BASS_BELOW = 48;
 // intérieure n'en a qu'une, une note de mélodie en a au moins deux.
 const MELODY_ABOVE_BASS = 7;
 const MELODY_MIN_BELOW = 2;
+// Deux notes attaquées à moins de CLUSTER_GAP mais distantes d'un ton ou moins :
+// c'est un trait rapide, pas un intervalle plaqué. Mesuré sur Session_019 de
+// Narcisse : Ré5 et Mi5 à 88 ms d'écart (sous les 90 ms du groupement) ouvraient
+// un « Em7/G » au milieu d'un arpège.
+const MELODY_RUN_INTERVAL = 2;
+// Un accord roulé peut dépasser CLUSTER_GAP : sa dernière note le complète si
+// elle arrive dans ce délai, près du sommet de l'accord, et que tout l'accord
+// sonne encore. Mesuré : son Ré♭7 de 41,5 s est roulé sur 197 ms, et le Si4 —
+// la septième — arrivait 158 ms après le reste, donc hors grappe. L'accord
+// s'affichait « Db » au lieu de « Db7 ».
+const ROLL_WINDOW = 0.25;
+// … « près du sommet » : au-delà, c'est une note de mélodie jouée juste après
+// l'accord (un Ré5 deux octaves au-dessus d'un Do3-Mi3-Sol3 n'en fait pas un Cadd9).
+const ROLL_NEAR_TOP = 12;
+// Durée au-delà de laquelle une note plaquée avec l'accord n'est plus un ornement
+// mais fait partie de l'harmonie.
+const ORNAMENT_MAX_DURATION = 0.2;
 
 // Garde-fou "gamme sous pédale" — même logique que note-grouper.js (voir son commentaire) :
 // un vrai accord n'a jamais TOUTES ses notes voisines d'un ton/demi-ton une fois triées par
@@ -214,7 +231,8 @@ export function segmentSessionEvents(events) {
 
   for (const cluster of clusterAttacks(windows)) {
     const start = cluster[0].onTime;
-    const t = cluster[cluster.length - 1].onTime + HOLD_EPSILON;
+    const lastAttackTime = cluster[cluster.length - 1].onTime;
+    const t = lastAttackTime + HOLD_EPSILON;
     // Ce que la main tient : touches enfoncées (et les notes qu'on vient d'attaquer).
     const held = windows.filter((w) => w.onTime <= t && (cluster.includes(w) || w.keyOffTime > t));
     const lowestHeld = Math.min(...held.map((w) => w.note));
@@ -233,28 +251,52 @@ export function segmentSessionEvents(events) {
     const single = cluster.length === 1;
     const arpeggioGrows = current?.arpeggio && single && start - current.lastAttack <= ARPEGGIO_WINDOW
       && current.windows.every((w) => sounding.includes(w));
+    // Fin d'un accord roulé : la note tardive complète l'accord au lieu d'être
+    // lue comme une mélodie (voir ROLL_WINDOW).
+    const chordTop = current ? Math.max(...current.windows.map((w) => w.note)) : -Infinity;
+    const chordBottom = current ? Math.min(...current.windows.map((w) => w.note)) : Infinity;
+    const rollCompletes = Boolean(current) && single && !current.arpeggio
+      && start - current.lastAttack <= ROLL_WINDOW
+      && cluster[0].note > chordBottom
+      && cluster[0].note - chordTop <= ROLL_NEAR_TOP
+      && current.windows.every((w) => sounding.includes(w));
+    const grows = arpeggioGrows || rollCompletes;
     // Mélodie au-dessus de l'accord tenu : soit elle domine tout ce qui sonne,
     // soit elle poursuit une ligne legato au-dessus du corps de l'accord.
-    const isMelodyNote = () => {
-      if (cluster[0].note === top) return true;
+    const isMelodyNote = (note) => {
+      if (note === top) return true;
       if (!current) return false;
-      const below = current.windows.filter((w) => w.note < cluster[0].note && w.offTime > t);
+      const below = current.windows.filter((w) => w.note < note && w.offTime > t);
       if (below.length < MELODY_MIN_BELOW) return false;
-      return cluster[0].note - Math.min(...below.map((w) => w.note)) >= MELODY_ABOVE_BASS;
+      return note - Math.min(...below.map((w) => w.note)) >= MELODY_ABOVE_BASS;
     };
-    if (current && single && !arpeggioGrows && isMelodyNote()) continue;
+    // Un trait rapide peut poser deux notes dans la même grappe : elles restent
+    // de la mélodie si elles sont conjointes et toutes deux au-dessus de l'accord.
+    const melodicPair = cluster.length === 2
+      && Math.abs(cluster[1].note - cluster[0].note) <= MELODY_RUN_INTERVAL
+      && cluster.every((w) => isMelodyNote(w.note));
+    if (current && !grows && ((single && isMelodyNote(cluster[0].note)) || melodicPair)) continue;
     if (cluster.length >= MIN_SIMULTANEOUS && isMelodicRun(cluster)) continue;
     const named = nameMidiChord(sounding.map((w) => w.note));
     if (!named) continue;
     // Notes de l'accord attaquées depuis le précédent (début d'un arpège, basse
     // gardée par la pédale) : elles lui appartiennent, pas à une mélodie.
+    // `lastAttack` est la DERNIÈRE attaque de la grappe précédente, pas la
+    // première : un accord roulé s'étale sur plusieurs dizaines de millisecondes,
+    // et ses notes tardives comptaient comme « attaquées depuis l'accord
+    // précédent », donc appartenant au suivant — qui reculait alors son début
+    // jusqu'à elles. Mesuré sur Session_019 de Narcisse : son Cmaj9 de 17,43 s
+    // (C3 17,43 · D4 17,45 · G3 17,45 · B3 17,47 · E4 17,52) était écrasé à
+    // 0,04 s parce que le Si3, tenu jusqu'à 19,58, faisait commencer le Ddim7
+    // de 18,61 s à 17,47. Le Cmaj9 disparaissait ensuite comme transitoire, et
+    // le Ddim7 s'affichait à la place d'un accord jamais joué là.
     const since = current ? current.lastAttack : -Infinity;
     const own = sounding.filter((w) => w.onTime > since || cluster.includes(w));
     own.forEach((w) => chordWindows.add(w));
-    if (arpeggioGrows || (current && current.name === named.name)) {
-      // Arpège qui complète son accord, ou même accord rejoué : un seul segment.
-      if (arpeggioGrows) Object.assign(current, { name: named.name, named, windows: sounding, attackNotes: sounding.map((w) => w.note) });
-      current.lastAttack = start;
+    if (grows || (current && current.name === named.name)) {
+      // Arpège ou accord roulé qui se complète, ou même accord rejoué : un seul segment.
+      if (grows) Object.assign(current, { name: named.name, named, windows: sounding, attackNotes: sounding.map((w) => w.note) });
+      current.lastAttack = lastAttackTime;
       current.notes = [...new Set([...current.notes, ...sounding.map((w) => w.note)])];
       current.end = Math.max(current.end, ...sounding.map((w) => w.offTime));
       continue;
@@ -268,11 +310,46 @@ export function segmentSessionEvents(events) {
       windows: sounding,
       notes: sounding.map((w) => w.note),
       attackNotes: sounding.map((w) => w.note),
-      lastAttack: start,
+      lastAttack: lastAttackTime,
       // Accord né d'une note seule (troisième note d'un arpège) : il peut encore se compléter.
       arpeggio: single,
     };
     chordSegments.push(current);
+  }
+
+  // Relâcher des notes ne crée pas un nouvel accord. Quand les notes du segment
+  // suivant sont toutes déjà dans le précédent, c'est le même accord qui se
+  // dégarnit — on garde le plus fourni. Mesuré sur Session_019 de Narcisse :
+  // son Sol add9 (Sol Ré La Si) devenait « Gadd9 » puis « Gsus2 » dès que le Si
+  // cessait de sonner, et son Do majeur 7 (Do Mi Sol Si) se coupait en
+  // « Cmaj7/G » puis « Em/G ».
+  const pcOf = (n) => ((n % 12) + 12) % 12;
+  const bassOf = (seg) => Math.min(...seg.notes);
+  for (let i = chordSegments.length - 1; i > 0; i -= 1) {
+    const previous = chordSegments[i - 1];
+    const current = chordSegments[i];
+    const pcs = new Set(previous.notes.map(pcOf));
+    if (current.notes.every((n) => pcs.has(pcOf(n)))) {
+      previous.end = Math.max(previous.end, current.end);
+      chordSegments.splice(i, 1);
+      continue;
+    }
+    // Appoggiature plaquée AVEC l'accord : un segment très court, même basse que
+    // le suivant, qui n'en diffère que par une note relâchée aussitôt. L'accord
+    // joué est celui qui suit, et il commence à l'attaque. Mesuré sur
+    // Session_017 de Narcisse : son la mineur de 10,46 s s'ouvrait sur un
+    // « Amadd11 » de 0,15 s, le Ré4 étant relâché à l'arrivée du Mi4.
+    const nextPcs = new Set(current.notes.map(pcOf));
+    const foreign = previous.notes.filter((n) => !nextPcs.has(pcOf(n))).length;
+    // Durée AFFICHÉE du segment (un accord s'arrête où le suivant commence), et
+    // non sa durée sonore : les notes tenues sous la pédale débordent largement.
+    const shown = Math.min(previous.end, current.start) - previous.start;
+    if (shown < ORNAMENT_MAX_DURATION
+        && bassOf(previous) === bassOf(current)
+        && foreign <= 1) {
+      current.start = Math.min(current.start, previous.start);
+      chordSegments.splice(i - 1, 1);
+    }
   }
 
   // Un accord s'arrête quand le suivant commence.

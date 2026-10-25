@@ -65,6 +65,13 @@ export function noteSpans(events) {
 // Mesuré sur la session du 25/10 : 15 segments de ce type sur 97, dont le tout
 // premier accord du morceau, et deux « ? » affichés à l'écran.
 const MIN_CHORD_DURATION = 0.12;
+// Un segment qu'AUCUN modèle d'accord n'explique (nom approché par `detectChord`)
+// et qui ne dure pas est une figure de passage, pas une harmonie. Mesuré sur
+// Session_019 de Narcisse : sa marche chromatique de basse Si2 → Do3 → Do#3,
+// entre deux accords diminués, produisait un « Cmaj7sus2/B » de 0,18 s sur
+// {Si, Do, Ré}. Le seuil est plus large que celui des transitoires d'attaque,
+// mais ne s'applique qu'aux noms que le moteur n'a pas su poser.
+const MIN_UNNAMED_DURATION = 0.35;
 
 /**
  * Les accords sans leurs transitoires d'attaque : le segment trop court est
@@ -75,13 +82,23 @@ const MIN_CHORD_DURATION = 0.12;
  */
 export function pruneAttackTransients(chords) {
   const kept = [];
-  let carried = null;
+  let dropped = null;
+  const tooShort = (c) => {
+    const dur = c.endTime - c.startTime;
+    return dur < MIN_CHORD_DURATION
+      || (c.confidence < 1 && dur < MIN_UNNAMED_DURATION);
+  };
   for (const c of chords) {
-    if (c.endTime - c.startTime < MIN_CHORD_DURATION) {
-      if (carried == null) carried = c.startTime;
-      continue;
+    if (tooShort(c)) { dropped = dropped ?? c; continue; }
+    if (dropped) {
+      // Transitoire d'attaque : ses notes appartiennent à l'accord qui suit, qui
+      // reprend donc son début. Figure de passage : elles n'y sont pas, et c'est
+      // l'accord PRÉCÉDENT qui se prolonge (son harmonie n'a pas changé).
+      const next = new Set(c.notes || []);
+      const partOfNext = (dropped.notes || []).every((n) => next.has(n));
+      if (partOfNext) c.startTime = round3(Math.min(c.startTime, dropped.startTime));
+      dropped = null;
     }
-    if (carried != null) { c.startTime = round3(Math.min(c.startTime, carried)); carried = null; }
     const prev = kept[kept.length - 1];
     if (prev && prev.chord === c.chord) { prev.endTime = c.endTime; continue; }
     if (prev) prev.endTime = round3(Math.max(prev.startTime, c.startTime));
