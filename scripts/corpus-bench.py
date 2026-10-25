@@ -74,7 +74,15 @@ CORPORA = {
         'audio': 'inclus (synthétisé)',
         'size': '2100 morceaux · ~100 Go (version « baby » : ~5 Go)',
         'version': 'baby',
-        'why': "Multi-instrument synthétisé depuis du MIDI : pistes séparées et grille exacte.",
+        'why': ("DÉCONSEILLÉ — son all_src.mid n'est pas fiablement aligné sur mix.wav. "
+                "Mesuré le 25/10 sur les 20 morceaux de « baby » : 6 MIDI sont 11 à 34 % plus "
+                "longs que leur audio, Track00019 fait 4094 s pour 232 s, et Track00014 passe "
+                "le contrôle de durée (1,01×) tout en dérivant de 4 % — son score monte de "
+                "17,7 % à 67,8 % si l'on étire la référence. Un MIDI désaligné fabrique une "
+                "fausse vérité terrain et accuse le moteur à sa place. Vérifier l'alignement "
+                "sur les ATTAQUES serait la bonne méthode (le tempo ne suffit pas : il rate "
+                "Track00019, qui a le bon tempo et 17× la durée) ; c'est un chantier à part, "
+                "non ouvert. Narcisse a décidé le 25/10 de laisser tomber Slakh."),
     },
     'billboard': {
         'tier': 'ANNOTATIONS',
