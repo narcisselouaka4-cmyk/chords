@@ -651,3 +651,98 @@ Electron** : le sélecteur « Altérations » n'a pas été vu à l'écran.
 4. Son `Esus4` de Session_017 : le découpage est juste, mais la quarte suspendue ne se résout
    pas en `Em` dans le nom (résolution 4–3 non implémentée).
 5. Rôles et degrés toujours absents du chemin MIDI.
+
+---
+
+# Suite 5 (25/10) — Les quatre défauts relevés par Narcisse sur Session_019
+
+Narcisse passe Session_019 dans Analyse et relève quatre défauts précis, avec les timecodes
+et ce qu'il jouait réellement. Tous les quatre sont corrigés. Banc de bout en bout :
+`src/analyzer/test-sessions-narcisse.js` (15 contrôles ; les MIDI vivent hors dépôt, le banc
+passe en les signalant s'ils manquent).
+
+## 1. L'absorption (17 s) — la cause la plus profonde
+
+« À la 17e seconde l'accord affiché c'est Ddim7, alors que je commence par un Do majeur 7.
+Il vient après, et après vient le La 7b9. Et même quand l'étiquette passe au La 7b9, au piano
+je suis encore en Ddim7. »
+
+Mesuré : son Cmaj9 **existe** à 17,43 s (C3 17,43 · D4 17,45 · G3 17,45 · B3 17,47 · E4 17,52
+— une grappe étalée sur 90 ms) mais **ne dure que 0,04 s**, puis disparaît comme transitoire.
+
+Cause : `lastAttack` valait la **première** attaque de la grappe. Les notes de la grappe
+attaquées 40 ms plus tard étaient donc « attaquées depuis l'accord précédent », donc
+considérées comme appartenant au **suivant**, dont le début reculait jusqu'à elles. Le Si3,
+tenu jusqu'à 19,58 s, faisait commencer le Ddim7 de **18,61 s** à **17,47 s**.
+
+C'est le mécanisme général d'absorption sur un **accord roulé**, et il explique aussi le
+A7b9 affiché 1,1 s trop tôt.
+
+## 2. Les arpèges comptés comme un accord (25 s)
+
+Ré5 et Mi5 attaqués à **88 ms** d'écart — juste sous les 90 ms du groupement — formaient une
+« grappe de deux notes », donc pas une note seule, donc pas de la mélodie. Une paire
+**conjointe** (un ton ou moins) au-dessus de l'accord reste de la mélodie.
+
+## 3. La figure de passage nommée comme un accord (29 s)
+
+Son Fa dim7 drop 2 est **correctement détecté** (B2 F3 G#3 D4 → `Bdim7`, même notes). Mais sa
+marche chromatique de basse **Si2 → Do3 → Do#3** produisait un `Cmaj7sus2/B` de 0,18 s sur
+{Si, Do, Ré}. Un segment qu'aucun modèle n'explique et qui ne dure pas est écarté.
+
+Et la purge distingue désormais deux cas : un **transitoire d'attaque** (ses notes sont celles
+du suivant) fait reculer l'accord suivant ; une **figure de passage** (ses notes ne sont pas
+celles du suivant) laisse l'accord **précédent** se prolonger — son harmonie n'a pas changé.
+
+## 4. L'accord roulé incomplet (42 s)
+
+« Il détecte un Ré bémol alors que je joue un Ré bémol 7. » Mesuré : son Db7 est roulé sur
+197 ms et le **Si4 — la septième — arrive 158 ms après le reste**, au-delà du seuil de
+groupement. Il était lu comme une note de mélodie. Une note tardive, proche du sommet de
+l'accord et dans un court délai, complète désormais l'accord.
+
+## Deux règles ajoutées en conséquence
+
+- **Relâcher des notes ne crée pas un nouvel accord** : quand les notes du segment suivant
+  sont toutes déjà dans le précédent, c'est le même accord qui se dégarnit. Son Sol add9 se
+  coupait en `Gadd9` puis `Gsus2` dès que la tierce cessait de sonner.
+- **Appoggiature plaquée avec l'accord** : un segment très court, même basse, une note
+  d'écart, ne crée plus d'éclat avant l'accord.
+
+Sans elles, corriger l'absorption faisait remonter Session_019 de 34 à **42** segments : les
+segments jusque-là écrasés survivaient. Avec elles : **34**.
+
+## Essayé et RÉFUTÉ — à ne pas retenter tel quel
+
+**Écarter les notes d'agrément de l'attaque** (durée très inférieure à la médiane des notes de
+l'accord, hors basse, et seulement si l'accord tient encore sans elles).
+
+Cela corrige son n°1 de Session_017 : il dit « Fa majeur », l'app lit `Fadd9`, et le Sol4 dure
+0,13 s quand le reste dure 1,15 à 1,96 s. **Mais** cela lui retire les appoggiatures qu'il veut
+voir nommées : `Gadd9` → `G`, `Cadd9` → `C`, `Dmadd9` → `Dm`. Or il dit explicitement
+« appoggiature sur la seconde, **on peut comptabiliser ça comme un Sol add9** ».
+
+Un accord corrigé contre trois perdus. Retiré du code, pas laissé en place morte.
+
+Leçon : chez lui, une appoggiature **tenue avec l'accord** fait partie de la couleur et doit
+être nommée ; une appoggiature **qui se résout dans le temps** (le La4 → Sol4 de son mi mineur)
+relève du découpage. Les deux ne se traitent pas pareil.
+
+## Résultats
+
+| | avant | après |
+|---|---|---|
+| Session_017 | 10 segments | **10** (ses 10 accords) |
+| Session_019 | 34, quatre défauts | **34**, les quatre corrigés |
+| chevauchements | — | 0 sur les deux |
+
+23 suites de tests et `npm run build` passent. **Non vérifié dans Electron.**
+
+## Défauts encore ouverts
+
+1. Son `Esus4` de Session_017 : le découpage est juste, la résolution 4–3 n'est pas nommée.
+2. Son degré I du 15/09 lu `Cmadd9/D#` (coquille majeure sans tierce ni quinte).
+3. Son A#7b9 lu `Fdim` (dominante sans fondamentale).
+4. Rôles et degrés toujours absents du chemin MIDI.
+5. **Côté audio, rien n'a bougé** : les trous de 128 s et 82 s dus au classement des rôles sur
+   la tonalité globale attendent toujours (38 % du temps masqué).
