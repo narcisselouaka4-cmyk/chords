@@ -51,6 +51,10 @@ CORPORA = {
         'audio': 'inclus (CC BY 4.0)',
         'size': '360 extraits · ~3 Go',
         'why': "Audio redistribuable ET accords horodatés. Le seul corpus utilisable sans rien fournir.",
+        # Les extraits « solo » sont des improvisations sur la MÊME annotation que
+        # le « comp » (mirdata le signale). Un solo n'énonce pas l'harmonie : le
+        # mesurer contre une grille d'accompagnement ne dit rien du moteur.
+        'track_filter': lambda tid: tid.endswith('_comp'),
     },
     'maestro': {
         'tier': 'PONT MIDI',
@@ -278,7 +282,37 @@ def bench_bridge(midi_dir, audio_dir, clean_mode='legacy'):
         return report(*bench_pairs(pairs, clean_mode))
 
 
-def bench_mirdata(name, data_home, limit, clean_mode='legacy'):
+# Les corpus ne nomment pas leurs champs pareil : GuitarSet a `audio_mix_path` et
+# `leadsheet_chords`, Billboard et Isophonics ont `audio_path` et `chords`. On
+# cherche donc par ordre de préférence plutôt que de supposer un nom.
+AUDIO_ATTRS = ('audio_mix_path', 'audio_path', 'audio_mic_path', 'audio_hex_cln_path', 'mix_path')
+# `leadsheet_chords` est l'accord demandé au musicien, aux étiquettes propres ;
+# `inferred_chords` est relevé du capteur hexaphonique, plus détaillé et plus
+# bruité. Les deux sont alignés dans le temps.
+CHORD_ATTRS = ('chords', 'leadsheet_chords', 'inferred_chords', 'chords_full', 'chords_majmin')
+
+
+def resolve_audio(track):
+    for attr in AUDIO_ATTRS:
+        path = getattr(track, attr, None)
+        if isinstance(path, str) and os.path.exists(path):
+            return path
+    return None
+
+
+def resolve_chords(track, preferred=None):
+    order = ([preferred] if preferred else []) + [a for a in CHORD_ATTRS if a != preferred]
+    for attr in order:
+        try:
+            data = getattr(track, attr, None)
+        except Exception:
+            continue
+        if data is not None and getattr(data, 'labels', None) is not None and len(data.labels):
+            return data
+    return None
+
+
+def bench_mirdata(name, data_home, limit, clean_mode='legacy', chord_source=None, all_tracks=False):
     try:
         import mirdata
     except ImportError:
@@ -290,10 +324,18 @@ def bench_mirdata(name, data_home, limit, clean_mode='legacy'):
     tracks = ds.load_tracks()
     with tempfile.TemporaryDirectory() as tmp:
         pairs = []
+        skipped_audio = skipped_chords = 0
+        keep = None if all_tracks else conf.get('track_filter')
         for track_id, track in tracks.items():
-            audio = getattr(track, 'audio_path', None)
-            chords = getattr(track, 'chords', None)
-            if not audio or not os.path.exists(audio) or chords is None:
+            if keep and not keep(track_id):
+                continue
+            audio = resolve_audio(track)
+            chords = resolve_chords(track, chord_source)
+            if not audio:
+                skipped_audio += 1
+                continue
+            if chords is None:
+                skipped_chords += 1
                 continue
             lab = Path(tmp) / f'{track_id.replace("/", "_")}.lab'
             lab.write_text('\n'.join(
@@ -302,7 +344,10 @@ def bench_mirdata(name, data_home, limit, clean_mode='legacy'):
             if limit and len(pairs) >= limit:
                 break
         if not pairs:
-            sys.exit(f"{name} : aucun morceau avec audio ET annotations sous {data_home}.\n"
+            sys.exit(f"{name} : aucun morceau exploitable sous {data_home}.\n"
+                     f"  sans audio sur le disque : {skipped_audio} · sans annotation d'accords : {skipped_chords}\n"
+                     f"  audio cherché parmi : {', '.join(AUDIO_ATTRS)}\n"
+                     f"  accords cherchés parmi : {', '.join(CHORD_ATTRS)}\n"
                      f"  {conf['why']}\n  Audio : {conf['audio']}")
         print(f"{len(pairs)} morceaux de {name} — moteur audio « {clean_mode} »")
         return report(*bench_pairs(pairs, clean_mode))
@@ -319,6 +364,10 @@ def main():
     p.add_argument('--data-home', default=os.path.expanduser('~/zic-corpus'))
     p.add_argument('--limit', type=int, default=0, help='nombre de morceaux (0 = tous)')
     p.add_argument('--clean-mode', default='legacy')
+    p.add_argument('--all-tracks', action='store_true',
+                   help='ne pas filtrer (GuitarSet : inclut les solos, mesurés contre la grille du comp)')
+    p.add_argument('--chords', metavar='CHAMP', default=None,
+                   help="annotation d'accords à prendre (ex. leadsheet_chords, inferred_chords)")
     args = p.parse_args()
 
     if args.list or not any([args.fetch, args.bench, args.bench_local, args.bridge]):
@@ -333,7 +382,7 @@ def main():
         if not args.audio:
             sys.exit('--bridge demande --audio <dossier>')
         return 0 if bench_bridge(args.bridge, args.audio, args.clean_mode) else 1
-    return 0 if bench_mirdata(args.bench, Path(args.data_home), args.limit, args.clean_mode) else 1
+    return 0 if bench_mirdata(args.bench, Path(args.data_home), args.limit, args.clean_mode, args.chords, args.all_tracks) else 1
 
 
 if __name__ == '__main__':
