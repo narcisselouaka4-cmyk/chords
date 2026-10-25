@@ -228,6 +228,8 @@ export function segmentSessionEvents(events) {
   const chordWindows = new Set();
   const chordSegments = [];
   let current = null;
+  // Début d'un accord qui se forme mais n'est pas encore nommable (voir plus bas).
+  let pendingStart = null;
 
   for (const cluster of clusterAttacks(windows)) {
     const start = cluster[0].onTime;
@@ -303,7 +305,28 @@ export function segmentSessionEvents(events) {
     }
     if (cluster.length >= MIN_SIMULTANEOUS && isMelodicRun(cluster)) continue;
     const named = nameMidiChord(sounding.map((w) => w.note));
-    if (!named) continue;
+    if (!named) {
+      // Moins de trois hauteurs : rien à nommer encore. Mais si cette attaque
+      // apporte une note ÉTRANGÈRE à l'accord tenu, l'harmonie a changé — et
+      // l'accord qui vient commence ICI, même s'il lui manque des notes.
+      //
+      // Narcisse joue ses accords en arpège et en octaves : son Si bémol de
+      // Session_013 commence à 19,11 s (« à la 19e seconde »), mais n'atteint
+      // trois hauteurs qu'à 20,94 s. Pendant ces 1,8 s aucun segment ne
+      // s'ouvrait, et le Fa mineur précédent s'étirait par-dessus : « le si
+      // bémol a été absorbé par le fa mineur ». Même histoire pour son mi bémol
+      // de 33,46 s, avalé par le Bb7b9/F.
+      //
+      // On ne crée pas de segment vide : on retient seulement ce début, et le
+      // prochain segment nommable le reprendra. Si aucun ne vient, rien n'a
+      // bougé — l'accord tenu garde toute sa durée.
+      if (current && pendingStart == null && !single) pendingStart = start;
+      else if (current && pendingStart == null) {
+        const heldPcs = new Set(current.notes.map((n) => ((n % 12) + 12) % 12));
+        if (cluster.some((w) => !heldPcs.has(((w.note % 12) + 12) % 12))) pendingStart = start;
+      }
+      continue;
+    }
     // Notes de l'accord attaquées depuis le précédent (début d'un arpège, basse
     // gardée par la pédale) : elles lui appartiennent, pas à une mélodie.
     // `lastAttack` est la DERNIÈRE attaque de la grappe précédente, pas la
@@ -324,11 +347,19 @@ export function segmentSessionEvents(events) {
       current.lastAttack = lastAttackTime;
       current.notes = [...new Set([...current.notes, ...sounding.map((w) => w.note)])];
       current.end = Math.max(current.end, ...sounding.map((w) => w.offTime));
+      pendingStart = null;
       continue;
     }
+    // L'accord qui naît reprend le début retenu plus haut, et borne le précédent :
+    // c'est là que l'harmonie a changé, pas à l'instant où elle devient lisible.
+    if (current && pendingStart != null && pendingStart > current.start) {
+      current.end = Math.min(current.end, pendingStart);
+    }
+    const bornAt = pendingStart != null ? pendingStart : start;
+    pendingStart = null;
     current = {
       // Un accord né d'un arpège commence à sa première note.
-      start: Math.min(start, ...own.map((w) => w.onTime)),
+      start: Math.min(bornAt, start, ...own.map((w) => w.onTime)),
       end: Math.max(...sounding.map((w) => w.offTime)),
       name: named.name,
       named,
