@@ -495,6 +495,59 @@ SLAKH_TARS = {
 }
 
 
+# Écart maximal toléré entre la durée du MIDI et celle de l'audio pour croire
+# qu'ils décrivent le même enregistrement.
+#
+# Le pont suppose un MIDI aligné sur l'audio. Quand il ne l'est pas, il fabrique
+# SILENCIEUSEMENT une référence fausse, et le moteur audio est accusé à tort.
+# Mesuré sur babySlakh : 6 morceaux sur 20 ont un MIDI 11 à 34 % plus long que
+# l'audio, et Track00019 un MIDI de 4094 s pour 232 s d'audio (17,7×). Ce sont
+# exactement les six plus mauvaises notes du banc — 1,7 % à 35 % — quand les
+# morceaux alignés donnent 54 à 83 %. Sans ce garde-fou, la moyenne du corpus
+# mesure la qualité de l'alignement, pas celle du moteur.
+#
+# La tolérance est large dans un sens : l'audio porte souvent quelques secondes
+# de résonance après la dernière note MIDI (sur babySlakh, 5 s régulièrement).
+ALIGNMENT_TOLERANCE = 0.08
+ALIGNMENT_TAIL_SECONDS = 8.0
+
+
+def audio_duration(path):
+    """Durée d'un fichier audio, sans le décoder entièrement."""
+    try:
+        import soundfile
+        info = soundfile.info(str(path))
+        return info.frames / info.samplerate
+    except Exception:
+        pass
+    try:
+        import wave
+        with wave.open(str(path)) as w:
+            return w.getnframes() / w.getframerate()
+    except Exception:
+        return None
+
+
+def check_alignment(grid_path, audio):
+    """Le MIDI décrit-il bien CET enregistrement ? Message d'écart, ou None."""
+    heard = audio_duration(audio)
+    if heard is None or heard <= 0:
+        return None
+    lines = [l for l in Path(grid_path).read_text().splitlines() if l.strip()]
+    if not lines:
+        return 'grille vide'
+    written = float(lines[-1].split()[1])
+    if written <= 0:
+        return 'grille de durée nulle'
+    # L'audio peut dépasser le MIDI de quelques secondes (résonance finale).
+    if 0 <= heard - written <= ALIGNMENT_TAIL_SECONDS:
+        return None
+    if abs(written - heard) / heard > ALIGNMENT_TOLERANCE:
+        return (f'MIDI désaligné : {written:.0f}s contre {heard:.0f}s d\'audio '
+                f'({written / heard:.2f}×)')
+    return None
+
+
 def _bridge_and_score(name, midi, audio, clean_mode):
     """Grille produite par le moteur MIDI, puis mesure du moteur audio dessus."""
     lab = Path(str(midi) + '.lab')
@@ -502,6 +555,9 @@ def _bridge_and_score(name, midi, audio, clean_mode):
                          capture_output=True, text=True)
     if res.returncode != 0 or not lab.exists():
         return None, (res.stderr or 'conversion MIDI échouée').strip()[:80]
+    drift = check_alignment(lab, audio)
+    if drift:
+        return None, drift
     rows, failures = bench_pairs([(name, audio, lab)], clean_mode)
     if failures:
         return None, ' '.join(failures[0][1])
