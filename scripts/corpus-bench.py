@@ -159,8 +159,14 @@ def fetch(name, data_home, version=None):
 def run_audio_engine(wav_path, clean_mode='legacy'):
     """La grille produite par le moteur audio, telle que l'app la calcule."""
     python = str(VENV_PY) if VENV_PY.exists() else sys.executable
+    # Le moteur importe ses voisins (harmony_engine). Une copie placée ailleurs —
+    # le cas d'une variante comparée à la référence — doit donc pouvoir les
+    # trouver : on ajoute le dossier du moteur DE L'APP au chemin d'import.
+    env = dict(os.environ)
+    env['PYTHONPATH'] = os.pathsep.join(
+        filter(None, [str(PROCESSOR.parent), env.get('PYTHONPATH')]))
     out = subprocess.run([python, str(ENGINE), 'analyze-chords', str(wav_path), clean_mode],
-                         capture_output=True, text=True, timeout=900)
+                         capture_output=True, text=True, timeout=900, env=env)
     if out.returncode != 0:
         return None, (out.stderr or '').strip().splitlines()[-1:] or ['échec']
     for line in reversed(out.stdout.strip().splitlines()):
