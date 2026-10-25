@@ -91,6 +91,14 @@ function triadOf(required, optional) {
   return third === undefined || fifth === undefined ? null : [third, fifth];
 }
 
+// L'accord a-t-il une VRAIE tierce, majeure ou mineure ? Une quarte suspendue ou
+// une seconde n'en est pas une, et une coquille sans tierce n'en a aucune. C'est
+// ce qui sépare une lecture qui tient d'une lecture en attente de sa tierce : le
+// découpage s'en sert pour savoir si une note de mélodie complète l'harmonie.
+function hasRealThird(required) {
+  return required.includes(4) || required.includes(3);
+}
+
 const NAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
 // L'orthographe des accords doit suivre celle de la tonalité affichée : la
 // session du 15/09 montrait « D# major » en tête et « Eb », « Ab », « Bb » dans
@@ -161,7 +169,9 @@ export function nameMidiChord(notes, { latin = false, spelling = 'auto', keyPc =
       const triad = triadOf(c.required, c.optional);
       const sounds = c.altered || (triad ? triad.every((i) => intervals.has(i)) : false);
       const score = (sounds ? 1000 : 0) + (root === bassPc ? 100 : 0) + precision;
-      if (!best || score > best.score) best = { rootPc: root, symbol: c.symbol, score, sounds };
+      if (!best || score > best.score) {
+        best = { rootPc: root, symbol: c.symbol, score, sounds, thirdless: !hasRealThird(c.required) };
+      }
     }
   }
   // Appoggiature : aucun modèle ne décrit l'ensemble avec une triade qui sonne,
@@ -231,5 +241,10 @@ export function nameMidiChord(notes, { latin = false, spelling = 'auto', keyPc =
   const bassName = forcedPitchName(bassPc, spelling) ?? slashBassName(bassPc, best.rootPc, best.symbol);
   const render = (n) => (latin ? displayNoteName(n, { latin: true }) : n);
   const name = `${render(rootName)}${best.symbol}${isSlash ? `/${render(bassName)}` : ''}`;
-  return { rootPc: best.rootPc, symbol: best.symbol, bassPc, isSlash, name, matched };
+  // `sounds` : la triade de l'accord retenu est-elle réellement jouée ? Le
+  // découpage s'en sert pour savoir si une note de mélodie complète l'harmonie
+  // (voir session-analysis.js) — une triade incomplète est une lecture fragile.
+  const sounds = best.approximated ? true : Boolean(best.sounds);
+  const thirdless = best.approximated ? false : Boolean(best.thirdless);
+  return { rootPc: best.rootPc, symbol: best.symbol, bassPc, isSlash, name, matched, sounds, thirdless };
 }

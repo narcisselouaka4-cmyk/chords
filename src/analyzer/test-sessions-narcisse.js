@@ -35,6 +35,10 @@ function analyse(session) {
 // « Fa majeur, Sol add9 (appoggiature sur la seconde), Mi mineur, La mineur,
 //   Ré mineur 7, Sol add9 basse de Si, Fa add9 basse de La, Do majeur 7-9,
 //   Ré mineur 7-9, Mi mineur 7 avec le Fa d'appui. »
+//
+// [Claude] — 2026-10-25 — Le troisième accord se lisait « Esus4 ». Narcisse, après
+// avoir ouvert la session : « ce n'est pas un suspendu, mais c'est un mineur ».
+// Son Sol4 de 9,38 s — la tierce — était écarté comme note de mélodie.
 const s17 = analyse('Session_017');
 if (!s17) {
   console.log('⏭  Session_017 absente — banc ignoré');
@@ -43,7 +47,7 @@ if (!s17) {
   check('S017 : dix accords, un par accord joué', s17.chords.length, 10);
   check('S017 : le relevé complet',
     s17.chords.map((c) => c.chord).join(' '),
-    'Fadd9 Gadd9 Esus4 Am Dm7 Gadd9/A Fadd9/A Cadd9 Dmadd9 Em');
+    'Fadd9 Gadd9 Emadd11 Am Dm7 Gadd9/A Fadd9/A Cadd9 Dmadd9 Em');
   check('S017 : aucun chevauchement',
     s17.chords.every((c, i) => i === 0 || c.startTime >= s17.chords[i - 1].endTime - 1e-6), true);
 }

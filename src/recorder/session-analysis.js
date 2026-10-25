@@ -275,7 +275,32 @@ export function segmentSessionEvents(events) {
     const melodicPair = cluster.length === 2
       && Math.abs(cluster[1].note - cluster[0].note) <= MELODY_RUN_INTERVAL
       && cluster.every((w) => isMelodyNote(w.note));
-    if (current && !grows && ((single && isMelodyNote(cluster[0].note)) || melodicPair)) continue;
+    if (current && !grows && ((single && isMelodyNote(cluster[0].note)) || melodicPair)) {
+      // Une note de mélodie n'ouvre pas d'accord — mais elle peut tout de même
+      // APPARTENIR à celui qui sonne. Les deux questions étaient confondues :
+      // la note était écartée du segment en même temps qu'elle était écartée
+      // d'un nouveau découpage, et le nom restait figé sur la grappe d'attaque.
+      //
+      // Mesuré sur Session_017 de Narcisse : son mi mineur (Mi3 Mi4 tenus, ligne
+      // Si4 → La4 → Sol4) s'ouvre sur {Mi, La, Si} et s'affichait « Esus4 » pour
+      // toujours, parce que le Sol4 de 9,38 s — la tierce — est de la mélodie.
+      // Il dit : « ce n'est pas un suspendu, c'est un mineur ».
+      //
+      // On ne complète que les accords SANS TIERCE : la quarte suspendue, la
+      // seconde, la coquille. Une note qui apporte la tierce absente fait partie
+      // de l'harmonie ; si l'accord a déjà sa tierce, rien n'est touché, et un
+      // vrai sus4 (dont aucune note du segment n'apporte de tierce) le reste.
+      if (current.named?.thirdless) {
+        const grown = [...new Set([...current.notes, ...cluster.map((w) => w.note)])];
+        const renamed = nameMidiChord(grown);
+        if (renamed && !renamed.thirdless) {
+          cluster.forEach((w) => chordWindows.add(w));
+          Object.assign(current, { notes: grown, name: renamed.name, named: renamed });
+          current.end = Math.max(current.end, ...cluster.map((w) => w.offTime));
+        }
+      }
+      continue;
+    }
     if (cluster.length >= MIN_SIMULTANEOUS && isMelodicRun(cluster)) continue;
     const named = nameMidiChord(sounding.map((w) => w.note));
     if (!named) continue;
