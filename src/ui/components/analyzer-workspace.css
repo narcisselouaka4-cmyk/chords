@@ -1974,21 +1974,12 @@
   text-decoration-color: var(--text-dim);
 }
 
-/* Replié : un marqueur fin, toujours cliquable et toujours dans le modèle.
-   Zoomer le rend à sa taille normale. */
-.analyzer-timeline-block.collapsed {
-  min-width: 3px;
-  padding: 0;
-  border-radius: 2px;
-  opacity: 0.55;
-}
-
-.analyzer-timeline-block.collapsed:hover,
-.analyzer-timeline-block.collapsed.selected,
-.analyzer-timeline-block.collapsed.current {
-  opacity: 1;
-  min-width: 5px;
-}
+/* [Claude] — 2026-10-25 — Le repli en marqueur fin est retiré. Un accord non
+   structurel devenait un trait pâle de 3 px sans étiquette : visuellement un
+   blanc, donc un silence. Toute pastille garde désormais sa pleine couleur et
+   son étiquette ; c'est `LABEL_MIN_BLOCK_PX` (analyzer-tab.js) qui lui assure
+   la largeur d'une fondamentale. Le contraste des rôles reste porté par
+   `role-passing` / `role-uncertain`. */
 
 /* [Refonte 2026-09-02] — Écran d'attente de l'analyse.
    Le compteur et la note d'attente remplacent un spinner muet : l'analyse

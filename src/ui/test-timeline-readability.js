@@ -140,41 +140,39 @@ runTest('C. Le symbole complet reste dans l’infobulle et l’aria-label', () =
          'la forme réduite a un style qui la signale');
 });
 
-// ── D. Repli progressif au dézoom ──
+// ── D. Plus aucune case vide ──
+//
+// Le « repli progressif » a été retiré le 25/10/2026. Un accord non structurel
+// plus étroit que 26 px se réduisait à un trait pâle sans étiquette, et sur
+// « Saint Esprit » un segment sur cinq se lisait comme un blanc. Narcisse :
+// « les cases vides, tu me les enlèves. Je préfère avoir une étiquette parasite
+// plutôt que de voir une case vide. »
 
-runTest('D. Repli — seuls les accords NON structurels se replient', () => {
+runTest('D. Aucun accord ne se replie plus en marqueur muet', () => {
   const js = read('src/ui/analyzer-tab.js');
-  const start = js.indexOf('const collapsed = detailedChords');
-  assert(start > 0, 'la condition de repli existe');
-  const body = js.slice(start, js.indexOf(';', start));
-  assert(body.includes("role !== 'structural'"),
-         'un accord structurel ne se replie jamais : c’est la structure qu’on lit de loin');
-  assert(body.includes('COLLAPSE_MIN_WIDTH_PX'),
-         'le repli dépend de la largeur rendue, donc du zoom');
-  assert(body.includes('detailedChords'),
-         'les passages repliés appartiennent uniquement à la vue détaillée');
+  assert(!js.includes('const collapsed = detailedChords'),
+         'la condition de repli a disparu');
+  assert(!js.includes('COLLAPSE_MIN_WIDTH_PX'),
+         'son seuil a disparu avec elle');
+  assert(js.includes('LABEL_MIN_BLOCK_PX'),
+         'une largeur minimale garantit à la place qu’une fondamentale tienne');
 });
 
-runTest('D. Repli — la donnée reste présente et récupérable', () => {
-  const css = read('src/ui/components/analyzer-workspace.css');
-  const rule = /\.analyzer-timeline-block\.collapsed\s*\{([^}]*)\}/s.exec(css);
-  assert(rule !== null, 'la règle .collapsed existe');
-  if (!rule) return;
-  assert(!/display\s*:\s*none/.test(rule[1]), 'un accord replié n’est pas supprimé de l’affichage');
-  assert(/min-width\s*:\s*[1-9]/.test(rule[1]), 'il conserve une largeur cliquable');
-  assert(css.includes('.analyzer-timeline-block.collapsed:hover'),
-         'le survol le rend à nouveau lisible');
-
+runTest('D. La frise est continue : chaque pastille rejoint la suivante', () => {
   const js = read('src/ui/analyzer-tab.js');
-  const start = js.indexOf('chords.forEach((chord, index)');
-  const body = js.slice(start, js.indexOf('els.chordTimelineInner.appendChild(block);', start));
-  assert(!/if \(collapsed\) (return|continue)/.test(body),
-         'un accord replié est tout de même construit et ajouté au DOM');
-  assert(body.includes("block.addEventListener('click'"),
-         'il reste cliquable, donc sélectionnable et corrigeable');
+  assert(js.includes('const nextStart = chords[index + 1]?.startTime ?? duration'),
+         'la largeur se mesure jusqu’au début de la pastille suivante');
+  assert(js.includes('const spanStart = index === 0 ? 0 : chord.startTime'),
+         'la première pastille part de zéro');
+  const minBlock = /const LABEL_MIN_BLOCK_PX = (\d+)/.exec(js);
+  assert(minBlock !== null, 'la largeur minimale est déclarée');
+  // Elle doit suffire à une fondamentale de deux caractères (« D# », « Bb »)
+  // à la plus petite police : 2 × 10 × 0,62 + 6 px de marge intérieure.
+  assert(Number(minBlock[1]) >= 19,
+         `${minBlock[1]} px ne suffit pas à écrire « D# » à 10 px`);
+  const fitted = fitChordLabel('D#m7', Number(minBlock[1]));
+  assert(fitted.text !== '', 'à la largeur minimale, une étiquette s’affiche encore');
 });
-
-// ── E. Navigation du lecteur ──
 
 runTest('E. Lecteur — saut arrière court, indépendant du retour au début', () => {
   const html = read('src/index.html');

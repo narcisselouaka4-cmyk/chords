@@ -48,17 +48,22 @@ check('le même, mais tenu : structurel', out[1].role, 'structural');
 check('le silence garde son rôle',
   classifyMidiRoles(seq(['N', 0, 1], ['C', 1, 3]), { beatDuration: beat })[0].role, 'silence');
 
-console.log('\n--- Une source MIDI ne masque RIEN ---');
-// L'ADR-063 a été écrit pour l'audio, où le moteur doute. Un MIDI ne laisse
-// aucune place au doute : cacher un accord certainement joué n'a pas de sens.
+console.log('\n--- Aucune source ne masque plus rien ---');
+// Le 25/10 au matin, l'audio masquait encore ses détections douteuses au titre
+// de l'ADR-063. Narcisse a ouvert « Saint Esprit » le soir : « les cases vides,
+// tu me les enlèves ». Un segment retiré d'une frise posée au temps laisse un
+// trou, et un trou affirme un silence — plus fort, et plus faux, que
+// l'étiquette qu'on voulait taire. Seul un « N » reste sans étiquette.
 const mixed = [{ chord: 'C', role: 'structural' }, { chord: 'Bdim7', role: 'uncertain' },
   { chord: 'F', role: 'passing' }];
-check('audio : la vue simple ne garde que les piliers',
-  selectChordProgression(mixed, {}).length, 1);
+check('audio : la vue simple garde tout aussi',
+  selectChordProgression(mixed, {}).length, 3);
 check('MIDI : la vue simple garde tout',
   selectChordProgression(mixed, { sourceType: 'midi' }).length, 3);
 check('audio en vue détaillée : tout aussi',
   selectChordProgression(mixed, { detailed: true }).length, 3);
+check('un segment sans accord reste écarté',
+  selectChordProgression([...mixed, { chord: 'N', role: 'silence' }], {}).length, 3);
 
 console.log('\n--- Sur les sessions de Narcisse ---');
 const SESSIONS = join(homedir(), 'PianoJazzChords', 'Sessions');

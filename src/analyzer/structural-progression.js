@@ -9,22 +9,29 @@ export function harmonicRole(segment) {
 }
 
 /**
- * La grille de lecture ne retient que les piliers harmoniques. Elle conserve
- * les objets, leurs identités et leurs temps exacts : les intervalles omis ne
- * sont ni comblés, ni absorbés par les accords voisins. Le diagnostic complet
- * reste dans l'analyse et peut être consulté dans la vue détaillée.
+ * La grille de lecture garde TOUS les accords relevés. Le rôle (pilier, passage,
+ * incertitude) sert au contraste visuel, jamais à effacer.
  *
- * [Claude] — 2026-10-25 — Sauf pour une source MIDI, où RIEN n'est masqué.
- * L'ADR-063 a été écrit pour l'audio, où le moteur doute : masquer y protège
- * d'une hypothèse hasardeuse. Un MIDI ne laisse aucune place au doute — les
- * notes sont connues — et cacher un accord que le pianiste a certainement joué
- * n'a aucun sens. Le rôle y sert au CONTRASTE visuel, jamais à effacer ; c'est
- * exactement ce que Narcisse reproche à la grille audio.
+ * [Claude] — 2026-10-25 — La sélection ne masque plus les accords non
+ * structurels, pour aucune source. Elle le faisait pour l'audio au titre de
+ * l'ADR-063 : masquer une détection douteuse protégeait d'une hypothèse
+ * hasardeuse. Mais un segment retiré d'une frise positionnée au temps laisse un
+ * TROU, et un trou se lit comme un silence — une affirmation plus forte, et
+ * plus fausse, que l'étiquette qu'on a voulu taire.
+ *
+ * Mesuré sur « Saint Esprit » (344 s, 161 segments) : 35 segments non
+ * structurels, 11,3 % du temps, disparaissaient de la frise. Narcisse, après
+ * l'avoir ouvert : « les cases vides, tu me les enlèves. Je préfère avoir une
+ * étiquette parasite plutôt que de voir une case vide. »
+ *
+ * Seuls les segments sans accord du tout (« N ») restent écartés : la frise
+ * étend alors sa voisine pour couvrir leur durée (voir analyzer-tab.js), si
+ * bien qu'aucun vide ne subsiste nulle part.
  */
 export function selectChordProgression(chords = [], { detailed = false, sourceType = null } = {}) {
-  const keepAll = detailed || sourceType === 'midi';
-  return chords.filter((segment) => segment && (keepAll || (
-    harmonicRole(segment) === 'structural'
-    && getEffectiveChord(segment) && getEffectiveChord(segment) !== 'N'
-  )));
+  return chords.filter((segment) => {
+    if (!segment) return false;
+    const chord = getEffectiveChord(segment);
+    return Boolean(chord) && chord !== 'N';
+  });
 }

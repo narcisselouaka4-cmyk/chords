@@ -243,11 +243,18 @@ let selectedSegmentId = null; // segmentId sélectionné dans la timeline
 // moteur restent consultables volontairement pour vérifier ou corriger.
 let detailedChords = false;
 
-// En dessous de cette largeur, un accord non structurel se replie en marqueur
-// fin : il ne disparaît pas du modèle et reste cliquable, il cesse seulement de
-// disputer la place aux piliers. C'est le « repli progressif » demandé plutôt
-// qu'une suppression — zoomer les fait réapparaître.
-const COLLAPSE_MIN_WIDTH_PX = 26;
+// [Claude] — 2026-10-25 — Le « repli progressif » est retiré. Un accord non
+// structurel plus étroit que 26 px se réduisait à un trait pâle de 3 px, sans
+// étiquette. Narcisse, après avoir ouvert « Saint Esprit » : « les cases vides,
+// tu me les enlèves. Je préfère avoir une étiquette parasite plutôt que de voir
+// une case vide. » Sur ce morceau, 35 segments sur 161 se repliaient — un
+// accord sur cinq se lisait comme un blanc, donc comme un silence.
+//
+// À la place, toute pastille garde sa pleine couleur et porte au moins sa
+// fondamentale : en dessous de cette largeur, elle s'élargit juste assez pour
+// que « D# » ou « Bb » tienne à la plus petite police. Le léger empiètement sur
+// la voisine est le prix accepté — un vide trompe, un chevauchement non.
+const LABEL_MIN_BLOCK_PX = 20;
 
 // Pas de navigation rapide, en secondes.
 const SKIP_SECONDS = 10;
@@ -1529,8 +1536,21 @@ function renderTimeline(chords, duration) {
     const originalDetected = chord.chord;
     const isOverridden = chord.manualOverride != null;
 
-    const left = chord.startTime * pps;
-    const timeWidth = Math.max((chord.endTime - chord.startTime) * pps - BLOCK_GAP, 0);
+    // Le premier accord part de zéro : un morceau commence rarement pile sur une
+    // attaque, et le silence (ou la mélodie seule) du début laissait un vide en
+    // tête de frise dans les trois sessions de Narcisse — « ce vide-là, je ne
+    // l'aime pas ».
+    const spanStart = index === 0 ? 0 : chord.startTime;
+    const left = spanStart * pps;
+    // La pastille court jusqu'au DÉBUT de la suivante, pas jusqu'à sa propre
+    // fin. Les blocs sont posés au temps, en absolu : tout écart entre deux
+    // segments — un « N » écarté, un trou du découpage — laissait un blanc, et
+    // un blanc se lit comme un silence. Narcisse : « je ne veux plus voir de
+    // vide entre deux étiquettes ». La frise est donc continue par
+    // construction, quelle que soit l'origine du trou.
+    const nextStart = chords[index + 1]?.startTime ?? duration;
+    const spanEnd = Math.max(chord.endTime, Math.min(nextStart, duration));
+    const timeWidth = Math.max((spanEnd - spanStart) * pps - BLOCK_GAP, 0);
 
     const block = document.createElement('button');
     block.className = 'analyzer-timeline-block';
@@ -1544,8 +1564,10 @@ function renderTimeline(chords, duration) {
     block.dataset.index = String(sourceIndex);
     block.dataset.start = String(chord.startTime);
     block.dataset.segmentId = chord.segmentId || '';
+    // Largeur rendue : jamais moins que ce qu'il faut pour une fondamentale.
+    const renderWidth = Math.max(timeWidth, LABEL_MIN_BLOCK_PX);
     block.style.left = `${left}px`;
-    block.style.width = `${timeWidth}px`;
+    block.style.width = `${renderWidth}px`;
 
     const roleLabel = ROLE_LABELS[segmentRole(chord)] || '';
     const timeRange = `${fmt(chord.startTime)} → ${fmt(chord.endTime)}  (${(chord.endTime - chord.startTime).toFixed(1)}s)`;
@@ -1564,20 +1586,11 @@ function renderTimeline(chords, duration) {
     block.dataset.harmonicRole = role;
     block.classList.add(`role-${role}`);
 
-    // Repli progressif : au dézoom, les accords non structurels devenus trop
-    // étroits se réduisent à un marqueur. Les piliers, eux, gardent toujours
-    // leur pastille — c'est la structure qu'on veut pouvoir lire de loin.
-    const collapsed = detailedChords
-      && role !== 'structural'
-      && timeWidth < COLLAPSE_MIN_WIDTH_PX;
-    if (collapsed) block.classList.add('collapsed');
-
     // Le symbole s'adapte à la place disponible plutôt que d'être tronqué :
-    // « F#m » ne devient jamais « F... ». Quand rien ne tient, on n'affiche
-    // rien — le nom complet reste dans l'infobulle et l'aria-label.
-    const fitted = collapsed
-      ? { text: '', fontPx: 0, truncated: true }
-      : fitChordLabel(effectiveChordStr, timeWidth);
+    // « F#m » ne devient jamais « F... ». Il se replie sur la triade puis sur la
+    // seule fondamentale, et c'est la largeur RENDUE qui compte — un segment
+    // élargi au minimum doit afficher ce que ce minimum permet.
+    const fitted = fitChordLabel(effectiveChordStr, renderWidth);
     if (fitted.truncated) block.classList.add('label-reduced');
     block.innerHTML = `
       ${fitted.text

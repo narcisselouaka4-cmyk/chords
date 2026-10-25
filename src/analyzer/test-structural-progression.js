@@ -16,23 +16,29 @@ const source = [
   segment('e', 'N', 'silence', 5, 6),
 ];
 
-test('seuls les piliers restent, aux temps exacts et sans mutation', () => {
+// [Claude] — 2026-10-25 — La sélection ne masque plus les accords de passage ni
+// les détections incertaines : un segment retiré d'une frise posée au temps
+// laissait un trou, et un trou se lit comme un silence. Narcisse, après avoir
+// ouvert « Saint Esprit » : « je préfère avoir une étiquette parasite plutôt
+// que de voir une case vide. » Seuls les « N » — aucun accord du tout — sont
+// écartés, et la frise étend alors sa voisine.
+test('tous les accords relevés restent, aux temps exacts et sans mutation', () => {
   const snapshot = structuredClone(source);
   const shown = selectChordProgression(source);
-  assert.deepEqual(shown.map((s) => s.segmentId), ['a', 'd']);
+  assert.deepEqual(shown.map((s) => s.segmentId), ['a', 'b', 'c', 'd']);
   assert.equal(shown[0], source[0]);
   assert.equal(shown[0].endTime, 2);
-  assert.equal(shown[1].startTime, 3);
+  assert.equal(shown[3].startTime, 3);
   assert.deepEqual(source, snapshot);
-  assert.deepEqual(selectChordProgression(source, { detailed: true }), source);
+  assert.deepEqual(selectChordProgression(source, { detailed: true }), shown);
 });
 
-test('aucun remplacement si tous les événements sont incertains ou de passage', () => {
-  assert.deepEqual(selectChordProgression(source.slice(1, 3)), []);
+test('un segment sans accord du tout reste écarté, quel que soit son rôle', () => {
   assert.deepEqual(selectChordProgression([source[4]]), []);
   assert.deepEqual(selectChordProgression(), []);
   assert.deepEqual(selectChordProgression([segment('n', 'N', 'structural', 0, 3)]), []);
-  assert.deepEqual(selectChordProgression([segment('u', 'C', 'unknown', 0, 3)]), []);
+  assert.deepEqual(selectChordProgression(source.slice(1, 3)).map((s) => s.segmentId), ['b', 'c']);
+  assert.deepEqual(selectChordProgression([segment('u', 'C', 'unknown', 0, 3)]).map((s) => s.chord), ['C']);
 });
 
 test('corrections manuelles prioritaires et analyses MIDI sans rôle compatibles', () => {
@@ -41,19 +47,39 @@ test('corrections manuelles prioritaires et analyses MIDI sans rôle compatibles
   assert.equal(getEffectiveChord(selectChordProgression([corrected])[0]), 'Dm');
   assert.deepEqual(selectChordProgression([segment('midi', 'Am', undefined, 0, 4)]).map((s) => s.chord), ['Am']);
   corrected.manualOverride = null;
-  assert.deepEqual(selectChordProgression([corrected]), []);
+  assert.deepEqual(selectChordProgression([corrected]).map((s) => s.chord), ['B']);
 });
 
-test('exports MIDI, JSON, CSV et texte conservent les intervalles sans accord', () => {
+// La propriété que Narcisse a demandée, protégée par un test : la frise couvre
+// toute la durée, sans aucun blanc. Les pastilles sont posées au temps, en
+// absolu ; chacune court jusqu'au début de la suivante, et la première part de
+// zéro — y compris quand un « N » a été écarté ou que le découpage a laissé un
+// intervalle sans accord.
+test('la frise ne laisse aucun vide, du début à la fin', () => {
+  const c = controller();
+  const blocks = c.els.chordTimelineInner.querySelectorAll();
+  const px = (v) => Number(String(v).replace('px', ''));
+  assert.equal(px(blocks[0].style.left), 0, 'la première pastille part de zéro');
+  let prev = 0;
+  for (const b of blocks) {
+    const left = px(b.style.left);
+    assert.ok(left <= prev + 1e-6, `vide avant ${b.dataset.segmentId} : ${prev} → ${left}`);
+    prev = left + px(b.style.width) + 4; // + BLOCK_GAP
+  }
+  assert.ok(prev >= 6 * 80 - 1e-6, 'la dernière pastille atteint la fin du morceau');
+});
+
+test('exports MIDI, JSON, CSV et texte suivent la grille affichée', () => {
   const analysis = { duration: 6, tempo: 120, chords: selectChordProgression(source) };
   const events = buildAnalysisMidiEvents(analysis)[0].events;
-  assert.deepEqual([...new Set(events.map((e) => e.time))], [0, 2, 3, 5]);
+  assert.deepEqual([...new Set(events.map((e) => e.time))], [0, 2, 2.5, 3, 5]);
   const json = exportAnalysisToJson(analysis);
-  assert.deepEqual(json.segments.map((s) => s.chord), ['F', 'G']);
+  assert.deepEqual(json.segments.map((s) => s.chord), ['F', 'F#dim', 'B', 'G']);
   for (const output of [exportAnalysisToCsv(analysis), exportAnalysisToText(analysis)]) {
-    assert(!output.includes('F#dim'));
-    assert(!output.includes('B,'));
+    assert(output.includes('F#dim'), 'un accord de passage figure désormais dans l\'export');
   }
+  // Le « N » de 5 à 6 s n'a jamais d'étiquette : il n'est pas un accord.
+  assert(!exportAnalysisToCsv(analysis).includes(',N,'));
 });
 
 // Exercer les vraies fonctions du contrôleur avec un DOM minimal, sans lancer
@@ -98,7 +124,7 @@ function controller(chords = structuredClone(source)) {
     els, currentAnalysis: { chords, duration: 6 }, currentPlayer: null,
     timelineViewMode: 'original', appliedReharmonization: null, detailedChords: false,
     timelineZoom: 1, BASE_PIXELS_PER_SECOND: 80, BLOCK_GAP: 4,
-    COLLAPSE_MIN_WIDTH_PX: 26, selectedSegmentId: null,
+    LABEL_MIN_BLOCK_PX: 20, selectedSegmentId: null,
     lastAutoScrollIndex: -1,
     ROLE_LABELS: { structural: 'Accord structurel', passing: 'Accord de passage', uncertain: 'Incertain', silence: 'Silence' },
     document: { createElement: () => new Element() },
@@ -124,25 +150,27 @@ function controller(chords = structuredClone(source)) {
 test('frise, vue d’ensemble et édition utilisent les bonnes identités après filtrage', () => {
   const c = controller();
   const blocks = c.els.chordTimelineInner.querySelectorAll();
-  assert.deepEqual(blocks.map((b) => b.dataset.segmentId), ['a', 'd']);
-  assert.equal(blocks[1].dataset.index, '3');
-  assert.equal(blocks[1].style.left, '240px');
-  blocks[1].listeners.dblclick({ stopPropagation() {} });
+  assert.deepEqual(blocks.map((b) => b.dataset.segmentId), ['a', 'b', 'c', 'd']);
+  assert.equal(blocks[3].dataset.index, '3');
+  assert.equal(blocks[3].style.left, '240px');
+  blocks[3].listeners.dblclick({ stopPropagation() {} });
   assert.equal(c.editIndex, 3);
   assert.equal(c.inspector.segmentId, 'd');
-  assert.deepEqual(c.overview.chords.map((s) => s.segmentId), ['a', 'd']);
+  assert.deepEqual(c.overview.chords.map((s) => s.segmentId), ['a', 'b', 'c', 'd']);
   assert.equal(c.currentAnalysis.chords.length, 5);
 });
 
-test('lecture : aucun accord actif dans un intervalle omis, y compris après le dernier', () => {
+test('lecture : chaque instant joué a son accord, sauf le silence final', () => {
   const c = controller();
   c.updatePlaybackPosition(1);
   assert.equal(c.hero.segmentId, 'a');
   c.updatePlaybackPosition(2);
-  assert.equal(c.hero, null);
-  assert(!c.els.chordTimelineInner.children.some((b) => b.classList.contains('current')));
+  assert.equal(c.hero.segmentId, 'b', 'un accord de passage est lu comme les autres');
+  c.updatePlaybackPosition(2.75);
+  assert.equal(c.hero.segmentId, 'c');
   c.updatePlaybackPosition(3);
   assert.equal(c.hero.segmentId, 'd');
+  // De 5 à 6 s il n'y a aucun accord joué : le « N » reste sans étiquette.
   c.updatePlaybackPosition(5);
   assert.equal(c.hero, null);
 });
@@ -160,24 +188,32 @@ test('le nombre de blocs ne décale ni les accords ni les repères de modulation
   }
 });
 
-test('retour des détails : masquer la sélection non structurelle et rafraîchir les exports', () => {
+test('le bouton des détails ne fait plus disparaître la sélection', () => {
   const c = controller();
   c.els.hierarchyToggle.checked = true;
   c.els.hierarchyToggle.listeners.change();
-  assert.equal(c.getDisplayChords().length, 5);
+  assert.equal(c.getDisplayChords().length, 4);
   c.selectSegment('c');
   assert.equal(c.inspector.chord, 'B');
   c.els.hierarchyToggle.checked = false;
   c.els.hierarchyToggle.listeners.change();
-  assert.equal(c.inspector, null);
-  assert.equal(c.selectedSegmentId, null);
-  assert.deepEqual(c.getDisplayAnalysis().chords.map((s) => s.chord), ['F', 'G']);
+  // Un accord incertain reste affiché : la sélection survit au basculement.
+  assert.equal(c.inspector.chord, 'B');
+  assert.equal(c.selectedSegmentId, 'c');
+  assert.deepEqual(c.getDisplayAnalysis().chords.map((s) => s.chord), ['F', 'F#dim', 'B', 'G']);
 });
 
-test('une grille sans pilier confirmé reste vide pendant la lecture', () => {
+test('une grille faite de seuls accords douteux les montre quand même', () => {
   const c = controller(source.slice(1, 3));
-  assert.equal(c.els.chordTimelineInner.children.length, 0);
-  assert.match(c.els.chordTimelineInner.innerHTML, /Aucun accord structurel confirmé/);
+  const blocks = c.els.chordTimelineInner.querySelectorAll();
+  assert.deepEqual(blocks.map((b) => b.dataset.segmentId), ['b', 'c']);
   c.updatePlaybackPosition(2.75);
+  assert.equal(c.hero.segmentId, 'c');
+});
+
+test('une grille sans aucun accord reste vide', () => {
+  const c = controller([segment('z', 'N', 'silence', 0, 6)]);
+  assert.equal(c.els.chordTimelineInner.children.length, 0);
+  c.updatePlaybackPosition(3);
   assert.equal(c.hero, null);
 });

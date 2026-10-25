@@ -1227,7 +1227,6 @@
   border-style: dashed;
   border-color: color-mix(in srgb, var(--an-amber) 55%, var(--an-border));
 }
-#analysis-tab .analyzer-timeline-block.collapsed { padding: 6px 1px; }
 #analysis-tab .analyzer-timeline-label {
   font-weight: 600;
   letter-spacing: -.02em;
