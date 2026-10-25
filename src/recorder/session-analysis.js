@@ -59,6 +59,11 @@ const ROLL_NEAR_TOP = 12;
 // Durée au-delà de laquelle une note plaquée avec l'accord n'est plus un ornement
 // mais fait partie de l'harmonie.
 const ORNAMENT_MAX_DURATION = 0.2;
+// Deux noms de suite sur la MÊME fondamentale, le premier à peine audible : un
+// seul accord qui se complète ou se dégarnit. Même ordre de grandeur que
+// MIN_UNNAMED_DURATION (midi-source.js), soit la demi-pulsation d'un tempo
+// médian — en deçà, un changement de nom n'est pas un changement d'accord.
+const SAME_ROOT_MERGE = 0.35;
 
 // Garde-fou "gamme sous pédale" — même logique que note-grouper.js (voir son commentaire) :
 // un vrai accord n'a jamais TOUTES ses notes voisines d'un ton/demi-ton une fois triées par
@@ -404,6 +409,20 @@ export function segmentSessionEvents(events) {
         && bassOf(previous) === bassOf(current)
         && foreign <= 1) {
       current.start = Math.min(current.start, previous.start);
+      chordSegments.splice(i - 1, 1);
+      continue;
+    }
+    // Même FONDAMENTALE que le suivant, et à peine le temps de s'entendre :
+    // ce n'est pas un accord, c'est un état transitoire du suivant. Le critère
+    // est la fondamentale commune, pas une durée ajustée — Narcisse appelle ces
+    // étiquettes « parasites », et les quatre qu'il a relevées sur ses sessions
+    // du 15/09 et du 25/10 partagent toutes la fondamentale de leur voisine :
+    // « Csus4 » 0,31 s devant Cm, « Ebmaj7/D » 0,27 s et 0,28 s devant
+    // Ebmaj9/D, « Dmadd9 » 0,30 s devant Dm7. La règle d'ornement au-dessus ne
+    // les attrapait pas : elle s'arrête à 0,2 s.
+    if (shown < SAME_ROOT_MERGE && previous.named?.rootPc === current.named?.rootPc) {
+      current.start = Math.min(current.start, previous.start);
+      current.notes = [...new Set([...previous.notes, ...current.notes])];
       chordSegments.splice(i - 1, 1);
     }
   }
