@@ -47,7 +47,7 @@ if (!s17) {
   check('S017 : dix accords, un par accord joué', s17.chords.length, 10);
   check('S017 : le relevé complet',
     s17.chords.map((c) => c.chord).join(' '),
-    'Fadd9 Gadd9 Emadd11 Am Dm7 Gadd9/A Fadd9/A Cadd9 Dmadd9 Em');
+    'Fadd9 Gadd9 Em Am Dm7 Gadd9/A Fadd9/A Cadd9 Dmadd9 Em');
   check('S017 : aucun chevauchement',
     s17.chords.every((c, i) => i === 0 || c.startTime >= s17.chords[i - 1].endTime - 1e-6), true);
 }

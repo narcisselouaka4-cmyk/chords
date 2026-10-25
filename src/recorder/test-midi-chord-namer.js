@@ -63,7 +63,12 @@ check('V coquille, sans tierce (La#-Fa-Sol#)', name([58, 65, 68, 70], 'sharps'),
 // Son degré I, add9, basse Sol : sortait « F9sus4/G » (ni La ni Do joués).
 check('I add9 basse Sol (et non F9sus4/G)', name([55, 63, 65, 70, 75], 'sharps'), 'D#add9/G');
 // Son V en premier renversement avec quarte : sortait « F13sus4/D ».
-check('V add11 en premier renversement (et non F13sus4/D)', name([62, 65, 70, 75], 'sharps'), 'A#add11/D');
+//
+// [Claude] — 2026-10-26 — Attendait « A#add11/D ». Narcisse, après avoir ouvert
+// la session : « l'étiquette si bémol add 11 base de ré, c'est faux […] je fais
+// un si bémol premier renversement ». La quarte ajoutée sur une triade entière
+// est un appui, pas une couleur — l'attente du banc était mauvaise.
+check('V en premier renversement, la quarte en appui', name([62, 65, 70, 75], 'sharps'), 'A#/D');
 
 console.log('\n--- Session_019 (jeu plus avancé) — orthographe par famille d\'accord ---');
 // La sortie chromatique de Narcisse en do majeur. Écrite en dièses, elle donnait

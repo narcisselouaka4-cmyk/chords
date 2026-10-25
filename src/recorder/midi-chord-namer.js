@@ -222,6 +222,19 @@ export function nameMidiChord(notes, { latin = false, spelling = 'auto', keyPc =
   // nouvelle basse frappée » de test-session-analysis.js). La quinte est la
   // première note qu'un pianiste omet : on ne l'exige jamais de l'accord retenu,
   // seulement de la triade de la basse quand on écarte le modèle.
+  // Quarte ajoutée sur une triade entière : c'est un APPUI, pas une couleur. La
+  // 11e se heurte à la tierce d'un accord majeur ou mineur sans septième ; un
+  // pianiste dit « mi mineur avec le la d'appui », pas « Emadd11 ». Narcisse,
+  // sur Session_017 : « Em simple ». Le gabarit madd11 reste utile quand la
+  // triade n'est PAS entière — {Mi Sol La}, sans quinte, n'a pas d'autre nom.
+  if (best && !best.rootless && (best.symbol === 'add11' || best.symbol === 'madd11')) {
+    const intervals = new Set(pcs.map((pc) => (pc - best.rootPc + 12) % 12));
+    const third = best.symbol === 'add11' ? 4 : 3;
+    if (intervals.has(third) && intervals.has(7)) {
+      best = { ...best, symbol: best.symbol === 'add11' ? '' : 'm' };
+    }
+  }
+
   if (!best || !best.sounds) {
     const fromBass = new Set(pcs.map((pc) => (pc - bassPc + 12) % 12));
     const triad = [['', [0, 4, 7]], ['m', [0, 3, 7]]]
