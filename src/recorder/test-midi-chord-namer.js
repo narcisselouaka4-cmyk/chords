@@ -77,6 +77,22 @@ check('diminué de passage : C#dim7 reste en dièses', name([49, 55, 58, 64]), '
 check('réglage « dièses » : la convention de Narcisse', name([44, 56, 60, 63, 67], 'sharps'), 'G#maj7');
 check('réglage « bémols » : tout en bémols', name([49, 55, 58, 64], 'flats'), 'Dbdim7');
 
+console.log('\n--- Dominante dont la fondamentale n\'est pas jouée ---');
+// Narcisse : « je peux faire un La#7 bémol 9 » — l'app affichait « Fdim ». Ses
+// notes {Fa, Sol#, Si} sont la quinte, la septième et la neuvième bémol de
+// La#7b9 : l'accord existe, sa fondamentale n'est simplement pas jouée. Seule
+// la tonalité permet de trancher entre les lectures possibles (C#7, G7b9,
+// A#7b9, Ddim7) : on retient celle dont la fondamentale est la DOMINANTE.
+const nameInKey = (notes, keyPc, spelling = 'sharps') =>
+  nameMidiChord(notes, { keyPc, spelling })?.name ?? null;
+check('son A#7b9 en ré dièse majeur', nameInKey([53, 68, 71], 3), 'A#7b9/F');
+check('sans tonalité connue, on ne prétend rien', name([53, 68, 71], 'sharps'), 'Fdim');
+check('une triade majeure complète reste elle-même', nameInKey([58, 62, 65], 0), 'A#');
+// Une septième diminuée complète est un accord à part entière, et c'est ainsi
+// qu'il nomme les siennes (« un Fa diminué 7 drop 2 »).
+check('une septième diminuée complète n\'est pas renommée', nameInKey([47, 53, 56, 62], 0), 'Bdim7');
+check('un diminué de passage hors dominante reste diminué', nameInKey([49, 55, 58, 64], 0), 'C#dim7');
+
 console.log('\n--- Non-régression : voicings de jazz sans quinte ---');
 // La quinte est la première note qu'un pianiste omet. Elle ne doit JAMAIS être
 // exigée de l'accord retenu. Cas de test-session-analysis.js : la basse Sol est

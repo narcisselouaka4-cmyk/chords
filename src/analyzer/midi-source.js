@@ -11,6 +11,7 @@
 // Module PUR (testé par test-midi-source.js).
 
 import { segmentSessionEvents, nameChordSegments } from '../recorder/session-analysis.js';
+import { nameMidiChord } from '../recorder/midi-chord-namer.js';
 import { detectKey } from './key-detector.js';
 import { classifyMidiRoles } from './midi-roles.js';
 import { enrichChordsWithDegrees } from './harmonic-patterns.js';
@@ -164,6 +165,17 @@ export function analyzeMidiEvents(events, { duration = 0, tempo = null, spelling
   // transitoire d'attaque de 50 ms pesait autant qu'un accord tenu deux secondes.
   const keyChords = segments.map((s) => ({ time: s.start, duration: s.end - s.start, rootPc: s.rootPc, symbol: s.symbol, notes: s.notes }));
   const key = list.some((e) => e.type === 'note_on') ? detectKey(list, keyChords, { useSharps, latin: false }) : null;
+
+  // Seconde passe de nommage, maintenant que la tonalité est connue : une
+  // dominante dont la fondamentale n'est pas jouée ne peut se reconnaître que
+  // par rapport à elle (voir `impliedDominant`). La tonalité n'est PAS
+  // redétectée ensuite : elle a été établie sur la première lecture.
+  if (key && Number.isFinite(key.pc)) {
+    for (const chord of kept) {
+      const named = nameMidiChord(chord.notes, { spelling, keyPc: key.pc });
+      if (named) { chord.chord = named.name; chord.rootPc = named.rootPc; chord.symbol = named.symbol; }
+    }
+  }
 
   // Hiérarchie et degrés. Jusqu'ici le chemin MIDI posait `role: 'structural'`
   // pour TOUS les accords et `degree: null` partout : l'onglet Analyse ne

@@ -106,12 +106,32 @@ export function pitchName(pc, { latin = false, useSharps = false } = {}) {
 }
 
 /**
+ * La dominante que ces notes dessinent sans la jouer, si sa fondamentale est la
+ * dominante de la tonalité. Sinon null.
+ * @param {number[]} pcs - classes de hauteur jouées
+ * @param {number} keyPc - tonique de la tonalité
+ */
+function impliedDominant(pcs, keyPc) {
+  const root = ((keyPc + 7) % 12 + 12) % 12;   // le V de la tonalité
+  const intervals = new Set(pcs.map((pc) => (pc - root + 12) % 12));
+  if (intervals.has(0)) return null;           // la fondamentale est jouée : rien à impliquer
+  // Il faut au moins trois notes de l'accord, dont la septième mineure, et
+  // aucune note qui lui soit étrangère.
+  const allowed = new Set([4, 7, 10, 1, 3]);   // 3, 5, b7, b9, #9
+  if (![...intervals].every((i) => allowed.has(i))) return null;
+  if (!intervals.has(10)) return null;
+  if (intervals.size < 3) return null;
+  const altered = intervals.has(1) || intervals.has(3);
+  return { rootPc: root, symbol: altered ? (intervals.has(1) ? '7b9' : '7#9') : '7' };
+}
+
+/**
  * Accord joué : fondamentale, qualité (celle de l'application), basse, nom.
  * @param {number[]} notes - notes MIDI jouées ensemble
  * @param {{latin?: boolean}} [options]
  * @returns {{rootPc: number, symbol: string, bassPc: number, isSlash: boolean, name: string, matched: boolean}|null}
  */
-export function nameMidiChord(notes, { latin = false, spelling = 'auto' } = {}) {
+export function nameMidiChord(notes, { latin = false, spelling = 'auto', keyPc = null } = {}) {
   const list = (notes || []).filter(Number.isFinite);
   if (list.length === 0) return null;
   const pcs = [...new Set(list.map((n) => ((n % 12) + 12) % 12))];
@@ -174,6 +194,32 @@ export function nameMidiChord(notes, { latin = false, spelling = 'auto' } = {}) 
     if (!detected || detected.rootPc == null || detected.symbol == null) return null;
     best = { rootPc: detected.rootPc, symbol: detected.symbol };
   }
+  // Dominante SANS fondamentale. Narcisse : « j'ai fait un La#7 bémol 9 », et
+  // l'app affichait « Fdim ». Ses notes {Fa, Sol#, Si} sont la quinte, la
+  // septième et la neuvième bémol de La#7b9 — l'accord existe, sa fondamentale
+  // n'est simplement pas jouée. Une triade ou une septième diminuée admet
+  // plusieurs lectures de ce genre ; celle qui compte est celle dont la
+  // fondamentale est la DOMINANTE de la tonalité, parce que c'est sa fonction.
+  // Sans tonalité connue, on ne tranche pas et le nom littéral reste.
+  // Restreint à la TRIADE diminuée, et à elle seule.
+  //
+  // Une triade majeure ou mineure complète se suffit à elle-même : son Si bémol
+  // de 39,10 s ({Si♭, Ré, Fa}) devenait « G7#9/Bb » parce que ces notes sont
+  // aussi une structure supérieure de G7#9 — alors qu'elles forment un accord
+  // entier et stable.
+  //
+  // Et une SEPTIÈME diminuée complète est elle aussi un accord à part entière :
+  // symétrique, avec une longue tradition d'accord de passage. Narcisse nomme
+  // les siennes ainsi (« un Fa diminué 7 drop 2, puis un Sol diminué 7 drop 2 »)
+  // et le banc de ses sessions l'enregistre. On ne les renomme donc pas.
+  //
+  // Reste la triade diminuée seule, bien plus souvent un fragment qu'un accord :
+  // ses {Fa, Sol#, Si} sont la quinte, la septième et la neuvième bémol d'un
+  // La#7b9 dont il n'a pas joué la fondamentale — et c'est le nom qu'il donne.
+  const diminished = best.symbol === 'dim';
+  const implied = keyPc == null || !diminished ? null : impliedDominant(pcs, keyPc);
+  if (implied) best = { rootPc: implied.rootPc, symbol: implied.symbol, rootless: true };
+
   const isSlash = best.rootPc !== bassPc;
   // L'orthographe passe par spelling.js, qui écrit la fondamentale selon la
   // FAMILLE de l'accord (A♭maj7 et non G♯maj7, B♭7 et non A♯7, mais C♯°7 en
