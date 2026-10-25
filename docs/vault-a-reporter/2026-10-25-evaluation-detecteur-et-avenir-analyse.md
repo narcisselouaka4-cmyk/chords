@@ -858,3 +858,71 @@ Limite à garder en tête : MAESTRO est du piano **classique**, Slakh du **synth
 calibrent le moteur, ils ne couvrent pas le répertoire gospel. Pour celui-là, aucun corpus
 académique n'existe : il faudra ses propres enregistrements et ses propres grilles — ce qu'il
 a commencé ce soir avec ses trois sessions.
+
+---
+
+# Suite 7 (25/10) — Première mesure externe réelle : GuitarSet
+
+Narcisse a téléchargé GuitarSet (360 extraits, ~3 Go, audio CC BY 4.0, validé 360/360). Le banc
+a d'abord échoué — **bug du banc, pas du corpus** : il supposait les champs `audio_path` et
+`chords`, quand GuitarSet expose `audio_mix_path` et `leadsheet_chords` / `inferred_chords`.
+La résolution se fait maintenant par ordre de préférence sur plusieurs noms, et le message
+d'échec dit ce qui a été cherché et combien de morceaux ont été écartés, et pourquoi.
+
+Piège trouvé au passage, signalé par mirdata : les extraits **`solo`** sont des improvisations
+annotées avec la **même grille que le `comp`**. Un solo n'énonce pas l'harmonie — mesuré contre
+une grille d'accompagnement, il donnait **11,5 %**, un chiffre qui ne dit rien du moteur. Ils
+sont écartés par défaut (`--all-tracks` les réintègre).
+
+## Le premier chiffre externe du projet
+
+40 extraits d'accompagnement, moteur `legacy`, scores MIREX (mir_eval) :
+
+| style | n | root | majmin | triads | 7es | sur-segmentation |
+|---|---|---|---|---|---|---|
+| Singer-songwriter | 6 | 90,0 % | **89,1 %** | 88,4 % | 80,7 % | 1,6× |
+| Rock | 6 | 83,7 % | **81,8 %** | 81,2 % | 75,9 % | 1,5× |
+| Bossa nova | 12 | 73,7 % | **70,1 %** | 68,4 % | 65,2 % | 1,4× |
+| Funk | 10 | 55,9 % | **47,3 %** | 46,5 % | 42,3 % | 2,1× |
+| Jazz | 6 | 45,4 % | **41,2 %** | 40,6 % | 41,0 % | 2,0× |
+| **tous** | **40** | **68,9 %** | **64,7 %** | **63,7 %** | **59,8 %** | **1,7×** |
+
+C'est la première mesure du moteur audio sur un corpus **public, externe et reproductible**.
+Tout ce qui précédait dans ce projet était mesuré sur du matériel choisi par nous.
+
+## Ce que ces chiffres disent
+
+1. **Le moteur n'est pas uniformément faible — il s'effondre par style.** 89 % en
+   singer-songwriter contre 41 % en jazz : un écart de 48 points. La moyenne de 64,7 % cache
+   deux régimes. Le jazz confirme ce que mesurait déjà le rapport ADR-061 (17,5 % sur Autumn
+   Leaves) ; le funk, jamais mesuré jusqu'ici, est le second point faible.
+
+2. **La sur-segmentation accompagne l'échec.** Corrélation −0,29 avec le score, et surtout le
+   contraste direct :
+   - segmentation proche de la référence (≤ 1,5×, n = 21) → **68,2 %** majmin
+   - sur-segmentation forte (> 2,5×, n = 5) → **47,3 %** majmin
+
+   Les deux styles faibles sont aussi les deux plus sur-segmentés (2,0× et 2,1×), contre 1,4-1,6×
+   pour les trois styles forts. C'est exactement le défaut corrigé sur le chemin MIDI cette nuit
+   — mais côté audio il n'a pas encore été traité.
+
+3. **L'interprète pèse plus que le morceau.** Les mêmes dix morceaux joués par deux guitaristes
+   donnent un écart moyen de **21,2 points**. Exemple : `BN1-129-Eb` passe de 68,5 % à 93,8 %
+   selon le joueur. Toute conclusion tirée d'un seul enregistrement est donc fragile.
+
+## Limites à ne pas oublier
+
+- GuitarSet est de la **guitare acoustique seule**. Ce n'est ni du piano, ni un mix de groupe,
+  ni le répertoire gospel de Narcisse. Ces chiffres calibrent, ils ne prédisent pas.
+- 40 extraits sur 180 `comp` disponibles : la mesure complète reste à faire.
+- `leadsheet_chords` est l'accord demandé au musicien. `inferred_chords` (relevé du capteur
+  hexaphonique, plus détaillé) donnerait une autre lecture, non essayée.
+
+## Prochaines actions
+
+- Passer les 180 `comp` pour un chiffre stable (`--limit 0`).
+- **Le funk et le jazz sont les deux cibles désignées**, et la sur-segmentation est la piste
+  commune. Côté audio, elle n'a jamais été traitée.
+- Le pont MIDI (MAESTRO, Slakh) demande de gros téléchargements : ~120 Go et ~100 Go, ou
+  ~5 Go pour le sous-ensemble « baby » de Slakh. Décision de Narcisse.
+- Les corpus à annotations seules (Billboard, Isophonics, JAAH) attendent son audio.
