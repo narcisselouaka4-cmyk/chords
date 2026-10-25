@@ -133,6 +133,41 @@ function impliedDominant(pcs, keyPc) {
   return { rootPc: root, symbol: altered ? (intervals.has(1) ? '7b9' : '7#9') : '7' };
 }
 
+/** Degrés d'une gamme majeure, et le mode de l'accord bâti sur chacun. */
+const MAJOR_DEGREE_MODE = { 0: '', 2: 'm', 4: 'm', 5: '', 7: '', 9: 'm', 11: 'dim' };
+
+/**
+ * La coquille que porte la BASSE FRAPPÉE : fondamentale, quinte juste, et
+ * aucune tierce. C'est la main gauche la plus courante en gospel — Narcisse
+ * joue {Do, Fa, Sol, Si♭, La♭} et entend « do mineur », là où le moteur lisait
+ * « Fmadd9/C » puis « Abmaj7/C » sur les mêmes notes, parce qu'une triade
+ * complète (Fa-La♭-Do, La♭-Do-Mi♭) se trouve ailleurs dans l'ensemble.
+ *
+ * La quinte est exigée, et la tierce doit être absente : c'est ce qui sépare
+ * cette lecture d'un renversement légitime. Ses Do/Mi, Si♭6/Ré, Fadd9/La et
+ * Gadd9/Si n'ont pas de quinte au-dessus de leur basse, ou bien ont leur
+ * tierce — aucun n'est touché.
+ *
+ * Le mode vient de la TONALITÉ, car une coquille sans tierce n'en porte
+ * aucun : en mi bémol majeur, Do est le sixième degré, donc mineur. Sans
+ * tonalité connue, on ne tranche pas. Et le nom reste simple — fondamentale,
+ * mode, septième — parce qu'un nom juste et simple vaut mieux qu'un nom riche
+ * et faux : il dit « do mineur », pas « Cm7(11,b13) ».
+ *
+ * @returns {{rootPc: number, symbol: string}|null}
+ */
+function bassShell(pcs, bassPc, keyPc) {
+  if (keyPc == null) return null;
+  const intervals = new Set(pcs.map((pc) => (pc - bassPc + 12) % 12));
+  if (!intervals.has(7)) return null;
+  if (intervals.has(3) || intervals.has(4)) return null;
+  const mode = MAJOR_DEGREE_MODE[((bassPc - keyPc) % 12 + 12) % 12];
+  if (mode === undefined || mode === 'dim') return null;
+  const seventh = intervals.has(10) ? '7' : (intervals.has(11) ? 'maj7' : '');
+  if (mode === 'm') return { rootPc: bassPc, symbol: seventh === '7' ? 'm7' : `m${seventh}` };
+  return { rootPc: bassPc, symbol: seventh };
+}
+
 /**
  * Accord joué : fondamentale, qualité (celle de l'application), basse, nom.
  * @param {number[]} notes - notes MIDI jouées ensemble
@@ -229,6 +264,14 @@ export function nameMidiChord(notes, { latin = false, spelling = 'auto', keyPc =
   const diminished = best.symbol === 'dim';
   const implied = keyPc == null || !diminished ? null : impliedDominant(pcs, keyPc);
   if (implied) best = { rootPc: implied.rootPc, symbol: implied.symbol, rootless: true };
+
+  // Coquille de la main gauche : la basse frappée porte sa quinte et aucune
+  // tierce. On ne l'applique que si la lecture retenue a choisi une AUTRE
+  // fondamentale — sinon il n'y a rien à corriger.
+  if (best.rootPc !== bassPc && !implied) {
+    const shell = bassShell(pcs, bassPc, keyPc);
+    if (shell) best = { rootPc: shell.rootPc, symbol: shell.symbol, shell: true };
+  }
 
   const isSlash = best.rootPc !== bassPc;
   // L'orthographe passe par spelling.js, qui écrit la fondamentale selon la
