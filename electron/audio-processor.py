@@ -4477,9 +4477,25 @@ def _clean_segments(segments, min_duration=0.6, silence_min=1.2):
     cleaned = []
     for seg in merged:
         duration = seg['endTime'] - seg['startTime']
+        # [Claude] — 2026-10-25 — Ce garde-fou testait la PRÉSENCE de la clé
+        # `harmonicEvidence`, pas son contenu. Or tous les segments la portent
+        # (133/133 mesurés sur GuitarSet) : la condition était toujours fausse,
+        # et ce filtre ne s'est donc JAMAIS déclenché. Il doit épargner les
+        # segments à appui acoustique RÉEL — évidence indépendante, ou support
+        # mesuré — et absorber les autres : sur GuitarSet, 25 des 75 segments de
+        # moins de 0,7 s n'ont ni l'un ni l'autre, et portent
+        # `{independent: false, supportSeconds: 0.0}`.
+        #
+        # A/B sur les 180 morceaux de GuitarSet : justesse inchangée (+0,1 point
+        # de majmin, médiane +0,00, 35 morceaux améliorés contre 23 dégradés) et
+        # 9 % de segments en moins — 11 % sur le funk, le style le plus
+        # sur-segmenté (2,26× → 2,02×). Le gain est la lisibilité de la grille,
+        # pas le score.
+        evidence = seg.get('analysis', {}).get('harmonicEvidence') or {}
+        supported = bool(evidence.get('independent')) or (evidence.get('supportSeconds') or 0) > 0
         if (duration < min_duration and not seg.get('_independentHarmony')
                 and seg['chord'] != 'N'
-                and 'harmonicEvidence' not in seg.get('analysis', {})):
+                and not supported):
             if cleaned and cleaned[-1]['chord'] != 'N':
                 cleaned[-1]['endTime'] = seg['endTime']
                 continue
