@@ -926,3 +926,87 @@ Tout ce qui précédait dans ce projet était mesuré sur du matériel choisi pa
 - Le pont MIDI (MAESTRO, Slakh) demande de gros téléchargements : ~120 Go et ~100 Go, ou
   ~5 Go pour le sous-ensemble « baby » de Slakh. Décision de Narcisse.
 - Les corpus à annotations seules (Billboard, Isophonics, JAAH) attendent son audio.
+
+---
+
+# Suite 8 (25/10) — Mode flux, et le pont mis à l'épreuve sur Slakh
+
+## L'espace disque : le cloud n'était pas nécessaire
+
+Narcisse demandait s'il fallait louer du cloud, faute de place. Mesures exactes : il a
+**119 Go libres** sur 461 (disque à 73 %, GuitarSet en occupe déjà 21), quand Slakh 2100-redux
+fait **97,2 Go** compressés et MAESTRO v2 **109,9 Go** — avec un pic d'environ 200 Go pendant
+la décompression, puisqu'il faut garder l'archive. Aucun des deux ne passe.
+
+Mais **le disque n'était pas la vraie contrainte** :
+
+- **MAESTRO** : un ZIP garde son index à la FIN, et le serveur accepte les requêtes par plage
+  (`accept-ranges: bytes`, vérifié — une lecture au milieu renvoie `206`). `HttpRangeFile`
+  expose l'archive distante comme un fichier seekable, que `zipfile` lit directement.
+  **Mesuré : l'index des 109,9 Go lu en 4 requêtes et 0,4 Mo ; trois morceaux extraits et
+  mesurés pour 0,22 Go de réseau**, un seul sur le disque à la fois.
+- **SLAKH** : un tar.gz se lit en flux — on traverse l'archive sans jamais l'écrire, en
+  n'extrayant que `all_src.mid` et `mix.wav`, et on s'arrête dès qu'on a le compte.
+
+On paie de la bande passante, pas du stockage. `--stream maestro|slakh --tracks N`.
+
+Deux défauts du banc révélés en l'exerçant : un `NaN` (mir_eval rend −1 hors vocabulaire ;
+quand tout l'est, le poids total est nul) empoisonnait la moyenne de tout le corpus, et les
+noms tronqués par le début rendaient trois morceaux MAESTRO indiscernables.
+
+## Le pont avait un trou, et il aurait menti
+
+Premier passage sur babySlakh : **42,9 % root, 44,8 % majmin**. Deux choses ne collaient pas —
+la référence annonçait 250 à 450 segments quand le moteur en donnait 55 à 160, et Track00019
+sortait à **1,7 %**, ce qu'aucun moteur ne fait.
+
+En comparant la durée de chaque MIDI à celle de son WAV :
+
+| ratio MIDI/audio | morceaux | score majmin |
+|---|---|---|
+| 0,97 – 1,01 (alignés) | 11 | 54 à 83 % |
+| 1,11 – 1,34 | 6 | 6 à 35 % |
+| **17,67** | Track00019 | **1,7 %** |
+
+**La corrélation est parfaite** : les six plus mauvaises notes du banc sont exactement les six
+MIDI désalignés. Track00019 encode 4094 s de musique pour 232 s d'audio.
+
+Vérifié que le parseur de l'app n'est pas en cause : un parseur écrit indépendamment en Python
+donne les mêmes **4 160 196 tics** à 127 BPM et 480 ppq. Le fichier de Slakh ne correspond pas
+à son audio — pas l'app.
+
+Le pont **supposait** l'alignement sans le vérifier : il fabriquait silencieusement une
+référence fausse et le moteur était accusé à sa place. `check_alignment` refuse désormais une
+référence dont la durée s'écarte de plus de 8 % de l'audio (en tolérant 8 s de résonance
+finale, que babySlakh a régulièrement), déclare le morceau non mesurable et dit pourquoi.
+
+**Sans ce garde-fou, le banc mesurait la qualité d'alignement du corpus, pas celle du moteur.**
+
+## Les deux chiffres externes, honnêtes
+
+| corpus | n | root | majmin | triads | 7es |
+|---|---|---|---|---|---|
+| GuitarSet (guitare seule, accompagnement) | 40 | 68,9 % | **64,7 %** | 63,7 % | 59,8 % |
+| babySlakh (mix multi-instruments, alignés) | 13 | 57,7 % | **61,8 %** | 54,6 % | 44,4 % |
+
+Sept morceaux de babySlakh écartés, chacun avec sa raison affichée. Les deux corpus se tiennent
+(61,8 contre 64,7 en majmin), ce qui est cohérent : un mix de groupe est plus dur qu'une
+guitare seule, mais pas d'un autre ordre.
+
+## Limites qui restent
+
+- La référence du pont demeure **fine** : 117 à 296 segments par morceau contre 55 à 160 émis.
+  Le moteur MIDI nomme chaque changement de voicing de tout l'arrangement. mir_eval pondère par
+  la durée, donc l'effet est amorti, mais la comparaison reste sévère.
+- **MAESTRO n'est pas exploitable tel quel** : 1051 segments pour un seul morceau de piano
+  classique. Ce n'est pas une grille d'accords, c'est un journal de voicings. Il faudrait
+  agréger à l'échelle de la mesure — chantier à part.
+- Track00014 est aligné (1,01×) mais tombe à 17,7 % : seul point aberrant non expliqué.
+- Aucun de ces corpus n'est du gospel ni du piano de groupe.
+
+## Prochaines actions
+
+- Passer les 180 `comp` de GuitarSet (`--limit 0`) pour un chiffre stable.
+- **Funk (47,3 %) et jazz (41,2 %)** restent les cibles désignées par GuitarSet, et la
+  sur-segmentation la piste commune — jamais traitée côté audio.
+- Élucider Track00014.
