@@ -427,6 +427,39 @@ export function segmentSessionEvents(events) {
     }
   }
 
+  // Résidus de l'accord précédent. Une note attaquée AVANT le segment et
+  // éteinte dans son premier tiers n'appartient pas à son harmonie : elle
+  // finissait de sonner. Elle complétait pourtant des lectures plus riches, et
+  // plus fausses. Mesuré sur Session_019 de Narcisse : son « Mi base de Sol »
+  // de 11,34 s ({Mi, Sol, Si}, basse Sol) s'affichait « Cmaj7/G » parce que le
+  // Do5 de l'Am9 précédent sonne encore 0,21 s — un quart du segment.
+  //
+  // On ne retire jamais une note si l'ensemble cesse d'être nommable : une
+  // basse tenue sous la pédale, ou un accord dont le voicing repose sur ce qui
+  // sonne encore, doit rester lisible. Et on ne touche qu'aux segments dont
+  // toutes les notes viennent des fenêtres connues.
+  for (let i = 0; i < chordSegments.length; i += 1) {
+    const seg = chordSegments[i];
+    const shownEnd = chordSegments[i + 1] ? Math.min(seg.end, chordSegments[i + 1].start) : seg.end;
+    const firstThird = seg.start + (shownEnd - seg.start) / 3;
+    if (!(firstThird > seg.start)) continue;
+    // Le verdict porte sur la CLASSE DE HAUTEUR, pas sur une fenêtre isolée :
+    // une note peut traîner dans un registre et être réattaquée dans un autre.
+    // Son Mi de Session_019 finit de sonner à 11,55 s et repart à 11,74 s,
+    // dans le segment — il appartient bien à l'accord, contrairement au Do.
+    const during = windows.filter((w) => w.onTime < shownEnd && w.offTime > seg.start);
+    const residual = (pc) => {
+      const own = during.filter((w) => ((w.note % 12) + 12) % 12 === pc);
+      return own.length > 0
+        && own.every((w) => w.onTime < seg.start - 1e-6 && w.offTime <= firstThird);
+    };
+    const kept = seg.notes.filter((n) => !residual(((n % 12) + 12) % 12));
+    if (kept.length === seg.notes.length) continue;
+    const renamed = nameMidiChord(kept);
+    if (!renamed) continue;
+    Object.assign(seg, { notes: kept, name: renamed.name, named: renamed });
+  }
+
   // Un accord s'arrête quand le suivant commence.
   const chords = chordSegments.map((seg, i) => {
     const next = chordSegments[i + 1];
