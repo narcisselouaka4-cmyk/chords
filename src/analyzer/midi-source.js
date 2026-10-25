@@ -96,13 +96,14 @@ export function pruneAttackTransients(chords) {
  * @param {object[]} events
  * @param {{duration?: number, tempo?: number|null}} [options]
  */
-export function analyzeMidiEvents(events, { duration = 0, tempo = null } = {}) {
+export function analyzeMidiEvents(events, { duration = 0, tempo = null, spelling = 'auto' } = {}) {
   const list = events || [];
   const spans = noteSpans(list);
   const end = Math.max(Number(duration) || 0, ...spans.map((s) => s.end), 0);
-  // Même orthographe pour les accords et pour la tonalité (dièses, comme
-  // `detectKey` plus bas) : la frise montrait « Eb » sous une tonalité « D# ».
-  const segments = nameChordSegments(segmentSessionEvents(list), { useSharps: true })
+  // Accords et tonalité sous la MÊME orthographe, celle du réglage : la frise
+  // montrait « Eb » sous une tonalité « D# ».
+  const useSharps = spelling === 'sharps';
+  const segments = nameChordSegments(segmentSessionEvents(list), { spelling })
     .filter((s) => s.chordName);
 
   // Des accords qui se touchent : un accord dure jusqu'au suivant (comme la grille audio) ;
@@ -141,7 +142,7 @@ export function analyzeMidiEvents(events, { duration = 0, tempo = null } = {}) {
   // La tonalité se vote sur les accords RETENUS, pas sur les segments bruts : un
   // transitoire d'attaque de 50 ms pesait autant qu'un accord tenu deux secondes.
   const keyChords = segments.map((s) => ({ time: s.start, duration: s.end - s.start, rootPc: s.rootPc, symbol: s.symbol, notes: s.notes }));
-  const key = list.some((e) => e.type === 'note_on') ? detectKey(list, keyChords, { useSharps: true, latin: false }) : null;
+  const key = list.some((e) => e.type === 'note_on') ? detectKey(list, keyChords, { useSharps, latin: false }) : null;
 
   // La basse : la note la plus grave de chaque accord.
   const bassSegments = kept.map((c) => {

@@ -9,6 +9,7 @@
 import { parseMidiFile } from '../recorder/serializer.js';
 import { getPianoSampleBuffers } from '../audio/simple-synth.js';
 import { analyzeMidiEvents, noteSpans, encodeWav } from './midi-source.js';
+import { readSpelling } from '../chord-engine/spelling-preference.js';
 
 const SAMPLE_RATE = 44100;
 const RELEASE = 0.25; // s : l'étouffoir retombe
@@ -100,7 +101,9 @@ export async function analyzeMidiFile(filePath) {
   if (!window.electronAPI?.files?.readBinary) throw new Error('lecture de fichier indisponible hors de l\'application');
   const parsed = await readMidiFile(filePath);
   if (!parsed.events.some((e) => e.type === 'note_on')) throw new Error('ce fichier MIDI ne contient aucune note');
-  const analysis = analyzeMidiEvents(parsed.events, { duration: parsed.duration, tempo: parsed.tempo });
+  const analysis = analyzeMidiEvents(parsed.events, {
+    duration: parsed.duration, tempo: parsed.tempo, spelling: readSpelling(),
+  });
   const wavPath = await ensureMidiPlayback(filePath, { events: parsed.events, force: true });
   return { ...analysis, wavPath, analysisWavPath: wavPath };
 }

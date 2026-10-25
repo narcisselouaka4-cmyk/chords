@@ -1,4 +1,5 @@
 import { generateKeyboard, keyboardLayout, setPitchWheel, setModWheel } from './ui/keyboard-svg.js';
+import { readSpelling, writeSpelling, DEFAULT_SPELLING } from './chord-engine/spelling-preference.js';
 import { updateDisplay, clearDisplay } from './ui/display.js';
 // [Claude] — 2026-10-02 — Temps réel : « Lecture en direct » (roue, lectures).
 import { initLiveReading } from './ui/live-reading.js';
@@ -141,6 +142,7 @@ const state = {
   noteStart: 'C0',
   noteEnd: 'C9',
   notation: 'english',
+  spelling: DEFAULT_SPELLING,
   transpose: 0,
   silentMode: false,
   pcKeyboardToMidi: true,
@@ -198,6 +200,7 @@ const els = {
   noteStart: document.getElementById('note-start'),
   noteEnd: document.getElementById('note-end'),
   notation: document.getElementById('notation-select'),
+  spelling: document.getElementById('spelling-select'),
   chordName: document.getElementById('chord-name'),
   chordDetail: document.getElementById('chord-detail'),
   chordMeta: document.getElementById('chord-meta'),
@@ -1126,6 +1129,9 @@ function initSettings() {
   els.noteStart.value = state.noteStart;
   els.noteEnd.value = state.noteEnd;
   els.notation.value = state.notation || 'english';
+  // Orthographe des fondamentales noires : gardée d'une séance à l'autre.
+  state.spelling = readSpelling();
+  if (els.spelling) els.spelling.value = state.spelling;
   const savedKeys = readKeyColors();
   if (savedKeys.you) state.colorNote = savedKeys.you;
   els.colorNote.value = state.colorNote;
@@ -1151,6 +1157,7 @@ function initSettings() {
     state.noteStart = els.noteStart.value || 'C0';
     state.noteEnd = els.noteEnd.value || 'C9';
     state.notation = els.notation.value || 'english';
+    if (els.spelling) state.spelling = writeSpelling(els.spelling.value);
     state.transpose = Number(els.transposeInput.value) || 0;
     state.silentMode = els.silentMode.checked;
     state.pcKeyboardToMidi = els.pcKeyboardMidi ? els.pcKeyboardMidi.checked : true;
@@ -1172,7 +1179,7 @@ function initSettings() {
     // [Claude] — 2026-10-13 — La cascade des Sessions MIDI se cale sur le clavier : transposition,
     // notation (lettres) et étendue (touches affichées).
     window.dispatchEvent(new CustomEvent('keyboard-settings-changed', {
-      detail: { transpose: state.transpose, latin: state.notation === 'latin' },
+      detail: { transpose: state.transpose, latin: state.notation === 'latin', spelling: state.spelling },
     }));
   };
 
@@ -1181,6 +1188,7 @@ function initSettings() {
   els.notation.addEventListener('change', () => {
     update();
   });
+  els.spelling?.addEventListener('change', update);
   els.transposeInput.addEventListener('change', update);
   els.toleranceInput?.addEventListener('change', update);
   els.silentMode.addEventListener('change', update);

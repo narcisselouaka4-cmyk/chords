@@ -17,6 +17,7 @@
 // modèle n'explique (voicings rares) repasse par detectChord, avec sa fondamentale.
 
 import { detectChord } from '../chord-engine/index.js';
+import { chordRootName, slashBassName, displayNoteName, forcedPitchName } from '../chord-engine/spelling.js';
 
 // [qualité, notes obligatoires, notes facultatives] en demi-tons depuis la fondamentale.
 const TEMPLATES = [
@@ -110,7 +111,7 @@ export function pitchName(pc, { latin = false, useSharps = false } = {}) {
  * @param {{latin?: boolean}} [options]
  * @returns {{rootPc: number, symbol: string, bassPc: number, isSlash: boolean, name: string, matched: boolean}|null}
  */
-export function nameMidiChord(notes, { latin = false, useSharps = false } = {}) {
+export function nameMidiChord(notes, { latin = false, spelling = 'auto' } = {}) {
   const list = (notes || []).filter(Number.isFinite);
   if (list.length === 0) return null;
   const pcs = [...new Set(list.map((n) => ((n % 12) + 12) % 12))];
@@ -174,6 +175,15 @@ export function nameMidiChord(notes, { latin = false, useSharps = false } = {}) 
     best = { rootPc: detected.rootPc, symbol: detected.symbol };
   }
   const isSlash = best.rootPc !== bassPc;
-  const name = `${pitchName(best.rootPc, { latin, useSharps })}${best.symbol}${isSlash ? `/${pitchName(bassPc, { latin, useSharps })}` : ''}`;
+  // L'orthographe passe par spelling.js, qui écrit la fondamentale selon la
+  // FAMILLE de l'accord (A♭maj7 et non G♯maj7, B♭7 et non A♯7, mais C♯°7 en
+  // dièses). Sessions MIDI écrivait tout en bémols et l'onglet Analyse tout en
+  // dièses : la session du 25/10 de Narcisse sortait « G#maj7 A# C# C#7#9 » en
+  // do majeur, là où un pianiste écrit « Abmaj7 Bb Db Db7#9 ».
+  // Le réglage `spelling` ('auto' | 'sharps' | 'flats') passe par-dessus.
+  const rootName = chordRootName(best.rootPc, best.symbol, { spelling });
+  const bassName = forcedPitchName(bassPc, spelling) ?? slashBassName(bassPc, best.rootPc, best.symbol);
+  const render = (n) => (latin ? displayNoteName(n, { latin: true }) : n);
+  const name = `${render(rootName)}${best.symbol}${isSlash ? `/${render(bassName)}` : ''}`;
   return { rootPc: best.rootPc, symbol: best.symbol, bassPc, isSlash, name, matched };
 }

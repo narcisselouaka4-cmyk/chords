@@ -21,6 +21,21 @@ const MAJOR_ROOTS = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb',
 const DOMINANT_ROOTS = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
 const MINOR_ROOTS = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'G#', 'A', 'Bb', 'B'];
 const DIMINISHED_ROOTS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+// Orthographe forcée, quand l'utilisateur la préfère à la convention jazz
+// ci-dessus. Narcisse écrit « ré dièse majeur » et « La#7b9 » ; un autre
+// pianiste écrira Mi bémol. Le réglage tranche, « auto » suit la convention.
+const ALL_SHARPS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const ALL_FLATS = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+
+/** Les trois valeurs du réglage d'orthographe. */
+export const SPELLINGS = ['auto', 'sharps', 'flats'];
+
+/** Nom d'une classe de hauteur sous une orthographe forcée, ou null en « auto ». */
+export function forcedPitchName(pc, spelling) {
+  if (spelling === 'sharps') return ALL_SHARPS[pcOf(pc)];
+  if (spelling === 'flats') return ALL_FLATS[pcOf(pc)];
+  return null;
+}
 
 const pcOf = (n) => ((n % 12) + 12) % 12;
 
@@ -34,8 +49,10 @@ export function chordFamily(symbol = '') {
 }
 
 /** Nom anglais de la fondamentale (« Bb », « F# »…) selon la famille de l'accord. */
-export function chordRootName(rootPc, symbol = '') {
+export function chordRootName(rootPc, symbol = '', { spelling = 'auto' } = {}) {
   const pc = pcOf(rootPc);
+  const forced = forcedPitchName(pc, spelling);
+  if (forced) return forced;
   switch (chordFamily(symbol)) {
     case 'diminished': return DIMINISHED_ROOTS[pc];
     case 'minor': return MINOR_ROOTS[pc];

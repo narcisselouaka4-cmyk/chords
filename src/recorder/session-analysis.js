@@ -26,6 +26,22 @@ const HOLD_EPSILON = 0.03;
 const ARPEGGIO_WINDOW = 0.6;
 // Une note frappée sous Do3 est une nouvelle basse : elle remplace celle que garde la pédale.
 const NEW_BASS_BELOW = 48;
+// Une note seule est de la mélodie si elle est au moins à cette distance au-dessus
+// de la basse de l'accord tenu, avec au moins MELODY_MIN_BELOW notes de l'accord
+// en dessous d'elle.
+//
+// L'ancien critère — « la note jouée est le sommet de TOUT ce qui sonne » — rate
+// la ligne legato : une note attaquée pendant que la précédente sonne encore
+// au-dessus n'était pas reconnue, et ouvrait un accord. Mesuré sur Session_017
+// de Narcisse : son mi mineur (Mi3 + Mi4 tenus, ligne descendante Si4 → La4 →
+// Sol4) était coupé en trois, « Esus4 » puis « Emadd11 », parce que le La4
+// (8,78 s) sonne sous le Si4 encore tenu et le Sol4 (9,38 s) sous le La4.
+//
+// Le critère géométrique garde les trois comportements à ne pas casser : une
+// nouvelle basse n'a aucune note de l'accord en dessous d'elle, une voix
+// intérieure n'en a qu'une, une note de mélodie en a au moins deux.
+const MELODY_ABOVE_BASS = 7;
+const MELODY_MIN_BELOW = 2;
 
 // Garde-fou "gamme sous pédale" — même logique que note-grouper.js (voir son commentaire) :
 // un vrai accord n'a jamais TOUTES ses notes voisines d'un ton/demi-ton une fois triées par
@@ -217,7 +233,16 @@ export function segmentSessionEvents(events) {
     const single = cluster.length === 1;
     const arpeggioGrows = current?.arpeggio && single && start - current.lastAttack <= ARPEGGIO_WINDOW
       && current.windows.every((w) => sounding.includes(w));
-    if (current && single && cluster[0].note === top && !arpeggioGrows) continue;
+    // Mélodie au-dessus de l'accord tenu : soit elle domine tout ce qui sonne,
+    // soit elle poursuit une ligne legato au-dessus du corps de l'accord.
+    const isMelodyNote = () => {
+      if (cluster[0].note === top) return true;
+      if (!current) return false;
+      const below = current.windows.filter((w) => w.note < cluster[0].note && w.offTime > t);
+      if (below.length < MELODY_MIN_BELOW) return false;
+      return cluster[0].note - Math.min(...below.map((w) => w.note)) >= MELODY_ABOVE_BASS;
+    };
+    if (current && single && !arpeggioGrows && isMelodyNote()) continue;
     if (cluster.length >= MIN_SIMULTANEOUS && isMelodicRun(cluster)) continue;
     const named = nameMidiChord(sounding.map((w) => w.note));
     if (!named) continue;
@@ -278,13 +303,13 @@ export function segmentSessionEvents(events) {
  * @param {object[]} segments
  * @param {{latin?: boolean}} [options]
  */
-export function nameChordSegments(segments, { latin = false, useSharps = false } = {}) {
+export function nameChordSegments(segments, { latin = false, spelling = 'auto' } = {}) {
   for (const seg of segments) {
     if (seg.type !== 'chord' || !seg.notes?.length) continue;
     // Déjà nommé par segmentSessionEvents : on ne renomme que si l'orthographe
     // demandée (latin, dièses) diffère de celle posée par défaut.
-    if (seg.chordName && !latin && !useSharps) continue;
-    const named = nameMidiChord(seg.notes, { latin, useSharps });
+    if (seg.chordName && !latin && spelling === 'auto') continue;
+    const named = nameMidiChord(seg.notes, { latin, spelling });
     seg.chordName = named?.name || seg.chordName || null;
   }
   return segments;

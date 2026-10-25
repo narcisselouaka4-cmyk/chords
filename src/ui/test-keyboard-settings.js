@@ -11,12 +11,13 @@ const field = (value = '') => ({
 });
 const els = Object.fromEntries([
   'noteStart', 'noteEnd', 'notation', 'colorNote', 'transposeInput',
-  'silentMode', 'pcKeyboardMidi', 'toleranceInput',
+  'silentMode', 'pcKeyboardMidi', 'toleranceInput', 'spelling',
 ].map(name => [name, field()]));
 const state = { noteStart: 'C0', noteEnd: 'C9', notation: 'english', transpose: 0, colorNote: '#2563eb' };
 let refreshes = 0;
 const changes = [];
 const noop = () => {};
+let stored = 'auto';
 const ctx = vm.createContext({
   els, state, document: { getElementById: () => null },
   window: { addEventListener: noop, dispatchEvent: event => changes.push(event.detail) },
@@ -25,6 +26,10 @@ const ctx = vm.createContext({
   refreshAppKeyColor: noop, setPcKeyboardToMidiEnabled: noop,
   shiftTransposedState: noop, noteGrouper: null,
   refreshKeyboard: () => { refreshes++; }, refreshChord: noop,
+  // Réglage d'orthographe des accords : le stockage est simulé.
+  DEFAULT_SPELLING: 'auto',
+  readSpelling: () => stored,
+  writeSpelling: (value) => { stored = value; return value; },
 });
 vm.runInContext(`${source}\ninitSettings();`, ctx);
 assert.equal(els.noteStart.value, 'C0');
@@ -44,3 +49,18 @@ els.transposeInput.listeners.change();
 assert.equal(state.transpose, 1);
 assert.equal(refreshes, 3);
 console.log('Clavier : initialisation sans Étendue, Début, Fin, transposition et notifications OK.');
+
+// [Claude] — 2026-10-25 — Le réglage d'orthographe (Narcisse : « fait un réglage »).
+// Il est relu à l'ouverture, enregistré au changement, et voyage avec les autres
+// réglages du clavier vers les onglets qui écrivent des accords.
+assert.equal(els.spelling.value, 'auto', 'orthographe relue à l\'ouverture');
+stored = 'sharps';
+vm.runInContext('initSettings();', ctx);
+assert.equal(els.spelling.value, 'sharps', 'le choix enregistré est restitué');
+els.spelling.value = 'flats';
+els.spelling.listeners.change();
+assert.equal(stored, 'flats', 'le choix est enregistré');
+assert.equal(state.spelling, 'flats', 'l\'état suit le choix');
+assert.equal(changes[changes.length - 1].spelling, 'flats', 'le choix voyage avec les réglages du clavier');
+
+console.log('✅ Réglages du clavier : étendue, notation, transposition, orthographe');

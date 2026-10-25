@@ -6,6 +6,7 @@ import {
   deleteSession,
   renameSession,
 } from '../recorder/session-manager.js';
+import { readSpelling } from '../chord-engine/spelling-preference.js';
 import { appConfirm } from './components/app-dialog.js';
 import { notify } from './components/app-notify.js';
 import { createRecorder } from '../recorder/recorder.js';
@@ -865,7 +866,7 @@ function renderCarnet() {
   if (!currentSession) return;
 
   const segments = currentEvents.length
-    ? nameChordSegments(segmentSessionEvents(currentEvents), { latin: currentNotation === 'latin' })
+    ? nameChordSegments(segmentSessionEvents(currentEvents), { latin: currentNotation === 'latin', spelling: readSpelling() })
     : [];
   const totalDuration = currentSession.duration || segments[segments.length - 1]?.end || 1;
 
@@ -1272,7 +1273,7 @@ function buildSessionContext() {
   // jamais existé) — on rejoue la session à travers la même analyse fraîche
   // que le carnet (segmentSessionEvents + nameChordSegments), qui est déjà
   // la source de vérité affichée à l'écran.
-  const segments = nameChordSegments(segmentSessionEvents(currentEvents || []), { latin: currentNotation === 'latin' });
+  const segments = nameChordSegments(segmentSessionEvents(currentEvents || []), { latin: currentNotation === 'latin', spelling: readSpelling() });
   const chordSegments = segments.filter((s) => s.type === 'chord');
 
   // Liste chronologique des vrais moments d'accord. Pas de déduplication par

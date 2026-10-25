@@ -24,7 +24,7 @@ function check(label, actual, expected) {
   }
 }
 
-const name = (notes) => nameMidiChord(notes, { useSharps: true })?.name ?? null;
+const name = (notes, spelling = 'auto') => nameMidiChord(notes, { spelling })?.name ?? null;
 
 console.log('\n--- Session_017 (22 s, do majeur) — grille dictée par Narcisse ---');
 // « Je commence par un Fa majeur. »
@@ -59,11 +59,23 @@ check('10. Mi mineur + Fa d\'appui (et non G13/E)', name([52, 59, 65, 67]), 'Em'
 
 console.log('\n--- Session du 15/09 (ré dièse majeur) — accords dictés par Narcisse ---');
 // Son degré I d'ouverture, lu « Cmaj7 » dans l'ancien nommage faute de gabarit.
-check('V coquille, sans tierce (La#-Fa-Sol#)', name([58, 65, 68, 70]), 'A#7');
+check('V coquille, sans tierce (La#-Fa-Sol#)', name([58, 65, 68, 70], 'sharps'), 'A#7');
 // Son degré I, add9, basse Sol : sortait « F9sus4/G » (ni La ni Do joués).
-check('I add9 basse Sol (et non F9sus4/G)', name([55, 63, 65, 70, 75]), 'D#add9/G');
+check('I add9 basse Sol (et non F9sus4/G)', name([55, 63, 65, 70, 75], 'sharps'), 'D#add9/G');
 // Son V en premier renversement avec quarte : sortait « F13sus4/D ».
-check('V add11 en premier renversement (et non F13sus4/D)', name([62, 65, 70, 75]), 'A#add11/D');
+check('V add11 en premier renversement (et non F13sus4/D)', name([62, 65, 70, 75], 'sharps'), 'A#add11/D');
+
+console.log('\n--- Session_019 (jeu plus avancé) — orthographe par famille d\'accord ---');
+// La sortie chromatique de Narcisse en do majeur. Écrite en dièses, elle donnait
+// « G#maj7 A# C# C#7#9 » là où un pianiste écrit des bémols. Le diminué reste en
+// dièses (un Rébdim7 obligerait à des doubles bémols).
+check('bVI : Abmaj7 et non G#maj7', name([44, 56, 60, 63, 67]), 'Abmaj7');
+check('bVII : Bb et non A#', name([46, 58, 62, 65, 70]), 'Bb');
+check('bII : Db et non C#', name([49, 61, 65, 68]), 'Db');
+check('bII7#9 : Db7#9/F et non C#7#9/F', name([53, 59, 61, 64, 68]), 'Db7#9/F');
+check('diminué de passage : C#dim7 reste en dièses', name([49, 55, 58, 64]), 'C#dim7');
+check('réglage « dièses » : la convention de Narcisse', name([44, 56, 60, 63, 67], 'sharps'), 'G#maj7');
+check('réglage « bémols » : tout en bémols', name([49, 55, 58, 64], 'flats'), 'Dbdim7');
 
 console.log('\n--- Non-régression : voicings de jazz sans quinte ---');
 // La quinte est la première note qu'un pianiste omet. Elle ne doit JAMAIS être
