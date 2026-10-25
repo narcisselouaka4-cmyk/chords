@@ -1296,3 +1296,67 @@ notes exactes, grille dictée par lui. C'est là qu'il faudrait porter la mesure
 Leçon méthodologique : une mesure ne vaut que sa référence. Trois fois aujourd'hui une référence
 fausse a produit un chiffre crédible et faux — les MIDI désalignés de Slakh, la durée totale
 comme indicateur d'alignement, et maintenant cette tonalité.
+
+---
+
+# Suite 13 (25/10) — Sur le jeu de Narcisse, la BASSE est la fondamentale
+
+Les références audio de son répertoire étant réfutées, la mesure est portée là où la vérité
+terrain est exacte : ses **sessions MIDI**. Notes connues, grille dictée par lui pour
+Session_017 ; pour Session_019 et la session du 15/09, les fondamentales du moteur, qu'il a
+validées accord par accord (« sur 34, un seul est faux »).
+
+113 accords, trois sessions :
+
+| session | accords | fondamentale jouée | la plus **grave** | la plus **forte** |
+|---|---|---|---|---|
+| Session_017 (grille dictée) | 10 | 100 % | 80,0 % | 40,0 % |
+| Session_019 | 34 | 100 % | 76,5 % | 50,0 % |
+| Session 15/09 | 69 | 100 % | 76,8 % | 55,1 % |
+| **ensemble** | **113** | **100 %** | **77,0 %** | **52,2 %** |
+
+## Les trois chiffres, et ce qu'ils disent
+
+**1. La fondamentale est jouée 100 % du temps.** Narcisse joue toujours sa fondamentale. C'est
+l'inverse du comping jazz à la guitare, où les voicings sans fondamentale sont idiomatiques.
+Le reproche « le moteur ne trouve pas une note qui n'est pas jouée » ne vaut donc PAS pour lui.
+
+**2. Elle n'est la plus forte que 52,2 %** — pratiquement le même chiffre que GuitarSet
+(51,9 %). La saillance plafonne donc au même niveau sur sa musique : un moteur qui nomme
+l'accord par sa note la plus forte se trompera une fois sur deux, chez lui comme ailleurs.
+
+**3. Mais elle est la note la plus GRAVE 77,0 % du temps.** C'est là que tout se joue : sur
+GuitarSet, le détecteur de basse ne trouvait la fondamentale que **23,9 %** du temps. Chez
+Narcisse, la basse la donne **77 %** du temps.
+
+## Conséquence : la piste basse est la bonne — pour LUI
+
+La mesure sur GuitarSet avait fait écarter le détecteur de basse, à raison : sur de la guitare
+seule la note la plus grave n'est pas la fondamentale. Mais ce corpus a désigné un défaut qui
+lui est propre.
+
+Sur le jeu de Narcisse — piano, main gauche posant la fondamentale — l'arbitrage par la basse
+passerait de 23,9 % à **77 %** de justesse. C'est exactement le principe qui a tranché côté
+nommage MIDI cette nuit : *la basse départage quand la saillance ne suffit pas*.
+
+| | GuitarSet | sessions de Narcisse |
+|---|---|---|
+| fondamentale jouée | souvent omise (idiomatique) | **100 %** |
+| fondamentale la plus forte | 51,9 % | 52,2 % |
+| fondamentale à la basse | **23,9 %** | **77,0 %** |
+
+## Limites
+
+- Les deux sessions les plus fournies utilisent les fondamentales du moteur comme référence :
+  circulaire en principe. Mais Session_017, dont la grille vient de sa seule dictée, donne
+  **80 %** — cohérent avec les deux autres, ce qui limite le biais.
+- Il s'agit de **piano MIDI solo**. Dans un mix de groupe, la basse porterait probablement la
+  fondamentale au moins autant — mais encore faut-il que le moteur AUDIO sache l'entendre, ce
+  qui est un autre problème (le chroma du registre grave n'a donné que 42,4 % sur les deux
+  morceaux testés, et sur une référence depuis réfutée).
+
+## Prochaine action
+
+Brancher l'arbitrage par la basse sur l'attribution de fondamentale **du chemin MIDI d'abord** :
+c'est là que la mesure est solide (77 %), que la vérité terrain existe, et que Narcisse joue.
+Le chemin audio demandera d'abord de savoir si le moteur entend la basse — question ouverte.
