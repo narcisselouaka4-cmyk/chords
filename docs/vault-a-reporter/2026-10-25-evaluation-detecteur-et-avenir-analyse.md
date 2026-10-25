@@ -1010,3 +1010,46 @@ guitare seule, mais pas d'un autre ordre.
 - **Funk (47,3 %) et jazz (41,2 %)** restent les cibles désignées par GuitarSet, et la
   sur-segmentation la piste commune — jamais traitée côté audio.
 - Élucider Track00014.
+
+---
+
+# Suite 9 (25/10) — GuitarSet complet : la mesure de référence du moteur audio
+
+180 extraits d'accompagnement, 36 par style, moteur `legacy` gelé pendant toute la mesure.
+C'est la **mesure de référence** du moteur audio : corpus public, alignement garanti par
+construction (audio et annotations viennent de la même session d'enregistrement), reproductible.
+
+| style | n | root | majmin | triads | 7es | sur-segmentation |
+|---|---|---|---|---|---|---|
+| Singer-songwriter | 36 | 83,3 % | **79,2 %** | 77,6 % | 72,5 % | 1,66× |
+| Rock | 36 | 81,8 % | **77,2 %** | 75,2 % | 70,7 % | 1,40× |
+| Bossa nova | 36 | 72,2 % | **65,7 %** | 64,7 % | 59,9 % | 1,44× |
+| Jazz | 36 | 56,0 % | **49,6 %** | 48,3 % | 45,8 % | 1,67× |
+| Funk | 36 | 49,7 % | **42,6 %** | 42,2 % | 39,6 % | **2,26×** |
+| **tous** | **180** | **68,6 %** | **62,8 %** | **61,6 %** | **57,7 %** | 1,69× |
+
+## Ce que les 180 corrigent par rapport aux 40
+
+L'échantillon de 40 donnait 64,7 % de moyenne — proche du vrai (62,8 %). Mais il **classait mal
+les styles** : il annonçait funk 47,3 % et jazz 41,2 %, soit le jazz en dernier. Sur 180, c'est
+l'inverse : **funk 42,6 %, jazz 49,6 %**. Quarante morceaux ne suffisaient pas à ordonner les
+points faibles — utile à retenir avant de régler quoi que ce soit sur un petit échantillon.
+
+Le funk est donc la pire catégorie, **et la plus sur-segmentée (2,26× contre 1,40 à 1,67)**.
+Les deux vont ensemble, comme sur l'échantillon de 40.
+
+## La variance domine
+
+Écart-type entre morceaux : **25,1 points**. Le pire morceau est à **0,0 %**
+(`03_Jazz3-137-Eb_comp`), le meilleur à **98,0 %** (`01_SS1-68-E_comp`). Avec les 21,2 points
+d'écart déjà mesurés entre deux guitaristes jouant le même morceau, cela veut dire qu'aucune
+conclusion tirée d'un enregistrement isolé n'est fiable — y compris sur les morceaux de
+Narcisse.
+
+Un morceau à 0,0 % mérite d'être regardé : c'est probablement un défaut, pas une difficulté.
+
+## Limite structurelle à ne pas oublier
+
+Le moteur n'émet que `maj`, `m` et `dim` (vocabulaire ADR-061). GuitarSet annote des septièmes
+et des demi-diminués. **La colonne « 7es » est donc plafonnée par construction** et ne se
+compare pas à la littérature.
