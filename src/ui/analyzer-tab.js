@@ -294,10 +294,12 @@ function getReharmActiveStyle() {
 
 // Retourne l'accord affiché selon le mode timeline actuel.
 function getDisplayChords() {
+  // Une source MIDI ne masque rien : voir selectChordProgression.
+  const sourceType = currentAnalysis?.sourceType ?? null;
   if (timelineViewMode === 'reharm' && appliedReharmonization && appliedReharmonization.chords) {
-    return selectChordProgression(appliedReharmonization.chords, { detailed: detailedChords });
+    return selectChordProgression(appliedReharmonization.chords, { detailed: detailedChords, sourceType });
   }
-  return selectChordProgression(currentAnalysis?.chords || [], { detailed: detailedChords });
+  return selectChordProgression(currentAnalysis?.chords || [], { detailed: detailedChords, sourceType });
 }
 
 function getDisplayAnalysis() {

@@ -12,6 +12,8 @@
 
 import { segmentSessionEvents, nameChordSegments } from '../recorder/session-analysis.js';
 import { detectKey } from './key-detector.js';
+import { classifyMidiRoles } from './midi-roles.js';
+import { enrichChordsWithDegrees } from './harmonic-patterns.js';
 
 export const MIDI_EXTENSIONS = ['mid', 'midi'];
 
@@ -141,7 +143,9 @@ export function analyzeMidiEvents(events, { duration = 0, tempo = null, spelling
       symbol: s.symbol,
       structuralChord: null,
       confidence: s.matched === false ? 0.6 : 1,
-      role: 'structural',
+      // Rôle et degré sont posés plus bas : ils dépendent du morceau entier et
+      // de sa tonalité, pas d'un accord isolé.
+      role: null,
       inStructuralLoop: null,
       degree: null,
       analysis: {},
@@ -161,8 +165,15 @@ export function analyzeMidiEvents(events, { duration = 0, tempo = null, spelling
   const keyChords = segments.map((s) => ({ time: s.start, duration: s.end - s.start, rootPc: s.rootPc, symbol: s.symbol, notes: s.notes }));
   const key = list.some((e) => e.type === 'note_on') ? detectKey(list, keyChords, { useSharps, latin: false }) : null;
 
+  // Hiérarchie et degrés. Jusqu'ici le chemin MIDI posait `role: 'structural'`
+  // pour TOUS les accords et `degree: null` partout : l'onglet Analyse ne
+  // montrait aucune structure sur les sessions de Narcisse.
+  const beatDuration = Number.isFinite(tempo) && tempo > 0 ? 60 / tempo : 0.5;
+  classifyMidiRoles(kept, { beatDuration });
+  const withDegrees = key ? enrichChordsWithDegrees(kept, key) : kept;
+
   // La basse : la note la plus grave de chaque accord.
-  const bassSegments = kept.map((c) => {
+  const bassSegments = withDegrees.map((c) => {
     const low = Math.min(...(c.notes.length ? c.notes : [NaN]));
     if (!Number.isFinite(low)) return null;
     return { startTime: c.startTime, endTime: c.endTime, midi: low, note: NOTE_NAMES[low % 12], octave: Math.floor(low / 12) - 1, confidence: 1, source: 'midi', isVirtual: false };
@@ -182,7 +193,7 @@ export function analyzeMidiEvents(events, { duration = 0, tempo = null, spelling
     keyConfidence: key?.confidence ?? 0,
     keyCandidates: [],
     confidence: 1,
-    chords: kept,
+    chords: withDegrees,
     bassSegments,
     noteCount: spans.length,
   };
