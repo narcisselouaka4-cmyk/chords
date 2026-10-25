@@ -544,3 +544,110 @@ degré I), `F13sus4/D` → `A#add11/D` (son V en premier renversement), `Bb?` �
 2. Trancher la convention d'orthographe (dièses partout, armure, ou préférence).
 3. Appoggiature dans le temps (défaut 1) puis rôles/degrés sur le chemin MIDI (défaut 5) :
    ce sont les deux qui restent les plus visibles pour lui.
+
+---
+
+# Suite 4 (25/10) — Session_019, réglage d'orthographe, et la question du MIDI
+
+## Session_019 : son jeu le plus avancé (34 accords, 50 s, 203 attaques)
+
+Narcisse rejoue la même progression « en élevant le niveau », se filme en train d'enregistrer
+et se place sur l'onglet Temps réel pour qu'on puisse juger sans dépendre de sa dictée.
+Vidéo : `~/Vidéos/cinnamon-2026-10-25T014351+0200.webm` (72 s, 1920×1080).
+
+**Sur 34 segments, un seul est faux.** Le moteur lit correctement :
+
+- ses dominantes secondaires : `E7b9` (V7/vi, deux fois), `A7b9` (V7/ii) ;
+- ses diminués de passage : `Ddim7`, `C#dim7` ;
+- son V add9 **avec la basse Si cette fois** : `Gadd9/B` (deux fois) — l'accord qu'il avait
+  signalé comme faux dans Session_017 ;
+- son `Dm7b5` (ii ø) ;
+- toute sa **cadence chromatique de sortie** : bVI → bVII → bII → bII7#9 → I.
+
+Le seul faux : **n°22, `Cmaj7sus2/B`** sur {Si, Do, Ré} (0,43 s) — une figure de passage de
+trois notes, pas un accord. Elle passe par le repli `detectChord` (`matched: false`).
+
+Conclusion : sur un jeu nettement plus difficile, le chemin MIDI tient. Le défaut dominant
+n'est plus le nommage mais l'**orthographe**.
+
+## Le réglage d'orthographe (demande : « fait un réglage »)
+
+`spelling.js` contenait déjà la convention jazz par famille d'accord — écrite en octobre
+précisément parce que « le Temps réel écrivait toute fondamentale noire en dièse : A♯7,
+D♯maj7, G♯maj7 ». **Elle n'était pas branchée sur le nommeur MIDI.**
+
+Trois valeurs, parce que deux ne suffisent pas :
+
+| | Session_019 (do majeur) | Session 15/09 (ré dièse) |
+|---|---|---|
+| `auto` (défaut) | `Abmaj7 Bb Db Db7#9/F` ✓ | `Ebadd9/G`, `Bb7` |
+| `sharps` (sa convention) | `G#maj7 A# C# C#7#9/F` | `D#add9/G`, `A#7` ✓ |
+| `flats` | tout en bémols | tout en bémols |
+
+En `auto`, le diminué reste en dièses (`C#dim7`) : un Ré♭°7 obligerait à des doubles bémols.
+Réglage **« Altérations »** dans la barre du clavier, à côté de Notation ; gardé d'une séance
+à l'autre (`pjc.chords.spelling`) et transporté par `keyboard-settings-changed`.
+
+## Mélodie legato au-dessus d'un accord tenu
+
+Son mi mineur de Session_017 était coupé en trois. Mesuré : Mi3 + Mi4 tenus de 8,14 à 9,5 s,
+ligne descendante Si4 (8,23) → La4 (8,78) → Sol4 (9,38). L'ancien critère — « la note jouée
+est le sommet de TOUT ce qui sonne » — échouait parce que la note précédente sonnait encore
+au-dessus (La4 sous Si4, puis Sol4 sous La4).
+
+Nouveau critère, géométrique : une note seule **au moins une quinte au-dessus de la basse de
+l'accord**, avec **au moins deux notes de l'accord en dessous d'elle**. Il garde les trois
+comportements à ne pas casser : une nouvelle basse n'a aucune note de l'accord en dessous
+d'elle, une voix intérieure une seule, une note de mélodie au moins deux.
+
+**Session_017 : 13 → 10 segments, exactement ses 10 accords.**
+
+## La question de Narcisse : « le MIDI, ce n'est pas l'audio » — il a raison
+
+Question posée en cours de lot : travailler sur des fichiers MIDI n'est-il pas peu
+représentatif, et sans effet sur la détection des vrais morceaux ? **Vérifié dans le code, la
+réponse est oui.** Ce sont deux chaînes séparées, qui ne partagent rien :
+
+| | Chemin MIDI | Chemin audio |
+|---|---|---|
+| langage | JS (`midi-chord-namer.js`, `session-analysis.js`) | Python (`electron/audio-processor.py`) |
+| nommage | 45 gabarits + repli `detectChord` | `chord_name(root, suffix)` |
+| vocabulaire | add9, sus, 11, 13, altérés… | **9 suffixes** (`SIMPLE_ALLOWED_SUFFIXES`, ADR-061) |
+| tonalité | `src/analyzer/key-detector.js` | `detect_key` en Python |
+| orthographe | réglage (ci-dessus) | `NOTE_NAMES = ['C','C#','D','D#',…]` — **tout en dièses, en dur** |
+
+Le Python ne peut pas appeler le JS : aucun des correctifs d'aujourd'hui n'atteint l'audio.
+`key-detector.js` n'est utilisé que par les chemins MIDI/sessions (`analyzer.js`,
+`take-review.js`, `midi-source.js`, `tonal-context.js`).
+
+**Risque réel à nommer** : mesurer les progrès de l'audio sur du MIDI serait se mentir. Le
+thermomètre de l'audio reste `scripts/eval-chords-triad.py`, et lui seul.
+
+**Ce qui reste vrai malgré tout** : le chemin MIDI n'est pas un proxy, c'est le chemin de
+Sessions MIDI et d'Entraînement — là où Narcisse joue. Et le problème audio se décompose en
+*transcription* (plafond mesuré) + *restitution* (découpage, rôles, hiérarchie) ; le banc MIDI
+valide les **règles** de la seconde moitié, que l'audio devra adopter aussi — mais comme
+spécification, pas comme code partagé.
+
+**Transferts identifiés, à faire côté Python** :
+1. `NOTE_NAMES` tout en dièses : exactement le défaut corrigé aujourd'hui pour le MIDI. Les
+   deux onglets devraient lire le même réglage. Peu coûteux.
+2. La règle « la triade doit sonner » comme critère d'émission.
+3. **Le plus gros gain audio déjà mesuré reste intact et n'a rien à voir avec le MIDI** :
+   classer les rôles sur la tonalité **locale** (38 % du temps masqué, les trous de 128 s et
+   82 s). C'est du Python pur, et c'est là qu'il faut aller pour faire progresser l'audio.
+
+## Vérifié / non vérifié
+
+22 suites de tests et `npm run build` passent. Banc `test-midi-chord-namer.js` porté à 26
+contrôles ; `test-keyboard-settings.js` étendu au nouveau réglage. **Rien n'a été vérifié dans
+Electron** : le sélecteur « Altérations » n'a pas été vu à l'écran.
+
+## Défauts encore ouverts
+
+1. `Cmaj7sus2/B` sur une figure de passage de trois notes (Session_019 n°22).
+2. Son degré I du 15/09 lu `Cmadd9/D#` (coquille majeure sans tierce ni quinte).
+3. Son A#7b9 lu `Fdim` (dominante sans fondamentale).
+4. Son `Esus4` de Session_017 : le découpage est juste, mais la quarte suspendue ne se résout
+   pas en `Em` dans le nom (résolution 4–3 non implémentée).
+5. Rôles et degrés toujours absents du chemin MIDI.
