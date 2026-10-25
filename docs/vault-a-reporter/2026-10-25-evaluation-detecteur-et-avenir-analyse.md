@@ -1134,3 +1134,88 @@ Brancher une détection de basse sur l'attribution de fondamentale. C'est la cib
 étayée de toute la session : 57 % des erreurs de fondamentale, qui portent elles-mêmes 31,4 %
 de la perte totale — soit environ **18 % du temps** récupérable en principe. L'outil existe déjà
 dans le dépôt.
+
+---
+
+# Suite 11 (25/10) — La cible désignée par GuitarSet n'en était pas une
+
+## Le détecteur de basse : prémisse testée, prémisse RÉFUTÉE
+
+Avant d'écrire une ligne de moteur, test de `scripts/bass-detector.py` (V2) : la basse détectée
+donne-t-elle la fondamentale de la référence ?
+
+| morceau | basse = fondamentale |
+|---|---|
+| 03_Jazz3-137-Eb | 10,6 % |
+| 00_Funk2-108-Eb | 6,4 % |
+| 00_Jazz2-110-Bb | 7,1 % |
+| 01_SS1-68-E | 61,2 % |
+| **ensemble** | **23,9 %** |
+
+**23,9 %**, quand le moteur d'accords trouve déjà la bonne fondamentale **76,9 %** du temps. Le
+brancher aurait massivement dégradé. Et ses erreurs sont la même famille : +7 (20,7 %),
++4 (19,9 %), +10 (16,8 %).
+
+## Pourquoi : la fondamentale n'est pas jouée
+
+Mesure directe sur 360 segments de référence, 30 morceaux, 6 par style, chroma calculé comme
+dans le moteur (HPSS + `chroma_cqt`, 36 bins/octave) :
+
+| | |
+|---|---|
+| la fondamentale est la note **la plus forte** | **51,9 %** |
+| la **quinte** est plus forte que la fondamentale | 30,0 % |
+| la **tierce** est plus forte que la fondamentale | 22,5 % |
+| fondamentale faible (< moitié du maximum) | 19,2 % |
+| fondamentale dans les 2 plus fortes | 77,8 % |
+| fondamentale dans les 3 plus fortes | 87,5 % |
+
+Par style, et confronté à la performance du moteur :
+
+| style | fondamentale la plus forte | majmin du moteur |
+|---|---|---|
+| Bossa | 70,8 % | 65,7 % |
+| SS | 66,7 % | 79,2 % |
+| Rock | 56,9 % | 77,2 % |
+| Funk | **36,1 %** | **42,6 %** |
+| Jazz | **29,2 %** | **49,6 %** |
+
+**Corrélation +0,82.** Les deux styles où le moteur échoue sont exactement les deux où la
+fondamentale ne sonne pas.
+
+## La correspondance qui explique tout
+
+| erreurs du moteur | audibilité mesurée |
+|---|---|
+| +7 (quinte) : 24,1 % des erreurs | quinte plus forte que la fondamentale : 30,0 % |
+| +4 (tierce) : 18,6 % des erreurs | tierce plus forte que la fondamentale : 22,5 % |
+
+Le moteur **nomme l'accord par sa note la plus forte**. Quand la quinte domine, il nomme par la
+quinte. Ce n'est pas un bug : c'est un comportement fidèle à son entrée.
+
+À noter d'ailleurs qu'il fait **mieux** que la saillance brute — 76,9 % de fondamentales justes
+alors que la fondamentale ne domine que 51,9 % du temps. Les gabarits et le Viterbi en
+rattrapent déjà une grande partie.
+
+## Ce que ça change
+
+1. **Les « 57 % d'erreurs de fondamentale » ne sont pas 57 % de défauts.** Une bonne part est le
+   moteur rapportant honnêtement ce qui sonne, sur une musique où la fondamentale est omise —
+   le comping jazz et funk à la guitare joue des voicings sans fondamentale, c'est idiomatique.
+2. **Le vrai niveau du moteur est meilleur que 62,8 %** sur ce corpus. Combien exactement n'est
+   pas mesuré.
+3. **La seule information qui pourrait trancher est le contexte harmonique** — quel accord a du
+   sens ici — et non la saillance ni la basse. Or le coffre documente le retrait **délibéré** du
+   biais tonal (commits `1a4d9dd`, `04289bd`) : c'est précisément ce retrait qui laisse le moteur
+   sans autre recours que la saillance. Ce n'est pas un oubli, c'était un arbitrage mesuré.
+4. **GuitarSet a désigné une cible qui n'existe que chez lui.** Même piège que celui flairé par
+   Narcisse à propos du MIDI : un corpus peut désigner un défaut qui lui est propre. Sur son
+   répertoire — gospel avec vraie basse, piano avec main gauche — la fondamentale sonnerait, et
+   le diagnostic serait tout autre.
+
+## Prochaine action
+
+Ne pas brancher le détecteur de basse. Avant tout choix de chantier côté audio, **mesurer
+l'audibilité de la fondamentale sur un corpus proche du répertoire de Narcisse**. S'il s'avère
+qu'elle y sonne, alors seulement la piste basse/contexte redevient pertinente — et le banc
+GuitarSet ne sera plus le bon juge.
