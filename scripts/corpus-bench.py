@@ -47,6 +47,11 @@ from pathlib import Path
 PROJECT = Path(__file__).resolve().parent.parent
 VENV_PY = PROJECT / '.venv' / 'bin' / 'python'
 PROCESSOR = PROJECT / 'electron' / 'audio-processor.py'
+# Moteur à mesurer. Permet de comparer une variante à la référence SANS toucher
+# au moteur de l'application — indispensable quand une mesure de référence est
+# déjà en cours : chaque morceau relance le moteur en sous-processus, donc une
+# modification en cours de route corromprait silencieusement le résultat.
+ENGINE = PROCESSOR
 MIDI_TO_GRID = PROJECT / 'scripts' / 'midi-to-grid.mjs'
 
 CORPORA = {
@@ -154,7 +159,7 @@ def fetch(name, data_home, version=None):
 def run_audio_engine(wav_path, clean_mode='legacy'):
     """La grille produite par le moteur audio, telle que l'app la calcule."""
     python = str(VENV_PY) if VENV_PY.exists() else sys.executable
-    out = subprocess.run([python, str(PROCESSOR), 'analyze-chords', str(wav_path), clean_mode],
+    out = subprocess.run([python, str(ENGINE), 'analyze-chords', str(wav_path), clean_mode],
                          capture_output=True, text=True, timeout=900)
     if out.returncode != 0:
         return None, (out.stderr or '').strip().splitlines()[-1:] or ['échec']
@@ -672,6 +677,8 @@ def main():
     p.add_argument('--data-home', default=os.path.expanduser('~/zic-corpus'))
     p.add_argument('--limit', type=int, default=0, help='nombre de morceaux (0 = tous)')
     p.add_argument('--clean-mode', default='legacy')
+    p.add_argument('--engine', metavar='FICHIER', default=None,
+                   help='moteur à mesurer (par défaut celui de l\'app) — pour comparer une variante')
     p.add_argument('--stream', metavar='CORPUS', choices=('maestro', 'slakh'),
                    help="mesure SANS télécharger l'archive (maestro par plages, slakh en flux)")
     p.add_argument('--tracks', type=int, default=10, help='nombre de morceaux en mode flux')
@@ -682,6 +689,9 @@ def main():
     p.add_argument('--chords', metavar='CHAMP', default=None,
                    help="annotation d'accords à prendre (ex. leadsheet_chords, inferred_chords)")
     args = p.parse_args()
+    if args.engine:
+        globals()['ENGINE'] = Path(args.engine).resolve()
+        print(f"moteur mesuré : {ENGINE}")
 
     if args.list or not any([args.fetch, args.bench, args.bench_local, args.bridge,
                              args.bench_tree, args.stream]):
