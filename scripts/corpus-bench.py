@@ -52,6 +52,8 @@ PROCESSOR = PROJECT / 'electron' / 'audio-processor.py'
 # déjà en cours : chaque morceau relance le moteur en sous-processus, donc une
 # modification en cours de route corromprait silencieusement le résultat.
 ENGINE = PROCESSOR
+# Filtre de style, pour cibler une famille de morceaux (GuitarSet : Funk, Jazz…).
+STYLE_FILTER = None
 MIDI_TO_GRID = PROJECT / 'scripts' / 'midi-to-grid.mjs'
 
 CORPORA = {
@@ -408,7 +410,8 @@ def resolve_chords(track, preferred=None):
     return None
 
 
-def bench_mirdata(name, data_home, limit, clean_mode='legacy', chord_source=None, all_tracks=False, version=None):
+def bench_mirdata(name, data_home, limit, clean_mode='legacy', chord_source=None,
+                  all_tracks=False, version=None, diagnose=False):
     try:
         import mirdata
     except ImportError:
@@ -426,6 +429,8 @@ def bench_mirdata(name, data_home, limit, clean_mode='legacy', chord_source=None
         keep = None if all_tracks else conf.get('track_filter')
         for track_id, track in tracks.items():
             if keep and not keep(track_id):
+                continue
+            if STYLE_FILTER and STYLE_FILTER.lower() not in track_id.lower():
                 continue
             audio = resolve_audio(track)
             chords = resolve_chords(track, chord_source)
@@ -448,6 +453,8 @@ def bench_mirdata(name, data_home, limit, clean_mode='legacy', chord_source=None
                      f"  accords cherchés parmi : {', '.join(CHORD_ATTRS)}\n"
                      f"  {conf['why']}\n  Audio : {conf['audio']}")
         print(f"{len(pairs)} morceaux de {name} — moteur audio « {clean_mode} »\n")
+        if diagnose:
+            return diagnose_roots(pairs, clean_mode)
         return report(*bench_pairs(pairs, clean_mode, progress=True))
 
 
@@ -670,6 +677,85 @@ def stream_slakh(count, version='baby', clean_mode='legacy'):
     return report(rows, failures)
 
 
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Diagnostic : l'écart de FONDAMENTALE.
+#
+# Mesuré sur les 180 morceaux de GuitarSet, la perte se décompose ainsi :
+# 31,4 % du temps le moteur ne trouve pas la bonne fondamentale, contre 5,8 %
+# seulement où il la trouve mais se trompe de qualité. En funk : 50,3 % contre
+# 7,1 %. Le vocabulaire restreint (maj/min/dim) ne coûte donc presque rien ;
+# c'est la fondamentale qui porte tout.
+#
+# Reste à savoir si cet écart est SYSTÉMATIQUE. Sur 03_Jazz3-137-Eb_comp, le
+# seul morceau à 0,0 %, il l'est : 54,7 % du temps la fondamentale retenue est
+# +4 demi-tons au-dessus de la bonne — le moteur nomme l'accord par sa TIERCE.
+# Si ce motif se retrouve sur tout le corpus, il y a une cible nette ; sinon
+# c'est une confusion diffuse, et le remède n'est pas le même.
+
+INTERVAL_NAMES = {
+    0: 'juste', 1: '+1 (demi-ton)', 2: '+2 (ton)', 3: '+3 (tierce mineure)',
+    4: '+4 (TIERCE majeure)', 5: '+5 (quarte)', 6: '+6 (triton)',
+    7: '+7 (QUINTE)', 8: '+8 (sixte mineure)', 9: '+9 (sixte majeure)',
+    10: '+10 (septième mineure)', 11: '+11 (septième majeure)',
+}
+
+
+def root_pc(label):
+    """Classe de hauteur de la fondamentale, depuis « C#:maj » ou « C#m7 »."""
+    head = label.split(':')[0] if ':' in label else label
+    name = head[:2] if len(head) > 1 and head[1] in '#b' else head[:1]
+    return PCS.get(name)
+
+
+def diagnose_roots(pairs, clean_mode='legacy'):
+    """Histogramme des écarts de fondamentale, pondéré par la durée."""
+    import collections
+    histogram = collections.Counter()
+    total = 0.0
+    examined = 0
+    for index, (name, wav, ref) in enumerate(pairs, start=1):
+        analysis, _ = run_audio_engine(wav, clean_mode)
+        if not analysis or not analysis.get('chords'):
+            continue
+        reference = []
+        for line in Path(ref).read_text().splitlines():
+            parts = line.split()
+            if len(parts) >= 3:
+                reference.append((float(parts[0]), float(parts[1]), parts[2]))
+        for chord in analysis['chords']:
+            if chord.get('chord') in (None, 'N'):
+                continue
+            middle = (chord['startTime'] + chord['endTime']) / 2
+            heard = next((l for a, b, l in reference if a <= middle < b), None)
+            if not heard or heard == 'N':
+                continue
+            expected, got = root_pc(heard), root_pc(chord['chord'])
+            if expected is None or got is None:
+                continue
+            seconds = chord['endTime'] - chord['startTime']
+            histogram[(got - expected) % 12] += seconds
+            total += seconds
+        examined += 1
+        print(f"  [{index:3d}/{len(pairs)}] {short_name(name, 44):44s}", flush=True)
+    if not total:
+        sys.exit('Aucun accord comparable.')
+    print(f"\nÉcart entre la fondamentale retenue et la bonne — {examined} morceaux, "
+          f"pondéré par la durée\n")
+    for interval, seconds in sorted(histogram.items(), key=lambda kv: -kv[1]):
+        share = 100 * seconds / total
+        bar = '█' * int(share / 2)
+        print(f"  {INTERVAL_NAMES[interval]:24s} {share:5.1f} %  {bar}")
+    wrong = 100 * (total - histogram[0]) / total
+    print(f"\n  fondamentale fausse : {wrong:.1f} % du temps")
+    if wrong > 0:
+        top = max((k for k in histogram if k), key=lambda k: histogram[k])
+        print(f"  écart le plus fréquent parmi les erreurs : {INTERVAL_NAMES[top]} "
+              f"({100 * histogram[top] / (total - histogram[0]):.1f} % des erreurs)")
+    return True
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('--list', action='store_true', help='les corpus déclarés et ce qu\'ils exigent')
@@ -683,11 +769,15 @@ def main():
     p.add_argument('--data-home', default=os.path.expanduser('~/zic-corpus'))
     p.add_argument('--limit', type=int, default=0, help='nombre de morceaux (0 = tous)')
     p.add_argument('--clean-mode', default='legacy')
+    p.add_argument('--diagnose-root', action='store_true',
+                   help="histogramme des écarts de fondamentale au lieu des scores")
     p.add_argument('--engine', metavar='FICHIER', default=None,
                    help='moteur à mesurer (par défaut celui de l\'app) — pour comparer une variante')
     p.add_argument('--stream', metavar='CORPUS', choices=('maestro', 'slakh'),
                    help="mesure SANS télécharger l'archive (maestro par plages, slakh en flux)")
     p.add_argument('--tracks', type=int, default=10, help='nombre de morceaux en mode flux')
+    p.add_argument('--style', default=None,
+                   help='ne garder que les morceaux dont le nom contient ceci (ex. Funk)')
     p.add_argument('--version', default=None,
                    help="version du corpus (slakh : baby ≈ 5 Go, 2100-redux ≈ 100 Go)")
     p.add_argument('--all-tracks', action='store_true',
@@ -695,6 +785,8 @@ def main():
     p.add_argument('--chords', metavar='CHAMP', default=None,
                    help="annotation d'accords à prendre (ex. leadsheet_chords, inferred_chords)")
     args = p.parse_args()
+    if args.style:
+        globals()['STYLE_FILTER'] = args.style
     if args.engine:
         globals()['ENGINE'] = Path(args.engine).resolve()
         print(f"moteur mesuré : {ENGINE}")
@@ -718,7 +810,8 @@ def main():
         if not args.audio:
             sys.exit('--bridge demande --audio <dossier>')
         return 0 if bench_bridge(args.bridge, args.audio, args.clean_mode) else 1
-    return 0 if bench_mirdata(args.bench, Path(args.data_home), args.limit, args.clean_mode, args.chords, args.all_tracks, args.version) else 1
+    return 0 if bench_mirdata(args.bench, Path(args.data_home), args.limit, args.clean_mode, args.chords, args.all_tracks, args.version,
+                              args.diagnose_root) else 1
 
 
 if __name__ == '__main__':
