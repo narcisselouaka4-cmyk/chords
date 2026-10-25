@@ -228,13 +228,20 @@ def score(ref_intervals, ref_labels, est_intervals, est_labels):
     return out
 
 
-def bench_pairs(pairs, clean_mode='legacy'):
+def bench_pairs(pairs, clean_mode='legacy', progress=False):
     """pairs : [(nom, wav, chemin .lab de référence)]"""
     rows, failures = [], []
-    for name, wav, ref in pairs:
+    total = len(pairs)
+    for index, (name, wav, ref) in enumerate(pairs, start=1):
+        # Un corpus complet prend l'heure : on dit où on en est plutôt que de
+        # laisser croire que rien ne se passe.
+        if progress:
+            print(f"  [{index:3d}/{total}] {short_name(name, 44):44s}", end='', flush=True)
         analysis, err = run_audio_engine(wav, clean_mode)
         if not analysis or not analysis.get('chords'):
             failures.append((name, err or ['aucun accord']))
+            if progress:
+                print(' ✗', flush=True)
             continue
         ref_i, ref_l = read_lab(ref)
         est_i, est_l = intervals_labels(analysis['chords'])
@@ -242,11 +249,17 @@ def bench_pairs(pairs, clean_mode='legacy'):
             scores = score(ref_i, ref_l, est_i, est_l)
         except Exception as exc:  # une grille vide ou dégénérée ne doit pas tout arrêter
             failures.append((name, [str(exc)[:70]]))
+            if progress:
+                print(' ✗', flush=True)
             continue
         if scores is None:
             failures.append((name, ['aucun accord comparable (vocabulaire hors métrique)']))
+            if progress:
+                print(' ✗', flush=True)
             continue
         rows.append((name, scores, len(analysis['chords']), len(ref_l)))
+        if progress:
+            print(f" {scores['majmin']:5.1f}%", flush=True)
     return rows, failures
 
 
@@ -286,8 +299,8 @@ def bench_local(folder, clean_mode='legacy'):
             pairs.append((wav.stem, wav, lab))
         if not pairs:
             sys.exit(f"Aucun triplet (vérité terrain + audio) dans {folder}")
-        print(f"{len(pairs)} morceaux avec vérité terrain fournie — moteur audio « {clean_mode} »")
-        return report(*bench_pairs(pairs, clean_mode))
+        print(f"{len(pairs)} morceaux avec vérité terrain fournie — moteur audio « {clean_mode} »\n")
+        return report(*bench_pairs(pairs, clean_mode, progress=True))
 
 
 # Les corpus rangent souvent un morceau par dossier (Slakh : TrackXXXXX/all_src.mid
@@ -415,8 +428,8 @@ def bench_mirdata(name, data_home, limit, clean_mode='legacy', chord_source=None
                      f"  audio cherché parmi : {', '.join(AUDIO_ATTRS)}\n"
                      f"  accords cherchés parmi : {', '.join(CHORD_ATTRS)}\n"
                      f"  {conf['why']}\n  Audio : {conf['audio']}")
-        print(f"{len(pairs)} morceaux de {name} — moteur audio « {clean_mode} »")
-        return report(*bench_pairs(pairs, clean_mode))
+        print(f"{len(pairs)} morceaux de {name} — moteur audio « {clean_mode} »\n")
+        return report(*bench_pairs(pairs, clean_mode, progress=True))
 
 
 
