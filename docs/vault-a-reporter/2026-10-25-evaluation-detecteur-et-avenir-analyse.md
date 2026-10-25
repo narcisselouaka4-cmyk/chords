@@ -1360,3 +1360,74 @@ nommage MIDI cette nuit : *la basse départage quand la saillance ne suffit pas*
 Brancher l'arbitrage par la basse sur l'attribution de fondamentale **du chemin MIDI d'abord** :
 c'est là que la mesure est solide (77 %), que la vérité terrain existe, et que Narcisse joue.
 Le chemin audio demandera d'abord de savoir si le moteur entend la basse — question ouverte.
+
+---
+
+# Suite 14 (25/10) — Les trois chantiers
+
+## 1. Le filtre mort, fusionné
+
+`_clean_segments` testait la PRÉSENCE de la clé `harmonicEvidence`, pas son contenu : tous les
+segments la portent (133/133), la condition était toujours fausse, le filtre ne s'est jamais
+déclenché. Il épargne désormais les segments à appui RÉEL et absorbe les autres.
+
+A/B sur 180 morceaux : justesse inchangée (+0,1 point, médiane +0,00), **9 % de segments en
+moins**, 11 % sur le funk (2,26× → 2,02×). Le gain est la lisibilité, pas le score.
+
+## 2. Rôles et degrés sur le chemin MIDI
+
+Le chemin MIDI posait `role: 'structural'` en dur partout et `degree: null`. La version audio
+n'a **pas** été portée : son défaut mesuré (31,6 % d'événements masqués, sections modulées
+entières) vient de la diatonicité jugée sur la tonalité globale.
+
+`src/analyzer/midi-roles.js` ne s'appuie donc pas sur la tonalité : un accord qui **revient**
+ou qui est **tenu** porte la progression ; bref, unique et encadré de piliers, c'est un
+passage ; sinon on ne prétend rien. Les accords sont groupés par fondamentale et couleur —
+« Fadd9 », « Fadd9/A » et « F » sont le même degré.
+
+Seuil **calibré** sur ses sessions : il a dicté les dix accords de Session_017 comme étant sa
+progression. À 2,5 temps, son Do add9 — sa tonique, jouée une fois et brièvement — tombait en
+« passage ». À 2 temps, les dix sortent structurels. Session_017 donne
+**IV V iii vi ii V IV I ii iii**, sa progression en do majeur. Session_019 : 32 structurels,
+2 incertains, qui sont exactement ses deux diminués drop 2.
+
+**Et une source MIDI ne masque plus rien.** L'ADR-063 vise l'audio, où le moteur doute :
+masquer y protège d'une hypothèse hasardeuse. Un MIDI ne laisse aucune place au doute. Sans ce
+garde-fou, ses deux diminués disparaissaient de sa vue par défaut — exactement ce qu'il
+reproche à la grille audio.
+
+## 3. La dominante sans fondamentale
+
+Ses {Fa, Sol#, Si} admettent quatre lectures (C#7, Ddim7, G7b9, A#7b9). La tonalité tranche par
+la FONCTION : on retient celle dont la fondamentale est la **dominante**. Sans tonalité, le nom
+littéral reste. Résultat : **A#7b9/F, degré V**, à ses deux occurrences.
+
+### Deux restrictions trouvées en mesurant
+
+1. Appliquée à tout accord diminué ou demi-diminué, la règle transformait son **Si bémol**
+   de 39,10 s ({Si♭, Ré, Fa}) en « G7#9/Bb » — alors que ces notes forment un accord entier et
+   stable. Une triade majeure complète se suffit à elle-même.
+2. Appliquée aux diminués, elle renommait ses deux **septièmes diminuées** de Session_019 en
+   « G7b9/D » et « G7b9/B », contre sa propre description (« un Fa diminué 7 drop 2, puis un
+   Sol diminué 7 drop 2 »). **Le banc écrit d'après ses mots l'a rejeté.** Une septième
+   diminuée complète est un accord à part entière ; la triade diminuée seule, bien plus souvent
+   un fragment, est renommée.
+
+C'est la deuxième fois de la session qu'un banc construit sur sa parole arrête une
+généralisation abusive — la première étant le retrait des notes d'agrément.
+
+## Vérifié / non vérifié
+
+Suites JS complètes, 31 contrôles au banc du nommeur, 15/15 au banc de ses sessions, 14/14 au
+banc des rôles, build. `test_harmonic_deterministic.py` reste à 14/17, identique avant et après
+(échecs antérieurs documentés). **Rien n'a été vérifié dans Electron.**
+
+## Restent ouverts
+
+- Son `Esus4` de Session_017 : découpage juste, résolution 4–3 non nommée.
+- Son degré I du 15/09 lu `Cmadd9/D#` (coquille majeure sans tierce ni quinte).
+- Le Temps réel nomme toujours avec `detectChord`, là où Pédagogie et Sessions MIDI utilisent
+  `nameMidiChord` : la cohérence voulue par l'en-tête de `chord-labeling.js` est rompue, dans
+  le sens où Pédagogie est meilleur.
+- Côté audio : funk 42,6 %, jazz 49,6 %, et l'origine de la perte reste la fondamentale — dont
+  on a mesuré qu'elle n'est souvent pas la note la plus forte (51,9 %).
