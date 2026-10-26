@@ -427,37 +427,73 @@ export function segmentSessionEvents(events) {
     }
   }
 
-  // Résidus de l'accord précédent. Une note attaquée AVANT le segment et
-  // éteinte dans son premier tiers n'appartient pas à son harmonie : elle
-  // finissait de sonner. Elle complétait pourtant des lectures plus riches, et
-  // plus fausses. Mesuré sur Session_019 de Narcisse : son « Mi base de Sol »
-  // de 11,34 s ({Mi, Sol, Si}, basse Sol) s'affichait « Cmaj7/G » parce que le
-  // Do5 de l'Am9 précédent sonne encore 0,21 s — un quart du segment.
+  // Résidus de l'accord précédent. Les notes TENUES — aucune de leurs fenêtres
+  // n'est frappée dans le segment — finissent souvent de sonner sans appartenir
+  // à l'harmonie qui commence. Elles complétaient pourtant des lectures plus
+  // riches, et plus fausses.
   //
-  // On ne retire jamais une note si l'ensemble cesse d'être nommable : une
-  // basse tenue sous la pédale, ou un accord dont le voicing repose sur ce qui
-  // sonne encore, doit rester lisible. Et on ne touche qu'aux segments dont
-  // toutes les notes viennent des fenêtres connues.
+  // Le critère est la PARCIMONIE, et non une durée : on garde la lecture qui
+  // s'appuie sur le moins de notes tenues. Mesuré sur les sessions de Narcisse,
+  // deux cas que rien d'autre ne sépare :
+  //
+  //  · « Mi base de Sol » (Session_019, 11,34 s) : frappés Mi-Sol-Si, tenu Do.
+  //    Avec zéro note tenue on lit déjà « Em/G » — c'est son mot. Avec le Do,
+  //    « Cmaj7/G ».
+  //  · « Si bémol premier renversement » (Session_013, 1:36) : frappés Ré-Fa,
+  //    tenus Sol, Si♭, Mi♭. Avec une seule note tenue — le Si♭ — on lit
+  //    « Bb/D », ce qu'il dicte ; avec les trois, « Ebmaj9/D », qu'il dit faux.
+  //    Aucun seuil de durée ne les sépare : le Si♭ qu'il faut GARDER est la
+  //    note éteinte le plus tôt des trois.
+  //
+  // Garde-fous : la classe de la note la plus grave n'est jamais retirée (une
+  // basse tenue sous la pédale doit rester la basse), la lecture retenue doit
+  // être un accord entier et reconnu (`sounds` et `matched`), et un segment dont
+  // rien n'est frappé — tout sous la pédale — garde sa lecture d'origine.
+  const HELD_CLASSES_MAX = 5;
   for (let i = 0; i < chordSegments.length; i += 1) {
     const seg = chordSegments[i];
     const shownEnd = chordSegments[i + 1] ? Math.min(seg.end, chordSegments[i + 1].start) : seg.end;
-    const firstThird = seg.start + (shownEnd - seg.start) / 3;
-    if (!(firstThird > seg.start)) continue;
-    // Le verdict porte sur la CLASSE DE HAUTEUR, pas sur une fenêtre isolée :
-    // une note peut traîner dans un registre et être réattaquée dans un autre.
-    // Son Mi de Session_019 finit de sonner à 11,55 s et repart à 11,74 s,
-    // dans le segment — il appartient bien à l'accord, contrairement au Do.
     const during = windows.filter((w) => w.onTime < shownEnd && w.offTime > seg.start);
-    const residual = (pc) => {
-      const own = during.filter((w) => ((w.note % 12) + 12) % 12 === pc);
-      return own.length > 0
-        && own.every((w) => w.onTime < seg.start - 1e-6 && w.offTime <= firstThird);
-    };
-    const kept = seg.notes.filter((n) => !residual(((n % 12) + 12) % 12));
-    if (kept.length === seg.notes.length) continue;
-    const renamed = nameMidiChord(kept);
-    if (!renamed) continue;
-    Object.assign(seg, { notes: kept, name: renamed.name, named: renamed });
+    const bassPc = pcOf(Math.min(...seg.notes));
+    const classes = [...new Set(seg.notes.map(pcOf))];
+    // Une classe est tenue si aucune de ses fenêtres n'est frappée dans le
+    // segment. Son Mi finit de sonner à 11,55 s et repart à 11,74 s : frappé.
+    const held = classes.filter((pc) => pc !== bassPc
+      && during.some((w) => pcOf(w.note) === pc)
+      && during.filter((w) => pcOf(w.note) === pc)
+        .every((w) => w.onTime < seg.start - 1e-6));
+    if (held.length === 0 || held.length > HELD_CLASSES_MAX) continue;
+    if (held.length === classes.length) continue;   // rien n'est frappé
+    // Un accord dont la fondamentale est À LA BASSE est stable : on n'y touche
+    // pas. Sans ce garde-fou, la parcimonie mangeait la septième de son La
+    // mineur 7 et le si de son Ré diminué 7 — des notes de l'accord, tenues
+    // parce qu'il les a frappées un peu avant. Seul un renversement obtenu
+    // grâce à des notes qui finissent de sonner est suspect.
+    if (seg.named?.rootPc === bassPc) continue;
+
+    // Du plus parcimonieux au plus complet : le premier accord entier gagne.
+    let found = null;
+    for (let keep = 0; keep < held.length && !found; keep += 1) {
+      const subsets = [];
+      const walk = (from, picked) => {
+        if (picked.length === keep) { subsets.push(picked); return; }
+        for (let j = from; j < held.length; j += 1) walk(j + 1, [...picked, held[j]]);
+      };
+      walk(0, []);
+      for (const subset of subsets) {
+        const drop = new Set(held.filter((pc) => !subset.includes(pc)));
+        const kept = seg.notes.filter((n) => !drop.has(pcOf(n)));
+        const renamed = kept.length >= 3 ? nameMidiChord(kept) : null;
+        if (renamed && renamed.sounds && renamed.matched
+            && (!found || renamed.name !== seg.name)) {
+          found = { kept, renamed };
+          break;
+        }
+      }
+    }
+    if (found && found.renamed.name !== seg.name) {
+      Object.assign(seg, { notes: found.kept, name: found.renamed.name, named: found.renamed });
+    }
   }
 
   // Un accord s'arrête quand le suivant commence.
