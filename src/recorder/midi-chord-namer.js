@@ -250,7 +250,10 @@ export function nameMidiChord(notes, { latin = false, spelling = 'auto', keyPc =
   if (!best) {
     const detected = detectChord(list);
     if (!detected || detected.rootPc == null || detected.symbol == null) return null;
-    best = { rootPc: detected.rootPc, symbol: detected.symbol };
+    // Nom approché : on ne sait ni si sa triade sonne, ni s'il a une tierce.
+    // Les déclarer par défaut faisait passer « Ebmaj7sus2/F » — un fa tenu sous
+    // une ligne Ré → Mi♭ — pour un accord solide.
+    best = { rootPc: detected.rootPc, symbol: detected.symbol, sounds: false, thirdless: true };
   }
   // Dominante SANS fondamentale. Narcisse : « j'ai fait un La#7 bémol 9 », et
   // l'app affichait « Fdim ». Ses notes {Fa, Sol#, Si} sont la quinte, la
@@ -301,6 +304,6 @@ export function nameMidiChord(notes, { latin = false, spelling = 'auto', keyPc =
   // découpage s'en sert pour savoir si une note de mélodie complète l'harmonie
   // (voir session-analysis.js) — une triade incomplète est une lecture fragile.
   const sounds = best.approximated ? true : Boolean(best.sounds);
-  const thirdless = best.approximated ? false : Boolean(best.thirdless);
+  const thirdless = best.approximated ? false : best.thirdless !== false;
   return { rootPc: best.rootPc, symbol: best.symbol, bassPc, isSlash, name, matched, sounds, thirdless };
 }

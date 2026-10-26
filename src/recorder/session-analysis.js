@@ -271,7 +271,36 @@ export function segmentSessionEvents(events) {
     // Mélodie au-dessus de l'accord tenu : soit elle domine tout ce qui sonne,
     // soit elle poursuit une ligne legato au-dessus du corps de l'accord.
     const isMelodyNote = (note) => {
-      if (note === top) return true;
+      // Une note qui ACHÈVE l'accord n'est pas de la mélodie, même si elle est
+      // la plus aiguë. Sans elle, ce qui sonne ne forme aucun accord ; avec
+      // elle, il en forme un — c'est donc elle qui l'ouvre.
+      //
+      // Mesuré sur Session_013 de Narcisse : son La bémol de 48,13 s se joue en
+      // arpège (La♭3 · Mi♭4 · La♭4 · Do5, étalés sur deux secondes). Le Do5 est
+      // le sommet de tout ce qui sonne, donc « de la mélodie » — alors qu'il est
+      // la TIERCE du La bémol, et que les trois notes avant lui ne faisaient
+      // que deux classes de hauteur, innommables. L'accord n'a jamais été
+      // candidat : aucun segment ne s'ouvrait, et le fa mineur suivant héritait
+      // de tout l'intervalle. Il dit : « c'est un simple La bémol », et
+      // « l'étiquette Fa mineur absorbe cet accord-là ».
+      //
+      // Le garde-fou est dans la condition elle-même : si ce qui sonne forme
+      // déjà un accord sans cette note, la règle ne s'applique pas et une vraie
+      // ligne mélodique au-dessus d'un accord plaqué reste de la mélodie.
+      // L'accord ainsi formé doit avoir une VRAIE tierce, majeure ou mineure.
+      // Sans cette exigence, la règle fabriquait des accords fantômes au milieu
+      // d'un accord tenu : la fin de son fa mineur, {Fa, Ré, Mi♭} — le fa tenu
+      // sous une ligne Ré → Mi♭ → Fa — sortait « Ebmaj7sus2/F ». Une seconde et
+      // une neuvième ne font pas un accord. C'est le même critère que pour
+      // compléter une coquille (voir `thirdless` plus bas).
+      const completes = () => {
+        const others = sounding.filter((w) => w.note !== note);
+        if (others.length < 2) return false;
+        const whole = nameMidiChord(sounding.map((w) => w.note));
+        if (!whole || whole.thirdless) return false;
+        return !nameMidiChord(others.map((w) => w.note));
+      };
+      if (note === top) return !completes();
       if (!current) return false;
       const below = current.windows.filter((w) => w.note < note && w.offTime > t);
       if (below.length < MELODY_MIN_BELOW) return false;
