@@ -177,6 +177,52 @@ export function analyzeMidiEvents(events, { duration = 0, tempo = null, spelling
     }
   }
 
+  // Deux étiquettes de suite pour un seul accord. Narcisse, après avoir ouvert
+  // la session du 14/10 : « si une étiquette est suivie d'une autre portant le
+  // même accord (la même notation), ces deux étiquettes fusionnent », et « un
+  // pianiste débutant va penser qu'il y a eu deux enregistrements pour le même
+  // accord ». Son si bémol mineur de 27,3 s portait TROIS étiquettes « Bbm »
+  // identiques d'affilée.
+  //
+  // La fusion existait déjà (plus haut), mais sur le nom de la PREMIÈRE passe :
+  // deux segments nommés différemment pendant le découpage reçoivent le même nom
+  // à la seconde passe, quand la tonalité est connue — trop tard pour fusionner.
+  // On la refait donc ici, après le renommage.
+  //
+  // Second cas, le sien aussi : même fondamentale, et l'une des deux étiquettes
+  // est la TRIADE NUE. Ses arpèges ajoutent et retirent des notes en cours de
+  // route — « Bbm » puis « Bbmadd9 » (13 s), « Dbadd11 » puis « Db » (16 s),
+  // « Db » puis « Dbsus4/Ab » (23 s) — et il dit chaque fois n'avoir joué qu'un
+  // accord : « j'ai simplement joué un si bémol mineur », « j'ai simplement fait
+  // un ré bémol ». C'est la triade nue qu'on garde, conformément à sa préférence
+  // constante pour le nom simple (voir aussi son « Em simple »).
+  //
+  // Le nom n'est PAS recalculé sur l'union des notes : celles-ci accumulent tout
+  // ce qui a sonné pendant le segment, et le renommage sortait « Gbmaj7/Bb » de
+  // la fusion de ses trois si bémol mineur.
+  const bareTriad = (symbol) => symbol === '' || symbol === 'm';
+  const joined = [];
+  for (const chord of kept) {
+    const last = joined[joined.length - 1];
+    const sameName = last && last.chord === chord.chord;
+    const enriched = last && !sameName && last.rootPc === chord.rootPc
+      && (bareTriad(last.symbol) !== bareTriad(chord.symbol));
+    if (sameName || enriched) {
+      // Des deux, on garde la triade nue ; à nom égal, le premier.
+      const keepChord = enriched && bareTriad(chord.symbol) ? chord : last;
+      last.chord = keepChord.chord;
+      last.rootPc = keepChord.rootPc;
+      last.symbol = keepChord.symbol;
+      last.endTime = round3(Math.max(last.endTime, chord.endTime));
+      last.notes = [...new Set([...last.notes, ...chord.notes])].sort((a, b) => a - b);
+      last.confidence = Math.min(last.confidence, chord.confidence);
+      continue;
+    }
+    joined.push(chord);
+  }
+  kept.length = 0;
+  kept.push(...joined);
+
   // Hiérarchie et degrés. Jusqu'ici le chemin MIDI posait `role: 'structural'`
   // pour TOUS les accords et `degree: null` partout : l'onglet Analyse ne
   // montrait aucune structure sur les sessions de Narcisse.
