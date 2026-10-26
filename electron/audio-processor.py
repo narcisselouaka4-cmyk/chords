@@ -4457,6 +4457,81 @@ def _regularize_repeated_progression(segments, key, states, beat_chroma,
     return merged
 
 
+# [Claude] — 2026-10-26 — Fondu des segments brefs, en part du pas harmonique
+# MÉDIAN du morceau : une guitare jazz change d'accord deux fois par mesure, un
+# gospel en tient un par mesure, et un seuil absolu effacerait de vrais accords
+# chez la première.
+#
+# Mesuré sur 40 morceaux de GuitarSet, avec la mesure d'ORDRE (scripts/
+# corpus-bench.py) qui compte les accords au lieu du temps :
+#
+#   fondu    ordre   majmin   en trop   manquants
+#   aucun    55,3 %   65,0 %      237          11
+#   ×0,30    62,7 %   65,4 %      159          19
+#   ×0,67    63,1 %   63,9 %       55          57
+#   ×1,00    51,9 %   54,9 %       18         152
+#
+# ×0,30 fait monter les DEUX mesures — +7,4 points d'ordre et +0,4 de majmin —
+# donc sans arbitrage à faire. Comptage apparié : 24 morceaux améliorés contre
+# 2 (test du signe bilatéral p = 0,00001), gain médian +3,5 pt, pire cas
+# −16,7 pt. Au-delà de ×0,50 l'ordre gagne encore un peu mais la justesse
+# temporelle se dégrade, et les accords MANQUANTS explosent (57 à ×0,67, 152 à
+# ×1,00) : on fond alors de vrais accords.
+#
+# Cette fraction avait été écartée la veille, jugée négligeable sur ses +0,4 pt
+# de majmin seuls. Il manquait la mesure d'ordre — celle qui correspond à ce
+# que Narcisse voit à l'écran.
+#
+# La passe est placée AVANT l'absorption des segments courts : après elle, le
+# filtre `min_duration` a déjà mangé les mêmes segments et il ne reste rien à
+# fondre (mesuré : +0,1 pt au lieu de +0,9 lors d'un essai précédent).
+MEDIAN_SPAN_FRACTION = 0.30
+
+
+def _merge_brief_segments(segments, fraction=MEDIAN_SPAN_FRACTION):
+    """Fond chaque segment plus court que `fraction` × le pas médian dans son
+    voisin le plus long. Les silences ne sont jamais fondus."""
+    if fraction <= 0 or len(segments) < 3:
+        return segments
+    spans = sorted(s['endTime'] - s['startTime'] for s in segments if s['chord'] != 'N')
+    if not spans:
+        return segments
+    mid = len(spans) // 2
+    median = spans[mid] if len(spans) % 2 else (spans[mid - 1] + spans[mid]) / 2
+    threshold = median * fraction
+    merged = list(segments)
+    changed = True
+    while changed and len(merged) > 2:
+        changed = False
+        for index, seg in enumerate(merged):
+            if seg['chord'] == 'N':
+                continue
+            if seg['endTime'] - seg['startTime'] >= threshold:
+                continue
+            # Un accord bref mais RÉEL est épargné, exactement comme par le
+            # filtre de durée ci-dessous : évidence harmonique indépendante, ou
+            # support acoustique mesuré. Sans cela le fondu mangeait l'accord de
+            # passage de test_harmonic_timing — un « D » de 0,25 s entre C et G,
+            # avec son appui propre.
+            if seg.get('_independentHarmony'):
+                continue
+            evidence = seg.get('analysis', {}).get('harmonicEvidence') or {}
+            if evidence.get('independent') or (evidence.get('supportSeconds') or 0) > 0:
+                continue
+            neighbours = [n for n in (merged[index - 1] if index > 0 else None,
+                                      merged[index + 1] if index + 1 < len(merged) else None)
+                          if n is not None and n['chord'] != 'N']
+            if not neighbours:
+                continue
+            host = max(neighbours, key=lambda n: n['endTime'] - n['startTime'])
+            host['startTime'] = min(host['startTime'], seg['startTime'])
+            host['endTime'] = max(host['endTime'], seg['endTime'])
+            del merged[index]
+            changed = True
+            break
+    return merged
+
+
 def _clean_segments(segments, min_duration=0.6, silence_min=1.2):
     """Merge weak short events, preserving acoustic passages and real silence."""
     if not segments:
@@ -4472,6 +4547,10 @@ def _clean_segments(segments, min_duration=0.6, silence_min=1.2):
                 merged[-1]['endTime'] = seg['endTime']
                 continue
         merged.append(seg)
+
+    # Fondre les segments brefs AVANT le filtre de durée ci-dessous (voir
+    # l'en-tête de _merge_brief_segments : après lui, il ne reste rien à fondre).
+    merged = _merge_brief_segments(merged)
 
     # Supprimer / absorber les segments trop courts.
     cleaned = []
