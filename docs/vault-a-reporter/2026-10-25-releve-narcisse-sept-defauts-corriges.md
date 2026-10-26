@@ -24,6 +24,8 @@ Six commits, chacun mesuré avant d'être écrit :
 | `6d19076` | la coquille sans tierce que porte la basse |
 | `e89f0b7` | deux noms sur la même fondamentale ne font qu'un accord |
 | `069fb0a` | les notes qui finissent de sonner ne font pas l'accord |
+| `28cd3e4` | la quarte ajoutée sur une triade entière est un appui |
+| `59570d7` | la lecture qui s'appuie sur le moins de notes tenues |
 
 Fichiers touchés : `src/recorder/midi-chord-namer.js`,
 `src/recorder/session-analysis.js`, `src/analyzer/structural-progression.js`,
@@ -38,7 +40,8 @@ seconde, au centième. Son mouvement de Session_019 se lit
 `Am9 — Em/G — Fmaj7 — C/E — Dm7` : cinq accords, exactement sa dictée, là où
 le moteur en donnait sept dont deux faux.
 
-**Compte honnête des 21 observations : 9 corrigées, 4 partielles, 8 restantes.**
+**Compte honnête des 21 observations : 12 corrigées, 4 partielles, 5 restantes.**
+*(9/4/8 au soir du 25/10, avant les deux commits du 26.)*
 
 Corrigées : le `Csus4` parasite de 23,7 s ; le `Csus4` de 1:19 qu'il dit être
 un do mineur ; les deux `Ebmaj7/D` parasites de 0,27 s ; l'`Abmaj7/C` de 1:56
@@ -52,8 +55,15 @@ propre segment, mais mal nommés ; le `C7sus4` de 2:05 devient `Cm11` (plus un
 suspendu, mais il attend un si bémol) ; l'absorption de 47,5 s passe de 3,07 s
 à 0,63 s.
 
-Restantes, toutes de la même famille : trois `Bbadd11/D` là où il entend Eb,
-trois `Ebmaj9/D` là où il entend Bb/D, trois `Cmadd9/Eb` là où il entend Ab.
+Ajoutées le 26/10 : l'`Esus4` devenu « Em » tout court, à sa demande ; et
+**les six occurrences de son mouvement de conclusion**, désormais uniformes —
+quatre se lisent `Ebadd9 → Bb/D → Cm`, exactement sa dictée, les deux autres
+`Bb/D → Cm`. Il disait : « cette répartition-là n'est pas commune partout dans
+la musique. Alors que pourtant, j'ai pas accéléré le mouvement. » Elle l'est.
+
+Restantes : l'`Abadd9` trop courte de 30,8 s, le si bémol absorbé à 50 s, le
+passage 47,5–50 s qu'il dit être un simple La bémol, le Bb/Ab de 2:19–2:20, et
+la boucle de « Saint Esprit ».
 
 **Mesures nouvelles.** Zéro étiquette de moins de 0,35 s sur les trois
 sessions (contre quatre). Session_013 passe de 69 à 63 segments,
@@ -143,6 +153,91 @@ l'autre, soit exactement l'erreur n°1 du banc GuitarSet (+7, 24,1 % des
 erreurs). Le `Bm` parasite (13 des 26 segments hors vocabulaire) est
 l'intersection de G et de D. Diagnostic : le moteur ne se trompe pas de notes,
 il se trompe de fondamentale parmi les notes présentes.
+
+## À mettre dans experiments/ — le 26/10
+
+**EXP — rouvrir le contexte harmonique : quatre pistes, trois réfutées par la
+mesure, une qui marche (étroite).** Narcisse : « on rouvre le contexte
+harmonique, ça passerait non ? »
+
+1. **Le bonus diatonique de transition (retiré par `1a4d9dd`) : inopérant par
+   construction sur son défaut.** Sa boucle est `Em → C → G → D` et les quatre
+   accords — **plus le `Bm` parasite** — sont tous diatoniques de sol majeur. Un
+   bonus qui favorise le diatonique ne sépare donc **aucune** des 17 fautes
+   `D→G`. Ce n'est pas que le mécanisme soit mauvais : il ne touche pas le
+   problème.
+2. **Les priors de tonalité (retirés par `04289bd`) : du code mort.** Le commit
+   le dit lui-même — « strictement aucun effet mesuré sur le corpus ». Rien à
+   rouvrir.
+3. **Le contexte séquentiel appris sur les sorties du moteur :
+   auto-confirmation, mesurée.** La bonne suite domine pour trois des quatre
+   accords (`Em→C` 9/21, `C→G` 17/28, `G→D` 25/45) mais **pas pour `D`** :
+   `D→G` (17) écrase `D→Em` (8). Une contrainte apprise renforcerait donc
+   l'erreur. À noter : `G→D` (25) **et** `D→G` (17) forment un va-et-vient,
+   impossible dans une boucle — un critère de structure cyclique resterait à
+   explorer, mais pas la simple fréquence des transitions.
+4. **Le contexte métrique (l'accord change sur le temps fort) : mort.**
+   Concentration circulaire des frontières sur la grille de mesure : **0,141** à
+   152 BPM, **0,090** à 76 BPM. C'est-à-dire aléatoire. Piste fermée, un
+   chantier économisé.
+
+**EXP RÉFUTÉ — le fondu des segments courts.** Piste trouvée en remplacement
+du contexte : la durée sépare nettement le juste du faux sur « Saint Esprit »
+(avant une transition conforme, médiane 2,74 s ; avant une faute, 1,52 s ; sur
+un accord hors vocabulaire, 1,06 s). Fondre tout segment plus court qu'une
+fraction du pas harmonique médian faisait passer la conformité à sa boucle de
+**54,1 % à 75,6 %** (fraction ×0,67), avec un optimum net, et les accords hors
+vocabulaire de 26 à 11 — les `Bm` parasites avec.
+
+**Mesuré sur 40 morceaux de GuitarSet (`--merge-sweep`, une exécution du
+moteur, six fractions) : réfuté.**
+
+| fondu | majmin | écart |
+|---|---|---|
+| aucun | 65,0 % | — |
+| ×0,30 | 65,4 % | +0,4 pt |
+| ×0,50 | 64,8 % | −0,2 pt |
+| ×0,67 | 63,9 % | **−1,1 pt** |
+| ×0,80 | 62,9 % | −2,1 pt |
+| ×1,00 | 54,9 % | **−10,0 pt** |
+
+La fraction qui gagnait 21,5 points sur sa boucle en coûte 1,1 sur le corpus.
+Au meilleur seuil fixe le gain est de +0,4 pt, négligeable ; et 12 morceaux sur
+40 n'aiment **aucun** fondu. Non livré.
+
+**Ce que l'écart révèle, et c'est une limite du banc.** Les deux chiffres ne
+mesurent pas la même chose : le majmin MIREX est **pondéré par la durée**, donc
+fondre un segment d'une seconde sur 344 le change à peine ; la conformité de
+transitions compte chaque transition à égalité. Autrement dit, **le majmin
+pondéré par la durée ne voit presque pas le défaut dont Narcisse se plaint** —
+les étiquettes parasites et l'ordre pèsent peu en durée. Avant de juger un
+futur correctif de lisibilité, il faudra une métrique de séquence (distance
+d'édition sur la suite d'accords), pas seulement de recouvrement temporel.
+
+**Hypothèse réfutée en route : la régularité du pas harmonique comme condition
+d'application.** Supposé : le fondu aide les morceaux au pas régulier (gospel)
+et nuit aux irréguliers (jazz solo). Mesuré sur GuitarSet, c'est **l'inverse** —
+pas régulier −0,2 pt, pas irrégulier +1,1 pt — et ses propres morceaux le
+confirmaient déjà : « Saint Esprit » est le **moins** régulier de ses quinze
+(0,45) et le plus amélioré. L'explication tient : mesurée sur les SORTIES du
+moteur, une faible régularité signale la sur-segmentation elle-même, pas la
+musique. L'effet reste de toute façon trop faible pour justifier un mécanisme
+conditionnel.
+
+**Piste non testée, pour la suite :** ne fondre que les segments courts dont
+l'étiquette est **hors du vocabulaire dominant du morceau**, au lieu de tous.
+Sur « Saint Esprit », 13 des 26 segments hors vocabulaire sont des `Bm` courts —
+l'intersection exacte de `G` et `D`. Sur un corpus au vocabulaire large comme
+GuitarSet, le mécanisme se déclencherait beaucoup moins.
+
+**Ce qui a marché, et c'est bien du contexte — mais étroit.** Côté MIDI, deux
+mécanismes livrés aujourd'hui utilisent le contexte sans choisir la
+fondamentale à la place des notes : la **tonalité** donne le mode d'une
+coquille sans tierce dont la basse fixe déjà la fondamentale (`6d19076`), et la
+**parcimonie** écarte les notes tenues qui complètent une lecture plus riche
+(`59570d7`). Ensemble : neuf étiquettes corrigées sur ses sessions. La leçon est
+celle de la portée — le contexte sert à trancher entre lectures également
+valides des mêmes notes, jamais à en inventer une.
 
 ## Prochaines actions
 

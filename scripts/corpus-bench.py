@@ -249,7 +249,46 @@ def score(ref_intervals, ref_labels, est_intervals, est_labels):
     return out
 
 
-def bench_pairs(pairs, clean_mode='legacy', progress=False):
+# [Claude] — 2026-10-26 — Fondu des segments courts, mesuré avant d'être codé.
+#
+# Mesuré sur « Saint Esprit » de Narcisse, dont il a dicté la boucle
+# (Em → C → G → D, ordre strict) : la durée du segment sépare nettement le
+# juste du faux. Avant une transition conforme, médiane 2,74 s ; avant une
+# transition hors ordre, 1,52 s ; sur un accord hors vocabulaire, 1,06 s. Les
+# erreurs sont concentrées dans les segments courts.
+#
+# Le seuil est RELATIF au pas harmonique du morceau — la médiane des durées —
+# et non absolu : un morceau de jazz change d'accord deux fois par mesure, et
+# un seuil fixe y effacerait de vrais accords. Un segment trop court est fondu
+# dans son voisin le plus long, jamais supprimé : la frise reste continue.
+def merge_short_segments(segments, fraction):
+    """Fond les segments plus courts que `fraction` × le pas harmonique médian."""
+    if fraction <= 0 or len(segments) < 3:
+        return segments
+    import statistics
+    segs = [dict(s) for s in segments]
+    spans = [float(s['endTime']) - float(s['startTime']) for s in segs]
+    threshold = statistics.median(spans) * fraction
+    changed = True
+    while changed and len(segs) > 2:
+        changed = False
+        for i, seg in enumerate(segs):
+            if float(seg['endTime']) - float(seg['startTime']) >= threshold:
+                continue
+            neighbours = [x for x in (segs[i - 1] if i > 0 else None,
+                                      segs[i + 1] if i + 1 < len(segs) else None) if x]
+            if not neighbours:
+                continue
+            host = max(neighbours, key=lambda x: float(x['endTime']) - float(x['startTime']))
+            host['startTime'] = min(float(host['startTime']), float(seg['startTime']))
+            host['endTime'] = max(float(host['endTime']), float(seg['endTime']))
+            segs.pop(i)
+            changed = True
+            break
+    return segs
+
+
+def bench_pairs(pairs, clean_mode='legacy', progress=False, merge_sweep=None):
     """pairs : [(nom, wav, chemin .lab de référence)]"""
     rows, failures = [], []
     total = len(pairs)
@@ -265,6 +304,29 @@ def bench_pairs(pairs, clean_mode='legacy', progress=False):
                 print(' ✗', flush=True)
             continue
         ref_i, ref_l = read_lab(ref)
+        if merge_sweep is not None:
+            # Une seule exécution du moteur, plusieurs fractions comparées.
+            per_fraction = {}
+            for fraction in merge_sweep:
+                merged = merge_short_segments(analysis['chords'], fraction)
+                try:
+                    sc = score(ref_i, ref_l, *intervals_labels(merged))
+                except Exception:
+                    sc = None
+                if sc:
+                    per_fraction[fraction] = (sc, len(merged))
+            if per_fraction:
+                rows.append((name, per_fraction, len(analysis['chords']), len(ref_l),
+                             harmonic_regularity(analysis['chords'])))
+                if progress:
+                    base = per_fraction[0.0][0]['majmin'] if 0.0 in per_fraction else float('nan')
+                    best = max(per_fraction.items(), key=lambda kv: kv[1][0]['majmin'])
+                    print(f" {base:5.1f}% → {best[1][0]['majmin']:5.1f}% (×{best[0]})", flush=True)
+            else:
+                failures.append((name, ['aucun accord comparable']))
+                if progress:
+                    print(' ✗', flush=True)
+            continue
         est_i, est_l = intervals_labels(analysis['chords'])
         try:
             scores = score(ref_i, ref_l, est_i, est_l)
@@ -282,6 +344,78 @@ def bench_pairs(pairs, clean_mode='legacy', progress=False):
         if progress:
             print(f" {scores['majmin']:5.1f}%", flush=True)
     return rows, failures
+
+
+def harmonic_regularity(segments):
+    """Régularité du pas harmonique : 1 - écart relatif des durées, borné à [0,1].
+
+    Un gospel qui tient un accord par mesure a un pas régulier ; une guitare
+    jazz solo, qui change deux fois par mesure puis tient quatre mesures, non.
+    Sert à savoir SI le fondu des segments courts a un sens sur ce morceau."""
+    import statistics
+    spans = [float(s['endTime']) - float(s['startTime']) for s in segments]
+    if len(spans) < 4:
+        return 0.0
+    med = statistics.median(spans)
+    if med <= 0:
+        return 0.0
+    # Écart absolu médian, plus robuste que l'écart-type aux segments très longs.
+    mad = statistics.median([abs(x - med) for x in spans])
+    return max(0.0, min(1.0, 1.0 - mad / med))
+
+
+def report_sweep(rows, failures, fractions):
+    """Moyennes par fraction de fondu, pondérées comme le rapport ordinaire."""
+    if not rows:
+        print('Aucun morceau mesurable.')
+        return False
+    print(f"\n{'fondu':>7} {'majmin':>8} {'root':>8} {'triads':>8} {'7es':>8} "
+          f"{'segments':>9}  {'écart majmin':>13}")
+    print('─' * 70)
+    base = None
+    for fraction in fractions:
+        got = [r[1][fraction] for r in rows if fraction in r[1]]   # [(scores, n_segments)]
+        if not got:
+            continue
+        avg = {m: sum(sc[m] for sc, _ in got) / len(got)
+               for m in ('root', 'majmin', 'triads', 'sevenths')}
+        nseg = sum(n for _, n in got) / len(got)
+        if base is None:
+            base = avg['majmin']
+        delta = avg['majmin'] - base
+        mark = '' if fraction == 0 else f"{delta:+6.1f} pt"
+        label = 'aucun' if fraction == 0 else f"×{fraction:.2f}"
+        print(f"{label:>7} {avg['majmin']:7.1f}% {avg['root']:7.1f}% {avg['triads']:7.1f}% "
+              f"{avg['sevenths']:7.1f}% {nseg:9.1f}  {mark:>13}")
+    print('─' * 70)
+    print(f"{len(rows)} morceaux mesurés, {len(failures)} écartés")
+
+    # Le fondu a-t-il un sens partout, ou seulement sur les morceaux au pas
+    # harmonique régulier ? C'est l'hypothèse à trancher avant de le livrer.
+    regs = [r[4] for r in rows if len(r) > 4]
+    if regs and len(fractions) > 1:
+        import statistics
+        cut = statistics.median(regs)
+        print(f"\nRégularité du pas harmonique — médiane {cut:.2f}")
+        print(f"{'tranche':>22} {'morceaux':>9} {'sans fondu':>11} {'meilleur fixe':>14}")
+        print('─' * 62)
+        for label, keep in (('pas régulier (≥ méd.)', lambda x: x >= cut),
+                            ('pas irrégulier (< méd.)', lambda x: x < cut)):
+            grp = [r for r in rows if len(r) > 4 and keep(r[4])]
+            if not grp:
+                continue
+            per = {}
+            for fraction in fractions:
+                vals = [r[1][fraction][0]['majmin'] for r in grp if fraction in r[1]]
+                if vals:
+                    per[fraction] = sum(vals) / len(vals)
+            if 0.0 not in per:
+                continue
+            best_f = max((f for f in per if f != 0.0), key=lambda f: per[f], default=None)
+            extra = f"{per[best_f]:7.1f}% (×{best_f}) {per[best_f] - per[0.0]:+5.1f} pt" if best_f else ''
+            print(f"{label:>22} {len(grp):9} {per[0.0]:10.1f}% {extra:>14}")
+        print('─' * 62)
+    return True
 
 
 def short_name(name, width=44):
@@ -321,6 +455,9 @@ def bench_local(folder, clean_mode='legacy'):
         if not pairs:
             sys.exit(f"Aucun triplet (vérité terrain + audio) dans {folder}")
         print(f"{len(pairs)} morceaux avec vérité terrain fournie — moteur audio « {clean_mode} »\n")
+        if merge_sweep:
+            return report_sweep(*bench_pairs(pairs, clean_mode, progress=True,
+                                             merge_sweep=merge_sweep), merge_sweep)
         return report(*bench_pairs(pairs, clean_mode, progress=True))
 
 
@@ -411,7 +548,7 @@ def resolve_chords(track, preferred=None):
 
 
 def bench_mirdata(name, data_home, limit, clean_mode='legacy', chord_source=None,
-                  all_tracks=False, version=None, diagnose=False):
+                  all_tracks=False, version=None, diagnose=False, merge_sweep=None):
     try:
         import mirdata
     except ImportError:
@@ -455,6 +592,9 @@ def bench_mirdata(name, data_home, limit, clean_mode='legacy', chord_source=None
         print(f"{len(pairs)} morceaux de {name} — moteur audio « {clean_mode} »\n")
         if diagnose:
             return diagnose_roots(pairs, clean_mode)
+        if merge_sweep:
+            return report_sweep(*bench_pairs(pairs, clean_mode, progress=True,
+                                             merge_sweep=merge_sweep), merge_sweep)
         return report(*bench_pairs(pairs, clean_mode, progress=True))
 
 
@@ -782,6 +922,9 @@ def main():
                    help="version du corpus (slakh : baby ≈ 5 Go, 2100-redux ≈ 100 Go)")
     p.add_argument('--all-tracks', action='store_true',
                    help='ne pas filtrer (GuitarSet : inclut les solos, mesurés contre la grille du comp)')
+    p.add_argument('--merge-sweep', metavar='FRACTIONS', default=None,
+                   help='mesure le fondu des segments courts à plusieurs fractions du pas '
+                        'harmonique médian, en une seule exécution du moteur (ex. 0,0.5,0.67,0.8)')
     p.add_argument('--chords', metavar='CHAMP', default=None,
                    help="annotation d'accords à prendre (ex. leadsheet_chords, inferred_chords)")
     args = p.parse_args()
@@ -810,8 +953,11 @@ def main():
         if not args.audio:
             sys.exit('--bridge demande --audio <dossier>')
         return 0 if bench_bridge(args.bridge, args.audio, args.clean_mode) else 1
+    sweep = None
+    if args.merge_sweep:
+        sweep = sorted({float(x) for x in args.merge_sweep.split(',') if x.strip()} | {0.0})
     return 0 if bench_mirdata(args.bench, Path(args.data_home), args.limit, args.clean_mode, args.chords, args.all_tracks, args.version,
-                              args.diagnose_root) else 1
+                              args.diagnose_root, sweep) else 1
 
 
 if __name__ == '__main__':
