@@ -224,11 +224,57 @@ moteur, une faible régularité signale la sur-segmentation elle-même, pas la
 musique. L'effet reste de toute façon trop faible pour justifier un mécanisme
 conditionnel.
 
-**Piste non testée, pour la suite :** ne fondre que les segments courts dont
-l'étiquette est **hors du vocabulaire dominant du morceau**, au lieu de tous.
-Sur « Saint Esprit », 13 des 26 segments hors vocabulaire sont des `Bm` courts —
-l'intersection exacte de `G` et `D`. Sur un corpus au vocabulaire large comme
-GuitarSet, le mécanisme se déclencherait beaucoup moins.
+**EXP RÉFUTÉ — le fondu ciblé par le vocabulaire dominant.** Narcisse :
+« teste la piste du vocabulaire dominant ? ». Ne fondre que les segments courts
+dont l'étiquette est hors du vocabulaire du morceau. Le vocabulaire est
+pourtant trouvé juste — `C, D, Em, G`, sa boucle exacte, à 85 % de couverture —
+et les segments hors vocabulaire tombent de 26 à 11. Mais les transitions
+**fautives montent de 50 à 55** : retirer le `Bm` entre deux accords ne corrige
+pas la transition, il la **crée**. Le `Bm` masquait un `G→D` qu'on révèle en le
+supprimant. Réfuté par son propre morceau.
+
+Vérification faite au passage, et rassurante : le gain du fondu uniforme n'était
+pas un artefact de ratio. Les transitions fautives passent de **50 à 20** en
+nombre ABSOLU, et les conformes montent de 59 à 62.
+
+**EXP RÉFUTÉ — le fondu des interruptions A–B–A, et une faute de méthode de ma
+part.** Quatrième forme : ne fondre qu'un segment court encadré par deux fois le
+même accord — un accord brièvement interrompu puis repris, le motif que produit
+l'oscillation entre deux fondamentales à la quinte.
+
+Mesuré **en post-traitement du banc** : majmin 65,0 % → 65,9 % à ×0,80, gain
+médian +0,7 pt, **22 morceaux améliorés contre 8** (test du signe bilatéral
+p = 0,016), positif dans les deux moitiés du corpus et sur les quatre métriques
+à la fois. Assez solide pour livrer — et c'est ce que j'ai cru.
+
+Mesuré **avec le moteur réellement modifié : +0,1 pt.** La cause est une faute
+de méthode : en post-traitement, le mécanisme voit tous les segments ; dans le
+moteur il passe **après** le filtre `min_duration=0.4`, qui a déjà absorbé les
+mêmes B courts. Un proxy et une implémentation ne sont pas la même chose.
+
+Passe déplacée **en amont** de ce filtre : majmin 65,4 % (+0,4 pt), toutes les
+métriques en hausse (root +0,1, triads +0,5, 7es +0,3). Mais le comptage
+apparié, morceau par morceau et avec le vrai moteur, donne **20 mieux / 13 pire
+/ 7 égal**, médiane +0,25 pt, **p = 0,296** — non significatif — et un pire cas
+à **−8,6 pt**. Retiré : `electron/audio-processor.py` est revenu à son état
+d'origine. Les trois formes restent mesurables dans `scripts/corpus-bench.py`
+(`--merge-mode`), avec leur résultat dans leur en-tête.
+
+**Bilan de la journée côté audio : quatre formes de fondu, quatre réfutations.**
+La conclusion tient, et elle rejoint le banc des 180 morceaux : la cause du
+défaut audio est la **fondamentale** — 31,4 % d'erreurs, l'écart de quinte en
+tête (24,1 % des erreurs) — et non la segmentation. Fondre, sous toutes ses
+formes, masque le symptôme. La piste à instruire n'est donc pas le
+post-traitement de la grille mais l'attribution de la fondamentale, là où deux
+fondamentales à la quinte se disputent les mêmes notes.
+
+**Leçon de méthode, à joindre à `[[simuler-le-correctif-avant]]` :** simuler un
+correctif sur les données réelles ne suffit pas quand la simulation
+court-circuite les filtres du moteur. Trois chiffres crédibles et faux sont
+sortis de cette seule journée — le proxy du fondu A–B–A (+0,9 pt contre +0,1 réel),
+l'oracle par morceau (+2,0 pt, fraction choisie après coup) et la régularité
+prise à l'envers. Chaque fois, c'est la mesure appariée avec le vrai moteur qui
+a tranché.
 
 **Ce qui a marché, et c'est bien du contexte — mais étroit.** Côté MIDI, deux
 mécanismes livrés aujourd'hui utilisent le contexte sans choisir la
@@ -241,26 +287,36 @@ valides des mêmes notes, jamais à en inventer une.
 
 ## Prochaines actions
 
-1. **Ouvrir Electron** et regarder les six changements. Rien n'a été vu tourner.
+1. **Ouvrir Electron** et regarder les huit changements. Rien n’a été vu tourner.
 2. Ranger cette note et celle de la veille (1433 lignes) dans le coffre.
 3. Le Temps réel (`src/main.js`) nomme encore avec `detectChord` quand Pédagogie
    et Sessions MIDI utilisent `nameMidiChord` : les mêmes notes peuvent
    s'afficher différemment selon l'onglet.
-4. Les trois absorptions restantes (47,5 s, 50 s, 2:16) et les neuf étiquettes
-   de la famille `Bbadd11/D` / `Ebmaj9/D` / `Cmadd9/Eb`.
+4. Les trois absorptions restantes (47,5 s, 50 s, 2:16) et les trois `Cmadd9/Eb` ;
+   les familles `Bbadd11/D` et `Ebmaj9/D` sont corrigées.
+5. Côté audio, instruire l'attribution de la fondamentale plutôt que le
+   post-traitement de la grille : quatre formes de fondu y ont été réfutées.
+6. Se doter d'une métrique de SÉQUENCE (distance d'édition sur la suite des
+   accords) : le majmin MIREX, pondéré par la durée, ne voit presque pas le
+   défaut dont Narcisse se plaint.
 
 ## Questions pour Narcisse
 
-- L'`Esus4` de Session_017 est devenu **`Emadd11`** : le La est bien joué et
-  tenu tout du long, donc l'étiquette le dit. Tu avais dicté « mi mineur ».
-  Veux-tu le nom précis (`Emadd11`) ou le nom simple (`Em`), la quarte étant
-  traitée comme un appui ?
+- **Tranché le 26/10** : l'`Esus4` devient « `Em` » tout court, à sa demande
+  (« Em simple »). La quarte ajoutée sur une triade entière est un appui, pas
+  une couleur — et l'effet de bord a corrigé ses trois `Bbadd11/D` en `Bb/D`.
 - Les pastilles trop étroites s'élargissent maintenant au minimum nécessaire
   pour écrire leur fondamentale, ce qui les fait **empiéter légèrement** sur
   leur voisine. Est-ce lisible à l'écran, ou faut-il plutôt un décalage
-  vertical ?
-- Les neuf étiquettes restantes demandent le **contexte harmonique**, dont le
-  retrait est une décision documentée du coffre (`1a4d9dd`, `04289bd`). Le
-  rouvrir est un chantier, pas une retouche — et c'est ton appel. On a
-  maintenant un banc de 180 morceaux pour juger, ce qui n'existait pas quand la
-  décision a été prise.
+  vertical ? **À regarder dans Electron.**
+- Il reste trois `Cmadd9/Eb` là où il entend La bémol. À 47,5 s le La bémol
+  n'est frappé qu'à 48,13 s : le segment de 0,63 s qui précède n'en contient
+  aucune note, donc aucun nommage ne peut le trouver. C'est un problème de
+  FRONTIÈRE, pas de nom — à instruire avec les trois absorptions restantes.
+- Côté audio, la décision de rouvrir le contexte harmonique est tranchée par la
+  mesure, et par la négative : les deux mécanismes retirés par le coffre ne
+  touchent pas son défaut (voir les quatre pistes ci-dessus), et les quatre
+  formes de fondu sont réfutées. Le chantier utile est l'attribution de la
+  fondamentale. Ce n'est pas une retouche, et c'est son appel — mais on a
+  maintenant le banc de 180 morceaux et le comptage apparié pour juger, ce qui
+  n'existait pas quand la décision a été prise.
