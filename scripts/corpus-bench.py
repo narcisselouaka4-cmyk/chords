@@ -288,7 +288,109 @@ def merge_short_segments(segments, fraction):
     return segs
 
 
-def bench_pairs(pairs, clean_mode='legacy', progress=False, merge_sweep=None):
+# [Claude] — 2026-10-26 — Variante ciblée du fondu, après réfutation du fondu
+# uniforme (−1,1 pt de majmin sur 40 morceaux de GuitarSet à ×0,67).
+#
+# L'idée vient de la mesure : sur « Saint Esprit », 13 des 26 segments hors
+# vocabulaire sont des « Bm » courts — l'intersection exacte de G et de D, les
+# deux accords entre lesquels le moteur oscille. Ce ne sont pas des accords mais
+# des mélanges. Un morceau à quatre accords les expose crûment ; un morceau au
+# vocabulaire large, non. La condition doit donc porter sur le VOCABULAIRE du
+# morceau et pas seulement sur la durée du segment.
+def dominant_vocabulary(segments, coverage=0.85):
+    """Les étiquettes qui couvrent `coverage` de la durée, les plus longues d'abord."""
+    from collections import Counter
+    weight = Counter()
+    for seg in segments:
+        label = seg.get('chord')
+        if label and label != 'N':
+            weight[label] += float(seg['endTime']) - float(seg['startTime'])
+    total = sum(weight.values())
+    if total <= 0:
+        return set()
+    kept, run = set(), 0.0
+    for label, w in weight.most_common():
+        kept.add(label)
+        run += w
+        if run >= coverage * total:
+            break
+    return kept
+
+
+def merge_offvocab_segments(segments, fraction, coverage=0.85):
+    """Fond les segments courts ET hors du vocabulaire dominant, eux seuls."""
+    if fraction <= 0 or len(segments) < 4:
+        return segments
+    import statistics
+    segs = [dict(s) for s in segments]
+    spans = [float(s['endTime']) - float(s['startTime']) for s in segs]
+    threshold = statistics.median(spans) * fraction
+    vocab = dominant_vocabulary(segs, coverage)
+    if not vocab:
+        return segs
+    changed = True
+    while changed and len(segs) > 2:
+        changed = False
+        for i, seg in enumerate(segs):
+            if float(seg['endTime']) - float(seg['startTime']) >= threshold:
+                continue
+            if seg.get('chord') in vocab:
+                continue          # un accord du morceau reste, même bref
+            neighbours = [x for x in (segs[i - 1] if i > 0 else None,
+                                      segs[i + 1] if i + 1 < len(segs) else None) if x]
+            if not neighbours:
+                continue
+            host = max(neighbours, key=lambda x: float(x['endTime']) - float(x['startTime']))
+            host['startTime'] = min(float(host['startTime']), float(seg['startTime']))
+            host['endTime'] = max(float(host['endTime']), float(seg['endTime']))
+            segs.pop(i)
+            changed = True
+            break
+    return segs
+
+
+def merge_interruptions(segments, fraction, coverage=None):
+    """Fond un segment court ENCADRÉ par deux segments de même étiquette.
+
+    Troisième forme essayée, après deux réfutations. Le fondu uniforme corrige
+    bien l'ordre sur « Saint Esprit » (transitions fautives 50 → 20) mais coûte
+    1,1 pt de majmin sur GuitarSet : sur une guitare solo, un segment bref est
+    souvent un vrai accord. Le fondu ciblé par vocabulaire est pire encore sur
+    son morceau (50 → 55 fautives) : retirer un « Bm » entre deux accords CRÉE
+    la transition directe au lieu de la corriger.
+
+    Ne reste que le motif A–B–A : un accord interrompu brièvement par un autre,
+    puis repris. Là, l'interruption est presque sûrement parasite, et la fondre
+    restaure un A continu. Le motif est fréquent quand le moteur oscille entre
+    deux fondamentales à la quinte (le défaut n°1 du banc), et rare dans une
+    progression qui avance.
+    """
+    if fraction <= 0 or len(segments) < 3:
+        return segments
+    import statistics
+    segs = [dict(s) for s in segments]
+    spans = [float(s['endTime']) - float(s['startTime']) for s in segs]
+    threshold = statistics.median(spans) * fraction
+    changed = True
+    while changed and len(segs) > 2:
+        changed = False
+        for i in range(1, len(segs) - 1):
+            seg = segs[i]
+            if float(seg['endTime']) - float(seg['startTime']) >= threshold:
+                continue
+            before, after = segs[i - 1], segs[i + 1]
+            if before.get('chord') != after.get('chord') or before.get('chord') == seg.get('chord'):
+                continue
+            # Les trois n'en font plus qu'un : A reprend sans interruption.
+            before['endTime'] = max(float(before['endTime']), float(after['endTime']))
+            del segs[i:i + 2]
+            changed = True
+            break
+    return segs
+
+
+def bench_pairs(pairs, clean_mode='legacy', progress=False, merge_sweep=None,
+                merge_fn=None):
     """pairs : [(nom, wav, chemin .lab de référence)]"""
     rows, failures = [], []
     total = len(pairs)
@@ -308,7 +410,8 @@ def bench_pairs(pairs, clean_mode='legacy', progress=False, merge_sweep=None):
             # Une seule exécution du moteur, plusieurs fractions comparées.
             per_fraction = {}
             for fraction in merge_sweep:
-                merged = merge_short_segments(analysis['chords'], fraction)
+                merged = (merge_fn or globals().get('MERGE_FN') or merge_short_segments)(
+                    analysis['chords'], fraction)
                 try:
                     sc = score(ref_i, ref_l, *intervals_labels(merged))
                 except Exception:
@@ -922,6 +1025,12 @@ def main():
                    help="version du corpus (slakh : baby ≈ 5 Go, 2100-redux ≈ 100 Go)")
     p.add_argument('--all-tracks', action='store_true',
                    help='ne pas filtrer (GuitarSet : inclut les solos, mesurés contre la grille du comp)')
+    p.add_argument('--merge-mode', default='uniform',
+                   choices=('uniform', 'offvocab', 'interruptions'),
+                   help="forme du fondu mesuré par --merge-sweep : 'uniform' (tout segment "
+                        "court), 'offvocab' (court ET hors du vocabulaire dominant), "
+                        "'interruptions' (court ET encadré par deux fois le même accord). "
+                        "Les trois ont été mesurées le 26/10/2026 : voir leurs en-têtes.")
     p.add_argument('--merge-sweep', metavar='FRACTIONS', default=None,
                    help='mesure le fondu des segments courts à plusieurs fractions du pas '
                         'harmonique médian, en une seule exécution du moteur (ex. 0,0.5,0.67,0.8)')
@@ -956,6 +1065,10 @@ def main():
     sweep = None
     if args.merge_sweep:
         sweep = sorted({float(x) for x in args.merge_sweep.split(',') if x.strip()} | {0.0})
+        globals()['MERGE_FN'] = {'uniform': merge_short_segments,
+                                 'offvocab': merge_offvocab_segments,
+                                 'interruptions': merge_interruptions}[args.merge_mode]
+        print(f"forme du fondu mesurée : {args.merge_mode}")
     return 0 if bench_mirdata(args.bench, Path(args.data_home), args.limit, args.clean_mode, args.chords, args.all_tracks, args.version,
                               args.diagnose_root, sweep) else 1
 
