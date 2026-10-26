@@ -235,6 +235,16 @@ def score(ref_intervals, ref_labels, est_intervals, est_labels):
         ref_intervals, ref_labels, est_intervals, est_labels)
     durations = mir_eval.util.intervals_to_durations(intervals)
     out = {}
+    # Score d'ORDRE, sur la suite d'accords : indépendant des durées.
+    seq = sequence_score(ref_l, est_l, durations, durations)
+    if seq:
+        out.update({'sequence': seq['sequence'], 'seq_root': 0.0,
+                    'ref_len': seq['ref_len'], 'est_len': seq['est_len'],
+                    'substitutions': seq['substitutions'],
+                    'insertions': seq['insertions'], 'deletions': seq['deletions']})
+        seq_root = sequence_score(ref_l, est_l, durations, durations, vocabulary='root')
+        if seq_root:
+            out['seq_root'] = seq_root['sequence']
     for metric in ('root', 'majmin', 'triads', 'sevenths'):
         comparison = getattr(mir_eval.chord, metric)(ref_l, est_l)
         # mir_eval rend -1 pour les accords hors du vocabulaire de la métrique.
@@ -247,6 +257,99 @@ def score(ref_intervals, ref_labels, est_intervals, est_labels):
         if out[metric] != out[metric]:  # NaN
             return None
     return out
+
+
+# [Claude] — 2026-10-26 — Mesure de SÉQUENCE : l'ordre des accords, pas le temps.
+#
+# Les métriques MIREX (root, majmin, triads, sevenths) sont pondérées par la
+# DURÉE. Sur « Saint Esprit » (344 s), un « Bm » parasite d'une seconde glissé
+# entre un Sol et un Ré coûte 0,3 point : autant dire rien. Narcisse, lui, le
+# voit immédiatement — « un pianiste débutant va penser qu'il y a eu deux
+# enregistrements pour le même accord ».
+#
+# Cette métrique-ci réduit chaque grille à sa SUITE d'accords — répétitions
+# consécutives fusionnées, silences retirés, durées ignorées — et compte le
+# nombre de corrections qui mènent de l'une à l'autre (distance d'édition). Un
+# accord en trop, un accord manquant, un accord mal nommé coûtent chacun UN
+# point, qu'il dure une seconde ou dix.
+#
+# Elle ne remplace pas les métriques de durée : un relevé juste dans l'ordre
+# mais décalé dans le temps y obtient un bon score. Les deux se lisent ensemble.
+
+def chord_sequence(labels, durations=None, vocabulary='majmin'):
+    """Suite des accords : répétitions fusionnées, « N » retiré, durées ignorées.
+
+    `vocabulary` ramène les étiquettes au même niveau de détail des deux côtés :
+    'root' ne garde que la fondamentale, 'majmin' y ajoute majeur/mineur.
+    """
+    import mir_eval
+    out = []
+    for index, label in enumerate(labels):
+        if durations is not None and durations[index] <= 0:
+            continue
+        if not label or label == 'N' or label == mir_eval.chord.NO_CHORD:
+            continue
+        try:
+            root, semitones, bass = mir_eval.chord.encode(label)
+        except Exception:
+            continue
+        if root < 0:
+            continue
+        if vocabulary == 'root':
+            token = str(root)
+        else:
+            # Mineur si la tierce mineure est présente et la majeure absente.
+            minor = semitones[3] == 1 and semitones[4] == 0
+            token = f"{root}{'m' if minor else ''}"
+        if out and out[-1] == token:
+            continue
+        out.append(token)
+    return out
+
+
+def edit_distance(a, b):
+    """Distance de Levenshtein entre deux suites, et le détail des opérations."""
+    n, m = len(a), len(b)
+    if n == 0 or m == 0:
+        return {'distance': max(n, m), 'substitutions': 0,
+                'insertions': max(0, m - n), 'deletions': max(0, n - m)}
+    # Table complète : les suites d'accords d'un morceau tiennent largement.
+    prev = [{'d': j, 's': 0, 'i': j, 'x': 0} for j in range(m + 1)]
+    for i in range(1, n + 1):
+        cur = [{'d': i, 's': 0, 'i': 0, 'x': i}]
+        for j in range(1, m + 1):
+            if a[i - 1] == b[j - 1]:
+                cur.append(dict(prev[j - 1]))
+                continue
+            sub, ins, dele = prev[j - 1], cur[j - 1], prev[j]
+            best = min((sub, 's'), (ins, 'i'), (dele, 'x'), key=lambda t: t[0]['d'])
+            step = dict(best[0])
+            step['d'] += 1
+            step[best[1]] += 1
+            cur.append(step)
+        prev = cur
+    last = prev[m]
+    return {'distance': last['d'], 'substitutions': last['s'],
+            'insertions': last['i'], 'deletions': last['x']}
+
+
+def sequence_score(ref_labels, est_labels, ref_durations=None, est_durations=None,
+                   vocabulary='majmin'):
+    """Score d'ordre : 100 % quand la suite d'accords est exactement la bonne."""
+    ref = chord_sequence(ref_labels, ref_durations, vocabulary)
+    est = chord_sequence(est_labels, est_durations, vocabulary)
+    if not ref:
+        return None
+    ops = edit_distance(ref, est)
+    longest = max(len(ref), len(est))
+    return {
+        'sequence': 100 * (1 - ops['distance'] / longest) if longest else 0.0,
+        'ref_len': len(ref),
+        'est_len': len(est),
+        'substitutions': ops['substitutions'],
+        'insertions': ops['insertions'],
+        'deletions': ops['deletions'],
+    }
 
 
 # [Claude] — 2026-10-26 — Fondu des segments courts, mesuré avant d'être codé.
@@ -472,9 +575,9 @@ def report_sweep(rows, failures, fractions):
     if not rows:
         print('Aucun morceau mesurable.')
         return False
-    print(f"\n{'fondu':>7} {'majmin':>8} {'root':>8} {'triads':>8} {'7es':>8} "
-          f"{'segments':>9}  {'écart majmin':>13}")
-    print('─' * 70)
+    print(f"\n{'fondu':>7} {'ordre':>8} {'majmin':>8} {'root':>8} {'segments':>9} "
+          f"{'en trop':>8} {'manquants':>10}  {'écart ordre':>12}")
+    print('─' * 82)
     base = None
     for fraction in fractions:
         got = [r[1][fraction] for r in rows if fraction in r[1]]   # [(scores, n_segments)]
@@ -483,14 +586,17 @@ def report_sweep(rows, failures, fractions):
         avg = {m: sum(sc[m] for sc, _ in got) / len(got)
                for m in ('root', 'majmin', 'triads', 'sevenths')}
         nseg = sum(n for _, n in got) / len(got)
+        seqs = [sc for sc, _ in got if 'sequence' in sc]
+        seq_avg = sum(x['sequence'] for x in seqs) / len(seqs) if seqs else float('nan')
+        ins = sum(x['insertions'] for x in seqs)
+        dele = sum(x['deletions'] for x in seqs)
         if base is None:
-            base = avg['majmin']
-        delta = avg['majmin'] - base
-        mark = '' if fraction == 0 else f"{delta:+6.1f} pt"
+            base = seq_avg
+        mark = '' if fraction == 0 else f"{seq_avg - base:+6.1f} pt"
         label = 'aucun' if fraction == 0 else f"×{fraction:.2f}"
-        print(f"{label:>7} {avg['majmin']:7.1f}% {avg['root']:7.1f}% {avg['triads']:7.1f}% "
-              f"{avg['sevenths']:7.1f}% {nseg:9.1f}  {mark:>13}")
-    print('─' * 70)
+        print(f"{label:>7} {seq_avg:7.1f}% {avg['majmin']:7.1f}% {avg['root']:7.1f}% "
+              f"{nseg:9.1f} {ins:8d} {dele:10d}  {mark:>12}")
+    print('─' * 82)
     print(f"{len(rows)} morceaux mesurés, {len(failures)} écartés")
 
     # Une moyenne qui monte de moins d'un point peut n'être que du bruit. La
@@ -499,13 +605,14 @@ def report_sweep(rows, failures, fractions):
     # qui améliore trente morceaux et en dégrade trois n'est pas un hasard.
     if len(fractions) > 1 and any(0.0 in r[1] for r in rows):
         import statistics
-        print(f"\n{'fondu':>7} {'mieux':>6} {'pire':>6} {'égal':>6} {'gain médian':>12} "
+        print(f"\n  Comptage apparié sur l'ORDRE")
+        print(f"{'fondu':>7} {'mieux':>6} {'pire':>6} {'égal':>6} {'gain médian':>12} "
               f"{'pire cas':>9}")
         print('─' * 52)
         for fraction in fractions:
             if fraction == 0.0:
                 continue
-            deltas = [r[1][fraction][0]['majmin'] - r[1][0.0][0]['majmin']
+            deltas = [r[1][fraction][0].get('sequence', 0) - r[1][0.0][0].get('sequence', 0)
                       for r in rows if fraction in r[1] and 0.0 in r[1]]
             if not deltas:
                 continue
@@ -552,14 +659,31 @@ def short_name(name, width=44):
 
 def report(rows, failures):
     if rows:
-        print(f"\n{'morceau':44s} {'root':>7s} {'majmin':>7s} {'triads':>7s} {'7es':>7s}  {'est':>4s}/{'réf':>4s}")
-        print('─' * 92)
+        print(f"\n{'morceau':44s} {'root':>7s} {'majmin':>7s} {'triads':>7s} {'7es':>7s} {'ordre':>7s}  {'est':>4s}/{'réf':>4s}")
+        print('─' * 101)
         for name, s, n_est, n_ref in rows:
-            print(f"{short_name(name):44s} {s['root']:6.1f}% {s['majmin']:6.1f}% {s['triads']:6.1f}% {s['sevenths']:6.1f}%  {n_est:4d}/{n_ref:4d}")
-        print('─' * 92)
+            print(f"{short_name(name):44s} {s['root']:6.1f}% {s['majmin']:6.1f}% {s['triads']:6.1f}% "
+                  f"{s['sevenths']:6.1f}% {s.get('sequence', float('nan')):6.1f}%  {n_est:4d}/{n_ref:4d}")
+        print('─' * 101)
         avg = {m: sum(r[1][m] for r in rows) / len(rows) for m in ('root', 'majmin', 'triads', 'sevenths')}
+        seq_rows = [r[1] for r in rows if 'sequence' in r[1]]
+        seq_avg = sum(x['sequence'] for x in seq_rows) / len(seq_rows) if seq_rows else float('nan')
         print(f"{'MOYENNE sur ' + str(len(rows)) + ' morceaux':44s} {avg['root']:6.1f}% {avg['majmin']:6.1f}% "
-              f"{avg['triads']:6.1f}% {avg['sevenths']:6.1f}%")
+              f"{avg['triads']:6.1f}% {avg['sevenths']:6.1f}% {seq_avg:6.1f}%")
+        if seq_rows:
+            # Le détail de l'ordre : ce qui coûte, et dans quel sens le relevé
+            # dérive. Beaucoup d'ajouts = sur-découpage ; beaucoup de manques =
+            # absorption ; beaucoup de substitutions = mauvaise fondamentale.
+            tot_sub = sum(x['substitutions'] for x in seq_rows)
+            tot_ins = sum(x['insertions'] for x in seq_rows)
+            tot_del = sum(x['deletions'] for x in seq_rows)
+            ref_len = sum(x['ref_len'] for x in seq_rows)
+            est_len = sum(x['est_len'] for x in seq_rows)
+            root_avg = sum(x['seq_root'] for x in seq_rows) / len(seq_rows)
+            print(f"\n  Ordre des accords — {seq_avg:.1f} % (fondamentale seule : {root_avg:.1f} %)")
+            print(f"    mal nommés  {tot_sub:5d}   en trop {tot_ins:5d}   manquants {tot_del:5d}")
+            print(f"    accords relevés {est_len} pour {ref_len} attendus "
+                  f"({est_len / ref_len:.2f}×)" if ref_len else '')
     for name, err in failures:
         print(f"⚠  {name} : {' '.join(err)}")
     return bool(rows)
