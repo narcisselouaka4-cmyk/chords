@@ -3,11 +3,49 @@
 // Module pur, sans effet de bord : aucun appel réseau, aucun accès DOM. Il
 // consomme le moteur d'accords existant pour comparer les notes jouées avec
 // le nom d'accord annoncé (sous-chantier 3.3).
+//
+// [Claude] — 2026-10-26 — Le nommage passe à `nameMidiChord`, celui des
+// Sessions MIDI, comme l'a fait `chord-labeling.js` la veille. Narcisse : « il
+// y a aussi un modèle de détection là-dedans, et à mon avis il est obsolète ».
+//
+// Ici la FONDAMENTALE est tout : ces deux fonctions comparent la fondamentale
+// jouée à celle que le professeur annonce, ou à celle du degré qu'il nomme. Une
+// fondamentale fausse fait dire à l'application que le professeur se contredit
+// alors qu'il a raison.
+//
+// Mesuré sur les quatre sessions de Narcisse, 148 accords : les deux moteurs
+// donnent une fondamentale DIFFÉRENTE 16 fois (10,8 %), et l'ancien ne répond
+// pas 8 fois de plus (5,4 %). Ses désaccords portent justement sur les accords
+// que Narcisse a dictés lui-même — « Gm7 » pour son Si♭6/Ré, « F7sus2 » pour
+// son Do mineur, « Ebmaj7sus2 » pour son Si♭/Ré. Sur ces mêmes sessions, le
+// nouveau moteur ne perd aucune couverture (zéro non-réponse).
+//
+// `detectChord` reste le repli : il répond sur les DYADES, que `nameMidiChord`
+// refuse par principe (moins de trois classes de hauteur), et la lecture d'un
+// clavier à l'image en produit.
 
 import { detectChord } from '../chord-engine/index.js';
+import { nameMidiChord } from '../recorder/midi-chord-namer.js';
 import { formatPc } from '../chord-engine/naming.js';
 import { noteNameToPc, latinNoteNameToPc, NOTE_NAMES, formatNote } from '../chord-engine/intervals.js';
 import { Key } from 'tonal';
+
+/**
+ * L'accord que forment ces notes : `nameMidiChord` d'abord — il part des notes
+ * réellement jouées et place la fondamentale là où l'oreille l'entend — puis
+ * `detectChord` en repli pour ce qu'il refuse (dyades, notes isolées).
+ * @param {number[]} midis
+ * @returns {{rootPc:number, symbol:string, name?:string}|null}
+ */
+function chordFromMidi(midis) {
+  const named = nameMidiChord(midis);
+  if (named && named.rootPc != null) {
+    return { rootPc: named.rootPc, symbol: named.symbol ?? '', name: named.name };
+  }
+  const detected = detectChord(midis);
+  if (!detected || detected.rootPc == null || detected.symbol === '?') return null;
+  return detected;
+}
 
 /**
  * Regroupe les notes jouées par fenêtre de temps.
@@ -129,8 +167,8 @@ export function checkChordNameAgreement(groups) {
     const announcedRootPc = extractChordRootPc(impliedChordName);
     if (announcedRootPc === null) continue;
 
-    const detected = detectChord(group.notes.map((n) => n.midi));
-    if (!detected || detected.symbol === '?') continue;
+    const detected = chordFromMidi(group.notes.map((n) => n.midi));
+    if (!detected) continue;
 
     const match = detected.rootPc === announcedRootPc;
     results.push({ group, impliedChordName, detected, announcedRootPc, match });
@@ -280,8 +318,8 @@ export function checkDegreeKeyAgreement(groups) {
     const expectedRootPc = extractChordRootPc(expectedTriad);
     if (expectedRootPc === null) continue;
 
-    const detected = detectChord(group.notes.map((n) => n.midi));
-    if (!detected || detected.symbol === '?') continue;
+    const detected = chordFromMidi(group.notes.map((n) => n.midi));
+    if (!detected) continue;
 
     let match = detected.rootPc === expectedRootPc;
 
