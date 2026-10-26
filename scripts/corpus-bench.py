@@ -493,6 +493,29 @@ def report_sweep(rows, failures, fractions):
     print('─' * 70)
     print(f"{len(rows)} morceaux mesurés, {len(failures)} écartés")
 
+    # Une moyenne qui monte de moins d'un point peut n'être que du bruit. La
+    # mesure est APPARIÉE — même moteur, mêmes morceaux — donc on compte les
+    # morceaux gagnants et perdants, et on donne le gain médian : un mécanisme
+    # qui améliore trente morceaux et en dégrade trois n'est pas un hasard.
+    if len(fractions) > 1 and any(0.0 in r[1] for r in rows):
+        import statistics
+        print(f"\n{'fondu':>7} {'mieux':>6} {'pire':>6} {'égal':>6} {'gain médian':>12} "
+              f"{'pire cas':>9}")
+        print('─' * 52)
+        for fraction in fractions:
+            if fraction == 0.0:
+                continue
+            deltas = [r[1][fraction][0]['majmin'] - r[1][0.0][0]['majmin']
+                      for r in rows if fraction in r[1] and 0.0 in r[1]]
+            if not deltas:
+                continue
+            up = sum(1 for d in deltas if d > 0.05)
+            down = sum(1 for d in deltas if d < -0.05)
+            same = len(deltas) - up - down
+            print(f"×{fraction:<6.2f} {up:>6} {down:>6} {same:>6} "
+                  f"{statistics.median(deltas):>+11.1f} pt {min(deltas):>+8.1f}")
+        print('─' * 52)
+
     # Le fondu a-t-il un sens partout, ou seulement sur les morceaux au pas
     # harmonique régulier ? C'est l'hypothèse à trancher avant de le livrer.
     regs = [r[4] for r in rows if len(r) > 4]
