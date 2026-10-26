@@ -172,14 +172,3 @@ export function generateKeyboard(
   <rect id="board-border" width="${keyboardNotes.width}" height="${keyboardNotes.height}" x="0" y="0" />
 </svg>`;
 }
-
-let currentPitch = 0;
-let currentMod = 0;
-
-export function setPitchWheel(value) {
-  currentPitch = value;
-}
-
-export function setModWheel(value) {
-  currentMod = value;
-}

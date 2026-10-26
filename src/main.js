@@ -1,4 +1,5 @@
-import { generateKeyboard, keyboardLayout, setPitchWheel, setModWheel } from './ui/keyboard-svg.js';
+import { generateKeyboard, keyboardLayout } from './ui/keyboard-svg.js';
+import { initKeyboardWheels, setPitchWheel, setModWheel } from './ui/keyboard-wheels.js';
 import { readSpelling, writeSpelling, DEFAULT_SPELLING } from './chord-engine/spelling-preference.js';
 import { updateDisplay, clearDisplay } from './ui/display.js';
 // [Claude] — 2026-10-02 — Temps réel : « Lecture en direct » (roue, lectures).
@@ -15,7 +16,7 @@ import {
   setPcKeyboardToMidiEnabled,
   isPcKeyboardToMidiEnabled,
 } from './virtual-keyboard.js';
-import { setSustain, ensurePianoSamples, resumeAudio } from './audio/simple-synth.js';
+import { setSustain, ensurePianoSamples, resumeAudio, setPitchBend, setModulation } from './audio/simple-synth.js';
 
 import { initWebMidi, getWebMidiInputs, openWebMidiInput } from './midi-fallback.js';
 // [Claude] — 2026-10-02 — Qui est un vrai clavier (jamais notre propre port virtuel).
@@ -636,12 +637,14 @@ function handleSustain(value) {
 function handlePitchWheel(value) {
   state.currentPitch = value;
   setPitchWheel(value);
+  setPitchBend(value);
   if (!state.isPlayback) feedRecorderPitchWheel(value);
 }
 
 function handleModWheel(value) {
   state.currentMod = value;
   setModWheel(value);
+  setModulation(value);
   if (!state.isPlayback) feedRecorderModWheel(value);
 }
 
@@ -3314,6 +3317,7 @@ async function init() {
   safeInit('initAppSettings', initAppSettings);
   safeInit('initLibraryModal', initLibraryModal);
   safeInit('initKeyboardCollapse', initKeyboardCollapse);
+  safeInit('initKeyboardWheels', () => initKeyboardWheels({ onPitch: handlePitchWheel, onMod: handleModWheel }));
   safeInit('initPanelToggles', initPanelToggles);
   safeInit('refreshKeyboard', refreshKeyboard);
   safeInit('initSettings', initSettings);

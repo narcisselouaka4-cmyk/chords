@@ -2217,6 +2217,9 @@
               <!-- Interrupteurs : l'apparence est celle d'Astra, la mécanique
                    reste la case à cocher que main.js lit (.checked). -->
               <div class="vk-switches">
+                <label class="vk-switch" title="Afficher ou masquer les molettes de pitch bend et de modulation">
+                  <input type="checkbox" id="keyboard-wheels-toggle" checked aria-controls="keyboard-wheels" /><span>Molettes</span>
+                </label>
                 <label class="vk-switch" title="Activer/désactiver le routage du clavier PC vers le clavier MIDI virtuel">
                   <input type="checkbox" id="pc-keyboard-midi" checked /><span>PC → MIDI</span>
                 </label>
@@ -2233,6 +2236,18 @@
           <!-- Lit des touches. Le SVG de Zic est inséré tel quel par
                virtual-keyboard.js : on ne fournit que le fond et la marge. -->
           <div class="vk-bed">
+            <div class="vk-wheels" id="keyboard-wheels" role="group" aria-label="Molettes d'expression">
+              <label class="vk-wheel" title="Pitch bend : ±2 demi-tons, retour au centre au relâchement">
+                <span>Pitch</span>
+                <input type="range" id="keyboard-pitch" min="-1" max="1" step="0.001" value="0" aria-label="Pitch bend" aria-orientation="vertical" />
+                <output id="keyboard-pitch-value" for="keyboard-pitch">0.0</output>
+              </label>
+              <label class="vk-wheel" title="Modulation : vibrato. Double-clic ou Échap pour remettre à zéro">
+                <span>Mod.</span>
+                <input type="range" id="keyboard-mod" min="0" max="1" step="0.001" value="0" aria-label="Modulation" aria-orientation="vertical" />
+                <output id="keyboard-mod-value" for="keyboard-mod">0 %</output>
+              </label>
+            </div>
             <div class="keyboard-container-wrap" id="keyboard-container-wrap">
               <div id="keyboard-container" class="keyboard-container"></div>
             </div>

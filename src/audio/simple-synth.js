@@ -1,6 +1,48 @@
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 const activeOscillators = new Map();
 let synthMode = 'piano';
+let pitchBend = 0;
+let modulation = 0;
+
+function expressionValue(value, min) {
+  return Number.isFinite(value) ? Math.max(min, Math.min(1, value)) : 0;
+}
+
+/** Pitch bend normalisé MIDI : ±2 demi-tons sur le son interne. */
+export function setPitchBend(value) {
+  pitchBend = expressionValue(value, -1);
+  for (const nodes of activeOscillators.values()) {
+    for (const { param, base } of nodes.expressionTargets) {
+      param.setTargetAtTime(base + pitchBend * 200, audioCtx.currentTime, 0.01);
+    }
+  }
+}
+
+/** CC1 : profondeur du vibrato (5 Hz, jusqu'à 30 cents) sur le son interne. */
+export function setModulation(value) {
+  modulation = expressionValue(value, 0);
+  for (const nodes of activeOscillators.values()) {
+    nodes.vibratoDepth.gain.setTargetAtTime(modulation * 30, audioCtx.currentTime, 0.01);
+  }
+}
+
+function attachExpression(nodes) {
+  nodes.expressionTargets = (nodes.pitchTargets || nodes.oscillators)
+    .map((source) => ({ param: source.detune, base: source.detune.value }));
+  const vibrato = audioCtx.createOscillator();
+  const depth = audioCtx.createGain();
+  vibrato.frequency.value = 5;
+  depth.gain.value = modulation * 30;
+  vibrato.connect(depth);
+  for (const { param, base } of nodes.expressionTargets) {
+    param.value = base + pitchBend * 200;
+    depth.connect(param);
+  }
+  vibrato.start();
+  nodes.vibratoDepth = depth;
+  nodes.oscillators.push(vibrato);
+  nodes.gains.push(depth);
+}
 
 // [Claude] — 2026-07-07 — Bus de sortie permanent du synthé.
 // Toutes les notes passent par ce gain, qui est branché sur la destination système.
@@ -300,7 +342,7 @@ function playPianoNote(midi, velocity) {
   oscillators.push(shimmer);
   gains.push(shimmerGain);
 
-  return { oscillators, gains, masterGain, filter };
+  return { oscillators, gains, masterGain, filter, pitchTargets: oscillators.filter((osc) => osc !== shimmer) };
 }
 
 // Rhodes FM synthesis
@@ -367,6 +409,7 @@ function playRhodesNote(midi, velocity) {
   // Ils meurent vite : c'est le cliquetis de l'attaque.
   const bellPartials = [5.01, 8.02, 13.03];
   const bellGains = [];
+  const bellOscillators = [];
   for (const ratio of bellPartials) {
     const osc = audioCtx.createOscillator();
     const g = audioCtx.createGain();
@@ -378,6 +421,7 @@ function playRhodesNote(midi, velocity) {
     osc.connect(g);
     osc.start(now);
     bellGains.push(g);
+    bellOscillators.push(osc);
   }
 
   // Enveloppe : attaque douce, bloom, puis décroissance longue du registre.
@@ -393,7 +437,7 @@ function playRhodesNote(midi, velocity) {
   carrier.start(now);
   carrier2.start(now);
 
-  const oscillators = [modulator, carrier, carrier2];
+  const oscillators = [modulator, carrier, carrier2, ...bellOscillators];
   const gains = [modGain, carrierGain, carrier2Gain, ...bellGains];
 
   return { oscillators, gains, masterGain, filter };
@@ -436,6 +480,7 @@ export function playNote(midi, velocity = 0.8) {
       : playPianoNote(midi, vel);
   }
 
+  attachExpression(nodes);
   activeOscillators.set(midi, nodes);
 }
 

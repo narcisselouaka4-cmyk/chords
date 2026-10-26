@@ -85,6 +85,28 @@
 
 /* --- Keys --------------------------------------------------------------- */
 .vk-bed { position: relative; flex: 1; min-height: 0; padding: 9px 10px 0; background: linear-gradient(#15161b, #101116); }
+.vk-bed { display: flex; gap: 10px; }
+.vk-bed > .keyboard-container-wrap { flex: 1; min-width: 0; }
+.vk-wheels { flex: 0 0 94px; display: flex; gap: 10px; padding-right: 10px; border-right: 1px solid var(--vk-line); }
+.vk-wheels[hidden] { display: none; }
+.vk-wheel { display: grid; grid-template-rows: 13px minmax(0, 1fr) 13px; justify-items: center; gap: 3px; width: 36px; min-height: 0; color: var(--vk-secondary); font-size: 10px; }
+.vk-wheel output { font: 9px var(--vk-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+#keyboard-panel .vk-wheel input[type='range'] {
+  appearance: none; writing-mode: vertical-lr; direction: rtl;
+  width: 28px; height: 100%; min-height: 0; margin: 0; padding: 0;
+  border: 1px solid #08090c; border-radius: 8px; cursor: ns-resize; touch-action: none;
+  background: linear-gradient(90deg, #121318, #454750 45%, #24262d 75%, #111216);
+  box-shadow: inset 0 3px 5px #0009, inset 0 -3px 5px #0009;
+}
+.vk-wheel input[type='range']::-webkit-slider-runnable-track {
+  background: repeating-linear-gradient(0deg, #0000 0 3px, #ffffff16 3px 4px, #0006 4px 5px); border-radius: 7px;
+}
+.vk-wheel input[type='range']::-webkit-slider-thumb {
+  appearance: none; width: 26px; height: 12px; border: 1px solid #777985; border-radius: 4px;
+  background: linear-gradient(#656873, #262830 40%, var(--vk-accent) 43% 57%, #22242c 60%, #555862);
+  box-shadow: 0 2px 4px #0009;
+}
+.vk-wheel input:focus-visible { outline: 2px solid var(--vk-accent); outline-offset: 2px; }
 .vk-bed::after { content: ""; position: absolute; inset: 0 10px auto 10px; height: 8px; border-radius: 3px 3px 0 0; background: linear-gradient(#0c0d11, #16171d); box-shadow: 0 2px 5px #000000b3; pointer-events: none; }
 .vk-keys { position: relative; display: flex; height: 100%; min-height: 0; padding-top: 6px; }
 .vk-white { position: relative; flex: 1; min-width: 0; border-right: 1px solid #cfccc7; border-radius: 0 0 4px 4px; background: linear-gradient(var(--vk-white) 0%, #f2f0ed 62%, var(--vk-white-2) 100%); box-shadow: inset 0 -3px 0 #c9c6c1, inset -1px 0 0 #ffffffcc, 0 2px 3px #0000004d; cursor: pointer; touch-action: none; transition: background .07s, transform .07s; }

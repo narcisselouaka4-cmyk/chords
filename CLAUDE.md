@@ -26,27 +26,28 @@ les concepts musicaux partagés (`concepts/`), les sources brutes (`raw/`) et la
 Definition of Done du module Analyse
 (`features/analyse-definition-of-done.md`).
 
-Le coffre doit aussi être **mis à jour** en fin de tâche : `state/` + entrée datée en fin de
-`log.md`, plus `experiments/` ou `decisions/` si pertinent ; puis, dans le coffre, `git add`
-par chemins explicites, `git commit` et `git push`. Une session sans accès au PC dépose ses
-notes dans `docs/vault-a-reporter/` ; la session suivante sur le PC les range dans le coffre
-(`bash scripts/sync-vault.sh`).
+Le coffre doit être **mis à jour à chaque commit applicatif**, sans attendre une nouvelle
+demande ni la fin de plusieurs sessions (consigne explicite de Narcisse du 26/10/2026).
+Voir aussi `AGENTS.md` : note du module, SHA du code, `state/`, entrée datée en fin de
+`log.md`, liens depuis les hubs et `index.md` ; `experiments/` ou `decisions/` si pertinent.
+Commiter le coffre par chemins explicites. La publication distante suit la dernière
+consigne explicite de Narcisse ; ne pas confondre commit local et push.
 
-## Fin de session (obligatoire)
+## Après chaque commit (obligatoire)
 
-Le coffre Obsidian (`/home/visiteur/Documents/zic-vault`) est la mémoire du projet, mais je n'y ai
-pas accès depuis le cloud. À la fin de chaque implémentation :
+Le coffre Obsidian (`/home/visiteur/Documents/zic-vault`) est la mémoire du projet.
+Pour chaque changement commité :
 
 1. Lancer tests et build ; noter précisément ce qui n'a **pas** été vérifié (ex. « pas testé dans Electron »). Ne jamais dire « fait » sans preuve.
-2. Commit + push du code, sur la branche de travail : chemins explicites, jamais `git add -A`, jamais `apikeys` ni `.env`.
-3. Écrire `docs/vault-a-reporter/AAAA-MM-JJ-sujet.md` avec un frontmatter (`title`, `type`, `date`, `status`, `tags`) et ces sections : ce qui a été fait + fichiers touchés ; ce qui a été vérifié et comment ; ce qui reste à vérifier ; « À mettre dans decisions/ » ; « À mettre dans experiments/ » (essais, même ratés) ; prochaines actions et questions pour Narcisse.
-4. Commit + push de la note dans le même dépôt.
-5. Terminer la réponse par : « Note à reporter dans le coffre : `<chemin>` ».
+2. Commiter le code sur la branche de travail, par chemins explicites : jamais `git add -A` ni `git add .`, jamais caches, `apikeys` ni `.env`.
+3. Si le coffre est accessible, y intégrer directement le changement : comportement, fichiers, SHA applicatif, vérifications, limites et prochaines actions ; actualiser `state/`, `log.md`, hubs et index.
+4. Si le coffre est inaccessible, écrire `docs/vault-a-reporter/AAAA-MM-JJ-sujet.md` avec un frontmatter (`title`, `type`, `date`, `status`, `tags`), le SHA applicatif, les éléments ci-dessus, les décisions/expériences pertinentes et les questions restantes. La réponse signale explicitement que le report est en attente.
+5. Commiter la documentation ; distinguer dans le bilan ce qui est intégré au coffre, ce qui reste à reporter et ce qui a réellement été publié. Respecter la dernière consigne de publication de Narcisse.
 
-Ensuite, sur le PC, une session qui voit le coffre : `git pull` dans le dépôt de l'app, range chaque
-note de `docs/vault-a-reporter/` dans le coffre (features, ADR, EXP), met à jour `state/`, `log.md`
-et `index.md`, puis commit + push du coffre. `scripts/sync-vault.sh` dépose les nouvelles notes
-dans `<coffre>/a-integrer/` sans rien écraser.
+Une session qui retrouve accès au coffre intègre les notes en attente avec leurs SHA, puis
+met à jour `state/`, `log.md` et `index.md` et commite le coffre. `scripts/sync-vault.sh`
+dépose seulement les nouvelles notes dans `<coffre>/a-integrer/` sans rien écraser : cette
+copie ne remplace pas leur classement ni leur intégration.
 
 ---
 
