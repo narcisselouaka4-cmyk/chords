@@ -1128,7 +1128,13 @@ async function launchAnalysisFromPrepare() {
   // effectivement en train d'être refaite, c'est le seul moment où il cesse
   // d'être vrai.
   hideStaleBanner();
+  // Arrêter la LECTURE aussi, pas seulement le lecteur de région. Narcisse :
+  // « quand l'utilisateur appuie sur play, puis sur relancer […] il faut que
+  // la piste s'arrête aussi. Le souci, c'est que vu qu'on a lancé une nouvelle
+  // analyse, on ne peut pas appuyer sur stop. » Les commandes sont désactivées
+  // pendant l'analyse : si le son continue, plus rien ne peut l'arrêter.
   regionPlayer?.pause();
+  currentPlayer?.pause();
   analysisRunning = true;
   setAnalysisControlsDisabled(true);
   const midi = currentSourceType === 'midi';
