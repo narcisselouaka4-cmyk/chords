@@ -1367,6 +1367,9 @@ async function runDemucs(trackId, inputPath) {
           }
         }
         await fs.rm(path.join(stemsDir, SIMULATED_MARK), { force: true });
+        // [Claude] — 2026-10-27 — demucs_out n'est qu'un brouillon : les stems sont copiés dans
+        //   stems/ et rien ne le relit. Le garder doublait le poids de chaque morceau (~380 Mo).
+        await fs.rm(outputDir, { recursive: true, force: true }).catch(() => {});
         resolve();
       } catch (err) {
         reject(err);
@@ -1577,6 +1580,18 @@ function setupStudioIPC() {
     await extractTrackAudio(inputPath, outputWav);
     return outputWav;
   });
+
+  // [Claude] — 2026-10-27 — Les WAV de région (~50 Mo chacun) s'accumulaient dans temp/ sans
+  //   jamais être effacés : 45 fichiers périmés, 2,2 Go. On purge ceux de plus de 24 h au démarrage.
+  ensureStudioDir().then(async (studioDir) => {
+    const tempDir = path.join(studioDir, 'temp');
+    const limit = Date.now() - 24 * 3600 * 1000;
+    for (const name of await fs.readdir(tempDir).catch(() => [])) {
+      const file = path.join(tempDir, name);
+      const st = await fs.stat(file).catch(() => null);
+      if (st?.isFile() && st.mtimeMs < limit) await fs.rm(file, { force: true }).catch(() => {});
+    }
+  }).catch(() => {});
 
   console.log('[StudioIPC] registering studio:trim-region handler');
   ipcMain.handle('studio:trim-region', async (event, trackId, inputPath, startSec, endSec) => {
