@@ -219,3 +219,86 @@ remplacement comme terminé.
 - Les 1,4 Go : téléchargement au premier morceau importé, avec une barre de
   progression, ou autre chose ?
 - Sur « Saint Esprit », le premier `Do` : à 2,76 s ou à 6 s ?
+
+---
+
+## Suite du 27/10 — ce que ses tests ont trouvé après le remplacement
+
+Il a testé deux audios de plus, et chacun a révélé un défaut que **les bancs ne
+pouvaient pas montrer**. Deux d'entre eux ont été introduits par le
+remplacement lui-même.
+
+### « Sabaoth » (Jonathan C. Gambela) — `e2da303`
+
+- **Sa règle de fusion n'avait jamais été portée sur l'audio.** Posée pour les
+  Sessions MIDI, appliquée là seulement. « C'est le même accord, côte à côte.
+  Autant les faire fusionner. » 3 paires → 0.
+- **Les renversements sur un mix.** Il en rejette 15 sur 17 : « Eb/G, ça ne
+  passe pas » (14 occurrences), « C#/D#, ça passe pas du tout ». Retirés côté
+  audio — le chemin MIDI les garde, parce que les notes y sont connues. 17 → 0.
+- **Reste, diagnostiqué et non corrigé** : le `Ab` qui absorbe le `Eb`.
+  OCCASIONNEL et non systématique — `Ab` est relevé 36 fois, suivi d'un `Eb`
+  31 fois ; seuls 3 segments trop longs sautent le `Eb`, exactement ceux qu'il
+  cite (1:10,61 · 1:16,23 · 1:56,84), plus un `C#` de 4,3 s à 3:50,11 qui avale
+  deux accords. **Il les a relevés au dixième de seconde près.**
+
+  Pourquoi ce n'est pas livré : le remède évident serait de réinsérer l'accord
+  manquant d'après la transition dominante du morceau (`Ab → Eb`, 31 fois sur
+  36, soit 86 %). Mais sur « Saint Esprit », `G → D` domine à 75 % — et cette
+  transition-là est l'OSCILLATION du moteur, pas la boucle. La même règle
+  réparerait l'un et abîmerait l'autre, et 86 % contre 75 % est un écart trop
+  étroit pour trancher sur deux morceaux.
+
+### « You Are Yahweh (live) » (Steve Crown) — `5fb9a04`
+
+**Un vrai bug, et de ma fabrication.** 213 s sans aucun accord, soit 72 % du
+morceau. Mesuré : ces zones contiennent autant d'harmonie que le reste (83 %
+contre 75 %) mais sont **3,7 à 5,5 fois moins fortes**. Un live : introduction
+douce, suite qui explose.
+
+Le chromagramme se normalisait de lui-même ; un réseau entraîné sur des
+enregistrements de studio est sensible au niveau d'entrée. **Aucun banc ne
+pouvait le montrer — GuitarSet est enregistré à niveau constant.**
+
+Niveau égalisé seconde par seconde avant l'analyse, et seulement si l'écart
+entre passages forts et faibles dépasse 2,5×. Son live : 213 s → 50 s de vide,
+27 → 88 segments. « Saint Esprit » : 74,5 → 75,0 %. GuitarSet (20 morceaux,
+apparié) : 87,1 → 87,6 %, pire cas −0,3 pt.
+
+### La version du moteur, second dégât du remplacement — `5fb9a04`
+
+L'interface attendait encore `ADR-061-triades-6` quand le moteur produit
+`lv-chordia-1.1.0`. **Toute analyse faite depuis le remplacement était jugée
+périmée à la réouverture et recalculée de force.** Et il y a désormais deux
+moteurs possibles : une version unique ne suffisait plus.
+
+Changement de fond, à sa demande : une analyse ancienne n'est **plus**
+recalculée d'autorité. Elle s'affiche, un bandeau PERSISTANT dit d'où elle
+vient, et le pianiste décide. « Tant que l'utilisateur n'a pas cliqué sur le
+bouton relancer, il faut laisser le message là où il est […] il se peut qu'il
+ait juste le dos tourné […] et tout de suite il fait remonter un problème qui a
+déjà été réglé. »
+
+### La leçon, et elle est générale
+
+**Trois fois en deux jours, ses tests ont trouvé ce que 180 morceaux de banc ne
+voient pas** : la tonalité fausse, les renversements qu'il rejette, le
+décrochage sur les lives. Un corpus de guitare solo enregistré en studio à
+niveau constant ne ressemble pas à son répertoire — gospel live, chœurs,
+batterie, dynamique large.
+
+Et sur un remplacement de brique : **vérifier les consommateurs de l'ancienne
+logique**. La tonalité en était un, la constante de version un autre. Les
+candidats restants à inspecter : les techniques, les réharmonisations et le
+voice-leading, qui reçoivent aujourd'hui des champs vides sur ce chemin.
+
+### Question ouverte qu'il a soulevée
+
+« L'application est capable de détecter le refrain ? » **Non**, et le projet
+l'assume : `chord-sections.js` nomme « Partie A », « Partie B », parce
+qu'« afficher Refrain parce que c'est la quatrième partie d'un morceau de plus
+de soixante secondes, ce serait faire dire à l'application ce qu'elle ne sait
+pas ». Mais maintenant que la grille est fiable à 90 %, **repérer les sections
+qui se répètent** devient mesurable sans rien deviner — « cette section revient
+à 1:10, 2:30 et 3:50 » est un fait, pas une interprétation. Chantier propre, le
+module existe pour l'accueillir.
