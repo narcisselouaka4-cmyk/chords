@@ -50,3 +50,16 @@ scipy>=1.11
 # Facultatif. Licence MIT. Le modèle (~170 Mo) se télécharge au premier usage.
 piano-transcription-inference
 torchlibrosa
+
+# [Claude] — 2026-10-27 — Détection d'accords audio (ISMIR 2019, licence MIT).
+# Remplace le moteur chroma+HMM pour la GRILLE d'accords ; la tonalité, le
+# tempo et les rôles restent calculés par audio-processor.py, qui garde aussi
+# l'ancien moteur en repli si ce paquet est absent.
+#
+# Mesuré sur 40 morceaux de GuitarSet, A/B apparié : fondamentale 68,9 → 90,9 %,
+# ordre des accords 56,9 → 90,7 %, 39 morceaux améliorés contre 0.
+#
+# Les modèles (~1,4 Go) se téléchargent au premier usage dans ism2019-chord/,
+# déjà ignoré par git. S'appuie sur le torch installé plus haut.
+lv-chordia==1.1.0
+

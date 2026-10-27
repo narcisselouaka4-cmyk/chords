@@ -5480,6 +5480,190 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
     return result
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# lv-chordia : la détection d'accords par réseau de neurones (ISMIR 2019, MIT).
+#
+# Narcisse, après avoir relevé lui-même la première minute de « Saint Esprit » :
+# « bref, c'est catastrophique ». Il avait raison, et la mesure l'a chiffré.
+#
+# A/B apparié sur 40 morceaux de GuitarSet, même banc, mêmes références :
+#
+#                     lv-chordia   moteur chroma+HMM   écart
+#   fondamentale         90,9 %         68,9 %        +22,0 pt
+#   majmin               89,1 %         65,1 %        +24,0 pt
+#   ORDRE des accords    90,7 %         56,9 %        +33,8 pt
+#   accords relevés    476 (1,01×)    690 (1,48×)
+#
+# 39 morceaux améliorés contre 0 sur la fondamentale, 37 contre 0 sur l'ordre
+# (test du signe, p < 10⁻⁶). Et sur son propre relevé de « Saint Esprit » :
+# fondamentale 41,9 % → 74,5 %, ordre 42,1 % → 90,9 %, zéro accord mal nommé.
+#
+# POURQUOI le moteur chroma plafonne, mesuré sur son morceau : il décide à
+# partir des douze forces de notes, où « Em » et « G » sont séparés de DEUX
+# MILLIÈMES sur son introduction. 51,6 % de ses décisions se jouent à moins de
+# cinq centièmes d'écart. Ce n'est pas un défaut de réglage — il n'y a rien à
+# arbitrer. Le chroma jette l'octave, le timbre et les harmoniques ; un réseau
+# entraîné sur le spectrogramme les garde.
+#
+# CE QUI EST GARDÉ du moteur d'origine : la tonalité (detect_key), le tempo, la
+# signature, les tonalités locales, et la classification des rôles. Seule la
+# GRILLE change de producteur.
+#
+# CE QUI EST SAUTÉ, délibérément : les couches de rattrapage du chroma
+# (_merge_arpeggio_segments, _stabilize_antiparasite, _refine_chorus_loops,
+# _fix_intro_prefix, _clean_segments…). Elles corrigent des défauts que
+# lv-chordia n'a pas — il relève déjà 1,01× le bon nombre d'accords contre
+# 1,48× — et les appliquer à une grille propre ne ferait que l'abîmer.
+#
+# Repli : si lv-chordia n'est pas installé ou échoue, on retombe sur le moteur
+# d'origine, intact. L'application ne doit pas cesser de lire un morceau parce
+# qu'un modèle n'est pas encore téléchargé.
+
+# Vocabulaire Harte de lv-chordia → notation de l'application.
+LV_SUFFIXES = {
+    'maj': '', 'min': 'm', 'dim': 'dim', 'aug': 'aug',
+    'maj7': 'maj7', 'min7': 'm7', '7': '7', 'dim7': 'dim7', 'hdim7': 'm7b5',
+    'maj6': '6', 'min6': 'm6', 'sus2': 'sus2', 'sus4': 'sus4',
+    'minmaj7': 'mMaj7', 'maj9': 'maj9', 'min9': 'm9', '9': '9',
+    '11': '11', '13': '13', 'min11': 'm11', 'min13': 'm13', 'maj13': 'maj13',
+    '7sus4': '7sus4', '9sus4': '9sus4',
+}
+# Degrés d'une basse Harte (« /3 », « /b7 ») → demi-tons depuis la fondamentale.
+LV_BASS_DEGREES = {'1': 0, 'b2': 1, '2': 2, 'b3': 3, '3': 4, '4': 5, 'b5': 6,
+                   '5': 7, '#5': 8, 'b6': 8, '6': 9, 'b7': 10, '7': 11}
+# Noms de notes (dièses et bémols) → classe de hauteur.
+_LV_PC = {n: i for i, n in enumerate(NOTE_NAMES)}
+_LV_PC.update({'Db': 1, 'Eb': 3, 'Gb': 6, 'Ab': 8, 'Bb': 10, 'Cb': 11, 'Fb': 4})
+
+# Version du moteur, pour que l'interface et le banc sachent qui a produit la grille.
+LV_ENGINE_VERSION = 'lv-chordia-1.1.0'
+
+
+def _lv_label_to_app(label):
+    """« E:min/b7 » → « Em/D ». Rend « N » pour tout ce qui n'est pas un accord."""
+    if not label or label in ('N', 'X'):
+        return 'N'
+    tete, _, basse = label.partition('/')
+    if ':' not in tete:
+        return tete
+    root, qualite = tete.split(':', 1)
+    qualite = qualite.split('(')[0]
+    nom = f"{root}{LV_SUFFIXES.get(qualite, '')}"
+    if basse:
+        pas = LV_BASS_DEGREES.get(basse.strip())
+        racine = _LV_PC.get(root)
+        if pas and racine is not None:
+            nom += '/' + NOTE_NAMES[(racine + pas) % 12]
+    return nom
+
+
+def lv_chordia_available():
+    """lv-chordia est-il installé et ses modèles accessibles ?"""
+    if os.environ.get('PJC_DISABLE_LV_CHORDIA'):
+        return False
+    try:
+        import importlib.util
+        return importlib.util.find_spec('lv_chordia') is not None
+    except Exception:
+        return False
+
+
+def analyze_chords_lv(wav_path, diagnostics=False):
+    """Même sortie que `analyze_chords`, mais la grille vient de lv-chordia."""
+    import subprocess
+
+    log(f'analyzing chords from {wav_path} (moteur lv-chordia)')
+    y, sr = librosa.load(wav_path, sr=22050, mono=True)
+    duration = float(len(y) / sr)
+    if len(y) == 0:
+        return {'duration': round(duration, 3), 'tempo': None, 'timeSignature': '4/4',
+                'key': None, 'keyMode': None, 'keyConfidence': 0.0, 'keyCandidates': [],
+                'confidence': 0.0, 'chords': [], 'engine': LV_ENGINE_VERSION}
+
+    # Tempo, signature et tonalité : les briques d'origine, inchangées.
+    hop_length = 512
+    tempo, tracked = _beat_track(y, sr, hop_length=hop_length)
+    times = librosa.frames_to_time(np.atleast_1d(tracked), sr=sr, hop_length=hop_length)
+    ibis = np.diff(times)
+    avg_tempo = (60.0 / float(np.median(ibis))) if len(ibis) and np.median(ibis) > 0 else tempo
+    avg_tempo = _resolve_tempo(y, sr, avg_tempo)
+    time_signature = estimate_time_signature(wav_path, avg_tempo)
+    key, key_candidates = detect_key(y, sr)
+
+    exe = os.path.join(os.path.dirname(sys.executable), 'lv-chordia')
+    if not os.path.exists(exe):
+        raise RuntimeError('exécutable lv-chordia introuvable')
+    out = subprocess.run([exe, str(wav_path)], capture_output=True, text=True, timeout=1800)
+    if out.returncode != 0:
+        raise RuntimeError((out.stderr or 'lv-chordia a échoué').strip()[-200:])
+    bruts = json.loads(out.stdout)
+
+    segments = []
+    for s in bruts:
+        debut, fin = float(s['start_time']), float(s['end_time'])
+        if fin <= debut:
+            continue
+        segments.append({'startTime': debut, 'endTime': fin,
+                         'chord': _lv_label_to_app(s.get('chord')),
+                         'confidence': 1.0})
+    # Deux étiquettes de suite pour un seul accord n'en font qu'une — la règle
+    # que Narcisse a posée pour les Sessions MIDI vaut ici aussi.
+    fusion = []
+    for seg in segments:
+        if fusion and fusion[-1]['chord'] == seg['chord']:
+            fusion[-1]['endTime'] = seg['endTime']
+            continue
+        fusion.append(seg)
+    segments = fusion
+
+    beat_dur = 60.0 / avg_tempo if avg_tempo else 0.5
+    _classify_chord_roles(segments, key, beat_dur=beat_dur)
+
+    chords = []
+    for seg in segments:
+        chords.append({
+            'startTime': round(seg['startTime'], 3),
+            'endTime': round(seg['endTime'], 3),
+            'chord': seg['chord'],
+            'structural_chord': seg['chord'],
+            'confidence': round(float(seg.get('confidence', 1.0)), 3),
+            'observation_candidates': [],
+            'viterbi_choice': seg['chord'],
+            'analysis': {},
+            'techniques': [], 'suggestions': [], 'reharmonizations': [],
+            'voiceLeading': {},
+            'role': seg.get('role', 'structural'),
+            'inStructuralLoop': seg.get('inStructuralLoop'),
+        })
+
+    result = {
+        'duration': round(duration, 3),
+        'tempo': avg_tempo,
+        'timeSignature': time_signature,
+        'key': key['name'] if key else None,
+        'keyMode': key['mode'] if key else None,
+        'keyConfidence': key['confidence'] if key else 0.0,
+        'keyCandidates': key_candidates[:5],
+        'confidence': 1.0,
+        'chords': chords,
+        'engine': LV_ENGINE_VERSION,
+        'rawChords': chords,
+        'aggregation': None,
+    }
+    try:
+        local_keys, global_key = detect_local_keys(chords, duration, fallback_key=key)
+        result['keys'] = local_keys
+        if global_key:
+            result['key'] = global_key['name']
+            result['keyMode'] = global_key['mode']
+    except Exception as exc:
+        log(f'local key detection failed: {exc}')
+        result['keys'] = []
+    if diagnostics:
+        result['diagnostics'] = []
+    return result
+
+
 def main():
     if len(sys.argv) < 2:
         print('usage: audio-processor.py <command> [args...]', file=sys.stderr)
@@ -5557,12 +5741,23 @@ def main():
                 discriminator_threshold = float(a.split('=', 1)[1])
             elif a.startswith('--discriminator-strength='):
                 discriminator_strength = float(a.split('=', 1)[1])
-        result = analyze_chords(wav_path, clean_mode, debug=debug_mode, downgrade_mode=downgrade_mode,
-                                observation_mode=observation_mode,
-                                contradiction_weight=contradiction_weight,
-                                discriminator_threshold=discriminator_threshold,
-                                discriminator_strength=discriminator_strength,
-                                diagnostics=diagnostics)
+        # La grille vient de lv-chordia quand il est là (voir son en-tête :
+        # +22 points de fondamentale et +34 d'ordre sur GuitarSet, 39 morceaux
+        # améliorés contre 0). Le moteur chroma+HMM reste le repli : un modèle
+        # pas encore téléchargé ne doit pas empêcher de lire un morceau.
+        result = None
+        if lv_chordia_available():
+            try:
+                result = analyze_chords_lv(wav_path, diagnostics=diagnostics)
+            except Exception as exc:
+                log(f'lv-chordia indisponible ({exc}) — repli sur le moteur chroma')
+        if result is None:
+            result = analyze_chords(wav_path, clean_mode, debug=debug_mode, downgrade_mode=downgrade_mode,
+                                    observation_mode=observation_mode,
+                                    contradiction_weight=contradiction_weight,
+                                    discriminator_threshold=discriminator_threshold,
+                                    discriminator_strength=discriminator_strength,
+                                    diagnostics=diagnostics)
         if not debug_mode:
             print(json.dumps(result))
         else:
