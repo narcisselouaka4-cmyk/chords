@@ -2319,13 +2319,28 @@ function setupStudioIPC() {
         }
       }
 
-      // Les pistes séparées du Studio couvrent le morceau entier (vérifié par
-      // findStudioStemForFile) : elles ne correspondent pas à une région choisie
-      // ici, propre à cette analyse. On reste sur le mix recadré dans ce cas.
-      const pianoStem = region ? null : await findStudioStemForFile(filePath, 'piano', duration);
-      if (pianoStem) {
-        console.log('[Analyzer] using Studio piano stem:', pianoStem);
-      }
+      // [Claude] — 2026-10-27 — LE STEM PIANO N'EST PLUS UTILISÉ pour les accords.
+      //
+      // Isoler le piano aidait le moteur chroma : moins de voix et de batterie
+      // dans le spectre, donc une harmonie plus nette. lv-chordia, lui, est
+      // entraîné sur des MIX COMPLETS — lui donner une piste isolée le prive
+      // du contexte sur lequel il a appris.
+      //
+      // Et c'est pire que ça, mesuré sur « You Are Yahweh (live) » :
+      //   mix complet  RMS 0,1618   écart fort/faible    7×
+      //   stem piano   RMS 0,0163   écart fort/faible  201×
+      // Le piano isolé est DIX FOIS plus faible, avec une dynamique de deux
+      // cents — que l'égalisation de niveau, plafonnée à un gain de 8, ne peut
+      // pas rattraper. Narcisse voyait 1 min 17 de silence là où l'analyse du
+      // mix donne ses accords dès 18,9 s : « j'ai beau relancer l'application,
+      // j'ai beau relancer l'analyse, il n'y a rien qui se passe ».
+      //
+      // Déjà mesuré la veille sur « Saint Esprit », sans que j'en tire la
+      // conséquence : stem piano 27,6 % de fondamentales justes contre 32,4 %
+      // pour le mix.
+      //
+      // La recherche de stem reste utilisée pour la BASSE (runBassAnalysis).
+      const pianoStem = null;
 
       // Find bass stem if requested
       const bassStem = !region && options.analyzeBass !== false
