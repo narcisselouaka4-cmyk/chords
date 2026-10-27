@@ -14,19 +14,29 @@
 // juste le dos tourné et qu'il ne voie pas ce message, et quand il arrive sur
 // l'analyse et qu'il voit qu'il y a des soucis, tout de suite il fait remonter
 // un problème qui a déjà été réglé. »
+//
+// [Claude] — 2026-10-27 — CETTE CHAÎNE DOIT CHANGER À CHAQUE FOIS QUE LE
+// MOTEUR CHANGE DE COMPORTEMENT, et pas seulement de bibliothèque. L'oubli
+// s'est produit le jour même : l'égalisation du niveau a été ajoutée sans
+// toucher la version, si bien qu'une analyse d'AVANT ce correctif passait pour
+// à jour. Narcisse a rouvert son live, vu 1 min 17 de silence, et rien ne lui
+// disait que c'était déjà réglé — exactement ce qu'il voulait éviter. Même
+// discipline que READING_REVISION côté Pédagogie.
 
 /** Version produite par le moteur actuel, la plus récente. */
-export const ANALYSIS_ENGINE_VERSION = 'lv-chordia-1.1.0';
+export const ANALYSIS_ENGINE_VERSION = 'lv-chordia-1.1.0+niveau';
 
 /** Versions connues, de la plus récente à la plus ancienne. */
 export const KNOWN_ENGINE_VERSIONS = [
+  'lv-chordia-1.1.0+niveau',
   'lv-chordia-1.1.0',
   'ADR-061-triades-6',
 ];
 
 /** Un nom lisible par version, pour le bandeau d'avertissement. */
 export const ENGINE_LABELS = {
-  'lv-chordia-1.1.0': 'moteur actuel',
+  'lv-chordia-1.1.0+niveau': 'moteur actuel',
+  'lv-chordia-1.1.0': 'moteur sans égalisation du niveau',
   'ADR-061-triades-6': 'ancien moteur (chroma)',
 };
 

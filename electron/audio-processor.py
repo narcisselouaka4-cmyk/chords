@@ -5623,7 +5623,7 @@ _LV_PC = {n: i for i, n in enumerate(NOTE_NAMES)}
 _LV_PC.update({'Db': 1, 'Eb': 3, 'Gb': 6, 'Ab': 8, 'Bb': 10, 'Cb': 11, 'Fb': 4})
 
 # Version du moteur, pour que l'interface et le banc sachent qui a produit la grille.
-LV_ENGINE_VERSION = 'lv-chordia-1.1.0'
+LV_ENGINE_VERSION = 'lv-chordia-1.1.0+niveau'
 
 
 def _lv_label_to_app(label, with_bass=True):
