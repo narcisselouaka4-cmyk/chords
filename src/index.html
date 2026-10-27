@@ -1407,6 +1407,18 @@
               </div>
             </div>
 
+            <!-- [Claude] — 2026-10-27 — Avertissement PERSISTANT : une analyse
+                 rechargée peut venir d'un moteur plus ancien. Narcisse : « tant que
+                 l'utilisateur n'a pas cliqué sur le bouton relancer, il faut laisser
+                 le message là où il est », parce qu'un toast qui s'efface fait
+                 remonter des problèmes déjà réglés. Il disparaît au clic sur
+                 « Relancer », et à ce seul moment. -->
+            <div id="analyzer-stale-banner" class="an-stale-banner" hidden role="status">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0"/></svg>
+              <span class="an-stale-text"></span>
+              <button type="button" class="an-stale-action">Relancer l’analyse</button>
+            </div>
+
             <div class="an-scrub-bar">
               <span class="an-time-counter" id="analyzer-current-time">00:00</span>
               <div class="an-progress-rail" id="analyzer-progress-track">

@@ -40,7 +40,7 @@ import {
   tryApplyProjectOverrides,
   extractCachedAnalysis,
 } from './chord-editor.js';
-import { ANALYSIS_ENGINE_VERSION } from '../analyzer/engine-versions.js';
+import { ANALYSIS_ENGINE_VERSION, isEngineOutdated, engineLabel } from '../analyzer/engine-versions.js';
 import { fitChordLabel } from './chord-label-fit.js';
 import { notifyOnboarding } from './onboarding.js';
 import { initAnalysisWaitingTips } from './components/analysis-waiting-tips.js';
@@ -144,6 +144,7 @@ const els = {
   chordTimeline: document.getElementById('analyzer-chord-timeline'),
   chordTimelineInner: document.getElementById('analyzer-chord-timeline-inner'),
   reanalyzeBtn: document.getElementById('analyzer-reanalyze-btn'),
+  staleBanner: document.getElementById('analyzer-stale-banner'),
   cachedBadge: document.getElementById('analyzer-cached-badge'),
   timelineLegend: document.getElementById('analyzer-timeline-legend'),
   hierarchyToggle: document.getElementById('analyzer-hierarchy-toggle'),
@@ -920,18 +921,21 @@ async function restoreSavedAnalysis(filePath) {
     // du moteur (avant les tonalités locales, par exemple) ne décrit pas
     // ce que le moteur sortirait aujourd'hui — calibration des couches
     // changeante. On recalcule, puis le resauvegarde porte la bonne version.
-    if (cached.engine && cached.engine !== ANALYSIS_ENGINE_VERSION) {
-      showToast(
-        "Analyse enregistrée avec une version antérieure du moteur : nouvelle analyse nécessaire.",
-        6000,
-        'warning',
-      );
-      return false;
-    }
+    // Version du moteur. On ne recalcule PLUS de force : une analyse produite
+    // par un moteur plus ancien reste lisible, et un recalcul impose plusieurs
+    // minutes d'attente sans l'avoir demandé. On la restaure, et un bandeau
+    // PERSISTANT dit d'où elle vient — jusqu'au clic sur « Relancer ».
+    //
+    // Narcisse : « tant que l'utilisateur n'a pas cliqué sur le bouton
+    // relancer, il faut laisser le message là où il est […] il se peut qu'il
+    // ait juste le dos tourné et qu'il ne voie pas ce message, et quand il
+    // arrive sur l'analyse et qu'il voit qu'il y a des soucis, tout de suite il
+    // fait remonter un problème qui a déjà été réglé. »
     if (!cached.engine) {
-      // Analyse d'avant l'exposition de la version dans l'UI : recalcul.
+      // Analyse d'avant l'exposition de la version : trop ancienne pour être lue.
       return false;
     }
+    const engineOutdated = isEngineOutdated(cached.engine);
 
     // Le fichier audio a-t-il changé depuis l'enregistrement ? Si oui, les
     // temps de l'analyse ne décrivent plus ce fichier : on ne restaure pas.
@@ -967,13 +971,46 @@ async function restoreSavedAnalysis(filePath) {
 
     currentAnalysis = analysis;
     await showResults(analysis);
-    showToast('Analyse enregistrée rechargée — aucun recalcul.', 4000);
+    if (engineOutdated) {
+      showStaleBanner(cached.engine);
+    } else {
+      hideStaleBanner();
+      showToast('Analyse enregistrée rechargée — aucun recalcul.', 4000);
+    }
     return true;
   } catch (err) {
     console.warn('[Analyzer] restauration impossible, analyse normale :', err);
     hideProcessing();
     return false;
   }
+}
+
+/**
+ * Affiche l'avertissement d'analyse rechargée, et l'y laisse.
+ *
+ * Il ne disparaît QUE lorsque l'analyse est relancée — pas au bout de quelques
+ * secondes, pas au premier clic ailleurs. C'est la demande de Narcisse, et elle
+ * évite de faire remonter des défauts déjà corrigés depuis.
+ */
+function showStaleBanner(engine) {
+  const banner = els.staleBanner;
+  if (!banner) return;
+  const texte = banner.querySelector('.an-stale-text');
+  if (texte) {
+    texte.textContent = `Cette analyse a été enregistrée par un ${engineLabel(engine)}. `
+      + 'Les accords affichés ne sont pas ceux que la version actuelle trouverait.';
+  }
+  const action = banner.querySelector('.an-stale-action');
+  if (action && !action.dataset.bound) {
+    action.dataset.bound = '1';
+    action.addEventListener('click', () => { reanalyzeCurrentTrack(); });
+  }
+  banner.hidden = false;
+}
+
+/** Retire l'avertissement : uniquement quand l'analyse a été refaite. */
+function hideStaleBanner() {
+  if (els.staleBanner) els.staleBanner.hidden = true;
 }
 
 /** Relance une analyse complète sur le morceau courant, en écrasant le cache. */
@@ -1087,6 +1124,10 @@ async function launchAnalysisFromPrepare() {
     showToast('Une analyse est déjà en cours.', 3000, 'warning');
     return;
   }
+  // L'avertissement d'analyse ancienne ne disparaît qu'ICI : une analyse est
+  // effectivement en train d'être refaite, c'est le seul moment où il cesse
+  // d'être vrai.
+  hideStaleBanner();
   regionPlayer?.pause();
   analysisRunning = true;
   setAnalysisControlsDisabled(true);

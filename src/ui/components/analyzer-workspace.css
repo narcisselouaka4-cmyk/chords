@@ -2052,3 +2052,46 @@
   width: 40px;
   height: 40px;
 }
+
+/* [Claude] — 2026-10-27 — Avertissement persistant d'analyse rechargée.
+   Narcisse : « c'est super important, parce qu'il se peut que l'utilisateur ait
+   juste le dos tourné et qu'il ne voie pas ce message ». Il reste donc affiché
+   tant que l'analyse n'a pas été relancée — un toast de six secondes ne suffit
+   pas. Placé sous la barre de transport, au-dessus de la frise : visible sans
+   recouvrir les accords. */
+.an-stale-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 12px 0;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--warning, #d9822b) 45%, transparent);
+  border-left-width: 3px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--warning, #d9822b) 12%, transparent);
+  color: var(--text, #e8e8ea);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.an-stale-banner[hidden] { display: none; }
+
+.an-stale-banner svg { flex: 0 0 auto; color: var(--warning, #d9822b); }
+
+.an-stale-text { flex: 1 1 auto; min-width: 0; }
+
+.an-stale-action {
+  flex: 0 0 auto;
+  padding: 5px 12px;
+  border: 1px solid color-mix(in srgb, var(--warning, #d9822b) 55%, transparent);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.an-stale-action:hover {
+  background: color-mix(in srgb, var(--warning, #d9822b) 22%, transparent);
+}

@@ -5667,6 +5667,69 @@ def _key_signature(key):
     return alterations - 12 if alterations > 6 else alterations
 
 
+# Niveau cible d'une seconde d'audio avant l'analyse, et gain maximal appliqué.
+LEVEL_TARGET_RMS = 0.10
+LEVEL_MAX_GAIN = 8.0
+LEVEL_WINDOW_SEC = 1.0
+# En deçà de cet écart entre le passage le plus fort et le plus faible, le
+# morceau est déjà régulier et on ne touche à rien.
+LEVEL_RANGE_TRIGGER = 2.5
+
+
+def _level_normalised_copy(wav_path, y, sr):
+    """Égalise le NIVEAU seconde par seconde avant l'analyse. Rend (chemin, temporaire).
+
+    Narcisse, sur « You Are Yahweh (live) » de Steve Crown : « entre le début et
+    2 minutes 42 secondes, il n'y a aucun accord de détecté […] c'est un énorme
+    bug ». Mesuré : ces deux minutes contiennent bel et bien de la musique, et
+    AUTANT d'harmonie que la suite (83 % de l'énergie contre 75 %). Elles sont
+    simplement 3,7 fois moins fortes — c'est un live, l'introduction est douce
+    et la suite explose. Le modèle décroche sur le niveau, pas sur le contenu.
+
+    C'est une faiblesse que le moteur chroma n'avait pas : un chromagramme se
+    normalise de lui-même, alors qu'un réseau entraîné sur des enregistrements
+    de studio est sensible au niveau d'entrée. Aucun banc ne la montre —
+    GuitarSet est enregistré à niveau constant.
+
+    Mesuré sur ce morceau : 213 s sans aucun accord (72 % de la durée) → 50 s
+    (17 %), et 27 segments → 88. Ses deux minutes se remplissent dès 18,9 s
+    d'une progression cohérente : D, A, E, F#m, D, A, E.
+
+    On ne touche pas aux morceaux déjà réguliers : la normalisation ne se
+    déclenche que si l'écart entre les passages forts et faibles le justifie.
+    """
+    fenetre = max(1, int(sr * LEVEL_WINDOW_SEC))
+    niveaux = []
+    for debut in range(0, len(y), fenetre):
+        bout = y[debut:debut + fenetre]
+        if len(bout):
+            niveaux.append(float(np.sqrt(np.mean(bout ** 2))))
+    audibles = [n for n in niveaux if n > 1e-4]
+    if len(audibles) < 4:
+        return str(wav_path), False
+    audibles.sort()
+    faible = audibles[len(audibles) // 10]           # décile bas
+    fort = audibles[-max(1, len(audibles) // 10)]    # décile haut
+    if faible <= 0 or fort / faible < LEVEL_RANGE_TRIGGER:
+        return str(wav_path), False
+
+    egalise = np.copy(y)
+    for debut in range(0, len(y), fenetre):
+        bout = egalise[debut:debut + fenetre]
+        if not len(bout):
+            continue
+        niveau = float(np.sqrt(np.mean(bout ** 2)))
+        if niveau > 1e-5:
+            egalise[debut:debut + fenetre] = bout * min(LEVEL_MAX_GAIN, LEVEL_TARGET_RMS / niveau)
+    egalise = np.clip(egalise, -1.0, 1.0)
+
+    descripteur, chemin = tempfile.mkstemp(suffix='.wav', prefix='pjc-level-')
+    os.close(descripteur)
+    sf.write(chemin, egalise, sr)
+    log(f'niveau égalisé avant analyse (écart fort/faible {fort / faible:.1f}×)')
+    return chemin, True
+
+
 def _merge_same_root(segments):
     """Une seule étiquette par accord — la règle que Narcisse a posée.
 
@@ -5797,7 +5860,15 @@ def analyze_chords_lv(wav_path, diagnostics=False):
     exe = os.path.join(os.path.dirname(sys.executable), 'lv-chordia')
     if not os.path.exists(exe):
         raise RuntimeError('exécutable lv-chordia introuvable')
-    out = subprocess.run([exe, str(wav_path)], capture_output=True, text=True, timeout=1800)
+    entree, temporaire = _level_normalised_copy(wav_path, y, sr)
+    try:
+        out = subprocess.run([exe, str(entree)], capture_output=True, text=True, timeout=1800)
+    finally:
+        if temporaire and os.path.exists(entree):
+            try:
+                os.remove(entree)
+            except OSError:
+                pass
     if out.returncode != 0:
         raise RuntimeError((out.stderr or 'lv-chordia a échoué').strip()[-200:])
     bruts = json.loads(out.stdout)
