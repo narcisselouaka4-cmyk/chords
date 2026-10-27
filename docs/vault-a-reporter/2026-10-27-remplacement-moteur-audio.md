@@ -209,8 +209,12 @@ remplacement comme terminé.
 3. Les enrichissements de lv-chordia (`maj9`, `min11`, `13`) remontent
    maintenant jusqu'à l'interface : vérifier que `chord-display` et la frise
    les affichent correctement.
-3b. Chercher les AUTRES consommateurs du chroma restés en place après le
-   remplacement — la tonalité en était un, repéré par Narcisse.
+3b. Chercher les AUTRES consommateurs du chroma restés en place : trois ont
+   déjà été trouvés (tonalité, version, stem piano), tous par Narcisse.
+   Restent à inspecter les techniques, les réharmonisations et le
+   voice-leading, qui reçoivent des champs vides sur ce chemin.
+3c. Réanalyser les cinq morceaux qui étaient lus sur le stem piano :
+   Track_008, 010, 013, 021, 024.
 4. Mesurer les 180 morceaux de GuitarSet, et non plus 40, pour figer la
    référence.
 
@@ -291,6 +295,107 @@ Et sur un remplacement de brique : **vérifier les consommateurs de l'ancienne
 logique**. La tonalité en était un, la constante de version un autre. Les
 candidats restants à inspecter : les techniques, les réharmonisations et le
 voice-leading, qui reçoivent aujourd'hui des champs vides sur ce chemin.
+
+### Le bug qui a résisté : l'application n'analysait pas le mix — `a742271`
+
+Narcisse, sur « You Are Yahweh (live) » : « j'ai beau relancer
+l'application, j'ai beau relancer l'analyse, il n'y a rien qui se passe. C'est
+toujours le même résultat. »
+
+Il avait raison, et pour une raison que je n'avais pas cherchée : **nous ne
+regardions pas le même fichier.** Mes essais portaient sur le mix, les siens
+sur ce que l'application analysait réellement — le **stem piano** produit par
+Demucs, pris automatiquement quand il existe et couvre tout le morceau.
+
+Isoler le piano aidait le moteur chroma : moins de voix et de batterie dans le
+spectre. Ce reste de l'ancienne logique est resté en place au changement de
+moteur.
+
+**Preuve, au centième près.** Le moteur sur le stem piano :
+
+    39 segments, 189 s de vide, 0:00 → 1:17,51 « N », puis « E »
+
+C'est exactement son écran. Sur le mix : 88 segments, 50 s de vide, accords dès
+0:18,92 (D, A, E, F#m).
+
+Et le stem est inexploitable par construction :
+
+| | RMS | écart fort/faible |
+|---|---|---|
+| mix complet | 0,1618 | 7× |
+| stem piano | **0,0163** | **201×** |
+
+Dix fois plus faible, avec une dynamique de deux cents — que l'égalisation de
+niveau, plafonnée à un gain de 8, ne peut pas rattraper.
+
+**Doublement mauvais :** lv-chordia est entraîné sur des MIX COMPLETS, et une
+piste isolée le prive du contexte sur lequel il a appris. C'était déjà mesuré
+la veille sur « Saint Esprit » — stem piano 27,6 % de fondamentales justes
+contre 32,4 % pour le mix — **sans que j'en tire la conséquence**.
+
+Cinq morceaux de sa bibliothèque étaient concernés (stem présent ET région
+couvrant tout le morceau) : `Track_008`, `Track_010`, `Track_013`, `Track_021`,
+`Track_024`. Les autres avaient une région partielle, donc déjà analysés sur le
+mix — ce qui explique que « Saint Esprit » et « Sabaoth » donnaient de bons
+résultats et pas celui-ci.
+
+La recherche de stems reste utilisée pour la BASSE (`runBassAnalysis`).
+
+**Validé par Narcisse** : « j'ai fait l'essai uniquement sur Yahweh, puisque
+c'était celui qui posait le plus de soucis. Et c'est bon, tout est en place,
+tout marche. »
+
+### Deux autres défauts d'interface corrigés en route
+
+**La lecture ne s'arrêtait pas au relancement** — `8e2ccf7`. « Quand
+l'utilisateur appuie sur play, et quand après il appuie sur relancer […] il
+faut que la piste s'arrête aussi. Le souci, c'est que vu qu'on a lancé une
+nouvelle analyse, on ne peut pas appuyer sur stop. » Le lecteur de région était
+mis en pause, pas le lecteur principal — et les commandes étant désactivées
+pendant l'analyse, plus rien ne pouvait couper le son.
+
+**L'avertissement d'analyse ancienne ne s'affichait jamais** — `69941b2` puis
+`b397118`. Deux fautes distinctes, et deux captures d'écran de sa part pour
+les débusquer :
+
+1. **La version du moteur n'avait pas changé** en ajoutant l'égalisation du
+   niveau. Une analyse d'avant ce correctif passait donc pour à jour, et il
+   regardait un défaut déjà réglé sans aucun signe — exactement ce que le
+   bandeau devait empêcher. LA RÈGLE, désormais écrite dans
+   `engine-versions.js` : **cette chaîne doit changer à chaque fois que le
+   moteur change de COMPORTEMENT, pas seulement de bibliothèque.** Même
+   discipline que `READING_REVISION` côté Pédagogie, où la leçon avait déjà
+   été apprise une fois. Voir `[[incrementer-reading-revision]]`.
+
+2. **Le bandeau était posé au mauvais endroit** : seulement dans
+   `restoreSavedAnalysis`, donc uniquement au rechargement depuis le disque.
+   Une analyse déjà en mémoire — le cas quand on n'a pas quitté l'application —
+   n'empruntait jamais ce chemin. Il est maintenant décidé dans `showResults`,
+   par lequel TOUTE grille passe.
+
+### La leçon centrale de la journée
+
+**Un remplacement de brique n'est pas fini quand la brique est remplacée.**
+Trois vestiges de l'ancien moteur ont survécu au changement, et c'est Narcisse
+qui les a tous trouvés, pas les bancs :
+
+| vestige | symptôme | commit |
+|---|---|---|
+| tonalité calculée sur le chroma | « Cm » au lieu de « Eb », modulation inventée | `cb7231f` |
+| constante de version figée | recalcul forcé, puis avertissement muet | `69941b2` |
+| **analyse sur le stem piano** | **1 min 17 de silence, insensible aux relances** | `a742271` |
+
+J'avais écrit dans cette même note « chercher les AUTRES consommateurs du
+chroma restés en place » — et je ne l'ai pas fait. L'avoir noté ne remplace pas
+de l'avoir fait. Candidats restants à inspecter : les techniques, les
+réharmonisations et le voice-leading, qui reçoivent aujourd'hui des champs
+vides sur ce chemin.
+
+**Et un corpus ne remplace pas un utilisateur.** GuitarSet est de la guitare
+solo, en studio, à niveau constant, sans stems. Aucun de ses 180 morceaux ne
+pouvait révéler le décrochage sur les lives, ni l'analyse d'une piste isolée.
+Les relevés de Narcisse — au dixième de seconde près — valent plus que les
+bancs pour ce projet.
 
 ### Question ouverte qu'il a soulevée
 
