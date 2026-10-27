@@ -1,3 +1,58 @@
+# Design QA — Analyse, vue fusionnée — 27/10/2026
+
+## Résultat et périmètre
+
+Aucun écart P0/P1/P2 restant sur le panneau demandé. Contrôle visuel du rendu réel dans Chrome local, avec le contrôleur et les composants de l’application, un pont IPC de test et un WAV silencieux. Ce verdict porte sur la présentation et les interactions du scénario ; il ne certifie ni l’import Electron ni la justesse musicale des modulations.
+
+## Référence, état et normalisation
+
+- Vérité visuelle : `docs/design/analysis-overview-reference.png`, dernière maquette choisie après suppression de l’encart « Modulation / Avant / Maintenant ».
+- Source : 1672 × 941 pixels ; recadrage de la surface applicative `(0,52)-(1672,902)` en 1672 × 850, sans déformation.
+- Implémentation : `audit-output/analysis-overview-2026-10-27/03-reference-final.jpg`, viewport CSS et image 1672 × 850, densité 1.
+- Comparaison commune pleine vue ouverte et inspectée : `audit-output/analysis-overview-2026-10-27/comparison-full.jpg` (source puis réalisation).
+- Comparaison commune du bandeau : `audit-output/analysis-overview-2026-10-27/comparison-context.jpg`.
+- État commun : Analyse > Vue d’ensemble, Sol mineur, 108 BPM, Eb / Bb / F / Gm, accord Gm, clavier inférieur replié. Source à 3:20 en lecture, réalisation à 3:18 en pause sur le même accord. La frise conserve ses véritables espacements temporels et son défilement ; elle ne reproduit pas les huit cases décoratives de l’image.
+- Complément clair : `audit-output/analysis-overview-2026-10-27/04-light-1195.jpg`, 1195 × 800 ; aucun débordement horizontal et clavier inférieur accessible.
+
+## Itérations et écarts corrigés
+
+1. P2 — Marges historiques trop importantes et panneau central n’occupant pas la scène. Correction du padding des résultats et du conteneur flexible des panneaux ; nouvelle capture à viewport identique.
+2. P2 — Sélection courante encore entourée de jaune, accord suivant en pointillés hérités. Contour d’accent uni et bordure suivante pleine ; couleurs calculées contrôlées et nouvelle comparaison des deux images.
+3. Les captures claires ont été reprises après la fin de transition de thème ; la capture intermédiaire n’est pas utilisée comme preuve de contraste.
+
+## Cinq surfaces de fidélité
+
+| Surface | Constat final |
+| --- | --- |
+| Police et typographie | Fraunces, Inter et monospace locales existantes conservées. Repères à 11/14 px et accord à 22 px : plus compacts, conformément aux demandes répétées de Narcisse. Aucun libellé tronqué dans les tailles vérifiées. |
+| Espacement et composition | Bandeau permanent, transport, frise, quatre onglets, panneau pleine largeur avec fiche centrée ; marges corrigées. Clavier de travail volontairement limité à 440 px pour garder une typographie modeste. |
+| Couleurs et états | Tokens du thème Velours, contraste sombre/clair vérifié, repères violets après changement de tonalité. Pas de badge de modulation, de trait jaune ou de pointillés. |
+| Images et composants | Photo locale, marque, icônes et véritable mini-clavier existants réutilisés. Aucune image de l’interface ne remplace des commandes. Géométrie exacte et trois notes du clavier réel conservées plutôt que les touches déformées de la maquette générée. |
+| Contenu | Uniquement Tonalité / Tempo / Accords principaux, puis Accord à travailler. Statut réel « Analyse sauvegardée » à la place de la légende de maquette. Notes en notation de l’application (D / G / A#) ; aucun texte ni auteur inventé. |
+
+## Interactions vérifiées
+
+- Scénario de quatre changements de tonalité : passage automatique en lecture, sauts directs, retour arrière en pause ; contexte et couleur restaurés, y compris le retour à la première tonalité.
+- Sélection depuis la frise, commandes d’écoute accord/arpège, onglets Corriger puis Vue d’ensemble ; bandeau présent dans les deux.
+- MIDI/JSON/CSV/texte toujours proposés dans Corriger, aucun export dans Vue d’ensemble.
+- Pas d’erreur console sur la dernière passe ; avertissement attendu de repli synthétique lorsque les échantillons piano ne sont pas disponibles dans le banc navigateur.
+- Animations de 160 ms à chaque changement seulement, désactivées avec la préférence de réduction des animations ; pas de nouvelle animation continue.
+
+## Limites et suite
+
+- Refaire le parcours dans Electron avec un vrai morceau et une écoute humaine. WAV silencieux et données locales ne valident pas le sampler, le MIDI physique ou la transcription.
+- Les dates de modulation proviennent des régions déjà livrées par le moteur (fenêtres conservatrices de 30 secondes), sans nouveau recalage acoustique dans ce lot.
+- Le résumé suit la progression récurrente avec tolérance aux substitutions ; il ne prétend pas reconnaître couplet et refrain. Sans motif suffisamment répété, il reste vide plutôt que d’en inventer un.
+- P3 possible : harmoniser plus tard les noms français des notes du clavier et leur orthographe enharmonique dans l’ensemble du produit, sans changer les hauteurs.
+
+Checklist : source et réalisation ouvertes ensemble ; écarts P2 corrigés ; sombre/clair et largeur réduite inspectés ; interactions testées ; limites consignées.
+
+final result: passed
+
+---
+
+# Historique des vérifications précédentes
+
 # Design QA — Velours, phases 1 à 5
 
 ## Scope vérifié

@@ -7,7 +7,6 @@ import {
   exportAnalysisToJson,
   exportAnalysisToCsv,
   exportAnalysisToText,
-  computeProductStatistics,
   countManuallyEditedChords,
 } from '../analyzer/analysis-export.js';
 import {
@@ -15,7 +14,7 @@ import {
   REGION_SKIP_BELOW_SECONDS, REGION_DEFAULT_SECONDS,
 } from './analyzer-workflow.js';
 import { analyzeMidiFile, ensureMidiPlayback } from '../analyzer/midi-render.js';
-import { splitIntoSections, paletteOf, changeCountOf } from '../analyzer/chord-sections.js';
+import { buildHarmonicContexts, harmonicContextAt } from '../analyzer/principal-chords.js';
 import { harmonicRole, selectChordProgression } from '../analyzer/structural-progression.js';
 import { miniKeyboardForNotes } from './mini-keyboard.js';
 import { CHORD_DEFINITIONS } from '../chord-engine/chord-defs.js';
@@ -67,7 +66,6 @@ import {
 } from './corriger-panel.js';
 import './reharmonization-view.css';
 import { playNote, releaseNote, resumeAudio } from '../audio/simple-synth.js';
-import { buildFileContextText } from './file-context.js';
 import { listTracks, loadMetadata, getOriginalPath, importToLibrary, renameTrack, deleteTrack } from './media-library.js';
 import { appConfirm, appDialog } from './components/app-dialog.js';
 import { notify } from './components/app-notify.js';
@@ -105,7 +103,6 @@ const els = {
   importAudioBtn: document.getElementById('analyzer-import-audio-btn'),
   libraryList: document.getElementById('analyzer-library-list'),
   results: document.getElementById('analyzer-results'),
-  backBtn: document.getElementById('analyzer-back-btn'),
   backToImportBtn: document.getElementById('analyzer-back-to-import-btn'),
 
   // Étape de région avant analyse (2026-10-21, fichiers longs).
@@ -124,8 +121,6 @@ const els = {
   // Type vidéo
 
   songTitle: document.getElementById('analyzer-song-title'),
-  songArtist: document.getElementById('analyzer-song-artist'),
-  stemBadge: document.getElementById('analyzer-stem-badge'),
 
   prevBtn: document.getElementById('analyzer-prev-btn'),
   skipBackBtn: document.getElementById('analyzer-skip-back-btn'),
@@ -136,7 +131,6 @@ const els = {
   progressThumb: document.getElementById('analyzer-progress-thumb'),
   currentTimeEl: document.getElementById('analyzer-current-time'),
   durationEl: document.getElementById('analyzer-duration'),
-  mediaContext: document.getElementById('analyzer-media-context'),
 
   zoomSlider: document.getElementById('analyzer-zoom'),
   zoomValue: document.getElementById('analyzer-zoom-value'),
@@ -145,7 +139,6 @@ const els = {
   chordTimelineInner: document.getElementById('analyzer-chord-timeline-inner'),
   reanalyzeBtn: document.getElementById('analyzer-reanalyze-btn'),
   staleBanner: document.getElementById('analyzer-stale-banner'),
-  cachedBadge: document.getElementById('analyzer-cached-badge'),
   timelineLegend: document.getElementById('analyzer-timeline-legend'),
   hierarchyToggle: document.getElementById('analyzer-hierarchy-toggle'),
   timelineScrollLeft: document.getElementById('analyzer-timeline-scroll-left'),
@@ -160,22 +153,18 @@ const els = {
   exportJsonBtn: document.getElementById('analyzer-export-json-btn'),
   exportCsvBtn: document.getElementById('analyzer-export-csv-btn'),
   copyTextBtn: document.getElementById('analyzer-copy-text-btn'),
-  statsContent: document.getElementById('analyzer-stats-content'),
-  overviewContent: document.getElementById('analyzer-overview-content'),
+  musicContext: document.getElementById('analyzer-music-context'),
+  contextKey: document.getElementById('analyzer-context-key'),
+  contextTempo: document.getElementById('analyzer-context-tempo'),
+  contextChords: document.getElementById('analyzer-context-chords'),
+  contextAnnouncement: document.getElementById('analyzer-context-announcement'),
+  studyEmpty: document.getElementById('analyzer-study-empty'),
 
-  // Hero chord + inspecteur
+  // Accord à travailler
   hero: document.getElementById('analyzer-hero'),
   heroName: document.getElementById('analyzer-hero-name'),
   heroNotes: document.getElementById('analyzer-hero-notes'),
   heroKeyboard: document.getElementById('analyzer-hero-keyboard'),
-  heroProgressFill: document.getElementById('analyzer-hero-progress-fill'),
-  heroNext: document.getElementById('analyzer-hero-next'),
-  inspectorEmpty: document.getElementById('analyzer-inspector-empty'),
-  inspectorContent: document.getElementById('analyzer-inspector-content'),
-  inspectorChord: document.getElementById('analyzer-inspector-chord'),
-  inspectorTimes: document.getElementById('analyzer-inspector-times'),
-  inspectorDetails: document.getElementById('analyzer-inspector-details'),
-  inspectorEditBtn: document.getElementById('analyzer-inspector-edit-btn'),
 
   processing: document.getElementById('analyzer-processing'),
   processingText: document.getElementById('analyzer-processing-text'),
@@ -430,20 +419,12 @@ function initWorkspaceStates() {
   // directement l'analyse (loadAnalysisSource → launchAnalysisFromPrepare).
 
   // Retour à l'accueil (« Nouvelle analyse ») : reset centralisé, jamais reload.
-  els.backBtn?.addEventListener('click', resetAnalysisSession);
   els.backToImportBtn?.addEventListener('click', resetAnalysisSession);
   els.midiBackBtn?.addEventListener('click', resetAnalysisSession);
 
   // [OpenCode] — 2026-08-08 — Capture MIDI : câblage des métriques du panneau
   // droit « État de la session ». Le moteur de capture réel reste
   // src/melody/midi-capture.js ; ici on alimente l'UI (durée, badges, statut).
-
-  // Inspecteur
-  els.inspectorEditBtn?.addEventListener('click', () => {
-    if (!selectedSegmentId || !currentAnalysis) return;
-    const index = currentAnalysis.chords.findIndex((s) => s.segmentId === selectedSegmentId);
-    if (index >= 0) openChordEditor(index);
-  });
 }
 
 // [OpenCode] — Passe corrective — Le bouton d'import global est déjà lié dans
@@ -1201,6 +1182,9 @@ function hideProcessing() {
 }
 
 async function showResults(analysis) {
+  activateSectionTab('analysis');
+  pinnedStudy = null;
+  studyTime = null;
   hideProcessing();
   setAnalyzerState('analysis');
   currentAnalysis = analysis;
@@ -1217,13 +1201,11 @@ async function showResults(analysis) {
   els.timelineLegend?.classList.remove('is-detailed');
   selectedSegmentId = null;
   clearInspector();
-  // Lot B — contexte fichier explicite : « Fichier analysé : <nom> ».
-  updateAnalyzerFileContext(currentFileName);
   enrichSegments(analysis.chords);
   resetUndoRedo();
   chordEditor?.close();
   resetZoom();
-  renderHeader(analysis);
+  renderHeader();
   addSaveIndicator();
   await loadProjectIfExists();
 
@@ -1240,8 +1222,8 @@ async function showResults(analysis) {
 
   renderTimeline(getDisplayChords(), analysis.duration || 0);
   updatePlayButton();
-  renderStats(getDisplayAnalysis());
   renderOverview(getDisplayAnalysis());
+  updatePlaybackPosition(0);
 
   // Première grille d'accords affichée : c'est le moment où expliquer Chordify
   // a un sens, puisque ses éléments existent enfin à l'écran.
@@ -1257,24 +1239,9 @@ async function showResults(analysis) {
   }
 }
 
-function renderHeader(analysis) {
+function renderHeader() {
   const baseName = currentFileName.replace(/\.[^.]+$/, '') || 'Morceau importé';
   els.songTitle.textContent = baseName;
-  els.songArtist.textContent = 'Import local';
-
-  if (analysis.usedPianoStem) {
-    els.stemBadge.textContent = 'Analyse piano isolé';
-    els.stemBadge.classList.add('visible');
-  } else {
-    els.stemBadge.textContent = '';
-    els.stemBadge.classList.remove('visible');
-  }
-
-  // L'utilisateur doit savoir s'il regarde un résultat frais ou relu : sans
-  // cette indication, « pourquoi l'analyse n'a pas changé » devient un mystère.
-  if (els.cachedBadge) {
-    els.cachedBadge.style.display = analysis.restoredFromProject ? '' : 'none';
-  }
 }
 
 // [P0 Analyse] — Reset centralisé de la session Analyse.
@@ -1303,11 +1270,14 @@ export function resetAnalysisSession() {
   chordEditor?.close();
   els.chordTimelineInner.innerHTML = '';
   if (els.hero) els.hero.style.display = 'none';
-  if (els.overviewContent) els.overviewContent.innerHTML = '';
-  els.stemBadge.textContent = '';
-  els.stemBadge.classList.remove('visible');
+  harmonicContexts = [];
+  lastContextId = null;
+  pinnedStudy = null;
+  studyTime = null;
+  if (els.contextKey) els.contextKey.textContent = '—';
+  if (els.contextChords) els.contextChords.textContent = '—';
+  if (els.contextTempo) els.contextTempo.textContent = '—';
   // Retour à l’état vide explicite quand aucun fichier n’est analysé.
-  updateAnalyzerFileContext('');
   setAnalyzerState('import');
   refreshLibraryList();
 }
@@ -1316,11 +1286,6 @@ function showImportScreen() {
   resetAnalysisSession();
 }
 
-// Lot B — affiche « Fichier analysé : <nom> » ou « Aucun fichier analysé ».
-function updateAnalyzerFileContext(fileName) {
-  if (!els.mediaContext) return;
-  els.mediaContext.textContent = buildFileContextText({ tab: 'analyzer', fileName: fileName || '' });
-}
 
 function formatTime(seconds) {
   const total = Math.max(0, Math.floor(seconds));
@@ -1404,7 +1369,6 @@ function rerenderTimeline() {
     }
     lastAutoScrollIndex = -1;
     renderTimeline(getDisplayChords(), currentAnalysis.duration || 0);
-    renderStats(getDisplayAnalysis());
     renderOverview(getDisplayAnalysis());
     selectSegment(selectedSegmentId);
   }
@@ -1559,25 +1523,6 @@ function renderTimeline(chords, duration) {
     return `${m}:${String(sec).padStart(2, '0')}`;
   };
 
-  // [Mission §9, 18/10] Repères de modulation sur la frise : un marqueur par
-  // changement de tonalité détecté ; un clic y saute. Les positions suivent
-  // le temps audio, indépendamment du nombre d'accords visibles.
-  const modKeys = currentAnalysis?.keys;
-  if (Array.isArray(modKeys) && modKeys.length > 1) {
-    for (let i = 1; i < modKeys.length; i++) {
-      const k = modKeys[i];
-      const marker = document.createElement('button');
-      marker.type = 'button';
-      marker.className = 'analyzer-timeline-modkey';
-      marker.title = `Modulation → ${keyDisplayLabel(k.key, k.mode)}`;
-      marker.style.left = `${k.start * pps}px`;
-      marker.addEventListener('click', (e) => {
-        e.stopPropagation();
-        seekToSegment({ startTime: k.start });
-      });
-      els.chordTimelineInner.appendChild(marker);
-    }
-  }
 
   chords.forEach((chord, index) => {
     // L'indice visible change avec le filtre, l'identité de la cible non.
@@ -1690,7 +1635,8 @@ function selectSegment(segmentId) {
   selectedSegmentId = segmentId;
   highlightSelectedSegment(segmentId);
   const segment = getDisplayChords().find((s) => s.segmentId === segmentId) || null;
-  renderInspector(segment);
+  pinnedStudy = segmentId;
+  renderHeroChord(segment);
   renderMasterclass(els, segment, currentAnalysis);
   renderCorriger(els, segment, currentAnalysis);
 }
@@ -1705,48 +1651,13 @@ function highlightSelectedSegment(segmentId) {
 }
 
 function clearInspector() {
-  if (!els.inspectorEmpty || !els.inspectorContent) return;
-  els.inspectorEmpty.style.display = '';
-  els.inspectorContent.style.display = 'none';
+  renderHeroChord(null);
 }
 
-function renderInspector(segment) {
-  if (!segment) {
-    clearInspector();
-    return;
-  }
-  const effective = getEffectiveChord(segment);
-  const display = deriveChordDisplay(effective);
-  const detected = parseChordSymbol(segment.chord);
-
-  if (els.inspectorEmpty) els.inspectorEmpty.style.display = 'none';
-  if (els.inspectorContent) els.inspectorContent.style.display = '';
-  if (els.inspectorChord) els.inspectorChord.textContent = effective;
-  if (els.inspectorTimes) {
-    els.inspectorTimes.textContent = `${formatTime(segment.startTime)} – ${formatTime(segment.endTime)}`;
-  }
-
-  const rows = [];
-  rows.push(['Fondamentale', NOTE_NAMES[display.rootPc] || '—']);
-  rows.push(['Qualité', display.quality || 'majeur']);
-  rows.push(['Basse', display.bassName || NOTE_NAMES[display.rootPc] || '—']);
-  rows.push(['Notes', display.allNames.join(' · ') || '—']);
-  if (segment.degree) rows.push(['Degré', segment.degree]);
-  if (typeof segment.confidence === 'number') {
-    rows.push(['Confiance', `${(segment.confidence * 100).toFixed(0)}%`]);
-  }
-  rows.push(['Rôle', ROLE_LABELS[segmentRole(segment)] || '—']);
-  rows.push(['Origine', segment.manualOverride ? 'Corrigé manuellement' : 'Détecté automatiquement']);
-
-  if (els.inspectorDetails) {
-    els.inspectorDetails.innerHTML = rows
-      .map(([label, value]) => `
-        <span class="label">${escapeHtml(label)}</span>
-        <span class="value">${escapeHtml(value)}</span>
-      `)
-      .join('');
-  }
-}
+let harmonicContexts = [];
+let lastContextId = null;
+let pinnedStudy = null;
+let studyTime = null;
 
 // Dernier accord dessiné dans la carte : on ne redessine (clavier compris) qu'au changement
 // d'accord, pas à chaque image de la lecture.
@@ -1758,6 +1669,7 @@ function renderHeroChord(chord) {
     heroRenderedKey = null;
     heroMidiNotes = [];
     els.hero.style.display = 'none';
+    if (els.studyEmpty) els.studyEmpty.hidden = false;
     return;
   }
   const heroKey = `${chord.segmentId}|${getEffectiveChord(chord)}`;
@@ -1769,6 +1681,7 @@ function renderHeroChord(chord) {
   const originalDetected = chord.chord;
 
   els.hero.style.display = 'flex';
+  if (els.studyEmpty) els.studyEmpty.hidden = true;
 
   if (chord.manualOverride) {
     els.heroName.textContent = display.symbol;
@@ -1791,7 +1704,7 @@ function renderHeroChord(chord) {
     const midiNotes = allPcs.map((pc) => 60 + ((pc - (60 % 12) + 12) % 12));
     // [Refonte Astra Analyse 12/09] — mémorisées pour les boutons d'écoute
     // « Écouter l'accord » / « Arpège » de la carte, portés depuis la maquette.
-    // Ce sont les notes réellement détectées, aucune donnée inventée.
+    // Notes constitutives calculées depuis le symbole ; mise en voix de référence.
     heroMidiNotes = midiNotes;
     const { svg } = miniKeyboardForNotes(midiNotes);
     els.heroKeyboard.innerHTML = svg;
@@ -1807,6 +1720,9 @@ function updatePlaybackPosition(currentTime) {
   const clamped = Math.max(0, Math.min(currentTime, duration));
   const ratio = duration > 0 ? clamped / duration : 0;
 
+  updateMusicContext(clamped);
+  if (studyTime !== clamped || isPlaybackActive()) pinnedStudy = null;
+  studyTime = clamped;
   els.progressFill.style.width = `${ratio * 100}%`;
   els.progressThumb.style.left = `${ratio * 100}%`;
   els.currentTimeEl.textContent = formatTime(clamped);
@@ -1823,8 +1739,7 @@ function updatePlaybackPosition(currentTime) {
 
   // [Claude] — 2026-10-09 — Narcisse : « quand le lecteur avance, on ne sait pas où l'on se
   // situe au niveau de l'accord ». L'accord en cours se remplit de gauche à droite au fil de la
-  // lecture (--chord-progress, 0 → 1), l'accord suivant est annoncé (.upcoming), et la carte
-  // « Accord à l'écoute » montre la même progression et le nom de l'accord suivant.
+  // lecture (--chord-progress, 0 → 1), et l'accord suivant est annoncé (.upcoming).
   const activeChord = activeIndex >= 0 ? chords[activeIndex] : null;
   const span = activeChord ? Math.max(activeChord.endTime - activeChord.startTime, 0.001) : 1;
   const chordProgress = activeChord ? Math.max(0, Math.min(1, (clamped - activeChord.startTime) / span)) : 0;
@@ -1838,12 +1753,8 @@ function updatePlaybackPosition(currentTime) {
   });
 
   // Hero chord
-  renderHeroChord(activeChord);
-  if (els.heroProgressFill) els.heroProgressFill.style.transform = `scaleX(${chordProgress.toFixed(4)})`;
-  if (els.heroNext) {
-    const next = activeIndex >= 0 ? chords[activeIndex + 1] : null;
-    els.heroNext.textContent = next ? `Ensuite : ${getEffectiveChord(next)}` : '';
-  }
+  const study = pinnedStudy ? chords.find((c) => c.segmentId === pinnedStudy) : null;
+  renderHeroChord(study || activeChord || (clamped === 0 ? chords[0] : null));
 
   // Auto-scroll horizontal : défiler uniquement quand le segment approche du bord.
   if (activeIndex >= 0 && activeIndex !== lastAutoScrollIndex && blocks[activeIndex]) {
@@ -1948,21 +1859,11 @@ function keyDisplayLabel(keyName, mode) {
   const endsM = /m$/i.test(name) && name.length >= 2;
   const root = endsM ? name.slice(0, -1) : name;
   const isMinor = endsM || mode === 'minor';
-  return `${root} ${isMinor ? 'mineur' : 'majeur'}`;
+  const names = ['Do', 'Do♯', 'Ré', 'Mi♭', 'Mi', 'Fa', 'Fa♯', 'Sol', 'La♭', 'La', 'Si♭', 'Si'];
+  const pc = noteNameToPc(root);
+  return `${pc == null ? root : names[pc]} ${isMinor ? 'mineur' : 'majeur'}`;
 }
 
-function keysDisplayString(analysis) {
-  const keys = analysis?.keys;
-  if (Array.isArray(keys) && keys.length > 1) {
-    const fmt = (sec) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
-    let out = keyDisplayLabel(keys[0].key, keys[0].mode);
-    for (let i = 1; i < keys.length; i++) {
-      out += ` → ${keyDisplayLabel(keys[i].key, keys[i].mode)} à ${fmt(keys[i].start)}`;
-    }
-    return out;
-  }
-  return keyDisplayLabel(analysis?.key, analysis?.keyMode);
-}
 
 function seekToSegment(segment) {
   const el = currentPlayer?.element;
@@ -2137,6 +2038,7 @@ function bindSectionTabs() {
 }
 
 function activateSectionTab(section) {
+  if (section === 'chords') section = 'analysis';
   els.sectionTabs.forEach((t) => {
     const active = t.dataset.section === section;
     t.classList.toggle('active', active);
@@ -2155,9 +2057,8 @@ function activateSectionTab(section) {
 }
 
 // [Refonte Astra Analyse 12/09] — Écoute de l'accord sélectionné, portée depuis
-// la maquette. Elle rejoue les notes RÉELLEMENT détectées (heroMidiNotes) avec
-// le même couple playNote/releaseNote que le reste de l'onglet ; rien n'est
-// synthétisé ni inventé.
+// la maquette. Elle rejoue une mise en voix de référence de l'accord,
+// calculée depuis son symbole et non une transcription du voicing enregistré.
 async function auditionHeroChord(arpeggio) {
   if (!heroMidiNotes.length) return;
   await resumeAudio();
@@ -2221,6 +2122,13 @@ async function createPlayerForAnalysis(analysis) {
     currentPlayer = createAudioPlayer(els.audioContainer, blobUrl, {
       onTimeUpdate: updatePlaybackPosition,
     });
+    // Les sauts en pause ne passent pas par la boucle requestAnimationFrame.
+    for (const event of ['seeked', 'timeupdate', 'loadedmetadata']) {
+      currentPlayer.element.addEventListener(event, () => {
+        updatePlaybackPosition(currentPlayer?.getCurrentTime?.() || 0);
+      });
+    }
+    currentPlayer.element.addEventListener('ended', updatePlayButton);
     return true;
   } catch (err) {
     console.warn('[Analyzer] lecteur indisponible :', err);
@@ -2245,7 +2153,8 @@ function resetProjectState() {
 
 function addSaveIndicator() {
   if (saveStatusEl) { saveStatusEl.remove(); saveStatusEl = null; }
-  saveStatusEl = document.createElement('span');
+  saveStatusEl = document.createElement('button');
+  saveStatusEl.type = 'button';
   saveStatusEl.id = 'analyzer-save-status';
   saveStatusEl.className = 'analyzer-save-status';
   const projectPathDisplay = projectPath || buildProjectPath(currentAudioPath) || '(chemin inconnu)';
@@ -2289,10 +2198,10 @@ function updateSaveIndicator() {
   const projectPathDisplay = projectPath || buildProjectPath(currentAudioPath) || '(chemin inconnu)';
   saveStatusEl.title = `Enregistrer les corrections (Ctrl+S)\nFichier : ${projectPathDisplay}`;
   if (projectDirty) {
-    saveStatusEl.textContent = '⚠ Modifications non enregistrées';
+    saveStatusEl.textContent = 'Enregistrer les modifications';
     saveStatusEl.className = 'analyzer-save-status dirty';
   } else {
-    saveStatusEl.textContent = '💾 Enregistré';
+    saveStatusEl.textContent = 'Analyse sauvegardée';
     saveStatusEl.className = 'analyzer-save-status clean';
   }
 }
@@ -2455,231 +2364,40 @@ window.__askBeforeClose = function () {
   });
 };
 
-function renderStats(analysis) {
-  if (!els.statsContent) return;
-  const stats = computeProductStatistics(analysis);
-  const qualityRows = Object.entries(stats.qualityCounts)
-    .sort((a, b) => b[1] - a[1])
-    .map(([q, count]) => `<div class="flex justify-between text-xs"><span>${q || 'majeur'}</span><span>${count}</span></div>`)
-    .join('');
 
-  const topRows = stats.mostUsedChords
-    .map(({ symbol, count }) => `<div class="flex justify-between text-xs"><span>${escapeHtml(symbol)}</span><span>${count}</span></div>`)
-    .join('');
-
-  els.statsContent.innerHTML = `
-    <div class="space-y-3">
-      <div class="flex justify-between text-sm font-medium text-(--text)"><span>Segments</span><span>${stats.totalSegments}</span></div>
-      <div class="flex justify-between text-sm font-medium text-(--text)"><span>Durée totale</span><span>${formatTime(stats.totalDuration)}</span></div>
-      <div class="flex justify-between text-sm font-medium text-(--text)"><span>Corrections manuelles</span><span>${stats.manuallyEditedCount}</span></div>
-      <div class="flex justify-between text-sm font-medium text-(--text)"><span>Slash chords</span><span>${stats.slashChordCount}</span></div>
-      <div>
-        <div class="text-xs font-semibold text-(--text-dim) uppercase mb-1">Qualités</div>
-        ${qualityRows || '<div class="text-xs text-(--text-dim)">Aucune</div>'}
-      </div>
-      <div>
-        <div class="text-xs font-semibold text-(--text-dim) uppercase mb-1">Accords les plus utilisés</div>
-        ${topRows || '<div class="text-xs text-(--text-dim)">Aucun</div>'}
-      </div>
-    </div>
-  `;
+// Repères du morceau partagés par tous les sous-onglets.
+// Résumé recalculé uniquement à l’ouverture ou après une correction, pas à chaque image.
+function renderOverview(analysis) {
+  harmonicContexts = buildHarmonicContexts(analysis);
+  lastContextId = null;
+  if (els.contextTempo) els.contextTempo.textContent = analysis.tempo ? `${Math.round(analysis.tempo)} BPM` : '—';
+  updateMusicContext(currentPlayer?.getCurrentTime?.() || 0);
 }
 
-// [Claude] — 2026-08-08 — Vue d'ensemble scrollable (LOT 4).
-// Vue d'ensemble destinée au pianiste : repères, structure, basse et export.
-function renderOverview(analysis) {
-  if (!els.overviewContent) return;
-  const chords = analysis.chords || [];
-  const duration = analysis.duration || 0;
-
-  // En-tête : métriques globales (LOT 4)
-  const headerItems = [
-    { label: 'Tonalité', value: keysDisplayString(analysis) },
-    { label: 'Tempo', value: analysis.tempo ? `${Math.round(analysis.tempo)} BPM` : '—' },
-    { label: 'Durée', value: formatTime(duration) },
-    { label: 'Confiance', value: analysis.confidence ? `${(analysis.confidence * 100).toFixed(0)}%` : '—' },
-  ];
-
-  // Parcours des accords par section. Le pipeline audio ne livre aucune
-  // section : on les déduit des silences francs et des reprises de boucle, et
-  // on les nomme « Partie A/B/C » — un repère de lecture, pas un « Refrain »
-  // deviné (voir src/analyzer/chord-sections.js).
-  const sections = splitIntoSections(chords, duration);
-
-  // Ligne de basse : fondamentale de chaque accord
-  const bassNotes = chords
-    .map((c) => {
-      const eff = getEffectiveChord(c);
-      const display = deriveChordDisplay(eff);
-      return display.bassName || NOTE_NAMES[display.rootPc] || '?';
-    })
-    .filter((n, i, arr) => i === 0 || n !== arr[i - 1])
-    .slice(0, 32);
-
-  // ── Structure du morceau ────────────────────────────────────────────────
-  // Ce que cette carte doit montrer, c'est la FORME : combien de parties, où
-  // elles commencent, et lesquelles reviennent. Pas la liste des accords —
-  // elle est déjà dans la frise, et sur un morceau réel elle compte plus de
-  // deux cents segments. De chaque partie on ne garde que son assise : les
-  // quelques accords qui occupent l'essentiel de son temps.
-  const STRUCTURE_CHORDS = 5;
-  const totalSpan = Math.max(
-    duration,
-    sections.length ? sections[sections.length - 1].end : 0,
-    1,
-  );
-
-  // Bande proportionnelle : chaque partie occupe la largeur de sa durée réelle.
-  const structureBand = sections.map((section) => {
-    const width = ((section.end - section.start) / totalSpan) * 100;
-    const seg = section.chords[0];
-    return `<button type="button" class="an-form-seg" data-letter="${escapeHtml(section.letter)}"`
-      + ` data-segment-id="${escapeHtml(seg?.segmentId || '')}"`
-      + ` style="flex: ${width.toFixed(3)} 1 0"`
-      + ` title="${escapeHtml(section.label)} — ${formatTime(section.start)} à ${formatTime(section.end)}. Cliquez pour l'ouvrir dans la frise.">`
-      + `<span class="an-form-seg-letter">${escapeHtml(section.letter)}</span>`
-      + `<span class="an-form-seg-time">${escapeHtml(formatTime(section.start))}</span>`
-      + `</button>`;
-  }).join('');
-
-  // Une ligne par partie DISTINCTE, pas par passage : c'est la lecture qui
-  // compte (« B revient deux fois »), pas l'énumération.
-  const distinct = [];
-  for (const section of sections) {
-    const found = distinct.find((d) => d.letter === section.letter);
-    if (found) {
-      found.passes += 1;
-      found.seconds += section.end - section.start;
-      found.chords = found.chords.concat(section.chords);
-    } else {
-      distinct.push({
-        letter: section.letter,
-        passes: 1,
-        seconds: section.end - section.start,
-        start: section.start,
-        chords: [...section.chords],
-        segmentId: section.chords[0]?.segmentId || '',
-      });
+function updateMusicContext(time) {
+  const context = harmonicContextAt(harmonicContexts, time);
+  if (!context || !els.musicContext) return;
+  const id = `${context.start}:${context.key}:${context.mode}:${context.chords.join('|')}`;
+  if (id === lastContextId) return;
+  const changed = lastContextId !== null;
+  lastContextId = id;
+  els.musicContext.dataset.tone = String(context.color % 5);
+  els.contextKey.textContent = keyDisplayLabel(context.key, context.mode);
+  els.contextChords.replaceChildren();
+  for (const chord of context.chords) {
+    const span = document.createElement('span');
+    span.textContent = chord;
+    els.contextChords.appendChild(span);
+  }
+  if (!context.chords.length) els.contextChords.textContent = '—';
+  els.contextChords.title = context.chords.length ? context.chords.join(' · ') : 'Aucune progression récurrente établie pour ce passage';
+  if (changed) {
+    els.contextAnnouncement.textContent = `Tonalité : ${els.contextKey.textContent}. Accords principaux : ${context.chords.join(', ') || 'non établis'}.`;
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      els.musicContext.getAnimations().forEach((a) => a.cancel());
+      els.musicContext.animate([{ opacity: 0.75 }, { opacity: 1 }], { duration: 160 });
     }
   }
-
-  const structureRows = distinct.map((part) => {
-    const palette = paletteOf(part.chords).slice(0, STRUCTURE_CHORDS);
-    const chips = palette
-      .map((e) => `<span class="an-form-chord">${escapeHtml(e.symbol)}</span>`)
-      .join('');
-    const when = part.passes > 1
-      ? `revient ${part.passes} fois · ${formatTime(part.seconds)} au total`
-      : `${formatTime(part.start)} · ${formatTime(part.seconds)}`;
-    const changes = changeCountOf(part.chords);
-    return `
-      <button type="button" class="an-form-row" data-segment-id="${escapeHtml(part.segmentId)}"
-              title="Ouvrir le début de la partie ${escapeHtml(part.letter)} dans la frise">
-        <span class="an-form-row-letter">${escapeHtml(part.letter)}</span>
-        <span class="an-form-row-when">${escapeHtml(when)}</span>
-        <span class="an-form-row-chords">${chips}</span>
-        <span class="an-form-row-changes">${changes} changements</span>
-      </button>`;
-  }).join('');
-
-  // [Refonte Astra Analyse 12/09] — Mise en page « Vue d'ensemble » recopiée de
-  // la maquette (classes an-*). Les DONNÉES sont inchangées : ce sont celles
-  // que l'analyse produit réellement.
-  // §2 du brief : les blocs « Guide d'écoute pour débutant » et « Polarité
-  // tonale » de la maquette ne sont PAS portés — leurs textes sont écrits à la
-  // main dans la maquette, aucun moteur de Zic ne les produit.
-  els.overviewContent.innerHTML = `
-    <div class="an-overview-container">
-      <div class="an-overview-hero-bar">
-        ${headerItems.map(({ label, value }) => `
-          <div class="an-metric-tile">
-            <span class="an-metric-label">${escapeHtml(label)}</span>
-            <div class="an-metric-val-row">
-              <strong class="an-metric-primary">${escapeHtml(value)}</strong>
-            </div>
-          </div>
-        `).join('')}
-      </div>
-
-      <div class="an-overview-grid">
-        <div class="an-card an-overview-card an-architecture-card">
-          <div class="an-card-header">
-            <div>
-              <span class="an-eyebrow">ARCHITECTURE HARMONIQUE DU MORCEAU</span>
-              <h3 class="an-card-title">Structure du morceau</h3>
-            </div>
-            <span class="an-hint-tag">${distinct.length} partie${distinct.length > 1 ? 's' : ''} · ${sections.length} passage${sections.length > 1 ? 's' : ''}</span>
-          </div>
-
-          ${sections.length > 0 ? `
-          <div class="an-form-band" role="group" aria-label="Structure du morceau">${structureBand}</div>
-          <div class="an-form-rows">${structureRows}</div>
-          ` : '<span class="an-hint-tag">Aucun accord détecté.</span>'}
-          <p class="an-song-parts-note">Les parties sont découpées aux silences et aux reprises de boucle ; deux parties qui reposent sur les mêmes accords portent la même lettre. Ces repères vous situent dans le morceau — ils ne prétendent pas nommer un couplet ou un refrain.</p>
-
-          <div class="an-bassline-tray">
-            <div class="an-bassline-header">
-              <span class="an-eyebrow">LIGNE DE BASSE</span>
-            </div>
-            <div class="an-bass-nodes-row">
-              ${bassNotes.length > 0
-                ? bassNotes.map((n, i) => `<div class="an-bass-node-wrap"><span class="an-bass-node">${escapeHtml(n)}</span>${i < bassNotes.length - 1 ? '<span class="an-bass-arrow">→</span>' : ''}</div>`).join('')
-                : '<span class="an-hint-tag">Non disponible.</span>'}
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      <div class="an-card an-overview-card">
-        <div class="an-card-header">
-          <div>
-            <span class="an-eyebrow">EXPORT</span>
-            <h3 class="an-card-title">Emporter cette analyse</h3>
-          </div>
-        </div>
-        <div class="an-export-actions">
-          <button type="button" class="an-btn an-btn-ghost an-btn-mini" id="analyzer-overview-export-midi">Exporter en MIDI</button>
-          <button type="button" class="an-btn an-btn-ghost an-btn-mini" id="analyzer-overview-export-json">Exporter en JSON</button>
-          <button type="button" class="an-btn an-btn-primary an-btn-mini" id="analyzer-overview-copy-text">Copier la grille texte</button>
-        </div>
-        <p class="an-hint-tag">MIDI, JSON et texte reflètent les corrections manuelles. JSON conserve aussi la détection originale.</p>
-      </div>
-    </div>
-  `;
-
-  // Brancher les boutons d'export de la vue d'ensemble
-  const overviewExportMidi = document.getElementById('analyzer-overview-export-midi');
-  const overviewExportJson = document.getElementById('analyzer-overview-export-json');
-  const overviewCopyText = document.getElementById('analyzer-overview-copy-text');
-
-  // Une pastille du parcours ramène à son accord dans la frise : la vue
-  // d'ensemble sert à repérer un endroit, pas seulement à le contempler.
-  els.overviewContent.querySelectorAll('.an-form-seg[data-segment-id], .an-form-row[data-segment-id]').forEach((pill) => {
-    const id = pill.dataset.segmentId;
-    if (!id) return;
-    pill.addEventListener('click', () => {
-      activateSectionTab('chords');
-      els.sectionTabs.forEach((t) => {
-        const active = t.dataset.section === 'chords';
-        t.classList.toggle('active', active);
-        t.setAttribute('aria-selected', String(active));
-      });
-      selectSegment(id);
-      seekToSegment(getDisplayChords().find((s) => s.segmentId === id));
-      els.chordTimelineInner
-        ?.querySelector(`.analyzer-timeline-block[data-segment-id="${CSS.escape(id)}"]`)
-        ?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-    });
-  });
-
-  // [Claude] — 2026-10-18 — Ces trois boutons appelaient les fonctions pures d'export et en jetaient
-  // le résultat : rien n'était enregistré ni copié (Narcisse : « fais en sorte qu'ils fonctionnent »).
-  // On passe par les mêmes handlers que les boutons d'export du panneau Corriger (boîte de sauvegarde
-  // système, presse-papiers, toast), qui s'appuient sur `currentAnalysis` et incluent les corrections.
-  if (overviewExportMidi) overviewExportMidi.addEventListener('click', handleExportMidi);
-  if (overviewExportJson) overviewExportJson.addEventListener('click', handleExportJson);
-  if (overviewCopyText) overviewCopyText.addEventListener('click', handleCopyText);
 }
 
 function escapeHtml(str) {

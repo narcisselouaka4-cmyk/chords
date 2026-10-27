@@ -165,14 +165,14 @@ runTest("D. Interface — une porte de sortie permet de recalculer", () => {
   );
 });
 
-runTest("D. Interface — l'origine du résultat est visible", () => {
+runTest('D. Interface — statut de sauvegarde discret et avertissement des anciens résultats', () => {
   const html = read('src/index.html');
-  assert(html.includes('analyzer-cached-badge'), 'un badge signale une analyse relue');
+  assert(html.includes('analyzer-stale-banner'), 'un ancien résultat reste signalé');
 
   const js = read('src/ui/analyzer-tab.js');
   assert(
-    js.includes('analysis.restoredFromProject ?'),
-    'le badge reflète réellement l’origine du résultat',
+    js.includes("saveStatusEl.textContent = 'Analyse sauvegardée'") && js.includes('isEngineOutdated(analysis?.engine)'),
+    'le statut de sauvegarde et l’ancienneté restent deux informations distinctes',
   );
 });
 

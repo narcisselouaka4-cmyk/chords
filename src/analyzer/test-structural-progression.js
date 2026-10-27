@@ -125,7 +125,8 @@ function controller(chords = structuredClone(source)) {
     timelineViewMode: 'original', appliedReharmonization: null, detailedChords: false,
     timelineZoom: 1, BASE_PIXELS_PER_SECOND: 80, BLOCK_GAP: 4,
     LABEL_MIN_BLOCK_PX: 20, selectedSegmentId: null,
-    lastAutoScrollIndex: -1,
+    lastAutoScrollIndex: -1, pinnedStudy: null, studyTime: null,
+    updateMusicContext() {}, isPlaybackActive: () => false,
     ROLE_LABELS: { structural: 'Accord structurel', passing: 'Accord de passage', uncertain: 'Incertain', silence: 'Silence' },
     document: { createElement: () => new Element() },
     harmonicRole, selectChordProgression, getEffectiveChord,
@@ -155,7 +156,7 @@ test('frise, vue d’ensemble et édition utilisent les bonnes identités après
   assert.equal(blocks[3].style.left, '240px');
   blocks[3].listeners.dblclick({ stopPropagation() {} });
   assert.equal(c.editIndex, 3);
-  assert.equal(c.inspector.segmentId, 'd');
+  assert.equal(c.hero.segmentId, 'd');
   assert.deepEqual(c.overview.chords.map((s) => s.segmentId), ['a', 'b', 'c', 'd']);
   assert.equal(c.currentAnalysis.chords.length, 5);
 });
@@ -175,7 +176,7 @@ test('lecture : chaque instant joué a son accord, sauf le silence final', () =>
   assert.equal(c.hero, null);
 });
 
-test('le nombre de blocs ne décale ni les accords ni les repères de modulation', () => {
+test('le nombre de blocs ne décale pas les accords ; aucun marqueur de modulation dans la frise', () => {
   const c = controller();
   c.currentAnalysis.keys = [{ key: 'C', start: 0 }, { key: 'G', start: 3 }];
   for (const detailed of [false, true, false]) {
@@ -183,7 +184,7 @@ test('le nombre de blocs ne décale ni les accords ni les repères de modulation
     c.els.hierarchyToggle.listeners.change();
     const children = c.els.chordTimelineInner.children;
     assert.equal(children.find((b) => b.dataset.segmentId === 'd').style.left, '240px');
-    assert.equal(children.find((b) => b.className === 'analyzer-timeline-modkey').style.left, '240px');
+    assert.equal(children.some((b) => b.className === 'analyzer-timeline-modkey'), false);
     assert.equal(c.els.chordTimelineInner.style.width, '480px');
   }
 });
@@ -194,11 +195,11 @@ test('le bouton des détails ne fait plus disparaître la sélection', () => {
   c.els.hierarchyToggle.listeners.change();
   assert.equal(c.getDisplayChords().length, 4);
   c.selectSegment('c');
-  assert.equal(c.inspector.chord, 'B');
+  assert.equal(c.hero.chord, 'B');
   c.els.hierarchyToggle.checked = false;
   c.els.hierarchyToggle.listeners.change();
   // Un accord incertain reste affiché : la sélection survit au basculement.
-  assert.equal(c.inspector.chord, 'B');
+  assert.equal(c.hero.chord, 'B');
   assert.equal(c.selectedSegmentId, 'c');
   assert.deepEqual(c.getDisplayAnalysis().chords.map((s) => s.chord), ['F', 'F#dim', 'B', 'G']);
 });

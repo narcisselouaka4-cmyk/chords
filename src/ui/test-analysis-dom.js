@@ -161,8 +161,7 @@ function testChordProgressHighlight() {
     && /block\.classList\.toggle\('upcoming', activeIndex >= 0 && idx === activeIndex \+ 1\)/.test(js);
   const drawn = /\.analyzer-timeline-block\.current::before \{[^}]*scaleX\(var\(--chord-progress, 0\)\)/.test(css)
     && /\.analyzer-timeline-block\.selected:not\(\.current\) \{[^}]*outline:/.test(css);
-  const hero = /id="analyzer-hero-progress-fill"/.test(html) && /id="analyzer-hero-next"/.test(html)
-    && /heroKey === heroRenderedKey/.test(js);
+  const hero = /id="analyzer-hero-keyboard"/.test(html) && /heroKey === heroRenderedKey/.test(js);
   if (!progress || !drawn || !hero) {
     console.error('❌ Frise — progression dans l’accord en cours', { progress, drawn, hero });
     process.exit(1);
@@ -171,18 +170,15 @@ function testChordProgressHighlight() {
 }
 
 function testOverviewWithoutDeveloperStatistics() {
+  const html = readText('src/index.html');
   const js = readText('src/ui/analyzer-tab.js');
-  const start = js.indexOf('function renderOverview(');
-  const overview = js.slice(start, js.indexOf('// Brancher les boutons', start));
-  const css = readText('src/ui/refonte/astra-analysis.css');
-  const grid = /\.an-overview-grid\s*\{([^}]*)\}/s.exec(css);
-  const removed = !/Score et statistiques|CE QUE L'ANALYSE A MESURÉ|an-insights-card|an-stats-details|scoreRows|computeProductStatistics/.test(overview);
-  const kept = ['Structure du morceau', 'LIGNE DE BASSE', 'Tonalité', 'Tempo', 'analyzer-overview-export-midi', 'analyzer-overview-export-json', 'analyzer-overview-copy-text'].every((label) => overview.includes(label));
-  if (!removed || !kept || !/grid-template-columns:\s*minmax\(0, 1fr\)/.test(grid?.[1] || '')) {
-    console.error('❌ Vue d’ensemble — statistiques développeur retirées, repères et exports conservés, pleine largeur', { removed, kept });
-    process.exit(1);
-  }
-  console.log('✅ Vue d’ensemble — sans panneau statistique, structure pleine largeur et exports conservés');
+  const results = html.slice(html.indexOf('id="analyzer-results"'), html.indexOf('id="reharm-panel"'));
+  const required = ['analyzer-context-key', 'analyzer-context-tempo', 'Accords principaux', 'Accord à travailler', 'analyzer-hero-keyboard'];
+  const removed = ['LIGNE DE BASSE', 'IDENTITÉ ET RÔLE', 'analyzer-overview-export', 'analyzer-media-context', 'analyzer-back-btn', 'data-section="chords"'];
+  if (!required.every((x) => results.includes(x)) || removed.some((x) => results.includes(x))
+    || js.includes('analyzer-timeline-modkey')) throw new Error('Vue fusionnée : repères, fiche et suppressions incohérents');
+  if (results.indexOf('analyzer-music-context') > results.indexOf('<div class="an-project-bar">')) throw new Error('Repères absents au-dessus du lecteur');
+  console.log('✅ Vue fusionnée — repères permanents, accord centré, anciens panneaux retirés');
 }
 
 // ── Exécution ──
