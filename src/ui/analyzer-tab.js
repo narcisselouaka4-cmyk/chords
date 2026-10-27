@@ -971,12 +971,8 @@ async function restoreSavedAnalysis(filePath) {
 
     currentAnalysis = analysis;
     await showResults(analysis);
-    if (engineOutdated) {
-      showStaleBanner(cached.engine);
-    } else {
-      hideStaleBanner();
-      showToast('Analyse enregistrée rechargée — aucun recalcul.', 4000);
-    }
+    // Le bandeau est posé par showResults, qui vient d'être appelé.
+    if (!engineOutdated) showToast('Analyse enregistrée rechargée — aucun recalcul.', 4000);
     return true;
   } catch (err) {
     console.warn('[Analyzer] restauration impossible, analyse normale :', err);
@@ -1208,6 +1204,13 @@ async function showResults(analysis) {
   hideProcessing();
   setAnalyzerState('analysis');
   currentAnalysis = analysis;
+  // L'avertissement est décidé ICI, le seul point par lequel TOUTE grille
+  // passe — restaurée du disque, fraîchement calculée, ou déjà en mémoire.
+  // Le poser dans la seule restauration ne suffisait pas : une analyse gardée
+  // en mémoire depuis le début de la session n'empruntait pas ce chemin, et
+  // Narcisse a rouvert son live sans voir le moindre avertissement.
+  if (isEngineOutdated(analysis?.engine)) showStaleBanner(analysis?.engine);
+  else hideStaleBanner();
   timelineViewMode = 'original';
   detailedChords = false;
   if (els.hierarchyToggle) els.hierarchyToggle.checked = false;
