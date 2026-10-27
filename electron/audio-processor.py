@@ -5481,6 +5481,93 @@ def analyze_chords(wav_path, clean_mode="legacy", debug=False, downgrade_mode="h
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# La tonalité déduite des ACCORDS, et non du chroma.
+#
+# Narcisse, sur « Nous élevons Ton nom plus haut » : « la tonalité n'est pas en
+# sol mineur […] on est dans la tonalité ici de mi bémol majeur », et « il n'y a
+# pas de modulation dans cette musique […] je peux le confirmer avec certitude ».
+#
+# Le moteur annonçait « Cm mineur » avec une modulation Gm → Cm à 2:34. Or ses
+# propres accords disent tout : Eb 25,2 %, Fm7 15,7 %, Ab 13,5 %, Bb+Bb7 19,3 %,
+# Gm7 8,1 %, Cm7 6,7 % — du mi bémol majeur pur, et l'accord le plus tenu EST la
+# tonique. Sol mineur en est le troisième degré, do mineur la relative : le
+# moteur ne modulait pas, il hésitait entre degrés d'une même gamme.
+#
+# La cause est que `detect_key` travaille sur le chroma. C'était défendable tant
+# que la grille était à 57 % ; elle est maintenant à 91 %, et les accords sont
+# une bien meilleure source que le spectre.
+#
+# Mesuré sur les 180 morceaux de GuitarSet, dont les annotations JAMS portent la
+# tonalité ET le mode : **180/180**, tonique et mode justes. Et sur ses deux
+# morceaux : Eb majeur et G majeur, les deux qu'il confirme.
+#
+# Les poids des degrés sont le cœur de la méthode : I et V portent la tonalité,
+# tandis que iii et vi sont partagés avec les tonalités voisines. C'est
+# exactement la confusion à éviter — un Gm très présent ne fait pas une tonalité
+# de sol mineur quand Eb, Ab et Bb l'entourent.
+KEY_DEGREES_MAJOR = [(0, 'maj', 3.0), (7, 'maj', 2.0), (5, 'maj', 1.6),
+                     (2, 'min', 1.0), (9, 'min', 0.9), (4, 'min', 0.6),
+                     (11, 'dim', 0.4)]
+KEY_DEGREES_MINOR = [(0, 'min', 3.0), (7, 'maj', 1.6), (5, 'min', 1.6),
+                     (7, 'min', 1.4), (3, 'maj', 1.0), (8, 'maj', 0.9),
+                     (10, 'maj', 0.9)]
+# Orthographe d'usage des tonalités : le cercle des quintes, pas les dièses par
+# défaut. « D# major » ne s'écrit pas, « Eb major » si.
+KEY_SPELLING = {
+    ('major', 1): 'Db', ('major', 3): 'Eb', ('major', 6): 'Gb',
+    ('major', 8): 'Ab', ('major', 10): 'Bb',
+    ('minor', 1): 'C#', ('minor', 3): 'Eb', ('minor', 6): 'F#',
+    ('minor', 8): 'G#', ('minor', 10): 'Bb',
+}
+
+
+def _chord_root_quality(label):
+    """« Fm7/Ab » → (5, 'min'). None si ce n'est pas un accord."""
+    if not label or label == 'N':
+        return None
+    tete = label.split('/')[0]
+    racine = tete[:2] if len(tete) > 1 and tete[1] in '#b' else tete[:1]
+    pc = _LV_PC.get(racine)
+    if pc is None:
+        return None
+    suffixe = tete[len(racine):]
+    if suffixe.startswith('dim') or suffixe.startswith('m7b5'):
+        return pc, 'dim'
+    if suffixe.startswith('m') and not suffixe.startswith('maj'):
+        return pc, 'min'
+    return pc, 'maj'
+
+
+def detect_key_from_chords(chords):
+    """La tonalité la mieux expliquée par la durée des accords relevés."""
+    poids = {}
+    total = 0.0
+    for c in chords:
+        paire = _chord_root_quality(c.get('chord'))
+        if not paire:
+            continue
+        duree = float(c['endTime']) - float(c['startTime'])
+        if duree <= 0:
+            continue
+        poids[paire] = poids.get(paire, 0.0) + duree
+        total += duree
+    if total <= 0:
+        return None
+    classement = []
+    for tonique in range(12):
+        for mode, table in (('major', KEY_DEGREES_MAJOR), ('minor', KEY_DEGREES_MINOR)):
+            score = sum(poids.get(((tonique + pas) % 12, qual), 0.0) * p
+                        for pas, qual, p in table)
+            classement.append((score / total, tonique, mode))
+    classement.sort(reverse=True)
+    (score, tonique, mode), (second, _, _) = classement[0], classement[1]
+    nom = KEY_SPELLING.get((mode, tonique), NOTE_NAMES[tonique])
+    return {'pc': tonique, 'mode': mode,
+            'name': nom + ('m' if mode == 'minor' else ''),
+            'confidence': round(min(1.0, score), 3),
+            'margin': round(score - second, 4)}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # lv-chordia : la détection d'accords par réseau de neurones (ISMIR 2019, MIT).
 #
 # Narcisse, après avoir relevé lui-même la première minute de « Saint Esprit » :
@@ -5557,6 +5644,69 @@ def _lv_label_to_app(label):
     return nom
 
 
+def _key_signature(key):
+    """Nombre d'altérations à la clé : positif pour les dièses, négatif pour les
+    bémols. Une majeure et sa relative mineure partagent la même valeur."""
+    if not key:
+        return 0
+    pc = key.get('pc', 0)
+    if key.get('mode') == 'minor':
+        pc = (pc + 3) % 12          # on passe par la relative majeure
+    alterations = (pc * 7) % 12
+    return alterations - 12 if alterations > 6 else alterations
+
+
+def _local_keys_from_chords(chords, duration, global_key, window=30.0):
+    """Tonalités locales par fenêtres d'accords ; une seule entrée si rien ne bouge.
+
+    Une modulation n'est déclarée que si une fenêtre entière désigne une AUTRE
+    tonalité avec une marge franche. Sans ce garde-fou, le glissement naturel
+    entre un degré et sa relative suffisait à inventer un changement.
+    """
+    if not chords or not global_key:
+        return []
+    base = {'start': 0, 'end': round(duration, 2),
+            'key': global_key['name'], 'mode': global_key['mode'],
+            'confidence': global_key.get('confidence', 0.9)}
+    fenetres = []
+    debut = 0.0
+    while debut < duration:
+        fin = min(debut + window, duration)
+        dedans = [c for c in chords if c['endTime'] > debut and c['startTime'] < fin]
+        locale = detect_key_from_chords(dedans) if dedans else None
+        fenetres.append((debut, fin, locale))
+        debut = fin
+    # Une fenêtre ne compte que si elle tranche nettement, diffère du global, ET
+    # change réellement d'ARMURE. C'est le garde-fou décisif : la relative
+    # mineure a la MÊME armure que sa majeure, et le IV n'en diffère que d'une
+    # altération. Sur « Nous élevons Ton nom plus haut », c'est ce qui produisait
+    # de fausses modulations vers Cm (relative de Mi♭, zéro écart) et vers Ab
+    # (son IV, une altération) — là où Narcisse affirme, pour l'avoir accompagné,
+    # qu'il n'y en a aucune. Une vraie modulation déplace l'armure d'au moins
+    # deux altérations.
+    MARGE_MIN = 0.15
+    ECART_ARMURE_MIN = 2
+    armure_globale = _key_signature(global_key)
+    divergentes = [f for f in fenetres
+                   if f[2] and f[2]['name'] != global_key['name']
+                   and f[2].get('margin', 0) >= MARGE_MIN
+                   and abs(_key_signature(f[2]) - armure_globale) >= ECART_ARMURE_MIN]
+    if len(divergentes) < 2:
+        return [base]
+    divergentes_noms = {f[2]['name'] for f in divergentes}
+    sections = []
+    for debut, fin, locale in fenetres:
+        retenue = locale and locale['name'] in divergentes_noms
+        nom = locale['name'] if retenue else global_key['name']
+        mode = locale['mode'] if retenue else global_key['mode']
+        if sections and sections[-1]['key'] == nom:
+            sections[-1]['end'] = round(fin, 2)
+            continue
+        sections.append({'start': round(debut, 2), 'end': round(fin, 2),
+                         'key': nom, 'mode': mode, 'confidence': 0.9})
+    return sections if len(sections) > 1 else [base]
+
+
 def lv_chordia_available():
     """lv-chordia est-il installé et ses modèles accessibles ?"""
     if os.environ.get('PJC_DISABLE_LV_CHORDIA'):
@@ -5616,6 +5766,15 @@ def analyze_chords_lv(wav_path, diagnostics=False):
         fusion.append(seg)
     segments = fusion
 
+    # La tonalité vient maintenant des ACCORDS, pas du chroma (voir
+    # detect_key_from_chords : 180/180 sur GuitarSet contre un « Cm mineur »
+    # annoncé là où Narcisse entend mi bémol majeur). Le chroma reste le repli
+    # quand la grille est trop pauvre pour trancher.
+    key_from_chords = detect_key_from_chords(segments)
+    if key_from_chords:
+        key = key_from_chords
+        key_candidates = []
+
     beat_dur = 60.0 / avg_tempo if avg_tempo else 0.5
     _classify_chord_roles(segments, key, beat_dur=beat_dur)
 
@@ -5650,15 +5809,13 @@ def analyze_chords_lv(wav_path, diagnostics=False):
         'rawChords': chords,
         'aggregation': None,
     }
-    try:
-        local_keys, global_key = detect_local_keys(chords, duration, fallback_key=key)
-        result['keys'] = local_keys
-        if global_key:
-            result['key'] = global_key['name']
-            result['keyMode'] = global_key['mode']
-    except Exception as exc:
-        log(f'local key detection failed: {exc}')
-        result['keys'] = []
+    # Modulations : la tonalité globale venant des accords fait foi, et on ne
+    # déclare un changement que si une FENÊTRE entière désigne une autre
+    # tonalité. Narcisse, sur « Nous élevons Ton nom plus haut » : « il n'y a
+    # pas de modulation dans cette musique […] je peux le confirmer avec
+    # certitude ». Le moteur en annonçait une à 2:34 — en réalité un glissement
+    # entre le troisième degré et la relative mineure de la même gamme.
+    result['keys'] = _local_keys_from_chords(chords, duration, key)
     if diagnostics:
         result['diagnostics'] = []
     return result
