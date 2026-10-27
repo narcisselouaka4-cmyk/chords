@@ -5626,11 +5626,22 @@ _LV_PC.update({'Db': 1, 'Eb': 3, 'Gb': 6, 'Ab': 8, 'Bb': 10, 'Cb': 11, 'Fb': 4})
 LV_ENGINE_VERSION = 'lv-chordia-1.1.0'
 
 
-def _lv_label_to_app(label):
-    """« E:min/b7 » → « Em/D ». Rend « N » pour tout ce qui n'est pas un accord."""
+def _lv_label_to_app(label, with_bass=True):
+    """« E:min/b7 » → « Em/D ». Rend « N » pour tout ce qui n'est pas un accord.
+
+    `with_bass=False` écarte le renversement. Sur un MIX, la basse est la partie
+    la moins fiable de la lecture : Narcisse, sur « Sabaoth », rejette 15 des 17
+    renversements proposés — « Eb/G, ça ne passe pas, c'est un mi bémol
+    classique » (14 occurrences à lui seul), « C#/D#, ça passe pas du tout ».
+    Le seul qu'il tolère, « Eb/F », il le qualifie de « pas ma couleur
+    préférée ». Mesuré par ailleurs : le détecteur de note grave ne donne la
+    bonne fondamentale que 2 fois sur 10 sur son répertoire.
+    """
     if not label or label in ('N', 'X'):
         return 'N'
     tete, _, basse = label.partition('/')
+    if not with_bass:
+        basse = ''
     if ':' not in tete:
         return tete
     root, qualite = tete.split(':', 1)
@@ -5654,6 +5665,49 @@ def _key_signature(key):
         pc = (pc + 3) % 12          # on passe par la relative majeure
     alterations = (pc * 7) % 12
     return alterations - 12 if alterations > 6 else alterations
+
+
+def _merge_same_root(segments):
+    """Une seule étiquette par accord — la règle que Narcisse a posée.
+
+    « Si une étiquette est suivie d'une autre portant le même accord (la même
+    notation), ces deux étiquettes fusionnent. » Elle avait été appliquée au
+    chemin MIDI seulement ; elle vaut ici aussi. Sur « Sabaoth » : « entre la
+    55e seconde et la 57e seconde, on trouve un do dièse […] c'est le même
+    accord, côte à côte. J'ai pas compris. Autant les faire fusionner. »
+
+    Deux cas, comme côté MIDI : même notation exacte, ou même fondamentale dont
+    l'une des deux est la TRIADE NUE — on garde alors la triade nue, sa
+    préférence constante pour le nom simple.
+    """
+    def racine_et_suffixe(label):
+        tete = (label or '').split('/')[0]
+        if not tete or tete == 'N':
+            return None, None
+        r = tete[:2] if len(tete) > 1 and tete[1] in '#b' else tete[:1]
+        return r, tete[len(r):]
+
+    def triade_nue(suffixe):
+        return suffixe in ('', 'm')
+
+    fusion = []
+    for seg in segments:
+        dernier = fusion[-1] if fusion else None
+        if not dernier:
+            fusion.append(seg)
+            continue
+        if dernier['chord'] == seg['chord']:
+            dernier['endTime'] = seg['endTime']
+            continue
+        r1, s1 = racine_et_suffixe(dernier['chord'])
+        r2, s2 = racine_et_suffixe(seg['chord'])
+        if r1 and r1 == r2 and triade_nue(s1) != triade_nue(s2):
+            if triade_nue(s2):
+                dernier['chord'] = seg['chord']
+            dernier['endTime'] = seg['endTime']
+            continue
+        fusion.append(seg)
+    return fusion
 
 
 def _local_keys_from_chords(chords, duration, global_key, window=30.0):
@@ -5754,17 +5808,9 @@ def analyze_chords_lv(wav_path, diagnostics=False):
         if fin <= debut:
             continue
         segments.append({'startTime': debut, 'endTime': fin,
-                         'chord': _lv_label_to_app(s.get('chord')),
+                         'chord': _lv_label_to_app(s.get('chord'), with_bass=False),
                          'confidence': 1.0})
-    # Deux étiquettes de suite pour un seul accord n'en font qu'une — la règle
-    # que Narcisse a posée pour les Sessions MIDI vaut ici aussi.
-    fusion = []
-    for seg in segments:
-        if fusion and fusion[-1]['chord'] == seg['chord']:
-            fusion[-1]['endTime'] = seg['endTime']
-            continue
-        fusion.append(seg)
-    segments = fusion
+    segments = _merge_same_root(segments)
 
     # La tonalité vient maintenant des ACCORDS, pas du chroma (voir
     # detect_key_from_chords : 180/180 sur GuitarSet contre un « Cm mineur »
