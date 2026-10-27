@@ -123,17 +123,44 @@ La mesure d'**ORDRE** (`8718c22`), elle, reste centrale : c'est elle qui a
 montré l'écart réel (+33,8 pt) là où les métriques de durée n'en voyaient que
 la moitié.
 
-## Ce qui reste à vérifier
+## VALIDÉ PAR NARCISSE DANS L'APPLICATION — 27/10/2026
 
-**Rien n'a été vu tourner dans Electron.** À regarder sur « Saint Esprit » : la
-grille doit afficher sa boucle `Em → C → G → D`, et non plus 19 étiquettes.
+Il a ouvert Electron et testé **deux** audios. Ses mots :
 
-Le premier `Do` est placé à 2,76 s par lv-chordia quand Narcisse dit 6 s —
-seul écart notable sur son relevé. À lui de dire qui a raison.
+> « Franchement, pour être totalement honnête, concernant le premier audio
+> Saint-Esprit, hormis le premier Do qui arrive trop tôt, tout est bon. […] au
+> vu de la dynamique, il n'y a rien à redire. Même les septièmes ont été
+> ajoutés aux bons endroits, je trouve. Ou en tout cas, ils sont pertinents. »
+
+Second audio, qu'il qualifie lui-même de « pas très simple » : **« Nous élevons
+ton nom plus haut »**, de Selina Jo Pagbe et Impact Gospel Choir. Verdict :
+« même dans cet audio […] tout est OK ».
+
+Et surtout : **« pour moi, ça, c'est quelque chose que l'on peut présenter à un
+public »**.
+
+C'est la première fois de la semaine qu'un relevé audio lui paraît présentable.
+Cette validation vaut plus que les 90,7 % de GuitarSet : elle porte sur SON
+répertoire, dans l'application, avec son oreille.
+
+### Les deux seuls défauts qu'il relève
+
+1. **Le premier `Do` arrive trop tôt** sur « Saint Esprit » : lv-chordia le
+   place à 2,76 s, lui l'entend à 6 s. Un décalage de frontière en début de
+   morceau — à instruire sur d'autres audios avant de conclure que c'est
+   systématique.
+2. **Les mouvements de passage ne sont pas relevés** : les ii–V, les vii–iii.
+   Il précise lui-même que ce n'est pas grave — « encore, c'est pas grave s'il
+   ne les détecte pas ». À NE PAS traiter comme une priorité : le vocabulaire de
+   lv-chordia est large, mais ces mouvements sont brefs par nature, et il a
+   répété toute la semaine qu'il préfère une grille lisible à une grille
+   exhaustive.
+
+Il continue ses tests sur d'autres audios.
 
 ## Prochaines actions
 
-1. Ouvrir Electron et regarder une grille audio.
+1. ~~Ouvrir Electron~~ — fait par Narcisse le 27/10, validé sur deux audios.
 2. Décider du traitement des 1,4 Go : téléchargement à la demande, au premier
    import audio, ou embarqué dans l'installeur.
 3. Les enrichissements de lv-chordia (`maj9`, `min11`, `13`) remontent
