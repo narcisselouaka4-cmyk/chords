@@ -85,20 +85,25 @@
   gap: 6px;
 }
 .live-stage .live-also[hidden] { display: none; }
+/* [Claude] — 2026-10-28 — Narcisse : « on n'arrive pas bien à discerner ce qui est dit
+   dans la bulle, c'est trop petit et la police n'arrange pas ». Le libellé était à
+   8,5 px (plus petit que tous les autres textes de l'onglet) et la bulle à 11 px, sans
+   assez d'air autour des dièses/bémols. Les deux sont agrandis. */
 .live-stage .live-also-label {
   color: var(--tr-muted);
-  font: 8.5px var(--tr-mono);
-  letter-spacing: .1em;
+  font: 11px var(--tr-mono);
+  letter-spacing: .08em;
   text-transform: uppercase;
 }
-.live-stage .live-also-chips { display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.live-stage .live-also-chips { display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .live-stage .live-also-chip {
-  padding: 2px 8px;
-  border-radius: 6px;
+  padding: 4px 11px;
+  border-radius: 7px;
   border: 1px solid color-mix(in srgb, var(--tr-accent) 30%, transparent);
   background: var(--tr-accent-soft);
   color: var(--tr-accent);
-  font: 600 11px var(--tr-mono);
+  font: 600 15px var(--tr-mono);
+  letter-spacing: .01em;
 }
 
 /* Rien de joué : l'invitation tient la place du nom, au-dessus de la roue. */
