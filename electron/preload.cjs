@@ -95,6 +95,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     loudness: (filePath) => ipcRenderer.invoke('pedagogie:loudness', filePath),
   },
   analyzer: {
+    gridBeats: (wavPath, options = {}) => ipcRenderer.invoke('analyzer:grid-beats', wavPath, options),
     processFile: (filePath, options = {}) => ipcRenderer.invoke('analyzer:process-file', filePath, options),
     preparePlayback: (filePath) => ipcRenderer.invoke('analyzer:prepare-playback', filePath),
     // [Claude] — 2026-10-21 — Étape de région avant analyse (fichiers longs).

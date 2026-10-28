@@ -8,6 +8,8 @@ export function normalizeGridSettings(value = {}, meter = '4/4') {
     ? Number(value.beatsPerBar) : ([2, 3, 4, 5, 6, 7, 9, 12].includes(numerator) ? numerator : 4);
   return {
     beatsPerBar,
+    tempoOverride: Number(value.tempoOverride) >= 20 && Number(value.tempoOverride) <= 400 ? Number(value.tempoOverride) : null,
+    downbeatSeconds: value.downbeatSeconds != null && Number.isFinite(Number(value.downbeatSeconds)) && Number(value.downbeatSeconds) >= 0 ? Number(value.downbeatSeconds) : null,
     beatUnit: [4, 8].includes(Number(value.beatUnit)) ? Number(value.beatUnit) : (denominator === 8 ? 8 : 4),
     tempoMultiplier: [0.5, 1, 2].includes(Number(value.tempoMultiplier)) ? Number(value.tempoMultiplier) : 1,
     offsetSeconds: Number.isFinite(Number(value.offsetSeconds)) ? Math.max(-10, Math.min(10, Number(value.offsetSeconds))) : 0,
@@ -35,23 +37,49 @@ function nearest(times, time) {
   return time - times[i] < times[i + 1] - time ? i : i + 1;
 }
 
+export function effectiveGridTempo(analysis, settings, rhythm = null) {
+  return settings?.tempoOverride || (Number(rhythm?.tempo) > 0 ? Number(rhythm.tempo) : null)
+    || (Number(analysis?.tempo) > 0 ? Number(analysis.tempo) : 120);
+}
+
+function medianPeriod(times, tail = false) {
+  const excerpt = tail ? times.slice(-9) : times.slice(0, 9);
+  const periods = excerpt.slice(1).map((t, i) => t - excerpt[i]).sort((a, b) => a - b);
+  return periods[Math.floor(periods.length / 2)];
+}
+
 function pulseBoundaries(analysis, settings, rhythm) {
   const duration = Math.max(0, Number(analysis.duration) || 0);
-  const tempo = Number(analysis.tempo) > 0 ? Number(analysis.tempo) : 120;
-  const supplied = rhythm?.beatTimes ?? analysis.beatTimes;
+  const tempo = effectiveGridTempo(analysis, settings, rhythm);
+  const supplied = settings.tempoOverride != null
+    ? (Math.abs(rhythm?.sourceTempo - settings.tempoOverride) < 0.1 ? rhythm.beatTimes : null)
+    : (rhythm?.beatTimes ?? analysis.beatTimes);
   const estimated = !validBeatTimes(supplied, duration);
   let times = estimated ? Array.from({ length: Math.ceil(duration * tempo / 60) + 1 }, (_, i) => i * 60 / tempo) : [...supplied];
   if (settings.tempoMultiplier === 0.5) times = times.filter((_, i) => i % 2 === 0);
   if (settings.tempoMultiplier === 2) times = times.flatMap((t, i) => i + 1 < times.length ? [t, (t + times[i + 1]) / 2] : [t]);
-  times = times.map((t) => t + settings.offsetSeconds);
-  const firstPeriod = times[1] - times[0] || 60 / tempo;
-  const lastPeriod = times.at(-1) - times.at(-2) || firstPeriod;
-  while (times[0] > 0) times.unshift(times[0] - firstPeriod);
+  // Conserver l'identité de la pulsation qui ouvre une mesure, même quand on
+  // extrapole avant le premier temps ou qu'un réglage traverse le début du fichier.
+  let anchor = settings.phase;
+  let shift = settings.offsetSeconds;
+  if (settings.downbeatSeconds != null && settings.downbeatSeconds <= duration) {
+    anchor = nearest(times, settings.downbeatSeconds);
+    shift += settings.downbeatSeconds - times[anchor];
+  }
+  times = times.map((t) => t + shift);
+  const firstPeriod = medianPeriod(times) || 60 / tempo / settings.tempoMultiplier;
+  const lastPeriod = medianPeriod(times, true) || firstPeriod;
+  while (times[0] > 1e-6) { times.unshift(times[0] - firstPeriod); anchor++; }
   while (times.at(-1) < duration) times.push(times.at(-1) + lastPeriod);
-  times = times.filter((t) => t >= 0 && t < duration);
-  if (times[0] > 0 || !times.length) times.unshift(0);
+  let first = 0;
+  while (first + 1 < times.length && times[first + 1] <= 1e-6) first++;
+  anchor -= first;
+  times = times.slice(first).filter((t) => t < duration);
+  // Le bord à zéro tronque un temps déjà présent. Il n'ajoute PAS de pulsation.
+  if (!times.length) times.push(0); else times[0] = 0;
   times.push(duration);
-  return { times, estimated, tempo: tempo * settings.tempoMultiplier };
+  const pickupBeats = ((anchor % settings.beatsPerBar) + settings.beatsPerBar) % settings.beatsPerBar;
+  return { times, estimated, tempo: tempo * settings.tempoMultiplier, pickupBeats };
 }
 
 function dominant(weights, candidates, start, end) {
@@ -126,7 +154,7 @@ export function buildMusicalGrid(analysis = {}, options = {}) {
   weights.forEach((w) => { if (!w.size) w.set('N', 1); });
   const bars = [];
   for (let from = 0, number = 1; from < weights.length; number++) {
-    const to = Math.min(weights.length, from + (number === 1 && settings.phase ? settings.phase : settings.beatsPerBar));
+    const to = Math.min(weights.length, from + (number === 1 && pulse.pickupBeats ? pulse.pickupBeats : settings.beatsPerBar));
     const candidates = new Set(['N']);
     for (const seg of segments) {
       if (seg.to <= from || seg.from >= to) continue;
@@ -135,7 +163,7 @@ export function buildMusicalGrid(analysis = {}, options = {}) {
     }
     // Si une mesure n'a que des attaques brèves, retenir son accord dominant.
     if (candidates.size === 1) for (let i = from; i < to; i++) for (const s of weights[i].keys()) candidates.add(s);
-    bars.push({ from, to, number, cells: simplifyBar(weights, candidates, from, to) });
+    bars.push({ from, to, number: number - (pulse.pickupBeats ? 1 : 0), pickup: number === 1 && pulse.pickupBeats > 0, cells: simplifyBar(weights, candidates, from, to) });
     from = to;
   }
   const rows = [];

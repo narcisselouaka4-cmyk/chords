@@ -1,3 +1,73 @@
+# Correctif tempo et premier temps — 28/10/2026
+
+Retour utilisateur : les temps de la grille se décalent par rapport à la musique ;
+le BPM estimé peut aussi être erroné. Deux défauts de `9699709` identifiés : le suivi
+sur enveloppe d'énergie sélectionnait trop librement les contretemps et le bord à
+zéro pouvait insérer une pulsation artificielle, décalant la phase des mesures.
+
+## Correction
+
+- Worker d'énergie retiré. Outil Python distinct utilisant l'enveloppe spectrale
+  médiane et `librosa.beat.beat_track`, déjà employé pour le tempo du moteur. Le
+  moteur harmonique n'est pas appelé/modifié. Le calage conserve des temps réels,
+  avec interpolation/sous-échantillonnage pour rester dans l'octave du tempo source.
+- IPC `analyzer:grid-beats` : chemin autorisé et WAV exigés, arguments sans shell,
+  BPM 20–400, travail précédent interrompu, timeout 90 s et processus suivi à la fermeture.
+- Les bords tronquent une pulsation existante. L'identité du premier temps survit
+  à l'extrapolation et au décalage ; levée distincte avant la première mesure pleine.
+- Dans Corriger : BPM manuel (champ vide = auto) et « Caler le premier temps ici »
+  à la position du lecteur. Entrée applique le BPM et remet ×2/÷2 à ×1, pour éviter
+  de diviser deux fois la valeur saisie. Le bandeau reflète le BPM corrigé ; le tempo
+  d'origine reste conservé dans `analysis`, avec les accords et leurs dates.
+- Calage v1 invalidé et recalculé à l'ouverture de la grille, réglages précédents
+  conservés. Version d'affichage v2 ; version du moteur inchangée. BPM et ancrage
+  sont conservés sous `display.chordGrid`. La vitesse du lecteur reste à 1×.
+
+## Vérifications
+
+22 tests de grille/projection/persistance/exports, 4 DOM interactifs, 2 contrats IPC,
+12 tests de progression, 17 scénarios de piliers, suites DOM/persistance/exports et
+build passent. Quatre tests Python standard `unittest` (aucune dépendance pytest
+requise) : WAV à clics de pulsation connue et contretemps, estimation malgré une
+référence BPM fausse, tempo manuel, accélération, respect des intervalles variables
+après changement d'octave, rejet des tempos invalides. Le WAV connu passe avec une
+erreur au 95e percentile <40 ms ; la série accélérée garde >95 % des temps à <25 ms
+sur ce signal de test. Cela ne mesure pas la justesse de tout morceau réel.
+
+Lancement du **vrai runner Node/Python** sur les trois WAV entiers (environ 9–11 s
+par fichier pendant cette mesure), sans lecture/écriture d'analyse harmonique :
+
+| Fichier | Pulsations v2 | Tempo automatique | BPM par fenêtres de 16 temps, v1 puis v2 |
+| --- | --- | --- | --- |
+| Sanogo | 425 | 123,05 | 109,5–134,8 puis 118,5–128,0 |
+| SEIGNEUR | 947 | 129,20 | 109,6–147,5 puis 119,1–136,0 |
+| ANGES | 1 237 | 139,67 | 113,5–178,1 puis 130,0–144,1 |
+
+Les chiffres comparent la stabilité des deux suivis, **pas une vérité musicale
+annotée**. Les fixtures ont reçu les temps du nouvel outil. Ni Python harmonique
+ni `ANALYSIS_ENGINE_VERSION` ne sont modifiés.
+
+Navigateur avec vrai contrôleur et vrai audio : IPC de test renvoyant les sorties
+réellement calculées ci-dessus, sauvegarde en sessionStorage. Migration Sanogo v1
+avec ÷2 conservé ; saisie 120 BPM appliquée au bandeau/grille et ×1 restauré ; temps
+3,761633 s auparavant ordinaire devenu premier temps au clic sur Caler ici ; BPM et
+ancrage restaurés après rechargement. Lecture avancée puis recul de dix secondes :
+surlignage suit, vitesse 1×. SEIGNEUR et ANGES : nouveau calage chargé, tempo et grille
+vérifiés. Pas d'erreur console. Aucun projet utilisateur écrit par ce banc.
+
+Captures inspectées dans `audit-output/grid-tempo-fix-2026-10-28/` :
+`1440-corriger-dark.jpg`, `1024-corriger-dark.jpg`, `1024-corriger-light.jpg`.
+Tous les réglages accessibles, pas de débordement horizontal à 1024 px. Les boutons
+Charger en bas appartiennent au banc, supprimé après les contrôles ; viewport restauré.
+
+**Redémarrage d'Electron nécessaire** pour charger le nouveau main/preload. Le vrai
+processus de calcul est testé par le runner, son branchement IPC par contrats et le
+renderer dans le navigateur ; pas de nouveau parcours natif Electron ni d'écoute
+humaine annotant les trois morceaux. Le suivi reste une estimation (premier temps
+fort parfois ambigu, silence/syncopes/variations brutales), avec calage manuel possible.
+
+---
+
 # Grille musicale — vérification du 28/10/2026
 
 La grille agrandie utilise une projection en pulsations, quatre mesures par ligne,

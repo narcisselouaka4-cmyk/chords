@@ -5,6 +5,7 @@ import midi from '@julusian/midi';
 import os from 'os';
 import fs from 'fs/promises';
 import fsSync from 'fs';
+import { runDisplayGridBeats } from './display-grid-beats.js';
 import { spawn } from 'child_process';
 import { pathToFileURL } from 'url';
 // [Claude 05/09] — Pédagogie IA : lecture d'un tutoriel à l'image. Les briques
@@ -1701,6 +1702,13 @@ function setupStudioIPC() {
   // Utilisé au rechargement d'un morceau déjà analysé : le résultat d'analyse
   // vient du fichier .pjc.json, seul le WAV de lecture doit être régénéré
   // (quelques secondes d'ffmpeg contre une analyse complète bien plus longue).
+  // Calage de la grille uniquement : aucun appel au moteur d'accords.
+  ipcMain.handle('analyzer:grid-beats', async (event, wavPath, options = {}) => {
+    const safePath = await assertAllowedPath(wavPath);
+    if (path.extname(safePath).toLowerCase() !== '.wav') throw new Error('WAV requis pour le calage');
+    return runDisplayGridBeats(safePath, options, { python: getPythonCommand(), trackChild });
+  });
+
   ipcMain.handle('analyzer:prepare-playback', async (event, filePath) => {
     const tmpDir = await createWorkDir('playback');
     const playbackWav = path.join(tmpDir, 'audio.wav');

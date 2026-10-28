@@ -22,7 +22,7 @@ export function createMusicalGridView(host, { onSeek, onEdit } = {}) {
         const line = element('div', 'mg-row'); rowElements[row.index] = line;
         const label = element('div', 'mg-row-label');
         label.appendChild(element('span', 'mg-row-time', timeLabel(row.startTime)));
-        label.appendChild(element('span', 'mg-row-number', `m. ${row.bars[0].number}`));
+        label.appendChild(element('span', 'mg-row-number', row.bars[0].pickup ? 'Levée' : `m. ${row.bars[0].number}`));
         if (row.index && Math.abs(row.bpm / model.rows[row.index - 1].bpm - 1) > 0.06 && !model.estimated) {
           label.appendChild(element('span', 'mg-tempo-change', `≈ ${Math.round(row.bpm)} BPM`));
         }
@@ -43,7 +43,7 @@ export function createMusicalGridView(host, { onSeek, onEdit } = {}) {
           for (let i = cell.from; i < cell.to; i++) {
             const beat = element('span', 'mg-beat'); beat.setAttribute('aria-hidden', 'true');
             beat.dataset.beat = String(i); beatElements[i] = beat;
-            if (row.bars.some((b) => b.from === i)) beat.classList.add('mg-downbeat');
+            if (row.bars.some((b) => !b.pickup && b.from === i)) beat.classList.add('mg-downbeat');
             button.appendChild(beat);
           }
           const content = element('span', 'mg-cell-content');

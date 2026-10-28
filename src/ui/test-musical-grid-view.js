@@ -71,3 +71,13 @@ test('DOM : seul le temps courant est surligné, suivi vertical et retour arriè
   assert.equal(beats.filter((b) => b.classList.contains('is-current')).length, 1);
   view.update(24); assert.equal(beats.filter((b) => b.classList.contains('is-current')).length, 0);
 });
+
+test('DOM : premier temps retardé au bon instant, sans faux temps fort à zéro', () => {
+  const host = new Element(), view = createMusicalGridView(host);
+  view.render(analysis, { rhythm: { beatTimes: Array.from({ length: 47 }, (_, i) => .3 + i * .5) } });
+  assert.equal(host.querySelector('.mg-row-number').textContent, 'Levée');
+  const beats = host.querySelectorAll('.mg-beat');
+  assert.equal(beats[0].classList.contains('mg-downbeat'), false);
+  assert.equal(beats[1].classList.contains('mg-downbeat'), true);
+  view.update(.3); assert.equal(beats[1].classList.contains('is-current'), true);
+});

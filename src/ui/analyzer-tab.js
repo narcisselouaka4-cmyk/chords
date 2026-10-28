@@ -1,4 +1,4 @@
-import { normalizeGridSettings } from '../analyzer/musical-grid.js';
+import { normalizeGridSettings, effectiveGridTempo } from '../analyzer/musical-grid.js';
 import { readGridView } from '../analyzer/grid-project.js';
 import { createMusicalGridView } from './components/musical-grid-view.js';
 import { selectMediaFile, selectAnalysisFile, createAudioPlayer, isSupportedMediaFile, isAudioFile, isVideoFile } from '../audio/media-engine.js';
@@ -96,7 +96,7 @@ let chordGridExpanded = false;
 let sectionBeforeGrid = 'analysis';
 let gridSettings = normalizeGridSettings();
 let gridRhythm = null;
-let gridRhythmWorker = null;
+let gridRhythmRequest = null;
 let gridRhythmAnalysis = null;
 let musicalGridView = null;
 
@@ -157,6 +157,9 @@ const els = {
   gridSignature: document.getElementById('analyzer-grid-signature'),
   gridPhase: document.getElementById('analyzer-grid-phase'),
   gridOffset: document.getElementById('analyzer-grid-offset'),
+  gridBpm: document.getElementById('analyzer-grid-bpm'),
+  gridAlign: document.getElementById('analyzer-grid-align'),
+  gridAnchor: document.getElementById('analyzer-grid-anchor'),
   gridReset: document.getElementById('analyzer-grid-reset'),
   gridTab: document.getElementById('analyzer-grid-tab'),
   tabNav: document.getElementById('analyzer-section-tabs'),
@@ -1654,7 +1657,7 @@ function renderTimeline(chords, duration) {
 }
 
 function resetMusicalGrid() {
-  gridRhythmWorker?.terminate(); gridRhythmWorker = null; gridRhythmAnalysis = null;
+  gridRhythmRequest = null; gridRhythmAnalysis = null;
   gridSettings = normalizeGridSettings({}, currentAnalysis?.timeSignature); gridRhythm = null;
   syncGridSettings();
 }
@@ -1671,19 +1674,36 @@ function bindMusicalGrid() {
     },
   });
   const change = (patch) => {
+    const oldTempo = gridSettings.tempoOverride;
     gridSettings = normalizeGridSettings({ ...gridSettings, ...patch }, currentAnalysis?.timeSignature);
+    if (oldTempo !== gridSettings.tempoOverride) {
+      gridRhythm = null; gridRhythmRequest = null; gridRhythmAnalysis = null;
+      ensureGridRhythm();
+    }
     syncGridSettings(); renderMusicalGrid();
     musicalGridView?.update(currentPlayer?.getCurrentTime?.() || 0);
     markDirty();
     if (window.electronAPI?.files?.writeFile) saveProject({ silent: true });
   };
+  const applyGridTempo = () => {
+    if (els.gridBpm.value === '') change({ tempoOverride: null });
+    else if (els.gridBpm.validity.valid) change({ tempoOverride: els.gridBpm.valueAsNumber, tempoMultiplier: 1 });
+  };
+  els.gridBpm?.addEventListener('change', applyGridTempo);
+  els.gridBpm?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') { event.preventDefault(); applyGridTempo(); els.gridBpm.blur(); }
+  });
+  els.gridAlign?.addEventListener('click', () => {
+    const time = currentPlayer?.getCurrentTime?.();
+    if (Number.isFinite(time)) change({ downbeatSeconds: time, phase: 0, offsetSeconds: 0 });
+  });
   els.gridHalf?.addEventListener('click', () => change({ tempoMultiplier: Math.max(0.5, gridSettings.tempoMultiplier / 2) }));
   els.gridDouble?.addEventListener('click', () => change({ tempoMultiplier: Math.min(2, gridSettings.tempoMultiplier * 2) }));
   els.gridSignature?.addEventListener('change', () => {
     const [beatsPerBar, beatUnit] = els.gridSignature.value.split('/').map(Number);
     change({ beatsPerBar, beatUnit, phase: 0 });
   });
-  els.gridPhase?.addEventListener('change', () => change({ phase: Number(els.gridPhase.value) }));
+  els.gridPhase?.addEventListener('change', () => change({ phase: Number(els.gridPhase.value), downbeatSeconds: null }));
   els.gridOffset?.addEventListener('input', () => {
     if (els.gridOffset.value !== '' && Number.isFinite(els.gridOffset.valueAsNumber)) change({ offsetSeconds: els.gridOffset.valueAsNumber });
   });
@@ -1700,6 +1720,14 @@ function bindMusicalGrid() {
 function syncGridSettings() {
   if (!els.gridSignature) return;
   els.gridSignature.value = `${gridSettings.beatsPerBar}/${gridSettings.beatUnit}`;
+  if (document.activeElement !== els.gridBpm) els.gridBpm.value = gridSettings.tempoOverride == null ? '' : String(gridSettings.tempoOverride);
+  els.gridBpm.placeholder = String(Math.round(effectiveGridTempo(currentAnalysis, gridSettings, gridRhythm) * 10) / 10);
+  els.gridAnchor.textContent = gridSettings.downbeatSeconds == null ? '' : `Premier temps : ${(gridSettings.downbeatSeconds + gridSettings.offsetSeconds).toFixed(2)} s`;
+  if (els.contextTempo && currentAnalysis) {
+    const tempo = effectiveGridTempo(currentAnalysis, gridSettings, gridRhythm);
+    els.contextTempo.textContent = `${Math.round(tempo * 10) / 10} BPM`;
+    els.contextTempo.title = gridSettings.tempoOverride == null ? 'Tempo estimé' : `Tempo corrigé · détection d’origine : ${currentAnalysis.tempo || '—'} BPM`;
+  }
   if (document.activeElement !== els.gridOffset) els.gridOffset.value = String(gridSettings.offsetSeconds);
   els.gridPhase.replaceChildren(...Array.from({ length: gridSettings.beatsPerBar }, (_, i) => {
     const option = document.createElement('option'); option.value = String(i);
@@ -1715,36 +1743,30 @@ function renderMusicalGrid() {
   const model = musicalGridView.render(currentAnalysis, { settings: gridSettings, rhythm: gridRhythm, detailed: detailedChords });
   els.gridMeter.textContent = `${gridSettings.beatsPerBar}/${gridSettings.beatUnit} · 4 mesures / ligne`;
   els.gridTempo.textContent = `${Math.round(model.tempo * 10) / 10} BPM`;
-  els.gridStatus.textContent = gridRhythmWorker ? 'Calage des pulsations…' : model.estimated ? 'Calage au tempo · réglable dans Corriger' : 'Calage audio estimé · Corriger';
+  els.gridStatus.textContent = gridRhythmRequest ? 'Calage des pulsations…' : model.estimated ? 'Calage au tempo · réglable dans Corriger' : 'Calage audio estimé · Corriger';
   syncGridSettings();
 }
 
 async function ensureGridRhythm() {
   if (!currentAnalysis || gridRhythm || gridRhythmAnalysis === currentAnalysis) return;
   const analysis = currentAnalysis;
+  if (!analysis.wavPath || !window.electronAPI?.analyzer?.gridBeats) return;
   gridRhythmAnalysis = analysis;
-  if (!analysis.wavPath || !window.electronAPI?.files?.readBinary) return;
+  const request = {};
+  gridRhythmRequest = request; renderMusicalGrid();
   try {
-    const worker = new Worker(new URL('../analyzer/display-beats.worker.js', import.meta.url), { type: 'module' });
-    gridRhythmWorker = worker; renderMusicalGrid();
-    const bytes = await window.electronAPI.files.readBinary(analysis.wavPath);
-    if (currentAnalysis !== analysis || gridRhythmWorker !== worker) { worker.terminate(); return; }
-    const buffer = new Uint8Array(bytes).buffer;
-    worker.onmessage = ({ data }) => {
-      worker.terminate();
-      if (currentAnalysis !== analysis || gridRhythmWorker !== worker) return;
-      gridRhythmWorker = null;
-      gridRhythm = readGridView({ display: { chordGrid: { rhythm: data.rhythm } } }, analysis).rhythm;
-      renderMusicalGrid(); musicalGridView?.update(currentPlayer?.getCurrentTime?.() || 0);
-      if (gridRhythm && window.electronAPI?.files?.writeFile) saveProject({ silent: true });
-    };
-    worker.onerror = () => {
-      worker.terminate();
-      if (gridRhythmWorker === worker) { gridRhythmWorker = null; renderMusicalGrid(); }
-    };
-    worker.postMessage({ buffer, tempo: analysis.tempo || 120 }, [buffer]);
+    const rhythm = await window.electronAPI.analyzer.gridBeats(analysis.wavPath, {
+      tempo: gridSettings.tempoOverride || analysis.tempo || 120,
+      manual: gridSettings.tempoOverride != null,
+    });
+    if (currentAnalysis !== analysis || gridRhythmRequest !== request) return;
+    gridRhythmRequest = null;
+    gridRhythm = readGridView({ display: { chordGrid: { settings: gridSettings, rhythm } } }, analysis).rhythm;
+    syncGridSettings(); renderMusicalGrid(); musicalGridView?.update(currentPlayer?.getCurrentTime?.() || 0);
+    if (gridRhythm && window.electronAPI?.files?.writeFile) saveProject({ silent: true });
   } catch (error) {
-    if (currentAnalysis === analysis) { gridRhythmWorker?.terminate(); gridRhythmWorker = null; renderMusicalGrid(); }
+    if (gridRhythmRequest !== request) return;
+    gridRhythmRequest = null; renderMusicalGrid();
     console.warn('[Analyzer] calage de grille au tempo :', error.message);
   }
 }
@@ -2569,7 +2591,7 @@ window.__askBeforeClose = function () {
 function renderOverview(analysis) {
   harmonicContexts = buildHarmonicContexts(analysis);
   lastContextId = null;
-  if (els.contextTempo) els.contextTempo.textContent = analysis.tempo ? `${Math.round(analysis.tempo)} BPM` : '—';
+  syncGridSettings();
   updateMusicContext(currentPlayer?.getCurrentTime?.() || 0);
 }
 

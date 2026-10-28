@@ -1648,9 +1648,12 @@
                 <div class="an-correction-container">
                   <fieldset class="mg-settings" id="analyzer-grid-settings">
                     <legend>Calage de la grille</legend>
+                    <label>Tempo <input id="analyzer-grid-bpm" aria-label="Tempo corrigé de la grille en BPM" type="number" min="20" max="400" step="0.1" placeholder="Auto"> BPM</label>
                     <label>Mesure <select id="analyzer-grid-signature" aria-label="Mesure de la grille"><option>2/4</option><option>3/4</option><option selected>4/4</option><option>5/4</option><option>6/8</option><option>7/8</option><option>9/8</option><option>12/8</option></select></label>
                     <label>Premier temps <select id="analyzer-grid-phase" aria-label="Premier temps de la mesure"></select></label>
                     <label>Décalage <input id="analyzer-grid-offset" aria-label="Décalage de la grille en secondes" type="number" min="-10" max="10" step="0.05" value="0"> s</label>
+                    <button type="button" id="analyzer-grid-align" title="La position du lecteur devient le premier temps d’une mesure">Caler le premier temps ici</button>
+                    <output id="analyzer-grid-anchor" aria-live="polite"></output>
                     <button type="button" id="analyzer-grid-reset">Réinitialiser le calage</button>
                     <small>Affichage uniquement · les accords et les exports restent à leur temps d’origine.</small>
                   </fieldset>
