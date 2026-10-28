@@ -33,12 +33,24 @@
  */
 
 /**
+ * Assignation d'une note MIDI a un role harmonique.
+ * @typedef {{ midi: number, role: string, hand: 'LH' | 'RH' }} RoleAssignment
+ */
+
+/**
  * Métadonnées globales de la candidate.
  * `generatorId` est réservé pour Phase 1+ et reste vide en Phase 0.
  * @typedef {{
  *   generatorId: string,
  *   rootless: boolean,
- *   features: import('./constraints.js').SoftConstraintFeatures
+ *   features: import('./constraints.js').SoftConstraintFeatures,
+ *   familyId: string,
+ *   displayName: string,
+ *   available: boolean,
+ *   roleAssignments: RoleAssignment[],
+ *   omittedRoles: string[],
+ *   doubledRoles: string[],
+ *   difficulty: number
  * }} VoicingCandidateMetadata
  */
 
@@ -80,6 +92,13 @@ export function createDefaultCandidateMetadata() {
       doublings: 0,
       omissions: 0,
     },
+    familyId: '',
+    displayName: '',
+    available: false,
+    roleAssignments: Object.freeze([]),
+    omittedRoles: Object.freeze([]),
+    doubledRoles: Object.freeze([]),
+    difficulty: 0,
   });
 }
 

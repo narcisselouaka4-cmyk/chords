@@ -56,15 +56,27 @@ test('analyse.css — sous-onglets : soulignement (Global) vs pilule dégradé (
     'v2 : sous-onglets à border-radius 100px');
 });
 
-test('analyse.css — bande d\'accords : rectangle (Global) vs pilule (v2), sélection blanche', () => {
-  assert(/\[data-skin='global'\] #analysis-tab \.analyzer-timeline-block\s*{[^}]*border-radius:\s*5px/.test(css),
-    'Global : blocs d\'accords à 5px');
-  assert(/\[data-skin='v2'\] #analysis-tab \.analyzer-timeline-block\s*{[^}]*border-radius:\s*100px/.test(css),
-    'v2 : blocs d\'accords en pilules 100px');
-  assert(/\.analyzer-timeline-block\.role-structural\s*{[^}]*inset 3px 0 0 var\(--r-accent\)/.test(css),
-    'Global : accord structurel = filet d\'accent inséré à gauche (§5)');
-  assert(/\.analyzer-timeline-block\.selected\s*{[^}]*outline:\s*2px solid #ffffff/.test(css),
-    'sélection = contour blanc neutre dans les deux skins (§5, pas de corail)');
+// [Correctif 02/10] — la frise d'accords est passée sous la couche Astra.
+// analyse.css ne doit PLUS la re-skinner : ses sélecteurs étaient plus
+// spécifiques que ceux du pont, donc les pastilles gardaient l'habillage
+// d'avant la refonte pendant que le reste de l'onglet suivait Astra.
+test("analyse.css — la frise d'accords est laissée à la couche Astra", () => {
+  assert(!/\.analyzer-timeline-block/.test(css),
+    'analyse.css ne contient plus aucune règle sur .analyzer-timeline-block');
+
+  const bridge = read('src/ui/refonte/astra-bridge.css');
+  assert(/#analysis-tab \.analyzer-timeline-block\s*{[^}]*position:\s*absolute/.test(bridge.replace(/\n/g, ' ')),
+    'le pont positionne les blocs en absolu — analyzer-tab.js leur pose un left/width en pixels');
+  assert(/#analyzer-chord-timeline-inner\s*{[^}]*position:\s*relative/.test(bridge.replace(/\n/g, ' ')),
+    'la piste intérieure est le repère de ces coordonnées');
+  assert(!/#analyzer-chord-timeline-inner\s*{[^}]*display:\s*flex/.test(bridge.replace(/\n/g, ' ')),
+    "la piste n'est pas un flux flex : le flux s'additionnait au décalage left et la frise mentait sur les temps");
+});
+
+// La scène ne doit pas repeindre un fond opaque par-dessus celui d'Astra.
+test('analyse.css — la scène laisse passer le fond Astra', () => {
+  assert(!/#analysis-tab \.analyzer-panel\s*{[^}]*background:\s*var\(--r-ground\)/.test(css),
+    'aucune dalle --r-ground peinte sur les panneaux de sous-onglets');
 });
 
 test('analyse.css — §3.1 Accord sélectionné : carte héros dégradée (v2) vs aplat (Global)', () => {

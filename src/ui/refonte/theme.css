@@ -113,7 +113,7 @@
   --r-accent: #7954c5;
   --r-accent-soft: #eee7fb;
   --r-accent-text: #4526ad;
-  --r-grad: linear-gradient(90deg, #7c4dff, #5b3fd6);
+  --r-grad: linear-gradient(90deg, var(--r-accent), #5b3fd6);
 
   --r-coral: #cf5f33;
   --r-coral-soft: rgba(207, 95, 51, 0.13);
@@ -205,7 +205,7 @@
 
   --r-active-bg: var(--r-accent-soft);
   --r-active-fg: var(--r-text);
-  --r-active-border-color: rgba(139, 108, 245, 0.4);
+  --r-active-border-color: color-mix(in srgb, var(--r-accent) 40%, transparent);
   /* Signature Global : filet d'accent inséré à gauche (§5) */
   --r-active-filet: inset 3px 0 0 var(--r-accent);
 
@@ -220,7 +220,7 @@
   --r-badge-verified-filet: inset 3px 0 0 var(--r-good);
   --r-badge-ai-bg: var(--r-accent-soft);
   --r-badge-ai-fg: var(--r-text);
-  --r-badge-ai-border-color: rgba(139, 108, 245, 0.4);
+  --r-badge-ai-border-color: color-mix(in srgb, var(--r-accent) 40%, transparent);
   --r-badge-ai-filet: none;
 
   --r-btn-primary-bg: var(--r-accent);
@@ -334,7 +334,7 @@
 :root[data-skin] input[type='search']:focus,
 :root[data-skin] select:focus,
 :root[data-skin] textarea:focus {
-  border-color: rgba(139, 108, 245, 0.55);
+  border-color: color-mix(in srgb, var(--r-accent) 55%, transparent);
   box-shadow: 0 0 0 3px var(--r-accent-soft);
 }
 
@@ -426,7 +426,7 @@
 }
 
 :root[data-skin] .keyboard-controls label:focus-within {
-  border-color: rgba(139, 108, 245, 0.5);
+  border-color: color-mix(in srgb, var(--r-accent) 50%, transparent);
 }
 
 :root[data-skin] .keyboard-controls input[type='text'] {
@@ -469,7 +469,8 @@
 }
 
 :root[data-skin] .footer-left,
-:root[data-skin] .footer-midi {
+:root[data-skin] .footer-midi,
+:root[data-skin] .footer-midi-out {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -532,7 +533,7 @@
   font-size: 1rem;
   border-radius: 9px;
   background: var(--r-accent-soft);
-  border: 1px solid rgba(139, 108, 245, 0.35);
+  border: 1px solid color-mix(in srgb, var(--r-accent) 35%, transparent);
 }
 
 :root[data-skin='v2'][data-theme='dark'] .brand-icon {
@@ -666,7 +667,7 @@
 :root[data-skin='global'][data-theme='dark'] .tab-btn.active {
   background: var(--r-accent-soft);
   color: var(--r-text);
-  border-color: rgba(139, 108, 245, 0.4);
+  border-color: color-mix(in srgb, var(--r-accent) 40%, transparent);
 }
 
 :root[data-skin='v2'][data-theme='dark'] .tab-btn.active {
@@ -813,7 +814,7 @@
 
 :root[data-skin] .analyzer-library-item:hover {
   background: var(--r-surface-raised);
-  border-color: rgba(139, 108, 245, 0.45);
+  border-color: color-mix(in srgb, var(--r-accent) 45%, transparent);
 }
 
 :root[data-skin] .analyzer-library-name {
@@ -839,8 +840,10 @@
 
 /* Raccourci vers la bibliothèque depuis l'écran d'import de l'Analyse. */
 :root[data-skin] .analyzer-library-open {
-  display: block;
-  margin: 18px auto 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px auto 0;
   padding: 9px 16px;
   background: transparent;
   border: 1px solid var(--r-border);
@@ -873,3 +876,49 @@
   text-transform: uppercase;
   color: var(--muted);
 }
+
+/* [Claude] — 2026-10-13 — Réglages › Clavier et MIDI : lignes « intitulé / réglage / note » (ce qui
+   était dans le pied de page de l'application, retiré). */
+.app-settings-box { width: min(520px, 92vw); max-height: 88vh; overflow-y: auto; }
+.settings-rows { display: flex; flex-direction: column; gap: 14px; }
+.settings-row { display: grid; grid-template-columns: 150px minmax(0, 1fr); align-items: center; column-gap: 14px; row-gap: 4px; }
+.settings-row > label { font-size: 0.8rem; font-weight: 600; color: var(--r-text, inherit); }
+.settings-row > .settings-control { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.settings-row > .settings-note { grid-column: 2; font-size: 0.72rem; line-height: 1.5; color: var(--r-text-muted, var(--muted)); }
+.settings-row:has(> .settings-control:first-child) { grid-template-columns: minmax(0, 1fr); }
+.settings-row:has(> .settings-control:first-child) > .settings-note { grid-column: 1; }
+.settings-control select, .settings-control input[type='number'] {
+  min-width: 0; flex: 1; padding: 6px 9px; font-size: 0.8rem; border-radius: var(--r-radius-btn, 6px);
+  border: 1px solid var(--r-border-strong, var(--panel-border)); background: var(--r-surface-chip, transparent); color: inherit;
+}
+.settings-control input[type='number'] { flex: 0 0 96px; }
+.settings-control input[type='color'] { width: 36px; height: 24px; padding: 0; border: 1px solid var(--r-border-strong, var(--panel-border)); border-radius: 5px; background: transparent; cursor: pointer; }
+.settings-control #midi-refresh { width: 28px; height: 28px; flex: none; border-radius: 6px; border: 1px solid var(--r-border-strong, var(--panel-border)); background: transparent; color: inherit; cursor: pointer; }
+.settings-status { margin-top: 12px; min-height: 0; font-size: 0.72rem; color: var(--r-text-muted, var(--muted)); }
+.settings-status:empty { display: none; }
+.settings-note #midi-status-text, .settings-note #midi-port-count { font: inherit; color: inherit; margin: 0; }
+
+/* [Claude] — 2026-10-13 — Barre de recherche des bibliothèques sans toolbar Astra (Studio, Analyse). */
+.library-search {
+  width: 100%; box-sizing: border-box; margin: 0 0 10px; padding: 8px 12px; font: inherit; font-size: 0.82rem;
+  color: inherit; background: var(--r-surface-chip, transparent); border: 1px solid var(--r-border-strong, var(--panel-border, #444)); border-radius: 8px; outline: none;
+}
+.library-search:focus-visible { border-color: var(--r-accent, var(--tr-accent, #8b6cf5)); }
+.library-search-empty { margin: 10px 4px; font-size: 0.78rem; color: var(--r-text-muted, var(--muted, #888)); }
+
+/* [Claude] — 2026-10-13 — Couleur de l'application (Réglages › Apparence) et pastilles « Toi / L'app ». */
+.accent-presets { display: flex; flex-wrap: wrap; gap: 8px; }
+.accent-swatch { width: 28px; height: 28px; padding: 0; border-radius: 50%; border: 2px solid transparent; background: var(--swatch); cursor: pointer; box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 25%, transparent); }
+.accent-swatch:hover { transform: scale(1.08); }
+.accent-swatch[aria-pressed='true'] { border-color: var(--r-ground, #141416); box-shadow: 0 0 0 2px var(--swatch); }
+.accent-swatch:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.accent-custom { display: inline-flex; align-items: center; gap: 8px; font-size: 0.78rem; color: var(--r-text-muted, inherit); }
+.accent-custom input[type='color'] { width: 34px; height: 24px; padding: 0; border: 1px solid var(--r-border-strong, #444); border-radius: 5px; background: transparent; cursor: pointer; }
+.vk-legend-pick { position: relative; cursor: pointer; border-radius: 10px; padding: 2px 6px; margin: -2px -6px; }
+.vk-legend-pick:hover { background: color-mix(in srgb, currentColor 10%, transparent); }
+.vk-legend-pick > input[type='color'] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; }
+.vk-legend-pick:focus-within { outline: 2px solid var(--vk-accent, currentColor); outline-offset: 1px; }
+.accent-reset { align-self: flex-start; padding: 6px 12px; font: inherit; font-size: 0.78rem; font-weight: 600; color: var(--r-text, inherit); background: transparent; border: 1px solid var(--r-border-strong, #555); border-radius: 8px; cursor: pointer; }
+.accent-reset:hover { background: color-mix(in srgb, currentColor 8%, transparent); }
+.accent-reset:focus-visible { outline: 2px solid var(--r-accent, currentColor); outline-offset: 2px; }
+.accent-reset[hidden] { display: none; }

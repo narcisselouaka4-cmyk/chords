@@ -8,6 +8,7 @@
 import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { miniKeyboardForNotes } from './mini-keyboard.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(__dirname, '..', '..');
@@ -59,9 +60,6 @@ function testStateElementIds() {
   const requiredIds = [
     'analyzer-import-screen',
     'analyzer-state-prepare',
-    'analyzer-state-video-type',
-    'analyzer-state-midi-record',
-    'analyzer-state-results',
     'analyzer-results',
   ];
 
@@ -104,9 +102,6 @@ function testStateMapping() {
   const mapping = {
     'import': 'analyzer-import-screen',
     'prepare': 'analyzer-state-prepare',
-    'video-type': 'analyzer-state-video-type',
-    'midi-record': 'analyzer-state-midi-record',
-    'results': 'analyzer-state-results',
     'analysis': 'analyzer-results',
   };
 
@@ -127,6 +122,54 @@ function testStateMapping() {
   console.log('✅ Mapping — Chaque état correspond à un élément analyzer-state dans le DOM');
 }
 
+// ── Test 6 : mini-clavier — chaque SVG a ses propres dégradés ──
+// [Claude] — 2026-10-09 — Les mini-claviers partageaient les mêmes id de dégradés : `url(#id)`
+// renvoyait au premier de la page, souvent caché, et la carte « Accord à l'écoute » s'affichait
+// sans touches noires ni notes colorées.
+function testMiniKeyboardGradientIds() {
+  const a = miniKeyboardForNotes([62, 65, 67, 71]).svg;
+  const b = miniKeyboardForNotes([60, 64, 67]).svg;
+  const ids = (svg) => [...svg.matchAll(/<linearGradient id="([^"]+)"/g)].map((m) => m[1]);
+  const refs = (svg) => [...new Set([...svg.matchAll(/url\(#([^)]+)\)/g)].map((m) => m[1]))];
+  const shared = ids(a).filter((id) => ids(b).includes(id));
+  const dangling = [a, b].some((svg) => refs(svg).some((r) => !ids(svg).includes(r)));
+  if (shared.length || dangling || !ids(a).length) {
+    console.error('❌ Mini-clavier — dégradés partagés entre SVG ou renvois vers un autre SVG', { shared, dangling });
+    process.exit(1);
+  }
+  console.log('✅ Mini-clavier — chaque SVG porte et utilise ses propres dégradés');
+}
+
+// ── Test 7 : un clic sur une étiquette d'accord place la lecture sur cet accord ──
+function testChordLabelSeeks() {
+  const js = readText('src/ui/analyzer-tab.js');
+  const click = /block\.addEventListener\('click', \(\) => \{\s*selectSegment\(chord\.segmentId\);\s*seekToSegment\(chord\);/.test(js);
+  const fn = /function seekToSegment\(segment\) \{[\s\S]*?el\.currentTime = target;\s*updatePlaybackPosition\(target\);/.test(js);
+  if (!click || !fn) {
+    console.error('❌ Frise — le clic sur une étiquette doit placer la lecture au début de l’accord', { click, fn });
+    process.exit(1);
+  }
+  console.log('✅ Frise — un clic sur une étiquette place la lecture au début de l’accord');
+}
+
+// ── Test 8 : on voit où en est la lecture dans l'accord ──
+function testChordProgressHighlight() {
+  const js = readText('src/ui/analyzer-tab.js');
+  const css = readText('src/ui/refonte/astra-bridge.css');
+  const html = readText('src/index.html');
+  const progress = /block\.style\.setProperty\('--chord-progress', chordProgress\.toFixed\(4\)\)/.test(js)
+    && /block\.classList\.toggle\('upcoming', activeIndex >= 0 && idx === activeIndex \+ 1\)/.test(js);
+  const drawn = /\.analyzer-timeline-block\.current::before \{[^}]*scaleX\(var\(--chord-progress, 0\)\)/.test(css)
+    && /\.analyzer-timeline-block\.selected:not\(\.current\) \{[^}]*outline:/.test(css);
+  const hero = /id="analyzer-hero-progress-fill"/.test(html) && /id="analyzer-hero-next"/.test(html)
+    && /heroKey === heroRenderedKey/.test(js);
+  if (!progress || !drawn || !hero) {
+    console.error('❌ Frise — progression dans l’accord en cours', { progress, drawn, hero });
+    process.exit(1);
+  }
+  console.log('✅ Frise — accord en cours rempli au fil de la lecture, suivant annoncé, sélection distincte');
+}
+
 // ── Exécution ──
 console.log('=== Tests contrat DOM Analyse ===\n');
 testNoInlineDisplayNone();
@@ -134,4 +177,7 @@ testCssRules();
 testStateElementIds();
 testSidebarIds();
 testStateMapping();
+testMiniKeyboardGradientIds();
+testChordLabelSeeks();
+testChordProgressHighlight();
 console.log('\n✅ Tous les tests DOM Analyse passent.');

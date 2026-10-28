@@ -13,17 +13,6 @@ export function getVoicingLabel(voicing) {
   return VOICING_LABELS[voicing] || voicing || '';
 }
 
-// [OpenCode] — 2026-07-04 — Alias musicaux utiles : même notes, nom différent.
-// Clé = symbole principal, valeur = symbole alternatif (sans fondamentale).
-const ALIASES = {
-  '6': 'm7 (3rd inversion)',
-  'm7': '6 (relative major)',
-  'maj7#5': 'maj7alt',
-  '7sus4': 'sus4 7',
-  '9sus4': 'sus4 9',
-  '13sus4': 'sus4 13',
-};
-
-export function getAlias(symbol) {
-  return ALIASES[symbol] || null;
-}
+// [Claude] — 2026-10-02 — Les alias figés (« maj7alt », « sus4 7 », « m7 (3rd
+// inversion) »…) sont retirés : le Temps réel montre les vraies autres lectures des
+// mêmes notes (chordReadings, src/chord-engine/index.js).

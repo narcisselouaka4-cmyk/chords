@@ -32,7 +32,7 @@ const CATEGORY_DEFS = [
   },
   {
     id: 'top-notes-voicing',
-    title: 'Voicing des notes du dessus',
+    title: 'Voicing des top notes',
   },
   {
     id: 'inner-movements',

@@ -1,0 +1,26 @@
+{
+  "note": "Qualités absentes de VoicingLab (468 accords), composition vérifiée le 2026-09-23 sur au moins deux dictionnaires indépendants. Ce sont des NOTES d'accord (formules), pas des voicings : aucune source ne fournit de voicing piano réel pour ces qualités.",
+  "sources": {
+    "pianochord": "https://www.pianochord.org/",
+    "musicca": "https://www.musicca.com/dictionary/chords",
+    "songtive": "https://www.songtive.com/en/chords/piano/",
+    "solfej": "https://www.solfej.io/chords/",
+    "jguitar": "https://jguitar.com/chord",
+    "wikipedia_avoid_note": "https://en.wikipedia.org/wiki/Avoid_note"
+  },
+  "qualites": {
+    "m13":      { "notesEnC": ["C","Eb","G","Bb","D","F","A"], "intervalles": [0,3,7,10,14,17,21], "sources": ["pianochord cm13", "musicca c-minor-thirteenth", "songtive Cm13"], "pratique": "5te et 11e souvent omises (musicca)" },
+    "11":       { "notesEnC": ["C","E","G","Bb","D","F"], "intervalles": [0,4,7,10,14,17], "sources": ["pianochord c11", "musicca c-dominant-eleventh", "songtive C11"], "pratique": "tierce et 5te souvent omises (musicca) : C11 joué ≈ C9sus4, qualité présente sur VoicingLab" },
+    "maj11":    { "notesEnC": ["C","E","G","B","D","F"], "intervalles": [0,4,7,11,14,17], "sources": ["pianochord cmaj11", "musicca c-major-eleventh", "songtive Cmaj11"], "pratique": "11 juste contre tierce majeure = avoid note (Wikipedia) ; en jazz on hausse la 11 -> maj7#11 (présent sur VoicingLab) ; 5te souvent omise (musicca)" },
+    "13#11":    { "notesEnC": ["C","E","G","Bb","D","F#","A"], "intervalles": [0,4,7,10,14,18,21], "sources": ["pianochord c13plus11", "solfej c13-sharp-11"] },
+    "maj13#11": { "notesEnC": ["C","E","G","B","D","F#","A"], "intervalles": [0,4,7,11,14,18,21], "sources": ["solfej cmaj13-sharp-11", "chordsscales maj13-sharp-11 (résultat de recherche)"] },
+    "7sus2":    { "notesEnC": ["C","D","G","Bb"], "intervalles": [0,2,7,10], "sources": ["songtive C7sus2", "scales-chords C7sus2 (résultat de recherche, page 403 en direct)"] },
+    "madd9":    { "notesEnC": ["C","Eb","G","D"], "intervalles": [0,3,7,14], "sources": ["pianochord cm-add", "songtive Cmadd9"] },
+    "add11":    { "notesEnC": ["C","E","G","F"], "intervalles": [0,4,7,17], "sources": ["pianochord c-add11", "songtive Cadd11"] },
+    "6add11":   { "notesEnC": ["C","E","G","A","F"], "intervalles": [0,4,7,9,17], "sources": ["jguitar 6add11 = 1,3,(5),6,11", "scales-chords chord namer C E F G A = C6/11"], "attention": "certaines pages appellent C6/11 la version avec 9e (C E G A D F) : on retient 6add11 = sans 9e" }
+  },
+  "ecartsDictionnaireApp": {
+    "maj13": "src/chord-engine/chord-defs.js inclut la 11 juste (17) ; pianochord : « the 11th is normally excluded ». Non corrigé : chord-defs sert aussi l'onglet Analyse (gelé).",
+    "13": "idem : 11 juste incluse (17) contre la tierce majeure."
+  }
+}

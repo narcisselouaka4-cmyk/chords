@@ -126,6 +126,15 @@ export async function ensurePianoSamples() {
   return ok;
 }
 
+/**
+ * [Claude] — 2026-10-09 — Les échantillons de piano chargés (note MIDI → AudioBuffer), pour un
+ * rendu hors ligne (onglet Analyse : le son d'un fichier MIDI). Vide si rien n'est chargé.
+ */
+export async function getPianoSampleBuffers() {
+  await ensurePianoSamples();
+  return new Map(pianoSampleBuffers);
+}
+
 /** Échantillon le plus proche de la note jouée, en MIDI. */
 function nearestSampleFor(midi) {
   let best = null;

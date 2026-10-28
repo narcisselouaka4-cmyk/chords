@@ -1,0 +1,159 @@
+/* [Claude] — 2026-10-04 — Le réglage de vitesse commun (speed-menu.js) : le bouton « 0,75× ▾ »
+   et son panneau (vitesses courantes, curseur fin de 0,25× à 2×, − / +). Sous les exemples du
+   Copilote et sous la vidéo de Pédagogie IA. Jetons --tr-* : sombre et clair. */
+
+.speed-menu { display: inline-flex; flex-shrink: 0; }
+
+.speed-menu .speed-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 3px 7px 3px 9px;
+  border: 1px solid var(--tr-border);
+  border-radius: 6px;
+  background: var(--tr-surface);
+  color: var(--tr-text);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.speed-menu .speed-menu-btn svg { color: var(--tr-muted); transition: transform .15s ease; }
+.speed-menu .speed-menu-btn:hover,
+.speed-menu .speed-menu-btn[aria-expanded="true"] { border-color: var(--tr-accent); }
+.speed-menu .speed-menu-btn[aria-expanded="true"] svg { transform: rotate(180deg); }
+.speed-menu .speed-menu-btn:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 2px; }
+
+/* Le panneau : dans la couche du dessus (popover), placé par speed-menu.js. */
+.speed-menu .speed-menu-panel {
+  position: fixed;
+  inset: auto;
+  width: 264px;
+  margin: 0;
+  box-sizing: border-box;
+  padding: 12px 12px 10px;
+  border: 1px solid var(--tr-border);
+  border-radius: 10px;
+  background: var(--tr-surface);
+  color: var(--tr-text);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 38%), 0 2px 6px rgb(0 0 0 / 20%);
+  font-size: 12px;
+  line-height: 1.4;
+  overflow: visible;
+}
+:root[data-theme='light'] .speed-menu .speed-menu-panel {
+  box-shadow: 0 16px 40px rgb(39 35 48 / 14%), 0 2px 6px rgb(39 35 48 / 8%);
+}
+
+.speed-menu .speed-menu-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.speed-menu .speed-menu-name { color: var(--tr-secondary); font-size: 11.5px; }
+.speed-menu .speed-menu-readout {
+  color: var(--tr-text);
+  font-size: 18px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Les vitesses courantes : un sélecteur segmenté. */
+.speed-menu .speed-menu-presets {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--tr-border);
+  border-radius: 8px;
+  background: var(--tr-inset);
+}
+.speed-menu .speed-menu-preset {
+  min-height: 26px;
+  padding: 2px 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tr-secondary);
+  font: inherit;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.speed-menu .speed-menu-preset:hover { color: var(--tr-text); }
+.speed-menu .speed-menu-preset[aria-pressed="true"] {
+  background: var(--tr-surface);
+  color: var(--tr-accent);
+  font-weight: 650;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--tr-accent) 45%, transparent);
+}
+
+/* − [curseur] + */
+.speed-menu .speed-menu-fine {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) 26px;
+  align-items: start;
+  gap: 8px;
+  margin-top: 12px;
+}
+.speed-menu .speed-menu-step {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--tr-border);
+  border-radius: 50%;
+  background: var(--tr-surface);
+  color: var(--tr-text);
+  font: inherit;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+.speed-menu .speed-menu-step:hover { border-color: var(--tr-accent); color: var(--tr-accent); }
+.speed-menu .speed-menu-step[aria-disabled="true"] { opacity: .4; cursor: default; }
+.speed-menu .speed-menu-step[aria-disabled="true"]:hover { border-color: var(--tr-border); color: var(--tr-text); }
+.speed-menu :is(.speed-menu-preset, .speed-menu-step):focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 1px; }
+
+.speed-menu .speed-menu-track { position: relative; padding: 4px 0 15px; }
+.speed-menu .speed-menu-range {
+  display: block;
+  width: 100%;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--tr-accent);
+  cursor: pointer;
+}
+.speed-menu .speed-menu-range:focus-visible { outline: 2px solid var(--tr-accent); outline-offset: 2px; border-radius: 4px; }
+/* L'échelle : 0,25× et 2× aux bouts, 1× à sa place (le pouce natif fait 16 px). */
+.speed-menu .speed-menu-scale {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 13px;
+  color: var(--tr-muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.speed-menu .speed-menu-scale span { position: absolute; top: 0; }
+.speed-menu .speed-menu-scale span:first-child { left: 0; }
+.speed-menu .speed-menu-scale span:last-child { right: 0; }
+.speed-menu .speed-menu-scale .is-normal { left: calc(8px + (100% - 16px) * var(--at)); transform: translateX(-50%); }
+
+.speed-menu .speed-menu-hint {
+  margin: 8px 0 0;
+  color: var(--tr-muted);
+  font-size: 11px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .speed-menu .speed-menu-btn svg { transition: none; }
+}
