@@ -45,7 +45,14 @@ export const MEMORY_VERSION = 1;
 //       révision le fait relire. Si une vidéo revient encore abîmée, la cause est dans ce que seul
 //       Electron fait (sondes de géométrie, fenêtres de relecture) : la chercher là, pas dans la
 //       couleur des touches (vérifiée identique à l'ancienne lecture, 575 touches lues sur 176 images).
-export const READING_REVISION = 5;
+//   6 : [Claude] — 2026-10-28 — La cause de la révision 5 était bien dans les SONDES de géométrie.
+//       « Amazing Grace » montre deux claviers de même étendue (le clavier dessiné qui s'allume, en
+//       haut ; le vrai piano sous les mains, en bas). Depuis le 14/10, le vrai piano est aussi reconnu
+//       (stratégie « bande ») : 5 sondes sur 24 le voyaient, et l'une d'elles, avec une noire de plus,
+//       l'emportait. Plus rien ne s'allumait : 97 notes rejouées de 0:03 à 2:55 au lieu de 562.
+//       format-detector.js fait voter d'abord sur l'EMPLACEMENT du clavier ; les relevés lus avec
+//       l'ancienne règle sont relus.
+export const READING_REVISION = 6;
 /** Révision à partir de laquelle un relevé au son (clavier non reconnu) n'est plus relu. */
 const AUDIO_RECHECK_REVISION = 3;
 
