@@ -254,7 +254,6 @@ let projectRevision = 0;
 let projectSaveQueue = Promise.resolve();
 let projectPath = null;
 let audioIdentity = null;
-let saveStatusEl = null;
 let currentProjectOrphanedOverrides = {};
 
 export function initAnalyzerTab() {
@@ -1152,7 +1151,7 @@ async function showResults(analysis) {
   chordEditor?.close();
   resetZoom();
   renderHeader();
-  addSaveIndicator();
+  markClean();
   await loadProjectIfExists();
 
   if (currentPlayer) {
@@ -2153,30 +2152,7 @@ function resetProjectState() {
   projectPath = null;
   audioIdentity = null;
   currentProjectOrphanedOverrides = {};
-  if (saveStatusEl) {
-    saveStatusEl.remove();
-    saveStatusEl = null;
-  }
   window.__projectDirty = false;
-}
-
-function addSaveIndicator() {
-  if (saveStatusEl) { saveStatusEl.remove(); saveStatusEl = null; }
-  saveStatusEl = document.createElement('button');
-  saveStatusEl.type = 'button';
-  saveStatusEl.id = 'analyzer-save-status';
-  saveStatusEl.className = 'analyzer-save-status';
-  const projectPathDisplay = projectPath || buildProjectPath(currentAudioPath) || '(chemin inconnu)';
-  saveStatusEl.title = `Enregistrer les corrections (Ctrl+S)\nFichier : ${projectPathDisplay}`;
-  saveStatusEl.addEventListener('click', (e) => {
-    e.stopPropagation();
-    saveProject();
-  });
-  const header = els.songTitle?.parentElement;
-  if (header) {
-    header.appendChild(saveStatusEl);
-  }
-  markClean();
 }
 
 async function getAudioStat(filePath) {
@@ -2188,32 +2164,22 @@ async function getAudioStat(filePath) {
   }
 }
 
+// [Claude] — 2026-10-28 — Plus d'indicateur visuel (« Analyse sauvegardée » sous le
+// titre, demande de Narcisse) : projectDirty/__projectDirty restent suivis — Electron
+// (main.js) les lit pour avertir avant de fermer une analyse non sauvegardée — mais
+// sans plus aucun affichage dans l'onglet. Ctrl+S et la sauvegarde silencieuse après
+// chaque correction restent les deux façons d'enregistrer.
 function markDirty() {
   projectRevision++;
   if (!projectDirty) {
     projectDirty = true;
     window.__projectDirty = true;
-    updateSaveIndicator();
   }
 }
 
 function markClean() {
   projectDirty = false;
   window.__projectDirty = false;
-  updateSaveIndicator();
-}
-
-function updateSaveIndicator() {
-  if (!saveStatusEl) return;
-  const projectPathDisplay = projectPath || buildProjectPath(currentAudioPath) || '(chemin inconnu)';
-  saveStatusEl.title = `Enregistrer les corrections (Ctrl+S)\nFichier : ${projectPathDisplay}`;
-  if (projectDirty) {
-    saveStatusEl.textContent = 'Enregistrer les modifications';
-    saveStatusEl.className = 'analyzer-save-status dirty';
-  } else {
-    saveStatusEl.textContent = 'Analyse sauvegardée';
-    saveStatusEl.className = 'analyzer-save-status clean';
-  }
 }
 
 async function saveProject({ silent = false } = {}) {
@@ -2322,10 +2288,11 @@ async function loadProjectIfExists() {
     resetUndoRedo();
     rerenderTimeline();
 
+    // [Claude] — 2026-10-28 — Plus de toast quand il n'y a rien à signaler (Narcisse,
+    // capture à l'appui) : « Aucune correction enregistrée » apparaissait, mal placée,
+    // à chaque réouverture d'un projet sans correction — le cas le plus courant.
     if (applied.length > 0) {
       showToast(`${applied.length} correction(s) chargée(s).`, 3000, 'info');
-    } else if (Object.keys(data.manualChordOverrides || {}).length === 0) {
-      showToast('Aucune correction enregistrée dans ce projet.', 2000, 'info');
     }
     if (Object.keys(orphaned).length > 0) {
       console.warn('[Analyzer] overrides orphelins conservés :', Object.keys(orphaned));

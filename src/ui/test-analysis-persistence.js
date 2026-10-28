@@ -165,14 +165,18 @@ runTest("D. Interface — une porte de sortie permet de recalculer", () => {
   );
 });
 
-runTest('D. Interface — statut de sauvegarde discret et avertissement des anciens résultats', () => {
+// [Claude] — 2026-10-28 — L'indicateur visuel « Analyse sauvegardée » a été retiré
+// (Narcisse : une seule ligne titre + repères + bouton). Le test ne garde que ce qui
+// reste vrai : l'avertissement d'ancienneté, lui, est toujours signalé.
+// __projectDirty reste suivi pour Electron (main.js) sans plus aucun affichage.
+runTest('D. Interface — avertissement des anciens résultats, état non sauvegardé toujours suivi', () => {
   const html = read('src/index.html');
   assert(html.includes('analyzer-stale-banner'), 'un ancien résultat reste signalé');
 
   const js = read('src/ui/analyzer-tab.js');
   assert(
-    js.includes("saveStatusEl.textContent = 'Analyse sauvegardée'") && js.includes('isEngineOutdated(analysis?.engine)'),
-    'le statut de sauvegarde et l’ancienneté restent deux informations distinctes',
+    js.includes('window.__projectDirty') && js.includes('isEngineOutdated(analysis?.engine)'),
+    'l’état non sauvegardé (lu par Electron à la fermeture) et l’ancienneté restent suivis séparément',
   );
 });
 

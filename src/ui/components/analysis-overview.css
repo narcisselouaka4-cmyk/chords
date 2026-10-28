@@ -2,23 +2,19 @@
 #analysis-tab:has(#analyzer-results.active) { padding: 0 16px; }
 #analysis-tab:has(#analyzer-results.active) .analyzer-workspace { padding: 14px 20px 12px; }
 #analysis-tab #analyzer-section-panels { display: flex; flex-direction: column; padding: 14px 0 0; }
-/* [Claude] — 2026-10-28 — Repères à côté du titre plutôt qu'en bandeau plein largeur
-   (demande de Narcisse) : la carte devient une ligne compacte, sans fond ni bordure
-   propres. Couleurs et contenu inchangés, seule la mise en page l'est.
-   28/10 (suite) — Narcisse : « la tonalité vient un peu coller le titre, il faudrait
-   l'éloigner ». Un filet et une marge les séparent nettement du titre, maintenant que
-   le transport (déplacé à côté du minuteur) ne vient plus déjà les décaler. */
+/* [Claude] — 2026-10-28 — Repères calés à droite, juste avant « Relancer l'analyse »
+   (demande de Narcisse), plutôt qu'à côté du titre : tout tient sur une seule ligne,
+   flèche + titre à gauche, repères + bouton groupés à droite. Couleurs et contenu
+   inchangés, seule la mise en page l'est. */
+#analysis-tab .an-project-right { display: flex; align-items: center; gap: 20px; flex-shrink: 0; }
 #analysis-tab .an-music-context {
   --context-color: var(--an-accent-bright);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  flex: 1 1 auto;
+  justify-content: flex-end;
   min-width: 0;
   gap: 2px 0;
-  margin-left: 28px;
-  padding-left: 20px;
-  border-left: 1px solid var(--an-border);
 }
 #analysis-tab .an-music-context[data-tone='1'] { --context-color: #c4b5fd; }
 #analysis-tab .an-music-context[data-tone='2'] { --context-color: #e2bf85; }
@@ -41,17 +37,14 @@
 #analysis-tab .an-project-titles h1 { font-size: 15px; }
 #analysis-tab .an-project-info { flex-wrap: wrap; row-gap: 4px; }
 #analysis-tab .an-project-titles { flex: 0 1 auto; min-width: 0; }
-#analysis-tab #analyzer-save-status {
-  display: block; margin: 4px 0 0; padding: 0; border: 0; border-radius: 0;
-  background: transparent; color: var(--an-text-secondary); font: inherit; font-size: 11px;
-  box-shadow: none; cursor: pointer; text-align: left;
+/* [Claude] — 2026-10-28 — Icône seule, colorée, carrée (demande de Narcisse) : le
+   texte faisait passer ce bouton pour un réglage mineur plutôt qu'une action. */
+#analysis-tab .an-btn-new-analysis {
+  width: 32px; padding: 0; justify-content: center;
+  color: var(--an-accent-bright); background: var(--an-accent-soft); border-color: var(--an-border);
 }
-#analysis-tab #analyzer-save-status.dirty { color: var(--an-amber); }
-#analysis-tab #analyzer-save-status:focus-visible { outline: 2px solid var(--an-accent); outline-offset: 4px; }
-#analysis-tab .an-analysis-rerun {
-  margin-left: 20px; padding: 0 13px; border-color: var(--an-accent);
-  color: var(--an-accent-bright); background: var(--an-accent-soft); white-space: nowrap;
-}
+#analysis-tab .an-btn-new-analysis:hover { background: var(--an-accent); color: #ffffff; }
+#analysis-tab .an-analysis-rerun { padding: 0 13px; border-color: var(--an-accent); color: var(--an-accent-bright); background: var(--an-accent-soft); white-space: nowrap; }
 #analysis-tab .analyzer-timeline-block.selected {
   outline: 2px solid var(--an-accent);
   outline-offset: -2px;
@@ -63,8 +56,7 @@
 }
 @media (max-width: 540px) {
   #analysis-tab .an-context-progression { padding-left: 0 !important; border-left: 0 !important; flex-basis: 100%; }
-  #analysis-tab .an-transport-controls { width: 100%; gap: 8px; }
-  #analysis-tab .an-analysis-rerun { margin-left: 0; }
+  #analysis-tab .an-project-right { width: 100%; flex-wrap: wrap; row-gap: 8px; }
 }
 @media (prefers-reduced-motion: reduce) {
   #analysis-tab .an-context-value { transition: none; }

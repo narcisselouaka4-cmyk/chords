@@ -1382,23 +1382,27 @@
             <!-- Les repères restent visibles dans chaque sous-onglet. -->
             <div class="an-project-bar">
               <div class="an-project-info">
-                <button type="button" id="analyzer-back-to-import-btn" class="an-btn-new-analysis" title="Nouvelle analyse"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>Nouvelle analyse</button>
+                <!-- [Claude] — 2026-10-28 — Icône seule, colorée (demande de Narcisse) : le
+                     texte « Nouvelle analyse » laissait croire à un réglage mineur ; la
+                     couleur signale que c'est une action, pas un paramètre. -->
+                <button type="button" id="analyzer-back-to-import-btn" class="an-btn-new-analysis" title="Nouvelle analyse" aria-label="Nouvelle analyse"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button>
                 <div class="an-project-titles">
                   <h1 id="analyzer-song-title">Titre du morceau</h1>
                 </div>
-                <!-- [Claude] — 2026-10-28 — Repères déplacés à côté du titre (demande de
-                     Narcisse) : ils libèrent le bandeau plein largeur qu'ils occupaient en
-                     haut. Mêmes identifiants, mêmes couleurs par tonalité (data-tone) ; seule
-                     la position change. -->
+              </div>
+              <!-- [Claude] — 2026-10-28 — Repères calés à droite, juste avant « Relancer
+                   l'analyse » (demande de Narcisse), plutôt qu'à côté du titre : tout tient
+                   sur une seule ligne. Mêmes identifiants, mêmes couleurs par tonalité
+                   (data-tone) ; seule la position change. -->
+              <div class="an-project-right">
                 <section class="an-music-context" id="analyzer-music-context" aria-label="Repères du morceau" data-tone="0">
                   <div class="an-context-item"><span class="an-context-label">Tonalité</span><strong class="an-context-value" id="analyzer-context-key">—</strong></div>
                   <div class="an-context-item"><span class="an-context-label">Tempo</span><strong id="analyzer-context-tempo">—</strong></div>
                   <div class="an-context-item an-context-progression"><span class="an-context-label">Accords principaux</span><div class="an-context-value" id="analyzer-context-chords">—</div></div>
                   <span class="sr-only" id="analyzer-context-announcement" role="status" aria-live="polite"></span>
                 </section>
+                <button type="button" id="analyzer-reanalyze-btn" class="an-tr-btn an-analysis-rerun" title="Recalculer les accords depuis l'audio"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg><span>Relancer l’analyse</span></button>
               </div>
-
-              <button type="button" id="analyzer-reanalyze-btn" class="an-tr-btn an-analysis-rerun" title="Recalculer les accords depuis l'audio"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg><span>Relancer l’analyse</span></button>
             </div>
 
             <!-- [Claude] — 2026-10-27 — Avertissement PERSISTANT : une analyse
