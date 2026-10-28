@@ -21,8 +21,10 @@ export function createMusicalGridView(host, { onSeek, onEdit } = {}) {
       for (const row of section.rows) {
         const line = element('div', 'mg-row'); rowElements[row.index] = line;
         const label = element('div', 'mg-row-label');
+        // [Claude] — 2026-10-28 — Plus de numéro de mesure à gauche (« m. 92 ») : Narcisse,
+        //   « je ne sais pas à quoi ça sert, on peut clairement enlever ». Restent l'instant,
+        //   et le tempo quand il change nettement.
         label.appendChild(element('span', 'mg-row-time', timeLabel(row.startTime)));
-        label.appendChild(element('span', 'mg-row-number', row.bars[0].pickup ? 'Levée' : `m. ${row.bars[0].number}`));
         if (row.index && Math.abs(row.bpm / model.rows[row.index - 1].bpm - 1) > 0.06 && !model.estimated) {
           label.appendChild(element('span', 'mg-tempo-change', `≈ ${Math.round(row.bpm)} BPM`));
         }

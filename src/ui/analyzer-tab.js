@@ -1252,6 +1252,13 @@ async function showResults(analysis) {
   // lecteur est bloqué, quand j'interagis rien ne se passe ». On tente maintenant de retrouver l'audio.
   await createPlayerForAnalysis(analysis);
 
+  // [Claude] — 2026-10-28 — Le calage des pulsations part DÈS que l'analyse est là, et non
+  //   à l'ouverture de la grille. Narcisse : « le calage audio se fait quand je vais voir la
+  //   grille d'accord, et c'est un souci parce que je vais devoir encore attendre ». Il prend
+  //   13 à 31 s, autant qu'il tourne pendant qu'on lit les résultats. Sans attendre : la grille
+  //   s'affiche au tempo estimé puis se recale toute seule quand le calcul rend la main.
+  ensureGridRhythm();
+
   renderTimeline(getDisplayChords(), analysis.duration || 0);
   updatePlayButton();
   renderOverview(getDisplayAnalysis());

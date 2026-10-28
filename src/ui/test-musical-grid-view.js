@@ -75,7 +75,9 @@ test('DOM : seul le temps courant est surligné, suivi vertical et retour arriè
 test('DOM : premier temps retardé au bon instant, sans faux temps fort à zéro', () => {
   const host = new Element(), view = createMusicalGridView(host);
   view.render(analysis, { rhythm: { beatTimes: Array.from({ length: 47 }, (_, i) => .3 + i * .5) } });
-  assert.equal(host.querySelector('.mg-row-number').textContent, 'Levée');
+  // Plus de numéro de mesure à gauche : la levée se lit au temps fort, pas à l'étiquette.
+  assert.ok(!host.querySelector('.mg-row-number'));
+  assert.equal(host.querySelector('.mg-row-time').textContent, '0:00');
   const beats = host.querySelectorAll('.mg-beat');
   assert.equal(beats[0].classList.contains('mg-downbeat'), false);
   assert.equal(beats[1].classList.contains('mg-downbeat'), true);

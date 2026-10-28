@@ -63,7 +63,6 @@
 #analysis-tab .mg-section-title { font: 500 11px/1.5 var(--font-ui, inherit); color: var(--an-text-secondary); padding: 5px 0; margin: 0; }
 #analysis-tab .mg-row { display: flex; gap: 10px; align-items: stretch; min-height: 56px; margin-bottom: 4px; }
 #analysis-tab .mg-row-label { flex: 0 0 46px; display: flex; flex-direction: column; justify-content: center; gap: 3px; color: var(--an-text-secondary); font-size: 10px; }
-#analysis-tab .mg-row-number { font-size: 9px; opacity: .8; }
 #analysis-tab .mg-tempo-change { font-size: 9px; color: var(--an-accent); }
 #analysis-tab .mg-row-track { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(var(--row-beats), minmax(0, 1fr)); position: relative; }
 #analysis-tab .mg-cell { position: relative; grid-row: 1; display: grid; grid-template-columns: repeat(var(--cell-beats), minmax(0, 1fr)); min-width: 0; min-height: 56px; border: 1px solid var(--an-border-soft); border-radius: 3px; padding: 0; margin: 0; color: var(--an-text); background: var(--an-surface-raised, var(--an-surface)); text-align: left; cursor: pointer; overflow: hidden; }
