@@ -1,3 +1,6 @@
+import { normalizeGridSettings } from '../analyzer/musical-grid.js';
+import { readGridView } from '../analyzer/grid-project.js';
+import { createMusicalGridView } from './components/musical-grid-view.js';
 import { selectMediaFile, selectAnalysisFile, createAudioPlayer, isSupportedMediaFile, isAudioFile, isVideoFile } from '../audio/media-engine.js';
 import { createRegionPlayer } from './components/analyzer-region-player.js';
 import { globalAudioFocusManager } from '../audio/audio-focus-manager.js';
@@ -91,6 +94,11 @@ const BLOCK_GAP = 4;
 let timelineZoom = 1.0;
 let chordGridExpanded = false;
 let sectionBeforeGrid = 'analysis';
+let gridSettings = normalizeGridSettings();
+let gridRhythm = null;
+let gridRhythmWorker = null;
+let gridRhythmAnalysis = null;
+let musicalGridView = null;
 
 let undoStack = [];
 let redoStack = [];
@@ -140,6 +148,16 @@ const els = {
   chordTimeline: document.getElementById('analyzer-chord-timeline'),
   progressionRibbon: document.getElementById('analyzer-progression-ribbon'),
   gridToggle: document.getElementById('analyzer-grid-toggle'),
+  musicalGrid: document.getElementById('analyzer-musical-grid'),
+  gridMeter: document.getElementById('analyzer-grid-meter'),
+  gridTempo: document.getElementById('analyzer-grid-tempo'),
+  gridStatus: document.getElementById('analyzer-grid-status'),
+  gridHalf: document.getElementById('analyzer-grid-half'),
+  gridDouble: document.getElementById('analyzer-grid-double'),
+  gridSignature: document.getElementById('analyzer-grid-signature'),
+  gridPhase: document.getElementById('analyzer-grid-phase'),
+  gridOffset: document.getElementById('analyzer-grid-offset'),
+  gridReset: document.getElementById('analyzer-grid-reset'),
   gridTab: document.getElementById('analyzer-grid-tab'),
   tabNav: document.getElementById('analyzer-section-tabs'),
   panelsHost: document.getElementById('analyzer-section-panels'),
@@ -312,6 +330,8 @@ function getDisplayAnalysis() {
 
 // Phase B : persistance
 let projectDirty = false;
+let projectRevision = 0;
+let projectSaveQueue = Promise.resolve();
 let projectPath = null;
 let audioIdentity = null;
 let saveStatusEl = null;
@@ -324,6 +344,7 @@ export function initAnalyzerTab() {
   bindToolbar();
   initTimelineZoom();
   bindTimelineScroll();
+  bindMusicalGrid();
   bindHierarchyToggle();
   els.reanalyzeBtn?.addEventListener('click', () => { reanalyzeCurrentTrack(); });
   bindSectionTabs();
@@ -1195,6 +1216,7 @@ async function showResults(analysis) {
   hideProcessing();
   setAnalyzerState('analysis');
   currentAnalysis = analysis;
+  resetMusicalGrid();
   // L'avertissement est décidé ICI, le seul point par lequel TOUTE grille
   // passe — restaurée du disque, fraîchement calculée, ou déjà en mémoire.
   // Le poser dans la seule restauration ne suffisait pas : une analyse gardée
@@ -1257,6 +1279,7 @@ function renderHeader() {
 // HOME. Ne touche en aucun cas au Studio ni à Electron (pas de reload).
 export function resetAnalysisSession() {
   setChordGridExpanded(false);
+  resetMusicalGrid();
   if (currentPlayer) {
     currentPlayer.destroy();
     currentPlayer = null;
@@ -1599,8 +1622,6 @@ function renderTimeline(chords, duration) {
       ${fitted.text
         ? `<span class="analyzer-timeline-label" style="font-size:${fitted.fontPx}px">${escapeHtml(fitted.text)}</span>`
         : ''}
-      <span class="analyzer-grid-symbol">${escapeHtml(effectiveChordStr)}</span>
-      <span class="analyzer-grid-time" aria-hidden="true">${fmt(chord.startTime)}</span>
       ${isOverridden ? '<span class="override-icon" title="Corrigé manuellement">✏</span>' : ''}
     `;
 
@@ -1626,9 +1647,106 @@ function renderTimeline(chords, duration) {
     els.chordTimelineInner.appendChild(block);
   });
 
+  renderMusicalGrid();
   // Restaurer la sélection et l’accord courant
   updatePlaybackPosition(currentPlayer?.element?.currentTime ?? 0);
   if (selectedSegmentId) highlightSelectedSegment(selectedSegmentId);
+}
+
+function resetMusicalGrid() {
+  gridRhythmWorker?.terminate(); gridRhythmWorker = null; gridRhythmAnalysis = null;
+  gridSettings = normalizeGridSettings({}, currentAnalysis?.timeSignature); gridRhythm = null;
+  syncGridSettings();
+}
+
+function bindMusicalGrid() {
+  musicalGridView = createMusicalGridView(els.musicalGrid, {
+    onSeek: (time, segmentId) => {
+      if (segmentId) selectSegment(segmentId);
+      seekToSegment({ startTime: time });
+    },
+    onEdit: (segmentId) => {
+      const index = currentAnalysis?.chords?.findIndex((s) => s.segmentId === segmentId) ?? -1;
+      if (index >= 0) openChordEditor(index);
+    },
+  });
+  const change = (patch) => {
+    gridSettings = normalizeGridSettings({ ...gridSettings, ...patch }, currentAnalysis?.timeSignature);
+    syncGridSettings(); renderMusicalGrid();
+    musicalGridView?.update(currentPlayer?.getCurrentTime?.() || 0);
+    markDirty();
+    if (window.electronAPI?.files?.writeFile) saveProject({ silent: true });
+  };
+  els.gridHalf?.addEventListener('click', () => change({ tempoMultiplier: Math.max(0.5, gridSettings.tempoMultiplier / 2) }));
+  els.gridDouble?.addEventListener('click', () => change({ tempoMultiplier: Math.min(2, gridSettings.tempoMultiplier * 2) }));
+  els.gridSignature?.addEventListener('change', () => {
+    const [beatsPerBar, beatUnit] = els.gridSignature.value.split('/').map(Number);
+    change({ beatsPerBar, beatUnit, phase: 0 });
+  });
+  els.gridPhase?.addEventListener('change', () => change({ phase: Number(els.gridPhase.value) }));
+  els.gridOffset?.addEventListener('input', () => {
+    if (els.gridOffset.value !== '' && Number.isFinite(els.gridOffset.valueAsNumber)) change({ offsetSeconds: els.gridOffset.valueAsNumber });
+  });
+  els.gridOffset?.addEventListener('change', () => {
+    change({ offsetSeconds: Number(els.gridOffset.value) });
+    if (document.activeElement !== els.gridOffset) els.gridOffset.value = String(gridSettings.offsetSeconds);
+  });
+  els.gridReset?.addEventListener('click', () => {
+    change(normalizeGridSettings({}, currentAnalysis?.timeSignature));
+    els.gridOffset.value = String(gridSettings.offsetSeconds);
+  });
+}
+
+function syncGridSettings() {
+  if (!els.gridSignature) return;
+  els.gridSignature.value = `${gridSettings.beatsPerBar}/${gridSettings.beatUnit}`;
+  if (document.activeElement !== els.gridOffset) els.gridOffset.value = String(gridSettings.offsetSeconds);
+  els.gridPhase.replaceChildren(...Array.from({ length: gridSettings.beatsPerBar }, (_, i) => {
+    const option = document.createElement('option'); option.value = String(i);
+    option.textContent = i ? `Pulsation ${i + 1}` : 'Pulsation 1'; return option;
+  }));
+  els.gridPhase.value = String(gridSettings.phase);
+  els.gridHalf.disabled = gridSettings.tempoMultiplier === 0.5;
+  els.gridDouble.disabled = gridSettings.tempoMultiplier === 2;
+}
+
+function renderMusicalGrid() {
+  if (!chordGridExpanded || !currentAnalysis || !musicalGridView) return;
+  const model = musicalGridView.render(currentAnalysis, { settings: gridSettings, rhythm: gridRhythm, detailed: detailedChords });
+  els.gridMeter.textContent = `${gridSettings.beatsPerBar}/${gridSettings.beatUnit} · 4 mesures / ligne`;
+  els.gridTempo.textContent = `${Math.round(model.tempo * 10) / 10} BPM`;
+  els.gridStatus.textContent = gridRhythmWorker ? 'Calage des pulsations…' : model.estimated ? 'Calage au tempo · réglable dans Corriger' : 'Calage audio estimé · Corriger';
+  syncGridSettings();
+}
+
+async function ensureGridRhythm() {
+  if (!currentAnalysis || gridRhythm || gridRhythmAnalysis === currentAnalysis) return;
+  const analysis = currentAnalysis;
+  gridRhythmAnalysis = analysis;
+  if (!analysis.wavPath || !window.electronAPI?.files?.readBinary) return;
+  try {
+    const worker = new Worker(new URL('../analyzer/display-beats.worker.js', import.meta.url), { type: 'module' });
+    gridRhythmWorker = worker; renderMusicalGrid();
+    const bytes = await window.electronAPI.files.readBinary(analysis.wavPath);
+    if (currentAnalysis !== analysis || gridRhythmWorker !== worker) { worker.terminate(); return; }
+    const buffer = new Uint8Array(bytes).buffer;
+    worker.onmessage = ({ data }) => {
+      worker.terminate();
+      if (currentAnalysis !== analysis || gridRhythmWorker !== worker) return;
+      gridRhythmWorker = null;
+      gridRhythm = readGridView({ display: { chordGrid: { rhythm: data.rhythm } } }, analysis).rhythm;
+      renderMusicalGrid(); musicalGridView?.update(currentPlayer?.getCurrentTime?.() || 0);
+      if (gridRhythm && window.electronAPI?.files?.writeFile) saveProject({ silent: true });
+    };
+    worker.onerror = () => {
+      worker.terminate();
+      if (gridRhythmWorker === worker) { gridRhythmWorker = null; renderMusicalGrid(); }
+    };
+    worker.postMessage({ buffer, tempo: analysis.tempo || 120 }, [buffer]);
+  } catch (error) {
+    if (currentAnalysis === analysis) { gridRhythmWorker?.terminate(); gridRhythmWorker = null; renderMusicalGrid(); }
+    console.warn('[Analyzer] calage de grille au tempo :', error.message);
+  }
 }
 
 function bindHierarchyToggle() {
@@ -1766,6 +1884,8 @@ function updatePlaybackPosition(currentTime) {
   const study = pinnedStudy ? chords.find((c) => c.segmentId === pinnedStudy) : null;
   renderHeroChord(study || activeChord || (clamped === 0 ? chords[0] : null));
 
+  if (chordGridExpanded) musicalGridView?.update(clamped);
+
   // Suivre la case courante sur son axe, sans déplacer les commandes du lecteur.
   if (activeIndex >= 0 && activeIndex !== lastAutoScrollIndex && blocks[activeIndex]) {
     lastAutoScrollIndex = activeIndex;
@@ -1773,11 +1893,7 @@ function updatePlaybackPosition(currentTime) {
     const containerRect = els.chordTimeline.getBoundingClientRect();
     const blockRect = block.getBoundingClientRect();
     const margin = 120;
-    if (chordGridExpanded) {
-      if (blockRect.top < containerRect.top + 12 || blockRect.bottom > containerRect.bottom - 12) {
-        els.chordTimeline.scrollTo({ top: Math.max(0, els.chordTimeline.scrollTop + blockRect.top - containerRect.top - 16), behavior: 'smooth' });
-      }
-    } else if (blockRect.right > containerRect.right - margin || blockRect.left < containerRect.left + margin) {
+    if (!chordGridExpanded && (blockRect.right > containerRect.right - margin || blockRect.left < containerRect.left + margin)) {
       const targetScroll = els.chordTimeline.scrollLeft + blockRect.left - containerRect.left - containerRect.width / 3 + blockRect.width / 2;
       els.chordTimeline.scrollTo({ left: targetScroll, behavior: 'smooth' });
     }
@@ -2078,6 +2194,8 @@ function setChordGridExpanded(expanded) {
   chordGridExpanded = expanded;
   els.results.classList.toggle('is-grid-expanded', expanded);
   els.panelsHost.hidden = expanded;
+  if (els.musicalGrid) els.musicalGrid.hidden = !expanded;
+  if (expanded) { renderMusicalGrid(); ensureGridRhythm(); }
   els.gridTab.hidden = !expanded;
   els.tabNav.setAttribute('aria-orientation', expanded ? 'vertical' : 'horizontal');
   els.gridToggle.setAttribute('aria-expanded', String(expanded));
@@ -2244,6 +2362,7 @@ async function getAudioStat(filePath) {
 }
 
 function markDirty() {
+  projectRevision++;
   if (!projectDirty) {
     projectDirty = true;
     window.__projectDirty = true;
@@ -2278,25 +2397,37 @@ async function saveProject({ silent = false } = {}) {
   }
 
   try {
+    const analysisToSave = currentAnalysis;
+    const audioPathToSave = currentAudioPath;
+    const revisionToSave = projectRevision;
     if (!audioIdentity) {
-      const stat = await getAudioStat(currentAudioPath);
-      audioIdentity = buildAudioIdentity(currentAudioPath, currentAnalysis, stat);
+      const stat = await getAudioStat(audioPathToSave);
+      if (currentAnalysis !== analysisToSave || currentAudioPath !== audioPathToSave) return;
+      audioIdentity = buildAudioIdentity(audioPathToSave, analysisToSave, stat);
     }
 
+    if (currentAnalysis !== analysisToSave) return;
     projectPath = projectPath || buildProjectPath(currentAudioPath);
     const data = buildProjectData(
       audioIdentity,
       currentAnalysis.chords || [],
       currentProjectOrphanedOverrides,
       currentAnalysis,
+      { settings: gridSettings, rhythm: gridRhythm },
     );
 
-    // Écriture atomique : fichier temporaire → renommage
-    const tmpPath = projectPath + '.tmp';
-    await window.electronAPI.files.writeFile(tmpPath, JSON.stringify(data, null, 2));
-    await window.electronAPI.files.rename(tmpPath, projectPath);
-
-    markClean();
+    // Sérialiser les sauvegardes du calage, des corrections et de Ctrl+S :
+    // un seul fichier temporaire peut être en cours d'écriture par projet.
+    const pathToSave = projectPath;
+    const write = async () => {
+      const tmpPath = pathToSave + '.tmp';
+      await window.electronAPI.files.writeFile(tmpPath, JSON.stringify(data, null, 2));
+      await window.electronAPI.files.rename(tmpPath, pathToSave);
+    };
+    const pending = projectSaveQueue.then(write, write);
+    projectSaveQueue = pending.catch(() => {});
+    await pending;
+    if (currentAnalysis === analysisToSave && projectRevision === revisionToSave) markClean();
     if (!silent) {
       const displayPath = projectPath || '';
       const shortPath = displayPath.length > 60 ? '…' + displayPath.slice(-60) : displayPath;
@@ -2352,6 +2483,10 @@ async function loadProjectIfExists() {
       showToast(`Projet existant incompatible.${diff} Corrections non appliquées.`, 8000, 'warning');
       return;
     }
+
+    const gridView = readGridView(data, currentAnalysis);
+    gridSettings = gridView.settings; gridRhythm = gridView.rhythm;
+    syncGridSettings();
 
     const { applied, orphaned } = tryApplyProjectOverrides(data, currentAnalysis.chords || []);
     currentProjectOrphanedOverrides = orphaned;

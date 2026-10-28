@@ -181,6 +181,18 @@ function testOverviewWithoutDeveloperStatistics() {
   console.log('✅ Vue fusionnée — repères permanents, accord centré, anciens panneaux retirés');
 }
 
+function testMusicalGridContract() {
+  const html = readText('src/index.html'), js = readText('src/ui/analyzer-tab.js');
+  const css = readText('src/ui/components/analysis-chord-grid.css');
+  for (const id of ['analyzer-musical-grid', 'analyzer-grid-signature', 'analyzer-grid-phase', 'analyzer-grid-offset', 'analyzer-grid-half', 'analyzer-grid-double']) {
+    if (!html.includes(`id="${id}"`) || !js.includes(`getElementById('${id}')`)) throw new Error(`Grille musicale : ${id} manquant`);
+  }
+  const corriger = html.slice(html.indexOf('class="analyzer-panel corriger-panel"'));
+  if (!corriger.includes('id="analyzer-grid-signature"')) throw new Error('Mesure non réglable dans Corriger');
+  if (!css.includes('.mg-bar-line') || !css.includes('.mg-beat.is-current') || !css.includes('overflow-y: auto')) throw new Error('Mesures, pulsation ou défilement manquants');
+  console.log('✅ Grille musicale — projection séparée, calage Corriger, tempo, mesures et pulsation');
+}
+
 // ── Exécution ──
 console.log('=== Tests contrat DOM Analyse ===\n');
 testNoInlineDisplayNone();
@@ -192,4 +204,5 @@ testMiniKeyboardGradientIds();
 testChordLabelSeeks();
 testChordProgressHighlight();
 testOverviewWithoutDeveloperStatistics();
+testMusicalGridContract();
 console.log('\n✅ Tous les tests DOM Analyse passent.');

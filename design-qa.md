@@ -1,3 +1,85 @@
+# Grille musicale — vérification du 28/10/2026
+
+La grille agrandie utilise une projection en pulsations, quatre mesures par ligne,
+cellules fusionnées et deux harmonies principales au plus par mesure. Les passages
+restent dans les données et s'affichent en petit dans la cellule en vue détaillée.
+Heure seulement en tête de ligne, barres de mesure, sections A/B… avec retour de
+la même lettre/couleur pour une assise ressemblante. La frise compacte, la fiche
+centrée et les quatre sous-onglets sont conservés.
+
+## Calage et provenance
+
+Les trois projets examinés ne contiennent ni pulsations ni premier temps ; le moteur
+lv-chordia calcule des temps en interne mais ne les transmet pas dans son résultat.
+Aucun changement de Python, moteur, version ou accord n'a été fait. Un Worker lit
+le WAV et estime des pulsations **réservées à l'affichage**, avec période locale
+variable. Ce calage est identifié comme estimé ; sans WAV compatible, repli au tempo,
+annoncé dans la grille. Les bords hors du suivi sont extrapolés jusqu'aux extrémités.
+Le calage ne certifie pas le premier temps musical. Dans Corriger : mesure, choix
+entre les pulsations de la mesure et décalage fin ±10 s. ×2 / ÷2 dans la grille
+agit seulement sur la subdivision affichée. Réglages et temps dérivés sont stockés
+sous `display.chordGrid`, à côté de `analysis`, après contrôle de l'identité audio.
+La sauvegarde est sérialisée pour ne pas faire concourir calage et corrections.
+
+## Résultats sur les projets réels
+
+| Fichier | Durée | Événements source | Lignes ×1 | Lignes ÷2 |
+| --- | --- | --- | --- | --- |
+| Sanogo, Track_024 | 3:29,93 | 123 | 27 | 14 |
+| SEIGNEUR, Track_020 | 7:47,16 | 151 | 63 | 32 |
+| ANGES, Track_022 | 8:54,73 | 198 | 78 | 39 |
+
+Les fixtures contiennent les accords/timings anonymisés des projets et les pulsations
+d'affichage calculées depuis leurs vrais WAV ; elles ne sont pas des annotations à
+l'oreille. Les anciens caches SEIGNEUR/ANGES ne sont pas réanalysés : leur avertissement
+de moteur ancien/inconnu reste visible. Les nombres de lignes ne dépendent pas du
+nombre d'événements : quatre minutes à 129 BPM en 4/4 exigent environ 33 lignes de
+quatre mesures. Le critère <25 lignes ne peut être garanti avec ces contraintes ;
+÷2 produit environ 17 lignes, quand cette lecture de la pulsation est pertinente.
+
+## Parcours navigateur réellement exercé
+
+Banc temporaire chargeant le vrai contrôleur et les vrais WAV, avec IPC fichiers de
+test en sessionStorage ; aucun projet utilisateur écrit. Sur les trois morceaux,
+calage Worker, grille et accès aux accords vérifiés. Sanogo : lecture réelle avancée,
+pulsation unique active, détails internes sans cellule supplémentaire, ÷2 sans changer
+les 123 BPM analysés, restauration 3/4, phase et décalage 0,15 s après rechargement.
+SEIGNEUR : clic à 86,47 s, recul à 76,47 s, pulsation et scroll remontent. ANGES :
+clic à 80,28 s, recul à 70,28 s, ÷2 donne 39 lignes / 69,9 BPM ; les 140 BPM du
+bandeau restent ceux de l'analyse. Retour à Vue d'ensemble : lecteur à 70,28 s,
+fiche d'accord centrée visible. Pas d'erreur console ; seul avertissement sampler
+absent attendu dans le banc. Viewport rétabli, onglet et fichiers de test supprimés.
+
+Captures inspectées dans `audit-output/musical-grid-2026-10-28/` (non versionnées) :
+
+- `1440-dark.jpg` : Sanogo, grille ×1.
+- `1440-light.jpg` : ANGES, grille ÷2 et temps actif.
+- `1024-dark.jpg`, `1024-light.jpg` : Sanogo ×1, pas de débordement horizontal.
+- `overview-restored.jpg` : fiche centrée après réduction.
+
+Les boutons « Charger… » tout en bas appartiennent uniquement au banc de test.
+
+## Tests et limites
+
+Passent : 17 tests de projection/calage/persistance/exports/corpus, 3 tests DOM du
+rendu interactif, 12 tests de progression, 17 scénarios d'accords principaux,
+contrats DOM Analyse, persistance existante, exports et éditeur/corrections.
+`npm run build` passe (avertissement habituel sur la taille du bundle).
+Tests de calage : pulsations non uniformes, glissement de tempo sur attaques
+synthétiques, arrondi au temps proche, fusion sous le temps, sections A/B/A,
+phase/mesure/décalage, sauts avant/arrière, écritures concurrentes et invariance
+JSON/CSV/texte/MIDI. Pas de nouveau test du moteur, qui est hors périmètre.
+
+**À confirmer dans Electron et à l'oreille** : premier temps, qualité du suivi des
+pulsations sur rythmes syncopés/sans batterie et pertinence des frontières de parties.
+Le suivi privilégie l'octave du tempo donné (période locale recherchée entre 0,8 et
+1,25 fois la période de référence), il ne certifie pas tout changement de tempo.
+Les sections comparent les palettes sur huit mesures ; ce sont des repères
+harmoniques, pas une identification fiable des couplets/refrains ni une grille
+annotée manuellement. Le corpus n'est pas une preuve de justesse musicale globale.
+
+---
+
 # Grille d’accords agrandie — contrôle fonctionnel du 28/10/2026
 
 Bouton d’agrandissement ajouté à droite de la frise. La même liste de boutons devient

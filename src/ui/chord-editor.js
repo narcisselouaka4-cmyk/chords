@@ -349,7 +349,7 @@ export function extractCachedAnalysis(projectData) {
   return { ...rest, chords: cached.chords.map((seg) => ({ ...seg })) };
 }
 
-export function buildProjectData(audioIdentity, chords, existingOrphanedOverrides = {}, analysis = null) {
+export function buildProjectData(audioIdentity, chords, existingOrphanedOverrides = {}, analysis = null, gridView = null) {
   const overrides = {};
   for (const seg of chords) {
     if (seg.manualOverride) {
@@ -374,6 +374,7 @@ export function buildProjectData(audioIdentity, chords, existingOrphanedOverride
     schemaVersion: PROJECT_SCHEMA_VERSION,
     audio: { ...audioIdentity },
     analysis: snapshot,
+    ...(gridView ? { display: { chordGrid: structuredClone(gridView) } } : {}),
     manualChordOverrides: overrides,
     orphanedOverrides: { ...(existingOrphanedOverrides || {}) },
   };

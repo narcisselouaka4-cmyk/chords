@@ -1438,11 +1438,21 @@
                  (blocs proportionnels à la durée réelle, pilotés par le zoom) :
                  seule son habillage devient celui du ruban d'Astra. -->
             <div class="an-chord-progression-ribbon" id="analyzer-progression-ribbon" role="region" aria-label="Ligne des accords">
-              <span class="an-grid-heading" aria-hidden="true">Grille d’accords</span>
+              <div class="an-grid-toolbar">
+                <span class="an-grid-heading">Grille d’accords</span>
+                <span id="analyzer-grid-meter" class="mg-meter">4/4</span>
+                <div class="mg-tempo-controls" role="group" aria-label="Tempo de la grille">
+                  <button type="button" id="analyzer-grid-half" title="Diviser le tempo de la grille par deux">÷2</button>
+                  <output id="analyzer-grid-tempo" aria-live="polite"></output>
+                  <button type="button" id="analyzer-grid-double" title="Doubler le tempo de la grille">×2</button>
+                </div>
+                <span id="analyzer-grid-status" class="mg-status" role="status"></span>
+              </div>
               <button type="button" class="an-ribbon-nav-btn" id="analyzer-timeline-scroll-left" aria-label="Défiler à gauche" title="Accord précédent"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
               <div class="an-ribbon-chords-track" id="analyzer-chord-timeline" tabindex="0" aria-label="Accords du morceau">
                 <div class="analyzer-timeline-inner" id="analyzer-chord-timeline-inner"></div>
               </div>
+              <div id="analyzer-musical-grid" class="musical-grid" tabindex="0" aria-label="Mesures et accords du morceau" hidden></div>
               <button type="button" class="an-ribbon-nav-btn" id="analyzer-timeline-scroll-right" aria-label="Défiler à droite" title="Accord suivant"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
               <button type="button" class="an-ribbon-nav-btn an-grid-toggle" id="analyzer-grid-toggle" aria-label="Afficher toute la grille" title="Afficher toute la grille" aria-expanded="false" aria-controls="analyzer-progression-ribbon">
                 <svg class="an-grid-expand-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M8 21H3v-5"/></svg>
@@ -1636,6 +1646,14 @@
                    ici — les exports réels de Zic vivent dans « Vue d'ensemble ». -->
               <div class="analyzer-panel corriger-panel" data-section="corriger" role="tabpanel" style="display:none">
                 <div class="an-correction-container">
+                  <fieldset class="mg-settings" id="analyzer-grid-settings">
+                    <legend>Calage de la grille</legend>
+                    <label>Mesure <select id="analyzer-grid-signature" aria-label="Mesure de la grille"><option>2/4</option><option>3/4</option><option selected>4/4</option><option>5/4</option><option>6/8</option><option>7/8</option><option>9/8</option><option>12/8</option></select></label>
+                    <label>Premier temps <select id="analyzer-grid-phase" aria-label="Premier temps de la mesure"></select></label>
+                    <label>Décalage <input id="analyzer-grid-offset" aria-label="Décalage de la grille en secondes" type="number" min="-10" max="10" step="0.05" value="0"> s</label>
+                    <button type="button" id="analyzer-grid-reset">Réinitialiser le calage</button>
+                    <small>Affichage uniquement · les accords et les exports restent à leur temps d’origine.</small>
+                  </fieldset>
                   <div class="an-correction-top-ribbon">
                     <div class="an-stats-counters corriger-header" id="corriger-header"></div>
                     <div class="an-stream-filter-bar">

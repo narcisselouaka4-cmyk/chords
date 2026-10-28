@@ -1,8 +1,6 @@
-/* La même frise passe en grille ; les boutons conservent leur identité et leurs actions. */
-#analysis-tab .an-grid-heading,
+/* Grille musicale dérivée : la frise et les identités sources restent intactes. */
+#analysis-tab .an-grid-toolbar,
 #analysis-tab .an-grid-collapse-icon,
-#analysis-tab .analyzer-grid-symbol,
-#analysis-tab .analyzer-grid-time,
 #analysis-tab .an-grid-tab[hidden],
 #analysis-tab #analyzer-section-panels[hidden] { display: none; }
 #analysis-tab .an-grid-toggle { margin-left: 4px; }
@@ -27,7 +25,7 @@
   flex-direction: column;
   align-items: stretch;
   min-height: 0;
-  padding: 52px 0 0;
+  padding: 0;
   margin-top: 12px;
   border: 1px solid var(--an-border-soft);
   border-radius: 8px;
@@ -35,9 +33,6 @@
 }
 #analysis-tab .is-grid-expanded .an-grid-heading {
   display: block;
-  position: absolute;
-  top: 16px;
-  left: 18px;
   font-size: 13px;
   font-weight: 500;
   color: var(--an-text);
@@ -53,48 +48,43 @@
 #analysis-tab .is-grid-expanded #analyzer-timeline-scroll-left,
 #analysis-tab .is-grid-expanded #analyzer-timeline-scroll-right { display: none; }
 #analysis-tab .is-grid-expanded .an-grid-collapse-icon { display: block; }
-#analysis-tab .is-grid-expanded #analyzer-chord-timeline {
-  display: block;
-  height: auto;
-  min-height: 0;
-  overflow-x: hidden;
-  overflow-y: scroll;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-  scrollbar-width: thin;
-  padding: 4px 12px 16px;
-}
-#analysis-tab .is-grid-expanded #analyzer-chord-timeline::-webkit-scrollbar { display: block; width: 8px; }
-#analysis-tab .is-grid-expanded #analyzer-chord-timeline::-webkit-scrollbar-thumb { background: var(--an-border-strong); border-radius: 8px; }
-#analysis-tab .is-grid-expanded #analyzer-chord-timeline-inner {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
-  grid-auto-rows: 64px;
-  align-content: start;
-  gap: 8px;
-  width: 100% !important;
-  height: auto;
-  min-height: 100%;
-}
-#analysis-tab .is-grid-expanded .analyzer-timeline-block {
-  position: relative;
-  inset: auto !important;
-  width: 100% !important;
-  min-width: 0;
-  height: 64px;
-  gap: 5px;
-  transform: none;
-}
-#analysis-tab .is-grid-expanded .analyzer-timeline-label { display: none; }
-#analysis-tab .is-grid-expanded .analyzer-grid-symbol {
-  display: block;
-  max-width: 100%;
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 1.2;
-  overflow-wrap: anywhere;
-}
-#analysis-tab .is-grid-expanded .analyzer-grid-time { display: block; font-size: 10px; font-weight: 400; color: var(--an-text-secondary); }
+#analysis-tab #analyzer-musical-grid[hidden] { display: none; }
+#analysis-tab .is-grid-expanded .an-grid-toolbar { display: flex; align-items: center; gap: 16px; padding: 12px 52px 12px 18px; min-height: 50px; flex-wrap: wrap; }
+#analysis-tab .is-grid-expanded #analyzer-chord-timeline { display: none; }
+#analysis-tab .musical-grid { display: block; flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--an-border-strong) transparent; padding: 0 16px 20px; }
+#analysis-tab .musical-grid:focus-visible { outline: 2px solid var(--an-accent); outline-offset: -2px; }
+#analysis-tab .mg-meter, #analysis-tab .mg-status { color: var(--an-text-secondary); font-size: 11px; }
+#analysis-tab .mg-status { margin-left: auto; }
+#analysis-tab .mg-tempo-controls { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--an-text); }
+#analysis-tab .mg-tempo-controls button, #analysis-tab .mg-settings button { background: var(--an-surface-elevated, var(--an-surface)); border: 1px solid var(--an-border-strong); border-radius: 4px; color: var(--an-text); padding: 4px 8px; cursor: pointer; }
+#analysis-tab .mg-tempo-controls button:hover, #analysis-tab .mg-settings button:hover { border-color: var(--an-accent); }
+#analysis-tab .musical-grid { --mg-section-0: var(--an-accent); --mg-section-1: #b19acb; --mg-section-2: #7ea7a2; --mg-section-3: #c5a774; --mg-section-4: #8c9dc9; --mg-section-5: #b3978a; }
+#analysis-tab .mg-section { border-left: 4px solid var(--section-color); padding: 0 0 0 10px; margin: 0 0 14px; }
+#analysis-tab .mg-section-title { font: 500 11px/1.5 var(--font-ui, inherit); color: var(--an-text-secondary); padding: 5px 0; margin: 0; }
+#analysis-tab .mg-row { display: flex; gap: 10px; align-items: stretch; min-height: 56px; margin-bottom: 4px; }
+#analysis-tab .mg-row-label { flex: 0 0 46px; display: flex; flex-direction: column; justify-content: center; gap: 3px; color: var(--an-text-secondary); font-size: 10px; }
+#analysis-tab .mg-row-number { font-size: 9px; opacity: .8; }
+#analysis-tab .mg-tempo-change { font-size: 9px; color: var(--an-accent); }
+#analysis-tab .mg-row-track { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(var(--row-beats), minmax(0, 1fr)); position: relative; }
+#analysis-tab .mg-cell { position: relative; grid-row: 1; display: grid; grid-template-columns: repeat(var(--cell-beats), minmax(0, 1fr)); min-width: 0; min-height: 56px; border: 1px solid var(--an-border-soft); border-radius: 3px; padding: 0; margin: 0; color: var(--an-text); background: var(--an-surface-raised, var(--an-surface)); text-align: left; cursor: pointer; overflow: hidden; }
+#analysis-tab .mg-beat { min-height: 56px; border-right: 1px solid color-mix(in srgb, var(--an-border-soft) 55%, transparent); }
+#analysis-tab .mg-beat:last-of-type { border-right: 0; }
+#analysis-tab .mg-beat.is-current { background: var(--an-accent-soft); box-shadow: inset 0 -3px var(--an-accent); }
+#analysis-tab .mg-cell:hover { background: var(--an-accent-soft); }
+#analysis-tab .mg-cell:focus-visible { outline: 2px solid var(--an-accent); outline-offset: -3px; z-index: 3; }
+#analysis-tab .mg-cell-content { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; gap: 5px; padding: 5px 9px; pointer-events: none; }
+#analysis-tab .mg-symbol { font-size: 14px; font-weight: 550; line-height: 1.2; overflow-wrap: anywhere; }
+#analysis-tab .mg-continuation { font-size: 10px; color: var(--an-text-secondary); }
+#analysis-tab .mg-passages { font-size: 10px; color: var(--an-text-secondary); overflow-wrap: anywhere; }
+#analysis-tab .mg-bar-lines { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(var(--row-beats), minmax(0, 1fr)); pointer-events: none; z-index: 2; }
+#analysis-tab .mg-bar-line { border-left: 2px solid var(--an-border-strong); border-right: 1px solid var(--an-border-strong); }
+#analysis-tab .mg-row.is-current .mg-row-time { color: var(--an-accent); }
+#analysis-tab .mg-settings { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-bottom: 18px; padding: 12px 16px; border: 1px solid var(--an-border-soft); border-radius: 6px; color: var(--an-text-secondary); font-size: 12px; }
+#analysis-tab .mg-settings legend { padding: 0 6px; font-size: 12px; }
+#analysis-tab .mg-settings label { display: flex; align-items: center; gap: 8px; }
+#analysis-tab .mg-settings select, #analysis-tab .mg-settings input { background: var(--an-surface); color: var(--an-text); border: 1px solid var(--an-border-strong); padding: 5px; border-radius: 4px; font: inherit; }
+#analysis-tab .mg-settings input { width: 70px; }
+#analysis-tab .mg-settings small { flex-basis: 100%; font-size: 10px; }
 #analysis-tab .is-grid-expanded .an-subtabs-bar {
   grid-area: 5 / 1 / 6 / 2;
   min-height: 0;
@@ -121,5 +111,6 @@
 @media (max-width: 700px) {
   #analysis-tab #analyzer-results.active.is-grid-expanded { grid-template-columns: 130px minmax(0, 1fr); column-gap: 8px; }
   #analysis-tab .is-grid-expanded #analyzer-section-tabs .an-subtab-btn { font-size: 11px; padding: 10px 4px; }
-  #analysis-tab .is-grid-expanded #analyzer-chord-timeline-inner { grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); }
+  #analysis-tab .mg-cell-content { padding: 4px; }
+  #analysis-tab .mg-symbol { font-size: 12px; }
 }
