@@ -49,6 +49,13 @@ export const DEFAULT_CASCADE_OPTIONS = {
   // Écart maximal toléré, en demi-tons, entre les plages détectées sur deux
   // images : au-delà, la géométrie n'est pas stable et on ne peut pas s'y fier.
   maxRangeDrift: 2,
+  // [Claude] — 2026-10-28 — Écart vertical maximal (px) entre deux lectures du MÊME clavier.
+  // « Amazing Grace — Slow Gospel Blues » montre deux claviers de même étendue : le clavier dessiné
+  // en haut (bas des touches à y = 233, celui qui s'allume) et le vrai piano en bas (y = 323), sous
+  // les mains. 19 images de sondage voient celui du haut, 5 celui du bas. Au moins ce nombre de
+  // pixels, et au moins la hauteur des noires de l'image (des mains devant le clavier font varier le
+  // bas mesuré d'une image à l'autre ; deux claviers distincts sont séparés de toute leur hauteur).
+  maxRowDrift: 12,
 };
 
 /**
@@ -126,12 +133,29 @@ export function detectVideoFormat(frames, options = {}) {
   // autre objet pris pour un clavier, une main qui masque des touches) ne fait
   // plus échouer toute la vidéo ; seules comptent les lectures cohérentes, et il
   // en faut autant qu'avant.
+  //
+  // [Claude] — 2026-10-28 — … et d'abord sur l'EMPLACEMENT du clavier. Deux claviers de même
+  // étendue à l'écran (un clavier dessiné qui s'allume au-dessus du vrai piano filmé) se lisent avec
+  // le même calage : sans ce tri, une seule image du vrai piano comptant une noire de plus que les
+  // autres l'emportait sur dix-neuf images du clavier dessiné, et plus rien ne s'allumait (« Amazing
+  // Grace » : 161 touches lues sur 2:55 au lieu de 5 009). Le clavier vu par le plus d'images gagne.
+  const rowOf = (g) => (Number.isFinite(g.bottom) ? g.bottom : g.blackRow);
+  const places = [];
+  for (const g of geometries) {
+    const y = rowOf(g);
+    const keyH = Number.isFinite(g.bottom) && Number.isFinite(g.blackRow) ? Math.abs(g.bottom - g.blackRow) : 0;
+    const tolerance = Math.max(opts.maxRowDrift, keyH);
+    const place = Number.isFinite(y) ? places.find((p) => Math.abs(p.y - y) <= tolerance) : null;
+    if (place) place.members.push(g);
+    else places.push({ y, members: [g] });
+  }
+  const placed = places.reduce((a, b) => (b.members.length > a.members.length ? b : a), places[0]).members;
   const byLow = new Map();
-  for (const g of geometries) byLow.set(g.lowestMidi, (byLow.get(g.lowestMidi) || 0) + 1);
-  let modeLow = geometries[0].lowestMidi;
+  for (const g of placed) byLow.set(g.lowestMidi, (byLow.get(g.lowestMidi) || 0) + 1);
+  let modeLow = placed[0].lowestMidi;
   let modeCount = -1;
   for (const [low, n] of byLow) if (n > modeCount) { modeCount = n; modeLow = low; }
-  const agreeing = geometries.filter((g) => Math.abs(g.lowestMidi - modeLow) <= opts.maxRangeDrift);
+  const agreeing = placed.filter((g) => Math.abs(g.lowestMidi - modeLow) <= opts.maxRangeDrift);
   const chosen = agreeing.reduce((a, b) => {
     if (b.blackKeys.length !== a.blackKeys.length) {
       return b.blackKeys.length > a.blackKeys.length ? b : a;

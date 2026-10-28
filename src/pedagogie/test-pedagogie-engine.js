@@ -1117,6 +1117,25 @@ runTest('T82 — Format : la géométrie retenue est celle sur laquelle les imag
   assertTrue(String(none.reason).startsWith('UnstableGeometry'), `motif : ${none.reason}`);
 });
 
+// [Claude] — 2026-10-28 — « Amazing Grace — Slow Gospel Blues » : DEUX claviers de même étendue à
+// l'écran, le clavier dessiné qui s'allume (en haut) et le vrai piano filmé sous les mains (en bas).
+// Les images de sondage voyaient surtout celui du haut ; une image du bas suffisait à l'emporter, et le
+// rejeu de 0:03 à 2:55 tombait de 562 notes à 97. Le clavier vu par le plus d'images doit gagner.
+runTest('T90 — Format : deux claviers de même étendue, celui que voient le plus d\'images l\'emporte', () => {
+  const at = (top, bottom) => makeKeyboard({ octaves: 3, lowestMidi: 48, withStrikeLine: false, kbTopOverride: top, kbBottomOverride: bottom }).frame;
+  const high = () => at(20, 140);
+  const low = at(160, 290);
+  const gh = detectKeyboardGeometry(high());
+  const gl = detectKeyboardGeometry(low);
+  assertTrue(gh.ok && gl.ok && gh.lowestMidi === gl.lowestMidi, `même calage pour les deux : ${gh.lowestMidi} / ${gl.lowestMidi}`);
+  assertTrue(Math.abs(gh.bottom - gl.bottom) > 50, `deux emplacements : ${gh.bottom} / ${gl.bottom}`);
+  // L'image du bas d'abord : avant le correctif, à égalité de touches, c'est elle qui était gardée.
+  const r = detectVideoFormat([low, high(), high(), high(), high()]);
+  assertTrue(r.implemented, `reconnu : ${r.reason}`);
+  assertEqual(r.geometry.bottom, gh.bottom, 'le clavier du haut (4 images sur 5) :');
+  assertClose(r.confidence, 0.8, 1e-9, 'confiance = part des images qui le voient :');
+});
+
 // [Claude] — 2026-10-14 — « Next Level Worship » : clavier dessiné sous un professeur dont les MAINS
 // couvrent le milieu des touches (peau sombre, qui se soude aux noires), et touches blanches allumées
 // seulement sur leur partie haute. Les cinq tests suivants reprennent ces conditions.
