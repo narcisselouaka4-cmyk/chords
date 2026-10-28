@@ -1,5 +1,6 @@
-import { getEffectiveChord } from '../chord-engine/chord-display.js';
-import { harmonicTokens, markPassing, loopCandidates } from '../pedagogie/song-structure.js';
+import { getEffectiveChord, formatEffectiveChord } from '../chord-engine/chord-display.js';
+import { harmonicTokens, markPassing, loopCandidates, respell, structureKey } from '../pedagogie/song-structure.js';
+import { harmonicFamily, transposedRegions } from './transposed-progression.js';
 
 // Aligner le morceau sur des tours du motif, avec insertions, remplacements
 // et étapes absentes. Cela distingue une boucle habillée d'un simple palmarès
@@ -23,18 +24,23 @@ function loopCost(tokens, pattern, idOf) {
   return Math.min(...previous.slice(2 * pattern.length));
 }
 
-/** Résumé de lecture uniquement : ne réécrit ni les accords ni leurs temps. */
-export function principalChords(chords = []) {
+function tokensFor(chords = []) {
   const source = chords.filter((c) => c && Number.isFinite(c.startTime)
     && Number.isFinite(c.endTime) && c.endTime > c.startTime)
     .map((c) => ({ start: c.startTime, end: c.endTime, label: getEffectiveChord(c) }))
     .filter((c) => c.label && c.label !== 'N').sort((a, b) => a.start - b.start);
   const tokens = harmonicTokens(source);
-  if (!tokens.length) return [];
   // Les silences ne donnent pas artificiellement du poids à l'accord précédent.
   tokens.forEach((t) => { t.dur = source.reduce((sum, c) => sum + Math.max(0, Math.min(t.end, c.end) - Math.max(t.start, c.start)), 0); });
   markPassing(tokens);
-  const identity = (t) => `${t.rootPc}:${['major', 'dominant', 'sus', 'other'].includes(t.family) ? 'major' : t.family}`;
+  return tokens;
+}
+
+/** Résumé de lecture uniquement : ne réécrit ni les accords ni leurs temps. */
+export function principalChords(chords = [], { sharedEvidence = false } = {}) {
+  const tokens = tokensFor(chords);
+  if (!tokens.length) return [];
+  const identity = (t) => `${t.rootPc}:${harmonicFamily(t)}`;
   const identities = [...new Set(tokens.map(identity))];
   const idOf = (t) => identities.indexOf(identity(t));
   if (identities.length === 1) return [tokens[0].name];
@@ -50,13 +56,31 @@ export function principalChords(chords = []) {
   const total = tokens.reduce((sum, t) => sum + t.dur, 0);
   let best = null;
   for (const stream of streams) {
-    for (const loop of loopCandidates(stream.map(idOf), stream.map((t) => t.dur), { maxPeriod: 16, minShare: 0.1 })) {
+    const candidates = loopCandidates(stream.map(idOf), stream.map((t) => t.dur), { maxPeriod: 16, minShare: 0.1 });
+    // Deux tours n'ont pas besoin de se toucher : une variante, une transition
+    // ou une modulation peut se trouver entre les occurrences d'une phrase.
+    const seen = new Map();
+    for (let size = 2; sharedEvidence && size <= Math.min(16, Math.floor(stream.length / 2)); size++) {
+      for (let i = 0; i + size <= stream.length; i++) {
+        const pattern = stream.slice(i, i + size).map(idOf);
+        if (pattern[0] === pattern.at(-1)) continue;
+        const key = pattern.join(',');
+        const prior = seen.get(key);
+        if (prior == null) seen.set(key, i);
+        else if (i >= prior + size) candidates.push({ pattern });
+      }
+    }
+    const tested = new Set();
+    for (const loop of candidates) {
+      const signature = loop.pattern.join(',');
+      if (tested.has(signature)) continue;
+      tested.add(signature);
       // Un motif tolérant trop long peut absorber une variation unique : ce
       // n'est pas la preuve que cette variation porte la boucle du morceau.
       if (loop.pattern.some((id) => occurrences.get(id) < 2)) continue;
       const cost = loopCost(tokens, loop.pattern, idOf) / total;
       if (cost > 0.48) continue;
-      const score = cost + loop.pattern.length * 0.012;
+      const score = cost + loop.pattern.length * (sharedEvidence ? 0.004 : 0.012);
       if (!best || score < best.score) {
         best = { pattern: loop.pattern, score };
       }
@@ -76,10 +100,43 @@ export function principalChords(chords = []) {
   });
 }
 
-/** Les tonalités livrées par le moteur deviennent des intervalles continus. */
+/** Motifs transposés étayés par les accords ; sinon régions livrées par le moteur. */
 export function buildHarmonicContexts(analysis = {}) {
   const duration = Math.max(0, Number(analysis.duration) || 0,
     ...(analysis.chords || []).map((c) => Number(c?.endTime) || 0));
+  const transposed = transposedRegions(tokensFor(analysis.chords || []), analysis);
+  if (transposed) {
+    const names = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+    // Mettre les tours dans un même cadre de degrés pour réunir leurs preuves.
+    const normalized = transposed.flatMap((r) => r.tokens.map((t) => ({
+      startTime: t.start, endTime: t.start + t.dur,
+      chord: formatEffectiveChord((t.rootPc - r.rootPc + 12) % 12, t.quality, null),
+    })));
+    const pattern = tokensFor(principalChords(normalized, { sharedEvidence: true }).map((chord, i) => ({ chord, startTime: i, endTime: i + 1 })));
+    if (pattern.length) {
+      const colors = new Map();
+      return transposed.map((r, i) => {
+        const key = `${names[r.rootPc]}${r.minor ? 'm' : ''}`;
+        if (!colors.has(key)) colors.set(key, colors.size);
+        const spelling = structureKey(key);
+        const chords = pattern.map((pillar) => {
+          const root = (pillar.rootPc + r.rootPc) % 12;
+          // Afficher le symbole réellement relevé localement, jamais un accord
+          // absent de la région extrapolé depuis une autre tonalité.
+          const matches = r.tokens.filter((t) => t.rootPc === root && harmonicFamily(t) === harmonicFamily(pillar));
+          if (!matches.length) return null;
+          const labels = new Map();
+          matches.forEach((t) => labels.set(t.name, (labels.get(t.name) || 0) + t.dur));
+          const label = [...labels].sort((a, b) => b[1] - a[1])[0][0];
+          return respell(label, spelling);
+        });
+        return { start: r.start, end: transposed[i + 1]?.start ?? duration, key,
+          mode: r.minor ? 'minor' : 'major', color: colors.get(key),
+          chords: chords.every(Boolean) ? chords : principalChords((analysis.chords || []).filter((c) => c.startTime >= r.start && c.startTime < r.end)),
+          basis: 'transposed-progression' };
+      });
+    }
+  }
   const fallback = { start: 0, key: analysis.key || null, mode: analysis.keyMode || null };
   const changes = (analysis.keys || []).filter((k) => k?.key && Number.isFinite(k.start)
     && k.start >= 0 && k.start < duration).map((k) => ({ ...k }))

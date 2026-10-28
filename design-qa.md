@@ -1,3 +1,32 @@
+# Complément fonctionnel — motifs transposés — 28/10/2026
+
+Aucun changement de mise en page. Correction vérifiée sur le relevé réel du fichier
+« Dieu ouvre un chemin là où tout semble fermé — Mohamed Sanogo Lyrics » (Track_024).
+Les trois régions du cache donnaient trois résumés vides. La lecture des phrases en degrés
+retrouve quatre cadres : Ré majeur à 0, Mi majeur à 83,17 s, Fa♯ majeur à 121,44 s,
+La♭ majeur à 158,66 s ; même motif 1 / 5 / 6 / 1 / 4 / 1 / 6 / 2 / 5.
+Ces dates sont calculées à partir des étiquettes existantes, pas certifiées à l’oreille.
+
+- 17 scénarios : transpositions d’un/deux demi-tons, mineur, descentes/retour, distinction
+  de familles, passages étrangers/secondaires sans fausse modulation, préservation d’une
+  tonalité compatible, fixture réelle et invariance des données source.
+- Dans le navigateur intégré, contrôleur réel avec pont IPC de test, vrai `audio.wav` local
+  décodé (209,93161 s) : les quatre tonalités affichent leur progression ; sauts en pause,
+  passage automatique Ré → Mi et retour arrière vers Ré/couleur initiale constatés.
+- Aucune erreur console, aucun débordement horizontal à 1144 × 892. Captures :
+  `audit-output/analysis-degrees-2026-10-28/01-re-majeur.jpg`, `02-mi-majeur.jpg`,
+  `03-lab-majeur.jpg`, toutes ouvertes pour inspection. Clavier inférieur déployé.
+- La garde de dix secondes/cinq jetons et les phrases partagées limitent la décision aux
+  changements établis ; sans preuve de transposition, les régions existantes restent utilisées.
+- Aucun changement du moteur lv-chordia, des temps d’accords, du projet enregistré ou des
+  exports. Écoute humaine et parcours dans Electron restent à confirmer ; ce contrôle ne les remplace pas.
+- Le contrôle précédent « uniquement frontières de 30 s » reste historique : ce lot peut
+  désormais remplacer ces frontières dans le bandeau lorsqu’un motif transposé est établi.
+
+Contrôle fonctionnel : réussi pour ce périmètre. Historique visuel conservé ci-dessous.
+
+---
+
 # Design QA — Analyse, vue fusionnée — 27/10/2026
 
 ## Résultat et périmètre
