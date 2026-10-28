@@ -19,7 +19,14 @@ class Element {
   setAttribute(k, v) { this.attrs[k] = v; }
   removeAttribute(k) { delete this.attrs[k]; }
   addEventListener(type, fn) { this.listeners[type] = fn; }
-  getBoundingClientRect() { return { top: 0, bottom: 1000, left: 0, width: 400 }; }
+  getBoundingClientRect() {
+    if (this.classList.contains('mg-beat')) {
+      const pulses = this.parentElement.children.filter((c) => c.classList.contains('mg-beat'));
+      const width = 380 / pulses.length, left = 8 + pulses.indexOf(this) * width;
+      return { top: 0, bottom: 60, left, right: left + width, width };
+    }
+    return { top: 0, bottom: 1000, left: 0, right: 400, width: 400 };
+  }
   scrollTo({ top }) { this.scrollTop = top; }
   querySelectorAll(selector) {
     return this.children.flatMap((c) => [...(c.classList.contains(selector.slice(1)) ? [c] : []), ...c.querySelectorAll(selector)]);
@@ -102,4 +109,22 @@ test('DOM : une mesure irrégulière ne coupe pas les accords en fin de ligne', 
   const row = host.querySelector('.mg-row');
   assert.equal(row.querySelectorAll('.mg-beat').length, 17);
   assert.equal(row.querySelector('.mg-row-track').style['--row-beats'], '17');
+});
+
+test('DOM : cercle aligné sur les pulsations réelles, même à tempo variable et au retour arrière', () => {
+  const host = new Element(), clicks = [];
+  const view = createMusicalGridView(host, { onSeek: (time) => clicks.push(time) });
+  view.render({ tempo: 120, duration: 4, chords: [chord('C', 0, 4)] }, {
+    rhythm: { beatTimes: [0, .25, .8, 1.5, 2, 2.5, 3, 3.5] },
+  });
+  const cell = host.querySelector('.mg-cell');
+  view.update(.8); assert.equal(Number(cell.style['--playhead']), .25);
+  view.update(1.15); assert.equal(Number(cell.style['--playhead']), .3125);
+  view.update(.25); assert.equal(Number(cell.style['--playhead']), .125);
+  const pulses = host.querySelectorAll('.mg-beat');
+  assert.equal(pulses[1].classList.contains('is-current'), true);
+  // Un clic sur un repère retrouve ce même temps, sans décalage dû au retrait du trait.
+  const second = pulses[1].getBoundingClientRect();
+  cell.listeners.click({ detail: 1, clientX: second.left + 1 });
+  assert.equal(clicks[0], .25);
 });

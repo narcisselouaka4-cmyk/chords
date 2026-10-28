@@ -1,3 +1,47 @@
+# Analyse — repères de pulsation et alignement du cercle — 28/10/2026
+
+final result: passed
+
+Retour utilisateur sur `cd349b2` : points presque invisibles en clair comme en sombre,
+cercle de lecture systématiquement à gauche du point actif. Captures fournies prises
+comme preuve. Le style 1.1 est conservé.
+
+## Correction et preuve
+
+- Les points de 2×2 px à 50 % d'opacité deviennent des traits de 2×7 px à 90 %,
+  2×10 px sur un premier temps. Contraste hérité du texte secondaire du thème,
+  accent sur le repère courant. Clair/sombre inspectés à 1920 et 1024 px.
+- Deux causes de décalage : grille de points sur toute la largeur du bouton mais
+  cercle sur le trait en retrait, et interpolation du cercle sur la durée totale
+  plutôt que les intervalles variables des pulsations.
+- Marges internes communes au trait, à la grille de repères et au cercle. Position
+  calculée à partir du temps courant dans l'intervalle réel de la pulsation, puis
+  projetée dans son emplacement visuel. Même géométrie pour le clic.
+- Navigateur, contrôleur et Sanogo réels (projet/WAV locaux), IPC de test renvoyant
+  le calage sauvegardé. Repères 2, 6, 11, 152 puis retour à 2 : écart absolu de
+  0 à 0,000125 px à 1920 px. À 1024 px : 0,000125 px sur le repère 152. Valeurs
+  issues des positions DOM du cercle et du repère, pas de la formule à tester.
+  Points de mesure pris 0,00001 s après la borne pour éviter l'arrondi du média.
+- Clic sur le repère 152 : lecture à 78,9 s et même repère actif. Aucun débordement
+  horizontal ni erreur console observé.
+- Captures `audit-output/grid-pulses-2026-10-28/{1920,1024}-{light,dark}.jpg` ;
+  détail avant/après `comparison.jpg` (instants différents, géométrie comparée).
+
+Typographie, traits de durée, navigation, titre/lecteur et clavier inchangés. Aucun
+asset décoratif ajouté. Les traits sont des repères interactifs de la grille, pas
+une illustration. Source et captures ouvertes et inspectées ; maquette 1.1 conservée.
+Banc, copies de WAV et imports supprimés ; viewport restauré, onglet QA fermé.
+
+## Tests et limites
+
+Six tests DOM interactifs, dont un nouveau test avec pulsations non uniformes,
+interpolation entre temps, retour arrière et clic ; 24 tests de grille, contrat
+DOM Analyse, exports, régressions Parties 1/3 et build passent. Les sources, moteur,
+calage, audio, dates et exports ne sont pas modifiés. Pas de nouvelle validation
+native Electron ni à l'oreille du calage ; mesures de position et rendu navigateur.
+
+---
+
 # Analyse — grille ouverte, maquette 1.1 — 28/10/2026
 
 final result: passed

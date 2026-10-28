@@ -38,6 +38,8 @@ export function createMusicalGridView(host, { onSeek, onEdit } = {}) {
           button.dataset.start = String(cell.startTime);
           button.dataset.end = String(cell.endTime);
           button.dataset.symbol = cell.symbol;
+          button.dataset.fromBeat = String(cell.from);
+          button.dataset.toBeat = String(cell.to);
           if (cell.symbol === 'N') button.classList.add('is-silence');
           const chord = cell.symbol === 'N' ? 'Silence' : cell.symbol;
           button.setAttribute('aria-label', `${chord}, ${cell.to - cell.from} temps, ${timeLabel(cell.startTime)}, mesure ${row.bars.find((b) => cell.from < b.to)?.number}`);
@@ -61,9 +63,11 @@ export function createMusicalGridView(host, { onSeek, onEdit } = {}) {
           button.appendChild(content);
           button.addEventListener('click', (event) => {
             let beat = cell.from;
-            if (event.detail && button.getBoundingClientRect().width) {
-              const rect = button.getBoundingClientRect();
-              beat += Math.max(0, Math.min(cell.to - cell.from - 1, Math.floor((event.clientX - rect.left) / rect.width * (cell.to - cell.from))));
+            if (event.detail) {
+              // Le clic utilise les repères rendus, y compris leurs marges internes.
+              const pulses = [...button.querySelectorAll('.mg-beat')];
+              const index = pulses.findIndex((pulse) => event.clientX < pulse.getBoundingClientRect().right);
+              beat += index < 0 ? pulses.length - 1 : index;
             }
             onSeek?.(model.boundaries[beat], cell.segmentId);
           });
@@ -96,12 +100,14 @@ export function createMusicalGridView(host, { onSeek, onEdit } = {}) {
   function update(time, follow = true) {
     if (!model) return;
     const beat = beatAtTime(model.boundaries, time);
-    // Le cercle suit le temps réel dans l'accord, sans remplir ni allonger son trait.
+    // Même géométrie que les repères : un temps = une position, même si le tempo varie.
     const currentCell = beatElements[beat]?.parentElement;
     if (currentCell) {
-      const start = Number(currentCell.dataset.start), end = Number(currentCell.dataset.end);
-      const position = end > start ? Math.max(0, Math.min(1, (time - start) / (end - start))) : 0;
-      currentCell.style.setProperty('--playhead', position.toFixed(5));
+      const from = Number(currentCell.dataset.fromBeat), to = Number(currentCell.dataset.toBeat);
+      const start = model.boundaries[beat], end = model.boundaries[beat + 1];
+      const fraction = end > start ? Math.max(0, Math.min(1, (time - start) / (end - start))) : 0;
+      const position = (beat - from + fraction) / (to - from);
+      currentCell.style.setProperty('--playhead', position.toFixed(8));
     }
     if (beat === activeBeat) return;
     beatElements[activeBeat]?.classList.remove('is-current');
