@@ -91,7 +91,18 @@ export function principalChords(chords = [], { sharedEvidence = false } = {}) {
   const first = tokens.find((t) => best.pattern.includes(idOf(t)));
   const anchor = best.pattern.indexOf(idOf(first));
   const pattern = [...best.pattern.slice(anchor), ...best.pattern.slice(0, anchor)];
-  return pattern.map((id) => {
+  // Le cycle complet sert à reconnaître la forme. Le bandeau ne montre que
+  // ses piliers : quatre harmonies distinctes au maximum, sans répéter le I.
+  // Choisir dans le motif établi écarte les variations qui n'en font pas partie.
+  const unique = [...new Set(pattern)];
+  const support = new Map(unique.map((id) => [id, 0]));
+  tokens.forEach((t) => {
+    const id = idOf(t);
+    if (support.has(id)) support.set(id, support.get(id) + t.dur);
+  });
+  const pillars = new Set([...unique].sort((a, b) => support.get(b) - support.get(a)).slice(0, 4));
+  // Conserver l'ordre de première apparition dans le motif, pas l'ordre du classement.
+  return unique.filter((id) => pillars.has(id)).map((id) => {
     const names = new Map();
     for (const t of tokens.filter((t) => idOf(t) === id)) {
       names.set(t.name, (names.get(t.name) || 0) + t.dur);

@@ -1,3 +1,21 @@
+# Correction de présentation — quatre accords principaux maximum — 28/10/2026
+
+Le bandeau présente désormais les piliers distincts du motif, trois ou quatre maximum
+lorsque le morceau en établit autant. Le cycle entier reste utilisé pour reconnaître
+les transpositions, sans être affiché. Les variations étrangères au motif ne sont pas ajoutées.
+Quand le cycle a plus de quatre harmonies, les quatre piliers ayant le plus de durée
+relevée sont retenus, puis affichés dans leur ordre de première apparition dans le motif.
+Une musique à un ou deux accords ne reçoit pas de faux accords pour atteindre trois.
+
+Sanogo : D / A / Bm / G ; puis E / B / C#m / A ; puis F# / C# / D#m / B ; puis
+Ab / Eb / Fm / Db. Les quatre ensembles et leur tonalité ont été contrôlés dans le
+navigateur intégré, avec retour à Ré/couleur initiale en pause. Captures finales :
+`audit-output/analysis-degrees-2026-10-28/04-re-4piliers.jpg` et `05-lab-4piliers.jpg`.
+La suite de 17 scénarios impose maintenant aussi ce plafond, y compris pour un cycle
+long et les quatre régions réelles. Les captures à neuf accords ci-dessous sont historiques.
+
+---
+
 # Complément fonctionnel — motifs transposés — 28/10/2026
 
 Aucun changement de mise en page. Correction vérifiée sur le relevé réel du fichier

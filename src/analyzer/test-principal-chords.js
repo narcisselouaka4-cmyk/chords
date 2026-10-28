@@ -21,10 +21,11 @@ check('Approches et dominantes brèves ne deviennent pas des piliers', () => {
   chords.splice(8, 0, { chord: 'C#7', startTime: 15.5, endTime: 16 });
   assert.deepEqual(principalChords(chords), ['D', 'E', 'F#m']);
 });
-check('Une progression de huit accords reste possible', () => {
+check('Un cycle long reste analysable mais le bandeau ne garde que quatre piliers', () => {
   const pattern = ['C', 'Am', 'Dm', 'G', 'Em', 'A7', 'Dm', 'G7'];
   const result = principalChords(grid(repeat(pattern, 4)));
-  assert.ok(result.length >= 6, result.join(' '));
+  assert.equal(result.length, 4);
+  assert.equal(new Set(result).size, result.length);
 });
 check('Pas de boucle fabriquée sur trois accords entendus une seule fois', () => {
   assert.deepEqual(principalChords(grid(['D', 'E', 'F#m'])), []);
@@ -120,12 +121,13 @@ check('Sanogo : quatre cadres et même motif en degrés, malgré trois régions 
   const contexts = buildHarmonicContexts(analysis);
   assert.deepEqual(contexts.map((r) => [r.start, r.key]), [[0, 'D'], [83.17, 'E'], [121.44, 'F#'], [158.66, 'Ab']]);
   const expected = [
-    ['D', 'A', 'Bm', 'D', 'G', 'D', 'Bm', 'Em', 'A'],
-    ['E', 'B', 'C#m', 'E', 'A', 'E', 'C#m', 'F#m7', 'B'],
-    ['F#', 'C#', 'D#m', 'F#', 'B', 'F#', 'D#m', 'G#m', 'C#'],
-    ['Ab', 'Eb', 'Fm', 'Ab', 'Db', 'Ab', 'Fm', 'Bbm', 'Eb'],
+    ['D', 'A', 'Bm', 'G'],
+    ['E', 'B', 'C#m', 'A'],
+    ['F#', 'C#', 'D#m', 'B'],
+    ['Ab', 'Eb', 'Fm', 'Db'],
   ];
   assert.deepEqual(contexts.map((r) => r.chords), expected);
+  assert.ok(contexts.every((r) => r.chords.length <= 4 && new Set(r.chords).size === r.chords.length));
   for (let i = 1; i < contexts.length; i++) {
     assert.equal(harmonicContextAt(contexts, contexts[i].start - 0.001), contexts[i - 1]);
     assert.equal(harmonicContextAt(contexts, contexts[i].start), contexts[i]);
