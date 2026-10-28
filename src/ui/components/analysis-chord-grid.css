@@ -1,10 +1,7 @@
 /* Grille musicale dérivée : la frise et les identités sources restent intactes. */
 #analysis-tab .an-grid-toolbar,
-#analysis-tab .an-grid-collapse-icon,
 #analysis-tab .an-grid-tab[hidden],
 #analysis-tab #analyzer-section-panels[hidden] { display: none; }
-#analysis-tab .an-grid-toggle { margin-left: 4px; }
-#analysis-tab .an-grid-toggle:focus-visible,
 #analysis-tab #analyzer-chord-timeline:focus-visible { outline: 2px solid var(--an-accent); outline-offset: -2px; }
 
 #analysis-tab #analyzer-results.active {
@@ -45,19 +42,10 @@
   font-weight: 500;
   color: var(--an-text);
 }
-#analysis-tab .is-grid-expanded .an-grid-toggle {
-  position: absolute;
-  top: 9px;
-  right: 12px;
-  width: 30px;
-  height: 30px;
-}
-#analysis-tab .is-grid-expanded .an-grid-expand-icon,
 #analysis-tab .is-grid-expanded #analyzer-timeline-scroll-left,
 #analysis-tab .is-grid-expanded #analyzer-timeline-scroll-right { display: none; }
-#analysis-tab .is-grid-expanded .an-grid-collapse-icon { display: block; }
 #analysis-tab #analyzer-musical-grid[hidden] { display: none; }
-#analysis-tab .is-grid-expanded .an-grid-toolbar { display: flex; align-items: center; gap: 16px; padding: 12px 52px 12px 18px; min-height: 50px; flex-wrap: wrap; }
+#analysis-tab .is-grid-expanded .an-grid-toolbar { display: flex; align-items: center; gap: 16px; padding: 12px 18px; min-height: 50px; flex-wrap: wrap; }
 #analysis-tab .is-grid-expanded #analyzer-chord-timeline { display: none; }
 #analysis-tab .musical-grid { display: block; flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--an-border-strong) transparent; padding: 0 16px 20px; }
 #analysis-tab .musical-grid:focus-visible { outline: 2px solid var(--an-accent); outline-offset: -2px; }

@@ -147,7 +147,6 @@ const els = {
 
   chordTimeline: document.getElementById('analyzer-chord-timeline'),
   progressionRibbon: document.getElementById('analyzer-progression-ribbon'),
-  gridToggle: document.getElementById('analyzer-grid-toggle'),
   musicalGrid: document.getElementById('analyzer-musical-grid'),
   gridMeter: document.getElementById('analyzer-grid-meter'),
   gridTempo: document.getElementById('analyzer-grid-tempo'),
@@ -167,8 +166,6 @@ const els = {
   chordTimelineInner: document.getElementById('analyzer-chord-timeline-inner'),
   reanalyzeBtn: document.getElementById('analyzer-reanalyze-btn'),
   staleBanner: document.getElementById('analyzer-stale-banner'),
-  timelineLegend: document.getElementById('analyzer-timeline-legend'),
-  hierarchyToggle: document.getElementById('analyzer-hierarchy-toggle'),
   timelineScrollLeft: document.getElementById('analyzer-timeline-scroll-left'),
   timelineScrollRight: document.getElementById('analyzer-timeline-scroll-right'),
 
@@ -257,10 +254,6 @@ let isDraggingProgress = false;
 let lastAutoScrollIndex = -1;
 let selectedSegmentId = null; // segmentId sélectionné dans la timeline
 
-// La lecture commence par les seuls accords structurels. Les détails du
-// moteur restent consultables volontairement pour vérifier ou corriger.
-let detailedChords = false;
-
 // [Claude] — 2026-10-25 — Le « repli progressif » est retiré. Un accord non
 // structurel plus étroit que 26 px se réduisait à un trait pâle de 3 px, sans
 // étiquette. Narcisse, après avoir ouvert « Saint Esprit » : « les cases vides,
@@ -322,9 +315,9 @@ function getDisplayChords() {
   // Une source MIDI ne masque rien : voir selectChordProgression.
   const sourceType = currentAnalysis?.sourceType ?? null;
   if (timelineViewMode === 'reharm' && appliedReharmonization && appliedReharmonization.chords) {
-    return selectChordProgression(appliedReharmonization.chords, { detailed: detailedChords, sourceType });
+    return selectChordProgression(appliedReharmonization.chords, { sourceType });
   }
-  return selectChordProgression(currentAnalysis?.chords || [], { detailed: detailedChords, sourceType });
+  return selectChordProgression(currentAnalysis?.chords || [], { sourceType });
 }
 
 function getDisplayAnalysis() {
@@ -348,7 +341,6 @@ export function initAnalyzerTab() {
   initTimelineZoom();
   bindTimelineScroll();
   bindMusicalGrid();
-  bindHierarchyToggle();
   els.reanalyzeBtn?.addEventListener('click', () => { reanalyzeCurrentTrack(); });
   bindSectionTabs();
   bindHeroAudition();
@@ -1228,9 +1220,6 @@ async function showResults(analysis) {
   if (isEngineOutdated(analysis?.engine)) showStaleBanner(analysis?.engine);
   else hideStaleBanner();
   timelineViewMode = 'original';
-  detailedChords = false;
-  if (els.hierarchyToggle) els.hierarchyToggle.checked = false;
-  els.timelineLegend?.classList.remove('is-detailed');
   selectedSegmentId = null;
   clearInspector();
   enrichSegments(analysis.chords);
@@ -1262,6 +1251,8 @@ async function showResults(analysis) {
   renderTimeline(getDisplayChords(), analysis.duration || 0);
   updatePlayButton();
   renderOverview(getDisplayAnalysis());
+  // La grille est l'entrée commune aux résultats neufs et aux projets rouverts.
+  activateSectionTab('grid');
   updatePlaybackPosition(0);
 
   // Première grille d'accords affichée : c'est le moment où expliquer Chordify
@@ -1553,7 +1544,7 @@ function renderTimeline(chords, duration) {
   els.chordTimelineInner.style.width = `${totalWidth}px`;
 
   if (chords.length === 0) {
-    els.chordTimelineInner.innerHTML = `<span class="analyzer-timeline-empty">${detailedChords ? 'Aucun accord détecté.' : 'Aucun accord structurel confirmé.'}</span>`;
+    els.chordTimelineInner.innerHTML = '<span class="analyzer-timeline-empty">Aucun accord structurel confirmé.</span>';
     updatePlaybackPosition(currentPlayer?.element?.currentTime ?? 0);
     return;
   }
@@ -1747,7 +1738,7 @@ function syncGridSettings() {
 
 function renderMusicalGrid() {
   if (!chordGridExpanded || !currentAnalysis || !musicalGridView) return;
-  const model = musicalGridView.render(currentAnalysis, { settings: gridSettings, rhythm: gridRhythm, detailed: detailedChords });
+  const model = musicalGridView.render(currentAnalysis, { settings: gridSettings, rhythm: gridRhythm });
   els.gridMeter.textContent = `${gridSettings.beatsPerBar}/${gridSettings.beatUnit} · 4 mesures / ligne`;
   els.gridTempo.textContent = `${Math.round(model.tempo * 10) / 10} BPM`;
   els.gridStatus.textContent = gridRhythmRequest ? 'Calage des pulsations…' : model.estimated ? 'Calage au tempo · réglable dans Corriger' : 'Calage audio estimé · Corriger';
@@ -1776,16 +1767,6 @@ async function ensureGridRhythm() {
     gridRhythmRequest = null; renderMusicalGrid();
     console.warn('[Analyzer] calage de grille au tempo :', error.message);
   }
-}
-
-function bindHierarchyToggle() {
-  if (!els.hierarchyToggle) return;
-  els.hierarchyToggle.checked = detailedChords;
-  els.hierarchyToggle.addEventListener('change', () => {
-    detailedChords = els.hierarchyToggle.checked;
-    els.timelineLegend?.classList.toggle('is-detailed', detailedChords);
-    rerenderTimeline();
-  });
 }
 
 function selectSegment(segmentId) {
@@ -2189,13 +2170,12 @@ function bindTimelineScroll() {
 function bindSectionTabs() {
   if (!els.sectionTabs.length) return;
 
-  els.gridToggle?.addEventListener('click', () => setChordGridExpanded(!chordGridExpanded));
   els.sectionTabs.forEach((tab) => {
     tab.addEventListener('click', () => {
       activateSectionTab(tab.dataset.section);
     });
     tab.addEventListener('keydown', (event) => {
-      const keys = chordGridExpanded ? ['ArrowUp', 'ArrowDown'] : ['ArrowLeft', 'ArrowRight'];
+      const keys = ['ArrowUp', 'ArrowDown'];
       if (![...keys, 'Home', 'End'].includes(event.key)) return;
       event.preventDefault();
       const tabs = [...els.sectionTabs].filter((t) => !t.hidden);
@@ -2211,7 +2191,7 @@ function bindSectionTabs() {
     event.preventDefault();
     event.stopPropagation();
     setChordGridExpanded(false);
-    els.gridToggle?.focus();
+    els.gridTab?.focus();
   });
 }
 
@@ -2225,12 +2205,6 @@ function setChordGridExpanded(expanded) {
   els.panelsHost.hidden = expanded;
   if (els.musicalGrid) els.musicalGrid.hidden = !expanded;
   if (expanded) { renderMusicalGrid(); ensureGridRhythm(); }
-  els.gridTab.hidden = !expanded;
-  els.tabNav.setAttribute('aria-orientation', expanded ? 'vertical' : 'horizontal');
-  els.gridToggle.setAttribute('aria-expanded', String(expanded));
-  const label = expanded ? 'Réduire la grille' : 'Afficher toute la grille';
-  els.gridToggle.setAttribute('aria-label', label);
-  els.gridToggle.title = label;
   els.progressionRibbon.setAttribute('role', expanded ? 'tabpanel' : 'region');
   els.progressionRibbon.setAttribute('aria-label', expanded ? 'Grille complète des accords' : 'Ligne des accords');
   if (expanded) els.progressionRibbon.setAttribute('aria-labelledby', 'analyzer-grid-tab');
