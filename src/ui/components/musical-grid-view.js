@@ -44,9 +44,10 @@ export function createMusicalGridView(host, { onSeek, onEdit } = {}) {
           const chord = cell.symbol === 'N' ? 'Silence' : cell.symbol;
           button.setAttribute('aria-label', `${chord}, ${cell.to - cell.from} temps, ${timeLabel(cell.startTime)}, mesure ${row.bars.find((b) => cell.from < b.to)?.number}`);
           button.title = `${chord} · ${cell.to - cell.from} temps${cell.passages.length ? ` · Passages : ${cell.passages.map((p) => p.symbol).join(', ')}` : ''}\nClic : écouter ici · Double-clic : corriger l’accord`;
-          const duration = element('span', 'mg-duration');
-          duration.setAttribute('aria-hidden', 'true');
-          button.appendChild(duration);
+          const surface = element('span', 'mg-surface');
+          const fill = element('span', 'mg-fill');
+          fill.setAttribute('aria-hidden', 'true');
+          surface.appendChild(fill);
           for (let i = cell.from; i < cell.to; i++) {
             const beat = element('span', 'mg-beat'); beat.setAttribute('aria-hidden', 'true');
             beat.dataset.beat = String(i); beatElements[i] = beat;
@@ -60,11 +61,12 @@ export function createMusicalGridView(host, { onSeek, onEdit } = {}) {
             const names = cell.passages.filter((p, i, all) => !i || all[i - 1].symbol !== p.symbol).map((p) => p.symbol);
             content.appendChild(element('span', 'mg-passages', names.join(' · ')));
           }
-          button.appendChild(content);
+          surface.appendChild(content);
+          button.appendChild(surface);
           button.addEventListener('click', (event) => {
             let beat = cell.from;
             if (event.detail) {
-              // Le clic utilise les repères rendus, y compris leurs marges internes.
+              // Les zones de temps restent cliquables, sans repères visuels sous les capsules.
               const pulses = [...button.querySelectorAll('.mg-beat')];
               const index = pulses.findIndex((pulse) => event.clientX < pulse.getBoundingClientRect().right);
               beat += index < 0 ? pulses.length - 1 : index;
@@ -100,7 +102,7 @@ export function createMusicalGridView(host, { onSeek, onEdit } = {}) {
   function update(time, follow = true) {
     if (!model) return;
     const beat = beatAtTime(model.boundaries, time);
-    // Même géométrie que les repères : un temps = une position, même si le tempo varie.
+    // Le remplissage suit les intervalles réels des temps, y compris au retour arrière.
     const currentCell = beatElements[beat]?.parentElement;
     if (currentCell) {
       const from = Number(currentCell.dataset.fromBeat), to = Number(currentCell.dataset.toBeat);

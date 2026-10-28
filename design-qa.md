@@ -1,3 +1,88 @@
+# Analyse — capsules translucides et remplissage de lecture — 28/10/2026
+
+final result: passed
+
+## Cible et périmètre
+
+Maquette retenue explicitement par Narcisse :
+`/home/visiteur/.codex/generated_images/01a17eb0-8d4b-7731-8fa5-e8a571764707/exec-45468b6b-ed2a-44c9-9327-c5bbd230b2bc.png`.
+Seul le contenu de la grille change : capsules arrondies et translucides, remplissage
+progressif, aucun rebond, anneau, cercle, trait de durée ou petit trait de pulsation.
+Lecteur, titre, navigation, clavier et données musicales existants conservés.
+Pas de nouvel asset décoratif : les capsules et leur remplissage sont les contrôles
+musicaux eux-mêmes ; polices et icônes du produit réutilisées.
+
+## Comparaison visuelle
+
+- Référence et implémentation ouvertes, puis comparées ensemble dans
+  `audit-output/grid-capsules-2026-10-28/comparison-full.jpg` et `comparison-grid.jpg`.
+- Source : 1672×941 px ; implémentation : viewport CSS 1672×941, DPR 1,
+  capture 1672×941. Comparaison globale réduite uniformément à 1254 px de large ;
+  focus sur les deux régions de grille normalisées à 1414 px de large.
+- Même contexte : Sanogo, thème sombre, pause à 00:44. Les accords, durées et
+  premiers temps de l'image générée sont illustratifs ; les positions réelles sont
+  conservées : D sur une longue capsule à 00:44, et non le Bm fictif de la maquette.
+  L'en-tête/lecteur du produit est délibérément conservé, conformément à la demande.
+- Première comparaison : surfaces trop grises/opaques et ombre active calculée depuis
+  le texte clair, produisant une légère lueur (P2). Correction : fond translucide avec
+  3 % d'accent, reflet intérieur doux, ombre sombre. La capture initiale est conservée
+  dans `1672-dark-initial.png` ; les captures et comparaisons finales montrent la correction.
+- **Typographie** : police existante du produit ; symboles compacts jusqu'à 14 px,
+  10 px pour une capsule courte, sans rognage constaté à 1024 px. Horaires sobres,
+  BPM locaux conservés quand ils changent nettement, sans accent lumineux.
+- **Espacement et forme** : lignes de 72 px, capsules de 40 px, bouts entièrement
+  arrondis, petites marges entre accords, espacements entre groupes conservés.
+  Durées proportionnelles aux vrais temps ; barres de mesure maintenues même au
+  travers d'un accord long. Aucun titre de partie A/B/C.
+- **Couleurs** : surfaces translucides et remplissage lié à l'accent du produit,
+  variantes clair/sombre inspectées. Teinte de test sauge, sans forcer la couleur
+  des utilisateurs. Aucun néon, halo ou animation de rebond.
+- **Images, icônes et contenu** : pas d'asset raster requis dans la grille ; identité
+  visuelle, commandes et clavier existants conservés. Aucun texte inventé de section.
+- **Écarts intentionnels** : symboles plus petits que dans l'image, hauteurs compactes,
+  BPM affichés seulement lors d'une variation notable, accord/région/calage réels,
+  chrome existant. Ce sont les contraintes explicitement conservées du produit.
+
+## Vérifications interactives
+
+Banc navigateur temporaire utilisant le vrai contrôleur et le vrai composant, avec
+copie du projet/WAV local Track_024. IPC de lecture/calage de test, pulsations déjà
+sauvegardées ; aucun projet utilisateur écrit ni analyse harmonique relancée.
+
+- À 44 s, remplissage 0,74074074 ; à 45 s, 0,88888889 ; retour à 44 s cohérent.
+  Matrice CSS de la surface remplie mesurée, pas seulement valeur dans le contrôleur.
+- Lecture native du WAV via le lecteur existant : temps et remplissage progressent,
+  une seule capsule active. Pause et recul de dix secondes vérifiés.
+- Clic dans Bm : position 48,52 s, quart de la capsule ; double-clic ouvre la correction
+  du Bm source, annulée. Corriger puis Grille conserve cette position.
+- ×2 affiche 240 BPM, ÷2 retrouve 120 ; position conservée, sources inchangées.
+- Navigation clavier vers l'accord voisin et contour de focus visible vérifiés.
+- Un seul remplissage affiché, aucun remplissage résiduel sur les accords quittés,
+  aucun pseudo-élément de pulsation. Aucune troncature ni débordement horizontal
+  mesuré à 1024 px. Captures clair/sombre : 1672×941, 1440×900, 1024×900.
+- Le banc initial omettait trois fonctions de stockage et journalisait des erreurs
+  d'initialisation de bibliothèque. Adaptateur de test complété (bibliothèque vide),
+  rechargement puis console finale sans erreur. Aucun correctif produit hors périmètre.
+
+## Tests et limites
+
+Passent : 7 tests DOM interactifs de grille, 24 tests de grille/projection incluant
+Sanogo/SEIGNEUR/ANGES, contrat DOM Analyse, persistance, exports, régressions Parties
+1/3, build Vite (avertissement habituel des gros chunks). Réglages, moteur/version,
+calage, source d'accords et exports inchangés.
+
+Pas de nouveau parcours natif Electron ni de validation musicale à l'oreille.
+Le contrôle ici concerne le rendu et le suivi du média dans le navigateur ; il ne
+certifie pas le tempo détecté. Pas d'animation temporelle ajoutée : le remplissage
+suit directement les mises à jour du lecteur, y compris les sauts et retours arrière.
+
+## Suite
+
+Confirmer dans Electron l'aspect des capsules et la lisibilité des accords courts
+sur les morceaux habituels. Pas de P0/P1/P2 restant dans le périmètre vérifié.
+
+---
+
 # Analyse — repères de pulsation et alignement du cercle — 28/10/2026
 
 final result: passed

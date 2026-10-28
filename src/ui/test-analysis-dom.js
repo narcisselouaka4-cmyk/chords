@@ -190,8 +190,9 @@ function testMusicalGridContract() {
   }
   const corriger = html.slice(html.indexOf('class="analyzer-panel corriger-panel"'));
   if (!corriger.includes('id="analyzer-grid-signature"')) throw new Error('Mesure non réglable dans Corriger');
-  if (!css.includes('.mg-bar-line') || !css.includes('.mg-beat.is-current') || !css.includes('overflow-y: auto')) throw new Error('Mesures, pulsation ou défilement manquants');
-  console.log('✅ Grille musicale — projection séparée, calage Corriger, tempo, mesures et pulsation');
+  if (!css.includes('.mg-bar-line') || !css.includes(".mg-cell[aria-current='true'] .mg-fill") || !css.includes('overflow-y: auto')) throw new Error('Mesures, remplissage ou défilement manquants');
+  if (css.includes('.mg-duration') || css.includes('.mg-beat::before')) throw new Error('Anciens traits de durée ou de pulsation encore présents');
+  console.log('✅ Grille musicale — projection séparée, calage Corriger, tempo, mesures et remplissage');
 }
 
 // ── Exécution ──

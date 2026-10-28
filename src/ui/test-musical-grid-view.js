@@ -45,13 +45,15 @@ test('DOM : cellules fusionnées, une heure par ligne, détails sans cellule sup
   assert.equal(host.querySelectorAll('.mg-row-time').length, 3);
   assert.equal(host.querySelectorAll('.mg-beat').length, 48);
   assert.equal(host.querySelectorAll('.mg-passages').length, 0);
-  assert.equal(host.querySelectorAll('.mg-duration').length, count);
+  assert.equal(host.querySelectorAll('.mg-surface').length, count);
+  assert.equal(host.querySelectorAll('.mg-fill').length, count);
+  assert.equal(host.querySelectorAll('.mg-duration').length, 0);
   assert.equal(host.querySelectorAll('.mg-section-title').length, 0);
   assert(host.querySelectorAll('.mg-section').every((group) => !group.attrs['aria-label']));
   view.render(analysis, { detailed: true });
   assert.equal(host.querySelectorAll('.mg-cell').length, count);
   assert.equal(host.querySelector('.mg-passages').textContent, 'D#dim');
-  assert.equal(host.querySelector('.mg-passages').parentElement.parentElement.tagName, 'button');
+  assert.equal(host.querySelector('.mg-passages').parentElement.parentElement.parentElement.tagName, 'button');
 });
 
 test('DOM : clic au temps pointé dans une cellule longue, clavier et édition par identité', () => {
@@ -77,7 +79,7 @@ test('DOM : seul le temps courant est surligné, suivi vertical et retour arriè
   view.update(.1);
   const startPosition = Number(beats[0].parentElement.style['--playhead']);
   view.update(.2);
-  assert(Number(beats[0].parentElement.style['--playhead']) > startPosition, 'le cercle avance aussi entre deux pulsations');
+  assert(Number(beats[0].parentElement.style['--playhead']) > startPosition, 'le remplissage avance aussi entre deux pulsations');
   assert.equal(beats[0].classList.contains('is-current'), true);
   view.update(17); assert.equal(beats[34].classList.contains('is-current'), true);
   assert(host.scrollTop > 0);
@@ -111,7 +113,7 @@ test('DOM : une mesure irrégulière ne coupe pas les accords en fin de ligne', 
   assert.equal(row.querySelector('.mg-row-track').style['--row-beats'], '17');
 });
 
-test('DOM : cercle aligné sur les pulsations réelles, même à tempo variable et au retour arrière', () => {
+test('DOM : remplissage calé sur les temps réels, même à tempo variable et au retour arrière', () => {
   const host = new Element(), clicks = [];
   const view = createMusicalGridView(host, { onSeek: (time) => clicks.push(time) });
   view.render({ tempo: 120, duration: 4, chords: [chord('C', 0, 4)] }, {
@@ -123,8 +125,29 @@ test('DOM : cercle aligné sur les pulsations réelles, même à tempo variable 
   view.update(.25); assert.equal(Number(cell.style['--playhead']), .125);
   const pulses = host.querySelectorAll('.mg-beat');
   assert.equal(pulses[1].classList.contains('is-current'), true);
-  // Un clic sur un repère retrouve ce même temps, sans décalage dû au retrait du trait.
+  // Un clic sur un repère retrouve ce même temps, sans décalage dû aux marges de la capsule.
   const second = pulses[1].getBoundingClientRect();
   cell.listeners.click({ detail: 1, clientX: second.left + 1 });
   assert.equal(clicks[0], .25);
+});
+
+
+test('DOM : saut direct, changement de capsule et retour arrière sans remplissage périmé', () => {
+  const host = new Element(), view = createMusicalGridView(host);
+  const source = structuredClone(analysis);
+  view.render(source);
+  const cells = host.querySelectorAll('.mg-cell');
+  view.update(5);
+  assert.equal(cells[1].attrs['aria-current'], 'true');
+  assert.equal(Number(cells[1].style['--playhead']), .5);
+  view.update(1);
+  assert.equal(cells[0].attrs['aria-current'], 'true');
+  assert.equal(Number(cells[0].style['--playhead']), .5);
+  assert.equal(cells[1].attrs['aria-current'], undefined);
+  view.update(3.5);
+  assert.equal(Number(cells[1].style['--playhead']), .25);
+  assert.equal(cells[0].attrs['aria-current'], undefined);
+  view.render(source); view.update(3.5);
+  assert.equal(Number(host.querySelectorAll('.mg-cell')[1].style['--playhead']), .25);
+  assert.deepEqual(source, analysis, 'la présentation ne modifie pas les accords sources');
 });

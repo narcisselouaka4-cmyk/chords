@@ -58,37 +58,35 @@
 #analysis-tab .mg-tempo-controls button:hover, #analysis-tab .mg-settings button:hover { border-color: var(--an-accent); }
 #analysis-tab .mg-section { margin: 12px 0 28px; }
 #analysis-tab .mg-section:last-child { margin-bottom: 0; }
-#analysis-tab .mg-row { display: flex; gap: 10px; align-items: stretch; min-height: 60px; margin-bottom: 4px; }
-#analysis-tab .mg-row-label { flex: 0 0 46px; display: flex; flex-direction: column; justify-content: center; gap: 3px; color: var(--an-text-secondary); font-size: 10px; }
-#analysis-tab .mg-tempo-change { font-size: 9px; color: var(--an-accent); }
+#analysis-tab .mg-row { display: flex; gap: 10px; align-items: stretch; min-height: 72px; margin-bottom: 4px; }
+#analysis-tab .mg-row-label { flex: 0 0 56px; display: flex; flex-direction: column; justify-content: center; gap: 4px; color: var(--an-text-secondary); font-size: 11px; }
+#analysis-tab .mg-tempo-change { font-size: 9px; color: var(--an-text-secondary); }
 #analysis-tab .mg-row-track { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(var(--row-beats), minmax(0, 1fr)); position: relative; }
-#analysis-tab .mg-cell { position: relative; grid-row: 1; display: grid; grid-template-columns: repeat(var(--cell-beats), minmax(0, 1fr)); min-width: 0; min-height: 60px; border: 0; border-radius: 0; padding: 0 12px 0 8px; margin: 0; font: inherit; color: var(--an-text); background: transparent; text-align: left; cursor: pointer; container-type: inline-size; }
-/* Traits de durée fixes, indépendants du curseur de lecture. */
-#analysis-tab .mg-duration { position: absolute; left: 8px; right: 12px; top: 33px; height: 1px; background: var(--an-text-secondary); opacity: .7; pointer-events: none; }
-#analysis-tab .mg-duration::before, #analysis-tab .mg-duration::after { content: ''; position: absolute; top: -1px; width: 3px; height: 3px; border-radius: 50%; background: currentColor; color: var(--an-text-secondary); }
-#analysis-tab .mg-duration::before { left: 0; }
-#analysis-tab .mg-duration::after { right: 0; }
-#analysis-tab .mg-cell.is-silence .mg-duration { height: 0; background: none; border-top: 1px dotted var(--an-text-secondary); opacity: .4; }
-#analysis-tab .mg-cell.is-silence .mg-duration::before, #analysis-tab .mg-cell.is-silence .mg-duration::after { display: none; }
-#analysis-tab .mg-beat { position: relative; grid-row: 1; min-width: 0; min-height: 60px; pointer-events: none; }
-#analysis-tab .mg-beat::before { content: ''; position: absolute; left: 0; bottom: 8px; width: 2px; height: 7px; transform: translateX(-50%); border-radius: 1px; background: var(--an-text-secondary); opacity: .9; }
-#analysis-tab .mg-beat.mg-downbeat::before { height: 10px; opacity: 1; }
-#analysis-tab .mg-beat.is-current::before { background: var(--an-accent); opacity: 1; }
-#analysis-tab .mg-cell[aria-current='true']::after { content: ''; position: absolute; left: calc(8px + (100% - 20px) * var(--playhead, 0)); top: 33px; transform: translate(-50%, -50%); width: 8px; height: 8px; box-sizing: border-box; border: 2px solid var(--an-accent); border-radius: 50%; background: var(--an-surface); pointer-events: none; }
-#analysis-tab .mg-cell:not(.is-silence):hover .mg-duration, #analysis-tab .mg-cell:not(.is-silence)[aria-current='true'] .mg-duration { background: var(--an-accent); opacity: 1; }
-#analysis-tab .mg-cell:hover .mg-duration::before, #analysis-tab .mg-cell:hover .mg-duration::after, #analysis-tab .mg-cell[aria-current='true'] .mg-duration::before, #analysis-tab .mg-cell[aria-current='true'] .mg-duration::after { color: var(--an-accent); }
-#analysis-tab .mg-cell:hover, #analysis-tab .mg-cell[aria-current='true'] { color: var(--an-accent); }
-#analysis-tab .mg-cell:focus-visible { outline: 2px solid var(--an-accent); outline-offset: -2px; border-radius: 3px; z-index: 3; }
-#analysis-tab .mg-cell-content { position: absolute; inset: 0 0 auto; display: flex; flex-direction: column; gap: 3px; padding: 5px 8px 0; pointer-events: none; }
+#analysis-tab .mg-cell { position: relative; grid-row: 1; display: grid; grid-template-columns: repeat(var(--cell-beats), minmax(0, 1fr)); min-width: 0; min-height: 72px; border: 0; border-radius: 0; padding: 0 8px; margin: 0; font: inherit; color: var(--an-text); background: transparent; text-align: left; cursor: pointer; container-type: inline-size; }
+/* Capsules translucides : une surface sobre, sans traits de durée ni pulsations dessinées. */
+#analysis-tab .mg-surface { position: absolute; inset: 16px 8px; display: flex; align-items: center; overflow: hidden; border: 1px solid color-mix(in srgb, var(--an-text-secondary) 38%, transparent); border-radius: 999px; background: color-mix(in srgb, var(--an-accent) 3%, transparent); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--an-text) 12%, transparent), inset 0 -5px 10px color-mix(in srgb, var(--an-accent) 8%, transparent); pointer-events: none; }
+#analysis-tab .mg-fill { position: absolute; inset: 0; display: none; background: color-mix(in srgb, var(--an-accent) 30%, transparent); transform: scaleX(var(--playhead, 0)); transform-origin: left center; pointer-events: none; }
+/* Ces zones invisibles conservent la précision du clic sur un temps et l'identité source. */
+#analysis-tab .mg-beat { grid-row: 1; min-width: 0; min-height: 72px; pointer-events: none; }
+#analysis-tab .mg-cell:hover .mg-surface { border-color: color-mix(in srgb, var(--an-accent) 65%, var(--an-border-strong)); background: color-mix(in srgb, var(--an-accent) 8%, transparent); }
+#analysis-tab .mg-cell[aria-current='true'] .mg-surface { border-color: color-mix(in srgb, var(--an-accent) 65%, var(--an-text-secondary)); transform: translateY(-2px); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--an-text) 16%, transparent), 0 5px 10px rgb(0 0 0 / 16%); }
+#analysis-tab .mg-cell[aria-current='true'] .mg-fill { display: block; }
+#analysis-tab .mg-cell.is-silence .mg-surface { border-style: dashed; background: transparent; box-shadow: none; }
+#analysis-tab .mg-cell:focus-visible { outline: none; }
+#analysis-tab .mg-cell:focus-visible .mg-surface { outline: 2px solid var(--an-accent); outline-offset: 2px; }
+#analysis-tab .mg-cell-content { position: relative; z-index: 1; display: flex; flex-direction: column; justify-content: center; gap: 2px; min-width: 0; padding: 0 10px; pointer-events: none; }
 #analysis-tab .mg-symbol, #analysis-tab .mg-continuation { font-size: clamp(10px, 32cqw, 14px); font-weight: 550; line-height: 1.15; overflow-wrap: anywhere; }
 #analysis-tab .mg-continuation { color: var(--an-text-secondary); font-weight: 450; }
 #analysis-tab .mg-cell[aria-current='true'] .mg-continuation { color: inherit; }
-#analysis-tab .mg-passages { font-size: 10px; color: var(--an-text-secondary); overflow-wrap: anywhere; }
+#analysis-tab .mg-passages { font-size: 9px; color: var(--an-text-secondary); overflow-wrap: anywhere; }
+@container (max-width: 70px) {
+  #analysis-tab .mg-cell-content { padding-inline: 3px; }
+  #analysis-tab .mg-symbol, #analysis-tab .mg-continuation { font-size: 10px; }
+}
 #analysis-tab .mg-bar-lines { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(var(--row-beats), minmax(0, 1fr)); pointer-events: none; z-index: 2; }
 #analysis-tab .mg-bar-line { position: relative; }
-#analysis-tab .mg-bar-line::before, #analysis-tab .mg-bar-line:last-child::after { content: ''; position: absolute; left: 0; top: 5px; height: 12px; border-left: 1px solid color-mix(in srgb, var(--an-text-secondary) 45%, transparent); }
+#analysis-tab .mg-bar-line::before, #analysis-tab .mg-bar-line:last-child::after { content: ''; position: absolute; left: 0; top: 12px; bottom: 12px; border-left: 1px solid color-mix(in srgb, var(--an-text-secondary) 40%, transparent); }
 #analysis-tab .mg-bar-line:last-child::after { left: auto; right: 0; }
-#analysis-tab .mg-row.is-current .mg-row-time { color: var(--an-accent); }
 #analysis-tab .mg-settings { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-bottom: 18px; padding: 12px 16px; border: 1px solid var(--an-border-soft); border-radius: 6px; color: var(--an-text-secondary); font-size: 12px; }
 #analysis-tab .mg-settings legend { padding: 0 6px; font-size: 12px; }
 #analysis-tab .mg-settings label { display: flex; align-items: center; gap: 8px; }
@@ -121,5 +119,5 @@
 @media (max-width: 700px) {
   #analysis-tab #analyzer-results.active { grid-template-columns: 130px minmax(0, 1fr); column-gap: 8px; }
   #analysis-tab #analyzer-section-tabs .an-subtab-btn { font-size: 11px; padding: 10px 4px; }
-  #analysis-tab .mg-cell-content { padding-top: 4px; }
+  #analysis-tab .mg-cell-content { padding-inline: 5px; }
 }
