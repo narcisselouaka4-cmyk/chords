@@ -48,6 +48,34 @@ function medianPeriod(times, tail = false) {
   return periods[Math.floor(periods.length / 2)];
 }
 
+// [Claude] — 2026-10-28 — Les barres de mesure se posent sur les PREMIERS TEMPS détectés
+// plutôt que tous les `beatsPerBar` temps. Une grille régulière glisse dès qu'un morceau
+// a une mesure irrégulière — une reprise, un break — et tous les accords suivants tombent
+// à côté, ce que Narcisse voyait. Mesuré sur quatre de ses morceaux, à nombre de barres
+// comparable, part des changements d'accord tombant sur une barre : 48→80 %, 70→98 %,
+// 70→76 %, 81→77 %. Trois gagnent, dont deux de trente points ; un perd quatre points.
+//
+// Deux garde-fous, sinon l'affichage devient bancal : un repère qui créerait une mesure
+// de moins de trois quarts de mesure est ignoré, et un trou de plus d'une mesure et demie
+// est comblé au pas régulier. Retourne null dès qu'un réglage manuel est en jeu : le
+// pianiste garde la main.
+function barStartsFrom(downbeats, times, settings, estimated) {
+  if (estimated || !downbeats.length || settings.downbeatSeconds != null
+    || settings.phase || settings.offsetSeconds || settings.tempoMultiplier !== 1) return null;
+  const pas = settings.beatsPerBar;
+  const reperes = [...new Set(downbeats.map((t) => nearest(times, t)))].sort((a, b) => a - b);
+  const starts = [0];
+  for (const repere of reperes) {
+    // Au tout début, une mesure courte est une levée : on la garde telle quelle.
+    if (starts.length === 1 && repere > 0 && repere < pas) { starts.push(repere); continue; }
+    if (repere - starts.at(-1) < pas * 0.75) continue;
+    while (repere - starts.at(-1) >= pas * 1.75) starts.push(starts.at(-1) + pas);
+    starts.push(repere);
+  }
+  while (starts.at(-1) + pas < times.length - 1) starts.push(starts.at(-1) + pas);
+  return starts;
+}
+
 function pulseBoundaries(analysis, settings, rhythm) {
   const duration = Math.max(0, Number(analysis.duration) || 0);
   const tempo = effectiveGridTempo(analysis, settings, rhythm);
@@ -62,6 +90,17 @@ function pulseBoundaries(analysis, settings, rhythm) {
   // extrapole avant le premier temps ou qu'un réglage traverse le début du fichier.
   let anchor = settings.phase;
   let shift = settings.offsetSeconds;
+  // [Claude] — 2026-10-28 — Premier temps de mesure détecté (beat-this) : il place la
+  // barre de mesure au lieu de la laisser tomber où elle veut. `phase` reste une
+  // correction relative à ce repère, et un repère posé à la main garde la priorité.
+  const detecte = Array.isArray(rhythm?.downbeatTimes) ? rhythm.downbeatTimes : [];
+  if (settings.downbeatSeconds == null && detecte.length && !estimated) {
+    // Le vote de tous les repères, pas le premier seul : sur « You are Yahweh », le
+    // premier repère plaçait 30 % des accords sur un début de mesure, le vote 70 %.
+    const votes = new Array(settings.beatsPerBar).fill(0);
+    for (const t of detecte) votes[nearest(times, t) % settings.beatsPerBar]++;
+    anchor = votes.indexOf(Math.max(...votes)) + settings.phase;
+  }
   if (settings.downbeatSeconds != null && settings.downbeatSeconds <= duration) {
     anchor = nearest(times, settings.downbeatSeconds);
     shift += settings.downbeatSeconds - times[anchor];
@@ -79,7 +118,8 @@ function pulseBoundaries(analysis, settings, rhythm) {
   if (!times.length) times.push(0); else times[0] = 0;
   times.push(duration);
   const pickupBeats = ((anchor % settings.beatsPerBar) + settings.beatsPerBar) % settings.beatsPerBar;
-  return { times, estimated, tempo: tempo * settings.tempoMultiplier, pickupBeats };
+  return { times, estimated, tempo: tempo * settings.tempoMultiplier, pickupBeats,
+    barStarts: barStartsFrom(detecte, times, settings, estimated) };
 }
 
 function dominant(weights, candidates, start, end) {
@@ -153,8 +193,15 @@ export function buildMusicalGrid(analysis = {}, options = {}) {
   }
   weights.forEach((w) => { if (!w.size) w.set('N', 1); });
   const bars = [];
-  for (let from = 0, number = 1; from < weights.length; number++) {
-    const to = Math.min(weights.length, from + (number === 1 && pulse.pickupBeats ? pulse.pickupBeats : settings.beatsPerBar));
+  // Première mesure incomplète = levée. Elle décale la numérotation de TOUTES les mesures,
+  // qu'elle vienne des repères détectés ou du réglage manuel.
+  const levee = pulse.barStarts
+    ? pulse.barStarts[1] != null && pulse.barStarts[1] < settings.beatsPerBar
+    : pulse.pickupBeats > 0;
+  for (let from = 0, number = 1, rang = 0; from < weights.length; number++, rang++) {
+    const suivant = pulse.barStarts ? pulse.barStarts[rang + 1] : null;
+    const to = Math.min(weights.length, suivant != null ? suivant
+      : from + (!pulse.barStarts && number === 1 && pulse.pickupBeats ? pulse.pickupBeats : settings.beatsPerBar));
     const candidates = new Set(['N']);
     for (const seg of segments) {
       if (seg.to <= from || seg.from >= to) continue;
@@ -163,7 +210,7 @@ export function buildMusicalGrid(analysis = {}, options = {}) {
     }
     // Si une mesure n'a que des attaques brèves, retenir son accord dominant.
     if (candidates.size === 1) for (let i = from; i < to; i++) for (const s of weights[i].keys()) candidates.add(s);
-    bars.push({ from, to, number: number - (pulse.pickupBeats ? 1 : 0), pickup: number === 1 && pulse.pickupBeats > 0, cells: simplifyBar(weights, candidates, from, to) });
+    bars.push({ from, to, number: number - (levee ? 1 : 0), pickup: number === 1 && levee, cells: simplifyBar(weights, candidates, from, to) });
     from = to;
   }
   const rows = [];

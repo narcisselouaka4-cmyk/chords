@@ -94,7 +94,7 @@ test('correction par identité sur la source, jamais sur un indice de cellule fu
 
 test('réglages et pulsations persistés à part ; anciens projets compatibles', () => {
   const analysis = song([seg('C', 0, 8)]);
-  const view = { settings: { beatsPerBar: 3, beatUnit: 4, tempoMultiplier: .5, phase: 2, offsetSeconds: .15, tempoOverride: null, downbeatSeconds: null }, rhythm: { version: DISPLAY_RHYTHM_VERSION, source: 'librosa-display', sourceTempo: 120, tempo: 120, duration: 8, beatTimes: [0, .5, 1, 1.5, 2] } };
+  const view = { settings: { beatsPerBar: 3, beatUnit: 4, tempoMultiplier: .5, phase: 2, offsetSeconds: .15, tempoOverride: null, downbeatSeconds: null }, rhythm: { version: DISPLAY_RHYTHM_VERSION, source: 'librosa-display', sourceTempo: 120, tempo: 120, duration: 8, beatTimes: [0, .5, 1, 1.5, 2], downbeatTimes: [] } };
   const project = JSON.parse(JSON.stringify(buildProjectData({ path: '/audio.wav' }, analysis.chords, {}, analysis, view)));
   assert.deepEqual(readGridView(project, analysis), view);
   assert.equal(project.analysis.tempo, 120); assert.equal(project.analysis.timeSignature, '4/4');
@@ -166,6 +166,40 @@ test('un décalage fin traversant zéro conserve la phase de toutes les mesures'
   assert.equal(grid.boundaries[grid.bars[2].from], 2.1);
   const earlier = buildMusicalGrid(analysis, { settings: { offsetSeconds: -.1 } });
   assert.equal(earlier.boundaries[earlier.bars[1].from], 1.9);
+});
+
+test('premier temps de mesure détecté : la barre de mesure s’y place sans réglage', () => {
+  // Pulsations à 120 BPM dont la mesure commence au 3e temps (1 s), comme le relevé
+  // réel de « You are Yahweh » où le pic tombait sur le temps 3.
+  const analysis = song([seg('C', 0, 8)]);
+  const beatTimes = Array.from({ length: 16 }, (_, i) => i * 0.5);
+  const rhythm = { version: DISPLAY_RHYTHM_VERSION, source: 'beat-this', sourceTempo: 120, tempo: 120, duration: 8, beatTimes, downbeatTimes: [1, 3, 5, 7] };
+  const premiere = (options) => buildMusicalGrid(analysis, { rhythm, ...options }).bars[0];
+  // Deux temps de levée avant la première mesure pleine : la grille a vu le repère.
+  const cale = premiere();
+  assert.equal(cale.pickup, true); assert.equal(cale.to - cale.from, 2);
+  // Un repère posé à la main garde la priorité sur la détection.
+  const manuel = premiere({ settings: { downbeatSeconds: 0 } });
+  assert.equal(manuel.pickup, false); assert.equal(manuel.to - manuel.from, 4);
+  // Sans premiers temps détectés (repli librosa), le comportement d'avant est conservé.
+  const sans = buildMusicalGrid(analysis, { rhythm: { ...rhythm, source: 'librosa-display', downbeatTimes: [] } }).bars[0];
+  assert.equal(sans.pickup, false); assert.equal(sans.to - sans.from, 4);
+});
+
+test('mesure irrégulière : les barres suivent les repères au lieu de glisser', () => {
+  // Une mesure de 2 temps au milieu (1,5 s → 2,5 s), comme une reprise : une grille
+  // régulière décalerait tout ce qui suit, ce que Narcisse voyait sur ses morceaux.
+  const analysis = song([seg('C', 0, 8)]);
+  const beatTimes = Array.from({ length: 16 }, (_, i) => i * 0.5);
+  const rhythm = { version: DISPLAY_RHYTHM_VERSION, source: 'beat-this', sourceTempo: 120, tempo: 120, duration: 8,
+    beatTimes, downbeatTimes: [0, 2, 3, 5, 7] };
+  const bars = buildMusicalGrid(analysis, { rhythm }).bars;
+  // Le repère à 3 s créerait une mesure de 2 temps : ignoré. Ceux à 5 et 7 s sont suivis.
+  assert.deepEqual(bars.map((b) => b.from), [0, 4, 10, 14]);
+  assert.equal(bars[0].pickup, false);
+  // Un réglage manuel reprend la main : retour aux mesures régulières.
+  const regle = buildMusicalGrid(analysis, { rhythm, settings: { phase: 1 } }).bars;
+  assert.deepEqual(regle.map((b) => b.to - b.from).slice(1, 3), [4, 4]);
 });
 
 test('le premier temps choisi dans le lecteur aligne une mesure à cet instant', () => {

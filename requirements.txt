@@ -63,3 +63,12 @@ torchlibrosa
 # déjà ignoré par git. S'appuie sur le torch installé plus haut.
 lv-chordia==1.1.0
 
+# [Claude] — 2026-10-28 — Pulsations et PREMIERS TEMPS DE MESURE (grille de l'onglet Analyse).
+#   librosa suit une pulsation mais ne dit jamais où commence la mesure, et sa grille
+#   glisse : mesuré sur quatre morceaux de Narcisse, elle se décalait d'un temps entier
+#   au cours du morceau sur deux d'entre eux — les accords, eux justes, tombaient à côté.
+#   beat-this (ISMIR 2024) donne les deux. Mesuré sur les quatre mêmes morceaux,
+#   changements d'accord alignés sur le premier temps : 48→84 %, 91→95 %, 58→79 %,
+#   75→91 % ; phase stable sur 4 sur 4 contre 2 sur 4. 57 ko de paquet, modèle de 77 Mo
+#   téléchargé au premier appel. Repli automatique sur librosa si absent.
+beat_this==1.1.0

@@ -13,7 +13,9 @@ export function runDisplayGridBeats(wavPath, { tempo = 120, manual = false } = {
     const proc = trackChild(spawn(python, args, { shell: false, env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' } }));
     activeJob = proc;
     let stdout = '', stderr = '', expired = false;
-    const timer = setTimeout(() => { expired = true; proc.kill(); }, 90000);
+    // [Claude] — 2026-10-28 — beat-this met 13 à 31 s sur un morceau de 5 min, et son
+    // modèle (77 Mo) se télécharge au premier appel : 90 s ne suffisaient plus.
+    const timer = setTimeout(() => { expired = true; proc.kill(); }, 240000);
     proc.stdout.on('data', (chunk) => { stdout += chunk; });
     proc.stderr.on('data', (chunk) => { stderr = (stderr + chunk).slice(-2000); });
     proc.once('error', (error) => { clearTimeout(timer); if (activeJob === proc) activeJob = null; reject(error); });

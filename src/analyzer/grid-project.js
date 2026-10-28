@@ -8,10 +8,11 @@ export function readGridView(project, analysis) {
   if (settings.downbeatSeconds > analysis.duration) settings.downbeatSeconds = null;
   const referenceTempo = settings.tempoOverride || analysis.tempo || 120;
   const candidate = view.rhythm;
-  const rhythm = candidate?.version === DISPLAY_RHYTHM_VERSION && candidate.source === 'librosa-display'
+  const rhythm = candidate?.version === DISPLAY_RHYTHM_VERSION && ['librosa-display', 'beat-this'].includes(candidate.source)
     && Number.isFinite(candidate.tempo) && candidate.tempo > 0
     && Math.abs(candidate.sourceTempo - referenceTempo) < 0.1
     && Math.abs(candidate.duration - analysis.duration) < 0.15 && validBeatTimes(candidate.beatTimes, analysis.duration)
-    ? { version: candidate.version, source: candidate.source, sourceTempo: candidate.sourceTempo, tempo: candidate.tempo, duration: candidate.duration, beatTimes: [...candidate.beatTimes] } : null;
+    ? { version: candidate.version, source: candidate.source, sourceTempo: candidate.sourceTempo, tempo: candidate.tempo, duration: candidate.duration, beatTimes: [...candidate.beatTimes],
+        downbeatTimes: Array.isArray(candidate.downbeatTimes) ? [...candidate.downbeatTimes] : [] } : null;
   return { settings, rhythm };
 }
