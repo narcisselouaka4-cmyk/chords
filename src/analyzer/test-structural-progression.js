@@ -113,7 +113,7 @@ class Element {
   querySelectorAll() { return this.children.filter((c) => c.className === 'analyzer-timeline-block'); }
   getBoundingClientRect() { return { left: 0, right: 10000, width: 10000 }; }
   scrollIntoView() {}
-  scrollTo() {}
+  scrollTo(options) { this.lastScroll = options; }
 }
 
 function controller(chords = structuredClone(source)) {
@@ -125,7 +125,7 @@ function controller(chords = structuredClone(source)) {
     timelineViewMode: 'original', appliedReharmonization: null, detailedChords: false,
     timelineZoom: 1, BASE_PIXELS_PER_SECOND: 80, BLOCK_GAP: 4,
     LABEL_MIN_BLOCK_PX: 20, selectedSegmentId: null,
-    lastAutoScrollIndex: -1, pinnedStudy: null, studyTime: null,
+    lastAutoScrollIndex: -1, pinnedStudy: null, studyTime: null, chordGridExpanded: false,
     updateMusicContext() {}, isPlaybackActive: () => false,
     ROLE_LABELS: { structural: 'Accord structurel', passing: 'Accord de passage', uncertain: 'Incertain', silence: 'Silence' },
     document: { createElement: () => new Element() },
@@ -217,4 +217,22 @@ test('une grille sans aucun accord reste vide', () => {
   assert.equal(c.els.chordTimelineInner.children.length, 0);
   c.updatePlaybackPosition(3);
   assert.equal(c.hero, null);
+});
+
+// La grille conserve la même horloge, mais suit les lignes verticalement.
+test('grille agrandie : suivi vertical de l’accord courant sans saut au rafraîchissement suivant', () => {
+  const c = controller();
+  c.chordGridExpanded = true;
+  c.lastAutoScrollIndex = -1;
+  c.els.chordTimeline.scrollTop = 100;
+  c.els.chordTimeline.getBoundingClientRect = () => ({ top: 50, bottom: 250, left: 0, right: 500 });
+  const target = c.els.chordTimelineInner.children[3];
+  target.getBoundingClientRect = () => ({ top: 400, bottom: 464, left: 0, right: 120 });
+  c.updatePlaybackPosition(3.5);
+  assert.equal(c.hero.segmentId, 'd');
+  assert.equal(c.els.chordTimeline.lastScroll.top, 434);
+  assert.equal(c.els.chordTimeline.lastScroll.left, undefined);
+  c.els.chordTimeline.lastScroll = null;
+  c.updatePlaybackPosition(3.6);
+  assert.equal(c.els.chordTimeline.lastScroll, null);
 });

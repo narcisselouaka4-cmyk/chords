@@ -1,3 +1,48 @@
+# Grille d’accords agrandie — contrôle fonctionnel du 28/10/2026
+
+Bouton d’agrandissement ajouté à droite de la frise. La même liste de boutons devient
+une grille à plusieurs lignes, avec symboles complets et repères de début ; elle occupe
+la scène disponible sous le lecteur, avec barre verticale. Les informations musicales,
+commandes audio et clavier inférieur restent accessibles. Ce sont des cases chronologiques,
+pas une partition découpée en mesures inventées.
+
+Les quatre sous-onglets existants restent dans une navigation verticale à gauche.
+Cliquer Vue d’ensemble, Réharmonisation, Masterclass ou Corriger restaure la frise compacte
+et ouvre le panneau correspondant. Le bouton Réduire et Échap restaurent le panneau quitté.
+Grille d’accords indique l’état actif dans la sidebar ; la navigation retrouve sa disposition
+horizontale une fois la grille réduite. Flèches de navigation, orientation ARIA et focus vérifiés.
+
+## Preuves visuelles et interactions
+
+- `audit-output/analysis-grid-2026-10-28/01-expanded.jpg` : sombre, 1280×720.
+- `audit-output/analysis-grid-2026-10-28/02-expanded-light.jpg` : clair, 1195×800.
+- `audit-output/analysis-grid-2026-10-28/03-expanded-large.jpg` : sombre, 1920×1080.
+- `audit-output/analysis-grid-2026-10-28/04-compact-restored.jpg` : retour au panneau.
+- Captures ouvertes et inspectées. Premier écart corrigé : espacement historique de 26 px
+  entre les onglets, qui masquait Corriger en petite hauteur ; surcharge spécifique à la
+  grille, quatre pixels entre les entrées, scrollbar fine et tous les onglets accessibles.
+- Navigateur intégré, contrôleur réel et IPC de test, vrai audio de Track_024 : 122 accords
+  hors N, mêmes segmentId et même ordre avant/après agrandissement. Aucun accord réanalysé.
+- Saut jusqu’au dernier accord : 3:29, La♭ majeur et sélection corrects ; défilement vertical
+  constaté (961 px sur la petite fenêtre). Retour Vue d’ensemble : accord Ab et même temps.
+- Les quatre sous-onglets ont été ouverts depuis la grille, puis réduction depuis Corriger :
+  panneau attendu, temps et accord conservés. Échap rend le focus au bouton d’agrandissement.
+- Agrandir/réduire pendant la lecture conserve le même élément/source audio et le temps avance.
+  Vue détaillée réaffiche la même grille ; symbole C#7 complet visible, étiquette compacte masquée.
+- Aucun débordement horizontal aux trois tailles, clavier inférieur visible, scrollbar verticale
+  et panneaux accessibles. À 1920×1080 : quatorze colonnes, hauteur utile 521 px, contenu 660 px.
+- Aucune erreur console ; avertissement habituel de repli synthétique du clavier dans le banc.
+- 12 tests de progression structurelle passent, dont suivi vertical à la bonne horloge et
+  absence de saut au rafraîchissement suivant. Les 17 scénarios d’accords principaux et les
+  suites DOM/persistance/exports passent aussi. Le bandeau demeure plafonné à quatre piliers.
+
+Pas de nouvelle validation native Electron, d’écoute humaine ou de MIDI physique. Aucun
+changement du moteur, de la grille sauvegardée ni des autres modules. Banc temporaire retiré.
+
+Contrôle fonctionnel et visuel : réussi pour ce périmètre.
+
+---
+
 # Correction de présentation — quatre accords principaux maximum — 28/10/2026
 
 Le bandeau présente désormais les piliers distincts du motif, trois ou quatre maximum

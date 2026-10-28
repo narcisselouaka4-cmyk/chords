@@ -89,6 +89,8 @@ const MIN_BLOCK_WIDTH = 4;
 const BLOCK_GAP = 4;
 
 let timelineZoom = 1.0;
+let chordGridExpanded = false;
+let sectionBeforeGrid = 'analysis';
 
 let undoStack = [];
 let redoStack = [];
@@ -136,6 +138,11 @@ const els = {
   zoomValue: document.getElementById('analyzer-zoom-value'),
 
   chordTimeline: document.getElementById('analyzer-chord-timeline'),
+  progressionRibbon: document.getElementById('analyzer-progression-ribbon'),
+  gridToggle: document.getElementById('analyzer-grid-toggle'),
+  gridTab: document.getElementById('analyzer-grid-tab'),
+  tabNav: document.getElementById('analyzer-section-tabs'),
+  panelsHost: document.getElementById('analyzer-section-panels'),
   chordTimelineInner: document.getElementById('analyzer-chord-timeline-inner'),
   reanalyzeBtn: document.getElementById('analyzer-reanalyze-btn'),
   staleBanner: document.getElementById('analyzer-stale-banner'),
@@ -1249,6 +1256,7 @@ function renderHeader() {
 // références média temporaires, nettoie l'état, remet la machine d'état à
 // HOME. Ne touche en aucun cas au Studio ni à Electron (pas de reload).
 export function resetAnalysisSession() {
+  setChordGridExpanded(false);
   if (currentPlayer) {
     currentPlayer.destroy();
     currentPlayer = null;
@@ -1591,6 +1599,8 @@ function renderTimeline(chords, duration) {
       ${fitted.text
         ? `<span class="analyzer-timeline-label" style="font-size:${fitted.fontPx}px">${escapeHtml(fitted.text)}</span>`
         : ''}
+      <span class="analyzer-grid-symbol">${escapeHtml(effectiveChordStr)}</span>
+      <span class="analyzer-grid-time" aria-hidden="true">${fmt(chord.startTime)}</span>
       ${isOverridden ? '<span class="override-icon" title="Corrigé manuellement">✏</span>' : ''}
     `;
 
@@ -1599,7 +1609,7 @@ function renderTimeline(chords, duration) {
     block.addEventListener('click', () => {
       selectSegment(chord.segmentId);
       seekToSegment(chord);
-      block.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      block.scrollIntoView({ behavior: 'smooth', inline: chordGridExpanded ? 'nearest' : 'center', block: 'nearest' });
     });
     block.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
@@ -1756,14 +1766,18 @@ function updatePlaybackPosition(currentTime) {
   const study = pinnedStudy ? chords.find((c) => c.segmentId === pinnedStudy) : null;
   renderHeroChord(study || activeChord || (clamped === 0 ? chords[0] : null));
 
-  // Auto-scroll horizontal : défiler uniquement quand le segment approche du bord.
+  // Suivre la case courante sur son axe, sans déplacer les commandes du lecteur.
   if (activeIndex >= 0 && activeIndex !== lastAutoScrollIndex && blocks[activeIndex]) {
     lastAutoScrollIndex = activeIndex;
     const block = blocks[activeIndex];
     const containerRect = els.chordTimeline.getBoundingClientRect();
     const blockRect = block.getBoundingClientRect();
     const margin = 120;
-    if (blockRect.right > containerRect.right - margin || blockRect.left < containerRect.left + margin) {
+    if (chordGridExpanded) {
+      if (blockRect.top < containerRect.top + 12 || blockRect.bottom > containerRect.bottom - 12) {
+        els.chordTimeline.scrollTo({ top: Math.max(0, els.chordTimeline.scrollTop + blockRect.top - containerRect.top - 16), behavior: 'smooth' });
+      }
+    } else if (blockRect.right > containerRect.right - margin || blockRect.left < containerRect.left + margin) {
       const targetScroll = els.chordTimeline.scrollLeft + blockRect.left - containerRect.left - containerRect.width / 3 + blockRect.width / 2;
       els.chordTimeline.scrollTo({ left: targetScroll, behavior: 'smooth' });
     }
@@ -2030,19 +2044,69 @@ function bindTimelineScroll() {
 function bindSectionTabs() {
   if (!els.sectionTabs.length) return;
 
+  els.gridToggle?.addEventListener('click', () => setChordGridExpanded(!chordGridExpanded));
   els.sectionTabs.forEach((tab) => {
     tab.addEventListener('click', () => {
       activateSectionTab(tab.dataset.section);
     });
+    tab.addEventListener('keydown', (event) => {
+      const keys = chordGridExpanded ? ['ArrowUp', 'ArrowDown'] : ['ArrowLeft', 'ArrowRight'];
+      if (![...keys, 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const tabs = [...els.sectionTabs].filter((t) => !t.hidden);
+      const index = tabs.indexOf(tab);
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1
+        : (index + (event.key === keys[0] ? -1 : 1) + tabs.length) % tabs.length;
+      activateSectionTab(tabs[next].dataset.section);
+      tabs[next].focus();
+    });
+  });
+  els.results?.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape' || !chordGridExpanded) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setChordGridExpanded(false);
+    els.gridToggle?.focus();
   });
 }
 
+function setChordGridExpanded(expanded) {
+  if (!els.results || chordGridExpanded === expanded) return;
+  if (expanded) {
+    sectionBeforeGrid = [...els.sectionTabs].find((t) => t.getAttribute('aria-selected') === 'true')?.dataset.section || 'analysis';
+  }
+  chordGridExpanded = expanded;
+  els.results.classList.toggle('is-grid-expanded', expanded);
+  els.panelsHost.hidden = expanded;
+  els.gridTab.hidden = !expanded;
+  els.tabNav.setAttribute('aria-orientation', expanded ? 'vertical' : 'horizontal');
+  els.gridToggle.setAttribute('aria-expanded', String(expanded));
+  const label = expanded ? 'Réduire la grille' : 'Afficher toute la grille';
+  els.gridToggle.setAttribute('aria-label', label);
+  els.gridToggle.title = label;
+  els.progressionRibbon.setAttribute('role', expanded ? 'tabpanel' : 'region');
+  els.progressionRibbon.setAttribute('aria-label', expanded ? 'Grille complète des accords' : 'Ligne des accords');
+  if (expanded) els.progressionRibbon.setAttribute('aria-labelledby', 'analyzer-grid-tab');
+  else els.progressionRibbon.removeAttribute('aria-labelledby');
+  els.sectionTabs.forEach((tab) => {
+    const active = tab.dataset.section === (expanded ? 'grid' : sectionBeforeGrid);
+    tab.classList.toggle('active', active);
+    tab.setAttribute('aria-selected', String(active));
+    tab.tabIndex = active ? 0 : -1;
+  });
+  lastAutoScrollIndex = -1;
+  requestAnimationFrame(() => updatePlaybackPosition(currentPlayer?.getCurrentTime?.() || 0));
+}
+
 function activateSectionTab(section) {
+  if (section === 'grid') { setChordGridExpanded(true); return; }
+  if (chordGridExpanded) setChordGridExpanded(false);
   if (section === 'chords') section = 'analysis';
   els.sectionTabs.forEach((t) => {
     const active = t.dataset.section === section;
     t.classList.toggle('active', active);
     t.setAttribute('aria-selected', String(active));
+    t.tabIndex = active ? 0 : -1;
   });
   els.sectionPanels.forEach((panel) => {
     const active = panel.dataset.section === section;

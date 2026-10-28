@@ -86,6 +86,7 @@
     <link rel="stylesheet" href="./ui/components/studio-loading-page.css" />
     <link rel="stylesheet" href="./ui/components/analyzer-loading-page.css" />
     <link rel="stylesheet" href="./ui/components/analysis-overview.css" />
+    <link rel="stylesheet" href="./ui/components/analysis-chord-grid.css" />
   </head>
   <body>
     <div id="app" class="app training-shell">
@@ -1436,20 +1437,26 @@
                  d'accords recopiées de la maquette. La frise reste celle de Zic
                  (blocs proportionnels à la durée réelle, pilotés par le zoom) :
                  seule son habillage devient celui du ruban d'Astra. -->
-            <div class="an-chord-progression-ribbon" role="region" aria-label="Ligne des accords">
+            <div class="an-chord-progression-ribbon" id="analyzer-progression-ribbon" role="region" aria-label="Ligne des accords">
+              <span class="an-grid-heading" aria-hidden="true">Grille d’accords</span>
               <button type="button" class="an-ribbon-nav-btn" id="analyzer-timeline-scroll-left" aria-label="Défiler à gauche" title="Accord précédent"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
-              <div class="an-ribbon-chords-track" id="analyzer-chord-timeline">
+              <div class="an-ribbon-chords-track" id="analyzer-chord-timeline" tabindex="0" aria-label="Accords du morceau">
                 <div class="analyzer-timeline-inner" id="analyzer-chord-timeline-inner"></div>
               </div>
               <button type="button" class="an-ribbon-nav-btn" id="analyzer-timeline-scroll-right" aria-label="Défiler à droite" title="Accord suivant"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+              <button type="button" class="an-ribbon-nav-btn an-grid-toggle" id="analyzer-grid-toggle" aria-label="Afficher toute la grille" title="Afficher toute la grille" aria-expanded="false" aria-controls="analyzer-progression-ribbon">
+                <svg class="an-grid-expand-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M8 21H3v-5"/></svg>
+                <svg class="an-grid-collapse-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h5V3M21 8h-5V3M16 21v-5h5M8 21v-5H3"/></svg>
+              </button>
             </div>
 
-            <!-- [Refonte Astra Analyse 12/09] — Barre des cinq sous-onglets
+            <!-- [Refonte Astra Analyse 12/09] — Barre des sous-onglets
                  recopiée de la maquette. Les data-section sont ceux que lit
                  activateSectionTab() dans analyzer-tab.js, et le module bascule
                  la classe .active (et non .is-active) : le pont fait l'alias. -->
             <div class="an-subtabs-bar">
-              <nav class="an-subtabs-nav" id="analyzer-section-tabs" role="tablist" aria-label="Sous-onglets Analyse">
+              <nav class="an-subtabs-nav" id="analyzer-section-tabs" role="tablist" aria-label="Sous-onglets Analyse" aria-orientation="horizontal">
+                <button type="button" class="an-subtab-btn an-grid-tab" id="analyzer-grid-tab" data-section="grid" role="tab" aria-selected="false" aria-controls="analyzer-progression-ribbon" hidden><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Grille d’accords</span></button>
                 <button type="button" class="an-subtab-btn active" data-section="analysis" role="tab" aria-selected="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg><span>Vue d’ensemble</span></button>
                 <button type="button" class="an-subtab-btn" data-section="reharm" role="tab" aria-selected="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12.83 2.18 8.58 3.91a1 1 0 0 1 0 1.82l-8.58 3.91a2 2 0 0 1-1.66 0L2.59 7.91a1 1 0 0 1 0-1.82l8.58-3.91a2 2 0 0 1 1.66 0Z"/><path d="m22 12.5-9.17 4.18a2 2 0 0 1-1.66 0L2 12.5"/><path d="m22 17.5-9.17 4.18a2 2 0 0 1-1.66 0L2 17.5"/></svg><span>Réharmonisation</span></button>
                 <button type="button" class="an-subtab-btn" data-section="masterclass" role="tab" aria-selected="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.42 10.92a1 1 0 0 0-.02-1.84L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.83l8.57 3.91a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg><span>Masterclass</span></button>
