@@ -38,6 +38,9 @@ test('DOM : cellules fusionnées, une heure par ligne, détails sans cellule sup
   assert.equal(host.querySelectorAll('.mg-row-time').length, 3);
   assert.equal(host.querySelectorAll('.mg-beat').length, 48);
   assert.equal(host.querySelectorAll('.mg-passages').length, 0);
+  assert.equal(host.querySelectorAll('.mg-duration').length, count);
+  assert.equal(host.querySelectorAll('.mg-section-title').length, 0);
+  assert(host.querySelectorAll('.mg-section').every((group) => !group.attrs['aria-label']));
   view.render(analysis, { detailed: true });
   assert.equal(host.querySelectorAll('.mg-cell').length, count);
   assert.equal(host.querySelector('.mg-passages').textContent, 'D#dim');
@@ -64,12 +67,18 @@ test('DOM : seul le temps courant est surligné, suivi vertical et retour arriè
     row.getBoundingClientRect = () => ({ top: i * 58 - host.scrollTop, bottom: i * 58 + 56 - host.scrollTop });
   });
   const beats = host.querySelectorAll('.mg-beat');
+  view.update(.1);
+  const startPosition = Number(beats[0].parentElement.style['--playhead']);
+  view.update(.2);
+  assert(Number(beats[0].parentElement.style['--playhead']) > startPosition, 'le cercle avance aussi entre deux pulsations');
+  assert.equal(beats[0].classList.contains('is-current'), true);
   view.update(17); assert.equal(beats[34].classList.contains('is-current'), true);
   assert(host.scrollTop > 0);
   view.update(.6); assert.equal(beats[34].classList.contains('is-current'), false);
   assert.equal(beats[1].classList.contains('is-current'), true); assert.equal(host.scrollTop, 0);
   assert.equal(beats.filter((b) => b.classList.contains('is-current')).length, 1);
   view.update(24); assert.equal(beats.filter((b) => b.classList.contains('is-current')).length, 0);
+  assert(host.querySelectorAll('.mg-cell').every((cell) => !cell.attrs['aria-current']));
 });
 
 test('DOM : premier temps retardé au bon instant, sans faux temps fort à zéro', () => {
@@ -82,4 +91,15 @@ test('DOM : premier temps retardé au bon instant, sans faux temps fort à zéro
   assert.equal(beats[0].classList.contains('mg-downbeat'), false);
   assert.equal(beats[1].classList.contains('mg-downbeat'), true);
   view.update(.3); assert.equal(beats[1].classList.contains('is-current'), true);
+});
+
+test('DOM : une mesure irrégulière ne coupe pas les accords en fin de ligne', () => {
+  const host = new Element(), view = createMusicalGridView(host);
+  view.render(analysis, { rhythm: {
+    beatTimes: Array.from({ length: 48 }, (_, i) => i * .5),
+    downbeatTimes: [0, 2, 4.5, 6.5, 8.5, 10.5, 12.5, 14.5, 16.5, 18.5, 20.5, 22.5],
+  } });
+  const row = host.querySelector('.mg-row');
+  assert.equal(row.querySelectorAll('.mg-beat').length, 17);
+  assert.equal(row.querySelector('.mg-row-track').style['--row-beats'], '17');
 });

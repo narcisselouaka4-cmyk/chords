@@ -156,32 +156,30 @@ function testChordLabelSeeks() {
 function testChordProgressHighlight() {
   const js = readText('src/ui/analyzer-tab.js');
   const css = readText('src/ui/refonte/astra-bridge.css');
-  const html = readText('src/index.html');
   const progress = /block\.style\.setProperty\('--chord-progress', chordProgress\.toFixed\(4\)\)/.test(js)
     && /block\.classList\.toggle\('upcoming', activeIndex >= 0 && idx === activeIndex \+ 1\)/.test(js);
   const drawn = /\.analyzer-timeline-block\.current::before \{[^}]*scaleX\(var\(--chord-progress, 0\)\)/.test(css)
     && /\.analyzer-timeline-block\.selected:not\(\.current\) \{[^}]*outline:/.test(css);
-  const hero = /id="analyzer-hero-keyboard"/.test(html) && /heroKey === heroRenderedKey/.test(js);
-  if (!progress || !drawn || !hero) {
-    console.error('❌ Frise — progression dans l’accord en cours', { progress, drawn, hero });
+  if (!progress || !drawn) {
+    console.error('❌ Frise — progression dans l’accord en cours', { progress, drawn });
     process.exit(1);
   }
   console.log('✅ Frise — accord en cours rempli au fil de la lecture, suivant annoncé, sélection distincte');
 }
 
-function testOverviewWithoutDeveloperStatistics() {
+function testResultsWithoutRemovedPanels() {
   const html = readText('src/index.html');
   const js = readText('src/ui/analyzer-tab.js');
   // [OpenCode] — 2026-10-28 — les sous-onglets Réharmonisation, Masterclass et
   // Vue d'ensemble sont retirés ; la zone observée va du début des résultats
   // jusqu'au théâtre des panneaux restants (Grille d'accords + Corriger).
   const results = html.slice(html.indexOf('id="analyzer-results"'), html.indexOf('id="analyzer-section-panels"'));
-  const required = ['analyzer-context-key', 'analyzer-context-tempo', 'Accords principaux', 'Accord à travailler', 'analyzer-hero-keyboard'];
-  const removed = ['LIGNE DE BASSE', 'IDENTITÉ ET RÔLE', 'analyzer-overview-export', 'analyzer-media-context', 'analyzer-back-btn', 'data-section="chords"'];
+  const required = ['analyzer-context-key', 'analyzer-context-tempo', 'Accords principaux', 'data-section="grid"', 'data-section="corriger"'];
+  const removed = ['Accord à travailler', 'analyzer-hero-keyboard', 'data-section="analysis"', 'data-section="reharm"', 'data-section="masterclass"', 'analyzer-overview-export'];
   if (!required.every((x) => results.includes(x)) || removed.some((x) => results.includes(x))
-    || js.includes('analyzer-timeline-modkey')) throw new Error('Vue fusionnée : repères, fiche et suppressions incohérents');
-  if (results.indexOf('analyzer-music-context') > results.indexOf('<div class="an-project-bar">')) throw new Error('Repères absents au-dessus du lecteur');
-  console.log('✅ Vue fusionnée — repères permanents, accord centré, anciens panneaux retirés');
+    || js.includes('analyzer-timeline-modkey')) throw new Error('Résultats : repères et panneaux incohérents');
+  if (results.indexOf('analyzer-music-context') > results.indexOf('<div class="an-scrub-bar">')) throw new Error('Repères absents au-dessus du lecteur');
+  console.log('✅ Résultats — repères permanents, Grille/Corriger, anciens panneaux retirés');
 }
 
 function testMusicalGridContract() {
@@ -206,6 +204,6 @@ testStateMapping();
 testMiniKeyboardGradientIds();
 testChordLabelSeeks();
 testChordProgressHighlight();
-testOverviewWithoutDeveloperStatistics();
+testResultsWithoutRemovedPanels();
 testMusicalGridContract();
 console.log('\n✅ Tous les tests DOM Analyse passent.');

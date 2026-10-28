@@ -1,3 +1,70 @@
+# Analyse — grille ouverte, maquette 1.1 — 28/10/2026
+
+final result: passed
+
+## Cible et périmètre
+
+Maquette choisie par Narcisse : `exec-08082590-2a2e-4805-a9eb-02104dd33065.png`
+(dossier `.codex/generated_images/01a17eb0-8d4b-7731-8fa5-e8a571764707/`).
+Pas les galets colorés ni la variante en diagonales, explicitement refusés.
+La comparaison porte sur le contenu de la grille ; les retouches récentes de Claude
+au titre/lecteur et les deux onglets Grille/Corriger sont conservés.
+
+## Comparaison et correction
+
+Référence ouverte, captures de l'implémentation inspectées puis référence et rendu
+réunis dans `audit-output/grid-11-2026-10-28/comparison-before.jpg` et
+`comparison-final.jpg`. Régions des quatre premières lignes du même vrai morceau,
+normalisées en largeur. Référence : 1672×941 pixels (capture générée avec décor OS) ;
+implémentation : viewport CSS 1920×1080, capture 1920×1080, sans décor OS.
+Les deux bandes sont comparées ensemble ; pas de fausse précision sur le chrome.
+
+- **P2 corrigé** : certaines mesures détectées contiennent plus de quatre pulsations.
+  La limite fixe à seize colonnes coupait le dernier accord de certaines lignes.
+  La largeur utilise désormais le nombre réel de pulsations quand il dépasse le
+  nombre nominal. Nouvelle capture : aucun accord hors du bord de sa ligne.
+- Typographie : famille héritée du produit, symboles compacts jusqu'à 14 px ;
+  réduction limitée dans les zones très courtes, sans ellipse du symbole.
+- Espacements : lignes de 60 px, respiration entre groupes conservée (28 px),
+  aucune carte/case ou bande colorée de partie. Horaires et petits repères de mesure.
+- Couleurs : neutres et accent de l'application, clair/sombre ; accent seulement
+  sur l'accord actif et le petit cercle de lecture. Aucun remplissage de durée.
+- Images/icônes : pas de nouvel asset décoratif ; logo, commandes et clavier du
+  produit conservés. Traits, points de pulsation et cercle sont des repères de
+  l'interface musicale, pas des illustrations substituées.
+- Contenu : noms « Partie A/B/C » et attributs accessibles correspondants retirés ;
+  les groupes calculés restent internes, seul leur espacement est visible.
+- Écarts acceptés : durées/positions issues du vrai calage, notamment la levée et
+  les mesures irrégulières, plutôt que les positions approximatives de l'image.
+  Le chrome OS et les différences de hauteur disponible ne sont pas refaits.
+
+## Vérifications interactives
+
+Vrai contrôleur et composant, projets/WAV locaux Il veille sur moi et Sanogo ;
+IPC de lecture/calage remplacés dans un banc navigateur temporaire. Le calage
+renvoyé est celui sauvegardé dans les vrais projets ; aucun projet utilisateur écrit.
+Lecture à vitesse 1, un seul temps/accord courant, cercle avançant entre pulsations,
+recul de dix secondes, clic à l'intérieur d'un accord, double-clic ouvrant la bonne
+correction puis annulation, aller-retour Corriger sans changement de position,
+×2/÷2 et scroll vérifiés. Aucune erreur console.
+
+Captures : 1920 clair, 1440 clair/sombre, 1024 clair/sombre et Sanogo sombre,
+`audit-output/grid-11-2026-10-28/`. Pas de débordement des cellules ; à 1024 px,
+le titre se replie selon les règles existantes. Le banc, les copies WAV et ses
+imports ont été supprimés, onglet QA fermé et viewport remis par défaut.
+
+## Tests et limites
+
+5 tests DOM interactifs du composant, 24 tests grille (dont corpus Sanogo,
+SEIGNEUR, ANGES), contrat DOM Analyse, persistance, exports et régressions Parties
+1/3 passent ; build réussi. Le contrat DOM attendait encore le hero et l'ancien
+emplacement des repères, retirés/déplacés par Claude : attentes actualisées.
+`test-analysis-workflow` garde l'échec historique E bis sur l'ancien contrat des
+pistes Studio, sans lien avec ces changements. Aucun test natif Electron nouveau,
+aucune nouvelle évaluation à l'oreille du moteur ou du calage : affichage seulement.
+
+---
+
 # Correctif tempo et premier temps — 28/10/2026
 
 Retour utilisateur : les temps de la grille se décalent par rapport à la musique ;

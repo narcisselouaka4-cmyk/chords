@@ -14,10 +14,8 @@ export function createMusicalGridView(host, { onSeek, onEdit } = {}) {
     activeBeat = -1; activeRow = -1; beatElements = []; rowElements = [];
     host.replaceChildren();
     for (const section of model.sections) {
-      const block = element('section', 'mg-section');
-      block.style.setProperty('--section-color', `var(--mg-section-${section.id % 6})`);
-      block.setAttribute('aria-label', section.label);
-      block.appendChild(element('h3', 'mg-section-title', section.label));
+      // On conserve les respirations entre groupes, sans leur attribuer un nom de partie.
+      const block = element('div', 'mg-section');
       for (const row of section.rows) {
         const line = element('div', 'mg-row'); rowElements[row.index] = line;
         const label = element('div', 'mg-row-label');
@@ -30,7 +28,8 @@ export function createMusicalGridView(host, { onSeek, onEdit } = {}) {
         }
         line.appendChild(label);
         const track = element('div', 'mg-row-track');
-        track.style.setProperty('--row-beats', String(model.settings.beatsPerBar * 4));
+        // Quatre mesures irrégulières peuvent dépasser le nombre nominal de temps.
+        track.style.setProperty('--row-beats', String(Math.max(model.settings.beatsPerBar * 4, row.to - row.from)));
         for (const cell of row.cells) {
           const button = element('button', 'mg-cell'); button.type = 'button';
           button.style.gridColumn = `${cell.from - row.from + 1} / span ${cell.to - cell.from}`;
@@ -39,9 +38,13 @@ export function createMusicalGridView(host, { onSeek, onEdit } = {}) {
           button.dataset.start = String(cell.startTime);
           button.dataset.end = String(cell.endTime);
           button.dataset.symbol = cell.symbol;
+          if (cell.symbol === 'N') button.classList.add('is-silence');
           const chord = cell.symbol === 'N' ? 'Silence' : cell.symbol;
           button.setAttribute('aria-label', `${chord}, ${cell.to - cell.from} temps, ${timeLabel(cell.startTime)}, mesure ${row.bars.find((b) => cell.from < b.to)?.number}`);
           button.title = `${chord} · ${cell.to - cell.from} temps${cell.passages.length ? ` · Passages : ${cell.passages.map((p) => p.symbol).join(', ')}` : ''}\nClic : écouter ici · Double-clic : corriger l’accord`;
+          const duration = element('span', 'mg-duration');
+          duration.setAttribute('aria-hidden', 'true');
+          button.appendChild(duration);
           for (let i = cell.from; i < cell.to; i++) {
             const beat = element('span', 'mg-beat'); beat.setAttribute('aria-hidden', 'true');
             beat.dataset.beat = String(i); beatElements[i] = beat;
@@ -50,7 +53,7 @@ export function createMusicalGridView(host, { onSeek, onEdit } = {}) {
           }
           const content = element('span', 'mg-cell-content');
           const symbol = cell.symbol === 'N' ? '—' : cell.symbol;
-          content.appendChild(element('span', cell.continued ? 'mg-continuation' : 'mg-symbol', cell.continued ? `${symbol} · tenu` : symbol));
+          content.appendChild(element('span', cell.continued ? 'mg-continuation' : 'mg-symbol', symbol));
           if (detailed && cell.passages.length) {
             const names = cell.passages.filter((p, i, all) => !i || all[i - 1].symbol !== p.symbol).map((p) => p.symbol);
             content.appendChild(element('span', 'mg-passages', names.join(' · ')));
@@ -93,6 +96,13 @@ export function createMusicalGridView(host, { onSeek, onEdit } = {}) {
   function update(time, follow = true) {
     if (!model) return;
     const beat = beatAtTime(model.boundaries, time);
+    // Le cercle suit le temps réel dans l'accord, sans remplir ni allonger son trait.
+    const currentCell = beatElements[beat]?.parentElement;
+    if (currentCell) {
+      const start = Number(currentCell.dataset.start), end = Number(currentCell.dataset.end);
+      const position = end > start ? Math.max(0, Math.min(1, (time - start) / (end - start))) : 0;
+      currentCell.style.setProperty('--playhead', position.toFixed(5));
+    }
     if (beat === activeBeat) return;
     beatElements[activeBeat]?.classList.remove('is-current');
     beatElements[activeBeat]?.parentElement?.removeAttribute('aria-current');
