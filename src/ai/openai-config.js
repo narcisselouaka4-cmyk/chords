@@ -117,7 +117,7 @@ export function getAIConfig() {
 
 /**
  * Vérifie si une clé API personnelle est configurée.
- * Même logique que dans masterclass-panel.js et pedagogie-tab.js.
+ * Même logique que dans usage-cap.js et pedagogie-tab.js.
  */
 export function hasAIKey() {
   try {
@@ -266,7 +266,7 @@ export const EXTERNAL_PROVIDER_LINKS = [
 // (STORAGE_KEY ci-dessus, inchangée) : une liste de profils {id, label,
 // baseUrl, apiKey chiffrée, model}. Activer un profil ne fait que (re)poser
 // la config active avec ses valeurs — aucun code existant (ai-client.js,
-// masterclass-panel.js, pedagogie-tab.js…) n'a besoin de changer.
+// usage-cap.js, pedagogie-tab.js…) n'a besoin de changer.
 const KEYS_LIST_STORAGE_KEY = 'piano-jazz-ai-keys';
 
 function getKeysListRaw() {

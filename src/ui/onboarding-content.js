@@ -153,9 +153,8 @@ export const CHAPTERS = [
         target: '#analyzer-section-tabs',
         title: 'Aller plus loin',
         body:
-          "Ces sous-onglets ouvrent la vue d'ensemble du morceau, les propositions de "
-          + "réharmonisation et la masterclass. Ils s'appuient tous sur la grille que "
-          + "vous venez de lire — et donc sur vos corrections.",
+          "Le sous-onglet « Corriger » vous laisse ajuster chaque accord à la main. "
+          + "Tout s'appuie sur la grille que vous venez de lire — et donc sur vos corrections.",
       },
       {
         id: 'chordify-save',

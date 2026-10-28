@@ -904,82 +904,6 @@
   gap: 8px;
 }
 
-.analyzer-reharm-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.analyzer-reharm-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.analyzer-reharm-card:hover,
-.analyzer-reharm-card.recommended {
-  border-color: var(--accent);
-  box-shadow: var(--shadow-sm);
-}
-
-.analyzer-reharm-card.recommended {
-  background: var(--accent-soft);
-}
-
-.analyzer-reharm-card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.analyzer-reharm-card-title {
-  font-weight: 700;
-  color: var(--text);
-  font-size: 0.9rem;
-}
-
-.analyzer-reharm-card-badge {
-  font-size: 0.65rem;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
-  background: var(--accent);
-  color: var(--accent-text);
-}
-
-.analyzer-reharm-card-sub {
-  font-size: 0.75rem;
-  color: var(--text-dim);
-  line-height: 1.4;
-}
-
-.analyzer-reharm-progression {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.analyzer-reharm-score {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.75rem;
-  color: var(--success);
-}
-
-.analyzer-reharm-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: auto;
-}
-
 .analyzer-more-btn {
   width: 100%;
   justify-content: center;
@@ -1403,15 +1327,6 @@
   color: var(--text-dim);
 }
 
-.analyzer-masterclass-box {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 16px;
-  margin-bottom: 12px;
-  color: var(--text-dim);
-  font-size: 0.85rem;
-}
 
 /* Vue d'ensemble scrollable */
 .analyzer-overview-scroll {
@@ -1831,8 +1746,7 @@
 }
 
 @media (max-width: 900px) {
-  .analyzer-video-grid,
-  .analyzer-reharm-grid {
+  .analyzer-video-grid {
     grid-template-columns: 1fr;
   }
 }

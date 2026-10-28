@@ -2713,18 +2713,6 @@ body.studio-recording-cursor * {
   padding: 32px;
 }
 
-.masterclass-launcher {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  padding: 32px;
-  text-align: center;
-}
-
-.masterclass-launcher .panel-action {
-  max-width: 360px;
-}
 
 .analysis-layout {
   display: grid;
@@ -2911,13 +2899,6 @@ body.studio-recording-cursor * {
   gap: 16px;
 }
 
-.masterclass-summary {
-  background: var(--bg);
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius-sm);
-  padding: 12px;
-  font-size: 0.85rem;
-}
 
 .summary-list {
   padding-left: 18px;
@@ -3342,114 +3323,6 @@ body.studio-recording-cursor * {
   margin-bottom: 10px;
 }
 
-.masterclass-btn {
-  background: linear-gradient(135deg, #7c3aed, #a855f7) !important;
-  color: white !important;
-  border: none !important;
-}
-
-.masterclass-result {
-  margin-top: 8px;
-}
-
-.masterclass-feed {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.masterclass-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 10px;
-  background: linear-gradient(135deg, rgba(124,58,237,0.1), rgba(168,85,247,0.05));
-  border-radius: var(--radius-sm);
-  border-left: 3px solid #7c3aed;
-}
-
-.masterclass-title {
-  font-weight: 700;
-  font-size: 0.85rem;
-  color: #7c3aed;
-}
-
-.masterclass-chord-count {
-  font-size: 0.72rem;
-  color: var(--muted);
-}
-
-.masterclass-item {
-  padding: 10px;
-  background: var(--bg);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--panel-border);
-  border-left: 3px solid var(--accent);
-}
-
-.masterclass-item.masterclass-skip {
-  border-left-color: var(--muted);
-  opacity: 0.6;
-}
-
-.masterclass-item-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 6px;
-}
-
-.masterclass-chord-name {
-  font-weight: 700;
-  font-size: 0.9rem;
-}
-
-.masterclass-topnote {
-  font-size: 0.78rem;
-  color: var(--accent);
-  font-style: italic;
-}
-
-.masterclass-voicing {
-  margin-top: 4px;
-  font-size: 0.82rem;
-}
-
-.masterclass-label {
-  font-weight: 600;
-  color: var(--muted);
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-}
-
-.masterclass-notes {
-  font-family: 'Courier New', monospace;
-  font-size: 0.78rem;
-  color: var(--text);
-}
-
-.masterclass-passing {
-  margin-top: 4px;
-  font-size: 0.82rem;
-  color: #7c3aed;
-  font-style: italic;
-}
-
-.masterclass-skip-note {
-  font-size: 0.78rem;
-  color: var(--muted);
-  font-style: italic;
-}
-
-.masterclass-comment {
-  margin-top: 6px;
-  padding-top: 6px;
-  border-top: 1px solid var(--panel-border);
-  font-size: 0.82rem;
-  line-height: 1.4;
-  color: var(--text);
-}
 
 :root {
   --mini-key-active: #a583e2;
@@ -4229,50 +4102,6 @@ body.studio-recording-cursor * {
   color: var(--text);
 }
 
-/* ── Réharmonisation de session ── */
-.analysis-reharm-panel {
-  background: var(--panel-bg);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 0.75rem 1rem;
-  margin-bottom: 1.25rem;
-}
-
-.session-reharm-styles {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-}
-
-.session-reharm-btn {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.45rem 0.85rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text);
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-
-.session-reharm-btn:hover {
-  background: var(--primary);
-  color: white;
-  border-color: var(--primary);
-}
-
-.session-reharm-result {
-  margin-top: 0.75rem;
-}
-
-.reharm-summary {
-  font-size: 0.85rem;
-  color: var(--text);
-  margin-bottom: 0.5rem;
-  line-height: 1.5;
-}
 
 .exercise-mode-selector {
   display: flex;

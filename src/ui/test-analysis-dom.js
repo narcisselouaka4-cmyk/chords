@@ -172,7 +172,10 @@ function testChordProgressHighlight() {
 function testOverviewWithoutDeveloperStatistics() {
   const html = readText('src/index.html');
   const js = readText('src/ui/analyzer-tab.js');
-  const results = html.slice(html.indexOf('id="analyzer-results"'), html.indexOf('id="reharm-panel"'));
+  // [OpenCode] — 2026-10-28 — les sous-onglets Réharmonisation, Masterclass et
+  // Vue d'ensemble sont retirés ; la zone observée va du début des résultats
+  // jusqu'au théâtre des panneaux restants (Grille d'accords + Corriger).
+  const results = html.slice(html.indexOf('id="analyzer-results"'), html.indexOf('id="analyzer-section-panels"'));
   const required = ['analyzer-context-key', 'analyzer-context-tempo', 'Accords principaux', 'Accord à travailler', 'analyzer-hero-keyboard'];
   const removed = ['LIGNE DE BASSE', 'IDENTITÉ ET RÔLE', 'analyzer-overview-export', 'analyzer-media-context', 'analyzer-back-btn', 'data-section="chords"'];
   if (!required.every((x) => results.includes(x)) || removed.some((x) => results.includes(x))

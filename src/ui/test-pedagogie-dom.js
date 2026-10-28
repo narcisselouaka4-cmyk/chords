@@ -184,9 +184,9 @@ check('Plus de résumé automatique : aucun appel à explainNarration depuis l\'
   !tabCode.includes('explainNarration') && !tabCode.includes('maybeAutoSummarize'));
 check('explainNarration suit le patron des autres appels IA (401/403 et 429 nommés)',
   readText('src/ai/ai-client.js').includes('fetchNarrationExplanation'));
-check('Masterclass et Réharmonisation ne sont pas touchées',
-  readText('src/ai/ai-client.js').includes('export async function generateMasterclass')
-  && readText('src/ai/ai-client.js').includes('export async function generateReharmonization'));
+check('Masterclass et Réharmonisation retirées : plus de generateMasterclass/generateReharmonization',
+  !readText('src/ai/ai-client.js').includes('export async function generateMasterclass')
+  && !readText('src/ai/ai-client.js').includes('export async function generateReharmonization'));
 
 // ---------------------------------------------------------------------------
 // 6 ter. Refonte Phase 1 — bibliothèque propre, vidéo principale, résumé Copilot

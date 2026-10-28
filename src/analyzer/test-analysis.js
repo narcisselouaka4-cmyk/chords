@@ -1,7 +1,6 @@
 import { buildChordTimeline } from './chord-timeline.js';
 import { segment } from './segmenter.js';
 import { scoreSession } from './scorer.js';
-import { suggestProgression, renderProgressionToEvents } from './reharmonizer.js';
 import { formatPc } from '../chord-engine/naming.js';
 
 function makeEventsFromProgression(progression, startTime = 0, chordDuration = 2) {
@@ -81,12 +80,5 @@ for (const s of sections) {
 const scores = scoreSession(chords, 0);
 console.log('\nScores:');
 for (const [k, v] of Object.entries(scores)) console.log(k, v.value, '-', v.comment);
-
-const jazz = suggestProgression(chords, 'jazz');
-console.log('\nJazz suggestion:');
-for (const c of jazz.slice(0, 6)) console.log(formatChord(c.replacement));
-
-const suggestionEvents = renderProgressionToEvents(jazz.slice(0, 4));
-console.log('\nSuggestion events:', suggestionEvents.length);
 
 console.log('\n=== Analysis test passed ===');

@@ -72,7 +72,7 @@ import {
   getMonthlyCap,
   setMonthlyCap,
   getMonthlyUsage,
-} from './ui/masterclass-panel.js';
+} from './ai/usage-cap.js';
 import {
   createPracticeExercise,
   renderExerciseTarget,

@@ -1459,10 +1459,7 @@
             <!-- Navigation latérale permanente, commune à la grille et aux panneaux. -->
             <div class="an-subtabs-bar">
               <nav class="an-subtabs-nav" id="analyzer-section-tabs" role="tablist" aria-label="Sous-onglets Analyse" aria-orientation="vertical">
-                <button type="button" class="an-subtab-btn an-grid-tab" id="analyzer-grid-tab" data-section="grid" role="tab" aria-selected="false" aria-controls="analyzer-progression-ribbon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Grille d’accords</span></button>
-                <button type="button" class="an-subtab-btn active" data-section="analysis" role="tab" aria-selected="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg><span>Vue d’ensemble</span></button>
-                <button type="button" class="an-subtab-btn" data-section="reharm" role="tab" aria-selected="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12.83 2.18 8.58 3.91a1 1 0 0 1 0 1.82l-8.58 3.91a2 2 0 0 1-1.66 0L2.59 7.91a1 1 0 0 1 0-1.82l8.58-3.91a2 2 0 0 1 1.66 0Z"/><path d="m22 12.5-9.17 4.18a2 2 0 0 1-1.66 0L2 12.5"/><path d="m22 17.5-9.17 4.18a2 2 0 0 1-1.66 0L2 17.5"/></svg><span>Réharmonisation</span></button>
-                <button type="button" class="an-subtab-btn" data-section="masterclass" role="tab" aria-selected="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.42 10.92a1 1 0 0 0-.02-1.84L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.83l8.57 3.91a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg><span>Masterclass</span></button>
+                <button type="button" class="an-subtab-btn an-grid-tab active" id="analyzer-grid-tab" data-section="grid" role="tab" aria-selected="true" aria-controls="analyzer-progression-ribbon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Grille d’accords</span></button>
                 <button type="button" class="an-subtab-btn" data-section="corriger" role="tab" aria-selected="false"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg><span>Corriger</span></button>
               </nav>
 
@@ -1474,156 +1471,25 @@
               </div>
             </div>
 
+            <div id="analyzer-study-empty" class="an-study-empty">Sélectionnez un accord dans la frise pour le travailler.</div>
+            <div class="an-study-chord" id="analyzer-hero" style="display:none">
+                <div class="an-card-header">
+                  <span class="an-eyebrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="18" r="3"/><circle cx="18" cy="16" r="3"/><path d="M11 18V4l10-2v14"/></svg>Accord à travailler</span>
+                </div>
+                <div class="an-chord-hero-block">
+                  <div class="an-hero-symbol-row">
+                    <h2 class="an-hero-symbol" id="analyzer-hero-name"></h2>
+                  </div>
+                  <div class="an-hero-notes-strip" id="analyzer-hero-notes"></div>
+                </div>
+                <div class="an-piano-stage" id="analyzer-hero-keyboard"></div>
+                <div class="an-card-actions">
+                  <button type="button" class="an-btn an-btn-primary" id="analyzer-hero-listen-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Écouter l'accord</button>
+                  <button type="button" class="an-btn an-btn-ghost" id="analyzer-hero-arpeggio-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="18" r="3"/><circle cx="18" cy="16" r="3"/><path d="M11 18V4l10-2v14"/></svg>Arpège</button>
+                </div>
+              </div>
+
             <div class="an-stage-viewport" id="analyzer-section-panels">
-              <div class="analyzer-panel an-unified-overview" data-section="analysis" role="tabpanel">
-                <div id="analyzer-study-empty" class="an-study-empty">Sélectionnez un accord dans la frise pour le travailler.</div>
-                <div class="an-study-chord" id="analyzer-hero" style="display:none">
-                    <div class="an-card-header">
-                      <span class="an-eyebrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="18" r="3"/><circle cx="18" cy="16" r="3"/><path d="M11 18V4l10-2v14"/></svg>Accord à travailler</span>
-                    </div>
-                    <div class="an-chord-hero-block">
-                      <div class="an-hero-symbol-row">
-                        <h2 class="an-hero-symbol" id="analyzer-hero-name"></h2>
-                      </div>
-                      <div class="an-hero-notes-strip" id="analyzer-hero-notes"></div>
-                    </div>
-                    <div class="an-piano-stage" id="analyzer-hero-keyboard"></div>
-                    <div class="an-card-actions">
-                      <button type="button" class="an-btn an-btn-primary" id="analyzer-hero-listen-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Écouter l'accord</button>
-                      <button type="button" class="an-btn an-btn-ghost" id="analyzer-hero-arpeggio-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="18" r="3"/><circle cx="18" cy="16" r="3"/><path d="M11 18V4l10-2v14"/></svg>Arpège</button>
-                    </div>
-                  </div>
-              </div>
-              <div class="analyzer-panel" data-section="reharm" role="tabpanel" style="display:none">
-                <!-- [Refonte Astra Analyse 12/09] — « Réharmonisation », mise en
-                     page de la maquette (an-reharm-*). Tous les identifiants lus
-                     par analyzer-tab.js sont conservés.
-                     §2 APPLIQUÉ : le curseur « AUDACE HARMONIQUE » de la maquette
-                     n'est pas porté — le moteur de Zic n'a pas de paramètre
-                     d'intensité, un curseur sans effet mentirait. Les cartes
-                     « Pourquoi ça marche ? » / « Conseil débutant » de la maquette
-                     sont remplacées par les propositions RÉELLES que
-                     reharmonization-view.js injecte dans #reharm-results, qui
-                     portent déjà description, techniques et critères vérifiés. -->
-                <div class="an-reharm-container reharm-panel" id="reharm-panel">
-
-                  <div class="an-overview-hero-bar reharm-context-bar">
-                    <div class="an-metric-tile">
-                      <span class="an-metric-label">Tonalité</span>
-                      <div class="an-metric-val-row"><strong class="an-metric-primary" id="reharm-context-key">—</strong></div>
-                    </div>
-                    <div class="an-metric-tile">
-                      <span class="an-metric-label">Source mélodie</span>
-                      <div class="an-metric-val-row"><strong class="an-metric-primary" id="reharm-context-source">—</strong></div>
-                    </div>
-                    <div class="an-metric-tile">
-                      <span class="an-metric-label">Plage</span>
-                      <div class="an-metric-val-row"><strong class="an-metric-primary" id="reharm-context-range">—</strong></div>
-                    </div>
-                  </div>
-
-                  <div class="an-reharm-control-bar">
-                    <div class="an-style-switcher" id="reharm-style-selector" role="group" aria-label="Style de réharmonisation">
-                      <button type="button" class="an-style-btn" data-style="worship"><span class="an-style-btn-title">Worship</span></button>
-                      <button type="button" class="an-style-btn" data-style="gospel"><span class="an-style-btn-title">Gospel</span></button>
-                      <button type="button" class="an-style-btn" data-style="jazz"><span class="an-style-btn-title">Jazz</span></button>
-                      <button type="button" class="an-style-btn" data-style="neoSoul"><span class="an-style-btn-title">Neo Soul</span></button>
-                    </div>
-                  </div>
-
-                  <div class="an-card an-ab-station">
-                    <div class="an-ab-header">
-                      <div>
-                        <span class="an-eyebrow"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>COMPARATEUR A / B</span>
-                        <h3 class="an-card-title">Écouter avant / après, puis choisir</h3>
-                      </div>
-                      <div class="an-ab-buttons">
-                        <button type="button" class="an-btn an-btn-ghost" id="reharm-compare-btn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 4 13 8-13 8z" fill="currentColor"/></svg>Comparer les propositions</button>
-                        <button type="button" class="an-btn an-btn-primary" id="reharm-run-btn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.29 1.29L3 12l5.81 1.9a2 2 0 0 1 1.29 1.29L12 21l1.9-5.81a2 2 0 0 1 1.29-1.29L21 12l-5.81-1.9a2 2 0 0 1-1.29-1.29z"/></svg>Réharmoniser mon morceau</button>
-                      </div>
-                    </div>
-
-                    <div class="an-reharm-criteria">
-                      <span class="an-section-mini-tag">Critères vérifiés sur chaque proposition</span>
-                      <div class="an-criteria-list reharm-criteria-list" id="reharm-criteria-list" aria-label="Critères de validité">
-                        <span class="reharm-criterion" data-criterion="melody-audible">Mélodie audible</span>
-                        <span class="reharm-criterion" data-criterion="passage-resolution">Les tensions retombent juste</span>
-                        <span class="reharm-criterion" data-criterion="no-parallel-motion">Pas de quintes parallèles</span>
-                        <span class="reharm-criterion" data-criterion="traceability">Chaque accord justifié par une règle</span>
-                      </div>
-                    </div>
-
-                    <div class="an-reharm-melody reharm-melody" id="reharm-melody" aria-label="Mélodie capturée">
-                      <span class="an-section-mini-tag">Mélodie capturée</span>
-                      <div class="reharm-melody-empty" id="reharm-melody-empty">Aucune mélodie capturée.</div>
-                      <div class="reharm-melody-strip" id="reharm-melody-strip"></div>
-                    </div>
-
-                    <div class="an-reharm-playstyle">
-                      <span class="an-section-mini-tag">Lecture</span>
-                      <div class="an-style-switcher reharm-play-style-selector" id="reharm-play-style-selector" role="group" aria-label="Style de lecture (bouton Écouter)">
-                        <button type="button" class="an-style-btn" data-play-style="block" aria-pressed="true"><span class="an-style-btn-title">Plaqué</span></button>
-                        <button type="button" class="an-style-btn" data-play-style="arpeggio" aria-pressed="false"><span class="an-style-btn-title">Arpégé</span></button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="an-reharm-cards-grid reharm-results" id="reharm-results" role="region" aria-label="Propositions de réharmonisation"></div>
-
-                  <div class="an-reharm-footer reharm-post-apply" id="reharm-post-apply" style="display:none">
-                    <div class="an-reharm-applied">
-                      <div class="an-style-switcher reharm-version-toggle" id="reharm-version-toggle" role="group" aria-label="Version affichée">
-                        <button type="button" class="an-style-btn" data-version="original"><span class="an-style-btn-title">Original</span></button>
-                        <button type="button" class="an-style-btn" data-version="reharm"><span class="an-style-btn-title">Réharmonisé</span></button>
-                      </div>
-                      <div class="an-footer-info" id="reharm-applied-context">—</div>
-                      <div class="an-confirm-band" id="reharm-confirm-band">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span>Version appliquée</span>
-                        <span class="an-confirm-score" id="reharm-applied-score">—</span>
-                      </div>
-                    </div>
-                    <div class="an-reharm-applied-actions">
-                      <button type="button" class="an-btn an-btn-ghost an-btn-mini" id="reharm-revert-btn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>Revenir à l'original</button>
-                      <button type="button" class="an-btn an-btn-ghost an-btn-mini" id="reharm-relisten-btn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 4 13 8-13 8z" fill="currentColor"/></svg>Réécouter au piano</button>
-                      <button type="button" class="an-btn an-btn-primary an-btn-mini" id="reharm-send-training-btn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12.83 2.18 8.58 3.91a1 1 0 0 1 0 1.82l-8.58 3.91a2 2 0 0 1-1.66 0L2.59 7.91a1 1 0 0 1 0-1.82l8.58-3.91a2 2 0 0 1 1.66 0Z"/><path d="m22 12.5-9.17 4.18a2 2 0 0 1-1.66 0L2 12.5"/></svg>Envoyer vers Entraînement</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="analyzer-panel" data-section="masterclass" role="tabpanel" style="display:none">
-                <!-- [Refonte Astra Analyse 12/09] — « Masterclass » : on prend la
-                     bulle de conversation de la maquette (an-ai-*) comme cadre.
-                     Le CONTENU reste celui de masterclass-panel.js — fiches
-                     réelles construites depuis l'accord sélectionné et l'analyse,
-                     plus la zone de question à l'IA branchée de Zic.
-                     §2 APPLIQUÉ : les « leçons » d'Astra (question, réponse du
-                     mentor, mains gauche/droite, « secret du maître ») sont
-                     écrites à la main dans la maquette ; aucune n'est portée. -->
-                <div class="an-masterclass-container masterclass-panel" id="masterclass-panel">
-                  <div class="an-ai-bubble-stage">
-                    <div class="an-ai-speech-bubble" role="region" aria-label="Fiche Masterclass">
-                      <div class="an-ai-bubble-header">
-                        <div class="an-ai-avatar-wrap">
-                          <div class="an-ai-avatar-core"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.29 1.29L3 12l5.81 1.9a2 2 0 0 1 1.29 1.29L12 21l1.9-5.81a2 2 0 0 1 1.29-1.29L21 12l-5.81-1.9a2 2 0 0 1-1.29-1.29z"/></svg></div>
-                          <span class="an-ai-status-pulse"></span>
-                        </div>
-                        <div class="an-ai-meta">
-                          <div class="an-ai-title-row">
-                            <strong class="an-ai-name">Masterclass</strong>
-                          </div>
-                          <span class="an-ai-role">Fiche construite à partir de l'accord sélectionné</span>
-                        </div>
-                      </div>
-                      <div class="an-ai-speech-content">
-                        <div class="masterclass-empty" id="masterclass-empty">
-                          <p>Les fiches Masterclass s'affichent ici après avoir sélectionné un accord ou un passage dans la frise.</p>
-                        </div>
-                        <div class="masterclass-content" id="masterclass-content" style="display:none"></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
               <!-- [Refonte Astra Analyse 12/09] — « Corriger », établi à deux
                    colonnes de la maquette. Le flux de segments et l'inspecteur
                    sont remplis par corriger-panel.js ; tous ses identifiants sont
