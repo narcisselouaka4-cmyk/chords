@@ -922,17 +922,38 @@ function hideStaleBanner() {
   if (els.staleBanner) els.staleBanner.hidden = true;
 }
 
-/** Relance une analyse complète sur le morceau courant, en écrasant le cache. */
+/**
+ * Relance une analyse complète sur le morceau courant, en écrasant le cache.
+ *
+ * [Claude] — 2026-10-28 — Narcisse : avant de relancer, un message doit rappeler
+ * ce que l'utilisateur s'apprête à faire — pas seulement quand il y a des
+ * corrections manuelles à perdre. Et pour un fichier qui dépasse le seuil de
+ * l'étape de région (6 min, REGION_SKIP_BELOW_SECONDS), la relance doit
+ * repasser par cette étape plutôt que recalculer tout le fichier d'un coup —
+ * exactement ce que prepareRegionStep() fait déjà au premier import. Un
+ * fichier déjà court ne voit toujours rien de plus que l'avertissement.
+ */
 async function reanalyzeCurrentTrack() {
   if (!currentAudioPath) return;
   const hasEdits = (currentAnalysis?.chords || []).some((seg) => seg.manualOverride);
-  if (hasEdits && !await appConfirm({
+  const message = hasEdits
+    ? 'Tous les accords de ce morceau vont être recalculés depuis l’audio. Vos corrections '
+      + 'manuelles seront réappliquées quand le segment correspondant existe encore, et '
+      + 'conservées de côté sinon.'
+    : 'Tous les accords de ce morceau vont être recalculés depuis l’audio. Pour un fichier '
+      + 'long, cela peut prendre plusieurs minutes.';
+  if (!await appConfirm({
     title: 'Relancer l’analyse ?',
-    message: 'Tous les accords vont être recalculés. Vos corrections manuelles seront '
-      + 'réappliquées quand le segment correspondant existe encore, et conservées de côté sinon.',
+    message,
     confirmLabel: 'Relancer l’analyse',
   })) return;
-  await launchAnalysisFromPrepare();
+  // [Claude] — 2026-10-28 — Arrêter la lecture ICI, dès la confirmation : pour un
+  // fichier long, prepareRegionStep() peut maintenant passer par l'étape de
+  // région avant launchAnalysisFromPrepare() (qui fait ce même arrêt), et
+  // setAnalyzerState('region') ne coupe pas le lecteur des résultats.
+  hideStaleBanner();
+  currentPlayer?.pause();
+  await prepareRegionStep();
 }
 
 // [Refonte 2026-09-02] — Une seule analyse à la fois.
