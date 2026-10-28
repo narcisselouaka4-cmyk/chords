@@ -1380,18 +1380,22 @@
           <!-- Vue d’analyse : repères permanents, lecteur et sous-onglets. -->
           <div class="analyzer-state analyzer-analysis-view" id="analyzer-results">
             <!-- Les repères restent visibles dans chaque sous-onglet. -->
-            <section class="an-music-context" id="analyzer-music-context" aria-label="Repères du morceau" data-tone="0">
-              <div class="an-context-item"><span class="an-context-label">Tonalité</span><strong class="an-context-value" id="analyzer-context-key">—</strong></div>
-              <div class="an-context-item"><span class="an-context-label">Tempo</span><strong id="analyzer-context-tempo">—</strong></div>
-              <div class="an-context-item an-context-progression"><span class="an-context-label">Accords principaux</span><div class="an-context-value" id="analyzer-context-chords">—</div></div>
-              <span class="sr-only" id="analyzer-context-announcement" role="status" aria-live="polite"></span>
-            </section>
             <div class="an-project-bar">
               <div class="an-project-info">
                 <button type="button" id="analyzer-back-to-import-btn" class="an-btn-new-analysis" title="Nouvelle analyse"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>Nouvelle analyse</button>
                 <div class="an-project-titles">
                   <h1 id="analyzer-song-title">Titre du morceau</h1>
                 </div>
+                <!-- [Claude] — 2026-10-28 — Repères déplacés à côté du titre (demande de
+                     Narcisse) : ils libèrent le bandeau plein largeur qu'ils occupaient en
+                     haut. Mêmes identifiants, mêmes couleurs par tonalité (data-tone) ; seule
+                     la position change. -->
+                <section class="an-music-context" id="analyzer-music-context" aria-label="Repères du morceau" data-tone="0">
+                  <div class="an-context-item"><span class="an-context-label">Tonalité</span><strong class="an-context-value" id="analyzer-context-key">—</strong></div>
+                  <div class="an-context-item"><span class="an-context-label">Tempo</span><strong id="analyzer-context-tempo">—</strong></div>
+                  <div class="an-context-item an-context-progression"><span class="an-context-label">Accords principaux</span><div class="an-context-value" id="analyzer-context-chords">—</div></div>
+                  <span class="sr-only" id="analyzer-context-announcement" role="status" aria-live="polite"></span>
+                </section>
               </div>
 
               <div class="an-transport-controls">
@@ -1470,24 +1474,6 @@
                 </div>
               </div>
             </div>
-
-            <div id="analyzer-study-empty" class="an-study-empty">Sélectionnez un accord dans la frise pour le travailler.</div>
-            <div class="an-study-chord" id="analyzer-hero" style="display:none">
-                <div class="an-card-header">
-                  <span class="an-eyebrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="18" r="3"/><circle cx="18" cy="16" r="3"/><path d="M11 18V4l10-2v14"/></svg>Accord à travailler</span>
-                </div>
-                <div class="an-chord-hero-block">
-                  <div class="an-hero-symbol-row">
-                    <h2 class="an-hero-symbol" id="analyzer-hero-name"></h2>
-                  </div>
-                  <div class="an-hero-notes-strip" id="analyzer-hero-notes"></div>
-                </div>
-                <div class="an-piano-stage" id="analyzer-hero-keyboard"></div>
-                <div class="an-card-actions">
-                  <button type="button" class="an-btn an-btn-primary" id="analyzer-hero-listen-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Écouter l'accord</button>
-                  <button type="button" class="an-btn an-btn-ghost" id="analyzer-hero-arpeggio-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="18" r="3"/><circle cx="18" cy="16" r="3"/><path d="M11 18V4l10-2v14"/></svg>Arpège</button>
-                </div>
-              </div>
 
             <div class="an-stage-viewport" id="analyzer-section-panels">
               <!-- [Refonte Astra Analyse 12/09] — « Corriger », établi à deux

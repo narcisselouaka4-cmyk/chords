@@ -65,7 +65,6 @@ function notifyError(text) {
 
 // [Refonte Astra Analyse 12/09] — icônes du transport (Lucide recopiées en SVG
 // inline : aucune dépendance ajoutée).
-let heroMidiNotes = [];
 const AN_PLAY_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 4 13 8-13 8z" fill="currentColor"/></svg>';
 const AN_PAUSE_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg>';
 
@@ -165,14 +164,6 @@ const els = {
   contextTempo: document.getElementById('analyzer-context-tempo'),
   contextChords: document.getElementById('analyzer-context-chords'),
   contextAnnouncement: document.getElementById('analyzer-context-announcement'),
-  studyEmpty: document.getElementById('analyzer-study-empty'),
-
-  // Accord à travailler
-  hero: document.getElementById('analyzer-hero'),
-  heroName: document.getElementById('analyzer-hero-name'),
-  heroNotes: document.getElementById('analyzer-hero-notes'),
-  heroKeyboard: document.getElementById('analyzer-hero-keyboard'),
-
   processing: document.getElementById('analyzer-processing'),
   processingText: document.getElementById('analyzer-processing-text'),
   processingElapsed: document.getElementById('analyzer-processing-elapsed'),
@@ -276,7 +267,6 @@ export function initAnalyzerTab() {
   bindMusicalGrid();
   els.reanalyzeBtn?.addEventListener('click', () => { reanalyzeCurrentTrack(); });
   bindSectionTabs();
-  bindHeroAudition();
   bindExportMidiButton();
   bindExportJsonButton();
   bindCopyTextButton();
@@ -1124,8 +1114,6 @@ function hideProcessing() {
 }
 
 async function showResults(analysis) {
-  pinnedStudy = null;
-  studyTime = null;
   hideProcessing();
   setAnalyzerState('analysis');
   currentAnalysis = analysis;
@@ -1138,7 +1126,6 @@ async function showResults(analysis) {
   if (isEngineOutdated(analysis?.engine)) showStaleBanner(analysis?.engine);
   else hideStaleBanner();
   selectedSegmentId = null;
-  clearInspector();
   enrichSegments(analysis.chords);
   resetUndoRedo();
   chordEditor?.close();
@@ -1212,16 +1199,12 @@ export function resetAnalysisSession() {
   regionPlayer?.destroy();
   regionPlayer = null;
   selectedSegmentId = null;
-  clearInspector();
   resetProjectState();
   resetUndoRedo();
   chordEditor?.close();
   els.chordTimelineInner.innerHTML = '';
-  if (els.hero) els.hero.style.display = 'none';
   harmonicContexts = [];
   lastContextId = null;
-  pinnedStudy = null;
-  studyTime = null;
   if (els.contextKey) els.contextKey.textContent = '—';
   if (els.contextChords) els.contextChords.textContent = '—';
   if (els.contextTempo) els.contextTempo.textContent = '—';
@@ -1313,7 +1296,6 @@ function rerenderTimeline() {
   if (currentAnalysis) {
     if (!getDisplayChords().some((s) => s.segmentId === selectedSegmentId)) {
       selectedSegmentId = null;
-      clearInspector();
     }
     lastAutoScrollIndex = -1;
     renderTimeline(getDisplayChords(), currentAnalysis.duration || 0);
@@ -1689,8 +1671,6 @@ function selectSegment(segmentId) {
   selectedSegmentId = segmentId;
   highlightSelectedSegment(segmentId);
   const segment = getDisplayChords().find((s) => s.segmentId === segmentId) || null;
-  pinnedStudy = segmentId;
-  renderHeroChord(segment);
   renderCorriger(els, segment, currentAnalysis);
 }
 
@@ -1703,69 +1683,8 @@ function highlightSelectedSegment(segmentId) {
   });
 }
 
-function clearInspector() {
-  renderHeroChord(null);
-}
-
 let harmonicContexts = [];
 let lastContextId = null;
-let pinnedStudy = null;
-let studyTime = null;
-
-// Dernier accord dessiné dans la carte : on ne redessine (clavier compris) qu'au changement
-// d'accord, pas à chaque image de la lecture.
-let heroRenderedKey = null;
-
-function renderHeroChord(chord) {
-  if (!els.hero) return;
-  if (!chord) {
-    heroRenderedKey = null;
-    heroMidiNotes = [];
-    els.hero.style.display = 'none';
-    if (els.studyEmpty) els.studyEmpty.hidden = false;
-    return;
-  }
-  const heroKey = `${chord.segmentId}|${getEffectiveChord(chord)}`;
-  if (heroKey === heroRenderedKey && els.hero.style.display !== 'none') return;
-  heroRenderedKey = heroKey;
-
-  const effectiveChordStr = getEffectiveChord(chord);
-  const display = deriveChordDisplay(effectiveChordStr);
-  const originalDetected = chord.chord;
-
-  els.hero.style.display = 'flex';
-  if (els.studyEmpty) els.studyEmpty.hidden = true;
-
-  if (chord.manualOverride) {
-    els.heroName.textContent = display.symbol;
-    els.heroName.title = `Détecté : ${originalDetected}`;
-  } else {
-    els.heroName.textContent = display.symbol || originalDetected || '';
-    els.heroName.title = '';
-  }
-
-  // Notes
-  let notesText = display.chordToneNames.join(' · ');
-  if (display.bassName) {
-    notesText = `Accord : ${notesText}    Basse : ${display.bassName}`;
-  }
-  els.heroNotes.textContent = notesText;
-
-  // Mini clavier : toutes les notes y compris la basse
-  const allPcs = display.allPcs;
-  if (allPcs.length) {
-    const midiNotes = allPcs.map((pc) => 60 + ((pc - (60 % 12) + 12) % 12));
-    // [Refonte Astra Analyse 12/09] — mémorisées pour les boutons d'écoute
-    // « Écouter l'accord » / « Arpège » de la carte, portés depuis la maquette.
-    // Notes constitutives calculées depuis le symbole ; mise en voix de référence.
-    heroMidiNotes = midiNotes;
-    const { svg } = miniKeyboardForNotes(midiNotes);
-    els.heroKeyboard.innerHTML = svg;
-  } else {
-    heroMidiNotes = [];
-    els.heroKeyboard.innerHTML = '';
-  }
-}
 
 function updatePlaybackPosition(currentTime) {
   if (!currentAnalysis) return;
@@ -1774,8 +1693,6 @@ function updatePlaybackPosition(currentTime) {
   const ratio = duration > 0 ? clamped / duration : 0;
 
   updateMusicContext(clamped);
-  if (studyTime !== clamped || isPlaybackActive()) pinnedStudy = null;
-  studyTime = clamped;
   els.progressFill.style.width = `${ratio * 100}%`;
   els.progressThumb.style.left = `${ratio * 100}%`;
   els.currentTimeEl.textContent = formatTime(clamped);
@@ -1805,9 +1722,6 @@ function updatePlaybackPosition(currentTime) {
     else block.style.removeProperty('--chord-progress');
   });
 
-  // Hero chord
-  const study = pinnedStudy ? chords.find((c) => c.segmentId === pinnedStudy) : null;
-  renderHeroChord(study || activeChord || (clamped === 0 ? chords[0] : null));
 
   if (chordGridExpanded) musicalGridView?.update(clamped);
 
@@ -2150,28 +2064,6 @@ function activateSectionTab(section) {
       renderCorriger(els, getDisplayChords().find((s) => s.segmentId === selectedSegmentId) || null, currentAnalysis);
     }
   });
-}
-
-// [Refonte Astra Analyse 12/09] — Écoute de l'accord sélectionné, portée depuis
-// la maquette. Elle rejoue une mise en voix de référence de l'accord,
-// calculée depuis son symbole et non une transcription du voicing enregistré.
-async function auditionHeroChord(arpeggio) {
-  if (!heroMidiNotes.length) return;
-  await resumeAudio();
-  const DURATION_MS = 1100;
-  const STEP_MS = arpeggio ? 110 : 0;
-  const notes = heroMidiNotes.slice().sort((a, b) => a - b);
-  notes.forEach((midi, i) => {
-    setTimeout(() => playNote(midi, 0.75), i * STEP_MS);
-    setTimeout(() => releaseNote(midi), DURATION_MS + i * STEP_MS);
-  });
-}
-
-function bindHeroAudition() {
-  document.getElementById('analyzer-hero-listen-btn')
-    ?.addEventListener('click', () => { void auditionHeroChord(false); });
-  document.getElementById('analyzer-hero-arpeggio-btn')
-    ?.addEventListener('click', () => { void auditionHeroChord(true); });
 }
 
 function bindExportMidiButton() {

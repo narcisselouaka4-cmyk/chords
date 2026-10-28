@@ -140,15 +140,6 @@ export const CHAPTERS = [
           + "crayon, et Ctrl+Z annule.",
       },
       {
-        id: 'chordify-hero',
-        target: '#analyzer-hero',
-        title: "L'accord en cours",
-        body:
-          "Pendant la lecture, cette carte affiche l'accord du moment, ses notes et "
-          + "leur position sur le clavier. C'est la vue à garder sous les yeux quand "
-          + "vous rejouez le morceau.",
-      },
-      {
         id: 'chordify-sections',
         target: '#analyzer-section-tabs',
         title: 'Aller plus loin',
