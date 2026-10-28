@@ -4,7 +4,10 @@
 #analysis-tab #analyzer-section-panels { display: flex; flex-direction: column; padding: 14px 0 0; }
 /* [Claude] — 2026-10-28 — Repères à côté du titre plutôt qu'en bandeau plein largeur
    (demande de Narcisse) : la carte devient une ligne compacte, sans fond ni bordure
-   propres. Couleurs et contenu inchangés, seule la mise en page l'est. */
+   propres. Couleurs et contenu inchangés, seule la mise en page l'est.
+   28/10 (suite) — Narcisse : « la tonalité vient un peu coller le titre, il faudrait
+   l'éloigner ». Un filet et une marge les séparent nettement du titre, maintenant que
+   le transport (déplacé à côté du minuteur) ne vient plus déjà les décaler. */
 #analysis-tab .an-music-context {
   --context-color: var(--an-accent-bright);
   display: flex;
@@ -13,6 +16,9 @@
   flex: 1 1 auto;
   min-width: 0;
   gap: 2px 0;
+  margin-left: 28px;
+  padding-left: 20px;
+  border-left: 1px solid var(--an-border);
 }
 #analysis-tab .an-music-context[data-tone='1'] { --context-color: #c4b5fd; }
 #analysis-tab .an-music-context[data-tone='2'] { --context-color: #e2bf85; }
@@ -53,7 +59,7 @@
 #analysis-tab .analyzer-timeline-block.upcoming:not(.current) { border-style: solid; }
 @media (max-width: 900px) {
   #analysis-tab .an-project-bar { flex-wrap: wrap; gap: 12px; }
-  #analysis-tab .an-transport-controls { flex-wrap: wrap; }
+  #analysis-tab .an-scrub-bar { flex-wrap: wrap; row-gap: 8px; }
 }
 @media (max-width: 540px) {
   #analysis-tab .an-context-progression { padding-left: 0 !important; border-left: 0 !important; flex-basis: 100%; }

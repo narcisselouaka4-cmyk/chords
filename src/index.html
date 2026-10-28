@@ -1398,15 +1398,7 @@
                 </section>
               </div>
 
-              <div class="an-transport-controls">
-                <div class="an-transport-btns">
-                  <button type="button" id="analyzer-prev-btn" class="an-tr-btn" title="Revenir au début" aria-label="Revenir au début"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 20 9 12l10-8z"/><path d="M5 19V5"/></svg></button>
-                  <button type="button" id="analyzer-skip-back-btn" class="an-tr-btn" title="Reculer de 10 secondes (flèche gauche)" aria-label="Reculer de 10 secondes"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m11 19-9-7 9-7z"/><path d="m22 19-9-7 9-7z"/></svg><small>10s</small></button>
-                  <button type="button" id="analyzer-play-btn" class="an-tr-play-btn" title="Lecture / Pause" aria-label="Lecture / Pause"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 4 13 8-13 8z" fill="currentColor"/></svg></button>
-                  <button type="button" id="analyzer-skip-fwd-btn" class="an-tr-btn" title="Avancer de 10 secondes (flèche droite)" aria-label="Avancer de 10 secondes"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m13 19 9-7-9-7z"/><path d="m2 19 9-7-9-7z"/></svg><small>10s</small></button>
-                </div>
-                <button type="button" id="analyzer-reanalyze-btn" class="an-tr-btn an-analysis-rerun" title="Recalculer les accords depuis l'audio"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg><span>Relancer l’analyse</span></button>
-              </div>
+              <button type="button" id="analyzer-reanalyze-btn" class="an-tr-btn an-analysis-rerun" title="Recalculer les accords depuis l'audio"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg><span>Relancer l’analyse</span></button>
             </div>
 
             <!-- [Claude] — 2026-10-27 — Avertissement PERSISTANT : une analyse
@@ -1422,6 +1414,15 @@
             </div>
 
             <div class="an-scrub-bar">
+              <!-- [Claude] — 2026-10-28 — Transport déplacé ici (demande de Narcisse) : à
+                   côté du minuteur, comme un lecteur classique, plutôt qu'au-dessus du titre
+                   où il forçait les repères (tonalité/tempo/accords) à s'y coller. -->
+              <div class="an-transport-btns">
+                <button type="button" id="analyzer-prev-btn" class="an-tr-btn" title="Revenir au début" aria-label="Revenir au début"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 20 9 12l10-8z"/><path d="M5 19V5"/></svg></button>
+                <button type="button" id="analyzer-skip-back-btn" class="an-tr-btn" title="Reculer de 10 secondes (flèche gauche)" aria-label="Reculer de 10 secondes"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m11 19-9-7 9-7z"/><path d="m22 19-9-7 9-7z"/></svg><small>10s</small></button>
+                <button type="button" id="analyzer-play-btn" class="an-tr-play-btn" title="Lecture / Pause" aria-label="Lecture / Pause"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 4 13 8-13 8z" fill="currentColor"/></svg></button>
+                <button type="button" id="analyzer-skip-fwd-btn" class="an-tr-btn" title="Avancer de 10 secondes (flèche droite)" aria-label="Avancer de 10 secondes"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m13 19 9-7-9-7z"/><path d="m2 19 9-7-9-7z"/></svg><small>10s</small></button>
+              </div>
               <span class="an-time-counter" id="analyzer-current-time">00:00</span>
               <div class="an-progress-rail" id="analyzer-progress-track">
                 <div class="an-progress-fill" id="analyzer-progress-fill" style="width:0%"></div>
