@@ -185,9 +185,11 @@ function testResultsWithoutRemovedPanels() {
 function testMusicalGridContract() {
   const html = readText('src/index.html'), js = readText('src/ui/analyzer-tab.js');
   const css = readText('src/ui/components/analysis-chord-grid.css');
-  for (const id of ['analyzer-musical-grid', 'analyzer-grid-signature', 'analyzer-grid-phase', 'analyzer-grid-offset', 'analyzer-grid-half', 'analyzer-grid-double', 'analyzer-grid-bpm', 'analyzer-grid-align', 'analyzer-grid-anchor', 'analyzer-grid-design']) {
+  for (const id of ['analyzer-musical-grid', 'analyzer-grid-signature', 'analyzer-grid-phase', 'analyzer-grid-offset', 'analyzer-grid-half', 'analyzer-grid-double', 'analyzer-grid-bpm', 'analyzer-grid-align', 'analyzer-grid-anchor']) {
     if (!html.includes(`id="${id}"`) || !js.includes(`getElementById('${id}')`)) throw new Error(`Grille musicale : ${id} manquant`);
   }
+  if (!html.includes('class="musical-grid" data-grid-design="classic"')) throw new Error('Le rendu Cases doit être fixé au démarrage');
+  if (html.includes('id="analyzer-grid-design"') || js.includes('initGridDesignToggle')) throw new Error('Comparaison Cases/Capsules encore branchée');
   const corriger = html.slice(html.indexOf('class="analyzer-panel corriger-panel"'));
   if (!corriger.includes('id="analyzer-grid-signature"')) throw new Error('Mesure non réglable dans Corriger');
   if (!css.includes('.mg-bar-line') || !css.includes(".mg-cell[aria-current='true'] .mg-fill") || !css.includes('overflow-y: auto')) throw new Error('Mesures, remplissage ou défilement manquants');

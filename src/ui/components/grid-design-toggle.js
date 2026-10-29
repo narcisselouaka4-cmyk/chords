@@ -1,3 +1,5 @@
+// Variante de comparaison mise de côté le 29/10/2026 : non importée par Analyse.
+// Le rendu Cases est fixé dans index.html ; conserver ce module pour un éventuel retour.
 const STORAGE_KEY = 'pjc.analysis.grid-design';
 
 /** Préférence visuelle commune aux morceaux, indépendante du calage et du lecteur. */

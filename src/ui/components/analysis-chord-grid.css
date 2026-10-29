@@ -56,9 +56,6 @@
 #analysis-tab .mg-tempo-controls { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--an-text); }
 #analysis-tab .mg-tempo-controls button, #analysis-tab .mg-settings button { background: var(--an-surface-elevated, var(--an-surface)); border: 1px solid var(--an-border-strong); border-radius: 4px; color: var(--an-text); padding: 4px 8px; cursor: pointer; }
 #analysis-tab .mg-tempo-controls button:hover, #analysis-tab .mg-settings button:hover { border-color: var(--an-accent); }
-#analysis-tab .mg-design-toggle { border: 1px solid var(--an-border-strong); border-radius: 4px; background: var(--an-surface); color: var(--an-text); padding: 5px 9px; font: inherit; font-size: 11px; cursor: pointer; }
-#analysis-tab .mg-design-toggle:hover { border-color: var(--an-accent); }
-#analysis-tab .mg-design-toggle:focus-visible { outline: 2px solid var(--an-accent); outline-offset: 2px; }
 #analysis-tab .mg-section { margin: 12px 0 28px; }
 #analysis-tab .mg-section:last-child { margin-bottom: 0; }
 #analysis-tab .mg-row { display: flex; gap: 10px; align-items: stretch; min-height: 72px; margin-bottom: 4px; }
