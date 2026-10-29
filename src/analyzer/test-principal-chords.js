@@ -44,6 +44,18 @@ check('Sabaoth : un accord tenu plus longtemps ne chasse pas un pilier qui revie
   assert.equal(result.length, 4);
   assert.deepEqual([...result].sort(), ['Ab', 'Bbm', 'Eb', 'Fm']);
 });
+check('Le tour commence sur la tonique, pas sur l’accord d’intro', () => {
+  // « Ma référence » (Nana Lukezo) : la boucle est G C D C, mais le morceau s'ouvre sur
+  // un D d'intro. L'ancre tombait dessus et le bandeau affichait « D G C » — Narcisse :
+  // « le pianiste va croire qu'on commence d'abord par ré majeur ». Il a tranché :
+  // on ancre sur le début de la boucle.
+  const chords = grid(['D', 'Am7', ...repeat(['G', 'C', 'D', 'C'], 8)]);
+  assert.deepEqual(principalChords(chords, { key: 'G' }), ['G', 'C', 'D']);
+  // Sans tonalité exploitable, la règle d'avant s'applique : le premier pilier rencontré.
+  assert.equal(principalChords(chords)[0], 'D');
+  // Une tonique absente du motif ne force rien.
+  assert.deepEqual(principalChords(chords, { key: 'F#' }), principalChords(chords));
+});
 check('Un cycle long reste analysable mais le bandeau ne garde que quatre piliers', () => {
   const pattern = ['C', 'Am', 'Dm', 'G', 'Em', 'A7', 'Dm', 'G7'];
   const result = principalChords(grid(repeat(pattern, 4)));

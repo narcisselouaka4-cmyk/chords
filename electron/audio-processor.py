@@ -855,6 +855,52 @@ def _fill_beat_grid_gaps(beat_frames):
     return out
 
 
+# [Claude] — 2026-10-29 — Le tempo vient du TEMPOGRAMME, plus de la correction d'octave.
+#
+#   Narcisse, sur « Ma référence » (Nana Lukezo, salsa) : « le détecteur est à la
+#   ramasse… ça ne tombe pas juste dans le beat ». L'app affichait 107,7 BPM ; le vrai
+#   tempo est 160 (vérifié par lui sur vocalremover). Le rapport est 3/2 — or
+#   _resolve_tempo ne teste que des rapports d'OCTAVE (0,25 / 0,5 / 1 / 2 / 4) : un 3/2
+#   n'est jamais examiné, et aucun réglage de ses candidats ne pouvait le rattraper.
+#
+#   Pire, mesuré : la périodicité (énergie d'onset moyenne sur la grille) vaut 0,948 à
+#   1,005 pour TOUS les candidats sur ce morceau — elle ne discrimine rien, et c'est le
+#   prior centré sur 110 BPM qui tranchait seul. Ajouter les rapports 3/2 et 2/3 a été
+#   testé : la salsa restait à 107,7 et trois autres morceaux cassaient.
+#
+#   Le pic du tempogramme, lui, désigne le bon tempo sans aucun prior. Mesuré sur huit
+#   morceaux de Narcisse, avec trois tempos de référence relevés par lui :
+#       salsa          107,7 → 161,5  (vrai 160)      erreur 32,7 % → 0,9 %
+#       Les cieux      129,2 → 136,0  (vrai 68 ×2)    erreur  5,0 % → 0,0 %
+#       Saint Esprit   152,0 → 161,5  (vrai 77 ×2)    erreur  1,3 % → 4,9 %
+#   soit 13,0 % d'erreur moyenne avant, 1,9 % après. Les cinq autres morceaux donnent
+#   exactement la même valeur qu'avant.
+#
+#   La plage compte : en 60–250 BPM, « Les cieux » tombait sur 68 (la moitié). 75–200
+#   garde la pulsation que l'affichage attend, sans interdire les tempos de salsa.
+TEMPO_SEARCH_MIN = 75.0
+TEMPO_SEARCH_MAX = 200.0
+
+
+def _tempogram_tempo(y, sr, hop_length=512):
+    """Tempo du pic du tempogramme, sans prior. None si rien d'exploitable."""
+    try:
+        onset = librosa.onset.onset_strength(y=y, sr=sr, hop_length=hop_length,
+                                             aggregate=np.median)
+        if onset.size == 0:
+            return None
+        tgram = librosa.feature.tempogram(onset_envelope=onset, sr=sr, hop_length=hop_length)
+        freqs = librosa.tempo_frequencies(tgram.shape[0], sr=sr, hop_length=hop_length)
+        profile = np.mean(tgram, axis=1)
+        window = (freqs > TEMPO_SEARCH_MIN) & (freqs < TEMPO_SEARCH_MAX)
+        if not np.any(window):
+            return None
+        return round(float(freqs[window][np.argmax(profile[window])]), 1)
+    except Exception as e:
+        log(f'tempogram tempo failed: {e}')
+        return None
+
+
 def _resolve_tempo(y, sr, detected_tempo):
     """Corrige l'erreur classique 'double ou moitié' du tempo détecté.
 
@@ -926,7 +972,7 @@ def detect_tempo(wav_path):
         if len(y) == 0:
             return None
         tempo, _ = _beat_track(y, sr)
-        return _resolve_tempo(y, sr, tempo)
+        return _tempogram_tempo(y, sr) or _resolve_tempo(y, sr, tempo)
     except Exception as e:
         log(f'tempo detection failed: {e}')
         return None
@@ -5853,7 +5899,7 @@ def analyze_chords_lv(wav_path, diagnostics=False):
     times = librosa.frames_to_time(np.atleast_1d(tracked), sr=sr, hop_length=hop_length)
     ibis = np.diff(times)
     avg_tempo = (60.0 / float(np.median(ibis))) if len(ibis) and np.median(ibis) > 0 else tempo
-    avg_tempo = _resolve_tempo(y, sr, avg_tempo)
+    avg_tempo = _tempogram_tempo(y, sr, hop_length) or _resolve_tempo(y, sr, avg_tempo)
     time_signature = estimate_time_signature(wav_path, avg_tempo)
     key, key_candidates = detect_key(y, sr)
 

@@ -37,7 +37,7 @@ function tokensFor(chords = []) {
 }
 
 /** Résumé de lecture uniquement : ne réécrit ni les accords ni leurs temps. */
-export function principalChords(chords = [], { sharedEvidence = false } = {}) {
+export function principalChords(chords = [], { sharedEvidence = false, key = null } = {}) {
   const tokens = tokensFor(chords);
   if (!tokens.length) return [];
   const identity = (t) => `${t.rootPc}:${harmonicFamily(t)}`;
@@ -87,9 +87,23 @@ export function principalChords(chords = [], { sharedEvidence = false } = {}) {
     }
   }
   if (!best) return [];
-  // Présenter le tour à partir du premier pilier rencontré, sans imposer la tonique.
+  // [Claude] — 2026-10-29 — Présenter le tour à partir de la TONIQUE quand elle fait
+  // partie du motif. Narcisse, sur « Ma référence » : le bandeau affichait « D G C »
+  // alors que sa boucle commence par G — le D venait d'une intro, et l'ancre tombait
+  // sur le premier pilier rencontré dans le morceau. « Un pianiste aura tendance à
+  // comprendre que les accords principaux sont dans l'ordre chronologique », et lit
+  // donc une boucle qui démarre au mauvais endroit. Il a tranché : « on ancre sur le
+  // début de la boucle, et on initialise ça pour tous les morceaux ». Il cite d'ailleurs
+  // toujours ses boucles depuis la tonique — « sol, do, ré, do » ici, « La bémol, Mi
+  // bémol, Si bémol mineur, Fa mineur » sur Sabaoth.
+  // Sans tonalité exploitable, ou si elle ne figure pas dans le motif, on garde la règle
+  // d'avant : le premier pilier rencontré.
+  const tonicPc = key ? structureKey(key)?.rootPc : null;
+  const tonicId = Number.isFinite(tonicPc)
+    ? best.pattern.find((id) => tokens.some((t) => idOf(t) === id && t.rootPc === tonicPc))
+    : undefined;
   const first = tokens.find((t) => best.pattern.includes(idOf(t)));
-  const anchor = best.pattern.indexOf(idOf(first));
+  const anchor = best.pattern.indexOf(tonicId !== undefined ? tonicId : idOf(first));
   const pattern = [...best.pattern.slice(anchor), ...best.pattern.slice(0, anchor)];
   // Le cycle complet sert à reconnaître la forme. Le bandeau ne montre que
   // ses piliers : quatre harmonies distinctes au maximum, sans répéter le I.
@@ -137,7 +151,8 @@ export function buildHarmonicContexts(analysis = {}) {
       startTime: t.start, endTime: t.start + t.dur,
       chord: formatEffectiveChord((t.rootPc - r.rootPc + 12) % 12, t.quality, null),
     })));
-    const pattern = tokensFor(principalChords(normalized, { sharedEvidence: true }).map((chord, i) => ({ chord, startTime: i, endTime: i + 1 })));
+    // Les accords sont normalisés en degrés : la tonique y est le degré 0, donc « C ».
+    const pattern = tokensFor(principalChords(normalized, { sharedEvidence: true, key: 'C' }).map((chord, i) => ({ chord, startTime: i, endTime: i + 1 })));
     if (pattern.length) {
       const colors = new Map();
       return transposed.map((r, i) => {
@@ -157,7 +172,7 @@ export function buildHarmonicContexts(analysis = {}) {
         });
         return { start: r.start, end: transposed[i + 1]?.start ?? duration, key,
           mode: r.minor ? 'minor' : 'major', color: colors.get(key),
-          chords: chords.every(Boolean) ? chords : principalChords((analysis.chords || []).filter((c) => c.startTime >= r.start && c.startTime < r.end)),
+          chords: chords.every(Boolean) ? chords : principalChords((analysis.chords || []).filter((c) => c.startTime >= r.start && c.startTime < r.end), { key }),
           basis: 'transposed-progression' };
       });
     }
@@ -180,7 +195,7 @@ export function buildHarmonicContexts(analysis = {}) {
     const local = (analysis.chords || []).filter((c) => c && c.startTime < end && c.endTime > section.start)
       .map((c) => ({ ...c, startTime: Math.max(c.startTime, section.start), endTime: Math.min(c.endTime, end) }));
     return { start: section.start, end, key: section.key, mode: section.mode,
-      color: colors.get(colorKey), chords: principalChords(local) };
+      color: colors.get(colorKey), chords: principalChords(local, { key: section.key }) };
   });
 }
 
